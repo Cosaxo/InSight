@@ -168,6 +168,17 @@ export interface TimeBlock {
   icon: string;
 }
 
+// ─── Cohort Comparison ──────────────────────────────────────────────
+export type CohortKey = 'global' | 'country' | 'age';
+
+export interface PersonalityCohort extends PersonalityTraits {
+  label: string;
+}
+
+export interface CityScoreCohort extends CityScores {
+  label: string;
+}
+
 // ─── Tab Categories ─────────────────────────────────────────────────
 export type TabCategory = 'world' | 'city' | 'interests' | 'nearby' | 'friends';
 

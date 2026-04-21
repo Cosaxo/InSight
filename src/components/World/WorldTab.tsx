@@ -1,5 +1,6 @@
+import { useState } from 'react';
 import {
-  RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar,
+  RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar, Legend,
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell,
   PieChart, Pie, ScatterChart, Scatter, ZAxis,
 } from 'recharts';
@@ -7,22 +8,25 @@ import { Globe, Compass, Newspaper, Users, Sparkles, TrendingUp } from 'lucide-r
 import SectionCard from '../shared/SectionCard';
 import StatBadge from '../shared/StatBadge';
 import ProgressBar from '../shared/ProgressBar';
+import CohortSelector from '../shared/CohortSelector';
 import {
   personalityTraits,
+  personalityCohorts,
   politicalProfile,
   globalConnections,
   culturalAffinities,
   worldNewsInterests,
   timeUsage,
 } from '../../data/mockData';
+import type { CohortKey } from '../../types';
 
-const personalityData = [
-  { trait: 'Openness', value: personalityTraits.openness, fullMark: 100 },
-  { trait: 'Conscientiousness', value: personalityTraits.conscientiousness, fullMark: 100 },
-  { trait: 'Extraversion', value: personalityTraits.extraversion, fullMark: 100 },
-  { trait: 'Agreeableness', value: personalityTraits.agreeableness, fullMark: 100 },
-  { trait: 'Neuroticism', value: personalityTraits.neuroticism, fullMark: 100 },
-];
+const traitKeys = [
+  { key: 'openness', label: 'Openness' },
+  { key: 'conscientiousness', label: 'Conscientiousness' },
+  { key: 'extraversion', label: 'Extraversion' },
+  { key: 'agreeableness', label: 'Agreeableness' },
+  { key: 'neuroticism', label: 'Neuroticism' },
+] as const;
 
 const connectionsByType = [
   { type: 'Friend', count: globalConnections.filter(c => c.type === 'friend').length, color: '#ec4899' },
@@ -48,36 +52,80 @@ function getContinent(country: string): string {
   return map[country] || 'Other';
 }
 
-function CustomTooltip({ active, payload, label }: { active?: boolean; payload?: Array<{ value: number; color?: string }>; label?: string }) {
+function CustomTooltip({ active, payload, label }: { active?: boolean; payload?: Array<{ value: number; color?: string; name?: string }>; label?: string }) {
   if (!active || !payload?.length) return null;
   return (
     <div className="custom-tooltip">
       <div className="label">{label}</div>
-      <div className="value">{payload[0].value}</div>
+      {payload.map((p, i) => (
+        <div key={i} className="value" style={{ color: p.color }}>
+          {p.name ? `${p.name}: ` : ''}{p.value}
+        </div>
+      ))}
     </div>
   );
 }
 
 export default function WorldTab() {
+  const [cohortKey, setCohortKey] = useState<CohortKey | null>('global');
+
+  const cohort = cohortKey ? personalityCohorts[cohortKey] : null;
+  const personalityData = traitKeys.map(t => ({
+    trait: t.label,
+    you: personalityTraits[t.key],
+    cohort: cohort ? cohort[t.key] : 0,
+    fullMark: 100,
+  }));
+
   const compassX = 50 + (politicalProfile.economic / 100) * 50;
   const compassY = 50 - (politicalProfile.social / 100) * 50;
 
   return (
     <div className="widget-grid">
       {/* Personality Radar */}
-      <SectionCard title="Personality Profile" subtitle="Big Five Traits" accent="world" icon={<Sparkles size={14} />}>
+      <SectionCard
+        title="Personality Profile"
+        subtitle={cohort ? `You vs ${cohort.label}` : 'Big Five Traits'}
+        accent="world"
+        icon={<Sparkles size={14} />}
+        action={<CohortSelector value={cohortKey} onChange={setCohortKey} />}
+      >
         <ResponsiveContainer width="100%" height={220}>
           <RadarChart data={personalityData}>
             <PolarGrid stroke="#2a2a40" />
             <PolarAngleAxis dataKey="trait" tick={{ fill: '#94a3b8', fontSize: 11 }} />
             <PolarRadiusAxis tick={false} axisLine={false} domain={[0, 100]} />
-            <Radar dataKey="value" stroke="#6366f1" fill="#6366f1" fillOpacity={0.25} strokeWidth={2} />
+            {cohort && (
+              <Radar
+                name={cohort.label}
+                dataKey="cohort"
+                stroke="#f59e0b"
+                fill="#f59e0b"
+                fillOpacity={0.08}
+                strokeWidth={1.5}
+                strokeDasharray="4 4"
+              />
+            )}
+            <Radar name="You" dataKey="you" stroke="#6366f1" fill="#6366f1" fillOpacity={0.25} strokeWidth={2} />
+            <Tooltip content={<CustomTooltip />} />
+            {cohort && <Legend wrapperStyle={{ fontSize: 11, color: '#94a3b8' }} iconSize={8} />}
           </RadarChart>
         </ResponsiveContainer>
         <div className="stats-row">
-          <StatBadge value={personalityTraits.openness} label="Open" color="#6366f1" />
-          <StatBadge value={personalityTraits.extraversion} label="Extrav." color="#ec4899" />
-          <StatBadge value={personalityTraits.agreeableness} label="Agree." color="#10b981" />
+          {traitKeys.slice(0, 3).map((t, i) => {
+            const colors = ['#6366f1', '#ec4899', '#10b981'];
+            const yourVal = personalityTraits[t.key];
+            const delta = cohort ? yourVal - cohort[t.key] : null;
+            return (
+              <StatBadge
+                key={t.key}
+                value={yourVal}
+                label={t.label.slice(0, 6)}
+                color={colors[i]}
+                delta={delta}
+              />
+            );
+          })}
         </div>
       </SectionCard>
 

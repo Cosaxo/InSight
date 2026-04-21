@@ -298,6 +298,78 @@ body {
   margin-top: 4px;
 }
 
+.stat-delta {
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1;
+  margin-top: 2px;
+}
+
+/* ─── Cohort Selector ────────────────────────────────────── */
+.cohort-selector {
+  display: inline-flex;
+  gap: 2px;
+  background: var(--bg-elevated);
+  padding: 3px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+}
+
+.cohort-pill {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  font-size: 10px;
+  font-weight: 600;
+  padding: 4px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+  letter-spacing: 0.2px;
+}
+
+.cohort-pill:hover {
+  color: var(--text-primary);
+}
+
+.cohort-pill.active {
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
+}
+
+/* ─── Compare Bar (you vs cohort) ────────────────────────── */
+.compare-bar {
+  position: relative;
+  width: 100%;
+}
+
+.compare-bar-track {
+  width: 100%;
+  height: 100%;
+  background: var(--bg-elevated);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.compare-bar-fill {
+  height: 100%;
+  border-radius: 999px;
+  transition: width 0.4s ease;
+}
+
+.compare-bar-marker {
+  position: absolute;
+  top: -3px;
+  bottom: -3px;
+  width: 2px;
+  background: #e2e8f0;
+  border-radius: 1px;
+  transform: translateX(-50%);
+  box-shadow: 0 0 6px rgba(226, 232, 240, 0.4);
+  cursor: help;
+}
+
 /* ─── Progress Bar ───────────────────────────────────────── */
 .progress-bar {
   width: 100%;

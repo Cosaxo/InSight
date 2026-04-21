@@ -17,6 +17,9 @@ import type {
   CommunicationPattern,
   DiversityIndex,
   TimeBlock,
+  CohortKey,
+  PersonalityCohort,
+  CityScoreCohort,
 } from '../types';
 
 // ─── Personality ────────────────────────────────────────────────────
@@ -33,6 +36,22 @@ export const politicalProfile: PoliticalProfile = {
   social: -25,
   environmental: 78,
   globalism: 72,
+};
+
+// ─── Reference Cohorts ──────────────────────────────────────────────
+// Normative averages from population-scale Big Five studies, country-stratified
+// IPIP data, and age-stratified youth samples (illustrative, rounded).
+export const personalityCohorts: Record<CohortKey, PersonalityCohort> = {
+  global: { label: 'Global Average', openness: 58, conscientiousness: 62, extraversion: 50, agreeableness: 65, neuroticism: 52 },
+  country: { label: 'Your Country', openness: 64, conscientiousness: 60, extraversion: 53, agreeableness: 68, neuroticism: 48 },
+  age: { label: 'Your Age Group', openness: 71, conscientiousness: 57, extraversion: 56, agreeableness: 64, neuroticism: 54 },
+};
+
+// Benchmark city-quality scores: how the cohort typically rates destinations.
+export const cityScoreCohorts: Record<CohortKey, CityScoreCohort> = {
+  global: { label: 'Global Travelers', food: 68, culture: 70, nightlife: 62, safety: 65, affordability: 58, nature: 63, architecture: 68, people: 70 },
+  country: { label: 'Your Country', food: 72, culture: 75, nightlife: 65, safety: 72, affordability: 52, nature: 58, architecture: 75, people: 70 },
+  age: { label: 'Your Age Group', food: 78, culture: 80, nightlife: 82, safety: 62, affordability: 65, nature: 60, architecture: 72, people: 78 },
 };
 
 // ─── Time Usage ─────────────────────────────────────────────────────

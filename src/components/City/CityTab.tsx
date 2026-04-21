@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import {
   RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar, Legend,
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell,
@@ -7,7 +8,10 @@ import SectionCard from '../shared/SectionCard';
 import StatBadge from '../shared/StatBadge';
 import StarRating from '../shared/StarRating';
 import ProgressBar from '../shared/ProgressBar';
-import { cityVisits, cityDNA } from '../../data/mockData';
+import CohortSelector from '../shared/CohortSelector';
+import CompareBar from '../shared/CompareBar';
+import { cityVisits, cityDNA, cityScoreCohorts } from '../../data/mockData';
+import type { CohortKey, CityScores } from '../../types';
 
 const avgScores = {
   food: Math.round(cityVisits.reduce((s, c) => s + c.scores.food, 0) / cityVisits.length),
@@ -43,6 +47,9 @@ function CustomTooltip({ active, payload, label }: { active?: boolean; payload?:
 }
 
 export default function CityTab() {
+  const [cohortKey, setCohortKey] = useState<CohortKey | null>('global');
+  const cohort = cohortKey ? cityScoreCohorts[cohortKey] : null;
+
   const totalDays = cityVisits.reduce((s, c) => s + c.daysSpent, 0);
   const avgRating = (cityVisits.reduce((s, c) => s + c.rating, 0) / cityVisits.length).toFixed(1);
   const countries = new Set(cityVisits.map(c => c.country)).size;
@@ -50,7 +57,13 @@ export default function CityTab() {
   return (
     <div className="widget-grid">
       {/* Stats Overview */}
-      <SectionCard title="Travel Overview" accent="city" icon={<MapPin size={14} />}>
+      <SectionCard
+        title="Travel Overview"
+        subtitle={cohort ? `Your city averages vs ${cohort.label}` : undefined}
+        accent="city"
+        icon={<MapPin size={14} />}
+        action={<CohortSelector value={cohortKey} onChange={setCohortKey} />}
+      >
         <div className="stats-row">
           <StatBadge value={cityVisits.length} label="Cities" color="#f59e0b" />
           <StatBadge value={countries} label="Countries" color="#ec4899" />
@@ -58,15 +71,33 @@ export default function CityTab() {
           <StatBadge value={avgRating} label="Avg Rating" color="#10b981" />
         </div>
         <div style={{ marginTop: 8 }}>
-          {Object.entries(avgScores).map(([key, val]) => (
-            <div key={key} style={{ marginBottom: 8 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 3 }}>
-                <span style={{ fontSize: 11, color: '#94a3b8', textTransform: 'capitalize' }}>{key}</span>
-                <span style={{ fontSize: 11, fontWeight: 700, color: '#f59e0b' }}>{val}</span>
+          {Object.entries(avgScores).map(([key, val]) => {
+            const cohortVal = cohort ? cohort[key as keyof CityScores] : null;
+            const delta = cohortVal != null ? val - cohortVal : null;
+            const deltaColor = delta == null ? undefined : delta >= 0 ? '#10b981' : '#ef4444';
+            return (
+              <div key={key} style={{ marginBottom: 8 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 3 }}>
+                  <span style={{ fontSize: 11, color: '#94a3b8', textTransform: 'capitalize' }}>{key}</span>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: '#f59e0b' }}>
+                    {val}
+                    {delta != null && (
+                      <span style={{ marginLeft: 6, color: deltaColor, fontWeight: 600 }}>
+                        {delta >= 0 ? '+' : ''}{delta}
+                      </span>
+                    )}
+                  </span>
+                </div>
+                <CompareBar
+                  value={val}
+                  cohortValue={cohortVal}
+                  cohortLabel={cohort?.label}
+                  color="#f59e0b"
+                  height={6}
+                />
               </div>
-              <ProgressBar value={val} color="#f59e0b" height={4} />
-            </div>
-          ))}
+            );
+          })}
         </div>
       </SectionCard>
 
