@@ -137,3 +137,68 @@ export interface CityRating {
 }
 
 export type CityRatings = Record<string, CityRating>;
+
+// ── Personal Insights ──
+
+export interface MoodEntry {
+  date: string;
+  score: number; // 1..5
+  note?: string;
+}
+
+export interface Habit {
+  id: string;
+  name: string;
+  icon: string;
+  color: string;
+  completions: string[]; // ISO YYYY-MM-DD dates
+}
+
+export type WorkoutIntensity = "Low" | "Medium" | "High";
+export type WorkoutType =
+  | "Run"
+  | "Walk"
+  | "Cycle"
+  | "Swim"
+  | "Strength"
+  | "HIIT"
+  | "Yoga"
+  | "Other";
+
+export interface Workout {
+  id: string;
+  date: string;
+  type: WorkoutType;
+  duration: number; // minutes
+  intensity: WorkoutIntensity;
+  kcal: number;
+  notes?: string;
+}
+
+export interface Meal {
+  id: string;
+  date: string;
+  name: string;
+  kcal: number;
+  protein: number;
+  carbs: number;
+  fat: number;
+}
+
+export type TransactionType = "income" | "expense";
+
+export interface Transaction {
+  id: string;
+  date: string;
+  type: TransactionType;
+  category: string;
+  amount: number;
+  note?: string;
+}
+
+export type InsightTabId =
+  | "mood"
+  | "habits"
+  | "fitness"
+  | "nutrition"
+  | "finance";

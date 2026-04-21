@@ -4,13 +4,18 @@ import type { SectionKey } from "./theme";
 import type {
   CityRating,
   CityRatings,
+  Habit,
   Hero,
   Me,
+  Meal,
   MediaMap,
+  MoodEntry,
   Person,
   TabId,
   TestResult,
   TestType,
+  Transaction,
+  Workout,
 } from "./types";
 import {
   DEFAULT_MY_DISLIKES,
@@ -19,6 +24,15 @@ import {
   DEFAULT_MY_MEDIA,
 } from "./data/constants";
 import { INIT_RELATIONS } from "./data/profiles";
+import {
+  DEFAULT_HABITS,
+  DEFAULT_MEALS,
+  DEFAULT_MOODS,
+  DEFAULT_TRANSACTIONS,
+  DEFAULT_WORKOUTS,
+  TODAY,
+  nextHabitStyle,
+} from "./data/insightDefaults";
 import { loadState, saveState } from "./utils/storage";
 import { AnimationStyles } from "./components/shared/animations";
 import {
@@ -35,7 +49,7 @@ import { GroupsTab } from "./components/tabs/GroupsTab";
 import { PeopleTab } from "./components/tabs/PeopleTab";
 import { ProfilePanel } from "./components/panels/ProfilePanel";
 import { TestFlow } from "./components/panels/TestFlow";
-import { InsightsPanelStub } from "./components/panels/InsightsPanelStub";
+import { InsightsPanel } from "./components/panels/InsightsPanel";
 import { FABStack } from "./components/FAB/FABStack";
 
 interface NavIconProps {
@@ -93,6 +107,23 @@ export default function App() {
     (initial.cityRatings as CityRatings) ?? {},
   );
 
+  // Personal Insights state.
+  const [moods, setMoods] = useState<MoodEntry[]>(
+    (initial.moods as MoodEntry[]) ?? DEFAULT_MOODS,
+  );
+  const [habits, setHabits] = useState<Habit[]>(
+    (initial.habits as Habit[]) ?? DEFAULT_HABITS,
+  );
+  const [workouts, setWorkouts] = useState<Workout[]>(
+    (initial.workouts as Workout[]) ?? DEFAULT_WORKOUTS,
+  );
+  const [meals, setMeals] = useState<Meal[]>(
+    (initial.meals as Meal[]) ?? DEFAULT_MEALS,
+  );
+  const [transactions, setTransactions] = useState<Transaction[]>(
+    (initial.transactions as Transaction[]) ?? DEFAULT_TRANSACTIONS,
+  );
+
   // Persist any of these whenever they change.
   useEffect(() => {
     saveState({
@@ -105,6 +136,11 @@ export default function App() {
       heroes,
       relations,
       cityRatings,
+      moods,
+      habits,
+      workouts,
+      meals,
+      transactions,
     });
   }, [
     personality,
@@ -116,6 +152,11 @@ export default function App() {
     heroes,
     relations,
     cityRatings,
+    moods,
+    habits,
+    workouts,
+    meals,
+    transactions,
   ]);
 
   function handleTestComplete(result: TestResult) {
@@ -135,7 +176,51 @@ export default function App() {
     setHeroes(DEFAULT_MY_HEROES);
     setRelations(INIT_RELATIONS);
     setCityRatings({});
+    setMoods(DEFAULT_MOODS);
+    setHabits(DEFAULT_HABITS);
+    setWorkouts(DEFAULT_WORKOUTS);
+    setMeals(DEFAULT_MEALS);
+    setTransactions(DEFAULT_TRANSACTIONS);
     setShowProfile(false);
+  }
+
+  function logMood(entry: MoodEntry) {
+    setMoods((prev) => [entry, ...prev.filter((m) => m.date !== entry.date)]);
+  }
+  function deleteMood(date: string) {
+    setMoods((prev) => prev.filter((m) => m.date !== date));
+  }
+  function toggleHabit(id: string) {
+    setHabits((prev) =>
+      prev.map((h) => {
+        if (h.id !== id) return h;
+        const done = h.completions.includes(TODAY);
+        return {
+          ...h,
+          completions: done
+            ? h.completions.filter((d) => d !== TODAY)
+            : [TODAY, ...h.completions],
+        };
+      }),
+    );
+  }
+  function addHabit(name: string) {
+    setHabits((prev) => {
+      const { icon, color } = nextHabitStyle(prev.length);
+      return [
+        ...prev,
+        { id: `h${Date.now()}`, name, icon, color, completions: [] },
+      ];
+    });
+  }
+  function logWorkout(w: Omit<Workout, "id">) {
+    setWorkouts((prev) => [{ id: `w${Date.now()}`, ...w }, ...prev]);
+  }
+  function logMeal(m: Omit<Meal, "id">) {
+    setMeals((prev) => [{ id: `m${Date.now()}`, ...m }, ...prev]);
+  }
+  function logTransaction(t: Omit<Transaction, "id">) {
+    setTransactions((prev) => [{ id: `t${Date.now()}`, ...t }, ...prev]);
   }
 
   function rateCity(
@@ -199,7 +284,23 @@ export default function App() {
       );
     }
     if (showInsights) {
-      return <InsightsPanelStub onClose={() => setShowInsights(false)} />;
+      return (
+        <InsightsPanel
+          onClose={() => setShowInsights(false)}
+          moods={moods}
+          habits={habits}
+          workouts={workouts}
+          meals={meals}
+          transactions={transactions}
+          onLogMood={logMood}
+          onDeleteMood={deleteMood}
+          onToggleHabit={toggleHabit}
+          onAddHabit={addHabit}
+          onLogWorkout={logWorkout}
+          onLogMeal={logMeal}
+          onLogTransaction={logTransaction}
+        />
+      );
     }
     switch (tab) {
       case "around":

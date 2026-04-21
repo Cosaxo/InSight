@@ -16,6 +16,11 @@ export interface PersistedState {
   heroes?: { name: string; role: string; reason: string }[];
   relations?: unknown;
   cityRatings?: unknown;
+  moods?: unknown;
+  habits?: unknown;
+  workouts?: unknown;
+  meals?: unknown;
+  transactions?: unknown;
 }
 
 function hasStorage(): boolean {
