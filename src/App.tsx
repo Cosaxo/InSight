@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, lazy, useEffect, useMemo, useRef, useState } from "react";
 import { C, FONT_STACK, SEC } from "./theme";
 import type { SectionKey } from "./theme";
 import type {
@@ -34,7 +34,7 @@ import {
   nextHabitStyle,
 } from "./data/insightDefaults";
 import { loadState, saveState } from "./utils/storage";
-import { firebaseEnabled, googleSignOut } from "./lib/firebase";
+import { firebaseEnabled, googleSignOut, warmFirebase } from "./lib/firebase";
 import { useAuth } from "./lib/useAuth";
 import { useDebounce } from "./lib/useDebounce";
 import {
@@ -60,8 +60,8 @@ import {
   updateHabit as remoteUpdateHabit,
   updateRelation as remoteUpdateRelation,
   upsertMood as remoteUpsertMood,
-} from "./lib/remoteStorage";
-import type { RemoteProfile } from "./lib/remoteStorage";
+} from "./lib/firebase";
+import type { RemoteProfile } from "./lib/firebase";
 import { AnimationStyles } from "./components/shared/animations";
 import {
   IcoAround,
@@ -76,10 +76,21 @@ import { CityTab } from "./components/tabs/CityTab";
 import { GroupsTab } from "./components/tabs/GroupsTab";
 import { PeopleTab } from "./components/tabs/PeopleTab";
 import { ProfilePanel } from "./components/panels/ProfilePanel";
-import { TestFlow } from "./components/panels/TestFlow";
-import { InsightsPanel } from "./components/panels/InsightsPanel";
 import { FABStack } from "./components/FAB/FABStack";
 import { LoadingScreen, LoginScreen } from "./components/panels/LoginScreen";
+
+// Heavy panels are only rendered on demand — split them off the critical
+// path so the initial bundle stays small.
+const InsightsPanel = lazy(() =>
+  import("./components/panels/InsightsPanel").then((m) => ({
+    default: m.InsightsPanel,
+  })),
+);
+const TestFlow = lazy(() =>
+  import("./components/panels/TestFlow").then((m) => ({
+    default: m.TestFlow,
+  })),
+);
 
 interface NavIconProps {
   col: string;
@@ -108,6 +119,23 @@ const DEFAULT_PERSONALITY = [78, 62, 41, 69, 74];
 const DEFAULT_POLITICAL = { econ: -18, social: -15 };
 const DEFAULT_CV = { indiv: -18, change: 22 };
 
+function PanelFallback() {
+  return (
+    <div
+      style={{
+        minHeight: 160,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        color: C.muted,
+        fontSize: 13,
+      }}
+    >
+      Loading…
+    </div>
+  );
+}
+
 function initialsOf(name: string | null | undefined): string {
   if (!name) return "YO";
   return name
@@ -119,6 +147,13 @@ function initialsOf(name: string | null | undefined): string {
 }
 
 export default function App() {
+  // Start fetching the Firebase SDK chunk in parallel with first paint when
+  // Firebase is enabled. By the time useAuth subscribes, the chunk is
+  // usually already in the cache.
+  useEffect(() => {
+    warmFirebase();
+  }, []);
+
   const { user, loading: authLoading } = useAuth();
   const isSignedIn = firebaseEnabled && !!user;
 
@@ -766,7 +801,7 @@ export default function App() {
             WebkitOverflowScrolling: "touch",
           }}
         >
-          {renderContent()}
+          <Suspense fallback={<PanelFallback />}>{renderContent()}</Suspense>
         </div>
         {isContent && (
           <FABStack

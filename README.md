@@ -4,6 +4,13 @@ A mobile-first personal-insight dashboard. Five tabs — **Around / World / City
 
 Built with React 19, TypeScript, Vite, and Recharts. Persistence is either localStorage (default) or Firebase Auth + Firestore (opt-in via env vars).
 
+> **⚠️ Pending verification.** The Firebase Auth + Firestore flow (sign-in,
+> first-sign-in migration, subscriptions, sign-out) has been written and
+> typechecks but **has not yet been exercised end-to-end in a real browser
+> against the live Firebase project**. Do not deploy to production until you've
+> walked through the flow manually — sign in, log a few items, sign out,
+> sign back in on another browser, verify data survives. Tracked as a TODO.
+
 ## Running locally
 
 ```bash

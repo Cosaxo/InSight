@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
-import { onAuthStateChanged, type User } from "firebase/auth";
-import { fbAuth, firebaseEnabled } from "./firebase";
+import type { User } from "firebase/auth";
+import { firebaseEnabled, subscribeToAuth } from "./firebase";
 
 export interface AuthState {
   user: User | null;
@@ -15,8 +15,8 @@ export function useAuth(): AuthState {
   }));
 
   useEffect(() => {
-    if (!firebaseEnabled || !fbAuth) return;
-    return onAuthStateChanged(fbAuth, (user) => {
+    if (!firebaseEnabled) return;
+    return subscribeToAuth((user) => {
       setState({ user, loading: false });
     });
   }, []);
