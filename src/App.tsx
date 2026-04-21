@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { C, FONT_STACK, SEC } from "./theme";
 import type { SectionKey } from "./theme";
 import type {
@@ -34,6 +34,34 @@ import {
   nextHabitStyle,
 } from "./data/insightDefaults";
 import { loadState, saveState } from "./utils/storage";
+import { firebaseEnabled, googleSignOut } from "./lib/firebase";
+import { useAuth } from "./lib/useAuth";
+import { useDebounce } from "./lib/useDebounce";
+import {
+  addHabit as remoteAddHabit,
+  addMeal as remoteAddMeal,
+  addRelation as remoteAddRelation,
+  addTransaction as remoteAddTransaction,
+  addWorkout as remoteAddWorkout,
+  deleteMood as remoteDeleteMood,
+  deleteRelation as remoteDeleteRelation,
+  loadProfile,
+  migrateFromLocal,
+  profileExists,
+  saveProfile,
+  setCityRating as remoteSetCityRating,
+  subscribeCityRatings,
+  subscribeHabits,
+  subscribeMeals,
+  subscribeMoods,
+  subscribeRelations,
+  subscribeTransactions,
+  subscribeWorkouts,
+  updateHabit as remoteUpdateHabit,
+  updateRelation as remoteUpdateRelation,
+  upsertMood as remoteUpsertMood,
+} from "./lib/remoteStorage";
+import type { RemoteProfile } from "./lib/remoteStorage";
 import { AnimationStyles } from "./components/shared/animations";
 import {
   IcoAround,
@@ -51,13 +79,18 @@ import { ProfilePanel } from "./components/panels/ProfilePanel";
 import { TestFlow } from "./components/panels/TestFlow";
 import { InsightsPanel } from "./components/panels/InsightsPanel";
 import { FABStack } from "./components/FAB/FABStack";
+import { LoadingScreen, LoginScreen } from "./components/panels/LoginScreen";
 
 interface NavIconProps {
   col: string;
   on?: boolean;
 }
 
-const TABS: { id: TabId; label: string; Ico: (p: NavIconProps) => React.ReactElement }[] = [
+const TABS: {
+  id: TabId;
+  label: string;
+  Ico: (p: NavIconProps) => React.ReactElement;
+}[] = [
   { id: "around", label: "Around", Ico: IcoAround },
   { id: "world", label: "World", Ico: IcoWorld },
   { id: "city", label: "City", Ico: IcoCity },
@@ -75,18 +108,33 @@ const DEFAULT_PERSONALITY = [78, 62, 41, 69, 74];
 const DEFAULT_POLITICAL = { econ: -18, social: -15 };
 const DEFAULT_CV = { indiv: -18, change: 22 };
 
+function initialsOf(name: string | null | undefined): string {
+  if (!name) return "YO";
+  return name
+    .split(" ")
+    .map((n) => n[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
+}
+
 export default function App() {
+  const { user, loading: authLoading } = useAuth();
+  const isSignedIn = firebaseEnabled && !!user;
+
   const [tab, setTab] = useState<TabId>("around");
   const [showProfile, setShowProfile] = useState(false);
   const [showInsights, setShowInsights] = useState(false);
   const [activeTest, setActiveTest] = useState<TestType | null>(null);
   const [fabOpen, setFabOpen] = useState(false);
 
-  const initial = loadState();
+  const initial = useMemo(() => loadState(), []);
   const [personality, setPersonality] = useState<number[]>(
     initial.personality ?? DEFAULT_PERSONALITY,
   );
-  const [political, setPolitical] = useState(initial.political ?? DEFAULT_POLITICAL);
+  const [political, setPolitical] = useState(
+    initial.political ?? DEFAULT_POLITICAL,
+  );
   const [cv, setCv] = useState(initial.cv ?? DEFAULT_CV);
   const [media, setMedia] = useState<MediaMap>(
     (initial.media as MediaMap) ?? DEFAULT_MY_MEDIA,
@@ -106,8 +154,6 @@ export default function App() {
   const [cityRatings, setCityRatings] = useState<CityRatings>(
     (initial.cityRatings as CityRatings) ?? {},
   );
-
-  // Personal Insights state.
   const [moods, setMoods] = useState<MoodEntry[]>(
     (initial.moods as MoodEntry[]) ?? DEFAULT_MOODS,
   );
@@ -124,8 +170,101 @@ export default function App() {
     (initial.transactions as Transaction[]) ?? DEFAULT_TRANSACTIONS,
   );
 
-  // Persist any of these whenever they change.
+  // ── Remote load + subscriptions ─────────────────────────────────
+  //
+  // When a user signs in for the first time (no profile doc yet) we seed
+  // their Firestore subtree from the current local state and then rely on
+  // subscriptions to keep things in sync. Returning users load their
+  // profile doc before we subscribe so we don't flash defaults.
+  const profileLoadedRef = useRef(false);
+
   useEffect(() => {
+    if (!isSignedIn || !user) {
+      profileLoadedRef.current = false;
+      return;
+    }
+
+    const uid = user.uid;
+    let cancelled = false;
+    let unsubs: (() => void)[] = [];
+
+    (async () => {
+      try {
+        const existing = await profileExists(uid);
+        if (!existing) {
+          await migrateFromLocal(uid, {
+            profile: { personality, political, cv, media, likes, dislikes, heroes },
+            relations,
+            cityRatings,
+            moods,
+            habits,
+            workouts,
+            meals,
+            transactions,
+          });
+        } else {
+          const remote = await loadProfile(uid);
+          if (!cancelled && remote) applyRemoteProfile(remote);
+        }
+
+        if (cancelled) return;
+        profileLoadedRef.current = true;
+
+        unsubs = [
+          subscribeRelations(uid, setRelations),
+          subscribeCityRatings(uid, setCityRatings),
+          subscribeMoods(uid, (items) =>
+            setMoods(
+              [...items].sort((a, b) => (a.date < b.date ? 1 : -1)),
+            ),
+          ),
+          subscribeHabits(uid, setHabits),
+          subscribeWorkouts(uid, (items) =>
+            setWorkouts(
+              [...items].sort((a, b) => (a.date < b.date ? 1 : -1)),
+            ),
+          ),
+          subscribeMeals(uid, (items) =>
+            setMeals(
+              [...items].sort((a, b) => (a.date < b.date ? 1 : -1)),
+            ),
+          ),
+          subscribeTransactions(uid, (items) =>
+            setTransactions(
+              [...items].sort((a, b) => (a.date < b.date ? 1 : -1)),
+            ),
+          ),
+        ];
+      } catch (err) {
+        console.error("[app] remote bootstrap failed:", err);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+      unsubs.forEach((u) => u());
+      profileLoadedRef.current = false;
+    };
+    // Intentionally narrow deps — we only want this to run on auth change.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isSignedIn, user?.uid]);
+
+  function applyRemoteProfile(p: RemoteProfile) {
+    if (p.personality) setPersonality(p.personality);
+    if (p.political) setPolitical(p.political);
+    if (p.cv) setCv(p.cv);
+    if (p.media) setMedia(p.media);
+    if (p.likes) setLikes(p.likes);
+    if (p.dislikes) setDislikes(p.dislikes);
+    if (p.heroes) setHeroes(p.heroes);
+  }
+
+  // ── Persistence effects ─────────────────────────────────────────
+
+  // Local-only: mirror everything into localStorage (preserves the guest /
+  // Firebase-disabled flow).
+  useEffect(() => {
+    if (isSignedIn) return;
     saveState({
       personality,
       political,
@@ -143,6 +282,7 @@ export default function App() {
       transactions,
     });
   }, [
+    isSignedIn,
     personality,
     political,
     cv,
@@ -159,6 +299,39 @@ export default function App() {
     transactions,
   ]);
 
+  // Remote profile save: debounced to avoid thrashing on rapid edits.
+  const debouncedSaveProfile = useDebounce((uid: string, patch: RemoteProfile) => {
+    saveProfile(uid, patch).catch((e) =>
+      console.error("[app] saveProfile:", e),
+    );
+  }, 1500);
+
+  useEffect(() => {
+    if (!isSignedIn || !user || !profileLoadedRef.current) return;
+    debouncedSaveProfile(user.uid, {
+      personality,
+      political,
+      cv,
+      media,
+      likes,
+      dislikes,
+      heroes,
+    });
+  }, [
+    isSignedIn,
+    user,
+    debouncedSaveProfile,
+    personality,
+    political,
+    cv,
+    media,
+    likes,
+    dislikes,
+    heroes,
+  ]);
+
+  // ── Handlers ────────────────────────────────────────────────────
+
   function handleTestComplete(result: TestResult) {
     if (result.personality) setPersonality(result.personality);
     if (result.political) setPolitical(result.political);
@@ -166,7 +339,9 @@ export default function App() {
     setActiveTest(null);
   }
 
-  function resetDefaults() {
+  async function handleSignOut() {
+    await googleSignOut();
+    // Reset state back to defaults so the next sign-in is clean.
     setPersonality(DEFAULT_PERSONALITY);
     setPolitical(DEFAULT_POLITICAL);
     setCv(DEFAULT_CV);
@@ -184,43 +359,113 @@ export default function App() {
     setShowProfile(false);
   }
 
+  function resetDefaults() {
+    // Only meaningful in local mode; for signed-in users we expose sign-out.
+    setPersonality(DEFAULT_PERSONALITY);
+    setPolitical(DEFAULT_POLITICAL);
+    setCv(DEFAULT_CV);
+    setMedia(DEFAULT_MY_MEDIA);
+    setLikes(DEFAULT_MY_LIKES);
+    setDislikes(DEFAULT_MY_DISLIKES);
+    setHeroes(DEFAULT_MY_HEROES);
+    setRelations(INIT_RELATIONS);
+    setCityRatings({});
+    setMoods(DEFAULT_MOODS);
+    setHabits(DEFAULT_HABITS);
+    setWorkouts(DEFAULT_WORKOUTS);
+    setMeals(DEFAULT_MEALS);
+    setTransactions(DEFAULT_TRANSACTIONS);
+    setShowProfile(false);
+  }
+
+  // Sub-collection writes fan out to both local state (so the UI updates
+  // immediately) and Firestore when signed in (the subscription will later
+  // reconcile). In local mode they only touch state.
   function logMood(entry: MoodEntry) {
     setMoods((prev) => [entry, ...prev.filter((m) => m.date !== entry.date)]);
+    if (isSignedIn && user) {
+      remoteUpsertMood(user.uid, entry).catch((e) =>
+        console.error("[app] upsertMood:", e),
+      );
+    }
   }
+
   function deleteMood(date: string) {
     setMoods((prev) => prev.filter((m) => m.date !== date));
+    if (isSignedIn && user) {
+      remoteDeleteMood(user.uid, date).catch((e) =>
+        console.error("[app] deleteMood:", e),
+      );
+    }
   }
+
   function toggleHabit(id: string) {
+    let updated: Habit | undefined;
     setHabits((prev) =>
       prev.map((h) => {
         if (h.id !== id) return h;
         const done = h.completions.includes(TODAY);
-        return {
+        updated = {
           ...h,
           completions: done
             ? h.completions.filter((d) => d !== TODAY)
             : [TODAY, ...h.completions],
         };
+        return updated;
       }),
     );
+    if (isSignedIn && user && updated) {
+      remoteUpdateHabit(user.uid, id, {
+        completions: updated.completions,
+      }).catch((e) => console.error("[app] updateHabit:", e));
+    }
   }
+
   function addHabit(name: string) {
-    setHabits((prev) => {
-      const { icon, color } = nextHabitStyle(prev.length);
-      return [
-        ...prev,
-        { id: `h${Date.now()}`, name, icon, color, completions: [] },
-      ];
-    });
+    const style = nextHabitStyle(habits.length);
+    const habit: Habit = {
+      id: `h${Date.now()}`,
+      name,
+      icon: style.icon,
+      color: style.color,
+      completions: [],
+    };
+    setHabits((prev) => [...prev, habit]);
+    if (isSignedIn && user) {
+      remoteAddHabit(user.uid, habit).catch((e) =>
+        console.error("[app] addHabit:", e),
+      );
+    }
   }
+
   function logWorkout(w: Omit<Workout, "id">) {
-    setWorkouts((prev) => [{ id: `w${Date.now()}`, ...w }, ...prev]);
+    const entry: Workout = { id: `w${Date.now()}`, ...w };
+    setWorkouts((prev) => [entry, ...prev]);
+    if (isSignedIn && user) {
+      remoteAddWorkout(user.uid, entry).catch((e) =>
+        console.error("[app] addWorkout:", e),
+      );
+    }
   }
+
   function logMeal(m: Omit<Meal, "id">) {
-    setMeals((prev) => [{ id: `m${Date.now()}`, ...m }, ...prev]);
+    const entry: Meal = { id: `m${Date.now()}`, ...m };
+    setMeals((prev) => [entry, ...prev]);
+    if (isSignedIn && user) {
+      remoteAddMeal(user.uid, entry).catch((e) =>
+        console.error("[app] addMeal:", e),
+      );
+    }
   }
+
   function logTransaction(t: Omit<Transaction, "id">) {
-    setTransactions((prev) => [{ id: `t${Date.now()}`, ...t }, ...prev]);
+    const entry: Transaction = { id: `t${Date.now()}`, ...t };
+    setTransactions((prev) => [entry, ...prev]);
+    if (isSignedIn && user) {
+      remoteAddTransaction(user.uid, entry).catch((e) =>
+        console.error("[app] addTransaction:", e),
+      );
+    }
   }
 
   function rateCity(
@@ -232,8 +477,59 @@ export default function App() {
       ...prev,
       [cityName]: { ...(prev[cityName] || {}), [key]: value },
     }));
+    if (isSignedIn && user) {
+      remoteSetCityRating(user.uid, cityName, key, value).catch((e) =>
+        console.error("[app] setCityRating:", e),
+      );
+    }
   }
 
+  // Relations get a setter-style wrapper so PeopleTab can stay agnostic.
+  function setRelationsSmart(
+    updater: Person[] | ((prev: Person[]) => Person[]),
+  ) {
+    setRelations((prev) => {
+      const next = typeof updater === "function" ? updater(prev) : updater;
+      if (!isSignedIn || !user) return next;
+
+      const uid = user.uid;
+      const prevById = new Map(prev.map((p) => [p.id, p]));
+      const nextById = new Map(next.map((p) => [p.id, p]));
+
+      for (const p of next) {
+        const old = prevById.get(p.id);
+        if (!old) {
+          remoteAddRelation(uid, p).catch((e) =>
+            console.error("[app] addRelation:", e),
+          );
+        } else if (JSON.stringify(old) !== JSON.stringify(p)) {
+          remoteUpdateRelation(uid, p.id, p).catch((e) =>
+            console.error("[app] updateRelation:", e),
+          );
+        }
+      }
+      for (const p of prev) {
+        if (!nextById.has(p.id)) {
+          remoteDeleteRelation(uid, p.id).catch((e) =>
+            console.error("[app] deleteRelation:", e),
+          );
+        }
+      }
+      return next;
+    });
+  }
+
+  // ── Auth gating ─────────────────────────────────────────────────
+
+  if (firebaseEnabled && authLoading) {
+    return <LoadingScreen />;
+  }
+  if (firebaseEnabled && !user) {
+    return <LoginScreen />;
+  }
+
+  const displayName = user?.displayName || "You";
+  const photoURL = user?.photoURL || null;
   const me: Me = {
     personality,
     political,
@@ -242,8 +538,8 @@ export default function App() {
     likes,
     dislikes,
     heroes,
-    displayName: "You",
-    photoURL: null,
+    displayName,
+    photoURL,
   };
 
   const isContent = !showProfile && !activeTest && !showInsights;
@@ -280,6 +576,8 @@ export default function App() {
           onUpdateDislikes={setDislikes}
           onUpdateHeroes={setHeroes}
           onResetDefaults={resetDefaults}
+          onSignOut={isSignedIn ? handleSignOut : undefined}
+          signedIn={isSignedIn}
         />
       );
     }
@@ -313,10 +611,16 @@ export default function App() {
         return <GroupsTab me={me} />;
       case "people":
         return (
-          <PeopleTab me={me} relations={relations} setRelations={setRelations} />
+          <PeopleTab
+            me={me}
+            relations={relations}
+            setRelations={setRelationsSmart}
+          />
         );
     }
   }
+
+  const headerInitials = initialsOf(user?.displayName);
 
   return (
     <div
@@ -376,7 +680,22 @@ export default function App() {
             transition: "all 0.2s",
           }}
         >
-          {showProfile ? <span style={{ fontSize: 14 }}>✕</span> : "YO"}
+          {showProfile ? (
+            <span style={{ fontSize: 14 }}>✕</span>
+          ) : photoURL ? (
+            <img
+              src={photoURL}
+              alt=""
+              referrerPolicy="no-referrer"
+              style={{
+                width: "100%",
+                height: "100%",
+                objectFit: "cover",
+              }}
+            />
+          ) : (
+            headerInitials
+          )}
         </button>
 
         <div

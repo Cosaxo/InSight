@@ -30,6 +30,8 @@ interface ProfilePanelProps {
   onUpdateDislikes: (d: string[]) => void;
   onUpdateHeroes: (h: Hero[]) => void;
   onResetDefaults: () => void;
+  onSignOut?: () => void;
+  signedIn?: boolean;
 }
 
 export function ProfilePanel({
@@ -41,6 +43,8 @@ export function ProfilePanel({
   onUpdateDislikes,
   onUpdateHeroes,
   onResetDefaults,
+  onSignOut,
+  signedIn,
 }: ProfilePanelProps) {
   const radarData = P_TRAITS.map((trait, i) => ({
     trait,
@@ -542,42 +546,79 @@ export function ProfilePanel({
             marginBottom: 14,
           }}
         >
-          <Av
-            init={(me.displayName || "?")
-              .split(" ")
-              .map((n) => n[0])
-              .join("")
-              .slice(0, 2)
-              .toUpperCase()}
-            color={C.teal}
-            size={44}
-          />
+          {me.photoURL ? (
+            <img
+              src={me.photoURL}
+              alt=""
+              referrerPolicy="no-referrer"
+              style={{
+                width: 44,
+                height: 44,
+                borderRadius: "50%",
+                objectFit: "cover",
+                border: `2px solid ${C.divider}`,
+              }}
+            />
+          ) : (
+            <Av
+              init={(me.displayName || "?")
+                .split(" ")
+                .map((n) => n[0])
+                .join("")
+                .slice(0, 2)
+                .toUpperCase()}
+              color={C.teal}
+              size={44}
+            />
+          )}
           <div>
             <div style={{ fontSize: 15, fontWeight: 700, color: C.navy }}>
               {me.displayName || "Your account"}
             </div>
             <div style={{ fontSize: 11, color: C.muted }}>
-              Stored locally on this device
+              {signedIn
+                ? "Signed in with Google"
+                : "Stored locally on this device"}
             </div>
           </div>
         </div>
-        <button
-          onClick={onResetDefaults}
-          style={{
-            width: "100%",
-            padding: "12px",
-            borderRadius: 14,
-            border: `1.5px solid ${C.divider}`,
-            background: "transparent",
-            color: C.muted,
-            fontFamily: "inherit",
-            fontSize: 14,
-            cursor: "pointer",
-            fontWeight: 600,
-          }}
-        >
-          Reset to defaults
-        </button>
+        {signedIn && onSignOut ? (
+          <button
+            onClick={onSignOut}
+            style={{
+              width: "100%",
+              padding: "12px",
+              borderRadius: 14,
+              border: `1.5px solid ${C.divider}`,
+              background: "transparent",
+              color: C.muted,
+              fontFamily: "inherit",
+              fontSize: 14,
+              cursor: "pointer",
+              fontWeight: 600,
+            }}
+          >
+            Sign out
+          </button>
+        ) : (
+          <button
+            onClick={onResetDefaults}
+            style={{
+              width: "100%",
+              padding: "12px",
+              borderRadius: 14,
+              border: `1.5px solid ${C.divider}`,
+              background: "transparent",
+              color: C.muted,
+              fontFamily: "inherit",
+              fontSize: 14,
+              cursor: "pointer",
+              fontWeight: 600,
+            }}
+          >
+            Reset to defaults
+          </button>
+        )}
       </Card>
     </div>
   );
