@@ -202,3 +202,90 @@ export type InsightTabId =
   | "fitness"
   | "nutrition"
   | "finance";
+
+// ── Ambient (weather / AQI) ──
+
+export interface GeoPoint {
+  lat: number;
+  lng: number;
+  label?: string; // "Oslo, Norway" — filled from reverse geocode if available
+}
+
+export interface AirQuality {
+  co?: number;
+  o3?: number;
+  no2?: number;
+  so2?: number;
+  pm2_5?: number;
+  pm10?: number;
+  usEpaIndex?: number; // 1..6
+  gbDefraIndex?: number; // 1..10
+}
+
+export interface Ambient {
+  fetchedAt: number; // ms epoch
+  location: string;
+  tempC: number;
+  feelsLikeC: number;
+  conditionText: string;
+  conditionCode: number; // WeatherAPI code
+  isDay: boolean;
+  humidity: number;
+  pressureMb: number;
+  windKph: number;
+  windMph: number;
+  windDir: string; // "NW"
+  windDegree: number;
+  uv: number;
+  cloudPct: number;
+  precipMm: number;
+  air?: AirQuality;
+}
+
+// ── Celestial ──
+
+export type PlanetName = "Mercury" | "Venus" | "Mars" | "Jupiter" | "Saturn";
+
+export interface BodyState {
+  name: string;
+  altitudeDeg: number; // negative = below horizon
+  azimuthDeg: number;
+  magnitude?: number; // brightness (lower = brighter)
+  isUp: boolean;
+  isNakedEye: boolean; // alt > 5° and mag < 5
+  nextRise?: Date | null;
+  nextSet?: Date | null;
+}
+
+export interface MoonState extends BodyState {
+  phaseName: string; // e.g., "Waxing Gibbous"
+  illuminationPct: number; // 0..100
+}
+
+// WeatherAPI also gives pre-computed sunrise/sunset strings, but we derive
+// everything from astronomy-engine for consistency — hence SunState is a
+// plain BodyState for now.
+export type SunState = BodyState;
+
+export interface MeteorShower {
+  name: string;
+  peakMonth: number; // 1..12
+  peakDay: number; // day of month
+  startDay: string; // "MM-DD" window start
+  endDay: string; // "MM-DD" window end
+  peakZhr: number; // expected meteors/hour at peak
+  radiant: string; // constellation
+}
+
+export interface ActiveShower extends MeteorShower {
+  daysToPeak: number; // negative if past peak
+}
+
+export interface CelestialSnapshot {
+  computedAt: number; // ms epoch
+  observer: GeoPoint;
+  sun: SunState;
+  moon: MoonState;
+  planets: BodyState[];
+  activeShowers: ActiveShower[];
+}

@@ -5,6 +5,7 @@ import { Card } from "../shared/Card";
 import { SLabel } from "../shared/SLabel";
 import { BarFill } from "../shared/BarFill";
 import { ContextBar } from "../shared/ContextBar";
+import { CelestialCard } from "../shared/CelestialCard";
 import { PeopleInsightPanel } from "../insights/PeopleInsightPanel";
 
 interface WorldTabProps {
@@ -41,6 +42,7 @@ export function WorldTab({ me }: WorldTabProps) {
         </div>
       </Card>
       <PeopleInsightPanel profile={WORLD_PROFILE} me={me} />
+      <CelestialCard />
       <Card sec="world">
         <SLabel sec="world">Your cultural alignment</SLabel>
         {CULTURAL_ALIGNMENT.map((a, i) => (

@@ -58,7 +58,9 @@ export type SectionKey =
   | "world"
   | "city"
   | "groups"
-  | "people";
+  | "people"
+  | "ambient"
+  | "celestial";
 
 export interface SectionStyle {
   bg: string;
@@ -86,6 +88,13 @@ export const SEC: Record<SectionKey, SectionStyle> = {
   city: { ...HUE.amber, label: "City" },
   groups: { ...HUE.violet, label: "Groups" },
   people: { ...HUE.green, label: "People" },
+  ambient: { ...HUE.cyan, label: "Ambient" },
+  celestial: {
+    bg: "#f5f3ff",
+    border: "#c4b5fd",
+    accent: "#4338ca",
+    label: "Celestial",
+  },
 };
 
 // Refined colours for FAB actions — each action gets a distinct hue.

@@ -7,6 +7,7 @@ import { Pill } from "../shared/Pill";
 import { Av } from "../shared/Av";
 import { CVBadge } from "../shared/CVBadge";
 import { ContextBar } from "../shared/ContextBar";
+import { AmbientCard } from "../shared/AmbientCard";
 import { PeopleInsightPanel } from "../insights/PeopleInsightPanel";
 import { PersonProfilePanel } from "../panels/PersonProfilePanel";
 
@@ -40,6 +41,7 @@ export function AroundTab({ me }: AroundTabProps) {
           { icon: "✨", label: "Like you", value: "312", color: C.purple },
         ]}
       />
+      <AmbientCard />
       <div style={{ display: "flex", gap: 8 }}>
         <Pill
           active={mode === "people"}
