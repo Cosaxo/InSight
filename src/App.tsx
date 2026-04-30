@@ -78,6 +78,7 @@ import { PeopleTab } from "./components/tabs/PeopleTab";
 import { ProfilePanel } from "./components/panels/ProfilePanel";
 import { FABStack } from "./components/FAB/FABStack";
 import { LoadingScreen, LoginScreen } from "./components/panels/LoginScreen";
+import { Skeleton, SkeletonStack } from "./components/shared/Skeleton";
 
 // Heavy panels are only rendered on demand — split them off the critical
 // path so the initial bundle stays small.
@@ -121,17 +122,23 @@ const DEFAULT_CV = { indiv: -18, change: 22 };
 
 function PanelFallback() {
   return (
-    <div
-      style={{
-        minHeight: 160,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        color: C.muted,
-        fontSize: 13,
-      }}
-    >
-      Loading…
+    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+      <div
+        style={{
+          background: C.card,
+          border: `1px solid ${C.divider}`,
+          borderRadius: 18,
+          padding: "18px 16px",
+          boxShadow: C.shadow,
+          display: "flex",
+          flexDirection: "column",
+          gap: 12,
+        }}
+      >
+        <Skeleton height={11} width="35%" radius={4} />
+        <Skeleton height={120} radius={12} />
+        <SkeletonStack rows={3} rowHeight={10} />
+      </div>
     </div>
   );
 }
@@ -716,7 +723,9 @@ export default function App() {
           }}
         >
           {showProfile ? (
-            <span style={{ fontSize: 14 }}>✕</span>
+            <svg width="14" height="14" viewBox="0 0 18 18" fill="none" stroke="#fff" strokeWidth="2.2" strokeLinecap="round">
+              <path d="M3 3l12 12M15 3L3 15" />
+            </svg>
           ) : photoURL ? (
             <img
               src={photoURL}
@@ -728,8 +737,14 @@ export default function App() {
                 objectFit: "cover",
               }}
             />
+          ) : isSignedIn ? (
+            <span style={{ fontSize: 12, fontWeight: 700 }}>{headerInitials}</span>
           ) : (
-            headerInitials
+            // Local-only mode: friendly silhouette beats a stand-in initial.
+            <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke={C.teal} strokeWidth="1.7" strokeLinecap="round">
+              <circle cx="9" cy="6.5" r="3" />
+              <path d="M3 16c0-3 2.7-5 6-5s6 2 6 5" />
+            </svg>
           )}
         </button>
 
@@ -744,49 +759,30 @@ export default function App() {
           {headerTitle}
         </div>
 
+        {/* Compact brand mark — replaces the placeholder icon row.
+            Echoes the LoginScreen logo so the app feels coherent end-to-end. */}
         <div
+          aria-hidden="true"
           style={{
+            width: 28,
+            height: 28,
+            borderRadius: 9,
+            background: `conic-gradient(from 0deg, ${C.teal}, ${C.blue}, ${C.purple}, ${C.pink}, ${C.coral}, ${C.amber}, ${C.teal})`,
             display: "flex",
-            gap: 14,
             alignItems: "center",
-            opacity: 0.28,
+            justifyContent: "center",
+            boxShadow: "0 2px 8px rgba(15,23,42,0.18)",
+            flexShrink: 0,
           }}
         >
-          <svg
-            width="21"
-            height="21"
-            viewBox="0 0 21 21"
-            fill="none"
-            stroke={C.navy}
-            strokeWidth="1.8"
-            strokeLinecap="round"
-          >
-            <rect x="2" y="3" width="17" height="16" rx="2" />
-            <path d="M6.5 1.5v3M14.5 1.5v3M2 8.5h17" />
-          </svg>
-          <svg
-            width="21"
-            height="21"
-            viewBox="0 0 21 21"
-            fill="none"
-            stroke={C.navy}
-            strokeWidth="1.8"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <path d="M18.5 3h-16a1 1 0 00-1 1v10a1 1 0 001 1h4l3.5 3.5 3.5-3.5h5a1 1 0 001-1V4a1 1 0 00-1-1z" />
-          </svg>
-          <svg
-            width="21"
-            height="21"
-            viewBox="0 0 21 21"
-            fill="none"
-            stroke={C.navy}
-            strokeWidth="1.8"
-            strokeLinecap="round"
-          >
-            <circle cx="9" cy="9" r="6" />
-            <path d="M14 14L18.5 18.5" />
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+            <path
+              d="M2 12s4-7.5 10-7.5S22 12 22 12s-4 7.5-10 7.5S2 12 2 12z"
+              stroke="rgba(255,255,255,0.92)"
+              strokeWidth="1.6"
+              strokeLinecap="round"
+            />
+            <circle cx="12" cy="12" r="3" fill="rgba(255,255,255,0.92)" />
           </svg>
         </div>
       </header>
@@ -828,7 +824,9 @@ export default function App() {
         >
           {TABS.map(({ id, label, Ico }) => {
             const active = tab === id;
-            const tabColor = SEC[id as SectionKey]?.accent || C.teal;
+            const sec = SEC[id as SectionKey];
+            const tabColor = sec?.accent || C.teal;
+            const tabBg = sec?.bg || `${tabColor}10`;
             return (
               <button
                 key={id}
@@ -837,41 +835,44 @@ export default function App() {
                   setFabOpen(false);
                 }}
                 aria-label={label}
+                aria-current={active ? "page" : undefined}
                 style={{
                   flex: 1,
                   display: "flex",
                   flexDirection: "column",
                   alignItems: "center",
-                  justifyContent: "center",
-                  gap: 2,
-                  padding: "8px 2px 6px",
+                  justifyContent: "flex-start",
+                  gap: 4,
+                  padding: "8px 4px 6px",
                   border: "none",
                   background: "transparent",
                   cursor: "pointer",
-                  minHeight: 58,
+                  minHeight: 60,
                   position: "relative",
                 }}
               >
-                {active && (
-                  <span
-                    style={{
-                      position: "absolute",
-                      top: 0,
-                      left: "20%",
-                      right: "20%",
-                      height: 3,
-                      borderRadius: "0 0 4px 4px",
-                      background: tabColor,
-                    }}
-                  />
-                )}
-                <Ico col={active ? tabColor : C.muted} on={active} />
+                <span
+                  style={{
+                    width: 44,
+                    height: 30,
+                    borderRadius: 16,
+                    background: active ? tabBg : "transparent",
+                    boxShadow: active ? `inset 0 0 0 1px ${tabColor}25` : "none",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    transition: "background 0.18s, box-shadow 0.18s",
+                  }}
+                >
+                  <Ico col={active ? tabColor : C.muted} on={active} />
+                </span>
                 <span
                   style={{
                     fontSize: 10,
-                    fontWeight: active ? 700 : 400,
+                    fontWeight: active ? 700 : 500,
                     color: active ? tabColor : C.muted,
                     letterSpacing: "0.1px",
+                    lineHeight: 1,
                   }}
                 >
                   {label}

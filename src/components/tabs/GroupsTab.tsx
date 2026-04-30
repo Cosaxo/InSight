@@ -6,6 +6,7 @@ import { Card } from "../shared/Card";
 import { SLabel } from "../shared/SLabel";
 import { HScroll } from "../shared/HScroll";
 import { ContextBar } from "../shared/ContextBar";
+import { CtxIco } from "../icons/CtxIcons";
 import { PeopleInsightPanel } from "../insights/PeopleInsightPanel";
 
 interface GroupsTabProps {
@@ -42,10 +43,10 @@ export function GroupsTab({ me }: GroupsTabProps) {
     <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
       <ContextBar
         items={[
-          { icon: "🫂", label: "Joined", value: String(joined.length), color: SEC.groups.accent, sub: "communities" },
-          { icon: "👥", label: "Total reach", value: "37k+", color: C.teal },
-          { icon: "🎯", label: "Avg match", value: "80%", color: C.coral },
-          { icon: "🔥", label: "Top group", value: "Music", color: C.amber },
+          { icon: <CtxIco name="groups" col={SEC.groups.accent} />, label: "Joined", value: String(joined.length), color: SEC.groups.accent, sub: "communities" },
+          { icon: <CtxIco name="people" col={C.teal} />, label: "Total reach", value: "37k+", color: C.teal },
+          { icon: <CtxIco name="target" col={C.coral} />, label: "Avg match", value: "80%", color: C.coral },
+          { icon: <CtxIco name="fire" col={C.amber} />, label: "Top group", value: "Music", color: C.amber },
         ]}
       />
       <HScroll>

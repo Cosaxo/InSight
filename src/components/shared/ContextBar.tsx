@@ -38,7 +38,13 @@ export function ContextBar({ items }: ContextBarProps) {
               marginBottom: 5,
             }}
           >
-            <span style={{ fontSize: 17, lineHeight: 1, flexShrink: 0 }}>
+            <span
+              style={{
+                lineHeight: 0,
+                flexShrink: 0,
+                color: item.color || C.muted,
+              }}
+            >
               {item.icon}
             </span>
             <span

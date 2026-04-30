@@ -112,38 +112,40 @@ export function InsightsPanel({
       </div>
 
       <div
+        role="tablist"
         style={{
           display: "flex",
-          gap: 0,
+          gap: 4,
           background: C.dim,
           borderRadius: 16,
           padding: 4,
+          border: `1px solid ${C.divider}`,
         }}
       >
         {TABS.map(({ id, label, Ico, sec }) => {
           const active = tab === id;
           const secColor = SEC[sec].accent;
-          const secBg = SEC[sec].bg;
           return (
             <button
               key={id}
+              role="tab"
+              aria-selected={active}
               onClick={() => setTab(id)}
               style={{
                 flex: 1,
                 display: "flex",
                 flexDirection: "column",
                 alignItems: "center",
-                gap: 3,
-                padding: "8px 2px",
+                gap: 4,
+                padding: "9px 2px",
                 cursor: "pointer",
                 borderRadius: 12,
-                background: active ? secBg : "transparent",
-                boxShadow: active ? `0 1px 6px ${secColor}30` : "none",
+                background: active ? "#fff" : "transparent",
+                boxShadow: active ? `0 2px 10px ${secColor}28` : "none",
                 fontFamily: "inherit",
-                transition: "all 0.18s",
-                border: active
-                  ? `1.5px solid ${SEC[sec].border}`
-                  : "1.5px solid transparent",
+                transition:
+                  "background 0.2s cubic-bezier(.4,0,.2,1), box-shadow 0.2s",
+                border: "none",
               }}
             >
               <Ico col={active ? secColor : C.muted} />
@@ -151,7 +153,7 @@ export function InsightsPanel({
                 style={{
                   fontSize: 10,
                   color: active ? secColor : C.muted,
-                  fontWeight: active ? 700 : 400,
+                  fontWeight: active ? 700 : 500,
                 }}
               >
                 {label}

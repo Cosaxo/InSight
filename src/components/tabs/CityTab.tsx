@@ -8,6 +8,7 @@ import { SLabel } from "../shared/SLabel";
 import { HScroll } from "../shared/HScroll";
 import { Toast } from "../shared/Toast";
 import { ContextBar } from "../shared/ContextBar";
+import { CtxIco } from "../icons/CtxIcons";
 import { PeopleInsightPanel } from "../insights/PeopleInsightPanel";
 
 const CITY_COLOR_CYCLE = [
@@ -102,17 +103,17 @@ export function CityTab({ me, ratings, onRate }: CityTabProps) {
       {toast && <Toast message="Rating saved" color={C.teal} icon="✓" />}
       <ContextBar
         items={[
-          { icon: "🏙️", label: "City", value: city, color: SEC.city.accent },
-          { icon: "✈️", label: "Visited", value: String(ratedCities.length), color: C.teal, sub: "rated" },
-          { icon: "🌍", label: "Available", value: String(cities.length), color: C.purple },
+          { icon: <CtxIco name="city" col={SEC.city.accent} />, label: "City", value: city, color: SEC.city.accent },
+          { icon: <CtxIco name="plane" col={C.teal} />, label: "Visited", value: String(ratedCities.length), color: C.teal, sub: "rated" },
+          { icon: <CtxIco name="globe" col={C.purple} />, label: "Available", value: String(cities.length), color: C.purple },
           {
-            icon: "⭐",
+            icon: <CtxIco name="star" col={C.amber} />,
             label: "Best rated",
             value: bestCity ? `${avg(bestCity)}★` : "—",
             color: C.amber,
           },
           {
-            icon: "📊",
+            icon: <CtxIco name="chart" col={C.coral} />,
             label: "Your avg",
             value: avg(city) !== "—" ? `${avg(city)}★` : "Rate it!",
             color: C.coral,

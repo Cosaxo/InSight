@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { C, FONT_STACK } from "../../theme";
 import { googleSignIn } from "../../lib/firebase";
+import { CtxIco } from "../icons/CtxIcons";
+import type { CtxIconName } from "../icons/CtxIcons";
 
 interface LoginScreenProps {
   error?: string | null;
@@ -90,13 +92,29 @@ export function LoginScreen({ error }: LoginScreenProps) {
       </div>
 
       <div style={{ display: "flex", gap: 20, marginBottom: 48 }}>
-        {[
-          { icon: "🧠", label: "Personality", sub: "Big Five" },
-          { icon: "⚖️", label: "Political", sub: "Compass" },
-          { icon: "🧭", label: "Core Values", sub: "Compass" },
-        ].map((s, i) => (
+        {(
+          [
+            { name: "brain", label: "Personality", sub: "Big Five", color: C.purple },
+            { name: "scale", label: "Political", sub: "Compass", color: C.amber },
+            { name: "compass", label: "Core Values", sub: "Compass", color: C.teal },
+          ] as { name: CtxIconName; label: string; sub: string; color: string }[]
+        ).map((s, i) => (
           <div key={i} style={{ textAlign: "center" }}>
-            <div style={{ fontSize: 22, marginBottom: 4 }}>{s.icon}</div>
+            <div
+              style={{
+                width: 44,
+                height: 44,
+                borderRadius: 14,
+                background: `${s.color}12`,
+                border: `1px solid ${s.color}30`,
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                marginBottom: 6,
+              }}
+            >
+              <CtxIco name={s.name} col={s.color} size={22} />
+            </div>
             <div style={{ fontSize: 12, fontWeight: 600, color: C.navy }}>
               {s.label}
             </div>

@@ -10,6 +10,7 @@ import {
 import { cToF, loadUnits, saveUnits, type Units } from "../../lib/units";
 import { Card } from "./Card";
 import { SLabel } from "./SLabel";
+import { Skeleton } from "./Skeleton";
 
 const REFRESH_MS = 5 * 60 * 1000;
 
@@ -173,8 +174,22 @@ export function AmbientCard() {
     return (
       <Card sec="ambient">
         <SLabel sec="ambient">Ambient</SLabel>
-        <div style={{ fontSize: 13, color: C.muted, padding: "8px 0" }}>
-          Loading current conditions…
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          <Skeleton height={42} width="55%" radius={8} />
+          <Skeleton height={11} width="40%" radius={4} />
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "1fr 1fr",
+              gap: 8,
+              marginTop: 6,
+            }}
+          >
+            <Skeleton height={48} radius={12} />
+            <Skeleton height={48} radius={12} />
+            <Skeleton height={48} radius={12} />
+            <Skeleton height={48} radius={12} />
+          </div>
         </div>
       </Card>
     );

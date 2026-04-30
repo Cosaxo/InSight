@@ -5,6 +5,7 @@ import { Card } from "../shared/Card";
 import { SLabel } from "../shared/SLabel";
 import { BarFill } from "../shared/BarFill";
 import { ContextBar } from "../shared/ContextBar";
+import { CtxIco } from "../icons/CtxIcons";
 import { CelestialCard } from "../shared/CelestialCard";
 import { PeopleInsightPanel } from "../insights/PeopleInsightPanel";
 
@@ -26,11 +27,11 @@ export function WorldTab({ me }: WorldTabProps) {
     <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
       <ContextBar
         items={[
-          { icon: "🌍", label: "Population", value: "8.1B", color: SEC.world.accent, sub: "humans" },
-          { icon: "🧭", label: "Alignment", value: "31%", color: C.coral },
-          { icon: "⚖️", label: "Politically", value: "Lib-left", color: C.amber },
-          { icon: "🧠", label: "Openness", value: "52 / 100", color: C.purple },
-          { icon: "🗺️", label: "Scandinavia", value: "87%", color: C.green, sub: "cultural fit" },
+          { icon: <CtxIco name="globe" col={SEC.world.accent} />, label: "Population", value: "8.1B", color: SEC.world.accent, sub: "humans" },
+          { icon: <CtxIco name="compass" col={C.coral} />, label: "Alignment", value: "31%", color: C.coral },
+          { icon: <CtxIco name="scale" col={C.amber} />, label: "Politically", value: "Lib-left", color: C.amber },
+          { icon: <CtxIco name="brain" col={C.purple} />, label: "Openness", value: "52 / 100", color: C.purple },
+          { icon: <CtxIco name="map" col={C.green} />, label: "Scandinavia", value: "87%", color: C.green, sub: "cultural fit" },
         ]}
       />
       <Card style={{ padding: "14px 16px", borderLeft: `4px solid ${SEC.world.accent}` }}>

@@ -7,6 +7,7 @@ import { Pill } from "../shared/Pill";
 import { Av } from "../shared/Av";
 import { CVBadge } from "../shared/CVBadge";
 import { ContextBar } from "../shared/ContextBar";
+import { CtxIco } from "../icons/CtxIcons";
 import { AmbientCard } from "../shared/AmbientCard";
 import { PeopleInsightPanel } from "../insights/PeopleInsightPanel";
 import { PersonProfilePanel } from "../panels/PersonProfilePanel";
@@ -34,11 +35,11 @@ export function AroundTab({ me }: AroundTabProps) {
     <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
       <ContextBar
         items={[
-          { icon: "📍", label: "Location", value: "Oslo", color: SEC.around.accent, sub: "Norway" },
-          { icon: "📡", label: "Radius", value: "5 km", color: SEC.around.accent },
-          { icon: "👥", label: "Nearby", value: "2,847", color: C.coral },
-          { icon: "🎯", label: "Avg match", value: "67%", color: C.amber },
-          { icon: "✨", label: "Like you", value: "312", color: C.purple },
+          { icon: <CtxIco name="pin" col={SEC.around.accent} />, label: "Location", value: "Oslo", color: SEC.around.accent, sub: "Norway" },
+          { icon: <CtxIco name="radar" col={SEC.around.accent} />, label: "Radius", value: "5 km", color: SEC.around.accent },
+          { icon: <CtxIco name="people" col={C.coral} />, label: "Nearby", value: "2,847", color: C.coral },
+          { icon: <CtxIco name="target" col={C.amber} />, label: "Avg match", value: "67%", color: C.amber },
+          { icon: <CtxIco name="sparkle" col={C.purple} />, label: "Like you", value: "312", color: C.purple },
         ]}
       />
       <AmbientCard />
@@ -92,6 +93,12 @@ export function AroundTab({ me }: AroundTabProps) {
             <div
               key={p.id}
               onClick={() => setSelId(p.id)}
+              className="liftCard"
+              role="button"
+              tabIndex={0}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") setSelId(p.id);
+              }}
               style={{
                 background: C.card,
                 borderRadius: 18,

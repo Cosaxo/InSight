@@ -11,6 +11,7 @@ import { Pill } from "../shared/Pill";
 import { Av } from "../shared/Av";
 import { CVBadge } from "../shared/CVBadge";
 import { ContextBar } from "../shared/ContextBar";
+import { CtxIco } from "../icons/CtxIcons";
 import { PersonProfilePanel } from "../panels/PersonProfilePanel";
 
 const COLS = [C.teal, C.purple, C.green, C.amber, C.coral, C.pink, C.cyan];
@@ -141,26 +142,26 @@ export function PeopleTab({ me, relations, setRelations }: PeopleTabProps) {
     <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
       <ContextBar
         items={[
-          { icon: "👥", label: "People", value: String(relations.length), color: C.green },
+          { icon: <CtxIco name="people" col={C.green} />, label: "People", value: String(relations.length), color: C.green },
           {
-            icon: "❤️",
+            icon: <CtxIco name="heart" col={C.red} />,
             label: "Family",
             value: String(relations.filter((p) => p.category === "family").length),
             color: C.red,
           },
           {
-            icon: "⭐",
+            icon: <CtxIco name="star" col={C.teal} />,
             label: "Close",
             value: String(relations.filter((p) => p.category === "close").length),
             color: C.teal,
           },
           {
-            icon: "🤝",
+            icon: <CtxIco name="handshake" col={C.green} />,
             label: "Friends",
             value: String(relations.filter((p) => p.category === "friend").length),
             color: C.green,
           },
-          { icon: "🕐", label: "Last seen", value: "Today", color: C.amber },
+          { icon: <CtxIco name="clock" col={C.amber} />, label: "Last seen", value: "Today", color: C.amber },
         ]}
       />
 
@@ -408,6 +409,7 @@ export function PeopleTab({ me, relations, setRelations }: PeopleTabProps) {
             return (
               <div
                 key={p.id}
+                className="liftCard"
                 style={{
                   background: C.card,
                   borderRadius: 18,
@@ -419,6 +421,11 @@ export function PeopleTab({ me, relations, setRelations }: PeopleTabProps) {
               >
                 <div
                   onClick={() => setSelId(p.id)}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") setSelId(p.id);
+                  }}
                   style={{
                     padding: "14px 16px",
                     cursor: "pointer",

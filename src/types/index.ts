@@ -99,8 +99,10 @@ export interface TestResult {
   cv?: CoreValues;
 }
 
+import type { ReactNode } from "react";
+
 export interface ContextBarItem {
-  icon: string;
+  icon: ReactNode;
   label: string;
   value: string;
   color?: string;
