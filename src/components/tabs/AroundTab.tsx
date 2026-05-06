@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { C, SEC } from "../../theme";
 import { AROUND_PROFILE, NEARBY_PEOPLE } from "../../data/profiles";
+import { aggregateProfile } from "../../utils/helpers";
 import type { Me } from "../../types";
 import { Card } from "../shared/Card";
 import { Pill } from "../shared/Pill";
@@ -18,6 +19,18 @@ export function AroundTab({ me }: AroundTabProps) {
   const [mode, setMode] = useState<"people" | "area">("people");
   const [selId, setSelId] = useState<string | null>(null);
   const selected = NEARBY_PEOPLE.find((p) => p.id === selId);
+
+  // Aggregate the nearby people into a real "area" profile rather than using
+  // a hardcoded one. Falls back to the seed if the list is somehow empty.
+  const areaProfile = useMemo(
+    () =>
+      aggregateProfile(NEARBY_PEOPLE, {
+        name: AROUND_PROFILE.name,
+        subtitle: `Average of ${NEARBY_PEOPLE.length} nearby people`,
+        color: AROUND_PROFILE.color,
+      }) ?? AROUND_PROFILE,
+    [],
+  );
 
   if (selected) {
     return (
@@ -69,10 +82,10 @@ export function AroundTab({ me }: AroundTabProps) {
               👥 People near you — Oslo
             </div>
             <div style={{ fontSize: 12, color: C.muted, marginTop: 2 }}>
-              {AROUND_PROFILE.subtitle}
+              {areaProfile.subtitle}
             </div>
           </Card>
-          <PeopleInsightPanel profile={AROUND_PROFILE} me={me} />
+          <PeopleInsightPanel profile={areaProfile} me={me} />
         </div>
       ) : (
         <div>

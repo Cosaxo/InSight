@@ -1,4 +1,13 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
+import {
+  Area,
+  ComposedChart,
+  Line,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
 import { C, SEC } from "../../../theme";
 import {
   EXPENSE_CATS,
@@ -62,6 +71,33 @@ export function FinancePanel({
     setNote("");
     setShow(false);
   }
+
+  // Cumulative cashflow over the last 30 days, plus daily expense bars.
+  const trend = useMemo(() => {
+    const days = Array.from({ length: 30 }, (_, i) => daysAgo(29 - i));
+    let running = 0;
+    return days.map((date) => {
+      const same = transactions.filter((t) => t.date === date);
+      const income = same
+        .filter((t) => t.type === "income")
+        .reduce((s, t) => s + t.amount, 0);
+      const expense = same
+        .filter((t) => t.type === "expense")
+        .reduce((s, t) => s + t.amount, 0);
+      running += income - expense;
+      return {
+        date,
+        income,
+        expense,
+        net: running,
+        label: new Date(date).toLocaleDateString("en-GB", {
+          day: "numeric",
+          month: "short",
+        }),
+      };
+    });
+  }, [transactions]);
+  const hasTrend = trend.some((d) => d.income > 0 || d.expense > 0);
 
   const monthTx = transactions.filter((t) => t.date >= daysAgo(30));
   const monthIncome = monthTx
@@ -174,6 +210,94 @@ export function FinancePanel({
           </span>
         </div>
       </Card>
+
+      {hasTrend && (
+        <Card sec="finance">
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "baseline",
+              marginBottom: 6,
+            }}
+          >
+            <SLabel sec="finance">30-day cashflow</SLabel>
+            <span style={{ fontSize: 11, color: C.muted }}>
+              net{" "}
+              <span
+                style={{
+                  color: net >= 0 ? C.teal : C.coral,
+                  fontWeight: 700,
+                }}
+              >
+                {net >= 0 ? "+" : ""}
+                {net.toLocaleString()} kr
+              </span>
+            </span>
+          </div>
+          <ResponsiveContainer width="100%" height={130}>
+            <ComposedChart
+              data={trend}
+              margin={{ top: 4, right: 4, left: -8, bottom: 0 }}
+            >
+              <defs>
+                <linearGradient id="netPos" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor={C.teal} stopOpacity={0.3} />
+                  <stop offset="100%" stopColor={C.teal} stopOpacity={0.02} />
+                </linearGradient>
+              </defs>
+              <XAxis
+                dataKey="label"
+                tick={{ fontSize: 9, fill: C.muted }}
+                interval="preserveStartEnd"
+                tickLine={false}
+                axisLine={{ stroke: C.divider }}
+              />
+              <YAxis
+                tick={{ fontSize: 9, fill: C.muted }}
+                tickLine={false}
+                axisLine={false}
+                width={40}
+                tickFormatter={(v) =>
+                  typeof v === "number" && Math.abs(v) >= 1000
+                    ? `${Math.round(v / 1000)}k`
+                    : `${v}`
+                }
+              />
+              <Tooltip
+                cursor={{ stroke: C.divider }}
+                contentStyle={{
+                  borderRadius: 8,
+                  border: `1px solid ${C.divider}`,
+                  fontSize: 12,
+                  padding: "4px 8px",
+                }}
+                formatter={(v) =>
+                  typeof v === "number" ? `${v.toLocaleString()} kr` : `${v}`
+                }
+              />
+              <Area
+                type="monotone"
+                dataKey="net"
+                stroke={C.teal}
+                strokeWidth={2}
+                fill="url(#netPos)"
+                isAnimationActive={false}
+                name="Cumulative net"
+              />
+              <Line
+                type="monotone"
+                dataKey="expense"
+                stroke={C.coral}
+                strokeWidth={1.2}
+                dot={false}
+                isAnimationActive={false}
+                name="Daily spend"
+              />
+            </ComposedChart>
+          </ResponsiveContainer>
+        </Card>
+      )}
 
       <Card sec="finance">
         <SLabel sec="finance">Expense breakdown</SLabel>

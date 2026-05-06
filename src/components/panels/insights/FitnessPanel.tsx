@@ -1,4 +1,12 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
+import {
+  Bar,
+  BarChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
 import { C, SEC } from "../../../theme";
 import {
   INTENSITY_KCAL,
@@ -78,6 +86,24 @@ export function FitnessPanel({ workouts, onLog, onToast }: FitnessPanelProps) {
       : 0;
   const totalTime = weekWorkouts.reduce((s, w) => s + w.duration, 0);
 
+  // Daily duration (and kcal in tooltip) over the last 14 days.
+  const trend = useMemo(() => {
+    return Array.from({ length: 14 }, (_, i) => {
+      const d = daysAgo(13 - i);
+      const same = workouts.filter((w) => w.date === d);
+      return {
+        date: d,
+        duration: same.reduce((s, w) => s + w.duration, 0),
+        kcal: same.reduce((s, w) => s + w.kcal, 0),
+        label: new Date(d).toLocaleDateString("en-GB", {
+          day: "numeric",
+          month: "short",
+        }),
+      };
+    });
+  }, [workouts]);
+  const hasTrend = trend.some((d) => d.duration > 0);
+
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
       <StatCards
@@ -105,6 +131,65 @@ export function FitnessPanel({ workouts, onLog, onToast }: FitnessPanelProps) {
           },
         ]}
       />
+
+      {hasTrend && (
+        <Card sec="fitness">
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "baseline",
+              marginBottom: 6,
+            }}
+          >
+            <SLabel sec="fitness">14-day activity</SLabel>
+            <span style={{ fontSize: 11, color: C.muted }}>
+              total{" "}
+              <span style={{ color: C.cyan, fontWeight: 700 }}>
+                {trend.reduce((s, d) => s + d.duration, 0)} min
+              </span>
+            </span>
+          </div>
+          <ResponsiveContainer width="100%" height={110}>
+            <BarChart
+              data={trend}
+              margin={{ top: 4, right: 4, left: -28, bottom: 0 }}
+            >
+              <XAxis
+                dataKey="label"
+                tick={{ fontSize: 9, fill: C.muted }}
+                interval="preserveStartEnd"
+                tickLine={false}
+                axisLine={{ stroke: C.divider }}
+              />
+              <YAxis
+                tick={{ fontSize: 9, fill: C.muted }}
+                tickLine={false}
+                axisLine={false}
+                width={28}
+              />
+              <Tooltip
+                cursor={{ fill: `${C.cyan}10` }}
+                contentStyle={{
+                  borderRadius: 8,
+                  border: `1px solid ${C.divider}`,
+                  fontSize: 12,
+                  padding: "4px 8px",
+                }}
+                formatter={(v, name) =>
+                  name === "duration" ? `${v} min` : `${v} kcal`
+                }
+              />
+              <Bar
+                dataKey="duration"
+                fill={C.cyan}
+                radius={[4, 4, 0, 0]}
+                isAnimationActive={false}
+              />
+            </BarChart>
+          </ResponsiveContainer>
+        </Card>
+      )}
 
       {show ? (
         <Card>

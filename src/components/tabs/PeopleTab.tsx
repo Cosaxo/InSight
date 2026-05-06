@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import type { Dispatch, SetStateAction } from "react";
 import { C } from "../../theme";
 import { CAT_META } from "../../data/constants";
-import { calcSim, fmtDate } from "../../utils/helpers";
+import { aggregateProfile, calcSim, fmtDate } from "../../utils/helpers";
 import type { Me, Person, RelationCategory } from "../../types";
 import { Card } from "../shared/Card";
 import { SLabel } from "../shared/SLabel";
@@ -11,6 +11,7 @@ import { Pill } from "../shared/Pill";
 import { Av } from "../shared/Av";
 import { CVBadge } from "../shared/CVBadge";
 import { ContextBar } from "../shared/ContextBar";
+import { PeopleInsightPanel } from "../insights/PeopleInsightPanel";
 import { PersonProfilePanel } from "../panels/PersonProfilePanel";
 
 const COLS = [C.teal, C.purple, C.green, C.amber, C.coral, C.pink, C.cyan];
@@ -39,7 +40,7 @@ interface PeopleTabProps {
 
 export function PeopleTab({ me, relations, setRelations }: PeopleTabProps) {
   const [cat, setCat] = useState<(typeof CATS)[number]["id"]>("all");
-  const [view, setView] = useState<"list" | "circles">("list");
+  const [view, setView] = useState<"list" | "circles" | "compare">("list");
   const [search, setSearch] = useState("");
   const [selId, setSelId] = useState<string | null>(null);
   const [addOpen, setAddOpen] = useState(false);
@@ -60,6 +61,26 @@ export function PeopleTab({ me, relations, setRelations }: PeopleTabProps) {
         ),
     [relations, cat, search],
   );
+
+  // Aggregate profile of the currently-filtered relations — used by the
+  // "compare" view so the comparison reflects the user's real circle, not a
+  // hardcoded average.
+  const aggregateForFilter = useMemo(() => {
+    const peopleForCat = relations.filter(
+      (p) => cat === "all" || p.category === cat,
+    );
+    const meta =
+      cat === "all"
+        ? { name: "Everyone", color: C.navy }
+        : {
+            name: CAT_META[cat as RelationCategory].label,
+            color: CAT_META[cat as RelationCategory].color,
+          };
+    return aggregateProfile(peopleForCat, {
+      ...meta,
+      subtitle: `Average of ${peopleForCat.length} ${peopleForCat.length === 1 ? "person" : "people"}`,
+    });
+  }, [relations, cat]);
 
   const selected = relations.find((p) => p.id === selId);
   if (selected) {
@@ -197,21 +218,38 @@ export function PeopleTab({ me, relations, setRelations }: PeopleTabProps) {
             }}
           />
         </div>
-        <button
-          onClick={() => setView((v) => (v === "list" ? "circles" : "list"))}
+        <div
+          role="tablist"
+          aria-label="View mode"
           style={{
-            padding: "10px 14px",
+            display: "flex",
             borderRadius: 12,
             border: `1px solid ${C.divider}`,
             background: C.card,
-            color: C.muted,
-            fontFamily: "inherit",
-            fontSize: 12,
-            cursor: "pointer",
+            overflow: "hidden",
           }}
         >
-          {view === "list" ? "Map" : "List"}
-        </button>
+          {(["list", "circles", "compare"] as const).map((v) => (
+            <button
+              key={v}
+              role="tab"
+              aria-selected={view === v}
+              onClick={() => setView(v)}
+              style={{
+                padding: "10px 12px",
+                border: "none",
+                background: view === v ? C.teal : "transparent",
+                color: view === v ? "#fff" : C.muted,
+                fontFamily: "inherit",
+                fontSize: 12,
+                fontWeight: view === v ? 700 : 400,
+                cursor: "pointer",
+              }}
+            >
+              {v === "list" ? "List" : v === "circles" ? "Map" : "Compare"}
+            </button>
+          ))}
+        </div>
         <button
           onClick={() => setAddOpen(!addOpen)}
           style={{
@@ -664,6 +702,24 @@ export function PeopleTab({ me, relations, setRelations }: PeopleTabProps) {
           </svg>
         </Card>
       )}
+
+      {view === "compare" &&
+        (aggregateForFilter ? (
+          <PeopleInsightPanel profile={aggregateForFilter} me={me} />
+        ) : (
+          <Card>
+            <div
+              style={{
+                textAlign: "center",
+                color: C.muted,
+                padding: "20px 12px",
+                fontSize: 13,
+              }}
+            >
+              No people in this category yet — add some to compare.
+            </div>
+          </Card>
+        ))}
     </div>
   );
 }

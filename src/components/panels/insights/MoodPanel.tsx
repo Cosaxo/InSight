@@ -1,4 +1,12 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
+import {
+  Area,
+  AreaChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
 import { C } from "../../../theme";
 import {
   MOOD_COLOR,
@@ -36,6 +44,43 @@ export function MoodPanel({ moods, onLog, onDelete, onToast }: MoodPanelProps) {
   const [score, setScore] = useState(0);
   const [note, setNote] = useState("");
   const todayMood = moods.find((m) => m.date === TODAY);
+
+  // 30-day trend, with a 7-day rolling mean to smooth gaps.
+  const trend = useMemo(() => {
+    const byDate = new Map(moods.map((m) => [m.date, m.score]));
+    const days = Array.from({ length: 30 }, (_, i) => daysAgo(29 - i));
+    return days.map((date, i) => {
+      const score = byDate.get(date);
+      const window: number[] = [];
+      for (let j = Math.max(0, i - 6); j <= i; j++) {
+        const s = byDate.get(days[j]);
+        if (typeof s === "number") window.push(s);
+      }
+      const avg =
+        window.length > 0
+          ? window.reduce((a, b) => a + b, 0) / window.length
+          : null;
+      return {
+        date,
+        score: typeof score === "number" ? score : null,
+        avg,
+        label: new Date(date).toLocaleDateString("en-GB", {
+          day: "numeric",
+          month: "short",
+        }),
+      };
+    });
+  }, [moods]);
+
+  const logged30d = trend.filter((d) => d.score !== null).length;
+  const avg30d =
+    logged30d > 0
+      ? (
+          trend
+            .filter((d) => d.score !== null)
+            .reduce((s, d) => s + (d.score || 0), 0) / logged30d
+        ).toFixed(1)
+      : "—";
 
   function submit() {
     if (!score) return;
@@ -142,6 +187,72 @@ export function MoodPanel({ moods, onLog, onDelete, onToast }: MoodPanelProps) {
           </div>
         )}
       </Card>
+
+      {logged30d > 1 && (
+        <Card sec="mood">
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "baseline",
+              marginBottom: 6,
+            }}
+          >
+            <SLabel sec="mood">30-day trend</SLabel>
+            <span style={{ fontSize: 11, color: C.muted }}>
+              avg <span style={{ color: C.coral, fontWeight: 700 }}>{avg30d}</span> · {logged30d} logged
+            </span>
+          </div>
+          <ResponsiveContainer width="100%" height={120}>
+            <AreaChart
+              data={trend}
+              margin={{ top: 4, right: 4, left: -28, bottom: 0 }}
+            >
+              <defs>
+                <linearGradient id="moodGrad" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor={C.coral} stopOpacity={0.35} />
+                  <stop offset="100%" stopColor={C.coral} stopOpacity={0.02} />
+                </linearGradient>
+              </defs>
+              <XAxis
+                dataKey="label"
+                tick={{ fontSize: 9, fill: C.muted }}
+                interval="preserveStartEnd"
+                tickLine={false}
+                axisLine={{ stroke: C.divider }}
+              />
+              <YAxis
+                domain={[1, 5]}
+                ticks={[1, 3, 5]}
+                tick={{ fontSize: 9, fill: C.muted }}
+                tickLine={false}
+                axisLine={false}
+                width={28}
+              />
+              <Tooltip
+                cursor={{ stroke: C.divider }}
+                contentStyle={{
+                  borderRadius: 8,
+                  border: `1px solid ${C.divider}`,
+                  fontSize: 12,
+                  padding: "4px 8px",
+                }}
+                formatter={(v) => (typeof v === "number" ? v.toFixed(1) : "—")}
+              />
+              <Area
+                type="monotone"
+                dataKey="avg"
+                stroke={C.coral}
+                strokeWidth={2}
+                fill="url(#moodGrad)"
+                connectNulls
+                isAnimationActive={false}
+                name="7-day avg"
+              />
+            </AreaChart>
+          </ResponsiveContainer>
+        </Card>
+      )}
 
       <Card sec="mood">
         <SLabel sec="mood">

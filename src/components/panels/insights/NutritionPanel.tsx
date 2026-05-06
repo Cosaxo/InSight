@@ -1,6 +1,17 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Cell,
+  ReferenceLine,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
 import { C } from "../../../theme";
-import { TODAY } from "../../../data/insightDefaults";
+import { TODAY, daysAgo } from "../../../data/insightDefaults";
 import type { Meal } from "../../../types";
 import { Card } from "../../shared/Card";
 import { SLabel } from "../../shared/SLabel";
@@ -56,6 +67,23 @@ export function NutritionPanel({ meals, onLog, onToast }: NutritionPanelProps) {
   const todayKcal = todayMeals.reduce((s, m) => s + m.kcal, 0);
   const todayProtein = todayMeals.reduce((s, m) => s + m.protein, 0);
   const kcalPct = Math.min((todayKcal / KCAL_TARGET) * 201, 201);
+
+  // Daily calories over the last 7 days, with a target reference line.
+  const trend = useMemo(() => {
+    return Array.from({ length: 7 }, (_, i) => {
+      const d = daysAgo(6 - i);
+      const same = meals.filter((m) => m.date === d);
+      return {
+        date: d,
+        kcal: same.reduce((s, m) => s + m.kcal, 0),
+        protein: same.reduce((s, m) => s + m.protein, 0),
+        label: new Date(d).toLocaleDateString("en-GB", {
+          weekday: "short",
+        }),
+      };
+    });
+  }, [meals]);
+  const hasTrend = trend.some((d) => d.kcal > 0);
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
@@ -155,6 +183,76 @@ export function NutritionPanel({ meals, onLog, onToast }: NutritionPanelProps) {
           </div>
         </div>
       </Card>
+
+      {hasTrend && (
+        <Card sec="nutrition">
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "baseline",
+              marginBottom: 6,
+            }}
+          >
+            <SLabel sec="nutrition">7-day calories</SLabel>
+            <span style={{ fontSize: 11, color: C.muted }}>
+              target{" "}
+              <span style={{ color: C.coral, fontWeight: 700 }}>
+                {KCAL_TARGET}
+              </span>
+            </span>
+          </div>
+          <ResponsiveContainer width="100%" height={120}>
+            <BarChart
+              data={trend}
+              margin={{ top: 4, right: 4, left: -28, bottom: 0 }}
+            >
+              <CartesianGrid stroke={C.divider} vertical={false} strokeDasharray="2 2" />
+              <XAxis
+                dataKey="label"
+                tick={{ fontSize: 9, fill: C.muted }}
+                tickLine={false}
+                axisLine={{ stroke: C.divider }}
+              />
+              <YAxis
+                tick={{ fontSize: 9, fill: C.muted }}
+                tickLine={false}
+                axisLine={false}
+                width={28}
+              />
+              <Tooltip
+                cursor={{ fill: `${C.coral}10` }}
+                contentStyle={{
+                  borderRadius: 8,
+                  border: `1px solid ${C.divider}`,
+                  fontSize: 12,
+                  padding: "4px 8px",
+                }}
+                formatter={(v) => `${v} kcal`}
+              />
+              <ReferenceLine
+                y={KCAL_TARGET}
+                stroke={C.coral}
+                strokeDasharray="4 4"
+                strokeOpacity={0.6}
+              />
+              <Bar
+                dataKey="kcal"
+                radius={[4, 4, 0, 0]}
+                isAnimationActive={false}
+              >
+                {trend.map((d, i) => (
+                  <Cell
+                    key={i}
+                    fill={d.kcal > KCAL_TARGET ? C.red : C.coral}
+                    fillOpacity={d.kcal === 0 ? 0.15 : 0.85}
+                  />
+                ))}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+        </Card>
+      )}
 
       {show ? (
         <Card>
