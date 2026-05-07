@@ -21,6 +21,7 @@ import type {
   WorkoutType,
 } from "../../../types";
 import { Card } from "../../shared/Card";
+import { CalendarHeatmap } from "../../shared/CalendarHeatmap";
 import { SLabel } from "../../shared/SLabel";
 import { StatCards } from "../../shared/StatCards";
 import { StatIco } from "../../icons/StatIcons";
@@ -86,6 +87,15 @@ export function FitnessPanel({ workouts, onLog, onToast }: FitnessPanelProps) {
       : 0;
   const totalTime = weekWorkouts.reduce((s, w) => s + w.duration, 0);
 
+  // Total minutes per day across the whole heatmap window.
+  const heatmapValues = useMemo(() => {
+    const out = new Map<string, number>();
+    for (const w of workouts) {
+      out.set(w.date, (out.get(w.date) || 0) + w.duration);
+    }
+    return out;
+  }, [workouts]);
+
   // Daily duration (and kcal in tooltip) over the last 14 days.
   const trend = useMemo(() => {
     return Array.from({ length: 14 }, (_, i) => {
@@ -131,6 +141,18 @@ export function FitnessPanel({ workouts, onLog, onToast }: FitnessPanelProps) {
           },
         ]}
       />
+
+      {workouts.length > 0 && (
+        <Card sec="fitness">
+          <SLabel sec="fitness">26-week activity map</SLabel>
+          <CalendarHeatmap
+            values={heatmapValues}
+            levels={[1, 20, 40, 60]}
+            color={C.cyan}
+            formatValue={(v) => `${v} min`}
+          />
+        </Card>
+      )}
 
       {hasTrend && (
         <Card sec="fitness">

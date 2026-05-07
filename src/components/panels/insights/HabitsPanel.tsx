@@ -18,6 +18,7 @@ import {
 // components (React Refresh requirement).
 import type { Habit } from "../../../types";
 import { Card } from "../../shared/Card";
+import { CalendarHeatmap } from "../../shared/CalendarHeatmap";
 import { SLabel } from "../../shared/SLabel";
 import { StatCards } from "../../shared/StatCards";
 import { StatIco } from "../../icons/StatIcons";
@@ -59,6 +60,22 @@ export function HabitsPanel({
     : 0;
   const doneToday = habits.filter((h) => h.completions.includes(TODAY)).length;
 
+  // Daily completion percentage over the heatmap window.
+  const heatmapValues = useMemo(() => {
+    if (!habits.length) return new Map<string, number>();
+    const counts = new Map<string, number>();
+    for (const h of habits) {
+      for (const d of h.completions) {
+        counts.set(d, (counts.get(d) || 0) + 1);
+      }
+    }
+    const out = new Map<string, number>();
+    for (const [date, count] of counts) {
+      out.set(date, count / habits.length);
+    }
+    return out;
+  }, [habits]);
+
   // Daily completion rate over the last 14 days.
   const trend = useMemo(() => {
     if (!habits.length) return [];
@@ -97,6 +114,20 @@ export function HabitsPanel({
           },
         ]}
       />
+
+      {habits.length > 0 && (
+        <Card sec="habits">
+          <SLabel sec="habits">26-week consistency map</SLabel>
+          <CalendarHeatmap
+            values={heatmapValues}
+            levels={[0.01, 0.34, 0.67, 1]}
+            color={C.teal}
+            formatValue={(v) =>
+              `${Math.round(v * habits.length)}/${habits.length} done (${Math.round(v * 100)}%)`
+            }
+          />
+        </Card>
+      )}
 
       {trend.length > 0 && (
         <Card sec="habits">

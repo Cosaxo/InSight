@@ -18,6 +18,7 @@ import {
 import { fmtDate } from "../../../utils/helpers";
 import type { MoodEntry } from "../../../types";
 import { Card } from "../../shared/Card";
+import { CalendarHeatmap } from "../../shared/CalendarHeatmap";
 import { SLabel } from "../../shared/SLabel";
 
 interface MoodPanelProps {
@@ -81,6 +82,11 @@ export function MoodPanel({ moods, onLog, onDelete, onToast }: MoodPanelProps) {
             .reduce((s, d) => s + (d.score || 0), 0) / logged30d
         ).toFixed(1)
       : "—";
+
+  const heatmapValues = useMemo(
+    () => new Map(moods.map((m) => [m.date, m.score])),
+    [moods],
+  );
 
   function submit() {
     if (!score) return;
@@ -187,6 +193,18 @@ export function MoodPanel({ moods, onLog, onDelete, onToast }: MoodPanelProps) {
           </div>
         )}
       </Card>
+
+      {moods.length > 0 && (
+        <Card sec="mood">
+          <SLabel sec="mood">26-week mood map</SLabel>
+          <CalendarHeatmap
+            values={heatmapValues}
+            levels={[1, 2, 3, 4]}
+            color={C.coral}
+            formatValue={(v) => `${MOOD_EMOJI[v]} ${MOOD_LABEL[v]}`}
+          />
+        </Card>
+      )}
 
       {logged30d > 1 && (
         <Card sec="mood">
