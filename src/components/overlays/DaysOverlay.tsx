@@ -115,7 +115,15 @@ function PortraitFrame({
   );
 }
 
-function PortraitView({ D }: { D: typeof IS_DATA }) {
+function PortraitView({
+  D,
+  onOpen,
+  onCapture,
+}: {
+  D: typeof IS_DATA;
+  onOpen: (p: Portrait) => void;
+  onCapture: () => void;
+}) {
   const today: Portrait = D.portraits[0];
   const weights: number[] = D.portraits
     .slice()
@@ -179,6 +187,23 @@ function PortraitView({ D }: { D: typeof IS_DATA }) {
                 </span>
               </div>
             </div>
+            <div style={{ flex: 1 }} />
+            <button
+              onClick={onCapture}
+              style={{
+                padding: "8px 14px",
+                background: "var(--ink)",
+                color: "var(--paper)",
+                border: "none",
+                borderRadius: 99,
+                fontFamily: "var(--serif)",
+                fontStyle: "italic",
+                fontSize: 13,
+                cursor: "pointer",
+              }}
+            >
+              + today's frame
+            </button>
           </div>
         </div>
       </div>
@@ -196,9 +221,11 @@ function PortraitView({ D }: { D: typeof IS_DATA }) {
           {D.portraits.map((p: Portrait, i: number) => (
             <div
               key={i}
+              onClick={() => onOpen(p)}
               style={{
                 flex: "0 0 auto",
                 textAlign: "center",
+                cursor: "pointer",
               }}
             >
               <PortraitFrame p={p} h={100} small />
@@ -285,7 +312,13 @@ function PortraitView({ D }: { D: typeof IS_DATA }) {
   );
 }
 
-function DreamsView({ D }: { D: typeof IS_DATA }) {
+function DreamsView({
+  D,
+  onOpen,
+}: {
+  D: typeof IS_DATA;
+  onOpen: (d: Dream) => void;
+}) {
   const dreams: Dream[] = D.dreams;
   const remembered = dreams.filter(
     (d) => d.lucidity > 0 || d.vividness > 0,
@@ -399,10 +432,12 @@ function DreamsView({ D }: { D: typeof IS_DATA }) {
         {dreams.map((d) => (
           <div
             key={d.id}
+            onClick={() => d.title !== "—" && onOpen(d)}
             className="card"
             style={{
               borderLeft: `3px solid oklch(0.55 0.10 ${d.hue})`,
               opacity: d.title === "—" ? 0.5 : 1,
+              cursor: d.title === "—" ? "default" : "pointer",
             }}
           >
             <div
@@ -992,6 +1027,9 @@ export function DaysOverlay({ onClose }: DaysOverlayProps) {
   const [tab, setTab] = useState<"portrait" | "dreams" | "time" | "life">(
     "portrait",
   );
+  const [openPortrait, setOpenPortrait] = useState<Portrait | null>(null);
+  const [openDream, setOpenDream] = useState<Dream | null>(null);
+  const [showCapture, setShowCapture] = useState(false);
 
   return (
     <div className="overlay paper-grain">
@@ -1039,10 +1077,439 @@ export function DaysOverlay({ onClose }: DaysOverlayProps) {
           </Pill>
         </div>
 
-        {tab === "portrait" && <PortraitView D={D} />}
-        {tab === "dreams" && <DreamsView D={D} />}
+        {tab === "portrait" && (
+          <PortraitView
+            D={D}
+            onOpen={setOpenPortrait}
+            onCapture={() => setShowCapture(true)}
+          />
+        )}
+        {tab === "dreams" && <DreamsView D={D} onOpen={setOpenDream} />}
         {tab === "time" && <TimeView D={D} />}
         {tab === "life" && <LifeView D={D} />}
+      </div>
+
+      {openPortrait && (
+        <PortraitDetail
+          p={openPortrait}
+          onClose={() => setOpenPortrait(null)}
+        />
+      )}
+      {openDream && (
+        <DreamDetail d={openDream} onClose={() => setOpenDream(null)} />
+      )}
+      {showCapture && <CaptureFlow onClose={() => setShowCapture(false)} />}
+    </div>
+  );
+}
+
+// ─── PortraitDetail — full-screen sub-overlay ────────────────────
+function PortraitDetail({
+  p,
+  onClose,
+}: {
+  p: Portrait;
+  onClose: () => void;
+}) {
+  return (
+    <div className="overlay paper-grain" style={{ zIndex: 25 }}>
+      <div className="app-header">
+        <button className="avatar-btn" onClick={onClose}>
+          ←
+        </button>
+        <div className="h-title">
+          a <em>frame</em>
+        </div>
+        <div className="h-meta">{p.date}</div>
+      </div>
+      <div className="app-body">
+        <div style={{ borderRadius: 12, overflow: "hidden", marginBottom: 14 }}>
+          <PortraitFrame p={p} h={360} />
+        </div>
+        <div
+          style={{
+            fontFamily: "var(--serif)",
+            fontSize: 22,
+            fontStyle: "italic",
+            lineHeight: 1.35,
+          }}
+        >
+          "{p.note}"
+        </div>
+        <hr className="rule-dashed" />
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "1fr 1fr 1fr",
+            gap: 14,
+          }}
+        >
+          <StatBlock k="WEIGHT" v={`${p.weight}kg`} />
+          <StatBlock k="MOOD" v={`${p.mood}/5`} />
+          <StatBlock k="WEATHER" v={weatherLabel(p.weather)} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── DreamDetail — full-screen sub-overlay ───────────────────────
+function DreamDetail({ d, onClose }: { d: Dream; onClose: () => void }) {
+  return (
+    <div className="overlay paper-grain" style={{ zIndex: 25 }}>
+      <div className="app-header">
+        <button className="avatar-btn" onClick={onClose}>
+          ←
+        </button>
+        <div className="h-title">
+          a <em>dream</em>
+        </div>
+        <div className="h-meta">{d.date}</div>
+      </div>
+      <div className="app-body">
+        <div
+          style={{
+            padding: 18,
+            borderRadius: 12,
+            background: `linear-gradient(160deg, oklch(0.93 0.03 ${d.hue}) 0%, oklch(0.85 0.06 ${d.hue}) 100%)`,
+            marginBottom: 14,
+            position: "relative",
+            overflow: "hidden",
+          }}
+        >
+          <div
+            style={{
+              fontFamily: "var(--mono)",
+              fontSize: 9.5,
+              letterSpacing: "0.12em",
+              color: `oklch(0.30 0.13 ${d.hue})`,
+              opacity: 0.7,
+            }}
+          >
+            {d.mood.toUpperCase()} · VIVID {d.vividness}/5
+          </div>
+          <div
+            style={{
+              fontFamily: "var(--serif)",
+              fontStyle: "italic",
+              fontSize: 28,
+              lineHeight: 1.2,
+              marginTop: 8,
+              color: `oklch(0.20 0.13 ${d.hue})`,
+            }}
+          >
+            {d.title}
+          </div>
+        </div>
+
+        <div
+          style={{
+            fontFamily: "var(--serif)",
+            fontSize: 17,
+            lineHeight: 1.55,
+            color: "var(--ink)",
+          }}
+        >
+          {d.text}
+        </div>
+
+        <hr className="rule-dashed" />
+
+        <Kicker>The shape of it</Kicker>
+        <div style={{ display: "flex", gap: 14, marginTop: 12 }}>
+          <div style={{ flex: 1 }}>
+            <div className="kicker">LUCIDITY</div>
+            <div className="fig-num" style={{ fontSize: 22 }}>
+              <em>{d.lucidity}</em>
+              <span style={{ fontSize: 11, color: "var(--ink-3)" }}>/5</span>
+            </div>
+          </div>
+          <div style={{ flex: 1 }}>
+            <div className="kicker">VIVIDNESS</div>
+            <div className="fig-num" style={{ fontSize: 22 }}>
+              <em>{d.vividness}</em>
+              <span style={{ fontSize: 11, color: "var(--ink-3)" }}>/5</span>
+            </div>
+          </div>
+          <div style={{ flex: 1 }}>
+            <div className="kicker">MOOD</div>
+            <div
+              style={{
+                fontFamily: "var(--serif)",
+                fontStyle: "italic",
+                fontSize: 18,
+                marginTop: 2,
+              }}
+            >
+              {d.mood}
+            </div>
+          </div>
+        </div>
+
+        <Kicker>Tags</Kicker>
+        <div
+          style={{
+            display: "flex",
+            gap: 6,
+            marginTop: 8,
+            flexWrap: "wrap",
+          }}
+        >
+          {d.tags.map((t) => (
+            <span
+              key={t}
+              style={{
+                fontFamily: "var(--serif)",
+                fontStyle: "italic",
+                fontSize: 13,
+                padding: "4px 10px",
+                background: "var(--paper-2)",
+                border: "0.5px solid var(--rule)",
+                borderRadius: 99,
+              }}
+            >
+              {t}
+            </span>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── CaptureFlow — today's frame · camera → details ──────────────
+function CaptureFlow({ onClose }: { onClose: () => void }) {
+  const [stage, setStage] = useState<"camera" | "details">("camera");
+  const [weight, setWeight] = useState("74.2");
+  const [mood, setMood] = useState(4);
+  const [note, setNote] = useState("");
+
+  return (
+    <div className="overlay paper-grain" style={{ zIndex: 30 }}>
+      <div className="app-header">
+        <button className="avatar-btn" onClick={onClose}>
+          ✕
+        </button>
+        <div className="h-title">
+          today's <em>frame</em>
+        </div>
+        <div style={{ width: 36 }} />
+      </div>
+      <div className="app-body">
+        {stage === "camera" && (
+          <>
+            <div
+              style={{
+                aspectRatio: "3 / 4",
+                background: "oklch(0.18 0.01 60)",
+                borderRadius: 14,
+                position: "relative",
+                overflow: "hidden",
+                marginBottom: 14,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              <div
+                style={{
+                  position: "absolute",
+                  inset: 30,
+                  border: "1px dashed rgba(255,240,220,0.3)",
+                  borderRadius: 200,
+                }}
+              />
+              <svg viewBox="0 0 100 100" width="65%" height="65%">
+                <ellipse
+                  cx="50"
+                  cy="42"
+                  rx="14"
+                  ry="16"
+                  fill="oklch(0.55 0.05 60)"
+                  opacity="0.5"
+                />
+                <path
+                  d="M 25 100 Q 30 70 50 66 Q 70 70 75 100 Z"
+                  fill="oklch(0.55 0.05 60)"
+                  opacity="0.5"
+                />
+              </svg>
+              <div
+                style={{
+                  position: "absolute",
+                  top: 16,
+                  left: 16,
+                  fontFamily: "var(--mono)",
+                  fontSize: 9,
+                  color: "oklch(0.85 0.04 60)",
+                  letterSpacing: "0.1em",
+                }}
+              >
+                ● ALIGN FACE WITH OVAL
+              </div>
+            </div>
+            <button
+              onClick={() => setStage("details")}
+              style={{
+                padding: "14px",
+                background: "var(--ink)",
+                color: "var(--paper)",
+                border: "none",
+                borderRadius: 14,
+                width: "100%",
+                fontFamily: "var(--serif)",
+                fontStyle: "italic",
+                fontSize: 16,
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 10,
+              }}
+            >
+              <span
+                style={{
+                  width: 14,
+                  height: 14,
+                  borderRadius: "50%",
+                  background: "oklch(0.65 0.18 25)",
+                  boxShadow:
+                    "0 0 0 3px var(--paper), 0 0 0 4px oklch(0.65 0.18 25)",
+                }}
+              />
+              capture
+            </button>
+          </>
+        )}
+
+        {stage === "details" && (
+          <>
+            <div
+              style={{
+                aspectRatio: "3 / 4",
+                maxHeight: 200,
+                marginBottom: 16,
+                borderRadius: 12,
+                overflow: "hidden",
+              }}
+            >
+              <PortraitFrame
+                p={{ hue: 38, date: "just now" }}
+                h={200}
+              />
+            </div>
+
+            <Kicker>Weight</Kicker>
+            <div
+              style={{
+                display: "flex",
+                gap: 10,
+                alignItems: "baseline",
+                marginTop: 8,
+                marginBottom: 16,
+              }}
+            >
+              <input
+                value={weight}
+                onChange={(e) => setWeight(e.target.value)}
+                style={{
+                  flex: 1,
+                  padding: "12px",
+                  fontFamily: "var(--serif)",
+                  fontSize: 22,
+                  fontStyle: "italic",
+                  border: "0.5px solid var(--rule)",
+                  borderRadius: 8,
+                  background: "var(--paper-2)",
+                  textAlign: "right",
+                }}
+              />
+              <span
+                style={{
+                  fontFamily: "var(--mono)",
+                  fontSize: 11,
+                  color: "var(--ink-3)",
+                  letterSpacing: "0.1em",
+                }}
+              >
+                KG
+              </span>
+            </div>
+
+            <Kicker>How was it · 1–5</Kicker>
+            <div
+              style={{
+                display: "flex",
+                gap: 6,
+                marginTop: 8,
+                marginBottom: 16,
+              }}
+            >
+              {[1, 2, 3, 4, 5].map((n) => (
+                <button
+                  key={n}
+                  onClick={() => setMood(n)}
+                  style={{
+                    flex: 1,
+                    padding: "12px 0",
+                    background: mood === n ? "var(--ink)" : "var(--paper-2)",
+                    color: mood === n ? "var(--paper)" : "var(--ink-2)",
+                    border:
+                      "0.5px solid " +
+                      (mood === n ? "var(--ink)" : "var(--rule)"),
+                    borderRadius: 8,
+                    fontFamily: "var(--serif)",
+                    fontStyle: "italic",
+                    fontSize: 18,
+                    cursor: "pointer",
+                  }}
+                >
+                  {n}
+                </button>
+              ))}
+            </div>
+
+            <Kicker>One sentence about today</Kicker>
+            <textarea
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+              placeholder="quiet morning. The fjord light is back."
+              style={{
+                width: "100%",
+                minHeight: 80,
+                padding: 12,
+                marginTop: 8,
+                fontFamily: "var(--serif)",
+                fontSize: 15,
+                fontStyle: "italic",
+                border: "0.5px solid var(--rule)",
+                borderRadius: 8,
+                background: "var(--paper-2)",
+                resize: "none",
+                lineHeight: 1.4,
+              }}
+            />
+
+            <button
+              onClick={onClose}
+              style={{
+                marginTop: 16,
+                padding: "14px",
+                background: "var(--ink)",
+                color: "var(--paper)",
+                border: "none",
+                borderRadius: 14,
+                width: "100%",
+                fontFamily: "var(--serif)",
+                fontStyle: "italic",
+                fontSize: 16,
+                cursor: "pointer",
+              }}
+            >
+              save the frame
+            </button>
+          </>
+        )}
       </div>
     </div>
   );

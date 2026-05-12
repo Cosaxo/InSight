@@ -1,7 +1,19 @@
 import type { ReactNode } from "react";
 import { IS_DATA } from "../../data/seedData";
 import { Kicker, Bar } from "../shared/primitives";
-import { Donut, HBars, Sparkline, DivergeRow } from "../shared/charts";
+import {
+  ClockDial,
+  Donut,
+  DowStripes,
+  DivergeRow,
+  EatingWindow,
+  HBars,
+  LoadCurves,
+  MicroBars,
+  Scatter,
+  Sparkline,
+  StackedBars,
+} from "../shared/charts";
 
 // ───────── helpers ─────────
 
@@ -246,6 +258,118 @@ export function HabitsTab() {
                       }}
                     />
                   ))}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      <div className="card" style={{ marginBottom: 12 }}>
+        <Kicker>Best & worst days · % completion</Kicker>
+        <div style={{ marginTop: 12 }}>
+          <DowStripes
+            rows={habitNames.map((n) => ({
+              label: n,
+              vals: H.byDow[n] as number[],
+            }))}
+            color="var(--sienna)"
+          />
+        </div>
+        <div className="margin-note" style={{ marginTop: 8 }}>
+          Saturdays carry most of your week. Mondays the least.
+        </div>
+      </div>
+
+      <div className="card" style={{ marginBottom: 12 }}>
+        <Kicker>Time of day · when each habit happens</Kicker>
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            gap: 10,
+            marginTop: 12,
+          }}
+        >
+          {habitNames.map((n) => {
+            const habit = I.habits.find(
+              (h: { name: string }) => h.name === n,
+            );
+            const hue = habit?.hue || 38;
+            const arr: number[] = H.timeOfDay[n];
+            const max = Math.max(...arr);
+            return (
+              <div key={n}>
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "baseline",
+                    marginBottom: 4,
+                  }}
+                >
+                  <span
+                    style={{
+                      fontFamily: "var(--serif)",
+                      fontSize: 12,
+                      fontStyle: "italic",
+                    }}
+                  >
+                    {n}
+                  </span>
+                  <span
+                    style={{
+                      fontFamily: "var(--mono)",
+                      fontSize: 8.5,
+                      color: "var(--ink-3)",
+                      letterSpacing: "0.06em",
+                    }}
+                  >
+                    peak {String(arr.indexOf(max)).padStart(2, "0")}:00
+                  </span>
+                </div>
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "flex-end",
+                    gap: 1,
+                    height: 28,
+                    background: "var(--paper-2)",
+                    padding: "0 4px",
+                    border: "0.5px solid var(--rule)",
+                    borderRadius: 2,
+                  }}
+                >
+                  {arr.map((v, i) => (
+                    <div
+                      key={i}
+                      style={{
+                        flex: 1,
+                        height: `${v * 100}%`,
+                        background: `oklch(0.55 0.13 ${hue})`,
+                        opacity: 0.4 + v * 0.6,
+                        borderRadius: "1px 1px 0 0",
+                        minHeight: 1,
+                      }}
+                    />
+                  ))}
+                </div>
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    fontFamily: "var(--mono)",
+                    fontSize: 7.5,
+                    color: "var(--ink-3)",
+                    letterSpacing: "0.06em",
+                    marginTop: 1,
+                  }}
+                >
+                  <span>00</span>
+                  <span>06</span>
+                  <span>12</span>
+                  <span>18</span>
+                  <span>24</span>
                 </div>
               </div>
             );
@@ -584,6 +708,75 @@ export function FitnessTab() {
       </div>
 
       <div className="card" style={{ marginBottom: 12 }}>
+        <Kicker>Training load · 28 days</Kicker>
+        <div style={{ marginTop: 8 }}>
+          <LoadCurves
+            ctl={F.ctl}
+            atl={F.atl}
+            load={F.load28}
+            w={320}
+            h={120}
+          />
+        </div>
+        <div
+          style={{
+            display: "flex",
+            gap: 14,
+            marginTop: 4,
+            fontFamily: "var(--mono)",
+            fontSize: 8.5,
+            color: "var(--ink-3)",
+            letterSpacing: "0.06em",
+          }}
+        >
+          <span>
+            <span
+              style={{
+                display: "inline-block",
+                width: 12,
+                height: 1.6,
+                background: "var(--sage)",
+                marginRight: 4,
+                verticalAlign: "middle",
+              }}
+            />
+            FITNESS · CTL
+          </span>
+          <span>
+            <span
+              style={{
+                display: "inline-block",
+                width: 12,
+                height: 1.6,
+                background: "var(--sienna)",
+                marginRight: 4,
+                verticalAlign: "middle",
+                borderTop: "1.4px dashed var(--sienna)",
+              }}
+            />
+            FATIGUE · ATL
+          </span>
+          <span>
+            <span
+              style={{
+                display: "inline-block",
+                width: 6,
+                height: 8,
+                background: "var(--ink-3)",
+                opacity: 0.4,
+                marginRight: 4,
+                verticalAlign: "middle",
+              }}
+            />
+            DAILY
+          </span>
+        </div>
+        <div className="margin-note" style={{ marginTop: 8 }}>
+          {F.loadVerdict?.body}
+        </div>
+      </div>
+
+      <div className="card" style={{ marginBottom: 12 }}>
         <Kicker>Run pace · last 14 runs (sec/km, lower = faster)</Kicker>
         <div style={{ marginTop: 8 }}>
           <Sparkline
@@ -629,6 +822,26 @@ export function FitnessTab() {
         <div className="margin-note" style={{ marginTop: 6 }}>
           From 44.5 to 48 — top quartile for your age. The long Saturday runs
           are doing their work.
+        </div>
+      </div>
+
+      <div className="card" style={{ marginBottom: 12 }}>
+        <Kicker>Distance · 8 weeks</Kicker>
+        <div style={{ marginTop: 12 }}>
+          <StackedBars
+            rows={F.weekly.labels.map((lab: string, i: number) => ({
+              label: lab,
+              vals: {
+                run: F.weekly.runDist[i] as number,
+                swim: (F.weekly.swimDist[i] as number) * 4,
+              },
+            }))}
+            segments={[
+              { key: "run", color: "var(--sage)", label: "Run" },
+              { key: "swim", color: "var(--indigo)", label: "Swim ×4" },
+            ]}
+            h={110}
+          />
         </div>
       </div>
 
@@ -690,6 +903,30 @@ export function FitnessTab() {
               </div>
             ),
           )}
+        </div>
+      </div>
+
+      <div className="card" style={{ marginBottom: 12 }}>
+        <Kicker>Recovery · load vs next-day HRV</Kicker>
+        <div style={{ marginTop: 8 }}>
+          <Scatter
+            points={F.recoveryScatter.map(
+              (p: { load: number; hrv: number; d: string }) => ({
+                x: p.load,
+                y: p.hrv,
+                label: p.d,
+              }),
+            )}
+            xLabel={["easy", "hard"]}
+            yLabel={["HRV down", "HRV up"]}
+            xMax={100}
+            yMin={-12}
+            yMax={12}
+            accent="var(--sage)"
+          />
+        </div>
+        <div className="margin-note" style={{ marginTop: 4 }}>
+          Hard sessions cost you the next morning. Easy ones return it twice.
         </div>
       </div>
 
@@ -851,6 +1088,159 @@ export function NutritionTab() {
       </div>
 
       <div className="card" style={{ marginBottom: 12 }}>
+        <Kicker>Meal clock · today</Kicker>
+        <div
+          style={{
+            marginTop: 6,
+            display: "flex",
+            justifyContent: "center",
+          }}
+        >
+          <ClockDial
+            markers={N.mealClock}
+            waterByHour={N.waterByHour}
+            size={220}
+          />
+        </div>
+        <div
+          style={{
+            display: "flex",
+            gap: 12,
+            justifyContent: "center",
+            flexWrap: "wrap",
+            fontFamily: "var(--mono)",
+            fontSize: 9,
+            color: "var(--ink-3)",
+            letterSpacing: "0.06em",
+            marginTop: 6,
+          }}
+        >
+          <span>
+            <span
+              style={{
+                display: "inline-block",
+                width: 8,
+                height: 8,
+                borderRadius: 4,
+                background: "var(--ochre)",
+                marginRight: 4,
+              }}
+            />
+            MEALS
+          </span>
+          <span>
+            <span
+              style={{
+                display: "inline-block",
+                width: 8,
+                height: 8,
+                borderRadius: 4,
+                background: "var(--indigo)",
+                marginRight: 4,
+              }}
+            />
+            WATER
+          </span>
+        </div>
+        <div className="margin-note" style={{ marginTop: 6 }}>
+          11.5 hour eating window — your body has 12.5 hours to file the day
+          away.
+        </div>
+      </div>
+
+      <div className="card" style={{ marginBottom: 12 }}>
+        <Kicker>Macros · this week (g)</Kicker>
+        <div style={{ marginTop: 12 }}>
+          <StackedBars
+            rows={N.weekMacros.map(
+              (d: {
+                d: string;
+                carbs: number;
+                protein: number;
+                fat: number;
+              }) => ({
+                label: d.d,
+                vals: { carbs: d.carbs, protein: d.protein, fat: d.fat },
+              }),
+            )}
+            segments={[
+              { key: "carbs", color: "var(--ochre)", label: "Carbs" },
+              { key: "protein", color: "var(--sienna)", label: "Protein" },
+              { key: "fat", color: "var(--sage)", label: "Fat" },
+            ]}
+          />
+        </div>
+        <div
+          style={{
+            display: "flex",
+            gap: 14,
+            justifyContent: "center",
+            marginTop: 4,
+            fontFamily: "var(--mono)",
+            fontSize: 9,
+            color: "var(--ink-3)",
+            letterSpacing: "0.08em",
+          }}
+        >
+          <span>
+            <span
+              style={{
+                display: "inline-block",
+                width: 8,
+                height: 8,
+                background: "var(--ochre)",
+                marginRight: 5,
+              }}
+            />
+            CARBS
+          </span>
+          <span>
+            <span
+              style={{
+                display: "inline-block",
+                width: 8,
+                height: 8,
+                background: "var(--sienna)",
+                marginRight: 5,
+              }}
+            />
+            PROTEIN
+          </span>
+          <span>
+            <span
+              style={{
+                display: "inline-block",
+                width: 8,
+                height: 8,
+                background: "var(--sage)",
+                marginRight: 5,
+              }}
+            />
+            FAT
+          </span>
+        </div>
+      </div>
+
+      <div className="card" style={{ marginBottom: 12 }}>
+        <Kicker>Micronutrients · vs target</Kicker>
+        <div style={{ marginTop: 10 }}>
+          <MicroBars items={N.micronutrients} />
+        </div>
+        <div
+          style={{
+            fontFamily: "var(--mono)",
+            fontSize: 8.5,
+            color: "var(--ink-3)",
+            letterSpacing: "0.08em",
+            marginTop: 8,
+            textAlign: "right",
+          }}
+        >
+          MIDLINE = 100% RDA · MAX SHOWN = 200%
+        </div>
+      </div>
+
+      <div className="card" style={{ marginBottom: 12 }}>
         <Kicker>Food groups · weekly servings</Kicker>
         <div style={{ marginTop: 10 }}>
           <HBars
@@ -863,6 +1253,17 @@ export function NutritionTab() {
             )}
             max={100}
           />
+        </div>
+      </div>
+
+      <div className="card" style={{ marginBottom: 12 }}>
+        <Kicker>Eating window · last 14 days</Kicker>
+        <div style={{ marginTop: 10 }}>
+          <EatingWindow rows={N.eatingWindow} />
+        </div>
+        <div className="margin-note" style={{ marginTop: 8 }}>
+          Friday and Saturday creep past 22:00. The fasting window collapses by
+          ~3 hours on weekends.
         </div>
       </div>
 

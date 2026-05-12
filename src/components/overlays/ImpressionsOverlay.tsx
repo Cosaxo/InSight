@@ -391,6 +391,7 @@ interface ImpressionsOverlayProps {
 export function ImpressionsOverlay({ onClose }: ImpressionsOverlayProps) {
   const [side, setSide] = useState<"others" | "you">("others");
   const [acceptIncoming, setAcceptIncoming] = useState(true);
+  const [adding, setAdding] = useState(false);
 
   return (
     <div className="overlay paper-grain">
@@ -506,6 +507,26 @@ export function ImpressionsOverlay({ onClose }: ImpressionsOverlayProps) {
                 />
               </div>
             </div>
+
+            <button
+              onClick={() => setAdding(true)}
+              style={{
+                width: "100%",
+                padding: "14px",
+                background:
+                  "color-mix(in oklch, var(--accent) 8%, var(--paper))",
+                border: "0.5px dashed var(--accent)",
+                borderRadius: 6,
+                marginBottom: 14,
+                cursor: "pointer",
+                fontFamily: "var(--serif)",
+                fontStyle: "italic",
+                fontSize: 15,
+                color: "var(--accent)",
+              }}
+            >
+              ◉  sketch a new impression
+            </button>
 
             <Kicker>sketches · most recent first</Kicker>
             <div
@@ -744,6 +765,291 @@ export function ImpressionsOverlay({ onClose }: ImpressionsOverlayProps) {
               </>
             )}
           </>
+        )}
+      </div>
+
+      {adding && side === "others" && (
+        <AddImpressionFlow onClose={() => setAdding(false)} />
+      )}
+    </div>
+  );
+}
+
+// ─── AddImpressionFlow — sketch a new impression ─────────────────
+function AddImpressionFlow({ onClose }: { onClose: () => void }) {
+  const [step, setStep] = useState<"form" | "saved">("form");
+  const [who, setWho] = useState("");
+  const [warmth, setWarmth] = useState(60);
+  const [depth, setDepth] = useState(50);
+  const [energy, setEnergy] = useState(50);
+  const [picked, setPicked] = useState<string[]>([]);
+  const [note, setNote] = useState("");
+
+  const palette = [
+    "quietly funny",
+    "careful listener",
+    "sharp",
+    "impatient",
+    "easy",
+    "guarded",
+    "curious",
+    "warm",
+    "restless",
+    "precise",
+    "performative",
+    "kind",
+  ];
+  const togglePick = (t: string) =>
+    setPicked((p) =>
+      p.includes(t) ? p.filter((x) => x !== t) : [...p, t],
+    );
+
+  return (
+    <div
+      style={{
+        position: "absolute",
+        inset: 0,
+        background: "rgba(20,18,14,0.92)",
+        zIndex: 50,
+        display: "flex",
+        flexDirection: "column",
+      }}
+    >
+      <div
+        className="app-header"
+        style={{
+          background: "transparent",
+          borderBottom: "0.5px solid rgba(255,255,255,0.15)",
+        }}
+      >
+        <button
+          className="avatar-btn"
+          onClick={onClose}
+          style={{
+            color: "white",
+            borderColor: "rgba(255,255,255,0.3)",
+          }}
+        >
+          ✕
+        </button>
+        <div className="h-title" style={{ color: "white" }}>
+          sketch an impression
+        </div>
+        <div style={{ width: 36 }} />
+      </div>
+
+      <div style={{ flex: 1, overflowY: "auto", padding: 18 }}>
+        {step === "form" && (
+          <div
+            style={{
+              background: "var(--paper)",
+              borderRadius: 8,
+              padding: 16,
+              color: "var(--ink)",
+            }}
+          >
+            <Kicker>who did you meet?</Kicker>
+            <input
+              value={who}
+              onChange={(e) => setWho(e.target.value)}
+              placeholder="a name, or leave blank"
+              style={{
+                width: "100%",
+                boxSizing: "border-box",
+                marginTop: 6,
+                padding: "10px 12px",
+                background: "var(--paper-2)",
+                border: "0.5px solid var(--rule)",
+                borderRadius: 6,
+                fontFamily: "var(--serif)",
+                fontStyle: "italic",
+                fontSize: 15,
+                color: "var(--ink)",
+              }}
+            />
+
+            <div style={{ marginTop: 16 }}>
+              <Kicker>how did they feel?</Kicker>
+              <div
+                style={{
+                  marginTop: 8,
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 10,
+                }}
+              >
+                {[
+                  { k: "warmth", v: warmth, set: setWarmth, lo: "cool", hi: "warm" },
+                  { k: "depth", v: depth, set: setDepth, lo: "light", hi: "deep" },
+                  { k: "energy", v: energy, set: setEnergy, lo: "still", hi: "electric" },
+                ].map((s) => (
+                  <div key={s.k}>
+                    <div
+                      style={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        fontFamily: "var(--mono)",
+                        fontSize: 9,
+                        letterSpacing: "0.08em",
+                        color: "var(--ink-3)",
+                      }}
+                    >
+                      <span>{s.lo}</span>
+                      <span>{s.k}</span>
+                      <span>{s.hi}</span>
+                    </div>
+                    <input
+                      type="range"
+                      min="0"
+                      max="100"
+                      value={s.v}
+                      onChange={(e) => s.set(+e.target.value)}
+                      style={{
+                        width: "100%",
+                        accentColor: "var(--accent)",
+                      }}
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div style={{ marginTop: 16 }}>
+              <Kicker>a few words</Kicker>
+              <div
+                style={{
+                  display: "flex",
+                  flexWrap: "wrap",
+                  gap: 5,
+                  marginTop: 8,
+                }}
+              >
+                {palette.map((t) => (
+                  <button
+                    key={t}
+                    onClick={() => togglePick(t)}
+                    style={{
+                      fontFamily: "var(--serif)",
+                      fontStyle: "italic",
+                      fontSize: 12,
+                      padding: "4px 9px",
+                      borderRadius: 999,
+                      cursor: "pointer",
+                      background: picked.includes(t)
+                        ? "var(--ink)"
+                        : "var(--paper-2)",
+                      color: picked.includes(t) ? "var(--paper)" : "var(--ink-2)",
+                      border: "0.5px solid var(--rule)",
+                    }}
+                  >
+                    {t}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div style={{ marginTop: 16 }}>
+              <Kicker>the note · longhand · private to you</Kicker>
+              <textarea
+                value={note}
+                onChange={(e) => setNote(e.target.value)}
+                rows={3}
+                placeholder="what stayed with you?"
+                style={{
+                  width: "100%",
+                  boxSizing: "border-box",
+                  marginTop: 6,
+                  padding: "10px 12px",
+                  background: "var(--paper-2)",
+                  border: "0.5px solid var(--rule)",
+                  borderRadius: 6,
+                  fontFamily: "var(--serif)",
+                  fontStyle: "italic",
+                  fontSize: 14,
+                  color: "var(--ink)",
+                  resize: "none",
+                }}
+              />
+            </div>
+
+            <div style={{ display: "flex", gap: 8, marginTop: 18 }}>
+              <button
+                onClick={onClose}
+                style={{
+                  flex: 1,
+                  padding: "12px",
+                  background: "var(--paper-2)",
+                  border: "0.5px solid var(--rule)",
+                  borderRadius: 999,
+                  fontFamily: "var(--serif)",
+                  fontStyle: "italic",
+                  fontSize: 14,
+                  cursor: "pointer",
+                }}
+              >
+                cancel
+              </button>
+              <button
+                onClick={() => setStep("saved")}
+                style={{
+                  flex: 1,
+                  padding: "12px",
+                  background: "var(--ink)",
+                  color: "var(--paper)",
+                  border: "none",
+                  borderRadius: 999,
+                  fontFamily: "var(--serif)",
+                  fontStyle: "italic",
+                  fontSize: 14,
+                  cursor: "pointer",
+                }}
+              >
+                pin it
+              </button>
+            </div>
+          </div>
+        )}
+
+        {step === "saved" && (
+          <div
+            style={{
+              background: "var(--paper)",
+              borderRadius: 8,
+              padding: 22,
+              color: "var(--ink)",
+              textAlign: "center",
+            }}
+          >
+            <div
+              style={{
+                fontFamily: "var(--serif)",
+                fontStyle: "italic",
+                fontSize: 28,
+              }}
+            >
+              pinned.
+            </div>
+            <div className="margin-note" style={{ marginTop: 10 }}>
+              An impression of {who || "someone"} is now in your ledger.
+            </div>
+            <button
+              onClick={onClose}
+              style={{
+                marginTop: 18,
+                padding: "10px 22px",
+                background: "var(--ink)",
+                color: "var(--paper)",
+                border: "none",
+                borderRadius: 999,
+                fontFamily: "var(--serif)",
+                fontStyle: "italic",
+                fontSize: 14,
+                cursor: "pointer",
+              }}
+            >
+              close
+            </button>
+          </div>
         )}
       </div>
     </div>

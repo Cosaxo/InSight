@@ -1141,3 +1141,796 @@ export function BellCurve({
     </svg>
   );
 }
+
+// ─── Ridgeline ───────────────────────────────────────────────────
+interface RidgelineProps {
+  rows: number[][];
+  w?: number;
+  h?: number;
+  color?: string;
+}
+export function Ridgeline({
+  rows,
+  w = 320,
+  h = 120,
+  color = "var(--sienna)",
+}: RidgelineProps) {
+  const rowH = h / rows.length;
+  return (
+    <svg viewBox={`0 0 ${w} ${h + 14}`} width="100%" style={{ display: "block" }}>
+      {rows.map((vals, ri) => {
+        const baseY = (ri + 1) * rowH;
+        const pts = vals.map((v, i) => [
+          (i / (vals.length - 1)) * w,
+          baseY - v * (rowH * 1.6),
+        ]);
+        const d =
+          pts.reduce(
+            (acc, [x, y], i) =>
+              acc +
+              (i === 0 ? `M ${x} ${baseY} L ${x} ${y}` : ` L ${x} ${y}`),
+            "",
+          ) + ` L ${w} ${baseY} Z`;
+        return (
+          <g key={ri}>
+            <path d={d} fill="var(--paper-2)" stroke="none" />
+            <path
+              d={d}
+              fill={color}
+              fillOpacity={0.12 + ri * 0.04}
+              stroke={color}
+              strokeWidth="1.1"
+              strokeLinejoin="round"
+            />
+          </g>
+        );
+      })}
+    </svg>
+  );
+}
+
+// ─── NetworkGraph ────────────────────────────────────────────────
+interface NetworkNode {
+  id: string;
+  label: string;
+  hue?: number;
+  weight?: number;
+}
+interface NetworkGraphProps {
+  nodes: NetworkNode[];
+  edges: [string, string][];
+  size?: number;
+  accent?: string;
+}
+export function NetworkGraph({
+  nodes,
+  edges,
+  size = 320,
+  accent = "var(--accent)",
+}: NetworkGraphProps) {
+  const cx = size / 2,
+    cy = size / 2;
+  const others = nodes.filter((n) => n.id !== "you");
+  const placed: Record<string, [number, number]> = { you: [cx, cy] };
+  others.forEach((n, i) => {
+    const a = (i / others.length) * Math.PI * 2 - Math.PI / 2;
+    const r = 60 + (1 - (n.weight ?? 0.5)) * 70;
+    placed[n.id] = [cx + Math.cos(a) * r, cy + Math.sin(a) * r];
+  });
+  return (
+    <svg viewBox={`0 0 ${size} ${size}`} width="100%" style={{ display: "block" }}>
+      {edges.map(([a, b], i) => {
+        if (!placed[a] || !placed[b]) return null;
+        return (
+          <line
+            key={i}
+            x1={placed[a][0]}
+            y1={placed[a][1]}
+            x2={placed[b][0]}
+            y2={placed[b][1]}
+            stroke="var(--rule)"
+            strokeWidth="0.8"
+            strokeDasharray="2 2"
+            opacity="0.7"
+          />
+        );
+      })}
+      {nodes.map((n) => {
+        const [x, y] = placed[n.id];
+        const isYou = n.id === "you";
+        const r = isYou ? 14 : 9;
+        const fill = isYou ? accent : `oklch(0.55 0.12 ${n.hue ?? 38})`;
+        return (
+          <g key={n.id}>
+            <circle cx={x} cy={y} r={r + 4} fill={fill} fillOpacity="0.14" />
+            <circle cx={x} cy={y} r={r} fill={fill} />
+            <text
+              x={x}
+              y={y + 3}
+              textAnchor="middle"
+              style={{
+                font: `italic ${isYou ? 11 : 9}px Fraunces, serif`,
+                fill: "var(--paper)",
+              }}
+            >
+              {n.label}
+            </text>
+          </g>
+        );
+      })}
+    </svg>
+  );
+}
+
+// ─── StackedBars (vertical) ──────────────────────────────────────
+interface StackedSegment {
+  key: string;
+  color: string;
+  label?: string;
+}
+interface StackedBarRow {
+  label: string;
+  vals: Record<string, number>;
+}
+interface StackedBarsProps {
+  rows: StackedBarRow[];
+  segments: StackedSegment[];
+  w?: number;
+  h?: number;
+  gap?: number;
+  max?: number;
+}
+export function StackedBars({
+  rows,
+  segments,
+  w = 320,
+  h = 140,
+  gap = 4,
+  max,
+}: StackedBarsProps) {
+  const totals = rows.map((r) =>
+    segments.reduce((s, seg) => s + (r.vals[seg.key] || 0), 0),
+  );
+  const M = max || Math.max(...totals);
+  const colW = (w - gap * (rows.length - 1)) / rows.length;
+  return (
+    <svg viewBox={`0 0 ${w} ${h + 18}`} width="100%" style={{ display: "block" }}>
+      {rows.map((r, i) => {
+        let y = h - 14;
+        const x = i * (colW + gap);
+        const tot = totals[i];
+        return (
+          <g key={i}>
+            {segments.map((seg, j) => {
+              const v = r.vals[seg.key] || 0;
+              const sh = (v / M) * (h - 22);
+              y -= sh;
+              return (
+                <rect
+                  key={j}
+                  x={x}
+                  y={y}
+                  width={colW}
+                  height={sh}
+                  fill={seg.color}
+                  fillOpacity={0.55 + j * 0.12}
+                />
+              );
+            })}
+            <text
+              x={x + colW / 2}
+              y={h - 14 - (tot / M) * (h - 22) - 3}
+              textAnchor="middle"
+              style={{
+                font: "8px JetBrains Mono, monospace",
+                fill: "var(--ink-3)",
+                letterSpacing: "0.06em",
+              }}
+            >
+              {tot}
+            </text>
+            <text
+              x={x + colW / 2}
+              y={h + 6}
+              textAnchor="middle"
+              style={{
+                font: "italic 10.5px Fraunces, serif",
+                fill: "var(--ink-2)",
+              }}
+            >
+              {r.label}
+            </text>
+          </g>
+        );
+      })}
+    </svg>
+  );
+}
+
+// ─── ClockDial — 24-hour clock with markers ──────────────────────
+interface ClockMarker {
+  hour: number;
+  kcal: number;
+  label?: string;
+  hue?: number;
+}
+interface WaterSpoke {
+  h: number;
+  ml: number;
+}
+interface ClockDialProps {
+  markers?: ClockMarker[];
+  waterByHour?: WaterSpoke[];
+  size?: number;
+  accent?: string;
+}
+export function ClockDial({
+  markers = [],
+  waterByHour = [],
+  size = 220,
+  accent = "var(--sienna)",
+}: ClockDialProps) {
+  const cx = size / 2,
+    cy = size / 2,
+    r = size / 2 - 18;
+  const hourPt = (h: number, rad = r): [number, number] => {
+    const a = (h / 24) * Math.PI * 2 - Math.PI / 2;
+    return [cx + Math.cos(a) * rad, cy + Math.sin(a) * rad];
+  };
+  return (
+    <svg viewBox={`0 0 ${size} ${size}`} width="100%" style={{ display: "block" }}>
+      <circle cx={cx} cy={cy} r={r} fill="none" stroke="var(--rule)" strokeWidth="0.6" />
+      <circle
+        cx={cx}
+        cy={cy}
+        r={r * 0.66}
+        fill="none"
+        stroke="var(--rule)"
+        strokeWidth="0.4"
+        strokeDasharray="2 3"
+      />
+      {Array.from({ length: 24 }).map((_, i) => {
+        const [x1, y1] = hourPt(i, r - 4);
+        const [x2, y2] = hourPt(i, r);
+        return (
+          <line
+            key={i}
+            x1={x1}
+            y1={y1}
+            x2={x2}
+            y2={y2}
+            stroke="var(--rule)"
+            strokeWidth={i % 6 === 0 ? 1 : 0.5}
+          />
+        );
+      })}
+      {[0, 6, 12, 18].map((h) => {
+        const [x, y] = hourPt(h, r + 10);
+        return (
+          <text
+            key={h}
+            x={x}
+            y={y + 3}
+            textAnchor="middle"
+            style={{
+              font: "8px JetBrains Mono, monospace",
+              fill: "var(--ink-3)",
+              letterSpacing: "0.08em",
+            }}
+          >
+            {h === 0 ? "24" : String(h).padStart(2, "0")}
+          </text>
+        );
+      })}
+      {(() => {
+        const [sx, sy] = hourPt(6, r - 2);
+        const [ex, ey] = hourPt(22, r - 2);
+        return (
+          <path
+            d={`M ${sx} ${sy} A ${r - 2} ${r - 2} 0 1 1 ${ex} ${ey}`}
+            fill="none"
+            stroke="var(--ochre)"
+            strokeWidth="1.2"
+            strokeOpacity="0.32"
+          />
+        );
+      })()}
+      {waterByHour.map((w, i) => {
+        if (!w.ml) return null;
+        const len = Math.min(w.ml / 250, 1) * (r * 0.32);
+        const [x1, y1] = hourPt(w.h, r * 0.66);
+        const [x2, y2] = hourPt(w.h, r * 0.66 - len);
+        return (
+          <line
+            key={i}
+            x1={x1}
+            y1={y1}
+            x2={x2}
+            y2={y2}
+            stroke="var(--indigo)"
+            strokeWidth="2"
+            strokeLinecap="round"
+            opacity="0.7"
+          />
+        );
+      })}
+      {markers.map((m, i) => {
+        const rad = r * 0.85;
+        const [x, y] = hourPt(m.hour, rad);
+        const dotR = 6 + Math.min(m.kcal / 200, 8);
+        const fill = m.hue != null ? `oklch(0.62 0.13 ${m.hue})` : accent;
+        return (
+          <g key={i}>
+            <circle cx={x} cy={y} r={dotR + 3} fill={fill} fillOpacity="0.16" />
+            <circle cx={x} cy={y} r={dotR} fill={fill} />
+            <text
+              x={x}
+              y={y + 3}
+              textAnchor="middle"
+              style={{
+                font: "8px JetBrains Mono, monospace",
+                fill: "var(--paper)",
+                letterSpacing: "0.05em",
+              }}
+            >
+              {m.kcal}
+            </text>
+          </g>
+        );
+      })}
+      <text
+        x={cx}
+        y={cy - 4}
+        textAnchor="middle"
+        style={{ font: "italic 11px Fraunces, serif", fill: "var(--ink-2)" }}
+      >
+        today
+      </text>
+      <text
+        x={cx}
+        y={cy + 8}
+        textAnchor="middle"
+        style={{
+          font: "8px JetBrains Mono, monospace",
+          fill: "var(--ink-3)",
+          letterSpacing: "0.1em",
+        }}
+      >
+        24-HOUR
+      </text>
+    </svg>
+  );
+}
+
+// ─── EatingWindow — rows of horizontal bands across 24h ──────────
+interface EatingRow {
+  d: string;
+  start: number;
+  end: number;
+}
+interface EatingWindowProps {
+  rows: EatingRow[];
+  w?: number;
+  rowH?: number;
+  gap?: number;
+}
+export function EatingWindow({
+  rows,
+  w = 320,
+  rowH = 10,
+  gap = 2,
+}: EatingWindowProps) {
+  const h = rows.length * (rowH + gap) + 14;
+  const xs = (hour: number) => 28 + (hour / 24) * (w - 36);
+  return (
+    <svg viewBox={`0 0 ${w} ${h}`} width="100%" style={{ display: "block" }}>
+      {[0, 6, 12, 18, 24].map((tick) => (
+        <g key={tick}>
+          <line
+            x1={xs(tick)}
+            y1={0}
+            x2={xs(tick)}
+            y2={rows.length * (rowH + gap)}
+            stroke="var(--rule)"
+            strokeWidth="0.4"
+            strokeDasharray="2 2"
+          />
+          <text
+            x={xs(tick)}
+            y={rows.length * (rowH + gap) + 10}
+            textAnchor="middle"
+            style={{
+              font: "8px JetBrains Mono, monospace",
+              fill: "var(--ink-3)",
+            }}
+          >
+            {String(tick).padStart(2, "0")}
+          </text>
+        </g>
+      ))}
+      {rows.map((r, i) => (
+        <g key={i}>
+          <text
+            x={4}
+            y={i * (rowH + gap) + rowH - 1}
+            style={{
+              font: "italic 9px Fraunces, serif",
+              fill: "var(--ink-3)",
+            }}
+          >
+            {r.d}
+          </text>
+          <rect
+            x={xs(r.start)}
+            y={i * (rowH + gap)}
+            width={xs(r.end) - xs(r.start)}
+            height={rowH}
+            fill="var(--ochre)"
+            fillOpacity="0.45"
+            rx="2"
+          />
+        </g>
+      ))}
+    </svg>
+  );
+}
+
+// ─── MicroBars — diverging dot row vs target=100 ─────────────────
+interface MicroBarsItem {
+  k: string;
+  pct: number;
+  hue: number;
+}
+export function MicroBars({ items }: { items: MicroBarsItem[] }) {
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+      {items.map((it, i) => {
+        const overPct = (Math.min(it.pct, 200) / 200) * 100;
+        const targetPct = (100 / 200) * 100;
+        const color = `oklch(0.60 0.13 ${it.hue})`;
+        return (
+          <div
+            key={i}
+            style={{
+              display: "grid",
+              gridTemplateColumns: "78px 1fr 38px",
+              gap: 8,
+              alignItems: "center",
+            }}
+          >
+            <span
+              style={{
+                fontFamily: "var(--serif)",
+                fontStyle: "italic",
+                fontSize: 11.5,
+                color: "var(--ink-2)",
+              }}
+            >
+              {it.k}
+            </span>
+            <div
+              style={{
+                position: "relative",
+                height: 10,
+                background: "var(--paper-2)",
+                border: "0.5px solid var(--rule)",
+                borderRadius: 2,
+              }}
+            >
+              <div
+                style={{
+                  position: "absolute",
+                  left: 0,
+                  top: 0,
+                  bottom: 0,
+                  width: `${overPct}%`,
+                  background: color,
+                  opacity: 0.55,
+                  borderRadius: 2,
+                }}
+              />
+              <div
+                style={{
+                  position: "absolute",
+                  left: `${targetPct}%`,
+                  top: -2,
+                  bottom: -2,
+                  width: 1.2,
+                  background: "var(--ink-2)",
+                }}
+              />
+            </div>
+            <span
+              style={{
+                fontFamily: "var(--mono)",
+                fontSize: 9,
+                color: it.pct < 70 ? "oklch(0.55 0.16 12)" : "var(--ink-3)",
+                letterSpacing: "0.06em",
+                textAlign: "right",
+              }}
+            >
+              {it.pct}%
+            </span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// ─── DowStripes — day-of-week heatmap ────────────────────────────
+interface DowStripeRow {
+  label: string;
+  vals: number[];
+}
+export function DowStripes({
+  rows,
+  color = "var(--sienna)",
+}: {
+  rows: DowStripeRow[];
+  color?: string;
+}) {
+  const dows = ["M", "T", "W", "T", "F", "S", "S"];
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "110px repeat(7, 1fr)",
+          gap: 4,
+          fontFamily: "var(--mono)",
+          fontSize: 8.5,
+          color: "var(--ink-3)",
+          letterSpacing: "0.1em",
+          alignItems: "center",
+        }}
+      >
+        <span />
+        {dows.map((d, i) => (
+          <span key={i} style={{ textAlign: "center" }}>
+            {d}
+          </span>
+        ))}
+      </div>
+      {rows.map((r, i) => (
+        <div
+          key={i}
+          style={{
+            display: "grid",
+            gridTemplateColumns: "110px repeat(7, 1fr)",
+            gap: 4,
+            alignItems: "center",
+          }}
+        >
+          <span
+            style={{
+              fontFamily: "var(--serif)",
+              fontStyle: "italic",
+              fontSize: 12,
+              color: "var(--ink-2)",
+              textOverflow: "ellipsis",
+              overflow: "hidden",
+              whiteSpace: "nowrap",
+            }}
+          >
+            {r.label}
+          </span>
+          {r.vals.map((v, j) => (
+            <div
+              key={j}
+              style={{
+                height: 22,
+                borderRadius: 2,
+                background: color,
+                opacity: 0.1 + (v / 100) * 0.75,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontFamily: "var(--mono)",
+                fontSize: 8,
+                color: v > 60 ? "var(--paper)" : "var(--ink-3)",
+                letterSpacing: "0.05em",
+              }}
+            >
+              {v}
+            </div>
+          ))}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ─── LoadCurves — CTL (fitness) vs ATL (fatigue) + daily load ────
+interface LoadCurvesProps {
+  ctl: number[];
+  atl: number[];
+  load?: number[];
+  w?: number;
+  h?: number;
+  ctlColor?: string;
+  atlColor?: string;
+}
+export function LoadCurves({
+  ctl,
+  atl,
+  load,
+  w = 320,
+  h = 110,
+  ctlColor = "var(--sage)",
+  atlColor = "var(--sienna)",
+}: LoadCurvesProps) {
+  const N = Math.max(ctl.length, atl.length, load?.length || 0);
+  const max = Math.max(...ctl, ...atl, ...(load || [])) * 1.1;
+  const xs = (i: number) => (i / (N - 1)) * (w - 4) + 2;
+  const ys = (v: number) => h - 14 - (v / max) * (h - 18);
+  const path = (arr: number[]) =>
+    arr.map((v, i) => `${i === 0 ? "M" : "L"} ${xs(i)} ${ys(v)}`).join(" ");
+  const barW = ((w - 4) / N) * 0.55;
+  return (
+    <svg viewBox={`0 0 ${w} ${h}`} width="100%" style={{ display: "block" }}>
+      {load &&
+        load.map((v, i) => (
+          <rect
+            key={i}
+            x={xs(i) - barW / 2}
+            y={ys(v)}
+            width={barW}
+            height={h - 14 - ys(v)}
+            fill="var(--ink-3)"
+            fillOpacity="0.18"
+            rx="0.5"
+          />
+        ))}
+      <path d={path(ctl)} fill="none" stroke={ctlColor} strokeWidth="1.6" />
+      <path
+        d={path(atl)}
+        fill="none"
+        stroke={atlColor}
+        strokeWidth="1.4"
+        strokeDasharray="3 2"
+      />
+      <line
+        x1={2}
+        y1={h - 14}
+        x2={w - 2}
+        y2={h - 14}
+        stroke="var(--rule)"
+        strokeWidth="0.6"
+      />
+      <text
+        x={2}
+        y={h - 2}
+        style={{ font: "8px JetBrains Mono, monospace", fill: "var(--ink-3)" }}
+      >
+        28d ago
+      </text>
+      <text
+        x={w - 2}
+        y={h - 2}
+        textAnchor="end"
+        style={{ font: "8px JetBrains Mono, monospace", fill: "var(--ink-3)" }}
+      >
+        today
+      </text>
+    </svg>
+  );
+}
+
+// ─── Scatter (small) ─────────────────────────────────────────────
+interface ScatterPoint {
+  x: number;
+  y: number;
+  label?: string;
+}
+interface ScatterProps {
+  points: ScatterPoint[];
+  xLabel?: [string, string];
+  yLabel?: [string, string];
+  w?: number;
+  h?: number;
+  accent?: string;
+  xMax?: number;
+  yMin?: number;
+  yMax?: number;
+}
+export function Scatter({
+  points,
+  xLabel = ["low", "high"],
+  yLabel = ["below", "above"],
+  w = 320,
+  h = 160,
+  accent = "var(--accent)",
+  xMax = 100,
+  yMin = -10,
+  yMax = 10,
+}: ScatterProps) {
+  const pad = 22;
+  const xs = (v: number) => pad + (v / xMax) * (w - pad * 2);
+  const ys = (v: number) =>
+    h - pad - ((v - yMin) / (yMax - yMin)) * (h - pad * 2);
+  return (
+    <svg viewBox={`0 0 ${w} ${h}`} width="100%" style={{ display: "block" }}>
+      <rect
+        x={pad}
+        y={pad}
+        width={w - 2 * pad}
+        height={h - 2 * pad}
+        fill="none"
+        stroke="var(--rule)"
+        strokeWidth="0.5"
+      />
+      <line
+        x1={pad}
+        y1={ys(0)}
+        x2={w - pad}
+        y2={ys(0)}
+        stroke="var(--rule)"
+        strokeWidth="0.5"
+        strokeDasharray="2 2"
+      />
+      {points.map((p, i) => (
+        <g key={i}>
+          <circle cx={xs(p.x)} cy={ys(p.y)} r="4.5" fill={accent} fillOpacity="0.7" />
+          {p.label && (
+            <text
+              x={xs(p.x) + 6}
+              y={ys(p.y) + 3}
+              style={{
+                font: "italic 9px Fraunces, serif",
+                fill: "var(--ink-3)",
+              }}
+            >
+              {p.label}
+            </text>
+          )}
+        </g>
+      ))}
+      <text
+        x={pad}
+        y={h - 4}
+        style={{
+          font: "8px JetBrains Mono, monospace",
+          fill: "var(--ink-3)",
+          letterSpacing: "0.1em",
+        }}
+      >
+        {xLabel[0]}
+      </text>
+      <text
+        x={w - pad}
+        y={h - 4}
+        textAnchor="end"
+        style={{
+          font: "8px JetBrains Mono, monospace",
+          fill: "var(--ink-3)",
+          letterSpacing: "0.1em",
+        }}
+      >
+        {xLabel[1]}
+      </text>
+      <text
+        x={pad - 4}
+        y={pad - 4}
+        style={{
+          font: "8px JetBrains Mono, monospace",
+          fill: "var(--ink-3)",
+          letterSpacing: "0.1em",
+        }}
+      >
+        {yLabel[1]}
+      </text>
+      <text
+        x={pad - 4}
+        y={h - pad + 10}
+        style={{
+          font: "8px JetBrains Mono, monospace",
+          fill: "var(--ink-3)",
+          letterSpacing: "0.1em",
+        }}
+      >
+        {yLabel[0]}
+      </text>
+    </svg>
+  );
+}

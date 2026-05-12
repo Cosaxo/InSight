@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { IS_DATA } from "../../data/seedData";
 import { Kicker, Pill } from "../shared/primitives";
 import { Donut, HBars, Sparkline } from "../shared/charts";
@@ -26,6 +26,7 @@ export function BodyOverlay({ onClose }: BodyOverlayProps) {
   const M = D.meals;
   const [tab, setTab] = useState<"watch" | "table">("watch");
   const [openMeal, setOpenMeal] = useState<Meal | null>(null);
+  const [showCamera, setShowCamera] = useState(false);
   const [share, setShare] = useState<boolean>(B.shareWithCompare);
 
   const today = B.today;
@@ -647,6 +648,43 @@ export function BodyOverlay({ onClose }: BodyOverlayProps) {
               </div>
             </div>
 
+            <button
+              onClick={() => setShowCamera(true)}
+              style={{
+                width: "100%",
+                padding: "14px",
+                background: "var(--ink)",
+                color: "var(--paper)",
+                border: "none",
+                borderRadius: 14,
+                fontFamily: "var(--serif)",
+                fontSize: 15,
+                letterSpacing: "-0.005em",
+                marginBottom: 14,
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 10,
+              }}
+            >
+              <svg
+                viewBox="0 0 24 24"
+                width="20"
+                height="20"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.4"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <rect x="2.5" y="6" width="19" height="13" rx="2" />
+                <circle cx="12" cy="12.5" r="3.8" />
+                <path d="M8 6l1.5-2h5L16 6" />
+              </svg>
+              <span style={{ fontStyle: "italic" }}>photograph a meal</span>
+            </button>
+
             <Kicker>Today's log</Kicker>
             <div
               style={{
@@ -765,6 +803,357 @@ export function BodyOverlay({ onClose }: BodyOverlayProps) {
       {openMeal && (
         <MealDetail m={openMeal} onClose={() => setOpenMeal(null)} />
       )}
+      {showCamera && <MealCameraFlow onClose={() => setShowCamera(false)} />}
+    </div>
+  );
+}
+
+// Camera flow — mock photo capture → AI analyzing → result.
+function MealCameraFlow({ onClose }: { onClose: () => void }) {
+  const [stage, setStage] = useState<"camera" | "analyzing" | "done">("camera");
+  const [progress, setProgress] = useState(0);
+
+  useEffect(() => {
+    if (stage !== "analyzing") return;
+    const start = Date.now();
+    const id = setInterval(() => {
+      const elapsed = Date.now() - start;
+      const p = Math.min(elapsed / 2400, 1);
+      setProgress(p);
+      if (p >= 1) {
+        clearInterval(id);
+        setTimeout(() => setStage("done"), 200);
+      }
+    }, 60);
+    return () => clearInterval(id);
+  }, [stage]);
+
+  return (
+    <div
+      className="overlay paper-grain"
+      style={{ zIndex: 30, background: "var(--paper)" }}
+    >
+      <div className="app-header">
+        <button className="avatar-btn" onClick={onClose}>
+          ✕
+        </button>
+        <div className="h-title">
+          a <em>plate</em>
+        </div>
+        <div style={{ width: 36 }} />
+      </div>
+      <div
+        className="app-body"
+        style={{ display: "flex", flexDirection: "column" }}
+      >
+        {stage === "camera" && (
+          <>
+            <div
+              style={{
+                flex: 1,
+                minHeight: 380,
+                borderRadius: 14,
+                marginBottom: 14,
+                background: "oklch(0.18 0.01 60)",
+                position: "relative",
+                overflow: "hidden",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              <div
+                style={{
+                  position: "absolute",
+                  inset: 30,
+                  border: "1px dashed rgba(255,240,220,0.3)",
+                  borderRadius: 10,
+                }}
+              />
+              <div
+                style={{
+                  width: 220,
+                  height: 220,
+                  borderRadius: "50%",
+                  background: "oklch(0.92 0.02 60)",
+                  display: "flex",
+                  flexWrap: "wrap",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: 6,
+                  padding: 30,
+                  boxShadow: "inset 0 0 30px rgba(0,0,0,0.08)",
+                }}
+              >
+                <div
+                  style={{
+                    width: 70,
+                    height: 70,
+                    background: "oklch(0.62 0.13 38)",
+                    borderRadius: "50%",
+                  }}
+                />
+                <div
+                  style={{
+                    width: 60,
+                    height: 60,
+                    background: "oklch(0.75 0.12 80)",
+                    borderRadius: "40% 50% 35% 45%",
+                  }}
+                />
+                <div
+                  style={{
+                    width: 50,
+                    height: 80,
+                    background: "oklch(0.68 0.10 145)",
+                    borderRadius: "40%",
+                  }}
+                />
+                <div
+                  style={{
+                    width: 90,
+                    height: 30,
+                    background: "oklch(0.55 0.10 38)",
+                    borderRadius: 4,
+                  }}
+                />
+              </div>
+              <div
+                style={{
+                  position: "absolute",
+                  top: 16,
+                  left: 16,
+                  fontFamily: "var(--mono)",
+                  fontSize: 9,
+                  color: "oklch(0.85 0.04 60)",
+                  letterSpacing: "0.1em",
+                }}
+              >
+                ● REC · CENTER PLATE IN FRAME
+              </div>
+            </div>
+
+            <div
+              className="margin-note"
+              style={{ textAlign: "center", marginBottom: 16 }}
+            >
+              the AI will recognize each item and estimate portions. <br />
+              <span style={{ fontSize: 11 }}>
+                good light helps. shadows confuse it.
+              </span>
+            </div>
+
+            <button
+              onClick={() => setStage("analyzing")}
+              style={{
+                padding: "16px",
+                background: "var(--ink)",
+                color: "var(--paper)",
+                border: "none",
+                borderRadius: 14,
+                fontFamily: "var(--serif)",
+                fontSize: 16,
+                fontStyle: "italic",
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 10,
+              }}
+            >
+              <span
+                style={{
+                  width: 14,
+                  height: 14,
+                  borderRadius: "50%",
+                  background: "oklch(0.65 0.18 25)",
+                  boxShadow:
+                    "0 0 0 3px var(--paper), 0 0 0 4px oklch(0.65 0.18 25)",
+                }}
+              />
+              capture
+            </button>
+          </>
+        )}
+
+        {stage === "analyzing" && (
+          <div
+            style={{
+              flex: 1,
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              justifyContent: "center",
+              padding: "40px 20px",
+            }}
+          >
+            <div
+              style={{
+                position: "relative",
+                width: 140,
+                height: 140,
+                marginBottom: 28,
+              }}
+            >
+              <svg
+                width="140"
+                height="140"
+                viewBox="0 0 140 140"
+                style={{ position: "absolute" }}
+              >
+                <circle
+                  cx="70"
+                  cy="70"
+                  r="60"
+                  stroke="var(--rule)"
+                  strokeWidth="1"
+                  fill="none"
+                />
+                <circle
+                  cx="70"
+                  cy="70"
+                  r="60"
+                  stroke="var(--sienna)"
+                  strokeWidth="1.5"
+                  fill="none"
+                  strokeLinecap="round"
+                  strokeDasharray={`${progress * 377} 377`}
+                  transform="rotate(-90 70 70)"
+                />
+                <circle
+                  cx="70"
+                  cy="70"
+                  r="42"
+                  stroke="var(--sage)"
+                  strokeWidth="0.75"
+                  fill="none"
+                  strokeDasharray="2 4"
+                  opacity={0.4 + progress * 0.6}
+                  transform={`rotate(${progress * 360} 70 70)`}
+                />
+              </svg>
+              <div
+                style={{
+                  position: "absolute",
+                  inset: 0,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontFamily: "var(--serif)",
+                  fontStyle: "italic",
+                  fontSize: 32,
+                }}
+              >
+                {Math.round(progress * 100)}
+                <span style={{ fontSize: 14, color: "var(--ink-3)" }}>%</span>
+              </div>
+            </div>
+
+            <div
+              style={{
+                fontFamily: "var(--serif)",
+                fontSize: 22,
+                fontStyle: "italic",
+                textAlign: "center",
+                marginBottom: 8,
+              }}
+            >
+              looking at your plate —
+            </div>
+            <div
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                gap: 6,
+                marginTop: 16,
+                fontFamily: "var(--mono)",
+                fontSize: 11,
+                color: "var(--ink-3)",
+                letterSpacing: "0.06em",
+                textAlign: "center",
+              }}
+            >
+              <span style={{ opacity: progress > 0.15 ? 1 : 0.3 }}>
+                · identifying items
+              </span>
+              <span style={{ opacity: progress > 0.45 ? 1 : 0.3 }}>
+                · estimating portions
+              </span>
+              <span style={{ opacity: progress > 0.7 ? 1 : 0.3 }}>
+                · reading the macros
+              </span>
+              <span style={{ opacity: progress > 0.92 ? 1 : 0.3 }}>
+                · writing the verdict
+              </span>
+            </div>
+          </div>
+        )}
+
+        {stage === "done" && (
+          <div
+            style={{
+              flex: 1,
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              justifyContent: "center",
+              padding: "40px 20px",
+              textAlign: "center",
+            }}
+          >
+            <span
+              className="stamp"
+              style={{ fontSize: 11, padding: "6px 12px" }}
+            >
+              logged
+            </span>
+            <div
+              style={{
+                fontFamily: "var(--serif)",
+                fontSize: 28,
+                marginTop: 24,
+                fontStyle: "italic",
+              }}
+            >
+              "Sourdough, two eggs, avocado"
+            </div>
+            <div
+              style={{
+                fontFamily: "var(--mono)",
+                fontSize: 10,
+                color: "var(--ink-3)",
+                letterSpacing: "0.1em",
+                marginTop: 14,
+              }}
+            >
+              540 KCAL · 86% CONFIDENT
+            </div>
+            <div
+              className="margin-note"
+              style={{ marginTop: 18, fontSize: 14, maxWidth: 280 }}
+            >
+              "A balanced morning — the avocado earns its place."
+            </div>
+            <button
+              onClick={onClose}
+              style={{
+                marginTop: 36,
+                padding: "12px 28px",
+                background: "var(--ink)",
+                color: "var(--paper)",
+                border: "none",
+                borderRadius: 99,
+                fontFamily: "var(--serif)",
+                fontStyle: "italic",
+                fontSize: 15,
+                cursor: "pointer",
+              }}
+            >
+              back to the table
+            </button>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
