@@ -1,4 +1,4 @@
-import { Fragment, useMemo, useState } from "react";
+import { Fragment, useCallback, useMemo, useState } from "react";
 import { IS_DATA } from "../../data/seedData";
 import { Av, Kicker } from "../shared/primitives";
 import { Compass2D } from "../shared/charts";
@@ -103,6 +103,14 @@ export function PeopleTab({
     // as the seed list changes.
     return [...added, ...seed];
   }, [D.people, userPeople]);
+
+  // Stable callback so the memoized ConcentricMap doesn't re-render
+  // when chainTarget / other PeopleTab state changes.
+  const onConcentricPerson = useCallback(
+    (p: ConcentricPerson) => onPerson(p as CirclePerson),
+    [onPerson],
+  );
+
   const grouped = categories
     .map((c) => ({
       ...c,
@@ -491,7 +499,7 @@ export function PeopleTab({
             lines between them are shared edges.
           </div>
         </div>
-        <ConcentricMap people={people} onPerson={(p) => onPerson(p as CirclePerson)} />
+        <ConcentricMap people={people} onPerson={onConcentricPerson} />
       </div>
 
       <div className="card" style={{ marginBottom: 14 }}>

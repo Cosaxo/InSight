@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { memo, useState } from "react";
 import { Kicker } from "../shared/primitives";
 
 const WEIGHT_KG = 63;
@@ -213,7 +213,7 @@ const PEOPLE_CONSTELLATION: ConstellationPerson[] = [
 
 // ── rhythms components ───────────────────────────────────────────
 
-function DayClock() {
+const DayClock = memo(function DayClock() {
   const cx = 110, cy = 110, rOuter = 100, rInner = 60;
   const polar = (h: number, r: number): [number, number] => {
     const a = (h / 24) * 2 * Math.PI - Math.PI / 2;
@@ -305,9 +305,9 @@ function DayClock() {
       </div>
     </div>
   );
-}
+});
 
-function YearMoodCalendar() {
+const YearMoodCalendar = memo(function YearMoodCalendar() {
   const months = ["jan","feb","mar","apr","may","jun","jul","aug","sep","oct","nov","dec"];
   const cell = 8, gap = 2;
   return (
@@ -377,9 +377,9 @@ function YearMoodCalendar() {
       </div>
     </div>
   );
-}
+});
 
-function LifeInWeeks() {
+const LifeInWeeks = memo(function LifeInWeeks() {
   const totalWeeks = 84 * 52;
   const livedWeeks = Math.round(AGE * 52.18);
   const cols = 52, rows = 84;
@@ -445,9 +445,9 @@ function LifeInWeeks() {
       </div>
     </div>
   );
-}
+});
 
-function LifeRivers() {
+const LifeRivers = memo(function LifeRivers() {
   const W = 320, H = 140, pad = 8;
   const N = LIFE_RIVERS[0].values.length;
   const stepX = (W - pad * 2) / (N - 1);
@@ -524,9 +524,9 @@ function LifeRivers() {
       </div>
     </div>
   );
-}
+});
 
-function PeopleConstellation() {
+const PeopleConstellation = memo(function PeopleConstellation() {
   const cx = 160, cy = 160, S = 320;
   const rings = [38, 70, 105, 142];
   return (
@@ -601,7 +601,7 @@ function PeopleConstellation() {
       ))}
     </svg>
   );
-}
+});
 
 function ElementGrid() {
   return (

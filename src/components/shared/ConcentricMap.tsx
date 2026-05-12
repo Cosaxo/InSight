@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { memo, useMemo } from "react";
 
 export interface ConcentricPerson {
   id: string;
@@ -21,7 +21,10 @@ interface PlacedPerson extends ConcentricPerson {
   y: number;
 }
 
-export function ConcentricMap({ people, onPerson }: ConcentricMapProps) {
+export const ConcentricMap = memo(function ConcentricMap({
+  people,
+  onPerson,
+}: ConcentricMapProps) {
   const W = 360,
     H = 380;
   const cx = W / 2,
@@ -225,4 +228,4 @@ export function ConcentricMap({ people, onPerson }: ConcentricMapProps) {
       </div>
     </div>
   );
-}
+});

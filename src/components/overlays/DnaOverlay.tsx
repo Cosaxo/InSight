@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { memo, useState } from "react";
 import { Kicker } from "../shared/primitives";
 
 const ANCESTRY = [
@@ -142,7 +142,7 @@ function AncestryBar({
   );
 }
 
-function ChromosomePaint() {
+const ChromosomePaint = memo(function ChromosomePaint() {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
       {CHROMO_SEGMENTS.map((segs, i) => (
@@ -186,7 +186,7 @@ function ChromosomePaint() {
       ))}
     </div>
   );
-}
+});
 
 type DnaStage = "intro" | "uploading" | "analyzing" | "done";
 type DnaTab = "ancestry" | "chromo" | "traits" | "health" | "haplo";
