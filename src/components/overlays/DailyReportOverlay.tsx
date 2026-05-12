@@ -1102,8 +1102,9 @@ export function DailyReportOverlay({
                   style={{ fontSize: 12, marginBottom: 10 }}
                 >
                   Reflections run entirely on your phone — nothing
-                  leaves the device. The first time uses ~750 MB; after
-                  that it's instant and offline.
+                  leaves the device. The first time uses ~2 GB
+                  (Gemma 4 E2B on-device); after that it's instant
+                  and offline.
                 </div>
                 <button
                   type="button"
@@ -1120,7 +1121,7 @@ export function DailyReportOverlay({
                     cursor: "pointer",
                   }}
                 >
-                  ↓ DOWNLOAD AI · ~750 MB
+                  ↓ DOWNLOAD AI · ~2 GB
                 </button>
               </div>
             )}

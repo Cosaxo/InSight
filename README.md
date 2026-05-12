@@ -94,10 +94,10 @@ Live-reload during development (point the WebView at the dev server instead of t
 - `@capacitor-firebase/authentication` — native Google Sign-In sheet on iOS / Android. The plugin runs the OAuth flow natively, we exchange the resulting ID token for a Firebase credential via the JS SDK so every Firestore call still goes through the same auth instance. On web we fall back to the popup.
 - `@capacitor/camera` — daily-report photo capture uses the OS camera/library picker on device. Falls back to the existing `<input type="file">` on web.
 - `@capgo/capacitor-llm` — on-device language model. The daily report generates a one-sentence reflection from the user's last week of moods, **without any data leaving the device**. Strategy:
-  - **iOS 26+ with Apple Intelligence available** — uses Apple's Foundation Models. No download, runs on Neural Engine, free.
-  - **Older iOS, all Android** — downloads Gemma 3 1B (`.task`, ~750 MB at 8-bit) on first use, caches the path in localStorage, runs subsequent inferences instantly and offline.
+  - **Strict Gemma 4 E2B everywhere.** Same model on iOS and Android — no Apple-Intelligence preference, no per-vendor fallback. Every user gets the same observational voice. Apache 2.0, open weights, hosted on the `litert-community/gemma-4-E2B-it-litert-lm` repo as a MediaPipe `.task` file (~2 GB int4).
+  - **First launch** downloads the model and caches the path in localStorage. Subsequent inferences are offline and ~2–5 s on a modern phone.
   - **Web** — feature is hidden (the overlay shows a small note pointing the user to the mobile app).
-  - Model URL is overridable via `VITE_LLM_MODEL_URL` in `.env`.
+  - Model URL is overridable via `VITE_LLM_MODEL_URL` in `.env` — swap to Gemma 4 E4B for higher quality on capable devices, or to a mobile-tuned variant when one lands.
 
 ### Native setup (required before first device build)
 
