@@ -22,6 +22,15 @@ import {
   TweaksPanel,
 } from "./components/shared/TweaksPanel";
 import { IS_DATA } from "./data/seedData";
+import { PersonOverlay } from "./components/overlays/PersonOverlay";
+import type { PersonForOverlay } from "./components/overlays/PersonOverlay";
+import { ProfileOverlay } from "./components/overlays/ProfileOverlay";
+import { InsightsOverlay } from "./components/overlays/InsightsOverlay";
+import { TestOverlay } from "./components/overlays/TestOverlay";
+import { CityOverlay } from "./components/overlays/CityOverlay";
+import { SharingOverlay } from "./components/overlays/SharingOverlay";
+import { DnaOverlay } from "./components/overlays/DnaOverlay";
+import { ScrapbookOverlay } from "./components/overlays/ScrapbookOverlay";
 
 const TABS: { id: TabId; label: string }[] = [
   { id: "around", label: "around" },
@@ -39,13 +48,34 @@ const TWEAK_DEFAULTS = {
 
 type AnyPerson = NearbyPerson | CirclePerson;
 
+function toOverlayPerson(p: AnyPerson): PersonForOverlay {
+  return {
+    init: p.init,
+    hue: p.hue,
+    name: p.name,
+    match: p.match,
+    role: "role" in p ? p.role : undefined,
+    rel: "rel" in p ? (p as CirclePerson).rel : undefined,
+    dist: "dist" in p ? (p as NearbyPerson).dist : undefined,
+    note: "note" in p ? (p as NearbyPerson).note : undefined,
+    interests: "interests" in p ? p.interests : undefined,
+  };
+}
+
 function AppShell() {
   const [t, setTweak] = useTweaks(TWEAK_DEFAULTS);
   const validTab = (id: TabId) =>
     TABS.some((x) => x.id === id) ? id : "around";
   const [tab, setTab] = useState<TabId>(validTab(t.tab));
-  const [, setPerson] = useState<AnyPerson | null>(null);
-  const [, setCity] = useState<CitySeed | null>(null);
+  const [person, setPerson] = useState<AnyPerson | null>(null);
+  const [city, setCity] = useState<CitySeed | null>(null);
+  const [showProfile, setShowProfile] = useState(false);
+  const [showInsights, setShowInsights] = useState(false);
+  const [showTest, setShowTest] = useState(false);
+  const [showSharing, setShowSharing] = useState(false);
+  const [showDna, setShowDna] = useState(false);
+  const [showScrap, setShowScrap] = useState(false);
+  const [fabOpen, setFabOpen] = useState(false);
 
   useEffect(() => {
     const v = validTab(t.tab);
@@ -57,6 +87,18 @@ function AppShell() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tab]);
 
+  const closeAll = () => {
+    setPerson(null);
+    setCity(null);
+    setShowProfile(false);
+    setShowInsights(false);
+    setShowTest(false);
+    setShowSharing(false);
+    setShowDna(false);
+    setShowScrap(false);
+    setFabOpen(false);
+  };
+
   const me = IS_DATA.me;
   const appClasses = `app paper-grain ${t.dark ? "dark" : ""} ${
     t.density || "regular"
@@ -66,7 +108,15 @@ function AppShell() {
     <IOSDevice width={402} height={874} dark={t.dark}>
       <div className={appClasses} data-tab={tab}>
         <header className="app-header">
-          <button className="avatar-btn">{me.initials}</button>
+          <button
+            className={"avatar-btn" + (showProfile ? " is-on" : "")}
+            onClick={() => {
+              closeAll();
+              setShowProfile(true);
+            }}
+          >
+            {showProfile ? "✕" : me.initials}
+          </button>
           <div className="h-title">
             in<em>Sight</em>
           </div>
@@ -85,12 +135,74 @@ function AppShell() {
           {tab === "people" && <PeopleTab onPerson={setPerson} />}
         </div>
 
+        {fabOpen && (
+          <div className="fab-stack">
+            <div
+              className="fab-item"
+              onClick={() => {
+                setFabOpen(false);
+                setShowInsights(true);
+              }}
+            >
+              <span style={{ color: "var(--sienna)" }}>✦</span> open journal
+            </div>
+            <div
+              className="fab-item"
+              onClick={() => {
+                setFabOpen(false);
+                setShowScrap(true);
+              }}
+            >
+              <span style={{ color: "var(--sage)" }}>❀</span> the scrapbook
+            </div>
+            <div
+              className="fab-item"
+              onClick={() => {
+                setFabOpen(false);
+                setShowDna(true);
+              }}
+            >
+              <span style={{ color: "var(--c-groups)" }}>⌇</span> your DNA
+            </div>
+            <div
+              className="fab-item"
+              onClick={() => {
+                setFabOpen(false);
+                setShowTest(true);
+              }}
+            >
+              <span style={{ color: "var(--sage)" }}>✎</span> take a test
+            </div>
+            <div
+              className="fab-item"
+              onClick={() => {
+                setFabOpen(false);
+                setShowSharing(true);
+              }}
+            >
+              <span style={{ color: "var(--ink-2)" }}>◇</span> what you share
+            </div>
+            <div className="fab-item" onClick={() => setFabOpen(false)}>
+              <span style={{ color: "var(--ochre)" }}>+</span> add a person
+            </div>
+          </div>
+        )}
+        <button
+          className={"fab" + (fabOpen ? " is-open" : "")}
+          onClick={() => setFabOpen(!fabOpen)}
+        >
+          +
+        </button>
+
         <nav className="tabbar">
           {TABS.map(({ id, label }) => (
             <button
               key={id}
               className={"tab-btn" + (tab === id ? " is-active" : "")}
-              onClick={() => setTab(id)}
+              onClick={() => {
+                setTab(id);
+                closeAll();
+              }}
             >
               <span className="glyph">
                 <NavGlyph id={id} active={tab === id} />
@@ -99,6 +211,29 @@ function AppShell() {
             </button>
           ))}
         </nav>
+
+        {person && (
+          <PersonOverlay
+            p={toOverlayPerson(person)}
+            me={me}
+            onClose={() => setPerson(null)}
+          />
+        )}
+        {showProfile && (
+          <ProfileOverlay onClose={() => setShowProfile(false)} />
+        )}
+        {showInsights && (
+          <InsightsOverlay onClose={() => setShowInsights(false)} />
+        )}
+        {showTest && <TestOverlay onClose={() => setShowTest(false)} />}
+        {showSharing && (
+          <SharingOverlay onClose={() => setShowSharing(false)} />
+        )}
+        {showDna && <DnaOverlay onClose={() => setShowDna(false)} />}
+        {showScrap && (
+          <ScrapbookOverlay onClose={() => setShowScrap(false)} />
+        )}
+        {city && <CityOverlay city={city} onClose={() => setCity(null)} />}
       </div>
 
       <TweaksPanel>
