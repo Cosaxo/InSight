@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">InSight</string>
+    <string name="title_activity_main">InSight</string>
+    <string name="package_name">com.cosaxo.insight</string>
+    <string name="custom_url_scheme">com.cosaxo.insight</string>
+</resources>

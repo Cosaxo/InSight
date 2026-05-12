@@ -69,12 +69,49 @@ The app is designed to keep Firestore reads cheap:
 
 A typical active user, signed in, lands well inside Firebase's free tier (50 k reads + 20 k writes per day).
 
+## Native iOS + Android (Capacitor)
+
+The mobile experience ships as a native iOS + Android app via [Capacitor](https://capacitorjs.com). The whole React/Vite app runs inside a system WebView wrapped in a thin native shell — the same code we deploy to the web. The `ios/` and `android/` directories are committed as project shells (Xcode + Gradle); your local build state is gitignored.
+
+Bundle ID: `com.cosaxo.insight`. App name: `InSight`.
+
+### Build flow
+
+```bash
+npm run build:mobile     # vite build + cap sync (copies dist/ into both shells)
+npm run ios              # open the Xcode project (macOS only)
+npm run android          # open Android Studio
+```
+
+Live-reload during development (point the WebView at the dev server instead of the bundled assets) is configured per-platform in Xcode / Android Studio.
+
+### What's wired
+
+- `@capacitor/splash-screen` — 1.2 s paper-coloured splash so the WebView first-paint flash is hidden.
+- `@capacitor/status-bar` — overlay drawing, so the existing `env(safe-area-inset-*)` CSS keeps working.
+- `@capacitor/keyboard` — resize the WebView frame when the keyboard opens (not overlay-mode).
+- `@capacitor/app` — back-button handling on Android, app-state events.
+
+### Native API integrations planned but not yet wired
+
+- `@capacitor-firebase/authentication` — replace the Firebase JS popup with native Google Sign-In sheets (the web popup is rough inside iOS WebView).
+- `@capacitor/camera` — replace the `<input type="file">` photo picker in DailyReport with a real native camera.
+- `@capacitor/push-notifications` — daily-check-in reminders.
+- `@capacitor/local-notifications` — local reminders without a server.
+- `@capacitor/share` — share a daily report or test result.
+- `@capacitor/preferences` — would replace localStorage with native key-value storage (works as-is via WebView storage today, but native is faster on cold starts).
+
 ## Scripts
 
 - `npm run dev` — start Vite dev server
-- `npm run build` — typecheck and build for production
+- `npm run build` — typecheck and build for production (web)
+- `npm run build:mobile` — build for web, then `cap sync` into iOS + Android shells
+- `npm run sync` — `cap sync` only (re-copy a fresh build into the native shells without re-building)
+- `npm run ios` — open the Xcode project
+- `npm run android` — open Android Studio
+- `npm run doctor` — Capacitor environment diagnostic
 - `npm run lint` — run ESLint
-- `npm run preview` — preview the production build
+- `npm run preview` — preview the production build (web)
 
 ## Project layout
 
