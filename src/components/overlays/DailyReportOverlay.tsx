@@ -3,7 +3,12 @@ import { Camera, CameraResultType, CameraSource } from "@capacitor/camera";
 import { Capacitor } from "@capacitor/core";
 import { IS_DATA } from "../../data/seedData";
 import { useDailyReport } from "../../lib/useDailyReport";
-import { dailyMoodToScore, isoDateToday, useMoods } from "../../lib/useMoods";
+import {
+  dailyMoodToScore,
+  isoDateToday,
+  useMoods,
+} from "../../lib/useMoods";
+import { useLLM } from "../../lib/useLLM";
 
 // Open a native camera/photo picker when running inside Capacitor;
 // otherwise click the hidden <input type="file"> so the browser shows
@@ -59,6 +64,23 @@ const MOOD_LABELS: { lo: number; hi: number; label: string }[] = [
 ];
 const labelFor = (m: number) =>
   MOOD_LABELS.find((x) => m >= x.lo && m <= x.hi)?.label || "even-keel";
+
+// Small-model output sometimes wraps the line in quotes, repeats the
+// prompt header, or trails on. Strip the obvious wrappers so the
+// journal-card view reads cleanly.
+function cleanVerdict(raw: string): string {
+  let s = raw.trim();
+  // Drop common scaffolding the model emits.
+  s = s.replace(/^(observation|verdict|reflection)\s*[:\-—]\s*/i, "");
+  // Collapse to first sentence — Gemma occasionally adds a second.
+  const firstStop = s.search(/[.!?]\s/);
+  if (firstStop !== -1 && firstStop < s.length - 1) {
+    s = s.slice(0, firstStop + 1);
+  }
+  s = s.replace(/^"+|"+$/g, "");
+  s = s.replace(/^'+|'+$/g, "");
+  return s.trim();
+}
 
 const QUICK_WEATHER = [
   "fog · 6°",
@@ -589,9 +611,46 @@ export function DailyReportOverlay({
       : defaultShare,
   );
   const [savedFlash, setSavedFlash] = useState(false);
+  const {
+    available: llmAvailable,
+    ready: llmReady,
+    downloading: llmDownloading,
+    downloadPct: llmPct,
+    error: llmError,
+    ensure: llmEnsure,
+    generate: llmGenerate,
+  } = useLLM();
+  const { moods: priorMoods } = useMoods();
+  const [verdict, setVerdict] = useState<string | null>(null);
+  const [generating, setGenerating] = useState(false);
 
   const toggleShare = (k: string) =>
     setShare((s) => ({ ...s, [k]: !s[k] }));
+
+  // Build the prompt that lets Gemma observe a pattern instead of just
+  // narrating the day. Keep it short — Gemma 3 1B handles ~200-token
+  // prompts comfortably and longer ones lose focus.
+  const buildVerdictPrompt = (currentMood: number, currentLine: string) => {
+    const recent = priorMoods
+      .slice()
+      .sort((a, b) => b.date.localeCompare(a.date))
+      .slice(0, 6); // up to 6 prior days for the pattern view
+    const recentLines = recent
+      .map((m) => `${m.date}: mood ${m.score}/5${m.note ? ` — "${m.note}"` : ""}`)
+      .join("\n");
+    const todayScore = dailyMoodToScore(currentMood);
+    return [
+      "You are a quiet journal companion. The user has just logged today's daily report.",
+      "Look at the recent pattern, then write ONE short sentence (under 18 words) noticing something — a shape, a contrast, a thread — without giving advice or being cheerful. Be honest, observational, slightly literary.",
+      "",
+      `Today (${isoDateToday()}): mood ${todayScore}/5${currentLine ? ` — "${currentLine}"` : ""}`,
+      recentLines ? `Recent days:\n${recentLines}` : "",
+      "",
+      "Your one-sentence observation:",
+    ]
+      .filter(Boolean)
+      .join("\n");
+  };
 
   const save = async () => {
     const shared = Object.keys(share).filter((k) => share[k]);
@@ -635,10 +694,38 @@ export function DailyReportOverlay({
       note: oneLine || undefined,
     });
     setSavedFlash(true);
-    setTimeout(() => {
-      if (onSaved) onSaved(data);
-      onClose();
-    }, 700);
+
+    // Best-effort: kick off the on-device verdict generation as soon
+    // as the report is saved. If the model isn't ready, we don't
+    // block save — the user can hit "regenerate" on the result card.
+    if (llmAvailable && llmReady) {
+      setGenerating(true);
+      try {
+        const text = await llmGenerate(buildVerdictPrompt(mood, oneLine));
+        setVerdict(cleanVerdict(text));
+      } catch (err) {
+        console.error("[DailyReport] verdict generation failed:", err);
+      } finally {
+        setGenerating(false);
+      }
+    }
+
+    if (onSaved) onSaved(data);
+  };
+
+  const regenerate = async () => {
+    if (!llmAvailable) return;
+    setGenerating(true);
+    setVerdict(null);
+    try {
+      if (!llmReady) await llmEnsure();
+      const text = await llmGenerate(buildVerdictPrompt(mood, oneLine));
+      setVerdict(cleanVerdict(text));
+    } catch (err) {
+      console.error("[DailyReport] regenerate failed:", err);
+    } finally {
+      setGenerating(false);
+    }
   };
 
   const sharedCount = Object.values(share).filter(Boolean).length;
@@ -933,6 +1020,159 @@ export function DailyReportOverlay({
           </div>
         )}
 
+        {/* On-device verdict — shown once the user has saved at least
+            once today (savedFlash), or whenever a verdict exists. */}
+        {(savedFlash || verdict) && (
+          <div
+            className="card"
+            style={{
+              marginTop: 14,
+              borderLeft: "3px solid var(--accent)",
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "baseline",
+              }}
+            >
+              <div className="kicker">
+                ON-DEVICE · YOUR PORTRAIT, REDRAWN
+              </div>
+              {llmAvailable && llmReady && !generating && (
+                <span
+                  onClick={() => void regenerate()}
+                  style={{
+                    fontFamily: "var(--mono)",
+                    fontSize: 9,
+                    letterSpacing: "0.1em",
+                    color: "var(--ink-3)",
+                    cursor: "pointer",
+                  }}
+                >
+                  ↻ AGAIN
+                </span>
+              )}
+            </div>
+
+            {verdict && !generating && (
+              <div
+                style={{
+                  fontFamily: "var(--serif)",
+                  fontStyle: "italic",
+                  fontSize: 17,
+                  lineHeight: 1.4,
+                  marginTop: 8,
+                  color: "var(--ink)",
+                }}
+              >
+                "{verdict}"
+              </div>
+            )}
+
+            {generating && (
+              <div
+                style={{
+                  fontFamily: "var(--serif)",
+                  fontStyle: "italic",
+                  fontSize: 14,
+                  color: "var(--ink-3)",
+                  marginTop: 8,
+                }}
+              >
+                looking at the last few days…
+              </div>
+            )}
+
+            {!llmAvailable && (
+              <div
+                className="margin-note"
+                style={{ marginTop: 8, fontSize: 12 }}
+              >
+                On-device reflections only work in the iOS / Android
+                app. Open it there to see your portrait redrawn.
+              </div>
+            )}
+
+            {llmAvailable && !llmReady && !llmDownloading && !verdict && (
+              <div style={{ marginTop: 10 }}>
+                <div
+                  className="margin-note"
+                  style={{ fontSize: 12, marginBottom: 10 }}
+                >
+                  Reflections run entirely on your phone — nothing
+                  leaves the device. The first time uses ~750 MB; after
+                  that it's instant and offline.
+                </div>
+                <button
+                  type="button"
+                  onClick={() => void llmEnsure()}
+                  style={{
+                    padding: "8px 14px",
+                    background: "var(--ink)",
+                    color: "var(--paper)",
+                    border: "none",
+                    borderRadius: 99,
+                    fontFamily: "var(--mono)",
+                    fontSize: 10,
+                    letterSpacing: "0.12em",
+                    cursor: "pointer",
+                  }}
+                >
+                  ↓ DOWNLOAD AI · ~750 MB
+                </button>
+              </div>
+            )}
+
+            {llmDownloading && (
+              <div style={{ marginTop: 10 }}>
+                <div className="kicker">
+                  DOWNLOADING · {llmPct}%
+                </div>
+                <div
+                  style={{
+                    height: 4,
+                    background: "var(--paper-3)",
+                    borderRadius: 999,
+                    overflow: "hidden",
+                    marginTop: 6,
+                  }}
+                >
+                  <div
+                    style={{
+                      height: "100%",
+                      width: `${llmPct}%`,
+                      background: "var(--accent)",
+                      transition: "width 0.2s",
+                    }}
+                  />
+                </div>
+                <div
+                  className="margin-note"
+                  style={{ fontSize: 11, marginTop: 6 }}
+                >
+                  WiFi is faster. You can close this; the download
+                  continues in the background.
+                </div>
+              </div>
+            )}
+
+            {llmError && !generating && !verdict && (
+              <div
+                className="margin-note"
+                style={{
+                  fontSize: 11,
+                  color: "oklch(0.55 0.16 12)",
+                  marginTop: 8,
+                }}
+              >
+                {llmError}
+              </div>
+            )}
+          </div>
+        )}
+
         <hr className="rule-dashed" />
         <div
           style={{
@@ -962,7 +1202,7 @@ export function DailyReportOverlay({
               cursor: "pointer",
             }}
           >
-            cancel
+            {savedFlash ? "close" : "cancel"}
           </button>
           <button
             onClick={save}
