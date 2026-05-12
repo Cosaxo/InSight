@@ -23,7 +23,10 @@ import {
   getDoc,
   getDocs,
   getFirestore,
+  limit,
   onSnapshot,
+  orderBy,
+  query,
   serverTimestamp,
   setDoc,
   updateDoc,
@@ -236,11 +239,28 @@ export async function setCityRating(
 
 // ── Moods ───────────────────────────────────────────────────────
 
+// COST NOTE: the mood collection grows by one doc/day forever. Bound
+// the subscription to the most recent ~60 days — the Insights mood
+// chart only needs the last 30, and 60 keeps a small buffer for stats
+// that look slightly past the window. After a year of daily logging
+// this reduces per-snapshot reads from 365 to 60 (~6× cheaper).
+const MOODS_WINDOW = 60;
+
 export function subscribeMoods(
   uid: string,
   cb: (items: MoodEntry[]) => void,
 ): () => void {
-  return subscribeList<MoodEntry>(uid, "insight_moods", cb);
+  return onSnapshot(
+    query(sub(uid, "insight_moods"), orderBy("date", "desc"), limit(MOODS_WINDOW)),
+    (snap) => {
+      cb(
+        snap.docs.map(
+          (d) => ({ id: d.id, ...d.data() }) as unknown as MoodEntry,
+        ),
+      );
+    },
+    (err) => console.error("[firebaseImpl] moods:", err),
+  );
 }
 
 export async function upsertMood(

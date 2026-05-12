@@ -56,6 +56,19 @@ insight_users/{uid}/insight_transactions/{id}
 
 User-uploaded photo blobs stay in localStorage (`insight.dailyReport.photo.v1`) and are not synced; the stock-photo key (e.g. `fjord`) travels with the remote doc.
 
+## Firebase cost notes
+
+The app is designed to keep Firestore reads cheap:
+
+- **Firebase SDK is lazy-loaded.** Signed-out users never download it; it ships as a separate ~350 kB chunk only when sign-in is enabled.
+- **Subscriptions only attach when signed-in.** Each `useX` hook short-circuits in localStorage-only mode.
+- **Collections are intentionally small.** Relations, city ratings, habits, daily-report — all under a few dozen docs each.
+- **Moods are windowed.** `subscribeMoods` is `orderBy("date","desc") + limit(60)` rather than a full-collection scan. After a year of daily logging this caps per-snapshot reads at 60 instead of 365.
+- **Writes are user-driven.** A signed-in user generates roughly 1 write per daily-report save, 1 per star tap, 1 per habit tap, 1 per added person. No background polling, no automatic re-writes.
+- **The Firestore SDK deduplicates listeners.** Mounting the same `useX` hook in two components reuses one underlying network listener.
+
+A typical active user, signed in, lands well inside Firebase's free tier (50 k reads + 20 k writes per day).
+
 ## Scripts
 
 - `npm run dev` — start Vite dev server
