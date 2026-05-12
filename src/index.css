@@ -1,49 +1,500 @@
-/* Minimal base styles — the app uses inline styles (driven by the theme
-   tokens in src/theme.ts) for every component. This file only resets the
-   defaults and sets up a sensible font + background. */
-
-*,
-*::before,
-*::after {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
+/* Warm journal aesthetic — paper, ink, sienna */
+:root {
+  --paper: oklch(0.985 0.003 80);
+  --paper-2: oklch(0.97 0.005 80);
+  --paper-3: oklch(0.94 0.008 75);
+  --rule: oklch(0.84 0.010 80);
+  --ink: oklch(0.20 0.015 260);
+  --ink-2: oklch(0.40 0.020 260);
+  --ink-3: oklch(0.60 0.020 260);
+  --accent: var(--c-around);
+  --c-around: oklch(0.58 0.13 38);    /* sienna  */
+  --c-world:  oklch(0.50 0.12 220);   /* indigo  */
+  --c-city:   oklch(0.55 0.10 145);   /* sage    */
+  --c-groups: oklch(0.52 0.14 305);   /* plum    */
+  --c-people: oklch(0.62 0.12 25);    /* coral   */
+  --sienna: var(--c-around);
+  --sage: var(--c-city);
+  --ochre: oklch(0.68 0.10 80);
+  --indigo: var(--c-world);
+  --blush: oklch(0.86 0.04 30);
+  --shadow-card: 0 1px 0 rgba(20, 20, 30, 0.03), 0 6px 22px -8px rgba(20, 20, 40, 0.10);
+  --serif: 'Fraunces', 'Iowan Old Style', Georgia, serif;
+  --sans: 'Inter', -apple-system, system-ui, sans-serif;
+  --mono: 'JetBrains Mono', ui-monospace, 'SF Mono', monospace;
 }
 
-html,
-body,
-#root {
-  height: 100%;
-}
-
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body, #root { height: 100%; }
 body {
-  background: #f5f7fa;
-  color: #1e293b;
-  font-family:
-    -apple-system,
-    BlinkMacSystemFont,
-    "SF Pro Text",
-    "Segoe UI",
-    Roboto,
-    sans-serif;
+  background: #1d1a14;
+  color: var(--ink);
+  font-family: var(--sans);
   font-size: 15px;
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+#root { display: contents; }
+button { font-family: inherit; cursor: pointer; }
+input, select, textarea { font-family: inherit; }
+
+/* Per-tab accent: the .app gets a data-tab attribute and we swap --accent */
+.app[data-tab="around"] { --accent: var(--c-around); }
+.app[data-tab="world"]  { --accent: var(--c-world); }
+.app[data-tab="city"]   { --accent: var(--c-city); }
+.app[data-tab="groups"] { --accent: var(--c-groups); }
+.app[data-tab="people"] { --accent: var(--c-people); }
+.app[data-tab="media"]  { --accent: oklch(0.55 0.13 80); }
+
+.app {
+  width: 100%;
+  height: 100%;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--sans);
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  padding-top: 62px;
+  box-sizing: border-box;
 }
 
-/* Hide scrollbars on horizontal strips used by ContextBar / HScroll */
-::-webkit-scrollbar {
-  height: 0;
-  width: 0;
+/* Subtle paper grain */
+.paper-grain::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.5;
+  background-image:
+    radial-gradient(circle at 20% 30%, oklch(0.85 0.02 60 / 0.20) 0, transparent 1px),
+    radial-gradient(circle at 70% 60%, oklch(0.85 0.02 60 / 0.15) 0, transparent 1px),
+    radial-gradient(circle at 45% 80%, oklch(0.85 0.02 60 / 0.18) 0, transparent 1px);
+  background-size: 7px 7px, 11px 11px, 13px 13px;
+  mix-blend-mode: multiply;
 }
 
-button {
-  font-family: inherit;
+/* Header */
+.app-header {
+  flex-shrink: 0;
+  padding: 14px 20px 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  border-bottom: 0.5px solid var(--rule);
+  position: relative;
+  z-index: 5;
+}
+.app-header .h-title {
+  font-family: var(--serif);
+  font-size: 20px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  font-variation-settings: "SOFT" 50, "WONK" 1;
+}
+.app-header .h-title em {
+  font-style: italic;
+  color: var(--accent);
+  font-weight: 400;
+}
+.h-meta {
+  font-family: var(--mono);
+  font-size: 9.5px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  text-align: right;
+  line-height: 1.35;
+}
+.avatar-btn {
+  width: 36px; height: 36px;
+  border-radius: 50%;
+  border: 0.5px solid var(--rule);
+  background: var(--paper-2);
+  font-family: var(--serif);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ink);
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  letter-spacing: 0.02em;
+}
+.avatar-btn.is-on { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+
+/* Main scroll body */
+.app-body {
+  flex: 1;
+  overflow-y: auto;
+  position: relative;
+  padding: 14px 18px 100px;
+  -webkit-overflow-scrolling: touch;
 }
 
-input,
-select,
-textarea {
-  font-family: inherit;
+/* Tab bar */
+.tabbar {
+  flex-shrink: 0;
+  border-top: 0.5px solid var(--rule);
+  background: var(--paper);
+  padding: 8px 12px 14px;
+  display: flex;
+  justify-content: space-between;
+  position: relative;
+  z-index: 5;
 }
+.tab-btn {
+  flex: 1;
+  background: none; border: none;
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+  padding: 6px 2px;
+  cursor: pointer;
+  color: var(--ink-3);
+  font-family: var(--sans);
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  text-transform: lowercase;
+  font-variant: small-caps;
+  position: relative;
+}
+.tab-btn .glyph {
+  height: 24px;
+  display: flex; align-items: center; justify-content: center;
+  transition: transform 0.18s ease;
+}
+.tab-btn:hover .glyph { transform: translateY(-1px); }
+.tab-btn.is-active .glyph { transform: translateY(-1px); }
+.tab-btn.is-active { color: var(--accent); }
+.tab-btn.is-active .glyph { color: var(--ink); }
+.tab-btn.is-active::after {
+  content: "";
+  position: absolute;
+  top: -8px; left: 50%; transform: translateX(-50%);
+  width: 4px; height: 4px; border-radius: 50%;
+  background: var(--accent);
+}
+
+/* Hand-drawn rule */
+.rule { height: 0.5px; background: var(--rule); margin: 14px 0; border: none; }
+.rule-thick { height: 1px; background: var(--ink); margin: 18px 0 14px; opacity: 0.45; }
+.rule-dashed {
+  height: 0.5px;
+  background-image: linear-gradient(to right, var(--rule) 50%, transparent 50%);
+  background-size: 8px 0.5px;
+  background-repeat: repeat-x;
+  margin: 14px 0;
+}
+
+/* Section heads */
+.sec-head {
+  display: flex; align-items: baseline; justify-content: space-between;
+  margin: 4px 0 10px;
+}
+.sec-head h2 em {
+  color: var(--accent);
+}
+.sec-head h2 {
+  font-family: var(--serif);
+  font-size: 22px;
+  font-weight: 400;
+  font-style: italic;
+  font-variation-settings: "SOFT" 100, "WONK" 1;
+  margin: 0;
+  letter-spacing: -0.01em;
+  color: var(--ink);
+}
+.sec-head .num {
+  font-family: var(--mono);
+  font-size: 9.5px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+.kicker {
+  font-family: var(--mono);
+  font-size: 9.5px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  margin-bottom: 4px;
+}
+
+/* Card */
+.card {
+  background: var(--paper-2);
+  border: 0.5px solid var(--rule);
+  border-radius: 14px;
+  padding: 14px 16px;
+  position: relative;
+}
+.card-deckle {
+  background: var(--paper-2);
+  border: 0.5px solid var(--rule);
+  padding: 14px 16px;
+  position: relative;
+  -webkit-mask:
+    radial-gradient(circle at 0 50%, transparent 3px, black 3.5px),
+    radial-gradient(circle at 100% 50%, transparent 3px, black 3.5px);
+  -webkit-mask-composite: source-in;
+}
+
+/* Pill (wax-seal) */
+.pill {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 5px 11px;
+  border-radius: 999px;
+  font-family: var(--sans);
+  font-size: 11px;
+  font-weight: 500;
+  background: var(--paper);
+  border: 0.5px solid var(--rule);
+  color: var(--ink-2);
+  cursor: pointer;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+}
+.pill.is-on {
+  background: var(--ink);
+  color: var(--paper);
+  border-color: var(--ink);
+}
+.pill.sienna.is-on { background: var(--sienna); border-color: var(--sienna); }
+.pill.sage.is-on { background: var(--sage); border-color: var(--sage); }
+
+/* Stamp */
+.stamp {
+  display: inline-flex;
+  align-items: center; gap: 5px;
+  padding: 3px 8px;
+  border: 1.2px solid var(--accent);
+  color: var(--accent);
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  border-radius: 3px;
+  transform: rotate(-1.5deg);
+  background: color-mix(in oklch, var(--accent) 6%, transparent);
+}
+
+/* Margin-note in accent */
+.margin-note {
+  font-family: 'Caveat', 'Bradley Hand', cursive;
+  font-size: 14px;
+  color: var(--accent);
+  line-height: 1.2;
+}
+
+/* Hand-numbered page corner */
+.page-num {
+  position: absolute;
+  top: 14px; right: 18px;
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 11px;
+  color: var(--ink-3);
+  letter-spacing: 0.04em;
+}
+
+/* Compass / radar */
+.compass-wrap {
+  position: relative;
+  aspect-ratio: 1;
+  margin: 4px auto 8px;
+  width: 100%;
+  max-width: 320px;
+}
+.compass-ring {
+  position: absolute;
+  inset: 0;
+  border: 0.5px solid var(--rule);
+  border-radius: 50%;
+}
+.compass-cardinal {
+  position: absolute;
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 11px;
+  color: var(--ink-3);
+  letter-spacing: 0.05em;
+}
+
+/* Avatar */
+.av {
+  width: 38px; height: 38px;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--serif);
+  font-weight: 500;
+  font-size: 13px;
+  flex-shrink: 0;
+  border: 0.5px solid rgba(0,0,0,0.08);
+}
+
+/* Bar */
+.bar { height: 4px; background: var(--paper-3); border-radius: 999px; overflow: hidden; }
+.bar > i { display: block; height: 100%; background: var(--ink); border-radius: 999px; }
+
+/* FAB */
+.fab {
+  position: absolute;
+  right: 18px; bottom: 86px;
+  width: 56px; height: 56px;
+  border-radius: 50%;
+  background: var(--ink);
+  color: var(--paper);
+  border: none;
+  font-family: var(--serif);
+  font-size: 28px;
+  font-style: italic;
+  cursor: pointer;
+  box-shadow: 0 6px 22px -4px rgba(40,30,15,0.4), 0 1px 0 rgba(255,255,255,0.1) inset;
+  z-index: 10;
+  transition: transform 0.18s ease;
+}
+.fab:hover { transform: translateY(-2px); }
+.fab.is-open { background: var(--accent); transform: rotate(45deg); }
+
+.fab-stack {
+  position: absolute;
+  right: 18px; bottom: 152px;
+  display: flex; flex-direction: column; gap: 8px;
+  align-items: flex-end;
+  z-index: 10;
+}
+.fab-item {
+  display: flex; align-items: center; gap: 10px;
+  background: var(--paper);
+  border: 0.5px solid var(--rule);
+  padding: 8px 14px 8px 12px;
+  border-radius: 999px;
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 13px;
+  color: var(--ink);
+  cursor: pointer;
+  box-shadow: var(--shadow-card);
+  animation: fabpop 0.22s ease both;
+}
+@keyframes fabpop {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Overlay panel */
+.overlay {
+  position: absolute;
+  inset: 0;
+  background: var(--paper);
+  z-index: 20;
+  display: flex; flex-direction: column;
+  padding-top: 62px;
+  box-sizing: border-box;
+  animation: slideUp 0.28s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+@keyframes slideUp {
+  from { transform: translateY(20px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+/* Polaroid */
+.polaroid {
+  background: var(--paper);
+  padding: 10px 10px 18px;
+  border: 0.5px solid var(--rule);
+  box-shadow: 0 2px 0 rgba(0,0,0,0.04), 0 8px 22px -10px rgba(60,40,20,0.25);
+  position: relative;
+}
+.polaroid .photo {
+  aspect-ratio: 1;
+  background: var(--paper-3);
+  position: relative;
+  overflow: hidden;
+  display: flex; align-items: center; justify-content: center;
+}
+
+/* Tape */
+.tape {
+  position: absolute;
+  width: 50px; height: 14px;
+  background: oklch(0.92 0.06 80 / 0.55);
+  border: 0.5px solid oklch(0.85 0.06 80 / 0.5);
+  top: -7px; left: 50%; transform: translateX(-50%) rotate(-3deg);
+  box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+}
+
+/* Stat figure */
+.fig-num {
+  font-family: var(--serif);
+  font-size: 38px;
+  font-weight: 400;
+  font-variation-settings: "SOFT" 100, "WONK" 1;
+  letter-spacing: -0.02em;
+  line-height: 1;
+  color: var(--ink);
+}
+.fig-num em { font-style: italic; color: var(--accent); }
+
+/* dotted track for stars */
+.stars { display: inline-flex; gap: 2px; }
+.star {
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 14px;
+  color: var(--rule);
+}
+.star.on { color: var(--accent); }
+
+/* small icon */
+.ico {
+  width: 16px; height: 16px;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-family: var(--serif);
+  font-style: italic;
+  color: var(--ink-2);
+  font-size: 14px;
+}
+
+/* fade-in */
+.fade-in { animation: fade 0.3s ease both; }
+@keyframes fade { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+
+/* Keep tab bar above iOS home indicator */
+.app-body { scrollbar-width: thin; }
+.app-body::-webkit-scrollbar { width: 4px; }
+.app-body::-webkit-scrollbar-thumb { background: var(--rule); border-radius: 2px; }
+
+/* Compass rose for radar */
+.rose-line { stroke: var(--rule); stroke-width: 0.5; fill: none; }
+.rose-line.thick { stroke: var(--ink); opacity: 0.18; }
+.rose-tick { stroke: var(--ink-3); stroke-width: 0.5; }
+
+/* Constellation dots */
+.const-dot { fill: var(--ink); }
+
+/* dark mode override */
+.app.dark {
+  --paper: oklch(0.18 0.012 60);
+  --paper-2: oklch(0.22 0.014 60);
+  --paper-3: oklch(0.26 0.014 60);
+  --rule: oklch(0.36 0.018 55);
+  --ink: oklch(0.92 0.012 70);
+  --ink-2: oklch(0.78 0.014 65);
+  --ink-3: oklch(0.62 0.014 60);
+  --blush: oklch(0.32 0.04 30);
+  --shadow-card: 0 1px 0 rgba(0,0,0,0.3), 0 6px 22px -8px rgba(0,0,0,0.6);
+}
+.app.dark .pill { background: var(--paper-3); }
+.app.dark .tape { background: oklch(0.42 0.04 80 / 0.5); }
+.app.dark .stamp { background: oklch(0.58 0.13 38 / 0.12); }
+
+/* density */
+.app.cozy .app-body { padding: 14px 18px 100px; }
+.app.compact .app-body { padding: 10px 14px 100px; }
+.app.compact .card, .app.compact .card-deckle { padding: 10px 12px; }
+.app.compact .sec-head h2 { font-size: 19px; }
