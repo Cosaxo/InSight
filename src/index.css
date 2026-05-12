@@ -526,3 +526,33 @@ input, select, textarea { font-family: inherit; }
 .app.compact .app-body { padding: 10px 14px 100px; }
 .app.compact .card, .app.compact .card-deckle { padding: 10px 12px; }
 .app.compact .sec-head h2 { font-size: 19px; }
+
+/* ─── Mobile (≤480px) ──────────────────────────────────────────
+   Drop the dark "device-on-a-desk" frame around the app, let the
+   IOSDevice render bare (no rounded outer, no fake status bar / home
+   indicator), and respect the real device's safe areas.            */
+@media (max-width: 480px) {
+  body {
+    background: var(--paper);
+    padding: 0;
+    align-items: stretch;
+    justify-content: stretch;
+  }
+  /* No simulated status bar to clear — the app starts at the real
+     safe area instead. */
+  .app {
+    padding-top: env(safe-area-inset-top, 0);
+  }
+  /* Don't let the tab bar disappear behind the home indicator. */
+  .tabbar {
+    padding-bottom: max(14px, env(safe-area-inset-bottom));
+  }
+  /* FAB lifts above the tab bar; on phones we need it higher so it
+     clears the OS gesture bar too. */
+  .fab {
+    bottom: calc(86px + env(safe-area-inset-bottom, 0px));
+  }
+  .fab-stack {
+    bottom: calc(152px + env(safe-area-inset-bottom, 0px));
+  }
+}
