@@ -1,235 +1,768 @@
 import { useState } from "react";
-import { C, SEC } from "../../theme";
-import { COMMUNITIES } from "../../data/profiles";
-import type { Me } from "../../types";
-import { Card } from "../shared/Card";
-import { SLabel } from "../shared/SLabel";
-import { HScroll } from "../shared/HScroll";
-import { ContextBar } from "../shared/ContextBar";
-import { PeopleInsightPanel } from "../insights/PeopleInsightPanel";
+import { IS_DATA } from "../../data/seedData";
+import { Kicker } from "../shared/primitives";
+import { Donut } from "../shared/charts";
 
-interface GroupsTabProps {
-  me: Me;
+interface SkillCat {
+  id: string;
+  label: string;
+  hue: number;
+  glyph: string;
 }
 
-export function GroupsTab({ me }: GroupsTabProps) {
-  const [sel, setSel] = useState("technology");
-  const [joined, setJoined] = useState<string[]>([
-    "technology",
-    "philosophy",
-    "travel",
-    "science",
-  ]);
-  const [leaveConfirm, setLeaveConfirm] = useState(false);
-  const comm = COMMUNITIES.find((c) => c.id === sel)!;
-  const isJoined = joined.includes(sel);
+interface Skill {
+  id: string;
+  name: string;
+  cat: string;
+  hours: number;
+  level: number;
+  vibe: string;
+  joined: boolean;
+  lastPracticed: string;
+  sessions30?: (0 | 1)[];
+  growth12w?: number[];
+  milestones?: string[];
+}
 
-  function handleJoinLeave() {
-    if (isJoined) {
-      setLeaveConfirm(true);
-    } else {
-      setJoined((prev) => [...prev, comm.id]);
-      setLeaveConfirm(false);
-    }
-  }
-
-  function confirmLeave() {
-    setJoined((prev) => prev.filter((x) => x !== comm.id));
-    setLeaveConfirm(false);
-  }
-
+function SkillCard({
+  s,
+  cat,
+  suggest,
+}: {
+  s: Skill;
+  cat: SkillCat;
+  suggest?: boolean;
+}) {
+  const hue = cat.hue;
+  const sessions = s.sessions30 || [];
+  const growth = s.growth12w || [];
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-      <ContextBar
-        items={[
-          { icon: "🫂", label: "Joined", value: String(joined.length), color: SEC.groups.accent, sub: "communities" },
-          { icon: "👥", label: "Total reach", value: "37k+", color: C.teal },
-          { icon: "🎯", label: "Avg match", value: "80%", color: C.coral },
-          { icon: "🔥", label: "Top group", value: "Music", color: C.amber },
-        ]}
-      />
-      <HScroll>
-        {COMMUNITIES.map((c) => (
-          <button
-            key={c.id}
-            onClick={() => {
-              setSel(c.id);
-              setLeaveConfirm(false);
-            }}
-            style={{
-              padding: "8px 18px",
-              borderRadius: 20,
-              cursor: "pointer",
-              fontFamily: "inherit",
-              border: sel === c.id ? "none" : `1.5px solid ${C.divider}`,
-              background: sel === c.id ? c.color : C.card,
-              color: sel === c.id ? "#fff" : C.text,
-              fontSize: 13,
-              fontWeight: sel === c.id ? 700 : 400,
-              flexShrink: 0,
-              display: "flex",
-              alignItems: "center",
-              gap: 6,
-              boxShadow:
-                sel === c.id ? `0 3px 14px ${c.color}50` : C.shadow,
-              transform: sel === c.id ? "scale(1.04)" : "scale(1)",
-              transition: "all 0.18s cubic-bezier(.4,0,.2,1)",
-            }}
-          >
-            {joined.includes(c.id) && (
-              <span
-                style={{
-                  width: 7,
-                  height: 7,
-                  borderRadius: "50%",
-                  background:
-                    sel === c.id ? "rgba(255,255,255,0.85)" : c.color,
-                  flexShrink: 0,
-                  boxShadow:
-                    sel === c.id ? "none" : `0 0 6px ${c.color}60`,
-                }}
-              />
-            )}
-            {c.name}
-          </button>
-        ))}
-      </HScroll>
-      <Card
+    <div className="card" style={{ position: "relative" }}>
+      <div
         style={{
-          padding: "14px 16px",
           display: "flex",
           alignItems: "center",
-          gap: 14,
-          borderLeft: `4px solid ${comm.color}`,
+          gap: 6,
+          marginBottom: 6,
+        }}
+      >
+        <span
+          style={{
+            fontFamily: "var(--mono)",
+            fontSize: 9,
+            letterSpacing: "0.1em",
+            color: `oklch(0.45 0.13 ${hue})`,
+          }}
+        >
+          {cat.glyph} {cat.label.toUpperCase()}
+        </span>
+      </div>
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "flex-start",
+          gap: 10,
+        }}
+      >
+        <div style={{ flex: 1 }}>
+          <div
+            style={{
+              fontFamily: "var(--serif)",
+              fontSize: 18,
+              letterSpacing: "-0.01em",
+            }}
+          >
+            {s.name}
+          </div>
+          <div
+            className="kicker"
+            style={{ marginTop: 2, textTransform: "none" }}
+          >
+            {s.hours.toLocaleString()} hours
+            {s.lastPracticed !== "—"
+              ? ` · last practiced ${s.lastPracticed}`
+              : ""}
+          </div>
+          <div
+            style={{
+              fontFamily: "var(--serif)",
+              fontStyle: "italic",
+              fontSize: 13,
+              color: "var(--ink-2)",
+              marginTop: 6,
+            }}
+          >
+            {s.vibe}
+          </div>
+        </div>
+        <Donut value={s.level} color={`oklch(0.55 0.12 ${hue})`} size={62} />
+      </div>
+      {suggest && (
+        <div
+          style={{
+            marginTop: 10,
+            paddingTop: 10,
+            borderTop: "0.5px dashed var(--rule)",
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+          }}
+        >
+          <span className="margin-note" style={{ fontSize: 11 }}>
+            not yet practiced
+          </span>
+          <span
+            style={{
+              fontFamily: "var(--mono)",
+              fontSize: 10,
+              letterSpacing: "0.16em",
+              padding: "6px 10px",
+              border: `0.5px solid oklch(0.55 0.12 ${hue})`,
+              color: `oklch(0.45 0.13 ${hue})`,
+              cursor: "pointer",
+            }}
+          >
+            BEGIN ›
+          </span>
+        </div>
+      )}
+      {!suggest && sessions.length > 0 && (
+        <div style={{ marginTop: 10 }}>
+          <svg viewBox="0 0 220 36" style={{ width: "100%" }}>
+            {sessions.map((d, i) => {
+              const x = 6 + (i / (sessions.length - 1)) * 208;
+              const y =
+                18 +
+                (d
+                  ? -10 + Math.sin(i * 1.7) * 4
+                  : 10 + Math.sin(i * 1.3) * 3);
+              return (
+                <circle
+                  key={i}
+                  cx={x}
+                  cy={y}
+                  r={d ? 2.2 : 1.2}
+                  fill={`oklch(0.45 0.12 ${hue})`}
+                  opacity={d ? 0.85 : 0.25}
+                />
+              );
+            })}
+            <line
+              x1="6"
+              y1="18"
+              x2="214"
+              y2="18"
+              stroke="var(--rule)"
+              strokeWidth="0.4"
+              strokeDasharray="2 3"
+            />
+            <path
+              d={growth
+                .map((v, i) => {
+                  const x = 6 + (i / (growth.length - 1)) * 208;
+                  const y = 30 - (v / 100) * 24;
+                  return `${i === 0 ? "M" : "L"} ${x} ${y}`;
+                })
+                .join(" ")}
+              fill="none"
+              stroke={`oklch(0.55 0.13 ${hue})`}
+              strokeWidth="1"
+              strokeOpacity="0.6"
+            />
+          </svg>
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              fontFamily: "var(--mono)",
+              fontSize: 8,
+              color: "var(--ink-3)",
+              letterSpacing: "0.06em",
+              marginTop: 2,
+            }}
+          >
+            <span>
+              30 days · {sessions.filter((d) => d).length} sessions
+            </span>
+            <span>
+              level +
+              {growth.length ? growth[growth.length - 1] - growth[0] : 0} in
+              12w
+            </span>
+          </div>
+          {s.milestones && s.milestones.length > 0 && (
+            <div
+              style={{
+                marginTop: 8,
+                paddingTop: 8,
+                borderTop: "0.5px dashed var(--rule)",
+              }}
+            >
+              <div
+                className="kicker"
+                style={{ marginBottom: 4 }}
+              >
+                MILESTONES
+              </div>
+              {s.milestones.map((m, i) => (
+                <div
+                  key={i}
+                  style={{
+                    display: "flex",
+                    gap: 6,
+                    fontFamily: "var(--serif)",
+                    fontStyle: "italic",
+                    fontSize: 11.5,
+                    color: "var(--ink-2)",
+                    marginBottom: 2,
+                  }}
+                >
+                  <span style={{ color: `oklch(0.55 0.13 ${hue})` }}>·</span>
+                  <span>{m}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+      {suggest && growth.length > 0 && (
+        <svg
+          viewBox="0 0 220 28"
+          style={{ width: "100%", marginTop: 10 }}
+        >
+          <path
+            d={growth
+              .map((v, i) => {
+                const x = 6 + (i / (growth.length - 1)) * 208;
+                const y = 24 - (v / 100) * 20;
+                return `${i === 0 ? "M" : "L"} ${x} ${y}`;
+              })
+              .join(" ")}
+            fill="none"
+            stroke={`oklch(0.55 0.13 ${hue})`}
+            strokeWidth="1.2"
+            strokeDasharray="2 2"
+            strokeOpacity="0.5"
+          />
+        </svg>
+      )}
+    </div>
+  );
+}
+
+interface TestOpt {
+  t: string;
+  cats: string[];
+}
+
+function GroupTestOverlay({ onClose }: { onClose: () => void }) {
+  const D = IS_DATA;
+  const [step, setStep] = useState(0);
+  const [answers, setAnswers] = useState<TestOpt[]>([]);
+  const total = D.groupTest.length;
+
+  if (step >= total) {
+    const score: Record<string, number> = {};
+    answers.forEach((a) =>
+      a.cats.forEach((c) => (score[c] = (score[c] || 0) + 1)),
+    );
+    const top = Object.entries(score)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 3)
+      .map(([id]) => id);
+    const recs: Skill[] = D.skills
+      .filter((g: Skill) => top.includes(g.cat) && !g.joined)
+      .slice(0, 3);
+    return (
+      <div className="overlay" onClick={onClose}>
+        <div
+          className="overlay-inner"
+          onClick={(e) => e.stopPropagation()}
+          style={{ padding: 24, overflowY: "auto" }}
+        >
+          <div
+            className="overlay-close"
+            onClick={onClose}
+            style={{
+              position: "absolute",
+              top: 16,
+              right: 16,
+              fontSize: 24,
+              cursor: "pointer",
+              color: "var(--ink-3)",
+            }}
+          >
+            ×
+          </div>
+          <Kicker>Result</Kicker>
+          <h2
+            style={{
+              fontFamily: "var(--serif)",
+              fontSize: 28,
+              fontStyle: "italic",
+              margin: "6px 0 16px",
+            }}
+          >
+            Three skills for you.
+          </h2>
+          <div
+            style={{
+              display: "flex",
+              flexWrap: "wrap",
+              gap: 6,
+              marginBottom: 14,
+            }}
+          >
+            {top.map((id) => {
+              const c: SkillCat | undefined = D.skillCats.find(
+                (x: SkillCat) => x.id === id,
+              );
+              if (!c) return null;
+              return (
+                <span
+                  key={id}
+                  style={{
+                    fontFamily: "var(--mono)",
+                    fontSize: 10,
+                    letterSpacing: "0.1em",
+                    padding: "4px 10px",
+                    background: `oklch(0.93 0.05 ${c.hue})`,
+                    color: `oklch(0.32 0.13 ${c.hue})`,
+                    borderRadius: 999,
+                  }}
+                >
+                  {c.glyph} {c.label.toUpperCase()}
+                </span>
+              );
+            })}
+          </div>
+          {recs.map((g) => {
+            const c: SkillCat | undefined = D.skillCats.find(
+              (x: SkillCat) => x.id === g.cat,
+            );
+            if (!c) return null;
+            return (
+              <div key={g.id} className="card" style={{ marginBottom: 10 }}>
+                <div
+                  style={{
+                    fontFamily: "var(--mono)",
+                    fontSize: 9,
+                    letterSpacing: "0.1em",
+                    color: `oklch(0.45 0.13 ${c.hue})`,
+                  }}
+                >
+                  {c.glyph} {c.label.toUpperCase()}
+                </div>
+                <div
+                  style={{
+                    fontFamily: "var(--serif)",
+                    fontSize: 18,
+                    marginTop: 4,
+                  }}
+                >
+                  {g.name}
+                </div>
+                <div
+                  className="margin-note"
+                  style={{ fontSize: 12, fontStyle: "italic", marginTop: 4 }}
+                >
+                  {g.vibe}
+                </div>
+              </div>
+            );
+          })}
+          <div style={{ textAlign: "right", marginTop: 16 }}>
+            <span
+              onClick={() => {
+                setStep(0);
+                setAnswers([]);
+              }}
+              style={{
+                fontFamily: "var(--mono)",
+                fontSize: 10,
+                letterSpacing: "0.16em",
+                padding: "8px 12px",
+                border: "0.5px solid var(--ink)",
+                cursor: "pointer",
+                marginRight: 8,
+              }}
+            >
+              RETAKE
+            </span>
+            <span
+              onClick={onClose}
+              style={{
+                fontFamily: "var(--mono)",
+                fontSize: 10,
+                letterSpacing: "0.16em",
+                padding: "8px 12px",
+                background: "var(--ink)",
+                color: "var(--paper)",
+                cursor: "pointer",
+              }}
+            >
+              CLOSE
+            </span>
+          </div>
+        </div>
+      </div>
+    );
+  }
+  const q = D.groupTest[step];
+  return (
+    <div className="overlay" onClick={onClose}>
+      <div
+        className="overlay-inner"
+        onClick={(e) => e.stopPropagation()}
+        style={{ padding: 24, overflowY: "auto" }}
+      >
+        <div
+          className="overlay-close"
+          onClick={onClose}
+          style={{
+            position: "absolute",
+            top: 16,
+            right: 16,
+            fontSize: 24,
+            cursor: "pointer",
+            color: "var(--ink-3)",
+          }}
+        >
+          ×
+        </div>
+        <Kicker>
+          Question {step + 1} / {total}
+        </Kicker>
+        <h2
+          style={{
+            fontFamily: "var(--serif)",
+            fontSize: 26,
+            fontStyle: "italic",
+            margin: "6px 0 18px",
+          }}
+        >
+          {q.q}
+        </h2>
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          {q.opts.map((o: TestOpt, i: number) => (
+            <div
+              key={i}
+              onClick={() => {
+                setAnswers([...answers, o]);
+                setStep(step + 1);
+              }}
+              className="card"
+              style={{
+                cursor: "pointer",
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+              }}
+            >
+              <span
+                style={{
+                  fontFamily: "var(--serif)",
+                  fontSize: 16,
+                  fontStyle: "italic",
+                }}
+              >
+                {o.t}
+              </span>
+              <span
+                style={{
+                  fontFamily: "var(--mono)",
+                  fontSize: 14,
+                  color: "var(--ink-3)",
+                }}
+              >
+                ›
+              </span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export function GroupsTab() {
+  const D = IS_DATA;
+  const [active, setActive] = useState<Set<string>>(new Set());
+  const [showTest, setShowTest] = useState(false);
+
+  const cats: SkillCat[] = D.skillCats;
+  const isAll = active.size === 0;
+  const toggle = (id: string) =>
+    setActive((s) => {
+      const n = new Set(s);
+      if (n.has(id)) n.delete(id);
+      else n.add(id);
+      return n;
+    });
+
+  const visible: Skill[] = D.skills.filter(
+    (g: Skill) => isAll || active.has(g.id),
+  );
+  const suggest = visible.filter((g) => !g.joined);
+  const joined = visible.filter((g) => g.joined);
+  const avg = (arr: number[]) =>
+    arr.length ? Math.round(arr.reduce((s, v) => s + v, 0) / arr.length) : 0;
+
+  const totalHours = visible.reduce((s, sk) => s + sk.hours, 0);
+  const avgLevel = avg(visible.map((s) => s.level));
+  const topCat = (() => {
+    const map: Record<string, number> = {};
+    visible.forEach((s) => {
+      map[s.cat] = (map[s.cat] || 0) + s.hours;
+    });
+    return Object.entries(map).sort((a, b) => b[1] - a[1])[0]?.[0];
+  })();
+  const topCatLabel = cats.find((c) => c.id === topCat)?.label || "—";
+
+  return (
+    <div className="fade-in">
+      <div className="page-num">— xv —</div>
+      <Kicker>Practice · skills you keep</Kicker>
+      <div className="sec-head">
+        <h2>
+          The skills you <em>return to</em>
+        </h2>
+      </div>
+
+      <div className="card" style={{ marginBottom: 14 }}>
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "baseline",
+            marginBottom: 8,
+          }}
+        >
+          <Kicker>Filter · skills</Kicker>
+          <span
+            className="kicker"
+            style={{ cursor: "pointer" }}
+            onClick={() => setActive(new Set())}
+          >
+            {isAll ? "ALL" : "CLEAR"}
+          </span>
+        </div>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+          {D.skills.map((sk: Skill) => {
+            const c = cats.find((x) => x.id === sk.cat);
+            if (!c) return null;
+            const on = isAll || active.has(sk.id);
+            return (
+              <span
+                key={sk.id}
+                onClick={() => toggle(sk.id)}
+                style={{
+                  fontFamily: "var(--mono)",
+                  fontSize: 10,
+                  letterSpacing: "0.1em",
+                  padding: "5px 10px",
+                  border: "0.5px solid var(--rule)",
+                  borderRadius: 999,
+                  cursor: "pointer",
+                  background: on
+                    ? `oklch(0.93 0.05 ${c.hue})`
+                    : "transparent",
+                  color: on
+                    ? `oklch(0.32 0.13 ${c.hue})`
+                    : "var(--ink-3)",
+                  borderColor: on
+                    ? `oklch(0.65 0.13 ${c.hue})`
+                    : "var(--rule)",
+                  opacity: sk.joined ? 1 : 0.78,
+                }}
+              >
+                <span style={{ marginRight: 5 }}>{c.glyph}</span>
+                {sk.name.toUpperCase()}
+              </span>
+            );
+          })}
+        </div>
+      </div>
+
+      <div className="card" style={{ marginBottom: 14 }}>
+        <Kicker>Where the hours go {!isAll && "· filtered"}</Kicker>
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "1fr 1fr 1fr",
+            gap: 10,
+            marginTop: 10,
+          }}
+        >
+          <div>
+            <div className="kicker">HOURS</div>
+            <div className="fig-num" style={{ fontSize: 24 }}>
+              <em>{totalHours.toLocaleString()}</em>
+            </div>
+          </div>
+          <div>
+            <div className="kicker">AVG LEVEL</div>
+            <div className="fig-num" style={{ fontSize: 24 }}>
+              <em>{avgLevel}</em>
+            </div>
+          </div>
+          <div>
+            <div className="kicker">MOST TIME</div>
+            <div className="fig-num" style={{ fontSize: 18, marginTop: 4 }}>
+              <em>{topCatLabel}</em>
+            </div>
+          </div>
+        </div>
+        <div
+          style={{
+            marginTop: 14,
+            paddingTop: 12,
+            borderTop: "0.5px dashed var(--rule)",
+          }}
+        >
+          <div className="kicker" style={{ marginBottom: 6 }}>
+            LEVEL BY CATEGORY
+          </div>
+          {cats.map((c) => {
+            const inCat = visible.filter((s) => s.cat === c.id);
+            if (!inCat.length) return null;
+            const lvl = avg(inCat.map((s) => s.level));
+            return (
+              <div
+                key={c.id}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 8,
+                  marginBottom: 4,
+                }}
+              >
+                <span
+                  style={{
+                    width: 80,
+                    fontFamily: "var(--serif)",
+                    fontStyle: "italic",
+                    fontSize: 12,
+                    color: `oklch(0.45 0.13 ${c.hue})`,
+                  }}
+                >
+                  {c.glyph} {c.label}
+                </span>
+                <div
+                  style={{
+                    flex: 1,
+                    height: 6,
+                    background: "var(--paper-2)",
+                    border: "0.5px solid var(--rule)",
+                    borderRadius: 2,
+                  }}
+                >
+                  <div
+                    style={{
+                      width: `${lvl}%`,
+                      height: "100%",
+                      background: `oklch(0.55 0.13 ${c.hue})`,
+                    }}
+                  />
+                </div>
+                <span
+                  style={{
+                    width: 28,
+                    textAlign: "right",
+                    fontFamily: "var(--mono)",
+                    fontSize: 10,
+                    color: "var(--ink-3)",
+                  }}
+                >
+                  {lvl}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      <div
+        className="card"
+        style={{
+          marginBottom: 14,
+          background: "oklch(0.97 0.02 80)",
+          borderColor: "oklch(0.85 0.06 80)",
         }}
       >
         <div
           style={{
-            width: 38,
-            height: 38,
-            borderRadius: 10,
-            background: `${comm.color}15`,
-            border: `1.5px solid ${comm.color}40`,
             display: "flex",
             alignItems: "center",
-            justifyContent: "center",
-            flexShrink: 0,
+            justifyContent: "space-between",
+            gap: 10,
           }}
         >
-          <span style={{ fontSize: 18 }}>🫂</span>
-        </div>
-        <div style={{ flex: 1 }}>
-          <div style={{ fontSize: 16, fontWeight: 700, color: C.navy }}>
-            {comm.name}
-          </div>
-          <div style={{ fontSize: 12, color: C.muted, marginTop: 2 }}>
-            {comm.members.toLocaleString()} members · {comm.compat}% match
-          </div>
-        </div>
-        {leaveConfirm ? (
-          <div
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "flex-end",
-              gap: 6,
-            }}
-          >
+          <div>
+            <Kicker>A short test · find a skill to grow</Kicker>
             <div
               style={{
-                fontSize: 12,
-                color: C.muted,
-                textAlign: "right",
+                fontFamily: "var(--serif)",
+                fontSize: 16,
+                marginTop: 4,
               }}
             >
-              Leave {comm.name}?
-            </div>
-            <div style={{ display: "flex", gap: 6 }}>
-              <button
-                onClick={() => setLeaveConfirm(false)}
-                style={{
-                  padding: "6px 12px",
-                  borderRadius: 10,
-                  border: `1px solid ${C.divider}`,
-                  background: "transparent",
-                  color: C.muted,
-                  fontFamily: "inherit",
-                  fontSize: 12,
-                  cursor: "pointer",
-                }}
-              >
-                Cancel
-              </button>
-              <button
-                onClick={confirmLeave}
-                style={{
-                  padding: "6px 12px",
-                  borderRadius: 10,
-                  border: "none",
-                  background: C.red,
-                  color: "#fff",
-                  fontFamily: "inherit",
-                  fontSize: 12,
-                  cursor: "pointer",
-                  fontWeight: 700,
-                }}
-              >
-                Leave
-              </button>
+              <em>Three questions, one suggestion.</em>
             </div>
           </div>
-        ) : (
-          <button
-            onClick={handleJoinLeave}
-            aria-label={isJoined ? `Leave ${comm.name}` : `Join ${comm.name}`}
+          <span
+            onClick={() => setShowTest(true)}
             style={{
-              background: isJoined ? "transparent" : comm.color,
-              border: `1.5px solid ${isJoined ? C.divider : comm.color}`,
-              color: isJoined ? C.muted : "#fff",
-              padding: "9px 20px",
-              borderRadius: 20,
-              fontFamily: "inherit",
-              fontSize: 13,
+              fontFamily: "var(--mono)",
+              fontSize: 10,
+              letterSpacing: "0.16em",
+              padding: "8px 12px",
+              border: "0.5px solid var(--ink)",
               cursor: "pointer",
-              fontWeight: 700,
-              boxShadow: isJoined ? "none" : `0 2px 10px ${comm.color}40`,
             }}
           >
-            {isJoined ? "Leave" : "Join"}
-          </button>
-        )}
-      </Card>
-      <PeopleInsightPanel profile={comm} me={me} />
-      <Card sec="groups">
-        <SLabel sec="groups">Top discussion topics</SLabel>
-        {comm.topics.map((t, i) => (
-          <div
-            key={i}
-            style={{
-              background: `${comm.color}10`,
-              borderRadius: 10,
-              padding: "10px 14px",
-              marginBottom: i < comm.topics.length - 1 ? 8 : 0,
-              display: "flex",
-              alignItems: "center",
-              gap: 10,
-              border: `1px solid ${comm.color}20`,
-            }}
-          >
-            <span
-              style={{
-                fontSize: 11,
-                color: comm.color,
-                fontWeight: 700,
-                width: 22,
-              }}
-            >
-              #{i + 1}
-            </span>
-            <span style={{ fontSize: 13, color: C.text }}>{t}</span>
-          </div>
-        ))}
-      </Card>
+            BEGIN ›
+          </span>
+        </div>
+      </div>
+
+      {visible.length > 0 && (
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            gap: 14,
+            marginTop: 8,
+            marginBottom: 16,
+          }}
+        >
+          {joined.map((g) => {
+            const cat = cats.find((c) => c.id === g.cat);
+            if (!cat) return null;
+            return <SkillCard key={g.id} s={g} cat={cat} />;
+          })}
+          {suggest.length > 0 && joined.length > 0 && (
+            <hr className="rule-dashed" style={{ margin: 0 }} />
+          )}
+          {suggest.map((g) => {
+            const cat = cats.find((c) => c.id === g.cat);
+            if (!cat) return null;
+            return <SkillCard key={g.id} s={g} cat={cat} suggest />;
+          })}
+        </div>
+      )}
+
+      {visible.length === 0 && (
+        <div
+          className="margin-note"
+          style={{ textAlign: "center", padding: 24, fontStyle: "italic" }}
+        >
+          Nothing in this filter yet.
+        </div>
+      )}
+
+      {showTest && <GroupTestOverlay onClose={() => setShowTest(false)} />}
     </div>
   );
 }

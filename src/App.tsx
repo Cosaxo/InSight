@@ -6,7 +6,13 @@ import { useTweaks } from "./lib/useTweaks";
 import { IOSDevice } from "./components/shared/IOSDevice";
 import { NavGlyph } from "./components/icons/NavGlyph";
 import { AroundTab } from "./components/tabs/AroundTab";
+import { WorldTab } from "./components/tabs/WorldTab";
+import { CityTab } from "./components/tabs/CityTab";
+import { GroupsTab } from "./components/tabs/GroupsTab";
+import { PeopleTab } from "./components/tabs/PeopleTab";
 import type { NearbyPerson } from "./components/tabs/AroundTab";
+import type { CitySeed } from "./components/tabs/WorldTab";
+import type { CirclePerson } from "./components/tabs/PeopleTab";
 import { LoadingScreen, LoginScreen } from "./components/panels/LoginScreen";
 import {
   TweakRadio,
@@ -31,54 +37,15 @@ const TWEAK_DEFAULTS = {
   tab: "around" as TabId,
 };
 
-function PlaceholderTab({ label }: { label: string }) {
-  return (
-    <div
-      className="fade-in"
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        gap: 14,
-        alignItems: "center",
-        justifyContent: "center",
-        minHeight: 400,
-        textAlign: "center",
-        padding: 24,
-      }}
-    >
-      <div className="kicker">— in the works —</div>
-      <h2
-        style={{
-          fontFamily: "var(--serif)",
-          fontStyle: "italic",
-          fontSize: 28,
-          fontWeight: 400,
-        }}
-      >
-        the <em style={{ color: "var(--accent)" }}>{label}</em> chapter
-      </h2>
-      <p
-        style={{
-          fontFamily: "var(--serif)",
-          fontStyle: "italic",
-          fontSize: 14,
-          color: "var(--ink-3)",
-          maxWidth: 280,
-        }}
-      >
-        Coming soon — the next phase of porting will fill this page with the
-        proper insights, charts, and stories.
-      </p>
-    </div>
-  );
-}
+type AnyPerson = NearbyPerson | CirclePerson;
 
 function AppShell() {
   const [t, setTweak] = useTweaks(TWEAK_DEFAULTS);
   const validTab = (id: TabId) =>
     TABS.some((x) => x.id === id) ? id : "around";
   const [tab, setTab] = useState<TabId>(validTab(t.tab));
-  const [, setPerson] = useState<NearbyPerson | null>(null);
+  const [, setPerson] = useState<AnyPerson | null>(null);
+  const [, setCity] = useState<CitySeed | null>(null);
 
   useEffect(() => {
     const v = validTab(t.tab);
@@ -112,10 +79,10 @@ function AppShell() {
 
         <div className="app-body">
           {tab === "around" && <AroundTab onPerson={setPerson} />}
-          {tab === "world" && <PlaceholderTab label="world" />}
-          {tab === "city" && <PlaceholderTab label="city" />}
-          {tab === "groups" && <PlaceholderTab label="groups" />}
-          {tab === "people" && <PlaceholderTab label="people" />}
+          {tab === "world" && <WorldTab onCity={setCity} />}
+          {tab === "city" && <CityTab />}
+          {tab === "groups" && <GroupsTab />}
+          {tab === "people" && <PeopleTab onPerson={setPerson} />}
         </div>
 
         <nav className="tabbar">
