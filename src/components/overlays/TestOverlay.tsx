@@ -1,5 +1,12 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Kicker } from "../shared/primitives";
+import { RadarChart, Compass2D } from "../shared/charts";
+import {
+  computeBig5,
+  computePolitical,
+  computeValues,
+  useProfile,
+} from "../../lib/useProfile";
 
 type TestKind = "big5" | "political" | "values";
 
@@ -78,9 +85,38 @@ export function TestOverlay({
   onComplete,
   kind: initialKind,
 }: TestOverlayProps) {
+  const { save } = useProfile();
   const [kind, setKind] = useState<TestKind | null>(initialKind || null);
   const [step, setStep] = useState(0);
-  const [, setAnswers] = useState<number[]>([]);
+  const [answers, setAnswers] = useState<number[]>([]);
+  // Ref instead of state so the "save once" guard doesn't trigger a
+  // re-render or trip the set-state-in-effect lint rule.
+  const savedRef = useRef(false);
+
+  const pickKind = (k: TestKind) => {
+    savedRef.current = false;
+    setStep(0);
+    setAnswers([]);
+    setKind(k);
+  };
+
+  // When the test completes, compute scores and save them once.
+  useEffect(() => {
+    if (!kind || savedRef.current) return;
+    const T = TESTS[kind];
+    if (answers.length < T.questions.length) return;
+    savedRef.current = true;
+    if (kind === "big5") {
+      const personality = computeBig5(answers);
+      void save({ personality });
+    } else if (kind === "political") {
+      const { political, axes } = computePolitical(answers);
+      void save({ political, politicalAxes: { ...axes } });
+    } else {
+      const { cv, morals } = computeValues(answers);
+      void save({ cv, morals });
+    }
+  }, [kind, answers, save]);
 
   if (!kind) {
     return (
@@ -108,7 +144,7 @@ export function TestOverlay({
               ([k, t]) => (
                 <div
                   key={k}
-                  onClick={() => setKind(k)}
+                  onClick={() => pickKind(k)}
                   className="card"
                   style={{
                     cursor: "pointer",
@@ -237,42 +273,252 @@ export function TestOverlay({
             </div>
           </div>
         ) : (
-          <div style={{ textAlign: "center", padding: "40px 20px" }}>
-            <div className="stamp" style={{ fontSize: 11, padding: "6px 12px" }}>
-              complete
-            </div>
-            <div
-              style={{
-                fontFamily: "var(--serif)",
-                fontSize: 28,
-                marginTop: 20,
-                fontStyle: "italic",
-              }}
-            >
-              Thank you.
-            </div>
-            <div className="margin-note" style={{ marginTop: 12, fontSize: 16 }}>
-              Your portrait has been redrawn —
-            </div>
-            <button
-              onClick={onComplete ?? onClose}
-              style={{
-                marginTop: 32,
-                padding: "12px 24px",
-                background: "var(--ink)",
-                color: "var(--paper)",
-                border: "none",
-                borderRadius: 999,
-                fontFamily: "var(--serif)",
-                fontStyle: "italic",
-                fontSize: 15,
-                cursor: "pointer",
-              }}
-            >
-              read it
-            </button>
-          </div>
+          <TestResult
+            kind={kind}
+            answers={answers}
+            onDone={onComplete ?? onClose}
+          />
         )}
+      </div>
+    </div>
+  );
+}
+
+// ─── TestResult — shows the actual computed scores ──────────────
+function TestResult({
+  kind,
+  answers,
+  onDone,
+}: {
+  kind: TestKind;
+  answers: number[];
+  onDone: () => void;
+}) {
+  return (
+    <div style={{ padding: "16px 4px 24px" }}>
+      <div style={{ textAlign: "center" }}>
+        <div className="stamp" style={{ fontSize: 11, padding: "6px 12px" }}>
+          complete
+        </div>
+        <div
+          style={{
+            fontFamily: "var(--serif)",
+            fontSize: 26,
+            marginTop: 18,
+            fontStyle: "italic",
+          }}
+        >
+          your portrait, redrawn.
+        </div>
+        <div className="margin-note" style={{ marginTop: 8, fontSize: 13 }}>
+          saved to your profile.
+        </div>
+      </div>
+
+      <div style={{ marginTop: 24 }}>
+        {kind === "big5" && <Big5Result answers={answers} />}
+        {kind === "political" && <PoliticalResult answers={answers} />}
+        {kind === "values" && <ValuesResult answers={answers} />}
+      </div>
+
+      <button
+        onClick={onDone}
+        style={{
+          marginTop: 28,
+          padding: "12px 24px",
+          background: "var(--ink)",
+          color: "var(--paper)",
+          border: "none",
+          borderRadius: 999,
+          fontFamily: "var(--serif)",
+          fontStyle: "italic",
+          fontSize: 15,
+          cursor: "pointer",
+          display: "block",
+          margin: "28px auto 0",
+        }}
+      >
+        close
+      </button>
+    </div>
+  );
+}
+
+function Big5Result({ answers }: { answers: number[] }) {
+  const v = computeBig5(answers);
+  const labels = ["Open", "Cons.", "Extra.", "Agree.", "Sens."];
+  return (
+    <div className="card">
+      <Kicker>Big Five · how you scored</Kicker>
+      <div style={{ marginTop: 8 }}>
+        <RadarChart values={v} labels={labels} color="var(--c-around)" size={240} />
+      </div>
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(5, 1fr)",
+          gap: 6,
+          marginTop: 8,
+        }}
+      >
+        {v.map((n, i) => (
+          <div key={i} style={{ textAlign: "center" }}>
+            <div className="fig-num" style={{ fontSize: 18 }}>
+              <em>{n}</em>
+            </div>
+            <div className="kicker" style={{ fontSize: 8.5 }}>
+              {labels[i].toUpperCase()}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function PoliticalResult({ answers }: { answers: number[] }) {
+  const { political, axes } = computePolitical(answers);
+  return (
+    <div className="card">
+      <Kicker>Politics · where you landed</Kicker>
+      <div style={{ marginTop: 8 }}>
+        <Compass2D
+          x={political.econ}
+          y={-political.social}
+          label="you"
+          xLabel={["← Left", "Right →"]}
+          yLabel={["↑ Liberty", "↓ Authority"]}
+          accent="var(--c-world)"
+          size={240}
+        />
+      </div>
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(3, 1fr)",
+          gap: 6,
+          marginTop: 12,
+        }}
+      >
+        {(
+          [
+            ["econ", "econ"],
+            ["social", "social"],
+            ["foreign", "foreign"],
+            ["env", "env"],
+            ["tech", "tech"],
+            ["auth", "auth"],
+          ] as [keyof typeof axes, string][]
+        ).map(([k, label]) => (
+          <div key={k} style={{ textAlign: "center" }}>
+            <div className="fig-num" style={{ fontSize: 16 }}>
+              <em>
+                {axes[k] >= 0 ? "+" : ""}
+                {axes[k]}
+              </em>
+            </div>
+            <div className="kicker" style={{ fontSize: 8.5 }}>
+              {label.toUpperCase()}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function ValuesResult({ answers }: { answers: number[] }) {
+  const { cv, morals } = computeValues(answers);
+  const rows = Object.entries(morals);
+  return (
+    <div className="card">
+      <Kicker>Values · where you sit</Kicker>
+      <div style={{ marginTop: 12, display: "flex", flexDirection: "column", gap: 8 }}>
+        {rows.map(([k, v]) => {
+          const pct = (v + 100) / 2;
+          return (
+            <div key={k}>
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  fontFamily: "var(--mono)",
+                  fontSize: 9,
+                  color: "var(--ink-3)",
+                  letterSpacing: "0.08em",
+                  textTransform: "uppercase",
+                  marginBottom: 3,
+                }}
+              >
+                <span>{k}</span>
+                <span style={{ color: "var(--ink-2)" }}>
+                  {v >= 0 ? "+" : ""}
+                  {v}
+                </span>
+              </div>
+              <div
+                style={{
+                  height: 5,
+                  background: "var(--paper-2)",
+                  border: "0.5px solid var(--rule)",
+                  borderRadius: 999,
+                  position: "relative",
+                }}
+              >
+                <span
+                  style={{
+                    position: "absolute",
+                    left: "50%",
+                    top: -2,
+                    width: 1,
+                    height: 9,
+                    background: "var(--rule)",
+                  }}
+                />
+                <span
+                  style={{
+                    position: "absolute",
+                    left: `calc(${pct}% - 4px)`,
+                    top: -2.5,
+                    width: 9,
+                    height: 9,
+                    background: "var(--c-people)",
+                    borderRadius: "50%",
+                  }}
+                />
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      <div
+        style={{
+          marginTop: 14,
+          paddingTop: 10,
+          borderTop: "0.5px dashed var(--rule)",
+          display: "flex",
+          justifyContent: "space-around",
+          textAlign: "center",
+        }}
+      >
+        <div>
+          <div className="fig-num" style={{ fontSize: 20 }}>
+            <em>
+              {cv.indiv >= 0 ? "+" : ""}
+              {cv.indiv}
+            </em>
+          </div>
+          <div className="kicker">COLLECTIVE ↔ INDIV</div>
+        </div>
+        <div>
+          <div className="fig-num" style={{ fontSize: 20 }}>
+            <em>
+              {cv.change >= 0 ? "+" : ""}
+              {cv.change}
+            </em>
+          </div>
+          <div className="kicker">STABILITY ↔ CHANGE</div>
+        </div>
       </div>
     </div>
   );
