@@ -31,6 +31,15 @@ import { CityOverlay } from "./components/overlays/CityOverlay";
 import { SharingOverlay } from "./components/overlays/SharingOverlay";
 import { DnaOverlay } from "./components/overlays/DnaOverlay";
 import { ScrapbookOverlay } from "./components/overlays/ScrapbookOverlay";
+import { BodyOverlay } from "./components/overlays/BodyOverlay";
+import { DaysOverlay } from "./components/overlays/DaysOverlay";
+import { DailyReportOverlay } from "./components/overlays/DailyReportOverlay";
+import {
+  getMyDailyReport,
+  type DailyReportData,
+} from "./components/overlays/DailyReportOverlay";
+import { ImpressionsOverlay } from "./components/overlays/ImpressionsOverlay";
+import { LifeOverlay } from "./components/overlays/LifeOverlay";
 
 const TABS: { id: TabId; label: string }[] = [
   { id: "around", label: "around" },
@@ -75,6 +84,12 @@ function AppShell() {
   const [showSharing, setShowSharing] = useState(false);
   const [showDna, setShowDna] = useState(false);
   const [showScrap, setShowScrap] = useState(false);
+  const [showBody, setShowBody] = useState(false);
+  const [showDays, setShowDays] = useState(false);
+  const [showDaily, setShowDaily] = useState(false);
+  const [showImpressions, setShowImpressions] = useState(false);
+  const [showLife, setShowLife] = useState(false);
+  const [dailyKey, setDailyKey] = useState(0);
   const [fabOpen, setFabOpen] = useState(false);
 
   useEffect(() => {
@@ -96,6 +111,11 @@ function AppShell() {
     setShowSharing(false);
     setShowDna(false);
     setShowScrap(false);
+    setShowBody(false);
+    setShowDays(false);
+    setShowDaily(false);
+    setShowImpressions(false);
+    setShowLife(false);
     setFabOpen(false);
   };
 
@@ -103,6 +123,8 @@ function AppShell() {
   const appClasses = `app paper-grain ${t.dark ? "dark" : ""} ${
     t.density || "regular"
   }`;
+
+  const myDaily: DailyReportData | null = getMyDailyReport();
 
   return (
     <IOSDevice width={402} height={874} dark={t.dark}>
@@ -132,7 +154,15 @@ function AppShell() {
           {tab === "world" && <WorldTab onCity={setCity} />}
           {tab === "city" && <CityTab />}
           {tab === "groups" && <GroupsTab />}
-          {tab === "people" && <PeopleTab onPerson={setPerson} />}
+          {tab === "people" && (
+            <PeopleTab
+              key={dailyKey}
+              onPerson={setPerson}
+              onOpenDaily={() => setShowDaily(true)}
+              // Structural shape matches what PeopleTab uses (mood, one_line, photo, etc.).
+              myDailyReport={myDaily as unknown as Parameters<typeof PeopleTab>[0]["myDailyReport"]}
+            />
+          )}
         </div>
 
         {fabOpen && (
@@ -141,10 +171,37 @@ function AppShell() {
               className="fab-item"
               onClick={() => {
                 setFabOpen(false);
+                setShowDaily(true);
+              }}
+            >
+              <span style={{ color: "var(--accent)" }}>◉</span> daily report
+            </div>
+            <div
+              className="fab-item"
+              onClick={() => {
+                setFabOpen(false);
                 setShowInsights(true);
               }}
             >
               <span style={{ color: "var(--sienna)" }}>✦</span> open journal
+            </div>
+            <div
+              className="fab-item"
+              onClick={() => {
+                setFabOpen(false);
+                setShowBody(true);
+              }}
+            >
+              <span style={{ color: "var(--ochre)" }}>◐</span> the body
+            </div>
+            <div
+              className="fab-item"
+              onClick={() => {
+                setFabOpen(false);
+                setShowDays(true);
+              }}
+            >
+              <span style={{ color: "var(--indigo)" }}>☾</span> the days
             </div>
             <div
               className="fab-item"
@@ -159,10 +216,10 @@ function AppShell() {
               className="fab-item"
               onClick={() => {
                 setFabOpen(false);
-                setShowDna(true);
+                setShowImpressions(true);
               }}
             >
-              <span style={{ color: "var(--c-groups)" }}>⌇</span> your DNA
+              <span style={{ color: "var(--c-people)" }}>❝</span> impressions
             </div>
             <div
               className="fab-item"
@@ -172,6 +229,15 @@ function AppShell() {
               }}
             >
               <span style={{ color: "var(--sage)" }}>✎</span> take a test
+            </div>
+            <div
+              className="fab-item"
+              onClick={() => {
+                setFabOpen(false);
+                setShowLife(true);
+              }}
+            >
+              <span style={{ color: "var(--accent)" }}>⌇</span> life details
             </div>
             <div
               className="fab-item"
@@ -232,6 +298,26 @@ function AppShell() {
         {showDna && <DnaOverlay onClose={() => setShowDna(false)} />}
         {showScrap && (
           <ScrapbookOverlay onClose={() => setShowScrap(false)} />
+        )}
+        {showBody && <BodyOverlay onClose={() => setShowBody(false)} />}
+        {showDays && <DaysOverlay onClose={() => setShowDays(false)} />}
+        {showDaily && (
+          <DailyReportOverlay
+            onClose={() => setShowDaily(false)}
+            onSaved={() => setDailyKey((k) => k + 1)}
+          />
+        )}
+        {showImpressions && (
+          <ImpressionsOverlay onClose={() => setShowImpressions(false)} />
+        )}
+        {showLife && (
+          <LifeOverlay
+            onClose={() => setShowLife(false)}
+            onOpenDna={() => {
+              setShowLife(false);
+              setShowDna(true);
+            }}
+          />
         )}
         {city && <CityOverlay city={city} onClose={() => setCity(null)} />}
       </div>
