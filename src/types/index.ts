@@ -134,6 +134,9 @@ export interface CityRating {
   cost?: number;
   nature?: number;
   transport?: number;
+  // Added in Phase 4 — the city-tab star rating UI exposes these too.
+  pace?: number;
+  openness?: number;
 }
 
 export type CityRatings = Record<string, CityRating>;
@@ -202,3 +205,21 @@ export type InsightTabId =
   | "fitness"
   | "nutrition"
   | "finance";
+
+// ── Daily report (Phase 4) ────────────────────────────────────────────────
+// Persisted at insight_users/{uid}/insight_daily/{date} when signed in,
+// or under `insight.dailyReport.v1` in localStorage otherwise. The
+// `photo` field is omitted when stored remotely (file uploads not wired)
+// — the local photo blob stays in localStorage under
+// `insight.dailyReport.photo.v1`.
+export interface RemoteDailyReport {
+  date: string; // doc id: "today" or an ISO date
+  mood: number;
+  moodLabel: string;
+  one_line: string;
+  weather: string;
+  hasPhoto: boolean;
+  photoId?: string; // a stock-photo key like "fjord"; user-uploaded photos stay local
+  shared: string[];
+  updatedAt?: unknown; // server timestamp
+}

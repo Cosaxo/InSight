@@ -1,5 +1,6 @@
 import { useRef, useState } from "react";
 import { IS_DATA } from "../../data/seedData";
+import { useDailyReport } from "../../lib/useDailyReport";
 
 const STORAGE = "insight.dailyReport.v1";
 const PHOTO_STORAGE = "insight.dailyReport.photo.v1";
@@ -539,6 +540,7 @@ export function DailyReportOverlay({
 }: DailyReportOverlayProps) {
   const existing = loadStored();
   const auto = getTodaysAutoStats();
+  const { save: saveDaily } = useDailyReport();
 
   const [photo, setPhoto] = useState<string | null>(loadPhoto());
   const [mood, setMood] = useState<number>(existing?.mood ?? 62);
@@ -570,7 +572,7 @@ export function DailyReportOverlay({
   const toggleShare = (k: string) =>
     setShare((s) => ({ ...s, [k]: !s[k] }));
 
-  const save = () => {
+  const save = async () => {
     const shared = Object.keys(share).filter((k) => share[k]);
     const data: DailyReportData = {
       personId: "me",
@@ -587,9 +589,23 @@ export function DailyReportOverlay({
       shared,
       updatedAt: Date.now(),
     };
-    localStorage.setItem(STORAGE, JSON.stringify(data));
-    if (photo) localStorage.setItem(PHOTO_STORAGE, photo);
-    else localStorage.removeItem(PHOTO_STORAGE);
+    // Route through useDailyReport — writes localStorage always, plus
+    // Firestore when signed in. Photo stays local; we record whether
+    // one exists + the stock key (if it's a preset) for sync.
+    const isStockPhoto =
+      photo != null &&
+      PHOTO_STOCK.some((p) => p.id === photo);
+    await saveDaily({
+      date: "today",
+      mood,
+      moodLabel: labelFor(mood),
+      one_line: oneLine,
+      weather,
+      hasPhoto: !!photo,
+      photoId: isStockPhoto ? photo! : undefined,
+      shared,
+      photo,
+    });
     setSavedFlash(true);
     setTimeout(() => {
       if (onSaved) onSaved(data);

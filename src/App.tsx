@@ -1,7 +1,13 @@
-import { useEffect, useState } from "react";
-import type { TabId } from "./types";
-import { firebaseEnabled, warmFirebase } from "./lib/firebase";
+import { useEffect, useRef, useState } from "react";
+import type { CityRatings, TabId } from "./types";
+import {
+  firebaseEnabled,
+  migrateFromLocal,
+  profileExists,
+  warmFirebase,
+} from "./lib/firebase";
 import { useAuth } from "./lib/useAuth";
+import { readLegacyDailyReport } from "./lib/useDailyReport";
 import { useTweaks } from "./lib/useTweaks";
 import { IOSDevice } from "./components/shared/IOSDevice";
 import { NavGlyph } from "./components/icons/NavGlyph";
@@ -34,12 +40,9 @@ import { ScrapbookOverlay } from "./components/overlays/ScrapbookOverlay";
 import { BodyOverlay } from "./components/overlays/BodyOverlay";
 import { DaysOverlay } from "./components/overlays/DaysOverlay";
 import { DailyReportOverlay } from "./components/overlays/DailyReportOverlay";
-import {
-  getMyDailyReport,
-  type DailyReportData,
-} from "./components/overlays/DailyReportOverlay";
 import { ImpressionsOverlay } from "./components/overlays/ImpressionsOverlay";
 import { LifeOverlay } from "./components/overlays/LifeOverlay";
+import { useDailyReport } from "./lib/useDailyReport";
 
 const TABS: { id: TabId; label: string }[] = [
   { id: "around", label: "around" },
@@ -71,7 +74,61 @@ function toOverlayPerson(p: AnyPerson): PersonForOverlay {
   };
 }
 
+// First sign-in migration — moves any local daily report + city ratings
+// up to Firestore the first time a user authenticates against an empty
+// profile doc. Runs at most once per session per user.
+function useFirstSignInMigration() {
+  const { user } = useAuth();
+  const ranForUid = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!firebaseEnabled || !user) return;
+    if (ranForUid.current === user.uid) return;
+    ranForUid.current = user.uid;
+
+    (async () => {
+      try {
+        if (await profileExists(user.uid)) return;
+        const local = readLegacyDailyReport();
+        let cityRatings: CityRatings = {};
+        try {
+          cityRatings = JSON.parse(
+            localStorage.getItem("insight.cityRatings.v1") || "{}",
+          ) as CityRatings;
+        } catch {
+          // ignore
+        }
+        await migrateFromLocal(user.uid, {
+          profile: {},
+          relations: [],
+          cityRatings,
+          moods: [],
+          habits: [],
+          workouts: [],
+          meals: [],
+          transactions: [],
+          dailyReport: local
+            ? {
+                date: local.date,
+                mood: local.mood,
+                moodLabel: local.moodLabel,
+                one_line: local.one_line,
+                weather: local.weather,
+                hasPhoto: local.hasPhoto,
+                photoId: local.photoId,
+                shared: local.shared,
+              }
+            : null,
+        });
+      } catch (err) {
+        console.error("[migration] first-sign-in migration failed:", err);
+      }
+    })();
+  }, [user]);
+}
+
 function AppShell() {
+  useFirstSignInMigration();
   const [t, setTweak] = useTweaks(TWEAK_DEFAULTS);
   const validTab = (id: TabId) =>
     TABS.some((x) => x.id === id) ? id : "around";
@@ -89,7 +146,6 @@ function AppShell() {
   const [showDaily, setShowDaily] = useState(false);
   const [showImpressions, setShowImpressions] = useState(false);
   const [showLife, setShowLife] = useState(false);
-  const [dailyKey, setDailyKey] = useState(0);
   const [fabOpen, setFabOpen] = useState(false);
 
   useEffect(() => {
@@ -124,7 +180,7 @@ function AppShell() {
     t.density || "regular"
   }`;
 
-  const myDaily: DailyReportData | null = getMyDailyReport();
+  const { report: myDaily } = useDailyReport();
 
   return (
     <IOSDevice width={402} height={874} dark={t.dark}>
@@ -156,7 +212,6 @@ function AppShell() {
           {tab === "groups" && <GroupsTab />}
           {tab === "people" && (
             <PeopleTab
-              key={dailyKey}
               onPerson={setPerson}
               onOpenDaily={() => setShowDaily(true)}
               // Structural shape matches what PeopleTab uses (mood, one_line, photo, etc.).
@@ -302,10 +357,7 @@ function AppShell() {
         {showBody && <BodyOverlay onClose={() => setShowBody(false)} />}
         {showDays && <DaysOverlay onClose={() => setShowDays(false)} />}
         {showDaily && (
-          <DailyReportOverlay
-            onClose={() => setShowDaily(false)}
-            onSaved={() => setDailyKey((k) => k + 1)}
-          />
+          <DailyReportOverlay onClose={() => setShowDaily(false)} />
         )}
         {showImpressions && (
           <ImpressionsOverlay onClose={() => setShowImpressions(false)} />

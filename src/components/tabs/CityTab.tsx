@@ -1,29 +1,43 @@
-import { useState } from "react";
 import { IS_DATA } from "../../data/seedData";
 import { Kicker } from "../shared/primitives";
 import { Donut, RadarChart } from "../shared/charts";
 import { ProfileCompare } from "../insights/ProfileCompare";
 import { MediaPopularity } from "../insights/MediaPopularity";
 import { GroupBreakdown } from "../insights/GroupBreakdown";
+import { useCityRatings } from "../../lib/useCityRatings";
+import type { CityRating } from "../../types";
 
-type CityScore = Record<string, number>;
+type CityScoreKey = "culture" | "nature" | "food" | "pace" | "openness" | "cost";
+
+const RATING_CATS: { k: CityScoreKey; label: string }[] = [
+  { k: "culture", label: "Culture" },
+  { k: "nature", label: "Nature" },
+  { k: "food", label: "Food" },
+  { k: "pace", label: "Pace" },
+  { k: "openness", label: "Openness" },
+  { k: "cost", label: "Cost" },
+];
 
 export function CityTab() {
   const c = IS_DATA.city;
-  const [ratings, setRatings] = useState<CityScore>(c.score);
-  const cats: { k: string; label: string }[] = [
-    { k: "culture", label: "Culture" },
-    { k: "nature", label: "Nature" },
-    { k: "food", label: "Food" },
-    { k: "pace", label: "Pace" },
-    { k: "openness", label: "Openness" },
-    { k: "cost", label: "Cost" },
-  ];
-
-  const totalRating = Object.values(ratings).reduce(
-    (s, v) => s + (v as number),
-    0,
+  const seed = c.score as Record<CityScoreKey, number>;
+  const { ratings: stored, setRating } = useCityRatings();
+  const userOverrides = stored[c.name] ?? {};
+  // Merge: seed defaults under user overrides — user's stars win when set.
+  const ratings: Record<CityScoreKey, number> = RATING_CATS.reduce(
+    (acc, { k }) => {
+      acc[k] = (userOverrides[k as keyof CityRating] as number) ?? seed[k] ?? 0;
+      return acc;
+    },
+    {} as Record<CityScoreKey, number>,
   );
+  const cats = RATING_CATS;
+
+  const onStar = (key: CityScoreKey, value: number) => {
+    setRating(c.name, key as keyof CityRating, value);
+  };
+
+  const totalRating = Object.values(ratings).reduce((s, v) => s + v, 0);
 
   return (
     <div className="fade-in">
@@ -143,7 +157,7 @@ export function CityTab() {
                   key={n}
                   className={"star" + (n <= ratings[k] ? " on" : "")}
                   style={{ fontSize: 18, cursor: "pointer" }}
-                  onClick={() => setRatings((r) => ({ ...r, [k]: n }))}
+                  onClick={() => onStar(k, n)}
                 >
                   ✦
                 </span>

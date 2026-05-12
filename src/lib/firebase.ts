@@ -18,6 +18,7 @@ import type {
   Meal,
   MoodEntry,
   Person,
+  RemoteDailyReport,
   Transaction,
   Workout,
 } from "../types";
@@ -286,4 +287,35 @@ export async function addTransaction(
 ): Promise<void> {
   const m = await impl();
   return m.addTransaction(uid, tx);
+}
+
+// ── Daily reports (Phase 4) ─────────────────────────────────────
+
+export function subscribeDailyReport(
+  uid: string,
+  cb: (report: RemoteDailyReport | null) => void,
+): () => void {
+  let cancelled = false;
+  let unsub: (() => void) | null = null;
+  impl().then((m) => {
+    if (cancelled) return;
+    unsub = m.subscribeDailyReport(uid, cb);
+  });
+  return () => {
+    cancelled = true;
+    unsub?.();
+  };
+}
+
+export async function upsertDailyReport(
+  uid: string,
+  report: RemoteDailyReport,
+): Promise<void> {
+  const m = await impl();
+  return m.upsertDailyReport(uid, report);
+}
+
+export async function deleteDailyReport(uid: string): Promise<void> {
+  const m = await impl();
+  return m.deleteDailyReport(uid);
 }

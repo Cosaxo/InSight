@@ -40,6 +40,7 @@ import type {
   MoodEntry,
   Person,
   Political,
+  RemoteDailyReport,
   Transaction,
   Workout,
 } from "../types";
@@ -73,6 +74,7 @@ export interface MigrationPayload {
   workouts: Workout[];
   meals: Meal[];
   transactions: Transaction[];
+  dailyReport?: RemoteDailyReport | null;
 }
 
 let app: FirebaseApp | null = null;
@@ -318,6 +320,43 @@ export async function addTransaction(
   await setDoc(subDocRef(uid, "insight_transactions", tx.id), stripId(tx));
 }
 
+// ── Daily reports (Phase 4) ─────────────────────────────────────
+
+export function subscribeDailyReport(
+  uid: string,
+  cb: (report: RemoteDailyReport | null) => void,
+): () => void {
+  // Single "today" doc — overwritten each time the user edits today's
+  // report. Past days could be stored under their own date key in a
+  // future iteration.
+  return onSnapshot(
+    subDocRef(uid, "insight_daily", "today"),
+    (snap) => {
+      if (!snap.exists()) {
+        cb(null);
+        return;
+      }
+      cb(snap.data() as RemoteDailyReport);
+    },
+    (err) => console.error("[firebaseImpl] dailyReport:", err),
+  );
+}
+
+export async function upsertDailyReport(
+  uid: string,
+  report: RemoteDailyReport,
+): Promise<void> {
+  await setDoc(
+    subDocRef(uid, "insight_daily", "today"),
+    { ...report, updatedAt: serverTimestamp() },
+    { merge: true },
+  );
+}
+
+export async function deleteDailyReport(uid: string): Promise<void> {
+  await deleteDoc(subDocRef(uid, "insight_daily", "today"));
+}
+
 // ── First sign-in migration ─────────────────────────────────────
 
 export async function migrateFromLocal(
@@ -350,6 +389,13 @@ export async function migrateFromLocal(
 
   for (const [cityName, rating] of Object.entries(payload.cityRatings)) {
     await setDoc(subDocRef(uid, "insight_cityratings", cityName), rating);
+  }
+
+  if (payload.dailyReport) {
+    await setDoc(subDocRef(uid, "insight_daily", "today"), {
+      ...payload.dailyReport,
+      updatedAt: serverTimestamp(),
+    });
   }
 
   return true;
