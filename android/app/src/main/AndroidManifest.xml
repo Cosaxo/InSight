@@ -38,4 +38,19 @@
     <!-- Permissions -->
 
     <uses-permission android:name="android.permission.INTERNET" />
+
+    <!-- Camera (daily-report photo, future scrapbook capture). The
+         <uses-feature> tags below mark them as optional so a device
+         without a camera can still install the app. -->
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-feature android:name="android.hardware.camera" android:required="false" />
+    <uses-feature android:name="android.hardware.camera.autofocus" android:required="false" />
+
+    <!-- Read photo library on Android 13+ (granular media perms) and
+         older Android (legacy READ_EXTERNAL_STORAGE). The plugin asks
+         for whichever applies at runtime. -->
+    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
+    <uses-permission
+        android:name="android.permission.READ_EXTERNAL_STORAGE"
+        android:maxSdkVersion="32" />
 </manifest>

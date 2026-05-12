@@ -91,11 +91,28 @@ Live-reload during development (point the WebView at the dev server instead of t
 - `@capacitor/status-bar` — overlay drawing, so the existing `env(safe-area-inset-*)` CSS keeps working.
 - `@capacitor/keyboard` — resize the WebView frame when the keyboard opens (not overlay-mode).
 - `@capacitor/app` — back-button handling on Android, app-state events.
+- `@capacitor-firebase/authentication` — native Google Sign-In sheet on iOS / Android. The plugin runs the OAuth flow natively, we exchange the resulting ID token for a Firebase credential via the JS SDK so every Firestore call still goes through the same auth instance. On web we fall back to the popup.
+- `@capacitor/camera` — daily-report photo capture uses the OS camera/library picker on device. Falls back to the existing `<input type="file">` on web.
+
+### Native setup (required before first device build)
+
+Two platform-specific Firebase config files are required for native Google Sign-In. These are project-specific so they aren't committed.
+
+**iOS** — drop `GoogleService-Info.plist` from your Firebase project's iOS app config into `ios/App/App/`, then add it to the Xcode target. Open `ios/App/App/Info.plist` and replace the `REVERSED_CLIENT_ID` placeholder under `CFBundleURLTypes` with the value from your `GoogleService-Info.plist` (it looks like `com.googleusercontent.apps.1234567890-abcdef`).
+
+**Android** — drop `google-services.json` from your Firebase project's Android app config into `android/app/`. The plugin's Gradle script picks it up automatically.
+
+The bundle ID / application ID is `com.cosaxo.insight`. Both Firebase apps must be registered with that same ID.
+
+### Permissions
+
+Already declared in the project:
+
+- iOS `Info.plist`: `NSCameraUsageDescription`, `NSPhotoLibraryUsageDescription`, `NSPhotoLibraryAddUsageDescription`.
+- Android `AndroidManifest.xml`: `CAMERA`, `READ_MEDIA_IMAGES` (Android 13+), `READ_EXTERNAL_STORAGE` (Android ≤ 12). Camera hardware is `android:required="false"` so devices without a camera can still install the app.
 
 ### Native API integrations planned but not yet wired
 
-- `@capacitor-firebase/authentication` — replace the Firebase JS popup with native Google Sign-In sheets (the web popup is rough inside iOS WebView).
-- `@capacitor/camera` — replace the `<input type="file">` photo picker in DailyReport with a real native camera.
 - `@capacitor/push-notifications` — daily-check-in reminders.
 - `@capacitor/local-notifications` — local reminders without a server.
 - `@capacitor/share` — share a daily report or test result.

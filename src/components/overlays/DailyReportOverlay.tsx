@@ -1,7 +1,50 @@
 import { useRef, useState } from "react";
+import { Camera, CameraResultType, CameraSource } from "@capacitor/camera";
+import { Capacitor } from "@capacitor/core";
 import { IS_DATA } from "../../data/seedData";
 import { useDailyReport } from "../../lib/useDailyReport";
 import { dailyMoodToScore, isoDateToday, useMoods } from "../../lib/useMoods";
+
+// Open a native camera/photo picker when running inside Capacitor;
+// otherwise click the hidden <input type="file"> so the browser shows
+// the OS file picker. The result is the same in both paths: a data:
+// URL the caller can stash in localStorage.
+async function pickPhoto(
+  inputRef: React.RefObject<HTMLInputElement | null>,
+  onPick: (v: string) => void,
+): Promise<void> {
+  if (!Capacitor.isNativePlatform()) {
+    inputRef.current?.click();
+    return;
+  }
+  try {
+    const photo = await Camera.getPhoto({
+      // Let the OS choose between camera and library so the user picks
+      // their flow. On the journal aesthetic, photos from the library
+      // make as much sense as fresh captures.
+      source: CameraSource.Prompt,
+      resultType: CameraResultType.DataUrl,
+      quality: 80,
+      allowEditing: false,
+      // Daily-report photo card is square-ish; downsize to keep
+      // localStorage cheap.
+      width: 1200,
+      promptLabelHeader: "today's photo",
+      promptLabelPicture: "take a photo",
+      promptLabelPhoto: "from photos",
+      promptLabelCancel: "cancel",
+    });
+    if (photo.dataUrl) onPick(photo.dataUrl);
+  } catch (err) {
+    // User cancelled the OS picker — silent. Anything else, log and
+    // fall back to the web input so the feature still works.
+    const msg = err instanceof Error ? err.message : String(err);
+    if (!/cancel/i.test(msg)) {
+      console.error("[DailyReport] native camera failed:", err);
+      inputRef.current?.click();
+    }
+  }
+}
 
 const STORAGE = "insight.dailyReport.v1";
 const PHOTO_STORAGE = "insight.dailyReport.photo.v1";
@@ -369,7 +412,7 @@ function PhotoSlot({
     const stock = PHOTO_STOCK.find((p) => p.id === photo);
     return (
       <div
-        onClick={() => inputRef.current?.click()}
+        onClick={() => void pickPhoto(inputRef, onPick)}
         style={{
           position: "relative",
           height: 180,
@@ -434,7 +477,7 @@ function PhotoSlot({
   return (
     <div>
       <div
-        onClick={() => inputRef.current?.click()}
+        onClick={() => void pickPhoto(inputRef, onPick)}
         style={{
           height: 96,
           borderRadius: 8,

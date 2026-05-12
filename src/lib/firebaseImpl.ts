@@ -10,11 +10,14 @@ import {
   GoogleAuthProvider,
   getAuth,
   onAuthStateChanged,
+  signInWithCredential,
   signInWithPopup,
   signOut,
   type Auth,
   type User,
 } from "firebase/auth";
+import { Capacitor } from "@capacitor/core";
+import { FirebaseAuthentication } from "@capacitor-firebase/authentication";
 import {
   addDoc,
   collection,
@@ -104,10 +107,32 @@ function db(): Firestore {
 // ── Auth ────────────────────────────────────────────────────────
 
 export async function googleSignIn(): Promise<void> {
+  if (Capacitor.isNativePlatform()) {
+    // On iOS / Android we open the native Google Sign-In sheet via the
+    // Capacitor Firebase Authentication plugin, then exchange the
+    // resulting ID token for a Firebase credential on the JS SDK so
+    // every other Firestore call still goes through the same auth
+    // instance the rest of the app already uses.
+    const result = await FirebaseAuthentication.signInWithGoogle();
+    const idToken = result.credential?.idToken;
+    if (!idToken) {
+      throw new Error("Native Google sign-in returned no idToken");
+    }
+    const credential = GoogleAuthProvider.credential(idToken);
+    await signInWithCredential(auth(), credential);
+    return;
+  }
+  // Web fallback — popup flow (or installed PWA on Android, which
+  // still uses the web auth runtime).
   await signInWithPopup(auth(), new GoogleAuthProvider());
 }
 
 export async function googleSignOut(): Promise<void> {
+  if (Capacitor.isNativePlatform()) {
+    // Sign out of both sides so the native account picker forgets the
+    // session too — otherwise the next sign-in skips the account chooser.
+    await FirebaseAuthentication.signOut();
+  }
   await signOut(auth());
 }
 
