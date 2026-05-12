@@ -1,5 +1,7 @@
 import type { ReactNode } from "react";
 import { IS_DATA } from "../../data/seedData";
+import { VerdictCard } from "../shared/VerdictCard";
+import { useMoods } from "../../lib/useMoods";
 import { Kicker, Bar } from "../shared/primitives";
 import {
   ClockDial,
@@ -91,11 +93,35 @@ export function HabitsTab() {
   const I = IS_DATA.insights;
   const H = IS_DATA.habitsDeep;
   const { isDoneToday, toggleToday } = useHabits();
+  const { moods: priorMoods } = useMoods();
   // A seed habit is "done today" if the seed's `done` flag is true
   // OR the user has tapped its checkmark today (overrides override).
   const seedHabits: { name: string; hue: number; done: boolean; streak: number; week: number[] }[] = I.habits;
   const todayState = (h: { name: string; done: boolean }) => isDoneToday(h.name) || h.done;
   const totalDone = seedHabits.filter(todayState).length;
+
+  // Prompt: feed in today's habit completions + the user's last week
+  // of mood scores. Ask Gemma to notice a relationship without
+  // becoming advisory.
+  const habitsToday = seedHabits
+    .map((h) => `${h.name}: ${todayState(h) ? "done" : "skipped"} (${h.streak}d streak)`)
+    .join("; ");
+  const recentMoods = priorMoods
+    .slice()
+    .sort((a, b) => b.date.localeCompare(a.date))
+    .slice(0, 7)
+    .map((m) => `${m.date}: ${m.score}/5`)
+    .join(", ");
+  const habitsPrompt = [
+    "You are a quiet journal companion. Look at the user's habits today and their recent moods. Write ONE short sentence (under 18 words) noticing a small pattern or contrast — no advice, no cheer, no questions. Observational, slightly literary.",
+    "",
+    `Today's habits: ${habitsToday}`,
+    recentMoods ? `Recent moods (most recent first): ${recentMoods}` : "",
+    "",
+    "Your one-sentence observation:",
+  ]
+    .filter(Boolean)
+    .join("\n");
   const habitNames = Object.keys(H.thirtyDay);
   const allDays = habitNames.flatMap((n) => H.thirtyDay[n] as number[]);
   const overall = Math.round(
@@ -526,69 +552,11 @@ export function HabitsTab() {
         </div>
       </div>
 
-      <div className="card">
-        <Kicker>What we noticed</Kicker>
-        <div
-          style={{
-            display: "flex",
-            flexDirection: "column",
-            gap: 10,
-            marginTop: 10,
-          }}
-        >
-          {H.insights.map(
-            (
-              it: { icon: string; title: string; body: string },
-              i: number,
-            ) => (
-              <div
-                key={i}
-                style={{
-                  display: "flex",
-                  gap: 10,
-                  padding: 10,
-                  background: "var(--paper-2)",
-                  border: "0.5px solid var(--rule)",
-                  borderRadius: 4,
-                }}
-              >
-                <div
-                  style={{
-                    fontFamily: "var(--serif)",
-                    fontSize: 18,
-                    color: "var(--sienna)",
-                  }}
-                >
-                  {it.icon}
-                </div>
-                <div style={{ flex: 1 }}>
-                  <div
-                    style={{
-                      fontFamily: "var(--serif)",
-                      fontSize: 13,
-                      fontWeight: 500,
-                    }}
-                  >
-                    {it.title}
-                  </div>
-                  <div
-                    style={{
-                      fontFamily: "var(--serif)",
-                      fontSize: 12,
-                      color: "var(--ink-2)",
-                      fontStyle: "italic",
-                      marginTop: 2,
-                      lineHeight: 1.5,
-                    }}
-                  >
-                    {it.body}
-                  </div>
-                </div>
-              </div>
-            ),
-          )}
-        </div>
-      </div>
+      <VerdictCard
+        kicker="WHAT WE NOTICED"
+        cacheKey="habits"
+        prompt={habitsPrompt}
+      />
     </div>
   );
 }
@@ -1019,6 +987,26 @@ export function NutritionTab() {
     (I.nutrition.water / I.nutrition.target_water) * 100,
   );
 
+  const nutritionPrompt = [
+    "You are a quiet journal companion. Look at the user's recent eating pattern. Write ONE short sentence (under 18 words) noticing a shape or pattern — no advice, no cheer, no diet talk. Observational, slightly literary.",
+    "",
+    `Today: ${I.nutrition.kcal} kcal of ${I.nutrition.target} target; ${I.nutrition.water} of ${I.nutrition.target_water} water glasses.`,
+    `Week macros (g per day, carbs/protein/fat): ${N.weekMacros
+      .map(
+        (d: { d: string; carbs: number; protein: number; fat: number }) =>
+          `${d.d} ${d.carbs}/${d.protein}/${d.fat}`,
+      )
+      .join("; ")}`,
+    `Eating windows: ${N.eatingWindow
+      .map((r: { d: string; start: number; end: number }) => `${r.d} ${r.start}:00–${r.end}:00`)
+      .join("; ")}`,
+    `Flags: ${N.flags
+      .map((f: { label: string; kind: string }) => `${f.label} (${f.kind})`)
+      .join("; ")}`,
+    "",
+    "Your one-sentence observation:",
+  ].join("\n");
+
   return (
     <div>
       <StatRow
@@ -1379,20 +1367,11 @@ export function NutritionTab() {
         </div>
       </div>
 
-      <div className="card" style={{ borderLeft: "3px solid var(--ochre)" }}>
-        <Kicker>The week, in one breath</Kicker>
-        <div
-          style={{
-            fontFamily: "var(--serif)",
-            fontSize: 14,
-            fontStyle: "italic",
-            marginTop: 8,
-            lineHeight: 1.5,
-          }}
-        >
-          "{N.verdict}"
-        </div>
-      </div>
+      <VerdictCard
+        kicker="THE WEEK, IN ONE BREATH"
+        cacheKey="nutrition"
+        prompt={nutritionPrompt}
+      />
     </div>
   );
 }
@@ -1402,6 +1381,30 @@ export function NutritionTab() {
 export function FinanceTab() {
   const F = IS_DATA.financeAI;
   const I = IS_DATA.insights;
+
+  const financePrompt = [
+    "You are a quiet journal companion. Look at the user's recent spending. Write ONE short sentence (under 18 words) noticing a shape or pattern — no advice, no judgement, no money talk. Observational, slightly literary.",
+    "",
+    `This month: ${I.finance.currency}${I.finance.spent} of ${I.finance.budget} budget; net +${F.net}.`,
+    `By category: ${F.byCategory
+      .map(
+        (c: { cat: string; amt: number; trend: number }) =>
+          `${c.cat} €${c.amt}${c.trend ? ` (${c.trend > 0 ? "+" : ""}${c.trend}%)` : ""}`,
+      )
+      .join("; ")}`,
+    F.anomalies.length
+      ? `Anomalies: ${F.anomalies
+          .map(
+            (a: { merchant: string; amt: number; note: string }) =>
+              `${a.merchant} €${a.amt} — ${a.note}`,
+          )
+          .join("; ")}`
+      : "",
+    "",
+    "Your one-sentence observation:",
+  ]
+    .filter(Boolean)
+    .join("\n");
 
   return (
     <div>
@@ -1445,24 +1448,11 @@ export function FinanceTab() {
         </div>
       </div>
 
-      <div
-        className="card"
-        style={{ marginBottom: 12, borderLeft: "3px solid var(--sienna)" }}
-      >
-        <Kicker>The verdict · in one sentence</Kicker>
-        <div
-          style={{
-            fontFamily: "var(--serif)",
-            fontSize: 16,
-            fontStyle: "italic",
-            marginTop: 8,
-            lineHeight: 1.5,
-            color: "var(--ink)",
-          }}
-        >
-          "{F.verdict}"
-        </div>
-      </div>
+      <VerdictCard
+        kicker="THE VERDICT · IN ONE SENTENCE"
+        cacheKey="finance"
+        prompt={financePrompt}
+      />
 
       <div className="card" style={{ marginBottom: 12 }}>
         <Kicker>Statement summary</Kicker>
