@@ -14,6 +14,7 @@ import {
   Sparkline,
   StackedBars,
 } from "../shared/charts";
+import { useHabits } from "../../lib/useHabits";
 
 // ───────── helpers ─────────
 
@@ -89,7 +90,12 @@ function FlagChip({ kind, children }: FlagChipProps) {
 export function HabitsTab() {
   const I = IS_DATA.insights;
   const H = IS_DATA.habitsDeep;
-  const totalDone = I.habits.filter((h: { done: boolean }) => h.done).length;
+  const { isDoneToday, toggleToday } = useHabits();
+  // A seed habit is "done today" if the seed's `done` flag is true
+  // OR the user has tapped its checkmark today (overrides override).
+  const seedHabits: { name: string; hue: number; done: boolean; streak: number; week: number[] }[] = I.habits;
+  const todayState = (h: { name: string; done: boolean }) => isDoneToday(h.name) || h.done;
+  const totalDone = seedHabits.filter(todayState).length;
   const habitNames = Object.keys(H.thirtyDay);
   const allDays = habitNames.flatMap((n) => H.thirtyDay[n] as number[]);
   const overall = Math.round(
@@ -117,25 +123,25 @@ export function HabitsTab() {
             marginTop: 10,
           }}
         >
-          {I.habits.map(
-            (h: {
-              name: string;
-              hue: number;
-              done: boolean;
-              streak: number;
-              week: number[];
-            }) => (
+          {seedHabits.map((h) => {
+            const done = todayState(h);
+            return (
               <div
                 key={h.name}
                 style={{ display: "flex", alignItems: "center", gap: 10 }}
               >
-                <div
+                <button
+                  type="button"
+                  onClick={() =>
+                    void toggleToday(h.name, `oklch(0.55 0.12 ${h.hue})`)
+                  }
+                  aria-pressed={done}
                   style={{
                     width: 22,
                     height: 22,
                     borderRadius: "50%",
                     border: `1.5px solid oklch(0.55 0.12 ${h.hue})`,
-                    background: h.done
+                    background: done
                       ? `oklch(0.55 0.12 ${h.hue})`
                       : "transparent",
                     display: "flex",
@@ -145,10 +151,12 @@ export function HabitsTab() {
                     fontFamily: "var(--serif)",
                     fontSize: 12,
                     flexShrink: 0,
+                    cursor: "pointer",
+                    padding: 0,
                   }}
                 >
-                  {h.done ? "✓" : ""}
-                </div>
+                  {done ? "✓" : ""}
+                </button>
                 <div style={{ flex: 1 }}>
                   <div
                     style={{
@@ -188,8 +196,8 @@ export function HabitsTab() {
                   ))}
                 </div>
               </div>
-            ),
-          )}
+            );
+          })}
         </div>
       </div>
 
