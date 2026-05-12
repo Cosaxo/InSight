@@ -1,304 +1,295 @@
-import { useMemo, useState } from "react";
-import { C, SEC } from "../../theme";
-import { CITY_FLAGS } from "../../data/constants";
-import { CITY_PROFILES } from "../../data/profiles";
-import type { CityRating, CityRatings, Me, Profile } from "../../types";
-import { Card } from "../shared/Card";
-import { SLabel } from "../shared/SLabel";
-import { HScroll } from "../shared/HScroll";
-import { Toast } from "../shared/Toast";
-import { ContextBar } from "../shared/ContextBar";
-import { PeopleInsightPanel } from "../insights/PeopleInsightPanel";
+import { IS_DATA } from "../../data/seedData";
+import { Kicker } from "../shared/primitives";
+import { Donut, RadarChart } from "../shared/charts";
+import { ProfileCompare } from "../insights/ProfileCompare";
+import { MediaPopularity } from "../insights/MediaPopularity";
+import { GroupBreakdown } from "../insights/GroupBreakdown";
+import { useCityRatings } from "../../lib/useCityRatings";
+import type { CityRating } from "../../types";
 
-const CITY_COLOR_CYCLE = [
-  C.teal,
-  C.purple,
-  C.coral,
-  C.amber,
-  C.blue,
-  C.pink,
-  C.cyan,
-  C.green,
+type CityScoreKey = "culture" | "nature" | "food" | "pace" | "openness" | "cost";
+
+const RATING_CATS: { k: CityScoreKey; label: string }[] = [
+  { k: "culture", label: "Culture" },
+  { k: "nature", label: "Nature" },
+  { k: "food", label: "Food" },
+  { k: "pace", label: "Pace" },
+  { k: "openness", label: "Openness" },
+  { k: "cost", label: "Cost" },
 ];
 
-function cityInsightProfile(name: string, index: number): Profile {
-  const known = CITY_PROFILES[name];
-  if (known) return known;
-  return {
-    name,
-    subtitle: "Custom city",
-    color: CITY_COLOR_CYCLE[index % CITY_COLOR_CYCLE.length],
-    personality: [60, 60, 55, 65, 60],
-    political: { econ: -5, social: -8 },
-    cv: { indiv: -5, change: 10 },
-    interests: [
-      { label: "Local life", pct: 70 },
-      { label: "Culture", pct: 60 },
-      { label: "Food", pct: 65 },
-      { label: "Nature", pct: 50 },
-      { label: "Design", pct: 40 },
-    ],
-    values: [
-      "Community",
-      "Heritage",
-      "Local pride",
-      "Sustainability",
-      "Openness",
-    ],
+export function CityTab() {
+  const c = IS_DATA.city;
+  const seed = c.score as Record<CityScoreKey, number>;
+  const { ratings: stored, setRating } = useCityRatings();
+  const userOverrides = stored[c.name] ?? {};
+  // Merge: seed defaults under user overrides — user's stars win when set.
+  const ratings: Record<CityScoreKey, number> = RATING_CATS.reduce(
+    (acc, { k }) => {
+      acc[k] = (userOverrides[k as keyof CityRating] as number) ?? seed[k] ?? 0;
+      return acc;
+    },
+    {} as Record<CityScoreKey, number>,
+  );
+  const cats = RATING_CATS;
+
+  const onStar = (key: CityScoreKey, value: number) => {
+    setRating(c.name, key as keyof CityRating, value);
   };
-}
 
-const RCATS: { key: keyof CityRating; label: string; color: string }[] = [
-  { key: "food", label: "Food", color: C.coral },
-  { key: "nightlife", label: "Nightlife", color: C.purple },
-  { key: "culture", label: "Culture", color: C.teal },
-  { key: "architecture", label: "Arch.", color: C.amber },
-  { key: "safety", label: "Safety", color: C.green },
-  { key: "cost", label: "Cost", color: C.cyan },
-  { key: "nature", label: "Nature", color: C.green },
-  { key: "transport", label: "Transport", color: C.muted },
-];
-
-interface CityTabProps {
-  me: Me;
-  ratings: CityRatings;
-  onRate: (cityName: string, key: keyof CityRating, value: number) => void;
-}
-
-export function CityTab({ me, ratings, onRate }: CityTabProps) {
-  const cities = useMemo(() => Object.keys(CITY_PROFILES), []);
-  const [city, setCity] = useState<string>(cities[0] || "Oslo");
-  const [expanded, setExpanded] = useState<string | null>(null);
-  const [toast, setToast] = useState(false);
-
-  function avg(name: string): string {
-    const r = ratings[name];
-    if (!r) return "—";
-    const v = Object.values(r).filter(
-      (x): x is number => typeof x === "number",
-    );
-    if (!v.length) return "—";
-    return (v.reduce((a, b) => a + b, 0) / v.length).toFixed(1);
-  }
-
-  function handleRate(cityName: string, key: keyof CityRating, value: number) {
-    onRate(cityName, key, value);
-    setToast(true);
-    setTimeout(() => setToast(false), 1600);
-  }
-
-  const ratedCities = cities.filter(
-    (c) => ratings[c] && Object.keys(ratings[c]).length > 0,
-  );
-  const sortedByScore = [...ratedCities].sort(
-    (a, b) => parseFloat(avg(b) || "0") - parseFloat(avg(a) || "0"),
-  );
-  const bestCity = sortedByScore[0];
-  const cityIdx = cities.indexOf(city);
-  const profile = cityInsightProfile(city, Math.max(cityIdx, 0));
+  const totalRating = Object.values(ratings).reduce((s, v) => s + v, 0);
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-      {toast && <Toast message="Rating saved" color={C.teal} icon="✓" />}
-      <ContextBar
-        items={[
-          { icon: "🏙️", label: "City", value: city, color: SEC.city.accent },
-          { icon: "✈️", label: "Visited", value: String(ratedCities.length), color: C.teal, sub: "rated" },
-          { icon: "🌍", label: "Available", value: String(cities.length), color: C.purple },
-          {
-            icon: "⭐",
-            label: "Best rated",
-            value: bestCity ? `${avg(bestCity)}★` : "—",
-            color: C.amber,
-          },
-          {
-            icon: "📊",
-            label: "Your avg",
-            value: avg(city) !== "—" ? `${avg(city)}★` : "Rate it!",
-            color: C.coral,
-          },
-        ]}
-      />
+    <div className="fade-in">
+      <div className="page-num">— xi —</div>
+      <Kicker>Field notes · the city you live in</Kicker>
+      <div className="sec-head">
+        <h2>
+          A passport for <em>Oslo</em>
+        </h2>
+      </div>
 
-      <HScroll>
-        {cities.map((c, i) => {
-          const col = cityInsightProfile(c, i).color;
-          const active = city === c;
-          return (
-            <button
-              key={c}
-              onClick={() => setCity(c)}
+      <div className="card" style={{ position: "relative", marginBottom: 16 }}>
+        <div className="tape" />
+        <div style={{ display: "flex", gap: 14, alignItems: "center" }}>
+          <div
+            style={{
+              width: 64,
+              height: 64,
+              borderRadius: "50%",
+              background: "var(--paper)",
+              border: "1.5px solid var(--c-city)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              position: "relative",
+            }}
+          >
+            <div
               style={{
-                padding: "8px 14px",
-                borderRadius: 20,
-                cursor: "pointer",
-                fontFamily: "inherit",
-                border: active ? "none" : `1.5px solid ${C.divider}`,
-                background: active ? col : C.card,
-                color: active ? "#fff" : C.text,
-                fontSize: 13,
-                fontWeight: active ? 700 : 400,
-                flexShrink: 0,
-                boxShadow: active ? `0 3px 14px ${col}50` : C.shadow,
-                transform: active ? "scale(1.04)" : "scale(1)",
-                transition: "all 0.18s cubic-bezier(.4,0,.2,1)",
-                display: "flex",
-                alignItems: "center",
-                gap: 5,
+                fontFamily: "var(--serif)",
+                fontStyle: "italic",
+                fontSize: 22,
+                color: "var(--c-city)",
+                lineHeight: 1,
               }}
             >
-              <span>{CITY_FLAGS[c] || "📍"}</span>
-              {c}
-              {ratings[c] && (
-                <span style={{ fontSize: 10, opacity: 0.7 }}>★</span>
-              )}
-            </button>
-          );
-        })}
-      </HScroll>
-
-      <Card
-        style={{
-          padding: "14px 16px",
-          display: "flex",
-          alignItems: "center",
-          gap: 14,
-          borderLeft: `4px solid ${profile.color}`,
-        }}
-      >
-        <span style={{ fontSize: 34 }}>{CITY_FLAGS[city] || "📍"}</span>
-        <div style={{ flex: 1 }}>
-          <div style={{ fontSize: 16, fontWeight: 700, color: C.navy }}>
-            {city}
-          </div>
-          <div style={{ fontSize: 12, color: C.muted, marginTop: 2 }}>
-            {profile.subtitle}
-          </div>
-        </div>
-        <div style={{ textAlign: "right" }}>
-          {avg(city) !== "—" ? (
-            <div style={{ fontSize: 20, fontWeight: 800, color: C.amber }}>
-              ★ {avg(city)}
+              O
             </div>
-          ) : (
-            <div style={{ fontSize: 13, color: C.muted }}>Not rated yet</div>
-          )}
-          <div style={{ fontSize: 10, color: C.muted }}>your rating</div>
-        </div>
-      </Card>
-
-      <PeopleInsightPanel profile={profile} me={me} />
-
-      <Card>
-        <SLabel sec="city">Rate cities you've visited</SLabel>
-        {cities.map((c) => {
-          const isExp = expanded === c;
-          const r = ratings[c] || {};
-          const a = avg(c);
-          return (
             <div
-              key={c}
               style={{
-                borderRadius: 12,
+                position: "absolute",
+                bottom: -6,
+                fontFamily: "var(--mono)",
+                fontSize: 7,
+                color: "var(--c-city)",
+                letterSpacing: "0.16em",
+                background: "var(--paper-2)",
+                padding: "0 4px",
+              }}
+            >
+              OSLO
+            </div>
+          </div>
+          <div style={{ flex: 1 }}>
+            <div
+              style={{
+                fontFamily: "var(--serif)",
+                fontSize: 22,
+                letterSpacing: "-0.01em",
+              }}
+            >
+              {c.name}, NO
+            </div>
+            <div className="kicker" style={{ marginTop: 2 }}>
+              POP {c.pop} · LIVED {c.lived} · MATCH {c.yourMatch}%
+            </div>
+          </div>
+          <Donut
+            value={c.yourMatch}
+            color="var(--c-city)"
+            label="MATCH"
+            size={64}
+          />
+        </div>
+        <div className="margin-note" style={{ marginTop: 10 }}>
+          "{c.notes}"
+        </div>
+      </div>
+
+      <div className="card" style={{ marginBottom: 16 }}>
+        <Kicker>Six dimensions · radar</Kicker>
+        <div style={{ marginTop: 8 }}>
+          <RadarChart
+            values={cats.map(({ k }) => ratings[k] * 20)}
+            labels={cats.map((c) => c.label)}
+            color="var(--c-city)"
+            size={260}
+          />
+        </div>
+      </div>
+
+      <Kicker>Rate this place · tap stars</Kicker>
+      <div style={{ marginTop: 8 }}>
+        {cats.map(({ k, label }) => (
+          <div
+            key={k}
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              padding: "10px 0",
+              borderBottom: "0.5px solid var(--rule)",
+            }}
+          >
+            <span
+              style={{
+                fontFamily: "var(--serif)",
+                fontStyle: "italic",
+                fontSize: 15,
+              }}
+            >
+              {label}
+            </span>
+            <div style={{ display: "flex", gap: 4 }}>
+              {[1, 2, 3, 4, 5].map((n) => (
+                <span
+                  key={n}
+                  className={"star" + (n <= ratings[k] ? " on" : "")}
+                  style={{ fontSize: 18, cursor: "pointer" }}
+                  onClick={() => onStar(k, n)}
+                >
+                  ✦
+                </span>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div style={{ marginTop: 16 }}>
+        <Kicker>Stamps collected</Kicker>
+        <div
+          style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 8 }}
+        >
+          {c.visited.map((v: string) => (
+            <span key={v} className="stamp">
+              {v}
+            </span>
+          ))}
+        </div>
+      </div>
+
+      <div className="card" style={{ marginTop: 16 }}>
+        <Kicker>City vitals</Kicker>
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "1fr 1fr",
+            gap: 12,
+            marginTop: 10,
+          }}
+        >
+          <div>
+            <div className="fig-num">
+              <em>{c.lived}</em>
+            </div>
+            <div className="kicker">YEARS LIVED</div>
+          </div>
+          <div>
+            <div className="fig-num">
+              <em>{c.pop}</em>
+            </div>
+            <div className="kicker">POPULATION</div>
+          </div>
+          <div>
+            <div className="fig-num">
+              <em>{c.visited.length}</em>
+            </div>
+            <div className="kicker">NORDIC TRIPS</div>
+          </div>
+          <div>
+            <div className="fig-num">
+              <em>{totalRating}</em>/30
+            </div>
+            <div className="kicker">YOUR RATING</div>
+          </div>
+        </div>
+      </div>
+
+      <div className="card" style={{ marginTop: 16 }}>
+        <Kicker>Other cities · how Oslo sits</Kicker>
+        <div
+          className="margin-note"
+          style={{ fontSize: 12, marginTop: 4, marginBottom: 10 }}
+        >
+          population, give or take.
+        </div>
+        {[
+          { name: "Oslo", pop: 709, color: "var(--c-city)" },
+          { name: "Bergen", pop: 290, color: "var(--ink-3)" },
+          { name: "Stavanger", pop: 148, color: "var(--ink-3)" },
+          { name: "Trondheim", pop: 215, color: "var(--ink-3)" },
+          { name: "Tromsø", pop: 78, color: "var(--ink-3)" },
+        ].map((city) => (
+          <div
+            key={city.name}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 10,
+              marginBottom: 6,
+            }}
+          >
+            <span
+              style={{
+                width: 78,
+                fontFamily: "var(--serif)",
+                fontStyle: "italic",
+                fontSize: 13,
+              }}
+            >
+              {city.name}
+            </span>
+            <div
+              style={{
+                flex: 1,
+                height: 7,
+                background: "var(--paper-2)",
+                border: "0.5px solid var(--rule)",
+                borderRadius: 3,
                 overflow: "hidden",
-                background: C.dim,
-                marginBottom: 8,
               }}
             >
               <div
-                onClick={() => setExpanded(isExp ? null : c)}
                 style={{
-                  padding: "11px 14px",
-                  cursor: "pointer",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 10,
+                  height: "100%",
+                  width: `${(city.pop / 800) * 100}%`,
+                  background: city.color,
                 }}
-              >
-                <span style={{ fontSize: 16 }}>{CITY_FLAGS[c] || "📍"}</span>
-                <span
-                  style={{
-                    flex: 1,
-                    fontSize: 13,
-                    fontWeight: 600,
-                    color: C.navy,
-                  }}
-                >
-                  {c}
-                </span>
-                {a !== "—" ? (
-                  <span
-                    style={{ fontSize: 13, fontWeight: 700, color: C.amber }}
-                  >
-                    ★ {a}
-                  </span>
-                ) : (
-                  <span style={{ fontSize: 11, color: C.muted }}>
-                    tap to rate
-                  </span>
-                )}
-                <span
-                  style={{
-                    fontSize: 12,
-                    color: isExp ? C.teal : C.muted,
-                  }}
-                >
-                  {isExp ? "▲" : "▼"}
-                </span>
-              </div>
-              {isExp && (
-                <div
-                  style={{
-                    background: C.card,
-                    padding: "12px 14px",
-                    display: "grid",
-                    gridTemplateColumns: "1fr 1fr",
-                    gap: 8,
-                  }}
-                >
-                  {RCATS.map((cat) => (
-                    <div
-                      key={cat.key}
-                      style={{
-                        background: C.dim,
-                        borderRadius: 10,
-                        padding: "10px 12px",
-                      }}
-                    >
-                      <div
-                        style={{
-                          fontSize: 11,
-                          color: cat.color,
-                          fontWeight: 600,
-                          marginBottom: 6,
-                        }}
-                      >
-                        {cat.label}
-                      </div>
-                      <span>
-                        {[1, 2, 3, 4, 5].map((n) => (
-                          <span
-                            key={n}
-                            onClick={() => handleRate(c, cat.key, n)}
-                            style={{
-                              color:
-                                n <= (r[cat.key] || 0) ? cat.color : C.dim,
-                              fontSize: 18,
-                              cursor: "pointer",
-                            }}
-                          >
-                            ★
-                          </span>
-                        ))}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              )}
+              />
             </div>
-          );
-        })}
-      </Card>
+            <span
+              style={{
+                width: 50,
+                textAlign: "right",
+                fontFamily: "var(--mono)",
+                fontSize: 10,
+                color: "var(--ink-3)",
+              }}
+            >
+              {city.pop}k
+            </span>
+          </div>
+        ))}
+      </div>
+
+      <hr className="rule-dashed" />
+      <ProfileCompare scope="city" accent="var(--c-city)" />
+      <hr className="rule-dashed" />
+      <GroupBreakdown scope="city" accent="var(--c-city)" />
+      <hr className="rule-dashed" />
+      <MediaPopularity scope="city" accent="var(--c-city)" />
     </div>
   );
 }

@@ -1,669 +1,760 @@
-import { useMemo, useState } from "react";
-import type { Dispatch, SetStateAction } from "react";
-import { C } from "../../theme";
-import { CAT_META } from "../../data/constants";
-import { calcSim, fmtDate } from "../../utils/helpers";
-import type { Me, Person, RelationCategory } from "../../types";
-import { Card } from "../shared/Card";
-import { SLabel } from "../shared/SLabel";
-import { HScroll } from "../shared/HScroll";
-import { Pill } from "../shared/Pill";
-import { Av } from "../shared/Av";
-import { CVBadge } from "../shared/CVBadge";
-import { ContextBar } from "../shared/ContextBar";
-import { PersonProfilePanel } from "../panels/PersonProfilePanel";
+import { Fragment, useState } from "react";
+import { IS_DATA } from "../../data/seedData";
+import { Av, Kicker } from "../shared/primitives";
+import { Compass2D } from "../shared/charts";
+import {
+  ConcentricMap,
+  type ConcentricPerson,
+} from "../shared/ConcentricMap";
+import { ProfileCompare } from "../insights/ProfileCompare";
+import { MediaPopularity } from "../insights/MediaPopularity";
+import { GroupBreakdown } from "../insights/GroupBreakdown";
 
-const COLS = [C.teal, C.purple, C.green, C.amber, C.coral, C.pink, C.cyan];
-const RINGS: { r: number; cats: RelationCategory[] }[] = [
-  { r: 55, cats: ["family"] },
-  { r: 100, cats: ["close"] },
-  { r: 148, cats: ["friend", "work"] },
-  { r: 192, cats: ["acquaintance"] },
-];
-const CV = 210;
-
-const CATS: { id: "all" | RelationCategory; label: string; color: string }[] = [
-  { id: "all", label: "All", color: C.navy },
-  { id: "family", label: "Family", color: C.red },
-  { id: "close", label: "Close", color: C.teal },
-  { id: "friend", label: "Friends", color: C.green },
-  { id: "work", label: "Work", color: C.amber },
-  { id: "acquaintance", label: "Acquaint.", color: C.muted },
-];
-
-interface PeopleTabProps {
-  me: Me;
-  relations: Person[];
-  setRelations: Dispatch<SetStateAction<Person[]>>;
+export interface CirclePerson extends ConcentricPerson {
+  rel: string;
+  category: string;
+  match: number;
+  degrees: number;
+  since: string;
+  interests?: ({ c: string; t: string } | string)[];
 }
 
-export function PeopleTab({ me, relations, setRelations }: PeopleTabProps) {
-  const [cat, setCat] = useState<(typeof CATS)[number]["id"]>("all");
-  const [view, setView] = useState<"list" | "circles">("list");
-  const [search, setSearch] = useState("");
-  const [selId, setSelId] = useState<string | null>(null);
-  const [addOpen, setAddOpen] = useState(false);
-  const [logT, setLogT] = useState<string | null>(null);
-  const [newName, setNewName] = useState("");
-  const [newCat, setNewCat] = useState<RelationCategory>("friend");
-  const [logNote, setLogNote] = useState("");
-  const [logDate, setLogDate] = useState(
-    new Date().toISOString().split("T")[0],
+interface PeopleTabProps {
+  onPerson: (p: CirclePerson) => void;
+  onOpenDaily?: () => void;
+  myDailyReport?: DailyReport | null;
+}
+
+interface DailyReport {
+  personId: string;
+  date: string;
+  shared?: string[];
+  mood?: number;
+  moodLabel?: string;
+  one_line?: string;
+  weather?: string;
+  sleep?: string;
+  moves?: string;
+  meal?: string;
+  photo?: string;
+  body?: { hrv: number; sleepScore: number };
+  move?: {
+    steps?: number;
+    workout?: { type: string };
+  };
+  nutrition?: { kcal: number; water: number };
+  scrapbook?: { name: string; hue: number }[];
+}
+
+const PHOTO_GRADIENTS: Record<string, string> = {
+  fjord:
+    "linear-gradient(160deg, oklch(0.78 0.06 220), oklch(0.55 0.10 245) 60%, oklch(0.34 0.08 260))",
+  kitchen:
+    "linear-gradient(180deg, oklch(0.86 0.06 60), oklch(0.72 0.09 40) 50%, oklch(0.46 0.10 30))",
+  forest:
+    "linear-gradient(170deg, oklch(0.74 0.09 145), oklch(0.50 0.11 155) 55%, oklch(0.30 0.08 165))",
+  window:
+    "linear-gradient(200deg, oklch(0.92 0.03 80), oklch(0.78 0.05 60) 50%, oklch(0.58 0.07 50))",
+};
+
+export function PeopleTab({
+  onPerson,
+  onOpenDaily,
+  myDailyReport,
+}: PeopleTabProps) {
+  const D = IS_DATA;
+  const myDaily = myDailyReport ?? null;
+  const allReports: DailyReport[] = myDaily
+    ? [myDaily, ...D.dailyReports]
+    : D.dailyReports;
+  const [chainTarget, setChainTarget] = useState<CirclePerson | null>(null);
+
+  const categories = [
+    { key: "family", label: "Family", icon: "✦", hue: 12 },
+    { key: "friends", label: "Friends", icon: "○", hue: 38 },
+    { key: "colleagues", label: "Colleagues", icon: "□", hue: 220 },
+    { key: "neighbors", label: "Neighbors", icon: "△", hue: 145 },
+    { key: "acquaintances", label: "Acquaintances", icon: "·", hue: 250 },
+  ];
+  const people: CirclePerson[] = D.people;
+  const grouped = categories
+    .map((c) => ({
+      ...c,
+      people: people.filter((p) => p.category === c.key),
+    }))
+    .filter((g) => g.people.length);
+
+  const buildChain = (target: CirclePerson | null) => {
+    if (!target) return [];
+    const you = { id: "you", name: "you", init: "YOU" } as {
+      id: string;
+      name: string;
+      init: string;
+      hue?: number;
+    };
+    if (target.degrees === 1) return [you, target];
+    const broker =
+      people.find(
+        (p) => p.degrees === 1 && (p.id === "f1" || p.id === "f3"),
+      ) || people[0];
+    return [you, broker, target];
+  };
+  const chain = buildChain(chainTarget);
+
+  const avgMatch = Math.round(
+    people.reduce((s, p) => s + p.match, 0) / people.length,
   );
-
-  const filtered = useMemo(
-    () =>
-      relations
-        .filter((p) => cat === "all" || p.category === cat)
-        .filter((p) =>
-          p.name.toLowerCase().includes(search.toLowerCase()),
-        ),
-    [relations, cat, search],
+  const oldestYear = Math.min(
+    ...people
+      .filter((p) => p.since !== "birth")
+      .map((p) => parseInt(p.since, 10)),
   );
-
-  const selected = relations.find((p) => p.id === selId);
-  if (selected) {
-    return (
-      <PersonProfilePanel
-        person={selected}
-        me={me}
-        onClose={() => setSelId(null)}
-        onLog={(id) => {
-          setLogT(id);
-          setSelId(null);
-        }}
-      />
-    );
-  }
-
-  function addPerson() {
-    if (!newName.trim()) return;
-    const init = newName
-      .trim()
-      .split(" ")
-      .map((n) => n[0])
-      .join("")
-      .slice(0, 2)
-      .toUpperCase();
-    setRelations((prev) => [
-      ...prev,
-      {
-        id: `r${Date.now()}`,
-        name: newName.trim(),
-        init,
-        color: COLS[prev.length % COLS.length],
-        category: newCat,
-        personality: [60, 60, 60, 60, 60],
-        political: { econ: 0, social: 0 },
-        cv: { indiv: 0, change: 0 },
-        interests: [],
-        values: [],
-        hangouts: [],
-      },
-    ]);
-    setNewName("");
-    setAddOpen(false);
-  }
-
-  function logHangout(id: string) {
-    if (!logNote.trim()) return;
-    setRelations((prev) =>
-      prev.map((p) =>
-        p.id === id
-          ? {
-              ...p,
-              hangouts: [
-                { date: logDate, note: logNote },
-                ...(p.hangouts || []),
-              ],
-            }
-          : p,
-      ),
-    );
-    setLogNote("");
-    setLogT(null);
-  }
-
-  function moveCat(id: string, c: RelationCategory) {
-    setRelations((prev) =>
-      prev.map((p) => (p.id === id ? { ...p, category: c } : p)),
-    );
-  }
-
-  const ringPeople = RINGS.map((ring) => ({
-    ...ring,
-    people: relations
-      .filter((p) => p.category && ring.cats.includes(p.category))
-      .slice(0, 10),
-  }));
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-      <ContextBar
-        items={[
-          { icon: "👥", label: "People", value: String(relations.length), color: C.green },
-          {
-            icon: "❤️",
-            label: "Family",
-            value: String(relations.filter((p) => p.category === "family").length),
-            color: C.red,
-          },
-          {
-            icon: "⭐",
-            label: "Close",
-            value: String(relations.filter((p) => p.category === "close").length),
-            color: C.teal,
-          },
-          {
-            icon: "🤝",
-            label: "Friends",
-            value: String(relations.filter((p) => p.category === "friend").length),
-            color: C.green,
-          },
-          { icon: "🕐", label: "Last seen", value: "Today", color: C.amber },
-        ]}
-      />
-
-      <HScroll>
-        {CATS.map((c) => (
-          <Pill
-            key={c.id}
-            active={cat === c.id}
-            color={c.color}
-            onClick={() => setCat(c.id)}
-          >
-            {c.label}
-            {c.id === "all" ? ` (${relations.length})` : ""}
-          </Pill>
-        ))}
-      </HScroll>
-
-      <div style={{ display: "flex", gap: 8 }}>
-        <div style={{ flex: 1 }}>
-          <input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search people..."
-            style={{
-              width: "100%",
-              padding: "10px 14px",
-              borderRadius: 12,
-              border: `1px solid ${C.divider}`,
-              background: C.card,
-              color: C.text,
-              fontFamily: "inherit",
-              fontSize: 14,
-              outline: "none",
-            }}
-          />
-        </div>
-        <button
-          onClick={() => setView((v) => (v === "list" ? "circles" : "list"))}
-          style={{
-            padding: "10px 14px",
-            borderRadius: 12,
-            border: `1px solid ${C.divider}`,
-            background: C.card,
-            color: C.muted,
-            fontFamily: "inherit",
-            fontSize: 12,
-            cursor: "pointer",
-          }}
-        >
-          {view === "list" ? "Map" : "List"}
-        </button>
-        <button
-          onClick={() => setAddOpen(!addOpen)}
-          style={{
-            padding: "10px 14px",
-            borderRadius: 12,
-            border: "none",
-            background: C.teal,
-            color: "#fff",
-            fontFamily: "inherit",
-            fontSize: 12,
-            cursor: "pointer",
-            fontWeight: 600,
-          }}
-        >
-          + Add
-        </button>
+    <div className="fade-in">
+      <div className="page-num">— xix —</div>
+      <Kicker>The intimates · the close orbit</Kicker>
+      <div className="sec-head">
+        <h2>
+          People you've <em>kept</em>
+        </h2>
       </div>
 
-      {addOpen && (
-        <Card>
-          <SLabel>Add person</SLabel>
-          <input
-            value={newName}
-            onChange={(e) => setNewName(e.target.value)}
-            placeholder="Name..."
+      <div className="card" style={{ marginBottom: 14 }}>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "baseline",
+            justifyContent: "space-between",
+            marginBottom: 4,
+          }}
+        >
+          <Kicker>Today, from your circle</Kicker>
+          <span
             style={{
-              width: "100%",
-              padding: "11px 14px",
-              borderRadius: 12,
-              border: `1px solid ${C.divider}`,
-              background: C.dim,
-              color: C.text,
-              fontFamily: "inherit",
-              fontSize: 14,
-              outline: "none",
-              marginBottom: 10,
-            }}
-          />
-          <select
-            value={newCat}
-            onChange={(e) => setNewCat(e.target.value as RelationCategory)}
-            style={{
-              width: "100%",
-              padding: "11px 14px",
-              borderRadius: 12,
-              border: `1px solid ${C.divider}`,
-              background: C.dim,
-              color: C.text,
-              fontFamily: "inherit",
-              fontSize: 14,
-              cursor: "pointer",
-              marginBottom: 10,
+              fontFamily: "var(--mono)",
+              fontSize: 9,
+              color: "oklch(0.45 0.13 145)",
+              letterSpacing: "0.1em",
             }}
           >
-            {(Object.entries(CAT_META) as [RelationCategory, { label: string }][]).map(
-              ([k, v]) => (
-                <option key={k} value={k}>
-                  {v.label}
-                </option>
-              ),
-            )}
-          </select>
-          <div style={{ display: "flex", gap: 8 }}>
-            <button
-              onClick={addPerson}
-              style={{
-                flex: 1,
-                padding: "12px",
-                borderRadius: 12,
-                border: "none",
-                background: C.teal,
-                color: "#fff",
-                fontFamily: "inherit",
-                fontSize: 14,
-                cursor: "pointer",
-                fontWeight: 600,
-              }}
-            >
-              Add
-            </button>
-            <button
-              onClick={() => setAddOpen(false)}
-              style={{
-                flex: 1,
-                padding: "12px",
-                borderRadius: 12,
-                border: `1px solid ${C.divider}`,
-                background: "transparent",
-                color: C.muted,
-                fontFamily: "inherit",
-                fontSize: 14,
-                cursor: "pointer",
-              }}
-            >
-              Cancel
-            </button>
-          </div>
-        </Card>
-      )}
+            · LIVE · {allReports.filter((r) => r.date === "today").length}{" "}
+            TODAY
+          </span>
+        </div>
+        <div
+          className="margin-note"
+          style={{
+            marginTop: 4,
+            marginBottom: 12,
+            fontStyle: "italic",
+            fontSize: 12,
+          }}
+        >
+          friends who chose to share their day with you. they decide what; you
+          decide who.
+        </div>
 
-      {logT && (
-        <Card style={{ border: `1.5px solid ${C.teal}30` }}>
-          <SLabel>
-            Log hangout — {relations.find((p) => p.id === logT)?.name}
-          </SLabel>
-          <input
-            type="date"
-            value={logDate}
-            onChange={(e) => setLogDate(e.target.value)}
-            style={{
-              width: "100%",
-              padding: "11px 14px",
-              borderRadius: 12,
-              border: `1px solid ${C.divider}`,
-              background: C.dim,
-              color: C.text,
-              fontFamily: "inherit",
-              fontSize: 14,
-              outline: "none",
-              marginBottom: 10,
-            }}
-          />
-          <input
-            value={logNote}
-            onChange={(e) => setLogNote(e.target.value)}
-            placeholder="What did you do?"
-            style={{
-              width: "100%",
-              padding: "11px 14px",
-              borderRadius: 12,
-              border: `1px solid ${C.divider}`,
-              background: C.dim,
-              color: C.text,
-              fontFamily: "inherit",
-              fontSize: 14,
-              outline: "none",
-              marginBottom: 10,
-            }}
-          />
-          <div style={{ display: "flex", gap: 8 }}>
-            <button
-              onClick={() => logHangout(logT)}
-              style={{
-                flex: 1,
-                padding: "12px",
-                borderRadius: 12,
-                border: "none",
-                background: C.teal,
-                color: "#fff",
-                fontFamily: "inherit",
-                fontSize: 14,
-                cursor: "pointer",
-                fontWeight: 600,
-              }}
-            >
-              Save
-            </button>
-            <button
-              onClick={() => setLogT(null)}
-              style={{
-                flex: 1,
-                padding: "12px",
-                borderRadius: 12,
-                border: `1px solid ${C.divider}`,
-                background: "transparent",
-                color: C.muted,
-                fontFamily: "inherit",
-                fontSize: 14,
-                cursor: "pointer",
-              }}
-            >
-              Cancel
-            </button>
-          </div>
-        </Card>
-      )}
-
-      {view === "list" &&
-        (filtered.length === 0 ? (
-          <div
-            style={{
-              textAlign: "center",
-              color: C.muted,
-              padding: 32,
-              fontSize: 14,
-            }}
-          >
-            No people found
-          </div>
-        ) : (
-          filtered.map((p) => {
-            const sim = calcSim(p, me);
-            const last = p.hangouts?.[0];
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          {allReports.map((r) => {
+            const isMe = r.personId === "me";
+            const p = isMe
+              ? {
+                  id: "me",
+                  init: IS_DATA.me.initials,
+                  hue: 38,
+                  name: "you",
+                  rel: "yourself",
+                }
+              : people.find((x) => x.id === r.personId);
+            if (!p) return null;
+            const rec = r as unknown as Record<string, unknown>;
+            const has = (k: string) =>
+              !!r.shared &&
+              r.shared.includes(k) &&
+              rec[k] != null &&
+              rec[k] !== "";
             return (
               <div
-                key={p.id}
+                key={r.personId + r.date}
+                onClick={() =>
+                  isMe
+                    ? onOpenDaily && onOpenDaily()
+                    : onPerson(p as CirclePerson)
+                }
                 style={{
-                  background: C.card,
-                  borderRadius: 18,
-                  boxShadow: C.shadow,
-                  overflow: "hidden",
-                  marginBottom: 10,
-                  borderLeft: `4px solid ${p.color}`,
+                  padding: 12,
+                  background: isMe ? "var(--paper-2)" : "var(--paper)",
+                  border: "0.5px solid var(--rule)",
+                  borderLeft: `3px solid ${isMe ? "var(--accent)" : `oklch(0.55 0.12 ${p.hue})`}`,
+                  borderRadius: 8,
+                  cursor: "pointer",
+                  position: "relative",
                 }}
               >
+                {isMe && (
+                  <span
+                    style={{
+                      position: "absolute",
+                      top: 8,
+                      right: 10,
+                      fontFamily: "var(--mono)",
+                      fontSize: 8,
+                      color: "var(--accent)",
+                      letterSpacing: "0.14em",
+                    }}
+                  >
+                    · YOU ·
+                  </span>
+                )}
                 <div
-                  onClick={() => setSelId(p.id)}
                   style={{
-                    padding: "14px 16px",
-                    cursor: "pointer",
                     display: "flex",
                     alignItems: "center",
-                    gap: 12,
+                    gap: 10,
+                    marginBottom: 8,
                   }}
                 >
-                  <Av init={p.init} color={p.color} size={44} />
+                  <Av init={p.init} hue={p.hue} size={32} />
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div
-                      style={{
-                        fontSize: 15,
-                        fontWeight: 600,
-                        color: C.navy,
-                      }}
+                      style={{ fontFamily: "var(--serif)", fontSize: 15 }}
                     >
-                      {p.name}
-                    </div>
-                    {p.category && (
-                      <div
+                      {p.name.split(" ")[0]}{" "}
+                      <span
                         style={{
+                          color: "var(--ink-3)",
                           fontSize: 11,
-                          color: CAT_META[p.category]?.color,
-                          fontWeight: 500,
+                          fontStyle: "italic",
                         }}
                       >
-                        {CAT_META[p.category]?.label}
-                      </div>
-                    )}
-                    {last && (
-                      <div
-                        style={{
-                          fontSize: 11,
-                          color: C.muted,
-                          marginTop: 2,
-                          overflow: "hidden",
-                          textOverflow: "ellipsis",
-                          whiteSpace: "nowrap",
-                        }}
-                      >
-                        Last: {fmtDate(last.date)} — {last.note}
-                      </div>
-                    )}
-                    <div style={{ marginTop: 4 }}>
-                      <CVBadge cv={p.cv} />
-                    </div>
-                  </div>
-                  <div style={{ textAlign: "right", flexShrink: 0 }}>
-                    <div
-                      style={{
-                        fontSize: 20,
-                        fontWeight: 700,
-                        color:
-                          sim > 75 ? C.teal : sim > 55 ? C.amber : C.muted,
-                      }}
-                    >
-                      {sim}%
+                        · {(p as CirclePerson).rel ?? "yourself"}
+                      </span>
                     </div>
                     <div
-                      style={{
-                        fontSize: 10,
-                        color:
-                          sim > 75 ? C.teal : sim > 55 ? C.amber : C.muted,
-                        fontWeight: 600,
-                      }}
+                      className="kicker"
+                      style={{ marginTop: 1, fontSize: 9 }}
                     >
-                      {sim > 75 ? "High" : sim > 55 ? "Mid" : "Low"}
+                      {r.date.toUpperCase()}{" "}
+                      {has("mood") && "· FEELS " + r.moodLabel?.toUpperCase()}
                     </div>
                   </div>
+                  {has("mood") && (
+                    <div style={{ textAlign: "right" }}>
+                      <div className="fig-num" style={{ fontSize: 22 }}>
+                        <em>{r.mood}</em>
+                      </div>
+                    </div>
+                  )}
                 </div>
+
+                {has("one_line") && (
+                  <div
+                    style={{
+                      fontFamily: "var(--serif)",
+                      fontSize: 13,
+                      fontStyle: "italic",
+                      color: "var(--ink-2)",
+                      lineHeight: 1.45,
+                      padding: "6px 0",
+                      borderTop: "0.5px dashed var(--rule)",
+                      borderBottom: "0.5px dashed var(--rule)",
+                    }}
+                  >
+                    "{r.one_line}"
+                  </div>
+                )}
+
+                {isMe && has("photo") && r.photo && (
+                  <div
+                    style={{
+                      height: 120,
+                      borderRadius: 6,
+                      overflow: "hidden",
+                      border: "0.5px solid var(--rule)",
+                      margin: "8px 0",
+                      background: r.photo.startsWith("data:")
+                        ? `center/cover no-repeat url(${r.photo})`
+                        : PHOTO_GRADIENTS[r.photo] || "var(--paper-3)",
+                    }}
+                  />
+                )}
+
                 <div
                   style={{
-                    borderTop: `1px solid ${C.divider}`,
-                    padding: "8px 12px",
                     display: "flex",
-                    gap: 5,
-                    overflowX: "auto",
-                    scrollbarWidth: "none",
+                    flexWrap: "wrap",
+                    gap: 8,
+                    marginTop: 8,
+                    fontFamily: "var(--serif)",
+                    fontSize: 11,
+                    color: "var(--ink-3)",
                   }}
                 >
-                  {(Object.entries(CAT_META) as [RelationCategory, { label: string; color: string }][]).map(
-                    ([k, v]) => (
-                      <button
-                        key={k}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          moveCat(p.id, k);
-                        }}
+                  {has("weather") && <span>☾ {r.weather}</span>}
+                  {has("sleep") && <span>· slept {r.sleep}</span>}
+                  {has("moves") && <span>· {r.moves}</span>}
+                  {has("meal") && <span>· {r.meal}</span>}
+                  {isMe && has("body") && r.body && (
+                    <span>
+                      · hrv {r.body.hrv} · sleep {r.body.sleepScore}/100
+                    </span>
+                  )}
+                  {isMe && has("movement") && r.move && (
+                    <span>
+                      · {r.move.steps?.toLocaleString()} steps
+                      {r.move.workout
+                        ? " · " + r.move.workout.type.toLowerCase()
+                        : ""}
+                    </span>
+                  )}
+                  {isMe && has("nutrition") && r.nutrition && (
+                    <span>
+                      · {r.nutrition.kcal} kcal · {r.nutrition.water}/8 water
+                    </span>
+                  )}
+                </div>
+
+                {isMe &&
+                  has("scrapbook") &&
+                  r.scrapbook &&
+                  r.scrapbook.length > 0 && (
+                    <div
+                      style={{
+                        marginTop: 8,
+                        paddingTop: 8,
+                        borderTop: "0.5px dashed var(--rule)",
+                      }}
+                    >
+                      <div
+                        className="kicker"
+                        style={{ marginBottom: 4, fontSize: 8 }}
+                      >
+                        SCRAPBOOK · TODAY
+                      </div>
+                      <div
                         style={{
-                          padding: "5px 10px",
-                          borderRadius: 20,
-                          border: "none",
-                          fontSize: 11,
-                          cursor: "pointer",
-                          fontFamily: "inherit",
-                          flexShrink: 0,
-                          background:
-                            p.category === k ? v.color : C.dim,
-                          color:
-                            p.category === k ? "#fff" : C.muted,
-                          fontWeight: p.category === k ? 700 : 400,
-                          boxShadow:
-                            p.category === k
-                              ? `0 2px 8px ${v.color}45`
-                              : "none",
-                          transition: "all 0.15s",
+                          display: "flex",
+                          flexWrap: "wrap",
+                          gap: 5,
                         }}
                       >
-                        {v.label}
-                      </button>
-                    ),
+                        {r.scrapbook.map((s, i) => (
+                          <span
+                            key={i}
+                            style={{
+                              display: "inline-flex",
+                              alignItems: "center",
+                              gap: 4,
+                              padding: "2px 8px",
+                              background: `color-mix(in oklch, oklch(0.55 0.12 ${s.hue}) 14%, var(--paper))`,
+                              borderRadius: 999,
+                              fontFamily: "var(--serif)",
+                              fontStyle: "italic",
+                              fontSize: 11.5,
+                              color: "var(--ink-2)",
+                            }}
+                          >
+                            <span
+                              style={{
+                                width: 6,
+                                height: 6,
+                                borderRadius: "50%",
+                                background: `oklch(0.55 0.13 ${s.hue})`,
+                              }}
+                            />
+                            {s.name}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
                   )}
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setLogT(p.id);
-                    }}
-                    style={{
-                      padding: "5px 12px",
-                      borderRadius: 20,
-                      border: "none",
-                      fontSize: 11,
-                      cursor: "pointer",
-                      fontFamily: "inherit",
-                      flexShrink: 0,
-                      marginLeft: "auto",
-                      background: C.teal,
-                      color: "#fff",
-                      fontWeight: 700,
-                      boxShadow: `0 2px 8px ${C.teal}40`,
-                    }}
-                  >
-                    + Log
-                  </button>
-                </div>
               </div>
             );
-          })
-        ))}
+          })}
+        </div>
 
-      {view === "circles" && (
-        <Card sec="people">
-          <SLabel sec="people">Relationship map</SLabel>
-          <svg
-            viewBox={`0 0 ${CV * 2} ${CV * 2}`}
-            style={{ width: "100%", display: "block" }}
+        <div
+          style={{
+            marginTop: 12,
+            paddingTop: 10,
+            borderTop: "0.5px dashed var(--rule)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+          }}
+        >
+          <span
+            style={{
+              fontFamily: "var(--serif)",
+              fontStyle: "italic",
+              fontSize: 12,
+              color: "var(--ink-3)",
+            }}
           >
-            {RINGS.map((ring, i) => (
-              <circle
-                key={i}
-                cx={CV}
-                cy={CV}
-                r={ring.r + 16}
-                fill="none"
-                stroke={C.divider}
-                strokeWidth="1"
-                strokeDasharray="4,4"
-              />
-            ))}
-            {[
-              { r: 55, l: "Family" },
-              { r: 100, l: "Close" },
-              { r: 148, l: "Friends" },
-              { r: 192, l: "Acquaint." },
-            ].map((r, i) => (
-              <text
-                key={i}
-                x={CV + r.r + 18}
-                y={CV + 4}
-                fontSize="9"
-                fill={C.muted}
-                fontFamily="sans-serif"
-              >
-                {r.l}
-              </text>
-            ))}
-            {ringPeople.map((ring) =>
-              ring.people.map((p, pi) => {
-                const angle =
-                  (pi / ring.people.length) * 2 * Math.PI - Math.PI / 2;
-                const x = CV + ring.r * Math.cos(angle);
-                const y = CV + ring.r * Math.sin(angle);
-                return (
-                  <g
-                    key={p.id}
-                    onClick={() => setSelId(p.id)}
-                    style={{ cursor: "pointer" }}
-                  >
-                    <line
-                      x1={CV}
-                      y1={CV}
-                      x2={x}
-                      y2={y}
-                      stroke={p.color}
-                      strokeWidth="0.5"
-                      opacity="0.2"
-                    />
-                    <circle cx={x} cy={y} r="16" fill={p.color} opacity="0.2" />
-                    <circle
-                      cx={x}
-                      cy={y}
-                      r="13"
-                      fill={C.card}
-                      stroke={p.color}
-                      strokeWidth="2.5"
-                    />
-                    <text
-                      x={x}
-                      y={y + 4}
-                      textAnchor="middle"
-                      fontSize="7"
-                      fill={p.color}
-                      fontFamily="sans-serif"
-                      fontWeight="800"
-                    >
-                      {p.init}
-                    </text>
-                  </g>
-                );
-              }),
+            {myDaily ? (
+              <>your daily is shared →</>
+            ) : (
+              <>
+                log <em>your</em> daily, share what you choose →
+              </>
             )}
-            <circle cx={CV} cy={CV} r="24" fill={C.teal} opacity="0.18" />
-            <circle
-              cx={CV}
-              cy={CV}
-              r="18"
-              fill={C.teal}
-              stroke="white"
-              strokeWidth="2"
-            />
-            <text
-              x={CV}
-              y={CV + 4}
-              textAnchor="middle"
-              fontSize="9"
-              fill="white"
-              fontFamily="sans-serif"
-              fontWeight="800"
+          </span>
+          <button
+            onClick={() => onOpenDaily && onOpenDaily()}
+            style={{
+              padding: "5px 10px",
+              borderRadius: 999,
+              fontFamily: "var(--mono)",
+              fontSize: 8.5,
+              letterSpacing: "0.12em",
+              background: myDaily ? "var(--paper-2)" : "var(--ink)",
+              color: myDaily ? "var(--ink)" : "var(--paper)",
+              border: "0.5px solid var(--rule)",
+              cursor: "pointer",
+            }}
+          >
+            {myDaily ? "EDIT TODAY" : "LOG TODAY"}
+          </button>
+        </div>
+      </div>
+
+      <div
+        className="card"
+        style={{
+          marginBottom: 14,
+          display: "flex",
+          justifyContent: "space-between",
+          textAlign: "center",
+        }}
+      >
+        <div>
+          <div className="fig-num" style={{ fontSize: 28 }}>
+            <em>{people.length}</em>
+          </div>
+          <div className="kicker">KEPT</div>
+        </div>
+        <div>
+          <div className="fig-num" style={{ fontSize: 28 }}>
+            <em>{avgMatch}</em>
+          </div>
+          <div className="kicker">AVG MATCH</div>
+        </div>
+        <div>
+          <div className="fig-num" style={{ fontSize: 28 }}>
+            <em>{2025 - oldestYear}y</em>
+          </div>
+          <div className="kicker">OLDEST TIE</div>
+        </div>
+        <div>
+          <div className="fig-num" style={{ fontSize: 28 }}>
+            <em>{grouped.length}</em>
+          </div>
+          <div className="kicker">CIRCLES</div>
+        </div>
+      </div>
+
+      <div
+        className="card"
+        style={{ marginBottom: 14, padding: 0, overflow: "hidden" }}
+      >
+        <div style={{ padding: "18px 18px 8px" }}>
+          <Kicker>The relationship map · concentric orbits</Kicker>
+          <div className="margin-note" style={{ marginTop: 6, marginBottom: 4 }}>
+            you at the center. closer in, the more you lean on them — and the
+            lines between them are shared edges.
+          </div>
+        </div>
+        <ConcentricMap people={people} onPerson={(p) => onPerson(p as CirclePerson)} />
+      </div>
+
+      <div className="card" style={{ marginBottom: 14 }}>
+        <Kicker>Everyone, by circle</Kicker>
+        {grouped.map((cat) => (
+          <div key={cat.key} style={{ marginTop: 10 }}>
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+                marginBottom: 6,
+              }}
             >
-              YOU
-            </text>
-          </svg>
-        </Card>
-      )}
+              <span
+                style={{
+                  fontFamily: "var(--serif)",
+                  fontStyle: "italic",
+                  fontSize: 13,
+                  color: "var(--ink-2)",
+                  borderBottom: `1.5px solid oklch(0.55 0.12 ${cat.hue})`,
+                  paddingBottom: 1,
+                }}
+              >
+                {cat.label}
+              </span>
+              <span
+                style={{
+                  flex: 1,
+                  borderTop: "0.5px dashed var(--rule)",
+                }}
+              />
+              <span
+                style={{
+                  fontFamily: "var(--mono)",
+                  fontSize: 9,
+                  color: "var(--ink-3)",
+                  letterSpacing: "0.08em",
+                }}
+              >
+                {cat.people.length}
+              </span>
+            </div>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+              {cat.people.map((p) => (
+                <div
+                  key={p.id}
+                  onClick={() => onPerson(p)}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 6,
+                    padding: "4px 9px 4px 4px",
+                    background: "var(--paper-2)",
+                    border: `0.5px solid oklch(0.78 0.08 ${p.hue})`,
+                    borderRadius: 18,
+                    cursor: "pointer",
+                  }}
+                >
+                  <Av init={p.init} hue={p.hue} size={22} />
+                  <span style={{ fontFamily: "var(--serif)", fontSize: 12 }}>
+                    {p.name.split(" ")[0]}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div className="card" style={{ marginBottom: 14 }}>
+        <Kicker>The link-chain · degrees of separation</Kicker>
+        <div className="margin-note" style={{ marginTop: 6, marginBottom: 10 }}>
+          how far is anyone from you, really?
+        </div>
+
+        <div
+          style={{
+            display: "flex",
+            gap: 6,
+            flexWrap: "wrap",
+            marginBottom: 14,
+          }}
+        >
+          {people.map((p) => (
+            <button
+              key={p.id}
+              onClick={() => setChainTarget(p)}
+              style={{
+                padding: "6px 10px",
+                border:
+                  chainTarget?.id === p.id
+                    ? "1px solid var(--c-people)"
+                    : "0.75px solid var(--rule)",
+                background:
+                  chainTarget?.id === p.id
+                    ? "oklch(0.95 0.04 25)"
+                    : "var(--paper)",
+                borderRadius: 14,
+                cursor: "pointer",
+                fontFamily: "var(--serif)",
+                fontSize: 12,
+                color:
+                  chainTarget?.id === p.id
+                    ? "var(--c-people)"
+                    : "var(--ink-2)",
+              }}
+            >
+              {p.name.split(" ")[0]}
+            </button>
+          ))}
+        </div>
+
+        {chainTarget ? (
+          <div>
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                padding: "14px 8px",
+                background: "var(--paper-2)",
+                borderRadius: 10,
+              }}
+            >
+              {chain.map((node, i) => (
+                <Fragment key={node.id}>
+                  <div style={{ textAlign: "center", flex: "0 0 auto" }}>
+                    {node.id === "you" ? (
+                      <div
+                        style={{
+                          width: 44,
+                          height: 44,
+                          borderRadius: "50%",
+                          background: "var(--ink)",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          color: "var(--paper)",
+                          fontFamily: "var(--serif)",
+                          fontStyle: "italic",
+                          fontSize: 11,
+                        }}
+                      >
+                        you
+                      </div>
+                    ) : (
+                      <Av init={node.init} hue={node.hue ?? 38} size={44} />
+                    )}
+                    <div
+                      style={{
+                        fontFamily: "var(--serif)",
+                        fontSize: 11,
+                        marginTop: 4,
+                        color: "var(--ink-2)",
+                        maxWidth: 70,
+                        textAlign: "center",
+                        lineHeight: 1.2,
+                      }}
+                    >
+                      {node.name.split(" ")[0]}
+                    </div>
+                  </div>
+                  {i < chain.length - 1 && (
+                    <div
+                      style={{
+                        flex: 1,
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        minWidth: 30,
+                      }}
+                    >
+                      <svg
+                        width="100%"
+                        height="20"
+                        viewBox="0 0 80 20"
+                        preserveAspectRatio="none"
+                      >
+                        <path
+                          d="M 4 10 Q 40 2 76 10"
+                          stroke="var(--c-people)"
+                          strokeWidth="1"
+                          fill="none"
+                          strokeDasharray="2 3"
+                        />
+                        <circle cx="76" cy="10" r="2" fill="var(--c-people)" />
+                      </svg>
+                    </div>
+                  )}
+                </Fragment>
+              ))}
+            </div>
+            <div
+              style={{
+                marginTop: 14,
+                paddingTop: 12,
+                borderTop: "0.5px solid var(--rule)",
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "baseline",
+              }}
+            >
+              <div>
+                <div className="kicker">DEGREES</div>
+                <div className="fig-num" style={{ fontSize: 28 }}>
+                  <em>{chainTarget.degrees}</em>
+                </div>
+              </div>
+              <div style={{ textAlign: "right", maxWidth: "60%" }}>
+                <div
+                  className="margin-note"
+                  style={{
+                    fontStyle: "italic",
+                    fontSize: 13,
+                    color: "var(--ink-2)",
+                  }}
+                >
+                  {chainTarget.degrees === 1
+                    ? `direct — you and ${chainTarget.name.split(" ")[0]} know each other.`
+                    : `via ${chain[1].name.split(" ")[0]} — one introduction away.`}
+                </div>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div
+            style={{
+              padding: "24px 12px",
+              textAlign: "center",
+              color: "var(--ink-3)",
+              fontFamily: "var(--serif)",
+              fontStyle: "italic",
+              fontSize: 13,
+            }}
+          >
+            tap a name above to trace the path
+          </div>
+        )}
+      </div>
+
+      <div className="card" style={{ marginBottom: 14 }}>
+        <Kicker>Closeness · over the years</Kicker>
+        <div style={{ marginTop: 8 }}>
+          <Compass2D
+            x={0}
+            y={0}
+            label="you"
+            xLabel={["Distant", "Close"]}
+            yLabel={["Recent", "Lasting"]}
+            size={260}
+            comparePoints={people.map((p) => ({
+              x: (p.match - 70) * 3,
+              y: (p.match - 70) * 2.5,
+              label: p.init,
+              color: `oklch(0.55 0.12 ${p.hue})`,
+            }))}
+          />
+        </div>
+      </div>
+
+      <hr className="rule-dashed" />
+      <ProfileCompare scope="circle" accent="var(--c-people)" />
+
+      <hr className="rule-dashed" />
+      <GroupBreakdown scope="friends" accent="var(--c-people)" />
+
+      <hr className="rule-dashed" />
+      <MediaPopularity scope="circle" accent="var(--c-people)" />
+
+      <hr className="rule-dashed" />
+      <Kicker>Add someone</Kicker>
+      <button
+        style={{
+          width: "100%",
+          marginTop: 10,
+          padding: 14,
+          background: "transparent",
+          border: "1px dashed var(--rule)",
+          borderRadius: 12,
+          fontFamily: "var(--serif)",
+          fontStyle: "italic",
+          fontSize: 15,
+          color: "var(--ink-3)",
+          cursor: "pointer",
+        }}
+      >
+        + name a person
+      </button>
     </div>
   );
 }
