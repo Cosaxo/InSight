@@ -1,4 +1,4 @@
-import { Fragment, useState } from "react";
+import { Fragment, useMemo, useState } from "react";
 import { IS_DATA } from "../../data/seedData";
 import { Av, Kicker } from "../shared/primitives";
 import { Compass2D } from "../shared/charts";
@@ -9,6 +9,7 @@ import {
 import { ProfileCompare } from "../insights/ProfileCompare";
 import { MediaPopularity } from "../insights/MediaPopularity";
 import { GroupBreakdown } from "../insights/GroupBreakdown";
+import { useRelations, type UserPerson } from "../../lib/useRelations";
 
 export interface CirclePerson extends ConcentricPerson {
   rel: string;
@@ -22,7 +23,24 @@ export interface CirclePerson extends ConcentricPerson {
 interface PeopleTabProps {
   onPerson: (p: CirclePerson) => void;
   onOpenDaily?: () => void;
+  onAddPerson?: () => void;
   myDailyReport?: DailyReport | null;
+}
+
+// Promote a user-added UserPerson into the CirclePerson shape the
+// People tab + ConcentricMap consume.
+function userToCircle(p: UserPerson): CirclePerson {
+  return {
+    id: p.id,
+    name: p.name,
+    init: p.init,
+    hue: p.hue,
+    match: p.match,
+    rel: p.rel,
+    category: p.category,
+    degrees: p.degrees,
+    since: p.since,
+  };
 }
 
 interface DailyReport {
@@ -60,6 +78,7 @@ const PHOTO_GRADIENTS: Record<string, string> = {
 export function PeopleTab({
   onPerson,
   onOpenDaily,
+  onAddPerson,
   myDailyReport,
 }: PeopleTabProps) {
   const D = IS_DATA;
@@ -68,6 +87,7 @@ export function PeopleTab({
     ? [myDaily, ...D.dailyReports]
     : D.dailyReports;
   const [chainTarget, setChainTarget] = useState<CirclePerson | null>(null);
+  const { people: userPeople } = useRelations();
 
   const categories = [
     { key: "family", label: "Family", icon: "✦", hue: 12 },
@@ -76,7 +96,13 @@ export function PeopleTab({
     { key: "neighbors", label: "Neighbors", icon: "△", hue: 145 },
     { key: "acquaintances", label: "Acquaintances", icon: "·", hue: 250 },
   ];
-  const people: CirclePerson[] = D.people;
+  const people: CirclePerson[] = useMemo(() => {
+    const seed: CirclePerson[] = D.people;
+    const added = userPeople.map(userToCircle);
+    // User-added first so their ConcentricMap angle ranks stay stable
+    // as the seed list changes.
+    return [...added, ...seed];
+  }, [D.people, userPeople]);
   const grouped = categories
     .map((c) => ({
       ...c,
@@ -739,6 +765,7 @@ export function PeopleTab({
       <hr className="rule-dashed" />
       <Kicker>Add someone</Kicker>
       <button
+        onClick={onAddPerson}
         style={{
           width: "100%",
           marginTop: 10,

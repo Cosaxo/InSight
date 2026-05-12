@@ -42,6 +42,7 @@ import { DaysOverlay } from "./components/overlays/DaysOverlay";
 import { DailyReportOverlay } from "./components/overlays/DailyReportOverlay";
 import { ImpressionsOverlay } from "./components/overlays/ImpressionsOverlay";
 import { LifeOverlay } from "./components/overlays/LifeOverlay";
+import { AddPersonFlow } from "./components/overlays/AddPersonFlow";
 import { useDailyReport } from "./lib/useDailyReport";
 
 const TABS: { id: TabId; label: string }[] = [
@@ -146,6 +147,7 @@ function AppShell() {
   const [showDaily, setShowDaily] = useState(false);
   const [showImpressions, setShowImpressions] = useState(false);
   const [showLife, setShowLife] = useState(false);
+  const [showAddPerson, setShowAddPerson] = useState(false);
   const [fabOpen, setFabOpen] = useState(false);
 
   useEffect(() => {
@@ -172,6 +174,7 @@ function AppShell() {
     setShowDaily(false);
     setShowImpressions(false);
     setShowLife(false);
+    setShowAddPerson(false);
     setFabOpen(false);
   };
 
@@ -214,6 +217,7 @@ function AppShell() {
             <PeopleTab
               onPerson={setPerson}
               onOpenDaily={() => setShowDaily(true)}
+              onAddPerson={() => setShowAddPerson(true)}
               // Structural shape matches what PeopleTab uses (mood, one_line, photo, etc.).
               myDailyReport={myDaily as unknown as Parameters<typeof PeopleTab>[0]["myDailyReport"]}
             />
@@ -303,7 +307,13 @@ function AppShell() {
             >
               <span style={{ color: "var(--ink-2)" }}>◇</span> what you share
             </div>
-            <div className="fab-item" onClick={() => setFabOpen(false)}>
+            <div
+              className="fab-item"
+              onClick={() => {
+                setFabOpen(false);
+                setShowAddPerson(true);
+              }}
+            >
               <span style={{ color: "var(--ochre)" }}>+</span> add a person
             </div>
           </div>
@@ -372,6 +382,9 @@ function AppShell() {
           />
         )}
         {city && <CityOverlay city={city} onClose={() => setCity(null)} />}
+        {showAddPerson && (
+          <AddPersonFlow onClose={() => setShowAddPerson(false)} />
+        )}
       </div>
 
       <TweaksPanel>
