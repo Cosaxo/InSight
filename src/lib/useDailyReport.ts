@@ -58,10 +58,7 @@ export function useDailyReport(): {
   const [local, setLocal] = useState<DailyReportLocal | null>(() => readLocal());
 
   useEffect(() => {
-    if (!isSignedIn || !user) {
-      setRemote(null);
-      return;
-    }
+    if (!isSignedIn || !user) return;
     const unsub = subscribeDailyReport(user.uid, (r) => {
       setRemote(r);
       // Mirror remote → local so any sync reader (legacy callers / the

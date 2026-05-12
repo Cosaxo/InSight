@@ -1,6 +1,7 @@
 import {
   useCallback,
   useEffect,
+  useLayoutEffect,
   useRef,
   useState,
   type ReactNode,
@@ -171,7 +172,9 @@ export function TweakRadio<V extends string>({
 }: TweakRadioProps<V>) {
   const trackRef = useRef<HTMLDivElement | null>(null);
   const valueRef = useRef(value);
-  valueRef.current = value;
+  useLayoutEffect(() => {
+    valueRef.current = value;
+  }, [value]);
 
   const opts = options.map((o) =>
     typeof o === "object" && o !== null && "value" in o

@@ -186,8 +186,8 @@ function Gauge({ value, max = 100, color, segments = 5 }: { value: number; max?:
   );
 }
 
-function AroundEnv({ data }: { data: AroundData }) {
-  const Sky = () => (
+function Sky() {
+  return (
     <svg width="44" height="44" viewBox="0 0 44 44" fill="none">
       <circle cx="17" cy="18" r="7" stroke="oklch(0.55 0.13 80)" strokeWidth="1.2" fill="oklch(0.95 0.06 80)" />
       <g stroke="oklch(0.55 0.13 80)" strokeWidth="1" strokeLinecap="round">
@@ -200,6 +200,9 @@ function AroundEnv({ data }: { data: AroundData }) {
       <ellipse cx="22" cy="26" rx="6" ry="4" fill="var(--paper)" stroke="var(--ink-2)" strokeWidth="0.8" />
     </svg>
   );
+}
+
+function AroundEnv({ data }: { data: AroundData }) {
   return (
     <div className="card" style={{ marginTop: 14, position: "relative" }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>

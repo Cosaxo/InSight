@@ -35,10 +35,7 @@ export function useCityRatings(): {
   const [remote, setRemote] = useState<CityRatings | null>(null);
 
   useEffect(() => {
-    if (!isSignedIn || !user) {
-      setRemote(null);
-      return;
-    }
+    if (!isSignedIn || !user) return;
     const unsub = subscribeCityRatings(user.uid, (r) => {
       setRemote(r);
       writeLocal(r);
@@ -46,6 +43,8 @@ export function useCityRatings(): {
     return unsub;
   }, [isSignedIn, user]);
 
+  // When the user signs out (or Firebase is disabled), ignore any
+  // stale `remote` from a previous session — fall through to local.
   const ratings: CityRatings = isSignedIn ? remote || {} : local;
 
   const setRating = (

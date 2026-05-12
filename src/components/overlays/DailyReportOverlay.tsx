@@ -52,7 +52,7 @@ const PHOTO_STOCK: PhotoStock[] = [
   },
 ];
 
-export interface DailyReportData {
+interface DailyReportData {
   personId: "me";
   date: "today";
   mood: number;
@@ -66,7 +66,6 @@ export interface DailyReportData {
   hasPhoto: boolean;
   photo?: string;
   shared: string[];
-  updatedAt: number;
 }
 
 interface StoredDaily {
@@ -85,29 +84,6 @@ function loadStored(): StoredDaily | null {
 }
 function loadPhoto(): string | null {
   return localStorage.getItem(PHOTO_STORAGE) || null;
-}
-
-export function getMyDailyReport(): DailyReportData | null {
-  const r = loadStored();
-  if (!r || r.mood == null) return null;
-  const photo = loadPhoto();
-  const auto = getTodaysAutoStats();
-  const data: DailyReportData = {
-    personId: "me",
-    date: "today",
-    mood: r.mood,
-    moodLabel: labelFor(r.mood),
-    one_line: r.one_line || "",
-    weather: r.weather || "",
-    body: auto.body,
-    move: auto.move,
-    nutrition: auto.nutrition,
-    scrapbook: auto.scrapbook,
-    hasPhoto: !!photo,
-    shared: r.shared || [],
-    updatedAt: Date.now(),
-  };
-  return photo ? { ...data, photo } : data;
 }
 
 interface AutoStats {
@@ -587,7 +563,6 @@ export function DailyReportOverlay({
       scrapbook: auto.scrapbook,
       hasPhoto: !!photo,
       shared,
-      updatedAt: Date.now(),
     };
     // Route through useDailyReport — writes localStorage always, plus
     // Firestore when signed in. Photo stays local; we record whether
