@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { IS_DATA } from "../../data/seedData";
 import { Kicker, Pill } from "../shared/primitives";
 import { DotGrid, Histogram, Sparkline } from "../shared/charts";
+import { useMoods } from "../../lib/useMoods";
 import {
   FinanceTab,
   FitnessTab,
@@ -19,6 +20,25 @@ export function InsightsOverlay({ onClose }: InsightsOverlayProps) {
   const I = IS_DATA.insights;
   const days = ["M", "T", "W", "T", "F", "S", "S"];
   const [tab, setTab] = useState<InsightsTabId>("mood");
+  const { moods: userMoods } = useMoods();
+
+  // Overlay the most recent user-logged moods onto the seed 30-day
+  // window. Most recent at index N-1 (the right edge of the
+  // sparkline) is today; we sort the user moods by date and overwrite
+  // the trailing slots so the chart reflects real recent entries.
+  const moodMonth: number[] = useMemo(() => {
+    if (!userMoods.length) return I.moodMonth as number[];
+    const seed = [...(I.moodMonth as number[])];
+    const sorted = [...userMoods].sort((a, b) =>
+      a.date.localeCompare(b.date),
+    );
+    const recent = sorted.slice(-seed.length);
+    const startIdx = seed.length - recent.length;
+    recent.forEach((m, i) => {
+      seed[startIdx + i] = m.score;
+    });
+    return seed;
+  }, [I.moodMonth, userMoods]);
 
   return (
     <div className="overlay paper-grain">
@@ -64,8 +84,8 @@ export function InsightsOverlay({ onClose }: InsightsOverlayProps) {
                 <div className="fig-num">
                   <em>
                     {(
-                      I.moodMonth.reduce((s: number, v: number) => s + v, 0) /
-                      I.moodMonth.length
+                      moodMonth.reduce((s, v) => s + v, 0) /
+                      moodMonth.length
                     ).toFixed(1)}
                   </em>
                 </div>
@@ -73,13 +93,13 @@ export function InsightsOverlay({ onClose }: InsightsOverlayProps) {
               </div>
               <div>
                 <div className="fig-num">
-                  <em>{Math.max(...(I.moodMonth as number[]))}</em>
+                  <em>{Math.max(...moodMonth)}</em>
                 </div>
                 <div className="kicker">HIGH</div>
               </div>
               <div>
                 <div className="fig-num">
-                  <em>{Math.min(...(I.moodMonth as number[]))}</em>
+                  <em>{Math.min(...moodMonth)}</em>
                 </div>
                 <div className="kicker">LOW</div>
               </div>
@@ -87,8 +107,8 @@ export function InsightsOverlay({ onClose }: InsightsOverlayProps) {
                 <div className="fig-num">
                   <em>
                     {Math.round(
-                      (I.moodMonth.filter((v: number) => v >= 4).length /
-                        I.moodMonth.length) *
+                      (moodMonth.filter((v) => v >= 4).length /
+                        moodMonth.length) *
                         100,
                     )}
                     %
@@ -151,7 +171,7 @@ export function InsightsOverlay({ onClose }: InsightsOverlayProps) {
               <Kicker>30-day curve</Kicker>
               <div style={{ marginTop: 8 }}>
                 <Sparkline
-                  data={I.moodMonth}
+                  data={moodMonth}
                   w={320}
                   h={70}
                   color="var(--sienna)"

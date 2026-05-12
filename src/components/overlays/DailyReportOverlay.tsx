@@ -1,6 +1,7 @@
 import { useRef, useState } from "react";
 import { IS_DATA } from "../../data/seedData";
 import { useDailyReport } from "../../lib/useDailyReport";
+import { dailyMoodToScore, isoDateToday, useMoods } from "../../lib/useMoods";
 
 const STORAGE = "insight.dailyReport.v1";
 const PHOTO_STORAGE = "insight.dailyReport.photo.v1";
@@ -517,6 +518,7 @@ export function DailyReportOverlay({
   const existing = loadStored();
   const auto = getTodaysAutoStats();
   const { save: saveDaily } = useDailyReport();
+  const { upsert: upsertMoodEntry } = useMoods();
 
   const [photo, setPhoto] = useState<string | null>(loadPhoto());
   const [mood, setMood] = useState<number>(existing?.mood ?? 62);
@@ -580,6 +582,14 @@ export function DailyReportOverlay({
       photoId: isStockPhoto ? photo! : undefined,
       shared,
       photo,
+    });
+    // Also record today's mood as a MoodEntry so the Insights mood
+    // charts have real history to draw. The slider is 0..100; the
+    // MoodEntry schema is 1..5.
+    await upsertMoodEntry({
+      date: isoDateToday(),
+      score: dailyMoodToScore(mood),
+      note: oneLine || undefined,
     });
     setSavedFlash(true);
     setTimeout(() => {
