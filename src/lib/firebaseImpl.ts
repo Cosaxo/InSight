@@ -324,6 +324,42 @@ export async function updateHabit(
   await updateDoc(subDocRef(uid, "insight_habits", id), patch);
 }
 
+// ── Skills (Groups tab) ─────────────────────────────────────────
+
+export interface RemoteSkill {
+  id: string;
+  name: string;
+  cat: string;
+  level: number;
+  hours: number;
+  lastPracticed?: string;
+  joined: boolean;
+  vibe?: string;
+}
+
+export function subscribeSkills(
+  uid: string,
+  cb: (items: RemoteSkill[]) => void,
+): () => void {
+  return subscribeList<RemoteSkill>(uid, "insight_skills", cb);
+}
+
+export async function addSkill(uid: string, skill: RemoteSkill): Promise<void> {
+  await setDoc(subDocRef(uid, "insight_skills", skill.id), stripId(skill));
+}
+
+export async function updateSkill(
+  uid: string,
+  id: string,
+  patch: Partial<RemoteSkill>,
+): Promise<void> {
+  await updateDoc(subDocRef(uid, "insight_skills", id), patch);
+}
+
+export async function deleteSkill(uid: string, id: string): Promise<void> {
+  await deleteDoc(subDocRef(uid, "insight_skills", id));
+}
+
 // ── Workouts ────────────────────────────────────────────────────
 
 export function subscribeWorkouts(
@@ -474,6 +510,10 @@ export interface RemoteCity {
   longitude: number;
   geohash: string;
   distanceKm: number;
+  // `currentlyActive` is present on the docs from the user's existing
+  // Firebase project — a running count of users in that city. Used by
+  // the World tab to surface "where life is happening."
+  currentlyActive?: number;
 }
 
 export interface RemoteDiscoverable {
@@ -540,7 +580,11 @@ export async function findNearbyCities(
   const results: RemoteCity[] = [];
   for (const snap of snaps) {
     for (const d of snap.docs) {
-      const data = d.data() as { Name?: string; location?: unknown };
+      const data = d.data() as {
+        Name?: string;
+        location?: unknown;
+        currentlyActive?: number;
+      };
       const loc = readLocation(data.location);
       if (!loc) continue;
       const dKm = distanceBetween([loc.latitude, loc.longitude], centerArr);
@@ -552,10 +596,43 @@ export async function findNearbyCities(
         longitude: loc.longitude,
         geohash: loc.geohash,
         distanceKm: dKm,
+        currentlyActive: data.currentlyActive ?? 0,
       });
     }
   }
   results.sort((a, b) => a.distanceKm - b.distanceKm);
+  return results;
+}
+
+// Top-N cities by activity. Used by the World tab — one indexed query,
+// at most `limitN` reads, cached by the caller at module level so
+// repeated tab visits don't re-spend reads.
+//
+// Requires a Firestore index on `currentlyActive` desc.
+export async function loadActiveCities(limitN = 50): Promise<RemoteCity[]> {
+  const citiesCol = collection(db(), "Cities");
+  const snap = await getDocs(
+    query(citiesCol, orderBy("currentlyActive", "desc"), limit(limitN)),
+  );
+  const results: RemoteCity[] = [];
+  for (const d of snap.docs) {
+    const data = d.data() as {
+      Name?: string;
+      location?: unknown;
+      currentlyActive?: number;
+    };
+    const loc = readLocation(data.location);
+    if (!loc) continue;
+    results.push({
+      uid: d.id,
+      name: data.Name ?? d.id,
+      latitude: loc.latitude,
+      longitude: loc.longitude,
+      geohash: loc.geohash,
+      distanceKm: 0,
+      currentlyActive: data.currentlyActive ?? 0,
+    });
+  }
   return results;
 }
 

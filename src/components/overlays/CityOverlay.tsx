@@ -51,7 +51,9 @@ export function CityOverlay({ city, onClose }: CityOverlayProps) {
           ×
         </div>
 
-        <Kicker>Atlas entry · {city.region.toLowerCase()}</Kicker>
+        <Kicker>
+          Atlas entry{city.region ? ` · ${city.region.toLowerCase()}` : ""}
+        </Kicker>
         <div
           style={{
             display: "flex",
@@ -123,8 +125,8 @@ export function CityOverlay({ city, onClose }: CityOverlayProps) {
             )}
           </div>
           <Donut
-            value={city.match}
-            color={`oklch(0.55 0.12 ${city.hue})`}
+            value={city.match ?? 0}
+            color={`oklch(0.55 0.12 ${city.hue ?? 220})`}
             label="MATCH"
             size={64}
           />

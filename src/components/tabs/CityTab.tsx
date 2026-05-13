@@ -1,5 +1,4 @@
 import { useMemo, useState } from "react";
-import { IS_DATA } from "../../data/seedData";
 import { Kicker } from "../shared/primitives";
 import { Donut, RadarChart } from "../shared/charts";
 import { ProfileCompare } from "../insights/ProfileCompare";
@@ -21,21 +20,6 @@ const RATING_CATS: { k: CityScoreKey; label: string }[] = [
   { k: "cost", label: "Cost" },
 ];
 
-// Default city when no location has been granted yet — uses the seed
-// "me city" (Oslo) so the tab is never empty.
-const DEFAULT_CITY: NearbyCity = {
-  uid: IS_DATA.city.name,
-  name: IS_DATA.city.name,
-  country: "NO",
-  pop: IS_DATA.city.pop,
-  match: IS_DATA.city.yourMatch,
-  hue: 220,
-  mood: undefined,
-  blurb: IS_DATA.city.notes,
-  distanceKm: 0,
-  fromSeed: true,
-};
-
 export function CityTab() {
   const { position, loading: geoLoading, error: geoError, request } = useGeolocation();
   const { cities, loading: citiesLoading } = useNearbyCities(position, 500);
@@ -43,12 +27,12 @@ export function CityTab() {
   // they tap one of the nearby chips this sticks until they tap again.
   const [pickedUid, setPickedUid] = useState<string | null>(null);
 
-  const selectedCity: NearbyCity = useMemo(() => {
+  const selectedCity: NearbyCity | null = useMemo(() => {
     if (pickedUid) {
       const found = cities.find((c) => c.uid === pickedUid);
       if (found) return found;
     }
-    return cities[0] ?? DEFAULT_CITY;
+    return cities[0] ?? null;
   }, [cities, pickedUid]);
 
   // If the user-picked city falls out of the result set (they
@@ -56,18 +40,78 @@ export function CityTab() {
   // takes over. We deliberately keep `pickedUid` set so coming back
   // into range restores their pick.
 
-  const c = selectedCity;
   const { ratings: stored, setRating } = useCityRatings();
+  // When no city is selected (location not granted yet), render the
+  // CTA only — the rest of the tab needs a real city to anchor on.
+  if (!selectedCity) {
+    return (
+      <div className="fade-in">
+        <div className="page-num">— xi —</div>
+        <Kicker>Field notes · the city you live in</Kicker>
+        <div className="sec-head">
+          <h2>
+            A passport for <em>somewhere</em>
+          </h2>
+        </div>
+        <div
+          className="card"
+          style={{
+            marginBottom: 12,
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            gap: 12,
+          }}
+        >
+          <div style={{ flex: 1 }}>
+            <Kicker>Pick by where you are</Kicker>
+            <div
+              className="margin-note"
+              style={{ marginTop: 4, fontSize: 12 }}
+            >
+              {geoError
+                ? geoError
+                : "Tap to use your current location — the City tab will follow you."}
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => void request()}
+            disabled={geoLoading}
+            style={{
+              padding: "8px 14px",
+              background: "var(--ink)",
+              color: "var(--paper)",
+              border: "none",
+              borderRadius: 99,
+              fontFamily: "var(--mono)",
+              fontSize: 10,
+              letterSpacing: "0.12em",
+              cursor: geoLoading ? "wait" : "pointer",
+              opacity: geoLoading ? 0.6 : 1,
+            }}
+          >
+            {geoLoading ? "…" : "↑ USE LOCATION"}
+          </button>
+        </div>
+
+        <hr className="rule-dashed" />
+        <ProfileCompare scope="city" accent="var(--c-city)" />
+        <hr className="rule-dashed" />
+        <GroupBreakdown scope="city" accent="var(--c-city)" />
+        <hr className="rule-dashed" />
+        <MediaPopularity scope="city" accent="var(--c-city)" />
+      </div>
+    );
+  }
+
+  const c = selectedCity;
   const userOverrides = stored[c.name] ?? {};
   // Star ratings are scoped per city name — switching cities swaps the
-  // override set. Seed values only apply to the "me city" (Oslo).
-  const seedRatings: Partial<Record<CityScoreKey, number>> =
-    c.name === IS_DATA.city.name
-      ? (IS_DATA.city.score as Record<CityScoreKey, number>)
-      : {};
+  // override set. No seed defaults anymore: real cities start unrated.
   const ratings: Record<CityScoreKey, number> = RATING_CATS.reduce(
     (acc, { k }) => {
-      acc[k] = (userOverrides[k as keyof CityRating] as number) ?? seedRatings[k] ?? 0;
+      acc[k] = (userOverrides[k as keyof CityRating] as number) ?? 0;
       return acc;
     },
     {} as Record<CityScoreKey, number>,
@@ -83,7 +127,7 @@ export function CityTab() {
   const cityAccent = c.hue != null ? `oklch(0.55 0.14 ${c.hue})` : "var(--c-city)";
   const countryTag = c.country ? `, ${c.country}` : "";
   const popLabel = c.pop ?? "—";
-  const matchLabel = c.match ?? IS_DATA.city.yourMatch;
+  const matchLabel = c.match ?? 0;
 
   return (
     <div className="fade-in">

@@ -2,6 +2,7 @@ import { useState } from "react";
 import { IS_DATA } from "../../data/seedData";
 import { Kicker } from "../shared/primitives";
 import { Donut } from "../shared/charts";
+import { useSkills, type UserSkill } from "../../lib/useSkills";
 
 interface SkillCat {
   id: string;
@@ -10,15 +11,9 @@ interface SkillCat {
   glyph: string;
 }
 
-interface Skill {
-  id: string;
-  name: string;
-  cat: string;
-  hours: number;
-  level: number;
-  vibe: string;
-  joined: boolean;
-  lastPracticed: string;
+// Local rendering type — narrower than RemoteSkill, with optional
+// time-series fields that may be absent on user-added skills.
+interface Skill extends UserSkill {
   sessions30?: (0 | 1)[];
   growth12w?: number[];
   milestones?: string[];
@@ -80,21 +75,23 @@ function SkillCard({
             style={{ marginTop: 2, textTransform: "none" }}
           >
             {s.hours.toLocaleString()} hours
-            {s.lastPracticed !== "—"
+            {s.lastPracticed && s.lastPracticed !== "—"
               ? ` · last practiced ${s.lastPracticed}`
               : ""}
           </div>
-          <div
-            style={{
-              fontFamily: "var(--serif)",
-              fontStyle: "italic",
-              fontSize: 13,
-              color: "var(--ink-2)",
-              marginTop: 6,
-            }}
-          >
-            {s.vibe}
-          </div>
+          {s.vibe && (
+            <div
+              style={{
+                fontFamily: "var(--serif)",
+                fontStyle: "italic",
+                fontSize: 13,
+                color: "var(--ink-2)",
+                marginTop: 6,
+              }}
+            >
+              {s.vibe}
+            </div>
+          )}
         </div>
         <Donut value={s.level} color={`oklch(0.55 0.12 ${hue})`} size={62} />
       </div>
@@ -256,7 +253,13 @@ interface TestOpt {
   cats: string[];
 }
 
-function GroupTestOverlay({ onClose }: { onClose: () => void }) {
+function GroupTestOverlay({
+  onClose,
+  skills,
+}: {
+  onClose: () => void;
+  skills: Skill[];
+}) {
   const D = IS_DATA;
   const [step, setStep] = useState(0);
   const [answers, setAnswers] = useState<TestOpt[]>([]);
@@ -271,9 +274,11 @@ function GroupTestOverlay({ onClose }: { onClose: () => void }) {
       .sort((a, b) => b[1] - a[1])
       .slice(0, 3)
       .map(([id]) => id);
-    const recs: Skill[] = D.skills
-      .filter((g: Skill) => top.includes(g.cat) && !g.joined)
-      .slice(0, 3);
+    // Recommend categories where the user hasn't yet added a skill —
+    // matches the user's recent test answers against the gap in their
+    // existing skill list.
+    const userCats = new Set(skills.map((s) => s.cat));
+    const recCats = top.filter((c) => !userCats.has(c)).slice(0, 3);
     return (
       <div className="overlay" onClick={onClose}>
         <div
@@ -337,13 +342,26 @@ function GroupTestOverlay({ onClose }: { onClose: () => void }) {
               );
             })}
           </div>
-          {recs.map((g) => {
+          {recCats.length === 0 && (
+            <div
+              className="margin-note"
+              style={{
+                fontStyle: "italic",
+                fontSize: 13,
+                padding: 12,
+                textAlign: "center",
+              }}
+            >
+              You're already practising in every category we'd suggest.
+            </div>
+          )}
+          {recCats.map((catId) => {
             const c: SkillCat | undefined = D.skillCats.find(
-              (x: SkillCat) => x.id === g.cat,
+              (x: SkillCat) => x.id === catId,
             );
             if (!c) return null;
             return (
-              <div key={g.id} className="card" style={{ marginBottom: 10 }}>
+              <div key={catId} className="card" style={{ marginBottom: 10 }}>
                 <div
                   style={{
                     fontFamily: "var(--mono)",
@@ -355,19 +373,11 @@ function GroupTestOverlay({ onClose }: { onClose: () => void }) {
                   {c.glyph} {c.label.toUpperCase()}
                 </div>
                 <div
-                  style={{
-                    fontFamily: "var(--serif)",
-                    fontSize: 18,
-                    marginTop: 4,
-                  }}
-                >
-                  {g.name}
-                </div>
-                <div
                   className="margin-note"
                   style={{ fontSize: 12, fontStyle: "italic", marginTop: 4 }}
                 >
-                  {g.vibe}
+                  Try adding a {c.label.toLowerCase()} skill — your test answers
+                  point here.
                 </div>
               </div>
             );
@@ -490,6 +500,8 @@ export function GroupsTab() {
   const D = IS_DATA;
   const [active, setActive] = useState<Set<string>>(new Set());
   const [showTest, setShowTest] = useState(false);
+  const [showAdd, setShowAdd] = useState(false);
+  const { skills: userSkills, add: addSkill } = useSkills();
 
   const cats: SkillCat[] = D.skillCats;
   const isAll = active.size === 0;
@@ -501,8 +513,9 @@ export function GroupsTab() {
       return n;
     });
 
-  const visible: Skill[] = D.skills.filter(
-    (g: Skill) => isAll || active.has(g.id),
+  const allSkills: Skill[] = userSkills as Skill[];
+  const visible: Skill[] = allSkills.filter(
+    (g) => isAll || active.has(g.id),
   );
   const suggest = visible.filter((g) => !g.joined);
   const joined = visible.filter((g) => g.joined);
@@ -540,16 +553,33 @@ export function GroupsTab() {
           }}
         >
           <Kicker>Filter · skills</Kicker>
-          <span
-            className="kicker"
-            style={{ cursor: "pointer" }}
-            onClick={() => setActive(new Set())}
-          >
-            {isAll ? "ALL" : "CLEAR"}
-          </span>
+          <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+            <span
+              onClick={() => setShowAdd(true)}
+              className="kicker"
+              style={{ cursor: "pointer", color: "var(--accent)" }}
+            >
+              + ADD
+            </span>
+            <span
+              className="kicker"
+              style={{ cursor: "pointer" }}
+              onClick={() => setActive(new Set())}
+            >
+              {isAll ? "ALL" : "CLEAR"}
+            </span>
+          </div>
         </div>
         <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-          {D.skills.map((sk: Skill) => {
+          {allSkills.length === 0 && (
+            <div
+              className="margin-note"
+              style={{ fontSize: 12, fontStyle: "italic" }}
+            >
+              No skills yet — tap "+ ADD" above to add the first.
+            </div>
+          )}
+          {allSkills.map((sk) => {
             const c = cats.find((x) => x.id === sk.cat);
             if (!c) return null;
             const on = isAll || active.has(sk.id);
@@ -753,7 +783,7 @@ export function GroupsTab() {
         </div>
       )}
 
-      {visible.length === 0 && (
+      {visible.length === 0 && allSkills.length > 0 && (
         <div
           className="margin-note"
           style={{ textAlign: "center", padding: 24, fontStyle: "italic" }}
@@ -762,7 +792,283 @@ export function GroupsTab() {
         </div>
       )}
 
-      {showTest && <GroupTestOverlay onClose={() => setShowTest(false)} />}
+      {allSkills.length === 0 && (
+        <div
+          className="card"
+          style={{
+            textAlign: "center",
+            padding: 28,
+            fontFamily: "var(--serif)",
+            fontStyle: "italic",
+            fontSize: 14,
+            color: "var(--ink-3)",
+            marginTop: 8,
+          }}
+        >
+          Add a skill you're returning to — woodworking, French,
+          jiu-jitsu, sourdough. The cards build over time as you log
+          hours.
+          <div style={{ marginTop: 14 }}>
+            <button
+              type="button"
+              onClick={() => setShowAdd(true)}
+              style={{
+                padding: "8px 14px",
+                background: "var(--ink)",
+                color: "var(--paper)",
+                border: "none",
+                borderRadius: 99,
+                fontFamily: "var(--mono)",
+                fontSize: 10,
+                letterSpacing: "0.12em",
+                cursor: "pointer",
+              }}
+            >
+              + ADD FIRST SKILL
+            </button>
+          </div>
+        </div>
+      )}
+
+      {showTest && (
+        <GroupTestOverlay
+          onClose={() => setShowTest(false)}
+          skills={allSkills}
+        />
+      )}
+      {showAdd && (
+        <AddSkillModal
+          cats={cats}
+          onClose={() => setShowAdd(false)}
+          onAdd={async (input) => {
+            await addSkill(input);
+            setShowAdd(false);
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+// ───────── Add-skill modal ─────────
+
+function AddSkillModal({
+  cats,
+  onClose,
+  onAdd,
+}: {
+  cats: SkillCat[];
+  onClose: () => void;
+  onAdd: (s: Omit<UserSkill, "id">) => Promise<void>;
+}) {
+  const [name, setName] = useState("");
+  const [cat, setCat] = useState(cats[0]?.id ?? "");
+  const [hours, setHours] = useState("");
+  const [level, setLevel] = useState(30);
+  const [vibe, setVibe] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+
+  const submit = async () => {
+    if (!name.trim() || !cat) return;
+    setSubmitting(true);
+    try {
+      await onAdd({
+        name: name.trim(),
+        cat,
+        hours: Number(hours) || 0,
+        level,
+        joined: true,
+        vibe: vibe.trim() || undefined,
+      });
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="overlay" onClick={onClose}>
+      <div
+        className="overlay-inner"
+        onClick={(e) => e.stopPropagation()}
+        style={{ padding: 24, maxWidth: 360 }}
+      >
+        <div
+          className="overlay-close"
+          onClick={onClose}
+          style={{
+            position: "absolute",
+            top: 16,
+            right: 16,
+            fontSize: 24,
+            cursor: "pointer",
+            color: "var(--ink-3)",
+          }}
+        >
+          ×
+        </div>
+        <Kicker>Add a skill</Kicker>
+        <h2
+          style={{
+            fontFamily: "var(--serif)",
+            fontSize: 22,
+            fontStyle: "italic",
+            margin: "6px 0 16px",
+          }}
+        >
+          Something you <em>return to</em>.
+        </h2>
+
+        <label className="kicker" style={{ display: "block", marginTop: 8 }}>
+          NAME
+        </label>
+        <input
+          type="text"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          placeholder="e.g. woodworking"
+          style={{
+            width: "100%",
+            padding: "8px 10px",
+            marginTop: 4,
+            border: "0.5px solid var(--rule)",
+            background: "var(--paper)",
+            fontFamily: "var(--serif)",
+            fontSize: 15,
+            borderRadius: 6,
+          }}
+        />
+
+        <label className="kicker" style={{ display: "block", marginTop: 12 }}>
+          CATEGORY
+        </label>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 5, marginTop: 6 }}>
+          {cats.map((c) => {
+            const on = cat === c.id;
+            return (
+              <button
+                key={c.id}
+                type="button"
+                onClick={() => setCat(c.id)}
+                style={{
+                  fontFamily: "var(--mono)",
+                  fontSize: 10,
+                  letterSpacing: "0.1em",
+                  padding: "5px 10px",
+                  border: `0.5px solid ${on ? `oklch(0.65 0.13 ${c.hue})` : "var(--rule)"}`,
+                  borderRadius: 999,
+                  cursor: "pointer",
+                  background: on
+                    ? `oklch(0.93 0.05 ${c.hue})`
+                    : "transparent",
+                  color: on
+                    ? `oklch(0.32 0.13 ${c.hue})`
+                    : "var(--ink-3)",
+                }}
+              >
+                {c.glyph} {c.label.toUpperCase()}
+              </button>
+            );
+          })}
+        </div>
+
+        <div style={{ display: "flex", gap: 12, marginTop: 14 }}>
+          <div style={{ flex: 1 }}>
+            <label className="kicker" style={{ display: "block" }}>
+              HOURS SO FAR
+            </label>
+            <input
+              type="number"
+              value={hours}
+              onChange={(e) => setHours(e.target.value)}
+              placeholder="0"
+              style={{
+                width: "100%",
+                padding: "8px 10px",
+                marginTop: 4,
+                border: "0.5px solid var(--rule)",
+                background: "var(--paper)",
+                fontFamily: "var(--mono)",
+                fontSize: 14,
+                borderRadius: 6,
+              }}
+            />
+          </div>
+          <div style={{ flex: 1 }}>
+            <label className="kicker" style={{ display: "block" }}>
+              LEVEL · {level}
+            </label>
+            <input
+              type="range"
+              min={0}
+              max={100}
+              value={level}
+              onChange={(e) => setLevel(Number(e.target.value))}
+              style={{ width: "100%", marginTop: 8 }}
+            />
+          </div>
+        </div>
+
+        <label className="kicker" style={{ display: "block", marginTop: 12 }}>
+          A LINE ON HOW IT FEELS · OPTIONAL
+        </label>
+        <input
+          type="text"
+          value={vibe}
+          onChange={(e) => setVibe(e.target.value)}
+          placeholder="quiet, careful, hands learning slowly"
+          style={{
+            width: "100%",
+            padding: "8px 10px",
+            marginTop: 4,
+            border: "0.5px solid var(--rule)",
+            background: "var(--paper)",
+            fontFamily: "var(--serif)",
+            fontStyle: "italic",
+            fontSize: 13,
+            borderRadius: 6,
+          }}
+        />
+
+        <div style={{ display: "flex", gap: 8, marginTop: 20 }}>
+          <button
+            type="button"
+            onClick={onClose}
+            style={{
+              flex: 1,
+              padding: 10,
+              background: "var(--paper-2)",
+              border: "0.5px solid var(--rule)",
+              borderRadius: 999,
+              fontFamily: "var(--serif)",
+              fontStyle: "italic",
+              fontSize: 13,
+              cursor: "pointer",
+            }}
+          >
+            cancel
+          </button>
+          <button
+            type="button"
+            onClick={() => void submit()}
+            disabled={!name.trim() || submitting}
+            style={{
+              flex: 1,
+              padding: 10,
+              background: "var(--ink)",
+              color: "var(--paper)",
+              border: "none",
+              borderRadius: 999,
+              fontFamily: "var(--mono)",
+              fontSize: 10,
+              letterSpacing: "0.12em",
+              cursor: !name.trim() || submitting ? "not-allowed" : "pointer",
+              opacity: !name.trim() || submitting ? 0.5 : 1,
+            }}
+          >
+            {submitting ? "…" : "ADD"}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

@@ -33,6 +33,7 @@ export type {
   MigrationPayload,
   RemoteCity,
   RemoteDiscoverable,
+  RemoteSkill,
 } from "./firebaseImpl";
 export type { User } from "firebase/auth";
 
@@ -188,6 +189,35 @@ export function subscribeHabits(
   return lazySubscribe((m) => m.subscribeHabits, uid, cb);
 }
 
+export function subscribeSkills(
+  uid: string,
+  cb: (items: import("./firebaseImpl").RemoteSkill[]) => void,
+): () => void {
+  return lazySubscribe((m) => m.subscribeSkills, uid, cb);
+}
+
+export async function addSkill(
+  uid: string,
+  skill: import("./firebaseImpl").RemoteSkill,
+): Promise<void> {
+  const m = await impl();
+  return m.addSkill(uid, skill);
+}
+
+export async function updateSkill(
+  uid: string,
+  id: string,
+  patch: Partial<import("./firebaseImpl").RemoteSkill>,
+): Promise<void> {
+  const m = await impl();
+  return m.updateSkill(uid, id, patch);
+}
+
+export async function deleteSkill(uid: string, id: string): Promise<void> {
+  const m = await impl();
+  return m.deleteSkill(uid, id);
+}
+
 export function subscribeWorkouts(
   uid: string,
   cb: (items: Workout[]) => void,
@@ -333,6 +363,11 @@ export async function findNearbyCities(
 ) {
   const m = await impl();
   return m.findNearbyCities(center, radiusKm);
+}
+
+export async function loadActiveCities(limitN = 50) {
+  const m = await impl();
+  return m.loadActiveCities(limitN);
 }
 
 export async function findNearbyDiscoverable(
