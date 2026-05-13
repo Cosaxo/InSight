@@ -324,6 +324,10 @@ export async function updateHabit(
   await updateDoc(subDocRef(uid, "insight_habits", id), patch);
 }
 
+export async function deleteHabit(uid: string, id: string): Promise<void> {
+  await deleteDoc(subDocRef(uid, "insight_habits", id));
+}
+
 // ── Skills (Groups tab) ─────────────────────────────────────────
 
 export interface RemoteSkill {

@@ -1,5 +1,7 @@
 import { useState } from "react";
 import { IS_DATA } from "../../data/seedData";
+import { useMoods } from "../../lib/useMoods";
+import type { MoodEntry } from "../../types";
 import { Kicker, Pill } from "../shared/primitives";
 import { Donut, Sparkline } from "../shared/charts";
 
@@ -115,6 +117,23 @@ function PortraitFrame({
   );
 }
 
+// Build a vector of MoodEntry-or-null for the last 12 days, oldest
+// first. Days without a logged mood show as a faint placeholder cell
+// instead of a fake number — matches the convention used elsewhere
+// after the seed-data cleanup.
+function lastTwelveMoods(moods: MoodEntry[]): (MoodEntry | null)[] {
+  const byDate = new Map(moods.map((m) => [m.date, m]));
+  const today = new Date();
+  const out: (MoodEntry | null)[] = [];
+  for (let i = 11; i >= 0; i--) {
+    const d = new Date(today);
+    d.setDate(d.getDate() - i);
+    const iso = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    out.push(byDate.get(iso) ?? null);
+  }
+  return out;
+}
+
 function PortraitView({
   D,
   onOpen,
@@ -124,15 +143,13 @@ function PortraitView({
   onOpen: (p: Portrait) => void;
   onCapture: () => void;
 }) {
+  const { moods: userMoods } = useMoods();
+  const moodWindow = lastTwelveMoods(userMoods);
   const today: Portrait = D.portraits[0];
   const weights: number[] = D.portraits
     .slice()
     .reverse()
     .map((p: Portrait) => p.weight);
-  const moods: number[] = D.portraits
-    .slice()
-    .reverse()
-    .map((p: Portrait) => p.mood);
 
   return (
     <>
@@ -289,24 +306,53 @@ function PortraitView({
             marginTop: 12,
           }}
         >
-          {moods.map((m, i) => (
-            <div key={i} style={{ flex: 1, textAlign: "center" }}>
+          {moodWindow.map((m, i) => {
+            // Mood scores are 1..5; the bar maxes at 70px (5 × 14).
+            // Logged days draw a coloured bar; un-logged days draw a
+            // very faint baseline so the strip never lies about a
+            // value we don't have.
+            const h = m ? m.score * 14 : 4;
+            const isToday = i === moodWindow.length - 1;
+            return (
               <div
-                style={{
-                  height: m * 14,
-                  background:
-                    m >= 4
-                      ? "oklch(0.65 0.10 145)"
-                      : m >= 3
-                        ? "oklch(0.70 0.06 80)"
-                        : "oklch(0.65 0.10 25)",
-                  opacity: 0.85,
-                  borderRadius: 2,
-                }}
-              />
-            </div>
-          ))}
+                key={i}
+                style={{ flex: 1, textAlign: "center" }}
+                title={
+                  m
+                    ? `${m.date} · ${m.score}/5${m.note ? ` — ${m.note}` : ""}`
+                    : "no entry"
+                }
+              >
+                <div
+                  style={{
+                    height: h,
+                    background: m
+                      ? m.score >= 4
+                        ? "oklch(0.65 0.10 145)"
+                        : m.score >= 3
+                          ? "oklch(0.70 0.06 80)"
+                          : "oklch(0.65 0.10 25)"
+                      : "var(--rule)",
+                    opacity: m ? 0.85 : 0.5,
+                    borderRadius: 2,
+                    outline:
+                      isToday && m
+                        ? "1px solid var(--ink)"
+                        : undefined,
+                  }}
+                />
+              </div>
+            );
+          })}
         </div>
+        {userMoods.length === 0 && (
+          <div
+            className="margin-note"
+            style={{ marginTop: 10, fontSize: 12, fontStyle: "italic" }}
+          >
+            Log a daily report to start the strip.
+          </div>
+        )}
       </div>
     </>
   );

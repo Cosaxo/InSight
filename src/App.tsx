@@ -6,7 +6,6 @@ import {
   profileExists,
   warmFirebase,
 } from "./lib/firebase";
-import { IS_DATA } from "./data/seedData";
 import { useAuth } from "./lib/useAuth";
 import { useMe } from "./lib/useMe";
 import { readLegacyDailyReport } from "./lib/useDailyReport";
@@ -452,7 +451,6 @@ function AppShell() {
           {person && (
             <PersonOverlay
               p={toOverlayPerson(person)}
-              me={IS_DATA.me}
               onClose={() => setPerson(null)}
             />
           )}

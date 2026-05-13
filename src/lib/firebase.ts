@@ -294,6 +294,11 @@ export async function addHabit(uid: string, habit: Habit): Promise<void> {
   return m.addHabit(uid, habit);
 }
 
+export async function deleteHabit(uid: string, id: string): Promise<void> {
+  const m = await impl();
+  return m.deleteHabit(uid, id);
+}
+
 export async function updateHabit(
   uid: string,
   id: string,

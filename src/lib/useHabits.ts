@@ -10,6 +10,7 @@ import { useEffect, useState } from "react";
 import type { Habit } from "../types";
 import {
   addHabit,
+  deleteHabit,
   firebaseEnabled,
   subscribeHabits,
   updateHabit,
@@ -42,6 +43,8 @@ export function useHabits(): {
   habits: Habit[];
   isDoneToday: (name: string) => boolean;
   toggleToday: (name: string, color: string, icon?: string) => Promise<void>;
+  add: (name: string, color: string, icon?: string) => Promise<void>;
+  remove: (name: string) => Promise<void>;
 } {
   const { user } = useAuth();
   const isSignedIn = firebaseEnabled && !!user;
@@ -101,5 +104,31 @@ export function useHabits(): {
     }
   };
 
-  return { habits, isDoneToday, toggleToday };
+  const add = async (
+    name: string,
+    color: string,
+    icon = "·",
+  ): Promise<void> => {
+    const id = slugify(name);
+    if (habits.some((h) => h.id === id)) return;
+    const next: Habit = { id, name, color, icon, completions: [] };
+    const updated = [...habits, next];
+    setLocal(updated);
+    writeLocal(updated);
+    if (isSignedIn && user) {
+      await addHabit(user.uid, next);
+    }
+  };
+
+  const remove = async (name: string): Promise<void> => {
+    const id = slugify(name);
+    const updated = habits.filter((h) => h.id !== id);
+    setLocal(updated);
+    writeLocal(updated);
+    if (isSignedIn && user) {
+      await deleteHabit(user.uid, id);
+    }
+  };
+
+  return { habits, isDoneToday, toggleToday, add, remove };
 }

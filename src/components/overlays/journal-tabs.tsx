@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { IS_DATA } from "../../data/seedData";
 import { VerdictCard } from "../shared/VerdictCard";
 import { useMoods } from "../../lib/useMoods";
@@ -6,8 +6,6 @@ import { Kicker, Bar } from "../shared/primitives";
 import {
   ClockDial,
   Donut,
-  DowStripes,
-  DivergeRow,
   EatingWindow,
   HBars,
   LoadCurves,
@@ -89,22 +87,202 @@ function FlagChip({ kind, children }: FlagChipProps) {
 
 // ───────── HABITS ─────────
 
-export function HabitsTab() {
-  const I = IS_DATA.insights;
-  const H = IS_DATA.habitsDeep;
-  const { isDoneToday, toggleToday } = useHabits();
-  const { moods: priorMoods } = useMoods();
-  // A seed habit is "done today" if the seed's `done` flag is true
-  // OR the user has tapped its checkmark today (overrides override).
-  const seedHabits: { name: string; hue: number; done: boolean; streak: number; week: number[] }[] = I.habits;
-  const todayState = (h: { name: string; done: boolean }) => isDoneToday(h.name) || h.done;
-  const totalDone = seedHabits.filter(todayState).length;
+// Generate the last N ISO date strings (oldest first), ending today.
+function lastNDates(n: number): string[] {
+  const out: string[] = [];
+  const today = new Date();
+  for (let i = n - 1; i >= 0; i--) {
+    const d = new Date(today);
+    d.setDate(d.getDate() - i);
+    out.push(
+      `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`,
+    );
+  }
+  return out;
+}
 
-  // Prompt: feed in today's habit completions + the user's last week
-  // of mood scores. Ask Gemma to notice a relationship without
-  // becoming advisory.
-  const habitsToday = seedHabits
-    .map((h) => `${h.name}: ${todayState(h) ? "done" : "skipped"} (${h.streak}d streak)`)
+// Streak math from a completions array. `current` is the most recent
+// unbroken run ending at today (or yesterday if today isn't done yet
+// — keeps the streak alive during the current day). `best` is the
+// longest run ever.
+function streakInfo(completions: string[]): { current: number; best: number } {
+  if (completions.length === 0) return { current: 0, best: 0 };
+  const sorted = [...completions].sort();
+  const set = new Set(sorted);
+  // Walk backwards from today computing current.
+  const today = new Date();
+  let current = 0;
+  // Allow today to be skipped — start from today if done, else yesterday.
+  const startDate = new Date(today);
+  const todayIso = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+  if (!set.has(todayIso)) startDate.setDate(startDate.getDate() - 1);
+  for (let d = new Date(startDate); ; d.setDate(d.getDate() - 1)) {
+    const iso = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    if (!set.has(iso)) break;
+    current += 1;
+  }
+  // Longest run anywhere in the series: walk all dates between min
+  // and max, counting consecutive hits.
+  const dates = sorted.map((s) => new Date(s).getTime()).sort((a, b) => a - b);
+  let best = 0;
+  let run = 0;
+  let prev: number | null = null;
+  const dayMs = 24 * 60 * 60 * 1000;
+  for (const t of dates) {
+    if (prev !== null && t - prev <= dayMs * 1.5) run += 1;
+    else run = 1;
+    if (run > best) best = run;
+    prev = t;
+  }
+  return { current, best };
+}
+
+// Rotate through a small palette so habits added one after another
+// get visually distinct hues without the user having to choose.
+const HABIT_HUES = [38, 145, 220, 25, 80, 305, 12, 250, 195, 60];
+function hueForIndex(i: number): number {
+  return HABIT_HUES[i % HABIT_HUES.length];
+}
+function hueFromColor(color: string, fallback: number): number {
+  // Habit.color is stored as e.g. `oklch(0.55 0.12 145)` — pull the
+  // last numeric token as the hue.
+  const m = color.match(/(\d+(?:\.\d+)?)\s*\)$/);
+  return m ? Number(m[1]) : fallback;
+}
+
+function AddHabitInline({
+  onAdd,
+}: {
+  onAdd: (name: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [name, setName] = useState("");
+  if (!open) {
+    return (
+      <button
+        onClick={() => setOpen(true)}
+        style={{
+          marginTop: 6,
+          padding: "8px 12px",
+          border: "0.5px dashed var(--rule)",
+          borderRadius: 8,
+          background: "transparent",
+          color: "var(--ink-3)",
+          fontFamily: "var(--mono)",
+          fontSize: 10,
+          letterSpacing: "0.12em",
+          textTransform: "uppercase",
+          cursor: "pointer",
+          width: "100%",
+        }}
+      >
+        + add a habit
+      </button>
+    );
+  }
+  const submit = () => {
+    const t = name.trim();
+    if (!t) {
+      setOpen(false);
+      return;
+    }
+    onAdd(t);
+    setName("");
+    setOpen(false);
+  };
+  return (
+    <div
+      style={{
+        marginTop: 6,
+        display: "flex",
+        gap: 6,
+        padding: "6px 8px",
+        border: "0.5px solid var(--rule)",
+        borderRadius: 8,
+        background: "var(--paper-2)",
+      }}
+    >
+      <input
+        value={name}
+        onChange={(e) => setName(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") submit();
+          if (e.key === "Escape") {
+            setName("");
+            setOpen(false);
+          }
+        }}
+        placeholder="habit name (e.g. cold dip, journal)"
+        autoFocus
+        style={{
+          flex: 1,
+          background: "transparent",
+          border: "none",
+          outline: "none",
+          fontFamily: "var(--serif)",
+          fontStyle: "italic",
+          fontSize: 13,
+          color: "var(--ink)",
+        }}
+      />
+      <button
+        onClick={submit}
+        style={{
+          background: "transparent",
+          border: "none",
+          color: "var(--ink-2)",
+          cursor: "pointer",
+          fontFamily: "var(--mono)",
+          fontSize: 11,
+          padding: 0,
+        }}
+      >
+        add
+      </button>
+    </div>
+  );
+}
+
+export function HabitsTab() {
+  const { habits, isDoneToday, toggleToday, add, remove } = useHabits();
+  const { moods: priorMoods } = useMoods();
+
+  // Decorate each habit with its derived hue + computed stats. The
+  // hue lives inside the stored color string; we extract it once.
+  const decorated = habits.map((h, i) => {
+    const hue = hueFromColor(h.color, hueForIndex(i));
+    const completions = h.completions || [];
+    const { current, best } = streakInfo(completions);
+    return { ...h, hue, completions, current, best };
+  });
+  const todayCount = decorated.filter((h) => isDoneToday(h.name)).length;
+  const totalDoneAll = decorated.reduce(
+    (s, h) => s + h.completions.length,
+    0,
+  );
+  const totalPossible = decorated.length * 30;
+  const thirtyPct =
+    totalPossible > 0
+      ? Math.round(
+          (decorated.reduce((s, h) => {
+            const last30 = lastNDates(30);
+            return s + last30.filter((d) => h.completions.includes(d)).length;
+          }, 0) /
+            totalPossible) *
+            100,
+        )
+      : 0;
+  const longestNow = decorated.reduce((m, h) => Math.max(m, h.current), 0);
+  const longestEver = decorated.reduce((m, h) => Math.max(m, h.best), 0);
+
+  // Verdict prompt — feed the LLM today's real completions and the
+  // user's most recent mood scores so it can notice an honest
+  // pattern rather than commenting on seed data.
+  const habitsToday = decorated
+    .map(
+      (h) =>
+        `${h.name}: ${isDoneToday(h.name) ? "done" : "skipped"} (${h.current}d streak)`,
+    )
     .join("; ");
   const recentMoods = priorMoods
     .slice()
@@ -115,448 +293,247 @@ export function HabitsTab() {
   const habitsPrompt = [
     "You are a quiet journal companion. Look at the user's habits today and their recent moods. Write ONE short sentence (under 18 words) noticing a small pattern or contrast — no advice, no cheer, no questions. Observational, slightly literary.",
     "",
-    `Today's habits: ${habitsToday}`,
+    habitsToday ? `Today's habits: ${habitsToday}` : "No habits tracked yet.",
     recentMoods ? `Recent moods (most recent first): ${recentMoods}` : "",
     "",
     "Your one-sentence observation:",
   ]
     .filter(Boolean)
     .join("\n");
-  const habitNames = Object.keys(H.thirtyDay);
-  const allDays = habitNames.flatMap((n) => H.thirtyDay[n] as number[]);
-  const overall = Math.round(
-    (allDays.filter((v) => v).length / allDays.length) * 100,
-  );
+
+  // Used by both the per-habit week strip and the 30-day grid.
+  const last7 = lastNDates(7);
+  const last30 = lastNDates(30);
+  void totalDoneAll;
 
   return (
     <div>
       <StatRow
         items={[
-          { v: `${totalDone}/${I.habits.length}`, l: "TODAY" },
-          { v: `${overall}%`, l: "30-DAY · ALL" },
-          { v: "21", l: "LONGEST · NOW" },
-          { v: "84", l: "LONGEST · EVER" },
+          {
+            v: decorated.length > 0 ? `${todayCount}/${decorated.length}` : "—",
+            l: "TODAY",
+          },
+          { v: decorated.length > 0 ? `${thirtyPct}%` : "—", l: "30-DAY · ALL" },
+          {
+            v: longestNow > 0 ? String(longestNow) : "—",
+            l: "LONGEST · NOW",
+          },
+          {
+            v: longestEver > 0 ? String(longestEver) : "—",
+            l: "LONGEST · EVER",
+          },
         ]}
       />
 
       <div className="card" style={{ marginBottom: 12 }}>
         <Kicker>Today</Kicker>
-        <div
-          style={{
-            display: "flex",
-            flexDirection: "column",
-            gap: 8,
-            marginTop: 10,
-          }}
-        >
-          {seedHabits.map((h) => {
-            const done = todayState(h);
-            return (
-              <div
-                key={h.name}
-                style={{ display: "flex", alignItems: "center", gap: 10 }}
-              >
-                <button
-                  type="button"
-                  onClick={() =>
-                    void toggleToday(h.name, `oklch(0.55 0.12 ${h.hue})`)
-                  }
-                  aria-pressed={done}
-                  style={{
-                    width: 22,
-                    height: 22,
-                    borderRadius: "50%",
-                    border: `1.5px solid oklch(0.55 0.12 ${h.hue})`,
-                    background: done
-                      ? `oklch(0.55 0.12 ${h.hue})`
-                      : "transparent",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    color: "var(--paper)",
-                    fontFamily: "var(--serif)",
-                    fontSize: 12,
-                    flexShrink: 0,
-                    cursor: "pointer",
-                    padding: 0,
-                  }}
+        {decorated.length === 0 ? (
+          <div
+            className="margin-note"
+            style={{
+              marginTop: 8,
+              fontSize: 13,
+              fontStyle: "italic",
+            }}
+          >
+            No habits yet. Add the small things you want to keep — a walk, a
+            page, a cold dip — and tap each one when you do it.
+          </div>
+        ) : (
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              gap: 8,
+              marginTop: 10,
+            }}
+          >
+            {decorated.map((h) => {
+              const done = isDoneToday(h.name);
+              const accent = `oklch(0.55 0.12 ${h.hue})`;
+              return (
+                <div
+                  key={h.id}
+                  style={{ display: "flex", alignItems: "center", gap: 10 }}
                 >
-                  {done ? "✓" : ""}
-                </button>
-                <div style={{ flex: 1 }}>
-                  <div
+                  <button
+                    type="button"
+                    onClick={() => void toggleToday(h.name, accent, h.icon)}
+                    aria-pressed={done}
                     style={{
+                      width: 22,
+                      height: 22,
+                      borderRadius: "50%",
+                      border: `1.5px solid ${accent}`,
+                      background: done ? accent : "transparent",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      color: "var(--paper)",
                       fontFamily: "var(--serif)",
-                      fontSize: 13,
-                      fontStyle: "italic",
+                      fontSize: 12,
+                      flexShrink: 0,
+                      cursor: "pointer",
+                      padding: 0,
                     }}
                   >
-                    {h.name}
+                    {done ? "✓" : ""}
+                  </button>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div
+                      style={{
+                        fontFamily: "var(--serif)",
+                        fontSize: 13,
+                        fontStyle: "italic",
+                      }}
+                    >
+                      {h.name}
+                    </div>
+                    <div
+                      style={{
+                        fontFamily: "var(--mono)",
+                        fontSize: 9,
+                        color: "var(--ink-3)",
+                        letterSpacing: "0.06em",
+                      }}
+                    >
+                      {h.current}d streak · best {h.best || "—"}d
+                    </div>
                   </div>
+                  <div style={{ display: "flex", gap: 2 }}>
+                    {last7.map((d, i) => {
+                      const on = h.completions.includes(d);
+                      return (
+                        <span
+                          key={i}
+                          title={d}
+                          style={{
+                            width: 5,
+                            height: 14,
+                            borderRadius: 1,
+                            background: on ? accent : "var(--rule)",
+                            opacity: on ? 1 : 0.5,
+                          }}
+                        />
+                      );
+                    })}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (confirm(`Remove “${h.name}”?`)) {
+                        void remove(h.name);
+                      }
+                    }}
+                    aria-label={`Remove ${h.name}`}
+                    style={{
+                      background: "transparent",
+                      border: "none",
+                      color: "var(--ink-3)",
+                      cursor: "pointer",
+                      fontFamily: "var(--mono)",
+                      fontSize: 11,
+                      padding: "0 2px",
+                    }}
+                  >
+                    ×
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        )}
+        <AddHabitInline
+          onAdd={(name) =>
+            void add(name, `oklch(0.55 0.12 ${hueForIndex(decorated.length)})`)
+          }
+        />
+      </div>
+
+      {decorated.length > 0 && (
+        <div className="card" style={{ marginBottom: 12 }}>
+          <Kicker>30-day grids</Kicker>
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              gap: 12,
+              marginTop: 12,
+            }}
+          >
+            {decorated.map((h) => {
+              const done30 = last30.filter((d) =>
+                h.completions.includes(d),
+              ).length;
+              const accent = `oklch(0.55 0.13 ${h.hue})`;
+              return (
+                <div key={h.id}>
                   <div
                     style={{
-                      fontFamily: "var(--mono)",
-                      fontSize: 9,
-                      color: "var(--ink-3)",
-                      letterSpacing: "0.06em",
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "baseline",
+                      marginBottom: 4,
                     }}
                   >
-                    {h.streak}d streak · best{" "}
-                    {H.longestStreaks[h.name]?.best || "—"}d
-                  </div>
-                </div>
-                <div style={{ display: "flex", gap: 2 }}>
-                  {h.week.map((d, i) => (
                     <span
-                      key={i}
                       style={{
-                        width: 5,
-                        height: 14,
-                        borderRadius: 1,
-                        background: d
-                          ? `oklch(0.55 0.12 ${h.hue})`
-                          : "var(--rule)",
-                        opacity: d ? 1 : 0.5,
+                        fontFamily: "var(--serif)",
+                        fontSize: 12.5,
+                        fontStyle: "italic",
                       }}
-                    />
-                  ))}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-
-      <div className="card" style={{ marginBottom: 12 }}>
-        <Kicker>30-day grids</Kicker>
-        <div
-          style={{
-            display: "flex",
-            flexDirection: "column",
-            gap: 12,
-            marginTop: 12,
-          }}
-        >
-          {habitNames.map((n) => {
-            const arr: number[] = H.thirtyDay[n];
-            const done = arr.filter((v) => v).length;
-            const habit = I.habits.find((h: { name: string }) => h.name === n);
-            const hue = habit?.hue || 38;
-            return (
-              <div key={n}>
-                <div
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "baseline",
-                    marginBottom: 4,
-                  }}
-                >
-                  <span
-                    style={{
-                      fontFamily: "var(--serif)",
-                      fontSize: 12.5,
-                      fontStyle: "italic",
-                    }}
-                  >
-                    {n}
-                  </span>
-                  <span
-                    style={{
-                      fontFamily: "var(--mono)",
-                      fontSize: 9,
-                      color: "var(--ink-3)",
-                      letterSpacing: "0.06em",
-                    }}
-                  >
-                    {done}/30 · {Math.round((done / 30) * 100)}%
-                  </span>
-                </div>
-                <div
-                  style={{
-                    display: "grid",
-                    gridTemplateColumns: "repeat(30, 1fr)",
-                    gap: 2,
-                  }}
-                >
-                  {arr.map((d, i) => (
-                    <div
-                      key={i}
+                    >
+                      {h.name}
+                    </span>
+                    <span
                       style={{
-                        aspectRatio: "1",
-                        background: d
-                          ? `oklch(0.55 0.13 ${hue})`
-                          : "var(--rule)",
-                        opacity: d ? 0.85 : 0.35,
-                        borderRadius: 1,
+                        fontFamily: "var(--mono)",
+                        fontSize: 9,
+                        color: "var(--ink-3)",
+                        letterSpacing: "0.06em",
                       }}
-                    />
-                  ))}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-
-      <div className="card" style={{ marginBottom: 12 }}>
-        <Kicker>Best & worst days · % completion</Kicker>
-        <div style={{ marginTop: 12 }}>
-          <DowStripes
-            rows={habitNames.map((n) => ({
-              label: n,
-              vals: H.byDow[n] as number[],
-            }))}
-            color="var(--sienna)"
-          />
-        </div>
-        <div className="margin-note" style={{ marginTop: 8 }}>
-          Saturdays carry most of your week. Mondays the least.
-        </div>
-      </div>
-
-      <div className="card" style={{ marginBottom: 12 }}>
-        <Kicker>Time of day · when each habit happens</Kicker>
-        <div
-          style={{
-            display: "flex",
-            flexDirection: "column",
-            gap: 10,
-            marginTop: 12,
-          }}
-        >
-          {habitNames.map((n) => {
-            const habit = I.habits.find(
-              (h: { name: string }) => h.name === n,
-            );
-            const hue = habit?.hue || 38;
-            const arr: number[] = H.timeOfDay[n];
-            const max = Math.max(...arr);
-            return (
-              <div key={n}>
-                <div
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "baseline",
-                    marginBottom: 4,
-                  }}
-                >
-                  <span
+                    >
+                      {done30}/30 · {Math.round((done30 / 30) * 100)}%
+                    </span>
+                  </div>
+                  <div
                     style={{
-                      fontFamily: "var(--serif)",
-                      fontSize: 12,
-                      fontStyle: "italic",
+                      display: "grid",
+                      gridTemplateColumns: "repeat(30, 1fr)",
+                      gap: 2,
                     }}
                   >
-                    {n}
-                  </span>
-                  <span
-                    style={{
-                      fontFamily: "var(--mono)",
-                      fontSize: 8.5,
-                      color: "var(--ink-3)",
-                      letterSpacing: "0.06em",
-                    }}
-                  >
-                    peak {String(arr.indexOf(max)).padStart(2, "0")}:00
-                  </span>
+                    {last30.map((d, i) => {
+                      const on = h.completions.includes(d);
+                      return (
+                        <div
+                          key={i}
+                          title={d}
+                          style={{
+                            aspectRatio: "1",
+                            background: on ? accent : "var(--rule)",
+                            opacity: on ? 0.85 : 0.35,
+                            borderRadius: 1,
+                          }}
+                        />
+                      );
+                    })}
+                  </div>
                 </div>
-                <div
-                  style={{
-                    display: "flex",
-                    alignItems: "flex-end",
-                    gap: 1,
-                    height: 28,
-                    background: "var(--paper-2)",
-                    padding: "0 4px",
-                    border: "0.5px solid var(--rule)",
-                    borderRadius: 2,
-                  }}
-                >
-                  {arr.map((v, i) => (
-                    <div
-                      key={i}
-                      style={{
-                        flex: 1,
-                        height: `${v * 100}%`,
-                        background: `oklch(0.55 0.13 ${hue})`,
-                        opacity: 0.4 + v * 0.6,
-                        borderRadius: "1px 1px 0 0",
-                        minHeight: 1,
-                      }}
-                    />
-                  ))}
-                </div>
-                <div
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    fontFamily: "var(--mono)",
-                    fontSize: 7.5,
-                    color: "var(--ink-3)",
-                    letterSpacing: "0.06em",
-                    marginTop: 1,
-                  }}
-                >
-                  <span>00</span>
-                  <span>06</span>
-                  <span>12</span>
-                  <span>18</span>
-                  <span>24</span>
-                </div>
-              </div>
-            );
-          })}
+              );
+            })}
+          </div>
         </div>
-      </div>
+      )}
 
-      <div className="card" style={{ marginBottom: 12 }}>
-        <Kicker>How habits move with your day</Kicker>
-        <div
-          style={{
-            display: "flex",
-            flexDirection: "column",
-            gap: 14,
-            marginTop: 12,
-          }}
-        >
-          {H.correl.map(
-            (
-              c: {
-                habit: string;
-                hue: number;
-                mood: number;
-                sleep: number;
-                energy: number;
-              },
-              i: number,
-            ) => (
-              <div key={i}>
-                <div
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 8,
-                    marginBottom: 6,
-                  }}
-                >
-                  <span
-                    style={{
-                      width: 8,
-                      height: 8,
-                      borderRadius: 4,
-                      background: `oklch(0.55 0.13 ${c.hue})`,
-                    }}
-                  />
-                  <span
-                    style={{
-                      fontFamily: "var(--serif)",
-                      fontSize: 13,
-                      fontStyle: "italic",
-                    }}
-                  >
-                    {c.habit}
-                  </span>
-                </div>
-                <div
-                  style={{
-                    display: "flex",
-                    flexDirection: "column",
-                    gap: 4,
-                  }}
-                >
-                  <DivergeRow
-                    value={c.mood}
-                    label="mood"
-                    color="var(--sage)"
-                    negColor="var(--sienna)"
-                  />
-                  <DivergeRow
-                    value={c.sleep}
-                    label="sleep"
-                    color="var(--indigo)"
-                    negColor="var(--sienna)"
-                  />
-                  <DivergeRow
-                    value={c.energy}
-                    label="energy"
-                    color="var(--ochre)"
-                    negColor="var(--sienna)"
-                  />
-                </div>
-              </div>
-            ),
-          )}
-        </div>
-        <div className="margin-note" style={{ marginTop: 8 }}>
-          +100 = strongly together · 0 = unrelated · −100 = inversely.
-        </div>
-      </div>
-
-      <div className="card" style={{ marginBottom: 12 }}>
-        <Kicker>Weekly completion · 12 weeks</Kicker>
-        <div
-          style={{
-            display: "flex",
-            flexDirection: "column",
-            gap: 10,
-            marginTop: 12,
-          }}
-        >
-          {habitNames.map((n) => {
-            const habit = I.habits.find(
-              (h: { name: string }) => h.name === n,
-            );
-            const hue = habit?.hue || 38;
-            const trend = H.trend12w[n] as number[];
-            return (
-              <div key={n}>
-                <div
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "baseline",
-                    marginBottom: 2,
-                  }}
-                >
-                  <span
-                    style={{
-                      fontFamily: "var(--serif)",
-                      fontSize: 12,
-                      fontStyle: "italic",
-                    }}
-                  >
-                    {n}
-                  </span>
-                  <span
-                    style={{
-                      fontFamily: "var(--mono)",
-                      fontSize: 9,
-                      color: "var(--ink-3)",
-                    }}
-                  >
-                    {trend[trend.length - 1]}%
-                  </span>
-                </div>
-                <Sparkline
-                  data={trend}
-                  w={320}
-                  h={26}
-                  color={`oklch(0.55 0.13 ${hue})`}
-                  fill
-                />
-              </div>
-            );
-          })}
-        </div>
-      </div>
-
-      <VerdictCard
-        kicker="WHAT WE NOTICED"
-        cacheKey="habits"
-        prompt={habitsPrompt}
-      />
+      {decorated.length > 0 && (
+        <VerdictCard
+          kicker="WHAT WE NOTICED"
+          cacheKey="habits"
+          prompt={habitsPrompt}
+        />
+      )}
     </div>
   );
 }
