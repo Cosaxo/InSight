@@ -5,16 +5,16 @@
 // • Personality, politics, morals come from useProfile, populated by
 //   the test overlay. Each section shows an empty-state with a
 //   "take the test" CTA when the underlying data isn't there.
-// • Likes, dislikes, heroes render only when the profile has values
-//   for them — the schema supports them and they survive sign-out,
-//   but no in-app editor writes them yet (a legacy ProfilePanel.tsx
-//   does, but isn't mounted). Hidden when empty rather than seeded.
+// • Likes, dislikes, heroes have inline editors right here — add /
+//   remove writes through `save()` on useProfile, persisting to
+//   Firestore for signed-in users and localStorage otherwise.
 //
 // What used to be here but isn't anymore: vital statistics, interests
 // tag cloud, languages, life timeline, and badges all rendered seed
 // data with no real source or schema field. They're removed; revival
 // path is to add a real editor + schema field per section.
 
+import { useState } from "react";
 import { IS_DATA } from "../../data/seedData";
 import { useMe } from "../../lib/useMe";
 import { useProfile, type ProfileExt } from "../../lib/useProfile";
@@ -179,9 +179,361 @@ function TestEmptyState({ kind, title, copy, onOpenTest }: EmptyStateProps) {
   );
 }
 
+// Tiny "×" remove button that hangs off a chip / card. Filled with
+// muted ink so it doesn't shout louder than the value it's removing.
+function RemoveX({ onClick, label }: { onClick: () => void; label: string }) {
+  return (
+    <button
+      onClick={onClick}
+      aria-label={`Remove ${label}`}
+      style={{
+        background: "transparent",
+        border: "none",
+        color: "var(--ink-3)",
+        cursor: "pointer",
+        fontFamily: "var(--mono)",
+        fontSize: 11,
+        lineHeight: 1,
+        padding: 0,
+        marginLeft: 4,
+      }}
+    >
+      ×
+    </button>
+  );
+}
+
+interface InlineAddProps {
+  placeholder: string;
+  onAdd: (value: string) => void;
+}
+
+// One-line add input that lives next to a chip cloud. Submits on
+// Enter or on the "+" button click. Empty/whitespace input is a
+// no-op (and clears) so users don't get blank chips.
+function InlineAdd({ placeholder, onAdd }: InlineAddProps) {
+  const [v, setV] = useState("");
+  const submit = () => {
+    const t = v.trim();
+    if (!t) return;
+    onAdd(t);
+    setV("");
+  };
+  return (
+    <span
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 4,
+        padding: "2px 8px",
+        border: "0.5px dashed var(--rule)",
+        borderRadius: 999,
+        background: "var(--paper-2)",
+      }}
+    >
+      <input
+        value={v}
+        onChange={(e) => setV(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") submit();
+        }}
+        placeholder={placeholder}
+        style={{
+          background: "transparent",
+          border: "none",
+          outline: "none",
+          fontFamily: "var(--serif)",
+          fontStyle: "italic",
+          fontSize: 13,
+          color: "var(--ink)",
+          width: 110,
+        }}
+      />
+      <button
+        onClick={submit}
+        aria-label="Add"
+        style={{
+          background: "transparent",
+          border: "none",
+          color: "var(--ink-2)",
+          cursor: "pointer",
+          fontFamily: "var(--mono)",
+          fontSize: 12,
+          padding: 0,
+        }}
+      >
+        +
+      </button>
+    </span>
+  );
+}
+
+interface ChipListEditorProps {
+  values: string[];
+  italic?: boolean;
+  placeholder: string;
+  emptyCopy: string;
+  onChange: (next: string[]) => void;
+}
+
+// Used by Likes + Dislikes. Renders an existing chip cloud with
+// per-chip × removal, plus the inline "+" add input at the end of
+// the row. De-dupes additions case-insensitively so users don't end
+// up with two chips that say the same thing.
+function ChipListEditor({
+  values,
+  italic,
+  placeholder,
+  emptyCopy,
+  onChange,
+}: ChipListEditorProps) {
+  const add = (v: string) => {
+    const exists = values.some(
+      (existing) => existing.toLowerCase() === v.toLowerCase(),
+    );
+    if (exists) return;
+    onChange([...values, v]);
+  };
+  const remove = (v: string) => {
+    onChange(values.filter((x) => x !== v));
+  };
+  return (
+    <div>
+      {values.length === 0 && (
+        <div
+          className="margin-note"
+          style={{ fontSize: 12, fontStyle: "italic", marginBottom: 6 }}
+        >
+          {emptyCopy}
+        </div>
+      )}
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+        {values.map((l) => (
+          <span
+            key={l}
+            className="pill"
+            style={
+              italic
+                ? { opacity: 0.75, fontStyle: "italic" }
+                : undefined
+            }
+          >
+            {l}
+            <RemoveX onClick={() => remove(l)} label={l} />
+          </span>
+        ))}
+        <InlineAdd placeholder={placeholder} onAdd={add} />
+      </div>
+    </div>
+  );
+}
+
+interface HeroEditorProps {
+  heroes: Hero[];
+  onChange: (next: Hero[]) => void;
+}
+
+// Heroes is structurally heavier than likes/dislikes (three fields
+// per entry), so the add affordance is a separate collapsed form
+// underneath the list instead of an inline pill.
+function HeroEditor({ heroes, onChange }: HeroEditorProps) {
+  const [adding, setAdding] = useState(false);
+  const [name, setName] = useState("");
+  const [role, setRole] = useState("");
+  const [reason, setReason] = useState("");
+
+  const reset = () => {
+    setName("");
+    setRole("");
+    setReason("");
+    setAdding(false);
+  };
+  const submit = () => {
+    const n = name.trim();
+    if (!n) return;
+    const dup = heroes.some(
+      (h) => h.name.toLowerCase() === n.toLowerCase(),
+    );
+    if (dup) {
+      reset();
+      return;
+    }
+    onChange([
+      ...heroes,
+      { name: n, role: role.trim(), reason: reason.trim() },
+    ]);
+    reset();
+  };
+
+  const inputStyle = {
+    width: "100%",
+    padding: "8px 10px",
+    border: "0.5px solid var(--rule)",
+    borderRadius: 6,
+    background: "var(--paper)",
+    fontFamily: "var(--serif)",
+    fontSize: 13,
+    outline: "none",
+  } as const;
+
+  return (
+    <div
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        gap: 8,
+        marginTop: 8,
+      }}
+    >
+      {heroes.length === 0 && (
+        <div
+          className="margin-note"
+          style={{ fontSize: 12, fontStyle: "italic" }}
+        >
+          The people you read in the margins.
+        </div>
+      )}
+      {heroes.map((h) => (
+        <div
+          key={h.name}
+          className="card"
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            gap: 2,
+            position: "relative",
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "baseline",
+            }}
+          >
+            <span style={{ fontFamily: "var(--serif)", fontSize: 15 }}>
+              {h.name}
+            </span>
+            <span
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+              }}
+            >
+              {h.role && <span className="margin-note">{h.role}</span>}
+              <RemoveX
+                onClick={() =>
+                  onChange(heroes.filter((x) => x.name !== h.name))
+                }
+                label={h.name}
+              />
+            </span>
+          </div>
+          {h.reason && (
+            <div
+              className="margin-note"
+              style={{ fontSize: 12, fontStyle: "italic" }}
+            >
+              "{h.reason}"
+            </div>
+          )}
+        </div>
+      ))}
+      {adding ? (
+        <div
+          className="card"
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            gap: 8,
+            borderStyle: "dashed",
+          }}
+        >
+          <input
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="Name"
+            autoFocus
+            style={inputStyle}
+          />
+          <input
+            value={role}
+            onChange={(e) => setRole(e.target.value)}
+            placeholder="What they were (writer, scientist, …)"
+            style={inputStyle}
+          />
+          <input
+            value={reason}
+            onChange={(e) => setReason(e.target.value)}
+            placeholder="Why they matter to you"
+            style={inputStyle}
+          />
+          <div style={{ display: "flex", gap: 8 }}>
+            <button
+              onClick={submit}
+              style={{
+                flex: 1,
+                padding: "8px 12px",
+                border: "0.5px solid var(--accent)",
+                borderRadius: 999,
+                background: "var(--accent)",
+                color: "var(--paper)",
+                fontFamily: "var(--mono)",
+                fontSize: 10,
+                letterSpacing: "0.12em",
+                textTransform: "uppercase",
+                cursor: "pointer",
+              }}
+            >
+              Add
+            </button>
+            <button
+              onClick={reset}
+              style={{
+                flex: 1,
+                padding: "8px 12px",
+                border: "0.5px solid var(--rule)",
+                borderRadius: 999,
+                background: "transparent",
+                color: "var(--ink-2)",
+                fontFamily: "var(--mono)",
+                fontSize: 10,
+                letterSpacing: "0.12em",
+                textTransform: "uppercase",
+                cursor: "pointer",
+              }}
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      ) : (
+        <button
+          onClick={() => setAdding(true)}
+          style={{
+            padding: "10px",
+            border: "0.5px dashed var(--rule)",
+            borderRadius: 8,
+            background: "transparent",
+            color: "var(--ink-3)",
+            fontFamily: "var(--mono)",
+            fontSize: 10,
+            letterSpacing: "0.12em",
+            textTransform: "uppercase",
+            cursor: "pointer",
+          }}
+        >
+          + add a hero
+        </button>
+      )}
+    </div>
+  );
+}
+
 export function ProfileOverlay({ onClose, onOpenTest }: ProfileOverlayProps) {
   const realMe = useMe();
-  const { profile } = useProfile();
+  const { profile, save } = useProfile();
 
   const big5Vec = profile.personality;
   const personalityReady =
@@ -435,101 +787,35 @@ export function ProfileOverlay({ onClose, onOpenTest }: ProfileOverlayProps) {
           />
         )}
 
-        {likes.length > 0 && (
-          <>
-            <hr className="rule-dashed" />
-            <Kicker>Likes</Kicker>
-            <div
-              style={{
-                display: "flex",
-                flexWrap: "wrap",
-                gap: 6,
-                marginTop: 8,
-              }}
-            >
-              {likes.map((l) => (
-                <span key={l} className="pill">
-                  {l}
-                </span>
-              ))}
-            </div>
-          </>
-        )}
+        <hr className="rule-dashed" />
+        <Kicker>Likes · gathered over the years</Kicker>
+        <div style={{ marginTop: 8 }}>
+          <ChipListEditor
+            values={likes}
+            placeholder="add a like"
+            emptyCopy="What you keep coming back to."
+            onChange={(next) => void save({ likes: next })}
+          />
+        </div>
 
-        {dislikes.length > 0 && (
-          <>
-            <hr className="rule-dashed" />
-            <Kicker>Dislikes</Kicker>
-            <div
-              style={{
-                display: "flex",
-                flexWrap: "wrap",
-                gap: 6,
-                marginTop: 8,
-              }}
-            >
-              {dislikes.map((l) => (
-                <span
-                  key={l}
-                  className="pill"
-                  style={{ opacity: 0.7, fontStyle: "italic" }}
-                >
-                  {l}
-                </span>
-              ))}
-            </div>
-          </>
-        )}
+        <hr className="rule-dashed" />
+        <Kicker>Dislikes · honest about</Kicker>
+        <div style={{ marginTop: 8 }}>
+          <ChipListEditor
+            values={dislikes}
+            italic
+            placeholder="add a dislike"
+            emptyCopy="What grates on you, even if you'd never say it out loud."
+            onChange={(next) => void save({ dislikes: next })}
+          />
+        </div>
 
-        {heroes.length > 0 && (
-          <>
-            <hr className="rule-dashed" />
-            <Kicker>Heroes</Kicker>
-            <div
-              style={{
-                display: "flex",
-                flexDirection: "column",
-                gap: 8,
-                marginTop: 8,
-              }}
-            >
-              {heroes.map((h) => (
-                <div
-                  key={h.name}
-                  className="card"
-                  style={{
-                    display: "flex",
-                    flexDirection: "column",
-                    gap: 2,
-                  }}
-                >
-                  <div
-                    style={{
-                      display: "flex",
-                      justifyContent: "space-between",
-                      alignItems: "baseline",
-                    }}
-                  >
-                    <span style={{ fontFamily: "var(--serif)", fontSize: 15 }}>
-                      {h.name}
-                    </span>
-                    {h.role && (
-                      <span className="margin-note">{h.role}</span>
-                    )}
-                  </div>
-                  {h.reason && (
-                    <div
-                      className="margin-note"
-                      style={{ fontSize: 12, fontStyle: "italic" }}
-                    >
-                      "{h.reason}"
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          </>
-        )}
+        <hr className="rule-dashed" />
+        <Kicker>Heroes · who you read in the margins</Kicker>
+        <HeroEditor
+          heroes={heroes}
+          onChange={(next) => void save({ heroes: next })}
+        />
       </div>
     </div>
   );
