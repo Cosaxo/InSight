@@ -15,6 +15,7 @@ import type {
   CityRating,
   CityRatings,
   Habit,
+  Impression,
   Meal,
   MoodEntry,
   Person,
@@ -333,6 +334,38 @@ export async function updateSpecimen(
 export async function deleteSpecimen(uid: string, id: string): Promise<void> {
   const m = await impl();
   return m.deleteSpecimen(uid, id);
+}
+
+export function subscribeImpressions(
+  uid: string,
+  cb: (items: Impression[]) => void,
+): () => void {
+  return lazySubscribe((m) => m.subscribeImpressions, uid, cb);
+}
+
+export async function addImpression(
+  uid: string,
+  i: Impression,
+): Promise<void> {
+  const m = await impl();
+  return m.addImpression(uid, i);
+}
+
+export async function updateImpression(
+  uid: string,
+  id: string,
+  patch: Partial<Impression>,
+): Promise<void> {
+  const m = await impl();
+  return m.updateImpression(uid, id, patch);
+}
+
+export async function deleteImpression(
+  uid: string,
+  id: string,
+): Promise<void> {
+  const m = await impl();
+  return m.deleteImpression(uid, id);
 }
 
 export async function addWorkout(

@@ -45,6 +45,7 @@ import type {
   CoreValues,
   Habit,
   Hero,
+  Impression,
   Meal,
   MediaMap,
   MoodEntry,
@@ -352,6 +353,37 @@ export async function updateSpecimen(
 
 export async function deleteSpecimen(uid: string, id: string): Promise<void> {
   await deleteDoc(subDocRef(uid, "insight_scrapbook", id));
+}
+
+// ── Impressions ─────────────────────────────────────────────────
+
+export function subscribeImpressions(
+  uid: string,
+  cb: (items: Impression[]) => void,
+): () => void {
+  return subscribeList<Impression>(uid, "insight_impressions", cb);
+}
+
+export async function addImpression(
+  uid: string,
+  i: Impression,
+): Promise<void> {
+  await setDoc(subDocRef(uid, "insight_impressions", i.id), stripId(i));
+}
+
+export async function updateImpression(
+  uid: string,
+  id: string,
+  patch: Partial<Impression>,
+): Promise<void> {
+  await updateDoc(subDocRef(uid, "insight_impressions", id), patch);
+}
+
+export async function deleteImpression(
+  uid: string,
+  id: string,
+): Promise<void> {
+  await deleteDoc(subDocRef(uid, "insight_impressions", id));
 }
 
 // ── Skills (Groups tab) ─────────────────────────────────────────

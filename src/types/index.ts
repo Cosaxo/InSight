@@ -175,6 +175,26 @@ export interface Specimen {
   createdAt: number; // ms epoch, for sorting "recent finds"
 }
 
+// An impression — your private sketch of a person you've met. The
+// "of others" side of the impressions ledger. Stored at
+// insight_users/{uid}/insight_impressions/{id}; never shared.
+// `color` is a palette key (sienna/sage/ochre/indigo/plum) the UI
+// resolves to a CSS var. `traits` is a free list of short labels.
+export interface Impression {
+  id: string;
+  who: string;          // the person's name, free text
+  when: string;         // free-form display date ("apr 28 · 2026")
+  where?: string;       // location (optional)
+  context?: string;     // "first met · coffee" etc (optional)
+  warmth: number;       // 0..100
+  depth: number;        // 0..100
+  energy: number;       // 0..100
+  traits: string[];
+  note?: string;
+  color: string;        // palette key
+  createdAt: number;    // ms epoch, for sort
+}
+
 export type WorkoutIntensity = "Low" | "Medium" | "High";
 export type WorkoutType =
   | "Run"
