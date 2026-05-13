@@ -49,6 +49,8 @@ export const ConcentricMap = memo(function ConcentricMap({
       const y = cy + Math.sin(angle) * ring.r;
       return { ...p, ringIdx, x, y };
     });
+    // `rings`, `cx`, `cy` are all locals derived from W/H which never
+    // change after mount — re-memoising on them would be wasted work.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [people]);
 

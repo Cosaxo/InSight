@@ -50,19 +50,26 @@ function writeLocal(report: DailyReportLocal): void {
 
 export function useDailyReport(): {
   report: DailyReportLocal | null;
+  loading: boolean;
   save: (r: DailyReportLocal) => Promise<void>;
 } {
   const { user } = useAuth();
   const isSignedIn = firebaseEnabled && !!user;
   const [remote, setRemote] = useState<RemoteDailyReport | null>(null);
   const [local, setLocal] = useState<DailyReportLocal | null>(() => readLocal());
+  // Track which uid we've heard back from. While signed in, if this
+  // doesn't match the current uid, the first Firestore snapshot for
+  // this user hasn't arrived yet — i.e. we're loading. The flag is
+  // set in the subscription callback so all state writes stay in
+  // event handlers, not in effect bodies.
+  const [emittedForUid, setEmittedForUid] = useState<string | null>(null);
+  const loading = isSignedIn && !!user && emittedForUid !== user.uid;
 
   useEffect(() => {
     if (!isSignedIn || !user) return;
     const unsub = subscribeDailyReport(user.uid, (r) => {
       setRemote(r);
-      // Mirror remote → local so any sync reader (legacy callers / the
-      // People tab feed render) sees the same data.
+      setEmittedForUid(user.uid);
       if (r) {
         localStorage.setItem(STORAGE, JSON.stringify(r));
       } else {
@@ -88,7 +95,7 @@ export function useDailyReport(): {
     }
   };
 
-  return { report, save };
+  return { report, loading, save };
 }
 
 // Convenience for non-React callers (the People tab originally read this

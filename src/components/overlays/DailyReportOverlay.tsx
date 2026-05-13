@@ -3,6 +3,7 @@ import { Camera, CameraResultType, CameraSource } from "@capacitor/camera";
 import { Capacitor } from "@capacitor/core";
 import { IS_DATA } from "../../data/seedData";
 import { useDailyReport } from "../../lib/useDailyReport";
+import type { RemoteDailyReport } from "../../types";
 import {
   dailyMoodToScore,
   isoDateToday,
@@ -101,30 +102,10 @@ const PHOTO_STOCK: PhotoStock[] = [
   },
 ];
 
-interface DailyReportData {
-  personId: "me";
-  date: "today";
-  mood: number;
-  moodLabel: string;
-  one_line: string;
-  weather: string;
-  body?: AutoStats["body"];
-  move?: AutoStats["move"];
-  nutrition?: AutoStats["nutrition"];
-  scrapbook?: AutoStats["scrapbook"];
-  hasPhoto: boolean;
-  photo?: string;
-  shared: string[];
-}
-
-interface StoredDaily {
-  mood?: number;
-  one_line?: string;
-  weather?: string;
-  shared?: string[];
-}
-
-function loadStored(): StoredDaily | null {
+function loadStored(): Partial<RemoteDailyReport> | null {
+  // The full RemoteDailyReport is written here by useDailyReport.writeLocal,
+  // but the overlay only reads the four user-editable fields. Typed as
+  // Partial<> because the on-disk JSON predates the schema.
   try {
     return JSON.parse(localStorage.getItem(STORAGE) || "null");
   } catch {
@@ -556,12 +537,10 @@ function PhotoSlot({
 
 interface DailyReportOverlayProps {
   onClose: () => void;
-  onSaved?: (data: DailyReportData) => void;
 }
 
 export function DailyReportOverlay({
   onClose,
-  onSaved,
 }: DailyReportOverlayProps) {
   const existing = loadStored();
   const auto = getTodaysAutoStats();
@@ -623,27 +602,13 @@ export function DailyReportOverlay({
 
   const save = async () => {
     const shared = Object.keys(share).filter((k) => share[k]);
-    const data: DailyReportData = {
-      personId: "me",
-      date: "today",
-      mood,
-      moodLabel: labelFor(mood),
-      one_line: oneLine,
-      weather,
-      body: auto.body,
-      move: auto.move,
-      nutrition: auto.nutrition,
-      scrapbook: auto.scrapbook,
-      hasPhoto: !!photo,
-      shared,
-    };
     // Route through useDailyReport — writes localStorage always, plus
     // Firestore when signed in. Photo stays local; we record whether
     // one exists + the stock key (if it's a preset) for sync.
     const isStockPhoto =
       photo != null &&
       PHOTO_STOCK.some((p) => p.id === photo);
-    await saveDaily({
+    const data: RemoteDailyReport & { photo: string | null } = {
       date: "today",
       mood,
       moodLabel: labelFor(mood),
@@ -653,7 +618,8 @@ export function DailyReportOverlay({
       photoId: isStockPhoto ? photo! : undefined,
       shared,
       photo,
-    });
+    };
+    await saveDaily(data);
     // Also record today's mood as a MoodEntry so the Insights mood
     // charts have real history to draw. The slider is 0..100; the
     // MoodEntry schema is 1..5.
@@ -663,8 +629,6 @@ export function DailyReportOverlay({
       note: oneLine || undefined,
     });
     setSavedFlash(true);
-
-    if (onSaved) onSaved(data);
   };
 
   const sharedCount = Object.values(share).filter(Boolean).length;

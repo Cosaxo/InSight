@@ -10,6 +10,7 @@ import { useAuth } from "./lib/useAuth";
 import { readLegacyDailyReport } from "./lib/useDailyReport";
 import { useTweaks } from "./lib/useTweaks";
 import { IOSDevice } from "./components/shared/IOSDevice";
+import { OverlayErrorBoundary } from "./components/shared/OverlayErrorBoundary";
 import { NavGlyph } from "./components/icons/NavGlyph";
 import { AroundTab } from "./components/tabs/AroundTab";
 import { WorldTab } from "./components/tabs/WorldTab";
@@ -216,11 +217,16 @@ function AppShell() {
   const [showAddPerson, setShowAddPerson] = useState(false);
   const [fabOpen, setFabOpen] = useState(false);
 
+  // One-way sync: tweak.tab → tab. Comparing against `tab` inside avoids
+  // re-running when tab changes through the second effect below; we
+  // genuinely only want to react to tweak changes here.
   useEffect(() => {
     const v = validTab(t.tab);
     if (v !== tab) setTab(v);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [t.tab]);
+  // Reverse sync: tab → tweak.tab. Same reasoning — depending on `t.tab`
+  // would create a feedback loop with the effect above.
   useEffect(() => {
     if (t.tab !== tab) setTweak("tab", tab);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -250,6 +256,13 @@ function AppShell() {
   }`;
 
   const { report: myDaily } = useDailyReport();
+  // PeopleTab's DailyReport shape requires `personId` (it's a per-person
+  // feed); adapt our own daily report to fit. The auto-stats fields it
+  // optionally reads (body/move/nutrition/scrapbook) aren't persisted
+  // — they're seed-data-only for other people's feeds.
+  const myDailyForFeed = myDaily
+    ? { ...myDaily, personId: "me" as const, photo: myDaily.photo ?? undefined }
+    : null;
 
   return (
     <IOSDevice width={402} height={874} dark={t.dark}>
@@ -284,8 +297,7 @@ function AppShell() {
               onPerson={setPerson}
               onOpenDaily={() => setShowDaily(true)}
               onAddPerson={() => setShowAddPerson(true)}
-              // Structural shape matches what PeopleTab uses (mood, one_line, photo, etc.).
-              myDailyReport={myDaily as unknown as Parameters<typeof PeopleTab>[0]["myDailyReport"]}
+              myDailyReport={myDailyForFeed}
             />
           )}
         </div>
@@ -409,6 +421,27 @@ function AppShell() {
           ))}
         </nav>
 
+        <OverlayErrorBoundary
+          resetKey={[
+            person ? "person" : "",
+            city ? "city" : "",
+            showProfile && "profile",
+            showInsights && "insights",
+            showTest && "test",
+            showSharing && "sharing",
+            showDna && "dna",
+            showScrap && "scrap",
+            showBody && "body",
+            showDays && "days",
+            showDaily && "daily",
+            showImpressions && "impressions",
+            showLife && "life",
+            showAddPerson && "addPerson",
+          ]
+            .filter(Boolean)
+            .join(",")}
+          onDismiss={closeAll}
+        >
         <Suspense fallback={<OverlayFallback />}>
           {person && (
             <PersonOverlay
@@ -453,6 +486,7 @@ function AppShell() {
             <AddPersonFlow onClose={() => setShowAddPerson(false)} />
           )}
         </Suspense>
+        </OverlayErrorBoundary>
       </div>
 
       <TweaksPanel>
