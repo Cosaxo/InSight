@@ -75,6 +75,12 @@ export interface RemoteProfile {
   likes?: string[];
   dislikes?: string[];
   heroes?: Hero[];
+  // Physical / vital stats — optional, used by LifeOverlay to scale
+  // the mass-by-tissue breakdown and the years-lived counters. When
+  // missing, LifeOverlay shows a prompt to fill them in instead of
+  // displaying made-up numbers.
+  weightKg?: number;
+  birthYear?: number;
 }
 
 export interface MigrationPayload {

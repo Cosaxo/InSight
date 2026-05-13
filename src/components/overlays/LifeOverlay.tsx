@@ -1,12 +1,29 @@
 import { memo, useState } from "react";
 import { Kicker } from "../shared/primitives";
+import { useProfile } from "../../lib/useProfile";
 
-const WEIGHT_KG = 63;
-const AGE = 34;
-const DAYS_LIVED = Math.round(AGE * 365.25) + 12;
-const HEARTBEATS =
-  Math.round(((AGE * 365.25 * 24 * 60 * 70) / 1_000_000_000) * 100) / 100;
-const BREATHS = Math.round((AGE * 365.25 * 24 * 60 * 15) / 1_000_000);
+// LifeOverlay's two physical knobs — weight (kg) and birth year —
+// come from the saved profile (set in ProfileOverlay > Vital stats).
+// When the user hasn't set them, the overlay falls back to these
+// gentle defaults and shows an inline prompt instead of pretending
+// the numbers are theirs.
+//
+// 70 kg ≈ adult median; birth year of (currentYear - 30) ≈ "an
+// adult of unspecified age". The math still works, the framing just
+// becomes "for a 30-year-old at 70 kg" rather than "for you".
+const FALLBACK_WEIGHT_KG = 70;
+const FALLBACK_BIRTH_YEAR = new Date().getFullYear() - 30;
+
+// Derived getters — all life-shape numbers downstream collapse into
+// these so a single source of truth (weight + age) drives everything
+// from tissue kg to lived-weeks to heartbeats.
+function deriveAge(birthYear: number | undefined): number {
+  const by = birthYear ?? FALLBACK_BIRTH_YEAR;
+  return Math.max(0, new Date().getFullYear() - by);
+}
+function deriveWeight(weightKg: number | undefined): number {
+  return weightKg && weightKg > 0 ? weightKg : FALLBACK_WEIGHT_KG;
+}
 
 interface Element {
   sym: string;
@@ -27,20 +44,32 @@ const ELEMENTS: Element[] = [
   { sym: "·", name: "trace", pct: 0.6, hue: 0, note: "Fe, Zn, Cu, I, Mg, Na, Se…" },
 ];
 
+// Tissue percentages are biology-fixed (water/fat/protein/mineral/
+// carb shares of body mass for a typical adult — they don't depend
+// on weight). The displayed kilograms scale with the user's actual
+// weight, so a 60 kg body shows different masses to an 80 kg body.
 interface Tissue {
   k: string;
   pct: number;
   hue: number;
   label: string;
-  sub: string;
+  blurb: string; // tail text that follows the computed kg
 }
 const TISSUES: Tissue[] = [
-  { k: "water", pct: 58, hue: 220, label: "Water", sub: "≈ 36.5 kg · enough to fill a small bucket" },
-  { k: "fat", pct: 22, hue: 60, label: "Fat", sub: "≈ 13.9 kg · the long-burning fuel" },
-  { k: "protein", pct: 14, hue: 38, label: "Protein", sub: "≈  8.8 kg · muscle, skin, enzymes" },
-  { k: "mineral", pct: 5, hue: 280, label: "Bone & mineral", sub: "≈  3.2 kg · 206 bones, give or take" },
-  { k: "carb", pct: 1, hue: 145, label: "Carbohydrate", sub: "≈  0.6 kg · mostly glycogen on standby" },
+  { k: "water", pct: 58, hue: 220, label: "Water", blurb: "enough to fill a small bucket" },
+  { k: "fat", pct: 22, hue: 60, label: "Fat", blurb: "the long-burning fuel" },
+  { k: "protein", pct: 14, hue: 38, label: "Protein", blurb: "muscle, skin, enzymes" },
+  { k: "mineral", pct: 5, hue: 280, label: "Bone & mineral", blurb: "206 bones, give or take" },
+  { k: "carb", pct: 1, hue: 145, label: "Carbohydrate", blurb: "mostly glycogen on standby" },
 ];
+
+function tissueSub(t: Tissue, weightKg: number): string {
+  const kg = (weightKg * t.pct) / 100;
+  // Match the typographic look of the previous strings: a thin space
+  // and one decimal, with ≈ prefix.
+  const formatted = kg.toFixed(1).padStart(4, " ").replace(" ", " ");
+  return `≈ ${formatted} kg · ${t.blurb}`;
+}
 
 const STARDUST = [
   { glyph: "✦", label: "cells", value: "≈ 37 trillion", note: "red blood cells outnumber the rest" },
@@ -70,20 +99,34 @@ const GENERATIONS: Generation[] = [
   { g: 40, yr: 991, count: "1.1 trillion", label: "38× great — pedigree collapse: most repeat" },
 ];
 
-const IN_NUMBERS = [
-  { k: "days", label: "DAYS LIVED", value: DAYS_LIVED.toLocaleString(), sub: "≈ 5,322 still ahead" },
-  { k: "heart", label: "HEARTBEATS (BN)", value: HEARTBEATS.toString(), sub: "one every 0.85 s" },
-  { k: "breath", label: "BREATHS (MM)", value: BREATHS.toLocaleString(), sub: "15 a minute, mostly forgotten" },
-  { k: "moons", label: "FULL MOONS", value: Math.round(AGE * 12.37).toLocaleString(), sub: "4 missed to cloud cover" },
-  { k: "sleep", label: "YEARS ASLEEP", value: "11.1", sub: "one third of everything" },
-  { k: "meals", label: "MEALS EATEN", value: "≈ 31,200", sub: "about a tonne of bread" },
-  { k: "steps", label: "STEPS WALKED", value: "78 MM", sub: "1.7× around the Earth" },
-  { k: "orbits", label: "TRIPS AROUND ☉", value: "34", sub: "32 billion km of orbit" },
-  { k: "kissed", label: "PEOPLE KISSED", value: "17", sub: "and four you remember" },
-  { k: "books", label: "BOOKS FINISHED", value: "342", sub: "11 you re-read on purpose" },
-  { k: "words", label: "WORDS WRITTEN", value: "1.4 MM", sub: "most in the journal" },
-  { k: "tears", label: "LITRES OF TEARS", value: "≈ 14", sub: "a small bucket" },
-];
+// Numbers card grid. The first four entries are computed from the
+// user's age (days, heartbeats, breaths, moons); the rest stay
+// literary-flavor and don't pretend to be measured — they'd each
+// need their own real source to be honest. Future revival: pull
+// `meals` from useMeals, `steps` from a step source, etc.
+function buildInNumbers(age: number): {
+  k: string;
+  label: string;
+  value: string;
+  sub: string;
+}[] {
+  const daysLived = Math.round(age * 365.25);
+  // Assume ~84-year expected lifespan in Norway; rough.
+  const daysAhead = Math.max(0, Math.round(84 * 365.25) - daysLived);
+  const heartbeatsBn =
+    Math.round(((age * 365.25 * 24 * 60 * 70) / 1_000_000_000) * 100) / 100;
+  const breathsMm = Math.round((age * 365.25 * 24 * 60 * 15) / 1_000_000);
+  const moons = Math.round(age * 12.37);
+  return [
+    { k: "days", label: "DAYS LIVED", value: daysLived.toLocaleString(), sub: `≈ ${daysAhead.toLocaleString()} still ahead` },
+    { k: "heart", label: "HEARTBEATS (BN)", value: heartbeatsBn.toString(), sub: "one every 0.85 s" },
+    { k: "breath", label: "BREATHS (MM)", value: breathsMm.toLocaleString(), sub: "15 a minute, mostly forgotten" },
+    { k: "moons", label: "FULL MOONS", value: moons.toLocaleString(), sub: "12.4 a year, give or take" },
+    { k: "sleep", label: "YEARS ASLEEP", value: (age / 3).toFixed(1), sub: "one third of everything" },
+    { k: "meals", label: "MEALS EATEN", value: `≈ ${Math.round(age * 365.25 * 2.5).toLocaleString()}`, sub: "≈ 2.5 a day" },
+    { k: "orbits", label: "TRIPS AROUND ☉", value: age.toString(), sub: "≈ 940 MM km each" },
+  ];
+}
 
 const AGE_FACTS = [
   {
@@ -379,9 +422,9 @@ const YearMoodCalendar = memo(function YearMoodCalendar() {
   );
 });
 
-const LifeInWeeks = memo(function LifeInWeeks() {
+const LifeInWeeks = memo(function LifeInWeeks({ age }: { age: number }) {
   const totalWeeks = 84 * 52;
-  const livedWeeks = Math.round(AGE * 52.18);
+  const livedWeeks = Math.round(age * 52.18);
   const cols = 52, rows = 84;
   const cell = 4.4, gap = 1;
   const w = cols * (cell + gap), h = rows * (cell + gap);
@@ -661,7 +704,7 @@ function ElementGrid() {
   );
 }
 
-function TissueBar() {
+function TissueBar({ weightKg }: { weightKg: number }) {
   return (
     <>
       <div
@@ -739,7 +782,7 @@ function TissueBar() {
                   color: "var(--ink-3)",
                 }}
               >
-                {t.sub}
+                {tissueSub(t, weightKg)}
               </div>
             </div>
           </div>
@@ -831,6 +874,15 @@ export function LifeOverlay({ onClose, onOpenDna }: LifeOverlayProps) {
   const [tab, setTab] = useState<"matter" | "rhythms" | "lineage" | "age">(
     "matter",
   );
+  const { profile } = useProfile();
+  // Real values when set; otherwise fall back to the demo defaults
+  // and surface a "set in portrait" hint in the header so the user
+  // knows the numbers aren't theirs yet.
+  const hasWeight = typeof profile.weightKg === "number" && profile.weightKg > 0;
+  const hasBirthYear = typeof profile.birthYear === "number";
+  const weightKg = deriveWeight(profile.weightKg);
+  const age = deriveAge(profile.birthYear);
+  const inNumbers = buildInNumbers(age);
 
   return (
     <div className="overlay paper-grain">
@@ -841,10 +893,17 @@ export function LifeOverlay({ onClose, onOpenDna }: LifeOverlayProps) {
         <div className="h-title">
           a <em>life</em>
         </div>
-        <div className="h-meta">
-          {WEIGHT_KG} kg
+        <div
+          className="h-meta"
+          title={
+            !hasWeight || !hasBirthYear
+              ? "Set your weight and birth year in your portrait to make these numbers yours."
+              : undefined
+          }
+        >
+          {hasWeight ? `${weightKg} kg` : "— kg"}
           <br />
-          age {AGE}
+          {hasBirthYear ? `age ${age}` : "age —"}
         </div>
       </div>
 
@@ -901,7 +960,7 @@ export function LifeOverlay({ onClose, onOpenDna }: LifeOverlayProps) {
             <hr className="rule-dashed" />
             <Kicker>by tissue · what the kilograms are doing</Kicker>
             <div className="card" style={{ marginTop: 10, padding: 14 }}>
-              <TissueBar />
+              <TissueBar weightKg={weightKg} />
             </div>
 
             <hr className="rule-dashed" />
@@ -980,7 +1039,7 @@ export function LifeOverlay({ onClose, onOpenDna }: LifeOverlayProps) {
             <hr className="rule-dashed" />
             <Kicker>life · in weeks</Kicker>
             <div className="card" style={{ marginTop: 10, padding: 14 }}>
-              <LifeInWeeks />
+              <LifeInWeeks age={age} />
               <div className="margin-note" style={{ marginTop: 12, fontSize: 12 }}>
                 "Each square is a week. The ones already lived are warm; the
                 rest are empty. You are roughly two-fifths of the way
@@ -1172,7 +1231,7 @@ export function LifeOverlay({ onClose, onOpenDna }: LifeOverlayProps) {
                 marginTop: 10,
               }}
             >
-              {IN_NUMBERS.map((n) => (
+              {inNumbers.map((n) => (
                 <div key={n.k} className="card" style={{ padding: 12 }}>
                   <div className="kicker">{n.label}</div>
                   <div
@@ -1222,7 +1281,7 @@ export function LifeOverlay({ onClose, onOpenDna }: LifeOverlayProps) {
                     left: 0,
                     top: 14,
                     height: 4,
-                    width: `${(AGE / 84) * 100}%`,
+                    width: `${Math.min(100, (age / 84) * 100)}%`,
                     background: "var(--accent)",
                     borderRadius: 2,
                   }}
@@ -1230,7 +1289,7 @@ export function LifeOverlay({ onClose, onOpenDna }: LifeOverlayProps) {
                 <div
                   style={{
                     position: "absolute",
-                    left: `${(AGE / 84) * 100}%`,
+                    left: `${Math.min(100, (age / 84) * 100)}%`,
                     top: 6,
                     transform: "translateX(-50%)",
                     width: 20,
@@ -1246,7 +1305,7 @@ export function LifeOverlay({ onClose, onOpenDna }: LifeOverlayProps) {
                     color: "var(--accent)",
                   }}
                 >
-                  34
+                  {age}
                 </div>
               </div>
               <div
@@ -1268,8 +1327,9 @@ export function LifeOverlay({ onClose, onOpenDna }: LifeOverlayProps) {
                 <span>84</span>
               </div>
               <div className="margin-note" style={{ marginTop: 12, fontSize: 13 }}>
-                "40.5% of the way through. Roughly 50 years of expectancy
-                remaining — about 18,300 more days."
+                "{Math.round((age / 84) * 1000) / 10}% of the way through.
+                Roughly {Math.max(0, 84 - age)} years of expectancy remaining —
+                about {Math.max(0, Math.round((84 - age) * 365.25)).toLocaleString()} more days."
               </div>
             </div>
 

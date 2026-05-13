@@ -8,13 +8,17 @@
 // • Likes, dislikes, heroes have inline editors right here — add /
 //   remove writes through `save()` on useProfile, persisting to
 //   Firestore for signed-in users and localStorage otherwise.
+// • Vital stats (weightKg, birthYear) edit through `save()` as well.
+//   LifeOverlay reads them to scale the body-mass breakdown and the
+//   years-lived counters; when missing it falls back to a "set your
+//   weight and birth year" prompt instead of fake numbers.
 //
-// What used to be here but isn't anymore: vital statistics, interests
-// tag cloud, languages, life timeline, and badges all rendered seed
-// data with no real source or schema field. They're removed; revival
-// path is to add a real editor + schema field per section.
+// What used to be here but isn't anymore: interests tag cloud,
+// languages, life timeline, and badges all rendered seed data with
+// no real source or schema field. They're removed; revival path is
+// to add a real editor + schema field per section.
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { IS_DATA } from "../../data/seedData";
 import { useMe } from "../../lib/useMe";
 import { useProfile, type ProfileExt } from "../../lib/useProfile";
@@ -265,6 +269,130 @@ function InlineAdd({ placeholder, onAdd }: InlineAddProps) {
         +
       </button>
     </span>
+  );
+}
+
+// Small editor for the two vital-stats fields LifeOverlay needs:
+// weight in kilograms and birth year. Both optional — empty inputs
+// save as `undefined` so LifeOverlay can fall back gracefully. The
+// inputs commit on blur (and on Enter for the number fields) rather
+// than every keystroke, so the user can type "65" without
+// triggering a save for "6" first.
+function VitalStatsEditor({
+  weightKg,
+  birthYear,
+  onSave,
+}: {
+  weightKg?: number;
+  birthYear?: number;
+  onSave: (patch: { weightKg?: number; birthYear?: number }) => void;
+}) {
+  const [w, setW] = useState<string>(
+    weightKg !== undefined ? String(weightKg) : "",
+  );
+  const [y, setY] = useState<string>(
+    birthYear !== undefined ? String(birthYear) : "",
+  );
+
+  // Keep local state in sync if the profile mutates from elsewhere
+  // (e.g. a future weigh-in that auto-updates weightKg).
+  useEffect(() => {
+    if (weightKg !== undefined && weightKg !== Number(w)) setW(String(weightKg));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [weightKg]);
+  useEffect(() => {
+    if (birthYear !== undefined && birthYear !== Number(y)) setY(String(birthYear));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [birthYear]);
+
+  const commitWeight = () => {
+    const trimmed = w.trim();
+    if (trimmed === "") {
+      if (weightKg !== undefined) onSave({ weightKg: undefined });
+      return;
+    }
+    const n = Number(trimmed);
+    if (!Number.isFinite(n) || n <= 0 || n > 400) return;
+    if (n !== weightKg) onSave({ weightKg: Math.round(n * 10) / 10 });
+  };
+
+  const commitYear = () => {
+    const trimmed = y.trim();
+    if (trimmed === "") {
+      if (birthYear !== undefined) onSave({ birthYear: undefined });
+      return;
+    }
+    const n = Number(trimmed);
+    const thisYear = new Date().getFullYear();
+    if (!Number.isInteger(n) || n < 1900 || n > thisYear) return;
+    if (n !== birthYear) onSave({ birthYear: n });
+  };
+
+  const inputStyle: React.CSSProperties = {
+    width: "100%",
+    boxSizing: "border-box",
+    padding: "9px 12px",
+    background: "var(--paper-2)",
+    border: "0.5px solid var(--rule)",
+    borderRadius: 6,
+    fontFamily: "var(--mono)",
+    fontSize: 14,
+    color: "var(--ink)",
+  };
+
+  return (
+    <>
+      <Kicker>Vital stats · private to you</Kicker>
+      <div className="margin-note" style={{ fontSize: 12, marginTop: 4 }}>
+        "Weight and the year you were born. They scale the body-map
+        and the days-lived counters in the life overlay."
+      </div>
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "1fr 1fr",
+          gap: 10,
+          marginTop: 10,
+        }}
+      >
+        <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+          <span className="kicker">weight · kg</span>
+          <input
+            type="number"
+            inputMode="decimal"
+            step="0.1"
+            min="1"
+            max="400"
+            value={w}
+            placeholder="—"
+            onChange={(e) => setW(e.target.value)}
+            onBlur={commitWeight}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+            }}
+            style={inputStyle}
+          />
+        </label>
+        <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+          <span className="kicker">born · year</span>
+          <input
+            type="number"
+            inputMode="numeric"
+            step="1"
+            min="1900"
+            max={new Date().getFullYear()}
+            value={y}
+            placeholder="—"
+            onChange={(e) => setY(e.target.value)}
+            onBlur={commitYear}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+            }}
+            style={inputStyle}
+          />
+        </label>
+      </div>
+    </>
   );
 }
 
@@ -581,6 +709,14 @@ export function ProfileOverlay({ onClose, onOpenTest }: ProfileOverlayProps) {
             {realMe.name}
           </div>
         </div>
+        <hr className="rule-dashed" />
+
+        <VitalStatsEditor
+          weightKg={profile.weightKg}
+          birthYear={profile.birthYear}
+          onSave={(patch) => void save(patch)}
+        />
+
         <hr className="rule-dashed" />
 
         {personalityReady && meta && top ? (
