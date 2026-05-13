@@ -20,7 +20,6 @@ interface Ideology {
 interface PoliticalAxis {
   id: string;
   label: string;
-  avgCircle: number;
 }
 
 interface IdeologyMark {
@@ -207,7 +206,9 @@ export function PoliticsCompass({ me }: { me: MePolitics }) {
   const D = IS_DATA;
   const axes: PoliticalAxis[] = D.politicalAxes;
   const youVals = axes.map((a) => (me.political[a.id] + 100) / 2);
-  const circleVals = axes.map((a) => (a.avgCircle + 100) / 2);
+  // The seed `avgCircle` overlay used to draw a fake "your circle"
+  // comparison line — same fake aggregate as the population widgets
+  // we removed. Drop it until real circle aggregation lands.
   const ideologies: Ideology[] = D.ideologies;
   const ideologyMarks: IdeologyMark[] = D.ideologyMarks;
 
@@ -225,8 +226,6 @@ export function PoliticsCompass({ me }: { me: MePolitics }) {
       <div style={{ marginTop: 6 }}>
         <RadarChart
           values={youVals}
-          compareValues={circleVals}
-          compareColor="var(--ink-3)"
           labels={axes.map((a) => a.label)}
           color="var(--accent)"
           size={260}
@@ -255,19 +254,6 @@ export function PoliticsCompass({ me }: { me: MePolitics }) {
             }}
           />
           YOU
-        </span>
-        <span>
-          <span
-            style={{
-              display: "inline-block",
-              width: 10,
-              height: 2,
-              background: "var(--ink-3)",
-              verticalAlign: "middle",
-              marginRight: 5,
-            }}
-          />
-          YOUR CIRCLE · AVG
         </span>
       </div>
 

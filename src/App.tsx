@@ -207,6 +207,11 @@ function AppShell() {
   const [showProfile, setShowProfile] = useState(false);
   const [showInsights, setShowInsights] = useState(false);
   const [showTest, setShowTest] = useState(false);
+  // When set, TestOverlay opens jumped directly into that test kind
+  // (used by ProfileOverlay's "take the test" empty-state CTAs).
+  const [testInitialKind, setTestInitialKind] = useState<
+    "big5" | "political" | "values" | null
+  >(null);
   const [showSharing, setShowSharing] = useState(false);
   const [showDna, setShowDna] = useState(false);
   const [showScrap, setShowScrap] = useState(false);
@@ -452,12 +457,27 @@ function AppShell() {
             />
           )}
           {showProfile && (
-            <ProfileOverlay onClose={() => setShowProfile(false)} />
+            <ProfileOverlay
+              onClose={() => setShowProfile(false)}
+              onOpenTest={(kind) => {
+                setShowProfile(false);
+                setTestInitialKind(kind);
+                setShowTest(true);
+              }}
+            />
           )}
           {showInsights && (
             <InsightsOverlay onClose={() => setShowInsights(false)} />
           )}
-          {showTest && <TestOverlay onClose={() => setShowTest(false)} />}
+          {showTest && (
+            <TestOverlay
+              kind={testInitialKind}
+              onClose={() => {
+                setShowTest(false);
+                setTestInitialKind(null);
+              }}
+            />
+          )}
           {showSharing && (
             <SharingOverlay onClose={() => setShowSharing(false)} />
           )}
