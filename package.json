@@ -19,11 +19,13 @@
     "@capacitor/app": "^8.1.0",
     "@capacitor/camera": "^8.2.0",
     "@capacitor/core": "^8.3.3",
+    "@capacitor/geolocation": "^8.2.0",
     "@capacitor/keyboard": "^8.0.3",
     "@capacitor/splash-screen": "^8.0.1",
     "@capacitor/status-bar": "^8.0.2",
     "@capgo/capacitor-llm": "^8.0.14",
     "firebase": "^12.13.0",
+    "geofire-common": "^6.0.0",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
     "recharts": "^3.8.1"

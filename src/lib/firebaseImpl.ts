@@ -23,18 +23,22 @@ import {
   collection,
   deleteDoc,
   doc,
+  endAt,
   getDoc,
   getDocs,
   getFirestore,
+  GeoPoint,
   limit,
   onSnapshot,
   orderBy,
   query,
   serverTimestamp,
   setDoc,
+  startAt,
   updateDoc,
   type Firestore,
 } from "firebase/firestore";
+import { distanceBetween, geohashQueryBounds } from "geofire-common";
 import type {
   CityRating,
   CityRatings,
@@ -452,4 +456,207 @@ export async function snapshotSubCollection<T>(
 ): Promise<T[]> {
   const snap = await getDocs(sub(uid, name));
   return snap.docs.map((d) => ({ id: d.id, ...d.data() }) as T);
+}
+
+// ── Geo discovery (cities + nearby users) ───────────────────────
+//
+// Both queries follow the standard GeoFire pattern: compute the
+// geohash prefix ranges that cover the search circle, run those as
+// parallel Firestore range queries, then filter the results back
+// down to the actual radius with haversine on the client. False-
+// positives are normal — geohash bounds are squarish, the radius
+// circle is round.
+
+export interface RemoteCity {
+  uid: string;
+  name: string;
+  latitude: number;
+  longitude: number;
+  geohash: string;
+  distanceKm: number;
+}
+
+export interface RemoteDiscoverable {
+  uid: string;
+  displayName?: string;
+  photoColor?: string;
+  latitude: number;
+  longitude: number;
+  geohash: string;
+  distanceKm: number;
+  lastSeen?: number; // ms since epoch
+}
+
+// Read the `location` map regardless of which Firestore representation
+// it came back as (GeoPoint instance vs. raw object — Capacitor's
+// Firestore JS SDK uses GeoPoint instances; the FlutterFlow tooling
+// sometimes wrote plain { latitude, longitude } maps).
+function readLocation(
+  raw: unknown,
+): { latitude: number; longitude: number; geohash: string } | null {
+  if (!raw || typeof raw !== "object") return null;
+  const loc = raw as {
+    geohash?: unknown;
+    geopoint?: unknown;
+  };
+  if (typeof loc.geohash !== "string") return null;
+  const gp = loc.geopoint;
+  if (gp instanceof GeoPoint) {
+    return { latitude: gp.latitude, longitude: gp.longitude, geohash: loc.geohash };
+  }
+  if (
+    gp &&
+    typeof gp === "object" &&
+    typeof (gp as { latitude?: unknown }).latitude === "number" &&
+    typeof (gp as { longitude?: unknown }).longitude === "number"
+  ) {
+    const o = gp as { latitude: number; longitude: number };
+    return { latitude: o.latitude, longitude: o.longitude, geohash: loc.geohash };
+  }
+  return null;
+}
+
+export async function findNearbyCities(
+  center: { latitude: number; longitude: number },
+  radiusKm: number,
+): Promise<RemoteCity[]> {
+  const centerArr: [number, number] = [center.latitude, center.longitude];
+  const radiusM = radiusKm * 1000;
+  const bounds = geohashQueryBounds(centerArr, radiusM);
+  // Collection name matches the user's existing Firebase project.
+  const citiesCol = collection(db(), "Cities");
+  const snaps = await Promise.all(
+    bounds.map((b) =>
+      getDocs(
+        query(
+          citiesCol,
+          orderBy("location.geohash"),
+          startAt(b[0]),
+          endAt(b[1]),
+        ),
+      ),
+    ),
+  );
+  const results: RemoteCity[] = [];
+  for (const snap of snaps) {
+    for (const d of snap.docs) {
+      const data = d.data() as { Name?: string; location?: unknown };
+      const loc = readLocation(data.location);
+      if (!loc) continue;
+      const dKm = distanceBetween([loc.latitude, loc.longitude], centerArr);
+      if (dKm > radiusKm) continue;
+      results.push({
+        uid: d.id,
+        name: data.Name ?? d.id,
+        latitude: loc.latitude,
+        longitude: loc.longitude,
+        geohash: loc.geohash,
+        distanceKm: dKm,
+      });
+    }
+  }
+  results.sort((a, b) => a.distanceKm - b.distanceKm);
+  return results;
+}
+
+const DISCOVERABLE_COLLECTION = "insight_discoverable";
+
+// Expanding-ring search — keep widening until we have enough or hit
+// the user-supplied ceiling. Mirrors the original Flutter approach.
+export async function findNearbyDiscoverable(
+  center: { latitude: number; longitude: number },
+  maxRadiusKm: number,
+  excludeUid?: string,
+): Promise<RemoteDiscoverable[]> {
+  const centerArr: [number, number] = [center.latitude, center.longitude];
+  const rings = [0.5, 3, 10, maxRadiusKm].filter(
+    (r, i, arr) => r <= maxRadiusKm && arr.indexOf(r) === i,
+  );
+  if (rings.length === 0 || rings[rings.length - 1] < maxRadiusKm) {
+    rings.push(maxRadiusKm);
+  }
+
+  const seen = new Map<string, RemoteDiscoverable>();
+  const col = collection(db(), DISCOVERABLE_COLLECTION);
+
+  for (const r of rings) {
+    const radiusM = r * 1000;
+    const bounds = geohashQueryBounds(centerArr, radiusM);
+    const snaps = await Promise.all(
+      bounds.map((b) =>
+        getDocs(
+          query(
+            col,
+            orderBy("location.geohash"),
+            startAt(b[0]),
+            endAt(b[1]),
+            limit(30),
+          ),
+        ),
+      ),
+    );
+    for (const snap of snaps) {
+      for (const d of snap.docs) {
+        if (d.id === excludeUid) continue;
+        if (seen.has(d.id)) continue;
+        const data = d.data() as {
+          displayName?: string;
+          photoColor?: string;
+          location?: unknown;
+          lastSeen?: number;
+        };
+        const loc = readLocation(data.location);
+        if (!loc) continue;
+        const dKm = distanceBetween([loc.latitude, loc.longitude], centerArr);
+        if (dKm > r) continue;
+        seen.set(d.id, {
+          uid: d.id,
+          displayName: data.displayName,
+          photoColor: data.photoColor,
+          latitude: loc.latitude,
+          longitude: loc.longitude,
+          geohash: loc.geohash,
+          distanceKm: dKm,
+          lastSeen: data.lastSeen,
+        });
+      }
+    }
+    if (seen.size >= 20) break; // mirror Flutter's "enough" threshold
+  }
+
+  const out = [...seen.values()];
+  out.sort((a, b) => a.distanceKm - b.distanceKm);
+  return out.slice(0, 20);
+}
+
+// Upsert / delete the current user's own discoverable doc. Owner-only
+// write (enforced in firestore.rules); read is open to any signed-in
+// user so nearby-search works.
+export async function upsertDiscoverable(
+  uid: string,
+  data: {
+    latitude: number;
+    longitude: number;
+    geohash: string;
+    displayName?: string;
+    photoColor?: string;
+  },
+): Promise<void> {
+  await setDoc(
+    doc(db(), DISCOVERABLE_COLLECTION, uid),
+    {
+      displayName: data.displayName ?? null,
+      photoColor: data.photoColor ?? null,
+      location: {
+        geohash: data.geohash,
+        geopoint: new GeoPoint(data.latitude, data.longitude),
+      },
+      lastSeen: serverTimestamp(),
+    },
+    { merge: true },
+  );
+}
+
+export async function deleteDiscoverable(uid: string): Promise<void> {
+  await deleteDoc(doc(db(), DISCOVERABLE_COLLECTION, uid));
 }

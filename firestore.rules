@@ -12,5 +12,22 @@ service cloud.firestore {
         allow read, write: if request.auth != null && request.auth.uid == uid;
       }
     }
+
+    // Discoverable users — anyone signed in can read (so nearby
+    // discovery works), but only the owner can write their own doc.
+    // The doc holds (fuzzed) location + minimal profile chrome; full
+    // personal data still lives under `insight_users/{uid}/`.
+    match /insight_discoverable/{uid} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && request.auth.uid == uid;
+    }
+
+    // Cities catalogue — world cities + their geohash + geopoint.
+    // Read-only for any signed-in user (the nearest-city query runs
+    // against this collection). Writes are out-of-band (admin tooling).
+    match /Cities/{cityId} {
+      allow read: if request.auth != null;
+      allow write: if false;
+    }
   }
 }

@@ -28,7 +28,12 @@ import type {
   RemoteProfile,
 } from "./firebaseImpl";
 
-export type { RemoteProfile, MigrationPayload } from "./firebaseImpl";
+export type {
+  RemoteProfile,
+  MigrationPayload,
+  RemoteCity,
+  RemoteDiscoverable,
+} from "./firebaseImpl";
 export type { User } from "firebase/auth";
 
 const env = import.meta.env;
@@ -318,4 +323,42 @@ export async function upsertDailyReport(
 export async function deleteDailyReport(uid: string): Promise<void> {
   const m = await impl();
   return m.deleteDailyReport(uid);
+}
+
+// ── Geo discovery (cities + nearby users) ───────────────────────
+
+export async function findNearbyCities(
+  center: { latitude: number; longitude: number },
+  radiusKm: number,
+) {
+  const m = await impl();
+  return m.findNearbyCities(center, radiusKm);
+}
+
+export async function findNearbyDiscoverable(
+  center: { latitude: number; longitude: number },
+  maxRadiusKm: number,
+  excludeUid?: string,
+) {
+  const m = await impl();
+  return m.findNearbyDiscoverable(center, maxRadiusKm, excludeUid);
+}
+
+export async function upsertDiscoverable(
+  uid: string,
+  data: {
+    latitude: number;
+    longitude: number;
+    geohash: string;
+    displayName?: string;
+    photoColor?: string;
+  },
+): Promise<void> {
+  const m = await impl();
+  return m.upsertDiscoverable(uid, data);
+}
+
+export async function deleteDiscoverable(uid: string): Promise<void> {
+  const m = await impl();
+  return m.deleteDiscoverable(uid);
 }

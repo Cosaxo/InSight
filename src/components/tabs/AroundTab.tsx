@@ -9,6 +9,8 @@ import {
 import { DotDensity, RadarChart } from "../shared/charts";
 import { ProfileCompare } from "../insights/ProfileCompare";
 import { MediaPopularity } from "../insights/MediaPopularity";
+import { useGeolocation } from "../../lib/useGeolocation";
+import { useNearbyPeople } from "../../lib/useNearbyPeople";
 
 export interface NearbyPerson {
   id: string;
@@ -365,7 +367,9 @@ function AreaPortrait() {
 export function AroundTab({ onPerson }: AroundTabProps) {
   const [mode, setMode] = useState<"radar" | "list" | "area">("radar");
   const D = IS_DATA;
-  const nearby: NearbyPerson[] = D.nearby;
+  const { position, loading: geoLoading, error: geoError, request } =
+    useGeolocation();
+  const { people: nearby, source } = useNearbyPeople(position, 10);
 
   const cx = 160, cy = 160;
   const placed = nearby.map((p) => {
@@ -385,6 +389,69 @@ export function AroundTab({ onPerson }: AroundTabProps) {
           2,847 souls · 312 like you
         </span>
       </div>
+
+      {/* "Use my location" CTA — only shown when we haven't tried yet. */}
+      {!position && (
+        <div
+          className="card"
+          style={{
+            marginBottom: 10,
+            padding: 12,
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            gap: 12,
+          }}
+        >
+          <div style={{ flex: 1 }}>
+            <Kicker>See who's actually nearby</Kicker>
+            <div
+              className="margin-note"
+              style={{ marginTop: 4, fontSize: 12 }}
+            >
+              {geoError
+                ? geoError
+                : "Tap to use your location — we'll find the people around you."}
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => void request()}
+            disabled={geoLoading}
+            style={{
+              padding: "8px 14px",
+              background: "var(--ink)",
+              color: "var(--paper)",
+              border: "none",
+              borderRadius: 99,
+              fontFamily: "var(--mono)",
+              fontSize: 10,
+              letterSpacing: "0.12em",
+              cursor: geoLoading ? "wait" : "pointer",
+              opacity: geoLoading ? 0.6 : 1,
+            }}
+          >
+            {geoLoading ? "…" : "↑ USE LOCATION"}
+          </button>
+        </div>
+      )}
+
+      {/* When we have a location but nobody nearby is discoverable yet,
+          we're falling back to seed data — be honest about that. */}
+      {position && source === "seed" && (
+        <div
+          className="margin-note"
+          style={{
+            fontSize: 11,
+            color: "var(--ink-3)",
+            marginBottom: 8,
+            fontStyle: "italic",
+          }}
+        >
+          Nobody discoverable in your area yet — showing the seed
+          cast. Turn on "discoverable" in Sharing to be one of them.
+        </div>
+      )}
 
       <AroundEnv data={D.around} />
       <CompassWidget data={D.around} />

@@ -53,4 +53,12 @@
     <uses-permission
         android:name="android.permission.READ_EXTERNAL_STORAGE"
         android:maxSdkVersion="32" />
+
+    <!-- Location — City tab picks your nearest city, Around tab shows
+         people nearby. Coarse is enough for both (city-level + ~km
+         person discovery); we declare fine too so users who grant
+         precise location get tighter distances. Sharing your own
+         location with the discoverable collection is opt-in. -->
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
 </manifest>
