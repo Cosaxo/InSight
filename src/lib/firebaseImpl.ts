@@ -737,3 +737,47 @@ export async function upsertDiscoverable(
 export async function deleteDiscoverable(uid: string): Promise<void> {
   await deleteDoc(doc(db(), DISCOVERABLE_COLLECTION, uid));
 }
+
+// ── Circle (cross-user daily-report read access) ────────────────
+//
+// Presence of /insight_users/{ownerUid}/circle/{viewerUid} means
+// "viewerUid is allowed to read ownerUid's daily report" (enforced in
+// firestore.rules via exists() — viewers themselves cannot list the
+// circle collection, so this is privacy-preserving).
+//
+// Convention: when A adds B to their relations (linkedUid set), A
+// calls grantCircleAccess(A, B) — A is sharing their daily with B.
+// To see B's daily, B must independently call grantCircleAccess(B, A).
+
+export async function grantCircleAccess(
+  ownerUid: string,
+  viewerUid: string,
+): Promise<void> {
+  await setDoc(
+    doc(db(), "insight_users", ownerUid, "circle", viewerUid),
+    { grantedAt: serverTimestamp() },
+    { merge: true },
+  );
+}
+
+export async function revokeCircleAccess(
+  ownerUid: string,
+  viewerUid: string,
+): Promise<void> {
+  await deleteDoc(doc(db(), "insight_users", ownerUid, "circle", viewerUid));
+}
+
+// Subscribe to a *friend's* daily report. Wraps subscribeDailyReport
+// so callers don't have to know that the subscription itself works on
+// any uid — the rule enforces access. Read failure manifests as a
+// "permission-denied" snapshot error, which the cb receives as null.
+export function subscribeFriendDailyReport(
+  friendUid: string,
+  cb: (report: RemoteDailyReport | null) => void,
+): () => void {
+  return onSnapshot(
+    doc(db(), "insight_users", friendUid, "insight_daily", "today"),
+    (snap) => cb(snap.exists() ? (snap.data() as RemoteDailyReport) : null),
+    () => cb(null), // permission denied or other error → treat as no report
+  );
+}

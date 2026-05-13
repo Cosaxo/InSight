@@ -1,6 +1,10 @@
 import { useState } from "react";
 import { Kicker } from "../shared/primitives";
 import { useRelations } from "../../lib/useRelations";
+import { useGeolocation } from "../../lib/useGeolocation";
+import { useNearbyPeople } from "../../lib/useNearbyPeople";
+import { useAuth } from "../../lib/useAuth";
+import { firebaseEnabled } from "../../lib/firebase";
 
 const CATEGORIES: { key: string; label: string; hue: number; rel: string }[] = [
   { key: "family", label: "Family", hue: 12, rel: "family" },
@@ -24,16 +28,39 @@ interface AddPersonFlowProps {
 
 export function AddPersonFlow({ onClose, onSaved }: AddPersonFlowProps) {
   const { add } = useRelations();
+  const { user } = useAuth();
   const [name, setName] = useState("");
   const [catKey, setCatKey] = useState("friends");
   const [match, setMatch] = useState(70);
+  const [linkedUid, setLinkedUid] = useState<string | undefined>(undefined);
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState(false);
+
+  // Optional "pick from nearby" — only meaningful when signed in and
+  // we can query the discoverable collection.
+  const { position, loading: geoLoading, request: requestGeo } =
+    useGeolocation();
+  const { people: nearby, source: nearbySource } = useNearbyPeople(
+    position,
+    10,
+  );
+  // Filter out:
+  //   - ourselves (defensive — useNearbyPeople already excludes)
+  //   - the seed cast (we can only link to real Firestore uids)
+  const realNearby =
+    nearbySource === "firestore"
+      ? nearby.filter((p) => p.id !== user?.uid)
+      : [];
 
   const cat =
     CATEGORIES.find((c) => c.key === catKey) ?? CATEGORIES[1];
 
   const canSave = name.trim().length > 0 && !busy;
+
+  const pickNearby = (p: (typeof realNearby)[number]) => {
+    setName(p.name);
+    setLinkedUid(p.id);
+  };
 
   const save = async () => {
     if (!canSave) return;
@@ -48,6 +75,7 @@ export function AddPersonFlow({ onClose, onSaved }: AddPersonFlowProps) {
         category: cat.key,
         degrees: 1,
         since: String(new Date().getFullYear()),
+        linkedUid,
       });
       setDone(true);
       setTimeout(() => {
@@ -124,6 +152,130 @@ export function AddPersonFlow({ onClose, onSaved }: AddPersonFlowProps) {
             </div>
           </div>
         </div>
+
+        {/* Pick from nearby InSight users — populates name + linkedUid
+            so the friend feed can include them. */}
+        {firebaseEnabled && user && (
+          <div className="card" style={{ marginBottom: 14 }}>
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "baseline",
+              }}
+            >
+              <Kicker>Or pick from nearby</Kicker>
+              {linkedUid && (
+                <span
+                  className="kicker"
+                  style={{
+                    cursor: "pointer",
+                    color: "var(--ink-3)",
+                  }}
+                  onClick={() => {
+                    setLinkedUid(undefined);
+                    setName("");
+                  }}
+                >
+                  CLEAR LINK
+                </span>
+              )}
+            </div>
+            {!position && (
+              <div style={{ marginTop: 8 }}>
+                <div
+                  className="margin-note"
+                  style={{ fontSize: 12, marginBottom: 8 }}
+                >
+                  Tap to see InSight users near you. Linking lets them
+                  appear in your daily feed once they share back.
+                </div>
+                <button
+                  type="button"
+                  onClick={() => void requestGeo()}
+                  disabled={geoLoading}
+                  style={{
+                    padding: "6px 12px",
+                    background: "var(--ink)",
+                    color: "var(--paper)",
+                    border: "none",
+                    borderRadius: 99,
+                    fontFamily: "var(--mono)",
+                    fontSize: 9,
+                    letterSpacing: "0.12em",
+                    cursor: geoLoading ? "wait" : "pointer",
+                  }}
+                >
+                  {geoLoading ? "…" : "↑ USE LOCATION"}
+                </button>
+              </div>
+            )}
+            {position && realNearby.length === 0 && (
+              <div
+                className="margin-note"
+                style={{
+                  marginTop: 8,
+                  fontSize: 12,
+                  fontStyle: "italic",
+                  color: "var(--ink-3)",
+                }}
+              >
+                Nobody discoverable in your area yet.
+              </div>
+            )}
+            {position && realNearby.length > 0 && (
+              <div
+                style={{
+                  display: "flex",
+                  flexWrap: "wrap",
+                  gap: 6,
+                  marginTop: 8,
+                }}
+              >
+                {realNearby.slice(0, 8).map((p) => {
+                  const active = linkedUid === p.id;
+                  return (
+                    <button
+                      key={p.id}
+                      type="button"
+                      onClick={() => pickNearby(p)}
+                      className="stamp"
+                      style={{
+                        cursor: "pointer",
+                        background: active ? "var(--ink)" : "var(--paper-2)",
+                        color: active ? "var(--paper)" : "var(--ink)",
+                        border: "0.5px solid var(--rule)",
+                        display: "flex",
+                        gap: 6,
+                        alignItems: "center",
+                      }}
+                    >
+                      <span
+                        style={{
+                          width: 18,
+                          height: 18,
+                          borderRadius: "50%",
+                          background: `oklch(0.86 0.05 ${p.hue})`,
+                          color: `oklch(0.30 0.13 ${p.hue})`,
+                          fontFamily: "var(--serif)",
+                          fontStyle: "italic",
+                          fontSize: 10,
+                          display: "inline-flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          flexShrink: 0,
+                        }}
+                      >
+                        {p.init}
+                      </span>
+                      {p.name} · {p.dist}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
 
         <Kicker>Their name</Kicker>
         <input

@@ -10,6 +10,8 @@ import {
   addRelation,
   deleteRelation,
   firebaseEnabled,
+  grantCircleAccess,
+  revokeCircleAccess,
   subscribeRelations,
 } from "./firebase";
 import { useAuth } from "./useAuth";
@@ -26,6 +28,11 @@ export interface UserPerson {
   category: string;
   degrees: number;
   since: string;
+  // When this relation is linked to an actual InSight user, store
+  // their uid. Used for the friend feed: presence of linkedUid means
+  // "this person exists in our database; I've granted them daily-
+  // report access; I might be able to see theirs if they reciprocate."
+  linkedUid?: string;
 }
 
 function readLocal(): UserPerson[] {
@@ -57,7 +64,14 @@ function toPerson(p: UserPerson): Person {
     match: p.match,
     // Extra fields below are stored alongside the schema and read back
     // verbatim. Cast to keep the legacy Person type happy.
-    ...({ hue: p.hue, rel: p.rel, customCategory: p.category, degrees: p.degrees, since: p.since } as Partial<Person>),
+    ...({
+      hue: p.hue,
+      rel: p.rel,
+      customCategory: p.category,
+      degrees: p.degrees,
+      since: p.since,
+      linkedUid: p.linkedUid,
+    } as Partial<Person>),
   };
 }
 
@@ -67,6 +81,7 @@ interface RemotePersonLike extends Person {
   customCategory?: string;
   degrees?: number;
   since?: string;
+  linkedUid?: string;
 }
 
 function fromPerson(p: RemotePersonLike): UserPerson {
@@ -89,6 +104,7 @@ function fromPerson(p: RemotePersonLike): UserPerson {
     category: p.customCategory ?? p.category ?? "acquaintances",
     degrees: p.degrees ?? 1,
     since: p.since ?? String(new Date().getFullYear()),
+    linkedUid: p.linkedUid,
   };
 }
 
@@ -122,15 +138,34 @@ export function useRelations(): {
     writeLocal(updated);
     if (isSignedIn && user) {
       await addRelation(user.uid, toPerson(next));
+      // Adding someone with a linked uid auto-grants them daily-
+      // report read access — symmetric reciprocity is up to them.
+      if (next.linkedUid) {
+        try {
+          await grantCircleAccess(user.uid, next.linkedUid);
+        } catch (err) {
+          console.error("[useRelations] grant circle failed:", err);
+        }
+      }
     }
   };
 
   const remove = async (id: string) => {
+    const victim = people.find((p) => p.id === id);
     const updated = people.filter((p) => p.id !== id);
     setLocal(updated);
     writeLocal(updated);
     if (isSignedIn && user) {
       await deleteRelation(user.uid, id);
+      // Revoke the grant we made when adding — they can no longer
+      // read our daily report.
+      if (victim?.linkedUid) {
+        try {
+          await revokeCircleAccess(user.uid, victim.linkedUid);
+        } catch (err) {
+          console.error("[useRelations] revoke circle failed:", err);
+        }
+      }
     }
   };
 

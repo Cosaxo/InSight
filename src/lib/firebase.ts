@@ -397,3 +397,37 @@ export async function deleteDiscoverable(uid: string): Promise<void> {
   const m = await impl();
   return m.deleteDiscoverable(uid);
 }
+
+// ── Circle (friend daily-report access) ─────────────────────────
+
+export async function grantCircleAccess(
+  ownerUid: string,
+  viewerUid: string,
+): Promise<void> {
+  const m = await impl();
+  return m.grantCircleAccess(ownerUid, viewerUid);
+}
+
+export async function revokeCircleAccess(
+  ownerUid: string,
+  viewerUid: string,
+): Promise<void> {
+  const m = await impl();
+  return m.revokeCircleAccess(ownerUid, viewerUid);
+}
+
+export function subscribeFriendDailyReport(
+  friendUid: string,
+  cb: (report: RemoteDailyReport | null) => void,
+): () => void {
+  let cancelled = false;
+  let unsub: (() => void) | null = null;
+  impl().then((m) => {
+    if (cancelled) return;
+    unsub = m.subscribeFriendDailyReport(friendUid, cb);
+  });
+  return () => {
+    cancelled = true;
+    unsub?.();
+  };
+}

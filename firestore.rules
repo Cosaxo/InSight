@@ -1,13 +1,41 @@
 rules_version = '2';
 
-// Every user can read and write only their own subtree under
-// `insight_users/{uid}`. No unauthenticated access.
+// Default: every user reads and writes only their own subtree under
+// `insight_users/{uid}`. Special-case rules below carve out narrow
+// cross-user reads (daily reports via the circle subcollection,
+// discoverable users for nearby discovery, world cities).
 // Deploy with: firebase deploy --only firestore:rules
 service cloud.firestore {
   match /databases/{database}/documents {
+
+    // Owner can do anything in their own subtree.
     match /insight_users/{uid} {
       allow read, write: if request.auth != null && request.auth.uid == uid;
 
+      // Daily report — cross-user read carve-out. A friend can read
+      // your daily report when you've granted them via the `circle`
+      // subcollection (presence of doc at /circle/{theirUid}).
+      // This is checked before the generic /{collection}/{doc}
+      // rule below so it actually takes effect.
+      match /insight_daily/{day} {
+        allow read: if request.auth != null && (
+          request.auth.uid == uid ||
+          exists(
+            /databases/$(database)/documents/insight_users/$(uid)/circle/$(request.auth.uid)
+          )
+        );
+        allow write: if request.auth != null && request.auth.uid == uid;
+      }
+
+      // Circle — grants daily-report read access. Owner manages this
+      // subcollection. We deliberately don't allow non-owners to read
+      // the circle list itself (they only need rules-internal
+      // `exists()` checks, which bypass user rules).
+      match /circle/{viewerUid} {
+        allow read, write: if request.auth != null && request.auth.uid == uid;
+      }
+
+      // All other subcollections — owner-only.
       match /{collection}/{doc} {
         allow read, write: if request.auth != null && request.auth.uid == uid;
       }

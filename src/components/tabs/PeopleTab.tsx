@@ -10,6 +10,7 @@ import { ProfileCompare } from "../insights/ProfileCompare";
 import { MediaPopularity } from "../insights/MediaPopularity";
 import { GroupBreakdown } from "../insights/GroupBreakdown";
 import { useRelations, type UserPerson } from "../../lib/useRelations";
+import { useFriendDailies } from "../../lib/useFriendDailies";
 
 export interface CirclePerson extends ConcentricPerson {
   rel: string;
@@ -81,13 +82,31 @@ export function PeopleTab({
   onAddPerson,
   myDailyReport,
 }: PeopleTabProps) {
-  const D = IS_DATA;
   const myDaily = myDailyReport ?? null;
-  const allReports: DailyReport[] = myDaily
-    ? [myDaily, ...D.dailyReports]
-    : D.dailyReports;
   const [chainTarget, setChainTarget] = useState<CirclePerson | null>(null);
   const { people: userPeople } = useRelations();
+  const { dailies: friendDailies } = useFriendDailies(userPeople);
+
+  // Friend daily reports → DailyReport view shape. Friend reports only
+  // carry the public fields (no body / move / nutrition / scrapbook —
+  // those are owner-only on the source doc).
+  const friendReports: DailyReport[] = useMemo(
+    () =>
+      friendDailies.map(({ friend, report }) => ({
+        personId: friend.id,
+        date: report.date,
+        shared: report.shared,
+        mood: report.mood,
+        moodLabel: report.moodLabel,
+        one_line: report.one_line,
+        weather: report.weather,
+      })),
+    [friendDailies],
+  );
+
+  const allReports: DailyReport[] = myDaily
+    ? [myDaily, ...friendReports]
+    : friendReports;
 
   const categories = [
     { key: "family", label: "Family", icon: "✦", hue: 12 },
@@ -96,13 +115,10 @@ export function PeopleTab({
     { key: "neighbors", label: "Neighbors", icon: "△", hue: 145 },
     { key: "acquaintances", label: "Acquaintances", icon: "·", hue: 250 },
   ];
-  const people: CirclePerson[] = useMemo(() => {
-    const seed: CirclePerson[] = D.people;
-    const added = userPeople.map(userToCircle);
-    // User-added first so their ConcentricMap angle ranks stay stable
-    // as the seed list changes.
-    return [...added, ...seed];
-  }, [D.people, userPeople]);
+  const people: CirclePerson[] = useMemo(
+    () => userPeople.map(userToCircle),
+    [userPeople],
+  );
 
   // Stable callback so the memoized ConcentricMap doesn't re-render
   // when chainTarget / other PeopleTab state changes.
@@ -135,14 +151,16 @@ export function PeopleTab({
   };
   const chain = buildChain(chainTarget);
 
-  const avgMatch = Math.round(
-    people.reduce((s, p) => s + p.match, 0) / people.length,
-  );
-  const oldestYear = Math.min(
-    ...people
-      .filter((p) => p.since !== "birth")
-      .map((p) => parseInt(p.since, 10)),
-  );
+  const avgMatch =
+    people.length === 0
+      ? 0
+      : Math.round(people.reduce((s, p) => s + p.match, 0) / people.length);
+  const sinceYears = people
+    .filter((p) => p.since !== "birth")
+    .map((p) => parseInt(p.since, 10))
+    .filter((y) => Number.isFinite(y));
+  const oldestYear = sinceYears.length === 0 ? 0 : Math.min(...sinceYears);
+  const oldestLabel = oldestYear ? `${2025 - oldestYear}y` : "—";
 
   return (
     <div className="fade-in">
@@ -190,6 +208,21 @@ export function PeopleTab({
         </div>
 
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          {allReports.length === 0 && (
+            <div
+              className="margin-note"
+              style={{
+                fontSize: 12,
+                fontStyle: "italic",
+                color: "var(--ink-3)",
+                padding: "8px 0",
+              }}
+            >
+              {userPeople.length === 0
+                ? "Add people to your circle to see their day. Log your own daily to share yours back."
+                : "Nobody in your circle has shared today yet. (They each have to grant you access from their side.)"}
+            </div>
+          )}
           {allReports.map((r) => {
             const isMe = r.personId === "me";
             const p = isMe
@@ -476,7 +509,7 @@ export function PeopleTab({
         </div>
         <div>
           <div className="fig-num" style={{ fontSize: 28 }}>
-            <em>{2025 - oldestYear}y</em>
+            <em>{oldestLabel}</em>
           </div>
           <div className="kicker">OLDEST TIE</div>
         </div>
