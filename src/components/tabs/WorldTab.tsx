@@ -1,8 +1,5 @@
 import { useMemo } from "react";
 import { Kicker } from "../shared/primitives";
-import { ProfileCompare } from "../insights/ProfileCompare";
-import { MediaPopularity } from "../insights/MediaPopularity";
-import { GroupBreakdown } from "../insights/GroupBreakdown";
 import { useGeolocation } from "../../lib/useGeolocation";
 import { useActiveCities } from "../../lib/useActiveCities";
 import { useNearbyCities } from "../../lib/useNearbyCities";
@@ -429,13 +426,6 @@ export function WorldTab({ onCity }: WorldTabProps) {
           );
         })}
       </div>
-
-      <hr className="rule-dashed" />
-      <ProfileCompare scope="world" accent="var(--c-world)" />
-      <hr className="rule-dashed" />
-      <GroupBreakdown scope="world" accent="var(--c-world)" />
-      <hr className="rule-dashed" />
-      <MediaPopularity scope="world" accent="var(--c-world)" />
     </div>
   );
 }

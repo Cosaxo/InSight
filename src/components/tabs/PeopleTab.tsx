@@ -5,9 +5,6 @@ import {
   ConcentricMap,
   type ConcentricPerson,
 } from "../shared/ConcentricMap";
-import { ProfileCompare } from "../insights/ProfileCompare";
-import { MediaPopularity } from "../insights/MediaPopularity";
-import { GroupBreakdown } from "../insights/GroupBreakdown";
 import { useRelations, type UserPerson } from "../../lib/useRelations";
 import { useFriendDailies } from "../../lib/useFriendDailies";
 import { useMe } from "../../lib/useMe";
@@ -794,15 +791,6 @@ export function PeopleTab({
           />
         </div>
       </div>
-
-      <hr className="rule-dashed" />
-      <ProfileCompare scope="circle" accent="var(--c-people)" />
-
-      <hr className="rule-dashed" />
-      <GroupBreakdown scope="friends" accent="var(--c-people)" />
-
-      <hr className="rule-dashed" />
-      <MediaPopularity scope="circle" accent="var(--c-people)" />
 
       <hr className="rule-dashed" />
       <Kicker>Add someone</Kicker>

@@ -1,9 +1,6 @@
 import { useMemo, useState } from "react";
 import { Kicker } from "../shared/primitives";
 import { Donut, RadarChart } from "../shared/charts";
-import { ProfileCompare } from "../insights/ProfileCompare";
-import { MediaPopularity } from "../insights/MediaPopularity";
-import { GroupBreakdown } from "../insights/GroupBreakdown";
 import { useCityRatings } from "../../lib/useCityRatings";
 import { useGeolocation } from "../../lib/useGeolocation";
 import { useNearbyCities, type NearbyCity } from "../../lib/useNearbyCities";
@@ -94,13 +91,6 @@ export function CityTab() {
             {geoLoading ? "…" : "↑ USE LOCATION"}
           </button>
         </div>
-
-        <hr className="rule-dashed" />
-        <ProfileCompare scope="city" accent="var(--c-city)" />
-        <hr className="rule-dashed" />
-        <GroupBreakdown scope="city" accent="var(--c-city)" />
-        <hr className="rule-dashed" />
-        <MediaPopularity scope="city" accent="var(--c-city)" />
       </div>
     );
   }
@@ -464,13 +454,6 @@ export function CityTab() {
           </div>
         </div>
       )}
-
-      <hr className="rule-dashed" />
-      <ProfileCompare scope="city" accent="var(--c-city)" />
-      <hr className="rule-dashed" />
-      <GroupBreakdown scope="city" accent="var(--c-city)" />
-      <hr className="rule-dashed" />
-      <MediaPopularity scope="city" accent="var(--c-city)" />
     </div>
   );
 }

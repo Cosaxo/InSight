@@ -7,8 +7,6 @@ import {
   Pill,
 } from "../shared/primitives";
 import { DotDensity, RadarChart } from "../shared/charts";
-import { ProfileCompare } from "../insights/ProfileCompare";
-import { MediaPopularity } from "../insights/MediaPopularity";
 import { useGeolocation } from "../../lib/useGeolocation";
 import { useNearbyPeople } from "../../lib/useNearbyPeople";
 
@@ -493,15 +491,6 @@ export function AroundTab({ onPerson }: AroundTabProps) {
       )}
 
       {mode === "area" && <AreaPortrait />}
-
-      {mode !== "area" && (
-        <>
-          <hr className="rule-dashed" />
-          <ProfileCompare scope="around" accent="var(--c-around)" />
-          <hr className="rule-dashed" />
-          <MediaPopularity scope="around" accent="var(--c-around)" />
-        </>
-      )}
     </div>
   );
 }
