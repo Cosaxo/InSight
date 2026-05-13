@@ -157,6 +157,24 @@ export interface Habit {
   completions: string[]; // ISO YYYY-MM-DD dates
 }
 
+// A scrapbook specimen — one row in the user's field journal.
+// `category` matches an id in IS_DATA.scrapbookCats (or the legacy
+// SCRAP_CATS in ScrapbookOverlay) so the UI can attach glyph + hue.
+// `latin` and `note` are optional. `photoData` is an optional
+// base64-encoded image kept in localStorage on the user's device
+// (we don't sync image blobs to Firestore — too big, and the photo
+// stays on the device that took it).
+export interface Specimen {
+  id: string;
+  category: string;
+  name: string;
+  latin?: string;
+  date: string; // free-form display date ("apr 12 · 2026") or ISO
+  loc?: string;
+  note?: string;
+  createdAt: number; // ms epoch, for sorting "recent finds"
+}
+
 export type WorkoutIntensity = "Low" | "Medium" | "High";
 export type WorkoutType =
   | "Run"

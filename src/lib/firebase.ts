@@ -19,6 +19,7 @@ import type {
   MoodEntry,
   Person,
   RemoteDailyReport,
+  Specimen,
   Transaction,
   Workout,
 } from "../types";
@@ -306,6 +307,32 @@ export async function updateHabit(
 ): Promise<void> {
   const m = await impl();
   return m.updateHabit(uid, id, patch);
+}
+
+export function subscribeScrapbook(
+  uid: string,
+  cb: (items: Specimen[]) => void,
+): () => void {
+  return lazySubscribe((m) => m.subscribeScrapbook, uid, cb);
+}
+
+export async function addSpecimen(uid: string, s: Specimen): Promise<void> {
+  const m = await impl();
+  return m.addSpecimen(uid, s);
+}
+
+export async function updateSpecimen(
+  uid: string,
+  id: string,
+  patch: Partial<Specimen>,
+): Promise<void> {
+  const m = await impl();
+  return m.updateSpecimen(uid, id, patch);
+}
+
+export async function deleteSpecimen(uid: string, id: string): Promise<void> {
+  const m = await impl();
+  return m.deleteSpecimen(uid, id);
 }
 
 export async function addWorkout(

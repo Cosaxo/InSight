@@ -51,6 +51,7 @@ import type {
   Person,
   Political,
   RemoteDailyReport,
+  Specimen,
   Transaction,
   Workout,
 } from "../types";
@@ -326,6 +327,31 @@ export async function updateHabit(
 
 export async function deleteHabit(uid: string, id: string): Promise<void> {
   await deleteDoc(subDocRef(uid, "insight_habits", id));
+}
+
+// ── Scrapbook ───────────────────────────────────────────────────
+
+export function subscribeScrapbook(
+  uid: string,
+  cb: (items: Specimen[]) => void,
+): () => void {
+  return subscribeList<Specimen>(uid, "insight_scrapbook", cb);
+}
+
+export async function addSpecimen(uid: string, s: Specimen): Promise<void> {
+  await setDoc(subDocRef(uid, "insight_scrapbook", s.id), stripId(s));
+}
+
+export async function updateSpecimen(
+  uid: string,
+  id: string,
+  patch: Partial<Specimen>,
+): Promise<void> {
+  await updateDoc(subDocRef(uid, "insight_scrapbook", id), patch);
+}
+
+export async function deleteSpecimen(uid: string, id: string): Promise<void> {
+  await deleteDoc(subDocRef(uid, "insight_scrapbook", id));
 }
 
 // ── Skills (Groups tab) ─────────────────────────────────────────
