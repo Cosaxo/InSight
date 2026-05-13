@@ -1,5 +1,4 @@
 import { Fragment, useCallback, useMemo, useState } from "react";
-import { IS_DATA } from "../../data/seedData";
 import { Av, Kicker } from "../shared/primitives";
 import { Compass2D } from "../shared/charts";
 import {
@@ -11,6 +10,7 @@ import { MediaPopularity } from "../insights/MediaPopularity";
 import { GroupBreakdown } from "../insights/GroupBreakdown";
 import { useRelations, type UserPerson } from "../../lib/useRelations";
 import { useFriendDailies } from "../../lib/useFriendDailies";
+import { useMe } from "../../lib/useMe";
 
 export interface CirclePerson extends ConcentricPerson {
   rel: string;
@@ -83,6 +83,7 @@ export function PeopleTab({
   myDailyReport,
 }: PeopleTabProps) {
   const myDaily = myDailyReport ?? null;
+  const me = useMe();
   const [chainTarget, setChainTarget] = useState<CirclePerson | null>(null);
   const { people: userPeople } = useRelations();
   const { dailies: friendDailies } = useFriendDailies(userPeople);
@@ -228,9 +229,9 @@ export function PeopleTab({
             const p = isMe
               ? {
                   id: "me",
-                  init: IS_DATA.me.initials,
-                  hue: 38,
-                  name: "you",
+                  init: me.initials,
+                  hue: me.hue,
+                  name: me.name,
                   rel: "yourself",
                 }
               : people.find((x) => x.id === r.personId);

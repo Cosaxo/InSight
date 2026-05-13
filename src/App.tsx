@@ -6,7 +6,9 @@ import {
   profileExists,
   warmFirebase,
 } from "./lib/firebase";
+import { IS_DATA } from "./data/seedData";
 import { useAuth } from "./lib/useAuth";
+import { useMe } from "./lib/useMe";
 import { readLegacyDailyReport } from "./lib/useDailyReport";
 import { useTweaks } from "./lib/useTweaks";
 import { IOSDevice } from "./components/shared/IOSDevice";
@@ -28,7 +30,6 @@ import {
   TweakToggle,
   TweaksPanel,
 } from "./components/shared/TweaksPanel";
-import { IS_DATA } from "./data/seedData";
 import type { PersonForOverlay } from "./components/overlays/PersonOverlay";
 import { useDailyReport } from "./lib/useDailyReport";
 
@@ -250,7 +251,7 @@ function AppShell() {
     setFabOpen(false);
   };
 
-  const me = IS_DATA.me;
+  const me = useMe();
   const appClasses = `app paper-grain ${t.dark ? "dark" : ""} ${
     t.density || "regular"
   }`;
@@ -446,7 +447,7 @@ function AppShell() {
           {person && (
             <PersonOverlay
               p={toOverlayPerson(person)}
-              me={me}
+              me={IS_DATA.me}
               onClose={() => setPerson(null)}
             />
           )}

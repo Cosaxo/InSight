@@ -1,5 +1,4 @@
 import { useMemo } from "react";
-import { IS_DATA } from "../../data/seedData";
 import { Kicker } from "../shared/primitives";
 import { ProfileCompare } from "../insights/ProfileCompare";
 import { MediaPopularity } from "../insights/MediaPopularity";
@@ -7,6 +6,7 @@ import { GroupBreakdown } from "../insights/GroupBreakdown";
 import { useGeolocation } from "../../lib/useGeolocation";
 import { useActiveCities } from "../../lib/useActiveCities";
 import { useNearbyCities } from "../../lib/useNearbyCities";
+import { useEarthMetrics } from "../../lib/useEarthMetrics";
 import { firebaseEnabled } from "../../lib/firebase";
 import type { RemoteCity } from "../../lib/firebase";
 
@@ -50,8 +50,7 @@ function toCitySeed(c: RemoteCity): CitySeed {
 }
 
 export function WorldTab({ onCity }: WorldTabProps) {
-  const D = IS_DATA;
-  const E = D.earth;
+  const E = useEarthMetrics();
   const { position, loading: geoLoading, request } = useGeolocation();
   const { cities: activeCities, loading: activeLoading, error: activeError } =
     useActiveCities(50);
@@ -88,16 +87,19 @@ export function WorldTab({ onCity }: WorldTabProps) {
           }}
         >
           <Kicker>Today on Earth · {E.date}</Kicker>
-          <span
-            style={{
-              fontFamily: "var(--mono)",
-              fontSize: 9,
-              color: "oklch(0.45 0.13 145)",
-              letterSpacing: "0.1em",
-            }}
-          >
-            · LIVE
-          </span>
+          {E.isLive && (
+            <span
+              style={{
+                fontFamily: "var(--mono)",
+                fontSize: 9,
+                color: "oklch(0.45 0.13 145)",
+                letterSpacing: "0.1em",
+              }}
+              title="CO₂ from NOAA · temp anomaly from NASA · ice from NSIDC, via global-warming.org"
+            >
+              · LIVE
+            </span>
+          )}
         </div>
         <div
           style={{
@@ -138,7 +140,7 @@ export function WorldTab({ onCity }: WorldTabProps) {
           <div>
             <div className="kicker">TEMP ANOMALY</div>
             <div className="fig-num" style={{ fontSize: 26 }}>
-              <em>+{E.temp}</em>
+              <em>{E.temp}</em>
               <span
                 style={{
                   fontFamily: "var(--mono)",

@@ -1,6 +1,8 @@
 import { IS_DATA } from "../../data/seedData";
 import { Kicker } from "../shared/primitives";
 import { Donut, RadarChart } from "../shared/charts";
+import { useCityRatings } from "../../lib/useCityRatings";
+import type { CityRating } from "../../types";
 import type { CitySeed } from "../tabs/WorldTab";
 
 interface CityScoreCat {
@@ -15,24 +17,67 @@ interface CityOverlayProps {
   onClose: () => void;
 }
 
-const HOME_MAP: Record<string, number> = {
-  commute: 80,
-  safety: 92,
-  beauty: 78,
-  food: 60,
-  nature: 96,
-  nightlife: 50,
-  climate: 38,
-  cost: 38,
+// Map the 8 city-score axes to keys in the user's CityRating (the
+// shape useCityRatings produces). Where there's no honest overlap,
+// the value stays undefined and we use a neutral 50 in the radar.
+const SCORE_TO_RATING: Record<string, keyof CityRating | undefined> = {
+  commute: "transport",
+  safety: "safety",
+  beauty: "architecture",
+  food: "food",
+  nature: "nature",
+  nightlife: "nightlife",
+  climate: undefined, // no rating axis covers climate
+  cost: "cost",
 };
+
+// Derive a HOME_MAP-shaped object from the user's highest-rated city
+// (sum of all 1-5 star ratings). Returns null when the user hasn't
+// rated any city yet — caller hides the comparison line in that case.
+function deriveHomeVals(
+  ratings: ReturnType<typeof useCityRatings>["ratings"],
+  cats: CityScoreCat[],
+): { name: string; values: number[] } | null {
+  const entries = Object.entries(ratings);
+  if (entries.length === 0) return null;
+  // Pick the city with the highest total rating as "home" — most
+  // loved is the most honest proxy for the user's ideal.
+  let best: { name: string; total: number; r: CityRating } | null = null;
+  for (const [name, r] of entries) {
+    const total = Object.values(r).reduce(
+      (s, v) => s + (typeof v === "number" ? v : 0),
+      0,
+    );
+    if (total <= 0) continue;
+    if (!best || total > best.total) best = { name, total, r };
+  }
+  if (!best) return null;
+  const values = cats.map((cat) => {
+    const ratingKey = SCORE_TO_RATING[cat.id];
+    if (!ratingKey) return 50;
+    const stars = best!.r[ratingKey];
+    return typeof stars === "number" ? Math.round(stars * 20) : 50;
+  });
+  return { name: best.name, values };
+}
 
 export function CityOverlay({ city, onClose }: CityOverlayProps) {
   const cats: CityScoreCat[] = IS_DATA.cityScoreCats;
+  const { ratings } = useCityRatings();
+  // Real cities pulled from Firestore don't have the 8-axis scores
+  // editorial layer. Without scores there's nothing honest to render
+  // for the radar / overall / breakdown cards, so we gate all three.
+  const hasScores =
+    !!city.scores && Object.keys(city.scores).length > 0;
   const scores = city.scores || {};
   const total = cats.reduce((s, c) => s + (scores[c.id] || 0), 0);
   const avg = Math.round(total / cats.length);
 
-  const homeVals = cats.map((c) => HOME_MAP[c.id] || 50);
+  // "Home" baseline now derives from the user's highest-rated city
+  // (via useCityRatings), translating the rating axes into the
+  // 8-axis score schema. Null when the user has rated nothing —
+  // the radar comparison line is hidden in that case.
+  const home = deriveHomeVals(ratings, cats);
   const cityVals = cats.map((c) => scores[c.id] || 0);
 
   const ranked = cats
@@ -132,87 +177,105 @@ export function CityOverlay({ city, onClose }: CityOverlayProps) {
           />
         </div>
 
-        <div
-          className="card"
-          style={{
-            marginBottom: 14,
-            display: "flex",
-            justifyContent: "space-between",
-            textAlign: "center",
-          }}
-        >
-          <div>
-            <div className="fig-num" style={{ fontSize: 26 }}>
-              <em>{avg}</em>
-            </div>
-            <div className="kicker">OVERALL</div>
-          </div>
-          <div>
-            <div className="fig-num" style={{ fontSize: 26 }}>
-              <em>{Math.max(...cityVals)}</em>
-            </div>
-            <div className="kicker">BEST</div>
-          </div>
-          <div>
-            <div className="fig-num" style={{ fontSize: 26 }}>
-              <em>{Math.min(...cityVals)}</em>
-            </div>
-            <div className="kicker">WORST</div>
-          </div>
-        </div>
-
-        <div className="card" style={{ marginBottom: 14 }}>
-          <Kicker>Eight axes · {city.name} vs. home</Kicker>
-          <div style={{ marginTop: 8 }}>
-            <RadarChart
-              values={cityVals}
-              compareValues={homeVals}
-              compareColor="var(--ink-3)"
-              labels={cats.map((c) => c.label)}
-              color={`oklch(0.55 0.12 ${city.hue})`}
-              size={280}
-            />
-          </div>
+        {hasScores && (
           <div
+            className="card"
             style={{
+              marginBottom: 14,
               display: "flex",
-              gap: 14,
-              fontFamily: "var(--mono)",
-              fontSize: 9,
-              color: "var(--ink-3)",
-              letterSpacing: "0.08em",
-              marginTop: 4,
+              justifyContent: "space-between",
+              textAlign: "center",
             }}
           >
-            <span>
-              <span
-                style={{
-                  display: "inline-block",
-                  width: 10,
-                  height: 2,
-                  background: `oklch(0.55 0.12 ${city.hue})`,
-                  verticalAlign: "middle",
-                  marginRight: 5,
-                }}
-              />
-              {city.name.toUpperCase()}
-            </span>
-            <span>
-              <span
-                style={{
-                  display: "inline-block",
-                  width: 10,
-                  height: 2,
-                  background: "var(--ink-3)",
-                  verticalAlign: "middle",
-                  marginRight: 5,
-                }}
-              />
-              OSLO (HOME)
-            </span>
+            <div>
+              <div className="fig-num" style={{ fontSize: 26 }}>
+                <em>{avg}</em>
+              </div>
+              <div className="kicker">OVERALL</div>
+            </div>
+            <div>
+              <div className="fig-num" style={{ fontSize: 26 }}>
+                <em>{Math.max(...cityVals)}</em>
+              </div>
+              <div className="kicker">BEST</div>
+            </div>
+            <div>
+              <div className="fig-num" style={{ fontSize: 26 }}>
+                <em>{Math.min(...cityVals)}</em>
+              </div>
+              <div className="kicker">WORST</div>
+            </div>
           </div>
-        </div>
+        )}
 
+        {hasScores && (
+          <div className="card" style={{ marginBottom: 14 }}>
+            <Kicker>
+              Eight axes
+              {home ? ` · ${city.name} vs. ${home.name}` : ` · ${city.name}`}
+            </Kicker>
+            <div style={{ marginTop: 8 }}>
+              <RadarChart
+                values={cityVals}
+                compareValues={home ? home.values : undefined}
+                compareColor="var(--ink-3)"
+                labels={cats.map((c) => c.label)}
+                color={`oklch(0.55 0.12 ${city.hue})`}
+                size={280}
+              />
+            </div>
+            <div
+              style={{
+                display: "flex",
+                gap: 14,
+                fontFamily: "var(--mono)",
+                fontSize: 9,
+                color: "var(--ink-3)",
+                letterSpacing: "0.08em",
+                marginTop: 4,
+              }}
+            >
+              <span>
+                <span
+                  style={{
+                    display: "inline-block",
+                    width: 10,
+                    height: 2,
+                    background: `oklch(0.55 0.12 ${city.hue})`,
+                    verticalAlign: "middle",
+                    marginRight: 5,
+                  }}
+                />
+                {city.name.toUpperCase()}
+              </span>
+              {home && (
+                <span>
+                  <span
+                    style={{
+                      display: "inline-block",
+                      width: 10,
+                      height: 2,
+                      background: "var(--ink-3)",
+                      verticalAlign: "middle",
+                      marginRight: 5,
+                    }}
+                  />
+                  {home.name.toUpperCase()} · YOUR BEST-RATED
+                </span>
+              )}
+            </div>
+            {!home && (
+              <div
+                className="margin-note"
+                style={{ marginTop: 8, fontSize: 11, fontStyle: "italic" }}
+              >
+                Rate a few cities to see a "you-vs-here" comparison.
+              </div>
+            )}
+          </div>
+        )}
+
+        {hasScores && (
         <div className="card" style={{ marginBottom: 14 }}>
           <Kicker>The full report</Kicker>
           <div
@@ -225,6 +288,9 @@ export function CityOverlay({ city, onClose }: CityOverlayProps) {
           >
             {ranked.map((r) => {
               const accent = `oklch(0.55 0.12 ${city.hue})`;
+              const homeIdx = cats.findIndex((c) => c.id === r.id);
+              const homeVal =
+                home && homeIdx >= 0 ? home.values[homeIdx] : null;
               return (
                 <div key={r.id}>
                   <div
@@ -300,12 +366,12 @@ export function CityOverlay({ city, onClose }: CityOverlayProps) {
                         opacity: 0.65,
                       }}
                     />
-                    {HOME_MAP[r.id] != null && (
+                    {homeVal != null && (
                       <span
-                        title={`Oslo: ${HOME_MAP[r.id]}`}
+                        title={`${home?.name}: ${homeVal}`}
                         style={{
                           position: "absolute",
-                          left: `calc(${HOME_MAP[r.id]}% - 1px)`,
+                          left: `calc(${homeVal}% - 1px)`,
                           top: -2,
                           bottom: -2,
                           width: 2,
@@ -319,29 +385,32 @@ export function CityOverlay({ city, onClose }: CityOverlayProps) {
               );
             })}
           </div>
-          <div
-            className="margin-note"
-            style={{
-              marginTop: 10,
-              fontSize: 11,
-              fontStyle: "italic",
-              display: "flex",
-              alignItems: "center",
-              gap: 6,
-            }}
-          >
-            <span
+          {home && (
+            <div
+              className="margin-note"
               style={{
-                display: "inline-block",
-                width: 2,
-                height: 8,
-                background: "var(--ink)",
-                opacity: 0.55,
+                marginTop: 10,
+                fontSize: 11,
+                fontStyle: "italic",
+                display: "flex",
+                alignItems: "center",
+                gap: 6,
               }}
-            />
-            <span>marker = Oslo's score</span>
-          </div>
+            >
+              <span
+                style={{
+                  display: "inline-block",
+                  width: 2,
+                  height: 8,
+                  background: "var(--ink)",
+                  opacity: 0.55,
+                }}
+              />
+              <span>marker = {home.name}'s score (your best-rated)</span>
+            </div>
+          )}
         </div>
+        )}
 
         <div
           className="card"

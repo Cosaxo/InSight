@@ -1,4 +1,5 @@
 import { IS_DATA } from "../../data/seedData";
+import { useMe } from "../../lib/useMe";
 import { Av, Kicker } from "../shared/primitives";
 import { RadarChart } from "../shared/charts";
 import {
@@ -60,13 +61,19 @@ const MORAL_ROWS: [string, string, [string, string]][] = [
 ];
 
 export function ProfileOverlay({ onClose }: ProfileOverlayProps) {
-  const me = IS_DATA.me;
+  // `seedMe` still backs the rich profile sections (personality,
+  // morals, stats, heroes, …) — these depend on test results / profile
+  // editing that hasn't been wired through to real storage yet. The
+  // identity chrome at the top uses real auth data via `useMe` so a
+  // signed-in user never sees the seed cast's initials or naseedMe.
+  const seedMe = IS_DATA.me;
+  const realMe = useMe();
   const dims = [
-    { label: "Openness", v: me.personality.O },
-    { label: "Conscientiousness", v: me.personality.C },
-    { label: "Extraversion", v: me.personality.E },
-    { label: "Agreeableness", v: me.personality.A },
-    { label: "Neuroticism", v: me.personality.N },
+    { label: "Openness", v: seedMe.personality.O },
+    { label: "Conscientiousness", v: seedMe.personality.C },
+    { label: "Extraversion", v: seedMe.personality.E },
+    { label: "Agreeableness", v: seedMe.personality.A },
+    { label: "Neuroticism", v: seedMe.personality.N },
   ];
   const sorted = [...dims].sort((a, b) => b.v - a.v);
   const top = sorted[0];
@@ -85,7 +92,7 @@ export function ProfileOverlay({ onClose }: ProfileOverlayProps) {
       </div>
       <div className="app-body">
         <div style={{ textAlign: "center", marginTop: 4 }}>
-          <Av init={me.initials} hue={38} size={88} />
+          <Av init={realMe.initials} hue={realMe.hue} size={88} />
           <div
             style={{
               fontFamily: "var(--serif)",
@@ -94,11 +101,13 @@ export function ProfileOverlay({ onClose }: ProfileOverlayProps) {
               letterSpacing: "-0.01em",
             }}
           >
-            {me.name}
+            {realMe.name}
           </div>
-          <div className="kicker" style={{ marginTop: 4 }}>
-            {me.location} · {me.country}
-          </div>
+          {!realMe.isAuthed && (
+            <div className="kicker" style={{ marginTop: 4 }}>
+              {seedMe.location} · {seedMe.country}
+            </div>
+          )}
         </div>
         <hr className="rule-dashed" />
 
@@ -202,12 +211,12 @@ export function ProfileOverlay({ onClose }: ProfileOverlayProps) {
           </div>
         </div>
 
-        <PoliticsCard me={me} />
-        <PoliticsCompass me={me} />
-        <PoliticsSubIssues me={me} />
+        <PoliticsCard me={seedMe} />
+        <PoliticsCompass me={seedMe} />
+        <PoliticsSubIssues me={seedMe} />
 
         <div className="card" style={{ marginBottom: 14 }}>
-          <Kicker>Values & morals · {me.moralLabel}</Kicker>
+          <Kicker>Values & morals · {seedMe.moralLabel}</Kicker>
           <div
             style={{
               marginTop: 10,
@@ -217,7 +226,7 @@ export function ProfileOverlay({ onClose }: ProfileOverlayProps) {
             }}
           >
             {MORAL_ROWS.map(([k, displayKey, [l, r]]) => {
-              const v = (me.morals[k] as number) ?? 0;
+              const v = (seedMe.morals[k] as number) ?? 0;
               const pct = (v + 100) / 2;
               return (
                 <div key={k}>
@@ -287,14 +296,14 @@ export function ProfileOverlay({ onClose }: ProfileOverlayProps) {
           >
             {(
               [
-                ["born", `${me.stats.birthYear} · age ${me.stats.age}`],
-                ["height", me.stats.height],
-                ["weight", me.stats.weight],
-                ["eye colour", me.stats.eyeColor],
-                ["handed", me.stats.handed],
-                ["sleep", me.stats.sleep],
-                ["chronotype", me.stats.chronotype],
-                ["sign", me.stats.sign],
+                ["born", `${seedMe.stats.birthYear} · age ${seedMe.stats.age}`],
+                ["height", seedMe.stats.height],
+                ["weight", seedMe.stats.weight],
+                ["eye colour", seedMe.stats.eyeColor],
+                ["handed", seedMe.stats.handed],
+                ["sleep", seedMe.stats.sleep],
+                ["chronotype", seedMe.stats.chronotype],
+                ["sign", seedMe.stats.sign],
               ] as [string, string][]
             ).map(([k, v]) => (
               <div key={k}>
@@ -323,7 +332,7 @@ export function ProfileOverlay({ onClose }: ProfileOverlayProps) {
               marginTop: 10,
             }}
           >
-            {me.myInterests.map(
+            {seedMe.myInterests.map(
               (it: { t: string; c: string }, i: number) => {
                 const cat: InterestCat | undefined = IS_DATA.interestCats.find(
                   (c: InterestCat) => c.id === it.c,
@@ -354,7 +363,7 @@ export function ProfileOverlay({ onClose }: ProfileOverlayProps) {
 
         <div className="card" style={{ marginBottom: 14 }}>
           <Kicker>Languages</Kicker>
-          {me.languages.map(
+          {seedMe.languages.map(
             (l: { name: string; level: string; pct: number }) => (
               <div
                 key={l.name}
@@ -420,7 +429,7 @@ export function ProfileOverlay({ onClose }: ProfileOverlayProps) {
               borderLeft: "0.5px dashed var(--rule)",
             }}
           >
-            {me.timeline.map(
+            {seedMe.timeline.map(
               (e: { year: number; t: string }, i: number) => (
                 <div
                   key={i}
@@ -464,7 +473,7 @@ export function ProfileOverlay({ onClose }: ProfileOverlayProps) {
               marginTop: 10,
             }}
           >
-            {me.badges.map((b: string) => (
+            {seedMe.badges.map((b: string) => (
               <span key={b} className="stamp">
                 {b}
               </span>
@@ -477,7 +486,7 @@ export function ProfileOverlay({ onClose }: ProfileOverlayProps) {
         <div
           style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 8 }}
         >
-          {me.likes.map((l: string) => (
+          {seedMe.likes.map((l: string) => (
             <span key={l} className="pill">
               {l}
             </span>
@@ -489,7 +498,7 @@ export function ProfileOverlay({ onClose }: ProfileOverlayProps) {
         <div
           style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 8 }}
         >
-          {me.dislikes.map((l: string) => (
+          {seedMe.dislikes.map((l: string) => (
             <span
               key={l}
               className="pill"
@@ -509,7 +518,7 @@ export function ProfileOverlay({ onClose }: ProfileOverlayProps) {
             marginTop: 8,
           }}
         >
-          {me.heroes.map((h: { name: string; trait: string }) => (
+          {seedMe.heroes.map((h: { name: string; trait: string }) => (
             <div
               key={h.name}
               className="card"
