@@ -1,6 +1,8 @@
-// Domain types for the insight dashboard.
-// A "profile" is the generic shape that is rendered by PeopleInsightPanel —
-// it can describe the World, a city, a community, or a single person.
+// Domain types for InSight. Each subscribed Firestore collection
+// pairs with a hook in src/lib (useMoods / useHabits / useScrapbook /
+// useDreams / useImpressions / useWorkouts / useMeals / useTransactions /
+// useDailyReport / useCityRatings / useRelations); the shapes those
+// hooks read and write live here.
 
 export type TabId = "around" | "world" | "city" | "groups" | "people";
 
@@ -21,11 +23,6 @@ export interface CoreValues {
   change: number; // -50 stability    ... +50 change
 }
 
-export interface InterestBar {
-  label: string;
-  pct: number;
-}
-
 export interface Hero {
   name: string;
   role: string;
@@ -35,24 +32,6 @@ export interface Hero {
 export type MediaKey = "music" | "film" | "books" | "podcasts";
 
 export type MediaMap = Record<MediaKey, string[]>;
-
-export interface Profile {
-  name: string;
-  subtitle?: string;
-  color: string;
-  personality: number[]; // [O, C, E, A, R] — 0..100
-  political: Political;
-  cv: CoreValues;
-  interests: InterestBar[];
-  values: string[];
-}
-
-export interface Community extends Profile {
-  id: string;
-  members: number;
-  compat: number;
-  topics: string[];
-}
 
 export interface Hangout {
   date: string;
@@ -78,52 +57,6 @@ export interface Person {
   dislikes?: string[];
   heroes?: Hero[];
 }
-
-export interface Me {
-  personality: number[];
-  political: Political;
-  cv: CoreValues;
-  media: MediaMap;
-  likes: string[];
-  dislikes: string[];
-  heroes: Hero[];
-  displayName: string;
-  photoURL?: string | null;
-}
-
-export type TestType = "personality" | "political" | "values";
-
-export interface TestResult {
-  personality?: number[];
-  political?: Political;
-  cv?: CoreValues;
-}
-
-export interface ContextBarItem {
-  icon: string;
-  label: string;
-  value: string;
-  color?: string;
-  sub?: string;
-}
-
-export interface StatCard {
-  icon: React.ReactNode;
-  label: string;
-  value: string;
-  color?: string;
-  bg?: string;
-  sub?: string;
-}
-
-export interface MediaGenreOption {
-  label: string;
-  icon: string;
-  color: string;
-  genres: string[];
-}
-
-export type MediaOptionsMap = Record<MediaKey, MediaGenreOption>;
 
 export interface CityRating {
   food?: number;
@@ -254,13 +187,6 @@ export interface Transaction {
   amount: number;
   note?: string;
 }
-
-export type InsightTabId =
-  | "mood"
-  | "habits"
-  | "fitness"
-  | "nutrition"
-  | "finance";
 
 // ── Daily report (Phase 4) ────────────────────────────────────────────────
 // Persisted at insight_users/{uid}/insight_daily/{date} when signed in,
