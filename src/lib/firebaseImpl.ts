@@ -40,13 +40,17 @@ import {
 } from "firebase/firestore";
 import { distanceBetween, geohashQueryBounds } from "geofire-common";
 import type {
+  Book,
   CityRating,
   CityRatings,
   CoreValues,
   Dream,
   Habit,
   Hero,
+  Home,
   Impression,
+  Job,
+  Language,
   Meal,
   MediaMap,
   MoodEntry,
@@ -55,6 +59,7 @@ import type {
   RemoteDailyReport,
   Specimen,
   Transaction,
+  Visit,
   Weighin,
   Workout,
 } from "../types";
@@ -361,6 +366,77 @@ export async function updateSpecimen(
 
 export async function deleteSpecimen(uid: string, id: string): Promise<void> {
   await deleteDoc(subDocRef(uid, "insight_scrapbook", id));
+}
+
+// ── The ledger (books / visits / homes / languages / jobs) ───────
+// Each entity has the same five-op surface (subscribe / add / update
+// / delete / list). The shared `addLedger` / `removeLedger` helpers
+// would deduplicate this further, but explicit functions per type
+// keep the wire-up legible from the call sites.
+
+export function subscribeBooks(
+  uid: string,
+  cb: (items: Book[]) => void,
+): () => void {
+  return subscribeList<Book>(uid, "insight_books", cb);
+}
+export async function addBook(uid: string, b: Book): Promise<void> {
+  await setDoc(subDocRef(uid, "insight_books", b.id), stripId(b));
+}
+export async function deleteBook(uid: string, id: string): Promise<void> {
+  await deleteDoc(subDocRef(uid, "insight_books", id));
+}
+
+export function subscribeVisits(
+  uid: string,
+  cb: (items: Visit[]) => void,
+): () => void {
+  return subscribeList<Visit>(uid, "insight_visits", cb);
+}
+export async function addVisit(uid: string, v: Visit): Promise<void> {
+  await setDoc(subDocRef(uid, "insight_visits", v.id), stripId(v));
+}
+export async function deleteVisit(uid: string, id: string): Promise<void> {
+  await deleteDoc(subDocRef(uid, "insight_visits", id));
+}
+
+export function subscribeHomes(
+  uid: string,
+  cb: (items: Home[]) => void,
+): () => void {
+  return subscribeList<Home>(uid, "insight_homes", cb);
+}
+export async function addHome(uid: string, h: Home): Promise<void> {
+  await setDoc(subDocRef(uid, "insight_homes", h.id), stripId(h));
+}
+export async function deleteHome(uid: string, id: string): Promise<void> {
+  await deleteDoc(subDocRef(uid, "insight_homes", id));
+}
+
+export function subscribeLanguages(
+  uid: string,
+  cb: (items: Language[]) => void,
+): () => void {
+  return subscribeList<Language>(uid, "insight_languages", cb);
+}
+export async function addLanguage(uid: string, l: Language): Promise<void> {
+  await setDoc(subDocRef(uid, "insight_languages", l.id), stripId(l));
+}
+export async function deleteLanguage(uid: string, id: string): Promise<void> {
+  await deleteDoc(subDocRef(uid, "insight_languages", id));
+}
+
+export function subscribeJobs(
+  uid: string,
+  cb: (items: Job[]) => void,
+): () => void {
+  return subscribeList<Job>(uid, "insight_jobs", cb);
+}
+export async function addJob(uid: string, j: Job): Promise<void> {
+  await setDoc(subDocRef(uid, "insight_jobs", j.id), stripId(j));
+}
+export async function deleteJob(uid: string, id: string): Promise<void> {
+  await deleteDoc(subDocRef(uid, "insight_jobs", id));
 }
 
 // ── Weigh-ins ───────────────────────────────────────────────────

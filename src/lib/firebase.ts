@@ -12,17 +12,22 @@
 
 import type { User } from "firebase/auth";
 import type {
+  Book,
   CityRating,
   CityRatings,
   Dream,
   Habit,
+  Home,
   Impression,
+  Job,
+  Language,
   Meal,
   MoodEntry,
   Person,
   RemoteDailyReport,
   Specimen,
   Transaction,
+  Visit,
   Weighin,
   Workout,
 } from "../types";
@@ -336,6 +341,86 @@ export async function updateSpecimen(
 export async function deleteSpecimen(uid: string, id: string): Promise<void> {
   const m = await impl();
   return m.deleteSpecimen(uid, id);
+}
+
+// ── The ledger ──────────────────────────────────────────────────
+
+export function subscribeBooks(
+  uid: string,
+  cb: (items: Book[]) => void,
+): () => void {
+  return lazySubscribe((m) => m.subscribeBooks, uid, cb);
+}
+export async function addBook(uid: string, b: Book): Promise<void> {
+  const m = await impl();
+  return m.addBook(uid, b);
+}
+export async function deleteBook(uid: string, id: string): Promise<void> {
+  const m = await impl();
+  return m.deleteBook(uid, id);
+}
+
+export function subscribeVisits(
+  uid: string,
+  cb: (items: Visit[]) => void,
+): () => void {
+  return lazySubscribe((m) => m.subscribeVisits, uid, cb);
+}
+export async function addVisit(uid: string, v: Visit): Promise<void> {
+  const m = await impl();
+  return m.addVisit(uid, v);
+}
+export async function deleteVisit(uid: string, id: string): Promise<void> {
+  const m = await impl();
+  return m.deleteVisit(uid, id);
+}
+
+export function subscribeHomes(
+  uid: string,
+  cb: (items: Home[]) => void,
+): () => void {
+  return lazySubscribe((m) => m.subscribeHomes, uid, cb);
+}
+export async function addHome(uid: string, h: Home): Promise<void> {
+  const m = await impl();
+  return m.addHome(uid, h);
+}
+export async function deleteHome(uid: string, id: string): Promise<void> {
+  const m = await impl();
+  return m.deleteHome(uid, id);
+}
+
+export function subscribeLanguages(
+  uid: string,
+  cb: (items: Language[]) => void,
+): () => void {
+  return lazySubscribe((m) => m.subscribeLanguages, uid, cb);
+}
+export async function addLanguage(uid: string, l: Language): Promise<void> {
+  const m = await impl();
+  return m.addLanguage(uid, l);
+}
+export async function deleteLanguage(
+  uid: string,
+  id: string,
+): Promise<void> {
+  const m = await impl();
+  return m.deleteLanguage(uid, id);
+}
+
+export function subscribeJobs(
+  uid: string,
+  cb: (items: Job[]) => void,
+): () => void {
+  return lazySubscribe((m) => m.subscribeJobs, uid, cb);
+}
+export async function addJob(uid: string, j: Job): Promise<void> {
+  const m = await impl();
+  return m.addJob(uid, j);
+}
+export async function deleteJob(uid: string, id: string): Promise<void> {
+  const m = await impl();
+  return m.deleteJob(uid, id);
 }
 
 export function subscribeWeighins(

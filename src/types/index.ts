@@ -74,6 +74,72 @@ export interface CityRating {
 
 export type CityRatings = Record<string, CityRating>;
 
+// ── The ledger: life-history entries ────────────────────────────
+// Each of the five ledger types lives in its own
+// insight_users/{uid}/insight_{kind}/{id} subcollection. They share
+// `id` + `createdAt` for sorting and otherwise diverge by entity.
+// LifeOverlay's age tab aggregates counts + recent entries from all
+// five into a single "the ledger" section.
+
+// A book the user has finished (or abandoned). `date` is when they
+// finished it. `rating` is optional 1..5.
+export interface Book {
+  id: string;
+  title: string;
+  author?: string;
+  date?: string; // ISO YYYY-MM-DD — when finished
+  rating?: number; // 1..5
+  note?: string;
+  createdAt: number;
+}
+
+// A trip the user took. `country` is the ISO country name or local
+// label; `city` is optional (some trips are wider). `start` is
+// required, `end` optional for ongoing trips.
+export interface Visit {
+  id: string;
+  country: string;
+  city?: string;
+  start: string; // ISO YYYY-MM-DD
+  end?: string;  // ISO YYYY-MM-DD
+  note?: string;
+  createdAt: number;
+}
+
+// A place the user has called home — a city / town / neighbourhood,
+// with the year range they lived there.
+export interface Home {
+  id: string;
+  place: string;       // free-form ("Oslo, Grünerløkka" or "Bergen")
+  startYear: number;
+  endYear?: number;    // omitted when this is current
+  note?: string;
+  createdAt: number;
+}
+
+// A language the user speaks (or is learning). Proficiency is a
+// coarse 1..5: 1 = a few words, 2 = travel basics, 3 = conversational,
+// 4 = fluent, 5 = native. Free-form `note` for context.
+export interface Language {
+  id: string;
+  name: string;
+  proficiency: number; // 1..5
+  note?: string;
+  createdAt: number;
+}
+
+// A job (paid or otherwise) the user has held. Same start/end shape
+// as Visit. `role` is the title; `org` is the employer / context.
+export interface Job {
+  id: string;
+  role: string;
+  org?: string;
+  start: string;      // ISO YYYY-MM-DD or YYYY for year-only
+  end?: string;       // omitted when current
+  note?: string;
+  createdAt: number;
+}
+
 // A weigh-in — one row in the user's weight history. Stored at
 // insight_users/{uid}/insight_weighins/{id} when signed in or in
 // localStorage otherwise. The latest weigh-in's kg (sorted by `date`)

@@ -4,6 +4,7 @@ import { useProfile } from "../../lib/useProfile";
 import { useMoods } from "../../lib/useMoods";
 import { useRelations } from "../../lib/useRelations";
 import { useWeighins } from "../../lib/useWeighins";
+import { TheLedgerSection } from "./life-ledger";
 
 // LifeOverlay's two physical knobs — weight (kg) and birth year —
 // come from the saved profile (set in ProfileOverlay > Vital stats).
@@ -1101,6 +1102,8 @@ export function LifeOverlay({ onClose, onOpenDna }: LifeOverlayProps) {
               </div>
             </div>
 
+            <hr className="rule-dashed" />
+            <TheLedgerSection />
           </>
         )}
 
