@@ -457,6 +457,10 @@ export async function addMeal(uid: string, meal: Meal): Promise<void> {
   await setDoc(subDocRef(uid, "insight_meals", meal.id), stripId(meal));
 }
 
+export async function deleteMeal(uid: string, id: string): Promise<void> {
+  await deleteDoc(subDocRef(uid, "insight_meals", id));
+}
+
 // ── Transactions ────────────────────────────────────────────────
 
 export function subscribeTransactions(

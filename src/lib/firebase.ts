@@ -381,6 +381,11 @@ export async function addMeal(uid: string, meal: Meal): Promise<void> {
   return m.addMeal(uid, meal);
 }
 
+export async function deleteMeal(uid: string, id: string): Promise<void> {
+  const m = await impl();
+  return m.deleteMeal(uid, id);
+}
+
 export async function addTransaction(
   uid: string,
   tx: Transaction,
