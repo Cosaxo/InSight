@@ -55,6 +55,7 @@ import type {
   RemoteDailyReport,
   Specimen,
   Transaction,
+  Weighin,
   Workout,
 } from "../types";
 
@@ -360,6 +361,23 @@ export async function updateSpecimen(
 
 export async function deleteSpecimen(uid: string, id: string): Promise<void> {
   await deleteDoc(subDocRef(uid, "insight_scrapbook", id));
+}
+
+// ── Weigh-ins ───────────────────────────────────────────────────
+
+export function subscribeWeighins(
+  uid: string,
+  cb: (items: Weighin[]) => void,
+): () => void {
+  return subscribeList<Weighin>(uid, "insight_weighins", cb);
+}
+
+export async function addWeighin(uid: string, w: Weighin): Promise<void> {
+  await setDoc(subDocRef(uid, "insight_weighins", w.id), stripId(w));
+}
+
+export async function deleteWeighin(uid: string, id: string): Promise<void> {
+  await deleteDoc(subDocRef(uid, "insight_weighins", id));
 }
 
 // ── Dreams ──────────────────────────────────────────────────────

@@ -22,6 +22,8 @@ import { useEffect, useState } from "react";
 import { IS_DATA } from "../../data/seedData";
 import { useMe } from "../../lib/useMe";
 import { useProfile, type ProfileExt } from "../../lib/useProfile";
+import { isoDateToday } from "../../lib/useMoods";
+import { useWeighins } from "../../lib/useWeighins";
 import type { Hero, Political } from "../../types";
 import { Av, Kicker } from "../shared/primitives";
 import { RadarChart } from "../shared/charts";
@@ -272,48 +274,58 @@ function InlineAdd({ placeholder, onAdd }: InlineAddProps) {
   );
 }
 
-// Small editor for the two vital-stats fields LifeOverlay needs:
-// weight in kilograms and birth year. Both optional — empty inputs
-// save as `undefined` so LifeOverlay can fall back gracefully. The
-// inputs commit on blur (and on Enter for the number fields) rather
-// than every keystroke, so the user can type "65" without
-// triggering a save for "6" first.
+// Vital-stats editor. Two fields, two paths:
+//
+//   - birth year: single value, saved on profile.birthYear. Commit
+//     on blur so typing "1992" doesn't pre-save "1", "19", "199".
+//
+//   - weight: weigh-in history. The number you type creates an entry
+//     in useWeighins (date defaults to today) — LifeOverlay reads the
+//     latest. A small "history (n)" expander shows the recent log
+//     with × delete. Legacy users with profile.weightKg set but no
+//     logged weigh-ins still see their static value here; the first
+//     new entry shadows it.
 function VitalStatsEditor({
-  weightKg,
   birthYear,
   onSave,
 }: {
-  weightKg?: number;
   birthYear?: number;
-  onSave: (patch: { weightKg?: number; birthYear?: number }) => void;
+  onSave: (patch: { birthYear?: number }) => void;
 }) {
-  const [w, setW] = useState<string>(
-    weightKg !== undefined ? String(weightKg) : "",
-  );
+  const { profile } = useProfile();
+  const {
+    items: weighins,
+    latest: latestWeighin,
+    add: addWeighin,
+    remove: removeWeighin,
+  } = useWeighins();
+
+  const [w, setW] = useState<string>("");
   const [y, setY] = useState<string>(
     birthYear !== undefined ? String(birthYear) : "",
   );
+  const [historyOpen, setHistoryOpen] = useState(false);
 
-  // Keep local state in sync if the profile mutates from elsewhere
-  // (e.g. a future weigh-in that auto-updates weightKg).
-  useEffect(() => {
-    if (weightKg !== undefined && weightKg !== Number(w)) setW(String(weightKg));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [weightKg]);
   useEffect(() => {
     if (birthYear !== undefined && birthYear !== Number(y)) setY(String(birthYear));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [birthYear]);
 
-  const commitWeight = () => {
+  // Current displayed weight: latest weigh-in, falling back to the
+  // legacy profile.weightKg one-shot field for users who set it
+  // before the weigh-in schema existed.
+  const currentKg = latestWeighin?.kg ?? profile.weightKg;
+
+  const commitWeight = async () => {
     const trimmed = w.trim();
-    if (trimmed === "") {
-      if (weightKg !== undefined) onSave({ weightKg: undefined });
-      return;
-    }
+    if (trimmed === "") return;
     const n = Number(trimmed);
     if (!Number.isFinite(n) || n <= 0 || n > 400) return;
-    if (n !== weightKg) onSave({ weightKg: Math.round(n * 10) / 10 });
+    await addWeighin({
+      date: isoDateToday(),
+      kg: Math.round(n * 10) / 10,
+    });
+    setW("");
   };
 
   const commitYear = () => {
@@ -327,6 +339,15 @@ function VitalStatsEditor({
     if (!Number.isInteger(n) || n < 1900 || n > thisYear) return;
     if (n !== birthYear) onSave({ birthYear: n });
   };
+
+  // History sorted newest first for the expander. Capped at 6 to
+  // keep the editor compact; the full sparkline lives in DaysOverlay.
+  const recent = [...weighins]
+    .sort((a, b) => {
+      const d = b.date.localeCompare(a.date);
+      return d !== 0 ? d : b.createdAt - a.createdAt;
+    })
+    .slice(0, 6);
 
   const inputStyle: React.CSSProperties = {
     width: "100%",
@@ -344,8 +365,9 @@ function VitalStatsEditor({
     <>
       <Kicker>Vital stats · private to you</Kicker>
       <div className="margin-note" style={{ fontSize: 12, marginTop: 4 }}>
-        "Weight and the year you were born. They scale the body-map
-        and the days-lived counters in the life overlay."
+        "Weight tracks over time; birth year is a one-shot. Both
+        scale the body-map and the days-lived counters in the life
+        overlay."
       </div>
       <div
         style={{
@@ -356,7 +378,14 @@ function VitalStatsEditor({
         }}
       >
         <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-          <span className="kicker">weight · kg</span>
+          <span className="kicker">
+            weight · kg{" "}
+            {currentKg !== undefined && (
+              <span style={{ color: "var(--ink-2)", marginLeft: 4 }}>
+                · now {currentKg}
+              </span>
+            )}
+          </span>
           <input
             type="number"
             inputMode="decimal"
@@ -364,9 +393,9 @@ function VitalStatsEditor({
             min="1"
             max="400"
             value={w}
-            placeholder="—"
+            placeholder={currentKg !== undefined ? "log a new weigh-in" : "—"}
             onChange={(e) => setW(e.target.value)}
-            onBlur={commitWeight}
+            onBlur={() => void commitWeight()}
             onKeyDown={(e) => {
               if (e.key === "Enter") (e.target as HTMLInputElement).blur();
             }}
@@ -392,6 +421,98 @@ function VitalStatsEditor({
           />
         </label>
       </div>
+
+      {weighins.length > 0 && (
+        <>
+          <button
+            type="button"
+            onClick={() => setHistoryOpen((v) => !v)}
+            style={{
+              background: "transparent",
+              border: "none",
+              color: "var(--ink-3)",
+              fontFamily: "var(--mono)",
+              fontSize: 10,
+              letterSpacing: "0.08em",
+              textTransform: "uppercase",
+              cursor: "pointer",
+              padding: "8px 0 0",
+            }}
+          >
+            {historyOpen ? "↑ hide" : `↓ history (${weighins.length})`}
+          </button>
+          {historyOpen && (
+            <div
+              style={{
+                marginTop: 6,
+                display: "flex",
+                flexDirection: "column",
+                gap: 4,
+              }}
+            >
+              {recent.map((wi) => (
+                <div
+                  key={wi.id}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 8,
+                    fontFamily: "var(--mono)",
+                    fontSize: 11,
+                    color: "var(--ink-2)",
+                    padding: "3px 0",
+                    borderBottom: "0.5px dashed var(--rule)",
+                  }}
+                >
+                  <span style={{ color: "var(--ink-3)", letterSpacing: "0.04em" }}>
+                    {wi.date}
+                  </span>
+                  <span style={{ flex: 1 }}>{wi.kg} kg</span>
+                  {wi.note && (
+                    <span
+                      style={{
+                        fontStyle: "italic",
+                        fontFamily: "var(--serif)",
+                        color: "var(--ink-3)",
+                      }}
+                    >
+                      {wi.note}
+                    </span>
+                  )}
+                  <button
+                    onClick={() => {
+                      if (confirm(`Remove the ${wi.kg} kg entry from ${wi.date}?`)) {
+                        void removeWeighin(wi.id);
+                      }
+                    }}
+                    style={{
+                      background: "transparent",
+                      border: "none",
+                      color: "var(--ink-3)",
+                      cursor: "pointer",
+                      fontFamily: "var(--mono)",
+                      fontSize: 11,
+                      padding: 0,
+                    }}
+                    aria-label="Remove weigh-in"
+                  >
+                    ×
+                  </button>
+                </div>
+              ))}
+              {weighins.length > 6 && (
+                <div
+                  className="margin-note"
+                  style={{ fontSize: 10, marginTop: 4 }}
+                >
+                  showing 6 most recent · {weighins.length - 6} more in your
+                  archive
+                </div>
+              )}
+            </div>
+          )}
+        </>
+      )}
     </>
   );
 }
@@ -712,7 +833,6 @@ export function ProfileOverlay({ onClose, onOpenTest }: ProfileOverlayProps) {
         <hr className="rule-dashed" />
 
         <VitalStatsEditor
-          weightKg={profile.weightKg}
           birthYear={profile.birthYear}
           onSave={(patch) => void save(patch)}
         />

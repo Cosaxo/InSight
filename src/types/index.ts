@@ -74,6 +74,21 @@ export interface CityRating {
 
 export type CityRatings = Record<string, CityRating>;
 
+// A weigh-in — one row in the user's weight history. Stored at
+// insight_users/{uid}/insight_weighins/{id} when signed in or in
+// localStorage otherwise. The latest weigh-in's kg (sorted by `date`)
+// is what LifeOverlay reads to scale tissue mass and what
+// ProfileOverlay shows as "current weight". When no weigh-ins
+// exist we fall back to the static `profile.weightKg` field, which
+// the user can still set directly for the one-shot case.
+export interface Weighin {
+  id: string;
+  date: string;     // ISO YYYY-MM-DD
+  kg: number;       // one decimal of precision
+  note?: string;    // optional ("after the swim")
+  createdAt: number; // ms epoch, for sort
+}
+
 // ── Personal Insights ──
 
 export interface MoodEntry {

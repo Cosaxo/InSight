@@ -23,6 +23,7 @@ import type {
   RemoteDailyReport,
   Specimen,
   Transaction,
+  Weighin,
   Workout,
 } from "../types";
 import type {
@@ -335,6 +336,23 @@ export async function updateSpecimen(
 export async function deleteSpecimen(uid: string, id: string): Promise<void> {
   const m = await impl();
   return m.deleteSpecimen(uid, id);
+}
+
+export function subscribeWeighins(
+  uid: string,
+  cb: (items: Weighin[]) => void,
+): () => void {
+  return lazySubscribe((m) => m.subscribeWeighins, uid, cb);
+}
+
+export async function addWeighin(uid: string, w: Weighin): Promise<void> {
+  const m = await impl();
+  return m.addWeighin(uid, w);
+}
+
+export async function deleteWeighin(uid: string, id: string): Promise<void> {
+  const m = await impl();
+  return m.deleteWeighin(uid, id);
 }
 
 export function subscribeDreams(

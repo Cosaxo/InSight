@@ -3,11 +3,15 @@ import { Kicker } from "../shared/primitives";
 import { useProfile } from "../../lib/useProfile";
 import { useMoods } from "../../lib/useMoods";
 import { useRelations } from "../../lib/useRelations";
+import { useWeighins } from "../../lib/useWeighins";
 
 // LifeOverlay's two physical knobs — weight (kg) and birth year —
 // come from the saved profile (set in ProfileOverlay > Vital stats).
-// When the user hasn't set them, the overlay falls back to these
-// gentle defaults and shows an inline prompt instead of pretending
+// Weight has two paths: a real weigh-in history (useWeighins) takes
+// precedence, falling back to the static profile.weightKg one-shot
+// field when no weigh-ins are logged. When neither is set, the
+// overlay falls back to these gentle defaults and shows an inline
+// prompt instead of pretending
 // the numbers are theirs.
 //
 // 70 kg ≈ adult median; birth year of (currentYear - 30) ≈ "an
@@ -672,12 +676,18 @@ export function LifeOverlay({ onClose, onOpenDna }: LifeOverlayProps) {
   const { profile } = useProfile();
   const { moods } = useMoods();
   const { people } = useRelations();
-  // Real values when set; otherwise fall back to the demo defaults
-  // and surface a "set in portrait" hint in the header so the user
-  // knows the numbers aren't theirs yet.
-  const hasWeight = typeof profile.weightKg === "number" && profile.weightKg > 0;
+  const { latest: latestWeighin } = useWeighins();
+  // Weight precedence: latest weigh-in > static profile.weightKg >
+  // demo fallback. Birth year is single-source — there's no
+  // "history of when you were born", just a year.
+  const liveWeightKg =
+    latestWeighin?.kg ??
+    (typeof profile.weightKg === "number" && profile.weightKg > 0
+      ? profile.weightKg
+      : undefined);
+  const hasWeight = liveWeightKg !== undefined;
   const hasBirthYear = typeof profile.birthYear === "number";
-  const weightKg = deriveWeight(profile.weightKg);
+  const weightKg = deriveWeight(liveWeightKg);
   const age = deriveAge(profile.birthYear);
   const inNumbers = buildInNumbers(age);
 

@@ -1,31 +1,26 @@
 // DaysOverlay — your daily ledger. Two views:
 //
 // "portrait" — today's frame from useDailyReport (mood / weather /
-//   one-line / optional photo), plus a 12-day mood strip from
-//   useMoods. The previous version asserted a 12-frame photo
-//   gallery, a 12-day weight sparkline, and a fake CaptureFlow —
-//   all from IS_DATA.portraits. Only today's report actually
-//   persists in our schema; a longer photo history would need
-//   per-day daily-report storage (currently the "today" doc is
-//   overwritten each edit).
+//   one-line / optional photo), a 12-day mood strip from useMoods,
+//   and a 30-day weight sparkline from useWeighins. The previous
+//   version asserted a 12-frame photo gallery built from
+//   IS_DATA.portraits; the photo archive needs per-day daily-report
+//   storage (currently the "today" doc is overwritten each edit) so
+//   that one's still pending.
 //
 // "dreams" — real dream journal wired to useDreams. Add an entry,
 //   read it back, delete it. The "recurring themes" bar list
 //   derives from tag frequencies across logged dreams; "remembered
 //   this week" + "lucid" + "avg vividness" derive from the same.
-//
-// Dropped from the previous version: the "time" view (24-hour
-// activity blocks from seed, no time-tracking source) and the
-// "life" view (life-timeline highlights from seed, no source).
-// Both would each need their own schema + capture flow; out of
-// scope for the honesty pass.
 
 import { useMemo, useState } from "react";
 import { useMoods, isoDateToday } from "../../lib/useMoods";
 import { useDailyReport } from "../../lib/useDailyReport";
 import { useDreams } from "../../lib/useDreams";
+import { useWeighins } from "../../lib/useWeighins";
 import type { Dream, MoodEntry } from "../../types";
 import { Kicker, Pill } from "../shared/primitives";
+import { Sparkline } from "../shared/charts";
 
 function weatherLabel(w: string | undefined): string {
   if (!w) return "—";
@@ -146,6 +141,7 @@ export function DaysOverlay({ onClose }: DaysOverlayProps) {
 function PortraitView() {
   const { report } = useDailyReport();
   const { moods } = useMoods();
+  const { items: weighins } = useWeighins();
 
   // Twelve-day mood strip — real entries land where they belong,
   // unlogged days draw a faint baseline so the chart never invents
@@ -157,6 +153,23 @@ function PortraitView() {
     return dates.map((d) => ({ date: d, mood: byDate.get(d) }));
   }, [moods]);
   const todayIso = isoDateToday();
+
+  // Weight history for the sparkline. We plot only logged entries
+  // (no fake interpolation) and show min / median / max underneath.
+  // Sorted oldest → newest so the line reads left-to-right in time
+  // order.
+  const weightSeries = useMemo(() => {
+    if (weighins.length === 0) return null;
+    const sorted = [...weighins].sort((a, b) => a.date.localeCompare(b.date));
+    const values = sorted.map((w) => w.kg);
+    const min = Math.min(...values);
+    const max = Math.max(...values);
+    const median =
+      values.length === 1
+        ? values[0]
+        : [...values].sort((a, b) => a - b)[Math.floor(values.length / 2)];
+    return { values, min, max, median, latest: sorted[sorted.length - 1] };
+  }, [weighins]);
 
   return (
     <>
@@ -299,6 +312,44 @@ function PortraitView() {
           </div>
         )}
       </div>
+
+      {weightSeries && (
+        <div className="card" style={{ marginBottom: 14, padding: 14 }}>
+          <Kicker>Weight · {weighins.length} weigh-ins</Kicker>
+          <div style={{ marginTop: 8 }}>
+            <Sparkline
+              data={weightSeries.values}
+              w={320}
+              h={60}
+              color="var(--sienna)"
+              fill
+              dots
+            />
+          </div>
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              fontFamily: "var(--mono)",
+              fontSize: 9,
+              color: "var(--ink-3)",
+              letterSpacing: "0.06em",
+              marginTop: 4,
+            }}
+          >
+            <span>{weightSeries.min.toFixed(1)} kg</span>
+            <span>median {weightSeries.median.toFixed(1)} kg</span>
+            <span>{weightSeries.max.toFixed(1)} kg</span>
+          </div>
+          <div
+            className="margin-note"
+            style={{ marginTop: 8, fontSize: 11, fontStyle: "italic" }}
+          >
+            latest: {weightSeries.latest.kg} kg on {weightSeries.latest.date}
+            {" · log new entries from your portrait → vital stats"}
+          </div>
+        </div>
+      )}
 
       <div
         className="card"
