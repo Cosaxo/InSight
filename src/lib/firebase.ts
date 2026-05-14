@@ -14,6 +14,7 @@ import type { User } from "firebase/auth";
 import type {
   CityRating,
   CityRatings,
+  Dream,
   Habit,
   Impression,
   Meal,
@@ -334,6 +335,32 @@ export async function updateSpecimen(
 export async function deleteSpecimen(uid: string, id: string): Promise<void> {
   const m = await impl();
   return m.deleteSpecimen(uid, id);
+}
+
+export function subscribeDreams(
+  uid: string,
+  cb: (items: Dream[]) => void,
+): () => void {
+  return lazySubscribe((m) => m.subscribeDreams, uid, cb);
+}
+
+export async function addDream(uid: string, d: Dream): Promise<void> {
+  const m = await impl();
+  return m.addDream(uid, d);
+}
+
+export async function updateDream(
+  uid: string,
+  id: string,
+  patch: Partial<Dream>,
+): Promise<void> {
+  const m = await impl();
+  return m.updateDream(uid, id, patch);
+}
+
+export async function deleteDream(uid: string, id: string): Promise<void> {
+  const m = await impl();
+  return m.deleteDream(uid, id);
 }
 
 export function subscribeImpressions(

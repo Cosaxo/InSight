@@ -175,6 +175,24 @@ export interface Specimen {
   createdAt: number; // ms epoch, for sorting "recent finds"
 }
 
+// A dream — one entry in your dream journal. Stored at
+// insight_users/{uid}/insight_dreams/{id} when signed in or in
+// localStorage otherwise. `tags` doubles as the source for the
+// "recurring themes" derivation on the dreams view (top tag
+// frequencies → bar list). `lucidity` + `vividness` are 0-5
+// sliders; both default to 0 when the user didn't move them.
+export interface Dream {
+  id: string;
+  date: string;       // ISO YYYY-MM-DD
+  title: string;
+  text: string;       // longhand body — what you remember
+  tags: string[];     // free-form theme tags ("water", "flying", "home")
+  mood?: string;      // optional one-word mood ("uneasy", "warm")
+  lucidity: number;   // 0..5
+  vividness: number;  // 0..5
+  createdAt: number;  // ms epoch for sort
+}
+
 // An impression — your private sketch of a person you've met. The
 // "of others" side of the impressions ledger. Stored at
 // insight_users/{uid}/insight_impressions/{id}; never shared.

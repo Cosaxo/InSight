@@ -43,6 +43,7 @@ import type {
   CityRating,
   CityRatings,
   CoreValues,
+  Dream,
   Habit,
   Hero,
   Impression,
@@ -359,6 +360,31 @@ export async function updateSpecimen(
 
 export async function deleteSpecimen(uid: string, id: string): Promise<void> {
   await deleteDoc(subDocRef(uid, "insight_scrapbook", id));
+}
+
+// ── Dreams ──────────────────────────────────────────────────────
+
+export function subscribeDreams(
+  uid: string,
+  cb: (items: Dream[]) => void,
+): () => void {
+  return subscribeList<Dream>(uid, "insight_dreams", cb);
+}
+
+export async function addDream(uid: string, d: Dream): Promise<void> {
+  await setDoc(subDocRef(uid, "insight_dreams", d.id), stripId(d));
+}
+
+export async function updateDream(
+  uid: string,
+  id: string,
+  patch: Partial<Dream>,
+): Promise<void> {
+  await updateDoc(subDocRef(uid, "insight_dreams", id), patch);
+}
+
+export async function deleteDream(uid: string, id: string): Promise<void> {
+  await deleteDoc(subDocRef(uid, "insight_dreams", id));
 }
 
 // ── Impressions ─────────────────────────────────────────────────
