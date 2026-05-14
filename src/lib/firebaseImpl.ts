@@ -108,6 +108,25 @@ export interface MigrationPayload {
   meals: Meal[];
   transactions: Transaction[];
   dailyReport?: RemoteDailyReport | null;
+  // Subcollections added since the original migration was written.
+  // All are arrays of typed-item docs that map straight into
+  // insight_users/{uid}/insight_X/{id}. Empty arrays are a no-op
+  // for that stream.
+  specimens?: Specimen[];
+  dreams?: Dream[];
+  impressions?: Impression[];
+  weighins?: Weighin[];
+  books?: Book[];
+  visits?: Visit[];
+  homes?: Home[];
+  languages?: Language[];
+  jobs?: Job[];
+  milestones?: Milestone[];
+  timeBlocks?: TimeBlock[];
+  // Skills don't have a typed import here yet (the GroupsTab hook
+  // defines its own shape); migration passes through as opaque docs
+  // with an id field.
+  skills?: { id: string; [k: string]: unknown }[];
 }
 
 let app: FirebaseApp | null = null;
@@ -706,6 +725,26 @@ export async function migrateFromLocal(
   await writeMany("insight_workouts", payload.workouts);
   await writeMany("insight_meals", payload.meals);
   await writeMany("insight_transactions", payload.transactions);
+
+  // New typed-item subcollections (added since first-pass migration
+  // was written). Each block is optional — empty arrays are a
+  // no-op via writeMany's per-item setDoc loop.
+  if (payload.specimens) await writeMany("insight_scrapbook", payload.specimens);
+  if (payload.dreams) await writeMany("insight_dreams", payload.dreams);
+  if (payload.impressions)
+    await writeMany("insight_impressions", payload.impressions);
+  if (payload.weighins) await writeMany("insight_weighins", payload.weighins);
+  if (payload.books) await writeMany("insight_books", payload.books);
+  if (payload.visits) await writeMany("insight_visits", payload.visits);
+  if (payload.homes) await writeMany("insight_homes", payload.homes);
+  if (payload.languages)
+    await writeMany("insight_languages", payload.languages);
+  if (payload.jobs) await writeMany("insight_jobs", payload.jobs);
+  if (payload.milestones)
+    await writeMany("insight_milestones", payload.milestones);
+  if (payload.timeBlocks)
+    await writeMany("insight_time_blocks", payload.timeBlocks);
+  if (payload.skills) await writeMany("insight_skills", payload.skills);
 
   for (const mood of payload.moods) {
     await setDoc(subDocRef(uid, "insight_moods", mood.date), mood);

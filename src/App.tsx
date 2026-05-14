@@ -1,5 +1,25 @@
 import { lazy, Suspense, useEffect, useRef, useState } from "react";
-import type { CityRatings, TabId } from "./types";
+import type {
+  Book,
+  CityRatings,
+  Dream,
+  Habit,
+  Home,
+  Impression,
+  Job,
+  Language,
+  Meal,
+  Milestone,
+  MoodEntry,
+  Specimen,
+  TabId,
+  TimeBlock,
+  Transaction,
+  Visit,
+  Weighin,
+  Workout,
+} from "./types";
+import type { RemoteProfile } from "./lib/firebase";
 import {
   firebaseEnabled,
   migrateFromLocal,
@@ -8,6 +28,10 @@ import {
 } from "./lib/firebase";
 import { useAuth } from "./lib/useAuth";
 import { useMe } from "./lib/useMe";
+import {
+  userPersonToPerson,
+  type UserPerson,
+} from "./lib/useRelations";
 import { readLegacyDailyReport } from "./lib/useDailyReport";
 import { useTweaks } from "./lib/useTweaks";
 import { IOSDevice } from "./components/shared/IOSDevice";
@@ -147,9 +171,45 @@ function toOverlayPerson(p: AnyPerson): PersonForOverlay {
   };
 }
 
-// First sign-in migration — moves any local daily report + city ratings
-// up to Firestore the first time a user authenticates against an empty
-// profile doc. Runs at most once per session per user.
+// Read a JSON array from localStorage, returning [] on parse error or
+// when the key isn't set. Used by the first-sign-in migration to
+// sweep every typed-item subcollection's local cache up to Firestore.
+function readLocalArray<T>(key: string): T[] {
+  try {
+    const raw = localStorage.getItem(key);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? (parsed as T[]) : [];
+  } catch {
+    return [];
+  }
+}
+
+// Same, for the profile object (single doc rather than an array).
+function readLocalProfile(): RemoteProfile {
+  try {
+    const raw = localStorage.getItem("insight.profile.v1");
+    if (!raw) return {};
+    const parsed = JSON.parse(raw);
+    return typeof parsed === "object" && parsed !== null
+      ? (parsed as RemoteProfile)
+      : {};
+  } catch {
+    return {};
+  }
+}
+
+// First sign-in migration — moves every locally-cached subcollection
+// up to Firestore the first time a user authenticates against an
+// empty profile doc. Runs at most once per session per user.
+//
+// Why this exists: the typed-item hooks (useMeals, useWeighins,
+// useImpressions, …) all store to localStorage when signed out so
+// the app is fully usable without an account. When the user finally
+// signs in, the hooks subscribe to Firestore — which returns []
+// for a fresh account — and would otherwise overwrite the local
+// cache. This migration runs first and pushes everything up so the
+// subscription sees the migrated docs.
 function useFirstSignInMigration() {
   const { user } = useAuth();
   const ranForUid = useRef<string | null>(null);
@@ -171,15 +231,60 @@ function useFirstSignInMigration() {
         } catch {
           // ignore
         }
+
+        // Snapshot every locally-cached subcollection. Each key
+        // matches its hook's STORAGE constant; if you add another
+        // typed-item hook, add the corresponding read here.
+        const profile = readLocalProfile();
+        // Relations are stored locally as UserPerson; the migration
+        // expects the legacy Person shape, so we convert.
+        const localUserPeople = readLocalArray<UserPerson>(
+          "insight.relations.v1",
+        );
+        const relations = localUserPeople.map(userPersonToPerson);
+        const moods = readLocalArray<MoodEntry>("insight.moods.v1");
+        const habits = readLocalArray<Habit>("insight.habits.v1");
+        const workouts = readLocalArray<Workout>("insight.workouts.v1");
+        const meals = readLocalArray<Meal>("insight.meals.v1");
+        const transactions = readLocalArray<Transaction>(
+          "insight.transactions.v1",
+        );
+        const specimens = readLocalArray<Specimen>("insight.scrapbook.v1");
+        const dreams = readLocalArray<Dream>("insight.dreams.v1");
+        const impressions = readLocalArray<Impression>("insight.impressions.v1");
+        const weighins = readLocalArray<Weighin>("insight.weighins.v1");
+        const books = readLocalArray<Book>("insight.books.v1");
+        const visits = readLocalArray<Visit>("insight.visits.v1");
+        const homes = readLocalArray<Home>("insight.homes.v1");
+        const languages = readLocalArray<Language>("insight.languages.v1");
+        const jobs = readLocalArray<Job>("insight.jobs.v1");
+        const milestones = readLocalArray<Milestone>("insight.milestones.v1");
+        const timeBlocks = readLocalArray<TimeBlock>(
+          "insight.time_blocks.v1",
+        );
+        const skills = readLocalArray<{ id: string }>("insight.skills.v1");
+
         await migrateFromLocal(user.uid, {
-          profile: {},
-          relations: [],
+          profile,
+          relations,
           cityRatings,
-          moods: [],
-          habits: [],
-          workouts: [],
-          meals: [],
-          transactions: [],
+          moods,
+          habits,
+          workouts,
+          meals,
+          transactions,
+          specimens,
+          dreams,
+          impressions,
+          weighins,
+          books,
+          visits,
+          homes,
+          languages,
+          jobs,
+          milestones,
+          timeBlocks,
+          skills,
           dailyReport: local
             ? {
                 date: local.date,

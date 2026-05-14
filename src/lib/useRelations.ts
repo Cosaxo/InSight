@@ -55,6 +55,13 @@ function writeLocal(items: UserPerson[]): void {
 // Convert UserPerson → Person for the legacy Firestore schema. The
 // legacy Person fields the schema requires get default values; the
 // circle-tab fields ride along on the same doc.
+// Exported for App.tsx's first-sign-in migration, which reads
+// UserPerson[] from localStorage and needs to push Person[] up to
+// Firestore (matches the legacy schema the migration expects).
+export function userPersonToPerson(p: UserPerson): Person {
+  return toPerson(p);
+}
+
 function toPerson(p: UserPerson): Person {
   return {
     id: p.id,
