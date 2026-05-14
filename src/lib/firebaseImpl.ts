@@ -444,6 +444,10 @@ export async function addWorkout(
   await setDoc(subDocRef(uid, "insight_workouts", workout.id), stripId(workout));
 }
 
+export async function deleteWorkout(uid: string, id: string): Promise<void> {
+  await deleteDoc(subDocRef(uid, "insight_workouts", id));
+}
+
 // ── Meals ───────────────────────────────────────────────────────
 
 export function subscribeMeals(
@@ -475,6 +479,13 @@ export async function addTransaction(
   tx: Transaction,
 ): Promise<void> {
   await setDoc(subDocRef(uid, "insight_transactions", tx.id), stripId(tx));
+}
+
+export async function deleteTransaction(
+  uid: string,
+  id: string,
+): Promise<void> {
+  await deleteDoc(subDocRef(uid, "insight_transactions", id));
 }
 
 // ── Daily reports (Phase 4) ─────────────────────────────────────

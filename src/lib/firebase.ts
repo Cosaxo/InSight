@@ -376,6 +376,11 @@ export async function addWorkout(
   return m.addWorkout(uid, workout);
 }
 
+export async function deleteWorkout(uid: string, id: string): Promise<void> {
+  const m = await impl();
+  return m.deleteWorkout(uid, id);
+}
+
 export async function addMeal(uid: string, meal: Meal): Promise<void> {
   const m = await impl();
   return m.addMeal(uid, meal);
@@ -392,6 +397,14 @@ export async function addTransaction(
 ): Promise<void> {
   const m = await impl();
   return m.addTransaction(uid, tx);
+}
+
+export async function deleteTransaction(
+  uid: string,
+  id: string,
+): Promise<void> {
+  const m = await impl();
+  return m.deleteTransaction(uid, id);
 }
 
 // ── Daily reports (Phase 4) ─────────────────────────────────────
