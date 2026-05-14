@@ -1,6 +1,8 @@
 import { memo, useState } from "react";
 import { Kicker } from "../shared/primitives";
 import { useProfile } from "../../lib/useProfile";
+import { useMoods } from "../../lib/useMoods";
+import { useRelations } from "../../lib/useRelations";
 
 // LifeOverlay's two physical knobs — weight (kg) and birth year —
 // come from the saved profile (set in ProfileOverlay > Vital stats).
@@ -128,235 +130,71 @@ function buildInNumbers(age: number): {
   ];
 }
 
-const AGE_FACTS = [
-  {
-    kicker: "a fibonacci year",
-    body:
-      "34 sits in the Fibonacci sequence between 21 and 55 — the next will land at 55.",
-    glyph: "✦",
-  },
-  {
-    kicker: "biologically",
-    body:
-      "Your prefrontal cortex finished wiring around 28; your skeletal mass is at its lifetime peak now and will quietly thin from here.",
-    glyph: "◐",
-  },
-  {
-    kicker: "statistically",
-    body:
-      "You are older than ~57% of people alive on Earth right now, and have an expected ~50 years still to live in Norway.",
-    glyph: "☾",
-  },
-  {
-    kicker: "historically",
-    body:
-      "Marie Curie was 36 when she got her first Nobel. Vermeer painted Girl with a Pearl Earring at 34. Anton Chekhov hadn't yet written The Seagull.",
-    glyph: "✶",
-  },
-  {
-    kicker: "in your line",
-    body:
-      "Your mother had you at 27, your grandmother had her at 22, her mother at 19 — you are the latest first-born in four generations.",
-    glyph: "↑",
-  },
-];
-
-const LIFETIME_TOTALS = [
-  { n: "41", l: "COUNTRIES", s: "last: Japan" },
-  { n: "127", l: "CITIES", s: "this year alone, 9" },
-  { n: "342", l: "BOOKS", s: "11 re-read on purpose" },
-  { n: "6 400", l: "KM RUN", s: "roughly Oslo→Cairo" },
-  { n: "14", l: "HOMES", s: "three you still miss" },
-  { n: "71", l: "PEOPLE", s: "kept in mind" },
-  { n: "2 318", l: "NIGHTS OUT", s: "half logged, half guessed" },
-  { n: "4", l: "LANGUAGES", s: "two well, two badly" },
-  { n: "9", l: "JOBS", s: "one you would take again" },
-];
-
 // ── rhythms data ─────────────────────────────────────────────────
 
-interface DayBlock {
-  from: number;
-  to: number;
-  k: string;
-  hue: number;
-  label: string;
-}
-const TYPICAL_DAY: DayBlock[] = [
-  { from: 0, to: 6.5, k: "sleep", hue: 220, label: "sleep" },
-  { from: 6.5, to: 7.25, k: "rituals", hue: 38, label: "coffee · journal" },
-  { from: 7.25, to: 9, k: "movement", hue: 12, label: "run · swim" },
-  { from: 9, to: 12.5, k: "deep", hue: 38, label: "deep work" },
-  { from: 12.5, to: 13.5, k: "meal", hue: 60, label: "lunch · light" },
-  { from: 13.5, to: 16.5, k: "making", hue: 250, label: "making · email" },
-  { from: 16.5, to: 17.5, k: "reading", hue: 145, label: "reading" },
-  { from: 17.5, to: 19.5, k: "people", hue: 305, label: "people · dinner" },
-  { from: 19.5, to: 21.5, k: "home", hue: 60, label: "kitchen · home" },
-  { from: 21.5, to: 22.5, k: "reading", hue: 145, label: "reading" },
-  { from: 22.5, to: 24, k: "sleep", hue: 220, label: "sleep" },
-];
-
-// 12 months × 31 days mood/energy intensity (0-10, -1 = empty)
-const YEAR_MOOD: number[][] = (() => {
-  const seasonality = [3, 3, 4, 5, 6, 7, 8, 8, 7, 5, 4, 3];
-  const rng = (m: number, d: number) =>
-    Math.abs(Math.sin(m * 17.3 + d * 0.91 + (m + 1) * d * 0.13));
-  const days = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
-  return seasonality.map((s, m) =>
-    Array.from({ length: 31 }, (_, d) => {
-      if (d >= days[m]) return -1;
-      const noise = rng(m, d) * 4 - 2;
-      return Math.max(0, Math.min(10, Math.round(s + noise)));
-    }),
-  );
-})();
-
-interface LifeRiver {
-  k: string;
-  hue: number;
-  values: number[];
-}
-const LIFE_RIVERS: LifeRiver[] = [
-  { k: "running", hue: 12, values: [0.2,0.3,0.5,0.7,0.6,0.5,0.4,0.5,0.6,0.7,0.8,0.9,0.7,0.6,0.7,0.8,0.9] },
-  { k: "reading", hue: 145, values: [0.6,0.7,0.7,0.8,0.7,0.6,0.5,0.6,0.7,0.8,0.8,0.7,0.8,0.9,0.9,0.9,0.95] },
-  { k: "making", hue: 250, values: [0.4,0.6,0.7,0.5,0.4,0.6,0.8,0.7,0.6,0.8,0.7,0.6,0.5,0.6,0.7,0.8,0.7] },
-  { k: "music", hue: 280, values: [0.8,0.85,0.9,0.8,0.7,0.6,0.5,0.6,0.7,0.6,0.5,0.4,0.5,0.6,0.6,0.7,0.8] },
-  { k: "cold water", hue: 220, values: [0.0,0.0,0.0,0.0,0.1,0.2,0.3,0.5,0.7,0.8,0.9,0.95,0.9,0.85,0.9,0.95,1.0] },
-];
-
+// Category → ring assignment for the people constellation. We map
+// AddPersonFlow's five category keys onto four visual rings — family
+// goes innermost (named), friends next (named), colleagues +
+// neighbors out further (dots), acquaintances on the orbit (dots).
+// Hues come from the AddPersonFlow palette so the visualisation
+// matches the chips users tap when categorising.
 interface ConstellationPerson {
   ring: number;
   angle: number;
   label?: string;
   hue: number;
 }
-const PEOPLE_CONSTELLATION: ConstellationPerson[] = [
-  { ring: 1, angle: 20, label: "mother", hue: 12 },
-  { ring: 1, angle: 90, label: "Sigrid", hue: 305 },
-  { ring: 1, angle: 165, label: "Erik", hue: 220 },
-  { ring: 1, angle: 245, label: "Ada", hue: 60 },
-  { ring: 1, angle: 320, label: "Iben", hue: 145 },
-  { ring: 2, angle: 8, hue: 38 }, { ring: 2, angle: 38, hue: 145 },
-  { ring: 2, angle: 72, hue: 220 }, { ring: 2, angle: 108, hue: 60 },
-  { ring: 2, angle: 130, hue: 305 }, { ring: 2, angle: 160, hue: 38 },
-  { ring: 2, angle: 190, hue: 250 }, { ring: 2, angle: 222, hue: 145 },
-  { ring: 2, angle: 260, hue: 220 }, { ring: 2, angle: 290, hue: 60 },
-  { ring: 2, angle: 318, hue: 305 }, { ring: 2, angle: 348, hue: 38 },
-  ...Array.from({ length: 22 }, (_, i): ConstellationPerson => ({
-    ring: 3,
-    angle: i * (360 / 22) + 8,
-    hue: [38, 60, 145, 220, 250, 305][i % 6],
-  })),
-  ...Array.from({ length: 32 }, (_, i): ConstellationPerson => ({
-    ring: 4,
-    angle: i * (360 / 32) + 4,
-    hue: [38, 60, 145, 220, 250, 305][(i * 3) % 6],
-  })),
+const CATEGORY_RING: Record<string, { ring: number; hue: number; showLabel: boolean }> = {
+  family: { ring: 1, hue: 12, showLabel: true },
+  friends: { ring: 2, hue: 38, showLabel: true },
+  colleagues: { ring: 3, hue: 220, showLabel: false },
+  neighbors: { ring: 3, hue: 145, showLabel: false },
+  acquaintances: { ring: 4, hue: 250, showLabel: false },
+};
+const RING_LABELS = [
+  { ring: 1, label: "family" },
+  { ring: 2, label: "friends" },
+  { ring: 3, label: "everyday" },
+  { ring: 4, label: "orbit" },
 ];
 
 // ── rhythms components ───────────────────────────────────────────
 
-const DayClock = memo(function DayClock() {
-  const cx = 110, cy = 110, rOuter = 100, rInner = 60;
-  const polar = (h: number, r: number): [number, number] => {
-    const a = (h / 24) * 2 * Math.PI - Math.PI / 2;
-    return [cx + r * Math.cos(a), cy + r * Math.sin(a)];
-  };
-  const arcPath = (from: number, to: number) => {
-    const [x1, y1] = polar(from, rOuter);
-    const [x2, y2] = polar(to, rOuter);
-    const [x3, y3] = polar(to, rInner);
-    const [x4, y4] = polar(from, rInner);
-    const large = to - from > 12 ? 1 : 0;
-    return `M ${x1} ${y1} A ${rOuter} ${rOuter} 0 ${large} 1 ${x2} ${y2} L ${x3} ${y3} A ${rInner} ${rInner} 0 ${large} 0 ${x4} ${y4} Z`;
-  };
-
-  return (
-    <div style={{ display: "flex", gap: 14, alignItems: "center" }}>
-      <svg viewBox="0 0 220 220" width="160" height="160" style={{ flexShrink: 0 }}>
-        {Array.from({ length: 24 }, (_, h) => {
-          const [x1, y1] = polar(h, rOuter + 4);
-          const [x2, y2] = polar(h, rOuter + (h % 6 === 0 ? 12 : 8));
-          return (
-            <line
-              key={h}
-              x1={x1} y1={y1} x2={x2} y2={y2}
-              stroke="var(--ink-3)"
-              strokeWidth={h % 6 === 0 ? 1 : 0.5}
-            />
-          );
-        })}
-        {TYPICAL_DAY.map((seg, i) => (
-          <path
-            key={i}
-            d={arcPath(seg.from, seg.to)}
-            fill={`oklch(0.62 0.11 ${seg.hue})`}
-            opacity={0.88}
-          />
-        ))}
-        {[0, 6, 12, 18].map((h) => {
-          const [x, y] = polar(h, rOuter + 22);
-          return (
-            <text
-              key={h}
-              x={x} y={y + 3}
-              textAnchor="middle"
-              fontFamily="var(--mono)" fontSize="9"
-              fill="var(--ink-3)" letterSpacing="0.06em"
-            >
-              {String(h).padStart(2, "0")}
-            </text>
-          );
-        })}
-        <text x={cx} y={cy - 4} textAnchor="middle" fontFamily="var(--serif)" fontStyle="italic" fontSize="15" fill="var(--ink)">
-          a day
-        </text>
-        <text x={cx} y={cy + 11} textAnchor="middle" fontFamily="var(--mono)" fontSize="8" fill="var(--ink-3)" letterSpacing="0.08em">
-          TYPICAL · APR '26
-        </text>
-      </svg>
-      <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 4 }}>
-        {TYPICAL_DAY.filter((s) => s.k !== "sleep" || s.from === 0).map((s, i) => (
-          <div key={i} style={{ display: "flex", alignItems: "center", gap: 6 }}>
-            <span
-              style={{
-                width: 8, height: 8, borderRadius: 2,
-                background: `oklch(0.62 0.11 ${s.hue})`,
-                flexShrink: 0,
-              }}
-            />
-            <span
-              style={{
-                width: 44,
-                fontFamily: "var(--mono)", fontSize: 8.5,
-                color: "var(--ink-3)", letterSpacing: "0.06em",
-              }}
-            >
-              {String(Math.floor(s.from)).padStart(2, "0")}:
-              {String(Math.round((s.from % 1) * 60)).padStart(2, "0")}
-            </span>
-            <span
-              style={{
-                fontFamily: "var(--serif)", fontStyle: "italic",
-                fontSize: 11.5, color: "var(--ink-2)", lineHeight: 1.2,
-              }}
-            >
-              {s.label}
-            </span>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-});
-
-const YearMoodCalendar = memo(function YearMoodCalendar() {
+// YearMoodCalendar — a 12x31 grid showing one cell per day, coloured
+// by the day's logged mood score. Empty cells (no entry, or future
+// days) render transparent. Filled cells use a warmth ramp where a
+// higher score → brighter, warmer hue, lower → cooler.
+//
+// We always show the CURRENT calendar year so the grid is stable
+// across sessions; calling code passes the real `moods` array from
+// useMoods.
+const YearMoodCalendar = memo(function YearMoodCalendar({
+  moods,
+}: {
+  moods: { date: string; score: number }[];
+}) {
   const months = ["jan","feb","mar","apr","may","jun","jul","aug","sep","oct","nov","dec"];
   const cell = 8, gap = 2;
+  // Build a {date: score} lookup so the grid render is O(12*31).
+  // MoodEntry.score is 1..5; we scale to a 2..10 brightness ramp to
+  // reuse the original palette stops. Days with no entry → -1
+  // (transparent cell, matching the legacy "empty" treatment).
+  const year = new Date().getFullYear();
+  const byDate = new Map<string, number>();
+  for (const m of moods) byDate.set(m.date, m.score);
+  const daysInMonth = (mo: number) =>
+    new Date(year, mo + 1, 0).getDate();
+  const cellFor = (mo: number, d: number): number => {
+    if (d >= daysInMonth(mo)) return -1;
+    const iso = `${year}-${String(mo + 1).padStart(2, "0")}-${String(d + 1).padStart(2, "0")}`;
+    const score = byDate.get(iso);
+    if (score === undefined) return -1;
+    return Math.max(0, Math.min(10, score * 2));
+  };
   return (
     <div>
       <div style={{ display: "flex", flexDirection: "column", gap }}>
-        {YEAR_MOOD.map((row, m) => (
+        {months.map((label, m) => (
           <div key={m} style={{ display: "flex", alignItems: "center", gap: 6 }}>
             <span
               style={{
@@ -365,25 +203,28 @@ const YearMoodCalendar = memo(function YearMoodCalendar() {
                 color: "var(--ink-3)", letterSpacing: "0.06em",
               }}
             >
-              {months[m]}
+              {label}
             </span>
             <div style={{ display: "flex", gap }}>
-              {row.map((v, d) => (
-                <span
-                  key={d}
-                  style={{
-                    width: cell, height: cell, borderRadius: 1.5,
-                    background: v < 0
-                      ? "transparent"
-                      : v === 0
-                        ? "var(--paper-3)"
-                        : `oklch(${0.94 - v * 0.05} ${0.02 + v * 0.01} ${60 - v * 15})`,
-                    border: v < 0
-                      ? "none"
-                      : "0.5px solid color-mix(in oklch, var(--ink) 6%, transparent)",
-                  }}
-                />
-              ))}
+              {Array.from({ length: 31 }, (_, d) => {
+                const v = cellFor(m, d);
+                return (
+                  <span
+                    key={d}
+                    style={{
+                      width: cell, height: cell, borderRadius: 1.5,
+                      background: v < 0
+                        ? "transparent"
+                        : v === 0
+                          ? "var(--paper-3)"
+                          : `oklch(${0.94 - v * 0.05} ${0.02 + v * 0.01} ${60 - v * 15})`,
+                      border: v < 0
+                        ? "none"
+                        : "0.5px solid color-mix(in oklch, var(--ink) 6%, transparent)",
+                    }}
+                  />
+                );
+              })}
             </div>
           </div>
         ))}
@@ -490,88 +331,47 @@ const LifeInWeeks = memo(function LifeInWeeks({ age }: { age: number }) {
   );
 });
 
-const LifeRivers = memo(function LifeRivers() {
-  const W = 320, H = 140, pad = 8;
-  const N = LIFE_RIVERS[0].values.length;
-  const stepX = (W - pad * 2) / (N - 1);
-  const stacks: { k: string; hue: number; top: number; bot: number }[][] = [];
-  for (let i = 0; i < N; i++) {
-    let y = H - pad;
-    const col: { k: string; hue: number; top: number; bot: number }[] = [];
-    LIFE_RIVERS.forEach((r) => {
-      const segH = r.values[i] * 22;
-      col.push({ k: r.k, hue: r.hue, top: y - segH, bot: y });
-      y -= segH;
-    });
-    stacks.push(col);
-  }
-  const paths = LIFE_RIVERS.map((r, li) => {
-    const tops = stacks
-      .map((c, i) => `${pad + i * stepX},${c[li].top}`)
-      .join(" L ");
-    const bots = stacks
-      .map((c, i) => `${pad + i * stepX},${c[li].bot}`)
-      .reverse()
-      .join(" L ");
-    return { hue: r.hue, k: r.k, d: `M ${tops} L ${bots} Z` };
-  });
-  return (
-    <div>
-      <svg viewBox={`0 0 ${W} ${H}`} width="100%" style={{ display: "block" }}>
-        {paths.map((p) => (
-          <path
-            key={p.k}
-            d={p.d}
-            fill={`oklch(0.62 0.11 ${p.hue})`}
-            opacity={0.82}
-          />
-        ))}
-        {Array.from({ length: 5 }, (_, i) => {
-          const age = 18 + i * 4;
-          const x = pad + i * 4 * stepX;
-          return (
-            <text
-              key={age}
-              x={x} y={H - 1}
-              textAnchor="middle"
-              fontFamily="var(--mono)" fontSize="8"
-              fill="var(--ink-3)" letterSpacing="0.06em"
-            >
-              {age}
-            </text>
-          );
-        })}
-      </svg>
-      <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 8 }}>
-        {LIFE_RIVERS.map((r) => (
-          <span
-            key={r.k}
-            style={{ display: "inline-flex", alignItems: "center", gap: 5 }}
-          >
-            <span
-              style={{
-                width: 10, height: 10, borderRadius: 2,
-                background: `oklch(0.62 0.11 ${r.hue})`,
-              }}
-            />
-            <span
-              style={{
-                fontFamily: "var(--serif)", fontStyle: "italic",
-                fontSize: 11.5, color: "var(--ink-2)",
-              }}
-            >
-              {r.k}
-            </span>
-          </span>
-        ))}
-      </div>
-    </div>
-  );
-});
-
-const PeopleConstellation = memo(function PeopleConstellation() {
+// PeopleConstellation — your relations as a 4-ring orbital diagram.
+// Each person from useRelations is placed on a ring based on their
+// category (family→ring 1, friends→ring 2, colleagues + neighbors→
+// ring 3, acquaintances→ring 4). Inner-ring people get name labels;
+// outer rings stay anonymous dots so we don't crowd the SVG.
+//
+// When the user has no relations yet, we render the rings + the
+// central "you" pip with a short caption — same empty-state pattern
+// as the rest of the app.
+const PeopleConstellation = memo(function PeopleConstellation({
+  people,
+}: {
+  people: { id: string; name: string; category: string }[];
+}) {
   const cx = 160, cy = 160, S = 320;
   const rings = [38, 70, 105, 142];
+
+  // Group people by their assigned ring. Distribute them evenly
+  // around the circle so each ring fills its arc cleanly. The order
+  // within each ring is deterministic (stable id sort) so positions
+  // don't jump on re-render.
+  const sorted = [...people].sort((a, b) => a.id.localeCompare(b.id));
+  const byRing: ConstellationPerson[][] = [[], [], [], []];
+  for (const p of sorted) {
+    const meta = CATEGORY_RING[p.category];
+    if (!meta) continue;
+    byRing[meta.ring - 1].push({
+      ring: meta.ring,
+      angle: 0, // filled in below
+      hue: meta.hue,
+      label: meta.showLabel ? p.name.split(/\s+/)[0] : undefined,
+    });
+  }
+  byRing.forEach((ringPeople, idx) => {
+    const stagger = idx % 2 === 0 ? 0 : 180 / Math.max(ringPeople.length, 1);
+    ringPeople.forEach((p, i) => {
+      p.angle = (i * 360) / Math.max(ringPeople.length, 1) + stagger;
+    });
+  });
+  const placed = byRing.flat();
+
   return (
     <svg
       viewBox={`0 0 ${S} ${S}`}
@@ -593,7 +393,7 @@ const PeopleConstellation = memo(function PeopleConstellation() {
       >
         you
       </text>
-      {PEOPLE_CONSTELLATION.map((p, i) => {
+      {placed.map((p, i) => {
         const r = rings[p.ring - 1];
         const a = ((p.angle - 90) * Math.PI) / 180;
         const x = cx + r * Math.cos(a);
@@ -627,14 +427,9 @@ const PeopleConstellation = memo(function PeopleConstellation() {
           </g>
         );
       })}
-      {[
-        { r: rings[0], label: "inner" },
-        { r: rings[1], label: "close" },
-        { r: rings[2], label: "friends" },
-        { r: rings[3], label: "orbit" },
-      ].map((rr, i) => (
+      {RING_LABELS.map((rr, i) => (
         <text
-          key={i} x={cx} y={cy - rr.r - 2}
+          key={i} x={cx} y={cy - rings[rr.ring - 1] - 2}
           textAnchor="middle"
           fontFamily="var(--mono)" fontSize="7.5"
           fill="var(--ink-3)" letterSpacing="0.1em"
@@ -875,6 +670,8 @@ export function LifeOverlay({ onClose, onOpenDna }: LifeOverlayProps) {
     "matter",
   );
   const { profile } = useProfile();
+  const { moods } = useMoods();
+  const { people } = useRelations();
   // Real values when set; otherwise fall back to the demo defaults
   // and surface a "set in portrait" hint in the header so the user
   // knows the numbers aren't theirs yet.
@@ -883,6 +680,16 @@ export function LifeOverlay({ onClose, onOpenDna }: LifeOverlayProps) {
   const weightKg = deriveWeight(profile.weightKg);
   const age = deriveAge(profile.birthYear);
   const inNumbers = buildInNumbers(age);
+
+  // Counts per visual ring of the people constellation. These drive
+  // both the SVG (each ring fills with its members) and the four
+  // count cards beneath. Mirrors the CATEGORY_RING map above so the
+  // SVG and the cards never diverge.
+  const ringCounts = [0, 0, 0, 0];
+  for (const p of people) {
+    const meta = CATEGORY_RING[p.category];
+    if (meta) ringCounts[meta.ring - 1] += 1;
+  }
 
   return (
     <div className="overlay paper-grain">
@@ -1017,22 +824,16 @@ export function LifeOverlay({ onClose, onOpenDna }: LifeOverlayProps) {
 
         {tab === "rhythms" && (
           <>
-            <Kicker>a day · in the round</Kicker>
+            <Kicker>the year · in mood</Kicker>
             <div className="card" style={{ marginTop: 10, padding: 14 }}>
-              <DayClock />
-              <div className="margin-note" style={{ marginTop: 12, fontSize: 12 }}>
-                "Sleep takes a third. Deep work and people, the next two
-                slices. Everything else fits in the cracks."
-              </div>
-            </div>
-
-            <hr className="rule-dashed" />
-            <Kicker>the year · in mood &amp; light</Kicker>
-            <div className="card" style={{ marginTop: 10, padding: 14 }}>
-              <YearMoodCalendar />
-              <div className="margin-note" style={{ marginTop: 12, fontSize: 12 }}>
-                "The shape of seasonal depression, drawn small. Brightest
-                mid-summer; thinnest in February."
+              <YearMoodCalendar moods={moods} />
+              <div
+                className="margin-note"
+                style={{ marginTop: 12, fontSize: 12 }}
+              >
+                {moods.length === 0
+                  ? "\"One cell per day of this year. They fill in as you log your daily mood — the journal's mood tab is the easiest place to start.\""
+                  : `"One cell per day. Brighter ones are higher mood scores. ${moods.length} ${moods.length === 1 ? "day" : "days"} logged so far this year."`}
               </div>
             </div>
 
@@ -1040,27 +841,19 @@ export function LifeOverlay({ onClose, onOpenDna }: LifeOverlayProps) {
             <Kicker>life · in weeks</Kicker>
             <div className="card" style={{ marginTop: 10, padding: 14 }}>
               <LifeInWeeks age={age} />
-              <div className="margin-note" style={{ marginTop: 12, fontSize: 12 }}>
+              <div
+                className="margin-note"
+                style={{ marginTop: 12, fontSize: 12 }}
+              >
                 "Each square is a week. The ones already lived are warm; the
-                rest are empty. You are roughly two-fifths of the way
-                through."
-              </div>
-            </div>
-
-            <hr className="rule-dashed" />
-            <Kicker>five rivers · what keeps running through</Kicker>
-            <div className="card" style={{ marginTop: 10, padding: 14 }}>
-              <LifeRivers />
-              <div className="margin-note" style={{ marginTop: 10, fontSize: 12 }}>
-                "Reading has been steady. Music dipped through your twenties.
-                Cold water arrived late and never left."
+                rest are empty."
               </div>
             </div>
 
             <hr className="rule-dashed" />
             <Kicker>people · the constellation</Kicker>
             <div className="card" style={{ marginTop: 10, padding: 14 }}>
-              <PeopleConstellation />
+              <PeopleConstellation people={people} />
               <div
                 style={{
                   display: "grid",
@@ -1069,60 +862,25 @@ export function LifeOverlay({ onClose, onOpenDna }: LifeOverlayProps) {
                   marginTop: 12,
                 }}
               >
-                {[
-                  { n: 5, l: "inner" },
-                  { n: 12, l: "close" },
-                  { n: 22, l: "friends" },
-                  { n: 32, l: "orbit" },
-                ].map((c) => (
-                  <div key={c.l} style={{ textAlign: "center" }}>
+                {RING_LABELS.map((r, i) => (
+                  <div key={r.label} style={{ textAlign: "center" }}>
                     <div className="fig-num" style={{ fontSize: 22 }}>
-                      <em>{c.n}</em>
+                      <em>{ringCounts[i]}</em>
                     </div>
                     <div className="kicker" style={{ marginTop: 2 }}>
-                      {c.l}
+                      {r.label}
                     </div>
                   </div>
                 ))}
               </div>
-              <div className="margin-note" style={{ marginTop: 10, fontSize: 12 }}>
-                "71 people you keep alive in your head. Dunbar says you can
-                hold about 150 before they fade."
+              <div
+                className="margin-note"
+                style={{ marginTop: 10, fontSize: 12 }}
+              >
+                {people.length === 0
+                  ? "\"Your relations appear here as orbits around you. Add a person from the + menu — family fills the inner ring, friends the next.\""
+                  : `"${people.length} ${people.length === 1 ? "person" : "people"} in your circle. Dunbar says you can hold about 150 close before they fade."`}
               </div>
-            </div>
-
-            <hr className="rule-dashed" />
-            <Kicker>the ledger · totals you've gathered</Kicker>
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "repeat(3, 1fr)",
-                gap: 8,
-                marginTop: 10,
-              }}
-            >
-              {LIFETIME_TOTALS.map((t) => (
-                <div key={t.l} className="card" style={{ padding: 10 }}>
-                  <div className="fig-num" style={{ fontSize: 22, lineHeight: 1 }}>
-                    <em>{t.n}</em>
-                  </div>
-                  <div className="kicker" style={{ marginTop: 2 }}>
-                    {t.l}
-                  </div>
-                  <div
-                    style={{
-                      fontFamily: "var(--serif)",
-                      fontStyle: "italic",
-                      fontSize: 10.5,
-                      color: "var(--ink-3)",
-                      marginTop: 3,
-                      lineHeight: 1.3,
-                    }}
-                  >
-                    {t.s}
-                  </div>
-                </div>
-              ))}
             </div>
           </>
         )}
@@ -1333,56 +1091,6 @@ export function LifeOverlay({ onClose, onOpenDna }: LifeOverlayProps) {
               </div>
             </div>
 
-            <hr className="rule-dashed" />
-            <Kicker>what's particular about this age</Kicker>
-            <div
-              style={{
-                display: "flex",
-                flexDirection: "column",
-                gap: 8,
-                marginTop: 10,
-              }}
-            >
-              {AGE_FACTS.map((f) => (
-                <div
-                  key={f.kicker}
-                  className="card"
-                  style={{ padding: 12, display: "flex", gap: 12 }}
-                >
-                  <div
-                    style={{
-                      width: 30,
-                      height: 30,
-                      borderRadius: "50%",
-                      background: "var(--paper)",
-                      border: "0.5px solid var(--rule)",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      flexShrink: 0,
-                      fontFamily: "var(--serif)",
-                      color: "var(--accent)",
-                      fontSize: 15,
-                    }}
-                  >
-                    {f.glyph}
-                  </div>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div className="kicker">{f.kicker}</div>
-                    <div
-                      style={{
-                        fontFamily: "var(--serif)",
-                        fontSize: 13.5,
-                        marginTop: 4,
-                        lineHeight: 1.4,
-                      }}
-                    >
-                      {f.body}
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
           </>
         )}
 
