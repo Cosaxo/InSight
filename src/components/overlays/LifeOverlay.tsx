@@ -7,6 +7,7 @@ import { useWeighins } from "../../lib/useWeighins";
 import { TheLedgerSection } from "./life-ledger";
 import { DayTemplateSection } from "./life-day";
 import { AgeFactsSection } from "./life-age-facts";
+import { LifeRiversSection } from "./life-rivers";
 
 // LifeOverlay's two physical knobs — weight (kg) and birth year —
 // come from the saved profile (set in ProfileOverlay > Vital stats).
@@ -898,6 +899,9 @@ export function LifeOverlay({ onClose, onOpenDna }: LifeOverlayProps) {
                   : `"${people.length} ${people.length === 1 ? "person" : "people"} in your circle. Dunbar says you can hold about 150 close before they fade."`}
               </div>
             </div>
+
+            <hr className="rule-dashed" />
+            <LifeRiversSection />
           </>
         )}
 
