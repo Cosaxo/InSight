@@ -1,8 +1,8 @@
 import { useRef, useState } from "react";
 import { Camera, CameraResultType, CameraSource } from "@capacitor/camera";
 import { Capacitor } from "@capacitor/core";
-import { IS_DATA } from "../../data/seedData";
 import { useDailyReport } from "../../lib/useDailyReport";
+import { useMeals } from "../../lib/useMeals";
 import type { RemoteDailyReport } from "../../types";
 import {
   dailyMoodToScore,
@@ -116,83 +116,18 @@ function loadPhoto(): string | null {
   return localStorage.getItem(PHOTO_STORAGE) || null;
 }
 
-interface AutoStats {
-  body: {
-    hr: number;
-    hrRest: number;
-    hrv: number;
-    sleep: number;
-    sleepScore: number;
-    battery: number;
-    readiness: number;
-    stress: number;
-  } | null;
-  move: {
-    steps?: number;
-    stepsTarget?: number;
-    workout?: {
-      type: string;
-      dur?: string;
-      dist?: string;
-      hrAvg?: number;
-      hue?: number;
-    };
-    cals?: number;
-  };
-  nutrition: {
-    kcal: number;
-    kcalTarget: number;
-    water: number;
-    waterTarget: number;
-    topMeal?: string;
-  } | null;
-  scrapbook: {
-    name: string;
-    latin?: string;
-    loc?: string;
-    cat: string;
-    hue: number;
-    conf: number;
-  }[];
-}
+// Today's nutrition summary derived from useMeals. The previous
+// version assembled body/movement/nutrition auto-stats from
+// IS_DATA.body.today + IS_DATA.insights.nutrition — wearable data
+// the app can't read, plus a kcal target the user never set. With
+// no wearable integration the body + movement sections come out;
+// the nutrition section gets wired to the meal log we already
+// track.
+const KCAL_REFERENCE = 2000;
 
-function getTodaysAutoStats(): AutoStats {
-  const D = IS_DATA;
-  const body = D.body?.today || {};
-  const nutr = D.insights?.nutrition || D.nutrition || {};
-  const fitn = D.insights?.fitness || D.fitness || {};
-  const workouts = D.body?.workouts || [];
-  const todayWorkout = workouts[workouts.length - 1] || null;
-
-  return {
-    body: body.hr
-      ? {
-          hr: body.hr,
-          hrRest: body.hrRest,
-          hrv: body.hrv,
-          sleep: body.sleep?.hours,
-          sleepScore: body.sleep?.score,
-          battery: body.bodyBattery,
-          readiness: body.readiness,
-          stress: body.stress,
-        }
-      : null,
-    move: {
-      steps: body.steps || fitn.steps,
-      stepsTarget: body.stepsTarget || fitn.target,
-      workout: todayWorkout,
-      cals: body.calsActive,
-    },
-    nutrition: nutr.kcal
-      ? {
-          kcal: nutr.kcal,
-          kcalTarget: nutr.target,
-          water: nutr.water,
-          waterTarget: nutr.target_water,
-        }
-      : null,
-    scrapbook: [],
-  };
+interface NutritionSummary {
+  kcal: number;
+  entries: number;
 }
 
 function Toggle({ on, onClick }: { on: boolean; onClick: () => void }) {
@@ -543,9 +478,22 @@ export function DailyReportOverlay({
   onClose,
 }: DailyReportOverlayProps) {
   const existing = loadStored();
-  const auto = getTodaysAutoStats();
   const { save: saveDaily } = useDailyReport();
   const { moods: priorMoods, upsert: upsertMoodEntry } = useMoods();
+  const { items: meals } = useMeals();
+
+  // Today's nutrition summary from the real meal log. Only render the
+  // card when the user has logged at least one meal today — don't
+  // assert empty kcal stats they didn't earn.
+  const todayIso = isoDateToday();
+  const todayMeals = meals.filter((m) => m.date === todayIso);
+  const nutrition: NutritionSummary | null =
+    todayMeals.length > 0
+      ? {
+          kcal: todayMeals.reduce((s, m) => s + m.kcal, 0),
+          entries: todayMeals.length,
+        }
+      : null;
 
   const [photo, setPhoto] = useState<string | null>(loadPhoto());
   const [mood, setMood] = useState<number>(existing?.mood ?? 62);
@@ -556,10 +504,7 @@ export function DailyReportOverlay({
     photo: true,
     mood: true,
     one_line: true,
-    body: true,
-    movement: true,
     nutrition: true,
-    scrapbook: true,
     weather: true,
   };
   const [share, setShare] = useState<Record<string, boolean>>(
@@ -779,120 +724,7 @@ export function DailyReportOverlay({
           />
         </div>
 
-        {auto.body && (
-          <div className="card" style={{ padding: 14, marginTop: 10 }}>
-            <SectionHead
-              label="body · today"
-              on={share.body}
-              onToggle={() => toggleShare("body")}
-              hint="FROM GARMIN"
-            />
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "repeat(3, 1fr)",
-                gap: 6,
-              }}
-            >
-              <Stat value={auto.body.hr} unit="bpm" label="resting" hue={12} />
-              <Stat value={auto.body.hrv} unit="ms" label="hrv" hue={145} />
-              <Stat
-                value={auto.body.sleepScore}
-                unit="/100"
-                label="sleep"
-                hue={220}
-              />
-              <Stat
-                value={auto.body.battery}
-                unit="%"
-                label="battery"
-                hue={38}
-              />
-              <Stat
-                value={auto.body.readiness}
-                unit="/100"
-                label="ready"
-                hue={250}
-              />
-              <Stat
-                value={auto.body.stress}
-                unit=""
-                label="stress"
-                hue={60}
-              />
-            </div>
-            <div
-              style={{
-                marginTop: 8,
-                fontFamily: "var(--serif)",
-                fontStyle: "italic",
-                fontSize: 12,
-                color: "var(--ink-3)",
-              }}
-            >
-              slept {auto.body.sleep}h · last sync 12 min ago
-            </div>
-          </div>
-        )}
-
-        {auto.move.steps && (
-          <div className="card" style={{ padding: 14, marginTop: 10 }}>
-            <SectionHead
-              label="movement · today"
-              on={share.movement}
-              onToggle={() => toggleShare("movement")}
-              hint="FROM YOUR WATCH"
-            />
-            <div
-              style={{
-                display: "flex",
-                alignItems: "baseline",
-                gap: 10,
-                marginBottom: 8,
-              }}
-            >
-              <div
-                className="fig-num"
-                style={{ fontSize: 30, lineHeight: 1 }}
-              >
-                <em>{auto.move.steps?.toLocaleString()}</em>
-              </div>
-              <div
-                style={{
-                  fontFamily: "var(--mono)",
-                  fontSize: 9,
-                  color: "var(--ink-3)",
-                  letterSpacing: "0.06em",
-                }}
-              >
-                STEPS ·{" "}
-                {Math.round(
-                  ((auto.move.steps ?? 0) / (auto.move.stepsTarget ?? 1)) * 100,
-                )}
-                % OF {auto.move.stepsTarget?.toLocaleString()}
-              </div>
-            </div>
-            <div
-              style={{
-                height: 6,
-                background: "var(--paper-3)",
-                borderRadius: 999,
-                overflow: "hidden",
-                border: "0.5px solid var(--rule)",
-              }}
-            >
-              <div
-                style={{
-                  height: "100%",
-                  width: `${Math.min(100, ((auto.move.steps ?? 0) / (auto.move.stepsTarget ?? 1)) * 100)}%`,
-                  background: "oklch(0.62 0.11 38)",
-                }}
-              />
-            </div>
-          </div>
-        )}
-
-        {auto.nutrition && (
+        {nutrition && (
           <div className="card" style={{ padding: 14, marginTop: 10 }}>
             <SectionHead
               label="nutrition · today"
@@ -908,17 +740,28 @@ export function DailyReportOverlay({
               }}
             >
               <Stat
-                value={auto.nutrition.kcal?.toLocaleString()}
-                unit={`/ ${auto.nutrition.kcalTarget}`}
+                value={nutrition.kcal.toLocaleString()}
+                unit={`/ ${KCAL_REFERENCE.toLocaleString()}`}
                 label="kcal"
                 hue={38}
               />
               <Stat
-                value={auto.nutrition.water}
-                unit={`/ ${auto.nutrition.waterTarget} glasses`}
-                label="water"
+                value={nutrition.entries}
+                unit={nutrition.entries === 1 ? "meal" : "meals"}
+                label="logged"
                 hue={220}
               />
+            </div>
+            <div
+              style={{
+                marginTop: 6,
+                fontFamily: "var(--serif)",
+                fontStyle: "italic",
+                fontSize: 11,
+                color: "var(--ink-3)",
+              }}
+            >
+              2,000 kcal is a generic reference, not your target.
             </div>
           </div>
         )}
