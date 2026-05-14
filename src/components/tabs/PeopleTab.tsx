@@ -16,6 +16,7 @@ export interface CirclePerson extends ConcentricPerson {
   degrees: number;
   since: string;
   interests?: ({ c: string; t: string } | string)[];
+  personality?: number[];
 }
 
 interface PeopleTabProps {
@@ -38,6 +39,7 @@ function userToCircle(p: UserPerson): CirclePerson {
     category: p.category,
     degrees: p.degrees,
     since: p.since,
+    personality: p.personality,
   };
 }
 

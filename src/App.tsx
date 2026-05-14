@@ -130,6 +130,7 @@ type AnyPerson = NearbyPerson | CirclePerson;
 
 function toOverlayPerson(p: AnyPerson): PersonForOverlay {
   return {
+    id: "id" in p ? p.id : undefined,
     init: p.init,
     hue: p.hue,
     name: p.name,
@@ -139,6 +140,10 @@ function toOverlayPerson(p: AnyPerson): PersonForOverlay {
     dist: "dist" in p ? (p as NearbyPerson).dist : undefined,
     note: "note" in p ? (p as NearbyPerson).note : undefined,
     interests: "interests" in p ? p.interests : undefined,
+    personality:
+      "personality" in p && Array.isArray(p.personality)
+        ? (p.personality as number[])
+        : undefined,
   };
 }
 
@@ -293,7 +298,13 @@ function AppShell() {
         </header>
 
         <div className="app-body">
-          {tab === "around" && <AroundTab onPerson={setPerson} />}
+          {tab === "around" && (
+            <AroundTab
+              onPerson={setPerson}
+              onOpenTest={() => setShowTest(true)}
+              onAddPerson={() => setShowAddPerson(true)}
+            />
+          )}
           {tab === "world" && <WorldTab onCity={setCity} />}
           {tab === "city" && <CityTab />}
           {tab === "groups" && <GroupsTab />}

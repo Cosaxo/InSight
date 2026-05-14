@@ -33,6 +33,11 @@ export interface UserPerson {
   // "this person exists in our database; I've granted them daily-
   // report access; I might be able to see theirs if they reciprocate."
   linkedUid?: string;
+  // Optional Big Five vector [O, C, E, A, N] — 0..100 per axis. Set
+  // by the user from PersonOverlay's "rate" editor. Undefined when
+  // the user hasn't rated them yet; CirclePortrait in AroundTab uses
+  // these to average the circle vs the user's own.
+  personality?: number[];
 }
 
 function readLocal(): UserPerson[] {
@@ -56,7 +61,7 @@ function toPerson(p: UserPerson): Person {
     name: p.name,
     init: p.init,
     color: `oklch(0.55 0.12 ${p.hue})`,
-    personality: [50, 50, 50, 50, 50],
+    personality: p.personality ?? [50, 50, 50, 50, 50],
     political: { econ: 0, social: 0 },
     cv: { indiv: 0, change: 0 },
     interests: [],
@@ -71,6 +76,7 @@ function toPerson(p: UserPerson): Person {
       degrees: p.degrees,
       since: p.since,
       linkedUid: p.linkedUid,
+      hasPersonality: p.personality !== undefined,
     } as Partial<Person>),
   };
 }
@@ -82,6 +88,10 @@ interface RemotePersonLike extends Person {
   degrees?: number;
   since?: string;
   linkedUid?: string;
+  // Whether p.personality is a real user rating vs the [50,50,50,50,50]
+  // placeholder we write when there's no rating. Lets fromPerson
+  // distinguish set-but-neutral from never-rated.
+  hasPersonality?: boolean;
 }
 
 function fromPerson(p: RemotePersonLike): UserPerson {
@@ -105,12 +115,17 @@ function fromPerson(p: RemotePersonLike): UserPerson {
     degrees: p.degrees ?? 1,
     since: p.since ?? String(new Date().getFullYear()),
     linkedUid: p.linkedUid,
+    personality:
+      p.hasPersonality && Array.isArray(p.personality) && p.personality.length === 5
+        ? p.personality
+        : undefined,
   };
 }
 
 export function useRelations(): {
   people: UserPerson[];
   add: (p: Omit<UserPerson, "id">) => Promise<void>;
+  update: (id: string, patch: Partial<UserPerson>) => Promise<void>;
   remove: (id: string) => Promise<void>;
 } {
   const { user } = useAuth();
@@ -150,6 +165,21 @@ export function useRelations(): {
     }
   };
 
+  const update = async (id: string, patch: Partial<UserPerson>) => {
+    const current = people.find((p) => p.id === id);
+    if (!current) return;
+    const next: UserPerson = { ...current, ...patch, id };
+    const updated = people.map((p) => (p.id === id ? next : p));
+    setLocal(updated);
+    writeLocal(updated);
+    if (isSignedIn && user) {
+      // Re-write the whole Person doc through addRelation; setDoc
+      // overwrites by id on the Firestore side. This avoids a
+      // separate updateRelation op for now.
+      await addRelation(user.uid, toPerson(next));
+    }
+  };
+
   const remove = async (id: string) => {
     const victim = people.find((p) => p.id === id);
     const updated = people.filter((p) => p.id !== id);
@@ -169,5 +199,5 @@ export function useRelations(): {
     }
   };
 
-  return { people, add, remove };
+  return { people, add, update, remove };
 }

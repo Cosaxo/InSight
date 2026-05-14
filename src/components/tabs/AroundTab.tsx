@@ -8,6 +8,7 @@ import {
 } from "../shared/primitives";
 import { useGeolocation } from "../../lib/useGeolocation";
 import { useNearbyPeople } from "../../lib/useNearbyPeople";
+import { CirclePortrait } from "./around-portrait";
 
 export interface NearbyPerson {
   id: string;
@@ -25,6 +26,8 @@ export interface NearbyPerson {
 
 interface AroundTabProps {
   onPerson: (p: NearbyPerson) => void;
+  onOpenTest: () => void;
+  onAddPerson: () => void;
 }
 
 function PersonRow({ p, onClick }: { p: NearbyPerson; onClick: () => void }) {
@@ -62,8 +65,8 @@ function PersonRow({ p, onClick }: { p: NearbyPerson; onClick: () => void }) {
   );
 }
 
-export function AroundTab({ onPerson }: AroundTabProps) {
-  const [mode, setMode] = useState<"radar" | "list">("radar");
+export function AroundTab({ onPerson, onOpenTest, onAddPerson }: AroundTabProps) {
+  const [mode, setMode] = useState<"radar" | "list" | "portrait">("radar");
   const { position, loading: geoLoading, error: geoError, request } =
     useGeolocation();
   const { people: nearby, source } = useNearbyPeople(position, 10);
@@ -144,9 +147,10 @@ export function AroundTab({ onPerson }: AroundTabProps) {
         </div>
       )}
 
-      <div style={{ display: "flex", gap: 8, margin: "12px 0 4px" }}>
+      <div style={{ display: "flex", gap: 8, margin: "12px 0 4px", flexWrap: "wrap" }}>
         <Pill color="sienna" active={mode === "radar"} onClick={() => setMode("radar")}>Radar</Pill>
         <Pill color="sage" active={mode === "list"} onClick={() => setMode("list")}>List</Pill>
+        <Pill active={mode === "portrait"} onClick={() => setMode("portrait")}>Circle portrait</Pill>
       </div>
 
       {mode === "radar" && (
@@ -179,6 +183,9 @@ export function AroundTab({ onPerson }: AroundTabProps) {
         </div>
       )}
 
+      {mode === "portrait" && (
+        <CirclePortrait onOpenTest={onOpenTest} onAddPerson={onAddPerson} />
+      )}
     </div>
   );
 }
