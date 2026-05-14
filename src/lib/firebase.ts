@@ -22,10 +22,12 @@ import type {
   Job,
   Language,
   Meal,
+  Milestone,
   MoodEntry,
   Person,
   RemoteDailyReport,
   Specimen,
+  TimeBlock,
   Transaction,
   Visit,
   Weighin,
@@ -421,6 +423,47 @@ export async function addJob(uid: string, j: Job): Promise<void> {
 export async function deleteJob(uid: string, id: string): Promise<void> {
   const m = await impl();
   return m.deleteJob(uid, id);
+}
+
+// ── Milestones + time blocks ────────────────────────────────────
+
+export function subscribeMilestones(
+  uid: string,
+  cb: (items: Milestone[]) => void,
+): () => void {
+  return lazySubscribe((m) => m.subscribeMilestones, uid, cb);
+}
+export async function addMilestone(uid: string, m: Milestone): Promise<void> {
+  const impl_ = await impl();
+  return impl_.addMilestone(uid, m);
+}
+export async function deleteMilestone(
+  uid: string,
+  id: string,
+): Promise<void> {
+  const impl_ = await impl();
+  return impl_.deleteMilestone(uid, id);
+}
+
+export function subscribeTimeBlocks(
+  uid: string,
+  cb: (items: TimeBlock[]) => void,
+): () => void {
+  return lazySubscribe((m) => m.subscribeTimeBlocks, uid, cb);
+}
+export async function addTimeBlock(
+  uid: string,
+  t: TimeBlock,
+): Promise<void> {
+  const impl_ = await impl();
+  return impl_.addTimeBlock(uid, t);
+}
+export async function deleteTimeBlock(
+  uid: string,
+  id: string,
+): Promise<void> {
+  const impl_ = await impl();
+  return impl_.deleteTimeBlock(uid, id);
 }
 
 export function subscribeWeighins(

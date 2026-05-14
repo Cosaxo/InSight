@@ -44,6 +44,7 @@ import type {
   CityRating,
   CityRatings,
   CoreValues,
+  DayBlock,
   Dream,
   Habit,
   Hero,
@@ -53,11 +54,13 @@ import type {
   Language,
   Meal,
   MediaMap,
+  Milestone,
   MoodEntry,
   Person,
   Political,
   RemoteDailyReport,
   Specimen,
+  TimeBlock,
   Transaction,
   Visit,
   Weighin,
@@ -88,6 +91,11 @@ export interface RemoteProfile {
   // displaying made-up numbers.
   weightKg?: number;
   birthYear?: number;
+  // User's typical-day clock — an ordered list of slices the rhythms
+  // tab in LifeOverlay renders as a 24-hour DayClock. Sits on the
+  // profile rather than a subcollection because it's a single
+  // small array that the user edits as a whole.
+  dayTemplate?: DayBlock[];
 }
 
 export interface MigrationPayload {
@@ -437,6 +445,34 @@ export async function addJob(uid: string, j: Job): Promise<void> {
 }
 export async function deleteJob(uid: string, id: string): Promise<void> {
   await deleteDoc(subDocRef(uid, "insight_jobs", id));
+}
+
+// ── Milestones + Time blocks ────────────────────────────────────
+
+export function subscribeMilestones(
+  uid: string,
+  cb: (items: Milestone[]) => void,
+): () => void {
+  return subscribeList<Milestone>(uid, "insight_milestones", cb);
+}
+export async function addMilestone(uid: string, m: Milestone): Promise<void> {
+  await setDoc(subDocRef(uid, "insight_milestones", m.id), stripId(m));
+}
+export async function deleteMilestone(uid: string, id: string): Promise<void> {
+  await deleteDoc(subDocRef(uid, "insight_milestones", id));
+}
+
+export function subscribeTimeBlocks(
+  uid: string,
+  cb: (items: TimeBlock[]) => void,
+): () => void {
+  return subscribeList<TimeBlock>(uid, "insight_time_blocks", cb);
+}
+export async function addTimeBlock(uid: string, t: TimeBlock): Promise<void> {
+  await setDoc(subDocRef(uid, "insight_time_blocks", t.id), stripId(t));
+}
+export async function deleteTimeBlock(uid: string, id: string): Promise<void> {
+  await deleteDoc(subDocRef(uid, "insight_time_blocks", id));
 }
 
 // ── Weigh-ins ───────────────────────────────────────────────────

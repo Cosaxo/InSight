@@ -74,6 +74,44 @@ export interface CityRating {
 
 export type CityRatings = Record<string, CityRating>;
 
+// One slice of the user's typical-day clock. Stored on the
+// profile (dayTemplate: DayBlock[]). `from`/`to` are decimal hours
+// 0..24 — 6:30 → 6.5. `hue` is an OKLCH hue 0..360.
+export interface DayBlock {
+  from: number;
+  to: number;
+  label: string;
+  hue: number;
+}
+
+// A life milestone — a single dated event on the personal timeline
+// (births, deaths, moves, jobs, trips, "the day I first…"). Stored
+// at insight_users/{uid}/insight_milestones/{id}.
+export interface Milestone {
+  id: string;
+  date: string;       // ISO YYYY-MM-DD
+  title: string;
+  note?: string;
+  hue: number;        // OKLCH hue for the timeline dot
+  createdAt: number;
+}
+
+// A logged time-tracking block — a real session the user spent on
+// something (deep work, training, a chore). Stored at
+// insight_users/{uid}/insight_time_blocks/{id}. Distinct from
+// DayBlock (template) — TimeBlock entries are actual events with
+// a real calendar date.
+export interface TimeBlock {
+  id: string;
+  date: string;       // ISO YYYY-MM-DD the block belongs to
+  from: number;       // decimal hours 0..24
+  to: number;         // decimal hours 0..24
+  label: string;
+  category?: string;  // optional grouping ("deep work", "rest")
+  hue: number;
+  createdAt: number;
+}
+
 // ── The ledger: life-history entries ────────────────────────────
 // Each of the five ledger types lives in its own
 // insight_users/{uid}/insight_{kind}/{id} subcollection. They share

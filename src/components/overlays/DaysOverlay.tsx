@@ -17,10 +17,13 @@ import { useMemo, useState } from "react";
 import { useMoods, isoDateToday } from "../../lib/useMoods";
 import { useDailyReport } from "../../lib/useDailyReport";
 import { useDreams } from "../../lib/useDreams";
+import { useMilestones } from "../../lib/useMilestones";
+import { useTimeBlocks } from "../../lib/useTimeBlocks";
 import { useWeighins } from "../../lib/useWeighins";
-import type { Dream, MoodEntry } from "../../types";
+import type { Dream, Milestone, MoodEntry, TimeBlock } from "../../types";
 import { Kicker, Pill } from "../shared/primitives";
 import { Sparkline } from "../shared/charts";
+import { DayClock } from "./life-day";
 
 function weatherLabel(w: string | undefined): string {
   if (!w) return "—";
@@ -61,7 +64,9 @@ interface DaysOverlayProps {
 }
 
 export function DaysOverlay({ onClose }: DaysOverlayProps) {
-  const [tab, setTab] = useState<"portrait" | "dreams">("portrait");
+  const [tab, setTab] = useState<"portrait" | "dreams" | "time" | "life">(
+    "portrait",
+  );
   const [openDream, setOpenDream] = useState<Dream | null>(null);
   const [adding, setAdding] = useState(false);
   const { items: dreams, add: addDream, remove: removeDream } = useDreams();
@@ -99,6 +104,12 @@ export function DaysOverlay({ onClose }: DaysOverlayProps) {
           <Pill active={tab === "dreams"} onClick={() => setTab("dreams")}>
             dreams
           </Pill>
+          <Pill active={tab === "time"} onClick={() => setTab("time")}>
+            time
+          </Pill>
+          <Pill active={tab === "life"} onClick={() => setTab("life")}>
+            life
+          </Pill>
         </div>
 
         {tab === "portrait" && <PortraitView />}
@@ -110,6 +121,8 @@ export function DaysOverlay({ onClose }: DaysOverlayProps) {
             onAdd={() => setAdding(true)}
           />
         )}
+        {tab === "time" && <TimeView />}
+        {tab === "life" && <LifeView />}
       </div>
 
       {openDream && (
@@ -1055,6 +1068,728 @@ function AddDreamFlow({
             </button>
           </div>
         </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── TimeView ───────────────────────────────────────────────────
+//
+// Logged time-tracking blocks. Different from LifeOverlay's day
+// template — these are actual sessions on actual dates, retrievable
+// per day. UI: date picker + DayClock of that day's blocks + log
+// list + "log a block" form.
+
+const TIME_HUE_PALETTE = [
+  { hue: 12, name: "sienna" },
+  { hue: 38, name: "ochre" },
+  { hue: 145, name: "sage" },
+  { hue: 220, name: "blue" },
+  { hue: 250, name: "indigo" },
+  { hue: 305, name: "plum" },
+];
+
+function timeToDecimal(t: string): number | null {
+  const m = t.match(/^(\d{1,2}):(\d{2})$/);
+  if (!m) return null;
+  const h = Number(m[1]);
+  const min = Number(m[2]);
+  if (!Number.isFinite(h) || !Number.isFinite(min)) return null;
+  if (h < 0 || h > 24 || min < 0 || min > 59) return null;
+  return h + min / 60;
+}
+function decimalToTime(d: number): string {
+  const h = Math.floor(d);
+  const m = Math.round((d - h) * 60);
+  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+}
+
+function TimeView() {
+  const { items: allBlocks, add, remove } = useTimeBlocks();
+  const [day, setDay] = useState(isoDateToday());
+  const [logging, setLogging] = useState(false);
+
+  const dayBlocks = useMemo(
+    () =>
+      allBlocks
+        .filter((b) => b.date === day)
+        .sort((a, b) => a.from - b.from),
+    [allBlocks, day],
+  );
+
+  const totalHours = dayBlocks.reduce((s, b) => s + (b.to - b.from), 0);
+
+  return (
+    <>
+      <div className="card" style={{ marginBottom: 14, padding: 14 }}>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 10,
+            marginBottom: 12,
+          }}
+        >
+          <Kicker>day</Kicker>
+          <input
+            type="date"
+            value={day}
+            onChange={(e) => setDay(e.target.value)}
+            style={{
+              flex: 1,
+              padding: "6px 10px",
+              background: "var(--paper-2)",
+              border: "0.5px solid var(--rule)",
+              borderRadius: 6,
+              fontFamily: "var(--mono)",
+              fontSize: 12,
+              color: "var(--ink)",
+            }}
+          />
+        </div>
+        <div
+          style={{
+            display: "flex",
+            gap: 14,
+            alignItems: "flex-start",
+            flexWrap: "wrap",
+          }}
+        >
+          <DayClock blocks={dayBlocks} />
+          <div style={{ flex: 1, minWidth: 180 }}>
+            <div className="kicker" style={{ marginBottom: 6 }}>
+              {totalHours > 0
+                ? `${totalHours.toFixed(1)} HOURS LOGGED`
+                : "NOTHING LOGGED FOR THIS DAY"}
+            </div>
+            {dayBlocks.length === 0 ? (
+              <div
+                className="margin-note"
+                style={{ fontSize: 12, fontStyle: "italic" }}
+              >
+                "Log how the day actually went — what you spent time
+                on. The clock fills in around the dial."
+              </div>
+            ) : (
+              dayBlocks.map((b) => (
+                <div
+                  key={b.id}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 8,
+                    padding: "4px 0",
+                    borderBottom: "0.5px dashed var(--rule)",
+                  }}
+                >
+                  <span
+                    style={{
+                      width: 10,
+                      height: 10,
+                      borderRadius: 2,
+                      background: `oklch(0.62 0.11 ${b.hue})`,
+                      flexShrink: 0,
+                    }}
+                  />
+                  <span
+                    style={{
+                      width: 92,
+                      fontFamily: "var(--mono)",
+                      fontSize: 10,
+                      color: "var(--ink-3)",
+                      letterSpacing: "0.04em",
+                    }}
+                  >
+                    {decimalToTime(b.from)} → {decimalToTime(b.to)}
+                  </span>
+                  <span
+                    style={{
+                      flex: 1,
+                      fontFamily: "var(--serif)",
+                      fontStyle: "italic",
+                      fontSize: 12.5,
+                      color: "var(--ink-2)",
+                      minWidth: 0,
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    {b.label}
+                    {b.category && (
+                      <span style={{ color: "var(--ink-3)" }}> · {b.category}</span>
+                    )}
+                  </span>
+                  <button
+                    onClick={() => {
+                      if (confirm(`Remove "${b.label}"?`)) {
+                        void remove(b.id);
+                      }
+                    }}
+                    aria-label="Remove block"
+                    style={{
+                      background: "transparent",
+                      border: "none",
+                      color: "var(--ink-3)",
+                      cursor: "pointer",
+                      fontFamily: "var(--mono)",
+                      fontSize: 12,
+                      padding: 0,
+                    }}
+                  >
+                    ×
+                  </button>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+        {logging ? (
+          <LogTimeBlockForm
+            day={day}
+            onCancel={() => setLogging(false)}
+            onSave={async (b) => {
+              await add({ ...b, date: day });
+              setLogging(false);
+            }}
+          />
+        ) : (
+          <button
+            onClick={() => setLogging(true)}
+            style={{
+              marginTop: 10,
+              width: "100%",
+              padding: "8px 12px",
+              background: "transparent",
+              border: "0.5px dashed var(--rule)",
+              borderRadius: 999,
+              fontFamily: "var(--mono)",
+              fontSize: 10,
+              letterSpacing: "0.1em",
+              textTransform: "uppercase",
+              color: "var(--ink-3)",
+              cursor: "pointer",
+            }}
+          >
+            + log a block
+          </button>
+        )}
+      </div>
+    </>
+  );
+}
+
+function LogTimeBlockForm({
+  onCancel,
+  onSave,
+}: {
+  day: string;
+  onCancel: () => void;
+  onSave: (
+    b: Omit<TimeBlock, "id" | "createdAt" | "date">,
+  ) => Promise<void> | void;
+}) {
+  const [from, setFrom] = useState("");
+  const [to, setTo] = useState("");
+  const [label, setLabel] = useState("");
+  const [category, setCategory] = useState("");
+  const [hue, setHue] = useState(38);
+  const [saving, setSaving] = useState(false);
+
+  const fromDec = timeToDecimal(from);
+  const toDec = timeToDecimal(to);
+  const canSave =
+    fromDec !== null && toDec !== null && toDec > fromDec && label.trim() !== "";
+
+  const submit = async () => {
+    if (!canSave || saving || fromDec === null || toDec === null) return;
+    setSaving(true);
+    try {
+      await onSave({
+        from: fromDec,
+        to: toDec,
+        label: label.trim(),
+        category: category.trim() || undefined,
+        hue,
+      });
+      setFrom("");
+      setTo("");
+      setLabel("");
+      setCategory("");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const inputStyle: React.CSSProperties = {
+    boxSizing: "border-box",
+    padding: "6px 8px",
+    background: "var(--paper)",
+    border: "0.5px solid var(--rule)",
+    borderRadius: 4,
+    fontFamily: "var(--mono)",
+    fontSize: 12,
+    color: "var(--ink)",
+  };
+
+  return (
+    <div
+      style={{
+        marginTop: 10,
+        padding: 10,
+        background: "var(--paper-2)",
+        border: "0.5px solid var(--rule)",
+        borderRadius: 6,
+        display: "flex",
+        flexDirection: "column",
+        gap: 8,
+      }}
+    >
+      <div style={{ display: "flex", gap: 6 }}>
+        <input
+          type="time"
+          value={from}
+          onChange={(e) => setFrom(e.target.value)}
+          style={{ ...inputStyle, width: 90 }}
+        />
+        <span
+          style={{
+            fontFamily: "var(--mono)",
+            fontSize: 11,
+            color: "var(--ink-3)",
+            alignSelf: "center",
+          }}
+        >
+          →
+        </span>
+        <input
+          type="time"
+          value={to}
+          onChange={(e) => setTo(e.target.value)}
+          style={{ ...inputStyle, width: 90 }}
+        />
+        <input
+          value={label}
+          onChange={(e) => setLabel(e.target.value)}
+          placeholder="what you did"
+          style={{
+            ...inputStyle,
+            flex: 1,
+            fontFamily: "var(--serif)",
+            fontStyle: "italic",
+            fontSize: 13,
+          }}
+        />
+      </div>
+      <input
+        value={category}
+        onChange={(e) => setCategory(e.target.value)}
+        placeholder="category · optional (deep work, rest, people…)"
+        style={{ ...inputStyle, fontFamily: "var(--serif)", fontSize: 12 }}
+      />
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+        {TIME_HUE_PALETTE.map((h) => (
+          <button
+            key={h.hue}
+            onClick={() => setHue(h.hue)}
+            aria-label={h.name}
+            style={{
+              width: 18,
+              height: 18,
+              borderRadius: "50%",
+              background: `oklch(0.62 0.11 ${h.hue})`,
+              border:
+                hue === h.hue
+                  ? "1.5px solid var(--ink)"
+                  : "0.5px solid var(--rule)",
+              cursor: "pointer",
+              padding: 0,
+            }}
+          />
+        ))}
+      </div>
+      <div style={{ display: "flex", gap: 6 }}>
+        <button
+          onClick={onCancel}
+          style={{
+            flex: 1,
+            padding: "6px 10px",
+            background: "transparent",
+            border: "0.5px solid var(--rule)",
+            borderRadius: 999,
+            fontFamily: "var(--mono)",
+            fontSize: 9,
+            letterSpacing: "0.1em",
+            textTransform: "uppercase",
+            color: "var(--ink-3)",
+            cursor: "pointer",
+          }}
+        >
+          cancel
+        </button>
+        <button
+          onClick={submit}
+          disabled={!canSave || saving}
+          style={{
+            flex: 1,
+            padding: "6px 10px",
+            background: canSave ? "var(--ink)" : "var(--paper-3)",
+            color: canSave ? "var(--paper)" : "var(--ink-3)",
+            border: "none",
+            borderRadius: 999,
+            fontFamily: "var(--mono)",
+            fontSize: 9,
+            letterSpacing: "0.1em",
+            textTransform: "uppercase",
+            cursor: canSave ? "pointer" : "default",
+          }}
+        >
+          {saving ? "…" : "log"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ─── LifeView ───────────────────────────────────────────────────
+//
+// Milestone timeline. A vertical list of dated events the user has
+// logged, newest first, each as a row with a coloured dot + date +
+// title + optional note + × delete. "Log a milestone" form pinned
+// at the top.
+
+const MILESTONE_HUE_PALETTE = [
+  { hue: 12, name: "sienna" },
+  { hue: 38, name: "ochre" },
+  { hue: 145, name: "sage" },
+  { hue: 220, name: "blue" },
+  { hue: 280, name: "violet" },
+  { hue: 305, name: "plum" },
+];
+
+function LifeView() {
+  const { items, add, remove } = useMilestones();
+  const [adding, setAdding] = useState(false);
+
+  const sorted = [...items].sort(
+    (a, b) => b.date.localeCompare(a.date) || b.createdAt - a.createdAt,
+  );
+
+  return (
+    <>
+      {adding ? (
+        <AddMilestoneForm
+          onCancel={() => setAdding(false)}
+          onSave={async (m) => {
+            await add(m);
+            setAdding(false);
+          }}
+        />
+      ) : (
+        <button
+          onClick={() => setAdding(true)}
+          style={{
+            width: "100%",
+            padding: "14px",
+            background: "var(--ink)",
+            color: "var(--paper)",
+            border: "none",
+            borderRadius: 14,
+            fontFamily: "var(--serif)",
+            fontSize: 15,
+            marginBottom: 14,
+            cursor: "pointer",
+          }}
+        >
+          <span style={{ fontStyle: "italic" }}>+ log a milestone</span>
+        </button>
+      )}
+
+      {sorted.length > 0 ? (
+        <>
+          <Kicker>your timeline · newest first</Kicker>
+          <div
+            style={{
+              marginTop: 10,
+              position: "relative",
+              paddingLeft: 14,
+            }}
+          >
+            <div
+              style={{
+                position: "absolute",
+                left: 4,
+                top: 4,
+                bottom: 4,
+                width: 1,
+                background: "var(--rule)",
+              }}
+            />
+            {sorted.map((m) => (
+              <MilestoneRow
+                key={m.id}
+                m={m}
+                onRemove={() => void remove(m.id)}
+              />
+            ))}
+          </div>
+        </>
+      ) : (
+        <div className="card" style={{ padding: 22, textAlign: "center" }}>
+          <div
+            style={{
+              fontFamily: "var(--serif)",
+              fontSize: 36,
+              fontStyle: "italic",
+              color: "var(--ink-3)",
+            }}
+          >
+            ◌
+          </div>
+          <div className="margin-note" style={{ marginTop: 10, fontSize: 13 }}>
+            "The shape of a life starts to show up once you count it.
+            Log your first milestone — a move, a meeting, a beginning."
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
+function MilestoneRow({
+  m,
+  onRemove,
+}: {
+  m: Milestone;
+  onRemove: () => void;
+}) {
+  return (
+    <div
+      style={{
+        position: "relative",
+        padding: "8px 0 8px 12px",
+        borderBottom: "0.5px dashed var(--rule)",
+        display: "flex",
+        alignItems: "flex-start",
+        gap: 10,
+      }}
+    >
+      <span
+        style={{
+          position: "absolute",
+          left: -10,
+          top: 11,
+          width: 10,
+          height: 10,
+          borderRadius: "50%",
+          background: `oklch(0.62 0.11 ${m.hue})`,
+          border: "1px solid var(--paper)",
+        }}
+      />
+      <span style={{ flex: 1, minWidth: 0 }}>
+        <span
+          className="kicker"
+          style={{ display: "block", fontSize: 9 }}
+        >
+          {m.date}
+        </span>
+        <span
+          style={{
+            display: "block",
+            fontFamily: "var(--serif)",
+            fontStyle: "italic",
+            fontSize: 14,
+            marginTop: 2,
+            lineHeight: 1.3,
+          }}
+        >
+          {m.title}
+        </span>
+        {m.note && (
+          <span
+            style={{
+              display: "block",
+              fontFamily: "var(--serif)",
+              fontSize: 12,
+              color: "var(--ink-3)",
+              marginTop: 2,
+              lineHeight: 1.4,
+            }}
+          >
+            {m.note}
+          </span>
+        )}
+      </span>
+      <button
+        onClick={() => {
+          if (confirm(`Remove "${m.title}"?`)) onRemove();
+        }}
+        aria-label="Remove milestone"
+        style={{
+          background: "transparent",
+          border: "none",
+          color: "var(--ink-3)",
+          cursor: "pointer",
+          fontFamily: "var(--mono)",
+          fontSize: 12,
+          padding: "0 2px",
+          flexShrink: 0,
+        }}
+      >
+        ×
+      </button>
+    </div>
+  );
+}
+
+function AddMilestoneForm({
+  onCancel,
+  onSave,
+}: {
+  onCancel: () => void;
+  onSave: (m: Omit<Milestone, "id" | "createdAt">) => Promise<void> | void;
+}) {
+  const [date, setDate] = useState(isoDateToday());
+  const [title, setTitle] = useState("");
+  const [note, setNote] = useState("");
+  const [hue, setHue] = useState(38);
+  const [saving, setSaving] = useState(false);
+  const canSave = date.trim() !== "" && title.trim() !== "";
+
+  const submit = async () => {
+    if (!canSave || saving) return;
+    setSaving(true);
+    try {
+      await onSave({
+        date,
+        title: title.trim(),
+        note: note.trim() || undefined,
+        hue,
+      });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const inputStyle: React.CSSProperties = {
+    width: "100%",
+    boxSizing: "border-box",
+    padding: "8px 10px",
+    background: "var(--paper-2)",
+    border: "0.5px solid var(--rule)",
+    borderRadius: 6,
+    fontFamily: "var(--mono)",
+    fontSize: 13,
+    color: "var(--ink)",
+  };
+
+  return (
+    <div
+      className="card"
+      style={{
+        marginBottom: 14,
+        padding: 14,
+        background: "var(--paper-2)",
+      }}
+    >
+      <Kicker>log a milestone</Kicker>
+      <div style={{ display: "flex", gap: 6, marginTop: 6 }}>
+        <input
+          type="date"
+          value={date}
+          onChange={(e) => setDate(e.target.value)}
+          style={{ ...inputStyle, flex: 1 }}
+        />
+      </div>
+      <input
+        value={title}
+        onChange={(e) => setTitle(e.target.value)}
+        placeholder="what happened"
+        style={{
+          ...inputStyle,
+          marginTop: 6,
+          fontFamily: "var(--serif)",
+          fontStyle: "italic",
+          fontSize: 14,
+        }}
+      />
+      <input
+        value={note}
+        onChange={(e) => setNote(e.target.value)}
+        placeholder="a sentence about why it mattered · optional"
+        style={{
+          ...inputStyle,
+          marginTop: 6,
+          fontFamily: "var(--serif)",
+          fontSize: 13,
+        }}
+      />
+      <div
+        style={{
+          display: "flex",
+          flexWrap: "wrap",
+          gap: 4,
+          marginTop: 8,
+        }}
+      >
+        {MILESTONE_HUE_PALETTE.map((h) => (
+          <button
+            key={h.hue}
+            onClick={() => setHue(h.hue)}
+            aria-label={h.name}
+            style={{
+              width: 18,
+              height: 18,
+              borderRadius: "50%",
+              background: `oklch(0.62 0.11 ${h.hue})`,
+              border:
+                hue === h.hue
+                  ? "1.5px solid var(--ink)"
+                  : "0.5px solid var(--rule)",
+              cursor: "pointer",
+              padding: 0,
+            }}
+          />
+        ))}
+      </div>
+      <div style={{ display: "flex", gap: 6, marginTop: 10 }}>
+        <button
+          onClick={onCancel}
+          style={{
+            flex: 1,
+            padding: "8px 10px",
+            background: "transparent",
+            border: "0.5px solid var(--rule)",
+            borderRadius: 999,
+            fontFamily: "var(--mono)",
+            fontSize: 10,
+            letterSpacing: "0.1em",
+            textTransform: "uppercase",
+            color: "var(--ink-3)",
+            cursor: "pointer",
+          }}
+        >
+          cancel
+        </button>
+        <button
+          onClick={submit}
+          disabled={!canSave || saving}
+          style={{
+            flex: 1,
+            padding: "8px 10px",
+            background: canSave ? "var(--ink)" : "var(--paper-3)",
+            color: canSave ? "var(--paper)" : "var(--ink-3)",
+            border: "none",
+            borderRadius: 999,
+            fontFamily: "var(--mono)",
+            fontSize: 10,
+            letterSpacing: "0.1em",
+            textTransform: "uppercase",
+            cursor: canSave ? "pointer" : "default",
+          }}
+        >
+          {saving ? "…" : "log"}
+        </button>
       </div>
     </div>
   );

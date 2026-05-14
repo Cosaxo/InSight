@@ -5,6 +5,7 @@ import { useMoods } from "../../lib/useMoods";
 import { useRelations } from "../../lib/useRelations";
 import { useWeighins } from "../../lib/useWeighins";
 import { TheLedgerSection } from "./life-ledger";
+import { DayTemplateSection } from "./life-day";
 
 // LifeOverlay's two physical knobs — weight (kg) and birth year —
 // come from the saved profile (set in ProfileOverlay > Vital stats).
@@ -835,6 +836,9 @@ export function LifeOverlay({ onClose, onOpenDna }: LifeOverlayProps) {
 
         {tab === "rhythms" && (
           <>
+            <DayTemplateSection />
+
+            <hr className="rule-dashed" />
             <Kicker>the year · in mood</Kicker>
             <div className="card" style={{ marginTop: 10, padding: 14 }}>
               <YearMoodCalendar moods={moods} />
