@@ -1,10 +1,6 @@
+import { useProfile } from "../../lib/useProfile";
 import { Av, Kicker } from "../shared/primitives";
 import { RadarChart } from "../shared/charts";
-
-interface MeForOverlay {
-  initials: string;
-  personality: { O: number; C: number; E: number; A: number; N: number };
-}
 
 export interface PersonForOverlay {
   init: string;
@@ -21,23 +17,38 @@ export interface PersonForOverlay {
 
 interface PersonOverlayProps {
   p: PersonForOverlay;
-  me: MeForOverlay;
   onClose: () => void;
 }
 
-export function PersonOverlay({ p, me, onClose }: PersonOverlayProps) {
+// Big Five vector order matches computeBig5 in useProfile.ts:
+// [O, C, E, A, N]. We pull from profile.personality directly so the
+// comparison reflects the user's actual Big Five test result (rather
+// than the seed cast's). The "them" side is still synthesised from
+// the person's match score — there's no per-person personality
+// vector in the schema, and a real signal would need them to share
+// their Big Five with you. The radar is hidden until you've taken
+// the Big Five test yourself; an empty-state explains the gating.
+export function PersonOverlay({ p, onClose }: PersonOverlayProps) {
+  const { profile } = useProfile();
   if (!p) return null;
-  const dims = [
-    { label: "Open", you: me.personality.O, them: 70 + (p.match - 60) / 4 },
-    { label: "Cons.", you: me.personality.C, them: 55 + (p.match - 60) / 3 },
-    { label: "Extra.", you: me.personality.E, them: 40 + (p.match - 60) / 5 },
-    { label: "Agree.", you: me.personality.A, them: 65 + (p.match - 60) / 4 },
-    {
-      label: "Stable",
-      you: 100 - me.personality.N,
-      them: 60 + (p.match - 60) / 4,
-    },
-  ];
+  const big5 = profile.personality;
+  const personalityReady =
+    Array.isArray(big5) &&
+    big5.length === 5 &&
+    big5.every((n) => typeof n === "number");
+  const dims = personalityReady
+    ? [
+        { label: "Open", you: big5![0], them: 70 + (p.match - 60) / 4 },
+        { label: "Cons.", you: big5![1], them: 55 + (p.match - 60) / 3 },
+        { label: "Extra.", you: big5![2], them: 40 + (p.match - 60) / 5 },
+        { label: "Agree.", you: big5![3], them: 65 + (p.match - 60) / 4 },
+        {
+          label: "Stable",
+          you: 100 - big5![4],
+          them: 60 + (p.match - 60) / 4,
+        },
+      ]
+    : [];
   const interests = p.interests ?? [];
   const interestLabels = interests.map((i) =>
     typeof i === "string" ? i : i.t,
@@ -80,58 +91,78 @@ export function PersonOverlay({ p, me, onClose }: PersonOverlayProps) {
 
         <hr className="rule-dashed" />
 
-        <div className="card" style={{ marginBottom: 14 }}>
-          <Kicker>You vs them · five strokes</Kicker>
-          <div style={{ marginTop: 8 }}>
-            <RadarChart
-              values={dims.map((d) => d.you)}
-              compareValues={dims.map((d) => d.them)}
-              labels={dims.map((d) => d.label)}
-              color="var(--ink)"
-              compareColor={`oklch(0.55 0.13 ${p.hue})`}
-              size={260}
-            />
-          </div>
-          <div
-            style={{
-              display: "flex",
-              gap: 14,
-              justifyContent: "center",
-              fontFamily: "var(--mono)",
-              fontSize: 9.5,
-              color: "var(--ink-3)",
-              letterSpacing: "0.08em",
-              marginTop: 4,
-            }}
-          >
-            <span>
-              <span
-                style={{
-                  display: "inline-block",
-                  width: 8,
-                  height: 8,
-                  background: "var(--ink)",
-                  borderRadius: 2,
-                  marginRight: 5,
-                }}
+        {personalityReady ? (
+          <div className="card" style={{ marginBottom: 14 }}>
+            <Kicker>You vs them · five strokes</Kicker>
+            <div style={{ marginTop: 8 }}>
+              <RadarChart
+                values={dims.map((d) => d.you)}
+                compareValues={dims.map((d) => d.them)}
+                labels={dims.map((d) => d.label)}
+                color="var(--ink)"
+                compareColor={`oklch(0.55 0.13 ${p.hue})`}
+                size={260}
               />
-              YOU
-            </span>
-            <span>
-              <span
-                style={{
-                  display: "inline-block",
-                  width: 8,
-                  height: 8,
-                  background: `oklch(0.55 0.13 ${p.hue})`,
-                  borderRadius: 2,
-                  marginRight: 5,
-                }}
-              />
-              {p.init}
-            </span>
+            </div>
+            <div
+              style={{
+                display: "flex",
+                gap: 14,
+                justifyContent: "center",
+                fontFamily: "var(--mono)",
+                fontSize: 9.5,
+                color: "var(--ink-3)",
+                letterSpacing: "0.08em",
+                marginTop: 4,
+              }}
+            >
+              <span>
+                <span
+                  style={{
+                    display: "inline-block",
+                    width: 8,
+                    height: 8,
+                    background: "var(--ink)",
+                    borderRadius: 2,
+                    marginRight: 5,
+                  }}
+                />
+                YOU
+              </span>
+              <span>
+                <span
+                  style={{
+                    display: "inline-block",
+                    width: 8,
+                    height: 8,
+                    background: `oklch(0.55 0.13 ${p.hue})`,
+                    borderRadius: 2,
+                    marginRight: 5,
+                  }}
+                />
+                {p.init}
+              </span>
+            </div>
+            <div
+              className="margin-note"
+              style={{ marginTop: 8, fontSize: 11, fontStyle: "italic" }}
+            >
+              Their side is estimated from match score — a real
+              comparison needs them to share their Big Five with you.
+            </div>
           </div>
-        </div>
+        ) : (
+          <div className="card" style={{ marginBottom: 14 }}>
+            <Kicker>You vs them · five strokes</Kicker>
+            <div
+              className="margin-note"
+              style={{ marginTop: 8, fontSize: 13, fontStyle: "italic" }}
+            >
+              Take the Big Five test (from "your portrait") to see how
+              your strokes line up against {p.name.split(" ")[0]}'s.
+            </div>
+          </div>
+        )}
 
         {interestLabels.length > 0 && (
           <div style={{ marginTop: 16 }}>

@@ -1,14 +1,13 @@
-import { Fragment, useState } from "react";
-import { IS_DATA } from "../../data/seedData";
+import { Fragment, useCallback, useMemo, useState } from "react";
 import { Av, Kicker } from "../shared/primitives";
 import { Compass2D } from "../shared/charts";
 import {
   ConcentricMap,
   type ConcentricPerson,
 } from "../shared/ConcentricMap";
-import { ProfileCompare } from "../insights/ProfileCompare";
-import { MediaPopularity } from "../insights/MediaPopularity";
-import { GroupBreakdown } from "../insights/GroupBreakdown";
+import { useRelations, type UserPerson } from "../../lib/useRelations";
+import { useFriendDailies } from "../../lib/useFriendDailies";
+import { useMe } from "../../lib/useMe";
 
 export interface CirclePerson extends ConcentricPerson {
   rel: string;
@@ -22,7 +21,24 @@ export interface CirclePerson extends ConcentricPerson {
 interface PeopleTabProps {
   onPerson: (p: CirclePerson) => void;
   onOpenDaily?: () => void;
+  onAddPerson?: () => void;
   myDailyReport?: DailyReport | null;
+}
+
+// Promote a user-added UserPerson into the CirclePerson shape the
+// People tab + ConcentricMap consume.
+function userToCircle(p: UserPerson): CirclePerson {
+  return {
+    id: p.id,
+    name: p.name,
+    init: p.init,
+    hue: p.hue,
+    match: p.match,
+    rel: p.rel,
+    category: p.category,
+    degrees: p.degrees,
+    since: p.since,
+  };
 }
 
 interface DailyReport {
@@ -60,14 +76,35 @@ const PHOTO_GRADIENTS: Record<string, string> = {
 export function PeopleTab({
   onPerson,
   onOpenDaily,
+  onAddPerson,
   myDailyReport,
 }: PeopleTabProps) {
-  const D = IS_DATA;
   const myDaily = myDailyReport ?? null;
-  const allReports: DailyReport[] = myDaily
-    ? [myDaily, ...D.dailyReports]
-    : D.dailyReports;
+  const me = useMe();
   const [chainTarget, setChainTarget] = useState<CirclePerson | null>(null);
+  const { people: userPeople } = useRelations();
+  const { dailies: friendDailies } = useFriendDailies(userPeople);
+
+  // Friend daily reports → DailyReport view shape. Friend reports only
+  // carry the public fields (no body / move / nutrition / scrapbook —
+  // those are owner-only on the source doc).
+  const friendReports: DailyReport[] = useMemo(
+    () =>
+      friendDailies.map(({ friend, report }) => ({
+        personId: friend.id,
+        date: report.date,
+        shared: report.shared,
+        mood: report.mood,
+        moodLabel: report.moodLabel,
+        one_line: report.one_line,
+        weather: report.weather,
+      })),
+    [friendDailies],
+  );
+
+  const allReports: DailyReport[] = myDaily
+    ? [myDaily, ...friendReports]
+    : friendReports;
 
   const categories = [
     { key: "family", label: "Family", icon: "✦", hue: 12 },
@@ -76,7 +113,18 @@ export function PeopleTab({
     { key: "neighbors", label: "Neighbors", icon: "△", hue: 145 },
     { key: "acquaintances", label: "Acquaintances", icon: "·", hue: 250 },
   ];
-  const people: CirclePerson[] = D.people;
+  const people: CirclePerson[] = useMemo(
+    () => userPeople.map(userToCircle),
+    [userPeople],
+  );
+
+  // Stable callback so the memoized ConcentricMap doesn't re-render
+  // when chainTarget / other PeopleTab state changes.
+  const onConcentricPerson = useCallback(
+    (p: ConcentricPerson) => onPerson(p as CirclePerson),
+    [onPerson],
+  );
+
   const grouped = categories
     .map((c) => ({
       ...c,
@@ -101,14 +149,16 @@ export function PeopleTab({
   };
   const chain = buildChain(chainTarget);
 
-  const avgMatch = Math.round(
-    people.reduce((s, p) => s + p.match, 0) / people.length,
-  );
-  const oldestYear = Math.min(
-    ...people
-      .filter((p) => p.since !== "birth")
-      .map((p) => parseInt(p.since, 10)),
-  );
+  const avgMatch =
+    people.length === 0
+      ? 0
+      : Math.round(people.reduce((s, p) => s + p.match, 0) / people.length);
+  const sinceYears = people
+    .filter((p) => p.since !== "birth")
+    .map((p) => parseInt(p.since, 10))
+    .filter((y) => Number.isFinite(y));
+  const oldestYear = sinceYears.length === 0 ? 0 : Math.min(...sinceYears);
+  const oldestLabel = oldestYear ? `${2025 - oldestYear}y` : "—";
 
   return (
     <div className="fade-in">
@@ -156,14 +206,29 @@ export function PeopleTab({
         </div>
 
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          {allReports.length === 0 && (
+            <div
+              className="margin-note"
+              style={{
+                fontSize: 12,
+                fontStyle: "italic",
+                color: "var(--ink-3)",
+                padding: "8px 0",
+              }}
+            >
+              {userPeople.length === 0
+                ? "Add people to your circle to see their day. Log your own daily to share yours back."
+                : "Nobody in your circle has shared today yet. (They each have to grant you access from their side.)"}
+            </div>
+          )}
           {allReports.map((r) => {
             const isMe = r.personId === "me";
             const p = isMe
               ? {
                   id: "me",
-                  init: IS_DATA.me.initials,
-                  hue: 38,
-                  name: "you",
+                  init: me.initials,
+                  hue: me.hue,
+                  name: me.name,
                   rel: "yourself",
                 }
               : people.find((x) => x.id === r.personId);
@@ -442,7 +507,7 @@ export function PeopleTab({
         </div>
         <div>
           <div className="fig-num" style={{ fontSize: 28 }}>
-            <em>{2025 - oldestYear}y</em>
+            <em>{oldestLabel}</em>
           </div>
           <div className="kicker">OLDEST TIE</div>
         </div>
@@ -465,7 +530,7 @@ export function PeopleTab({
             lines between them are shared edges.
           </div>
         </div>
-        <ConcentricMap people={people} onPerson={(p) => onPerson(p as CirclePerson)} />
+        <ConcentricMap people={people} onPerson={onConcentricPerson} />
       </div>
 
       <div className="card" style={{ marginBottom: 14 }}>
@@ -728,17 +793,9 @@ export function PeopleTab({
       </div>
 
       <hr className="rule-dashed" />
-      <ProfileCompare scope="circle" accent="var(--c-people)" />
-
-      <hr className="rule-dashed" />
-      <GroupBreakdown scope="friends" accent="var(--c-people)" />
-
-      <hr className="rule-dashed" />
-      <MediaPopularity scope="circle" accent="var(--c-people)" />
-
-      <hr className="rule-dashed" />
       <Kicker>Add someone</Kicker>
       <button
+        onClick={onAddPerson}
         style={{
           width: "100%",
           marginTop: 10,

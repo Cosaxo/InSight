@@ -1,10 +1,9 @@
-import { IS_DATA } from "../../data/seedData";
+import { useMemo, useState } from "react";
 import { Kicker } from "../shared/primitives";
 import { Donut, RadarChart } from "../shared/charts";
-import { ProfileCompare } from "../insights/ProfileCompare";
-import { MediaPopularity } from "../insights/MediaPopularity";
-import { GroupBreakdown } from "../insights/GroupBreakdown";
 import { useCityRatings } from "../../lib/useCityRatings";
+import { useGeolocation } from "../../lib/useGeolocation";
+import { useNearbyCities, type NearbyCity } from "../../lib/useNearbyCities";
 import type { CityRating } from "../../types";
 
 type CityScoreKey = "culture" | "nature" | "food" | "pace" | "openness" | "cost";
@@ -19,14 +18,90 @@ const RATING_CATS: { k: CityScoreKey; label: string }[] = [
 ];
 
 export function CityTab() {
-  const c = IS_DATA.city;
-  const seed = c.score as Record<CityScoreKey, number>;
+  const { position, loading: geoLoading, error: geoError, request } = useGeolocation();
+  const { cities, loading: citiesLoading } = useNearbyCities(position, 500);
+  // User's manual override — null means "track the nearest city". Once
+  // they tap one of the nearby chips this sticks until they tap again.
+  const [pickedUid, setPickedUid] = useState<string | null>(null);
+
+  const selectedCity: NearbyCity | null = useMemo(() => {
+    if (pickedUid) {
+      const found = cities.find((c) => c.uid === pickedUid);
+      if (found) return found;
+    }
+    return cities[0] ?? null;
+  }, [cities, pickedUid]);
+
+  // If the user-picked city falls out of the result set (they
+  // travelled), `selectedCity`'s fallback to `cities[0]` quietly
+  // takes over. We deliberately keep `pickedUid` set so coming back
+  // into range restores their pick.
+
   const { ratings: stored, setRating } = useCityRatings();
+  // When no city is selected (location not granted yet), render the
+  // CTA only — the rest of the tab needs a real city to anchor on.
+  if (!selectedCity) {
+    return (
+      <div className="fade-in">
+        <div className="page-num">— xi —</div>
+        <Kicker>Field notes · the city you live in</Kicker>
+        <div className="sec-head">
+          <h2>
+            A passport for <em>somewhere</em>
+          </h2>
+        </div>
+        <div
+          className="card"
+          style={{
+            marginBottom: 12,
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            gap: 12,
+          }}
+        >
+          <div style={{ flex: 1 }}>
+            <Kicker>Pick by where you are</Kicker>
+            <div
+              className="margin-note"
+              style={{ marginTop: 4, fontSize: 12 }}
+            >
+              {geoError
+                ? geoError
+                : "Tap to use your current location — the City tab will follow you."}
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => void request()}
+            disabled={geoLoading}
+            style={{
+              padding: "8px 14px",
+              background: "var(--ink)",
+              color: "var(--paper)",
+              border: "none",
+              borderRadius: 99,
+              fontFamily: "var(--mono)",
+              fontSize: 10,
+              letterSpacing: "0.12em",
+              cursor: geoLoading ? "wait" : "pointer",
+              opacity: geoLoading ? 0.6 : 1,
+            }}
+          >
+            {geoLoading ? "…" : "↑ USE LOCATION"}
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  const c = selectedCity;
   const userOverrides = stored[c.name] ?? {};
-  // Merge: seed defaults under user overrides — user's stars win when set.
+  // Star ratings are scoped per city name — switching cities swaps the
+  // override set. No seed defaults anymore: real cities start unrated.
   const ratings: Record<CityScoreKey, number> = RATING_CATS.reduce(
     (acc, { k }) => {
-      acc[k] = (userOverrides[k as keyof CityRating] as number) ?? seed[k] ?? 0;
+      acc[k] = (userOverrides[k as keyof CityRating] as number) ?? 0;
       return acc;
     },
     {} as Record<CityScoreKey, number>,
@@ -38,6 +113,11 @@ export function CityTab() {
   };
 
   const totalRating = Object.values(ratings).reduce((s, v) => s + v, 0);
+  const cityInitial = c.name.charAt(0).toUpperCase();
+  const cityAccent = c.hue != null ? `oklch(0.55 0.14 ${c.hue})` : "var(--c-city)";
+  const countryTag = c.country ? `, ${c.country}` : "";
+  const popLabel = c.pop ?? "—";
+  const matchLabel = c.match ?? 0;
 
   return (
     <div className="fade-in">
@@ -45,9 +125,54 @@ export function CityTab() {
       <Kicker>Field notes · the city you live in</Kicker>
       <div className="sec-head">
         <h2>
-          A passport for <em>Oslo</em>
+          A passport for <em>{c.name}</em>
         </h2>
       </div>
+
+      {/* "Use my location" CTA — only shows when we haven't tried yet. */}
+      {!position && (
+        <div
+          className="card"
+          style={{
+            marginBottom: 12,
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            gap: 12,
+          }}
+        >
+          <div style={{ flex: 1 }}>
+            <Kicker>Pick by where you are</Kicker>
+            <div
+              className="margin-note"
+              style={{ marginTop: 4, fontSize: 12 }}
+            >
+              {geoError
+                ? geoError
+                : "Tap to use your current location — the City tab will follow you."}
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => void request()}
+            disabled={geoLoading}
+            style={{
+              padding: "8px 14px",
+              background: "var(--ink)",
+              color: "var(--paper)",
+              border: "none",
+              borderRadius: 99,
+              fontFamily: "var(--mono)",
+              fontSize: 10,
+              letterSpacing: "0.12em",
+              cursor: geoLoading ? "wait" : "pointer",
+              opacity: geoLoading ? 0.6 : 1,
+            }}
+          >
+            {geoLoading ? "…" : "↑ USE LOCATION"}
+          </button>
+        </div>
+      )}
 
       <div className="card" style={{ position: "relative", marginBottom: 16 }}>
         <div className="tape" />
@@ -58,7 +183,7 @@ export function CityTab() {
               height: 64,
               borderRadius: "50%",
               background: "var(--paper)",
-              border: "1.5px solid var(--c-city)",
+              border: `1.5px solid ${cityAccent}`,
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
@@ -70,11 +195,11 @@ export function CityTab() {
                 fontFamily: "var(--serif)",
                 fontStyle: "italic",
                 fontSize: 22,
-                color: "var(--c-city)",
+                color: cityAccent,
                 lineHeight: 1,
               }}
             >
-              O
+              {cityInitial}
             </div>
             <div
               style={{
@@ -82,13 +207,13 @@ export function CityTab() {
                 bottom: -6,
                 fontFamily: "var(--mono)",
                 fontSize: 7,
-                color: "var(--c-city)",
+                color: cityAccent,
                 letterSpacing: "0.16em",
                 background: "var(--paper-2)",
                 padding: "0 4px",
               }}
             >
-              OSLO
+              {c.name.slice(0, 6).toUpperCase()}
             </div>
           </div>
           <div style={{ flex: 1 }}>
@@ -99,23 +224,82 @@ export function CityTab() {
                 letterSpacing: "-0.01em",
               }}
             >
-              {c.name}, NO
+              {c.name}
+              {countryTag}
             </div>
             <div className="kicker" style={{ marginTop: 2 }}>
-              POP {c.pop} · LIVED {c.lived} · MATCH {c.yourMatch}%
+              POP {popLabel}
+              {position && c.distanceKm > 0 ? ` · ${c.distanceKm.toFixed(1)} KM` : ""}
+              {" · MATCH "}
+              {matchLabel}%
             </div>
           </div>
           <Donut
-            value={c.yourMatch}
-            color="var(--c-city)"
+            value={matchLabel}
+            color={cityAccent}
             label="MATCH"
             size={64}
           />
         </div>
-        <div className="margin-note" style={{ marginTop: 10 }}>
-          "{c.notes}"
-        </div>
+        {c.blurb && (
+          <div className="margin-note" style={{ marginTop: 10 }}>
+            "{c.blurb}"
+          </div>
+        )}
+        {c.fromSeed && position && (
+          <div
+            className="margin-note"
+            style={{ marginTop: 6, fontSize: 10, color: "var(--ink-3)" }}
+          >
+            (no Firestore entry for this city — falling back to seed data)
+          </div>
+        )}
       </div>
+
+      {/* Nearby cities · tap to switch */}
+      {cities.length > 1 && (
+        <div className="card" style={{ marginBottom: 16 }}>
+          <Kicker>
+            {position ? "Nearby cities · tap to switch" : "Cities · tap to switch"}
+          </Kicker>
+          {citiesLoading && (
+            <div className="margin-note" style={{ fontSize: 11, marginTop: 6 }}>
+              looking…
+            </div>
+          )}
+          <div
+            style={{
+              display: "flex",
+              gap: 6,
+              flexWrap: "wrap",
+              marginTop: 8,
+            }}
+          >
+            {cities.slice(0, 8).map((nc) => {
+              const active = nc.uid === c.uid;
+              return (
+                <button
+                  key={nc.uid}
+                  type="button"
+                  onClick={() => setPickedUid(nc.uid)}
+                  className="stamp"
+                  style={{
+                    cursor: "pointer",
+                    background: active ? "var(--ink)" : "var(--paper-2)",
+                    color: active ? "var(--paper)" : "var(--ink)",
+                    border: "0.5px solid var(--rule)",
+                  }}
+                >
+                  {nc.name}
+                  {position && nc.distanceKm > 0
+                    ? ` · ${nc.distanceKm < 1 ? "<1" : nc.distanceKm.toFixed(0)}km`
+                    : ""}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       <div className="card" style={{ marginBottom: 16 }}>
         <Kicker>Six dimensions · radar</Kicker>
@@ -123,7 +307,7 @@ export function CityTab() {
           <RadarChart
             values={cats.map(({ k }) => ratings[k] * 20)}
             labels={cats.map((c) => c.label)}
-            color="var(--c-city)"
+            color={cityAccent}
             size={260}
           />
         </div>
@@ -167,19 +351,6 @@ export function CityTab() {
         ))}
       </div>
 
-      <div style={{ marginTop: 16 }}>
-        <Kicker>Stamps collected</Kicker>
-        <div
-          style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 8 }}
-        >
-          {c.visited.map((v: string) => (
-            <span key={v} className="stamp">
-              {v}
-            </span>
-          ))}
-        </div>
-      </div>
-
       <div className="card" style={{ marginTop: 16 }}>
         <Kicker>City vitals</Kicker>
         <div
@@ -192,21 +363,21 @@ export function CityTab() {
         >
           <div>
             <div className="fig-num">
-              <em>{c.lived}</em>
-            </div>
-            <div className="kicker">YEARS LIVED</div>
-          </div>
-          <div>
-            <div className="fig-num">
-              <em>{c.pop}</em>
+              <em>{popLabel}</em>
             </div>
             <div className="kicker">POPULATION</div>
           </div>
           <div>
             <div className="fig-num">
-              <em>{c.visited.length}</em>
+              <em>{position && c.distanceKm > 0 ? `${c.distanceKm.toFixed(0)}km` : "—"}</em>
             </div>
-            <div className="kicker">NORDIC TRIPS</div>
+            <div className="kicker">FROM YOU</div>
+          </div>
+          <div>
+            <div className="fig-num">
+              <em>{cities.length || "—"}</em>
+            </div>
+            <div className="kicker">CITIES NEARBY</div>
           </div>
           <div>
             <div className="fig-num">
@@ -217,79 +388,72 @@ export function CityTab() {
         </div>
       </div>
 
-      <div className="card" style={{ marginTop: 16 }}>
-        <Kicker>Other cities · how Oslo sits</Kicker>
-        <div
-          className="margin-note"
-          style={{ fontSize: 12, marginTop: 4, marginBottom: 10 }}
-        >
-          population, give or take.
-        </div>
-        {[
-          { name: "Oslo", pop: 709, color: "var(--c-city)" },
-          { name: "Bergen", pop: 290, color: "var(--ink-3)" },
-          { name: "Stavanger", pop: 148, color: "var(--ink-3)" },
-          { name: "Trondheim", pop: 215, color: "var(--ink-3)" },
-          { name: "Tromsø", pop: 78, color: "var(--ink-3)" },
-        ].map((city) => (
-          <div
-            key={city.name}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 10,
-              marginBottom: 6,
-            }}
-          >
-            <span
-              style={{
-                width: 78,
-                fontFamily: "var(--serif)",
-                fontStyle: "italic",
-                fontSize: 13,
-              }}
-            >
-              {city.name}
-            </span>
-            <div
-              style={{
-                flex: 1,
-                height: 7,
-                background: "var(--paper-2)",
-                border: "0.5px solid var(--rule)",
-                borderRadius: 3,
-                overflow: "hidden",
-              }}
-            >
-              <div
-                style={{
-                  height: "100%",
-                  width: `${(city.pop / 800) * 100}%`,
-                  background: city.color,
-                }}
-              />
-            </div>
-            <span
-              style={{
-                width: 50,
-                textAlign: "right",
-                fontFamily: "var(--mono)",
-                fontSize: 10,
-                color: "var(--ink-3)",
-              }}
-            >
-              {city.pop}k
-            </span>
+      {/* Distance bar chart of the next few nearest cities. */}
+      {cities.length > 1 && position && (
+        <div className="card" style={{ marginTop: 16 }}>
+          <Kicker>How close, in kilometres</Kicker>
+          <div style={{ marginTop: 8 }}>
+            {cities.slice(0, 6).map((nc) => {
+              const maxKm = Math.max(...cities.slice(0, 6).map((x) => x.distanceKm), 1);
+              const active = nc.uid === c.uid;
+              return (
+                <div
+                  key={nc.uid}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 10,
+                    marginBottom: 6,
+                  }}
+                >
+                  <span
+                    style={{
+                      width: 90,
+                      fontFamily: "var(--serif)",
+                      fontStyle: "italic",
+                      fontSize: 13,
+                      color: active ? "var(--ink)" : "var(--ink-2)",
+                    }}
+                  >
+                    {nc.name}
+                  </span>
+                  <div
+                    style={{
+                      flex: 1,
+                      height: 7,
+                      background: "var(--paper-2)",
+                      border: "0.5px solid var(--rule)",
+                      borderRadius: 3,
+                      overflow: "hidden",
+                    }}
+                  >
+                    <div
+                      style={{
+                        height: "100%",
+                        width: `${(nc.distanceKm / maxKm) * 100}%`,
+                        background: active ? cityAccent : "var(--ink-3)",
+                      }}
+                    />
+                  </div>
+                  <span
+                    style={{
+                      width: 50,
+                      textAlign: "right",
+                      fontFamily: "var(--mono)",
+                      fontSize: 10,
+                      color: "var(--ink-3)",
+                    }}
+                  >
+                    {nc.distanceKm < 1
+                      ? "<1km"
+                      : `${nc.distanceKm.toFixed(0)}km`}
+                  </span>
+                </div>
+              );
+            })}
           </div>
-        ))}
-      </div>
-
-      <hr className="rule-dashed" />
-      <ProfileCompare scope="city" accent="var(--c-city)" />
-      <hr className="rule-dashed" />
-      <GroupBreakdown scope="city" accent="var(--c-city)" />
-      <hr className="rule-dashed" />
-      <MediaPopularity scope="city" accent="var(--c-city)" />
+        </div>
+      )}
     </div>
   );
 }

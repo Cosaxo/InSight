@@ -1,4 +1,5 @@
 import type { CSSProperties, ReactNode } from "react";
+import { useIsMobile } from "../../lib/useIsMobile";
 
 interface IOSStatusBarProps {
   dark?: boolean;
@@ -110,6 +111,31 @@ export function IOSDevice({
   dark = false,
   style,
 }: IOSDeviceProps) {
+  const isMobile = useIsMobile();
+
+  // On real phones: render bare. No rounded outer frame, no simulated
+  // dynamic island, no fake "9:41" status bar, no fake home indicator.
+  // The OS already draws the real ones. We just fill the viewport.
+  if (isMobile) {
+    return (
+      <div
+        style={{
+          width: "100vw",
+          height: "100dvh",
+          position: "relative",
+          background: dark ? "#000" : "var(--paper)",
+          fontFamily: "-apple-system, system-ui, sans-serif",
+          WebkitFontSmoothing: "antialiased",
+          overflow: "hidden",
+          ...style,
+        }}
+      >
+        {children}
+      </div>
+    );
+  }
+
+  // Desktop preview frame.
   return (
     <div
       style={{

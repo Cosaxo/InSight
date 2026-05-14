@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { memo, useMemo } from "react";
 
 export interface ConcentricPerson {
   id: string;
@@ -21,7 +21,10 @@ interface PlacedPerson extends ConcentricPerson {
   y: number;
 }
 
-export function ConcentricMap({ people, onPerson }: ConcentricMapProps) {
+export const ConcentricMap = memo(function ConcentricMap({
+  people,
+  onPerson,
+}: ConcentricMapProps) {
   const W = 360,
     H = 380;
   const cx = W / 2,
@@ -46,6 +49,8 @@ export function ConcentricMap({ people, onPerson }: ConcentricMapProps) {
       const y = cy + Math.sin(angle) * ring.r;
       return { ...p, ringIdx, x, y };
     });
+    // `rings`, `cx`, `cy` are all locals derived from W/H which never
+    // change after mount — re-memoising on them would be wasted work.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [people]);
 
@@ -225,4 +230,4 @@ export function ConcentricMap({ people, onPerson }: ConcentricMapProps) {
       </div>
     </div>
   );
-}
+});

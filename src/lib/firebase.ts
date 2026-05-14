@@ -14,11 +14,14 @@ import type { User } from "firebase/auth";
 import type {
   CityRating,
   CityRatings,
+  Dream,
   Habit,
+  Impression,
   Meal,
   MoodEntry,
   Person,
   RemoteDailyReport,
+  Specimen,
   Transaction,
   Workout,
 } from "../types";
@@ -28,7 +31,13 @@ import type {
   RemoteProfile,
 } from "./firebaseImpl";
 
-export type { RemoteProfile, MigrationPayload } from "./firebaseImpl";
+export type {
+  RemoteProfile,
+  MigrationPayload,
+  RemoteCity,
+  RemoteDiscoverable,
+  RemoteSkill,
+} from "./firebaseImpl";
 export type { User } from "firebase/auth";
 
 const env = import.meta.env;
@@ -183,6 +192,35 @@ export function subscribeHabits(
   return lazySubscribe((m) => m.subscribeHabits, uid, cb);
 }
 
+export function subscribeSkills(
+  uid: string,
+  cb: (items: import("./firebaseImpl").RemoteSkill[]) => void,
+): () => void {
+  return lazySubscribe((m) => m.subscribeSkills, uid, cb);
+}
+
+export async function addSkill(
+  uid: string,
+  skill: import("./firebaseImpl").RemoteSkill,
+): Promise<void> {
+  const m = await impl();
+  return m.addSkill(uid, skill);
+}
+
+export async function updateSkill(
+  uid: string,
+  id: string,
+  patch: Partial<import("./firebaseImpl").RemoteSkill>,
+): Promise<void> {
+  const m = await impl();
+  return m.updateSkill(uid, id, patch);
+}
+
+export async function deleteSkill(uid: string, id: string): Promise<void> {
+  const m = await impl();
+  return m.deleteSkill(uid, id);
+}
+
 export function subscribeWorkouts(
   uid: string,
   cb: (items: Workout[]) => void,
@@ -259,6 +297,11 @@ export async function addHabit(uid: string, habit: Habit): Promise<void> {
   return m.addHabit(uid, habit);
 }
 
+export async function deleteHabit(uid: string, id: string): Promise<void> {
+  const m = await impl();
+  return m.deleteHabit(uid, id);
+}
+
 export async function updateHabit(
   uid: string,
   id: string,
@@ -266,6 +309,90 @@ export async function updateHabit(
 ): Promise<void> {
   const m = await impl();
   return m.updateHabit(uid, id, patch);
+}
+
+export function subscribeScrapbook(
+  uid: string,
+  cb: (items: Specimen[]) => void,
+): () => void {
+  return lazySubscribe((m) => m.subscribeScrapbook, uid, cb);
+}
+
+export async function addSpecimen(uid: string, s: Specimen): Promise<void> {
+  const m = await impl();
+  return m.addSpecimen(uid, s);
+}
+
+export async function updateSpecimen(
+  uid: string,
+  id: string,
+  patch: Partial<Specimen>,
+): Promise<void> {
+  const m = await impl();
+  return m.updateSpecimen(uid, id, patch);
+}
+
+export async function deleteSpecimen(uid: string, id: string): Promise<void> {
+  const m = await impl();
+  return m.deleteSpecimen(uid, id);
+}
+
+export function subscribeDreams(
+  uid: string,
+  cb: (items: Dream[]) => void,
+): () => void {
+  return lazySubscribe((m) => m.subscribeDreams, uid, cb);
+}
+
+export async function addDream(uid: string, d: Dream): Promise<void> {
+  const m = await impl();
+  return m.addDream(uid, d);
+}
+
+export async function updateDream(
+  uid: string,
+  id: string,
+  patch: Partial<Dream>,
+): Promise<void> {
+  const m = await impl();
+  return m.updateDream(uid, id, patch);
+}
+
+export async function deleteDream(uid: string, id: string): Promise<void> {
+  const m = await impl();
+  return m.deleteDream(uid, id);
+}
+
+export function subscribeImpressions(
+  uid: string,
+  cb: (items: Impression[]) => void,
+): () => void {
+  return lazySubscribe((m) => m.subscribeImpressions, uid, cb);
+}
+
+export async function addImpression(
+  uid: string,
+  i: Impression,
+): Promise<void> {
+  const m = await impl();
+  return m.addImpression(uid, i);
+}
+
+export async function updateImpression(
+  uid: string,
+  id: string,
+  patch: Partial<Impression>,
+): Promise<void> {
+  const m = await impl();
+  return m.updateImpression(uid, id, patch);
+}
+
+export async function deleteImpression(
+  uid: string,
+  id: string,
+): Promise<void> {
+  const m = await impl();
+  return m.deleteImpression(uid, id);
 }
 
 export async function addWorkout(
@@ -276,9 +403,19 @@ export async function addWorkout(
   return m.addWorkout(uid, workout);
 }
 
+export async function deleteWorkout(uid: string, id: string): Promise<void> {
+  const m = await impl();
+  return m.deleteWorkout(uid, id);
+}
+
 export async function addMeal(uid: string, meal: Meal): Promise<void> {
   const m = await impl();
   return m.addMeal(uid, meal);
+}
+
+export async function deleteMeal(uid: string, id: string): Promise<void> {
+  const m = await impl();
+  return m.deleteMeal(uid, id);
 }
 
 export async function addTransaction(
@@ -287,6 +424,14 @@ export async function addTransaction(
 ): Promise<void> {
   const m = await impl();
   return m.addTransaction(uid, tx);
+}
+
+export async function deleteTransaction(
+  uid: string,
+  id: string,
+): Promise<void> {
+  const m = await impl();
+  return m.deleteTransaction(uid, id);
 }
 
 // ── Daily reports (Phase 4) ─────────────────────────────────────
@@ -318,4 +463,81 @@ export async function upsertDailyReport(
 export async function deleteDailyReport(uid: string): Promise<void> {
   const m = await impl();
   return m.deleteDailyReport(uid);
+}
+
+// ── Geo discovery (cities + nearby users) ───────────────────────
+
+export async function findNearbyCities(
+  center: { latitude: number; longitude: number },
+  radiusKm: number,
+) {
+  const m = await impl();
+  return m.findNearbyCities(center, radiusKm);
+}
+
+export async function loadActiveCities(limitN = 50) {
+  const m = await impl();
+  return m.loadActiveCities(limitN);
+}
+
+export async function findNearbyDiscoverable(
+  center: { latitude: number; longitude: number },
+  maxRadiusKm: number,
+  excludeUid?: string,
+) {
+  const m = await impl();
+  return m.findNearbyDiscoverable(center, maxRadiusKm, excludeUid);
+}
+
+export async function upsertDiscoverable(
+  uid: string,
+  data: {
+    latitude: number;
+    longitude: number;
+    geohash: string;
+    displayName?: string;
+    photoColor?: string;
+  },
+): Promise<void> {
+  const m = await impl();
+  return m.upsertDiscoverable(uid, data);
+}
+
+export async function deleteDiscoverable(uid: string): Promise<void> {
+  const m = await impl();
+  return m.deleteDiscoverable(uid);
+}
+
+// ── Circle (friend daily-report access) ─────────────────────────
+
+export async function grantCircleAccess(
+  ownerUid: string,
+  viewerUid: string,
+): Promise<void> {
+  const m = await impl();
+  return m.grantCircleAccess(ownerUid, viewerUid);
+}
+
+export async function revokeCircleAccess(
+  ownerUid: string,
+  viewerUid: string,
+): Promise<void> {
+  const m = await impl();
+  return m.revokeCircleAccess(ownerUid, viewerUid);
+}
+
+export function subscribeFriendDailyReport(
+  friendUid: string,
+  cb: (report: RemoteDailyReport | null) => void,
+): () => void {
+  let cancelled = false;
+  let unsub: (() => void) | null = null;
+  impl().then((m) => {
+    if (cancelled) return;
+    unsub = m.subscribeFriendDailyReport(friendUid, cb);
+  });
+  return () => {
+    cancelled = true;
+    unsub?.();
+  };
 }

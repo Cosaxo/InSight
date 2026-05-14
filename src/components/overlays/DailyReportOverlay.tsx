@@ -1,6 +1,56 @@
 import { useRef, useState } from "react";
-import { IS_DATA } from "../../data/seedData";
+import { Camera, CameraResultType, CameraSource } from "@capacitor/camera";
+import { Capacitor } from "@capacitor/core";
 import { useDailyReport } from "../../lib/useDailyReport";
+import { useMeals } from "../../lib/useMeals";
+import type { RemoteDailyReport } from "../../types";
+import {
+  dailyMoodToScore,
+  isoDateToday,
+  useMoods,
+} from "../../lib/useMoods";
+import { VerdictCard } from "../shared/VerdictCard";
+
+// Open a native camera/photo picker when running inside Capacitor;
+// otherwise click the hidden <input type="file"> so the browser shows
+// the OS file picker. The result is the same in both paths: a data:
+// URL the caller can stash in localStorage.
+async function pickPhoto(
+  inputRef: React.RefObject<HTMLInputElement | null>,
+  onPick: (v: string) => void,
+): Promise<void> {
+  if (!Capacitor.isNativePlatform()) {
+    inputRef.current?.click();
+    return;
+  }
+  try {
+    const photo = await Camera.getPhoto({
+      // Let the OS choose between camera and library so the user picks
+      // their flow. On the journal aesthetic, photos from the library
+      // make as much sense as fresh captures.
+      source: CameraSource.Prompt,
+      resultType: CameraResultType.DataUrl,
+      quality: 80,
+      allowEditing: false,
+      // Daily-report photo card is square-ish; downsize to keep
+      // localStorage cheap.
+      width: 1200,
+      promptLabelHeader: "today's photo",
+      promptLabelPicture: "take a photo",
+      promptLabelPhoto: "from photos",
+      promptLabelCancel: "cancel",
+    });
+    if (photo.dataUrl) onPick(photo.dataUrl);
+  } catch (err) {
+    // User cancelled the OS picker — silent. Anything else, log and
+    // fall back to the web input so the feature still works.
+    const msg = err instanceof Error ? err.message : String(err);
+    if (!/cancel/i.test(msg)) {
+      console.error("[DailyReport] native camera failed:", err);
+      inputRef.current?.click();
+    }
+  }
+}
 
 const STORAGE = "insight.dailyReport.v1";
 const PHOTO_STORAGE = "insight.dailyReport.photo.v1";
@@ -52,30 +102,10 @@ const PHOTO_STOCK: PhotoStock[] = [
   },
 ];
 
-interface DailyReportData {
-  personId: "me";
-  date: "today";
-  mood: number;
-  moodLabel: string;
-  one_line: string;
-  weather: string;
-  body?: AutoStats["body"];
-  move?: AutoStats["move"];
-  nutrition?: AutoStats["nutrition"];
-  scrapbook?: AutoStats["scrapbook"];
-  hasPhoto: boolean;
-  photo?: string;
-  shared: string[];
-}
-
-interface StoredDaily {
-  mood?: number;
-  one_line?: string;
-  weather?: string;
-  shared?: string[];
-}
-
-function loadStored(): StoredDaily | null {
+function loadStored(): Partial<RemoteDailyReport> | null {
+  // The full RemoteDailyReport is written here by useDailyReport.writeLocal,
+  // but the overlay only reads the four user-editable fields. Typed as
+  // Partial<> because the on-disk JSON predates the schema.
   try {
     return JSON.parse(localStorage.getItem(STORAGE) || "null");
   } catch {
@@ -86,83 +116,18 @@ function loadPhoto(): string | null {
   return localStorage.getItem(PHOTO_STORAGE) || null;
 }
 
-interface AutoStats {
-  body: {
-    hr: number;
-    hrRest: number;
-    hrv: number;
-    sleep: number;
-    sleepScore: number;
-    battery: number;
-    readiness: number;
-    stress: number;
-  } | null;
-  move: {
-    steps?: number;
-    stepsTarget?: number;
-    workout?: {
-      type: string;
-      dur?: string;
-      dist?: string;
-      hrAvg?: number;
-      hue?: number;
-    };
-    cals?: number;
-  };
-  nutrition: {
-    kcal: number;
-    kcalTarget: number;
-    water: number;
-    waterTarget: number;
-    topMeal?: string;
-  } | null;
-  scrapbook: {
-    name: string;
-    latin?: string;
-    loc?: string;
-    cat: string;
-    hue: number;
-    conf: number;
-  }[];
-}
+// Today's nutrition summary derived from useMeals. The previous
+// version assembled body/movement/nutrition auto-stats from
+// IS_DATA.body.today + IS_DATA.insights.nutrition — wearable data
+// the app can't read, plus a kcal target the user never set. With
+// no wearable integration the body + movement sections come out;
+// the nutrition section gets wired to the meal log we already
+// track.
+const KCAL_REFERENCE = 2000;
 
-function getTodaysAutoStats(): AutoStats {
-  const D = IS_DATA;
-  const body = D.body?.today || {};
-  const nutr = D.insights?.nutrition || D.nutrition || {};
-  const fitn = D.insights?.fitness || D.fitness || {};
-  const workouts = D.body?.workouts || [];
-  const todayWorkout = workouts[workouts.length - 1] || null;
-
-  return {
-    body: body.hr
-      ? {
-          hr: body.hr,
-          hrRest: body.hrRest,
-          hrv: body.hrv,
-          sleep: body.sleep?.hours,
-          sleepScore: body.sleep?.score,
-          battery: body.bodyBattery,
-          readiness: body.readiness,
-          stress: body.stress,
-        }
-      : null,
-    move: {
-      steps: body.steps || fitn.steps,
-      stepsTarget: body.stepsTarget || fitn.target,
-      workout: todayWorkout,
-      cals: body.calsActive,
-    },
-    nutrition: nutr.kcal
-      ? {
-          kcal: nutr.kcal,
-          kcalTarget: nutr.target,
-          water: nutr.water,
-          waterTarget: nutr.target_water,
-        }
-      : null,
-    scrapbook: [],
-  };
+interface NutritionSummary {
+  kcal: number;
+  entries: number;
 }
 
 function Toggle({ on, onClick }: { on: boolean; onClick: () => void }) {
@@ -368,7 +333,7 @@ function PhotoSlot({
     const stock = PHOTO_STOCK.find((p) => p.id === photo);
     return (
       <div
-        onClick={() => inputRef.current?.click()}
+        onClick={() => void pickPhoto(inputRef, onPick)}
         style={{
           position: "relative",
           height: 180,
@@ -433,7 +398,7 @@ function PhotoSlot({
   return (
     <div>
       <div
-        onClick={() => inputRef.current?.click()}
+        onClick={() => void pickPhoto(inputRef, onPick)}
         style={{
           height: 96,
           borderRadius: 8,
@@ -507,16 +472,28 @@ function PhotoSlot({
 
 interface DailyReportOverlayProps {
   onClose: () => void;
-  onSaved?: (data: DailyReportData) => void;
 }
 
 export function DailyReportOverlay({
   onClose,
-  onSaved,
 }: DailyReportOverlayProps) {
   const existing = loadStored();
-  const auto = getTodaysAutoStats();
   const { save: saveDaily } = useDailyReport();
+  const { moods: priorMoods, upsert: upsertMoodEntry } = useMoods();
+  const { items: meals } = useMeals();
+
+  // Today's nutrition summary from the real meal log. Only render the
+  // card when the user has logged at least one meal today — don't
+  // assert empty kcal stats they didn't earn.
+  const todayIso = isoDateToday();
+  const todayMeals = meals.filter((m) => m.date === todayIso);
+  const nutrition: NutritionSummary | null =
+    todayMeals.length > 0
+      ? {
+          kcal: todayMeals.reduce((s, m) => s + m.kcal, 0),
+          entries: todayMeals.length,
+        }
+      : null;
 
   const [photo, setPhoto] = useState<string | null>(loadPhoto());
   const [mood, setMood] = useState<number>(existing?.mood ?? 62);
@@ -527,10 +504,7 @@ export function DailyReportOverlay({
     photo: true,
     mood: true,
     one_line: true,
-    body: true,
-    movement: true,
     nutrition: true,
-    scrapbook: true,
     weather: true,
   };
   const [share, setShare] = useState<Record<string, boolean>>(
@@ -548,29 +522,38 @@ export function DailyReportOverlay({
   const toggleShare = (k: string) =>
     setShare((s) => ({ ...s, [k]: !s[k] }));
 
+  // Build the prompt that lets Gemma observe a pattern instead of just
+  // narrating the day. Computed every render — VerdictCard captures it
+  // on mount (and again on regenerate) so re-renders here are cheap.
+  const recent = priorMoods
+    .slice()
+    .sort((a, b) => b.date.localeCompare(a.date))
+    .slice(0, 6);
+  const recentLines = recent
+    .map((m) => `${m.date}: mood ${m.score}/5${m.note ? ` — "${m.note}"` : ""}`)
+    .join("\n");
+  const todayScore = dailyMoodToScore(mood);
+  const verdictPrompt = [
+    "You are a quiet journal companion. The user has just logged today's daily report.",
+    "Look at the recent pattern, then write ONE short sentence (under 18 words) noticing something — a shape, a contrast, a thread — without giving advice or being cheerful. Be honest, observational, slightly literary.",
+    "",
+    `Today (${isoDateToday()}): mood ${todayScore}/5${oneLine ? ` — "${oneLine}"` : ""}`,
+    recentLines ? `Recent days:\n${recentLines}` : "",
+    "",
+    "Your one-sentence observation:",
+  ]
+    .filter(Boolean)
+    .join("\n");
+
   const save = async () => {
     const shared = Object.keys(share).filter((k) => share[k]);
-    const data: DailyReportData = {
-      personId: "me",
-      date: "today",
-      mood,
-      moodLabel: labelFor(mood),
-      one_line: oneLine,
-      weather,
-      body: auto.body,
-      move: auto.move,
-      nutrition: auto.nutrition,
-      scrapbook: auto.scrapbook,
-      hasPhoto: !!photo,
-      shared,
-    };
     // Route through useDailyReport — writes localStorage always, plus
     // Firestore when signed in. Photo stays local; we record whether
     // one exists + the stock key (if it's a preset) for sync.
     const isStockPhoto =
       photo != null &&
       PHOTO_STOCK.some((p) => p.id === photo);
-    await saveDaily({
+    const data: RemoteDailyReport & { photo: string | null } = {
       date: "today",
       mood,
       moodLabel: labelFor(mood),
@@ -580,12 +563,17 @@ export function DailyReportOverlay({
       photoId: isStockPhoto ? photo! : undefined,
       shared,
       photo,
+    };
+    await saveDaily(data);
+    // Also record today's mood as a MoodEntry so the Insights mood
+    // charts have real history to draw. The slider is 0..100; the
+    // MoodEntry schema is 1..5.
+    await upsertMoodEntry({
+      date: isoDateToday(),
+      score: dailyMoodToScore(mood),
+      note: oneLine || undefined,
     });
     setSavedFlash(true);
-    setTimeout(() => {
-      if (onSaved) onSaved(data);
-      onClose();
-    }, 700);
   };
 
   const sharedCount = Object.values(share).filter(Boolean).length;
@@ -736,120 +724,7 @@ export function DailyReportOverlay({
           />
         </div>
 
-        {auto.body && (
-          <div className="card" style={{ padding: 14, marginTop: 10 }}>
-            <SectionHead
-              label="body · today"
-              on={share.body}
-              onToggle={() => toggleShare("body")}
-              hint="FROM GARMIN"
-            />
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "repeat(3, 1fr)",
-                gap: 6,
-              }}
-            >
-              <Stat value={auto.body.hr} unit="bpm" label="resting" hue={12} />
-              <Stat value={auto.body.hrv} unit="ms" label="hrv" hue={145} />
-              <Stat
-                value={auto.body.sleepScore}
-                unit="/100"
-                label="sleep"
-                hue={220}
-              />
-              <Stat
-                value={auto.body.battery}
-                unit="%"
-                label="battery"
-                hue={38}
-              />
-              <Stat
-                value={auto.body.readiness}
-                unit="/100"
-                label="ready"
-                hue={250}
-              />
-              <Stat
-                value={auto.body.stress}
-                unit=""
-                label="stress"
-                hue={60}
-              />
-            </div>
-            <div
-              style={{
-                marginTop: 8,
-                fontFamily: "var(--serif)",
-                fontStyle: "italic",
-                fontSize: 12,
-                color: "var(--ink-3)",
-              }}
-            >
-              slept {auto.body.sleep}h · last sync 12 min ago
-            </div>
-          </div>
-        )}
-
-        {auto.move.steps && (
-          <div className="card" style={{ padding: 14, marginTop: 10 }}>
-            <SectionHead
-              label="movement · today"
-              on={share.movement}
-              onToggle={() => toggleShare("movement")}
-              hint="FROM YOUR WATCH"
-            />
-            <div
-              style={{
-                display: "flex",
-                alignItems: "baseline",
-                gap: 10,
-                marginBottom: 8,
-              }}
-            >
-              <div
-                className="fig-num"
-                style={{ fontSize: 30, lineHeight: 1 }}
-              >
-                <em>{auto.move.steps?.toLocaleString()}</em>
-              </div>
-              <div
-                style={{
-                  fontFamily: "var(--mono)",
-                  fontSize: 9,
-                  color: "var(--ink-3)",
-                  letterSpacing: "0.06em",
-                }}
-              >
-                STEPS ·{" "}
-                {Math.round(
-                  ((auto.move.steps ?? 0) / (auto.move.stepsTarget ?? 1)) * 100,
-                )}
-                % OF {auto.move.stepsTarget?.toLocaleString()}
-              </div>
-            </div>
-            <div
-              style={{
-                height: 6,
-                background: "var(--paper-3)",
-                borderRadius: 999,
-                overflow: "hidden",
-                border: "0.5px solid var(--rule)",
-              }}
-            >
-              <div
-                style={{
-                  height: "100%",
-                  width: `${Math.min(100, ((auto.move.steps ?? 0) / (auto.move.stepsTarget ?? 1)) * 100)}%`,
-                  background: "oklch(0.62 0.11 38)",
-                }}
-              />
-            </div>
-          </div>
-        )}
-
-        {auto.nutrition && (
+        {nutrition && (
           <div className="card" style={{ padding: 14, marginTop: 10 }}>
             <SectionHead
               label="nutrition · today"
@@ -865,19 +740,41 @@ export function DailyReportOverlay({
               }}
             >
               <Stat
-                value={auto.nutrition.kcal?.toLocaleString()}
-                unit={`/ ${auto.nutrition.kcalTarget}`}
+                value={nutrition.kcal.toLocaleString()}
+                unit={`/ ${KCAL_REFERENCE.toLocaleString()}`}
                 label="kcal"
                 hue={38}
               />
               <Stat
-                value={auto.nutrition.water}
-                unit={`/ ${auto.nutrition.waterTarget} glasses`}
-                label="water"
+                value={nutrition.entries}
+                unit={nutrition.entries === 1 ? "meal" : "meals"}
+                label="logged"
                 hue={220}
               />
             </div>
+            <div
+              style={{
+                marginTop: 6,
+                fontFamily: "var(--serif)",
+                fontStyle: "italic",
+                fontSize: 11,
+                color: "var(--ink-3)",
+              }}
+            >
+              2,000 kcal is a generic reference, not your target.
+            </div>
           </div>
+        )}
+
+        {/* On-device verdict — only rendered once the user has saved.
+            VerdictCard handles the download / generating / result /
+            regenerate states and caches the verdict per-day. */}
+        {savedFlash && (
+          <VerdictCard
+            kicker="YOUR PORTRAIT, REDRAWN"
+            cacheKey="daily-report"
+            prompt={verdictPrompt}
+          />
         )}
 
         <hr className="rule-dashed" />
@@ -909,7 +806,7 @@ export function DailyReportOverlay({
               cursor: "pointer",
             }}
           >
-            cancel
+            {savedFlash ? "close" : "cancel"}
           </button>
           <button
             onClick={save}

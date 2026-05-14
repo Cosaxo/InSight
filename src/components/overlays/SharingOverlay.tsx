@@ -1,4 +1,8 @@
 import { useState } from "react";
+import { useGeolocation } from "../../lib/useGeolocation";
+import { useDiscoverableLocation } from "../../lib/useDiscoverableLocation";
+import { useAuth } from "../../lib/useAuth";
+import { firebaseEnabled } from "../../lib/firebase";
 import { Kicker } from "../shared/primitives";
 
 interface ShareItem {
@@ -143,6 +147,22 @@ export function SharingOverlay({ onClose }: SharingOverlayProps) {
     return o;
   });
 
+  const { user } = useAuth();
+  const { position, loading: geoLoading, request: requestGeo, denied } =
+    useGeolocation();
+  const { enabled: discoverable, setEnabled: setDiscoverable, error: discoverableError } =
+    useDiscoverableLocation(position);
+
+  const onToggleDiscoverable = async () => {
+    const next = !discoverable;
+    if (next && !position) {
+      // Need a location before we can actually publish anything.
+      const p = await requestGeo();
+      if (!p) return; // user denied or fetch failed — leave toggle off
+    }
+    await setDiscoverable(next);
+  };
+
   const tally = LEVELS.map((L) => ({
     ...L,
     n: SHARE_DATA.filter((d) => vals[d.id] === L.id).length,
@@ -202,6 +222,103 @@ export function SharingOverlay({ onClose }: SharingOverlayProps) {
             ))}
           </div>
         </div>
+
+        {/* Discoverable-by-nearby toggle — binary, separate from the
+            4-level perimeter matrix below. Requires sign-in. */}
+        {firebaseEnabled && user && (
+          <div
+            className="card"
+            style={{
+              marginBottom: 14,
+              padding: 14,
+              borderLeft: "3px solid var(--accent)",
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "flex-start",
+                gap: 12,
+              }}
+            >
+              <div style={{ flex: 1 }}>
+                <Kicker>Discoverable to people nearby</Kicker>
+                <div
+                  style={{
+                    fontFamily: "var(--serif)",
+                    fontStyle: "italic",
+                    fontSize: 13,
+                    color: "var(--ink-2)",
+                    marginTop: 6,
+                    lineHeight: 1.5,
+                  }}
+                >
+                  When this is on, your location (rounded to ~100 m) is
+                  added to a shared map so people standing roughly near
+                  you can show up in their Around tab. Off by default.
+                </div>
+                {discoverableError && (
+                  <div
+                    className="margin-note"
+                    style={{
+                      marginTop: 8,
+                      fontSize: 11,
+                      color: "oklch(0.55 0.16 12)",
+                    }}
+                  >
+                    {discoverableError}
+                  </div>
+                )}
+                {denied && !position && (
+                  <div
+                    className="margin-note"
+                    style={{
+                      marginTop: 8,
+                      fontSize: 11,
+                      color: "oklch(0.55 0.16 12)",
+                    }}
+                  >
+                    Location permission denied — re-enable in your
+                    device settings to use this.
+                  </div>
+                )}
+              </div>
+              <button
+                type="button"
+                onClick={() => void onToggleDiscoverable()}
+                disabled={geoLoading}
+                style={{
+                  flexShrink: 0,
+                  width: 56,
+                  height: 32,
+                  borderRadius: 999,
+                  border: "0.5px solid var(--rule)",
+                  background: discoverable ? "var(--accent)" : "var(--paper-2)",
+                  position: "relative",
+                  cursor: geoLoading ? "wait" : "pointer",
+                  opacity: geoLoading ? 0.6 : 1,
+                  transition: "background 0.2s",
+                }}
+                aria-pressed={discoverable}
+              >
+                <span
+                  style={{
+                    position: "absolute",
+                    top: 3,
+                    left: discoverable ? 28 : 3,
+                    width: 24,
+                    height: 24,
+                    borderRadius: "50%",
+                    background: "var(--paper)",
+                    border: "0.5px solid var(--rule)",
+                    transition: "left 0.2s",
+                  }}
+                />
+              </button>
+            </div>
+          </div>
+        )}
 
         <Kicker>Each thing, separately</Kicker>
         <div style={{ marginTop: 10 }}>

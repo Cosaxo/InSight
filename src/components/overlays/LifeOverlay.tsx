@@ -1,12 +1,31 @@
-import { useState } from "react";
+import { memo, useState } from "react";
 import { Kicker } from "../shared/primitives";
+import { useProfile } from "../../lib/useProfile";
+import { useMoods } from "../../lib/useMoods";
+import { useRelations } from "../../lib/useRelations";
 
-const WEIGHT_KG = 63;
-const AGE = 34;
-const DAYS_LIVED = Math.round(AGE * 365.25) + 12;
-const HEARTBEATS =
-  Math.round(((AGE * 365.25 * 24 * 60 * 70) / 1_000_000_000) * 100) / 100;
-const BREATHS = Math.round((AGE * 365.25 * 24 * 60 * 15) / 1_000_000);
+// LifeOverlay's two physical knobs — weight (kg) and birth year —
+// come from the saved profile (set in ProfileOverlay > Vital stats).
+// When the user hasn't set them, the overlay falls back to these
+// gentle defaults and shows an inline prompt instead of pretending
+// the numbers are theirs.
+//
+// 70 kg ≈ adult median; birth year of (currentYear - 30) ≈ "an
+// adult of unspecified age". The math still works, the framing just
+// becomes "for a 30-year-old at 70 kg" rather than "for you".
+const FALLBACK_WEIGHT_KG = 70;
+const FALLBACK_BIRTH_YEAR = new Date().getFullYear() - 30;
+
+// Derived getters — all life-shape numbers downstream collapse into
+// these so a single source of truth (weight + age) drives everything
+// from tissue kg to lived-weeks to heartbeats.
+function deriveAge(birthYear: number | undefined): number {
+  const by = birthYear ?? FALLBACK_BIRTH_YEAR;
+  return Math.max(0, new Date().getFullYear() - by);
+}
+function deriveWeight(weightKg: number | undefined): number {
+  return weightKg && weightKg > 0 ? weightKg : FALLBACK_WEIGHT_KG;
+}
 
 interface Element {
   sym: string;
@@ -27,20 +46,32 @@ const ELEMENTS: Element[] = [
   { sym: "·", name: "trace", pct: 0.6, hue: 0, note: "Fe, Zn, Cu, I, Mg, Na, Se…" },
 ];
 
+// Tissue percentages are biology-fixed (water/fat/protein/mineral/
+// carb shares of body mass for a typical adult — they don't depend
+// on weight). The displayed kilograms scale with the user's actual
+// weight, so a 60 kg body shows different masses to an 80 kg body.
 interface Tissue {
   k: string;
   pct: number;
   hue: number;
   label: string;
-  sub: string;
+  blurb: string; // tail text that follows the computed kg
 }
 const TISSUES: Tissue[] = [
-  { k: "water", pct: 58, hue: 220, label: "Water", sub: "≈ 36.5 kg · enough to fill a small bucket" },
-  { k: "fat", pct: 22, hue: 60, label: "Fat", sub: "≈ 13.9 kg · the long-burning fuel" },
-  { k: "protein", pct: 14, hue: 38, label: "Protein", sub: "≈  8.8 kg · muscle, skin, enzymes" },
-  { k: "mineral", pct: 5, hue: 280, label: "Bone & mineral", sub: "≈  3.2 kg · 206 bones, give or take" },
-  { k: "carb", pct: 1, hue: 145, label: "Carbohydrate", sub: "≈  0.6 kg · mostly glycogen on standby" },
+  { k: "water", pct: 58, hue: 220, label: "Water", blurb: "enough to fill a small bucket" },
+  { k: "fat", pct: 22, hue: 60, label: "Fat", blurb: "the long-burning fuel" },
+  { k: "protein", pct: 14, hue: 38, label: "Protein", blurb: "muscle, skin, enzymes" },
+  { k: "mineral", pct: 5, hue: 280, label: "Bone & mineral", blurb: "206 bones, give or take" },
+  { k: "carb", pct: 1, hue: 145, label: "Carbohydrate", blurb: "mostly glycogen on standby" },
 ];
+
+function tissueSub(t: Tissue, weightKg: number): string {
+  const kg = (weightKg * t.pct) / 100;
+  // Match the typographic look of the previous strings: a thin space
+  // and one decimal, with ≈ prefix.
+  const formatted = kg.toFixed(1).padStart(4, " ").replace(" ", " ");
+  return `≈ ${formatted} kg · ${t.blurb}`;
+}
 
 const STARDUST = [
   { glyph: "✦", label: "cells", value: "≈ 37 trillion", note: "red blood cells outnumber the rest" },
@@ -70,65 +101,345 @@ const GENERATIONS: Generation[] = [
   { g: 40, yr: 991, count: "1.1 trillion", label: "38× great — pedigree collapse: most repeat" },
 ];
 
-const IN_NUMBERS = [
-  { k: "days", label: "DAYS LIVED", value: DAYS_LIVED.toLocaleString(), sub: "≈ 5,322 still ahead" },
-  { k: "heart", label: "HEARTBEATS (BN)", value: HEARTBEATS.toString(), sub: "one every 0.85 s" },
-  { k: "breath", label: "BREATHS (MM)", value: BREATHS.toLocaleString(), sub: "15 a minute, mostly forgotten" },
-  { k: "moons", label: "FULL MOONS", value: Math.round(AGE * 12.37).toLocaleString(), sub: "4 missed to cloud cover" },
-  { k: "sleep", label: "YEARS ASLEEP", value: "11.1", sub: "one third of everything" },
-  { k: "meals", label: "MEALS EATEN", value: "≈ 31,200", sub: "about a tonne of bread" },
-  { k: "steps", label: "STEPS WALKED", value: "78 MM", sub: "1.7× around the Earth" },
-  { k: "orbits", label: "TRIPS AROUND ☉", value: "34", sub: "32 billion km of orbit" },
-  { k: "kissed", label: "PEOPLE KISSED", value: "17", sub: "and four you remember" },
-  { k: "books", label: "BOOKS FINISHED", value: "342", sub: "11 you re-read on purpose" },
-  { k: "words", label: "WORDS WRITTEN", value: "1.4 MM", sub: "most in the journal" },
-  { k: "tears", label: "LITRES OF TEARS", value: "≈ 14", sub: "a small bucket" },
+// Numbers card grid. The first four entries are computed from the
+// user's age (days, heartbeats, breaths, moons); the rest stay
+// literary-flavor and don't pretend to be measured — they'd each
+// need their own real source to be honest. Future revival: pull
+// `meals` from useMeals, `steps` from a step source, etc.
+function buildInNumbers(age: number): {
+  k: string;
+  label: string;
+  value: string;
+  sub: string;
+}[] {
+  const daysLived = Math.round(age * 365.25);
+  // Assume ~84-year expected lifespan in Norway; rough.
+  const daysAhead = Math.max(0, Math.round(84 * 365.25) - daysLived);
+  const heartbeatsBn =
+    Math.round(((age * 365.25 * 24 * 60 * 70) / 1_000_000_000) * 100) / 100;
+  const breathsMm = Math.round((age * 365.25 * 24 * 60 * 15) / 1_000_000);
+  const moons = Math.round(age * 12.37);
+  return [
+    { k: "days", label: "DAYS LIVED", value: daysLived.toLocaleString(), sub: `≈ ${daysAhead.toLocaleString()} still ahead` },
+    { k: "heart", label: "HEARTBEATS (BN)", value: heartbeatsBn.toString(), sub: "one every 0.85 s" },
+    { k: "breath", label: "BREATHS (MM)", value: breathsMm.toLocaleString(), sub: "15 a minute, mostly forgotten" },
+    { k: "moons", label: "FULL MOONS", value: moons.toLocaleString(), sub: "12.4 a year, give or take" },
+    { k: "sleep", label: "YEARS ASLEEP", value: (age / 3).toFixed(1), sub: "one third of everything" },
+    { k: "meals", label: "MEALS EATEN", value: `≈ ${Math.round(age * 365.25 * 2.5).toLocaleString()}`, sub: "≈ 2.5 a day" },
+    { k: "orbits", label: "TRIPS AROUND ☉", value: age.toString(), sub: "≈ 940 MM km each" },
+  ];
+}
+
+// ── rhythms data ─────────────────────────────────────────────────
+
+// Category → ring assignment for the people constellation. We map
+// AddPersonFlow's five category keys onto four visual rings — family
+// goes innermost (named), friends next (named), colleagues +
+// neighbors out further (dots), acquaintances on the orbit (dots).
+// Hues come from the AddPersonFlow palette so the visualisation
+// matches the chips users tap when categorising.
+interface ConstellationPerson {
+  ring: number;
+  angle: number;
+  label?: string;
+  hue: number;
+}
+const CATEGORY_RING: Record<string, { ring: number; hue: number; showLabel: boolean }> = {
+  family: { ring: 1, hue: 12, showLabel: true },
+  friends: { ring: 2, hue: 38, showLabel: true },
+  colleagues: { ring: 3, hue: 220, showLabel: false },
+  neighbors: { ring: 3, hue: 145, showLabel: false },
+  acquaintances: { ring: 4, hue: 250, showLabel: false },
+};
+const RING_LABELS = [
+  { ring: 1, label: "family" },
+  { ring: 2, label: "friends" },
+  { ring: 3, label: "everyday" },
+  { ring: 4, label: "orbit" },
 ];
 
-const AGE_FACTS = [
-  {
-    kicker: "a fibonacci year",
-    body:
-      "34 sits in the Fibonacci sequence between 21 and 55 — the next will land at 55.",
-    glyph: "✦",
-  },
-  {
-    kicker: "biologically",
-    body:
-      "Your prefrontal cortex finished wiring around 28; your skeletal mass is at its lifetime peak now and will quietly thin from here.",
-    glyph: "◐",
-  },
-  {
-    kicker: "statistically",
-    body:
-      "You are older than ~57% of people alive on Earth right now, and have an expected ~50 years still to live in Norway.",
-    glyph: "☾",
-  },
-  {
-    kicker: "historically",
-    body:
-      "Marie Curie was 36 when she got her first Nobel. Vermeer painted Girl with a Pearl Earring at 34. Anton Chekhov hadn't yet written The Seagull.",
-    glyph: "✶",
-  },
-  {
-    kicker: "in your line",
-    body:
-      "Your mother had you at 27, your grandmother had her at 22, her mother at 19 — you are the latest first-born in four generations.",
-    glyph: "↑",
-  },
-];
+// ── rhythms components ───────────────────────────────────────────
 
-const LIFETIME_TOTALS = [
-  { n: "41", l: "COUNTRIES", s: "last: Japan" },
-  { n: "127", l: "CITIES", s: "this year alone, 9" },
-  { n: "342", l: "BOOKS", s: "11 re-read on purpose" },
-  { n: "6 400", l: "KM RUN", s: "roughly Oslo→Cairo" },
-  { n: "14", l: "HOMES", s: "three you still miss" },
-  { n: "71", l: "PEOPLE", s: "kept in mind" },
-  { n: "2 318", l: "NIGHTS OUT", s: "half logged, half guessed" },
-  { n: "4", l: "LANGUAGES", s: "two well, two badly" },
-  { n: "9", l: "JOBS", s: "one you would take again" },
-];
+// YearMoodCalendar — a 12x31 grid showing one cell per day, coloured
+// by the day's logged mood score. Empty cells (no entry, or future
+// days) render transparent. Filled cells use a warmth ramp where a
+// higher score → brighter, warmer hue, lower → cooler.
+//
+// We always show the CURRENT calendar year so the grid is stable
+// across sessions; calling code passes the real `moods` array from
+// useMoods.
+const YearMoodCalendar = memo(function YearMoodCalendar({
+  moods,
+}: {
+  moods: { date: string; score: number }[];
+}) {
+  const months = ["jan","feb","mar","apr","may","jun","jul","aug","sep","oct","nov","dec"];
+  const cell = 8, gap = 2;
+  // Build a {date: score} lookup so the grid render is O(12*31).
+  // MoodEntry.score is 1..5; we scale to a 2..10 brightness ramp to
+  // reuse the original palette stops. Days with no entry → -1
+  // (transparent cell, matching the legacy "empty" treatment).
+  const year = new Date().getFullYear();
+  const byDate = new Map<string, number>();
+  for (const m of moods) byDate.set(m.date, m.score);
+  const daysInMonth = (mo: number) =>
+    new Date(year, mo + 1, 0).getDate();
+  const cellFor = (mo: number, d: number): number => {
+    if (d >= daysInMonth(mo)) return -1;
+    const iso = `${year}-${String(mo + 1).padStart(2, "0")}-${String(d + 1).padStart(2, "0")}`;
+    const score = byDate.get(iso);
+    if (score === undefined) return -1;
+    return Math.max(0, Math.min(10, score * 2));
+  };
+  return (
+    <div>
+      <div style={{ display: "flex", flexDirection: "column", gap }}>
+        {months.map((label, m) => (
+          <div key={m} style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <span
+              style={{
+                width: 24,
+                fontFamily: "var(--mono)", fontSize: 8.5,
+                color: "var(--ink-3)", letterSpacing: "0.06em",
+              }}
+            >
+              {label}
+            </span>
+            <div style={{ display: "flex", gap }}>
+              {Array.from({ length: 31 }, (_, d) => {
+                const v = cellFor(m, d);
+                return (
+                  <span
+                    key={d}
+                    style={{
+                      width: cell, height: cell, borderRadius: 1.5,
+                      background: v < 0
+                        ? "transparent"
+                        : v === 0
+                          ? "var(--paper-3)"
+                          : `oklch(${0.94 - v * 0.05} ${0.02 + v * 0.01} ${60 - v * 15})`,
+                      border: v < 0
+                        ? "none"
+                        : "0.5px solid color-mix(in oklch, var(--ink) 6%, transparent)",
+                    }}
+                  />
+                );
+              })}
+            </div>
+          </div>
+        ))}
+      </div>
+      <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 12 }}>
+        <span
+          style={{
+            fontFamily: "var(--mono)", fontSize: 8.5,
+            color: "var(--ink-3)", letterSpacing: "0.08em",
+          }}
+        >
+          DIM
+        </span>
+        {[0, 2, 4, 6, 8, 10].map((v) => (
+          <span
+            key={v}
+            style={{
+              width: cell, height: cell, borderRadius: 1.5,
+              background: v === 0
+                ? "var(--paper-3)"
+                : `oklch(${0.94 - v * 0.05} ${0.02 + v * 0.01} ${60 - v * 15})`,
+              border: "0.5px solid color-mix(in oklch, var(--ink) 6%, transparent)",
+            }}
+          />
+        ))}
+        <span
+          style={{
+            fontFamily: "var(--mono)", fontSize: 8.5,
+            color: "var(--ink-3)", letterSpacing: "0.08em",
+          }}
+        >
+          BRIGHT
+        </span>
+      </div>
+    </div>
+  );
+});
+
+const LifeInWeeks = memo(function LifeInWeeks({ age }: { age: number }) {
+  const totalWeeks = 84 * 52;
+  const livedWeeks = Math.round(age * 52.18);
+  const cols = 52, rows = 84;
+  const cell = 4.4, gap = 1;
+  const w = cols * (cell + gap), h = rows * (cell + gap);
+  return (
+    <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
+      <svg viewBox={`0 0 ${w} ${h}`} width="100%" style={{ maxWidth: 320 }}>
+        {Array.from({ length: rows }).map((_, r) =>
+          Array.from({ length: cols }).map((_, c) => {
+            const i = r * cols + c;
+            const isCurrent = i === livedWeeks;
+            const isLived = i < livedWeeks;
+            const decade = Math.floor(r / 10);
+            return (
+              <rect
+                key={i}
+                x={c * (cell + gap)} y={r * (cell + gap)}
+                width={cell} height={cell} rx={0.6}
+                fill={
+                  isCurrent
+                    ? "var(--accent)"
+                    : isLived
+                      ? `oklch(0.${55 - decade * 4} 0.05 ${38 + decade * 18})`
+                      : "var(--paper-3)"
+                }
+                stroke={isCurrent ? "var(--accent)" : "none"}
+              />
+            );
+          }),
+        )}
+      </svg>
+      <div
+        style={{
+          display: "flex", justifyContent: "space-between",
+          width: "100%", marginTop: 8,
+        }}
+      >
+        <span
+          style={{
+            fontFamily: "var(--mono)", fontSize: 8.5,
+            color: "var(--ink-3)", letterSpacing: "0.08em",
+          }}
+        >
+          {livedWeeks.toLocaleString()} LIVED
+        </span>
+        <span
+          style={{
+            fontFamily: "var(--serif)", fontStyle: "italic",
+            fontSize: 12, color: "var(--accent)",
+          }}
+        >
+          this week
+        </span>
+        <span
+          style={{
+            fontFamily: "var(--mono)", fontSize: 8.5,
+            color: "var(--ink-3)", letterSpacing: "0.08em",
+          }}
+        >
+          {(totalWeeks - livedWeeks).toLocaleString()} AHEAD
+        </span>
+      </div>
+    </div>
+  );
+});
+
+// PeopleConstellation — your relations as a 4-ring orbital diagram.
+// Each person from useRelations is placed on a ring based on their
+// category (family→ring 1, friends→ring 2, colleagues + neighbors→
+// ring 3, acquaintances→ring 4). Inner-ring people get name labels;
+// outer rings stay anonymous dots so we don't crowd the SVG.
+//
+// When the user has no relations yet, we render the rings + the
+// central "you" pip with a short caption — same empty-state pattern
+// as the rest of the app.
+const PeopleConstellation = memo(function PeopleConstellation({
+  people,
+}: {
+  people: { id: string; name: string; category: string }[];
+}) {
+  const cx = 160, cy = 160, S = 320;
+  const rings = [38, 70, 105, 142];
+
+  // Group people by their assigned ring. Distribute them evenly
+  // around the circle so each ring fills its arc cleanly. The order
+  // within each ring is deterministic (stable id sort) so positions
+  // don't jump on re-render.
+  const sorted = [...people].sort((a, b) => a.id.localeCompare(b.id));
+  const byRing: ConstellationPerson[][] = [[], [], [], []];
+  for (const p of sorted) {
+    const meta = CATEGORY_RING[p.category];
+    if (!meta) continue;
+    byRing[meta.ring - 1].push({
+      ring: meta.ring,
+      angle: 0, // filled in below
+      hue: meta.hue,
+      label: meta.showLabel ? p.name.split(/\s+/)[0] : undefined,
+    });
+  }
+  byRing.forEach((ringPeople, idx) => {
+    const stagger = idx % 2 === 0 ? 0 : 180 / Math.max(ringPeople.length, 1);
+    ringPeople.forEach((p, i) => {
+      p.angle = (i * 360) / Math.max(ringPeople.length, 1) + stagger;
+    });
+  });
+  const placed = byRing.flat();
+
+  return (
+    <svg
+      viewBox={`0 0 ${S} ${S}`}
+      width="100%"
+      style={{ display: "block", maxWidth: 320, margin: "0 auto" }}
+    >
+      {rings.map((r, i) => (
+        <circle
+          key={i} cx={cx} cy={cy} r={r}
+          fill="none" stroke="var(--rule)" strokeWidth={0.5}
+          strokeDasharray={i === 0 ? "none" : "1.5 2.5"}
+        />
+      ))}
+      <circle cx={cx} cy={cy} r={9} fill="var(--ink)" />
+      <text
+        x={cx} y={cy + 3} textAnchor="middle"
+        fontFamily="var(--serif)" fontStyle="italic" fontSize="10"
+        fill="var(--paper)"
+      >
+        you
+      </text>
+      {placed.map((p, i) => {
+        const r = rings[p.ring - 1];
+        const a = ((p.angle - 90) * Math.PI) / 180;
+        const x = cx + r * Math.cos(a);
+        const y = cy + r * Math.sin(a);
+        const size =
+          p.ring === 1 ? 7 : p.ring === 2 ? 5 : p.ring === 3 ? 3.6 : 2.6;
+        return (
+          <g key={i}>
+            <line
+              x1={cx} y1={cy} x2={x} y2={y}
+              stroke={`oklch(0.55 0.10 ${p.hue})`}
+              strokeWidth={p.ring === 1 ? 0.8 : 0.3}
+              opacity={0.4}
+            />
+            <circle
+              cx={x} cy={y} r={size}
+              fill={`oklch(0.55 0.12 ${p.hue})`}
+              stroke="var(--paper)" strokeWidth={0.6}
+            />
+            {p.label && (
+              <text
+                x={x + (Math.cos(a) >= 0 ? size + 3 : -size - 3)}
+                y={y + 3}
+                textAnchor={Math.cos(a) >= 0 ? "start" : "end"}
+                fontFamily="var(--serif)" fontStyle="italic" fontSize="10"
+                fill="var(--ink)"
+              >
+                {p.label}
+              </text>
+            )}
+          </g>
+        );
+      })}
+      {RING_LABELS.map((rr, i) => (
+        <text
+          key={i} x={cx} y={cy - rings[rr.ring - 1] - 2}
+          textAnchor="middle"
+          fontFamily="var(--mono)" fontSize="7.5"
+          fill="var(--ink-3)" letterSpacing="0.1em"
+        >
+          {rr.label.toUpperCase()}
+        </text>
+      ))}
+    </svg>
+  );
+});
 
 function ElementGrid() {
   return (
@@ -188,7 +499,7 @@ function ElementGrid() {
   );
 }
 
-function TissueBar() {
+function TissueBar({ weightKg }: { weightKg: number }) {
   return (
     <>
       <div
@@ -266,7 +577,7 @@ function TissueBar() {
                   color: "var(--ink-3)",
                 }}
               >
-                {t.sub}
+                {tissueSub(t, weightKg)}
               </div>
             </div>
           </div>
@@ -358,6 +669,27 @@ export function LifeOverlay({ onClose, onOpenDna }: LifeOverlayProps) {
   const [tab, setTab] = useState<"matter" | "rhythms" | "lineage" | "age">(
     "matter",
   );
+  const { profile } = useProfile();
+  const { moods } = useMoods();
+  const { people } = useRelations();
+  // Real values when set; otherwise fall back to the demo defaults
+  // and surface a "set in portrait" hint in the header so the user
+  // knows the numbers aren't theirs yet.
+  const hasWeight = typeof profile.weightKg === "number" && profile.weightKg > 0;
+  const hasBirthYear = typeof profile.birthYear === "number";
+  const weightKg = deriveWeight(profile.weightKg);
+  const age = deriveAge(profile.birthYear);
+  const inNumbers = buildInNumbers(age);
+
+  // Counts per visual ring of the people constellation. These drive
+  // both the SVG (each ring fills with its members) and the four
+  // count cards beneath. Mirrors the CATEGORY_RING map above so the
+  // SVG and the cards never diverge.
+  const ringCounts = [0, 0, 0, 0];
+  for (const p of people) {
+    const meta = CATEGORY_RING[p.category];
+    if (meta) ringCounts[meta.ring - 1] += 1;
+  }
 
   return (
     <div className="overlay paper-grain">
@@ -368,10 +700,17 @@ export function LifeOverlay({ onClose, onOpenDna }: LifeOverlayProps) {
         <div className="h-title">
           a <em>life</em>
         </div>
-        <div className="h-meta">
-          {WEIGHT_KG} kg
+        <div
+          className="h-meta"
+          title={
+            !hasWeight || !hasBirthYear
+              ? "Set your weight and birth year in your portrait to make these numbers yours."
+              : undefined
+          }
+        >
+          {hasWeight ? `${weightKg} kg` : "— kg"}
           <br />
-          age {AGE}
+          {hasBirthYear ? `age ${age}` : "age —"}
         </div>
       </div>
 
@@ -428,7 +767,7 @@ export function LifeOverlay({ onClose, onOpenDna }: LifeOverlayProps) {
             <hr className="rule-dashed" />
             <Kicker>by tissue · what the kilograms are doing</Kicker>
             <div className="card" style={{ marginTop: 10, padding: 14 }}>
-              <TissueBar />
+              <TissueBar weightKg={weightKg} />
             </div>
 
             <hr className="rule-dashed" />
@@ -485,69 +824,62 @@ export function LifeOverlay({ onClose, onOpenDna }: LifeOverlayProps) {
 
         {tab === "rhythms" && (
           <>
-            <Kicker>the ledger · totals you've gathered</Kicker>
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "repeat(3, 1fr)",
-                gap: 8,
-                marginTop: 10,
-              }}
-            >
-              {LIFETIME_TOTALS.map((t) => (
-                <div key={t.l} className="card" style={{ padding: 10 }}>
-                  <div className="fig-num" style={{ fontSize: 22, lineHeight: 1 }}>
-                    <em>{t.n}</em>
-                  </div>
-                  <div className="kicker" style={{ marginTop: 2 }}>
-                    {t.l}
-                  </div>
-                  <div
-                    style={{
-                      fontFamily: "var(--serif)",
-                      fontStyle: "italic",
-                      fontSize: 10.5,
-                      color: "var(--ink-3)",
-                      marginTop: 3,
-                      lineHeight: 1.3,
-                    }}
-                  >
-                    {t.s}
-                  </div>
-                </div>
-              ))}
+            <Kicker>the year · in mood</Kicker>
+            <div className="card" style={{ marginTop: 10, padding: 14 }}>
+              <YearMoodCalendar moods={moods} />
+              <div
+                className="margin-note"
+                style={{ marginTop: 12, fontSize: 12 }}
+              >
+                {moods.length === 0
+                  ? "\"One cell per day of this year. They fill in as you log your daily mood — the journal's mood tab is the easiest place to start.\""
+                  : `"One cell per day. Brighter ones are higher mood scores. ${moods.length} ${moods.length === 1 ? "day" : "days"} logged so far this year."`}
+              </div>
+            </div>
+
+            <hr className="rule-dashed" />
+            <Kicker>life · in weeks</Kicker>
+            <div className="card" style={{ marginTop: 10, padding: 14 }}>
+              <LifeInWeeks age={age} />
+              <div
+                className="margin-note"
+                style={{ marginTop: 12, fontSize: 12 }}
+              >
+                "Each square is a week. The ones already lived are warm; the
+                rest are empty."
+              </div>
             </div>
 
             <hr className="rule-dashed" />
             <Kicker>people · the constellation</Kicker>
             <div className="card" style={{ marginTop: 10, padding: 14 }}>
+              <PeopleConstellation people={people} />
               <div
                 style={{
                   display: "grid",
                   gridTemplateColumns: "repeat(4, 1fr)",
                   gap: 8,
-                  marginTop: 4,
+                  marginTop: 12,
                 }}
               >
-                {[
-                  { n: 5, l: "inner" },
-                  { n: 12, l: "close" },
-                  { n: 22, l: "friends" },
-                  { n: 32, l: "orbit" },
-                ].map((c) => (
-                  <div key={c.l} style={{ textAlign: "center" }}>
+                {RING_LABELS.map((r, i) => (
+                  <div key={r.label} style={{ textAlign: "center" }}>
                     <div className="fig-num" style={{ fontSize: 22 }}>
-                      <em>{c.n}</em>
+                      <em>{ringCounts[i]}</em>
                     </div>
                     <div className="kicker" style={{ marginTop: 2 }}>
-                      {c.l}
+                      {r.label}
                     </div>
                   </div>
                 ))}
               </div>
-              <div className="margin-note" style={{ marginTop: 10, fontSize: 12 }}>
-                "71 people you keep alive in your head. Dunbar says you can
-                hold about 150 before they fade."
+              <div
+                className="margin-note"
+                style={{ marginTop: 10, fontSize: 12 }}
+              >
+                {people.length === 0
+                  ? "\"Your relations appear here as orbits around you. Add a person from the + menu — family fills the inner ring, friends the next.\""
+                  : `"${people.length} ${people.length === 1 ? "person" : "people"} in your circle. Dunbar says you can hold about 150 close before they fade."`}
               </div>
             </div>
           </>
@@ -657,7 +989,7 @@ export function LifeOverlay({ onClose, onOpenDna }: LifeOverlayProps) {
                 marginTop: 10,
               }}
             >
-              {IN_NUMBERS.map((n) => (
+              {inNumbers.map((n) => (
                 <div key={n.k} className="card" style={{ padding: 12 }}>
                   <div className="kicker">{n.label}</div>
                   <div
@@ -707,7 +1039,7 @@ export function LifeOverlay({ onClose, onOpenDna }: LifeOverlayProps) {
                     left: 0,
                     top: 14,
                     height: 4,
-                    width: `${(AGE / 84) * 100}%`,
+                    width: `${Math.min(100, (age / 84) * 100)}%`,
                     background: "var(--accent)",
                     borderRadius: 2,
                   }}
@@ -715,7 +1047,7 @@ export function LifeOverlay({ onClose, onOpenDna }: LifeOverlayProps) {
                 <div
                   style={{
                     position: "absolute",
-                    left: `${(AGE / 84) * 100}%`,
+                    left: `${Math.min(100, (age / 84) * 100)}%`,
                     top: 6,
                     transform: "translateX(-50%)",
                     width: 20,
@@ -731,7 +1063,7 @@ export function LifeOverlay({ onClose, onOpenDna }: LifeOverlayProps) {
                     color: "var(--accent)",
                   }}
                 >
-                  34
+                  {age}
                 </div>
               </div>
               <div
@@ -753,61 +1085,12 @@ export function LifeOverlay({ onClose, onOpenDna }: LifeOverlayProps) {
                 <span>84</span>
               </div>
               <div className="margin-note" style={{ marginTop: 12, fontSize: 13 }}>
-                "40.5% of the way through. Roughly 50 years of expectancy
-                remaining — about 18,300 more days."
+                "{Math.round((age / 84) * 1000) / 10}% of the way through.
+                Roughly {Math.max(0, 84 - age)} years of expectancy remaining —
+                about {Math.max(0, Math.round((84 - age) * 365.25)).toLocaleString()} more days."
               </div>
             </div>
 
-            <hr className="rule-dashed" />
-            <Kicker>what's particular about this age</Kicker>
-            <div
-              style={{
-                display: "flex",
-                flexDirection: "column",
-                gap: 8,
-                marginTop: 10,
-              }}
-            >
-              {AGE_FACTS.map((f) => (
-                <div
-                  key={f.kicker}
-                  className="card"
-                  style={{ padding: 12, display: "flex", gap: 12 }}
-                >
-                  <div
-                    style={{
-                      width: 30,
-                      height: 30,
-                      borderRadius: "50%",
-                      background: "var(--paper)",
-                      border: "0.5px solid var(--rule)",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      flexShrink: 0,
-                      fontFamily: "var(--serif)",
-                      color: "var(--accent)",
-                      fontSize: 15,
-                    }}
-                  >
-                    {f.glyph}
-                  </div>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div className="kicker">{f.kicker}</div>
-                    <div
-                      style={{
-                        fontFamily: "var(--serif)",
-                        fontSize: 13.5,
-                        marginTop: 4,
-                        lineHeight: 1.4,
-                      }}
-                    >
-                      {f.body}
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
           </>
         )}
 

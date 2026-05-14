@@ -56,12 +56,84 @@ insight_users/{uid}/insight_transactions/{id}
 
 User-uploaded photo blobs stay in localStorage (`insight.dailyReport.photo.v1`) and are not synced; the stock-photo key (e.g. `fjord`) travels with the remote doc.
 
+## Firebase cost notes
+
+The app is designed to keep Firestore reads cheap:
+
+- **Firebase SDK is lazy-loaded.** Signed-out users never download it; it ships as a separate ~350 kB chunk only when sign-in is enabled.
+- **Subscriptions only attach when signed-in.** Each `useX` hook short-circuits in localStorage-only mode.
+- **Collections are intentionally small.** Relations, city ratings, habits, daily-report — all under a few dozen docs each.
+- **Moods are windowed.** `subscribeMoods` is `orderBy("date","desc") + limit(60)` rather than a full-collection scan. After a year of daily logging this caps per-snapshot reads at 60 instead of 365.
+- **Writes are user-driven.** A signed-in user generates roughly 1 write per daily-report save, 1 per star tap, 1 per habit tap, 1 per added person. No background polling, no automatic re-writes.
+- **The Firestore SDK deduplicates listeners.** Mounting the same `useX` hook in two components reuses one underlying network listener.
+
+A typical active user, signed in, lands well inside Firebase's free tier (50 k reads + 20 k writes per day).
+
+## Native iOS + Android (Capacitor)
+
+The mobile experience ships as a native iOS + Android app via [Capacitor](https://capacitorjs.com). The whole React/Vite app runs inside a system WebView wrapped in a thin native shell — the same code we deploy to the web. The `ios/` and `android/` directories are committed as project shells (Xcode + Gradle); your local build state is gitignored.
+
+Bundle ID: `com.cosaxo.insight`. App name: `InSight`.
+
+### Build flow
+
+```bash
+npm run build:mobile     # vite build + cap sync (copies dist/ into both shells)
+npm run ios              # open the Xcode project (macOS only)
+npm run android          # open Android Studio
+```
+
+Live-reload during development (point the WebView at the dev server instead of the bundled assets) is configured per-platform in Xcode / Android Studio.
+
+### What's wired
+
+- `@capacitor/splash-screen` — 1.2 s paper-coloured splash so the WebView first-paint flash is hidden.
+- `@capacitor/status-bar` — overlay drawing, so the existing `env(safe-area-inset-*)` CSS keeps working.
+- `@capacitor/keyboard` — resize the WebView frame when the keyboard opens (not overlay-mode).
+- `@capacitor/app` — back-button handling on Android, app-state events.
+- `@capacitor-firebase/authentication` — native Google Sign-In sheet on iOS / Android. The plugin runs the OAuth flow natively, we exchange the resulting ID token for a Firebase credential via the JS SDK so every Firestore call still goes through the same auth instance. On web we fall back to the popup.
+- `@capacitor/camera` — daily-report photo capture uses the OS camera/library picker on device. Falls back to the existing `<input type="file">` on web.
+- `@capgo/capacitor-llm` — on-device language model. The daily report generates a one-sentence reflection from the user's last week of moods, **without any data leaving the device**. Strategy:
+  - **Strict Gemma 4 E2B everywhere.** Same model on iOS and Android — no Apple-Intelligence preference, no per-vendor fallback. Every user gets the same observational voice. Apache 2.0, open weights, hosted on the `litert-community/gemma-4-E2B-it-litert-lm` repo as a MediaPipe `.task` file (~2 GB int4).
+  - **First launch** downloads the model and caches the path in localStorage. Subsequent inferences are offline and ~2–5 s on a modern phone.
+  - **Web** — feature is hidden (the overlay shows a small note pointing the user to the mobile app).
+  - Model URL is overridable via `VITE_LLM_MODEL_URL` in `.env` — swap to Gemma 4 E4B for higher quality on capable devices, or to a mobile-tuned variant when one lands.
+
+### Native setup (required before first device build)
+
+Two platform-specific Firebase config files are required for native Google Sign-In. These are project-specific so they aren't committed.
+
+**iOS** — drop `GoogleService-Info.plist` from your Firebase project's iOS app config into `ios/App/App/`, then add it to the Xcode target. Open `ios/App/App/Info.plist` and replace the `REVERSED_CLIENT_ID` placeholder under `CFBundleURLTypes` with the value from your `GoogleService-Info.plist` (it looks like `com.googleusercontent.apps.1234567890-abcdef`).
+
+**Android** — drop `google-services.json` from your Firebase project's Android app config into `android/app/`. The plugin's Gradle script picks it up automatically.
+
+The bundle ID / application ID is `com.cosaxo.insight`. Both Firebase apps must be registered with that same ID.
+
+### Permissions
+
+Already declared in the project:
+
+- iOS `Info.plist`: `NSCameraUsageDescription`, `NSPhotoLibraryUsageDescription`, `NSPhotoLibraryAddUsageDescription`.
+- Android `AndroidManifest.xml`: `CAMERA`, `READ_MEDIA_IMAGES` (Android 13+), `READ_EXTERNAL_STORAGE` (Android ≤ 12). Camera hardware is `android:required="false"` so devices without a camera can still install the app.
+
+### Native API integrations planned but not yet wired
+
+- `@capacitor/push-notifications` — daily-check-in reminders.
+- `@capacitor/local-notifications` — local reminders without a server.
+- `@capacitor/share` — share a daily report or test result.
+- `@capacitor/preferences` — would replace localStorage with native key-value storage (works as-is via WebView storage today, but native is faster on cold starts).
+
 ## Scripts
 
 - `npm run dev` — start Vite dev server
-- `npm run build` — typecheck and build for production
+- `npm run build` — typecheck and build for production (web)
+- `npm run build:mobile` — build for web, then `cap sync` into iOS + Android shells
+- `npm run sync` — `cap sync` only (re-copy a fresh build into the native shells without re-building)
+- `npm run ios` — open the Xcode project
+- `npm run android` — open Android Studio
+- `npm run doctor` — Capacitor environment diagnostic
 - `npm run lint` — run ESLint
-- `npm run preview` — preview the production build
+- `npm run preview` — preview the production build (web)
 
 ## Project layout
 

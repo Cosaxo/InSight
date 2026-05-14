@@ -1,37 +1,34 @@
-import { useState } from "react";
-import { IS_DATA } from "../../data/seedData";
+// DaysOverlay — your daily ledger. Two views:
+//
+// "portrait" — today's frame from useDailyReport (mood / weather /
+//   one-line / optional photo), plus a 12-day mood strip from
+//   useMoods. The previous version asserted a 12-frame photo
+//   gallery, a 12-day weight sparkline, and a fake CaptureFlow —
+//   all from IS_DATA.portraits. Only today's report actually
+//   persists in our schema; a longer photo history would need
+//   per-day daily-report storage (currently the "today" doc is
+//   overwritten each edit).
+//
+// "dreams" — real dream journal wired to useDreams. Add an entry,
+//   read it back, delete it. The "recurring themes" bar list
+//   derives from tag frequencies across logged dreams; "remembered
+//   this week" + "lucid" + "avg vividness" derive from the same.
+//
+// Dropped from the previous version: the "time" view (24-hour
+// activity blocks from seed, no time-tracking source) and the
+// "life" view (life-timeline highlights from seed, no source).
+// Both would each need their own schema + capture flow; out of
+// scope for the honesty pass.
+
+import { useMemo, useState } from "react";
+import { useMoods, isoDateToday } from "../../lib/useMoods";
+import { useDailyReport } from "../../lib/useDailyReport";
+import { useDreams } from "../../lib/useDreams";
+import type { Dream, MoodEntry } from "../../types";
 import { Kicker, Pill } from "../shared/primitives";
-import { Donut, Sparkline } from "../shared/charts";
 
-interface Portrait {
-  date: string;
-  weight: number;
-  mood: number;
-  hue: number;
-  weather: string;
-  note: string;
-}
-
-interface Dream {
-  id: string | number;
-  date: string;
-  title: string;
-  text: string;
-  tags: string[];
-  hue: number;
-  mood: string;
-  lucidity: number;
-  vividness: number;
-}
-
-interface TimeBlock {
-  label: string;
-  glyph: string;
-  mins: number;
-  hue: number;
-}
-
-function weatherLabel(w: string): string {
+function weatherLabel(w: string | undefined): string {
+  if (!w) return "—";
   const map: Record<string, string> = {
     sun: "CLEAR",
     rain: "RAIN",
@@ -41,101 +38,135 @@ function weatherLabel(w: string): string {
   return map[w] || w.toUpperCase();
 }
 
-function PortraitFrame({
-  p,
-  h = 100,
-  small = false,
-}: {
-  p: { hue: number; date?: string };
-  h?: number;
-  small?: boolean;
-}) {
-  const id = `grain-${p.hue}-${h}`;
+// Last 12 ISO date strings (oldest → newest) so the mood strip
+// reads left-to-right time order. Re-implemented locally so we
+// don't add another import; this is two-liner math.
+function lastTwelveDates(): string[] {
+  const out: string[] = [];
+  const t = new Date();
+  for (let i = 11; i >= 0; i--) {
+    const d = new Date(t);
+    d.setDate(t.getDate() - i);
+    out.push(
+      `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`,
+    );
+  }
+  return out;
+}
+
+function displayDate(iso: string): string {
+  const [y, m, d] = iso.split("-").map(Number);
+  if (!y || !m || !d) return iso;
+  const months = ["jan","feb","mar","apr","may","jun","jul","aug","sep","oct","nov","dec"];
+  return `${months[m - 1]} ${d}`;
+}
+
+interface DaysOverlayProps {
+  onClose: () => void;
+}
+
+export function DaysOverlay({ onClose }: DaysOverlayProps) {
+  const [tab, setTab] = useState<"portrait" | "dreams">("portrait");
+  const [openDream, setOpenDream] = useState<Dream | null>(null);
+  const [adding, setAdding] = useState(false);
+  const { items: dreams, add: addDream, remove: removeDream } = useDreams();
+
   return (
-    <div
-      style={{
-        width: small ? 78 : "100%",
-        height: h,
-        background: `linear-gradient(160deg, oklch(0.86 0.06 ${p.hue}) 0%, oklch(0.72 0.09 ${p.hue}) 100%)`,
-        position: "relative",
-        overflow: "hidden",
-        border: small ? `0.5px solid oklch(0.55 0.10 ${p.hue})` : "none",
-        borderRadius: small ? 6 : 0,
-      }}
-    >
-      <svg
-        viewBox="0 0 100 100"
-        preserveAspectRatio="xMidYMid slice"
-        style={{
-          position: "absolute",
-          inset: 0,
-          width: "100%",
-          height: "100%",
-        }}
-      >
-        <defs>
-          <radialGradient id={id} cx="40%" cy="35%" r="55%">
-            <stop
-              offset="0%"
-              stopColor={`oklch(0.95 0.04 ${p.hue})`}
-              stopOpacity="0.5"
-            />
-            <stop
-              offset="100%"
-              stopColor={`oklch(0.55 0.13 ${p.hue})`}
-              stopOpacity="0.2"
-            />
-          </radialGradient>
-        </defs>
-        <rect width="100" height="100" fill={`url(#${id})`} />
-        <g fill={`oklch(0.40 0.13 ${p.hue})`} opacity="0.85">
-          <ellipse cx="50" cy="42" rx="14" ry="16" />
-          <path d="M 22 100 Q 28 70 50 66 Q 72 70 78 100 Z" />
-        </g>
-      </svg>
-      {!small && p.date && (
+    <div className="overlay paper-grain">
+      <div className="app-header">
+        <button className="avatar-btn" onClick={onClose}>
+          ←
+        </button>
+        <div className="h-title">
+          the <em>days</em>
+        </div>
+        <div className="h-meta">
+          {dreams.length}
+          <br />
+          {dreams.length === 1 ? "dream" : "dreams"}
+        </div>
+      </div>
+      <div className="app-body">
+        <div className="margin-note" style={{ marginBottom: 12, fontSize: 13 }}>
+          a private ledger — what the day looked like, what it felt like.
+        </div>
+
         <div
           style={{
-            position: "absolute",
-            top: 12,
-            right: 14,
-            fontFamily: "var(--mono)",
-            fontSize: 9.5,
-            color: "oklch(0.95 0.04 60)",
-            letterSpacing: "0.12em",
-            background: "rgba(0,0,0,0.25)",
-            padding: "3px 8px",
-            borderRadius: 99,
+            display: "flex",
+            gap: 6,
+            marginBottom: 14,
           }}
         >
-          {p.date.toUpperCase()}
+          <Pill active={tab === "portrait"} onClick={() => setTab("portrait")}>
+            portrait
+          </Pill>
+          <Pill active={tab === "dreams"} onClick={() => setTab("dreams")}>
+            dreams
+          </Pill>
         </div>
+
+        {tab === "portrait" && <PortraitView />}
+        {tab === "dreams" && (
+          <DreamsView
+            dreams={dreams}
+            onOpen={setOpenDream}
+            onRemove={(id) => void removeDream(id)}
+            onAdd={() => setAdding(true)}
+          />
+        )}
+      </div>
+
+      {openDream && (
+        <DreamDetail
+          d={openDream}
+          onClose={() => setOpenDream(null)}
+          onRemove={() => {
+            const id = openDream.id;
+            setOpenDream(null);
+            void removeDream(id);
+          }}
+        />
+      )}
+      {adding && (
+        <AddDreamFlow
+          onClose={() => setAdding(false)}
+          onSave={async (d) => {
+            await addDream(d);
+            setAdding(false);
+          }}
+        />
       )}
     </div>
   );
 }
 
-function PortraitView({ D }: { D: typeof IS_DATA }) {
-  const today: Portrait = D.portraits[0];
-  const weights: number[] = D.portraits
-    .slice()
-    .reverse()
-    .map((p: Portrait) => p.weight);
-  const moods: number[] = D.portraits
-    .slice()
-    .reverse()
-    .map((p: Portrait) => p.mood);
+// ─── PortraitView ───────────────────────────────────────────────
+
+function PortraitView() {
+  const { report } = useDailyReport();
+  const { moods } = useMoods();
+
+  // Twelve-day mood strip — real entries land where they belong,
+  // unlogged days draw a faint baseline so the chart never invents
+  // a value.
+  const window = useMemo(() => {
+    const dates = lastTwelveDates();
+    const byDate = new Map<string, MoodEntry>();
+    for (const m of moods) byDate.set(m.date, m);
+    return dates.map((d) => ({ date: d, mood: byDate.get(d) }));
+  }, [moods]);
+  const todayIso = isoDateToday();
 
   return (
     <>
-      <div
-        className="card"
-        style={{ marginBottom: 14, padding: 0, overflow: "hidden" }}
-      >
-        <PortraitFrame p={today} h={280} />
-        <div style={{ padding: 16 }}>
+      {report ? (
+        <div
+          className="card"
+          style={{ marginBottom: 14, padding: 16 }}
+        >
           <div className="kicker">
-            TODAY · {weatherLabel(today.weather)}
+            TODAY · {weatherLabel(report.weather)}
           </div>
           <div
             style={{
@@ -146,28 +177,15 @@ function PortraitView({ D }: { D: typeof IS_DATA }) {
               lineHeight: 1.3,
             }}
           >
-            "{today.note}"
+            {report.one_line
+              ? `"${report.one_line}"`
+              : "no line written yet."}
           </div>
           <div style={{ display: "flex", gap: 18, marginTop: 14 }}>
             <div>
-              <div className="kicker">WEIGHT</div>
-              <div className="fig-num" style={{ fontSize: 22 }}>
-                <em>{today.weight}</em>
-                <span
-                  style={{
-                    fontSize: 11,
-                    marginLeft: 3,
-                    color: "var(--ink-3)",
-                  }}
-                >
-                  kg
-                </span>
-              </div>
-            </div>
-            <div>
               <div className="kicker">MOOD</div>
               <div className="fig-num" style={{ fontSize: 22 }}>
-                <em>{today.mood}</em>
+                <em>{Math.round(report.mood / 20)}</em>
                 <span
                   style={{
                     fontSize: 11,
@@ -179,79 +197,56 @@ function PortraitView({ D }: { D: typeof IS_DATA }) {
                 </span>
               </div>
             </div>
+            {report.moodLabel && (
+              <div>
+                <div className="kicker">FEELING</div>
+                <div
+                  style={{
+                    fontFamily: "var(--serif)",
+                    fontStyle: "italic",
+                    fontSize: 16,
+                    marginTop: 4,
+                  }}
+                >
+                  {report.moodLabel}
+                </div>
+              </div>
+            )}
           </div>
         </div>
-      </div>
-
-      <div className="card" style={{ marginBottom: 14 }}>
-        <Kicker>The strip · last twelve days</Kicker>
+      ) : (
         <div
-          style={{
-            display: "flex",
-            gap: 6,
-            overflowX: "auto",
-            padding: "12px 0 4px",
-          }}
+          className="card"
+          style={{ marginBottom: 14, padding: 22, textAlign: "center" }}
         >
-          {D.portraits.map((p: Portrait, i: number) => (
-            <div
-              key={i}
-              style={{
-                flex: "0 0 auto",
-                textAlign: "center",
-              }}
-            >
-              <PortraitFrame p={p} h={100} small />
-              <div
-                style={{
-                  fontFamily: "var(--mono)",
-                  fontSize: 8.5,
-                  color: "var(--ink-3)",
-                  letterSpacing: "0.06em",
-                  marginTop: 4,
-                }}
-              >
-                {p.date.toUpperCase()}
-              </div>
-            </div>
-          ))}
+          <div
+            style={{
+              fontFamily: "var(--serif)",
+              fontSize: 36,
+              fontStyle: "italic",
+              color: "var(--ink-3)",
+            }}
+          >
+            ◌
+          </div>
+          <div
+            style={{
+              fontFamily: "var(--serif)",
+              fontStyle: "italic",
+              fontSize: 16,
+              marginTop: 6,
+            }}
+          >
+            no report yet today.
+          </div>
+          <div className="margin-note" style={{ marginTop: 8, fontSize: 12 }}>
+            "Tap '◉ daily report' on the floating + menu — a line, a
+            mood, a weather pick."
+          </div>
         </div>
-      </div>
+      )}
 
-      <div className="card" style={{ marginBottom: 14 }}>
-        <Kicker>Weight · twelve days</Kicker>
-        <div style={{ marginTop: 8 }}>
-          <Sparkline
-            data={weights}
-            w={320}
-            h={60}
-            color="var(--sienna)"
-            fill
-            dots
-          />
-        </div>
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            fontFamily: "var(--mono)",
-            fontSize: 9,
-            color: "var(--ink-3)",
-            letterSpacing: "0.06em",
-            marginTop: 4,
-          }}
-        >
-          <span>{Math.min(...weights).toFixed(1)} kg</span>
-          <span>
-            median{" "}
-            {(weights.reduce((a, b) => a + b, 0) / weights.length).toFixed(1)}{" "}
-            kg
-          </span>
-          <span>{Math.max(...weights).toFixed(1)} kg</span>
-        </div>
-      </div>
-
-      <div className="card" style={{ marginBottom: 14 }}>
+      <div className="card" style={{ marginBottom: 14, padding: 14 }}>
         <Kicker>Mood · twelve days</Kicker>
         <div
           style={{
@@ -262,39 +257,120 @@ function PortraitView({ D }: { D: typeof IS_DATA }) {
             marginTop: 12,
           }}
         >
-          {moods.map((m, i) => (
-            <div key={i} style={{ flex: 1, textAlign: "center" }}>
+          {window.map((w, i) => {
+            const m = w.mood;
+            const h = m ? m.score * 14 : 4;
+            const isToday = w.date === todayIso;
+            return (
               <div
-                style={{
-                  height: m * 14,
-                  background:
-                    m >= 4
-                      ? "oklch(0.65 0.10 145)"
-                      : m >= 3
-                        ? "oklch(0.70 0.06 80)"
-                        : "oklch(0.65 0.10 25)",
-                  opacity: 0.85,
-                  borderRadius: 2,
-                }}
-              />
-            </div>
-          ))}
+                key={i}
+                style={{ flex: 1, textAlign: "center" }}
+                title={
+                  m
+                    ? `${w.date} · ${m.score}/5${m.note ? ` — ${m.note}` : ""}`
+                    : `${w.date} · no entry`
+                }
+              >
+                <div
+                  style={{
+                    height: h,
+                    background: m
+                      ? m.score >= 4
+                        ? "oklch(0.65 0.10 145)"
+                        : m.score >= 3
+                          ? "oklch(0.70 0.06 80)"
+                          : "oklch(0.65 0.10 25)"
+                      : "var(--rule)",
+                    opacity: m ? 0.85 : 0.5,
+                    borderRadius: 2,
+                    outline: isToday && m ? "1px solid var(--ink)" : undefined,
+                  }}
+                />
+              </div>
+            );
+          })}
+        </div>
+        {moods.length === 0 && (
+          <div
+            className="margin-note"
+            style={{ marginTop: 10, fontSize: 12, fontStyle: "italic" }}
+          >
+            Log a daily report to start the strip.
+          </div>
+        )}
+      </div>
+
+      <div
+        className="card"
+        style={{
+          padding: 14,
+          borderLeft: "3px solid var(--ink-3)",
+        }}
+      >
+        <Kicker>archive · not built</Kicker>
+        <div
+          className="margin-note"
+          style={{ marginTop: 6, fontSize: 12, lineHeight: 1.5 }}
+        >
+          "A scrolling gallery of past frames lives here once daily
+          reports get per-day storage. Right now each new report
+          overwrites the last one — you can read yesterday's mood
+          on the strip above, but the photo and one-line only stick
+          around for the day they're written."
         </div>
       </div>
     </>
   );
 }
 
-function DreamsView({ D }: { D: typeof IS_DATA }) {
-  const dreams: Dream[] = D.dreams;
-  const remembered = dreams.filter(
-    (d) => d.lucidity > 0 || d.vividness > 0,
-  ).length;
-  const lucid = dreams.filter((d) => d.lucidity >= 3).length;
-  const themeEntries = Object.entries(D.dreamThemes as Record<string, number>).sort(
-    (a, b) => b[1] - a[1],
-  );
-  const maxTheme = Math.max(...Object.values(D.dreamThemes as Record<string, number>));
+// ─── DreamsView ─────────────────────────────────────────────────
+
+function DreamsView({
+  dreams,
+  onOpen,
+  onRemove,
+  onAdd,
+}: {
+  dreams: Dream[];
+  onOpen: (d: Dream) => void;
+  onRemove: (id: string) => void;
+  onAdd: () => void;
+}) {
+  // Last-7-day window for the "remembered" + "lucid" counters so
+  // the stats reflect recent activity rather than all-time totals.
+  const sevenAgo = (() => {
+    const d = new Date();
+    d.setDate(d.getDate() - 6);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  })();
+  const todayIso = isoDateToday();
+  const recent = dreams.filter((d) => d.date >= sevenAgo && d.date <= todayIso);
+  const remembered = recent.length;
+  const lucid = recent.filter((d) => d.lucidity >= 3).length;
+  const avgViv = recent.length
+    ? (recent.reduce((s, d) => s + d.vividness, 0) / recent.length).toFixed(1)
+    : "—";
+
+  // Tag frequency across all-time dreams — the "recurring themes"
+  // panel. Top 6 by count.
+  const themeEntries = useMemo(() => {
+    const counts: Record<string, number> = {};
+    for (const d of dreams) {
+      for (const t of d.tags) {
+        const key = t.trim().toLowerCase();
+        if (!key) continue;
+        counts[key] = (counts[key] || 0) + 1;
+      }
+    }
+    return Object.entries(counts)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 6);
+  }, [dreams]);
+  const maxTheme = themeEntries.length
+    ? Math.max(...themeEntries.map(([, v]) => v))
+    : 1;
+
+  const sorted = [...dreams].sort((a, b) => b.date.localeCompare(a.date));
 
   return (
     <>
@@ -305,6 +381,7 @@ function DreamsView({ D }: { D: typeof IS_DATA }) {
           display: "flex",
           justifyContent: "space-between",
           textAlign: "center",
+          padding: 14,
         }}
       >
         <div>
@@ -318,731 +395,615 @@ function DreamsView({ D }: { D: typeof IS_DATA }) {
           <div className="fig-num" style={{ fontSize: 28 }}>
             <em>{lucid}</em>
           </div>
-          <div className="kicker">LUCID</div>
+          <div className="kicker">LUCID · 7D</div>
         </div>
         <div>
           <div className="fig-num" style={{ fontSize: 28 }}>
-            <em>3.6</em>
+            <em>{avgViv}</em>
           </div>
           <div className="kicker">AVG VIVIDNESS</div>
         </div>
       </div>
 
-      <div className="card" style={{ marginBottom: 14 }}>
-        <Kicker>Recurring · the threads of the week</Kicker>
-        <div
-          style={{
-            marginTop: 12,
-            display: "flex",
-            flexDirection: "column",
-            gap: 8,
-          }}
-        >
-          {themeEntries.map(([k, v]) => (
-            <div
-              key={k}
-              style={{ display: "flex", alignItems: "center", gap: 10 }}
-            >
-              <span
-                style={{
-                  width: 90,
-                  fontFamily: "var(--serif)",
-                  fontStyle: "italic",
-                  fontSize: 13,
-                }}
-              >
-                {k}
-              </span>
-              <div
-                style={{
-                  flex: 1,
-                  height: 6,
-                  background: "var(--paper-2)",
-                  border: "0.5px solid var(--rule)",
-                  borderRadius: 3,
-                  overflow: "hidden",
-                }}
-              >
-                <div
-                  style={{
-                    height: "100%",
-                    width: `${(v / maxTheme) * 100}%`,
-                    background: "oklch(0.55 0.10 250)",
-                  }}
-                />
-              </div>
-              <span
-                style={{
-                  fontFamily: "var(--mono)",
-                  fontSize: 10,
-                  color: "var(--ink-3)",
-                  width: 22,
-                  textAlign: "right",
-                }}
-              >
-                {v}×
-              </span>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      <Kicker>Seven nights</Kicker>
-      <div
-        style={{
-          display: "flex",
-          flexDirection: "column",
-          gap: 10,
-          marginTop: 10,
-        }}
-      >
-        {dreams.map((d) => (
-          <div
-            key={d.id}
-            className="card"
-            style={{
-              borderLeft: `3px solid oklch(0.55 0.10 ${d.hue})`,
-              opacity: d.title === "—" ? 0.5 : 1,
-            }}
-          >
-            <div
-              style={{ display: "flex", alignItems: "baseline", gap: 10 }}
-            >
-              <span
-                className="kicker"
-                style={{ minWidth: 60 }}
-              >
-                {d.date.toUpperCase()}
-              </span>
-              <span
-                style={{
-                  fontFamily: "var(--serif)",
-                  fontStyle: "italic",
-                  fontSize: 16,
-                  flex: 1,
-                }}
-              >
-                {d.title}
-              </span>
-              {d.lucidity >= 3 && (
-                <span
-                  style={{
-                    fontFamily: "var(--mono)",
-                    fontSize: 8.5,
-                    letterSpacing: "0.1em",
-                    color: "oklch(0.45 0.13 250)",
-                    padding: "2px 6px",
-                    border: "0.5px solid oklch(0.55 0.12 250)",
-                    borderRadius: 99,
-                  }}
-                >
-                  LUCID
-                </span>
-              )}
-            </div>
-            {d.title !== "—" && (
-              <>
-                <div
-                  style={{
-                    fontFamily: "var(--serif)",
-                    fontSize: 13,
-                    color: "var(--ink-2)",
-                    marginTop: 6,
-                    lineHeight: 1.4,
-                  }}
-                >
-                  {d.text.length > 110 ? d.text.slice(0, 110) + "…" : d.text}
-                </div>
-                <div
-                  style={{
-                    display: "flex",
-                    gap: 6,
-                    marginTop: 8,
-                    flexWrap: "wrap",
-                  }}
-                >
-                  {d.tags.map((t) => (
-                    <span
-                      key={t}
-                      style={{
-                        fontFamily: "var(--mono)",
-                        fontSize: 9,
-                        letterSpacing: "0.06em",
-                        padding: "2px 6px",
-                        background: "var(--paper-2)",
-                        color: "var(--ink-3)",
-                        border: "0.5px solid var(--rule)",
-                        borderRadius: 99,
-                      }}
-                    >
-                      · {t}
-                    </span>
-                  ))}
-                </div>
-              </>
-            )}
-          </div>
-        ))}
-      </div>
-    </>
-  );
-}
-
-function TimeView({ D }: { D: typeof IS_DATA }) {
-  const today: TimeBlock[] = D.time.today;
-  const total = today.reduce((a, b) => a + b.mins, 0);
-  const sorted = [...today].sort((a, b) => b.mins - a.mins);
-  const maxMins = sorted[0].mins;
-
-  return (
-    <>
-      <div className="card" style={{ marginBottom: 14 }}>
-        <Kicker>Today · ranked</Kicker>
-        <div
-          style={{
-            marginTop: 12,
-            display: "flex",
-            flexDirection: "column",
-            gap: 8,
-          }}
-        >
-          {sorted.map((b) => (
-            <div
-              key={b.label}
-              style={{ display: "flex", alignItems: "center", gap: 10 }}
-            >
-              <span
-                style={{
-                  width: 18,
-                  textAlign: "center",
-                  fontFamily: "var(--serif)",
-                  fontSize: 14,
-                  color: `oklch(0.45 0.13 ${b.hue})`,
-                }}
-              >
-                {b.glyph}
-              </span>
-              <span
-                style={{
-                  width: 110,
-                  fontFamily: "var(--serif)",
-                  fontSize: 13,
-                  fontStyle: "italic",
-                }}
-              >
-                {b.label}
-              </span>
-              <div
-                style={{
-                  flex: 1,
-                  height: 8,
-                  background: "var(--paper-2)",
-                  border: "0.5px solid var(--rule)",
-                  borderRadius: 3,
-                  overflow: "hidden",
-                }}
-              >
-                <div
-                  style={{
-                    height: "100%",
-                    width: `${(b.mins / maxMins) * 100}%`,
-                    background: `oklch(0.62 0.10 ${b.hue})`,
-                  }}
-                />
-              </div>
-              <span
-                style={{
-                  fontFamily: "var(--mono)",
-                  fontSize: 10,
-                  color: "var(--ink-3)",
-                  width: 60,
-                  textAlign: "right",
-                }}
-              >
-                {Math.floor(b.mins / 60)}h {b.mins % 60}m
-              </span>
-            </div>
-          ))}
-        </div>
-        <div className="margin-note" style={{ marginTop: 14, fontSize: 12 }}>
-          the day was {Math.round(total / 60)} hours long, like every other day,
-          but the shape of it was yours.
-        </div>
-      </div>
-
-      <div className="card" style={{ marginBottom: 14 }}>
-        <Kicker>This week · intention vs. life</Kicker>
-        <div
-          style={{
-            marginTop: 12,
-            display: "flex",
-            flexDirection: "column",
-            gap: 12,
-          }}
-        >
-          {[
-            {
-              k: "deep",
-              label: "Deep work",
-              actual: D.time.weekHours.deep,
-              target: D.time.intentions.deep,
-              hue: 38,
-              invert: false,
-            },
-            {
-              k: "reading",
-              label: "Reading",
-              actual: D.time.weekHours.reading,
-              target: D.time.intentions.reading,
-              hue: 145,
-              invert: false,
-            },
-            {
-              k: "movement",
-              label: "Movement",
-              actual: D.time.weekHours.movement,
-              target: D.time.intentions.movement,
-              hue: 12,
-              invert: false,
-            },
-            {
-              k: "phone",
-              label: "Phone",
-              actual: D.time.weekHours.phone,
-              target: D.time.intentions.phone,
-              hue: 305,
-              invert: true,
-            },
-          ].map((it) => {
-            const max = Math.max(it.actual, it.target) * 1.1;
-            const hit = it.invert
-              ? it.actual <= it.target
-              : it.actual >= it.target;
-            return (
-              <div key={it.k}>
-                <div
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    fontFamily: "var(--serif)",
-                    fontSize: 13,
-                    marginBottom: 4,
-                  }}
-                >
-                  <span style={{ fontStyle: "italic" }}>{it.label}</span>
-                  <span
-                    style={{
-                      fontFamily: "var(--mono)",
-                      fontSize: 10,
-                      color: hit
-                        ? "oklch(0.45 0.13 145)"
-                        : "oklch(0.55 0.13 25)",
-                    }}
-                  >
-                    {it.actual}h · target {it.target}h
-                    {it.invert ? " (max)" : ""}
-                  </span>
-                </div>
-                <div
-                  style={{
-                    position: "relative",
-                    height: 10,
-                    background: "var(--paper-2)",
-                    border: "0.5px solid var(--rule)",
-                    borderRadius: 3,
-                  }}
-                >
-                  <div
-                    style={{
-                      position: "absolute",
-                      left: 0,
-                      top: 0,
-                      bottom: 0,
-                      width: `${(it.actual / max) * 100}%`,
-                      background: `oklch(0.65 0.10 ${it.hue})`,
-                      opacity: 0.85,
-                      borderRadius: 2,
-                    }}
-                  />
-                  <div
-                    style={{
-                      position: "absolute",
-                      left: `${(it.target / max) * 100}%`,
-                      top: -3,
-                      bottom: -3,
-                      width: 1.5,
-                      background: "var(--ink)",
-                    }}
-                  />
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-    </>
-  );
-}
-
-function StatBlock({ k, v }: { k: string; v: string }) {
-  return (
-    <div>
-      <div className="kicker">{k}</div>
-      <div className="fig-num" style={{ fontSize: 20, marginTop: 2 }}>
-        <em>{v}</em>
-      </div>
-    </div>
-  );
-}
-
-function FragmentTile({ label, value }: { label: string; value: string | number }) {
-  return (
-    <div style={{ borderLeft: "2px solid var(--rule)", paddingLeft: 10 }}>
-      <div className="fig-num" style={{ fontSize: 24 }}>
-        <em>{value}</em>
-      </div>
-      <div
-        style={{
-          fontFamily: "var(--serif)",
-          fontStyle: "italic",
-          fontSize: 12,
-          color: "var(--ink-2)",
-          marginTop: 2,
-        }}
-      >
-        {label}
-      </div>
-    </div>
-  );
-}
-
-function WeekGrid({
-  total,
-  lived,
-  expectancy,
-}: {
-  total: number;
-  lived: number;
-  expectancy: number;
-}) {
-  const cols = 52;
-  const rows = expectancy;
-  const W = 320,
-    gap = 1;
-  const cell = (W - (cols + 1) * gap) / cols;
-  const H = rows * cell + (rows + 1) * gap;
-
-  return (
-    <svg viewBox={`0 0 ${W} ${H}`} width="100%" style={{ display: "block" }}>
-      {Array.from({ length: rows }).map((_, r) =>
-        Array.from({ length: cols }).map((__, c) => {
-          const idx = r * cols + c;
-          const lit = idx < lived;
-          const isCurrent = idx === lived - 1;
-          const x = gap + c * (cell + gap);
-          const y = gap + r * (cell + gap);
-          return (
-            <rect
-              key={idx}
-              x={x}
-              y={y}
-              width={cell}
-              height={cell}
-              rx="0.5"
-              fill={
-                isCurrent
-                  ? "oklch(0.55 0.16 25)"
-                  : lit
-                    ? "oklch(0.42 0.04 60)"
-                    : "var(--paper-2)"
-              }
-              stroke={lit ? "none" : "var(--rule)"}
-              strokeWidth="0.3"
-              opacity={lit ? 0.9 : 1}
-            />
-          );
-        }),
-      )}
-      {[10, 20, 30, 40, 50, 60, 70, 80]
-        .filter((d) => d < expectancy)
-        .map((d) => (
-          <text
-            key={d}
-            x={W - 4}
-            y={gap + d * (cell + gap) + 4}
-            textAnchor="end"
-            fontFamily="var(--mono)"
-            fontSize="6.5"
-            letterSpacing="0.08em"
-            fill="var(--ink-3)"
-            opacity="0.6"
-          >
-            {d}
-          </text>
-        ))}
-      <text x={4} y={H - 4} fontFamily="var(--mono)" fontSize="7" fill="var(--ink-3)">
-        {total} weeks total
-      </text>
-    </svg>
-  );
-}
-
-function LifeView({ D }: { D: typeof IS_DATA }) {
-  const L = D.life;
-  const born = new Date(L.bornISO);
-  const now = new Date();
-  const ageMs = now.getTime() - born.getTime();
-  const yearMs = 365.25 * 24 * 60 * 60 * 1000;
-  const ageY = ageMs / yearMs;
-  const lived = ageY / L.expectancy;
-  const left = 1 - lived;
-
-  const totalWeeks = Math.round(L.expectancy * 52);
-  const livedWeeks = Math.round(ageY * 52);
-  const leftWeeks = totalWeeks - livedWeeks;
-
-  const totalWakingY = L.expectancy * (L.waking / 24);
-  const livedWakingY = ageY * (L.waking / 24);
-
-  return (
-    <>
-      <div className="card" style={{ marginBottom: 14 }}>
-        <Kicker>Where you stand</Kicker>
-        <div
-          style={{
-            display: "flex",
-            alignItems: "baseline",
-            gap: 14,
-            marginTop: 8,
-          }}
-        >
-          <div className="fig-num" style={{ fontSize: 56 }}>
-            <em>{ageY.toFixed(1)}</em>
-          </div>
-          <div style={{ flex: 1 }}>
-            <div
-              style={{
-                fontFamily: "var(--serif)",
-                fontSize: 16,
-                fontStyle: "italic",
-              }}
-            >
-              years in
-            </div>
-            <div className="kicker" style={{ marginTop: 2 }}>
-              OF AN ASSUMED {L.expectancy} ·{" "}
-              {(L.expectancy - ageY).toFixed(1)} TO GO
-            </div>
-          </div>
-        </div>
-        <div
-          style={{
-            position: "relative",
-            height: 16,
-            background: "var(--paper-2)",
-            border: "0.5px solid var(--rule)",
-            borderRadius: 3,
-            marginTop: 14,
-            overflow: "hidden",
-          }}
-        >
+      {themeEntries.length > 0 && (
+        <div className="card" style={{ marginBottom: 14, padding: 14 }}>
+          <Kicker>Recurring · the threads you've tagged</Kicker>
           <div
             style={{
-              height: "100%",
-              width: `${lived * 100}%`,
-              background:
-                "linear-gradient(90deg, oklch(0.55 0.13 25), oklch(0.62 0.12 38))",
-            }}
-          />
-          <div
-            style={{
-              position: "absolute",
-              top: 0,
-              bottom: 0,
-              left: `${lived * 100}%`,
-              width: 2,
-              background: "var(--ink)",
-            }}
-          />
-        </div>
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            fontFamily: "var(--mono)",
-            fontSize: 9,
-            color: "var(--ink-3)",
-            letterSpacing: "0.08em",
-            marginTop: 4,
-          }}
-        >
-          <span>{(lived * 100).toFixed(1)}% LIVED</span>
-          <span>{(left * 100).toFixed(1)}% AHEAD</span>
-        </div>
-        <div className="margin-note" style={{ marginTop: 12, fontSize: 13 }}>
-          "{L.label}" — this is a guess, of course. nobody knows for sure.
-        </div>
-      </div>
-
-      <div className="card" style={{ marginBottom: 14 }}>
-        <Kicker>The grid · weeks of a life</Kicker>
-        <div className="margin-note" style={{ marginTop: 6, marginBottom: 12, fontSize: 12 }}>
-          {totalWeeks.toLocaleString()} small dots, one per week.{" "}
-          {livedWeeks.toLocaleString()} are filled in.
-        </div>
-        <WeekGrid
-          total={totalWeeks}
-          lived={livedWeeks}
-          expectancy={L.expectancy}
-        />
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            fontFamily: "var(--mono)",
-            fontSize: 9,
-            color: "var(--ink-3)",
-            letterSpacing: "0.08em",
-            marginTop: 10,
-          }}
-        >
-          <span>· {livedWeeks.toLocaleString()} LIVED</span>
-          <span>{leftWeeks.toLocaleString()} REMAINING ·</span>
-        </div>
-      </div>
-
-      <div className="card" style={{ marginBottom: 14 }}>
-        <Kicker>Waking hours · what you actually get</Kicker>
-        <div className="margin-note" style={{ marginTop: 6, marginBottom: 12, fontSize: 12 }}>
-          subtract sleep, and the budget shrinks. you have spent about{" "}
-          <strong style={{ color: "var(--ink)", fontStyle: "italic" }}>
-            {Math.round(livedWakingY).toLocaleString()}
-          </strong>{" "}
-          waking years.
-        </div>
-        <div style={{ display: "flex", gap: 12, marginTop: 14 }}>
-          <Donut
-            value={Math.round((livedWakingY / totalWakingY) * 100)}
-            color="var(--sienna)"
-            label="LIVED"
-            size={86}
-          />
-          <div
-            style={{
-              flex: 1,
+              marginTop: 12,
               display: "flex",
               flexDirection: "column",
-              justifyContent: "center",
               gap: 8,
             }}
           >
-            <StatBlock k="WAKING / DAY" v={`${L.waking}h`} />
-            <StatBlock
-              k="EXPECTED WAKING"
-              v={`${Math.round(totalWakingY)} years`}
-            />
-            <StatBlock
-              k="REMAINING"
-              v={`~${Math.round(totalWakingY - livedWakingY).toLocaleString()} years`}
-            />
+            {themeEntries.map(([k, v]) => (
+              <div
+                key={k}
+                style={{ display: "flex", alignItems: "center", gap: 10 }}
+              >
+                <span
+                  style={{
+                    width: 90,
+                    fontFamily: "var(--serif)",
+                    fontStyle: "italic",
+                    fontSize: 13,
+                  }}
+                >
+                  {k}
+                </span>
+                <div
+                  style={{
+                    flex: 1,
+                    height: 6,
+                    background: "var(--paper-2)",
+                    border: "0.5px solid var(--rule)",
+                    borderRadius: 99,
+                    overflow: "hidden",
+                  }}
+                >
+                  <div
+                    style={{
+                      width: `${(v / maxTheme) * 100}%`,
+                      height: "100%",
+                      background: "var(--indigo)",
+                    }}
+                  />
+                </div>
+                <span
+                  style={{
+                    fontFamily: "var(--mono)",
+                    fontSize: 9,
+                    color: "var(--ink-3)",
+                    width: 16,
+                    textAlign: "right",
+                  }}
+                >
+                  {v}
+                </span>
+              </div>
+            ))}
           </div>
         </div>
-      </div>
+      )}
 
-      <div className="card" style={{ marginBottom: 14 }}>
-        <Kicker>If the average holds</Kicker>
-        <div
-          style={{
-            marginTop: 12,
-            display: "grid",
-            gridTemplateColumns: "1fr 1fr",
-            gap: 14,
-          }}
-        >
-          <FragmentTile
-            label="summers ahead"
-            value={Math.round(L.expectancy - ageY)}
-          />
-          <FragmentTile
-            label="full moons"
-            value={Math.round((L.expectancy - ageY) * 12.4)}
-          />
-          <FragmentTile label="weekends" value={Math.round(leftWeeks)} />
-          <FragmentTile
-            label="cups of coffee"
-            value={Math.round((L.expectancy - ageY) * 365 * 2).toLocaleString()}
-          />
-          <FragmentTile label="books, at 1/wk" value={Math.round(leftWeeks)} />
-          <FragmentTile
-            label="conversations with mum"
-            value={Math.round((L.expectancy - ageY) * 50)}
-          />
+      <button
+        onClick={onAdd}
+        style={{
+          width: "100%",
+          padding: "14px",
+          background: "var(--ink)",
+          color: "var(--paper)",
+          border: "none",
+          borderRadius: 14,
+          fontFamily: "var(--serif)",
+          fontSize: 15,
+          marginBottom: 14,
+          cursor: "pointer",
+        }}
+      >
+        <span style={{ fontStyle: "italic" }}>+ log a dream</span>
+      </button>
+
+      {sorted.length > 0 ? (
+        <>
+          <Kicker>your journal · most recent first</Kicker>
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              gap: 10,
+              marginTop: 10,
+            }}
+          >
+            {sorted.map((d) => (
+              <DreamRow
+                key={d.id}
+                d={d}
+                onClick={() => onOpen(d)}
+                onRemove={() => onRemove(d.id)}
+              />
+            ))}
+          </div>
+        </>
+      ) : (
+        <div className="card" style={{ padding: 22, textAlign: "center" }}>
+          <div
+            style={{
+              fontFamily: "var(--serif)",
+              fontSize: 36,
+              fontStyle: "italic",
+              color: "var(--ink-3)",
+            }}
+          >
+            ◌
+          </div>
+          <div className="margin-note" style={{ marginTop: 10, fontSize: 13 }}>
+            "Log your first dream — a title, the shape of what you
+            remember, a few tags. The recurring threads emerge as
+            you go."
+          </div>
         </div>
-      </div>
+      )}
     </>
   );
 }
 
-interface DaysOverlayProps {
-  onClose: () => void;
+function DreamRow({
+  d,
+  onClick,
+  onRemove,
+}: {
+  d: Dream;
+  onClick: () => void;
+  onRemove: () => void;
+}) {
+  return (
+    <div
+      onClick={onClick}
+      className="card"
+      style={{
+        cursor: "pointer",
+        display: "flex",
+        gap: 12,
+        alignItems: "flex-start",
+        padding: 12,
+        borderLeft: "3px solid var(--indigo)",
+      }}
+    >
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div className="kicker">{displayDate(d.date)}</div>
+        <div
+          style={{
+            fontFamily: "var(--serif)",
+            fontSize: 15,
+            marginTop: 2,
+            fontStyle: "italic",
+          }}
+        >
+          {d.title || "untitled"}
+        </div>
+        {d.text && (
+          <div
+            style={{
+              fontFamily: "var(--serif)",
+              fontSize: 12.5,
+              color: "var(--ink-2)",
+              marginTop: 4,
+              lineHeight: 1.4,
+              display: "-webkit-box",
+              WebkitLineClamp: 2,
+              WebkitBoxOrient: "vertical",
+              overflow: "hidden",
+            }}
+          >
+            {d.text}
+          </div>
+        )}
+        {d.tags.length > 0 && (
+          <div
+            style={{
+              display: "flex",
+              flexWrap: "wrap",
+              gap: 4,
+              marginTop: 6,
+            }}
+          >
+            {d.tags.map((t, i) => (
+              <span
+                key={i}
+                style={{
+                  fontFamily: "var(--mono)",
+                  fontSize: 8.5,
+                  letterSpacing: "0.06em",
+                  padding: "2px 6px",
+                  borderRadius: 999,
+                  border: "0.5px solid var(--rule)",
+                  background: "var(--paper-2)",
+                  color: "var(--ink-3)",
+                }}
+              >
+                {t}
+              </span>
+            ))}
+          </div>
+        )}
+      </div>
+      <div style={{ textAlign: "right", flexShrink: 0 }}>
+        <div
+          style={{
+            fontFamily: "var(--mono)",
+            fontSize: 9,
+            color: "var(--ink-3)",
+            letterSpacing: "0.06em",
+          }}
+        >
+          V {d.vividness}/5
+        </div>
+        <div
+          style={{
+            fontFamily: "var(--mono)",
+            fontSize: 9,
+            color: "var(--ink-3)",
+            letterSpacing: "0.06em",
+            marginTop: 2,
+          }}
+        >
+          L {d.lucidity}/5
+        </div>
+      </div>
+      <button
+        onClick={(e) => {
+          e.stopPropagation();
+          if (confirm(`Remove "${d.title || "this dream"}"?`)) onRemove();
+        }}
+        aria-label="Remove dream"
+        style={{
+          background: "transparent",
+          border: "none",
+          color: "var(--ink-3)",
+          cursor: "pointer",
+          fontFamily: "var(--mono)",
+          fontSize: 14,
+          padding: "0 4px",
+        }}
+      >
+        ×
+      </button>
+    </div>
+  );
 }
 
-export function DaysOverlay({ onClose }: DaysOverlayProps) {
-  const D = IS_DATA;
-  const [tab, setTab] = useState<"portrait" | "dreams" | "time" | "life">(
-    "portrait",
-  );
+// ─── DreamDetail — full-screen read view ────────────────────────
 
+function DreamDetail({
+  d,
+  onClose,
+  onRemove,
+}: {
+  d: Dream;
+  onClose: () => void;
+  onRemove: () => void;
+}) {
   return (
-    <div className="overlay paper-grain">
+    <div className="overlay paper-grain" style={{ zIndex: 25 }}>
       <div className="app-header">
         <button className="avatar-btn" onClick={onClose}>
           ←
         </button>
         <div className="h-title">
-          the <em>days</em>
+          a <em>dream</em>
         </div>
-        <div className="h-meta">
-          {D.portraits.length}
-          <br />
-          logged
-        </div>
+        <div className="h-meta">{displayDate(d.date)}</div>
       </div>
       <div className="app-body">
-        <div className="margin-note" style={{ marginBottom: 12, fontSize: 13 }}>
-          a private ledger — what the day looked like, what it felt like, what
-          it took.
+        <Kicker>{displayDate(d.date)}{d.mood ? ` · ${d.mood}` : ""}</Kicker>
+        <div
+          style={{
+            fontFamily: "var(--serif)",
+            fontSize: 26,
+            fontStyle: "italic",
+            marginTop: 6,
+            lineHeight: 1.2,
+            letterSpacing: "-0.01em",
+          }}
+        >
+          {d.title || "untitled"}
         </div>
+
+        <hr className="rule-dashed" />
 
         <div
           style={{
-            display: "flex",
-            gap: 6,
-            marginBottom: 14,
-            flexWrap: "wrap",
+            fontFamily: "var(--serif)",
+            fontSize: 15,
+            lineHeight: 1.6,
+            whiteSpace: "pre-wrap",
           }}
         >
-          <Pill
-            active={tab === "portrait"}
-            onClick={() => setTab("portrait")}
-          >
-            portrait
-          </Pill>
-          <Pill active={tab === "dreams"} onClick={() => setTab("dreams")}>
-            dreams
-          </Pill>
-          <Pill active={tab === "time"} onClick={() => setTab("time")}>
-            time
-          </Pill>
-          <Pill active={tab === "life"} onClick={() => setTab("life")}>
-            life
-          </Pill>
+          {d.text || (
+            <span
+              style={{ color: "var(--ink-3)", fontStyle: "italic" }}
+            >
+              no longhand body recorded.
+            </span>
+          )}
         </div>
 
-        {tab === "portrait" && <PortraitView D={D} />}
-        {tab === "dreams" && <DreamsView D={D} />}
-        {tab === "time" && <TimeView D={D} />}
-        {tab === "life" && <LifeView D={D} />}
+        <hr className="rule-dashed" />
+
+        <div style={{ display: "flex", gap: 24 }}>
+          <div>
+            <div className="kicker">VIVIDNESS</div>
+            <div className="fig-num" style={{ fontSize: 22 }}>
+              <em>{d.vividness}</em>
+              <span
+                style={{
+                  fontSize: 11,
+                  color: "var(--ink-3)",
+                  marginLeft: 3,
+                }}
+              >
+                /5
+              </span>
+            </div>
+          </div>
+          <div>
+            <div className="kicker">LUCIDITY</div>
+            <div className="fig-num" style={{ fontSize: 22 }}>
+              <em>{d.lucidity}</em>
+              <span
+                style={{
+                  fontSize: 11,
+                  color: "var(--ink-3)",
+                  marginLeft: 3,
+                }}
+              >
+                /5
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {d.tags.length > 0 && (
+          <>
+            <hr className="rule-dashed" />
+            <Kicker>tags</Kicker>
+            <div
+              style={{
+                display: "flex",
+                flexWrap: "wrap",
+                gap: 5,
+                marginTop: 8,
+              }}
+            >
+              {d.tags.map((t, i) => (
+                <span
+                  key={i}
+                  style={{
+                    fontFamily: "var(--serif)",
+                    fontStyle: "italic",
+                    fontSize: 13,
+                    padding: "4px 10px",
+                    borderRadius: 999,
+                    border: "0.5px solid var(--rule)",
+                    background: "var(--paper-2)",
+                    color: "var(--ink-2)",
+                  }}
+                >
+                  {t}
+                </span>
+              ))}
+            </div>
+          </>
+        )}
+
+        <hr className="rule-dashed" />
+        <button
+          onClick={() => {
+            if (confirm(`Remove "${d.title || "this dream"}"?`)) onRemove();
+          }}
+          style={{
+            width: "100%",
+            padding: "12px",
+            background: "transparent",
+            color: "var(--ink-3)",
+            border: "0.5px dashed var(--rule)",
+            borderRadius: 999,
+            fontFamily: "var(--serif)",
+            fontStyle: "italic",
+            fontSize: 14,
+            cursor: "pointer",
+          }}
+        >
+          remove this entry
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ─── AddDreamFlow ───────────────────────────────────────────────
+
+function AddDreamFlow({
+  onClose,
+  onSave,
+}: {
+  onClose: () => void;
+  onSave: (d: Omit<Dream, "id" | "createdAt">) => Promise<void>;
+}) {
+  const [title, setTitle] = useState("");
+  const [text, setText] = useState("");
+  const [tagsRaw, setTagsRaw] = useState("");
+  const [mood, setMood] = useState("");
+  const [vividness, setVividness] = useState(3);
+  const [lucidity, setLucidity] = useState(0);
+  const [saving, setSaving] = useState(false);
+
+  const canSave = title.trim().length > 0 || text.trim().length > 0;
+
+  const submit = async () => {
+    if (!canSave || saving) return;
+    setSaving(true);
+    try {
+      const tags = tagsRaw
+        .split(/[,\n]/)
+        .map((t) => t.trim())
+        .filter(Boolean);
+      await onSave({
+        date: isoDateToday(),
+        title: title.trim(),
+        text: text.trim(),
+        tags,
+        mood: mood.trim() || undefined,
+        vividness,
+        lucidity,
+      });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const inputStyle: React.CSSProperties = {
+    width: "100%",
+    boxSizing: "border-box",
+    padding: "10px 12px",
+    background: "var(--paper-2)",
+    border: "0.5px solid var(--rule)",
+    borderRadius: 6,
+    fontFamily: "var(--serif)",
+    fontStyle: "italic",
+    fontSize: 15,
+    color: "var(--ink)",
+  };
+
+  return (
+    <div
+      style={{
+        position: "absolute",
+        inset: 0,
+        background: "rgba(20,18,14,0.92)",
+        zIndex: 50,
+        display: "flex",
+        flexDirection: "column",
+      }}
+    >
+      <div
+        className="app-header"
+        style={{
+          background: "transparent",
+          borderBottom: "0.5px solid rgba(255,255,255,0.15)",
+        }}
+      >
+        <button
+          className="avatar-btn"
+          onClick={onClose}
+          style={{
+            color: "white",
+            borderColor: "rgba(255,255,255,0.3)",
+          }}
+        >
+          ✕
+        </button>
+        <div className="h-title" style={{ color: "white" }}>
+          log a dream
+        </div>
+        <div style={{ width: 36 }} />
+      </div>
+      <div style={{ flex: 1, overflowY: "auto", padding: 18 }}>
+        <div
+          style={{
+            background: "var(--paper)",
+            borderRadius: 8,
+            padding: 16,
+            color: "var(--ink)",
+          }}
+        >
+          <Kicker>title</Kicker>
+          <input
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            placeholder="a short name for the dream"
+            style={{ ...inputStyle, marginTop: 6 }}
+          />
+
+          <div style={{ marginTop: 14 }}>
+            <Kicker>what you remember</Kicker>
+            <textarea
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              rows={6}
+              placeholder="the shape of it — fragments are fine"
+              style={{
+                ...inputStyle,
+                marginTop: 6,
+                fontSize: 14,
+                resize: "vertical",
+              }}
+            />
+          </div>
+
+          <div style={{ marginTop: 14 }}>
+            <Kicker>tags · comma separated</Kicker>
+            <input
+              value={tagsRaw}
+              onChange={(e) => setTagsRaw(e.target.value)}
+              placeholder="water, home, flying"
+              style={{ ...inputStyle, marginTop: 6, fontSize: 13 }}
+            />
+          </div>
+
+          <div style={{ marginTop: 14 }}>
+            <Kicker>mood · one word</Kicker>
+            <input
+              value={mood}
+              onChange={(e) => setMood(e.target.value)}
+              placeholder="uneasy, warm, restless…"
+              style={{ ...inputStyle, marginTop: 6, fontSize: 13 }}
+            />
+          </div>
+
+          <div style={{ marginTop: 14 }}>
+            <Kicker>vividness · {vividness}/5</Kicker>
+            <input
+              type="range"
+              min="0"
+              max="5"
+              value={vividness}
+              onChange={(e) => setVividness(+e.target.value)}
+              style={{ width: "100%", accentColor: "var(--indigo)" }}
+            />
+          </div>
+
+          <div style={{ marginTop: 6 }}>
+            <Kicker>lucidity · {lucidity}/5</Kicker>
+            <input
+              type="range"
+              min="0"
+              max="5"
+              value={lucidity}
+              onChange={(e) => setLucidity(+e.target.value)}
+              style={{ width: "100%", accentColor: "var(--indigo)" }}
+            />
+          </div>
+
+          <div style={{ display: "flex", gap: 8, marginTop: 18 }}>
+            <button
+              onClick={onClose}
+              style={{
+                flex: 1,
+                padding: "12px",
+                background: "var(--paper-2)",
+                border: "0.5px solid var(--rule)",
+                borderRadius: 999,
+                fontFamily: "var(--serif)",
+                fontStyle: "italic",
+                fontSize: 14,
+                cursor: "pointer",
+              }}
+            >
+              cancel
+            </button>
+            <button
+              onClick={submit}
+              disabled={!canSave || saving}
+              style={{
+                flex: 1,
+                padding: "12px",
+                background: canSave ? "var(--ink)" : "var(--paper-3)",
+                color: canSave ? "var(--paper)" : "var(--ink-3)",
+                border: "none",
+                borderRadius: 999,
+                fontFamily: "var(--serif)",
+                fontStyle: "italic",
+                fontSize: 14,
+                cursor: canSave ? "pointer" : "default",
+                opacity: saving ? 0.6 : 1,
+              }}
+            >
+              {saving ? "saving…" : "save"}
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   );

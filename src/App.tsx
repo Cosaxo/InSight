@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import type { CityRatings, TabId } from "./types";
 import {
   firebaseEnabled,
@@ -7,9 +7,11 @@ import {
   warmFirebase,
 } from "./lib/firebase";
 import { useAuth } from "./lib/useAuth";
+import { useMe } from "./lib/useMe";
 import { readLegacyDailyReport } from "./lib/useDailyReport";
 import { useTweaks } from "./lib/useTweaks";
 import { IOSDevice } from "./components/shared/IOSDevice";
+import { OverlayErrorBoundary } from "./components/shared/OverlayErrorBoundary";
 import { NavGlyph } from "./components/icons/NavGlyph";
 import { AroundTab } from "./components/tabs/AroundTab";
 import { WorldTab } from "./components/tabs/WorldTab";
@@ -27,22 +29,88 @@ import {
   TweakToggle,
   TweaksPanel,
 } from "./components/shared/TweaksPanel";
-import { IS_DATA } from "./data/seedData";
-import { PersonOverlay } from "./components/overlays/PersonOverlay";
 import type { PersonForOverlay } from "./components/overlays/PersonOverlay";
-import { ProfileOverlay } from "./components/overlays/ProfileOverlay";
-import { InsightsOverlay } from "./components/overlays/InsightsOverlay";
-import { TestOverlay } from "./components/overlays/TestOverlay";
-import { CityOverlay } from "./components/overlays/CityOverlay";
-import { SharingOverlay } from "./components/overlays/SharingOverlay";
-import { DnaOverlay } from "./components/overlays/DnaOverlay";
-import { ScrapbookOverlay } from "./components/overlays/ScrapbookOverlay";
-import { BodyOverlay } from "./components/overlays/BodyOverlay";
-import { DaysOverlay } from "./components/overlays/DaysOverlay";
-import { DailyReportOverlay } from "./components/overlays/DailyReportOverlay";
-import { ImpressionsOverlay } from "./components/overlays/ImpressionsOverlay";
-import { LifeOverlay } from "./components/overlays/LifeOverlay";
 import { useDailyReport } from "./lib/useDailyReport";
+
+// Overlays are off the critical path — none of them render on first paint.
+// Lazy-load each into its own chunk so the initial JS stays small.
+const PersonOverlay = lazy(() =>
+  import("./components/overlays/PersonOverlay").then((m) => ({
+    default: m.PersonOverlay,
+  })),
+);
+const ProfileOverlay = lazy(() =>
+  import("./components/overlays/ProfileOverlay").then((m) => ({
+    default: m.ProfileOverlay,
+  })),
+);
+const InsightsOverlay = lazy(() =>
+  import("./components/overlays/InsightsOverlay").then((m) => ({
+    default: m.InsightsOverlay,
+  })),
+);
+const TestOverlay = lazy(() =>
+  import("./components/overlays/TestOverlay").then((m) => ({
+    default: m.TestOverlay,
+  })),
+);
+const CityOverlay = lazy(() =>
+  import("./components/overlays/CityOverlay").then((m) => ({
+    default: m.CityOverlay,
+  })),
+);
+const SharingOverlay = lazy(() =>
+  import("./components/overlays/SharingOverlay").then((m) => ({
+    default: m.SharingOverlay,
+  })),
+);
+const DnaOverlay = lazy(() =>
+  import("./components/overlays/DnaOverlay").then((m) => ({
+    default: m.DnaOverlay,
+  })),
+);
+const ScrapbookOverlay = lazy(() =>
+  import("./components/overlays/ScrapbookOverlay").then((m) => ({
+    default: m.ScrapbookOverlay,
+  })),
+);
+const BodyOverlay = lazy(() =>
+  import("./components/overlays/BodyOverlay").then((m) => ({
+    default: m.BodyOverlay,
+  })),
+);
+const DaysOverlay = lazy(() =>
+  import("./components/overlays/DaysOverlay").then((m) => ({
+    default: m.DaysOverlay,
+  })),
+);
+const DailyReportOverlay = lazy(() =>
+  import("./components/overlays/DailyReportOverlay").then((m) => ({
+    default: m.DailyReportOverlay,
+  })),
+);
+const ImpressionsOverlay = lazy(() =>
+  import("./components/overlays/ImpressionsOverlay").then((m) => ({
+    default: m.ImpressionsOverlay,
+  })),
+);
+const LifeOverlay = lazy(() =>
+  import("./components/overlays/LifeOverlay").then((m) => ({
+    default: m.LifeOverlay,
+  })),
+);
+const AddPersonFlow = lazy(() =>
+  import("./components/overlays/AddPersonFlow").then((m) => ({
+    default: m.AddPersonFlow,
+  })),
+);
+
+// Minimal placeholder shown for the few frames between an overlay being
+// requested and its chunk arriving. Matches the overlay-base styling so
+// the visual transition is invisible.
+function OverlayFallback() {
+  return <div className="overlay paper-grain" aria-busy="true" />;
+}
 
 const TABS: { id: TabId; label: string }[] = [
   { id: "around", label: "around" },
@@ -138,6 +206,11 @@ function AppShell() {
   const [showProfile, setShowProfile] = useState(false);
   const [showInsights, setShowInsights] = useState(false);
   const [showTest, setShowTest] = useState(false);
+  // When set, TestOverlay opens jumped directly into that test kind
+  // (used by ProfileOverlay's "take the test" empty-state CTAs).
+  const [testInitialKind, setTestInitialKind] = useState<
+    "big5" | "political" | "values" | null
+  >(null);
   const [showSharing, setShowSharing] = useState(false);
   const [showDna, setShowDna] = useState(false);
   const [showScrap, setShowScrap] = useState(false);
@@ -146,13 +219,19 @@ function AppShell() {
   const [showDaily, setShowDaily] = useState(false);
   const [showImpressions, setShowImpressions] = useState(false);
   const [showLife, setShowLife] = useState(false);
+  const [showAddPerson, setShowAddPerson] = useState(false);
   const [fabOpen, setFabOpen] = useState(false);
 
+  // One-way sync: tweak.tab → tab. Comparing against `tab` inside avoids
+  // re-running when tab changes through the second effect below; we
+  // genuinely only want to react to tweak changes here.
   useEffect(() => {
     const v = validTab(t.tab);
     if (v !== tab) setTab(v);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [t.tab]);
+  // Reverse sync: tab → tweak.tab. Same reasoning — depending on `t.tab`
+  // would create a feedback loop with the effect above.
   useEffect(() => {
     if (t.tab !== tab) setTweak("tab", tab);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -172,15 +251,23 @@ function AppShell() {
     setShowDaily(false);
     setShowImpressions(false);
     setShowLife(false);
+    setShowAddPerson(false);
     setFabOpen(false);
   };
 
-  const me = IS_DATA.me;
+  const me = useMe();
   const appClasses = `app paper-grain ${t.dark ? "dark" : ""} ${
     t.density || "regular"
   }`;
 
   const { report: myDaily } = useDailyReport();
+  // PeopleTab's DailyReport shape requires `personId` (it's a per-person
+  // feed); adapt our own daily report to fit. The auto-stats fields it
+  // optionally reads (body/move/nutrition/scrapbook) aren't persisted
+  // — they're seed-data-only for other people's feeds.
+  const myDailyForFeed = myDaily
+    ? { ...myDaily, personId: "me" as const, photo: myDaily.photo ?? undefined }
+    : null;
 
   return (
     <IOSDevice width={402} height={874} dark={t.dark}>
@@ -214,8 +301,8 @@ function AppShell() {
             <PeopleTab
               onPerson={setPerson}
               onOpenDaily={() => setShowDaily(true)}
-              // Structural shape matches what PeopleTab uses (mood, one_line, photo, etc.).
-              myDailyReport={myDaily as unknown as Parameters<typeof PeopleTab>[0]["myDailyReport"]}
+              onAddPerson={() => setShowAddPerson(true)}
+              myDailyReport={myDailyForFeed}
             />
           )}
         </div>
@@ -303,7 +390,13 @@ function AppShell() {
             >
               <span style={{ color: "var(--ink-2)" }}>◇</span> what you share
             </div>
-            <div className="fab-item" onClick={() => setFabOpen(false)}>
+            <div
+              className="fab-item"
+              onClick={() => {
+                setFabOpen(false);
+                setShowAddPerson(true);
+              }}
+            >
               <span style={{ color: "var(--ochre)" }}>+</span> add a person
             </div>
           </div>
@@ -333,45 +426,86 @@ function AppShell() {
           ))}
         </nav>
 
-        {person && (
-          <PersonOverlay
-            p={toOverlayPerson(person)}
-            me={me}
-            onClose={() => setPerson(null)}
-          />
-        )}
-        {showProfile && (
-          <ProfileOverlay onClose={() => setShowProfile(false)} />
-        )}
-        {showInsights && (
-          <InsightsOverlay onClose={() => setShowInsights(false)} />
-        )}
-        {showTest && <TestOverlay onClose={() => setShowTest(false)} />}
-        {showSharing && (
-          <SharingOverlay onClose={() => setShowSharing(false)} />
-        )}
-        {showDna && <DnaOverlay onClose={() => setShowDna(false)} />}
-        {showScrap && (
-          <ScrapbookOverlay onClose={() => setShowScrap(false)} />
-        )}
-        {showBody && <BodyOverlay onClose={() => setShowBody(false)} />}
-        {showDays && <DaysOverlay onClose={() => setShowDays(false)} />}
-        {showDaily && (
-          <DailyReportOverlay onClose={() => setShowDaily(false)} />
-        )}
-        {showImpressions && (
-          <ImpressionsOverlay onClose={() => setShowImpressions(false)} />
-        )}
-        {showLife && (
-          <LifeOverlay
-            onClose={() => setShowLife(false)}
-            onOpenDna={() => {
-              setShowLife(false);
-              setShowDna(true);
-            }}
-          />
-        )}
-        {city && <CityOverlay city={city} onClose={() => setCity(null)} />}
+        <OverlayErrorBoundary
+          resetKey={[
+            person ? "person" : "",
+            city ? "city" : "",
+            showProfile && "profile",
+            showInsights && "insights",
+            showTest && "test",
+            showSharing && "sharing",
+            showDna && "dna",
+            showScrap && "scrap",
+            showBody && "body",
+            showDays && "days",
+            showDaily && "daily",
+            showImpressions && "impressions",
+            showLife && "life",
+            showAddPerson && "addPerson",
+          ]
+            .filter(Boolean)
+            .join(",")}
+          onDismiss={closeAll}
+        >
+        <Suspense fallback={<OverlayFallback />}>
+          {person && (
+            <PersonOverlay
+              p={toOverlayPerson(person)}
+              onClose={() => setPerson(null)}
+            />
+          )}
+          {showProfile && (
+            <ProfileOverlay
+              onClose={() => setShowProfile(false)}
+              onOpenTest={(kind) => {
+                setShowProfile(false);
+                setTestInitialKind(kind);
+                setShowTest(true);
+              }}
+            />
+          )}
+          {showInsights && (
+            <InsightsOverlay onClose={() => setShowInsights(false)} />
+          )}
+          {showTest && (
+            <TestOverlay
+              kind={testInitialKind}
+              onClose={() => {
+                setShowTest(false);
+                setTestInitialKind(null);
+              }}
+            />
+          )}
+          {showSharing && (
+            <SharingOverlay onClose={() => setShowSharing(false)} />
+          )}
+          {showDna && <DnaOverlay onClose={() => setShowDna(false)} />}
+          {showScrap && (
+            <ScrapbookOverlay onClose={() => setShowScrap(false)} />
+          )}
+          {showBody && <BodyOverlay onClose={() => setShowBody(false)} />}
+          {showDays && <DaysOverlay onClose={() => setShowDays(false)} />}
+          {showDaily && (
+            <DailyReportOverlay onClose={() => setShowDaily(false)} />
+          )}
+          {showImpressions && (
+            <ImpressionsOverlay onClose={() => setShowImpressions(false)} />
+          )}
+          {showLife && (
+            <LifeOverlay
+              onClose={() => setShowLife(false)}
+              onOpenDna={() => {
+                setShowLife(false);
+                setShowDna(true);
+              }}
+            />
+          )}
+          {city && <CityOverlay city={city} onClose={() => setCity(null)} />}
+          {showAddPerson && (
+            <AddPersonFlow onClose={() => setShowAddPerson(false)} />
+          )}
+        </Suspense>
+        </OverlayErrorBoundary>
       </div>
 
       <TweaksPanel>
