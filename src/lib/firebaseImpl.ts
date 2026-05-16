@@ -111,6 +111,10 @@ export interface RemoteProfile {
   // cross-user reads land. Absent or unknown keys fall back to the
   // per-category default in SharingOverlay.
   sharePrefs?: Record<string, ShareLevel>;
+  // Display currency for FinanceTab — ISO 4217 code (USD / EUR /
+  // NOK / GBP / JPY / etc). Drives both the symbol shown and the
+  // locale-aware digit grouping. Falls back to USD when missing.
+  currency?: string;
 }
 
 export interface MigrationPayload {

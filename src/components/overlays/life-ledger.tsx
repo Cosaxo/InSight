@@ -561,9 +561,11 @@ function VisitsCard() {
     items.forEach((v) => set.add(v.country.toLowerCase()));
     return set.size;
   }, [items]);
+  const thisYear = String(new Date().getFullYear());
+  const thisYearCount = items.filter((v) => v.start.startsWith(thisYear)).length;
   const last = recent[0];
   const summary = last
-    ? `latest: ${last.city ? `${last.city}, ` : ""}${last.country} · ${countries} ${countries === 1 ? "country" : "countries"}`
+    ? `latest: ${last.city ? `${last.city}, ` : ""}${last.country} · ${countries} ${countries === 1 ? "country" : "countries"}${thisYearCount ? ` · ${thisYearCount} this year` : ""}`
     : "log a trip — country, optional city, dates";
 
   return (
@@ -700,10 +702,16 @@ function HomesCard() {
   const [adding, setAdding] = useState(false);
   const sorted = [...items].sort((a, b) => b.startYear - a.startYear);
   const current = items.find((h) => h.endYear === undefined);
+  // Total years lived across all logged homes. Open-ended entries
+  // (no endYear) count up to the current year.
+  const totalYears = items.reduce((sum, h) => {
+    const end = h.endYear ?? new Date().getFullYear();
+    return sum + Math.max(0, end - h.startYear);
+  }, 0);
   const summary = current
-    ? `currently: ${current.place}`
+    ? `currently: ${current.place}${totalYears > 0 ? ` · ${totalYears} yrs across ${items.length} ${items.length === 1 ? "home" : "homes"}` : ""}`
     : items.length > 0
-      ? `most recent: ${sorted[0].place}`
+      ? `most recent: ${sorted[0].place} · ${totalYears} yrs across ${items.length} ${items.length === 1 ? "home" : "homes"}`
       : "where have you lived?";
 
   return (
@@ -976,10 +984,14 @@ function JobsCard() {
     (a, b) => b.start.localeCompare(a.start) || b.createdAt - a.createdAt,
   );
   const current = items.find((j) => !j.end);
+  // Distinct organisations across all jobs — a rough "places worked"
+  // count alongside the total job count.
+  const orgs = new Set(items.map((j) => (j.org ?? "").trim().toLowerCase()).filter(Boolean));
+  const orgsClause = orgs.size > 0 ? ` · ${orgs.size} ${orgs.size === 1 ? "org" : "orgs"}` : "";
   const summary = current
-    ? `currently: ${current.role}${current.org ? ` · ${current.org}` : ""}`
+    ? `currently: ${current.role}${current.org ? ` · ${current.org}` : ""}${items.length > 1 ? ` · ${items.length} total${orgsClause}` : ""}`
     : items.length > 0
-      ? `most recent: ${sorted[0].role}`
+      ? `most recent: ${sorted[0].role} · ${items.length} total${orgsClause}`
       : "what work have you done?";
 
   return (

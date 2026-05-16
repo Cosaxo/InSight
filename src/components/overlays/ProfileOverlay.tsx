@@ -292,12 +292,30 @@ function InlineAdd({ placeholder, onAdd }: InlineAddProps) {
 //     with × delete. Legacy users with profile.weightKg set but no
 //     logged weigh-ins still see their static value here; the first
 //     new entry shadows it.
+// Currencies shown in the picker. Cosmetic order; the underlying
+// store accepts any ISO code, the FinanceTab Intl formatter
+// handles unknown codes gracefully.
+const CURRENCY_OPTIONS: { code: string; label: string }[] = [
+  { code: "USD", label: "$ · USD" },
+  { code: "EUR", label: "€ · EUR" },
+  { code: "GBP", label: "£ · GBP" },
+  { code: "NOK", label: "kr · NOK" },
+  { code: "SEK", label: "kr · SEK" },
+  { code: "DKK", label: "kr · DKK" },
+  { code: "CHF", label: "CHF" },
+  { code: "JPY", label: "¥ · JPY" },
+  { code: "CAD", label: "CA$ · CAD" },
+  { code: "AUD", label: "A$ · AUD" },
+];
+
 function VitalStatsEditor({
   birthYear,
+  currency,
   onSave,
 }: {
   birthYear?: number;
-  onSave: (patch: { birthYear?: number }) => void;
+  currency?: string;
+  onSave: (patch: { birthYear?: number; currency?: string }) => void;
 }) {
   const { profile } = useProfile();
   const {
@@ -428,6 +446,32 @@ function VitalStatsEditor({
           />
         </label>
       </div>
+
+      <label
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          gap: 4,
+          marginTop: 10,
+        }}
+      >
+        <span className="kicker">currency · for the finance tab</span>
+        <select
+          value={currency || "USD"}
+          onChange={(e) => onSave({ currency: e.target.value })}
+          style={{
+            ...inputStyle,
+            appearance: "auto",
+            fontFamily: "var(--mono)",
+          }}
+        >
+          {CURRENCY_OPTIONS.map((c) => (
+            <option key={c.code} value={c.code}>
+              {c.label}
+            </option>
+          ))}
+        </select>
+      </label>
 
       {weighins.length > 0 && (
         <>
@@ -841,6 +885,7 @@ export function ProfileOverlay({ onClose, onOpenTest }: ProfileOverlayProps) {
 
         <VitalStatsEditor
           birthYear={profile.birthYear}
+          currency={profile.currency}
           onSave={(patch) => void save(patch)}
         />
 

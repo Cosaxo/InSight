@@ -153,6 +153,41 @@ const TWEAK_DEFAULTS = {
 
 type AnyPerson = NearbyPerson | CirclePerson;
 
+// The journal-volume framing anchors to a fixed launch year. Each
+// calendar year past the anchor is the next volume — vol. i = 2024,
+// vol. ii = 2025, vol. iii = 2026, etc. Roman numerals lowercase to
+// match the typographic feel of the rest of the chrome.
+const HEADER_VOLUME_ANCHOR_YEAR = 2024;
+function toRoman(n: number): string {
+  if (n <= 0) return "—";
+  const map: [number, string][] = [
+    [1000, "m"], [900, "cm"], [500, "d"], [400, "cd"],
+    [100, "c"], [90, "xc"], [50, "l"], [40, "xl"],
+    [10, "x"], [9, "ix"], [5, "v"], [4, "iv"], [1, "i"],
+  ];
+  let out = "";
+  for (const [v, s] of map) {
+    while (n >= v) {
+      out += s;
+      n -= v;
+    }
+  }
+  return out;
+}
+function headerVolume(): string {
+  const v = new Date().getFullYear() - HEADER_VOLUME_ANCHOR_YEAR + 1;
+  return `vol. ${toRoman(v)}`;
+}
+function headerDate(): string {
+  const d = new Date();
+  const months = [
+    "jan", "feb", "mar", "apr", "may", "jun",
+    "jul", "aug", "sep", "oct", "nov", "dec",
+  ];
+  const yy = String(d.getFullYear() % 100).padStart(2, "0");
+  return `${months[d.getMonth()]} '${yy}`;
+}
+
 function toOverlayPerson(p: AnyPerson): PersonForOverlay {
   return {
     id: "id" in p ? p.id : undefined,
@@ -404,9 +439,9 @@ function AppShell() {
             in<em>Sight</em>
           </div>
           <div className="h-meta">
-            vol. iii
+            {headerVolume()}
             <br />
-            may '26
+            {headerDate()}
           </div>
         </header>
 

@@ -20,13 +20,44 @@ import { logger } from "firebase-functions";
 
 initializeApp();
 
-const K_ANON_FLOOR = 5;
+// k-anonymity floor for area aggregates. Cells with fewer
+// contributors are dropped entirely (and any previously-published
+// doc gets deleted). 20 is the standard "production privacy" floor;
+// for early testing in low-density regions, drop this temporarily.
+const K_ANON_FLOOR = 20;
 
-// Big Five share preference key. Mirrors SharingOverlay's id.
+// Share-pref keys. Mirrors SHARE_DATA in SharingOverlay.
 const SHARE_KEY_BIG5 = "big5";
+const SHARE_KEY_POLITICAL = "political";
+const SHARE_KEY_MORALS = "morals";
+
+// The six political axes (matches POLITICAL_KEY in useProfile.ts).
+const POLITICAL_AXES = [
+  "econ",
+  "social",
+  "foreign",
+  "env",
+  "tech",
+  "auth",
+] as const;
+
+// The eight moral axes (matches MORAL_KEYS in useProfile.ts).
+const MORAL_AXES = [
+  "tech",
+  "future",
+  "duty",
+  "hedonism",
+  "meaning",
+  "moral",
+  "altruism",
+  "beauty",
+] as const;
 
 interface UserProfileLike {
   personality?: number[];
+  political?: { econ?: number; social?: number };
+  politicalAxes?: Record<string, number>;
+  morals?: Record<string, number>;
   sharePrefs?: Record<string, string>;
 }
 
@@ -35,25 +66,48 @@ interface DiscoverableLike {
   uid?: string;
 }
 
+// Per-axis aggregate stats for a single (cell, axis-set) pair.
+interface AxisStats {
+  count: number;
+  mean: number[];
+  stdev: number[];
+}
+
+// One geohash5 cell's full rollup. `count` is the count for Big5
+// (the most common opt-in); politics / values each carry their own
+// counts because users can independently opt out of them.
 interface AggregateDoc {
   geohash5: string;
+  // Backwards-compat: top-level count + mean + stdev mirror big5.
+  // Existing clients reading the old shape still work.
   count: number;
-  mean: number[];       // length 5
-  stdev: number[];      // length 5
+  mean: number[];
+  stdev: number[];
+  // New: per-vector aggregates. Each is undefined when no users in
+  // the cell consented to that vector.
+  big5?: AxisStats;
+  political?: AxisStats;       // length-6: econ/social/foreign/env/tech/auth
+  morals?: AxisStats;          // length-8 in MORAL_AXES order
   updatedAt: FieldValue;
 }
 
-// Compute mean and standard deviation per-axis across N 5-vectors.
-function summarise(vectors: number[][]): { mean: number[]; stdev: number[] } {
+// Compute mean and standard deviation per-axis across N vectors.
+// All vectors must be the same length; we use the first one to size
+// the result arrays.
+function summarise(
+  vectors: number[][],
+): { mean: number[]; stdev: number[] } {
   const n = vectors.length;
-  const sums = [0, 0, 0, 0, 0];
+  if (n === 0) return { mean: [], stdev: [] };
+  const len = vectors[0].length;
+  const sums = new Array(len).fill(0);
   for (const v of vectors) {
-    for (let i = 0; i < 5; i++) sums[i] += v[i];
+    for (let i = 0; i < len; i++) sums[i] += v[i];
   }
   const mean = sums.map((s) => s / n);
-  const sqs = [0, 0, 0, 0, 0];
+  const sqs = new Array(len).fill(0);
   for (const v of vectors) {
-    for (let i = 0; i < 5; i++) {
+    for (let i = 0; i < len; i++) {
       const d = v[i] - mean[i];
       sqs[i] += d * d;
     }
@@ -63,6 +117,54 @@ function summarise(vectors: number[][]): { mean: number[]; stdev: number[] } {
     mean: mean.map((m) => Math.round(m * 100) / 100),
     stdev: stdev.map((s) => Math.round(s * 100) / 100),
   };
+}
+
+// Pull a 6-axis political vector off a profile. Returns null when
+// the user hasn't taken the political test (politicalAxes will be
+// missing or incomplete).
+function politicalVector(p: UserProfileLike): number[] | null {
+  const ax = p.politicalAxes ?? {};
+  // Fall back to the 2-axis `political` for econ/social when the
+  // full 6-axis store isn't present (the test always writes both,
+  // but tolerate older clients that only wrote `political`).
+  const econ = ax.econ ?? p.political?.econ;
+  const social = ax.social ?? p.political?.social;
+  const values: number[] = [];
+  const axes: Record<string, number | undefined> = {
+    econ,
+    social,
+    foreign: ax.foreign,
+    env: ax.env,
+    tech: ax.tech,
+    auth: ax.auth,
+  };
+  for (const axis of POLITICAL_AXES) {
+    const v = axes[axis];
+    if (typeof v !== "number") return null;
+    values.push(v);
+  }
+  return values;
+}
+
+// Pull an 8-axis morals vector off a profile.
+function moralsVector(p: UserProfileLike): number[] | null {
+  const m = p.morals;
+  if (!m) return null;
+  const values: number[] = [];
+  for (const axis of MORAL_AXES) {
+    const v = m[axis];
+    if (typeof v !== "number") return null;
+    values.push(v);
+  }
+  return values;
+}
+
+// Bucket of vectors per (cell, axis-set) — three streams collected
+// in one pass over discoverable users.
+interface CellBuckets {
+  big5: number[][];
+  political: number[][];
+  morals: number[][];
 }
 
 async function runAggregation(): Promise<{
@@ -79,7 +181,10 @@ async function runAggregation(): Promise<{
   logger.info(`[aggregates] ${discoverableSnap.size} discoverable users`);
 
   // 2. For each one, fetch their profile and bucket into geohash5.
-  const cellsByHash: Record<string, number[][]> = {};
+  //    A single user can contribute to any combination of the three
+  //    streams (big5 / political / morals) depending on which tests
+  //    they've taken and their per-stream sharePrefs.
+  const cells: Record<string, CellBuckets> = {};
   let usersIncluded = 0;
   for (const docSnap of discoverableSnap.docs) {
     const disc = docSnap.data() as DiscoverableLike;
@@ -93,39 +198,67 @@ async function runAggregation(): Promise<{
       .get();
     if (!profileSnap.exists) continue;
     const profile = profileSnap.data() as UserProfileLike;
-    const vec = profile.personality;
-    if (
-      !Array.isArray(vec) ||
-      vec.length !== 5 ||
-      !vec.every((n) => typeof n === "number")
-    ) {
-      continue;
+    if (!cells[hash5]) {
+      cells[hash5] = { big5: [], political: [], morals: [] };
     }
-    const level = profile.sharePrefs?.[SHARE_KEY_BIG5] ?? "circle";
-    if (level === "nobody") continue;
+    const bucket = cells[hash5];
+    let contributedSomething = false;
 
-    if (!cellsByHash[hash5]) cellsByHash[hash5] = [];
-    cellsByHash[hash5].push(vec);
-    usersIncluded++;
+    // Big5 ───────────────
+    const b5 = profile.personality;
+    const b5Level = profile.sharePrefs?.[SHARE_KEY_BIG5] ?? "circle";
+    if (
+      Array.isArray(b5) &&
+      b5.length === 5 &&
+      b5.every((n) => typeof n === "number") &&
+      b5Level !== "nobody"
+    ) {
+      bucket.big5.push(b5);
+      contributedSomething = true;
+    }
+
+    // Politics ───────────
+    const polLevel = profile.sharePrefs?.[SHARE_KEY_POLITICAL] ?? "circle";
+    if (polLevel !== "nobody") {
+      const pol = politicalVector(profile);
+      if (pol) {
+        bucket.political.push(pol);
+        contributedSomething = true;
+      }
+    }
+
+    // Morals ─────────────
+    const mLevel = profile.sharePrefs?.[SHARE_KEY_MORALS] ?? "circle";
+    if (mLevel !== "nobody") {
+      const m = moralsVector(profile);
+      if (m) {
+        bucket.morals.push(m);
+        contributedSomething = true;
+      }
+    }
+
+    if (contributedSomething) usersIncluded++;
   }
 
-  // 3. For each cell that meets the k-anon floor, write the doc.
-  //    For cells below the floor, ensure the doc doesn't exist so
-  //    we don't leak stale aggregates as populations shrink.
+  // 3. For each cell, write a doc with whichever axis-sets passed
+  //    the k-anon floor. A cell with enough Big5 contributors but
+  //    not enough political ones writes the Big5 fields and omits
+  //    `political`. When ALL three streams are below the floor, the
+  //    cell doc is deleted (if it existed) to avoid leaking stale
+  //    aggregates.
   const batchWrite = db.batch();
   let cellsWritten = 0;
   let cellsDeleted = 0;
-
-  // First, collect existing aggregate docs so we know which cells
-  // to potentially delete.
   const existingSnap = await db
     .collection("aggregates_by_geohash5")
     .get();
   const existingCells = new Set(existingSnap.docs.map((d) => d.id));
 
-  for (const [hash5, vectors] of Object.entries(cellsByHash)) {
-    if (vectors.length < K_ANON_FLOOR) {
-      // Below floor — make sure no stale doc remains.
+  for (const [hash5, bucket] of Object.entries(cells)) {
+    const b5Ok = bucket.big5.length >= K_ANON_FLOOR;
+    const polOk = bucket.political.length >= K_ANON_FLOOR;
+    const mOk = bucket.morals.length >= K_ANON_FLOOR;
+    if (!b5Ok && !polOk && !mOk) {
       if (existingCells.has(hash5)) {
         batchWrite.delete(
           db.collection("aggregates_by_geohash5").doc(hash5),
@@ -134,18 +267,45 @@ async function runAggregation(): Promise<{
       }
       continue;
     }
-    const stats = summarise(vectors);
+    const big5Stats = b5Ok ? summarise(bucket.big5) : null;
+    const polStats = polOk ? summarise(bucket.political) : null;
+    const mStats = mOk ? summarise(bucket.morals) : null;
     const doc: AggregateDoc = {
       geohash5: hash5,
-      count: vectors.length,
-      mean: stats.mean,
-      stdev: stats.stdev,
+      // Backwards-compat fields for clients reading the old shape.
+      // Mirror big5 when present; otherwise fall back to the first
+      // axis-set that passed (so something useful gets written).
+      count: big5Stats?.mean.length
+        ? bucket.big5.length
+        : polStats?.mean.length
+          ? bucket.political.length
+          : bucket.morals.length,
+      mean: big5Stats?.mean ?? polStats?.mean ?? mStats?.mean ?? [],
+      stdev: big5Stats?.stdev ?? polStats?.stdev ?? mStats?.stdev ?? [],
       updatedAt: FieldValue.serverTimestamp(),
+      ...(big5Stats && {
+        big5: {
+          count: bucket.big5.length,
+          mean: big5Stats.mean,
+          stdev: big5Stats.stdev,
+        },
+      }),
+      ...(polStats && {
+        political: {
+          count: bucket.political.length,
+          mean: polStats.mean,
+          stdev: polStats.stdev,
+        },
+      }),
+      ...(mStats && {
+        morals: {
+          count: bucket.morals.length,
+          mean: mStats.mean,
+          stdev: mStats.stdev,
+        },
+      }),
     };
-    batchWrite.set(
-      db.collection("aggregates_by_geohash5").doc(hash5),
-      doc,
-    );
+    batchWrite.set(db.collection("aggregates_by_geohash5").doc(hash5), doc);
     cellsWritten++;
     existingCells.delete(hash5);
   }
