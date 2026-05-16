@@ -13,7 +13,7 @@
 //   derives from tag frequencies across logged dreams; "remembered
 //   this week" + "lucid" + "avg vividness" derive from the same.
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useMoods, isoDateToday } from "../../lib/useMoods";
 import {
   readDailyReportPhoto,
@@ -1364,6 +1364,7 @@ function TimeView() {
   const { items: allBlocks, add, remove } = useTimeBlocks();
   const [day, setDay] = useState(isoDateToday());
   const [logging, setLogging] = useState(false);
+  const [activeTimer, setActiveTimer] = useActiveTimer();
 
   const dayBlocks = useMemo(
     () =>
@@ -1374,6 +1375,39 @@ function TimeView() {
   );
 
   const totalHours = dayBlocks.reduce((s, b) => s + (b.to - b.from), 0);
+
+  // Stop the running timer → write a TimeBlock for today and clear
+  // local state. If the timer was started before midnight, the
+  // block ends at 23:59:59 the start day; we don't span days.
+  const stopTimer = async () => {
+    if (!activeTimer) return;
+    const start = new Date(activeTimer.startedAt);
+    const startDay = `${start.getFullYear()}-${String(start.getMonth() + 1).padStart(2, "0")}-${String(start.getDate()).padStart(2, "0")}`;
+    const fromDec = start.getHours() + start.getMinutes() / 60;
+    const now = new Date();
+    const sameDay =
+      now.getFullYear() === start.getFullYear() &&
+      now.getMonth() === start.getMonth() &&
+      now.getDate() === start.getDate();
+    const toDec = sameDay
+      ? now.getHours() + now.getMinutes() / 60
+      : 23 + 59 / 60;
+    if (toDec <= fromDec) {
+      // Bail safely on an absurd zero-length save; clear the
+      // timer anyway so the user isn't stuck.
+      setActiveTimer(null);
+      return;
+    }
+    await add({
+      date: startDay,
+      from: fromDec,
+      to: toDec,
+      label: activeTimer.label,
+      category: activeTimer.category || undefined,
+      hue: activeTimer.hue,
+    });
+    setActiveTimer(null);
+  };
 
   return (
     <>
@@ -1500,6 +1534,11 @@ function TimeView() {
             )}
           </div>
         </div>
+        <TimerBar
+          active={activeTimer}
+          onStart={setActiveTimer}
+          onStop={() => void stopTimer()}
+        />
         {logging ? (
           <LogTimeBlockForm
             day={day}
@@ -1527,7 +1566,7 @@ function TimeView() {
               cursor: "pointer",
             }}
           >
-            + log a block
+            + log a block · retroactive
           </button>
         )}
       </div>
@@ -2045,6 +2084,334 @@ function AddMilestoneForm({
           }}
         >
           {saving ? "…" : "log"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ─── Live timer ─────────────────────────────────────────────────
+//
+// A "what am I doing right now" stopwatch. Tap start → label +
+// optional category + hue → tracking. Tap stop → writes a
+// TimeBlock for the start day from start to now (or until 23:59 if
+// stop crosses midnight).
+//
+// Persisted to localStorage so a reload doesn't lose the running
+// session. Synced via cross-tab "storage" events so two tabs of
+// the same app see the same state.
+
+interface ActiveTimer {
+  label: string;
+  category: string;
+  hue: number;
+  startedAt: number; // ms epoch
+}
+
+const TIMER_STORAGE = "insight.timer.v1";
+
+function readTimer(): ActiveTimer | null {
+  try {
+    const raw = localStorage.getItem(TIMER_STORAGE);
+    if (!raw) return null;
+    return JSON.parse(raw) as ActiveTimer;
+  } catch {
+    return null;
+  }
+}
+
+function useActiveTimer(): [
+  ActiveTimer | null,
+  (t: ActiveTimer | null) => void,
+] {
+  const [timer, setTimerState] = useState<ActiveTimer | null>(() =>
+    readTimer(),
+  );
+
+  // Cross-tab sync. When another tab starts/stops a timer, the
+  // storage event fires here.
+  useEffect(() => {
+    const onStorage = (e: StorageEvent) => {
+      if (e.key !== TIMER_STORAGE) return;
+      setTimerState(readTimer());
+    };
+    window.addEventListener("storage", onStorage);
+    return () => window.removeEventListener("storage", onStorage);
+  }, []);
+
+  const set = (next: ActiveTimer | null) => {
+    if (next) localStorage.setItem(TIMER_STORAGE, JSON.stringify(next));
+    else localStorage.removeItem(TIMER_STORAGE);
+    setTimerState(next);
+  };
+  return [timer, set];
+}
+
+// Formats elapsed ms as "12:34" or "1:23:45". Capped at three-digit
+// hours — past 999h something is wrong.
+function formatElapsed(ms: number): string {
+  if (ms < 0) return "0:00";
+  const totalS = Math.floor(ms / 1000);
+  const h = Math.floor(totalS / 3600);
+  const m = Math.floor((totalS % 3600) / 60);
+  const s = totalS % 60;
+  if (h > 0) {
+    return `${h}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+  }
+  return `${m}:${String(s).padStart(2, "0")}`;
+}
+
+function TimerBar({
+  active,
+  onStart,
+  onStop,
+}: {
+  active: ActiveTimer | null;
+  onStart: (t: ActiveTimer) => void;
+  onStop: () => void;
+}) {
+  const [starting, setStarting] = useState(false);
+  const [label, setLabel] = useState("");
+  const [category, setCategory] = useState("");
+  const [hue, setHue] = useState(38);
+  // Tick "now" once a second while a timer is running so the elapsed
+  // counter updates. We store it in state rather than calling
+  // Date.now() in render (React's purity rule). The interval is
+  // also the initial-state source — first paint shows the elapsed
+  // at the moment of the next tick, ≤ 1s after mount.
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    if (!active) return;
+    const id = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(id);
+  }, [active]);
+
+  if (active) {
+    return (
+      <div
+        style={{
+          marginTop: 10,
+          padding: 12,
+          background: `oklch(0.94 0.04 ${active.hue})`,
+          border: `0.5px solid oklch(0.55 0.12 ${active.hue})`,
+          borderRadius: 8,
+          display: "flex",
+          alignItems: "center",
+          gap: 12,
+        }}
+      >
+        <span
+          aria-label="running"
+          style={{
+            width: 8,
+            height: 8,
+            borderRadius: "50%",
+            background: `oklch(0.55 0.13 ${active.hue})`,
+            flexShrink: 0,
+            animation: "pulse 1.6s infinite",
+            boxShadow: `0 0 6px oklch(0.55 0.13 ${active.hue})`,
+          }}
+        />
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div
+            style={{
+              fontFamily: "var(--serif)",
+              fontStyle: "italic",
+              fontSize: 14,
+              lineHeight: 1.2,
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+            }}
+          >
+            {active.label}
+            {active.category && (
+              <span style={{ color: "var(--ink-3)" }}>
+                {" · "}
+                {active.category}
+              </span>
+            )}
+          </div>
+          <div
+            style={{
+              fontFamily: "var(--mono)",
+              fontSize: 18,
+              color: `oklch(0.30 0.13 ${active.hue})`,
+              marginTop: 2,
+            }}
+          >
+            {formatElapsed(now - active.startedAt)}
+          </div>
+        </div>
+        <button
+          onClick={onStop}
+          style={{
+            padding: "8px 14px",
+            background: `oklch(0.30 0.13 ${active.hue})`,
+            color: "var(--paper)",
+            border: "none",
+            borderRadius: 999,
+            fontFamily: "var(--mono)",
+            fontSize: 10,
+            letterSpacing: "0.1em",
+            textTransform: "uppercase",
+            cursor: "pointer",
+          }}
+        >
+          ■ stop
+        </button>
+      </div>
+    );
+  }
+
+  if (!starting) {
+    return (
+      <button
+        onClick={() => setStarting(true)}
+        style={{
+          marginTop: 10,
+          width: "100%",
+          padding: "8px 12px",
+          background: "var(--ink)",
+          color: "var(--paper)",
+          border: "none",
+          borderRadius: 999,
+          fontFamily: "var(--mono)",
+          fontSize: 10,
+          letterSpacing: "0.1em",
+          textTransform: "uppercase",
+          cursor: "pointer",
+        }}
+      >
+        ▶ start a timer
+      </button>
+    );
+  }
+
+  const canStart = label.trim().length > 0;
+  const start = () => {
+    if (!canStart) return;
+    onStart({
+      label: label.trim(),
+      category: category.trim(),
+      hue,
+      startedAt: Date.now(),
+    });
+    setStarting(false);
+    setLabel("");
+    setCategory("");
+  };
+
+  return (
+    <div
+      style={{
+        marginTop: 10,
+        padding: 10,
+        background: "var(--paper-2)",
+        border: "0.5px solid var(--rule)",
+        borderRadius: 6,
+        display: "flex",
+        flexDirection: "column",
+        gap: 8,
+      }}
+    >
+      <input
+        autoFocus
+        value={label}
+        onChange={(e) => setLabel(e.target.value)}
+        placeholder="what you're doing"
+        onKeyDown={(e) => {
+          if (e.key === "Enter" && canStart) start();
+        }}
+        style={{
+          boxSizing: "border-box",
+          padding: "6px 8px",
+          background: "var(--paper)",
+          border: "0.5px solid var(--rule)",
+          borderRadius: 4,
+          fontFamily: "var(--serif)",
+          fontStyle: "italic",
+          fontSize: 14,
+          color: "var(--ink)",
+        }}
+      />
+      <input
+        value={category}
+        onChange={(e) => setCategory(e.target.value)}
+        placeholder="category · optional"
+        style={{
+          boxSizing: "border-box",
+          padding: "6px 8px",
+          background: "var(--paper)",
+          border: "0.5px solid var(--rule)",
+          borderRadius: 4,
+          fontFamily: "var(--serif)",
+          fontSize: 12,
+          color: "var(--ink)",
+        }}
+      />
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+        {TIME_HUE_PALETTE.map((h) => (
+          <button
+            key={h.hue}
+            onClick={() => setHue(h.hue)}
+            aria-label={h.name}
+            style={{
+              width: 18,
+              height: 18,
+              borderRadius: "50%",
+              background: `oklch(0.62 0.11 ${h.hue})`,
+              border:
+                hue === h.hue
+                  ? "1.5px solid var(--ink)"
+                  : "0.5px solid var(--rule)",
+              cursor: "pointer",
+              padding: 0,
+            }}
+          />
+        ))}
+      </div>
+      <div style={{ display: "flex", gap: 6 }}>
+        <button
+          onClick={() => {
+            setStarting(false);
+            setLabel("");
+            setCategory("");
+          }}
+          style={{
+            flex: 1,
+            padding: "6px 10px",
+            background: "transparent",
+            border: "0.5px solid var(--rule)",
+            borderRadius: 999,
+            fontFamily: "var(--mono)",
+            fontSize: 9,
+            letterSpacing: "0.1em",
+            textTransform: "uppercase",
+            color: "var(--ink-3)",
+            cursor: "pointer",
+          }}
+        >
+          cancel
+        </button>
+        <button
+          onClick={start}
+          disabled={!canStart}
+          style={{
+            flex: 1,
+            padding: "6px 10px",
+            background: canStart ? "var(--ink)" : "var(--paper-3)",
+            color: canStart ? "var(--paper)" : "var(--ink-3)",
+            border: "none",
+            borderRadius: 999,
+            fontFamily: "var(--mono)",
+            fontSize: 9,
+            letterSpacing: "0.1em",
+            textTransform: "uppercase",
+            cursor: canStart ? "pointer" : "default",
+          }}
+        >
+          ▶ start
         </button>
       </div>
     </div>

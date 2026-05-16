@@ -492,6 +492,11 @@ input, select, textarea { font-family: inherit; }
 .fade-in { animation: fade 0.3s ease both; }
 @keyframes fade { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
 
+@keyframes pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.55; transform: scale(0.85); }
+}
+
 /* Keep tab bar above iOS home indicator */
 .app-body { scrollbar-width: thin; }
 .app-body::-webkit-scrollbar { width: 4px; }
