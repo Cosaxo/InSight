@@ -8,7 +8,9 @@ import {
 } from "../shared/primitives";
 import { useGeolocation } from "../../lib/useGeolocation";
 import { useNearbyPeople } from "../../lib/useNearbyPeople";
+import { useWeather } from "../../lib/useWeather";
 import { CirclePortrait } from "./around-portrait";
+import { WeatherCard } from "./around-weather";
 
 export interface NearbyPerson {
   id: string;
@@ -70,6 +72,7 @@ export function AroundTab({ onPerson, onOpenTest, onAddPerson }: AroundTabProps)
   const { position, loading: geoLoading, error: geoError, request } =
     useGeolocation();
   const { people: nearby, source } = useNearbyPeople(position, 10);
+  const { data: weather, loading: weatherLoading } = useWeather(position);
 
   const cx = 160, cy = 160;
   const placed = nearby.map((p) => {
@@ -145,6 +148,14 @@ export function AroundTab({ onPerson, onOpenTest, onAddPerson }: AroundTabProps)
           Nobody discoverable in your area yet — showing the seed
           cast. Turn on "discoverable" in Sharing to be one of them.
         </div>
+      )}
+
+      {/* Live weather + sunrise/sunset from Open-Meteo. Only rendered
+          when geolocation is granted (the hook reads from `position`,
+          falling back to null when missing). The card itself handles
+          loading + error states. */}
+      {position && (
+        <WeatherCard data={weather} loading={weatherLoading} />
       )}
 
       <div style={{ display: "flex", gap: 8, margin: "12px 0 4px", flexWrap: "wrap" }}>
