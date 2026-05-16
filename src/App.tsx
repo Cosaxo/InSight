@@ -169,6 +169,10 @@ function toOverlayPerson(p: AnyPerson): PersonForOverlay {
       "personality" in p && Array.isArray(p.personality)
         ? (p.personality as number[])
         : undefined,
+    linkedUid:
+      "linkedUid" in p && typeof p.linkedUid === "string"
+        ? p.linkedUid
+        : undefined,
   };
 }
 

@@ -49,6 +49,7 @@ import type {
   Habit,
   Hero,
   Home,
+  InboundImpression,
   Impression,
   Job,
   Language,
@@ -548,6 +549,41 @@ export async function updateDream(
 
 export async function deleteDream(uid: string, id: string): Promise<void> {
   await deleteDoc(subDocRef(uid, "insight_dreams", id));
+}
+
+// ── Inbound impressions (cross-user) ────────────────────────────
+//
+// A *recipient* subscribes to their own inbox. A *sender* writes
+// directly into the recipient's subcollection — the rule enforces
+// (a) senderUid == auth.uid (anti-spoof) and (b) sender is in
+// recipient's circle.
+
+export function subscribeInboundImpressions(
+  recipientUid: string,
+  cb: (items: InboundImpression[]) => void,
+): () => void {
+  return subscribeList<InboundImpression>(
+    recipientUid,
+    "insight_inbound_impressions",
+    cb,
+  );
+}
+
+export async function sendInboundImpression(
+  recipientUid: string,
+  i: InboundImpression,
+): Promise<void> {
+  await setDoc(
+    subDocRef(recipientUid, "insight_inbound_impressions", i.id),
+    stripId(i),
+  );
+}
+
+export async function deleteInboundImpression(
+  recipientUid: string,
+  id: string,
+): Promise<void> {
+  await deleteDoc(subDocRef(recipientUid, "insight_inbound_impressions", id));
 }
 
 // ── Impressions ─────────────────────────────────────────────────

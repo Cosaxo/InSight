@@ -1,6 +1,9 @@
 import { useState } from "react";
+import { useAuth } from "../../lib/useAuth";
 import { useProfile } from "../../lib/useProfile";
 import { useRelations } from "../../lib/useRelations";
+import { sendInboundImpression, firebaseEnabled } from "../../lib/firebase";
+import type { InboundImpression } from "../../types";
 import { Av, Kicker } from "../shared/primitives";
 import { RadarChart } from "../shared/charts";
 
@@ -23,6 +26,12 @@ export interface PersonForOverlay {
   // rating editor below). When present we drive the radar from this
   // instead of the old synthesised-from-match-score values.
   personality?: number[];
+  // When this person is a real InSight user the viewer can leave
+  // them an anonymous traits-only impression. The send flow only
+  // shows up when both:
+  //   - linkedUid is set (they have an account we can write to)
+  //   - the viewer themselves is signed in
+  linkedUid?: string;
 }
 
 const BIG5_LABELS = ["Open", "Cons.", "Extra.", "Agree.", "Stable"];
@@ -47,7 +56,10 @@ interface PersonOverlayProps {
 export function PersonOverlay({ p, onClose }: PersonOverlayProps) {
   const { profile } = useProfile();
   const { update } = useRelations();
+  const { user } = useAuth();
   const [editing, setEditing] = useState(false);
+  const [sending, setSending] = useState(false);
+  const [sentFlash, setSentFlash] = useState(false);
   if (!p) return null;
   const big5 = profile.personality;
   const personalityReady =
@@ -78,6 +90,44 @@ export function PersonOverlay({ p, onClose }: PersonOverlayProps) {
   const saveRating = async (vec: number[]) => {
     if (!p.id) return;
     await update(p.id, { personality: vec });
+  };
+
+  // The "leave an impression" affordance only lights up when:
+  //   - the viewer is signed in (we have a senderUid to write)
+  //   - the target has a linkedUid (they're a real account)
+  //   - Firebase is enabled (web-only build can't talk to Firestore)
+  //
+  // Firestore rules separately require the viewer to be in the
+  // recipient's circle — if they aren't, the write fails and we
+  // surface the error.
+  const canSendImpression =
+    firebaseEnabled && !!user && !!p.linkedUid;
+
+  const sendImpression = async (
+    traits: string[],
+    context?: string,
+  ): Promise<void> => {
+    if (!canSendImpression || !user || !p.linkedUid) return;
+    setSending(true);
+    try {
+      const impression: InboundImpression = {
+        id: Math.random().toString(36).slice(2, 12),
+        senderUid: user.uid,
+        traits,
+        context,
+        createdAt: Date.now(),
+      };
+      await sendInboundImpression(p.linkedUid, impression);
+      setSentFlash(true);
+      setTimeout(() => setSentFlash(false), 2500);
+    } catch (err) {
+      console.error("[PersonOverlay] send impression failed:", err);
+      alert(
+        "Couldn't send the impression — usually means they haven't added you as a relation yet.",
+      );
+    } finally {
+      setSending(false);
+    }
   };
 
   return (
@@ -241,6 +291,15 @@ export function PersonOverlay({ p, onClose }: PersonOverlayProps) {
               await saveRating(vec);
               setEditing(false);
             }}
+          />
+        )}
+
+        {canSendImpression && (
+          <SendImpressionInline
+            name={p.name}
+            onSend={sendImpression}
+            sending={sending}
+            sentFlash={sentFlash}
           />
         )}
 
@@ -513,6 +572,272 @@ function Big5RatingEditor({
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+// ─── SendImpressionInline ───────────────────────────────────────
+//
+// Anonymous traits-only feedback the viewer can leave for the
+// person. Pick up to N traits from a small palette, optionally a
+// pre-canned context phrase, send. The receiver sees the entry
+// in their ImpressionsOverlay "of you" tab — never names, never
+// longhand.
+//
+// Display mode: collapsed CTA card by default; tapping expands to
+// the picker.
+
+const TRAIT_PALETTE = [
+  "warm",
+  "curious",
+  "steady",
+  "guarded",
+  "kind",
+  "sharp",
+  "quiet",
+  "intense",
+  "easy",
+  "thoughtful",
+  "remote",
+  "generous",
+  "dry humour",
+  "careful listener",
+  "playful",
+  "serious",
+  "undefended",
+  "composed",
+];
+
+const CONTEXT_OPTIONS = [
+  "after a coffee",
+  "a colleague review",
+  "after a long walk",
+  "a group dinner",
+  "a near-stranger",
+  "friend, days later",
+];
+
+function SendImpressionInline({
+  name,
+  onSend,
+  sending,
+  sentFlash,
+}: {
+  name: string;
+  onSend: (traits: string[], context?: string) => Promise<void>;
+  sending: boolean;
+  sentFlash: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const [picked, setPicked] = useState<string[]>([]);
+  const [context, setContext] = useState<string>("");
+
+  const toggle = (t: string) =>
+    setPicked((p) => (p.includes(t) ? p.filter((x) => x !== t) : [...p, t]));
+
+  const canSend = picked.length > 0 && picked.length <= 6 && !sending;
+
+  const submit = async () => {
+    if (!canSend) return;
+    await onSend(picked, context.trim() || undefined);
+    setPicked([]);
+    setContext("");
+    setOpen(false);
+  };
+
+  if (sentFlash) {
+    return (
+      <div
+        className="card"
+        style={{
+          marginTop: 16,
+          padding: 14,
+          textAlign: "center",
+          borderLeft: "3px solid var(--accent)",
+        }}
+      >
+        <Kicker>sent · anonymous</Kicker>
+        <div
+          style={{
+            fontFamily: "var(--serif)",
+            fontStyle: "italic",
+            fontSize: 14,
+            marginTop: 4,
+          }}
+        >
+          {name.split(" ")[0]} will see {picked.length || "your"} trait
+          {picked.length === 1 ? "" : "s"} in their inbox — never your name,
+          never longhand.
+        </div>
+      </div>
+    );
+  }
+
+  if (!open) {
+    return (
+      <div
+        className="card"
+        onClick={() => setOpen(true)}
+        style={{
+          marginTop: 16,
+          padding: 14,
+          cursor: "pointer",
+          borderLeft: "3px solid var(--accent)",
+        }}
+      >
+        <Kicker>leave an impression</Kicker>
+        <div
+          className="margin-note"
+          style={{ marginTop: 6, fontSize: 12, lineHeight: 1.5 }}
+        >
+          "A few traits, anonymous. {name.split(" ")[0]} sees them in
+          their inbox without your name attached. Three a month, max,
+          per person — gently."
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div
+      className="card"
+      style={{
+        marginTop: 16,
+        padding: 14,
+        borderLeft: "3px solid var(--accent)",
+      }}
+    >
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "baseline",
+        }}
+      >
+        <Kicker>leave an impression of {name.split(" ")[0]}</Kicker>
+        <button
+          onClick={() => {
+            setOpen(false);
+            setPicked([]);
+            setContext("");
+          }}
+          style={{
+            background: "transparent",
+            border: "none",
+            color: "var(--ink-3)",
+            cursor: "pointer",
+            fontFamily: "var(--mono)",
+            fontSize: 11,
+            padding: 0,
+          }}
+        >
+          cancel
+        </button>
+      </div>
+
+      <div
+        className="margin-note"
+        style={{
+          marginTop: 6,
+          fontSize: 11,
+          fontStyle: "italic",
+        }}
+      >
+        {picked.length}/6 chosen · anonymous · traits only · no longhand
+      </div>
+
+      <div
+        style={{
+          display: "flex",
+          flexWrap: "wrap",
+          gap: 5,
+          marginTop: 10,
+        }}
+      >
+        {TRAIT_PALETTE.map((t) => {
+          const on = picked.includes(t);
+          const disabled = !on && picked.length >= 6;
+          return (
+            <button
+              key={t}
+              onClick={() => !disabled && toggle(t)}
+              disabled={disabled}
+              style={{
+                fontFamily: "var(--serif)",
+                fontStyle: "italic",
+                fontSize: 12,
+                padding: "4px 9px",
+                borderRadius: 999,
+                cursor: disabled ? "default" : "pointer",
+                background: on ? "var(--ink)" : "var(--paper-2)",
+                color: on
+                  ? "var(--paper)"
+                  : disabled
+                    ? "var(--ink-3)"
+                    : "var(--ink-2)",
+                border: "0.5px solid var(--rule)",
+                opacity: disabled ? 0.4 : 1,
+              }}
+            >
+              {t}
+            </button>
+          );
+        })}
+      </div>
+
+      <div style={{ marginTop: 14 }}>
+        <div className="kicker">context · optional</div>
+        <div
+          style={{
+            display: "flex",
+            flexWrap: "wrap",
+            gap: 5,
+            marginTop: 6,
+          }}
+        >
+          {CONTEXT_OPTIONS.map((c) => (
+            <button
+              key={c}
+              onClick={() => setContext(context === c ? "" : c)}
+              style={{
+                fontFamily: "var(--mono)",
+                fontSize: 9,
+                letterSpacing: "0.06em",
+                padding: "3px 8px",
+                borderRadius: 999,
+                cursor: "pointer",
+                background:
+                  context === c ? "var(--paper-3)" : "transparent",
+                color: context === c ? "var(--ink)" : "var(--ink-3)",
+                border: "0.5px solid var(--rule)",
+                textTransform: "uppercase",
+              }}
+            >
+              {c}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <button
+        onClick={submit}
+        disabled={!canSend}
+        style={{
+          marginTop: 14,
+          width: "100%",
+          padding: "10px 14px",
+          background: canSend ? "var(--ink)" : "var(--paper-3)",
+          color: canSend ? "var(--paper)" : "var(--ink-3)",
+          border: "none",
+          borderRadius: 999,
+          fontFamily: "var(--serif)",
+          fontStyle: "italic",
+          fontSize: 14,
+          cursor: canSend ? "pointer" : "default",
+        }}
+      >
+        {sending ? "sending…" : "leave it"}
+      </button>
     </div>
   );
 }

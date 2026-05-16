@@ -57,6 +57,37 @@ service cloud.firestore {
         allow read, write: if request.auth != null && request.auth.uid == uid;
       }
 
+      // Inbound impressions — cross-user write carve-out. A user
+      // can leave an anonymous traits-only impression on someone
+      // else's inbox if they're in that someone's circle (i.e. the
+      // recipient has added them as a relation, populating
+      // /circle/{senderUid}).
+      //
+      // The sender's uid lives in the doc for anti-spoofing — rule
+      // enforces that the writer's auth.uid matches the data's
+      // senderUid. The UI surfaces the entry as anonymous; the
+      // recipient could in principle look at senderUid in
+      // devtools, but the trust contract is "soft anonymous."
+      //
+      // No rate limit at the rule layer — that'd need queries
+      // rules don't have, or a cooldown-doc dance. Client-side
+      // attestation is the MVP; a Cloud Function pre-write hook is
+      // the proper rate-limit answer.
+      match /insight_inbound_impressions/{id} {
+        allow read: if request.auth != null && request.auth.uid == uid;
+        allow create: if request.auth != null
+          && request.resource.data.senderUid == request.auth.uid
+          && exists(
+            /databases/$(database)/documents/insight_users/$(uid)/circle/$(request.auth.uid)
+          );
+        allow delete: if request.auth != null && (
+          request.auth.uid == uid ||
+          request.auth.uid == resource.data.senderUid
+        );
+        // Impressions are immutable once written — no edits.
+        allow update: if false;
+      }
+
       // All other subcollections — owner-only.
       match /{collection}/{doc} {
         allow read, write: if request.auth != null && request.auth.uid == uid;

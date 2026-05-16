@@ -245,6 +245,25 @@ export interface Dream {
   createdAt: number;  // ms epoch for sort
 }
 
+// An *inbound* impression — anonymous traits left for the recipient
+// by someone in their circle. Stored at
+// insight_users/{recipientUid}/insight_inbound_impressions/{id}.
+// Cross-user write: the Firestore rule allows insert when
+// senderUid == request.auth.uid AND the sender is in the
+// recipient's circle subcollection (the recipient must have added
+// the sender as a relation with linkedUid).
+//
+// senderUid is in the doc for rule enforcement (anti-spoofing) and
+// to let the recipient delete or block. The UI surfaces them as
+// anonymous by default — "anonymous · traits only · no longhand."
+export interface InboundImpression {
+  id: string;
+  senderUid: string;
+  traits: string[];
+  context?: string;   // free-form short label ("after a coffee", "colleague")
+  createdAt: number;
+}
+
 // An impression — your private sketch of a person you've met. The
 // "of others" side of the impressions ledger. Stored at
 // insight_users/{uid}/insight_impressions/{id}; never shared.

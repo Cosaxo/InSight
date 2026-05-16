@@ -18,6 +18,7 @@ import type {
   Dream,
   Habit,
   Home,
+  InboundImpression,
   Impression,
   Job,
   Language,
@@ -515,6 +516,34 @@ export function subscribeImpressions(
   cb: (items: Impression[]) => void,
 ): () => void {
   return lazySubscribe((m) => m.subscribeImpressions, uid, cb);
+}
+
+// Inbound (cross-user)
+export function subscribeInboundImpressions(
+  recipientUid: string,
+  cb: (items: InboundImpression[]) => void,
+): () => void {
+  return lazySubscribe(
+    (m) => m.subscribeInboundImpressions,
+    recipientUid,
+    cb,
+  );
+}
+
+export async function sendInboundImpression(
+  recipientUid: string,
+  i: InboundImpression,
+): Promise<void> {
+  const m = await impl();
+  return m.sendInboundImpression(recipientUid, i);
+}
+
+export async function deleteInboundImpression(
+  recipientUid: string,
+  id: string,
+): Promise<void> {
+  const m = await impl();
+  return m.deleteInboundImpression(recipientUid, id);
 }
 
 export async function addImpression(

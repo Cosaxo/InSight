@@ -17,6 +17,10 @@ export interface CirclePerson extends ConcentricPerson {
   since: string;
   interests?: ({ c: string; t: string } | string)[];
   personality?: number[];
+  // Real Firebase auth uid when this relation is linked to an
+  // actual InSight account — drives the "send them an impression"
+  // path in PersonOverlay.
+  linkedUid?: string;
 }
 
 interface PeopleTabProps {
@@ -40,6 +44,7 @@ function userToCircle(p: UserPerson): CirclePerson {
     degrees: p.degrees,
     since: p.since,
     personality: p.personality,
+    linkedUid: p.linkedUid,
   };
 }
 
