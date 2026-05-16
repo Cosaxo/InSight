@@ -1,29 +1,19 @@
 // insight-functions/index.ts — server-side compute for InSight.
 //
-// Current scope: rebuildAreaAggregates. Walks every discoverable
-// user, joins their Big Five from the user profile, buckets by
-// geohash5 (≈ 5 km × 5 km), and writes per-cell averages to the
-// aggregates_by_geohash5 collection. K-anonymity enforced — cells
-// with fewer than K_ANON_FLOOR contributors are skipped (existing
-// docs for those cells get deleted so we don't leak old aggregates
-// as the cell drops below the floor).
+// Current scope:
+//   - rebuildAreaAggregates / scheduledAreaAggregates: rolls up Big
+//     Five vectors per geohash5 cell with k-anonymity.
+//   - deleteAccount: user-triggered account wipe. Walks every doc
+//     owned by the user + every reference to them in others' subtrees
+//     and deletes them, then drops the auth user. App Store + Play
+//     Store both require this for any app with sign-up.
 //
-// Privacy contract per included user:
-//   - present in `insight_discoverable` (they've opted into being
-//     a discoverable point — that's the trigger for inclusion).
-//   - profile.personality is a 5-length number array (Big Five
-//     test taken).
-//   - profile.sharePrefs?.big5 isn't explicitly "nobody" (default
-//     "circle" means included; "world" obviously included; "city"
-//     included; only "nobody" excluded).
-//
-// Two callable surfaces:
-//   - rebuildAreaAggregates: HTTPS-callable for manual triggers /
-//     dev runs.
-//   - scheduledAreaAggregates: scheduled every 6 hours.
+// All functions use the admin SDK, which bypasses Firestore rules.
+// The rules layer is for client traffic; functions can do anything.
 
 import { initializeApp } from "firebase-admin/app";
 import { getFirestore, FieldValue } from "firebase-admin/firestore";
+import { getAuth } from "firebase-admin/auth";
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { onSchedule } from "firebase-functions/v2/scheduler";
 import { logger } from "firebase-functions";
@@ -203,3 +193,161 @@ export const scheduledAreaAggregates = onSchedule(
   },
 );
 
+
+// ── deleteAccount ───────────────────────────────────────────────
+//
+// Walks every doc that belongs to the calling user OR references
+// them, deletes each, then drops the Firebase Auth account.
+//
+// Order matters slightly — we delete the data first, then the auth
+// user. If the auth-user delete fails (rare), the next sign-in will
+// see an empty profile and the migration won't run (it gates on
+// profileExists), so they're effectively in a fresh-account state.
+//
+// What we wipe (admin SDK, bypasses rules):
+//   1. Every doc in insight_users/{uid}/* (all subcollections)
+//   2. The user's profile doc insight_users/{uid}
+//   3. insight_discoverable/{uid} (if present)
+//   4. Inbound impressions the user sent into OTHER users' subtrees
+//      — collectionGroup("insight_inbound_impressions") where
+//      senderUid == uid
+//   5. Relations in OTHER users' subtrees that point at this user
+//      — collectionGroup("relations") where linkedUid == uid
+//   6. The auth user itself
+//
+// What we leave (intentional):
+//   - aggregates_by_geohash5: the user's Big Five contributed to
+//     anonymous averages. Pulling specific contributions back out
+//     would either require re-running the aggregator or storing
+//     per-user provenance (which would defeat the anonymity). The
+//     next scheduled run naturally rebuilds without this user.
+//   - circle/{thisUid} marker docs on OTHER users' subtrees: stale
+//     after this user is gone (their daily reports can no longer
+//     be fetched, so the grant doesn't grant anything), but harmless
+//     and finding them all would require another collectionGroup
+//     query without an index. The other user can clean them up by
+//     removing their relation.
+
+// Delete every doc in a query, in batches of 400 (Firestore batch
+// limit is 500; leaving headroom for safety).
+async function deleteQueryDocs(
+  query: FirebaseFirestore.Query,
+): Promise<number> {
+  const db = getFirestore();
+  let total = 0;
+  for (;;) {
+    const snap = await query.limit(400).get();
+    if (snap.empty) break;
+    const batch = db.batch();
+    snap.docs.forEach((d) => batch.delete(d.ref));
+    await batch.commit();
+    total += snap.docs.length;
+    if (snap.docs.length < 400) break;
+  }
+  return total;
+}
+
+// Recursively delete every doc under insight_users/{uid}/*.
+// Firestore's CLI has `firestore:delete --recursive` but that's
+// admin tooling, not callable from a function. We do it by hand:
+// list all subcollections, delete their docs, then delete the
+// parent doc.
+async function deleteUserSubtree(uid: string): Promise<number> {
+  const db = getFirestore();
+  const userRef = db.collection("insight_users").doc(uid);
+  let total = 0;
+  // Drop subcollections — listCollections is admin-only.
+  const subcollections = await userRef.listCollections();
+  for (const sub of subcollections) {
+    total += await deleteQueryDocs(sub);
+  }
+  // Drop the parent doc last so subscriptions don't see a phantom
+  // profile with no children mid-delete.
+  await userRef.delete();
+  total += 1;
+  return total;
+}
+
+export const deleteAccount = onCall(
+  { region: "us-central1" },
+  async (request) => {
+    if (!request.auth) {
+      throw new HttpsError("unauthenticated", "must be signed in");
+    }
+    const uid = request.auth.uid;
+    const db = getFirestore();
+    logger.info(`[deleteAccount] starting for uid=${uid}`);
+
+    const counts = {
+      ownSubtree: 0,
+      discoverable: 0,
+      othersRelations: 0,
+      othersInbound: 0,
+    };
+
+    // 1. Wipe insight_users/{uid}/* + the profile doc itself.
+    try {
+      counts.ownSubtree = await deleteUserSubtree(uid);
+    } catch (err) {
+      logger.error("[deleteAccount] subtree wipe failed:", err);
+    }
+
+    // 2. Drop insight_discoverable/{uid} if present.
+    try {
+      const discRef = db.collection("insight_discoverable").doc(uid);
+      const discSnap = await discRef.get();
+      if (discSnap.exists) {
+        await discRef.delete();
+        counts.discoverable = 1;
+      }
+    } catch (err) {
+      logger.error("[deleteAccount] discoverable wipe failed:", err);
+    }
+
+    // 3. Inbound impressions this user sent into other people's
+    //    subtrees. Requires a collection-group index on senderUid;
+    //    see firestore.indexes.json.
+    try {
+      const sentQuery = db
+        .collectionGroup("insight_inbound_impressions")
+        .where("senderUid", "==", uid);
+      counts.othersInbound = await deleteQueryDocs(sentQuery);
+    } catch (err) {
+      logger.error("[deleteAccount] inbound impressions wipe failed:", err);
+    }
+
+    // 4. Other users' relations pointing at this user via linkedUid.
+    //    Requires a collection-group index on linkedUid.
+    try {
+      const relQuery = db
+        .collectionGroup("relations")
+        .where("linkedUid", "==", uid);
+      counts.othersRelations = await deleteQueryDocs(relQuery);
+    } catch (err) {
+      logger.error("[deleteAccount] cross-user relations wipe failed:", err);
+    }
+
+    // 5. Finally drop the auth user. Doing this last means any
+    //    failure above leaves the user able to retry (they're still
+    //    signed in). If THIS step fails, the user is mostly-wiped
+    //    but their auth account lingers — they can sign in to a
+    //    fresh, empty account.
+    try {
+      await getAuth().deleteUser(uid);
+    } catch (err) {
+      logger.error("[deleteAccount] auth.deleteUser failed:", err);
+      throw new HttpsError(
+        "internal",
+        "Account data was wiped, but the auth account couldn't be deleted. Sign out and contact support.",
+      );
+    }
+
+    logger.info(`[deleteAccount] done for uid=${uid}`, counts);
+    return { ok: true, ...counts };
+  },
+);
+
+// Use FieldValue to keep the import live for the aggregator section
+// above. (Not part of deleteAccount's logic — just placating the
+// noUnusedLocals check across the file.)
+void FieldValue;

@@ -38,6 +38,11 @@ import {
   updateDoc,
   type Firestore,
 } from "firebase/firestore";
+import {
+  EmailAuthProvider,
+  reauthenticateWithCredential,
+} from "firebase/auth";
+import { getFunctions, httpsCallable } from "firebase/functions";
 import { distanceBetween, geohashQueryBounds } from "geofire-common";
 import type {
   Book,
@@ -1231,4 +1236,50 @@ export function subscribeFriendDailyReport(
     (snap) => cb(snap.exists() ? (snap.data() as RemoteDailyReport) : null),
     () => cb(null), // permission denied or other error → treat as no report
   );
+}
+
+// ── Account deletion ────────────────────────────────────────────
+//
+// Re-auths the user (Firebase requires recent sign-in for any
+// destructive op on the auth account) then invokes the deleteAccount
+// Cloud Function, which wipes Firestore data + the auth account.
+//
+// reauthForDeletion handles the common providers:
+//   - email/password: needs the password again
+//   - everything else (Apple / Google / etc.): we can't construct
+//     the credential client-side here for every provider; instead
+//     we throw a clear error asking the user to sign out + back in
+//     and retry within 5 minutes. Per-provider re-auth flows can
+//     be added later.
+
+export async function reauthWithPassword(password: string): Promise<void> {
+  const u = auth().currentUser;
+  if (!u || !u.email) {
+    throw new Error("Not signed in with an email account");
+  }
+  const cred = EmailAuthProvider.credential(u.email, password);
+  await reauthenticateWithCredential(u, cred);
+}
+
+export async function callDeleteAccount(): Promise<{
+  ok: boolean;
+  ownSubtree: number;
+  discoverable: number;
+  othersInbound: number;
+  othersRelations: number;
+}> {
+  if (!app) throw new Error("Firebase not initialised");
+  const fns = getFunctions(app, "us-central1");
+  const fn = httpsCallable<
+    Record<string, never>,
+    {
+      ok: boolean;
+      ownSubtree: number;
+      discoverable: number;
+      othersInbound: number;
+      othersRelations: number;
+    }
+  >(fns, "deleteAccount");
+  const res = await fn({});
+  return res.data;
 }

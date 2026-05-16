@@ -744,3 +744,21 @@ export function subscribeFriendDailyReport(
     unsub?.();
   };
 }
+
+// ── Account deletion ────────────────────────────────────────────
+
+export async function reauthWithPassword(password: string): Promise<void> {
+  const m = await impl();
+  return m.reauthWithPassword(password);
+}
+
+export async function callDeleteAccount(): Promise<{
+  ok: boolean;
+  ownSubtree: number;
+  discoverable: number;
+  othersInbound: number;
+  othersRelations: number;
+}> {
+  const m = await impl();
+  return m.callDeleteAccount();
+}

@@ -20,10 +20,17 @@
 
 import { useEffect, useState } from "react";
 import { IS_DATA } from "../../data/seedData";
+import { useAuth } from "../../lib/useAuth";
 import { useMe } from "../../lib/useMe";
 import { useProfile, type ProfileExt } from "../../lib/useProfile";
 import { isoDateToday } from "../../lib/useMoods";
 import { useWeighins } from "../../lib/useWeighins";
+import {
+  callDeleteAccount,
+  firebaseEnabled,
+  googleSignOut,
+  reauthWithPassword,
+} from "../../lib/firebase";
 import type { Hero, Political } from "../../types";
 import { Av, Kicker } from "../shared/primitives";
 import { RadarChart } from "../shared/charts";
@@ -1072,7 +1079,278 @@ export function ProfileOverlay({ onClose, onOpenTest }: ProfileOverlayProps) {
           heroes={heroes}
           onChange={(next) => void save({ heroes: next })}
         />
+
+        <hr className="rule-dashed" />
+        <DangerZone />
       </div>
     </div>
+  );
+}
+
+// ─── DangerZone — account deletion at the bottom of the portrait ─
+//
+// Apple App Store Guideline 5.1.1(v) and Google's User Data policy
+// both require an in-app account deletion path for any app that
+// supports account creation. This is that path.
+//
+// Flow:
+//   1. Tap "Delete my account" → expands a danger-zone card with
+//      what gets wiped + a typed-email confirmation gate.
+//   2. Type the exact email to enable the red button.
+//   3. For password sign-in users, prompt for password and call
+//      reauthenticateWithCredential (Firebase requires recent
+//      auth for destructive ops). For OAuth users (Apple / Google),
+//      we ask them to sign out + back in within 5 minutes then
+//      retry — full per-provider re-auth is a follow-up.
+//   4. Call the deleteAccount Cloud Function. On success, sign out
+//      (their auth account is gone; signOut clears local state).
+
+function DangerZone() {
+  const { user } = useAuth();
+  const [expanded, setExpanded] = useState(false);
+  const [typed, setTyped] = useState("");
+  const [password, setPassword] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  if (!firebaseEnabled || !user) {
+    // Signed-out users have no account to delete — drop the
+    // section entirely rather than show a no-op.
+    return null;
+  }
+
+  const email = user.email ?? "";
+  const isPasswordUser =
+    user.providerData.some((p) => p.providerId === "password");
+  const canConfirm = email.length > 0 && typed.trim().toLowerCase() === email.toLowerCase();
+  const canSubmit =
+    canConfirm && !busy && (!isPasswordUser || password.length > 0);
+
+  const submit = async () => {
+    if (!canSubmit) return;
+    setBusy(true);
+    setError(null);
+    try {
+      // 1. Re-auth. Firebase rejects deleteUser unless the user's
+      //    sign-in is recent (< 5 min); the easiest path is to
+      //    re-auth right before the Cloud Function call.
+      if (isPasswordUser) {
+        await reauthWithPassword(password);
+      }
+      // For OAuth users (Apple / Google / etc.) we currently rely
+      // on the Cloud Function path being able to do its work via
+      // admin SDK + the function bailing if Firebase considers
+      // the auth stale. If it bails, the catch below surfaces a
+      // clear instruction.
+
+      // 2. Wipe data + auth account via the Cloud Function.
+      await callDeleteAccount();
+
+      // 3. Sign out locally. By the time we get here, the auth
+      //    account is gone server-side; this clears the client.
+      await googleSignOut();
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      // Surface the most common cases as friendly copy.
+      if (msg.includes("wrong-password") || msg.includes("invalid-credential")) {
+        setError("That password didn't match. Try again.");
+      } else if (msg.includes("requires-recent-login")) {
+        setError(
+          "For security, sign out and sign back in, then try delete again within 5 minutes.",
+        );
+      } else {
+        setError(msg);
+      }
+      setBusy(false);
+    }
+  };
+
+  if (!expanded) {
+    return (
+      <>
+        <Kicker>danger zone</Kicker>
+        <button
+          type="button"
+          onClick={() => setExpanded(true)}
+          style={{
+            marginTop: 10,
+            padding: "10px 14px",
+            background: "transparent",
+            color: "oklch(0.55 0.16 12)",
+            border: "0.5px dashed oklch(0.55 0.16 12)",
+            borderRadius: 999,
+            fontFamily: "var(--mono)",
+            fontSize: 11,
+            letterSpacing: "0.1em",
+            textTransform: "uppercase",
+            cursor: "pointer",
+            width: "100%",
+          }}
+        >
+          delete my account
+        </button>
+      </>
+    );
+  }
+
+  return (
+    <>
+      <Kicker>danger zone</Kicker>
+      <div
+        className="card"
+        style={{
+          marginTop: 10,
+          padding: 14,
+          borderLeft: "3px solid oklch(0.55 0.16 12)",
+        }}
+      >
+        <div
+          style={{
+            fontFamily: "var(--serif)",
+            fontStyle: "italic",
+            fontSize: 16,
+            lineHeight: 1.3,
+            marginBottom: 8,
+          }}
+        >
+          Delete your account.
+        </div>
+        <div
+          className="margin-note"
+          style={{ marginTop: 6, fontSize: 12, lineHeight: 1.5 }}
+        >
+          "Wipes your entire journal — daily reports, moods, habits,
+          impressions, scrapbook, weigh-ins, the ledger, your circle.
+          Removes inbound impressions you've left for others. The
+          Firebase Auth account itself is deleted last. Anonymous
+          contributions to area aggregates can't be pulled back out
+          individually; the next aggregator run rebuilds without you.
+          Cannot be undone."
+        </div>
+
+        <div style={{ marginTop: 14 }}>
+          <div
+            className="kicker"
+            style={{ fontSize: 9, marginBottom: 4 }}
+          >
+            type your email to confirm
+          </div>
+          <input
+            type="email"
+            autoCapitalize="off"
+            autoCorrect="off"
+            spellCheck={false}
+            value={typed}
+            onChange={(e) => setTyped(e.target.value)}
+            placeholder={email}
+            style={{
+              width: "100%",
+              boxSizing: "border-box",
+              padding: "9px 12px",
+              background: "var(--paper-2)",
+              border: `0.5px solid ${canConfirm ? "oklch(0.55 0.16 12)" : "var(--rule)"}`,
+              borderRadius: 6,
+              fontFamily: "var(--mono)",
+              fontSize: 13,
+              color: "var(--ink)",
+            }}
+          />
+        </div>
+
+        {isPasswordUser && (
+          <div style={{ marginTop: 10 }}>
+            <div
+              className="kicker"
+              style={{ fontSize: 9, marginBottom: 4 }}
+            >
+              re-enter your password
+            </div>
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="••••••••"
+              style={{
+                width: "100%",
+                boxSizing: "border-box",
+                padding: "9px 12px",
+                background: "var(--paper-2)",
+                border: "0.5px solid var(--rule)",
+                borderRadius: 6,
+                fontFamily: "var(--mono)",
+                fontSize: 13,
+                color: "var(--ink)",
+              }}
+            />
+          </div>
+        )}
+
+        {error && (
+          <div
+            style={{
+              marginTop: 10,
+              padding: "8px 10px",
+              background: "color-mix(in oklch, oklch(0.55 0.16 12) 8%, var(--paper))",
+              border: "0.5px solid oklch(0.55 0.16 12)",
+              borderRadius: 6,
+              fontFamily: "var(--serif)",
+              fontStyle: "italic",
+              fontSize: 12,
+              color: "oklch(0.55 0.16 12)",
+              lineHeight: 1.4,
+            }}
+          >
+            {error}
+          </div>
+        )}
+
+        <div style={{ display: "flex", gap: 8, marginTop: 14 }}>
+          <button
+            type="button"
+            onClick={() => {
+              setExpanded(false);
+              setTyped("");
+              setPassword("");
+              setError(null);
+            }}
+            disabled={busy}
+            style={{
+              flex: 1,
+              padding: "10px",
+              background: "var(--paper-2)",
+              border: "0.5px solid var(--rule)",
+              borderRadius: 999,
+              fontFamily: "var(--serif)",
+              fontStyle: "italic",
+              fontSize: 14,
+              cursor: busy ? "default" : "pointer",
+              color: "var(--ink-2)",
+            }}
+          >
+            cancel
+          </button>
+          <button
+            type="button"
+            onClick={() => void submit()}
+            disabled={!canSubmit}
+            style={{
+              flex: 1,
+              padding: "10px",
+              background: canSubmit ? "oklch(0.55 0.16 12)" : "var(--paper-3)",
+              color: canSubmit ? "var(--paper)" : "var(--ink-3)",
+              border: "none",
+              borderRadius: 999,
+              fontFamily: "var(--serif)",
+              fontStyle: "italic",
+              fontSize: 14,
+              cursor: canSubmit ? "pointer" : "default",
+              opacity: busy ? 0.6 : 1,
+            }}
+          >
+            {busy ? "deleting…" : "delete my account"}
+          </button>
+        </div>
+      </div>
+    </>
   );
 }
