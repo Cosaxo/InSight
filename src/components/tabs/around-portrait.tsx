@@ -13,6 +13,7 @@
 import { useMemo } from "react";
 import { useProfile } from "../../lib/useProfile";
 import { useRelations } from "../../lib/useRelations";
+import type { AreaAggregate } from "../../lib/useAreaAggregate";
 import { Kicker } from "../shared/primitives";
 import { RadarChart } from "../shared/charts";
 
@@ -21,9 +22,18 @@ const BIG5 = ["Open", "Conscientious", "Extra", "Agreeable", "Stable"];
 interface CirclePortraitProps {
   onOpenTest: () => void;
   onAddPerson: () => void;
+  // Optional cross-user aggregate for "you vs your area" — when
+  // present and meeting k-anonymity, an extra card renders below
+  // the circle radar. Null when no aggregate exists for the user's
+  // current geohash5 cell.
+  area?: AreaAggregate | null;
 }
 
-export function CirclePortrait({ onOpenTest, onAddPerson }: CirclePortraitProps) {
+export function CirclePortrait({
+  onOpenTest,
+  onAddPerson,
+  area,
+}: CirclePortraitProps) {
   const { profile } = useProfile();
   const { people } = useRelations();
 
@@ -288,6 +298,78 @@ export function CirclePortrait({ onOpenTest, onAddPerson }: CirclePortraitProps)
             style={{ marginTop: 8, fontSize: 11, fontStyle: "italic" }}
           >
             "{circleSpreadCopy(spread, people.length)}"
+          </div>
+        </div>
+      )}
+
+      {area && (
+        <div className="card" style={{ marginTop: 12 }}>
+          <Kicker>
+            You vs your area · {area.count}{" "}
+            {area.count === 1 ? "soul" : "souls"} within 5 km
+          </Kicker>
+          <div style={{ marginTop: 8 }}>
+            <RadarChart
+              values={meVec!}
+              compareValues={area.mean}
+              labels={BIG5}
+              color="var(--sienna)"
+              compareColor="oklch(0.55 0.10 250)"
+              size={260}
+            />
+          </div>
+          <div
+            style={{
+              display: "flex",
+              gap: 14,
+              justifyContent: "center",
+              fontFamily: "var(--mono)",
+              fontSize: 9.5,
+              color: "var(--ink-3)",
+              letterSpacing: "0.08em",
+              marginTop: 4,
+            }}
+          >
+            <span>
+              <span
+                style={{
+                  display: "inline-block",
+                  width: 8,
+                  height: 8,
+                  background: "var(--sienna)",
+                  borderRadius: 2,
+                  marginRight: 5,
+                }}
+              />
+              YOU
+            </span>
+            <span>
+              <span
+                style={{
+                  display: "inline-block",
+                  width: 8,
+                  height: 8,
+                  background: "oklch(0.55 0.10 250)",
+                  borderRadius: 2,
+                  marginRight: 5,
+                }}
+              />
+              YOUR AREA · {area.count}
+            </span>
+          </div>
+          <div
+            className="margin-note"
+            style={{
+              marginTop: 8,
+              fontSize: 11,
+              fontStyle: "italic",
+              lineHeight: 1.5,
+            }}
+          >
+            "Anonymous average of everyone in your ~5 km cell who's
+            taken the test and consents to sharing. Published only
+            when the cell has 5+ contributors — no individual
+            shows up here."
           </div>
         </div>
       )}

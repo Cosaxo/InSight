@@ -110,5 +110,20 @@ service cloud.firestore {
       allow read: if request.auth != null;
       allow write: if false;
     }
+
+    // Population aggregates — pre-rolled Big Five averages per
+    // geohash5 cell. Read-only for any signed-in user. Writes are
+    // only done by the rebuildAreaAggregates Cloud Function
+    // (using admin SDK, which bypasses rules) — so we forbid
+    // direct client writes here.
+    //
+    // Privacy guard: the Cloud Function enforces a k-anonymity
+    // floor (>= 5 contributors per cell) before publishing; cells
+    // below the floor are silently dropped (and deleted if they
+    // existed previously). Individual users never appear here.
+    match /aggregates_by_geohash5/{hash} {
+      allow read: if request.auth != null;
+      allow write: if false;
+    }
   }
 }

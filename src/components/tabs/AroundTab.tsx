@@ -6,6 +6,7 @@ import {
   Kicker,
   Pill,
 } from "../shared/primitives";
+import { useAreaAggregate } from "../../lib/useAreaAggregate";
 import { useGeolocation } from "../../lib/useGeolocation";
 import { useNearbyPeople } from "../../lib/useNearbyPeople";
 import { useWeather } from "../../lib/useWeather";
@@ -73,6 +74,7 @@ export function AroundTab({ onPerson, onOpenTest, onAddPerson }: AroundTabProps)
     useGeolocation();
   const { people: nearby, source } = useNearbyPeople(position, 10);
   const { data: weather, loading: weatherLoading } = useWeather(position);
+  const { data: areaAggregate } = useAreaAggregate(position);
 
   const cx = 160, cy = 160;
   const placed = nearby.map((p) => {
@@ -195,7 +197,11 @@ export function AroundTab({ onPerson, onOpenTest, onAddPerson }: AroundTabProps)
       )}
 
       {mode === "portrait" && (
-        <CirclePortrait onOpenTest={onOpenTest} onAddPerson={onAddPerson} />
+        <CirclePortrait
+          onOpenTest={onOpenTest}
+          onAddPerson={onAddPerson}
+          area={areaAggregate}
+        />
       )}
     </div>
   );
