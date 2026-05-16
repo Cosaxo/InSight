@@ -11,6 +11,7 @@ import type {
   Meal,
   Milestone,
   MoodEntry,
+  RemoteDailyReport,
   Specimen,
   TabId,
   TimeBlock,
@@ -297,6 +298,9 @@ function useFirstSignInMigration() {
                 shared: local.shared,
               }
             : null,
+          dailyReportHistory: readLocalArray<RemoteDailyReport>(
+            "insight.dailyReport.history.v1",
+          ),
         });
       } catch (err) {
         console.error("[migration] first-sign-in migration failed:", err);

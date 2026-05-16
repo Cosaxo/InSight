@@ -15,12 +15,22 @@
 
 import { useMemo, useState } from "react";
 import { useMoods, isoDateToday } from "../../lib/useMoods";
-import { useDailyReport } from "../../lib/useDailyReport";
+import {
+  readDailyReportPhoto,
+  useAllDailyReports,
+  useDailyReport,
+} from "../../lib/useDailyReport";
 import { useDreams } from "../../lib/useDreams";
 import { useMilestones } from "../../lib/useMilestones";
 import { useTimeBlocks } from "../../lib/useTimeBlocks";
 import { useWeighins } from "../../lib/useWeighins";
-import type { Dream, Milestone, MoodEntry, TimeBlock } from "../../types";
+import type {
+  Dream,
+  Milestone,
+  MoodEntry,
+  RemoteDailyReport,
+  TimeBlock,
+} from "../../types";
 import { Kicker, Pill } from "../shared/primitives";
 import { Sparkline } from "../shared/charts";
 import { DayClock } from "./life-day";
@@ -364,6 +374,27 @@ function PortraitView() {
         </div>
       )}
 
+      <ArchiveGallery />
+    </>
+  );
+}
+
+// ─── ArchiveGallery — every past daily report, newest first ─────
+//
+// Reads from useAllDailyReports (subscribes to the whole
+// insight_daily subcollection signed-in; falls back to localStorage
+// history signed-out). Filters out today (already rendered above)
+// and renders each prior day as a card. Tapping a card opens a
+// read-only viewer.
+
+function ArchiveGallery() {
+  const { reports } = useAllDailyReports();
+  const [openReport, setOpenReport] = useState<RemoteDailyReport | null>(null);
+  const todayIso = isoDateToday();
+  const past = reports.filter((r) => r.date !== todayIso);
+
+  if (past.length === 0) {
+    return (
       <div
         className="card"
         style={{
@@ -371,19 +402,244 @@ function PortraitView() {
           borderLeft: "3px solid var(--ink-3)",
         }}
       >
-        <Kicker>archive · not built</Kicker>
+        <Kicker>archive · empty</Kicker>
         <div
           className="margin-note"
           style={{ marginTop: 6, fontSize: 12, lineHeight: 1.5 }}
         >
-          "A scrolling gallery of past frames lives here once daily
-          reports get per-day storage. Right now each new report
-          overwrites the last one — you can read yesterday's mood
-          on the strip above, but the photo and one-line only stick
-          around for the day they're written."
+          "Past daily reports show up here once you've written one
+          on a day other than today. Photos stay on the device
+          they were captured on — only mood, one-line, and weather
+          travel between devices."
         </div>
       </div>
+    );
+  }
+
+  return (
+    <>
+      <Kicker>archive · {past.length} past {past.length === 1 ? "day" : "days"}</Kicker>
+      <div
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          gap: 10,
+          marginTop: 10,
+        }}
+      >
+        {past.map((r) => (
+          <ArchiveCard
+            key={r.date}
+            report={r}
+            onOpen={() => setOpenReport(r)}
+          />
+        ))}
+      </div>
+      {openReport && (
+        <ArchiveDetail
+          report={openReport}
+          onClose={() => setOpenReport(null)}
+        />
+      )}
     </>
+  );
+}
+
+function ArchiveCard({
+  report,
+  onOpen,
+}: {
+  report: RemoteDailyReport;
+  onOpen: () => void;
+}) {
+  // Photo blobs only exist on the device that captured them —
+  // readDailyReportPhoto returns null on second devices.
+  const photo = readDailyReportPhoto(report.date);
+  const score = Math.round(report.mood / 20);
+  return (
+    <div
+      className="card"
+      onClick={onOpen}
+      style={{
+        cursor: "pointer",
+        display: "flex",
+        gap: 12,
+        alignItems: "center",
+        padding: 12,
+        borderLeft: `3px solid ${moodAccent(score)}`,
+      }}
+    >
+      <div
+        style={{
+          width: 44,
+          height: 44,
+          flexShrink: 0,
+          borderRadius: 6,
+          background: photo ? `url(${photo}) center/cover` : "var(--paper-2)",
+          border: "0.5px solid var(--rule)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          color: "var(--ink-3)",
+          fontFamily: "var(--mono)",
+          fontSize: 9,
+        }}
+      >
+        {!photo && weatherLabel(report.weather).slice(0, 3)}
+      </div>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div className="kicker">{report.date}</div>
+        <div
+          style={{
+            fontFamily: "var(--serif)",
+            fontStyle: "italic",
+            fontSize: 14,
+            marginTop: 2,
+            lineHeight: 1.3,
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
+            color: "var(--ink-2)",
+          }}
+        >
+          {report.one_line ? `"${report.one_line}"` : "(no line written)"}
+        </div>
+        {report.moodLabel && (
+          <div
+            style={{
+              fontFamily: "var(--mono)",
+              fontSize: 9.5,
+              color: "var(--ink-3)",
+              letterSpacing: "0.04em",
+              marginTop: 2,
+            }}
+          >
+            {report.moodLabel.toUpperCase()}
+          </div>
+        )}
+      </div>
+      <div className="fig-num" style={{ fontSize: 22 }}>
+        <em>{score}</em>
+        <span
+          style={{
+            fontSize: 11,
+            color: "var(--ink-3)",
+            marginLeft: 2,
+          }}
+        >
+          /5
+        </span>
+      </div>
+    </div>
+  );
+}
+
+function moodAccent(score: number): string {
+  if (score >= 4) return "oklch(0.65 0.10 145)";
+  if (score >= 3) return "oklch(0.70 0.06 80)";
+  return "oklch(0.65 0.10 25)";
+}
+
+function ArchiveDetail({
+  report,
+  onClose,
+}: {
+  report: RemoteDailyReport;
+  onClose: () => void;
+}) {
+  const photo = readDailyReportPhoto(report.date);
+  const score = Math.round(report.mood / 20);
+  return (
+    <div className="overlay paper-grain" style={{ zIndex: 25 }}>
+      <div className="app-header">
+        <button className="avatar-btn" onClick={onClose}>
+          ←
+        </button>
+        <div className="h-title">
+          a <em>past day</em>
+        </div>
+        <div className="h-meta">{report.date}</div>
+      </div>
+      <div className="app-body">
+        {photo && (
+          <div
+            style={{
+              width: "100%",
+              aspectRatio: "4 / 3",
+              borderRadius: 8,
+              background: `url(${photo}) center/cover`,
+              marginBottom: 14,
+              border: "0.5px solid var(--rule)",
+            }}
+          />
+        )}
+        <div className="kicker">
+          {report.date} · {weatherLabel(report.weather)}
+        </div>
+        <div
+          style={{
+            fontFamily: "var(--serif)",
+            fontSize: 22,
+            fontStyle: "italic",
+            marginTop: 6,
+            lineHeight: 1.3,
+            letterSpacing: "-0.01em",
+          }}
+        >
+          {report.one_line ? `"${report.one_line}"` : "(no line written)"}
+        </div>
+
+        <hr className="rule-dashed" />
+
+        <div style={{ display: "flex", gap: 18 }}>
+          <div>
+            <div className="kicker">MOOD</div>
+            <div className="fig-num" style={{ fontSize: 24 }}>
+              <em>{score}</em>
+              <span
+                style={{
+                  fontSize: 11,
+                  color: "var(--ink-3)",
+                  marginLeft: 3,
+                }}
+              >
+                /5
+              </span>
+            </div>
+          </div>
+          {report.moodLabel && (
+            <div>
+              <div className="kicker">FEELING</div>
+              <div
+                style={{
+                  fontFamily: "var(--serif)",
+                  fontStyle: "italic",
+                  fontSize: 16,
+                  marginTop: 4,
+                }}
+              >
+                {report.moodLabel}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {!photo && (
+          <div
+            className="margin-note"
+            style={{
+              marginTop: 16,
+              fontSize: 11,
+              fontStyle: "italic",
+              color: "var(--ink-3)",
+            }}
+          >
+            (any photo from this day stays on the device that captured it
+            — never syncs)
+          </div>
+        )}
+      </div>
+    </div>
   );
 }
 

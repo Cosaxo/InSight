@@ -116,7 +116,12 @@ export interface MigrationPayload {
   workouts: Workout[];
   meals: Meal[];
   transactions: Transaction[];
+  // Today's daily report (legacy single-entry). Migrated to a real
+  // date doc via `dailyReportHistory` when available.
   dailyReport?: RemoteDailyReport | null;
+  // Full daily-report history — each entry becomes
+  // insight_daily/{date} on the remote side.
+  dailyReportHistory?: RemoteDailyReport[];
   // Subcollections added since the original migration was written.
   // All are arrays of typed-item docs that map straight into
   // insight_users/{uid}/insight_X/{id}. Empty arrays are a no-op
@@ -672,17 +677,32 @@ export async function deleteTransaction(
   await deleteDoc(subDocRef(uid, "insight_transactions", id));
 }
 
-// ── Daily reports (Phase 4) ─────────────────────────────────────
+// ── Daily reports ───────────────────────────────────────────────
+//
+// Schema: one doc per day at insight_users/{uid}/insight_daily/{YYYY-MM-DD}.
+// The doc id IS the calendar date. The `date` field on the doc was
+// the legacy "today" placeholder; it's redundant now (id is the
+// canonical date) but harmless to keep.
+//
+// Reads:
+//   - subscribeDailyReport(uid, date, cb) — single-day subscription
+//   - subscribeAllDailyReports(uid, cb)   — full archive, newest first
+// Writes:
+//   - upsertDailyReport(uid, date, report)
+//   - deleteDailyReport(uid, date)
+//
+// Migration: migrateLegacyDailyReport reads the old "today" doc
+// (Phase 4 schema), copies it into a real date doc keyed off its
+// own updatedAt timestamp, and deletes the legacy doc. Idempotent —
+// safe to call on every mount.
 
 export function subscribeDailyReport(
   uid: string,
+  date: string,
   cb: (report: RemoteDailyReport | null) => void,
 ): () => void {
-  // Single "today" doc — overwritten each time the user edits today's
-  // report. Past days could be stored under their own date key in a
-  // future iteration.
   return onSnapshot(
-    subDocRef(uid, "insight_daily", "today"),
+    subDocRef(uid, "insight_daily", date),
     (snap) => {
       if (!snap.exists()) {
         cb(null);
@@ -694,19 +714,99 @@ export function subscribeDailyReport(
   );
 }
 
+export function subscribeAllDailyReports(
+  uid: string,
+  cb: (reports: RemoteDailyReport[]) => void,
+): () => void {
+  return onSnapshot(
+    sub(uid, "insight_daily"),
+    (snap) => {
+      const items: RemoteDailyReport[] = [];
+      snap.forEach((d) => {
+        // Skip the legacy "today" doc if it hasn't been migrated yet.
+        if (d.id === "today") return;
+        items.push({ ...(d.data() as RemoteDailyReport), date: d.id });
+      });
+      // Sort newest first — Firestore returns docs in id order which
+      // is already newest-last for ISO dates; we reverse and ship.
+      items.sort((a, b) => b.date.localeCompare(a.date));
+      cb(items);
+    },
+    (err) => console.error("[firebaseImpl] subscribeAllDailyReports:", err),
+  );
+}
+
 export async function upsertDailyReport(
   uid: string,
+  date: string,
   report: RemoteDailyReport,
 ): Promise<void> {
   await setDoc(
-    subDocRef(uid, "insight_daily", "today"),
-    { ...report, updatedAt: serverTimestamp() },
+    subDocRef(uid, "insight_daily", date),
+    { ...report, date, updatedAt: serverTimestamp() },
     { merge: true },
   );
 }
 
-export async function deleteDailyReport(uid: string): Promise<void> {
-  await deleteDoc(subDocRef(uid, "insight_daily", "today"));
+export async function deleteDailyReport(
+  uid: string,
+  date: string,
+): Promise<void> {
+  await deleteDoc(subDocRef(uid, "insight_daily", date));
+}
+
+// Migrate the legacy `today` doc (Phase 4 schema) to a per-day doc.
+// Reads the legacy doc, derives the real date from its updatedAt
+// timestamp (falling back to current ISO date if the timestamp is
+// missing), copies the payload to insight_daily/{date}, then deletes
+// the legacy doc. Returns whether a migration happened.
+//
+// Idempotent: if the legacy doc doesn't exist, returns false silently.
+// Safe to call on every useDailyReport mount — costs one read.
+export async function migrateLegacyDailyReport(
+  uid: string,
+): Promise<boolean> {
+  const legacyRef = subDocRef(uid, "insight_daily", "today");
+  const snap = await getDoc(legacyRef);
+  if (!snap.exists()) return false;
+  const data = snap.data() as RemoteDailyReport & {
+    updatedAt?: { toDate?: () => Date };
+  };
+
+  // Derive the calendar day. Prefer the serverTimestamp the legacy
+  // saver wrote (it's a Firestore Timestamp object); fall back to
+  // current ISO if it's missing or unparseable.
+  let dateIso = "";
+  if (data.updatedAt && typeof data.updatedAt.toDate === "function") {
+    try {
+      const d = data.updatedAt.toDate();
+      dateIso = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    } catch {
+      // ignore
+    }
+  }
+  if (!dateIso) {
+    const d = new Date();
+    dateIso = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  }
+
+  // Don't clobber an existing per-day doc — the user might have
+  // already written today through the new schema after a session
+  // restart. Bail out, but still delete the legacy doc to keep
+  // things tidy.
+  const targetRef = subDocRef(uid, "insight_daily", dateIso);
+  const targetSnap = await getDoc(targetRef);
+  if (!targetSnap.exists()) {
+    const { updatedAt: _drop, ...payload } = data;
+    void _drop;
+    await setDoc(targetRef, {
+      ...payload,
+      date: dateIso,
+      updatedAt: serverTimestamp(),
+    });
+  }
+  await deleteDoc(legacyRef);
+  return true;
 }
 
 // ── First sign-in migration ─────────────────────────────────────
@@ -763,11 +863,34 @@ export async function migrateFromLocal(
     await setDoc(subDocRef(uid, "insight_cityratings", cityName), rating);
   }
 
-  if (payload.dailyReport) {
-    await setDoc(subDocRef(uid, "insight_daily", "today"), {
-      ...payload.dailyReport,
+  // Daily-report history (per-day archive). Each entry uses its
+  // own `date` field as the doc id. If the legacy single-report
+  // payload exists and isn't already covered by history, also
+  // migrate it (Phase 4 schema → per-day schema bridge).
+  const dailyHistory = payload.dailyReportHistory ?? [];
+  const historyDates = new Set(dailyHistory.map((r) => r.date));
+  const now = new Date();
+  const fallbackIso = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+  for (const r of dailyHistory) {
+    const isIso = /^\d{4}-\d{2}-\d{2}$/.test(r.date);
+    const docId = isIso ? r.date : fallbackIso;
+    await setDoc(subDocRef(uid, "insight_daily", docId), {
+      ...r,
+      date: docId,
       updatedAt: serverTimestamp(),
     });
+  }
+  if (payload.dailyReport) {
+    const dr = payload.dailyReport;
+    const isIso = /^\d{4}-\d{2}-\d{2}$/.test(dr.date);
+    const docId = isIso ? dr.date : fallbackIso;
+    if (!historyDates.has(docId)) {
+      await setDoc(subDocRef(uid, "insight_daily", docId), {
+        ...dr,
+        date: docId,
+        updatedAt: serverTimestamp(),
+      });
+    }
   }
 
   return true;
@@ -1054,16 +1177,21 @@ export async function revokeCircleAccess(
   await deleteDoc(doc(db(), "insight_users", ownerUid, "circle", viewerUid));
 }
 
-// Subscribe to a *friend's* daily report. Wraps subscribeDailyReport
-// so callers don't have to know that the subscription itself works on
-// any uid — the rule enforces access. Read failure manifests as a
-// "permission-denied" snapshot error, which the cb receives as null.
+// Subscribe to a *friend's* daily report for a specific date. Wraps
+// subscribeDailyReport so callers don't have to know that the
+// subscription itself works on any uid — the rule enforces access.
+// Read failure manifests as a "permission-denied" snapshot error,
+// which the cb receives as null. The friend feed in useFriendDailies
+// calls this with today's ISO; if the friend hasn't written today,
+// snap.exists() is false and the cb fires with null (silently
+// omitted from the feed).
 export function subscribeFriendDailyReport(
   friendUid: string,
+  date: string,
   cb: (report: RemoteDailyReport | null) => void,
 ): () => void {
   return onSnapshot(
-    doc(db(), "insight_users", friendUid, "insight_daily", "today"),
+    doc(db(), "insight_users", friendUid, "insight_daily", date),
     (snap) => cb(snap.exists() ? (snap.data() as RemoteDailyReport) : null),
     () => cb(null), // permission denied or other error → treat as no report
   );

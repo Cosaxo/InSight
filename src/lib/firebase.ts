@@ -581,17 +581,34 @@ export async function deleteTransaction(
   return m.deleteTransaction(uid, id);
 }
 
-// ── Daily reports (Phase 4) ─────────────────────────────────────
+// ── Daily reports ───────────────────────────────────────────────
 
 export function subscribeDailyReport(
   uid: string,
+  date: string,
   cb: (report: RemoteDailyReport | null) => void,
 ): () => void {
   let cancelled = false;
   let unsub: (() => void) | null = null;
   impl().then((m) => {
     if (cancelled) return;
-    unsub = m.subscribeDailyReport(uid, cb);
+    unsub = m.subscribeDailyReport(uid, date, cb);
+  });
+  return () => {
+    cancelled = true;
+    unsub?.();
+  };
+}
+
+export function subscribeAllDailyReports(
+  uid: string,
+  cb: (reports: RemoteDailyReport[]) => void,
+): () => void {
+  let cancelled = false;
+  let unsub: (() => void) | null = null;
+  impl().then((m) => {
+    if (cancelled) return;
+    unsub = m.subscribeAllDailyReports(uid, cb);
   });
   return () => {
     cancelled = true;
@@ -601,15 +618,24 @@ export function subscribeDailyReport(
 
 export async function upsertDailyReport(
   uid: string,
+  date: string,
   report: RemoteDailyReport,
 ): Promise<void> {
   const m = await impl();
-  return m.upsertDailyReport(uid, report);
+  return m.upsertDailyReport(uid, date, report);
 }
 
-export async function deleteDailyReport(uid: string): Promise<void> {
+export async function deleteDailyReport(
+  uid: string,
+  date: string,
+): Promise<void> {
   const m = await impl();
-  return m.deleteDailyReport(uid);
+  return m.deleteDailyReport(uid, date);
+}
+
+export async function migrateLegacyDailyReport(uid: string): Promise<boolean> {
+  const m = await impl();
+  return m.migrateLegacyDailyReport(uid);
 }
 
 // ── Geo discovery (cities + nearby users) ───────────────────────
@@ -675,13 +701,14 @@ export async function revokeCircleAccess(
 
 export function subscribeFriendDailyReport(
   friendUid: string,
+  date: string,
   cb: (report: RemoteDailyReport | null) => void,
 ): () => void {
   let cancelled = false;
   let unsub: (() => void) | null = null;
   impl().then((m) => {
     if (cancelled) return;
-    unsub = m.subscribeFriendDailyReport(friendUid, cb);
+    unsub = m.subscribeFriendDailyReport(friendUid, date, cb);
   });
   return () => {
     cancelled = true;
