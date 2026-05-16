@@ -26,6 +26,10 @@ export interface PersonForOverlay {
   // rating editor below). When present we drive the radar from this
   // instead of the old synthesised-from-match-score values.
   personality?: number[];
+  // Optional 6-axis politics + 8-axis morals — same provenance as
+  // personality. The user rates them via the editors below.
+  politicalAxes?: Record<string, number>;
+  morals?: Record<string, number>;
   // When this person is a real InSight user the viewer can leave
   // them an anonymous traits-only impression. The send flow only
   // shows up when both:
@@ -58,6 +62,8 @@ export function PersonOverlay({ p, onClose }: PersonOverlayProps) {
   const { update } = useRelations();
   const { user } = useAuth();
   const [editing, setEditing] = useState(false);
+  const [editingPolitics, setEditingPolitics] = useState(false);
+  const [editingMorals, setEditingMorals] = useState(false);
   const [sending, setSending] = useState(false);
   const [sentFlash, setSentFlash] = useState(false);
   if (!p) return null;
@@ -91,6 +97,20 @@ export function PersonOverlay({ p, onClose }: PersonOverlayProps) {
     if (!p.id) return;
     await update(p.id, { personality: vec });
   };
+  const savePolitics = async (vec: Record<string, number>) => {
+    if (!p.id) return;
+    await update(p.id, { politicalAxes: vec });
+  };
+  const saveMorals = async (vec: Record<string, number>) => {
+    if (!p.id) return;
+    await update(p.id, { morals: vec });
+  };
+
+  const themHasPolitics = !!p.politicalAxes;
+  const themHasMorals = !!p.morals;
+  const profileHasPolitics =
+    !!profile.political && typeof profile.political.econ === "number";
+  const profileHasMorals = !!profile.morals;
 
   // The "leave an impression" affordance only lights up when:
   //   - the viewer is signed in (we have a senderUid to write)
@@ -290,6 +310,52 @@ export function PersonOverlay({ p, onClose }: PersonOverlayProps) {
             onSave={async (vec) => {
               await saveRating(vec);
               setEditing(false);
+            }}
+          />
+        )}
+
+        <PoliticsCardForPerson
+          name={p.name}
+          hue={p.hue}
+          isRelation={isRelation}
+          profileAxes={profile.politicalAxes}
+          profilePolitical={profile.political}
+          themAxes={p.politicalAxes}
+          profileHasPolitics={profileHasPolitics}
+          themHasPolitics={themHasPolitics}
+          onEdit={() => setEditingPolitics(true)}
+        />
+
+        {editingPolitics && isRelation && (
+          <PoliticsRatingEditor
+            name={p.name}
+            current={p.politicalAxes}
+            onCancel={() => setEditingPolitics(false)}
+            onSave={async (vec) => {
+              await savePolitics(vec);
+              setEditingPolitics(false);
+            }}
+          />
+        )}
+
+        <MoralsCardForPerson
+          name={p.name}
+          isRelation={isRelation}
+          profileMorals={profile.morals}
+          themMorals={p.morals}
+          profileHasMorals={profileHasMorals}
+          themHasMorals={themHasMorals}
+          onEdit={() => setEditingMorals(true)}
+        />
+
+        {editingMorals && isRelation && (
+          <MoralsRatingEditor
+            name={p.name}
+            current={p.morals}
+            onCancel={() => setEditingMorals(false)}
+            onSave={async (vec) => {
+              await saveMorals(vec);
+              setEditingMorals(false);
             }}
           />
         )}
@@ -838,6 +904,719 @@ function SendImpressionInline({
       >
         {sending ? "sending…" : "leave it"}
       </button>
+    </div>
+  );
+}
+
+// ─── PoliticsRatingEditor ───────────────────────────────────────
+//
+// Six sliders, one per political axis. -100..+100 each (signed) —
+// matches what the test produces for the user's own profile.
+// Endpoints copy mirrors the test items: each axis has a "left" and
+// "right" label.
+
+const POLITICAL_AXES_FULL: {
+  key: string;
+  name: string;
+  lo: string;
+  hi: string;
+}[] = [
+  { key: "econ", name: "Economy", lo: "left", hi: "right" },
+  { key: "social", name: "Social", lo: "liberty", hi: "authority" },
+  { key: "foreign", name: "Foreign", lo: "national", hi: "open" },
+  { key: "env", name: "Environment", lo: "growth-first", hi: "climate-first" },
+  { key: "tech", name: "Technology", lo: "skeptic", hi: "optimist" },
+  { key: "auth", name: "Authority", lo: "open", hi: "order" },
+];
+
+function PoliticsRatingEditor({
+  name,
+  current,
+  onCancel,
+  onSave,
+}: {
+  name: string;
+  current?: Record<string, number>;
+  onCancel: () => void;
+  onSave: (vec: Record<string, number>) => Promise<void> | void;
+}) {
+  const initial: Record<string, number> = {};
+  for (const a of POLITICAL_AXES_FULL) {
+    initial[a.key] = current?.[a.key] ?? 0;
+  }
+  const [vec, setVec] = useState<Record<string, number>>(initial);
+  const [saving, setSaving] = useState(false);
+
+  const set = (k: string, v: number) =>
+    setVec((prev) => ({ ...prev, [k]: v }));
+
+  const submit = async () => {
+    if (saving) return;
+    setSaving(true);
+    try {
+      await onSave(vec);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <RatingModal
+      title={`rate · ${name}'s politics`}
+      onCancel={onCancel}
+      onSubmit={submit}
+      saving={saving}
+    >
+      <Kicker>your read · adjustable any time</Kicker>
+      <div className="margin-note" style={{ marginTop: 4, fontSize: 12 }}>
+        "Six axes. Where you'd place them on each — your sense of
+        where they sit, not theirs. Stays private to you."
+      </div>
+      <div
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          gap: 14,
+          marginTop: 14,
+        }}
+      >
+        {POLITICAL_AXES_FULL.map((axis) => (
+          <SignedAxisSlider
+            key={axis.key}
+            label={axis.name}
+            lo={axis.lo}
+            hi={axis.hi}
+            value={vec[axis.key]}
+            onChange={(v) => set(axis.key, v)}
+          />
+        ))}
+      </div>
+    </RatingModal>
+  );
+}
+
+// ─── MoralsRatingEditor ─────────────────────────────────────────
+//
+// Eight sliders, one per moral axis. Same -100..+100 signed scale
+// as politics.
+
+const MORAL_AXES_FULL: {
+  key: string;
+  name: string;
+  lo: string;
+  hi: string;
+}[] = [
+  { key: "tech", name: "Tech", lo: "doomer", hi: "optimist" },
+  { key: "future", name: "Future", lo: "pessimist", hi: "optimist" },
+  { key: "duty", name: "Duty", lo: "strangers", hi: "family" },
+  { key: "hedonism", name: "Hedonism", lo: "duty", hi: "pleasure" },
+  { key: "meaning", name: "Meaning", lo: "happiness", hi: "suffering matters" },
+  { key: "moral", name: "Ethics", lo: "relativist", hi: "objectivist" },
+  { key: "altruism", name: "Altruism", lo: "self", hi: "stranger" },
+  { key: "beauty", name: "Beauty", lo: "truth only", hi: "beauty matters" },
+];
+
+function MoralsRatingEditor({
+  name,
+  current,
+  onCancel,
+  onSave,
+}: {
+  name: string;
+  current?: Record<string, number>;
+  onCancel: () => void;
+  onSave: (vec: Record<string, number>) => Promise<void> | void;
+}) {
+  const initial: Record<string, number> = {};
+  for (const a of MORAL_AXES_FULL) {
+    initial[a.key] = current?.[a.key] ?? 0;
+  }
+  const [vec, setVec] = useState<Record<string, number>>(initial);
+  const [saving, setSaving] = useState(false);
+
+  const set = (k: string, v: number) =>
+    setVec((prev) => ({ ...prev, [k]: v }));
+
+  const submit = async () => {
+    if (saving) return;
+    setSaving(true);
+    try {
+      await onSave(vec);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <RatingModal
+      title={`rate · ${name}'s values`}
+      onCancel={onCancel}
+      onSubmit={submit}
+      saving={saving}
+    >
+      <Kicker>your read · adjustable any time</Kicker>
+      <div className="margin-note" style={{ marginTop: 4, fontSize: 12 }}>
+        "Eight pulls. Where you'd place them on each — your sense
+        of how they reason about ethics, time, meaning. Private to
+        you."
+      </div>
+      <div
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          gap: 14,
+          marginTop: 14,
+        }}
+      >
+        {MORAL_AXES_FULL.map((axis) => (
+          <SignedAxisSlider
+            key={axis.key}
+            label={axis.name}
+            lo={axis.lo}
+            hi={axis.hi}
+            value={vec[axis.key]}
+            onChange={(v) => set(axis.key, v)}
+          />
+        ))}
+      </div>
+    </RatingModal>
+  );
+}
+
+// ─── Shared modal frame + slider component ──────────────────────
+
+function RatingModal({
+  title,
+  onCancel,
+  onSubmit,
+  saving,
+  children,
+}: {
+  title: string;
+  onCancel: () => void;
+  onSubmit: () => void;
+  saving: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <div
+      style={{
+        position: "absolute",
+        inset: 0,
+        background: "rgba(20,18,14,0.92)",
+        zIndex: 50,
+        display: "flex",
+        flexDirection: "column",
+      }}
+    >
+      <div
+        className="app-header"
+        style={{
+          background: "transparent",
+          borderBottom: "0.5px solid rgba(255,255,255,0.15)",
+        }}
+      >
+        <button
+          className="avatar-btn"
+          onClick={onCancel}
+          style={{
+            color: "white",
+            borderColor: "rgba(255,255,255,0.3)",
+          }}
+        >
+          ✕
+        </button>
+        <div className="h-title" style={{ color: "white" }}>
+          {title}
+        </div>
+        <div style={{ width: 36 }} />
+      </div>
+      <div style={{ flex: 1, overflowY: "auto", padding: 18 }}>
+        <div
+          style={{
+            background: "var(--paper)",
+            borderRadius: 8,
+            padding: 16,
+            color: "var(--ink)",
+          }}
+        >
+          {children}
+          <div style={{ display: "flex", gap: 8, marginTop: 18 }}>
+            <button
+              onClick={onCancel}
+              style={{
+                flex: 1,
+                padding: "12px",
+                background: "var(--paper-2)",
+                border: "0.5px solid var(--rule)",
+                borderRadius: 999,
+                fontFamily: "var(--serif)",
+                fontStyle: "italic",
+                fontSize: 14,
+                cursor: "pointer",
+              }}
+            >
+              cancel
+            </button>
+            <button
+              onClick={onSubmit}
+              disabled={saving}
+              style={{
+                flex: 1,
+                padding: "12px",
+                background: "var(--ink)",
+                color: "var(--paper)",
+                border: "none",
+                borderRadius: 999,
+                fontFamily: "var(--serif)",
+                fontStyle: "italic",
+                fontSize: 14,
+                cursor: "pointer",
+                opacity: saving ? 0.6 : 1,
+              }}
+            >
+              {saving ? "saving…" : "save"}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// One slider for a -100..+100 signed axis. Used by both
+// PoliticsRatingEditor and MoralsRatingEditor.
+function SignedAxisSlider({
+  label,
+  lo,
+  hi,
+  value,
+  onChange,
+}: {
+  label: string;
+  lo: string;
+  hi: string;
+  value: number;
+  onChange: (v: number) => void;
+}) {
+  return (
+    <div>
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "baseline",
+          fontFamily: "var(--mono)",
+          fontSize: 9,
+          letterSpacing: "0.08em",
+          color: "var(--ink-3)",
+        }}
+      >
+        <span>{lo.toUpperCase()}</span>
+        <span
+          style={{
+            fontFamily: "var(--serif)",
+            fontStyle: "italic",
+            fontSize: 13,
+            color: "var(--ink-2)",
+          }}
+        >
+          {label}
+        </span>
+        <span>{hi.toUpperCase()}</span>
+      </div>
+      <input
+        type="range"
+        min="-100"
+        max="100"
+        step="5"
+        value={value}
+        onChange={(e) => onChange(+e.target.value)}
+        style={{ width: "100%", accentColor: "var(--accent)" }}
+      />
+      <div
+        style={{
+          fontFamily: "var(--mono)",
+          fontSize: 9.5,
+          color: "var(--ink-3)",
+          textAlign: "center",
+          marginTop: -2,
+        }}
+      >
+        {value > 0 ? `+${value}` : value}
+      </div>
+    </div>
+  );
+}
+
+// ─── PoliticsCardForPerson ──────────────────────────────────────
+//
+// Compares the user's own 6-axis politics against the relation's
+// rated 6-axis politics. Renders a radar when both sides are
+// present. When the viewer hasn't taken the test, points them to
+// it. When the viewer has taken the test but hasn't rated this
+// relation yet, shows a "rate them" CTA.
+
+function PoliticsCardForPerson({
+  name,
+  hue,
+  isRelation,
+  profileAxes,
+  profilePolitical,
+  themAxes,
+  profileHasPolitics,
+  themHasPolitics,
+  onEdit,
+}: {
+  name: string;
+  hue: number;
+  isRelation: boolean;
+  profileAxes?: Record<string, number>;
+  profilePolitical?: { econ: number; social: number };
+  themAxes?: Record<string, number>;
+  profileHasPolitics: boolean;
+  themHasPolitics: boolean;
+  onEdit: () => void;
+}) {
+  if (!profileHasPolitics) {
+    return (
+      <div className="card" style={{ marginBottom: 14 }}>
+        <Kicker>You vs them · politics</Kicker>
+        <div
+          className="margin-note"
+          style={{ marginTop: 8, fontSize: 13, fontStyle: "italic" }}
+        >
+          Take the politics test (from "your portrait") to compare
+          your six axes against {name.split(" ")[0]}'s.
+        </div>
+      </div>
+    );
+  }
+
+  // Build the user's own 6-axis vector. politicalAxes is preferred;
+  // fall back to the 2-axis `political` for econ/social with zeros
+  // elsewhere if axes is missing.
+  const yourAxes: Record<string, number> = {
+    econ: profileAxes?.econ ?? profilePolitical?.econ ?? 0,
+    social: profileAxes?.social ?? profilePolitical?.social ?? 0,
+    foreign: profileAxes?.foreign ?? 0,
+    env: profileAxes?.env ?? 0,
+    tech: profileAxes?.tech ?? 0,
+    auth: profileAxes?.auth ?? 0,
+  };
+
+  if (!themHasPolitics) {
+    return (
+      <div className="card" style={{ marginBottom: 14 }}>
+        <Kicker>You vs them · politics</Kicker>
+        <div
+          className="margin-note"
+          style={{ marginTop: 8, fontSize: 12, fontStyle: "italic" }}
+        >
+          {isRelation
+            ? `Rate ${name.split(" ")[0]}'s six axes to compare. Your read — adjustable any time.`
+            : `${name.split(" ")[0]} isn't a relation yet. Add them and you can rate their politics.`}
+        </div>
+        {isRelation && (
+          <button
+            onClick={onEdit}
+            style={{
+              marginTop: 10,
+              padding: "8px 14px",
+              background: "var(--ink)",
+              color: "var(--paper)",
+              border: "none",
+              borderRadius: 99,
+              fontFamily: "var(--mono)",
+              fontSize: 10,
+              letterSpacing: "0.12em",
+              cursor: "pointer",
+            }}
+          >
+            + RATE POLITICS
+          </button>
+        )}
+      </div>
+    );
+  }
+
+  // Both ready — radar overlay. Axes are -100..+100 signed; the
+  // RadarChart wants 0..100, so map each signed value to its
+  // absolute distance from center on its native side. To keep this
+  // simple and readable, we map +-100 onto a 0..100 radius linearly
+  // (so a -100 econ shows as "100 toward the lo end"). The legend
+  // labels each axis with its hi-side label so readers know the
+  // direction.
+  const axes = POLITICAL_AXES_FULL.map((a) => ({
+    label: a.name,
+    you: ((yourAxes[a.key] ?? 0) + 100) / 2,
+    them: ((themAxes![a.key] ?? 0) + 100) / 2,
+  }));
+  return (
+    <div className="card" style={{ marginBottom: 14 }}>
+      <Kicker>You vs them · politics</Kicker>
+      <div style={{ marginTop: 8 }}>
+        <RadarChart
+          values={axes.map((a) => a.you)}
+          compareValues={axes.map((a) => a.them)}
+          labels={axes.map((a) => a.label)}
+          color="var(--ink)"
+          compareColor={`oklch(0.55 0.13 ${hue})`}
+          size={260}
+        />
+      </div>
+      <div
+        className="margin-note"
+        style={{
+          marginTop: 8,
+          fontSize: 11,
+          fontStyle: "italic",
+          textAlign: "center",
+        }}
+      >
+        each axis: full outer = your read of them at "right" pole; full
+        inner = "left" pole. signed values flipped to 0..100 for the
+        radar.
+      </div>
+      {isRelation && (
+        <div style={{ marginTop: 4, textAlign: "center" }}>
+          <button
+            onClick={onEdit}
+            style={{
+              fontFamily: "var(--mono)",
+              fontSize: 9,
+              letterSpacing: "0.1em",
+              color: "var(--ink-3)",
+              background: "transparent",
+              border: "none",
+              cursor: "pointer",
+            }}
+          >
+            ✎ ADJUST
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── MoralsCardForPerson ────────────────────────────────────────
+//
+// 8-axis diverging-bar comparison. Each axis has a -100..+100
+// signed value. We render a horizontal track per axis with two
+// markers: the viewer's value and the relation's. Centre line is
+// the neutral 0.
+
+function MoralsCardForPerson({
+  name,
+  isRelation,
+  profileMorals,
+  themMorals,
+  profileHasMorals,
+  themHasMorals,
+  onEdit,
+}: {
+  name: string;
+  isRelation: boolean;
+  profileMorals?: Record<string, number>;
+  themMorals?: Record<string, number>;
+  profileHasMorals: boolean;
+  themHasMorals: boolean;
+  onEdit: () => void;
+}) {
+  if (!profileHasMorals) {
+    return (
+      <div className="card" style={{ marginBottom: 14 }}>
+        <Kicker>You vs them · values</Kicker>
+        <div
+          className="margin-note"
+          style={{ marginTop: 8, fontSize: 13, fontStyle: "italic" }}
+        >
+          Take the values test (from "your portrait") to compare your
+          eight pulls against {name.split(" ")[0]}'s.
+        </div>
+      </div>
+    );
+  }
+
+  if (!themHasMorals) {
+    return (
+      <div className="card" style={{ marginBottom: 14 }}>
+        <Kicker>You vs them · values</Kicker>
+        <div
+          className="margin-note"
+          style={{ marginTop: 8, fontSize: 12, fontStyle: "italic" }}
+        >
+          {isRelation
+            ? `Rate ${name.split(" ")[0]}'s eight pulls to compare. Your read — adjustable any time.`
+            : `${name.split(" ")[0]} isn't a relation yet. Add them and you can rate their values.`}
+        </div>
+        {isRelation && (
+          <button
+            onClick={onEdit}
+            style={{
+              marginTop: 10,
+              padding: "8px 14px",
+              background: "var(--ink)",
+              color: "var(--paper)",
+              border: "none",
+              borderRadius: 99,
+              fontFamily: "var(--mono)",
+              fontSize: 10,
+              letterSpacing: "0.12em",
+              cursor: "pointer",
+            }}
+          >
+            + RATE VALUES
+          </button>
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <div className="card" style={{ marginBottom: 14 }}>
+      <Kicker>You vs them · values</Kicker>
+      <div
+        style={{
+          marginTop: 10,
+          display: "flex",
+          flexDirection: "column",
+          gap: 8,
+        }}
+      >
+        {MORAL_AXES_FULL.map((axis) => {
+          const yv = profileMorals![axis.key] ?? 0;
+          const tv = themMorals![axis.key] ?? 0;
+          const yPct = (yv + 100) / 2;
+          const tPct = (tv + 100) / 2;
+          return (
+            <div key={axis.key}>
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  fontFamily: "var(--mono)",
+                  fontSize: 9,
+                  color: "var(--ink-3)",
+                  letterSpacing: "0.08em",
+                  textTransform: "uppercase",
+                  marginBottom: 3,
+                }}
+              >
+                <span>{axis.lo}</span>
+                <span style={{ color: "var(--ink-2)" }}>{axis.name}</span>
+                <span>{axis.hi}</span>
+              </div>
+              <div
+                style={{
+                  height: 8,
+                  background: "var(--paper-2)",
+                  border: "0.5px solid var(--rule)",
+                  borderRadius: 999,
+                  position: "relative",
+                }}
+              >
+                <span
+                  style={{
+                    position: "absolute",
+                    left: "50%",
+                    top: -2,
+                    width: 1,
+                    height: 12,
+                    background: "var(--rule)",
+                  }}
+                />
+                <span
+                  title={`you · ${yv}`}
+                  style={{
+                    position: "absolute",
+                    left: `calc(${yPct}% - 5px)`,
+                    top: -2,
+                    width: 10,
+                    height: 12,
+                    borderRadius: 6,
+                    background: "var(--ink)",
+                    border: "1px solid var(--paper)",
+                  }}
+                />
+                <span
+                  title={`${name.split(" ")[0]} · ${tv}`}
+                  style={{
+                    position: "absolute",
+                    left: `calc(${tPct}% - 5px)`,
+                    top: -2,
+                    width: 10,
+                    height: 12,
+                    borderRadius: 6,
+                    background: "var(--c-people)",
+                    border: "1px solid var(--paper)",
+                  }}
+                />
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      <div
+        style={{
+          display: "flex",
+          gap: 14,
+          justifyContent: "center",
+          fontFamily: "var(--mono)",
+          fontSize: 9.5,
+          color: "var(--ink-3)",
+          letterSpacing: "0.08em",
+          marginTop: 10,
+        }}
+      >
+        <span>
+          <span
+            style={{
+              display: "inline-block",
+              width: 8,
+              height: 8,
+              background: "var(--ink)",
+              borderRadius: 4,
+              marginRight: 5,
+              verticalAlign: "middle",
+            }}
+          />
+          YOU
+        </span>
+        <span>
+          <span
+            style={{
+              display: "inline-block",
+              width: 8,
+              height: 8,
+              background: "var(--c-people)",
+              borderRadius: 4,
+              marginRight: 5,
+              verticalAlign: "middle",
+            }}
+          />
+          {name.split(" ")[0].toUpperCase()}
+        </span>
+      </div>
+      {isRelation && (
+        <div style={{ marginTop: 4, textAlign: "center" }}>
+          <button
+            onClick={onEdit}
+            style={{
+              fontFamily: "var(--mono)",
+              fontSize: 9,
+              letterSpacing: "0.1em",
+              color: "var(--ink-3)",
+              background: "transparent",
+              border: "none",
+              cursor: "pointer",
+            }}
+          >
+            ✎ ADJUST
+          </button>
+        </div>
+      )}
     </div>
   );
 }

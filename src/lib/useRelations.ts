@@ -38,6 +38,13 @@ export interface UserPerson {
   // the user hasn't rated them yet; CirclePortrait in AroundTab uses
   // these to average the circle vs the user's own.
   personality?: number[];
+  // Optional 6-axis politics: econ / social / foreign / env / tech /
+  // auth, each -100..+100. Same provenance as `personality` — set
+  // via PersonOverlay's politics rating editor.
+  politicalAxes?: Record<string, number>;
+  // Optional 8-axis morals: tech / future / duty / hedonism /
+  // meaning / moral / altruism / beauty, each -100..+100.
+  morals?: Record<string, number>;
 }
 
 function readLocal(): UserPerson[] {
@@ -63,13 +70,18 @@ export function userPersonToPerson(p: UserPerson): Person {
 }
 
 function toPerson(p: UserPerson): Person {
+  // Derive the 2-axis political from the stored 6-axis when present —
+  // keeps the legacy Person schema fields populated with something
+  // meaningful rather than the [0,0] placeholder.
+  const econ = p.politicalAxes?.econ ?? 0;
+  const social = p.politicalAxes?.social ?? 0;
   return {
     id: p.id,
     name: p.name,
     init: p.init,
     color: `oklch(0.55 0.12 ${p.hue})`,
     personality: p.personality ?? [50, 50, 50, 50, 50],
-    political: { econ: 0, social: 0 },
+    political: { econ, social },
     cv: { indiv: 0, change: 0 },
     interests: [],
     category: undefined,
@@ -84,6 +96,10 @@ function toPerson(p: UserPerson): Person {
       since: p.since,
       linkedUid: p.linkedUid,
       hasPersonality: p.personality !== undefined,
+      politicalAxes: p.politicalAxes,
+      morals: p.morals,
+      hasPolitical: p.politicalAxes !== undefined,
+      hasMorals: p.morals !== undefined,
     } as Partial<Person>),
   };
 }
@@ -99,6 +115,11 @@ interface RemotePersonLike extends Person {
   // placeholder we write when there's no rating. Lets fromPerson
   // distinguish set-but-neutral from never-rated.
   hasPersonality?: boolean;
+  // Same idea for politics + morals.
+  hasPolitical?: boolean;
+  hasMorals?: boolean;
+  politicalAxes?: Record<string, number>;
+  morals?: Record<string, number>;
 }
 
 function fromPerson(p: RemotePersonLike): UserPerson {
@@ -126,6 +147,9 @@ function fromPerson(p: RemotePersonLike): UserPerson {
       p.hasPersonality && Array.isArray(p.personality) && p.personality.length === 5
         ? p.personality
         : undefined,
+    politicalAxes:
+      p.hasPolitical && p.politicalAxes ? p.politicalAxes : undefined,
+    morals: p.hasMorals && p.morals ? p.morals : undefined,
   };
 }
 

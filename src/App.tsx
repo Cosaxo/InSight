@@ -204,6 +204,14 @@ function toOverlayPerson(p: AnyPerson): PersonForOverlay {
       "personality" in p && Array.isArray(p.personality)
         ? (p.personality as number[])
         : undefined,
+    politicalAxes:
+      "politicalAxes" in p && p.politicalAxes
+        ? (p.politicalAxes as Record<string, number>)
+        : undefined,
+    morals:
+      "morals" in p && p.morals
+        ? (p.morals as Record<string, number>)
+        : undefined,
     linkedUid:
       "linkedUid" in p && typeof p.linkedUid === "string"
         ? p.linkedUid
