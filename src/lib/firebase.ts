@@ -45,6 +45,7 @@ export type {
   RemoteCity,
   RemoteDiscoverable,
   RemoteSkill,
+  ShareLevel,
 } from "./firebaseImpl";
 export type { User } from "firebase/auth";
 

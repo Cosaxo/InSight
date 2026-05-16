@@ -12,16 +12,38 @@ service cloud.firestore {
     match /insight_users/{uid} {
       allow read, write: if request.auth != null && request.auth.uid == uid;
 
-      // Daily report — cross-user read carve-out. A friend can read
-      // your daily report when you've granted them via the `circle`
-      // subcollection (presence of doc at /circle/{theirUid}).
-      // This is checked before the generic /{collection}/{doc}
-      // rule below so it actually takes effect.
+      // Helper: read the daily-report share level off the owner's
+      // profile doc. Returns the literal string (one of "nobody" /
+      // "circle" / "city" / "world") when set; falls back to
+      // "circle" (the per-category default in SharingOverlay) when
+      // sharePrefs is missing entirely or doesn't have a value for
+      // this key. Each call costs one get() — Firestore caches per
+      // request, so multiple reads in the same evaluation reuse it.
+      function dailyReportLevel() {
+        let p = get(/databases/$(database)/documents/insight_users/$(uid));
+        return p.data.get("sharePrefs", {}).get("daily_report", "circle");
+      }
+
+      // Daily report — cross-user read carve-out.
+      //
+      // The owner can always read their own. Friends in the circle
+      // (presence of doc at /circle/{theirUid}) can read when the
+      // owner's sharePrefs.daily_report is "circle" or wider.
+      // Anyone signed in can read when it's set to "world".
+      //
+      // "city" currently behaves like "circle" — we don't yet have
+      // a city-level read path, so widening past circle requires
+      // the world rung. (When population aggregates land, the city
+      // tier will gain its own check.)
       match /insight_daily/{day} {
         allow read: if request.auth != null && (
           request.auth.uid == uid ||
-          exists(
-            /databases/$(database)/documents/insight_users/$(uid)/circle/$(request.auth.uid)
+          dailyReportLevel() == "world" ||
+          (
+            dailyReportLevel() in ["circle", "city"] &&
+            exists(
+              /databases/$(database)/documents/insight_users/$(uid)/circle/$(request.auth.uid)
+            )
           )
         );
         allow write: if request.auth != null && request.auth.uid == uid;

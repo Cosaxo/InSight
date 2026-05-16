@@ -77,6 +77,8 @@ export interface FirebaseConfig {
   measurementId?: string;
 }
 
+export type ShareLevel = "nobody" | "circle" | "city" | "world";
+
 export interface RemoteProfile {
   personality?: number[];
   political?: Political;
@@ -96,6 +98,13 @@ export interface RemoteProfile {
   // profile rather than a subcollection because it's a single
   // small array that the user edits as a whole.
   dayTemplate?: DayBlock[];
+  // Per-category sharing prefs. Keys match SHARE_KEYS in
+  // SharingOverlay; values are one of the four ShareLevel rungs.
+  // Currently only `daily_report` is enforced at the Firestore rule
+  // layer — the other entries set user intent for when more
+  // cross-user reads land. Absent or unknown keys fall back to the
+  // per-category default in SharingOverlay.
+  sharePrefs?: Record<string, ShareLevel>;
 }
 
 export interface MigrationPayload {

@@ -1,8 +1,8 @@
-import { useState } from "react";
 import { useGeolocation } from "../../lib/useGeolocation";
 import { useDiscoverableLocation } from "../../lib/useDiscoverableLocation";
 import { useAuth } from "../../lib/useAuth";
-import { firebaseEnabled } from "../../lib/firebase";
+import { useProfile } from "../../lib/useProfile";
+import { firebaseEnabled, type ShareLevel } from "../../lib/firebase";
 import { Kicker } from "../shared/primitives";
 
 interface ShareItem {
@@ -13,26 +13,41 @@ interface ShareItem {
   def: ShareLevel;
 }
 
-type ShareLevel = "nobody" | "circle" | "city" | "world";
-
+// Categories backed by real data + real cross-user reads (or
+// real-soon ones). Dropped from the previous list: health vitals
+// (no wearable), media favourites (no profile field), interests
+// (never had one), DNA ancestry / health (DnaOverlay still seed).
+// Their "share my X" promises had nothing behind them.
+//
+// Enforcement status today:
+//   daily_report — enforced by firestore.rules below; rule reads
+//     this writer's sharePrefs.daily_report and gates the friend
+//     read accordingly.
+//   discoverable location toggle — enforced by useDiscoverableLocation
+//     (separate path; presence of doc in insight_discoverable IS the
+//     toggle).
+//   everything else — persisted as user intent, not enforced. The
+//     UI honestly says "no cross-user reads exist for these yet"
+//     beneath the section.
 const SHARE_DATA: ShareItem[] = [
-  { id: "mood", label: "mood & weather", sub: "how you feel each day", glyph: "☾", def: "circle" },
-  { id: "location", label: "location · area", sub: "neighborhood, never address", glyph: "⌖", def: "circle" },
-  { id: "location_p", label: "location · precise", sub: "gps to the meter", glyph: "◉", def: "nobody" },
+  { id: "daily_report", label: "daily report", sub: "your one-line summary + mood + weather", glyph: "✎", def: "circle" },
+  { id: "mood", label: "mood", sub: "the 1..5 score per day", glyph: "☾", def: "circle" },
   { id: "big5", label: "personality (Big Five)", sub: "O · C · E · A · N", glyph: "✺", def: "circle" },
   { id: "political", label: "political compass", sub: "six axes", glyph: "✦", def: "nobody" },
   { id: "morals", label: "values & morals", sub: "where you sit, ethics-wise", glyph: "◇", def: "circle" },
-  { id: "health", label: "health · vitals", sub: "sleep, heart rate, body battery", glyph: "◐", def: "nobody" },
-  { id: "health_w", label: "workouts", sub: "runs, swims, sessions", glyph: "↑", def: "circle" },
-  { id: "meals", label: "meals", sub: "photo log, nutrition", glyph: "✦", def: "circle" },
-  { id: "media", label: "media · favorites", sub: "films, books, music", glyph: "❀", def: "world" },
-  { id: "interests", label: "interests", sub: "tags from your profile", glyph: "✶", def: "world" },
-  { id: "dna_anc", label: "DNA · ancestry", sub: "regions only", glyph: "⌇", def: "nobody" },
-  { id: "dna_health", label: "DNA · health markers", sub: "risk flags", glyph: "⌇", def: "nobody" },
-  { id: "scrap", label: "scrapbook · finds", sub: "plants, birds, etc", glyph: "❀", def: "circle" },
+  { id: "workouts", label: "workouts", sub: "runs, sessions, kcal", glyph: "↑", def: "circle" },
+  { id: "meals", label: "meals", sub: "what you've eaten", glyph: "✦", def: "circle" },
+  { id: "weighins", label: "weigh-ins", sub: "weight over time", glyph: "◐", def: "nobody" },
+  { id: "scrapbook", label: "scrapbook · finds", sub: "plants, birds, weather", glyph: "❀", def: "circle" },
   { id: "dreams", label: "dream journal", sub: "private by default", glyph: "☾", def: "nobody" },
-  { id: "time", label: "time use", sub: "how minutes spend", glyph: "◐", def: "nobody" },
-  { id: "daily", label: "daily report", sub: "one-line summary, sent to circle", glyph: "✎", def: "circle" },
+  { id: "impressions", label: "impressions of others", sub: "your sketches — always private", glyph: "❝", def: "nobody" },
+  { id: "books", label: "books read", sub: "what you've finished", glyph: "▢", def: "world" },
+  { id: "visits", label: "trips taken", sub: "countries & cities", glyph: "✶", def: "circle" },
+  { id: "homes", label: "homes lived in", sub: "where you've been", glyph: "⌂", def: "nobody" },
+  { id: "languages", label: "languages spoken", sub: "what you speak", glyph: "abc", def: "world" },
+  { id: "jobs", label: "jobs held", sub: "what work you've done", glyph: "◆", def: "circle" },
+  { id: "milestones", label: "life milestones", sub: "the timeline", glyph: "↑", def: "circle" },
+  { id: "time_blocks", label: "time use", sub: "how the day actually went", glyph: "◐", def: "nobody" },
 ];
 
 interface Level {
@@ -141,11 +156,19 @@ interface SharingOverlayProps {
 }
 
 export function SharingOverlay({ onClose }: SharingOverlayProps) {
-  const [vals, setVals] = useState<Record<string, ShareLevel>>(() => {
-    const o: Record<string, ShareLevel> = {};
-    SHARE_DATA.forEach((d) => (o[d.id] = d.def));
-    return o;
-  });
+  const { profile, save } = useProfile();
+
+  // Read prefs off the profile, falling back to per-category default
+  // when unset. We don't keep a separate local state — every change
+  // goes through save() so the dropdowns reflect persisted truth.
+  const vals: Record<string, ShareLevel> = {};
+  for (const d of SHARE_DATA) {
+    vals[d.id] = profile.sharePrefs?.[d.id] ?? d.def;
+  }
+  const setLevel = (id: string, level: ShareLevel) => {
+    const next = { ...(profile.sharePrefs ?? {}), [id]: level };
+    void save({ sharePrefs: next });
+  };
 
   const { user } = useAuth();
   const { position, loading: geoLoading, request: requestGeo, denied } =
@@ -321,13 +344,22 @@ export function SharingOverlay({ onClose }: SharingOverlayProps) {
         )}
 
         <Kicker>Each thing, separately</Kicker>
-        <div style={{ marginTop: 10 }}>
+        <div
+          className="margin-note"
+          style={{ marginTop: 6, marginBottom: 10, fontSize: 11.5, fontStyle: "italic" }}
+        >
+          The daily-report level is enforced today at the Firestore
+          rule layer — your circle can only read what you've set to{" "}
+          <em>circle</em> or wider. The other categories persist your
+          intent for when each cross-user read lands.
+        </div>
+        <div>
           {SHARE_DATA.map((item) => (
             <ShareRow
               key={item.id}
               item={item}
               value={vals[item.id]}
-              onChange={(v) => setVals({ ...vals, [item.id]: v })}
+              onChange={(v) => setLevel(item.id, v)}
             />
           ))}
         </div>
