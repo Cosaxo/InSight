@@ -20,13 +20,16 @@
 import { useEffect, useState } from "react";
 import type { RemoteDailyReport } from "../types";
 import {
+  downloadDailyPhoto,
   firebaseEnabled,
   migrateLegacyDailyReport,
   subscribeAllDailyReports,
   subscribeDailyReport,
+  uploadDailyPhoto,
   upsertDailyReport,
 } from "./firebase";
 import { useAuth } from "./useAuth";
+import { useProfile } from "./useProfile";
 
 const STORAGE_TODAY = "insight.dailyReport.v1";
 const STORAGE_HISTORY = "insight.dailyReport.history.v1";
@@ -98,7 +101,9 @@ export function useDailyReport(): {
   save: (r: DailyReportLocal) => Promise<void>;
 } {
   const { user } = useAuth();
+  const { profile } = useProfile();
   const isSignedIn = firebaseEnabled && !!user;
+  const cloudPhotos = !!profile.cloudPhotos;
   const [remote, setRemote] = useState<RemoteDailyReport | null>(null);
   const [local, setLocal] = useState<DailyReportLocal | null>(() =>
     readLocalToday(),
@@ -121,6 +126,21 @@ export function useDailyReport(): {
       if (r) {
         localStorage.setItem(STORAGE_TODAY, JSON.stringify(r));
         upsertLocalHistory(r);
+        // If the doc carries a Storage path and we don't already
+        // have a local copy of the photo cached, pull it down.
+        // This is what makes cloud-photos sync visible on a second
+        // device.
+        if (r.photoPath && !localStorage.getItem(PHOTO_STORAGE_TODAY)) {
+          void downloadDailyPhoto(user.uid, today).then((dataUrl) => {
+            if (dataUrl) {
+              localStorage.setItem(PHOTO_STORAGE_TODAY, dataUrl);
+              // Bump local state so the new photo renders.
+              setLocal((prev) =>
+                prev ? { ...prev, photo: dataUrl } : prev,
+              );
+            }
+          });
+        }
       } else {
         localStorage.removeItem(STORAGE_TODAY);
       }
@@ -138,12 +158,33 @@ export function useDailyReport(): {
     const today = isoDateToday();
     const withDate = { ...r, date: today };
     writeLocalToday(withDate);
-    upsertLocalHistory({ ...withDate, photo: undefined } as RemoteDailyReport);
+    upsertLocalHistory({
+      ...withDate,
+      photo: undefined,
+    } as RemoteDailyReport);
     setLocal(withDate);
     if (isSignedIn && user) {
       const { photo, ...rest } = withDate;
-      void photo; // photo blob stays local; only hasPhoto/photoId travel
-      await upsertDailyReport(user.uid, today, rest);
+      // Cloud photos opt-in: when on and the report carries a
+      // photo blob, upload to Storage first and persist the path
+      // alongside the doc. When off, only hasPhoto / photoId
+      // travel — the privacy contract for un-opted users is
+      // unchanged.
+      let photoPath: string | undefined = rest.photoPath;
+      if (cloudPhotos && photo && photo.startsWith("data:")) {
+        try {
+          photoPath = await uploadDailyPhoto(user.uid, today, photo);
+        } catch (err) {
+          // Don't block the save on a Storage failure — the photo
+          // is already in localStorage and we'll retry on next
+          // edit. Surface to console for diagnostics.
+          console.warn("[useDailyReport] photo upload failed:", err);
+        }
+      }
+      await upsertDailyReport(user.uid, today, {
+        ...rest,
+        ...(photoPath ? { photoPath } : {}),
+      });
     }
   };
 

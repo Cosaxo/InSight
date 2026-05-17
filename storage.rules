@@ -1,0 +1,32 @@
+rules_version = '2';
+
+// Firebase Storage rules — owner-only access to a user's private
+// uploads. The only path currently used is users/{uid}/dailyPhotos/,
+// holding opt-in cloud backups of daily-report photos. We deny
+// everything else by default.
+//
+// Deploy with: firebase deploy --only storage:rules
+service firebase.storage {
+  match /b/{bucket}/o {
+    match /users/{uid}/dailyPhotos/{filename} {
+      // Owner-only read + write. App Check (when enabled at the
+      // bucket level via the Firebase console) further restricts
+      // requests to attested clients.
+      allow read, write: if request.auth != null
+        && request.auth.uid == uid
+        // Cap upload size at 8 MB — generous for a JPEG, prevents
+        // a runaway client from filling the bucket.
+        && (request.resource == null || request.resource.size < 8 * 1024 * 1024)
+        // Only image content types. The filename has a .jpg
+        // extension by convention; this is the actual gate.
+        && (request.resource == null || request.resource.contentType.matches('image/.*'));
+    }
+
+    // Everything else: explicitly denied. Adds an extra line of
+    // defence beyond Storage's default-deny in case a future
+    // rules edit accidentally widens reach.
+    match /{path=**} {
+      allow read, write: if false;
+    }
+  }
+}

@@ -43,6 +43,14 @@ import {
   reauthenticateWithCredential,
 } from "firebase/auth";
 import { getFunctions, httpsCallable } from "firebase/functions";
+import {
+  deleteObject,
+  getDownloadURL,
+  getStorage,
+  ref as storageRef,
+  uploadString,
+  type FirebaseStorage,
+} from "firebase/storage";
 import { distanceBetween, geohashQueryBounds } from "geofire-common";
 import { initAppCheck } from "./appcheck";
 import type {
@@ -116,6 +124,15 @@ export interface RemoteProfile {
   // NOK / GBP / JPY / etc). Drives both the symbol shown and the
   // locale-aware digit grouping. Falls back to USD when missing.
   currency?: string;
+  // Opt-in cloud backup of daily-report photos. Off by default —
+  // the existing privacy contract is "photos stay on this device."
+  // When true, useDailyReport uploads each new photo to Firebase
+  // Storage under users/{uid}/dailyPhotos/{date}.jpg and writes
+  // the resulting path back into the daily report's photoPath
+  // field so other devices can fetch it. Toggling off does not
+  // auto-delete already-uploaded photos — the user has to clear
+  // them explicitly.
+  cloudPhotos?: boolean;
 }
 
 export interface MigrationPayload {
@@ -157,6 +174,7 @@ export interface MigrationPayload {
 let app: FirebaseApp | null = null;
 let authInstance: Auth | null = null;
 let dbInstance: Firestore | null = null;
+let storageInstance: FirebaseStorage | null = null;
 
 export function init(config: FirebaseConfig): void {
   if (app) return;
@@ -168,6 +186,16 @@ export function init(config: FirebaseConfig): void {
   void initAppCheck();
   authInstance = getAuth(app);
   dbInstance = getFirestore(app);
+  // Storage instance is lazy — only constructed when first asked
+  // for via storage(). Most signed-in sessions never touch it
+  // (cloud photos are opt-in).
+  storageInstance = null;
+}
+
+function storage(): FirebaseStorage {
+  if (!app) throw new Error("Firebase not initialised");
+  if (!storageInstance) storageInstance = getStorage(app);
+  return storageInstance;
 }
 
 function auth(): Auth {
@@ -804,6 +832,79 @@ export async function deleteDailyReport(
   date: string,
 ): Promise<void> {
   await deleteDoc(subDocRef(uid, "insight_daily", date));
+}
+
+// ─── Daily-photo cloud sync (opt-in) ──────────────────────────────
+//
+// Photos for a daily report sit under
+// users/{uid}/dailyPhotos/{date}.jpg in Firebase Storage. The Storage
+// rules (see storage.rules) constrain reads + writes to the owner.
+//
+// The Firestore daily-report doc carries `photoPath` (the full
+// Storage path) when the user has opted in to cloud photos. Other
+// devices recognise that, download the bytes via the Storage SDK,
+// and cache the resulting data URL to localStorage like a
+// locally-captured photo.
+
+function dailyPhotoPath(uid: string, date: string): string {
+  return `users/${uid}/dailyPhotos/${date}.jpg`;
+}
+
+// Upload a photo data-URL for the given date. Returns the canonical
+// Storage path the caller should persist in the daily-report doc.
+// `dataUrl` must be a base64 data URL (e.g. "data:image/jpeg;base64,…")
+// — the Storage SDK's uploadString handles the decode.
+export async function uploadDailyPhoto(
+  uid: string,
+  date: string,
+  dataUrl: string,
+): Promise<string> {
+  const path = dailyPhotoPath(uid, date);
+  const ref = storageRef(storage(), path);
+  await uploadString(ref, dataUrl, "data_url");
+  return path;
+}
+
+// Fetch a photo back from Storage as a data URL the existing UI can
+// render directly. Returns null when the file is missing (caller
+// then falls back to whatever the photoId / stock-photo lookup
+// resolves to).
+export async function downloadDailyPhoto(
+  uid: string,
+  date: string,
+): Promise<string | null> {
+  try {
+    const ref = storageRef(storage(), dailyPhotoPath(uid, date));
+    const url = await getDownloadURL(ref);
+    const res = await fetch(url);
+    if (!res.ok) return null;
+    const blob = await res.blob();
+    return await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result as string);
+      reader.onerror = () => reject(reader.error);
+      reader.readAsDataURL(blob);
+    });
+  } catch {
+    // 404 from getDownloadURL is the common case (cloud photos
+    // off, or upload hasn't happened yet) — fall back to null
+    // rather than bubbling a noisy error.
+    return null;
+  }
+}
+
+// Remove a single uploaded photo. Used when the user clears their
+// photo for a day or toggles cloud photos off and elects to wipe.
+export async function deleteDailyPhoto(
+  uid: string,
+  date: string,
+): Promise<void> {
+  try {
+    const ref = storageRef(storage(), dailyPhotoPath(uid, date));
+    await deleteObject(ref);
+  } catch {
+    // Already gone is fine.
+  }
 }
 
 // Migrate the legacy `today` doc (Phase 4 schema) to a per-day doc.

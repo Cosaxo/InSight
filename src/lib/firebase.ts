@@ -667,6 +667,33 @@ export async function migrateLegacyDailyReport(uid: string): Promise<boolean> {
   return m.migrateLegacyDailyReport(uid);
 }
 
+// ── Daily-photo cloud sync (opt-in) ─────────────────────────────
+
+export async function uploadDailyPhoto(
+  uid: string,
+  date: string,
+  dataUrl: string,
+): Promise<string> {
+  const m = await impl();
+  return m.uploadDailyPhoto(uid, date, dataUrl);
+}
+
+export async function downloadDailyPhoto(
+  uid: string,
+  date: string,
+): Promise<string | null> {
+  const m = await impl();
+  return m.downloadDailyPhoto(uid, date);
+}
+
+export async function deleteDailyPhoto(
+  uid: string,
+  date: string,
+): Promise<void> {
+  const m = await impl();
+  return m.deleteDailyPhoto(uid, date);
+}
+
 // ── Geo discovery (cities + nearby users) ───────────────────────
 
 export async function findNearbyCities(

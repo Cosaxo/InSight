@@ -129,6 +129,11 @@ service cloud.firestore {
           && isShortString(d.weather, 256)
           && d.hasPhoto is bool
           && isOptionalShortString(d.get('photoId', null), 64)
+          // photoPath is the Storage path for the cloud-backed
+          // photo (set when profile.cloudPhotos is on). Cap to
+          // 256 chars — well above the canonical path length but
+          // bounded so a bad client can't stuff a megabyte string.
+          && isOptionalShortString(d.get('photoPath', null), 256)
           && d.shared is list && d.shared.size() <= 64;
       }
 

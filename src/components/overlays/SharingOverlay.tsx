@@ -343,6 +343,82 @@ export function SharingOverlay({ onClose }: SharingOverlayProps) {
           </div>
         )}
 
+        {/* Cloud photos toggle — binary opt-in for backing up
+            daily-report photos to your private Firebase Storage
+            folder. Off by default; the existing privacy contract is
+            "photos stay on this device." */}
+        {firebaseEnabled && user && (
+          <div
+            className="card"
+            style={{
+              marginBottom: 14,
+              padding: 14,
+              borderLeft: "3px solid var(--accent)",
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "flex-start",
+                gap: 12,
+              }}
+            >
+              <div style={{ flex: 1 }}>
+                <Kicker>Cloud backup · daily photos</Kicker>
+                <div
+                  style={{
+                    fontFamily: "var(--serif)",
+                    fontStyle: "italic",
+                    fontSize: 13,
+                    color: "var(--ink-2)",
+                    marginTop: 6,
+                    lineHeight: 1.5,
+                  }}
+                >
+                  When this is on, photos you attach to a daily report
+                  are uploaded to your private cloud bucket so other
+                  devices you're signed in on can see them. Off by
+                  default — photos stay only on the device that
+                  captured them. Cross-user sharing is unaffected.
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => void save({ cloudPhotos: !profile.cloudPhotos })}
+                style={{
+                  flexShrink: 0,
+                  width: 56,
+                  height: 32,
+                  borderRadius: 999,
+                  border: "0.5px solid var(--rule)",
+                  background: profile.cloudPhotos
+                    ? "var(--accent)"
+                    : "var(--paper-2)",
+                  position: "relative",
+                  cursor: "pointer",
+                  transition: "background 0.2s",
+                }}
+                aria-pressed={!!profile.cloudPhotos}
+              >
+                <span
+                  style={{
+                    position: "absolute",
+                    top: 3,
+                    left: profile.cloudPhotos ? 28 : 3,
+                    width: 24,
+                    height: 24,
+                    borderRadius: "50%",
+                    background: "var(--paper)",
+                    border: "0.5px solid var(--rule)",
+                    transition: "left 0.2s",
+                  }}
+                />
+              </button>
+            </div>
+          </div>
+        )}
+
         <Kicker>Each thing, separately</Kicker>
         <div
           className="margin-note"

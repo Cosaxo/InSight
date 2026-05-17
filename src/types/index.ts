@@ -340,6 +340,11 @@ export interface RemoteDailyReport {
   weather: string;
   hasPhoto: boolean;
   photoId?: string; // a stock-photo key like "fjord"; user-uploaded photos stay local
+  // Firebase Storage path when the user has opted into cloud
+  // photo backup (profile.cloudPhotos). Other devices fetch the
+  // bytes via downloadDailyPhoto and cache to localStorage.
+  // Omitted when cloud photos are off.
+  photoPath?: string;
   shared: string[];
   updatedAt?: unknown; // server timestamp
 }
