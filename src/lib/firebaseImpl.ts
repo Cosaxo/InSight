@@ -44,6 +44,7 @@ import {
 } from "firebase/auth";
 import { getFunctions, httpsCallable } from "firebase/functions";
 import { distanceBetween, geohashQueryBounds } from "geofire-common";
+import { initAppCheck } from "./appcheck";
 import type {
   Book,
   CityRating,
@@ -160,6 +161,11 @@ let dbInstance: Firestore | null = null;
 export function init(config: FirebaseConfig): void {
   if (app) return;
   app = initializeApp(config);
+  // Attest this client before the first Firestore / callable
+  // request. Fire-and-forget: the App Check token attaches to
+  // subsequent requests once it resolves; queries issued before
+  // resolution still work but are unattested.
+  void initAppCheck();
   authInstance = getAuth(app);
   dbInstance = getFirestore(app);
 }

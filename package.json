@@ -15,6 +15,7 @@
     "doctor": "npx cap doctor"
   },
   "dependencies": {
+    "@capacitor-firebase/app-check": "^8.2.0",
     "@capacitor-firebase/authentication": "^8.2.0",
     "@capacitor-firebase/crashlytics": "^8.2.0",
     "@capacitor/app": "^8.1.0",
