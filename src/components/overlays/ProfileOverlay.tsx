@@ -31,6 +31,12 @@ import {
   googleSignOut,
   reauthWithPassword,
 } from "../../lib/firebase";
+import {
+  applyImport,
+  downloadBackup,
+  gatherExport,
+  readBackupFile,
+} from "../../lib/dataExport";
 import type { Hero, Political } from "../../types";
 import { Av, Kicker } from "../shared/primitives";
 import { RadarChart } from "../shared/charts";
@@ -1126,9 +1132,149 @@ export function ProfileOverlay({ onClose, onOpenTest }: ProfileOverlayProps) {
         />
 
         <hr className="rule-dashed" />
+        <BackupSection />
+
+        <hr className="rule-dashed" />
         <DangerZone />
       </div>
     </div>
+  );
+}
+
+// ─── BackupSection — JSON export / import of locally-cached data ─
+//
+// Sits above the danger zone because, well, the safest thing to do
+// before a destructive action is take a backup. Export dumps every
+// `insight.*` localStorage key into a JSON file the user downloads.
+// Import takes that file back and replaces local state, then forces
+// a reload so the hooks re-init cleanly.
+
+function BackupSection() {
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleExport = () => {
+    setMessage(null);
+    setError(null);
+    try {
+      const blob = gatherExport();
+      const count = Object.keys(blob.entries).length;
+      downloadBackup(blob);
+      setMessage(`Saved ${count} entries.`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    }
+  };
+
+  const handleImport = async (file: File) => {
+    setMessage(null);
+    setError(null);
+    if (!confirm(
+      "Importing will replace your local data with the contents of this backup. Continue?",
+    )) return;
+    setBusy(true);
+    try {
+      const blob = await readBackupFile(file);
+      const written = applyImport(blob);
+      setMessage(`Restored ${written} entries. Reloading…`);
+      // Give the user a moment to see the message before the reload
+      // wipes the page.
+      setTimeout(() => window.location.reload(), 600);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+      setBusy(false);
+    }
+  };
+
+  return (
+    <>
+      <Kicker>backup · your data, your file</Kicker>
+      <div
+        style={{
+          marginTop: 8,
+          fontFamily: "var(--serif)",
+          fontStyle: "italic",
+          fontSize: 13,
+          lineHeight: 1.4,
+          color: "var(--ink-2)",
+        }}
+      >
+        Download a JSON snapshot of everything cached on this device, or
+        restore one taken earlier. Cross-user data and the on-device
+        LLM model file aren't included.
+      </div>
+      <div style={{ display: "flex", gap: 8, marginTop: 10, flexWrap: "wrap" }}>
+        <button
+          type="button"
+          onClick={handleExport}
+          disabled={busy}
+          style={{
+            padding: "10px 14px",
+            background: "var(--ink-1)",
+            color: "var(--paper)",
+            border: "none",
+            borderRadius: 999,
+            fontFamily: "var(--mono)",
+            fontSize: 11,
+            letterSpacing: "0.1em",
+            textTransform: "uppercase",
+            cursor: busy ? "default" : "pointer",
+            flex: 1,
+            minWidth: 140,
+          }}
+        >
+          export backup
+        </button>
+        <label
+          style={{
+            padding: "10px 14px",
+            background: "transparent",
+            color: "var(--ink-1)",
+            border: "0.5px dashed var(--ink-2)",
+            borderRadius: 999,
+            fontFamily: "var(--mono)",
+            fontSize: 11,
+            letterSpacing: "0.1em",
+            textTransform: "uppercase",
+            cursor: busy ? "default" : "pointer",
+            flex: 1,
+            minWidth: 140,
+            textAlign: "center",
+          }}
+        >
+          import backup
+          <input
+            type="file"
+            accept="application/json,.json"
+            disabled={busy}
+            onChange={(e) => {
+              const f = e.target.files?.[0];
+              if (f) void handleImport(f);
+              // Reset input so the same file can be picked again.
+              e.target.value = "";
+            }}
+            style={{ display: "none" }}
+          />
+        </label>
+      </div>
+      {message && (
+        <div
+          className="margin-note"
+          style={{ marginTop: 8, color: "var(--ink-2)" }}
+        >
+          {message}
+        </div>
+      )}
+      {error && (
+        <div
+          className="margin-note"
+          style={{ marginTop: 8, color: "oklch(0.55 0.16 12)" }}
+        >
+          {error}
+        </div>
+      )}
+    </>
   );
 }
 
