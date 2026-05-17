@@ -10,6 +10,11 @@ import { useAreaAggregate } from "../../lib/useAreaAggregate";
 import { useGeolocation } from "../../lib/useGeolocation";
 import { useNearbyPeople } from "../../lib/useNearbyPeople";
 import { useWeather } from "../../lib/useWeather";
+import {
+  useDeviceHeading,
+  compassLabel,
+  solarBearing,
+} from "../../lib/useDeviceHeading";
 import { CirclePortrait } from "./around-portrait";
 import { WeatherCard } from "./around-weather";
 
@@ -160,6 +165,15 @@ export function AroundTab({ onPerson, onOpenTest, onAddPerson }: AroundTabProps)
         <WeatherCard data={weather} loading={weatherLoading} />
       )}
 
+      {/* Live compass — reads device orientation (magnetometer when
+          available). iOS needs an explicit permission grant via a
+          user gesture; the widget surfaces a "tap to enable" button
+          when so. Shows the cardinals rotated to face current
+          heading, plus the sun's bearing when geolocation grants us
+          a position to compute it from. */}
+      <CompassWidget position={position} />
+
+
       <div style={{ display: "flex", gap: 8, margin: "12px 0 4px", flexWrap: "wrap" }}>
         <Pill color="sienna" active={mode === "radar"} onClick={() => setMode("radar")}>Radar</Pill>
         <Pill color="sage" active={mode === "list"} onClick={() => setMode("list")}>List</Pill>
@@ -203,6 +217,210 @@ export function AroundTab({ onPerson, onOpenTest, onAddPerson }: AroundTabProps)
           area={areaAggregate}
         />
       )}
+    </div>
+  );
+}
+
+// ─── CompassWidget — live magnetic compass with sun overlay ──────
+//
+// Reads `deviceorientation` via useDeviceHeading. On iOS, asks for
+// permission on first tap (the OS requires a user gesture for it).
+// On platforms without a magnetometer, surfaces a polite "not
+// available" line rather than failing silently.
+//
+// Sun bearing is computed from the geolocation we already have for
+// the weather card — no extra API call. Hidden when the sun is
+// below the horizon (you can't point at something you can't see).
+
+interface CompassWidgetProps {
+  position: { latitude: number; longitude: number } | null;
+}
+
+function CompassWidget({ position }: CompassWidgetProps) {
+  const {
+    heading,
+    needsPermission,
+    requestPermission,
+    permissionDenied,
+    supported,
+  } = useDeviceHeading();
+
+  if (!supported) {
+    // Most desktop browsers (no orientation sensor). Skip silently
+    // rather than show a useless card.
+    return null;
+  }
+
+  const sun =
+    position != null
+      ? solarBearing(position.latitude, position.longitude)
+      : null;
+
+  // Rotate cardinals + targets so the bearing points "up" relative
+  // to the device's current heading. Falls back to a fixed
+  // north-up rose when heading isn't known yet.
+  const facing = heading ?? 0;
+  const rotate = (bearing: number) => bearing - facing;
+
+  const cardinals = [
+    { label: "N", deg: 0 },
+    { label: "E", deg: 90 },
+    { label: "S", deg: 180 },
+    { label: "W", deg: 270 },
+  ];
+
+  return (
+    <div className="card" style={{ marginTop: 14 }}>
+      <Kicker>
+        Compass ·{" "}
+        {heading == null
+          ? "waiting for sensor"
+          : `facing ${Math.round(heading)}° ${compassLabel(heading)}`}
+      </Kicker>
+      <div
+        style={{
+          display: "flex",
+          gap: 14,
+          alignItems: "center",
+          marginTop: 10,
+        }}
+      >
+        <div
+          style={{
+            position: "relative",
+            width: 150,
+            height: 150,
+            flexShrink: 0,
+          }}
+        >
+          <svg viewBox="-80 -80 160 160" width="150" height="150">
+            <circle r="74" fill="var(--paper)" stroke="var(--ink-2)" strokeWidth="0.8" />
+            <circle r="64" fill="none" stroke="var(--rule)" strokeWidth="0.5" strokeDasharray="2 2" />
+            <circle r="44" fill="none" stroke="var(--rule)" strokeWidth="0.4" strokeDasharray="1 3" />
+            {Array.from({ length: 24 }).map((_, i) => {
+              const a = ((i * 15) * Math.PI) / 180;
+              const major = i % 6 === 0;
+              return (
+                <line
+                  key={i}
+                  x1={Math.sin(a) * 64}
+                  y1={-Math.cos(a) * 64}
+                  x2={Math.sin(a) * (major ? 56 : 60)}
+                  y2={-Math.cos(a) * (major ? 56 : 60)}
+                  stroke="var(--ink-2)"
+                  strokeWidth={major ? 0.8 : 0.4}
+                />
+              );
+            })}
+            {cardinals.map((c) => {
+              const a = (rotate(c.deg) * Math.PI) / 180;
+              return (
+                <text
+                  key={c.label}
+                  x={Math.sin(a) * 50}
+                  y={-Math.cos(a) * 50 + 3.5}
+                  textAnchor="middle"
+                  style={{
+                    font: "600 11px Inter, sans-serif",
+                    fill: c.label === "N" ? "oklch(0.55 0.16 12)" : "var(--ink-2)",
+                  }}
+                >
+                  {c.label}
+                </text>
+              );
+            })}
+            {/* Heading needle: always pointing "up" because the
+                cardinals rotate around it. Two-tone so it reads as a
+                pointer not a tick. */}
+            <line x1="0" y1="0" x2="0" y2="-60" stroke="var(--ink)" strokeWidth="1.4" />
+            <polygon points="0,-68 -4,-58 4,-58" fill="var(--ink)" />
+            {/* Sun marker — only when sun is above horizon. */}
+            {sun && (() => {
+              const a = (rotate(sun.azimuth) * Math.PI) / 180;
+              return (
+                <g>
+                  <circle
+                    cx={Math.sin(a) * 64}
+                    cy={-Math.cos(a) * 64}
+                    r="3.5"
+                    fill="oklch(0.78 0.14 75)"
+                    stroke="oklch(0.45 0.13 55)"
+                    strokeWidth="0.6"
+                  />
+                </g>
+              );
+            })()}
+          </svg>
+        </div>
+
+        <div style={{ flex: 1, minWidth: 0 }}>
+          {needsPermission && !permissionDenied && (
+            <button
+              type="button"
+              onClick={() => void requestPermission()}
+              style={{
+                padding: "8px 12px",
+                background: "var(--ink)",
+                color: "var(--paper)",
+                border: "none",
+                borderRadius: 99,
+                fontFamily: "var(--mono)",
+                fontSize: 10,
+                letterSpacing: "0.12em",
+                cursor: "pointer",
+              }}
+            >
+              ENABLE COMPASS
+            </button>
+          )}
+          {permissionDenied && (
+            <div
+              className="margin-note"
+              style={{ fontSize: 11, color: "var(--ink-3)" }}
+            >
+              Compass access blocked. Re-enable Motion & Orientation in
+              your browser settings.
+            </div>
+          )}
+          {!needsPermission && heading == null && (
+            <div
+              className="margin-note"
+              style={{ fontSize: 11, color: "var(--ink-3)" }}
+            >
+              No magnetometer signal yet. Move the device in a figure-8
+              to calibrate.
+            </div>
+          )}
+          {sun && (
+            <div
+              style={{
+                marginTop: needsPermission ? 8 : 0,
+                fontFamily: "var(--mono)",
+                fontSize: 10.5,
+                color: "var(--ink-2)",
+                letterSpacing: "0.05em",
+              }}
+            >
+              sun · {Math.round(sun.azimuth)}°{" "}
+              {compassLabel(sun.azimuth)} · {Math.round(sun.altitude)}°
+              up
+            </div>
+          )}
+          <div
+            style={{
+              marginTop: 6,
+              fontFamily: "var(--serif)",
+              fontStyle: "italic",
+              fontSize: 11,
+              color: "var(--ink-3)",
+              lineHeight: 1.4,
+            }}
+          >
+            Approximate · indoor magnetic fields throw readings off by
+            10-30°.
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
