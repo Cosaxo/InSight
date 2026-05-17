@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Privacy Policy · InSight</title>
+  <style>
+    :root {
+      --paper: #f7f1e8;
+      --paper-2: #efe8dc;
+      --paper-3: #e6dccb;
+      --ink: #2a2419;
+      --ink-2: #4d4538;
+      --ink-3: #7d705a;
+      --rule: #cfc6b3;
+      --accent: oklch(0.55 0.13 38);
+      --serif: "Fraunces", Georgia, serif;
+      --mono: "JetBrains Mono", ui-monospace, monospace;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      padding: 40px 20px 80px;
+      background: var(--paper);
+      color: var(--ink);
+      font-family: var(--serif);
+      font-size: 16px;
+      line-height: 1.6;
+      max-width: 720px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+    h1 {
+      font-size: 32px;
+      font-style: italic;
+      letter-spacing: -0.01em;
+      margin: 0 0 8px;
+    }
+    h2 {
+      font-size: 20px;
+      font-style: italic;
+      letter-spacing: -0.005em;
+      margin: 36px 0 10px;
+      border-bottom: 0.5px solid var(--rule);
+      padding-bottom: 6px;
+    }
+    h3 {
+      font-size: 15px;
+      font-weight: 600;
+      margin: 22px 0 8px;
+      color: var(--ink-2);
+    }
+    p, li { color: var(--ink-2); }
+    a { color: var(--accent); }
+    code, kbd {
+      font-family: var(--mono);
+      font-size: 13px;
+      background: var(--paper-2);
+      padding: 1px 5px;
+      border-radius: 4px;
+      border: 0.5px solid var(--rule);
+    }
+    .kicker {
+      font-family: var(--mono);
+      font-size: 10px;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--ink-3);
+    }
+    .updated {
+      font-family: var(--mono);
+      font-size: 11px;
+      letter-spacing: 0.06em;
+      color: var(--ink-3);
+      margin-bottom: 30px;
+    }
+    .lead {
+      font-size: 17px;
+      font-style: italic;
+      color: var(--ink);
+      margin: 12px 0 30px;
+      line-height: 1.5;
+    }
+    ul { padding-left: 22px; }
+    li { margin-bottom: 4px; }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 12px 0;
+      font-size: 14px;
+    }
+    th, td {
+      text-align: left;
+      padding: 8px 10px;
+      border-bottom: 0.5px solid var(--rule);
+      vertical-align: top;
+    }
+    th {
+      font-family: var(--mono);
+      font-size: 10px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--ink-3);
+      font-weight: normal;
+    }
+    .footer {
+      margin-top: 60px;
+      padding-top: 20px;
+      border-top: 0.5px dashed var(--rule);
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--ink-3);
+      letter-spacing: 0.04em;
+    }
+  </style>
+</head>
+<body>
+
+  <span class="kicker">InSight · privacy</span>
+  <h1>Privacy policy</h1>
+  <div class="updated">last updated 2026-05-17</div>
+
+  <p class="lead">
+    InSight is a private journal. Your data is yours. This page is the
+    long version of what that means in practice — what we collect, why,
+    who else can see it, and how to get rid of it.
+  </p>
+
+  <h2>What we collect, why</h2>
+
+  <p>
+    Everything below is stored under your account on Firebase
+    (Google Cloud), in the project's configured region. We don't sell,
+    rent, or share your data with advertisers — there are no
+    advertisers. Each row says <em>what</em>, <em>why</em>, and
+    <em>who else can see it by default</em>.
+  </p>
+
+  <table>
+    <thead>
+      <tr><th>What</th><th>Why</th><th>Who sees it</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Account identifier (email, Firebase uid)</td>
+        <td>To sign you in and tie data to your account.</td>
+        <td>You only.</td>
+      </tr>
+      <tr>
+        <td>Personality / political / values test answers</td>
+        <td>To populate your portrait and compare you to your circle.</td>
+        <td>You only, unless you set the corresponding share level
+            in the "what you share" overlay to circle / world.</td>
+      </tr>
+      <tr>
+        <td>Likes, dislikes, heroes</td>
+        <td>The journal-side of your profile.</td>
+        <td>You only.</td>
+      </tr>
+      <tr>
+        <td>Weight, birth year, currency preference</td>
+        <td>Scales the body-map, age counters, and the finance tab.</td>
+        <td>You only.</td>
+      </tr>
+      <tr>
+        <td>Daily reports (mood, one-line, weather, optional photo)</td>
+        <td>The day-to-day journal.</td>
+        <td>You; people you've added to your circle, only if your
+            "daily report" share level is circle or wider, and only
+            the fields you've ticked for that report.</td>
+      </tr>
+      <tr>
+        <td>Moods, habits, workouts, meals, weigh-ins, transactions,
+            dreams, scrapbook finds, books, trips, homes, languages,
+            jobs, milestones, time-tracking blocks, life-template</td>
+        <td>The various journal collections.</td>
+        <td>You only. Sharing for these categories is intent-only
+            today — no other user can read them.</td>
+      </tr>
+      <tr>
+        <td>Impressions you've written about people</td>
+        <td>Your private sketches.</td>
+        <td>You only. Never shared with the person you wrote about.</td>
+      </tr>
+      <tr>
+        <td>Anonymous traits left for you by others</td>
+        <td>The "of you" inbox.</td>
+        <td>You only. The sender's identity is stored alongside for
+            anti-spoofing, but isn't surfaced in the UI.</td>
+      </tr>
+      <tr>
+        <td>Relations (people you've added to your circle)</td>
+        <td>To populate the people tab and link to friends who are
+            also InSight users.</td>
+        <td>You only.</td>
+      </tr>
+      <tr>
+        <td>City ratings (food, nightlife, culture, etc.)</td>
+        <td>The city tab.</td>
+        <td>You only.</td>
+      </tr>
+      <tr>
+        <td>Approximate location (geohash5, ~5 km)</td>
+        <td>To find people near you when you've turned on
+            "discoverable" in sharing, and to feed the population
+            aggregates.</td>
+        <td>Other signed-in users see a discoverable marker keyed to
+            your geohash. They never see your exact coordinates and
+            never see anything else about you beyond what you've
+            otherwise published.</td>
+      </tr>
+      <tr>
+        <td>Photos (daily report, scrapbook)</td>
+        <td>Visual journaling.</td>
+        <td>You only. Photos stay on the device that captured them —
+            they never leave it. The presence of a photo syncs, the
+            bytes don't.</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h2>What we don't collect</h2>
+
+  <ul>
+    <li>Phone numbers, mailing addresses, or government IDs.</li>
+    <li>Contacts list from your phone.</li>
+    <li>Browsing history outside the app.</li>
+    <li>Microphone, accelerometer, or any sensor we haven't asked for.</li>
+    <li>Any data for advertising. We don't sell ads.</li>
+    <li>Any data for cross-app tracking. We're not part of an
+        advertising network.</li>
+  </ul>
+
+  <h2>Anonymous aggregate data</h2>
+
+  <p>
+    When you opt in to being discoverable and have taken the Big Five
+    (and optionally politics or values) test, your scores contribute
+    to per-area averages alongside everyone else's. Those averages
+    are rolled up by a scheduled server-side job into a single
+    record per ~5 km cell, and only published when the cell has at
+    least 20 contributors. Individual scores cannot be extracted from
+    these averages.
+  </p>
+  <p>
+    Each test category has its own opt-out in the "what you share"
+    overlay. Setting any of them to "nobody" excludes your scores
+    from the next rebuild.
+  </p>
+
+  <h2>Sharing with friends</h2>
+
+  <p>
+    InSight has one cross-user social feature: the daily-report feed.
+    When you add someone as a relation and they have an InSight
+    account, you grant them read access to your daily reports — but
+    only if your "daily report" share level is set to circle or
+    wider. The recipient sees only the fields you ticked when you
+    wrote the report.
+  </p>
+  <p>
+    A second cross-user surface is "anonymous impressions" — people
+    in your circle can leave a traits-only impression for you.
+    These show up anonymously in your "of you" inbox. The sender's
+    identity is recorded alongside for abuse prevention (so we can
+    rate-limit floods), but the UI never reveals it.
+  </p>
+
+  <h2>Third parties we use</h2>
+
+  <h3>Firebase (Google Cloud)</h3>
+  <p>
+    Authentication, Firestore for data storage, Cloud Functions for
+    scheduled rollups and account deletion. Subject to
+    <a href="https://firebase.google.com/support/privacy"
+       target="_blank" rel="noopener">Firebase's privacy policy</a>.
+  </p>
+
+  <h3>Open-Meteo</h3>
+  <p>
+    Weather, sunrise/sunset, and air quality data on the around tab.
+    We send latitude/longitude rounded to two decimals (≈ 1 km) so
+    the API can return localised weather. No identifiers are sent.
+    The response is cached on your device for an hour. Subject to
+    Open-Meteo's <a href="https://open-meteo.com/en/license"
+                    target="_blank" rel="noopener">free-use terms</a>.
+  </p>
+
+  <h3>On-device language model (Gemma)</h3>
+  <p>
+    The "what we noticed" reflections in the journal tabs and the
+    age-facts in the life overlay are generated by a small language
+    model that runs entirely on your device. Nothing leaves the
+    phone. The model is downloaded once (~2 GB) and runs offline
+    thereafter.
+  </p>
+
+  <h2>How long we keep your data</h2>
+
+  <p>
+    Indefinitely, until you delete your account. Account deletion is
+    immediate and irreversible — see the "danger zone" at the bottom
+    of your portrait.
+  </p>
+  <p>
+    When you delete your account, we wipe:
+  </p>
+  <ul>
+    <li>Every doc under your user subtree (journal, ledger,
+        relations, etc.).</li>
+    <li>Your discoverable-location marker.</li>
+    <li>Any anonymous impressions you've sent to other users.</li>
+    <li>Any relation entries other users have that point at your uid.</li>
+    <li>The Firebase Auth account itself.</li>
+  </ul>
+  <p>
+    Anonymous contributions to area aggregates can't be pulled back
+    out individually — that would defeat the anonymity. The next
+    scheduled rollup rebuilds without you and the cell numbers shift
+    accordingly.
+  </p>
+
+  <h2>Your rights</h2>
+
+  <ul>
+    <li><strong>Access</strong>: everything you've written is visible
+        to you inside the app. We don't keep a hidden mirror.</li>
+    <li><strong>Correction</strong>: every entry has an edit
+        affordance.</li>
+    <li><strong>Deletion</strong>: every entry has a delete button,
+        and the whole account can be deleted from your portrait.</li>
+    <li><strong>Portability</strong>: a "download my data" path is
+        on the roadmap; until it ships, contact support for an
+        export.</li>
+    <li><strong>Withdraw consent</strong>: turn off "discoverable"
+        in sharing, set any sharePrefs row to "nobody", or delete
+        your account.</li>
+  </ul>
+
+  <h2>Children</h2>
+  <p>
+    InSight isn't designed for children under 13 (or under the
+    minimum age of digital consent in your jurisdiction, whichever
+    is higher). We don't knowingly create accounts for them. If you
+    believe a child has signed up, contact us and we'll delete the
+    account.
+  </p>
+
+  <h2>Security</h2>
+
+  <ul>
+    <li>All traffic to Firebase is HTTPS.</li>
+    <li>Firestore rules enforce that no one but you can read your
+        subtree, except where you've explicitly granted access
+        (daily-report friend feed; inbound impressions from circle).</li>
+    <li>Cross-user writes (only inbound impressions) require the
+        recipient to have already added the sender as a relation.</li>
+    <li>The Cloud Function for account deletion uses admin SDK and
+        runs only when invoked by the authenticated account being
+        deleted.</li>
+  </ul>
+  <p>
+    No system is perfectly secure. If you discover a vulnerability,
+    please contact us directly rather than disclosing publicly so we
+    can fix it.
+  </p>
+
+  <h2>Changes to this policy</h2>
+  <p>
+    When we change this policy in any material way, we'll bump the
+    "last updated" date at the top and surface a notice in the app.
+    Continued use of InSight after a material change means you accept
+    the new policy.
+  </p>
+
+  <h2>Contact</h2>
+
+  <p>
+    Questions, deletion requests, security disclosures —
+    contact us at the support address listed on the app's
+    <a href="terms.html">terms of service</a> page.
+  </p>
+
+  <div class="footer">
+    InSight · privacy is a contract, not a clause.
+  </div>
+
+</body>
+</html>

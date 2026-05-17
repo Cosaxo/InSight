@@ -371,6 +371,37 @@ export function SharingOverlay({ onClose }: SharingOverlayProps) {
           your name. There is no way to opt out and still see them; it would be
           one-way mirror.
         </div>
+
+        <hr className="rule-dashed" />
+        <Kicker>The legal bit</Kicker>
+        <div
+          style={{
+            marginTop: 8,
+            display: "flex",
+            flexDirection: "column",
+            gap: 6,
+            fontFamily: "var(--mono)",
+            fontSize: 11,
+            letterSpacing: "0.06em",
+          }}
+        >
+          <a
+            href="/privacy.html"
+            target="_blank"
+            rel="noopener"
+            style={{ color: "var(--ink-2)" }}
+          >
+            ↗ privacy policy
+          </a>
+          <a
+            href="/terms.html"
+            target="_blank"
+            rel="noopener"
+            style={{ color: "var(--ink-2)" }}
+          >
+            ↗ terms of service
+          </a>
+        </div>
       </div>
     </div>
   );
