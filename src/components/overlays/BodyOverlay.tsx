@@ -28,12 +28,18 @@ import { useMemo, useState } from "react";
 import { Kicker } from "../shared/primitives";
 import { Donut, HBars } from "../shared/charts";
 import { useMeals, isoDateToday } from "../../lib/useMeals";
+import { useWorkouts } from "../../lib/useWorkouts";
+import { useProfile } from "../../lib/useProfile";
+import {
+  estimateEnergy,
+  macroEnergyPct,
+  macroTargets,
+} from "../../lib/bodyEnergy";
 import type { Meal } from "../../types";
 
-// Pleasant default the UI shows as "your daily reference" for the
-// kcal donut. 2000 kcal is the FDA/EU food-label baseline — generic
-// enough to be a stand-in until users get a real target field, and
-// labelled "reference" in the UI so it doesn't pretend to be theirs.
+// Fallback for users who haven't filled in weight + birth year. The
+// FDA/EU food-label baseline — generic, labelled "reference" in the
+// UI so it doesn't pretend to be theirs.
 const DEFAULT_KCAL_TARGET = 2000;
 
 // Hue rotation for the per-meal stamp colour. We don't store hue on
@@ -74,6 +80,8 @@ interface BodyOverlayProps {
 export function BodyOverlay({ onClose }: BodyOverlayProps) {
   const [adding, setAdding] = useState(false);
   const { items, add, remove } = useMeals();
+  const { items: workouts } = useWorkouts();
+  const { profile } = useProfile();
 
   const today = isoDateToday();
   const todayMeals = items.filter((m) => m.date === today);
@@ -87,12 +95,39 @@ export function BodyOverlay({ onClose }: BodyOverlayProps) {
     { carbs: 0, protein: 0, fat: 0 },
   );
 
+  // Personalised energy target. Uses Mifflin-St Jeor RMR + activity
+  // factor derived from the last 14 days of workouts. Falls back to
+  // the FDA/EU 2000 kcal reference when profile fields are missing.
+  const energy = useMemo(() => {
+    const twoWeeksAgo = new Date();
+    twoWeeksAgo.setDate(twoWeeksAgo.getDate() - 14);
+    const cutoff = `${twoWeeksAgo.getFullYear()}-${String(twoWeeksAgo.getMonth() + 1).padStart(2, "0")}-${String(twoWeeksAgo.getDate()).padStart(2, "0")}`;
+    return estimateEnergy({
+      weightKg: profile.weightKg,
+      birthYear: profile.birthYear,
+      recentWorkouts: workouts.filter((w) => w.date >= cutoff),
+    });
+  }, [profile.weightKg, profile.birthYear, workouts]);
+  const kcalTarget = energy.personalised ? energy.tdee : DEFAULT_KCAL_TARGET;
+
+  // Today's kcal burned from workouts — used for the net-balance card.
+  const todayWorkouts = workouts.filter((w) => w.date === today);
+  const todayBurned = todayWorkouts.reduce((s, w) => s + w.kcal, 0);
+  const netToday = todayKcal - todayBurned;
+
+  // Macro targets derived from kcal target + weight (protein floor).
+  const macroT = useMemo(
+    () => macroTargets(kcalTarget, profile.weightKg),
+    [kcalTarget, profile.weightKg],
+  );
+  const macroPct = macroEnergyPct(todayMacros);
+
   // 7-day kcal totals, chronological. Days with no meals show 0.
   const weekDays = useMemo(() => lastNDates(7), []);
   const weekKcal = weekDays.map((d) =>
     items.filter((m) => m.date === d).reduce((s, m) => s + m.kcal, 0),
   );
-  const weekMax = Math.max(DEFAULT_KCAL_TARGET, ...weekKcal);
+  const weekMax = Math.max(kcalTarget, ...weekKcal);
 
   // Sort logged meals: most recent date first, then by insertion
   // order (relying on the array order from useMeals which puts new
@@ -164,7 +199,7 @@ export function BodyOverlay({ onClose }: BodyOverlayProps) {
           <Donut
             value={Math.min(
               100,
-              Math.round((todayKcal / DEFAULT_KCAL_TARGET) * 100),
+              Math.round((todayKcal / kcalTarget) * 100),
             )}
             color="var(--ochre)"
             label="KCAL"
@@ -181,7 +216,7 @@ export function BodyOverlay({ onClose }: BodyOverlayProps) {
                   marginLeft: 6,
                 }}
               >
-                / {DEFAULT_KCAL_TARGET.toLocaleString()}
+                / {kcalTarget.toLocaleString()}
               </span>
             </div>
             <div className="kicker" style={{ marginTop: 2 }}>
@@ -189,33 +224,89 @@ export function BodyOverlay({ onClose }: BodyOverlayProps) {
               {todayMeals.length === 1 ? "ENTRY" : "ENTRIES"}
             </div>
             <div className="margin-note" style={{ marginTop: 6, fontSize: 12 }}>
-              {DEFAULT_KCAL_TARGET.toLocaleString()} kcal is a generic
-              reference, not your prescribed target.
+              {energy.personalised
+                ? `TDEE estimate · RMR ${energy.rmr.toLocaleString()} × ${energy.activity} activity. Set your own target in Profile if you want a different one.`
+                : "Generic reference. Fill in your weight + birth year in Profile for a personalised TDEE estimate."}
             </div>
           </div>
         </div>
+
+        {/* Net kcal balance — meals in minus workouts out. Only shown
+            once the user has logged either for the day, to avoid an
+            empty "0 net" card. */}
+        {(todayKcal > 0 || todayBurned > 0) && (
+          <div
+            className="card"
+            style={{
+              marginBottom: 14,
+              padding: 14,
+              display: "flex",
+              gap: 14,
+              alignItems: "center",
+            }}
+          >
+            <div style={{ flex: 1 }}>
+              <Kicker>Net today · in − out</Kicker>
+              <div
+                className="fig-num"
+                style={{ marginTop: 4, color: netToday > kcalTarget ? "var(--sienna)" : "var(--ink)" }}
+              >
+                <em>{netToday >= 0 ? "+" : ""}{netToday.toLocaleString()}</em>
+                <span
+                  style={{
+                    fontFamily: "var(--mono)",
+                    fontSize: 12,
+                    color: "var(--ink-3)",
+                    marginLeft: 6,
+                  }}
+                >
+                  kcal
+                </span>
+              </div>
+              <div
+                className="margin-note"
+                style={{ marginTop: 4, fontSize: 11 }}
+              >
+                {todayKcal.toLocaleString()} eaten · {todayBurned.toLocaleString()} burned{" "}
+                {todayBurned > 0 && `(${todayWorkouts.length} session${todayWorkouts.length === 1 ? "" : "s"})`}
+              </div>
+            </div>
+          </div>
+        )}
 
         {(todayMacros.carbs > 0 ||
           todayMacros.protein > 0 ||
           todayMacros.fat > 0) && (
           <div className="card" style={{ marginBottom: 14, padding: 14 }}>
-            <Kicker>Today · macros · grams</Kicker>
+            <Kicker>Today · macros · grams · target</Kicker>
             <div style={{ marginTop: 10 }}>
               <HBars
                 items={[
                   {
-                    label: "Carbs",
+                    label: `Protein ${todayMacros.protein}/${macroT.protein}g · ${macroPct.protein}%`,
+                    value: todayMacros.protein,
+                    color: "var(--sienna)",
+                  },
+                  {
+                    label: `Carbs ${todayMacros.carbs}/${macroT.carbs}g · ${macroPct.carbs}%`,
                     value: todayMacros.carbs,
                     color: "var(--ochre)",
                   },
                   {
-                    label: "Protein",
-                    value: todayMacros.protein,
-                    color: "var(--sienna)",
+                    label: `Fat ${todayMacros.fat}/${macroT.fat}g · ${macroPct.fat}%`,
+                    value: todayMacros.fat,
+                    color: "var(--sage)",
                   },
-                  { label: "Fat", value: todayMacros.fat, color: "var(--sage)" },
                 ]}
               />
+            </div>
+            <div
+              className="margin-note"
+              style={{ marginTop: 10, fontSize: 11, fontStyle: "italic" }}
+            >
+              Targets: 25% protein (min {profile.weightKg ? "1.6 g/kg" : "100g"})
+              / 45% carbs / 30% fat split. Adjust by logging more or
+              less — these are guides, not rules.
             </div>
           </div>
         )}
