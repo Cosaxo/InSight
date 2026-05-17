@@ -11,10 +11,13 @@
 // per-entity wrappers wire it up with their own row renderer,
 // form, and summary text.
 
-import { useMemo, useState, type ReactNode } from "react";
+import { lazy, Suspense, useMemo, useState, type ReactNode } from "react";
 import { Kicker } from "../shared/primitives";
 import { useBooks, useHomes, useJobs, useLanguages, useVisits } from "../../lib/useLedger";
 import type { Book, Home, Job, Language, Visit } from "../../types";
+
+// Lazy: pulls leaflet (~150KB) only when the user opens the visits map.
+const VisitsMap = lazy(() => import("./visits-map"));
 
 const inputStyle: React.CSSProperties = {
   width: "100%",
@@ -552,6 +555,7 @@ function BookForm({
 function VisitsCard() {
   const { items, add, remove } = useVisits();
   const [adding, setAdding] = useState(false);
+  const [showMap, setShowMap] = useState(false);
   const sorted = [...items].sort(
     (a, b) => b.start.localeCompare(a.start) || b.createdAt - a.createdAt,
   );
@@ -579,22 +583,60 @@ function VisitsCard() {
         onAdd={() => setAdding(true)}
       >
         {recent.length > 0 ? (
-          recent.map((v) => (
-            <LogRow
-              key={v.id}
-              primary={
-                <>
-                  {v.city ? `${v.city}, ` : ""}
-                  {v.country}
-                </>
-              }
-              secondary={
-                v.end ? `${v.start} → ${v.end}` : v.start
-              }
-              onRemove={() => void remove(v.id)}
-              label={`${v.city || v.country}`}
-            />
-          ))
+          <>
+            {recent.map((v) => (
+              <LogRow
+                key={v.id}
+                primary={
+                  <>
+                    {v.city ? `${v.city}, ` : ""}
+                    {v.country}
+                  </>
+                }
+                secondary={
+                  v.end ? `${v.start} → ${v.end}` : v.start
+                }
+                onRemove={() => void remove(v.id)}
+                label={`${v.city || v.country}`}
+              />
+            ))}
+            <button
+              type="button"
+              onClick={() => setShowMap((v) => !v)}
+              style={{
+                marginTop: 8,
+                padding: "8px 12px",
+                background: "transparent",
+                color: "var(--ink-2)",
+                border: "0.5px dashed var(--ink-3)",
+                borderRadius: 999,
+                fontFamily: "var(--mono)",
+                fontSize: 10,
+                letterSpacing: "0.1em",
+                textTransform: "uppercase",
+                cursor: "pointer",
+                width: "100%",
+              }}
+            >
+              {showMap ? "hide map" : "show on map"}
+            </button>
+            {showMap && (
+              <div style={{ marginTop: 10 }}>
+                <Suspense
+                  fallback={
+                    <div
+                      className="margin-note"
+                      style={{ fontSize: 11, fontStyle: "italic", padding: 8 }}
+                    >
+                      loading map…
+                    </div>
+                  }
+                >
+                  <VisitsMap visits={items} />
+                </Suspense>
+              </div>
+            )}
+          </>
         ) : (
           <div
             className="margin-note"
