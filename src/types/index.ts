@@ -348,3 +348,24 @@ export interface RemoteDailyReport {
   shared: string[];
   updatedAt?: unknown; // server timestamp
 }
+
+// Wearable snapshot — one doc per day at
+// insight_users/{uid}/insight_body/{YYYY-MM-DD}. Each metric is
+// optional so a real native bridge (HealthKit / Health Connect)
+// can fill what it has access to; the BodyOverlay UI renders only
+// the fields that are present.
+export interface RemoteBodySnapshot {
+  date: string;
+  hrvMs?: number;             // resting HRV, milliseconds (RMSSD)
+  restingHrBpm?: number;
+  steps?: number;
+  vo2Max?: number;
+  bodyBattery?: number;       // 0..100 Garmin-style daily energy
+  sleepMinutes?: number;
+  sleepDeepMinutes?: number;
+  sleepRemMinutes?: number;
+  trainingLoad?: number;      // CTL / ATL composite, source-dependent
+  stress?: number;            // 0..100
+  source?: "mock" | "healthkit" | "health-connect" | "garmin" | "fitbit";
+  updatedAt?: unknown;        // server timestamp
+}

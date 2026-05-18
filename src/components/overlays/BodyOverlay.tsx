@@ -32,6 +32,10 @@ import { useWorkouts } from "../../lib/useWorkouts";
 import { useProfile } from "../../lib/useProfile";
 import { useLLM } from "../../lib/useLLM";
 import {
+  generateMockSnapshot,
+  useBodySnapshot,
+} from "../../lib/useBodySnapshot";
+import {
   buildMealEstimatePrompt,
   parseMealEstimate,
 } from "../../lib/mealEstimate";
@@ -87,6 +91,8 @@ export function BodyOverlay({ onClose }: BodyOverlayProps) {
   const { items, add, remove } = useMeals();
   const { items: workouts } = useWorkouts();
   const { profile } = useProfile();
+  const { snapshot: bodySnap, save: saveSnap, clear: clearSnap } =
+    useBodySnapshot();
 
   const today = isoDateToday();
   const todayMeals = items.filter((m) => m.date === today);
@@ -155,41 +161,11 @@ export function BodyOverlay({ onClose }: BodyOverlayProps) {
         </div>
       </div>
       <div className="app-body">
-        {/* Wearable section: honest empty-state. Body battery, HRV,
-            sleep stages, VO2 max, HR zones, stress — none of those
-            are wired to a real source. Show what's missing instead
-            of inventing it. */}
-        <div
-          className="card"
-          style={{
-            marginBottom: 14,
-            padding: 16,
-            borderLeft: "3px solid var(--ink-3)",
-          }}
-        >
-          <Kicker>wearable signals · not connected</Kicker>
-          <div
-            style={{
-              fontFamily: "var(--serif)",
-              fontStyle: "italic",
-              fontSize: 15,
-              marginTop: 6,
-              lineHeight: 1.4,
-            }}
-          >
-            No watch is paired yet.
-          </div>
-          <div
-            className="margin-note"
-            style={{ marginTop: 6, fontSize: 12, lineHeight: 1.5 }}
-          >
-            "Body battery, HRV, sleep stages, VO₂ max, and HR zones
-            land here once a wearable (Apple Health, Garmin, Fitbit,
-            Health Connect) is connected. The integration isn't
-            built yet — until then this stays empty rather than
-            filling itself with sample numbers."
-          </div>
-        </div>
+        <WearableCard
+          snap={bodySnap}
+          onMock={() => void saveSnap(generateMockSnapshot(today))}
+          onClear={() => void clearSnap()}
+        />
 
         <div
           className="card"
@@ -431,6 +407,208 @@ export function BodyOverlay({ onClose }: BodyOverlayProps) {
           }}
         />
       )}
+    </div>
+  );
+}
+
+// ─── WearableCard ────────────────────────────────────────────────
+//
+// Renders the wearable section of BodyOverlay. Three states:
+//
+//   1. No snapshot yet → honest "not connected" copy + a dev-only
+//      "🧪 fill with mock data" button. The card explains that a
+//      real HealthKit / Health Connect bridge would replace this.
+//   2. Mock snapshot present → all the metrics render normally but
+//      a small "MOCK" tag and a "clear" affordance flag it so we
+//      don't confuse fake numbers for real ones.
+//   3. Real snapshot present (source !== "mock") → metrics render
+//      with the source attribution in the kicker line.
+
+interface WearableCardProps {
+  snap: ReturnType<typeof useBodySnapshot>["snapshot"];
+  onMock: () => void;
+  onClear: () => void;
+}
+
+function WearableCard({ snap, onMock, onClear }: WearableCardProps) {
+  if (!snap || (snap.hrvMs == null && snap.steps == null && snap.bodyBattery == null && snap.sleepMinutes == null && snap.restingHrBpm == null && snap.vo2Max == null)) {
+    return (
+      <div
+        className="card"
+        style={{
+          marginBottom: 14,
+          padding: 16,
+          borderLeft: "3px solid var(--ink-3)",
+        }}
+      >
+        <Kicker>wearable signals · not connected</Kicker>
+        <div
+          style={{
+            fontFamily: "var(--serif)",
+            fontStyle: "italic",
+            fontSize: 15,
+            marginTop: 6,
+            lineHeight: 1.4,
+          }}
+        >
+          No watch is paired yet.
+        </div>
+        <div
+          className="margin-note"
+          style={{ marginTop: 6, fontSize: 12, lineHeight: 1.5 }}
+        >
+          "Body battery, HRV, sleep stages, VO₂ max, and HR zones
+          land here once a wearable (Apple Health, Garmin, Fitbit,
+          Health Connect) is connected. The integration isn't built
+          yet — until then this stays empty rather than filling
+          itself with sample numbers."
+        </div>
+        <button
+          type="button"
+          onClick={onMock}
+          style={{
+            marginTop: 10,
+            padding: "6px 10px",
+            background: "transparent",
+            color: "var(--ink-3)",
+            border: "0.5px dashed var(--rule)",
+            borderRadius: 999,
+            fontFamily: "var(--mono)",
+            fontSize: 9,
+            letterSpacing: "0.14em",
+            textTransform: "uppercase",
+            cursor: "pointer",
+          }}
+        >
+          🧪 fill with mock data
+        </button>
+      </div>
+    );
+  }
+
+  const isMock = snap.source === "mock";
+  const sleepHours = snap.sleepMinutes != null ? (snap.sleepMinutes / 60).toFixed(1) : null;
+  return (
+    <div
+      className="card"
+      style={{
+        marginBottom: 14,
+        padding: 16,
+        borderLeft: `3px solid ${isMock ? "var(--ochre)" : "var(--sage)"}`,
+      }}
+    >
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "baseline",
+        }}
+      >
+        <Kicker>
+          wearable signals · {snap.source ?? "device"}
+          {isMock ? " · MOCK" : ""}
+        </Kicker>
+        {isMock && (
+          <button
+            type="button"
+            onClick={onClear}
+            style={{
+              background: "transparent",
+              border: "none",
+              fontFamily: "var(--mono)",
+              fontSize: 9,
+              letterSpacing: "0.12em",
+              color: "var(--ink-3)",
+              cursor: "pointer",
+            }}
+          >
+            ✕ CLEAR
+          </button>
+        )}
+      </div>
+      <div
+        style={{
+          marginTop: 10,
+          display: "grid",
+          gridTemplateColumns: "repeat(2, 1fr)",
+          gap: 10,
+        }}
+      >
+        {snap.bodyBattery != null && (
+          <Metric label="body battery" value={`${snap.bodyBattery}`} suffix="/100" />
+        )}
+        {snap.hrvMs != null && (
+          <Metric label="HRV (rmssd)" value={`${snap.hrvMs}`} suffix="ms" />
+        )}
+        {snap.restingHrBpm != null && (
+          <Metric label="resting HR" value={`${snap.restingHrBpm}`} suffix="bpm" />
+        )}
+        {snap.steps != null && (
+          <Metric label="steps" value={snap.steps.toLocaleString()} />
+        )}
+        {sleepHours != null && (
+          <Metric label="sleep" value={sleepHours} suffix="h" />
+        )}
+        {snap.vo2Max != null && (
+          <Metric label="VO₂ max" value={`${snap.vo2Max}`} />
+        )}
+        {snap.trainingLoad != null && (
+          <Metric label="training load" value={`${snap.trainingLoad}`} />
+        )}
+        {snap.stress != null && (
+          <Metric label="stress" value={`${snap.stress}`} suffix="/100" />
+        )}
+      </div>
+      {isMock && (
+        <div
+          className="margin-note"
+          style={{ marginTop: 10, fontSize: 11, fontStyle: "italic" }}
+        >
+          These are seeded test numbers. The real HealthKit /
+          Health Connect bridge will overwrite them once it's
+          wired.
+        </div>
+      )}
+    </div>
+  );
+}
+
+function Metric({
+  label,
+  value,
+  suffix,
+}: {
+  label: string;
+  value: string;
+  suffix?: string;
+}) {
+  return (
+    <div>
+      <div className="kicker">{label}</div>
+      <div
+        style={{
+          fontFamily: "var(--serif)",
+          fontStyle: "italic",
+          fontSize: 22,
+          color: "var(--ink)",
+          marginTop: 2,
+        }}
+      >
+        {value}
+        {suffix && (
+          <span
+            style={{
+              fontFamily: "var(--mono)",
+              fontSize: 11,
+              color: "var(--ink-3)",
+              marginLeft: 4,
+              fontStyle: "normal",
+            }}
+          >
+            {suffix}
+          </span>
+        )}
+      </div>
     </div>
   );
 }
