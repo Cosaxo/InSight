@@ -15,9 +15,46 @@
 // enable. Dev builds without the env var skip Sentry entirely
 // (sentryInit returns early), so local dev doesn't spam the
 // production project.
+//
+// User consent: even when a DSN is configured, we honour the local
+// `insight.telemetry.v1` flag. The default is "off" — telemetry
+// only starts after the user explicitly opts in from Profile.
 
 import * as Sentry from "@sentry/capacitor";
 import * as SentryReact from "@sentry/react";
+
+const TELEMETRY_KEY = "insight.telemetry.v1";
+
+export function telemetryEnabled(): boolean {
+  try {
+    return localStorage.getItem(TELEMETRY_KEY) === "true";
+  } catch {
+    return false;
+  }
+}
+
+export function setTelemetryEnabled(on: boolean): void {
+  try {
+    localStorage.setItem(TELEMETRY_KEY, on ? "true" : "false");
+  } catch {
+    // Best-effort; private mode blocks localStorage.
+  }
+  if (on) {
+    sentryInit();
+  } else {
+    // Already-initialised Sentry can't be cleanly torn down at runtime;
+    // the closest we can do is null the user and stop sending events
+    // via the global client. Future events from this session still
+    // go out — the toggle takes full effect on the next launch.
+    if (initialized) {
+      try {
+        Sentry.setUser(null);
+      } catch {
+        // ignore
+      }
+    }
+  }
+}
 
 let initialized = false;
 
@@ -25,6 +62,9 @@ export function sentryInit(): void {
   if (initialized) return;
   const dsn = import.meta.env.VITE_SENTRY_DSN;
   if (!dsn) return;
+  // Gate on user consent. The toggle in ProfileOverlay calls
+  // sentryInit() again after flipping the flag on.
+  if (!telemetryEnabled()) return;
   Sentry.init(
     {
       dsn,

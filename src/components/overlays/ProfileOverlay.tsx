@@ -19,7 +19,7 @@
 // to add a real editor + schema field per section.
 
 import { useEffect, useState } from "react";
-import { IS_DATA } from "../../data/seedData";
+import { IDEOLOGIES } from "../../data/politicsTaxonomy";
 import { useAuth } from "../../lib/useAuth";
 import { useMe } from "../../lib/useMe";
 import { useProfile, type ProfileExt } from "../../lib/useProfile";
@@ -37,6 +37,7 @@ import {
   gatherExport,
   readBackupFile,
 } from "../../lib/dataExport";
+import { setTelemetryEnabled, telemetryEnabled } from "../../lib/sentry";
 import type { Hero, Political } from "../../types";
 import { Av, Kicker } from "../shared/primitives";
 import { RadarChart } from "../shared/charts";
@@ -106,22 +107,14 @@ const MORAL_ROWS: [string, string, [string, string]][] = [
 
 const MORAL_KEYS = MORAL_ROWS.map((r) => r[0]);
 
-interface Ideology {
-  id: string;
-  name: string;
-  econ: number;
-  social: number;
-}
-
 // PoliticsCard reads a `politicalIdentity` { name, tag } pair off
 // `me`. We don't have a saved identity for the user — derive it by
 // snapping to the closest ideology on the seed compass. The tag is
 // left blank when we don't have copy for the synthesised identity;
 // PoliticsCard renders it as ' "" ' which is harmless.
 function deriveIdentity(political: Political): { name: string; tag: string } {
-  const ideologies = IS_DATA.ideologies as Ideology[];
   let best: { name: string; d: number } | null = null;
-  for (const io of ideologies) {
+  for (const io of IDEOLOGIES) {
     const dx = io.econ - political.econ;
     const dy = io.social - political.social;
     const d = Math.sqrt(dx * dx + dy * dy);
@@ -1135,9 +1128,174 @@ export function ProfileOverlay({ onClose, onOpenTest }: ProfileOverlayProps) {
         <BackupSection />
 
         <hr className="rule-dashed" />
+        <TelemetrySection />
+
+        <hr className="rule-dashed" />
+        <AccountSection />
+
+        <hr className="rule-dashed" />
         <DangerZone />
       </div>
     </div>
+  );
+}
+
+// ─── AccountSection — standalone sign-out (delete lives in DangerZone) ─
+//
+// Sign-out was previously only reachable through the delete-account
+// path inside DangerZone. Surface it as a plain action — far more
+// common, far less destructive.
+
+function AccountSection() {
+  const { user } = useAuth();
+  const [busy, setBusy] = useState(false);
+  if (!firebaseEnabled || !user) return null;
+
+  const handleSignOut = async () => {
+    if (busy) return;
+    if (!confirm("Sign out? Your data stays on this device.")) return;
+    setBusy(true);
+    try {
+      await googleSignOut();
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <>
+      <Kicker>account · this device</Kicker>
+      <div
+        style={{
+          marginTop: 8,
+          fontFamily: "var(--serif)",
+          fontStyle: "italic",
+          fontSize: 13,
+          lineHeight: 1.4,
+          color: "var(--ink-2)",
+        }}
+      >
+        Signed in as <span style={{ fontStyle: "normal" }}>{user.email ?? user.uid}</span>.
+      </div>
+      <button
+        type="button"
+        onClick={() => void handleSignOut()}
+        disabled={busy}
+        style={{
+          marginTop: 10,
+          padding: "10px 14px",
+          background: "transparent",
+          color: "var(--ink-1)",
+          border: "0.5px solid var(--ink-2)",
+          borderRadius: 999,
+          fontFamily: "var(--mono)",
+          fontSize: 11,
+          letterSpacing: "0.1em",
+          textTransform: "uppercase",
+          cursor: busy ? "default" : "pointer",
+        }}
+      >
+        {busy ? "signing out…" : "sign out"}
+      </button>
+    </>
+  );
+}
+
+// ─── TelemetrySection — opt-in toggle for Sentry crash + error reports ─
+//
+// Sentry is configured (VITE_SENTRY_DSN) but inert until the user
+// opts in. The flag lives in localStorage so it survives sign-outs
+// but never leaves the device. Flipping it on calls sentryInit()
+// which then attaches the global handlers; flipping it off clears
+// the user id but can't fully tear down the SDK at runtime — that
+// takes effect on the next launch.
+
+function TelemetrySection() {
+  const [enabled, setEnabled] = useState(() => telemetryEnabled());
+
+  const toggle = () => {
+    const next = !enabled;
+    setEnabled(next);
+    setTelemetryEnabled(next);
+  };
+
+  return (
+    <>
+      <Kicker>telemetry · opt-in only</Kicker>
+      <div
+        style={{
+          marginTop: 8,
+          fontFamily: "var(--serif)",
+          fontStyle: "italic",
+          fontSize: 13,
+          lineHeight: 1.4,
+          color: "var(--ink-2)",
+        }}
+      >
+        Crash and error reports help us find bugs we can't see. Off by
+        default — when on, only stack traces and an anonymous user id
+        leave the device (never your data).
+      </div>
+      <div
+        style={{
+          marginTop: 10,
+          display: "flex",
+          alignItems: "center",
+          gap: 12,
+        }}
+      >
+        <button
+          type="button"
+          onClick={toggle}
+          role="switch"
+          aria-checked={enabled}
+          aria-label="telemetry"
+          style={{
+            width: 44,
+            height: 24,
+            borderRadius: 999,
+            background: enabled ? "var(--ink-1)" : "var(--paper-2)",
+            border: "0.5px solid var(--ink-2)",
+            position: "relative",
+            cursor: "pointer",
+            padding: 0,
+            transition: "background 0.15s",
+          }}
+        >
+          <span
+            style={{
+              position: "absolute",
+              top: 2,
+              left: enabled ? 22 : 2,
+              width: 18,
+              height: 18,
+              borderRadius: "50%",
+              background: enabled ? "var(--paper)" : "var(--ink-2)",
+              transition: "left 0.15s",
+            }}
+          />
+        </button>
+        <span
+          style={{
+            fontFamily: "var(--mono)",
+            fontSize: 11,
+            letterSpacing: "0.1em",
+            textTransform: "uppercase",
+            color: "var(--ink-2)",
+          }}
+        >
+          {enabled ? "on" : "off"}
+        </span>
+      </div>
+      {enabled && (
+        <div
+          className="margin-note"
+          style={{ marginTop: 8, fontSize: 11, fontStyle: "italic" }}
+        >
+          Turning off later stops new reports on the next app launch.
+        </div>
+      )}
+    </>
   );
 }
 

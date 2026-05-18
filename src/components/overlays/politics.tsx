@@ -1,4 +1,8 @@
-import { IS_DATA } from "../../data/seedData";
+import {
+  IDEOLOGIES,
+  IDEOLOGY_MARKS,
+  POLITICAL_AXES,
+} from "../../data/politicsTaxonomy";
 import { Kicker } from "../shared/primitives";
 import { Compass2D, RadarChart } from "../shared/charts";
 
@@ -8,24 +12,6 @@ interface MePolitics {
   politicalSub: Record<string, Record<string, number | string>>;
   morals: Record<string, number>;
   moralLabel: string;
-}
-
-interface Ideology {
-  id: string;
-  name: string;
-  econ: number;
-  social: number;
-}
-
-interface PoliticalAxis {
-  id: string;
-  label: string;
-}
-
-interface IdeologyMark {
-  name: string;
-  econ: number;
-  social: number;
 }
 
 const SUB_LABELS: Record<string, [string, string, string][]> = {
@@ -62,10 +48,8 @@ const SUB_LABELS: Record<string, [string, string, string][]> = {
 };
 
 export function PoliticsCard({ me }: { me: MePolitics }) {
-  const D = IS_DATA;
   const id = me.politicalIdentity;
-  const ideologies: Ideology[] = D.ideologies;
-  const ranked = ideologies
+  const ranked = IDEOLOGIES
     .map((io) => {
       const dx = io.econ - me.political.econ;
       const dy = io.social - me.political.social;
@@ -203,14 +187,11 @@ export function PoliticsCard({ me }: { me: MePolitics }) {
 }
 
 export function PoliticsCompass({ me }: { me: MePolitics }) {
-  const D = IS_DATA;
-  const axes: PoliticalAxis[] = D.politicalAxes;
-  const youVals = axes.map((a) => (me.political[a.id] + 100) / 2);
+  const youVals = POLITICAL_AXES.map((a) => (me.political[a.id] + 100) / 2);
   // The seed `avgCircle` overlay used to draw a fake "your circle"
   // comparison line — same fake aggregate as the population widgets
-  // we removed. Drop it until real circle aggregation lands.
-  const ideologies: Ideology[] = D.ideologies;
-  const ideologyMarks: IdeologyMark[] = D.ideologyMarks;
+  // we removed. Dropped permanently when politics taxonomy moved
+  // out of seedData; the fields no longer exist on the new module.
 
   return (
     <div className="card" style={{ marginBottom: 14 }}>
@@ -226,7 +207,7 @@ export function PoliticsCompass({ me }: { me: MePolitics }) {
       <div style={{ marginTop: 6 }}>
         <RadarChart
           values={youVals}
-          labels={axes.map((a) => a.label)}
+          labels={POLITICAL_AXES.map((a) => a.label)}
           color="var(--accent)"
           size={260}
         />
@@ -276,13 +257,13 @@ export function PoliticsCompass({ me }: { me: MePolitics }) {
           size={260}
           accent="var(--accent)"
           comparePoints={[
-            ...ideologies.map((io) => ({
+            ...IDEOLOGIES.map((io) => ({
               x: io.econ * 1.5,
               y: -io.social * 1.5,
               label: io.name,
               color: "oklch(0.55 0.10 250)",
             })),
-            ...ideologyMarks.map((m) => ({
+            ...IDEOLOGY_MARKS.map((m) => ({
               x: m.econ * 1.5,
               y: -m.social * 1.5,
               label: m.name,
@@ -296,9 +277,7 @@ export function PoliticsCompass({ me }: { me: MePolitics }) {
 }
 
 export function PoliticsSubIssues({ me }: { me: MePolitics }) {
-  const D = IS_DATA;
   const sub = me.politicalSub;
-  const axes: PoliticalAxis[] = D.politicalAxes;
   const norm = (k: number | string | undefined): number => {
     const v = typeof k === "number" ? k : 0;
     return (v + 100) / 2;
@@ -315,7 +294,7 @@ export function PoliticsSubIssues({ me }: { me: MePolitics }) {
       <div
         style={{ display: "flex", flexDirection: "column", gap: 14 }}
       >
-        {axes.map((ax) => {
+        {POLITICAL_AXES.map((ax) => {
           const cells = SUB_LABELS[ax.id] || [];
           return (
             <div key={ax.id}>

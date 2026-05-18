@@ -10,11 +10,20 @@
 //   cityScoreCats  — fixed taxonomy of 8 city-rating dimensions.
 //   cities         — curated editorial enrichment merged into useNearbyCities by name.
 //   interestCats   — fixed taxonomy of interest categories (glyph + hue per category).
-//   ideologies     — fixed taxonomy of political ideologies (econ/social coords).
-//   ideologyMarks  — canonical thinker positions overlaid on the politics compass.
-//   politicalAxes  — fixed taxonomy of the 6 political axis labels.
 //   skillCats      — fixed taxonomy of skill categories.
 //   groupTest      — fixed groups-tab questionnaire (the questions and options).
+//
+// Politics taxonomy (ideologies, ideologyMarks, politicalAxes) was lifted
+// into `politicsTaxonomy.ts` so politics.tsx can import a typed module
+// instead of pulling from this `any`-typed blob. We re-spread them here
+// so any legacy `IS_DATA.ideologies` read still resolves while consumers
+// migrate.
+
+import {
+  IDEOLOGIES,
+  IDEOLOGY_MARKS,
+  POLITICAL_AXES,
+} from "./politicsTaxonomy";
 
 /* eslint-disable */
 export const IS_DATA: any = {
@@ -110,39 +119,16 @@ export const IS_DATA: any = {
     { id: "faith",     label: "Faith",      hue: 285, glyph: "✟" },
   ],
 
-  // Named ideologies — placed on the 2D econ × social compass for landmarks
-  // econ: -100 (state) .. +100 (market) ; social: -100 (liberty) .. +100 (authority)
-  ideologies: [
-    { id: 'soc-dem',     name: 'Social Democrat',         econ: -34, social: -10 },
-    { id: 'green-left',  name: 'Green-Left',              econ: -50, social: -45 },
-    { id: 'liberal',     name: 'Liberal',                 econ:  10, social: -34 },
-    { id: 'libertarian', name: 'Libertarian',             econ:  72, social: -68 },
-    { id: 'conservat',   name: 'Conservative',            econ:  40, social:  46 },
-    { id: 'communit',    name: 'Communitarian',           econ: -28, social:  44 },
-    { id: 'anarcho',     name: 'Anarchist',               econ: -78, social: -78 },
-    { id: 'tech-prog',   name: 'Technoprogressive',       econ:  18, social: -22 },
-  ],
-
-  // Named thinkers — small marks on the compass for orientation
-  ideologyMarks: [
-    { name: 'Mill',     econ:  20, social: -55 },
-    { name: 'Marx',     econ: -82, social:  -8 },
-    { name: 'Rand',     econ:  84, social: -76 },
-    { name: 'Hobbes',   econ:  10, social:  78 },
-    { name: 'Solnit',   econ: -56, social: -52 },
-    { name: 'Rawls',    econ: -28, social: -18 },
-  ],
-
-  // The 6 axes of the political compass — labels and the people-aggregate average
-  // for each axis (used to draw a translucent comparison ring on the radar).
-  politicalAxes: [
-    { id: 'econ',    label: 'economic',    poles: ['state','market'],            avgCircle: -8,  avgWorld: 22 },
-    { id: 'social',  label: 'social',      poles: ['liberty','authority'],       avgCircle: -12, avgWorld: 8  },
-    { id: 'foreign', label: 'foreign',     poles: ['cooperative','sovereign'],   avgCircle: -8,  avgWorld: 14 },
-    { id: 'env',     label: 'environment', poles: ['extractive','protective'],   avgCircle: 28,  avgWorld: 6  },
-    { id: 'tech',    label: 'technology',  poles: ['precaution','acceleration'], avgCircle: 6,   avgWorld: 18 },
-    { id: 'auth',    label: 'authority',   poles: ['horizontal','hierarchical'], avgCircle: -10, avgWorld: 12 },
-  ],
+  // Politics reference data — defined in `politicsTaxonomy.ts`. We
+  // re-spread the same arrays here so legacy IS_DATA.ideologies /
+  // IS_DATA.ideologyMarks / IS_DATA.politicalAxes lookups keep
+  // working. The earlier inline objects also carried `avgCircle` and
+  // `avgWorld` fields — fake "your circle" / "global average"
+  // aggregates that no callsite reads any more, so we don't carry
+  // them across.
+  ideologies: IDEOLOGIES,
+  ideologyMarks: IDEOLOGY_MARKS,
+  politicalAxes: POLITICAL_AXES,
 
   // Skill categories
   skillCats: [
