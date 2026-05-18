@@ -21,6 +21,7 @@ import {
   upsertDiscoverable,
 } from "./firebase";
 import { useAuth } from "./useAuth";
+import { useProfile } from "./useProfile";
 import type { GeoPosition } from "./useGeolocation";
 
 const PREF_KEY = "insight.discoverable.v1";
@@ -53,24 +54,37 @@ export function useDiscoverableLocation(position: GeoPosition | null): {
   error: string | null;
 } {
   const { user } = useAuth();
+  const { profile } = useProfile();
   const [enabled, setEnabledState] = useState<boolean>(() => readPref());
   const [lastSyncedAt, setLastSyncedAt] = useState<number | null>(null);
   const [lastFuzzed, setLastFuzzed] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  // Only share personality if the user has actually taken the Big
+  // Five test (5-element vector). This is what the read-side uses
+  // to compute match% — sharing nothing keeps match as "—".
+  const personality =
+    Array.isArray(profile.personality) && profile.personality.length === 5
+      ? profile.personality
+      : undefined;
+  // Stable key so the upsert re-runs when the vector changes,
+  // without firing on unrelated profile updates.
+  const personalityKey = personality ? personality.join(",") : "none";
 
   // Side effect: when (signed in + opted in + have position), upsert.
   useEffect(() => {
     if (!firebaseEnabled || !user || !enabled || !position) return;
     const lat = fuzz(position.latitude);
     const lng = fuzz(position.longitude);
-    const key = `${lat},${lng}`;
-    if (key === lastFuzzed) return; // unchanged fuzzed location, skip
+    const key = `${lat},${lng}|${personalityKey}`;
+    if (key === lastFuzzed) return; // unchanged inputs, skip
     void (async () => {
       try {
         await upsertDiscoverable(user.uid, {
           latitude: lat,
           longitude: lng,
           geohash: geohashForLocation([lat, lng]),
+          personality,
         });
         setLastFuzzed(key);
         setLastSyncedAt(Date.now());
@@ -80,7 +94,7 @@ export function useDiscoverableLocation(position: GeoPosition | null): {
         setError(msg);
       }
     })();
-  }, [user, enabled, position, lastFuzzed]);
+  }, [user, enabled, position, lastFuzzed, personality, personalityKey]);
 
   const setEnabled = useCallback(
     async (v: boolean) => {

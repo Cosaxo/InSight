@@ -197,7 +197,9 @@ function toOverlayPerson(p: AnyPerson): PersonForOverlay {
     init: p.init,
     hue: p.hue,
     name: p.name,
-    match: p.match,
+    // PersonOverlay expects a numeric match; coalesce the "unknown"
+    // case to 50 (neutral) so the overlay's existing rendering works.
+    match: p.match ?? 50,
     role: "role" in p ? p.role : undefined,
     rel: "rel" in p ? (p as CirclePerson).rel : undefined,
     dist: "dist" in p ? (p as NearbyPerson).dist : undefined,

@@ -26,6 +26,7 @@ import type {
   Milestone,
   MoodEntry,
   Person,
+  RemoteBodySnapshot,
   RemoteDailyReport,
   Specimen,
   TimeBlock,
@@ -662,6 +663,34 @@ export async function deleteDailyReport(
   return m.deleteDailyReport(uid, date);
 }
 
+// ── Body / wearable snapshots ────────────────────────────────────
+
+export function subscribeBodySnapshot(
+  uid: string,
+  date: string,
+  cb: (snap: RemoteBodySnapshot | null) => void,
+): () => void {
+  let cancelled = false;
+  let unsub: (() => void) | null = null;
+  impl().then((m) => {
+    if (cancelled) return;
+    unsub = m.subscribeBodySnapshot(uid, date, cb);
+  });
+  return () => {
+    cancelled = true;
+    unsub?.();
+  };
+}
+
+export async function upsertBodySnapshot(
+  uid: string,
+  date: string,
+  snap: RemoteBodySnapshot,
+): Promise<void> {
+  const m = await impl();
+  return m.upsertBodySnapshot(uid, date, snap);
+}
+
 export async function migrateLegacyDailyReport(uid: string): Promise<boolean> {
   const m = await impl();
   return m.migrateLegacyDailyReport(uid);
@@ -726,6 +755,7 @@ export async function upsertDiscoverable(
     geohash: string;
     displayName?: string;
     photoColor?: string;
+    personality?: number[];
   },
 ): Promise<void> {
   const m = await impl();

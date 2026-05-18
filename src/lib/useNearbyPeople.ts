@@ -12,6 +12,7 @@ import {
   firebaseEnabled,
 } from "./firebase";
 import { useAuth } from "./useAuth";
+import { useProfile, big5Match } from "./useProfile";
 import { IS_DATA } from "../data/seedData";
 import type { NearbyPerson } from "../components/tabs/AroundTab";
 
@@ -68,10 +69,20 @@ export function useNearbyPeople(
   refresh: () => Promise<void>;
 } {
   const { user } = useAuth();
+  const { profile } = useProfile();
   const [people, setPeople] = useState<NearbyPerson[]>(SEED_NEARBY);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [source, setSource] = useState<"firestore" | "seed">("seed");
+
+  // The viewer's Big Five vector — used as one half of the cosine
+  // similarity. When missing, every discovered user gets match=null
+  // and PersonRow renders "—".
+  const ownPersonality =
+    Array.isArray(profile.personality) && profile.personality.length === 5
+      ? profile.personality
+      : undefined;
+  const ownKey = ownPersonality ? ownPersonality.join(",") : "none";
 
   const fetchOnce = useCallback(async () => {
     if (!firebaseEnabled || !position) {
@@ -92,10 +103,11 @@ export function useNearbyPeople(
         setSource("seed");
         return;
       }
-      // Map RemoteDiscoverable → NearbyPerson. We don't yet have a
-      // profile pipeline for nearby users (Big Five etc.), so fill
-      // those fields with placeholders. Match% is also a placeholder;
-      // a future step will compute it from profile vectors.
+      // Map RemoteDiscoverable → NearbyPerson. We don't yet store
+      // age / role / interests publicly so those stay empty until a
+      // public-profile pipeline lands. Match% is real now though:
+      // big5Match() returns null when either side hasn't taken the
+      // test, which PersonRow renders as "—".
       const mapped: NearbyPerson[] = remote.map((r) => {
         const chrome = chromeFor(r.uid, r.displayName);
         return {
@@ -104,13 +116,20 @@ export function useNearbyPeople(
           init: chrome.init,
           age: 0,
           dist: formatDistance(r.distanceKm),
-          match: 50,
+          match: big5Match(ownPersonality, r.personality),
           hue: chrome.hue,
           role: "",
           interests: [],
           values: "",
           note: "",
         };
+      });
+      // Sort by match desc when known, distance asc as tiebreaker.
+      mapped.sort((a, b) => {
+        const am = a.match ?? -1;
+        const bm = b.match ?? -1;
+        if (am !== bm) return bm - am;
+        return 0;
       });
       setPeople(mapped);
       setSource("firestore");
@@ -122,7 +141,10 @@ export function useNearbyPeople(
     } finally {
       setLoading(false);
     }
-  }, [position, maxRadiusKm, user]);
+    // ownPersonality is captured by value; we depend on ownKey for
+    // the change signal so the closure sees the latest vector.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [position, maxRadiusKm, user, ownKey]);
 
   useEffect(() => {
     void fetchOnce();

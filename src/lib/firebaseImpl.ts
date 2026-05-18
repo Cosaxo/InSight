@@ -73,6 +73,7 @@ import type {
   MoodEntry,
   Person,
   Political,
+  RemoteBodySnapshot,
   RemoteDailyReport,
   Specimen,
   TimeBlock,
@@ -775,6 +776,43 @@ export async function deleteTransaction(
 // own updatedAt timestamp, and deletes the legacy doc. Idempotent —
 // safe to call on every mount.
 
+// Wearable snapshots — one doc per day at
+// insight_users/{uid}/insight_body/{YYYY-MM-DD}. Written either by
+// the native wearable bridge (HealthKit / Health Connect, not yet
+// built) or by the dev "mock data" toggle in BodyOverlay. The
+// RemoteBodySnapshot shape lives in src/types so firebase.ts can
+// re-export it without circular imports.
+
+export function subscribeBodySnapshot(
+  uid: string,
+  date: string,
+  cb: (snap: RemoteBodySnapshot | null) => void,
+): () => void {
+  return onSnapshot(
+    subDocRef(uid, "insight_body", date),
+    (snap) => {
+      if (!snap.exists()) {
+        cb(null);
+        return;
+      }
+      cb(snap.data() as RemoteBodySnapshot);
+    },
+    (err) => console.error("[firebaseImpl] bodySnapshot:", err),
+  );
+}
+
+export async function upsertBodySnapshot(
+  uid: string,
+  date: string,
+  snap: RemoteBodySnapshot,
+): Promise<void> {
+  await setDoc(
+    subDocRef(uid, "insight_body", date),
+    { ...snap, date, updatedAt: serverTimestamp() },
+    { merge: true },
+  );
+}
+
 export function subscribeDailyReport(
   uid: string,
   date: string,
@@ -1087,6 +1125,11 @@ export interface RemoteDiscoverable {
   geohash: string;
   distanceKm: number;
   lastSeen?: number; // ms since epoch
+  // Big Five personality vector — present only if the user has
+  // taken the test AND has opted into discovery (the upsert pulls
+  // it from their profile). Used by useNearbyPeople to compute a
+  // real match% via cosine similarity instead of the placeholder.
+  personality?: number[];
 }
 
 // Read the `location` map regardless of which Firestore representation
@@ -1243,11 +1286,19 @@ export async function findNearbyDiscoverable(
           photoColor?: string;
           location?: unknown;
           lastSeen?: number;
+          personality?: unknown;
         };
         const loc = readLocation(data.location);
         if (!loc) continue;
         const dKm = distanceBetween([loc.latitude, loc.longitude], centerArr);
         if (dKm > r) continue;
+        const personalityRaw = (data as { personality?: unknown }).personality;
+        const personality =
+          Array.isArray(personalityRaw) &&
+          personalityRaw.length === 5 &&
+          personalityRaw.every((n) => typeof n === "number")
+            ? (personalityRaw as number[])
+            : undefined;
         seen.set(d.id, {
           uid: d.id,
           displayName: data.displayName,
@@ -1257,6 +1308,7 @@ export async function findNearbyDiscoverable(
           geohash: loc.geohash,
           distanceKm: dKm,
           lastSeen: data.lastSeen,
+          personality,
         });
       }
     }
@@ -1279,6 +1331,11 @@ export async function upsertDiscoverable(
     geohash: string;
     displayName?: string;
     photoColor?: string;
+    // Big Five vector — included only when the caller wants the
+    // user to be matchable. Stored as `null` when absent so the
+    // merge clears a previously-written value if the user removes
+    // their personality test.
+    personality?: number[];
   },
 ): Promise<void> {
   await setDoc(
@@ -1291,6 +1348,10 @@ export async function upsertDiscoverable(
         geopoint: new GeoPoint(data.latitude, data.longitude),
       },
       lastSeen: serverTimestamp(),
+      personality:
+        data.personality && data.personality.length === 5
+          ? data.personality
+          : null,
     },
     { merge: true },
   );

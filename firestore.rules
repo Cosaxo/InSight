@@ -217,7 +217,9 @@ service cloud.firestore {
       // { geohash: string, geopoint: GeoPoint }. We allow either
       // displayName / photoColor to be a string or explicit null
       // (the impl writes null when the optional value is missing
-      // rather than omitting the key).
+      // rather than omitting the key). `personality` is the user's
+      // Big Five vector (5 numbers, 0..100) used by useNearbyPeople
+      // to compute match%; null clears a previously-set vector.
       return
         d.location.geohash is string
         && d.location.geohash.size() > 0
@@ -232,6 +234,10 @@ service cloud.firestore {
         && (
           !('photoColor' in d) || d.photoColor == null
           || (d.photoColor is string && d.photoColor.size() <= 32)
+        )
+        && (
+          !('personality' in d) || d.personality == null
+          || (d.personality is list && d.personality.size() == 5)
         );
     }
 
