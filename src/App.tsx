@@ -56,6 +56,9 @@ import {
 } from "./components/shared/TweaksPanel";
 import type { PersonForOverlay } from "./components/overlays/PersonOverlay";
 import { useDailyReport } from "./lib/useDailyReport";
+import { useProfile } from "./lib/useProfile";
+import { WelcomeFlow } from "./components/overlays/WelcomeFlow";
+import { isOnboarded, type WelcomeHint } from "./lib/onboarding";
 
 // Overlays are off the critical path — none of them render on first paint.
 // Lazy-load each into its own chunk so the initial JS stays small.
@@ -421,6 +424,26 @@ function AppShell() {
     t.density || "regular"
   }`;
 
+  // First-launch onboarding. Shown when the local "onboarded" flag
+  // isn't set AND the profile is empty enough to look new (no birth
+  // year + no weight). The second clause keeps existing users from
+  // seeing it after a clean reinstall when their Firestore profile
+  // syncs back. The hint returned from WelcomeFlow decides which
+  // surface to open after the user finishes.
+  const { profile } = useProfile();
+  const profileLooksNew = !profile.birthYear && !profile.weightKg;
+  const [showWelcome, setShowWelcome] = useState(
+    () => !isOnboarded() && profileLooksNew,
+  );
+  const handleWelcomeDone = (hint: WelcomeHint) => {
+    setShowWelcome(false);
+    if (hint === "daily") setShowDaily(true);
+    else if (hint === "test") {
+      setTestInitialKind("big5");
+      setShowTest(true);
+    } else if (hint === "around") setTab("around");
+  };
+
   const { report: myDaily } = useDailyReport();
   // PeopleTab's DailyReport shape requires `personId` (it's a per-person
   // feed); adapt our own daily report to fit. The auto-stats fields it
@@ -621,6 +644,7 @@ function AppShell() {
               onClose={() => setPerson(null)}
             />
           )}
+          {showWelcome && <WelcomeFlow onComplete={handleWelcomeDone} />}
           {showProfile && (
             <ProfileOverlay
               onClose={() => setShowProfile(false)}
