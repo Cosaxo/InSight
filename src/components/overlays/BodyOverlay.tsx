@@ -30,6 +30,11 @@ import { Donut, HBars } from "../shared/charts";
 import { useMeals, isoDateToday } from "../../lib/useMeals";
 import { useWorkouts } from "../../lib/useWorkouts";
 import { useProfile } from "../../lib/useProfile";
+import { useLLM } from "../../lib/useLLM";
+import {
+  buildMealEstimatePrompt,
+  parseMealEstimate,
+} from "../../lib/mealEstimate";
 import {
   estimateEnergy,
   macroEnergyPct,
@@ -526,6 +531,16 @@ function AddMealFlow({ onClose, onSave }: AddMealFlowProps) {
   const [protein, setProtein] = useState("");
   const [fat, setFat] = useState("");
   const [saving, setSaving] = useState(false);
+  const [estimating, setEstimating] = useState(false);
+  const [estimateError, setEstimateError] = useState<string | null>(null);
+  const {
+    available: llmAvailable,
+    ready: llmReady,
+    downloading: llmDownloading,
+    downloadPct: llmDownloadPct,
+    ensure: ensureLLM,
+    generate: llmGenerate,
+  } = useLLM();
 
   const parseNum = (s: string): number => {
     const n = Number(s.trim());
@@ -533,6 +548,35 @@ function AddMealFlow({ onClose, onSave }: AddMealFlowProps) {
   };
 
   const canSave = name.trim().length > 0 && parseNum(kcal) > 0;
+  const canEstimate = name.trim().length >= 3 && !estimating && !llmDownloading;
+
+  // Ask Gemma for a kcal/macro estimate from the meal description.
+  // Only fills fields the user hasn't already typed into — manual
+  // edits always win.
+  const runEstimate = async () => {
+    if (!canEstimate) return;
+    setEstimateError(null);
+    setEstimating(true);
+    try {
+      if (!llmReady) await ensureLLM();
+      const prompt = buildMealEstimatePrompt(name);
+      const raw = await llmGenerate(prompt);
+      const est = parseMealEstimate(raw);
+      if (est.kcal == null && est.carbs == null && est.protein == null && est.fat == null) {
+        setEstimateError("Couldn't read the estimate. Try a more specific description.");
+        return;
+      }
+      if (est.kcal != null && kcal.trim() === "") setKcal(String(est.kcal));
+      if (est.carbs != null && carbs.trim() === "") setCarbs(String(est.carbs));
+      if (est.protein != null && protein.trim() === "") setProtein(String(est.protein));
+      if (est.fat != null && fat.trim() === "") setFat(String(est.fat));
+    } catch (err) {
+      console.error("[AddMealFlow] estimate failed:", err);
+      setEstimateError("Estimate failed. The numbers are still yours to type.");
+    } finally {
+      setEstimating(false);
+    }
+  };
 
   const submit = async () => {
     if (!canSave || saving) return;
@@ -619,6 +663,59 @@ function AddMealFlow({ onClose, onSave }: AddMealFlowProps) {
               fontSize: 15,
             }}
           />
+
+          {/* AI estimate affordance — only shown in-app where the
+              on-device Gemma actually runs. Fills empty number
+              fields; never overwrites manual edits. */}
+          {llmAvailable && (
+            <div style={{ marginTop: 10 }}>
+              <button
+                type="button"
+                onClick={() => void runEstimate()}
+                disabled={!canEstimate}
+                style={{
+                  padding: "8px 12px",
+                  background: canEstimate ? "var(--paper-2)" : "var(--paper-3)",
+                  border: "0.5px solid var(--rule)",
+                  borderRadius: 999,
+                  fontFamily: "var(--mono)",
+                  fontSize: 10,
+                  letterSpacing: "0.12em",
+                  color: canEstimate ? "var(--ink)" : "var(--ink-3)",
+                  cursor: canEstimate ? "pointer" : "default",
+                }}
+              >
+                {estimating
+                  ? "ESTIMATING…"
+                  : llmDownloading
+                    ? `DOWNLOADING AI · ${llmDownloadPct}%`
+                    : llmReady
+                      ? "✨ ESTIMATE WITH AI"
+                      : "✨ ESTIMATE · DOWNLOADS ~2 GB"}
+              </button>
+              {estimateError && (
+                <div
+                  className="margin-note"
+                  style={{
+                    marginTop: 6,
+                    fontSize: 11,
+                    color: "oklch(0.55 0.16 12)",
+                  }}
+                >
+                  {estimateError}
+                </div>
+              )}
+              {!estimateError && (
+                <div
+                  className="margin-note"
+                  style={{ marginTop: 6, fontSize: 11, fontStyle: "italic" }}
+                >
+                  Runs entirely on this device. Fills empty fields only —
+                  your edits stay.
+                </div>
+              )}
+            </div>
+          )}
 
           <div style={{ marginTop: 14 }}>
             <Kicker>calories</Kicker>
