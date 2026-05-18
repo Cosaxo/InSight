@@ -1,0 +1,37 @@
+{
+  "name": "insight-llm",
+  "version": "0.1.0",
+  "description": "On-device multimodal LLM (Gemma 3n via MediaPipe) for InSight — text + image input.",
+  "main": "dist/plugin.cjs.js",
+  "module": "dist/esm/index.js",
+  "types": "dist/esm/index.d.ts",
+  "private": true,
+  "files": [
+    "android/src/main/",
+    "android/build.gradle",
+    "dist/",
+    "ios/Sources/",
+    "ios/Tests/",
+    "Package.swift",
+    "InsightLlm.podspec"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "clean": "rimraf ./dist"
+  },
+  "peerDependencies": {
+    "@capacitor/core": "^8.0.0"
+  },
+  "devDependencies": {
+    "@capacitor/core": "^8.0.0",
+    "typescript": "^5.0.0"
+  },
+  "capacitor": {
+    "ios": {
+      "src": "ios"
+    },
+    "android": {
+      "src": "android"
+    }
+  }
+}

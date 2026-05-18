@@ -38,6 +38,30 @@ export function buildMealEstimatePrompt(description: string): string {
   ].join("\n");
 }
 
+// Vision variant — the image is attached separately via the plugin's
+// imageBase64 parameter; this is the text prompt that goes with it.
+// We also accept an optional user-typed description to anchor the
+// estimate ("two eggs and toast — pictured") since Gemma 3n's vision
+// encoder is good at object recognition but rough at portion sizing.
+export function buildMealVisionPrompt(description?: string): string {
+  const lines = [
+    "You are a nutrition estimator. Look at the photo of food and estimate per-serving calories and macronutrients. Be realistic — favour typical home-portion sizes. If the photo is ambiguous, prefer a conservative average.",
+    "",
+    "Respond with EXACTLY four lines in this format, integers only, no units, no extra text:",
+    "kcal: <number>",
+    "carbs: <number>",
+    "protein: <number>",
+    "fat: <number>",
+    "",
+  ];
+  if (description && description.trim().length > 0) {
+    lines.push(`User context: ${description.trim()}`);
+    lines.push("");
+  }
+  lines.push("Response:");
+  return lines.join("\n");
+}
+
 export function parseMealEstimate(raw: string): MealEstimate {
   const out: MealEstimate = { kcal: null, carbs: null, protein: null, fat: null };
   // Tolerant regex: optional bullet/dash, the key, separator, then

@@ -37,8 +37,10 @@ import {
 } from "../../lib/useBodySnapshot";
 import {
   buildMealEstimatePrompt,
+  buildMealVisionPrompt,
   parseMealEstimate,
 } from "../../lib/mealEstimate";
+import { takeMealPhoto } from "../../lib/photoToBase64";
 import {
   estimateEnergy,
   macroEnergyPct,
@@ -711,9 +713,15 @@ function AddMealFlow({ onClose, onSave }: AddMealFlowProps) {
   const [saving, setSaving] = useState(false);
   const [estimating, setEstimating] = useState(false);
   const [estimateError, setEstimateError] = useState<string | null>(null);
+  // When set, the user has captured a meal photo and the next
+  // estimate run will use the vision path (Gemma 3n multimodal)
+  // instead of the text-only path.
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+  const [photoBase64, setPhotoBase64] = useState<string | null>(null);
   const {
     available: llmAvailable,
     ready: llmReady,
+    visionAvailable,
     downloading: llmDownloading,
     downloadPct: llmDownloadPct,
     ensure: ensureLLM,
@@ -726,9 +734,18 @@ function AddMealFlow({ onClose, onSave }: AddMealFlowProps) {
   };
 
   const canSave = name.trim().length > 0 && parseNum(kcal) > 0;
-  const canEstimate = name.trim().length >= 3 && !estimating && !llmDownloading;
+  // Either a typed name (≥3 chars) OR a captured photo is enough
+  // input. Photo carries the full description; the typed name acts
+  // as anchor context.
+  const canEstimate =
+    (name.trim().length >= 3 || photoBase64 != null) &&
+    !estimating &&
+    !llmDownloading;
 
-  // Ask Gemma for a kcal/macro estimate from the meal description.
+  // Ask Gemma for a kcal/macro estimate. When a photo is present
+  // and the model is vision-capable, use the multimodal path; the
+  // typed `name` is folded into the prompt as anchor context. When
+  // there's no photo, fall back to the text-only path.
   // Only fills fields the user hasn't already typed into — manual
   // edits always win.
   const runEstimate = async () => {
@@ -737,11 +754,14 @@ function AddMealFlow({ onClose, onSave }: AddMealFlowProps) {
     setEstimating(true);
     try {
       if (!llmReady) await ensureLLM();
-      const prompt = buildMealEstimatePrompt(name);
-      const raw = await llmGenerate(prompt);
+      const useVision = photoBase64 != null && visionAvailable;
+      const prompt = useVision
+        ? buildMealVisionPrompt(name)
+        : buildMealEstimatePrompt(name);
+      const raw = await llmGenerate(prompt, useVision ? photoBase64 : undefined);
       const est = parseMealEstimate(raw);
       if (est.kcal == null && est.carbs == null && est.protein == null && est.fat == null) {
-        setEstimateError("Couldn't read the estimate. Try a more specific description.");
+        setEstimateError("Couldn't read the estimate. Try a more specific description or a clearer photo.");
         return;
       }
       if (est.kcal != null && kcal.trim() === "") setKcal(String(est.kcal));
@@ -754,6 +774,27 @@ function AddMealFlow({ onClose, onSave }: AddMealFlowProps) {
     } finally {
       setEstimating(false);
     }
+  };
+
+  // Capture a meal photo with the native camera. Stored as base64
+  // for the LLM + a previewUrl for the inline thumbnail. The user
+  // can re-take or remove via the controls next to the preview.
+  const capturePhoto = async () => {
+    setEstimateError(null);
+    try {
+      const photo = await takeMealPhoto();
+      if (!photo) return;
+      setPhotoBase64(photo.base64);
+      setPhotoPreview(photo.previewUrl);
+    } catch (err) {
+      console.error("[AddMealFlow] capture failed:", err);
+      setEstimateError("Couldn't open the camera. You can still type a description.");
+    }
+  };
+
+  const clearPhoto = () => {
+    setPhotoBase64(null);
+    setPhotoPreview(null);
   };
 
   const submit = async () => {
@@ -847,30 +888,93 @@ function AddMealFlow({ onClose, onSave }: AddMealFlowProps) {
               fields; never overwrites manual edits. */}
           {llmAvailable && (
             <div style={{ marginTop: 10 }}>
-              <button
-                type="button"
-                onClick={() => void runEstimate()}
-                disabled={!canEstimate}
-                style={{
-                  padding: "8px 12px",
-                  background: canEstimate ? "var(--paper-2)" : "var(--paper-3)",
-                  border: "0.5px solid var(--rule)",
-                  borderRadius: 999,
-                  fontFamily: "var(--mono)",
-                  fontSize: 10,
-                  letterSpacing: "0.12em",
-                  color: canEstimate ? "var(--ink)" : "var(--ink-3)",
-                  cursor: canEstimate ? "pointer" : "default",
-                }}
-              >
-                {estimating
-                  ? "ESTIMATING…"
-                  : llmDownloading
-                    ? `DOWNLOADING AI · ${llmDownloadPct}%`
-                    : llmReady
-                      ? "✨ ESTIMATE WITH AI"
-                      : "✨ ESTIMATE · DOWNLOADS ~2 GB"}
-              </button>
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                <button
+                  type="button"
+                  onClick={() => void runEstimate()}
+                  disabled={!canEstimate}
+                  style={{
+                    padding: "8px 12px",
+                    background: canEstimate ? "var(--paper-2)" : "var(--paper-3)",
+                    border: "0.5px solid var(--rule)",
+                    borderRadius: 999,
+                    fontFamily: "var(--mono)",
+                    fontSize: 10,
+                    letterSpacing: "0.12em",
+                    color: canEstimate ? "var(--ink)" : "var(--ink-3)",
+                    cursor: canEstimate ? "pointer" : "default",
+                  }}
+                >
+                  {estimating
+                    ? "ESTIMATING…"
+                    : llmDownloading
+                      ? `DOWNLOADING AI · ${llmDownloadPct}%`
+                      : llmReady
+                        ? photoBase64
+                          ? "✨ ESTIMATE FROM PHOTO"
+                          : "✨ ESTIMATE WITH AI"
+                        : "✨ ESTIMATE · DOWNLOADS ~2.5 GB"}
+                </button>
+                {visionAvailable && !photoBase64 && (
+                  <button
+                    type="button"
+                    onClick={() => void capturePhoto()}
+                    disabled={estimating || llmDownloading}
+                    style={{
+                      padding: "8px 12px",
+                      background: "var(--paper-2)",
+                      border: "0.5px dashed var(--rule)",
+                      borderRadius: 999,
+                      fontFamily: "var(--mono)",
+                      fontSize: 10,
+                      letterSpacing: "0.12em",
+                      color: "var(--ink)",
+                      cursor: "pointer",
+                    }}
+                  >
+                    📷 PHOTO
+                  </button>
+                )}
+              </div>
+
+              {photoPreview && (
+                <div
+                  style={{
+                    marginTop: 8,
+                    display: "flex",
+                    gap: 8,
+                    alignItems: "center",
+                  }}
+                >
+                  <img
+                    src={photoPreview}
+                    alt="meal"
+                    style={{
+                      width: 60,
+                      height: 60,
+                      objectFit: "cover",
+                      borderRadius: 8,
+                      border: "0.5px solid var(--rule)",
+                    }}
+                  />
+                  <button
+                    type="button"
+                    onClick={clearPhoto}
+                    style={{
+                      background: "transparent",
+                      border: "none",
+                      fontFamily: "var(--mono)",
+                      fontSize: 10,
+                      letterSpacing: "0.1em",
+                      color: "var(--ink-3)",
+                      cursor: "pointer",
+                    }}
+                  >
+                    ✕ REMOVE
+                  </button>
+                </div>
+              )}
+
               {estimateError && (
                 <div
                   className="margin-note"
@@ -888,8 +992,9 @@ function AddMealFlow({ onClose, onSave }: AddMealFlowProps) {
                   className="margin-note"
                   style={{ marginTop: 6, fontSize: 11, fontStyle: "italic" }}
                 >
-                  Runs entirely on this device. Fills empty fields only —
-                  your edits stay.
+                  {photoBase64
+                    ? "Photo + on-device Gemma 3n. Nothing leaves this device."
+                    : "Runs entirely on this device. Fills empty fields only — your edits stay."}
                 </div>
               )}
             </div>

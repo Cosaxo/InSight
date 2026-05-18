@@ -1,50 +1,59 @@
-// useLLM — wraps @capgo/capacitor-llm into a small React API.
+// useLLM — wraps the in-repo `insight-llm` Capacitor plugin into a
+// small React API.
 //
 // Strategy:
-// - Strict Gemma 4 E2B (int4 MediaPipe `.task`, ~2 GB) on every
-//   native device. Same model on iOS and Android. No vendor lock-in,
-//   no Apple Intelligence preference: the same observational voice
-//   every InSight user gets.
+// - Multimodal Gemma 3n E2B (int4 MediaPipe `.task` / `.litertlm`,
+//   ~2.5 GB) on every native device. Same model on iOS and Android.
+//   Vision + audio capable, though we currently only exercise the
+//   text + image paths.
 // - Web: feature hidden (Capacitor.isNativePlatform() is false).
 //
 // First launch downloads the model and caches the file path in
 // localStorage; every subsequent inference is offline and instant.
 //
 // Public surface:
-//   ready          — true when a model is loaded and we can call generate()
-//   available      — true on a native platform (false on web — feature hidden)
-//   downloading    — true while the first-launch model fetch is in flight
-//   downloadPct    — 0–100
-//   error          — last error string, if any
-//   ensure()       — load the model (downloads on first call if needed)
-//   generate(p)    — single round-trip prompt → full response
-//
-// This deliberately exposes a non-streaming `generate(prompt) → string`
-// so callers don't have to manage chat sessions, listeners, or
-// teardown. The plugin streams underneath; we accumulate to a buffer
-// and resolve on `aiFinished`.
+//   ready              — true when a model is loaded and we can call generate()
+//   available          — true on a native platform (false on web — feature hidden)
+//   downloading        — true while the first-launch model fetch is in flight
+//   downloadPct        — 0–100
+//   error              — last error string, if any
+//   visionAvailable    — true when the model was loaded with maxImages > 0
+//   ensure()           — load the model (downloads on first call if needed)
+//   generate(p, img?)  — single round-trip prompt → full response.
+//                        Pass base64 image bytes to use the vision path;
+//                        the plugin rejects MODEL_NOT_MULTIMODAL otherwise.
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Capacitor } from "@capacitor/core";
-import { CapgoLLM } from "@capgo/capacitor-llm";
+import { InsightLLM } from "insight-llm";
 
-// Default model: Gemma 4 E2B IT, int4 MediaPipe `.task` (~2 GB).
-// Effective-2B multimodal (text/vision/audio capable, though we only
-// use text right now), 256 K context, Apache 2.0. Hosted on the
-// LiteRT Community repo as a MediaPipe-friendly `.task` file.
+// Default model: Gemma 3n E2B IT multimodal, int4 MediaPipe `.task`
+// (~2.5 GB). Apache 2.0. Hosted on the LiteRT Community repo. The
+// E2B variant uses per-layer embeddings so the effective active
+// param count fits on phones with ≥6 GB RAM.
 //
-// Override per-build by exporting `VITE_LLM_MODEL_URL` in .env — for
-// example, swap to a mobile-tuned variant of the same family when one
-// lands, or to Gemma 4 E4B for higher quality on capable devices.
+// Override per-build by exporting VITE_LLM_MODEL_URL in .env (for
+// example, the E4B variant for higher quality on capable devices,
+// or a text-only `.task` to skip the vision encoder).
 const DEFAULT_MODEL_URL =
   (import.meta.env.VITE_LLM_MODEL_URL as string | undefined) ||
-  "https://huggingface.co/litert-community/gemma-4-E2B-it-litert-lm/resolve/main/gemma-4-E2B-it-web.task";
+  "https://huggingface.co/litert-community/gemma-3n-E2B-it-litert-preview/resolve/main/gemma-3n-E2B-it-int4.task";
 
-const STORAGE_MODEL_PATH = "insight.llm.modelPath.v1";
+// Bumped from v1 so existing devices that have a text-only Gemma 4
+// E2B cached under the old key re-download into a fresh entry. The
+// old file stays on disk until the user clears app storage — small
+// price for not bricking inference on first launch after upgrade.
+const STORAGE_MODEL_PATH = "insight.llm.modelPath.v2";
+
+// Default to vision-enabled (maxImages=1). Set VITE_LLM_TEXT_ONLY=1
+// to load the same model as text-only — saves a small amount of
+// memory and disables the vision graph.
+const TEXT_ONLY = import.meta.env.VITE_LLM_TEXT_ONLY === "1";
 
 interface LLMState {
   available: boolean;
   ready: boolean;
+  visionAvailable: boolean;
   downloading: boolean;
   downloadPct: number;
   error: string | null;
@@ -54,12 +63,13 @@ type Listener = { remove: () => Promise<void> };
 
 export function useLLM(): LLMState & {
   ensure: () => Promise<void>;
-  generate: (prompt: string) => Promise<string>;
+  generate: (prompt: string, imageBase64?: string) => Promise<string>;
 } {
   const available = Capacitor.isNativePlatform();
   const [state, setState] = useState<LLMState>({
     available,
     ready: false,
+    visionAvailable: false,
     downloading: false,
     downloadPct: 0,
     error: null,
@@ -67,16 +77,21 @@ export function useLLM(): LLMState & {
   const progressListenerRef = useRef<Listener | null>(null);
   const loadingPromiseRef = useRef<Promise<void> | null>(null);
 
-  // Restore last-known-good model path on mount if we already
-  // downloaded once.
+  // Restore last-known-good model path on mount. We only mark ready
+  // here if the plugin agrees — the underlying engine may have been
+  // torn down by Android low-memory pressure since the last session.
   useEffect(() => {
     if (!available) return;
     void (async () => {
-      const status = await CapgoLLM.getReadiness().catch(
-        () => ({ readiness: "uninitialized" }),
+      const status = await InsightLLM.getReadiness().catch(
+        () => ({ readiness: "uninitialized" as const }),
       );
       if (status.readiness === "ready") {
-        setState((s) => ({ ...s, ready: true }));
+        setState((s) => ({
+          ...s,
+          ready: true,
+          visionAvailable: !TEXT_ONLY,
+        }));
       }
     })();
   }, [available]);
@@ -86,7 +101,7 @@ export function useLLM(): LLMState & {
     if (!available) return;
     let mounted = true;
     void (async () => {
-      const sub = await CapgoLLM.addListener("downloadProgress", (e) => {
+      const sub = await InsightLLM.addListener("downloadProgress", (e) => {
         if (!mounted) return;
         setState((s) => ({ ...s, downloadPct: Math.round(e.progress ?? 0) }));
       });
@@ -109,13 +124,10 @@ export function useLLM(): LLMState & {
       try {
         setState((s) => ({ ...s, error: null }));
 
-        // Strict Gemma 4 E2B path. We deliberately don't try Apple
-        // Intelligence first — every InSight user runs the same
-        // open-weight Gemma model, no matter which phone they're on.
         let path = localStorage.getItem(STORAGE_MODEL_PATH);
         if (!path) {
           setState((s) => ({ ...s, downloading: true, downloadPct: 0 }));
-          const result = await CapgoLLM.downloadModel({
+          const result = await InsightLLM.downloadModel({
             url: DEFAULT_MODEL_URL,
           });
           path = result.path;
@@ -123,15 +135,20 @@ export function useLLM(): LLMState & {
           setState((s) => ({ ...s, downloading: false, downloadPct: 100 }));
         }
 
-        await CapgoLLM.setModel({
+        await InsightLLM.setModel({
           path,
-          engine: "mediapipe",
-          modelType: "task",
-          maxTokens: 1024,
           temperature: 0.6,
-          topk: 40,
+          topK: 40,
+          maxTokens: 1024,
+          // 0 = text-only behaviour even on a multimodal model.
+          // 1 = single image per inference (our meal-photo case).
+          maxImages: TEXT_ONLY ? 0 : 1,
         });
-        setState((s) => ({ ...s, ready: true }));
+        setState((s) => ({
+          ...s,
+          ready: true,
+          visionAvailable: !TEXT_ONLY,
+        }));
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
         console.error("[useLLM] ensure failed:", err);
@@ -151,36 +168,14 @@ export function useLLM(): LLMState & {
   }, [available, state.ready]);
 
   const generate = useCallback(
-    async (prompt: string): Promise<string> => {
+    async (prompt: string, imageBase64?: string): Promise<string> => {
       if (!available) throw new Error("LLM not available in this environment");
       if (!state.ready) await ensure();
-      const { id: chatId } = await CapgoLLM.createChat();
-      return new Promise<string>((resolve, reject) => {
-        let buf = "";
-        let textSub: Listener | null = null;
-        let finSub: Listener | null = null;
-        const cleanup = () => {
-          void textSub?.remove();
-          void finSub?.remove();
-        };
-        void CapgoLLM.addListener("textFromAi", (e) => {
-          if (e.chatId !== chatId) return;
-          buf += e.text;
-        }).then((s) => {
-          textSub = s;
-        });
-        void CapgoLLM.addListener("aiFinished", (e) => {
-          if (e.chatId !== chatId) return;
-          cleanup();
-          resolve(buf.trim());
-        }).then((s) => {
-          finSub = s;
-        });
-        CapgoLLM.sendMessage({ chatId, message: prompt }).catch((err) => {
-          cleanup();
-          reject(err);
-        });
+      const { text } = await InsightLLM.generate({
+        prompt,
+        imageBase64,
       });
+      return text.trim();
     },
     [available, state.ready, ensure],
   );

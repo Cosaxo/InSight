@@ -10,6 +10,11 @@ lerna-debug.log*
 node_modules
 dist
 dist-ssr
+# But the in-repo Capacitor plugin compiles to dist/ — that has to
+# be committed so the `file:./plugins/*` references resolve on a
+# fresh checkout / CI run. The exception is below.
+!plugins/insight-llm/dist
+!plugins/insight-llm/dist/**
 *.local
 
 # Environment variables — copy .env.example to .env and fill in your values
@@ -60,3 +65,8 @@ android/captures/
 android/.idea/
 android/*.iml
 android/app/*.iml
+
+
+# Plugin node_modules; the compiled dist/ IS committed so the
+# `file:./plugins/*` deps resolve on fresh checkouts.
+plugins/*/node_modules/
