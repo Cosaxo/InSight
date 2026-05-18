@@ -1,15 +1,10 @@
 import { useState } from "react";
-import { IS_DATA } from "../../data/seedData";
+import { GROUP_TEST, SKILL_CATS, type CategoryDef } from "../../data/taxonomies";
 import { Kicker } from "../shared/primitives";
 import { Donut } from "../shared/charts";
 import { useSkills, type UserSkill } from "../../lib/useSkills";
 
-interface SkillCat {
-  id: string;
-  label: string;
-  hue: number;
-  glyph: string;
-}
+type SkillCat = CategoryDef;
 
 // Local rendering type — narrower than RemoteSkill, with optional
 // time-series fields that may be absent on user-added skills.
@@ -260,10 +255,9 @@ function GroupTestOverlay({
   onClose: () => void;
   skills: Skill[];
 }) {
-  const D = IS_DATA;
   const [step, setStep] = useState(0);
   const [answers, setAnswers] = useState<TestOpt[]>([]);
-  const total = D.groupTest.length;
+  const total = GROUP_TEST.length;
 
   if (step >= total) {
     const score: Record<string, number> = {};
@@ -320,9 +314,7 @@ function GroupTestOverlay({
             }}
           >
             {top.map((id) => {
-              const c: SkillCat | undefined = D.skillCats.find(
-                (x: SkillCat) => x.id === id,
-              );
+              const c = SKILL_CATS.find((x) => x.id === id);
               if (!c) return null;
               return (
                 <span
@@ -356,9 +348,7 @@ function GroupTestOverlay({
             </div>
           )}
           {recCats.map((catId) => {
-            const c: SkillCat | undefined = D.skillCats.find(
-              (x: SkillCat) => x.id === catId,
-            );
+            const c = SKILL_CATS.find((x) => x.id === catId);
             if (!c) return null;
             return (
               <div key={catId} className="card" style={{ marginBottom: 10 }}>
@@ -419,7 +409,7 @@ function GroupTestOverlay({
       </div>
     );
   }
-  const q = D.groupTest[step];
+  const q = GROUP_TEST[step];
   return (
     <div className="overlay" onClick={onClose}>
       <div
@@ -497,13 +487,12 @@ function GroupTestOverlay({
 }
 
 export function GroupsTab() {
-  const D = IS_DATA;
   const [active, setActive] = useState<Set<string>>(new Set());
   const [showTest, setShowTest] = useState(false);
   const [showAdd, setShowAdd] = useState(false);
   const { skills: userSkills, add: addSkill } = useSkills();
 
-  const cats: SkillCat[] = D.skillCats;
+  const cats: SkillCat[] = SKILL_CATS;
   const isAll = active.size === 0;
   const toggle = (id: string) =>
     setActive((s) => {

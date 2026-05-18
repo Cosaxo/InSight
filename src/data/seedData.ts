@@ -24,6 +24,7 @@ import {
   IDEOLOGY_MARKS,
   POLITICAL_AXES,
 } from "./politicsTaxonomy";
+import { GROUP_TEST, INTEREST_CATS, SKILL_CATS } from "./taxonomies";
 
 /* eslint-disable */
 export const IS_DATA: any = {
@@ -104,20 +105,10 @@ export const IS_DATA: any = {
       blurb: 'cable cars, indie cafés, weather that has opinions' },
   ],
 
-  interestCats: [
-    { id: "sports",    label: "Sports",     hue: 12,  glyph: "◉" },
-    { id: "outdoor",   label: "Outdoor",    hue: 145, glyph: "△" },
-    { id: "fitness",   label: "Fitness",    hue: 25,  glyph: "↗" },
-    { id: "literary",  label: "Literary",   hue: 38,  glyph: "✎" },
-    { id: "thought",   label: "Thought",    hue: 250, glyph: "○" },
-    { id: "music",     label: "Music",      hue: 305, glyph: "♪" },
-    { id: "art",       label: "Art & craft",hue: 80,  glyph: "✦" },
-    { id: "games",     label: "Games",      hue: 200, glyph: "♟" },
-    { id: "tech",      label: "Tech",       hue: 260, glyph: "◇" },
-    { id: "food",      label: "Food",       hue: 30,  glyph: "◐" },
-    { id: "civic",     label: "Civic",      hue: 220, glyph: "✚" },
-    { id: "faith",     label: "Faith",      hue: 285, glyph: "✟" },
-  ],
+  // Taxonomies — defined in `taxonomies.ts`. Re-spread here so any
+  // residual `IS_DATA.interestCats` / `IS_DATA.skillCats` /
+  // `IS_DATA.groupTest` lookup still resolves while consumers migrate.
+  interestCats: INTEREST_CATS,
 
   // Politics reference data — defined in `politicsTaxonomy.ts`. We
   // re-spread the same arrays here so legacy IS_DATA.ideologies /
@@ -130,43 +121,7 @@ export const IS_DATA: any = {
   ideologyMarks: IDEOLOGY_MARKS,
   politicalAxes: POLITICAL_AXES,
 
-  // Skill categories
-  skillCats: [
-    { id: "sport",    label: "Sport",     hue: 12,  glyph: "◉" },
-    { id: "outdoor",  label: "Outdoor",   hue: 145, glyph: "△" },
-    { id: "craft",    label: "Craft",     hue: 38,  glyph: "✎" },
-    { id: "mind",     label: "Mind",      hue: 80,  glyph: "◇" },
-    { id: "language", label: "Language",  hue: 220, glyph: "ℒ" },
-    { id: "music",    label: "Music",     hue: 305, glyph: "♪" },
-    { id: "kitchen",  label: "Kitchen",   hue: 60,  glyph: "◐" },
-    { id: "tech",     label: "Tech",      hue: 250, glyph: "▢" },
-  ],
-
-  groupTest: [
-    { q: "Best Sunday morning?",
-      opts: [
-        { t: "Sweat, ball, score", cats: ["sports", "fitness"] },
-        { t: "A long swim, then bread", cats: ["outdoor", "food"] },
-        { t: "Pages and a window", cats: ["literary", "thought"] },
-        { t: "Hands moving, a workshop", cats: ["art", "tech"] },
-        { t: "A board, two cups", cats: ["games"] },
-      ] },
-    { q: "What you secretly want more of",
-      opts: [
-        { t: "A racquet, a partner", cats: ["sports"] },
-        { t: "Lungs that ache (good)", cats: ["outdoor", "fitness"] },
-        { t: "Conversations that turn", cats: ["thought", "literary"] },
-        { t: "Songs you can't shake", cats: ["music"] },
-        { t: "Pieces that move just so", cats: ["games", "art"] },
-      ] },
-    { q: "How you'd rather show up",
-      opts: [
-        { t: "Kit on, ready", cats: ["sports", "fitness"] },
-        { t: "In wool and wet socks", cats: ["outdoor"] },
-        { t: "With a notebook", cats: ["literary", "thought"] },
-        { t: "With your hands stained", cats: ["art", "food"] },
-        { t: "With a folding chair", cats: ["civic", "music"] },
-      ] },
-  ],
+  skillCats: SKILL_CATS,
+  groupTest: GROUP_TEST,
 
 };

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { IS_DATA } from "../../data/seedData";
+import { INTEREST_CATS } from "../../data/taxonomies";
 import {
   Av,
   CompassRose,
@@ -24,7 +24,10 @@ export interface NearbyPerson {
   init: string;
   age: number;
   dist: string;
-  match: number;
+  // null means "no match could be computed" — either the viewer
+  // hasn't taken the Big Five test, or the discovered user hasn't,
+  // or both. PersonRow renders "—" in this case.
+  match: number | null;
   hue: number;
   role: string;
   interests: { t: string; c: string }[];
@@ -49,7 +52,7 @@ function PersonRow({ p, onClick }: { p: NearbyPerson; onClick: () => void }) {
         </div>
         <div style={{ marginTop: 6, display: "flex", flexWrap: "wrap", gap: 4 }}>
           {p.interests.slice(0, 4).map((it, i) => {
-            const cat = IS_DATA.interestCats.find((c: { id: string }) => c.id === it.c);
+            const cat = INTEREST_CATS.find((c) => c.id === it.c);
             const hue = cat?.hue ?? 50;
             return (
               <span key={i} style={{
@@ -66,7 +69,16 @@ function PersonRow({ p, onClick }: { p: NearbyPerson; onClick: () => void }) {
         </div>
       </div>
       <div style={{ textAlign: "right", flexShrink: 0 }}>
-        <div className="fig-num" style={{ fontSize: 26 }}><em>{p.match}</em></div>
+        <div
+          className="fig-num"
+          style={{
+            fontSize: 26,
+            color: p.match == null ? "var(--ink-3)" : "var(--ink)",
+          }}
+          title={p.match == null ? "take the Big Five test to see match" : undefined}
+        >
+          <em>{p.match == null ? "—" : p.match}</em>
+        </div>
         <div style={{ fontFamily: "var(--mono)", fontSize: 9, letterSpacing: "0.12em", color: "var(--ink-3)", textTransform: "uppercase" }}>match</div>
       </div>
     </div>
@@ -84,7 +96,11 @@ export function AroundTab({ onPerson, onOpenTest, onAddPerson }: AroundTabProps)
   const cx = 160, cy = 160;
   const placed = nearby.map((p) => {
     const angle = (p.hue / 360) * Math.PI * 2 - Math.PI / 2;
-    const r = 145 - (p.match / 100) * 110;
+    // Unknown match → render on the middle ring (match = 50). The
+    // PersonRow shows "—" so the visual hint is consistent with
+    // the "we don't know yet" semantic.
+    const m = p.match ?? 50;
+    const r = 145 - (m / 100) * 110;
     return { ...p, x: cx + Math.cos(angle) * r, y: cy + Math.sin(angle) * r };
   });
 
