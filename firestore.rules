@@ -49,7 +49,13 @@ service cloud.firestore {
           && (!('dislikes' in d) || (d.dislikes is list && d.dislikes.size() <= 256))
           // bio / role: optional public-profile strings, capped.
           && (!('bio' in d) || (d.bio is string && d.bio.size() <= 280))
-          && (!('role' in d) || (d.role is string && d.role.size() <= 60));
+          && (!('role' in d) || (d.role is string && d.role.size() <= 60))
+          // acceptImpressionsFrom controls who can write to your
+          // inbound-impressions inbox. "circle" is the default —
+          // matches the original carve-out. "nearby" extends it to
+          // followers; "anyone" opens it to any signed-in user;
+          // "nobody" closes the feature entirely.
+          && (!('acceptImpressionsFrom' in d) || d.acceptImpressionsFrom in ['nobody', 'circle', 'nearby', 'anyone']);
       }
 
       function isValidSharePrefs(prefs) {
@@ -96,28 +102,54 @@ service cloud.firestore {
       // The owner can always read their own. Friends in the circle
       // (presence of doc at /circle/{theirUid}) can read when the
       // owner's sharePrefs.daily_report is "circle" or wider.
-      // Anyone in the same geohash5 cell as the owner can read when
-      // it's set to "city" or wider (both must be discoverable for
-      // the check to succeed). Anyone signed in can read when it's
-      // "world".
+      // Followers (presence of doc at /followers/{theirUid}) can read
+      // when it's set to "city" or wider — followers see broader-tier
+      // content but never circle-only content. Anyone in the same
+      // geohash5 cell as the owner can read when it's "city" (both
+      // must be discoverable for the check to succeed). Anyone signed
+      // in can read when it's "world". Blocked viewers fail every
+      // path regardless of their relation.
       match /insight_daily/{day} {
-        allow read: if request.auth != null && (
-          request.auth.uid == uid ||
-          dailyReportLevel() == "world" ||
-          (
-            dailyReportLevel() == "city" &&
-            sameCityAsOwner()
-          ) ||
-          (
-            dailyReportLevel() in ["circle", "city"] &&
-            exists(
-              /databases/$(database)/documents/insight_users/$(uid)/circle/$(request.auth.uid)
+        allow read: if request.auth != null
+          && !isBlockedByOwner()
+          && (
+            request.auth.uid == uid ||
+            dailyReportLevel() == "world" ||
+            (
+              dailyReportLevel() == "city" &&
+              (sameCityAsOwner() || isFollowerOfOwner())
+            ) ||
+            (
+              dailyReportLevel() in ["circle", "city"] &&
+              isInOwnerCircle()
             )
-          )
-        );
+          );
         allow write: if request.auth != null
           && request.auth.uid == uid
           && isValidDailyReportWrite();
+      }
+
+      function isBlockedByOwner() {
+        return exists(
+          /databases/$(database)/documents/insight_users/$(uid)/blocks/$(request.auth.uid)
+        );
+      }
+
+      function isFollowerOfOwner() {
+        return exists(
+          /databases/$(database)/documents/insight_users/$(uid)/followers/$(request.auth.uid)
+        );
+      }
+
+      function isInOwnerCircle() {
+        return exists(
+          /databases/$(database)/documents/insight_users/$(uid)/circle/$(request.auth.uid)
+        );
+      }
+
+      function ownerAcceptsImpressionsFrom() {
+        let p = get(/databases/$(database)/documents/insight_users/$(uid));
+        return p.data.get("acceptImpressionsFrom", "circle");
       }
 
       function isValidDailyReportWrite() {
@@ -140,11 +172,78 @@ service cloud.firestore {
           && d.shared is list && d.shared.size() <= 64;
       }
 
-      // Circle — grants daily-report read access. Owner manages this
-      // subcollection. We deliberately don't allow non-owners to read
-      // the circle list itself (they only need rules-internal
-      // `exists()` checks, which bypass user rules).
+      // Circle — grants daily-report read access. Two write paths:
+      //   1. Owner manages their own circle list (read/write anything).
+      //   2. The friend-accept cross-write: when Bob accepts Alice's
+      //      friend request, Bob must write to BOTH circles to make
+      //      it mutual. The "Bob writes to Alice's circle to add
+      //      himself" path is allowed iff a friendRequest from
+      //      Alice exists in Bob's namespace. This proves Alice
+      //      consented to the friendship.
+      //
+      // We deliberately don't allow non-owners to read the circle
+      // list itself (they only need rules-internal `exists()` checks).
       match /circle/{viewerUid} {
+        allow read: if request.auth != null && request.auth.uid == uid;
+        allow create: if request.auth != null && (
+          request.auth.uid == uid ||
+          (
+            request.auth.uid == viewerUid
+            && exists(
+              /databases/$(database)/documents/insight_users/$(viewerUid)/friendRequests/$(uid)
+            )
+          )
+        );
+        // Either side can break the friendship by clearing their own
+        // grant doc.
+        allow delete: if request.auth != null && (
+          request.auth.uid == uid || request.auth.uid == viewerUid
+        );
+      }
+
+      // Followers — anyone signed in can follow this user (creating
+      // the doc themselves), provided they aren't blocked. Owner can
+      // remove a follower at any time (kick); the follower can
+      // delete their own doc (unfollow). The doc body is minimal —
+      // a `followedAt` timestamp keeps audit logs honest.
+      match /followers/{followerUid} {
+        allow read: if request.auth != null && request.auth.uid == uid;
+        allow create: if request.auth != null
+          && request.auth.uid == followerUid
+          && !exists(
+            /databases/$(database)/documents/insight_users/$(uid)/blocks/$(followerUid)
+          );
+        allow delete: if request.auth != null && (
+          request.auth.uid == uid || request.auth.uid == followerUid
+        );
+        allow update: if false;
+      }
+
+      // Pending incoming friend requests. The requester writes the
+      // doc; either side can delete (accept = delete + write to
+      // circles; decline = just delete). Both sides can read so the
+      // requester can see "request pending" on the target's profile.
+      match /friendRequests/{requesterUid} {
+        allow read: if request.auth != null && (
+          request.auth.uid == uid || request.auth.uid == requesterUid
+        );
+        allow create: if request.auth != null
+          && request.auth.uid == requesterUid
+          && !exists(
+            /databases/$(database)/documents/insight_users/$(uid)/blocks/$(requesterUid)
+          );
+        allow delete: if request.auth != null && (
+          request.auth.uid == uid || request.auth.uid == requesterUid
+        );
+        allow update: if false;
+      }
+
+      // Block list — owner-only. Block existing breaks all relation
+      // gates (follow, friendRequest, circle, daily-report read,
+      // inbound impressions). Stale follow/circle docs created
+      // before the block are filtered at read time by the
+      // !isBlockedByOwner() check.
+      match /blocks/{blockedUid} {
         allow read, write: if request.auth != null && request.auth.uid == uid;
       }
 
@@ -174,8 +273,20 @@ service cloud.firestore {
         allow read: if request.auth != null && request.auth.uid == uid;
         allow create: if request.auth != null
           && request.resource.data.senderUid == request.auth.uid
-          && exists(
-            /databases/$(database)/documents/insight_users/$(uid)/circle/$(request.auth.uid)
+          && !isBlockedByOwner()
+          && (
+            // Always: someone the owner has explicitly added to their
+            // circle (mutual friend) can leave an impression.
+            isInOwnerCircle()
+            // OR: the owner has opted into wider impressions and the
+            // sender is a follower.
+            || (
+              isFollowerOfOwner()
+              && ownerAcceptsImpressionsFrom() in ["nearby", "anyone"]
+            )
+            // OR: the owner accepts impressions from anyone signed in
+            // (rare; users with public-facing profiles).
+            || ownerAcceptsImpressionsFrom() == "anyone"
           )
           && isValidInboundImpressionWrite();
         allow delete: if request.auth != null && (

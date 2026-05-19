@@ -158,6 +158,105 @@ function ShareRow({
   );
 }
 
+// ImpressionAcceptance — who is allowed to leave a traits-only
+// impression on the user's inbox. Reflects the new wider-tier
+// writer paths added to firestore.rules:
+//
+//   nobody  → feature is off; rule rejects all writes.
+//   circle  → only mutual friends (matches the original carve-out).
+//   nearby  → followers + circle. Anyone who follows you can write.
+//   anyone  → any signed-in user. Use with care.
+//
+// Block list still trumps everything — blocked users can't write
+// regardless of the level chosen here.
+function ImpressionAcceptance({
+  value,
+  onChange,
+}: {
+  value: "nobody" | "circle" | "nearby" | "anyone";
+  onChange: (v: "nobody" | "circle" | "nearby" | "anyone") => void;
+}) {
+  const options: { id: "nobody" | "circle" | "nearby" | "anyone"; label: string; sub: string }[] =
+    [
+      { id: "nobody", label: "nobody", sub: "feature off; close the inbox" },
+      { id: "circle", label: "circle only", sub: "mutual friends" },
+      { id: "nearby", label: "followers + circle", sub: "anyone you let near you" },
+      { id: "anyone", label: "anyone signed in", sub: "the most open" },
+    ];
+
+  return (
+    <div className="card" style={{ marginBottom: 14, padding: 14 }}>
+      <Kicker>impressions inbox · who can write</Kicker>
+      <div
+        className="margin-note"
+        style={{ marginTop: 6, marginBottom: 10, fontSize: 11.5, fontStyle: "italic" }}
+      >
+        Anonymous traits only — never longhand. Blocked users can
+        never write regardless of this setting.
+      </div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+        {options.map((o) => {
+          const on = value === o.id;
+          return (
+            <button
+              key={o.id}
+              type="button"
+              onClick={() => onChange(o.id)}
+              style={{
+                display: "flex",
+                gap: 10,
+                alignItems: "center",
+                padding: "10px 12px",
+                background: on ? "var(--paper-2)" : "transparent",
+                border: on
+                  ? "0.5px solid var(--ink-2)"
+                  : "0.5px solid var(--rule)",
+                borderRadius: 10,
+                textAlign: "left",
+                cursor: "pointer",
+              }}
+            >
+              <span
+                style={{
+                  width: 14,
+                  height: 14,
+                  borderRadius: "50%",
+                  border: "0.5px solid var(--ink-2)",
+                  background: on ? "var(--ink)" : "var(--paper)",
+                  flexShrink: 0,
+                }}
+              />
+              <div>
+                <div
+                  style={{
+                    fontFamily: "var(--serif)",
+                    fontStyle: "italic",
+                    fontSize: 14,
+                    color: "var(--ink)",
+                  }}
+                >
+                  {o.label}
+                </div>
+                <div
+                  style={{
+                    fontFamily: "var(--mono)",
+                    fontSize: 10,
+                    letterSpacing: "0.05em",
+                    color: "var(--ink-3)",
+                    marginTop: 2,
+                  }}
+                >
+                  {o.sub}
+                </div>
+              </div>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 interface SharingOverlayProps {
   onClose: () => void;
 }
@@ -425,6 +524,18 @@ export function SharingOverlay({ onClose }: SharingOverlayProps) {
             </div>
           </div>
         )}
+
+        <ImpressionAcceptance
+          value={
+            (profile.acceptImpressionsFrom as
+              | "nobody"
+              | "circle"
+              | "nearby"
+              | "anyone"
+              | undefined) ?? "circle"
+          }
+          onChange={(v) => void save({ acceptImpressionsFrom: v })}
+        />
 
         <Kicker>Each thing, separately</Kicker>
         <div

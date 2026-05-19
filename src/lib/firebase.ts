@@ -788,6 +788,108 @@ export async function revokeCircleAccess(
   return m.revokeCircleAccess(ownerUid, viewerUid);
 }
 
+// ── Relations: follow / friend / block ──────────────────────────
+
+export async function followUser(actorUid: string, targetUid: string): Promise<void> {
+  const m = await impl();
+  return m.followUser(actorUid, targetUid);
+}
+
+export async function unfollowUser(actorUid: string, targetUid: string): Promise<void> {
+  const m = await impl();
+  return m.unfollowUser(actorUid, targetUid);
+}
+
+export async function sendFriendRequest(fromUid: string, toUid: string): Promise<void> {
+  const m = await impl();
+  return m.sendFriendRequest(fromUid, toUid);
+}
+
+export async function checkOutgoingFriendRequest(
+  fromUid: string,
+  toUid: string,
+): Promise<boolean> {
+  const m = await impl();
+  return m.checkOutgoingFriendRequest(fromUid, toUid);
+}
+
+export async function acceptFriendRequest(
+  ownerUid: string,
+  requesterUid: string,
+): Promise<void> {
+  const m = await impl();
+  return m.acceptFriendRequest(ownerUid, requesterUid);
+}
+
+export async function declineFriendRequest(
+  ownerUid: string,
+  requesterUid: string,
+): Promise<void> {
+  const m = await impl();
+  return m.declineFriendRequest(ownerUid, requesterUid);
+}
+
+export async function cancelFriendRequest(
+  ownerUid: string,
+  recipientUid: string,
+): Promise<void> {
+  const m = await impl();
+  return m.cancelFriendRequest(ownerUid, recipientUid);
+}
+
+export async function unfriend(actorUid: string, otherUid: string): Promise<void> {
+  const m = await impl();
+  return m.unfriend(actorUid, otherUid);
+}
+
+export async function blockUser(actorUid: string, blockedUid: string): Promise<void> {
+  const m = await impl();
+  return m.blockUser(actorUid, blockedUid);
+}
+
+export async function unblockUser(actorUid: string, blockedUid: string): Promise<void> {
+  const m = await impl();
+  return m.unblockUser(actorUid, blockedUid);
+}
+
+// ── Subscriptions for relation lists ────────────────────────────
+
+import type { RelationDoc } from "./firebaseImpl";
+export type { RelationDoc };
+
+function lazyRelationSub(
+  method: "subscribeFollowers" | "subscribeFollowing" | "subscribeFriendRequests" | "subscribeCircle" | "subscribeBlocks",
+  uid: string,
+  cb: (items: RelationDoc[]) => void,
+): () => void {
+  let cancelled = false;
+  let unsub: (() => void) | null = null;
+  impl().then((m) => {
+    if (cancelled) return;
+    unsub = m[method](uid, cb);
+  });
+  return () => {
+    cancelled = true;
+    unsub?.();
+  };
+}
+
+export function subscribeFollowers(uid: string, cb: (items: RelationDoc[]) => void) {
+  return lazyRelationSub("subscribeFollowers", uid, cb);
+}
+export function subscribeFollowing(uid: string, cb: (items: RelationDoc[]) => void) {
+  return lazyRelationSub("subscribeFollowing", uid, cb);
+}
+export function subscribeFriendRequests(uid: string, cb: (items: RelationDoc[]) => void) {
+  return lazyRelationSub("subscribeFriendRequests", uid, cb);
+}
+export function subscribeCircle(uid: string, cb: (items: RelationDoc[]) => void) {
+  return lazyRelationSub("subscribeCircle", uid, cb);
+}
+export function subscribeBlocks(uid: string, cb: (items: RelationDoc[]) => void) {
+  return lazyRelationSub("subscribeBlocks", uid, cb);
+}
+
 export function subscribeFriendDailyReport(
   friendUid: string,
   date: string,

@@ -36,6 +36,7 @@ import {
   setDoc,
   startAt,
   updateDoc,
+  writeBatch,
   type Firestore,
 } from "firebase/firestore";
 import {
@@ -142,6 +143,12 @@ export interface RemoteProfile {
   // nearby-people row (e.g. "ceramicist", "marine biologist").
   // ≤ 60 chars; same opt-in plumbing as bio.
   role?: string;
+  // Who can leave a traits-only impression on this user's inbox.
+  //   "nobody" — feature off entirely; no one can write
+  //   "circle" — only mutual friends (default — matches old rule)
+  //   "nearby" — followers + circle (people you let near you can write)
+  //   "anyone" — any signed-in user, even strangers
+  acceptImpressionsFrom?: "nobody" | "circle" | "nearby" | "anyone";
 }
 
 export interface MigrationPayload {
@@ -1427,6 +1434,192 @@ export async function revokeCircleAccess(
   viewerUid: string,
 ): Promise<void> {
   await deleteDoc(doc(db(), "insight_users", ownerUid, "circle", viewerUid));
+}
+
+// ── Relations: follow / befriend / block ────────────────────────
+//
+// Three primitive collections under each user, plus a "following"
+// shadow under the actor that lets them browse who they follow:
+//
+//   insight_users/{owner}/followers/{followerUid}       — silent follow
+//   insight_users/{actor}/following/{targetUid}          — actor's outgoing
+//   insight_users/{owner}/friendRequests/{requesterUid}  — pending
+//   insight_users/{owner}/circle/{viewerUid}             — mutual friend
+//   insight_users/{owner}/blocks/{blockedUid}            — block list
+//
+// Friend = circle on both sides. Created via the request/accept
+// dance: requester writes friendRequests, target accepts by
+// writing both circle docs (rule allows the cross-write because of
+// the existing request).
+
+export async function followUser(actorUid: string, targetUid: string): Promise<void> {
+  // Two writes, neither cross-namespace problematic:
+  //   - target/followers/{actor}  ← lets target see who follows them
+  //   - actor/following/{target}  ← lets actor browse their list
+  const batch = writeBatch(db());
+  batch.set(
+    doc(db(), "insight_users", targetUid, "followers", actorUid),
+    { followedAt: serverTimestamp() },
+  );
+  batch.set(
+    doc(db(), "insight_users", actorUid, "following", targetUid),
+    { followedAt: serverTimestamp() },
+  );
+  await batch.commit();
+}
+
+export async function unfollowUser(actorUid: string, targetUid: string): Promise<void> {
+  const batch = writeBatch(db());
+  batch.delete(doc(db(), "insight_users", targetUid, "followers", actorUid));
+  batch.delete(doc(db(), "insight_users", actorUid, "following", targetUid));
+  await batch.commit();
+}
+
+export async function sendFriendRequest(
+  fromUid: string,
+  toUid: string,
+): Promise<void> {
+  await setDoc(
+    doc(db(), "insight_users", toUid, "friendRequests", fromUid),
+    { sentAt: serverTimestamp() },
+  );
+}
+
+/**
+ * Check whether I have an OUTGOING friend request pending to the
+ * given recipient. The doc lives under the recipient's namespace,
+ * so we can't subscribe to it cheaply — PersonOverlay does a
+ * one-shot read when it opens to decide whether to show "cancel
+ * request" vs. "befriend".
+ */
+export async function checkOutgoingFriendRequest(
+  fromUid: string,
+  toUid: string,
+): Promise<boolean> {
+  const snap = await getDoc(
+    doc(db(), "insight_users", toUid, "friendRequests", fromUid),
+  );
+  return snap.exists();
+}
+
+/**
+ * Accept a friend request. Performs three writes atomically:
+ *   1. owner adds requester to own circle  (owner's namespace)
+ *   2. owner adds self to requester's circle (cross-write — rule
+ *      checks that requester sent a friendRequest to owner)
+ *   3. owner deletes the friendRequest from own inbox
+ */
+export async function acceptFriendRequest(
+  ownerUid: string,
+  requesterUid: string,
+): Promise<void> {
+  const batch = writeBatch(db());
+  batch.set(
+    doc(db(), "insight_users", ownerUid, "circle", requesterUid),
+    { grantedAt: serverTimestamp() },
+  );
+  batch.set(
+    doc(db(), "insight_users", requesterUid, "circle", ownerUid),
+    { grantedAt: serverTimestamp() },
+  );
+  batch.delete(doc(db(), "insight_users", ownerUid, "friendRequests", requesterUid));
+  await batch.commit();
+}
+
+export async function declineFriendRequest(
+  ownerUid: string,
+  requesterUid: string,
+): Promise<void> {
+  await deleteDoc(doc(db(), "insight_users", ownerUid, "friendRequests", requesterUid));
+}
+
+export async function cancelFriendRequest(
+  ownerUid: string,
+  recipientUid: string,
+): Promise<void> {
+  // Cancel an outgoing request — the doc lives under the recipient's
+  // namespace; rule allows the requester to delete their own.
+  await deleteDoc(doc(db(), "insight_users", recipientUid, "friendRequests", ownerUid));
+}
+
+export async function unfriend(actorUid: string, otherUid: string): Promise<void> {
+  // Break the friendship from one side; the rule lets the other
+  // side delete their own circle doc independently. The other side
+  // discovers the break the next time their daily-report subscription
+  // returns null (permission-denied) for the actor.
+  const batch = writeBatch(db());
+  batch.delete(doc(db(), "insight_users", actorUid, "circle", otherUid));
+  batch.delete(doc(db(), "insight_users", otherUid, "circle", actorUid));
+  await batch.commit();
+}
+
+export async function blockUser(actorUid: string, blockedUid: string): Promise<void> {
+  // Write the block doc + tear down every active relation in one batch.
+  // Stale docs (e.g. follower / circle from before the block) get
+  // filtered at read time by the rule's !isBlockedByOwner() check,
+  // but cleaning them up here keeps the data store tidy.
+  const batch = writeBatch(db());
+  batch.set(
+    doc(db(), "insight_users", actorUid, "blocks", blockedUid),
+    { blockedAt: serverTimestamp() },
+  );
+  batch.delete(doc(db(), "insight_users", actorUid, "followers", blockedUid));
+  batch.delete(doc(db(), "insight_users", actorUid, "circle", blockedUid));
+  batch.delete(doc(db(), "insight_users", actorUid, "friendRequests", blockedUid));
+  await batch.commit();
+}
+
+export async function unblockUser(actorUid: string, blockedUid: string): Promise<void> {
+  await deleteDoc(doc(db(), "insight_users", actorUid, "blocks", blockedUid));
+}
+
+// ── Subscriptions: relation lists ────────────────────────────────
+
+export interface RelationDoc {
+  uid: string;
+  at?: number; // ms epoch from server timestamp
+}
+
+function subscribeRelationList(
+  uid: string,
+  collectionName: string,
+  cb: (items: RelationDoc[]) => void,
+): () => void {
+  return onSnapshot(
+    sub(uid, collectionName),
+    (snap) => {
+      const items: RelationDoc[] = [];
+      snap.forEach((d) => {
+        const data = d.data() as { followedAt?: { toMillis?: () => number }; sentAt?: { toMillis?: () => number }; grantedAt?: { toMillis?: () => number }; blockedAt?: { toMillis?: () => number } };
+        const ts = data.followedAt ?? data.sentAt ?? data.grantedAt ?? data.blockedAt;
+        const at = typeof ts?.toMillis === "function" ? ts.toMillis() : undefined;
+        items.push({ uid: d.id, at });
+      });
+      items.sort((a, b) => (b.at ?? 0) - (a.at ?? 0));
+      cb(items);
+    },
+    (err) => console.error(`[firebaseImpl] subscribe ${collectionName}:`, err),
+  );
+}
+
+export function subscribeFollowers(uid: string, cb: (items: RelationDoc[]) => void) {
+  return subscribeRelationList(uid, "followers", cb);
+}
+
+export function subscribeFollowing(uid: string, cb: (items: RelationDoc[]) => void) {
+  return subscribeRelationList(uid, "following", cb);
+}
+
+export function subscribeFriendRequests(uid: string, cb: (items: RelationDoc[]) => void) {
+  return subscribeRelationList(uid, "friendRequests", cb);
+}
+
+export function subscribeCircle(uid: string, cb: (items: RelationDoc[]) => void) {
+  return subscribeRelationList(uid, "circle", cb);
+}
+
+export function subscribeBlocks(uid: string, cb: (items: RelationDoc[]) => void) {
+  return subscribeRelationList(uid, "blocks", cb);
 }
 
 // Subscribe to a *friend's* daily report for a specific date. Wraps

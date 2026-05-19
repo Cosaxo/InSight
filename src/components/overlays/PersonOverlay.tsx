@@ -1,8 +1,22 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useAuth } from "../../lib/useAuth";
 import { useProfile } from "../../lib/useProfile";
 import { useRelations } from "../../lib/useRelations";
-import { sendInboundImpression, firebaseEnabled } from "../../lib/firebase";
+import { useMyRelations } from "../../lib/useMyRelations";
+import {
+  acceptFriendRequest,
+  blockUser,
+  cancelFriendRequest,
+  checkOutgoingFriendRequest,
+  declineFriendRequest,
+  firebaseEnabled,
+  followUser,
+  sendFriendRequest,
+  sendInboundImpression,
+  unblockUser,
+  unfollowUser,
+  unfriend,
+} from "../../lib/firebase";
 import type { InboundImpression } from "../../types";
 import { Av, Kicker } from "../shared/primitives";
 import { RadarChart } from "../shared/charts";
@@ -360,6 +374,14 @@ export function PersonOverlay({ p, onClose }: PersonOverlayProps) {
           />
         )}
 
+        {firebaseEnabled && user && p.linkedUid && (
+          <RelationActionsCard
+            targetUid={p.linkedUid}
+            targetName={p.name}
+            myUid={user.uid}
+          />
+        )}
+
         {canSendImpression && (
           <SendImpressionInline
             name={p.name}
@@ -682,6 +704,262 @@ const CONTEXT_OPTIONS = [
   "a near-stranger",
   "friend, days later",
 ];
+
+// RelationActionsCard — the follow / befriend / status surface for
+// a person who has a linkedUid. Hidden for people without a real
+// account (manual contacts in the user's circle).
+//
+// Five states surfaced to the UI:
+//   - none           → Follow + Befriend
+//   - following      → Following (with Unfollow on long-press / menu)
+//                      + Befriend
+//   - request-out    → "Request sent" pill (with Cancel)
+//   - request-in     → Accept + Decline
+//   - friend         → "Friends" pill (with Unfriend in a small menu)
+//   - blocked        → "Blocked" pill (with Unblock)
+//
+// Block is always available via a small "•••" button regardless of
+// state. It tears down every active relation in one batch.
+function RelationActionsCard({
+  targetUid,
+  targetName,
+  myUid,
+}: {
+  targetUid: string;
+  targetName: string;
+  myUid: string;
+}) {
+  const rel = useMyRelations();
+  const [requestOut, setRequestOut] = useState<boolean | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [showOverflow, setShowOverflow] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // One-shot check on mount: is there an outgoing friend request
+  // pending? The doc lives in the target's namespace so we can't
+  // subscribe to it without a dedicated read.
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      try {
+        const pending = await checkOutgoingFriendRequest(myUid, targetUid);
+        if (!cancelled) setRequestOut(pending);
+      } catch (err) {
+        // Permission-denied happens when the target has blocked us;
+        // treat that as "no outgoing request" and let the UI
+        // recover.
+        if (!cancelled) setRequestOut(false);
+        console.warn("[RelationActionsCard] outgoing-request check failed:", err);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [myUid, targetUid]);
+
+  const baseStatus = rel.statusOf(targetUid);
+  // Folding in the outgoing-request status (which useMyRelations
+  // doesn't subscribe to, by design — it's a target-namespace doc).
+  const status: "none" | "following" | "request-out" | "request-in" | "friend" | "blocked" =
+    baseStatus === "none" && requestOut === true
+      ? "request-out"
+      : baseStatus === "following" && requestOut === true
+        ? "request-out"
+        : (baseStatus as "none" | "following" | "request-in" | "friend" | "blocked");
+
+  const wrap = async (op: () => Promise<void>) => {
+    setError(null);
+    setBusy(true);
+    try {
+      await op();
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error("[RelationActionsCard] action failed:", err);
+      setError(msg);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const onFollow = () => wrap(() => followUser(myUid, targetUid));
+  const onUnfollow = () => wrap(() => unfollowUser(myUid, targetUid));
+  const onBefriend = () =>
+    wrap(async () => {
+      await sendFriendRequest(myUid, targetUid);
+      setRequestOut(true);
+    });
+  const onCancelRequest = () =>
+    wrap(async () => {
+      await cancelFriendRequest(myUid, targetUid);
+      setRequestOut(false);
+    });
+  const onAccept = () => wrap(() => acceptFriendRequest(myUid, targetUid));
+  const onDecline = () => wrap(() => declineFriendRequest(myUid, targetUid));
+  const onUnfriend = () => wrap(() => unfriend(myUid, targetUid));
+  const onBlock = () =>
+    wrap(async () => {
+      if (!confirm(`Block ${targetName.split(" ")[0]}? They'll lose all access to your shared content and can't send impressions.`)) return;
+      await blockUser(myUid, targetUid);
+      setShowOverflow(false);
+    });
+  const onUnblock = () => wrap(() => unblockUser(myUid, targetUid));
+
+  const pillStyle: React.CSSProperties = {
+    padding: "8px 14px",
+    borderRadius: 999,
+    fontFamily: "var(--mono)",
+    fontSize: 11,
+    letterSpacing: "0.1em",
+    textTransform: "uppercase",
+    cursor: busy ? "default" : "pointer",
+    border: "0.5px solid var(--rule)",
+    background: "var(--paper-2)",
+    color: "var(--ink)",
+    opacity: busy ? 0.6 : 1,
+  };
+  const filledPill: React.CSSProperties = {
+    ...pillStyle,
+    background: "var(--ink)",
+    color: "var(--paper)",
+    border: "none",
+  };
+  const ghostPill: React.CSSProperties = {
+    ...pillStyle,
+    background: "transparent",
+    color: "var(--ink-3)",
+    border: "0.5px dashed var(--rule)",
+  };
+
+  return (
+    <div
+      className="card"
+      style={{
+        marginTop: 16,
+        padding: 14,
+        borderLeft: "3px solid var(--sage)",
+      }}
+    >
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <Kicker>relation</Kicker>
+        <button
+          type="button"
+          onClick={() => setShowOverflow((s) => !s)}
+          style={{
+            background: "transparent",
+            border: "none",
+            cursor: "pointer",
+            fontFamily: "var(--mono)",
+            fontSize: 14,
+            color: "var(--ink-3)",
+            padding: "0 4px",
+          }}
+          aria-label="more actions"
+        >
+          •••
+        </button>
+      </div>
+
+      <div style={{ marginTop: 12, display: "flex", gap: 8, flexWrap: "wrap" }}>
+        {status === "blocked" && (
+          <>
+            <span style={ghostPill}>blocked</span>
+            <button type="button" onClick={onUnblock} disabled={busy} style={pillStyle}>
+              unblock
+            </button>
+          </>
+        )}
+
+        {status === "friend" && (
+          <>
+            <span style={filledPill}>friends</span>
+            <button type="button" onClick={onUnfriend} disabled={busy} style={pillStyle}>
+              unfriend
+            </button>
+          </>
+        )}
+
+        {status === "request-in" && (
+          <>
+            <button type="button" onClick={onAccept} disabled={busy} style={filledPill}>
+              accept
+            </button>
+            <button type="button" onClick={onDecline} disabled={busy} style={pillStyle}>
+              decline
+            </button>
+          </>
+        )}
+
+        {status === "request-out" && (
+          <>
+            <span style={ghostPill}>request sent</span>
+            <button type="button" onClick={onCancelRequest} disabled={busy} style={pillStyle}>
+              cancel
+            </button>
+          </>
+        )}
+
+        {status === "following" && (
+          <>
+            <button type="button" onClick={onUnfollow} disabled={busy} style={pillStyle}>
+              following
+            </button>
+            <button type="button" onClick={onBefriend} disabled={busy || requestOut == null} style={filledPill}>
+              befriend
+            </button>
+          </>
+        )}
+
+        {status === "none" && (
+          <>
+            <button type="button" onClick={onFollow} disabled={busy} style={pillStyle}>
+              follow
+            </button>
+            <button type="button" onClick={onBefriend} disabled={busy || requestOut == null} style={filledPill}>
+              befriend
+            </button>
+          </>
+        )}
+      </div>
+
+      {showOverflow && status !== "blocked" && (
+        <div style={{ marginTop: 10 }}>
+          <button
+            type="button"
+            onClick={onBlock}
+            disabled={busy}
+            style={{
+              ...pillStyle,
+              color: "oklch(0.55 0.16 12)",
+              borderColor: "oklch(0.55 0.16 12)",
+            }}
+          >
+            block this person
+          </button>
+        </div>
+      )}
+
+      {rel.isFollower(targetUid) && status !== "friend" && status !== "blocked" && (
+        <div
+          className="margin-note"
+          style={{ marginTop: 8, fontSize: 11, fontStyle: "italic" }}
+        >
+          {targetName.split(" ")[0]} follows you. Befriend to share at
+          circle tier (both sides see each other's daily reports when
+          you have it set to "circle").
+        </div>
+      )}
+
+      {error && (
+        <div
+          className="margin-note"
+          style={{ marginTop: 8, fontSize: 11, color: "oklch(0.55 0.16 12)" }}
+        >
+          {error}
+        </div>
+      )}
+    </div>
+  );
+}
 
 function SendImpressionInline({
   name,
