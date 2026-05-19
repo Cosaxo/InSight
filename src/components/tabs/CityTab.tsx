@@ -43,11 +43,10 @@ export function CityTab() {
   if (!selectedCity) {
     return (
       <div className="fade-in">
-        <div className="page-num">— xi —</div>
-        <Kicker>Field notes · the city you live in</Kicker>
+        <Kicker>City · where you live</Kicker>
         <div className="sec-head">
           <h2>
-            A passport for <em>somewhere</em>
+            Your <em>city</em>
           </h2>
         </div>
         <div
@@ -121,11 +120,10 @@ export function CityTab() {
 
   return (
     <div className="fade-in">
-      <div className="page-num">— xi —</div>
-      <Kicker>Field notes · the city you live in</Kicker>
+      <Kicker>City · where you live</Kicker>
       <div className="sec-head">
         <h2>
-          A passport for <em>{c.name}</em>
+          <em>{c.name}</em>
         </h2>
       </div>
 

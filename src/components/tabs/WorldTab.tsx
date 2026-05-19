@@ -66,11 +66,10 @@ export function WorldTab({ onCity }: WorldTabProps) {
 
   return (
     <div className="fade-in">
-      <div className="page-num">— vii —</div>
-      <Kicker>Atlas · where life is happening</Kicker>
+      <Kicker>World · the planet at a glance</Kicker>
       <div className="sec-head">
         <h2>
-          An atlas of <em>elsewhere</em>
+          The <em>world</em>
         </h2>
       </div>
 

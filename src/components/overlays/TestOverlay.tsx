@@ -19,7 +19,7 @@ interface TestDef {
 
 const TESTS: Record<TestKind, TestDef> = {
   big5: {
-    title: "the Big Five",
+    title: "Big Five",
     tag: "personality · 5 questions",
     accent: "var(--c-around)",
     questions: [
@@ -31,7 +31,7 @@ const TESTS: Record<TestKind, TestDef> = {
     ],
   },
   political: {
-    title: "the politics",
+    title: "Political compass",
     tag: "compass · 12 questions · 6 axes",
     accent: "var(--c-world)",
     questions: [
@@ -50,7 +50,7 @@ const TESTS: Record<TestKind, TestDef> = {
     ],
   },
   values: {
-    title: "values & morals",
+    title: "Values & morals",
     tag: "where you sit · 8 questions",
     accent: "var(--c-people)",
     questions: [
@@ -126,7 +126,7 @@ export function TestOverlay({
             ✕
           </button>
           <div className="h-title">
-            a <em>quiet</em> test
+            <em>Test</em>
           </div>
           <div style={{ width: 36 }} />
         </div>

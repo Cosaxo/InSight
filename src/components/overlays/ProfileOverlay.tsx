@@ -980,7 +980,7 @@ export function ProfileOverlay({ onClose, onOpenTest }: ProfileOverlayProps) {
           ✕
         </button>
         <div className="h-title">
-          your <em>portrait</em>
+          <em>Profile</em>
         </div>
         <div style={{ width: 36 }} />
       </div>

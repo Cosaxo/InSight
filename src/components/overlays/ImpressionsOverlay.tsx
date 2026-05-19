@@ -675,7 +675,7 @@ export function ImpressionsOverlay({ onClose }: ImpressionsOverlayProps) {
           ✕
         </button>
         <div className="h-title">
-          the <em>impressions</em>
+          <em>Impressions</em>
         </div>
         <div className="h-meta">
           {items.length}

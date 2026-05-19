@@ -323,14 +323,13 @@ export function PeopleTab({
 
   return (
     <div className="fade-in">
-      <div className="page-num">— xix —</div>
 
       <RelationInbox onOpenPerson={onPerson} />
 
-      <Kicker>The intimates · the close orbit</Kicker>
+      <Kicker>People · your circle</Kicker>
       <div className="sec-head">
         <h2>
-          People you've <em>kept</em>
+          Your <em>people</em>
         </h2>
       </div>
 

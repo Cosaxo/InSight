@@ -165,7 +165,7 @@ export function VerdictCard({
             marginTop: 8,
           }}
         >
-          looking at the pattern…
+          generating reflection…
         </div>
       )}
 
@@ -179,9 +179,9 @@ export function VerdictCard({
       {available && !ready && !downloading && !verdict && !generating && (
         <div style={{ marginTop: 10 }}>
           <div className="margin-note" style={{ fontSize: 12, marginBottom: 10 }}>
-            Reflections run entirely on your phone — nothing leaves the
-            device. The first time uses ~2 GB (Gemma 4 E2B on-device);
-            after that it's instant and offline.
+            AI runs on your phone — nothing leaves the device. First
+            download is ~2.5 GB (Gemma 3n E2B multimodal); after that
+            it's instant and offline.
           </div>
           <button
             type="button"

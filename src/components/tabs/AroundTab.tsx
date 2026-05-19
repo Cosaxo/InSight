@@ -133,9 +133,8 @@ export function AroundTab({ onPerson, onOpenTest, onAddPerson }: AroundTabProps)
 
   return (
     <div className="fade-in">
-      <div className="page-num">— iii —</div>
-      <Kicker>Chapter one · your vicinity</Kicker>
-      <div className="sec-head"><h2>Souls within walking distance</h2></div>
+      <Kicker>Around · your vicinity</Kicker>
+      <div className="sec-head"><h2>People nearby</h2></div>
 
       {/* "Use my location" CTA — only shown when we haven't tried yet. */}
       {!position && (

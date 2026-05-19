@@ -62,7 +62,7 @@ function parseFacts(raw: string): Fact[] {
 
 function promptFor(age: number): string {
   return [
-    `You are a quiet journal companion. The user is ${age} years old.`,
+    `You write short, plain reflections about a user. The user is ${age} years old.`,
     `Write five short, literary observations about being ${age} — one per line — covering different angles:`,
     `1. biology — what's happening in the body and brain at this age`,
     `2. statistically — where this age sits in a population`,
@@ -71,7 +71,7 @@ function promptFor(age: number): string {
     `5. in a lifetime — what this age tends to mean as a chapter`,
     ``,
     `Each line: a short lowercase kicker, then "—" or ":", then 1-2 sentences.`,
-    `Be observational and slightly poetic — no advice, no cheer, no "you should". Examples:`,
+    `Be observational and plain — no advice, no cheer, no "you should". Examples:`,
     `1. biology — Cartilage in the long bones has finished closing; the body settles into its adult frame.`,
     `2. statistically — You are older than roughly half the people alive on Earth.`,
     `Output exactly five lines.`,

@@ -304,19 +304,19 @@ export function SharingOverlay({ onClose }: SharingOverlayProps) {
           ✕
         </button>
         <div className="h-title">
-          what you <em>share</em>
+          <em>Sharing</em>
         </div>
         <div style={{ width: 36 }} />
       </div>
       <div className="app-body">
         <div className="card" style={{ marginBottom: 14, padding: 14 }}>
-          <Kicker>Your perimeter</Kicker>
+          <Kicker>Sharing tiers</Kicker>
           <div
             className="margin-note"
             style={{ marginTop: 10, fontSize: 13, lineHeight: 1.5 }}
           >
-            "Each circle widens what you let out into the world. <em>Nobody</em>{" "}
-            means kept entirely to yourself."
+            Each tier shares with more people. <em>Nobody</em> keeps
+            something fully private.
           </div>
           <div style={{ display: "flex", gap: 6, marginTop: 14 }}>
             {tally.map((t) => (
@@ -537,15 +537,14 @@ export function SharingOverlay({ onClose }: SharingOverlayProps) {
           onChange={(v) => void save({ acceptImpressionsFrom: v })}
         />
 
-        <Kicker>Each thing, separately</Kicker>
+        <Kicker>Per-category settings</Kicker>
         <div
           className="margin-note"
           style={{ marginTop: 6, marginBottom: 10, fontSize: 11.5, fontStyle: "italic" }}
         >
-          The daily-report level is enforced today at the Firestore
-          rule layer — your circle can only read what you've set to{" "}
-          <em>circle</em> or wider. The other categories persist your
-          intent for when each cross-user read lands.
+          Daily reports are enforced server-side — your circle only
+          reads what you've set to <em>circle</em> or wider. Other
+          categories save your intent for when cross-user reads land.
         </div>
         <div>
           {SHARE_DATA.map((item) => (

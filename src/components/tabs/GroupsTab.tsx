@@ -524,11 +524,10 @@ export function GroupsTab() {
 
   return (
     <div className="fade-in">
-      <div className="page-num">— xv —</div>
-      <Kicker>Practice · skills you keep</Kicker>
+      <Kicker>Interests · what you're into</Kicker>
       <div className="sec-head">
         <h2>
-          The skills you <em>return to</em>
+          Your <em>interests</em>
         </h2>
       </div>
 
