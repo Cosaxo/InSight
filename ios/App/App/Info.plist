@@ -55,6 +55,10 @@
 	<string>InSight saves daily-report photos to your library when you ask it to.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>InSight uses your location so the City tab can pick the city you're actually in, and the Around tab can show people nearby. Sharing your own location with others is off until you turn it on.</string>
+	<key>NSHealthShareUsageDescription</key>
+	<string>InSight reads sleep, heart rate variability, resting heart rate, steps, VO₂ max, and active calories from Apple Health to fill in the Body tab. Nothing is shared outside your device unless you turn that on.</string>
+	<key>NSHealthUpdateUsageDescription</key>
+	<string>InSight does not write to Apple Health.</string>
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>

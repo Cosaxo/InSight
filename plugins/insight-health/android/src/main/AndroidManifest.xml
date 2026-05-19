@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!--
+      Health Connect read permissions. Each <uses-permission> here
+      matches one of the data types we ask for at runtime. The user
+      grants them via the Health Connect app's permission UI; this
+      manifest declaration is the App-store-side "we will ask for
+      these" disclosure.
+    -->
+    <uses-permission android:name="android.permission.health.READ_HEART_RATE_VARIABILITY" />
+    <uses-permission android:name="android.permission.health.READ_RESTING_HEART_RATE" />
+    <uses-permission android:name="android.permission.health.READ_STEPS" />
+    <uses-permission android:name="android.permission.health.READ_VO2_MAX" />
+    <uses-permission android:name="android.permission.health.READ_ACTIVE_CALORIES_BURNED" />
+    <uses-permission android:name="android.permission.health.READ_SLEEP" />
+
+    <queries>
+        <!--
+          Android 11+ package-visibility: declare the Health Connect
+          package so Intent.resolveActivity() can find its permission
+          UI. Without this, requestPermissions() throws on first run.
+        -->
+        <package android:name="com.google.android.apps.healthdata" />
+    </queries>
+
+</manifest>

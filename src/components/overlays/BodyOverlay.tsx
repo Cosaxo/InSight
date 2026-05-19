@@ -24,7 +24,7 @@
 // insight_users/{uid}/insight_body/{date}, and have this overlay
 // subscribe to it. Until then, the empty-state is the right thing.
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Kicker } from "../shared/primitives";
 import { Donut, HBars } from "../shared/charts";
 import { useMeals, isoDateToday } from "../../lib/useMeals";
@@ -35,6 +35,7 @@ import {
   generateMockSnapshot,
   useBodySnapshot,
 } from "../../lib/useBodySnapshot";
+import { useHealthSync } from "../../lib/useHealthSync";
 import {
   buildMealEstimatePrompt,
   buildMealVisionPrompt,
@@ -95,6 +96,25 @@ export function BodyOverlay({ onClose }: BodyOverlayProps) {
   const { profile } = useProfile();
   const { snapshot: bodySnap, save: saveSnap, clear: clearSnap } =
     useBodySnapshot();
+  const health = useHealthSync();
+
+  // Auto-sync when the overlay opens AND the user has connected
+  // the wearable bridge. Once-per-mount; the user can also force a
+  // refresh from the WearableCard. Failures are surfaced via
+  // health.error and don't block the rest of the screen.
+  useEffect(() => {
+    if (!health.enabled || !health.available) return;
+    let cancelled = false;
+    void (async () => {
+      const patch = await health.sync();
+      if (cancelled || !patch) return;
+      await saveSnap(patch);
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [health.enabled, health.available]);
 
   const today = isoDateToday();
   const todayMeals = items.filter((m) => m.date === today);
@@ -165,6 +185,16 @@ export function BodyOverlay({ onClose }: BodyOverlayProps) {
       <div className="app-body">
         <WearableCard
           snap={bodySnap}
+          health={health}
+          onConnect={async () => {
+            await health.connect();
+            const patch = await health.sync();
+            if (patch) await saveSnap(patch);
+          }}
+          onSync={async () => {
+            const patch = await health.sync();
+            if (patch) await saveSnap(patch);
+          }}
           onMock={() => void saveSnap(generateMockSnapshot(today))}
           onClear={() => void clearSnap()}
         />
@@ -428,12 +458,31 @@ export function BodyOverlay({ onClose }: BodyOverlayProps) {
 
 interface WearableCardProps {
   snap: ReturnType<typeof useBodySnapshot>["snapshot"];
+  health: ReturnType<typeof useHealthSync>;
+  onConnect: () => Promise<void>;
+  onSync: () => Promise<void>;
   onMock: () => void;
   onClear: () => void;
 }
 
-function WearableCard({ snap, onMock, onClear }: WearableCardProps) {
-  if (!snap || (snap.hrvMs == null && snap.steps == null && snap.bodyBattery == null && snap.sleepMinutes == null && snap.restingHrBpm == null && snap.vo2Max == null)) {
+function WearableCard({
+  snap,
+  health,
+  onConnect,
+  onSync,
+  onMock,
+  onClear,
+}: WearableCardProps) {
+  const isEmpty =
+    !snap ||
+    (snap.hrvMs == null &&
+      snap.steps == null &&
+      snap.bodyBattery == null &&
+      snap.sleepMinutes == null &&
+      snap.restingHrBpm == null &&
+      snap.vo2Max == null);
+
+  if (isEmpty) {
     return (
       <div
         className="card"
@@ -460,30 +509,71 @@ function WearableCard({ snap, onMock, onClear }: WearableCardProps) {
           style={{ marginTop: 6, fontSize: 12, lineHeight: 1.5 }}
         >
           "Body battery, HRV, sleep stages, VO₂ max, and HR zones
-          land here once a wearable (Apple Health, Garmin, Fitbit,
-          Health Connect) is connected. The integration isn't built
-          yet — until then this stays empty rather than filling
-          itself with sample numbers."
+          land here once Apple Health or Health Connect is connected.
+          Whatever wearable you use — Apple Watch, Garmin, Whoop, Oura,
+          Fitbit — its data flows through one of those two stores."
         </div>
-        <button
-          type="button"
-          onClick={onMock}
-          style={{
-            marginTop: 10,
-            padding: "6px 10px",
-            background: "transparent",
-            color: "var(--ink-3)",
-            border: "0.5px dashed var(--rule)",
-            borderRadius: 999,
-            fontFamily: "var(--mono)",
-            fontSize: 9,
-            letterSpacing: "0.14em",
-            textTransform: "uppercase",
-            cursor: "pointer",
-          }}
-        >
-          🧪 fill with mock data
-        </button>
+        <div style={{ marginTop: 12, display: "flex", gap: 8, flexWrap: "wrap" }}>
+          {health.available && (
+            <button
+              type="button"
+              onClick={() => void onConnect()}
+              disabled={health.syncing}
+              style={{
+                padding: "8px 14px",
+                background: "var(--ink)",
+                color: "var(--paper)",
+                border: "none",
+                borderRadius: 999,
+                fontFamily: "var(--mono)",
+                fontSize: 10,
+                letterSpacing: "0.14em",
+                textTransform: "uppercase",
+                cursor: "pointer",
+              }}
+            >
+              {health.syncing ? "connecting…" : "📱 connect health"}
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={onMock}
+            style={{
+              padding: "8px 12px",
+              background: "transparent",
+              color: "var(--ink-3)",
+              border: "0.5px dashed var(--rule)",
+              borderRadius: 999,
+              fontFamily: "var(--mono)",
+              fontSize: 9,
+              letterSpacing: "0.14em",
+              textTransform: "uppercase",
+              cursor: "pointer",
+            }}
+          >
+            🧪 fill with mock data
+          </button>
+        </div>
+        {!health.available && health.unavailableReason && (
+          <div
+            className="margin-note"
+            style={{ marginTop: 8, fontSize: 11, fontStyle: "italic" }}
+          >
+            Bridge unavailable: {health.unavailableReason}.
+          </div>
+        )}
+        {health.error && (
+          <div
+            className="margin-note"
+            style={{
+              marginTop: 8,
+              fontSize: 11,
+              color: "oklch(0.55 0.16 12)",
+            }}
+          >
+            {health.error}
+          </div>
+        )}
       </div>
     );
   }
@@ -510,23 +600,44 @@ function WearableCard({ snap, onMock, onClear }: WearableCardProps) {
           wearable signals · {snap.source ?? "device"}
           {isMock ? " · MOCK" : ""}
         </Kicker>
-        {isMock && (
-          <button
-            type="button"
-            onClick={onClear}
-            style={{
-              background: "transparent",
-              border: "none",
-              fontFamily: "var(--mono)",
-              fontSize: 9,
-              letterSpacing: "0.12em",
-              color: "var(--ink-3)",
-              cursor: "pointer",
-            }}
-          >
-            ✕ CLEAR
-          </button>
-        )}
+        <div style={{ display: "flex", gap: 8 }}>
+          {!isMock && health.enabled && (
+            <button
+              type="button"
+              onClick={() => void onSync()}
+              disabled={health.syncing}
+              style={{
+                background: "transparent",
+                border: "none",
+                fontFamily: "var(--mono)",
+                fontSize: 9,
+                letterSpacing: "0.12em",
+                color: "var(--ink-3)",
+                cursor: "pointer",
+              }}
+              title="refresh from Health"
+            >
+              {health.syncing ? "↻ SYNCING…" : "↻ SYNC"}
+            </button>
+          )}
+          {isMock && (
+            <button
+              type="button"
+              onClick={onClear}
+              style={{
+                background: "transparent",
+                border: "none",
+                fontFamily: "var(--mono)",
+                fontSize: 9,
+                letterSpacing: "0.12em",
+                color: "var(--ink-3)",
+                cursor: "pointer",
+              }}
+            >
+              ✕ CLEAR
+            </button>
+          )}
+        </div>
       </div>
       <div
         style={{
