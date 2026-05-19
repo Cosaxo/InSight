@@ -4,7 +4,7 @@
 // useDailyReport / useCityRatings / useRelations); the shapes those
 // hooks read and write live here.
 
-export type TabId = "around" | "world" | "city" | "groups" | "people";
+export type TabId = "around" | "world" | "city" | "interests" | "people";
 
 export type RelationCategory =
   | "family"

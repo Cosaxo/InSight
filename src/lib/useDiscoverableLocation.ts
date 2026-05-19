@@ -77,6 +77,10 @@ export function useDiscoverableLocation(position: GeoPosition | null): {
   const shareBio = sharePrefs["bio"] && sharePrefs["bio"] !== "nobody";
   const shareRole = sharePrefs["role"] && sharePrefs["role"] !== "nobody";
   const shareAge = sharePrefs["age"] && sharePrefs["age"] !== "nobody";
+  const shareInterests =
+    sharePrefs["interests"] && sharePrefs["interests"] !== "nobody";
+  const shareGender = sharePrefs["gender"] && sharePrefs["gender"] !== "nobody";
+  const shareCountry = sharePrefs["country"] && sharePrefs["country"] !== "nobody";
 
   const bio = shareBio && typeof profile.bio === "string"
     ? profile.bio.trim().slice(0, 280) || null
@@ -89,6 +93,18 @@ export function useDiscoverableLocation(position: GeoPosition | null): {
   const age = shareAge && typeof profile.birthYear === "number"
     ? Math.max(0, new Date().getFullYear() - profile.birthYear)
     : null;
+  // Interest names are denormalised onto the profile by useInterests
+  // every time the list mutates. We just read the cached snapshot.
+  const interestNames =
+    shareInterests && Array.isArray(profile.interestNames) && profile.interestNames.length > 0
+      ? profile.interestNames.slice(0, 64)
+      : null;
+  const gender = shareGender && typeof profile.gender === "string"
+    ? profile.gender
+    : null;
+  const country = shareCountry && typeof profile.country === "string"
+    ? profile.country.toUpperCase().slice(0, 2)
+    : null;
 
   // Stable key so the upsert re-runs when any shared field changes,
   // without firing on unrelated profile updates.
@@ -97,6 +113,9 @@ export function useDiscoverableLocation(position: GeoPosition | null): {
     bio ?? "_",
     role ?? "_",
     age ?? "_",
+    interestNames ? interestNames.join(",") : "_",
+    gender ?? "_",
+    country ?? "_",
   ].join("|");
 
   // Side effect: when (signed in + opted in + have position), upsert.
@@ -116,6 +135,9 @@ export function useDiscoverableLocation(position: GeoPosition | null): {
           bio,
           role,
           age,
+          interestNames,
+          gender,
+          country,
         });
         setLastFuzzed(key);
         setLastSyncedAt(Date.now());
@@ -125,7 +147,7 @@ export function useDiscoverableLocation(position: GeoPosition | null): {
         setError(msg);
       }
     })();
-  }, [user, enabled, position, lastFuzzed, personality, bio, role, age, inputKey]);
+  }, [user, enabled, position, lastFuzzed, personality, bio, role, age, interestNames, gender, country, inputKey]);
 
   const setEnabled = useCallback(
     async (v: boolean) => {

@@ -55,7 +55,15 @@ service cloud.firestore {
           // matches the original carve-out. "nearby" extends it to
           // followers; "anyone" opens it to any signed-in user;
           // "nobody" closes the feature entirely.
-          && (!('acceptImpressionsFrom' in d) || d.acceptImpressionsFrom in ['nobody', 'circle', 'nearby', 'anyone']);
+          && (!('acceptImpressionsFrom' in d) || d.acceptImpressionsFrom in ['nobody', 'circle', 'nearby', 'anyone'])
+          // Demographic fields. gender uses the four-value closed set;
+          // country is an ISO 3166-1 alpha-2 code. Both opt-in via
+          // sharePrefs.
+          && (!('gender' in d) || d.gender in ['man', 'woman', 'non-binary', 'prefer-not-to-say'])
+          && (!('country' in d) || (d.country is string && d.country.size() == 2))
+          // Denormalised list of interest names. Each ≤ 60 chars,
+          // overall capped at 64 entries to bound storage.
+          && (!('interestNames' in d) || (d.interestNames is list && d.interestNames.size() <= 64));
       }
 
       function isValidSharePrefs(prefs) {
@@ -366,6 +374,18 @@ service cloud.firestore {
         && (
           !('age' in d) || d.age == null
           || (d.age is int && d.age >= 10 && d.age <= 130)
+        )
+        && (
+          !('interestNames' in d) || d.interestNames == null
+          || (d.interestNames is list && d.interestNames.size() <= 64)
+        )
+        && (
+          !('gender' in d) || d.gender == null
+          || d.gender in ['man', 'woman', 'non-binary', 'prefer-not-to-say']
+        )
+        && (
+          !('country' in d) || d.country == null
+          || (d.country is string && d.country.size() == 2)
         );
     }
 

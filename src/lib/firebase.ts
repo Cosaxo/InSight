@@ -232,6 +232,53 @@ export async function deleteSkill(uid: string, id: string): Promise<void> {
   return m.deleteSkill(uid, id);
 }
 
+// ── Interests (the new, simpler concept replacing skills) ───────
+
+export function subscribeInterests(
+  uid: string,
+  cb: (items: import("./firebaseImpl").RemoteInterest[]) => void,
+): () => void {
+  let cancelled = false;
+  let unsub: (() => void) | null = null;
+  impl().then((m) => {
+    if (cancelled) return;
+    unsub = m.subscribeInterests(uid, cb);
+  });
+  return () => {
+    cancelled = true;
+    unsub?.();
+  };
+}
+
+export async function addInterest(
+  uid: string,
+  interest: import("./firebaseImpl").RemoteInterest,
+): Promise<void> {
+  const m = await impl();
+  return m.addInterest(uid, interest);
+}
+
+export async function deleteInterest(uid: string, id: string): Promise<void> {
+  const m = await impl();
+  return m.deleteInterest(uid, id);
+}
+
+export async function fetchPublicProfiles(
+  uids: string[],
+): Promise<Array<{
+  uid: string;
+  interestNames?: string[];
+  personality?: number[];
+  gender?: string;
+  age?: number;
+  country?: string;
+}>> {
+  const m = await impl();
+  return m.fetchPublicProfiles(uids);
+}
+
+export type { RemoteInterest } from "./firebaseImpl";
+
 export function subscribeWorkouts(
   uid: string,
   cb: (items: Workout[]) => void,
@@ -759,6 +806,9 @@ export async function upsertDiscoverable(
     bio?: string | null;
     role?: string | null;
     age?: number | null;
+    interestNames?: string[] | null;
+    gender?: string | null;
+    country?: string | null;
   },
 ): Promise<void> {
   const m = await impl();

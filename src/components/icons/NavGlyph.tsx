@@ -73,7 +73,7 @@ export function NavGlyph({ id, active }: NavGlyphProps) {
       </svg>
     );
   }
-  if (id === "groups") {
+  if (id === "interests") {
     return (
       <svg
         viewBox="0 0 24 24"

@@ -41,7 +41,7 @@ import { NavGlyph } from "./components/icons/NavGlyph";
 import { AroundTab } from "./components/tabs/AroundTab";
 import { WorldTab } from "./components/tabs/WorldTab";
 import { CityTab } from "./components/tabs/CityTab";
-import { GroupsTab } from "./components/tabs/GroupsTab";
+import { InterestsTab } from "./components/tabs/InterestsTab";
 import { PeopleTab } from "./components/tabs/PeopleTab";
 import type { NearbyPerson } from "./components/tabs/AroundTab";
 import type { CitySeed } from "./components/tabs/WorldTab";
@@ -144,7 +144,7 @@ const TABS: { id: TabId; label: string }[] = [
   { id: "around", label: "around" },
   { id: "world", label: "world" },
   { id: "city", label: "city" },
-  { id: "groups", label: "groups" },
+  { id: "interests", label: "interests" },
   { id: "people", label: "people" },
 ];
 
@@ -488,7 +488,7 @@ function AppShell() {
           )}
           {tab === "world" && <WorldTab onCity={setCity} />}
           {tab === "city" && <CityTab />}
-          {tab === "groups" && <GroupsTab />}
+          {tab === "interests" && <InterestsTab />}
           {tab === "people" && (
             <PeopleTab
               onPerson={setPerson}
