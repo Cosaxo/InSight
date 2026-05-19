@@ -627,6 +627,124 @@ function ChipListEditor({
   );
 }
 
+// PublicProfileEditor — the two free-text fields (bio + role) that
+// can be exposed to nearby users via SharingOverlay's bio / role
+// toggles. The fields are always editable here; the toggles
+// decide whether they actually leave the device. Empty strings
+// clear the value; cap is enforced on commit.
+function PublicProfileEditor({
+  bio,
+  role,
+  onSave,
+}: {
+  bio?: string;
+  role?: string;
+  onSave: (patch: { bio?: string; role?: string }) => void;
+}) {
+  // Track the last "incoming" prop values so an async profile
+  // arrival (sign-in / import) can update our drafts without
+  // stomping on a user mid-type. If the prop changes AND it
+  // differs from the previous prop we saw, adopt the new value;
+  // a user's typed change updates the draft but leaves the
+  // previous-prop ref alone.
+  const [bioDraft, setBioDraft] = useState(bio ?? "");
+  const [roleDraft, setRoleDraft] = useState(role ?? "");
+  const [lastBioProp, setLastBioProp] = useState(bio ?? "");
+  const [lastRoleProp, setLastRoleProp] = useState(role ?? "");
+  if ((bio ?? "") !== lastBioProp) {
+    setLastBioProp(bio ?? "");
+    setBioDraft(bio ?? "");
+  }
+  if ((role ?? "") !== lastRoleProp) {
+    setLastRoleProp(role ?? "");
+    setRoleDraft(role ?? "");
+  }
+
+  const commitBio = () => {
+    const trimmed = bioDraft.trim().slice(0, 280);
+    if (trimmed === (bio ?? "")) return;
+    onSave({ bio: trimmed });
+  };
+  const commitRole = () => {
+    const trimmed = roleDraft.trim().slice(0, 60);
+    if (trimmed === (role ?? "")) return;
+    onSave({ role: trimmed });
+  };
+
+  const inputStyle: React.CSSProperties = {
+    width: "100%",
+    boxSizing: "border-box",
+    padding: "10px 12px",
+    background: "var(--paper-2)",
+    border: "0.5px solid var(--rule)",
+    borderRadius: 8,
+    fontFamily: "var(--serif)",
+    fontSize: 14,
+    color: "var(--ink)",
+  };
+
+  return (
+    <>
+      <Kicker>public profile · for nearby people</Kicker>
+      <div
+        className="margin-note"
+        style={{
+          marginTop: 6,
+          marginBottom: 12,
+          fontSize: 12,
+          fontStyle: "italic",
+        }}
+      >
+        Always stays on this device until you flip the matching
+        toggle in Sharing. Bio is capped at 280 characters; role at
+        60.
+      </div>
+
+      <label style={{ display: "block", marginBottom: 12 }}>
+        <span className="kicker">role · what you do</span>
+        <input
+          type="text"
+          value={roleDraft}
+          maxLength={60}
+          onChange={(e) => setRoleDraft(e.target.value)}
+          onBlur={commitRole}
+          placeholder="ceramicist, marine biologist…"
+          style={{ ...inputStyle, marginTop: 6 }}
+        />
+      </label>
+
+      <label style={{ display: "block" }}>
+        <span className="kicker">bio</span>
+        <textarea
+          value={bioDraft}
+          maxLength={280}
+          onChange={(e) => setBioDraft(e.target.value)}
+          onBlur={commitBio}
+          placeholder="A sentence or two for the people who find you."
+          rows={3}
+          style={{
+            ...inputStyle,
+            marginTop: 6,
+            fontStyle: "italic",
+            resize: "vertical",
+          }}
+        />
+        <div
+          style={{
+            textAlign: "right",
+            fontFamily: "var(--mono)",
+            fontSize: 9,
+            color: "var(--ink-3)",
+            marginTop: 4,
+          }}
+        >
+          {bioDraft.length}/280
+        </div>
+      </label>
+    </>
+  );
+}
+
 interface HeroEditorProps {
   heroes: Hero[];
   onChange: (next: Hero[]) => void;
@@ -885,6 +1003,14 @@ export function ProfileOverlay({ onClose, onOpenTest }: ProfileOverlayProps) {
         <VitalStatsEditor
           birthYear={profile.birthYear}
           currency={profile.currency}
+          onSave={(patch) => void save(patch)}
+        />
+
+        <hr className="rule-dashed" />
+
+        <PublicProfileEditor
+          bio={profile.bio}
+          role={profile.role}
           onSave={(patch) => void save(patch)}
         />
 

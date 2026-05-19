@@ -42,14 +42,41 @@ interface AroundTabProps {
 }
 
 function PersonRow({ p, onClick }: { p: NearbyPerson; onClick: () => void }) {
+  // Subline composes from whatever the discovered user has chosen
+  // to share: role + age + distance + values. Empty pieces are
+  // filtered so the line stays clean.
+  const subParts = [
+    p.role && p.role.trim(),
+    p.age && p.age > 0 ? `${p.age}` : null,
+    p.dist,
+    p.values && p.values.trim(),
+  ].filter(Boolean);
   return (
     <div onClick={onClick} className="card" style={{ display: "flex", gap: 14, alignItems: "center", cursor: "pointer", borderLeft: `3px solid oklch(0.55 0.12 ${p.hue})` }}>
       <Av init={p.init} hue={p.hue} size={44} />
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ fontFamily: "var(--serif)", fontSize: 16, fontWeight: 500, letterSpacing: "-0.01em" }}>{p.name}</div>
         <div style={{ fontSize: 11.5, color: "var(--ink-3)", fontFamily: "var(--mono)", letterSpacing: "0.04em", marginTop: 1 }}>
-          {p.role} · {p.dist} · {p.values}
+          {subParts.join(" · ")}
         </div>
+        {p.note && p.note.trim() && (
+          <div
+            style={{
+              fontSize: 12,
+              color: "var(--ink-2)",
+              fontFamily: "var(--serif)",
+              fontStyle: "italic",
+              marginTop: 4,
+              lineHeight: 1.35,
+              display: "-webkit-box",
+              WebkitLineClamp: 2,
+              WebkitBoxOrient: "vertical",
+              overflow: "hidden",
+            }}
+          >
+            “{p.note}”
+          </div>
+        )}
         <div style={{ marginTop: 6, display: "flex", flexWrap: "wrap", gap: 4 }}>
           {p.interests.slice(0, 4).map((it, i) => {
             const cat = INTEREST_CATS.find((c) => c.id === it.c);

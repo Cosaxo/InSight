@@ -756,6 +756,9 @@ export async function upsertDiscoverable(
     displayName?: string;
     photoColor?: string;
     personality?: number[];
+    bio?: string | null;
+    role?: string | null;
+    age?: number | null;
   },
 ): Promise<void> {
   const m = await impl();

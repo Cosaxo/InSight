@@ -46,7 +46,10 @@ service cloud.firestore {
           && (!('birthYear' in d) || (d.birthYear is int && d.birthYear > 1900 && d.birthYear < 2100))
           // free-text lists kept under 256 entries to prevent abuse.
           && (!('likes' in d) || (d.likes is list && d.likes.size() <= 256))
-          && (!('dislikes' in d) || (d.dislikes is list && d.dislikes.size() <= 256));
+          && (!('dislikes' in d) || (d.dislikes is list && d.dislikes.size() <= 256))
+          // bio / role: optional public-profile strings, capped.
+          && (!('bio' in d) || (d.bio is string && d.bio.size() <= 280))
+          && (!('role' in d) || (d.role is string && d.role.size() <= 60));
       }
 
       function isValidSharePrefs(prefs) {
@@ -220,6 +223,8 @@ service cloud.firestore {
       // rather than omitting the key). `personality` is the user's
       // Big Five vector (5 numbers, 0..100) used by useNearbyPeople
       // to compute match%; null clears a previously-set vector.
+      // `bio`, `role`, `age` are opt-in public-profile fields,
+      // length / range capped.
       return
         d.location.geohash is string
         && d.location.geohash.size() > 0
@@ -238,6 +243,18 @@ service cloud.firestore {
         && (
           !('personality' in d) || d.personality == null
           || (d.personality is list && d.personality.size() == 5)
+        )
+        && (
+          !('bio' in d) || d.bio == null
+          || (d.bio is string && d.bio.size() <= 280)
+        )
+        && (
+          !('role' in d) || d.role == null
+          || (d.role is string && d.role.size() <= 60)
+        )
+        && (
+          !('age' in d) || d.age == null
+          || (d.age is int && d.age >= 10 && d.age <= 130)
         );
     }
 

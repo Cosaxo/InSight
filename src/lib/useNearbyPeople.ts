@@ -103,25 +103,25 @@ export function useNearbyPeople(
         setSource("seed");
         return;
       }
-      // Map RemoteDiscoverable → NearbyPerson. We don't yet store
-      // age / role / interests publicly so those stay empty until a
-      // public-profile pipeline lands. Match% is real now though:
-      // big5Match() returns null when either side hasn't taken the
-      // test, which PersonRow renders as "—".
+      // Map RemoteDiscoverable → NearbyPerson. bio + role + age
+      // are now optional public-profile fields the user opts into
+      // via SharingOverlay; missing fields render as empty. Match%
+      // is computed via big5Match (null when either side hasn't
+      // taken the test, rendered as "—").
       const mapped: NearbyPerson[] = remote.map((r) => {
         const chrome = chromeFor(r.uid, r.displayName);
         return {
           id: r.uid,
           name: chrome.name,
           init: chrome.init,
-          age: 0,
+          age: r.age ?? 0,
           dist: formatDistance(r.distanceKm),
           match: big5Match(ownPersonality, r.personality),
           hue: chrome.hue,
-          role: "",
+          role: r.role ?? "",
           interests: [],
           values: "",
-          note: "",
+          note: r.bio ?? "",
         };
       });
       // Sort by match desc when known, distance asc as tiebreaker.

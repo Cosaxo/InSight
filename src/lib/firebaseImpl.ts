@@ -134,6 +134,14 @@ export interface RemoteProfile {
   // auto-delete already-uploaded photos — the user has to clear
   // them explicitly.
   cloudPhotos?: boolean;
+  // Short public bio surfaced on the nearby-people row when the
+  // user has opted into discovery + bio sharing. Trimmed and
+  // length-capped at the Firestore rule layer (≤ 280 chars).
+  bio?: string;
+  // Short role/profession tag shown next to the bio on the
+  // nearby-people row (e.g. "ceramicist", "marine biologist").
+  // ≤ 60 chars; same opt-in plumbing as bio.
+  role?: string;
 }
 
 export interface MigrationPayload {
@@ -1130,6 +1138,13 @@ export interface RemoteDiscoverable {
   // it from their profile). Used by useNearbyPeople to compute a
   // real match% via cosine similarity instead of the placeholder.
   personality?: number[];
+  // Public bio + role + age fields. All optional, all sourced from
+  // the user's profile, all controlled by the per-field sharing
+  // toggles in SharingOverlay. Missing fields render as empty in
+  // the nearby-people row.
+  bio?: string;
+  role?: string;
+  age?: number;
 }
 
 // Read the `location` map regardless of which Firestore representation
@@ -1287,6 +1302,9 @@ export async function findNearbyDiscoverable(
           location?: unknown;
           lastSeen?: number;
           personality?: unknown;
+          bio?: unknown;
+          role?: unknown;
+          age?: unknown;
         };
         const loc = readLocation(data.location);
         if (!loc) continue;
@@ -1299,6 +1317,16 @@ export async function findNearbyDiscoverable(
           personalityRaw.every((n) => typeof n === "number")
             ? (personalityRaw as number[])
             : undefined;
+        const bio = typeof data.bio === "string" && data.bio.length > 0
+          ? data.bio.slice(0, 280)
+          : undefined;
+        const role = typeof data.role === "string" && data.role.length > 0
+          ? data.role.slice(0, 60)
+          : undefined;
+        const age =
+          typeof data.age === "number" && Number.isFinite(data.age) && data.age >= 10 && data.age <= 130
+            ? Math.round(data.age)
+            : undefined;
         seen.set(d.id, {
           uid: d.id,
           displayName: data.displayName,
@@ -1309,6 +1337,9 @@ export async function findNearbyDiscoverable(
           distanceKm: dKm,
           lastSeen: data.lastSeen,
           personality,
+          bio,
+          role,
+          age,
         });
       }
     }
@@ -1336,6 +1367,11 @@ export async function upsertDiscoverable(
     // merge clears a previously-written value if the user removes
     // their personality test.
     personality?: number[];
+    // Optional public-profile fields, each opt-in via SharingOverlay
+    // toggles. Pass `null` to clear a previously-set value.
+    bio?: string | null;
+    role?: string | null;
+    age?: number | null;
   },
 ): Promise<void> {
   await setDoc(
@@ -1352,6 +1388,9 @@ export async function upsertDiscoverable(
         data.personality && data.personality.length === 5
           ? data.personality
           : null,
+      bio: typeof data.bio === "string" ? data.bio.slice(0, 280) : null,
+      role: typeof data.role === "string" ? data.role.slice(0, 60) : null,
+      age: typeof data.age === "number" ? data.age : null,
     },
     { merge: true },
   );

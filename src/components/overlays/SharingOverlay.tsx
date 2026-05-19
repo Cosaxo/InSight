@@ -30,6 +30,13 @@ interface ShareItem {
 //     UI honestly says "no cross-user reads exist for these yet"
 //     beneath the section.
 const SHARE_DATA: ShareItem[] = [
+  // Public-profile fields shown on the nearby-people row. All
+  // default to "nobody" — opt-in. Once enabled, the discoverable
+  // upsert in useDiscoverableLocation pulls the matching value
+  // off profile and writes it to the doc.
+  { id: "bio", label: "short bio", sub: "≤ 280 chars, shown to nearby people", glyph: "❝", def: "nobody" },
+  { id: "role", label: "what you do", sub: "ceramicist, marine biologist, …", glyph: "✎", def: "nobody" },
+  { id: "age", label: "age", sub: "the integer, never the year", glyph: "◯", def: "nobody" },
   { id: "daily_report", label: "daily report", sub: "your one-line summary + mood + weather", glyph: "✎", def: "circle" },
   { id: "mood", label: "mood", sub: "the 1..5 score per day", glyph: "☾", def: "circle" },
   { id: "big5", label: "personality (Big Five)", sub: "O · C · E · A · N", glyph: "✺", def: "circle" },
