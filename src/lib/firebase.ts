@@ -12,17 +12,27 @@
 
 import type { User } from "firebase/auth";
 import type {
+  Book,
   CityRating,
   CityRatings,
   Dream,
   Habit,
+  Home,
+  InboundImpression,
   Impression,
+  Job,
+  Language,
   Meal,
+  Milestone,
   MoodEntry,
   Person,
+  RemoteBodySnapshot,
   RemoteDailyReport,
   Specimen,
+  TimeBlock,
   Transaction,
+  Visit,
+  Weighin,
   Workout,
 } from "../types";
 import type {
@@ -37,6 +47,7 @@ export type {
   RemoteCity,
   RemoteDiscoverable,
   RemoteSkill,
+  ShareLevel,
 } from "./firebaseImpl";
 export type { User } from "firebase/auth";
 
@@ -337,6 +348,144 @@ export async function deleteSpecimen(uid: string, id: string): Promise<void> {
   return m.deleteSpecimen(uid, id);
 }
 
+// ── The ledger ──────────────────────────────────────────────────
+
+export function subscribeBooks(
+  uid: string,
+  cb: (items: Book[]) => void,
+): () => void {
+  return lazySubscribe((m) => m.subscribeBooks, uid, cb);
+}
+export async function addBook(uid: string, b: Book): Promise<void> {
+  const m = await impl();
+  return m.addBook(uid, b);
+}
+export async function deleteBook(uid: string, id: string): Promise<void> {
+  const m = await impl();
+  return m.deleteBook(uid, id);
+}
+
+export function subscribeVisits(
+  uid: string,
+  cb: (items: Visit[]) => void,
+): () => void {
+  return lazySubscribe((m) => m.subscribeVisits, uid, cb);
+}
+export async function addVisit(uid: string, v: Visit): Promise<void> {
+  const m = await impl();
+  return m.addVisit(uid, v);
+}
+export async function deleteVisit(uid: string, id: string): Promise<void> {
+  const m = await impl();
+  return m.deleteVisit(uid, id);
+}
+
+export function subscribeHomes(
+  uid: string,
+  cb: (items: Home[]) => void,
+): () => void {
+  return lazySubscribe((m) => m.subscribeHomes, uid, cb);
+}
+export async function addHome(uid: string, h: Home): Promise<void> {
+  const m = await impl();
+  return m.addHome(uid, h);
+}
+export async function deleteHome(uid: string, id: string): Promise<void> {
+  const m = await impl();
+  return m.deleteHome(uid, id);
+}
+
+export function subscribeLanguages(
+  uid: string,
+  cb: (items: Language[]) => void,
+): () => void {
+  return lazySubscribe((m) => m.subscribeLanguages, uid, cb);
+}
+export async function addLanguage(uid: string, l: Language): Promise<void> {
+  const m = await impl();
+  return m.addLanguage(uid, l);
+}
+export async function deleteLanguage(
+  uid: string,
+  id: string,
+): Promise<void> {
+  const m = await impl();
+  return m.deleteLanguage(uid, id);
+}
+
+export function subscribeJobs(
+  uid: string,
+  cb: (items: Job[]) => void,
+): () => void {
+  return lazySubscribe((m) => m.subscribeJobs, uid, cb);
+}
+export async function addJob(uid: string, j: Job): Promise<void> {
+  const m = await impl();
+  return m.addJob(uid, j);
+}
+export async function deleteJob(uid: string, id: string): Promise<void> {
+  const m = await impl();
+  return m.deleteJob(uid, id);
+}
+
+// ── Milestones + time blocks ────────────────────────────────────
+
+export function subscribeMilestones(
+  uid: string,
+  cb: (items: Milestone[]) => void,
+): () => void {
+  return lazySubscribe((m) => m.subscribeMilestones, uid, cb);
+}
+export async function addMilestone(uid: string, m: Milestone): Promise<void> {
+  const impl_ = await impl();
+  return impl_.addMilestone(uid, m);
+}
+export async function deleteMilestone(
+  uid: string,
+  id: string,
+): Promise<void> {
+  const impl_ = await impl();
+  return impl_.deleteMilestone(uid, id);
+}
+
+export function subscribeTimeBlocks(
+  uid: string,
+  cb: (items: TimeBlock[]) => void,
+): () => void {
+  return lazySubscribe((m) => m.subscribeTimeBlocks, uid, cb);
+}
+export async function addTimeBlock(
+  uid: string,
+  t: TimeBlock,
+): Promise<void> {
+  const impl_ = await impl();
+  return impl_.addTimeBlock(uid, t);
+}
+export async function deleteTimeBlock(
+  uid: string,
+  id: string,
+): Promise<void> {
+  const impl_ = await impl();
+  return impl_.deleteTimeBlock(uid, id);
+}
+
+export function subscribeWeighins(
+  uid: string,
+  cb: (items: Weighin[]) => void,
+): () => void {
+  return lazySubscribe((m) => m.subscribeWeighins, uid, cb);
+}
+
+export async function addWeighin(uid: string, w: Weighin): Promise<void> {
+  const m = await impl();
+  return m.addWeighin(uid, w);
+}
+
+export async function deleteWeighin(uid: string, id: string): Promise<void> {
+  const m = await impl();
+  return m.deleteWeighin(uid, id);
+}
+
 export function subscribeDreams(
   uid: string,
   cb: (items: Dream[]) => void,
@@ -368,6 +517,34 @@ export function subscribeImpressions(
   cb: (items: Impression[]) => void,
 ): () => void {
   return lazySubscribe((m) => m.subscribeImpressions, uid, cb);
+}
+
+// Inbound (cross-user)
+export function subscribeInboundImpressions(
+  recipientUid: string,
+  cb: (items: InboundImpression[]) => void,
+): () => void {
+  return lazySubscribe(
+    (m) => m.subscribeInboundImpressions,
+    recipientUid,
+    cb,
+  );
+}
+
+export async function sendInboundImpression(
+  recipientUid: string,
+  i: InboundImpression,
+): Promise<void> {
+  const m = await impl();
+  return m.sendInboundImpression(recipientUid, i);
+}
+
+export async function deleteInboundImpression(
+  recipientUid: string,
+  id: string,
+): Promise<void> {
+  const m = await impl();
+  return m.deleteInboundImpression(recipientUid, id);
 }
 
 export async function addImpression(
@@ -434,17 +611,34 @@ export async function deleteTransaction(
   return m.deleteTransaction(uid, id);
 }
 
-// ── Daily reports (Phase 4) ─────────────────────────────────────
+// ── Daily reports ───────────────────────────────────────────────
 
 export function subscribeDailyReport(
   uid: string,
+  date: string,
   cb: (report: RemoteDailyReport | null) => void,
 ): () => void {
   let cancelled = false;
   let unsub: (() => void) | null = null;
   impl().then((m) => {
     if (cancelled) return;
-    unsub = m.subscribeDailyReport(uid, cb);
+    unsub = m.subscribeDailyReport(uid, date, cb);
+  });
+  return () => {
+    cancelled = true;
+    unsub?.();
+  };
+}
+
+export function subscribeAllDailyReports(
+  uid: string,
+  cb: (reports: RemoteDailyReport[]) => void,
+): () => void {
+  let cancelled = false;
+  let unsub: (() => void) | null = null;
+  impl().then((m) => {
+    if (cancelled) return;
+    unsub = m.subscribeAllDailyReports(uid, cb);
   });
   return () => {
     cancelled = true;
@@ -454,15 +648,79 @@ export function subscribeDailyReport(
 
 export async function upsertDailyReport(
   uid: string,
+  date: string,
   report: RemoteDailyReport,
 ): Promise<void> {
   const m = await impl();
-  return m.upsertDailyReport(uid, report);
+  return m.upsertDailyReport(uid, date, report);
 }
 
-export async function deleteDailyReport(uid: string): Promise<void> {
+export async function deleteDailyReport(
+  uid: string,
+  date: string,
+): Promise<void> {
   const m = await impl();
-  return m.deleteDailyReport(uid);
+  return m.deleteDailyReport(uid, date);
+}
+
+// ── Body / wearable snapshots ────────────────────────────────────
+
+export function subscribeBodySnapshot(
+  uid: string,
+  date: string,
+  cb: (snap: RemoteBodySnapshot | null) => void,
+): () => void {
+  let cancelled = false;
+  let unsub: (() => void) | null = null;
+  impl().then((m) => {
+    if (cancelled) return;
+    unsub = m.subscribeBodySnapshot(uid, date, cb);
+  });
+  return () => {
+    cancelled = true;
+    unsub?.();
+  };
+}
+
+export async function upsertBodySnapshot(
+  uid: string,
+  date: string,
+  snap: RemoteBodySnapshot,
+): Promise<void> {
+  const m = await impl();
+  return m.upsertBodySnapshot(uid, date, snap);
+}
+
+export async function migrateLegacyDailyReport(uid: string): Promise<boolean> {
+  const m = await impl();
+  return m.migrateLegacyDailyReport(uid);
+}
+
+// ── Daily-photo cloud sync (opt-in) ─────────────────────────────
+
+export async function uploadDailyPhoto(
+  uid: string,
+  date: string,
+  dataUrl: string,
+): Promise<string> {
+  const m = await impl();
+  return m.uploadDailyPhoto(uid, date, dataUrl);
+}
+
+export async function downloadDailyPhoto(
+  uid: string,
+  date: string,
+): Promise<string | null> {
+  const m = await impl();
+  return m.downloadDailyPhoto(uid, date);
+}
+
+export async function deleteDailyPhoto(
+  uid: string,
+  date: string,
+): Promise<void> {
+  const m = await impl();
+  return m.deleteDailyPhoto(uid, date);
 }
 
 // ── Geo discovery (cities + nearby users) ───────────────────────
@@ -497,6 +755,10 @@ export async function upsertDiscoverable(
     geohash: string;
     displayName?: string;
     photoColor?: string;
+    personality?: number[];
+    bio?: string | null;
+    role?: string | null;
+    age?: number | null;
   },
 ): Promise<void> {
   const m = await impl();
@@ -526,18 +788,139 @@ export async function revokeCircleAccess(
   return m.revokeCircleAccess(ownerUid, viewerUid);
 }
 
+// ── Relations: follow / friend / block ──────────────────────────
+
+export async function followUser(actorUid: string, targetUid: string): Promise<void> {
+  const m = await impl();
+  return m.followUser(actorUid, targetUid);
+}
+
+export async function unfollowUser(actorUid: string, targetUid: string): Promise<void> {
+  const m = await impl();
+  return m.unfollowUser(actorUid, targetUid);
+}
+
+export async function sendFriendRequest(fromUid: string, toUid: string): Promise<void> {
+  const m = await impl();
+  return m.sendFriendRequest(fromUid, toUid);
+}
+
+export async function checkOutgoingFriendRequest(
+  fromUid: string,
+  toUid: string,
+): Promise<boolean> {
+  const m = await impl();
+  return m.checkOutgoingFriendRequest(fromUid, toUid);
+}
+
+export async function acceptFriendRequest(
+  ownerUid: string,
+  requesterUid: string,
+): Promise<void> {
+  const m = await impl();
+  return m.acceptFriendRequest(ownerUid, requesterUid);
+}
+
+export async function declineFriendRequest(
+  ownerUid: string,
+  requesterUid: string,
+): Promise<void> {
+  const m = await impl();
+  return m.declineFriendRequest(ownerUid, requesterUid);
+}
+
+export async function cancelFriendRequest(
+  ownerUid: string,
+  recipientUid: string,
+): Promise<void> {
+  const m = await impl();
+  return m.cancelFriendRequest(ownerUid, recipientUid);
+}
+
+export async function unfriend(actorUid: string, otherUid: string): Promise<void> {
+  const m = await impl();
+  return m.unfriend(actorUid, otherUid);
+}
+
+export async function blockUser(actorUid: string, blockedUid: string): Promise<void> {
+  const m = await impl();
+  return m.blockUser(actorUid, blockedUid);
+}
+
+export async function unblockUser(actorUid: string, blockedUid: string): Promise<void> {
+  const m = await impl();
+  return m.unblockUser(actorUid, blockedUid);
+}
+
+// ── Subscriptions for relation lists ────────────────────────────
+
+import type { RelationDoc } from "./firebaseImpl";
+export type { RelationDoc };
+
+function lazyRelationSub(
+  method: "subscribeFollowers" | "subscribeFollowing" | "subscribeFriendRequests" | "subscribeCircle" | "subscribeBlocks",
+  uid: string,
+  cb: (items: RelationDoc[]) => void,
+): () => void {
+  let cancelled = false;
+  let unsub: (() => void) | null = null;
+  impl().then((m) => {
+    if (cancelled) return;
+    unsub = m[method](uid, cb);
+  });
+  return () => {
+    cancelled = true;
+    unsub?.();
+  };
+}
+
+export function subscribeFollowers(uid: string, cb: (items: RelationDoc[]) => void) {
+  return lazyRelationSub("subscribeFollowers", uid, cb);
+}
+export function subscribeFollowing(uid: string, cb: (items: RelationDoc[]) => void) {
+  return lazyRelationSub("subscribeFollowing", uid, cb);
+}
+export function subscribeFriendRequests(uid: string, cb: (items: RelationDoc[]) => void) {
+  return lazyRelationSub("subscribeFriendRequests", uid, cb);
+}
+export function subscribeCircle(uid: string, cb: (items: RelationDoc[]) => void) {
+  return lazyRelationSub("subscribeCircle", uid, cb);
+}
+export function subscribeBlocks(uid: string, cb: (items: RelationDoc[]) => void) {
+  return lazyRelationSub("subscribeBlocks", uid, cb);
+}
+
 export function subscribeFriendDailyReport(
   friendUid: string,
+  date: string,
   cb: (report: RemoteDailyReport | null) => void,
 ): () => void {
   let cancelled = false;
   let unsub: (() => void) | null = null;
   impl().then((m) => {
     if (cancelled) return;
-    unsub = m.subscribeFriendDailyReport(friendUid, cb);
+    unsub = m.subscribeFriendDailyReport(friendUid, date, cb);
   });
   return () => {
     cancelled = true;
     unsub?.();
   };
+}
+
+// ── Account deletion ────────────────────────────────────────────
+
+export async function reauthWithPassword(password: string): Promise<void> {
+  const m = await impl();
+  return m.reauthWithPassword(password);
+}
+
+export async function callDeleteAccount(): Promise<{
+  ok: boolean;
+  ownSubtree: number;
+  discoverable: number;
+  othersInbound: number;
+  othersRelations: number;
+}> {
+  const m = await impl();
+  return m.callDeleteAccount();
 }

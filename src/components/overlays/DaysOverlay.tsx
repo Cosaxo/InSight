@@ -1,31 +1,39 @@
 // DaysOverlay — your daily ledger. Two views:
 //
 // "portrait" — today's frame from useDailyReport (mood / weather /
-//   one-line / optional photo), plus a 12-day mood strip from
-//   useMoods. The previous version asserted a 12-frame photo
-//   gallery, a 12-day weight sparkline, and a fake CaptureFlow —
-//   all from IS_DATA.portraits. Only today's report actually
-//   persists in our schema; a longer photo history would need
-//   per-day daily-report storage (currently the "today" doc is
-//   overwritten each edit).
+//   one-line / optional photo), a 12-day mood strip from useMoods,
+//   and a 30-day weight sparkline from useWeighins. The previous
+//   version asserted a 12-frame photo gallery built from
+//   IS_DATA.portraits; the photo archive needs per-day daily-report
+//   storage (currently the "today" doc is overwritten each edit) so
+//   that one's still pending.
 //
 // "dreams" — real dream journal wired to useDreams. Add an entry,
 //   read it back, delete it. The "recurring themes" bar list
 //   derives from tag frequencies across logged dreams; "remembered
 //   this week" + "lucid" + "avg vividness" derive from the same.
-//
-// Dropped from the previous version: the "time" view (24-hour
-// activity blocks from seed, no time-tracking source) and the
-// "life" view (life-timeline highlights from seed, no source).
-// Both would each need their own schema + capture flow; out of
-// scope for the honesty pass.
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useMoods, isoDateToday } from "../../lib/useMoods";
-import { useDailyReport } from "../../lib/useDailyReport";
+import {
+  readDailyReportPhoto,
+  useAllDailyReports,
+  useDailyReport,
+} from "../../lib/useDailyReport";
 import { useDreams } from "../../lib/useDreams";
-import type { Dream, MoodEntry } from "../../types";
+import { useMilestones } from "../../lib/useMilestones";
+import { useTimeBlocks } from "../../lib/useTimeBlocks";
+import { useWeighins } from "../../lib/useWeighins";
+import type {
+  Dream,
+  Milestone,
+  MoodEntry,
+  RemoteDailyReport,
+  TimeBlock,
+} from "../../types";
 import { Kicker, Pill } from "../shared/primitives";
+import { Sparkline } from "../shared/charts";
+import { DayClock } from "./life-day";
 
 function weatherLabel(w: string | undefined): string {
   if (!w) return "—";
@@ -66,7 +74,9 @@ interface DaysOverlayProps {
 }
 
 export function DaysOverlay({ onClose }: DaysOverlayProps) {
-  const [tab, setTab] = useState<"portrait" | "dreams">("portrait");
+  const [tab, setTab] = useState<"portrait" | "dreams" | "time" | "life">(
+    "portrait",
+  );
   const [openDream, setOpenDream] = useState<Dream | null>(null);
   const [adding, setAdding] = useState(false);
   const { items: dreams, add: addDream, remove: removeDream } = useDreams();
@@ -104,6 +114,12 @@ export function DaysOverlay({ onClose }: DaysOverlayProps) {
           <Pill active={tab === "dreams"} onClick={() => setTab("dreams")}>
             dreams
           </Pill>
+          <Pill active={tab === "time"} onClick={() => setTab("time")}>
+            time
+          </Pill>
+          <Pill active={tab === "life"} onClick={() => setTab("life")}>
+            life
+          </Pill>
         </div>
 
         {tab === "portrait" && <PortraitView />}
@@ -115,6 +131,8 @@ export function DaysOverlay({ onClose }: DaysOverlayProps) {
             onAdd={() => setAdding(true)}
           />
         )}
+        {tab === "time" && <TimeView />}
+        {tab === "life" && <LifeView />}
       </div>
 
       {openDream && (
@@ -146,6 +164,7 @@ export function DaysOverlay({ onClose }: DaysOverlayProps) {
 function PortraitView() {
   const { report } = useDailyReport();
   const { moods } = useMoods();
+  const { items: weighins } = useWeighins();
 
   // Twelve-day mood strip — real entries land where they belong,
   // unlogged days draw a faint baseline so the chart never invents
@@ -157,6 +176,23 @@ function PortraitView() {
     return dates.map((d) => ({ date: d, mood: byDate.get(d) }));
   }, [moods]);
   const todayIso = isoDateToday();
+
+  // Weight history for the sparkline. We plot only logged entries
+  // (no fake interpolation) and show min / median / max underneath.
+  // Sorted oldest → newest so the line reads left-to-right in time
+  // order.
+  const weightSeries = useMemo(() => {
+    if (weighins.length === 0) return null;
+    const sorted = [...weighins].sort((a, b) => a.date.localeCompare(b.date));
+    const values = sorted.map((w) => w.kg);
+    const min = Math.min(...values);
+    const max = Math.max(...values);
+    const median =
+      values.length === 1
+        ? values[0]
+        : [...values].sort((a, b) => a - b)[Math.floor(values.length / 2)];
+    return { values, min, max, median, latest: sorted[sorted.length - 1] };
+  }, [weighins]);
 
   return (
     <>
@@ -300,6 +336,65 @@ function PortraitView() {
         )}
       </div>
 
+      {weightSeries && (
+        <div className="card" style={{ marginBottom: 14, padding: 14 }}>
+          <Kicker>Weight · {weighins.length} weigh-ins</Kicker>
+          <div style={{ marginTop: 8 }}>
+            <Sparkline
+              data={weightSeries.values}
+              w={320}
+              h={60}
+              color="var(--sienna)"
+              fill
+              dots
+            />
+          </div>
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              fontFamily: "var(--mono)",
+              fontSize: 9,
+              color: "var(--ink-3)",
+              letterSpacing: "0.06em",
+              marginTop: 4,
+            }}
+          >
+            <span>{weightSeries.min.toFixed(1)} kg</span>
+            <span>median {weightSeries.median.toFixed(1)} kg</span>
+            <span>{weightSeries.max.toFixed(1)} kg</span>
+          </div>
+          <div
+            className="margin-note"
+            style={{ marginTop: 8, fontSize: 11, fontStyle: "italic" }}
+          >
+            latest: {weightSeries.latest.kg} kg on {weightSeries.latest.date}
+            {" · log new entries from your portrait → vital stats"}
+          </div>
+        </div>
+      )}
+
+      <ArchiveGallery />
+    </>
+  );
+}
+
+// ─── ArchiveGallery — every past daily report, newest first ─────
+//
+// Reads from useAllDailyReports (subscribes to the whole
+// insight_daily subcollection signed-in; falls back to localStorage
+// history signed-out). Filters out today (already rendered above)
+// and renders each prior day as a card. Tapping a card opens a
+// read-only viewer.
+
+function ArchiveGallery() {
+  const { reports } = useAllDailyReports();
+  const [openReport, setOpenReport] = useState<RemoteDailyReport | null>(null);
+  const todayIso = isoDateToday();
+  const past = reports.filter((r) => r.date !== todayIso);
+
+  if (past.length === 0) {
+    return (
       <div
         className="card"
         style={{
@@ -307,19 +402,244 @@ function PortraitView() {
           borderLeft: "3px solid var(--ink-3)",
         }}
       >
-        <Kicker>archive · not built</Kicker>
+        <Kicker>archive · empty</Kicker>
         <div
           className="margin-note"
           style={{ marginTop: 6, fontSize: 12, lineHeight: 1.5 }}
         >
-          "A scrolling gallery of past frames lives here once daily
-          reports get per-day storage. Right now each new report
-          overwrites the last one — you can read yesterday's mood
-          on the strip above, but the photo and one-line only stick
-          around for the day they're written."
+          "Past daily reports show up here once you've written one
+          on a day other than today. Photos stay on the device
+          they were captured on — only mood, one-line, and weather
+          travel between devices."
         </div>
       </div>
+    );
+  }
+
+  return (
+    <>
+      <Kicker>archive · {past.length} past {past.length === 1 ? "day" : "days"}</Kicker>
+      <div
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          gap: 10,
+          marginTop: 10,
+        }}
+      >
+        {past.map((r) => (
+          <ArchiveCard
+            key={r.date}
+            report={r}
+            onOpen={() => setOpenReport(r)}
+          />
+        ))}
+      </div>
+      {openReport && (
+        <ArchiveDetail
+          report={openReport}
+          onClose={() => setOpenReport(null)}
+        />
+      )}
     </>
+  );
+}
+
+function ArchiveCard({
+  report,
+  onOpen,
+}: {
+  report: RemoteDailyReport;
+  onOpen: () => void;
+}) {
+  // Photo blobs only exist on the device that captured them —
+  // readDailyReportPhoto returns null on second devices.
+  const photo = readDailyReportPhoto(report.date);
+  const score = Math.round(report.mood / 20);
+  return (
+    <div
+      className="card"
+      onClick={onOpen}
+      style={{
+        cursor: "pointer",
+        display: "flex",
+        gap: 12,
+        alignItems: "center",
+        padding: 12,
+        borderLeft: `3px solid ${moodAccent(score)}`,
+      }}
+    >
+      <div
+        style={{
+          width: 44,
+          height: 44,
+          flexShrink: 0,
+          borderRadius: 6,
+          background: photo ? `url(${photo}) center/cover` : "var(--paper-2)",
+          border: "0.5px solid var(--rule)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          color: "var(--ink-3)",
+          fontFamily: "var(--mono)",
+          fontSize: 9,
+        }}
+      >
+        {!photo && weatherLabel(report.weather).slice(0, 3)}
+      </div>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div className="kicker">{report.date}</div>
+        <div
+          style={{
+            fontFamily: "var(--serif)",
+            fontStyle: "italic",
+            fontSize: 14,
+            marginTop: 2,
+            lineHeight: 1.3,
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
+            color: "var(--ink-2)",
+          }}
+        >
+          {report.one_line ? `"${report.one_line}"` : "(no line written)"}
+        </div>
+        {report.moodLabel && (
+          <div
+            style={{
+              fontFamily: "var(--mono)",
+              fontSize: 9.5,
+              color: "var(--ink-3)",
+              letterSpacing: "0.04em",
+              marginTop: 2,
+            }}
+          >
+            {report.moodLabel.toUpperCase()}
+          </div>
+        )}
+      </div>
+      <div className="fig-num" style={{ fontSize: 22 }}>
+        <em>{score}</em>
+        <span
+          style={{
+            fontSize: 11,
+            color: "var(--ink-3)",
+            marginLeft: 2,
+          }}
+        >
+          /5
+        </span>
+      </div>
+    </div>
+  );
+}
+
+function moodAccent(score: number): string {
+  if (score >= 4) return "oklch(0.65 0.10 145)";
+  if (score >= 3) return "oklch(0.70 0.06 80)";
+  return "oklch(0.65 0.10 25)";
+}
+
+function ArchiveDetail({
+  report,
+  onClose,
+}: {
+  report: RemoteDailyReport;
+  onClose: () => void;
+}) {
+  const photo = readDailyReportPhoto(report.date);
+  const score = Math.round(report.mood / 20);
+  return (
+    <div className="overlay paper-grain" style={{ zIndex: 25 }}>
+      <div className="app-header">
+        <button className="avatar-btn" onClick={onClose}>
+          ←
+        </button>
+        <div className="h-title">
+          a <em>past day</em>
+        </div>
+        <div className="h-meta">{report.date}</div>
+      </div>
+      <div className="app-body">
+        {photo && (
+          <div
+            style={{
+              width: "100%",
+              aspectRatio: "4 / 3",
+              borderRadius: 8,
+              background: `url(${photo}) center/cover`,
+              marginBottom: 14,
+              border: "0.5px solid var(--rule)",
+            }}
+          />
+        )}
+        <div className="kicker">
+          {report.date} · {weatherLabel(report.weather)}
+        </div>
+        <div
+          style={{
+            fontFamily: "var(--serif)",
+            fontSize: 22,
+            fontStyle: "italic",
+            marginTop: 6,
+            lineHeight: 1.3,
+            letterSpacing: "-0.01em",
+          }}
+        >
+          {report.one_line ? `"${report.one_line}"` : "(no line written)"}
+        </div>
+
+        <hr className="rule-dashed" />
+
+        <div style={{ display: "flex", gap: 18 }}>
+          <div>
+            <div className="kicker">MOOD</div>
+            <div className="fig-num" style={{ fontSize: 24 }}>
+              <em>{score}</em>
+              <span
+                style={{
+                  fontSize: 11,
+                  color: "var(--ink-3)",
+                  marginLeft: 3,
+                }}
+              >
+                /5
+              </span>
+            </div>
+          </div>
+          {report.moodLabel && (
+            <div>
+              <div className="kicker">FEELING</div>
+              <div
+                style={{
+                  fontFamily: "var(--serif)",
+                  fontStyle: "italic",
+                  fontSize: 16,
+                  marginTop: 4,
+                }}
+              >
+                {report.moodLabel}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {!photo && (
+          <div
+            className="margin-note"
+            style={{
+              marginTop: 16,
+              fontSize: 11,
+              fontStyle: "italic",
+              color: "var(--ink-3)",
+            }}
+          >
+            (any photo from this day stays on the device that captured it
+            — never syncs)
+          </div>
+        )}
+      </div>
+    </div>
   );
 }
 
@@ -1004,6 +1324,1095 @@ function AddDreamFlow({
             </button>
           </div>
         </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── TimeView ───────────────────────────────────────────────────
+//
+// Logged time-tracking blocks. Different from LifeOverlay's day
+// template — these are actual sessions on actual dates, retrievable
+// per day. UI: date picker + DayClock of that day's blocks + log
+// list + "log a block" form.
+
+const TIME_HUE_PALETTE = [
+  { hue: 12, name: "sienna" },
+  { hue: 38, name: "ochre" },
+  { hue: 145, name: "sage" },
+  { hue: 220, name: "blue" },
+  { hue: 250, name: "indigo" },
+  { hue: 305, name: "plum" },
+];
+
+function timeToDecimal(t: string): number | null {
+  const m = t.match(/^(\d{1,2}):(\d{2})$/);
+  if (!m) return null;
+  const h = Number(m[1]);
+  const min = Number(m[2]);
+  if (!Number.isFinite(h) || !Number.isFinite(min)) return null;
+  if (h < 0 || h > 24 || min < 0 || min > 59) return null;
+  return h + min / 60;
+}
+function decimalToTime(d: number): string {
+  const h = Math.floor(d);
+  const m = Math.round((d - h) * 60);
+  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+}
+
+function TimeView() {
+  const { items: allBlocks, add, remove } = useTimeBlocks();
+  const [day, setDay] = useState(isoDateToday());
+  const [logging, setLogging] = useState(false);
+  const [activeTimer, setActiveTimer] = useActiveTimer();
+
+  const dayBlocks = useMemo(
+    () =>
+      allBlocks
+        .filter((b) => b.date === day)
+        .sort((a, b) => a.from - b.from),
+    [allBlocks, day],
+  );
+
+  const totalHours = dayBlocks.reduce((s, b) => s + (b.to - b.from), 0);
+
+  // Stop the running timer → write a TimeBlock for today and clear
+  // local state. If the timer was started before midnight, the
+  // block ends at 23:59:59 the start day; we don't span days.
+  const stopTimer = async () => {
+    if (!activeTimer) return;
+    const start = new Date(activeTimer.startedAt);
+    const startDay = `${start.getFullYear()}-${String(start.getMonth() + 1).padStart(2, "0")}-${String(start.getDate()).padStart(2, "0")}`;
+    const fromDec = start.getHours() + start.getMinutes() / 60;
+    const now = new Date();
+    const sameDay =
+      now.getFullYear() === start.getFullYear() &&
+      now.getMonth() === start.getMonth() &&
+      now.getDate() === start.getDate();
+    const toDec = sameDay
+      ? now.getHours() + now.getMinutes() / 60
+      : 23 + 59 / 60;
+    if (toDec <= fromDec) {
+      // Bail safely on an absurd zero-length save; clear the
+      // timer anyway so the user isn't stuck.
+      setActiveTimer(null);
+      return;
+    }
+    await add({
+      date: startDay,
+      from: fromDec,
+      to: toDec,
+      label: activeTimer.label,
+      category: activeTimer.category || undefined,
+      hue: activeTimer.hue,
+    });
+    setActiveTimer(null);
+  };
+
+  return (
+    <>
+      <div className="card" style={{ marginBottom: 14, padding: 14 }}>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 10,
+            marginBottom: 12,
+          }}
+        >
+          <Kicker>day</Kicker>
+          <input
+            type="date"
+            value={day}
+            onChange={(e) => setDay(e.target.value)}
+            style={{
+              flex: 1,
+              padding: "6px 10px",
+              background: "var(--paper-2)",
+              border: "0.5px solid var(--rule)",
+              borderRadius: 6,
+              fontFamily: "var(--mono)",
+              fontSize: 12,
+              color: "var(--ink)",
+            }}
+          />
+        </div>
+        <div
+          style={{
+            display: "flex",
+            gap: 14,
+            alignItems: "flex-start",
+            flexWrap: "wrap",
+          }}
+        >
+          <DayClock blocks={dayBlocks} />
+          <div style={{ flex: 1, minWidth: 180 }}>
+            <div className="kicker" style={{ marginBottom: 6 }}>
+              {totalHours > 0
+                ? `${totalHours.toFixed(1)} HOURS LOGGED`
+                : "NOTHING LOGGED FOR THIS DAY"}
+            </div>
+            {dayBlocks.length === 0 ? (
+              <div
+                className="margin-note"
+                style={{ fontSize: 12, fontStyle: "italic" }}
+              >
+                "Log how the day actually went — what you spent time
+                on. The clock fills in around the dial."
+              </div>
+            ) : (
+              dayBlocks.map((b) => (
+                <div
+                  key={b.id}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 8,
+                    padding: "4px 0",
+                    borderBottom: "0.5px dashed var(--rule)",
+                  }}
+                >
+                  <span
+                    style={{
+                      width: 10,
+                      height: 10,
+                      borderRadius: 2,
+                      background: `oklch(0.62 0.11 ${b.hue})`,
+                      flexShrink: 0,
+                    }}
+                  />
+                  <span
+                    style={{
+                      width: 92,
+                      fontFamily: "var(--mono)",
+                      fontSize: 10,
+                      color: "var(--ink-3)",
+                      letterSpacing: "0.04em",
+                    }}
+                  >
+                    {decimalToTime(b.from)} → {decimalToTime(b.to)}
+                  </span>
+                  <span
+                    style={{
+                      flex: 1,
+                      fontFamily: "var(--serif)",
+                      fontStyle: "italic",
+                      fontSize: 12.5,
+                      color: "var(--ink-2)",
+                      minWidth: 0,
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    {b.label}
+                    {b.category && (
+                      <span style={{ color: "var(--ink-3)" }}> · {b.category}</span>
+                    )}
+                  </span>
+                  <button
+                    onClick={() => {
+                      if (confirm(`Remove "${b.label}"?`)) {
+                        void remove(b.id);
+                      }
+                    }}
+                    aria-label="Remove block"
+                    style={{
+                      background: "transparent",
+                      border: "none",
+                      color: "var(--ink-3)",
+                      cursor: "pointer",
+                      fontFamily: "var(--mono)",
+                      fontSize: 12,
+                      padding: 0,
+                    }}
+                  >
+                    ×
+                  </button>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+        <TimerBar
+          active={activeTimer}
+          onStart={setActiveTimer}
+          onStop={() => void stopTimer()}
+        />
+        {logging ? (
+          <LogTimeBlockForm
+            day={day}
+            onCancel={() => setLogging(false)}
+            onSave={async (b) => {
+              await add({ ...b, date: day });
+              setLogging(false);
+            }}
+          />
+        ) : (
+          <button
+            onClick={() => setLogging(true)}
+            style={{
+              marginTop: 10,
+              width: "100%",
+              padding: "8px 12px",
+              background: "transparent",
+              border: "0.5px dashed var(--rule)",
+              borderRadius: 999,
+              fontFamily: "var(--mono)",
+              fontSize: 10,
+              letterSpacing: "0.1em",
+              textTransform: "uppercase",
+              color: "var(--ink-3)",
+              cursor: "pointer",
+            }}
+          >
+            + log a block · retroactive
+          </button>
+        )}
+      </div>
+    </>
+  );
+}
+
+function LogTimeBlockForm({
+  onCancel,
+  onSave,
+}: {
+  day: string;
+  onCancel: () => void;
+  onSave: (
+    b: Omit<TimeBlock, "id" | "createdAt" | "date">,
+  ) => Promise<void> | void;
+}) {
+  const [from, setFrom] = useState("");
+  const [to, setTo] = useState("");
+  const [label, setLabel] = useState("");
+  const [category, setCategory] = useState("");
+  const [hue, setHue] = useState(38);
+  const [saving, setSaving] = useState(false);
+
+  const fromDec = timeToDecimal(from);
+  const toDec = timeToDecimal(to);
+  const canSave =
+    fromDec !== null && toDec !== null && toDec > fromDec && label.trim() !== "";
+
+  const submit = async () => {
+    if (!canSave || saving || fromDec === null || toDec === null) return;
+    setSaving(true);
+    try {
+      await onSave({
+        from: fromDec,
+        to: toDec,
+        label: label.trim(),
+        category: category.trim() || undefined,
+        hue,
+      });
+      setFrom("");
+      setTo("");
+      setLabel("");
+      setCategory("");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const inputStyle: React.CSSProperties = {
+    boxSizing: "border-box",
+    padding: "6px 8px",
+    background: "var(--paper)",
+    border: "0.5px solid var(--rule)",
+    borderRadius: 4,
+    fontFamily: "var(--mono)",
+    fontSize: 12,
+    color: "var(--ink)",
+  };
+
+  return (
+    <div
+      style={{
+        marginTop: 10,
+        padding: 10,
+        background: "var(--paper-2)",
+        border: "0.5px solid var(--rule)",
+        borderRadius: 6,
+        display: "flex",
+        flexDirection: "column",
+        gap: 8,
+      }}
+    >
+      <div style={{ display: "flex", gap: 6 }}>
+        <input
+          type="time"
+          value={from}
+          onChange={(e) => setFrom(e.target.value)}
+          style={{ ...inputStyle, width: 90 }}
+        />
+        <span
+          style={{
+            fontFamily: "var(--mono)",
+            fontSize: 11,
+            color: "var(--ink-3)",
+            alignSelf: "center",
+          }}
+        >
+          →
+        </span>
+        <input
+          type="time"
+          value={to}
+          onChange={(e) => setTo(e.target.value)}
+          style={{ ...inputStyle, width: 90 }}
+        />
+        <input
+          value={label}
+          onChange={(e) => setLabel(e.target.value)}
+          placeholder="what you did"
+          style={{
+            ...inputStyle,
+            flex: 1,
+            fontFamily: "var(--serif)",
+            fontStyle: "italic",
+            fontSize: 13,
+          }}
+        />
+      </div>
+      <input
+        value={category}
+        onChange={(e) => setCategory(e.target.value)}
+        placeholder="category · optional (deep work, rest, people…)"
+        style={{ ...inputStyle, fontFamily: "var(--serif)", fontSize: 12 }}
+      />
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+        {TIME_HUE_PALETTE.map((h) => (
+          <button
+            key={h.hue}
+            onClick={() => setHue(h.hue)}
+            aria-label={h.name}
+            style={{
+              width: 18,
+              height: 18,
+              borderRadius: "50%",
+              background: `oklch(0.62 0.11 ${h.hue})`,
+              border:
+                hue === h.hue
+                  ? "1.5px solid var(--ink)"
+                  : "0.5px solid var(--rule)",
+              cursor: "pointer",
+              padding: 0,
+            }}
+          />
+        ))}
+      </div>
+      <div style={{ display: "flex", gap: 6 }}>
+        <button
+          onClick={onCancel}
+          style={{
+            flex: 1,
+            padding: "6px 10px",
+            background: "transparent",
+            border: "0.5px solid var(--rule)",
+            borderRadius: 999,
+            fontFamily: "var(--mono)",
+            fontSize: 9,
+            letterSpacing: "0.1em",
+            textTransform: "uppercase",
+            color: "var(--ink-3)",
+            cursor: "pointer",
+          }}
+        >
+          cancel
+        </button>
+        <button
+          onClick={submit}
+          disabled={!canSave || saving}
+          style={{
+            flex: 1,
+            padding: "6px 10px",
+            background: canSave ? "var(--ink)" : "var(--paper-3)",
+            color: canSave ? "var(--paper)" : "var(--ink-3)",
+            border: "none",
+            borderRadius: 999,
+            fontFamily: "var(--mono)",
+            fontSize: 9,
+            letterSpacing: "0.1em",
+            textTransform: "uppercase",
+            cursor: canSave ? "pointer" : "default",
+          }}
+        >
+          {saving ? "…" : "log"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ─── LifeView ───────────────────────────────────────────────────
+//
+// Milestone timeline. A vertical list of dated events the user has
+// logged, newest first, each as a row with a coloured dot + date +
+// title + optional note + × delete. "Log a milestone" form pinned
+// at the top.
+
+const MILESTONE_HUE_PALETTE = [
+  { hue: 12, name: "sienna" },
+  { hue: 38, name: "ochre" },
+  { hue: 145, name: "sage" },
+  { hue: 220, name: "blue" },
+  { hue: 280, name: "violet" },
+  { hue: 305, name: "plum" },
+];
+
+function LifeView() {
+  const { items, add, remove } = useMilestones();
+  const [adding, setAdding] = useState(false);
+
+  const sorted = [...items].sort(
+    (a, b) => b.date.localeCompare(a.date) || b.createdAt - a.createdAt,
+  );
+
+  return (
+    <>
+      {adding ? (
+        <AddMilestoneForm
+          onCancel={() => setAdding(false)}
+          onSave={async (m) => {
+            await add(m);
+            setAdding(false);
+          }}
+        />
+      ) : (
+        <button
+          onClick={() => setAdding(true)}
+          style={{
+            width: "100%",
+            padding: "14px",
+            background: "var(--ink)",
+            color: "var(--paper)",
+            border: "none",
+            borderRadius: 14,
+            fontFamily: "var(--serif)",
+            fontSize: 15,
+            marginBottom: 14,
+            cursor: "pointer",
+          }}
+        >
+          <span style={{ fontStyle: "italic" }}>+ log a milestone</span>
+        </button>
+      )}
+
+      {sorted.length > 0 ? (
+        <>
+          <Kicker>your timeline · newest first</Kicker>
+          <div
+            style={{
+              marginTop: 10,
+              position: "relative",
+              paddingLeft: 14,
+            }}
+          >
+            <div
+              style={{
+                position: "absolute",
+                left: 4,
+                top: 4,
+                bottom: 4,
+                width: 1,
+                background: "var(--rule)",
+              }}
+            />
+            {sorted.map((m) => (
+              <MilestoneRow
+                key={m.id}
+                m={m}
+                onRemove={() => void remove(m.id)}
+              />
+            ))}
+          </div>
+        </>
+      ) : (
+        <div className="card" style={{ padding: 22, textAlign: "center" }}>
+          <div
+            style={{
+              fontFamily: "var(--serif)",
+              fontSize: 36,
+              fontStyle: "italic",
+              color: "var(--ink-3)",
+            }}
+          >
+            ◌
+          </div>
+          <div className="margin-note" style={{ marginTop: 10, fontSize: 13 }}>
+            "The shape of a life starts to show up once you count it.
+            Log your first milestone — a move, a meeting, a beginning."
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
+function MilestoneRow({
+  m,
+  onRemove,
+}: {
+  m: Milestone;
+  onRemove: () => void;
+}) {
+  return (
+    <div
+      style={{
+        position: "relative",
+        padding: "8px 0 8px 12px",
+        borderBottom: "0.5px dashed var(--rule)",
+        display: "flex",
+        alignItems: "flex-start",
+        gap: 10,
+      }}
+    >
+      <span
+        style={{
+          position: "absolute",
+          left: -10,
+          top: 11,
+          width: 10,
+          height: 10,
+          borderRadius: "50%",
+          background: `oklch(0.62 0.11 ${m.hue})`,
+          border: "1px solid var(--paper)",
+        }}
+      />
+      <span style={{ flex: 1, minWidth: 0 }}>
+        <span
+          className="kicker"
+          style={{ display: "block", fontSize: 9 }}
+        >
+          {m.date}
+        </span>
+        <span
+          style={{
+            display: "block",
+            fontFamily: "var(--serif)",
+            fontStyle: "italic",
+            fontSize: 14,
+            marginTop: 2,
+            lineHeight: 1.3,
+          }}
+        >
+          {m.title}
+        </span>
+        {m.note && (
+          <span
+            style={{
+              display: "block",
+              fontFamily: "var(--serif)",
+              fontSize: 12,
+              color: "var(--ink-3)",
+              marginTop: 2,
+              lineHeight: 1.4,
+            }}
+          >
+            {m.note}
+          </span>
+        )}
+      </span>
+      <button
+        onClick={() => {
+          if (confirm(`Remove "${m.title}"?`)) onRemove();
+        }}
+        aria-label="Remove milestone"
+        style={{
+          background: "transparent",
+          border: "none",
+          color: "var(--ink-3)",
+          cursor: "pointer",
+          fontFamily: "var(--mono)",
+          fontSize: 12,
+          padding: "0 2px",
+          flexShrink: 0,
+        }}
+      >
+        ×
+      </button>
+    </div>
+  );
+}
+
+function AddMilestoneForm({
+  onCancel,
+  onSave,
+}: {
+  onCancel: () => void;
+  onSave: (m: Omit<Milestone, "id" | "createdAt">) => Promise<void> | void;
+}) {
+  const [date, setDate] = useState(isoDateToday());
+  const [title, setTitle] = useState("");
+  const [note, setNote] = useState("");
+  const [hue, setHue] = useState(38);
+  const [saving, setSaving] = useState(false);
+  const canSave = date.trim() !== "" && title.trim() !== "";
+
+  const submit = async () => {
+    if (!canSave || saving) return;
+    setSaving(true);
+    try {
+      await onSave({
+        date,
+        title: title.trim(),
+        note: note.trim() || undefined,
+        hue,
+      });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const inputStyle: React.CSSProperties = {
+    width: "100%",
+    boxSizing: "border-box",
+    padding: "8px 10px",
+    background: "var(--paper-2)",
+    border: "0.5px solid var(--rule)",
+    borderRadius: 6,
+    fontFamily: "var(--mono)",
+    fontSize: 13,
+    color: "var(--ink)",
+  };
+
+  return (
+    <div
+      className="card"
+      style={{
+        marginBottom: 14,
+        padding: 14,
+        background: "var(--paper-2)",
+      }}
+    >
+      <Kicker>log a milestone</Kicker>
+      <div style={{ display: "flex", gap: 6, marginTop: 6 }}>
+        <input
+          type="date"
+          value={date}
+          onChange={(e) => setDate(e.target.value)}
+          style={{ ...inputStyle, flex: 1 }}
+        />
+      </div>
+      <input
+        value={title}
+        onChange={(e) => setTitle(e.target.value)}
+        placeholder="what happened"
+        style={{
+          ...inputStyle,
+          marginTop: 6,
+          fontFamily: "var(--serif)",
+          fontStyle: "italic",
+          fontSize: 14,
+        }}
+      />
+      <input
+        value={note}
+        onChange={(e) => setNote(e.target.value)}
+        placeholder="a sentence about why it mattered · optional"
+        style={{
+          ...inputStyle,
+          marginTop: 6,
+          fontFamily: "var(--serif)",
+          fontSize: 13,
+        }}
+      />
+      <div
+        style={{
+          display: "flex",
+          flexWrap: "wrap",
+          gap: 4,
+          marginTop: 8,
+        }}
+      >
+        {MILESTONE_HUE_PALETTE.map((h) => (
+          <button
+            key={h.hue}
+            onClick={() => setHue(h.hue)}
+            aria-label={h.name}
+            style={{
+              width: 18,
+              height: 18,
+              borderRadius: "50%",
+              background: `oklch(0.62 0.11 ${h.hue})`,
+              border:
+                hue === h.hue
+                  ? "1.5px solid var(--ink)"
+                  : "0.5px solid var(--rule)",
+              cursor: "pointer",
+              padding: 0,
+            }}
+          />
+        ))}
+      </div>
+      <div style={{ display: "flex", gap: 6, marginTop: 10 }}>
+        <button
+          onClick={onCancel}
+          style={{
+            flex: 1,
+            padding: "8px 10px",
+            background: "transparent",
+            border: "0.5px solid var(--rule)",
+            borderRadius: 999,
+            fontFamily: "var(--mono)",
+            fontSize: 10,
+            letterSpacing: "0.1em",
+            textTransform: "uppercase",
+            color: "var(--ink-3)",
+            cursor: "pointer",
+          }}
+        >
+          cancel
+        </button>
+        <button
+          onClick={submit}
+          disabled={!canSave || saving}
+          style={{
+            flex: 1,
+            padding: "8px 10px",
+            background: canSave ? "var(--ink)" : "var(--paper-3)",
+            color: canSave ? "var(--paper)" : "var(--ink-3)",
+            border: "none",
+            borderRadius: 999,
+            fontFamily: "var(--mono)",
+            fontSize: 10,
+            letterSpacing: "0.1em",
+            textTransform: "uppercase",
+            cursor: canSave ? "pointer" : "default",
+          }}
+        >
+          {saving ? "…" : "log"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ─── Live timer ─────────────────────────────────────────────────
+//
+// A "what am I doing right now" stopwatch. Tap start → label +
+// optional category + hue → tracking. Tap stop → writes a
+// TimeBlock for the start day from start to now (or until 23:59 if
+// stop crosses midnight).
+//
+// Persisted to localStorage so a reload doesn't lose the running
+// session. Synced via cross-tab "storage" events so two tabs of
+// the same app see the same state.
+
+interface ActiveTimer {
+  label: string;
+  category: string;
+  hue: number;
+  startedAt: number; // ms epoch
+}
+
+const TIMER_STORAGE = "insight.timer.v1";
+
+function readTimer(): ActiveTimer | null {
+  try {
+    const raw = localStorage.getItem(TIMER_STORAGE);
+    if (!raw) return null;
+    return JSON.parse(raw) as ActiveTimer;
+  } catch {
+    return null;
+  }
+}
+
+function useActiveTimer(): [
+  ActiveTimer | null,
+  (t: ActiveTimer | null) => void,
+] {
+  const [timer, setTimerState] = useState<ActiveTimer | null>(() =>
+    readTimer(),
+  );
+
+  // Cross-tab sync. When another tab starts/stops a timer, the
+  // storage event fires here.
+  useEffect(() => {
+    const onStorage = (e: StorageEvent) => {
+      if (e.key !== TIMER_STORAGE) return;
+      setTimerState(readTimer());
+    };
+    window.addEventListener("storage", onStorage);
+    return () => window.removeEventListener("storage", onStorage);
+  }, []);
+
+  const set = (next: ActiveTimer | null) => {
+    if (next) localStorage.setItem(TIMER_STORAGE, JSON.stringify(next));
+    else localStorage.removeItem(TIMER_STORAGE);
+    setTimerState(next);
+  };
+  return [timer, set];
+}
+
+// Formats elapsed ms as "12:34" or "1:23:45". Capped at three-digit
+// hours — past 999h something is wrong.
+function formatElapsed(ms: number): string {
+  if (ms < 0) return "0:00";
+  const totalS = Math.floor(ms / 1000);
+  const h = Math.floor(totalS / 3600);
+  const m = Math.floor((totalS % 3600) / 60);
+  const s = totalS % 60;
+  if (h > 0) {
+    return `${h}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+  }
+  return `${m}:${String(s).padStart(2, "0")}`;
+}
+
+function TimerBar({
+  active,
+  onStart,
+  onStop,
+}: {
+  active: ActiveTimer | null;
+  onStart: (t: ActiveTimer) => void;
+  onStop: () => void;
+}) {
+  const [starting, setStarting] = useState(false);
+  const [label, setLabel] = useState("");
+  const [category, setCategory] = useState("");
+  const [hue, setHue] = useState(38);
+  // Tick "now" once a second while a timer is running so the elapsed
+  // counter updates. We store it in state rather than calling
+  // Date.now() in render (React's purity rule). The interval is
+  // also the initial-state source — first paint shows the elapsed
+  // at the moment of the next tick, ≤ 1s after mount.
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    if (!active) return;
+    const id = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(id);
+  }, [active]);
+
+  if (active) {
+    return (
+      <div
+        style={{
+          marginTop: 10,
+          padding: 12,
+          background: `oklch(0.94 0.04 ${active.hue})`,
+          border: `0.5px solid oklch(0.55 0.12 ${active.hue})`,
+          borderRadius: 8,
+          display: "flex",
+          alignItems: "center",
+          gap: 12,
+        }}
+      >
+        <span
+          aria-label="running"
+          style={{
+            width: 8,
+            height: 8,
+            borderRadius: "50%",
+            background: `oklch(0.55 0.13 ${active.hue})`,
+            flexShrink: 0,
+            animation: "pulse 1.6s infinite",
+            boxShadow: `0 0 6px oklch(0.55 0.13 ${active.hue})`,
+          }}
+        />
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div
+            style={{
+              fontFamily: "var(--serif)",
+              fontStyle: "italic",
+              fontSize: 14,
+              lineHeight: 1.2,
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+            }}
+          >
+            {active.label}
+            {active.category && (
+              <span style={{ color: "var(--ink-3)" }}>
+                {" · "}
+                {active.category}
+              </span>
+            )}
+          </div>
+          <div
+            style={{
+              fontFamily: "var(--mono)",
+              fontSize: 18,
+              color: `oklch(0.30 0.13 ${active.hue})`,
+              marginTop: 2,
+            }}
+          >
+            {formatElapsed(now - active.startedAt)}
+          </div>
+        </div>
+        <button
+          onClick={onStop}
+          style={{
+            padding: "8px 14px",
+            background: `oklch(0.30 0.13 ${active.hue})`,
+            color: "var(--paper)",
+            border: "none",
+            borderRadius: 999,
+            fontFamily: "var(--mono)",
+            fontSize: 10,
+            letterSpacing: "0.1em",
+            textTransform: "uppercase",
+            cursor: "pointer",
+          }}
+        >
+          ■ stop
+        </button>
+      </div>
+    );
+  }
+
+  if (!starting) {
+    return (
+      <button
+        onClick={() => setStarting(true)}
+        style={{
+          marginTop: 10,
+          width: "100%",
+          padding: "8px 12px",
+          background: "var(--ink)",
+          color: "var(--paper)",
+          border: "none",
+          borderRadius: 999,
+          fontFamily: "var(--mono)",
+          fontSize: 10,
+          letterSpacing: "0.1em",
+          textTransform: "uppercase",
+          cursor: "pointer",
+        }}
+      >
+        ▶ start a timer
+      </button>
+    );
+  }
+
+  const canStart = label.trim().length > 0;
+  const start = () => {
+    if (!canStart) return;
+    onStart({
+      label: label.trim(),
+      category: category.trim(),
+      hue,
+      startedAt: Date.now(),
+    });
+    setStarting(false);
+    setLabel("");
+    setCategory("");
+  };
+
+  return (
+    <div
+      style={{
+        marginTop: 10,
+        padding: 10,
+        background: "var(--paper-2)",
+        border: "0.5px solid var(--rule)",
+        borderRadius: 6,
+        display: "flex",
+        flexDirection: "column",
+        gap: 8,
+      }}
+    >
+      <input
+        autoFocus
+        value={label}
+        onChange={(e) => setLabel(e.target.value)}
+        placeholder="what you're doing"
+        onKeyDown={(e) => {
+          if (e.key === "Enter" && canStart) start();
+        }}
+        style={{
+          boxSizing: "border-box",
+          padding: "6px 8px",
+          background: "var(--paper)",
+          border: "0.5px solid var(--rule)",
+          borderRadius: 4,
+          fontFamily: "var(--serif)",
+          fontStyle: "italic",
+          fontSize: 14,
+          color: "var(--ink)",
+        }}
+      />
+      <input
+        value={category}
+        onChange={(e) => setCategory(e.target.value)}
+        placeholder="category · optional"
+        style={{
+          boxSizing: "border-box",
+          padding: "6px 8px",
+          background: "var(--paper)",
+          border: "0.5px solid var(--rule)",
+          borderRadius: 4,
+          fontFamily: "var(--serif)",
+          fontSize: 12,
+          color: "var(--ink)",
+        }}
+      />
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+        {TIME_HUE_PALETTE.map((h) => (
+          <button
+            key={h.hue}
+            onClick={() => setHue(h.hue)}
+            aria-label={h.name}
+            style={{
+              width: 18,
+              height: 18,
+              borderRadius: "50%",
+              background: `oklch(0.62 0.11 ${h.hue})`,
+              border:
+                hue === h.hue
+                  ? "1.5px solid var(--ink)"
+                  : "0.5px solid var(--rule)",
+              cursor: "pointer",
+              padding: 0,
+            }}
+          />
+        ))}
+      </div>
+      <div style={{ display: "flex", gap: 6 }}>
+        <button
+          onClick={() => {
+            setStarting(false);
+            setLabel("");
+            setCategory("");
+          }}
+          style={{
+            flex: 1,
+            padding: "6px 10px",
+            background: "transparent",
+            border: "0.5px solid var(--rule)",
+            borderRadius: 999,
+            fontFamily: "var(--mono)",
+            fontSize: 9,
+            letterSpacing: "0.1em",
+            textTransform: "uppercase",
+            color: "var(--ink-3)",
+            cursor: "pointer",
+          }}
+        >
+          cancel
+        </button>
+        <button
+          onClick={start}
+          disabled={!canStart}
+          style={{
+            flex: 1,
+            padding: "6px 10px",
+            background: canStart ? "var(--ink)" : "var(--paper-3)",
+            color: canStart ? "var(--paper)" : "var(--ink-3)",
+            border: "none",
+            borderRadius: 999,
+            fontFamily: "var(--mono)",
+            fontSize: 9,
+            letterSpacing: "0.1em",
+            textTransform: "uppercase",
+            cursor: canStart ? "pointer" : "default",
+          }}
+        >
+          ▶ start
+        </button>
       </div>
     </div>
   );

@@ -19,9 +19,25 @@
 // to add a real editor + schema field per section.
 
 import { useEffect, useState } from "react";
-import { IS_DATA } from "../../data/seedData";
+import { IDEOLOGIES } from "../../data/politicsTaxonomy";
+import { useAuth } from "../../lib/useAuth";
 import { useMe } from "../../lib/useMe";
 import { useProfile, type ProfileExt } from "../../lib/useProfile";
+import { isoDateToday } from "../../lib/useMoods";
+import { useWeighins } from "../../lib/useWeighins";
+import {
+  callDeleteAccount,
+  firebaseEnabled,
+  googleSignOut,
+  reauthWithPassword,
+} from "../../lib/firebase";
+import {
+  applyImport,
+  downloadBackup,
+  gatherExport,
+  readBackupFile,
+} from "../../lib/dataExport";
+import { setTelemetryEnabled, telemetryEnabled } from "../../lib/sentry";
 import type { Hero, Political } from "../../types";
 import { Av, Kicker } from "../shared/primitives";
 import { RadarChart } from "../shared/charts";
@@ -91,22 +107,14 @@ const MORAL_ROWS: [string, string, [string, string]][] = [
 
 const MORAL_KEYS = MORAL_ROWS.map((r) => r[0]);
 
-interface Ideology {
-  id: string;
-  name: string;
-  econ: number;
-  social: number;
-}
-
 // PoliticsCard reads a `politicalIdentity` { name, tag } pair off
 // `me`. We don't have a saved identity for the user — derive it by
 // snapping to the closest ideology on the seed compass. The tag is
 // left blank when we don't have copy for the synthesised identity;
 // PoliticsCard renders it as ' "" ' which is harmless.
 function deriveIdentity(political: Political): { name: string; tag: string } {
-  const ideologies = IS_DATA.ideologies as Ideology[];
   let best: { name: string; d: number } | null = null;
-  for (const io of ideologies) {
+  for (const io of IDEOLOGIES) {
     const dx = io.econ - political.econ;
     const dy = io.social - political.social;
     const d = Math.sqrt(dx * dx + dy * dy);
@@ -272,48 +280,76 @@ function InlineAdd({ placeholder, onAdd }: InlineAddProps) {
   );
 }
 
-// Small editor for the two vital-stats fields LifeOverlay needs:
-// weight in kilograms and birth year. Both optional — empty inputs
-// save as `undefined` so LifeOverlay can fall back gracefully. The
-// inputs commit on blur (and on Enter for the number fields) rather
-// than every keystroke, so the user can type "65" without
-// triggering a save for "6" first.
+// Vital-stats editor. Two fields, two paths:
+//
+//   - birth year: single value, saved on profile.birthYear. Commit
+//     on blur so typing "1992" doesn't pre-save "1", "19", "199".
+//
+//   - weight: weigh-in history. The number you type creates an entry
+//     in useWeighins (date defaults to today) — LifeOverlay reads the
+//     latest. A small "history (n)" expander shows the recent log
+//     with × delete. Legacy users with profile.weightKg set but no
+//     logged weigh-ins still see their static value here; the first
+//     new entry shadows it.
+// Currencies shown in the picker. Cosmetic order; the underlying
+// store accepts any ISO code, the FinanceTab Intl formatter
+// handles unknown codes gracefully.
+const CURRENCY_OPTIONS: { code: string; label: string }[] = [
+  { code: "USD", label: "$ · USD" },
+  { code: "EUR", label: "€ · EUR" },
+  { code: "GBP", label: "£ · GBP" },
+  { code: "NOK", label: "kr · NOK" },
+  { code: "SEK", label: "kr · SEK" },
+  { code: "DKK", label: "kr · DKK" },
+  { code: "CHF", label: "CHF" },
+  { code: "JPY", label: "¥ · JPY" },
+  { code: "CAD", label: "CA$ · CAD" },
+  { code: "AUD", label: "A$ · AUD" },
+];
+
 function VitalStatsEditor({
-  weightKg,
   birthYear,
+  currency,
   onSave,
 }: {
-  weightKg?: number;
   birthYear?: number;
-  onSave: (patch: { weightKg?: number; birthYear?: number }) => void;
+  currency?: string;
+  onSave: (patch: { birthYear?: number; currency?: string }) => void;
 }) {
-  const [w, setW] = useState<string>(
-    weightKg !== undefined ? String(weightKg) : "",
-  );
+  const { profile } = useProfile();
+  const {
+    items: weighins,
+    latest: latestWeighin,
+    add: addWeighin,
+    remove: removeWeighin,
+  } = useWeighins();
+
+  const [w, setW] = useState<string>("");
   const [y, setY] = useState<string>(
     birthYear !== undefined ? String(birthYear) : "",
   );
+  const [historyOpen, setHistoryOpen] = useState(false);
 
-  // Keep local state in sync if the profile mutates from elsewhere
-  // (e.g. a future weigh-in that auto-updates weightKg).
-  useEffect(() => {
-    if (weightKg !== undefined && weightKg !== Number(w)) setW(String(weightKg));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [weightKg]);
   useEffect(() => {
     if (birthYear !== undefined && birthYear !== Number(y)) setY(String(birthYear));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [birthYear]);
 
-  const commitWeight = () => {
+  // Current displayed weight: latest weigh-in, falling back to the
+  // legacy profile.weightKg one-shot field for users who set it
+  // before the weigh-in schema existed.
+  const currentKg = latestWeighin?.kg ?? profile.weightKg;
+
+  const commitWeight = async () => {
     const trimmed = w.trim();
-    if (trimmed === "") {
-      if (weightKg !== undefined) onSave({ weightKg: undefined });
-      return;
-    }
+    if (trimmed === "") return;
     const n = Number(trimmed);
     if (!Number.isFinite(n) || n <= 0 || n > 400) return;
-    if (n !== weightKg) onSave({ weightKg: Math.round(n * 10) / 10 });
+    await addWeighin({
+      date: isoDateToday(),
+      kg: Math.round(n * 10) / 10,
+    });
+    setW("");
   };
 
   const commitYear = () => {
@@ -327,6 +363,15 @@ function VitalStatsEditor({
     if (!Number.isInteger(n) || n < 1900 || n > thisYear) return;
     if (n !== birthYear) onSave({ birthYear: n });
   };
+
+  // History sorted newest first for the expander. Capped at 6 to
+  // keep the editor compact; the full sparkline lives in DaysOverlay.
+  const recent = [...weighins]
+    .sort((a, b) => {
+      const d = b.date.localeCompare(a.date);
+      return d !== 0 ? d : b.createdAt - a.createdAt;
+    })
+    .slice(0, 6);
 
   const inputStyle: React.CSSProperties = {
     width: "100%",
@@ -344,8 +389,9 @@ function VitalStatsEditor({
     <>
       <Kicker>Vital stats · private to you</Kicker>
       <div className="margin-note" style={{ fontSize: 12, marginTop: 4 }}>
-        "Weight and the year you were born. They scale the body-map
-        and the days-lived counters in the life overlay."
+        "Weight tracks over time; birth year is a one-shot. Both
+        scale the body-map and the days-lived counters in the life
+        overlay."
       </div>
       <div
         style={{
@@ -356,7 +402,14 @@ function VitalStatsEditor({
         }}
       >
         <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-          <span className="kicker">weight · kg</span>
+          <span className="kicker">
+            weight · kg{" "}
+            {currentKg !== undefined && (
+              <span style={{ color: "var(--ink-2)", marginLeft: 4 }}>
+                · now {currentKg}
+              </span>
+            )}
+          </span>
           <input
             type="number"
             inputMode="decimal"
@@ -364,9 +417,9 @@ function VitalStatsEditor({
             min="1"
             max="400"
             value={w}
-            placeholder="—"
+            placeholder={currentKg !== undefined ? "log a new weigh-in" : "—"}
             onChange={(e) => setW(e.target.value)}
-            onBlur={commitWeight}
+            onBlur={() => void commitWeight()}
             onKeyDown={(e) => {
               if (e.key === "Enter") (e.target as HTMLInputElement).blur();
             }}
@@ -392,6 +445,124 @@ function VitalStatsEditor({
           />
         </label>
       </div>
+
+      <label
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          gap: 4,
+          marginTop: 10,
+        }}
+      >
+        <span className="kicker">currency · for the finance tab</span>
+        <select
+          value={currency || "USD"}
+          onChange={(e) => onSave({ currency: e.target.value })}
+          style={{
+            ...inputStyle,
+            appearance: "auto",
+            fontFamily: "var(--mono)",
+          }}
+        >
+          {CURRENCY_OPTIONS.map((c) => (
+            <option key={c.code} value={c.code}>
+              {c.label}
+            </option>
+          ))}
+        </select>
+      </label>
+
+      {weighins.length > 0 && (
+        <>
+          <button
+            type="button"
+            onClick={() => setHistoryOpen((v) => !v)}
+            style={{
+              background: "transparent",
+              border: "none",
+              color: "var(--ink-3)",
+              fontFamily: "var(--mono)",
+              fontSize: 10,
+              letterSpacing: "0.08em",
+              textTransform: "uppercase",
+              cursor: "pointer",
+              padding: "8px 0 0",
+            }}
+          >
+            {historyOpen ? "↑ hide" : `↓ history (${weighins.length})`}
+          </button>
+          {historyOpen && (
+            <div
+              style={{
+                marginTop: 6,
+                display: "flex",
+                flexDirection: "column",
+                gap: 4,
+              }}
+            >
+              {recent.map((wi) => (
+                <div
+                  key={wi.id}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 8,
+                    fontFamily: "var(--mono)",
+                    fontSize: 11,
+                    color: "var(--ink-2)",
+                    padding: "3px 0",
+                    borderBottom: "0.5px dashed var(--rule)",
+                  }}
+                >
+                  <span style={{ color: "var(--ink-3)", letterSpacing: "0.04em" }}>
+                    {wi.date}
+                  </span>
+                  <span style={{ flex: 1 }}>{wi.kg} kg</span>
+                  {wi.note && (
+                    <span
+                      style={{
+                        fontStyle: "italic",
+                        fontFamily: "var(--serif)",
+                        color: "var(--ink-3)",
+                      }}
+                    >
+                      {wi.note}
+                    </span>
+                  )}
+                  <button
+                    onClick={() => {
+                      if (confirm(`Remove the ${wi.kg} kg entry from ${wi.date}?`)) {
+                        void removeWeighin(wi.id);
+                      }
+                    }}
+                    style={{
+                      background: "transparent",
+                      border: "none",
+                      color: "var(--ink-3)",
+                      cursor: "pointer",
+                      fontFamily: "var(--mono)",
+                      fontSize: 11,
+                      padding: 0,
+                    }}
+                    aria-label="Remove weigh-in"
+                  >
+                    ×
+                  </button>
+                </div>
+              ))}
+              {weighins.length > 6 && (
+                <div
+                  className="margin-note"
+                  style={{ fontSize: 10, marginTop: 4 }}
+                >
+                  showing 6 most recent · {weighins.length - 6} more in your
+                  archive
+                </div>
+              )}
+            </div>
+          )}
+        </>
+      )}
     </>
   );
 }
@@ -453,6 +624,124 @@ function ChipListEditor({
         <InlineAdd placeholder={placeholder} onAdd={add} />
       </div>
     </div>
+  );
+}
+
+// PublicProfileEditor — the two free-text fields (bio + role) that
+// can be exposed to nearby users via SharingOverlay's bio / role
+// toggles. The fields are always editable here; the toggles
+// decide whether they actually leave the device. Empty strings
+// clear the value; cap is enforced on commit.
+function PublicProfileEditor({
+  bio,
+  role,
+  onSave,
+}: {
+  bio?: string;
+  role?: string;
+  onSave: (patch: { bio?: string; role?: string }) => void;
+}) {
+  // Track the last "incoming" prop values so an async profile
+  // arrival (sign-in / import) can update our drafts without
+  // stomping on a user mid-type. If the prop changes AND it
+  // differs from the previous prop we saw, adopt the new value;
+  // a user's typed change updates the draft but leaves the
+  // previous-prop ref alone.
+  const [bioDraft, setBioDraft] = useState(bio ?? "");
+  const [roleDraft, setRoleDraft] = useState(role ?? "");
+  const [lastBioProp, setLastBioProp] = useState(bio ?? "");
+  const [lastRoleProp, setLastRoleProp] = useState(role ?? "");
+  if ((bio ?? "") !== lastBioProp) {
+    setLastBioProp(bio ?? "");
+    setBioDraft(bio ?? "");
+  }
+  if ((role ?? "") !== lastRoleProp) {
+    setLastRoleProp(role ?? "");
+    setRoleDraft(role ?? "");
+  }
+
+  const commitBio = () => {
+    const trimmed = bioDraft.trim().slice(0, 280);
+    if (trimmed === (bio ?? "")) return;
+    onSave({ bio: trimmed });
+  };
+  const commitRole = () => {
+    const trimmed = roleDraft.trim().slice(0, 60);
+    if (trimmed === (role ?? "")) return;
+    onSave({ role: trimmed });
+  };
+
+  const inputStyle: React.CSSProperties = {
+    width: "100%",
+    boxSizing: "border-box",
+    padding: "10px 12px",
+    background: "var(--paper-2)",
+    border: "0.5px solid var(--rule)",
+    borderRadius: 8,
+    fontFamily: "var(--serif)",
+    fontSize: 14,
+    color: "var(--ink)",
+  };
+
+  return (
+    <>
+      <Kicker>public profile · for nearby people</Kicker>
+      <div
+        className="margin-note"
+        style={{
+          marginTop: 6,
+          marginBottom: 12,
+          fontSize: 12,
+          fontStyle: "italic",
+        }}
+      >
+        Always stays on this device until you flip the matching
+        toggle in Sharing. Bio is capped at 280 characters; role at
+        60.
+      </div>
+
+      <label style={{ display: "block", marginBottom: 12 }}>
+        <span className="kicker">role · what you do</span>
+        <input
+          type="text"
+          value={roleDraft}
+          maxLength={60}
+          onChange={(e) => setRoleDraft(e.target.value)}
+          onBlur={commitRole}
+          placeholder="ceramicist, marine biologist…"
+          style={{ ...inputStyle, marginTop: 6 }}
+        />
+      </label>
+
+      <label style={{ display: "block" }}>
+        <span className="kicker">bio</span>
+        <textarea
+          value={bioDraft}
+          maxLength={280}
+          onChange={(e) => setBioDraft(e.target.value)}
+          onBlur={commitBio}
+          placeholder="A sentence or two for the people who find you."
+          rows={3}
+          style={{
+            ...inputStyle,
+            marginTop: 6,
+            fontStyle: "italic",
+            resize: "vertical",
+          }}
+        />
+        <div
+          style={{
+            textAlign: "right",
+            fontFamily: "var(--mono)",
+            fontSize: 9,
+            color: "var(--ink-3)",
+            marginTop: 4,
+          }}
+        >
+          {bioDraft.length}/280
+        </div>
+      </label>
+    </>
   );
 }
 
@@ -712,8 +1001,16 @@ export function ProfileOverlay({ onClose, onOpenTest }: ProfileOverlayProps) {
         <hr className="rule-dashed" />
 
         <VitalStatsEditor
-          weightKg={profile.weightKg}
           birthYear={profile.birthYear}
+          currency={profile.currency}
+          onSave={(patch) => void save(patch)}
+        />
+
+        <hr className="rule-dashed" />
+
+        <PublicProfileEditor
+          bio={profile.bio}
+          role={profile.role}
           onSave={(patch) => void save(patch)}
         />
 
@@ -952,7 +1249,583 @@ export function ProfileOverlay({ onClose, onOpenTest }: ProfileOverlayProps) {
           heroes={heroes}
           onChange={(next) => void save({ heroes: next })}
         />
+
+        <hr className="rule-dashed" />
+        <BackupSection />
+
+        <hr className="rule-dashed" />
+        <TelemetrySection />
+
+        <hr className="rule-dashed" />
+        <AccountSection />
+
+        <hr className="rule-dashed" />
+        <DangerZone />
       </div>
     </div>
+  );
+}
+
+// ─── AccountSection — standalone sign-out (delete lives in DangerZone) ─
+//
+// Sign-out was previously only reachable through the delete-account
+// path inside DangerZone. Surface it as a plain action — far more
+// common, far less destructive.
+
+function AccountSection() {
+  const { user } = useAuth();
+  const [busy, setBusy] = useState(false);
+  if (!firebaseEnabled || !user) return null;
+
+  const handleSignOut = async () => {
+    if (busy) return;
+    if (!confirm("Sign out? Your data stays on this device.")) return;
+    setBusy(true);
+    try {
+      await googleSignOut();
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <>
+      <Kicker>account · this device</Kicker>
+      <div
+        style={{
+          marginTop: 8,
+          fontFamily: "var(--serif)",
+          fontStyle: "italic",
+          fontSize: 13,
+          lineHeight: 1.4,
+          color: "var(--ink-2)",
+        }}
+      >
+        Signed in as <span style={{ fontStyle: "normal" }}>{user.email ?? user.uid}</span>.
+      </div>
+      <button
+        type="button"
+        onClick={() => void handleSignOut()}
+        disabled={busy}
+        style={{
+          marginTop: 10,
+          padding: "10px 14px",
+          background: "transparent",
+          color: "var(--ink-1)",
+          border: "0.5px solid var(--ink-2)",
+          borderRadius: 999,
+          fontFamily: "var(--mono)",
+          fontSize: 11,
+          letterSpacing: "0.1em",
+          textTransform: "uppercase",
+          cursor: busy ? "default" : "pointer",
+        }}
+      >
+        {busy ? "signing out…" : "sign out"}
+      </button>
+    </>
+  );
+}
+
+// ─── TelemetrySection — opt-in toggle for Sentry crash + error reports ─
+//
+// Sentry is configured (VITE_SENTRY_DSN) but inert until the user
+// opts in. The flag lives in localStorage so it survives sign-outs
+// but never leaves the device. Flipping it on calls sentryInit()
+// which then attaches the global handlers; flipping it off clears
+// the user id but can't fully tear down the SDK at runtime — that
+// takes effect on the next launch.
+
+function TelemetrySection() {
+  const [enabled, setEnabled] = useState(() => telemetryEnabled());
+
+  const toggle = () => {
+    const next = !enabled;
+    setEnabled(next);
+    setTelemetryEnabled(next);
+  };
+
+  return (
+    <>
+      <Kicker>telemetry · opt-in only</Kicker>
+      <div
+        style={{
+          marginTop: 8,
+          fontFamily: "var(--serif)",
+          fontStyle: "italic",
+          fontSize: 13,
+          lineHeight: 1.4,
+          color: "var(--ink-2)",
+        }}
+      >
+        Crash and error reports help us find bugs we can't see. Off by
+        default — when on, only stack traces and an anonymous user id
+        leave the device (never your data).
+      </div>
+      <div
+        style={{
+          marginTop: 10,
+          display: "flex",
+          alignItems: "center",
+          gap: 12,
+        }}
+      >
+        <button
+          type="button"
+          onClick={toggle}
+          role="switch"
+          aria-checked={enabled}
+          aria-label="telemetry"
+          style={{
+            width: 44,
+            height: 24,
+            borderRadius: 999,
+            background: enabled ? "var(--ink-1)" : "var(--paper-2)",
+            border: "0.5px solid var(--ink-2)",
+            position: "relative",
+            cursor: "pointer",
+            padding: 0,
+            transition: "background 0.15s",
+          }}
+        >
+          <span
+            style={{
+              position: "absolute",
+              top: 2,
+              left: enabled ? 22 : 2,
+              width: 18,
+              height: 18,
+              borderRadius: "50%",
+              background: enabled ? "var(--paper)" : "var(--ink-2)",
+              transition: "left 0.15s",
+            }}
+          />
+        </button>
+        <span
+          style={{
+            fontFamily: "var(--mono)",
+            fontSize: 11,
+            letterSpacing: "0.1em",
+            textTransform: "uppercase",
+            color: "var(--ink-2)",
+          }}
+        >
+          {enabled ? "on" : "off"}
+        </span>
+      </div>
+      {enabled && (
+        <div
+          className="margin-note"
+          style={{ marginTop: 8, fontSize: 11, fontStyle: "italic" }}
+        >
+          Turning off later stops new reports on the next app launch.
+        </div>
+      )}
+    </>
+  );
+}
+
+// ─── BackupSection — JSON export / import of locally-cached data ─
+//
+// Sits above the danger zone because, well, the safest thing to do
+// before a destructive action is take a backup. Export dumps every
+// `insight.*` localStorage key into a JSON file the user downloads.
+// Import takes that file back and replaces local state, then forces
+// a reload so the hooks re-init cleanly.
+
+function BackupSection() {
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleExport = () => {
+    setMessage(null);
+    setError(null);
+    try {
+      const blob = gatherExport();
+      const count = Object.keys(blob.entries).length;
+      downloadBackup(blob);
+      setMessage(`Saved ${count} entries.`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    }
+  };
+
+  const handleImport = async (file: File) => {
+    setMessage(null);
+    setError(null);
+    if (!confirm(
+      "Importing will replace your local data with the contents of this backup. Continue?",
+    )) return;
+    setBusy(true);
+    try {
+      const blob = await readBackupFile(file);
+      const written = applyImport(blob);
+      setMessage(`Restored ${written} entries. Reloading…`);
+      // Give the user a moment to see the message before the reload
+      // wipes the page.
+      setTimeout(() => window.location.reload(), 600);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+      setBusy(false);
+    }
+  };
+
+  return (
+    <>
+      <Kicker>backup · your data, your file</Kicker>
+      <div
+        style={{
+          marginTop: 8,
+          fontFamily: "var(--serif)",
+          fontStyle: "italic",
+          fontSize: 13,
+          lineHeight: 1.4,
+          color: "var(--ink-2)",
+        }}
+      >
+        Download a JSON snapshot of everything cached on this device, or
+        restore one taken earlier. Cross-user data and the on-device
+        LLM model file aren't included.
+      </div>
+      <div style={{ display: "flex", gap: 8, marginTop: 10, flexWrap: "wrap" }}>
+        <button
+          type="button"
+          onClick={handleExport}
+          disabled={busy}
+          style={{
+            padding: "10px 14px",
+            background: "var(--ink-1)",
+            color: "var(--paper)",
+            border: "none",
+            borderRadius: 999,
+            fontFamily: "var(--mono)",
+            fontSize: 11,
+            letterSpacing: "0.1em",
+            textTransform: "uppercase",
+            cursor: busy ? "default" : "pointer",
+            flex: 1,
+            minWidth: 140,
+          }}
+        >
+          export backup
+        </button>
+        <label
+          style={{
+            padding: "10px 14px",
+            background: "transparent",
+            color: "var(--ink-1)",
+            border: "0.5px dashed var(--ink-2)",
+            borderRadius: 999,
+            fontFamily: "var(--mono)",
+            fontSize: 11,
+            letterSpacing: "0.1em",
+            textTransform: "uppercase",
+            cursor: busy ? "default" : "pointer",
+            flex: 1,
+            minWidth: 140,
+            textAlign: "center",
+          }}
+        >
+          import backup
+          <input
+            type="file"
+            accept="application/json,.json"
+            disabled={busy}
+            onChange={(e) => {
+              const f = e.target.files?.[0];
+              if (f) void handleImport(f);
+              // Reset input so the same file can be picked again.
+              e.target.value = "";
+            }}
+            style={{ display: "none" }}
+          />
+        </label>
+      </div>
+      {message && (
+        <div
+          className="margin-note"
+          style={{ marginTop: 8, color: "var(--ink-2)" }}
+        >
+          {message}
+        </div>
+      )}
+      {error && (
+        <div
+          className="margin-note"
+          style={{ marginTop: 8, color: "oklch(0.55 0.16 12)" }}
+        >
+          {error}
+        </div>
+      )}
+    </>
+  );
+}
+
+// ─── DangerZone — account deletion at the bottom of the portrait ─
+//
+// Apple App Store Guideline 5.1.1(v) and Google's User Data policy
+// both require an in-app account deletion path for any app that
+// supports account creation. This is that path.
+//
+// Flow:
+//   1. Tap "Delete my account" → expands a danger-zone card with
+//      what gets wiped + a typed-email confirmation gate.
+//   2. Type the exact email to enable the red button.
+//   3. For password sign-in users, prompt for password and call
+//      reauthenticateWithCredential (Firebase requires recent
+//      auth for destructive ops). For OAuth users (Apple / Google),
+//      we ask them to sign out + back in within 5 minutes then
+//      retry — full per-provider re-auth is a follow-up.
+//   4. Call the deleteAccount Cloud Function. On success, sign out
+//      (their auth account is gone; signOut clears local state).
+
+function DangerZone() {
+  const { user } = useAuth();
+  const [expanded, setExpanded] = useState(false);
+  const [typed, setTyped] = useState("");
+  const [password, setPassword] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  if (!firebaseEnabled || !user) {
+    // Signed-out users have no account to delete — drop the
+    // section entirely rather than show a no-op.
+    return null;
+  }
+
+  const email = user.email ?? "";
+  const isPasswordUser =
+    user.providerData.some((p) => p.providerId === "password");
+  const canConfirm = email.length > 0 && typed.trim().toLowerCase() === email.toLowerCase();
+  const canSubmit =
+    canConfirm && !busy && (!isPasswordUser || password.length > 0);
+
+  const submit = async () => {
+    if (!canSubmit) return;
+    setBusy(true);
+    setError(null);
+    try {
+      // 1. Re-auth. Firebase rejects deleteUser unless the user's
+      //    sign-in is recent (< 5 min); the easiest path is to
+      //    re-auth right before the Cloud Function call.
+      if (isPasswordUser) {
+        await reauthWithPassword(password);
+      }
+      // For OAuth users (Apple / Google / etc.) we currently rely
+      // on the Cloud Function path being able to do its work via
+      // admin SDK + the function bailing if Firebase considers
+      // the auth stale. If it bails, the catch below surfaces a
+      // clear instruction.
+
+      // 2. Wipe data + auth account via the Cloud Function.
+      await callDeleteAccount();
+
+      // 3. Sign out locally. By the time we get here, the auth
+      //    account is gone server-side; this clears the client.
+      await googleSignOut();
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      // Surface the most common cases as friendly copy.
+      if (msg.includes("wrong-password") || msg.includes("invalid-credential")) {
+        setError("That password didn't match. Try again.");
+      } else if (msg.includes("requires-recent-login")) {
+        setError(
+          "For security, sign out and sign back in, then try delete again within 5 minutes.",
+        );
+      } else {
+        setError(msg);
+      }
+      setBusy(false);
+    }
+  };
+
+  if (!expanded) {
+    return (
+      <>
+        <Kicker>danger zone</Kicker>
+        <button
+          type="button"
+          onClick={() => setExpanded(true)}
+          style={{
+            marginTop: 10,
+            padding: "10px 14px",
+            background: "transparent",
+            color: "oklch(0.55 0.16 12)",
+            border: "0.5px dashed oklch(0.55 0.16 12)",
+            borderRadius: 999,
+            fontFamily: "var(--mono)",
+            fontSize: 11,
+            letterSpacing: "0.1em",
+            textTransform: "uppercase",
+            cursor: "pointer",
+            width: "100%",
+          }}
+        >
+          delete my account
+        </button>
+      </>
+    );
+  }
+
+  return (
+    <>
+      <Kicker>danger zone</Kicker>
+      <div
+        className="card"
+        style={{
+          marginTop: 10,
+          padding: 14,
+          borderLeft: "3px solid oklch(0.55 0.16 12)",
+        }}
+      >
+        <div
+          style={{
+            fontFamily: "var(--serif)",
+            fontStyle: "italic",
+            fontSize: 16,
+            lineHeight: 1.3,
+            marginBottom: 8,
+          }}
+        >
+          Delete your account.
+        </div>
+        <div
+          className="margin-note"
+          style={{ marginTop: 6, fontSize: 12, lineHeight: 1.5 }}
+        >
+          "Wipes your entire journal — daily reports, moods, habits,
+          impressions, scrapbook, weigh-ins, the ledger, your circle.
+          Removes inbound impressions you've left for others. The
+          Firebase Auth account itself is deleted last. Anonymous
+          contributions to area aggregates can't be pulled back out
+          individually; the next aggregator run rebuilds without you.
+          Cannot be undone."
+        </div>
+
+        <div style={{ marginTop: 14 }}>
+          <div
+            className="kicker"
+            style={{ fontSize: 9, marginBottom: 4 }}
+          >
+            type your email to confirm
+          </div>
+          <input
+            type="email"
+            autoCapitalize="off"
+            autoCorrect="off"
+            spellCheck={false}
+            value={typed}
+            onChange={(e) => setTyped(e.target.value)}
+            placeholder={email}
+            style={{
+              width: "100%",
+              boxSizing: "border-box",
+              padding: "9px 12px",
+              background: "var(--paper-2)",
+              border: `0.5px solid ${canConfirm ? "oklch(0.55 0.16 12)" : "var(--rule)"}`,
+              borderRadius: 6,
+              fontFamily: "var(--mono)",
+              fontSize: 13,
+              color: "var(--ink)",
+            }}
+          />
+        </div>
+
+        {isPasswordUser && (
+          <div style={{ marginTop: 10 }}>
+            <div
+              className="kicker"
+              style={{ fontSize: 9, marginBottom: 4 }}
+            >
+              re-enter your password
+            </div>
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="••••••••"
+              style={{
+                width: "100%",
+                boxSizing: "border-box",
+                padding: "9px 12px",
+                background: "var(--paper-2)",
+                border: "0.5px solid var(--rule)",
+                borderRadius: 6,
+                fontFamily: "var(--mono)",
+                fontSize: 13,
+                color: "var(--ink)",
+              }}
+            />
+          </div>
+        )}
+
+        {error && (
+          <div
+            style={{
+              marginTop: 10,
+              padding: "8px 10px",
+              background: "color-mix(in oklch, oklch(0.55 0.16 12) 8%, var(--paper))",
+              border: "0.5px solid oklch(0.55 0.16 12)",
+              borderRadius: 6,
+              fontFamily: "var(--serif)",
+              fontStyle: "italic",
+              fontSize: 12,
+              color: "oklch(0.55 0.16 12)",
+              lineHeight: 1.4,
+            }}
+          >
+            {error}
+          </div>
+        )}
+
+        <div style={{ display: "flex", gap: 8, marginTop: 14 }}>
+          <button
+            type="button"
+            onClick={() => {
+              setExpanded(false);
+              setTyped("");
+              setPassword("");
+              setError(null);
+            }}
+            disabled={busy}
+            style={{
+              flex: 1,
+              padding: "10px",
+              background: "var(--paper-2)",
+              border: "0.5px solid var(--rule)",
+              borderRadius: 999,
+              fontFamily: "var(--serif)",
+              fontStyle: "italic",
+              fontSize: 14,
+              cursor: busy ? "default" : "pointer",
+              color: "var(--ink-2)",
+            }}
+          >
+            cancel
+          </button>
+          <button
+            type="button"
+            onClick={() => void submit()}
+            disabled={!canSubmit}
+            style={{
+              flex: 1,
+              padding: "10px",
+              background: canSubmit ? "oklch(0.55 0.16 12)" : "var(--paper-3)",
+              color: canSubmit ? "var(--paper)" : "var(--ink-3)",
+              border: "none",
+              borderRadius: 999,
+              fontFamily: "var(--serif)",
+              fontStyle: "italic",
+              fontSize: 14,
+              cursor: canSubmit ? "pointer" : "default",
+              opacity: busy ? 0.6 : 1,
+            }}
+          >
+            {busy ? "deleting…" : "delete my account"}
+          </button>
+        </div>
+      </div>
+    </>
   );
 }

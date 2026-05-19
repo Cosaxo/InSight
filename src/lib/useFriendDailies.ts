@@ -12,6 +12,7 @@
 import { useEffect, useState } from "react";
 import { firebaseEnabled, subscribeFriendDailyReport } from "./firebase";
 import { useAuth } from "./useAuth";
+import { isoDateToday } from "./useDailyReport";
 import type { RemoteDailyReport } from "../types";
 import type { UserPerson } from "./useRelations";
 
@@ -39,8 +40,9 @@ export function useFriendDailies(relations: UserPerson[]): {
       return;
     }
     const unsubs: Array<() => void> = [];
+    const today = isoDateToday();
     for (const fuid of linkedUids) {
-      const unsub = subscribeFriendDailyReport(fuid, (r) => {
+      const unsub = subscribeFriendDailyReport(fuid, today, (r) => {
         setReports((prev) => {
           if (!r) {
             // Permission-denied or no doc — drop any stale entry.

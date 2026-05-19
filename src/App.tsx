@@ -1,5 +1,26 @@
 import { lazy, Suspense, useEffect, useRef, useState } from "react";
-import type { CityRatings, TabId } from "./types";
+import type {
+  Book,
+  CityRatings,
+  Dream,
+  Habit,
+  Home,
+  Impression,
+  Job,
+  Language,
+  Meal,
+  Milestone,
+  MoodEntry,
+  RemoteDailyReport,
+  Specimen,
+  TabId,
+  TimeBlock,
+  Transaction,
+  Visit,
+  Weighin,
+  Workout,
+} from "./types";
+import type { RemoteProfile } from "./lib/firebase";
 import {
   firebaseEnabled,
   migrateFromLocal,
@@ -8,6 +29,10 @@ import {
 } from "./lib/firebase";
 import { useAuth } from "./lib/useAuth";
 import { useMe } from "./lib/useMe";
+import {
+  userPersonToPerson,
+  type UserPerson,
+} from "./lib/useRelations";
 import { readLegacyDailyReport } from "./lib/useDailyReport";
 import { useTweaks } from "./lib/useTweaks";
 import { IOSDevice } from "./components/shared/IOSDevice";
@@ -31,6 +56,9 @@ import {
 } from "./components/shared/TweaksPanel";
 import type { PersonForOverlay } from "./components/overlays/PersonOverlay";
 import { useDailyReport } from "./lib/useDailyReport";
+import { useProfile } from "./lib/useProfile";
+import { WelcomeFlow } from "./components/overlays/WelcomeFlow";
+import { isOnboarded, type WelcomeHint } from "./lib/onboarding";
 
 // Overlays are off the critical path — none of them render on first paint.
 // Lazy-load each into its own chunk so the initial JS stays small.
@@ -128,23 +156,113 @@ const TWEAK_DEFAULTS = {
 
 type AnyPerson = NearbyPerson | CirclePerson;
 
+// The journal-volume framing anchors to a fixed launch year. Each
+// calendar year past the anchor is the next volume — vol. i = 2024,
+// vol. ii = 2025, vol. iii = 2026, etc. Roman numerals lowercase to
+// match the typographic feel of the rest of the chrome.
+const HEADER_VOLUME_ANCHOR_YEAR = 2024;
+function toRoman(n: number): string {
+  if (n <= 0) return "—";
+  const map: [number, string][] = [
+    [1000, "m"], [900, "cm"], [500, "d"], [400, "cd"],
+    [100, "c"], [90, "xc"], [50, "l"], [40, "xl"],
+    [10, "x"], [9, "ix"], [5, "v"], [4, "iv"], [1, "i"],
+  ];
+  let out = "";
+  for (const [v, s] of map) {
+    while (n >= v) {
+      out += s;
+      n -= v;
+    }
+  }
+  return out;
+}
+function headerVolume(): string {
+  const v = new Date().getFullYear() - HEADER_VOLUME_ANCHOR_YEAR + 1;
+  return `vol. ${toRoman(v)}`;
+}
+function headerDate(): string {
+  const d = new Date();
+  const months = [
+    "jan", "feb", "mar", "apr", "may", "jun",
+    "jul", "aug", "sep", "oct", "nov", "dec",
+  ];
+  const yy = String(d.getFullYear() % 100).padStart(2, "0");
+  return `${months[d.getMonth()]} '${yy}`;
+}
+
 function toOverlayPerson(p: AnyPerson): PersonForOverlay {
   return {
+    id: "id" in p ? p.id : undefined,
     init: p.init,
     hue: p.hue,
     name: p.name,
-    match: p.match,
+    // PersonOverlay expects a numeric match; coalesce the "unknown"
+    // case to 50 (neutral) so the overlay's existing rendering works.
+    match: p.match ?? 50,
     role: "role" in p ? p.role : undefined,
     rel: "rel" in p ? (p as CirclePerson).rel : undefined,
     dist: "dist" in p ? (p as NearbyPerson).dist : undefined,
     note: "note" in p ? (p as NearbyPerson).note : undefined,
     interests: "interests" in p ? p.interests : undefined,
+    personality:
+      "personality" in p && Array.isArray(p.personality)
+        ? (p.personality as number[])
+        : undefined,
+    politicalAxes:
+      "politicalAxes" in p && p.politicalAxes
+        ? (p.politicalAxes as Record<string, number>)
+        : undefined,
+    morals:
+      "morals" in p && p.morals
+        ? (p.morals as Record<string, number>)
+        : undefined,
+    linkedUid:
+      "linkedUid" in p && typeof p.linkedUid === "string"
+        ? p.linkedUid
+        : undefined,
   };
 }
 
-// First sign-in migration — moves any local daily report + city ratings
-// up to Firestore the first time a user authenticates against an empty
-// profile doc. Runs at most once per session per user.
+// Read a JSON array from localStorage, returning [] on parse error or
+// when the key isn't set. Used by the first-sign-in migration to
+// sweep every typed-item subcollection's local cache up to Firestore.
+function readLocalArray<T>(key: string): T[] {
+  try {
+    const raw = localStorage.getItem(key);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? (parsed as T[]) : [];
+  } catch {
+    return [];
+  }
+}
+
+// Same, for the profile object (single doc rather than an array).
+function readLocalProfile(): RemoteProfile {
+  try {
+    const raw = localStorage.getItem("insight.profile.v1");
+    if (!raw) return {};
+    const parsed = JSON.parse(raw);
+    return typeof parsed === "object" && parsed !== null
+      ? (parsed as RemoteProfile)
+      : {};
+  } catch {
+    return {};
+  }
+}
+
+// First sign-in migration — moves every locally-cached subcollection
+// up to Firestore the first time a user authenticates against an
+// empty profile doc. Runs at most once per session per user.
+//
+// Why this exists: the typed-item hooks (useMeals, useWeighins,
+// useImpressions, …) all store to localStorage when signed out so
+// the app is fully usable without an account. When the user finally
+// signs in, the hooks subscribe to Firestore — which returns []
+// for a fresh account — and would otherwise overwrite the local
+// cache. This migration runs first and pushes everything up so the
+// subscription sees the migrated docs.
 function useFirstSignInMigration() {
   const { user } = useAuth();
   const ranForUid = useRef<string | null>(null);
@@ -166,15 +284,60 @@ function useFirstSignInMigration() {
         } catch {
           // ignore
         }
+
+        // Snapshot every locally-cached subcollection. Each key
+        // matches its hook's STORAGE constant; if you add another
+        // typed-item hook, add the corresponding read here.
+        const profile = readLocalProfile();
+        // Relations are stored locally as UserPerson; the migration
+        // expects the legacy Person shape, so we convert.
+        const localUserPeople = readLocalArray<UserPerson>(
+          "insight.relations.v1",
+        );
+        const relations = localUserPeople.map(userPersonToPerson);
+        const moods = readLocalArray<MoodEntry>("insight.moods.v1");
+        const habits = readLocalArray<Habit>("insight.habits.v1");
+        const workouts = readLocalArray<Workout>("insight.workouts.v1");
+        const meals = readLocalArray<Meal>("insight.meals.v1");
+        const transactions = readLocalArray<Transaction>(
+          "insight.transactions.v1",
+        );
+        const specimens = readLocalArray<Specimen>("insight.scrapbook.v1");
+        const dreams = readLocalArray<Dream>("insight.dreams.v1");
+        const impressions = readLocalArray<Impression>("insight.impressions.v1");
+        const weighins = readLocalArray<Weighin>("insight.weighins.v1");
+        const books = readLocalArray<Book>("insight.books.v1");
+        const visits = readLocalArray<Visit>("insight.visits.v1");
+        const homes = readLocalArray<Home>("insight.homes.v1");
+        const languages = readLocalArray<Language>("insight.languages.v1");
+        const jobs = readLocalArray<Job>("insight.jobs.v1");
+        const milestones = readLocalArray<Milestone>("insight.milestones.v1");
+        const timeBlocks = readLocalArray<TimeBlock>(
+          "insight.time_blocks.v1",
+        );
+        const skills = readLocalArray<{ id: string }>("insight.skills.v1");
+
         await migrateFromLocal(user.uid, {
-          profile: {},
-          relations: [],
+          profile,
+          relations,
           cityRatings,
-          moods: [],
-          habits: [],
-          workouts: [],
-          meals: [],
-          transactions: [],
+          moods,
+          habits,
+          workouts,
+          meals,
+          transactions,
+          specimens,
+          dreams,
+          impressions,
+          weighins,
+          books,
+          visits,
+          homes,
+          languages,
+          jobs,
+          milestones,
+          timeBlocks,
+          skills,
           dailyReport: local
             ? {
                 date: local.date,
@@ -187,6 +350,9 @@ function useFirstSignInMigration() {
                 shared: local.shared,
               }
             : null,
+          dailyReportHistory: readLocalArray<RemoteDailyReport>(
+            "insight.dailyReport.history.v1",
+          ),
         });
       } catch (err) {
         console.error("[migration] first-sign-in migration failed:", err);
@@ -260,6 +426,26 @@ function AppShell() {
     t.density || "regular"
   }`;
 
+  // First-launch onboarding. Shown when the local "onboarded" flag
+  // isn't set AND the profile is empty enough to look new (no birth
+  // year + no weight). The second clause keeps existing users from
+  // seeing it after a clean reinstall when their Firestore profile
+  // syncs back. The hint returned from WelcomeFlow decides which
+  // surface to open after the user finishes.
+  const { profile } = useProfile();
+  const profileLooksNew = !profile.birthYear && !profile.weightKg;
+  const [showWelcome, setShowWelcome] = useState(
+    () => !isOnboarded() && profileLooksNew,
+  );
+  const handleWelcomeDone = (hint: WelcomeHint) => {
+    setShowWelcome(false);
+    if (hint === "daily") setShowDaily(true);
+    else if (hint === "test") {
+      setTestInitialKind("big5");
+      setShowTest(true);
+    } else if (hint === "around") setTab("around");
+  };
+
   const { report: myDaily } = useDailyReport();
   // PeopleTab's DailyReport shape requires `personId` (it's a per-person
   // feed); adapt our own daily report to fit. The auto-stats fields it
@@ -286,14 +472,20 @@ function AppShell() {
             in<em>Sight</em>
           </div>
           <div className="h-meta">
-            vol. iii
+            {headerVolume()}
             <br />
-            may '26
+            {headerDate()}
           </div>
         </header>
 
         <div className="app-body">
-          {tab === "around" && <AroundTab onPerson={setPerson} />}
+          {tab === "around" && (
+            <AroundTab
+              onPerson={setPerson}
+              onOpenTest={() => setShowTest(true)}
+              onAddPerson={() => setShowAddPerson(true)}
+            />
+          )}
           {tab === "world" && <WorldTab onCity={setCity} />}
           {tab === "city" && <CityTab />}
           {tab === "groups" && <GroupsTab />}
@@ -454,6 +646,7 @@ function AppShell() {
               onClose={() => setPerson(null)}
             />
           )}
+          {showWelcome && <WelcomeFlow onComplete={handleWelcomeDone} />}
           {showProfile && (
             <ProfileOverlay
               onClose={() => setShowProfile(false)}

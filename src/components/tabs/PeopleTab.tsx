@@ -8,6 +8,9 @@ import {
 import { useRelations, type UserPerson } from "../../lib/useRelations";
 import { useFriendDailies } from "../../lib/useFriendDailies";
 import { useMe } from "../../lib/useMe";
+import { useMyRelations } from "../../lib/useMyRelations";
+import { useAuth } from "../../lib/useAuth";
+import { acceptFriendRequest, declineFriendRequest } from "../../lib/firebase";
 
 export interface CirclePerson extends ConcentricPerson {
   rel: string;
@@ -16,6 +19,13 @@ export interface CirclePerson extends ConcentricPerson {
   degrees: number;
   since: string;
   interests?: ({ c: string; t: string } | string)[];
+  personality?: number[];
+  politicalAxes?: Record<string, number>;
+  morals?: Record<string, number>;
+  // Real Firebase auth uid when this relation is linked to an
+  // actual InSight account — drives the "send them an impression"
+  // path in PersonOverlay.
+  linkedUid?: string;
 }
 
 interface PeopleTabProps {
@@ -38,6 +48,10 @@ function userToCircle(p: UserPerson): CirclePerson {
     category: p.category,
     degrees: p.degrees,
     since: p.since,
+    personality: p.personality,
+    politicalAxes: p.politicalAxes,
+    morals: p.morals,
+    linkedUid: p.linkedUid,
   };
 }
 
@@ -72,6 +86,153 @@ const PHOTO_GRADIENTS: Record<string, string> = {
   window:
     "linear-gradient(200deg, oklch(0.92 0.03 80), oklch(0.78 0.05 60) 50%, oklch(0.58 0.07 50))",
 };
+
+// RelationInbox — pending friend requests + recent followers, shown
+// at the top of PeopleTab so the user notices them. Hidden entirely
+// when both lists are empty (the common case).
+function RelationInbox({ onOpenPerson }: { onOpenPerson: (p: CirclePerson) => void }) {
+  const { user } = useAuth();
+  const rel = useMyRelations();
+  const [busy, setBusy] = useState<Set<string>>(new Set());
+
+  if (!user || (rel.incomingRequests.length === 0 && rel.followers.length === 0)) {
+    return null;
+  }
+
+  const handle = async (op: () => Promise<void>, uid: string) => {
+    setBusy((s) => new Set(s).add(uid));
+    try {
+      await op();
+    } catch (err) {
+      console.error("[RelationInbox] action failed:", err);
+    } finally {
+      setBusy((s) => {
+        const next = new Set(s);
+        next.delete(uid);
+        return next;
+      });
+    }
+  };
+
+  // Synthesise a CirclePerson out of just a uid so onOpenPerson
+  // works (the PersonOverlay handles the linkedUid lookup). The
+  // chrome (init, hue) is derived from the uid.
+  const synth = (uid: string): CirclePerson => {
+    let h = 0;
+    for (const c of uid) h = (h * 31 + c.charCodeAt(0)) >>> 0;
+    return {
+      id: uid,
+      name: `User ${uid.slice(0, 4)}`,
+      init: uid.slice(0, 2).toUpperCase(),
+      hue: h % 360,
+      rel: "",
+      category: "",
+      match: 50,
+      degrees: 1,
+      since: "",
+      linkedUid: uid,
+    };
+  };
+
+  return (
+    <div className="card" style={{ marginBottom: 14, padding: 14 }}>
+      {rel.incomingRequests.length > 0 && (
+        <>
+          <Kicker>friend requests · {rel.incomingRequests.length}</Kicker>
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              gap: 8,
+              marginTop: 10,
+            }}
+          >
+            {rel.incomingRequests.map((r) => (
+              <div
+                key={r.uid}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 10,
+                  padding: "8px 10px",
+                  background: "var(--paper-2)",
+                  border: "0.5px solid var(--rule)",
+                  borderRadius: 10,
+                }}
+              >
+                <div
+                  onClick={() => onOpenPerson(synth(r.uid))}
+                  style={{
+                    flex: 1,
+                    fontFamily: "var(--serif)",
+                    fontStyle: "italic",
+                    fontSize: 14,
+                    cursor: "pointer",
+                  }}
+                >
+                  User {r.uid.slice(0, 6)} wants to befriend you
+                </div>
+                <button
+                  type="button"
+                  onClick={() =>
+                    void handle(() => acceptFriendRequest(user.uid, r.uid), r.uid)
+                  }
+                  disabled={busy.has(r.uid)}
+                  style={{
+                    padding: "5px 10px",
+                    background: "var(--ink)",
+                    color: "var(--paper)",
+                    border: "none",
+                    borderRadius: 999,
+                    fontFamily: "var(--mono)",
+                    fontSize: 9,
+                    letterSpacing: "0.12em",
+                    cursor: "pointer",
+                  }}
+                >
+                  ACCEPT
+                </button>
+                <button
+                  type="button"
+                  onClick={() =>
+                    void handle(() => declineFriendRequest(user.uid, r.uid), r.uid)
+                  }
+                  disabled={busy.has(r.uid)}
+                  style={{
+                    padding: "5px 10px",
+                    background: "transparent",
+                    color: "var(--ink-3)",
+                    border: "0.5px solid var(--rule)",
+                    borderRadius: 999,
+                    fontFamily: "var(--mono)",
+                    fontSize: 9,
+                    letterSpacing: "0.12em",
+                    cursor: "pointer",
+                  }}
+                >
+                  DECLINE
+                </button>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+
+      {rel.followers.length > 0 && (
+        <div style={{ marginTop: rel.incomingRequests.length > 0 ? 14 : 0 }}>
+          <Kicker>followers · {rel.followers.length}</Kicker>
+          <div
+            className="margin-note"
+            style={{ marginTop: 6, fontSize: 11, fontStyle: "italic" }}
+          >
+            People who follow you. They see what you share at "city" tier.
+            Befriending grants them circle-tier access.
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 export function PeopleTab({
   onPerson,
@@ -163,6 +324,9 @@ export function PeopleTab({
   return (
     <div className="fade-in">
       <div className="page-num">— xix —</div>
+
+      <RelationInbox onOpenPerson={onPerson} />
+
       <Kicker>The intimates · the close orbit</Kicker>
       <div className="sec-head">
         <h2>

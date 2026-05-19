@@ -10,6 +10,7 @@
 // stuck on the fallback.
 
 import { Component, type ReactNode } from "react";
+import { reportError } from "../../lib/sentry";
 
 interface Props {
   resetKey: string;
@@ -30,6 +31,11 @@ export class OverlayErrorBoundary extends Component<Props, State> {
 
   componentDidCatch(error: Error, info: { componentStack?: string | null }) {
     console.error("[OverlayErrorBoundary]", error, info.componentStack);
+    reportError(error, {
+      boundary: "overlay",
+      resetKey: this.props.resetKey,
+      componentStack: info.componentStack ?? undefined,
+    });
   }
 
   componentDidUpdate(prev: Props) {

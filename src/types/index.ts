@@ -74,6 +74,125 @@ export interface CityRating {
 
 export type CityRatings = Record<string, CityRating>;
 
+// One slice of the user's typical-day clock. Stored on the
+// profile (dayTemplate: DayBlock[]). `from`/`to` are decimal hours
+// 0..24 — 6:30 → 6.5. `hue` is an OKLCH hue 0..360.
+export interface DayBlock {
+  from: number;
+  to: number;
+  label: string;
+  hue: number;
+}
+
+// A life milestone — a single dated event on the personal timeline
+// (births, deaths, moves, jobs, trips, "the day I first…"). Stored
+// at insight_users/{uid}/insight_milestones/{id}.
+export interface Milestone {
+  id: string;
+  date: string;       // ISO YYYY-MM-DD
+  title: string;
+  note?: string;
+  hue: number;        // OKLCH hue for the timeline dot
+  createdAt: number;
+}
+
+// A logged time-tracking block — a real session the user spent on
+// something (deep work, training, a chore). Stored at
+// insight_users/{uid}/insight_time_blocks/{id}. Distinct from
+// DayBlock (template) — TimeBlock entries are actual events with
+// a real calendar date.
+export interface TimeBlock {
+  id: string;
+  date: string;       // ISO YYYY-MM-DD the block belongs to
+  from: number;       // decimal hours 0..24
+  to: number;         // decimal hours 0..24
+  label: string;
+  category?: string;  // optional grouping ("deep work", "rest")
+  hue: number;
+  createdAt: number;
+}
+
+// ── The ledger: life-history entries ────────────────────────────
+// Each of the five ledger types lives in its own
+// insight_users/{uid}/insight_{kind}/{id} subcollection. They share
+// `id` + `createdAt` for sorting and otherwise diverge by entity.
+// LifeOverlay's age tab aggregates counts + recent entries from all
+// five into a single "the ledger" section.
+
+// A book the user has finished (or abandoned). `date` is when they
+// finished it. `rating` is optional 1..5.
+export interface Book {
+  id: string;
+  title: string;
+  author?: string;
+  date?: string; // ISO YYYY-MM-DD — when finished
+  rating?: number; // 1..5
+  note?: string;
+  createdAt: number;
+}
+
+// A trip the user took. `country` is the ISO country name or local
+// label; `city` is optional (some trips are wider). `start` is
+// required, `end` optional for ongoing trips.
+export interface Visit {
+  id: string;
+  country: string;
+  city?: string;
+  start: string; // ISO YYYY-MM-DD
+  end?: string;  // ISO YYYY-MM-DD
+  note?: string;
+  createdAt: number;
+}
+
+// A place the user has called home — a city / town / neighbourhood,
+// with the year range they lived there.
+export interface Home {
+  id: string;
+  place: string;       // free-form ("Oslo, Grünerløkka" or "Bergen")
+  startYear: number;
+  endYear?: number;    // omitted when this is current
+  note?: string;
+  createdAt: number;
+}
+
+// A language the user speaks (or is learning). Proficiency is a
+// coarse 1..5: 1 = a few words, 2 = travel basics, 3 = conversational,
+// 4 = fluent, 5 = native. Free-form `note` for context.
+export interface Language {
+  id: string;
+  name: string;
+  proficiency: number; // 1..5
+  note?: string;
+  createdAt: number;
+}
+
+// A job (paid or otherwise) the user has held. Same start/end shape
+// as Visit. `role` is the title; `org` is the employer / context.
+export interface Job {
+  id: string;
+  role: string;
+  org?: string;
+  start: string;      // ISO YYYY-MM-DD or YYYY for year-only
+  end?: string;       // omitted when current
+  note?: string;
+  createdAt: number;
+}
+
+// A weigh-in — one row in the user's weight history. Stored at
+// insight_users/{uid}/insight_weighins/{id} when signed in or in
+// localStorage otherwise. The latest weigh-in's kg (sorted by `date`)
+// is what LifeOverlay reads to scale tissue mass and what
+// ProfileOverlay shows as "current weight". When no weigh-ins
+// exist we fall back to the static `profile.weightKg` field, which
+// the user can still set directly for the one-shot case.
+export interface Weighin {
+  id: string;
+  date: string;     // ISO YYYY-MM-DD
+  kg: number;       // one decimal of precision
+  note?: string;    // optional ("after the swim")
+  createdAt: number; // ms epoch, for sort
+}
+
 // ── Personal Insights ──
 
 export interface MoodEntry {
@@ -124,6 +243,25 @@ export interface Dream {
   lucidity: number;   // 0..5
   vividness: number;  // 0..5
   createdAt: number;  // ms epoch for sort
+}
+
+// An *inbound* impression — anonymous traits left for the recipient
+// by someone in their circle. Stored at
+// insight_users/{recipientUid}/insight_inbound_impressions/{id}.
+// Cross-user write: the Firestore rule allows insert when
+// senderUid == request.auth.uid AND the sender is in the
+// recipient's circle subcollection (the recipient must have added
+// the sender as a relation with linkedUid).
+//
+// senderUid is in the doc for rule enforcement (anti-spoofing) and
+// to let the recipient delete or block. The UI surfaces them as
+// anonymous by default — "anonymous · traits only · no longhand."
+export interface InboundImpression {
+  id: string;
+  senderUid: string;
+  traits: string[];
+  context?: string;   // free-form short label ("after a coffee", "colleague")
+  createdAt: number;
 }
 
 // An impression — your private sketch of a person you've met. The
@@ -202,6 +340,32 @@ export interface RemoteDailyReport {
   weather: string;
   hasPhoto: boolean;
   photoId?: string; // a stock-photo key like "fjord"; user-uploaded photos stay local
+  // Firebase Storage path when the user has opted into cloud
+  // photo backup (profile.cloudPhotos). Other devices fetch the
+  // bytes via downloadDailyPhoto and cache to localStorage.
+  // Omitted when cloud photos are off.
+  photoPath?: string;
   shared: string[];
   updatedAt?: unknown; // server timestamp
+}
+
+// Wearable snapshot — one doc per day at
+// insight_users/{uid}/insight_body/{YYYY-MM-DD}. Each metric is
+// optional so a real native bridge (HealthKit / Health Connect)
+// can fill what it has access to; the BodyOverlay UI renders only
+// the fields that are present.
+export interface RemoteBodySnapshot {
+  date: string;
+  hrvMs?: number;             // resting HRV, milliseconds (RMSSD)
+  restingHrBpm?: number;
+  steps?: number;
+  vo2Max?: number;
+  bodyBattery?: number;       // 0..100 Garmin-style daily energy
+  sleepMinutes?: number;
+  sleepDeepMinutes?: number;
+  sleepRemMinutes?: number;
+  trainingLoad?: number;      // CTL / ATL composite, source-dependent
+  stress?: number;            // 0..100
+  source?: "mock" | "healthkit" | "health-connect" | "garmin" | "fitbit";
+  updatedAt?: unknown;        // server timestamp
 }

@@ -7,6 +7,8 @@ import { useHabits } from "../../lib/useHabits";
 import { useMeals, isoDateToday } from "../../lib/useMeals";
 import { useWorkouts } from "../../lib/useWorkouts";
 import { useTransactions } from "../../lib/useTransactions";
+import { useProfile } from "../../lib/useProfile";
+import { workoutStreak } from "../../lib/bodyEnergy";
 import type {
   Meal,
   Transaction,
@@ -752,6 +754,38 @@ export function FitnessTab() {
   const weekKcal = weekItems.reduce((s, w) => s + w.kcal, 0);
   const sorted = [...items].sort((a, b) => b.date.localeCompare(a.date));
 
+  // Consecutive-day streak — the consecutive run of days, counted
+  // back from today, that have at least one logged workout. Allows
+  // a one-day grace for "today not logged yet but yesterday was."
+  const streak = useMemo(() => workoutStreak(items), [items]);
+
+  // 28-day heatmap. Each day is a cell — colour intensity by total
+  // duration on that day. Empty days render as a thin border so the
+  // grid stays legible. Days are ordered oldest → newest, left to
+  // right, top to bottom in 7-day rows so the rightmost column is
+  // always today.
+  const heatmap = useMemo(() => {
+    const cells: { date: string; minutes: number }[] = [];
+    const cursor = new Date();
+    for (let i = 27; i >= 0; i--) {
+      const d = new Date(cursor);
+      d.setDate(cursor.getDate() - i);
+      const iso = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+      const minutes = items
+        .filter((w) => w.date === iso)
+        .reduce((s, w) => s + w.duration, 0);
+      cells.push({ date: iso, minutes });
+    }
+    return cells;
+  }, [items]);
+  const heatmapMax = Math.max(30, ...heatmap.map((c) => c.minutes));
+  // Daily active-minutes goal — WHO recommends 150 / week = ~22 / day,
+  // we round to 30 as a nicer mental target.
+  const ACTIVE_MIN_GOAL = 30;
+  const todayActiveMin = weekItems
+    .filter((w) => w.date === todayIso)
+    .reduce((s, w) => s + w.duration, 0);
+
   // Types breakdown across all logged workouts. Useful for "you do
   // mostly X" without needing a real horizon picker.
   const typeCounts = useMemo(() => {
@@ -762,22 +796,19 @@ export function FitnessTab() {
       .slice(0, 5);
   }, [items]);
 
-  const fitnessPrompt = useMemo(
-    () =>
-      weekItems.length === 0
-        ? null
-        : [
-            "You are a quiet journal companion. Look at the user's training this week. Write ONE short sentence (under 18 words) noticing a shape or pattern — no advice, no cheer. Observational, slightly literary.",
-            "",
-            `This week: ${weekItems.length} sessions, ${weekMinutes} minutes, ${weekKcal} kcal.`,
-            `Sessions: ${weekItems
-              .map((w) => `${w.type} ${w.duration}m ${w.intensity}`)
-              .join("; ")}`,
-            "",
-            "Your one-sentence observation:",
-          ].join("\n"),
-    [weekItems, weekMinutes, weekKcal],
-  );
+  const fitnessPrompt =
+    weekItems.length === 0
+      ? null
+      : [
+          "You are a quiet journal companion. Look at the user's training this week. Write ONE short sentence (under 18 words) noticing a shape or pattern — no advice, no cheer. Observational, slightly literary.",
+          "",
+          `This week: ${weekItems.length} sessions, ${weekMinutes} minutes, ${weekKcal} kcal.`,
+          `Sessions: ${weekItems
+            .map((w) => `${w.type} ${w.duration}m ${w.intensity}`)
+            .join("; ")}`,
+          "",
+          "Your one-sentence observation:",
+        ].join("\n");
 
   return (
     <div>
@@ -805,9 +836,95 @@ export function FitnessTab() {
           { v: weekItems.length, l: "WORKOUTS · 7D" },
           { v: fmt(weekMinutes), l: "MINUTES · 7D" },
           { v: fmt(weekKcal), l: "KCAL · 7D" },
-          { v: items.length, l: "ALL TIME" },
+          { v: streak, l: streak === 1 ? "DAY STREAK" : "DAY STREAK" },
         ]}
       />
+
+      {/* Daily active-minutes progress against a 30-min reference.
+          Card surfaces today's total + remaining; the WHO weekly
+          guideline is 150 min so this is the per-day slice. */}
+      <div
+        className="card"
+        style={{
+          marginTop: 10,
+          marginBottom: 10,
+          padding: 14,
+          display: "flex",
+          alignItems: "center",
+          gap: 14,
+        }}
+      >
+        <Donut
+          value={Math.min(100, Math.round((todayActiveMin / ACTIVE_MIN_GOAL) * 100))}
+          color="var(--sage)"
+          label="MIN"
+          size={64}
+        />
+        <div style={{ flex: 1 }}>
+          <Kicker>Active minutes · today</Kicker>
+          <div className="fig-num" style={{ marginTop: 2 }}>
+            <em>{todayActiveMin}</em>
+            <span
+              style={{
+                fontFamily: "var(--mono)",
+                fontSize: 12,
+                color: "var(--ink-3)",
+                marginLeft: 6,
+              }}
+            >
+              / {ACTIVE_MIN_GOAL} min
+            </span>
+          </div>
+          <div
+            className="margin-note"
+            style={{ marginTop: 4, fontSize: 11 }}
+          >
+            WHO baseline is 150 min/week — this is the per-day slice.
+          </div>
+        </div>
+      </div>
+
+      {/* 28-day heatmap. Each cell's intensity scales with minutes
+          logged. Rightmost cell is always today. */}
+      <div
+        className="card"
+        style={{ marginBottom: 12, padding: 14 }}
+      >
+        <Kicker>Recent · last four weeks</Kicker>
+        <div
+          style={{
+            marginTop: 10,
+            display: "grid",
+            gridTemplateColumns: "repeat(7, 1fr)",
+            gap: 4,
+          }}
+        >
+          {heatmap.map((c) => {
+            const intensity = c.minutes / heatmapMax;
+            const bg = c.minutes === 0
+              ? "var(--paper-2)"
+              : `oklch(${0.92 - intensity * 0.42} ${0.05 + intensity * 0.09} 145)`;
+            return (
+              <div
+                key={c.date}
+                title={`${c.date}: ${c.minutes} min`}
+                style={{
+                  aspectRatio: "1",
+                  background: bg,
+                  border: "0.5px solid var(--rule)",
+                  borderRadius: 3,
+                }}
+              />
+            );
+          })}
+        </div>
+        <div
+          className="margin-note"
+          style={{ marginTop: 8, fontSize: 10, color: "var(--ink-3)" }}
+        >
+          Darker = more minutes. Empty cells = rest days.
+        </div>
+      </div>
 
       {typeCounts.length > 0 && (
         <div className="card" style={{ marginBottom: 12, padding: 14 }}>
@@ -1449,7 +1566,40 @@ function NutritionRow({ m, onRemove }: { m: Meal; onRemove: () => void }) {
 // at the top explains why the finance tab only knows what the user
 // has manually logged.
 
-const CURRENCY = "$";
+// ISO 4217 → display symbol. We use the locale-aware Intl formatter
+// for amounts, but the dropdown labels + the standalone "amount · X"
+// chrome still want the bare symbol — this map covers the common
+// ones we ship in the picker.
+const CURRENCY_SYMBOLS: Record<string, string> = {
+  USD: "$",
+  EUR: "€",
+  GBP: "£",
+  JPY: "¥",
+  NOK: "kr",
+  SEK: "kr",
+  DKK: "kr",
+  CHF: "CHF",
+  CAD: "CA$",
+  AUD: "A$",
+};
+
+function currencySymbol(code: string): string {
+  return CURRENCY_SYMBOLS[code] ?? code;
+}
+
+function formatCurrency(amount: number, code: string): string {
+  try {
+    return new Intl.NumberFormat(undefined, {
+      style: "currency",
+      currency: code,
+      maximumFractionDigits: amount % 1 === 0 ? 0 : 2,
+    }).format(amount);
+  } catch {
+    // Unknown ISO code or environment without Intl currency support.
+    return `${currencySymbol(code)}${fmt(amount)}`;
+  }
+}
+
 const EXPENSE_CATEGORIES = [
   "groceries",
   "rent",
@@ -1466,6 +1616,9 @@ const INCOME_CATEGORIES = ["salary", "freelance", "gift", "other"];
 
 export function FinanceTab() {
   const { items, add, remove } = useTransactions();
+  const { profile } = useProfile();
+  const currency = profile.currency || "USD";
+  const symbol = currencySymbol(currency);
   const [adding, setAdding] = useState(false);
 
   // Filter to current calendar month. Transactions store a free-form
@@ -1504,12 +1657,12 @@ export function FinanceTab() {
         : [
             "You are a quiet journal companion. Look at the user's recent spending. Write ONE short sentence (under 18 words) noticing a shape or pattern — no advice, no money talk. Observational, slightly literary.",
             "",
-            `${monthLabel()}: ${CURRENCY}${fmt(totalIn)} in, ${CURRENCY}${fmt(totalOut)} out, net ${net >= 0 ? "+" : "−"}${CURRENCY}${fmt(Math.abs(net))}.`,
-            `By category: ${byCategory.map(([c, v]) => `${c} ${CURRENCY}${fmt(v)}`).join("; ")}`,
+            `${monthLabel()}: ${formatCurrency(totalIn, currency)} in, ${formatCurrency(totalOut, currency)} out, net ${net >= 0 ? "+" : "−"}${formatCurrency(Math.abs(net), currency)}.`,
+            `By category: ${byCategory.map(([c, v]) => `${c} ${formatCurrency(v, currency)}`).join("; ")}`,
             "",
             "Your one-sentence observation:",
           ].join("\n"),
-    [monthItems.length, totalIn, totalOut, net, byCategory],
+    [monthItems.length, totalIn, totalOut, net, byCategory, currency],
   );
 
   return (
@@ -1536,10 +1689,10 @@ export function FinanceTab() {
 
       <MiniStatRow
         items={[
-          { v: `${CURRENCY}${fmt(totalIn)}`, l: "IN · MONTH" },
-          { v: `${CURRENCY}${fmt(totalOut)}`, l: "OUT · MONTH" },
+          { v: formatCurrency(totalIn, currency), l: "IN · MONTH" },
+          { v: formatCurrency(totalOut, currency), l: "OUT · MONTH" },
           {
-            v: `${net >= 0 ? "+" : "−"}${CURRENCY}${fmt(Math.abs(net))}`,
+            v: `${net >= 0 ? "+" : "−"}${formatCurrency(Math.abs(net), currency)}`,
             l: "NET",
           },
           { v: monthItems.length, l: "ENTRIES · MO" },
@@ -1578,6 +1731,7 @@ export function FinanceTab() {
               <TransactionRow
                 key={t.id}
                 t={t}
+                currency={currency}
                 onRemove={() => void remove(t.id)}
               />
             ))}
@@ -1599,6 +1753,7 @@ export function FinanceTab() {
 
       {adding && (
         <AddTransactionFlow
+          symbol={symbol}
           onClose={() => setAdding(false)}
           onSave={async (t) => {
             await add(t);
@@ -1612,9 +1767,11 @@ export function FinanceTab() {
 
 function TransactionRow({
   t,
+  currency,
   onRemove,
 }: {
   t: Transaction;
+  currency: string;
   onRemove: () => void;
 }) {
   const isIncome = t.type === "income";
@@ -1682,8 +1839,7 @@ function TransactionRow({
         }}
       >
         {isIncome ? "+" : "−"}
-        {CURRENCY}
-        {fmt(t.amount)}
+        {formatCurrency(t.amount, currency)}
       </div>
       <DeleteX
         onClick={onRemove}
@@ -1694,9 +1850,11 @@ function TransactionRow({
 }
 
 function AddTransactionFlow({
+  symbol,
   onClose,
   onSave,
 }: {
+  symbol: string;
   onClose: () => void;
   onSave: (t: Omit<Transaction, "id">) => Promise<void>;
 }) {
@@ -1769,7 +1927,7 @@ function AddTransactionFlow({
       </div>
 
       <div style={{ marginTop: 14 }}>
-        <Kicker>amount · {CURRENCY}</Kicker>
+        <Kicker>amount · {symbol}</Kicker>
         <input
           type="number"
           inputMode="decimal"

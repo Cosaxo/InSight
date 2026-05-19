@@ -5,19 +5,18 @@
 // localStorage otherwise). The AddImpressionFlow form persists for
 // real now; each card gets a per-impression × delete.
 //
-// "of you" — anonymous incoming impressions from others. The
-// friend-feedback feature that would populate this side doesn't
-// exist (it'd need a "leave an impression on this person" flow in
-// PeopleTab + a cross-user write rule + a rate-limit). Rather than
-// fake it with seed traits, this side renders an honest empty
-// state and a one-line explainer. The privacy toggle is gone — a
-// toggle for accepting messages nobody can send is just
-// performative.
+// "of you" — anonymous traits people in your circle have left
+// for you. Backed by useInboundImpressions (Firestore subscription
+// on your own insight_inbound_impressions subcollection). Writers
+// are people you've added as a relation with a linkedUid — the
+// Firestore rule enforces that. Cross-user writes happen from
+// PersonOverlay's "leave an impression" affordance.
 
-import { Fragment, useState } from "react";
+import { Fragment, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 import { Kicker } from "../shared/primitives";
 import { useImpressions } from "../../lib/useImpressions";
+import { useInboundImpressions } from "../../lib/useInboundImpressions";
 import type { Impression } from "../../types";
 
 // Palette for the round PersonStamp on each impression card. We
@@ -848,39 +847,7 @@ export function ImpressionsOverlay({ onClose }: ImpressionsOverlayProps) {
           </>
         )}
 
-        {side === "you" && (
-          <div className="card" style={{ padding: 22, textAlign: "center" }}>
-            <div
-              style={{
-                fontFamily: "var(--serif)",
-                fontSize: 36,
-                fontStyle: "italic",
-                color: "var(--ink-3)",
-              }}
-            >
-              ◌
-            </div>
-            <div
-              style={{
-                fontFamily: "var(--serif)",
-                fontStyle: "italic",
-                fontSize: 17,
-                marginTop: 8,
-              }}
-            >
-              nothing here yet.
-            </div>
-            <div
-              className="margin-note"
-              style={{ marginTop: 10, fontSize: 13, lineHeight: 1.5 }}
-            >
-              When a friend leaves you an impression, it'll appear here —
-              anonymous, traits only, no longhand. The flow for friends to
-              do that isn't built yet, so this side stays empty rather than
-              filling itself with sample data.
-            </div>
-          </div>
-        )}
+        {side === "you" && <InboundImpressionsView />}
       </div>
 
       {adding && side === "others" && (
@@ -893,6 +860,258 @@ export function ImpressionsOverlay({ onClose }: ImpressionsOverlayProps) {
           }}
         />
       )}
+    </div>
+  );
+}
+
+// ─── InboundImpressionsView — the "of you" side ────────────────
+//
+// Renders the user's anonymous-trait inbox. Each row shows the
+// traits + optional context, the date, and a × to delete. The
+// "how you tend to land" header aggregates trait frequencies
+// across all received entries.
+
+function InboundImpressionsView() {
+  const { items, remove } = useInboundImpressions();
+
+  // Tally trait frequencies across the whole inbox so the header
+  // shows "the words that come back most." Top 8.
+  const tally = useMemo(() => {
+    const counts: Record<string, number> = {};
+    for (const i of items) {
+      for (const t of i.traits) {
+        const k = t.trim().toLowerCase();
+        if (!k) continue;
+        counts[k] = (counts[k] || 0) + 1;
+      }
+    }
+    return Object.entries(counts)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 8);
+  }, [items]);
+  const maxCount = tally.length ? tally[0][1] : 0;
+
+  if (items.length === 0) {
+    return (
+      <div className="card" style={{ padding: 22, textAlign: "center" }}>
+        <div
+          style={{
+            fontFamily: "var(--serif)",
+            fontSize: 36,
+            fontStyle: "italic",
+            color: "var(--ink-3)",
+          }}
+        >
+          ◌
+        </div>
+        <div
+          style={{
+            fontFamily: "var(--serif)",
+            fontStyle: "italic",
+            fontSize: 17,
+            marginTop: 8,
+          }}
+        >
+          nothing here yet.
+        </div>
+        <div
+          className="margin-note"
+          style={{ marginTop: 10, fontSize: 13, lineHeight: 1.5 }}
+        >
+          "Anonymous traits from people in your circle land here.
+          Only people you've added as a relation can leave one —
+          and only ever traits, never longhand."
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <>
+      {tally.length > 0 && (
+        <div className="card" style={{ marginBottom: 14, padding: 16 }}>
+          <Kicker>how you tend to land · {items.length} {items.length === 1 ? "voice" : "voices"}</Kicker>
+          <div
+            style={{
+              display: "flex",
+              flexWrap: "wrap",
+              gap: 5,
+              marginTop: 10,
+            }}
+          >
+            {tally.map(([trait, count]) => (
+              <span
+                key={trait}
+                style={{
+                  display: "inline-flex",
+                  alignItems: "baseline",
+                  gap: 6,
+                  padding: "4px 10px",
+                  borderRadius: 999,
+                  background: `color-mix(in oklch, var(--accent) ${Math.round((count / maxCount) * 16)}%, var(--paper-2))`,
+                  border: "0.5px solid var(--rule)",
+                  fontFamily: "var(--serif)",
+                  fontStyle: "italic",
+                  fontSize: 13,
+                  color: "var(--ink-2)",
+                }}
+              >
+                {trait}
+                <span
+                  style={{
+                    fontFamily: "var(--mono)",
+                    fontStyle: "normal",
+                    fontSize: 8,
+                    color: "var(--ink-3)",
+                  }}
+                >
+                  {count}
+                </span>
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <Kicker>each entry · anonymous · traits only</Kicker>
+      <div
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          gap: 10,
+          marginTop: 10,
+        }}
+      >
+        {items.map((entry) => (
+          <InboundImpressionCard
+            key={entry.id}
+            entry={entry}
+            onRemove={() => void remove(entry.id)}
+          />
+        ))}
+      </div>
+
+      <hr className="rule-dashed" />
+      <div
+        className="margin-note"
+        style={{ fontSize: 12, textAlign: "center" }}
+      >
+        "No names, no quotes. Just the shape of how you've been read."
+      </div>
+    </>
+  );
+}
+
+function InboundImpressionCard({
+  entry,
+  onRemove,
+}: {
+  entry: { id: string; traits: string[]; context?: string; createdAt: number };
+  onRemove: () => void;
+}) {
+  const when = new Date(entry.createdAt)
+    .toLocaleDateString(undefined, {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    })
+    .toLowerCase();
+  return (
+    <div
+      className="card"
+      style={{
+        padding: 12,
+        display: "flex",
+        gap: 12,
+        alignItems: "flex-start",
+      }}
+    >
+      <div
+        style={{
+          width: 40,
+          height: 40,
+          flexShrink: 0,
+          borderRadius: "50%",
+          background: "var(--paper-2)",
+          border: "0.5px dashed var(--rule)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          fontFamily: "var(--serif)",
+          fontStyle: "italic",
+          fontSize: 22,
+          color: "var(--ink-3)",
+        }}
+      >
+        ◌
+      </div>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "baseline",
+            justifyContent: "space-between",
+            gap: 6,
+          }}
+        >
+          <div
+            style={{
+              fontFamily: "var(--serif)",
+              fontStyle: "italic",
+              fontSize: 13,
+              color: "var(--ink-2)",
+            }}
+          >
+            {entry.context || "anonymous"}
+          </div>
+          <div className="kicker">{when}</div>
+        </div>
+        <div
+          style={{
+            display: "flex",
+            flexWrap: "wrap",
+            gap: 4,
+            marginTop: 8,
+          }}
+        >
+          {entry.traits.map((t, i) => (
+            <span
+              key={i}
+              style={{
+                display: "inline-block",
+                fontFamily: "var(--serif)",
+                fontStyle: "italic",
+                fontSize: 12,
+                lineHeight: 1.2,
+                padding: "3px 9px",
+                borderRadius: 999,
+                border: "0.5px solid var(--rule)",
+                background: "var(--paper-2)",
+                color: "var(--ink-2)",
+              }}
+            >
+              {t}
+            </span>
+          ))}
+        </div>
+      </div>
+      <button
+        onClick={() => {
+          if (confirm("Remove this impression?")) onRemove();
+        }}
+        aria-label="Remove inbound impression"
+        style={{
+          background: "transparent",
+          border: "none",
+          color: "var(--ink-3)",
+          cursor: "pointer",
+          fontFamily: "var(--mono)",
+          fontSize: 12,
+          padding: "0 2px",
+        }}
+      >
+        ×
+      </button>
     </div>
   );
 }

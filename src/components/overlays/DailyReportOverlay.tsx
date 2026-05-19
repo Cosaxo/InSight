@@ -553,8 +553,12 @@ export function DailyReportOverlay({
     const isStockPhoto =
       photo != null &&
       PHOTO_STOCK.some((p) => p.id === photo);
+    // The save() helper inside useDailyReport overwrites the date
+    // field with today's ISO; we set it explicitly here too so the
+    // record on localStorage / history is consistent regardless of
+    // entry path.
     const data: RemoteDailyReport & { photo: string | null } = {
-      date: "today",
+      date: isoDateToday(),
       mood,
       moodLabel: labelFor(mood),
       one_line: oneLine,

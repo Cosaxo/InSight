@@ -90,6 +90,35 @@ export function computeBig5(answers: number[]): number[] {
   return answers.slice(0, 5).map((a) => Math.round(a * 25));
 }
 
+// Cosine-similarity match% between two Big Five vectors (each 0–100).
+// Returns 0–100 where 100 means identical orientation, 0 means
+// opposite. Returns null if either vector is missing or malformed.
+//
+// Inputs are clamped to [0, 100] then re-centred to [-50, +50] so
+// "neutral on every trait" doesn't artificially inflate similarity
+// scores — we want the angle between profiles of *deviations*, not
+// the raw quadrant. A user neutral on every axis matches anyone at
+// 50 (no signal, no claim).
+export function big5Match(
+  a: number[] | undefined,
+  b: number[] | undefined,
+): number | null {
+  if (!a || !b || a.length !== 5 || b.length !== 5) return null;
+  const ca = a.map((n) => Math.max(0, Math.min(100, n)) - 50);
+  const cb = b.map((n) => Math.max(0, Math.min(100, n)) - 50);
+  let dot = 0;
+  let na = 0;
+  let nb = 0;
+  for (let i = 0; i < 5; i++) {
+    dot += ca[i] * cb[i];
+    na += ca[i] * ca[i];
+    nb += cb[i] * cb[i];
+  }
+  if (na === 0 || nb === 0) return 50;
+  const cos = dot / (Math.sqrt(na) * Math.sqrt(nb));
+  return Math.round(((cos + 1) / 2) * 100);
+}
+
 // Political — 12 items mapped to 6 axes. Each axis is the signed average
 // of its contributing items, scaled to -100 .. +100.
 //

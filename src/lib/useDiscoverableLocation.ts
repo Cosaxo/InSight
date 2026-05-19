@@ -21,6 +21,7 @@ import {
   upsertDiscoverable,
 } from "./firebase";
 import { useAuth } from "./useAuth";
+import { useProfile } from "./useProfile";
 import type { GeoPosition } from "./useGeolocation";
 
 const PREF_KEY = "insight.discoverable.v1";
@@ -53,24 +54,68 @@ export function useDiscoverableLocation(position: GeoPosition | null): {
   error: string | null;
 } {
   const { user } = useAuth();
+  const { profile } = useProfile();
   const [enabled, setEnabledState] = useState<boolean>(() => readPref());
   const [lastSyncedAt, setLastSyncedAt] = useState<number | null>(null);
   const [lastFuzzed, setLastFuzzed] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  // Only share personality if the user has actually taken the Big
+  // Five test (5-element vector). This is what the read-side uses
+  // to compute match% — sharing nothing keeps match as "—".
+  const personality =
+    Array.isArray(profile.personality) && profile.personality.length === 5
+      ? profile.personality
+      : undefined;
+
+  // Per-field sharing prefs. The user opts into each via
+  // SharingOverlay; absent / "nobody" keeps the field off the
+  // discoverable doc. We treat any value other than "nobody" as
+  // "share with nearby users" — the per-tier gating (circle / city /
+  // world) is for the friend system, not the public profile.
+  const sharePrefs = profile.sharePrefs || {};
+  const shareBio = sharePrefs["bio"] && sharePrefs["bio"] !== "nobody";
+  const shareRole = sharePrefs["role"] && sharePrefs["role"] !== "nobody";
+  const shareAge = sharePrefs["age"] && sharePrefs["age"] !== "nobody";
+
+  const bio = shareBio && typeof profile.bio === "string"
+    ? profile.bio.trim().slice(0, 280) || null
+    : null;
+  const role = shareRole && typeof profile.role === "string"
+    ? profile.role.trim().slice(0, 60) || null
+    : null;
+  // Derive age from birthYear — never share the year itself (too
+  // identifying), only the integer years lived.
+  const age = shareAge && typeof profile.birthYear === "number"
+    ? Math.max(0, new Date().getFullYear() - profile.birthYear)
+    : null;
+
+  // Stable key so the upsert re-runs when any shared field changes,
+  // without firing on unrelated profile updates.
+  const inputKey = [
+    personality ? personality.join(",") : "_",
+    bio ?? "_",
+    role ?? "_",
+    age ?? "_",
+  ].join("|");
 
   // Side effect: when (signed in + opted in + have position), upsert.
   useEffect(() => {
     if (!firebaseEnabled || !user || !enabled || !position) return;
     const lat = fuzz(position.latitude);
     const lng = fuzz(position.longitude);
-    const key = `${lat},${lng}`;
-    if (key === lastFuzzed) return; // unchanged fuzzed location, skip
+    const key = `${lat},${lng}|${inputKey}`;
+    if (key === lastFuzzed) return; // unchanged inputs, skip
     void (async () => {
       try {
         await upsertDiscoverable(user.uid, {
           latitude: lat,
           longitude: lng,
           geohash: geohashForLocation([lat, lng]),
+          personality,
+          bio,
+          role,
+          age,
         });
         setLastFuzzed(key);
         setLastSyncedAt(Date.now());
@@ -80,7 +125,7 @@ export function useDiscoverableLocation(position: GeoPosition | null): {
         setError(msg);
       }
     })();
-  }, [user, enabled, position, lastFuzzed]);
+  }, [user, enabled, position, lastFuzzed, personality, bio, role, age, inputKey]);
 
   const setEnabled = useCallback(
     async (v: boolean) => {

@@ -1,0 +1,513 @@
+// insight-functions/index.ts — server-side compute for InSight.
+//
+// Current scope:
+//   - rebuildAreaAggregates / scheduledAreaAggregates: rolls up Big
+//     Five vectors per geohash5 cell with k-anonymity.
+//   - deleteAccount: user-triggered account wipe. Walks every doc
+//     owned by the user + every reference to them in others' subtrees
+//     and deletes them, then drops the auth user. App Store + Play
+//     Store both require this for any app with sign-up.
+//
+// All functions use the admin SDK, which bypasses Firestore rules.
+// The rules layer is for client traffic; functions can do anything.
+
+import { initializeApp } from "firebase-admin/app";
+import { getFirestore, FieldValue } from "firebase-admin/firestore";
+import { getAuth } from "firebase-admin/auth";
+import { onCall, HttpsError } from "firebase-functions/v2/https";
+import { onSchedule } from "firebase-functions/v2/scheduler";
+import { logger } from "firebase-functions";
+
+initializeApp();
+
+// k-anonymity floor for area aggregates. Cells with fewer
+// contributors are dropped entirely (and any previously-published
+// doc gets deleted). 20 is the standard "production privacy" floor;
+// for early testing in low-density regions, drop this temporarily.
+const K_ANON_FLOOR = 20;
+
+// Share-pref keys. Mirrors SHARE_DATA in SharingOverlay.
+const SHARE_KEY_BIG5 = "big5";
+const SHARE_KEY_POLITICAL = "political";
+const SHARE_KEY_MORALS = "morals";
+
+// The six political axes (matches POLITICAL_KEY in useProfile.ts).
+const POLITICAL_AXES = [
+  "econ",
+  "social",
+  "foreign",
+  "env",
+  "tech",
+  "auth",
+] as const;
+
+// The eight moral axes (matches MORAL_KEYS in useProfile.ts).
+const MORAL_AXES = [
+  "tech",
+  "future",
+  "duty",
+  "hedonism",
+  "meaning",
+  "moral",
+  "altruism",
+  "beauty",
+] as const;
+
+interface UserProfileLike {
+  personality?: number[];
+  political?: { econ?: number; social?: number };
+  politicalAxes?: Record<string, number>;
+  morals?: Record<string, number>;
+  sharePrefs?: Record<string, string>;
+}
+
+interface DiscoverableLike {
+  geohash?: string;
+  uid?: string;
+}
+
+// Per-axis aggregate stats for a single (cell, axis-set) pair.
+interface AxisStats {
+  count: number;
+  mean: number[];
+  stdev: number[];
+}
+
+// One geohash5 cell's full rollup. `count` is the count for Big5
+// (the most common opt-in); politics / values each carry their own
+// counts because users can independently opt out of them.
+interface AggregateDoc {
+  geohash5: string;
+  // Backwards-compat: top-level count + mean + stdev mirror big5.
+  // Existing clients reading the old shape still work.
+  count: number;
+  mean: number[];
+  stdev: number[];
+  // New: per-vector aggregates. Each is undefined when no users in
+  // the cell consented to that vector.
+  big5?: AxisStats;
+  political?: AxisStats;       // length-6: econ/social/foreign/env/tech/auth
+  morals?: AxisStats;          // length-8 in MORAL_AXES order
+  updatedAt: FieldValue;
+}
+
+// Compute mean and standard deviation per-axis across N vectors.
+// All vectors must be the same length; we use the first one to size
+// the result arrays.
+function summarise(
+  vectors: number[][],
+): { mean: number[]; stdev: number[] } {
+  const n = vectors.length;
+  if (n === 0) return { mean: [], stdev: [] };
+  const len = vectors[0].length;
+  const sums = new Array(len).fill(0);
+  for (const v of vectors) {
+    for (let i = 0; i < len; i++) sums[i] += v[i];
+  }
+  const mean = sums.map((s) => s / n);
+  const sqs = new Array(len).fill(0);
+  for (const v of vectors) {
+    for (let i = 0; i < len; i++) {
+      const d = v[i] - mean[i];
+      sqs[i] += d * d;
+    }
+  }
+  const stdev = sqs.map((s) => Math.sqrt(s / n));
+  return {
+    mean: mean.map((m) => Math.round(m * 100) / 100),
+    stdev: stdev.map((s) => Math.round(s * 100) / 100),
+  };
+}
+
+// Pull a 6-axis political vector off a profile. Returns null when
+// the user hasn't taken the political test (politicalAxes will be
+// missing or incomplete).
+function politicalVector(p: UserProfileLike): number[] | null {
+  const ax = p.politicalAxes ?? {};
+  // Fall back to the 2-axis `political` for econ/social when the
+  // full 6-axis store isn't present (the test always writes both,
+  // but tolerate older clients that only wrote `political`).
+  const econ = ax.econ ?? p.political?.econ;
+  const social = ax.social ?? p.political?.social;
+  const values: number[] = [];
+  const axes: Record<string, number | undefined> = {
+    econ,
+    social,
+    foreign: ax.foreign,
+    env: ax.env,
+    tech: ax.tech,
+    auth: ax.auth,
+  };
+  for (const axis of POLITICAL_AXES) {
+    const v = axes[axis];
+    if (typeof v !== "number") return null;
+    values.push(v);
+  }
+  return values;
+}
+
+// Pull an 8-axis morals vector off a profile.
+function moralsVector(p: UserProfileLike): number[] | null {
+  const m = p.morals;
+  if (!m) return null;
+  const values: number[] = [];
+  for (const axis of MORAL_AXES) {
+    const v = m[axis];
+    if (typeof v !== "number") return null;
+    values.push(v);
+  }
+  return values;
+}
+
+// Bucket of vectors per (cell, axis-set) — three streams collected
+// in one pass over discoverable users.
+interface CellBuckets {
+  big5: number[][];
+  political: number[][];
+  morals: number[][];
+}
+
+async function runAggregation(): Promise<{
+  cellsWritten: number;
+  cellsDeleted: number;
+  usersConsidered: number;
+  usersIncluded: number;
+}> {
+  const db = getFirestore();
+
+  // 1. Read every discoverable doc — these are users who've opted
+  //    into having a position.
+  const discoverableSnap = await db.collection("insight_discoverable").get();
+  logger.info(`[aggregates] ${discoverableSnap.size} discoverable users`);
+
+  // 2. For each one, fetch their profile and bucket into geohash5.
+  //    A single user can contribute to any combination of the three
+  //    streams (big5 / political / morals) depending on which tests
+  //    they've taken and their per-stream sharePrefs.
+  const cells: Record<string, CellBuckets> = {};
+  let usersIncluded = 0;
+  for (const docSnap of discoverableSnap.docs) {
+    const disc = docSnap.data() as DiscoverableLike;
+    const fullHash = disc.geohash;
+    if (!fullHash || fullHash.length < 5) continue;
+    const hash5 = fullHash.slice(0, 5);
+
+    const profileSnap = await db
+      .collection("insight_users")
+      .doc(docSnap.id)
+      .get();
+    if (!profileSnap.exists) continue;
+    const profile = profileSnap.data() as UserProfileLike;
+    if (!cells[hash5]) {
+      cells[hash5] = { big5: [], political: [], morals: [] };
+    }
+    const bucket = cells[hash5];
+    let contributedSomething = false;
+
+    // Big5 ───────────────
+    const b5 = profile.personality;
+    const b5Level = profile.sharePrefs?.[SHARE_KEY_BIG5] ?? "circle";
+    if (
+      Array.isArray(b5) &&
+      b5.length === 5 &&
+      b5.every((n) => typeof n === "number") &&
+      b5Level !== "nobody"
+    ) {
+      bucket.big5.push(b5);
+      contributedSomething = true;
+    }
+
+    // Politics ───────────
+    const polLevel = profile.sharePrefs?.[SHARE_KEY_POLITICAL] ?? "circle";
+    if (polLevel !== "nobody") {
+      const pol = politicalVector(profile);
+      if (pol) {
+        bucket.political.push(pol);
+        contributedSomething = true;
+      }
+    }
+
+    // Morals ─────────────
+    const mLevel = profile.sharePrefs?.[SHARE_KEY_MORALS] ?? "circle";
+    if (mLevel !== "nobody") {
+      const m = moralsVector(profile);
+      if (m) {
+        bucket.morals.push(m);
+        contributedSomething = true;
+      }
+    }
+
+    if (contributedSomething) usersIncluded++;
+  }
+
+  // 3. For each cell, write a doc with whichever axis-sets passed
+  //    the k-anon floor. A cell with enough Big5 contributors but
+  //    not enough political ones writes the Big5 fields and omits
+  //    `political`. When ALL three streams are below the floor, the
+  //    cell doc is deleted (if it existed) to avoid leaking stale
+  //    aggregates.
+  const batchWrite = db.batch();
+  let cellsWritten = 0;
+  let cellsDeleted = 0;
+  const existingSnap = await db
+    .collection("aggregates_by_geohash5")
+    .get();
+  const existingCells = new Set(existingSnap.docs.map((d) => d.id));
+
+  for (const [hash5, bucket] of Object.entries(cells)) {
+    const b5Ok = bucket.big5.length >= K_ANON_FLOOR;
+    const polOk = bucket.political.length >= K_ANON_FLOOR;
+    const mOk = bucket.morals.length >= K_ANON_FLOOR;
+    if (!b5Ok && !polOk && !mOk) {
+      if (existingCells.has(hash5)) {
+        batchWrite.delete(
+          db.collection("aggregates_by_geohash5").doc(hash5),
+        );
+        cellsDeleted++;
+      }
+      continue;
+    }
+    const big5Stats = b5Ok ? summarise(bucket.big5) : null;
+    const polStats = polOk ? summarise(bucket.political) : null;
+    const mStats = mOk ? summarise(bucket.morals) : null;
+    const doc: AggregateDoc = {
+      geohash5: hash5,
+      // Backwards-compat fields for clients reading the old shape.
+      // Mirror big5 when present; otherwise fall back to the first
+      // axis-set that passed (so something useful gets written).
+      count: big5Stats?.mean.length
+        ? bucket.big5.length
+        : polStats?.mean.length
+          ? bucket.political.length
+          : bucket.morals.length,
+      mean: big5Stats?.mean ?? polStats?.mean ?? mStats?.mean ?? [],
+      stdev: big5Stats?.stdev ?? polStats?.stdev ?? mStats?.stdev ?? [],
+      updatedAt: FieldValue.serverTimestamp(),
+      ...(big5Stats && {
+        big5: {
+          count: bucket.big5.length,
+          mean: big5Stats.mean,
+          stdev: big5Stats.stdev,
+        },
+      }),
+      ...(polStats && {
+        political: {
+          count: bucket.political.length,
+          mean: polStats.mean,
+          stdev: polStats.stdev,
+        },
+      }),
+      ...(mStats && {
+        morals: {
+          count: bucket.morals.length,
+          mean: mStats.mean,
+          stdev: mStats.stdev,
+        },
+      }),
+    };
+    batchWrite.set(db.collection("aggregates_by_geohash5").doc(hash5), doc);
+    cellsWritten++;
+    existingCells.delete(hash5);
+  }
+
+  // Cells that previously had aggregates but had zero contributors
+  // this run — drop them too.
+  for (const orphan of existingCells) {
+    batchWrite.delete(db.collection("aggregates_by_geohash5").doc(orphan));
+    cellsDeleted++;
+  }
+
+  await batchWrite.commit();
+  logger.info(
+    `[aggregates] done: ${cellsWritten} written, ${cellsDeleted} deleted, ${usersIncluded}/${discoverableSnap.size} users`,
+  );
+
+  return {
+    cellsWritten,
+    cellsDeleted,
+    usersConsidered: discoverableSnap.size,
+    usersIncluded,
+  };
+}
+
+// HTTPS-callable for manual / dev runs. Restricted to signed-in
+// users; anyone with an account can kick the aggregator. Idempotent
+// + cheap (one batch write at the end), so no harm in casual
+// invocations.
+export const rebuildAreaAggregates = onCall(
+  { region: "us-central1" },
+  async (request) => {
+    if (!request.auth) {
+      throw new HttpsError("unauthenticated", "must be signed in");
+    }
+    return runAggregation();
+  },
+);
+
+// Scheduled every 6 hours. Keeps the aggregates fresh as users come
+// + go discoverable. Time zone defaults to Etc/UTC.
+export const scheduledAreaAggregates = onSchedule(
+  { schedule: "every 6 hours", region: "us-central1" },
+  async () => {
+    await runAggregation();
+  },
+);
+
+
+// ── deleteAccount ───────────────────────────────────────────────
+//
+// Walks every doc that belongs to the calling user OR references
+// them, deletes each, then drops the Firebase Auth account.
+//
+// Order matters slightly — we delete the data first, then the auth
+// user. If the auth-user delete fails (rare), the next sign-in will
+// see an empty profile and the migration won't run (it gates on
+// profileExists), so they're effectively in a fresh-account state.
+//
+// What we wipe (admin SDK, bypasses rules):
+//   1. Every doc in insight_users/{uid}/* (all subcollections)
+//   2. The user's profile doc insight_users/{uid}
+//   3. insight_discoverable/{uid} (if present)
+//   4. Inbound impressions the user sent into OTHER users' subtrees
+//      — collectionGroup("insight_inbound_impressions") where
+//      senderUid == uid
+//   5. Relations in OTHER users' subtrees that point at this user
+//      — collectionGroup("relations") where linkedUid == uid
+//   6. The auth user itself
+//
+// What we leave (intentional):
+//   - aggregates_by_geohash5: the user's Big Five contributed to
+//     anonymous averages. Pulling specific contributions back out
+//     would either require re-running the aggregator or storing
+//     per-user provenance (which would defeat the anonymity). The
+//     next scheduled run naturally rebuilds without this user.
+//   - circle/{thisUid} marker docs on OTHER users' subtrees: stale
+//     after this user is gone (their daily reports can no longer
+//     be fetched, so the grant doesn't grant anything), but harmless
+//     and finding them all would require another collectionGroup
+//     query without an index. The other user can clean them up by
+//     removing their relation.
+
+// Delete every doc in a query, in batches of 400 (Firestore batch
+// limit is 500; leaving headroom for safety).
+async function deleteQueryDocs(
+  query: FirebaseFirestore.Query,
+): Promise<number> {
+  const db = getFirestore();
+  let total = 0;
+  for (;;) {
+    const snap = await query.limit(400).get();
+    if (snap.empty) break;
+    const batch = db.batch();
+    snap.docs.forEach((d) => batch.delete(d.ref));
+    await batch.commit();
+    total += snap.docs.length;
+    if (snap.docs.length < 400) break;
+  }
+  return total;
+}
+
+// Recursively delete every doc under insight_users/{uid}/*.
+// Firestore's CLI has `firestore:delete --recursive` but that's
+// admin tooling, not callable from a function. We do it by hand:
+// list all subcollections, delete their docs, then delete the
+// parent doc.
+async function deleteUserSubtree(uid: string): Promise<number> {
+  const db = getFirestore();
+  const userRef = db.collection("insight_users").doc(uid);
+  let total = 0;
+  // Drop subcollections — listCollections is admin-only.
+  const subcollections = await userRef.listCollections();
+  for (const sub of subcollections) {
+    total += await deleteQueryDocs(sub);
+  }
+  // Drop the parent doc last so subscriptions don't see a phantom
+  // profile with no children mid-delete.
+  await userRef.delete();
+  total += 1;
+  return total;
+}
+
+export const deleteAccount = onCall(
+  { region: "us-central1" },
+  async (request) => {
+    if (!request.auth) {
+      throw new HttpsError("unauthenticated", "must be signed in");
+    }
+    const uid = request.auth.uid;
+    const db = getFirestore();
+    logger.info(`[deleteAccount] starting for uid=${uid}`);
+
+    const counts = {
+      ownSubtree: 0,
+      discoverable: 0,
+      othersRelations: 0,
+      othersInbound: 0,
+    };
+
+    // 1. Wipe insight_users/{uid}/* + the profile doc itself.
+    try {
+      counts.ownSubtree = await deleteUserSubtree(uid);
+    } catch (err) {
+      logger.error("[deleteAccount] subtree wipe failed:", err);
+    }
+
+    // 2. Drop insight_discoverable/{uid} if present.
+    try {
+      const discRef = db.collection("insight_discoverable").doc(uid);
+      const discSnap = await discRef.get();
+      if (discSnap.exists) {
+        await discRef.delete();
+        counts.discoverable = 1;
+      }
+    } catch (err) {
+      logger.error("[deleteAccount] discoverable wipe failed:", err);
+    }
+
+    // 3. Inbound impressions this user sent into other people's
+    //    subtrees. Requires a collection-group index on senderUid;
+    //    see firestore.indexes.json.
+    try {
+      const sentQuery = db
+        .collectionGroup("insight_inbound_impressions")
+        .where("senderUid", "==", uid);
+      counts.othersInbound = await deleteQueryDocs(sentQuery);
+    } catch (err) {
+      logger.error("[deleteAccount] inbound impressions wipe failed:", err);
+    }
+
+    // 4. Other users' relations pointing at this user via linkedUid.
+    //    Requires a collection-group index on linkedUid.
+    try {
+      const relQuery = db
+        .collectionGroup("relations")
+        .where("linkedUid", "==", uid);
+      counts.othersRelations = await deleteQueryDocs(relQuery);
+    } catch (err) {
+      logger.error("[deleteAccount] cross-user relations wipe failed:", err);
+    }
+
+    // 5. Finally drop the auth user. Doing this last means any
+    //    failure above leaves the user able to retry (they're still
+    //    signed in). If THIS step fails, the user is mostly-wiped
+    //    but their auth account lingers — they can sign in to a
+    //    fresh, empty account.
+    try {
+      await getAuth().deleteUser(uid);
+    } catch (err) {
+      logger.error("[deleteAccount] auth.deleteUser failed:", err);
+      throw new HttpsError(
+        "internal",
+        "Account data was wiped, but the auth account couldn't be deleted. Sign out and contact support.",
+      );
+    }
+
+    logger.info(`[deleteAccount] done for uid=${uid}`, counts);
+    return { ok: true, ...counts };
+  },
+);
+
+// Use FieldValue to keep the import live for the aggregator section
+// above. (Not part of deleteAccount's logic — just placating the
+// noUnusedLocals check across the file.)
+void FieldValue;

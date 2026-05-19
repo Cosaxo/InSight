@@ -1,8 +1,8 @@
-import { useState } from "react";
 import { useGeolocation } from "../../lib/useGeolocation";
 import { useDiscoverableLocation } from "../../lib/useDiscoverableLocation";
 import { useAuth } from "../../lib/useAuth";
-import { firebaseEnabled } from "../../lib/firebase";
+import { useProfile } from "../../lib/useProfile";
+import { firebaseEnabled, type ShareLevel } from "../../lib/firebase";
 import { Kicker } from "../shared/primitives";
 
 interface ShareItem {
@@ -13,26 +13,48 @@ interface ShareItem {
   def: ShareLevel;
 }
 
-type ShareLevel = "nobody" | "circle" | "city" | "world";
-
+// Categories backed by real data + real cross-user reads (or
+// real-soon ones). Dropped from the previous list: health vitals
+// (no wearable), media favourites (no profile field), interests
+// (never had one), DNA ancestry / health (DnaOverlay still seed).
+// Their "share my X" promises had nothing behind them.
+//
+// Enforcement status today:
+//   daily_report — enforced by firestore.rules below; rule reads
+//     this writer's sharePrefs.daily_report and gates the friend
+//     read accordingly.
+//   discoverable location toggle — enforced by useDiscoverableLocation
+//     (separate path; presence of doc in insight_discoverable IS the
+//     toggle).
+//   everything else — persisted as user intent, not enforced. The
+//     UI honestly says "no cross-user reads exist for these yet"
+//     beneath the section.
 const SHARE_DATA: ShareItem[] = [
-  { id: "mood", label: "mood & weather", sub: "how you feel each day", glyph: "☾", def: "circle" },
-  { id: "location", label: "location · area", sub: "neighborhood, never address", glyph: "⌖", def: "circle" },
-  { id: "location_p", label: "location · precise", sub: "gps to the meter", glyph: "◉", def: "nobody" },
+  // Public-profile fields shown on the nearby-people row. All
+  // default to "nobody" — opt-in. Once enabled, the discoverable
+  // upsert in useDiscoverableLocation pulls the matching value
+  // off profile and writes it to the doc.
+  { id: "bio", label: "short bio", sub: "≤ 280 chars, shown to nearby people", glyph: "❝", def: "nobody" },
+  { id: "role", label: "what you do", sub: "ceramicist, marine biologist, …", glyph: "✎", def: "nobody" },
+  { id: "age", label: "age", sub: "the integer, never the year", glyph: "◯", def: "nobody" },
+  { id: "daily_report", label: "daily report", sub: "your one-line summary + mood + weather", glyph: "✎", def: "circle" },
+  { id: "mood", label: "mood", sub: "the 1..5 score per day", glyph: "☾", def: "circle" },
   { id: "big5", label: "personality (Big Five)", sub: "O · C · E · A · N", glyph: "✺", def: "circle" },
   { id: "political", label: "political compass", sub: "six axes", glyph: "✦", def: "nobody" },
   { id: "morals", label: "values & morals", sub: "where you sit, ethics-wise", glyph: "◇", def: "circle" },
-  { id: "health", label: "health · vitals", sub: "sleep, heart rate, body battery", glyph: "◐", def: "nobody" },
-  { id: "health_w", label: "workouts", sub: "runs, swims, sessions", glyph: "↑", def: "circle" },
-  { id: "meals", label: "meals", sub: "photo log, nutrition", glyph: "✦", def: "circle" },
-  { id: "media", label: "media · favorites", sub: "films, books, music", glyph: "❀", def: "world" },
-  { id: "interests", label: "interests", sub: "tags from your profile", glyph: "✶", def: "world" },
-  { id: "dna_anc", label: "DNA · ancestry", sub: "regions only", glyph: "⌇", def: "nobody" },
-  { id: "dna_health", label: "DNA · health markers", sub: "risk flags", glyph: "⌇", def: "nobody" },
-  { id: "scrap", label: "scrapbook · finds", sub: "plants, birds, etc", glyph: "❀", def: "circle" },
+  { id: "workouts", label: "workouts", sub: "runs, sessions, kcal", glyph: "↑", def: "circle" },
+  { id: "meals", label: "meals", sub: "what you've eaten", glyph: "✦", def: "circle" },
+  { id: "weighins", label: "weigh-ins", sub: "weight over time", glyph: "◐", def: "nobody" },
+  { id: "scrapbook", label: "scrapbook · finds", sub: "plants, birds, weather", glyph: "❀", def: "circle" },
   { id: "dreams", label: "dream journal", sub: "private by default", glyph: "☾", def: "nobody" },
-  { id: "time", label: "time use", sub: "how minutes spend", glyph: "◐", def: "nobody" },
-  { id: "daily", label: "daily report", sub: "one-line summary, sent to circle", glyph: "✎", def: "circle" },
+  { id: "impressions", label: "impressions of others", sub: "your sketches — always private", glyph: "❝", def: "nobody" },
+  { id: "books", label: "books read", sub: "what you've finished", glyph: "▢", def: "world" },
+  { id: "visits", label: "trips taken", sub: "countries & cities", glyph: "✶", def: "circle" },
+  { id: "homes", label: "homes lived in", sub: "where you've been", glyph: "⌂", def: "nobody" },
+  { id: "languages", label: "languages spoken", sub: "what you speak", glyph: "abc", def: "world" },
+  { id: "jobs", label: "jobs held", sub: "what work you've done", glyph: "◆", def: "circle" },
+  { id: "milestones", label: "life milestones", sub: "the timeline", glyph: "↑", def: "circle" },
+  { id: "time_blocks", label: "time use", sub: "how the day actually went", glyph: "◐", def: "nobody" },
 ];
 
 interface Level {
@@ -136,16 +158,123 @@ function ShareRow({
   );
 }
 
+// ImpressionAcceptance — who is allowed to leave a traits-only
+// impression on the user's inbox. Reflects the new wider-tier
+// writer paths added to firestore.rules:
+//
+//   nobody  → feature is off; rule rejects all writes.
+//   circle  → only mutual friends (matches the original carve-out).
+//   nearby  → followers + circle. Anyone who follows you can write.
+//   anyone  → any signed-in user. Use with care.
+//
+// Block list still trumps everything — blocked users can't write
+// regardless of the level chosen here.
+function ImpressionAcceptance({
+  value,
+  onChange,
+}: {
+  value: "nobody" | "circle" | "nearby" | "anyone";
+  onChange: (v: "nobody" | "circle" | "nearby" | "anyone") => void;
+}) {
+  const options: { id: "nobody" | "circle" | "nearby" | "anyone"; label: string; sub: string }[] =
+    [
+      { id: "nobody", label: "nobody", sub: "feature off; close the inbox" },
+      { id: "circle", label: "circle only", sub: "mutual friends" },
+      { id: "nearby", label: "followers + circle", sub: "anyone you let near you" },
+      { id: "anyone", label: "anyone signed in", sub: "the most open" },
+    ];
+
+  return (
+    <div className="card" style={{ marginBottom: 14, padding: 14 }}>
+      <Kicker>impressions inbox · who can write</Kicker>
+      <div
+        className="margin-note"
+        style={{ marginTop: 6, marginBottom: 10, fontSize: 11.5, fontStyle: "italic" }}
+      >
+        Anonymous traits only — never longhand. Blocked users can
+        never write regardless of this setting.
+      </div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+        {options.map((o) => {
+          const on = value === o.id;
+          return (
+            <button
+              key={o.id}
+              type="button"
+              onClick={() => onChange(o.id)}
+              style={{
+                display: "flex",
+                gap: 10,
+                alignItems: "center",
+                padding: "10px 12px",
+                background: on ? "var(--paper-2)" : "transparent",
+                border: on
+                  ? "0.5px solid var(--ink-2)"
+                  : "0.5px solid var(--rule)",
+                borderRadius: 10,
+                textAlign: "left",
+                cursor: "pointer",
+              }}
+            >
+              <span
+                style={{
+                  width: 14,
+                  height: 14,
+                  borderRadius: "50%",
+                  border: "0.5px solid var(--ink-2)",
+                  background: on ? "var(--ink)" : "var(--paper)",
+                  flexShrink: 0,
+                }}
+              />
+              <div>
+                <div
+                  style={{
+                    fontFamily: "var(--serif)",
+                    fontStyle: "italic",
+                    fontSize: 14,
+                    color: "var(--ink)",
+                  }}
+                >
+                  {o.label}
+                </div>
+                <div
+                  style={{
+                    fontFamily: "var(--mono)",
+                    fontSize: 10,
+                    letterSpacing: "0.05em",
+                    color: "var(--ink-3)",
+                    marginTop: 2,
+                  }}
+                >
+                  {o.sub}
+                </div>
+              </div>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 interface SharingOverlayProps {
   onClose: () => void;
 }
 
 export function SharingOverlay({ onClose }: SharingOverlayProps) {
-  const [vals, setVals] = useState<Record<string, ShareLevel>>(() => {
-    const o: Record<string, ShareLevel> = {};
-    SHARE_DATA.forEach((d) => (o[d.id] = d.def));
-    return o;
-  });
+  const { profile, save } = useProfile();
+
+  // Read prefs off the profile, falling back to per-category default
+  // when unset. We don't keep a separate local state — every change
+  // goes through save() so the dropdowns reflect persisted truth.
+  const vals: Record<string, ShareLevel> = {};
+  for (const d of SHARE_DATA) {
+    vals[d.id] = profile.sharePrefs?.[d.id] ?? d.def;
+  }
+  const setLevel = (id: string, level: ShareLevel) => {
+    const next = { ...(profile.sharePrefs ?? {}), [id]: level };
+    void save({ sharePrefs: next });
+  };
 
   const { user } = useAuth();
   const { position, loading: geoLoading, request: requestGeo, denied } =
@@ -320,14 +449,111 @@ export function SharingOverlay({ onClose }: SharingOverlayProps) {
           </div>
         )}
 
+        {/* Cloud photos toggle — binary opt-in for backing up
+            daily-report photos to your private Firebase Storage
+            folder. Off by default; the existing privacy contract is
+            "photos stay on this device." */}
+        {firebaseEnabled && user && (
+          <div
+            className="card"
+            style={{
+              marginBottom: 14,
+              padding: 14,
+              borderLeft: "3px solid var(--accent)",
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "flex-start",
+                gap: 12,
+              }}
+            >
+              <div style={{ flex: 1 }}>
+                <Kicker>Cloud backup · daily photos</Kicker>
+                <div
+                  style={{
+                    fontFamily: "var(--serif)",
+                    fontStyle: "italic",
+                    fontSize: 13,
+                    color: "var(--ink-2)",
+                    marginTop: 6,
+                    lineHeight: 1.5,
+                  }}
+                >
+                  When this is on, photos you attach to a daily report
+                  are uploaded to your private cloud bucket so other
+                  devices you're signed in on can see them. Off by
+                  default — photos stay only on the device that
+                  captured them. Cross-user sharing is unaffected.
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => void save({ cloudPhotos: !profile.cloudPhotos })}
+                style={{
+                  flexShrink: 0,
+                  width: 56,
+                  height: 32,
+                  borderRadius: 999,
+                  border: "0.5px solid var(--rule)",
+                  background: profile.cloudPhotos
+                    ? "var(--accent)"
+                    : "var(--paper-2)",
+                  position: "relative",
+                  cursor: "pointer",
+                  transition: "background 0.2s",
+                }}
+                aria-pressed={!!profile.cloudPhotos}
+              >
+                <span
+                  style={{
+                    position: "absolute",
+                    top: 3,
+                    left: profile.cloudPhotos ? 28 : 3,
+                    width: 24,
+                    height: 24,
+                    borderRadius: "50%",
+                    background: "var(--paper)",
+                    border: "0.5px solid var(--rule)",
+                    transition: "left 0.2s",
+                  }}
+                />
+              </button>
+            </div>
+          </div>
+        )}
+
+        <ImpressionAcceptance
+          value={
+            (profile.acceptImpressionsFrom as
+              | "nobody"
+              | "circle"
+              | "nearby"
+              | "anyone"
+              | undefined) ?? "circle"
+          }
+          onChange={(v) => void save({ acceptImpressionsFrom: v })}
+        />
+
         <Kicker>Each thing, separately</Kicker>
-        <div style={{ marginTop: 10 }}>
+        <div
+          className="margin-note"
+          style={{ marginTop: 6, marginBottom: 10, fontSize: 11.5, fontStyle: "italic" }}
+        >
+          The daily-report level is enforced today at the Firestore
+          rule layer — your circle can only read what you've set to{" "}
+          <em>circle</em> or wider. The other categories persist your
+          intent for when each cross-user read lands.
+        </div>
+        <div>
           {SHARE_DATA.map((item) => (
             <ShareRow
               key={item.id}
               item={item}
               value={vals[item.id]}
-              onChange={(v) => setVals({ ...vals, [item.id]: v })}
+              onChange={(v) => setLevel(item.id, v)}
             />
           ))}
         </div>
@@ -338,6 +564,37 @@ export function SharingOverlay({ onClose }: SharingOverlayProps) {
           City and world averages always include your numbers — but stripped of
           your name. There is no way to opt out and still see them; it would be
           one-way mirror.
+        </div>
+
+        <hr className="rule-dashed" />
+        <Kicker>The legal bit</Kicker>
+        <div
+          style={{
+            marginTop: 8,
+            display: "flex",
+            flexDirection: "column",
+            gap: 6,
+            fontFamily: "var(--mono)",
+            fontSize: 11,
+            letterSpacing: "0.06em",
+          }}
+        >
+          <a
+            href="/privacy.html"
+            target="_blank"
+            rel="noopener"
+            style={{ color: "var(--ink-2)" }}
+          >
+            ↗ privacy policy
+          </a>
+          <a
+            href="/terms.html"
+            target="_blank"
+            rel="noopener"
+            style={{ color: "var(--ink-2)" }}
+          >
+            ↗ terms of service
+          </a>
         </div>
       </div>
     </div>

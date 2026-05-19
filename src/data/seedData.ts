@@ -10,11 +10,21 @@
 //   cityScoreCats  — fixed taxonomy of 8 city-rating dimensions.
 //   cities         — curated editorial enrichment merged into useNearbyCities by name.
 //   interestCats   — fixed taxonomy of interest categories (glyph + hue per category).
-//   ideologies     — fixed taxonomy of political ideologies (econ/social coords).
-//   ideologyMarks  — canonical thinker positions overlaid on the politics compass.
-//   politicalAxes  — fixed taxonomy of the 6 political axis labels.
 //   skillCats      — fixed taxonomy of skill categories.
 //   groupTest      — fixed groups-tab questionnaire (the questions and options).
+//
+// Politics taxonomy (ideologies, ideologyMarks, politicalAxes) was lifted
+// into `politicsTaxonomy.ts` so politics.tsx can import a typed module
+// instead of pulling from this `any`-typed blob. We re-spread them here
+// so any legacy `IS_DATA.ideologies` read still resolves while consumers
+// migrate.
+
+import {
+  IDEOLOGIES,
+  IDEOLOGY_MARKS,
+  POLITICAL_AXES,
+} from "./politicsTaxonomy";
+import { GROUP_TEST, INTEREST_CATS, SKILL_CATS } from "./taxonomies";
 
 /* eslint-disable */
 export const IS_DATA: any = {
@@ -95,92 +105,23 @@ export const IS_DATA: any = {
       blurb: 'cable cars, indie cafés, weather that has opinions' },
   ],
 
-  interestCats: [
-    { id: "sports",    label: "Sports",     hue: 12,  glyph: "◉" },
-    { id: "outdoor",   label: "Outdoor",    hue: 145, glyph: "△" },
-    { id: "fitness",   label: "Fitness",    hue: 25,  glyph: "↗" },
-    { id: "literary",  label: "Literary",   hue: 38,  glyph: "✎" },
-    { id: "thought",   label: "Thought",    hue: 250, glyph: "○" },
-    { id: "music",     label: "Music",      hue: 305, glyph: "♪" },
-    { id: "art",       label: "Art & craft",hue: 80,  glyph: "✦" },
-    { id: "games",     label: "Games",      hue: 200, glyph: "♟" },
-    { id: "tech",      label: "Tech",       hue: 260, glyph: "◇" },
-    { id: "food",      label: "Food",       hue: 30,  glyph: "◐" },
-    { id: "civic",     label: "Civic",      hue: 220, glyph: "✚" },
-    { id: "faith",     label: "Faith",      hue: 285, glyph: "✟" },
-  ],
+  // Taxonomies — defined in `taxonomies.ts`. Re-spread here so any
+  // residual `IS_DATA.interestCats` / `IS_DATA.skillCats` /
+  // `IS_DATA.groupTest` lookup still resolves while consumers migrate.
+  interestCats: INTEREST_CATS,
 
-  // Named ideologies — placed on the 2D econ × social compass for landmarks
-  // econ: -100 (state) .. +100 (market) ; social: -100 (liberty) .. +100 (authority)
-  ideologies: [
-    { id: 'soc-dem',     name: 'Social Democrat',         econ: -34, social: -10 },
-    { id: 'green-left',  name: 'Green-Left',              econ: -50, social: -45 },
-    { id: 'liberal',     name: 'Liberal',                 econ:  10, social: -34 },
-    { id: 'libertarian', name: 'Libertarian',             econ:  72, social: -68 },
-    { id: 'conservat',   name: 'Conservative',            econ:  40, social:  46 },
-    { id: 'communit',    name: 'Communitarian',           econ: -28, social:  44 },
-    { id: 'anarcho',     name: 'Anarchist',               econ: -78, social: -78 },
-    { id: 'tech-prog',   name: 'Technoprogressive',       econ:  18, social: -22 },
-  ],
+  // Politics reference data — defined in `politicsTaxonomy.ts`. We
+  // re-spread the same arrays here so legacy IS_DATA.ideologies /
+  // IS_DATA.ideologyMarks / IS_DATA.politicalAxes lookups keep
+  // working. The earlier inline objects also carried `avgCircle` and
+  // `avgWorld` fields — fake "your circle" / "global average"
+  // aggregates that no callsite reads any more, so we don't carry
+  // them across.
+  ideologies: IDEOLOGIES,
+  ideologyMarks: IDEOLOGY_MARKS,
+  politicalAxes: POLITICAL_AXES,
 
-  // Named thinkers — small marks on the compass for orientation
-  ideologyMarks: [
-    { name: 'Mill',     econ:  20, social: -55 },
-    { name: 'Marx',     econ: -82, social:  -8 },
-    { name: 'Rand',     econ:  84, social: -76 },
-    { name: 'Hobbes',   econ:  10, social:  78 },
-    { name: 'Solnit',   econ: -56, social: -52 },
-    { name: 'Rawls',    econ: -28, social: -18 },
-  ],
-
-  // The 6 axes of the political compass — labels and the people-aggregate average
-  // for each axis (used to draw a translucent comparison ring on the radar).
-  politicalAxes: [
-    { id: 'econ',    label: 'economic',    poles: ['state','market'],            avgCircle: -8,  avgWorld: 22 },
-    { id: 'social',  label: 'social',      poles: ['liberty','authority'],       avgCircle: -12, avgWorld: 8  },
-    { id: 'foreign', label: 'foreign',     poles: ['cooperative','sovereign'],   avgCircle: -8,  avgWorld: 14 },
-    { id: 'env',     label: 'environment', poles: ['extractive','protective'],   avgCircle: 28,  avgWorld: 6  },
-    { id: 'tech',    label: 'technology',  poles: ['precaution','acceleration'], avgCircle: 6,   avgWorld: 18 },
-    { id: 'auth',    label: 'authority',   poles: ['horizontal','hierarchical'], avgCircle: -10, avgWorld: 12 },
-  ],
-
-  // Skill categories
-  skillCats: [
-    { id: "sport",    label: "Sport",     hue: 12,  glyph: "◉" },
-    { id: "outdoor",  label: "Outdoor",   hue: 145, glyph: "△" },
-    { id: "craft",    label: "Craft",     hue: 38,  glyph: "✎" },
-    { id: "mind",     label: "Mind",      hue: 80,  glyph: "◇" },
-    { id: "language", label: "Language",  hue: 220, glyph: "ℒ" },
-    { id: "music",    label: "Music",     hue: 305, glyph: "♪" },
-    { id: "kitchen",  label: "Kitchen",   hue: 60,  glyph: "◐" },
-    { id: "tech",     label: "Tech",      hue: 250, glyph: "▢" },
-  ],
-
-  groupTest: [
-    { q: "Best Sunday morning?",
-      opts: [
-        { t: "Sweat, ball, score", cats: ["sports", "fitness"] },
-        { t: "A long swim, then bread", cats: ["outdoor", "food"] },
-        { t: "Pages and a window", cats: ["literary", "thought"] },
-        { t: "Hands moving, a workshop", cats: ["art", "tech"] },
-        { t: "A board, two cups", cats: ["games"] },
-      ] },
-    { q: "What you secretly want more of",
-      opts: [
-        { t: "A racquet, a partner", cats: ["sports"] },
-        { t: "Lungs that ache (good)", cats: ["outdoor", "fitness"] },
-        { t: "Conversations that turn", cats: ["thought", "literary"] },
-        { t: "Songs you can't shake", cats: ["music"] },
-        { t: "Pieces that move just so", cats: ["games", "art"] },
-      ] },
-    { q: "How you'd rather show up",
-      opts: [
-        { t: "Kit on, ready", cats: ["sports", "fitness"] },
-        { t: "In wool and wet socks", cats: ["outdoor"] },
-        { t: "With a notebook", cats: ["literary", "thought"] },
-        { t: "With your hands stained", cats: ["art", "food"] },
-        { t: "With a folding chair", cats: ["civic", "music"] },
-      ] },
-  ],
+  skillCats: SKILL_CATS,
+  groupTest: GROUP_TEST,
 
 };
