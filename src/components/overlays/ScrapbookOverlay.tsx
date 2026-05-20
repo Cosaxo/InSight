@@ -504,7 +504,7 @@ export function ScrapbookOverlay({ onClose }: ScrapbookOverlayProps) {
           ✕
         </button>
         <div className="h-title">
-          the <em>scrapbook</em>
+          <em>Scrapbook</em>
         </div>
         <div className="h-meta">
           {totalCount}

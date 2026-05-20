@@ -745,6 +745,126 @@ function PublicProfileEditor({
   );
 }
 
+// DemographicEditor — gender + country. Both opt-in via Sharing
+// toggles; values stay local until the user enables the matching
+// sharing tier. Country accepts an ISO 3166-1 alpha-2 code (two
+// letters); the World tab uses this for the per-country
+// breakdowns the Cloud Function aggregates daily.
+type GenderOption = "man" | "woman" | "non-binary" | "prefer-not-to-say";
+
+function DemographicEditor({
+  gender,
+  country,
+  onSave,
+}: {
+  gender?: GenderOption;
+  country?: string;
+  onSave: (patch: { gender?: GenderOption; country?: string }) => void;
+}) {
+  const [countryDraft, setCountryDraft] = useState(country ?? "");
+  const [lastCountryProp, setLastCountryProp] = useState(country ?? "");
+  if ((country ?? "") !== lastCountryProp) {
+    setLastCountryProp(country ?? "");
+    setCountryDraft(country ?? "");
+  }
+
+  const commitCountry = () => {
+    const trimmed = countryDraft.trim().toUpperCase().slice(0, 2);
+    if (trimmed === (country ?? "")) return;
+    onSave({ country: trimmed });
+  };
+
+  const genderOptions: Array<{ id: GenderOption; label: string }> = [
+    { id: "man", label: "man" },
+    { id: "woman", label: "woman" },
+    { id: "non-binary", label: "non-binary" },
+    { id: "prefer-not-to-say", label: "prefer not to say" },
+  ];
+
+  return (
+    <>
+      <Kicker>demographic · optional</Kicker>
+      <div
+        className="margin-note"
+        style={{
+          marginTop: 6,
+          marginBottom: 12,
+          fontSize: 12,
+          fontStyle: "italic",
+        }}
+      >
+        Used in the World tab's per-country breakdowns and the
+        Interests tab demographics card. Stays on this device until
+        the matching toggle in Sharing is on.
+      </div>
+
+      <div style={{ marginBottom: 14 }}>
+        <span className="kicker">gender</span>
+        <div
+          style={{
+            display: "flex",
+            flexWrap: "wrap",
+            gap: 6,
+            marginTop: 6,
+          }}
+        >
+          {genderOptions.map((g) => {
+            const on = gender === g.id;
+            return (
+              <button
+                key={g.id}
+                type="button"
+                onClick={() => onSave({ gender: on ? undefined : g.id })}
+                style={{
+                  padding: "6px 12px",
+                  borderRadius: 999,
+                  fontFamily: "var(--mono)",
+                  fontSize: 10,
+                  letterSpacing: "0.08em",
+                  background: on ? "var(--ink)" : "var(--paper-2)",
+                  color: on ? "var(--paper)" : "var(--ink-2)",
+                  border: on ? "none" : "0.5px solid var(--rule)",
+                  cursor: "pointer",
+                }}
+              >
+                {g.label}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      <label style={{ display: "block" }}>
+        <span className="kicker">country · ISO code (e.g. NO, US, GB)</span>
+        <input
+          type="text"
+          value={countryDraft}
+          maxLength={2}
+          onChange={(e) =>
+            setCountryDraft(e.target.value.toUpperCase().slice(0, 2))
+          }
+          onBlur={commitCountry}
+          placeholder="NO"
+          style={{
+            width: "100%",
+            boxSizing: "border-box",
+            padding: "10px 12px",
+            marginTop: 6,
+            background: "var(--paper-2)",
+            border: "0.5px solid var(--rule)",
+            borderRadius: 8,
+            fontFamily: "var(--mono)",
+            fontSize: 16,
+            letterSpacing: "0.2em",
+            textAlign: "center",
+            color: "var(--ink)",
+          }}
+        />
+      </label>
+    </>
+  );
+}
+
 interface HeroEditorProps {
   heroes: Hero[];
   onChange: (next: Hero[]) => void;
@@ -980,7 +1100,7 @@ export function ProfileOverlay({ onClose, onOpenTest }: ProfileOverlayProps) {
           ✕
         </button>
         <div className="h-title">
-          your <em>portrait</em>
+          <em>Profile</em>
         </div>
         <div style={{ width: 36 }} />
       </div>
@@ -1011,6 +1131,14 @@ export function ProfileOverlay({ onClose, onOpenTest }: ProfileOverlayProps) {
         <PublicProfileEditor
           bio={profile.bio}
           role={profile.role}
+          onSave={(patch) => void save(patch)}
+        />
+
+        <hr className="rule-dashed" />
+
+        <DemographicEditor
+          gender={profile.gender}
+          country={profile.country}
           onSave={(patch) => void save(patch)}
         />
 

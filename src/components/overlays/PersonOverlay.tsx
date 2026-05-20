@@ -170,7 +170,7 @@ export function PersonOverlay({ p, onClose }: PersonOverlayProps) {
         <button className="avatar-btn" onClick={onClose}>
           ←
         </button>
-        <div className="h-title">a portrait</div>
+        <div className="h-title">Person</div>
         <div style={{ width: 36 }} />
       </div>
       <div className="app-body">
@@ -1034,9 +1034,9 @@ function SendImpressionInline({
           className="margin-note"
           style={{ marginTop: 6, fontSize: 12, lineHeight: 1.5 }}
         >
-          "A few traits, anonymous. {name.split(" ")[0]} sees them in
-          their inbox without your name attached. Three a month, max,
-          per person — gently."
+          Pick a few traits. {name.split(" ")[0]} sees them in their
+          inbox anonymously — no name attached. Three per month, per
+          person.
         </div>
       </div>
     );
@@ -1087,7 +1087,7 @@ function SendImpressionInline({
           fontStyle: "italic",
         }}
       >
-        {picked.length}/6 chosen · anonymous · traits only · no longhand
+        {picked.length}/6 selected · anonymous · traits only
       </div>
 
       <div

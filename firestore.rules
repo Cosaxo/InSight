@@ -55,7 +55,15 @@ service cloud.firestore {
           // matches the original carve-out. "nearby" extends it to
           // followers; "anyone" opens it to any signed-in user;
           // "nobody" closes the feature entirely.
-          && (!('acceptImpressionsFrom' in d) || d.acceptImpressionsFrom in ['nobody', 'circle', 'nearby', 'anyone']);
+          && (!('acceptImpressionsFrom' in d) || d.acceptImpressionsFrom in ['nobody', 'circle', 'nearby', 'anyone'])
+          // Demographic fields. gender uses the four-value closed set;
+          // country is an ISO 3166-1 alpha-2 code. Both opt-in via
+          // sharePrefs.
+          && (!('gender' in d) || d.gender in ['man', 'woman', 'non-binary', 'prefer-not-to-say'])
+          && (!('country' in d) || (d.country is string && d.country.size() == 2))
+          // Denormalised list of interest names. Each ≤ 60 chars,
+          // overall capped at 64 entries to bound storage.
+          && (!('interestNames' in d) || (d.interestNames is list && d.interestNames.size() <= 64));
       }
 
       function isValidSharePrefs(prefs) {
@@ -366,6 +374,18 @@ service cloud.firestore {
         && (
           !('age' in d) || d.age == null
           || (d.age is int && d.age >= 10 && d.age <= 130)
+        )
+        && (
+          !('interestNames' in d) || d.interestNames == null
+          || (d.interestNames is list && d.interestNames.size() <= 64)
+        )
+        && (
+          !('gender' in d) || d.gender == null
+          || d.gender in ['man', 'woman', 'non-binary', 'prefer-not-to-say']
+        )
+        && (
+          !('country' in d) || d.country == null
+          || (d.country is string && d.country.size() == 2)
         );
     }
 
@@ -375,6 +395,71 @@ service cloud.firestore {
     match /Cities/{cityId} {
       allow read: if request.auth != null;
       allow write: if false;
+    }
+
+    // Community-voted interest items. Top-level collection so the
+    // leaderboard query works across the whole userbase. Each doc
+    // has a denormalised voteCount that the client increments
+    // atomically alongside writing the vote subdoc.
+    match /insight_interest_items/{itemId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null
+        && isValidInterestItemCreate();
+      // Updates only allowed for the denormalised voteCount, and
+      // only as ±1 of the current value. Combined with the vote
+      // subcollection's existence check this stops a client from
+      // faking arbitrary scores. Other fields (name, type, etc.)
+      // are immutable post-create.
+      allow update: if request.auth != null
+        && isValidVoteCountChange();
+      // Only the creator can delete the item.
+      allow delete: if request.auth != null
+        && request.auth.uid == resource.data.createdBy;
+
+      // Per-user vote doc. Presence = voted. The atomic upvote
+      // transaction writes this alongside the +1 update; the rule
+      // enforces voterUid matches auth uid so a malicious client
+      // can't write a vote on behalf of someone else.
+      match /votes/{voterUid} {
+        allow read: if request.auth != null
+          && request.auth.uid == voterUid;
+        allow create: if request.auth != null
+          && request.auth.uid == voterUid;
+        allow delete: if request.auth != null
+          && request.auth.uid == voterUid;
+        allow update: if false;
+      }
+    }
+
+    function isValidInterestItemCreate() {
+      let d = request.resource.data;
+      return
+        d.interestSlug is string
+        && d.interestSlug.size() > 0 && d.interestSlug.size() <= 60
+        && d.type in ['media', 'figure', 'literature', 'tip']
+        && d.name is string
+        && d.name.size() > 0 && d.name.size() <= 120
+        && (!('description' in d) || d.description == null
+            || (d.description is string && d.description.size() <= 500))
+        && d.voteCount == 0
+        && d.createdBy == request.auth.uid;
+    }
+
+    function isValidVoteCountChange() {
+      let pre = resource.data;
+      let post = request.resource.data;
+      // Allow ±1 update on voteCount, no other field changes.
+      return
+        post.voteCount is int
+        && post.voteCount >= 0
+        && (
+          post.voteCount == pre.voteCount + 1
+          || post.voteCount == pre.voteCount - 1
+        )
+        && post.interestSlug == pre.interestSlug
+        && post.type == pre.type
+        && post.name == pre.name
+        && post.createdBy == pre.createdBy;
     }
 
     // Population aggregates — pre-rolled Big Five + politics + morals
@@ -388,6 +473,25 @@ service cloud.firestore {
     // below the floor are silently dropped (and deleted if they
     // existed previously). Individual users never appear here.
     match /aggregates_by_geohash5/{hash} {
+      allow read: if request.auth != null;
+      allow write: if false;
+    }
+
+    // World aggregates — a single \`snapshot\` doc written by the
+    // rebuildWorldAggregates Cloud Function (admin SDK, bypasses
+    // rules). Holds userbase-level stats (personality by country,
+    // top interests globally, etc.). Read-only to any signed-in
+    // user; client writes forbidden.
+    match /aggregates_world/{docId} {
+      allow read: if request.auth != null;
+      allow write: if false;
+    }
+
+    // City aggregates — one doc per slugged city name, holding
+    // per-dimension averages across the userbase. Written nightly
+    // by rebuildCityAggregates (admin SDK), read by City-tab
+    // subscribers. Same access pattern as the world snapshot.
+    match /aggregates_city/{cityKey} {
       allow read: if request.auth != null;
       allow write: if false;
     }

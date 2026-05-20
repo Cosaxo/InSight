@@ -9,6 +9,7 @@ import { useRelations, type UserPerson } from "../../lib/useRelations";
 import { useFriendDailies } from "../../lib/useFriendDailies";
 import { useMe } from "../../lib/useMe";
 import { useMyRelations } from "../../lib/useMyRelations";
+import { useCircleInterestDistribution } from "../../lib/useCircleInterestDistribution";
 import { useAuth } from "../../lib/useAuth";
 import { acceptFriendRequest, declineFriendRequest } from "../../lib/firebase";
 
@@ -234,6 +235,135 @@ function RelationInbox({ onOpenPerson }: { onOpenPerson: (p: CirclePerson) => vo
   );
 }
 
+// CircleInterestCard — shows the most common interests across the
+// people you can see (friends + followers + following). Reuses the
+// public-profile read path the Interests tab demographics card uses.
+// K-anonymity gates apply: < 3 people with shared interests yields
+// an honest empty state instead of misleading 100%-of-1 numbers.
+function CircleInterestCard() {
+  const dist = useCircleInterestDistribution();
+
+  if (dist.loading) {
+    return (
+      <div className="card" style={{ marginBottom: 14, padding: 14 }}>
+        <Kicker>Interests · across your circle</Kicker>
+        <div className="margin-note" style={{ marginTop: 8, fontSize: 12 }}>
+          Loading…
+        </div>
+      </div>
+    );
+  }
+
+  if (dist.insufficient) {
+    return (
+      <div className="card" style={{ marginBottom: 14, padding: 14 }}>
+        <Kicker>Interests · across your circle</Kicker>
+        <div
+          className="margin-note"
+          style={{ marginTop: 8, fontSize: 12, fontStyle: "italic" }}
+        >
+          {dist.totalPeople === 0
+            ? "No one in your circle has shared their interests yet."
+            : `Only ${dist.totalPeople} have shared — need at least 3 for a meaningful breakdown.`}
+        </div>
+      </div>
+    );
+  }
+
+  const maxCount = dist.topInterests[0]?.count ?? 1;
+
+  return (
+    <div className="card" style={{ marginBottom: 14, padding: 14 }}>
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "baseline",
+        }}
+      >
+        <Kicker>Interests · across your circle</Kicker>
+        <span
+          className="fig-num"
+          style={{ fontSize: 18, fontStyle: "italic" }}
+        >
+          {dist.totalPeople}
+        </span>
+      </div>
+      <div
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          gap: 4,
+          marginTop: 10,
+        }}
+      >
+        {dist.topInterests.map((i) => (
+          <div
+            key={i.name}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              fontFamily: "var(--mono)",
+              fontSize: 11,
+            }}
+          >
+            <span
+              style={{
+                width: 120,
+                color: "var(--ink-2)",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
+              }}
+              title={i.name}
+            >
+              {i.name}
+            </span>
+            <div
+              style={{
+                flex: 1,
+                height: 4,
+                background: "var(--paper-2)",
+                border: "0.5px solid var(--rule)",
+                borderRadius: 999,
+                position: "relative",
+                overflow: "hidden",
+              }}
+            >
+              <div
+                style={{
+                  width: `${Math.round((i.count / maxCount) * 100)}%`,
+                  height: "100%",
+                  background: "var(--sage)",
+                }}
+              />
+            </div>
+            <span
+              style={{
+                width: 56,
+                textAlign: "right",
+                color: "var(--ink-3)",
+                fontSize: 10,
+              }}
+            >
+              {i.count} · {Math.round(i.fraction * 100)}%
+            </span>
+          </div>
+        ))}
+      </div>
+      <div
+        className="margin-note"
+        style={{ marginTop: 10, fontSize: 11, fontStyle: "italic" }}
+      >
+        Aggregated from friends, followers, and people you follow
+        who chose to share their interests. Each person counted once
+        per unique interest.
+      </div>
+    </div>
+  );
+}
+
 export function PeopleTab({
   onPerson,
   onOpenDaily,
@@ -323,14 +453,13 @@ export function PeopleTab({
 
   return (
     <div className="fade-in">
-      <div className="page-num">— xix —</div>
 
       <RelationInbox onOpenPerson={onPerson} />
 
-      <Kicker>The intimates · the close orbit</Kicker>
+      <Kicker>People · your circle</Kicker>
       <div className="sec-head">
         <h2>
-          People you've <em>kept</em>
+          Your <em>people</em>
         </h2>
       </div>
 
@@ -682,6 +811,8 @@ export function PeopleTab({
           <div className="kicker">CIRCLES</div>
         </div>
       </div>
+
+      <CircleInterestCard />
 
       <div
         className="card"

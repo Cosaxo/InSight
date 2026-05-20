@@ -174,7 +174,7 @@ export function BodyOverlay({ onClose }: BodyOverlayProps) {
           ←
         </button>
         <div className="h-title">
-          the <em>body</em>
+          <em>Body</em>
         </div>
         <div className="h-meta">
           {todayKcal}
@@ -379,9 +379,9 @@ export function BodyOverlay({ onClose }: BodyOverlayProps) {
               className="margin-note"
               style={{ marginTop: 10, fontSize: 13 }}
             >
-              "Log your first meal — name, calories, and rough macros.
+              Log your first meal — name, calories, and rough macros.
               The today donut and the seven-day bar chart fill in as
-              you go."
+              you go.
             </div>
           </div>
         )}
@@ -508,10 +508,10 @@ function WearableCard({
           className="margin-note"
           style={{ marginTop: 6, fontSize: 12, lineHeight: 1.5 }}
         >
-          "Body battery, HRV, sleep stages, VO₂ max, and HR zones
-          land here once Apple Health or Health Connect is connected.
-          Whatever wearable you use — Apple Watch, Garmin, Whoop, Oura,
-          Fitbit — its data flows through one of those two stores."
+          Body battery, HRV, sleep stages, VO₂ max, and HR zones
+          show up here once Apple Health or Health Connect is
+          connected. Apple Watch, Garmin, Whoop, Oura, and Fitbit all
+          sync into one of those two stores.
         </div>
         <div style={{ marginTop: 12, display: "flex", gap: 8, flexWrap: "wrap" }}>
           {health.available && (

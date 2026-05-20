@@ -260,7 +260,7 @@ export function HabitsTab() {
     .map((m) => `${m.date}: ${m.score}/5`)
     .join(", ");
   const habitsPrompt = [
-    "You are a quiet journal companion. Look at the user's habits today and their recent moods. Write ONE short sentence (under 18 words) noticing a small pattern or contrast — no advice, no cheer, no questions. Observational, slightly literary.",
+    "You write short, plain reflections about a user. Look at the user's habits today and their recent moods. Write ONE short sentence (under 18 words) noticing a small pattern or contrast — no advice, no cheer, no questions. Be plain and descriptive — no flourishes.",
     "",
     habitsToday ? `Today's habits: ${habitsToday}` : "No habits tracked yet.",
     recentMoods ? `Recent moods (most recent first): ${recentMoods}` : "",
@@ -498,7 +498,7 @@ export function HabitsTab() {
 
       {decorated.length > 0 && (
         <VerdictCard
-          kicker="WHAT WE NOTICED"
+          kicker="REFLECTION"
           cacheKey="habits"
           prompt={habitsPrompt}
         />
@@ -800,7 +800,7 @@ export function FitnessTab() {
     weekItems.length === 0
       ? null
       : [
-          "You are a quiet journal companion. Look at the user's training this week. Write ONE short sentence (under 18 words) noticing a shape or pattern — no advice, no cheer. Observational, slightly literary.",
+          "You write short, plain reflections about a user. Look at the user's training this week. Write ONE short sentence (under 18 words) noticing a shape or pattern — no advice, no cheer. Be plain and descriptive — no flourishes.",
           "",
           `This week: ${weekItems.length} sessions, ${weekMinutes} minutes, ${weekKcal} kcal.`,
           `Sessions: ${weekItems
@@ -825,9 +825,9 @@ export function FitnessTab() {
           className="margin-note"
           style={{ marginTop: 6, fontSize: 12, lineHeight: 1.5 }}
         >
-          "Steps, heart-rate zones, VO₂ max and training-load curves
+          Steps, heart-rate zones, VO₂ max, and training-load curves
           show up here once a wearable is paired. Until then this
-          tab tracks what you log by hand."
+          tab tracks what you log by hand.
         </div>
       </div>
 
@@ -964,13 +964,13 @@ export function FitnessTab() {
           </div>
         </>
       ) : (
-        <EmptyState copy='"Log your first session — type, minutes, intensity, kcal. The weekly stats fill in as you go."' />
+        <EmptyState copy="Log your first session — type, minutes, intensity, kcal. The weekly stats fill in as you go." />
       )}
 
       {fitnessPrompt && (
         <div style={{ marginTop: 14 }}>
           <VerdictCard
-            kicker="WHAT WE NOTICED"
+            kicker="REFLECTION"
             cacheKey="fitness"
             prompt={fitnessPrompt}
           />
@@ -1305,7 +1305,7 @@ export function NutritionTab() {
       sorted.length === 0
         ? null
         : [
-            "You are a quiet journal companion. Look at the user's recent eating pattern. Write ONE short sentence (under 18 words) noticing a shape or pattern — no advice, no diet talk. Observational, slightly literary.",
+            "You write short, plain reflections about a user. Look at the user's recent eating pattern. Write ONE short sentence (under 18 words) noticing a shape or pattern — no advice, no diet talk. Be plain and descriptive — no flourishes.",
             "",
             `Today: ${todayKcal} kcal across ${todayMeals.length} entries.`,
             `Today macros (g): carbs ${todayMacros.carbs}, protein ${todayMacros.protein}, fat ${todayMacros.fat}.`,
@@ -1497,7 +1497,7 @@ export function NutritionTab() {
       {nutritionPrompt && (
         <div style={{ marginTop: 14 }}>
           <VerdictCard
-            kicker="WHAT WE NOTICED"
+            kicker="REFLECTION"
             cacheKey="nutrition"
             prompt={nutritionPrompt}
           />
@@ -1655,7 +1655,7 @@ export function FinanceTab() {
       monthItems.length === 0
         ? null
         : [
-            "You are a quiet journal companion. Look at the user's recent spending. Write ONE short sentence (under 18 words) noticing a shape or pattern — no advice, no money talk. Observational, slightly literary.",
+            "You write short, plain reflections about a user. Look at the user's recent spending. Write ONE short sentence (under 18 words) noticing a shape or pattern — no advice, no money talk. Be plain and descriptive — no flourishes.",
             "",
             `${monthLabel()}: ${formatCurrency(totalIn, currency)} in, ${formatCurrency(totalOut, currency)} out, net ${net >= 0 ? "+" : "−"}${formatCurrency(Math.abs(net), currency)}.`,
             `By category: ${byCategory.map(([c, v]) => `${c} ${formatCurrency(v, currency)}`).join("; ")}`,
@@ -1744,7 +1744,7 @@ export function FinanceTab() {
       {financePrompt && (
         <div style={{ marginTop: 14 }}>
           <VerdictCard
-            kicker="WHAT WE NOTICED"
+            kicker="REFLECTION"
             cacheKey="finance"
             prompt={financePrompt}
           />

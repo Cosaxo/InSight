@@ -2,18 +2,27 @@ import { useMemo, useState } from "react";
 import { Kicker } from "../shared/primitives";
 import { Donut, RadarChart } from "../shared/charts";
 import { useCityRatings } from "../../lib/useCityRatings";
+import { useCityAggregate } from "../../lib/useCityAggregate";
 import { useGeolocation } from "../../lib/useGeolocation";
 import { useNearbyCities, type NearbyCity } from "../../lib/useNearbyCities";
 import type { CityRating } from "../../types";
 
-type CityScoreKey = "culture" | "nature" | "food" | "pace" | "openness" | "cost";
+type CityScoreKey =
+  | "beauty"
+  | "commute"
+  | "safety"
+  | "culture"
+  | "nature"
+  | "food"
+  | "cost";
 
 const RATING_CATS: { k: CityScoreKey; label: string }[] = [
+  { k: "beauty", label: "Beauty" },
+  { k: "commute", label: "Commute" },
+  { k: "safety", label: "Safety" },
   { k: "culture", label: "Culture" },
   { k: "nature", label: "Nature" },
   { k: "food", label: "Food" },
-  { k: "pace", label: "Pace" },
-  { k: "openness", label: "Openness" },
   { k: "cost", label: "Cost" },
 ];
 
@@ -38,16 +47,18 @@ export function CityTab() {
   // into range restores their pick.
 
   const { ratings: stored, setRating } = useCityRatings();
+  const { aggregate: communityAgg } = useCityAggregate(
+    selectedCity?.name ?? null,
+  );
   // When no city is selected (location not granted yet), render the
   // CTA only — the rest of the tab needs a real city to anchor on.
   if (!selectedCity) {
     return (
       <div className="fade-in">
-        <div className="page-num">— xi —</div>
-        <Kicker>Field notes · the city you live in</Kicker>
+        <Kicker>City · where you live</Kicker>
         <div className="sec-head">
           <h2>
-            A passport for <em>somewhere</em>
+            Your <em>city</em>
           </h2>
         </div>
         <div
@@ -121,11 +132,10 @@ export function CityTab() {
 
   return (
     <div className="fade-in">
-      <div className="page-num">— xi —</div>
-      <Kicker>Field notes · the city you live in</Kicker>
+      <Kicker>City · where you live</Kicker>
       <div className="sec-head">
         <h2>
-          A passport for <em>{c.name}</em>
+          <em>{c.name}</em>
         </h2>
       </div>
 
@@ -313,42 +323,71 @@ export function CityTab() {
         </div>
       </div>
 
-      <Kicker>Rate this place · tap stars</Kicker>
+      <Kicker>Rate this place · seven dimensions</Kicker>
+      <div
+        className="margin-note"
+        style={{ marginTop: 4, marginBottom: 8, fontSize: 11.5, fontStyle: "italic" }}
+      >
+        Tap stars for your rating. Community average appears next to
+        it once at least three people have rated this city.
+      </div>
       <div style={{ marginTop: 8 }}>
-        {cats.map(({ k, label }) => (
-          <div
-            key={k}
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-              padding: "10px 0",
-              borderBottom: "0.5px solid var(--rule)",
-            }}
-          >
-            <span
+        {cats.map(({ k, label }) => {
+          const yours = ratings[k];
+          const community = communityAgg?.byDimension?.[k];
+          return (
+            <div
+              key={k}
               style={{
-                fontFamily: "var(--serif)",
-                fontStyle: "italic",
-                fontSize: 15,
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                padding: "10px 0",
+                borderBottom: "0.5px solid var(--rule)",
+                gap: 8,
               }}
             >
-              {label}
-            </span>
-            <div style={{ display: "flex", gap: 4 }}>
-              {[1, 2, 3, 4, 5].map((n) => (
+              <span
+                style={{
+                  fontFamily: "var(--serif)",
+                  fontStyle: "italic",
+                  fontSize: 15,
+                  flex: 1,
+                  minWidth: 0,
+                }}
+              >
+                {label}
+              </span>
+              {community && (
                 <span
-                  key={n}
-                  className={"star" + (n <= ratings[k] ? " on" : "")}
-                  style={{ fontSize: 18, cursor: "pointer" }}
-                  onClick={() => onStar(k, n)}
+                  style={{
+                    fontFamily: "var(--mono)",
+                    fontSize: 10,
+                    letterSpacing: "0.06em",
+                    color: "var(--ink-3)",
+                    minWidth: 70,
+                    textAlign: "right",
+                  }}
+                  title={`${community.count} ${community.count === 1 ? "rater" : "raters"}`}
                 >
-                  ✦
+                  community {community.avg.toFixed(1)}
                 </span>
-              ))}
+              )}
+              <div style={{ display: "flex", gap: 4 }}>
+                {[1, 2, 3, 4, 5].map((n) => (
+                  <span
+                    key={n}
+                    className={"star" + (n <= yours ? " on" : "")}
+                    style={{ fontSize: 18, cursor: "pointer" }}
+                    onClick={() => onStar(k, n)}
+                  >
+                    ✦
+                  </span>
+                ))}
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       <div className="card" style={{ marginTop: 16 }}>
@@ -381,7 +420,7 @@ export function CityTab() {
           </div>
           <div>
             <div className="fig-num">
-              <em>{totalRating}</em>/30
+              <em>{totalRating}</em>/{cats.length * 5}
             </div>
             <div className="kicker">YOUR RATING</div>
           </div>

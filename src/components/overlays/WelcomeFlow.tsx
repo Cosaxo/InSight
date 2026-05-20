@@ -133,7 +133,7 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
                 letterSpacing: "-0.02em",
               }}
             >
-              hello.
+              Welcome.
             </div>
             <div
               style={{
@@ -144,9 +144,10 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
                 color: "var(--ink-2)",
               }}
             >
-              InSight is a quiet place for noticing your own life — body,
-              days, people, the shape of a year. Nothing leaves your
-              device by default.
+              InSight gives you deeper insight into six things: yourself,
+              the people close to you, your city, the world, what you're
+              into, and what's around you. Your data stays on your device
+              by default.
             </div>
             <div
               className="margin-note"
@@ -171,7 +172,7 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
                 cursor: "pointer",
               }}
             >
-              begin
+              Get started
             </button>
           </>
         )}
@@ -278,7 +279,7 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
                 color: "var(--ink)",
               }}
             >
-              Pick the first quiet thing.
+              Pick where to start.
             </div>
 
             <div style={{ marginTop: 22 }}>
@@ -286,7 +287,7 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
                 onClick={() => finish("daily")}
                 style={optionStyle}
               >
-                <div>write today's report</div>
+                <div>Write today's report</div>
                 <div
                   className="margin-note"
                   style={{
@@ -296,7 +297,7 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
                     fontStyle: "normal",
                   }}
                 >
-                  one sentence is enough. The calendar fills in over time.
+                  One sentence is enough. The calendar fills in over time.
                 </div>
               </button>
 
@@ -304,7 +305,7 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
                 onClick={() => finish("test")}
                 style={optionStyle}
               >
-                <div>take the Big Five test</div>
+                <div>Take the Big Five test</div>
                 <div
                   className="margin-note"
                   style={{
@@ -314,8 +315,8 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
                     fontStyle: "normal",
                   }}
                 >
-                  five questions. Used for the personality compass in
-                  Profile and (later) for matching with nearby people.
+                  Five questions. Powers the personality compass in
+                  your Profile and the match scores in Around.
                 </div>
               </button>
 
@@ -325,7 +326,7 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
                 style={{ ...optionStyle, opacity: locating ? 0.6 : 1 }}
               >
                 <div>
-                  {locating ? "asking…" : "look around"}
+                  {locating ? "Asking…" : "See what's around"}
                 </div>
                 <div
                   className="margin-note"
@@ -358,7 +359,7 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
                 textAlign: "center",
               }}
             >
-              just drop me in →
+              skip · open the app →
             </button>
           </>
         )}

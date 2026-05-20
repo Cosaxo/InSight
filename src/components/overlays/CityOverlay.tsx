@@ -97,7 +97,7 @@ export function CityOverlay({ city, onClose }: CityOverlayProps) {
         </div>
 
         <Kicker>
-          Atlas entry{city.region ? ` · ${city.region.toLowerCase()}` : ""}
+          City{city.region ? ` · ${city.region.toLowerCase()}` : ""}
         </Kicker>
         <div
           style={{

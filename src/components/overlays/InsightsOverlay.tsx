@@ -120,7 +120,7 @@ export function InsightsOverlay({ onClose }: InsightsOverlayProps) {
           ←
         </button>
         <div className="h-title">
-          a <em>journal</em>
+          <em>Journal</em>
         </div>
         <div style={{ width: 36 }} />
       </div>

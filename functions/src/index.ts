@@ -354,6 +354,376 @@ export const scheduledAreaAggregates = onSchedule(
 );
 
 
+// ── World aggregates ────────────────────────────────────────────
+//
+// Pre-rolls a single \`aggregates_world/snapshot\` doc that the World
+// tab subscribes to. Reads every \`insight_discoverable\` doc (public
+// projection of profile data, already opt-in via SharingOverlay),
+// groups by country, computes personality + demographics + top
+// interests per country and globally, writes one doc.
+//
+// Cost-efficient by design: one Firestore write per day, reads
+// scale with discoverable-user count. At 100,000 users an
+// invocation costs cents. Client reads one doc to render the
+// entire World tab content.
+//
+// k-anonymity: per-country breakdowns appear only when the country
+// has \`WORLD_K_ANON_FLOOR\` users. Smaller countries roll up into
+// "other" globally rather than appearing identifiable.
+
+const WORLD_K_ANON_FLOOR = 20;
+
+interface CountryBreakdown {
+  userCount: number;
+  personalityAvg: number[] | null;
+  genderRatio: Record<string, number>;
+  ageBuckets: Record<string, number>;
+  topInterests: { name: string; count: number }[];
+}
+
+interface WorldSnapshot {
+  updatedAt: FirebaseFirestore.FieldValue;
+  totalUsers: number;
+  countriesRepresented: number;
+  globalPersonalityAvg: number[] | null;
+  globalTopInterests: { name: string; count: number }[];
+  byCountry: Record<string, CountryBreakdown>;
+}
+
+interface DiscoverableProjection {
+  personality?: number[];
+  gender?: string;
+  age?: number;
+  country?: string;
+  interestNames?: string[];
+}
+
+function ageBucket(age: number): string {
+  if (age < 20) return "<20";
+  if (age < 30) return "20-29";
+  if (age < 40) return "30-39";
+  if (age < 50) return "40-49";
+  return "50+";
+}
+
+function tally<T extends string>(values: T[]): Record<string, number> {
+  const counts: Record<string, number> = {};
+  let total = 0;
+  for (const v of values) {
+    if (!v) continue;
+    counts[v] = (counts[v] || 0) + 1;
+    total += 1;
+  }
+  if (total === 0) return {};
+  const out: Record<string, number> = {};
+  for (const [k, n] of Object.entries(counts)) {
+    out[k] = Math.round((n / total) * 1000) / 1000;
+  }
+  return out;
+}
+
+function averagePersonality(vectors: number[][]): number[] | null {
+  if (vectors.length === 0) return null;
+  const sums = [0, 0, 0, 0, 0];
+  for (const v of vectors) {
+    for (let i = 0; i < 5; i++) sums[i] += v[i];
+  }
+  return sums.map((s) => Math.round(s / vectors.length));
+}
+
+function topInterests(
+  names: string[][],
+  k: number,
+): { name: string; count: number }[] {
+  const counts: Record<string, { name: string; count: number }> = {};
+  for (const list of names) {
+    const seen = new Set<string>();
+    for (const raw of list) {
+      const key = raw.toLowerCase().trim();
+      if (!key || seen.has(key)) continue;
+      seen.add(key);
+      if (!counts[key]) counts[key] = { name: raw, count: 0 };
+      counts[key].count += 1;
+    }
+  }
+  return Object.values(counts)
+    .sort((a, b) => b.count - a.count)
+    .slice(0, k);
+}
+
+async function runWorldAggregation(): Promise<{
+  totalUsers: number;
+  countriesRepresented: number;
+}> {
+  const db = getFirestore();
+  logger.info("[worldAgg] starting");
+  const snap = await db.collection("insight_discoverable").get();
+  const projections: DiscoverableProjection[] = [];
+  snap.forEach((doc) => {
+    const d = doc.data();
+    const personality =
+      Array.isArray(d.personality) &&
+      (d.personality as unknown[]).length === 5 &&
+      (d.personality as unknown[]).every((n) => typeof n === "number")
+        ? (d.personality as number[])
+        : undefined;
+    const gender =
+      typeof d.gender === "string" &&
+      ["man", "woman", "non-binary", "prefer-not-to-say"].includes(d.gender)
+        ? d.gender
+        : undefined;
+    const age =
+      typeof d.age === "number" && d.age >= 10 && d.age <= 130
+        ? d.age
+        : undefined;
+    const country =
+      typeof d.country === "string" && d.country.length === 2
+        ? d.country.toUpperCase()
+        : undefined;
+    const interestNames = Array.isArray(d.interestNames)
+      ? (d.interestNames as unknown[]).filter(
+          (x): x is string => typeof x === "string",
+        )
+      : undefined;
+    projections.push({ personality, gender, age, country, interestNames });
+  });
+
+  const totalUsers = projections.length;
+  logger.info(`[worldAgg] read ${totalUsers} discoverable docs`);
+
+  // Group by country code.
+  const byCountryRaw = new Map<string, DiscoverableProjection[]>();
+  for (const p of projections) {
+    if (!p.country) continue;
+    if (!byCountryRaw.has(p.country)) byCountryRaw.set(p.country, []);
+    byCountryRaw.get(p.country)!.push(p);
+  }
+
+  const byCountry: Record<string, CountryBreakdown> = {};
+  for (const [code, group] of byCountryRaw) {
+    if (group.length < WORLD_K_ANON_FLOOR) continue;
+    const personalities = group
+      .map((g) => g.personality)
+      .filter((p): p is number[] => Array.isArray(p));
+    const genders = group
+      .map((g) => g.gender)
+      .filter((v): v is string => !!v);
+    const ages = group
+      .map((g) => g.age)
+      .filter((v): v is number => typeof v === "number")
+      .map(ageBucket);
+    const interestLists = group
+      .map((g) => g.interestNames)
+      .filter((v): v is string[] => Array.isArray(v));
+    byCountry[code] = {
+      userCount: group.length,
+      personalityAvg:
+        personalities.length >= WORLD_K_ANON_FLOOR
+          ? averagePersonality(personalities)
+          : null,
+      genderRatio: tally(genders),
+      ageBuckets: tally(ages),
+      topInterests: topInterests(interestLists, 8),
+    };
+  }
+
+  // Global aggregates (no country grouping; k-anon still enforced).
+  const globalPersonalityVectors = projections
+    .map((p) => p.personality)
+    .filter((v): v is number[] => Array.isArray(v));
+  const globalInterestLists = projections
+    .map((p) => p.interestNames)
+    .filter((v): v is string[] => Array.isArray(v));
+
+  const snapshot: WorldSnapshot = {
+    updatedAt: FieldValue.serverTimestamp(),
+    totalUsers,
+    countriesRepresented: Object.keys(byCountry).length,
+    globalPersonalityAvg:
+      globalPersonalityVectors.length >= WORLD_K_ANON_FLOOR
+        ? averagePersonality(globalPersonalityVectors)
+        : null,
+    globalTopInterests: topInterests(globalInterestLists, 12),
+    byCountry,
+  };
+
+  await db.collection("aggregates_world").doc("snapshot").set(snapshot);
+  logger.info(
+    `[worldAgg] wrote snapshot · ${totalUsers} users · ${Object.keys(byCountry).length} countries`,
+  );
+  return {
+    totalUsers,
+    countriesRepresented: Object.keys(byCountry).length,
+  };
+}
+
+export const rebuildWorldAggregates = onCall(
+  { region: "us-central1" },
+  async (request) => {
+    if (!request.auth) {
+      throw new HttpsError("unauthenticated", "must be signed in");
+    }
+    return runWorldAggregation();
+  },
+);
+
+// Scheduled daily. Cost-efficient: one full pass per day produces
+// one doc, every client reads that one doc.
+export const scheduledWorldAggregates = onSchedule(
+  { schedule: "every 24 hours", region: "us-central1" },
+  async () => {
+    await runWorldAggregation();
+  },
+);
+
+
+// ── City aggregates ─────────────────────────────────────────────
+//
+// Walks every \`insight_cityratings\` subcollection across the
+// userbase (via a collectionGroup query) and rolls up per-city
+// per-dimension averages into \`aggregates_city/{citySlug}\`.
+// Each subscriber to the City tab then reads ONE doc per city
+// they care about — far cheaper than each client fanning out.
+//
+// City names come from user input (free text) so we slugify
+// (lowercase + alnum) when bucketing. Doc IDs in the user's
+// subcollection remain the original casing for human-readable
+// localStorage backups; the aggregator does the normalization.
+
+const CITY_K_ANON_FLOOR = 3;
+const CITY_DIMENSIONS = [
+  "beauty",
+  "commute",
+  "safety",
+  "culture",
+  "nature",
+  "food",
+  "cost",
+] as const;
+
+function slugifyCity(name: string): string {
+  return name
+    .toLowerCase()
+    .normalize("NFKD")
+    .replace(/[̀-ͯ]/g, "")
+    .trim()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 80);
+}
+
+interface CityAggregate {
+  cityKey: string;
+  displayName: string;
+  updatedAt: FirebaseFirestore.FieldValue;
+  totalRaters: number;
+  byDimension: Record<string, { avg: number; count: number }>;
+}
+
+async function runCityAggregation(): Promise<{
+  citiesProcessed: number;
+  citiesAboveFloor: number;
+}> {
+  const db = getFirestore();
+  logger.info("[cityAgg] starting");
+  // collectionGroup walks every "insight_cityratings" subcollection
+  // across all users. Admin SDK bypasses Firestore rules so it
+  // can read everyone's ratings.
+  const snap = await db.collectionGroup("insight_cityratings").get();
+  logger.info(`[cityAgg] read ${snap.size} rating docs`);
+
+  // Per city slug: dimension → list of values + a display name
+  // (first city name encountered, used so the aggregate doc shows
+  // "Paris" rather than "paris").
+  const byCity = new Map<
+    string,
+    { display: string; dims: Map<string, number[]> }
+  >();
+
+  snap.forEach((doc) => {
+    const cityName = doc.id;
+    const slug = slugifyCity(cityName);
+    if (!slug) return;
+    if (!byCity.has(slug)) {
+      byCity.set(slug, { display: cityName, dims: new Map() });
+    }
+    const entry = byCity.get(slug)!;
+    const data = doc.data() as Record<string, unknown>;
+    for (const dim of CITY_DIMENSIONS) {
+      const v = data[dim];
+      if (typeof v === "number" && v >= 1 && v <= 5) {
+        if (!entry.dims.has(dim)) entry.dims.set(dim, []);
+        entry.dims.get(dim)!.push(v);
+      }
+    }
+  });
+
+  let citiesAboveFloor = 0;
+  const batch = db.batch();
+  // Cap batch size at 450 to stay under the 500-write hard limit
+  // when commits flush.
+  let inBatch = 0;
+  const commits: Array<Promise<unknown>> = [];
+
+  for (const [slug, entry] of byCity) {
+    const byDimension: Record<string, { avg: number; count: number }> = {};
+    let total = 0;
+    for (const [dim, values] of entry.dims) {
+      if (values.length < CITY_K_ANON_FLOOR) continue;
+      byDimension[dim] = {
+        avg: Math.round(
+          (values.reduce((s, v) => s + v, 0) / values.length) * 100,
+        ) / 100,
+        count: values.length,
+      };
+      total = Math.max(total, values.length);
+    }
+    if (Object.keys(byDimension).length === 0) continue;
+    citiesAboveFloor += 1;
+    const aggregate: CityAggregate = {
+      cityKey: slug,
+      displayName: entry.display,
+      updatedAt: FieldValue.serverTimestamp(),
+      totalRaters: total,
+      byDimension,
+    };
+    batch.set(db.collection("aggregates_city").doc(slug), aggregate);
+    inBatch += 1;
+    if (inBatch >= 450) {
+      commits.push(batch.commit());
+      inBatch = 0;
+    }
+  }
+  if (inBatch > 0) commits.push(batch.commit());
+  await Promise.all(commits);
+
+  logger.info(
+    `[cityAgg] processed ${byCity.size} cities, ${citiesAboveFloor} above floor`,
+  );
+  return {
+    citiesProcessed: byCity.size,
+    citiesAboveFloor,
+  };
+}
+
+export const rebuildCityAggregates = onCall(
+  { region: "us-central1" },
+  async (request) => {
+    if (!request.auth) {
+      throw new HttpsError("unauthenticated", "must be signed in");
+    }
+    return runCityAggregation();
+  },
+);
+
+export const scheduledCityAggregates = onSchedule(
+  { schedule: "every 24 hours", region: "us-central1" },
+  async () => {
+    await runCityAggregation();
+  },
+);
+
+
 // ── deleteAccount ───────────────────────────────────────────────
 //
 // Walks every doc that belongs to the calling user OR references

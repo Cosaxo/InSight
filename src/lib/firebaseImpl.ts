@@ -36,6 +36,7 @@ import {
   setDoc,
   startAt,
   updateDoc,
+  where,
   writeBatch,
   type Firestore,
 } from "firebase/firestore";
@@ -149,6 +150,19 @@ export interface RemoteProfile {
   //   "nearby" — followers + circle (people you let near you can write)
   //   "anyone" — any signed-in user, even strangers
   acceptImpressionsFrom?: "nobody" | "circle" | "nearby" | "anyone";
+  // Optional demographic fields. Used by the Interests tab to render
+  // "people who share these interests" demographics (gender ratio,
+  // age distribution, country breakdown) and by the World tab's
+  // userbase aggregates. All opt-in via sharePrefs entries.
+  gender?: "man" | "woman" | "non-binary" | "prefer-not-to-say";
+  // ISO 3166-1 alpha-2 country code. Auto-derived from geolocation
+  // on first detect (via a reverse-geocode), editable in Profile.
+  country?: string;
+  // Denormalised interest list — names only — so demographics
+  // queries can match without joining across the
+  // insight_interests subcollection for every nearby user. Kept in
+  // sync by useInterests when the interest list changes.
+  interestNames?: string[];
 }
 
 export interface MigrationPayload {
@@ -217,6 +231,10 @@ function storage(): FirebaseStorage {
 function auth(): Auth {
   if (!authInstance) throw new Error("Firebase not initialised");
   return authInstance;
+}
+
+export function getDbInstance(): Firestore {
+  return db();
 }
 
 function db(): Firestore {
@@ -689,6 +707,200 @@ export interface RemoteSkill {
   vibe?: string;
 }
 
+// New simpler shape that replaces RemoteSkill. Interests are just
+// "things you're into" — no level, hours, milestones, or
+// performative tracking. Drives the Interests tab + demographics
+// matching. Stored at insight_users/{uid}/insight_interests/{id}.
+export interface RemoteInterest {
+  id: string;
+  name: string;
+  cat: string;       // matches one of INTEREST_CATS ids
+  addedAt?: unknown; // server timestamp
+}
+
+export function subscribeInterests(
+  uid: string,
+  cb: (items: RemoteInterest[]) => void,
+): () => void {
+  return subscribeList<RemoteInterest>(uid, "insight_interests", cb);
+}
+
+export async function addInterest(uid: string, interest: RemoteInterest): Promise<void> {
+  const { id, ...rest } = interest;
+  await setDoc(subDocRef(uid, "insight_interests", id), {
+    ...rest,
+    addedAt: serverTimestamp(),
+  });
+}
+
+export async function deleteInterest(uid: string, id: string): Promise<void> {
+  await deleteDoc(subDocRef(uid, "insight_interests", id));
+}
+
+// ── Community-voted interest items ──────────────────────────────
+//
+// Top-level collection `insight_interest_items` holding things
+// users have suggested as "best media", "best figures", "best
+// literature", or "best tips" for a given interest. Bucketed by a
+// slugged interestSlug + type so different users' typed-in interest
+// names ("Distance Running" / "distance running") land in the
+// same bucket.
+//
+// Vote state lives in a subcollection `votes/{voterUid}` — presence
+// of the doc = the user upvoted. voteCount is denormalised onto the
+// parent doc and updated transactionally so the leaderboard query
+// stays a cheap orderBy. Firestore rules enforce ±1 increments + the
+// presence/absence of the vote doc so a malicious client can't fake
+// scores.
+
+export type InterestItemType = "media" | "figure" | "literature" | "tip";
+
+export interface InterestItem {
+  id: string;
+  interestSlug: string;
+  type: InterestItemType;
+  name: string;
+  description?: string;
+  voteCount: number;
+  createdBy: string;
+  createdAt?: unknown;
+}
+
+export function slugifyInterest(name: string): string {
+  return name
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 60);
+}
+
+const INTEREST_ITEMS_COLLECTION = "insight_interest_items";
+
+export function subscribeInterestItems(
+  interestSlug: string,
+  type: InterestItemType,
+  cb: (items: InterestItem[]) => void,
+): () => void {
+  const q = query(
+    collection(db(), INTEREST_ITEMS_COLLECTION),
+    where("interestSlug", "==", interestSlug),
+    where("type", "==", type),
+    orderBy("voteCount", "desc"),
+    limit(20),
+  );
+  return onSnapshot(
+    q,
+    (snap) => {
+      const items: InterestItem[] = [];
+      snap.forEach((d) => {
+        const data = d.data() as Omit<InterestItem, "id">;
+        items.push({ ...data, id: d.id });
+      });
+      cb(items);
+    },
+    (err) => console.error("[firebaseImpl] subscribeInterestItems:", err),
+  );
+}
+
+/**
+ * Subscribe to which item ids the current user has voted on, scoped
+ * to a single (slug, type) bucket. Lets the UI light up the voted
+ * arrows cheaply without a per-item read.
+ *
+ * The implementation uses a collectionGroup query against the
+ * `votes` subcollection filtered by voterUid — Firestore supports
+ * this once the collection-group index exists. We pre-filter
+ * client-side by item ids returned from subscribeInterestItems.
+ */
+export function checkUserVotes(
+  itemIds: string[],
+  voterUid: string,
+): Promise<Set<string>> {
+  if (itemIds.length === 0) return Promise.resolve(new Set());
+  return Promise.all(
+    itemIds.map((id) =>
+      getDoc(
+        doc(db(), INTEREST_ITEMS_COLLECTION, id, "votes", voterUid),
+      ).then((snap) => (snap.exists() ? id : null)).catch(() => null),
+    ),
+  ).then((arr) => new Set(arr.filter((x): x is string => x !== null)));
+}
+
+export async function addInterestItem(
+  uid: string,
+  interestSlug: string,
+  type: InterestItemType,
+  name: string,
+  description?: string,
+): Promise<string> {
+  const ref = await addDoc(collection(db(), INTEREST_ITEMS_COLLECTION), {
+    interestSlug,
+    type,
+    name: name.trim().slice(0, 120),
+    description: description ? description.trim().slice(0, 500) : null,
+    voteCount: 0,
+    createdBy: uid,
+    createdAt: serverTimestamp(),
+  });
+  return ref.id;
+}
+
+export async function deleteInterestItem(itemId: string): Promise<void> {
+  // Firestore rules restrict this to the creator. Vote docs in the
+  // subcollection are orphaned — Firestore doesn't cascade — but
+  // they're cheap to leave and the rule prevents reading orphans
+  // (the parent doc is the access gate for them).
+  await deleteDoc(doc(db(), INTEREST_ITEMS_COLLECTION, itemId));
+}
+
+/**
+ * Atomic upvote. Transaction reads the user's existing vote doc; if
+ * absent, writes both the vote doc and the +1 increment on the
+ * parent. If the user already voted, the transaction is a no-op
+ * so double-tap is safe.
+ */
+export async function upvoteInterestItem(
+  itemId: string,
+  voterUid: string,
+): Promise<void> {
+  const { runTransaction } = await import("firebase/firestore");
+  const itemRef = doc(db(), INTEREST_ITEMS_COLLECTION, itemId);
+  const voteRef = doc(itemRef, "votes", voterUid);
+  await runTransaction(db(), async (tx) => {
+    const voteSnap = await tx.get(voteRef);
+    if (voteSnap.exists()) return; // already voted
+    const itemSnap = await tx.get(itemRef);
+    if (!itemSnap.exists()) throw new Error("Item does not exist.");
+    const current =
+      typeof itemSnap.data()?.voteCount === "number"
+        ? (itemSnap.data()!.voteCount as number)
+        : 0;
+    tx.set(voteRef, { votedAt: serverTimestamp() });
+    tx.update(itemRef, { voteCount: current + 1 });
+  });
+}
+
+export async function removeInterestVote(
+  itemId: string,
+  voterUid: string,
+): Promise<void> {
+  const { runTransaction } = await import("firebase/firestore");
+  const itemRef = doc(db(), INTEREST_ITEMS_COLLECTION, itemId);
+  const voteRef = doc(itemRef, "votes", voterUid);
+  await runTransaction(db(), async (tx) => {
+    const voteSnap = await tx.get(voteRef);
+    if (!voteSnap.exists()) return;
+    const itemSnap = await tx.get(itemRef);
+    const current =
+      typeof itemSnap.data()?.voteCount === "number"
+        ? (itemSnap.data()!.voteCount as number)
+        : 0;
+    tx.delete(voteRef);
+    tx.update(itemRef, { voteCount: Math.max(0, current - 1) });
+  });
+}
+
 export function subscribeSkills(
   uid: string,
   cb: (items: RemoteSkill[]) => void,
@@ -1152,6 +1364,17 @@ export interface RemoteDiscoverable {
   bio?: string;
   role?: string;
   age?: number;
+  // Public interest list — names only, no categories. Used by the
+  // Interests tab to compute "who else has these interests" stats
+  // across followers / friends. Opt-in: only present when the user
+  // has any interests AND hasn't set the interests share tier to
+  // "nobody".
+  interestNames?: string[];
+  // Public gender + country (both opt-in, the toggles live in
+  // Sharing). Drive the Interests tab demographic chips and the
+  // World tab country distribution.
+  gender?: string;
+  country?: string;
 }
 
 // Read the `location` map regardless of which Firestore representation
@@ -1312,6 +1535,9 @@ export async function findNearbyDiscoverable(
           bio?: unknown;
           role?: unknown;
           age?: unknown;
+          interestNames?: unknown;
+          gender?: unknown;
+          country?: unknown;
         };
         const loc = readLocation(data.location);
         if (!loc) continue;
@@ -1334,6 +1560,21 @@ export async function findNearbyDiscoverable(
           typeof data.age === "number" && Number.isFinite(data.age) && data.age >= 10 && data.age <= 130
             ? Math.round(data.age)
             : undefined;
+        const interestNames = Array.isArray(data.interestNames)
+          ? (data.interestNames as unknown[])
+              .filter((x): x is string => typeof x === "string" && x.length > 0)
+              .slice(0, 64)
+          : undefined;
+        const gender =
+          typeof data.gender === "string" &&
+          ["man", "woman", "non-binary", "prefer-not-to-say"].includes(data.gender)
+            ? data.gender
+            : undefined;
+        const country =
+          typeof data.country === "string" &&
+          data.country.length === 2
+            ? data.country.toUpperCase()
+            : undefined;
         seen.set(d.id, {
           uid: d.id,
           displayName: data.displayName,
@@ -1347,6 +1588,9 @@ export async function findNearbyDiscoverable(
           bio,
           role,
           age,
+          interestNames,
+          gender,
+          country,
         });
       }
     }
@@ -1379,6 +1623,9 @@ export async function upsertDiscoverable(
     bio?: string | null;
     role?: string | null;
     age?: number | null;
+    interestNames?: string[] | null;
+    gender?: string | null;
+    country?: string | null;
   },
 ): Promise<void> {
   await setDoc(
@@ -1398,6 +1645,11 @@ export async function upsertDiscoverable(
       bio: typeof data.bio === "string" ? data.bio.slice(0, 280) : null,
       role: typeof data.role === "string" ? data.role.slice(0, 60) : null,
       age: typeof data.age === "number" ? data.age : null,
+      interestNames: Array.isArray(data.interestNames)
+        ? data.interestNames.slice(0, 64)
+        : null,
+      gender: typeof data.gender === "string" ? data.gender : null,
+      country: typeof data.country === "string" ? data.country.toUpperCase().slice(0, 2) : null,
     },
     { merge: true },
   );
@@ -1405,6 +1657,57 @@ export async function upsertDiscoverable(
 
 export async function deleteDiscoverable(uid: string): Promise<void> {
   await deleteDoc(doc(db(), DISCOVERABLE_COLLECTION, uid));
+}
+
+// Fetch the public projection of multiple users — used by the
+// Interests tab demographics card to read each circle/follower's
+// interestNames + gender + age + country + personality in one go.
+// The discoverable doc is the cheapest cross-user read available
+// (rule: any signed-in user can read).
+//
+// Returns only the public-projection fields; absent users (uids
+// that have no discoverable doc — i.e. not opted into discovery)
+// simply drop out of the result list.
+export async function fetchPublicProfiles(
+  uids: string[],
+): Promise<Array<{
+  uid: string;
+  interestNames?: string[];
+  personality?: number[];
+  gender?: string;
+  age?: number;
+  country?: string;
+}>> {
+  if (uids.length === 0) return [];
+  // Firestore has no batched getDoc — fan out in parallel. We cap
+  // at the relation list's natural ceiling (low hundreds at most).
+  const reads = uids.map((uid) =>
+    getDoc(doc(db(), DISCOVERABLE_COLLECTION, uid)).then((snap) => {
+      if (!snap.exists()) return null;
+      const data = snap.data() as Record<string, unknown>;
+      const interestNames = Array.isArray(data.interestNames)
+        ? (data.interestNames as unknown[]).filter(
+            (x): x is string => typeof x === "string",
+          )
+        : undefined;
+      const personality =
+        Array.isArray(data.personality) &&
+        (data.personality as unknown[]).length === 5 &&
+        (data.personality as unknown[]).every((n) => typeof n === "number")
+          ? (data.personality as number[])
+          : undefined;
+      return {
+        uid,
+        interestNames,
+        personality,
+        gender: typeof data.gender === "string" ? data.gender : undefined,
+        age: typeof data.age === "number" ? data.age : undefined,
+        country: typeof data.country === "string" ? data.country : undefined,
+      };
+    }).catch(() => null),
+  );
+  const results = await Promise.all(reads);
+  return results.filter((r): r is NonNullable<typeof r> => r !== null);
 }
 
 // ── Circle (cross-user daily-report read access) ────────────────

@@ -712,7 +712,7 @@ export function LifeOverlay({ onClose, onOpenDna }: LifeOverlayProps) {
           ←
         </button>
         <div className="h-title">
-          a <em>life</em>
+          <em>Life</em>
         </div>
         <div
           className="h-meta"

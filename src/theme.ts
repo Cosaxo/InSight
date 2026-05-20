@@ -57,7 +57,6 @@ export type SectionKey =
   | "around"
   | "world"
   | "city"
-  | "groups"
   | "people";
 
 export interface SectionStyle {
@@ -84,7 +83,6 @@ export const SEC: Record<SectionKey, SectionStyle> = {
   around: { ...HUE.teal, label: "Around" },
   world: { ...HUE.blue, label: "World" },
   city: { ...HUE.amber, label: "City" },
-  groups: { ...HUE.violet, label: "Groups" },
   people: { ...HUE.green, label: "People" },
 };
 

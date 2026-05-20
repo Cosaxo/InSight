@@ -534,7 +534,7 @@ export function DailyReportOverlay({
     .join("\n");
   const todayScore = dailyMoodToScore(mood);
   const verdictPrompt = [
-    "You are a quiet journal companion. The user has just logged today's daily report.",
+    "You write short, plain reflections about a user. The user has just logged today's daily report.",
     "Look at the recent pattern, then write ONE short sentence (under 18 words) noticing something — a shape, a contrast, a thread — without giving advice or being cheerful. Be honest, observational, slightly literary.",
     "",
     `Today (${isoDateToday()}): mood ${todayScore}/5${oneLine ? ` — "${oneLine}"` : ""}`,
@@ -590,7 +590,7 @@ export function DailyReportOverlay({
           ✕
         </button>
         <div className="h-title">
-          your <em>daily</em>
+          <em>Today</em>
         </div>
         <div className="h-meta">
           today

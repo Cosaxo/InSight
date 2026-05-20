@@ -88,7 +88,7 @@ export function DaysOverlay({ onClose }: DaysOverlayProps) {
           ←
         </button>
         <div className="h-title">
-          the <em>days</em>
+          <em>Days</em>
         </div>
         <div className="h-meta">
           {dreams.length}
@@ -991,7 +991,7 @@ function DreamDetail({
           ←
         </button>
         <div className="h-title">
-          a <em>dream</em>
+          <em>Dream</em>
         </div>
         <div className="h-meta">{displayDate(d.date)}</div>
       </div>
