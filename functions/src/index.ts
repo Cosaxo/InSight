@@ -577,6 +577,153 @@ export const scheduledWorldAggregates = onSchedule(
 );
 
 
+// ── City aggregates ─────────────────────────────────────────────
+//
+// Walks every \`insight_cityratings\` subcollection across the
+// userbase (via a collectionGroup query) and rolls up per-city
+// per-dimension averages into \`aggregates_city/{citySlug}\`.
+// Each subscriber to the City tab then reads ONE doc per city
+// they care about — far cheaper than each client fanning out.
+//
+// City names come from user input (free text) so we slugify
+// (lowercase + alnum) when bucketing. Doc IDs in the user's
+// subcollection remain the original casing for human-readable
+// localStorage backups; the aggregator does the normalization.
+
+const CITY_K_ANON_FLOOR = 3;
+const CITY_DIMENSIONS = [
+  "beauty",
+  "commute",
+  "safety",
+  "culture",
+  "nature",
+  "food",
+  "cost",
+] as const;
+
+function slugifyCity(name: string): string {
+  return name
+    .toLowerCase()
+    .normalize("NFKD")
+    .replace(/[̀-ͯ]/g, "")
+    .trim()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 80);
+}
+
+interface CityAggregate {
+  cityKey: string;
+  displayName: string;
+  updatedAt: FirebaseFirestore.FieldValue;
+  totalRaters: number;
+  byDimension: Record<string, { avg: number; count: number }>;
+}
+
+async function runCityAggregation(): Promise<{
+  citiesProcessed: number;
+  citiesAboveFloor: number;
+}> {
+  const db = getFirestore();
+  logger.info("[cityAgg] starting");
+  // collectionGroup walks every "insight_cityratings" subcollection
+  // across all users. Admin SDK bypasses Firestore rules so it
+  // can read everyone's ratings.
+  const snap = await db.collectionGroup("insight_cityratings").get();
+  logger.info(`[cityAgg] read ${snap.size} rating docs`);
+
+  // Per city slug: dimension → list of values + a display name
+  // (first city name encountered, used so the aggregate doc shows
+  // "Paris" rather than "paris").
+  const byCity = new Map<
+    string,
+    { display: string; dims: Map<string, number[]> }
+  >();
+
+  snap.forEach((doc) => {
+    const cityName = doc.id;
+    const slug = slugifyCity(cityName);
+    if (!slug) return;
+    if (!byCity.has(slug)) {
+      byCity.set(slug, { display: cityName, dims: new Map() });
+    }
+    const entry = byCity.get(slug)!;
+    const data = doc.data() as Record<string, unknown>;
+    for (const dim of CITY_DIMENSIONS) {
+      const v = data[dim];
+      if (typeof v === "number" && v >= 1 && v <= 5) {
+        if (!entry.dims.has(dim)) entry.dims.set(dim, []);
+        entry.dims.get(dim)!.push(v);
+      }
+    }
+  });
+
+  let citiesAboveFloor = 0;
+  const batch = db.batch();
+  // Cap batch size at 450 to stay under the 500-write hard limit
+  // when commits flush.
+  let inBatch = 0;
+  const commits: Array<Promise<unknown>> = [];
+
+  for (const [slug, entry] of byCity) {
+    const byDimension: Record<string, { avg: number; count: number }> = {};
+    let total = 0;
+    for (const [dim, values] of entry.dims) {
+      if (values.length < CITY_K_ANON_FLOOR) continue;
+      byDimension[dim] = {
+        avg: Math.round(
+          (values.reduce((s, v) => s + v, 0) / values.length) * 100,
+        ) / 100,
+        count: values.length,
+      };
+      total = Math.max(total, values.length);
+    }
+    if (Object.keys(byDimension).length === 0) continue;
+    citiesAboveFloor += 1;
+    const aggregate: CityAggregate = {
+      cityKey: slug,
+      displayName: entry.display,
+      updatedAt: FieldValue.serverTimestamp(),
+      totalRaters: total,
+      byDimension,
+    };
+    batch.set(db.collection("aggregates_city").doc(slug), aggregate);
+    inBatch += 1;
+    if (inBatch >= 450) {
+      commits.push(batch.commit());
+      inBatch = 0;
+    }
+  }
+  if (inBatch > 0) commits.push(batch.commit());
+  await Promise.all(commits);
+
+  logger.info(
+    `[cityAgg] processed ${byCity.size} cities, ${citiesAboveFloor} above floor`,
+  );
+  return {
+    citiesProcessed: byCity.size,
+    citiesAboveFloor,
+  };
+}
+
+export const rebuildCityAggregates = onCall(
+  { region: "us-central1" },
+  async (request) => {
+    if (!request.auth) {
+      throw new HttpsError("unauthenticated", "must be signed in");
+    }
+    return runCityAggregation();
+  },
+);
+
+export const scheduledCityAggregates = onSchedule(
+  { schedule: "every 24 hours", region: "us-central1" },
+  async () => {
+    await runCityAggregation();
+  },
+);
+
+
 // ── deleteAccount ───────────────────────────────────────────────
 //
 // Walks every doc that belongs to the calling user OR references

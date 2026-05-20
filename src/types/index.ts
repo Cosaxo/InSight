@@ -59,15 +59,21 @@ export interface Person {
 }
 
 export interface CityRating {
-  food?: number;
-  nightlife?: number;
-  culture?: number;
-  architecture?: number;
+  // Current 7-dimension set surfaced by the City tab.
+  beauty?: number;
+  commute?: number;
   safety?: number;
-  cost?: number;
+  culture?: number;
   nature?: number;
+  food?: number;
+  cost?: number;
+  // Legacy fields kept for backwards compatibility — old docs
+  // written under the previous schema still parse cleanly. The
+  // City-tab UI no longer renders these; the Cloud Function
+  // aggregate also ignores them.
+  nightlife?: number;
+  architecture?: number;
   transport?: number;
-  // Added in Phase 4 — the city-tab star rating UI exposes these too.
   pace?: number;
   openness?: number;
 }

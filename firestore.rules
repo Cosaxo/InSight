@@ -486,5 +486,14 @@ service cloud.firestore {
       allow read: if request.auth != null;
       allow write: if false;
     }
+
+    // City aggregates — one doc per slugged city name, holding
+    // per-dimension averages across the userbase. Written nightly
+    // by rebuildCityAggregates (admin SDK), read by City-tab
+    // subscribers. Same access pattern as the world snapshot.
+    match /aggregates_city/{cityKey} {
+      allow read: if request.auth != null;
+      allow write: if false;
+    }
   }
 }
