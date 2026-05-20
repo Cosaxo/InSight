@@ -476,5 +476,15 @@ service cloud.firestore {
       allow read: if request.auth != null;
       allow write: if false;
     }
+
+    // World aggregates — a single \`snapshot\` doc written by the
+    // rebuildWorldAggregates Cloud Function (admin SDK, bypasses
+    // rules). Holds userbase-level stats (personality by country,
+    // top interests globally, etc.). Read-only to any signed-in
+    // user; client writes forbidden.
+    match /aggregates_world/{docId} {
+      allow read: if request.auth != null;
+      allow write: if false;
+    }
   }
 }

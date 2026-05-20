@@ -1,11 +1,67 @@
 import { useMemo } from "react";
 import { Kicker } from "../shared/primitives";
+import { HBars } from "../shared/charts";
 import { useGeolocation } from "../../lib/useGeolocation";
 import { useActiveCities } from "../../lib/useActiveCities";
 import { useNearbyCities } from "../../lib/useNearbyCities";
 import { useEarthMetrics } from "../../lib/useEarthMetrics";
+import {
+  useWorldAggregates,
+  type CountryBreakdown,
+} from "../../lib/useWorldAggregates";
 import { firebaseEnabled } from "../../lib/firebase";
 import type { RemoteCity } from "../../lib/firebase";
+
+const TRAIT_LABELS = ["Open", "Conscient.", "Extra.", "Agree.", "Neuro."];
+
+// Lightweight ISO-2 → display name lookup for the most common
+// countries. Falls back to the code itself for unknowns.
+const COUNTRY_NAMES: Record<string, string> = {
+  US: "United States",
+  GB: "United Kingdom",
+  NO: "Norway",
+  SE: "Sweden",
+  DK: "Denmark",
+  FI: "Finland",
+  DE: "Germany",
+  FR: "France",
+  IT: "Italy",
+  ES: "Spain",
+  NL: "Netherlands",
+  PT: "Portugal",
+  PL: "Poland",
+  CA: "Canada",
+  AU: "Australia",
+  NZ: "New Zealand",
+  JP: "Japan",
+  KR: "South Korea",
+  CN: "China",
+  IN: "India",
+  BR: "Brazil",
+  MX: "Mexico",
+  AR: "Argentina",
+  IL: "Israel",
+  TR: "Turkey",
+  RU: "Russia",
+  UA: "Ukraine",
+  ZA: "South Africa",
+  EG: "Egypt",
+  SG: "Singapore",
+  HK: "Hong Kong",
+  TW: "Taiwan",
+  TH: "Thailand",
+  ID: "Indonesia",
+  PH: "Philippines",
+  VN: "Vietnam",
+  CH: "Switzerland",
+  AT: "Austria",
+  BE: "Belgium",
+  IE: "Ireland",
+  IS: "Iceland",
+};
+function countryName(code: string): string {
+  return COUNTRY_NAMES[code] || code;
+}
 
 // CitySeed is the lightweight contract the rest of the app uses to open
 // CityOverlay. Most fields are optional because the real Firestore docs
@@ -52,6 +108,7 @@ export function WorldTab({ onCity }: WorldTabProps) {
   const { cities: activeCities, loading: activeLoading, error: activeError } =
     useActiveCities(50);
   const { cities: nearbyCities } = useNearbyCities(position, 500);
+  const world = useWorldAggregates();
 
   // Top 6 nearby cities — only shown when the user has granted location.
   const nearbyTop = useMemo(
@@ -202,6 +259,8 @@ export function WorldTab({ onCity }: WorldTabProps) {
           <div className="kicker">NEAR YOU</div>
         </div>
       </div>
+
+      <UserbaseCard world={world} />
 
       {/* "Use my location" CTA — only when location not yet granted. */}
       {!position && firebaseEnabled && (
@@ -425,6 +484,263 @@ export function WorldTab({ onCity }: WorldTabProps) {
           );
         })}
       </div>
+    </div>
+  );
+}
+
+// ─── UserbaseCard ─────────────────────────────────────────────────
+//
+// Surfaces stats computed nightly by the rebuildWorldAggregates
+// Cloud Function. One Firestore read per session powers four
+// sub-views: total userbase + global personality average + top
+// interests globally + per-country breakdown for the largest
+// countries.
+
+function UserbaseCard({
+  world,
+}: {
+  world: ReturnType<typeof useWorldAggregates>;
+}) {
+  if (world.loading) {
+    return (
+      <div className="card" style={{ marginBottom: 14, padding: 14 }}>
+        <Kicker>Userbase · loading…</Kicker>
+      </div>
+    );
+  }
+  if (world.error) {
+    return (
+      <div className="card" style={{ marginBottom: 14, padding: 14 }}>
+        <Kicker>Userbase</Kicker>
+        <div
+          className="margin-note"
+          style={{ marginTop: 8, fontSize: 12, color: "oklch(0.55 0.16 12)" }}
+        >
+          {world.error}
+        </div>
+      </div>
+    );
+  }
+  if (!world.snapshot) {
+    return (
+      <div className="card" style={{ marginBottom: 14, padding: 14 }}>
+        <Kicker>Userbase</Kicker>
+        <div
+          className="margin-note"
+          style={{ marginTop: 8, fontSize: 12, fontStyle: "italic" }}
+        >
+          The first aggregate snapshot hasn't been written yet. Runs
+          nightly via the rebuildWorldAggregates Cloud Function;
+          stats appear here once enough users have opted into
+          discovery.
+        </div>
+      </div>
+    );
+  }
+
+  const snap = world.snapshot;
+  const sortedCountries = Object.entries(snap.byCountry)
+    .sort((a, b) => b[1].userCount - a[1].userCount)
+    .slice(0, 8);
+
+  return (
+    <>
+      <div className="card" style={{ marginBottom: 14, padding: 14 }}>
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "baseline",
+          }}
+        >
+          <Kicker>Userbase · global</Kicker>
+          <span
+            className="fig-num"
+            style={{ fontSize: 18, fontStyle: "italic" }}
+          >
+            {snap.totalUsers.toLocaleString()}
+          </span>
+        </div>
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "1fr 1fr",
+            gap: 14,
+            marginTop: 10,
+          }}
+        >
+          <div>
+            <div className="kicker">USERS · DISCOVERABLE</div>
+            <div className="fig-num" style={{ fontSize: 22, marginTop: 2 }}>
+              <em>{snap.totalUsers.toLocaleString()}</em>
+            </div>
+          </div>
+          <div>
+            <div className="kicker">COUNTRIES · ABOVE K</div>
+            <div className="fig-num" style={{ fontSize: 22, marginTop: 2 }}>
+              <em>{snap.countriesRepresented}</em>
+            </div>
+          </div>
+        </div>
+
+        {snap.globalPersonalityAvg && (
+          <div style={{ marginTop: 14 }}>
+            <Kicker>Personality · global average</Kicker>
+            <div style={{ marginTop: 8 }}>
+              <HBars
+                items={snap.globalPersonalityAvg.map((v, i) => ({
+                  label: TRAIT_LABELS[i],
+                  value: v,
+                  color: "var(--sage)",
+                }))}
+              />
+            </div>
+          </div>
+        )}
+
+        {snap.globalTopInterests.length > 0 && (
+          <div style={{ marginTop: 14 }}>
+            <Kicker>Top interests · global</Kicker>
+            <div
+              style={{ display: "flex", flexWrap: "wrap", gap: 5, marginTop: 8 }}
+            >
+              {snap.globalTopInterests.slice(0, 12).map((i) => (
+                <span
+                  key={i.name}
+                  style={{
+                    padding: "4px 10px",
+                    borderRadius: 999,
+                    fontFamily: "var(--mono)",
+                    fontSize: 10,
+                    letterSpacing: "0.06em",
+                    background: "var(--paper-2)",
+                    border: "0.5px solid var(--rule)",
+                    color: "var(--ink-2)",
+                  }}
+                >
+                  {i.name}
+                  <span
+                    style={{
+                      marginLeft: 6,
+                      color: "var(--ink-3)",
+                    }}
+                  >
+                    {i.count}
+                  </span>
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
+
+        <div
+          className="margin-note"
+          style={{ marginTop: 12, fontSize: 11, fontStyle: "italic" }}
+        >
+          Rebuilt daily. Personality + per-country breakdowns require
+          at least 20 users per cell for an honest aggregate.
+        </div>
+      </div>
+
+      {sortedCountries.length > 0 && (
+        <div className="card" style={{ marginBottom: 14, padding: 14 }}>
+          <Kicker>By country · top {sortedCountries.length}</Kicker>
+          <div
+            style={{
+              marginTop: 10,
+              display: "flex",
+              flexDirection: "column",
+              gap: 10,
+            }}
+          >
+            {sortedCountries.map(([code, cb]) => (
+              <CountryRow key={code} code={code} cb={cb} />
+            ))}
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
+function CountryRow({ code, cb }: { code: string; cb: CountryBreakdown }) {
+  const topInterest = cb.topInterests[0];
+  return (
+    <div
+      style={{
+        padding: "10px 12px",
+        background: "var(--paper-2)",
+        border: "0.5px solid var(--rule)",
+        borderRadius: 8,
+      }}
+    >
+      <div
+        style={{
+          display: "flex",
+          alignItems: "baseline",
+          justifyContent: "space-between",
+          gap: 8,
+        }}
+      >
+        <span
+          style={{
+            fontFamily: "var(--serif)",
+            fontStyle: "italic",
+            fontSize: 15,
+          }}
+        >
+          {countryName(code)}
+        </span>
+        <span
+          style={{
+            fontFamily: "var(--mono)",
+            fontSize: 10,
+            color: "var(--ink-3)",
+            letterSpacing: "0.08em",
+          }}
+        >
+          {cb.userCount.toLocaleString()} USERS
+        </span>
+      </div>
+      {cb.personalityAvg && (
+        <div style={{ marginTop: 6 }}>
+          <div
+            style={{
+              display: "flex",
+              gap: 4,
+              fontFamily: "var(--mono)",
+              fontSize: 9,
+              color: "var(--ink-3)",
+              letterSpacing: "0.06em",
+            }}
+          >
+            {cb.personalityAvg.map((v, i) => (
+              <span
+                key={i}
+                style={{
+                  flex: 1,
+                  textAlign: "center",
+                  padding: "2px 4px",
+                  background: "var(--paper)",
+                  borderRadius: 4,
+                }}
+                title={TRAIT_LABELS[i]}
+              >
+                {TRAIT_LABELS[i].slice(0, 1)} {v}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+      {topInterest && (
+        <div
+          className="margin-note"
+          style={{ marginTop: 6, fontSize: 11, fontStyle: "italic" }}
+        >
+          Top interest: <em>{topInterest.name}</em>{" "}
+          ({Math.round((topInterest.count / cb.userCount) * 100)}%)
+        </div>
+      )}
     </div>
   );
 }

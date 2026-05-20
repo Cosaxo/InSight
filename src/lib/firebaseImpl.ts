@@ -233,6 +233,10 @@ function auth(): Auth {
   return authInstance;
 }
 
+export function getDbInstance(): Firestore {
+  return db();
+}
+
 function db(): Firestore {
   if (!dbInstance) throw new Error("Firebase not initialised");
   return dbInstance;

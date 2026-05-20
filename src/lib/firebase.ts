@@ -352,6 +352,14 @@ export type {
   InterestItemType,
 } from "./firebaseImpl";
 
+// Lazy accessor for the Firestore instance. Used by hooks that need
+// to construct doc/onSnapshot refs against arbitrary paths (the
+// thin firebase.ts wrappers don't cover every collection by hand).
+export async function getDb(): Promise<import("firebase/firestore").Firestore> {
+  const m = await impl();
+  return m.getDbInstance();
+}
+
 export function subscribeWorkouts(
   uid: string,
   cb: (items: Workout[]) => void,
