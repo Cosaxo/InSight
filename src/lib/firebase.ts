@@ -279,6 +279,79 @@ export async function fetchPublicProfiles(
 
 export type { RemoteInterest } from "./firebaseImpl";
 
+// ── Community interest items (voting) ───────────────────────────
+
+export function subscribeInterestItems(
+  interestSlug: string,
+  type: import("./firebaseImpl").InterestItemType,
+  cb: (items: import("./firebaseImpl").InterestItem[]) => void,
+): () => void {
+  let cancelled = false;
+  let unsub: (() => void) | null = null;
+  impl().then((m) => {
+    if (cancelled) return;
+    unsub = m.subscribeInterestItems(interestSlug, type, cb);
+  });
+  return () => {
+    cancelled = true;
+    unsub?.();
+  };
+}
+
+export async function checkUserVotes(
+  itemIds: string[],
+  voterUid: string,
+): Promise<Set<string>> {
+  const m = await impl();
+  return m.checkUserVotes(itemIds, voterUid);
+}
+
+export async function addInterestItem(
+  uid: string,
+  interestSlug: string,
+  type: import("./firebaseImpl").InterestItemType,
+  name: string,
+  description?: string,
+): Promise<string> {
+  const m = await impl();
+  return m.addInterestItem(uid, interestSlug, type, name, description);
+}
+
+export async function deleteInterestItem(itemId: string): Promise<void> {
+  const m = await impl();
+  return m.deleteInterestItem(itemId);
+}
+
+export async function upvoteInterestItem(
+  itemId: string,
+  voterUid: string,
+): Promise<void> {
+  const m = await impl();
+  return m.upvoteInterestItem(itemId, voterUid);
+}
+
+export async function removeInterestVote(
+  itemId: string,
+  voterUid: string,
+): Promise<void> {
+  const m = await impl();
+  return m.removeInterestVote(itemId, voterUid);
+}
+
+export function slugifyInterest(name: string): string {
+  return name
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 60);
+}
+
+export type {
+  InterestItem,
+  InterestItemType,
+} from "./firebaseImpl";
+
 export function subscribeWorkouts(
   uid: string,
   cb: (items: Workout[]) => void,

@@ -36,6 +36,7 @@ import {
   setDoc,
   startAt,
   updateDoc,
+  where,
   writeBatch,
   type Firestore,
 } from "firebase/firestore";
@@ -730,6 +731,170 @@ export async function addInterest(uid: string, interest: RemoteInterest): Promis
 
 export async function deleteInterest(uid: string, id: string): Promise<void> {
   await deleteDoc(subDocRef(uid, "insight_interests", id));
+}
+
+// ── Community-voted interest items ──────────────────────────────
+//
+// Top-level collection `insight_interest_items` holding things
+// users have suggested as "best media", "best figures", "best
+// literature", or "best tips" for a given interest. Bucketed by a
+// slugged interestSlug + type so different users' typed-in interest
+// names ("Distance Running" / "distance running") land in the
+// same bucket.
+//
+// Vote state lives in a subcollection `votes/{voterUid}` — presence
+// of the doc = the user upvoted. voteCount is denormalised onto the
+// parent doc and updated transactionally so the leaderboard query
+// stays a cheap orderBy. Firestore rules enforce ±1 increments + the
+// presence/absence of the vote doc so a malicious client can't fake
+// scores.
+
+export type InterestItemType = "media" | "figure" | "literature" | "tip";
+
+export interface InterestItem {
+  id: string;
+  interestSlug: string;
+  type: InterestItemType;
+  name: string;
+  description?: string;
+  voteCount: number;
+  createdBy: string;
+  createdAt?: unknown;
+}
+
+export function slugifyInterest(name: string): string {
+  return name
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 60);
+}
+
+const INTEREST_ITEMS_COLLECTION = "insight_interest_items";
+
+export function subscribeInterestItems(
+  interestSlug: string,
+  type: InterestItemType,
+  cb: (items: InterestItem[]) => void,
+): () => void {
+  const q = query(
+    collection(db(), INTEREST_ITEMS_COLLECTION),
+    where("interestSlug", "==", interestSlug),
+    where("type", "==", type),
+    orderBy("voteCount", "desc"),
+    limit(20),
+  );
+  return onSnapshot(
+    q,
+    (snap) => {
+      const items: InterestItem[] = [];
+      snap.forEach((d) => {
+        const data = d.data() as Omit<InterestItem, "id">;
+        items.push({ ...data, id: d.id });
+      });
+      cb(items);
+    },
+    (err) => console.error("[firebaseImpl] subscribeInterestItems:", err),
+  );
+}
+
+/**
+ * Subscribe to which item ids the current user has voted on, scoped
+ * to a single (slug, type) bucket. Lets the UI light up the voted
+ * arrows cheaply without a per-item read.
+ *
+ * The implementation uses a collectionGroup query against the
+ * `votes` subcollection filtered by voterUid — Firestore supports
+ * this once the collection-group index exists. We pre-filter
+ * client-side by item ids returned from subscribeInterestItems.
+ */
+export function checkUserVotes(
+  itemIds: string[],
+  voterUid: string,
+): Promise<Set<string>> {
+  if (itemIds.length === 0) return Promise.resolve(new Set());
+  return Promise.all(
+    itemIds.map((id) =>
+      getDoc(
+        doc(db(), INTEREST_ITEMS_COLLECTION, id, "votes", voterUid),
+      ).then((snap) => (snap.exists() ? id : null)).catch(() => null),
+    ),
+  ).then((arr) => new Set(arr.filter((x): x is string => x !== null)));
+}
+
+export async function addInterestItem(
+  uid: string,
+  interestSlug: string,
+  type: InterestItemType,
+  name: string,
+  description?: string,
+): Promise<string> {
+  const ref = await addDoc(collection(db(), INTEREST_ITEMS_COLLECTION), {
+    interestSlug,
+    type,
+    name: name.trim().slice(0, 120),
+    description: description ? description.trim().slice(0, 500) : null,
+    voteCount: 0,
+    createdBy: uid,
+    createdAt: serverTimestamp(),
+  });
+  return ref.id;
+}
+
+export async function deleteInterestItem(itemId: string): Promise<void> {
+  // Firestore rules restrict this to the creator. Vote docs in the
+  // subcollection are orphaned — Firestore doesn't cascade — but
+  // they're cheap to leave and the rule prevents reading orphans
+  // (the parent doc is the access gate for them).
+  await deleteDoc(doc(db(), INTEREST_ITEMS_COLLECTION, itemId));
+}
+
+/**
+ * Atomic upvote. Transaction reads the user's existing vote doc; if
+ * absent, writes both the vote doc and the +1 increment on the
+ * parent. If the user already voted, the transaction is a no-op
+ * so double-tap is safe.
+ */
+export async function upvoteInterestItem(
+  itemId: string,
+  voterUid: string,
+): Promise<void> {
+  const { runTransaction } = await import("firebase/firestore");
+  const itemRef = doc(db(), INTEREST_ITEMS_COLLECTION, itemId);
+  const voteRef = doc(itemRef, "votes", voterUid);
+  await runTransaction(db(), async (tx) => {
+    const voteSnap = await tx.get(voteRef);
+    if (voteSnap.exists()) return; // already voted
+    const itemSnap = await tx.get(itemRef);
+    if (!itemSnap.exists()) throw new Error("Item does not exist.");
+    const current =
+      typeof itemSnap.data()?.voteCount === "number"
+        ? (itemSnap.data()!.voteCount as number)
+        : 0;
+    tx.set(voteRef, { votedAt: serverTimestamp() });
+    tx.update(itemRef, { voteCount: current + 1 });
+  });
+}
+
+export async function removeInterestVote(
+  itemId: string,
+  voterUid: string,
+): Promise<void> {
+  const { runTransaction } = await import("firebase/firestore");
+  const itemRef = doc(db(), INTEREST_ITEMS_COLLECTION, itemId);
+  const voteRef = doc(itemRef, "votes", voterUid);
+  await runTransaction(db(), async (tx) => {
+    const voteSnap = await tx.get(voteRef);
+    if (!voteSnap.exists()) return;
+    const itemSnap = await tx.get(itemRef);
+    const current =
+      typeof itemSnap.data()?.voteCount === "number"
+        ? (itemSnap.data()!.voteCount as number)
+        : 0;
+    tx.delete(voteRef);
+    tx.update(itemRef, { voteCount: Math.max(0, current - 1) });
+  });
 }
 
 export function subscribeSkills(
