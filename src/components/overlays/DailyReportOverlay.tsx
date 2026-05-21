@@ -56,15 +56,15 @@ const STORAGE = "insight.dailyReport.v1";
 const PHOTO_STORAGE = "insight.dailyReport.photo.v1";
 
 const MOOD_LABELS: { lo: number; hi: number; label: string }[] = [
-  { lo: 0, hi: 19, label: "sunken" },
-  { lo: 20, hi: 34, label: "heavy" },
-  { lo: 35, hi: 49, label: "scattered" },
-  { lo: 50, hi: 64, label: "even-keel" },
-  { lo: 65, hi: 79, label: "lifted" },
-  { lo: 80, hi: 100, label: "luminous" },
+  { lo: 0, hi: 19, label: "low" },
+  { lo: 20, hi: 34, label: "down" },
+  { lo: 35, hi: 49, label: "unsettled" },
+  { lo: 50, hi: 64, label: "steady" },
+  { lo: 65, hi: 79, label: "good" },
+  { lo: 80, hi: 100, label: "bright" },
 ];
 const labelFor = (m: number) =>
-  MOOD_LABELS.find((x) => m >= x.lo && m <= x.hi)?.label || "even-keel";
+  MOOD_LABELS.find((x) => m >= x.lo && m <= x.hi)?.label || "steady";
 
 const QUICK_WEATHER = [
   "fog · 6°",
@@ -681,9 +681,9 @@ export function DailyReportOverlay({
               letterSpacing: "0.06em",
             }}
           >
-            <span>sunken</span>
-            <span>even</span>
-            <span>luminous</span>
+            <span>low</span>
+            <span>steady</span>
+            <span>bright</span>
           </div>
         </div>
 

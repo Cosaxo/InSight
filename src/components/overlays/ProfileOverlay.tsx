@@ -752,6 +752,94 @@ function PublicProfileEditor({
 // breakdowns the Cloud Function aggregates daily.
 type GenderOption = "man" | "woman" | "non-binary" | "prefer-not-to-say";
 
+// SECTION_GROUPS — the five top-level groups the Profile overlay
+// renders. Drives both the section nav at the top + the in-page
+// anchor ids each group wraps around. Order here = order in the
+// scrollable list below.
+const SECTION_GROUPS: { id: string; label: string }[] = [
+  { id: "profile-you", label: "You" },
+  { id: "profile-personality", label: "Personality" },
+  { id: "profile-tastes", label: "Tastes" },
+  { id: "profile-data", label: "Data" },
+  { id: "profile-account", label: "Account" },
+];
+
+function scrollToSection(id: string) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+function SectionNav() {
+  return (
+    <div
+      style={{
+        position: "sticky",
+        top: 0,
+        zIndex: 5,
+        background: "var(--paper)",
+        margin: "0 -18px 14px",
+        padding: "10px 18px",
+        borderBottom: "0.5px solid var(--rule)",
+        display: "flex",
+        gap: 6,
+        overflowX: "auto",
+        WebkitOverflowScrolling: "touch",
+      }}
+    >
+      {SECTION_GROUPS.map((g) => (
+        <button
+          key={g.id}
+          type="button"
+          onClick={() => scrollToSection(g.id)}
+          style={{
+            flexShrink: 0,
+            padding: "5px 12px",
+            borderRadius: 999,
+            background: "var(--paper-2)",
+            border: "0.5px solid var(--rule)",
+            fontFamily: "var(--mono)",
+            fontSize: 10,
+            letterSpacing: "0.1em",
+            textTransform: "uppercase",
+            color: "var(--ink-2)",
+            cursor: "pointer",
+            whiteSpace: "nowrap",
+          }}
+        >
+          {g.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+// Section header rendered above each group. Distinct from the
+// inner Kickers (uppercase mono) — uses serif italic with a
+// dashed rule for visual weight.
+function SectionHeader({ id, label }: { id: string; label: string }) {
+  return (
+    <div id={id} style={{ scrollMarginTop: 70, marginBottom: 8 }}>
+      <div
+        style={{
+          fontFamily: "var(--serif)",
+          fontStyle: "italic",
+          fontSize: 22,
+          color: "var(--ink)",
+          letterSpacing: "-0.01em",
+          marginTop: 8,
+        }}
+      >
+        {label}
+      </div>
+      <hr
+        className="rule-dashed"
+        style={{ marginTop: 6, marginBottom: 14 }}
+      />
+    </div>
+  );
+}
+
 function DemographicEditor({
   gender,
   country,
@@ -1118,7 +1206,10 @@ export function ProfileOverlay({ onClose, onOpenTest }: ProfileOverlayProps) {
             {realMe.name}
           </div>
         </div>
-        <hr className="rule-dashed" />
+
+        <SectionNav />
+
+        <SectionHeader id="profile-you" label="You" />
 
         <VitalStatsEditor
           birthYear={profile.birthYear}
@@ -1142,7 +1233,7 @@ export function ProfileOverlay({ onClose, onOpenTest }: ProfileOverlayProps) {
           onSave={(patch) => void save(patch)}
         />
 
-        <hr className="rule-dashed" />
+        <SectionHeader id="profile-personality" label="Personality" />
 
         {personalityReady && meta && top ? (
           <>
@@ -1348,7 +1439,7 @@ export function ProfileOverlay({ onClose, onOpenTest }: ProfileOverlayProps) {
           />
         )}
 
-        <hr className="rule-dashed" />
+        <SectionHeader id="profile-tastes" label="Tastes" />
         <Kicker>Likes · gathered over the years</Kicker>
         <div style={{ marginTop: 8 }}>
           <ChipListEditor
@@ -1378,13 +1469,13 @@ export function ProfileOverlay({ onClose, onOpenTest }: ProfileOverlayProps) {
           onChange={(next) => void save({ heroes: next })}
         />
 
-        <hr className="rule-dashed" />
+        <SectionHeader id="profile-data" label="Data" />
         <BackupSection />
 
         <hr className="rule-dashed" />
         <TelemetrySection />
 
-        <hr className="rule-dashed" />
+        <SectionHeader id="profile-account" label="Account" />
         <AccountSection />
 
         <hr className="rule-dashed" />
