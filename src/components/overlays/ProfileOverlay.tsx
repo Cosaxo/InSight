@@ -46,7 +46,13 @@ import {
   PoliticsCompass,
 } from "./politics";
 
-type TestKind = "big5" | "political" | "values";
+type TestKind =
+  | "big5"
+  | "political"
+  | "values"
+  | "money"
+  | "chronotype"
+  | "attachment";
 
 interface ProfileOverlayProps {
   onClose: () => void;
@@ -840,6 +846,218 @@ function SectionHeader({ id, label }: { id: string; label: string }) {
   );
 }
 
+// ─── New test result cards (Money / Chronotype / Attachment) ─────
+
+function MoneyScriptsCard({
+  scripts,
+}: {
+  scripts: {
+    avoidance: number;
+    worship: number;
+    status: number;
+    vigilance: number;
+  };
+}) {
+  const rows: { key: keyof typeof scripts; label: string }[] = [
+    { key: "avoidance", label: "Avoidance" },
+    { key: "worship", label: "Worship" },
+    { key: "status", label: "Status" },
+    { key: "vigilance", label: "Vigilance" },
+  ];
+  const dominant = rows.reduce((top, r) =>
+    scripts[r.key] > scripts[top.key] ? r : top,
+  );
+  return (
+    <div className="card" style={{ marginBottom: 14 }}>
+      <Kicker>Money scripts · dominant</Kicker>
+      <div
+        style={{
+          fontFamily: "var(--serif)",
+          fontStyle: "italic",
+          fontSize: 20,
+          marginTop: 4,
+        }}
+      >
+        {dominant.label}
+      </div>
+      <div style={{ marginTop: 10, display: "flex", flexDirection: "column", gap: 6 }}>
+        {rows.map((r) => (
+          <div key={r.key}>
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                fontFamily: "var(--mono)",
+                fontSize: 10,
+                color: "var(--ink-2)",
+              }}
+            >
+              <span>{r.label.toUpperCase()}</span>
+              <span style={{ color: "var(--ink-3)" }}>{scripts[r.key]}</span>
+            </div>
+            <div
+              style={{
+                height: 3,
+                background: "var(--paper-2)",
+                border: "0.5px solid var(--rule)",
+                borderRadius: 999,
+                marginTop: 2,
+              }}
+            >
+              <div
+                style={{
+                  width: `${scripts[r.key]}%`,
+                  height: "100%",
+                  background: "var(--ochre)",
+                  borderRadius: 999,
+                }}
+              />
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function ChronotypeCard({
+  chronotype,
+}: {
+  chronotype: { score: number; category: "lark" | "intermediate" | "owl" };
+}) {
+  const label =
+    chronotype.category === "lark"
+      ? "Lark · morning person"
+      : chronotype.category === "owl"
+        ? "Owl · evening person"
+        : "Intermediate";
+  return (
+    <div className="card" style={{ marginBottom: 14 }}>
+      <Kicker>Chronotype</Kicker>
+      <div
+        style={{
+          fontFamily: "var(--serif)",
+          fontStyle: "italic",
+          fontSize: 20,
+          marginTop: 4,
+        }}
+      >
+        {label}
+      </div>
+      <div
+        style={{
+          marginTop: 10,
+          position: "relative",
+          height: 16,
+          background: "linear-gradient(90deg, oklch(0.92 0.04 60), oklch(0.55 0.10 250))",
+          border: "0.5px solid var(--rule)",
+          borderRadius: 999,
+        }}
+      >
+        <div
+          style={{
+            position: "absolute",
+            left: `calc(${chronotype.score}% - 4px)`,
+            top: -2,
+            width: 8,
+            height: 20,
+            background: "var(--ink)",
+            borderRadius: 4,
+            border: "1px solid var(--paper)",
+          }}
+        />
+      </div>
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          fontFamily: "var(--mono)",
+          fontSize: 9,
+          color: "var(--ink-3)",
+          marginTop: 4,
+          letterSpacing: "0.06em",
+        }}
+      >
+        <span>LARK</span>
+        <span>OWL</span>
+      </div>
+    </div>
+  );
+}
+
+function AttachmentCard({
+  attachment,
+}: {
+  attachment: {
+    anxiety: number;
+    avoidance: number;
+    style: "secure" | "anxious" | "avoidant" | "disorganized";
+  };
+}) {
+  const styleLabels: Record<typeof attachment.style, string> = {
+    secure: "Secure",
+    anxious: "Anxious",
+    avoidant: "Avoidant",
+    disorganized: "Disorganized",
+  };
+  return (
+    <div className="card" style={{ marginBottom: 14 }}>
+      <Kicker>Attachment style</Kicker>
+      <div
+        style={{
+          fontFamily: "var(--serif)",
+          fontStyle: "italic",
+          fontSize: 20,
+          marginTop: 4,
+        }}
+      >
+        {styleLabels[attachment.style]}
+      </div>
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "1fr 1fr",
+          gap: 10,
+          marginTop: 10,
+        }}
+      >
+        <div>
+          <div className="kicker">ANXIETY</div>
+          <div className="fig-num" style={{ fontSize: 22 }}>
+            <em>{attachment.anxiety}</em>
+            <span
+              style={{
+                fontFamily: "var(--mono)",
+                fontSize: 12,
+                color: "var(--ink-3)",
+                marginLeft: 4,
+              }}
+            >
+              /100
+            </span>
+          </div>
+        </div>
+        <div>
+          <div className="kicker">AVOIDANCE</div>
+          <div className="fig-num" style={{ fontSize: 22 }}>
+            <em>{attachment.avoidance}</em>
+            <span
+              style={{
+                fontFamily: "var(--mono)",
+                fontSize: 12,
+                color: "var(--ink-3)",
+                marginLeft: 4,
+              }}
+            >
+              /100
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function DemographicEditor({
   gender,
   country,
@@ -1435,6 +1653,39 @@ export function ProfileOverlay({ onClose, onOpenTest }: ProfileOverlayProps) {
             kind="values"
             title="Values & morals"
             copy="Eight questions on optimism, duty, hedonism, the meaning of suffering."
+            onOpenTest={onOpenTest}
+          />
+        )}
+
+        {profile.moneyScripts ? (
+          <MoneyScriptsCard scripts={profile.moneyScripts} />
+        ) : (
+          <TestEmptyState
+            kind="money"
+            title="Money scripts"
+            copy="Eight questions on how you actually relate to money. Powers FinanceTab framing."
+            onOpenTest={onOpenTest}
+          />
+        )}
+
+        {profile.chronotype ? (
+          <ChronotypeCard chronotype={profile.chronotype} />
+        ) : (
+          <TestEmptyState
+            kind="chronotype"
+            title="Chronotype"
+            copy="Four questions. Drives Body-tab workout-timing hints."
+            onOpenTest={onOpenTest}
+          />
+        )}
+
+        {profile.attachment ? (
+          <AttachmentCard attachment={profile.attachment} />
+        ) : (
+          <TestEmptyState
+            kind="attachment"
+            title="Attachment style"
+            copy="How you bond — eight questions on anxiety + avoidance. Surfaces in the People tab."
             onOpenTest={onOpenTest}
           />
         )}

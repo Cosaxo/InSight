@@ -141,11 +141,11 @@ function OverlayFallback() {
 }
 
 const TABS: { id: TabId; label: string }[] = [
-  { id: "around", label: "around" },
-  { id: "world", label: "world" },
-  { id: "city", label: "city" },
   { id: "interests", label: "interests" },
   { id: "people", label: "people" },
+  { id: "around", label: "around" },
+  { id: "city", label: "city" },
+  { id: "world", label: "world" },
 ];
 
 const TWEAK_DEFAULTS = {
@@ -375,7 +375,7 @@ function AppShell() {
   // When set, TestOverlay opens jumped directly into that test kind
   // (used by ProfileOverlay's "take the test" empty-state CTAs).
   const [testInitialKind, setTestInitialKind] = useState<
-    "big5" | "political" | "values" | null
+    "big5" | "political" | "values" | "money" | "chronotype" | "attachment" | null
   >(null);
   const [showSharing, setShowSharing] = useState(false);
   const [showDna, setShowDna] = useState(false);
