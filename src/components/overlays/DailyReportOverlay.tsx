@@ -1,8 +1,11 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Camera, CameraResultType, CameraSource } from "@capacitor/camera";
 import { Capacitor } from "@capacitor/core";
 import { useDailyReport } from "../../lib/useDailyReport";
 import { useMeals } from "../../lib/useMeals";
+import { useGeolocation } from "../../lib/useGeolocation";
+import { useWeather } from "../../lib/useWeather";
+import { useLLM } from "../../lib/useLLM";
 import type { RemoteDailyReport } from "../../types";
 import {
   dailyMoodToScore,
@@ -499,6 +502,69 @@ export function DailyReportOverlay({
   const [mood, setMood] = useState<number>(existing?.mood ?? 62);
   const [oneLine, setOneLine] = useState<string>(existing?.one_line ?? "");
   const [weather, setWeather] = useState<string>(existing?.weather ?? "");
+  // Track whether the user has typed anything into the weather
+  // field yet. If they haven't, the live-weather effect autofills;
+  // once they edit it we leave it alone.
+  const [weatherTouched, setWeatherTouched] = useState<boolean>(
+    !!existing?.weather,
+  );
+
+  // Live weather → auto-populate the weather string the first time
+  // it's available, unless the user already typed something. Format
+  // matches the QUICK_WEATHER pills ("rain · 9°") so the UI's
+  // affordances stay aligned.
+  const { position } = useGeolocation();
+  const { data: live } = useWeather(position);
+  useEffect(() => {
+    if (weatherTouched || !live) return;
+    const label = (live.weatherLabel || "").split(/[,(]/)[0].trim();
+    const tempPart = `${Math.round(live.temp)}°`;
+    const composed = label ? `${label} · ${tempPart}` : tempPart;
+    setWeather(composed);
+    // weatherTouched stays false until the user manually edits the
+    // input, so subsequent weather refreshes can still update.
+  }, [live, weatherTouched]);
+
+  // Auto-mood: ask Gemma to read the one-line and suggest a
+  // 0–100 mood. Stays hidden until the on-device LLM is available
+  // (native only) AND the user has typed ≥ 12 characters of
+  // one-line. Always non-destructive — user can drag the slider
+  // away after the suggestion lands.
+  const llm = useLLM();
+  const [suggestingMood, setSuggestingMood] = useState(false);
+  const [moodError, setMoodError] = useState<string | null>(null);
+
+  const suggestMood = async () => {
+    const text = oneLine.trim();
+    if (text.length < 12 || suggestingMood) return;
+    setSuggestingMood(true);
+    setMoodError(null);
+    try {
+      if (!llm.ready) await llm.ensure();
+      const prompt = [
+        "Read the user's one-sentence note about their day and respond with a SINGLE integer 0-100 representing the mood it conveys.",
+        "0 = lowest (despair, grief, exhaustion). 50 = neutral / steady. 100 = highest (joyous, bright, alive).",
+        "No prose, no explanation — just the integer.",
+        "",
+        `Note: ${text}`,
+        "",
+        "Mood:",
+      ].join("\n");
+      const raw = await llm.generate(prompt);
+      const match = raw.match(/\d{1,3}/);
+      if (!match) {
+        setMoodError("Couldn't read a number back from the AI. Try a clearer sentence.");
+        return;
+      }
+      const n = Math.max(0, Math.min(100, Number(match[0])));
+      setMood(n);
+    } catch (err) {
+      console.error("[DailyReport] mood suggest failed:", err);
+      setMoodError("Estimate failed. Drag the slider yourself.");
+    } finally {
+      setSuggestingMood(false);
+    }
+  };
 
   const defaultShare: Record<string, boolean> = {
     photo: true,
@@ -685,6 +751,72 @@ export function DailyReportOverlay({
             <span>steady</span>
             <span>bright</span>
           </div>
+
+          {/* Auto-mood: only shown when the on-device LLM is
+              available (native only) AND the user has typed a
+              reasonable one-line. Non-destructive — sets the slider
+              value, user can override at any time. */}
+          {llm.available && (
+            <div style={{ marginTop: 10 }}>
+              <button
+                type="button"
+                onClick={() => void suggestMood()}
+                disabled={
+                  oneLine.trim().length < 12 ||
+                  suggestingMood ||
+                  llm.downloading
+                }
+                style={{
+                  padding: "6px 12px",
+                  background:
+                    oneLine.trim().length >= 12 && !suggestingMood
+                      ? "var(--paper-2)"
+                      : "var(--paper-3)",
+                  border: "0.5px solid var(--rule)",
+                  borderRadius: 999,
+                  fontFamily: "var(--mono)",
+                  fontSize: 10,
+                  letterSpacing: "0.1em",
+                  color:
+                    oneLine.trim().length >= 12 && !suggestingMood
+                      ? "var(--ink)"
+                      : "var(--ink-3)",
+                  cursor:
+                    oneLine.trim().length >= 12 && !suggestingMood
+                      ? "pointer"
+                      : "default",
+                }}
+              >
+                {suggestingMood
+                  ? "READING…"
+                  : llm.downloading
+                    ? `DOWNLOADING AI · ${llm.downloadPct}%`
+                    : llm.ready
+                      ? "✨ SUGGEST FROM TEXT"
+                      : "✨ SUGGEST · DOWNLOADS ~2.5 GB"}
+              </button>
+              {moodError && (
+                <div
+                  className="margin-note"
+                  style={{
+                    marginTop: 6,
+                    fontSize: 11,
+                    color: "oklch(0.55 0.16 12)",
+                  }}
+                >
+                  {moodError}
+                </div>
+              )}
+              {!moodError && oneLine.trim().length < 12 && (
+                <div
+                  className="margin-note"
+                  style={{ marginTop: 6, fontSize: 10, fontStyle: "italic" }}
+                >
+                  type a sentence first ({12 - oneLine.trim().length} more)
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         <div className="card" style={{ padding: 14, marginTop: 10 }}>
@@ -722,10 +854,21 @@ export function DailyReportOverlay({
           />
           <Chips
             value={weather}
-            onChange={setWeather}
+            onChange={(v) => {
+              setWeather(v);
+              setWeatherTouched(true);
+            }}
             options={QUICK_WEATHER}
             placeholder="rain · 9° · grey"
           />
+          {!weatherTouched && weather && (
+            <div
+              className="margin-note"
+              style={{ marginTop: 4, fontSize: 10, fontStyle: "italic" }}
+            >
+              auto-filled from live weather. tap to edit.
+            </div>
+          )}
         </div>
 
         {nutrition && (
