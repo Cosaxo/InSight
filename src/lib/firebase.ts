@@ -884,6 +884,7 @@ export async function upsertDiscoverable(
     displayName?: string;
     photoColor?: string;
     personality?: number[];
+    political?: { econ: number; social: number } | null;
     bio?: string | null;
     role?: string | null;
     age?: number | null;

@@ -364,6 +364,12 @@ service cloud.firestore {
           || (d.personality is list && d.personality.size() == 5)
         )
         && (
+          !('political' in d) || d.political == null
+          || (d.political is map
+              && d.political.econ is number
+              && d.political.social is number)
+        )
+        && (
           !('bio' in d) || d.bio == null
           || (d.bio is string && d.bio.size() <= 280)
         )

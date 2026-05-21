@@ -28,6 +28,10 @@ export interface NearbyPerson {
   // hasn't taken the Big Five test, or the discovered user hasn't,
   // or both. PersonRow renders "—" in this case.
   match: number | null;
+  // Political alignment 0..100 (100 = identical compass, 0 =
+  // maximally opposed). null when either side hasn't shared the
+  // political compass. Rendered as a small line under the match%.
+  politicalAlign?: number | null;
   hue: number;
   role: string;
   interests: { t: string; c: string }[];
@@ -107,6 +111,20 @@ function PersonRow({ p, onClick }: { p: NearbyPerson; onClick: () => void }) {
           <em>{p.match == null ? "—" : p.match}</em>
         </div>
         <div style={{ fontFamily: "var(--mono)", fontSize: 9, letterSpacing: "0.12em", color: "var(--ink-3)", textTransform: "uppercase" }}>match</div>
+        {p.politicalAlign != null && (
+          <div
+            style={{
+              fontFamily: "var(--mono)",
+              fontSize: 9,
+              letterSpacing: "0.06em",
+              color: "var(--ink-3)",
+              marginTop: 4,
+            }}
+            title="political compass alignment"
+          >
+            ✦ {p.politicalAlign}
+          </div>
+        )}
       </div>
     </div>
   );

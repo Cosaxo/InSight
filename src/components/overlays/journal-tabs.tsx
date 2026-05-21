@@ -735,6 +735,7 @@ function MiniStatRow({ items }: { items: StatItem[] }) {
 
 export function FitnessTab() {
   const { items, add, remove } = useWorkouts();
+  const { profile } = useProfile();
   const [adding, setAdding] = useState(false);
 
   // Workouts in the last 7 ISO days, sorted newest first for the
@@ -881,6 +882,23 @@ export function FitnessTab() {
           >
             WHO baseline is 150 min/week — this is the per-day slice.
           </div>
+          {profile.chronotype && (
+            <div
+              className="margin-note"
+              style={{
+                marginTop: 6,
+                fontSize: 11,
+                fontStyle: "italic",
+                color: "var(--ink-2)",
+              }}
+            >
+              {profile.chronotype.category === "lark"
+                ? "You're a lark — train before 11 am for the best output."
+                : profile.chronotype.category === "owl"
+                  ? "You're an owl — late afternoon onward is your strongest window."
+                  : "Intermediate chronotype — most windows work for you."}
+            </div>
+          )}
         </div>
       </div>
 
@@ -1680,12 +1698,14 @@ export function FinanceTab() {
           className="margin-note"
           style={{ marginTop: 6, fontSize: 12, lineHeight: 1.5 }}
         >
-          "Balance, automatic categorisation, and full transaction
+          Balance, automatic categorisation, and full transaction
           history land here once a bank link (Plaid, Tink, GoCardless)
           is connected. Until then this tab only knows what you log
-          by hand."
+          by hand.
         </div>
       </div>
+
+      {profile.moneyScripts && <MoneyScriptHint scripts={profile.moneyScripts} />}
 
       <MiniStatRow
         items={[
@@ -1761,6 +1781,59 @@ export function FinanceTab() {
           }}
         />
       )}
+    </div>
+  );
+}
+
+// MoneyScriptHint — small framing card that adapts the existing
+// FinanceTab to the user's dominant money script. Surfaces a
+// one-line behavioural read above the per-month spending stats so
+// the user sees their own pattern in context.
+function MoneyScriptHint({
+  scripts,
+}: {
+  scripts: {
+    avoidance: number;
+    worship: number;
+    status: number;
+    vigilance: number;
+  };
+}) {
+  const ranked = (
+    [
+      ["avoidance", scripts.avoidance],
+      ["worship", scripts.worship],
+      ["status", scripts.status],
+      ["vigilance", scripts.vigilance],
+    ] as [string, number][]
+  ).sort((a, b) => b[1] - a[1]);
+  const dominant = ranked[0]!;
+  const blurbs: Record<string, string> = {
+    avoidance:
+      "Avoidance dominant — you sidestep money decisions. Logging by hand counts as facing them.",
+    worship:
+      "Worship dominant — more money = more happiness in your script. Watch for upward drift.",
+    status:
+      "Status dominant — spending reflects who you want to be. Useful, but expensive.",
+    vigilance:
+      "Vigilance dominant — careful saver, slow to splurge. Don't forget to spend on what matters.",
+  };
+  return (
+    <div
+      className="card"
+      style={{
+        marginBottom: 12,
+        padding: 12,
+        borderLeft: "3px solid var(--ochre)",
+      }}
+    >
+      <Kicker>money script · {dominant[0]}</Kicker>
+      <div
+        className="margin-note"
+        style={{ marginTop: 6, fontSize: 12, fontStyle: "italic" }}
+      >
+        {blurbs[dominant[0]!]}
+      </div>
     </div>
   );
 }

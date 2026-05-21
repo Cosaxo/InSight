@@ -82,7 +82,13 @@ export function useNearbyPeople(
     Array.isArray(profile.personality) && profile.personality.length === 5
       ? profile.personality
       : undefined;
-  const ownKey = ownPersonality ? ownPersonality.join(",") : "none";
+  // Viewer's political position (if taken). Powers the small
+  // political-distance hint on PersonRow when both sides shared.
+  const ownPolitical = profile.political;
+  const ownKey = [
+    ownPersonality ? ownPersonality.join(",") : "none",
+    ownPolitical ? `${ownPolitical.econ},${ownPolitical.social}` : "none",
+  ].join("|");
 
   const fetchOnce = useCallback(async () => {
     if (!firebaseEnabled || !position) {
@@ -110,6 +116,17 @@ export function useNearbyPeople(
       // taken the test, rendered as "—").
       const mapped: NearbyPerson[] = remote.map((r) => {
         const chrome = chromeFor(r.uid, r.displayName);
+        // Political distance: Euclidean distance in the 2-axis
+        // (-100..+100) compass space → normalised to a 0..100
+        // "alignment" (100 = identical, 0 = maximally opposed).
+        let politicalAlign: number | null = null;
+        if (ownPolitical && r.political) {
+          const dx = ownPolitical.econ - r.political.econ;
+          const dy = ownPolitical.social - r.political.social;
+          const dist = Math.sqrt(dx * dx + dy * dy); // 0..~283
+          const max = Math.sqrt(2) * 200;
+          politicalAlign = Math.round((1 - dist / max) * 100);
+        }
         return {
           id: r.uid,
           name: chrome.name,
@@ -117,6 +134,7 @@ export function useNearbyPeople(
           age: r.age ?? 0,
           dist: formatDistance(r.distanceKm),
           match: big5Match(ownPersonality, r.personality),
+          politicalAlign,
           hue: chrome.hue,
           role: r.role ?? "",
           interests: [],

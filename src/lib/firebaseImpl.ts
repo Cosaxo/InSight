@@ -1357,6 +1357,10 @@ export interface RemoteDiscoverable {
   // it from their profile). Used by useNearbyPeople to compute a
   // real match% via cosine similarity instead of the placeholder.
   personality?: number[];
+  // 2-element political position { econ, social } in -100..+100.
+  // Opt-in via sharePrefs.political. Lets the Around tab compute
+  // a small political-distance hint alongside the Big Five match%.
+  political?: { econ: number; social: number };
   // Public bio + role + age fields. All optional, all sourced from
   // the user's profile, all controlled by the per-field sharing
   // toggles in SharingOverlay. Missing fields render as empty in
@@ -1532,6 +1536,7 @@ export async function findNearbyDiscoverable(
           location?: unknown;
           lastSeen?: number;
           personality?: unknown;
+          political?: unknown;
           bio?: unknown;
           role?: unknown;
           age?: unknown;
@@ -1549,6 +1554,17 @@ export async function findNearbyDiscoverable(
           personalityRaw.length === 5 &&
           personalityRaw.every((n) => typeof n === "number")
             ? (personalityRaw as number[])
+            : undefined;
+        const politicalRaw = data.political;
+        const political =
+          politicalRaw &&
+          typeof politicalRaw === "object" &&
+          typeof (politicalRaw as { econ?: unknown }).econ === "number" &&
+          typeof (politicalRaw as { social?: unknown }).social === "number"
+            ? {
+                econ: (politicalRaw as { econ: number }).econ,
+                social: (politicalRaw as { social: number }).social,
+              }
             : undefined;
         const bio = typeof data.bio === "string" && data.bio.length > 0
           ? data.bio.slice(0, 280)
@@ -1585,6 +1601,7 @@ export async function findNearbyDiscoverable(
           distanceKm: dKm,
           lastSeen: data.lastSeen,
           personality,
+          political,
           bio,
           role,
           age,
@@ -1618,6 +1635,7 @@ export async function upsertDiscoverable(
     // merge clears a previously-written value if the user removes
     // their personality test.
     personality?: number[];
+    political?: { econ: number; social: number } | null;
     // Optional public-profile fields, each opt-in via SharingOverlay
     // toggles. Pass `null` to clear a previously-set value.
     bio?: string | null;
@@ -1641,6 +1659,12 @@ export async function upsertDiscoverable(
       personality:
         data.personality && data.personality.length === 5
           ? data.personality
+          : null,
+      political:
+        data.political &&
+        typeof data.political.econ === "number" &&
+        typeof data.political.social === "number"
+          ? { econ: data.political.econ, social: data.political.social }
           : null,
       bio: typeof data.bio === "string" ? data.bio.slice(0, 280) : null,
       role: typeof data.role === "string" ? data.role.slice(0, 60) : null,
