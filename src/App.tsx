@@ -217,6 +217,30 @@ function toOverlayPerson(p: AnyPerson): PersonForOverlay {
       "morals" in p && p.morals
         ? (p.morals as Record<string, number>)
         : undefined,
+    age: "age" in p && typeof p.age === "number" && p.age > 0 ? p.age : undefined,
+    country: "country" in p ? (p as NearbyPerson).country : undefined,
+    gender: "gender" in p ? (p as NearbyPerson).gender : undefined,
+    political:
+      "political" in p && (p as NearbyPerson).political
+        ? (p as NearbyPerson).political
+        : undefined,
+    interestNames:
+      "interestNames" in p && Array.isArray((p as NearbyPerson).interestNames)
+        ? (p as NearbyPerson).interestNames
+        : undefined,
+    blockedImpressionTraits:
+      "blockedImpressionTraits" in p && Array.isArray((p as NearbyPerson).blockedImpressionTraits)
+        ? (p as NearbyPerson).blockedImpressionTraits
+        : undefined,
+    shareImpressionsAbout:
+      "shareImpressionsAbout" in p &&
+      typeof (p as NearbyPerson).shareImpressionsAbout === "string"
+        ? ((p as NearbyPerson).shareImpressionsAbout as
+            | "nobody"
+            | "circle"
+            | "nearby"
+            | "anyone")
+        : undefined,
     linkedUid:
       "linkedUid" in p && typeof p.linkedUid === "string"
         ? p.linkedUid

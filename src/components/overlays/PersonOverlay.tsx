@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "../../lib/useAuth";
-import { useProfile } from "../../lib/useProfile";
+import { big5Match, useProfile, type ProfileExt } from "../../lib/useProfile";
 import { useRelations } from "../../lib/useRelations";
 import { useMyRelations } from "../../lib/useMyRelations";
 import {
@@ -20,6 +20,7 @@ import {
 import type { InboundImpression } from "../../types";
 import { Av, Kicker } from "../shared/primitives";
 import { RadarChart } from "../shared/charts";
+import { usePersonImpressions } from "../../lib/usePersonImpressions";
 
 export interface PersonForOverlay {
   // When this person is one of the user's relations, `id` is the
@@ -44,6 +45,25 @@ export interface PersonForOverlay {
   // personality. The user rates them via the editors below.
   politicalAxes?: Record<string, number>;
   morals?: Record<string, number>;
+  // Public profile fields the target opted into sharing via
+  // SharingOverlay. Powers the new SimilarityCard + extended
+  // profile-details rendering. All optional.
+  age?: number;
+  country?: string;
+  gender?: string;
+  political?: { econ: number; social: number };
+  // Interest names denormalised from the target's discoverable
+  // doc. Used by SimilarityCard to compute shared interests.
+  interestNames?: string[];
+  // Trait words the target has removed from the impression picker.
+  // The send-impression UI filters these out before rendering so
+  // the sender never sees an option the target doesn't want said
+  // about them. Stored lowercased.
+  blockedImpressionTraits?: string[];
+  // Whether the target shares the impressions written to them on
+  // their profile, and at what tier. Used to gate the
+  // "Impressions of X" section.
+  shareImpressionsAbout?: "nobody" | "circle" | "nearby" | "anyone";
   // When this person is a real InSight user the viewer can leave
   // them an anonymous traits-only impression. The send flow only
   // shows up when both:
@@ -53,6 +73,290 @@ export interface PersonForOverlay {
 }
 
 const BIG5_LABELS = ["Open", "Cons.", "Extra.", "Agree.", "Stable"];
+
+// Country code → display name for the public-details card.
+// Same table as WorldTab; kept inline here so PersonOverlay doesn't
+// depend on tab files. Falls back to the raw code for unknowns.
+const COUNTRY_NAMES: Record<string, string> = {
+  US: "United States", GB: "United Kingdom", NO: "Norway", SE: "Sweden",
+  DK: "Denmark", FI: "Finland", DE: "Germany", FR: "France", IT: "Italy",
+  ES: "Spain", NL: "Netherlands", PT: "Portugal", PL: "Poland",
+  CA: "Canada", AU: "Australia", NZ: "New Zealand", JP: "Japan",
+  KR: "South Korea", CN: "China", IN: "India", BR: "Brazil",
+  MX: "Mexico", AR: "Argentina", IL: "Israel", TR: "Turkey",
+  RU: "Russia", UA: "Ukraine", ZA: "South Africa", EG: "Egypt",
+  SG: "Singapore", HK: "Hong Kong", TW: "Taiwan", TH: "Thailand",
+  ID: "Indonesia", PH: "Philippines", VN: "Vietnam", CH: "Switzerland",
+  AT: "Austria", BE: "Belgium", IE: "Ireland", IS: "Iceland",
+};
+const countryName = (code: string) => COUNTRY_NAMES[code] || code;
+
+// SimilarityCard — top-of-overlay snapshot of how close the viewer
+// is to the target across multiple dimensions. Composes:
+//   - Big Five personality similarity (cosine; null when either
+//     side hasn't taken the test)
+//   - Political compass alignment (Euclidean over -100..+100;
+//     null when either side hasn't shared)
+//   - Shared interests count + the actual matched names
+//   - Attachment-style compatibility one-liner (viewer only —
+//     we don't have cross-user attachment data publicly)
+//
+// All sub-rows render only when computable. The card hides
+// entirely when no row has data — keeps the overlay quiet when
+// matching a stranger.
+function SimilarityCard({
+  viewer,
+  target,
+}: {
+  viewer: ProfileExt;
+  target: PersonForOverlay;
+}) {
+  const personality = big5Match(viewer.personality, target.personality);
+  let politicalAlign: number | null = null;
+  if (viewer.political && target.political) {
+    const dx = viewer.political.econ - target.political.econ;
+    const dy = viewer.political.social - target.political.social;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    const max = Math.sqrt(2) * 200;
+    politicalAlign = Math.round((1 - dist / max) * 100);
+  }
+  const yourInterests = Array.isArray(viewer.interestNames)
+    ? viewer.interestNames
+    : [];
+  const theirInterests = target.interestNames || [];
+  const yourSet = new Set(yourInterests.map((n) => n.toLowerCase()));
+  const shared = theirInterests.filter((n) =>
+    yourSet.has(n.toLowerCase()),
+  );
+
+  // Render attachment commentary using viewer-only data — we
+  // don't have the target's attachment style publicly. The line
+  // describes the lens the viewer brings, not a compatibility
+  // verdict.
+  let attachmentNote: string | null = null;
+  if (viewer.attachment) {
+    const style = viewer.attachment.style;
+    attachmentNote =
+      style === "secure"
+        ? "Your secure lens reads other people's signals fairly cleanly."
+        : style === "anxious"
+          ? "Your anxious lens may read this person as more distant than they are."
+          : style === "avoidant"
+            ? "Your avoidant lens may underweight what this person is offering."
+            : "Your disorganized lens makes closeness pull and push in this relationship.";
+  }
+
+  const hasAnyRow =
+    personality != null ||
+    politicalAlign != null ||
+    shared.length > 0 ||
+    attachmentNote != null;
+  if (!hasAnyRow) return null;
+
+  return (
+    <div
+      className="card"
+      style={{
+        marginBottom: 14,
+        padding: 14,
+        borderLeft: "3px solid var(--sage)",
+      }}
+    >
+      <Kicker>You + {target.name.split(" ")[0]} · how alike</Kicker>
+      <div
+        style={{
+          display: "flex",
+          gap: 10,
+          marginTop: 10,
+          flexWrap: "wrap",
+        }}
+      >
+        {personality != null && (
+          <SimilarityChip label="personality" value={`${personality}%`} />
+        )}
+        {politicalAlign != null && (
+          <SimilarityChip label="political" value={`${politicalAlign}%`} />
+        )}
+        {shared.length > 0 && (
+          <SimilarityChip label="shared interests" value={String(shared.length)} />
+        )}
+      </div>
+
+      {shared.length > 0 && (
+        <div
+          style={{
+            marginTop: 10,
+            display: "flex",
+            flexWrap: "wrap",
+            gap: 4,
+          }}
+        >
+          {shared.slice(0, 8).map((name) => (
+            <span
+              key={name}
+              style={{
+                fontFamily: "var(--mono)",
+                fontSize: 10,
+                letterSpacing: "0.06em",
+                padding: "3px 8px",
+                background: "var(--paper-2)",
+                border: "0.5px solid var(--rule)",
+                borderRadius: 999,
+                color: "var(--ink-2)",
+              }}
+            >
+              {name}
+            </span>
+          ))}
+        </div>
+      )}
+
+      {attachmentNote && (
+        <div
+          className="margin-note"
+          style={{ marginTop: 10, fontSize: 11, fontStyle: "italic" }}
+        >
+          {attachmentNote}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function SimilarityChip({ label, value }: { label: string; value: string }) {
+  return (
+    <div
+      style={{
+        flex: "1 1 0",
+        minWidth: 90,
+        padding: "8px 10px",
+        background: "var(--paper-2)",
+        border: "0.5px solid var(--rule)",
+        borderRadius: 10,
+      }}
+    >
+      <div
+        style={{
+          fontFamily: "var(--mono)",
+          fontSize: 9,
+          letterSpacing: "0.1em",
+          textTransform: "uppercase",
+          color: "var(--ink-3)",
+        }}
+      >
+        {label}
+      </div>
+      <div className="fig-num" style={{ fontSize: 20, marginTop: 2 }}>
+        <em>{value}</em>
+      </div>
+    </div>
+  );
+}
+
+// PublicDetailsCard — surfaces the public profile fields the
+// target chose to share (role, age, country, gender). Hidden when
+// the target has shared nothing publicly.
+function PublicDetailsCard({ target }: { target: PersonForOverlay }) {
+  const rows: { label: string; value: string }[] = [];
+  if (target.role) rows.push({ label: "role", value: target.role });
+  if (target.age && target.age > 0)
+    rows.push({ label: "age", value: String(target.age) });
+  if (target.country)
+    rows.push({ label: "country", value: countryName(target.country) });
+  if (target.gender)
+    rows.push({
+      label: "gender",
+      value: target.gender === "prefer-not-to-say" ? "—" : target.gender,
+    });
+  if (rows.length === 0) return null;
+  return (
+    <div className="card" style={{ marginBottom: 14, padding: 14 }}>
+      <Kicker>About {target.name.split(" ")[0]}</Kicker>
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "1fr 1fr",
+          gap: 10,
+          marginTop: 10,
+        }}
+      >
+        {rows.map((r) => (
+          <div key={r.label}>
+            <div className="kicker">{r.label.toUpperCase()}</div>
+            <div
+              style={{
+                fontFamily: "var(--serif)",
+                fontStyle: "italic",
+                fontSize: 16,
+                marginTop: 2,
+              }}
+            >
+              {r.value}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ImpressionsOfPersonCard — surfaces aggregated traits written for
+// this person, when they've opted into sharing them. Senders stay
+// anonymous (we never expose senderUid). Hidden when the target
+// hasn't opted in OR when the Firestore rule denies the read.
+function ImpressionsOfPersonCard({
+  target,
+}: {
+  target: PersonForOverlay;
+}) {
+  const { aggregates, loading } = usePersonImpressions(target.linkedUid);
+  // No share-tier on the target = card hidden. Belt-and-braces;
+  // the rule layer already gates the read.
+  if (!target.linkedUid) return null;
+  if (target.shareImpressionsAbout === "nobody") return null;
+  if (loading) return null;
+  if (!aggregates || aggregates.length === 0) return null;
+  const top = aggregates.slice(0, 12);
+  return (
+    <div
+      className="card"
+      style={{
+        marginBottom: 14,
+        padding: 14,
+        borderLeft: "3px solid var(--accent)",
+      }}
+    >
+      <Kicker>Impressions of {target.name.split(" ")[0]} · anonymous</Kicker>
+      <div
+        className="margin-note"
+        style={{ marginTop: 6, marginBottom: 10, fontSize: 11.5, fontStyle: "italic" }}
+      >
+        Traits others have left for {target.name.split(" ")[0]}.
+        Senders are never named.
+      </div>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+        {top.map((a) => (
+          <span
+            key={a.trait}
+            style={{
+              padding: "4px 10px",
+              borderRadius: 999,
+              fontFamily: "var(--mono)",
+              fontSize: 10,
+              letterSpacing: "0.06em",
+              background: "var(--paper-2)",
+              border: "0.5px solid var(--rule)",
+              color: "var(--ink-2)",
+            }}
+          >
+            {a.trait}
+            <span style={{ marginLeft: 6, color: "var(--ink-3)" }}>{a.count}</span>
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 interface PersonOverlayProps {
   p: PersonForOverlay;
@@ -200,6 +504,12 @@ export function PersonOverlay({ p, onClose }: PersonOverlayProps) {
         </div>
 
         <hr className="rule-dashed" />
+
+        <SimilarityCard viewer={profile} target={p} />
+
+        <PublicDetailsCard target={p} />
+
+        <ImpressionsOfPersonCard target={p} />
 
         {!personalityReady ? (
           <div className="card" style={{ marginBottom: 14 }}>
@@ -388,6 +698,7 @@ export function PersonOverlay({ p, onClose }: PersonOverlayProps) {
             onSend={sendImpression}
             sending={sending}
             sentFlash={sentFlash}
+            blockedTraits={p.blockedImpressionTraits}
           />
         )}
 
@@ -966,11 +1277,15 @@ function SendImpressionInline({
   onSend,
   sending,
   sentFlash,
+  blockedTraits,
 }: {
   name: string;
   onSend: (traits: string[], context?: string) => Promise<void>;
   sending: boolean;
   sentFlash: boolean;
+  // Traits the recipient has removed from the picker. Filtered out
+  // before render — the sender doesn't see what was blocked.
+  blockedTraits?: string[];
 }) {
   const [open, setOpen] = useState(false);
   const [picked, setPicked] = useState<string[]>([]);
@@ -1098,7 +1413,9 @@ function SendImpressionInline({
           marginTop: 10,
         }}
       >
-        {TRAIT_PALETTE.map((t) => {
+        {TRAIT_PALETTE.filter(
+          (t) => !(blockedTraits || []).includes(t.toLowerCase()),
+        ).map((t) => {
           const on = picked.includes(t);
           const disabled = !on && picked.length >= 6;
           return (

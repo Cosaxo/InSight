@@ -37,6 +37,16 @@ export interface NearbyPerson {
   interests: { t: string; c: string }[];
   values: string;
   note: string;
+  // Public profile fields the target opted into sharing. Carried
+  // through to PersonOverlay's SimilarityCard + profile details.
+  country?: string;
+  gender?: string;
+  political?: { econ: number; social: number };
+  personality?: number[];
+  interestNames?: string[];
+  blockedImpressionTraits?: string[];
+  acceptImpressionsFrom?: string;
+  shareImpressionsAbout?: string;
 }
 
 interface AroundTabProps {

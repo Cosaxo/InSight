@@ -139,6 +139,14 @@ export function useNearbyPeople(
           role: r.role ?? "",
           interests: [],
           values: "",
+          country: r.country,
+          gender: r.gender,
+          political: r.political,
+          personality: r.personality,
+          interestNames: r.interestNames,
+          blockedImpressionTraits: r.blockedImpressionTraits,
+          acceptImpressionsFrom: r.acceptImpressionsFrom,
+          shareImpressionsAbout: r.shareImpressionsAbout,
           note: r.bio ?? "",
         };
       });

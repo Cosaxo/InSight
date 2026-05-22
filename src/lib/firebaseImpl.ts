@@ -150,6 +150,19 @@ export interface RemoteProfile {
   //   "nearby" — followers + circle (people you let near you can write)
   //   "anyone" — any signed-in user, even strangers
   acceptImpressionsFrom?: "nobody" | "circle" | "nearby" | "anyone";
+  // Who sees the impressions OTHERS have left for this user. The
+  // PersonOverlay "Impressions of X" card respects this tier:
+  //   "nobody" — kept entirely private to the recipient (default)
+  //   "circle" — visible to mutual friends
+  //   "nearby" — visible to followers + circle
+  //   "anyone" — visible to any signed-in user
+  shareImpressionsAbout?: "nobody" | "circle" | "nearby" | "anyone";
+  // Traits the user has blacklisted — anyone trying to leave an
+  // impression with one of these traits gets it stripped from the
+  // picker (clientside) and rejected by the Firestore rule
+  // (serverside). Stored lowercased; the picker case-folds before
+  // checking.
+  blockedImpressionTraits?: string[];
   // Optional demographic fields. Used by the Interests tab to render
   // "people who share these interests" demographics (gender ratio,
   // age distribution, country breakdown) and by the World tab's
@@ -1379,6 +1392,17 @@ export interface RemoteDiscoverable {
   // World tab country distribution.
   gender?: string;
   country?: string;
+  // Denormalised acceptImpressionsFrom + blockedImpressionTraits so
+  // the impression-sender UI can filter the picker without a
+  // cross-user profile read. The Firestore write rule still
+  // validates against the source profile doc — this is purely a
+  // client-side UX hint.
+  acceptImpressionsFrom?: string;
+  blockedImpressionTraits?: string[];
+  // Also denormalised so PersonOverlay can decide whether to even
+  // attempt the "Impressions of X" subscription without firing a
+  // permission-denied error.
+  shareImpressionsAbout?: string;
 }
 
 // Read the `location` map regardless of which Firestore representation
@@ -1543,6 +1567,9 @@ export async function findNearbyDiscoverable(
           interestNames?: unknown;
           gender?: unknown;
           country?: unknown;
+          acceptImpressionsFrom?: unknown;
+          blockedImpressionTraits?: unknown;
+          shareImpressionsAbout?: unknown;
         };
         const loc = readLocation(data.location);
         if (!loc) continue;
@@ -1591,6 +1618,27 @@ export async function findNearbyDiscoverable(
           data.country.length === 2
             ? data.country.toUpperCase()
             : undefined;
+        const acceptImpressionsFrom =
+          typeof data.acceptImpressionsFrom === "string" &&
+          ["nobody", "circle", "nearby", "anyone"].includes(
+            data.acceptImpressionsFrom,
+          )
+            ? data.acceptImpressionsFrom
+            : undefined;
+        const blockedImpressionTraits = Array.isArray(
+          data.blockedImpressionTraits,
+        )
+          ? (data.blockedImpressionTraits as unknown[])
+              .filter((x): x is string => typeof x === "string")
+              .slice(0, 64)
+          : undefined;
+        const shareImpressionsAbout =
+          typeof data.shareImpressionsAbout === "string" &&
+          ["nobody", "circle", "nearby", "anyone"].includes(
+            data.shareImpressionsAbout,
+          )
+            ? data.shareImpressionsAbout
+            : undefined;
         seen.set(d.id, {
           uid: d.id,
           displayName: data.displayName,
@@ -1608,6 +1656,9 @@ export async function findNearbyDiscoverable(
           interestNames,
           gender,
           country,
+          acceptImpressionsFrom,
+          blockedImpressionTraits,
+          shareImpressionsAbout,
         });
       }
     }
@@ -1644,6 +1695,9 @@ export async function upsertDiscoverable(
     interestNames?: string[] | null;
     gender?: string | null;
     country?: string | null;
+    acceptImpressionsFrom?: string | null;
+    blockedImpressionTraits?: string[] | null;
+    shareImpressionsAbout?: string | null;
   },
 ): Promise<void> {
   await setDoc(
@@ -1674,6 +1728,22 @@ export async function upsertDiscoverable(
         : null,
       gender: typeof data.gender === "string" ? data.gender : null,
       country: typeof data.country === "string" ? data.country.toUpperCase().slice(0, 2) : null,
+      acceptImpressionsFrom:
+        typeof data.acceptImpressionsFrom === "string" &&
+        ["nobody", "circle", "nearby", "anyone"].includes(data.acceptImpressionsFrom)
+          ? data.acceptImpressionsFrom
+          : null,
+      blockedImpressionTraits: Array.isArray(data.blockedImpressionTraits)
+        ? data.blockedImpressionTraits
+            .filter((x) => typeof x === "string")
+            .map((x) => x.toLowerCase())
+            .slice(0, 64)
+        : null,
+      shareImpressionsAbout:
+        typeof data.shareImpressionsAbout === "string" &&
+        ["nobody", "circle", "nearby", "anyone"].includes(data.shareImpressionsAbout)
+          ? data.shareImpressionsAbout
+          : null,
     },
     { merge: true },
   );

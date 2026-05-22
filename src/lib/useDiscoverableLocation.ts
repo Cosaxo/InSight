@@ -121,6 +121,21 @@ export function useDiscoverableLocation(position: GeoPosition | null): {
   const country = shareCountry && typeof profile.country === "string"
     ? profile.country.toUpperCase().slice(0, 2)
     : null;
+  // acceptImpressionsFrom + blockedImpressionTraits are
+  // denormalised so the impression-sender UI can filter the
+  // picker without a profile read. Always shared (when set) since
+  // they're trait policies, not personal data per se.
+  const acceptImpressionsFrom =
+    typeof profile.acceptImpressionsFrom === "string"
+      ? profile.acceptImpressionsFrom
+      : null;
+  const blockedImpressionTraits = Array.isArray(profile.blockedImpressionTraits)
+    ? profile.blockedImpressionTraits.slice(0, 64)
+    : null;
+  const shareImpressionsAbout =
+    typeof profile.shareImpressionsAbout === "string"
+      ? profile.shareImpressionsAbout
+      : null;
 
   // Stable key so the upsert re-runs when any shared field changes,
   // without firing on unrelated profile updates.
@@ -133,6 +148,9 @@ export function useDiscoverableLocation(position: GeoPosition | null): {
     interestNames ? interestNames.join(",") : "_",
     gender ?? "_",
     country ?? "_",
+    acceptImpressionsFrom ?? "_",
+    blockedImpressionTraits ? blockedImpressionTraits.join(",") : "_",
+    shareImpressionsAbout ?? "_",
   ].join("|");
 
   // Side effect: when (signed in + opted in + have position), upsert.
@@ -156,6 +174,9 @@ export function useDiscoverableLocation(position: GeoPosition | null): {
           interestNames,
           gender,
           country,
+          acceptImpressionsFrom,
+          blockedImpressionTraits,
+          shareImpressionsAbout,
         });
         setLastFuzzed(key);
         setLastSyncedAt(Date.now());
@@ -165,7 +186,7 @@ export function useDiscoverableLocation(position: GeoPosition | null): {
         setError(msg);
       }
     })();
-  }, [user, enabled, position, lastFuzzed, personality, political, bio, role, age, interestNames, gender, country, inputKey]);
+  }, [user, enabled, position, lastFuzzed, personality, political, bio, role, age, interestNames, gender, country, acceptImpressionsFrom, blockedImpressionTraits, shareImpressionsAbout, inputKey]);
 
   const setEnabled = useCallback(
     async (v: boolean) => {

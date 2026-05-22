@@ -891,6 +891,9 @@ export async function upsertDiscoverable(
     interestNames?: string[] | null;
     gender?: string | null;
     country?: string | null;
+    acceptImpressionsFrom?: string | null;
+    blockedImpressionTraits?: string[] | null;
+    shareImpressionsAbout?: string | null;
   },
 ): Promise<void> {
   const m = await impl();
