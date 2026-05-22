@@ -25,6 +25,8 @@ import { useMe } from "../../lib/useMe";
 import { useProfile, type ProfileExt } from "../../lib/useProfile";
 import { isoDateToday } from "../../lib/useMoods";
 import { useWeighins } from "../../lib/useWeighins";
+import { useAchievements, useProfileSkills } from "../../lib/useLedger";
+import { SKILL_CATS } from "../../data/taxonomies";
 import {
   callDeleteAccount,
   firebaseEnabled,
@@ -766,6 +768,7 @@ const SECTION_GROUPS: { id: string; label: string }[] = [
   { id: "profile-you", label: "You" },
   { id: "profile-personality", label: "Personality" },
   { id: "profile-tastes", label: "Tastes" },
+  { id: "profile-done", label: "Done" },
   { id: "profile-data", label: "Data" },
   { id: "profile-account", label: "Account" },
 ];
@@ -1720,6 +1723,9 @@ export function ProfileOverlay({ onClose, onOpenTest }: ProfileOverlayProps) {
           onChange={(next) => void save({ heroes: next })}
         />
 
+        <SectionHeader id="profile-done" label="Done" />
+        <ProfileSkillsAndAchievements />
+
         <SectionHeader id="profile-data" label="Data" />
         <BackupSection />
 
@@ -1741,6 +1747,158 @@ export function ProfileOverlay({ onClose, onOpenTest }: ProfileOverlayProps) {
 // Sign-out was previously only reachable through the delete-account
 // path inside DangerZone. Surface it as a plain action — far more
 // common, far less destructive.
+
+// ProfileSkillsAndAchievements — quiet read-only view of the user's
+// own skills + achievements. Editing lives in the Life overlay's
+// Ledger section; here we just surface the top items so the
+// Profile page reflects what the user is + has done.
+function ProfileSkillsAndAchievements() {
+  const { items: skills } = useProfileSkills();
+  const { items: achievements } = useAchievements();
+
+  const topSkills = [...skills]
+    .sort((a, b) => b.level - a.level || b.createdAt - a.createdAt)
+    .slice(0, 8);
+  const topAchievements = [...achievements]
+    .sort((a, b) => {
+      if (a.year && b.year) return b.year - a.year;
+      if (a.year) return -1;
+      if (b.year) return 1;
+      return b.createdAt - a.createdAt;
+    })
+    .slice(0, 6);
+
+  return (
+    <>
+      <Kicker>Skills · what you can do</Kicker>
+      {topSkills.length > 0 ? (
+        <div
+          style={{
+            display: "flex",
+            flexWrap: "wrap",
+            gap: 6,
+            marginTop: 8,
+            marginBottom: 14,
+          }}
+        >
+          {topSkills.map((s) => {
+            const cat = SKILL_CATS.find((c) => c.id === s.cat);
+            const hue = cat?.hue ?? 80;
+            return (
+              <span
+                key={s.id}
+                style={{
+                  padding: "5px 10px",
+                  borderRadius: 999,
+                  fontFamily: "var(--mono)",
+                  fontSize: 10,
+                  letterSpacing: "0.06em",
+                  background: `oklch(0.96 0.04 ${hue})`,
+                  border: `0.5px solid oklch(0.78 0.08 ${hue})`,
+                  color: `oklch(0.32 0.13 ${hue})`,
+                  display: "inline-flex",
+                  gap: 6,
+                  alignItems: "center",
+                }}
+                title={s.note}
+              >
+                {cat && <span>{cat.glyph}</span>}
+                {s.name}
+                <span style={{ color: "var(--ink-3)", fontSize: 9 }}>
+                  {"●".repeat(s.level)}
+                </span>
+              </span>
+            );
+          })}
+        </div>
+      ) : (
+        <div
+          className="margin-note"
+          style={{
+            marginTop: 6,
+            marginBottom: 14,
+            fontSize: 12,
+            fontStyle: "italic",
+          }}
+        >
+          No skills yet. Add some in Life · skills section.
+        </div>
+      )}
+
+      <hr className="rule-dashed" />
+
+      <Kicker>Achievements · what you've done</Kicker>
+      {topAchievements.length > 0 ? (
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            gap: 6,
+            marginTop: 8,
+          }}
+        >
+          {topAchievements.map((a) => (
+            <div
+              key={a.id}
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                padding: "8px 10px",
+                background: "var(--paper-2)",
+                border: "0.5px solid var(--rule)",
+                borderRadius: 8,
+                gap: 10,
+              }}
+            >
+              <div
+                style={{
+                  fontFamily: "var(--serif)",
+                  fontStyle: "italic",
+                  fontSize: 14,
+                  flex: 1,
+                }}
+              >
+                {a.name}
+                {a.note && (
+                  <div
+                    style={{
+                      fontFamily: "var(--mono)",
+                      fontSize: 10,
+                      color: "var(--ink-3)",
+                      marginTop: 2,
+                      fontStyle: "normal",
+                    }}
+                  >
+                    {a.note}
+                  </div>
+                )}
+              </div>
+              {a.year && (
+                <span
+                  style={{
+                    fontFamily: "var(--mono)",
+                    fontSize: 11,
+                    color: "var(--ink-3)",
+                    alignSelf: "center",
+                  }}
+                >
+                  {a.year}
+                </span>
+              )}
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div
+          className="margin-note"
+          style={{ marginTop: 6, fontSize: 12, fontStyle: "italic" }}
+        >
+          No achievements logged yet. Add some in Life · achievements.
+        </div>
+      )}
+    </>
+  );
+}
 
 function AccountSection() {
   const { user } = useAuth();

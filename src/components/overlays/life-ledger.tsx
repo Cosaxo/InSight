@@ -13,8 +13,25 @@
 
 import { lazy, Suspense, useMemo, useState, type ReactNode } from "react";
 import { Kicker } from "../shared/primitives";
-import { useBooks, useHomes, useJobs, useLanguages, useVisits } from "../../lib/useLedger";
-import type { Book, Home, Job, Language, Visit } from "../../types";
+import {
+  useAchievements,
+  useBooks,
+  useHomes,
+  useJobs,
+  useLanguages,
+  useProfileSkills,
+  useVisits,
+} from "../../lib/useLedger";
+import { SKILL_CATS } from "../../data/taxonomies";
+import type {
+  Achievement,
+  Book,
+  Home,
+  Job,
+  Language,
+  Skill,
+  Visit,
+} from "../../types";
 
 // Lazy: pulls leaflet (~150KB) only when the user opens the visits map.
 const VisitsMap = lazy(() => import("./visits-map"));
@@ -1163,6 +1180,291 @@ function JobForm({
   );
 }
 
+// ── Profile Skills ──────────────────────────────────────────────
+//
+// Things the user CAN DO. Coarse 1..5 self-rating; optional
+// category from the SKILL_CATS taxonomy. Distinct from Interests
+// (what you're INTO) — skills are competence claims.
+
+function ProfileSkillsCard() {
+  const { items, add, remove } = useProfileSkills();
+  const [adding, setAdding] = useState(false);
+  const sorted = [...items].sort(
+    (a, b) => b.level - a.level || b.createdAt - a.createdAt,
+  );
+  const top = sorted[0];
+  const summary = top
+    ? `top: ${top.name} · level ${top.level}`
+    : "what can you do?";
+  return (
+    <>
+      <LedgerCard
+        glyph="✎"
+        label="SKILLS"
+        count={items.length}
+        summary={summary}
+        hue={80}
+        onAdd={() => setAdding(true)}
+      >
+        {sorted.length > 0 ? (
+          sorted.map((s) => {
+            const cat = SKILL_CATS.find((c) => c.id === s.cat);
+            return (
+              <LogRow
+                key={s.id}
+                primary={s.name}
+                secondary={cat?.label}
+                trailing={`${"●".repeat(s.level)}${"○".repeat(5 - s.level)}`}
+                onRemove={() => void remove(s.id)}
+                label={s.name}
+              />
+            );
+          })
+        ) : (
+          <div
+            className="margin-note"
+            style={{ fontSize: 11, fontStyle: "italic" }}
+          >
+            empty.
+          </div>
+        )}
+      </LedgerCard>
+      {adding && (
+        <SkillForm
+          onClose={() => setAdding(false)}
+          onSave={async (s) => {
+            await add(s);
+            setAdding(false);
+          }}
+        />
+      )}
+    </>
+  );
+}
+
+function SkillForm({
+  onClose,
+  onSave,
+}: {
+  onClose: () => void;
+  onSave: (s: Omit<Skill, "id" | "createdAt">) => Promise<void>;
+}) {
+  const [name, setName] = useState("");
+  const [level, setLevel] = useState(3);
+  const [cat, setCat] = useState<string>("");
+  const [note, setNote] = useState("");
+  const [saving, setSaving] = useState(false);
+  const canSave = name.trim().length > 0;
+
+  const submit = async () => {
+    if (!canSave || saving) return;
+    setSaving(true);
+    try {
+      await onSave({
+        name: name.trim(),
+        level,
+        cat: cat || undefined,
+        note: note.trim() || undefined,
+      });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <FormModal
+      title="add a skill"
+      onClose={onClose}
+      onSubmit={submit}
+      canSave={canSave}
+      saving={saving}
+    >
+      <Kicker>skill</Kicker>
+      <input
+        value={name}
+        onChange={(e) => setName(e.target.value)}
+        placeholder="welding, Python, fingerstyle guitar…"
+        style={{ ...serifInputStyle, marginTop: 6 }}
+      />
+      <FieldLabel>category · optional</FieldLabel>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
+        {SKILL_CATS.map((c) => {
+          const on = cat === c.id;
+          return (
+            <button
+              key={c.id}
+              type="button"
+              onClick={() => setCat(on ? "" : c.id)}
+              style={{
+                padding: "4px 9px",
+                borderRadius: 999,
+                background: on ? `oklch(0.92 0.07 ${c.hue})` : "var(--paper-2)",
+                color: on ? `oklch(0.3 0.14 ${c.hue})` : "var(--ink-2)",
+                border: on
+                  ? `0.5px solid oklch(0.65 0.10 ${c.hue})`
+                  : "0.5px solid var(--rule)",
+                fontFamily: "var(--mono)",
+                fontSize: 9,
+                letterSpacing: "0.08em",
+                cursor: "pointer",
+              }}
+            >
+              <span style={{ marginRight: 3 }}>{c.glyph}</span>
+              {c.label.toUpperCase()}
+            </button>
+          );
+        })}
+      </div>
+      <FieldLabel>level · {level}/5</FieldLabel>
+      <input
+        type="range"
+        min="1"
+        max="5"
+        value={level}
+        onChange={(e) => setLevel(+e.target.value)}
+        style={{ width: "100%", accentColor: "var(--accent)" }}
+      />
+      <FieldLabel>note · optional</FieldLabel>
+      <input
+        value={note}
+        onChange={(e) => setNote(e.target.value)}
+        placeholder="where you learned it, what it's for"
+        style={serifInputStyle}
+      />
+    </FormModal>
+  );
+}
+
+// ── Achievements ────────────────────────────────────────────────
+//
+// Things the user has DONE. Optional year; free-text note.
+// Distinct from Skills: an achievement is a one-time event /
+// completion, a skill is an ongoing capability.
+
+function AchievementsCard() {
+  const { items, add, remove } = useAchievements();
+  const [adding, setAdding] = useState(false);
+  // Most-recent-first when years are set; fall back to createdAt
+  // for items without a year.
+  const sorted = [...items].sort((a, b) => {
+    if (a.year && b.year) return b.year - a.year;
+    if (a.year) return -1;
+    if (b.year) return 1;
+    return b.createdAt - a.createdAt;
+  });
+  const summary =
+    items.length > 0
+      ? `latest: ${sorted[0]!.name}${sorted[0]!.year ? ` · ${sorted[0]!.year}` : ""}`
+      : "what have you done?";
+  return (
+    <>
+      <LedgerCard
+        glyph="✺"
+        label="ACHIEVEMENTS"
+        count={items.length}
+        summary={summary}
+        hue={45}
+        onAdd={() => setAdding(true)}
+      >
+        {sorted.length > 0 ? (
+          sorted.map((a) => (
+            <LogRow
+              key={a.id}
+              primary={a.name}
+              secondary={a.note}
+              trailing={a.year ? String(a.year) : ""}
+              onRemove={() => void remove(a.id)}
+              label={a.name}
+            />
+          ))
+        ) : (
+          <div
+            className="margin-note"
+            style={{ fontSize: 11, fontStyle: "italic" }}
+          >
+            empty.
+          </div>
+        )}
+      </LedgerCard>
+      {adding && (
+        <AchievementForm
+          onClose={() => setAdding(false)}
+          onSave={async (a) => {
+            await add(a);
+            setAdding(false);
+          }}
+        />
+      )}
+    </>
+  );
+}
+
+function AchievementForm({
+  onClose,
+  onSave,
+}: {
+  onClose: () => void;
+  onSave: (a: Omit<Achievement, "id" | "createdAt">) => Promise<void>;
+}) {
+  const [name, setName] = useState("");
+  const [year, setYear] = useState("");
+  const [note, setNote] = useState("");
+  const [saving, setSaving] = useState(false);
+  const canSave = name.trim().length > 0;
+
+  const submit = async () => {
+    if (!canSave || saving) return;
+    setSaving(true);
+    try {
+      const parsedYear = Number(year);
+      await onSave({
+        name: name.trim(),
+        year:
+          Number.isFinite(parsedYear) && parsedYear >= 1900 && parsedYear <= 2100
+            ? parsedYear
+            : undefined,
+        note: note.trim() || undefined,
+      });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <FormModal
+      title="add an achievement"
+      onClose={onClose}
+      onSubmit={submit}
+      canSave={canSave}
+      saving={saving}
+    >
+      <Kicker>achievement</Kicker>
+      <input
+        value={name}
+        onChange={(e) => setName(e.target.value)}
+        placeholder="ran a marathon, published a book, learned Mandarin to B2"
+        style={{ ...serifInputStyle, marginTop: 6 }}
+      />
+      <FieldLabel>year · optional</FieldLabel>
+      <input
+        type="number"
+        inputMode="numeric"
+        value={year}
+        onChange={(e) => setYear(e.target.value)}
+        placeholder="2024"
+        style={inputStyle}
+      />
+      <FieldLabel>note · optional</FieldLabel>
+      <input
+        value={note}
+        onChange={(e) => setNote(e.target.value)}
+        placeholder="what it meant"
+        style={serifInputStyle}
+      />
+    </FormModal>
+  );
+}
+
 // ── Public composite ────────────────────────────────────────────
 
 export function TheLedgerSection() {
@@ -1177,6 +1479,8 @@ export function TheLedgerSection() {
           marginTop: 10,
         }}
       >
+        <ProfileSkillsCard />
+        <AchievementsCard />
         <BooksCard />
         <VisitsCard />
         <HomesCard />

@@ -541,7 +541,7 @@ function AppShell() {
                 setShowInsights(true);
               }}
             >
-              <span style={{ color: "var(--sienna)" }}>✦</span> open journal
+              <span style={{ color: "var(--sienna)" }}>✦</span> journal
             </div>
             <div
               className="fab-item"
@@ -550,7 +550,7 @@ function AppShell() {
                 setShowBody(true);
               }}
             >
-              <span style={{ color: "var(--ochre)" }}>◐</span> the body
+              <span style={{ color: "var(--ochre)" }}>◐</span> body
             </div>
             <div
               className="fab-item"
@@ -559,7 +559,7 @@ function AppShell() {
                 setShowDays(true);
               }}
             >
-              <span style={{ color: "var(--indigo)" }}>☾</span> the days
+              <span style={{ color: "var(--indigo)" }}>☾</span> days
             </div>
             <div
               className="fab-item"
@@ -568,7 +568,7 @@ function AppShell() {
                 setShowScrap(true);
               }}
             >
-              <span style={{ color: "var(--sage)" }}>❀</span> the scrapbook
+              <span style={{ color: "var(--sage)" }}>❀</span> scrapbook
             </div>
             <div
               className="fab-item"
@@ -595,7 +595,7 @@ function AppShell() {
                 setShowLife(true);
               }}
             >
-              <span style={{ color: "var(--accent)" }}>⌇</span> life details
+              <span style={{ color: "var(--accent)" }}>⌇</span> life · skills · achievements
             </div>
             <div
               className="fab-item"
@@ -604,7 +604,7 @@ function AppShell() {
                 setShowSharing(true);
               }}
             >
-              <span style={{ color: "var(--ink-2)" }}>◇</span> what you share
+              <span style={{ color: "var(--ink-2)" }}>◇</span> sharing
             </div>
             <div
               className="fab-item"

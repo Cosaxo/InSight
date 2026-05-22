@@ -62,6 +62,7 @@ import type {
   CoreValues,
   DayBlock,
   Dream,
+  Achievement,
   Habit,
   Hero,
   Home,
@@ -72,6 +73,7 @@ import type {
   Meal,
   MediaMap,
   Milestone,
+  Skill,
   MoodEntry,
   Person,
   Political,
@@ -569,6 +571,32 @@ export async function addJob(uid: string, j: Job): Promise<void> {
 }
 export async function deleteJob(uid: string, id: string): Promise<void> {
   await deleteDoc(subDocRef(uid, "insight_jobs", id));
+}
+
+export function subscribeProfileSkills(
+  uid: string,
+  cb: (items: Skill[]) => void,
+): () => void {
+  return subscribeList<Skill>(uid, "insight_profile_skills", cb);
+}
+export async function addProfileSkill(uid: string, s: Skill): Promise<void> {
+  await setDoc(subDocRef(uid, "insight_profile_skills", s.id), stripId(s));
+}
+export async function deleteProfileSkill(uid: string, id: string): Promise<void> {
+  await deleteDoc(subDocRef(uid, "insight_profile_skills", id));
+}
+
+export function subscribeAchievements(
+  uid: string,
+  cb: (items: Achievement[]) => void,
+): () => void {
+  return subscribeList<Achievement>(uid, "insight_achievements", cb);
+}
+export async function addAchievement(uid: string, a: Achievement): Promise<void> {
+  await setDoc(subDocRef(uid, "insight_achievements", a.id), stripId(a));
+}
+export async function deleteAchievement(uid: string, id: string): Promise<void> {
+  await deleteDoc(subDocRef(uid, "insight_achievements", id));
 }
 
 // ── Milestones + Time blocks ────────────────────────────────────

@@ -184,6 +184,30 @@ export interface Job {
   createdAt: number;
 }
 
+// A skill — something the user can do. `level` is a coarse 1..5
+// self-rating (1 = beginner, 5 = expert). `cat` is one of the
+// SKILL_CATS taxonomy ids (sport / outdoor / craft / mind /
+// language / music / kitchen / tech).
+export interface Skill {
+  id: string;
+  name: string;
+  level: number;     // 1..5
+  cat?: string;
+  note?: string;
+  createdAt: number;
+}
+
+// An achievement — something the user has done. `year` is optional
+// (some achievements are open-ended, like "passed CFA L1"). `note`
+// holds free-form context.
+export interface Achievement {
+  id: string;
+  name: string;
+  year?: number;     // YYYY
+  note?: string;
+  createdAt: number;
+}
+
 // A weigh-in — one row in the user's weight history. Stored at
 // insight_users/{uid}/insight_weighins/{id} when signed in or in
 // localStorage otherwise. The latest weigh-in's kg (sorted by `date`)

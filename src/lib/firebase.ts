@@ -12,6 +12,7 @@
 
 import type { User } from "firebase/auth";
 import type {
+  Achievement,
   Book,
   CityRating,
   CityRatings,
@@ -27,6 +28,7 @@ import type {
   MoodEntry,
   Person,
   RemoteBodySnapshot,
+  Skill,
   RemoteDailyReport,
   Specimen,
   TimeBlock,
@@ -554,6 +556,36 @@ export async function addJob(uid: string, j: Job): Promise<void> {
 export async function deleteJob(uid: string, id: string): Promise<void> {
   const m = await impl();
   return m.deleteJob(uid, id);
+}
+
+export function subscribeProfileSkills(
+  uid: string,
+  cb: (items: Skill[]) => void,
+): () => void {
+  return lazySubscribe((m) => m.subscribeProfileSkills, uid, cb);
+}
+export async function addProfileSkill(uid: string, s: Skill): Promise<void> {
+  const m = await impl();
+  return m.addProfileSkill(uid, s);
+}
+export async function deleteProfileSkill(uid: string, id: string): Promise<void> {
+  const m = await impl();
+  return m.deleteProfileSkill(uid, id);
+}
+
+export function subscribeAchievements(
+  uid: string,
+  cb: (items: Achievement[]) => void,
+): () => void {
+  return lazySubscribe((m) => m.subscribeAchievements, uid, cb);
+}
+export async function addAchievement(uid: string, a: Achievement): Promise<void> {
+  const m = await impl();
+  return m.addAchievement(uid, a);
+}
+export async function deleteAchievement(uid: string, id: string): Promise<void> {
+  const m = await impl();
+  return m.deleteAchievement(uid, id);
 }
 
 // ── Milestones + time blocks ────────────────────────────────────
