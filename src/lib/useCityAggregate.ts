@@ -15,6 +15,7 @@ export interface CityAggregate {
   updatedAt?: { toMillis?: () => number };
   totalRaters: number;
   byDimension: Record<string, { avg: number; count: number }>;
+  topImpressions?: { trait: string; count: number }[];
 }
 
 export function slugifyCity(name: string): string {
