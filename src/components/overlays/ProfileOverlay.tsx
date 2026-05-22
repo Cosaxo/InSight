@@ -59,6 +59,11 @@ type TestKind =
 interface ProfileOverlayProps {
   onClose: () => void;
   onOpenTest?: (kind: TestKind) => void;
+  // Reachability for surfaces that don't have their own FAB entry
+  // any more — Sharing and Journal/Insights live behind these
+  // callbacks so the Profile overlay is their canonical home.
+  onOpenSharing?: () => void;
+  onOpenJournal?: () => void;
 }
 
 const BIG5_KEYS = ["O", "C", "E", "A", "N"] as const;
@@ -1377,7 +1382,12 @@ function HeroEditor({ heroes, onChange }: HeroEditorProps) {
   );
 }
 
-export function ProfileOverlay({ onClose, onOpenTest }: ProfileOverlayProps) {
+export function ProfileOverlay({
+  onClose,
+  onOpenTest,
+  onOpenSharing,
+  onOpenJournal,
+}: ProfileOverlayProps) {
   const realMe = useMe();
   const { profile, save } = useProfile();
 
@@ -1727,6 +1737,12 @@ export function ProfileOverlay({ onClose, onOpenTest }: ProfileOverlayProps) {
         <ProfileSkillsAndAchievements />
 
         <SectionHeader id="profile-data" label="Data" />
+        <ShortcutsCard
+          onOpenSharing={onOpenSharing}
+          onOpenJournal={onOpenJournal}
+        />
+
+        <hr className="rule-dashed" />
         <BackupSection />
 
         <hr className="rule-dashed" />
@@ -1896,6 +1912,83 @@ function ProfileSkillsAndAchievements() {
           No achievements logged yet. Add some in Life · achievements.
         </div>
       )}
+    </>
+  );
+}
+
+// ShortcutsCard — small jump-to row for surfaces that don't have
+// a FAB entry of their own. Sharing settings + Journal (mood-history
+// charts) both live here; deep-links open them and close Profile.
+function ShortcutsCard({
+  onOpenSharing,
+  onOpenJournal,
+}: {
+  onOpenSharing?: () => void;
+  onOpenJournal?: () => void;
+}) {
+  if (!onOpenSharing && !onOpenJournal) return null;
+  const buttonStyle: React.CSSProperties = {
+    flex: 1,
+    minWidth: 130,
+    padding: "10px 12px",
+    background: "var(--paper-2)",
+    border: "0.5px solid var(--rule)",
+    borderRadius: 10,
+    fontFamily: "var(--mono)",
+    fontSize: 11,
+    letterSpacing: "0.08em",
+    color: "var(--ink-2)",
+    cursor: "pointer",
+    textAlign: "left",
+  };
+  return (
+    <>
+      <Kicker>shortcuts</Kicker>
+      <div
+        style={{
+          marginTop: 8,
+          display: "flex",
+          gap: 8,
+          flexWrap: "wrap",
+        }}
+      >
+        {onOpenSharing && (
+          <button type="button" onClick={onOpenSharing} style={buttonStyle}>
+            <span style={{ color: "var(--ink)" }}>◇</span> sharing
+            <div
+              style={{
+                marginTop: 4,
+                fontFamily: "var(--serif)",
+                fontStyle: "italic",
+                fontSize: 11,
+                color: "var(--ink-3)",
+                letterSpacing: 0,
+                textTransform: "none",
+              }}
+            >
+              tiers + impression settings
+            </div>
+          </button>
+        )}
+        {onOpenJournal && (
+          <button type="button" onClick={onOpenJournal} style={buttonStyle}>
+            <span style={{ color: "var(--sienna)" }}>✦</span> journal
+            <div
+              style={{
+                marginTop: 4,
+                fontFamily: "var(--serif)",
+                fontStyle: "italic",
+                fontSize: 11,
+                color: "var(--ink-3)",
+                letterSpacing: 0,
+                textTransform: "none",
+              }}
+            >
+              mood history charts
+            </div>
+          </button>
+        )}
+      </div>
     </>
   );
 }

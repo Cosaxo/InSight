@@ -681,6 +681,14 @@ function AppShell() {
                 setTestInitialKind(kind);
                 setShowTest(true);
               }}
+              onOpenSharing={() => {
+                setShowProfile(false);
+                setShowSharing(true);
+              }}
+              onOpenJournal={() => {
+                setShowProfile(false);
+                setShowInsights(true);
+              }}
             />
           )}
           {showInsights && (
