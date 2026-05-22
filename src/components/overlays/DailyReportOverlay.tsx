@@ -3,6 +3,7 @@ import { Camera, CameraResultType, CameraSource } from "@capacitor/camera";
 import { Capacitor } from "@capacitor/core";
 import { useDailyReport } from "../../lib/useDailyReport";
 import { useMeals } from "../../lib/useMeals";
+import { useDreams } from "../../lib/useDreams";
 import { useGeolocation } from "../../lib/useGeolocation";
 import { useWeather } from "../../lib/useWeather";
 import { useLLM } from "../../lib/useLLM";
@@ -13,6 +14,7 @@ import {
   useMoods,
 } from "../../lib/useMoods";
 import { VerdictCard } from "../shared/VerdictCard";
+import { Kicker } from "../shared/primitives";
 
 // Open a native camera/photo picker when running inside Capacitor;
 // otherwise click the hidden <input type="file"> so the browser shows
@@ -643,6 +645,14 @@ export function DailyReportOverlay({
   );
   const [activities, setActivities] = useState<string[]>(existing?.activities ?? []);
   const [highlight, setHighlight] = useState<string>(existing?.highlight ?? "");
+  // Dream-capture state. Stored in its own collection via
+  // useDreams.add() on save — the daily report doesn't carry the
+  // dream blob itself, just provides a quick-entry surface so the
+  // user can log it without navigating to the dream editor.
+  const [dreamText, setDreamText] = useState<string>("");
+  const [dreamTitle, setDreamTitle] = useState<string>("");
+  const [dreamMood, setDreamMood] = useState<string>("");
+  const { add: addDream } = useDreams();
   // Track whether the user has typed anything into the weather
   // field yet. If they haven't, the live-weather effect autofills;
   // once they edit it we leave it alone.
@@ -796,6 +806,34 @@ export function DailyReportOverlay({
       score: dailyMoodToScore(mood),
       note: oneLine || undefined,
     });
+    // Persist a dream into the dream journal when the user typed
+    // text. Title falls back to the first 60 chars of the body when
+    // they didn't fill it in. The dream lives in its own
+    // subcollection (useDreams) and shows up in DaysOverlay's
+    // dream-history view — the daily report just provides the
+    // quick-capture entry point.
+    const text = dreamText.trim();
+    if (text.length > 0) {
+      const title = dreamTitle.trim() || text.slice(0, 60).trim();
+      try {
+        await addDream({
+          date: isoDateToday(),
+          title,
+          text,
+          tags: [],
+          mood: dreamMood.trim() || undefined,
+          lucidity: 0,
+          vividness: 0,
+        });
+        // Clear after a successful write so the user doesn't
+        // accidentally double-log the same dream on a second save.
+        setDreamText("");
+        setDreamTitle("");
+        setDreamMood("");
+      } catch (err) {
+        console.error("[DailyReport] dream save failed:", err);
+      }
+    }
     setSavedFlash(true);
   };
 
@@ -1065,6 +1103,73 @@ export function DailyReportOverlay({
               color: "var(--ink)",
               resize: "vertical",
               marginTop: 8,
+            }}
+          />
+        </div>
+
+        <div className="card" style={{ padding: 14, marginTop: 10 }}>
+          <Kicker>dream · what you remember</Kicker>
+          <div
+            className="margin-note"
+            style={{ marginTop: 4, fontSize: 10, fontStyle: "italic" }}
+          >
+            Saved to your dream journal (Days · dreams). Always private.
+          </div>
+          <input
+            value={dreamTitle}
+            onChange={(e) => setDreamTitle(e.target.value)}
+            placeholder="short name · optional"
+            maxLength={100}
+            style={{
+              width: "100%",
+              boxSizing: "border-box",
+              padding: "8px 10px",
+              background: "var(--paper-2)",
+              border: "0.5px solid var(--rule)",
+              borderRadius: 6,
+              fontFamily: "var(--serif)",
+              fontStyle: "italic",
+              fontSize: 13,
+              color: "var(--ink)",
+              marginTop: 8,
+            }}
+          />
+          <textarea
+            value={dreamText}
+            onChange={(e) => setDreamText(e.target.value)}
+            placeholder="the shape of it — fragments are fine"
+            rows={3}
+            maxLength={2000}
+            style={{
+              width: "100%",
+              boxSizing: "border-box",
+              padding: "8px 10px",
+              background: "var(--paper-2)",
+              border: "0.5px solid var(--rule)",
+              borderRadius: 6,
+              fontFamily: "var(--serif)",
+              fontSize: 13,
+              color: "var(--ink)",
+              resize: "vertical",
+              marginTop: 6,
+            }}
+          />
+          <input
+            value={dreamMood}
+            onChange={(e) => setDreamMood(e.target.value)}
+            placeholder="one-word mood · uneasy, warm, restless… (optional)"
+            maxLength={40}
+            style={{
+              width: "100%",
+              boxSizing: "border-box",
+              padding: "8px 10px",
+              background: "var(--paper-2)",
+              border: "0.5px solid var(--rule)",
+              borderRadius: 6,
+              fontFamily: "var(--mono)",
+              fontSize: 12,
+              color: "var(--ink)",
+              marginTop: 6,
             }}
           />
         </div>
