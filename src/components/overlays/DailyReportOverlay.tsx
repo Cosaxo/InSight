@@ -1,8 +1,12 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Camera, CameraResultType, CameraSource } from "@capacitor/camera";
 import { Capacitor } from "@capacitor/core";
 import { useDailyReport } from "../../lib/useDailyReport";
 import { useMeals } from "../../lib/useMeals";
+import { useDreams } from "../../lib/useDreams";
+import { useGeolocation } from "../../lib/useGeolocation";
+import { useWeather } from "../../lib/useWeather";
+import { useLLM } from "../../lib/useLLM";
 import type { RemoteDailyReport } from "../../types";
 import {
   dailyMoodToScore,
@@ -10,6 +14,7 @@ import {
   useMoods,
 } from "../../lib/useMoods";
 import { VerdictCard } from "../shared/VerdictCard";
+import { Kicker } from "../shared/primitives";
 
 // Open a native camera/photo picker when running inside Capacitor;
 // otherwise click the hidden <input type="file"> so the browser shows
@@ -56,15 +61,15 @@ const STORAGE = "insight.dailyReport.v1";
 const PHOTO_STORAGE = "insight.dailyReport.photo.v1";
 
 const MOOD_LABELS: { lo: number; hi: number; label: string }[] = [
-  { lo: 0, hi: 19, label: "sunken" },
-  { lo: 20, hi: 34, label: "heavy" },
-  { lo: 35, hi: 49, label: "scattered" },
-  { lo: 50, hi: 64, label: "even-keel" },
-  { lo: 65, hi: 79, label: "lifted" },
-  { lo: 80, hi: 100, label: "luminous" },
+  { lo: 0, hi: 19, label: "low" },
+  { lo: 20, hi: 34, label: "down" },
+  { lo: 35, hi: 49, label: "unsettled" },
+  { lo: 50, hi: 64, label: "steady" },
+  { lo: 65, hi: 79, label: "good" },
+  { lo: 80, hi: 100, label: "bright" },
 ];
 const labelFor = (m: number) =>
-  MOOD_LABELS.find((x) => m >= x.lo && m <= x.hi)?.label || "even-keel";
+  MOOD_LABELS.find((x) => m >= x.lo && m <= x.hi)?.label || "steady";
 
 const QUICK_WEATHER = [
   "fog · 6°",
@@ -72,6 +77,24 @@ const QUICK_WEATHER = [
   "rain · 9°",
   "sun · 14°",
   "wind · 11°",
+];
+
+// Activity chips for the daily report. A short curated set —
+// covers the rough texture of a day without forcing detailed
+// time-tracking. Multi-select; the icon is decorative.
+const ACTIVITY_PALETTE: { id: string; label: string; glyph: string }[] = [
+  { id: "work",     label: "work",     glyph: "▢" },
+  { id: "read",     label: "read",     glyph: "✎" },
+  { id: "walk",     label: "walk",     glyph: "△" },
+  { id: "exercise", label: "exercise", glyph: "↗" },
+  { id: "social",   label: "social",   glyph: "○" },
+  { id: "creative", label: "creative", glyph: "✦" },
+  { id: "rest",     label: "rest",     glyph: "☾" },
+  { id: "outside",  label: "outside",  glyph: "❀" },
+  { id: "cook",     label: "cook",     glyph: "◐" },
+  { id: "learn",    label: "learn",    glyph: "◇" },
+  { id: "travel",   label: "travel",   glyph: "✶" },
+  { id: "music",    label: "music",    glyph: "♪" },
 ];
 
 interface PhotoStock {
@@ -215,6 +238,120 @@ function SectionHead({
         </span>
         <Toggle on={on} onClick={onToggle} />
       </span>
+    </div>
+  );
+}
+
+// SmallSlider — compact 0..100 slider with left/mid/right labels.
+// Used by the new energy + sleep cards so they read symmetrically
+// with the mood slider without taking up the same vertical space.
+function SmallSlider({
+  value,
+  onChange,
+  lowLabel,
+  midLabel,
+  highLabel,
+  accent,
+}: {
+  value: number;
+  onChange: (v: number) => void;
+  lowLabel: string;
+  midLabel: string;
+  highLabel: string;
+  accent: string;
+}) {
+  return (
+    <div style={{ marginTop: 6 }}>
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "baseline",
+          marginBottom: 4,
+        }}
+      >
+        <span
+          className="fig-num"
+          style={{ fontSize: 22, lineHeight: 1, color: accent }}
+        >
+          <em>{value}</em>
+        </span>
+      </div>
+      <input
+        type="range"
+        min="0"
+        max="100"
+        value={value}
+        onChange={(e) => onChange(+e.target.value)}
+        style={{ width: "100%", accentColor: accent }}
+      />
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          fontFamily: "var(--mono)",
+          fontSize: 8.5,
+          color: "var(--ink-3)",
+          letterSpacing: "0.06em",
+        }}
+      >
+        <span>{lowLabel}</span>
+        <span>{midLabel}</span>
+        <span>{highLabel}</span>
+      </div>
+    </div>
+  );
+}
+
+// ActivitiesPicker — multi-select chip grid. Tap to toggle. No
+// numeric ranking; presence in the list is the signal.
+function ActivitiesPicker({
+  value,
+  onChange,
+}: {
+  value: string[];
+  onChange: (next: string[]) => void;
+}) {
+  const toggle = (id: string) => {
+    if (value.includes(id)) onChange(value.filter((v) => v !== id));
+    else onChange([...value, id]);
+  };
+  return (
+    <div
+      style={{
+        display: "flex",
+        flexWrap: "wrap",
+        gap: 5,
+        marginTop: 8,
+      }}
+    >
+      {ACTIVITY_PALETTE.map((a) => {
+        const on = value.includes(a.id);
+        return (
+          <button
+            key={a.id}
+            type="button"
+            onClick={() => toggle(a.id)}
+            style={{
+              padding: "5px 10px",
+              borderRadius: 999,
+              fontFamily: "var(--mono)",
+              fontSize: 10,
+              letterSpacing: "0.06em",
+              background: on ? "var(--ink)" : "var(--paper-2)",
+              color: on ? "var(--paper)" : "var(--ink-2)",
+              border: on ? "none" : "0.5px solid var(--rule)",
+              cursor: "pointer",
+              display: "inline-flex",
+              gap: 5,
+              alignItems: "center",
+            }}
+          >
+            <span>{a.glyph}</span>
+            {a.label}
+          </button>
+        );
+      })}
     </div>
   );
 }
@@ -499,6 +636,86 @@ export function DailyReportOverlay({
   const [mood, setMood] = useState<number>(existing?.mood ?? 62);
   const [oneLine, setOneLine] = useState<string>(existing?.one_line ?? "");
   const [weather, setWeather] = useState<string>(existing?.weather ?? "");
+  // Extended-report state. All optional. Defaults align with mood:
+  // energy/sleep start at 50 (neutral) so the user has to actively
+  // move them — saves a "you reported neutral on everything" trap.
+  const [energy, setEnergy] = useState<number>(existing?.energy ?? 50);
+  const [sleepQuality, setSleepQuality] = useState<number>(
+    existing?.sleepQuality ?? 50,
+  );
+  const [activities, setActivities] = useState<string[]>(existing?.activities ?? []);
+  const [highlight, setHighlight] = useState<string>(existing?.highlight ?? "");
+  // Dream-capture state. Stored in its own collection via
+  // useDreams.add() on save — the daily report doesn't carry the
+  // dream blob itself, just provides a quick-entry surface so the
+  // user can log it without navigating to the dream editor.
+  const [dreamText, setDreamText] = useState<string>("");
+  const [dreamTitle, setDreamTitle] = useState<string>("");
+  const [dreamMood, setDreamMood] = useState<string>("");
+  const { add: addDream } = useDreams();
+  // Track whether the user has typed anything into the weather
+  // field yet. If they haven't, the live-weather effect autofills;
+  // once they edit it we leave it alone.
+  const [weatherTouched, setWeatherTouched] = useState<boolean>(
+    !!existing?.weather,
+  );
+
+  // Live weather → auto-populate the weather string the first time
+  // it's available, unless the user already typed something. Format
+  // matches the QUICK_WEATHER pills ("rain · 9°") so the UI's
+  // affordances stay aligned.
+  const { position } = useGeolocation();
+  const { data: live } = useWeather(position);
+  useEffect(() => {
+    if (weatherTouched || !live) return;
+    const label = (live.weatherLabel || "").split(/[,(]/)[0].trim();
+    const tempPart = `${Math.round(live.temp)}°`;
+    const composed = label ? `${label} · ${tempPart}` : tempPart;
+    setWeather(composed);
+    // weatherTouched stays false until the user manually edits the
+    // input, so subsequent weather refreshes can still update.
+  }, [live, weatherTouched]);
+
+  // Auto-mood: ask Gemma to read the one-line and suggest a
+  // 0–100 mood. Stays hidden until the on-device LLM is available
+  // (native only) AND the user has typed ≥ 12 characters of
+  // one-line. Always non-destructive — user can drag the slider
+  // away after the suggestion lands.
+  const llm = useLLM();
+  const [suggestingMood, setSuggestingMood] = useState(false);
+  const [moodError, setMoodError] = useState<string | null>(null);
+
+  const suggestMood = async () => {
+    const text = oneLine.trim();
+    if (text.length < 12 || suggestingMood) return;
+    setSuggestingMood(true);
+    setMoodError(null);
+    try {
+      if (!llm.ready) await llm.ensure();
+      const prompt = [
+        "Read the user's one-sentence note about their day and respond with a SINGLE integer 0-100 representing the mood it conveys.",
+        "0 = lowest (despair, grief, exhaustion). 50 = neutral / steady. 100 = highest (joyous, bright, alive).",
+        "No prose, no explanation — just the integer.",
+        "",
+        `Note: ${text}`,
+        "",
+        "Mood:",
+      ].join("\n");
+      const raw = await llm.generate(prompt);
+      const match = raw.match(/\d{1,3}/);
+      if (!match) {
+        setMoodError("Couldn't read a number back from the AI. Try a clearer sentence.");
+        return;
+      }
+      const n = Math.max(0, Math.min(100, Number(match[0])));
+      setMood(n);
+    } catch (err) {
+      console.error("[DailyReport] mood suggest failed:", err);
+      setMoodError("Estimate failed. Drag the slider yourself.");
+    } finally {
+      setSuggestingMood(false);
+    }
+  };
 
   const defaultShare: Record<string, boolean> = {
     photo: true,
@@ -506,6 +723,10 @@ export function DailyReportOverlay({
     one_line: true,
     nutrition: true,
     weather: true,
+    energy: false,
+    sleep: false,
+    activities: true,
+    highlight: false,
   };
   const [share, setShare] = useState<Record<string, boolean>>(
     existing?.shared
@@ -566,6 +787,14 @@ export function DailyReportOverlay({
       hasPhoto: !!photo,
       photoId: isStockPhoto ? photo! : undefined,
       shared,
+      // Extended fields. Optional but the type expects them present
+      // when the user has interacted — we only include defaults of
+      // 50 (energy/sleep) if the user actively moved the slider
+      // off neutral, otherwise omit so the doc stays clean.
+      energy: energy !== 50 ? energy : undefined,
+      sleepQuality: sleepQuality !== 50 ? sleepQuality : undefined,
+      activities: activities.length > 0 ? activities : undefined,
+      highlight: highlight.trim() ? highlight.trim() : undefined,
       photo,
     };
     await saveDaily(data);
@@ -577,6 +806,34 @@ export function DailyReportOverlay({
       score: dailyMoodToScore(mood),
       note: oneLine || undefined,
     });
+    // Persist a dream into the dream journal when the user typed
+    // text. Title falls back to the first 60 chars of the body when
+    // they didn't fill it in. The dream lives in its own
+    // subcollection (useDreams) and shows up in DaysOverlay's
+    // dream-history view — the daily report just provides the
+    // quick-capture entry point.
+    const text = dreamText.trim();
+    if (text.length > 0) {
+      const title = dreamTitle.trim() || text.slice(0, 60).trim();
+      try {
+        await addDream({
+          date: isoDateToday(),
+          title,
+          text,
+          tags: [],
+          mood: dreamMood.trim() || undefined,
+          lucidity: 0,
+          vividness: 0,
+        });
+        // Clear after a successful write so the user doesn't
+        // accidentally double-log the same dream on a second save.
+        setDreamText("");
+        setDreamTitle("");
+        setDreamMood("");
+      } catch (err) {
+        console.error("[DailyReport] dream save failed:", err);
+      }
+    }
     setSavedFlash(true);
   };
 
@@ -681,10 +938,108 @@ export function DailyReportOverlay({
               letterSpacing: "0.06em",
             }}
           >
-            <span>sunken</span>
-            <span>even</span>
-            <span>luminous</span>
+            <span>low</span>
+            <span>steady</span>
+            <span>bright</span>
           </div>
+
+          {/* Auto-mood: only shown when the on-device LLM is
+              available (native only) AND the user has typed a
+              reasonable one-line. Non-destructive — sets the slider
+              value, user can override at any time. */}
+          {llm.available && (
+            <div style={{ marginTop: 10 }}>
+              <button
+                type="button"
+                onClick={() => void suggestMood()}
+                disabled={
+                  oneLine.trim().length < 12 ||
+                  suggestingMood ||
+                  llm.downloading
+                }
+                style={{
+                  padding: "6px 12px",
+                  background:
+                    oneLine.trim().length >= 12 && !suggestingMood
+                      ? "var(--paper-2)"
+                      : "var(--paper-3)",
+                  border: "0.5px solid var(--rule)",
+                  borderRadius: 999,
+                  fontFamily: "var(--mono)",
+                  fontSize: 10,
+                  letterSpacing: "0.1em",
+                  color:
+                    oneLine.trim().length >= 12 && !suggestingMood
+                      ? "var(--ink)"
+                      : "var(--ink-3)",
+                  cursor:
+                    oneLine.trim().length >= 12 && !suggestingMood
+                      ? "pointer"
+                      : "default",
+                }}
+              >
+                {suggestingMood
+                  ? "READING…"
+                  : llm.downloading
+                    ? `DOWNLOADING AI · ${llm.downloadPct}%`
+                    : llm.ready
+                      ? "✨ SUGGEST FROM TEXT"
+                      : "✨ SUGGEST · DOWNLOADS ~2.5 GB"}
+              </button>
+              {moodError && (
+                <div
+                  className="margin-note"
+                  style={{
+                    marginTop: 6,
+                    fontSize: 11,
+                    color: "oklch(0.55 0.16 12)",
+                  }}
+                >
+                  {moodError}
+                </div>
+              )}
+              {!moodError && oneLine.trim().length < 12 && (
+                <div
+                  className="margin-note"
+                  style={{ marginTop: 6, fontSize: 10, fontStyle: "italic" }}
+                >
+                  type a sentence first ({12 - oneLine.trim().length} more)
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        <div className="card" style={{ padding: 14, marginTop: 10 }}>
+          <SectionHead
+            label="sleep · last night"
+            on={!!share.sleep}
+            onToggle={() => toggleShare("sleep")}
+          />
+          <SmallSlider
+            value={sleepQuality}
+            onChange={setSleepQuality}
+            lowLabel="rough"
+            midLabel="ok"
+            highLabel="restful"
+            accent="var(--indigo)"
+          />
+        </div>
+
+        <div className="card" style={{ padding: 14, marginTop: 10 }}>
+          <SectionHead
+            label="energy · today"
+            on={!!share.energy}
+            onToggle={() => toggleShare("energy")}
+          />
+          <SmallSlider
+            value={energy}
+            onChange={setEnergy}
+            lowLabel="drained"
+            midLabel="steady"
+            highLabel="charged"
+            accent="var(--ochre)"
+          />
         </div>
 
         <div className="card" style={{ padding: 14, marginTop: 10 }}>
@@ -716,16 +1071,132 @@ export function DailyReportOverlay({
 
         <div className="card" style={{ padding: 14, marginTop: 10 }}>
           <SectionHead
+            label="activities · what you did"
+            on={!!share.activities}
+            onToggle={() => toggleShare("activities")}
+          />
+          <ActivitiesPicker value={activities} onChange={setActivities} />
+        </div>
+
+        <div className="card" style={{ padding: 14, marginTop: 10 }}>
+          <SectionHead
+            label="highlight · one moment that mattered"
+            on={!!share.highlight}
+            onToggle={() => toggleShare("highlight")}
+          />
+          <textarea
+            value={highlight}
+            onChange={(e) => setHighlight(e.target.value)}
+            placeholder="a small thing worth remembering"
+            maxLength={512}
+            rows={2}
+            style={{
+              width: "100%",
+              boxSizing: "border-box",
+              padding: "10px 12px",
+              background: "var(--paper-2)",
+              border: "0.5px solid var(--rule)",
+              borderRadius: 8,
+              fontFamily: "var(--serif)",
+              fontStyle: "italic",
+              fontSize: 14,
+              color: "var(--ink)",
+              resize: "vertical",
+              marginTop: 8,
+            }}
+          />
+        </div>
+
+        <div className="card" style={{ padding: 14, marginTop: 10 }}>
+          <Kicker>dream · what you remember</Kicker>
+          <div
+            className="margin-note"
+            style={{ marginTop: 4, fontSize: 10, fontStyle: "italic" }}
+          >
+            Saved to your dream journal (Days · dreams). Always private.
+          </div>
+          <input
+            value={dreamTitle}
+            onChange={(e) => setDreamTitle(e.target.value)}
+            placeholder="short name · optional"
+            maxLength={100}
+            style={{
+              width: "100%",
+              boxSizing: "border-box",
+              padding: "8px 10px",
+              background: "var(--paper-2)",
+              border: "0.5px solid var(--rule)",
+              borderRadius: 6,
+              fontFamily: "var(--serif)",
+              fontStyle: "italic",
+              fontSize: 13,
+              color: "var(--ink)",
+              marginTop: 8,
+            }}
+          />
+          <textarea
+            value={dreamText}
+            onChange={(e) => setDreamText(e.target.value)}
+            placeholder="the shape of it — fragments are fine"
+            rows={3}
+            maxLength={2000}
+            style={{
+              width: "100%",
+              boxSizing: "border-box",
+              padding: "8px 10px",
+              background: "var(--paper-2)",
+              border: "0.5px solid var(--rule)",
+              borderRadius: 6,
+              fontFamily: "var(--serif)",
+              fontSize: 13,
+              color: "var(--ink)",
+              resize: "vertical",
+              marginTop: 6,
+            }}
+          />
+          <input
+            value={dreamMood}
+            onChange={(e) => setDreamMood(e.target.value)}
+            placeholder="one-word mood · uneasy, warm, restless… (optional)"
+            maxLength={40}
+            style={{
+              width: "100%",
+              boxSizing: "border-box",
+              padding: "8px 10px",
+              background: "var(--paper-2)",
+              border: "0.5px solid var(--rule)",
+              borderRadius: 6,
+              fontFamily: "var(--mono)",
+              fontSize: 12,
+              color: "var(--ink)",
+              marginTop: 6,
+            }}
+          />
+        </div>
+
+        <div className="card" style={{ padding: 14, marginTop: 10 }}>
+          <SectionHead
             label="weather · today's sky"
             on={share.weather}
             onToggle={() => toggleShare("weather")}
           />
           <Chips
             value={weather}
-            onChange={setWeather}
+            onChange={(v) => {
+              setWeather(v);
+              setWeatherTouched(true);
+            }}
             options={QUICK_WEATHER}
             placeholder="rain · 9° · grey"
           />
+          {!weatherTouched && weather && (
+            <div
+              className="margin-note"
+              style={{ marginTop: 4, fontSize: 10, fontStyle: "italic" }}
+            >
+              auto-filled from live weather. tap to edit.
+            </div>
+          )}
         </div>
 
         {nutrition && (

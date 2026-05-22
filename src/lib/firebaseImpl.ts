@@ -62,6 +62,7 @@ import type {
   CoreValues,
   DayBlock,
   Dream,
+  Achievement,
   Habit,
   Hero,
   Home,
@@ -72,6 +73,7 @@ import type {
   Meal,
   MediaMap,
   Milestone,
+  Skill,
   MoodEntry,
   Person,
   Political,
@@ -150,6 +152,19 @@ export interface RemoteProfile {
   //   "nearby" — followers + circle (people you let near you can write)
   //   "anyone" — any signed-in user, even strangers
   acceptImpressionsFrom?: "nobody" | "circle" | "nearby" | "anyone";
+  // Who sees the impressions OTHERS have left for this user. The
+  // PersonOverlay "Impressions of X" card respects this tier:
+  //   "nobody" — kept entirely private to the recipient (default)
+  //   "circle" — visible to mutual friends
+  //   "nearby" — visible to followers + circle
+  //   "anyone" — visible to any signed-in user
+  shareImpressionsAbout?: "nobody" | "circle" | "nearby" | "anyone";
+  // Traits the user has blacklisted — anyone trying to leave an
+  // impression with one of these traits gets it stripped from the
+  // picker (clientside) and rejected by the Firestore rule
+  // (serverside). Stored lowercased; the picker case-folds before
+  // checking.
+  blockedImpressionTraits?: string[];
   // Optional demographic fields. Used by the Interests tab to render
   // "people who share these interests" demographics (gender ratio,
   // age distribution, country breakdown) and by the World tab's
@@ -556,6 +571,32 @@ export async function addJob(uid: string, j: Job): Promise<void> {
 }
 export async function deleteJob(uid: string, id: string): Promise<void> {
   await deleteDoc(subDocRef(uid, "insight_jobs", id));
+}
+
+export function subscribeProfileSkills(
+  uid: string,
+  cb: (items: Skill[]) => void,
+): () => void {
+  return subscribeList<Skill>(uid, "insight_profile_skills", cb);
+}
+export async function addProfileSkill(uid: string, s: Skill): Promise<void> {
+  await setDoc(subDocRef(uid, "insight_profile_skills", s.id), stripId(s));
+}
+export async function deleteProfileSkill(uid: string, id: string): Promise<void> {
+  await deleteDoc(subDocRef(uid, "insight_profile_skills", id));
+}
+
+export function subscribeAchievements(
+  uid: string,
+  cb: (items: Achievement[]) => void,
+): () => void {
+  return subscribeList<Achievement>(uid, "insight_achievements", cb);
+}
+export async function addAchievement(uid: string, a: Achievement): Promise<void> {
+  await setDoc(subDocRef(uid, "insight_achievements", a.id), stripId(a));
+}
+export async function deleteAchievement(uid: string, id: string): Promise<void> {
+  await deleteDoc(subDocRef(uid, "insight_achievements", id));
 }
 
 // ── Milestones + Time blocks ────────────────────────────────────
@@ -1357,6 +1398,10 @@ export interface RemoteDiscoverable {
   // it from their profile). Used by useNearbyPeople to compute a
   // real match% via cosine similarity instead of the placeholder.
   personality?: number[];
+  // 2-element political position { econ, social } in -100..+100.
+  // Opt-in via sharePrefs.political. Lets the Around tab compute
+  // a small political-distance hint alongside the Big Five match%.
+  political?: { econ: number; social: number };
   // Public bio + role + age fields. All optional, all sourced from
   // the user's profile, all controlled by the per-field sharing
   // toggles in SharingOverlay. Missing fields render as empty in
@@ -1375,6 +1420,17 @@ export interface RemoteDiscoverable {
   // World tab country distribution.
   gender?: string;
   country?: string;
+  // Denormalised acceptImpressionsFrom + blockedImpressionTraits so
+  // the impression-sender UI can filter the picker without a
+  // cross-user profile read. The Firestore write rule still
+  // validates against the source profile doc — this is purely a
+  // client-side UX hint.
+  acceptImpressionsFrom?: string;
+  blockedImpressionTraits?: string[];
+  // Also denormalised so PersonOverlay can decide whether to even
+  // attempt the "Impressions of X" subscription without firing a
+  // permission-denied error.
+  shareImpressionsAbout?: string;
 }
 
 // Read the `location` map regardless of which Firestore representation
@@ -1532,12 +1588,16 @@ export async function findNearbyDiscoverable(
           location?: unknown;
           lastSeen?: number;
           personality?: unknown;
+          political?: unknown;
           bio?: unknown;
           role?: unknown;
           age?: unknown;
           interestNames?: unknown;
           gender?: unknown;
           country?: unknown;
+          acceptImpressionsFrom?: unknown;
+          blockedImpressionTraits?: unknown;
+          shareImpressionsAbout?: unknown;
         };
         const loc = readLocation(data.location);
         if (!loc) continue;
@@ -1549,6 +1609,17 @@ export async function findNearbyDiscoverable(
           personalityRaw.length === 5 &&
           personalityRaw.every((n) => typeof n === "number")
             ? (personalityRaw as number[])
+            : undefined;
+        const politicalRaw = data.political;
+        const political =
+          politicalRaw &&
+          typeof politicalRaw === "object" &&
+          typeof (politicalRaw as { econ?: unknown }).econ === "number" &&
+          typeof (politicalRaw as { social?: unknown }).social === "number"
+            ? {
+                econ: (politicalRaw as { econ: number }).econ,
+                social: (politicalRaw as { social: number }).social,
+              }
             : undefined;
         const bio = typeof data.bio === "string" && data.bio.length > 0
           ? data.bio.slice(0, 280)
@@ -1575,6 +1646,27 @@ export async function findNearbyDiscoverable(
           data.country.length === 2
             ? data.country.toUpperCase()
             : undefined;
+        const acceptImpressionsFrom =
+          typeof data.acceptImpressionsFrom === "string" &&
+          ["nobody", "circle", "nearby", "anyone"].includes(
+            data.acceptImpressionsFrom,
+          )
+            ? data.acceptImpressionsFrom
+            : undefined;
+        const blockedImpressionTraits = Array.isArray(
+          data.blockedImpressionTraits,
+        )
+          ? (data.blockedImpressionTraits as unknown[])
+              .filter((x): x is string => typeof x === "string")
+              .slice(0, 64)
+          : undefined;
+        const shareImpressionsAbout =
+          typeof data.shareImpressionsAbout === "string" &&
+          ["nobody", "circle", "nearby", "anyone"].includes(
+            data.shareImpressionsAbout,
+          )
+            ? data.shareImpressionsAbout
+            : undefined;
         seen.set(d.id, {
           uid: d.id,
           displayName: data.displayName,
@@ -1585,12 +1677,16 @@ export async function findNearbyDiscoverable(
           distanceKm: dKm,
           lastSeen: data.lastSeen,
           personality,
+          political,
           bio,
           role,
           age,
           interestNames,
           gender,
           country,
+          acceptImpressionsFrom,
+          blockedImpressionTraits,
+          shareImpressionsAbout,
         });
       }
     }
@@ -1618,6 +1714,7 @@ export async function upsertDiscoverable(
     // merge clears a previously-written value if the user removes
     // their personality test.
     personality?: number[];
+    political?: { econ: number; social: number } | null;
     // Optional public-profile fields, each opt-in via SharingOverlay
     // toggles. Pass `null` to clear a previously-set value.
     bio?: string | null;
@@ -1626,6 +1723,9 @@ export async function upsertDiscoverable(
     interestNames?: string[] | null;
     gender?: string | null;
     country?: string | null;
+    acceptImpressionsFrom?: string | null;
+    blockedImpressionTraits?: string[] | null;
+    shareImpressionsAbout?: string | null;
   },
 ): Promise<void> {
   await setDoc(
@@ -1642,6 +1742,12 @@ export async function upsertDiscoverable(
         data.personality && data.personality.length === 5
           ? data.personality
           : null,
+      political:
+        data.political &&
+        typeof data.political.econ === "number" &&
+        typeof data.political.social === "number"
+          ? { econ: data.political.econ, social: data.political.social }
+          : null,
       bio: typeof data.bio === "string" ? data.bio.slice(0, 280) : null,
       role: typeof data.role === "string" ? data.role.slice(0, 60) : null,
       age: typeof data.age === "number" ? data.age : null,
@@ -1650,6 +1756,22 @@ export async function upsertDiscoverable(
         : null,
       gender: typeof data.gender === "string" ? data.gender : null,
       country: typeof data.country === "string" ? data.country.toUpperCase().slice(0, 2) : null,
+      acceptImpressionsFrom:
+        typeof data.acceptImpressionsFrom === "string" &&
+        ["nobody", "circle", "nearby", "anyone"].includes(data.acceptImpressionsFrom)
+          ? data.acceptImpressionsFrom
+          : null,
+      blockedImpressionTraits: Array.isArray(data.blockedImpressionTraits)
+        ? data.blockedImpressionTraits
+            .filter((x) => typeof x === "string")
+            .map((x) => x.toLowerCase())
+            .slice(0, 64)
+        : null,
+      shareImpressionsAbout:
+        typeof data.shareImpressionsAbout === "string" &&
+        ["nobody", "circle", "nearby", "anyone"].includes(data.shareImpressionsAbout)
+          ? data.shareImpressionsAbout
+          : null,
     },
     { merge: true },
   );

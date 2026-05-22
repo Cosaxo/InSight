@@ -56,6 +56,14 @@ service cloud.firestore {
           // followers; "anyone" opens it to any signed-in user;
           // "nobody" closes the feature entirely.
           && (!('acceptImpressionsFrom' in d) || d.acceptImpressionsFrom in ['nobody', 'circle', 'nearby', 'anyone'])
+          // shareImpressionsAbout controls who CAN SEE the impressions
+          // others have left for you. Same tier set. Defaults to
+          // "nobody" — keeps the inbox private to the recipient.
+          && (!('shareImpressionsAbout' in d) || d.shareImpressionsAbout in ['nobody', 'circle', 'nearby', 'anyone'])
+          // blockedImpressionTraits — case-folded trait words the
+          // user has opted out of receiving. Capped to keep the
+          // doc bounded.
+          && (!('blockedImpressionTraits' in d) || (d.blockedImpressionTraits is list && d.blockedImpressionTraits.size() <= 64))
           // Demographic fields. gender uses the four-value closed set;
           // country is an ISO 3166-1 alpha-2 code. Both opt-in via
           // sharePrefs.
@@ -177,7 +185,13 @@ service cloud.firestore {
           // 256 chars — well above the canonical path length but
           // bounded so a bad client can't stuff a megabyte string.
           && isOptionalShortString(d.get('photoPath', null), 256)
-          && d.shared is list && d.shared.size() <= 64;
+          && d.shared is list && d.shared.size() <= 64
+          // Extended report fields. All optional; size + range
+          // capped to keep the doc bounded.
+          && (!('energy' in d) || (d.energy is number && d.energy >= 0 && d.energy <= 100))
+          && (!('sleepQuality' in d) || (d.sleepQuality is number && d.sleepQuality >= 0 && d.sleepQuality <= 100))
+          && (!('activities' in d) || (d.activities is list && d.activities.size() <= 24))
+          && (!('highlight' in d) || (d.highlight is string && d.highlight.size() <= 512));
       }
 
       // Circle — grants daily-report read access. Two write paths:
@@ -278,7 +292,25 @@ service cloud.firestore {
       // attestation is the MVP; a Cloud Function pre-write hook is
       // the proper rate-limit answer.
       match /insight_inbound_impressions/{id} {
-        allow read: if request.auth != null && request.auth.uid == uid;
+        // Read carve-out: the recipient always reads their own
+        // inbox. Other users can read when the recipient has opted
+        // into sharing impressions about themselves at a tier the
+        // viewer's relation reaches. The "shareImpressionsAbout"
+        // profile field gates this.
+        allow read: if request.auth != null && (
+          request.auth.uid == uid ||
+          !isBlockedByOwner() && (
+            ownerShareImpressionsAbout() == "anyone"
+            || (
+              ownerShareImpressionsAbout() == "nearby"
+              && (isFollowerOfOwner() || isInOwnerCircle())
+            )
+            || (
+              ownerShareImpressionsAbout() == "circle"
+              && isInOwnerCircle()
+            )
+          )
+        );
         allow create: if request.auth != null
           && request.resource.data.senderUid == request.auth.uid
           && !isBlockedByOwner()
@@ -296,13 +328,32 @@ service cloud.firestore {
             // (rare; users with public-facing profiles).
             || ownerAcceptsImpressionsFrom() == "anyone"
           )
-          && isValidInboundImpressionWrite();
+          && isValidInboundImpressionWrite()
+          // No trait in the write may be on the recipient's
+          // blacklist. The hasAny() check returns true if any
+          // overlap exists; we negate.
+          && !traitsHitBlocklist();
         allow delete: if request.auth != null && (
           request.auth.uid == uid ||
           request.auth.uid == resource.data.senderUid
         );
         // Impressions are immutable once written — no edits.
         allow update: if false;
+      }
+
+      function ownerShareImpressionsAbout() {
+        let p = get(/databases/$(database)/documents/insight_users/$(uid));
+        return p.data.get("shareImpressionsAbout", "nobody");
+      }
+
+      function traitsHitBlocklist() {
+        let p = get(/databases/$(database)/documents/insight_users/$(uid));
+        let blocked = p.data.get("blockedImpressionTraits", []);
+        let incoming = request.resource.data.traits;
+        // hasAny returns true if the lists share at least one
+        // element. Traits are stored lowercased on both sides so
+        // the comparison is direct.
+        return blocked.size() > 0 && incoming.hasAny(blocked);
       }
 
       function isValidInboundImpressionWrite() {
@@ -364,6 +415,12 @@ service cloud.firestore {
           || (d.personality is list && d.personality.size() == 5)
         )
         && (
+          !('political' in d) || d.political == null
+          || (d.political is map
+              && d.political.econ is number
+              && d.political.social is number)
+        )
+        && (
           !('bio' in d) || d.bio == null
           || (d.bio is string && d.bio.size() <= 280)
         )
@@ -386,6 +443,18 @@ service cloud.firestore {
         && (
           !('country' in d) || d.country == null
           || (d.country is string && d.country.size() == 2)
+        )
+        && (
+          !('acceptImpressionsFrom' in d) || d.acceptImpressionsFrom == null
+          || d.acceptImpressionsFrom in ['nobody', 'circle', 'nearby', 'anyone']
+        )
+        && (
+          !('blockedImpressionTraits' in d) || d.blockedImpressionTraits == null
+          || (d.blockedImpressionTraits is list && d.blockedImpressionTraits.size() <= 64)
+        )
+        && (
+          !('shareImpressionsAbout' in d) || d.shareImpressionsAbout == null
+          || d.shareImpressionsAbout in ['nobody', 'circle', 'nearby', 'anyone']
         );
     }
 

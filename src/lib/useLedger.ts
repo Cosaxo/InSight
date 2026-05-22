@@ -11,23 +11,37 @@
 // respective collection.
 
 import { useCallback, useEffect, useState } from "react";
-import type { Book, Home, Job, Language, Visit } from "../types";
+import type {
+  Achievement,
+  Book,
+  Home,
+  Job,
+  Language,
+  Skill,
+  Visit,
+} from "../types";
 import {
+  addAchievement,
   addBook,
   addHome,
   addJob,
   addLanguage,
+  addProfileSkill,
   addVisit,
+  deleteAchievement,
   deleteBook,
   deleteHome,
   deleteJob,
   deleteLanguage,
+  deleteProfileSkill,
   deleteVisit,
   firebaseEnabled,
+  subscribeAchievements,
   subscribeBooks,
   subscribeHomes,
   subscribeJobs,
   subscribeLanguages,
+  subscribeProfileSkills,
   subscribeVisits,
 } from "./firebase";
 import { useAuth } from "./useAuth";
@@ -162,4 +176,24 @@ const JOB_OPS: LedgerOps<Job> = {
 };
 export function useJobs() {
   return useLedgerCollection<Job>(JOB_OPS);
+}
+
+const PROFILE_SKILL_OPS: LedgerOps<Skill> = {
+  storageKey: "insight.profile_skills.v1",
+  subscribe: subscribeProfileSkills,
+  add: addProfileSkill,
+  remove: deleteProfileSkill,
+};
+export function useProfileSkills() {
+  return useLedgerCollection<Skill>(PROFILE_SKILL_OPS);
+}
+
+const ACHIEVEMENT_OPS: LedgerOps<Achievement> = {
+  storageKey: "insight.achievements.v1",
+  subscribe: subscribeAchievements,
+  add: addAchievement,
+  remove: deleteAchievement,
+};
+export function useAchievements() {
+  return useLedgerCollection<Achievement>(ACHIEVEMENT_OPS);
 }

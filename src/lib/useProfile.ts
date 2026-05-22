@@ -24,6 +24,30 @@ export interface ProfileExt extends RemoteProfile {
   // The eight moral axes used by the values test.
   // Keys: tech / future / duty / hedonism / meaning / moral / altruism / beauty.
   morals?: Record<string, number>;
+  // Money Scripts (Klontz, 2011) — short form. Four scripts on
+  // 0..100. Highest score = dominant script. Powers FinanceTab
+  // commentary + cross-tab framing of spending behaviour.
+  moneyScripts?: {
+    avoidance: number;
+    worship: number;
+    status: number;
+    vigilance: number;
+  };
+  // Chronotype (Munich short form). 0 = strong morning ("lark"),
+  // 100 = strong evening ("owl"). Drives Body tab workout-timing
+  // hints + Days tab pattern reading.
+  chronotype?: {
+    score: number;
+    category: "lark" | "intermediate" | "owl";
+  };
+  // Adult attachment (ECR-R short form). Two continuous scores;
+  // style derived from quadrant. Drives People tab relationship
+  // dynamics + nearby-people match enrichment.
+  attachment?: {
+    anxiety: number;
+    avoidance: number;
+    style: "secure" | "anxious" | "avoidant" | "disorganized";
+  };
 }
 
 function readLocal(): ProfileExt {
@@ -219,4 +243,88 @@ export function computeValues(answers: number[]): {
     change: Math.round(((morals.future ?? 0) + (morals.tech ?? 0)) / 2),
   };
   return { cv, morals };
+}
+
+// Money Scripts (Klontz et al., 2011) — short form. 8 questions,
+// 2 per script (Avoidance / Worship / Status / Vigilance). Likert
+// 0-4. Each script averaged then scaled to 0..100.
+//
+// Question order (must match TestOverlay's questions array):
+//   0,1 — Avoidance
+//   2,3 — Worship
+//   4,5 — Status
+//   6,7 — Vigilance
+export function computeMoneyScripts(answers: number[]): {
+  avoidance: number;
+  worship: number;
+  status: number;
+  vigilance: number;
+} {
+  const pair = (i: number, j: number) =>
+    Math.round((((answers[i] ?? 0) + (answers[j] ?? 0)) / 8) * 100);
+  return {
+    avoidance: pair(0, 1),
+    worship: pair(2, 3),
+    status: pair(4, 5),
+    vigilance: pair(6, 7),
+  };
+}
+
+// Chronotype (Munich Chronotype Questionnaire — adapted short
+// form). 4 questions, Likert 0-4. Questions are framed so that
+// "agree" pushes toward morningness or eveningness:
+//   q0 +morning: I'd rather wake early than stay up late
+//   q1 +morning: I do my best thinking in the morning
+//   q2 +evening: I feel most alert in the evening
+//   q3 +evening: Given total freedom I'd sleep past 9 am
+//
+// We score 0 = pure lark, 100 = pure owl, 50 = neutral.
+export function computeChronotype(answers: number[]): {
+  score: number;
+  category: "lark" | "intermediate" | "owl";
+} {
+  const a = answers.slice(0, 4).map((v) => v ?? 0);
+  // Evening sum minus morning sum, normalised to 0..100.
+  const eveningSum = (a[2] ?? 0) + (a[3] ?? 0);
+  const morningSum = (a[0] ?? 0) + (a[1] ?? 0);
+  // Difference range is -8..+8; remap to 0..100.
+  const score = Math.round(((eveningSum - morningSum + 8) / 16) * 100);
+  let category: "lark" | "intermediate" | "owl" = "intermediate";
+  if (score < 35) category = "lark";
+  else if (score > 65) category = "owl";
+  return { score, category };
+}
+
+// Adult attachment (ECR-R short form). 8 questions, 4 per dimension
+// (anxiety / avoidance), Likert 0-4. Each dimension averaged, scaled
+// to 0..100. Style derived from the quadrant against a 50-50 midpoint:
+//   low anx + low avd  → secure
+//   high anx + low avd → anxious (preoccupied)
+//   low anx + high avd → avoidant (dismissive)
+//   high anx + high avd → disorganized (fearful-avoidant)
+//
+// Question order (must match TestOverlay):
+//   0..3 — anxiety items
+//   4..7 — avoidance items
+export function computeAttachment(answers: number[]): {
+  anxiety: number;
+  avoidance: number;
+  style: "secure" | "anxious" | "avoidant" | "disorganized";
+} {
+  const avg = (start: number, count: number) => {
+    let sum = 0;
+    for (let i = 0; i < count; i++) sum += answers[start + i] ?? 0;
+    return Math.round((sum / (count * 4)) * 100);
+  };
+  const anxiety = avg(0, 4);
+  const avoidance = avg(4, 4);
+  const style =
+    anxiety < 50 && avoidance < 50
+      ? "secure"
+      : anxiety >= 50 && avoidance < 50
+        ? "anxious"
+        : anxiety < 50 && avoidance >= 50
+          ? "avoidant"
+          : "disorganized";
+  return { anxiety, avoidance, style };
 }

@@ -141,11 +141,11 @@ function OverlayFallback() {
 }
 
 const TABS: { id: TabId; label: string }[] = [
-  { id: "around", label: "around" },
-  { id: "world", label: "world" },
-  { id: "city", label: "city" },
   { id: "interests", label: "interests" },
   { id: "people", label: "people" },
+  { id: "around", label: "around" },
+  { id: "city", label: "city" },
+  { id: "world", label: "world" },
 ];
 
 const TWEAK_DEFAULTS = {
@@ -156,39 +156,65 @@ const TWEAK_DEFAULTS = {
 
 type AnyPerson = NearbyPerson | CirclePerson;
 
-// The journal-volume framing anchors to a fixed launch year. Each
-// calendar year past the anchor is the next volume — vol. i = 2024,
-// vol. ii = 2025, vol. iii = 2026, etc. Roman numerals lowercase to
-// match the typographic feel of the rest of the chrome.
-const HEADER_VOLUME_ANCHOR_YEAR = 2024;
-function toRoman(n: number): string {
-  if (n <= 0) return "—";
-  const map: [number, string][] = [
-    [1000, "m"], [900, "cm"], [500, "d"], [400, "cd"],
-    [100, "c"], [90, "xc"], [50, "l"], [40, "xl"],
-    [10, "x"], [9, "ix"], [5, "v"], [4, "iv"], [1, "i"],
-  ];
-  let out = "";
-  for (const [v, s] of map) {
-    while (n >= v) {
-      out += s;
-      n -= v;
-    }
-  }
-  return out;
-}
-function headerVolume(): string {
-  const v = new Date().getFullYear() - HEADER_VOLUME_ANCHOR_YEAR + 1;
-  return `vol. ${toRoman(v)}`;
-}
-function headerDate(): string {
-  const d = new Date();
-  const months = [
-    "jan", "feb", "mar", "apr", "may", "jun",
-    "jul", "aug", "sep", "oct", "nov", "dec",
-  ];
-  const yy = String(d.getFullYear() % 100).padStart(2, "0");
-  return `${months[d.getMonth()]} '${yy}`;
+// TodayPill — persistent quick-write entry point in the app
+// header. Replaces the old vol./date display. Two states:
+//   - report exists today → mood label + a small coloured dot
+//   - report missing      → "+ today" CTA
+// Tap opens DailyReportOverlay. The mood-to-colour mapping mirrors
+// the slider gradient in DailyReportOverlay's mood section.
+function TodayPill({
+  mood,
+  moodLabel,
+  onOpen,
+}: {
+  mood: number | null;
+  moodLabel: string | null;
+  onOpen: () => void;
+}) {
+  const hasReport = mood != null && moodLabel != null;
+  // Map mood (0..100) into a warm-to-cool hue band: low=warm
+  // sienna, mid=ochre, high=sage. Matches the literal mood
+  // language we land on ("low", "steady", "bright").
+  const dotColor = !hasReport
+    ? "var(--ink-3)"
+    : mood < 35
+      ? "oklch(0.55 0.16 30)"
+      : mood < 65
+        ? "oklch(0.65 0.13 65)"
+        : "oklch(0.60 0.13 145)";
+  return (
+    <button
+      onClick={onOpen}
+      style={{
+        background: "transparent",
+        border: "0.5px solid var(--rule)",
+        borderRadius: 999,
+        padding: "5px 10px",
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 6,
+        cursor: "pointer",
+        fontFamily: "var(--mono)",
+        fontSize: 10,
+        letterSpacing: "0.08em",
+        color: hasReport ? "var(--ink-2)" : "var(--ink-3)",
+        textTransform: "uppercase",
+        flexShrink: 0,
+      }}
+      aria-label={hasReport ? `today's mood: ${moodLabel}` : "write today's report"}
+    >
+      <span
+        style={{
+          width: 8,
+          height: 8,
+          borderRadius: "50%",
+          background: dotColor,
+          flexShrink: 0,
+        }}
+      />
+      {hasReport ? moodLabel : "+ today"}
+    </button>
+  );
 }
 
 function toOverlayPerson(p: AnyPerson): PersonForOverlay {
@@ -216,6 +242,30 @@ function toOverlayPerson(p: AnyPerson): PersonForOverlay {
     morals:
       "morals" in p && p.morals
         ? (p.morals as Record<string, number>)
+        : undefined,
+    age: "age" in p && typeof p.age === "number" && p.age > 0 ? p.age : undefined,
+    country: "country" in p ? (p as NearbyPerson).country : undefined,
+    gender: "gender" in p ? (p as NearbyPerson).gender : undefined,
+    political:
+      "political" in p && (p as NearbyPerson).political
+        ? (p as NearbyPerson).political
+        : undefined,
+    interestNames:
+      "interestNames" in p && Array.isArray((p as NearbyPerson).interestNames)
+        ? (p as NearbyPerson).interestNames
+        : undefined,
+    blockedImpressionTraits:
+      "blockedImpressionTraits" in p && Array.isArray((p as NearbyPerson).blockedImpressionTraits)
+        ? (p as NearbyPerson).blockedImpressionTraits
+        : undefined,
+    shareImpressionsAbout:
+      "shareImpressionsAbout" in p &&
+      typeof (p as NearbyPerson).shareImpressionsAbout === "string"
+        ? ((p as NearbyPerson).shareImpressionsAbout as
+            | "nobody"
+            | "circle"
+            | "nearby"
+            | "anyone")
         : undefined,
     linkedUid:
       "linkedUid" in p && typeof p.linkedUid === "string"
@@ -375,7 +425,7 @@ function AppShell() {
   // When set, TestOverlay opens jumped directly into that test kind
   // (used by ProfileOverlay's "take the test" empty-state CTAs).
   const [testInitialKind, setTestInitialKind] = useState<
-    "big5" | "political" | "values" | null
+    "big5" | "political" | "values" | "money" | "chronotype" | "attachment" | null
   >(null);
   const [showSharing, setShowSharing] = useState(false);
   const [showDna, setShowDna] = useState(false);
@@ -471,11 +521,14 @@ function AppShell() {
           <div className="h-title">
             in<em>Sight</em>
           </div>
-          <div className="h-meta">
-            {headerVolume()}
-            <br />
-            {headerDate()}
-          </div>
+          <TodayPill
+            mood={myDaily?.mood ?? null}
+            moodLabel={myDaily?.moodLabel ?? null}
+            onOpen={() => {
+              closeAll();
+              setShowDaily(true);
+            }}
+          />
         </header>
 
         <div className="app-body">
@@ -508,16 +561,7 @@ function AppShell() {
                 setShowDaily(true);
               }}
             >
-              <span style={{ color: "var(--accent)" }}>◉</span> daily report
-            </div>
-            <div
-              className="fab-item"
-              onClick={() => {
-                setFabOpen(false);
-                setShowInsights(true);
-              }}
-            >
-              <span style={{ color: "var(--sienna)" }}>✦</span> open journal
+              <span style={{ color: "var(--accent)" }}>◉</span> today's report
             </div>
             <div
               className="fab-item"
@@ -526,16 +570,7 @@ function AppShell() {
                 setShowBody(true);
               }}
             >
-              <span style={{ color: "var(--ochre)" }}>◐</span> the body
-            </div>
-            <div
-              className="fab-item"
-              onClick={() => {
-                setFabOpen(false);
-                setShowDays(true);
-              }}
-            >
-              <span style={{ color: "var(--indigo)" }}>☾</span> the days
+              <span style={{ color: "var(--ochre)" }}>◐</span> body · meals
             </div>
             <div
               className="fab-item"
@@ -544,7 +579,7 @@ function AppShell() {
                 setShowScrap(true);
               }}
             >
-              <span style={{ color: "var(--sage)" }}>❀</span> the scrapbook
+              <span style={{ color: "var(--sage)" }}>❀</span> scrapbook
             </div>
             <div
               className="fab-item"
@@ -559,10 +594,19 @@ function AppShell() {
               className="fab-item"
               onClick={() => {
                 setFabOpen(false);
-                setShowTest(true);
+                setShowAddPerson(true);
               }}
             >
-              <span style={{ color: "var(--sage)" }}>✎</span> take a test
+              <span style={{ color: "var(--ochre)" }}>+</span> add a person
+            </div>
+            <div
+              className="fab-item"
+              onClick={() => {
+                setFabOpen(false);
+                setShowDays(true);
+              }}
+            >
+              <span style={{ color: "var(--indigo)" }}>☾</span> browse days
             </div>
             <div
               className="fab-item"
@@ -571,25 +615,7 @@ function AppShell() {
                 setShowLife(true);
               }}
             >
-              <span style={{ color: "var(--accent)" }}>⌇</span> life details
-            </div>
-            <div
-              className="fab-item"
-              onClick={() => {
-                setFabOpen(false);
-                setShowSharing(true);
-              }}
-            >
-              <span style={{ color: "var(--ink-2)" }}>◇</span> what you share
-            </div>
-            <div
-              className="fab-item"
-              onClick={() => {
-                setFabOpen(false);
-                setShowAddPerson(true);
-              }}
-            >
-              <span style={{ color: "var(--ochre)" }}>+</span> add a person
+              <span style={{ color: "var(--accent)" }}>⌇</span> life · skills · achievements
             </div>
           </div>
         )}
@@ -654,6 +680,14 @@ function AppShell() {
                 setShowProfile(false);
                 setTestInitialKind(kind);
                 setShowTest(true);
+              }}
+              onOpenSharing={() => {
+                setShowProfile(false);
+                setShowSharing(true);
+              }}
+              onOpenJournal={() => {
+                setShowProfile(false);
+                setShowInsights(true);
               }}
             />
           )}
