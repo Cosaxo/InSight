@@ -185,7 +185,13 @@ service cloud.firestore {
           // 256 chars — well above the canonical path length but
           // bounded so a bad client can't stuff a megabyte string.
           && isOptionalShortString(d.get('photoPath', null), 256)
-          && d.shared is list && d.shared.size() <= 64;
+          && d.shared is list && d.shared.size() <= 64
+          // Extended report fields. All optional; size + range
+          // capped to keep the doc bounded.
+          && (!('energy' in d) || (d.energy is number && d.energy >= 0 && d.energy <= 100))
+          && (!('sleepQuality' in d) || (d.sleepQuality is number && d.sleepQuality >= 0 && d.sleepQuality <= 100))
+          && (!('activities' in d) || (d.activities is list && d.activities.size() <= 24))
+          && (!('highlight' in d) || (d.highlight is string && d.highlight.size() <= 512));
       }
 
       // Circle — grants daily-report read access. Two write paths:

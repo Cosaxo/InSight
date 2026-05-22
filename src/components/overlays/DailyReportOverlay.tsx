@@ -77,6 +77,24 @@ const QUICK_WEATHER = [
   "wind · 11°",
 ];
 
+// Activity chips for the daily report. A short curated set —
+// covers the rough texture of a day without forcing detailed
+// time-tracking. Multi-select; the icon is decorative.
+const ACTIVITY_PALETTE: { id: string; label: string; glyph: string }[] = [
+  { id: "work",     label: "work",     glyph: "▢" },
+  { id: "read",     label: "read",     glyph: "✎" },
+  { id: "walk",     label: "walk",     glyph: "△" },
+  { id: "exercise", label: "exercise", glyph: "↗" },
+  { id: "social",   label: "social",   glyph: "○" },
+  { id: "creative", label: "creative", glyph: "✦" },
+  { id: "rest",     label: "rest",     glyph: "☾" },
+  { id: "outside",  label: "outside",  glyph: "❀" },
+  { id: "cook",     label: "cook",     glyph: "◐" },
+  { id: "learn",    label: "learn",    glyph: "◇" },
+  { id: "travel",   label: "travel",   glyph: "✶" },
+  { id: "music",    label: "music",    glyph: "♪" },
+];
+
 interface PhotoStock {
   id: string;
   bg: string;
@@ -218,6 +236,120 @@ function SectionHead({
         </span>
         <Toggle on={on} onClick={onToggle} />
       </span>
+    </div>
+  );
+}
+
+// SmallSlider — compact 0..100 slider with left/mid/right labels.
+// Used by the new energy + sleep cards so they read symmetrically
+// with the mood slider without taking up the same vertical space.
+function SmallSlider({
+  value,
+  onChange,
+  lowLabel,
+  midLabel,
+  highLabel,
+  accent,
+}: {
+  value: number;
+  onChange: (v: number) => void;
+  lowLabel: string;
+  midLabel: string;
+  highLabel: string;
+  accent: string;
+}) {
+  return (
+    <div style={{ marginTop: 6 }}>
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "baseline",
+          marginBottom: 4,
+        }}
+      >
+        <span
+          className="fig-num"
+          style={{ fontSize: 22, lineHeight: 1, color: accent }}
+        >
+          <em>{value}</em>
+        </span>
+      </div>
+      <input
+        type="range"
+        min="0"
+        max="100"
+        value={value}
+        onChange={(e) => onChange(+e.target.value)}
+        style={{ width: "100%", accentColor: accent }}
+      />
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          fontFamily: "var(--mono)",
+          fontSize: 8.5,
+          color: "var(--ink-3)",
+          letterSpacing: "0.06em",
+        }}
+      >
+        <span>{lowLabel}</span>
+        <span>{midLabel}</span>
+        <span>{highLabel}</span>
+      </div>
+    </div>
+  );
+}
+
+// ActivitiesPicker — multi-select chip grid. Tap to toggle. No
+// numeric ranking; presence in the list is the signal.
+function ActivitiesPicker({
+  value,
+  onChange,
+}: {
+  value: string[];
+  onChange: (next: string[]) => void;
+}) {
+  const toggle = (id: string) => {
+    if (value.includes(id)) onChange(value.filter((v) => v !== id));
+    else onChange([...value, id]);
+  };
+  return (
+    <div
+      style={{
+        display: "flex",
+        flexWrap: "wrap",
+        gap: 5,
+        marginTop: 8,
+      }}
+    >
+      {ACTIVITY_PALETTE.map((a) => {
+        const on = value.includes(a.id);
+        return (
+          <button
+            key={a.id}
+            type="button"
+            onClick={() => toggle(a.id)}
+            style={{
+              padding: "5px 10px",
+              borderRadius: 999,
+              fontFamily: "var(--mono)",
+              fontSize: 10,
+              letterSpacing: "0.06em",
+              background: on ? "var(--ink)" : "var(--paper-2)",
+              color: on ? "var(--paper)" : "var(--ink-2)",
+              border: on ? "none" : "0.5px solid var(--rule)",
+              cursor: "pointer",
+              display: "inline-flex",
+              gap: 5,
+              alignItems: "center",
+            }}
+          >
+            <span>{a.glyph}</span>
+            {a.label}
+          </button>
+        );
+      })}
     </div>
   );
 }
@@ -502,6 +634,15 @@ export function DailyReportOverlay({
   const [mood, setMood] = useState<number>(existing?.mood ?? 62);
   const [oneLine, setOneLine] = useState<string>(existing?.one_line ?? "");
   const [weather, setWeather] = useState<string>(existing?.weather ?? "");
+  // Extended-report state. All optional. Defaults align with mood:
+  // energy/sleep start at 50 (neutral) so the user has to actively
+  // move them — saves a "you reported neutral on everything" trap.
+  const [energy, setEnergy] = useState<number>(existing?.energy ?? 50);
+  const [sleepQuality, setSleepQuality] = useState<number>(
+    existing?.sleepQuality ?? 50,
+  );
+  const [activities, setActivities] = useState<string[]>(existing?.activities ?? []);
+  const [highlight, setHighlight] = useState<string>(existing?.highlight ?? "");
   // Track whether the user has typed anything into the weather
   // field yet. If they haven't, the live-weather effect autofills;
   // once they edit it we leave it alone.
@@ -572,6 +713,10 @@ export function DailyReportOverlay({
     one_line: true,
     nutrition: true,
     weather: true,
+    energy: false,
+    sleep: false,
+    activities: true,
+    highlight: false,
   };
   const [share, setShare] = useState<Record<string, boolean>>(
     existing?.shared
@@ -632,6 +777,14 @@ export function DailyReportOverlay({
       hasPhoto: !!photo,
       photoId: isStockPhoto ? photo! : undefined,
       shared,
+      // Extended fields. Optional but the type expects them present
+      // when the user has interacted — we only include defaults of
+      // 50 (energy/sleep) if the user actively moved the slider
+      // off neutral, otherwise omit so the doc stays clean.
+      energy: energy !== 50 ? energy : undefined,
+      sleepQuality: sleepQuality !== 50 ? sleepQuality : undefined,
+      activities: activities.length > 0 ? activities : undefined,
+      highlight: highlight.trim() ? highlight.trim() : undefined,
       photo,
     };
     await saveDaily(data);
@@ -821,6 +974,38 @@ export function DailyReportOverlay({
 
         <div className="card" style={{ padding: 14, marginTop: 10 }}>
           <SectionHead
+            label="sleep · last night"
+            on={!!share.sleep}
+            onToggle={() => toggleShare("sleep")}
+          />
+          <SmallSlider
+            value={sleepQuality}
+            onChange={setSleepQuality}
+            lowLabel="rough"
+            midLabel="ok"
+            highLabel="restful"
+            accent="var(--indigo)"
+          />
+        </div>
+
+        <div className="card" style={{ padding: 14, marginTop: 10 }}>
+          <SectionHead
+            label="energy · today"
+            on={!!share.energy}
+            onToggle={() => toggleShare("energy")}
+          />
+          <SmallSlider
+            value={energy}
+            onChange={setEnergy}
+            lowLabel="drained"
+            midLabel="steady"
+            highLabel="charged"
+            accent="var(--ochre)"
+          />
+        </div>
+
+        <div className="card" style={{ padding: 14, marginTop: 10 }}>
+          <SectionHead
             label="a line · what kind of day"
             on={share.one_line}
             onToggle={() => toggleShare("one_line")}
@@ -842,6 +1027,44 @@ export function DailyReportOverlay({
               fontStyle: "italic",
               fontSize: 13,
               color: "var(--ink)",
+            }}
+          />
+        </div>
+
+        <div className="card" style={{ padding: 14, marginTop: 10 }}>
+          <SectionHead
+            label="activities · what you did"
+            on={!!share.activities}
+            onToggle={() => toggleShare("activities")}
+          />
+          <ActivitiesPicker value={activities} onChange={setActivities} />
+        </div>
+
+        <div className="card" style={{ padding: 14, marginTop: 10 }}>
+          <SectionHead
+            label="highlight · one moment that mattered"
+            on={!!share.highlight}
+            onToggle={() => toggleShare("highlight")}
+          />
+          <textarea
+            value={highlight}
+            onChange={(e) => setHighlight(e.target.value)}
+            placeholder="a small thing worth remembering"
+            maxLength={512}
+            rows={2}
+            style={{
+              width: "100%",
+              boxSizing: "border-box",
+              padding: "10px 12px",
+              background: "var(--paper-2)",
+              border: "0.5px solid var(--rule)",
+              borderRadius: 8,
+              fontFamily: "var(--serif)",
+              fontStyle: "italic",
+              fontSize: 14,
+              color: "var(--ink)",
+              resize: "vertical",
+              marginTop: 8,
             }}
           />
         </div>

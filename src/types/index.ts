@@ -376,6 +376,13 @@ export interface RemoteDailyReport {
   // Omitted when cloud photos are off.
   photoPath?: string;
   shared: string[];
+  // New fields (Phase: more-comprehensive daily report). All
+  // optional so a user mid-write can save partial reports and
+  // older reports stay valid.
+  energy?: number;          // 0..100, parallel to mood
+  sleepQuality?: number;    // 0..100, last night
+  activities?: string[];    // chip ids from ACTIVITY_PALETTE
+  highlight?: string;       // one moment that mattered today
   updatedAt?: unknown; // server timestamp
 }
 
