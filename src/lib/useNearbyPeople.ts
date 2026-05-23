@@ -2,9 +2,9 @@
 //
 // Runs a geohash-bounded Firestore query on the `insight_discoverable`
 // collection, sorts by haversine distance, returns the top 20. When
-// Firebase is disabled, no position has been granted, or the result
-// set is empty (early days, nobody in your area is discoverable yet),
-// falls back to seed data so the Around tab is never blank.
+// Firebase is disabled, no position has been granted, or nobody is
+// discoverable nearby, it returns an empty list (source "none") — no
+// seed fallback, so the Around tab only ever shows real people.
 
 import { useCallback, useEffect, useState } from "react";
 import {
@@ -13,24 +13,7 @@ import {
 } from "./firebase";
 import { useAuth } from "./useAuth";
 import { useProfile, big5Match } from "./useProfile";
-import { IS_DATA } from "../data/seedData";
 import type { NearbyPerson } from "../components/tabs/AroundTab";
-
-interface SeedNearby {
-  id: string;
-  name: string;
-  init: string;
-  age: number;
-  dist: string;
-  match: number;
-  hue: number;
-  role: string;
-  interests: { t: string; c: string }[];
-  values: string;
-  note: string;
-}
-
-const SEED_NEARBY = IS_DATA.nearby as SeedNearby[];
 
 function formatDistance(km: number): string {
   if (km < 1) return `${Math.max(50, Math.round(km * 1000))} m`;
@@ -65,15 +48,17 @@ export function useNearbyPeople(
   people: NearbyPerson[];
   loading: boolean;
   error: string | null;
-  source: "firestore" | "seed";
+  source: "firestore" | "none";
   refresh: () => Promise<void>;
 } {
   const { user } = useAuth();
   const { profile } = useProfile();
-  const [people, setPeople] = useState<NearbyPerson[]>(SEED_NEARBY);
+  // No seed fallback: when nobody real is discoverable nearby we show
+  // an empty state, never a fabricated cast.
+  const [people, setPeople] = useState<NearbyPerson[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [source, setSource] = useState<"firestore" | "seed">("seed");
+  const [source, setSource] = useState<"firestore" | "none">("none");
 
   // The viewer's Big Five vector — used as one half of the cosine
   // similarity. When missing, every discovered user gets match=null
@@ -92,8 +77,8 @@ export function useNearbyPeople(
 
   const fetchOnce = useCallback(async () => {
     if (!firebaseEnabled || !position) {
-      setPeople(SEED_NEARBY);
-      setSource("seed");
+      setPeople([]);
+      setSource("none");
       return;
     }
     setLoading(true);
@@ -105,8 +90,8 @@ export function useNearbyPeople(
         user?.uid,
       );
       if (remote.length === 0) {
-        setPeople(SEED_NEARBY);
-        setSource("seed");
+        setPeople([]);
+        setSource("none");
         return;
       }
       // Map RemoteDiscoverable → NearbyPerson. bio + role + age
@@ -162,8 +147,8 @@ export function useNearbyPeople(
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       setError(msg);
-      setPeople(SEED_NEARBY);
-      setSource("seed");
+      setPeople([]);
+      setSource("none");
     } finally {
       setLoading(false);
     }

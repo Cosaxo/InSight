@@ -220,20 +220,22 @@ export function AroundTab({ onPerson, onOpenTest, onAddPerson }: AroundTabProps)
         </div>
       )}
 
-      {/* When we have a location but nobody nearby is discoverable yet,
-          we're falling back to seed data — be honest about that. */}
-      {position && source === "seed" && (
+      {/* We have a location but nobody real is discoverable nearby —
+          empty state, no seed cast. */}
+      {position && source === "none" && nearby.length === 0 && (
         <div
-          className="margin-note"
-          style={{
-            fontSize: 11,
-            color: "var(--ink-3)",
-            marginBottom: 8,
-            fontStyle: "italic",
-          }}
+          className="card"
+          style={{ marginBottom: 10, padding: 14 }}
         >
-          Nobody discoverable in your area yet — showing the seed
-          cast. Turn on "discoverable" in Sharing to be one of them.
+          <Kicker>Nobody nearby yet</Kicker>
+          <div
+            className="margin-note"
+            style={{ marginTop: 6, fontSize: 12, fontStyle: "italic" }}
+          >
+            No one discoverable is within range right now. Turn on
+            "discoverable" in Sharing to be found — and check back as
+            more people join.
+          </div>
         </div>
       )}
 
@@ -308,9 +310,13 @@ export function AroundTab({ onPerson, onOpenTest, onAddPerson }: AroundTabProps)
           <div style={{ textAlign: "center", fontFamily: "var(--serif)", fontStyle: "italic", fontSize: 13, color: "var(--ink-3)", marginTop: -4 }}>
             rings = match % · closer to centre is a stronger match
           </div>
-          <hr className="rule-dashed" />
-          <Kicker>Top match · tap to read</Kicker>
-          <PersonRow p={nearby[0]} onClick={() => onPerson(nearby[0])} />
+          {nearby.length > 0 && (
+            <>
+              <hr className="rule-dashed" />
+              <Kicker>Top match · tap to read</Kicker>
+              <PersonRow p={nearby[0]} onClick={() => onPerson(nearby[0])} />
+            </>
+          )}
         </div>
       )}
 
