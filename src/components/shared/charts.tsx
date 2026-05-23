@@ -774,3 +774,664 @@ export function DivergeBars({
     </div>
   );
 }
+
+// ─── Ridgeline — stacked smooth filled curves (e.g. mood over weeks) ───
+interface RidgelineProps {
+  rows: number[][]; // each row: values 0..1
+  w?: number;
+  h?: number;
+  color?: string;
+}
+export function Ridgeline({
+  rows,
+  w = 320,
+  h = 120,
+  color = "var(--sienna)",
+}: RidgelineProps) {
+  const rowH = h / Math.max(1, rows.length);
+  return (
+    <svg viewBox={`0 0 ${w} ${h + 14}`} width="100%" style={{ display: "block" }}>
+      {rows.map((vals, ri) => {
+        const baseY = (ri + 1) * rowH;
+        const pts = vals.map(
+          (v, i) =>
+            [(i / Math.max(1, vals.length - 1)) * w, baseY - v * (rowH * 1.6)] as [
+              number,
+              number,
+            ],
+        );
+        const d =
+          pts.reduce(
+            (acc, [x, y], i) =>
+              acc + (i === 0 ? `M ${x} ${baseY} L ${x} ${y}` : ` L ${x} ${y}`),
+            "",
+          ) + ` L ${w} ${baseY} Z`;
+        return (
+          <g key={ri}>
+            <path d={d} fill="var(--paper-2)" stroke="none" />
+            <path
+              d={d}
+              fill={color}
+              fillOpacity={0.12 + ri * 0.04}
+              stroke={color}
+              strokeWidth="1.1"
+              strokeLinejoin="round"
+            />
+          </g>
+        );
+      })}
+    </svg>
+  );
+}
+
+// ─── NetworkGraph — nodes + edges, "you" anchored at centre ───
+export interface NetworkNode {
+  id: string;
+  label: string;
+  hue?: number;
+  weight?: number; // 0..1 — closer to 1 sits nearer the centre
+}
+interface NetworkGraphProps {
+  nodes: NetworkNode[];
+  edges: [string, string][];
+  size?: number;
+  accent?: string;
+}
+export function NetworkGraph({
+  nodes,
+  edges,
+  size = 320,
+  accent = "var(--accent)",
+}: NetworkGraphProps) {
+  const cx = size / 2;
+  const cy = size / 2;
+  const others = nodes.filter((n) => n.id !== "you");
+  const placed: Record<string, [number, number]> = { you: [cx, cy] };
+  others.forEach((n, i) => {
+    const a = (i / Math.max(1, others.length)) * Math.PI * 2 - Math.PI / 2;
+    const r = 60 + (1 - (n.weight ?? 0.5)) * 70;
+    placed[n.id] = [cx + Math.cos(a) * r, cy + Math.sin(a) * r];
+  });
+  return (
+    <svg viewBox={`0 0 ${size} ${size}`} width="100%" style={{ display: "block" }}>
+      {edges.map(([a, b], i) => {
+        if (!placed[a] || !placed[b]) return null;
+        return (
+          <line
+            key={i}
+            x1={placed[a][0]}
+            y1={placed[a][1]}
+            x2={placed[b][0]}
+            y2={placed[b][1]}
+            stroke="var(--rule)"
+            strokeWidth="0.8"
+            strokeDasharray="2 2"
+            opacity="0.7"
+          />
+        );
+      })}
+      {nodes.map((n) => {
+        const pos = placed[n.id];
+        if (!pos) return null;
+        const [x, y] = pos;
+        const isYou = n.id === "you";
+        const r = isYou ? 14 : 9;
+        const fill = isYou ? accent : `oklch(0.55 0.12 ${n.hue ?? 38})`;
+        return (
+          <g key={n.id}>
+            <circle cx={x} cy={y} r={r + 4} fill={fill} fillOpacity="0.14" />
+            <circle cx={x} cy={y} r={r} fill={fill} />
+            <text
+              x={x}
+              y={y + 3}
+              textAnchor="middle"
+              style={{
+                font: `italic ${isYou ? 11 : 9}px Fraunces, serif`,
+                fill: "var(--paper)",
+              }}
+            >
+              {n.label}
+            </text>
+          </g>
+        );
+      })}
+    </svg>
+  );
+}
+
+// ─── Big5Grid — the five Big Five traits as tinted cells, your score
+// + an optional scope average. Replaces the MBTI grid: InSight measures
+// Big Five, not MBTI, so this is fed by real data (profile.personality
+// for `values`, an area/world/circle average for `average`). Each cell
+// tints by your score and shows a high/low descriptor + the avg delta.
+const BIG5_TRAITS: {
+  abbr: string;
+  label: string;
+  high: string;
+  low: string;
+}[] = [
+  { abbr: "O", label: "Openness", high: "Curious", low: "Grounded" },
+  { abbr: "C", label: "Conscientious", high: "Disciplined", low: "Easygoing" },
+  { abbr: "E", label: "Extraversion", high: "Outgoing", low: "Reserved" },
+  { abbr: "A", label: "Agreeable", high: "Warm", low: "Direct" },
+  { abbr: "N", label: "Neuroticism", high: "Sensitive", low: "Composed" },
+];
+interface Big5GridProps {
+  values: number[]; // [O, C, E, A, N], 0..100
+  average?: number[] | null; // scope average, same order
+  accent?: string;
+}
+export function Big5Grid({
+  values,
+  average,
+  accent = "var(--accent)",
+}: Big5GridProps) {
+  return (
+    <div
+      style={{
+        display: "grid",
+        gridTemplateColumns: "repeat(auto-fit, minmax(92px, 1fr))",
+        gap: 6,
+      }}
+    >
+      {BIG5_TRAITS.map((t, i) => {
+        const v = Math.max(0, Math.min(100, values[i] ?? 0));
+        const avg = average?.[i];
+        const intensity = v / 100;
+        const descriptor = v >= 50 ? t.high : t.low;
+        return (
+          <div
+            key={t.abbr}
+            style={{
+              position: "relative",
+              aspectRatio: "1",
+              background: "var(--paper-2)",
+              border: "0.5px solid var(--rule)",
+              borderRadius: 4,
+              overflow: "hidden",
+              display: "flex",
+              flexDirection: "column",
+              justifyContent: "space-between",
+              padding: 7,
+            }}
+          >
+            <div
+              style={{
+                position: "absolute",
+                inset: 0,
+                background: accent,
+                opacity: 0.06 + intensity * 0.4,
+              }}
+            />
+            <div
+              style={{
+                position: "relative",
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "baseline",
+              }}
+            >
+              <span
+                style={{
+                  fontFamily: "var(--mono)",
+                  fontSize: 10,
+                  letterSpacing: "0.08em",
+                  color: "var(--ink)",
+                  fontWeight: 600,
+                }}
+              >
+                {t.abbr}
+              </span>
+              <span className="fig-num" style={{ fontSize: 18 }}>
+                <em>{Math.round(v)}</em>
+              </span>
+            </div>
+            <div style={{ position: "relative" }}>
+              <div
+                style={{
+                  fontFamily: "var(--serif)",
+                  fontStyle: "italic",
+                  fontSize: 12,
+                  color: "var(--ink-2)",
+                  lineHeight: 1.1,
+                }}
+              >
+                {descriptor}
+              </div>
+              {typeof avg === "number" && (
+                <div
+                  style={{
+                    fontFamily: "var(--mono)",
+                    fontSize: 8,
+                    letterSpacing: "0.06em",
+                    color: "var(--ink-3)",
+                    marginTop: 2,
+                  }}
+                  title={`${t.label} · scope average`}
+                >
+                  avg {Math.round(avg)}
+                  {v - avg >= 0 ? " · +" : " · "}
+                  {Math.round(v - avg)}
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// ─── BellCurve — normal curve with your value marked vs the mean ───
+interface BellCurveProps {
+  value: number;
+  mean?: number;
+  stdev?: number;
+  range?: [number, number];
+  color?: string;
+  w?: number;
+  h?: number;
+  label?: string;
+}
+export function BellCurve({
+  value,
+  mean = 0,
+  stdev = 30,
+  range = [-100, 100],
+  color = "var(--accent)",
+  w = 280,
+  h = 80,
+  label,
+}: BellCurveProps) {
+  const [lo, hi] = range;
+  const sd = stdev || 1;
+  const N = 60;
+  const samples = Array.from({ length: N }, (_, i) => {
+    const x = lo + (i / (N - 1)) * (hi - lo);
+    const z = (x - mean) / sd;
+    return Math.exp(-0.5 * z * z);
+  });
+  const peak = Math.max(...samples) || 1;
+  const xs = (i: number) => (i / (N - 1)) * w;
+  const ys = (v: number) => h - 4 - (v / peak) * (h - 12);
+  const d = samples.map((v, i) => `${i === 0 ? "M" : "L"} ${xs(i)} ${ys(v)}`).join(" ");
+  const fillD = `${d} L ${w} ${h} L 0 ${h} Z`;
+  const valX = ((value - lo) / (hi - lo)) * w;
+  const meanX = ((mean - lo) / (hi - lo)) * w;
+  return (
+    <svg viewBox={`0 0 ${w} ${h + 16}`} width="100%" style={{ display: "block" }}>
+      <path d={fillD} fill={color} fillOpacity="0.10" />
+      <path d={d} fill="none" stroke={color} strokeWidth="1.2" />
+      <line x1={meanX} y1={6} x2={meanX} y2={h} stroke="var(--ink-3)" strokeWidth="0.6" strokeDasharray="2 2" />
+      <text
+        x={meanX + 3}
+        y={12}
+        style={{ font: "8px JetBrains Mono, monospace", letterSpacing: "0.1em", fill: "var(--ink-3)" }}
+      >
+        AVG
+      </text>
+      <line x1={valX} y1={2} x2={valX} y2={h} stroke={color} strokeWidth="2" />
+      <circle cx={valX} cy={2} r="3" fill={color} />
+      <text
+        x={valX}
+        y={h + 12}
+        textAnchor="middle"
+        style={{ font: "italic 10px Fraunces, serif", fill: color }}
+      >
+        {label || "you"}
+      </text>
+    </svg>
+  );
+}
+
+// ─── CompareCompass — two points on a 2-axis grid (you vs a group) ───
+interface CompassPoint {
+  x: number; // -100..100
+  y: number; // -100..100
+}
+interface CompareCompassProps {
+  you: CompassPoint;
+  them: CompassPoint;
+  themLabel?: string;
+  size?: number;
+  accent?: string;
+  xLabel?: [string, string];
+  yLabel?: [string, string];
+}
+export function CompareCompass({
+  you,
+  them,
+  themLabel = "avg",
+  size = 240,
+  accent = "var(--accent)",
+  xLabel = ["Left", "Right"],
+  yLabel = ["Liberty", "Authority"],
+}: CompareCompassProps) {
+  const s = size;
+  const pad = 22;
+  const toXY = (p: CompassPoint): [number, number] => [
+    pad + ((p.x + 100) / 200) * (s - pad * 2),
+    pad + ((100 - p.y) / 200) * (s - pad * 2),
+  ];
+  const [yx, yy] = toXY(you);
+  const [tx, ty] = toXY(them);
+  return (
+    <svg viewBox={`0 0 ${s} ${s + 4}`} width="100%" style={{ display: "block" }}>
+      <rect x={pad} y={pad} width={s - 2 * pad} height={s - 2 * pad} fill="none" stroke="var(--rule)" strokeWidth="0.5" />
+      <line x1={s / 2} y1={pad} x2={s / 2} y2={s - pad} stroke="var(--rule)" strokeWidth="0.5" strokeDasharray="2 2" />
+      <line x1={pad} y1={s / 2} x2={s - pad} y2={s / 2} stroke="var(--rule)" strokeWidth="0.5" strokeDasharray="2 2" />
+      <line x1={yx} y1={yy} x2={tx} y2={ty} stroke={accent} strokeWidth="0.7" strokeDasharray="3 2" opacity="0.6" />
+      <circle cx={tx} cy={ty} r="6" fill="var(--ink-3)" fillOpacity="0.18" />
+      <circle cx={tx} cy={ty} r="3" fill="var(--ink-3)" />
+      <text x={tx + 6} y={ty - 4} style={{ font: "italic 10px Fraunces, serif", fill: "var(--ink-3)" }}>{themLabel}</text>
+      <circle cx={yx} cy={yy} r="9" fill={accent} fillOpacity="0.18" />
+      <circle cx={yx} cy={yy} r="4" fill={accent} />
+      <text x={yx + 6} y={yy - 6} style={{ font: "italic 11px Fraunces, serif", fill: "var(--ink)" }}>you</text>
+      <text x={pad - 2} y={s / 2 - 4} style={{ font: "9px JetBrains Mono, monospace", letterSpacing: "0.1em", fill: "var(--ink-3)" }}>{xLabel[0]}</text>
+      <text x={s - pad + 2} y={s / 2 - 4} textAnchor="end" style={{ font: "9px JetBrains Mono, monospace", letterSpacing: "0.1em", fill: "var(--ink-3)" }}>{xLabel[1]}</text>
+      <text x={s / 2 + 4} y={pad + 8} style={{ font: "9px JetBrains Mono, monospace", letterSpacing: "0.1em", fill: "var(--ink-3)" }}>{yLabel[0]}</text>
+      <text x={s / 2 + 4} y={s - pad - 2} style={{ font: "9px JetBrains Mono, monospace", letterSpacing: "0.1em", fill: "var(--ink-3)" }}>{yLabel[1]}</text>
+    </svg>
+  );
+}
+
+// ─── StackedBars — stacked segment bars (e.g. macros across the week) ───
+interface StackedSegment {
+  key: string;
+  color: string;
+  label?: string;
+}
+interface StackedRow {
+  label: string;
+  vals: Record<string, number>;
+}
+interface StackedBarsProps {
+  rows: StackedRow[];
+  segments: StackedSegment[];
+  w?: number;
+  h?: number;
+  gap?: number;
+  max?: number;
+}
+export function StackedBars({
+  rows,
+  segments,
+  w = 320,
+  h = 140,
+  gap = 4,
+  max,
+}: StackedBarsProps) {
+  const totals = rows.map((r) =>
+    segments.reduce((s, seg) => s + (r.vals[seg.key] || 0), 0),
+  );
+  const M = max || Math.max(1, ...totals);
+  const colW = (w - gap * Math.max(1, rows.length - 1)) / Math.max(1, rows.length);
+  return (
+    <svg viewBox={`0 0 ${w} ${h + 18}`} width="100%" style={{ display: "block" }}>
+      {rows.map((r, i) => {
+        let y = h - 14;
+        const x = i * (colW + gap);
+        const tot = totals[i];
+        return (
+          <g key={i}>
+            {segments.map((seg, j) => {
+              const v = r.vals[seg.key] || 0;
+              const sh = (v / M) * (h - 22);
+              y -= sh;
+              return (
+                <rect
+                  key={j}
+                  x={x}
+                  y={y}
+                  width={colW}
+                  height={sh}
+                  fill={seg.color}
+                  fillOpacity={0.55 + j * 0.12}
+                />
+              );
+            })}
+            <text
+              x={x + colW / 2}
+              y={h - 14 - (tot / M) * (h - 22) - 3}
+              textAnchor="middle"
+              style={{ font: "8px JetBrains Mono, monospace", fill: "var(--ink-3)", letterSpacing: "0.06em" }}
+            >
+              {tot}
+            </text>
+            <text
+              x={x + colW / 2}
+              y={h + 6}
+              textAnchor="middle"
+              style={{ font: "italic 10.5px Fraunces, serif", fill: "var(--ink-2)" }}
+            >
+              {r.label}
+            </text>
+          </g>
+        );
+      })}
+    </svg>
+  );
+}
+
+// ─── ClockDial — 24-hour dial with markers + water spokes ───
+export interface ClockMarker {
+  hour: number; // 0..24
+  kcal: number;
+  label?: string;
+  hue?: number;
+}
+export interface WaterTick {
+  h: number; // hour 0..24
+  ml: number;
+}
+interface ClockDialProps {
+  markers?: ClockMarker[];
+  waterByHour?: WaterTick[];
+  size?: number;
+  accent?: string;
+}
+export function ClockDial({
+  markers = [],
+  waterByHour = [],
+  size = 220,
+  accent = "var(--sienna)",
+}: ClockDialProps) {
+  const cx = size / 2;
+  const cy = size / 2;
+  const r = size / 2 - 18;
+  const hourPt = (hh: number, rad = r): [number, number] => {
+    const a = (hh / 24) * Math.PI * 2 - Math.PI / 2;
+    return [cx + Math.cos(a) * rad, cy + Math.sin(a) * rad];
+  };
+  const [sx, sy] = hourPt(6, r - 2);
+  const [ex, ey] = hourPt(22, r - 2);
+  return (
+    <svg viewBox={`0 0 ${size} ${size}`} width="100%" style={{ display: "block" }}>
+      <circle cx={cx} cy={cy} r={r} fill="none" stroke="var(--rule)" strokeWidth="0.6" />
+      <circle cx={cx} cy={cy} r={r * 0.66} fill="none" stroke="var(--rule)" strokeWidth="0.4" strokeDasharray="2 3" />
+      {Array.from({ length: 24 }).map((_, i) => {
+        const [x1, y1] = hourPt(i, r - 4);
+        const [x2, y2] = hourPt(i, r);
+        return <line key={i} x1={x1} y1={y1} x2={x2} y2={y2} stroke="var(--rule)" strokeWidth={i % 6 === 0 ? 1 : 0.5} />;
+      })}
+      {[0, 6, 12, 18].map((hh) => {
+        const [x, y] = hourPt(hh, r + 10);
+        return (
+          <text key={hh} x={x} y={y + 3} textAnchor="middle" style={{ font: "8px JetBrains Mono, monospace", fill: "var(--ink-3)", letterSpacing: "0.08em" }}>
+            {hh === 0 ? "24" : String(hh).padStart(2, "0")}
+          </text>
+        );
+      })}
+      <path d={`M ${sx} ${sy} A ${r - 2} ${r - 2} 0 1 1 ${ex} ${ey}`} fill="none" stroke="var(--ochre)" strokeWidth="1.2" strokeOpacity="0.32" />
+      {waterByHour.map((wt, i) => {
+        if (!wt.ml) return null;
+        const len = Math.min(wt.ml / 250, 1) * (r * 0.32);
+        const [x1, y1] = hourPt(wt.h, r * 0.66);
+        const [x2, y2] = hourPt(wt.h, r * 0.66 - len);
+        return <line key={i} x1={x1} y1={y1} x2={x2} y2={y2} stroke="var(--indigo)" strokeWidth="2" strokeLinecap="round" opacity="0.7" />;
+      })}
+      {markers.map((m, i) => {
+        const [x, y] = hourPt(m.hour, r * 0.85);
+        const dotR = 6 + Math.min(m.kcal / 200, 8);
+        const fill = m.hue != null ? `oklch(0.62 0.13 ${m.hue})` : accent;
+        return (
+          <g key={i}>
+            <circle cx={x} cy={y} r={dotR + 3} fill={fill} fillOpacity="0.16" />
+            <circle cx={x} cy={y} r={dotR} fill={fill} />
+            <text x={x} y={y + 3} textAnchor="middle" style={{ font: "8px JetBrains Mono, monospace", fill: "var(--paper)", letterSpacing: "0.05em" }}>{m.kcal}</text>
+          </g>
+        );
+      })}
+      <text x={cx} y={cy - 4} textAnchor="middle" style={{ font: "italic 11px Fraunces, serif", fill: "var(--ink-2)" }}>today</text>
+      <text x={cx} y={cy + 8} textAnchor="middle" style={{ font: "8px JetBrains Mono, monospace", fill: "var(--ink-3)", letterSpacing: "0.1em" }}>24-HOUR</text>
+    </svg>
+  );
+}
+
+// ─── MicroBars — tiny inline bar rows with a target tick at 100% ───
+export interface MicroBarItem {
+  k: string;
+  pct: number;
+  hue: number;
+  over?: boolean;
+}
+export function MicroBars({ items }: { items: MicroBarItem[] }) {
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+      {items.map((it, i) => {
+        const overPct = (Math.min(it.pct, 200) / 200) * 100;
+        const targetPct = 50;
+        const color = `oklch(0.60 0.13 ${it.hue})`;
+        return (
+          <div key={i} style={{ display: "grid", gridTemplateColumns: "78px 1fr 38px", gap: 8, alignItems: "center" }}>
+            <span style={{ fontFamily: "var(--serif)", fontStyle: "italic", fontSize: 11.5, color: "var(--ink-2)" }}>{it.k}</span>
+            <div style={{ position: "relative", height: 10, background: "var(--paper-2)", border: "0.5px solid var(--rule)", borderRadius: 2 }}>
+              <div style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: `${overPct}%`, background: color, opacity: 0.55, borderRadius: 2 }} />
+              <div style={{ position: "absolute", left: `${targetPct}%`, top: -2, bottom: -2, width: 1.2, background: "var(--ink-2)" }} />
+            </div>
+            <span style={{ fontFamily: "var(--mono)", fontSize: 9, color: it.pct < 70 ? "oklch(0.55 0.16 12)" : "var(--ink-3)", letterSpacing: "0.06em", textAlign: "right" }}>
+              {it.pct}%
+            </span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// ─── DowStripes — day-of-week heatmap (7 cells per row) ───
+interface DowRow {
+  label: string;
+  vals: number[]; // length 7, % 0..100
+}
+export function DowStripes({ rows, color = "var(--sienna)" }: { rows: DowRow[]; color?: string }) {
+  const dows = ["M", "T", "W", "T", "F", "S", "S"];
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "110px repeat(7, 1fr)", gap: 4, fontFamily: "var(--mono)", fontSize: 8.5, color: "var(--ink-3)", letterSpacing: "0.1em", alignItems: "center" }}>
+        <span></span>
+        {dows.map((d, i) => <span key={i} style={{ textAlign: "center" }}>{d}</span>)}
+      </div>
+      {rows.map((r, i) => (
+        <div key={i} style={{ display: "grid", gridTemplateColumns: "110px repeat(7, 1fr)", gap: 4, alignItems: "center" }}>
+          <span style={{ fontFamily: "var(--serif)", fontStyle: "italic", fontSize: 12, color: "var(--ink-2)", textOverflow: "ellipsis", overflow: "hidden", whiteSpace: "nowrap" }}>{r.label}</span>
+          {r.vals.map((v, j) => (
+            <div key={j} style={{ height: 22, borderRadius: 2, background: color, opacity: 0.1 + (v / 100) * 0.75, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "var(--mono)", fontSize: 8, color: v > 60 ? "var(--paper)" : "var(--ink-3)", letterSpacing: "0.05em" }}>{v}</div>
+          ))}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ─── Scatter — generic scatter plot with a zero baseline ───
+export interface ScatterPoint {
+  x: number;
+  y: number;
+  label?: string;
+}
+interface ScatterProps {
+  points: ScatterPoint[];
+  xLabel?: [string, string];
+  yLabel?: [string, string];
+  w?: number;
+  h?: number;
+  accent?: string;
+  xMax?: number;
+  yMin?: number;
+  yMax?: number;
+}
+export function Scatter({
+  points,
+  xLabel = ["low", "high"],
+  yLabel = ["below", "above"],
+  w = 320,
+  h = 160,
+  accent = "var(--accent)",
+  xMax = 100,
+  yMin = -10,
+  yMax = 10,
+}: ScatterProps) {
+  const pad = 22;
+  const xs = (v: number) => pad + (v / xMax) * (w - pad * 2);
+  const ys = (v: number) => h - pad - ((v - yMin) / (yMax - yMin)) * (h - pad * 2);
+  return (
+    <svg viewBox={`0 0 ${w} ${h}`} width="100%" style={{ display: "block" }}>
+      <rect x={pad} y={pad} width={w - 2 * pad} height={h - 2 * pad} fill="none" stroke="var(--rule)" strokeWidth="0.5" />
+      <line x1={pad} y1={ys(0)} x2={w - pad} y2={ys(0)} stroke="var(--rule)" strokeWidth="0.5" strokeDasharray="2 2" />
+      {points.map((p, i) => (
+        <g key={i}>
+          <circle cx={xs(p.x)} cy={ys(p.y)} r="4.5" fill={accent} fillOpacity="0.7" />
+          {p.label && (
+            <text x={xs(p.x) + 6} y={ys(p.y) + 3} style={{ font: "italic 9px Fraunces, serif", fill: "var(--ink-3)" }}>{p.label}</text>
+          )}
+        </g>
+      ))}
+      <text x={pad} y={h - 4} style={{ font: "8px JetBrains Mono, monospace", fill: "var(--ink-3)", letterSpacing: "0.1em" }}>{xLabel[0]}</text>
+      <text x={w - pad} y={h - 4} textAnchor="end" style={{ font: "8px JetBrains Mono, monospace", fill: "var(--ink-3)", letterSpacing: "0.1em" }}>{xLabel[1]}</text>
+      <text x={pad - 4} y={pad - 4} style={{ font: "8px JetBrains Mono, monospace", fill: "var(--ink-3)", letterSpacing: "0.1em" }}>{yLabel[1]}</text>
+      <text x={pad - 4} y={h - pad + 10} style={{ font: "8px JetBrains Mono, monospace", fill: "var(--ink-3)", letterSpacing: "0.1em" }}>{yLabel[0]}</text>
+    </svg>
+  );
+}
+
+// ─── DivergeRow — a single diverging bar around a centre baseline ───
+interface DivergeRowProps {
+  value: number;
+  max?: number;
+  color?: string;
+  negColor?: string;
+  label: string;
+}
+export function DivergeRow({
+  value,
+  max = 100,
+  color = "var(--sage)",
+  negColor = "var(--sienna)",
+  label,
+}: DivergeRowProps) {
+  const v = Math.max(-max, Math.min(max, value));
+  const pos = v >= 0;
+  const pct = (Math.abs(v) / max) * 50;
+  return (
+    <div style={{ display: "grid", gridTemplateColumns: "110px 1fr 36px", gap: 8, alignItems: "center" }}>
+      <span style={{ fontFamily: "var(--serif)", fontStyle: "italic", fontSize: 12, color: "var(--ink-2)" }}>{label}</span>
+      <div style={{ position: "relative", height: 10, background: "var(--paper-2)", border: "0.5px solid var(--rule)", borderRadius: 2 }}>
+        <div style={{ position: "absolute", left: "50%", top: 0, bottom: 0, width: 1, background: "var(--ink-2)" }} />
+        <div
+          style={{
+            position: "absolute",
+            top: 0,
+            bottom: 0,
+            left: pos ? "50%" : `${50 - pct}%`,
+            width: `${pct}%`,
+            background: pos ? color : negColor,
+            opacity: 0.6,
+            borderRadius: 1,
+          }}
+        />
+      </div>
+      <span style={{ fontFamily: "var(--mono)", fontSize: 9, color: "var(--ink-3)", letterSpacing: "0.06em", textAlign: "right" }}>{pos ? "+" : ""}{value}</span>
+    </div>
+  );
+}

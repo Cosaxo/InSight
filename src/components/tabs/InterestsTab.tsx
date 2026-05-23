@@ -14,6 +14,7 @@
 
 import { useMemo, useState } from "react";
 import { INTEREST_CATS } from "../../data/taxonomies";
+import { useTaxonomies } from "../../lib/useTaxonomies";
 import { Kicker } from "../shared/primitives";
 import { HBars } from "../shared/charts";
 import { useInterests } from "../../lib/useInterests";
@@ -130,6 +131,9 @@ function CategoryFilter({
   onToggle: (id: string) => void;
   onClear: () => void;
 }) {
+  // Categories come from the read-only `taxonomies` collection when
+  // seeded, falling back to the bundled INTEREST_CATS otherwise.
+  const { items: cats } = useTaxonomies("interest_categories", INTEREST_CATS);
   return (
     <div className="card" style={{ padding: 12, marginBottom: 14 }}>
       <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
@@ -153,7 +157,7 @@ function CategoryFilter({
         )}
       </div>
       <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-        {INTEREST_CATS.map((c) => {
+        {cats.map((c) => {
           const on = active.has(c.id);
           return (
             <button

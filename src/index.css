@@ -11,8 +11,8 @@
   --c-around: oklch(0.58 0.13 38);    /* sienna  */
   --c-world:  oklch(0.50 0.12 220);   /* indigo  */
   --c-city:   oklch(0.55 0.10 145);   /* sage    */
-  --c-groups: oklch(0.52 0.14 305);   /* plum    */
-  --c-people: oklch(0.62 0.12 25);    /* coral   */
+  --c-interests: oklch(0.52 0.14 305); /* plum    */
+  --c-people: oklch(0.62 0.15 350);   /* rose    */
   --sienna: var(--c-around);
   --sage: var(--c-city);
   --ochre: oklch(0.68 0.10 80);
@@ -44,12 +44,11 @@ button { font-family: inherit; cursor: pointer; }
 input, select, textarea { font-family: inherit; }
 
 /* Per-tab accent: the .app gets a data-tab attribute and we swap --accent */
-.app[data-tab="around"] { --accent: var(--c-around); }
-.app[data-tab="world"]  { --accent: var(--c-world); }
-.app[data-tab="city"]   { --accent: var(--c-city); }
-.app[data-tab="groups"] { --accent: var(--c-groups); }
-.app[data-tab="people"] { --accent: var(--c-people); }
-.app[data-tab="media"]  { --accent: oklch(0.55 0.13 80); }
+.app[data-tab="around"]    { --accent: var(--c-around); }
+.app[data-tab="world"]     { --accent: var(--c-world); }
+.app[data-tab="city"]      { --accent: var(--c-city); }
+.app[data-tab="interests"] { --accent: var(--c-interests); }
+.app[data-tab="people"]    { --accent: var(--c-people); }
 
 .app {
   width: 100%;
