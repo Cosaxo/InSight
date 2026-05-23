@@ -305,28 +305,10 @@ service cloud.firestore {
             )
           )
         );
-        allow create: if request.auth != null
-          && request.resource.data.senderUid == request.auth.uid
-          && !isBlockedByOwner()
-          && (
-            // Always: someone the owner has explicitly added to their
-            // circle (mutual friend) can leave an impression.
-            isInOwnerCircle()
-            // OR: the owner has opted into wider impressions and the
-            // sender is a follower.
-            || (
-              isFollowerOfOwner()
-              && ownerAcceptsImpressionsFrom() in ["nearby", "anyone"]
-            )
-            // OR: the owner accepts impressions from anyone signed in
-            // (rare; users with public-facing profiles).
-            || ownerAcceptsImpressionsFrom() == "anyone"
-          )
-          && isValidInboundImpressionWrite()
-          // No trait in the write may be on the recipient's
-          // blacklist. The hasAny() check returns true if any
-          // overlap exists; we negate.
-          && !traitsHitBlocklist();
+        // Client creates stay disabled — every impression flows
+        // through the sendInboundImpression callable, which enforces
+        // the rate limit (rules can't) plus the circle/accept-from
+        // gate AND the recipient's trait blocklist, all server-side.
         allow delete: if request.auth != null && (
           request.auth.uid == uid ||
           request.auth.uid == resource.data.senderUid
@@ -338,25 +320,6 @@ service cloud.firestore {
       function ownerShareImpressionsAbout() {
         let p = get(/databases/$(database)/documents/insight_users/$(uid));
         return p.data.get("shareImpressionsAbout", "nobody");
-      }
-
-      function traitsHitBlocklist() {
-        let p = get(/databases/$(database)/documents/insight_users/$(uid));
-        let blocked = p.data.get("blockedImpressionTraits", []);
-        let incoming = request.resource.data.traits;
-        // hasAny returns true if the lists share at least one
-        // element. Traits are stored lowercased on both sides so
-        // the comparison is direct.
-        return blocked.size() > 0 && incoming.hasAny(blocked);
-      }
-
-      function isValidInboundImpressionWrite() {
-        let d = request.resource.data;
-        return
-          isShortString(d.senderUid, 128)
-          && d.traits is list && d.traits.size() <= 24
-          && (!('context' in d) || isShortString(d.context, 256))
-          && d.createdAt is number;
       }
 
       // ── Circle-tier sharing of personal subcollections ──────────

@@ -1136,6 +1136,27 @@ export const sendInboundImpression = onCall(
       throw new HttpsError("permission-denied", "not permitted to leave an impression");
     }
 
+    // Trait blocklist — the recipient can blacklist specific traits
+    // they never want to receive. Stored lowercased on the profile;
+    // we lowercase the incoming traits to compare. (Ported from the
+    // rules-layer traitsHitBlocklist so the gate survives the move to
+    // callable-only creates.)
+    const blockedTraits = profileSnap.data()?.blockedImpressionTraits;
+    if (Array.isArray(blockedTraits) && blockedTraits.length > 0) {
+      const blocked = new Set(
+        blockedTraits
+          .filter((t): t is string => typeof t === "string")
+          .map((t) => t.toLowerCase().trim()),
+      );
+      const hit = traits.some((t) => blocked.has(t.toLowerCase().trim()));
+      if (hit) {
+        throw new HttpsError(
+          "permission-denied",
+          "one or more traits are on the recipient's blocklist",
+        );
+      }
+    }
+
     // ── Rate limit + write, atomically. ──
     const ledgerRef = db.collection("insight_ratelimits").doc(senderUid);
     const impressionRef = recipientRef
