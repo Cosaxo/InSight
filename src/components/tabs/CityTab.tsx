@@ -312,7 +312,7 @@ export function CityTab() {
       )}
 
       <div className="card" style={{ marginBottom: 16 }}>
-        <Kicker>Six dimensions · radar</Kicker>
+        <Kicker>Seven dimensions · radar</Kicker>
         <div style={{ marginTop: 8 }}>
           <RadarChart
             values={cats.map(({ k }) => ratings[k] * 20)}

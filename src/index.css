@@ -106,10 +106,11 @@ input, select, textarea { font-family: inherit; }
 }
 .h-meta {
   font-family: var(--mono);
-  font-size: 9.5px;
+  /* --ink-3 at 9.5px failed AA on paper; bump size + use --ink-2. */
+  font-size: 10px;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: var(--ink-3);
+  color: var(--ink-2);
   text-align: right;
   line-height: 1.35;
 }
@@ -210,17 +211,23 @@ input, select, textarea { font-family: inherit; }
 }
 .sec-head .num {
   font-family: var(--mono);
-  font-size: 9.5px;
+  /* --ink-3 at 9.5px failed AA on paper; bump size + use --ink-2. */
+  font-size: 10px;
   letter-spacing: 0.1em;
   text-transform: uppercase;
-  color: var(--ink-3);
+  color: var(--ink-2);
 }
 .kicker {
   font-family: var(--mono);
-  font-size: 9.5px;
-  letter-spacing: 0.16em;
+  /* Was 9.5px / 0.16em / --ink-3 — that's ~3:1 on paper, below WCAG
+     AA (4.5:1) for small text, and the wide tracking on tiny uppercase
+     mono hurt legibility further. --ink-2 lands ~6.2:1 in both light
+     and dark; the slightly larger size + tighter tracking read better
+     in sunlight. */
+  font-size: 10.5px;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: var(--ink-3);
+  color: var(--ink-2);
   margin-bottom: 4px;
 }
 

@@ -646,14 +646,27 @@ export function subscribeInboundImpressions(
   );
 }
 
+// Inbound impressions are written exclusively by the
+// sendInboundImpression callable — direct client creates are denied
+// by firestore.rules. The callable enforces a per-sender rate limit
+// (which rules can't express) and stamps senderUid + createdAt
+// server-side, so the client-supplied id/createdAt on `i` are
+// ignored; the server's generated id comes back in the response.
 export async function sendInboundImpression(
   recipientUid: string,
   i: InboundImpression,
 ): Promise<void> {
-  await setDoc(
-    subDocRef(recipientUid, "insight_inbound_impressions", i.id),
-    stripId(i),
-  );
+  if (!app) throw new Error("Firebase not initialised");
+  const fns = getFunctions(app, "us-central1");
+  const fn = httpsCallable<
+    { recipientUid: string; traits: string[]; context?: string },
+    { ok: boolean; id: string }
+  >(fns, "sendInboundImpression");
+  await fn({
+    recipientUid,
+    traits: i.traits,
+    ...(i.context !== undefined && { context: i.context }),
+  });
 }
 
 export async function deleteInboundImpression(

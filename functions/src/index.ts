@@ -724,6 +724,176 @@ export const scheduledCityAggregates = onSchedule(
 );
 
 
+// ── sendInboundImpression ───────────────────────────────────────
+//
+// The only write path for inbound impressions. firestore.rules
+// denies client `create` on insight_inbound_impressions outright;
+// every legitimate impression flows through here so we can enforce
+// a rate limit the rules layer can't express (it has no way to
+// count a sender's recent writes across recipients).
+//
+// This callable re-implements the authorization the rule used to do
+// — not-blocked + (in-circle OR follower-with-opt-in OR anyone) —
+// because the admin SDK bypasses rules, so we own the gate now.
+//
+// Rate limit: a per-sender ledger at insight_ratelimits/{senderUid}
+// holds recent send timestamps. One transaction prunes the window,
+// checks both a per-recipient cap and a global hourly cap, and (when
+// under both) reserves the slot + writes the impression atomically.
+// A flooding circle member is stopped at the source instead of
+// landing dozens of docs that have to be cleaned up after the fact.
+
+const IMPRESSION_LIMITS = {
+  // At most this many impressions to the SAME recipient per window.
+  perRecipientMax: 3,
+  perRecipientWindowMs: 24 * 60 * 60 * 1000, // 24h
+  // At most this many impressions to ANYONE per window (anti-spam).
+  globalMax: 20,
+  globalWindowMs: 60 * 60 * 1000, // 1h
+  // Hard cap on retained ledger events so the doc can't grow without
+  // bound; we only ever need the longest window's worth.
+  ledgerCap: 200,
+} as const;
+
+interface SendImpressionData {
+  recipientUid?: unknown;
+  traits?: unknown;
+  context?: unknown;
+}
+
+interface LedgerEvent {
+  r: string; // recipient uid
+  t: number; // epoch ms
+}
+
+export const sendInboundImpression = onCall(
+  { region: "us-central1" },
+  async (request) => {
+    if (!request.auth) {
+      throw new HttpsError("unauthenticated", "must be signed in");
+    }
+    const senderUid = request.auth.uid;
+    const data = (request.data ?? {}) as SendImpressionData;
+
+    // ── Validate input (mirrors isValidInboundImpressionWrite). ──
+    const recipientUid = data.recipientUid;
+    if (typeof recipientUid !== "string" || recipientUid.length === 0) {
+      throw new HttpsError("invalid-argument", "recipientUid required");
+    }
+    if (recipientUid === senderUid) {
+      throw new HttpsError("invalid-argument", "cannot leave an impression on yourself");
+    }
+    if (
+      !Array.isArray(data.traits) ||
+      data.traits.length === 0 ||
+      data.traits.length > 24 ||
+      !data.traits.every((t) => typeof t === "string" && t.length <= 64)
+    ) {
+      throw new HttpsError("invalid-argument", "traits must be 1-24 short strings");
+    }
+    const traits = data.traits as string[];
+    let context: string | undefined;
+    if (data.context !== undefined && data.context !== null) {
+      if (typeof data.context !== "string" || data.context.length > 256) {
+        throw new HttpsError("invalid-argument", "context too long");
+      }
+      context = data.context;
+    }
+
+    const db = getFirestore();
+    const recipientRef = db.collection("insight_users").doc(recipientUid);
+
+    // ── Authorization (admin SDK bypasses rules, so we re-check). ──
+    const [blockSnap, circleSnap, followerSnap, profileSnap] =
+      await Promise.all([
+        recipientRef.collection("blocks").doc(senderUid).get(),
+        recipientRef.collection("circle").doc(senderUid).get(),
+        recipientRef.collection("followers").doc(senderUid).get(),
+        recipientRef.get(),
+      ]);
+
+    if (blockSnap.exists) {
+      throw new HttpsError("permission-denied", "blocked by recipient");
+    }
+    const acceptFrom =
+      (profileSnap.data()?.acceptImpressionsFrom as string | undefined) ??
+      "circle";
+    if (acceptFrom === "nobody") {
+      throw new HttpsError("permission-denied", "recipient is not accepting impressions");
+    }
+    const allowed =
+      circleSnap.exists ||
+      (followerSnap.exists && (acceptFrom === "nearby" || acceptFrom === "anyone")) ||
+      acceptFrom === "anyone";
+    if (!allowed) {
+      throw new HttpsError("permission-denied", "not permitted to leave an impression");
+    }
+
+    // ── Rate limit + write, atomically. ──
+    const ledgerRef = db.collection("insight_ratelimits").doc(senderUid);
+    const impressionRef = recipientRef
+      .collection("insight_inbound_impressions")
+      .doc();
+    const now = Date.now();
+
+    await db.runTransaction(async (tx) => {
+      const ledgerSnap = await tx.get(ledgerRef);
+      const raw = (ledgerSnap.data()?.impressionEvents as LedgerEvent[]) ?? [];
+      // Prune anything older than the longest window we care about.
+      const maxWindow = Math.max(
+        IMPRESSION_LIMITS.perRecipientWindowMs,
+        IMPRESSION_LIMITS.globalWindowMs,
+      );
+      const events = raw.filter(
+        (e) =>
+          e &&
+          typeof e.t === "number" &&
+          typeof e.r === "string" &&
+          now - e.t < maxWindow,
+      );
+
+      const globalRecent = events.filter(
+        (e) => now - e.t < IMPRESSION_LIMITS.globalWindowMs,
+      ).length;
+      if (globalRecent >= IMPRESSION_LIMITS.globalMax) {
+        throw new HttpsError(
+          "resource-exhausted",
+          "You're sending impressions too quickly. Try again later.",
+        );
+      }
+      const perRecipientRecent = events.filter(
+        (e) =>
+          e.r === recipientUid &&
+          now - e.t < IMPRESSION_LIMITS.perRecipientWindowMs,
+      ).length;
+      if (perRecipientRecent >= IMPRESSION_LIMITS.perRecipientMax) {
+        throw new HttpsError(
+          "resource-exhausted",
+          "You've already left a few impressions on this person recently.",
+        );
+      }
+
+      // Under both caps — reserve the slot and write the impression.
+      const nextEvents = [...events, { r: recipientUid, t: now }].slice(
+        -IMPRESSION_LIMITS.ledgerCap,
+      );
+      tx.set(ledgerRef, { impressionEvents: nextEvents }, { merge: true });
+      tx.set(impressionRef, {
+        senderUid,
+        traits,
+        ...(context !== undefined && { context }),
+        createdAt: now,
+      });
+    });
+
+    logger.info(
+      `[sendImpression] ${senderUid} -> ${recipientUid} (${traits.length} traits)`,
+    );
+    return { ok: true, id: impressionRef.id };
+  },
+);
+
+
 // ── deleteAccount ───────────────────────────────────────────────
 //
 // Walks every doc that belongs to the calling user OR references
