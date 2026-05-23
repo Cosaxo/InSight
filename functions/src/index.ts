@@ -30,6 +30,18 @@ const K_ANON_FLOOR = 20;
 const SHARE_KEY_BIG5 = "big5";
 const SHARE_KEY_POLITICAL = "political";
 const SHARE_KEY_MORALS = "morals";
+const SHARE_KEY_MEDIA = "media";
+
+// Media categories — mirror MediaKey in the app (music/film/books/
+// podcasts). Favourites live on the profile as media[category]: string[].
+const MEDIA_CATEGORIES = ["music", "film", "books", "podcasts"] as const;
+type MediaCategory = (typeof MEDIA_CATEGORIES)[number];
+
+interface MediaItemCount {
+  name: string;
+  count: number;
+}
+type MediaTop = Partial<Record<MediaCategory, MediaItemCount[]>>;
 
 // The six political axes (matches POLITICAL_KEY in useProfile.ts).
 const POLITICAL_AXES = [
@@ -59,6 +71,62 @@ interface UserProfileLike {
   politicalAxes?: Record<string, number>;
   morals?: Record<string, number>;
   sharePrefs?: Record<string, string>;
+  media?: Record<string, unknown>;
+}
+
+// The media share level (default "world" when unset — favourites are
+// low-sensitivity, like the "books" category). Levels: nobody / circle
+// / city / world. A given level lets favourites count toward a public
+// scope: "world" → world + city + area; "city" → city + area; anything
+// else → no public aggregation.
+function mediaLevel(p: UserProfileLike): string {
+  return p.sharePrefs?.[SHARE_KEY_MEDIA] ?? "world";
+}
+
+function pickMedia(p: UserProfileLike): Partial<Record<MediaCategory, string[]>> {
+  const out: Partial<Record<MediaCategory, string[]>> = {};
+  const m = p.media;
+  if (!m || typeof m !== "object") return out;
+  for (const cat of MEDIA_CATEGORIES) {
+    const list = (m as Record<string, unknown>)[cat];
+    if (Array.isArray(list)) {
+      out[cat] = list.filter((x): x is string => typeof x === "string");
+    }
+  }
+  return out;
+}
+
+// Tally distinct media items per category across users (each user
+// counts a given item once) and return the top-k per category.
+function topMedia(
+  perUser: Array<Partial<Record<MediaCategory, string[]>>>,
+  k: number,
+): MediaTop {
+  const counts: Record<string, Map<string, MediaItemCount>> = {};
+  for (const cat of MEDIA_CATEGORIES) counts[cat] = new Map();
+  for (const media of perUser) {
+    for (const cat of MEDIA_CATEGORIES) {
+      const list = media[cat];
+      if (!Array.isArray(list)) continue;
+      const seen = new Set<string>();
+      for (const raw of list) {
+        const key = raw.toLowerCase().trim();
+        if (!key || seen.has(key)) continue;
+        seen.add(key);
+        const existing = counts[cat].get(key);
+        if (existing) existing.count += 1;
+        else counts[cat].set(key, { name: raw, count: 1 });
+      }
+    }
+  }
+  const out: MediaTop = {};
+  for (const cat of MEDIA_CATEGORIES) {
+    const arr = [...counts[cat].values()]
+      .sort((a, b) => b.count - a.count)
+      .slice(0, k);
+    if (arr.length > 0) out[cat] = arr;
+  }
+  return out;
 }
 
 interface DiscoverableLike {
@@ -88,6 +156,8 @@ interface AggregateDoc {
   big5?: AxisStats;
   political?: AxisStats;       // length-6: econ/social/foreign/env/tech/auth
   morals?: AxisStats;          // length-8 in MORAL_AXES order
+  // Top media favourites among people in this cell (per category).
+  media?: MediaTop;
   updatedAt: FieldValue;
 }
 
@@ -165,6 +235,7 @@ interface CellBuckets {
   big5: number[][];
   political: number[][];
   morals: number[][];
+  media: Array<Partial<Record<MediaCategory, string[]>>>;
 }
 
 async function runAggregation(): Promise<{
@@ -185,6 +256,9 @@ async function runAggregation(): Promise<{
   //    streams (big5 / political / morals) depending on which tests
   //    they've taken and their per-stream sharePrefs.
   const cells: Record<string, CellBuckets> = {};
+  // Global media tally — favourites shared at "world" level, counted
+  // across the whole discoverable userbase for the World tab.
+  const worldMedia: Array<Partial<Record<MediaCategory, string[]>>> = [];
   let usersIncluded = 0;
   for (const docSnap of discoverableSnap.docs) {
     const disc = docSnap.data() as DiscoverableLike;
@@ -199,7 +273,7 @@ async function runAggregation(): Promise<{
     if (!profileSnap.exists) continue;
     const profile = profileSnap.data() as UserProfileLike;
     if (!cells[hash5]) {
-      cells[hash5] = { big5: [], political: [], morals: [] };
+      cells[hash5] = { big5: [], political: [], morals: [], media: [] };
     }
     const bucket = cells[hash5];
     let contributedSomething = false;
@@ -237,6 +311,17 @@ async function runAggregation(): Promise<{
       }
     }
 
+    // Media ──────────────
+    // "city"/"world" → counts toward the area (geohash5) cell;
+    // "world" also counts toward the global World-tab tally.
+    const medLevel = mediaLevel(profile);
+    if (medLevel === "city" || medLevel === "world") {
+      const fav = pickMedia(profile);
+      bucket.media.push(fav);
+      if (medLevel === "world") worldMedia.push(fav);
+      contributedSomething = true;
+    }
+
     if (contributedSomething) usersIncluded++;
   }
 
@@ -258,7 +343,8 @@ async function runAggregation(): Promise<{
     const b5Ok = bucket.big5.length >= K_ANON_FLOOR;
     const polOk = bucket.political.length >= K_ANON_FLOOR;
     const mOk = bucket.morals.length >= K_ANON_FLOOR;
-    if (!b5Ok && !polOk && !mOk) {
+    const mediaOk = bucket.media.length >= K_ANON_FLOOR;
+    if (!b5Ok && !polOk && !mOk && !mediaOk) {
       if (existingCells.has(hash5)) {
         batchWrite.delete(
           db.collection("aggregates_by_geohash5").doc(hash5),
@@ -270,6 +356,7 @@ async function runAggregation(): Promise<{
     const big5Stats = b5Ok ? summarise(bucket.big5) : null;
     const polStats = polOk ? summarise(bucket.political) : null;
     const mStats = mOk ? summarise(bucket.morals) : null;
+    const mediaTop = mediaOk ? topMedia(bucket.media, 5) : null;
     const doc: AggregateDoc = {
       geohash5: hash5,
       // Backwards-compat fields for clients reading the old shape.
@@ -304,6 +391,7 @@ async function runAggregation(): Promise<{
           stdev: mStats.stdev,
         },
       }),
+      ...(mediaTop && Object.keys(mediaTop).length > 0 && { media: mediaTop }),
     };
     batchWrite.set(db.collection("aggregates_by_geohash5").doc(hash5), doc);
     cellsWritten++;
@@ -316,6 +404,15 @@ async function runAggregation(): Promise<{
     batchWrite.delete(db.collection("aggregates_by_geohash5").doc(orphan));
     cellsDeleted++;
   }
+
+  // Global media tally for the World tab — one doc, read by everyone.
+  // Below the floor we write an empty doc so the client can tell
+  // "ran, but not enough sharers yet" from "never ran".
+  batchWrite.set(db.collection("aggregates_media").doc("world"), {
+    updatedAt: FieldValue.serverTimestamp(),
+    contributors: worldMedia.length,
+    media: worldMedia.length >= K_ANON_FLOOR ? topMedia(worldMedia, 12) : {},
+  });
 
   await batchWrite.commit();
   logger.info(
@@ -760,6 +857,11 @@ interface CityAggregate {
   updatedAt: FirebaseFirestore.FieldValue;
   totalRaters: number;
   byDimension: Record<string, { avg: number; count: number }>;
+  // Personality + media of the people who've rated this city — the
+  // honest per-city profile signal (distinct from the geohash5 area
+  // cell). Each is omitted when below the k-anon floor.
+  personality?: { count: number; mean: number[] };
+  media?: MediaTop;
   topImpressions: { trait: string; count: number }[];
 }
 
@@ -775,22 +877,28 @@ async function runCityAggregation(): Promise<{
   const snap = await db.collectionGroup("insight_cityratings").get();
   logger.info(`[cityAgg] read ${snap.size} rating docs`);
 
-  // Per city slug: dimension → list of values + a display name
-  // (first city name encountered, used so the aggregate doc shows
-  // "Paris" rather than "paris").
+  // Per city slug: dimension values + a display name + the set of
+  // rater uids (so we can pull their personality / media in one
+  // deduped profile fetch and attribute it back per city).
   const byCity = new Map<
     string,
-    { display: string; dims: Map<string, number[]> }
+    { display: string; dims: Map<string, number[]>; raters: Set<string> }
   >();
+  const allRaterUids = new Set<string>();
 
   snap.forEach((doc) => {
     const cityName = doc.id;
     const slug = slugifyCity(cityName);
     if (!slug) return;
     if (!byCity.has(slug)) {
-      byCity.set(slug, { display: cityName, dims: new Map() });
+      byCity.set(slug, { display: cityName, dims: new Map(), raters: new Set() });
     }
     const entry = byCity.get(slug)!;
+    const raterUid = doc.ref.parent.parent?.id;
+    if (raterUid) {
+      entry.raters.add(raterUid);
+      allRaterUids.add(raterUid);
+    }
     const data = doc.data() as Record<string, unknown>;
     for (const dim of CITY_DIMENSIONS) {
       const v = data[dim];
@@ -801,6 +909,15 @@ async function runCityAggregation(): Promise<{
     }
   });
 
+  // Fetch each rater's profile once (deduped). Used for the per-city
+  // Big Five average + media tally.
+  const profiles = new Map<string, UserProfileLike>();
+  await Promise.all(
+    [...allRaterUids].map(async (uid) => {
+      const p = await db.collection("insight_users").doc(uid).get();
+      if (p.exists) profiles.set(uid, p.data() as UserProfileLike);
+    }),
+  );
   // Impressions rollup, keyed by the same city slug.
   const { recipientsWithCity: impressionsByCity } =
     await rollUpImpressions();
@@ -825,7 +942,44 @@ async function runCityAggregation(): Promise<{
       };
       total = Math.max(total, values.length);
     }
-    if (Object.keys(byDimension).length === 0) continue;
+
+    // Per-city Big Five — averaged over raters with a valid vector and
+    // big5 sharing on. Independent k-anon floor.
+    const big5Vectors: number[][] = [];
+    const mediaLists: Array<Partial<Record<MediaCategory, string[]>>> = [];
+    for (const uid of entry.raters) {
+      const profile = profiles.get(uid);
+      if (!profile) continue;
+      const b5 = profile.personality;
+      const b5Level = profile.sharePrefs?.[SHARE_KEY_BIG5] ?? "circle";
+      if (
+        Array.isArray(b5) &&
+        b5.length === 5 &&
+        b5.every((n) => typeof n === "number") &&
+        b5Level !== "nobody"
+      ) {
+        big5Vectors.push(b5);
+      }
+      // Media counts toward a city when shared at city or world level.
+      const mLevel = mediaLevel(profile);
+      if (mLevel === "city" || mLevel === "world") {
+        mediaLists.push(pickMedia(profile));
+      }
+    }
+    const personality =
+      big5Vectors.length >= CITY_K_ANON_FLOOR
+        ? { count: big5Vectors.length, mean: summarise(big5Vectors).mean }
+        : undefined;
+    const media =
+      mediaLists.length >= CITY_K_ANON_FLOOR ? topMedia(mediaLists, 5) : undefined;
+
+    if (
+      Object.keys(byDimension).length === 0 &&
+      !personality &&
+      (!media || Object.keys(media).length === 0)
+    ) {
+      continue;
+    }
     citiesAboveFloor += 1;
     const aggregate: CityAggregate = {
       cityKey: slug,
@@ -833,6 +987,8 @@ async function runCityAggregation(): Promise<{
       updatedAt: FieldValue.serverTimestamp(),
       totalRaters: total,
       byDimension,
+      ...(personality && { personality }),
+      ...(media && Object.keys(media).length > 0 && { media }),
       topImpressions: topImpressionsFromRollup(
         impressionsByCity.get(slug) ?? new Map(),
         8,
@@ -871,6 +1027,176 @@ export const scheduledCityAggregates = onSchedule(
   { schedule: "every 24 hours", region: "us-central1" },
   async () => {
     await runCityAggregation();
+  },
+);
+
+
+// ── sendInboundImpression ───────────────────────────────────────
+//
+// The only write path for inbound impressions. firestore.rules
+// denies client `create` on insight_inbound_impressions outright;
+// every legitimate impression flows through here so we can enforce
+// a rate limit the rules layer can't express (it has no way to
+// count a sender's recent writes across recipients).
+//
+// This callable re-implements the authorization the rule used to do
+// — not-blocked + (in-circle OR follower-with-opt-in OR anyone) —
+// because the admin SDK bypasses rules, so we own the gate now.
+//
+// Rate limit: a per-sender ledger at insight_ratelimits/{senderUid}
+// holds recent send timestamps. One transaction prunes the window,
+// checks both a per-recipient cap and a global hourly cap, and (when
+// under both) reserves the slot + writes the impression atomically.
+// A flooding circle member is stopped at the source instead of
+// landing dozens of docs that have to be cleaned up after the fact.
+
+const IMPRESSION_LIMITS = {
+  // At most this many impressions to the SAME recipient per window.
+  perRecipientMax: 3,
+  perRecipientWindowMs: 24 * 60 * 60 * 1000, // 24h
+  // At most this many impressions to ANYONE per window (anti-spam).
+  globalMax: 20,
+  globalWindowMs: 60 * 60 * 1000, // 1h
+  // Hard cap on retained ledger events so the doc can't grow without
+  // bound; we only ever need the longest window's worth.
+  ledgerCap: 200,
+} as const;
+
+interface SendImpressionData {
+  recipientUid?: unknown;
+  traits?: unknown;
+  context?: unknown;
+}
+
+interface LedgerEvent {
+  r: string; // recipient uid
+  t: number; // epoch ms
+}
+
+export const sendInboundImpression = onCall(
+  { region: "us-central1" },
+  async (request) => {
+    if (!request.auth) {
+      throw new HttpsError("unauthenticated", "must be signed in");
+    }
+    const senderUid = request.auth.uid;
+    const data = (request.data ?? {}) as SendImpressionData;
+
+    // ── Validate input (mirrors isValidInboundImpressionWrite). ──
+    const recipientUid = data.recipientUid;
+    if (typeof recipientUid !== "string" || recipientUid.length === 0) {
+      throw new HttpsError("invalid-argument", "recipientUid required");
+    }
+    if (recipientUid === senderUid) {
+      throw new HttpsError("invalid-argument", "cannot leave an impression on yourself");
+    }
+    if (
+      !Array.isArray(data.traits) ||
+      data.traits.length === 0 ||
+      data.traits.length > 24 ||
+      !data.traits.every((t) => typeof t === "string" && t.length <= 64)
+    ) {
+      throw new HttpsError("invalid-argument", "traits must be 1-24 short strings");
+    }
+    const traits = data.traits as string[];
+    let context: string | undefined;
+    if (data.context !== undefined && data.context !== null) {
+      if (typeof data.context !== "string" || data.context.length > 256) {
+        throw new HttpsError("invalid-argument", "context too long");
+      }
+      context = data.context;
+    }
+
+    const db = getFirestore();
+    const recipientRef = db.collection("insight_users").doc(recipientUid);
+
+    // ── Authorization (admin SDK bypasses rules, so we re-check). ──
+    const [blockSnap, circleSnap, followerSnap, profileSnap] =
+      await Promise.all([
+        recipientRef.collection("blocks").doc(senderUid).get(),
+        recipientRef.collection("circle").doc(senderUid).get(),
+        recipientRef.collection("followers").doc(senderUid).get(),
+        recipientRef.get(),
+      ]);
+
+    if (blockSnap.exists) {
+      throw new HttpsError("permission-denied", "blocked by recipient");
+    }
+    const acceptFrom =
+      (profileSnap.data()?.acceptImpressionsFrom as string | undefined) ??
+      "circle";
+    if (acceptFrom === "nobody") {
+      throw new HttpsError("permission-denied", "recipient is not accepting impressions");
+    }
+    const allowed =
+      circleSnap.exists ||
+      (followerSnap.exists && (acceptFrom === "nearby" || acceptFrom === "anyone")) ||
+      acceptFrom === "anyone";
+    if (!allowed) {
+      throw new HttpsError("permission-denied", "not permitted to leave an impression");
+    }
+
+    // ── Rate limit + write, atomically. ──
+    const ledgerRef = db.collection("insight_ratelimits").doc(senderUid);
+    const impressionRef = recipientRef
+      .collection("insight_inbound_impressions")
+      .doc();
+    const now = Date.now();
+
+    await db.runTransaction(async (tx) => {
+      const ledgerSnap = await tx.get(ledgerRef);
+      const raw = (ledgerSnap.data()?.impressionEvents as LedgerEvent[]) ?? [];
+      // Prune anything older than the longest window we care about.
+      const maxWindow = Math.max(
+        IMPRESSION_LIMITS.perRecipientWindowMs,
+        IMPRESSION_LIMITS.globalWindowMs,
+      );
+      const events = raw.filter(
+        (e) =>
+          e &&
+          typeof e.t === "number" &&
+          typeof e.r === "string" &&
+          now - e.t < maxWindow,
+      );
+
+      const globalRecent = events.filter(
+        (e) => now - e.t < IMPRESSION_LIMITS.globalWindowMs,
+      ).length;
+      if (globalRecent >= IMPRESSION_LIMITS.globalMax) {
+        throw new HttpsError(
+          "resource-exhausted",
+          "You're sending impressions too quickly. Try again later.",
+        );
+      }
+      const perRecipientRecent = events.filter(
+        (e) =>
+          e.r === recipientUid &&
+          now - e.t < IMPRESSION_LIMITS.perRecipientWindowMs,
+      ).length;
+      if (perRecipientRecent >= IMPRESSION_LIMITS.perRecipientMax) {
+        throw new HttpsError(
+          "resource-exhausted",
+          "You've already left a few impressions on this person recently.",
+        );
+      }
+
+      // Under both caps — reserve the slot and write the impression.
+      const nextEvents = [...events, { r: recipientUid, t: now }].slice(
+        -IMPRESSION_LIMITS.ledgerCap,
+      );
+      tx.set(ledgerRef, { impressionEvents: nextEvents }, { merge: true });
+      tx.set(impressionRef, {
+        senderUid,
+        traits,
+        ...(context !== undefined && { context }),
+        createdAt: now,
+      });
+    });
+
+    logger.info(
+      `[sendImpression] ${senderUid} -> ${recipientUid} (${traits.length} traits)`,
+    );
+    return { ok: true, id: impressionRef.id };
   },
 );
 

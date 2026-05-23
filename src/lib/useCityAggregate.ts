@@ -8,6 +8,7 @@
 import { useEffect, useState } from "react";
 import { doc, onSnapshot } from "firebase/firestore";
 import { firebaseEnabled, getDb } from "./firebase";
+import type { ScopeMedia } from "../types";
 
 export interface CityAggregate {
   cityKey: string;
@@ -15,6 +16,11 @@ export interface CityAggregate {
   updatedAt?: { toMillis?: () => number };
   totalRaters: number;
   byDimension: Record<string, { avg: number; count: number }>;
+  // Personality + media of people who've rated this city — a real
+  // per-city signal, distinct from the geohash5 area cell. Each is
+  // absent until enough raters share that field.
+  personality?: { count: number; mean: number[] };
+  media?: ScopeMedia;
   topImpressions?: { trait: string; count: number }[];
 }
 

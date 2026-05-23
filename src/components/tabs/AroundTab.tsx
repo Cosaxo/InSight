@@ -2,7 +2,6 @@ import { useState } from "react";
 import { INTEREST_CATS } from "../../data/taxonomies";
 import {
   Av,
-  CompassRose,
   Kicker,
   Pill,
 } from "../shared/primitives";
@@ -17,6 +16,8 @@ import {
 } from "../../lib/useDeviceHeading";
 import { CirclePortrait } from "./around-portrait";
 import { WeatherCard } from "./around-weather";
+import { ProfileCompare } from "../insights/ProfileCompare";
+import { MediaPopularity } from "../insights/MediaPopularity";
 
 export interface NearbyPerson {
   id: string;
@@ -149,13 +150,22 @@ export function AroundTab({ onPerson, onOpenTest, onAddPerson }: AroundTabProps)
   const { data: areaAggregate } = useAreaAggregate(position);
 
   const cx = 160, cy = 160;
-  const placed = nearby.map((p) => {
-    const angle = (p.hue / 360) * Math.PI * 2 - Math.PI / 2;
+  // Distance from the centre encodes match strength — the only signal
+  // we have for everyone, including the seed cast (who carry no
+  // coordinates). Angle is a deliberate even spread for legibility, not
+  // a bearing: we don't know which direction these people are in, so
+  // the chart shows plain match rings rather than a compass with
+  // cardinals that would imply a direction we can't back up.
+  const R_OUTER = 145; // radius at match = 0 (edge)
+  const R_INNER = 38;  // radius at match = 100 (near centre)
+  const matchRadius = (m: number) =>
+    R_OUTER - (m / 100) * (R_OUTER - R_INNER);
+  const placed = nearby.map((p, i) => {
+    const angle = (i / Math.max(1, nearby.length)) * Math.PI * 2 - Math.PI / 2;
     // Unknown match → render on the middle ring (match = 50). The
     // PersonRow shows "—" so the visual hint is consistent with
     // the "we don't know yet" semantic.
-    const m = p.match ?? 50;
-    const r = 145 - (m / 100) * 110;
+    const r = matchRadius(p.match ?? 50);
     return { ...p, x: cx + Math.cos(angle) * r, y: cy + Math.sin(angle) * r };
   });
 
@@ -253,8 +263,38 @@ export function AroundTab({ onPerson, onOpenTest, onAddPerson }: AroundTabProps)
       {mode === "radar" && (
         <div>
           <div className="compass-wrap">
-            <CompassRose />
             <svg viewBox="0 0 320 320" style={{ position: "absolute", inset: 0, width: "100%", height: "100%" }}>
+              {/* Match rings — radius encodes match%. No cardinal
+                  directions: a dot's angle is an even spread, not a
+                  bearing. */}
+              {[100, 75, 50, 25].map((m, i) => {
+                const rr = matchRadius(m);
+                return (
+                  <g key={m}>
+                    <circle
+                      cx={cx}
+                      cy={cy}
+                      r={rr}
+                      fill="none"
+                      stroke="var(--rule)"
+                      strokeWidth="0.5"
+                      strokeDasharray={i === 0 ? undefined : "1.5 2.5"}
+                      opacity={i === 0 ? 0.9 : 0.55}
+                    />
+                    <text
+                      x={cx + 3}
+                      y={cy - rr + 11}
+                      style={{
+                        font: "9px 'JetBrains Mono', ui-monospace, monospace",
+                        fill: "var(--ink-3)",
+                        letterSpacing: "0.08em",
+                      }}
+                    >
+                      {m}
+                    </text>
+                  </g>
+                );
+              })}
               <circle cx={cx} cy={cy} r="6" fill="var(--ink)" />
               <text x={cx} y={cy + 22} textAnchor="middle" style={{ font: "italic 11px Fraunces, serif", fill: "var(--ink-2)" }}>you</text>
               {placed.map((p) => (
@@ -266,7 +306,7 @@ export function AroundTab({ onPerson, onOpenTest, onAddPerson }: AroundTabProps)
             </svg>
           </div>
           <div style={{ textAlign: "center", fontFamily: "var(--serif)", fontStyle: "italic", fontSize: 13, color: "var(--ink-3)", marginTop: -4 }}>
-            closer to center · stronger match
+            rings = match % · closer to centre is a stronger match
           </div>
           <hr className="rule-dashed" />
           <Kicker>Top match · tap to read</Kicker>
@@ -287,6 +327,23 @@ export function AroundTab({ onPerson, onOpenTest, onAddPerson }: AroundTabProps)
           area={areaAggregate}
         />
       )}
+
+      <hr className="rule-dashed" />
+      <ProfileCompare
+        label="people near you"
+        accent="var(--c-around)"
+        scopeAggregate={
+          areaAggregate
+            ? { n: areaAggregate.count, big5: areaAggregate.mean }
+            : null
+        }
+      />
+      <hr className="rule-dashed" />
+      <MediaPopularity
+        label="people near you"
+        accent="var(--c-around)"
+        scopePopular={areaAggregate?.media ?? null}
+      />
     </div>
   );
 }

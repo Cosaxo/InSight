@@ -13,6 +13,8 @@ import { useCircleInterestDistribution } from "../../lib/useCircleInterestDistri
 import { useAuth } from "../../lib/useAuth";
 import { useProfile } from "../../lib/useProfile";
 import { acceptFriendRequest, declineFriendRequest } from "../../lib/firebase";
+import { ProfileCompare } from "../insights/ProfileCompare";
+import { MediaPopularity } from "../insights/MediaPopularity";
 
 export interface CirclePerson extends ConcentricPerson {
   rel: string;
@@ -447,6 +449,21 @@ export function PeopleTab({
     () => userPeople.map(userToCircle),
     [userPeople],
   );
+
+  // Big Five average across the people in your circle you've rated.
+  // Null until at least one has a personality vector — ProfileCompare
+  // shows an honest empty state in that case.
+  const circleAggregate = useMemo(() => {
+    const vecs = userPeople
+      .filter(
+        (p) => Array.isArray(p.personality) && p.personality.length === 5,
+      )
+      .map((p) => p.personality as number[]);
+    if (vecs.length === 0) return null;
+    const mean = [0, 0, 0, 0, 0];
+    for (const v of vecs) for (let i = 0; i < 5; i++) mean[i] += v[i];
+    return { n: vecs.length, big5: mean.map((s) => Math.round(s / vecs.length)) };
+  }, [userPeople]);
 
   // Stable callback so the memoized ConcentricMap doesn't re-render
   // when chainTarget / other PeopleTab state changes.
@@ -1127,6 +1144,15 @@ export function PeopleTab({
           />
         </div>
       </div>
+
+      <hr className="rule-dashed" />
+      <ProfileCompare
+        label="your circle"
+        accent="var(--c-people)"
+        scopeAggregate={circleAggregate}
+      />
+      <hr className="rule-dashed" />
+      <MediaPopularity label="your circle" accent="var(--c-people)" />
 
       <hr className="rule-dashed" />
       <Kicker>Add someone</Kicker>

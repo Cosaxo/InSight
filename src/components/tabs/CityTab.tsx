@@ -6,6 +6,8 @@ import { useCityAggregate } from "../../lib/useCityAggregate";
 import { useGeolocation } from "../../lib/useGeolocation";
 import { useNearbyCities, type NearbyCity } from "../../lib/useNearbyCities";
 import type { CityRating } from "../../types";
+import { ProfileCompare } from "../insights/ProfileCompare";
+import { MediaPopularity } from "../insights/MediaPopularity";
 
 type CityScoreKey =
   | "beauty"
@@ -312,7 +314,7 @@ export function CityTab() {
       )}
 
       <div className="card" style={{ marginBottom: 16 }}>
-        <Kicker>Six dimensions · radar</Kicker>
+        <Kicker>Seven dimensions · radar</Kicker>
         <div style={{ marginTop: 8 }}>
           <RadarChart
             values={cats.map(({ k }) => ratings[k] * 20)}
@@ -530,6 +532,26 @@ export function CityTab() {
           </div>
         </div>
       )}
+
+      <hr className="rule-dashed" />
+      <ProfileCompare
+        label={c.name}
+        accent={cityAccent}
+        scopeAggregate={
+          communityAgg?.personality
+            ? {
+                n: communityAgg.personality.count,
+                big5: communityAgg.personality.mean,
+              }
+            : null
+        }
+      />
+      <hr className="rule-dashed" />
+      <MediaPopularity
+        label={c.name}
+        accent={cityAccent}
+        scopePopular={communityAgg?.media ?? null}
+      />
     </div>
   );
 }

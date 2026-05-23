@@ -14,12 +14,14 @@ import { doc, getFirestore, onSnapshot } from "firebase/firestore";
 import { geohashForLocation } from "geofire-common";
 import { firebaseEnabled } from "./firebase";
 import type { GeoPosition } from "./useGeolocation";
+import type { ScopeMedia } from "../types";
 
 export interface AreaAggregate {
   geohash5: string;
   count: number;
   mean: number[];   // Big Five [O, C, E, A, N]
   stdev: number[];
+  media?: ScopeMedia; // top media among people in this cell
 }
 
 export function useAreaAggregate(position: GeoPosition | null): {
@@ -50,12 +52,14 @@ export function useAreaAggregate(position: GeoPosition | null): {
           count: number;
           mean: number[];
           stdev: number[];
+          media?: ScopeMedia;
         };
         setData({
           geohash5: raw.geohash5,
           count: raw.count,
           mean: raw.mean,
           stdev: raw.stdev,
+          media: raw.media,
         });
       },
       (err) => {

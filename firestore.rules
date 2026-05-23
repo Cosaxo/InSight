@@ -163,11 +163,6 @@ service cloud.firestore {
         );
       }
 
-      function ownerAcceptsImpressionsFrom() {
-        let p = get(/databases/$(database)/documents/insight_users/$(uid));
-        return p.data.get("acceptImpressionsFrom", "circle");
-      }
-
       function isValidDailyReportWrite() {
         let d = request.resource.data;
         return
@@ -269,29 +264,28 @@ service cloud.firestore {
         allow read, write: if request.auth != null && request.auth.uid == uid;
       }
 
-      // Inbound impressions — cross-user write carve-out. A user
-      // can leave an anonymous traits-only impression on someone
-      // else's inbox if they're in that someone's circle (i.e. the
-      // recipient has added them as a relation, populating
-      // /circle/{senderUid}).
+      // Inbound impressions — read + delete from the client; CREATE
+      // is server-only.
       //
-      // The sender's uid lives in the doc for anti-spoofing — rule
-      // enforces that the writer's auth.uid matches the data's
-      // senderUid. The UI surfaces the entry as anonymous; the
-      // recipient could in principle look at senderUid in
-      // devtools, but the trust contract is "soft anonymous."
+      // Creates flow exclusively through the `sendInboundImpression`
+      // callable (functions/index.ts), which writes via the admin SDK
+      // and so bypasses these rules. That function re-implements the
+      // authorization gate that used to live here — not-blocked +
+      // (in-circle OR follower-with-opt-in OR accepts-anyone) — and
+      // adds the one thing rules cannot express: a rate limit. Rules
+      // can't count a sender's recent writes across many recipients,
+      // so a circle member could previously flood an inbox one
+      // allowed write at a time. The callable holds a per-sender
+      // ledger and caps both per-recipient and global send rate.
       //
-      // Schema validation locks the write surface down: only the
-      // documented fields, traits capped, context capped. Without
-      // this a malicious circle member could store arbitrary
-      // payloads (or a JSON blob the size of a Firestore doc) on
-      // someone else's account.
-      //
-      // No rate limit at the rule layer — that'd need queries
-      // rules don't have, or a cooldown-doc dance. Client-side
-      // attestation is the MVP; a Cloud Function pre-write hook is
-      // the proper rate-limit answer.
+      // Denying client create here is what forces every impression
+      // through that gate. The sender's uid is still stamped on each
+      // doc (server-side) so the recipient can block or delete; the
+      // UI surfaces entries as "soft anonymous."
       match /insight_inbound_impressions/{id} {
+        allow read: if request.auth != null && request.auth.uid == uid;
+        // Client creates are disabled — see sendInboundImpression.
+        allow create: if false;
         // Read carve-out: the recipient always reads their own
         // inbox. Other users can read when the recipient has opted
         // into sharing impressions about themselves at a tier the
@@ -563,6 +557,24 @@ service cloud.firestore {
     match /aggregates_city/{cityKey} {
       allow read: if request.auth != null;
       allow write: if false;
+    }
+
+    // Media popularity — global "what's loved" tally written by the
+    // area aggregator (admin SDK). Read-only to any signed-in user;
+    // per-area + per-city media ride on aggregates_by_geohash5 /
+    // aggregates_city, which already have read rules above.
+    match /aggregates_media/{docId} {
+      allow read: if request.auth != null;
+      allow write: if false;
+    }
+
+    // Rate-limit ledgers — one doc per sender, holding recent
+    // impression-send timestamps. Written and read only by the
+    // sendInboundImpression callable (admin SDK, bypasses rules).
+    // Fully opaque to clients: a sender mustn't be able to read or
+    // reset their own quota.
+    match /insight_ratelimits/{senderUid} {
+      allow read, write: if false;
     }
   }
 }

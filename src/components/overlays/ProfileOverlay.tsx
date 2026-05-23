@@ -23,6 +23,7 @@ import { IDEOLOGIES } from "../../data/politicsTaxonomy";
 import { useAuth } from "../../lib/useAuth";
 import { useMe } from "../../lib/useMe";
 import { useProfile, type ProfileExt } from "../../lib/useProfile";
+import type { MediaKey, MediaMap } from "../../types";
 import { isoDateToday } from "../../lib/useMoods";
 import { useWeighins } from "../../lib/useWeighins";
 import { useAchievements, useProfileSkills } from "../../lib/useLedger";
@@ -1741,6 +1742,46 @@ export function ProfileOverlay({
           onOpenSharing={onOpenSharing}
           onOpenJournal={onOpenJournal}
         />
+
+        <hr className="rule-dashed" />
+        <Kicker>Media · what you love</Kicker>
+        <div
+          className="margin-note"
+          style={{ fontSize: 11, marginTop: 4, color: "var(--ink-3)" }}
+        >
+          Your favourites. Shared per your "media favourites" sharing
+          setting; they power the popularity shelves in Around / City /
+          World.
+        </div>
+        {(
+          [
+            { key: "music", label: "Music" },
+            { key: "film", label: "Films" },
+            { key: "books", label: "Books" },
+            { key: "podcasts", label: "Podcasts" },
+          ] as { key: MediaKey; label: string }[]
+        ).map(({ key, label }) => (
+          <div key={key} style={{ marginTop: 10 }}>
+            <Kicker>{label}</Kicker>
+            <div style={{ marginTop: 6 }}>
+              <ChipListEditor
+                values={profile.media?.[key] ?? []}
+                placeholder={`add ${label.toLowerCase()}`}
+                emptyCopy={`Your favourite ${label.toLowerCase()}.`}
+                onChange={(next) => {
+                  const cur: MediaMap = {
+                    music: [],
+                    film: [],
+                    books: [],
+                    podcasts: [],
+                    ...(profile.media ?? {}),
+                  };
+                  void save({ media: { ...cur, [key]: next } });
+                }}
+              />
+            </div>
+          </div>
+        ))}
 
         <hr className="rule-dashed" />
         <BackupSection />
