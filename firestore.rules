@@ -462,6 +462,15 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // Media popularity — global "what's loved" tally written by the
+    // area aggregator (admin SDK). Read-only to any signed-in user;
+    // per-area + per-city media ride on aggregates_by_geohash5 /
+    // aggregates_city, which already have read rules above.
+    match /aggregates_media/{docId} {
+      allow read: if request.auth != null;
+      allow write: if false;
+    }
+
     // Rate-limit ledgers — one doc per sender, holding recent
     // impression-send timestamps. Written and read only by the
     // sendInboundImpression callable (admin SDK, bypasses rules).

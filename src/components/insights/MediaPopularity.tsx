@@ -1,15 +1,13 @@
-// MediaPopularity — "what's loved in {scope}" shelf. Ported from the
-// prototype, wired to real data only. Your own favourites come from
-// profile.media (real). The per-scope "most-loved" podium has no
-// backend yet — there's no Cloud Function tallying media across the
-// userbase — so that half renders an honest empty state instead of
-// fabricated rankings. When the aggregator lands, the scope side
-// drops in without touching the rest.
+// MediaPopularity — "what's loved in {scope}" shelf. Your own
+// favourites come from profile.media; the per-scope "most-loved"
+// podium comes from the media aggregator (passed in as scopePopular).
+// When a scope has no aggregate for the active category yet, that
+// half shows an honest empty state instead of fabricated rankings.
 
 import { useState } from "react";
 import { useProfile } from "../../lib/useProfile";
 import { Kicker, Pill } from "../shared/primitives";
-import type { MediaKey } from "../../types";
+import type { MediaKey, ScopeMedia } from "../../types";
 
 const CATS: { key: MediaKey; label: string; icon: string }[] = [
   { key: "music", label: "Music", icon: "♪" },
@@ -21,17 +19,23 @@ const CATS: { key: MediaKey; label: string; icon: string }[] = [
 interface MediaPopularityProps {
   label: string;
   accent?: string;
+  // Top items per category across the scope, from the aggregator.
+  // null/absent → the popularity half shows an honest empty state.
+  scopePopular?: ScopeMedia | null;
 }
 
 export function MediaPopularity({
   label,
   accent = "var(--accent)",
+  scopePopular,
 }: MediaPopularityProps) {
   const { profile } = useProfile();
   const media = profile.media ?? null;
   const [cat, setCat] = useState<MediaKey>("music");
   const active = CATS.find((c) => c.key === cat)!;
   const yourItems = media?.[cat] ?? [];
+  const popular = scopePopular?.[cat] ?? [];
+  const maxCount = popular[0]?.count ?? 1;
 
   return (
     <div>
@@ -48,13 +52,57 @@ export function MediaPopularity({
 
       <div className="card" style={{ marginBottom: 12 }}>
         <Kicker>Most-loved {active.label.toLowerCase()} · {label}</Kicker>
-        <div
-          className="margin-note"
-          style={{ marginTop: 8, fontSize: 12, fontStyle: "italic" }}
-        >
-          Popularity across {label} appears here once enough people
-          share their media — the aggregator isn't live yet.
-        </div>
+        {popular.length === 0 ? (
+          <div
+            className="margin-note"
+            style={{ marginTop: 8, fontSize: 12, fontStyle: "italic" }}
+          >
+            Popularity across {label} appears here once enough people
+            share their {active.label.toLowerCase()}.
+          </div>
+        ) : (
+          <div style={{ marginTop: 10, display: "flex", flexDirection: "column", gap: 8 }}>
+            {popular.map((item, i) => (
+              <div
+                key={item.name}
+                style={{ display: "flex", alignItems: "center", gap: 10 }}
+              >
+                <span
+                  className="fig-num"
+                  style={{ fontSize: 16, width: 22, textAlign: "right", flexShrink: 0 }}
+                >
+                  <em>{i + 1}</em>
+                </span>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div
+                    style={{
+                      fontFamily: "var(--serif)",
+                      fontSize: 14,
+                      whiteSpace: "nowrap",
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                    }}
+                  >
+                    {item.name}
+                  </div>
+                  <div className="bar" style={{ marginTop: 3 }}>
+                    <i style={{ width: `${(item.count / maxCount) * 100}%`, background: accent }} />
+                  </div>
+                </div>
+                <span
+                  style={{
+                    fontFamily: "var(--mono)",
+                    fontSize: 10,
+                    color: "var(--ink-3)",
+                    flexShrink: 0,
+                  }}
+                >
+                  {item.count}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       <div className="card" style={{ borderLeft: `3px solid ${accent}` }}>

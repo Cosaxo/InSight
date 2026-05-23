@@ -13,6 +13,7 @@ import { firebaseEnabled } from "../../lib/firebase";
 import type { RemoteCity } from "../../lib/firebase";
 import { ProfileCompare } from "../insights/ProfileCompare";
 import { MediaPopularity } from "../insights/MediaPopularity";
+import { useGlobalMedia } from "../../lib/useGlobalMedia";
 
 const TRAIT_LABELS = ["Open", "Conscient.", "Extra.", "Agree.", "Neuro."];
 
@@ -106,6 +107,7 @@ function toCitySeed(c: RemoteCity): CitySeed {
 
 export function WorldTab({ onCity }: WorldTabProps) {
   const E = useEarthMetrics();
+  const globalMedia = useGlobalMedia();
   const { position, loading: geoLoading, request } = useGeolocation();
   const { cities: activeCities, loading: activeLoading, error: activeError } =
     useActiveCities(50);
@@ -501,7 +503,11 @@ export function WorldTab({ onCity }: WorldTabProps) {
         }
       />
       <hr className="rule-dashed" />
-      <MediaPopularity label="the world" accent="var(--c-world)" />
+      <MediaPopularity
+        label="the world"
+        accent="var(--c-world)"
+        scopePopular={globalMedia.data?.media ?? null}
+      />
     </div>
   );
 }

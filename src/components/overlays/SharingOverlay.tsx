@@ -52,6 +52,7 @@ const SHARE_DATA: ShareItem[] = [
   { id: "dreams", label: "dream journal", sub: "private by default", glyph: "☾", def: "nobody" },
   { id: "impressions", label: "impressions of others", sub: "your sketches — always private", glyph: "❝", def: "nobody" },
   { id: "books", label: "books read", sub: "what you've finished", glyph: "▢", def: "world" },
+  { id: "media", label: "media favourites", sub: "films · books · music · podcasts", glyph: "♪", def: "world" },
   { id: "visits", label: "trips taken", sub: "countries & cities", glyph: "✶", def: "circle" },
   { id: "homes", label: "homes lived in", sub: "where you've been", glyph: "⌂", def: "nobody" },
   { id: "languages", label: "languages spoken", sub: "what you speak", glyph: "abc", def: "world" },

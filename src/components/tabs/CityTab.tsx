@@ -5,7 +5,6 @@ import { useCityRatings } from "../../lib/useCityRatings";
 import { useCityAggregate } from "../../lib/useCityAggregate";
 import { useGeolocation } from "../../lib/useGeolocation";
 import { useNearbyCities, type NearbyCity } from "../../lib/useNearbyCities";
-import { useAreaAggregate } from "../../lib/useAreaAggregate";
 import type { CityRating } from "../../types";
 import { ProfileCompare } from "../insights/ProfileCompare";
 import { MediaPopularity } from "../insights/MediaPopularity";
@@ -32,10 +31,6 @@ const RATING_CATS: { k: CityScoreKey; label: string }[] = [
 export function CityTab() {
   const { position, loading: geoLoading, error: geoError, request } = useGeolocation();
   const { cities, loading: citiesLoading } = useNearbyCities(position, 500);
-  // Big Five average for the local ~5km cell — the honest stand-in for
-  // a per-city personality aggregate (geohash5 is the granularity we
-  // publish anywhere). Null until the cell clears the k-anon floor.
-  const { data: areaAggregate } = useAreaAggregate(position);
   // User's manual override — null means "track the nearest city". Once
   // they tap one of the nearby chips this sticks until they tap again.
   const [pickedUid, setPickedUid] = useState<string | null>(null);
@@ -506,13 +501,20 @@ export function CityTab() {
         label={c.name}
         accent={cityAccent}
         scopeAggregate={
-          areaAggregate
-            ? { n: areaAggregate.count, big5: areaAggregate.mean }
+          communityAgg?.personality
+            ? {
+                n: communityAgg.personality.count,
+                big5: communityAgg.personality.mean,
+              }
             : null
         }
       />
       <hr className="rule-dashed" />
-      <MediaPopularity label={c.name} accent={cityAccent} />
+      <MediaPopularity
+        label={c.name}
+        accent={cityAccent}
+        scopePopular={communityAgg?.media ?? null}
+      />
     </div>
   );
 }

@@ -33,6 +33,16 @@ export type MediaKey = "music" | "film" | "books" | "podcasts";
 
 export type MediaMap = Record<MediaKey, string[]>;
 
+// A single popular item within a scope, with how many people in that
+// scope listed it. Produced by the media aggregator Cloud Function.
+export interface MediaPopularItem {
+  name: string;
+  count: number;
+}
+// Top media per category for a scope (around / city / world). Any
+// category may be absent when no one in scope shared it.
+export type ScopeMedia = Partial<Record<MediaKey, MediaPopularItem[]>>;
+
 export interface Hangout {
   date: string;
   note: string;

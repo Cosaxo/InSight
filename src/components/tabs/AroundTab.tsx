@@ -311,7 +311,11 @@ export function AroundTab({ onPerson, onOpenTest, onAddPerson }: AroundTabProps)
         }
       />
       <hr className="rule-dashed" />
-      <MediaPopularity label="people near you" accent="var(--c-around)" />
+      <MediaPopularity
+        label="people near you"
+        accent="var(--c-around)"
+        scopePopular={areaAggregate?.media ?? null}
+      />
     </div>
   );
 }
