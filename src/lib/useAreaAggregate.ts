@@ -21,6 +21,11 @@ export interface AreaAggregate {
   count: number;
   mean: number[];   // Big Five [O, C, E, A, N]
   stdev: number[];
+  // Political compass average for the cell — mean is length-6
+  // [econ, social, foreign, env, tech, auth], each -100..100.
+  // Powers CompareCompass (you vs people near you). Absent until the
+  // cell clears the political k-anon floor.
+  political?: { count: number; mean: number[]; stdev: number[] };
   media?: ScopeMedia; // top media among people in this cell
 }
 
@@ -52,6 +57,7 @@ export function useAreaAggregate(position: GeoPosition | null): {
           count: number;
           mean: number[];
           stdev: number[];
+          political?: { count: number; mean: number[]; stdev: number[] };
           media?: ScopeMedia;
         };
         setData({
@@ -59,6 +65,7 @@ export function useAreaAggregate(position: GeoPosition | null): {
           count: raw.count,
           mean: raw.mean,
           stdev: raw.stdev,
+          political: raw.political,
           media: raw.media,
         });
       },
