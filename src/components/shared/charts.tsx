@@ -899,76 +899,121 @@ export function NetworkGraph({
   );
 }
 
-// ─── MBTIGrid — 4×4 type grid, cells tinted + sized by share ───
-interface MBTIGridProps {
-  dist: Record<string, number>;
+// ─── Big5Grid — the five Big Five traits as tinted cells, your score
+// + an optional scope average. Replaces the MBTI grid: InSight measures
+// Big Five, not MBTI, so this is fed by real data (profile.personality
+// for `values`, an area/world/circle average for `average`). Each cell
+// tints by your score and shows a high/low descriptor + the avg delta.
+const BIG5_TRAITS: {
+  abbr: string;
+  label: string;
+  high: string;
+  low: string;
+}[] = [
+  { abbr: "O", label: "Openness", high: "Curious", low: "Grounded" },
+  { abbr: "C", label: "Conscientious", high: "Disciplined", low: "Easygoing" },
+  { abbr: "E", label: "Extraversion", high: "Outgoing", low: "Reserved" },
+  { abbr: "A", label: "Agreeable", high: "Warm", low: "Direct" },
+  { abbr: "N", label: "Neuroticism", high: "Sensitive", low: "Composed" },
+];
+interface Big5GridProps {
+  values: number[]; // [O, C, E, A, N], 0..100
+  average?: number[] | null; // scope average, same order
   accent?: string;
-  highlight?: string;
 }
-export function MBTIGrid({ dist, accent = "var(--accent)", highlight }: MBTIGridProps) {
-  const types = [
-    "INTJ", "INTP", "ENTJ", "ENTP",
-    "INFJ", "INFP", "ENFJ", "ENFP",
-    "ISTJ", "ISFJ", "ESTJ", "ESFJ",
-    "ISTP", "ISFP", "ESTP", "ESFP",
-  ];
-  const total = Object.values(dist).reduce((s, v) => s + v, 0);
-  const max = Math.max(0, ...types.map((t) => dist[t] || 0));
+export function Big5Grid({
+  values,
+  average,
+  accent = "var(--accent)",
+}: Big5GridProps) {
   return (
-    <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 6 }}>
-      {types.map((t) => {
-        const v = dist[t] || 0;
-        const pct = total > 0 ? Math.round((v / total) * 100) : 0;
-        const intensity = max > 0 ? v / max : 0;
-        const isYou = t === highlight;
+    <div
+      style={{
+        display: "grid",
+        gridTemplateColumns: "repeat(auto-fit, minmax(92px, 1fr))",
+        gap: 6,
+      }}
+    >
+      {BIG5_TRAITS.map((t, i) => {
+        const v = Math.max(0, Math.min(100, values[i] ?? 0));
+        const avg = average?.[i];
+        const intensity = v / 100;
+        const descriptor = v >= 50 ? t.high : t.low;
         return (
           <div
-            key={t}
+            key={t.abbr}
             style={{
               position: "relative",
               aspectRatio: "1",
-              background: isYou ? accent : "var(--paper-2)",
-              border: isYou ? `1.5px solid ${accent}` : "0.5px solid var(--rule)",
+              background: "var(--paper-2)",
+              border: "0.5px solid var(--rule)",
               borderRadius: 4,
               overflow: "hidden",
               display: "flex",
               flexDirection: "column",
               justifyContent: "space-between",
-              padding: 6,
+              padding: 7,
             }}
           >
-            {!isYou && (
+            <div
+              style={{
+                position: "absolute",
+                inset: 0,
+                background: accent,
+                opacity: 0.06 + intensity * 0.4,
+              }}
+            />
+            <div
+              style={{
+                position: "relative",
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "baseline",
+              }}
+            >
+              <span
+                style={{
+                  fontFamily: "var(--mono)",
+                  fontSize: 10,
+                  letterSpacing: "0.08em",
+                  color: "var(--ink)",
+                  fontWeight: 600,
+                }}
+              >
+                {t.abbr}
+              </span>
+              <span className="fig-num" style={{ fontSize: 18 }}>
+                <em>{Math.round(v)}</em>
+              </span>
+            </div>
+            <div style={{ position: "relative" }}>
               <div
                 style={{
-                  position: "absolute",
-                  inset: 0,
-                  background: accent,
-                  opacity: 0.05 + intensity * 0.45,
+                  fontFamily: "var(--serif)",
+                  fontStyle: "italic",
+                  fontSize: 12,
+                  color: "var(--ink-2)",
+                  lineHeight: 1.1,
                 }}
-              />
-            )}
-            <div
-              style={{
-                position: "relative",
-                fontFamily: "var(--mono)",
-                fontSize: 10,
-                letterSpacing: "0.08em",
-                color: isYou ? "var(--paper)" : "var(--ink)",
-                fontWeight: 600,
-              }}
-            >
-              {t}
-            </div>
-            <div
-              style={{
-                position: "relative",
-                fontFamily: "var(--serif)",
-                fontStyle: "italic",
-                fontSize: 13,
-                color: isYou ? "var(--paper)" : "var(--ink-2)",
-              }}
-            >
-              {pct}%
+              >
+                {descriptor}
+              </div>
+              {typeof avg === "number" && (
+                <div
+                  style={{
+                    fontFamily: "var(--mono)",
+                    fontSize: 8,
+                    letterSpacing: "0.06em",
+                    color: "var(--ink-3)",
+                    marginTop: 2,
+                  }}
+                  title={`${t.label} · scope average`}
+                >
+                  avg {Math.round(avg)}
+                  {v - avg >= 0 ? " · +" : " · "}
+                  {Math.round(v - avg)}
+                </div>
+              )}
             </div>
           </div>
         );
