@@ -1354,7 +1354,61 @@ export const deleteAccount = onCall(
   },
 );
 
-// Use FieldValue to keep the import live for the aggregator section
-// above. (Not part of deleteAccount's logic — just placating the
-// noUnusedLocals check across the file.)
-void FieldValue;
+// ── Taxonomies ──────────────────────────────────────────────────
+//
+// Canonical reference data (interest categories, etc.) mirrored into
+// a read-only `taxonomies` collection so it can be edited without an
+// app redeploy. The client keeps a bundled copy as its offline
+// fallback (useTaxonomies), so a missing doc is never fatal.
+//
+// The data is baked HERE rather than accepted from a client payload:
+// these docs are read by every user, so letting an arbitrary caller
+// supply their contents would be a global vandalism vector. The
+// seeder only ever writes this known-good copy, so it's safe for any
+// signed-in user to trigger (idempotent). Keep this in sync with
+// src/data/taxonomies.ts.
+
+const TAXONOMY_INTEREST_CATEGORIES = [
+  { id: "sports", label: "Sports", hue: 12, glyph: "◉" },
+  { id: "outdoor", label: "Outdoor", hue: 145, glyph: "△" },
+  { id: "fitness", label: "Fitness", hue: 25, glyph: "↗" },
+  { id: "literary", label: "Literary", hue: 38, glyph: "✎" },
+  { id: "thought", label: "Thought", hue: 250, glyph: "○" },
+  { id: "music", label: "Music", hue: 305, glyph: "♪" },
+  { id: "art", label: "Art & craft", hue: 80, glyph: "✦" },
+  { id: "games", label: "Games", hue: 200, glyph: "♟" },
+  { id: "tech", label: "Tech", hue: 260, glyph: "◇" },
+  { id: "food", label: "Food", hue: 30, glyph: "◐" },
+  { id: "civic", label: "Civic", hue: 220, glyph: "✚" },
+  { id: "faith", label: "Faith", hue: 285, glyph: "✟" },
+];
+
+async function runSeedTaxonomies(): Promise<{ written: string[] }> {
+  const db = getFirestore();
+  const written: string[] = [];
+  await db.collection("taxonomies").doc("interest_categories").set({
+    items: TAXONOMY_INTEREST_CATEGORIES,
+    updatedAt: FieldValue.serverTimestamp(),
+  });
+  written.push("interest_categories");
+  logger.info(`[taxonomies] seeded: ${written.join(", ")}`);
+  return { written };
+}
+
+export const seedTaxonomies = onCall(
+  { region: "us-central1" },
+  async (request) => {
+    if (!request.auth) {
+      throw new HttpsError("unauthenticated", "must be signed in");
+    }
+    return runSeedTaxonomies();
+  },
+);
+
+// Keep the daily refresh cheap + current as the baked data evolves.
+export const scheduledTaxonomies = onSchedule(
+  { schedule: "every 24 hours", region: "us-central1" },
+  async () => {
+    await runSeedTaxonomies();
+  },
+);

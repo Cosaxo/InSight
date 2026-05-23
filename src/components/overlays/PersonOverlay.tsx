@@ -21,6 +21,7 @@ import type { InboundImpression } from "../../types";
 import { Av, Kicker } from "../shared/primitives";
 import { RadarChart } from "../shared/charts";
 import { usePersonImpressions } from "../../lib/usePersonImpressions";
+import { useFriendShared } from "../../lib/useFriendShared";
 
 export interface PersonForOverlay {
   // When this person is one of the user's relations, `id` is the
@@ -780,6 +781,97 @@ export function PersonOverlay({ p, onClose }: PersonOverlayProps) {
             </div>
           </div>
         )}
+        <SharedWithYou friendUid={p.linkedUid} name={p.name} />
+      </div>
+    </div>
+  );
+}
+
+// ─── SharedWithYou — a friend's personal data they've actually
+// shared with your circle. Each block reads one subcollection via
+// useFriendShared; firestore.rules grants the read only when the
+// owner's per-category share level is circle+. Collections they
+// haven't shared simply don't appear (the hook reports denied and we
+// drop the block). Renders nothing for non-account relations.
+function SharedWithYou({
+  friendUid,
+  name,
+}: {
+  friendUid?: string;
+  name: string;
+}) {
+  const workouts = useFriendShared<{ id: string; type?: string }>(
+    friendUid,
+    "insight_workouts",
+    6,
+  );
+  const dreams = useFriendShared<{ id: string; title?: string }>(
+    friendUid,
+    "insight_dreams",
+    6,
+  );
+  const visits = useFriendShared<{ id: string; city?: string; country?: string }>(
+    friendUid,
+    "insight_visits",
+    10,
+  );
+  const scrapbook = useFriendShared<{ id: string; name?: string }>(
+    friendUid,
+    "insight_scrapbook",
+    10,
+  );
+
+  if (!friendUid) return null;
+
+  const blocks = [
+    { label: "Workouts", items: workouts.items.map((w) => w.type ?? "session") },
+    { label: "Dreams", items: dreams.items.map((d) => d.title ?? "untitled") },
+    {
+      label: "Trips",
+      items: visits.items.map((v) =>
+        [v.city, v.country].filter(Boolean).join(", "),
+      ),
+    },
+    { label: "Finds", items: scrapbook.items.map((s) => s.name ?? "—") },
+  ].filter((b) => b.items.length > 0);
+
+  if (blocks.length === 0) return null;
+
+  const first = name.split(" ")[0];
+  return (
+    <div style={{ marginTop: 18 }}>
+      <Kicker>What {first} shares with you</Kicker>
+      <div
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          gap: 10,
+          marginTop: 10,
+        }}
+      >
+        {blocks.map((b) => (
+          <div key={b.label}>
+            <div
+              style={{
+                fontFamily: "var(--mono)",
+                fontSize: 9.5,
+                letterSpacing: "0.1em",
+                textTransform: "uppercase",
+                color: "var(--ink-3)",
+                marginBottom: 5,
+              }}
+            >
+              {b.label}
+            </div>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+              {b.items.map((it, i) => (
+                <span key={i} className="pill">
+                  {it}
+                </span>
+              ))}
+            </div>
+          </div>
+        ))}
       </div>
     </div>
   );

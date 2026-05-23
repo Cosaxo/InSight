@@ -359,9 +359,57 @@ service cloud.firestore {
           && d.createdAt is number;
       }
 
-      // All other subcollections — owner-only.
+      // ── Circle-tier sharing of personal subcollections ──────────
+      // Maps a subcollection to the SharingOverlay share-pref key that
+      // governs it (empty string = not shareable, stays owner-only).
+      function collShareKey(collection) {
+        return collection == 'insight_moods' ? 'mood'
+          : collection == 'insight_workouts' ? 'workouts'
+          : collection == 'insight_meals' ? 'meals'
+          : collection == 'insight_weighins' ? 'weighins'
+          : collection == 'insight_scrapbook' ? 'scrapbook'
+          : collection == 'insight_dreams' ? 'dreams'
+          : collection == 'insight_books' ? 'books'
+          : collection == 'insight_visits' ? 'visits'
+          : collection == 'insight_homes' ? 'homes'
+          : collection == 'insight_languages' ? 'languages'
+          : collection == 'insight_jobs' ? 'jobs'
+          : collection == 'insight_milestones' ? 'milestones'
+          : collection == 'insight_time_blocks' ? 'time_blocks'
+          : '';
+      }
+      // Per-collection default level — mirrors SHARE_DATA's `def` so
+      // the rule matches what the UI shows before the user has
+      // touched a toggle.
+      function collShareDefault(collection) {
+        return (collection == 'insight_weighins'
+            || collection == 'insight_dreams'
+            || collection == 'insight_homes'
+            || collection == 'insight_time_blocks') ? 'nobody'
+          : (collection == 'insight_books'
+            || collection == 'insight_languages') ? 'world'
+          : 'circle';
+      }
+      // A mutual friend may READ a shareable subcollection when the
+      // owner's share level for it is circle / city / world. Writes
+      // stay owner-only. Finance (insight_transactions), habits,
+      // private impression sketches, etc. return '' above and are
+      // never exposed here.
+      function circleCanRead(collection) {
+        let key = collShareKey(collection);
+        return key != ''
+          && isInOwnerCircle()
+          && !isBlockedByOwner()
+          && get(/databases/$(database)/documents/insight_users/$(uid))
+               .data.get('sharePrefs', {})
+               .get(key, collShareDefault(collection)) in ['circle', 'city', 'world'];
+      }
+
+      // All other subcollections — owner-only, plus the circle read
+      // carve-out above for the shareable ones.
       match /{collection}/{doc} {
         allow read, write: if request.auth != null && request.auth.uid == uid;
+        allow read: if request.auth != null && circleCanRead(collection);
       }
     }
 
@@ -564,6 +612,14 @@ service cloud.firestore {
     // per-area + per-city media ride on aggregates_by_geohash5 /
     // aggregates_city, which already have read rules above.
     match /aggregates_media/{docId} {
+      allow read: if request.auth != null;
+      allow write: if false;
+    }
+
+    // Taxonomies — canonical reference data (interest categories,
+    // etc.) mirrored from the seedTaxonomies function. Read-only to
+    // any signed-in user; written only by the admin SDK.
+    match /taxonomies/{key} {
       allow read: if request.auth != null;
       allow write: if false;
     }
