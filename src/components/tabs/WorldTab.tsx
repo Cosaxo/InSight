@@ -11,6 +11,8 @@ import {
 } from "../../lib/useWorldAggregates";
 import { firebaseEnabled } from "../../lib/firebase";
 import type { RemoteCity } from "../../lib/firebase";
+import { ProfileCompare } from "../insights/ProfileCompare";
+import { MediaPopularity } from "../insights/MediaPopularity";
 
 const TRAIT_LABELS = ["Open", "Conscient.", "Extra.", "Agree.", "Neuro."];
 
@@ -484,6 +486,22 @@ export function WorldTab({ onCity }: WorldTabProps) {
           );
         })}
       </div>
+
+      <hr className="rule-dashed" />
+      <ProfileCompare
+        label="the world"
+        accent="var(--c-world)"
+        scopeAggregate={
+          world.snapshot?.globalPersonalityAvg
+            ? {
+                n: world.snapshot.totalUsers,
+                big5: world.snapshot.globalPersonalityAvg,
+              }
+            : null
+        }
+      />
+      <hr className="rule-dashed" />
+      <MediaPopularity label="the world" accent="var(--c-world)" />
     </div>
   );
 }

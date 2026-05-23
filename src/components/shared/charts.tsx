@@ -520,3 +520,257 @@ export function Histogram({
     </div>
   );
 }
+
+// ─── DotDensity — a unit-chart strip. Fills the first
+// round(value/max * dots) ticks; the rest stay muted. Filled ticks
+// fade slightly left-to-right so the strip reads hand-inked. ───
+interface DotDensityProps {
+  value: number;
+  max?: number;
+  color?: string;
+  dots?: number;
+}
+export function DotDensity({
+  value,
+  max = 100,
+  color = "var(--ink)",
+  dots = 30,
+}: DotDensityProps) {
+  const filled = Math.round((value / max) * dots);
+  return (
+    <div style={{ display: "flex", gap: 2, alignItems: "center" }}>
+      {Array.from({ length: dots }).map((_, i) => (
+        <span
+          key={i}
+          style={{
+            width: 4,
+            height: 8,
+            borderRadius: 1,
+            background: i < filled ? color : "var(--rule)",
+            opacity: i < filled ? 1 - i * 0.012 : 0.5,
+          }}
+        />
+      ))}
+    </div>
+  );
+}
+
+// ─── LayeredHistogram — two distributions on the same axis: A
+// filled (front), B dashed outline (back). B is optional, so it
+// degrades to a single-series histogram when no comparison series
+// exists yet (e.g. no scope-level mood aggregate). ───
+interface LayeredHistogramProps {
+  a: number[];
+  b?: number[] | null;
+  labels: string[];
+  colorA?: string;
+  colorB?: string;
+  height?: number;
+}
+export function LayeredHistogram({
+  a,
+  b,
+  labels,
+  colorA = "var(--accent)",
+  colorB = "var(--ink-3)",
+  height = 110,
+}: LayeredHistogramProps) {
+  const max = Math.max(...a, ...(b ?? [0]));
+  return (
+    <div style={{ display: "flex", alignItems: "flex-end", gap: 6, height }}>
+      {a.map((va, i) => {
+        const ha = max > 0 ? (va / max) * (height - 26) : 0;
+        const hb = b && max > 0 ? (b[i] / max) * (height - 26) : 0;
+        return (
+          <div
+            key={i}
+            style={{
+              flex: 1,
+              textAlign: "center",
+              display: "flex",
+              flexDirection: "column",
+              justifyContent: "flex-end",
+            }}
+          >
+            <div
+              style={{
+                position: "relative",
+                height: height - 22,
+                display: "flex",
+                alignItems: "flex-end",
+                justifyContent: "center",
+              }}
+            >
+              {b && (
+                <div
+                  style={{
+                    position: "absolute",
+                    bottom: 0,
+                    left: "15%",
+                    right: "15%",
+                    height: hb,
+                    border: `1px dashed ${colorB}`,
+                    borderBottom: "none",
+                    opacity: 0.7,
+                  }}
+                />
+              )}
+              <div
+                style={{
+                  width: "60%",
+                  height: ha,
+                  background: colorA,
+                  opacity: 0.55 + (i / a.length) * 0.4,
+                  borderRadius: "2px 2px 0 0",
+                }}
+              />
+            </div>
+            <div
+              style={{
+                fontFamily: "var(--serif)",
+                fontStyle: "italic",
+                fontSize: 11,
+                color: "var(--ink-2)",
+                marginTop: 6,
+              }}
+            >
+              {labels[i]}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// ─── DivergeBars — "you vs avg" rows. Each row shows the scope
+// average as a faint track + tick, and your value as a bold tick. ───
+interface DivergeRow {
+  label: string;
+  you: number;
+  avg: number;
+  max?: number;
+}
+interface DivergeBarsProps {
+  rows: DivergeRow[];
+  color?: string;
+  altColor?: string;
+}
+export function DivergeBars({
+  rows,
+  color = "var(--accent)",
+  altColor = "var(--ink-3)",
+}: DivergeBarsProps) {
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+      {rows.map((r) => {
+        const max = r.max || 100;
+        const youPct = Math.max(0, Math.min(100, (r.you / max) * 100));
+        const avgPct = Math.max(0, Math.min(100, (r.avg / max) * 100));
+        return (
+          <div key={r.label}>
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "baseline",
+                marginBottom: 4,
+              }}
+            >
+              <span
+                style={{
+                  fontFamily: "var(--serif)",
+                  fontStyle: "italic",
+                  fontSize: 13,
+                }}
+              >
+                {r.label}
+              </span>
+              <span
+                style={{
+                  fontFamily: "var(--mono)",
+                  fontSize: 9.5,
+                  color: "var(--ink-3)",
+                  letterSpacing: "0.06em",
+                }}
+              >
+                you {Math.round(r.you)} · avg {Math.round(r.avg)}
+              </span>
+            </div>
+            <div
+              style={{
+                position: "relative",
+                height: 14,
+                background: "var(--paper-2)",
+                border: "0.5px solid var(--rule)",
+                borderRadius: 2,
+              }}
+            >
+              <div
+                style={{
+                  position: "absolute",
+                  left: 0,
+                  top: 0,
+                  bottom: 0,
+                  width: `${avgPct}%`,
+                  background: altColor,
+                  opacity: 0.18,
+                }}
+              />
+              <div
+                style={{
+                  position: "absolute",
+                  left: `${avgPct}%`,
+                  top: -2,
+                  bottom: -2,
+                  width: 1.5,
+                  background: altColor,
+                }}
+              />
+              <div
+                style={{
+                  position: "absolute",
+                  left: `${avgPct}%`,
+                  top: -8,
+                  fontFamily: "var(--mono)",
+                  fontSize: 7,
+                  color: altColor,
+                  letterSpacing: "0.1em",
+                  transform: "translateX(-50%)",
+                }}
+              >
+                AVG
+              </div>
+              <div
+                style={{
+                  position: "absolute",
+                  left: `${youPct}%`,
+                  top: -3,
+                  bottom: -3,
+                  width: 2.5,
+                  background: color,
+                  borderRadius: 1,
+                }}
+              />
+              <div
+                style={{
+                  position: "absolute",
+                  left: `${youPct}%`,
+                  bottom: -10,
+                  fontFamily: "var(--mono)",
+                  fontSize: 7,
+                  color: color,
+                  letterSpacing: "0.1em",
+                  transform: "translateX(-50%)",
+                  fontWeight: 600,
+                }}
+              >
+                YOU
+              </div>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}

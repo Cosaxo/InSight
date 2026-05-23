@@ -16,6 +16,8 @@ import {
 } from "../../lib/useDeviceHeading";
 import { CirclePortrait } from "./around-portrait";
 import { WeatherCard } from "./around-weather";
+import { ProfileCompare } from "../insights/ProfileCompare";
+import { MediaPopularity } from "../insights/MediaPopularity";
 
 export interface NearbyPerson {
   id: string;
@@ -297,6 +299,19 @@ export function AroundTab({ onPerson, onOpenTest, onAddPerson }: AroundTabProps)
           area={areaAggregate}
         />
       )}
+
+      <hr className="rule-dashed" />
+      <ProfileCompare
+        label="people near you"
+        accent="var(--c-around)"
+        scopeAggregate={
+          areaAggregate
+            ? { n: areaAggregate.count, big5: areaAggregate.mean }
+            : null
+        }
+      />
+      <hr className="rule-dashed" />
+      <MediaPopularity label="people near you" accent="var(--c-around)" />
     </div>
   );
 }
