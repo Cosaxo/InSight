@@ -17,6 +17,7 @@ export interface CountryBreakdown {
   genderRatio: Record<string, number>;
   ageBuckets: Record<string, number>;
   topInterests: { name: string; count: number }[];
+  topImpressions: { trait: string; count: number }[];
 }
 
 export interface WorldSnapshot {
@@ -25,6 +26,7 @@ export interface WorldSnapshot {
   countriesRepresented: number;
   globalPersonalityAvg: number[] | null;
   globalTopInterests: { name: string; count: number }[];
+  globalTopImpressions?: { trait: string; count: number }[];
   byCountry: Record<string, CountryBreakdown>;
 }
 

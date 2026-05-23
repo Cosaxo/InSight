@@ -476,6 +476,7 @@ interface CountryBreakdown {
   genderRatio: Record<string, number>;
   ageBuckets: Record<string, number>;
   topInterests: { name: string; count: number }[];
+  topImpressions: { trait: string; count: number }[];
 }
 
 interface WorldSnapshot {
@@ -484,6 +485,7 @@ interface WorldSnapshot {
   countriesRepresented: number;
   globalPersonalityAvg: number[] | null;
   globalTopInterests: { name: string; count: number }[];
+  globalTopImpressions: { trait: string; count: number }[];
   byCountry: Record<string, CountryBreakdown>;
 }
 
@@ -548,6 +550,123 @@ function topInterests(
     .slice(0, k);
 }
 
+// Walk every user's insight_inbound_impressions subcollection and
+// bucket the trait counts by the recipient's country / city. The
+// recipient's country/city is what matters here — these are
+// impressions LEFT FOR people in that place, so they describe how
+// that place's people get read by others.
+//
+// Aggregated into:
+//   - aggregates_world/snapshot.byCountry[ISO].topImpressions
+//   - aggregates_city/{slug}.topImpressions
+// K-anonymity: per-bucket floor of 5 raters (counted via the
+// number of distinct senderUid contributions to each trait).
+async function rollUpImpressions(): Promise<{
+  recipientsWithCountry: Map<string, Map<string, Set<string>>>;
+  recipientsWithCity: Map<string, Map<string, Set<string>>>;
+}> {
+  const db = getFirestore();
+  // Map<country, Map<trait, Set<senderUid>>>
+  const byCountry = new Map<string, Map<string, Set<string>>>();
+  const byCity = new Map<string, Map<string, Set<string>>>();
+
+  // First read every discoverable doc — gives us each user's
+  // country and a rough "their city" (the slug we'd compute for
+  // their cityName ratings, which we approximate via their
+  // displayName-ish… actually no, cities are only known from the
+  // recipient's city ratings). To avoid building a per-user
+  // recipient→city map (expensive), we only bucket by country
+  // here and let the per-city aggregator below handle the city
+  // dimension when it walks city-ratings.
+  const discoverable = await db.collection("insight_discoverable").get();
+  const userCountry = new Map<string, string>();
+  discoverable.forEach((d) => {
+    const data = d.data();
+    if (typeof data.country === "string" && data.country.length === 2) {
+      userCountry.set(d.id, data.country.toUpperCase());
+    }
+  });
+
+  // Walk every inbound-impressions subcollection. The
+  // collectionGroup query reads across all users.
+  const impressions = await db.collectionGroup("insight_inbound_impressions").get();
+  impressions.forEach((doc) => {
+    // doc.ref.parent.parent points at the user doc that owns this
+    // subcollection — that's the recipient.
+    const recipientUid = doc.ref.parent.parent?.id;
+    if (!recipientUid) return;
+    const country = userCountry.get(recipientUid);
+    if (!country) return;
+    const data = doc.data() as { senderUid?: unknown; traits?: unknown };
+    if (typeof data.senderUid !== "string") return;
+    if (!Array.isArray(data.traits)) return;
+    if (!byCountry.has(country)) byCountry.set(country, new Map());
+    const traits = byCountry.get(country)!;
+    for (const raw of data.traits) {
+      if (typeof raw !== "string") continue;
+      const trait = raw.trim().toLowerCase();
+      if (!trait) continue;
+      if (!traits.has(trait)) traits.set(trait, new Set());
+      traits.get(trait)!.add(data.senderUid);
+    }
+  });
+
+  // City bucketing — uses the city-rating doc IDs as a proxy for
+  // "this user is associated with this city". The slug computation
+  // matches slugifyCity above.
+  const cityRatings = await db.collectionGroup("insight_cityratings").get();
+  // Map<userUid, Set<citySlug>>
+  const userCities = new Map<string, Set<string>>();
+  cityRatings.forEach((d) => {
+    const recipientUid = d.ref.parent.parent?.id;
+    if (!recipientUid) return;
+    const slug = slugifyCity(d.id);
+    if (!slug) return;
+    if (!userCities.has(recipientUid)) userCities.set(recipientUid, new Set());
+    userCities.get(recipientUid)!.add(slug);
+  });
+  // Walk impressions a second time, bucketing by each recipient's
+  // city slugs. A recipient can contribute to multiple city
+  // buckets (everywhere they've rated).
+  impressions.forEach((doc) => {
+    const recipientUid = doc.ref.parent.parent?.id;
+    if (!recipientUid) return;
+    const cities = userCities.get(recipientUid);
+    if (!cities || cities.size === 0) return;
+    const data = doc.data() as { senderUid?: unknown; traits?: unknown };
+    if (typeof data.senderUid !== "string") return;
+    if (!Array.isArray(data.traits)) return;
+    for (const slug of cities) {
+      if (!byCity.has(slug)) byCity.set(slug, new Map());
+      const traits = byCity.get(slug)!;
+      for (const raw of data.traits) {
+        if (typeof raw !== "string") continue;
+        const trait = raw.trim().toLowerCase();
+        if (!trait) continue;
+        if (!traits.has(trait)) traits.set(trait, new Set());
+        traits.get(trait)!.add(data.senderUid);
+      }
+    }
+  });
+  return {
+    recipientsWithCountry: byCountry,
+    recipientsWithCity: byCity,
+  };
+}
+
+const IMPRESSION_K_ANON_FLOOR = 5;
+
+function topImpressionsFromRollup(
+  rollup: Map<string, Set<string>>,
+  k: number,
+): { trait: string; count: number }[] {
+  return Array.from(rollup.entries())
+    .map(([trait, senders]) => ({ trait, count: senders.size }))
+    .filter((x) => x.count >= IMPRESSION_K_ANON_FLOOR)
+    .sort((a, b) => b.count - a.count)
+    .slice(0, k);
+}
+
 async function runWorldAggregation(): Promise<{
   totalUsers: number;
   countriesRepresented: number;
@@ -588,6 +707,13 @@ async function runWorldAggregation(): Promise<{
   const totalUsers = projections.length;
   logger.info(`[worldAgg] read ${totalUsers} discoverable docs`);
 
+  // Impressions rollup — written by other users about people in
+  // each country. K-anonymity floor is applied per trait inside
+  // topImpressionsFromRollup, so smaller countries simply yield
+  // an empty topImpressions list.
+  const { recipientsWithCountry: impressionsByCountry } =
+    await rollUpImpressions();
+
   // Group by country code.
   const byCountryRaw = new Map<string, DiscoverableProjection[]>();
   for (const p of projections) {
@@ -621,6 +747,10 @@ async function runWorldAggregation(): Promise<{
       genderRatio: tally(genders),
       ageBuckets: tally(ages),
       topInterests: topInterests(interestLists, 8),
+      topImpressions: topImpressionsFromRollup(
+        impressionsByCountry.get(code) ?? new Map(),
+        8,
+      ),
     };
   }
 
@@ -632,6 +762,17 @@ async function runWorldAggregation(): Promise<{
     .map((p) => p.interestNames)
     .filter((v): v is string[] => Array.isArray(v));
 
+  // Global impressions roll-up — flatten every country's
+  // trait-sender map into one bucket and re-aggregate.
+  const globalImpressions = new Map<string, Set<string>>();
+  for (const traitMap of impressionsByCountry.values()) {
+    for (const [trait, senders] of traitMap) {
+      if (!globalImpressions.has(trait)) globalImpressions.set(trait, new Set());
+      const target = globalImpressions.get(trait)!;
+      for (const s of senders) target.add(s);
+    }
+  }
+
   const snapshot: WorldSnapshot = {
     updatedAt: FieldValue.serverTimestamp(),
     totalUsers,
@@ -641,6 +782,7 @@ async function runWorldAggregation(): Promise<{
         ? averagePersonality(globalPersonalityVectors)
         : null,
     globalTopInterests: topInterests(globalInterestLists, 12),
+    globalTopImpressions: topImpressionsFromRollup(globalImpressions, 12),
     byCountry,
   };
 
@@ -720,6 +862,7 @@ interface CityAggregate {
   // cell). Each is omitted when below the k-anon floor.
   personality?: { count: number; mean: number[] };
   media?: MediaTop;
+  topImpressions: { trait: string; count: number }[];
 }
 
 async function runCityAggregation(): Promise<{
@@ -775,6 +918,9 @@ async function runCityAggregation(): Promise<{
       if (p.exists) profiles.set(uid, p.data() as UserProfileLike);
     }),
   );
+  // Impressions rollup, keyed by the same city slug.
+  const { recipientsWithCity: impressionsByCity } =
+    await rollUpImpressions();
 
   let citiesAboveFloor = 0;
   const batch = db.batch();
@@ -843,6 +989,10 @@ async function runCityAggregation(): Promise<{
       byDimension,
       ...(personality && { personality }),
       ...(media && Object.keys(media).length > 0 && { media }),
+      topImpressions: topImpressionsFromRollup(
+        impressionsByCity.get(slug) ?? new Map(),
+        8,
+      ),
     };
     batch.set(db.collection("aggregates_city").doc(slug), aggregate);
     inBatch += 1;

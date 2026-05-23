@@ -21,6 +21,7 @@ export interface CityAggregate {
   // absent until enough raters share that field.
   personality?: { count: number; mean: number[] };
   media?: ScopeMedia;
+  topImpressions?: { trait: string; count: number }[];
 }
 
 export function slugifyCity(name: string): string {

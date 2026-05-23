@@ -13,7 +13,7 @@
 //   - We don't re-upsert on every position change — only when the
 //     fuzzed coordinates actually moved.
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { geohashForLocation } from "geofire-common";
 import {
   deleteDiscoverable,
@@ -67,6 +67,22 @@ export function useDiscoverableLocation(position: GeoPosition | null): {
     Array.isArray(profile.personality) && profile.personality.length === 5
       ? profile.personality
       : undefined;
+  // Share the 2-axis political position when the user opted in.
+  // Powers the small "political distance" hint on the Around tab
+  // alongside the Big Five match%.
+  const sharePolitical =
+    profile.sharePrefs?.["political"] &&
+    profile.sharePrefs["political"] !== "nobody";
+  const political = useMemo(
+    () =>
+      sharePolitical &&
+      profile.political &&
+      typeof profile.political.econ === "number" &&
+      typeof profile.political.social === "number"
+        ? { econ: profile.political.econ, social: profile.political.social }
+        : null,
+    [sharePolitical, profile.political],
+  );
 
   // Per-field sharing prefs. The user opts into each via
   // SharingOverlay; absent / "nobody" keeps the field off the
@@ -105,17 +121,36 @@ export function useDiscoverableLocation(position: GeoPosition | null): {
   const country = shareCountry && typeof profile.country === "string"
     ? profile.country.toUpperCase().slice(0, 2)
     : null;
+  // acceptImpressionsFrom + blockedImpressionTraits are
+  // denormalised so the impression-sender UI can filter the
+  // picker without a profile read. Always shared (when set) since
+  // they're trait policies, not personal data per se.
+  const acceptImpressionsFrom =
+    typeof profile.acceptImpressionsFrom === "string"
+      ? profile.acceptImpressionsFrom
+      : null;
+  const blockedImpressionTraits = Array.isArray(profile.blockedImpressionTraits)
+    ? profile.blockedImpressionTraits.slice(0, 64)
+    : null;
+  const shareImpressionsAbout =
+    typeof profile.shareImpressionsAbout === "string"
+      ? profile.shareImpressionsAbout
+      : null;
 
   // Stable key so the upsert re-runs when any shared field changes,
   // without firing on unrelated profile updates.
   const inputKey = [
     personality ? personality.join(",") : "_",
+    political ? `${political.econ},${political.social}` : "_",
     bio ?? "_",
     role ?? "_",
     age ?? "_",
     interestNames ? interestNames.join(",") : "_",
     gender ?? "_",
     country ?? "_",
+    acceptImpressionsFrom ?? "_",
+    blockedImpressionTraits ? blockedImpressionTraits.join(",") : "_",
+    shareImpressionsAbout ?? "_",
   ].join("|");
 
   // Side effect: when (signed in + opted in + have position), upsert.
@@ -132,12 +167,16 @@ export function useDiscoverableLocation(position: GeoPosition | null): {
           longitude: lng,
           geohash: geohashForLocation([lat, lng]),
           personality,
+          political,
           bio,
           role,
           age,
           interestNames,
           gender,
           country,
+          acceptImpressionsFrom,
+          blockedImpressionTraits,
+          shareImpressionsAbout,
         });
         setLastFuzzed(key);
         setLastSyncedAt(Date.now());
@@ -147,7 +186,7 @@ export function useDiscoverableLocation(position: GeoPosition | null): {
         setError(msg);
       }
     })();
-  }, [user, enabled, position, lastFuzzed, personality, bio, role, age, interestNames, gender, country, inputKey]);
+  }, [user, enabled, position, lastFuzzed, personality, political, bio, role, age, interestNames, gender, country, acceptImpressionsFrom, blockedImpressionTraits, shareImpressionsAbout, inputKey]);
 
   const setEnabled = useCallback(
     async (v: boolean) => {

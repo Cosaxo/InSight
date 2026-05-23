@@ -11,6 +11,7 @@ import { useMe } from "../../lib/useMe";
 import { useMyRelations } from "../../lib/useMyRelations";
 import { useCircleInterestDistribution } from "../../lib/useCircleInterestDistribution";
 import { useAuth } from "../../lib/useAuth";
+import { useProfile } from "../../lib/useProfile";
 import { acceptFriendRequest, declineFriendRequest } from "../../lib/firebase";
 import { ProfileCompare } from "../insights/ProfileCompare";
 import { MediaPopularity } from "../insights/MediaPopularity";
@@ -242,6 +243,44 @@ function RelationInbox({ onOpenPerson }: { onOpenPerson: (p: CirclePerson) => vo
 // public-profile read path the Interests tab demographics card uses.
 // K-anonymity gates apply: < 3 people with shared interests yields
 // an honest empty state instead of misleading 100%-of-1 numbers.
+// AttachmentContextLine — quiet self-knowledge framing at the top
+// of the People tab. Hidden until the user has taken the
+// attachment test in Profile. The intent isn't to describe the
+// people in your circle (we don't have their attachment data
+// publicly), but to remind you of the lens you're looking through.
+function AttachmentContextLine() {
+  const { profile } = useProfile();
+  if (!profile.attachment) return null;
+  const blurbs: Record<string, string> = {
+    secure:
+      "Your attachment is secure. You read other people's signals fairly cleanly and tolerate distance well.",
+    anxious:
+      "Your attachment leans anxious. You may read others as more distant than they are — worth noticing.",
+    avoidant:
+      "Your attachment leans avoidant. You may underweight closeness; people in your circle may want more.",
+    disorganized:
+      "Your attachment is disorganized — high in both anxiety and avoidance. Closeness pulls and pushes you.",
+  };
+  return (
+    <div
+      className="card"
+      style={{
+        marginBottom: 14,
+        padding: 12,
+        borderLeft: "3px solid var(--sienna)",
+      }}
+    >
+      <Kicker>your lens · {profile.attachment.style}</Kicker>
+      <div
+        className="margin-note"
+        style={{ marginTop: 6, fontSize: 12, fontStyle: "italic" }}
+      >
+        {blurbs[profile.attachment.style]}
+      </div>
+    </div>
+  );
+}
+
 function CircleInterestCard() {
   const dist = useCircleInterestDistribution();
 
@@ -472,6 +511,8 @@ export function PeopleTab({
     <div className="fade-in">
 
       <RelationInbox onOpenPerson={onPerson} />
+
+      <AttachmentContextLine />
 
       <Kicker>People · your circle</Kicker>
       <div className="sec-head">

@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useGeolocation } from "../../lib/useGeolocation";
 import { useDiscoverableLocation } from "../../lib/useDiscoverableLocation";
 import { useAuth } from "../../lib/useAuth";
@@ -256,6 +257,211 @@ function ImpressionAcceptance({
             </button>
           );
         })}
+      </div>
+    </div>
+  );
+}
+
+// ImpressionVisibility — who SEES the impressions left for you on
+// your profile. Mirror of ImpressionAcceptance for write side, but
+// flips the question. Default: nobody — keeps the inbox private.
+function ImpressionVisibility({
+  value,
+  onChange,
+}: {
+  value: "nobody" | "circle" | "nearby" | "anyone";
+  onChange: (v: "nobody" | "circle" | "nearby" | "anyone") => void;
+}) {
+  const options: { id: typeof value; label: string; sub: string }[] = [
+    { id: "nobody", label: "nobody", sub: "kept private to you (default)" },
+    { id: "circle", label: "circle only", sub: "mutual friends see them on your profile" },
+    { id: "nearby", label: "followers + circle", sub: "wider — anyone you let near you" },
+    { id: "anyone", label: "anyone signed in", sub: "fully public on your profile" },
+  ];
+  return (
+    <div className="card" style={{ marginBottom: 14, padding: 14 }}>
+      <Kicker>impressions of you · who sees them</Kicker>
+      <div
+        className="margin-note"
+        style={{ marginTop: 6, marginBottom: 10, fontSize: 11.5, fontStyle: "italic" }}
+      >
+        Decides who can see the impressions OTHERS have left for you
+        on your profile. Senders stay anonymous; you can still
+        delete any individual impression from your inbox.
+      </div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+        {options.map((o) => {
+          const on = value === o.id;
+          return (
+            <button
+              key={o.id}
+              type="button"
+              onClick={() => onChange(o.id)}
+              style={{
+                display: "flex",
+                gap: 10,
+                alignItems: "center",
+                padding: "10px 12px",
+                background: on ? "var(--paper-2)" : "transparent",
+                border: on
+                  ? "0.5px solid var(--ink-2)"
+                  : "0.5px solid var(--rule)",
+                borderRadius: 10,
+                textAlign: "left",
+                cursor: "pointer",
+              }}
+            >
+              <span
+                style={{
+                  width: 14,
+                  height: 14,
+                  borderRadius: "50%",
+                  border: "0.5px solid var(--ink-2)",
+                  background: on ? "var(--ink)" : "var(--paper)",
+                  flexShrink: 0,
+                }}
+              />
+              <div>
+                <div
+                  style={{
+                    fontFamily: "var(--serif)",
+                    fontStyle: "italic",
+                    fontSize: 14,
+                    color: "var(--ink)",
+                  }}
+                >
+                  {o.label}
+                </div>
+                <div
+                  style={{
+                    fontFamily: "var(--mono)",
+                    fontSize: 10,
+                    letterSpacing: "0.05em",
+                    color: "var(--ink-3)",
+                    marginTop: 2,
+                  }}
+                >
+                  {o.sub}
+                </div>
+              </div>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// TraitBlacklistEditor — list of trait words the user has removed
+// from the impression picker. Senders can't pick them; the
+// Firestore rule also rejects writes that include them. Lowercase
+// is the storage canonical form so comparison is direct.
+function TraitBlacklistEditor({
+  values,
+  onChange,
+}: {
+  values: string[];
+  onChange: (next: string[]) => void;
+}) {
+  const [draft, setDraft] = useState("");
+  const add = () => {
+    const t = draft.trim().toLowerCase();
+    if (!t) return;
+    if (values.includes(t)) {
+      setDraft("");
+      return;
+    }
+    onChange([...values, t].slice(0, 64));
+    setDraft("");
+  };
+  return (
+    <div className="card" style={{ marginBottom: 14, padding: 14 }}>
+      <Kicker>traits you don't want said about you</Kicker>
+      <div
+        className="margin-note"
+        style={{ marginTop: 6, marginBottom: 10, fontSize: 11.5, fontStyle: "italic" }}
+      >
+        These traits are stripped from the impression picker when
+        someone opens it for you. They never see what you've
+        blocked — the option just isn't there.
+      </div>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 5, marginBottom: 10 }}>
+        {values.map((t) => (
+          <span
+            key={t}
+            style={{
+              fontFamily: "var(--mono)",
+              fontSize: 10,
+              letterSpacing: "0.06em",
+              padding: "3px 8px",
+              background: "var(--paper-2)",
+              border: "0.5px solid var(--rule)",
+              borderRadius: 999,
+              color: "var(--ink-2)",
+              display: "inline-flex",
+              gap: 6,
+              alignItems: "center",
+            }}
+          >
+            {t}
+            <button
+              type="button"
+              onClick={() => onChange(values.filter((v) => v !== t))}
+              aria-label="remove"
+              style={{
+                background: "transparent",
+                border: "none",
+                color: "var(--ink-3)",
+                cursor: "pointer",
+                padding: 0,
+                fontSize: 11,
+              }}
+            >
+              ✕
+            </button>
+          </span>
+        ))}
+      </div>
+      <div style={{ display: "flex", gap: 6 }}>
+        <input
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              add();
+            }
+          }}
+          placeholder="e.g. intense"
+          style={{
+            flex: 1,
+            padding: "8px 10px",
+            background: "var(--paper-2)",
+            border: "0.5px solid var(--rule)",
+            borderRadius: 8,
+            fontFamily: "var(--mono)",
+            fontSize: 12,
+            color: "var(--ink)",
+          }}
+        />
+        <button
+          type="button"
+          onClick={add}
+          disabled={!draft.trim()}
+          style={{
+            padding: "8px 14px",
+            background: draft.trim() ? "var(--ink)" : "var(--paper-3)",
+            color: draft.trim() ? "var(--paper)" : "var(--ink-3)",
+            border: "none",
+            borderRadius: 999,
+            fontFamily: "var(--mono)",
+            fontSize: 10,
+            letterSpacing: "0.1em",
+            cursor: draft.trim() ? "pointer" : "default",
+          }}
+        >
+          BLOCK
+        </button>
       </div>
     </div>
   );
@@ -539,6 +745,25 @@ export function SharingOverlay({ onClose }: SharingOverlayProps) {
               | undefined) ?? "circle"
           }
           onChange={(v) => void save({ acceptImpressionsFrom: v })}
+        />
+
+        <ImpressionVisibility
+          value={
+            (profile.shareImpressionsAbout as
+              | "nobody"
+              | "circle"
+              | "nearby"
+              | "anyone"
+              | undefined) ?? "nobody"
+          }
+          onChange={(v) => void save({ shareImpressionsAbout: v })}
+        />
+
+        <TraitBlacklistEditor
+          values={profile.blockedImpressionTraits ?? []}
+          onChange={(next) =>
+            void save({ blockedImpressionTraits: next })
+          }
         />
 
         <Kicker>Per-category settings</Kicker>

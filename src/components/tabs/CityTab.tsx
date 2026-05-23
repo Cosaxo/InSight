@@ -325,6 +325,43 @@ export function CityTab() {
         </div>
       </div>
 
+      {communityAgg?.topImpressions && communityAgg.topImpressions.length > 0 && (
+        <div className="card" style={{ marginBottom: 14, padding: 14 }}>
+          <Kicker>
+            How people in {c.name} get read · anonymous
+          </Kicker>
+          <div
+            className="margin-note"
+            style={{ marginTop: 6, marginBottom: 10, fontSize: 11.5, fontStyle: "italic" }}
+          >
+            Most common impressions written about people who live here.
+            Aggregated nightly; minimum 5 senders per trait.
+          </div>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
+            {communityAgg.topImpressions.slice(0, 8).map((imp) => (
+              <span
+                key={imp.trait}
+                style={{
+                  padding: "4px 10px",
+                  borderRadius: 999,
+                  fontFamily: "var(--mono)",
+                  fontSize: 10,
+                  letterSpacing: "0.06em",
+                  background: "var(--paper-2)",
+                  border: "0.5px solid var(--rule)",
+                  color: "var(--ink-2)",
+                }}
+              >
+                {imp.trait}
+                <span style={{ marginLeft: 6, color: "var(--ink-3)" }}>
+                  {imp.count}
+                </span>
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
       <Kicker>Rate this place · seven dimensions</Kicker>
       <div
         className="margin-note"

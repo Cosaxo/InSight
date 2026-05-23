@@ -26,6 +26,8 @@ import { useProfile, type ProfileExt } from "../../lib/useProfile";
 import type { MediaKey, MediaMap } from "../../types";
 import { isoDateToday } from "../../lib/useMoods";
 import { useWeighins } from "../../lib/useWeighins";
+import { useAchievements, useProfileSkills } from "../../lib/useLedger";
+import { SKILL_CATS } from "../../data/taxonomies";
 import {
   callDeleteAccount,
   firebaseEnabled,
@@ -47,11 +49,22 @@ import {
   PoliticsCompass,
 } from "./politics";
 
-type TestKind = "big5" | "political" | "values";
+type TestKind =
+  | "big5"
+  | "political"
+  | "values"
+  | "money"
+  | "chronotype"
+  | "attachment";
 
 interface ProfileOverlayProps {
   onClose: () => void;
   onOpenTest?: (kind: TestKind) => void;
+  // Reachability for surfaces that don't have their own FAB entry
+  // any more — Sharing and Journal/Insights live behind these
+  // callbacks so the Profile overlay is their canonical home.
+  onOpenSharing?: () => void;
+  onOpenJournal?: () => void;
 }
 
 const BIG5_KEYS = ["O", "C", "E", "A", "N"] as const;
@@ -753,6 +766,307 @@ function PublicProfileEditor({
 // breakdowns the Cloud Function aggregates daily.
 type GenderOption = "man" | "woman" | "non-binary" | "prefer-not-to-say";
 
+// SECTION_GROUPS — the five top-level groups the Profile overlay
+// renders. Drives both the section nav at the top + the in-page
+// anchor ids each group wraps around. Order here = order in the
+// scrollable list below.
+const SECTION_GROUPS: { id: string; label: string }[] = [
+  { id: "profile-you", label: "You" },
+  { id: "profile-personality", label: "Personality" },
+  { id: "profile-tastes", label: "Tastes" },
+  { id: "profile-done", label: "Done" },
+  { id: "profile-data", label: "Data" },
+  { id: "profile-account", label: "Account" },
+];
+
+function scrollToSection(id: string) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+function SectionNav() {
+  return (
+    <div
+      style={{
+        position: "sticky",
+        top: 0,
+        zIndex: 5,
+        background: "var(--paper)",
+        margin: "0 -18px 14px",
+        padding: "10px 18px",
+        borderBottom: "0.5px solid var(--rule)",
+        display: "flex",
+        gap: 6,
+        overflowX: "auto",
+        WebkitOverflowScrolling: "touch",
+      }}
+    >
+      {SECTION_GROUPS.map((g) => (
+        <button
+          key={g.id}
+          type="button"
+          onClick={() => scrollToSection(g.id)}
+          style={{
+            flexShrink: 0,
+            padding: "5px 12px",
+            borderRadius: 999,
+            background: "var(--paper-2)",
+            border: "0.5px solid var(--rule)",
+            fontFamily: "var(--mono)",
+            fontSize: 10,
+            letterSpacing: "0.1em",
+            textTransform: "uppercase",
+            color: "var(--ink-2)",
+            cursor: "pointer",
+            whiteSpace: "nowrap",
+          }}
+        >
+          {g.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+// Section header rendered above each group. Distinct from the
+// inner Kickers (uppercase mono) — uses serif italic with a
+// dashed rule for visual weight.
+function SectionHeader({ id, label }: { id: string; label: string }) {
+  return (
+    <div id={id} style={{ scrollMarginTop: 70, marginBottom: 8 }}>
+      <div
+        style={{
+          fontFamily: "var(--serif)",
+          fontStyle: "italic",
+          fontSize: 22,
+          color: "var(--ink)",
+          letterSpacing: "-0.01em",
+          marginTop: 8,
+        }}
+      >
+        {label}
+      </div>
+      <hr
+        className="rule-dashed"
+        style={{ marginTop: 6, marginBottom: 14 }}
+      />
+    </div>
+  );
+}
+
+// ─── New test result cards (Money / Chronotype / Attachment) ─────
+
+function MoneyScriptsCard({
+  scripts,
+}: {
+  scripts: {
+    avoidance: number;
+    worship: number;
+    status: number;
+    vigilance: number;
+  };
+}) {
+  const rows: { key: keyof typeof scripts; label: string }[] = [
+    { key: "avoidance", label: "Avoidance" },
+    { key: "worship", label: "Worship" },
+    { key: "status", label: "Status" },
+    { key: "vigilance", label: "Vigilance" },
+  ];
+  const dominant = rows.reduce((top, r) =>
+    scripts[r.key] > scripts[top.key] ? r : top,
+  );
+  return (
+    <div className="card" style={{ marginBottom: 14 }}>
+      <Kicker>Money scripts · dominant</Kicker>
+      <div
+        style={{
+          fontFamily: "var(--serif)",
+          fontStyle: "italic",
+          fontSize: 20,
+          marginTop: 4,
+        }}
+      >
+        {dominant.label}
+      </div>
+      <div style={{ marginTop: 10, display: "flex", flexDirection: "column", gap: 6 }}>
+        {rows.map((r) => (
+          <div key={r.key}>
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                fontFamily: "var(--mono)",
+                fontSize: 10,
+                color: "var(--ink-2)",
+              }}
+            >
+              <span>{r.label.toUpperCase()}</span>
+              <span style={{ color: "var(--ink-3)" }}>{scripts[r.key]}</span>
+            </div>
+            <div
+              style={{
+                height: 3,
+                background: "var(--paper-2)",
+                border: "0.5px solid var(--rule)",
+                borderRadius: 999,
+                marginTop: 2,
+              }}
+            >
+              <div
+                style={{
+                  width: `${scripts[r.key]}%`,
+                  height: "100%",
+                  background: "var(--ochre)",
+                  borderRadius: 999,
+                }}
+              />
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function ChronotypeCard({
+  chronotype,
+}: {
+  chronotype: { score: number; category: "lark" | "intermediate" | "owl" };
+}) {
+  const label =
+    chronotype.category === "lark"
+      ? "Lark · morning person"
+      : chronotype.category === "owl"
+        ? "Owl · evening person"
+        : "Intermediate";
+  return (
+    <div className="card" style={{ marginBottom: 14 }}>
+      <Kicker>Chronotype</Kicker>
+      <div
+        style={{
+          fontFamily: "var(--serif)",
+          fontStyle: "italic",
+          fontSize: 20,
+          marginTop: 4,
+        }}
+      >
+        {label}
+      </div>
+      <div
+        style={{
+          marginTop: 10,
+          position: "relative",
+          height: 16,
+          background: "linear-gradient(90deg, oklch(0.92 0.04 60), oklch(0.55 0.10 250))",
+          border: "0.5px solid var(--rule)",
+          borderRadius: 999,
+        }}
+      >
+        <div
+          style={{
+            position: "absolute",
+            left: `calc(${chronotype.score}% - 4px)`,
+            top: -2,
+            width: 8,
+            height: 20,
+            background: "var(--ink)",
+            borderRadius: 4,
+            border: "1px solid var(--paper)",
+          }}
+        />
+      </div>
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          fontFamily: "var(--mono)",
+          fontSize: 9,
+          color: "var(--ink-3)",
+          marginTop: 4,
+          letterSpacing: "0.06em",
+        }}
+      >
+        <span>LARK</span>
+        <span>OWL</span>
+      </div>
+    </div>
+  );
+}
+
+function AttachmentCard({
+  attachment,
+}: {
+  attachment: {
+    anxiety: number;
+    avoidance: number;
+    style: "secure" | "anxious" | "avoidant" | "disorganized";
+  };
+}) {
+  const styleLabels: Record<typeof attachment.style, string> = {
+    secure: "Secure",
+    anxious: "Anxious",
+    avoidant: "Avoidant",
+    disorganized: "Disorganized",
+  };
+  return (
+    <div className="card" style={{ marginBottom: 14 }}>
+      <Kicker>Attachment style</Kicker>
+      <div
+        style={{
+          fontFamily: "var(--serif)",
+          fontStyle: "italic",
+          fontSize: 20,
+          marginTop: 4,
+        }}
+      >
+        {styleLabels[attachment.style]}
+      </div>
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "1fr 1fr",
+          gap: 10,
+          marginTop: 10,
+        }}
+      >
+        <div>
+          <div className="kicker">ANXIETY</div>
+          <div className="fig-num" style={{ fontSize: 22 }}>
+            <em>{attachment.anxiety}</em>
+            <span
+              style={{
+                fontFamily: "var(--mono)",
+                fontSize: 12,
+                color: "var(--ink-3)",
+                marginLeft: 4,
+              }}
+            >
+              /100
+            </span>
+          </div>
+        </div>
+        <div>
+          <div className="kicker">AVOIDANCE</div>
+          <div className="fig-num" style={{ fontSize: 22 }}>
+            <em>{attachment.avoidance}</em>
+            <span
+              style={{
+                fontFamily: "var(--mono)",
+                fontSize: 12,
+                color: "var(--ink-3)",
+                marginLeft: 4,
+              }}
+            >
+              /100
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function DemographicEditor({
   gender,
   country,
@@ -1069,7 +1383,12 @@ function HeroEditor({ heroes, onChange }: HeroEditorProps) {
   );
 }
 
-export function ProfileOverlay({ onClose, onOpenTest }: ProfileOverlayProps) {
+export function ProfileOverlay({
+  onClose,
+  onOpenTest,
+  onOpenSharing,
+  onOpenJournal,
+}: ProfileOverlayProps) {
   const realMe = useMe();
   const { profile, save } = useProfile();
 
@@ -1119,7 +1438,10 @@ export function ProfileOverlay({ onClose, onOpenTest }: ProfileOverlayProps) {
             {realMe.name}
           </div>
         </div>
-        <hr className="rule-dashed" />
+
+        <SectionNav />
+
+        <SectionHeader id="profile-you" label="You" />
 
         <VitalStatsEditor
           birthYear={profile.birthYear}
@@ -1143,7 +1465,7 @@ export function ProfileOverlay({ onClose, onOpenTest }: ProfileOverlayProps) {
           onSave={(patch) => void save(patch)}
         />
 
-        <hr className="rule-dashed" />
+        <SectionHeader id="profile-personality" label="Personality" />
 
         {personalityReady && meta && top ? (
           <>
@@ -1349,7 +1671,40 @@ export function ProfileOverlay({ onClose, onOpenTest }: ProfileOverlayProps) {
           />
         )}
 
-        <hr className="rule-dashed" />
+        {profile.moneyScripts ? (
+          <MoneyScriptsCard scripts={profile.moneyScripts} />
+        ) : (
+          <TestEmptyState
+            kind="money"
+            title="Money scripts"
+            copy="Eight questions on how you actually relate to money. Powers FinanceTab framing."
+            onOpenTest={onOpenTest}
+          />
+        )}
+
+        {profile.chronotype ? (
+          <ChronotypeCard chronotype={profile.chronotype} />
+        ) : (
+          <TestEmptyState
+            kind="chronotype"
+            title="Chronotype"
+            copy="Four questions. Drives Body-tab workout-timing hints."
+            onOpenTest={onOpenTest}
+          />
+        )}
+
+        {profile.attachment ? (
+          <AttachmentCard attachment={profile.attachment} />
+        ) : (
+          <TestEmptyState
+            kind="attachment"
+            title="Attachment style"
+            copy="How you bond — eight questions on anxiety + avoidance. Surfaces in the People tab."
+            onOpenTest={onOpenTest}
+          />
+        )}
+
+        <SectionHeader id="profile-tastes" label="Tastes" />
         <Kicker>Likes · gathered over the years</Kicker>
         <div style={{ marginTop: 8 }}>
           <ChipListEditor
@@ -1377,6 +1732,15 @@ export function ProfileOverlay({ onClose, onOpenTest }: ProfileOverlayProps) {
         <HeroEditor
           heroes={heroes}
           onChange={(next) => void save({ heroes: next })}
+        />
+
+        <SectionHeader id="profile-done" label="Done" />
+        <ProfileSkillsAndAchievements />
+
+        <SectionHeader id="profile-data" label="Data" />
+        <ShortcutsCard
+          onOpenSharing={onOpenSharing}
+          onOpenJournal={onOpenJournal}
         />
 
         <hr className="rule-dashed" />
@@ -1425,7 +1789,7 @@ export function ProfileOverlay({ onClose, onOpenTest }: ProfileOverlayProps) {
         <hr className="rule-dashed" />
         <TelemetrySection />
 
-        <hr className="rule-dashed" />
+        <SectionHeader id="profile-account" label="Account" />
         <AccountSection />
 
         <hr className="rule-dashed" />
@@ -1440,6 +1804,235 @@ export function ProfileOverlay({ onClose, onOpenTest }: ProfileOverlayProps) {
 // Sign-out was previously only reachable through the delete-account
 // path inside DangerZone. Surface it as a plain action — far more
 // common, far less destructive.
+
+// ProfileSkillsAndAchievements — quiet read-only view of the user's
+// own skills + achievements. Editing lives in the Life overlay's
+// Ledger section; here we just surface the top items so the
+// Profile page reflects what the user is + has done.
+function ProfileSkillsAndAchievements() {
+  const { items: skills } = useProfileSkills();
+  const { items: achievements } = useAchievements();
+
+  const topSkills = [...skills]
+    .sort((a, b) => b.level - a.level || b.createdAt - a.createdAt)
+    .slice(0, 8);
+  const topAchievements = [...achievements]
+    .sort((a, b) => {
+      if (a.year && b.year) return b.year - a.year;
+      if (a.year) return -1;
+      if (b.year) return 1;
+      return b.createdAt - a.createdAt;
+    })
+    .slice(0, 6);
+
+  return (
+    <>
+      <Kicker>Skills · what you can do</Kicker>
+      {topSkills.length > 0 ? (
+        <div
+          style={{
+            display: "flex",
+            flexWrap: "wrap",
+            gap: 6,
+            marginTop: 8,
+            marginBottom: 14,
+          }}
+        >
+          {topSkills.map((s) => {
+            const cat = SKILL_CATS.find((c) => c.id === s.cat);
+            const hue = cat?.hue ?? 80;
+            return (
+              <span
+                key={s.id}
+                style={{
+                  padding: "5px 10px",
+                  borderRadius: 999,
+                  fontFamily: "var(--mono)",
+                  fontSize: 10,
+                  letterSpacing: "0.06em",
+                  background: `oklch(0.96 0.04 ${hue})`,
+                  border: `0.5px solid oklch(0.78 0.08 ${hue})`,
+                  color: `oklch(0.32 0.13 ${hue})`,
+                  display: "inline-flex",
+                  gap: 6,
+                  alignItems: "center",
+                }}
+                title={s.note}
+              >
+                {cat && <span>{cat.glyph}</span>}
+                {s.name}
+                <span style={{ color: "var(--ink-3)", fontSize: 9 }}>
+                  {"●".repeat(s.level)}
+                </span>
+              </span>
+            );
+          })}
+        </div>
+      ) : (
+        <div
+          className="margin-note"
+          style={{
+            marginTop: 6,
+            marginBottom: 14,
+            fontSize: 12,
+            fontStyle: "italic",
+          }}
+        >
+          No skills yet. Add some in Life · skills section.
+        </div>
+      )}
+
+      <hr className="rule-dashed" />
+
+      <Kicker>Achievements · what you've done</Kicker>
+      {topAchievements.length > 0 ? (
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            gap: 6,
+            marginTop: 8,
+          }}
+        >
+          {topAchievements.map((a) => (
+            <div
+              key={a.id}
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                padding: "8px 10px",
+                background: "var(--paper-2)",
+                border: "0.5px solid var(--rule)",
+                borderRadius: 8,
+                gap: 10,
+              }}
+            >
+              <div
+                style={{
+                  fontFamily: "var(--serif)",
+                  fontStyle: "italic",
+                  fontSize: 14,
+                  flex: 1,
+                }}
+              >
+                {a.name}
+                {a.note && (
+                  <div
+                    style={{
+                      fontFamily: "var(--mono)",
+                      fontSize: 10,
+                      color: "var(--ink-3)",
+                      marginTop: 2,
+                      fontStyle: "normal",
+                    }}
+                  >
+                    {a.note}
+                  </div>
+                )}
+              </div>
+              {a.year && (
+                <span
+                  style={{
+                    fontFamily: "var(--mono)",
+                    fontSize: 11,
+                    color: "var(--ink-3)",
+                    alignSelf: "center",
+                  }}
+                >
+                  {a.year}
+                </span>
+              )}
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div
+          className="margin-note"
+          style={{ marginTop: 6, fontSize: 12, fontStyle: "italic" }}
+        >
+          No achievements logged yet. Add some in Life · achievements.
+        </div>
+      )}
+    </>
+  );
+}
+
+// ShortcutsCard — small jump-to row for surfaces that don't have
+// a FAB entry of their own. Sharing settings + Journal (mood-history
+// charts) both live here; deep-links open them and close Profile.
+function ShortcutsCard({
+  onOpenSharing,
+  onOpenJournal,
+}: {
+  onOpenSharing?: () => void;
+  onOpenJournal?: () => void;
+}) {
+  if (!onOpenSharing && !onOpenJournal) return null;
+  const buttonStyle: React.CSSProperties = {
+    flex: 1,
+    minWidth: 130,
+    padding: "10px 12px",
+    background: "var(--paper-2)",
+    border: "0.5px solid var(--rule)",
+    borderRadius: 10,
+    fontFamily: "var(--mono)",
+    fontSize: 11,
+    letterSpacing: "0.08em",
+    color: "var(--ink-2)",
+    cursor: "pointer",
+    textAlign: "left",
+  };
+  return (
+    <>
+      <Kicker>shortcuts</Kicker>
+      <div
+        style={{
+          marginTop: 8,
+          display: "flex",
+          gap: 8,
+          flexWrap: "wrap",
+        }}
+      >
+        {onOpenSharing && (
+          <button type="button" onClick={onOpenSharing} style={buttonStyle}>
+            <span style={{ color: "var(--ink)" }}>◇</span> sharing
+            <div
+              style={{
+                marginTop: 4,
+                fontFamily: "var(--serif)",
+                fontStyle: "italic",
+                fontSize: 11,
+                color: "var(--ink-3)",
+                letterSpacing: 0,
+                textTransform: "none",
+              }}
+            >
+              tiers + impression settings
+            </div>
+          </button>
+        )}
+        {onOpenJournal && (
+          <button type="button" onClick={onOpenJournal} style={buttonStyle}>
+            <span style={{ color: "var(--sienna)" }}>✦</span> journal
+            <div
+              style={{
+                marginTop: 4,
+                fontFamily: "var(--serif)",
+                fontStyle: "italic",
+                fontSize: 11,
+                color: "var(--ink-3)",
+                letterSpacing: 0,
+                textTransform: "none",
+              }}
+            >
+              mood history charts
+            </div>
+          </button>
+        )}
+      </div>
+    </>
+  );
+}
 
 function AccountSection() {
   const { user } = useAuth();

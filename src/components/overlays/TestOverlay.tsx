@@ -2,13 +2,22 @@ import { useEffect, useRef, useState } from "react";
 import { Kicker } from "../shared/primitives";
 import { RadarChart, Compass2D } from "../shared/charts";
 import {
+  computeAttachment,
   computeBig5,
+  computeChronotype,
+  computeMoneyScripts,
   computePolitical,
   computeValues,
   useProfile,
 } from "../../lib/useProfile";
 
-type TestKind = "big5" | "political" | "values";
+type TestKind =
+  | "big5"
+  | "political"
+  | "values"
+  | "money"
+  | "chronotype"
+  | "attachment";
 
 interface TestDef {
   title: string;
@@ -64,14 +73,68 @@ const TESTS: Record<TestKind, TestDef> = {
       "Beauty matters as much as truth.",
     ],
   },
+  // Klontz Money Scripts (short form). 2 questions per script:
+  //   0,1 — Avoidance
+  //   2,3 — Worship
+  //   4,5 — Status
+  //   6,7 — Vigilance
+  money: {
+    title: "Money scripts",
+    tag: "how you relate to money · 8 questions",
+    accent: "var(--ochre)",
+    questions: [
+      "Money causes more problems than it solves.",
+      "Less money is more spiritual or fulfilling.",
+      "More money would make me happier.",
+      "It's hard to be poor and happy.",
+      "How someone spends says a lot about who they are.",
+      "Part of my self-worth is tied to what I own.",
+      "I should save for a rainy day, even when it pinches.",
+      "I'd rather not tell other people how much I have.",
+    ],
+  },
+  // Chronotype short form. 0,1 morning-pushing; 2,3 evening-pushing.
+  chronotype: {
+    title: "Chronotype",
+    tag: "morning or evening · 4 questions",
+    accent: "var(--sage)",
+    questions: [
+      "I'd rather wake up early than stay up late.",
+      "I do my best thinking in the morning.",
+      "I feel most alert in the evening.",
+      "Given total freedom, I'd sleep past 9 am.",
+    ],
+  },
+  // ECR-R short form. 0..3 anxiety; 4..7 avoidance.
+  attachment: {
+    title: "Attachment style",
+    tag: "how you bond · 8 questions",
+    accent: "var(--sienna)",
+    questions: [
+      "I worry that the people I'm close to won't care as much as I care about them.",
+      "I worry about being abandoned.",
+      "My desire to be very close to someone sometimes scares them away.",
+      "I often want to merge completely with the people I'm close to.",
+      "I prefer not to depend on others, or have them depend on me.",
+      "I don't feel comfortable opening up to people.",
+      "I get nervous when anyone gets too emotionally close.",
+      "I'd rather not show the people I'm close to how I feel underneath.",
+    ],
+  },
 };
 
 const BLURBS: Record<TestKind, string> = {
-  big5: '"Five strokes — Open, Conscientious, Extraverted, Agreeable, Sensitive."',
+  big5: "Five strokes — Open, Conscientious, Extraverted, Agreeable, Sensitive.",
   political:
-    '"Six axes — economic, social, foreign, environment, technology, authority."',
+    "Six axes — economic, social, foreign, environment, technology, authority.",
   values:
-    '"Where you sit on optimism, duty, hedonism, the meaning of suffering."',
+    "Where you sit on optimism, duty, hedonism, the meaning of suffering.",
+  money:
+    "Four scripts — Avoidance, Worship, Status, Vigilance. Shapes the Money tab.",
+  chronotype:
+    "Morning or evening person. Shapes Body-tab timing hints.",
+  attachment:
+    "Anxiety / avoidance dimensions, four styles. Shapes People-tab relationship reads.",
 };
 
 interface TestOverlayProps {
@@ -112,9 +175,18 @@ export function TestOverlay({
     } else if (kind === "political") {
       const { political, axes } = computePolitical(answers);
       void save({ political, politicalAxes: { ...axes } });
-    } else {
+    } else if (kind === "values") {
       const { cv, morals } = computeValues(answers);
       void save({ cv, morals });
+    } else if (kind === "money") {
+      const moneyScripts = computeMoneyScripts(answers);
+      void save({ moneyScripts });
+    } else if (kind === "chronotype") {
+      const chronotype = computeChronotype(answers);
+      void save({ chronotype });
+    } else if (kind === "attachment") {
+      const attachment = computeAttachment(answers);
+      void save({ attachment });
     }
   }, [kind, answers, save]);
 
@@ -319,6 +391,9 @@ function TestResult({
         {kind === "big5" && <Big5Result answers={answers} />}
         {kind === "political" && <PoliticalResult answers={answers} />}
         {kind === "values" && <ValuesResult answers={answers} />}
+        {kind === "money" && <MoneyScriptsResult answers={answers} />}
+        {kind === "chronotype" && <ChronotypeResult answers={answers} />}
+        {kind === "attachment" && <AttachmentResult answers={answers} />}
       </div>
 
       <button
@@ -518,6 +593,227 @@ function ValuesResult({ answers }: { answers: number[] }) {
             </em>
           </div>
           <div className="kicker">STABILITY ↔ CHANGE</div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Money Scripts result ────────────────────────────────────────
+
+function MoneyScriptsResult({ answers }: { answers: number[] }) {
+  const ms = computeMoneyScripts(answers);
+  const rows: { key: keyof typeof ms; label: string; note: string }[] = [
+    { key: "avoidance", label: "Avoidance", note: "money causes more trouble than it solves" },
+    { key: "worship", label: "Worship", note: "more money = more happiness" },
+    { key: "status", label: "Status", note: "what you own says who you are" },
+    { key: "vigilance", label: "Vigilance", note: "save, save, save — and don't tell" },
+  ];
+  const dominant = rows.reduce((top, r) =>
+    ms[r.key] > ms[top.key] ? r : top,
+  );
+  return (
+    <div className="card">
+      <Kicker>Money scripts · how you relate to it</Kicker>
+      <div
+        style={{
+          fontFamily: "var(--serif)",
+          fontStyle: "italic",
+          fontSize: 22,
+          marginTop: 6,
+        }}
+      >
+        Dominant: <em>{dominant.label}</em>
+      </div>
+      <div className="margin-note" style={{ marginTop: 4, fontSize: 12 }}>
+        {dominant.note}
+      </div>
+      <div style={{ marginTop: 14, display: "flex", flexDirection: "column", gap: 8 }}>
+        {rows.map((r) => (
+          <div key={r.key}>
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                fontFamily: "var(--mono)",
+                fontSize: 11,
+                color: "var(--ink-2)",
+              }}
+            >
+              <span>{r.label}</span>
+              <span style={{ color: "var(--ink-3)" }}>{ms[r.key]}/100</span>
+            </div>
+            <div
+              style={{
+                height: 4,
+                background: "var(--paper-2)",
+                border: "0.5px solid var(--rule)",
+                borderRadius: 999,
+                marginTop: 3,
+              }}
+            >
+              <div
+                style={{
+                  width: `${ms[r.key]}%`,
+                  height: "100%",
+                  background: "var(--ochre)",
+                  borderRadius: 999,
+                }}
+              />
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ─── Chronotype result ────────────────────────────────────────────
+
+function ChronotypeResult({ answers }: { answers: number[] }) {
+  const c = computeChronotype(answers);
+  const label =
+    c.category === "lark"
+      ? "Lark · morning person"
+      : c.category === "owl"
+        ? "Owl · evening person"
+        : "Intermediate · neither end";
+  return (
+    <div className="card">
+      <Kicker>Chronotype · when you're sharpest</Kicker>
+      <div
+        style={{
+          fontFamily: "var(--serif)",
+          fontStyle: "italic",
+          fontSize: 22,
+          marginTop: 6,
+        }}
+      >
+        {label}
+      </div>
+      <div className="margin-note" style={{ marginTop: 6, fontSize: 12 }}>
+        Score: <em>{c.score}/100</em> · 0 = strong morning, 100 = strong evening.
+      </div>
+      <div
+        style={{
+          marginTop: 16,
+          position: "relative",
+          height: 28,
+          background: "linear-gradient(90deg, oklch(0.92 0.04 60), oklch(0.55 0.10 250))",
+          border: "0.5px solid var(--rule)",
+          borderRadius: 999,
+        }}
+      >
+        <div
+          style={{
+            position: "absolute",
+            left: `calc(${c.score}% - 6px)`,
+            top: -2,
+            width: 12,
+            height: 32,
+            background: "var(--ink)",
+            borderRadius: 6,
+            border: "1px solid var(--paper)",
+          }}
+        />
+      </div>
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          fontFamily: "var(--mono)",
+          fontSize: 9,
+          color: "var(--ink-3)",
+          marginTop: 6,
+          letterSpacing: "0.08em",
+        }}
+      >
+        <span>LARK · morning</span>
+        <span>OWL · evening</span>
+      </div>
+    </div>
+  );
+}
+
+// ─── Attachment result ───────────────────────────────────────────
+
+function AttachmentResult({ answers }: { answers: number[] }) {
+  const a = computeAttachment(answers);
+  const styleLabels: Record<typeof a.style, { name: string; note: string }> = {
+    secure: {
+      name: "Secure",
+      note: "comfortable depending on others, comfortable being depended on",
+    },
+    anxious: {
+      name: "Anxious / preoccupied",
+      note: "want closeness, worry about it being returned",
+    },
+    avoidant: {
+      name: "Avoidant / dismissive",
+      note: "value self-reliance, keep emotional distance",
+    },
+    disorganized: {
+      name: "Disorganized / fearful-avoidant",
+      note: "want closeness AND fear it — high in both dimensions",
+    },
+  };
+  const info = styleLabels[a.style];
+  return (
+    <div className="card">
+      <Kicker>Attachment · how you bond</Kicker>
+      <div
+        style={{
+          fontFamily: "var(--serif)",
+          fontStyle: "italic",
+          fontSize: 22,
+          marginTop: 6,
+        }}
+      >
+        {info.name}
+      </div>
+      <div className="margin-note" style={{ marginTop: 4, fontSize: 12 }}>
+        {info.note}
+      </div>
+      <div style={{ marginTop: 14 }}>
+        <Compass2D
+          x={a.avoidance - 50}
+          y={a.anxiety - 50}
+          label="you"
+          xLabel={["← low avoidance", "high avoidance →"]}
+          yLabel={["↑ high anxiety", "↓ low anxiety"]}
+          accent="var(--sienna)"
+          size={240}
+        />
+      </div>
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "1fr 1fr",
+          gap: 10,
+          marginTop: 12,
+        }}
+      >
+        <div>
+          <div className="kicker">ANXIETY</div>
+          <div className="fig-num" style={{ fontSize: 22 }}>
+            <em>{a.anxiety}</em>
+            <span
+              style={{ fontFamily: "var(--mono)", fontSize: 12, color: "var(--ink-3)", marginLeft: 4 }}
+            >
+              /100
+            </span>
+          </div>
+        </div>
+        <div>
+          <div className="kicker">AVOIDANCE</div>
+          <div className="fig-num" style={{ fontSize: 22 }}>
+            <em>{a.avoidance}</em>
+            <span
+              style={{ fontFamily: "var(--mono)", fontSize: 12, color: "var(--ink-3)", marginLeft: 4 }}
+            >
+              /100
+            </span>
+          </div>
         </div>
       </div>
     </div>

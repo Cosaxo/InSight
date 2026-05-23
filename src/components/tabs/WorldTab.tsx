@@ -657,6 +657,36 @@ function UserbaseCard({
           </div>
         )}
 
+        {snap.globalTopImpressions && snap.globalTopImpressions.length > 0 && (
+          <div style={{ marginTop: 14 }}>
+            <Kicker>How users are read · global · anonymous</Kicker>
+            <div
+              style={{ display: "flex", flexWrap: "wrap", gap: 5, marginTop: 8 }}
+            >
+              {snap.globalTopImpressions.slice(0, 12).map((imp) => (
+                <span
+                  key={imp.trait}
+                  style={{
+                    padding: "4px 10px",
+                    borderRadius: 999,
+                    fontFamily: "var(--mono)",
+                    fontSize: 10,
+                    letterSpacing: "0.06em",
+                    background: "var(--paper-2)",
+                    border: "0.5px solid var(--rule)",
+                    color: "var(--ink-2)",
+                  }}
+                >
+                  {imp.trait}
+                  <span style={{ marginLeft: 6, color: "var(--ink-3)" }}>
+                    {imp.count}
+                  </span>
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
+
         <div
           className="margin-note"
           style={{ marginTop: 12, fontSize: 11, fontStyle: "italic" }}
@@ -763,6 +793,44 @@ function CountryRow({ code, cb }: { code: string; cb: CountryBreakdown }) {
         >
           Top interest: <em>{topInterest.name}</em>{" "}
           ({Math.round((topInterest.count / cb.userCount) * 100)}%)
+        </div>
+      )}
+      {cb.topImpressions && cb.topImpressions.length > 0 && (
+        <div style={{ marginTop: 8 }}>
+          <div
+            style={{
+              fontFamily: "var(--mono)",
+              fontSize: 9,
+              letterSpacing: "0.12em",
+              color: "var(--ink-3)",
+              textTransform: "uppercase",
+              marginBottom: 4,
+            }}
+          >
+            How they're read
+          </div>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+            {cb.topImpressions.slice(0, 5).map((imp) => (
+              <span
+                key={imp.trait}
+                style={{
+                  padding: "2px 7px",
+                  borderRadius: 999,
+                  fontFamily: "var(--mono)",
+                  fontSize: 9,
+                  letterSpacing: "0.04em",
+                  background: "var(--paper)",
+                  border: "0.5px solid var(--rule)",
+                  color: "var(--ink-2)",
+                }}
+              >
+                {imp.trait}
+                <span style={{ marginLeft: 4, color: "var(--ink-3)" }}>
+                  {imp.count}
+                </span>
+              </span>
+            ))}
+          </div>
         </div>
       )}
     </div>
