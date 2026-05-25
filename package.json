@@ -12,7 +12,8 @@
     "sync": "npx cap sync",
     "ios": "npx cap open ios",
     "android": "npx cap open android",
-    "doctor": "npx cap doctor"
+    "doctor": "npx cap doctor",
+    "test:rules": "firebase emulators:exec --only firestore \"vitest run --dir firestore-tests\""
   },
   "dependencies": {
     "@capacitor-firebase/app-check": "^8.2.0",
@@ -42,6 +43,8 @@
     "@capacitor/cli": "^8.3.3",
     "@capacitor/ios": "^8.3.3",
     "@eslint/js": "^9.39.4",
+    "@firebase/rules-unit-testing": "^4.0.1",
+    "vitest": "^3.2.4",
     "@types/node": "^24.12.2",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",

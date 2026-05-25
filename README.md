@@ -1,15 +1,50 @@
 # InSight
 
-A mobile-first personal-insight journal — five tabs (**Around / World / City / Groups / People**) wrapped in an iOS device frame, plus a fan-out FAB that opens a daily report, a journal of mood / habits / fitness / nutrition / finance, the body, the days, a scrapbook, impressions, tests, life details, sharing controls, and a DNA viewer.
+**An interior social network.** InSight is a private journal of your own
+inner life — mood, habits, body, dreams, personality, politics, values, taste —
+that doubles as a lens onto the inner lives of the people, city, and world
+around you. The bet: the thing humans are most curious about is themselves and
+each other, and no app serves that directly and honestly.
 
-Built with React 19, TypeScript, and Vite. Visuals are CSS-variable-driven and hand-drawn — Fraunces + Inter + JetBrains Mono + Caveat on a paper-grain background, OKLCH colour tokens, dark mode + density toggles. Persistence is localStorage by default, with optional Firebase Auth + Firestore sync.
+Five tabs move from the world inward to the people next to you —
+**Around / World / City / Interests / People** — wrapped in an iOS device
+frame, with a fan-out menu for your own surfaces: daily report, a journal
+(mood / habits / fitness / nutrition / finance), the body, the days, a
+scrapbook, impressions, personality/politics/values tests, life details,
+sharing controls, and a DNA viewer.
 
-> **⚠️ Pending verification.** The Firebase Auth + Firestore flow (sign-in,
-> first-sign-in migration, subscriptions, sign-out) has been written and
-> typechecks but **has not yet been exercised end-to-end in a real browser
-> against the live Firebase project**. Do not deploy to production until you've
-> walked through the flow manually — sign in, log a daily report, edit a city
-> rating, sign out, sign back in on another browser, verify the data survives.
+Built with **React 19 + TypeScript + Vite**, wrapped as a native **iOS +
+Android** app via **Capacitor**, backed by **Firebase** (Auth + Firestore +
+Cloud Functions), with an **on-device LLM** (Gemma) for private reflections.
+Visuals are hand-drawn and CSS-variable-driven — Fraunces + Inter + JetBrains
+Mono + Caveat on a paper-grain background, OKLCH colour tokens, per-tab accent
+colours, dark mode + density toggles. Persistence is `localStorage` by default,
+with optional Firebase Auth + Firestore sync.
+
+> **⚠️ Pending end-to-end verification.** The Firebase Auth + Firestore flow,
+> the Cloud Functions (aggregators, the rate-limited impression callable,
+> account deletion, taxonomy seeding), and the security rules typecheck and
+> build but **have not been exercised against a live Firebase project**. Before
+> production: deploy `firebase deploy --only firestore:rules,functions`, then
+> walk the flows — sign in, log a daily report, leave an impression on a
+> friend, confirm circle-shared data reads through, run the rebuild callables
+> and watch the aggregates populate, sign out and back in on another browser to
+> confirm data survives.
+
+## The idea, in one loop
+
+The self-tracking surfaces aren't just a journal — they're the content you
+*produce* so that other people's equivalent content becomes worth seeing. You
+take the personality test to see how you compare; that same act lets your circle
+see you. Reciprocity is the engine: the more of yourself you make legible, the
+more of others you get back.
+
+The signature mechanic is **impressions** — people in your circle can leave
+anonymous, traits-only impressions of you ("careful listener", "quietly funny",
+"guarded") from a curated palette. It's deliberately built to *survive* where
+Sarahah / NGL / Gas imploded: real identity behind the scenes, curated traits
+(not free text), mutual-add required, a recipient trait-blocklist, one-tap
+block, and server-side rate limiting.
 
 ## Running locally
 
@@ -18,60 +53,163 @@ npm install
 npm run dev
 ```
 
-Open the URL Vite prints. Without a `.env` the app runs in **local-only mode** — all data lives in `localStorage` and there's no sign-in screen.
+Open the URL Vite prints. Without a `.env` the app runs in **local-only mode** —
+all data lives in `localStorage` and there's no sign-in screen.
 
-The TweaksPanel (dark mode / density / active tab) toggles with **Cmd/Ctrl/Shift+?**.
+The TweaksPanel (dark mode / density / active tab) toggles with
+**Cmd/Ctrl/Shift+?**.
 
 ## Enabling Google sign-in + Firestore sync
 
 1. `cp .env.example .env`
-2. Create a Firebase project at <https://console.firebase.google.com>, add a web app, copy the `firebaseConfig` values into `.env` with the `VITE_FIREBASE_*` prefix.
-3. In the console, enable **Authentication → Sign-in method → Google** and **Firestore Database**.
-4. Deploy the security rules:
+2. Create a Firebase project at <https://console.firebase.google.com>, add a web
+   app, copy the `firebaseConfig` values into `.env` with the `VITE_FIREBASE_*`
+   prefix.
+3. In the console, enable **Authentication → Sign-in method → Google** and
+   **Firestore Database**.
+4. Deploy the rules **and functions** (several features now depend on the
+   functions — see below):
    ```bash
-   firebase deploy --only firestore:rules
+   firebase deploy --only firestore:rules,functions
    ```
 
-Once the required four env vars are set (`VITE_FIREBASE_API_KEY`, `VITE_FIREBASE_AUTH_DOMAIN`, `VITE_FIREBASE_PROJECT_ID`, `VITE_FIREBASE_APP_ID`) the app shows a sign-in screen instead of going straight into the dashboard.
+Once the required four env vars are set (`VITE_FIREBASE_API_KEY`,
+`VITE_FIREBASE_AUTH_DOMAIN`, `VITE_FIREBASE_PROJECT_ID`, `VITE_FIREBASE_APP_ID`)
+the app shows a sign-in screen instead of going straight into the dashboard.
 
-**Security note:** Firebase *web* API keys aren't secrets — they identify a project but don't grant access. Real access control lives in [`firestore.rules`](./firestore.rules), which scopes every user to `insight_users/{their-uid}/…`. If you fork this repo, point `.env` at your own project so nobody else writes into yours.
+**Security note:** Firebase *web* API keys aren't secrets — they identify a
+project but don't grant access. Real access control lives in
+[`firestore.rules`](./firestore.rules), which scopes every user to
+`insight_users/{their-uid}/…` and gates every cross-user read. If you fork this
+repo, point `.env` at your own project so nobody else writes into yours.
 
 ## First sign-in
 
-If the user's Firestore subtree doesn't exist yet, the app seeds it with whatever the browser currently has — either defaults or prior localStorage data (daily report, city ratings). After that, Firestore is authoritative and drives the UI via `onSnapshot` subscriptions.
+If the user's Firestore subtree doesn't exist yet, the app seeds it with
+whatever the browser currently has — defaults or prior localStorage data. After
+that, Firestore is authoritative and drives the UI via `onSnapshot`
+subscriptions.
+
+## Architecture
+
+**Client** — React 19 + Vite, ~60 `useX` hooks, lazy-loaded overlays. The
+Firebase SDK is code-split so signed-out users never download it.
+
+**Firestore** — per-user data under `insight_users/{uid}/…` (owner-only by
+default), plus opt-in cross-user reads gated by the rules.
+
+**Cloud Functions** (`functions/src/index.ts`, admin SDK — bypasses rules):
+
+| Function | Purpose |
+|---|---|
+| `rebuildAreaAggregates` / `scheduledAreaAggregates` (6h) | Per-geohash5 Big-Five / politics / morals **and media** rollups, k-anonymised. Also writes the global `aggregates_media/world` doc. |
+| `rebuildWorldAggregates` / `scheduledWorldAggregates` (24h) | Userbase snapshot — personality, demographics, top interests by country + global. |
+| `rebuildCityAggregates` / `scheduledCityAggregates` (24h) | Per-city rating averages **plus** per-city Big-Five + media (from each rater's profile). |
+| `sendInboundImpression` (callable) | The **only** write path for impressions. Enforces the circle/accept-from gate, the recipient's trait blocklist, and a per-sender rate limit (rules can't count writes). Client direct-creates are denied. |
+| `seedTaxonomies` / `scheduledTaxonomies` (24h) | Mirrors canonical reference data (interest categories, …) into the read-only `taxonomies` collection so it's editable without a redeploy. |
+| `deleteAccount` (callable) | Wipes the user's subtree + every cross-user reference (sent impressions, relations pointing at them) + the auth account. Required by both app stores. |
+
+## Sharing model
+
+Every category of personal data has a four-level visibility dial —
+**nobody / circle / city / world** — set in the Sharing overlay, with sensitive
+fields (politics, dreams, weigh-ins) defaulting to private. Enforcement:
+
+- **Daily report** — `firestore.rules` reads the owner's `sharePrefs.daily_report`
+  and grants a circle member the read.
+- **Subcollections** (workouts, meals, weigh-ins, moods, scrapbook, dreams,
+  books, visits, homes, languages, jobs, milestones, time-use) — a mutual friend
+  (a `circle/{uid}` grant) may **read** the collection when the owner's
+  per-category level is circle / city / world. Writes stay owner-only;
+  non-shareable collections (finance, habits, private impression sketches) are
+  never exposed.
+- **Big-Five / politics / morals / media** — fed into the **anonymised
+  aggregates** (area / world / city) per their share level; they're not yet
+  exposed as raw per-friend values.
+- **Discoverable location** — opt-in; presence of an `insight_discoverable/{uid}`
+  doc *is* the toggle. Location is fuzzed to geohash5 (~5 km) everywhere.
+
+City / world tiers for raw per-user reads are not wired yet (circle tier is).
 
 ## Data model
 
+Per-user subtree (`insight_users/{uid}` is owner-only; some children are
+circle-readable per the sharing model):
+
 ```
-insight_users/{uid}                             ← profile fields
-insight_users/{uid}/relations/{id}
-insight_users/{uid}/insight_cityratings/{cityName}
-insight_users/{uid}/insight_daily/today         ← today's daily report
-insight_users/{uid}/insight_moods/{date}
-insight_users/{uid}/insight_habits/{id}
-insight_users/{uid}/insight_workouts/{id}
-insight_users/{uid}/insight_meals/{id}
-insight_users/{uid}/insight_transactions/{id}
+insight_users/{uid}                          ← profile: personality (Big5),
+                                                political/politicalAxes, morals,
+                                                media (MediaMap), sharePrefs,
+                                                likes/dislikes, bio/role, …
+  /relations/{id}                             ← people you've added (UserPerson)
+  /circle/{viewerUid}                         ← friend grants (read access)
+  /followers/{uid}  /friendRequests/{uid}  /blocks/{uid}
+  /insight_daily/today                        ← today's daily report
+  /insight_moods/{date}                       ← mood 1..5 per day
+  /insight_inbound_impressions/{id}           ← anonymous traits left *for* you
+  /insight_cityratings/{cityName}
+  /insight_habits|workouts|meals|transactions|weighins
+  /insight_scrapbook|dreams|books|visits|homes|languages|jobs|milestones|time_blocks
+  /insight_interests/{id}
 ```
 
-User-uploaded photo blobs stay in localStorage (`insight.dailyReport.photo.v1`) and are not synced; the stock-photo key (e.g. `fjord`) travels with the remote doc.
+Top-level collections:
+
+```
+insight_discoverable/{uid}        ← opt-in public projection: geohash5,
+                                    personality, age/role/bio/country/interests
+aggregates_by_geohash5/{hash5}    ← area Big5/politics/morals/media (k-anon)
+aggregates_world/snapshot         ← userbase stats by country + global
+aggregates_city/{slug}            ← per-city ratings + Big5 + media
+aggregates_media/world            ← global media popularity
+taxonomies/{key}                  ← canonical reference data (read-only)
+insight_ratelimits/{senderUid}    ← impression send ledger (server-only)
+Cities/{id}                       ← world cities catalogue (read-only)
+insight_interest_items/{id}       ← community-voted interest items
+```
+
+User-uploaded photo blobs stay in localStorage (`insight.dailyReport.photo.v1`)
+and are not synced; the stock-photo key (e.g. `fjord`) travels with the remote
+doc.
+
+## Privacy posture
+
+- **On-device AI.** The daily reflection is generated locally by Gemma — no
+  mood/journal data leaves the device.
+- **Photos stay local** by default (opt-in cloud backup exists).
+- **Coarse location only** — geohash5 (~5 km) is the floor everywhere; precise
+  coordinates are never shared.
+- **k-anonymity** on every aggregate — 20 contributors per cell for area/world,
+  3 per city; below-floor cells are dropped, never published.
+- **Account deletion + (roadmap) export** — `deleteAccount` wipes everything,
+  including cross-user references.
+
+The [`docs/data-inventory.md`](./docs/data-inventory.md) maps every field to the
+App Store Privacy Nutrition Label and Play Data Safety categories.
 
 ## Firebase cost notes
 
 The app is designed to keep Firestore reads cheap:
 
-- **Firebase SDK is lazy-loaded.** Signed-out users never download it; it ships as a separate ~350 kB chunk only when sign-in is enabled.
-- **Subscriptions only attach when signed-in.** Each `useX` hook short-circuits in localStorage-only mode.
-- **Collections are intentionally small.** Relations, city ratings, habits, daily-report — all under a few dozen docs each.
-- **Moods are windowed.** `subscribeMoods` is `orderBy("date","desc") + limit(60)` rather than a full-collection scan. After a year of daily logging this caps per-snapshot reads at 60 instead of 365.
-- **Writes are user-driven.** A signed-in user generates roughly 1 write per daily-report save, 1 per star tap, 1 per habit tap, 1 per added person. No background polling, no automatic re-writes.
-- **The Firestore SDK deduplicates listeners.** Mounting the same `useX` hook in two components reuses one underlying network listener.
+- **Firebase SDK is lazy-loaded.** Signed-out users never download it.
+- **Subscriptions only attach when signed-in.** Each `useX` hook short-circuits
+  in localStorage-only mode.
+- **Moods are windowed.** `subscribeMoods` is `orderBy("date","desc") +
+  limit(60)` rather than a full-collection scan.
+- **Aggregates are one-doc reads.** The World tab reads a single snapshot doc;
+  City reads one doc per city — the Cloud Functions fan out so clients don't.
+- **Writes are user-driven.** No background polling, no automatic re-writes.
 
-A typical active user, signed in, lands well inside Firebase's free tier (50 k reads + 20 k writes per day).
+A typical active user lands well inside Firebase's free tier (50 k reads + 20 k
+writes per day).
 
 ## Native iOS + Android (Capacitor)
 
-The mobile experience ships as a native iOS + Android app via [Capacitor](https://capacitorjs.com). The whole React/Vite app runs inside a system WebView wrapped in a thin native shell — the same code we deploy to the web. The `ios/` and `android/` directories are committed as project shells (Xcode + Gradle); your local build state is gitignored.
+The mobile experience ships as a native iOS + Android app via
+[Capacitor](https://capacitorjs.com). The whole React/Vite app runs inside a
+system WebView wrapped in a thin native shell — the same code we deploy to the
+web. The `ios/` and `android/` directories are committed as project shells
+(Xcode + Gradle); your local build state is gitignored.
 
 Bundle ID: `com.cosaxo.insight`. App name: `InSight`.
 
@@ -83,87 +221,92 @@ npm run ios              # open the Xcode project (macOS only)
 npm run android          # open Android Studio
 ```
 
-Live-reload during development (point the WebView at the dev server instead of the bundled assets) is configured per-platform in Xcode / Android Studio.
-
 ### What's wired
 
-- `@capacitor/splash-screen` — 1.2 s paper-coloured splash so the WebView first-paint flash is hidden.
-- `@capacitor/status-bar` — overlay drawing, so the existing `env(safe-area-inset-*)` CSS keeps working.
-- `@capacitor/keyboard` — resize the WebView frame when the keyboard opens (not overlay-mode).
+- `@capacitor/splash-screen` — paper-coloured splash hides the WebView first-paint flash.
+- `@capacitor/status-bar` — overlay drawing, so `env(safe-area-inset-*)` keeps working.
+- `@capacitor/keyboard` — resize the WebView when the keyboard opens.
 - `@capacitor/app` — back-button handling on Android, app-state events.
-- `@capacitor-firebase/authentication` — native Google Sign-In sheet on iOS / Android. The plugin runs the OAuth flow natively, we exchange the resulting ID token for a Firebase credential via the JS SDK so every Firestore call still goes through the same auth instance. On web we fall back to the popup.
-- `@capacitor/camera` — daily-report photo capture uses the OS camera/library picker on device. Falls back to the existing `<input type="file">` on web.
-- `@capgo/capacitor-llm` — on-device language model. The daily report generates a one-sentence reflection from the user's last week of moods, **without any data leaving the device**. Strategy:
-  - **Strict Gemma 4 E2B everywhere.** Same model on iOS and Android — no Apple-Intelligence preference, no per-vendor fallback. Every user gets the same observational voice. Apache 2.0, open weights, hosted on the `litert-community/gemma-4-E2B-it-litert-lm` repo as a MediaPipe `.task` file (~2 GB int4).
-  - **First launch** downloads the model and caches the path in localStorage. Subsequent inferences are offline and ~2–5 s on a modern phone.
-  - **Web** — feature is hidden (the overlay shows a small note pointing the user to the mobile app).
-  - Model URL is overridable via `VITE_LLM_MODEL_URL` in `.env` — swap to Gemma 4 E4B for higher quality on capable devices, or to a mobile-tuned variant when one lands.
+- `@capacitor-firebase/authentication` — native Google Sign-In; the plugin runs
+  OAuth natively and we exchange the ID token for a Firebase credential so every
+  Firestore call uses the same auth instance. On web we fall back to the popup.
+- `@capacitor/camera` — daily-report photo capture via the OS picker (falls back
+  to `<input type="file">` on web).
+- `@capgo/capacitor-llm` — on-device Gemma 4 E2B. The daily report generates a
+  one-sentence reflection from the last week of moods, **on device**. First
+  launch downloads the model (~2 GB int4) and caches the path; subsequent
+  inferences are offline. Hidden on web. Model URL overridable via
+  `VITE_LLM_MODEL_URL`.
 
 ### Native setup (required before first device build)
 
-Two platform-specific Firebase config files are required for native Google Sign-In. These are project-specific so they aren't committed.
+Two platform-specific Firebase config files are required for native Google
+Sign-In (project-specific, so not committed):
 
-**iOS** — drop `GoogleService-Info.plist` from your Firebase project's iOS app config into `ios/App/App/`, then add it to the Xcode target. Open `ios/App/App/Info.plist` and replace the `REVERSED_CLIENT_ID` placeholder under `CFBundleURLTypes` with the value from your `GoogleService-Info.plist` (it looks like `com.googleusercontent.apps.1234567890-abcdef`).
+- **iOS** — drop `GoogleService-Info.plist` into `ios/App/App/`, add it to the
+  Xcode target, and replace the `REVERSED_CLIENT_ID` placeholder in
+  `ios/App/App/Info.plist`.
+- **Android** — drop `google-services.json` into `android/app/`.
 
-**Android** — drop `google-services.json` from your Firebase project's Android app config into `android/app/`. The plugin's Gradle script picks it up automatically.
-
-The bundle ID / application ID is `com.cosaxo.insight`. Both Firebase apps must be registered with that same ID.
+Both Firebase apps must register the bundle/application ID `com.cosaxo.insight`.
 
 ### Permissions
 
-Already declared in the project:
+- iOS `Info.plist`: `NSCameraUsageDescription`, `NSPhotoLibraryUsageDescription`,
+  `NSPhotoLibraryAddUsageDescription`.
+- Android `AndroidManifest.xml`: `CAMERA`, `READ_MEDIA_IMAGES` (13+),
+  `READ_EXTERNAL_STORAGE` (≤ 12). Camera hardware is `android:required="false"`.
 
-- iOS `Info.plist`: `NSCameraUsageDescription`, `NSPhotoLibraryUsageDescription`, `NSPhotoLibraryAddUsageDescription`.
-- Android `AndroidManifest.xml`: `CAMERA`, `READ_MEDIA_IMAGES` (Android 13+), `READ_EXTERNAL_STORAGE` (Android ≤ 12). Camera hardware is `android:required="false"` so devices without a camera can still install the app.
+### Planned, not yet wired
 
-### Native API integrations planned but not yet wired
-
-- `@capacitor/push-notifications` — daily-check-in reminders.
-- `@capacitor/local-notifications` — local reminders without a server.
-- `@capacitor/share` — share a daily report or test result.
-- `@capacitor/preferences` — would replace localStorage with native key-value storage (works as-is via WebView storage today, but native is faster on cold starts).
+`@capacitor/push-notifications`, `@capacitor/local-notifications`,
+`@capacitor/share`, `@capacitor/preferences`.
 
 ## Scripts
 
 - `npm run dev` — start Vite dev server
 - `npm run build` — typecheck and build for production (web)
-- `npm run build:mobile` — build for web, then `cap sync` into iOS + Android shells
-- `npm run sync` — `cap sync` only (re-copy a fresh build into the native shells without re-building)
-- `npm run ios` — open the Xcode project
-- `npm run android` — open Android Studio
+- `npm run build:mobile` — build for web, then `cap sync` into iOS + Android
+- `npm run sync` — `cap sync` only
+- `npm run ios` / `npm run android` — open the native projects
 - `npm run doctor` — Capacitor environment diagnostic
 - `npm run lint` — run ESLint
 - `npm run preview` — preview the production build (web)
+- `npm run test:rules` — Firestore security-rules tests (needs the emulator; see
+  [`firestore-tests/README.md`](./firestore-tests/README.md))
 
 ## Project layout
 
 ```
 src/
-  index.css                      paper-grain palette, OKLCH tokens, dark mode
-  data/seedData.ts               rich seed data for the demo (the plan's data.js)
-  types/                         shared domain types (incl. RemoteDailyReport)
-  lib/
-    firebase.ts                  lazy public API surface
-    firebaseImpl.ts              Firebase SDK — code-split chunk
-    useAuth.ts                   auth subscription hook
-    useTweaks.ts                 design tweaks (dark/density), localStorage-backed
-    useDailyReport.ts            today's daily report (local + Firestore)
-    useCityRatings.ts            star ratings (local + Firestore)
+  index.css                      paper-grain palette, OKLCH tokens, per-tab
+                                 accents, dark mode
+  data/                          seedData + taxonomies (interests, politics)
+  types/                         shared domain types
+  lib/                           ~60 hooks: useAuth, useProfile, useMoods,
+                                 useDailyReport, useNearbyPeople,
+                                 useAreaAggregate, useWorldAggregates,
+                                 useCityAggregate, useGlobalMedia,
+                                 useFriendShared, useTaxonomies, firebase(Impl), …
   components/
-    shared/                      IOSDevice frame, TweaksPanel, primitives,
-                                 charts (RadarChart / Compass2D / Donut / …),
-                                 ConcentricMap
+    shared/                      IOSDevice, TweaksPanel, primitives, charts
+                                 (RadarChart, Compass2D, CompareCompass,
+                                 BellCurve, Big5Grid, Ridgeline, NetworkGraph,
+                                 ClockDial, DowStripes, …), ConcentricMap
     icons/                       NavGlyph (hand-drawn tab icons)
-    insights/                    ProfileCompare, MediaPopularity, GroupBreakdown
-    tabs/                        AroundTab, WorldTab, CityTab, GroupsTab,
+    insights/                    ProfileCompare, MediaPopularity
+    tabs/                        AroundTab, WorldTab, CityTab, InterestsTab,
                                  PeopleTab
-    overlays/                    PersonOverlay, ProfileOverlay (politics inc.),
-                                 InsightsOverlay (mood + journal-tabs),
+    overlays/                    PersonOverlay, ProfileOverlay, InsightsOverlay,
                                  TestOverlay, CityOverlay, SharingOverlay,
                                  DnaOverlay, ScrapbookOverlay, BodyOverlay,
                                  DaysOverlay, DailyReportOverlay,
                                  ImpressionsOverlay, LifeOverlay
     panels/                      LoginScreen / LoadingScreen (Firebase gate)
-  App.tsx                        root: tab routing, FAB stack, overlay router,
+  App.tsx                        root: tab routing, FAB, overlay router,
                                  first-sign-in migration
+functions/src/index.ts          Cloud Functions (aggregators, impression
+                                 callable, deleteAccount, taxonomy seeding)
+firestore.rules                  per-user scoping + cross-user read carve-outs
+firestore-tests/                 security-rules unit tests (emulator)
 ```
