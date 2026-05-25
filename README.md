@@ -11,7 +11,7 @@ Five tabs move from the world inward to the people next to you —
 frame, with a fan-out menu for your own surfaces: daily report, a journal
 (mood / habits / fitness / nutrition / finance), the body, the days, a
 scrapbook, impressions, personality/politics/values tests, life details,
-sharing controls, and a DNA viewer.
+and sharing controls.
 
 Built with **React 19 + TypeScript + Vite**, wrapped as a native **iOS +
 Android** app via **Capacitor**, backed by **Firebase** (Auth + Firestore +
@@ -299,7 +299,7 @@ src/
                                  PeopleTab
     overlays/                    PersonOverlay, ProfileOverlay, InsightsOverlay,
                                  TestOverlay, CityOverlay, SharingOverlay,
-                                 DnaOverlay, ScrapbookOverlay, BodyOverlay,
+                                 ScrapbookOverlay, BodyOverlay,
                                  DaysOverlay, DailyReportOverlay,
                                  ImpressionsOverlay, LifeOverlay
     panels/                      LoginScreen / LoadingScreen (Firebase gate)
