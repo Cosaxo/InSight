@@ -25,15 +25,17 @@ jobs:
       - name: Build functions
         run: npm run build --prefix functions
 
-      - name: Authenticate to Google Cloud
-        uses: google-github-actions/auth@v2
-        with:
-          credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+      - name: Write service account key
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: printf '%s' "$FIREBASE_SERVICE_ACCOUNT" > "$RUNNER_TEMP/sa-key.json"
 
       - name: Install Firebase CLI
         run: npm install -g firebase-tools
 
       - name: Deploy rules + functions
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/sa-key.json
         run: >
           firebase deploy --project prvfire33 --non-interactive
           --only "firestore:rules,functions:rebuildAreaAggregates,functions:scheduledAreaAggregates,functions:rebuildWorldAggregates,functions:scheduledWorldAggregates,functions:rebuildCityAggregates,functions:scheduledCityAggregates,functions:sendInboundImpression,functions:deleteAccount,functions:seedTaxonomies,functions:scheduledTaxonomies"
