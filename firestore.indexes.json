@@ -1,22 +1,6 @@
 {
   "indexes": [
     {
-      "collectionGroup": "relations",
-      "queryScope": "COLLECTION_GROUP",
-      "fields": [
-        { "fieldPath": "linkedUid", "order": "ASCENDING" },
-        { "fieldPath": "__name__", "order": "ASCENDING" }
-      ]
-    },
-    {
-      "collectionGroup": "insight_inbound_impressions",
-      "queryScope": "COLLECTION_GROUP",
-      "fields": [
-        { "fieldPath": "senderUid", "order": "ASCENDING" },
-        { "fieldPath": "__name__", "order": "ASCENDING" }
-      ]
-    },
-    {
       "collectionGroup": "insight_interest_items",
       "queryScope": "COLLECTION",
       "fields": [
