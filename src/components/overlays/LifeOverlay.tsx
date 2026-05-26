@@ -670,10 +670,9 @@ function GenerationTree() {
 
 interface LifeOverlayProps {
   onClose: () => void;
-  onOpenDna?: () => void;
 }
 
-export function LifeOverlay({ onClose, onOpenDna }: LifeOverlayProps) {
+export function LifeOverlay({ onClose }: LifeOverlayProps) {
   const [tab, setTab] = useState<"matter" | "rhythms" | "lineage" | "age">(
     "matter",
   );
@@ -1118,66 +1117,6 @@ export function LifeOverlay({ onClose, onOpenDna }: LifeOverlayProps) {
             <TheLedgerSection />
           </>
         )}
-
-        <hr className="rule-dashed" />
-        <div
-          onClick={() => {
-            if (onOpenDna) onOpenDna();
-          }}
-          className="card"
-          style={{
-            marginTop: 6,
-            padding: "14px 16px",
-            cursor: "pointer",
-            display: "flex",
-            alignItems: "center",
-            gap: 14,
-            borderLeft: "3px solid var(--accent)",
-          }}
-        >
-          <div
-            style={{
-              width: 40,
-              height: 40,
-              borderRadius: "50%",
-              background: "var(--paper-2)",
-              border: "0.5px solid var(--rule)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              fontFamily: "var(--serif)",
-              fontStyle: "italic",
-              fontSize: 22,
-              color: "var(--accent)",
-            }}
-          >
-            ⌇
-          </div>
-          <div style={{ flex: 1 }}>
-            <div
-              style={{
-                fontFamily: "var(--serif)",
-                fontSize: 15,
-                fontStyle: "italic",
-              }}
-            >
-              analyse your DNA
-            </div>
-            <div className="kicker" style={{ marginTop: 2 }}>
-              ANCESTRY · TRAITS · HEALTH MARKERS · HAPLOGROUPS
-            </div>
-          </div>
-          <span
-            style={{
-              fontFamily: "var(--serif)",
-              fontStyle: "italic",
-              fontSize: 22,
-              color: "var(--ink-3)",
-            }}
-          >
-            →
-          </span>
-        </div>
       </div>
     </div>
   );

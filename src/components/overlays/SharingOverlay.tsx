@@ -16,8 +16,7 @@ interface ShareItem {
 
 // Categories backed by real data + real cross-user reads (or
 // real-soon ones). Dropped from the previous list: health vitals
-// (no wearable), media favourites (no profile field), interests
-// (never had one), DNA ancestry / health (DnaOverlay still seed).
+// (no wearable) and interests (never had a dedicated category).
 // Their "share my X" promises had nothing behind them.
 //
 // Enforcement status today:

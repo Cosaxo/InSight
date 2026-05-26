@@ -92,11 +92,6 @@ const SharingOverlay = lazy(() =>
     default: m.SharingOverlay,
   })),
 );
-const DnaOverlay = lazy(() =>
-  import("./components/overlays/DnaOverlay").then((m) => ({
-    default: m.DnaOverlay,
-  })),
-);
 const ScrapbookOverlay = lazy(() =>
   import("./components/overlays/ScrapbookOverlay").then((m) => ({
     default: m.ScrapbookOverlay,
@@ -428,7 +423,6 @@ function AppShell() {
     "big5" | "political" | "values" | "money" | "chronotype" | "attachment" | null
   >(null);
   const [showSharing, setShowSharing] = useState(false);
-  const [showDna, setShowDna] = useState(false);
   const [showScrap, setShowScrap] = useState(false);
   const [showBody, setShowBody] = useState(false);
   const [showDays, setShowDays] = useState(false);
@@ -460,7 +454,6 @@ function AppShell() {
     setShowInsights(false);
     setShowTest(false);
     setShowSharing(false);
-    setShowDna(false);
     setShowScrap(false);
     setShowBody(false);
     setShowDays(false);
@@ -652,7 +645,6 @@ function AppShell() {
             showInsights && "insights",
             showTest && "test",
             showSharing && "sharing",
-            showDna && "dna",
             showScrap && "scrap",
             showBody && "body",
             showDays && "days",
@@ -706,7 +698,6 @@ function AppShell() {
           {showSharing && (
             <SharingOverlay onClose={() => setShowSharing(false)} />
           )}
-          {showDna && <DnaOverlay onClose={() => setShowDna(false)} />}
           {showScrap && (
             <ScrapbookOverlay onClose={() => setShowScrap(false)} />
           )}
@@ -718,15 +709,7 @@ function AppShell() {
           {showImpressions && (
             <ImpressionsOverlay onClose={() => setShowImpressions(false)} />
           )}
-          {showLife && (
-            <LifeOverlay
-              onClose={() => setShowLife(false)}
-              onOpenDna={() => {
-                setShowLife(false);
-                setShowDna(true);
-              }}
-            />
-          )}
+          {showLife && <LifeOverlay onClose={() => setShowLife(false)} />}
           {city && <CityOverlay city={city} onClose={() => setCity(null)} />}
           {showAddPerson && (
             <AddPersonFlow onClose={() => setShowAddPerson(false)} />
