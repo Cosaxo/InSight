@@ -8,6 +8,7 @@
 import { initializeApp, type FirebaseApp } from "firebase/app";
 import {
   GoogleAuthProvider,
+  connectAuthEmulator,
   getAuth,
   onAuthStateChanged,
   signInWithCredential,
@@ -21,6 +22,7 @@ import { FirebaseAuthentication } from "@capacitor-firebase/authentication";
 import {
   addDoc,
   collection,
+  connectFirestoreEmulator,
   deleteDoc,
   doc,
   endAt,
@@ -44,8 +46,13 @@ import {
   EmailAuthProvider,
   reauthenticateWithCredential,
 } from "firebase/auth";
-import { getFunctions, httpsCallable } from "firebase/functions";
 import {
+  connectFunctionsEmulator,
+  getFunctions,
+  httpsCallable,
+} from "firebase/functions";
+import {
+  connectStorageEmulator,
   deleteObject,
   getDownloadURL,
   getStorage,
@@ -221,16 +228,32 @@ let authInstance: Auth | null = null;
 let dbInstance: Firestore | null = null;
 let storageInstance: FirebaseStorage | null = null;
 
+// Local-development flag: when VITE_USE_EMULATOR=true, every SDK
+// instance is pointed at the Firebase Local Emulator Suite on
+// 127.0.0.1 instead of the live project. Has no effect in production
+// builds (the env var is absent).
+const useEmulator = import.meta.env.VITE_USE_EMULATOR === "true";
+const EMULATOR_HOST = "127.0.0.1";
+
 export function init(config: FirebaseConfig): void {
   if (app) return;
   app = initializeApp(config);
-  // Attest this client before the first Firestore / callable
-  // request. Fire-and-forget: the App Check token attaches to
-  // subsequent requests once it resolves; queries issued before
-  // resolution still work but are unattested.
-  void initAppCheck();
   authInstance = getAuth(app);
   dbInstance = getFirestore(app);
+  if (useEmulator) {
+    connectAuthEmulator(authInstance, `http://${EMULATOR_HOST}:9099`, {
+      disableWarnings: true,
+    });
+    connectFirestoreEmulator(dbInstance, EMULATOR_HOST, 8080);
+    connectFunctionsEmulator(getFunctions(app, "us-central1"), EMULATOR_HOST, 5001);
+  } else {
+    // Attest this client before the first Firestore / callable
+    // request. Fire-and-forget: the App Check token attaches to
+    // subsequent requests once it resolves; queries issued before
+    // resolution still work but are unattested. Skipped against the
+    // emulator, which doesn't enforce App Check.
+    void initAppCheck();
+  }
   // Storage instance is lazy — only constructed when first asked
   // for via storage(). Most signed-in sessions never touch it
   // (cloud photos are opt-in).
@@ -239,7 +262,10 @@ export function init(config: FirebaseConfig): void {
 
 function storage(): FirebaseStorage {
   if (!app) throw new Error("Firebase not initialised");
-  if (!storageInstance) storageInstance = getStorage(app);
+  if (!storageInstance) {
+    storageInstance = getStorage(app);
+    if (useEmulator) connectStorageEmulator(storageInstance, EMULATOR_HOST, 9199);
+  }
   return storageInstance;
 }
 
