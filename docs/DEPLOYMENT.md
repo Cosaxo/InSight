@@ -3,6 +3,10 @@
 How the InSight backend — Firestore security rules and Cloud Functions — is
 deployed, and how the GitHub Actions pipeline is wired up.
 
+For running the same backend locally (no deploy required) against your own
+machine for development and testing, see
+[`docs/LOCAL-TESTING.md`](./LOCAL-TESTING.md).
+
 ## Overview
 
 Backend deploys are automated. Any push to `main` that changes
