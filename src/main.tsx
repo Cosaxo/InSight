@@ -1,7 +1,7 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import './index.css'
-import App from './App.tsx'
+import App from './legacy/App.tsx'
 import { sentryInit, SentryErrorBoundary } from './lib/sentry'
 
 // Init crash reporting before any other side effects so a JS error

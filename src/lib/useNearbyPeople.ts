@@ -13,7 +13,7 @@ import {
 } from "./firebase";
 import { useAuth } from "./useAuth";
 import { useProfile, big5Match } from "./useProfile";
-import type { NearbyPerson } from "../components/tabs/AroundTab";
+import type { NearbyPerson } from "../legacy/components/tabs/AroundTab";
 
 function formatDistance(km: number): string {
   if (km < 1) return `${Math.max(50, Math.round(km * 1000))} m`;

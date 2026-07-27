@@ -1,0 +1,1308 @@
+import { useEffect, useRef, useState } from "react";
+import { Camera, CameraResultType, CameraSource } from "@capacitor/camera";
+import { Capacitor } from "@capacitor/core";
+import { useDailyReport } from "../../../lib/useDailyReport";
+import { useMeals } from "../../../lib/useMeals";
+import { useDreams } from "../../../lib/useDreams";
+import { useGeolocation } from "../../../lib/useGeolocation";
+import { useWeather } from "../../../lib/useWeather";
+import { useLLM } from "../../../lib/useLLM";
+import type { RemoteDailyReport } from "../../../types";
+import {
+  dailyMoodToScore,
+  isoDateToday,
+  useMoods,
+} from "../../../lib/useMoods";
+import { VerdictCard } from "../shared/VerdictCard";
+import { Kicker } from "../shared/primitives";
+
+// Open a native camera/photo picker when running inside Capacitor;
+// otherwise click the hidden <input type="file"> so the browser shows
+// the OS file picker. The result is the same in both paths: a data:
+// URL the caller can stash in localStorage.
+async function pickPhoto(
+  inputRef: React.RefObject<HTMLInputElement | null>,
+  onPick: (v: string) => void,
+): Promise<void> {
+  if (!Capacitor.isNativePlatform()) {
+    inputRef.current?.click();
+    return;
+  }
+  try {
+    const photo = await Camera.getPhoto({
+      // Let the OS choose between camera and library so the user picks
+      // their flow. On the journal aesthetic, photos from the library
+      // make as much sense as fresh captures.
+      source: CameraSource.Prompt,
+      resultType: CameraResultType.DataUrl,
+      quality: 80,
+      allowEditing: false,
+      // Daily-report photo card is square-ish; downsize to keep
+      // localStorage cheap.
+      width: 1200,
+      promptLabelHeader: "today's photo",
+      promptLabelPicture: "take a photo",
+      promptLabelPhoto: "from photos",
+      promptLabelCancel: "cancel",
+    });
+    if (photo.dataUrl) onPick(photo.dataUrl);
+  } catch (err) {
+    // User cancelled the OS picker — silent. Anything else, log and
+    // fall back to the web input so the feature still works.
+    const msg = err instanceof Error ? err.message : String(err);
+    if (!/cancel/i.test(msg)) {
+      console.error("[DailyReport] native camera failed:", err);
+      inputRef.current?.click();
+    }
+  }
+}
+
+const STORAGE = "insight.dailyReport.v1";
+const PHOTO_STORAGE = "insight.dailyReport.photo.v1";
+
+const MOOD_LABELS: { lo: number; hi: number; label: string }[] = [
+  { lo: 0, hi: 19, label: "low" },
+  { lo: 20, hi: 34, label: "down" },
+  { lo: 35, hi: 49, label: "unsettled" },
+  { lo: 50, hi: 64, label: "steady" },
+  { lo: 65, hi: 79, label: "good" },
+  { lo: 80, hi: 100, label: "bright" },
+];
+const labelFor = (m: number) =>
+  MOOD_LABELS.find((x) => m >= x.lo && m <= x.hi)?.label || "steady";
+
+const QUICK_WEATHER = [
+  "fog · 6°",
+  "crisp · 4°",
+  "rain · 9°",
+  "sun · 14°",
+  "wind · 11°",
+];
+
+// Activity chips for the daily report. A short curated set —
+// covers the rough texture of a day without forcing detailed
+// time-tracking. Multi-select; the icon is decorative.
+const ACTIVITY_PALETTE: { id: string; label: string; glyph: string }[] = [
+  { id: "work",     label: "work",     glyph: "▢" },
+  { id: "read",     label: "read",     glyph: "✎" },
+  { id: "walk",     label: "walk",     glyph: "△" },
+  { id: "exercise", label: "exercise", glyph: "↗" },
+  { id: "social",   label: "social",   glyph: "○" },
+  { id: "creative", label: "creative", glyph: "✦" },
+  { id: "rest",     label: "rest",     glyph: "☾" },
+  { id: "outside",  label: "outside",  glyph: "❀" },
+  { id: "cook",     label: "cook",     glyph: "◐" },
+  { id: "learn",    label: "learn",    glyph: "◇" },
+  { id: "travel",   label: "travel",   glyph: "✶" },
+  { id: "music",    label: "music",    glyph: "♪" },
+];
+
+interface PhotoStock {
+  id: string;
+  bg: string;
+  caption: string;
+}
+const PHOTO_STOCK: PhotoStock[] = [
+  {
+    id: "fjord",
+    bg: "linear-gradient(160deg, oklch(0.78 0.06 220), oklch(0.55 0.10 245) 60%, oklch(0.34 0.08 260))",
+    caption: "fjord light · morning",
+  },
+  {
+    id: "kitchen",
+    bg: "linear-gradient(180deg, oklch(0.86 0.06 60), oklch(0.72 0.09 40) 50%, oklch(0.46 0.10 30))",
+    caption: "kitchen table · noon",
+  },
+  {
+    id: "forest",
+    bg: "linear-gradient(170deg, oklch(0.74 0.09 145), oklch(0.50 0.11 155) 55%, oklch(0.30 0.08 165))",
+    caption: "walk in Nordmarka",
+  },
+  {
+    id: "window",
+    bg: "linear-gradient(200deg, oklch(0.92 0.03 80), oklch(0.78 0.05 60) 50%, oklch(0.58 0.07 50))",
+    caption: "rain on the window",
+  },
+];
+
+function loadStored(): Partial<RemoteDailyReport> | null {
+  // The full RemoteDailyReport is written here by useDailyReport.writeLocal,
+  // but the overlay only reads the four user-editable fields. Typed as
+  // Partial<> because the on-disk JSON predates the schema.
+  try {
+    return JSON.parse(localStorage.getItem(STORAGE) || "null");
+  } catch {
+    return null;
+  }
+}
+function loadPhoto(): string | null {
+  return localStorage.getItem(PHOTO_STORAGE) || null;
+}
+
+// Today's nutrition summary derived from useMeals. The previous
+// version assembled body/movement/nutrition auto-stats from
+// IS_DATA.body.today + IS_DATA.insights.nutrition — wearable data
+// the app can't read, plus a kcal target the user never set. With
+// no wearable integration the body + movement sections come out;
+// the nutrition section gets wired to the meal log we already
+// track.
+const KCAL_REFERENCE = 2000;
+
+interface NutritionSummary {
+  kcal: number;
+  entries: number;
+}
+
+function Toggle({ on, onClick }: { on: boolean; onClick: () => void }) {
+  return (
+    <span
+      onClick={onClick}
+      role="switch"
+      aria-checked={on}
+      style={{
+        width: 28,
+        height: 16,
+        borderRadius: 999,
+        position: "relative",
+        background: on ? "var(--accent)" : "var(--paper-3)",
+        border: "0.5px solid var(--rule)",
+        cursor: "pointer",
+        flexShrink: 0,
+        transition: "background 0.15s",
+      }}
+    >
+      <span
+        style={{
+          position: "absolute",
+          top: 1,
+          left: on ? 13 : 1,
+          width: 12,
+          height: 12,
+          borderRadius: "50%",
+          background: "var(--paper)",
+          transition: "left 0.15s",
+          boxShadow: "0 1px 2px rgba(0,0,0,0.18)",
+        }}
+      />
+    </span>
+  );
+}
+
+function SectionHead({
+  label,
+  on,
+  onToggle,
+  hint,
+}: {
+  label: string;
+  on: boolean;
+  onToggle: () => void;
+  hint?: string;
+}) {
+  return (
+    <div
+      style={{
+        display: "flex",
+        alignItems: "baseline",
+        justifyContent: "space-between",
+        marginBottom: 8,
+      }}
+    >
+      <span className="kicker" style={{ margin: 0 }}>
+        {label}
+      </span>
+      <span
+        style={{ display: "inline-flex", alignItems: "center", gap: 6 }}
+      >
+        {hint && (
+          <span
+            style={{
+              fontFamily: "var(--mono)",
+              fontSize: 8,
+              color: "var(--ink-3)",
+              letterSpacing: "0.08em",
+            }}
+          >
+            {hint}
+          </span>
+        )}
+        <span
+          style={{
+            fontFamily: "var(--mono)",
+            fontSize: 8.5,
+            color: "var(--ink-3)",
+            letterSpacing: "0.08em",
+          }}
+        >
+          SHARE
+        </span>
+        <Toggle on={on} onClick={onToggle} />
+      </span>
+    </div>
+  );
+}
+
+// SmallSlider — compact 0..100 slider with left/mid/right labels.
+// Used by the new energy + sleep cards so they read symmetrically
+// with the mood slider without taking up the same vertical space.
+function SmallSlider({
+  value,
+  onChange,
+  lowLabel,
+  midLabel,
+  highLabel,
+  accent,
+}: {
+  value: number;
+  onChange: (v: number) => void;
+  lowLabel: string;
+  midLabel: string;
+  highLabel: string;
+  accent: string;
+}) {
+  return (
+    <div style={{ marginTop: 6 }}>
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "baseline",
+          marginBottom: 4,
+        }}
+      >
+        <span
+          className="fig-num"
+          style={{ fontSize: 22, lineHeight: 1, color: accent }}
+        >
+          <em>{value}</em>
+        </span>
+      </div>
+      <input
+        type="range"
+        min="0"
+        max="100"
+        value={value}
+        onChange={(e) => onChange(+e.target.value)}
+        style={{ width: "100%", accentColor: accent }}
+      />
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          fontFamily: "var(--mono)",
+          fontSize: 8.5,
+          color: "var(--ink-3)",
+          letterSpacing: "0.06em",
+        }}
+      >
+        <span>{lowLabel}</span>
+        <span>{midLabel}</span>
+        <span>{highLabel}</span>
+      </div>
+    </div>
+  );
+}
+
+// ActivitiesPicker — multi-select chip grid. Tap to toggle. No
+// numeric ranking; presence in the list is the signal.
+function ActivitiesPicker({
+  value,
+  onChange,
+}: {
+  value: string[];
+  onChange: (next: string[]) => void;
+}) {
+  const toggle = (id: string) => {
+    if (value.includes(id)) onChange(value.filter((v) => v !== id));
+    else onChange([...value, id]);
+  };
+  return (
+    <div
+      style={{
+        display: "flex",
+        flexWrap: "wrap",
+        gap: 5,
+        marginTop: 8,
+      }}
+    >
+      {ACTIVITY_PALETTE.map((a) => {
+        const on = value.includes(a.id);
+        return (
+          <button
+            key={a.id}
+            type="button"
+            onClick={() => toggle(a.id)}
+            style={{
+              padding: "5px 10px",
+              borderRadius: 999,
+              fontFamily: "var(--mono)",
+              fontSize: 10,
+              letterSpacing: "0.06em",
+              background: on ? "var(--ink)" : "var(--paper-2)",
+              color: on ? "var(--paper)" : "var(--ink-2)",
+              border: on ? "none" : "0.5px solid var(--rule)",
+              cursor: "pointer",
+              display: "inline-flex",
+              gap: 5,
+              alignItems: "center",
+            }}
+          >
+            <span>{a.glyph}</span>
+            {a.label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+function Chips({
+  value,
+  onChange,
+  options,
+  placeholder,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  options: string[];
+  placeholder: string;
+}) {
+  return (
+    <>
+      <input
+        value={value || ""}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        style={{
+          width: "100%",
+          boxSizing: "border-box",
+          padding: "8px 10px",
+          background: "var(--paper-2)",
+          border: "0.5px solid var(--rule)",
+          borderRadius: 6,
+          fontFamily: "var(--serif)",
+          fontStyle: "italic",
+          fontSize: 13,
+          color: "var(--ink)",
+        }}
+      />
+      <div
+        style={{ display: "flex", flexWrap: "wrap", gap: 5, marginTop: 6 }}
+      >
+        {options.map((o) => (
+          <button
+            key={o}
+            onClick={() => onChange(o)}
+            style={{
+              padding: "3px 9px",
+              borderRadius: 999,
+              cursor: "pointer",
+              fontFamily: "var(--serif)",
+              fontStyle: "italic",
+              fontSize: 11.5,
+              background: value === o ? "var(--ink)" : "var(--paper-2)",
+              color: value === o ? "var(--paper)" : "var(--ink-3)",
+              border: "0.5px solid var(--rule)",
+            }}
+          >
+            {o}
+          </button>
+        ))}
+      </div>
+    </>
+  );
+}
+
+function Stat({
+  value,
+  unit,
+  label,
+  hue = 38,
+}: {
+  value: string | number;
+  unit?: string;
+  label: string;
+  hue?: number;
+}) {
+  return (
+    <div
+      style={{
+        padding: 10,
+        background: "var(--paper)",
+        border: "0.5px solid var(--rule)",
+        borderRadius: 6,
+        borderLeft: `3px solid oklch(0.55 0.13 ${hue})`,
+      }}
+    >
+      <div style={{ display: "flex", alignItems: "baseline", gap: 3 }}>
+        <span className="fig-num" style={{ fontSize: 22, lineHeight: 1 }}>
+          <em>{value}</em>
+        </span>
+        {unit && (
+          <span
+            style={{
+              fontFamily: "var(--mono)",
+              fontSize: 9,
+              color: "var(--ink-3)",
+              letterSpacing: "0.06em",
+            }}
+          >
+            {unit}
+          </span>
+        )}
+      </div>
+      <div className="kicker" style={{ marginTop: 2 }}>
+        {label}
+      </div>
+    </div>
+  );
+}
+
+function PhotoSlot({
+  photo,
+  onPick,
+}: {
+  photo: string | null;
+  onPick: (v: string) => void;
+}) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  if (photo) {
+    const stock = PHOTO_STOCK.find((p) => p.id === photo);
+    return (
+      <div
+        onClick={() => void pickPhoto(inputRef, onPick)}
+        style={{
+          position: "relative",
+          height: 180,
+          borderRadius: 8,
+          overflow: "hidden",
+          cursor: "pointer",
+          border: "0.5px solid var(--rule)",
+          background: stock
+            ? stock.bg
+            : `url(${photo}) center/cover no-repeat`,
+        }}
+      >
+        <div
+          style={{
+            position: "absolute",
+            bottom: 0,
+            left: 0,
+            right: 0,
+            padding: "20px 14px 12px",
+            background: "linear-gradient(0deg, rgba(0,0,0,0.45), transparent)",
+            color: "rgba(255,255,255,0.92)",
+            fontFamily: "var(--serif)",
+            fontStyle: "italic",
+            fontSize: 14,
+          }}
+        >
+          {stock?.caption || "today"}
+        </div>
+        <div
+          style={{
+            position: "absolute",
+            top: 10,
+            right: 10,
+            fontFamily: "var(--mono)",
+            fontSize: 8.5,
+            letterSpacing: "0.1em",
+            color: "rgba(255,255,255,0.86)",
+            background: "rgba(0,0,0,0.32)",
+            padding: "3px 7px",
+            borderRadius: 3,
+          }}
+        >
+          TAP TO CHANGE
+        </div>
+        <input
+          ref={inputRef}
+          type="file"
+          accept="image/*"
+          style={{ display: "none" }}
+          onChange={(e) => {
+            const f = e.target.files?.[0];
+            if (f) {
+              const r = new FileReader();
+              r.onload = () => onPick(String(r.result));
+              r.readAsDataURL(f);
+            }
+          }}
+        />
+      </div>
+    );
+  }
+  return (
+    <div>
+      <div
+        onClick={() => void pickPhoto(inputRef, onPick)}
+        style={{
+          height: 96,
+          borderRadius: 8,
+          cursor: "pointer",
+          border: "0.5px dashed var(--accent)",
+          background: "color-mix(in oklch, var(--accent) 6%, var(--paper))",
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "center",
+          gap: 4,
+        }}
+      >
+        <span
+          style={{
+            fontFamily: "var(--serif)",
+            fontSize: 22,
+            color: "var(--accent)",
+          }}
+        >
+          ◉
+        </span>
+        <span
+          style={{
+            fontFamily: "var(--serif)",
+            fontStyle: "italic",
+            fontSize: 13,
+            color: "var(--accent)",
+          }}
+        >
+          add the photo of the day
+        </span>
+      </div>
+      <input
+        ref={inputRef}
+        type="file"
+        accept="image/*"
+        style={{ display: "none" }}
+        onChange={(e) => {
+          const f = e.target.files?.[0];
+          if (f) {
+            const r = new FileReader();
+            r.onload = () => onPick(String(r.result));
+            r.readAsDataURL(f);
+          }
+        }}
+      />
+      <div style={{ display: "flex", gap: 6, marginTop: 8 }}>
+        {PHOTO_STOCK.map((p) => (
+          <div
+            key={p.id}
+            onClick={() => onPick(p.id)}
+            title={p.caption}
+            style={{
+              flex: 1,
+              height: 40,
+              borderRadius: 4,
+              cursor: "pointer",
+              background: p.bg,
+              border: "0.5px solid var(--rule)",
+            }}
+          />
+        ))}
+      </div>
+      <div className="kicker" style={{ marginTop: 4, textAlign: "center" }}>
+        OR PICK ONE OF THE PAINTED SKIES
+      </div>
+    </div>
+  );
+}
+
+interface DailyReportOverlayProps {
+  onClose: () => void;
+}
+
+export function DailyReportOverlay({
+  onClose,
+}: DailyReportOverlayProps) {
+  const existing = loadStored();
+  const { save: saveDaily } = useDailyReport();
+  const { moods: priorMoods, upsert: upsertMoodEntry } = useMoods();
+  const { items: meals } = useMeals();
+
+  // Today's nutrition summary from the real meal log. Only render the
+  // card when the user has logged at least one meal today — don't
+  // assert empty kcal stats they didn't earn.
+  const todayIso = isoDateToday();
+  const todayMeals = meals.filter((m) => m.date === todayIso);
+  const nutrition: NutritionSummary | null =
+    todayMeals.length > 0
+      ? {
+          kcal: todayMeals.reduce((s, m) => s + m.kcal, 0),
+          entries: todayMeals.length,
+        }
+      : null;
+
+  const [photo, setPhoto] = useState<string | null>(loadPhoto());
+  const [mood, setMood] = useState<number>(existing?.mood ?? 62);
+  const [oneLine, setOneLine] = useState<string>(existing?.one_line ?? "");
+  const [weather, setWeather] = useState<string>(existing?.weather ?? "");
+  // Extended-report state. All optional. Defaults align with mood:
+  // energy/sleep start at 50 (neutral) so the user has to actively
+  // move them — saves a "you reported neutral on everything" trap.
+  const [energy, setEnergy] = useState<number>(existing?.energy ?? 50);
+  const [sleepQuality, setSleepQuality] = useState<number>(
+    existing?.sleepQuality ?? 50,
+  );
+  const [activities, setActivities] = useState<string[]>(existing?.activities ?? []);
+  const [highlight, setHighlight] = useState<string>(existing?.highlight ?? "");
+  // Dream-capture state. Stored in its own collection via
+  // useDreams.add() on save — the daily report doesn't carry the
+  // dream blob itself, just provides a quick-entry surface so the
+  // user can log it without navigating to the dream editor.
+  const [dreamText, setDreamText] = useState<string>("");
+  const [dreamTitle, setDreamTitle] = useState<string>("");
+  const [dreamMood, setDreamMood] = useState<string>("");
+  const { add: addDream } = useDreams();
+  // Track whether the user has typed anything into the weather
+  // field yet. If they haven't, the live-weather effect autofills;
+  // once they edit it we leave it alone.
+  const [weatherTouched, setWeatherTouched] = useState<boolean>(
+    !!existing?.weather,
+  );
+
+  // Live weather → auto-populate the weather string the first time
+  // it's available, unless the user already typed something. Format
+  // matches the QUICK_WEATHER pills ("rain · 9°") so the UI's
+  // affordances stay aligned.
+  const { position } = useGeolocation();
+  const { data: live } = useWeather(position);
+  useEffect(() => {
+    if (weatherTouched || !live) return;
+    const label = (live.weatherLabel || "").split(/[,(]/)[0].trim();
+    const tempPart = `${Math.round(live.temp)}°`;
+    const composed = label ? `${label} · ${tempPart}` : tempPart;
+    setWeather(composed);
+    // weatherTouched stays false until the user manually edits the
+    // input, so subsequent weather refreshes can still update.
+  }, [live, weatherTouched]);
+
+  // Auto-mood: ask Gemma to read the one-line and suggest a
+  // 0–100 mood. Stays hidden until the on-device LLM is available
+  // (native only) AND the user has typed ≥ 12 characters of
+  // one-line. Always non-destructive — user can drag the slider
+  // away after the suggestion lands.
+  const llm = useLLM();
+  const [suggestingMood, setSuggestingMood] = useState(false);
+  const [moodError, setMoodError] = useState<string | null>(null);
+
+  const suggestMood = async () => {
+    const text = oneLine.trim();
+    if (text.length < 12 || suggestingMood) return;
+    setSuggestingMood(true);
+    setMoodError(null);
+    try {
+      if (!llm.ready) await llm.ensure();
+      const prompt = [
+        "Read the user's one-sentence note about their day and respond with a SINGLE integer 0-100 representing the mood it conveys.",
+        "0 = lowest (despair, grief, exhaustion). 50 = neutral / steady. 100 = highest (joyous, bright, alive).",
+        "No prose, no explanation — just the integer.",
+        "",
+        `Note: ${text}`,
+        "",
+        "Mood:",
+      ].join("\n");
+      const raw = await llm.generate(prompt);
+      const match = raw.match(/\d{1,3}/);
+      if (!match) {
+        setMoodError("Couldn't read a number back from the AI. Try a clearer sentence.");
+        return;
+      }
+      const n = Math.max(0, Math.min(100, Number(match[0])));
+      setMood(n);
+    } catch (err) {
+      console.error("[DailyReport] mood suggest failed:", err);
+      setMoodError("Estimate failed. Drag the slider yourself.");
+    } finally {
+      setSuggestingMood(false);
+    }
+  };
+
+  const defaultShare: Record<string, boolean> = {
+    photo: true,
+    mood: true,
+    one_line: true,
+    nutrition: true,
+    weather: true,
+    energy: false,
+    sleep: false,
+    activities: true,
+    highlight: false,
+  };
+  const [share, setShare] = useState<Record<string, boolean>>(
+    existing?.shared
+      ? {
+          ...defaultShare,
+          ...Object.fromEntries(
+            Object.keys(defaultShare).map((k) => [k, existing.shared!.includes(k)]),
+          ),
+        }
+      : defaultShare,
+  );
+  const [savedFlash, setSavedFlash] = useState(false);
+
+  const toggleShare = (k: string) =>
+    setShare((s) => ({ ...s, [k]: !s[k] }));
+
+  // Build the prompt that lets Gemma observe a pattern instead of just
+  // narrating the day. Computed every render — VerdictCard captures it
+  // on mount (and again on regenerate) so re-renders here are cheap.
+  const recent = priorMoods
+    .slice()
+    .sort((a, b) => b.date.localeCompare(a.date))
+    .slice(0, 6);
+  const recentLines = recent
+    .map((m) => `${m.date}: mood ${m.score}/5${m.note ? ` — "${m.note}"` : ""}`)
+    .join("\n");
+  const todayScore = dailyMoodToScore(mood);
+  const verdictPrompt = [
+    "You write short, plain reflections about a user. The user has just logged today's daily report.",
+    "Look at the recent pattern, then write ONE short sentence (under 18 words) noticing something — a shape, a contrast, a thread — without giving advice or being cheerful. Be honest, observational, slightly literary.",
+    "",
+    `Today (${isoDateToday()}): mood ${todayScore}/5${oneLine ? ` — "${oneLine}"` : ""}`,
+    recentLines ? `Recent days:\n${recentLines}` : "",
+    "",
+    "Your one-sentence observation:",
+  ]
+    .filter(Boolean)
+    .join("\n");
+
+  const save = async () => {
+    const shared = Object.keys(share).filter((k) => share[k]);
+    // Route through useDailyReport — writes localStorage always, plus
+    // Firestore when signed in. Photo stays local; we record whether
+    // one exists + the stock key (if it's a preset) for sync.
+    const isStockPhoto =
+      photo != null &&
+      PHOTO_STOCK.some((p) => p.id === photo);
+    // The save() helper inside useDailyReport overwrites the date
+    // field with today's ISO; we set it explicitly here too so the
+    // record on localStorage / history is consistent regardless of
+    // entry path.
+    const data: RemoteDailyReport & { photo: string | null } = {
+      date: isoDateToday(),
+      mood,
+      moodLabel: labelFor(mood),
+      one_line: oneLine,
+      weather,
+      hasPhoto: !!photo,
+      photoId: isStockPhoto ? photo! : undefined,
+      shared,
+      // Extended fields. Optional but the type expects them present
+      // when the user has interacted — we only include defaults of
+      // 50 (energy/sleep) if the user actively moved the slider
+      // off neutral, otherwise omit so the doc stays clean.
+      energy: energy !== 50 ? energy : undefined,
+      sleepQuality: sleepQuality !== 50 ? sleepQuality : undefined,
+      activities: activities.length > 0 ? activities : undefined,
+      highlight: highlight.trim() ? highlight.trim() : undefined,
+      photo,
+    };
+    await saveDaily(data);
+    // Also record today's mood as a MoodEntry so the Insights mood
+    // charts have real history to draw. The slider is 0..100; the
+    // MoodEntry schema is 1..5.
+    await upsertMoodEntry({
+      date: isoDateToday(),
+      score: dailyMoodToScore(mood),
+      note: oneLine || undefined,
+    });
+    // Persist a dream into the dream journal when the user typed
+    // text. Title falls back to the first 60 chars of the body when
+    // they didn't fill it in. The dream lives in its own
+    // subcollection (useDreams) and shows up in DaysOverlay's
+    // dream-history view — the daily report just provides the
+    // quick-capture entry point.
+    const text = dreamText.trim();
+    if (text.length > 0) {
+      const title = dreamTitle.trim() || text.slice(0, 60).trim();
+      try {
+        await addDream({
+          date: isoDateToday(),
+          title,
+          text,
+          tags: [],
+          mood: dreamMood.trim() || undefined,
+          lucidity: 0,
+          vividness: 0,
+        });
+        // Clear after a successful write so the user doesn't
+        // accidentally double-log the same dream on a second save.
+        setDreamText("");
+        setDreamTitle("");
+        setDreamMood("");
+      } catch (err) {
+        console.error("[DailyReport] dream save failed:", err);
+      }
+    }
+    setSavedFlash(true);
+  };
+
+  const sharedCount = Object.values(share).filter(Boolean).length;
+  const totalFields = Object.keys(share).length;
+
+  return (
+    <div className="overlay paper-grain">
+      <div className="app-header">
+        <button className="avatar-btn" onClick={onClose}>
+          ✕
+        </button>
+        <div className="h-title">
+          <em>Today</em>
+        </div>
+        <div className="h-meta">
+          today
+          <br />
+          {new Date()
+            .toLocaleDateString("en", { month: "short", day: "numeric" })
+            .toLowerCase()}
+        </div>
+      </div>
+
+      <div className="app-body">
+        <div
+          className="margin-note"
+          style={{ fontSize: 12, marginBottom: 12 }}
+        >
+          "One place to log it. Everything you've already tracked today is
+          here — turn off whatever you don't want to share."
+        </div>
+
+        <div className="card" style={{ padding: 14 }}>
+          <SectionHead
+            label="photo of the day"
+            on={share.photo}
+            onToggle={() => toggleShare("photo")}
+          />
+          <PhotoSlot photo={photo} onPick={setPhoto} />
+          {photo && (
+            <button
+              onClick={() => setPhoto(null)}
+              style={{
+                marginTop: 8,
+                padding: "4px 10px",
+                background: "transparent",
+                border: "0.5px solid var(--rule)",
+                borderRadius: 999,
+                fontFamily: "var(--mono)",
+                fontSize: 8.5,
+                letterSpacing: "0.1em",
+                color: "var(--ink-3)",
+                cursor: "pointer",
+              }}
+            >
+              REMOVE
+            </button>
+          )}
+        </div>
+
+        <div className="card" style={{ padding: 14, marginTop: 10 }}>
+          <SectionHead
+            label="how do you feel"
+            on={share.mood}
+            onToggle={() => toggleShare("mood")}
+          />
+          <div style={{ display: "flex", alignItems: "baseline", gap: 10 }}>
+            <div className="fig-num" style={{ fontSize: 44, lineHeight: 1 }}>
+              <em>{mood}</em>
+            </div>
+            <div
+              style={{
+                fontFamily: "var(--serif)",
+                fontStyle: "italic",
+                fontSize: 16,
+                color: "var(--accent)",
+              }}
+            >
+              {labelFor(mood)}
+            </div>
+          </div>
+          <input
+            type="range"
+            min="0"
+            max="100"
+            value={mood}
+            onChange={(e) => setMood(+e.target.value)}
+            style={{
+              width: "100%",
+              marginTop: 8,
+              accentColor: "var(--accent)",
+            }}
+          />
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              fontFamily: "var(--mono)",
+              fontSize: 8.5,
+              color: "var(--ink-3)",
+              letterSpacing: "0.06em",
+            }}
+          >
+            <span>low</span>
+            <span>steady</span>
+            <span>bright</span>
+          </div>
+
+          {/* Auto-mood: only shown when the on-device LLM is
+              available (native only) AND the user has typed a
+              reasonable one-line. Non-destructive — sets the slider
+              value, user can override at any time. */}
+          {llm.available && (
+            <div style={{ marginTop: 10 }}>
+              <button
+                type="button"
+                onClick={() => void suggestMood()}
+                disabled={
+                  oneLine.trim().length < 12 ||
+                  suggestingMood ||
+                  llm.downloading
+                }
+                style={{
+                  padding: "6px 12px",
+                  background:
+                    oneLine.trim().length >= 12 && !suggestingMood
+                      ? "var(--paper-2)"
+                      : "var(--paper-3)",
+                  border: "0.5px solid var(--rule)",
+                  borderRadius: 999,
+                  fontFamily: "var(--mono)",
+                  fontSize: 10,
+                  letterSpacing: "0.1em",
+                  color:
+                    oneLine.trim().length >= 12 && !suggestingMood
+                      ? "var(--ink)"
+                      : "var(--ink-3)",
+                  cursor:
+                    oneLine.trim().length >= 12 && !suggestingMood
+                      ? "pointer"
+                      : "default",
+                }}
+              >
+                {suggestingMood
+                  ? "READING…"
+                  : llm.downloading
+                    ? `DOWNLOADING AI · ${llm.downloadPct}%`
+                    : llm.ready
+                      ? "✨ SUGGEST FROM TEXT"
+                      : "✨ SUGGEST · DOWNLOADS ~2.5 GB"}
+              </button>
+              {moodError && (
+                <div
+                  className="margin-note"
+                  style={{
+                    marginTop: 6,
+                    fontSize: 11,
+                    color: "oklch(0.55 0.16 12)",
+                  }}
+                >
+                  {moodError}
+                </div>
+              )}
+              {!moodError && oneLine.trim().length < 12 && (
+                <div
+                  className="margin-note"
+                  style={{ marginTop: 6, fontSize: 10, fontStyle: "italic" }}
+                >
+                  type a sentence first ({12 - oneLine.trim().length} more)
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        <div className="card" style={{ padding: 14, marginTop: 10 }}>
+          <SectionHead
+            label="sleep · last night"
+            on={!!share.sleep}
+            onToggle={() => toggleShare("sleep")}
+          />
+          <SmallSlider
+            value={sleepQuality}
+            onChange={setSleepQuality}
+            lowLabel="rough"
+            midLabel="ok"
+            highLabel="restful"
+            accent="var(--indigo)"
+          />
+        </div>
+
+        <div className="card" style={{ padding: 14, marginTop: 10 }}>
+          <SectionHead
+            label="energy · today"
+            on={!!share.energy}
+            onToggle={() => toggleShare("energy")}
+          />
+          <SmallSlider
+            value={energy}
+            onChange={setEnergy}
+            lowLabel="drained"
+            midLabel="steady"
+            highLabel="charged"
+            accent="var(--ochre)"
+          />
+        </div>
+
+        <div className="card" style={{ padding: 14, marginTop: 10 }}>
+          <SectionHead
+            label="a line · what kind of day"
+            on={share.one_line}
+            onToggle={() => toggleShare("one_line")}
+          />
+          <textarea
+            value={oneLine}
+            onChange={(e) => setOneLine(e.target.value)}
+            rows={2}
+            placeholder="one sentence is enough"
+            style={{
+              width: "100%",
+              boxSizing: "border-box",
+              padding: "8px 10px",
+              resize: "none",
+              background: "var(--paper-2)",
+              border: "0.5px solid var(--rule)",
+              borderRadius: 6,
+              fontFamily: "var(--serif)",
+              fontStyle: "italic",
+              fontSize: 13,
+              color: "var(--ink)",
+            }}
+          />
+        </div>
+
+        <div className="card" style={{ padding: 14, marginTop: 10 }}>
+          <SectionHead
+            label="activities · what you did"
+            on={!!share.activities}
+            onToggle={() => toggleShare("activities")}
+          />
+          <ActivitiesPicker value={activities} onChange={setActivities} />
+        </div>
+
+        <div className="card" style={{ padding: 14, marginTop: 10 }}>
+          <SectionHead
+            label="highlight · one moment that mattered"
+            on={!!share.highlight}
+            onToggle={() => toggleShare("highlight")}
+          />
+          <textarea
+            value={highlight}
+            onChange={(e) => setHighlight(e.target.value)}
+            placeholder="a small thing worth remembering"
+            maxLength={512}
+            rows={2}
+            style={{
+              width: "100%",
+              boxSizing: "border-box",
+              padding: "10px 12px",
+              background: "var(--paper-2)",
+              border: "0.5px solid var(--rule)",
+              borderRadius: 8,
+              fontFamily: "var(--serif)",
+              fontStyle: "italic",
+              fontSize: 14,
+              color: "var(--ink)",
+              resize: "vertical",
+              marginTop: 8,
+            }}
+          />
+        </div>
+
+        <div className="card" style={{ padding: 14, marginTop: 10 }}>
+          <Kicker>dream · what you remember</Kicker>
+          <div
+            className="margin-note"
+            style={{ marginTop: 4, fontSize: 10, fontStyle: "italic" }}
+          >
+            Saved to your dream journal (Days · dreams). Always private.
+          </div>
+          <input
+            value={dreamTitle}
+            onChange={(e) => setDreamTitle(e.target.value)}
+            placeholder="short name · optional"
+            maxLength={100}
+            style={{
+              width: "100%",
+              boxSizing: "border-box",
+              padding: "8px 10px",
+              background: "var(--paper-2)",
+              border: "0.5px solid var(--rule)",
+              borderRadius: 6,
+              fontFamily: "var(--serif)",
+              fontStyle: "italic",
+              fontSize: 13,
+              color: "var(--ink)",
+              marginTop: 8,
+            }}
+          />
+          <textarea
+            value={dreamText}
+            onChange={(e) => setDreamText(e.target.value)}
+            placeholder="the shape of it — fragments are fine"
+            rows={3}
+            maxLength={2000}
+            style={{
+              width: "100%",
+              boxSizing: "border-box",
+              padding: "8px 10px",
+              background: "var(--paper-2)",
+              border: "0.5px solid var(--rule)",
+              borderRadius: 6,
+              fontFamily: "var(--serif)",
+              fontSize: 13,
+              color: "var(--ink)",
+              resize: "vertical",
+              marginTop: 6,
+            }}
+          />
+          <input
+            value={dreamMood}
+            onChange={(e) => setDreamMood(e.target.value)}
+            placeholder="one-word mood · uneasy, warm, restless… (optional)"
+            maxLength={40}
+            style={{
+              width: "100%",
+              boxSizing: "border-box",
+              padding: "8px 10px",
+              background: "var(--paper-2)",
+              border: "0.5px solid var(--rule)",
+              borderRadius: 6,
+              fontFamily: "var(--mono)",
+              fontSize: 12,
+              color: "var(--ink)",
+              marginTop: 6,
+            }}
+          />
+        </div>
+
+        <div className="card" style={{ padding: 14, marginTop: 10 }}>
+          <SectionHead
+            label="weather · today's sky"
+            on={share.weather}
+            onToggle={() => toggleShare("weather")}
+          />
+          <Chips
+            value={weather}
+            onChange={(v) => {
+              setWeather(v);
+              setWeatherTouched(true);
+            }}
+            options={QUICK_WEATHER}
+            placeholder="rain · 9° · grey"
+          />
+          {!weatherTouched && weather && (
+            <div
+              className="margin-note"
+              style={{ marginTop: 4, fontSize: 10, fontStyle: "italic" }}
+            >
+              auto-filled from live weather. tap to edit.
+            </div>
+          )}
+        </div>
+
+        {nutrition && (
+          <div className="card" style={{ padding: 14, marginTop: 10 }}>
+            <SectionHead
+              label="nutrition · today"
+              on={share.nutrition}
+              onToggle={() => toggleShare("nutrition")}
+              hint="FROM YOUR MEAL LOG"
+            />
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "1fr 1fr",
+                gap: 6,
+              }}
+            >
+              <Stat
+                value={nutrition.kcal.toLocaleString()}
+                unit={`/ ${KCAL_REFERENCE.toLocaleString()}`}
+                label="kcal"
+                hue={38}
+              />
+              <Stat
+                value={nutrition.entries}
+                unit={nutrition.entries === 1 ? "meal" : "meals"}
+                label="logged"
+                hue={220}
+              />
+            </div>
+            <div
+              style={{
+                marginTop: 6,
+                fontFamily: "var(--serif)",
+                fontStyle: "italic",
+                fontSize: 11,
+                color: "var(--ink-3)",
+              }}
+            >
+              2,000 kcal is a generic reference, not your target.
+            </div>
+          </div>
+        )}
+
+        {/* On-device verdict — only rendered once the user has saved.
+            VerdictCard handles the download / generating / result /
+            regenerate states and caches the verdict per-day. */}
+        {savedFlash && (
+          <VerdictCard
+            kicker="YOUR PORTRAIT, REDRAWN"
+            cacheKey="daily-report"
+            prompt={verdictPrompt}
+          />
+        )}
+
+        <hr className="rule-dashed" />
+        <div
+          style={{
+            fontFamily: "var(--mono)",
+            fontSize: 9,
+            letterSpacing: "0.08em",
+            color: "var(--ink-3)",
+            textAlign: "center",
+            marginBottom: 10,
+          }}
+        >
+          {sharedCount} OF {totalFields} FIELDS WILL BE SHARED
+        </div>
+
+        <div style={{ display: "flex", gap: 8 }}>
+          <button
+            onClick={onClose}
+            style={{
+              flex: 1,
+              padding: 12,
+              background: "var(--paper-2)",
+              border: "0.5px solid var(--rule)",
+              borderRadius: 999,
+              fontFamily: "var(--serif)",
+              fontStyle: "italic",
+              fontSize: 14,
+              cursor: "pointer",
+            }}
+          >
+            {savedFlash ? "close" : "cancel"}
+          </button>
+          <button
+            onClick={save}
+            style={{
+              flex: 2,
+              padding: 12,
+              background: savedFlash ? "var(--accent)" : "var(--ink)",
+              color: "var(--paper)",
+              border: "none",
+              borderRadius: 999,
+              fontFamily: "var(--serif)",
+              fontStyle: "italic",
+              fontSize: 14,
+              cursor: "pointer",
+            }}
+          >
+            {savedFlash ? "saved." : "post to your circle"}
+          </button>
+        </div>
+
+      </div>
+    </div>
+  );
+}
