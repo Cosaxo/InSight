@@ -630,8 +630,11 @@ class DailySplit extends React.Component {
       feedNode);
 
     // ===== GROUP & 1v1 — daily-cadence bodies live in their own files =====
-    const groupBody = h(window.GroupDailyBody || 'div', { key: 'group-daily' });
-    const duoBody = h(window.DuoBody || 'div', { key: 'duo-daily' });
+    // Live mode swaps the demo duel bodies for the real panel (create /
+    // join / sealed votes / reveals); the demo stays for offline dev.
+    const liveDuels = window.LIVE && window.LIVE.enabled && window.LiveDuelPanel;
+    const groupBody = liveDuels ? h(window.LiveDuelPanel, { key: 'live-group', mode: 'group' }) : h(window.GroupDailyBody || 'div', { key: 'group-daily' });
+    const duoBody = liveDuels ? h(window.LiveDuelPanel, { key: 'live-duo', mode: 'duo' }) : h(window.DuoBody || 'div', { key: 'duo-daily' });
 
     // ===== TEST =====
     const testBody = (() => {

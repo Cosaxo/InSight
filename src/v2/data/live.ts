@@ -30,6 +30,7 @@ import {
   setDoc,
   where,
 } from "firebase/firestore";
+import { getFunctions, httpsCallable } from "firebase/functions";
 import { anonSignIn, firebaseEnabled, getDb } from "../../lib/firebase";
 
 interface LiveOption {
@@ -91,7 +92,27 @@ const state = {
   votes: {} as Record<string, string>, // qid -> option id ("0","1",…)
   optimistic: {} as Record<string, number>, // qid -> optionIdx not yet aggregated
   aggUnsubs: {} as Record<string, () => void>,
+  // ── social (groups & duos) ──
+  groups: [] as Array<Record<string, unknown> & { id: string }>,
+  duelBank: [] as Array<QuestionDoc & { id: string }>,
+  reveals: {} as Record<string, Record<string, unknown> | null>,
+  groupsUnsub: null as null | (() => void),
+  revealUnsubs: {} as Record<string, () => void>,
 };
+
+function utcDayKey(offsetDays = 0): string {
+  return new Date(Date.now() + offsetDays * 86400000).toISOString().slice(0, 10);
+}
+
+function utcDayIndex(): number {
+  return Math.floor(Date.now() / 86400000);
+}
+
+function gHash(s: string): number {
+  let h = 7;
+  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) % 997;
+  return h;
+}
 
 const listeners = new Set<() => void>();
 const notify = () => {
@@ -235,7 +256,136 @@ async function hydrate(): Promise<void> {
   await subscribeAggs();
 }
 
+async function hydrateSocial(): Promise<void> {
+  const db = await getDb();
+  const uid = state.uid;
+  if (!uid) return;
+  // the group/duo question banks (seeded, small)
+  const bank = await getDocs(
+    query(collection(db, "v2_questions"), where("surface", "in", ["group", "duo"]), limit(200)),
+  );
+  state.duelBank = bank.docs
+    .map((d) => ({ id: d.id, ...(d.data() as QuestionDoc) }))
+    .filter((q) => q.active !== false)
+    .sort((a, b) => (a.seq || 0) - (b.seq || 0));
+  // my groups, live — and yesterday's reveal per group
+  state.groupsUnsub = onSnapshot(
+    query(collection(db, "v2_groups"), where("memberUids", "array-contains", uid)),
+    (snap) => {
+      state.groups = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+      const yester = utcDayKey(-1);
+      const want = new Set(state.groups.map((g) => g.id));
+      for (const gid of Object.keys(state.revealUnsubs)) {
+        if (!want.has(gid)) {
+          state.revealUnsubs[gid]();
+          delete state.revealUnsubs[gid];
+          delete state.reveals[gid];
+        }
+      }
+      state.groups.forEach((g) => {
+        if (state.revealUnsubs[g.id]) return;
+        state.revealUnsubs[g.id] = onSnapshot(
+          doc(db, "v2_groups", g.id, "reveals", yester),
+          (rs) => {
+            state.reveals[g.id] = rs.exists() ? (rs.data() as Record<string, unknown>) : null;
+            notify();
+          },
+        );
+      });
+      notify();
+    },
+  );
+}
+
+async function callable<T>(name: string, data: unknown): Promise<T> {
+  const db = await getDb();
+  const fns = getFunctions(db.app, "us-central1");
+  const res = await httpsCallable(fns, name)(data);
+  return res.data as T;
+}
+
+// The client mirrors the server's deterministic rotation: the day's
+// question for a group is bank[(hash(gid) + utcDay) % len] over the
+// matching-surface bank. "pick" questions take the members as options.
+function duelQFor(g: Record<string, unknown> & { id: string }, dayOffset = 0) {
+  const mode = g.mode === "duo" ? "duo" : "group";
+  const bank = state.duelBank.filter((q) => q.surface === mode);
+  if (!bank.length) return null;
+  const q = bank[(gHash(g.id) + utcDayIndex() + dayOffset + bank.length * 1000) % bank.length];
+  const names = (g.memberNames || {}) as Record<string, string>;
+  const memberUids = (g.memberUids || []) as string[];
+  const options =
+    q.topic === "pick"
+      ? memberUids.map((u) => names[u] || "Member")
+      : q.options;
+  return { id: q.id, prompt: q.prompt, options, kind: q.topic || "classic" };
+}
+
+const SOCIAL = {
+  todayKey: () => utcDayKey(0),
+  bankQ(qid: string) {
+    const q = state.duelBank.find((x) => x.id === qid);
+    return q ? { id: q.id, prompt: q.prompt, options: q.options, kind: q.topic || "classic" } : null;
+  },
+  groups(mode?: string) {
+    return mode ? state.groups.filter((g) => (g.mode || "group") === mode) : [...state.groups];
+  },
+  todayQ(gid: string) {
+    const g = state.groups.find((x) => x.id === gid);
+    return g ? duelQFor(g) : null;
+  },
+  myDuelVote(gid: string): { optionIdx: number } | null {
+    const v = state.votes[`g_${gid}_${utcDayKey(0)}`];
+    return v != null ? { optionIdx: Number(v) } : null;
+  },
+  revealFor(gid: string) {
+    return state.reveals[gid] || null;
+  },
+  async createGroup(name: string, mode: string, displayName?: string) {
+    const out = await callable<{ gid: string; inviteCode: string }>("createGroupV2", { name, mode, displayName });
+    return out;
+  },
+  async joinGroup(code: string, displayName?: string) {
+    return callable<{ gid: string; name: string }>("joinGroupV2", { code, displayName });
+  },
+  async leaveGroup(gid: string) {
+    return callable<{ gid: string; deleted: boolean }>("leaveGroupV2", { gid });
+  },
+  voteDuel(gid: string, optionIdx: number, guessIdx?: number): void {
+    const g = state.groups.find((x) => x.id === gid);
+    const q = g && duelQFor(g);
+    const uid = state.uid;
+    if (!g || !q || !uid) return;
+    const day = utcDayKey(0);
+    const aid = `g_${gid}_${day}`;
+    if (state.votes[aid]) return;
+    state.votes[aid] = String(optionIdx);
+    notify();
+    void (async () => {
+      try {
+        const db = await getDb();
+        const payload: Record<string, unknown> = {
+          qid: q.id,
+          surface: g.mode === "duo" ? "duo" : "group",
+          optionIdx,
+          gid,
+          day,
+          answeredAt: serverTimestamp(),
+          anchors: {},
+        };
+        if (typeof guessIdx === "number") payload.guessIdx = guessIdx;
+        await setDoc(doc(db, "v2_users", uid, "answers", aid), payload);
+      } catch (err) {
+        delete state.votes[aid];
+        notify();
+        console.warn("[LIVE] duel vote failed:", err);
+      }
+    })();
+  },
+};
+
 const LIVE = {
+  social: SOCIAL,
   enabled: false,
   get ready() {
     return state.ready;
@@ -302,6 +452,7 @@ export async function initLive(timeoutMs = 5000): Promise<void> {
   const boot = (async () => {
     state.uid = await anonSignIn();
     await hydrate();
+    await hydrateSocial();
     state.ready = true;
     LIVE.enabled = true;
     notify();

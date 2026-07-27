@@ -44,6 +44,19 @@ function prevDayKey(dayKey: string): string {
 
 // ── membership callables ────────────────────────────────────────
 
+// Callers pass their display name (profiles are owner-only, so names
+// must ride on the group doc for members to render each other).
+async function callerName(uid: string, given: unknown): Promise<string> {
+  const name = typeof given === "string" ? given.trim().slice(0, 60) : "";
+  const db = getFirestore();
+  if (name) {
+    await db.doc(`v2_users/${uid}`).set({ displayName: name }, { merge: true });
+    return name;
+  }
+  const prof = await db.doc(`v2_users/${uid}`).get();
+  return (prof.exists && prof.get("displayName")) || "";
+}
+
 export const createGroupV2 = onCall({ region: REGION }, async (request) => {
   if (!request.auth) throw new HttpsError("unauthenticated", "must be signed in");
   const uid = request.auth.uid;
@@ -52,6 +65,7 @@ export const createGroupV2 = onCall({ region: REGION }, async (request) => {
   if (!name || name.length > 60) {
     throw new HttpsError("invalid-argument", "name required (≤60 chars)");
   }
+  const myName = await callerName(uid, request.data?.displayName);
   const db = getFirestore();
   const ref = db.collection("v2_groups").doc();
   await ref.set({
@@ -59,6 +73,7 @@ export const createGroupV2 = onCall({ region: REGION }, async (request) => {
     mode,
     ownerUid: uid,
     memberUids: [uid],
+    memberNames: { [uid]: myName },
     inviteCode: inviteCode(),
     streak: 0,
     lastRevealDay: null,
@@ -78,6 +93,7 @@ export const joinGroupV2 = onCall({ region: REGION }, async (request) => {
     .where("inviteCode", "==", code).limit(1).get();
   if (q.empty) throw new HttpsError("not-found", "no group with that code");
   const ref = q.docs[0].ref;
+  const myName = await callerName(uid, request.data?.displayName);
   const out = await db.runTransaction(async (tx) => {
     const snap = await tx.get(ref);
     const members: string[] = snap.get("memberUids") || [];
@@ -86,7 +102,10 @@ export const joinGroupV2 = onCall({ region: REGION }, async (request) => {
     if (members.length >= cap) {
       throw new HttpsError("resource-exhausted", "group is full");
     }
-    tx.update(ref, { memberUids: FieldValue.arrayUnion(uid) });
+    tx.update(ref, {
+      memberUids: FieldValue.arrayUnion(uid),
+      [`memberNames.${uid}`]: myName,
+    });
     return { gid: ref.id, name: snap.get("name") };
   });
   return out;
@@ -106,7 +125,10 @@ export const leaveGroupV2 = onCall({ region: REGION }, async (request) => {
     await db.recursiveDelete(ref); // last member out → group and reveals go
     return { gid, deleted: true };
   }
-  await ref.update({ memberUids: FieldValue.arrayRemove(uid) });
+  await ref.update({
+    memberUids: FieldValue.arrayRemove(uid),
+    [`memberNames.${uid}`]: FieldValue.delete(),
+  });
   return { gid, deleted: false };
 });
 

@@ -64,4 +64,5 @@ import './spec/map-chiprow.jsx';
 import './spec/map-tab.jsx';
 import './spec/logic-test.jsx';
 import './spec/profile-general.jsx';
+import './spec/live-duels.jsx';
 import './spec/app-shell.jsx';

@@ -40,8 +40,10 @@ v2_question_aggs/{qid}             the PUBLIC mirror, k-floored
 read: signed-in · write: nobody
 
 v2_groups/{gid}                    groups AND duos (mode: group|duo)
-  name, mode, ownerUid, memberUids[≤32; duo ≤2], inviteCode,
-  streak, lastRevealDay, createdAt
+  name, mode, ownerUid, memberUids[≤32; duo ≤2], memberNames{uid:name},
+  inviteCode, streak, lastRevealDay, createdAt
+  (memberNames rides on the group doc because profiles are owner-only;
+  callables maintain it on create/join/leave)
 read: members · write: callables only (create/join/leave — codes, caps
 and pairing can't be forged client-side)
 
