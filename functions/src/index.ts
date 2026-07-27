@@ -17,6 +17,7 @@ import { getAuth } from "firebase-admin/auth";
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { onSchedule } from "firebase-functions/v2/scheduler";
 import { logger } from "firebase-functions";
+import { assertOperator, ENFORCE_APP_CHECK } from "./ops";
 
 initializeApp();
 
@@ -427,16 +428,14 @@ async function runAggregation(): Promise<{
   };
 }
 
-// HTTPS-callable for manual / dev runs. Restricted to signed-in
-// users; anyone with an account can kick the aggregator. Idempotent
-// + cheap (one batch write at the end), so no harm in casual
-// invocations.
+// HTTPS-callable for manual / dev runs. Operator-only: the run is
+// O(userbase) reads (one profile fetch per discoverable user), so an
+// open callable is a cost-amplification lever for any anonymous
+// account. The 6-hourly schedule below keeps production fresh.
 export const rebuildAreaAggregates = onCall(
-  { region: "us-central1" },
+  { region: "us-central1", maxInstances: 1 },
   async (request) => {
-    if (!request.auth) {
-      throw new HttpsError("unauthenticated", "must be signed in");
-    }
+    assertOperator(request);
     return runAggregation();
   },
 );
@@ -797,11 +796,9 @@ async function runWorldAggregation(): Promise<{
 }
 
 export const rebuildWorldAggregates = onCall(
-  { region: "us-central1" },
+  { region: "us-central1", maxInstances: 1 },
   async (request) => {
-    if (!request.auth) {
-      throw new HttpsError("unauthenticated", "must be signed in");
-    }
+    assertOperator(request);
     return runWorldAggregation();
   },
 );
@@ -1014,11 +1011,9 @@ async function runCityAggregation(): Promise<{
 }
 
 export const rebuildCityAggregates = onCall(
-  { region: "us-central1" },
+  { region: "us-central1", maxInstances: 1 },
   async (request) => {
-    if (!request.auth) {
-      throw new HttpsError("unauthenticated", "must be signed in");
-    }
+    assertOperator(request);
     return runCityAggregation();
   },
 );
@@ -1074,7 +1069,7 @@ interface LedgerEvent {
 }
 
 export const sendInboundImpression = onCall(
-  { region: "us-central1" },
+  { region: "us-central1", enforceAppCheck: ENFORCE_APP_CHECK },
   async (request) => {
     if (!request.auth) {
       throw new HttpsError("unauthenticated", "must be signed in");
@@ -1297,7 +1292,7 @@ async function deleteUserSubtree(uid: string): Promise<number> {
 }
 
 export const deleteAccount = onCall(
-  { region: "us-central1" },
+  { region: "us-central1", enforceAppCheck: ENFORCE_APP_CHECK },
   async (request) => {
     if (!request.auth) {
       throw new HttpsError("unauthenticated", "must be signed in");
@@ -1487,12 +1482,12 @@ async function runSeedTaxonomies(): Promise<{ written: string[] }> {
   return { written };
 }
 
+// Vandalism-safe by design (the data is baked, not caller-supplied),
+// but still a free full-write trigger — operator-only like the rest.
 export const seedTaxonomies = onCall(
   { region: "us-central1" },
   async (request) => {
-    if (!request.auth) {
-      throw new HttpsError("unauthenticated", "must be signed in");
-    }
+    assertOperator(request);
     return runSeedTaxonomies();
   },
 );

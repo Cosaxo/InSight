@@ -15,6 +15,7 @@
 import { getFirestore, FieldValue } from "firebase-admin/firestore";
 import { getMessaging } from "firebase-admin/messaging";
 import { onCall, HttpsError } from "firebase-functions/v2/https";
+import { assertOperator, ENFORCE_APP_CHECK } from "./ops";
 import { onSchedule } from "firebase-functions/v2/scheduler";
 import { logger } from "firebase-functions";
 import { randomBytes } from "node:crypto";
@@ -101,7 +102,7 @@ async function callerName(uid: string, given: unknown): Promise<string> {
   return (prof.exists && prof.get("displayName")) || "";
 }
 
-export const createGroupV2 = onCall({ region: REGION }, async (request) => {
+export const createGroupV2 = onCall({ region: REGION, enforceAppCheck: ENFORCE_APP_CHECK }, async (request) => {
   if (!request.auth) throw new HttpsError("unauthenticated", "must be signed in");
   const uid = request.auth.uid;
   const name = String(request.data?.name || "").trim();
@@ -128,7 +129,7 @@ export const createGroupV2 = onCall({ region: REGION }, async (request) => {
   return { gid: ref.id, inviteCode: code };
 });
 
-export const joinGroupV2 = onCall({ region: REGION }, async (request) => {
+export const joinGroupV2 = onCall({ region: REGION, enforceAppCheck: ENFORCE_APP_CHECK }, async (request) => {
   if (!request.auth) throw new HttpsError("unauthenticated", "must be signed in");
   const uid = request.auth.uid;
   const code = String(request.data?.code || "").trim().toUpperCase();
@@ -158,7 +159,7 @@ export const joinGroupV2 = onCall({ region: REGION }, async (request) => {
   return out;
 });
 
-export const leaveGroupV2 = onCall({ region: REGION }, async (request) => {
+export const leaveGroupV2 = onCall({ region: REGION, enforceAppCheck: ENFORCE_APP_CHECK }, async (request) => {
   if (!request.auth) throw new HttpsError("unauthenticated", "must be signed in");
   const uid = request.auth.uid;
   const gid = String(request.data?.gid || "");
@@ -305,13 +306,7 @@ export const scheduledDuelReveals = onSchedule(
 
 // Test/ops hook — emulator, or the SEED_ADMIN_UIDS operators.
 export const revealDuelsNowV2 = onCall({ region: REGION }, async (request) => {
-  if (!request.auth) throw new HttpsError("unauthenticated", "must be signed in");
-  const isEmulator = process.env.FUNCTIONS_EMULATOR === "true";
-  const admins = (process.env.SEED_ADMIN_UIDS || "")
-    .split(",").map((s) => s.trim()).filter(Boolean);
-  if (!isEmulator && !admins.includes(request.auth.uid)) {
-    throw new HttpsError("permission-denied", "operator-only");
-  }
+  assertOperator(request);
   const dayKey = typeof request.data?.day === "string" ? request.data.day : undefined;
   return runDuelReveals(dayKey);
 });

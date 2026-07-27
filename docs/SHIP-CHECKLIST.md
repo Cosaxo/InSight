@@ -77,7 +77,13 @@ Both apps must be registered under `com.cosaxo.insight`:
   callable that verifies token↔uid; today a stolen token could be
   planted on another account for reveal-push spam (needs the victim's
   token, so friend-scale risk is nil).
-- **App Check enforcement** on the callables.
+- **App Check enforcement** — the callables now enforce it in prod
+  (functions/src/ops.ts, `ENFORCE_APP_CHECK`; deploy with
+  `APPCHECK_ENFORCE=false` to soft-disable). Still to do in the
+  console: flip Firestore + Storage enforcement, and verify web has
+  `VITE_APPCHECK_RECAPTCHA_SITE_KEY` set in the production build —
+  without it web clients are unattested and callables will refuse
+  them once enforcement is live.
 - **iOS reveal push — Mac-side finish.** The structural pieces are now
   committed: Package.swift lists the real plugin set (push-notifications,
   app-check, sentry), AppDelegate bridges APNs → Firebase Messaging and
@@ -99,7 +105,9 @@ Both apps must be registered under `com.cosaxo.insight`:
 
 ## Known deferrals (tracked, not blockers)
 
-- Functions runtime Node 20 → upgrade before 2026-10-30 decommission.
+- ~~Functions runtime Node 20 → upgrade before 2026-10-30
+  decommission.~~ Done: nodejs22 + firebase-functions v6 +
+  firebase-admin v13. Verify the first scheduled runs after deploy.
 - `onV2AnswerCreated` region (us-central1) vs Firestore (eur3) — works,
   cross-region hop; relocate when convenient (requires delete+recreate
   of the trigger).

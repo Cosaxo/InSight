@@ -1,4 +1,3 @@
-/* eslint-disable */
 // ported from design/spec-modules/daily-split.jsx — do not hand-edit load order assumptions
 import React from 'react';
 
@@ -44,7 +43,7 @@ class DailySplit extends React.Component {
     try { const v = JSON.parse(localStorage.getItem('insight.testProgress.v1') || '{}'); return v && typeof v === 'object' ? v : {}; }
     catch (e) { return {}; }
   }
-  saveTestProg(p) { try { localStorage.setItem('insight.testProgress.v1', JSON.stringify(p)); } catch (e) {} if (window.PASSIVE) window.PASSIVE.poke(); }
+  saveTestProg(p) { try { localStorage.setItem('insight.testProgress.v1', JSON.stringify(p)); } catch { /* best-effort */ } if (window.PASSIVE) window.PASSIVE.poke(); }
   testStats() {
     const defs = this.testDefs, SAVED = window.IS_TEST_RESULTS || {}, prog = this.state.testProg, P = window.PASSIVE;
     let total = 0, done = 0;
@@ -139,11 +138,11 @@ class DailySplit extends React.Component {
   // once live groups are known, land on that duel's mode.
   consumePendingReveal() {
     let gid = null;
-    try { gid = sessionStorage.getItem('insight.pendingReveal'); } catch (e) {}
+    try { gid = sessionStorage.getItem('insight.pendingReveal'); } catch { /* best-effort */ }
     if (!gid || !window.LIVE || !window.LIVE.enabled || !window.LIVE.ready) return;
     const g = window.LIVE.social.groups().find((x) => x.id === gid);
     if (!g) return;
-    try { sessionStorage.removeItem('insight.pendingReveal'); } catch (e) {}
+    try { sessionStorage.removeItem('insight.pendingReveal'); } catch { /* best-effort */ }
     this.setState({ mode: g.mode === 'duo' ? 'duo' : 'group' });
   }
   componentDidUpdate() {
@@ -223,7 +222,7 @@ class DailySplit extends React.Component {
   addDailyReply(key, text) {
     this.setState(s => {
       const dreplies = { ...s.dreplies, [key]: [...(s.dreplies[key] || []), text] };
-      try { localStorage.setItem('insight.dailyReplies.v1', JSON.stringify(dreplies)); } catch (e) {}
+      try { localStorage.setItem('insight.dailyReplies.v1', JSON.stringify(dreplies)); } catch { /* best-effort */ }
       return { dreplies, replyTo: null };
     });
   }
@@ -237,7 +236,7 @@ class DailySplit extends React.Component {
   toggleCat(id) {
     const next = { ...this.state.cats, [id]: !(this.state.cats[id] !== false) };
     if (!WORLD_TOPICS_V2.some(c => next[c.id] !== false)) return; // keep at least one topic on
-    try { localStorage.setItem('insight.worldCats', JSON.stringify(next)); } catch (e) {}
+    try { localStorage.setItem('insight.worldCats', JSON.stringify(next)); } catch { /* best-effort */ }
     this.setState({ cats: next, idx: 0, earlierOpen: false, feedOpen: false, tab: null, condensed: false, filter: 'all', testOpen: false });
   }
   // sides get distinct hues rotated from the topic's — same oklch family
@@ -279,7 +278,7 @@ class DailySplit extends React.Component {
     const commit = (dir) => {
       const mi = MODES.indexOf(this.state.mode), ni = mi + dir;
       if (ni < 0 || ni >= MODES.length) { spring(); return; } // spring at the ends
-      try { localStorage.setItem('insight.swipeHinted', '1'); } catch (e) {} // they've learned it — no more hinting
+      try { localStorage.setItem('insight.swipeHinted', '1'); } catch { /* best-effort */ } // they've learned it — no more hinting
       const b = T();
       b.style.transition = 'transform 0.17s ease, opacity 0.17s ease';
       b.style.transform = 'translateX(' + (-dir * 64) + 'px)'; b.style.opacity = '0';
@@ -316,7 +315,7 @@ class DailySplit extends React.Component {
           b.addEventListener('animationend', () => { b.style.animation = ''; }, { once: true });
         }, 1500);
       }
-    } catch (e) {}
+    } catch { /* best-effort */ }
   }
 
   get data() {
@@ -625,8 +624,11 @@ class DailySplit extends React.Component {
               st.mapToast === S.id && h('button', { onClick: () => window.goTab && window.goTab('map'), style: { display: 'inline-flex', alignItems: 'center', gap: 5, background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontFamily: 'var(--sans)', fontSize: 12, fontWeight: 700, color: 'var(--accent, var(--ink-2))', whiteSpace: 'nowrap', animation: 'toastFade 3s ease forwards' } },
                 'added to ' + this.mapBranch(S), h('span', { 'aria-hidden': true }, '\u2192')))),
       // D1: live questions are world-scope — no stranger comments, no
-      // who-voted identities. The sheets stay demo-only.
-      voted && st.beat !== S.id && !S.live && h('div', { style: { display: 'flex', gap: 10, justifyContent: 'center', marginTop: 2, animation: 'popIn .35s cubic-bezier(0.2,0.8,0.2,1)' } },
+      // who-voted identities. The sheets stay demo-only — and are also
+      // suppressed when a live build is showing the mock fallback to a
+      // real user (window.LIVE.demoInProd), where the seeded named
+      // people would read as real.
+      voted && st.beat !== S.id && !S.live && !(window.LIVE && window.LIVE.demoInProd) && h('div', { style: { display: 'flex', gap: 10, justifyContent: 'center', marginTop: 2, animation: 'popIn .35s cubic-bezier(0.2,0.8,0.2,1)' } },
         h('button', { onClick: () => this.setState({ tab: isComments ? null : 'comments' }), 'aria-label': 'Comments', style: icoBtn(isComments) },
           svgI('<path d="M6.5 4.5h11a2 2 0 0 1 2 2V13a2 2 0 0 1-2 2H11l-4 3.8V15h-.5a2 2 0 0 1-2-2V6.5a2 2 0 0 1 2-2z"/>', 17),
           'Comments'),
@@ -774,7 +776,17 @@ class DailySplit extends React.Component {
         fontFamily: 'var(--sans)',
         willChange: 'transform', touchAction: 'pan-y',
       },
-    }, screen);
+    },
+      // D1: a live build showing the demo deck (offline / boot failure)
+      // must say so — these are sample questions, not the real daily,
+      // and votes here don't sync. Clears itself when live attaches.
+      (window.LIVE && window.LIVE.demoInProd) && h('div', {
+        key: 'demo-banner',
+        style: { display: 'flex', justifyContent: 'center' },
+      }, h('span', {
+        style: { fontSize: 10.5, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--ink-3)', border: '1px solid var(--rule)', borderRadius: 999, padding: '3px 10px' },
+      }, 'Sample questions · reconnecting…')),
+      screen);
   }
 }
 window.DailySplit = DailySplit;

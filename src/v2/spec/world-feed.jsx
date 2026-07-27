@@ -1,4 +1,3 @@
-/* eslint-disable */
 // ported from design/spec-modules/world-feed.jsx — do not hand-edit load order assumptions
 import React from 'react';
 
@@ -154,7 +153,7 @@ class WorldFeed extends React.Component {
     this._fresh = id; // gates the reveal's count-up + bar growth to the vote moment
     this.setState((s) => {
       const votes = { ...s.votes, [id]: val };
-      try { localStorage.setItem(WF_LS, JSON.stringify(votes)); } catch (e) {}
+      try { localStorage.setItem(WF_LS, JSON.stringify(votes)); } catch { /* best-effort */ }
       const beat = (this.props.beats !== false && window.ConsequenceBeat) ? id : s.beat;
       return { votes, beat };
     });
@@ -178,7 +177,7 @@ class WorldFeed extends React.Component {
       if (at >= 0) cur.splice(at, 1); else cur.push(i);
       if (cur.length === q.items.length) {
         const votes = { ...s.votes, [q.id]: { order: cur } };
-        try { localStorage.setItem(WF_LS, JSON.stringify(votes)); } catch (e) {}
+        try { localStorage.setItem(WF_LS, JSON.stringify(votes)); } catch { /* best-effort */ }
         return { votes, pending: { ...s.pending, [q.id]: [] } };
       }
       return { pending: { ...s.pending, [q.id]: cur } };
@@ -307,8 +306,10 @@ class WorldFeed extends React.Component {
   renderEngage(q, T, big) {
     // D1: live world-scope cards carry no takes and no who-voted —
     // comments are circle-scoped, and the demo's breakdown splits are
-    // synthetic. The row exists only for demo content.
-    if (q.live) return null;
+    // synthetic. The row exists only for demo content — and never for
+    // a real user a live build dropped into the mock fallback, where
+    // unlabeled fake named people would break the honesty posture.
+    if (q.live || (window.LIVE && window.LIVE.demoInProd)) return null;
     const takes = (window.WORLD_FEED_COMMENTS || {})[q.id] || [];
     const hasStats = q.type !== 'rank';
     const open = (id) => this.setState({ sheet: { q, T, panel: id }, sideFilter: null, replyTo: null });
@@ -456,7 +457,7 @@ class WorldFeed extends React.Component {
   addTake(qid, text) {
     this.setState((s) => {
       const myTakes = { ...s.myTakes, [qid]: [...(s.myTakes[qid] || []), text] };
-      try { localStorage.setItem(WF_TAKES_LS, JSON.stringify(myTakes)); } catch (e) {}
+      try { localStorage.setItem(WF_TAKES_LS, JSON.stringify(myTakes)); } catch { /* best-effort */ }
       return { myTakes };
     });
   }
@@ -464,7 +465,7 @@ class WorldFeed extends React.Component {
   addReply(key, text) {
     this.setState((s) => {
       const replies = { ...s.replies, [key]: [...(s.replies[key] || []), text] };
-      try { localStorage.setItem(WF_REPLIES_LS, JSON.stringify(replies)); } catch (e) {}
+      try { localStorage.setItem(WF_REPLIES_LS, JSON.stringify(replies)); } catch { /* best-effort */ }
       return { replies, replyTo: null };
     });
   }

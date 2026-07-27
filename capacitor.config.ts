@@ -10,10 +10,12 @@ const config: CapacitorConfig = {
   // it opens — the journal screens have plenty of text inputs.
   plugins: {
     SplashScreen: {
-      // Show the splash for at most 1.2 s so we hide the WebView's
-      // first-paint flash but don't add perceived latency.
-      launchShowDuration: 1200,
-      launchAutoHide: true,
+      // The splash covers the live-hydration window: main.jsx hides it
+      // explicitly right after the first React render, so a cold boot
+      // never shows a blank WebView between the 1.2 s auto-hide and
+      // first paint. launchShowDuration is the safety ceiling.
+      launchShowDuration: 5000,
+      launchAutoHide: false,
       // Match the paper background so the transition is invisible.
       backgroundColor: "#FAF9F2",
       androidSplashResourceName: "splash",

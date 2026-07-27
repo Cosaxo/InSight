@@ -6,13 +6,18 @@
 import { Capacitor } from "@capacitor/core";
 import { arrayUnion, doc, setDoc } from "firebase/firestore";
 import { getDb } from "../../lib/firebase";
+import { reportError } from "../../lib/sentry";
 
 export async function registerPushForReveals(uid: string): Promise<void> {
   if (!Capacitor.isNativePlatform()) return;
   try {
     const { PushNotifications } = await import("@capacitor/push-notifications");
     let perm = await PushNotifications.checkPermissions();
-    if (perm.receive === "prompt") perm = await PushNotifications.requestPermissions();
+    // Android 13+ reports "prompt-with-rationale" after a first
+    // dismissal — still promptable, so ask in both states.
+    if (perm.receive === "prompt" || perm.receive === "prompt-with-rationale") {
+      perm = await PushNotifications.requestPermissions();
+    }
     if (perm.receive !== "granted") return;
     await PushNotifications.addListener("registration", (token) => {
       void (async () => {
@@ -38,7 +43,7 @@ export async function registerPushForReveals(uid: string): Promise<void> {
             /* best-effort */
           }
         } catch (err) {
-          console.warn("[push] token save failed:", err);
+          reportError(err, { where: "pushTokenSave" });
         }
       })();
     });
@@ -58,6 +63,6 @@ export async function registerPushForReveals(uid: string): Promise<void> {
     });
     await PushNotifications.register();
   } catch (err) {
-    console.warn("[push] registration unavailable:", err);
+    reportError(err, { where: "pushRegister" });
   }
 }

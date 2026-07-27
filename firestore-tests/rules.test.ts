@@ -437,6 +437,291 @@ describe("v2 answers (owner-only, create-only — D5)", () => {
   });
 });
 
+describe("social graph writes", () => {
+  // ── circle: the friend-accept cross-write ──────────────────────
+  // When FRIEND accepts OWNER's request, FRIEND writes himself into
+  // OWNER's circle. The rule proves consent by checking for a
+  // friendRequest FROM OWNER in FRIEND's namespace — i.e. the
+  // ACCEPTER's namespace, not the circle owner's. These pin that
+  // namespace inversion.
+
+  it("a friend cannot join a circle without a consenting friendRequest", async () => {
+    await setupOwner();
+    await assertFails(setDoc(
+      doc(asUser(FRIEND), "insight_users", OWNER, "circle", FRIEND),
+      { since: 2026 },
+    ));
+  });
+
+  it("the accept cross-write works once the request exists in the accepter's namespace", async () => {
+    await setupOwner();
+    await seed(async (db) => {
+      // OWNER asked FRIEND → the request lives under FRIEND (the accepter).
+      await setDoc(doc(db, "insight_users", FRIEND, "friendRequests", OWNER), {
+        at: 1,
+      });
+    });
+    await assertSucceeds(setDoc(
+      doc(asUser(FRIEND), "insight_users", OWNER, "circle", FRIEND),
+      { since: 2026 },
+    ));
+  });
+
+  it("a request in the circle owner's namespace does NOT authorize the cross-write", async () => {
+    // STRANGER asked OWNER (request under OWNER). That's a pending ask,
+    // not consent — STRANGER still can't write himself into the circle.
+    await setupOwner();
+    await seed(async (db) => {
+      await setDoc(doc(db, "insight_users", OWNER, "friendRequests", STRANGER), {
+        at: 1,
+      });
+    });
+    await assertFails(setDoc(
+      doc(asUser(STRANGER), "insight_users", OWNER, "circle", STRANGER),
+      { since: 2026 },
+    ));
+  });
+
+  it("either side can break the friendship; strangers cannot", async () => {
+    await setupOwner({ friendInCircle: true });
+    await assertFails(deleteDoc(
+      doc(asUser(STRANGER), "insight_users", OWNER, "circle", FRIEND),
+    ));
+    await assertSucceeds(deleteDoc(
+      doc(asUser(FRIEND), "insight_users", OWNER, "circle", FRIEND),
+    ));
+    // re-seed and let the owner clear it too
+    await setupOwner({ friendInCircle: true });
+    await assertSucceeds(deleteDoc(
+      doc(asUser(OWNER), "insight_users", OWNER, "circle", FRIEND),
+    ));
+  });
+
+  it("the circle list is invisible to non-owners — even members", async () => {
+    await setupOwner({ friendInCircle: true });
+    await assertFails(getDoc(
+      doc(asUser(FRIEND), "insight_users", OWNER, "circle", FRIEND),
+    ));
+    await assertFails(getDocs(
+      collection(asUser(STRANGER), "insight_users", OWNER, "circle"),
+    ));
+  });
+
+  // ── friendRequests ─────────────────────────────────────────────
+
+  it("a stranger can leave a friend request under their own uid", async () => {
+    await setupOwner();
+    await assertSucceeds(setDoc(
+      doc(asUser(STRANGER), "insight_users", OWNER, "friendRequests", STRANGER),
+      { at: 1 },
+    ));
+  });
+
+  it("a blocked user cannot leave a friend request", async () => {
+    await setupOwner();
+    await seed(async (db) => {
+      await setDoc(doc(db, "insight_users", OWNER, "blocks", STRANGER), { at: 1 });
+    });
+    await assertFails(setDoc(
+      doc(asUser(STRANGER), "insight_users", OWNER, "friendRequests", STRANGER),
+      { at: 1 },
+    ));
+  });
+
+  it("either side can delete a pending request (decline or withdraw)", async () => {
+    const seedRequest = () => seed(async (db) => {
+      await setDoc(doc(db, "insight_users", OWNER, "friendRequests", STRANGER), {
+        at: 1,
+      });
+    });
+    await setupOwner();
+    await seedRequest();
+    await assertSucceeds(deleteDoc(
+      doc(asUser(OWNER), "insight_users", OWNER, "friendRequests", STRANGER),
+    ));
+    await seedRequest();
+    await assertSucceeds(deleteDoc(
+      doc(asUser(STRANGER), "insight_users", OWNER, "friendRequests", STRANGER),
+    ));
+  });
+
+  it("the requester sees their pending request; third parties don't", async () => {
+    await setupOwner();
+    await seed(async (db) => {
+      await setDoc(doc(db, "insight_users", OWNER, "friendRequests", STRANGER), {
+        at: 1,
+      });
+    });
+    await assertSucceeds(getDoc(
+      doc(asUser(STRANGER), "insight_users", OWNER, "friendRequests", STRANGER),
+    ));
+    await assertFails(getDoc(
+      doc(asUser(FRIEND), "insight_users", OWNER, "friendRequests", STRANGER),
+    ));
+  });
+
+  // ── blocks ─────────────────────────────────────────────────────
+
+  it("the block list is owner-only, both ways", async () => {
+    await setupOwner();
+    await seed(async (db) => {
+      await setDoc(doc(db, "insight_users", OWNER, "blocks", STRANGER), { at: 1 });
+    });
+    await assertSucceeds(getDoc(
+      doc(asUser(OWNER), "insight_users", OWNER, "blocks", STRANGER),
+    ));
+    await assertSucceeds(setDoc(
+      doc(asUser(OWNER), "insight_users", OWNER, "blocks", FRIEND), { at: 2 },
+    ));
+    // the blocked user can neither see the block nor lift it
+    await assertFails(getDoc(
+      doc(asUser(STRANGER), "insight_users", OWNER, "blocks", STRANGER),
+    ));
+    await assertFails(deleteDoc(
+      doc(asUser(STRANGER), "insight_users", OWNER, "blocks", STRANGER),
+    ));
+    await assertFails(setDoc(
+      doc(asUser(STRANGER), "insight_users", OWNER, "blocks", FRIEND), { at: 3 },
+    ));
+  });
+});
+
+describe("daily report read tiers", () => {
+  const DAY = "2026-07-27";
+  const dayRef = (db: Firestore) =>
+    doc(db, "insight_users", OWNER, "insight_daily", DAY);
+
+  // Seed a schema-valid report (matches isValidDailyReportWrite) so
+  // reads exercise the tier gate, not the validator.
+  const seedDaily = () => seed(async (db) => {
+    await setDoc(dayRef(db), {
+      date: DAY, mood: 60, moodLabel: "fine", one_line: "quiet day",
+      weather: "sun", hasPhoto: false, shared: [],
+    });
+  });
+  const follower = (uid: string) => seed(async (db) => {
+    await setDoc(doc(db, "insight_users", OWNER, "followers", uid), {
+      followedAt: 1,
+    });
+  });
+  // Discoverability docs drive the same-city check; the hash lives
+  // at location.geohash and only the first 5 chars are compared.
+  const discoverable = (uid: string, geohash: string) => seed(async (db) => {
+    await setDoc(doc(db, "insight_discoverable", uid), {
+      location: { geohash },
+    });
+  });
+
+  it("nobody: even a circle friend is refused", async () => {
+    await setupOwner({
+      friendInCircle: true,
+      sharePrefs: { daily_report: "nobody" },
+    });
+    await seedDaily();
+    await assertFails(getDoc(dayRef(asUser(FRIEND))));
+  });
+
+  it("circle: friends read; followers and same-city strangers don't", async () => {
+    await setupOwner({
+      friendInCircle: true,
+      sharePrefs: { daily_report: "circle" },
+    });
+    await seedDaily();
+    await follower(STRANGER);
+    await assertSucceeds(getDoc(dayRef(asUser(FRIEND))));
+    // follower tier only unlocks at "city" and wider
+    await assertFails(getDoc(dayRef(asUser(STRANGER))));
+    // same city isn't enough either at this level
+    await discoverable(OWNER, "u4pruyd");
+    await discoverable("neighbor1", "u4pruzz");
+    await assertFails(getDoc(dayRef(asUser("neighbor1"))));
+  });
+
+  it("city: followers and same-cell discoverable users read; other cities don't", async () => {
+    await setupOwner({
+      friendInCircle: true,
+      sharePrefs: { daily_report: "city" },
+    });
+    await seedDaily();
+    // follower path
+    await follower("fan1");
+    await assertSucceeds(getDoc(dayRef(asUser("fan1"))));
+    // same geohash5 cell ("u4pru…" == "u4pru…"), both discoverable
+    await discoverable(OWNER, "u4pruyd");
+    await discoverable("neighbor1", "u4pruzz");
+    await assertSucceeds(getDoc(dayRef(asUser("neighbor1"))));
+    // different cell → refused
+    await discoverable("tourist1", "gcpvj0d");
+    await assertFails(getDoc(dayRef(asUser("tourist1"))));
+    // circle friends keep reading at the wider level
+    await assertSucceeds(getDoc(dayRef(asUser(FRIEND))));
+  });
+
+  it("world: any signed-in user reads; anonymous never does", async () => {
+    await setupOwner({ sharePrefs: { daily_report: "world" } });
+    await seedDaily();
+    await assertSucceeds(getDoc(dayRef(asUser(STRANGER))));
+    await assertFails(getDoc(dayRef(asAnon())));
+  });
+
+  it("a blocked viewer is refused even at world — block beats every tier", async () => {
+    await setupOwner({
+      friendInCircle: true,
+      friendBlocked: true,
+      sharePrefs: { daily_report: "world" },
+    });
+    await seedDaily();
+    await assertFails(getDoc(dayRef(asUser(FRIEND))));
+  });
+});
+
+describe("share defaults pinned", () => {
+  // With EMPTY sharePrefs the rules fall back to collShareDefault(),
+  // which mirrors SHARE_DATA's `def` in the UI. These pin that the
+  // two stay in sync: weigh-ins / dreams / homes / time blocks
+  // default to "nobody"; books default to "world".
+
+  const seedOneDocEach = () => seed(async (db) => {
+    for (const coll of [
+      "insight_weighins", "insight_dreams", "insight_homes",
+      "insight_time_blocks", "insight_books",
+    ]) {
+      await setDoc(doc(db, "insight_users", OWNER, coll, "d1"), { ok: true });
+    }
+  });
+
+  it("private-by-default collections stay closed to circle friends", async () => {
+    await setupOwner({ friendInCircle: true });
+    await seedOneDocEach();
+    for (const coll of [
+      "insight_weighins", "insight_dreams", "insight_homes", "insight_time_blocks",
+    ]) {
+      await assertFails(
+        getDocs(collection(asUser(FRIEND), "insight_users", OWNER, coll)),
+      );
+    }
+  });
+
+  it("books default to world — readable by a circle friend with no prefs set", async () => {
+    await setupOwner({ friendInCircle: true });
+    await seedOneDocEach();
+    await assertSucceeds(
+      getDocs(collection(asUser(FRIEND), "insight_users", OWNER, "insight_books")),
+    );
+  });
+
+  it("the world default still requires circle membership — strangers are refused", async () => {
+    // circleCanRead() gates on isInOwnerCircle() before it ever looks
+    // at the level, so "world" here means "world of mutuals", not
+    // actually-anyone.
+    await setupOwner();
+    await seedOneDocEach();
+    await assertFails(
+      getDocs(collection(asUser(STRANGER), "insight_users", OWNER, "insight_books")),
+    );
+  });
+});
+
 describe("v2 groups + sealed duels (Phase 3)", () => {
   const GID = "g1";
   const DAY = "2026-07-26";

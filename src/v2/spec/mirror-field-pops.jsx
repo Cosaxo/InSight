@@ -1,4 +1,3 @@
-/* eslint-disable */
 // ported from design/spec-modules/mirror-field-pops.jsx — do not hand-edit load order assumptions
 import React from 'react';
 

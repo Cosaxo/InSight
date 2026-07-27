@@ -16,7 +16,8 @@
 // Schema and access decisions: docs/SCHEMA-V2.md, docs/DECISIONS.md (D5).
 
 import { getFirestore, FieldValue } from "firebase-admin/firestore";
-import { onCall, HttpsError } from "firebase-functions/v2/https";
+import { onCall } from "firebase-functions/v2/https";
+import { assertOperator } from "./ops";
 import { onDocumentCreated } from "firebase-functions/v2/firestore";
 import { logger } from "firebase-functions";
 import { V2_QUESTIONS } from "./v2content";
@@ -73,21 +74,8 @@ async function runSeedV2(): Promise<{ written: number }> {
   return { written: V2_QUESTIONS.length };
 }
 
-function seedAdmins(): string[] {
-  return (process.env.SEED_ADMIN_UIDS || "")
-    .split(",")
-    .map((s) => s.trim())
-    .filter(Boolean);
-}
-
 export const seedContentV2 = onCall({ region: REGION }, async (request) => {
-  if (!request.auth) {
-    throw new HttpsError("unauthenticated", "must be signed in");
-  }
-  const isEmulator = process.env.FUNCTIONS_EMULATOR === "true";
-  if (!isEmulator && !seedAdmins().includes(request.auth.uid)) {
-    throw new HttpsError("permission-denied", "seed is operator-only");
-  }
+  assertOperator(request);
   return runSeedV2();
 });
 

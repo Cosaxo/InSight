@@ -1,4 +1,3 @@
-/* eslint-disable */
 // ported from design/spec-modules/compare-pop.js — do not hand-edit load order assumptions
 import React from 'react';
 

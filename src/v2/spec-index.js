@@ -1,4 +1,3 @@
-/* eslint-disable */
 // Load order mirrors the standalone's script tags — order is semantic, do not sort.
 import './spec/sample-data.js';
 import './spec/archetype-data.js';
@@ -64,6 +63,9 @@ import './spec/map-chiprow.jsx';
 import './spec/map-tab.jsx';
 import './spec/logic-test.jsx';
 import './spec/profile-general.jsx';
-import './spec/live-duels.jsx';
-import './spec/live-privacy.jsx';
+// The two live panels were born in this repo (never in design/) and
+// live as typed TSX under ui/; they self-register on globalThis so
+// the render-time lookups in daily-split / profile-overlay still work.
+import './ui/LiveDuelPanel';
+import './ui/LivePrivacyPanel';
 import './spec/app-shell.jsx';

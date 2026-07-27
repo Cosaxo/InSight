@@ -1,4 +1,3 @@
-/* eslint-disable */
 // ported from design/spec-modules/result-card.jsx — do not hand-edit load order assumptions
 import React from 'react';
 
