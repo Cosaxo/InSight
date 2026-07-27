@@ -29,7 +29,7 @@ class DailySplit extends React.Component {
   state = {
     mode: 'world', feedOpen: false, condensed: false, earlierOpen: false,
     idx: 0, idxG: 0,
-    votes: {}, tab: null, filter: 'all', dim: 'friends', ups: {}, mine: {}, draft: '', dreplies: this.loadDailyReplies(), replyTo: null,
+    votes: (window.LIVE && window.LIVE.enabled ? window.LIVE.myVotes() : {}), tab: null, filter: 'all', dim: 'friends', ups: {}, mine: {}, draft: '', dreplies: this.loadDailyReplies(), replyTo: null,
     mapToast: null, pressing: false,
     group: {},
     cats: this.loadWorldCats(),
@@ -108,7 +108,26 @@ class DailySplit extends React.Component {
     this.setState({ mapToast: id });
     this._toastT = setTimeout(() => { if (this.state.mapToast === id) this.setState({ mapToast: null }); }, 3000);
   }
-  componentDidMount() { if (window.DUELS) this._unsubDuels = window.DUELS.subscribe(() => this.forceUpdate()); this.syncAppAccent(); }
+  componentDidMount() {
+    if (window.DUELS) this._unsubDuels = window.DUELS.subscribe(() => this.forceUpdate());
+    // Reconcile (not just repaint) on live-store changes: rolled-back
+    // votes must un-vote the UI, and a late live boot (timeout path)
+    // must hydrate answers recorded in earlier sessions.
+    if (window.LIVE) this._unsubLive = window.LIVE.subscribe(() => {
+      const L = window.LIVE;
+      if (!L.enabled || !L.ready) { this.forceUpdate(); return; }
+      const lv = L.myVotes();
+      this.setState((s) => {
+        const votes = { ...s.votes };
+        L.deck().forEach((q) => {
+          if (lv[q.id] != null) votes[q.id] = lv[q.id];
+          else delete votes[q.id];
+        });
+        return { votes };
+      });
+    });
+    this.syncAppAccent();
+  }
   componentDidUpdate() {
     this.syncAppAccent();
     // enter half of the click-driven mode switch — runs synchronously after
@@ -124,7 +143,7 @@ class DailySplit extends React.Component {
       this._switching = false;
     }
   }
-  componentWillUnmount() { clearTimeout(this._toastT); clearTimeout(this._lpT); clearTimeout(this._sheetT); if (this._unsubDuels) this._unsubDuels(); const app = document.querySelector('.app'); if (app) app.style.removeProperty('--accent'); }
+  componentWillUnmount() { clearTimeout(this._toastT); clearTimeout(this._lpT); clearTimeout(this._sheetT); if (this._unsubDuels) this._unsubDuels(); if (this._unsubLive) this._unsubLive(); const app = document.querySelector('.app'); if (app) app.style.removeProperty('--accent'); }
 
   // click-driven mode switch — same slide the swipe gesture makes, so the
   // switcher and the gesture feel like one mechanism
@@ -283,6 +302,14 @@ class DailySplit extends React.Component {
   }
 
   get data() {
+    // Live mode: the deck comes from Firestore (real questions, real
+    // counts) via window.LIVE; the demo deck below stays as the mock
+    // fallback and the offline dev experience.
+    const L = window.LIVE;
+    if (L && L.enabled && L.ready) {
+      const liveDeck = L.deck();
+      if (liveDeck.length) return liveDeck;
+    }
     const PINK = 'var(--c-around)', VIOLET = 'var(--c-today)', TEAL = 'var(--c-likeness)';
     return [
       { id: 's1', cat: 'culture', region: 'Taste', regionHue: 40, regionBase: 1, text: 'Pineapple belongs on pizza.',
@@ -419,7 +446,7 @@ class DailySplit extends React.Component {
     const catLabel = (WORLD_TOPICS_V2.find(c => c.id === S.cat) || {}).label;
 
     // ── the feed: answer today's question, then the feed starts ──
-    const feedEnabled = this.props.feed !== false && window.WorldFeed;
+    const feedEnabled = this.props.feed !== false && window.WorldFeed && !(window.LIVE && window.LIVE.enabled); // live mode: demo feed off until the feed itself goes live (Phase 4)
     const votedToday = !!st.votes[DATA[0].id];
     const feedNode = !feedEnabled ? null : h(window.WorldFeed, { cats: st.cats, onToggle: (id) => this.toggleCat(id), density: this.props.feedDensity || 'comfy', beats: this.props.beats });
 
@@ -523,7 +550,7 @@ class DailySplit extends React.Component {
       h('div', { style: { display: 'flex', alignItems: 'center', gap: 12, minHeight: 18 } },
         h('div', { style: { display: 'flex', alignItems: 'center', gap: 7 } },
           h('span', { 'aria-hidden': true, style: { width: 6, height: 6, borderRadius: '50%', background: topicCol, flexShrink: 0 } }),
-          h('span', { className: 'kicker', style: { marginBottom: 0 } }, dayNames[wIdx] + (catLabel ? ' \u00b7 ' + catLabel : ''))),
+          h('span', { className: 'kicker', style: { marginBottom: 0 } }, (S.dayLabel || dayNames[wIdx]) + (catLabel ? ' \u00b7 ' + catLabel : ''))),
         wIdx !== 0 && h('button', { onClick: () => this.jumpTo(0), style: { border: 'none', background: 'none', padding: 0, cursor: 'pointer', fontWeight: 700, fontSize: 12, color: 'var(--ink-2)', WebkitAppearance: 'none', whiteSpace: 'nowrap' } }, '\u2039 back to today'),
         h('span', { style: { flex: 1 } }),
         window.PassiveTag ? h(window.PassiveTag, { q: S, answered: voted }) : null),
@@ -531,7 +558,7 @@ class DailySplit extends React.Component {
       h('div', { style: { fontFamily: BRIC, fontWeight: 800, fontSize: 31, lineHeight: 1.08, letterSpacing: -0.8, textWrap: 'pretty' } }, S.text),
       !voted
         ? h('div', { style: col(10) },
-            S.options.map((o, i) => h('button', { key: o.id, className: 'press sd-opt', onClick: () => { this.syncToMap(S, o.id); this.showMapToast(S.id); this.setState(s => ({ votes: { ...s.votes, [S.id]: o.id }, filter: 'all', beat: (this.props.beats !== false && window.ConsequenceBeat) ? S.id : null })); }, style: { '--opt': o.color, background: 'color-mix(in oklch, ' + o.color + ' 8%, var(--surface-2))', border: '1px solid color-mix(in oklch, ' + o.color + ' 38%, var(--rule))', borderRadius: 14, padding: '16px 17px', display: 'flex', gap: 13, alignItems: 'center', cursor: 'pointer', textAlign: 'left', WebkitAppearance: 'none', boxShadow: 'none', transition: 'background .16s ease, border-color .16s ease' } },
+            S.options.map((o, i) => h('button', { key: o.id, className: 'press sd-opt', onClick: () => { if (S.live && window.LIVE) window.LIVE.vote(S.id, o.id); this.syncToMap(S, o.id); this.showMapToast(S.id); this.setState(s => ({ votes: { ...s.votes, [S.id]: o.id }, filter: 'all', beat: (this.props.beats !== false && window.ConsequenceBeat) ? S.id : null })); }, style: { '--opt': o.color, background: 'color-mix(in oklch, ' + o.color + ' 8%, var(--surface-2))', border: '1px solid color-mix(in oklch, ' + o.color + ' 38%, var(--rule))', borderRadius: 14, padding: '16px 17px', display: 'flex', gap: 13, alignItems: 'center', cursor: 'pointer', textAlign: 'left', WebkitAppearance: 'none', boxShadow: 'none', transition: 'background .16s ease, border-color .16s ease' } },
               h('span', { style: { width: 13, height: 13, borderRadius: '50%', flexShrink: 0, background: o.color } }),
               h('span', { style: { fontWeight: 700, fontSize: 17, color: 'var(--ink)', letterSpacing: '-0.01em' } }, o.label))))
         : (st.beat === S.id && window.ConsequenceBeat)
@@ -568,7 +595,9 @@ class DailySplit extends React.Component {
               h('span', { style: { fontSize: 12.5, fontWeight: 600, color: 'var(--ink-2)' } }, resultNote),
               st.mapToast === S.id && h('button', { onClick: () => window.goTab && window.goTab('map'), style: { display: 'inline-flex', alignItems: 'center', gap: 5, background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontFamily: 'var(--sans)', fontSize: 12, fontWeight: 700, color: 'var(--accent, var(--ink-2))', whiteSpace: 'nowrap', animation: 'toastFade 3s ease forwards' } },
                 'added to ' + this.mapBranch(S), h('span', { 'aria-hidden': true }, '\u2192')))),
-      voted && st.beat !== S.id && h('div', { style: { display: 'flex', gap: 10, justifyContent: 'center', marginTop: 2, animation: 'popIn .35s cubic-bezier(0.2,0.8,0.2,1)' } },
+      // D1: live questions are world-scope — no stranger comments, no
+      // who-voted identities. The sheets stay demo-only.
+      voted && st.beat !== S.id && !S.live && h('div', { style: { display: 'flex', gap: 10, justifyContent: 'center', marginTop: 2, animation: 'popIn .35s cubic-bezier(0.2,0.8,0.2,1)' } },
         h('button', { onClick: () => this.setState({ tab: isComments ? null : 'comments' }), 'aria-label': 'Comments', style: icoBtn(isComments) },
           svgI('<path d="M6.5 4.5h11a2 2 0 0 1 2 2V13a2 2 0 0 1-2 2H11l-4 3.8V15h-.5a2 2 0 0 1-2-2V6.5a2 2 0 0 1 2-2z"/>', 17),
           'Comments'),

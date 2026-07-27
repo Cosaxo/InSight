@@ -108,6 +108,17 @@ export async function googleSignIn(): Promise<void> {
   return m.googleSignIn();
 }
 
+// v2 (decision D3): anonymous-first session, Google as an upgrade.
+export async function anonSignIn(): Promise<string> {
+  const m = await impl();
+  return m.anonSignIn();
+}
+
+export async function linkGoogle(): Promise<void> {
+  const m = await impl();
+  return m.linkGoogle();
+}
+
 export async function googleSignOut(): Promise<void> {
   const m = await impl();
   return m.googleSignOut();

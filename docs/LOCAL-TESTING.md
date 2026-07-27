@@ -153,3 +153,4 @@ npm run test:rules
 ```
 
 12 tests; should report `12 passed`.
+# v2 live-mode dev: cp .env.emulator .env, start emulators (HTTPS_PROXY unset) + npm run dev

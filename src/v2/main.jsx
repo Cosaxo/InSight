@@ -7,6 +7,12 @@ import React from 'react';
 import { createRoot } from 'react-dom/client';
 import './styles.css';
 import './spec-index.js';
+import { initLive } from './data/live';
 
-const App = globalThis.App;
-createRoot(document.getElementById('root')).render(<App />);
+// Live mode (VITE_V2_LIVE=true + Firebase config) hydrates before first
+// render so the daily deck opens on real questions; on timeout or any
+// boot failure the mock deck renders instead and live can attach later.
+initLive().finally(() => {
+  const App = globalThis.App;
+  createRoot(document.getElementById('root')).render(<App />);
+});

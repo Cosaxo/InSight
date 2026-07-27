@@ -1320,6 +1320,15 @@ export const deleteAccount = onCall(
       logger.error("[deleteAccount] subtree wipe failed:", err);
     }
 
+    // 1b. Wipe the v2 subtree (profile + answers). Aggregate counts the
+    // user contributed stay — they are k-floored, anonymous tallies with
+    // no per-user attribution to unwind.
+    try {
+      await db.recursiveDelete(db.collection("v2_users").doc(uid));
+    } catch (err) {
+      logger.error("[deleteAccount] v2 subtree wipe failed:", err);
+    }
+
     // 2. Drop insight_discoverable/{uid} if present.
     try {
       const discRef = db.collection("insight_discoverable").doc(uid);
@@ -1433,3 +1442,6 @@ export const scheduledTaxonomies = onSchedule(
     await runSeedTaxonomies();
   },
 );
+
+// ── v2 (daily/mirror core loop) ─────────────────────────────────
+export { seedContentV2, onV2AnswerCreated } from "./v2";

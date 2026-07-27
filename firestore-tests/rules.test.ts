@@ -25,6 +25,9 @@ import {
   getDoc,
   getDocs,
   setDoc,
+  updateDoc,
+  deleteDoc,
+  serverTimestamp,
   type Firestore,
 } from "firebase/firestore";
 
@@ -221,5 +224,132 @@ describe("aggregates + system collections", () => {
     await assertFails(
       setDoc(doc(asUser(OWNER), "insight_ratelimits", OWNER), { events: [] }),
     );
+  });
+});
+
+// ─── v2 · daily/mirror core loop ─────────────────────────────────
+
+describe("v2 questions + aggregates", () => {
+  it("signed-in users read questions and aggs; nobody writes them", async () => {
+    await seed(async (db) => {
+      await setDoc(doc(db, "v2_questions", "daily-000"), {
+        surface: "daily", seq: 0, type: "binary",
+        prompt: "Pineapple?", options: ["Yes", "No"], active: true,
+      });
+      await setDoc(doc(db, "v2_question_aggs", "daily-000"), {
+        counts: { "0": 3 }, total: 3,
+      });
+    });
+    await assertSucceeds(getDoc(doc(asUser(OWNER), "v2_questions", "daily-000")));
+    await assertSucceeds(getDoc(doc(asUser(OWNER), "v2_question_aggs", "daily-000")));
+    await assertFails(getDoc(doc(asAnon(), "v2_questions", "daily-000")));
+    await assertFails(setDoc(doc(asUser(OWNER), "v2_questions", "daily-000"), { prompt: "x" }));
+    await assertFails(setDoc(doc(asUser(OWNER), "v2_question_aggs", "daily-000"), { total: 999 }));
+    // merge-set / update / delete are still writes — all denied
+    await assertFails(setDoc(doc(asUser(OWNER), "v2_question_aggs", "daily-000"), { total: 999 }, { merge: true }));
+    await assertFails(updateDoc(doc(asUser(OWNER), "v2_question_aggs", "daily-000"), { total: 999 }));
+    await assertFails(deleteDoc(doc(asUser(OWNER), "v2_question_aggs", "daily-000")));
+    await assertFails(deleteDoc(doc(asUser(OWNER), "v2_questions", "daily-000")));
+  });
+
+  it("aggregate internals (private counts, event ledger) are fully opaque", async () => {
+    await seed(async (db) => {
+      await setDoc(doc(db, "v2_aggs_private", "daily-000"), { counts: { "0": 1 }, total: 1 });
+      await setDoc(doc(db, "v2_agg_events", "evt1"), { qid: "daily-000" });
+    });
+    await assertFails(getDoc(doc(asUser(OWNER), "v2_aggs_private", "daily-000")));
+    await assertFails(setDoc(doc(asUser(OWNER), "v2_aggs_private", "daily-000"), { total: 9 }));
+    await assertFails(getDoc(doc(asUser(OWNER), "v2_agg_events", "evt1")));
+    await assertFails(setDoc(doc(asUser(OWNER), "v2_agg_events", "evt2"), { qid: "x" }));
+  });
+});
+
+describe("v2 profile", () => {
+  it("owner-only read/write with validated fields", async () => {
+    const mine = doc(asUser(OWNER), "v2_users", OWNER);
+    await assertSucceeds(setDoc(mine, {
+      displayName: "Mira",
+      anchors: { city: "Oslo", country: "Norway" },
+      anon: true,
+    }));
+    await assertSucceeds(getDoc(mine));
+    await assertFails(getDoc(doc(asUser(STRANGER), "v2_users", OWNER)));
+    await assertFails(setDoc(doc(asUser(STRANGER), "v2_users", OWNER), { displayName: "x" }));
+    // unknown top-level field
+    await assertFails(setDoc(mine, { displayName: "Mira", secretScore: 9 }));
+    // unknown anchor key
+    await assertFails(setDoc(mine, { anchors: { ssn: "123" } }));
+  });
+});
+
+describe("v2 answers (owner-only, create-only — D5)", () => {
+  const QID = "daily-000";
+  const seedQuestion = () => seed(async (db) => {
+    await setDoc(doc(db, "v2_questions", QID), {
+      surface: "daily", seq: 0, type: "binary",
+      prompt: "Pineapple?", options: ["Yes", "No"], active: true,
+    });
+  });
+  const answer = (over: Record<string, unknown> = {}) => ({
+    qid: QID, surface: "daily", optionIdx: 1,
+    answeredAt: serverTimestamp(), anchors: {}, ...over,
+  });
+
+  it("owner creates a valid answer once; it is then immutable", async () => {
+    await seedQuestion();
+    const ref = doc(asUser(OWNER), "v2_users", OWNER, "answers", QID);
+    await assertSucceeds(setDoc(ref, answer()));
+    await assertFails(updateDoc(ref, { optionIdx: 0 }));
+    await assertFails(deleteDoc(ref));
+    // setDoc on an existing doc is an update → also denied
+    await assertFails(setDoc(ref, answer({ optionIdx: 0 })));
+  });
+
+  it("rejects out-of-range/mismatched/malformed answers", async () => {
+    await seedQuestion();
+    const ref = (id: string) => doc(asUser(OWNER), "v2_users", OWNER, "answers", id);
+    await assertFails(setDoc(ref(QID), answer({ optionIdx: 2 })));           // >= options.size()
+    await assertFails(setDoc(ref(QID), answer({ optionIdx: -1 })));          // negative
+    await assertFails(setDoc(ref(QID), answer({ qid: "other" })));           // qid != doc id
+    await assertFails(setDoc(ref("nope-000"), answer({ qid: "nope-000" }))); // unknown question
+    await assertFails(setDoc(ref(QID), answer({ surface: "bogus" })));       // bad surface
+    await assertFails(setDoc(ref(QID), answer({ extra: 1 })));               // unknown field
+    await assertFails(setDoc(ref(QID), answer({ answeredAt: new Date() }))); // not request.time
+  });
+
+  it("two different users can answer the same question", async () => {
+    await seedQuestion();
+    await assertSucceeds(setDoc(
+      doc(asUser(OWNER), "v2_users", OWNER, "answers", QID), answer()));
+    await assertSucceeds(setDoc(
+      doc(asUser(FRIEND), "v2_users", FRIEND, "answers", QID),
+      answer({ optionIdx: 0 })));
+  });
+
+  it("answers are invisible and unwritable to other users", async () => {
+    await seedQuestion();
+    await assertSucceeds(setDoc(
+      doc(asUser(OWNER), "v2_users", OWNER, "answers", QID), answer()));
+    await assertFails(getDoc(doc(asUser(STRANGER), "v2_users", OWNER, "answers", QID)));
+    await assertFails(getDocs(collection(asUser(STRANGER), "v2_users", OWNER, "answers")));
+    await assertFails(setDoc(
+      doc(asUser(STRANGER), "v2_users", OWNER, "answers", "feed-x"),
+      answer({ qid: "feed-x" })));
+  });
+});
+
+describe("v2 groups (Phase-3 foundations)", () => {
+  it("creator-in-members creates; members read; others neither", async () => {
+    const g = { name: "The Crew", ownerUid: OWNER, memberUids: [OWNER, FRIEND], createdAt: 1 };
+    await assertSucceeds(setDoc(doc(asUser(OWNER), "v2_groups", "g1"), g));
+    await assertSucceeds(getDoc(doc(asUser(FRIEND), "v2_groups", "g1")));
+    await assertFails(getDoc(doc(asUser(STRANGER), "v2_groups", "g1")));
+    // can't create a group owned by someone else
+    await assertFails(setDoc(doc(asUser(STRANGER), "v2_groups", "g2"),
+      { ...g, ownerUid: OWNER }));
+    // membership is frozen until Phase 3's invite flow
+    await assertFails(updateDoc(doc(asUser(OWNER), "v2_groups", "g1"),
+      { memberUids: [OWNER, FRIEND, STRANGER] }));
+    await assertFails(deleteDoc(doc(asUser(OWNER), "v2_groups", "g1")));
   });
 });

@@ -10,7 +10,10 @@ import {
   GoogleAuthProvider,
   connectAuthEmulator,
   getAuth,
+  linkWithCredential,
+  linkWithPopup,
   onAuthStateChanged,
+  signInAnonymously,
   signInWithCredential,
   signInWithPopup,
   signOut,
@@ -284,6 +287,43 @@ function db(): Firestore {
 }
 
 // ── Auth ────────────────────────────────────────────────────────
+
+// Anonymous-first (decision D3): the app works immediately, and Google
+// becomes an *upgrade* via account linking so history is never lost to
+// a login wall. Returns the signed-in uid.
+//
+// Waits for persistence restoration before deciding — currentUser is
+// always null on cold boot until the SDK finishes restoring the prior
+// session, and signing in anonymously at that moment would REPLACE the
+// returning user (anon or linked) with a fresh account every launch.
+export async function anonSignIn(): Promise<string> {
+  const a = auth();
+  const restored = await new Promise<User | null>((resolve) => {
+    const unsub = onAuthStateChanged(a, (u) => {
+      unsub();
+      resolve(u);
+    });
+  });
+  if (restored) return restored.uid;
+  const cred = await signInAnonymously(a);
+  return cred.user.uid;
+}
+
+// Upgrade the current (anonymous) account to Google, keeping the uid —
+// and with it every answer document. Falls back to a plain sign-in when
+// there is no current user to link.
+export async function linkGoogle(): Promise<void> {
+  const user = auth().currentUser;
+  if (!user) return googleSignIn();
+  if (Capacitor.isNativePlatform()) {
+    const result = await FirebaseAuthentication.signInWithGoogle();
+    const idToken = result.credential?.idToken;
+    if (!idToken) throw new Error("Native Google sign-in returned no idToken");
+    await linkWithCredential(user, GoogleAuthProvider.credential(idToken));
+    return;
+  }
+  await linkWithPopup(user, new GoogleAuthProvider());
+}
 
 export async function googleSignIn(): Promise<void> {
   if (Capacitor.isNativePlatform()) {
