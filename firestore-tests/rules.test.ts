@@ -17,7 +17,6 @@ import {
   assertSucceeds,
   initializeTestEnvironment,
   type RulesTestEnvironment,
-  type RulesTestContext,
 } from "@firebase/rules-unit-testing";
 import {
   collection,
@@ -167,6 +166,101 @@ describe("circle-tier sharing", () => {
     await assertFails(
       getDocs(collection(asUser(FRIEND), "insight_users", OWNER, "insight_workouts")),
     );
+  });
+});
+
+describe("wildcard subcollection match does not override governed blocks", () => {
+  // Overlapping match blocks OR their grants together, so the
+  // /{collection}/{doc} owner-write wildcard must exclude every
+  // subcollection with its own rules. These pin the exclusion.
+
+  it("owner still writes ungoverned subcollections (wildcard intact)", async () => {
+    await setupOwner();
+    await assertSucceeds(setDoc(
+      doc(asUser(OWNER), "insight_users", OWNER, "insight_workouts", "w2"),
+      { type: "Swim", date: "2026-07-27" },
+    ));
+  });
+
+  it("owner cannot self-author an inbound impression (create: if false holds)", async () => {
+    await setupOwner();
+    await assertFails(setDoc(
+      doc(asUser(OWNER), "insight_users", OWNER, "insight_inbound_impressions", "i9"),
+      { senderUid: STRANGER, traits: ["brilliant"], createdAt: 1 },
+    ));
+  });
+
+  it("owner cannot edit or un-delete an impression via the wildcard", async () => {
+    await seed(async (db) => {
+      await setDoc(doc(db, "insight_users", OWNER), { sharePrefs: {} });
+      await setDoc(
+        doc(db, "insight_users", OWNER, "insight_inbound_impressions", "i1"),
+        { senderUid: FRIEND, traits: ["kind"], createdAt: 1 },
+      );
+    });
+    await assertFails(updateDoc(
+      doc(asUser(OWNER), "insight_users", OWNER, "insight_inbound_impressions", "i1"),
+      { traits: ["kind", "forged"] },
+    ));
+  });
+
+  it("insight_daily writes must pass the validator — no wildcard bypass", async () => {
+    await setupOwner();
+    const day = doc(asUser(OWNER), "insight_users", OWNER, "insight_daily", "2026-07-27");
+    // invalid: mood out of range
+    await assertFails(setDoc(day, {
+      date: "2026-07-27", mood: 9999, moodLabel: "??", one_line: "x",
+      weather: "sun", hasPhoto: false, shared: [],
+    }));
+    // valid write still succeeds through the dedicated block
+    await assertSucceeds(setDoc(day, {
+      date: "2026-07-27", mood: 60, moodLabel: "fine", one_line: "quiet day",
+      weather: "sun", hasPhoto: false, shared: [],
+    }));
+  });
+
+  it("a user cannot forge a friendRequest in their own namespace to self-join a circle", async () => {
+    // The circle create rule trusts insight_users/{me}/friendRequests/{them}
+    // as proof THEY asked ME. If the wildcard let me author that doc,
+    // I could add myself to anyone's circle.
+    await setupOwner();
+    await seed(async (db) => {
+      await setDoc(doc(db, "insight_users", STRANGER), {});
+    });
+    await assertFails(setDoc(
+      doc(asUser(STRANGER), "insight_users", STRANGER, "friendRequests", OWNER),
+      { at: 1 },
+    ));
+    // and the downstream escalation stays closed
+    await assertFails(setDoc(
+      doc(asUser(STRANGER), "insight_users", OWNER, "circle", STRANGER),
+      { since: 2026 },
+    ));
+  });
+
+  it("owner cannot fabricate followers, and follower docs stay immutable", async () => {
+    await setupOwner();
+    await seed(async (db) => {
+      await setDoc(doc(db, "insight_users", OWNER, "followers", FRIEND), {
+        followedAt: 1,
+      });
+    });
+    await assertFails(setDoc(
+      doc(asUser(OWNER), "insight_users", OWNER, "followers", STRANGER),
+      { followedAt: 1 },
+    ));
+    await assertFails(updateDoc(
+      doc(asUser(OWNER), "insight_users", OWNER, "followers", FRIEND),
+      { followedAt: 2 },
+    ));
+    // legitimate paths keep working: follower self-creates, owner kicks
+    await assertSucceeds(setDoc(
+      doc(asUser(STRANGER), "insight_users", OWNER, "followers", STRANGER),
+      { followedAt: 1 },
+    ));
+    await assertSucceeds(deleteDoc(
+      doc(asUser(OWNER), "insight_users", OWNER, "followers", FRIEND),
+    ));
   });
 });
 

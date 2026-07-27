@@ -370,8 +370,27 @@ service cloud.firestore {
 
       // All other subcollections — owner-only, plus the circle read
       // carve-out above for the shareable ones.
+      //
+      // The write grant must EXCLUDE every subcollection with its own
+      // match block above: overlapping matches OR together, so the
+      // wildcard would re-grant owner writes those blocks deliberately
+      // deny — unvalidated insight_daily writes, client-side
+      // impression creates, forged friendRequests (which the circle
+      // create rule trusts as consent), fabricated followers.
+      function hasOwnMatchBlock(collection) {
+        return collection in [
+          'insight_daily',
+          'insight_inbound_impressions',
+          'circle',
+          'followers',
+          'friendRequests',
+          'blocks'
+        ];
+      }
       match /{collection}/{doc} {
-        allow read, write: if request.auth != null && request.auth.uid == uid;
+        allow read: if request.auth != null && request.auth.uid == uid;
+        allow write: if request.auth != null && request.auth.uid == uid
+          && !hasOwnMatchBlock(collection);
         allow read: if request.auth != null && circleCanRead(collection);
       }
     }

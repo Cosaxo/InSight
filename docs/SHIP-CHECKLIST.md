@@ -78,10 +78,22 @@ Both apps must be registered under `com.cosaxo.insight`:
   planted on another account for reveal-push spam (needs the victim's
   token, so friend-scale risk is nil).
 - **App Check enforcement** on the callables.
-- **iOS shell sync** — run `npx cap sync ios` on the Mac (the committed
-  Package.swift predates the plugin cleanup), add the push entitlement
-  (Signing & Capabilities → Push Notifications) — `UIBackgroundModes:
-  remote-notification` is already in Info.plist.
+- **iOS reveal push — Mac-side finish.** The structural pieces are now
+  committed: Package.swift lists the real plugin set (push-notifications,
+  app-check, sentry), AppDelegate bridges APNs → Firebase Messaging and
+  posts the **FCM** token to the Capacitor plugin, FirebaseCore +
+  FirebaseMessaging are linked to the App target, and
+  `App/App.entitlements` carries `aps-environment` (wired via
+  `CODE_SIGN_ENTITLEMENTS`). What still needs a Mac + console:
+  1. Drop `GoogleService-Info.plist` into `ios/App/App` and add it to
+     the App target (it is intentionally untracked; AppDelegate skips
+     `FirebaseApp.configure()` without it). Replace the
+     `REVERSED_CLIENT_ID` placeholder in Info.plist from the same file.
+  2. Xcode → Signing & Capabilities: confirm the Push Notifications
+     capability shows up from the entitlements file and the
+     provisioning profile regenerates with `aps-environment`.
+  3. Apple Developer → upload the APNs key to Firebase (step already
+     listed above), then verify the reveal flow end-to-end on device.
 - **Version lockstep** — bump package.json `appBuild` + android
   `versionCode` + iOS `CURRENT_PROJECT_VERSION` together each release.
 

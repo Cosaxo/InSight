@@ -1312,12 +1312,18 @@ export const deleteAccount = onCall(
       othersRelations: 0,
       othersInbound: 0,
     };
+    // Phases that threw. If ANY wipe phase fails we must refuse to
+    // delete the auth user: deleting it anyway would strand the
+    // leftover data with no owner able to retry — a silent
+    // right-to-erasure violation reported as ok:true.
+    const failed: string[] = [];
 
     // 1. Wipe insight_users/{uid}/* + the profile doc itself.
     try {
       counts.ownSubtree = await deleteUserSubtree(uid);
     } catch (err) {
       logger.error("[deleteAccount] subtree wipe failed:", err);
+      failed.push("ownSubtree");
     }
 
     // 1b. Wipe the v2 subtree (profile + answers). Aggregate counts the
@@ -1327,6 +1333,7 @@ export const deleteAccount = onCall(
       await db.recursiveDelete(db.collection("v2_users").doc(uid));
     } catch (err) {
       logger.error("[deleteAccount] v2 subtree wipe failed:", err);
+      failed.push("v2Subtree");
     }
 
     // 1c. Leave every v2 group: membership, name, and reveal entries all
@@ -1355,6 +1362,7 @@ export const deleteAccount = onCall(
       }
     } catch (err) {
       logger.error("[deleteAccount] v2 group scrub failed:", err);
+      failed.push("v2Groups");
     }
 
     // 2. Drop insight_discoverable/{uid} if present.
@@ -1367,6 +1375,7 @@ export const deleteAccount = onCall(
       }
     } catch (err) {
       logger.error("[deleteAccount] discoverable wipe failed:", err);
+      failed.push("discoverable");
     }
 
     // 3. Inbound impressions this user sent into other people's
@@ -1379,6 +1388,7 @@ export const deleteAccount = onCall(
       counts.othersInbound = await deleteQueryDocs(sentQuery);
     } catch (err) {
       logger.error("[deleteAccount] inbound impressions wipe failed:", err);
+      failed.push("othersInbound");
     }
 
     // 4. Other users' relations pointing at this user via linkedUid.
@@ -1390,9 +1400,33 @@ export const deleteAccount = onCall(
       counts.othersRelations = await deleteQueryDocs(relQuery);
     } catch (err) {
       logger.error("[deleteAccount] cross-user relations wipe failed:", err);
+      failed.push("othersRelations");
     }
 
-    // 5. Finally drop the auth user. Doing this last means any
+    // 4b. Rate-limit ledgers keyed by this uid. Rules make them fully
+    //     opaque to clients, but they contain recipient uids and
+    //     activity timestamps — right-to-erasure covers them too.
+    try {
+      await db.collection("insight_ratelimits").doc(uid).delete();
+      await db.collection("v2_ratelimits").doc(`join_${uid}`).delete();
+    } catch (err) {
+      logger.error("[deleteAccount] rate-limit ledger wipe failed:", err);
+      failed.push("ratelimits");
+    }
+
+    // 5. Any wipe failure above must abort BEFORE the auth delete:
+    //    the user stays signed in and can simply retry. Swallowing
+    //    the error and deleting the auth user would orphan the
+    //    leftover data forever while reporting success.
+    if (failed.length > 0) {
+      logger.error(`[deleteAccount] incomplete for uid=${uid}`, { failed, counts });
+      throw new HttpsError(
+        "internal",
+        `Deletion incomplete (${failed.join(", ")}) — nothing was lost, please retry.`,
+      );
+    }
+
+    // 6. Finally drop the auth user. Doing this last means any
     //    failure above leaves the user able to retry (they're still
     //    signed in). If THIS step fails, the user is mostly-wiped
     //    but their auth account lingers — they can sign in to a

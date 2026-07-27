@@ -24,7 +24,8 @@ import { Capacitor } from "@capacitor/core";
 import { FirebaseAuthentication } from "@capacitor-firebase/authentication";
 import {
   connectFirestoreEmulator,
-  getFirestore,
+  initializeFirestore,
+  persistentLocalCache,
   type Firestore,
 } from "firebase/firestore";
 import {
@@ -58,7 +59,15 @@ export function init(config: FirebaseConfig): void {
   if (app) return;
   app = initializeApp(config);
   authInstance = getAuth(app);
-  dbInstance = getFirestore(app);
+  // Persistent (IndexedDB) cache instead of the default memory-only
+  // cache: on an offline cold start every getDoc/getDocs otherwise
+  // rejects with "client is offline", hydrate() fails, and boot falls
+  // back to the demo deck — stranding a returning user whose entire
+  // question bank and answer history are sitting in cache. Disk cache
+  // also queues votes written while offline so they sync on reconnect.
+  dbInstance = initializeFirestore(app, {
+    localCache: persistentLocalCache(),
+  });
   if (useEmulator) {
     connectAuthEmulator(authInstance, `http://${EMULATOR_HOST}:9099`, {
       disableWarnings: true,
