@@ -22,11 +22,17 @@ Firebase project `prvfire33`. Routine backend changes need no manual deploy.
   authenticate to Google Cloud -> `firebase deploy`.
 - **Deployed resources:**
   - Firestore rules (`firestore.rules`)
-  - Cloud Functions: `rebuildAreaAggregates`, `scheduledAreaAggregates`,
-    `rebuildWorldAggregates`, `scheduledWorldAggregates`,
-    `rebuildCityAggregates`, `scheduledCityAggregates`,
-    `sendInboundImpression`, `deleteAccount`, `seedTaxonomies`,
+  - v2 functions: `seedContentV2`, `onV2AnswerCreated` (k-floored
+    aggregates), `createGroupV2` / `joinGroupV2` / `leaveGroupV2`,
+    `scheduledDuelReveals` / `revealDuelsNowV2` (reveals + push)
+  - v1-era functions, still deployed: `rebuildAreaAggregates` /
+    `scheduledAreaAggregates`, `rebuildWorldAggregates` /
+    `scheduledWorldAggregates`, `rebuildCityAggregates` /
+    `scheduledCityAggregates`, `sendInboundImpression`,
+    `deleteAccount` (extended to wipe v2), `seedTaxonomies` /
     `scheduledTaxonomies`
+  - The deploy runs with `--force` — `onV2AnswerCreated` has a retry
+    policy, which the CLI refuses non-interactively otherwise
 
 ## Authentication
 

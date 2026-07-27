@@ -53,9 +53,10 @@ markers, impressions, coach, scrapbook, dreams, almanac, expenses/ledger,
 body/wearables, the on-device LLM features, journal-era tracking (moods,
 habits, workouts, meals, transactions, weigh-ins).
 
-The journal-era UI in `src/` is **legacy** as of this record. It is replaced
-by the ported spec in Phase 1; its first commit moves the old surfaces to
-`src/legacy/`. Infrastructure is not legacy and carries forward: the Firebase
+The journal-era UI in `src/` is **legacy** as of this record. It was
+moved to `src/legacy/` in Phase 1 and **deleted after Phase 5 shipped**
+(recoverable in git history). The client firebase layer was slimmed to
+the v2 surface at the same time. Infrastructure is not legacy and carries forward: the Firebase
 data layer, security rules + tests, Cloud Functions (aggregators, rate
 limiting, deleteAccount), emulator setup, CI/CD, Capacitor shells, and the
 test question banks.
