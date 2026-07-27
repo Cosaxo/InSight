@@ -71,6 +71,28 @@ The repo was consolidated to a single default branch, **`main`**, holding the
 full app, the backend, and the CI workflow. Earlier scratch branches (the
 temporary `main` and `project-startup-analysis`) were merged in and removed.
 
+## Planned: Workload Identity Federation (drop the long-lived key)
+
+The `FIREBASE_SERVICE_ACCOUNT` secret is a long-lived key written to
+disk on every deploy run — the classic leak-shaped credential. GitHub
+OIDC + Workload Identity Federation replaces it with short-lived tokens
+minted per run. Console-side setup (one-time, needs a GCP admin):
+
+1. `gcloud iam workload-identity-pools create github --project prvfire33
+   --location global`
+2. Create a provider in that pool for `https://token.actions.githubusercontent.com`
+   with an attribute condition pinning this repo
+   (`assertion.repository == 'Cosaxo/InSight'`).
+3. Grant `firebase-adminsdk-qdsv5@prvfire33.iam.gserviceaccount.com`
+   the `roles/iam.workloadIdentityUser` binding for that provider.
+4. In `firebase-deploy.yml`: add `permissions: id-token: write`, swap
+   the "Write service account key" step for `google-github-actions/auth@…`
+   (SHA-pinned) with `workload_identity_provider` + `service_account`,
+   and delete the secret.
+
+Until then the key stays — rotate it periodically and re-check the
+key/role mismatch trap below.
+
 ## Troubleshooting notes (issues hit during setup)
 
 - **`An action could not be found at the URI ... auth/tar.gz` / download 403**

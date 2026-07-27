@@ -90,7 +90,11 @@ export const onV2AnswerCreated = onDocumentCreated(
     // materialized reveals (v2social), never through world aggregates.
     // A late duel answer must REOPEN its day for the reveal scan: the
     // scan's lastCheckedDay skip-marker would otherwise close the day
-    // forever while rules still accepted the answer.
+    // forever while rules still accepted the answer. This == check is
+    // race-free only because the scan writes the marker inside a
+    // transaction that re-reads the answers (see revealGroupDay): our
+    // answer either got counted there, or committed after the marker —
+    // so the read below is guaranteed to see lastCheckedDay === day.
     const surface = snap.get("surface");
     if (surface === "group" || surface === "duo") {
       const gid = snap.get("gid");

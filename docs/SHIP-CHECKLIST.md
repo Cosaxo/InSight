@@ -103,6 +103,13 @@ Both apps must be registered under `com.cosaxo.insight`:
 - **Version lockstep** — bump package.json `appBuild` + android
   `versionCode` + iOS `CURRENT_PROJECT_VERSION` together each release.
 
+- **Discoverable location scrub** — rules now cap
+  `insight_discoverable` writes to a bare geohash5 cell (no exact
+  GeoPoint, no long hashes). Docs written before that rule may still
+  carry `location.geopoint` / full-precision hashes: run a one-time
+  admin scrub that truncates `location.geohash` to 5 chars and
+  deletes `location.geopoint` on every doc.
+
 ## Known deferrals (tracked, not blockers)
 
 - ~~Functions runtime Node 20 → upgrade before 2026-10-30

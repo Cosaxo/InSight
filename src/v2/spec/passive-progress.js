@@ -1,4 +1,8 @@
-// ported from design/spec-modules/passive-progress.js — do not hand-edit load order assumptions
+// Ported from design/spec-modules/passive-progress.js (the historical prototype — no sync
+// script survives; THIS file is the live source now, hand-edits and all).
+// Cross-module references resolve through the shared global scope and
+// spec-index.js load order is semantic — scripts/check-spec-globals.mjs
+// guards the wiring in CI.
 import React from 'react';
 
 // passive-progress.js — progress for the four core tests. Only a test's OWN

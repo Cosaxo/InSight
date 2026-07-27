@@ -19,32 +19,21 @@ import { assertOperator, ENFORCE_APP_CHECK } from "./ops";
 import { onSchedule } from "firebase-functions/v2/scheduler";
 import { logger } from "firebase-functions";
 import { randomBytes } from "node:crypto";
+import { inviteCodeFromBytes, utcDayKey, nextStreak, shouldReveal } from "./pure";
 
 const REGION = "us-central1";
 const GROUP_CAP = 32;
 const MEMBERSHIP_CAP = 20;      // groups+duos one account may belong to
 const JOIN_ATTEMPTS_PER_HOUR = 30; // invite codes are 31^8 — this makes
                                    // brute force astronomically slow
+const GROUP_SCAN_CAP = 2000;    // reveal-scan page size — see runDuelReveals
 
 // ── helpers ─────────────────────────────────────────────────────
 
-// Unambiguous invite alphabet (no 0/O/1/I/L).
-const CODE_ALPHABET = "23456789ABCDEFGHJKMNPQRSTUVWXYZ";
+// Alphabet + byte→char mapping live in pure.ts; only the entropy
+// source stays here.
 function inviteCode(): string {
-  const bytes = randomBytes(8);
-  let out = "";
-  for (let i = 0; i < 8; i++) out += CODE_ALPHABET[bytes[i] % CODE_ALPHABET.length];
-  return out;
-}
-
-function utcDayKey(offsetDays = 0): string {
-  const d = new Date(Date.now() + offsetDays * 86400000);
-  return d.toISOString().slice(0, 10);
-}
-
-function prevDayKey(dayKey: string): string {
-  const d = new Date(dayKey + "T00:00:00Z");
-  return new Date(d.getTime() - 86400000).toISOString().slice(0, 10);
+  return inviteCodeFromBytes(randomBytes(8));
 }
 
 // ── membership callables ────────────────────────────────────────
@@ -226,17 +215,37 @@ async function revealGroupDay(
   });
   const played = Object.keys(votes).length;
 
-  if (mode === "duo") {
-    // both-or-nothing — and the streak lives or dies on it
-    if (played < 2) {
-      await group.ref.update({
+  // duo: both-or-nothing (and the streak lives or dies on it);
+  // group: at least one answer. Below the bar → write the skip-marker.
+  if (!shouldReveal(mode, played)) {
+    // The marker write is a TRANSACTION that re-reads the answer docs,
+    // because a plain update races onV2AnswerCreated's compensating
+    // delete: an answer landing between the getAll() above and the
+    // marker write can trigger the compensator, which reads the group
+    // BEFORE lastCheckedDay=dayKey commits, sees a different value,
+    // does nothing — and the marker then closes the day forever. The
+    // transaction pins the ordering: a late answer either commits
+    // before our re-read (we see it here and leave the day open for
+    // the next scan), or Firestore's serializability forces it to
+    // commit strictly AFTER the marker — in which case the
+    // compensator's later group read is guaranteed to observe
+    // lastCheckedDay === day and delete it. No interleaving strands
+    // the day.
+    await db.runTransaction(async (tx) => {
+      const fresh = await tx.getAll(
+        ...members.map((uid) => db.doc(`v2_users/${uid}/answers/${answerId}`)),
+      );
+      const freshPlayed = fresh.filter(
+        (s) => s.exists && typeof s.get("optionIdx") === "number",
+      ).length;
+      // A late answer flipped the decision — skip the marker so the
+      // next scan (≤2h away) performs the reveal.
+      if (shouldReveal(mode, freshPlayed)) return;
+      tx.update(group.ref, {
         lastCheckedDay: dayKey,
-        ...(group.get("streak") ? { streak: 0 } : {}),
+        ...(mode === "duo" && group.get("streak") ? { streak: 0 } : {}),
       });
-      return false;
-    }
-  } else if (played === 0) {
-    await group.ref.update({ lastCheckedDay: dayKey });
+    });
     return false;
   }
 
@@ -245,27 +254,51 @@ async function revealGroupDay(
     names[members[i]] = (s.exists && s.get("displayName")) || "";
   });
 
-  await revealRef.set({
-    day: dayKey,
-    qid,
-    votes,
-    names,
-    revealedAt: FieldValue.serverTimestamp(),
-  });
-  const prevStreakDay = group.get("lastRevealDay");
-  const streak =
-    prevStreakDay === prevDayKey(dayKey) ? (group.get("streak") || 0) + 1 : 1;
+  // create(), not set(): scheduledDuelReveals (every 2h) and a manual
+  // revealDuelsNowV2 can overlap, and both may get past the existence
+  // check above before either writes. First writer wins; the loser's
+  // create() throws ALREADY_EXISTS. That matters because the slower
+  // run may have read FEWER answers — overwriting would shrink an
+  // already-published vote set.
+  try {
+    await revealRef.create({
+      day: dayKey,
+      qid,
+      votes,
+      names,
+      revealedAt: FieldValue.serverTimestamp(),
+    });
+  } catch (err) {
+    const code = (err as { code?: number | string }).code;
+    if (code === 6 || code === "already-exists") return false; // lost the race — the standing reveal wins
+    throw err;
+  }
+  const streak = nextStreak(
+    group.get("lastRevealDay"),
+    dayKey,
+    group.get("streak") || 0,
+  );
   await group.ref.update({ streak, lastRevealDay: dayKey });
 
   // The one notification the product earns (Phase 5): the reveal is out.
   // Tokens are best-effort — failures never block the reveal itself.
   try {
-    const tokens = profileSnaps.flatMap((s) =>
-      s.exists && Array.isArray(s.get("fcmTokens")) ? (s.get("fcmTokens") as string[]) : [],
-    );
+    // token -> owning uids, so a token FCM reports dead can be pruned
+    // from the doc it lives on (otherwise fcmTokens grows one ghost per
+    // reinstall/rotation forever and every reveal fans out to them).
+    const tokenOwners = new Map<string, string[]>();
+    for (const s of profileSnaps) {
+      if (!s.exists || !Array.isArray(s.get("fcmTokens"))) continue;
+      for (const t of s.get("fcmTokens") as string[]) {
+        const owners = tokenOwners.get(t) || [];
+        owners.push(s.id);
+        tokenOwners.set(t, owners);
+      }
+    }
+    const tokens = [...tokenOwners.keys()].slice(0, 64);
     if (tokens.length) {
-      await getMessaging().sendEachForMulticast({
-        tokens: [...new Set(tokens)].slice(0, 64),
+      const res = await getMessaging().sendEachForMulticast({
+        tokens,
         notification: {
           title: group.get("name") || "Your duel",
           body: mode === "duo"
@@ -274,6 +307,26 @@ async function revealGroupDay(
         },
         data: { kind: "reveal", gid, day: dayKey },
       });
+      // Prune tokens FCM says are gone for good. Only the two terminal
+      // codes — transient errors must not evict a live device.
+      const DEAD = new Set([
+        "messaging/registration-token-not-registered",
+        "messaging/invalid-registration-token",
+      ]);
+      const removals = new Map<string, string[]>(); // uid -> dead tokens
+      res.responses.forEach((r, i) => {
+        if (r.success || !r.error || !DEAD.has(r.error.code)) return;
+        for (const uid of tokenOwners.get(tokens[i]) || []) {
+          const dead = removals.get(uid) || [];
+          dead.push(tokens[i]);
+          removals.set(uid, dead);
+        }
+      });
+      await Promise.all([...removals].map(([uid, dead]) =>
+        db.doc(`v2_users/${uid}`)
+          .update({ fcmTokens: FieldValue.arrayRemove(...dead) })
+          .catch(() => { /* best-effort cleanup */ }),
+      ));
     }
   } catch (err) {
     logger.warn(`[v2social] push for ${gid}/${dayKey} failed:`, err);
@@ -284,7 +337,20 @@ async function revealGroupDay(
 async function runDuelReveals(dayKey?: string): Promise<{ revealed: number }> {
   const db = getFirestore();
   const yester = dayKey || utcDayKey(-1);
-  const groups = await db.collection("v2_groups").limit(2000).get();
+  // Full-collection scan, capped. A `lastCheckedDay != yester` filter
+  // would be cheaper, but Firestore's != EXCLUDES docs missing the
+  // field — every never-checked (incl. freshly created) group would
+  // silently drop out — and "!= OR missing" isn't expressible in one
+  // query. So the full scan stays; the cap check below is the tripwire
+  // for when the collection outgrows it and needs a paginated cursor.
+  const groups = await db.collection("v2_groups").limit(GROUP_SCAN_CAP).get();
+  if (groups.size >= GROUP_SCAN_CAP) {
+    logger.error(
+      `[v2social] group scan hit the ${GROUP_SCAN_CAP}-doc cap — groups beyond ` +
+        "it are NOT being checked and their reveals are silently stranded. " +
+        "Paginate runDuelReveals before this stays true.",
+    );
+  }
   let revealed = 0;
   for (const g of groups.docs) {
     try {

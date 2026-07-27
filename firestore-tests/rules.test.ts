@@ -27,6 +27,7 @@ import {
   updateDoc,
   deleteDoc,
   serverTimestamp,
+  GeoPoint,
   type Firestore,
 } from "firebase/firestore";
 
@@ -793,5 +794,271 @@ describe("v2 groups + sealed duels (Phase 3)", () => {
     await assertFails(getDoc(doc(asUser(STRANGER), "v2_groups", GID, "reveals", DAY)));
     await assertFails(setDoc(doc(asUser(OWNER), "v2_groups", GID, "reveals", "2026-07-27"),
       { votes: {} }));
+  });
+});
+
+describe("impression share carve-out", () => {
+  // Read tiers on insight_inbound_impressions driven by the
+  // recipient's `shareImpressionsAbout` profile field (read via
+  // ownerShareImpressionsAbout(), defaulting to "nobody").
+  const IMP = "imp1";
+  const FOLLOWER = "follower1";
+  const impRef = (db: Firestore) =>
+    doc(db, "insight_users", OWNER, "insight_inbound_impressions", IMP);
+
+  // Seed OWNER's profile (optionally with a share tier), one
+  // impression sent by STRANGER, and the viewer relations.
+  const setupImpressions = (opts: {
+    share?: string;
+    friendInCircle?: boolean;
+    follower?: boolean;
+    blockedViewer?: string;
+  } = {}) => seed(async (db) => {
+    await setDoc(doc(db, "insight_users", OWNER), {
+      sharePrefs: {},
+      ...(opts.share ? { shareImpressionsAbout: opts.share } : {}),
+    });
+    await setDoc(impRef(db), {
+      senderUid: STRANGER, traits: ["kind"], createdAt: 1,
+    });
+    if (opts.friendInCircle) {
+      await setDoc(doc(db, "insight_users", OWNER, "circle", FRIEND), {
+        since: 2026,
+      });
+    }
+    if (opts.follower) {
+      await setDoc(doc(db, "insight_users", OWNER, "followers", FOLLOWER), {
+        followedAt: 1,
+      });
+    }
+    if (opts.blockedViewer) {
+      await setDoc(doc(db, "insight_users", OWNER, "blocks", opts.blockedViewer), {
+        at: 1,
+      });
+    }
+  });
+
+  it("default (field absent) — only the recipient reads", async () => {
+    await setupImpressions({ friendInCircle: true, follower: true });
+    await assertSucceeds(getDoc(impRef(asUser(OWNER))));
+    await assertFails(getDoc(impRef(asUser(FRIEND))));
+    await assertFails(getDoc(impRef(asUser(FOLLOWER))));
+    await assertFails(getDoc(impRef(asUser(STRANGER))));
+  });
+
+  it("circle: circle friend reads; follower and stranger are denied", async () => {
+    await setupImpressions({
+      share: "circle", friendInCircle: true, follower: true,
+    });
+    await assertSucceeds(getDoc(impRef(asUser(FRIEND))));
+    await assertFails(getDoc(impRef(asUser(FOLLOWER))));
+    await assertFails(getDoc(impRef(asUser(STRANGER))));
+  });
+
+  it("nearby: follower AND circle friend read; stranger is denied", async () => {
+    await setupImpressions({
+      share: "nearby", friendInCircle: true, follower: true,
+    });
+    await assertSucceeds(getDoc(impRef(asUser(FOLLOWER))));
+    await assertSucceeds(getDoc(impRef(asUser(FRIEND))));
+    await assertFails(getDoc(impRef(asUser(STRANGER))));
+  });
+
+  it("anyone: any signed-in user reads; anon and blocked viewers don't", async () => {
+    await setupImpressions({ share: "anyone", blockedViewer: "viewer2" });
+    await assertSucceeds(getDoc(impRef(asUser(STRANGER))));
+    await assertFails(getDoc(impRef(asAnon())));
+    // block beats the widest tier
+    await assertFails(getDoc(impRef(asUser("viewer2"))));
+  });
+
+  it("the sender can delete their own impression; unrelated users can't; recipient always can", async () => {
+    // senderUid: STRANGER stamped admin-side (mirrors the callable).
+    await setupImpressions({ friendInCircle: true });
+    await assertFails(deleteDoc(impRef(asUser(FRIEND))));
+    await assertSucceeds(deleteDoc(impRef(asUser(STRANGER))));
+    // re-seed, recipient deletes too
+    await setupImpressions();
+    await assertSucceeds(deleteDoc(impRef(asUser(OWNER))));
+  });
+
+  it("impressions are immutable — updates denied for everyone, recipient and sender included", async () => {
+    await setupImpressions({ share: "anyone", friendInCircle: true });
+    for (const uid of [OWNER, STRANGER, FRIEND]) {
+      await assertFails(updateDoc(impRef(asUser(uid)), { traits: ["forged"] }));
+    }
+  });
+});
+
+describe("discoverable write validation", () => {
+  const mine = () => doc(asUser(OWNER), "insight_discoverable", OWNER);
+  const base = { location: { geohash: "u4pru" }, displayName: null };
+
+  it("accepts the canonical shape — geohash5 + explicit-null displayName", async () => {
+    await assertSucceeds(setDoc(mine(), base));
+  });
+
+  it("accepts a shorter (coarser) geohash", async () => {
+    await assertSucceeds(setDoc(mine(), {
+      ...base, location: { geohash: "u4p" },
+    }));
+  });
+
+  it("rejects a geohash longer than 5 chars — no full-precision leaks", async () => {
+    await assertFails(setDoc(mine(), {
+      ...base, location: { geohash: "u4pruy" },
+    }));
+    await assertFails(setDoc(mine(), {
+      ...base, location: { geohash: "u4pruyd8k" },
+    }));
+  });
+
+  it("rejects a location carrying an exact GeoPoint next to the hash", async () => {
+    await assertFails(setDoc(mine(), {
+      ...base,
+      location: { geohash: "u4pru", geopoint: new GeoPoint(59.91, 10.75) },
+    }));
+  });
+
+  it("rejects a location missing the geohash", async () => {
+    await assertFails(setDoc(mine(), { ...base, location: {} }));
+    await assertFails(setDoc(mine(), {
+      ...base, location: { geopoint: new GeoPoint(59.91, 10.75) },
+    }));
+    // no location at all fails too — geohash is the one required field
+    await assertFails(setDoc(mine(), { displayName: "Mira" }));
+  });
+
+  it("only the owner writes their discoverable doc", async () => {
+    await assertFails(setDoc(
+      doc(asUser(STRANGER), "insight_discoverable", OWNER), base,
+    ));
+    await assertFails(setDoc(
+      doc(asAnon(), "insight_discoverable", OWNER), base,
+    ));
+  });
+
+  it("rejects a personality vector that isn't exactly 5 numbers", async () => {
+    await assertFails(setDoc(mine(), {
+      ...base, personality: [50, 50, 50, 50, 50, 50],
+    }));
+    await assertSucceeds(setDoc(mine(), {
+      ...base, personality: [50, 50, 50, 50, 50],
+    }));
+  });
+
+  it("rejects out-of-range age and off-enum gender", async () => {
+    await assertFails(setDoc(mine(), { ...base, age: 5 }));
+    await assertFails(setDoc(mine(), { ...base, gender: "alien" }));
+    await assertSucceeds(setDoc(mine(), {
+      ...base, age: 30, gender: "non-binary",
+    }));
+  });
+
+  it("rejects unknown top-level fields (world-readable doc, closed schema)", async () => {
+    // The validator ends with a doc-level keys().hasOnly([...]) —
+    // without it, any unvalidated key on this world-readable doc is
+    // a free public storage channel.
+    await assertFails(setDoc(mine(), { ...base, unrecognizedField: "x" }));
+    // and the validated shape still passes
+    await assertSucceeds(setDoc(mine(), { ...base }));
+  });
+});
+
+describe("storage-adjacent + leftovers", () => {
+  it("Cities catalogue: signed-in read only, never client-written", async () => {
+    await seed(async (db) => {
+      await setDoc(doc(db, "Cities", "oslo"), {
+        name: "Oslo", geohash: "u4pru", lat: 59.91, lng: 10.75,
+      });
+    });
+    await assertSucceeds(getDoc(doc(asUser(STRANGER), "Cities", "oslo")));
+    await assertFails(getDoc(doc(asAnon(), "Cities", "oslo")));
+    await assertFails(setDoc(doc(asUser(OWNER), "Cities", "oslo"), { name: "Forged" }));
+    await assertFails(deleteDoc(doc(asUser(OWNER), "Cities", "oslo")));
+  });
+
+  it("discoverable docs are readable by any signed-in user, not anon", async () => {
+    await seed(async (db) => {
+      await setDoc(doc(db, "insight_discoverable", OWNER), {
+        location: { geohash: "u4pru" },
+      });
+    });
+    await assertSucceeds(getDoc(doc(asUser(STRANGER), "insight_discoverable", OWNER)));
+    await assertFails(getDoc(doc(asAnon(), "insight_discoverable", OWNER)));
+  });
+
+  it("v2_meta is signed-in read-only; v2_ratelimits is fully opaque", async () => {
+    await seed(async (db) => {
+      await setDoc(doc(db, "v2_meta", "content"), { contentRev: 3 });
+      await setDoc(doc(db, "v2_ratelimits", OWNER), { events: [] });
+    });
+    await assertSucceeds(getDoc(doc(asUser(OWNER), "v2_meta", "content")));
+    await assertFails(getDoc(doc(asAnon(), "v2_meta", "content")));
+    await assertFails(setDoc(doc(asUser(OWNER), "v2_meta", "content"), { contentRev: 99 }));
+    await assertFails(getDoc(doc(asUser(OWNER), "v2_ratelimits", OWNER)));
+    await assertFails(setDoc(doc(asUser(OWNER), "v2_ratelimits", OWNER), { events: [] }));
+  });
+
+  // ── insight_interest_items + votes subdoc ────────────────────────
+
+  const item = (over: Record<string, unknown> = {}) => ({
+    interestSlug: "hiking", type: "media", name: "Wild",
+    voteCount: 0, createdBy: OWNER, ...over,
+  });
+  const seedItem = () => seed(async (db) => {
+    await setDoc(doc(db, "insight_interest_items", "it1"), item({ voteCount: 3 }));
+  });
+
+  it("interest items: schema-checked create; forged author/score rejected", async () => {
+    const ref = doc(asUser(OWNER), "insight_interest_items", "it1");
+    await assertSucceeds(setDoc(ref, item()));
+    await assertFails(setDoc(doc(asUser(OWNER), "insight_interest_items", "it2"),
+      item({ type: "malware" })));                    // off-enum type
+    await assertFails(setDoc(doc(asUser(OWNER), "insight_interest_items", "it3"),
+      item({ voteCount: 9000 })));                    // must start at 0
+    await assertFails(setDoc(doc(asUser(OWNER), "insight_interest_items", "it4"),
+      item({ createdBy: STRANGER })));                // createdBy must be auth uid
+    await assertFails(setDoc(doc(asUser(OWNER), "insight_interest_items", "it5"),
+      item({ name: "" })));                           // empty name
+    await assertFails(setDoc(doc(asAnon(), "insight_interest_items", "it6"), item()));
+  });
+
+  it("interest items: updates are voteCount ±1 only, everything else frozen", async () => {
+    await seedItem();
+    const ref = doc(asUser(STRANGER), "insight_interest_items", "it1");
+    await assertSucceeds(updateDoc(ref, { voteCount: 4 }));  // +1
+    await assertSucceeds(updateDoc(ref, { voteCount: 3 }));  // -1
+    await assertFails(updateDoc(ref, { voteCount: 5 }));     // +2 jump
+    await assertFails(updateDoc(ref, { voteCount: 4, name: "Renamed" }));
+    await assertFails(updateDoc(ref, { name: "Renamed" }));
+  });
+
+  it("interest items: only the creator deletes", async () => {
+    await seedItem();
+    await assertFails(deleteDoc(doc(asUser(STRANGER), "insight_interest_items", "it1")));
+    await assertSucceeds(deleteDoc(doc(asUser(OWNER), "insight_interest_items", "it1")));
+  });
+
+  it("votes subdoc: self-vote only, immutable, self-read, self-delete", async () => {
+    await seedItem();
+    const vote = (asUid: string, voterUid: string) =>
+      doc(asUser(asUid), "insight_interest_items", "it1", "votes", voterUid);
+    await assertSucceeds(setDoc(vote(FRIEND, FRIEND), { at: 1 }));
+    await assertFails(setDoc(vote(STRANGER, FRIEND), { at: 1 }));   // vote as someone else
+    await assertFails(updateDoc(vote(FRIEND, FRIEND), { at: 2 })); // immutable
+    await assertSucceeds(getDoc(vote(FRIEND, FRIEND)));
+    await assertFails(getDoc(vote(STRANGER, FRIEND)));              // others' votes invisible
+    await assertSucceeds(deleteDoc(vote(FRIEND, FRIEND)));          // un-vote
+  });
+
+  it("profile validator: impression tier fields are closed sets", async () => {
+    await setupOwner();
+    const mine = doc(asUser(OWNER), "insight_users", OWNER);
+    await assertSucceeds(setDoc(mine, {
+      acceptImpressionsFrom: "nearby", shareImpressionsAbout: "circle",
+    }));
+    await assertFails(setDoc(mine, { acceptImpressionsFrom: "everyone" }));
+    await assertFails(setDoc(mine, { shareImpressionsAbout: "public" }));
   });
 });

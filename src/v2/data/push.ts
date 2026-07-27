@@ -4,7 +4,7 @@
 // no-op. Requires the platform Firebase config files
 // (google-services.json / GoogleService-Info.plist) to actually deliver.
 import { Capacitor } from "@capacitor/core";
-import { arrayUnion, doc, setDoc } from "firebase/firestore";
+import { arrayRemove, arrayUnion, doc, setDoc } from "firebase/firestore";
 import { getDb } from "../../lib/firebase";
 import { reportError } from "../../lib/sentry";
 
@@ -25,13 +25,27 @@ export async function registerPushForReveals(uid: string): Promise<void> {
           // one write per NEW (uid, token) pair — uid-scoped so a fresh
           // account on the same device still registers
           const KEY = "insight.pushToken.v1";
+          let staleToken: string | null = null;
           try {
             const prev = JSON.parse(localStorage.getItem(KEY) || "null");
             if (prev && prev.uid === uid && prev.token === token.value) return;
+            // FCM rotated this device's token — drop the old one from
+            // the doc, or fcmTokens grows one dead entry per rotation
+            // forever (the reveal sender would fan out to ghosts).
+            if (prev && prev.uid === uid && prev.token) staleToken = prev.token;
           } catch {
             /* fall through to write */
           }
           const db = await getDb();
+          if (staleToken) {
+            // arrayRemove + arrayUnion can't share one write; two small
+            // writes on a rotation (rare) beat an unbounded array.
+            await setDoc(
+              doc(db, "v2_users", uid),
+              { fcmTokens: arrayRemove(staleToken) },
+              { merge: true },
+            );
+          }
           await setDoc(
             doc(db, "v2_users", uid),
             { fcmTokens: arrayUnion(token.value) },

@@ -1,4 +1,8 @@
-// ported from design/spec-modules/glyph-icons.js — do not hand-edit load order assumptions
+// Ported from design/spec-modules/glyph-icons.js (the historical prototype — no sync
+// script survives; THIS file is the live source now, hand-edits and all).
+// Cross-module references resolve through the shared global scope and
+// spec-index.js load order is semantic — scripts/check-spec-globals.mjs
+// guards the wiring in CI.
 import React from 'react';
 
 // glyph-icons.js — InSight's drawn icon set.
@@ -105,10 +109,13 @@ import React from 'react';
 
   // React element — drop-in replacement for a glyph char in JSX text position.
   // Falls back to the raw character for unmapped glyphs.
+  // (Was gated on a React global off `window` — which nothing ever
+  // assigns under Vite, so every glyph silently fell back to its raw
+  // character. The module import is the real React.)
   window.GL = function (ch, style) {
     const inner = I[ch];
-    if (!inner || !window.React) return ch == null ? null : ch;
-    return window.React.createElement('svg', {
+    if (!inner) return ch == null ? null : ch;
+    return React.createElement('svg', {
       viewBox: '0 0 24 24', width: '1em', height: '1em', 'aria-hidden': true,
       fill: 'none', stroke: 'currentColor', strokeWidth: 2,
       strokeLinecap: 'round', strokeLinejoin: 'round',

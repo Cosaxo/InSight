@@ -49,6 +49,10 @@ jobs:
   deploy:
     needs: test
     runs-on: ubuntu-latest
+    # GitHub environment: gives the deploy its own secrets scope and a
+    # place to add required reviewers / wait timers later without
+    # touching this file.
+    environment: production
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 

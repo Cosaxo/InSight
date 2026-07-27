@@ -56,7 +56,20 @@ const state = {
   deckIds: [] as string[],
   aggs: {} as Record<string, AggDoc>,
   votes: {} as Record<string, string>, // qid -> option id ("0","1",…)
-  optimistic: {} as Record<string, number>, // qid -> optionIdx not yet aggregated
+  // Optimistic-vote tracking, split in two because the flags clear at
+  // different moments (conflating them let a stranger's vote folding
+  // into the agg mid-flight "confirm" a write the server had not yet
+  // acknowledged — and possibly would refuse):
+  //   inflight      qid -> true while the answer setDoc has NOT been
+  //                 acknowledged by the server. With persistentLocalCache
+  //                 the promise resolves only on SERVER ack — offline it
+  //                 stays pending indefinitely. Drives confirmedVotes().
+  //   unaggregated  qid -> optionIdx while the vote is not yet folded
+  //                 into the public aggregate. Drives the own-vote
+  //                 subtraction (VoteContext.pending); cleared by agg
+  //                 snapshots and the post-vote delayed refresh.
+  inflight: {} as Record<string, true>,
+  unaggregated: {} as Record<string, number>,
   aggUnsubs: {} as Record<string, () => void>,
   // ── social (groups & duos) ──
   profile: { displayName: "", testResults: {} as Record<string, unknown> },
@@ -119,7 +132,7 @@ function voteCtx(qid: string): VoteContext {
   return {
     agg: state.aggs[qid],
     mine: state.votes[qid],
-    pending: qid in state.optimistic,
+    pending: qid in state.unaggregated,
   };
 }
 
@@ -150,11 +163,22 @@ async function subscribeAggs(): Promise<void> {
           saveAggCache();
           // A post-vote agg snapshot means the trigger has (very likely)
           // folded the vote in; stop double-tracking it. A premature
-          // clear self-heals on the next snapshot.
-          if (qid in state.optimistic && state.votes[qid]) {
-            delete state.optimistic[qid];
+          // clear self-heals on the next snapshot. (Only the display
+          // flag clears here — write acknowledgement is tracked
+          // separately in state.inflight.)
+          if (qid in state.unaggregated && state.votes[qid]) {
+            delete state.unaggregated[qid];
           }
         }
+        notify();
+      },
+      (err) => {
+        // An errored listener is dead server-side; leaving its stale
+        // unsub in aggUnsubs would make the guard above block any
+        // re-listen for the session. Drop it so the next subscribeAggs
+        // pass (e.g. midnight rollover in deck()) can re-attach.
+        reportError(err, { where: "aggListener", qid });
+        delete state.aggUnsubs[qid];
         notify();
       },
     );
@@ -271,10 +295,16 @@ async function hydrate(): Promise<void> {
     }
   }
 
-  // ── aggregates: cached; fetch only answered questions' missing aggs ──
+  // ── aggregates: cached; fetch answered questions' aggs that are
+  // missing OR still cached as too-small ──
   // Feed cards are blind pre-vote (counts show only after answering), so
   // the old whole-collection scan bought nothing. Deck docs get live
-  // snapshots below; everything else refreshes on vote.
+  // snapshots below; everything else refreshes on vote. A cached agg
+  // with tooSmall !== false counts as missing here: feed questions have
+  // no live listener, so an early voter's "too small" snapshot would
+  // otherwise be frozen forever. Cost: each still-under-the-k-floor agg
+  // is re-read once per boot until it crosses the floor (bounded by the
+  // number of answered questions, same ceiling as a cold cache).
   const AGG_LS = "insight.aggsCache.v1";
   try {
     const cached = JSON.parse(localStorage.getItem(AGG_LS) || "null");
@@ -283,7 +313,7 @@ async function hydrate(): Promise<void> {
     /* best-effort */
   }
   const answeredWorld = Object.keys(state.votes).filter(
-    (id) => !id.startsWith("g_") && !(id in state.aggs),
+    (id) => !id.startsWith("g_") && isTooSmall(state.aggs[id]),
   );
   for (let i = 0; i < answeredWorld.length; i += 30) {
     const chunk = answeredWorld.slice(i, i + 30);
@@ -409,6 +439,14 @@ function subscribeReveals(db: import("firebase/firestore").Firestore): void {
         state.reveals[g.id] = rs.exists() ? (rs.data() as Record<string, unknown>) : null;
         notify();
       },
+      (err) => {
+        // Dead listener: drop the stale unsub so the next
+        // subscribeReveals pass (groups snapshot or midnight rollover)
+        // can re-attach instead of being blocked by the guard above.
+        reportError(err, { where: "revealListener", gid: g.id });
+        delete state.revealUnsubs[g.id];
+        notify();
+      },
     );
   });
 }
@@ -418,12 +456,23 @@ async function hydrateSocial(): Promise<void> {
   const uid = state.uid;
   if (!uid) return;
   // (the group/duo bank is part of the cached bank loaded in hydrate)
-    // my groups, live — and yesterday's reveal per group
+  // my groups, live — and yesterday's reveal per group. Re-callable:
+  // tear down any previous listener first so calling hydrateSocial
+  // again (the re-listen path after an errored listener) never
+  // double-subscribes; deleteAccount uses the same handle for teardown.
+  state.groupsUnsub?.();
   state.groupsUnsub = onSnapshot(
     query(collection(db, "v2_groups"), where("memberUids", "array-contains", uid)),
     (snap) => {
       state.groups = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
       subscribeReveals(db);
+      notify();
+    },
+    (err) => {
+      // Dead listener: null the handle so a future hydrateSocial can
+      // attach cleanly (and teardown doesn't call a stale unsub).
+      reportError(err, { where: "groupsListener" });
+      state.groupsUnsub = null;
       notify();
     },
   );
@@ -568,6 +617,15 @@ const LIVE = {
     const db = await getDb();
     const { getFunctions: gf, httpsCallable: hc } = await import("firebase/functions");
     await hc(gf(db.app, "us-central1"), "deleteAccount")({});
+    // The account is gone: stop the uid-scoped groups listener before
+    // the purge/reload — left running it would only error
+    // (permission-denied) against the deleted account's query.
+    try {
+      state.groupsUnsub?.();
+    } catch {
+      /* best-effort */
+    }
+    state.groupsUnsub = null;
     // "There is no undo" must include THIS device: purge every local
     // trace so the next (fresh anonymous) session doesn't resurrect the
     // deleted account's votes, results, or identity — then drop the
@@ -634,13 +692,18 @@ const LIVE = {
   myVotes(): Record<string, string> {
     return { ...state.votes };
   },
-  // Votes the server has (or had at hydrate) — excludes in-flight
-  // optimistic votes so permanent records (the Map) never keep a vote
-  // that later rolls back.
+  // Votes the server has acknowledged (or that hydrate read back) —
+  // excludes writes still in flight so permanent records (the Map)
+  // never keep a vote whose setDoc may yet be refused. Keyed off
+  // state.inflight, NOT the aggregation flag: a stranger's vote folding
+  // into the agg mid-flight must not "confirm" our unacked write. With
+  // persistentLocalCache the setDoc promise resolves only on SERVER
+  // ack, so an offline vote stays out of here (while myVotes()/deck()
+  // still show it — optimistic UI) until connectivity returns.
   confirmedVotes(): Record<string, string> {
     const out: Record<string, string> = {};
     Object.keys(state.votes).forEach((k) => {
-      if (!(k in state.optimistic)) out[k] = state.votes[k];
+      if (!(k in state.inflight)) out[k] = state.votes[k];
     });
     return out;
   },
@@ -649,7 +712,8 @@ const LIVE = {
     const optionIdx = Number(optionId);
     if (!Number.isInteger(optionIdx) || optionIdx < 0) return;
     state.votes[qid] = optionId;
-    state.optimistic[qid] = optionIdx;
+    state.inflight[qid] = true;
+    state.unaggregated[qid] = optionIdx;
     notify();
     void (async () => {
       try {
@@ -666,7 +730,17 @@ const LIVE = {
           answeredAt: serverTimestamp(),
           anchors: {},
         });
+        // Server ack: the write is durable, so the vote may now enter
+        // confirmedVotes(). Mirror it into the answers cache only NOW —
+        // hydrate() treats insight.answersCache.v1 as a mirror of
+        // server-acked answer docs (immutable, never refetched,
+        // maxTs-gated), so caching optimistically would let a
+        // later-refused write (e.g. a second-device duplicate hitting
+        // the create-only rule) resurrect the phantom vote on every
+        // future boot with nothing left to reconcile it away.
+        delete state.inflight[qid];
         cacheVote(qid, optionIdx);
+        notify(); // confirmedVotes() changed — let persistent records (the Map) pick it up
         // one delayed refresh so the next paint has the folded-in count
         setTimeout(() => {
           void (async () => {
@@ -676,7 +750,14 @@ const LIVE = {
               if (snap.exists()) {
                 state.aggs[qid] = snap.data() as AggDoc;
                 saveAggCache();
-                if (qid in state.optimistic) delete state.optimistic[qid];
+                // Clear the display flag only for an ACKED vote — a
+                // still-inflight write cannot be in the agg we just
+                // read, and clearing would subtract a vote that isn't
+                // there. (Defensive: today this timer is only scheduled
+                // after the ack, so inflight is already clear.)
+                if (qid in state.unaggregated && !(qid in state.inflight)) {
+                  delete state.unaggregated[qid];
+                }
                 buildFeedGlobals();
                 notify();
               }
@@ -689,7 +770,8 @@ const LIVE = {
         // Write refused (rules/network): roll the optimistic state back.
         // Subscribers reconcile from myVotes(), so the UI un-votes too.
         delete state.votes[qid];
-        delete state.optimistic[qid];
+        delete state.inflight[qid];
+        delete state.unaggregated[qid];
         try {
           const WF_LS = "insight.feedVotes.v1";
           const wf = JSON.parse(localStorage.getItem(WF_LS) || "{}") || {};

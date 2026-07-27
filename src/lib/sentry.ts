@@ -1,29 +1,35 @@
-// sentry.ts — error + crash reporting init.
+// sentry.ts — error + crash reporting, lazily loaded.
 //
-// Two layers:
+// Two layers once loaded:
 //   - @sentry/capacitor wraps the native iOS / Android crash
 //     reporting (its underlying SDK is sentry-cocoa / sentry-android
 //     loaded by the Capacitor plugin) AND the JS-layer Sentry.
 //   - @sentry/react provides the JS error boundary, route
 //     instrumentation, and component-aware breadcrumbs.
 //
-// On web builds the native side is a no-op and only the React init
-// runs. On native, both run and unhandled JS errors propagate up
-// into the native crash report alongside the stack trace.
+// The SDKs are imported DYNAMICALLY: telemetry is opt-in and off by
+// default, so most sessions never pay the ~100 KB of Sentry JS in
+// the main bundle. This module stays tiny and synchronous; the heavy
+// modules load only after consent + DSN line up. Errors reported
+// while the SDK is still loading are queued (bounded) and flushed.
 //
 // Configuration is opt-in via env vars — set VITE_SENTRY_DSN to
-// enable. Dev builds without the env var skip Sentry entirely
-// (sentryInit returns early), so local dev doesn't spam the
-// production project.
+// enable. Dev builds without the env var skip Sentry entirely.
 //
 // User consent: even when a DSN is configured, we honour the local
 // `insight.telemetry.v1` flag. The default is "off" — telemetry
-// only starts after the user explicitly opts in from Profile.
+// only starts after the user explicitly opts in from the account
+// panel (LivePrivacyPanel).
 
-import * as Sentry from "@sentry/capacitor";
-import * as SentryReact from "@sentry/react";
+type SentryCapacitor = typeof import("@sentry/capacitor");
 
 const TELEMETRY_KEY = "insight.telemetry.v1";
+
+let sdk: SentryCapacitor | null = null;
+let loading = false;
+let pendingUid: string | null | undefined; // undefined = never set
+const queued: Array<[unknown, Record<string, unknown> | undefined]> = [];
+const QUEUE_CAP = 20;
 
 export function telemetryEnabled(): boolean {
   try {
@@ -41,91 +47,98 @@ export function setTelemetryEnabled(on: boolean): void {
   }
   if (on) {
     sentryInit();
-  } else {
+  } else if (sdk) {
     // Already-initialised Sentry can't be cleanly torn down at runtime;
-    // the closest we can do is null the user and stop sending events
-    // via the global client. Future events from this session still
-    // go out — the toggle takes full effect on the next launch.
-    if (initialized) {
-      try {
-        Sentry.setUser(null);
-      } catch {
-        // ignore
-      }
+    // the closest we can do is null the user. The toggle takes full
+    // effect on the next launch (sentryInit early-returns).
+    try {
+      sdk.setUser(null);
+    } catch {
+      // ignore
     }
   }
 }
 
-let initialized = false;
-
 export function sentryInit(): void {
-  if (initialized) return;
+  if (sdk || loading) return;
   const dsn = import.meta.env.VITE_SENTRY_DSN;
   if (!dsn) return;
-  // Gate on user consent. The toggle in ProfileOverlay calls
+  // Gate on user consent — the LivePrivacyPanel toggle calls
   // sentryInit() again after flipping the flag on.
   if (!telemetryEnabled()) return;
-  Sentry.init(
-    {
-      dsn,
-      // Tag this build with its env + release so the dashboard can
-      // separate dev from production and per-release issues
-      // surface separately. The release tag matches package.json
-      // version at build time; falls back to "dev" when missing.
-      environment: import.meta.env.MODE,
-      release: import.meta.env.VITE_RELEASE_TAG ?? "dev",
-      // 1.0 = capture every error. PII default-off — Sentry strips
-      // IPs and emails unless we explicitly enable. Keep it off.
-      sendDefaultPii: false,
-      // Performance monitoring — small sample rate to start. Bump
-      // for low-traffic apps wanting better visibility.
-      tracesSampleRate: 0.05,
-      // Note: session replay isn't wired here. It's available via
-      // @sentry/react integrations but inappropriate for a private
-      // journal app — recording the screen would defeat the
-      // privacy contract. If we ever want it for crash-only
-      // diagnostics, add `Sentry.replayIntegration({...})` to
-      // integrations[] with explicit user consent.
-    },
-    // The second argument is the JS init invoked from within the
-    // Capacitor SDK; for web builds the Capacitor side no-ops and
-    // only this React init runs.
-    SentryReact.init,
-  );
-  initialized = true;
+  loading = true;
+  void (async () => {
+    try {
+      const [cap, react] = await Promise.all([
+        import("@sentry/capacitor"),
+        import("@sentry/react"),
+      ]);
+      cap.init(
+        {
+          dsn,
+          // Tag this build with its env + release so the dashboard can
+          // separate dev from production and per-release issues
+          // surface separately.
+          environment: import.meta.env.MODE,
+          release: import.meta.env.VITE_RELEASE_TAG ?? "dev",
+          // 1.0 = capture every error. PII default-off — Sentry strips
+          // IPs and emails unless we explicitly enable. Keep it off.
+          sendDefaultPii: false,
+          // Performance monitoring — small sample rate to start.
+          tracesSampleRate: 0.05,
+          // Session replay stays un-wired on purpose: recording the
+          // screen would defeat the privacy contract.
+        },
+        // The second argument is the JS init invoked from within the
+        // Capacitor SDK; for web builds the Capacitor side no-ops and
+        // only this React init runs.
+        react.init,
+      );
+      sdk = cap;
+      if (pendingUid !== undefined) {
+        cap.setUser(pendingUid ? { id: pendingUid } : null);
+      }
+      for (const [err, ctx] of queued.splice(0)) {
+        cap.captureException(err, { extra: ctx });
+      }
+    } catch (err) {
+      console.warn("[sentry] SDK load failed:", err);
+    } finally {
+      loading = false;
+    }
+  })();
 }
 
 // Manually record a caught exception that the app handled but
 // still wants visibility on (e.g. a Firestore write that failed
-// after retries). The default behaviour for unhandled errors is
-// already captured by Sentry's global handlers.
+// after retries). Unhandled errors are captured by Sentry's global
+// handlers once the SDK is up.
 export function reportError(
   err: unknown,
   context?: Record<string, unknown>,
 ): void {
-  if (!initialized) {
-    // Fall back to console so dev / unconfigured builds still surface.
-    console.error("[reportError]", err, context);
+  if (sdk) {
+    sdk.captureException(err, { extra: context });
     return;
   }
-  Sentry.captureException(err, { extra: context });
+  if (loading && queued.length < QUEUE_CAP) {
+    queued.push([err, context]);
+  }
+  // Always mirror to console so dev / unconfigured / still-loading
+  // builds surface the failure locally too.
+  console.error("[reportError]", err, context);
 }
 
-// Identify the current user. Called from useAuth when the user
-// signs in / out so error reports tie back to their account in
-// the dashboard. We send only the uid — never email or name — so
-// PII stays out of the reporting pipeline.
+// Identify the current user so error reports tie back to their
+// account in the dashboard. We send only the uid — never email or
+// name — so PII stays out of the reporting pipeline. Safe to call
+// before init: the value applies when the SDK comes up.
 export function setSentryUser(uid: string | null): void {
-  if (!initialized) return;
+  pendingUid = uid;
+  if (!sdk) return;
   if (uid) {
-    Sentry.setUser({ id: uid });
+    sdk.setUser({ id: uid });
   } else {
-    Sentry.setUser(null);
+    sdk.setUser(null);
   }
 }
-
-// Re-export the ErrorBoundary so callers can wrap a tree with it.
-// The React component knows how to talk to Sentry's globals when
-// init has run; when it hasn't, it falls back to a no-op boundary
-// that just re-throws.
-export const SentryErrorBoundary = SentryReact.ErrorBoundary;

@@ -8,6 +8,7 @@
   "main": "lib/index.js",
   "scripts": {
     "build": "tsc",
+    "test": "vitest run",
     "lint": "echo 'no lint configured for functions yet'",
     "serve": "npm run build && firebase emulators:start --only functions",
     "shell": "npm run build && firebase functions:shell",
@@ -20,6 +21,7 @@
     "firebase-functions": "^6.6.0"
   },
   "devDependencies": {
-    "typescript": "^5.4.0"
+    "typescript": "^5.4.0",
+    "vitest": "^4.1.10"
   }
 }
