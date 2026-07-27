@@ -60,6 +60,17 @@ Both apps must be registered under `com.cosaxo.insight`:
 - [ ] Delete account from the panel: profile, answers, and memberships
       gone (check Firestore console).
 
+## 5 · Post-deploy ops toggles
+
+- **TTL for the aggregate event ledger** (one-time, console or gcloud):
+  `gcloud firestore fields ttls update expireAt --collection-group=v2_agg_events --enable-ttl --project=prvfire33`
+  — the trigger stamps `expireAt` (+7 days); without the policy the
+  dedup ledger grows forever (harmless, but why pay for it).
+- **Release versioning:** bump `appBuild` in package.json each store
+  release; set `latestBuild` (soft banner) and, only when an old client
+  would misbehave, `minBuild` (hard gate) plus `updateUrl` on the
+  `v2_meta/app` doc in the console.
+
 ## Known deferrals (tracked, not blockers)
 
 - Functions runtime Node 20 → upgrade before 2026-10-30 decommission.

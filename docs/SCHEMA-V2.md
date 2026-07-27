@@ -77,6 +77,30 @@ surfaces are excluded from world aggregates.
   answer; duos only when BOTH played (and the shared streak advances or
   resets accordingly).
 
+## Metadata
+
+```
+v2_meta/app                        operator/seed-written metadata
+  contentRev     bumped by seedContentV2 — invalidates the client's
+                 local question-bank cache
+  latestBuild    soft in-app "update available" banner when > appBuild
+  minBuild       hard "update needed" gate when > appBuild
+  updateUrl      store link the prompts open (web falls back to reload)
+read: signed-in · write: nobody
+```
+
+## Read economics (client)
+
+A live boot costs ~10 reads, not ~380: one `v2_meta/app` read decides
+everything. The question bank (191 docs) caches in localStorage keyed by
+`contentRev`; answers are immutable, so the local cache only pulls docs
+newer than its high-water mark; aggregates cache locally and fetch only
+answered questions' missing docs (feed cards are blind pre-vote — there
+is nothing to show). The 7 deck aggregates keep live snapshots; voted
+aggregates refresh once, delayed. Push tokens write once per new token,
+not per boot. `LIVE.stats` reports `bankSource` / `answersFetched` /
+`aggsFetched` for spot checks.
+
 ## Client
 
 - `src/v2/data/live.ts` — `window.LIVE`: anonymous-first boot (D3),

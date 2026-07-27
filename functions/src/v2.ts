@@ -62,6 +62,13 @@ async function runSeedV2(): Promise<{ written: number }> {
     }
   }
   if (inBatch > 0) await batch.commit();
+  // Bump the content revision — clients cache the question bank locally
+  // and refetch only when this changes (one meta read per boot instead
+  // of ~190 bank reads).
+  await db.collection("v2_meta").doc("app").set(
+    { contentRev: FieldValue.serverTimestamp() },
+    { merge: true },
+  );
   logger.info(`[v2] seeded ${V2_QUESTIONS.length} questions (${existing.size} pre-existing)`);
   return { written: V2_QUESTIONS.length };
 }
@@ -115,7 +122,14 @@ export const onV2AnswerCreated = onDocumentCreated(
         (priv.exists && (priv.get("counts") as Record<string, number>)) || {};
       counts[String(optionIdx)] = (counts[String(optionIdx)] || 0) + 1;
       const total = ((priv.exists && (priv.get("total") as number)) || 0) + 1;
-      tx.set(eventRef, { qid, at: FieldValue.serverTimestamp() });
+      // expireAt powers a Firestore TTL policy (see SHIP-CHECKLIST) —
+      // dedup only matters within the ~7-day retry window, so the
+      // ledger must not grow forever.
+      tx.set(eventRef, {
+        qid,
+        at: FieldValue.serverTimestamp(),
+        expireAt: new Date(Date.now() + 7 * 86400000),
+      });
       tx.set(privRef, { counts, total }, { merge: false });
       // The public mirror: k-floored, and deliberately without a fresh
       // timestamp — per-vote timing deltas shouldn't be attributable.

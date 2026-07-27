@@ -95,6 +95,8 @@ const state = {
   aggUnsubs: {} as Record<string, () => void>,
   // ── social (groups & duos) ──
   profile: { displayName: "", testResults: {} as Record<string, unknown> },
+  meta: { latestBuild: 0, minBuild: 0, updateUrl: "" },
+  stats: { bankSource: "none", aggsFetched: 0, answersFetched: 0 },
   groups: [] as Array<Record<string, unknown> & { id: string }>,
   duelBank: [] as Array<QuestionDoc & { id: string }>,
   reveals: {} as Record<string, Record<string, unknown> | null>,
@@ -114,6 +116,26 @@ function gHash(s: string): number {
   let h = 7;
   for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) % 997;
   return h;
+}
+
+function cacheVote(aid: string, optionIdx: number): void {
+  try {
+    const ANS_LS = "insight.answersCache.v1";
+    const cached = JSON.parse(localStorage.getItem(ANS_LS) || "null") || { uid: state.uid, votes: {}, maxTs: 0 };
+    if (cached.uid !== state.uid) return;
+    cached.votes[aid] = String(optionIdx);
+    localStorage.setItem(ANS_LS, JSON.stringify(cached));
+  } catch {
+    /* best-effort */
+  }
+}
+
+function saveAggCache(): void {
+  try {
+    localStorage.setItem("insight.aggsCache.v1", JSON.stringify(state.aggs));
+  } catch {
+    /* best-effort */
+  }
 }
 
 const listeners = new Set<() => void>();
@@ -198,6 +220,7 @@ async function subscribeAggs(): Promise<void> {
       (snap) => {
         if (snap.exists()) {
           state.aggs[qid] = snap.data() as AggDoc;
+          saveAggCache();
           // A post-vote agg snapshot means the trigger has (very likely)
           // folded the vote in; stop double-tracking it. A premature
           // clear self-heals on the next snapshot.
@@ -224,33 +247,129 @@ function computeDeck(): void {
 
 async function hydrate(): Promise<void> {
   const db = await getDb();
-  // Single-field query only (no composite index requirement — review
-  // finding: the emulator doesn't enforce composite indexes, production
-  // does); `active` filtering and seq ordering happen client-side over
-  // a ~30-doc bank.
-  const qsnap = await getDocs(
-    query(
-      collection(db, "v2_questions"),
-      where("surface", "in", ["daily", "feed", "test"]),
-      limit(400),
-    ),
-  );
-  const all = qsnap.docs
-    .map((d) => ({ id: d.id, ...(d.data() as QuestionDoc) }))
+  const { getDoc, Timestamp, documentId } = await import("firebase/firestore");
+
+  // ── one meta read runs the whole cache story ──
+  // contentRev invalidates the local question-bank cache; latest/min
+  // build drive the in-app update prompts.
+  let contentRev = 0;
+  try {
+    const meta = await getDoc(doc(db, "v2_meta", "app"));
+    if (meta.exists()) {
+      const rev = meta.get("contentRev");
+      contentRev = rev && typeof rev.toMillis === "function" ? rev.toMillis() : 0;
+      state.meta.latestBuild = Number(meta.get("latestBuild") || 0);
+      state.meta.minBuild = Number(meta.get("minBuild") || 0);
+      state.meta.updateUrl = String(meta.get("updateUrl") || "");
+    }
+  } catch {
+    /* meta is best-effort — absence just means no caching/update info */
+  }
+
+  // ── question bank: localStorage cache keyed by contentRev ──
+  // The bank is static content; a boot should cost 1 meta read, not
+  // ~190 bank reads. Single-field query (no composite index).
+  interface BankEntry extends QuestionDoc {
+    id: string;
+  }
+  let all: BankEntry[] | null = null;
+  const BANK_LS = "insight.bankCache.v1";
+  try {
+    const cached = JSON.parse(localStorage.getItem(BANK_LS) || "null");
+    if (cached && cached.rev === contentRev && Array.isArray(cached.questions) && cached.questions.length) {
+      all = cached.questions as BankEntry[];
+      state.stats.bankSource = "cache";
+    }
+  } catch {
+    /* corrupt cache — refetch below */
+  }
+  if (!all) {
+    const qsnap = await getDocs(
+      query(
+        collection(db, "v2_questions"),
+        where("surface", "in", ["daily", "feed", "test", "group", "duo"]),
+        limit(400),
+      ),
+    );
+    all = qsnap.docs.map((d) => ({ id: d.id, ...(d.data() as QuestionDoc) }));
+    state.stats.bankSource = "network";
+    try {
+      localStorage.setItem(BANK_LS, JSON.stringify({ rev: contentRev, questions: all }));
+    } catch {
+      /* cache is best-effort */
+    }
+  }
+  const active = all
     .filter((q) => q.active !== false)
     .sort((a, b) => (a.seq || 0) - (b.seq || 0));
-  state.questions = all.filter((q) => q.surface === "daily");
-  state.feedBank = all.filter((q) => q.surface !== "daily");
+  state.questions = active.filter((q) => q.surface === "daily");
+  state.feedBank = active.filter((q) => q.surface === "feed" || q.surface === "test");
+  state.duelBank = active.filter((q) => q.surface === "group" || q.surface === "duo");
   if (!state.questions.length) return; // unseeded project — stay on mocks
 
-  // one shot of every public aggregate — the feed reads these as its
-  // counts; the daily deck keeps its live per-doc subscriptions on top
-  const aggsnap = await getDocs(query(collection(db, "v2_question_aggs"), limit(500)));
-  aggsnap.docs.forEach((d) => {
-    state.aggs[d.id] = d.data() as AggDoc;
-  });
+  // ── my answers: cached + incremental (immutable docs never refetch) ──
+  const ANS_LS = "insight.answersCache.v1";
+  const uidA = state.uid;
+  let maxTs = 0;
+  if (uidA) {
+    try {
+      const cached = JSON.parse(localStorage.getItem(ANS_LS) || "null");
+      if (cached && cached.uid === uidA && cached.votes) {
+        Object.assign(state.votes, cached.votes);
+        maxTs = Number(cached.maxTs || 0);
+      }
+    } catch {
+      /* refetch below */
+    }
+    const aq = maxTs > 0
+      ? query(
+          collection(db, "v2_users", uidA, "answers"),
+          where("answeredAt", ">", Timestamp.fromMillis(maxTs)),
+          limit(400),
+        )
+      : query(collection(db, "v2_users", uidA, "answers"), limit(400));
+    const asnap = await getDocs(aq);
+    state.stats.answersFetched = asnap.size;
+    asnap.docs.forEach((d) => {
+      const optionIdx = d.get("optionIdx");
+      if (typeof optionIdx === "number") state.votes[d.id] = String(optionIdx);
+      const at = d.get("answeredAt");
+      if (at && typeof at.toMillis === "function") maxTs = Math.max(maxTs, at.toMillis());
+    });
+    try {
+      localStorage.setItem(ANS_LS, JSON.stringify({ uid: uidA, votes: state.votes, maxTs }));
+    } catch {
+      /* best-effort */
+    }
+  }
 
-  computeDeck();
+  // ── aggregates: cached; fetch only answered questions' missing aggs ──
+  // Feed cards are blind pre-vote (counts show only after answering), so
+  // the old whole-collection scan bought nothing. Deck docs get live
+  // snapshots below; everything else refreshes on vote.
+  const AGG_LS = "insight.aggsCache.v1";
+  try {
+    const cached = JSON.parse(localStorage.getItem(AGG_LS) || "null");
+    if (cached && typeof cached === "object") Object.assign(state.aggs, cached);
+  } catch {
+    /* best-effort */
+  }
+  const answeredWorld = Object.keys(state.votes).filter(
+    (id) => !id.startsWith("g_") && !(id in state.aggs),
+  );
+  for (let i = 0; i < answeredWorld.length; i += 30) {
+    const chunk = answeredWorld.slice(i, i + 30);
+    const snap = await getDocs(
+      query(collection(db, "v2_question_aggs"), where(documentId(), "in", chunk)),
+    );
+    snap.docs.forEach((d) => {
+      state.aggs[d.id] = d.data() as AggDoc;
+    });
+    state.stats.aggsFetched += snap.size;
+  }
+  saveAggCache();
+
+    computeDeck();
 
   // my profile (display name + synced test results) — owner-only
   const uid0 = state.uid;
@@ -360,15 +479,8 @@ async function hydrateSocial(): Promise<void> {
   const db = await getDb();
   const uid = state.uid;
   if (!uid) return;
-  // the group/duo question banks (seeded, small)
-  const bank = await getDocs(
-    query(collection(db, "v2_questions"), where("surface", "in", ["group", "duo"]), limit(200)),
-  );
-  state.duelBank = bank.docs
-    .map((d) => ({ id: d.id, ...(d.data() as QuestionDoc) }))
-    .filter((q) => q.active !== false)
-    .sort((a, b) => (a.seq || 0) - (b.seq || 0));
-  // my groups, live — and yesterday's reveal per group
+  // (the group/duo bank is part of the cached bank loaded in hydrate)
+    // my groups, live — and yesterday's reveal per group
   state.groupsUnsub = onSnapshot(
     query(collection(db, "v2_groups"), where("memberUids", "array-contains", uid)),
     (snap) => {
@@ -475,6 +587,7 @@ const SOCIAL = {
         };
         if (typeof guessIdx === "number") payload.guessIdx = guessIdx;
         await setDoc(doc(db, "v2_users", uid, "answers", aid), payload);
+        cacheVote(aid, optionIdx);
       } catch (err) {
         delete state.votes[aid];
         notify();
@@ -484,9 +597,26 @@ const SOCIAL = {
   },
 };
 
+declare const __APP_BUILD__: number;
+
 const LIVE = {
   social: SOCIAL,
   feedReady: false,
+  get stats() {
+    return { ...state.stats };
+  },
+  get appBuild(): number {
+    return typeof __APP_BUILD__ === "number" ? __APP_BUILD__ : 0;
+  },
+  get updateAvailable(): boolean {
+    return state.meta.latestBuild > this.appBuild;
+  },
+  get updateRequired(): boolean {
+    return state.meta.minBuild > this.appBuild;
+  },
+  get updateUrl(): string {
+    return state.meta.updateUrl;
+  },
   get displayName(): string {
     return state.profile.displayName;
   },
@@ -583,6 +713,7 @@ const LIVE = {
           answeredAt: serverTimestamp(),
           anchors: {},
         });
+        cacheVote(qid, optionIdx);
         // one delayed refresh so the next paint has the folded-in count
         setTimeout(() => {
           void (async () => {
@@ -591,6 +722,7 @@ const LIVE = {
               const snap = await getDoc(doc(db, "v2_question_aggs", qid));
               if (snap.exists()) {
                 state.aggs[qid] = snap.data() as AggDoc;
+                saveAggCache();
                 if (qid in state.optimistic) delete state.optimistic[qid];
                 buildFeedGlobals();
                 notify();

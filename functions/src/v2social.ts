@@ -149,6 +149,11 @@ async function revealGroupDay(
   const mode: string = group.get("mode") || "group";
   const members: string[] = group.get("memberUids") || [];
   if (!members.length) return false;
+  // Cheap skips first: already revealed, or already checked with no
+  // play — otherwise every scheduled run re-reads every member's docs
+  // for groups that sat idle.
+  if (group.get("lastRevealDay") === dayKey) return false;
+  if (group.get("lastCheckedDay") === dayKey) return false;
   const revealRef = group.ref.collection("reveals").doc(dayKey);
   if ((await revealRef.get()).exists) return false;
 
@@ -177,10 +182,14 @@ async function revealGroupDay(
   if (mode === "duo") {
     // both-or-nothing — and the streak lives or dies on it
     if (played < 2) {
-      if (group.get("streak")) await group.ref.update({ streak: 0 });
+      await group.ref.update({
+        lastCheckedDay: dayKey,
+        ...(group.get("streak") ? { streak: 0 } : {}),
+      });
       return false;
     }
   } else if (played === 0) {
+    await group.ref.update({ lastCheckedDay: dayKey });
     return false;
   }
 
@@ -242,7 +251,7 @@ async function runDuelReveals(dayKey?: string): Promise<{ revealed: number }> {
 }
 
 export const scheduledDuelReveals = onSchedule(
-  { schedule: "every 60 minutes", region: REGION },
+  { schedule: "every 120 minutes", region: REGION }, // ≤2h reveal delay, half the scans
   async () => {
     await runDuelReveals();
   },

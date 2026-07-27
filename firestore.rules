@@ -701,6 +701,13 @@ service cloud.firestore {
     }
 
 
+    // App/content metadata — contentRev (bank cache invalidation),
+    // latestBuild/minBuild (update prompts). Operator/seed-written.
+    match /v2_meta/{docId} {
+      allow read: if request.auth != null;
+      allow write: if false;
+    }
+
     // Server-side aggregate internals — exact counts below the public
     // floor, and the trigger's idempotency ledger. Fully opaque to
     // clients; only the public k-floored mirror above is readable.

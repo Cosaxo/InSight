@@ -149,6 +149,7 @@ function App() {
     ? (((window.LIVE.displayName || '').split(' ').map((w) => w[0]).filter(Boolean).slice(0, 2).join('').toUpperCase()) || '·')
     : null;
   const [, liveTick] = useState(0);
+  const this_dismissedUpdate = () => { try { return sessionStorage.getItem('insight.updateDismissed') === '1'; } catch (e) { return false; } };
   useEffect(() => (window.LIVE ? window.LIVE.subscribe(() => liveTick((t) => t + 1)) : undefined), []);
 
   // Sync tab tweak <-> state (so Tweaks panel can drive it)
@@ -173,6 +174,31 @@ function App() {
           </div>
         </header>
 
+        {liveOn && window.LIVE.updateRequired && (
+          <div style={{ position: 'absolute', inset: 0, zIndex: 200, background: 'var(--surface)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+            <div className="card" style={{ maxWidth: 320, textAlign: 'center', padding: '26px 20px' }}>
+              <div style={{ fontWeight: 800, fontSize: 20, marginBottom: 8 }}>Update needed</div>
+              <div style={{ fontSize: 13.5, fontWeight: 500, color: 'var(--ink-2)', lineHeight: 1.5, marginBottom: 16 }}>
+                This version can no longer talk to the server safely. Grab the latest and you're back in.
+              </div>
+              <button className="press" onClick={() => { const u = window.LIVE.updateUrl; if (u) window.open(u, '_blank'); else location.reload(); }}
+                style={{ border: 'none', borderRadius: 999, padding: '12px 24px', cursor: 'pointer', background: 'var(--ink)', color: 'var(--surface)', fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 14 }}>
+                {window.LIVE.updateUrl ? 'Get the update' : 'Reload'}
+              </button>
+            </div>
+          </div>
+        )}
+        {liveOn && !window.LIVE.updateRequired && window.LIVE.updateAvailable && !this_dismissedUpdate() && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '7px 16px', background: 'color-mix(in oklch, var(--accent, var(--ink)) 9%, var(--surface-2))', borderBottom: '1px solid var(--rule)', fontSize: 12.5, fontWeight: 700 }}>
+            <span style={{ flex: 1 }}>A newer version is out.</span>
+            <button className="press" onClick={() => { const u = window.LIVE.updateUrl; if (u) window.open(u, '_blank'); else location.reload(); }}
+              style={{ border: 'none', background: 'none', cursor: 'pointer', fontWeight: 800, color: 'var(--accent, var(--ink))', fontSize: 12.5 }}>
+              {window.LIVE.updateUrl ? 'Update' : 'Refresh'}
+            </button>
+            <button onClick={() => { try { sessionStorage.setItem('insight.updateDismissed', '1'); } catch (e) {} liveTick((t) => t + 1); }}
+              style={{ border: 'none', background: 'none', cursor: 'pointer', color: 'var(--ink-3)', fontSize: 14, padding: 0 }}>✕</button>
+          </div>
+        )}
         <div className="app-body">
           <ErrorBoundary key={'tab-' + tab} onReset={() => { setTab('track'); setTweak('tab', 'track'); }}>
             <div className="tab-swap" key={tab}>

@@ -17,12 +17,24 @@ export async function registerPushForReveals(uid: string): Promise<void> {
     await PushNotifications.addListener("registration", (token) => {
       void (async () => {
         try {
+          // one write per NEW token, not one per boot
+          const KEY = "insight.pushToken.v1";
+          try {
+            if (localStorage.getItem(KEY) === token.value) return;
+          } catch {
+            /* fall through to write */
+          }
           const db = await getDb();
           await setDoc(
             doc(db, "v2_users", uid),
             { fcmTokens: arrayUnion(token.value) },
             { merge: true },
           );
+          try {
+            localStorage.setItem(KEY, token.value);
+          } catch {
+            /* best-effort */
+          }
         } catch (err) {
           console.warn("[push] token save failed:", err);
         }
