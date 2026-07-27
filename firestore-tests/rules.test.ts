@@ -279,6 +279,11 @@ describe("v2 profile", () => {
     await assertFails(setDoc(mine, { displayName: "Mira", secretScore: 9 }));
     // unknown anchor key
     await assertFails(setDoc(mine, { anchors: { ssn: "123" } }));
+    // synced test results: map allowed, non-map rejected
+    await assertSucceeds(setDoc(mine, {
+      testResults: { big5: { dims: [], title: "Big Five" } },
+    }, { merge: true }));
+    await assertFails(setDoc(mine, { testResults: "hacked" }, { merge: true }));
   });
 });
 

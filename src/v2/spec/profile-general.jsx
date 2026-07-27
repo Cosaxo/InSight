@@ -50,6 +50,11 @@ import React from 'react';
         };
       }
     } catch (e) { /* corrupt — fall through to seed */ }
+    // live mode: no demo prefill — the basics card starts empty and
+    // fills only with what the user actually enters
+    if (window.LIVE && window.LIVE.enabled) {
+      return { vitals: {}, interests: [], likes: [], dislikes: [], heroes: [] };
+    }
     return seed;
   }
 

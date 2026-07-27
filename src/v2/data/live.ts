@@ -94,6 +94,7 @@ const state = {
   optimistic: {} as Record<string, number>, // qid -> optionIdx not yet aggregated
   aggUnsubs: {} as Record<string, () => void>,
   // ── social (groups & duos) ──
+  profile: { displayName: "", testResults: {} as Record<string, unknown> },
   groups: [] as Array<Record<string, unknown> & { id: string }>,
   duelBank: [] as Array<QuestionDoc & { id: string }>,
   reveals: {} as Record<string, Record<string, unknown> | null>,
@@ -251,6 +252,31 @@ async function hydrate(): Promise<void> {
 
   computeDeck();
 
+  // my profile (display name + synced test results) — owner-only
+  const uid0 = state.uid;
+  if (uid0) {
+    const { getDoc } = await import("firebase/firestore");
+    const prof = await getDoc(doc(db, "v2_users", uid0));
+    if (prof.exists()) {
+      state.profile.displayName = (prof.get("displayName") as string) || "";
+      state.profile.testResults =
+        (prof.get("testResults") as Record<string, unknown>) || {};
+    }
+    // Live mode shows only REAL results: purge the demo's baked test
+    // results and rebuild from server + this device's saves.
+    try {
+      const local = JSON.parse(localStorage.getItem("insight.testResults.v2") || "{}") || {};
+      (window as unknown as Record<string, unknown>).IS_TEST_RESULTS = {
+        ...state.profile.testResults,
+        ...local,
+      };
+    } catch {
+      (window as unknown as Record<string, unknown>).IS_TEST_RESULTS = {
+        ...state.profile.testResults,
+      };
+    }
+  }
+
   // my existing answers (owner-only reads)
   const uid = state.uid;
   if (uid) {
@@ -311,6 +337,7 @@ function buildFeedGlobals(): void {
       prompt: q.prompt,
       options: q.options.map((label, i) => ({ label, count: feedCounts(q)[i] })),
       live: true,
+      tooSmall: (state.aggs[q.id] || {}).tooSmall !== false,
     }));
   const tests = state.feedBank
     .filter((q) => q.surface === "test" && q.test)
@@ -460,11 +487,35 @@ const SOCIAL = {
 const LIVE = {
   social: SOCIAL,
   feedReady: false,
+  get displayName(): string {
+    return state.profile.displayName;
+  },
   async saveDisplayName(name: string): Promise<void> {
     const db = await getDb();
     const uid = state.uid;
     if (!uid) throw new Error("no session");
     await setDoc(doc(db, "v2_users", uid), { displayName: name }, { merge: true });
+    state.profile.displayName = name;
+    notify();
+  },
+  // Test results survive devices: mirrored onto the owner-only profile
+  // doc whenever the local persistence runs (test-definitions.js).
+  saveTestResult(kind: string, result: unknown): void {
+    state.profile.testResults[kind] = result;
+    void (async () => {
+      try {
+        const db = await getDb();
+        const uid = state.uid;
+        if (!uid) return;
+        await setDoc(
+          doc(db, "v2_users", uid),
+          { testResults: { [kind]: result } },
+          { merge: true },
+        );
+      } catch (err) {
+        console.warn("[LIVE] test-result sync failed:", err);
+      }
+    })();
   },
   async linkGoogle(): Promise<void> {
     const m = await import("../../lib/firebase");

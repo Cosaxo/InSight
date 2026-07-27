@@ -90,6 +90,7 @@ try {
 
 function persistTestResult(kind, result) {
   window.IS_TEST_RESULTS[kind] = result;
+  if (window.LIVE && window.LIVE.enabled && window.LIVE.saveTestResult) window.LIVE.saveTestResult(kind, result);
   try {
     const saved = JSON.parse(localStorage.getItem(TEST_RESULTS_KEY) || '{}');
     saved[kind] = result;

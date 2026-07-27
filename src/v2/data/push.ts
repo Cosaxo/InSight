@@ -28,6 +28,20 @@ export async function registerPushForReveals(uid: string): Promise<void> {
         }
       })();
     });
+    await PushNotifications.addListener("pushNotificationActionPerformed", (action) => {
+      const data = (action.notification && action.notification.data) || {};
+      if (data.kind === "reveal" && data.gid) {
+        try {
+          sessionStorage.setItem("insight.pendingReveal", String(data.gid));
+        } catch {
+          /* best-effort */
+        }
+        // land on the daily tab; DailySplit consumes the pending gid
+        const w = window as unknown as { goTab?: (t: string) => void };
+        if (w.goTab) w.goTab("track");
+        window.dispatchEvent(new Event("insight-live-update"));
+      }
+    });
     await PushNotifications.register();
   } catch (err) {
     console.warn("[push] registration unavailable:", err);

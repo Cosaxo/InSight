@@ -110,6 +110,11 @@ class DailySplit extends React.Component {
   }
   componentDidMount() {
     if (window.DUELS) this._unsubDuels = window.DUELS.subscribe(() => this.forceUpdate());
+    // the window event fires on every store notify AND on push-tap
+    // dispatch — either way, try to consume a pending reveal target
+    this._pendingHandler = () => this.consumePendingReveal();
+    window.addEventListener('insight-live-update', this._pendingHandler);
+    this.consumePendingReveal();
     // Reconcile (not just repaint) on live-store changes: rolled-back
     // votes must un-vote the UI, and a late live boot (timeout path)
     // must hydrate answers recorded in earlier sessions.
@@ -125,8 +130,21 @@ class DailySplit extends React.Component {
         });
         return { votes };
       });
+      this.consumePendingReveal();
     });
     this.syncAppAccent();
+  }
+
+  // A tapped reveal notification (src/v2/data/push.ts) stores the gid;
+  // once live groups are known, land on that duel's mode.
+  consumePendingReveal() {
+    let gid = null;
+    try { gid = sessionStorage.getItem('insight.pendingReveal'); } catch (e) {}
+    if (!gid || !window.LIVE || !window.LIVE.enabled || !window.LIVE.ready) return;
+    const g = window.LIVE.social.groups().find((x) => x.id === gid);
+    if (!g) return;
+    try { sessionStorage.removeItem('insight.pendingReveal'); } catch (e) {}
+    this.setState({ mode: g.mode === 'duo' ? 'duo' : 'group' });
   }
   componentDidUpdate() {
     this.syncAppAccent();
@@ -143,7 +161,7 @@ class DailySplit extends React.Component {
       this._switching = false;
     }
   }
-  componentWillUnmount() { clearTimeout(this._toastT); clearTimeout(this._lpT); clearTimeout(this._sheetT); if (this._unsubDuels) this._unsubDuels(); if (this._unsubLive) this._unsubLive(); const app = document.querySelector('.app'); if (app) app.style.removeProperty('--accent'); }
+  componentWillUnmount() { clearTimeout(this._toastT); clearTimeout(this._lpT); clearTimeout(this._sheetT); if (this._unsubDuels) this._unsubDuels(); if (this._unsubLive) this._unsubLive(); if (this._pendingHandler) window.removeEventListener('insight-live-update', this._pendingHandler); const app = document.querySelector('.app'); if (app) app.style.removeProperty('--accent'); }
 
   // click-driven mode switch — same slide the swipe gesture makes, so the
   // switcher and the gesture feel like one mechanism
@@ -415,7 +433,11 @@ class DailySplit extends React.Component {
     const rp = counts.map(c => Math.round(c / total * 100));
     rp[rp.indexOf(Math.max(...rp))] += 100 - rp.reduce((a, b) => a + b, 0);
     const maxP = Math.max(...rp), myIdx = S.options.findIndex(o => o.id === myVote);
-    const resultNote = total.toLocaleString() + ' votes' + (voted ? (rp[myIdx] === maxP ? ' \u2014 you\u2019re with the majority' : ' \u2014 you picked the underdog') : '');
+    // Below the k-floor the aggregate publishes nothing — say so instead
+    // of dressing a single vote up as a population.
+    const resultNote = (S.live && S.tooSmall)
+      ? 'You\u2019re early \u2014 counts appear once 5 people have answered.'
+      : total.toLocaleString() + ' votes' + (voted ? (rp[myIdx] === maxP ? ' \u2014 you\u2019re with the majority' : ' \u2014 you picked the underdog') : '');
     const onReset = () => this.setState(s => { const v = { ...s.votes }; delete v[S.id]; return { votes: v, filter: 'all', tab: null, feedOpen: false }; });
     const post = () => { const t = st.draft.trim(); if (!t || !voted) return; const c = { key: 'u' + Date.now(), name: 'You', init: 'Y', opt: myVote, text: t, ups: 0, time: 'now' }; this.setState(s => ({ mine: { ...s.mine, [S.id]: [c, ...(s.mine[S.id] || [])] }, draft: '' })); };
     const mineList = st.mine[S.id] || [];

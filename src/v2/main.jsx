@@ -8,6 +8,11 @@ import { createRoot } from 'react-dom/client';
 import './styles.css';
 import './spec-index.js';
 import { initLive } from './data/live';
+import { sentryInit } from '../lib/sentry';
+
+// Crash reporting first, so a boot error is the first thing captured.
+// No-op without VITE_SENTRY_DSN and honours the local telemetry opt-in.
+sentryInit();
 
 // Live mode (VITE_V2_LIVE=true + Firebase config) hydrates before first
 // render so the daily deck opens on real questions; on timeout or any

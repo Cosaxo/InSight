@@ -143,6 +143,13 @@ function App() {
   }, []);
 
   const me = window.IS_DATA.me;
+  // live identity: initials from the real display name (demo persona off)
+  const liveOn = window.LIVE && window.LIVE.enabled;
+  const liveInitials = liveOn
+    ? (((window.LIVE.displayName || '').split(' ').map((w) => w[0]).filter(Boolean).slice(0, 2).join('').toUpperCase()) || '·')
+    : null;
+  const [, liveTick] = useState(0);
+  useEffect(() => (window.LIVE ? window.LIVE.subscribe(() => liveTick((t) => t + 1)) : undefined), []);
 
   // Sync tab tweak <-> state (so Tweaks panel can drive it)
   useEffect(() => { const v = validTab(t.tab); if (v !== tab) setTab(v); }, [t.tab]);
@@ -156,7 +163,7 @@ function App() {
 
         <header className="app-header">
           <button className={"avatar-btn" + (ov === 'profile' ? ' is-on' : '')} onClick={() => { if (ov === 'profile') { setOv(null); } else { closeAll(); setOv('profile'); } }}>
-            {ov === 'profile' ? '✕' : me.initials}
+            {ov === 'profile' ? '✕' : (liveInitials != null ? liveInitials : me.initials)}
           </button>
           <div className="h-title">in<em>Sight</em></div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>

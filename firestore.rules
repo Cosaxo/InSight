@@ -643,8 +643,10 @@ service cloud.firestore {
       allow create, update: if request.auth != null && request.auth.uid == uid
         && request.resource.data.keys().hasOnly([
           "displayName", "anchors", "anon", "createdAt", "updatedAt",
-          "fcmTokens",
+          "fcmTokens", "testResults",
         ])
+        && (!("testResults" in request.resource.data)
+          || request.resource.data.testResults is map)
         && (!("fcmTokens" in request.resource.data)
           || (request.resource.data.fcmTokens is list
             && request.resource.data.fcmTokens.size() <= 10))

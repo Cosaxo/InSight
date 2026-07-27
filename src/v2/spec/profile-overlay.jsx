@@ -96,11 +96,23 @@ function ProfileOverlay({ onClose, me }) {
       <div className="app-body" style={{ paddingTop: 0 }}>
         {/* compact identity row — the content is the star, not the header */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginTop: 16 }}>
-          <Av init={me.initials} hue={38} size={52} />
-          <div style={{ minWidth: 0 }}>
-            <div style={{ fontFamily: 'var(--sans)', fontWeight: 700, fontSize: 20, letterSpacing: '-0.02em', lineHeight: 1.15 }}>{me.name}</div>
-            <div style={{ fontFamily: 'var(--sans)', fontSize: 13, color: 'var(--ink-3)', marginTop: 3 }}>{me.location} · {me.country}</div>
-          </div>
+          {(() => {
+            const live = window.LIVE && window.LIVE.enabled;
+            const nm = live ? (window.LIVE.displayName || 'You') : me.name;
+            const init = live
+              ? ((nm.split(' ').map((w) => w[0]).filter(Boolean).slice(0, 2).join('').toUpperCase()) || '·')
+              : me.initials;
+            const sub = live ? 'anonymous session — link Google below to keep it' : (me.location + ' · ' + me.country);
+            return (
+              <>
+                <Av init={init} hue={38} size={52} />
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ fontFamily: 'var(--sans)', fontWeight: 700, fontSize: 20, letterSpacing: '-0.02em', lineHeight: 1.15 }}>{nm}</div>
+                  <div style={{ fontFamily: 'var(--sans)', fontSize: 13, color: 'var(--ink-3)', marginTop: 3 }}>{sub}</div>
+                </div>
+              </>
+            );
+          })()}
         </div>
 
         {/* sticky sub-tab nav — frosted so content scrolls beneath it */}
