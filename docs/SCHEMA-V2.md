@@ -30,8 +30,13 @@ update/delete: nobody — immutability is what lets the aggregate be a
 plain increment with no reconciliation
 read: owner only
 
-v2_question_aggs/{qid}             written only by onV2AnswerCreated
-  counts { "<optionIdx>": n }, total, updatedAt
+v2_aggs_private/{qid}              exact counts — server-only (opaque)
+v2_agg_events/{eventId}            trigger idempotency ledger (opaque)
+v2_question_aggs/{qid}             the PUBLIC mirror, k-floored
+  { tooSmall: true }               while total < AGG_MIN_N (5)
+  { counts, total, tooSmall:false } at/above the floor — no fresh
+                                   timestamp, so per-vote timing deltas
+                                   aren't attributable
 read: signed-in · write: nobody
 
 v2_groups/{gid}                    Phase-3 foundations
@@ -42,14 +47,16 @@ until the invite flow lands
 
 ## Functions
 
-- `seedContentV2` (callable, signed-in) — mirrors `/content` question banks
+- `seedContentV2` (callable; emulator or SEED_ADMIN_UIDS allowlist) — mirrors `/content` question banks
   into `v2_questions` (191 docs, stable ids `daily-000`, `feed-<id>`,
-  `group-<id>`, `duo-000`, `test-<key>-NN`; idempotent merge). Bank source:
+  `group-<id>`, `duo-000`, `test-<key>-NN`; idempotent merge; `active` written only on first create, preserving the
+  operational kill switch). Bank source:
   `functions/src/v2content.ts`, generated from `/content/*.json`.
-- `onV2AnswerCreated` (Firestore trigger) — bumps
-  `v2_question_aggs/{qid}.counts[optionIdx]` + `total`. Safe as a plain
-  increment because answers are create-only with doc id == qid (a user can
-  never produce two answer documents for one question).
+- `onV2AnswerCreated` (Firestore trigger, retry on) — transactionally
+  folds each answer into `v2_aggs_private` and mirrors the k-floored
+  public doc; idempotent via the `v2_agg_events` ledger (at-least-once
+  delivery can't double-count).
+- `deleteAccount` also recursively deletes `v2_users/{uid}`.
 
 ## Client
 
@@ -63,10 +70,11 @@ until the invite flow lands
 
 ## Verification
 
-- `npm run test:rules` — 18 rules tests (12 legacy + 6 v2).
+- `npm run test:rules` — 20 rules tests (12 legacy + 8 v2).
 - `firestore-tests/e2e-v2-loop.mjs` under
   `firebase emulators:exec --only auth,firestore,functions` — the full
-  SDK loop: anon auth → seed → fetch → vote → trigger → agg → dup refused.
+  SDK loop: anon auth → seed → fetch → vote → below-floor tooSmall →
+  dup refused → five voters cross the floor → exact public counts.
 - Browser e2e (Playwright, dev server + emulators): live deck renders a
   seeded question, vote writes the answer doc, agg total increments,
   no Comments affordance.
