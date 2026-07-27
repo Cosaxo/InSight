@@ -1,0 +1,80 @@
+# Decision records
+
+Direction-setting decisions for InSight v2 (the daily/mirror app). Each is
+binding for v1 of the shipped product unless explicitly overturned — record
+the reversal here when that happens.
+
+---
+
+## D1 · Comments and "who voted" are circle-scoped only
+
+**Decision.** Free-text comments and named "who voted" breakdowns exist only
+inside Group and 1v1 scopes — i.e. among people who mutually added each
+other. World-scale questions show the split, the totals, and the underdog
+line; never stranger comments, never stranger identities.
+
+**Why.** World-scale free text reintroduces the moderation surface and the
+engagement-loop dynamics the product deliberately avoids. The prototype's
+seeded "live takes" (fake named users in `world-feed-comments.js`) exist to
+make demo rooms feel alive; shipping synthetic people as real would
+contradict the product's honesty posture. No seeded fake users, ever. If
+world rooms feel dead, the fix is design (good empty states, the split
+itself), not fabricated activity.
+
+## D2 · "Near" means geohash5 (~5 km), reusing the existing geo system
+
+**Decision.** The Mirror's Near population is the ~5 km geohash5 cell
+system already implemented (`insight_discoverable`, `aggregates_by_geohash5`,
+k-anonymity floor). City and country are zoom stops of the World population
+driven by profile anchors, not by location.
+
+**Why.** The prototype telescopes Near (5 km) separately from City/Country/
+Globe. Location-based Near already has a deployed, k-anonymous, tested
+implementation; anchor-based city/country need none of that machinery.
+
+## D3 · Anonymous-first auth with account linking
+
+**Decision.** First launch signs the user in anonymously; the full app works
+immediately. Google sign-in is an upgrade (Firebase account linking), never
+a wall. `deleteAccount` must handle anonymous users. Joining a group via
+invite link must work for anonymous users.
+
+**Why.** Never lose a user's history to a login wall. The linking path is
+implemented early (Phase 2) because it is hard to retrofit.
+
+## D4 · The v1 shelf, and the legacy boundary
+
+**Decision.** v1 ships the frozen spec (`design/InSight_standalone_9.html`):
+two tabs (daily · mirror), duels (group + 1v1 sealed reveals), the feed with
+passive test cards, archetype result cards, scenes, profile, search, relmap.
+
+Shelved for v1 (kept in git history, no UI surface): genome/DNA, letters,
+markers, impressions, coach, scrapbook, dreams, almanac, expenses/ledger,
+body/wearables, the on-device LLM features, journal-era tracking (moods,
+habits, workouts, meals, transactions, weigh-ins).
+
+The journal-era UI in `src/` is **legacy** as of this record. It is replaced
+by the ported spec in Phase 1; its first commit moves the old surfaces to
+`src/legacy/`. Infrastructure is not legacy and carries forward: the Firebase
+data layer, security rules + tests, Cloud Functions (aggregators, rate
+limiting, deleteAccount), emulator setup, CI/CD, Capacitor shells, and the
+test question banks.
+
+**Why.** One product, not two. The old surfaces stay recoverable; several
+shelved concepts (letters, markers, impressions) remain candidates for later
+versions.
+
+## D5 · Sealed answers are owner-only; reveals are materialized server-side
+
+**Decision.** Answer documents are readable by their owner only — always,
+including group/1v1 answers and the denormalized anchor snapshot. Group and
+1v1 visibility flows exclusively through reveal documents written by a Cloud
+Function when the reveal condition is met (group: next day; 1v1: both
+played). Reveal docs contain only what the reveal shows (member, chosen
+option). Anchors reach analytics via the ingestion path, never via readable
+documents.
+
+**Why.** Firestore rules are document-level; circle-readable answers would
+leak the full anchor snapshot to groupmates, and time/both-played gating in
+rules is subtle and leak-prone. Materialized reveals make the privacy
+property structural instead of clever.

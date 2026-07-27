@@ -1,5 +1,14 @@
 # InSight
 
+> **⚠️ Direction change — v2 in progress.** The product is being rebuilt to
+> the frozen two-tab spec (**daily · mirror**: blind-vote dailies, group/1v1
+> duels with sealed reveals, the Mirror telescope, passive tests + archetypes).
+> The reference design lives in [`design/`](./design/), launch content in
+> [`content/`](./content/), and the binding decisions — including what the
+> journal-era app below becomes — in [`docs/DECISIONS.md`](./docs/DECISIONS.md).
+> The backend infrastructure described below (Firebase, rules, functions,
+> emulator, CI/CD) carries forward unchanged.
+
 **An interior social network.** InSight is a private journal of your own
 inner life — mood, habits, body, dreams, personality, politics, values, taste —
 that doubles as a lens onto the inner lives of the people, city, and world

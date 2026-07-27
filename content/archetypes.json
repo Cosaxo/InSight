@@ -1,0 +1,578 @@
+{
+  "big5": {
+    "list": [
+      {
+        "name": "The Explorer",
+        "share": 6,
+        "line": "Says yes first, plans later.",
+        "sig": {
+          "O": 88,
+          "C": 40,
+          "E": 75,
+          "A": 55,
+          "N": 45
+        }
+      },
+      {
+        "name": "The Architect",
+        "share": 5,
+        "line": "Builds the system, then trusts it.",
+        "sig": {
+          "O": 80,
+          "C": 90,
+          "E": 32,
+          "A": 42,
+          "N": 35
+        }
+      },
+      {
+        "name": "The Open Diplomat",
+        "share": 7,
+        "line": "Meets new ideas and new people halfway.",
+        "sig": {
+          "O": 82,
+          "C": 55,
+          "E": 50,
+          "A": 82,
+          "N": 42
+        }
+      },
+      {
+        "name": "The Anchor",
+        "share": 12,
+        "line": "Keeps the ship steady for everyone else.",
+        "sig": {
+          "O": 42,
+          "C": 85,
+          "E": 42,
+          "A": 80,
+          "N": 28
+        }
+      },
+      {
+        "name": "The Spark",
+        "share": 8,
+        "line": "Brings the energy the room was missing.",
+        "sig": {
+          "O": 60,
+          "C": 32,
+          "E": 90,
+          "A": 58,
+          "N": 45
+        }
+      },
+      {
+        "name": "The Host",
+        "share": 10,
+        "line": "Makes any room feel like a living room.",
+        "sig": {
+          "O": 52,
+          "C": 62,
+          "E": 85,
+          "A": 85,
+          "N": 35
+        }
+      },
+      {
+        "name": "The Sentinel",
+        "share": 9,
+        "line": "Sees the risk before anyone else does.",
+        "sig": {
+          "O": 32,
+          "C": 80,
+          "E": 42,
+          "A": 52,
+          "N": 70
+        }
+      },
+      {
+        "name": "The Free Spirit",
+        "share": 6,
+        "line": "Allergic to routine, drawn to whatever is new.",
+        "sig": {
+          "O": 85,
+          "C": 22,
+          "E": 62,
+          "A": 62,
+          "N": 50
+        }
+      },
+      {
+        "name": "The Empath",
+        "share": 8,
+        "line": "Reads the room before anyone speaks.",
+        "sig": {
+          "O": 60,
+          "C": 48,
+          "E": 42,
+          "A": 90,
+          "N": 65
+        }
+      },
+      {
+        "name": "The Straight Shooter",
+        "share": 9,
+        "line": "Says the thing everyone's dancing around.",
+        "sig": {
+          "O": 45,
+          "C": 62,
+          "E": 62,
+          "A": 22,
+          "N": 32
+        }
+      },
+      {
+        "name": "The Quiet Observer",
+        "share": 11,
+        "line": "Notices everything, announces nothing.",
+        "sig": {
+          "O": 72,
+          "C": 55,
+          "E": 15,
+          "A": 58,
+          "N": 50
+        }
+      },
+      {
+        "name": "The Deep Feeler",
+        "share": 6,
+        "line": "Feels everything, shows a fraction.",
+        "sig": {
+          "O": 62,
+          "C": 50,
+          "E": 25,
+          "A": 65,
+          "N": 78
+        }
+      },
+      {
+        "name": "The Storm Chaser",
+        "share": 3,
+        "line": "Runs on intensity, in every direction.",
+        "sig": {
+          "O": 58,
+          "C": 35,
+          "E": 75,
+          "A": 42,
+          "N": 85
+        }
+      }
+    ]
+  },
+  "political": {
+    "list": [
+      {
+        "name": "Solidarity Left",
+        "share": 7,
+        "line": "Fairness first, markets on a leash.",
+        "sig": {
+          "econ": 15,
+          "auth": 35,
+          "foreign": 55,
+          "env": 70,
+          "tech": 45,
+          "estab": 65
+        }
+      },
+      {
+        "name": "Green-Left Internationalist",
+        "share": 4,
+        "line": "Climate-urgent, borders open, act now.",
+        "sig": {
+          "econ": 35,
+          "auth": 25,
+          "foreign": 70,
+          "env": 85,
+          "tech": 60,
+          "estab": 55
+        }
+      },
+      {
+        "name": "Social Democrat",
+        "share": 16,
+        "line": "Markets are fine — with a strong safety net.",
+        "sig": {
+          "econ": 32,
+          "auth": 48,
+          "foreign": 55,
+          "env": 65,
+          "tech": 55,
+          "estab": 30
+        }
+      },
+      {
+        "name": "Liberal Centrist",
+        "share": 18,
+        "line": "Liberal instincts, pragmatic doses.",
+        "sig": {
+          "econ": 50,
+          "auth": 40,
+          "foreign": 60,
+          "env": 60,
+          "tech": 65,
+          "estab": 25
+        }
+      },
+      {
+        "name": "Techno-Optimist",
+        "share": 3,
+        "line": "The future is a build problem.",
+        "sig": {
+          "econ": 55,
+          "auth": 30,
+          "foreign": 70,
+          "env": 55,
+          "tech": 90,
+          "estab": 50
+        }
+      },
+      {
+        "name": "Libertarian",
+        "share": 5,
+        "line": "The state should mostly get out of the way.",
+        "sig": {
+          "econ": 78,
+          "auth": 12,
+          "foreign": 55,
+          "env": 40,
+          "tech": 80,
+          "estab": 70
+        }
+      },
+      {
+        "name": "Market Liberal",
+        "share": 12,
+        "line": "Open markets, open society.",
+        "sig": {
+          "econ": 68,
+          "auth": 42,
+          "foreign": 65,
+          "env": 50,
+          "tech": 75,
+          "estab": 30
+        }
+      },
+      {
+        "name": "Communitarian",
+        "share": 11,
+        "line": "Community before both market and self.",
+        "sig": {
+          "econ": 40,
+          "auth": 62,
+          "foreign": 40,
+          "env": 60,
+          "tech": 40,
+          "estab": 55
+        }
+      },
+      {
+        "name": "Traditional Conservative",
+        "share": 14,
+        "line": "What has lasted deserves to lead.",
+        "sig": {
+          "econ": 60,
+          "auth": 75,
+          "foreign": 35,
+          "env": 40,
+          "tech": 45,
+          "estab": 35
+        }
+      },
+      {
+        "name": "National Populist",
+        "share": 10,
+        "line": "Home and its people come first.",
+        "sig": {
+          "econ": 45,
+          "auth": 72,
+          "foreign": 20,
+          "env": 35,
+          "tech": 50,
+          "estab": 85
+        }
+      }
+    ]
+  },
+  "values": {
+    "list": [
+      {
+        "name": "The Tempered Optimist",
+        "share": 12,
+        "line": "Hopeful, with both eyes open.",
+        "sig": {
+          "future": 58,
+          "circle": 48,
+          "hedonism": 52,
+          "meaning": 70,
+          "moral": 45,
+          "beauty": 75
+        }
+      },
+      {
+        "name": "The Romantic",
+        "share": 6,
+        "line": "Beauty and meaning over comfort.",
+        "sig": {
+          "future": 50,
+          "circle": 45,
+          "hedonism": 60,
+          "meaning": 78,
+          "moral": 40,
+          "beauty": 92
+        }
+      },
+      {
+        "name": "The Steward",
+        "share": 16,
+        "line": "Duty to your own comes first.",
+        "sig": {
+          "future": 48,
+          "circle": 22,
+          "hedonism": 40,
+          "meaning": 60,
+          "moral": 70,
+          "beauty": 50
+        }
+      },
+      {
+        "name": "The Rationalist",
+        "share": 7,
+        "line": "Right answers exist — go find them.",
+        "sig": {
+          "future": 60,
+          "circle": 55,
+          "hedonism": 45,
+          "meaning": 45,
+          "moral": 88,
+          "beauty": 30
+        }
+      },
+      {
+        "name": "The Builder",
+        "share": 9,
+        "line": "Betting on the future, actively.",
+        "sig": {
+          "future": 88,
+          "circle": 50,
+          "hedonism": 50,
+          "meaning": 50,
+          "moral": 55,
+          "beauty": 45
+        }
+      },
+      {
+        "name": "The Utilitarian",
+        "share": 3,
+        "line": "The most good, wherever it lands.",
+        "sig": {
+          "future": 60,
+          "circle": 92,
+          "hedonism": 45,
+          "meaning": 55,
+          "moral": 70,
+          "beauty": 40
+        }
+      },
+      {
+        "name": "The Worried Idealist",
+        "share": 10,
+        "line": "High ideals, low expectations.",
+        "sig": {
+          "future": 20,
+          "circle": 62,
+          "hedonism": 40,
+          "meaning": 72,
+          "moral": 50,
+          "beauty": 60
+        }
+      },
+      {
+        "name": "The Traditionalist",
+        "share": 16,
+        "line": "The old weights still hold.",
+        "sig": {
+          "future": 40,
+          "circle": 28,
+          "hedonism": 35,
+          "meaning": 65,
+          "moral": 78,
+          "beauty": 55
+        }
+      },
+      {
+        "name": "The Hedonist",
+        "share": 13,
+        "line": "Life is for enjoying, now.",
+        "sig": {
+          "future": 55,
+          "circle": 40,
+          "hedonism": 88,
+          "meaning": 28,
+          "moral": 35,
+          "beauty": 65
+        }
+      },
+      {
+        "name": "The Wanderer",
+        "share": 8,
+        "line": "Pleasure and beauty, few obligations.",
+        "sig": {
+          "future": 55,
+          "circle": 45,
+          "hedonism": 72,
+          "meaning": 55,
+          "moral": 22,
+          "beauty": 72
+        }
+      }
+    ]
+  },
+  "attachment": {
+    "list": [
+      {
+        "name": "The Warm Loyalist",
+        "share": 11,
+        "line": "Shows up warm, stays for years.",
+        "sig": {
+          "warm": 80,
+          "loyal": 85,
+          "open": 60,
+          "play": 55,
+          "easy": 60
+        }
+      },
+      {
+        "name": "The Ride-or-Die",
+        "share": 9,
+        "line": "Loyalty is the whole point.",
+        "sig": {
+          "warm": 60,
+          "loyal": 90,
+          "open": 45,
+          "play": 45,
+          "easy": 50
+        }
+      },
+      {
+        "name": "The Cheerleader",
+        "share": 9,
+        "line": "Your loudest fan in any room.",
+        "sig": {
+          "warm": 85,
+          "loyal": 60,
+          "open": 70,
+          "play": 80,
+          "easy": 65
+        }
+      },
+      {
+        "name": "The Rock",
+        "share": 12,
+        "line": "Unshakeable, unfussy, always there.",
+        "sig": {
+          "warm": 50,
+          "loyal": 85,
+          "open": 35,
+          "play": 35,
+          "easy": 75
+        }
+      },
+      {
+        "name": "The Confidant",
+        "share": 8,
+        "line": "The friend the real stuff goes to.",
+        "sig": {
+          "warm": 70,
+          "loyal": 75,
+          "open": 85,
+          "play": 45,
+          "easy": 55
+        }
+      },
+      {
+        "name": "The Open Book",
+        "share": 6,
+        "line": "Nothing held back, nothing hidden.",
+        "sig": {
+          "warm": 65,
+          "loyal": 55,
+          "open": 90,
+          "play": 60,
+          "easy": 55
+        }
+      },
+      {
+        "name": "The Jester",
+        "share": 9,
+        "line": "Keeps the group laughing through anything.",
+        "sig": {
+          "warm": 55,
+          "loyal": 55,
+          "open": 50,
+          "play": 90,
+          "easy": 60
+        }
+      },
+      {
+        "name": "The Butterfly",
+        "share": 6,
+        "line": "Knows everyone, owned by no one.",
+        "sig": {
+          "warm": 70,
+          "loyal": 30,
+          "open": 55,
+          "play": 80,
+          "easy": 75
+        }
+      },
+      {
+        "name": "The Chill One",
+        "share": 12,
+        "line": "No drama, no scorekeeping.",
+        "sig": {
+          "warm": 55,
+          "loyal": 50,
+          "open": 50,
+          "play": 65,
+          "easy": 90
+        }
+      },
+      {
+        "name": "The Firecracker",
+        "share": 4,
+        "line": "All in, all the time.",
+        "sig": {
+          "warm": 75,
+          "loyal": 60,
+          "open": 75,
+          "play": 75,
+          "easy": 30
+        }
+      },
+      {
+        "name": "The Slow Burn",
+        "share": 10,
+        "line": "Hard to earn, harder to lose.",
+        "sig": {
+          "warm": 45,
+          "loyal": 70,
+          "open": 40,
+          "play": 35,
+          "easy": 65
+        }
+      },
+      {
+        "name": "The Guard",
+        "share": 4,
+        "line": "A small circle, fiercely kept.",
+        "sig": {
+          "warm": 40,
+          "loyal": 80,
+          "open": 25,
+          "play": 40,
+          "easy": 45
+        }
+      }
+    ]
+  }
+}

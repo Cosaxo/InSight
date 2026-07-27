@@ -1,0 +1,700 @@
+[
+  {
+    "type": "binary",
+    "prompt": "Messi or Ronaldo?",
+    "tag": "The GOAT",
+    "options": [
+      "Messi",
+      "Ronaldo"
+    ],
+    "tone": "light",
+    "cat": [
+      "Sport",
+      "Football"
+    ],
+    "alts": [
+      [
+        "Sport",
+        "Greatness"
+      ],
+      [
+        "Values",
+        "What you admire"
+      ]
+    ]
+  },
+  {
+    "type": "binary",
+    "prompt": "Tarantino or Wes Anderson?",
+    "tag": "Director duel",
+    "options": [
+      "Tarantino",
+      "Wes Anderson"
+    ],
+    "tone": "light",
+    "cat": [
+      "Film",
+      "Directors"
+    ],
+    "alts": [
+      [
+        "Film",
+        "Taste"
+      ],
+      [
+        "Interests",
+        "Cinema"
+      ]
+    ]
+  },
+  {
+    "type": "binary",
+    "prompt": "Pineapple on pizza?",
+    "tag": "Pineapple",
+    "options": [
+      "Yes",
+      "Never"
+    ],
+    "tone": "light",
+    "cat": [
+      "Food",
+      "Debates"
+    ],
+    "alts": [
+      [
+        "Food",
+        "Taste"
+      ],
+      [
+        "Values",
+        "Openness"
+      ]
+    ]
+  },
+  {
+    "type": "choice",
+    "prompt": "What do you want more of this year?",
+    "tag": "Want more",
+    "options": [
+      "Time",
+      "Quiet",
+      "Adventure",
+      "Closeness"
+    ],
+    "tone": "deep",
+    "cat": [
+      "Values",
+      "Longing"
+    ],
+    "alts": [
+      [
+        "Mind",
+        "Wants"
+      ],
+      [
+        "Goals",
+        "This year"
+      ]
+    ]
+  },
+  {
+    "type": "scale",
+    "prompt": "It's okay to do nothing sometimes.",
+    "tag": "Doing nothing",
+    "axis": "at ease",
+    "tone": "light",
+    "cat": [
+      "Mind",
+      "Rest"
+    ],
+    "alts": [
+      [
+        "Values",
+        "Rest"
+      ],
+      [
+        "Body",
+        "Recovery"
+      ]
+    ]
+  },
+  {
+    "type": "binary",
+    "prompt": "Are people getting kinder, or meaner?",
+    "tag": "People today",
+    "options": [
+      "Kinder",
+      "Meaner"
+    ],
+    "tone": "deep",
+    "cat": [
+      "Morals",
+      "Direction"
+    ],
+    "alts": [
+      [
+        "Mind",
+        "Outlook"
+      ],
+      [
+        "Values",
+        "Hope"
+      ]
+    ]
+  },
+  {
+    "type": "dilemma",
+    "prompt": "You find €500 in cash on an empty street. What do you do?",
+    "tag": "Found €500",
+    "options": [
+      "Keep it",
+      "Hand it in",
+      "Leave it"
+    ],
+    "tone": "deep",
+    "cat": [
+      "Morals",
+      "Honesty"
+    ],
+    "alts": [
+      [
+        "Values",
+        "Honesty"
+      ],
+      [
+        "Mind",
+        "Conscience"
+      ]
+    ]
+  },
+  {
+    "type": "rating",
+    "prompt": "How optimistic are you about the next ten years?",
+    "tag": "Next 10 years",
+    "axis": "optimistic",
+    "tone": "deep",
+    "cat": [
+      "Mind",
+      "Outlook"
+    ],
+    "alts": [
+      [
+        "Values",
+        "Hope"
+      ],
+      [
+        "Story",
+        "The future"
+      ]
+    ]
+  },
+  {
+    "type": "scale",
+    "prompt": "People are basically trustworthy.",
+    "tag": "Trust in people",
+    "axis": "trusting",
+    "tone": "deep",
+    "cat": [
+      "Values",
+      "Trust"
+    ],
+    "alts": [
+      [
+        "Mind",
+        "Outlook"
+      ],
+      [
+        "Morals",
+        "Faith in others"
+      ]
+    ]
+  },
+  {
+    "type": "binary",
+    "prompt": "A pill that ends your need for sleep. Take it?",
+    "tag": "Sleep pill",
+    "options": [
+      "Take it",
+      "Never"
+    ],
+    "tone": "deep",
+    "cat": [
+      "Mind",
+      "Human limits"
+    ],
+    "alts": [
+      [
+        "Body",
+        "Sleep"
+      ],
+      [
+        "Values",
+        "Being human"
+      ]
+    ]
+  },
+  {
+    "type": "choice",
+    "prompt": "What should schools teach more of?",
+    "tag": "Schools",
+    "options": [
+      "Money",
+      "Emotions",
+      "Making things",
+      "History"
+    ],
+    "tone": "deep",
+    "cat": [
+      "Values",
+      "Education"
+    ],
+    "alts": [
+      [
+        "Mind",
+        "Learning"
+      ],
+      [
+        "Goals",
+        "Next generation"
+      ]
+    ]
+  },
+  {
+    "type": "dilemma",
+    "prompt": "A job you would love means moving somewhere your partner would hate. Do you take it?",
+    "tag": "Job or partner",
+    "options": [
+      "Take it",
+      "Stay",
+      "Find a third way"
+    ],
+    "tone": "deep",
+    "cat": [
+      "Morals",
+      "Loyalty"
+    ],
+    "alts": [
+      [
+        "Values",
+        "Loyalty"
+      ],
+      [
+        "Goals",
+        "Career"
+      ]
+    ]
+  },
+  {
+    "type": "binary",
+    "prompt": "Would you rather watch sport, or play it?",
+    "tag": "Watch or play",
+    "options": [
+      "Watch",
+      "Play"
+    ],
+    "tone": "light",
+    "cat": [
+      "Sport",
+      "How you engage"
+    ],
+    "alts": [
+      [
+        "Body",
+        "Activity"
+      ],
+      [
+        "Interests",
+        "Sport"
+      ]
+    ]
+  },
+  {
+    "type": "scale",
+    "prompt": "Suffering can give life meaning.",
+    "tag": "Suffering",
+    "axis": "searching",
+    "tone": "deep",
+    "cat": [
+      "Values",
+      "Meaning"
+    ],
+    "alts": [
+      [
+        "Mind",
+        "Outlook"
+      ],
+      [
+        "Morals",
+        "Meaning"
+      ]
+    ]
+  },
+  {
+    "type": "rating",
+    "prompt": "How much do you trust the news you read?",
+    "tag": "The news",
+    "axis": "trusting",
+    "tone": "deep",
+    "cat": [
+      "Mind",
+      "Media"
+    ],
+    "alts": [
+      [
+        "Values",
+        "Truth"
+      ],
+      [
+        "Morals",
+        "Institutions"
+      ]
+    ]
+  },
+  {
+    "type": "binary",
+    "prompt": "Will AI make everyday life better, or worse?",
+    "tag": "AI",
+    "options": [
+      "Better",
+      "Worse"
+    ],
+    "tone": "deep",
+    "cat": [
+      "Mind",
+      "Technology"
+    ],
+    "alts": [
+      [
+        "Values",
+        "Tech"
+      ],
+      [
+        "Story",
+        "The future"
+      ]
+    ]
+  },
+  {
+    "type": "choice",
+    "prompt": "Humanity's best invention?",
+    "tag": "Best invention",
+    "options": [
+      "Writing",
+      "Medicine",
+      "The internet",
+      "Music"
+    ],
+    "tone": "blend",
+    "cat": [
+      "Mind",
+      "Civilisation"
+    ],
+    "alts": [
+      [
+        "Interests",
+        "Ideas"
+      ],
+      [
+        "Values",
+        "Progress"
+      ]
+    ]
+  },
+  {
+    "type": "scale",
+    "prompt": "Technology is making us lonelier.",
+    "tag": "Loneliness",
+    "axis": "wary",
+    "tone": "deep",
+    "cat": [
+      "Mind",
+      "Technology"
+    ],
+    "alts": [
+      [
+        "Values",
+        "Tech"
+      ],
+      [
+        "Morals",
+        "Connection"
+      ]
+    ]
+  },
+  {
+    "type": "choice",
+    "prompt": "What matters most in a life well lived?",
+    "tag": "A good life",
+    "options": [
+      "Connection",
+      "Freedom",
+      "Creation",
+      "Peace"
+    ],
+    "tone": "deep",
+    "cat": [
+      "Values",
+      "What matters"
+    ],
+    "alts": [
+      [
+        "Mind",
+        "Priorities"
+      ],
+      [
+        "Morals",
+        "The good life"
+      ]
+    ]
+  },
+  {
+    "type": "dilemma",
+    "prompt": "Would you rather know the exact date of your death?",
+    "tag": "Date of death",
+    "options": [
+      "Know",
+      "Never know"
+    ],
+    "tone": "deep",
+    "cat": [
+      "Mind",
+      "Mortality"
+    ],
+    "alts": [
+      [
+        "Values",
+        "Fate"
+      ],
+      [
+        "Morals",
+        "Big questions"
+      ]
+    ]
+  },
+  {
+    "type": "rating",
+    "prompt": "How much of your life so far is luck?",
+    "tag": "Luck",
+    "axis": "shaped by luck",
+    "tone": "deep",
+    "cat": [
+      "Mind",
+      "Fate"
+    ],
+    "alts": [
+      [
+        "Story",
+        "Chance"
+      ],
+      [
+        "Values",
+        "Merit"
+      ]
+    ]
+  },
+  {
+    "type": "scale",
+    "prompt": "I'd rather have a few deep friendships than many.",
+    "tag": "Deep or many",
+    "axis": "inward",
+    "tone": "blend",
+    "cat": [
+      "Values",
+      "Friendship"
+    ],
+    "alts": [
+      [
+        "Mind",
+        "Temperament"
+      ],
+      [
+        "Interests",
+        "Social"
+      ]
+    ]
+  },
+  {
+    "type": "dilemma",
+    "prompt": "A lie that spares someone real pain. Tell it?",
+    "tag": "The kind lie",
+    "options": [
+      "Tell it",
+      "Truth anyway"
+    ],
+    "tone": "deep",
+    "cat": [
+      "Morals",
+      "Kindness"
+    ],
+    "alts": [
+      [
+        "Values",
+        "Honesty"
+      ],
+      [
+        "Mind",
+        "Conscience"
+      ]
+    ]
+  },
+  {
+    "type": "scale",
+    "prompt": "It's better to be honest than kind.",
+    "tag": "Honest or kind",
+    "axis": "frank",
+    "tone": "deep",
+    "cat": [
+      "Morals",
+      "Honesty"
+    ],
+    "alts": [
+      [
+        "Values",
+        "Honesty"
+      ],
+      [
+        "Mind",
+        "Temperament"
+      ]
+    ]
+  },
+  {
+    "type": "scale",
+    "prompt": "Money buys happiness.",
+    "tag": "Money",
+    "axis": "materialist",
+    "tone": "blend",
+    "cat": [
+      "Values",
+      "Money"
+    ],
+    "alts": [
+      [
+        "Mind",
+        "Happiness"
+      ],
+      [
+        "Morals",
+        "Wealth"
+      ]
+    ]
+  },
+  {
+    "type": "rating",
+    "prompt": "How much control do you feel over your life?",
+    "tag": "Control",
+    "axis": "in control",
+    "tone": "deep",
+    "cat": [
+      "Mind",
+      "Agency"
+    ],
+    "alts": [
+      [
+        "Values",
+        "Control"
+      ],
+      [
+        "Story",
+        "Now"
+      ]
+    ]
+  },
+  {
+    "type": "choice",
+    "prompt": "Where does your sense of self come from?",
+    "tag": "Sense of self",
+    "options": [
+      "What I do",
+      "Who I love",
+      "What I believe",
+      "What I make"
+    ],
+    "tone": "deep",
+    "cat": [
+      "Values",
+      "Identity"
+    ],
+    "alts": [
+      [
+        "Story",
+        "Self"
+      ],
+      [
+        "Mind",
+        "Identity"
+      ]
+    ]
+  },
+  {
+    "type": "binary",
+    "prompt": "Relive your best day, or live a new one?",
+    "tag": "Best day",
+    "options": [
+      "Relive it",
+      "A new one"
+    ],
+    "tone": "blend",
+    "cat": [
+      "Mind",
+      "Time"
+    ],
+    "alts": [
+      [
+        "Story",
+        "Memory"
+      ],
+      [
+        "Values",
+        "Outlook"
+      ]
+    ]
+  },
+  {
+    "type": "choice",
+    "prompt": "Pick a season for the soul.",
+    "tag": "Season",
+    "options": [
+      "Spring",
+      "Summer",
+      "Autumn",
+      "Winter"
+    ],
+    "tone": "light",
+    "cat": [
+      "Travel",
+      "Seasons"
+    ],
+    "alts": [
+      [
+        "Interests",
+        "Seasons"
+      ],
+      [
+        "Mind",
+        "Mood"
+      ]
+    ]
+  },
+  {
+    "type": "scale",
+    "prompt": "Most people would help a stranger in need.",
+    "tag": "Helping hands",
+    "axis": "hopeful",
+    "tone": "deep",
+    "cat": [
+      "Morals",
+      "Faith in others"
+    ],
+    "alts": [
+      [
+        "Values",
+        "Trust"
+      ],
+      [
+        "Mind",
+        "Outlook"
+      ]
+    ]
+  }
+]
