@@ -460,6 +460,13 @@ const SOCIAL = {
 const LIVE = {
   social: SOCIAL,
   feedReady: false,
+  // read-only views for the Map/Mirror hydration (daily-questions.js)
+  dailyBank(): Array<{ id: string; prompt: string }> {
+    return state.questions.map((q) => ({ id: q.id, prompt: q.prompt }));
+  },
+  aggFor(qid: string): AggDoc | null {
+    return state.aggs[qid] || null;
+  },
   enabled: false,
   get ready() {
     return state.ready;

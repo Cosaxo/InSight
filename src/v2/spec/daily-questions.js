@@ -236,6 +236,9 @@ import React from 'react';
 
   function myAnswer(q) {
     if (q.id in saved) return saved[q.id];
+    // live mode: the demo's baked history is Mira's, not the user's —
+    // only genuinely-answered questions may reach the map
+    if (window.LIVE && window.LIVE.enabled) return null;
     return q.bakedMine;            // baked past answer, or null
   }
 
@@ -295,5 +298,48 @@ import React from 'react';
     },
   };
   window.DAILYQ = api;
+
+  // ── live hydration (Phase 4b) ─────────────────────────────────────
+  // The Map's constellation and the Mirror's daily record read this
+  // store. In live mode: (1) the user's real Firestore answers hydrate
+  // `saved` (prompt-matched — the seeded daily bank came from this very
+  // pool, and option orders are identical), and (2) each question's
+  // WORLD distribution is replaced with the real k-floored aggregate.
+  // Other audiences keep their synthetic dists until they have real
+  // data sources; `liveWorld` marks the swapped ones.
+  function liveSync() {
+    const L = window.LIVE;
+    if (!L || !L.enabled || !L.ready || !L.dailyBank) return;
+    const votes = (L.myVotes && L.myVotes()) || {};
+    const byPrompt = {};
+    L.dailyBank().forEach((b) => { byPrompt[b.prompt] = b; });
+    let changed = false;
+    QUESTIONS.forEach((q) => {
+      const b = byPrompt[q.prompt];
+      if (!b) return;
+      const v = votes[b.id];
+      if (v != null && !(q.id in saved)) { saved[q.id] = Number(v); changed = true; }
+      const agg = L.aggFor && L.aggFor(b.id);
+      const size = (q.dist && q.dist.world && q.dist.world.length) || (q.options && q.options.length) || 0;
+      if (agg && agg.tooSmall === false && agg.counts && size) {
+        const counts = []; let total = 0;
+        for (let i = 0; i < size; i++) { const n = agg.counts[String(i)] || 0; counts.push(n); total += n; }
+        if (total > 0) {
+          const pcts = counts.map((n) => Math.floor((n / total) * 100));
+          let rem = 100 - pcts.reduce((a, c) => a + c, 0);
+          for (let i = 0; rem > 0; i = (i + 1) % pcts.length, rem--) pcts[i]++;
+          q.dist.world = pcts; q.liveWorld = true; changed = true;
+        }
+      }
+    });
+    if (changed) {
+      try { localStorage.setItem(LS, JSON.stringify(saved)); } catch (e) {}
+      listeners.forEach((f) => f());
+    }
+  }
+  if (typeof window !== 'undefined' && window.addEventListener) {
+    window.addEventListener('insight-live-update', liveSync);
+  }
+  liveSync();
 })();
 
