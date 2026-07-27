@@ -446,7 +446,7 @@ class DailySplit extends React.Component {
     const catLabel = (WORLD_TOPICS_V2.find(c => c.id === S.cat) || {}).label;
 
     // ── the feed: answer today's question, then the feed starts ──
-    const feedEnabled = this.props.feed !== false && window.WorldFeed && !(window.LIVE && window.LIVE.enabled); // live mode: demo feed off until the feed itself goes live (Phase 4)
+    const feedEnabled = this.props.feed !== false && window.WorldFeed && (!(window.LIVE && window.LIVE.enabled) || window.LIVE.feedReady); // live feed (Phase 4) or the demo feed offline
     const votedToday = !!st.votes[DATA[0].id];
     const feedNode = !feedEnabled ? null : h(window.WorldFeed, { cats: st.cats, onToggle: (id) => this.toggleCat(id), density: this.props.feedDensity || 'comfy', beats: this.props.beats });
 

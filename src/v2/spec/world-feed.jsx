@@ -148,6 +148,8 @@ class WorldFeed extends React.Component {
 
   setVote(q, val) {
     const id = q.id;
+    // live cards persist to Firestore too (owner-only answer + aggregate)
+    if (q.live && window.LIVE && typeof val === 'number') window.LIVE.vote(id, String(val));
     if (window.PASSIVE) window.PASSIVE.record(q); // no-op unless this is a test's own question (q.test)
     this._fresh = id; // gates the reveal's count-up + bar growth to the vote moment
     this.setState((s) => {
@@ -294,6 +296,10 @@ class WorldFeed extends React.Component {
 
   // ── takes + who-voted — open as bottom sheets (revealed only after answering) ──
   renderEngage(q, T, big) {
+    // D1: live world-scope cards carry no takes and no who-voted —
+    // comments are circle-scoped, and the demo's breakdown splits are
+    // synthetic. The row exists only for demo content.
+    if (q.live) return null;
     const takes = (window.WORLD_FEED_COMMENTS || {})[q.id] || [];
     const hasStats = q.type !== 'rank';
     const open = (id) => this.setState({ sheet: { q, T, panel: id }, sideFilter: null, replyTo: null });

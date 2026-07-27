@@ -16,7 +16,12 @@ window.PASSIVE = (function () {
   };
   const KEYS = Object.keys(META);
   // demo stagger: how many of each test's own questions you've already answered
-  const SEED = { big5: 1, political: 0.7, values: 0.45, attachment: 0.2 };
+  const DEMO_SEED = { big5: 1, political: 0.7, values: 0.45, attachment: 0.2 };
+  // live mode starts every test at its real zero — the stagger exists
+  // only so the demo shows all progress states at once
+  const SEED = new Proxy(DEMO_SEED, {
+    get(t, k) { return (window.LIVE && window.LIVE.enabled) ? 0 : t[k]; },
+  });
   let st = load();
   const subs = [];
   function load() {

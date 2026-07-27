@@ -86,6 +86,7 @@ const state = {
   ready: false,
   uid: null as string | null,
   questions: [] as Array<QuestionDoc & { id: string }>,
+  feedBank: [] as Array<QuestionDoc & { id: string }>,
   deckDay: -1,
   deckIds: [] as string[],
   aggs: {} as Record<string, AggDoc>,
@@ -229,15 +230,24 @@ async function hydrate(): Promise<void> {
   const qsnap = await getDocs(
     query(
       collection(db, "v2_questions"),
-      where("surface", "==", "daily"),
+      where("surface", "in", ["daily", "feed", "test"]),
       limit(400),
     ),
   );
-  state.questions = qsnap.docs
+  const all = qsnap.docs
     .map((d) => ({ id: d.id, ...(d.data() as QuestionDoc) }))
     .filter((q) => q.active !== false)
     .sort((a, b) => (a.seq || 0) - (b.seq || 0));
+  state.questions = all.filter((q) => q.surface === "daily");
+  state.feedBank = all.filter((q) => q.surface !== "daily");
   if (!state.questions.length) return; // unseeded project — stay on mocks
+
+  // one shot of every public aggregate — the feed reads these as its
+  // counts; the daily deck keeps its live per-doc subscriptions on top
+  const aggsnap = await getDocs(query(collection(db, "v2_question_aggs"), limit(500)));
+  aggsnap.docs.forEach((d) => {
+    state.aggs[d.id] = d.data() as AggDoc;
+  });
 
   computeDeck();
 
@@ -254,6 +264,69 @@ async function hydrate(): Promise<void> {
   }
 
   await subscribeAggs();
+
+  // Feed vote hydration: the spec's feed keeps its voted-state in
+  // localStorage (WF_LS) — mirror the Firestore answers into it so
+  // world-feed renders prior votes natively on any device.
+  try {
+    const WF_LS = "insight.feedVotes.v1";
+    const wf = JSON.parse(localStorage.getItem(WF_LS) || "{}") || {};
+    state.feedBank.forEach((q) => {
+      const v = state.votes[q.id];
+      if (v != null && wf[q.id] == null) wf[q.id] = Number(v);
+    });
+    localStorage.setItem(WF_LS, JSON.stringify(wf));
+  } catch {
+    /* localStorage unavailable — feed falls back to store votes */
+  }
+
+  buildFeedGlobals();
+}
+
+// Counts shown by the feed exclude the viewer's own vote (wfPcts adds
+// its +1), mirroring the daily deck's convention.
+function feedCounts(q: QuestionDoc & { id: string }): number[] {
+  const agg = state.aggs[q.id] || {};
+  const counts = agg.counts || {};
+  const mine = state.votes[q.id];
+  return q.options.map((_, i) => {
+    let n = counts[String(i)] || 0;
+    if (mine === String(i) && n > 0) n -= 1;
+    return n;
+  });
+}
+
+// Replace the demo feed globals with live-shaped cards: real questions,
+// real k-floored counts, no seeded comments (D1 — renderEngage is also
+// gated off for q.live cards). Rankings/scales are deferred; every live
+// card renders through the options path.
+function buildFeedGlobals(): void {
+  if (!state.feedBank.length) return;
+  const feed = state.feedBank
+    .filter((q) => q.surface === "feed" && (q.options || []).length >= 2)
+    .map((q) => ({
+      id: q.id,
+      cat: q.topic || "culture",
+      type: "vote",
+      prompt: q.prompt,
+      options: q.options.map((label, i) => ({ label, count: feedCounts(q)[i] })),
+      live: true,
+    }));
+  const tests = state.feedBank
+    .filter((q) => q.surface === "test" && q.test)
+    .map((q) => ({
+      id: q.id,
+      cat: "test",
+      type: "vote",
+      test: q.test,
+      prompt: q.prompt,
+      options: q.options.map((label, i) => ({ label, count: feedCounts(q)[i] })),
+      live: true,
+    }));
+  (window as unknown as Record<string, unknown>).WORLD_FEED_QS = feed;
+  (window as unknown as Record<string, unknown>).TEST_FEED_QS = tests;
+  (window as unknown as Record<string, unknown>).WORLD_FEED_COMMENTS = {};
+  LIVE.feedReady = true;
 }
 
 async function hydrateSocial(): Promise<void> {
@@ -386,6 +459,7 @@ const SOCIAL = {
 
 const LIVE = {
   social: SOCIAL,
+  feedReady: false,
   enabled: false,
   get ready() {
     return state.ready;
@@ -426,7 +500,9 @@ const LIVE = {
         const db = await getDb();
         const uid = state.uid;
         if (!uid) throw new Error("no session");
-        const q = state.questions.find((x) => x.id === qid);
+        const q =
+          state.questions.find((x) => x.id === qid) ||
+          state.feedBank.find((x) => x.id === qid);
         await setDoc(doc(db, "v2_users", uid, "answers", qid), {
           qid,
           surface: q?.surface ?? "daily",
@@ -434,6 +510,23 @@ const LIVE = {
           answeredAt: serverTimestamp(),
           anchors: {},
         });
+        // one delayed refresh so the next paint has the folded-in count
+        setTimeout(() => {
+          void (async () => {
+            try {
+              const { getDoc } = await import("firebase/firestore");
+              const snap = await getDoc(doc(db, "v2_question_aggs", qid));
+              if (snap.exists()) {
+                state.aggs[qid] = snap.data() as AggDoc;
+                if (qid in state.optimistic) delete state.optimistic[qid];
+                buildFeedGlobals();
+                notify();
+              }
+            } catch {
+              /* refresh is best-effort */
+            }
+          })();
+        }, 2500);
       } catch (err) {
         // Write refused (rules/network): roll the optimistic state back.
         // Subscribers reconcile from myVotes(), so the UI un-votes too.
