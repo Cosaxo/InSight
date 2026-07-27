@@ -1445,3 +1445,10 @@ export const scheduledTaxonomies = onSchedule(
 
 // ── v2 (daily/mirror core loop) ─────────────────────────────────
 export { seedContentV2, onV2AnswerCreated } from "./v2";
+export {
+  createGroupV2,
+  joinGroupV2,
+  leaveGroupV2,
+  scheduledDuelReveals,
+  revealDuelsNowV2,
+} from "./v2social";

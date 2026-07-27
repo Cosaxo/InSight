@@ -338,18 +338,76 @@ describe("v2 answers (owner-only, create-only — D5)", () => {
   });
 });
 
-describe("v2 groups (Phase-3 foundations)", () => {
-  it("creator-in-members creates; members read; others neither", async () => {
-    const g = { name: "The Crew", ownerUid: OWNER, memberUids: [OWNER, FRIEND], createdAt: 1 };
-    await assertSucceeds(setDoc(doc(asUser(OWNER), "v2_groups", "g1"), g));
-    await assertSucceeds(getDoc(doc(asUser(FRIEND), "v2_groups", "g1")));
-    await assertFails(getDoc(doc(asUser(STRANGER), "v2_groups", "g1")));
-    // can't create a group owned by someone else
-    await assertFails(setDoc(doc(asUser(STRANGER), "v2_groups", "g2"),
-      { ...g, ownerUid: OWNER }));
-    // membership is frozen until Phase 3's invite flow
-    await assertFails(updateDoc(doc(asUser(OWNER), "v2_groups", "g1"),
+describe("v2 groups + sealed duels (Phase 3)", () => {
+  const GID = "g1";
+  const DAY = "2026-07-26";
+  const seedGroup = (members: string[] = [OWNER, FRIEND]) => seed(async (db) => {
+    await setDoc(doc(db, "v2_groups", GID), {
+      name: "The Crew", mode: "duo", ownerUid: OWNER,
+      memberUids: members, inviteCode: "ABCD2345", streak: 0,
+    });
+    await setDoc(doc(db, "v2_questions", "group-gu0"), {
+      surface: "group", seq: 0, type: "choice", prompt: "?",
+      options: ["Food", "Banter", "Showing up", "History"], active: true,
+    });
+  });
+  const duelAnswer = (over: Record<string, unknown> = {}) => ({
+    qid: "group-gu0", surface: "duo", optionIdx: 1, guessIdx: 2,
+    gid: GID, day: DAY, answeredAt: serverTimestamp(), anchors: {}, ...over,
+  });
+  const aid = `g_${GID}_${DAY}`;
+
+  it("groups are read-only to clients — even members and would-be creators", async () => {
+    await seedGroup();
+    await assertSucceeds(getDoc(doc(asUser(FRIEND), "v2_groups", GID)));
+    await assertFails(getDoc(doc(asUser(STRANGER), "v2_groups", GID)));
+    await assertFails(setDoc(doc(asUser(OWNER), "v2_groups", "g2"), {
+      name: "Forged", ownerUid: OWNER, memberUids: [OWNER], inviteCode: "ZZZZ9999",
+    }));
+    await assertFails(updateDoc(doc(asUser(OWNER), "v2_groups", GID),
       { memberUids: [OWNER, FRIEND, STRANGER] }));
-    await assertFails(deleteDoc(doc(asUser(OWNER), "v2_groups", "g1")));
+    await assertFails(deleteDoc(doc(asUser(OWNER), "v2_groups", GID)));
+  });
+
+  it("members write sealed duel answers under the composite id; outsiders can't", async () => {
+    await seedGroup();
+    await assertSucceeds(setDoc(
+      doc(asUser(OWNER), "v2_users", OWNER, "answers", aid), duelAnswer()));
+    // non-member (not in memberUids) is refused even in their own subtree
+    await assertFails(setDoc(
+      doc(asUser(STRANGER), "v2_users", STRANGER, "answers", aid), duelAnswer()));
+    // id must match g_{gid}_{day}
+    await assertFails(setDoc(
+      doc(asUser(FRIEND), "v2_users", FRIEND, "answers", "g_other_2026-07-26"),
+      duelAnswer()));
+    // sealed answers stay owner-only before the reveal
+    await assertFails(getDoc(
+      doc(asUser(FRIEND), "v2_users", OWNER, "answers", aid)));
+  });
+
+  it("answering a day that is already revealed is refused", async () => {
+    await seedGroup();
+    await seed(async (db) => {
+      await setDoc(doc(db, "v2_groups", GID, "reveals", DAY), {
+        day: DAY, qid: "group-gu0", votes: {}, names: {},
+      });
+    });
+    await assertFails(setDoc(
+      doc(asUser(FRIEND), "v2_users", FRIEND, "answers", aid), duelAnswer()));
+  });
+
+  it("reveals are member-readable, never client-writable", async () => {
+    await seedGroup();
+    await seed(async (db) => {
+      await setDoc(doc(db, "v2_groups", GID, "reveals", DAY), {
+        day: DAY, qid: "group-gu0",
+        votes: { [OWNER]: { optionIdx: 1 }, [FRIEND]: { optionIdx: 2 } },
+        names: {},
+      });
+    });
+    await assertSucceeds(getDoc(doc(asUser(FRIEND), "v2_groups", GID, "reveals", DAY)));
+    await assertFails(getDoc(doc(asUser(STRANGER), "v2_groups", GID, "reveals", DAY)));
+    await assertFails(setDoc(doc(asUser(OWNER), "v2_groups", GID, "reveals", "2026-07-27"),
+      { votes: {} }));
   });
 });

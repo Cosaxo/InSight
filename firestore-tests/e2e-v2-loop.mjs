@@ -90,5 +90,63 @@ if (above.total !== 5 || above.counts["0"] !== 2 || above.counts["1"] !== 3)
   fail("counts wrong above floor: " + JSON.stringify(above));
 ok("above floor: exact public counts {0:2, 1:3}, total 5 — no double counting");
 
+// 8 · the duel loop: create → join by code → sealed answers → reveal → streak
+const YESTER = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+const created = await httpsCallable(fns, "createGroupV2")({ name: "The Crew", mode: "duo" });
+const { gid, inviteCode } = created.data;
+if (!gid || !inviteCode) fail("createGroupV2: " + JSON.stringify(created.data));
+ok("duo created: " + gid + " code " + inviteCode);
+
+// partner on an isolated app (avoids the shared-auth race)
+const pApp = initializeApp({ projectId: "demo-insight", apiKey: "demo", appId: "demo" }, "partner");
+const pAuth = getAuth(pApp); connectAuthEmulator(pAuth, "http://127.0.0.1:9099", { disableWarnings: true });
+const pDb = getFirestore(pApp); connectFirestoreEmulator(pDb, "127.0.0.1", 8080);
+const pFns = getFunctions(pApp, "us-central1"); connectFunctionsEmulator(pFns, "127.0.0.1", 5001);
+const partner = await signInAnonymously(pAuth);
+const joined = await httpsCallable(pFns, "joinGroupV2")({ code: inviteCode });
+if (joined.data.gid !== gid) fail("joinGroupV2 landed in wrong group");
+ok("partner joined by invite code");
+
+const aid = `g_${gid}_${YESTER}`;
+const duel = (idx, guess) => ({
+  qid: "group-gu0", surface: "duo", optionIdx: idx, guessIdx: guess,
+  gid, day: YESTER, answeredAt: serverTimestamp(), anchors: {},
+});
+await setDoc(doc(db, "v2_users", uid, "answers", aid), duel(1, 2));
+// partner must NOT see the sealed answer pre-reveal
+try {
+  await getDoc(doc(pDb, "v2_users", uid, "answers", aid));
+  fail("partner read a sealed answer");
+} catch { ok("sealed answer unreadable to partner pre-reveal"); }
+await setDoc(doc(pDb, "v2_users", partner.user.uid, "answers", aid), duel(2, 1));
+
+const revealed = await httpsCallable(fns, "revealDuelsNowV2")({ day: YESTER });
+if (revealed.data.revealed < 1) fail("revealDuelsNowV2 revealed nothing");
+const reveal = await getDoc(doc(pDb, "v2_groups", gid, "reveals", YESTER));
+if (!reveal.exists()) fail("reveal doc missing");
+const votes = reveal.get("votes");
+if (votes[uid]?.optionIdx !== 1 || votes[uid]?.guessIdx !== 2
+  || votes[partner.user.uid]?.optionIdx !== 2) fail("reveal votes wrong: " + JSON.stringify(votes));
+ok("reveal materialized with both votes + guesses");
+
+const gsnap = await getDoc(doc(db, "v2_groups", gid));
+if (gsnap.get("streak") !== 1) fail("streak != 1: " + gsnap.get("streak"));
+ok("duo streak = 1");
+
+// answering a revealed day is refused
+try {
+  const lApp = initializeApp({ projectId: "demo-insight", apiKey: "demo", appId: "demo" }, "late");
+  const lAuth = getAuth(lApp); connectAuthEmulator(lAuth, "http://127.0.0.1:9099", { disableWarnings: true });
+  const lDb = getFirestore(lApp); connectFirestoreEmulator(lDb, "127.0.0.1", 8080);
+  await signInAnonymously(lAuth); // not a member anyway, but belt+braces
+  await setDoc(doc(lDb, "v2_users", (lAuth.currentUser || {}).uid || "x", "answers", aid), duel(0, 0));
+  fail("post-reveal/non-member answer was allowed");
+} catch { ok("post-reveal + non-member answering refused"); }
+
+// duel answers must NOT leak into world aggregates
+const duelAgg = await getDoc(doc(db, "v2_question_aggs", "group-gu0"));
+if (duelAgg.exists()) fail("duel answers leaked into world aggregates");
+ok("duel answers stay out of world aggregates");
+
 console.log("\nALL E2E CHECKS PASSED");
 process.exit(0);

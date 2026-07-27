@@ -39,10 +39,20 @@ v2_question_aggs/{qid}             the PUBLIC mirror, k-floored
                                    aren't attributable
 read: signed-in · write: nobody
 
-v2_groups/{gid}                    Phase-3 foundations
-  name, ownerUid, memberUids[≤32], createdAt
-read: members · create: owner (must be a member) · update/delete: frozen
-until the invite flow lands
+v2_groups/{gid}                    groups AND duos (mode: group|duo)
+  name, mode, ownerUid, memberUids[≤32; duo ≤2], inviteCode,
+  streak, lastRevealDay, createdAt
+read: members · write: callables only (create/join/leave — codes, caps
+and pairing can't be forged client-side)
+
+v2_groups/{gid}/reveals/{day}      materialized by the reveal pipeline
+  day, qid, votes { uid: {optionIdx, guessIdx?} }, names, revealedAt
+read: members · write: nobody (D5)
+
+Sealed duel answers live in the owner-only answers subcollection under
+composite ids (g_{gid}_{day}) with extra fields gid/day/guessIdx; rules
+require membership and deny creates once the day's reveal exists. Duel
+surfaces are excluded from world aggregates.
 ```
 
 ## Functions
@@ -57,6 +67,13 @@ until the invite flow lands
   public doc; idempotent via the `v2_agg_events` ledger (at-least-once
   delivery can't double-count).
 - `deleteAccount` also recursively deletes `v2_users/{uid}`.
+- Social callables: `createGroupV2` (invite code minted server-side),
+  `joinGroupV2` (by code; duo cap 2, group cap 32), `leaveGroupV2`
+  (last member out deletes the group + reveals).
+- `scheduledDuelReveals` (hourly) / `revealDuelsNowV2` (emulator or
+  operator) — materialize yesterday's reveals: groups reveal with ≥1
+  answer; duos only when BOTH played (and the shared streak advances or
+  resets accordingly).
 
 ## Client
 
@@ -70,11 +87,13 @@ until the invite flow lands
 
 ## Verification
 
-- `npm run test:rules` — 20 rules tests (12 legacy + 8 v2).
+- `npm run test:rules` — 23 rules tests (12 legacy + 11 v2/social).
 - `firestore-tests/e2e-v2-loop.mjs` under
   `firebase emulators:exec --only auth,firestore,functions` — the full
   SDK loop: anon auth → seed → fetch → vote → below-floor tooSmall →
-  dup refused → five voters cross the floor → exact public counts.
+  dup refused → five voters cross the floor → exact public counts →
+  duo create/join-by-code → sealed answers → reveal with votes+guesses →
+  streak → post-reveal lockout → no aggregate leakage.
 - Browser e2e (Playwright, dev server + emulators): live deck renders a
   seeded question, vote writes the answer doc, agg total increments,
   no Comments affordance.

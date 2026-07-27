@@ -91,6 +91,10 @@ export const onV2AnswerCreated = onDocumentCreated(
   async (event) => {
     const snap = event.data;
     if (!snap) return;
+    // Group/duo answers are sealed duel material — they surface through
+    // materialized reveals (v2social), never through world aggregates.
+    const surface = snap.get("surface");
+    if (surface === "group" || surface === "duo") return;
     const qid = event.params.qid;
     const optionIdx = snap.get("optionIdx");
     if (typeof optionIdx !== "number" || optionIdx < 0 || optionIdx > 19) {
