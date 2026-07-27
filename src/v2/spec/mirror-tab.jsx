@@ -109,6 +109,17 @@ const MIRROR_AUD = { circle: 'people', groups: 'groups', near: 'around' };
 const WORLD_AUD = { city: 'city', country: 'country', world: 'world' };
 
 // ─── the Mirror tab ───
+function MirrorPreviewTag({ popId }) {
+  if (!(window.LIVE && window.LIVE.enabled) || popId === 'you') return null;
+  return (
+    <div style={{ display: 'flex', justifyContent: 'center', margin: '2px 0 6px' }}>
+      <span style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--ink-3)', border: '1px solid var(--rule)', borderRadius: 999, padding: '3px 10px' }}>
+        Preview · sample people until there’s live data here
+      </span>
+    </div>
+  );
+}
+
 function MirrorTab({ onPerson, pop, onPop, worldZoom, onZoom }) {
   const p = mirrorPop(pop);
   const zoom = WORLD_ZOOMS.some(z => z.id === worldZoom) ? worldZoom : 'world';
@@ -122,6 +133,9 @@ function MirrorTab({ onPerson, pop, onPop, worldZoom, onZoom }) {
       <div className="fade-in" style={{ '--accent': 'var(--c-today)', height: '100%', display: 'flex', flexDirection: 'column' }}>
         <div style={{ flexShrink: 0, padding: '10px 14px 0' }}>
           <MirrorPopPicker popId={p.id} onPick={onPop} />
+      <MirrorPreviewTag popId={p.id} />
+        <MirrorPreviewTag popId={p.id} />
+          <MirrorPreviewTag popId={p.id} />
         </div>
         <div className="tab-swap" style={{ flex: 1, minHeight: 0, position: 'relative' }}>
           <MapTab />
@@ -135,6 +149,8 @@ function MirrorTab({ onPerson, pop, onPop, worldZoom, onZoom }) {
     return (
       <div className="fade-in mf-flex" style={{ '--accent': 'var(--c-groups)' }}>
         <MirrorPopPicker popId={p.id} onPick={onPop} />
+      <MirrorPreviewTag popId={p.id} />
+        <MirrorPreviewTag popId={p.id} />
         <div key="groups-mirror" className="tab-swap mf-flex">
           <window.GroupsMirrorBody onPerson={onPerson} />
         </div>
@@ -146,6 +162,8 @@ function MirrorTab({ onPerson, pop, onPop, worldZoom, onZoom }) {
     return (
       <div className="fade-in mf-flex" style={{ '--accent': mirrorAccent(p.id) }}>
         <MirrorPopPicker popId={p.id} onPick={onPop} />
+      <MirrorPreviewTag popId={p.id} />
+        <MirrorPreviewTag popId={p.id} />
         <div key={scaleId + '-field'} className="tab-swap mf-flex">
           <MirrorFieldBody pop={p.id} worldZoom={zoom} onPerson={onPerson}
             zoomCtl={p.id === 'world' ? <WorldZoomControl zoom={zoom} onZoom={onZoom} /> : null}
@@ -159,6 +177,7 @@ function MirrorTab({ onPerson, pop, onPop, worldZoom, onZoom }) {
     <div className="fade-in" style={{ '--accent': mirrorAccent(p.id) }}>
 
       <MirrorPopPicker popId={p.id} onPick={onPop} />
+      <MirrorPreviewTag popId={p.id} />
 
       <div key={scaleId} className="tab-swap">
         {p.kind === 'geo' && <AreaBody scaleId={scaleId} onPerson={onPerson} zoomCtl={p.id === 'world' ? <WorldZoomControl zoom={zoom} onZoom={onZoom} /> : null} />}

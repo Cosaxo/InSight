@@ -17,10 +17,12 @@ export async function registerPushForReveals(uid: string): Promise<void> {
     await PushNotifications.addListener("registration", (token) => {
       void (async () => {
         try {
-          // one write per NEW token, not one per boot
+          // one write per NEW (uid, token) pair — uid-scoped so a fresh
+          // account on the same device still registers
           const KEY = "insight.pushToken.v1";
           try {
-            if (localStorage.getItem(KEY) === token.value) return;
+            const prev = JSON.parse(localStorage.getItem(KEY) || "null");
+            if (prev && prev.uid === uid && prev.token === token.value) return;
           } catch {
             /* fall through to write */
           }
@@ -31,7 +33,7 @@ export async function registerPushForReveals(uid: string): Promise<void> {
             { merge: true },
           );
           try {
-            localStorage.setItem(KEY, token.value);
+            localStorage.setItem(KEY, JSON.stringify({ uid, token: token.value }));
           } catch {
             /* best-effort */
           }

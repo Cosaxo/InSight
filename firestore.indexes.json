@@ -1,15 +1,25 @@
 {
-  "indexes": [
+  "indexes": [],
+  "fieldOverrides": [
     {
-      "collectionGroup": "insight_interest_items",
-      "queryScope": "COLLECTION",
-      "fields": [
-        { "fieldPath": "interestSlug", "order": "ASCENDING" },
-        { "fieldPath": "type", "order": "ASCENDING" },
-        { "fieldPath": "voteCount", "order": "DESCENDING" },
-        { "fieldPath": "__name__", "order": "DESCENDING" }
+      "collectionGroup": "insight_inbound_impressions",
+      "fieldPath": "senderUid",
+      "indexes": [
+        {
+          "queryScope": "COLLECTION_GROUP",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "relations",
+      "fieldPath": "linkedUid",
+      "indexes": [
+        {
+          "queryScope": "COLLECTION_GROUP",
+          "order": "ASCENDING"
+        }
       ]
     }
-  ],
-  "fieldOverrides": []
+  ]
 }

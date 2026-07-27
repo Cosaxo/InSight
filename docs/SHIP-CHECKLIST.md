@@ -71,6 +71,20 @@ Both apps must be registered under `com.cosaxo.insight`:
   would misbehave, `minBuild` (hard gate) plus `updateUrl` on the
   `v2_meta/app` doc in the console.
 
+## Before-public hardening (not friends-test blockers)
+
+- **FCM token binding** — token registration should move behind a
+  callable that verifies token↔uid; today a stolen token could be
+  planted on another account for reveal-push spam (needs the victim's
+  token, so friend-scale risk is nil).
+- **App Check enforcement** on the callables.
+- **iOS shell sync** — run `npx cap sync ios` on the Mac (the committed
+  Package.swift predates the plugin cleanup), add the push entitlement
+  (Signing & Capabilities → Push Notifications) — `UIBackgroundModes:
+  remote-notification` is already in Info.plist.
+- **Version lockstep** — bump package.json `appBuild` + android
+  `versionCode` + iOS `CURRENT_PROJECT_VERSION` together each release.
+
 ## Known deferrals (tracked, not blockers)
 
 - Functions runtime Node 20 → upgrade before 2026-10-30 decommission.

@@ -1329,6 +1329,34 @@ export const deleteAccount = onCall(
       logger.error("[deleteAccount] v2 subtree wipe failed:", err);
     }
 
+    // 1c. Leave every v2 group: membership, name, and reveal entries all
+    // reference the user — right-to-erasure means none may linger. A
+    // group left empty is deleted outright (reveals included).
+    try {
+      const groups = await db.collection("v2_groups")
+        .where("memberUids", "array-contains", uid).get();
+      for (const g of groups.docs) {
+        const members: string[] = g.get("memberUids") || [];
+        if (members.length <= 1) {
+          await db.recursiveDelete(g.ref);
+          continue;
+        }
+        await g.ref.update({
+          memberUids: FieldValue.arrayRemove(uid),
+          [`memberNames.${uid}`]: FieldValue.delete(),
+        });
+        const reveals = await g.ref.collection("reveals").get();
+        for (const r of reveals.docs) {
+          await r.ref.update({
+            [`votes.${uid}`]: FieldValue.delete(),
+            [`names.${uid}`]: FieldValue.delete(),
+          });
+        }
+      }
+    } catch (err) {
+      logger.error("[deleteAccount] v2 group scrub failed:", err);
+    }
+
     // 2. Drop insight_discoverable/{uid} if present.
     try {
       const discRef = db.collection("insight_discoverable").doc(uid);

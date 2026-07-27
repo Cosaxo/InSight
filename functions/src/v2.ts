@@ -100,8 +100,26 @@ export const onV2AnswerCreated = onDocumentCreated(
     if (!snap) return;
     // Group/duo answers are sealed duel material — they surface through
     // materialized reveals (v2social), never through world aggregates.
+    // A late duel answer must REOPEN its day for the reveal scan: the
+    // scan's lastCheckedDay skip-marker would otherwise close the day
+    // forever while rules still accepted the answer.
     const surface = snap.get("surface");
-    if (surface === "group" || surface === "duo") return;
+    if (surface === "group" || surface === "duo") {
+      const gid = snap.get("gid");
+      const day = snap.get("day");
+      if (typeof gid === "string" && typeof day === "string") {
+        try {
+          const gref = getFirestore().collection("v2_groups").doc(gid);
+          const g = await gref.get();
+          if (g.exists && g.get("lastCheckedDay") === day) {
+            await gref.update({ lastCheckedDay: FieldValue.delete() });
+          }
+        } catch (err) {
+          logger.warn(`[v2] reopen-day failed for ${gid}/${day}:`, err);
+        }
+      }
+      return;
+    }
     const qid = event.params.qid;
     const optionIdx = snap.get("optionIdx");
     if (typeof optionIdx !== "number" || optionIdx < 0 || optionIdx > 19) {

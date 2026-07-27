@@ -90,7 +90,7 @@ function LdReveal({ g, reveal }) {
   const duo = g.mode === 'duo';
   const opts = (bankQ && bankQ.options && bankQ.options.length)
     ? bankQ.options
-    : (g.memberUids || []).map((u) => names[u] || 'Member');
+    : (g.memberUids || []).map((u, i) => names[u] || 'Member ' + (i + 1));
   const label = (idx) => (opts[idx] != null ? opts[idx] : 'Option ' + (idx + 1));
   const who = (u) => (u === uid ? 'you' : (names[u] || 'Someone'));
   return (
@@ -130,13 +130,16 @@ function LdGroupCard({ g }) {
   const [guess, setGuess] = React.useState(null);
   const [pick, setPick] = React.useState(null);
   const [copied, setCopied] = React.useState(false);
+  const [voteErr, setVoteErr] = React.useState(null);
   const members = g.memberUids || [];
   const copy = () => {
     try { navigator.clipboard.writeText(g.inviteCode); setCopied(true); setTimeout(() => setCopied(false), 1600); } catch (e) {}
   };
-  const submit = () => {
+  const submit = async () => {
     if (pick == null) return;
-    S.voteDuel(g.id, pick, duo && guess != null ? guess : undefined);
+    setVoteErr(null);
+    try { await S.voteDuel(g.id, pick, duo && guess != null ? guess : undefined); }
+    catch (e) { setVoteErr('That didn\u2019t save — check your connection and try again.'); }
   };
   return (
     <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 12, padding: '16px 15px' }}>
@@ -144,7 +147,7 @@ function LdGroupCard({ g }) {
         <span style={{ fontWeight: 800, fontSize: 17, flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{g.name}</span>
         {duo && g.streak > 0 && <span style={{ fontSize: 11.5, fontWeight: 800, color: 'var(--accent, var(--ink-2))' }}>{g.streak}-day run</span>}
         <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--ink-3)' }}>{members.length}{duo ? '/2' : ''}</span>
-        <button onClick={copy} title="Copy invite code" style={{ border: LD_LINE, background: 'var(--surface-2)', borderRadius: 8, padding: '4px 9px', cursor: 'pointer', fontFamily: 'var(--mono, monospace)', fontSize: 11.5, fontWeight: 700, letterSpacing: '0.1em', color: 'var(--ink-2)', WebkitAppearance: 'none' }}>
+        <button onClick={copy} aria-label="Copy invite code" title="Copy invite code" style={{ border: LD_LINE, background: 'var(--surface-2)', borderRadius: 8, padding: '4px 9px', cursor: 'pointer', fontFamily: 'var(--mono, monospace)', fontSize: 11.5, fontWeight: 700, letterSpacing: '0.1em', color: 'var(--ink-2)', WebkitAppearance: 'none' }}>
           {copied ? 'copied ✓' : g.inviteCode}
         </button>
       </div>
@@ -160,7 +163,11 @@ function LdGroupCard({ g }) {
           {mine ? (
             <div style={{ borderRadius: 12, border: LD_LINE, background: 'var(--surface-2)', padding: '12px 14px', fontSize: 13.5, fontWeight: 600, color: 'var(--ink-2)', lineHeight: 1.45 }}>
               Sealed: <b style={{ color: 'var(--ink)' }}>{q.options[mine.optionIdx] != null ? q.options[mine.optionIdx] : '—'}</b>
-              {' · '}{duo ? 'revealed tomorrow — if you both play.' : 'revealed with names tomorrow.'}
+              {' · '}{(() => {
+                const t = new Date(); t.setUTCHours(24, 0, 0, 0);
+                const hhmm = t.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                return duo ? 'revealed after ' + hhmm + ' — if you both play.' : 'revealed with names after ' + hhmm + '.';
+              })()}
             </div>
           ) : (
             <>
@@ -188,6 +195,7 @@ function LdGroupCard({ g }) {
               <LdBtn primary disabled={pick == null || (duo && members.length === 2 && guess == null)} onClick={submit}>
                 {duo ? 'Seal answer + guess' : 'Seal your answer'}
               </LdBtn>
+              {voteErr && <div style={{ fontSize: 12.5, fontWeight: 600, color: 'oklch(0.5 0.19 25)' }}>{voteErr}</div>}
             </>
           )}
         </div>

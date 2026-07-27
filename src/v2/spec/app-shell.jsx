@@ -149,7 +149,7 @@ function App() {
     ? (((window.LIVE.displayName || '').split(' ').map((w) => w[0]).filter(Boolean).slice(0, 2).join('').toUpperCase()) || '·')
     : null;
   const [, liveTick] = useState(0);
-  const this_dismissedUpdate = () => { try { return sessionStorage.getItem('insight.updateDismissed') === '1'; } catch (e) { return false; } };
+  const this_dismissedUpdate = () => { try { return sessionStorage.getItem('insight.updateDismissed') === String(window.LIVE && window.LIVE.latestBuild); } catch (e) { return false; } };
   useEffect(() => (window.LIVE ? window.LIVE.subscribe(() => liveTick((t) => t + 1)) : undefined), []);
 
   // Sync tab tweak <-> state (so Tweaks panel can drive it)
@@ -163,7 +163,7 @@ function App() {
       <div className={appClasses} data-tab={tab} data-lens-style={t.lensStyle || 'underline'} data-mpop={tab === 'mirror' ? mirrorPop : undefined} style={tab === 'mirror' ? { '--accent': mirrorPop === 'you' ? 'var(--c-today)' : mirrorPop === 'circle' ? 'var(--c-people)' : mirrorPop === 'groups' ? 'var(--c-groups)' : mirrorPop === 'world' ? 'var(--c-world)' : 'var(--c-city)' } : undefined}>
 
         <header className="app-header">
-          <button className={"avatar-btn" + (ov === 'profile' ? ' is-on' : '')} onClick={() => { if (ov === 'profile') { setOv(null); } else { closeAll(); setOv('profile'); } }}>
+          <button aria-label="Profile" className={"avatar-btn" + (ov === 'profile' ? ' is-on' : '')} onClick={() => { if (ov === 'profile') { setOv(null); } else { closeAll(); setOv('profile'); } }}>
             {ov === 'profile' ? '✕' : (liveInitials != null ? liveInitials : me.initials)}
           </button>
           <div className="h-title">in<em>Sight</em></div>
@@ -175,13 +175,13 @@ function App() {
         </header>
 
         {liveOn && window.LIVE.updateRequired && (
-          <div style={{ position: 'absolute', inset: 0, zIndex: 200, background: 'var(--surface)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+          <div role="dialog" aria-modal="true" aria-label="Update required" style={{ position: 'absolute', inset: 0, zIndex: 200, background: 'var(--surface)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
             <div className="card" style={{ maxWidth: 320, textAlign: 'center', padding: '26px 20px' }}>
               <div style={{ fontWeight: 800, fontSize: 20, marginBottom: 8 }}>Update needed</div>
               <div style={{ fontSize: 13.5, fontWeight: 500, color: 'var(--ink-2)', lineHeight: 1.5, marginBottom: 16 }}>
                 This version can no longer talk to the server safely. Grab the latest and you're back in.
               </div>
-              <button className="press" onClick={() => { const u = window.LIVE.updateUrl; if (u) window.open(u, '_blank'); else location.reload(); }}
+              <button className="press" autoFocus onClick={() => { const u = window.LIVE.updateUrl; if (u) window.open(u, '_blank'); else location.reload(); }}
                 style={{ border: 'none', borderRadius: 999, padding: '12px 24px', cursor: 'pointer', background: 'var(--ink)', color: 'var(--surface)', fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 14 }}>
                 {window.LIVE.updateUrl ? 'Get the update' : 'Reload'}
               </button>
@@ -195,7 +195,7 @@ function App() {
               style={{ border: 'none', background: 'none', cursor: 'pointer', fontWeight: 800, color: 'var(--accent, var(--ink))', fontSize: 12.5 }}>
               {window.LIVE.updateUrl ? 'Update' : 'Refresh'}
             </button>
-            <button onClick={() => { try { sessionStorage.setItem('insight.updateDismissed', '1'); } catch (e) {} liveTick((t) => t + 1); }}
+            <button aria-label="Dismiss update notice" onClick={() => { try { sessionStorage.setItem('insight.updateDismissed', String(window.LIVE.latestBuild)); } catch (e) {} liveTick((t) => t + 1); }}
               style={{ border: 'none', background: 'none', cursor: 'pointer', color: 'var(--ink-3)', fontSize: 14, padding: 0 }}>✕</button>
           </div>
         )}

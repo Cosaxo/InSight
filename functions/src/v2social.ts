@@ -21,6 +21,9 @@ import { randomBytes } from "node:crypto";
 
 const REGION = "us-central1";
 const GROUP_CAP = 32;
+const MEMBERSHIP_CAP = 20;      // groups+duos one account may belong to
+const JOIN_ATTEMPTS_PER_HOUR = 30; // invite codes are 31^8 — this makes
+                                   // brute force astronomically slow
 
 // ── helpers ─────────────────────────────────────────────────────
 
@@ -45,6 +48,46 @@ function prevDayKey(dayKey: string): string {
 
 // ── membership callables ────────────────────────────────────────
 
+async function assertMembershipCap(uid: string): Promise<void> {
+  const db = getFirestore();
+  const mine = await db.collection("v2_groups")
+    .where("memberUids", "array-contains", uid).limit(MEMBERSHIP_CAP).get();
+  if (mine.size >= MEMBERSHIP_CAP) {
+    throw new HttpsError("resource-exhausted", "too many groups on this account");
+  }
+}
+
+// Collision-checked (31^8 space, so retries are cosmically rare — but
+// joinGroupV2's limit(1) would land someone in the wrong group).
+async function uniqueInviteCode(): Promise<string> {
+  const db = getFirestore();
+  for (let i = 0; i < 4; i++) {
+    const code = inviteCode();
+    const clash = await db.collection("v2_groups")
+      .where("inviteCode", "==", code).limit(1).get();
+    if (clash.empty) return code;
+  }
+  throw new HttpsError("internal", "could not mint an invite code");
+}
+
+// Sliding-hour throttle on join attempts (the only invite-probe path —
+// clients can't query v2_groups without membership).
+async function assertJoinBudget(uid: string): Promise<void> {
+  const db = getFirestore();
+  const ref = db.collection("v2_ratelimits").doc(`join_${uid}`);
+  await db.runTransaction(async (tx) => {
+    const snap = await tx.get(ref);
+    const cutoff = Date.now() - 3600000;
+    const events: number[] = ((snap.exists && snap.get("events")) || [])
+      .filter((t: number) => t > cutoff);
+    if (events.length >= JOIN_ATTEMPTS_PER_HOUR) {
+      throw new HttpsError("resource-exhausted", "too many join attempts — try later");
+    }
+    events.push(Date.now());
+    tx.set(ref, { events, expireAt: new Date(Date.now() + 2 * 3600000) });
+  });
+}
+
 // Callers pass their display name (profiles are owner-only, so names
 // must ride on the group doc for members to render each other).
 async function callerName(uid: string, given: unknown): Promise<string> {
@@ -66,8 +109,10 @@ export const createGroupV2 = onCall({ region: REGION }, async (request) => {
   if (!name || name.length > 60) {
     throw new HttpsError("invalid-argument", "name required (≤60 chars)");
   }
-  const myName = await callerName(uid, request.data?.displayName);
   const db = getFirestore();
+  await assertMembershipCap(uid);
+  const myName = await callerName(uid, request.data?.displayName);
+  const code = await uniqueInviteCode();
   const ref = db.collection("v2_groups").doc();
   await ref.set({
     name,
@@ -75,13 +120,12 @@ export const createGroupV2 = onCall({ region: REGION }, async (request) => {
     ownerUid: uid,
     memberUids: [uid],
     memberNames: { [uid]: myName },
-    inviteCode: inviteCode(),
+    inviteCode: code,
     streak: 0,
     lastRevealDay: null,
     createdAt: FieldValue.serverTimestamp(),
   });
-  const snap = await ref.get();
-  return { gid: ref.id, inviteCode: snap.get("inviteCode") };
+  return { gid: ref.id, inviteCode: code };
 });
 
 export const joinGroupV2 = onCall({ region: REGION }, async (request) => {
@@ -89,6 +133,8 @@ export const joinGroupV2 = onCall({ region: REGION }, async (request) => {
   const uid = request.auth.uid;
   const code = String(request.data?.code || "").trim().toUpperCase();
   if (!code) throw new HttpsError("invalid-argument", "code required");
+  await assertJoinBudget(uid);
+  await assertMembershipCap(uid);
   const db = getFirestore();
   const q = await db.collection("v2_groups")
     .where("inviteCode", "==", code).limit(1).get();

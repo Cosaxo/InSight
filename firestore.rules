@@ -646,7 +646,8 @@ service cloud.firestore {
           "fcmTokens", "testResults",
         ])
         && (!("testResults" in request.resource.data)
-          || request.resource.data.testResults is map)
+          || (request.resource.data.testResults is map
+            && request.resource.data.testResults.keys().size() <= 8))
         && (!("fcmTokens" in request.resource.data)
           || (request.resource.data.fcmTokens is list
             && request.resource.data.fcmTokens.size() <= 10))
@@ -686,7 +687,18 @@ service cloud.firestore {
             && aid == "g_" + request.resource.data.gid + "_" + request.resource.data.day
             && request.auth.uid in get(/databases/$(database)/documents/v2_groups/$(request.resource.data.gid)).data.memberUids
             && !exists(/databases/$(database)/documents/v2_groups/$(request.resource.data.gid)/reveals/$(request.resource.data.day))
-            && (request.resource.data.get("guessIdx", 0) is int);
+            // the answer must reference a real question, and indexes must
+            // fit its options ("pick" questions have empty bank options —
+            // their options are the group's members)
+            && exists(/databases/$(database)/documents/v2_questions/$(request.resource.data.qid))
+            && request.resource.data.optionIdx < (
+              get(/databases/$(database)/documents/v2_questions/$(request.resource.data.qid)).data.options.size() > 0
+                ? get(/databases/$(database)/documents/v2_questions/$(request.resource.data.qid)).data.options.size()
+                : get(/databases/$(database)/documents/v2_groups/$(request.resource.data.gid)).data.memberUids.size()
+            )
+            && (request.resource.data.get("guessIdx", 0) is int)
+            && request.resource.data.get("guessIdx", 0) >= 0
+            && request.resource.data.get("guessIdx", 0) < 20;
         }
 
         allow create: if request.auth != null && request.auth.uid == uid
@@ -715,6 +727,9 @@ service cloud.firestore {
       allow read, write: if false;
     }
     match /v2_agg_events/{eventId} {
+      allow read, write: if false;
+    }
+    match /v2_ratelimits/{docId} {
       allow read, write: if false;
     }
 

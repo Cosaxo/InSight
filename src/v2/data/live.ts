@@ -25,6 +25,7 @@ import {
   getDocs,
   limit,
   onSnapshot,
+  orderBy,
   query,
   serverTimestamp,
   setDoc,
@@ -102,6 +103,7 @@ const state = {
   reveals: {} as Record<string, Record<string, unknown> | null>,
   groupsUnsub: null as null | (() => void),
   revealUnsubs: {} as Record<string, () => void>,
+  revealDay: "",
 };
 
 function utcDayKey(offsetDays = 0): string {
@@ -327,7 +329,11 @@ async function hydrate(): Promise<void> {
           where("answeredAt", ">", Timestamp.fromMillis(maxTs)),
           limit(400),
         )
-      : query(collection(db, "v2_users", uidA, "answers"), limit(400));
+      : query(
+          collection(db, "v2_users", uidA, "answers"),
+          orderBy("answeredAt", "desc"),
+          limit(1000),
+        );
     const asnap = await getDocs(aq);
     state.stats.answersFetched = asnap.size;
     asnap.docs.forEach((d) => {
@@ -396,18 +402,6 @@ async function hydrate(): Promise<void> {
     }
   }
 
-  // my existing answers (owner-only reads)
-  const uid = state.uid;
-  if (uid) {
-    const asnap = await getDocs(
-      query(collection(db, "v2_users", uid, "answers"), limit(400)),
-    );
-    asnap.docs.forEach((d) => {
-      const optionIdx = d.get("optionIdx");
-      if (typeof optionIdx === "number") state.votes[d.id] = String(optionIdx);
-    });
-  }
-
   await subscribeAggs();
 
   // Feed vote hydration: the spec's feed keeps its voted-state in
@@ -434,9 +428,11 @@ function feedCounts(q: QuestionDoc & { id: string }): number[] {
   const agg = state.aggs[q.id] || {};
   const counts = agg.counts || {};
   const mine = state.votes[q.id];
+  const pending = q.id in state.optimistic;
   return q.options.map((_, i) => {
     let n = counts[String(i)] || 0;
-    if (mine === String(i) && n > 0) n -= 1;
+    // subtract own vote only once the trigger has folded it in
+    if (!pending && mine === String(i) && n > 0) n -= 1;
     return n;
   });
 }
@@ -475,6 +471,34 @@ function buildFeedGlobals(): void {
   LIVE.feedReady = true;
 }
 
+// (Re)subscribe every group's reveal doc for the CURRENT yesterday —
+// called from the groups snapshot and again on midnight rollover, so a
+// long-lived session (the reveal-push case) doesn't stay pinned to the
+// day it booted on.
+function subscribeReveals(db: import("firebase/firestore").Firestore): void {
+  const yester = utcDayKey(-1);
+  const dayChanged = state.revealDay !== yester;
+  state.revealDay = yester;
+  const want = new Set(state.groups.map((g) => g.id));
+  for (const gid of Object.keys(state.revealUnsubs)) {
+    if (!want.has(gid) || dayChanged) {
+      state.revealUnsubs[gid]();
+      delete state.revealUnsubs[gid];
+      if (!want.has(gid)) delete state.reveals[gid];
+    }
+  }
+  state.groups.forEach((g) => {
+    if (state.revealUnsubs[g.id]) return;
+    state.revealUnsubs[g.id] = onSnapshot(
+      doc(db, "v2_groups", g.id, "reveals", yester),
+      (rs) => {
+        state.reveals[g.id] = rs.exists() ? (rs.data() as Record<string, unknown>) : null;
+        notify();
+      },
+    );
+  });
+}
+
 async function hydrateSocial(): Promise<void> {
   const db = await getDb();
   const uid = state.uid;
@@ -485,25 +509,7 @@ async function hydrateSocial(): Promise<void> {
     query(collection(db, "v2_groups"), where("memberUids", "array-contains", uid)),
     (snap) => {
       state.groups = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
-      const yester = utcDayKey(-1);
-      const want = new Set(state.groups.map((g) => g.id));
-      for (const gid of Object.keys(state.revealUnsubs)) {
-        if (!want.has(gid)) {
-          state.revealUnsubs[gid]();
-          delete state.revealUnsubs[gid];
-          delete state.reveals[gid];
-        }
-      }
-      state.groups.forEach((g) => {
-        if (state.revealUnsubs[g.id]) return;
-        state.revealUnsubs[g.id] = onSnapshot(
-          doc(db, "v2_groups", g.id, "reveals", yester),
-          (rs) => {
-            state.reveals[g.id] = rs.exists() ? (rs.data() as Record<string, unknown>) : null;
-            notify();
-          },
-        );
-      });
+      subscribeReveals(db);
       notify();
     },
   );
@@ -528,7 +534,7 @@ function duelQFor(g: Record<string, unknown> & { id: string }, dayOffset = 0) {
   const memberUids = (g.memberUids || []) as string[];
   const options =
     q.topic === "pick"
-      ? memberUids.map((u) => names[u] || "Member")
+      ? memberUids.map((u, i) => names[u] || "Member " + (i + 1))
       : q.options;
   return { id: q.id, prompt: q.prompt, options, kind: q.topic || "classic" };
 }
@@ -563,17 +569,17 @@ const SOCIAL = {
   async leaveGroup(gid: string) {
     return callable<{ gid: string; deleted: boolean }>("leaveGroupV2", { gid });
   },
-  voteDuel(gid: string, optionIdx: number, guessIdx?: number): void {
+  voteDuel(gid: string, optionIdx: number, guessIdx?: number): Promise<void> {
     const g = state.groups.find((x) => x.id === gid);
     const q = g && duelQFor(g);
     const uid = state.uid;
-    if (!g || !q || !uid) return;
+    if (!g || !q || !uid) return Promise.resolve();
     const day = utcDayKey(0);
     const aid = `g_${gid}_${day}`;
-    if (state.votes[aid]) return;
+    if (state.votes[aid]) return Promise.resolve();
     state.votes[aid] = String(optionIdx);
     notify();
-    void (async () => {
+    return (async () => {
       try {
         const db = await getDb();
         const payload: Record<string, unknown> = {
@@ -592,6 +598,7 @@ const SOCIAL = {
         delete state.votes[aid];
         notify();
         console.warn("[LIVE] duel vote failed:", err);
+        throw err;
       }
     })();
   },
@@ -609,13 +616,18 @@ const LIVE = {
     return typeof __APP_BUILD__ === "number" ? __APP_BUILD__ : 0;
   },
   get updateAvailable(): boolean {
-    return state.meta.latestBuild > this.appBuild;
+    return this.appBuild > 0 && state.meta.latestBuild > this.appBuild;
   },
   get updateRequired(): boolean {
-    return state.meta.minBuild > this.appBuild;
+    // a build that doesn't know its own number (appBuild 0: tests,
+    // exotic bundlers) must never brick itself against server meta
+    return this.appBuild > 0 && state.meta.minBuild > this.appBuild;
   },
   get updateUrl(): string {
     return state.meta.updateUrl;
+  },
+  get latestBuild(): number {
+    return state.meta.latestBuild;
   },
   get displayName(): string {
     return state.profile.displayName;
@@ -655,6 +667,27 @@ const LIVE = {
     const db = await getDb();
     const { getFunctions: gf, httpsCallable: hc } = await import("firebase/functions");
     await hc(gf(db.app, "us-central1"), "deleteAccount")({});
+    // "There is no undo" must include THIS device: purge every local
+    // trace so the next (fresh anonymous) session doesn't resurrect the
+    // deleted account's votes, results, or identity — then drop the
+    // now-invalid auth session before the caller reloads.
+    try {
+      const doomed: string[] = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i);
+        if (k && k.startsWith("insight.")) doomed.push(k);
+      }
+      doomed.forEach((k) => localStorage.removeItem(k));
+      sessionStorage.clear();
+    } catch {
+      /* best-effort */
+    }
+    try {
+      const m = await import("../../lib/firebase");
+      await m.googleSignOut();
+    } catch {
+      /* session may already be invalid — reload handles the rest */
+    }
   },
   // read-only views for the Map/Mirror hydration (daily-questions.js)
   dailyBank(): Array<{ id: string; prompt: string }> {
@@ -680,6 +713,7 @@ const LIVE = {
     if (state.questions.length && state.deckDay !== dayIndex()) {
       computeDeck();
       void subscribeAggs();
+      void getDb().then((db) => subscribeReveals(db)).catch(() => {});
     }
     return state.deckIds
       .map((qid, back) => {
@@ -690,6 +724,16 @@ const LIVE = {
   },
   myVotes(): Record<string, string> {
     return { ...state.votes };
+  },
+  // Votes the server has (or had at hydrate) — excludes in-flight
+  // optimistic votes so permanent records (the Map) never keep a vote
+  // that later rolls back.
+  confirmedVotes(): Record<string, string> {
+    const out: Record<string, string> = {};
+    Object.keys(state.votes).forEach((k) => {
+      if (!(k in state.optimistic)) out[k] = state.votes[k];
+    });
+    return out;
   },
   vote(qid: string, optionId: string): void {
     if (state.votes[qid]) return; // one answer per question, mirroring rules
@@ -737,6 +781,16 @@ const LIVE = {
         // Subscribers reconcile from myVotes(), so the UI un-votes too.
         delete state.votes[qid];
         delete state.optimistic[qid];
+        try {
+          const WF_LS = "insight.feedVotes.v1";
+          const wf = JSON.parse(localStorage.getItem(WF_LS) || "{}") || {};
+          if (qid in wf) {
+            delete wf[qid];
+            localStorage.setItem(WF_LS, JSON.stringify(wf));
+          }
+        } catch {
+          /* best-effort */
+        }
         notify();
         console.warn("[LIVE] vote failed:", err);
       }

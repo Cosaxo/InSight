@@ -42,23 +42,14 @@
     <!-- Camera (daily-report photo, future scrapbook capture). The
          <uses-feature> tags below mark them as optional so a device
          without a camera can still install the app. -->
-    <uses-permission android:name="android.permission.CAMERA" />
-    <uses-feature android:name="android.hardware.camera" android:required="false" />
-    <uses-feature android:name="android.hardware.camera.autofocus" android:required="false" />
 
     <!-- Read photo library on Android 13+ (granular media perms) and
          older Android (legacy READ_EXTERNAL_STORAGE). The plugin asks
          for whichever applies at runtime. -->
-    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
-    <uses-permission
-        android:name="android.permission.READ_EXTERNAL_STORAGE"
-        android:maxSdkVersion="32" />
 
     <!-- Location — City tab picks your nearest city, Around tab shows
          people nearby. Coarse is enough for both (city-level + ~km
          person discovery); we declare fine too so users who grant
          precise location get tighter distances. Sharing your own
          location with the discoverable collection is opt-in. -->
-    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
-    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
 </manifest>

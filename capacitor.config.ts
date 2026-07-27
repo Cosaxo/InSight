@@ -25,6 +25,10 @@ const config: CapacitorConfig = {
       // overlay-mode, which leaves content hidden behind the keyboard).
       resize: "body",
     },
+    PushNotifications: {
+      // Show the reveal notification even when the app is foregrounded.
+      presentationOptions: ["badge", "sound", "alert"],
+    },
     StatusBar: {
       // The app handles its own status-bar styling via the .dark class;
       // tell Capacitor to honour overlay drawing so safe-area-inset

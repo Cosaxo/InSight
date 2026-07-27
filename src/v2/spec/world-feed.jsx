@@ -186,6 +186,14 @@ class WorldFeed extends React.Component {
   }
 
   // ── card bodies ──
+  renderFloorNote(big) {
+    return (
+      <div style={{ fontSize: big ? 12.5 : 11.5, fontWeight: 600, color: 'var(--ink-3)', padding: '2px 2px 0' }}>
+        You\u2019re early \u2014 counts appear once 5 people have answered.
+      </div>
+    );
+  }
+
   renderVote(q, T, big) {
     const mine = this.state.votes[q.id];
     if (mine != null && this.state.beat === q.id) return this.renderBeat(q, T, big);
@@ -210,10 +218,11 @@ class WorldFeed extends React.Component {
             <div style={{ position: 'relative', display: 'flex', alignItems: 'baseline', gap: 8, padding: big ? '13px 14px' : '9px 12px' }}>
               {mine === i && <span aria-label="Your pick" style={{ width: big ? 18 : 15, height: big ? 18 : 15, borderRadius: '50%', flexShrink: 0, alignSelf: 'center', background: T.color, display: 'flex', alignItems: 'center', justifyContent: 'center' }}><svg viewBox="0 0 24 24" width={big ? 10 : 8} height={big ? 10 : 8} fill="none" stroke="#fff" strokeWidth="3.4" strokeLinecap="round" strokeLinejoin="round"><path d="M4.5 12.5 10 18 19.5 6.5"></path></svg></span>}
               <span style={{ flex: 1, minWidth: 0, fontWeight: mine === i ? 800 : 700, fontSize: big ? 15 : 13.5 }}>{o.label}</span>
-              {p[i] === maxP && <span style={{ fontWeight: 800, fontSize: big ? 20 : 15, color: 'var(--ink)' }}><WfCount to={p[i]} animate={fresh}></WfCount>%</span>}
+              {p[i] === maxP && !(q.live && q.tooSmall) && <span style={{ fontWeight: 800, fontSize: big ? 20 : 15, color: 'var(--ink)' }}><WfCount to={p[i]} animate={fresh}></WfCount>%</span>}
             </div>
           </div>
         ))}
+        {q.live && q.tooSmall && mine != null && this.renderFloorNote(big)}
       </div>
     );
   }
@@ -231,7 +240,7 @@ class WorldFeed extends React.Component {
             return (
               <button key={i} className={mine == null ? 'press' : ''} onClick={() => mine == null && this.setVote(q, i)} style={{ position: 'relative', aspectRatio: big ? '3 / 4' : '4 / 3', border: chosen ? '2px solid ' + T.color : WF_LINE, borderRadius: 14, overflow: 'hidden', background: (chosen ? 'linear-gradient(color-mix(in oklch, ' + T.color + ' 20%, transparent), color-mix(in oklch, ' + T.color + ' 20%, transparent)), ' : '') + wfTileArt(T.color, q.id), boxShadow: chosen ? '0 0 0 3px color-mix(in oklch, ' + T.color + ' 22%, transparent), var(--shadow-lift)' : 'none', cursor: mine == null ? 'pointer' : 'default', padding: 0, WebkitAppearance: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: mine != null && !chosen ? 0.55 : 1, filter: mine != null && !chosen ? 'saturate(0.4)' : 'none', transition: 'opacity .45s ease, filter .45s ease, box-shadow .3s ease', animation: fresh && chosen ? 'tilePick .45s cubic-bezier(0.2,0.8,0.2,1)' : 'none' }}>
                 <span style={{ fontFamily: 'var(--sans)', fontWeight: 800, fontSize: big ? 16 : 14.5, color: 'var(--ink)', padding: '5px 12px', maxWidth: '85%', textAlign: 'center', lineHeight: 1.2, borderRadius: 11, background: 'color-mix(in oklch, var(--surface-2) 82%, transparent)', backdropFilter: 'blur(3px)', WebkitBackdropFilter: 'blur(3px)' }}>{o.label}</span>
-                {mine != null && (
+                {mine != null && !(q.live && q.tooSmall) && (
                   <span style={{ position: 'absolute', bottom: big ? 10 : 8, left: big ? 10 : 8, padding: big ? '4px 12px' : '3px 10px', borderRadius: 999, fontFamily: 'var(--sans)', fontWeight: 800, fontSize: big ? 15 : 13, background: chosen ? T.color : 'var(--surface-2)', color: chosen ? '#fff' : 'var(--ink)', border: chosen ? 'none' : WF_LINE, boxShadow: 'var(--shadow-card)', animation: fresh ? 'chipPop .38s cubic-bezier(0.2,0.8,0.2,1) ' + (0.1 + i * 0.12) + 's both' : 'none' }}><WfCount to={p[i]} animate={fresh}></WfCount>%</span>
                 )}
                 {chosen && (

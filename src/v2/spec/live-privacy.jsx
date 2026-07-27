@@ -28,6 +28,7 @@ function LivePrivacyPanel() {
   const [saved, setSaved] = React.useState(false);
   const [busy, setBusy] = React.useState(false);
   const [confirmDel, setConfirmDel] = React.useState(false);
+  const [linked, setLinked] = React.useState(false);
   const [err, setErr] = React.useState(null);
   const L = window.LIVE;
   if (!L || !L.enabled) return null;
@@ -45,7 +46,7 @@ function LivePrivacyPanel() {
   };
   const link = async () => {
     setBusy(true); setErr(null);
-    try { await L.linkGoogle(); } catch (e) { setErr(String((e && e.message) || e)); }
+    try { await L.linkGoogle(); setLinked(true); } catch (e) { setErr(String((e && e.message) || e)); }
     setBusy(false);
   };
   const nuke = async () => {
@@ -76,8 +77,8 @@ function LivePrivacyPanel() {
       </LpRow>
 
       <LpRow title="Sign-in"
-        sub="You're on an anonymous session. Link Google so your history survives a lost phone — same account, nothing moves.">
-        {btn('Link Google', link)}
+        sub={linked ? 'Linked — your history now survives any device.' : "You're on an anonymous session. Link Google so your history survives a lost phone — same account, nothing moves."}>
+        {btn(linked ? 'Linked ✓' : 'Link Google', link)}
       </LpRow>
 
       <div style={{ padding: '11px 0', borderBottom: LP_LINE }}>
@@ -92,7 +93,12 @@ function LivePrivacyPanel() {
 
       <LpRow title="Delete everything"
         sub={confirmDel ? 'This wipes your profile, answers, and auth account. There is no undo.' : 'Your account, answers, and group memberships.'}>
-        {confirmDel ? btn('Yes, delete', nuke, true) : btn('Delete…', () => setConfirmDel(true))}
+        {confirmDel ? (
+          <div style={{ display: 'flex', gap: 6 }}>
+            {btn('Cancel', () => setConfirmDel(false))}
+            {btn('Yes, delete', nuke, true)}
+          </div>
+        ) : btn('Delete…', () => setConfirmDel(true))}
       </LpRow>
 
       {err && <div style={{ fontSize: 12, fontWeight: 600, color: 'oklch(0.5 0.19 25)', marginTop: 8 }}>{err.replace(/^.*?: */, '')}</div>}

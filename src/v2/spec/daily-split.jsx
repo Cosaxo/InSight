@@ -324,9 +324,10 @@ class DailySplit extends React.Component {
     // counts) via window.LIVE; the demo deck below stays as the mock
     // fallback and the offline dev experience.
     const L = window.LIVE;
-    if (L && L.enabled && L.ready) {
-      const liveDeck = L.deck();
-      if (liveDeck.length) return liveDeck;
+    if (L && L.enabled) {
+      // live mode NEVER shows the demo deck — an empty live deck (slow
+      // boot, unseeded day) renders a loading card instead of fake data
+      return (L.ready && L.deck()) || [];
     }
     const PINK = 'var(--c-around)', VIOLET = 'var(--c-today)', TEAL = 'var(--c-likeness)';
     return [
@@ -424,6 +425,12 @@ class DailySplit extends React.Component {
     // ===== WORLD =====
     const DATA = this.worldDeck;
     const dayNames = ['Today', 'Yesterday', 'Tue', 'Mon', 'Sun', 'Sat', 'Fri'];
+    if (!DATA.length) {
+      const placeholder = h('div', { className: 'card', style: { padding: '26px 18px', textAlign: 'center', margin: '4px 1px' } },
+        h('div', { style: { fontWeight: 800, fontSize: 17, marginBottom: 6 } }, 'Fetching today\u2019s question\u2026'),
+        h('div', { style: { fontSize: 13, fontWeight: 500, color: 'var(--ink-2)' } }, 'One moment \u2014 or check your connection.'));
+      return placeholder;
+    }
     const wIdx = Math.min(st.idx, DATA.length - 1), S = DATA[wIdx];
     const myVote = st.votes[S.id], voted = !!myVote;
     const blind = this.props.blindVoting ?? true, revealed = voted || !blind;

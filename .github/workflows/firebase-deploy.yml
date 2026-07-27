@@ -6,6 +6,7 @@ on:
     paths:
       - "functions/**"
       - "firestore.rules"
+      - "firestore.indexes.json"
       - ".github/workflows/firebase-deploy.yml"
   workflow_dispatch:
 
@@ -38,4 +39,4 @@ jobs:
           GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/sa-key.json
         run: >
           firebase deploy --project prvfire33 --non-interactive --force
-          --only "firestore:rules,functions:rebuildAreaAggregates,functions:scheduledAreaAggregates,functions:rebuildWorldAggregates,functions:scheduledWorldAggregates,functions:rebuildCityAggregates,functions:scheduledCityAggregates,functions:sendInboundImpression,functions:deleteAccount,functions:seedTaxonomies,functions:scheduledTaxonomies,functions:seedContentV2,functions:onV2AnswerCreated,functions:createGroupV2,functions:joinGroupV2,functions:leaveGroupV2,functions:scheduledDuelReveals,functions:revealDuelsNowV2"
+          --only "firestore:rules,firestore:indexes,functions:rebuildAreaAggregates,functions:scheduledAreaAggregates,functions:rebuildWorldAggregates,functions:scheduledWorldAggregates,functions:rebuildCityAggregates,functions:scheduledCityAggregates,functions:sendInboundImpression,functions:deleteAccount,functions:seedTaxonomies,functions:scheduledTaxonomies,functions:seedContentV2,functions:onV2AnswerCreated,functions:createGroupV2,functions:joinGroupV2,functions:leaveGroupV2,functions:scheduledDuelReveals,functions:revealDuelsNowV2"

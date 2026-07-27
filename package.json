@@ -13,12 +13,11 @@
     "ios": "npx cap open ios",
     "android": "npx cap open android",
     "doctor": "npx cap doctor",
-    "test:rules": "firebase emulators:exec --only firestore \"vitest run --dir firestore-tests\""
+    "test:rules": "npx --yes firebase-tools emulators:exec --only firestore \"vitest run --dir firestore-tests\""
   },
   "dependencies": {
     "@capacitor-firebase/app-check": "^8.2.0",
     "@capacitor-firebase/authentication": "^8.2.0",
-    "@capacitor/app": "^8.1.0",
     "@capacitor/core": "^8.3.3",
     "@capacitor/keyboard": "^8.0.3",
     "@capacitor/push-notifications": "^8.1.2",

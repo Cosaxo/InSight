@@ -310,7 +310,7 @@ import React from 'react';
   function liveSync() {
     const L = window.LIVE;
     if (!L || !L.enabled || !L.ready || !L.dailyBank) return;
-    const votes = (L.myVotes && L.myVotes()) || {};
+    const votes = (L.confirmedVotes ? L.confirmedVotes() : (L.myVotes && L.myVotes())) || {};
     const byPrompt = {};
     L.dailyBank().forEach((b) => { byPrompt[b.prompt] = b; });
     let changed = false;
