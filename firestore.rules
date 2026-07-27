@@ -643,7 +643,11 @@ service cloud.firestore {
       allow create, update: if request.auth != null && request.auth.uid == uid
         && request.resource.data.keys().hasOnly([
           "displayName", "anchors", "anon", "createdAt", "updatedAt",
+          "fcmTokens",
         ])
+        && (!("fcmTokens" in request.resource.data)
+          || (request.resource.data.fcmTokens is list
+            && request.resource.data.fcmTokens.size() <= 10))
         && isOptionalShortString(request.resource.data.get("displayName", null), 60)
         && isValidV2Anchors(request.resource.data.get("anchors", {}));
       allow delete: if false; // deleteAccount (admin SDK) owns removal

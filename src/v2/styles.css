@@ -1861,3 +1861,25 @@ button.card:active,
   /* direct child only — overlays (profile etc.) keep their normal padding */
   .app[data-tab="track"] > .app-body { padding: 0; }
   .app[data-tab="track"] > .app-body::before { content: none; background: none; }
+
+
+/* ═══ native shell (Phase 5) — real devices, no mockup frame ═══ */
+/* The OS draws the status bar over us (StatusBar.overlaysWebView) and
+   the home indicator below; pad the app chrome out of both. */
+.native-shell .app-header {
+  padding-top: calc(14px + env(safe-area-inset-top, 0px));
+}
+.native-shell .tabbar {
+  padding-bottom: calc(10px + env(safe-area-inset-bottom, 0px));
+}
+.native-shell .app,
+.native-shell .app-body {
+  border-radius: 0;
+}
+/* overlays and sheets respect the insets too */
+.native-shell .overlay {
+  padding-top: calc(14px + env(safe-area-inset-top, 0px));
+}
+.native-shell .wf-sheet {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}

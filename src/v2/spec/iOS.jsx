@@ -195,6 +195,23 @@ function IOSDevice({
   children, width = 402, height = 874, dark = false,
   title, keyboard = false,
 }) {
+  // On a real device (Capacitor) or any phone-sized screen the mockup
+  // frame disappears: the app fills the viewport and the OS provides
+  // the real status bar / home indicator. Safe-area padding comes from
+  // the .native-shell rules in styles.css (env(safe-area-inset-*)).
+  const isNative = !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
+  const isPhone = typeof matchMedia !== 'undefined' && matchMedia('(max-width: 520px)').matches;
+  if (isNative || isPhone) {
+    return (
+      <div className="native-shell" style={{
+        width: '100vw', height: '100dvh', overflow: 'hidden', position: 'fixed', inset: 0,
+        background: dark ? '#000' : '#F2F2F7',
+        fontFamily: '-apple-system, system-ui, sans-serif', WebkitFontSmoothing: 'antialiased',
+      }}>
+        {children}
+      </div>
+    );
+  }
   return (
     <div style={{
       width, height, borderRadius: 48, overflow: 'hidden',

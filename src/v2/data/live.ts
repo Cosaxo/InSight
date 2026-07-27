@@ -460,6 +460,21 @@ const SOCIAL = {
 const LIVE = {
   social: SOCIAL,
   feedReady: false,
+  async saveDisplayName(name: string): Promise<void> {
+    const db = await getDb();
+    const uid = state.uid;
+    if (!uid) throw new Error("no session");
+    await setDoc(doc(db, "v2_users", uid), { displayName: name }, { merge: true });
+  },
+  async linkGoogle(): Promise<void> {
+    const m = await import("../../lib/firebase");
+    return m.linkGoogle();
+  },
+  async deleteAccount(): Promise<void> {
+    const db = await getDb();
+    const { getFunctions: gf, httpsCallable: hc } = await import("firebase/functions");
+    await hc(gf(db.app, "us-central1"), "deleteAccount")({});
+  },
   // read-only views for the Map/Mirror hydration (daily-questions.js)
   dailyBank(): Array<{ id: string; prompt: string }> {
     return state.questions.map((q) => ({ id: q.id, prompt: q.prompt }));
@@ -554,6 +569,8 @@ export async function initLive(timeoutMs = 5000): Promise<void> {
     await hydrate();
     await hydrateSocial();
     state.ready = true;
+    // fire-and-forget: reveal notifications on real devices (no-op on web)
+    void import("./push").then((m) => m.registerPushForReveals(state.uid as string)).catch(() => {});
     LIVE.enabled = true;
     notify();
   })();

@@ -120,6 +120,7 @@ function ProfileOverlay({ onClose, me }) {
         </div>
 
         <div key={sub} className="tab-swap" style={{ marginTop: 4 }}>
+          {sub === 'general' && window.LIVE && window.LIVE.enabled && window.LivePrivacyPanel && <window.LivePrivacyPanel />}
           {sub === 'general' && <window.GeneralPanel onGo={setSub} />}
           {sub === 'big5' && <><Big5Panel /><TestCTA k="big5" /></>}
           {sub === 'politics' && <><PoliticsPanel /><TestCTA k="political" /></>}

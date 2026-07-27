@@ -13,6 +13,7 @@
 // read-only — so invite codes, size caps and duo pairing can't be forged.
 
 import { getFirestore, FieldValue } from "firebase-admin/firestore";
+import { getMessaging } from "firebase-admin/messaging";
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { onSchedule } from "firebase-functions/v2/scheduler";
 import { logger } from "firebase-functions";
@@ -199,6 +200,28 @@ async function revealGroupDay(
   const streak =
     prevStreakDay === prevDayKey(dayKey) ? (group.get("streak") || 0) + 1 : 1;
   await group.ref.update({ streak, lastRevealDay: dayKey });
+
+  // The one notification the product earns (Phase 5): the reveal is out.
+  // Tokens are best-effort — failures never block the reveal itself.
+  try {
+    const tokens = profileSnaps.flatMap((s) =>
+      s.exists && Array.isArray(s.get("fcmTokens")) ? (s.get("fcmTokens") as string[]) : [],
+    );
+    if (tokens.length) {
+      await getMessaging().sendEachForMulticast({
+        tokens: [...new Set(tokens)].slice(0, 64),
+        notification: {
+          title: group.get("name") || "Your duel",
+          body: mode === "duo"
+            ? "Yesterday's answers are out — see if you called it."
+            : "Yesterday's answers are revealed — see who said what.",
+        },
+        data: { kind: "reveal", gid, day: dayKey },
+      });
+    }
+  } catch (err) {
+    logger.warn(`[v2social] push for ${gid}/${dayKey} failed:`, err);
+  }
   return true;
 }
 
