@@ -1,4 +1,3 @@
-/* eslint-disable */
 // Ported from design/spec-modules/group-mirror.jsx (the historical prototype — no sync
 // script survives; THIS file is the live source now, hand-edits and all).
 // Cross-module references resolve through the shared global scope and
@@ -230,6 +229,7 @@ import React from 'react';
         Object.entries(base[t] || {}).forEach(([k, v]) => { out[t][k] = j(t + k, v); });
       });
       return out;
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- ported effect; see src/v2/README.md § Lint suppressions
     }, [g.id]);
     return (
       <>
@@ -271,6 +271,7 @@ import React from 'react';
   function GroupsMirrorBody({ onPerson }) {
     const D = window.DUELS;
     const [, bump] = useReducer((x) => x + 1, 0);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- ported effect; see src/v2/README.md § Lint suppressions
     useEffect(() => D.subscribe(bump), []);
     const gs = D.groups();
     const [gid, setGid] = useState(gs[0] && gs[0].id);

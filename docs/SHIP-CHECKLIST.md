@@ -131,24 +131,25 @@ Both apps must be registered under `com.cosaxo.insight`:
      provisioning profile regenerates with `aps-environment`.
   3. Apple Developer → upload the APNs key to Firebase (step already
      listed above), then verify the reveal flow end-to-end on device.
-- **Reveal membership snapshot — second deploy still owed.** Reveal reads
-  are gated on a group's *current* `memberUids`, so joining a group today
-  exposes every past day's votes and display names, including those of
-  members who have since left. The fix is two deploys, and only the first
-  has shipped:
-  1. **Done** — `revealGroupDay` now writes a `members` array onto each
-     reveal doc (functions/src/v2social.ts).
-  2. **Owed** — once that function is live in production *and* the
-     backfill decision is made for reveals written before it, change the
-     `v2_groups/{gid}/reveals/{day}` read rule to gate on
-     `resource.data.members` instead of the parent group's `memberUids`,
-     and stop surfacing `permission-denied` in the client's reveal
-     listener so a late joiner does not generate a Sentry firehose.
+- **Reveal membership snapshot — both deploys shipped.** Reveal reads used
+  to be gated on a group's *current* `memberUids`, so joining a group
+  exposed every past day's votes and display names. The fix was two
+  deploys and both have landed:
+  1. **Done** — `revealGroupDay` writes a `members` array onto each reveal
+     doc (functions/src/v2social.ts).
+  2. **Done** — the `v2_groups/{gid}/reveals/{day}` read rule gates on
+     `resource.data.get("members", [])`, and the client's reveal listener
+     treats `permission-denied` as the expected state of a late joiner
+     rather than reporting it (src/v2/data/live.ts). Backfill was decided
+     as unnecessary — see D5's amendment in `docs/DECISIONS.md` for the
+     arithmetic, and re-check it before seeding if this repo has been
+     deployed somewhere the checklist did not track.
 
-  Do **not** collapse these into one deploy: a released ruleset applies
+  They could not be collapsed into one deploy: a released ruleset applies
   instantly while gen2 functions roll out over minutes, so reveals written
   in that window would carry no `members` field and be permanently
-  unreadable by their own members.
+  unreadable by their own members. Removing the field later has to run in
+  the opposite order — rule first, then payload.
 - **Storage bucket — confirm empty, then lock down.** `storage.rules` was
   configured in `firebase.json` and deployed by nothing; the deploy
   workflow now applies it as its own step (watch that step's outcome — it

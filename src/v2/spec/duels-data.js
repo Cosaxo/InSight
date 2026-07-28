@@ -1,4 +1,3 @@
-/* eslint-disable */
 // Ported from design/spec-modules/duels-data.js (the historical prototype — no sync
 // script survives; THIS file is the live source now, hand-edits and all).
 // Cross-module references resolve through the shared global scope and
@@ -36,8 +35,8 @@ import React from 'react';
   S.groupPend = S.groupPend || {}; // gid → { pid → invite ts }
   S.left = Array.isArray(S.left) ? S.left : []; // gids you left
   const listeners = new Set();
-  const fire = () => listeners.forEach((f) => { try { f(); } catch (e) {} });
-  const save = () => { try { localStorage.setItem(LS, JSON.stringify(S)); } catch (e) {} fire(); };
+  const fire = () => listeners.forEach((f) => { try { f(); } catch (e) { /* one listener throwing must not stop the others being notified. */ } });
+  const save = () => { try { localStorage.setItem(LS, JSON.stringify(S)); } catch (e) { /* localStorage can throw: private mode, quota, disabled storage. Persistence here is best-effort and the in-memory state stays correct. */ } fire(); };
 
   // ── the circle — your friends ───────────────────────────────────────────────
   const IDS = ['f1', 'f2', 'f4', 'f6', 'f3']; // fallback if FRIENDS is absent

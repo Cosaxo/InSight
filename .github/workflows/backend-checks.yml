@@ -38,6 +38,15 @@ jobs:
       # defaults (256MiB / 60s) are where the aggregators and deleteAccount
       # died. Reads the compiled output, so it runs after the build.
       - run: npm run check:fn-runtime
+      # Every exported function must appear in firebase-deploy.yml's --only
+      # list, or it builds, passes every test, goes green — and is never
+      # deployed. This gate existed and ran nowhere for its whole life: it
+      # was named in README and CLAUDE.md as one of the project's checks,
+      # and its only caller was a checkbox in the PR template. It belongs
+      # here rather than in ci.yml because it is a statement about what
+      # reaches production. Parses source with a regex, so it needs no
+      # build and no root node_modules.
+      - run: npm run check:deploy-targets
 
   rules-tests:
     runs-on: ubuntu-latest

@@ -1,4 +1,3 @@
-/* eslint-disable */
 // Ported from design/spec-modules/group-daily.jsx (the historical prototype — no sync
 // script survives; THIS file is the live source now, hand-edits and all).
 // Cross-module references resolve through the shared global scope and
@@ -312,6 +311,7 @@ import ReactDOM from 'react-dom';
   function GroupDailyBody() {
     const D = window.DUELS;
     const [, bump] = useReducer((x) => x + 1, 0);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- ported effect; see src/v2/README.md § Lint suppressions
     useEffect(() => D.subscribe(bump), []);
     const gs = D.groups();
     // pending first, frozen at mount — answering must not reshuffle the stack

@@ -532,6 +532,21 @@ function subscribeReveals(db: import("firebase/firestore").Firestore): void {
         notify();
       },
       (err) => {
+        // permission-denied here is the RULE WORKING, not a fault: reveal
+        // reads gate on the reveal's own members snapshot, so a member who
+        // joined after this day was revealed is denied by design. It is the
+        // ordinary state of every late joiner's first day in a group, so
+        // reporting it would bury real listener faults in Sentry.
+        //
+        // Deliberately keeps the unsub entry rather than deleting it. The
+        // denial is permanent for this (group, day) pair — re-attaching
+        // would fail identically forever — and the midnight rollover above
+        // tears down every entry on dayChanged, so tomorrow still retries.
+        if ((err as { code?: string }).code === "permission-denied") {
+          state.reveals[g.id] = null;
+          notify();
+          return;
+        }
         // Dead listener: drop the stale unsub so the next
         // subscribeReveals pass (groups snapshot or midnight rollover)
         // can re-attach instead of being blocked by the guard above.

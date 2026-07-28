@@ -285,18 +285,20 @@ async function revealGroupDay(
       qid,
       votes,
       names,
-      // Membership AT REVEAL TIME. Reveal reads are currently gated on the
-      // group's CURRENT memberUids, so joining a group today exposes every
-      // past day's votes and display names — including those of members who
-      // have since left. This is the one v2 rule that leaks one user's
-      // answers to another.
+      // Membership AT REVEAL TIME — load-bearing, not informational. The
+      // reveal read rule gates on THIS array (firestore.rules, the
+      // /reveals/{day} match), which is what keeps the guarantee
+      // retroactive: a later joiner cannot read this day, and a member who
+      // leaves does not lose the days they played. Writing it in the same
+      // create() as the votes is what stops the two from drifting.
       //
-      // Deploy ordering matters: this payload must be live BEFORE the rules
-      // gate on it. A released ruleset applies instantly while gen2
-      // functions roll out over minutes, so shipping both together would
-      // leave reveals written in that window with no `members` field and
-      // therefore permanently unreadable by their own members. Hence this
-      // lands alone; the rules change is a separate, later deploy.
+      // Never remove or rename this field without changing that rule in the
+      // opposite order to the way the pair shipped: the field had to go live
+      // BEFORE the rule started requiring it (a released ruleset applies
+      // instantly while gen2 functions roll out over minutes, so reveals
+      // written in that window would carry no `members` and be permanently
+      // unreadable by their own members). Dropping it means the rule stops
+      // depending on it FIRST.
       members,
       revealedAt: FieldValue.serverTimestamp(),
     });

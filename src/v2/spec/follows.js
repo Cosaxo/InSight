@@ -1,4 +1,3 @@
-/* eslint-disable */
 // Ported from design/spec-modules/follows.js (the historical prototype — no sync
 // script survives; THIS file is the live source now, hand-edits and all).
 // Cross-module references resolve through the shared global scope and
@@ -18,8 +17,8 @@ import React from 'react';
   if (!S || !Array.isArray(S.friends)) S = { friends: SEED.slice(), invited: {} };
   S.invited = S.invited && typeof S.invited === 'object' ? S.invited : {};
   const listeners = new Set();
-  const fire = () => listeners.forEach((f) => { try { f(); } catch (e) {} });
-  const save = () => { try { localStorage.setItem(LS, JSON.stringify(S)); } catch (e) {} fire(); };
+  const fire = () => listeners.forEach((f) => { try { f(); } catch (e) { /* one listener throwing must not stop the others being notified. */ } });
+  const save = () => { try { localStorage.setItem(LS, JSON.stringify(S)); } catch (e) { /* localStorage can throw: private mode, quota, disabled storage. Persistence here is best-effort and the in-memory state stays correct. */ } fire(); };
   // deterministic per-person acceptance delay (10–30 s) — "they saw it on their phone"
   function delayMs(id) { let h = 0; for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) >>> 0; return 10000 + (h % 20000); }
   function sweep() {

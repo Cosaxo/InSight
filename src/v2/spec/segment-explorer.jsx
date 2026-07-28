@@ -1,4 +1,3 @@
-/* eslint-disable */
 // Ported from design/spec-modules/segment-explorer.jsx (the historical prototype — no sync
 // script survives; THIS file is the live source now, hand-edits and all).
 // Cross-module references resolve through the shared global scope and
@@ -158,10 +157,12 @@ import React from 'react';
     const [editing, setEditing] = useState('a');
     const [open, setOpen] = useState(true); // picker expanded?
     const votes = useMemo(sxVotes, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- ported effect; see src/v2/README.md § Lint suppressions
     const rows = useMemo(() => sxRows(sel), [JSON.stringify(sel)]);
     const baseRows = useMemo(() => sxRows({}), []);
     const baseByQ = useMemo(() => { const m = {}; baseRows.forEach((r) => { m[r.q.id] = r; }); return m; }, [baseRows]);
     const duo = selB != null;
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- ported effect; see src/v2/README.md § Lint suppressions
     const rowsB = useMemo(() => duo ? sxRows(selB) : null, [duo && JSON.stringify(selB)]);
     const nameA = sxName(sel, 'Everyone'), nameB = duo ? sxName(selB, 'Everyone') : null;
     const hasSel = sxCount(sel) > 0;

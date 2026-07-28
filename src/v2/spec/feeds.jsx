@@ -1,4 +1,3 @@
-/* eslint-disable */
 // Ported from design/spec-modules/feeds.jsx (the historical prototype — no sync
 // script survives; THIS file is the live source now, hand-edits and all).
 // Cross-module references resolve through the shared global scope and
@@ -19,7 +18,7 @@ function loadLikes() {
   catch (_) { return new Set(); }
 }
 function saveLikes(set) {
-  try { localStorage.setItem(LIKES_KEY, JSON.stringify([...set])); } catch (_) {}
+  try { localStorage.setItem(LIKES_KEY, JSON.stringify([...set])); } catch (_) { /* localStorage can throw: private mode, quota, disabled storage. Persistence here is best-effort and the in-memory state stays correct. */ }
 }
 // shared singleton so all LikeButtons stay in sync
 let _likes = loadLikes();

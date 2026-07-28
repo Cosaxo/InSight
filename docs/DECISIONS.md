@@ -229,3 +229,44 @@ documents.
 leak the full anchor snapshot to groupmates, and time/both-played gating in
 rules is subtle and leak-prone. Materialized reveals make the privacy
 property structural instead of clever.
+
+**Amendment (2026-07-28) — reveals are gated on their own membership
+snapshot, and the backfill set was empty.** The original record described
+materialized reveals as making the guarantee structural, and left unsaid
+which membership the guarantee was evaluated against. It was the parent
+group's *current* `memberUids` — so the property held across users but not
+across *time*: joining a group handed you every past day's votes and
+display names, including those of members who had since left. That is the
+one thing D5 exists to prevent, and it was live.
+
+The read rule now gates on the reveal's own `members` array
+(`resource.data.get("members", [])`), written by `revealGroupDay` in the
+same `create()` as the votes. Two rules tests pin both directions — a
+later joiner is denied, a departed member keeps the days they played — and
+both fail against the old rule, so the fix cannot silently regress.
+
+**The backfill decision: no backfill, because the set is provably empty.**
+Reveals written before the `members` payload shipped carry no snapshot and
+are now denied to everyone. The arithmetic for how many such documents
+exist in production:
+
+- A reveal doc is only written by `revealGroupDay`, which requires at least
+  one duel answer for that group-day.
+- A duel answer cannot be created without a question: `firestore.rules`
+  requires `exists(/v2_questions/$(qid))` on every duel answer, and
+  `revealGroupDay` reads the bank to resolve the day's question.
+- Production's `v2_questions` is **empty**. Seeding is a manual operator
+  step (`seedContentV2`) that is still owed — SHIP-CHECKLIST §1, unticked.
+
+Zero questions → zero duel answers → zero reveals. The legacy set is not
+small, it is empty, so a backfill function would have nothing to walk.
+Writing one would be new machinery, a new operator callable and a new
+deploy-allowlist entry to iterate an empty collection.
+
+**Re-check this before seeding** if the backend was ever deployed somewhere
+this checklist did not track, or if anyone answered duel questions against
+a hand-seeded bank. The check is one console query: any document under
+`v2_groups/*/reveals/*` lacking a `members` field. If any exist, they are
+unreadable by their own members, and the choice is a one-off backfill from
+the group's `memberUids` (accepting that it restores the roster, not the
+true historical membership) or deleting them.

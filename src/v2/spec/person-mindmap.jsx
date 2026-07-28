@@ -1,4 +1,3 @@
-/* eslint-disable */
 // Ported from design/spec-modules/person-mindmap.jsx (the historical prototype — no sync
 // script survives; THIS file is the live source now, hand-edits and all).
 // Cross-module references resolve through the shared global scope and
@@ -120,6 +119,7 @@ function pmmBuild(p) {
 
 // ── the component ────────────────────────────────────────────────────────────
 function PersonMindMap({ p, following, centerName }) {
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- ported effect; see src/v2/README.md § Lint suppressions
   const { CATS, nodes, seed, counts } = useMemo(() => pmmBuild(p), [p && p.id, following]);
   const byParent = useMemo(() => {
     const m = {};
@@ -198,6 +198,7 @@ function PersonMindMap({ p, following, centerName }) {
     };
     tryFit();
     return () => { cancelled = true; };
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- ported effect; see src/v2/README.md § Lint suppressions
   }, [pos, view]);
 
   const tweenTo = (target) => {
@@ -313,6 +314,7 @@ function PersonMindMap({ p, following, centerName }) {
     };
     el.addEventListener('wheel', handler, { passive: false });
     return () => el.removeEventListener('wheel', handler);
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- ported effect; see src/v2/README.md § Lint suppressions
   }, []);
 
   const canvasXY = (e) => {

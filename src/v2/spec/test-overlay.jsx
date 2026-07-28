@@ -1,4 +1,3 @@
-/* eslint-disable */
 // Ported from design/spec-modules/test-overlay.jsx (the historical prototype — no sync
 // script survives; THIS file is the live source now, hand-edits and all).
 // Cross-module references resolve through the shared global scope and
@@ -37,6 +36,7 @@ function TestOverlay({ onClose, onComplete, kind: initialKind }) {
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- ported effect; see src/v2/README.md § Lint suppressions
   }, [kind, step]);
 
   // Resume an unfinished test, or start clean, when a test is picked.
@@ -57,6 +57,7 @@ function TestOverlay({ onClose, onComplete, kind: initialKind }) {
   };
 
   // Jump straight into a specific test when opened with one (resumes saved progress)
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- ported effect; see src/v2/README.md § Lint suppressions
   React.useEffect(() => { if (initialKind) startTest(initialKind); }, []);
 
   // Save in-progress answers so a refresh mid-test doesn't lose them.
@@ -70,6 +71,7 @@ function TestOverlay({ onClose, onComplete, kind: initialKind }) {
       localStorage.setItem(TEST_PROGRESS_KEY, JSON.stringify(p));
     } catch (e) { /* ignore */ }
     if (window.PASSIVE) { if (step >= TT.questions.length) window.PASSIVE.markComplete(kind); else window.PASSIVE.poke(); }
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- ported effect; see src/v2/README.md § Lint suppressions
   }, [kind, step, answers]);
 
   const tests = window.IS_TESTS;
@@ -98,7 +100,7 @@ function TestOverlay({ onClose, onComplete, kind: initialKind }) {
     const takenCount = Object.keys(tests).filter(k => SAVED[k]).length;
     const total = Object.keys(tests).length;
     let PROGRESS = {};
-    try { PROGRESS = JSON.parse(localStorage.getItem(TEST_PROGRESS_KEY) || '{}'); } catch (e) {}
+    try { PROGRESS = JSON.parse(localStorage.getItem(TEST_PROGRESS_KEY) || '{}'); } catch (e) { /* absent or corrupt payload — fall back to the default initialised above. */ }
     return (
       <div className="overlay surface-tint">
         <div className="app-header">
