@@ -7,6 +7,8 @@ import { createRoot } from 'react-dom/client';
 import './styles.css';
 import './spec-index.js';
 import { initLive } from './data/live';
+// side effect: publishes window.registerBackHandler for the shell
+import './data/back';
 import { sentryInit } from '../lib/sentry';
 
 // Crash reporting first, so a boot error is the first thing captured.

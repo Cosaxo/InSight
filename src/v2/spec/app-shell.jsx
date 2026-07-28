@@ -115,6 +115,36 @@ function App() {
 
   const closeAll = () => { setOv(null); setPerson(null); setCity(null); setTestKind(null); };
 
+  // ── Android back ──────────────────────────────────────────────────
+  // Without this the system back gesture calls finish() and quits the app
+  // from anywhere — including with an overlay open, which reads as a crash.
+  //
+  // Peels ONE layer per press, in the order they sit on screen, and mirrors
+  // each overlay's own onClose rather than calling closeAll: `test` opened
+  // from the profile has to land back on the profile (backOv), not on the
+  // tab, exactly as its close button does. Returning false means nothing
+  // was left to close, and back at the root should exit — which is what
+  // Android users expect.
+  //
+  // Refs, not state: the listener is registered once, so reading `person`
+  // or `ov` directly would close over their first values forever. backOv
+  // and setTweak ride along for the same reason — both are recreated each
+  // render, so listing them as deps would re-register the listener on every
+  // render instead of once.
+  const backState = React.useRef({});
+  backState.current = { person, city, ov, tab, backOv, setTweak };
+  useEffect(() => (window.registerBackHandler ? window.registerBackHandler(() => {
+    const s = backState.current;
+    if (s.person) { setPerson(null); return true; }
+    if (s.city) { setCity(null); return true; }
+    if (s.ov === 'test') { setTestKind(null); s.backOv(); return true; }
+    if (s.ov) { s.backOv(); return true; }
+    // A non-default tab is a level of its own: back should return to the
+    // daily before it offers to leave.
+    if (s.tab !== 'track') { setTab('track'); s.setTweak('tab', 'track'); return true; }
+    return false;
+  }) : undefined), []);
+
   useEffect(() => {
     window.openSuggestions = () => { setOv('suggest'); };
     window.openLogicTest = () => { closeAll(); setOv('logic'); };
