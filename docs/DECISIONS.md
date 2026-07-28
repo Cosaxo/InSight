@@ -42,6 +42,76 @@ invite link must work for anonymous users.
 **Why.** Never lose a user's history to a login wall. The linking path is
 implemented early (Phase 2) because it is hard to retrofit.
 
+## D7 · Backend scale ceilings — recorded, not engineered around
+
+**Decision.** Fix what breaks at any size; write down what breaks at scale
+with its arithmetic, and do not build for it yet. A known limit is
+survivable; a surprise is not.
+
+### The per-question write ceiling (the one that matters)
+
+`onV2AnswerCreated` folds every answer into two documents keyed by
+question id: `v2_aggs_private/{qid}` and `v2_question_aggs/{qid}`.
+Firestore sustains roughly **one write per second per document**.
+
+So the ceiling is ~1 answer/sec on the *same* question. What that means
+in users: if a daily question is answered by everyone within a 4-hour
+window after they wake up, that is 14,400 seconds, so roughly **14k
+answers/day before sustained contention** — call it 5–10k DAU with normal
+burstiness, and lower during any spike (a push notification, a shared
+link). Past that, transactions retry, latency climbs, and eventually
+aggregation drops answers.
+
+**Not sharded, deliberately.** Sharding is an XL change: N shard docs per
+question, a periodic roll-up, a new scheduled function, a deploy-allowlist
+edit, and it breaks the e2e's exact-count assertions in two places. That
+is a lot of new machinery — and new failure modes — to remove a ceiling
+of ~5–10k DAU per question for an app with zero users.
+
+**What was done instead** (cheap, no new moving parts): the public mirror
+is no longer rewritten on every answer once a question is past 50 answers
+— above that it publishes every 5th, cutting writes to `pubRef` by ~80%.
+Below 50 it still writes every time, because a question with 12 answers
+has no contention to relieve and an inexact count there is visible.
+`v2_aggs_private` keeps the exact running total either way, so nothing is
+lost; the public number can lag by at most 4 answers, and only where it
+is already in the dozens.
+
+The moment this needs revisiting: when a single question regularly clears
+a few thousand answers a day, or when `onV2AnswerCreated` starts logging
+transaction retries.
+
+### The daily aggregators are staggered, not merged
+
+`scheduledWorldAggregates` and `scheduledCityAggregates` each walk the
+whole `insight_inbound_impressions` collection group, so running them
+together doubles peak memory. They were both on `every 24 hours`, which
+Firebase is free to schedule at any offset — including the same one.
+
+They now run at fixed, non-overlapping times (02:00 and 04:00 UTC).
+**Merging them was rejected**: one job doing both walks means one failure
+takes out two independent surfaces, and it raises peak memory rather than
+lowering it. The real fix at scale is an incremental walk windowed on
+`createdAt` (already stored on every impression), not job fusion.
+
+### Two things explicitly NOT built
+
+**A lock between the operator rebuild callables and their scheduled
+twins.** `maxInstances: 1` does not prevent it — they are separate Cloud
+Run services. But the orphan-delete path is safe under interleaving, so
+this is a cost concern, not a correctness one, at zero users. The free
+mitigation is a line in the rollback runbook: do not invoke a rebuild
+inside its schedule window. A leased advisory lock with TTL semantics, a
+new collection and a rules block is more machinery than the problem.
+
+**Closing the `assertMembershipCap` TOCTOU.** The check runs outside the
+transaction that commits membership, so two simultaneous joins can both
+see 19 groups and both commit. The blast radius is one user a few groups
+over a soft anti-fan-out cap — and the emulator cannot prove a fix either
+way, since the guarantee would rest on Firestore's index-range locking.
+Not worth the change today; noted so it is a decision rather than an
+oversight.
+
 ## D6 · Android backup off; iPhone-only; no custom crypto
 
 **Decision.** Three store-facing declarations, recorded because each is a

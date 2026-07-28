@@ -115,6 +115,15 @@ is deploying a no-op body (return immediately) so deliveries are
 acknowledged, *then* fixing forward. Reverting alone still leaves the
 backlog to replay against the old code.
 
+**Do not invoke a `rebuild*` callable inside its schedule window.** The
+operator rebuilds and their scheduled twins are separate Cloud Run
+services, so `maxInstances: 1` does not serialize them — running both at
+once doubles peak memory and read spend for an identical result. The
+schedules are: area every 6h, world 02:00 UTC, city 04:00 UTC, taxonomies
+06:00 UTC. This is a cost concern rather than a correctness one (the
+orphan-delete path is safe under interleaving); D7 records why no lock was
+built.
+
 Check what is actually happening first:
 
 ```bash
