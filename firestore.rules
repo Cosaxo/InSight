@@ -1,9 +1,21 @@
 rules_version = '2';
 
-// Default: every user reads and writes only their own subtree under
-// `insight_users/{uid}`. Special-case rules below carve out narrow
-// cross-user reads (daily reports via the circle subcollection,
-// discoverable users for nearby discovery, world cities).
+// Access model for InSight v2 (docs/SCHEMA-V2.md, decision D5).
+//
+// Deny by default. Every grant below is written against a named path;
+// there is no catch-all match. The shape in one line: a user reads and
+// writes only their own documents, answers are create-only and never
+// readable by anyone else, population statistics are k-floored and
+// server-written, and group reveals become visible only when a Cloud
+// Function materializes them.
+//
+// Anything rules cannot verify — rate limits, invite-code minting,
+// membership caps, reveal timing — is denied to clients outright and
+// routed through callables that run on the admin SDK.
+//
+// The v1 journal client's rules were retired in decision D4; they are
+// kept for reference, undeployed, in firestore.rules.v1-archive.
+//
 // Deploy with: firebase deploy --only firestore:rules
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -12,613 +24,8 @@ service cloud.firestore {
     // Note: function definitions hoist inside their match block, so
     // these are visible everywhere below within /documents.
 
-    // Plain text-length cap — guards against a client storing a 10MB
-    // string in a "note" field and bloating Firestore reads.
-    function isShortString(value, max) {
-      return value is string && value.size() <= max;
-    }
     function isOptionalShortString(value, max) {
       return value == null || (value is string && value.size() <= max);
-    }
-
-    // Owner can do anything in their own subtree.
-    match /insight_users/{uid} {
-      allow read: if request.auth != null && request.auth.uid == uid;
-      // Profile write — light schema check. We don't fully type each
-      // field (Firestore rules become unmaintainable past a few
-      // dozen optional shapes), but we cap the most-abused fields
-      // and reject obviously wrong shapes.
-      allow write: if request.auth != null
-        && request.auth.uid == uid
-        && isValidProfileWrite();
-
-      function isValidProfileWrite() {
-        let d = request.resource.data;
-        return
-          // sharePrefs is a map; if present, every value must be one
-          // of the four ShareLevel strings.
-          (!('sharePrefs' in d) || isValidSharePrefs(d.sharePrefs))
-          // currency: 3-letter ISO if set.
-          && (!('currency' in d) || (d.currency is string && d.currency.size() == 3))
-          // weightKg: positive number under 500 (sanity).
-          && (!('weightKg' in d) || (d.weightKg is number && d.weightKg > 0 && d.weightKg < 500))
-          // birthYear: plausible.
-          && (!('birthYear' in d) || (d.birthYear is int && d.birthYear > 1900 && d.birthYear < 2100))
-          // free-text lists kept under 256 entries to prevent abuse.
-          && (!('likes' in d) || (d.likes is list && d.likes.size() <= 256))
-          && (!('dislikes' in d) || (d.dislikes is list && d.dislikes.size() <= 256))
-          // bio / role: optional public-profile strings, capped.
-          && (!('bio' in d) || (d.bio is string && d.bio.size() <= 280))
-          && (!('role' in d) || (d.role is string && d.role.size() <= 60))
-          // acceptImpressionsFrom controls who can write to your
-          // inbound-impressions inbox. "circle" is the default —
-          // matches the original carve-out. "nearby" extends it to
-          // followers; "anyone" opens it to any signed-in user;
-          // "nobody" closes the feature entirely.
-          && (!('acceptImpressionsFrom' in d) || d.acceptImpressionsFrom in ['nobody', 'circle', 'nearby', 'anyone'])
-          // shareImpressionsAbout controls who CAN SEE the impressions
-          // others have left for you. Same tier set. Defaults to
-          // "nobody" — keeps the inbox private to the recipient.
-          && (!('shareImpressionsAbout' in d) || d.shareImpressionsAbout in ['nobody', 'circle', 'nearby', 'anyone'])
-          // blockedImpressionTraits — case-folded trait words the
-          // user has opted out of receiving. Capped to keep the
-          // doc bounded.
-          && (!('blockedImpressionTraits' in d) || (d.blockedImpressionTraits is list && d.blockedImpressionTraits.size() <= 64))
-          // Demographic fields. gender uses the four-value closed set;
-          // country is an ISO 3166-1 alpha-2 code. Both opt-in via
-          // sharePrefs.
-          && (!('gender' in d) || d.gender in ['man', 'woman', 'non-binary', 'prefer-not-to-say'])
-          && (!('country' in d) || (d.country is string && d.country.size() == 2))
-          // Denormalised list of interest names. Each ≤ 60 chars,
-          // overall capped at 64 entries to bound storage.
-          && (!('interestNames' in d) || (d.interestNames is list && d.interestNames.size() <= 64));
-      }
-
-      function isValidSharePrefs(prefs) {
-        // Closed-set check on each value. Keys are unconstrained
-        // because SharingOverlay's category set evolves.
-        return prefs is map &&
-          (
-            !('daily_report' in prefs) ||
-            prefs.daily_report in ['nobody', 'circle', 'city', 'world']
-          );
-      }
-
-      // Helper: read the daily-report share level off the owner's
-      // profile doc. Returns the literal string (one of "nobody" /
-      // "circle" / "city" / "world") when set; falls back to
-      // "circle" (the per-category default in SharingOverlay) when
-      // sharePrefs is missing entirely or doesn't have a value for
-      // this key. Each call costs one get() — Firestore caches per
-      // request, so multiple reads in the same evaluation reuse it.
-      function dailyReportLevel() {
-        let p = get(/databases/$(database)/documents/insight_users/$(uid));
-        return p.data.get("sharePrefs", {}).get("daily_report", "circle");
-      }
-
-      // City-tier check: does the requesting user live in the same
-      // geohash5 (~5km square) as the owner? Both must have opted
-      // into discoverability (have a doc under /insight_discoverable).
-      // The geohash lives under `location.geohash` on those docs.
-      // We compare the first 5 characters of each side's hash —
-      // same cell granularity the population aggregates use, so
-      // "city" sharing matches the privacy floor already documented.
-      function sameCityAsOwner() {
-        let owner = get(/databases/$(database)/documents/insight_discoverable/$(uid)).data;
-        let viewer = get(/databases/$(database)/documents/insight_discoverable/$(request.auth.uid)).data;
-        return owner.location.geohash is string
-          && viewer.location.geohash is string
-          && owner.location.geohash.size() >= 5
-          && viewer.location.geohash.size() >= 5
-          && owner.location.geohash[0:5] == viewer.location.geohash[0:5];
-      }
-
-      // Daily report — cross-user read carve-out.
-      //
-      // The owner can always read their own. Friends in the circle
-      // (presence of doc at /circle/{theirUid}) can read when the
-      // owner's sharePrefs.daily_report is "circle" or wider.
-      // Followers (presence of doc at /followers/{theirUid}) can read
-      // when it's set to "city" or wider — followers see broader-tier
-      // content but never circle-only content. Anyone in the same
-      // geohash5 cell as the owner can read when it's "city" (both
-      // must be discoverable for the check to succeed). Anyone signed
-      // in can read when it's "world". Blocked viewers fail every
-      // path regardless of their relation.
-      match /insight_daily/{day} {
-        allow read: if request.auth != null
-          && !isBlockedByOwner()
-          && (
-            request.auth.uid == uid ||
-            dailyReportLevel() == "world" ||
-            (
-              dailyReportLevel() == "city" &&
-              (sameCityAsOwner() || isFollowerOfOwner())
-            ) ||
-            (
-              dailyReportLevel() in ["circle", "city"] &&
-              isInOwnerCircle()
-            )
-          );
-        allow write: if request.auth != null
-          && request.auth.uid == uid
-          && isValidDailyReportWrite();
-      }
-
-      function isBlockedByOwner() {
-        return exists(
-          /databases/$(database)/documents/insight_users/$(uid)/blocks/$(request.auth.uid)
-        );
-      }
-
-      function isFollowerOfOwner() {
-        return exists(
-          /databases/$(database)/documents/insight_users/$(uid)/followers/$(request.auth.uid)
-        );
-      }
-
-      function isInOwnerCircle() {
-        return exists(
-          /databases/$(database)/documents/insight_users/$(uid)/circle/$(request.auth.uid)
-        );
-      }
-
-      function isValidDailyReportWrite() {
-        let d = request.resource.data;
-        return
-          isShortString(d.date, 32)
-          && d.mood is number && d.mood >= 0 && d.mood <= 100
-          && isShortString(d.moodLabel, 64)
-          // one-line is the user-visible "today in a line" field.
-          // Cap generously but firmly.
-          && isShortString(d.one_line, 1024)
-          && isShortString(d.weather, 256)
-          && d.hasPhoto is bool
-          && isOptionalShortString(d.get('photoId', null), 64)
-          // photoPath is the Storage path for the cloud-backed
-          // photo (set when profile.cloudPhotos is on). Cap to
-          // 256 chars — well above the canonical path length but
-          // bounded so a bad client can't stuff a megabyte string.
-          && isOptionalShortString(d.get('photoPath', null), 256)
-          && d.shared is list && d.shared.size() <= 64
-          // Extended report fields. All optional; size + range
-          // capped to keep the doc bounded.
-          && (!('energy' in d) || (d.energy is number && d.energy >= 0 && d.energy <= 100))
-          && (!('sleepQuality' in d) || (d.sleepQuality is number && d.sleepQuality >= 0 && d.sleepQuality <= 100))
-          && (!('activities' in d) || (d.activities is list && d.activities.size() <= 24))
-          && (!('highlight' in d) || (d.highlight is string && d.highlight.size() <= 512));
-      }
-
-      // Circle — grants daily-report read access. Two write paths:
-      //   1. Owner manages their own circle list (read/write anything).
-      //   2. The friend-accept cross-write: when Bob accepts Alice's
-      //      friend request, Bob must write to BOTH circles to make
-      //      it mutual. The "Bob writes to Alice's circle to add
-      //      himself" path is allowed iff a friendRequest from
-      //      Alice exists in Bob's namespace. This proves Alice
-      //      consented to the friendship.
-      //
-      // We deliberately don't allow non-owners to read the circle
-      // list itself (they only need rules-internal `exists()` checks).
-      match /circle/{viewerUid} {
-        allow read: if request.auth != null && request.auth.uid == uid;
-        allow create: if request.auth != null && (
-          request.auth.uid == uid ||
-          (
-            request.auth.uid == viewerUid
-            && exists(
-              /databases/$(database)/documents/insight_users/$(viewerUid)/friendRequests/$(uid)
-            )
-          )
-        );
-        // Either side can break the friendship by clearing their own
-        // grant doc.
-        allow delete: if request.auth != null && (
-          request.auth.uid == uid || request.auth.uid == viewerUid
-        );
-      }
-
-      // Followers — anyone signed in can follow this user (creating
-      // the doc themselves), provided they aren't blocked. Owner can
-      // remove a follower at any time (kick); the follower can
-      // delete their own doc (unfollow). The doc body is minimal —
-      // a `followedAt` timestamp keeps audit logs honest.
-      match /followers/{followerUid} {
-        allow read: if request.auth != null && request.auth.uid == uid;
-        allow create: if request.auth != null
-          && request.auth.uid == followerUid
-          && !exists(
-            /databases/$(database)/documents/insight_users/$(uid)/blocks/$(followerUid)
-          );
-        allow delete: if request.auth != null && (
-          request.auth.uid == uid || request.auth.uid == followerUid
-        );
-        allow update: if false;
-      }
-
-      // Pending incoming friend requests. The requester writes the
-      // doc; either side can delete (accept = delete + write to
-      // circles; decline = just delete). Both sides can read so the
-      // requester can see "request pending" on the target's profile.
-      match /friendRequests/{requesterUid} {
-        allow read: if request.auth != null && (
-          request.auth.uid == uid || request.auth.uid == requesterUid
-        );
-        allow create: if request.auth != null
-          && request.auth.uid == requesterUid
-          && !exists(
-            /databases/$(database)/documents/insight_users/$(uid)/blocks/$(requesterUid)
-          );
-        allow delete: if request.auth != null && (
-          request.auth.uid == uid || request.auth.uid == requesterUid
-        );
-        allow update: if false;
-      }
-
-      // Block list — owner-only. Block existing breaks all relation
-      // gates (follow, friendRequest, circle, daily-report read,
-      // inbound impressions). Stale follow/circle docs created
-      // before the block are filtered at read time by the
-      // !isBlockedByOwner() check.
-      match /blocks/{blockedUid} {
-        allow read, write: if request.auth != null && request.auth.uid == uid;
-      }
-
-      // Inbound impressions — read + delete from the client; CREATE
-      // is server-only.
-      //
-      // Creates flow exclusively through the `sendInboundImpression`
-      // callable (functions/index.ts), which writes via the admin SDK
-      // and so bypasses these rules. That function re-implements the
-      // authorization gate that used to live here — not-blocked +
-      // (in-circle OR follower-with-opt-in OR accepts-anyone) — and
-      // adds the one thing rules cannot express: a rate limit. Rules
-      // can't count a sender's recent writes across many recipients,
-      // so a circle member could previously flood an inbox one
-      // allowed write at a time. The callable holds a per-sender
-      // ledger and caps both per-recipient and global send rate.
-      //
-      // Denying client create here is what forces every impression
-      // through that gate. The sender's uid is still stamped on each
-      // doc (server-side) so the recipient can block or delete; the
-      // UI surfaces entries as "soft anonymous."
-      match /insight_inbound_impressions/{id} {
-        allow read: if request.auth != null && request.auth.uid == uid;
-        // Client creates are disabled — see sendInboundImpression.
-        allow create: if false;
-        // Read carve-out: the recipient always reads their own
-        // inbox. Other users can read when the recipient has opted
-        // into sharing impressions about themselves at a tier the
-        // viewer's relation reaches. The "shareImpressionsAbout"
-        // profile field gates this.
-        allow read: if request.auth != null && (
-          request.auth.uid == uid ||
-          !isBlockedByOwner() && (
-            ownerShareImpressionsAbout() == "anyone"
-            || (
-              ownerShareImpressionsAbout() == "nearby"
-              && (isFollowerOfOwner() || isInOwnerCircle())
-            )
-            || (
-              ownerShareImpressionsAbout() == "circle"
-              && isInOwnerCircle()
-            )
-          )
-        );
-        // Client creates stay disabled — every impression flows
-        // through the sendInboundImpression callable, which enforces
-        // the rate limit (rules can't) plus the circle/accept-from
-        // gate AND the recipient's trait blocklist, all server-side.
-        allow delete: if request.auth != null && (
-          request.auth.uid == uid ||
-          request.auth.uid == resource.data.senderUid
-        );
-        // Impressions are immutable once written — no edits.
-        allow update: if false;
-      }
-
-      function ownerShareImpressionsAbout() {
-        let p = get(/databases/$(database)/documents/insight_users/$(uid));
-        return p.data.get("shareImpressionsAbout", "nobody");
-      }
-
-      // ── Circle-tier sharing of personal subcollections ──────────
-      // Maps a subcollection to the SharingOverlay share-pref key that
-      // governs it (empty string = not shareable, stays owner-only).
-      function collShareKey(collection) {
-        return collection == 'insight_moods' ? 'mood'
-          : collection == 'insight_workouts' ? 'workouts'
-          : collection == 'insight_meals' ? 'meals'
-          : collection == 'insight_weighins' ? 'weighins'
-          : collection == 'insight_scrapbook' ? 'scrapbook'
-          : collection == 'insight_dreams' ? 'dreams'
-          : collection == 'insight_books' ? 'books'
-          : collection == 'insight_visits' ? 'visits'
-          : collection == 'insight_homes' ? 'homes'
-          : collection == 'insight_languages' ? 'languages'
-          : collection == 'insight_jobs' ? 'jobs'
-          : collection == 'insight_milestones' ? 'milestones'
-          : collection == 'insight_time_blocks' ? 'time_blocks'
-          : '';
-      }
-      // Per-collection default level — mirrors SHARE_DATA's `def` so
-      // the rule matches what the UI shows before the user has
-      // touched a toggle.
-      function collShareDefault(collection) {
-        return (collection == 'insight_weighins'
-            || collection == 'insight_dreams'
-            || collection == 'insight_homes'
-            || collection == 'insight_time_blocks') ? 'nobody'
-          : (collection == 'insight_books'
-            || collection == 'insight_languages') ? 'world'
-          : 'circle';
-      }
-      // A mutual friend may READ a shareable subcollection when the
-      // owner's share level for it is circle / city / world. Writes
-      // stay owner-only. Finance (insight_transactions), habits,
-      // private impression sketches, etc. return '' above and are
-      // never exposed here.
-      function circleCanRead(collection) {
-        let key = collShareKey(collection);
-        return key != ''
-          && isInOwnerCircle()
-          && !isBlockedByOwner()
-          && get(/databases/$(database)/documents/insight_users/$(uid))
-               .data.get('sharePrefs', {})
-               .get(key, collShareDefault(collection)) in ['circle', 'city', 'world'];
-      }
-
-      // All other subcollections — owner-only, plus the circle read
-      // carve-out above for the shareable ones.
-      //
-      // The write grant must EXCLUDE every subcollection with its own
-      // match block above: overlapping matches OR together, so the
-      // wildcard would re-grant owner writes those blocks deliberately
-      // deny — unvalidated insight_daily writes, client-side
-      // impression creates, forged friendRequests (which the circle
-      // create rule trusts as consent), fabricated followers.
-      function hasOwnMatchBlock(collection) {
-        return collection in [
-          'insight_daily',
-          'insight_inbound_impressions',
-          'circle',
-          'followers',
-          'friendRequests',
-          'blocks'
-        ];
-      }
-      match /{collection}/{doc} {
-        allow read: if request.auth != null && request.auth.uid == uid;
-        allow write: if request.auth != null && request.auth.uid == uid
-          && !hasOwnMatchBlock(collection);
-        allow read: if request.auth != null && circleCanRead(collection);
-      }
-    }
-
-    // Discoverable users — anyone signed in can read (so nearby
-    // discovery works), but only the owner can write their own doc.
-    // The doc holds (fuzzed) location + minimal profile chrome; full
-    // personal data still lives under `insight_users/{uid}/`.
-    // Schema validation enforces the fields we actually consume so
-    // a misbehaving client can't stash arbitrary payloads here.
-    match /insight_discoverable/{uid} {
-      allow read: if request.auth != null;
-      allow write: if request.auth != null
-        && request.auth.uid == uid
-        && isValidDiscoverableWrite();
-    }
-
-    function isValidDiscoverableWrite() {
-      let d = request.resource.data;
-      // This doc is readable by EVERY signed-in user, so the location
-      // it may carry is exactly the ~5 km geohash5 cell the nearby
-      // features consume (decision D2) — never more. A longer hash or
-      // an exact GeoPoint would publish full-precision whereabouts
-      // next to a psychometric vector; nothing reads either (the
-      // aggregators truncate to 5 chars, no code touches geopoint),
-      // so the fuzz is enforced here rather than merely promised.
-      // Docs written before this rule may still hold a geopoint —
-      // the one-time scrub is tracked in SHIP-CHECKLIST.
-      //
-      // displayName / photoColor may be a string or explicit null
-      // (the impl writes null when the optional value is missing
-      // rather than omitting the key). `personality` is the user's
-      // Big Five vector (5 numbers, 0..100) used by useNearbyPeople
-      // to compute match%; null clears a previously-set vector.
-      // `bio`, `role`, `age` are opt-in public-profile fields,
-      // length / range capped.
-      return
-        d.location.geohash is string
-        && d.location.geohash.size() > 0
-        && d.location.geohash.size() <= 5
-        && d.location.keys().hasOnly(['geohash'])
-        && (
-          !('displayName' in d) || d.displayName == null
-          || (d.displayName is string && d.displayName.size() <= 128)
-        )
-        && (
-          !('photoColor' in d) || d.photoColor == null
-          || (d.photoColor is string && d.photoColor.size() <= 32)
-        )
-        && (
-          !('personality' in d) || d.personality == null
-          || (d.personality is list && d.personality.size() == 5)
-        )
-        && (
-          !('political' in d) || d.political == null
-          || (d.political is map
-              && d.political.econ is number
-              && d.political.social is number)
-        )
-        && (
-          !('bio' in d) || d.bio == null
-          || (d.bio is string && d.bio.size() <= 280)
-        )
-        && (
-          !('role' in d) || d.role == null
-          || (d.role is string && d.role.size() <= 60)
-        )
-        && (
-          !('age' in d) || d.age == null
-          || (d.age is int && d.age >= 10 && d.age <= 130)
-        )
-        && (
-          !('interestNames' in d) || d.interestNames == null
-          || (d.interestNames is list && d.interestNames.size() <= 64)
-        )
-        && (
-          !('gender' in d) || d.gender == null
-          || d.gender in ['man', 'woman', 'non-binary', 'prefer-not-to-say']
-        )
-        && (
-          !('country' in d) || d.country == null
-          || (d.country is string && d.country.size() == 2)
-        )
-        && (
-          !('acceptImpressionsFrom' in d) || d.acceptImpressionsFrom == null
-          || d.acceptImpressionsFrom in ['nobody', 'circle', 'nearby', 'anyone']
-        )
-        && (
-          !('blockedImpressionTraits' in d) || d.blockedImpressionTraits == null
-          || (d.blockedImpressionTraits is list && d.blockedImpressionTraits.size() <= 64)
-        )
-        && (
-          !('shareImpressionsAbout' in d) || d.shareImpressionsAbout == null
-          || d.shareImpressionsAbout in ['nobody', 'circle', 'nearby', 'anyone']
-        )
-        // No unvalidated fields: this doc is world-readable, so a key
-        // outside the schema is a free public storage channel. Every
-        // key above must also appear here.
-        && d.keys().hasOnly([
-          'location', 'displayName', 'photoColor', 'personality',
-          'political', 'bio', 'role', 'age', 'interestNames', 'gender',
-          'country', 'acceptImpressionsFrom', 'blockedImpressionTraits',
-          'shareImpressionsAbout'
-        ]);
-    }
-
-    // Cities catalogue — world cities + their geohash + geopoint.
-    // Read-only for any signed-in user (the nearest-city query runs
-    // against this collection). Writes are out-of-band (admin tooling).
-    match /Cities/{cityId} {
-      allow read: if request.auth != null;
-      allow write: if false;
-    }
-
-    // Community-voted interest items. Top-level collection so the
-    // leaderboard query works across the whole userbase. Each doc
-    // has a denormalised voteCount that the client increments
-    // atomically alongside writing the vote subdoc.
-    match /insight_interest_items/{itemId} {
-      allow read: if request.auth != null;
-      allow create: if request.auth != null
-        && isValidInterestItemCreate();
-      // Updates only allowed for the denormalised voteCount, and
-      // only as ±1 of the current value. Combined with the vote
-      // subcollection's existence check this stops a client from
-      // faking arbitrary scores. Other fields (name, type, etc.)
-      // are immutable post-create.
-      allow update: if request.auth != null
-        && isValidVoteCountChange();
-      // Only the creator can delete the item.
-      allow delete: if request.auth != null
-        && request.auth.uid == resource.data.createdBy;
-
-      // Per-user vote doc. Presence = voted. The atomic upvote
-      // transaction writes this alongside the +1 update; the rule
-      // enforces voterUid matches auth uid so a malicious client
-      // can't write a vote on behalf of someone else.
-      match /votes/{voterUid} {
-        allow read: if request.auth != null
-          && request.auth.uid == voterUid;
-        allow create: if request.auth != null
-          && request.auth.uid == voterUid;
-        allow delete: if request.auth != null
-          && request.auth.uid == voterUid;
-        allow update: if false;
-      }
-    }
-
-    function isValidInterestItemCreate() {
-      let d = request.resource.data;
-      return
-        d.interestSlug is string
-        && d.interestSlug.size() > 0 && d.interestSlug.size() <= 60
-        && d.type in ['media', 'figure', 'literature', 'tip']
-        && d.name is string
-        && d.name.size() > 0 && d.name.size() <= 120
-        && (!('description' in d) || d.description == null
-            || (d.description is string && d.description.size() <= 500))
-        && d.voteCount == 0
-        && d.createdBy == request.auth.uid;
-    }
-
-    function isValidVoteCountChange() {
-      let pre = resource.data;
-      let post = request.resource.data;
-      // Allow ±1 update on voteCount, no other field changes.
-      return
-        post.voteCount is int
-        && post.voteCount >= 0
-        && (
-          post.voteCount == pre.voteCount + 1
-          || post.voteCount == pre.voteCount - 1
-        )
-        && post.interestSlug == pre.interestSlug
-        && post.type == pre.type
-        && post.name == pre.name
-        && post.createdBy == pre.createdBy;
-    }
-
-    // Population aggregates — pre-rolled Big Five + politics + morals
-    // averages per geohash5 cell. Read-only for any signed-in user.
-    // Writes are only done by the rebuildAreaAggregates Cloud Function
-    // (using admin SDK, which bypasses rules) — so we forbid
-    // direct client writes here.
-    //
-    // Privacy guard: the Cloud Function enforces a k-anonymity
-    // floor (>= 20 contributors per cell) before publishing; cells
-    // below the floor are silently dropped (and deleted if they
-    // existed previously). Individual users never appear here.
-    match /aggregates_by_geohash5/{hash} {
-      allow read: if request.auth != null;
-      allow write: if false;
-    }
-
-    // World aggregates — a single \`snapshot\` doc written by the
-    // rebuildWorldAggregates Cloud Function (admin SDK, bypasses
-    // rules). Holds userbase-level stats (personality by country,
-    // top interests globally, etc.). Read-only to any signed-in
-    // user; client writes forbidden.
-    match /aggregates_world/{docId} {
-      allow read: if request.auth != null;
-      allow write: if false;
-    }
-
-    // City aggregates — one doc per slugged city name, holding
-    // per-dimension averages across the userbase. Written nightly
-    // by rebuildCityAggregates (admin SDK), read by City-tab
-    // subscribers. Same access pattern as the world snapshot.
-    match /aggregates_city/{cityKey} {
-      allow read: if request.auth != null;
-      allow write: if false;
-    }
-
-    // Media popularity — global "what's loved" tally written by the
-    // area aggregator (admin SDK). Read-only to any signed-in user;
-    // per-area + per-city media ride on aggregates_by_geohash5 /
-    // aggregates_city, which already have read rules above.
-    match /aggregates_media/{docId} {
-      allow read: if request.auth != null;
-      allow write: if false;
-    }
-
-    // Taxonomies — canonical reference data (interest categories,
-    // etc.) mirrored from the seedTaxonomies function. Read-only to
-    // any signed-in user; written only by the admin SDK.
-    match /taxonomies/{key} {
-      allow read: if request.auth != null;
-      allow write: if false;
     }
 
     // Rate-limit ledgers — one doc per sender, holding recent
@@ -703,7 +110,17 @@ service cloud.firestore {
             && request.resource.data.surface in ["daily", "feed", "test"]
             && request.resource.data.qid == aid
             && request.resource.data.optionIdx
-              < get(/databases/$(database)/documents/v2_questions/$(aid)).data.options.size();
+              < get(/databases/$(database)/documents/v2_questions/$(aid)).data.options.size()
+            // Honour the operational kill switch: a question flipped
+            // inactive stops accepting answers, not just showing itself.
+            && get(/databases/$(database)/documents/v2_questions/$(aid))
+                 .data.get("active", true) == true
+            // …and the claimed surface must match the question's own, so a
+            // duel-bank question can't be answered as a world question and
+            // land in the public aggregate. Defaults keep a field-less doc
+            // answerable rather than permanently bricked.
+            && get(/databases/$(database)/documents/v2_questions/$(aid))
+                 .data.get("surface", "daily") in ["daily", "feed", "test"];
         }
 
         // Sealed duel answers: id g_{gid}_{day}, member-only, and only
@@ -718,6 +135,26 @@ service cloud.firestore {
             && request.resource.data.gid is string
             && request.resource.data.day is string
             && request.resource.data.day.matches('[0-9]{4}-[0-9]{2}-[0-9]{2}')
+            // …and that day must be near NOW. Format-checking alone let a
+            // member pre-seal every future day — guaranteeing their half of
+            // the streak forever and fixing which bank question each future
+            // reveal would use — or backfill any unrevealed past day.
+            //
+            // Bounds are deliberately loose, because a refusal here surfaces
+            // as a vote that vanishes. Back: 4d, so a client flushing a
+            // queue after ~3 days offline still lands whatever the hour.
+            // Forward: 2d, because day keys are UTC while "today" is local,
+            // and UTC+14 is already tomorrow.
+            && timestamp.date(
+                 int(request.resource.data.day[0:4]),
+                 int(request.resource.data.day[5:7]),
+                 int(request.resource.data.day[8:10]))
+               > request.time - duration.value(4, 'd')
+            && timestamp.date(
+                 int(request.resource.data.day[0:4]),
+                 int(request.resource.data.day[5:7]),
+                 int(request.resource.data.day[8:10]))
+               < request.time + duration.value(2, 'd')
             && aid == "g_" + request.resource.data.gid + "_" + request.resource.data.day
             && request.auth.uid in get(/databases/$(database)/documents/v2_groups/$(request.resource.data.gid)).data.memberUids
             && !exists(/databases/$(database)/documents/v2_groups/$(request.resource.data.gid)/reveals/$(request.resource.data.day))
@@ -738,7 +175,11 @@ service cloud.firestore {
         allow create: if request.auth != null && request.auth.uid == uid
           && request.resource.data.optionIdx is int
           && request.resource.data.optionIdx >= 0
-          && request.resource.data.optionIdx < 20
+          // Outer sanity bound only — the real bound is per-question below
+          // (options.size(), or the group's member count for "pick"
+          // questions). Must clear GROUP_CAP (32, functions/src/v2social.ts)
+          // or members past the 20th become unpickable on every "pick" day.
+          && request.resource.data.optionIdx < 64
           && request.resource.data.answeredAt == request.time
           && isValidV2Anchors(request.resource.data.get("anchors", {}))
           && (isWorldAnswer() || isDuelAnswer());

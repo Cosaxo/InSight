@@ -7,6 +7,7 @@ on:
       - "functions/**"
       - "firestore.rules"
       - "firestore.indexes.json"
+      - "storage.rules"
       - ".github/workflows/firebase-deploy.yml"
   workflow_dispatch:
 
@@ -22,36 +23,15 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  # The rules suite exists precisely to guard firestore.rules — a deploy
-  # that skips it can ship an untested rules edit straight to prod.
+  # Backend correctness, shared verbatim with ci.yml. This used to be the
+  # rules suite alone, so a push that broke meetsKFloor, the duel-reveal
+  # path or account deletion deployed while CI went red in parallel.
+  #
+  # Client-only checks (lint, bundle budget, Android) and the npm audit
+  # stay OFF this path on purpose: none of them says anything about
+  # backend correctness, and each could block an emergency rules fix.
   test:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
-
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
-        with:
-          node-version: "22"
-          cache: npm
-
-      - name: Install dependencies
-        run: npm ci
-
-      # firebase-tools 15 requires Java 21+ for the Firestore emulator;
-      # the runner's default JDK is older.
-      - uses: actions/setup-java@03ad4de0992f5dab5e18fcb136590ce7c4a0ac95 # v5.6.0
-        with:
-          distribution: temurin
-          java-version: "21"
-
-      - name: Cache Firestore emulator
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
-        with:
-          path: ~/.cache/firebase/emulators
-          key: firebase-emulators-${{ hashFiles('package-lock.json') }}
-
-      - name: Rules tests (Firestore emulator)
-        run: npm run test:rules
+    uses: ./.github/workflows/backend-checks.yml
 
   deploy:
     needs: test
@@ -67,6 +47,11 @@ jobs:
         with:
           node-version: "22"
           cache: npm
+          # This job installs both trees; cache on both lockfiles so the
+          # functions install is cached too.
+          cache-dependency-path: |
+            package-lock.json
+            functions/package-lock.json
 
       # Root deps bring the lockfile-pinned firebase-tools CLI.
       - name: Install dependencies
@@ -78,10 +63,45 @@ jobs:
       - name: Build functions
         run: npm run build --prefix functions
 
+      # Runtime env for the deployed functions. The CLI reads
+      # functions/.env.<projectId> at deploy time and bakes it into each
+      # function's runtime config. Both .env and .env.* are gitignored, so
+      # CI is the only place this value can come from — without this step
+      # SEED_ADMIN_UIDS is empty in production and assertOperator() denies
+      # every operator callable, including the seedContentV2 that fills
+      # the question bank. Project-scoped on purpose: a future non-prod
+      # project must not inherit production operator uids.
+      - name: Write functions runtime env
+        env:
+          SEED_ADMIN_UIDS: ${{ vars.SEED_ADMIN_UIDS }}
+          APPCHECK_ENFORCE: ${{ vars.APPCHECK_ENFORCE }}
+        run: |
+          if [ -z "$SEED_ADMIN_UIDS" ]; then
+            echo "::warning::SEED_ADMIN_UIDS is empty — seedContentV2, revealDuelsNowV2 and the rebuild* callables will return permission-denied. Set it on the production environment, then re-run via workflow_dispatch."
+          fi
+          printf 'SEED_ADMIN_UIDS=%s\n' "$SEED_ADMIN_UIDS" > functions/.env.prvfire33
+          # Only ever write the escape hatch when it is explicitly "false";
+          # any other value must leave App Check enforced by default.
+          if [ "$APPCHECK_ENFORCE" = "false" ]; then
+            echo "::warning::APPCHECK_ENFORCE=false — App Check enforcement is DISABLED for this deploy. Incident escape hatch only; unset the variable to restore enforcement."
+            printf 'APPCHECK_ENFORCE=false\n' >> functions/.env.prvfire33
+          fi
+
       - name: Write service account key
         env:
           FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
         run: printf '%s' "$FIREBASE_SERVICE_ACCOUNT" > "$RUNNER_TEMP/sa-key.json"
+
+      # Separate from the main apply on purpose: storage:rules fails if the
+      # project has no Storage bucket provisioned, and that must not abort
+      # the Firestore-rules + functions deploy. `continue-on-error` keeps a
+      # missing bucket from failing the run while still surfacing it in the
+      # job summary — check this step before assuming storage.rules is live.
+      - name: Deploy storage rules
+        continue-on-error: true
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/sa-key.json
+        run: npx firebase deploy --project prvfire33 --non-interactive --only "storage:rules"
 
       # --force is required for non-interactive deploys of retry-enabled
       # triggers (docs/DEPLOYMENT.md).

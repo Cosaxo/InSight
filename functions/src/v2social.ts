@@ -26,7 +26,8 @@ const GROUP_CAP = 32;
 const MEMBERSHIP_CAP = 20;      // groups+duos one account may belong to
 const JOIN_ATTEMPTS_PER_HOUR = 30; // invite codes are 31^8 — this makes
                                    // brute force astronomically slow
-const GROUP_SCAN_CAP = 2000;    // reveal-scan page size — see runDuelReveals
+const GROUP_SCAN_CAP = 2000;    // total groups one reveal run will scan
+const PAGE_SIZE = 300;          // groups fetched per cursor page
 
 // ── helpers ─────────────────────────────────────────────────────
 
@@ -154,18 +155,36 @@ export const leaveGroupV2 = onCall({ region: REGION, enforceAppCheck: ENFORCE_AP
   const gid = String(request.data?.gid || "");
   const db = getFirestore();
   const ref = db.collection("v2_groups").doc(gid);
-  const snap = await ref.get();
-  if (!snap.exists) throw new HttpsError("not-found", "no such group");
-  const members: string[] = snap.get("memberUids") || [];
-  if (!members.includes(uid)) throw new HttpsError("permission-denied", "not a member");
-  if (members.length === 1) {
+
+  // Read-then-write in a transaction. Unguarded, two members of a duo
+  // leaving at the same moment both read length === 2, both take the
+  // arrayRemove branch, and the group survives with memberUids: [] — no
+  // client can read it (rules gate on membership), so nobody can leave it
+  // or delete it, while the 2-hourly reveal scan re-fetches it forever.
+  // joinGroupV2 already does its size check inside a transaction; this is
+  // the same pattern.
+  //
+  // The recursiveDelete cannot go inside — it is a multi-batch operation,
+  // not a transactional write — so the transaction decides, and the delete
+  // follows. A concurrent leave landing in that window is harmless: the
+  // loser's transaction sees the already-shrunk membership.
+  const outcome = await db.runTransaction(async (tx) => {
+    const snap = await tx.get(ref);
+    if (!snap.exists) throw new HttpsError("not-found", "no such group");
+    const members: string[] = snap.get("memberUids") || [];
+    if (!members.includes(uid)) throw new HttpsError("permission-denied", "not a member");
+    if (members.length === 1) return "delete" as const;
+    tx.update(ref, {
+      memberUids: FieldValue.arrayRemove(uid),
+      [`memberNames.${uid}`]: FieldValue.delete(),
+    });
+    return "left" as const;
+  });
+
+  if (outcome === "delete") {
     await db.recursiveDelete(ref); // last member out → group and reveals go
     return { gid, deleted: true };
   }
-  await ref.update({
-    memberUids: FieldValue.arrayRemove(uid),
-    [`memberNames.${uid}`]: FieldValue.delete(),
-  });
   return { gid, deleted: false };
 });
 
@@ -266,6 +285,19 @@ async function revealGroupDay(
       qid,
       votes,
       names,
+      // Membership AT REVEAL TIME. Reveal reads are currently gated on the
+      // group's CURRENT memberUids, so joining a group today exposes every
+      // past day's votes and display names — including those of members who
+      // have since left. This is the one v2 rule that leaks one user's
+      // answers to another.
+      //
+      // Deploy ordering matters: this payload must be live BEFORE the rules
+      // gate on it. A released ruleset applies instantly while gen2
+      // functions roll out over minutes, so shipping both together would
+      // leave reveals written in that window with no `members` field and
+      // therefore permanently unreadable by their own members. Hence this
+      // lands alone; the rules change is a separate, later deploy.
+      members,
       revealedAt: FieldValue.serverTimestamp(),
     });
   } catch (err) {
@@ -290,6 +322,17 @@ async function revealGroupDay(
     for (const s of profileSnaps) {
       if (!s.exists || !Array.isArray(s.get("fcmTokens"))) continue;
       for (const t of s.get("fcmTokens") as string[]) {
+        // Rules cap the array at 10 entries but never check what is IN
+        // them, so a client can store ten ~1MB strings in its own
+        // (owner-writable) profile and we would hand them straight to
+        // sendEachForMulticast. Bound length only — no format regex,
+        // which is the part most likely to silently kill reveals for
+        // everyone the day FCM changes its token shape.
+        // NB: this bounds SEND cost, not what is stored.
+        if (typeof t !== "string" || t.length < 20 || t.length > 4096) {
+          logger.warn(`[reveal] skipping malformed fcmToken on ${s.id}`);
+          continue;
+        }
         const owners = tokenOwners.get(t) || [];
         owners.push(s.id);
         tokenOwners.set(t, owners);
@@ -337,28 +380,65 @@ async function revealGroupDay(
 async function runDuelReveals(dayKey?: string): Promise<{ revealed: number }> {
   const db = getFirestore();
   const yester = dayKey || utcDayKey(-1);
-  // Full-collection scan, capped. A `lastCheckedDay != yester` filter
-  // would be cheaper, but Firestore's != EXCLUDES docs missing the
-  // field — every never-checked (incl. freshly created) group would
-  // silently drop out — and "!= OR missing" isn't expressible in one
-  // query. So the full scan stays; the cap check below is the tripwire
-  // for when the collection outgrows it and needs a paginated cursor.
-  const groups = await db.collection("v2_groups").limit(GROUP_SCAN_CAP).get();
-  if (groups.size >= GROUP_SCAN_CAP) {
-    logger.error(
-      `[v2social] group scan hit the ${GROUP_SCAN_CAP}-doc cap — groups beyond ` +
-        "it are NOT being checked and their reveals are silently stranded. " +
-        "Paginate runDuelReveals before this stays true.",
-    );
-  }
+  // Full-collection scan, PAGINATED. A `lastCheckedDay != yester` filter
+  // would be cheaper, but Firestore's != EXCLUDES docs missing the field —
+  // every never-checked (incl. freshly created) group would silently drop
+  // out — and "!= OR missing" isn't expressible in one query. So the full
+  // scan stays; what changed is that it no longer stops at one page.
+  //
+  // It used to fetch GROUP_SCAN_CAP docs and process them one at a time.
+  // The 60s timeout bound at roughly 200-400 active groups — an order of
+  // magnitude below the cap — so the function died mid-loop and re-walked
+  // the same prefix on every run, with nothing but a log line saying why.
+  //
+  // Lanes: 5, not 10. The timeout raise is already 8x, and each reveal can
+  // fan out to 64 FCM tokens; more lanes buys throughput this does not need
+  // and multiplies peak memory and messaging concurrency.
+  const LANES = 5;
+  let cursor: FirebaseFirestore.QueryDocumentSnapshot | null = null;
   let revealed = 0;
-  for (const g of groups.docs) {
-    try {
-      if (await revealGroupDay(g, yester)) revealed++;
-    } catch (err) {
-      logger.error(`[v2social] reveal failed for ${g.id}/${yester}:`, err);
+  let scanned = 0;
+
+  for (;;) {
+    let q = db.collection("v2_groups").orderBy("__name__").limit(PAGE_SIZE);
+    if (cursor) q = q.startAfter(cursor);
+    const page = await q.get();
+    if (page.empty) break;
+
+    // Process the page in fixed-width lanes.
+    const docs = page.docs;
+    for (let i = 0; i < docs.length; i += LANES) {
+      const lane = docs.slice(i, i + LANES);
+      const results = await Promise.all(lane.map(async (g): Promise<number> => {
+        try {
+          return (await revealGroupDay(g, yester)) ? 1 : 0;
+        } catch (err) {
+          // One group's failure must not strand the rest of the scan.
+          logger.error(`[v2social] reveal failed for ${g.id}/${yester}:`, err);
+          return 0;
+        }
+      }));
+      revealed += results.reduce((a, b) => a + b, 0);
+    }
+
+    scanned += page.size;
+    if (page.size < PAGE_SIZE) break;
+    cursor = docs[docs.length - 1];
+
+    // The tripwire, repurposed. It no longer bounds one page — it bounds
+    // the whole run, so "I have outgrown this" still gets said rather than
+    // quietly becoming a multi-minute job.
+    if (scanned >= GROUP_SCAN_CAP) {
+      logger.error(
+        `[v2social] scanned ${scanned} groups in one run (ceiling ` +
+          `${GROUP_SCAN_CAP}). Groups beyond this are NOT checked this run; ` +
+          "their reveals land on a later run at best. Time to switch to an " +
+          "indexed lastCheckedDay query or shard the scan.",
+      );
+      break;
     }
   }
+
   logger.info(`[v2social] reveals for ${yester}: ${revealed}`);
   return { revealed };
 }

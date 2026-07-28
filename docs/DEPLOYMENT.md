@@ -18,8 +18,30 @@ Firebase project `prvfire33`. Routine backend changes need no manual deploy.
 - **Workflow:** `.github/workflows/firebase-deploy.yml`
 - **Triggers:** push to `main` (paths `functions/**`, `firestore.rules`, the
   workflow file) and manual `workflow_dispatch`.
-- **Steps:** checkout -> set up Node 20 -> install & build `functions` ->
-  authenticate to Google Cloud -> `firebase deploy`.
+- **Steps:** checkout -> set up Node 22 -> install & build `functions` ->
+  write `functions/.env.prvfire33` -> authenticate to Google Cloud ->
+  `firebase deploy`.
+- **Safety properties** (all three are load-bearing; don't drop them):
+  - `needs: test` — where `test` calls
+    [`backend-checks.yml`](../.github/workflows/backend-checks.yml), the
+    same reusable workflow `ci.yml` runs on every PR: the functions build
+    **and its unit tests**, the Firestore + Storage rules suites, the v2
+    core-loop e2e and the erasure e2e. What guards a PR is exactly what
+    guards production.
+
+    This used to be the rules suite alone, so a push that broke
+    `meetsKFloor`, the duel-reveal path or account deletion deployed while
+    CI went red in parallel.
+
+    Deliberately **not** on this path: lint, the bundle budget, the
+    Android build and the `npm audit`. None of them says anything about
+    backend correctness, and each could block an emergency rules fix — the
+    audit especially, since it is a live registry call whose result
+    changes without the code changing.
+  - `environment: production` — scopes the secret and variables, and is
+    where required reviewers or a wait timer would attach.
+  - `concurrency: cancel-in-progress: false` — a queued push waits for the
+    in-flight deploy instead of cancelling it mid-apply.
 - **Deployed resources:**
   - Firestore rules (`firestore.rules`)
   - v2 functions: `seedContentV2`, `onV2AnswerCreated` (k-floored
@@ -44,11 +66,74 @@ Actions secret `FIREBASE_SERVICE_ACCOUNT`.
   automatically. (We deliberately do **not** use the
   `google-github-actions/auth` action — its tarball repeatedly failed to
   download on the runner.)
-- The key belongs to
-  `firebase-adminsdk-qdsv5@prvfire33.iam.gserviceaccount.com`.
+- The key belongs to the project's `firebase-adminsdk` service account.
+  (Its full address is in Firebase Console → Project settings → Service
+  accounts — not written down here, so this doc can be shared freely.)
 - That service account currently holds the `Editor` + `Firebase Admin` IAM
   roles, which together cover deploying rules and (gen-2) functions. This can
   be narrowed to least-privilege later.
+
+## Runtime environment for the functions
+
+Two values reach the deployed runtime, both as **variables on the
+`production` environment** (GitHub → Settings → Environments → `production`
+→ Variables — not secrets, and not committed files):
+
+| Variable | Read by | Effect |
+| --- | --- | --- |
+| `SEED_ADMIN_UIDS` | `functions/src/ops.ts` → `assertOperator()` | Comma-separated uids allowed to call the operator-only callables (`seedContentV2`, `revealDuelsNowV2`, `rebuild*`). Unset ⇒ **every** operator callable returns `permission-denied`. |
+| `APPCHECK_ENFORCE` | `functions/src/ops.ts` → `ENFORCE_APP_CHECK` | Only the exact string `false` disables App Check enforcement, as an incident escape hatch. Unset (the normal state) ⇒ enforced. |
+
+The deploy job writes these to `functions/.env.prvfire33`, which the CLI
+bakes into each function's runtime config. The filename is
+project-scoped deliberately: a future non-prod project must not inherit
+production operator uids. `.env` and `.env.*` are gitignored repo-wide,
+so the workflow variable is the only path into production — a deploy with
+`SEED_ADMIN_UIDS` unset still succeeds, but logs a `::warning::` and
+leaves the question bank unseedable.
+
+## Rolling back a bad deploy
+
+Rules, indexes and functions roll back by different mechanics — a rules
+rollback touches neither indexes nor functions.
+
+**Rules** (fastest, no pipeline): Firebase Console → Firestore → Rules →
+**History** → pick the last good ruleset → Restore. Takes effect in
+seconds. Re-running the pipeline on a `git revert` also works but is
+slower and re-deploys functions you may not want to move. Whichever you
+use, land the revert in `main` afterwards or the next deploy re-applies
+the bad ruleset.
+
+**Functions**: there is no console "previous version" restore for gen-2.
+Revert the commit and let the pipeline redeploy, or deploy a known-good
+tree locally with the `--only` list from the workflow.
+
+**A misbehaving `onV2AnswerCreated` is the urgent case.** It has
+`retry: true`, so Eventarc keeps redelivering failures for up to ~7 days
+— a crashing trigger does not drain, it accumulates. Fastest containment
+is deploying a no-op body (return immediately) so deliveries are
+acknowledged, *then* fixing forward. Reverting alone still leaves the
+backlog to replay against the old code.
+
+**Do not invoke a `rebuild*` callable inside its schedule window.** The
+operator rebuilds and their scheduled twins are separate Cloud Run
+services, so `maxInstances: 1` does not serialize them — running both at
+once doubles peak memory and read spend for an identical result. The
+schedules are: area every 6h, world 02:00 UTC, city 04:00 UTC, taxonomies
+06:00 UTC. This is a cost concern rather than a correctness one (the
+orphan-delete path is safe under interleaving); D7 records why no lock was
+built.
+
+Check what is actually happening first:
+
+```bash
+npx firebase functions:log --project prvfire33
+npx firebase functions:log --project prvfire33 --only onV2AnswerCreated
+```
+
+The aggregate ledger makes replay safe: `v2_agg_events/{eventId}` is
+checked inside the same transaction that increments counts, so
+redelivered events are no-ops rather than double counts.
 
 ## Running a deploy manually
 
@@ -60,8 +145,8 @@ Actions secret `FIREBASE_SERVICE_ACCOUNT`.
 
 1. Firebase Console -> Project settings -> Service accounts -> **Generate new
    private key**.
-2. Confirm the downloaded JSON's `client_email` is
-   `firebase-adminsdk-qdsv5@prvfire33.iam.gserviceaccount.com`.
+2. Confirm the downloaded JSON's `client_email` is the project's
+   `firebase-adminsdk` account (Project settings → Service accounts).
 3. GitHub -> Settings -> Secrets and variables -> Actions -> edit
    `FIREBASE_SERVICE_ACCOUNT` and paste the **entire** JSON.
 
@@ -83,14 +168,42 @@ minted per run. Console-side setup (one-time, needs a GCP admin):
 2. Create a provider in that pool for `https://token.actions.githubusercontent.com`
    with an attribute condition pinning this repo
    (`assertion.repository == 'Cosaxo/InSight'`).
-3. Grant `firebase-adminsdk-qdsv5@prvfire33.iam.gserviceaccount.com`
-   the `roles/iam.workloadIdentityUser` binding for that provider.
+3. Grant the `firebase-adminsdk` service account the
+   `roles/iam.workloadIdentityUser` binding for that provider.
 4. In `firebase-deploy.yml`: add `permissions: id-token: write`, swap
    the "Write service account key" step for `google-github-actions/auth@…`
    (SHA-pinned) with `workload_identity_provider` + `service_account`,
    and delete the secret.
 
-Until then the key stays — rotate it periodically and re-check the
+**Cut over in this order.** Do WIF *first*, and keep the
+`FIREBASE_SERVICE_ACCOUNT` secret and its key-writing step in place as a
+fallback until WIF has completed one real deploy. Delete the secret only
+afterwards. Reversing that order means discovering a misconfigured
+provider with no way to ship.
+
+### Narrowing the IAM roles is a separate change
+
+Do not fold role narrowing into the WIF cutover — two variables, one
+deploy, and a failure tells you nothing about which. Schedule it
+separately and validate against a throwaway project first, because a
+deploy that fails on a missing permission fails *partway through*.
+
+Two things worth knowing before it is attempted:
+
+- **Dropping `Editor` is not a data-access reduction on its own.** The
+  account also holds `Firebase Admin`, which carries Firestore data
+  access. Removing `Editor` while keeping `Firebase Admin` narrows what
+  the credential can do to the *project*, not to the *data*. If the goal
+  is "a leaked deploy key cannot read every answer", `firebase.admin` has
+  to go too — and then the deploy needs a rules/functions-specific set
+  instead.
+- **The gen-2 minimum is wider than it looks.** Deploying gen-2 functions
+  touches Cloud Run, Eventarc, Cloud Scheduler, Pub/Sub, Cloud Build,
+  Artifact Registry and the runtime service account. A role list assembled
+  from "it deploys rules and functions" will be missing several of these,
+  and the failure surfaces mid-apply.
+
+Until both land the key stays — rotate it periodically and re-check the
 key/role mismatch trap below.
 
 ## Troubleshooting notes (issues hit during setup)
@@ -104,6 +217,6 @@ key/role mismatch trap below.
   by granting `Editor` + `Firebase Admin`.
 - **403 persisted after granting roles** — the `FIREBASE_SERVICE_ACCOUNT`
   secret held a key for a *different* service account than the one granted
-  roles. Fixed by re-issuing the key from `firebase-adminsdk-qdsv5` and
+  roles. Fixed by re-issuing the key from that service account and
   updating the secret. (When auth succeeds but a specific API 403s, suspect a
   key/role mismatch.)

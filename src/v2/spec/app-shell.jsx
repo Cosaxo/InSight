@@ -8,14 +8,25 @@ import React from 'react';
 
 const { useState, useEffect } = React;
 
-const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
-  "density": "compact",
-  "dark": false,
-  "tab": "track",
-  "mirrorPop": "near",
-  "lensStyle": "underline",
-  "worldZoom": "world"
-}/*EDITMODE-END*/;
+// Startup values for the Tweaks panel. The EDITMODE-BEGIN/END sentinels
+// that used to wrap this were prototype tooling: the host editor rewrote
+// the block on disk when a tweak changed. No host exists any more, so they
+// were markers for a machine that stopped reading them — a plain object
+// now, edited by hand like any other constant.
+//
+// `dark` is the app's only dark-mode switch today, and it defaults off
+// with no prefers-color-scheme anywhere: on a phone set to dark, the app
+// is permanently light. Tracked as its own piece of work — do not "fix" it
+// by flipping this default, which would leave light-mode users stranded
+// the same way.
+const TWEAK_DEFAULTS = {
+  density: "compact",
+  dark: false,
+  tab: "track",
+  mirrorPop: "near",
+  lensStyle: "underline",
+  worldZoom: "world",
+};
 
 // Hand-drawn-feel SVG glyphs — each one a small ink illustration
 function NavGlyph({ id, active }) {
@@ -143,6 +154,11 @@ function App() {
       if (p) { closeAll(); setPerson(p); }
     };
     return () => { delete window.openOverlay; delete window.goTab; delete window.openCity; delete window.openPerson; };
+    // Mount-only by design: this registers the window.* cross-link
+    // handlers once and tears them down on unmount. Re-running it on every
+    // setTweak identity change would re-register the same closures for no
+    // benefit, and the handlers read fresh state through refs.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const me = window.IS_DATA.me;
@@ -155,8 +171,15 @@ function App() {
   const this_dismissedUpdate = () => { try { return sessionStorage.getItem('insight.updateDismissed') === String(window.LIVE && window.LIVE.latestBuild); } catch (e) { return false; } };
   useEffect(() => (window.LIVE ? window.LIVE.subscribe(() => liveTick((t) => t + 1)) : undefined), []);
 
-  // Sync tab tweak <-> state (so Tweaks panel can drive it)
+  // Sync tab tweak <-> state (so Tweaks panel can drive it).
+  // These are the two halves of a deliberate two-way sync, and each one
+  // must depend on ONLY its own source. Adding the other side's value to
+  // either dep array closes the loop and they re-trigger each other; the
+  // `if` guards stop the ping-pong at runtime, but the missing dep is the
+  // thing that keeps it from starting.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { const v = validTab(t.tab); if (v !== tab) setTab(v); }, [t.tab]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { if (t.tab !== tab) setTweak('tab', tab); }, [tab]);
 
   const appClasses = `app surface-tint ${t.dark ? 'dark' : ''} ${t.density || 'regular'} voice-sans`;

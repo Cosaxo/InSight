@@ -17,7 +17,10 @@ import { getAuth } from "firebase-admin/auth";
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { onSchedule } from "firebase-functions/v2/scheduler";
 import { logger } from "firebase-functions";
+// ./ops also sets the global runtime options — and must be imported
+// before any function is defined. See the note there.
 import { assertOperator, ENFORCE_APP_CHECK } from "./ops";
+
 import {
   MEDIA_CATEGORIES,
   type MediaCategory,
@@ -31,6 +34,7 @@ import {
   slugifyCity,
   meetsKFloor,
 } from "./pure";
+
 
 initializeApp();
 
@@ -171,6 +175,33 @@ function moralsVector(p: UserProfileLike): number[] | null {
   return values;
 }
 
+// Fetch profiles for a set of uids without one round trip per uid.
+//
+// Shared by the area and city aggregators. The area one already did this;
+// the city one fired an unbounded Promise.all of individual .get() calls —
+// one concurrent read per distinct rater, no chunking — which is why the
+// city path falls over first despite being the smaller job.
+//
+// getAll() throws on an empty argument list, which the loop makes safe:
+// zero uids means zero iterations.
+const PROFILE_CHUNK = 100;
+async function fetchProfiles(
+  db: FirebaseFirestore.Firestore,
+  uids: string[],
+): Promise<Map<string, UserProfileLike>> {
+  const out = new Map<string, UserProfileLike>();
+  for (let i = 0; i < uids.length; i += PROFILE_CHUNK) {
+    const chunk = uids.slice(i, i + PROFILE_CHUNK);
+    const snaps = await db.getAll(
+      ...chunk.map((uid) => db.collection("insight_users").doc(uid)),
+    );
+    for (const snap of snaps) {
+      if (snap.exists) out.set(snap.id, snap.data() as UserProfileLike);
+    }
+  }
+  return out;
+}
+
 // Bucket of vectors per (cell, axis-set) — three streams collected
 // in one pass over discoverable users.
 interface CellBuckets {
@@ -209,17 +240,7 @@ async function runAggregation(): Promise<{
     if (!fullHash || fullHash.length < 5) continue;
     candidates.push({ uid: docSnap.id, hash5: fullHash.slice(0, 5) });
   }
-  const PROFILE_CHUNK = 100;
-  const profilesByUid = new Map<string, UserProfileLike>();
-  for (let i = 0; i < candidates.length; i += PROFILE_CHUNK) {
-    const chunk = candidates.slice(i, i + PROFILE_CHUNK);
-    const snaps = await db.getAll(
-      ...chunk.map((c) => db.collection("insight_users").doc(c.uid)),
-    );
-    for (const s of snaps) {
-      if (s.exists) profilesByUid.set(s.id, s.data() as UserProfileLike);
-    }
-  }
+  const profilesByUid = await fetchProfiles(db, candidates.map((c) => c.uid));
 
   const cells: Record<string, CellBuckets> = {};
   // Global media tally — favourites shared at "world" level, counted
@@ -330,11 +351,20 @@ async function runAggregation(): Promise<{
       // Backwards-compat fields for clients reading the old shape.
       // Mirror big5 when present; otherwise fall back to the first
       // axis-set that passed (so something useful gets written).
-      count: big5Stats?.mean.length
+      //
+      // Each branch is guarded by its OWN floor flag. The previous chain
+      // fell through to bucket.morals.length whenever big5 and political
+      // were absent — so a cell where only media cleared the floor
+      // published a raw SUB-FLOOR contributor count into a world-readable
+      // document, which is exactly what the k-floor exists to suppress.
+      // 0 when nothing qualifies: the doc is written for its media block.
+      count: b5Ok
         ? bucket.big5.length
-        : polStats?.mean.length
+        : polOk
           ? bucket.political.length
-          : bucket.morals.length,
+          : mOk
+            ? bucket.morals.length
+            : 0,
       mean: big5Stats?.mean ?? polStats?.mean ?? mStats?.mean ?? [],
       stdev: big5Stats?.stdev ?? polStats?.stdev ?? mStats?.stdev ?? [],
       updatedAt: FieldValue.serverTimestamp(),
@@ -406,7 +436,10 @@ async function runAggregation(): Promise<{
 // open callable is a cost-amplification lever for any anonymous
 // account. The 6-hourly schedule below keeps production fresh.
 export const rebuildAreaAggregates = onCall(
-  { region: "us-central1", maxInstances: 1 },
+  // One instance: these are full-collection scans and two at once
+  // doubles peak memory for no benefit. concurrency 10 (not 1) so an
+  // operator who retries gets queued rather than a 429.
+  { maxInstances: 1, concurrency: 10, memory: "1GiB" },
   async (request) => {
     assertOperator(request);
     return runAggregation();
@@ -416,7 +449,7 @@ export const rebuildAreaAggregates = onCall(
 // Scheduled every 6 hours. Keeps the aggregates fresh as users come
 // + go discoverable. Time zone defaults to Etc/UTC.
 export const scheduledAreaAggregates = onSchedule(
-  { schedule: "every 6 hours", region: "us-central1" },
+  { schedule: "every 6 hours", memory: "1GiB" },
   async () => {
     await runAggregation();
   },
@@ -716,7 +749,10 @@ async function runWorldAggregation(): Promise<{
 }
 
 export const rebuildWorldAggregates = onCall(
-  { region: "us-central1", maxInstances: 1 },
+  // One instance: these are full-collection scans and two at once
+  // doubles peak memory for no benefit. concurrency 10 (not 1) so an
+  // operator who retries gets queued rather than a 429.
+  { maxInstances: 1, concurrency: 10, memory: "1GiB" },
   async (request) => {
     assertOperator(request);
     return runWorldAggregation();
@@ -726,7 +762,12 @@ export const rebuildWorldAggregates = onCall(
 // Scheduled daily. Cost-efficient: one full pass per day produces
 // one doc, every client reads that one doc.
 export const scheduledWorldAggregates = onSchedule(
-  { schedule: "every 24 hours", region: "us-central1" },
+  // 02:00 UTC. Explicit time rather than "every 24 hours" so this and
+  // the city job below cannot drift into running together — they each
+  // walk the impressions collection group, and overlapping doubles peak
+  // memory. Merging them would be worse: one failure would take out two
+  // independent surfaces. See DECISIONS.md D7.
+  { schedule: "0 2 * * *", memory: "1GiB" },
   async () => {
     await runWorldAggregation();
   },
@@ -817,13 +858,7 @@ async function runCityAggregation(): Promise<{
 
   // Fetch each rater's profile once (deduped). Used for the per-city
   // Big Five average + media tally.
-  const profiles = new Map<string, UserProfileLike>();
-  await Promise.all(
-    [...allRaterUids].map(async (uid) => {
-      const p = await db.collection("insight_users").doc(uid).get();
-      if (p.exists) profiles.set(uid, p.data() as UserProfileLike);
-    }),
-  );
+  const profiles = await fetchProfiles(db, [...allRaterUids]);
   // Impressions rollup, keyed by the same city slug.
   const { recipientsWithCity: impressionsByCity } =
     await rollUpImpressions();
@@ -921,7 +956,10 @@ async function runCityAggregation(): Promise<{
 }
 
 export const rebuildCityAggregates = onCall(
-  { region: "us-central1", maxInstances: 1 },
+  // One instance: these are full-collection scans and two at once
+  // doubles peak memory for no benefit. concurrency 10 (not 1) so an
+  // operator who retries gets queued rather than a 429.
+  { maxInstances: 1, concurrency: 10, memory: "1GiB" },
   async (request) => {
     assertOperator(request);
     return runCityAggregation();
@@ -929,7 +967,8 @@ export const rebuildCityAggregates = onCall(
 );
 
 export const scheduledCityAggregates = onSchedule(
-  { schedule: "every 24 hours", region: "us-central1" },
+  // 04:00 UTC — two hours clear of the world job above.
+  { schedule: "0 4 * * *", memory: "1GiB" },
   async () => {
     await runCityAggregation();
   },
@@ -1202,6 +1241,8 @@ async function deleteUserSubtree(uid: string): Promise<number> {
 }
 
 export const deleteAccount = onCall(
+  // Unbounded per-account work, and a partial failure refuses the auth
+  // delete — so a timeout here is a job the user can never complete.
   { region: "us-central1", enforceAppCheck: ENFORCE_APP_CHECK },
   async (request) => {
     if (!request.auth) {
@@ -1253,16 +1294,54 @@ export const deleteAccount = onCall(
           await db.recursiveDelete(g.ref);
           continue;
         }
-        await g.ref.update({
-          memberUids: FieldValue.arrayRemove(uid),
-          [`memberNames.${uid}`]: FieldValue.delete(),
-        });
-        const reveals = await g.ref.collection("reveals").get();
-        for (const r of reveals.docs) {
-          await r.ref.update({
-            [`votes.${uid}`]: FieldValue.delete(),
-            [`names.${uid}`]: FieldValue.delete(),
+        try {
+          await g.ref.update({
+            memberUids: FieldValue.arrayRemove(uid),
+            [`memberNames.${uid}`]: FieldValue.delete(),
           });
+        } catch (err) {
+          // NOT_FOUND (5) means the group was deleted between the query
+          // above and this write — the other member left, taking the group
+          // with it. That is the outcome we wanted. Treating it as a
+          // failure would push "v2Groups" onto `failed`, which refuses the
+          // auth delete and leaves the user unable to erase their account
+          // because someone else did something benign.
+          if ((err as { code?: number | string }).code !== 5
+            && (err as { code?: string }).code !== "not-found") throw err;
+          continue;
+        }
+        // The user's vote and display name inside every published reveal.
+        // Was one sequential update per reveal doc with no bound: a
+        // year-old account in 20 groups is ~7,300 round trips, which blew
+        // the old 60s wall — and the design then correctly refuses the auth
+        // delete, so the user retries a job that fails identically forever.
+        //
+        // Rotating WriteBatch (the pattern already used by the aggregators
+        // in this file) rather than BulkWriter: BulkWriter swallows
+        // per-write errors by default, which would trade a loud timeout for
+        // a silent INCOMPLETE erasure — the worst possible outcome here.
+        let revealCursor: FirebaseFirestore.QueryDocumentSnapshot | null = null;
+        for (;;) {
+          let q = g.ref.collection("reveals").orderBy("__name__").limit(400);
+          if (revealCursor) q = q.startAfter(revealCursor);
+          const page = await q.get();
+          if (page.empty) break;
+          let batch = db.batch();
+          let ops = 0;
+          for (const r of page.docs) {
+            batch.update(r.ref, {
+              [`votes.${uid}`]: FieldValue.delete(),
+              [`names.${uid}`]: FieldValue.delete(),
+            });
+            if (++ops >= 450) {
+              await batch.commit();
+              batch = db.batch();
+              ops = 0;
+            }
+          }
+          if (ops) await batch.commit();
+          if (page.size < 400) break;
+          revealCursor = page.docs[page.docs.length - 1];
         }
       }
     } catch (err) {
@@ -1404,7 +1483,8 @@ export const seedTaxonomies = onCall(
 
 // Keep the daily refresh cheap + current as the baked data evolves.
 export const scheduledTaxonomies = onSchedule(
-  { schedule: "every 24 hours", region: "us-central1" },
+  // 06:00 UTC. Small job, but keep it off the two heavy ones.
+  { schedule: "0 6 * * *" },
   async () => {
     await runSeedTaxonomies();
   },

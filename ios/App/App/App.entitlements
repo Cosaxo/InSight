@@ -2,7 +2,17 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<!-- Build-configuration driven (see App.xcodeproj): development for
+	     Debug, production for the App target's Release. It was hardcoded
+	     to "development", which silently delivers ZERO pushes from
+	     TestFlight or the App Store — the device registers against the
+	     APNs sandbox while FCM sends to production, and nothing anywhere
+	     reports an error. APS_ENVIRONMENT is defined at PROJECT level for
+	     both configurations too, so this can never expand empty and break
+	     signing. Verify the archived app with the codesign command in
+	     docs/SHIP-CHECKLIST.md before uploading; the failure is silent
+	     otherwise. -->
 	<key>aps-environment</key>
-	<string>development</string>
+	<string>$(APS_ENVIRONMENT)</string>
 </dict>
 </plist>

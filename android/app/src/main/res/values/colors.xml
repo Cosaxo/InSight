@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Accent Android paints the notification silhouette with. Named for
+         this specific use rather than something generic like "colorAccent",
+         so a future theme edit cannot change the notification's appearance
+         as a side effect. Matches the spec's ink accent. -->
+    <color name="reveal_notification_accent">#0C6F79</color>
+</resources>

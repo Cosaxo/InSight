@@ -1,0 +1,74 @@
+# Weekly dependency audit — the one that fails loudly and files an issue.
+#
+# Split from CI on purpose. `npm audit` is a live registry call: its result
+# changes without the code changing, so gating merges or deploys on it
+# means an advisory published overnight can block an emergency rules fix.
+# CI runs the same audit as an advisory (continue-on-error) job; this one
+# runs weekly, fails, and leaves something a human will actually see.
+name: Security audit
+
+on:
+  schedule:
+    # Mondays 07:00 UTC — a working-week start in Europe.
+    - cron: "0 7 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: "22"
+          cache: npm
+      - run: npm ci
+
+      # --omit=dev on both: a dev-only advisory in the build toolchain is
+      # not reachable by a user. The backend tree is the one where an
+      # advisory is genuinely exploitable at runtime.
+      - name: Audit app runtime dependencies
+        id: app
+        continue-on-error: true
+        run: npm audit --omit=dev --audit-level=high
+
+      - name: Audit backend dependencies
+        id: backend
+        continue-on-error: true
+        run: npm audit --prefix functions --omit=dev --audit-level=high
+
+      - name: Collect report
+        if: steps.app.outcome == 'failure' || steps.backend.outcome == 'failure'
+        run: |
+          {
+            echo "## App runtime dependencies"
+            echo '```'
+            npm audit --omit=dev --audit-level=high 2>&1 || true
+            echo '```'
+            echo "## Backend dependencies (functions/)"
+            echo '```'
+            npm audit --prefix functions --omit=dev --audit-level=high 2>&1 || true
+            echo '```'
+          } > audit-report.md
+          cat audit-report.md >> "$GITHUB_STEP_SUMMARY"
+
+      # Plain REST via the built-in token rather than a third-party action:
+      # one less SHA to pin, audit and keep current in a workflow whose
+      # whole purpose is supply-chain hygiene.
+      - name: Open or update the tracking issue
+        if: steps.app.outcome == 'failure' || steps.backend.outcome == 'failure'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          SHA: ${{ github.sha }}
+        run: python3 .github/scripts/report_audit_issue.py
+
+      - name: Fail the run
+        if: steps.app.outcome == 'failure' || steps.backend.outcome == 'failure'
+        run: |
+          echo "::error::High-severity advisories in runtime dependencies — see the issue."
+          exit 1

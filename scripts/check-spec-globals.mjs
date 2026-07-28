@@ -11,88 +11,23 @@
 //   1. a `window.Foo` / `globalThis.Foo` reference whose assignment
 //      was renamed or deleted (renders as a silent blank at runtime);
 //   2. a file in src/v2/spec that spec-index.js no longer imports
-//      (its globals silently vanish from the bundle).
+//      (its globals silently vanish from the bundle);
+//   3. a capitalised JSX tag — <Foo/> — that nothing defines. This is
+//      the spec layer's DOMINANT cross-module reference style and was
+//      invisible to both this script (which only matched window.X) and
+//      eslint (no-undef was off for these files). It found a live
+//      ReferenceError on the Mirror tab the day it was added.
+//
+// The scanning itself lives in ./spec-globals.mjs, shared with
+// eslint.config.js so no-undef can be ON for the spec layer.
 //
 // Run: node scripts/check-spec-globals.mjs   (wired into CI's lint job)
 
 import { readFileSync, readdirSync } from "node:fs";
-import { join, dirname, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
+import { join } from "node:path";
+import { collectSpecGlobals } from "./spec-globals.mjs";
 
-const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-const specDir = join(root, "src/v2/spec");
-const uiDir = join(root, "src/v2/ui");
-
-// Browser / runtime globals the spec layer legitimately reads off
-// window without defining. Extend deliberately, not casually.
-const RUNTIME_ALLOWLIST = new Set([
-  // DOM / BOM
-  "innerWidth", "innerHeight", "location", "navigator", "history",
-  "localStorage", "sessionStorage", "matchMedia", "getSelection",
-  "requestAnimationFrame", "cancelAnimationFrame", "setTimeout",
-  "clearTimeout", "setInterval", "clearInterval", "addEventListener",
-  "removeEventListener", "dispatchEvent", "scrollTo", "scrollY",
-  "open", "alert", "confirm", "prompt", "getComputedStyle",
-  "devicePixelRatio", "visualViewport", "crypto", "performance",
-  "ResizeObserver", "IntersectionObserver", "MutationObserver",
-  "parent", "postMessage", "focus", "blur", "close",
-  // build-time / SDK globals defined outside the spec layer
-  "Capacitor", "__APP_BUILD__",
-  // Known-dead optional features: referenced behind typeof/truthiness
-  // guards, defining module never ported from the prototype. The guard
-  // hides the feature at runtime. Delete from here when either the
-  // module is ported or the dead lens is removed.
-  "GroupLevelBreakdown",
-]);
-
-const files = [];
-for (const dir of [specDir, uiDir]) {
-  for (const f of readdirSync(dir)) {
-    if (/\.(jsx?|tsx?)$/.test(f)) files.push(join(dir, f));
-  }
-}
-files.push(join(root, "src/v2/main.jsx"));
-files.push(join(root, "src/v2/spec-index.js"));
-files.push(join(root, "src/v2/data/live.ts"));
-
-const defined = new Set();
-const referenced = new Map(); // name -> [file:line]
-
-const DEFINE_RES = [
-  /(?:globalThis|window)\.([A-Za-z_$][\w$]*)\s*=[^=]/g,
-  /Object\.assign\(\s*(?:globalThis|window)\s*,\s*\{([^}]*)\}/g,
-];
-const REF_RE = /(?:globalThis|window)\.([A-Za-z_$][\w$]*)/g;
-
-for (const file of files) {
-  const src = readFileSync(file, "utf8");
-  for (const re of DEFINE_RES) {
-    re.lastIndex = 0;
-    let m;
-    while ((m = re.exec(src))) {
-      if (re === DEFINE_RES[1]) {
-        // Object.assign(globalThis, { A, B: x }) — take the keys.
-        for (const part of m[1].split(",")) {
-          const key = part.split(":")[0].trim();
-          if (/^[A-Za-z_$][\w$]*$/.test(key)) defined.add(key);
-        }
-      } else {
-        defined.add(m[1]);
-      }
-    }
-  }
-  const lines = src.split("\n");
-  lines.forEach((line, i) => {
-    REF_RE.lastIndex = 0;
-    let m;
-    while ((m = REF_RE.exec(line))) {
-      const name = m[1];
-      if (RUNTIME_ALLOWLIST.has(name)) continue;
-      if (!referenced.has(name)) referenced.set(name, []);
-      referenced.get(name).push(`${file.slice(root.length + 1)}:${i + 1}`);
-    }
-  });
-}
+const { defined, referenced, files, specDir, root } = collectSpecGlobals();
 
 let failed = false;
 

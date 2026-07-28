@@ -4,6 +4,7 @@
 // spec-index.js load order is semantic — scripts/check-spec-globals.mjs
 // guards the wiring in CI.
 import React from 'react';
+import ReactDOM from 'react-dom';
 
 // passive-meter.jsx — UI for the passive test progress: PassiveRing (one
 // conic ring per test), PassiveMeter (persistent indicator by the feed chips;

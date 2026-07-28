@@ -62,3 +62,19 @@ android/.idea/
 android/*.iml
 android/app/*.iml
 
+# ── Signing material — NEVER commit ───────────────────────────────
+# A leaked upload key lets someone publish as you, and a `git add -A`
+# after a signing session is an incident no revert can undo (the
+# object stays in history and the key must be rotated with Google).
+# Keep the real keystore outside the repo entirely; these patterns are
+# the backstop, not the plan. See docs/SHIP-CHECKLIST.md.
+*.keystore
+*.jks
+*.p12
+*.p8
+*.mobileprovision
+keystore.properties
+signing.properties
+google-services.json
+GoogleService-Info.plist
+

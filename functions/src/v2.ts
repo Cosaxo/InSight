@@ -28,6 +28,13 @@ const REGION = "us-central1";
 // userbase grows; the private doc keeps exact counts either way.
 export const AGG_MIN_N = 5;
 
+// Public-mirror write policy. See the note in onV2AnswerCreated: the
+// per-document write ceiling (~1/sec) is the launch scale limit, and this
+// relieves it without sharding — while keeping counts exact wherever a
+// reader could notice.
+const PUBLISH_EXACT_BELOW = 50; // under this many answers, publish every one
+const PUBLISH_EVERY = 5;        // above it, publish every 5th
+
 // ── content seed ────────────────────────────────────────────────
 
 async function runSeedV2(): Promise<{ written: number }> {
@@ -143,8 +150,37 @@ export const onV2AnswerCreated = onDocumentCreated(
       tx.set(privRef, { counts, total }, { merge: false });
       // The public mirror: k-floored, and deliberately without a fresh
       // timestamp — per-vote timing deltas shouldn't be attributable.
+      //
+      // Not written on EVERY answer once comfortably above the floor.
+      // Both docs in this transaction are single documents keyed by qid,
+      // and Firestore sustains roughly one write per second per document
+      // — so a genuinely popular daily question is the one thing that
+      // breaks aggregation, and product success is what triggers it
+      // (DECISIONS.md D7 records the arithmetic).
+      //
+      // Sharding is the real fix and is deliberately NOT done here. This
+      // is the cheap partial, and it is shaped so accuracy is never the
+      // thing that gets traded:
+      //
+      //   - below the floor            → write (publishes tooSmall)
+      //   - under PUBLISH_EXACT_BELOW  → write every answer, EXACT count
+      //   - above it                   → write every 5th answer
+      //
+      // Contention only exists where the write rate is high, and a
+      // question with under ~50 answers has no contention to relieve — so
+      // batching there would trade real accuracy for nothing. Publishing
+      // every 5th only kicks in once the count is large enough that being
+      // at most 4 behind is under 8% and shrinking with every vote.
+      //
+      // privRef always holds the exact running total, so nothing is lost;
+      // the public mirror just lags. No new function, no rules change, no
+      // client change, and the e2e's exact-count assertion at total=5
+      // still holds.
       if (total >= AGG_MIN_N) {
-        tx.set(pubRef, { counts, total, tooSmall: false }, { merge: false });
+        const exact = total < PUBLISH_EXACT_BELOW;
+        if (exact || total % PUBLISH_EVERY === 0) {
+          tx.set(pubRef, { counts, total, tooSmall: false }, { merge: false });
+        }
       } else {
         tx.set(pubRef, { tooSmall: true }, { merge: false });
       }

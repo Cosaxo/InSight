@@ -118,266 +118,200 @@
 
   <span class="kicker">InSight · privacy</span>
   <h1>Privacy policy</h1>
-  <div class="updated">last updated 2026-05-17</div>
+  <div class="updated">last updated 2026-07-28</div>
 
   <p class="lead">
-    InSight is a private journal. Your data is yours. This page is the
-    long version of what that means in practice — what we collect, why,
-    who else can see it, and how to get rid of it.
+    InSight asks you one question a day, shows you how everyone else
+    answered, and lets you play the same question against people you know.
+    This page is the long version of what that means for your data — what
+    is stored, who can read it, and how to get rid of all of it.
   </p>
-
-  <h2>What we collect, why</h2>
 
   <p>
-    Everything below is stored under your account on Firebase
-    (Google Cloud), in the project's configured region. We don't sell,
-    rent, or share your data with advertisers — there are no
-    advertisers. Each row says <em>what</em>, <em>why</em>, and
-    <em>who else can see it by default</em>.
+    The short version: <strong>your answers are readable by you and nobody
+    else, ever.</strong> Not by us, not by your friends, not by other
+    users. What other people see is a count, and only once enough people
+    have answered that a count cannot point at anyone.
   </p>
 
-  <table>
-    <thead>
-      <tr><th>What</th><th>Why</th><th>Who sees it</th></tr>
-    </thead>
-    <tbody>
-      <tr>
-        <td>Account identifier (email, Firebase uid)</td>
-        <td>To sign you in and tie data to your account.</td>
-        <td>You only.</td>
-      </tr>
-      <tr>
-        <td>Personality / political / values test answers</td>
-        <td>To populate your portrait and compare you to your circle.</td>
-        <td>You only, unless you set the corresponding share level
-            in the "what you share" overlay to circle / world.</td>
-      </tr>
-      <tr>
-        <td>Likes, dislikes, heroes</td>
-        <td>The journal-side of your profile.</td>
-        <td>You only.</td>
-      </tr>
-      <tr>
-        <td>Weight, birth year, currency preference</td>
-        <td>Scales the body-map, age counters, and the finance tab.</td>
-        <td>You only.</td>
-      </tr>
-      <tr>
-        <td>Daily reports (mood, one-line, weather, optional photo)</td>
-        <td>The day-to-day journal.</td>
-        <td>You; people you've added to your circle, only if your
-            "daily report" share level is circle or wider, and only
-            the fields you've ticked for that report.</td>
-      </tr>
-      <tr>
-        <td>Moods, habits, workouts, meals, weigh-ins, transactions,
-            dreams, scrapbook finds, books, trips, homes, languages,
-            jobs, milestones, time-tracking blocks, life-template</td>
-        <td>The various journal collections.</td>
-        <td>You only. Sharing for these categories is intent-only
-            today — no other user can read them.</td>
-      </tr>
-      <tr>
-        <td>Impressions you've written about people</td>
-        <td>Your private sketches.</td>
-        <td>You only. Never shared with the person you wrote about.</td>
-      </tr>
-      <tr>
-        <td>Anonymous traits left for you by others</td>
-        <td>The "of you" inbox.</td>
-        <td>You only. The sender's identity is stored alongside for
-            anti-spoofing, but isn't surfaced in the UI.</td>
-      </tr>
-      <tr>
-        <td>Relations (people you've added to your circle)</td>
-        <td>To populate the people tab and link to friends who are
-            also InSight users.</td>
-        <td>You only.</td>
-      </tr>
-      <tr>
-        <td>City ratings (food, nightlife, culture, etc.)</td>
-        <td>The city tab.</td>
-        <td>You only.</td>
-      </tr>
-      <tr>
-        <td>Approximate location (geohash5, ~5 km)</td>
-        <td>To find people near you when you've turned on
-            "discoverable" in sharing, and to feed the population
-            aggregates.</td>
-        <td>Other signed-in users see a discoverable marker keyed to
-            your geohash. They never see your exact coordinates and
-            never see anything else about you beyond what you've
-            otherwise published.</td>
-      </tr>
-      <tr>
-        <td>Photos (daily report, scrapbook)</td>
-        <td>Visual journaling.</td>
-        <td>You only. Photos stay on the device that captured them —
-            they never leave it. The presence of a photo syncs, the
-            bytes don't.</td>
-      </tr>
-    </tbody>
-  </table>
+  <h2>You do not need an account</h2>
 
-  <h2>What we don't collect</h2>
+  <p>
+    The app works the moment you open it. It signs you in anonymously —
+    a random identifier, no email, no name, no phone number. You can use
+    InSight indefinitely without ever telling us who you are.
+  </p>
+
+  <p>
+    Linking a Google account is optional, and it is an <em>upgrade</em>:
+    it keeps the same identifier and the same history, so your answers
+    survive losing your phone. We receive your Google account identifier
+    and nothing else from it.
+  </p>
+
+  <h2>What is stored</h2>
 
   <ul>
-    <li>Phone numbers, mailing addresses, or government IDs.</li>
-    <li>Contacts list from your phone.</li>
-    <li>Browsing history outside the app.</li>
-    <li>Microphone, accelerometer, or any sensor we haven't asked for.</li>
-    <li>Any data for advertising. We don't sell ads.</li>
-    <li>Any data for cross-app tracking. We're not part of an
-        advertising network.</li>
+    <li>
+      <strong>Your answers.</strong> Which option you picked, for each
+      question, and when. Stored under your account and readable only by
+      you. They cannot be edited or deleted individually — that is what
+      makes the counts honest — but deleting your account removes all of
+      them.
+    </li>
+    <li>
+      <strong>Your duel answers and guesses.</strong> Same rule, with one
+      addition: the day after a group or 1v1 round, a server process
+      publishes that day's picks to the people in that group. Before then
+      nobody can read them, including us. After then, the members of that
+      group can see what you picked for that day.
+    </li>
+    <li>
+      <strong>A display name, if you set one.</strong> Shown to people in
+      your groups when a day is revealed. It is whatever you type; it does
+      not have to be your real name.
+    </li>
+    <li>
+      <strong>Group membership and invite codes.</strong> Which groups you
+      are in, and who else is in them.
+    </li>
+    <li>
+      <strong>A notification token, on phones.</strong> Only if you allow
+      notifications, and only used for the one notification this app
+      sends: your group's day has been revealed.
+    </li>
+    <li>
+      <strong>Data on your device.</strong> A cache of the questions and
+      your own answers, so the app opens fast and works offline, plus
+      small preferences. This stays on your device. On Android, system
+      backup is switched off for this app so it is not copied to your
+      Google Drive.
+    </li>
   </ul>
 
-  <h2>Anonymous aggregate data</h2>
+  <h2>What we do not collect</h2>
 
   <p>
-    When you opt in to being discoverable and have taken the Big Five
-    (and optionally politics or values) test, your scores contribute
-    to per-area averages alongside everyone else's. Those averages
-    are rolled up by a scheduled server-side job into a single
-    record per ~5 km cell, and only published when the cell has at
-    least 20 contributors. Individual scores cannot be extracted from
-    these averages.
-  </p>
-  <p>
-    Each test category has its own opt-out in the "what you share"
-    overlay. Setting any of them to "nobody" excludes your scores
-    from the next rebuild.
+    No location. No contacts. No photos. No microphone or camera. No
+    advertising identifiers. No third-party analytics or tracking of any
+    kind — there is no product analytics SDK in this app at all. We do not
+    sell or share data with advertisers, because we do not have the kind
+    of data an advertiser would want and do not intend to.
   </p>
 
-  <h2>Sharing with friends</h2>
+  <h2>How the public counts work</h2>
 
   <p>
-    InSight has one cross-user social feature: the daily-report feed.
-    When you add someone as a relation and they have an InSight
-    account, you grant them read access to your daily reports — but
-    only if your "daily report" share level is set to circle or
-    wider. The recipient sees only the fields you ticked when you
-    wrote the report.
-  </p>
-  <p>
-    A second cross-user surface is "anonymous impressions" — people
-    in your circle can leave a traits-only impression for you.
-    These show up anonymously in your "of you" inbox. The sender's
-    identity is recorded alongside for abuse prevention (so we can
-    rate-limit floods), but the UI never reveals it.
+    When you answer, a server process adds <em>one</em> to a tally for that
+    question. The tally is the only thing anyone else can see, and it is
+    published under two rules:
   </p>
 
-  <h2>Third parties we use</h2>
+  <ul>
+    <li>
+      <strong>A minimum.</strong> Below a threshold of respondents, the
+      public record says only "not enough answers yet" and carries no
+      numbers at all. Not a hidden number — no number.
+    </li>
+    <li>
+      <strong>No timing.</strong> The public tally carries no per-answer
+      timestamps, so it cannot be used to work out who answered when, and
+      therefore who is behind a change in the count.
+    </li>
+  </ul>
+
+  <p>
+    The exact, pre-threshold counts live in a separate place that no app
+    or user can read — only the server process that writes them.
+  </p>
+
+  <h2>Who can see what</h2>
+
+  <ul>
+    <li><strong>Your answers:</strong> you.</li>
+    <li>
+      <strong>Your duel picks for a revealed day:</strong> the members of
+      that group.
+    </li>
+    <li>
+      <strong>Aggregate counts:</strong> anyone using the app, once the
+      minimum is met.
+    </li>
+    <li>
+      <strong>Everything else:</strong> nobody.
+    </li>
+  </ul>
+
+  <p>
+    These are enforced by server-side access rules, not by the app's
+    interface. A modified app cannot read what the rules do not allow.
+  </p>
+
+  <h2>Third parties</h2>
 
   <h3>Firebase (Google Cloud)</h3>
   <p>
-    Authentication, Firestore for data storage, Cloud Functions for
-    scheduled rollups and account deletion. Subject to
-    <a href="https://firebase.google.com/support/privacy"
-       target="_blank" rel="noopener">Firebase's privacy policy</a>.
+    Hosting, sign-in, database and notifications. Your data is stored on
+    Google Cloud infrastructure under Google's terms as our processor.
   </p>
 
-  <h3>Open-Meteo</h3>
+  <h3>Sentry — crash reports, off by default</h3>
   <p>
-    Weather, sunrise/sunset, and air quality data on the around tab.
-    We send latitude/longitude rounded to two decimals (≈ 1 km) so
-    the API can return localised weather. No identifiers are sent.
-    The response is cached on your device for an hour. Subject to
-    Open-Meteo's <a href="https://open-meteo.com/en/license"
-                    target="_blank" rel="noopener">free-use terms</a>.
+    Crash reporting is <strong>opt-in and switched off unless you turn it
+    on</strong> in the app's privacy panel. When enabled, an error report
+    carries your anonymous account identifier and technical details of the
+    failure — never your email, your name, or a recording of your screen.
+    Note that deleting your account does not remove reports already sent
+    to Sentry; those age out on Sentry's retention schedule.
   </p>
 
-  <h3>On-device language model (Gemma)</h3>
-  <p>
-    The "what we noticed" reflections in the journal tabs and the
-    age-facts in the life overlay are generated by a small language
-    model that runs entirely on your device. Nothing leaves the
-    phone. The model is downloaded once (~2 GB) and runs offline
-    thereafter.
-  </p>
-
-  <h2>How long we keep your data</h2>
+  <h2>Deleting everything</h2>
 
   <p>
-    Indefinitely, until you delete your account. Account deletion is
-    immediate and irreversible — see the "danger zone" at the bottom
-    of your portrait.
-  </p>
-  <p>
-    When you delete your account, we wipe:
-  </p>
-  <ul>
-    <li>Every doc under your user subtree (journal, ledger,
-        relations, etc.).</li>
-    <li>Your discoverable-location marker.</li>
-    <li>Any anonymous impressions you've sent to other users.</li>
-    <li>Any relation entries other users have that point at your uid.</li>
-    <li>The Firebase Auth account itself.</li>
-  </ul>
-  <p>
-    Anonymous contributions to area aggregates can't be pulled back
-    out individually — that would defeat the anonymity. The next
-    scheduled rollup rebuilds without you and the cell numbers shift
-    accordingly.
+    The privacy panel in the app has a delete button. It removes your
+    profile, every answer you have ever given, your group memberships,
+    your picks and name inside past group reveals, your notification
+    tokens, and your sign-in itself. It also clears the app's data on the
+    device you ran it from. There is no undo and no grace period.
   </p>
 
-  <h2>Your rights</h2>
-
-  <ul>
-    <li><strong>Access</strong>: everything you've written is visible
-        to you inside the app. We don't keep a hidden mirror.</li>
-    <li><strong>Correction</strong>: every entry has an edit
-        affordance.</li>
-    <li><strong>Deletion</strong>: every entry has a delete button,
-        and the whole account can be deleted from your portrait.</li>
-    <li><strong>Portability</strong>: a "download my data" path is
-        on the roadmap; until it ships, contact support for an
-        export.</li>
-    <li><strong>Withdraw consent</strong>: turn off "discoverable"
-        in sharing, set any sharePrefs row to "nobody", or delete
-        your account.</li>
-  </ul>
+  <p>
+    Two things intentionally survive, and neither can identify you: the
+    anonymous aggregate counts your answers contributed to (there is no
+    per-person attribution in them to unwind), and — if you had opted into
+    crash reporting — any error reports already sent, until they age out.
+  </p>
 
   <h2>Children</h2>
+
   <p>
-    InSight isn't designed for children under 13 (or under the
-    minimum age of digital consent in your jurisdiction, whichever
-    is higher). We don't knowingly create accounts for them. If you
-    believe a child has signed up, contact us and we'll delete the
-    account.
+    InSight is not directed at children under 13, and we do not knowingly
+    collect data from them. There is little to collect: no account is
+    required and no personal details are requested.
   </p>
 
   <h2>Security</h2>
 
-  <ul>
-    <li>All traffic to Firebase is HTTPS.</li>
-    <li>Firestore rules enforce that no one but you can read your
-        subtree, except where you've explicitly granted access
-        (daily-report friend feed; inbound impressions from circle).</li>
-    <li>Cross-user writes (only inbound impressions) require the
-        recipient to have already added the sender as a relation.</li>
-    <li>The Cloud Function for account deletion uses admin SDK and
-        runs only when invoked by the authenticated account being
-        deleted.</li>
-  </ul>
   <p>
-    No system is perfectly secure. If you discover a vulnerability,
-    please contact us directly rather than disclosing publicly so we
-    can fix it.
+    Access rules are enforced on the server and covered by an automated
+    test suite that runs on every change — including tests that
+    deliberately attempt to read other people's data and must fail. If you
+    find something that should not be possible, please tell us: see
+    <code>SECURITY.md</code> in the project repository.
   </p>
 
-  <h2>Changes to this policy</h2>
+  <h2>Changes</h2>
+
   <p>
-    When we change this policy in any material way, we'll bump the
-    "last updated" date at the top and surface a notice in the app.
-    Continued use of InSight after a material change means you accept
-    the new policy.
+    If this policy changes in a way that affects what is collected or who
+    can read it, the date at the top changes and the app will say so.
   </p>
 
   <h2>Contact</h2>
 
   <p>
-    Questions, deletion requests, security disclosures —
-    contact us at the support address listed on the app's
+    Questions, deletion requests and security disclosures — contact us at
+    the support address listed on the
     <a href="terms.html">terms of service</a> page.
   </p>
 

@@ -92,7 +92,13 @@ function LivePrivacyPanel() {
       </LpRow>
 
       <LpRow title="Sign-in"
-        sub={linked ? "Linked — your history now survives any device." : "You're on an anonymous session. Link Google so your history survives a lost phone — same account, nothing moves."}>
+        sub={linked
+          ? "Linked — your history now survives any device."
+          // Since D6 turned Android system backup off (it would have copied
+          // the local cache to Google Drive), linking is now the ONLY way an
+          // anonymous session survives a phone swap. Say so plainly rather
+          // than letting someone find out by losing everything.
+          : "You're on an anonymous session — it lives only on this phone. Link Google so your history survives a lost or replaced device; same account, nothing moves."}>
         {btn(linked ? "Linked ✓" : "Link Google", link)}
       </LpRow>
 

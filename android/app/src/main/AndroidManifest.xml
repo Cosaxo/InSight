@@ -1,8 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
+    <!-- allowBackup is off deliberately (decision D6). Auto Backup would
+         upload the WebView's localStorage and the on-disk Firestore cache
+         — every question seen and answered — to the user's Google Drive,
+         in an app whose data inventory says local state stays on the
+         device. The cost is real: this also disables device-to-device
+         transfer, so an anonymous user who never links Google loses their
+         history on a phone swap. The privacy panel says so. -->
     <application
-        android:allowBackup="true"
+        android:allowBackup="false"
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
         android:roundIcon="@mipmap/ic_launcher_round"
@@ -24,6 +31,23 @@
 
         </activity>
 
+        <!-- Reveal notification presentation. Without the icon meta-data
+             Android falls back to the launcher icon, which it renders as a
+             silhouette — a solid white square. Without a default channel
+             id, a data-only message on Android 8+ has no channel to post
+             to and the notification is dropped entirely while the app is
+             BACKGROUNDED, which is exactly when a reveal arrives.
+             The channel itself is created in src/v2/data/push.ts. -->
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_icon"
+            android:resource="@drawable/ic_stat_reveal" />
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_color"
+            android:resource="@color/reveal_notification_accent" />
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_channel_id"
+            android:value="reveals" />
+
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.fileprovider"
@@ -43,17 +67,10 @@
          shown. push.ts requests it via PushNotifications. -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
-    <!-- Camera (daily-report photo, future scrapbook capture). The
-         <uses-feature> tags below mark them as optional so a device
-         without a camera can still install the app. -->
-
-    <!-- Read photo library on Android 13+ (granular media perms) and
-         older Android (legacy READ_EXTERNAL_STORAGE). The plugin asks
-         for whichever applies at runtime. -->
-
-    <!-- Location — City tab picks your nearest city, Around tab shows
-         people nearby. Coarse is enough for both (city-level + ~km
-         person discovery); we declare fine too so users who grant
-         precise location get tighter distances. Sharing your own
-         location with the discoverable collection is opt-in. -->
+    <!-- That is the complete list. The app requests no camera, no photo
+         library and no location: the v1 surfaces that needed them were
+         removed in D4. (Three comment blocks describing those permissions
+         outlived the permissions themselves and are gone — a manifest that
+         appears to discuss camera and location is the wrong thing to hand
+         a privacy reviewer for an app that collects neither.) -->
 </manifest>

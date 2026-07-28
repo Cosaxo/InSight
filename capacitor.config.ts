@@ -6,8 +6,6 @@ const config: CapacitorConfig = {
   // Vite outputs to ./dist; Capacitor copies from here into the native
   // shells on `cap sync`.
   webDir: "dist",
-  // Use the in-app keyboard to keep the WebView's viewport stable when
-  // it opens — the journal screens have plenty of text inputs.
   plugins: {
     SplashScreen: {
       // The splash covers the live-hydration window: main.jsx hides it
@@ -25,11 +23,27 @@ const config: CapacitorConfig = {
     Keyboard: {
       // Resize the WebView frame when the keyboard opens (instead of
       // overlay-mode, which leaves content hidden behind the keyboard).
+      // The v2 app has few text inputs — a display name, a group name, an
+      // invite code — but each one sits in a sheet near the bottom of the
+      // screen, which is exactly where overlay-mode hides it.
       resize: "body",
     },
     PushNotifications: {
       // Show the reveal notification even when the app is foregrounded.
       presentationOptions: ["badge", "sound", "alert"],
+    },
+    FirebaseAuthentication: {
+      // The plugin loads no providers by default, so the native Google
+      // sheet never opens without this list — the account-upgrade path
+      // (D3) is dead on both platforms until it is set.
+      providers: ["google.com"],
+      // The JS SDK owns the session: googleSignIn/linkGoogle take the
+      // native idToken and hand it to signInWithCredential /
+      // linkWithCredential so Firestore keeps using the same auth
+      // instance and the same uid. Without this the native layer signs
+      // in separately and the two disagree about who the user is —
+      // and uid *is* the identity that owns every answer document.
+      skipNativeAuth: true,
     },
     StatusBar: {
       // The app handles its own status-bar styling via the .dark class;

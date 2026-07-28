@@ -19,6 +19,27 @@ export async function registerPushForReveals(uid: string): Promise<void> {
       perm = await PushNotifications.requestPermissions();
     }
     if (perm.receive !== "granted") return;
+    // Android 8+ drops any notification posted to a channel that does not
+    // exist. The manifest names "reveals" as the default channel for
+    // incoming messages, so it has to exist before the first one arrives —
+    // and the failure only shows when the app is BACKGROUNDED, since a
+    // foregrounded app renders the payload itself.
+    // Creating an existing channel is a no-op, so this is safe every boot.
+    if (Capacitor.getPlatform() === "android") {
+      try {
+        await PushNotifications.createChannel({
+          id: "reveals",
+          name: "Reveals",
+          description: "When a group or duo day is revealed.",
+          importance: 4, // heads-up: the reveal is the thing you opened the app for
+          visibility: 1, // public — the text names no answers, only that a day is out
+          vibration: true,
+        });
+      } catch (err) {
+        // A missing channel degrades delivery; it must not stop registration.
+        reportError(err, { where: "push.createChannel" });
+      }
+    }
     await PushNotifications.addListener("registration", (token) => {
       void (async () => {
         try {

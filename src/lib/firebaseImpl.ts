@@ -122,6 +122,37 @@ export async function anonSignIn(): Promise<string> {
   return cred.user.uid;
 }
 
+// The native sheet resolves only once the user picks an account or
+// cancels — but a *misconfigured* build never opens it at all and the
+// promise then never settles: on iOS a missing GoogleService-Info.plist
+// or an unreplaced REVERSED_CLIENT_ID, on Android a build without
+// rgcfaIncludeGoogle. Callers set a busy flag and await this, so an
+// unsettled promise freezes the panel with no error to show. Fail loudly
+// instead — a wrong config should look like a bug, not a hang.
+const NATIVE_AUTH_TIMEOUT_MS = 90_000;
+
+async function nativeGoogleIdToken(): Promise<string> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    const result = await Promise.race([
+      FirebaseAuthentication.signInWithGoogle(),
+      new Promise<never>((_, reject) => {
+        timer = setTimeout(
+          () => reject(new Error(
+            "Native Google sign-in did not respond. Check that the app has its "
+            + "Firebase config file and that Google is enabled for this build.")),
+          NATIVE_AUTH_TIMEOUT_MS,
+        );
+      }),
+    ]);
+    const idToken = result.credential?.idToken;
+    if (!idToken) throw new Error("Native Google sign-in returned no idToken");
+    return idToken;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 // Upgrade the current (anonymous) account to Google, keeping the uid —
 // and with it every answer document. Falls back to a plain sign-in when
 // there is no current user to link.
@@ -129,9 +160,7 @@ export async function linkGoogle(): Promise<void> {
   const user = auth().currentUser;
   if (!user) return googleSignIn();
   if (Capacitor.isNativePlatform()) {
-    const result = await FirebaseAuthentication.signInWithGoogle();
-    const idToken = result.credential?.idToken;
-    if (!idToken) throw new Error("Native Google sign-in returned no idToken");
+    const idToken = await nativeGoogleIdToken();
     await linkWithCredential(user, GoogleAuthProvider.credential(idToken));
     return;
   }
@@ -145,11 +174,7 @@ export async function googleSignIn(): Promise<void> {
     // resulting ID token for a Firebase credential on the JS SDK so
     // every other Firestore call still goes through the same auth
     // instance the rest of the app already uses.
-    const result = await FirebaseAuthentication.signInWithGoogle();
-    const idToken = result.credential?.idToken;
-    if (!idToken) {
-      throw new Error("Native Google sign-in returned no idToken");
-    }
+    const idToken = await nativeGoogleIdToken();
     const credential = GoogleAuthProvider.credential(idToken);
     await signInWithCredential(auth(), credential);
     return;

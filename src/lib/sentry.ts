@@ -124,9 +124,13 @@ export function reportError(
   if (loading && queued.length < QUEUE_CAP) {
     queued.push([err, context]);
   }
-  // Always mirror to console so dev / unconfigured / still-loading
-  // builds surface the failure locally too.
-  console.error("[reportError]", err, context);
+  // Mirror to console where it is the ONLY record: dev, or a build with
+  // no DSN configured. Once a DSN is set the error is already captured
+  // (or queued above), and logging every handled error again is noise in
+  // a production console — the reconnect retries make it a stream.
+  if (import.meta.env.DEV || !import.meta.env.VITE_SENTRY_DSN) {
+    console.error("[reportError]", err, context);
+  }
 }
 
 // Identify the current user so error reports tie back to their

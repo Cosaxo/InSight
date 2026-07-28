@@ -13,4 +13,10 @@ ext {
     androidxJunitVersion = '1.3.0'
     androidxEspressoCoreVersion = '3.7.0'
     cordovaAndroidVersion = '14.0.1'
+    // @capacitor-firebase/authentication ships each provider's SDK behind
+    // an opt-in flag. Without this the Google Sign-In dependency is never
+    // pulled in and FirebaseAuthentication.signInWithGoogle() fails at
+    // runtime — which is the only way an anonymous account can be
+    // upgraded without losing its uid and history (decision D3).
+    rgcfaIncludeGoogle = true
 }

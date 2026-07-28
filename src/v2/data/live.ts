@@ -32,7 +32,7 @@ import {
   where,
 } from "firebase/firestore";
 import { getFunctions, httpsCallable } from "firebase/functions";
-import { anonSignIn, firebaseEnabled, getDb } from "../../lib/firebase";
+import { anonSignIn, firebaseEnabled, getDb, subscribeToAuth } from "../../lib/firebase";
 import { reportError, setSentryUser } from "../../lib/sentry";
 // Pure deck-shaping logic lives in ./deck (unit-testable, no firebase);
 // this module passes its store state in.
@@ -49,6 +49,10 @@ import type { AggDoc, LiveQuestion, QuestionDoc, VoteContext } from "./deck";
 
 const state = {
   ready: false,
+  // Auth session was revoked mid-run. The UI stays on real data (blanking
+  // to demo would be a worse lie than a stale-but-true view); this only
+  // gates honest copy while a new anonymous session is fetched.
+  sessionLost: false,
   uid: null as string | null,
   questions: [] as Array<QuestionDoc & { id: string }>,
   feedBank: [] as Array<QuestionDoc & { id: string }>,
@@ -87,7 +91,15 @@ function utcDayKey(offsetDays = 0): string {
   return new Date(Date.now() + offsetDays * 86400000).toISOString().slice(0, 10);
 }
 
+// Set as deleteAccount's FIRST statement. "There is no undo" has to hold
+// against work already in flight: the post-vote refresh timer, the agg and
+// reveal snapshot handlers, and any queued write can all still fire after
+// the purge and re-create an `insight.*` key for a deleted account.
+// Clearing the timer alone would not close the snapshot writers.
+let torndown = false;
+
 function cacheVote(aid: string, optionIdx: number): void {
+  if (torndown) return;
   try {
     const ANS_LS = "insight.answersCache.v1";
     const cached = JSON.parse(localStorage.getItem(ANS_LS) || "null") || { uid: state.uid, votes: {}, maxTs: 0 };
@@ -100,6 +112,7 @@ function cacheVote(aid: string, optionIdx: number): void {
 }
 
 function saveAggCache(): void {
+  if (torndown) return;
   try {
     localStorage.setItem("insight.aggsCache.v1", JSON.stringify(state.aggs));
   } catch {
@@ -250,10 +263,33 @@ async function hydrate(): Promise<void> {
   const active = all
     .filter((q) => q.active !== false)
     .sort((a, b) => (a.seq || 0) - (b.seq || 0));
-  state.questions = active.filter((q) => q.surface === "daily");
-  state.feedBank = active.filter((q) => q.surface === "feed" || q.surface === "test");
-  state.duelBank = active.filter((q) => q.surface === "group" || q.surface === "duo");
-  if (!state.questions.length) return; // unseeded project — stay on mocks
+
+  // Bank docs are hand-editable in the console — the kill switch expects
+  // an operator in there — and nothing validates them on the way in. A doc
+  // missing `options` used to throw inside q.options.map, blanking a whole
+  // tab behind the ErrorBoundary. Drop unusable docs instead.
+  //
+  // Applied per bank rather than once over `active`, so a mistake in one
+  // predicate cannot empty a bank it was never meant to touch. "pick"
+  // duel questions are the deliberate exception: they carry no bank
+  // options because their options ARE the group's members.
+  const playable = (q: QuestionDoc & { id: string }) =>
+    Array.isArray(q.options) && q.options.length >= 2;
+  state.questions = active.filter((q) => q.surface === "daily" && playable(q));
+  state.feedBank = active.filter(
+    (q) => (q.surface === "feed" || q.surface === "test") && playable(q));
+  state.duelBank = active.filter(
+    (q) => (q.surface === "group" || q.surface === "duo")
+      && (playable(q) || q.topic === "pick"));
+  // A completely unseeded project is a real failure: throw so boot leaves
+  // LIVE disabled and the mock deck renders. Returning here used to let
+  // boot flip enabled=true on an empty deck, which pins the user on
+  // "Fetching today's question…" forever with neither honesty banner up.
+  if (!state.questions.length && !state.feedBank.length && !state.duelBank.length) {
+    throw new Error("live bank is empty — project not seeded");
+  }
+  // A bank with content but no *daily* question is different: the rest of
+  // the app works, so stay live and let the daily surface say so.
 
   // ── my answers: cached + incremental (immutable docs never refetch) ──
   const ANS_LS = "insight.answersCache.v1";
@@ -280,6 +316,11 @@ async function hydrate(): Promise<void> {
           orderBy("answeredAt", "desc"),
           limit(1000),
         );
+    // Deliberately UNGUARDED, unlike the reads below. Answers are not
+    // decoration: proceeding with a partial vote set makes the app offer
+    // questions the user already answered, and the create-only rule then
+    // refuses every one of those re-votes. Better to fail boot and render
+    // the honest mock deck than to look live and reject the user's taps.
     const asnap = await getDocs(aq);
     state.stats.answersFetched = asnap.size;
     asnap.docs.forEach((d) => {
@@ -312,32 +353,74 @@ async function hydrate(): Promise<void> {
   } catch {
     /* best-effort */
   }
-  const answeredWorld = Object.keys(state.votes).filter(
-    (id) => !id.startsWith("g_") && isTooSmall(state.aggs[id]),
-  );
-  for (let i = 0; i < answeredWorld.length; i += 30) {
-    const chunk = answeredWorld.slice(i, i + 30);
-    const snap = await getDocs(
-      query(collection(db, "v2_question_aggs"), where(documentId(), "in", chunk)),
-    );
-    snap.docs.forEach((d) => {
-      state.aggs[d.id] = d.data() as AggDoc;
+  // Aggregate top-up is a DISPLAY nicety — it decorates cards with counts.
+  // It used to be unguarded, so one failed chunk query (a transient error,
+  // a missing index) threw out of hydrate, rejected boot, and pinned the
+  // whole session on demo data even though the bank and the votes had
+  // already loaded. Never worth a session for a count.
+  //
+  // Also: this was serial. A returning user with 150 answered questions
+  // still under the k-floor ran 5 round trips one after another inside the
+  // 2.5s boot race — and losing that race used to be permanent.
+  const AGG_CHECK_LS = "insight.aggCheck.v1";
+  const AGG_RECHECK_MS = 6 * 60 * 60 * 1000;
+  const AGG_ID_CAP = 120;
+  try {
+    let checked: Record<string, number> = {};
+    try {
+      checked = JSON.parse(localStorage.getItem(AGG_CHECK_LS) || "{}") || {};
+    } catch {
+      /* corrupt — treat as empty */
+    }
+    const nowMs = Date.now();
+    const answeredWorld = Object.keys(state.votes)
+      .filter((id) => !id.startsWith("g_") && isTooSmall(state.aggs[id]))
+      // A question under the floor stays under it for a while; re-reading
+      // every one on every boot is the dominant per-boot cost for an
+      // engaged user. Re-check each at most every 6h.
+      .filter((id) => nowMs - (checked[id] || 0) > AGG_RECHECK_MS)
+      .slice(0, AGG_ID_CAP);
+
+    const chunks: string[][] = [];
+    for (let i = 0; i < answeredWorld.length; i += 30) {
+      chunks.push(answeredWorld.slice(i, i + 30));
+    }
+    const snaps = await Promise.all(chunks.map((chunk) =>
+      getDocs(query(collection(db, "v2_question_aggs"), where(documentId(), "in", chunk)))));
+    snaps.forEach((snap) => {
+      snap.docs.forEach((d) => {
+        state.aggs[d.id] = d.data() as AggDoc;
+      });
+      state.stats.aggsFetched += snap.size;
     });
-    state.stats.aggsFetched += snap.size;
+    answeredWorld.forEach((id) => { checked[id] = nowMs; });
+    try {
+      localStorage.setItem(AGG_CHECK_LS, JSON.stringify(checked));
+    } catch {
+      /* best-effort */
+    }
+    saveAggCache();
+  } catch (err) {
+    reportError(err, { where: "hydrate.aggs" });
   }
-  saveAggCache();
 
-    computeDeck();
+  computeDeck();
 
-  // my profile (display name + synced test results) — owner-only
+  // my profile (display name + synced test results) — owner-only.
+  // Guarded for the same reason: a missing display name is a cosmetic
+  // loss, not a reason to spend the session on demo data.
   const uid0 = state.uid;
   if (uid0) {
-    const { getDoc } = await import("firebase/firestore");
-    const prof = await getDoc(doc(db, "v2_users", uid0));
-    if (prof.exists()) {
-      state.profile.displayName = (prof.get("displayName") as string) || "";
-      state.profile.testResults =
-        (prof.get("testResults") as Record<string, unknown>) || {};
+    try {
+      const { getDoc } = await import("firebase/firestore");
+      const prof = await getDoc(doc(db, "v2_users", uid0));
+      if (prof.exists()) {
+        state.profile.displayName = (prof.get("displayName") as string) || "";
+        state.profile.testResults =
+          (prof.get("testResults") as Record<string, unknown>) || {};
+      }
+    } catch (err) {
+      reportError(err, { where: "hydrate.profile" });
     }
     // Live mode shows only REAL results: purge the demo's baked test
     // results and rebuild from server + this device's saves.
@@ -389,26 +472,35 @@ function buildFeedGlobals(): void {
   if (!state.feedBank.length) return;
   const feed = state.feedBank
     .filter((q) => q.surface === "feed" && (q.options || []).length >= 2)
-    .map((q) => ({
-      id: q.id,
-      cat: q.topic || "culture",
-      type: "vote",
-      prompt: q.prompt,
-      options: q.options.map((label, i) => ({ label, count: feedCounts(q)[i] })),
-      live: true,
-      tooSmall: isTooSmall(state.aggs[q.id]),
-    }));
+    .map((q) => {
+      // Hoisted: feedCounts walks the whole option list, so calling it
+      // inside the per-option map made this O(n^2) per card — and it
+      // re-runs after every vote.
+      const counts = feedCounts(q);
+      return {
+        id: q.id,
+        cat: q.topic || "culture",
+        type: "vote",
+        prompt: q.prompt,
+        options: q.options.map((label, i) => ({ label, count: counts[i] })),
+        live: true,
+        tooSmall: isTooSmall(state.aggs[q.id]),
+      };
+    });
   const tests = state.feedBank
     .filter((q) => q.surface === "test" && q.test)
-    .map((q) => ({
-      id: q.id,
-      cat: "test",
-      type: "vote",
-      test: q.test,
-      prompt: q.prompt,
-      options: q.options.map((label, i) => ({ label, count: feedCounts(q)[i] })),
-      live: true,
-    }));
+    .map((q) => {
+      const counts = feedCounts(q);
+      return {
+        id: q.id,
+        cat: "test",
+        type: "vote",
+        test: q.test,
+        prompt: q.prompt,
+        options: q.options.map((label, i) => ({ label, count: counts[i] })),
+        live: true,
+      };
+    });
   (window as unknown as Record<string, unknown>).WORLD_FEED_QS = feed;
   (window as unknown as Record<string, unknown>).TEST_FEED_QS = tests;
   (window as unknown as Record<string, unknown>).WORLD_FEED_COMMENTS = {};
@@ -614,6 +706,7 @@ const LIVE = {
     return m.linkGoogle();
   },
   async deleteAccount(): Promise<void> {
+    torndown = true;
     const db = await getDb();
     const { getFunctions: gf, httpsCallable: hc } = await import("firebase/functions");
     await hc(gf(db.app, "us-central1"), "deleteAccount")({});
@@ -622,21 +715,22 @@ const LIVE = {
     // (permission-denied) against the deleted account's query.
     try {
       state.groupsUnsub?.();
+      // The agg and reveal snapshot listeners are uid-scoped too, and
+      // their handlers write the caches the purge below is about to clear.
+      Object.values(state.aggUnsubs).forEach((u) => { try { u(); } catch { /* best-effort */ } });
+      Object.values(state.revealUnsubs).forEach((u) => { try { u(); } catch { /* best-effort */ } });
     } catch {
       /* best-effort */
     }
     state.groupsUnsub = null;
+    state.aggUnsubs = {};
+    state.revealUnsubs = {};
     // "There is no undo" must include THIS device: purge every local
     // trace so the next (fresh anonymous) session doesn't resurrect the
     // deleted account's votes, results, or identity — then drop the
     // now-invalid auth session before the caller reloads.
+    purgeLocalTrace();
     try {
-      const doomed: string[] = [];
-      for (let i = 0; i < localStorage.length; i++) {
-        const k = localStorage.key(i);
-        if (k && k.startsWith("insight.")) doomed.push(k);
-      }
-      doomed.forEach((k) => localStorage.removeItem(k));
       sessionStorage.clear();
     } catch {
       /* best-effort */
@@ -675,12 +769,17 @@ const LIVE = {
     return () => listeners.delete(fn);
   },
   deck(): LiveQuestion[] {
-    // Midnight rollover: recompute the deck (and agg subscriptions) when
-    // the local day changes under a long-lived session.
+    // Midnight rollover under a long-lived session. computeDeck stays here
+    // and stays synchronous: this getter is called during render, and the
+    // first paint after midnight has to show the new day's questions.
+    //
+    // The Firestore subscriptions that follow from a rollover do NOT
+    // belong in a render path — they now run from the wake handler
+    // (resubscribeForToday). Worst case between a rollover and the next
+    // wake is a deck rendered without live count updates, which the next
+    // foreground fixes.
     if (state.questions.length && state.deckDay !== dayIndex()) {
       computeDeck();
-      void subscribeAggs();
-      void getDb().then((db) => subscribeReveals(db)).catch(() => {});
     }
     return state.deckIds
       .map((qid, back) => {
@@ -792,21 +891,188 @@ const LIVE = {
 // 2.5 s budget: warm boots serve the bank from cache well inside it,
 // and a slow cold boot renders the mock deck now and attaches live
 // later via notify() — better than holding the splash for 5 s.
-export async function initLive(timeoutMs = 2500): Promise<void> {
-  const flag = import.meta.env.VITE_V2_LIVE === "true";
-  if (!flag || !firebaseEnabled) return;
-  const boot = (async () => {
+// Guards the one-shot anonymous re-sign-in after a lost session, so a
+// server that keeps revoking cannot spin here.
+let sessionRecoveryTried = false;
+
+// Hard reset to a different account. Everything derived from the old uid
+// has to go — in-memory AND on disk — before anything is fetched for the
+// new one, or the two interleave and one account's answers render as the
+// other's.
+function resetForNewUid(uid: string): void {
+  try {
+    state.groupsUnsub?.();
+    Object.values(state.aggUnsubs).forEach((u) => { try { u(); } catch { /* best-effort */ } });
+    Object.values(state.revealUnsubs).forEach((u) => { try { u(); } catch { /* best-effort */ } });
+  } catch {
+    /* best-effort */
+  }
+  state.groupsUnsub = null;
+  state.aggUnsubs = {};
+  state.revealUnsubs = {};
+  state.votes = {};
+  state.inflight = {};
+  state.unaggregated = {};
+  state.aggs = {};
+  state.groups = [];
+  state.reveals = {};
+  state.profile = { displayName: "", testResults: {} };
+  state.deckIds = [];
+  state.deckDay = -1;
+  state.ready = false;
+  state.sessionLost = false;
+  state.uid = uid;
+  purgeLocalTrace();
+  setSentryUser(uid);
+  notify();
+  void refreshLive().catch((err) => reportError(err, { where: "refreshLive.uidChange" }));
+}
+
+// Remove every `insight.*` key. Used by deleteAccount and by the
+// uid-change path — NOT a hand-listed subset: there are ~29 such keys
+// (feed votes, daily answers, test results and progress, replies, takes,
+// likes, friends, duels, scenes, suggestions, caches…) and none is
+// uid-keyed, so any one left behind shows the previous account's data
+// under the new one. Enumerating by prefix is the only version that stays
+// correct when a new key is added.
+function purgeLocalTrace(): void {
+  try {
+    const doomed: string[] = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (k && k.startsWith("insight.")) doomed.push(k);
+    }
+    doomed.forEach((k) => localStorage.removeItem(k));
+  } catch {
+    /* best-effort */
+  }
+}
+
+// Re-attach the day's listeners after a rollover. Called from the wake
+// handler rather than from deck(), so that a render never triggers
+// network work. Cheap and idempotent when the day has not changed:
+// subscribeAggs drops listeners for questions no longer in the deck and
+// skips ones already attached.
+async function resubscribeForToday(): Promise<void> {
+  if (torndown || !state.ready) return;
+  try {
+    if (state.questions.length && state.deckDay !== dayIndex()) {
+      computeDeck();
+      notify();
+    }
+    await subscribeAggs();
+    const db = await getDb();
+    subscribeReveals(db);
+  } catch (err) {
+    reportError(err, { where: "resubscribeForToday" });
+  }
+}
+
+// The whole live attach, made re-entrant so it can run again on a
+// reconnect instead of only once at boot. Two banners in the UI say
+// "reconnecting…" (mirror-tab.jsx, daily-split.jsx) and until now nothing
+// in the codebase ever did — a boot that lost the race or failed left
+// LIVE disabled for the life of the process, which on mobile can be days.
+//
+// Concurrency: a single in-flight promise is shared, so an `online` event
+// arriving in the middle of a visibilitychange refresh joins that run
+// rather than starting a second one.
+let refreshInFlight: Promise<void> | null = null;
+let pushRegistered = false;
+
+export function refreshLive(): Promise<void> {
+  if (torndown) return Promise.resolve();
+  if (refreshInFlight) return refreshInFlight;
+  refreshInFlight = (async () => {
     state.uid = await anonSignIn();
     // uid-only (never email/name) — matches sentry.ts's PII stance.
     setSentryUser(state.uid);
     await hydrate();
     await hydrateSocial();
     state.ready = true;
-    // fire-and-forget: reveal notifications on real devices (no-op on web)
-    void import("./push").then((m) => m.registerPushForReveals(state.uid as string)).catch(() => {});
+    // fire-and-forget: reveal notifications on real devices (no-op on web).
+    // Once per process — re-registering on every reconnect would churn the
+    // token array for no gain.
+    if (!pushRegistered) {
+      pushRegistered = true;
+      void import("./push")
+        .then((m) => m.registerPushForReveals(state.uid as string))
+        .catch(() => { pushRegistered = false; });
+    }
     LIVE.enabled = true;
     notify();
-  })();
+  })().finally(() => { refreshInFlight = null; });
+  return refreshInFlight;
+}
+
+// Wake handlers. A healthy wake must stay cheap — the common case is a
+// user swapping apps for ten seconds — so a ready session only does the
+// midnight-rollover check, and a full refresh runs when the session never
+// attached or the deck has aged out.
+function wake(): void {
+  if (torndown) return;
+  if (typeof navigator !== "undefined" && navigator.onLine === false) return;
+  if (!state.ready) {
+    void refreshLive().catch((err) => reportError(err, { where: "refreshLive.wake" }));
+    return;
+  }
+  // Attaches listeners for the new day's deck if the date rolled over
+  // while the app was backgrounded; no-op otherwise.
+  void resubscribeForToday();
+}
+
+export async function initLive(timeoutMs = 2500): Promise<void> {
+  const flag = import.meta.env.VITE_V2_LIVE === "true";
+  if (!flag || !firebaseEnabled) return;
+  const boot = refreshLive();
+
+  // Observe auth for the rest of the session. state.uid used to be sampled
+  // once and never watched, so if the session changed underneath us — a
+  // revoked token, an account deleted on another device, or linkGoogle
+  // falling back to a full sign-in when there was no currentUser — the
+  // store kept the PREVIOUS account's votes in memory and rendered them as
+  // the new account's. On a shared uid-agnostic localStorage, that is one
+  // person's answers displayed to another.
+  subscribeToAuth((user) => {
+    if (torndown) return;
+    const next = user?.uid || null;
+    if (next && state.uid && next !== state.uid) {
+      resetForNewUid(next);
+      return;
+    }
+    if (next && !state.uid) {
+      state.uid = next;
+      return;
+    }
+    if (!next && state.uid) {
+      // Session lost. Deliberately do NOT flip enabled=false: the deck and
+      // the bank on screen are still valid, and blanking to demo data is a
+      // worse lie than a stale-but-true view. Anonymous-first means we can
+      // usually just get a new session (D3).
+      state.sessionLost = true;
+      notify();
+      if (!sessionRecoveryTried) {
+        sessionRecoveryTried = true;
+        void anonSignIn()
+          .then((uid) => {
+            state.sessionLost = false;
+            if (uid !== state.uid) resetForNewUid(uid);
+            else notify();
+          })
+          .catch((err) => reportError(err, { where: "auth.recover" }));
+      }
+    }
+  });
+
+  // Guarded for the node-environment unit tests, which run without a DOM.
+  if (typeof window !== "undefined" && typeof window.addEventListener === "function") {
+    window.addEventListener("online", wake);
+  }
+  if (typeof document !== "undefined" && typeof document.addEventListener === "function") {
+    document.addEventListener("visibilitychange", () => {
+      if (!document.hidden) wake();
+    });
+  }
   // Whether boot loses the race (slow network) or fails outright, the
   // app must render on the mock deck; a late successful boot attaches
   // via notify() and the UI reconciles.
