@@ -92,6 +92,15 @@ function WfCount({ to, animate, dur = 650 }) {
 function wfHash(s) { let h = 9; for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 387420489); return ((h ^ (h >>> 9)) >>> 0) / 4294967295; }
 function wfShade(color, i) { return 'color-mix(in oklch, ' + color + ' ' + Math.max(70 - i * 22, 12) + '%, var(--surface-3))'; }
 function wfShadeText(i) { return i < 2 ? '#fff' : 'var(--ink)'; }
+// Live breakdown dimensions, in display order. Must stay a subset of
+// BREAKDOWN_DIMS (functions/src/pure.ts) — a dimension the server never
+// publishes would render an empty chip. `city` and `profession` are
+// collected but not sliced by (D8), and `friends` is demo-only: a named
+// who-voted at world scale is exactly what D1 rules out.
+const WF_LIVE_DIMS = [
+  ['ageBand', 'Age'], ['gender', 'Gender'], ['country', 'Where'],
+  ['education', 'Education'], ['relationship', 'Relationship'],
+];
 const WF_DIMS = [['friends', 'Friends'], ['age', 'Age'], ['gender', 'Gender'], ['politics', 'Politics'], ['where', 'Where']];
 const WF_GROUPS = { age: ['18–24', '25–34', '35–44', '45+'], gender: ['Women', 'Men', 'Nonbinary'], politics: ['Left', 'Center', 'Right'], where: ['Americas', 'Europe', 'Asia', 'Elsewhere'] };
 const WF_FRIENDS = [{ name: 'Alex', init: 'A' }, { name: 'Mia', init: 'M' }, { name: 'Jordi', init: 'J' }, { name: 'Sara', init: 'S' }, { name: 'Noah', init: 'N' }, { name: 'Elif', init: 'E' }];
@@ -407,12 +416,27 @@ class WorldFeed extends React.Component {
 
   // ── takes + who-voted — open as bottom sheets (revealed only after answering) ──
   renderEngage(q, T, big) {
-    // D1: live world-scope cards carry no takes and no who-voted —
-    // comments are circle-scoped, and the demo's breakdown splits are
-    // synthetic. The row exists only for demo content — and never for
-    // a real user a live build dropped into the mock fallback, where
-    // unlabeled fake named people would break the honesty posture.
-    if (q.live || (window.LIVE && window.LIVE.demoInProd)) return null;
+    // D1: free-text takes and named who-voted are circle-scoped, so a live
+    // world card never shows takes. It DOES now show who-voted, because
+    // that panel stopped being a lie: the breakdown is real anchor counts,
+    // floored per cell with complementary suppression applied server-side
+    // (D8), and it carries no names at all. D1 permits "the split, the
+    // totals" at world scale — this is a split, sliced.
+    //
+    // demoInProd stays fully suppressed either way: that is a real user a
+    // live build dropped into the mock fallback, where the synthetic
+    // splits and the fake named people below would both be lies.
+    if (window.LIVE && window.LIVE.demoInProd) return null;
+    if (q.live) {
+      if (q.type === 'rank') return null;
+      return (
+        <div style={{ display: 'flex', gap: 24, alignItems: 'center' }}>
+          <button className="press" onClick={() => this.setState({ sheet: { q, T, panel: 'stats' }, sideFilter: null, replyTo: null })} aria-label="who voted" title="who voted" style={{ background: 'none', border: 'none', padding: '4px 0', display: 'flex', alignItems: 'center', gap: 9, cursor: 'pointer', color: 'var(--ink)', WebkitAppearance: 'none' }}>
+            <svg width={big ? 23 : 22} height={big ? 23 : 22} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M5 19.5V13M12 19.5V5.5M19 19.5V10"></path></svg>
+          </button>
+        </div>
+      );
+    }
     const takes = (window.WORLD_FEED_COMMENTS || {})[q.id] || [];
     const hasStats = q.type !== 'rank';
     const open = (id) => this.setState({ sheet: { q, T, panel: id }, sideFilter: null, replyTo: null });
@@ -573,7 +597,94 @@ class WorldFeed extends React.Component {
     });
   }
 
+  // ── the real breakdown (D8) ──
+  // Live questions slice by the anchors people actually gave, floored per
+  // cell server-side. Demo cards keep the prototype's synthetic split
+  // below — it is demo data on a demo card, and the live path never
+  // touches it.
+  //
+  // `friends` is absent here on purpose: a named who-voted at world scale
+  // is what D1 rules out. It stays a demo-only dimension.
+  liveBy(q) {
+    if (!q.live || !window.LIVE || !window.LIVE.aggFor) return null;
+    const agg = window.LIVE.aggFor(q.id);
+    const by = agg && agg.by;
+    return by && Object.keys(by).length ? by : null;
+  }
+
+  renderLiveStats(q, T, by) {
+    const dims = WF_LIVE_DIMS.filter(([id]) => by[id]);
+    const dim = dims.some(([id]) => id === this.state.dims[q.id])
+      ? this.state.dims[q.id] : dims[0][0];
+    const buckets = by[dim] || {};
+    // Biggest cohort first — the ordering the eye wants, and it keeps the
+    // withheld tail (which we cannot show at all) out of the way.
+    const rows = Object.keys(buckets)
+      .map((b) => {
+        const cell = buckets[b];
+        const n = Object.keys(cell).reduce((a, k) => a + cell[k], 0);
+        return { bucket: b, cell, n };
+      })
+      .sort((a, b2) => b2.n - a.n);
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 11 }}>
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+          {dims.map(([id, label]) => (
+            <button key={id} onClick={() => this.setState((s) => ({ dims: { ...s.dims, [q.id]: id } }))} style={{ border: WF_LINE, borderRadius: 999, padding: '5px 12px', fontFamily: 'var(--sans)', fontWeight: 700, fontSize: 12, cursor: 'pointer', background: dim === id ? 'var(--ink)' : 'var(--surface)', color: dim === id ? 'var(--surface)' : 'var(--ink)', WebkitAppearance: 'none' }}>{label}</button>
+          ))}
+        </div>
+        <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+          {q.options.map((o, i) => (
+            <span key={i} style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11.5, fontWeight: 700 }}>
+              <span style={{ width: 11, height: 11, borderRadius: 4, background: wfShade(T.color, i), display: 'inline-block' }}></span>{o.label}
+            </span>
+          ))}
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          {rows.map((r) => {
+            const ps = q.options.map((_, oi) => Math.round(((r.cell[String(oi)] || 0) / r.n) * 100));
+            // rounding drift lands on the largest share, so the bar is full
+            const drift = 100 - ps.reduce((a, b2) => a + b2, 0);
+            if (drift) ps[ps.indexOf(Math.max(...ps))] += drift;
+            return (
+              <div key={r.bucket} style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between' }}>
+                  <span style={{ fontWeight: 800, fontSize: 12 }}>{r.bucket}</span>
+                  <span style={{ fontSize: 10.5, fontWeight: 600, color: 'var(--ink-3)' }}>{wfFmt(r.n)} {r.n === 1 ? 'vote' : 'votes'}</span>
+                </div>
+                <div style={{ display: 'flex', height: 30, border: WF_LINE, borderRadius: 9, overflow: 'hidden', background: 'var(--surface)' }}>
+                  {ps.map((p, oi) => (
+                    <span key={oi} style={{ width: p + '%', background: wfShade(T.color, oi), display: 'flex', alignItems: 'center', justifyContent: 'center', color: wfShadeText(oi), fontSize: 10.5, fontWeight: 800, overflow: 'hidden' }}>{p >= 14 ? p + '%' : ''}</span>
+                  ))}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+        {/* Absent cohorts are WITHHELD, not empty. Saying so is the point:
+            the floor is the product's claim, so the UI has to name it
+            rather than quietly show a shorter list. */}
+        <div style={{ fontFamily: 'var(--sans)', fontSize: 11.5, fontWeight: 600, color: 'var(--ink-3)', lineHeight: 1.5, textWrap: 'pretty' }}>
+          Only groups with enough answers to stay anonymous are shown. The
+          rest appear as more people answer.
+        </div>
+      </div>
+    );
+  }
+
   renderStats(q, T) {
+    const by = this.liveBy(q);
+    if (by) return this.renderLiveStats(q, T, by);
+    // A live question whose breakdown is not publishable yet says so,
+    // rather than falling through to the demo's invented split.
+    if (q.live) {
+      return (
+        <div style={{ fontFamily: 'var(--sans)', fontSize: 13, fontWeight: 600, color: 'var(--ink-3)', lineHeight: 1.55, padding: '6px 2px', textWrap: 'pretty' }}>
+          No group is large enough yet to show how it split without pointing
+          at someone. Come back when more people have answered.
+        </div>
+      );
+    }
     const dim = this.state.dims[q.id] || 'friends';
     const counts = q.options.map((o) => o.count);
     const total = counts.reduce((a, b) => a + b, 0);
@@ -907,5 +1018,6 @@ window.WorldFeed = WorldFeed;
 ;globalThis.WF_CHAN_SET = typeof WF_CHAN_SET === 'undefined' ? globalThis.WF_CHAN_SET : WF_CHAN_SET;
 ;globalThis.WF_LINE = typeof WF_LINE === 'undefined' ? globalThis.WF_LINE : WF_LINE;
 ;globalThis.WF_DIMS = typeof WF_DIMS === 'undefined' ? globalThis.WF_DIMS : WF_DIMS;
+;globalThis.WF_LIVE_DIMS = typeof WF_LIVE_DIMS === 'undefined' ? globalThis.WF_LIVE_DIMS : WF_LIVE_DIMS;
 ;globalThis.WF_GROUPS = typeof WF_GROUPS === 'undefined' ? globalThis.WF_GROUPS : WF_GROUPS;
 ;globalThis.WF_FRIENDS = typeof WF_FRIENDS === 'undefined' ? globalThis.WF_FRIENDS : WF_FRIENDS;
