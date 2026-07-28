@@ -27,8 +27,12 @@ const h = vi.hoisted(() => ({
   reportError: vi.fn(),
   // per-test knobs (reset in beforeEach)
   setDocImpl: null as null | (() => Promise<void>),
+  getDocsImpl: null as null | (() => Error),
   setDocCalls: [] as Array<{ path: string; data: Record<string, unknown> }>,
   bankDocs: [] as FakeSnapshotDoc[],
+  // live.ts observes auth for the whole session; capture the callback so a
+  // test can drive a uid change or a revoked session.
+  authCb: null as null | ((u: { uid: string } | null) => void),
   snapshots: [] as CapturedListener[],
 }));
 
@@ -38,6 +42,10 @@ vi.mock("../../lib/firebase", () => ({
   getDb: () => Promise.resolve({ __db: true }),
   linkGoogle: () => Promise.resolve(),
   googleSignOut: () => Promise.resolve(),
+  subscribeToAuth: (cb: (u: { uid: string } | null) => void) => {
+    h.authCb = cb;
+    return () => { h.authCb = null; };
+  },
 }));
 
 vi.mock("../../lib/sentry", () => ({
@@ -76,8 +84,11 @@ vi.mock("firebase/firestore", () => {
     Timestamp: { fromMillis: (ms: number) => ({ ms }) },
     getDoc: () =>
       Promise.resolve({ exists: () => false, get: () => undefined, data: () => ({}) }),
-    getDocs: (q: { path?: string }) =>
-      Promise.resolve(q?.path === "v2_questions" ? snapOf(h.bankDocs) : snapOf([])),
+    getDocs: (q: { path?: string }) => {
+      // Lets a test simulate a network failure mid-hydrate.
+      if (h.getDocsImpl) return Promise.reject(h.getDocsImpl());
+      return Promise.resolve(q?.path === "v2_questions" ? snapOf(h.bankDocs) : snapOf([]));
+    },
     onSnapshot: (
       target: { path?: string },
       next: (snap: unknown) => void,
@@ -147,6 +158,12 @@ async function bootLive() {
   return LIVE;
 }
 
+// Event handlers initLive registers, captured so a test can fire a wake.
+const listeners: {
+  window: Record<string, () => void>;
+  document: Record<string, () => void>;
+} = { window: {}, document: {} };
+
 const ANS_LS = "insight.answersCache.v1";
 const WF_LS = "insight.feedVotes.v1";
 
@@ -154,6 +171,8 @@ beforeEach(() => {
   vi.resetModules();
   h.reportError.mockClear();
   h.setDocImpl = null;
+  h.getDocsImpl = null;
+  h.authCb = null;
   h.setDocCalls.length = 0;
   h.snapshots.length = 0;
   h.bankDocs = [
@@ -173,7 +192,23 @@ beforeEach(() => {
   ];
   storage = new MemoryStorage();
   vi.stubGlobal("localStorage", storage);
-  vi.stubGlobal("window", { dispatchEvent: () => true });
+  // initLive attaches `online` / `visibilitychange` handlers for the
+  // reconnect path. The stub carries addEventListener so that code path is
+  // actually taken here rather than skipped by its typeof guard — and
+  // registered handlers are captured so a test can fire a wake.
+  listeners.window = {};
+  listeners.document = {};
+  vi.stubGlobal("window", {
+    dispatchEvent: () => true,
+    addEventListener: (type: string, fn: () => void) => { listeners.window[type] = fn; },
+    removeEventListener: (type: string) => { delete listeners.window[type]; },
+  });
+  vi.stubGlobal("document", {
+    hidden: false,
+    addEventListener: (type: string, fn: () => void) => { listeners.document[type] = fn; },
+    removeEventListener: (type: string) => { delete listeners.document[type]; },
+  });
+  vi.stubGlobal("navigator", { onLine: true });
   vi.stubEnv("VITE_V2_LIVE", "true");
 });
 
@@ -281,6 +316,78 @@ describe("vote() optimistic path (inflight vs unaggregated)", () => {
     expect(cached.votes || {}).not.toHaveProperty("q_1");
     expect(listener.mock.calls.length).toBeGreaterThan(notifiesBeforeReject);
     expect(h.reportError).toHaveBeenCalledWith(boom, { where: "vote", qid: "q_1" });
+  });
+
+  it("registers wake handlers, and a wake on a dead session re-attaches", async () => {
+    // Two shipped banners say "reconnecting…". Before this, nothing in the
+    // codebase ever reconnected: a boot that failed left LIVE disabled for
+    // the life of the process. These assert the handlers exist and that a
+    // wake actually retries rather than no-oping.
+    const mod = await import("./live");
+    const LIVE = mod.default;
+
+    // Fail the first boot the way a flaky network would.
+    h.getDocsImpl = () => { throw new Error("offline"); };
+    await mod.initLive(1);
+    expect(LIVE.enabled).toBe(false);
+
+    expect(typeof listeners.window.online).toBe("function");
+    expect(typeof listeners.document.visibilitychange).toBe("function");
+
+    // Network returns; the wake must recover the session.
+    h.getDocsImpl = null;
+    listeners.window.online();
+    await vi.waitFor(() => {
+      expect(LIVE.enabled).toBe(true);
+    });
+  });
+
+  it("a wake while offline does not retry", async () => {
+    const mod = await import("./live");
+    const LIVE = mod.default;
+    h.getDocsImpl = () => { throw new Error("offline"); };
+    await mod.initLive(1);
+    expect(LIVE.enabled).toBe(false);
+
+    vi.stubGlobal("navigator", { onLine: false });
+    h.getDocsImpl = null;
+    listeners.window.online();
+    await new Promise((r) => setTimeout(r, 0));
+    expect(LIVE.enabled).toBe(false);
+  });
+
+  it("a uid change wipes the previous account's votes and local trace", async () => {
+    // The leak this prevents: state.uid was sampled once and never
+    // observed, so a session that changed underneath us (revoked token,
+    // account deleted elsewhere, linkGoogle falling back to a full
+    // sign-in) left the PREVIOUS account's votes in memory — rendered as
+    // the new account's. None of the ~29 insight.* keys is uid-keyed.
+    const LIVE = await bootLive();
+    LIVE.vote("q_1", "1");
+    await flush();
+    expect(LIVE.myVotes()).toMatchObject({ q_1: "1" });
+    storage.setItem("insight.testResults.v2", JSON.stringify({ big5: "done" }));
+    storage.setItem("insight.likes.v1", JSON.stringify({ x: 1 }));
+
+    expect(h.authCb).toBeTypeOf("function");
+    h.authCb!({ uid: "someone_else" });
+    await flush();
+
+    expect(LIVE.myVotes()).not.toHaveProperty("q_1");
+    // every insight.* key goes, not a hand-listed subset
+    expect(storage.getItem("insight.testResults.v2")).toBeNull();
+    expect(storage.getItem("insight.likes.v1")).toBeNull();
+    expect(storage.getItem(WF_LS)).toBeNull();
+  });
+
+  it("a revoked session keeps real data on screen rather than blanking to demo", async () => {
+    const LIVE = await bootLive();
+    expect(LIVE.enabled).toBe(true);
+    h.authCb!(null);
+    await flush();
+    // Blanking to the demo deck would be a worse lie than a stale-but-true
+    // view, so enabled must survive while a new anon session is fetched.
+    expect(LIVE.enabled).toBe(true);
   });
 
   it("reports and re-notifies when an agg listener errors", async () => {

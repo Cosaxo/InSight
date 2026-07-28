@@ -32,7 +32,7 @@ import {
   where,
 } from "firebase/firestore";
 import { getFunctions, httpsCallable } from "firebase/functions";
-import { anonSignIn, firebaseEnabled, getDb } from "../../lib/firebase";
+import { anonSignIn, firebaseEnabled, getDb, subscribeToAuth } from "../../lib/firebase";
 import { reportError, setSentryUser } from "../../lib/sentry";
 // Pure deck-shaping logic lives in ./deck (unit-testable, no firebase);
 // this module passes its store state in.
@@ -49,6 +49,10 @@ import type { AggDoc, LiveQuestion, QuestionDoc, VoteContext } from "./deck";
 
 const state = {
   ready: false,
+  // Auth session was revoked mid-run. The UI stays on real data (blanking
+  // to demo would be a worse lie than a stale-but-true view); this only
+  // gates honest copy while a new anonymous session is fetched.
+  sessionLost: false,
   uid: null as string | null,
   questions: [] as Array<QuestionDoc & { id: string }>,
   feedBank: [] as Array<QuestionDoc & { id: string }>,
@@ -725,13 +729,8 @@ const LIVE = {
     // trace so the next (fresh anonymous) session doesn't resurrect the
     // deleted account's votes, results, or identity — then drop the
     // now-invalid auth session before the caller reloads.
+    purgeLocalTrace();
     try {
-      const doomed: string[] = [];
-      for (let i = 0; i < localStorage.length; i++) {
-        const k = localStorage.key(i);
-        if (k && k.startsWith("insight.")) doomed.push(k);
-      }
-      doomed.forEach((k) => localStorage.removeItem(k));
       sessionStorage.clear();
     } catch {
       /* best-effort */
@@ -770,12 +769,17 @@ const LIVE = {
     return () => listeners.delete(fn);
   },
   deck(): LiveQuestion[] {
-    // Midnight rollover: recompute the deck (and agg subscriptions) when
-    // the local day changes under a long-lived session.
+    // Midnight rollover under a long-lived session. computeDeck stays here
+    // and stays synchronous: this getter is called during render, and the
+    // first paint after midnight has to show the new day's questions.
+    //
+    // The Firestore subscriptions that follow from a rollover do NOT
+    // belong in a render path — they now run from the wake handler
+    // (resubscribeForToday). Worst case between a rollover and the next
+    // wake is a deck rendered without live count updates, which the next
+    // foreground fixes.
     if (state.questions.length && state.deckDay !== dayIndex()) {
       computeDeck();
-      void subscribeAggs();
-      void getDb().then((db) => subscribeReveals(db)).catch(() => {});
     }
     return state.deckIds
       .map((qid, back) => {
@@ -887,21 +891,188 @@ const LIVE = {
 // 2.5 s budget: warm boots serve the bank from cache well inside it,
 // and a slow cold boot renders the mock deck now and attaches live
 // later via notify() — better than holding the splash for 5 s.
-export async function initLive(timeoutMs = 2500): Promise<void> {
-  const flag = import.meta.env.VITE_V2_LIVE === "true";
-  if (!flag || !firebaseEnabled) return;
-  const boot = (async () => {
+// Guards the one-shot anonymous re-sign-in after a lost session, so a
+// server that keeps revoking cannot spin here.
+let sessionRecoveryTried = false;
+
+// Hard reset to a different account. Everything derived from the old uid
+// has to go — in-memory AND on disk — before anything is fetched for the
+// new one, or the two interleave and one account's answers render as the
+// other's.
+function resetForNewUid(uid: string): void {
+  try {
+    state.groupsUnsub?.();
+    Object.values(state.aggUnsubs).forEach((u) => { try { u(); } catch { /* best-effort */ } });
+    Object.values(state.revealUnsubs).forEach((u) => { try { u(); } catch { /* best-effort */ } });
+  } catch {
+    /* best-effort */
+  }
+  state.groupsUnsub = null;
+  state.aggUnsubs = {};
+  state.revealUnsubs = {};
+  state.votes = {};
+  state.inflight = {};
+  state.unaggregated = {};
+  state.aggs = {};
+  state.groups = [];
+  state.reveals = {};
+  state.profile = { displayName: "", testResults: {} };
+  state.deckIds = [];
+  state.deckDay = -1;
+  state.ready = false;
+  state.sessionLost = false;
+  state.uid = uid;
+  purgeLocalTrace();
+  setSentryUser(uid);
+  notify();
+  void refreshLive().catch((err) => reportError(err, { where: "refreshLive.uidChange" }));
+}
+
+// Remove every `insight.*` key. Used by deleteAccount and by the
+// uid-change path — NOT a hand-listed subset: there are ~29 such keys
+// (feed votes, daily answers, test results and progress, replies, takes,
+// likes, friends, duels, scenes, suggestions, caches…) and none is
+// uid-keyed, so any one left behind shows the previous account's data
+// under the new one. Enumerating by prefix is the only version that stays
+// correct when a new key is added.
+function purgeLocalTrace(): void {
+  try {
+    const doomed: string[] = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (k && k.startsWith("insight.")) doomed.push(k);
+    }
+    doomed.forEach((k) => localStorage.removeItem(k));
+  } catch {
+    /* best-effort */
+  }
+}
+
+// Re-attach the day's listeners after a rollover. Called from the wake
+// handler rather than from deck(), so that a render never triggers
+// network work. Cheap and idempotent when the day has not changed:
+// subscribeAggs drops listeners for questions no longer in the deck and
+// skips ones already attached.
+async function resubscribeForToday(): Promise<void> {
+  if (torndown || !state.ready) return;
+  try {
+    if (state.questions.length && state.deckDay !== dayIndex()) {
+      computeDeck();
+      notify();
+    }
+    await subscribeAggs();
+    const db = await getDb();
+    subscribeReveals(db);
+  } catch (err) {
+    reportError(err, { where: "resubscribeForToday" });
+  }
+}
+
+// The whole live attach, made re-entrant so it can run again on a
+// reconnect instead of only once at boot. Two banners in the UI say
+// "reconnecting…" (mirror-tab.jsx, daily-split.jsx) and until now nothing
+// in the codebase ever did — a boot that lost the race or failed left
+// LIVE disabled for the life of the process, which on mobile can be days.
+//
+// Concurrency: a single in-flight promise is shared, so an `online` event
+// arriving in the middle of a visibilitychange refresh joins that run
+// rather than starting a second one.
+let refreshInFlight: Promise<void> | null = null;
+let pushRegistered = false;
+
+export function refreshLive(): Promise<void> {
+  if (torndown) return Promise.resolve();
+  if (refreshInFlight) return refreshInFlight;
+  refreshInFlight = (async () => {
     state.uid = await anonSignIn();
     // uid-only (never email/name) — matches sentry.ts's PII stance.
     setSentryUser(state.uid);
     await hydrate();
     await hydrateSocial();
     state.ready = true;
-    // fire-and-forget: reveal notifications on real devices (no-op on web)
-    void import("./push").then((m) => m.registerPushForReveals(state.uid as string)).catch(() => {});
+    // fire-and-forget: reveal notifications on real devices (no-op on web).
+    // Once per process — re-registering on every reconnect would churn the
+    // token array for no gain.
+    if (!pushRegistered) {
+      pushRegistered = true;
+      void import("./push")
+        .then((m) => m.registerPushForReveals(state.uid as string))
+        .catch(() => { pushRegistered = false; });
+    }
     LIVE.enabled = true;
     notify();
-  })();
+  })().finally(() => { refreshInFlight = null; });
+  return refreshInFlight;
+}
+
+// Wake handlers. A healthy wake must stay cheap — the common case is a
+// user swapping apps for ten seconds — so a ready session only does the
+// midnight-rollover check, and a full refresh runs when the session never
+// attached or the deck has aged out.
+function wake(): void {
+  if (torndown) return;
+  if (typeof navigator !== "undefined" && navigator.onLine === false) return;
+  if (!state.ready) {
+    void refreshLive().catch((err) => reportError(err, { where: "refreshLive.wake" }));
+    return;
+  }
+  // Attaches listeners for the new day's deck if the date rolled over
+  // while the app was backgrounded; no-op otherwise.
+  void resubscribeForToday();
+}
+
+export async function initLive(timeoutMs = 2500): Promise<void> {
+  const flag = import.meta.env.VITE_V2_LIVE === "true";
+  if (!flag || !firebaseEnabled) return;
+  const boot = refreshLive();
+
+  // Observe auth for the rest of the session. state.uid used to be sampled
+  // once and never watched, so if the session changed underneath us — a
+  // revoked token, an account deleted on another device, or linkGoogle
+  // falling back to a full sign-in when there was no currentUser — the
+  // store kept the PREVIOUS account's votes in memory and rendered them as
+  // the new account's. On a shared uid-agnostic localStorage, that is one
+  // person's answers displayed to another.
+  subscribeToAuth((user) => {
+    if (torndown) return;
+    const next = user?.uid || null;
+    if (next && state.uid && next !== state.uid) {
+      resetForNewUid(next);
+      return;
+    }
+    if (next && !state.uid) {
+      state.uid = next;
+      return;
+    }
+    if (!next && state.uid) {
+      // Session lost. Deliberately do NOT flip enabled=false: the deck and
+      // the bank on screen are still valid, and blanking to demo data is a
+      // worse lie than a stale-but-true view. Anonymous-first means we can
+      // usually just get a new session (D3).
+      state.sessionLost = true;
+      notify();
+      if (!sessionRecoveryTried) {
+        sessionRecoveryTried = true;
+        void anonSignIn()
+          .then((uid) => {
+            state.sessionLost = false;
+            if (uid !== state.uid) resetForNewUid(uid);
+            else notify();
+          })
+          .catch((err) => reportError(err, { where: "auth.recover" }));
+      }
+    }
+  });
+
+  // Guarded for the node-environment unit tests, which run without a DOM.
+  if (typeof window !== "undefined" && typeof window.addEventListener === "function") {
+    window.addEventListener("online", wake);
+  }
+  if (typeof document !== "undefined" && typeof document.addEventListener === "function") {
+    document.addEventListener("visibilitychange", () => {
+      if (!document.hidden) wake();
+    });
+  }
   // Whether boot loses the race (slow network) or fails outright, the
   // app must render on the mock deck; a late successful boot attaches
   // via notify() and the UI reconciles.
