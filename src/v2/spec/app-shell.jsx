@@ -1,5 +1,8 @@
-/* eslint-disable */
-// ported from design/spec-modules/app-shell.jsx — do not hand-edit load order assumptions
+// Ported from design/spec-modules/app-shell.jsx (the historical prototype — no sync
+// script survives; THIS file is the live source now, hand-edits and all).
+// Cross-module references resolve through the shared global scope and
+// spec-index.js load order is semantic — scripts/check-spec-globals.mjs
+// guards the wiring in CI.
 import React from 'react';
 
 
@@ -195,7 +198,7 @@ function App() {
               style={{ border: 'none', background: 'none', cursor: 'pointer', fontWeight: 800, color: 'var(--accent, var(--ink))', fontSize: 12.5 }}>
               {window.LIVE.updateUrl ? 'Update' : 'Refresh'}
             </button>
-            <button aria-label="Dismiss update notice" onClick={() => { try { sessionStorage.setItem('insight.updateDismissed', String(window.LIVE.latestBuild)); } catch (e) {} liveTick((t) => t + 1); }}
+            <button aria-label="Dismiss update notice" onClick={() => { try { sessionStorage.setItem('insight.updateDismissed', String(window.LIVE.latestBuild)); } catch { /* best-effort */ } liveTick((t) => t + 1); }}
               style={{ border: 'none', background: 'none', cursor: 'pointer', color: 'var(--ink-3)', fontSize: 14, padding: 0 }}>✕</button>
           </div>
         )}

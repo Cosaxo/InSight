@@ -1,5 +1,8 @@
-/* eslint-disable */
-// ported from design/spec-modules/passive-progress.js — do not hand-edit load order assumptions
+// Ported from design/spec-modules/passive-progress.js (the historical prototype — no sync
+// script survives; THIS file is the live source now, hand-edits and all).
+// Cross-module references resolve through the shared global scope and
+// spec-index.js load order is semantic — scripts/check-spec-globals.mjs
+// guards the wiring in CI.
 import React from 'react';
 
 // passive-progress.js — progress for the four core tests. Only a test's OWN
@@ -28,7 +31,7 @@ window.PASSIVE = (function () {
     try { const v = JSON.parse(localStorage.getItem(LS) || '{}'); return { seen: (v && v.seen) || {}, full: (v && v.full) || {} }; }
     catch (e) { return { seen: {}, full: {} }; }
   }
-  function save() { try { localStorage.setItem(LS, JSON.stringify(st)); } catch (e) {} }
+  function save() { try { localStorage.setItem(LS, JSON.stringify(st)); } catch { /* best-effort */ } }
   function needed(k) { const T = (window.IS_TESTS || {})[k]; return T && T.questions ? T.questions.length : 0; }
   function explicitN(k) {
     try { const p = JSON.parse(localStorage.getItem('insight.testProgress.v1') || '{}')[k]; return p && Array.isArray(p.answers) ? p.answers.length : 0; }
@@ -68,7 +71,7 @@ window.PASSIVE = (function () {
   }
   function markComplete(k) { if (!st.full[k]) { st.full[k] = true; save(); notify(); } }
   function subscribe(fn) { subs.push(fn); return () => { const i = subs.indexOf(fn); if (i >= 0) subs.splice(i, 1); }; }
-  function notify() { subs.forEach((f) => { try { f(); } catch (e) {} }); }
+  function notify() { subs.forEach((f) => { try { f(); } catch { /* best-effort */ } }); }
   return { META, KEYS, needed, done, passiveDone, pct, complete, testFor, seedCount, record, prefill, markComplete, subscribe, poke: notify };
 })();
 

@@ -77,17 +77,44 @@ Both apps must be registered under `com.cosaxo.insight`:
   callable that verifies token↔uid; today a stolen token could be
   planted on another account for reveal-push spam (needs the victim's
   token, so friend-scale risk is nil).
-- **App Check enforcement** on the callables.
-- **iOS shell sync** — run `npx cap sync ios` on the Mac (the committed
-  Package.swift predates the plugin cleanup), add the push entitlement
-  (Signing & Capabilities → Push Notifications) — `UIBackgroundModes:
-  remote-notification` is already in Info.plist.
+- **App Check enforcement** — the callables now enforce it in prod
+  (functions/src/ops.ts, `ENFORCE_APP_CHECK`; deploy with
+  `APPCHECK_ENFORCE=false` to soft-disable). Still to do in the
+  console: flip Firestore + Storage enforcement, and verify web has
+  `VITE_APPCHECK_RECAPTCHA_SITE_KEY` set in the production build —
+  without it web clients are unattested and callables will refuse
+  them once enforcement is live.
+- **iOS reveal push — Mac-side finish.** The structural pieces are now
+  committed: Package.swift lists the real plugin set (push-notifications,
+  app-check, sentry), AppDelegate bridges APNs → Firebase Messaging and
+  posts the **FCM** token to the Capacitor plugin, FirebaseCore +
+  FirebaseMessaging are linked to the App target, and
+  `App/App.entitlements` carries `aps-environment` (wired via
+  `CODE_SIGN_ENTITLEMENTS`). What still needs a Mac + console:
+  1. Drop `GoogleService-Info.plist` into `ios/App/App` and add it to
+     the App target (it is intentionally untracked; AppDelegate skips
+     `FirebaseApp.configure()` without it). Replace the
+     `REVERSED_CLIENT_ID` placeholder in Info.plist from the same file.
+  2. Xcode → Signing & Capabilities: confirm the Push Notifications
+     capability shows up from the entitlements file and the
+     provisioning profile regenerates with `aps-environment`.
+  3. Apple Developer → upload the APNs key to Firebase (step already
+     listed above), then verify the reveal flow end-to-end on device.
 - **Version lockstep** — bump package.json `appBuild` + android
   `versionCode` + iOS `CURRENT_PROJECT_VERSION` together each release.
 
+- **Discoverable location scrub** — rules now cap
+  `insight_discoverable` writes to a bare geohash5 cell (no exact
+  GeoPoint, no long hashes). Docs written before that rule may still
+  carry `location.geopoint` / full-precision hashes: run a one-time
+  admin scrub that truncates `location.geohash` to 5 chars and
+  deletes `location.geopoint` on every doc.
+
 ## Known deferrals (tracked, not blockers)
 
-- Functions runtime Node 20 → upgrade before 2026-10-30 decommission.
+- ~~Functions runtime Node 20 → upgrade before 2026-10-30
+  decommission.~~ Done: nodejs22 + firebase-functions v6 +
+  firebase-admin v13. Verify the first scheduled runs after deploy.
 - `onV2AnswerCreated` region (us-central1) vs Firestore (eur3) — works,
   cross-region hop; relocate when convenient (requires delete+recreate
   of the trigger).

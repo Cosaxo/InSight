@@ -1,0 +1,262 @@
+// LiveDuelPanel — the LIVE group/duo panel (Phase 3). Replaces the
+// demo GroupDailyBody / DuoBody when LIVE is enabled: real groups
+// with server-minted invite codes, today's question from the shared
+// deterministic rotation, sealed votes, and yesterday's materialized
+// reveal. This is also the v2 first-run: with no groups yet, the
+// panel IS the create-or-join flow.
+//
+// Born in this repo (not ported from the design prototype), so it
+// lives here as typed TSX. A globalThis assignment at the bottom
+// keeps the spec layer's render-time lookup working unchanged.
+import React from "react";
+import LIVE from "../data/live";
+
+const LD_LINE = "1px solid color-mix(in oklch, var(--rule), transparent 25%)";
+const LD_NAME_LS = "insight.displayName.v1";
+
+// The store keeps groups/reveals loosely typed at the seam; these are
+// the fields this panel actually renders.
+interface LiveGroup {
+  id: string;
+  name?: string;
+  mode?: string;
+  inviteCode?: string;
+  streak?: number;
+  memberUids?: string[];
+  memberNames?: Record<string, string>;
+}
+interface RevealVote { optionIdx: number; guessIdx?: number }
+interface LiveReveal {
+  qid?: string;
+  votes?: Record<string, RevealVote>;
+  names?: Record<string, string>;
+}
+
+function ldName(): string {
+  try { return localStorage.getItem(LD_NAME_LS) || ""; } catch { return ""; }
+}
+function ldSaveName(n: string): void {
+  try { localStorage.setItem(LD_NAME_LS, n); } catch { /* best-effort */ }
+}
+function errText(e: unknown): string {
+  return String((e instanceof Error && e.message) || e);
+}
+
+function LdInput({ value, onChange, placeholder, style }: {
+  value: string;
+  onChange: (v: string) => void;
+  placeholder?: string;
+  style?: React.CSSProperties;
+}) {
+  return (
+    <input value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder}
+      style={{ border: LD_LINE, borderRadius: 10, padding: "11px 13px", fontFamily: "var(--sans)",
+        fontSize: 14, fontWeight: 600, color: "var(--ink)", background: "var(--surface-2)",
+        outline: "none", minWidth: 0, width: "100%", boxSizing: "border-box", ...style }} />
+  );
+}
+
+function LdBtn({ onClick, children, primary, disabled, small }: {
+  onClick: () => void;
+  children: React.ReactNode;
+  primary?: boolean;
+  disabled?: boolean;
+  small?: boolean;
+}) {
+  return (
+    <button className="press" onClick={onClick} disabled={disabled}
+      style={{ border: primary ? "none" : LD_LINE, borderRadius: 999, cursor: disabled ? "default" : "pointer",
+        padding: small ? "7px 14px" : "11px 20px", fontFamily: "var(--sans)", fontWeight: 800,
+        fontSize: small ? 12 : 14, WebkitAppearance: "none", opacity: disabled ? 0.5 : 1,
+        background: primary ? "var(--accent, var(--ink))" : "var(--surface-2)",
+        color: primary ? "var(--surface)" : "var(--ink)" }}>{children}</button>
+  );
+}
+
+// ── first-run: create or join ────────────────────────────────────
+function LdOnboard({ mode }: { mode?: string }) {
+  const [name, setName] = React.useState("");
+  const [code, setCode] = React.useState("");
+  const [me, setMe] = React.useState(ldName());
+  const [busy, setBusy] = React.useState(false);
+  const [err, setErr] = React.useState<string | null>(null);
+  const duo = mode === "duo";
+  const S = LIVE.social;
+  const go = async (fn: () => Promise<unknown>) => {
+    setBusy(true); setErr(null); ldSaveName(me.trim());
+    try { await fn(); } catch (e) { setErr(errText(e)); }
+    setBusy(false);
+  };
+  return (
+    <div className="card" style={{ display: "flex", flexDirection: "column", gap: 14, padding: "18px 16px" }}>
+      <div style={{ fontWeight: 800, fontSize: 21, letterSpacing: "-0.02em", lineHeight: 1.15 }}>
+        {duo ? "Start a 1v1" : "Start your group"}
+      </div>
+      <div style={{ fontSize: 13.5, fontWeight: 500, color: "var(--ink-2)", lineHeight: 1.45 }}>
+        {duo
+          ? "One question a day, both answers sealed until tomorrow — and only if you both play."
+          : "One question a day for your circle. Answers are sealed until tomorrow, then revealed with names."}
+      </div>
+      <LdInput value={me} onChange={setMe} placeholder="Your name (what friends see)" />
+      <div style={{ display: "flex", gap: 8 }}>
+        <LdInput value={name} onChange={setName} placeholder={duo ? "Name it (e.g. Mira & Leo)" : "Group name"} />
+        <LdBtn primary disabled={busy || !name.trim() || !me.trim()}
+          onClick={() => void go(() => S.createGroup(name.trim(), mode === "duo" ? "duo" : "group", me.trim()))}>Create</LdBtn>
+      </div>
+      <div style={{ display: "flex", alignItems: "center", gap: 10, color: "var(--ink-3)", fontSize: 11, fontWeight: 700, letterSpacing: "0.08em" }}>
+        <span style={{ flex: 1, height: 1, background: "var(--rule)" }} />OR JOIN WITH A CODE<span style={{ flex: 1, height: 1, background: "var(--rule)" }} />
+      </div>
+      <div style={{ display: "flex", gap: 8 }}>
+        <LdInput value={code} onChange={(v) => setCode(v.toUpperCase())} placeholder="Invite code" style={{ fontFamily: "var(--mono, monospace)", letterSpacing: "0.12em" }} />
+        <LdBtn primary disabled={busy || code.trim().length < 6 || !me.trim()}
+          onClick={() => void go(() => S.joinGroup(code.trim(), me.trim()))}>Join</LdBtn>
+      </div>
+      {err && <div style={{ fontSize: 12.5, fontWeight: 600, color: "oklch(0.5 0.19 25)" }}>{err.replace(/^.*?: */, "")}</div>}
+    </div>
+  );
+}
+
+// ── yesterday's reveal ───────────────────────────────────────────
+function LdReveal({ g, reveal }: { g: LiveGroup; reveal: LiveReveal }) {
+  const uid = LIVE.uid;
+  const names = { ...(g.memberNames || {}), ...(reveal.names || {}) };
+  const votes = reveal.votes || {};
+  // resolve the revealed question's prompt + options from the seeded bank
+  const bankQ = reveal.qid ? LIVE.social.bankQ(reveal.qid) : null;
+  const duo = g.mode === "duo";
+  const opts = (bankQ && bankQ.options && bankQ.options.length)
+    ? bankQ.options
+    : (g.memberUids || []).map((u, i) => names[u] || "Member " + (i + 1));
+  const label = (idx: number) => (opts[idx] != null ? opts[idx] : "Option " + (idx + 1));
+  const who = (u: string) => (u === uid ? "you" : (names[u] || "Someone"));
+  return (
+    <div style={{ borderRadius: 12, border: LD_LINE, background: "var(--surface-2)", padding: "12px 14px", display: "flex", flexDirection: "column", gap: 8 }}>
+      <div className="kicker" style={{ marginBottom: 0 }}>Yesterday · revealed</div>
+      {bankQ && <div style={{ fontWeight: 800, fontSize: 15.5, lineHeight: 1.2 }}>{bankQ.prompt}</div>}
+      {Object.keys(votes).map((u) => {
+        const v = votes[u];
+        const guessed = duo && typeof v.guessIdx === "number";
+        // in a duo, your read of the OTHER: did their guess about you land?
+        const other = (g.memberUids || []).find((m) => m !== u);
+        const otherVote = other ? votes[other] : undefined;
+        const called = guessed && otherVote && v.guessIdx === otherVote.optionIdx;
+        return (
+          <div key={u} style={{ display: "flex", alignItems: "baseline", gap: 8, fontSize: 13.5 }}>
+            <span style={{ fontWeight: 800, minWidth: 64, textTransform: u === uid ? "lowercase" : "none" }}>{who(u)}</span>
+            <span style={{ fontWeight: 600, color: "var(--ink-2)", flex: 1 }}>{label(v.optionIdx)}</span>
+            {guessed && (
+              <span style={{ fontSize: 11.5, fontWeight: 800, color: called ? "oklch(0.5 0.12 170)" : "oklch(0.55 0.13 60)" }}>
+                {called ? "called it" : "guessed " + label(v.guessIdx as number)}
+              </span>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// ── one group's daily card ───────────────────────────────────────
+function LdGroupCard({ g }: { g: LiveGroup }) {
+  const S = LIVE.social;
+  const duo = g.mode === "duo";
+  const q = S.todayQ(g.id);
+  const mine = S.myDuelVote(g.id);
+  const reveal = S.revealFor(g.id) as LiveReveal | null;
+  const [guess, setGuess] = React.useState<number | null>(null);
+  const [pick, setPick] = React.useState<number | null>(null);
+  const [copied, setCopied] = React.useState(false);
+  const [voteErr, setVoteErr] = React.useState<string | null>(null);
+  const members = g.memberUids || [];
+  const copy = () => {
+    try {
+      void navigator.clipboard.writeText(g.inviteCode || "");
+      setCopied(true); setTimeout(() => setCopied(false), 1600);
+    } catch { /* clipboard unavailable */ }
+  };
+  const submit = async () => {
+    if (pick == null) return;
+    setVoteErr(null);
+    try { await S.voteDuel(g.id, pick, duo && guess != null ? guess : undefined); }
+    catch { setVoteErr("That didn’t save — check your connection and try again."); }
+  };
+  return (
+    <div className="card" style={{ display: "flex", flexDirection: "column", gap: 12, padding: "16px 15px" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+        <span style={{ fontWeight: 800, fontSize: 17, flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{g.name}</span>
+        {duo && (g.streak || 0) > 0 && <span style={{ fontSize: 11.5, fontWeight: 800, color: "var(--accent, var(--ink-2))" }}>{g.streak}-day run</span>}
+        <span style={{ fontSize: 11, fontWeight: 700, color: "var(--ink-3)" }}>{members.length}{duo ? "/2" : ""}</span>
+        <button onClick={copy} aria-label="Copy invite code" title="Copy invite code" style={{ border: LD_LINE, background: "var(--surface-2)", borderRadius: 8, padding: "4px 9px", cursor: "pointer", fontFamily: "var(--mono, monospace)", fontSize: 11.5, fontWeight: 700, letterSpacing: "0.1em", color: "var(--ink-2)", WebkitAppearance: "none" }}>
+          {copied ? "copied ✓" : g.inviteCode}
+        </button>
+      </div>
+      {duo && members.length < 2 && (
+        <div style={{ fontSize: 13, fontWeight: 600, color: "var(--ink-2)", lineHeight: 1.4 }}>
+          Share the code above — the duel starts when they join.
+        </div>
+      )}
+      {reveal && <LdReveal g={g} reveal={reveal} />}
+      {q && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          <div style={{ fontWeight: 800, fontSize: 20, lineHeight: 1.15, letterSpacing: "-0.02em" }}>{q.prompt}</div>
+          {mine ? (
+            <div style={{ borderRadius: 12, border: LD_LINE, background: "var(--surface-2)", padding: "12px 14px", fontSize: 13.5, fontWeight: 600, color: "var(--ink-2)", lineHeight: 1.45 }}>
+              Sealed: <b style={{ color: "var(--ink)" }}>{q.options[mine.optionIdx] != null ? q.options[mine.optionIdx] : "—"}</b>
+              {" · "}{(() => {
+                const t = new Date(); t.setUTCHours(24, 0, 0, 0);
+                const hhmm = t.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+                return duo ? "revealed after " + hhmm + " — if you both play." : "revealed with names after " + hhmm + ".";
+              })()}
+            </div>
+          ) : (
+            <>
+              <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
+                {q.options.map((o, i) => (
+                  <button key={i} className="press" onClick={() => setPick(i)}
+                    style={{ border: pick === i ? "2px solid var(--accent, var(--ink))" : LD_LINE, borderRadius: 12, padding: "12px 14px", textAlign: "left", cursor: "pointer", fontFamily: "var(--sans)", fontWeight: 700, fontSize: 15, background: pick === i ? "color-mix(in oklch, var(--accent, var(--ink)) 9%, var(--surface-2))" : "var(--surface-2)", color: "var(--ink)", WebkitAppearance: "none" }}>
+                    {o}
+                  </button>
+                ))}
+              </div>
+              {duo && members.length === 2 && pick != null && (
+                <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
+                  <div className="kicker" style={{ marginBottom: 0 }}>And your guess — what did they pick?</div>
+                  <div style={{ display: "flex", gap: 7, flexWrap: "wrap" }}>
+                    {q.options.map((o, i) => (
+                      <button key={i} className="press" onClick={() => setGuess(i)}
+                        style={{ border: guess === i ? "2px solid var(--accent, var(--ink))" : LD_LINE, borderRadius: 999, padding: "7px 14px", cursor: "pointer", fontWeight: 700, fontSize: 13, background: "var(--surface-2)", color: "var(--ink)", WebkitAppearance: "none" }}>
+                        {o}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+              <LdBtn primary disabled={pick == null || (duo && members.length === 2 && guess == null)} onClick={() => void submit()}>
+                {duo ? "Seal answer + guess" : "Seal your answer"}
+              </LdBtn>
+              {voteErr && <div style={{ fontSize: 12.5, fontWeight: 600, color: "oklch(0.5 0.19 25)" }}>{voteErr}</div>}
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function LiveDuelPanel({ mode }: { mode?: string }) {
+  const [, tick] = React.useState(0);
+  React.useEffect(() => LIVE.subscribe(() => tick((t) => t + 1)), []);
+  if (!LIVE.enabled) return null;
+  const groups = LIVE.social.groups(mode === "duo" ? "duo" : "group") as LiveGroup[];
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 14, padding: "4px 1px 20px" }}>
+      {groups.map((g) => <LdGroupCard key={g.id} g={g} />)}
+      <LdOnboard mode={mode} />
+    </div>
+  );
+}
+
+// Render-time lookup bridge for the spec layer (daily-split.jsx).
+Object.assign(globalThis, { LiveDuelPanel });
+
+export default LiveDuelPanel;

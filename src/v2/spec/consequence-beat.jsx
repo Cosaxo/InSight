@@ -1,5 +1,9 @@
 /* eslint-disable */
-// ported from design/spec-modules/consequence-beat.jsx — do not hand-edit load order assumptions
+// Ported from design/spec-modules/consequence-beat.jsx (the historical prototype — no sync
+// script survives; THIS file is the live source now, hand-edits and all).
+// Cross-module references resolve through the shared global scope and
+// spec-index.js load order is semantic — scripts/check-spec-globals.mjs
+// guards the wiring in CI.
 import React from 'react';
 
 // consequence-beat.jsx — the 2-second consequence after any vote: the crowd

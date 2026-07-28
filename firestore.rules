@@ -370,8 +370,27 @@ service cloud.firestore {
 
       // All other subcollections — owner-only, plus the circle read
       // carve-out above for the shareable ones.
+      //
+      // The write grant must EXCLUDE every subcollection with its own
+      // match block above: overlapping matches OR together, so the
+      // wildcard would re-grant owner writes those blocks deliberately
+      // deny — unvalidated insight_daily writes, client-side
+      // impression creates, forged friendRequests (which the circle
+      // create rule trusts as consent), fabricated followers.
+      function hasOwnMatchBlock(collection) {
+        return collection in [
+          'insight_daily',
+          'insight_inbound_impressions',
+          'circle',
+          'followers',
+          'friendRequests',
+          'blocks'
+        ];
+      }
       match /{collection}/{doc} {
-        allow read, write: if request.auth != null && request.auth.uid == uid;
+        allow read: if request.auth != null && request.auth.uid == uid;
+        allow write: if request.auth != null && request.auth.uid == uid
+          && !hasOwnMatchBlock(collection);
         allow read: if request.auth != null && circleCanRead(collection);
       }
     }
@@ -391,9 +410,17 @@ service cloud.firestore {
 
     function isValidDiscoverableWrite() {
       let d = request.resource.data;
-      // upsertDiscoverable writes location as a nested map of
-      // { geohash: string, geopoint: GeoPoint }. We allow either
-      // displayName / photoColor to be a string or explicit null
+      // This doc is readable by EVERY signed-in user, so the location
+      // it may carry is exactly the ~5 km geohash5 cell the nearby
+      // features consume (decision D2) — never more. A longer hash or
+      // an exact GeoPoint would publish full-precision whereabouts
+      // next to a psychometric vector; nothing reads either (the
+      // aggregators truncate to 5 chars, no code touches geopoint),
+      // so the fuzz is enforced here rather than merely promised.
+      // Docs written before this rule may still hold a geopoint —
+      // the one-time scrub is tracked in SHIP-CHECKLIST.
+      //
+      // displayName / photoColor may be a string or explicit null
       // (the impl writes null when the optional value is missing
       // rather than omitting the key). `personality` is the user's
       // Big Five vector (5 numbers, 0..100) used by useNearbyPeople
@@ -403,10 +430,8 @@ service cloud.firestore {
       return
         d.location.geohash is string
         && d.location.geohash.size() > 0
-        && d.location.geohash.size() <= 12
-        && d.location.geopoint is latlng
-        && d.location.geopoint.latitude >= -90 && d.location.geopoint.latitude <= 90
-        && d.location.geopoint.longitude >= -180 && d.location.geopoint.longitude <= 180
+        && d.location.geohash.size() <= 5
+        && d.location.keys().hasOnly(['geohash'])
         && (
           !('displayName' in d) || d.displayName == null
           || (d.displayName is string && d.displayName.size() <= 128)
@@ -460,7 +485,16 @@ service cloud.firestore {
         && (
           !('shareImpressionsAbout' in d) || d.shareImpressionsAbout == null
           || d.shareImpressionsAbout in ['nobody', 'circle', 'nearby', 'anyone']
-        );
+        )
+        // No unvalidated fields: this doc is world-readable, so a key
+        // outside the schema is a free public storage channel. Every
+        // key above must also appear here.
+        && d.keys().hasOnly([
+          'location', 'displayName', 'photoColor', 'personality',
+          'political', 'bio', 'role', 'age', 'interestNames', 'gender',
+          'country', 'acceptImpressionsFrom', 'blockedImpressionTraits',
+          'shareImpressionsAbout'
+        ]);
     }
 
     // Cities catalogue — world cities + their geohash + geopoint.

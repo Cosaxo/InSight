@@ -1,4 +1,3 @@
-/* eslint-disable */
 // InSight v2 entry — the ported standalone_9 spec running under Vite.
 // The spec modules communicate through the shared global scope (a faithful
 // stand-in for the prototype's babel-standalone script tags); spec-index.js
@@ -20,4 +19,12 @@ sentryInit();
 initLive().finally(() => {
   const App = globalThis.App;
   createRoot(document.getElementById('root')).render(<App />);
+  // Native: drop the splash only now that real content is painted —
+  // launchAutoHide is off so hydration happens behind the splash
+  // instead of a blank WebView (capacitor.config.ts).
+  import('@capacitor/core').then(({ Capacitor }) => {
+    if (!Capacitor.isNativePlatform()) return;
+    return import('@capacitor/splash-screen')
+      .then(({ SplashScreen }) => SplashScreen.hide());
+  }).catch(() => { /* web or plugin unavailable — nothing to hide */ });
 });

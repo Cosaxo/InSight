@@ -4,15 +4,20 @@
 // no-op. Requires the platform Firebase config files
 // (google-services.json / GoogleService-Info.plist) to actually deliver.
 import { Capacitor } from "@capacitor/core";
-import { arrayUnion, doc, setDoc } from "firebase/firestore";
+import { arrayRemove, arrayUnion, doc, setDoc } from "firebase/firestore";
 import { getDb } from "../../lib/firebase";
+import { reportError } from "../../lib/sentry";
 
 export async function registerPushForReveals(uid: string): Promise<void> {
   if (!Capacitor.isNativePlatform()) return;
   try {
     const { PushNotifications } = await import("@capacitor/push-notifications");
     let perm = await PushNotifications.checkPermissions();
-    if (perm.receive === "prompt") perm = await PushNotifications.requestPermissions();
+    // Android 13+ reports "prompt-with-rationale" after a first
+    // dismissal — still promptable, so ask in both states.
+    if (perm.receive === "prompt" || perm.receive === "prompt-with-rationale") {
+      perm = await PushNotifications.requestPermissions();
+    }
     if (perm.receive !== "granted") return;
     await PushNotifications.addListener("registration", (token) => {
       void (async () => {
@@ -20,13 +25,27 @@ export async function registerPushForReveals(uid: string): Promise<void> {
           // one write per NEW (uid, token) pair — uid-scoped so a fresh
           // account on the same device still registers
           const KEY = "insight.pushToken.v1";
+          let staleToken: string | null = null;
           try {
             const prev = JSON.parse(localStorage.getItem(KEY) || "null");
             if (prev && prev.uid === uid && prev.token === token.value) return;
+            // FCM rotated this device's token — drop the old one from
+            // the doc, or fcmTokens grows one dead entry per rotation
+            // forever (the reveal sender would fan out to ghosts).
+            if (prev && prev.uid === uid && prev.token) staleToken = prev.token;
           } catch {
             /* fall through to write */
           }
           const db = await getDb();
+          if (staleToken) {
+            // arrayRemove + arrayUnion can't share one write; two small
+            // writes on a rotation (rare) beat an unbounded array.
+            await setDoc(
+              doc(db, "v2_users", uid),
+              { fcmTokens: arrayRemove(staleToken) },
+              { merge: true },
+            );
+          }
           await setDoc(
             doc(db, "v2_users", uid),
             { fcmTokens: arrayUnion(token.value) },
@@ -38,7 +57,7 @@ export async function registerPushForReveals(uid: string): Promise<void> {
             /* best-effort */
           }
         } catch (err) {
-          console.warn("[push] token save failed:", err);
+          reportError(err, { where: "pushTokenSave" });
         }
       })();
     });
@@ -58,6 +77,6 @@ export async function registerPushForReveals(uid: string): Promise<void> {
     });
     await PushNotifications.register();
   } catch (err) {
-    console.warn("[push] registration unavailable:", err);
+    reportError(err, { where: "pushRegister" });
   }
 }

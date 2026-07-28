@@ -1,0 +1,8 @@
+version: 2
+updates:
+  # Keep the SHA-pinned actions moving — dependabot rewrites the pin +
+  # the version comment together.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly

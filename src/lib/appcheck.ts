@@ -4,8 +4,14 @@
 // Auth-callable Functions, etc.) with an attestation proving the
 // call came from a legitimate build of our app, not a script
 // pulling our config out of the JS bundle and replaying requests
-// against the project. Without it, anybody who scrapes the env
-// vars can hit our rules-protected reads + writes from curl.
+// against the project.
+//
+// Enforcement status: the user-facing callables enforce this token
+// server-side (functions/src/ops.ts, ENFORCE_APP_CHECK — on in prod,
+// off under the emulator). Firestore/Storage enforcement is flipped
+// in the Firebase console — see SHIP-CHECKLIST. Until the console
+// switch is on, direct Firestore access from scripts remains
+// possible; the rules are the real gate there.
 //
 // Platform providers (auto-selected by the Capacitor plugin):
 //   - iOS:     DeviceCheck (or App Attest on iOS 14+ if entitled).

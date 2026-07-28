@@ -10,18 +10,70 @@ on:
       - ".github/workflows/firebase-deploy.yml"
   workflow_dispatch:
 
+# The deploy step needs no repo write access; the SA key comes from
+# secrets, not the GITHUB_TOKEN.
+permissions:
+  contents: read
+
+# Never let two deploys interleave; a queued push waits for the
+# in-flight deploy rather than cancelling it mid-apply.
+concurrency:
+  group: firebase-deploy
+  cancel-in-progress: false
+
 jobs:
-  deploy:
+  # The rules suite exists precisely to guard firestore.rules — a deploy
+  # that skips it can ship an untested rules edit straight to prod.
+  test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
-          node-version: "20"
+          node-version: "22"
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      # firebase-tools 15 requires Java 21+ for the Firestore emulator;
+      # the runner's default JDK is older.
+      - uses: actions/setup-java@03ad4de0992f5dab5e18fcb136590ce7c4a0ac95 # v5.6.0
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Cache Firestore emulator
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: ~/.cache/firebase/emulators
+          key: firebase-emulators-${{ hashFiles('package-lock.json') }}
+
+      - name: Rules tests (Firestore emulator)
+        run: npm run test:rules
+
+  deploy:
+    needs: test
+    runs-on: ubuntu-latest
+    # GitHub environment: gives the deploy its own secrets scope and a
+    # place to add required reviewers / wait timers later without
+    # touching this file.
+    environment: production
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: "22"
+          cache: npm
+
+      # Root deps bring the lockfile-pinned firebase-tools CLI.
+      - name: Install dependencies
+        run: npm ci
 
       - name: Install function dependencies
-        run: npm install --prefix functions
+        run: npm ci --prefix functions
 
       - name: Build functions
         run: npm run build --prefix functions
@@ -31,12 +83,11 @@ jobs:
           FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
         run: printf '%s' "$FIREBASE_SERVICE_ACCOUNT" > "$RUNNER_TEMP/sa-key.json"
 
-      - name: Install Firebase CLI
-        run: npm install -g firebase-tools
-
+      # --force is required for non-interactive deploys of retry-enabled
+      # triggers (docs/DEPLOYMENT.md).
       - name: Deploy rules + functions
         env:
           GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/sa-key.json
         run: >
-          firebase deploy --project prvfire33 --non-interactive --force
+          npx firebase deploy --project prvfire33 --non-interactive --force
           --only "firestore:rules,firestore:indexes,functions:rebuildAreaAggregates,functions:scheduledAreaAggregates,functions:rebuildWorldAggregates,functions:scheduledWorldAggregates,functions:rebuildCityAggregates,functions:scheduledCityAggregates,functions:sendInboundImpression,functions:deleteAccount,functions:seedTaxonomies,functions:scheduledTaxonomies,functions:seedContentV2,functions:onV2AnswerCreated,functions:createGroupV2,functions:joinGroupV2,functions:leaveGroupV2,functions:scheduledDuelReveals,functions:revealDuelsNowV2"

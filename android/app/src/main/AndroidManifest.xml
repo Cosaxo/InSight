@@ -38,6 +38,10 @@
     <!-- Permissions -->
 
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- Android 13+ (targetSdk 33+) requires this runtime permission
+         before any notification — including the reveal push — can be
+         shown. push.ts requests it via PushNotifications. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <!-- Camera (daily-report photo, future scrapbook capture). The
          <uses-feature> tags below mark them as optional so a device

@@ -33,55 +33,19 @@ import {
 } from "firebase/firestore";
 import { getFunctions, httpsCallable } from "firebase/functions";
 import { anonSignIn, firebaseEnabled, getDb } from "../../lib/firebase";
-
-interface LiveOption {
-  id: string;
-  label: string;
-  count: number;
-  color: string;
-}
-
-interface LiveQuestion {
-  id: string;
-  cat: string | null;
-  text: string;
-  dayLabel: string;
-  options: LiveOption[];
-  comments: never[];
-  friends: never[];
-  live: true;
-  tooSmall: boolean;
-  test?: string | null;
-}
-
-interface QuestionDoc {
-  surface: string;
-  seq: number;
-  type: string;
-  prompt: string;
-  options: string[];
-  topic: string | null;
-  test: string | null;
-  active: boolean;
-}
-
-// The spec's option palette, cycled by index so live cards look native.
-const OPTION_COLORS = [
-  "var(--c-around)",
-  "var(--c-today)",
-  "var(--c-likeness)",
-  "var(--c-world)",
-  "var(--c-people)",
-];
-
-const DECK_DAYS = 7; // today + the recent past, like the demo pager
-const WEEKDAY = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-
-interface AggDoc {
-  counts?: Record<string, number>;
-  total?: number;
-  tooSmall?: boolean;
-}
+import { reportError, setSentryUser } from "../../lib/sentry";
+// Pure deck-shaping logic lives in ./deck (unit-testable, no firebase);
+// this module passes its store state in.
+import {
+  buildS as buildSPure,
+  computeDeckIds,
+  countsFor,
+  dayIndex as dayIndexPure,
+  duelQFor as duelQForPure,
+  isTooSmall,
+  utcDayIndex as utcDayIndexPure,
+} from "./deck";
+import type { AggDoc, LiveQuestion, QuestionDoc, VoteContext } from "./deck";
 
 const state = {
   ready: false,
@@ -92,7 +56,20 @@ const state = {
   deckIds: [] as string[],
   aggs: {} as Record<string, AggDoc>,
   votes: {} as Record<string, string>, // qid -> option id ("0","1",…)
-  optimistic: {} as Record<string, number>, // qid -> optionIdx not yet aggregated
+  // Optimistic-vote tracking, split in two because the flags clear at
+  // different moments (conflating them let a stranger's vote folding
+  // into the agg mid-flight "confirm" a write the server had not yet
+  // acknowledged — and possibly would refuse):
+  //   inflight      qid -> true while the answer setDoc has NOT been
+  //                 acknowledged by the server. With persistentLocalCache
+  //                 the promise resolves only on SERVER ack — offline it
+  //                 stays pending indefinitely. Drives confirmedVotes().
+  //   unaggregated  qid -> optionIdx while the vote is not yet folded
+  //                 into the public aggregate. Drives the own-vote
+  //                 subtraction (VoteContext.pending); cleared by agg
+  //                 snapshots and the post-vote delayed refresh.
+  inflight: {} as Record<string, true>,
+  unaggregated: {} as Record<string, number>,
   aggUnsubs: {} as Record<string, () => void>,
   // ── social (groups & duos) ──
   profile: { displayName: "", testResults: {} as Record<string, unknown> },
@@ -108,16 +85,6 @@ const state = {
 
 function utcDayKey(offsetDays = 0): string {
   return new Date(Date.now() + offsetDays * 86400000).toISOString().slice(0, 10);
-}
-
-function utcDayIndex(): number {
-  return Math.floor(Date.now() / 86400000);
-}
-
-function gHash(s: string): number {
-  let h = 7;
-  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) % 997;
-  return h;
 }
 
 function cacheVote(aid: string, optionIdx: number): void {
@@ -157,52 +124,23 @@ const notify = () => {
 };
 
 function dayIndex(): number {
-  // Local-midnight day number so "today" rolls over with the user's clock.
-  const now = new Date();
-  const local = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  return Math.floor(local.getTime() / 86400000);
+  return dayIndexPure(new Date());
 }
 
-function dayLabel(back: number): string {
-  if (back === 0) return "Today";
-  if (back === 1) return "Yesterday";
-  const d = new Date();
-  d.setDate(d.getDate() - back);
-  return WEEKDAY[d.getDay()];
+// The store-state slice buildS/countsFor need for one question.
+function voteCtx(qid: string): VoteContext {
+  return {
+    agg: state.aggs[qid],
+    mine: state.votes[qid],
+    pending: qid in state.unaggregated,
+  };
 }
 
 function buildS(
   q: QuestionDoc & { id: string },
   back: number,
 ): LiveQuestion {
-  const agg = state.aggs[q.id] || {};
-  const counts = agg.counts || {};
-  const mine = state.votes[q.id];
-  const pending = q.id in state.optimistic;
-  return {
-    id: q.id,
-    cat: q.topic,
-    text: q.prompt,
-    dayLabel: dayLabel(back),
-    options: q.options.map((label, i) => {
-      let count = counts[String(i)] || 0;
-      // Exclude the viewer's own vote: once the trigger has folded it in
-      // (optimistic flag cleared), subtract it back out — the UI layer
-      // adds its own +1 for the viewer's option.
-      if (!pending && mine === String(i) && count > 0) count -= 1;
-      return {
-        id: String(i),
-        label,
-        count,
-        color: OPTION_COLORS[i % OPTION_COLORS.length],
-      };
-    }),
-    comments: [],
-    friends: [],
-    live: true,
-    tooSmall: agg.tooSmall !== false,
-    test: q.test,
-  };
+  return buildSPure(q, back, voteCtx(q.id), new Date());
 }
 
 async function subscribeAggs(): Promise<void> {
@@ -225,11 +163,22 @@ async function subscribeAggs(): Promise<void> {
           saveAggCache();
           // A post-vote agg snapshot means the trigger has (very likely)
           // folded the vote in; stop double-tracking it. A premature
-          // clear self-heals on the next snapshot.
-          if (qid in state.optimistic && state.votes[qid]) {
-            delete state.optimistic[qid];
+          // clear self-heals on the next snapshot. (Only the display
+          // flag clears here — write acknowledgement is tracked
+          // separately in state.inflight.)
+          if (qid in state.unaggregated && state.votes[qid]) {
+            delete state.unaggregated[qid];
           }
         }
+        notify();
+      },
+      (err) => {
+        // An errored listener is dead server-side; leaving its stale
+        // unsub in aggUnsubs would make the guard above block any
+        // re-listen for the session. Drop it so the next subscribeAggs
+        // pass (e.g. midnight rollover in deck()) can re-attach.
+        reportError(err, { where: "aggListener", qid });
+        delete state.aggUnsubs[qid];
         notify();
       },
     );
@@ -241,10 +190,7 @@ function computeDeck(): void {
   if (!n) return;
   const today = dayIndex();
   state.deckDay = today;
-  state.deckIds = Array.from({ length: Math.min(DECK_DAYS, n) }, (_, back) => {
-    const idx = (((today - back) % n) + n) % n;
-    return state.questions[idx].id;
-  });
+  state.deckIds = computeDeckIds(state.questions.map((q) => q.id), today);
 }
 
 async function hydrate(): Promise<void> {
@@ -349,10 +295,16 @@ async function hydrate(): Promise<void> {
     }
   }
 
-  // ── aggregates: cached; fetch only answered questions' missing aggs ──
+  // ── aggregates: cached; fetch answered questions' aggs that are
+  // missing OR still cached as too-small ──
   // Feed cards are blind pre-vote (counts show only after answering), so
   // the old whole-collection scan bought nothing. Deck docs get live
-  // snapshots below; everything else refreshes on vote.
+  // snapshots below; everything else refreshes on vote. A cached agg
+  // with tooSmall !== false counts as missing here: feed questions have
+  // no live listener, so an early voter's "too small" snapshot would
+  // otherwise be frozen forever. Cost: each still-under-the-k-floor agg
+  // is re-read once per boot until it crosses the floor (bounded by the
+  // number of answered questions, same ceiling as a cold cache).
   const AGG_LS = "insight.aggsCache.v1";
   try {
     const cached = JSON.parse(localStorage.getItem(AGG_LS) || "null");
@@ -361,7 +313,7 @@ async function hydrate(): Promise<void> {
     /* best-effort */
   }
   const answeredWorld = Object.keys(state.votes).filter(
-    (id) => !id.startsWith("g_") && !(id in state.aggs),
+    (id) => !id.startsWith("g_") && isTooSmall(state.aggs[id]),
   );
   for (let i = 0; i < answeredWorld.length; i += 30) {
     const chunk = answeredWorld.slice(i, i + 30);
@@ -425,16 +377,8 @@ async function hydrate(): Promise<void> {
 // Counts shown by the feed exclude the viewer's own vote (wfPcts adds
 // its +1), mirroring the daily deck's convention.
 function feedCounts(q: QuestionDoc & { id: string }): number[] {
-  const agg = state.aggs[q.id] || {};
-  const counts = agg.counts || {};
-  const mine = state.votes[q.id];
-  const pending = q.id in state.optimistic;
-  return q.options.map((_, i) => {
-    let n = counts[String(i)] || 0;
-    // subtract own vote only once the trigger has folded it in
-    if (!pending && mine === String(i) && n > 0) n -= 1;
-    return n;
-  });
+  // subtract own vote only once the trigger has folded it in
+  return countsFor(q.options, voteCtx(q.id));
 }
 
 // Replace the demo feed globals with live-shaped cards: real questions,
@@ -452,7 +396,7 @@ function buildFeedGlobals(): void {
       prompt: q.prompt,
       options: q.options.map((label, i) => ({ label, count: feedCounts(q)[i] })),
       live: true,
-      tooSmall: (state.aggs[q.id] || {}).tooSmall !== false,
+      tooSmall: isTooSmall(state.aggs[q.id]),
     }));
   const tests = state.feedBank
     .filter((q) => q.surface === "test" && q.test)
@@ -495,6 +439,14 @@ function subscribeReveals(db: import("firebase/firestore").Firestore): void {
         state.reveals[g.id] = rs.exists() ? (rs.data() as Record<string, unknown>) : null;
         notify();
       },
+      (err) => {
+        // Dead listener: drop the stale unsub so the next
+        // subscribeReveals pass (groups snapshot or midnight rollover)
+        // can re-attach instead of being blocked by the guard above.
+        reportError(err, { where: "revealListener", gid: g.id });
+        delete state.revealUnsubs[g.id];
+        notify();
+      },
     );
   });
 }
@@ -504,12 +456,23 @@ async function hydrateSocial(): Promise<void> {
   const uid = state.uid;
   if (!uid) return;
   // (the group/duo bank is part of the cached bank loaded in hydrate)
-    // my groups, live — and yesterday's reveal per group
+  // my groups, live — and yesterday's reveal per group. Re-callable:
+  // tear down any previous listener first so calling hydrateSocial
+  // again (the re-listen path after an errored listener) never
+  // double-subscribes; deleteAccount uses the same handle for teardown.
+  state.groupsUnsub?.();
   state.groupsUnsub = onSnapshot(
     query(collection(db, "v2_groups"), where("memberUids", "array-contains", uid)),
     (snap) => {
       state.groups = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
       subscribeReveals(db);
+      notify();
+    },
+    (err) => {
+      // Dead listener: null the handle so a future hydrateSocial can
+      // attach cleanly (and teardown doesn't call a stale unsub).
+      reportError(err, { where: "groupsListener" });
+      state.groupsUnsub = null;
       notify();
     },
   );
@@ -522,21 +485,8 @@ async function callable<T>(name: string, data: unknown): Promise<T> {
   return res.data as T;
 }
 
-// The client mirrors the server's deterministic rotation: the day's
-// question for a group is bank[(hash(gid) + utcDay) % len] over the
-// matching-surface bank. "pick" questions take the members as options.
 function duelQFor(g: Record<string, unknown> & { id: string }, dayOffset = 0) {
-  const mode = g.mode === "duo" ? "duo" : "group";
-  const bank = state.duelBank.filter((q) => q.surface === mode);
-  if (!bank.length) return null;
-  const q = bank[(gHash(g.id) + utcDayIndex() + dayOffset + bank.length * 1000) % bank.length];
-  const names = (g.memberNames || {}) as Record<string, string>;
-  const memberUids = (g.memberUids || []) as string[];
-  const options =
-    q.topic === "pick"
-      ? memberUids.map((u, i) => names[u] || "Member " + (i + 1))
-      : q.options;
-  return { id: q.id, prompt: q.prompt, options, kind: q.topic || "classic" };
+  return duelQForPure(g, state.duelBank, utcDayIndexPure(Date.now()), dayOffset);
 }
 
 const SOCIAL = {
@@ -597,7 +547,7 @@ const SOCIAL = {
       } catch (err) {
         delete state.votes[aid];
         notify();
-        console.warn("[LIVE] duel vote failed:", err);
+        reportError(err, { where: "duelVote", gid });
         throw err;
       }
     })();
@@ -655,7 +605,7 @@ const LIVE = {
           { merge: true },
         );
       } catch (err) {
-        console.warn("[LIVE] test-result sync failed:", err);
+        reportError(err, { where: "saveTestResult" });
       }
     })();
   },
@@ -667,6 +617,15 @@ const LIVE = {
     const db = await getDb();
     const { getFunctions: gf, httpsCallable: hc } = await import("firebase/functions");
     await hc(gf(db.app, "us-central1"), "deleteAccount")({});
+    // The account is gone: stop the uid-scoped groups listener before
+    // the purge/reload — left running it would only error
+    // (permission-denied) against the deleted account's query.
+    try {
+      state.groupsUnsub?.();
+    } catch {
+      /* best-effort */
+    }
+    state.groupsUnsub = null;
     // "There is no undo" must include THIS device: purge every local
     // trace so the next (fresh anonymous) session doesn't resurrect the
     // deleted account's votes, results, or identity — then drop the
@@ -697,6 +656,14 @@ const LIVE = {
     return state.aggs[qid] || null;
   },
   enabled: false,
+  // True when this is a LIVE build (VITE_V2_LIVE) whose boot has NOT
+  // attached — offline cold start, misconfig, or still hydrating. The
+  // UI is showing demo content to a real user; D1 requires labeling
+  // it and suppressing the seeded fake people. Reactive via notify():
+  // a late successful boot flips enabled and re-renders subscribers.
+  get demoInProd(): boolean {
+    return import.meta.env.VITE_V2_LIVE === "true" && !this.enabled;
+  },
   get ready() {
     return state.ready;
   },
@@ -725,13 +692,18 @@ const LIVE = {
   myVotes(): Record<string, string> {
     return { ...state.votes };
   },
-  // Votes the server has (or had at hydrate) — excludes in-flight
-  // optimistic votes so permanent records (the Map) never keep a vote
-  // that later rolls back.
+  // Votes the server has acknowledged (or that hydrate read back) —
+  // excludes writes still in flight so permanent records (the Map)
+  // never keep a vote whose setDoc may yet be refused. Keyed off
+  // state.inflight, NOT the aggregation flag: a stranger's vote folding
+  // into the agg mid-flight must not "confirm" our unacked write. With
+  // persistentLocalCache the setDoc promise resolves only on SERVER
+  // ack, so an offline vote stays out of here (while myVotes()/deck()
+  // still show it — optimistic UI) until connectivity returns.
   confirmedVotes(): Record<string, string> {
     const out: Record<string, string> = {};
     Object.keys(state.votes).forEach((k) => {
-      if (!(k in state.optimistic)) out[k] = state.votes[k];
+      if (!(k in state.inflight)) out[k] = state.votes[k];
     });
     return out;
   },
@@ -740,7 +712,8 @@ const LIVE = {
     const optionIdx = Number(optionId);
     if (!Number.isInteger(optionIdx) || optionIdx < 0) return;
     state.votes[qid] = optionId;
-    state.optimistic[qid] = optionIdx;
+    state.inflight[qid] = true;
+    state.unaggregated[qid] = optionIdx;
     notify();
     void (async () => {
       try {
@@ -757,7 +730,17 @@ const LIVE = {
           answeredAt: serverTimestamp(),
           anchors: {},
         });
+        // Server ack: the write is durable, so the vote may now enter
+        // confirmedVotes(). Mirror it into the answers cache only NOW —
+        // hydrate() treats insight.answersCache.v1 as a mirror of
+        // server-acked answer docs (immutable, never refetched,
+        // maxTs-gated), so caching optimistically would let a
+        // later-refused write (e.g. a second-device duplicate hitting
+        // the create-only rule) resurrect the phantom vote on every
+        // future boot with nothing left to reconcile it away.
+        delete state.inflight[qid];
         cacheVote(qid, optionIdx);
+        notify(); // confirmedVotes() changed — let persistent records (the Map) pick it up
         // one delayed refresh so the next paint has the folded-in count
         setTimeout(() => {
           void (async () => {
@@ -767,7 +750,14 @@ const LIVE = {
               if (snap.exists()) {
                 state.aggs[qid] = snap.data() as AggDoc;
                 saveAggCache();
-                if (qid in state.optimistic) delete state.optimistic[qid];
+                // Clear the display flag only for an ACKED vote — a
+                // still-inflight write cannot be in the agg we just
+                // read, and clearing would subtract a vote that isn't
+                // there. (Defensive: today this timer is only scheduled
+                // after the ack, so inflight is already clear.)
+                if (qid in state.unaggregated && !(qid in state.inflight)) {
+                  delete state.unaggregated[qid];
+                }
                 buildFeedGlobals();
                 notify();
               }
@@ -780,7 +770,8 @@ const LIVE = {
         // Write refused (rules/network): roll the optimistic state back.
         // Subscribers reconcile from myVotes(), so the UI un-votes too.
         delete state.votes[qid];
-        delete state.optimistic[qid];
+        delete state.inflight[qid];
+        delete state.unaggregated[qid];
         try {
           const WF_LS = "insight.feedVotes.v1";
           const wf = JSON.parse(localStorage.getItem(WF_LS) || "{}") || {};
@@ -792,17 +783,22 @@ const LIVE = {
           /* best-effort */
         }
         notify();
-        console.warn("[LIVE] vote failed:", err);
+        reportError(err, { where: "vote", qid });
       }
     })();
   },
 };
 
-export async function initLive(timeoutMs = 5000): Promise<void> {
+// 2.5 s budget: warm boots serve the bank from cache well inside it,
+// and a slow cold boot renders the mock deck now and attaches live
+// later via notify() — better than holding the splash for 5 s.
+export async function initLive(timeoutMs = 2500): Promise<void> {
   const flag = import.meta.env.VITE_V2_LIVE === "true";
   if (!flag || !firebaseEnabled) return;
   const boot = (async () => {
     state.uid = await anonSignIn();
+    // uid-only (never email/name) — matches sentry.ts's PII stance.
+    setSentryUser(state.uid);
     await hydrate();
     await hydrateSocial();
     state.ready = true;
@@ -814,7 +810,10 @@ export async function initLive(timeoutMs = 5000): Promise<void> {
   // Whether boot loses the race (slow network) or fails outright, the
   // app must render on the mock deck; a late successful boot attaches
   // via notify() and the UI reconciles.
-  boot.catch((err) => console.warn("[LIVE] boot failed — mock mode:", err));
+  boot.catch((err) => {
+    console.warn("[LIVE] boot failed — mock mode:", err);
+    reportError(err, { where: "boot" });
+  });
   try {
     await Promise.race([
       boot,

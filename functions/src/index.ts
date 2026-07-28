@@ -17,6 +17,20 @@ import { getAuth } from "firebase-admin/auth";
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { onSchedule } from "firebase-functions/v2/scheduler";
 import { logger } from "firebase-functions";
+import { assertOperator, ENFORCE_APP_CHECK } from "./ops";
+import {
+  MEDIA_CATEGORIES,
+  type MediaCategory,
+  type MediaTop,
+  topMedia,
+  summarise,
+  averagePersonality,
+  ageBucket,
+  tally,
+  topInterests,
+  slugifyCity,
+  meetsKFloor,
+} from "./pure";
 
 initializeApp();
 
@@ -31,17 +45,6 @@ const SHARE_KEY_BIG5 = "big5";
 const SHARE_KEY_POLITICAL = "political";
 const SHARE_KEY_MORALS = "morals";
 const SHARE_KEY_MEDIA = "media";
-
-// Media categories — mirror MediaKey in the app (music/film/books/
-// podcasts). Favourites live on the profile as media[category]: string[].
-const MEDIA_CATEGORIES = ["music", "film", "books", "podcasts"] as const;
-type MediaCategory = (typeof MEDIA_CATEGORIES)[number];
-
-interface MediaItemCount {
-  name: string;
-  count: number;
-}
-type MediaTop = Partial<Record<MediaCategory, MediaItemCount[]>>;
 
 // The six political axes (matches POLITICAL_KEY in useProfile.ts).
 const POLITICAL_AXES = [
@@ -96,39 +99,6 @@ function pickMedia(p: UserProfileLike): Partial<Record<MediaCategory, string[]>>
   return out;
 }
 
-// Tally distinct media items per category across users (each user
-// counts a given item once) and return the top-k per category.
-function topMedia(
-  perUser: Array<Partial<Record<MediaCategory, string[]>>>,
-  k: number,
-): MediaTop {
-  const counts: Record<string, Map<string, MediaItemCount>> = {};
-  for (const cat of MEDIA_CATEGORIES) counts[cat] = new Map();
-  for (const media of perUser) {
-    for (const cat of MEDIA_CATEGORIES) {
-      const list = media[cat];
-      if (!Array.isArray(list)) continue;
-      const seen = new Set<string>();
-      for (const raw of list) {
-        const key = raw.toLowerCase().trim();
-        if (!key || seen.has(key)) continue;
-        seen.add(key);
-        const existing = counts[cat].get(key);
-        if (existing) existing.count += 1;
-        else counts[cat].set(key, { name: raw, count: 1 });
-      }
-    }
-  }
-  const out: MediaTop = {};
-  for (const cat of MEDIA_CATEGORIES) {
-    const arr = [...counts[cat].values()]
-      .sort((a, b) => b.count - a.count)
-      .slice(0, k);
-    if (arr.length > 0) out[cat] = arr;
-  }
-  return out;
-}
-
 interface DiscoverableLike {
   geohash?: string;
   uid?: string;
@@ -159,34 +129,6 @@ interface AggregateDoc {
   // Top media favourites among people in this cell (per category).
   media?: MediaTop;
   updatedAt: FieldValue;
-}
-
-// Compute mean and standard deviation per-axis across N vectors.
-// All vectors must be the same length; we use the first one to size
-// the result arrays.
-function summarise(
-  vectors: number[][],
-): { mean: number[]; stdev: number[] } {
-  const n = vectors.length;
-  if (n === 0) return { mean: [], stdev: [] };
-  const len = vectors[0].length;
-  const sums = new Array(len).fill(0);
-  for (const v of vectors) {
-    for (let i = 0; i < len; i++) sums[i] += v[i];
-  }
-  const mean = sums.map((s) => s / n);
-  const sqs = new Array(len).fill(0);
-  for (const v of vectors) {
-    for (let i = 0; i < len; i++) {
-      const d = v[i] - mean[i];
-      sqs[i] += d * d;
-    }
-  }
-  const stdev = sqs.map((s) => Math.sqrt(s / n));
-  return {
-    mean: mean.map((m) => Math.round(m * 100) / 100),
-    stdev: stdev.map((s) => Math.round(s * 100) / 100),
-  };
 }
 
 // Pull a 6-axis political vector off a profile. Returns null when
@@ -255,23 +197,38 @@ async function runAggregation(): Promise<{
   //    A single user can contribute to any combination of the three
   //    streams (big5 / political / morals) depending on which tests
   //    they've taken and their per-stream sharePrefs.
+  //
+  //    Profiles are fetched with getAll() in chunks of 100 rather than
+  //    one awaited read per user — the sequential version is O(userbase)
+  //    round-trips and blows past the function timeout at a few
+  //    thousand discoverable users.
+  const candidates: Array<{ uid: string; hash5: string }> = [];
+  for (const docSnap of discoverableSnap.docs) {
+    const disc = docSnap.data() as DiscoverableLike;
+    const fullHash = disc.geohash;
+    if (!fullHash || fullHash.length < 5) continue;
+    candidates.push({ uid: docSnap.id, hash5: fullHash.slice(0, 5) });
+  }
+  const PROFILE_CHUNK = 100;
+  const profilesByUid = new Map<string, UserProfileLike>();
+  for (let i = 0; i < candidates.length; i += PROFILE_CHUNK) {
+    const chunk = candidates.slice(i, i + PROFILE_CHUNK);
+    const snaps = await db.getAll(
+      ...chunk.map((c) => db.collection("insight_users").doc(c.uid)),
+    );
+    for (const s of snaps) {
+      if (s.exists) profilesByUid.set(s.id, s.data() as UserProfileLike);
+    }
+  }
+
   const cells: Record<string, CellBuckets> = {};
   // Global media tally — favourites shared at "world" level, counted
   // across the whole discoverable userbase for the World tab.
   const worldMedia: Array<Partial<Record<MediaCategory, string[]>>> = [];
   let usersIncluded = 0;
-  for (const docSnap of discoverableSnap.docs) {
-    const disc = docSnap.data() as DiscoverableLike;
-    const fullHash = disc.geohash;
-    if (!fullHash || fullHash.length < 5) continue;
-    const hash5 = fullHash.slice(0, 5);
-
-    const profileSnap = await db
-      .collection("insight_users")
-      .doc(docSnap.id)
-      .get();
-    if (!profileSnap.exists) continue;
-    const profile = profileSnap.data() as UserProfileLike;
+  for (const { uid, hash5 } of candidates) {
+    const profile = profilesByUid.get(uid);
+    if (!profile) continue;
     if (!cells[hash5]) {
       cells[hash5] = { big5: [], political: [], morals: [], media: [] };
     }
@@ -331,7 +288,17 @@ async function runAggregation(): Promise<{
   //    `political`. When ALL three streams are below the floor, the
   //    cell doc is deleted (if it existed) to avoid leaking stale
   //    aggregates.
-  const batchWrite = db.batch();
+  // Firestore batches cap at 500 ops — rotate at 450 (commit, fresh
+  // batch, keep going) so a large cell count can't blow the limit.
+  let batchWrite = db.batch();
+  let opsInBatch = 0;
+  const noteOp = async () => {
+    if (++opsInBatch === 450) {
+      await batchWrite.commit();
+      batchWrite = db.batch();
+      opsInBatch = 0;
+    }
+  };
   let cellsWritten = 0;
   let cellsDeleted = 0;
   const existingSnap = await db
@@ -340,16 +307,17 @@ async function runAggregation(): Promise<{
   const existingCells = new Set(existingSnap.docs.map((d) => d.id));
 
   for (const [hash5, bucket] of Object.entries(cells)) {
-    const b5Ok = bucket.big5.length >= K_ANON_FLOOR;
-    const polOk = bucket.political.length >= K_ANON_FLOOR;
-    const mOk = bucket.morals.length >= K_ANON_FLOOR;
-    const mediaOk = bucket.media.length >= K_ANON_FLOOR;
+    const b5Ok = meetsKFloor(bucket.big5.length, K_ANON_FLOOR);
+    const polOk = meetsKFloor(bucket.political.length, K_ANON_FLOOR);
+    const mOk = meetsKFloor(bucket.morals.length, K_ANON_FLOOR);
+    const mediaOk = meetsKFloor(bucket.media.length, K_ANON_FLOOR);
     if (!b5Ok && !polOk && !mOk && !mediaOk) {
       if (existingCells.has(hash5)) {
         batchWrite.delete(
           db.collection("aggregates_by_geohash5").doc(hash5),
         );
         cellsDeleted++;
+        await noteOp();
       }
       continue;
     }
@@ -396,6 +364,7 @@ async function runAggregation(): Promise<{
     batchWrite.set(db.collection("aggregates_by_geohash5").doc(hash5), doc);
     cellsWritten++;
     existingCells.delete(hash5);
+    await noteOp();
   }
 
   // Cells that previously had aggregates but had zero contributors
@@ -403,6 +372,7 @@ async function runAggregation(): Promise<{
   for (const orphan of existingCells) {
     batchWrite.delete(db.collection("aggregates_by_geohash5").doc(orphan));
     cellsDeleted++;
+    await noteOp();
   }
 
   // Global media tally for the World tab — one doc, read by everyone.
@@ -411,9 +381,13 @@ async function runAggregation(): Promise<{
   batchWrite.set(db.collection("aggregates_media").doc("world"), {
     updatedAt: FieldValue.serverTimestamp(),
     contributors: worldMedia.length,
-    media: worldMedia.length >= K_ANON_FLOOR ? topMedia(worldMedia, 12) : {},
+    media: meetsKFloor(worldMedia.length, K_ANON_FLOOR)
+      ? topMedia(worldMedia, 12)
+      : {},
   });
 
+  // The rotation above guarantees at most 450 ops are pending here, so
+  // this final commit (with the one media doc on top) stays under 500.
   await batchWrite.commit();
   logger.info(
     `[aggregates] done: ${cellsWritten} written, ${cellsDeleted} deleted, ${usersIncluded}/${discoverableSnap.size} users`,
@@ -427,16 +401,14 @@ async function runAggregation(): Promise<{
   };
 }
 
-// HTTPS-callable for manual / dev runs. Restricted to signed-in
-// users; anyone with an account can kick the aggregator. Idempotent
-// + cheap (one batch write at the end), so no harm in casual
-// invocations.
+// HTTPS-callable for manual / dev runs. Operator-only: the run is
+// O(userbase) reads (one profile fetch per discoverable user), so an
+// open callable is a cost-amplification lever for any anonymous
+// account. The 6-hourly schedule below keeps production fresh.
 export const rebuildAreaAggregates = onCall(
-  { region: "us-central1" },
+  { region: "us-central1", maxInstances: 1 },
   async (request) => {
-    if (!request.auth) {
-      throw new HttpsError("unauthenticated", "must be signed in");
-    }
+    assertOperator(request);
     return runAggregation();
   },
 );
@@ -495,59 +467,6 @@ interface DiscoverableProjection {
   age?: number;
   country?: string;
   interestNames?: string[];
-}
-
-function ageBucket(age: number): string {
-  if (age < 20) return "<20";
-  if (age < 30) return "20-29";
-  if (age < 40) return "30-39";
-  if (age < 50) return "40-49";
-  return "50+";
-}
-
-function tally<T extends string>(values: T[]): Record<string, number> {
-  const counts: Record<string, number> = {};
-  let total = 0;
-  for (const v of values) {
-    if (!v) continue;
-    counts[v] = (counts[v] || 0) + 1;
-    total += 1;
-  }
-  if (total === 0) return {};
-  const out: Record<string, number> = {};
-  for (const [k, n] of Object.entries(counts)) {
-    out[k] = Math.round((n / total) * 1000) / 1000;
-  }
-  return out;
-}
-
-function averagePersonality(vectors: number[][]): number[] | null {
-  if (vectors.length === 0) return null;
-  const sums = [0, 0, 0, 0, 0];
-  for (const v of vectors) {
-    for (let i = 0; i < 5; i++) sums[i] += v[i];
-  }
-  return sums.map((s) => Math.round(s / vectors.length));
-}
-
-function topInterests(
-  names: string[][],
-  k: number,
-): { name: string; count: number }[] {
-  const counts: Record<string, { name: string; count: number }> = {};
-  for (const list of names) {
-    const seen = new Set<string>();
-    for (const raw of list) {
-      const key = raw.toLowerCase().trim();
-      if (!key || seen.has(key)) continue;
-      seen.add(key);
-      if (!counts[key]) counts[key] = { name: raw, count: 0 };
-      counts[key].count += 1;
-    }
-  }
-  return Object.values(counts)
-    .sort((a, b) => b.count - a.count)
-    .slice(0, k);
 }
 
 // Walk every user's insight_inbound_impressions subcollection and
@@ -662,7 +581,7 @@ function topImpressionsFromRollup(
 ): { trait: string; count: number }[] {
   return Array.from(rollup.entries())
     .map(([trait, senders]) => ({ trait, count: senders.size }))
-    .filter((x) => x.count >= IMPRESSION_K_ANON_FLOOR)
+    .filter((x) => meetsKFloor(x.count, IMPRESSION_K_ANON_FLOOR))
     .sort((a, b) => b.count - a.count)
     .slice(0, k);
 }
@@ -724,7 +643,7 @@ async function runWorldAggregation(): Promise<{
 
   const byCountry: Record<string, CountryBreakdown> = {};
   for (const [code, group] of byCountryRaw) {
-    if (group.length < WORLD_K_ANON_FLOOR) continue;
+    if (!meetsKFloor(group.length, WORLD_K_ANON_FLOOR)) continue;
     const personalities = group
       .map((g) => g.personality)
       .filter((p): p is number[] => Array.isArray(p));
@@ -741,7 +660,7 @@ async function runWorldAggregation(): Promise<{
     byCountry[code] = {
       userCount: group.length,
       personalityAvg:
-        personalities.length >= WORLD_K_ANON_FLOOR
+        meetsKFloor(personalities.length, WORLD_K_ANON_FLOOR)
           ? averagePersonality(personalities)
           : null,
       genderRatio: tally(genders),
@@ -778,7 +697,7 @@ async function runWorldAggregation(): Promise<{
     totalUsers,
     countriesRepresented: Object.keys(byCountry).length,
     globalPersonalityAvg:
-      globalPersonalityVectors.length >= WORLD_K_ANON_FLOOR
+      meetsKFloor(globalPersonalityVectors.length, WORLD_K_ANON_FLOOR)
         ? averagePersonality(globalPersonalityVectors)
         : null,
     globalTopInterests: topInterests(globalInterestLists, 12),
@@ -797,11 +716,9 @@ async function runWorldAggregation(): Promise<{
 }
 
 export const rebuildWorldAggregates = onCall(
-  { region: "us-central1" },
+  { region: "us-central1", maxInstances: 1 },
   async (request) => {
-    if (!request.auth) {
-      throw new HttpsError("unauthenticated", "must be signed in");
-    }
+    assertOperator(request);
     return runWorldAggregation();
   },
 );
@@ -839,17 +756,6 @@ const CITY_DIMENSIONS = [
   "food",
   "cost",
 ] as const;
-
-function slugifyCity(name: string): string {
-  return name
-    .toLowerCase()
-    .normalize("NFKD")
-    .replace(/[̀-ͯ]/g, "")
-    .trim()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .slice(0, 80);
-}
 
 interface CityAggregate {
   cityKey: string;
@@ -923,17 +829,17 @@ async function runCityAggregation(): Promise<{
     await rollUpImpressions();
 
   let citiesAboveFloor = 0;
-  const batch = db.batch();
-  // Cap batch size at 450 to stay under the 500-write hard limit
-  // when commits flush.
+  // Cap batch size at 450 to stay under the 500-write hard limit —
+  // and ROTATE to a fresh batch after each commit (a committed
+  // WriteBatch can't take more writes; same pattern as runSeedV2).
+  let batch = db.batch();
   let inBatch = 0;
-  const commits: Array<Promise<unknown>> = [];
 
   for (const [slug, entry] of byCity) {
     const byDimension: Record<string, { avg: number; count: number }> = {};
     let total = 0;
     for (const [dim, values] of entry.dims) {
-      if (values.length < CITY_K_ANON_FLOOR) continue;
+      if (!meetsKFloor(values.length, CITY_K_ANON_FLOOR)) continue;
       byDimension[dim] = {
         avg: Math.round(
           (values.reduce((s, v) => s + v, 0) / values.length) * 100,
@@ -967,11 +873,13 @@ async function runCityAggregation(): Promise<{
       }
     }
     const personality =
-      big5Vectors.length >= CITY_K_ANON_FLOOR
+      meetsKFloor(big5Vectors.length, CITY_K_ANON_FLOOR)
         ? { count: big5Vectors.length, mean: summarise(big5Vectors).mean }
         : undefined;
     const media =
-      mediaLists.length >= CITY_K_ANON_FLOOR ? topMedia(mediaLists, 5) : undefined;
+      meetsKFloor(mediaLists.length, CITY_K_ANON_FLOOR)
+        ? topMedia(mediaLists, 5)
+        : undefined;
 
     if (
       Object.keys(byDimension).length === 0 &&
@@ -995,14 +903,13 @@ async function runCityAggregation(): Promise<{
       ),
     };
     batch.set(db.collection("aggregates_city").doc(slug), aggregate);
-    inBatch += 1;
-    if (inBatch >= 450) {
-      commits.push(batch.commit());
+    if (++inBatch === 450) {
+      await batch.commit();
+      batch = db.batch();
       inBatch = 0;
     }
   }
-  if (inBatch > 0) commits.push(batch.commit());
-  await Promise.all(commits);
+  if (inBatch > 0) await batch.commit();
 
   logger.info(
     `[cityAgg] processed ${byCity.size} cities, ${citiesAboveFloor} above floor`,
@@ -1014,11 +921,9 @@ async function runCityAggregation(): Promise<{
 }
 
 export const rebuildCityAggregates = onCall(
-  { region: "us-central1" },
+  { region: "us-central1", maxInstances: 1 },
   async (request) => {
-    if (!request.auth) {
-      throw new HttpsError("unauthenticated", "must be signed in");
-    }
+    assertOperator(request);
     return runCityAggregation();
   },
 );
@@ -1074,7 +979,7 @@ interface LedgerEvent {
 }
 
 export const sendInboundImpression = onCall(
-  { region: "us-central1" },
+  { region: "us-central1", enforceAppCheck: ENFORCE_APP_CHECK },
   async (request) => {
     if (!request.auth) {
       throw new HttpsError("unauthenticated", "must be signed in");
@@ -1297,7 +1202,7 @@ async function deleteUserSubtree(uid: string): Promise<number> {
 }
 
 export const deleteAccount = onCall(
-  { region: "us-central1" },
+  { region: "us-central1", enforceAppCheck: ENFORCE_APP_CHECK },
   async (request) => {
     if (!request.auth) {
       throw new HttpsError("unauthenticated", "must be signed in");
@@ -1312,12 +1217,18 @@ export const deleteAccount = onCall(
       othersRelations: 0,
       othersInbound: 0,
     };
+    // Phases that threw. If ANY wipe phase fails we must refuse to
+    // delete the auth user: deleting it anyway would strand the
+    // leftover data with no owner able to retry — a silent
+    // right-to-erasure violation reported as ok:true.
+    const failed: string[] = [];
 
     // 1. Wipe insight_users/{uid}/* + the profile doc itself.
     try {
       counts.ownSubtree = await deleteUserSubtree(uid);
     } catch (err) {
       logger.error("[deleteAccount] subtree wipe failed:", err);
+      failed.push("ownSubtree");
     }
 
     // 1b. Wipe the v2 subtree (profile + answers). Aggregate counts the
@@ -1327,6 +1238,7 @@ export const deleteAccount = onCall(
       await db.recursiveDelete(db.collection("v2_users").doc(uid));
     } catch (err) {
       logger.error("[deleteAccount] v2 subtree wipe failed:", err);
+      failed.push("v2Subtree");
     }
 
     // 1c. Leave every v2 group: membership, name, and reveal entries all
@@ -1355,6 +1267,7 @@ export const deleteAccount = onCall(
       }
     } catch (err) {
       logger.error("[deleteAccount] v2 group scrub failed:", err);
+      failed.push("v2Groups");
     }
 
     // 2. Drop insight_discoverable/{uid} if present.
@@ -1367,6 +1280,7 @@ export const deleteAccount = onCall(
       }
     } catch (err) {
       logger.error("[deleteAccount] discoverable wipe failed:", err);
+      failed.push("discoverable");
     }
 
     // 3. Inbound impressions this user sent into other people's
@@ -1379,6 +1293,7 @@ export const deleteAccount = onCall(
       counts.othersInbound = await deleteQueryDocs(sentQuery);
     } catch (err) {
       logger.error("[deleteAccount] inbound impressions wipe failed:", err);
+      failed.push("othersInbound");
     }
 
     // 4. Other users' relations pointing at this user via linkedUid.
@@ -1390,9 +1305,33 @@ export const deleteAccount = onCall(
       counts.othersRelations = await deleteQueryDocs(relQuery);
     } catch (err) {
       logger.error("[deleteAccount] cross-user relations wipe failed:", err);
+      failed.push("othersRelations");
     }
 
-    // 5. Finally drop the auth user. Doing this last means any
+    // 4b. Rate-limit ledgers keyed by this uid. Rules make them fully
+    //     opaque to clients, but they contain recipient uids and
+    //     activity timestamps — right-to-erasure covers them too.
+    try {
+      await db.collection("insight_ratelimits").doc(uid).delete();
+      await db.collection("v2_ratelimits").doc(`join_${uid}`).delete();
+    } catch (err) {
+      logger.error("[deleteAccount] rate-limit ledger wipe failed:", err);
+      failed.push("ratelimits");
+    }
+
+    // 5. Any wipe failure above must abort BEFORE the auth delete:
+    //    the user stays signed in and can simply retry. Swallowing
+    //    the error and deleting the auth user would orphan the
+    //    leftover data forever while reporting success.
+    if (failed.length > 0) {
+      logger.error(`[deleteAccount] incomplete for uid=${uid}`, { failed, counts });
+      throw new HttpsError(
+        "internal",
+        `Deletion incomplete (${failed.join(", ")}) — nothing was lost, please retry.`,
+      );
+    }
+
+    // 6. Finally drop the auth user. Doing this last means any
     //    failure above leaves the user able to retry (they're still
     //    signed in). If THIS step fails, the user is mostly-wiped
     //    but their auth account lingers — they can sign in to a
@@ -1453,12 +1392,12 @@ async function runSeedTaxonomies(): Promise<{ written: string[] }> {
   return { written };
 }
 
+// Vandalism-safe by design (the data is baked, not caller-supplied),
+// but still a free full-write trigger — operator-only like the rest.
 export const seedTaxonomies = onCall(
   { region: "us-central1" },
   async (request) => {
-    if (!request.auth) {
-      throw new HttpsError("unauthenticated", "must be signed in");
-    }
+    assertOperator(request);
     return runSeedTaxonomies();
   },
 );

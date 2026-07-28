@@ -1,5 +1,8 @@
-/* eslint-disable */
-// ported from design/spec-modules/daily-questions.js — do not hand-edit load order assumptions
+// Ported from design/spec-modules/daily-questions.js (the historical prototype — no sync
+// script survives; THIS file is the live source now, hand-edits and all).
+// Cross-module references resolve through the shared global scope and
+// spec-index.js load order is semantic — scripts/check-spec-globals.mjs
+// guards the wiring in CI.
 import React from 'react';
 
 // daily-questions.js — "Daily Question" feature data + persistent answer store.
@@ -220,7 +223,7 @@ import React from 'react';
   }
   function voteCategory(qid, path) {
     savedCat[qid] = path;
-    try { localStorage.setItem(LSC, JSON.stringify(savedCat)); } catch (e) {}
+    try { localStorage.setItem(LSC, JSON.stringify(savedCat)); } catch { /* best-effort */ }
     listeners.forEach((f) => f());
   }
   function answeredCategorized() {
@@ -250,7 +253,7 @@ import React from 'react';
     isAnswered: (q) => myAnswer(q) != null,
     answer(id, choice) {
       saved[id] = choice;
-      try { localStorage.setItem(LS, JSON.stringify(saved)); } catch (e) {}
+      try { localStorage.setItem(LS, JSON.stringify(saved)); } catch { /* best-effort */ }
       listeners.forEach(f => f());
     },
     unansweredCount() { return QUESTIONS.filter(q => myAnswer(q) == null).length; },
@@ -312,7 +315,16 @@ import React from 'react';
     if (!L || !L.enabled || !L.ready || !L.dailyBank) return;
     const votes = (L.confirmedVotes ? L.confirmedVotes() : (L.myVotes && L.myVotes())) || {};
     const byPrompt = {};
-    L.dailyBank().forEach((b) => { byPrompt[b.prompt] = b; });
+    const demoPrompts = new Set(QUESTIONS.map((q) => q.prompt));
+    L.dailyBank().forEach((b) => {
+      byPrompt[b.prompt] = b;
+      // The join key is prompt-string equality. A bank entry no demo
+      // question matches means a content edit silently orphaned it —
+      // its votes would stop feeding the Map. Loud beats silent.
+      if (!demoPrompts.has(b.prompt)) {
+        console.warn('[dailyq] bank entry has no demo twin (prompt drifted?):', b.id);
+      }
+    });
     let changed = false;
     QUESTIONS.forEach((q) => {
       const b = byPrompt[q.prompt];
@@ -333,7 +345,7 @@ import React from 'react';
       }
     });
     if (changed) {
-      try { localStorage.setItem(LS, JSON.stringify(saved)); } catch (e) {}
+      try { localStorage.setItem(LS, JSON.stringify(saved)); } catch { /* best-effort */ }
       listeners.forEach((f) => f());
     }
   }
