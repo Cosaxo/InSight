@@ -17,6 +17,10 @@ import {
   tally,
   topInterests,
   slugifyCity,
+  breakdownBucket,
+  foldAnchors,
+  publishableBreakdown,
+  BREAKDOWN_MAX_BUCKETS,
 } from "./pure";
 
 // ── invite codes ────────────────────────────────────────────────
@@ -274,5 +278,93 @@ describe("slugifyCity", () => {
 
   it("returns empty for names with no usable characters", () => {
     expect(slugifyCity("!!!")).toBe("");
+  });
+});
+
+describe("per-anchor breakdowns", () => {
+  const anchors = (over: Record<string, unknown> = {}) => ({
+    ageBand: "25-34", gender: "Women", country: "Norway", ...over,
+  });
+
+  it("folds only the low-cardinality anchors, and ignores junk buckets", () => {
+    const by = {};
+    foldAnchors(by, anchors({ city: "Oslo", profession: "Carpenter" }), 1);
+    // city and profession are free text — they must never mint keys
+    expect(Object.keys(by).sort()).toEqual(["ageBand", "country", "gender"]);
+    expect(by).toMatchObject({ ageBand: { "25-34": { "1": 1 } } });
+
+    // empty, over-long and field-path-hostile values are skipped, not stored
+    const junk = {};
+    foldAnchors(junk, { ageBand: "  ", gender: "x".repeat(41), country: "a.b" }, 0);
+    expect(junk).toEqual({});
+    expect(breakdownBucket("  Norway  ")).toBe("Norway");
+    expect(breakdownBucket(42)).toBeNull();
+  });
+
+  it("caps distinct buckets per dimension but keeps counting known ones", () => {
+    const by: Record<string, Record<string, Record<string, number>>> = {};
+    for (let i = 0; i < BREAKDOWN_MAX_BUCKETS + 10; i++) {
+      foldAnchors(by, { country: "C" + i }, 0);
+    }
+    expect(Object.keys(by.country)).toHaveLength(BREAKDOWN_MAX_BUCKETS);
+    // a bucket already known keeps incrementing even once the cap is hit
+    foldAnchors(by, { country: "C0" }, 0);
+    expect(by.country.C0["0"]).toBe(2);
+    // …and a new one past the cap is dropped rather than growing the doc
+    expect(by.country["C99"]).toBeUndefined();
+  });
+
+  it("suppresses cells below the floor", () => {
+    const by = {
+      gender: {
+        Women: { "0": 6, "1": 4 },   // 10 — publishable
+        Men: { "0": 5, "1": 3 },     // 8  — publishable
+        Nonbinary: { "0": 1 },       // 1  — below floor
+        Other: { "0": 2 },           // 2  — below floor
+      },
+    };
+    const out = publishableBreakdown(by, 5);
+    expect(Object.keys(out.gender).sort()).toEqual(["Men", "Women"]);
+    expect(out.gender.Nonbinary).toBeUndefined();
+  });
+
+  // The property that makes the floor real rather than decorative.
+  it("never leaves exactly one suppressed cell recoverable by subtraction", () => {
+    const by = {
+      ageBand: {
+        "18-24": { "0": 20 },  // published
+        "25-34": { "0": 12 },  // smallest survivor — must be taken too
+        "35-44": { "0": 3 },   // the only sub-floor cell
+      },
+    };
+    const out = publishableBreakdown(by, 5);
+    // Without complementary suppression this would publish two cells and a
+    // reader knowing the dimension total (35) recovers 35-20-12 = 3 exactly.
+    expect(out.ageBand).toBeUndefined();
+
+    // With enough survivors, the complement is applied and the rest stand
+    const wide = {
+      country: {
+        A: { "0": 30 }, B: { "0": 20 }, C: { "0": 14 }, D: { "0": 2 },
+      },
+    };
+    const w = publishableBreakdown(wide, 5);
+    expect(Object.keys(w.country).sort()).toEqual(["A", "B"]);  // C is the complement
+    expect(w.country.D).toBeUndefined();
+  });
+
+  it("omits a dimension that cannot show a comparison", () => {
+    // one surviving bucket is a population statement, not a split
+    expect(publishableBreakdown({ gender: { Women: { "0": 40 } } }, 5)).toEqual({});
+    // two clean buckets and nothing suppressed: published as-is
+    const clean = { gender: { Women: { "0": 9 }, Men: { "0": 7 } } };
+    expect(publishableBreakdown(clean, 5)).toEqual(clean);
+  });
+
+  it("does not alias the private counts into the published copy", () => {
+    const by = { gender: { Women: { "0": 9 }, Men: { "0": 7 } } };
+    const out = publishableBreakdown(by, 5);
+    out.gender.Women["0"] = 999;
+    expect(by.gender.Women["0"]).toBe(9);
   });
 });

@@ -21,6 +21,7 @@ import { assertOperator } from "./ops";
 import { onDocumentCreated } from "firebase-functions/v2/firestore";
 import { logger } from "firebase-functions";
 import { V2_QUESTIONS } from "./v2content";
+import { foldAnchors, publishableBreakdown, type BreakdownCounts } from "./pure";
 
 const REGION = "us-central1";
 
@@ -139,6 +140,17 @@ export const onV2AnswerCreated = onDocumentCreated(
         (priv.exists && (priv.get("counts") as Record<string, number>)) || {};
       counts[String(optionIdx)] = (counts[String(optionIdx)] || 0) + 1;
       const total = ((priv.exists && (priv.get("total") as number)) || 0) + 1;
+      // Per-anchor breakdown, in the SAME document as the plain counts.
+      // Deliberately not new per-dimension docs: this transaction already
+      // writes privRef, so folding the slices in costs no extra document
+      // and D7's ~1-write/sec-per-document ceiling is unchanged.
+      //
+      // Answers written before any anchors are collected simply carry
+      // `anchors: {}` and fold to nothing, so this is inert until there is
+      // something to slice by — see D8.
+      const by: BreakdownCounts =
+        (priv.exists && (priv.get("by") as BreakdownCounts)) || {};
+      foldAnchors(by, snap.get("anchors"), optionIdx);
       // expireAt powers a Firestore TTL policy (see SHIP-CHECKLIST) —
       // dedup only matters within the ~7-day retry window, so the
       // ledger must not grow forever.
@@ -147,7 +159,7 @@ export const onV2AnswerCreated = onDocumentCreated(
         at: FieldValue.serverTimestamp(),
         expireAt: new Date(Date.now() + 7 * 86400000),
       });
-      tx.set(privRef, { counts, total }, { merge: false });
+      tx.set(privRef, { counts, total, by }, { merge: false });
       // The public mirror: k-floored, and deliberately without a fresh
       // timestamp — per-vote timing deltas shouldn't be attributable.
       //
@@ -179,7 +191,12 @@ export const onV2AnswerCreated = onDocumentCreated(
       if (total >= AGG_MIN_N) {
         const exact = total < PUBLISH_EXACT_BELOW;
         if (exact || total % PUBLISH_EVERY === 0) {
-          tx.set(pubRef, { counts, total, tooSmall: false }, { merge: false });
+          // The breakdown carries its OWN floor, per cell, plus
+          // complementary suppression (pure.ts). A question past the
+          // overall floor still shows no slice until that slice can be
+          // shown without singling anyone out.
+          const byPub = publishableBreakdown(by, AGG_MIN_N);
+          tx.set(pubRef, { counts, total, tooSmall: false, by: byPub }, { merge: false });
         }
       } else {
         tx.set(pubRef, { tooSmall: true }, { merge: false });

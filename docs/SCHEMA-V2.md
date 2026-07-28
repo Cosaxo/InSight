@@ -22,21 +22,40 @@ v2_users/{uid}
                                  profession education relationship }
 read/write: owner only (validated key set; Phase 3 adds display carve-outs)
 
-v2_users/{uid}/answers/{qid}       ← BigQuery extension targets "answers"
+v2_users/{uid}/answers/{qid}
   qid (== doc id), surface, optionIdx, answeredAt (request.time),
-  anchors (snapshot at answer time — owner-only doc, so no leak)
+  anchors (snapshot at answer time — owner-only doc, so no leak).
+    RESERVED, NOT YET POPULATED: rules validate the key set and the
+    aggregate trigger folds whatever arrives into per-anchor breakdowns,
+    but every client write sends {} today because nothing collects the
+    fields. See D8 — the collection decision is deliberately open.
+    (An earlier version of this line claimed a BigQuery extension
+    targeted this collection. None is configured, in firebase.json or
+    anywhere else; it described an intended path, not a deployed one.)
 create: owner, validated (question must exist; optionIdx < options.size())
 update/delete: nobody — immutability is what lets the aggregate be a
 plain increment with no reconciliation
 read: owner only
 
 v2_aggs_private/{qid}              exact counts — server-only (opaque)
+  counts, total                    exact, never floored
+  by { dim: { bucket: {opt:n} } }  per-anchor slices, exact (see D8).
+                                   Lives HERE, in the doc the trigger
+                                   already writes, so D7's ~1 write/sec
+                                   per document is unchanged. Bounded:
+                                   low-cardinality anchors only (no city,
+                                   no profession) and ≤24 buckets/dim.
 v2_agg_events/{eventId}            trigger idempotency ledger (opaque)
 v2_question_aggs/{qid}             the PUBLIC mirror, k-floored
   { tooSmall: true }               while total < AGG_MIN_N (5)
   { counts, total, tooSmall:false } at/above the floor — no fresh
                                    timestamp, so per-vote timing deltas
                                    aren't attributable
+  by { dim: { bucket: {opt:n} } }  the breakdown's OWN floor, per cell,
+                                   plus complementary suppression so a
+                                   lone hidden cell can't be recovered by
+                                   subtraction. A dim with <2 publishable
+                                   buckets is omitted (D8)
 read: signed-in · write: nobody
 
 v2_groups/{gid}                    groups AND duos (mode: group|duo)

@@ -270,3 +270,93 @@ a hand-seeded bank. The check is one console query: any document under
 unreadable by their own members, and the choice is a one-off backfill from
 the group's `memberUids` (accepting that it restores the roster, not the
 true historical membership) or deleting them.
+
+## D8 · Per-anchor breakdowns are built; collecting the anchors is not
+
+**Decision.** The aggregation that answers "how did every kind of person
+split?" ships now, dimension-agnostic and with its own k-anonymity floor.
+Whether InSight ever *asks* a user for their age band, gender or country is
+deliberately left open, and nothing collects them today.
+
+**Why this is two decisions and not one.** Implementing the v13 prototype's
+breakdown sheet surfaced that the data it slices by does not exist:
+
+- `firestore.rules` validates an `anchors` map on both `v2_users` and every
+  answer (`isValidV2Anchors`, seven keys), and a rules test pins the shape.
+- `docs/SCHEMA-V2.md` documents anchors as "snapshot at answer time".
+- **Every client write path sends `anchors: {}`** (`src/v2/data/live.ts`,
+  the daily vote and the duel vote). No UI collects any of the seven fields.
+- **No Cloud Function reads anchors at all** — `grep anchors functions/src`
+  returns nothing.
+
+So the field is enforced, documented, and empty. The prototype's sheet fills
+that vacuum with `hash(qid:dim:bucket)` — invented rows — which is fine for a
+demo room and impossible to ship behind a claim of honest counts.
+
+**Asking users for demographics is a product decision, not an engineering
+one**, and a pointed one for an app whose pitch is that it collects less. It
+was put to the owner and left open, so this record covers only the half that
+does not depend on the answer.
+
+### What shipped
+
+`foldAnchors` / `publishableBreakdown` (`functions/src/pure.ts`), called from
+`onV2AnswerCreated`. It counts whatever anchor keys arrive rather than
+hardcoding dimensions, so the collection decision can land later with no
+backend change. With anchors empty it folds to nothing and publishes nothing
+— inert, not broken.
+
+**Document growth is bounded, so D7's ceiling does not move.** The slices
+live inside the existing `v2_aggs_private/{qid}` document, which the same
+transaction already writes, so no new document and no new contention point.
+That only holds if the document cannot grow without bound, hence two limits:
+
+- `city` and `profession` are **excluded**. Both are free text up to 80
+  chars, so every distinct spelling would mint a permanent key.
+- Each dimension caps at `BREAKDOWN_MAX_BUCKETS` (24) distinct values; past
+  that, new buckets are dropped while known ones keep counting, so the cap
+  degrades the long tail instead of freezing the dimension.
+
+Worst case is 5 dims × 24 buckets × 20 options ≈ 2,400 integers, tens of KB
+against Firestore's 1 MiB document limit.
+
+**The floor is per cell, and it survives subtraction.** Suppressing cells
+below `AGG_MIN_N` is not sufficient alone: if a dimension has exactly one
+suppressed cell and a reader knows the dimension's total, that cell is
+recoverable by subtracting the published ones, and the floor is decorative.
+`publishableBreakdown` therefore applies **complementary suppression** — if
+suppressing sub-floor cells would leave exactly one hole, the smallest
+surviving cell goes too, so there are always either zero holes or at least
+two. A dimension left with fewer than two publishable buckets is omitted
+entirely, because one bucket is a population statement rather than a split.
+
+Six tests cover this, and all three mutations were checked to fail: removing
+complementary suppression, loosening the floor by two, and dropping the
+bucket cap.
+
+**Politics is excluded from `BREAKDOWN_DIMS`, and not by oversight.** The
+prototype slices by Left/Center/Right. Political opinion is special-category
+data under GDPR Article 9: it needs explicit consent, not a silent anchor
+inferred from a test result. If it is ever wanted it needs its own consent
+flow and its own record here — it must not arrive as a sixth string in an
+anchors map.
+
+### What lighting this up requires
+
+1. A product decision on which anchors to ask for, and how (this record's
+   open half). Recommended shape if yes: coarse buckets only (age band, not
+   birthdate; country, not city), explicit opt-in, skippable, worded so the
+   user knows it is what powers the breakdowns.
+2. A collection surface, and `live.ts` writing `anchors` on the profile and
+   snapshotting them onto each answer instead of `{}`.
+3. The breakdown UI, which is the only part the prototype can be lifted from.
+
+Until (1) and (2), (3) would render an empty sheet, so none of it shipped.
+
+### Corrected while here
+
+`docs/SCHEMA-V2.md` carried `← BigQuery extension targets "answers"`. No
+extension is configured in `firebase.json`, `DEPLOYMENT.md` or
+`SHIP-CHECKLIST.md`; `grep -ri bigquery` across the repo returns nothing.
+That line described the intended offline-analytics path for anchors and read
+as deployed infrastructure. It now says what is true.

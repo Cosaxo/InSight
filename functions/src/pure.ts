@@ -201,3 +201,128 @@ export function slugifyCity(name: string): string {
     .replace(/^-+|-+$/g, "")
     .slice(0, 80);
 }
+
+// ── per-anchor breakdowns (v2) ──────────────────────────────────
+//
+// "How did every kind of person split?" — the same question the world
+// aggregate answers, asked one demographic slice at a time.
+//
+// Two hard constraints shape everything below.
+//
+// 1. DOCUMENT GROWTH. The counts live inside the existing
+//    v2_aggs_private/{qid} document rather than new per-dimension docs, so
+//    D7's ~1-write-per-second-per-document ceiling does not move. That only
+//    holds if the document cannot grow without bound — so breakdowns are
+//    restricted to low-cardinality anchors, and each dimension is capped at
+//    BREAKDOWN_MAX_BUCKETS distinct values. `city` and `profession` are
+//    deliberately excluded: they are free text up to 80 chars, so every
+//    distinct spelling would mint a key forever.
+//
+// 2. K-ANONYMITY THAT SURVIVES SUBTRACTION. Suppressing cells below the
+//    floor is not sufficient on its own. If a dimension has exactly one
+//    suppressed cell and a reader knows the dimension's total, that cell is
+//    recoverable by subtracting the published ones — the floor would be
+//    decorative. publishableBreakdown therefore applies COMPLEMENTARY
+//    SUPPRESSION: if suppressing the sub-floor cells would leave exactly one
+//    hole, the smallest surviving cell is suppressed too, so there are always
+//    either zero holes or at least two. Standard practice in statistical
+//    disclosure control, and the reason this is a pure function with its own
+//    tests rather than three lines inside the trigger.
+
+// Anchors coarse enough to bucket. Order is the display order.
+export const BREAKDOWN_DIMS = [
+  "ageBand",
+  "gender",
+  "country",
+  "education",
+  "relationship",
+] as const;
+export type BreakdownDim = (typeof BREAKDOWN_DIMS)[number];
+
+// Per-dimension distinct-value cap. 5 dims x 24 buckets x up to 20 options is
+// ~2.4k integers worst case — tens of KB against Firestore's 1 MiB limit,
+// with room for the plain counts alongside.
+export const BREAKDOWN_MAX_BUCKETS = 24;
+// Bucket labels are stored as map keys; anything longer is a free-text field
+// that slipped through and should not be minting keys.
+export const BREAKDOWN_MAX_LABEL = 40;
+
+export type BreakdownCounts = Record<string, Record<string, Record<string, number>>>;
+
+// A bucket label Firestore can hold as a map key, or null to skip. Rejects
+// the empty string, over-long values, and the dotted/slashed forms that are
+// awkward as field paths.
+export function breakdownBucket(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const v = value.trim();
+  if (!v || v.length > BREAKDOWN_MAX_LABEL) return null;
+  if (/[./[\]*~]/.test(v)) return null;
+  return v;
+}
+
+// Fold one answer's anchors into the running breakdown. Mutates and returns
+// `into` so the trigger can keep this inside its existing transaction.
+export function foldAnchors(
+  into: BreakdownCounts,
+  anchors: unknown,
+  optionIdx: number,
+): BreakdownCounts {
+  if (!anchors || typeof anchors !== "object") return into;
+  const src = anchors as Record<string, unknown>;
+  for (const dim of BREAKDOWN_DIMS) {
+    const bucket = breakdownBucket(src[dim]);
+    if (bucket === null) continue;
+    const byDim = into[dim] || (into[dim] = {});
+    // Cap reached and this is a new bucket: drop it rather than grow the
+    // document. Existing buckets keep counting, so the cap degrades the
+    // long tail rather than freezing the dimension.
+    if (!byDim[bucket] && Object.keys(byDim).length >= BREAKDOWN_MAX_BUCKETS) continue;
+    const cell = byDim[bucket] || (byDim[bucket] = {});
+    const k = String(optionIdx);
+    cell[k] = (cell[k] || 0) + 1;
+  }
+  return into;
+}
+
+function cellTotal(cell: Record<string, number>): number {
+  let n = 0;
+  for (const k of Object.keys(cell)) n += cell[k];
+  return n;
+}
+
+// The publishable view: every bucket at or above the floor, with
+// complementary suppression so no single bucket is recoverable by
+// subtraction. A dimension with nothing left to say is omitted entirely
+// rather than published empty.
+export function publishableBreakdown(
+  by: BreakdownCounts,
+  floor: number,
+): BreakdownCounts {
+  const out: BreakdownCounts = {};
+  for (const dim of Object.keys(by)) {
+    const buckets = by[dim] || {};
+    const rows = Object.keys(buckets).map((b) => ({
+      bucket: b,
+      total: cellTotal(buckets[b]),
+    }));
+    const kept = rows.filter((r) => meetsKFloor(r.total, floor));
+    const suppressed = rows.length - kept.length;
+    // Exactly one hole is a hole with a name on it — take the smallest
+    // survivor down with it so at least two cells are unknown.
+    if (suppressed === 1 && kept.length > 0) {
+      let smallest = 0;
+      for (let i = 1; i < kept.length; i++) {
+        if (kept[i].total < kept[smallest].total) smallest = i;
+      }
+      kept.splice(smallest, 1);
+    }
+    // One surviving bucket says "everyone we can show you is in this
+    // bucket", which is a population statement, not a split. Two is the
+    // minimum that reads as a comparison.
+    if (kept.length < 2) continue;
+    const dimOut: Record<string, Record<string, number>> = {};
+    for (const r of kept) dimOut[r.bucket] = { ...buckets[r.bucket] };
+    out[dim] = dimOut;
+  }
+  return out;
+}

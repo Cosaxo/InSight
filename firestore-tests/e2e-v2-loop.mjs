@@ -52,9 +52,12 @@ ok("daily bank: " + qsnap.size + " questions; first: \"" + q0.get("prompt").slic
 
 // 4 · vote (owner-only answer write, rules enforced end-to-end)
 const uid = cred.user.uid;
+// anchors ride along so the per-anchor breakdown (D8) is exercised too.
+// Everyone shares a country on purpose — one bucket is a population
+// statement, not a split, so that dimension must never publish.
 await setDoc(doc(db, "v2_users", uid, "answers", q0.id), {
   qid: q0.id, surface: "daily", optionIdx: 1,
-  answeredAt: serverTimestamp(), anchors: {},
+  answeredAt: serverTimestamp(), anchors: { ageBand: "25-34", country: "Norway" },
 });
 ok("answer written: " + uid.slice(0, 8) + "/answers/" + q0.id);
 
@@ -87,7 +90,8 @@ for (let n = 0; n < 4; n++) {
   const u = await signInAnonymously(vAuth);
   await setDoc(doc(vDb, "v2_users", u.user.uid, "answers", q0.id), {
     qid: q0.id, surface: "daily", optionIdx: n % 2,
-    answeredAt: serverTimestamp(), anchors: {},
+    answeredAt: serverTimestamp(),
+    anchors: { ageBand: n % 2 === 0 ? "25-34" : "35-44", country: "Norway" },
   });
 }
 let above = null;
@@ -101,6 +105,45 @@ if (!above) fail("public counts never appeared above the floor");
 if (above.total !== 5 || above.counts["0"] !== 2 || above.counts["1"] !== 3)
   fail("counts wrong above floor: " + JSON.stringify(above));
 ok("above floor: exact public counts {0:2, 1:3}, total 5 — no double counting");
+
+// 7b · the breakdown's own floor (D8). At total 5 the age bands hold 3 and 2,
+// so BOTH are under AGG_MIN_N and the dimension must be absent — the question
+// being past the overall floor is not permission to slice it.
+if (above.by && above.by.ageBand)
+  fail("breakdown published a sub-floor cell: " + JSON.stringify(above.by));
+ok("breakdown: no dimension published while every cell is under the floor");
+
+// 7c · six more voters push both bands over the floor. Ages split 6/5, so the
+// dimension becomes publishable with no cell suppressed; country stays a
+// single bucket and must still be withheld.
+for (let m = 0; m < 6; m++) {
+  const vApp = initializeApp({ projectId: "demo-insight", apiKey: "demo", appId: "demo" }, "band" + m);
+  const vAuth = getAuth(vApp); connectAuthEmulator(vAuth, "http://127.0.0.1:9099", { disableWarnings: true });
+  const vDb = getFirestore(vApp); connectFirestoreEmulator(vDb, "127.0.0.1", 8080);
+  const u = await signInAnonymously(vAuth);
+  await setDoc(doc(vDb, "v2_users", u.user.uid, "answers", q0.id), {
+    qid: q0.id, surface: "daily", optionIdx: 0,
+    answeredAt: serverTimestamp(),
+    anchors: { ageBand: m % 2 === 0 ? "25-34" : "35-44", country: "Norway" },
+  });
+}
+let split = null;
+for (let i = 0; i < 40; i++) {
+  const snap = await getDoc(doc(db, "v2_question_aggs", q0.id));
+  if (snap.exists() && snap.get("total") === 11) { split = snap.data(); break; }
+  await new Promise((r) => setTimeout(r, 500));
+}
+if (!split) fail("public agg never reached total 11");
+if (!split.by || !split.by.ageBand) fail("breakdown missing at 6/5: " + JSON.stringify(split.by));
+const bands = Object.keys(split.by.ageBand).sort();
+if (bands.length !== 2 || bands[0] !== "25-34" || bands[1] !== "35-44")
+  fail("wrong age buckets published: " + JSON.stringify(split.by.ageBand));
+const bandTotal = (b) => Object.values(split.by.ageBand[b]).reduce((a, c) => a + c, 0);
+if (bandTotal("25-34") !== 6 || bandTotal("35-44") !== 5)
+  fail("age bucket totals wrong: " + JSON.stringify(split.by.ageBand));
+if (split.by.country)
+  fail("a one-bucket dimension was published: " + JSON.stringify(split.by.country));
+ok("breakdown: ageBand 6/5 published exactly; single-bucket country withheld");
 
 // 8 · the duel loop: create → join by code → sealed answers → reveal → streak
 const YESTER = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
