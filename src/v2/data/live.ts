@@ -87,7 +87,15 @@ function utcDayKey(offsetDays = 0): string {
   return new Date(Date.now() + offsetDays * 86400000).toISOString().slice(0, 10);
 }
 
+// Set as deleteAccount's FIRST statement. "There is no undo" has to hold
+// against work already in flight: the post-vote refresh timer, the agg and
+// reveal snapshot handlers, and any queued write can all still fire after
+// the purge and re-create an `insight.*` key for a deleted account.
+// Clearing the timer alone would not close the snapshot writers.
+let torndown = false;
+
 function cacheVote(aid: string, optionIdx: number): void {
+  if (torndown) return;
   try {
     const ANS_LS = "insight.answersCache.v1";
     const cached = JSON.parse(localStorage.getItem(ANS_LS) || "null") || { uid: state.uid, votes: {}, maxTs: 0 };
@@ -100,6 +108,7 @@ function cacheVote(aid: string, optionIdx: number): void {
 }
 
 function saveAggCache(): void {
+  if (torndown) return;
   try {
     localStorage.setItem("insight.aggsCache.v1", JSON.stringify(state.aggs));
   } catch {
@@ -250,10 +259,33 @@ async function hydrate(): Promise<void> {
   const active = all
     .filter((q) => q.active !== false)
     .sort((a, b) => (a.seq || 0) - (b.seq || 0));
-  state.questions = active.filter((q) => q.surface === "daily");
-  state.feedBank = active.filter((q) => q.surface === "feed" || q.surface === "test");
-  state.duelBank = active.filter((q) => q.surface === "group" || q.surface === "duo");
-  if (!state.questions.length) return; // unseeded project — stay on mocks
+
+  // Bank docs are hand-editable in the console — the kill switch expects
+  // an operator in there — and nothing validates them on the way in. A doc
+  // missing `options` used to throw inside q.options.map, blanking a whole
+  // tab behind the ErrorBoundary. Drop unusable docs instead.
+  //
+  // Applied per bank rather than once over `active`, so a mistake in one
+  // predicate cannot empty a bank it was never meant to touch. "pick"
+  // duel questions are the deliberate exception: they carry no bank
+  // options because their options ARE the group's members.
+  const playable = (q: QuestionDoc & { id: string }) =>
+    Array.isArray(q.options) && q.options.length >= 2;
+  state.questions = active.filter((q) => q.surface === "daily" && playable(q));
+  state.feedBank = active.filter(
+    (q) => (q.surface === "feed" || q.surface === "test") && playable(q));
+  state.duelBank = active.filter(
+    (q) => (q.surface === "group" || q.surface === "duo")
+      && (playable(q) || q.topic === "pick"));
+  // A completely unseeded project is a real failure: throw so boot leaves
+  // LIVE disabled and the mock deck renders. Returning here used to let
+  // boot flip enabled=true on an empty deck, which pins the user on
+  // "Fetching today's question…" forever with neither honesty banner up.
+  if (!state.questions.length && !state.feedBank.length && !state.duelBank.length) {
+    throw new Error("live bank is empty — project not seeded");
+  }
+  // A bank with content but no *daily* question is different: the rest of
+  // the app works, so stay live and let the daily surface say so.
 
   // ── my answers: cached + incremental (immutable docs never refetch) ──
   const ANS_LS = "insight.answersCache.v1";
@@ -280,6 +312,11 @@ async function hydrate(): Promise<void> {
           orderBy("answeredAt", "desc"),
           limit(1000),
         );
+    // Deliberately UNGUARDED, unlike the reads below. Answers are not
+    // decoration: proceeding with a partial vote set makes the app offer
+    // questions the user already answered, and the create-only rule then
+    // refuses every one of those re-votes. Better to fail boot and render
+    // the honest mock deck than to look live and reject the user's taps.
     const asnap = await getDocs(aq);
     state.stats.answersFetched = asnap.size;
     asnap.docs.forEach((d) => {
@@ -312,32 +349,74 @@ async function hydrate(): Promise<void> {
   } catch {
     /* best-effort */
   }
-  const answeredWorld = Object.keys(state.votes).filter(
-    (id) => !id.startsWith("g_") && isTooSmall(state.aggs[id]),
-  );
-  for (let i = 0; i < answeredWorld.length; i += 30) {
-    const chunk = answeredWorld.slice(i, i + 30);
-    const snap = await getDocs(
-      query(collection(db, "v2_question_aggs"), where(documentId(), "in", chunk)),
-    );
-    snap.docs.forEach((d) => {
-      state.aggs[d.id] = d.data() as AggDoc;
+  // Aggregate top-up is a DISPLAY nicety — it decorates cards with counts.
+  // It used to be unguarded, so one failed chunk query (a transient error,
+  // a missing index) threw out of hydrate, rejected boot, and pinned the
+  // whole session on demo data even though the bank and the votes had
+  // already loaded. Never worth a session for a count.
+  //
+  // Also: this was serial. A returning user with 150 answered questions
+  // still under the k-floor ran 5 round trips one after another inside the
+  // 2.5s boot race — and losing that race used to be permanent.
+  const AGG_CHECK_LS = "insight.aggCheck.v1";
+  const AGG_RECHECK_MS = 6 * 60 * 60 * 1000;
+  const AGG_ID_CAP = 120;
+  try {
+    let checked: Record<string, number> = {};
+    try {
+      checked = JSON.parse(localStorage.getItem(AGG_CHECK_LS) || "{}") || {};
+    } catch {
+      /* corrupt — treat as empty */
+    }
+    const nowMs = Date.now();
+    const answeredWorld = Object.keys(state.votes)
+      .filter((id) => !id.startsWith("g_") && isTooSmall(state.aggs[id]))
+      // A question under the floor stays under it for a while; re-reading
+      // every one on every boot is the dominant per-boot cost for an
+      // engaged user. Re-check each at most every 6h.
+      .filter((id) => nowMs - (checked[id] || 0) > AGG_RECHECK_MS)
+      .slice(0, AGG_ID_CAP);
+
+    const chunks: string[][] = [];
+    for (let i = 0; i < answeredWorld.length; i += 30) {
+      chunks.push(answeredWorld.slice(i, i + 30));
+    }
+    const snaps = await Promise.all(chunks.map((chunk) =>
+      getDocs(query(collection(db, "v2_question_aggs"), where(documentId(), "in", chunk)))));
+    snaps.forEach((snap) => {
+      snap.docs.forEach((d) => {
+        state.aggs[d.id] = d.data() as AggDoc;
+      });
+      state.stats.aggsFetched += snap.size;
     });
-    state.stats.aggsFetched += snap.size;
+    answeredWorld.forEach((id) => { checked[id] = nowMs; });
+    try {
+      localStorage.setItem(AGG_CHECK_LS, JSON.stringify(checked));
+    } catch {
+      /* best-effort */
+    }
+    saveAggCache();
+  } catch (err) {
+    reportError(err, { where: "hydrate.aggs" });
   }
-  saveAggCache();
 
-    computeDeck();
+  computeDeck();
 
-  // my profile (display name + synced test results) — owner-only
+  // my profile (display name + synced test results) — owner-only.
+  // Guarded for the same reason: a missing display name is a cosmetic
+  // loss, not a reason to spend the session on demo data.
   const uid0 = state.uid;
   if (uid0) {
-    const { getDoc } = await import("firebase/firestore");
-    const prof = await getDoc(doc(db, "v2_users", uid0));
-    if (prof.exists()) {
-      state.profile.displayName = (prof.get("displayName") as string) || "";
-      state.profile.testResults =
-        (prof.get("testResults") as Record<string, unknown>) || {};
+    try {
+      const { getDoc } = await import("firebase/firestore");
+      const prof = await getDoc(doc(db, "v2_users", uid0));
+      if (prof.exists()) {
+        state.profile.displayName = (prof.get("displayName") as string) || "";
+        state.profile.testResults =
+          (prof.get("testResults") as Record<string, unknown>) || {};
+      }
+    } catch (err) {
+      reportError(err, { where: "hydrate.profile" });
     }
     // Live mode shows only REAL results: purge the demo's baked test
     // results and rebuild from server + this device's saves.
@@ -389,26 +468,35 @@ function buildFeedGlobals(): void {
   if (!state.feedBank.length) return;
   const feed = state.feedBank
     .filter((q) => q.surface === "feed" && (q.options || []).length >= 2)
-    .map((q) => ({
-      id: q.id,
-      cat: q.topic || "culture",
-      type: "vote",
-      prompt: q.prompt,
-      options: q.options.map((label, i) => ({ label, count: feedCounts(q)[i] })),
-      live: true,
-      tooSmall: isTooSmall(state.aggs[q.id]),
-    }));
+    .map((q) => {
+      // Hoisted: feedCounts walks the whole option list, so calling it
+      // inside the per-option map made this O(n^2) per card — and it
+      // re-runs after every vote.
+      const counts = feedCounts(q);
+      return {
+        id: q.id,
+        cat: q.topic || "culture",
+        type: "vote",
+        prompt: q.prompt,
+        options: q.options.map((label, i) => ({ label, count: counts[i] })),
+        live: true,
+        tooSmall: isTooSmall(state.aggs[q.id]),
+      };
+    });
   const tests = state.feedBank
     .filter((q) => q.surface === "test" && q.test)
-    .map((q) => ({
-      id: q.id,
-      cat: "test",
-      type: "vote",
-      test: q.test,
-      prompt: q.prompt,
-      options: q.options.map((label, i) => ({ label, count: feedCounts(q)[i] })),
-      live: true,
-    }));
+    .map((q) => {
+      const counts = feedCounts(q);
+      return {
+        id: q.id,
+        cat: "test",
+        type: "vote",
+        test: q.test,
+        prompt: q.prompt,
+        options: q.options.map((label, i) => ({ label, count: counts[i] })),
+        live: true,
+      };
+    });
   (window as unknown as Record<string, unknown>).WORLD_FEED_QS = feed;
   (window as unknown as Record<string, unknown>).TEST_FEED_QS = tests;
   (window as unknown as Record<string, unknown>).WORLD_FEED_COMMENTS = {};
@@ -614,6 +702,7 @@ const LIVE = {
     return m.linkGoogle();
   },
   async deleteAccount(): Promise<void> {
+    torndown = true;
     const db = await getDb();
     const { getFunctions: gf, httpsCallable: hc } = await import("firebase/functions");
     await hc(gf(db.app, "us-central1"), "deleteAccount")({});
@@ -622,10 +711,16 @@ const LIVE = {
     // (permission-denied) against the deleted account's query.
     try {
       state.groupsUnsub?.();
+      // The agg and reveal snapshot listeners are uid-scoped too, and
+      // their handlers write the caches the purge below is about to clear.
+      Object.values(state.aggUnsubs).forEach((u) => { try { u(); } catch { /* best-effort */ } });
+      Object.values(state.revealUnsubs).forEach((u) => { try { u(); } catch { /* best-effort */ } });
     } catch {
       /* best-effort */
     }
     state.groupsUnsub = null;
+    state.aggUnsubs = {};
+    state.revealUnsubs = {};
     // "There is no undo" must include THIS device: purge every local
     // trace so the next (fresh anonymous) session doesn't resurrect the
     // deleted account's votes, results, or identity — then drop the

@@ -140,6 +140,9 @@ export function computeDeckIds(
   today: number,
   deckDays = DECK_DAYS,
 ): string[] {
+  // Defensive: callers derive this from server data, and a non-array here
+  // would throw inside the Array.from below rather than degrading.
+  if (!Array.isArray(questionIds)) return [];
   const n = questionIds.length;
   if (!n) return [];
   return Array.from({ length: Math.min(deckDays, n) }, (_, back) => {

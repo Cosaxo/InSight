@@ -89,6 +89,33 @@ class WorldFeed extends React.Component {
     this.applySnap(); this._retry = setTimeout(() => this.applySnap(), 400);
     // scenes followed elsewhere (orbit, suggestion card) appear here live
     this._unsubScenes = window.SCENES ? window.SCENES.subscribe(() => this.forceUpdate()) : null;
+    // Reconcile with the live store. The feed seeds its votes from
+    // localStorage at mount and never looked at LIVE again, so a vote the
+    // server REFUSED — LIVE rolls it back and scrubs the WF_LS mirror —
+    // kept showing a result split here until the component remounted.
+    //
+    // Deletion is gated on the id being absent from BOTH the store and the
+    // mirror. Absence from myVotes() alone is not evidence of a rollback:
+    // during a partial hydrate the store is legitimately incomplete, and
+    // trusting it would mass-un-vote the whole feed.
+    this._unsubLive = window.LIVE && window.LIVE.subscribe
+      ? window.LIVE.subscribe(() => {
+        const mine = (window.LIVE.myVotes && window.LIVE.myVotes()) || {};
+        const mirror = wfLoad();
+        this.setState((s) => {
+          let changed = false;
+          const votes = { ...s.votes };
+          for (const id of Object.keys(votes)) {
+            if (mine[id] == null && mirror[id] == null) { delete votes[id]; changed = true; }
+          }
+          for (const [id, v] of Object.entries(mine)) {
+            const n = Number(v);
+            if (!Number.isNaN(n) && votes[id] !== n) { votes[id] = n; changed = true; }
+          }
+          return changed ? { votes } : null;
+        });
+      })
+      : null;
     // entrance: each card rises as it first scrolls into view (transform-only)
     this._io = typeof IntersectionObserver !== 'undefined' ? new IntersectionObserver((es) => {
       es.forEach((e) => { if (e.isIntersecting) { e.target.classList.add('wf-in'); this._io.unobserve(e.target); } });
@@ -99,6 +126,7 @@ class WorldFeed extends React.Component {
     clearTimeout(this._retry);
     clearTimeout(this._sheetT);
     if (this._unsubScenes) this._unsubScenes();
+    if (this._unsubLive) this._unsubLive();
     if (this._io) this._io.disconnect();
     const sc = this._scroller;
     if (sc && this._onScroll) sc.removeEventListener('scroll', this._onScroll);
