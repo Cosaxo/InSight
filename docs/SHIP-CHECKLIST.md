@@ -131,6 +131,24 @@ Both apps must be registered under `com.cosaxo.insight`:
      provisioning profile regenerates with `aps-environment`.
   3. Apple Developer → upload the APNs key to Firebase (step already
      listed above), then verify the reveal flow end-to-end on device.
+- **Reveal membership snapshot — second deploy still owed.** Reveal reads
+  are gated on a group's *current* `memberUids`, so joining a group today
+  exposes every past day's votes and display names, including those of
+  members who have since left. The fix is two deploys, and only the first
+  has shipped:
+  1. **Done** — `revealGroupDay` now writes a `members` array onto each
+     reveal doc (functions/src/v2social.ts).
+  2. **Owed** — once that function is live in production *and* the
+     backfill decision is made for reveals written before it, change the
+     `v2_groups/{gid}/reveals/{day}` read rule to gate on
+     `resource.data.members` instead of the parent group's `memberUids`,
+     and stop surfacing `permission-denied` in the client's reveal
+     listener so a late joiner does not generate a Sentry firehose.
+
+  Do **not** collapse these into one deploy: a released ruleset applies
+  instantly while gen2 functions roll out over minutes, so reveals written
+  in that window would carry no `members` field and be permanently
+  unreadable by their own members.
 - **Storage bucket — confirm empty, then lock down.** `storage.rules` was
   configured in `firebase.json` and deployed by nothing; the deploy
   workflow now applies it as its own step (watch that step's outcome — it

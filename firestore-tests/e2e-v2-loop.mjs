@@ -17,6 +17,20 @@ const fns = getFunctions(app, "us-central1"); connectFunctionsEmulator(fns, "127
 const fail = (msg) => { console.error("✗ " + msg); process.exit(1); };
 const ok = (msg) => console.log("✓ " + msg);
 
+// A bare `try { …; fail() } catch { ok() }` passes on ANY error — a typo, a
+// dropped connection, an emulator that never came up. For a SECURITY
+// assertion that is worse than no test, because it still counts toward the
+// green tally that gates the deploy. Demand the specific denial.
+const expectDenied = async (label, op) => {
+  try {
+    await op();
+  } catch (e) {
+    if (e?.code === "permission-denied") return ok(label);
+    return fail(`${label} — expected permission-denied, got ${e?.code || e}`);
+  }
+  fail(`${label} — the operation was ALLOWED`);
+};
+
 // 1 · anonymous-first auth (D3)
 const cred = await signInAnonymously(auth);
 if (!cred.user.uid) fail("anon sign-in");
@@ -57,13 +71,11 @@ if (pub.tooSmall !== true || pub.counts) fail("k-floor breach below MIN_N: " + J
 ok("below floor: public agg is tooSmall-only (no counts leaked)");
 
 // 6 · duplicate answer is refused (immutability backs the plain increment)
-try {
-  await setDoc(doc(db, "v2_users", uid, "answers", q0.id), {
+await expectDenied("duplicate answer refused by rules", () =>
+  setDoc(doc(db, "v2_users", uid, "answers", q0.id), {
     qid: q0.id, surface: "daily", optionIdx: 0,
     answeredAt: serverTimestamp(), anchors: {},
-  });
-  fail("duplicate answer was allowed");
-} catch { ok("duplicate answer refused by rules"); }
+  }));
 
 // 7 · four more voters cross the floor — counts appear, exact and correct.
 // Each voter gets an isolated app instance: reusing one auth while
@@ -114,10 +126,8 @@ const duel = (idx, guess) => ({
 });
 await setDoc(doc(db, "v2_users", uid, "answers", aid), duel(1, 2));
 // partner must NOT see the sealed answer pre-reveal
-try {
-  await getDoc(doc(pDb, "v2_users", uid, "answers", aid));
-  fail("partner read a sealed answer");
-} catch { ok("sealed answer unreadable to partner pre-reveal"); }
+await expectDenied("sealed answer unreadable to partner pre-reveal", () =>
+  getDoc(doc(pDb, "v2_users", uid, "answers", aid)));
 await setDoc(doc(pDb, "v2_users", partner.user.uid, "answers", aid), duel(2, 1));
 
 const revealed = await httpsCallable(fns, "revealDuelsNowV2")({ day: YESTER });
@@ -133,15 +143,48 @@ const gsnap = await getDoc(doc(db, "v2_groups", gid));
 if (gsnap.get("streak") !== 1) fail("streak != 1: " + gsnap.get("streak"));
 ok("duo streak = 1");
 
-// answering a revealed day is refused
-try {
-  const lApp = initializeApp({ projectId: "demo-insight", apiKey: "demo", appId: "demo" }, "late");
-  const lAuth = getAuth(lApp); connectAuthEmulator(lAuth, "http://127.0.0.1:9099", { disableWarnings: true });
-  const lDb = getFirestore(lApp); connectFirestoreEmulator(lDb, "127.0.0.1", 8080);
-  await signInAnonymously(lAuth); // not a member anyway, but belt+braces
-  await setDoc(doc(lDb, "v2_users", (lAuth.currentUser || {}).uid || "x", "answers", aid), duel(0, 0));
-  fail("post-reveal/non-member answer was allowed");
-} catch { ok("post-reveal + non-member answering refused"); }
+// 9 · non-membership and post-reveal are SEPARATE denials. The old single
+// check conflated them with a uid fallback of "x", so it had three
+// independent reasons to fail and proved none of them.
+
+// 9a · a non-member cannot answer, even on a day that is still open.
+const OTHERDAY = new Date(Date.now() - 3 * 86400000).toISOString().slice(0, 10);
+const outApp = initializeApp({ projectId: "demo-insight", apiKey: "demo", appId: "demo" }, "outsider");
+const outAuth = getAuth(outApp); connectAuthEmulator(outAuth, "http://127.0.0.1:9099", { disableWarnings: true });
+const outDb = getFirestore(outApp); connectFirestoreEmulator(outDb, "127.0.0.1", 8080);
+const outsider = await signInAnonymously(outAuth);
+await expectDenied("non-member cannot answer an open duel day", () =>
+  setDoc(doc(outDb, "v2_users", outsider.user.uid, "answers", `g_${gid}_${OTHERDAY}`), {
+    qid: "group-gu0", surface: "duo", optionIdx: 0, guessIdx: 0,
+    gid, day: OTHERDAY, answeredAt: serverTimestamp(), anchors: {},
+  }));
+
+// 9b · a REAL member cannot answer a day that is already revealed — the
+// property D5 actually rests on. Needs a group (mode "group" reveals on
+// one answer, unlike a duo's both-or-nothing) so a genuine member is left
+// un-answered at reveal time.
+const gCreated = await httpsCallable(fns, "createGroupV2")({ name: "Late Crew", mode: "group" });
+const lateGid = gCreated.data.gid;
+const lateApp = initializeApp({ projectId: "demo-insight", apiKey: "demo", appId: "demo" }, "latecomer");
+const lateAuth = getAuth(lateApp); connectAuthEmulator(lateAuth, "http://127.0.0.1:9099", { disableWarnings: true });
+const lateDb = getFirestore(lateApp); connectFirestoreEmulator(lateDb, "127.0.0.1", 8080);
+const lateFns = getFunctions(lateApp, "us-central1"); connectFunctionsEmulator(lateFns, "127.0.0.1", 5001);
+const latecomer = await signInAnonymously(lateAuth);
+await httpsCallable(lateFns, "joinGroupV2")({ code: gCreated.data.inviteCode });
+
+const lateAid = `g_${lateGid}_${OTHERDAY}`;
+const groupAnswer = (idx) => ({
+  qid: "group-gu0", surface: "group", optionIdx: idx,
+  gid: lateGid, day: OTHERDAY, answeredAt: serverTimestamp(), anchors: {},
+});
+// only the creator plays; the latecomer deliberately does not
+await setDoc(doc(db, "v2_users", uid, "answers", lateAid), groupAnswer(1));
+const lateReveal = await httpsCallable(fns, "revealDuelsNowV2")({ day: OTHERDAY });
+if (lateReveal.data.revealed < 1) fail("group day did not reveal on one answer");
+if (!(await getDoc(doc(lateDb, "v2_groups", lateGid, "reveals", OTHERDAY))).exists())
+  fail("group reveal doc missing");
+await expectDenied("member cannot answer a day already revealed", () =>
+  setDoc(doc(lateDb, "v2_users", latecomer.user.uid, "answers", lateAid), groupAnswer(0)));
 
 // duel answers must NOT leak into world aggregates
 const duelAgg = await getDoc(doc(db, "v2_question_aggs", "group-gu0"));

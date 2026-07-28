@@ -85,6 +85,13 @@ const asAnonAuth = (uid = "anon1"): Firestore =>
     firebase: { sign_in_provider: "anonymous" },
   }).firestore();
 
+// Day keys are UTC, and duel answers must fall inside a window around
+// request.time — so every date in this suite is relative to the run, never a
+// literal. A hardcoded date passes until it ages out of the window, then
+// fails for a reason unrelated to the rule under test.
+const dayOffset = (n: number): string =>
+  new Date(Date.now() + n * 86400000).toISOString().slice(0, 10);
+
 // What an attacker gets for free. Every assertion here is reachable with a
 // scripted anonymous sign-in and no further access — so this describe is the
 // honest inventory of the app's outer trust boundary, and the place to look
@@ -360,7 +367,7 @@ describe("v2 answers (owner-only, create-only — D5)", () => {
     // 21-32 permanently unpickable, surfaced as a generic write failure.
     const GID = "g_big";
     const members = Array.from({ length: 32 }, (_, i) => `m${i}`);
-    const DAY = "2026-07-20";
+    const DAY = dayOffset(-1);
     await seed(async (db) => {
       await setDoc(doc(db, "v2_questions", "group-pick0"), {
         surface: "group", seq: 0, type: "pick", prompt: "Who?", options: [],
@@ -404,7 +411,7 @@ describe("v2 answers (owner-only, create-only — D5)", () => {
 
 describe("v2 groups + sealed duels (Phase 3)", () => {
   const GID = "g1";
-  const DAY = "2026-07-26";
+  const DAY = dayOffset(-1);
   const seedGroup = (members: string[] = [OWNER, FRIEND]) => seed(async (db) => {
     await setDoc(doc(db, "v2_groups", GID), {
       name: "The Crew", mode: "duo", ownerUid: OWNER,
@@ -447,6 +454,27 @@ describe("v2 groups + sealed duels (Phase 3)", () => {
     // sealed answers stay owner-only before the reveal
     await assertFails(getDoc(
       doc(asUser(FRIEND), "v2_users", OWNER, "answers", aid)));
+  });
+
+  it("the duel day must be near now — no pre-sealing the future, no deep backfill", async () => {
+    // Without this, a member could seal every future day in advance:
+    // their half of the streak guaranteed forever, and the bank question
+    // each future reveal would use fixed by whoever wrote first.
+    await seedGroup();
+    const at = (n: number) => {
+      const day = dayOffset(n);
+      return setDoc(
+        doc(asUser(OWNER), "v2_users", OWNER, "answers", `g_${GID}_${day}`),
+        duelAnswer({ day }),
+      );
+    };
+    await assertSucceeds(at(0));    // today
+    await assertSucceeds(at(-1));   // yesterday — the normal reveal target
+    await assertSucceeds(at(-3));   // a client flushing an offline queue
+    await assertSucceeds(at(1));    // UTC+14 is already "tomorrow"
+    await assertFails(at(-8));      // deep backfill
+    await assertFails(at(8));       // pre-sealing the future
+    await assertFails(at(400));
   });
 
   it("answering a day that is already revealed is refused", async () => {

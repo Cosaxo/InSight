@@ -135,6 +135,26 @@ service cloud.firestore {
             && request.resource.data.gid is string
             && request.resource.data.day is string
             && request.resource.data.day.matches('[0-9]{4}-[0-9]{2}-[0-9]{2}')
+            // …and that day must be near NOW. Format-checking alone let a
+            // member pre-seal every future day — guaranteeing their half of
+            // the streak forever and fixing which bank question each future
+            // reveal would use — or backfill any unrevealed past day.
+            //
+            // Bounds are deliberately loose, because a refusal here surfaces
+            // as a vote that vanishes. Back: 4d, so a client flushing a
+            // queue after ~3 days offline still lands whatever the hour.
+            // Forward: 2d, because day keys are UTC while "today" is local,
+            // and UTC+14 is already tomorrow.
+            && timestamp.date(
+                 int(request.resource.data.day[0:4]),
+                 int(request.resource.data.day[5:7]),
+                 int(request.resource.data.day[8:10]))
+               > request.time - duration.value(4, 'd')
+            && timestamp.date(
+                 int(request.resource.data.day[0:4]),
+                 int(request.resource.data.day[5:7]),
+                 int(request.resource.data.day[8:10]))
+               < request.time + duration.value(2, 'd')
             && aid == "g_" + request.resource.data.gid + "_" + request.resource.data.day
             && request.auth.uid in get(/databases/$(database)/documents/v2_groups/$(request.resource.data.gid)).data.memberUids
             && !exists(/databases/$(database)/documents/v2_groups/$(request.resource.data.gid)/reveals/$(request.resource.data.day))

@@ -266,6 +266,19 @@ async function revealGroupDay(
       qid,
       votes,
       names,
+      // Membership AT REVEAL TIME. Reveal reads are currently gated on the
+      // group's CURRENT memberUids, so joining a group today exposes every
+      // past day's votes and display names — including those of members who
+      // have since left. This is the one v2 rule that leaks one user's
+      // answers to another.
+      //
+      // Deploy ordering matters: this payload must be live BEFORE the rules
+      // gate on it. A released ruleset applies instantly while gen2
+      // functions roll out over minutes, so shipping both together would
+      // leave reveals written in that window with no `members` field and
+      // therefore permanently unreadable by their own members. Hence this
+      // lands alone; the rules change is a separate, later deploy.
+      members,
       revealedAt: FieldValue.serverTimestamp(),
     });
   } catch (err) {
