@@ -79,11 +79,35 @@ docs/              DECISIONS · SCHEMA-V2 · DEPLOYMENT · LOCAL-TESTING ·
 
 ## Testing & CI
 
-- `npm run test:rules` — 19 security-rules tests against the emulator.
-- `firestore-tests/e2e-v2-loop.mjs` — the 14-step SDK end-to-end (seed →
-  vote → k-floor → duel lifecycle) under `emulators:exec`.
-- Push to `main` touching `functions/**` or `firestore.rules` auto-deploys
-  via GitHub Actions ([`docs/DEPLOYMENT.md`](./docs/DEPLOYMENT.md)).
+Local:
+
+- `npm run test:unit` — client + pure deck logic (vitest, no emulator).
+- `npm run test --prefix functions` — the k-anon floor, reveal and streak math.
+- `npm run test:rules` — 29 security-rules tests (Firestore + Storage)
+  against the emulator.
+- `npm run test:e2e` — the v2 core loop under `emulators:exec`: anon auth →
+  seed → vote → aggregate trigger → k-floor → duel create/join/seal/reveal.
+- `npm run test:e2e:erasure` — deleteAccount, with leftovers observed via
+  the admin SDK (rules bypassed, so "gone" means gone).
+- `npm run check:globals` — the spec layer's shared-global wiring.
+- `npm run check:versions` / `check:bundle` / `check:deploy-targets` —
+  version lockstep across the three projects, the bundle budget, and every
+  exported function appearing in the deploy list.
+
+CI ([`.github/workflows/`](./.github/workflows/)):
+
+- **`backend-checks.yml`** holds the functions build + tests, rules tests
+  and both e2e suites. It is a reusable workflow called by *both* `ci.yml`
+  and `firebase-deploy.yml`, so what guards a PR is exactly what guards
+  production.
+- `ci.yml` adds the client-only gates (lint, globals, versions, typecheck +
+  bundle budget, unit tests), an advisory `npm audit`, a Capacitor
+  sync-drift warning and an Android `assembleDebug`. None of these sit on
+  the deploy path — they must not be able to block an emergency rules fix.
+- `security-audit.yml` runs the audit weekly, blocking, and files an issue.
+- Push to `main` touching `functions/**`, `firestore.rules` or
+  `storage.rules` auto-deploys once `backend-checks` is green
+  ([`docs/DEPLOYMENT.md`](./docs/DEPLOYMENT.md)).
 
 ## Shipping
 

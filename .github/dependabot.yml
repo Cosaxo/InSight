@@ -6,3 +6,33 @@ updates:
     directory: /
     schedule:
       interval: weekly
+
+  # The app tree. This was missing entirely, which is how three advisories
+  # accumulated in a repo whose dependabot file existed and looked
+  # configured.
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    ignore:
+      # firebase-tools is the emulator toolchain the rules suite, the e2e
+      # loop and the deploy all run through. A major bump changes emulator
+      # behaviour and Java requirements (15 already needed Temurin 21), so
+      # it moves deliberately, not on a Monday morning.
+      - dependency-name: firebase-tools
+        update-types: [version-update:semver-major]
+      # Exact-pinned on purpose — see package.json. Let a human choose.
+      - dependency-name: "@sentry/react"
+      - dependency-name: "@firebase/rules-unit-testing"
+    # Deliberately NOT grouped: a single "all dev dependencies" PR is the
+    # one nobody reviews, and it is exactly where a toolchain regression
+    # would hide.
+
+  # The deployed backend. Separate tree, separate lockfile — and the one
+  # where an advisory is actually reachable at runtime.
+  - package-ecosystem: npm
+    directory: /functions
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 3

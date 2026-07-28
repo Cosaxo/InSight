@@ -22,8 +22,22 @@ Firebase project `prvfire33`. Routine backend changes need no manual deploy.
   write `functions/.env.prvfire33` -> authenticate to Google Cloud ->
   `firebase deploy`.
 - **Safety properties** (all three are load-bearing; don't drop them):
-  - `needs: test` — the deploy waits on the Firestore rules suite, so a
-    rules edit cannot reach production untested.
+  - `needs: test` — where `test` calls
+    [`backend-checks.yml`](../.github/workflows/backend-checks.yml), the
+    same reusable workflow `ci.yml` runs on every PR: the functions build
+    **and its unit tests**, the Firestore + Storage rules suites, the v2
+    core-loop e2e and the erasure e2e. What guards a PR is exactly what
+    guards production.
+
+    This used to be the rules suite alone, so a push that broke
+    `meetsKFloor`, the duel-reveal path or account deletion deployed while
+    CI went red in parallel.
+
+    Deliberately **not** on this path: lint, the bundle budget, the
+    Android build and the `npm audit`. None of them says anything about
+    backend correctness, and each could block an emergency rules fix — the
+    audit especially, since it is a live registry call whose result
+    changes without the code changing.
   - `environment: production` — scopes the secret and variables, and is
     where required reviewers or a wait timer would attach.
   - `concurrency: cancel-in-progress: false` — a queued push waits for the
@@ -152,7 +166,35 @@ minted per run. Console-side setup (one-time, needs a GCP admin):
    (SHA-pinned) with `workload_identity_provider` + `service_account`,
    and delete the secret.
 
-Until then the key stays — rotate it periodically and re-check the
+**Cut over in this order.** Do WIF *first*, and keep the
+`FIREBASE_SERVICE_ACCOUNT` secret and its key-writing step in place as a
+fallback until WIF has completed one real deploy. Delete the secret only
+afterwards. Reversing that order means discovering a misconfigured
+provider with no way to ship.
+
+### Narrowing the IAM roles is a separate change
+
+Do not fold role narrowing into the WIF cutover — two variables, one
+deploy, and a failure tells you nothing about which. Schedule it
+separately and validate against a throwaway project first, because a
+deploy that fails on a missing permission fails *partway through*.
+
+Two things worth knowing before it is attempted:
+
+- **Dropping `Editor` is not a data-access reduction on its own.** The
+  account also holds `Firebase Admin`, which carries Firestore data
+  access. Removing `Editor` while keeping `Firebase Admin` narrows what
+  the credential can do to the *project*, not to the *data*. If the goal
+  is "a leaked deploy key cannot read every answer", `firebase.admin` has
+  to go too — and then the deploy needs a rules/functions-specific set
+  instead.
+- **The gen-2 minimum is wider than it looks.** Deploying gen-2 functions
+  touches Cloud Run, Eventarc, Cloud Scheduler, Pub/Sub, Cloud Build,
+  Artifact Registry and the runtime service account. A role list assembled
+  from "it deploys rules and functions" will be missing several of these,
+  and the failure surfaces mid-apply.
+
+Until both land the key stays — rotate it periodically and re-check the
 key/role mismatch trap below.
 
 ## Troubleshooting notes (issues hit during setup)
