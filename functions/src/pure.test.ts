@@ -21,6 +21,7 @@ import {
   foldAnchors,
   publishableBreakdown,
   BREAKDOWN_MAX_BUCKETS,
+  shouldPublishAgg,
 } from "./pure";
 
 // ── invite codes ────────────────────────────────────────────────
@@ -366,5 +367,46 @@ describe("per-anchor breakdowns", () => {
     const out = publishableBreakdown(by, 5);
     out.gender.Women["0"] = 999;
     expect(by.gender.Women["0"]).toBe(9);
+  });
+});
+
+describe("public-mirror publish cadence", () => {
+  // AGG_MIN_N / PUBLISH_EVERY as shipped
+  const pub = (total: number) => shouldPublishAgg(total, 5, 5);
+
+  it("publishes nothing below the floor", () => {
+    for (let t = 0; t < 5; t++) expect(pub(t)).toBe(false);
+  });
+
+  it("publishes on the floor crossing and then every 5th answer", () => {
+    expect(pub(5)).toBe(true);
+    expect(pub(10)).toBe(true);
+    expect(pub(15)).toBe(true);
+    expect(pub(100)).toBe(true);
+  });
+
+  // The property that closes the disclosure channel: between any two
+  // publishes at least `every` answers land, so no observed step is one
+  // person. Checked as a gap measurement rather than by spot values —
+  // a spot check would survive a policy that publishes per answer above
+  // some threshold, which is exactly the bug this replaced.
+  it("never lets two publishes be fewer than 5 answers apart, at any size", () => {
+    let last = -1;
+    let smallestGap = Infinity;
+    for (let t = 1; t <= 2000; t++) {
+      if (!pub(t)) continue;
+      if (last > 0) smallestGap = Math.min(smallestGap, t - last);
+      last = t;
+    }
+    expect(smallestGap).toBe(5);
+  });
+
+  it("degrades safely if the floor is not a multiple of the cadence", () => {
+    // first publish simply waits for the next multiple — later, never leakier
+    expect(shouldPublishAgg(7, 7, 5)).toBe(false);
+    expect(shouldPublishAgg(10, 7, 5)).toBe(true);
+    // and a cadence of 1 is "publish every answer", the old behaviour,
+    // kept expressible so a future operator choosing it does so knowingly
+    expect(shouldPublishAgg(6, 5, 1)).toBe(true);
   });
 });

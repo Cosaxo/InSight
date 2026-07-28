@@ -87,13 +87,42 @@ is a lot of new machinery — and new failure modes — to remove a ceiling
 of ~5–10k DAU per question for an app with zero users.
 
 **What was done instead** (cheap, no new moving parts): the public mirror
-is no longer rewritten on every answer once a question is past 50 answers
-— above that it publishes every 5th, cutting writes to `pubRef` by ~80%.
-Below 50 it still writes every time, because a question with 12 answers
-has no contention to relieve and an inexact count there is visible.
-`v2_aggs_private` keeps the exact running total either way, so nothing is
-lost; the public number can lag by at most 4 answers, and only where it
-is already in the dozens.
+is not rewritten on every answer — it publishes every 5th, cutting writes
+to `pubRef` by ~80%. `v2_aggs_private` keeps the exact running total, so
+nothing is lost; the public number lags by at most 4 answers.
+
+**Amendment (2026-07-28) — the cadence is now uniform, for a second and
+better reason.** It used to be every answer below 50 and every 5th above,
+on the reasoning quoted above: a question with 12 answers has no contention
+to relieve, and an inexact count there is visible. That reasoning was sound
+about contention and wrong about everything else, because it only ever
+considered the write ceiling.
+
+Clients hold an `onSnapshot` on `v2_question_aggs/{qid}`. Rewriting per
+answer streams `{0:2,1:3} → {0:2,1:4} → {0:3,1:4}`, where every step is one
+person's choice, attributable by arrival time. Past the floor that
+discloses every individual vote no matter how large the cohort grows — the
+k-floor defeated by the update cadence rather than by the numbers. And the
+small-question case the old rule carved out is exactly where it is worst,
+because there are few enough voters to guess among.
+
+So the same k now applies to the increment: `shouldPublishAgg` publishes
+only once `PUBLISH_EVERY` further answers have landed, at any size, so each
+observed delta aggregates that many votes. Pinned by unit tests that
+measure the minimum gap between publishes across 2,000 totals rather than
+spot-checking values — a spot check survives "publish per answer below some
+threshold", which is the bug being removed — plus an e2e assertion that an
+11th answer does not move the public document off 10.
+
+Residual, stated rather than papered over: this is k-anonymity, so a reader
+who already knows 4 of the 5 votes in a step can infer the fifth. That is
+the bound the floor itself carries, not a new weakness, and it needs
+collusion with almost everyone in the step.
+
+The cost is real: a question now shows nothing until its 5th answer and
+then moves in steps of 5, so a small room feels less live. That is the
+trade — an attributable count is worse than a lagging one in an app whose
+claim is that its counts are honest and its floors are enforced.
 
 The moment this needs revisiting: when a single question regularly clears
 a few thousand answers a day, or when `onV2AnswerCreated` starts logging

@@ -25,10 +25,10 @@ read/write: owner only (validated key set; Phase 3 adds display carve-outs)
 v2_users/{uid}/answers/{qid}
   qid (== doc id), surface, optionIdx, answeredAt (request.time),
   anchors (snapshot at answer time — owner-only doc, so no leak).
-    RESERVED, NOT YET POPULATED: rules validate the key set and the
-    aggregate trigger folds whatever arrives into per-anchor breakdowns,
-    but every client write sends {} today because nothing collects the
-    fields. See D8 — the collection decision is deliberately open.
+    Populated from the profile's Basics card via LIVE.saveAnchors; the
+    snapshot is taken at vote time so a later profile edit cannot move a
+    past answer into a different cohort. Empty for users who skipped the
+    card, which simply folds into no breakdown cell. See D8.
     (An earlier version of this line claimed a BigQuery extension
     targeted this collection. None is configured, in firebase.json or
     anywhere else; it described an intended path, not a deployed one.)
@@ -48,9 +48,12 @@ v2_aggs_private/{qid}              exact counts — server-only (opaque)
 v2_agg_events/{eventId}            trigger idempotency ledger (opaque)
 v2_question_aggs/{qid}             the PUBLIC mirror, k-floored
   { tooSmall: true }               while total < AGG_MIN_N (5)
-  { counts, total, tooSmall:false } at/above the floor — no fresh
-                                   timestamp, so per-vote timing deltas
-                                   aren't attributable
+  { counts, total, tooSmall:false } at/above the floor, and only on every
+                                   5th answer (shouldPublishAgg) — clients
+                                   hold an onSnapshot, so a per-answer
+                                   rewrite would stream one attributable
+                                   vote per step (D7 amendment). No fresh
+                                   timestamp either, for the same reason
   by { dim: { bucket: {opt:n} } }  the breakdown's OWN floor, per cell,
                                    plus complementary suppression so a
                                    lone hidden cell can't be recovered by
@@ -125,19 +128,23 @@ not per boot. `LIVE.stats` reports `bankSource` / `answersFetched` /
 - `src/v2/data/live.ts` — `window.LIVE`: anonymous-first boot (D3),
   deterministic daily rotation (`dayIndex % bankSize`, local midnight),
   aggregate snapshots per deck question, optimistic votes with rollback,
-  mock fallback on timeout. The daily tab reads `LIVE.deck()` when live;
-  comments/who-voted are hidden for live cards (D1).
+  mock fallback on timeout. The daily tab reads `LIVE.deck()` when live.
+  Live cards show no takes (D1: free text is circle-scoped) but DO show
+  who-voted — that panel is the real per-anchor breakdown, floored per
+  cell and carrying no names, which is "the split, the totals" D1 allows.
 - Auth: `anonSignIn()` / `linkGoogle()` in the firebase layer — Google is
   an account *upgrade* (linking keeps the uid and all answers).
 
 ## Verification
 
-- `npm run test:rules` — 29 rules tests (Firestore + Storage; the v2
+- `npm run test:rules` — 32 rules tests (Firestore + Storage; the v2
   surface, the anonymous-default lens, and the retired-v1 guard).
 - `firestore-tests/e2e-v2-loop.mjs` under
   `firebase emulators:exec --only auth,firestore,functions` — the full
   SDK loop: anon auth → seed → fetch → vote → below-floor tooSmall →
   dup refused → five voters cross the floor → exact public counts →
+  per-anchor breakdown withheld while every cell is sub-floor, then
+  published at 5/5 → an 11th answer does not move the mirror off 10 →
   duo create/join-by-code → sealed answers → reveal with votes+guesses →
   streak → non-member refused → post-reveal answering refused by a real
   member → no aggregate leakage.

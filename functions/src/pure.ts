@@ -326,3 +326,41 @@ export function publishableBreakdown(
   }
   return out;
 }
+
+// ── when the public mirror may be rewritten ─────────────────────
+//
+// The k-floor stops a reader recovering an individual's answer from a tiny
+// cohort. It does NOT, on its own, stop them recovering one from the
+// PUBLISHED DOCUMENT'S HISTORY — and clients hold an onSnapshot on it.
+// Rewriting on every answer streams a sequence like
+//
+//   {0:2, 1:3}  →  {0:2, 1:4}  →  {0:3, 1:4}
+//
+// where every step is exactly one person's choice, attributable by arrival
+// time. Past the floor, that discloses every individual vote regardless of
+// how large the cohort grew — which is the floor's whole purpose, defeated
+// by the update cadence rather than by the numbers.
+//
+// So the same k applies to the INCREMENT, not just the total: a publish
+// happens only once `every` further answers have landed, and each observed
+// delta therefore aggregates that many votes. The document lags by at most
+// `every - 1` answers; the private doc keeps the exact running total, so
+// nothing is lost.
+//
+// Residual, stated rather than papered over: this is k-anonymity, so a
+// reader who already knows `every - 1` of the votes in a step can infer the
+// last one. That is the same bound the floor itself carries, not a new
+// weakness — and it needs collusion with almost everyone in the step.
+//
+// `floor` should be a multiple of `every`, or the first publish waits for
+// the next multiple above it. That is safe (it only delays), so it is not
+// enforced — but it is why AGG_MIN_N and PUBLISH_EVERY are both 5.
+export function shouldPublishAgg(
+  total: number,
+  floor: number,
+  every: number,
+): boolean {
+  if (total < floor) return false;
+  if (every <= 1) return true;
+  return total % every === 0;
+}

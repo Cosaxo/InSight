@@ -113,10 +113,11 @@ if (above.by && above.by.ageBand)
   fail("breakdown published a sub-floor cell: " + JSON.stringify(above.by));
 ok("breakdown: no dimension published while every cell is under the floor");
 
-// 7c · six more voters push both bands over the floor. Ages split 6/5, so the
-// dimension becomes publishable with no cell suppressed; country stays a
+// 7c · five more voters push both bands over the floor. Two into 25-34 and
+// three into 35-44 lands both on exactly 5 at a total of 10 — a publishing
+// multiple under the current cadence (shouldPublishAgg). Country stays a
 // single bucket and must still be withheld.
-for (let m = 0; m < 6; m++) {
+for (let m = 0; m < 5; m++) {
   const vApp = initializeApp({ projectId: "demo-insight", apiKey: "demo", appId: "demo" }, "band" + m);
   const vAuth = getAuth(vApp); connectAuthEmulator(vAuth, "http://127.0.0.1:9099", { disableWarnings: true });
   const vDb = getFirestore(vApp); connectFirestoreEmulator(vDb, "127.0.0.1", 8080);
@@ -124,26 +125,53 @@ for (let m = 0; m < 6; m++) {
   await setDoc(doc(vDb, "v2_users", u.user.uid, "answers", q0.id), {
     qid: q0.id, surface: "daily", optionIdx: 0,
     answeredAt: serverTimestamp(),
-    anchors: { ageBand: m % 2 === 0 ? "25-34" : "35-44", country: "Norway" },
+    anchors: { ageBand: m < 2 ? "25-34" : "35-44", country: "Norway" },
   });
 }
 let split = null;
 for (let i = 0; i < 40; i++) {
   const snap = await getDoc(doc(db, "v2_question_aggs", q0.id));
-  if (snap.exists() && snap.get("total") === 11) { split = snap.data(); break; }
+  if (snap.exists() && snap.get("total") === 10) { split = snap.data(); break; }
   await new Promise((r) => setTimeout(r, 500));
 }
-if (!split) fail("public agg never reached total 11");
+if (!split) fail("public agg never reached total 10");
 if (!split.by || !split.by.ageBand) fail("breakdown missing at 6/5: " + JSON.stringify(split.by));
 const bands = Object.keys(split.by.ageBand).sort();
 if (bands.length !== 2 || bands[0] !== "25-34" || bands[1] !== "35-44")
   fail("wrong age buckets published: " + JSON.stringify(split.by.ageBand));
 const bandTotal = (b) => Object.values(split.by.ageBand[b]).reduce((a, c) => a + c, 0);
-if (bandTotal("25-34") !== 6 || bandTotal("35-44") !== 5)
+if (bandTotal("25-34") !== 5 || bandTotal("35-44") !== 5)
   fail("age bucket totals wrong: " + JSON.stringify(split.by.ageBand));
 if (split.by.country)
   fail("a one-bucket dimension was published: " + JSON.stringify(split.by.country));
-ok("breakdown: ageBand 6/5 published exactly; single-bucket country withheld");
+ok("breakdown: ageBand 5/5 published exactly; single-bucket country withheld");
+
+// 7d · the publish cadence itself. One more answer takes the private total to
+// 11, which is not a publishing multiple — so the PUBLIC doc must stay at 10.
+// Rewriting per answer is what let an onSnapshot reader attribute each step
+// to one person; this is the integration-level guard on that.
+//
+// Bounded wait, and honest about what it proves: a regression to per-answer
+// publishing flips this to 11 within a second, so it catches that. It cannot
+// distinguish "held back" from "trigger has not run yet", which is why the
+// cadence itself is pinned by unit tests over 2000 totals.
+{
+  const vApp = initializeApp({ projectId: "demo-insight", apiKey: "demo", appId: "demo" }, "cadence");
+  const vAuth = getAuth(vApp); connectAuthEmulator(vAuth, "http://127.0.0.1:9099", { disableWarnings: true });
+  const vDb = getFirestore(vApp); connectFirestoreEmulator(vDb, "127.0.0.1", 8080);
+  const u = await signInAnonymously(vAuth);
+  await setDoc(doc(vDb, "v2_users", u.user.uid, "answers", q0.id), {
+    qid: q0.id, surface: "daily", optionIdx: 0,
+    answeredAt: serverTimestamp(), anchors: { ageBand: "25-34", country: "Norway" },
+  });
+  for (let i = 0; i < 8; i++) {
+    await new Promise((r) => setTimeout(r, 400));
+    const snap = await getDoc(doc(db, "v2_question_aggs", q0.id));
+    const t = snap.exists() ? snap.get("total") : null;
+    if (t !== 10) fail("public mirror moved off a publishing multiple: total=" + t);
+  }
+  ok("cadence: 11th answer did not move the public mirror off 10");
+}
 
 // 8 · the duel loop: create → join by code → sealed answers → reveal → streak
 const YESTER = new Date(Date.now() - 86400000).toISOString().slice(0, 10);

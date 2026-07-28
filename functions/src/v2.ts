@@ -21,7 +21,12 @@ import { assertOperator } from "./ops";
 import { onDocumentCreated } from "firebase-functions/v2/firestore";
 import { logger } from "firebase-functions";
 import { V2_QUESTIONS } from "./v2content";
-import { foldAnchors, publishableBreakdown, type BreakdownCounts } from "./pure";
+import {
+  foldAnchors,
+  publishableBreakdown,
+  shouldPublishAgg,
+  type BreakdownCounts,
+} from "./pure";
 
 const REGION = "us-central1";
 
@@ -29,12 +34,25 @@ const REGION = "us-central1";
 // userbase grows; the private doc keeps exact counts either way.
 export const AGG_MIN_N = 5;
 
-// Public-mirror write policy. See the note in onV2AnswerCreated: the
-// per-document write ceiling (~1/sec) is the launch scale limit, and this
-// relieves it without sharding — while keeping counts exact wherever a
-// reader could notice.
-const PUBLISH_EXACT_BELOW = 50; // under this many answers, publish every one
-const PUBLISH_EVERY = 5;        // above it, publish every 5th
+// Public-mirror write cadence: one publish per this many answers, at every
+// size. Two jobs, and it took both to settle the number.
+//
+// Disclosure (the reason it is uniform): clients hold an onSnapshot on the
+// public doc, so rewriting per answer streams one attributable vote per
+// step. Batching means each observed delta aggregates PUBLISH_EVERY votes —
+// the same k the floor uses, applied to the increment. shouldPublishAgg()
+// in pure.ts carries the full argument and the residual.
+//
+// Contention (D7): both docs in the trigger's transaction are keyed by qid,
+// and Firestore sustains ~1 write/sec/document. Publishing every 5th cuts
+// writes to pubRef by ~80% at any volume.
+//
+// It used to be every answer below 50 and every 5th above, on the reasoning
+// that a small question has no contention to relieve and an inexact count
+// there is visible. True, and beside the point: the small-question case is
+// exactly where a per-answer stream is most attributable, because there are
+// few enough voters to guess among.
+const PUBLISH_EVERY = 5;
 
 // ── content seed ────────────────────────────────────────────────
 
@@ -163,34 +181,20 @@ export const onV2AnswerCreated = onDocumentCreated(
       // The public mirror: k-floored, and deliberately without a fresh
       // timestamp — per-vote timing deltas shouldn't be attributable.
       //
-      // Not written on EVERY answer once comfortably above the floor.
-      // Both docs in this transaction are single documents keyed by qid,
-      // and Firestore sustains roughly one write per second per document
-      // — so a genuinely popular daily question is the one thing that
-      // breaks aggregation, and product success is what triggers it
-      // (DECISIONS.md D7 records the arithmetic).
+      // Not written on every answer. The cadence is one publish per
+      // PUBLISH_EVERY answers at ANY size — see the constant above and
+      // shouldPublishAgg() in pure.ts. Two independent reasons land on the
+      // same rule: an observer of this document's history must not be able
+      // to attribute a step to one person, and both docs in this
+      // transaction are single documents keyed by qid against Firestore's
+      // ~1 write/sec/document (D7 records that arithmetic).
       //
-      // Sharding is the real fix and is deliberately NOT done here. This
-      // is the cheap partial, and it is shaped so accuracy is never the
-      // thing that gets traded:
-      //
-      //   - below the floor            → write (publishes tooSmall)
-      //   - under PUBLISH_EXACT_BELOW  → write every answer, EXACT count
-      //   - above it                   → write every 5th answer
-      //
-      // Contention only exists where the write rate is high, and a
-      // question with under ~50 answers has no contention to relieve — so
-      // batching there would trade real accuracy for nothing. Publishing
-      // every 5th only kicks in once the count is large enough that being
-      // at most 4 behind is under 8% and shrinking with every vote.
-      //
-      // privRef always holds the exact running total, so nothing is lost;
-      // the public mirror just lags. No new function, no rules change, no
-      // client change, and the e2e's exact-count assertion at total=5
-      // still holds.
+      // Sharding is the real fix for the write ceiling and is deliberately
+      // NOT done here. privRef always holds the exact running total, so
+      // nothing is lost; the public mirror lags by at most
+      // PUBLISH_EVERY - 1 answers.
       if (total >= AGG_MIN_N) {
-        const exact = total < PUBLISH_EXACT_BELOW;
-        if (exact || total % PUBLISH_EVERY === 0) {
+        if (shouldPublishAgg(total, AGG_MIN_N, PUBLISH_EVERY)) {
           // The breakdown carries its OWN floor, per cell, plus
           // complementary suppression (pure.ts). A question past the
           // overall floor still shows no slice until that slice can be
