@@ -232,6 +232,9 @@ class WorldFeed extends React.Component {
     // live cards persist to Firestore too (owner-only answer + aggregate)
     if (q.live && window.LIVE && typeof val === 'number') window.LIVE.vote(id, String(val));
     if (window.PASSIVE) window.PASSIVE.record(q); // no-op unless this is a test's own question (q.test)
+    // …and the same for a lens question. The scale runs agree→disagree while
+    // the lens stores disagree→agree, hence 4 - val.
+    if (window.LENSES && q.lens) window.LENSES.record({ ...q, value: typeof val === 'number' ? 4 - val : 2 });
     this._fresh = id; // gates the reveal's count-up + bar growth to the vote moment
     // the feed's memory: with the crowd or against it. Local to this device
     // (feed-read.js) — it reports only your own answers, so no floor applies.
@@ -707,21 +710,25 @@ class WorldFeed extends React.Component {
       );
     }
     const tm = q.test && window.PASSIVE ? window.PASSIVE.META[q.test] : null;
-    const T = tm ? { label: tm.label, color: tm.accent } : (WF_TOPIC[q.cat] || { label: q.cat, color: 'var(--ink-3)' });
-    const scene = !tm && q.scene && window.SCENES ? window.SCENES.defs().find((g) => g.id === q.scene) : null;
-    const kickLabel = scene ? scene.name : (tm ? tm.label + ' test' : T.label);
+    // a lens question wears its lens's own name and hue, the same way a test
+    // question wears its test's — otherwise it reads as an off-topic card
+    const lz = !tm && q.lens && window.LENSES ? window.LENSES.get(q.lens) : null;
+    const mk = tm || (lz ? { label: lz.title, accent: `oklch(0.56 0.13 ${lz.hue})` } : null);
+    const T = mk ? { label: mk.label, color: mk.accent } : (WF_TOPIC[q.cat] || { label: q.cat, color: 'var(--ink-3)' });
+    const scene = !mk && q.scene && window.SCENES ? window.SCENES.defs().find((g) => g.id === q.scene) : null;
+    const kickLabel = scene ? scene.name : (tm ? tm.label + ' test' : (lz ? lz.title : T.label));
     const compact = this.props.density === 'compact';
     const answered = this.answered(q);
     const open = !!this.state.open[q.id];
     const collapsed = compact && !open;
     const kicker = (
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7, fontSize: 12.5, fontWeight: 700, letterSpacing: '0.01em', textTransform: 'lowercase', color: tm ? `color-mix(in oklch, ${T.color} 70%, var(--ink))` : 'var(--ink-2)', background: tm ? `color-mix(in oklch, ${T.color} 11%, transparent)` : 'transparent', border: '0.5px solid ' + (tm ? `color-mix(in oklch, ${T.color} 40%, var(--rule))` : 'var(--rule)'), borderRadius: 999, padding: '4px 12px 4px 10px', minWidth: 0 }}><span aria-hidden="true" style={{ width: 6, height: 6, borderRadius: '50%', background: T.color, flexShrink: 0 }}></span>{kickLabel}</span>
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7, fontSize: 12.5, fontWeight: 700, letterSpacing: '0.01em', textTransform: 'lowercase', color: mk ? `color-mix(in oklch, ${T.color} 70%, var(--ink))` : 'var(--ink-2)', background: mk ? `color-mix(in oklch, ${T.color} 11%, transparent)` : 'transparent', border: '0.5px solid ' + (mk ? `color-mix(in oklch, ${T.color} 40%, var(--rule))` : 'var(--rule)'), borderRadius: 999, padding: '4px 12px 4px 10px', minWidth: 0 }}><span aria-hidden="true" style={{ width: 6, height: 6, borderRadius: '50%', background: T.color, flexShrink: 0 }}></span>{kickLabel}</span>
         {window.PassiveTag && <window.PassiveTag q={q} answered={answered}></window.PassiveTag>}
       </div>
     );
     const snap = !compact;
-    const card = { background: 'var(--surface-2)', border: tm ? '1px solid color-mix(in oklch, ' + T.color + ' 32%, var(--rule))' : WF_LINE, borderRadius: 18, boxShadow: 'var(--shadow-card)', padding: collapsed ? '12px 14px' : '16px 15px', display: 'flex', flexDirection: 'column', gap: collapsed ? 8 : 12 };
+    const card = { background: 'var(--surface-2)', border: mk ? '1px solid color-mix(in oklch, ' + T.color + ' 32%, var(--rule))' : WF_LINE, borderRadius: 18, boxShadow: 'var(--shadow-card)', padding: collapsed ? '12px 14px' : '16px 15px', display: 'flex', flexDirection: 'column', gap: collapsed ? 8 : 12 };
     // hero cards carry a whisper of their topic hue so the breathing room reads designed, not blank
     if (!collapsed) card.backgroundImage = 'radial-gradient(120% 80% at 50% -25%, color-mix(in oklch, ' + T.color + ' 8%, transparent), transparent 62%)';
     if (snap) {
@@ -758,7 +765,7 @@ class WorldFeed extends React.Component {
         {/* skip: only before answering, and never on a test/lens question —
             those fill an instrument, so a silent skip would read as a gap in
             your own results rather than a question you passed on */}
-        {!answered && this.opts.pass && !tm && (
+        {!answered && this.opts.pass && !mk && (
           <button className="press" onClick={() => this.setPass(q.id, true)} style={{ alignSelf: 'center', border: 'none', background: 'none', padding: '6px 16px', marginTop: 2, cursor: 'pointer', fontFamily: 'var(--sans)', fontWeight: 500, fontSize: 13, color: 'var(--ink-3)', WebkitAppearance: 'none' }}>skip</button>
         )}
         {snap && <div aria-hidden="true" style={{ flex: '1 1 0' }}></div>}
@@ -803,10 +810,17 @@ class WorldFeed extends React.Component {
     // sort lenses: hot = the interleaved mix · top = most votes · new = latest first
     const sort = this.state.sort;
     const sorted = sort === 'top' ? [...qs].sort((a, b) => wfVotes(b) - wfVotes(a)) : sort === 'new' ? [...qs].reverse() : mixed;
-    // weave in the tests' own questions — one marked card every few feed items
+    // weave in the tests' own questions — one marked card every few feed
+    // items — and the lenses' questions behind them at half that rate. The
+    // core tests own the feed; lenses trickle.
     const tqs = window.TEST_FEED_QS || [];
-    const feedList = []; let ti = 0;
-    sorted.forEach((q, i) => { feedList.push(q); if ((i + 1) % 4 === 0 && ti < tqs.length) feedList.push(tqs[ti++]); });
+    const lqs = window.LENS_FEED_QS || [];
+    const feedList = []; let ti = 0, li = 0;
+    sorted.forEach((q, i) => {
+      feedList.push(q);
+      if ((i + 1) % 4 === 0 && ti < tqs.length) feedList.push(tqs[ti++]);
+      else if ((i + 1) % 8 === 0 && li < lqs.length) feedList.push(lqs[li++]);
+    });
     const nDone = qs.filter((q) => this.answered(q)).length;
     // chip row = your scenes, then the always-on channels
     const chips = [

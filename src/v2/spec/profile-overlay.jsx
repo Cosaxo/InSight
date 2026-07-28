@@ -22,6 +22,9 @@ function ProfileOverlay({ onClose, me }) {
     { id: 'politics',   label: 'Politics' },
     { id: 'values',     label: 'Values' },
     { id: 'attachment', label: 'Social' },
+    // the minor instruments. Last on purpose: the four core tests are the
+    // profile, lenses are the footnotes that explain it.
+    { id: 'lenses',     label: 'Lenses' },
   ];
   // remember the last-visited subtab, so returning from a tracker lands back on it
   const validSub = (id) => SUBTABS.some(s => s.id === id) ? id : 'general';
@@ -141,6 +144,7 @@ function ProfileOverlay({ onClose, me }) {
           {sub === 'politics' && <><PoliticsPanel /><TestCTA k="political" /></>}
           {sub === 'values' && <><ValuesPanel /><TestCTA k="values" /></>}
           {sub === 'attachment' && <><AttachmentPanel /><TestCTA k="attachment" /></>}
+          {sub === 'lenses' && window.LensesPanel && <window.LensesPanel />}
         </div>
       </div>
     </div>

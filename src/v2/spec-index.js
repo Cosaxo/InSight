@@ -43,6 +43,10 @@ import './spec/search-overlay.jsx';
 import './spec/test-definitions.js';
 import './spec/passive-progress.js';
 import './spec/test-feed-data.js';
+// lens-defs builds LENS_FEED_QS at module scope off window.LENSES, so it has
+// to land after the core tests it deliberately trails in the feed.
+import './spec/lens-defs.js';
+import './spec/lens-cards.jsx';
 import './spec/passive-meter.jsx';
 import './spec/test-overlay.jsx';
 import './spec/profile-overlay.jsx';
