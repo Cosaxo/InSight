@@ -15,6 +15,9 @@ import ReactDOM from 'react-dom';
 const WF_LS = 'insight.feedVotes.v1';
 const WF_REPLIES_LS = 'insight.feedReplies.v1';
 const WF_TAKES_LS = 'insight.feedTakes.v1';
+const WF_PASS_LS = 'insight.feedPass.v1';
+// where a vote lands on your Mirror — the ripple line shown after answering
+const WF_BRANCH = { food: 'Food', sport: 'Body', movies: 'Taste', music: 'Taste', tech: 'Mind', culture: 'Values', dilemma: 'Morals', event: 'Mind', people: 'Values', bigq: 'Values' };
 const WF_TOPICS = window.WORLD_TOPICS || [];
 const WF_TOPIC = Object.fromEntries(WF_TOPICS.map((t) => [t.id, t]));
 const WF_CHANNELS = window.WORLD_CHANNELS || [];
@@ -30,6 +33,15 @@ function wfLoadReplies() {
   try { const v = JSON.parse(localStorage.getItem(WF_REPLIES_LS) || '{}'); return v && typeof v === 'object' ? v : {}; }
   catch (e) { return {}; }
 }
+// small id->value maps kept in localStorage (passes today; the predict
+// stage's guesses when that ships)
+function wfLoadMap(key) {
+  try {
+    const v = JSON.parse(localStorage.getItem(key) || '{}');
+    return v && typeof v === 'object' ? v : {};
+  } catch { return {}; }
+}
+
 function wfLoadTakes() {
   try { const v = JSON.parse(localStorage.getItem(WF_TAKES_LS) || '{}'); return v && typeof v === 'object' ? v : {}; }
   catch (e) { return {}; }
@@ -85,7 +97,20 @@ const WF_GROUPS = { age: ['18–24', '25–34', '35–44', '45+'], gender: ['Wom
 const WF_FRIENDS = [{ name: 'Alex', init: 'A' }, { name: 'Mia', init: 'M' }, { name: 'Jordi', init: 'J' }, { name: 'Sara', init: 'S' }, { name: 'Noah', init: 'N' }, { name: 'Elif', init: 'E' }];
 
 class WorldFeed extends React.Component {
-  state = { votes: wfLoad(), pending: {}, open: {}, panels: {}, dims: {}, boosts: {}, vh: 0, beat: null, sheet: null, sideFilter: null, replyTo: null, replies: wfLoadReplies(), myTakes: wfLoadTakes(), headHide: false, sort: 'hot' };
+  state = { votes: wfLoad(), pending: {}, open: {}, panels: {}, dims: {}, boosts: {}, vh: 0, beat: null, sheet: null, sideFilter: null, replyTo: null, replies: wfLoadReplies(), myTakes: wfLoadTakes(), headHide: false, sort: 'hot', passed: wfLoadMap(WF_PASS_LS), ripple: null, patternTick: 0 };
+
+  // Feature flags, carried over from the v13 prototype so each idea can be
+  // switched off from the host without editing this file. Default ON; the
+  // host passes `opts={{ pattern: false }}` to silence one.
+  //
+  // Only the flags whose feature actually ships live here. The prototype also
+  // carries predict/counter/crossfire/signals/why — those need either a rules
+  // change or a reversal of D1, so they are absent rather than dead.
+  get opts() {
+    const o = this.props.opts || {};
+    const on = (k) => o[k] !== false;
+    return { strip: on('strip'), ripple: on('ripple'), pass: on('pass'), pattern: on('pattern') };
+  }
 
   // ── snap scrolling: cards arrive one at a time and snap into place ──
   // The tab's scroller gets y-proximity snap while the feed is mounted; each
@@ -94,6 +119,10 @@ class WorldFeed extends React.Component {
     this.applySnap(); this._retry = setTimeout(() => this.applySnap(), 400);
     // scenes followed elsewhere (orbit, suggestion card) appear here live
     this._unsubScenes = window.SCENES ? window.SCENES.subscribe(() => this.forceUpdate()) : null;
+    // the answer strip and the pattern card both read FEEDREAD, which another
+    // surface can also write to — subscribe rather than relying on our own
+    // setVote being the only writer.
+    this._unsubRead = window.FEEDREAD ? window.FEEDREAD.subscribe(() => this.forceUpdate()) : null;
     // Reconcile with the live store. The feed seeds its votes from
     // localStorage at mount and never looked at LIVE again, so a vote the
     // server REFUSED — LIVE rolls it back and scrubs the WF_LS mirror —
@@ -130,7 +159,9 @@ class WorldFeed extends React.Component {
   componentWillUnmount() {
     clearTimeout(this._retry);
     clearTimeout(this._sheetT);
+    clearTimeout(this._rippleT);
     if (this._unsubScenes) this._unsubScenes();
+    if (this._unsubRead) this._unsubRead();
     if (this._unsubLive) this._unsubLive();
     if (this._io) this._io.disconnect();
     const sc = this._scroller;
@@ -183,17 +214,48 @@ class WorldFeed extends React.Component {
     }
   }
 
+  // skip a card. Local only, and it must stay that way: answers are
+  // create-only and immutable server-side (D5), and a pass is not an answer —
+  // recording one would either pollute the aggregate or need a second
+  // write path per question for something the user asked to ignore.
+  setPass(id, on) {
+    this.setState((s) => {
+      const passed = { ...s.passed };
+      if (on) passed[id] = 1; else delete passed[id];
+      try { localStorage.setItem(WF_PASS_LS, JSON.stringify(passed)); } catch { /* best-effort */ }
+      return { passed };
+    });
+  }
+
   setVote(q, val) {
     const id = q.id;
     // live cards persist to Firestore too (owner-only answer + aggregate)
     if (q.live && window.LIVE && typeof val === 'number') window.LIVE.vote(id, String(val));
     if (window.PASSIVE) window.PASSIVE.record(q); // no-op unless this is a test's own question (q.test)
     this._fresh = id; // gates the reveal's count-up + bar growth to the vote moment
+    // the feed's memory: with the crowd or against it. Local to this device
+    // (feed-read.js) — it reports only your own answers, so no floor applies.
+    if (window.FEEDREAD && q.options && typeof val === 'number') {
+      const counts = q.options.map((o) => o.count);
+      const { p } = wfPcts(counts, val);
+      window.FEEDREAD.log(id, { maj: p[val] === Math.max(...p), pred: null });
+    }
+    // the ripple — where this vote landed on your Mirror. Deliberately on
+    // ~45% of answers, chosen by a hash of the id so it is stable per
+    // question rather than random per render: every card saying it makes it
+    // wallpaper, and a re-render must not make it flicker.
+    const rip = this.opts.ripple && wfHash(id + ':rip') < 0.45 ? id : null;
+    if (rip) {
+      clearTimeout(this._rippleT);
+      this._rippleT = setTimeout(() => {
+        if (this.state.ripple === rip) this.setState({ ripple: null });
+      }, 3200);
+    }
     this.setState((s) => {
       const votes = { ...s.votes, [id]: val };
       try { localStorage.setItem(WF_LS, JSON.stringify(votes)); } catch { /* best-effort */ }
       const beat = (this.props.beats !== false && window.ConsequenceBeat) ? id : s.beat;
-      return { votes, beat };
+      return { votes, beat, ripple: rip || s.ripple };
     });
   }
 
@@ -590,7 +652,60 @@ class WorldFeed extends React.Component {
     );
   }
 
+  // ── the answer strip ── your last nine answers, filled = with the crowd.
+  // Wears the chip rail's own shape on purpose: loose dots sitting at the
+  // rail's edge read as a glyph that failed to load.
+  renderStrip() {
+    if (!this.opts.strip || !window.FEEDREAD) return null;
+    const st = window.FEEDREAD.stats();
+    if (st.n < 3) return null; // one or two rings read as a broken glyph, not a history
+    return (
+      <span className="wf-chip" title="Your last answers — filled = with the crowd" aria-label={'Your last ' + st.recent.length + ' answers, ' + st.withMaj + ' with the crowd'} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, border: '0.5px solid var(--rule)', background: 'var(--surface-2)', borderRadius: 999, padding: '6px 11px', flexShrink: 0 }}>
+        {st.recent.map((r, i) => <span key={i} aria-hidden="true" style={{ width: 7, height: 7, borderRadius: '50%', boxSizing: 'border-box', background: r.maj ? 'var(--ink-2)' : 'transparent', border: '1.2px solid var(--ink-2)', opacity: 0.7 }}></span>)}
+      </span>
+    );
+  }
+
+  // ── the pattern beat ── every so often the feed says what it has noticed.
+  // Confirm or shrug; either way it retires, so this can never nag.
+  //
+  // Every line is derived from your own answers only (feed-read.js). Nothing
+  // here describes another user, so there is no floor to apply.
+  patternCard() {
+    if (!this.opts.pattern || !window.FEEDREAD) return null;
+    const st = window.FEEDREAD.stats();
+    if (st.n < 4) return null;
+    let key = null, line = null;
+    if (st.streak >= 3) { key = 'contra' + st.streak; line = st.streak + ' in a row against the crowd.'; }
+    else if (st.majStreak >= 4) { key = 'with' + st.majStreak; line = 'You’ve matched the crowd ' + st.majStreak + ' times running.'; }
+    else if (st.n >= 6) { key = 'rate' + Math.round(st.rate * 5); line = st.rate >= 0.6 ? 'You sit with the majority most days.' : 'You’re the odd one out more often than not.'; }
+    if (!key || window.FEEDREAD.dismissed(key)) return null;
+    const btn = (label, solid) => (
+      <button key={label} className="press" onClick={() => { window.FEEDREAD.dismiss(key); this.setState((s) => ({ patternTick: s.patternTick + 1 })); }} style={{ border: solid ? 'none' : '1px solid color-mix(in oklch, var(--surface) 45%, transparent)', borderRadius: 999, padding: '9px 16px', cursor: 'pointer', fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 13, background: solid ? 'var(--surface)' : 'transparent', color: solid ? 'var(--ink)' : 'var(--surface)', WebkitAppearance: 'none' }}>{label}</button>
+    );
+    return (
+      <div key="pattern" style={{ background: 'var(--ink)', color: 'var(--surface)', borderRadius: 18, padding: '18px 18px 16px', display: 'flex', flexDirection: 'column', gap: 14 }}>
+        <div style={{ fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 22, lineHeight: 1.14, letterSpacing: -0.5, textWrap: 'pretty' }}>{line}</div>
+        <div style={{ display: 'flex', gap: 6 }}>
+          {st.recent.map((r, i) => <span key={i} aria-hidden="true" style={{ width: 10, height: 10, borderRadius: '50%', boxSizing: 'border-box', background: r.maj ? 'var(--surface)' : 'transparent', border: '1.5px solid var(--surface)' }}></span>)}
+        </div>
+        <div style={{ display: 'flex', gap: 8 }}>{btn('That’s me', true)}{btn('Coincidence', false)}</div>
+      </div>
+    );
+  }
+
   renderCard(q) {
+    // a passed card collapses to one undoable line — skipping should cost the
+    // feed height, not erase the question
+    if (this.state.passed[q.id]) {
+      return (
+        <button key={q.id} onClick={() => this.setPass(q.id, false)} style={{ border: WF_LINE, borderRadius: 14, background: 'transparent', padding: '11px 14px', display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', textAlign: 'left', WebkitAppearance: 'none', opacity: 0.6 }}>
+          <span aria-hidden="true" style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--ink-3)', flexShrink: 0 }}></span>
+          <span style={{ flex: 1, minWidth: 0, fontFamily: 'var(--sans)', fontWeight: 600, fontSize: 13, color: 'var(--ink-3)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{q.prompt}</span>
+          <span style={{ fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 11, color: 'var(--ink-3)', flexShrink: 0 }}>undo</span>
+        </button>
+      );
+    }
     const tm = q.test && window.PASSIVE ? window.PASSIVE.META[q.test] : null;
     const T = tm ? { label: tm.label, color: tm.accent } : (WF_TOPIC[q.cat] || { label: q.cat, color: 'var(--ink-3)' });
     const scene = !tm && q.scene && window.SCENES ? window.SCENES.defs().find((g) => g.id === q.scene) : null;
@@ -632,7 +747,20 @@ class WorldFeed extends React.Component {
         {q.type === 'vote' && this.renderVote(q, T, snap)}
         {q.type === 'duel' && this.renderDuel(q, T, snap)}
         {q.type === 'rank' && this.renderRank(q, T, snap)}
+        {/* where this vote landed on your Mirror — transient, and only on the
+            ~45% of cards setVote marked, so it stays a remark not a label */}
+        {answered && this.state.ripple === q.id && (
+          <div style={{ fontFamily: 'var(--sans)', fontWeight: 600, fontSize: 12.5, color: 'var(--ink-3)', textWrap: 'pretty' }}>
+            ↳ landed on your Mirror — {WF_BRANCH[q.cat] || 'Interests'}
+          </div>
+        )}
         {answered && this.state.beat !== q.id && this.renderEngage(q, T, snap)}
+        {/* skip: only before answering, and never on a test/lens question —
+            those fill an instrument, so a silent skip would read as a gap in
+            your own results rather than a question you passed on */}
+        {!answered && this.opts.pass && !tm && (
+          <button className="press" onClick={() => this.setPass(q.id, true)} style={{ alignSelf: 'center', border: 'none', background: 'none', padding: '6px 16px', marginTop: 2, cursor: 'pointer', fontFamily: 'var(--sans)', fontWeight: 500, fontSize: 13, color: 'var(--ink-3)', WebkitAppearance: 'none' }}>skip</button>
+        )}
         {snap && <div aria-hidden="true" style={{ flex: '1 1 0' }}></div>}
       </div>
     );
@@ -699,6 +827,7 @@ class WorldFeed extends React.Component {
           <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
           <div className="h-scroll" style={{ display: 'flex', gap: 8, flexWrap: 'nowrap', overflowX: 'auto', flex: 1, minWidth: 0, marginRight: -16, padding: '2px 82px 2px 0' }}>
             {window.PassiveMeter && <window.PassiveMeter></window.PassiveMeter>}
+            {this.renderStrip()}
             <button key="__sort" onClick={() => this.setState({ sort: sort === 'hot' ? 'top' : sort === 'top' ? 'new' : 'hot' })} aria-label={'Sort: ' + sort} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, flexShrink: 0, border: '0.5px solid color-mix(in oklch, var(--rule), var(--ink) 30%)', background: 'var(--surface-2)', color: 'var(--ink)', fontFamily: 'var(--sans)', fontWeight: 750, fontSize: 12, padding: '5px 11px', borderRadius: 999, cursor: 'pointer', WebkitAppearance: 'none', whiteSpace: 'nowrap' }}>{sort === 'top' ? 'top' : sort === 'new' ? 'new' : 'hot'}<svg viewBox="0 0 24 24" width="9" height="9" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M5 8.5 12 15.5 19 8.5"></path></svg></button>
             {chips.map((t, ci) => {
               const on = cats[t.id] !== false;
@@ -724,6 +853,9 @@ class WorldFeed extends React.Component {
         {feedList.map((q, i) => (
           <React.Fragment key={q.id}>
             {sugg && i === 2 && this.renderSuggestion(sugg, snap)}
+            {/* the pattern beat rides at position 5 — far enough in that you
+                have scrolled past a few answers, not so far it is never seen */}
+            {i === 5 && this.patternCard()}
             {this.renderCard(q)}
           </React.Fragment>
         ))}
@@ -752,6 +884,9 @@ window.WorldFeed = WorldFeed;
 ;globalThis.WF_LS = typeof WF_LS === 'undefined' ? globalThis.WF_LS : WF_LS;
 ;globalThis.WF_REPLIES_LS = typeof WF_REPLIES_LS === 'undefined' ? globalThis.WF_REPLIES_LS : WF_REPLIES_LS;
 ;globalThis.WF_TAKES_LS = typeof WF_TAKES_LS === 'undefined' ? globalThis.WF_TAKES_LS : WF_TAKES_LS;
+;globalThis.WF_PASS_LS = typeof WF_PASS_LS === 'undefined' ? globalThis.WF_PASS_LS : WF_PASS_LS;
+;globalThis.WF_BRANCH = typeof WF_BRANCH === 'undefined' ? globalThis.WF_BRANCH : WF_BRANCH;
+;globalThis.wfLoadMap = typeof wfLoadMap === 'undefined' ? globalThis.wfLoadMap : wfLoadMap;
 ;globalThis.WF_TOPICS = typeof WF_TOPICS === 'undefined' ? globalThis.WF_TOPICS : WF_TOPICS;
 ;globalThis.WF_TOPIC = typeof WF_TOPIC === 'undefined' ? globalThis.WF_TOPIC : WF_TOPIC;
 ;globalThis.WF_CHANNELS = typeof WF_CHANNELS === 'undefined' ? globalThis.WF_CHANNELS : WF_CHANNELS;

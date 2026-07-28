@@ -234,7 +234,15 @@ import ReactDOM from 'react-dom';
               <YouChip size={30}></YouChip>
             </div>
             <div style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--ink-2)' }}>
-              {nextName ? 'Reveals tomorrow \u00b7 swipe down for ' + nextName : 'Reveals tomorrow'}
+              {/* live countdown when it is available; "tomorrow" is the honest
+                  fallback, and stays the wording everywhere else \u2014 the clock
+                  counts to LOCAL midnight while the reveal is keyed on a UTC
+                  day, so this is a sense of the evening closing, not a promise
+                  about the server (reveal-clock.js says why). */}
+              {window.RevealClock
+                ? <window.RevealClock prefix="Reveals in"></window.RevealClock>
+                : 'Reveals tomorrow'}
+              {nextName ? ' \u00b7 swipe down for ' + nextName : ''}
             </div>
           </div>
         </div>
