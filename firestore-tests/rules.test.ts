@@ -20,6 +20,7 @@ import {
 } from "@firebase/rules-unit-testing";
 import {
   collection,
+  collectionGroup,
   doc,
   getDoc,
   getDocs,
@@ -65,7 +66,24 @@ async function seed(fn: (db: Firestore) => Promise<void>): Promise<void> {
 
 const asUser = (uid: string): Firestore =>
   env.authenticatedContext(uid).firestore();
-const asAnon = (): Firestore => env.unauthenticatedContext().firestore();
+// No token at all. Note this is NOT the app's default user — see below.
+const asSignedOut = (): Firestore => env.unauthenticatedContext().firestore();
+
+// The app's ACTUAL default user. Decision D3 makes the app anonymous-first:
+// it signs in silently on first launch, so in production "signed in" almost
+// always means "holds a free anonymous account", and anyone can mint
+// unlimited ones from a script with no rate limit.
+//
+// Behaviourally identical to asUser() today, deliberately: no rule inspects
+// sign_in_provider. That is precisely the point — every
+// `request.auth != null` grant in this ruleset is reachable by an attacker
+// for the cost of one HTTP call. Keeping the principal distinct means a test
+// that says "anonymous" tests the thing it names, and a future rule that
+// does gate on provider gets a ready-made lens.
+const asAnonAuth = (uid = "anon1"): Firestore =>
+  env.authenticatedContext(uid, {
+    firebase: { sign_in_provider: "anonymous" },
+  }).firestore();
 
 // Make OWNER's profile exist, optionally with share prefs, and
 // optionally add FRIEND to OWNER's circle.
@@ -99,6 +117,88 @@ async function setupOwner(opts: {
   });
 }
 
+// What an attacker gets for free. Every assertion here is reachable with a
+// scripted anonymous sign-in and no further access — so this describe is the
+// honest inventory of the app's outer trust boundary, and the place to look
+// when deciding whether a new `request.auth != null` grant is safe.
+describe("the default user (anonymous auth) — reachable surface", () => {
+  it("cannot read another user's v2 answers, profile, or private aggregates", async () => {
+    await seed(async (db) => {
+      await setDoc(doc(db, "v2_users", OWNER), { displayName: "Owner" });
+      await setDoc(doc(db, "v2_users", OWNER, "answers", "daily-000"), {
+        qid: "daily-000", surface: "daily", optionIdx: 1,
+      });
+      await setDoc(doc(db, "v2_aggs_private", "daily-000"), { counts: { "0": 3 } });
+    });
+    const db = asAnonAuth();
+    await assertFails(getDoc(doc(db, "v2_users", OWNER, "answers", "daily-000")));
+    await assertFails(getDoc(doc(db, "v2_users", OWNER)));
+    await assertFails(getDoc(doc(db, "v2_aggs_private", "daily-000")));
+  });
+
+  it("reads the public v2 surface it needs to run", async () => {
+    await seed(async (db) => {
+      await setDoc(doc(db, "v2_questions", "daily-000"), {
+        surface: "daily", active: true, seq: 0, prompt: "?", options: ["a", "b"],
+      });
+      await setDoc(doc(db, "v2_question_aggs", "daily-000"), { tooSmall: true });
+      await setDoc(doc(db, "v2_meta", "content"), { contentRev: 1 });
+    });
+    const db = asAnonAuth();
+    await assertSucceeds(getDoc(doc(db, "v2_questions", "daily-000")));
+    await assertSucceeds(getDoc(doc(db, "v2_question_aggs", "daily-000")));
+    await assertSucceeds(getDoc(doc(db, "v2_meta", "content")));
+  });
+
+  it("KNOWN GAP: enumerates the whole discoverable profile collection", async () => {
+    // Special-category data under GDPR Art.9 — Big Five vector, political
+    // coordinates, age, gender, country, free-text bio, ~5km geohash —
+    // keyed by uid, with no k-floor, no query constraint and no rate limit.
+    // One scripted anonymous sign-in walks the entire user base.
+    //
+    // This asserts SUCCESS on purpose: it is the pre-lockdown record of a
+    // real hole. The commit that closes it flips these to assertFails, so
+    // the diff carries the before/after.
+    await seed(async (db) => {
+      for (const uid of [OWNER, FRIEND, STRANGER]) {
+        await setDoc(doc(db, "insight_discoverable", uid), {
+          country: "NO", ageBucket: "25-34",
+          location: { geohash: "u4pru" },
+          big5: { o: 0.8, c: 0.4 },
+        });
+      }
+    });
+    const db = asAnonAuth();
+    await assertSucceeds(getDocs(collection(db, "insight_discoverable")));
+    await assertSucceeds(getDoc(doc(db, "insight_discoverable", OWNER)));
+  });
+
+  it("cannot run a collection-group query across users", async () => {
+    // Two of these have COLLECTION_GROUP indexes deployed
+    // (firestore.indexes.json) for the admin-side account wipe. They fail
+    // because no match block binds a collection-group scope — the grants
+    // live under /insight_users/{uid}/… and bind {uid} — not because of an
+    // explicit CG deny. Pinning it so a future broad wildcard cannot
+    // silently turn a deployed index into cross-user enumeration.
+    await seed(async (db) => {
+      await setDoc(
+        doc(db, "insight_users", OWNER, "insight_inbound_impressions", "i1"),
+        { senderUid: FRIEND, traits: ["kind"] },
+      );
+      await setDoc(doc(db, "insight_users", OWNER, "relations", "r1"), {
+        linkedUid: FRIEND,
+      });
+      await setDoc(doc(db, "insight_users", OWNER, "insight_daily", "2026-07-27"), {
+        date: "2026-07-27", mood: 60,
+      });
+    });
+    const db = asAnonAuth();
+    await assertFails(getDocs(collectionGroup(db, "insight_inbound_impressions")));
+    await assertFails(getDocs(collectionGroup(db, "relations")));
+    await assertFails(getDocs(collectionGroup(db, "insight_daily")));
+  });
+});
+
 describe("per-user scoping", () => {
   it("owner reads + writes their own profile", async () => {
     await setupOwner();
@@ -118,7 +218,7 @@ describe("per-user scoping", () => {
 
   it("an unauthenticated client cannot read a profile", async () => {
     await setupOwner();
-    await assertFails(getDoc(doc(asAnon(), "insight_users", OWNER)));
+    await assertFails(getDoc(doc(asSignedOut(), "insight_users", OWNER)));
   });
 });
 
@@ -337,7 +437,7 @@ describe("v2 questions + aggregates", () => {
     });
     await assertSucceeds(getDoc(doc(asUser(OWNER), "v2_questions", "daily-000")));
     await assertSucceeds(getDoc(doc(asUser(OWNER), "v2_question_aggs", "daily-000")));
-    await assertFails(getDoc(doc(asAnon(), "v2_questions", "daily-000")));
+    await assertFails(getDoc(doc(asSignedOut(), "v2_questions", "daily-000")));
     await assertFails(setDoc(doc(asUser(OWNER), "v2_questions", "daily-000"), { prompt: "x" }));
     await assertFails(setDoc(doc(asUser(OWNER), "v2_question_aggs", "daily-000"), { total: 999 }));
     // merge-set / update / delete are still writes — all denied
@@ -662,7 +762,7 @@ describe("daily report read tiers", () => {
     await setupOwner({ sharePrefs: { daily_report: "world" } });
     await seedDaily();
     await assertSucceeds(getDoc(dayRef(asUser(STRANGER))));
-    await assertFails(getDoc(dayRef(asAnon())));
+    await assertFails(getDoc(dayRef(asSignedOut())));
   });
 
   it("a blocked viewer is refused even at world — block beats every tier", async () => {
@@ -867,7 +967,7 @@ describe("impression share carve-out", () => {
   it("anyone: any signed-in user reads; anon and blocked viewers don't", async () => {
     await setupImpressions({ share: "anyone", blockedViewer: "viewer2" });
     await assertSucceeds(getDoc(impRef(asUser(STRANGER))));
-    await assertFails(getDoc(impRef(asAnon())));
+    await assertFails(getDoc(impRef(asSignedOut())));
     // block beats the widest tier
     await assertFails(getDoc(impRef(asUser("viewer2"))));
   });
@@ -934,7 +1034,7 @@ describe("discoverable write validation", () => {
       doc(asUser(STRANGER), "insight_discoverable", OWNER), base,
     ));
     await assertFails(setDoc(
-      doc(asAnon(), "insight_discoverable", OWNER), base,
+      doc(asSignedOut(), "insight_discoverable", OWNER), base,
     ));
   });
 
@@ -973,7 +1073,7 @@ describe("storage-adjacent + leftovers", () => {
       });
     });
     await assertSucceeds(getDoc(doc(asUser(STRANGER), "Cities", "oslo")));
-    await assertFails(getDoc(doc(asAnon(), "Cities", "oslo")));
+    await assertFails(getDoc(doc(asSignedOut(), "Cities", "oslo")));
     await assertFails(setDoc(doc(asUser(OWNER), "Cities", "oslo"), { name: "Forged" }));
     await assertFails(deleteDoc(doc(asUser(OWNER), "Cities", "oslo")));
   });
@@ -985,7 +1085,7 @@ describe("storage-adjacent + leftovers", () => {
       });
     });
     await assertSucceeds(getDoc(doc(asUser(STRANGER), "insight_discoverable", OWNER)));
-    await assertFails(getDoc(doc(asAnon(), "insight_discoverable", OWNER)));
+    await assertFails(getDoc(doc(asSignedOut(), "insight_discoverable", OWNER)));
   });
 
   it("v2_meta is signed-in read-only; v2_ratelimits is fully opaque", async () => {
@@ -994,7 +1094,7 @@ describe("storage-adjacent + leftovers", () => {
       await setDoc(doc(db, "v2_ratelimits", OWNER), { events: [] });
     });
     await assertSucceeds(getDoc(doc(asUser(OWNER), "v2_meta", "content")));
-    await assertFails(getDoc(doc(asAnon(), "v2_meta", "content")));
+    await assertFails(getDoc(doc(asSignedOut(), "v2_meta", "content")));
     await assertFails(setDoc(doc(asUser(OWNER), "v2_meta", "content"), { contentRev: 99 }));
     await assertFails(getDoc(doc(asUser(OWNER), "v2_ratelimits", OWNER)));
     await assertFails(setDoc(doc(asUser(OWNER), "v2_ratelimits", OWNER), { events: [] }));
@@ -1021,7 +1121,7 @@ describe("storage-adjacent + leftovers", () => {
       item({ createdBy: STRANGER })));                // createdBy must be auth uid
     await assertFails(setDoc(doc(asUser(OWNER), "insight_interest_items", "it5"),
       item({ name: "" })));                           // empty name
-    await assertFails(setDoc(doc(asAnon(), "insight_interest_items", "it6"), item()));
+    await assertFails(setDoc(doc(asSignedOut(), "insight_interest_items", "it6"), item()));
   });
 
   it("interest items: updates are voteCount ±1 only, everything else frozen", async () => {
