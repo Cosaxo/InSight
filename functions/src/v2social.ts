@@ -303,6 +303,17 @@ async function revealGroupDay(
     for (const s of profileSnaps) {
       if (!s.exists || !Array.isArray(s.get("fcmTokens"))) continue;
       for (const t of s.get("fcmTokens") as string[]) {
+        // Rules cap the array at 10 entries but never check what is IN
+        // them, so a client can store ten ~1MB strings in its own
+        // (owner-writable) profile and we would hand them straight to
+        // sendEachForMulticast. Bound length only — no format regex,
+        // which is the part most likely to silently kill reveals for
+        // everyone the day FCM changes its token shape.
+        // NB: this bounds SEND cost, not what is stored.
+        if (typeof t !== "string" || t.length < 20 || t.length > 4096) {
+          logger.warn(`[reveal] skipping malformed fcmToken on ${s.id}`);
+          continue;
+        }
         const owners = tokenOwners.get(t) || [];
         owners.push(s.id);
         tokenOwners.set(t, owners);

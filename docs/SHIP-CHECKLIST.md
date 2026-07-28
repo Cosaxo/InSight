@@ -164,6 +164,45 @@ Both apps must be registered under `com.cosaxo.insight`:
      to remove it on request.
   3. Only then reduce `storage.rules` to the catch-all deny, and update
      `firestore-tests/storage.rules.test.ts` in the same commit.
+- **Verify the archive's APNs environment.** `App.entitlements` now reads
+  `$(APS_ENVIRONMENT)` — development for Debug, production for the App
+  target's Release. The build settings are the fix; *this check* is what
+  catches it, because the failure is silent (the device registers with the
+  APNs sandbox, FCM sends to production, nobody errors and no push
+  arrives). On the archived app, before uploading:
+
+  ```bash
+  codesign -d --entitlements :- /path/to/App.app | grep -A1 aps-environment
+  ```
+
+  It must say `production`. If it is empty, `APS_ENVIRONMENT` is not
+  reaching the target — it is defined at project level for both
+  configurations precisely so it cannot expand empty.
+- **Signing material never enters the repo.** `.gitignore` covers
+  `*.keystore`, `*.jks`, `*.p12`, `*.p8`, `*.mobileprovision`,
+  `keystore.properties`, `signing.properties`, plus both Firebase config
+  files — but ignore rules do nothing for a file already tracked, so:
+  1. Keep the upload keystore **outside the repo** entirely. The
+     `.gitignore` entries are a backstop, not the plan.
+  2. Enrol in **Play App Signing** so Google holds the app signing key and
+     a lost upload key is recoverable.
+  3. Before the first release commit, run `git status --ignored` and
+     confirm nothing sensitive is tracked. A `git add -A` after a signing
+     session is an incident a revert cannot fix — the object stays in
+     history and the key must be rotated.
+- **Sign in with Apple (guideline 4.8) — prepared, not built.** Google is
+  currently the only third-party sign-in on iOS, which 4.8 says must be
+  accompanied by an equivalent privacy-preserving option. We expect to
+  pass without it, because the app's *primary* path is anonymous: no
+  account is required, nothing is requested, and Google is an optional
+  upgrade rather than a login wall. If a reviewer cites 4.8, reply with
+  that, and note the app collects no email or name via Google either.
+
+  Only if they insist: add the Apple provider. Enable the capability in
+  the developer portal **before** committing the entitlement, and use
+  `rawNonce` when exchanging the credential or `linkWithCredential` fails.
+  Do not pre-build this — an unused sign-in path is its own review
+  surface.
 - **Version lockstep** — bump package.json `appBuild` + android
   `versionCode` + iOS `CURRENT_PROJECT_VERSION` together each release.
 

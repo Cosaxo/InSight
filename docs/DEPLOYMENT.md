@@ -52,8 +52,9 @@ Actions secret `FIREBASE_SERVICE_ACCOUNT`.
   automatically. (We deliberately do **not** use the
   `google-github-actions/auth` action — its tarball repeatedly failed to
   download on the runner.)
-- The key belongs to
-  `firebase-adminsdk-qdsv5@prvfire33.iam.gserviceaccount.com`.
+- The key belongs to the project's `firebase-adminsdk` service account.
+  (Its full address is in Firebase Console → Project settings → Service
+  accounts — not written down here, so this doc can be shared freely.)
 - That service account currently holds the `Editor` + `Firebase Admin` IAM
   roles, which together cover deploying rules and (gen-2) functions. This can
   be narrowed to least-privilege later.
@@ -121,8 +122,8 @@ redelivered events are no-ops rather than double counts.
 
 1. Firebase Console -> Project settings -> Service accounts -> **Generate new
    private key**.
-2. Confirm the downloaded JSON's `client_email` is
-   `firebase-adminsdk-qdsv5@prvfire33.iam.gserviceaccount.com`.
+2. Confirm the downloaded JSON's `client_email` is the project's
+   `firebase-adminsdk` account (Project settings → Service accounts).
 3. GitHub -> Settings -> Secrets and variables -> Actions -> edit
    `FIREBASE_SERVICE_ACCOUNT` and paste the **entire** JSON.
 
@@ -144,8 +145,8 @@ minted per run. Console-side setup (one-time, needs a GCP admin):
 2. Create a provider in that pool for `https://token.actions.githubusercontent.com`
    with an attribute condition pinning this repo
    (`assertion.repository == 'Cosaxo/InSight'`).
-3. Grant `firebase-adminsdk-qdsv5@prvfire33.iam.gserviceaccount.com`
-   the `roles/iam.workloadIdentityUser` binding for that provider.
+3. Grant the `firebase-adminsdk` service account the
+   `roles/iam.workloadIdentityUser` binding for that provider.
 4. In `firebase-deploy.yml`: add `permissions: id-token: write`, swap
    the "Write service account key" step for `google-github-actions/auth@…`
    (SHA-pinned) with `workload_identity_provider` + `service_account`,
@@ -165,6 +166,6 @@ key/role mismatch trap below.
   by granting `Editor` + `Firebase Admin`.
 - **403 persisted after granting roles** — the `FIREBASE_SERVICE_ACCOUNT`
   secret held a key for a *different* service account than the one granted
-  roles. Fixed by re-issuing the key from `firebase-adminsdk-qdsv5` and
+  roles. Fixed by re-issuing the key from that service account and
   updating the secret. (When auth succeeds but a specific API 403s, suspect a
   key/role mismatch.)

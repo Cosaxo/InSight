@@ -8,14 +8,25 @@ import React from 'react';
 
 const { useState, useEffect } = React;
 
-const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
-  "density": "compact",
-  "dark": false,
-  "tab": "track",
-  "mirrorPop": "near",
-  "lensStyle": "underline",
-  "worldZoom": "world"
-}/*EDITMODE-END*/;
+// Startup values for the Tweaks panel. The EDITMODE-BEGIN/END sentinels
+// that used to wrap this were prototype tooling: the host editor rewrote
+// the block on disk when a tweak changed. No host exists any more, so they
+// were markers for a machine that stopped reading them — a plain object
+// now, edited by hand like any other constant.
+//
+// `dark` is the app's only dark-mode switch today, and it defaults off
+// with no prefers-color-scheme anywhere: on a phone set to dark, the app
+// is permanently light. Tracked as its own piece of work — do not "fix" it
+// by flipping this default, which would leave light-mode users stranded
+// the same way.
+const TWEAK_DEFAULTS = {
+  density: "compact",
+  dark: false,
+  tab: "track",
+  mirrorPop: "near",
+  lensStyle: "underline",
+  worldZoom: "world",
+};
 
 // Hand-drawn-feel SVG glyphs — each one a small ink illustration
 function NavGlyph({ id, active }) {

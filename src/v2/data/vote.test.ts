@@ -329,6 +329,12 @@ describe("vote() optimistic path (inflight vs unaggregated)", () => {
     // Fail the first boot the way a flaky network would.
     h.getDocsImpl = () => { throw new Error("offline"); };
     await mod.initLive(1);
+    // initLive races boot against a 1ms budget and RETURNS on timeout while
+    // boot is still running. Let it finish failing before touching the knob
+    // below, or that same in-flight boot picks up the restored getDocs and
+    // succeeds on its own.
+    await flush();
+    await flush();
     expect(LIVE.enabled).toBe(false);
 
     expect(typeof listeners.window.online).toBe("function");
@@ -347,12 +353,19 @@ describe("vote() optimistic path (inflight vs unaggregated)", () => {
     const LIVE = mod.default;
     h.getDocsImpl = () => { throw new Error("offline"); };
     await mod.initLive(1);
+    await flush();
+    await flush();
     expect(LIVE.enabled).toBe(false);
 
     vi.stubGlobal("navigator", { onLine: false });
     h.getDocsImpl = null;
     listeners.window.online();
-    await new Promise((r) => setTimeout(r, 0));
+    // Asserting a negative: give the mocked path (all microtasks) several
+    // full turns, so a wake that DID fire would have finished and flipped
+    // enabled before we look.
+    await flush();
+    await flush();
+    await flush();
     expect(LIVE.enabled).toBe(false);
   });
 
@@ -377,7 +390,12 @@ describe("vote() optimistic path (inflight vs unaggregated)", () => {
     // every insight.* key goes, not a hand-listed subset
     expect(storage.getItem("insight.testResults.v2")).toBeNull();
     expect(storage.getItem("insight.likes.v1")).toBeNull();
-    expect(storage.getItem(WF_LS)).toBeNull();
+    // The feed-vote mirror is a special case: the purge removes it, then
+    // the refresh for the NEW uid legitimately re-creates it. The contract
+    // is that none of the previous account's data survives — not that the
+    // key never comes back — so assert on the contents, which also keeps
+    // this from racing the refresh.
+    expect(JSON.parse(storage.getItem(WF_LS) || "{}")).not.toHaveProperty("q_1");
   });
 
   it("a revoked session keeps real data on screen rather than blanking to demo", async () => {

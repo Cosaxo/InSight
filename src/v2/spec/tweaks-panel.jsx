@@ -176,9 +176,18 @@ function useTweaks(defaults) {
     const edits = typeof keyOrEdits === 'object' && keyOrEdits !== null
       ? keyOrEdits : { [keyOrEdits]: val };
     setValues((prev) => ({ ...prev, ...edits }));
-    window.parent.postMessage({ type: '__edit_mode_set_keys', edits }, '*');
+    // Host-editor persistence — prototype tooling. Gated on DEV so the
+    // literal is dead-code-eliminated from a production bundle: in a
+    // shipped app there is no host, window.parent === window, and this
+    // posts a wildcard-origin message to ourselves for nothing.
+    if (import.meta.env.DEV) {
+      window.parent.postMessage({ type: '__edit_mode_set_keys', edits }, '*');
+    }
     // Same-window signal so in-page listeners (deck-stage rail thumbnails)
     // can react — the parent message only reaches the host, not peers.
+    // NOT gated: this is real in-app wiring, and the values themselves are
+    // set above, so the panel's own controls (dark mode included) work
+    // exactly as before in production.
     window.dispatchEvent(new CustomEvent('tweakchange', { detail: edits }));
   }, []);
   return [values, setTweak];
@@ -257,6 +266,12 @@ function TweaksPanel({ title = 'Tweaks', noDeckControls = false, children }) {
   }, [open, clampToViewport]);
 
   React.useEffect(() => {
+    // DEV only. This accepted __activate_edit_mode from ANY origin with no
+    // check on e.origin — harmless inside the Capacitor shell, but it is
+    // dead prototype plumbing that a store reviewer or security audit
+    // would flag in an app selling honesty. The panel itself still mounts
+    // and opens by its own control.
+    if (!import.meta.env.DEV) return undefined;
     const onMsg = (e) => {
       const t = e?.data?.type;
       if (t === '__activate_edit_mode') setOpen(true);
@@ -269,7 +284,9 @@ function TweaksPanel({ title = 'Tweaks', noDeckControls = false, children }) {
 
   const dismiss = () => {
     setOpen(false);
-    window.parent.postMessage({ type: '__edit_mode_dismissed' }, '*');
+    if (import.meta.env.DEV) {
+      window.parent.postMessage({ type: '__edit_mode_dismissed' }, '*');
+    }
   };
 
   const onDragStart = (e) => {

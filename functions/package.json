@@ -2,6 +2,7 @@
   "name": "insight-functions",
   "description": "Server-side compute for InSight (aggregates_by_geohash5 rollup).",
   "private": true,
+  "license": "UNLICENSED",
   "engines": {
     "node": "22"
   },

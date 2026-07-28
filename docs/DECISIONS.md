@@ -42,6 +42,40 @@ invite link must work for anonymous users.
 **Why.** Never lose a user's history to a login wall. The linking path is
 implemented early (Phase 2) because it is hard to retrofit.
 
+## D6 · Android backup off; iPhone-only; no custom crypto
+
+**Decision.** Three store-facing declarations, recorded because each is a
+trade rather than an obvious default.
+
+**`android:allowBackup="false"`.** Auto Backup would copy the WebView's
+localStorage and the on-disk Firestore cache — every question seen and
+answered — into the user's Google Drive. The data inventory tells users
+local state stays on their device, and an app whose pitch is that privacy
+is enforced rather than promised should not have a silent exception.
+
+The cost is real and users feel it: this also disables device-to-device
+transfer, so an anonymous user who never links Google loses their history
+on a phone swap. That is why the Google-linking path had to work first
+(it was dead on both platforms until the provider config landed), and why
+the privacy panel says so in as many words. Revisit only with a
+`fullBackupContent` rule set that provably excludes the Firestore cache
+and every `insight.*` key.
+
+**`TARGETED_DEVICE_FAMILY = 1` (iPhone only).** The layout is a phone
+design — a device mockup at desktop widths, full-bleed at phone widths —
+and shipping it as an iPad app invites review against a multitasking
+surface it does not support. iPhone orientation is portrait-only for the
+same reason; landscape was declared but never designed for. Dropping iPad
+support *after* launch reads as abandoning users, so this is much cheaper
+to decide now than later.
+
+**`ITSAppUsesNonExemptEncryption = false`.** The app uses HTTPS/TLS
+through the platform and Firebase SDKs and implements no cryptography of
+its own, which is the standard exemption. **This declaration must be
+revisited if the app ever ships custom crypto** — local encryption of
+cached answers, for instance — because it is an attestation on every
+upload, not a note.
+
 ## D4 · The v1 shelf, and the legacy boundary
 
 **Decision.** v1 ships the frozen spec (`design/InSight_standalone_9.html`):
