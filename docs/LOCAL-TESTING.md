@@ -49,7 +49,7 @@ Emulator UI (inspect any document): <http://127.0.0.1:4000>.
 ## Test suites
 
 ```bash
-npm run test:rules      # 19 security-rules tests (emulator, Firestore only)
+npm run test:rules      # 29 security-rules tests (Firestore + Storage emulators)
 # full SDK end-to-end (auth+firestore+functions):
 firebase emulators:exec --only auth,firestore,functions --project demo-insight \
   "node firestore-tests/e2e-v2-loop.mjs"

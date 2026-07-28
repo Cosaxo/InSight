@@ -1,17 +1,34 @@
 # Firestore rules tests
 
 Unit tests for [`../firestore.rules`](../firestore.rules) using the Firebase
-emulator and `@firebase/rules-unit-testing`. They assert the access decisions
-the app depends on:
+emulators (Firestore **and** Storage) and `@firebase/rules-unit-testing`.
+They assert the access decisions the product's privacy claims rest on:
 
-- per-user scoping (owner-only by default; strangers + anonymous denied)
-- the **circle-tier sharing** carve-out (a mutual friend can read a shareable
-  subcollection only when the owner's per-category share level allows; finance
-  and other non-shareable collections never leak; a blocked friend loses access)
-- **callable-only** inbound impression creates (client direct-writes denied;
-  recipient can read their own inbox)
-- aggregates + taxonomies are read-only to signed-in users
-- the rate-limit ledger is fully opaque to clients
+**The v2 surface** (what the app actually uses):
+
+- **what the DEFAULT user reaches.** The app is anonymous-first (D3), so in
+  production "signed in" usually means "holds a free anonymous account" —
+  the suite has a distinct `asAnonAuth` principal for exactly that, and an
+  inventory of what it can and cannot touch.
+- **owner-only, create-once answers** (D5): immutable, not readable by any
+  other user, `answeredAt` pinned to `request.time` so they cannot be
+  backdated, and the doc id bound to the question id.
+- **sealed duels**: a groupmate cannot read an answer before the reveal doc
+  exists, a non-member cannot write one, and answering a day that is
+  already revealed is refused.
+- **member-only groups and reveals**, both client-unwritable — membership
+  changes go through callables.
+- **k-floored aggregates**: the public mirror is read-only, and the exact
+  counts (`v2_aggs_private`) and the event ledger are unreadable by anyone.
+- the duel `day` must be near now — no pre-sealing future days.
+- `optionIdx` bounds, including that a group "pick" answer can name any of
+  up to 32 members.
+- the retired **v1 surface stays closed** (D4): every retired collection and
+  per-user subcollection denies read and write, to owner and stranger alike.
+- no client can run a **collection-group** query across users.
+
+**Storage** (`storage.rules.test.ts`): owner-only paths, the 8 MB cap, the
+image content-type gate, and the catch-all deny.
 
 ## Running
 

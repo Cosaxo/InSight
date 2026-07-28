@@ -9,8 +9,11 @@ real to compare against.
 
 - `src/index.ts` — the aggregator function. Two callable surfaces:
   - `rebuildAreaAggregates` — HTTPS-callable for manual / dev runs.
-    Any signed-in user can invoke; it's idempotent and ends in a
-    single batch write.
+    **Operator-only**: `assertOperator()` requires the caller's uid to be
+    listed in the `SEED_ADMIN_UIDS` runtime variable. With anonymous-first
+    auth (D3), "any signed-in user" would have meant "anyone", and this is
+    a full-collection scan — a free cost-amplification lever. Idempotent,
+    and ends in a rotating batch write.
   - `scheduledAreaAggregates` — runs every 6 hours via Cloud
     Scheduler.
 
@@ -29,8 +32,12 @@ real to compare against.
 
 ## Privacy
 
-- K-anonymity floor (`K_ANON_FLOOR = 5`): cells with fewer
-  contributors aren't published. In production, raise this to ≥ 20.
+- K-anonymity floor (`K_ANON_FLOOR = 20`): cells with fewer contributors
+  aren't published, and any previously-published doc for a cell that falls
+  below the floor is **deleted** rather than left stale. Separate floors
+  apply per stream — see `WORLD_K_ANON_FLOOR`, `CITY_K_ANON_FLOOR`,
+  `IMPRESSION_K_ANON_FLOOR` in `src/index.ts` and `AGG_MIN_N` in
+  `src/v2.ts`.
 - User opt-in chain: must be present in `insight_discoverable` AND
   have shared their Big5 (sharePrefs.big5 ≠ "nobody"). Default
   prefs include them; opting out is one toggle in SharingOverlay.
@@ -66,15 +73,16 @@ rebuildAreaAggregates({})
 
 Returns `{ cellsWritten, cellsDeleted, usersConsidered, usersIncluded }`.
 
-## Future work
+## Deployed functions
 
-- Per-axis aggregates for politics + values (same shape, different
-  source fields).
-- Per-city aggregates joined against the existing `Cities`
-  catalogue (so the UI can label "your area" as "Oslo" not just
-  a geohash prefix).
-- Cooldown / rate-limit for inbound impressions (separate function,
-  pre-write trigger on `insight_inbound_impressions`).
-- Activity rollups (workouts / meals / etc.) — possibly per-user
-  weekly summaries to make the journal-tab charts cheaper on
-  read.
+17 functions ship from this codebase (the deploy's `--only` list also
+names `firestore:rules` and `firestore:indexes`, which are not functions).
+`scripts/check-deploy-targets.mjs` fails CI if an exported function is
+missing from that list — otherwise it would be built, tested, green and
+never deployed.
+
+Runtime options are set globally in `src/ops.ts`, not per function, and
+`npm run check:fn-runtime` asserts none is left on the gen-2 defaults
+(256 MiB / 60 s). That placement is deliberate: `export { x } from "./v2"`
+is a hoisted re-export, so putting `setGlobalOptions` in `index.ts` would
+apply it to index's own functions and silently miss every v2 one.

@@ -27,7 +27,12 @@ jobs:
           node-version: "22"
           cache: npm
       - run: npm ci
-      - run: npx eslint .
+      # `npm run lint`, not a bare `npx eslint .` — the script carries
+      # --max-warnings 0 (four hook warnings had become background noise, so
+      # the next one would have landed silently) and
+      # --report-unused-disable-directives, so a disable comment that stops
+      # being needed becomes an error rather than lingering.
+      - run: npm run lint
       # Static safety net for the spec layer's global-scope wiring.
       - run: npm run check:globals
       # Five version numbers that must move together across three files.

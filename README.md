@@ -68,7 +68,7 @@ functions/src/     v2.ts (seed + aggregates) · v2social.ts (groups, duos,
                    reveals, push) · index.ts (v1-era aggregates & account
                    deletion, still deployed)
 firestore.rules    the access model (owner-only answers, k-floored aggs,
-                   member-only groups/reveals) — 19 emulator tests
+                   member-only groups/reveals) — 29 emulator tests
 firestore.rules.v1-archive  the retired v1 client rules (D4) — reference,
                    NOT deployed
 content/           canonical question banks & archetypes (seed source)

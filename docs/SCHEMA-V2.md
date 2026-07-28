@@ -113,16 +113,29 @@ not per boot. `LIVE.stats` reports `bankSource` / `answersFetched` /
 
 ## Verification
 
-- `npm run test:rules` — 19 rules tests (v2 surface + the retired-v1 guard).
+- `npm run test:rules` — 29 rules tests (Firestore + Storage; the v2
+  surface, the anonymous-default lens, and the retired-v1 guard).
 - `firestore-tests/e2e-v2-loop.mjs` under
   `firebase emulators:exec --only auth,firestore,functions` — the full
   SDK loop: anon auth → seed → fetch → vote → below-floor tooSmall →
   dup refused → five voters cross the floor → exact public counts →
   duo create/join-by-code → sealed answers → reveal with votes+guesses →
-  streak → post-reveal lockout → no aggregate leakage.
-- Browser e2e (Playwright, dev server + emulators): live deck renders a
-  seeded question, vote writes the answer doc, agg total increments,
-  no Comments affordance.
+  streak → non-member refused → post-reveal answering refused by a real
+  member → no aggregate leakage.
+- `npm run test:e2e:erasure` — deleteAccount, with leftovers observed via
+  the admin SDK (rules bypassed, so "gone" means gone rather than
+  "permission-denied").
+- `npm run test:unit` / `npm run test --prefix functions` — the deck
+  rotation and vote state machine; the k-anon floor, reveal and streak math.
+
+**What is NOT covered: rendering.** There is no browser-level test, and no
+Playwright — this section previously claimed such a suite existed, which
+was the worst kind of documentation defect: a verification gate that
+provides no verification. The underlying properties it named are covered
+elsewhere — the vote → trigger → k-floor path by the emulator e2e above,
+and the S-form's empty comments array (D1) by `deck.test.ts` — so the real
+gap is narrower than that bullet implied, but it is a gap: nothing asserts
+that a component renders.
 
 Sandbox note: run emulator commands with `HTTPS_PROXY` unset —
 firebase-tools routes even localhost HTTP through a proxy dispatcher when

@@ -1,0 +1,22 @@
+# Ownership for the files that reach production without a human in the
+# loop: a push to main touching functions/, firestore.rules or
+# storage.rules auto-deploys.
+#
+# NOTE: do NOT enable "Require review from Code Owners" in branch
+# protection while there is a single owner. GitHub does not let an author
+# approve their own pull request, so a solo maintainer would be unable to
+# merge anything — the rule would block the repo rather than protect it.
+# This file is here so ownership is recorded, and so the setting becomes
+# one click the day a second maintainer exists.
+
+*                           @Cosaxo
+
+# The privacy surface. Changes here are the ones worth a second read.
+/firestore.rules            @Cosaxo
+/storage.rules              @Cosaxo
+/firestore-tests/           @Cosaxo
+/functions/                 @Cosaxo
+
+# Anything that reaches production, or decides what does.
+/.github/workflows/         @Cosaxo
+/docs/DECISIONS.md          @Cosaxo

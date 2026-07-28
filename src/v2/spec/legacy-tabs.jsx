@@ -125,7 +125,14 @@ function GroupsBody({ levelTrait, levelMarker } = {}) {
       </div>
 
       <div key={sel ? sel.id : ''} className="tab-swap">
-        {sel && <GroupLevelTab g={sel} defaultTrait={levelTrait} showMarker={levelMarker} />}
+        {/* GroupLevelTab was rendered here unguarded and has never existed
+            in this tree — the defining module was not ported from the
+            prototype. GroupsBody is reachable (mirror-tab.jsx renders it
+            for the "groups" population), so selecting a circle threw a
+            ReferenceError into the ErrorBoundary. Found by the checker's
+            JSX-tag rule; removed rather than guarded, because a `typeof`
+            guard would just hide a feature that does not exist.
+            levelTrait / levelMarker were only ever its props. */}
         {sel && <Lazy minHeight={600}><GroupCompare g={sel} /></Lazy>}
       </div>
     </div>
@@ -633,8 +640,13 @@ function CircleDailyCard({ r, onPerson, onOpenDaily }) {
 // ──────────── PEOPLE ────────────
 function PeopleTab({ onPerson, onOpenDaily, embedded }) {
   const D = window.IS_DATA;
-  const myDaily = (typeof getMyDailyReport === 'function') ? getMyDailyReport() : null;
-  const allReports = myDaily ? [myDaily, ...D.dailyReports] : D.dailyReports;
+  // getMyDailyReport() was prepended here to put your own report at the
+  // head of the list. It has never existed in this tree — the defining
+  // module was not ported — so the typeof guard was permanently false and
+  // this always resolved to D.dailyReports. Removed rather than
+  // allowlisted: a guard that can never be true is not a feature flag,
+  // it is a dead branch that makes no-undef useless.
+  const allReports = D.dailyReports;
   const [chainTarget, setChainTarget] = useStateW(null);
   const [chainQuery, setChainQuery] = useStateW('');
 

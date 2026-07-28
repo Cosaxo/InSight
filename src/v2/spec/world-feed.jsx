@@ -65,6 +65,11 @@ function WfCount({ to, animate, dur = 650 }) {
     const step = (t) => { if (!t0) t0 = t; const k = Math.min((t - t0) / dur, 1); setV(Math.round(to * (1 - Math.pow(1 - k, 3)))); if (k < 1) raf = requestAnimationFrame(step); };
     raf = requestAnimationFrame(step);
     return () => cancelAnimationFrame(raf);
+    // `dur` is deliberately not a dependency: it is the animation's
+    // duration, read once when the run starts. Including it would restart
+    // a count-up mid-flight whenever the caller passed a new duration,
+    // which is the opposite of what a duration means.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [to, animate]);
   return <span>{v}</span>;
 }

@@ -2,7 +2,8 @@
 
 This is the frozen spec (`design/InSight_standalone_9.html`) running under
 Vite. `index.html` points at `main.jsx`; the journal-era app lives in
-`src/legacy/` (decision D4) and is no longer reachable from the entry.
+git history (decision D4) — `src/legacy/` was deleted after Phase 5 shipped,
+and its Firestore rules were retired to `firestore.rules.v1-archive`.
 
 ## How the port works
 
@@ -22,8 +23,21 @@ semantics instead of hand-converting 65 files to ESM at once:
 - `styles.css` — every style block from the standalone verbatim; font URLs
   point at `/public/fonts/*.woff2` (Hanken Grotesk, bundled — no external
   font hosts).
-- `types.ts` — the domain contract, matching `/content/*.json`. The live
-  data layer (Phase 2) implements these types.
+- `data/` and `ui/` — the typed layer. `data/live.ts` is the live store;
+  `data/deck.ts` holds its pure, firebase-free shaping logic (hence
+  unit-testable); `ui/` holds the two hand-written TSX panels.
+
+  These are **not** exempt from the globals convention, despite being
+  typed: `live.ts` ends by publishing `window.LIVE`, and both `ui/` panels
+  `Object.assign` themselves onto `globalThis`, because spec modules look
+  them up **by name at render time**. `check-spec-globals.mjs` scans them
+  for that reason. What IS different is that their internals are typed and
+  `tsc -b` checks them — the spec layer's are not.
+
+  The `window.LIVE` member surface is pinned by a test
+  (`data/vote.test.ts`, "window.LIVE public surface"): renaming a member
+  there passes tsc, eslint and check:globals, then blanks the Map on a
+  device, so the key set is asserted against a checked-in literal.
 
 Regenerating: the transform lives in the session scratchpad
 (`transform.cjs`); its inputs are `design/spec-modules/` + the load order.

@@ -422,3 +422,45 @@ describe("vote() optimistic path (inflight vs unaggregated)", () => {
     expect(listener).toHaveBeenCalled();
   });
 });
+
+// ── the window.LIVE contract ────────────────────────────────────────
+//
+// ~15 untyped spec modules reach into window.LIVE by name at render time.
+// Renaming a member there passes tsc (the consumers are .jsx), passes
+// eslint, passes check:globals (which verifies the name LIVE exists, not
+// its shape) and passes every other unit test — then blanks the Map on a
+// real device.
+//
+// Asserting the key sets against checked-in literals is the cheapest thing
+// that turns a rename into a failing test. Getters on the object literal
+// are enumerable own properties, so Object.keys sees them.
+describe("window.LIVE public surface", () => {
+  // Checked in verbatim. Update ONLY together with the spec-layer call
+  // sites that read the renamed member — that is the whole point.
+  const EXPECTED = [
+    "aggFor", "appBuild", "confirmedVotes", "dailyBank", "deck",
+    "deleteAccount", "demoInProd", "displayName", "enabled", "feedReady",
+    "latestBuild", "linkGoogle", "myVotes", "ready", "saveDisplayName",
+    "saveTestResult", "social", "stats", "subscribe", "uid",
+    "updateAvailable", "updateRequired", "updateUrl", "vote",
+  ];
+  const EXPECTED_SOCIAL = [
+    "bankQ", "createGroup", "groups", "joinGroup", "leaveGroup",
+    "myDuelVote", "revealFor", "todayKey", "todayQ", "voteDuel",
+  ];
+
+  it("exposes exactly the members the spec layer looks up by name", async () => {
+    const LIVE = await bootLive();
+    const actual = Object.keys(LIVE).sort();
+    const expected = [...EXPECTED].sort();
+    // Both directions: a REMOVED member breaks a consumer, and an ADDED
+    // one that nobody listed means this contract stopped being reviewed.
+    expect(actual).toEqual(expected);
+  });
+
+  it("exposes exactly the social members", async () => {
+    const LIVE = await bootLive();
+    const social = (LIVE as unknown as { social: Record<string, unknown> }).social;
+    expect(Object.keys(social).sort()).toEqual([...EXPECTED_SOCIAL].sort());
+  });
+});

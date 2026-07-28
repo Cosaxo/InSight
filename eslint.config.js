@@ -4,6 +4,16 @@ import reactHooks from 'eslint-plugin-react-hooks'
 import reactRefresh from 'eslint-plugin-react-refresh'
 import tseslint from 'typescript-eslint'
 import { defineConfig, globalIgnores } from 'eslint/config'
+import { collectSpecGlobals } from './scripts/spec-globals.mjs'
+
+// The spec layer's globals, scanned from the source rather than
+// hand-listed — the same scan check:globals runs. Seeding no-undef with
+// these is what lets the rule be ON for ~18.5kLOC of shared-global JSX.
+const { defined: SPEC_GLOBALS, RUNTIME_ALLOWLIST } = collectSpecGlobals()
+const specGlobals = Object.fromEntries([
+  ...[...SPEC_GLOBALS].map((n) => [n, 'readonly']),
+  ...[...RUNTIME_ALLOWLIST].map((n) => [n, 'readonly']),
+])
 
 export default defineConfig([
   // functions/lib is tsc output — linting generated JS reports errors no
@@ -36,13 +46,24 @@ export default defineConfig([
     ],
     languageOptions: {
       ecmaVersion: 2022,
-      globals: globals.browser,
+      globals: { ...globals.browser, ...specGlobals },
       parserOptions: {
         ecmaFeatures: { jsx: true },
       },
     },
     rules: {
-      'no-undef': 'off',
+      // ON, seeded from the scanner above. It was off because every
+      // cross-module reference in this layer is a bare identifier that
+      // eslint could not know about — but that also meant nothing caught
+      // a genuinely undefined one. Two ReferenceErrors (ReactDOM at six
+      // createPortal sites; a bare `sign` in the profile editor) and a
+      // dead <GroupLevelTab> shipped behind that `off`.
+      //
+      // If this starts firing on a legitimate global, the fix is to make
+      // the scanner see it — not to add an exception here. A name eslint
+      // cannot find is one check:globals cannot find either, and that is
+      // the actual bug.
+      'no-undef': 'error',
       'no-unused-vars': 'off',
       // The spec layer round-trips UI state through window globals by
       // design (__profileSub etc.) — the compiler-strict immutability

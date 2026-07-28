@@ -42,6 +42,24 @@ invite link must work for anonymous users.
 **Why.** Never lose a user's history to a login wall. The linking path is
 implemented early (Phase 2) because it is hard to retrofit.
 
+**Amendment (2026-07-28) — "invite link" is not what shipped.** Groups are
+joined with an 8-character invite code typed into the app
+(`joinGroupV2`), not by tapping a link. No deep-link handling exists on
+either platform: the Android manifest has only MAIN/LAUNCHER, and iOS has
+no associated-domains entitlement.
+
+The record's requirement is unchanged and still correct — an anonymous
+user must be able to join without a login wall, and they can. What was
+never built is the *link*, which matters because it is the growth loop: a
+code has to be read out or copied by hand.
+
+Scope if it gets built: iOS needs the associated-domains entitlement plus
+an `apple-app-site-association` file; Android needs a `VIEW` intent-filter
+plus `assetlinks.json`. Both need a real domain — and `firebase.json` has
+no `hosting` block today, which is separately why there is no reachable
+privacy-policy URL for the store listings. One hosting target unblocks
+both.
+
 ## D7 · Backend scale ceilings — recorded, not engineered around
 
 **Decision.** Fix what breaks at any size; write down what breaks at scale
