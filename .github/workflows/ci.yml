@@ -60,6 +60,9 @@ jobs:
           cache-dependency-path: functions/package-lock.json
       - run: npm ci --prefix functions
       - run: npm run build --prefix functions
+      # pure.ts holds the k-anon floor, reveal and streak math. Its tests
+      # existed but nothing ran them, so a regression there merged green.
+      - run: npm run test --prefix functions
 
   rules-tests:
     runs-on: ubuntu-latest

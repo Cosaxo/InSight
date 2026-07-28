@@ -4,6 +4,7 @@
 // spec-index.js load order is semantic — scripts/check-spec-globals.mjs
 // guards the wiring in CI.
 import React from 'react';
+import ReactDOM from 'react-dom';
 
 // world-feed.jsx — the question feed under the World daily. Answer today's
 // question and the feed starts: dilemmas, this-or-thats, rankings and image

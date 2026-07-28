@@ -6,7 +6,9 @@ import tseslint from 'typescript-eslint'
 import { defineConfig, globalIgnores } from 'eslint/config'
 
 export default defineConfig([
-  globalIgnores(['dist']),
+  // functions/lib is tsc output — linting generated JS reports errors no
+  // one can fix in source, and only on machines that have built functions.
+  globalIgnores(['dist', 'functions/lib']),
   {
     files: ['**/*.{ts,tsx}'],
     extends: [

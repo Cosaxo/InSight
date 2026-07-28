@@ -16,9 +16,18 @@ operator seeds it:
    set and `VITE_V2_LIVE=true`) and copy your uid — it's shown by
    `window.LIVE.uid` in the browser console, or in Firebase Console →
    Authentication.
-2. `cp functions/.env.example functions/.env`, put that uid in
-   `SEED_ADMIN_UIDS=`, commit and push (CI redeploys the functions with
-   the env baked in).
+2. Set that uid as the `SEED_ADMIN_UIDS` variable on the **production**
+   environment (GitHub → Settings → Environments → `production` →
+   Variables), then re-run **Deploy Firebase backend** via
+   `workflow_dispatch`. The deploy writes `functions/.env.prvfire33` from
+   that variable, so the uid reaches the deployed runtime.
+   Comma-separate for several operators.
+
+   > Not a committed file: `.env` and `.env.*` are gitignored (including
+   > under `functions/`), so the value cannot travel in the repo — the
+   > workflow variable is the only path. A deploy with the variable unset
+   > still succeeds but logs a warning, and every operator callable stays
+   > `permission-denied`.
 3. From the app's console:
    `firebase.functions().httpsCallable("seedContentV2")()` — or simply
    tap through any flow that calls it; 191 questions land in
@@ -37,6 +46,15 @@ Both apps must be registered under `com.cosaxo.insight`:
   `REVERSED_CLIENT_ID` in `Info.plist` for native Google sign-in.
   For push: Apple Developer → Keys → create an APNs key and upload it in
   Firebase Console → Cloud Messaging → Apple app configuration.
+- **Enable the provider** — Firebase Console → Authentication → Sign-in
+  method → enable **Google** (and keep **Anonymous** enabled; D3 depends
+  on it). The client side is wired: `capacitor.config.ts` declares
+  `providers: ["google.com"]` and `android/variables.gradle` sets
+  `rgcfaIncludeGoogle = true`. Both are required — without the Gradle
+  flag the Google libraries are `compileOnly`, so an Android build
+  compiles and ships but throws the moment anyone taps *Link Google*.
+- Run `npm run sync` after any `capacitor.config.ts` change — the native
+  shells read the copied config, not this file.
 
 ## 3 · Store accounts & builds (device-gated)
 

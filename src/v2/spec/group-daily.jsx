@@ -5,6 +5,7 @@
 // spec-index.js load order is semantic — scripts/check-spec-globals.mjs
 // guards the wiring in CI.
 import React from 'react';
+import ReactDOM from 'react-dom';
 
 // group-daily.jsx — the daily tab's GROUP mode. Groups are named circles
 // (The Crew, Book Club…), each with its own question today. Same shape as

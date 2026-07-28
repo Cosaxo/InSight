@@ -67,6 +67,11 @@ jobs:
         with:
           node-version: "22"
           cache: npm
+          # This job installs both trees; cache on both lockfiles so the
+          # functions install is cached too.
+          cache-dependency-path: |
+            package-lock.json
+            functions/package-lock.json
 
       # Root deps bring the lockfile-pinned firebase-tools CLI.
       - name: Install dependencies
@@ -77,6 +82,30 @@ jobs:
 
       - name: Build functions
         run: npm run build --prefix functions
+
+      # Runtime env for the deployed functions. The CLI reads
+      # functions/.env.<projectId> at deploy time and bakes it into each
+      # function's runtime config. Both .env and .env.* are gitignored, so
+      # CI is the only place this value can come from — without this step
+      # SEED_ADMIN_UIDS is empty in production and assertOperator() denies
+      # every operator callable, including the seedContentV2 that fills
+      # the question bank. Project-scoped on purpose: a future non-prod
+      # project must not inherit production operator uids.
+      - name: Write functions runtime env
+        env:
+          SEED_ADMIN_UIDS: ${{ vars.SEED_ADMIN_UIDS }}
+          APPCHECK_ENFORCE: ${{ vars.APPCHECK_ENFORCE }}
+        run: |
+          if [ -z "$SEED_ADMIN_UIDS" ]; then
+            echo "::warning::SEED_ADMIN_UIDS is empty — seedContentV2, revealDuelsNowV2 and the rebuild* callables will return permission-denied. Set it on the production environment, then re-run via workflow_dispatch."
+          fi
+          printf 'SEED_ADMIN_UIDS=%s\n' "$SEED_ADMIN_UIDS" > functions/.env.prvfire33
+          # Only ever write the escape hatch when it is explicitly "false";
+          # any other value must leave App Check enforced by default.
+          if [ "$APPCHECK_ENFORCE" = "false" ]; then
+            echo "::warning::APPCHECK_ENFORCE=false — App Check enforcement is DISABLED for this deploy. Incident escape hatch only; unset the variable to restore enforcement."
+            printf 'APPCHECK_ENFORCE=false\n' >> functions/.env.prvfire33
+          fi
 
       - name: Write service account key
         env:

@@ -18,8 +18,16 @@ Firebase project `prvfire33`. Routine backend changes need no manual deploy.
 - **Workflow:** `.github/workflows/firebase-deploy.yml`
 - **Triggers:** push to `main` (paths `functions/**`, `firestore.rules`, the
   workflow file) and manual `workflow_dispatch`.
-- **Steps:** checkout -> set up Node 20 -> install & build `functions` ->
-  authenticate to Google Cloud -> `firebase deploy`.
+- **Steps:** checkout -> set up Node 22 -> install & build `functions` ->
+  write `functions/.env.prvfire33` -> authenticate to Google Cloud ->
+  `firebase deploy`.
+- **Safety properties** (all three are load-bearing; don't drop them):
+  - `needs: test` — the deploy waits on the Firestore rules suite, so a
+    rules edit cannot reach production untested.
+  - `environment: production` — scopes the secret and variables, and is
+    where required reviewers or a wait timer would attach.
+  - `concurrency: cancel-in-progress: false` — a queued push waits for the
+    in-flight deploy instead of cancelling it mid-apply.
 - **Deployed resources:**
   - Firestore rules (`firestore.rules`)
   - v2 functions: `seedContentV2`, `onV2AnswerCreated` (k-floored
@@ -49,6 +57,59 @@ Actions secret `FIREBASE_SERVICE_ACCOUNT`.
 - That service account currently holds the `Editor` + `Firebase Admin` IAM
   roles, which together cover deploying rules and (gen-2) functions. This can
   be narrowed to least-privilege later.
+
+## Runtime environment for the functions
+
+Two values reach the deployed runtime, both as **variables on the
+`production` environment** (GitHub → Settings → Environments → `production`
+→ Variables — not secrets, and not committed files):
+
+| Variable | Read by | Effect |
+| --- | --- | --- |
+| `SEED_ADMIN_UIDS` | `functions/src/ops.ts` → `assertOperator()` | Comma-separated uids allowed to call the operator-only callables (`seedContentV2`, `revealDuelsNowV2`, `rebuild*`). Unset ⇒ **every** operator callable returns `permission-denied`. |
+| `APPCHECK_ENFORCE` | `functions/src/ops.ts` → `ENFORCE_APP_CHECK` | Only the exact string `false` disables App Check enforcement, as an incident escape hatch. Unset (the normal state) ⇒ enforced. |
+
+The deploy job writes these to `functions/.env.prvfire33`, which the CLI
+bakes into each function's runtime config. The filename is
+project-scoped deliberately: a future non-prod project must not inherit
+production operator uids. `.env` and `.env.*` are gitignored repo-wide,
+so the workflow variable is the only path into production — a deploy with
+`SEED_ADMIN_UIDS` unset still succeeds, but logs a `::warning::` and
+leaves the question bank unseedable.
+
+## Rolling back a bad deploy
+
+Rules, indexes and functions roll back by different mechanics — a rules
+rollback touches neither indexes nor functions.
+
+**Rules** (fastest, no pipeline): Firebase Console → Firestore → Rules →
+**History** → pick the last good ruleset → Restore. Takes effect in
+seconds. Re-running the pipeline on a `git revert` also works but is
+slower and re-deploys functions you may not want to move. Whichever you
+use, land the revert in `main` afterwards or the next deploy re-applies
+the bad ruleset.
+
+**Functions**: there is no console "previous version" restore for gen-2.
+Revert the commit and let the pipeline redeploy, or deploy a known-good
+tree locally with the `--only` list from the workflow.
+
+**A misbehaving `onV2AnswerCreated` is the urgent case.** It has
+`retry: true`, so Eventarc keeps redelivering failures for up to ~7 days
+— a crashing trigger does not drain, it accumulates. Fastest containment
+is deploying a no-op body (return immediately) so deliveries are
+acknowledged, *then* fixing forward. Reverting alone still leaves the
+backlog to replay against the old code.
+
+Check what is actually happening first:
+
+```bash
+npx firebase functions:log --project prvfire33
+npx firebase functions:log --project prvfire33 --only onV2AnswerCreated
+```
+
+The aggregate ledger makes replay safe: `v2_agg_events/{eventId}` is
+checked inside the same transaction that increments counts, so
+redelivered events are no-ops rather than double counts.
 
 ## Running a deploy manually
 

@@ -31,6 +31,19 @@ const config: CapacitorConfig = {
       // Show the reveal notification even when the app is foregrounded.
       presentationOptions: ["badge", "sound", "alert"],
     },
+    FirebaseAuthentication: {
+      // The plugin loads no providers by default, so the native Google
+      // sheet never opens without this list — the account-upgrade path
+      // (D3) is dead on both platforms until it is set.
+      providers: ["google.com"],
+      // The JS SDK owns the session: googleSignIn/linkGoogle take the
+      // native idToken and hand it to signInWithCredential /
+      // linkWithCredential so Firestore keeps using the same auth
+      // instance and the same uid. Without this the native layer signs
+      // in separately and the two disagree about who the user is —
+      // and uid *is* the identity that owns every answer document.
+      skipNativeAuth: true,
+    },
     StatusBar: {
       // The app handles its own status-bar styling via the .dark class;
       // tell Capacitor to honour overlay drawing so safe-area-inset

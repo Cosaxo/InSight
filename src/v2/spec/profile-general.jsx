@@ -285,7 +285,7 @@ import React from 'react';
             </div>
             <label style={fieldLabel}>Job<Select value={JOB_OPTS.includes(v.job) ? v.job : ''} onChange={e => upd('job', e.target.value)} options={JOB_OPTS} placeholder="Field…" /></label>
             <label style={fieldLabel}>Education<Select value={EDU_OPTS.includes(v.education) ? v.education : ''} onChange={e => upd('education', e.target.value)} options={EDU_OPTS} placeholder="Level…" /></label>
-            <span style={fieldLabel}>Sign <span style={{ ...inputBase, fontSize: 15, padding: '8px 11px', border: '1px solid transparent', background: 'transparent', color: 'var(--ink-2)', fontWeight: 500, textTransform: 'none', letterSpacing: 'normal' }}>{sign || 'set your birthday'}</span></span>
+            <span style={fieldLabel}>Sign <span style={{ ...inputBase, fontSize: 15, padding: '8px 11px', border: '1px solid transparent', background: 'transparent', color: 'var(--ink-2)', fontWeight: 500, textTransform: 'none', letterSpacing: 'normal' }}>{signOf(v) || 'set your birthday'}</span></span>
           </div>
         )}
       </Card>
