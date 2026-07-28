@@ -111,3 +111,7 @@ jobs:
           path: ~/.cache/firebase/emulators
           key: firebase-emulators-${{ hashFiles('package-lock.json') }}
       - run: npm run test:e2e
+      # Right-to-erasure: observes leftovers with the admin SDK (rules
+      # bypassed), because reading as another user cannot tell "deleted"
+      # from "permission-denied".
+      - run: npm run test:e2e:erasure
