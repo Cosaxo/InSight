@@ -298,6 +298,27 @@ describe("v2 profile", () => {
     }, { merge: true }));
     await assertFails(setDoc(mine, { testResults: "hacked" }, { merge: true }));
   });
+
+  // The client builds this exact payload (ANCHOR_FIELDS in live.ts, filled
+  // by the profile's Basics card). Rules reject the whole write on one bad
+  // field, so client and ruleset agreeing is load-bearing, not cosmetic —
+  // a mismatch means every vote silently stops recording its cohort.
+  it("accepts the full anchor set the client actually sends, and holds the caps", async () => {
+    const mine = doc(asUser(OWNER), "v2_users", OWNER);
+    await assertSucceeds(setDoc(mine, {
+      anchors: {
+        city: "Oslo", country: "Norway", ageBand: "25-34", gender: "Woman",
+        profession: "Software & IT", education: "Bachelor's",
+        relationship: "Partnered",
+      },
+    }));
+    // per-field length caps (isValidV2Anchors): ageBand 20, gender 40, city 80
+    await assertFails(setDoc(mine, { anchors: { ageBand: "x".repeat(21) } }));
+    await assertFails(setDoc(mine, { anchors: { gender: "x".repeat(41) } }));
+    await assertFails(setDoc(mine, { anchors: { city: "x".repeat(81) } }));
+    // and a non-string value is not a short string
+    await assertFails(setDoc(mine, { anchors: { ageBand: 25 } }));
+  });
 });
 
 describe("v2 answers (owner-only, create-only — D5)", () => {
