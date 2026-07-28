@@ -1,4 +1,3 @@
-/* eslint-disable */
 // Ported from design/spec-modules/suggestions.js (the historical prototype — no sync
 // script survives; THIS file is the live source now, hand-edits and all).
 // Cross-module references resolve through the shared global scope and
@@ -29,9 +28,9 @@ import React from 'react';
 
   const LS = 'insight.suggestions.v1';
   let saved = { mine: [], up: {} };
-  try { const j = JSON.parse(localStorage.getItem(LS) || 'null'); if (j) saved = { mine: j.mine || [], up: j.up || {} }; } catch (e) {}
+  try { const j = JSON.parse(localStorage.getItem(LS) || 'null'); if (j) saved = { mine: j.mine || [], up: j.up || {} }; } catch (e) { /* absent or corrupt payload — fall back to the default initialised above. */ }
   const listeners = new Set();
-  function persist() { try { localStorage.setItem(LS, JSON.stringify(saved)); } catch (e) {} listeners.forEach((f) => f()); }
+  function persist() { try { localStorage.setItem(LS, JSON.stringify(saved)); } catch (e) { /* localStorage can throw: private mode, quota, disabled storage. Persistence here is best-effort and the in-memory state stays correct. */ } listeners.forEach((f) => f()); }
 
   const TYPE_LABEL = { binary: 'this or that', choice: 'multiple choice', scale: 'agree / disagree', rating: 'rate 1–10', dilemma: 'dilemma' };
 

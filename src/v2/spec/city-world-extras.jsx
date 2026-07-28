@@ -1,4 +1,3 @@
-/* eslint-disable */
 // Ported from design/spec-modules/city-world-extras.jsx (the historical prototype — no sync
 // script survives; THIS file is the live source now, hand-edits and all).
 // Cross-module references resolve through the shared global scope and
@@ -210,7 +209,7 @@ function loadVoices() {
   try {
     const v = JSON.parse(localStorage.getItem(VOICES_KEY) || 'null');
     if (v && v.strengths && v.frictions) return v;
-  } catch (e) {}
+  } catch (e) { /* localStorage can throw: private mode, quota, disabled storage. Persistence here is best-effort and the in-memory state stays correct. */ }
   return JSON.parse(JSON.stringify(SEED_VOICES));
 }
 

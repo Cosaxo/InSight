@@ -1,4 +1,3 @@
-/* eslint-disable */
 // Ported from design/spec-modules/relmap.jsx (the historical prototype — no sync
 // script survives; THIS file is the live source now, hand-edits and all).
 // Cross-module references resolve through the shared global scope and
@@ -107,7 +106,7 @@ import React from 'react';
         const nodeId = hit ? parseInt(hit.getAttribute('data-id'), 10) : null;
         this.drag = { lastX: e.clientX, lastY: e.clientY, moved: 0, nodeId, pid: e.pointerId };
       }
-      try { this.svgEl.setPointerCapture(e.pointerId); } catch (_) {}
+      try { this.svgEl.setPointerCapture(e.pointerId); } catch (_) { /* pointer capture is best-effort; the browser refuses it for an already-released or foreign pointer. */ }
     }
     onPointerMove(e) {
       if (this.pointers.has(e.pointerId)) this.pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
@@ -136,7 +135,7 @@ import React from 'react';
     }
     onPointerUp(e) {
       this.pointers.delete(e.pointerId);
-      try { this.svgEl.releasePointerCapture(e.pointerId); } catch (_) {}
+      try { this.svgEl.releasePointerCapture(e.pointerId); } catch (_) { /* pointer capture is best-effort; the browser refuses it for an already-released or foreign pointer. */ }
       if (this.pinch) { if (this.pointers.size < 2) this.pinch = null; this.drag = null; return; }
       const d = this.drag; if (!d) return;
       this.drag = null;

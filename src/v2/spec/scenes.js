@@ -1,4 +1,3 @@
-/* eslint-disable */
 // Ported from design/spec-modules/scenes.js (the historical prototype — no sync
 // script survives; THIS file is the live source now, hand-edits and all).
 // Cross-module references resolve through the shared global scope and
@@ -15,7 +14,7 @@ import React from 'react';
   let set = null;
   function ensure() {
     if (set) return set;
-    try { const v = JSON.parse(localStorage.getItem(LS) || 'null'); if (Array.isArray(v)) set = new Set(v); } catch (e) {}
+    try { const v = JSON.parse(localStorage.getItem(LS) || 'null'); if (Array.isArray(v)) set = new Set(v); } catch (e) { /* absent or corrupt payload — fall back to the default initialised above. */ }
     if (!set) set = new Set(((window.IS_DATA || {}).groups || []).filter((g) => g.joined).map((g) => g.id));
     return set;
   }
@@ -30,7 +29,7 @@ import React from 'react';
   };
   const colorOf = (id) => { const h = hueOf(id); return h == null ? 'var(--accent)' : `color-mix(in oklch, var(--accent) 45%, oklch(0.60 0.12 ${h}))`; };
   const listeners = new Set();
-  const persist = () => { try { localStorage.setItem(LS, JSON.stringify([...ensure()])); } catch (e) {} listeners.forEach((f) => f()); };
+  const persist = () => { try { localStorage.setItem(LS, JSON.stringify([...ensure()])); } catch (e) { /* localStorage can throw: private mode, quota, disabled storage. Persistence here is best-effort and the in-memory state stays correct. */ } listeners.forEach((f) => f()); };
   window.SCENES = {
     topicOf: (id) => TOPIC[id] || null,
     hueOf, colorOf,

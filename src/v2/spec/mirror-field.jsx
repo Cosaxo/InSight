@@ -1,4 +1,3 @@
-/* eslint-disable */
 // Ported from design/spec-modules/mirror-field.jsx (the historical prototype — no sync
 // script survives; THIS file is the live source now, hand-edits and all).
 // Cross-module references resolve through the shared global scope and
@@ -145,6 +144,15 @@ function MFCanvas({ nodes, selId, onSel, seedDeg, mist = 0, mistSeed = 7, tall =
   // tall: geo fields (Near / World) stretch the mist vertically to fill more of the page
   const stretch = tall ? (stretchProp || 1.3) : 1;
   const key = nodes.map((n) => n.id + ':' + n.match + (n.faint ? 'f' : '')).join('|');
+  // Keyed on the content hash above, not on `nodes` — the array identity
+  // changes every render while the layout only needs to move when a node's
+  // id/match/faint actually changes. That part is deliberate.
+  //
+  // `seedDeg` is the loose end: it is not in `key`, so changing it alone
+  // will not relayout. Every caller currently passes it as a constant per
+  // field, so it cannot bite today — fold it into `key` before making it
+  // dynamic. Recorded rather than widened because there is no DOM test here.
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- see the note above
   const placed = React.useMemo(() => mfLayout(nodes, seedDeg), [key]);
   const mistDots = React.useMemo(() => {
     if (!mist) return [];
@@ -165,6 +173,7 @@ function MFCanvas({ nodes, selId, onSel, seedDeg, mist = 0, mistSeed = 7, tall =
     if (mist) { top = Math.min(top, MF_CY - 172 * stretch); bot = Math.max(bot, MF_CY + 172 * stretch); }
     const y = tall ? top - 6 : Math.max(0, top - 6);
     return { y, h: (tall ? bot + 6 : Math.min(MF_H, bot + 6)) - y };
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- ported effect; see src/v2/README.md § Lint suppressions
   }, [key, mist, stretch]);
   return (
     <div style={{ position: 'relative', margin: '4px -6px 0' }}>

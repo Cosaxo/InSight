@@ -56,9 +56,13 @@ Not vulnerabilities to report — we already know, and they are tracked:
   callable is planned; see `docs/SHIP-CHECKLIST.md`.
 - **App Check enforcement** is not yet enabled console-side, so the
   attestation the callables expect is not yet required of clients.
-- **Reveal membership** is currently evaluated against a group's *current*
-  members, so joining a group exposes its past reveals. The server-side
-  half of the fix has shipped; the rules half is an owed second deploy.
+- ~~**Reveal membership** is currently evaluated against a group's
+  *current* members, so joining a group exposes its past reveals.~~
+  **Closed.** Both deploys have shipped: `revealGroupDay` writes a
+  `members` snapshot, and the read rule now gates on that array rather
+  than the parent group's roster. A later joiner is denied; a member who
+  leaves keeps the days they played. Two rules tests pin both directions,
+  and both fail against the old rule.
 
 If you can do something worse with one of these than the description
 admits, that is very much worth reporting.

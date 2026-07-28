@@ -440,7 +440,8 @@ describe("window.LIVE public surface", () => {
   const EXPECTED = [
     "aggFor", "appBuild", "confirmedVotes", "dailyBank", "deck",
     "deleteAccount", "demoInProd", "displayName", "enabled", "feedReady",
-    "latestBuild", "linkGoogle", "myVotes", "ready", "saveDisplayName",
+    "latestBuild", "linkGoogle", "myVotes", "ready", "saveAnchors",
+    "saveDisplayName",
     "saveTestResult", "social", "stats", "subscribe", "uid",
     "updateAvailable", "updateRequired", "updateUrl", "vote",
   ];

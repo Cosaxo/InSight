@@ -1,0 +1,24 @@
+{
+  "displayName": "onV2AnswerCreated is erroring",
+  "documentation": {
+    "content": "The v2 aggregate trigger logged an error.\n\nWhy this one has an alert and nothing else does: onV2AnswerCreated runs with retry:true, so Eventarc redelivers failures for up to ~7 days. A crashing trigger does not drain, it accumulates — and every answer written meanwhile misses the aggregate, so the Mirror's world split silently stops moving while the app looks healthy.\n\nFirst response is containment, not a fix: deploy a no-op body so deliveries are acknowledged, then fix forward. Reverting alone leaves the backlog to replay against the old code. Replay itself is safe — v2_agg_events/{eventId} is checked inside the same transaction that increments counts, so redelivered events are no-ops rather than double counts.\n\nFull runbook: docs/DEPLOYMENT.md, 'Rolling back a bad deploy'.",
+    "mimeType": "text/markdown"
+  },
+  "combiner": "OR",
+  "conditions": [
+    {
+      "displayName": "onV2AnswerCreated logged ERROR or worse",
+      "conditionMatchedLog": {
+        "filter": "severity>=ERROR AND ((resource.type=\"cloud_run_revision\" AND resource.labels.service_name=\"onv2answercreated\") OR (resource.type=\"cloud_function\" AND resource.labels.function_name=\"onV2AnswerCreated\"))"
+      }
+    }
+  ],
+  "alertStrategy": {
+    "notificationRateLimit": {
+      "period": "3600s"
+    },
+    "autoClose": "604800s"
+  },
+  "enabled": true,
+  "notificationChannels": []
+}

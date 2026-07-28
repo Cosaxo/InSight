@@ -1,4 +1,3 @@
-/* eslint-disable */
 // Ported from design/spec-modules/map-tab.jsx (the historical prototype — no sync
 // script survives; THIS file is the live source now, hand-edits and all).
 // Cross-module references resolve through the shared global scope and
@@ -24,7 +23,7 @@ function MapTab({ rail = true, anchorsOn = true, recency = true, fields: fieldsO
   const renameCat = (id, label) => {
     const v = (label || '').trim(); if (!v) return;
     const next = { ...catNames, [id]: v }; setCatNames(next);
-    try { localStorage.setItem(LS_CATNAMES, JSON.stringify(next)); } catch (e) {}
+    try { localStorage.setItem(LS_CATNAMES, JSON.stringify(next)); } catch (e) { /* localStorage can throw: private mode, quota, disabled storage. Persistence here is best-effort and the in-memory state stays correct. */ }
   };
 
   // ── nodes: every daily answer, filed by its question's branch path ────────
@@ -80,6 +79,7 @@ function MapTab({ rail = true, anchorsOn = true, recency = true, fields: fieldsO
     });
     // (people you've dueled with now live on the Circle map, not here)
     return { nodes: kept, tops: Array.from(topSeen.values()), counts };
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- ported effect; see src/v2/README.md § Lint suppressions
   }, [dqv]);
   const nodes = built.nodes;
   const answers = useMemo(() => nodes.filter((n) => n.daily), [nodes]);
@@ -197,6 +197,7 @@ function MapTab({ rail = true, anchorsOn = true, recency = true, fields: fieldsO
     };
     tryFit();
     return () => { cancelled = true; };
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- ported effect; see src/v2/README.md § Lint suppressions
   }, [pos, view]);
 
   const tweenTo = (target) => {
@@ -314,6 +315,7 @@ function MapTab({ rail = true, anchorsOn = true, recency = true, fields: fieldsO
     };
     el.addEventListener('wheel', handler, { passive: false });
     return () => el.removeEventListener('wheel', handler);
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- ported effect; see src/v2/README.md § Lint suppressions
   }, []);
 
   const canvasXY = (e) => {

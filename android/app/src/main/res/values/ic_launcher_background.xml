@@ -1,4 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="ic_launcher_background">#FFFFFF</color>
+    <!-- The adaptive icon's background layer. Brand paper, not #FFFFFF: it
+         must match the background baked into the legacy ic_launcher.png
+         rasters (scripts/gen-icons.mjs) and the splash backgroundColor in
+         capacitor.config.ts, or the same app shows a warm icon on Android
+         26+ and a cold one below it. -->
+    <color name="ic_launcher_background">#FAF9F2</color>
 </resources>

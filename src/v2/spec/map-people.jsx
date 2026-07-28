@@ -1,4 +1,3 @@
-/* eslint-disable */
 // Ported from design/spec-modules/map-people.jsx (the historical prototype — no sync
 // script survives; THIS file is the live source now, hand-edits and all).
 // Cross-module references resolve through the shared global scope and
@@ -109,6 +108,7 @@ import React from 'react';
   function CircleReadCard() {
     const D = window.DUELS;
     const [, bump] = React.useReducer((x) => x + 1, 0);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- ported effect; see src/v2/README.md § Lint suppressions
     React.useEffect(() => (D ? D.subscribe(bump) : undefined), []);
     if (!D) return null;
     const ps = D.partners().filter((p) => p.read.total > 0);

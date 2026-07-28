@@ -1,4 +1,3 @@
-/* eslint-disable */
 // Ported from design/spec-modules/tweaks-panel.jsx (the historical prototype — no sync
 // script survives; THIS file is the live source now, hand-edits and all).
 // Cross-module references resolve through the shared global scope and
@@ -315,8 +314,13 @@ function TweaksPanel({ title = 'Tweaks', noDeckControls = false, children }) {
   return (
     <>
       <style>{__TWEAKS_STYLE}</style>
-      <div ref={dragRef} className="twk-panel" data-noncommentable=""
-           style={{ right: offsetRef.current.x, bottom: offsetRef.current.y }}>
+      {/* No inline right/bottom here. Position is owned imperatively by
+          clampToViewport, which the open-effect runs on mount and on every
+          resize. The .twk-panel rule already ships right:16px/bottom:16px —
+          identical to offsetRef's initial value — so first paint is
+          unchanged, while reading the ref during render made the output
+          depend on a value React does not track. */}
+      <div ref={dragRef} className="twk-panel" data-noncommentable="">
         <div className="twk-hd" onMouseDown={onDragStart}>
           <b>{title}</b>
           <button className="twk-x" aria-label="Close tweaks"
@@ -387,6 +391,7 @@ function TweakRadio({ label, value, options, onChange }) {
   // The active value is read by pointer-move handlers attached for the lifetime
   // of a drag — ref it so a stale closure doesn't fire onChange for every move.
   const valueRef = React.useRef(value);
+  // eslint-disable-next-line react-hooks/refs -- ported render logic; see src/v2/README.md § Lint suppressions
   valueRef.current = value;
 
   // Segments wrap mid-word once per-segment width runs out. The track is

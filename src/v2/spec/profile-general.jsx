@@ -1,4 +1,3 @@
-/* eslint-disable */
 // Ported from design/spec-modules/profile-general.jsx (the historical prototype — no sync
 // script survives; THIS file is the live source now, hand-edits and all).
 // Cross-module references resolve through the shared global scope and
@@ -118,6 +117,39 @@ import React from 'react';
     return v.born;
   }
   const JOB_OPTS = ['Arts & culture', 'Design & creative', 'Media & publishing', 'Writing & journalism', 'Education & research', 'Science', 'Software & IT', 'Tech & engineering', 'Engineering', 'Architecture', 'Healthcare', 'Mental health & care', 'Business & finance', 'Marketing & advertising', 'Sales', 'Consulting', 'Law & government', 'Public sector & nonprofit', 'Trades & crafts', 'Construction', 'Manufacturing', 'Agriculture & environment', 'Transport & logistics', 'Service & hospitality', 'Retail', 'Entrepreneur / self-employed', 'Student', 'Homemaker', 'Between jobs', 'Retired', 'Other'];
+  // Anchor vocabularies (D8). Coarse on purpose: the breakdown floors get
+  // thin fast, and a free-text answer would mint a bucket per spelling.
+  // "Prefer not to say" is a REAL option, not an empty string, so choosing
+  // it is distinguishable from never having been asked.
+  const GENDER_OPTS = ['Woman', 'Man', 'Non-binary', 'Prefer not to say'];
+  const REL_OPTS = ['Single', 'Dating', 'Partnered', 'Married', 'It\u2019s complicated', 'Prefer not to say'];
+  // ~5-year bands under 35, widening after — matches how the splits are
+  // read ("25-34 went the other way"), and keeps cells populated.
+  const AGE_BANDS = [
+    [0, 17, 'Under 18'], [18, 24, '18-24'], [25, 34, '25-34'],
+    [35, 44, '35-44'], [45, 54, '45-54'], [55, 64, '55-64'], [65, 200, '65+'],
+  ];
+  function ageBandOf(age) {
+    const n = Number(age);
+    if (!n || Number.isNaN(n)) return '';
+    const hit = AGE_BANDS.find(([lo, hi]) => n >= lo && n <= hi);
+    return hit ? hit[2] : '';
+  }
+  // The profile\u2019s own vocabulary, mapped onto the seven rules-validated
+  // anchor keys. Only the band is derived \u2014 the exact birthday never
+  // leaves the device.
+  function anchorsFrom(v) {
+    return {
+      ageBand: ageBandOf(calcAge(v.born, v.bornM, v.bornD) || v.age),
+      gender: v.gender || '',
+      country: v.country || '',
+      city: v.city || '',
+      education: v.education || '',
+      profession: v.job || '',
+      relationship: v.relationship || '',
+    };
+  }
+
   const EDU_OPTS = ['Primary school', 'Middle school', 'High school', 'Vocational / trade', 'Some college', 'Associate degree', "Bachelor's", 'Postgraduate diploma', "Master's", 'MBA', 'Doctorate', 'Postdoctoral', 'Professional certification', 'Self-taught', 'Other'];
   function Select({ value, onChange, options, placeholder = 'Choose…' }) {
     const [foc, setFoc] = useState(false);
@@ -285,7 +317,21 @@ import React from 'react';
             </div>
             <label style={fieldLabel}>Job<Select value={JOB_OPTS.includes(v.job) ? v.job : ''} onChange={e => upd('job', e.target.value)} options={JOB_OPTS} placeholder="Field…" /></label>
             <label style={fieldLabel}>Education<Select value={EDU_OPTS.includes(v.education) ? v.education : ''} onChange={e => upd('education', e.target.value)} options={EDU_OPTS} placeholder="Level…" /></label>
-            <span style={fieldLabel}>Sign <span style={{ ...inputBase, fontSize: 15, padding: '8px 11px', border: '1px solid transparent', background: 'transparent', color: 'var(--ink-2)', fontWeight: 500, textTransform: 'none', letterSpacing: 'normal' }}>{signOf(v) || 'set your birthday'}</span></span>
+            <label style={fieldLabel}>Gender<Select value={GENDER_OPTS.includes(v.gender) ? v.gender : ''} onChange={e => upd('gender', e.target.value)} options={GENDER_OPTS} placeholder="—" /></label>
+            <label style={fieldLabel}>Relationship<Select value={REL_OPTS.includes(v.relationship) ? v.relationship : ''} onChange={e => upd('relationship', e.target.value)} options={REL_OPTS} placeholder="—" /></label>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+              <label style={fieldLabel}>Country<input style={{ ...inputBase, fontSize: 15, padding: '8px 11px' }} value={v.country || ''} maxLength={80} onChange={e => upd('country', e.target.value)} placeholder="Norway" /></label>
+              <label style={fieldLabel}>City<input style={{ ...inputBase, fontSize: 15, padding: '8px 11px' }} value={v.city || ''} maxLength={80} onChange={e => upd('city', e.target.value)} placeholder="Oslo" /></label>
+            </div>
+            {/* Every field here is optional and skippable. The note says what
+                it buys, because "why does a privacy app want my age?" is the
+                right question to ask and it deserves an answer in place. */}
+            <div style={{ fontFamily: 'var(--sans)', fontSize: 12, fontWeight: 500, color: 'var(--ink-3)', lineHeight: 1.5, textWrap: 'pretty' }}>
+              All optional. These are what let the daily show how each kind of
+              person split — never your exact birthday, and never a group small
+              enough to point at one person.
+            </div>
+            <span style={fieldLabel}>Sign{'\u2004'}<span style={{ ...inputBase, fontSize: 15, padding: '8px 11px', border: '1px solid transparent', background: 'transparent', color: 'var(--ink-2)', fontWeight: 500, textTransform: 'none', letterSpacing: 'normal' }}>{signOf(v) || 'set your birthday'}</span></span>
           </div>
         )}
       </Card>
@@ -521,6 +567,20 @@ import React from 'react';
     useEffect(() => {
       try { localStorage.setItem(GKEY, JSON.stringify(data)); } catch (e) { /* ignore */ }
     }, [data]);
+    // Mirror the anchor subset onto the owner-only profile doc (D8), so
+    // later answers can snapshot it. Only in live mode — in mock mode the
+    // vitals are demo data and there is no server to write to.
+    //
+    // Compared as JSON rather than by object identity: `data` gets a new
+    // reference on every keystroke in an unrelated card (interests, heroes),
+    // and each one would otherwise be a Firestore write.
+    const anchorsJson = window.LIVE && window.LIVE.enabled
+      ? JSON.stringify(anchorsFrom(data.vitals || {}))
+      : null;
+    useEffect(() => {
+      if (anchorsJson == null) return;
+      try { window.LIVE.saveAnchors(JSON.parse(anchorsJson)); } catch (e) { /* best-effort */ }
+    }, [anchorsJson]);
 
     return (
       <div style={{ paddingBottom: 8 }}>

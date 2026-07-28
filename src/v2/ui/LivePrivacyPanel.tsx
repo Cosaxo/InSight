@@ -12,6 +12,11 @@ import LIVE from "../data/live";
 import { setTelemetryEnabled, telemetryEnabled } from "../../lib/sentry";
 
 const LP_LINE = "1px solid color-mix(in oklch, var(--rule), transparent 25%)";
+// The hosted origin for the legal pages (firebase.json → hosting). A
+// constant rather than an inline string so the day a real domain replaces
+// the free .web.app one, there is exactly one place to change — and so it
+// is greppable from the deploy config that publishes them.
+const LP_SITE = "https://prvfire33.web.app";
 
 function LpRow({ title, sub, children }: {
   title: string;
@@ -117,6 +122,19 @@ function LivePrivacyPanel() {
           <li>Group &amp; 1v1 answers stay sealed until the next day&apos;s reveal, then show with names — to members only.</li>
           <li>No location is collected. No contacts. No comments from strangers.</li>
         </ul>
+        {/* Until now these pages shipped inside the bundle and were linked
+            from nowhere — reachable only by knowing the filename. Both
+            stores also require the policy to be reachable on the open web,
+            so it is served from Firebase Hosting and linked here rather
+            than opened from the bundle: one canonical copy, and the link
+            keeps working when someone pastes it outside the app. */}
+        <div style={{ marginTop: 10, fontSize: 12.5, fontWeight: 600 }}>
+          <a href={`${LP_SITE}/privacy.html`} target="_blank" rel="noreferrer noopener"
+            style={{ color: "var(--accent)", textDecoration: "none" }}>Privacy policy</a>
+          <span style={{ color: "var(--ink-3)", padding: "0 7px" }}>·</span>
+          <a href={`${LP_SITE}/terms.html`} target="_blank" rel="noreferrer noopener"
+            style={{ color: "var(--accent)", textDecoration: "none" }}>Terms</a>
+        </div>
       </div>
 
       <LpRow title="Delete everything"

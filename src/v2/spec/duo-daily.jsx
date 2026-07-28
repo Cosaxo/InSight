@@ -1,4 +1,3 @@
-/* eslint-disable */
 // Ported from design/spec-modules/duo-daily.jsx (the historical prototype — no sync
 // script survives; THIS file is the live source now, hand-edits and all).
 // Cross-module references resolve through the shared global scope and
@@ -201,7 +200,11 @@ import ReactDOM from 'react-dom';
             <GDAv p={p} size={24}></GDAv>
             <div style={{ ...col(2), minWidth: 0, flex: 1 }}>
               <span style={{ fontWeight: 800, fontSize: 13, color: 'var(--ink-2)' }}>{first(p)}{'\u2019'}s answer</span>
-              <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--ink-3)', textWrap: 'pretty' }}>{theyDone ? 'reveals tomorrow \u2014 did you call it?' : first(p) + ' is still answering\u2026'}</span>
+              <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--ink-3)', textWrap: 'pretty' }}>{theyDone
+                ? (window.RevealClock
+                  ? <window.RevealClock prefix="reveals in" suffix=" \u2014 did you call it?"></window.RevealClock>
+                  : 'reveals tomorrow \u2014 did you call it?')
+                : first(p) + ' is still answering\u2026'}</span>
             </div>
             <span aria-hidden="true" style={{ fontWeight: 800, fontSize: 15, color: 'var(--ink)', filter: 'blur(6px)', opacity: 0.4, userSelect: 'none', pointerEvents: 'none', flexShrink: 0 }}>{today.q.options[0]}</span>
           </div>
@@ -249,6 +252,7 @@ import ReactDOM from 'react-dom';
   function DuoBody() {
     const D = window.DUELS;
     const [, bump] = useReducer((x) => x + 1, 0);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- ported effect; see src/v2/README.md § Lint suppressions
     useEffect(() => D.subscribe(bump), []);
     const ps = D.partners();
     // pending first, but the order is frozen at mount — finishing a duel must

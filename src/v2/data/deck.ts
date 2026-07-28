@@ -38,6 +38,11 @@ export interface AggDoc {
   counts?: Record<string, number>;
   total?: number;
   tooSmall?: boolean;
+  // Per-anchor breakdown, already k-floored per cell with complementary
+  // suppression applied server-side (functions/src/pure.ts, D8). A cell
+  // that is absent here is WITHHELD, not zero — the UI must say so rather
+  // than draw an empty bar.
+  by?: Record<string, Record<string, Record<string, number>>>;
 }
 
 // The viewer-relative slice of store state a card needs: the question's

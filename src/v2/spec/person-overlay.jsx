@@ -1,4 +1,3 @@
-/* eslint-disable */
 // Ported from design/spec-modules/person-overlay.jsx (the historical prototype — no sync
 // script survives; THIS file is the live source now, hand-edits and all).
 // Cross-module references resolve through the shared global scope and
@@ -536,6 +535,17 @@ function FollowerShares({ p }) {
 }
 
 function PersonOverlay({ p: rawP, onClose, me }) {
+  // Hooks first, unconditionally, ABOVE the `!rawP` guard below. None of
+  // them read rawP, so hoisting is behaviour-neutral — but leaving them
+  // under an early return made hook order depend on a prop. That is
+  // currently unreachable (app-shell.jsx renders this behind `person &&`),
+  // which is exactly what makes it a trap: the day anyone mounts this
+  // unconditionally, React blows up on a mismatched hook order far from
+  // the edit that caused it.
+  const [, fBump] = React.useReducer((x) => x + 1, 0);
+  React.useEffect(() => (window.FRIENDS ? window.FRIENDS.subscribe(fBump) : undefined), []);
+  const [confirmRemove, setConfirmRemove] = React.useState(false);
+
   if (!rawP) return null;
   // Normalize interests — some sources (IS_DATA.people) store them as
   // category-id strings; person-overlay expects [{t, c}] objects.
@@ -554,11 +564,8 @@ function PersonOverlay({ p: rawP, onClose, me }) {
 
   const overall = Math.round(p.match);
   const closestShared = prof.closest[0];
-  const [, fBump] = React.useReducer((x) => x + 1, 0);
-  React.useEffect(() => (window.FRIENDS ? window.FRIENDS.subscribe(fBump) : undefined), []);
   const fStatus = !p.anon && p.id && window.FRIENDS ? window.FRIENDS.status(p.id) : 'none';
   const isFriend = fStatus === 'friends';
-  const [confirmRemove, setConfirmRemove] = React.useState(false);
   const onFriendBtn = () => {
     if (!window.FRIENDS || !p.id) return;
     if (fStatus === 'none') window.FRIENDS.invite(p.id);

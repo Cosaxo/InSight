@@ -68,7 +68,7 @@ functions/src/     v2.ts (seed + aggregates) · v2social.ts (groups, duos,
                    reveals, push) · index.ts (v1-era aggregates & account
                    deletion, still deployed)
 firestore.rules    the access model (owner-only answers, k-floored aggs,
-                   member-only groups/reveals) — 29 emulator tests
+                   member-only groups/reveals) — 32 emulator tests
 firestore.rules.v1-archive  the retired v1 client rules (D4) — reference,
                    NOT deployed
 content/           canonical question banks & archetypes (seed source)
@@ -83,7 +83,7 @@ Local:
 
 - `npm run test:unit` — client + pure deck logic (vitest, no emulator).
 - `npm run test --prefix functions` — the k-anon floor, reveal and streak math.
-- `npm run test:rules` — 29 security-rules tests (Firestore + Storage)
+- `npm run test:rules` — 32 security-rules tests (Firestore + Storage)
   against the emulator.
 - `npm run test:e2e` — the v2 core loop under `emulators:exec`: anon auth →
   seed → vote → aggregate trigger → k-floor → duel create/join/seal/reveal.
@@ -93,6 +93,9 @@ Local:
 - `npm run check:versions` / `check:bundle` / `check:deploy-targets` —
   version lockstep across the three projects, the bundle budget, and every
   exported function appearing in the deploy list.
+- `npm run check:store-copy` — no unfilled placeholders in the store-facing
+  legal pages. A pre-submission gate, not a CI one (see
+  [`docs/SHIP-CHECKLIST.md`](./docs/SHIP-CHECKLIST.md) §3 for why).
 
 CI ([`.github/workflows/`](./.github/workflows/)):
 

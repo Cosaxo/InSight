@@ -220,11 +220,23 @@ service cloud.firestore {
       allow write: if false;
 
       // Materialized reveals (D5): written only by the reveal pipeline;
-      // readable by the group's members.
+      // readable by the members the reveal itself recorded.
+      //
+      // Gating on the reveal's OWN `members` array, not the parent group's
+      // current memberUids, is what makes the guarantee retroactive: joining
+      // a group tomorrow does not hand you every past day's votes and names,
+      // and leaving one does not retract the days you actually played. The
+      // snapshot is written by revealGroupDay (functions/src/v2social.ts) in
+      // the same create() as the votes, so it cannot drift from them.
+      //
+      // Legacy reveals written before that payload shipped carry no
+      // `members` and are denied to everyone by the [] default rather than
+      // erroring — see D5's backfill amendment for why that set is empty.
+      // Reading the field off the document also drops a get() on the group
+      // doc, so a reveal read is now one billed read instead of two.
       match /reveals/{day} {
         allow read: if request.auth != null
-          && request.auth.uid
-            in get(/databases/$(database)/documents/v2_groups/$(gid)).data.memberUids;
+          && request.auth.uid in resource.data.get("members", []);
         allow write: if false;
       }
     }

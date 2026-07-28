@@ -298,6 +298,27 @@ describe("v2 profile", () => {
     }, { merge: true }));
     await assertFails(setDoc(mine, { testResults: "hacked" }, { merge: true }));
   });
+
+  // The client builds this exact payload (ANCHOR_FIELDS in live.ts, filled
+  // by the profile's Basics card). Rules reject the whole write on one bad
+  // field, so client and ruleset agreeing is load-bearing, not cosmetic —
+  // a mismatch means every vote silently stops recording its cohort.
+  it("accepts the full anchor set the client actually sends, and holds the caps", async () => {
+    const mine = doc(asUser(OWNER), "v2_users", OWNER);
+    await assertSucceeds(setDoc(mine, {
+      anchors: {
+        city: "Oslo", country: "Norway", ageBand: "25-34", gender: "Woman",
+        profession: "Software & IT", education: "Bachelor's",
+        relationship: "Partnered",
+      },
+    }));
+    // per-field length caps (isValidV2Anchors): ageBand 20, gender 40, city 80
+    await assertFails(setDoc(mine, { anchors: { ageBand: "x".repeat(21) } }));
+    await assertFails(setDoc(mine, { anchors: { gender: "x".repeat(41) } }));
+    await assertFails(setDoc(mine, { anchors: { city: "x".repeat(81) } }));
+    // and a non-string value is not a short string
+    await assertFails(setDoc(mine, { anchors: { ageBand: 25 } }));
+  });
 });
 
 describe("v2 answers (owner-only, create-only — D5)", () => {
@@ -494,13 +515,47 @@ describe("v2 groups + sealed duels (Phase 3)", () => {
       await setDoc(doc(db, "v2_groups", GID, "reveals", DAY), {
         day: DAY, qid: "group-gu0",
         votes: { [OWNER]: { optionIdx: 1 }, [FRIEND]: { optionIdx: 2 } },
-        names: {},
+        names: {}, members: [OWNER, FRIEND],
       });
     });
     await assertSucceeds(getDoc(doc(asUser(FRIEND), "v2_groups", GID, "reveals", DAY)));
     await assertFails(getDoc(doc(asUser(STRANGER), "v2_groups", GID, "reveals", DAY)));
     await assertFails(setDoc(doc(asUser(OWNER), "v2_groups", GID, "reveals", "2026-07-27"),
       { votes: {} }));
+  });
+
+  // The reveal read gates on the reveal's own members snapshot, not the
+  // group's current roster. Both halves matter and they fail in opposite
+  // directions, so assert them against ONE reveal whose membership has
+  // since changed in both ways: STRANGER joined after the fact, FRIEND left.
+  it("a reveal is readable by who was there, not by who is there now", async () => {
+    await seedGroup([OWNER, STRANGER]); // FRIEND has left; STRANGER has joined
+    await seed(async (db) => {
+      await setDoc(doc(db, "v2_groups", GID, "reveals", DAY), {
+        day: DAY, qid: "group-gu0",
+        votes: { [OWNER]: { optionIdx: 1 }, [FRIEND]: { optionIdx: 2 } },
+        names: {}, members: [OWNER, FRIEND],
+      });
+    });
+    // Joining a group must not hand over the days you were not part of —
+    // this is the read that the parent-group gate used to allow.
+    await assertFails(getDoc(doc(asUser(STRANGER), "v2_groups", GID, "reveals", DAY)));
+    // …and leaving must not retract a day you actually played.
+    await assertSucceeds(getDoc(doc(asUser(FRIEND), "v2_groups", GID, "reveals", DAY)));
+    await assertSucceeds(getDoc(doc(asUser(OWNER), "v2_groups", GID, "reveals", DAY)));
+  });
+
+  // Pins the get("members", []) default: a reveal written before the
+  // snapshot payload shipped denies everyone rather than erroring open.
+  it("a reveal with no members snapshot is readable by nobody", async () => {
+    await seedGroup();
+    await seed(async (db) => {
+      await setDoc(doc(db, "v2_groups", GID, "reveals", DAY), {
+        day: DAY, qid: "group-gu0", votes: { [OWNER]: { optionIdx: 1 } }, names: {},
+      });
+    });
+    await assertFails(getDoc(doc(asUser(OWNER), "v2_groups", GID, "reveals", DAY)));
+    await assertFails(getDoc(doc(asUser(FRIEND), "v2_groups", GID, "reveals", DAY)));
   });
 });
 

@@ -76,7 +76,15 @@ const state = {
   unaggregated: {} as Record<string, number>,
   aggUnsubs: {} as Record<string, () => void>,
   // ── social (groups & duos) ──
-  profile: { displayName: "", testResults: {} as Record<string, unknown> },
+  profile: {
+    displayName: "",
+    testResults: {} as Record<string, unknown>,
+    // The seven rules-validated anchor fields (D8). Snapshotted onto each
+    // answer at vote time so an aggregate can slice by them without ever
+    // reading a second document — and so a later profile edit cannot
+    // retroactively rewrite which cohort a past answer counted in.
+    anchors: {} as Record<string, string>,
+  },
   meta: { latestBuild: 0, minBuild: 0, updateUrl: "" },
   stats: { bankSource: "none", aggsFetched: 0, answersFetched: 0 },
   groups: [] as Array<Record<string, unknown> & { id: string }>,
@@ -86,6 +94,20 @@ const state = {
   revealUnsubs: {} as Record<string, () => void>,
   revealDay: "",
 };
+
+// The anchor keys firestore.rules accepts, with its per-field length caps
+// (isValidV2Anchors). Kept here rather than inline so the client and the
+// ruleset can be diffed against each other by eye.
+const ANCHOR_FIELDS: Record<string, number> = {
+  city: 80, country: 80, ageBand: 20, gender: 40,
+  profession: 80, education: 80, relationship: 40,
+};
+
+// The snapshot written onto an answer. A copy, so a later profile edit
+// cannot retroactively move a past answer into a different cohort.
+function answerAnchors(): Record<string, string> {
+  return { ...state.profile.anchors };
+}
 
 function utcDayKey(offsetDays = 0): string {
   return new Date(Date.now() + offsetDays * 86400000).toISOString().slice(0, 10);
@@ -418,6 +440,8 @@ async function hydrate(): Promise<void> {
         state.profile.displayName = (prof.get("displayName") as string) || "";
         state.profile.testResults =
           (prof.get("testResults") as Record<string, unknown>) || {};
+        state.profile.anchors =
+          (prof.get("anchors") as Record<string, string>) || {};
       }
     } catch (err) {
       reportError(err, { where: "hydrate.profile" });
@@ -532,6 +556,21 @@ function subscribeReveals(db: import("firebase/firestore").Firestore): void {
         notify();
       },
       (err) => {
+        // permission-denied here is the RULE WORKING, not a fault: reveal
+        // reads gate on the reveal's own members snapshot, so a member who
+        // joined after this day was revealed is denied by design. It is the
+        // ordinary state of every late joiner's first day in a group, so
+        // reporting it would bury real listener faults in Sentry.
+        //
+        // Deliberately keeps the unsub entry rather than deleting it. The
+        // denial is permanent for this (group, day) pair — re-attaching
+        // would fail identically forever — and the midnight rollover above
+        // tears down every entry on dayChanged, so tomorrow still retries.
+        if ((err as { code?: string }).code === "permission-denied") {
+          state.reveals[g.id] = null;
+          notify();
+          return;
+        }
         // Dead listener: drop the stale unsub so the next
         // subscribeReveals pass (groups snapshot or midnight rollover)
         // can re-attach instead of being blocked by the guard above.
@@ -631,7 +670,7 @@ const SOCIAL = {
           gid,
           day,
           answeredAt: serverTimestamp(),
-          anchors: {},
+          anchors: answerAnchors(),
         };
         if (typeof guessIdx === "number") payload.guessIdx = guessIdx;
         await setDoc(doc(db, "v2_users", uid, "answers", aid), payload);
@@ -680,6 +719,35 @@ const LIVE = {
     if (!uid) throw new Error("no session");
     await setDoc(doc(db, "v2_users", uid), { displayName: name }, { merge: true });
     state.profile.displayName = name;
+    notify();
+  },
+  // The anchors the profile has collected, as a plain map. Empty until the
+  // user fills the Basics card in — an answer with no anchors simply folds
+  // into no breakdown cell (D8).
+  saveAnchors(next: Record<string, string>): void {
+    const clean: Record<string, string> = {};
+    // Only the seven keys firestore.rules validates, trimmed and capped to
+    // its per-field lengths. Sending anything else fails the whole write,
+    // so the client must not rely on the server to reject the extras.
+    for (const [k, max] of Object.entries(ANCHOR_FIELDS)) {
+      const v = next[k];
+      if (typeof v !== "string") continue;
+      const t = v.trim();
+      if (t) clean[k] = t.slice(0, max);
+    }
+    state.profile.anchors = clean;
+    void (async () => {
+      try {
+        const db = await getDb();
+        const uid = state.uid;
+        if (!uid) return;
+        // merge:false on the nested map would drop the other profile
+        // fields, so the anchors map is replaced wholesale under a merge.
+        await setDoc(doc(db, "v2_users", uid), { anchors: clean }, { merge: true });
+      } catch (err) {
+        reportError(err, { where: "saveAnchors" });
+      }
+    })();
     notify();
   },
   // Test results survive devices: mirrored onto the owner-only profile
@@ -827,7 +895,7 @@ const LIVE = {
           surface: q?.surface ?? "daily",
           optionIdx,
           answeredAt: serverTimestamp(),
-          anchors: {},
+          anchors: answerAnchors(),
         });
         // Server ack: the write is durable, so the vote may now enter
         // confirmedVotes(). Mirror it into the answers cache only NOW —
@@ -916,7 +984,7 @@ function resetForNewUid(uid: string): void {
   state.aggs = {};
   state.groups = [];
   state.reveals = {};
-  state.profile = { displayName: "", testResults: {} };
+  state.profile = { displayName: "", testResults: {}, anchors: {} };
   state.deckIds = [];
   state.deckDay = -1;
   state.ready = false;

@@ -1,4 +1,3 @@
-/* eslint-disable */
 // Ported from design/spec-modules/suggestions.jsx (the historical prototype — no sync
 // script survives; THIS file is the live source now, hand-edits and all).
 // Cross-module references resolve through the shared global scope and
@@ -13,6 +12,7 @@ const { useState: useSgState } = React;
 
 function useSuggestions() {
   const [, bump] = useSgState(0);
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- ported effect; see src/v2/README.md § Lint suppressions
   React.useEffect(() => window.SUGGESTIONS.subscribe(() => bump((x) => x + 1)), []);
   return window.SUGGESTIONS;
 }

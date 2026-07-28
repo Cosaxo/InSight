@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>InSight</title>
+  <meta name="description" content="Answer one question a day. See where you stand." />
+  <link rel="icon" href="/favicon.svg" />
+  <!--
+    The web root for prvfire33.web.app, served at "/" by a rewrite in
+    firebase.json. Deliberately NOT the app: InSight is a native product,
+    and this page exists because both app stores require a reachable
+    privacy-policy URL (and the App Store a support URL) before they will
+    accept a submission.
+
+    Served at "/" by a rewrite rather than being named index.html. This
+    directory is deliberately NOT Vite's public/: an index.html there
+    silently collides with the app's own entry (the build still succeeds
+    and one of them just vanishes from dist/), and hosting's `ignore` is
+    applied at upload time, so it cannot keep a licensed webfont kit
+    sitting in publicDir from being served. A dedicated directory has
+    neither failure mode.
+
+    Keep it spare. It is a legal landing page, not marketing, and the two
+    links below are the only reason it is deployed at all. If invite deep
+    links get built (D3's amendment), this origin is also where
+    /.well-known/assetlinks.json and /apple-app-site-association go.
+  -->
+  <style>
+    :root {
+      --paper: #f7f1e8;
+      --ink: #2a2419;
+      --ink-2: #4d4538;
+      --ink-3: #7d705a;
+      --rule: #cfc6b3;
+      --accent: oklch(0.55 0.13 38);
+      --serif: "Fraunces", Georgia, serif;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0 auto;
+      padding: 64px 20px 80px;
+      background: var(--paper);
+      color: var(--ink);
+      font-family: var(--serif);
+      font-size: 16px;
+      line-height: 1.6;
+      max-width: 640px;
+    }
+    h1 { font-size: 34px; letter-spacing: -0.02em; margin: 0 0 6px; font-weight: 600; }
+    .lede { color: var(--ink-2); font-size: 18px; margin: 0 0 40px; }
+    .dots { display: flex; gap: 9px; align-items: center; margin-bottom: 26px; }
+    .dots i { width: 9px; height: 9px; border-radius: 50%; background: var(--ink-3); opacity: 0.5; display: block; }
+    .dots i.me { width: 17px; height: 17px; background: var(--accent); opacity: 1; }
+    ul { list-style: none; padding: 0; margin: 0 0 40px; }
+    li { padding: 13px 0; border-top: 1px solid var(--rule); }
+    li:last-child { border-bottom: 1px solid var(--rule); }
+    a { color: var(--accent); text-decoration: none; font-weight: 600; }
+    a:hover { text-decoration: underline; }
+    footer { color: var(--ink-3); font-size: 14px; }
+    @media (prefers-color-scheme: dark) {
+      :root { --paper: #1c1913; --ink: #ece5d8; --ink-2: #c3b9a6; --ink-3: #8d8271; --rule: #3b352b; }
+    }
+  </style>
+</head>
+<body>
+  <div class="dots" aria-hidden="true">
+    <i></i><i></i><i class="me"></i><i></i><i></i>
+  </div>
+  <h1>InSight</h1>
+  <p class="lede">Answer one question a day. See where you stand.</p>
+
+  <ul>
+    <li><a href="/privacy.html">Privacy policy</a></li>
+    <li><a href="/terms.html">Terms of service</a></li>
+  </ul>
+
+  <footer>
+    Answers are yours alone. Population counts are k-anonymous — nothing is
+    shown until enough people have answered that no one can be picked out.
+  </footer>
+</body>
+</html>

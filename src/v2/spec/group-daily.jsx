@@ -1,4 +1,3 @@
-/* eslint-disable */
 // Ported from design/spec-modules/group-daily.jsx (the historical prototype — no sync
 // script survives; THIS file is the live source now, hand-edits and all).
 // Cross-module references resolve through the shared global scope and
@@ -235,7 +234,15 @@ import ReactDOM from 'react-dom';
               <YouChip size={30}></YouChip>
             </div>
             <div style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--ink-2)' }}>
-              {nextName ? 'Reveals tomorrow \u00b7 swipe down for ' + nextName : 'Reveals tomorrow'}
+              {/* live countdown when it is available; "tomorrow" is the honest
+                  fallback, and stays the wording everywhere else \u2014 the clock
+                  counts to LOCAL midnight while the reveal is keyed on a UTC
+                  day, so this is a sense of the evening closing, not a promise
+                  about the server (reveal-clock.js says why). */}
+              {window.RevealClock
+                ? <window.RevealClock prefix="Reveals in"></window.RevealClock>
+                : 'Reveals tomorrow'}
+              {nextName ? ' \u00b7 swipe down for ' + nextName : ''}
             </div>
           </div>
         </div>
@@ -312,6 +319,7 @@ import ReactDOM from 'react-dom';
   function GroupDailyBody() {
     const D = window.DUELS;
     const [, bump] = useReducer((x) => x + 1, 0);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- ported effect; see src/v2/README.md § Lint suppressions
     useEffect(() => D.subscribe(bump), []);
     const gs = D.groups();
     // pending first, frozen at mount — answering must not reshuffle the stack

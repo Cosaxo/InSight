@@ -135,6 +135,46 @@ The aggregate ledger makes replay safe: `v2_agg_events/{eventId}` is
 checked inside the same transaction that increments counts, so
 redelivered events are no-ops rather than double counts.
 
+## Alerting (one alert, deliberately)
+
+Everything above assumes somebody already knows something is wrong. Until
+this was added, nothing told them: detection was a human choosing to run
+`functions:log`, and the failure this runbook calls the urgent case is
+exactly the one that looks like nothing from the outside — the app keeps
+serving, the Mirror just stops moving while Eventarc piles up redeliveries
+for ~7 days.
+
+`monitoring/onV2AnswerCreated-errors.json` is a Cloud Monitoring policy
+that fires on any `severity>=ERROR` from that trigger. It is **not applied
+by the pipeline** — the deploy service account has no monitoring role, and
+widening it for one policy is a worse trade than applying this by hand
+once. Apply it with:
+
+```bash
+# 1. Create a notification channel once (email; use --type=sms|slack etc. as preferred)
+gcloud alpha monitoring channels create --project prvfire33 \
+  --display-name="InSight oncall" --type=email \
+  --channel-labels=email_address=YOU@EXAMPLE.COM
+
+# 2. Note the returned channel id, then apply the policy with it attached
+gcloud alpha monitoring policies create --project prvfire33 \
+  --policy-from-file=monitoring/onV2AnswerCreated-errors.json \
+  --notification-channels=projects/prvfire33/notificationChannels/CHANNEL_ID
+```
+
+Verify it: `gcloud alpha monitoring policies list --project prvfire33`.
+
+**Why only one alert.** An alert nobody acts on trains people to ignore
+the channel, and at zero users most signals are noise. This is the single
+condition where the gap between "broken" and "visibly broken" is measured
+in days rather than seconds. The scheduled aggregators
+(`scheduledWorldAggregates`, `scheduledCityAggregates`) are the obvious
+second and third — they are 24h jobs whose failure delays a surface by a
+day and self-heals on the next run, so they can wait until someone is
+actually reading the alerts. D7 records the retry-logging threshold that
+should trigger revisiting the sharding decision; this alert is how that
+signal reaches anyone.
+
 ## Running a deploy manually
 
 - **From GitHub:** Actions -> "Deploy Firebase backend" -> "Run workflow"

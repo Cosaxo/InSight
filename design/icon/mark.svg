@@ -1,0 +1,30 @@
+<!-- InSight app mark — source of truth for every launcher icon.
+     Regenerate the rasters with: node scripts/gen-icons.mjs
+
+     The mark is the Mirror tab in one glyph: you, and the people you are
+     placed among. Colours are the design system's own tokens converted
+     from oklch (styles.css: --c-around sienna, --c-world indigo, --ink),
+     not eyeballed, so the icon cannot drift from the app.
+
+     Geometry is tuned for 48px (mdpi ic_launcher), where the ring dots are
+     ~2px: six of them, not twelve, and no mid-ring, because anything
+     finer turns to mush at that size. Everything sits inside a centred
+     circle of diameter 62 in this 100-box, which is Android's adaptive
+     safe zone (66 of 108dp) — so the same artwork is valid as an adaptive
+     foreground and as a legacy square icon. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100" height="100">
+  <g id="mark">
+    <!-- the population: a loose constellation, deliberately not a clock face -->
+    <g fill="#1d1914" fill-opacity="0.34">
+      <circle cx="81.0" cy="61.3" r="5.5"/>
+      <circle cx="58.5" cy="81.9" r="5.5"/>
+      <circle cx="24.7" cy="71.2" r="5.5"/>
+      <circle cx="19.0" cy="38.7" r="5.5"/>
+      <circle cx="45.4" cy="17.3" r="5.5"/>
+    </g>
+    <!-- one of them carries the world colour: the split you are measured against -->
+    <circle cx="78.0" cy="31.0" r="5.5" fill="#007cb7" fill-opacity="0.85"/>
+    <!-- you -->
+    <circle cx="50" cy="50" r="13" fill="#b34f2a"/>
+  </g>
+</svg>

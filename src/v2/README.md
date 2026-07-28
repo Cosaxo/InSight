@@ -44,6 +44,49 @@ Regenerating: the transform lives in the session scratchpad
 Prefer editing `spec/` files directly from here on — the design is frozen,
 so regeneration should never be needed again.
 
+## Lint suppressions
+
+21 files in `spec/` used to open with a bare `/* eslint-disable */`,
+covering 7,743 of the layer's 18,553 lines — including the five largest
+components. That is the opposite of what CLAUDE.md asks for, and it was
+load-bearing in the worst way: a blanket directive also turns off
+`no-undef`, the rule that exists here because two `ReferenceError`s
+shipped, and `--report-unused-disable-directives` structurally cannot
+flag a file-level disable, so `npm run lint` going green said nothing
+about 42% of the layer.
+
+They are gone. Removing them turned out **not** to disturb the
+shared-global convention at all — `no-undef` reports zero problems across
+all 21 files, because `scripts/spec-globals.mjs` already seeds every
+legitimate global into both the checker and the eslint config. What the
+blankets were actually hiding was 60 React findings.
+
+18 of those were fixed outright: three conditional-hook calls in
+`person-overlay.jsx` (hooks hoisted above an early return), 14 empty
+`catch` blocks (now carrying the reason they are empty), and one bare
+U+2004 in JSX text.
+
+The remaining 42 carry a targeted `eslint-disable-next-line` naming the
+one rule, so each is individually visible and greppable:
+
+```bash
+git grep -c "eslint-disable-next-line" -- src/v2/spec   # the live count
+```
+
+They are **deferred, not judged correct**. They are React Compiler
+findings — `exhaustive-deps`, `refs`, `purity`,
+`preserve-manual-memoization` — in JSX ported verbatim from the frozen
+prototype, and there is no DOM test infrastructure in this repo to catch
+a regression if the render logic is restructured. Changing effect
+re-run timing blind is a worse trade than recording the debt. The
+exception is `react-hooks/purity` in `person-mindmap.jsx`, which is a
+false positive with a specific note at each site: those are
+`performance.now()` calls inside pointer and rAF handlers, not render.
+
+Whoever adds DOM tests should start here — the list is the work queue.
+Do not reintroduce a file-level disable to quiet a new finding; that is
+the failure mode this section exists to prevent.
+
 ## Migration path (Phase 2+)
 
 Modules migrate off the global-scope bridge incrementally: when a module
