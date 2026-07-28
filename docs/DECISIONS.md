@@ -65,6 +65,34 @@ test question banks.
 shelved concepts (letters, markers, impressions) remain candidates for later
 versions.
 
+**Amendment — the v1 *rules* are retired too.** The original record kept
+security rules on the "carries forward" side. That was wrong in one
+direction: the rules for the deleted *client* surface stayed deployed and
+writable with no client to serve. About 77% of `firestore.rules` governed
+collections nothing in `src/` referenced — including `insight_discoverable`,
+which any signed-in user could enumerate, holding a Big Five vector,
+political coordinates, age, gender, country, free-text bio and a ~5km
+geohash keyed by uid. Under anonymous-first auth (D3) that is one scripted
+sign-in away from the whole user base.
+
+Unused-but-open is strictly worse than absent: live attack surface with no
+legitimate traffic to compare against and nobody watching it. Those grants
+are now deleted, preserved undeployed in `firestore.rules.v1-archive` with
+their reasoning and their known gaps. `firestore.rules` is v2-only plus the
+server-owned collections.
+
+What genuinely does carry forward is unchanged: the Cloud Functions
+(aggregators, rate limiting, `deleteAccount`), emulator setup, CI/CD,
+Capacitor shells, question banks. The v1 functions still write
+`insight_*` and `aggregates_*` through the admin SDK, which bypasses rules
+entirely — so denying every client grant costs them nothing.
+
+Re-introducing any v1 surface means re-introducing its rules *and* its
+tests deliberately: `firestore.rules.v1-archive` lists the gaps to fix
+first (unilateral follower self-grant, unvalidated cross-user write bodies,
+the stale-friendRequest re-join, the interest-items description hole).
+Reading the archive before restoring is the point of keeping it.
+
 ## D5 · Sealed answers are owner-only; reveals are materialized server-side
 
 **Decision.** Answer documents are readable by their owner only — always,

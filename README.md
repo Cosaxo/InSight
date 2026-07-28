@@ -68,7 +68,9 @@ functions/src/     v2.ts (seed + aggregates) · v2social.ts (groups, duos,
                    reveals, push) · index.ts (v1-era aggregates & account
                    deletion, still deployed)
 firestore.rules    the access model (owner-only answers, k-floored aggs,
-                   member-only groups/reveals) — 23 emulator tests
+                   member-only groups/reveals) — 19 emulator tests
+firestore.rules.v1-archive  the retired v1 client rules (D4) — reference,
+                   NOT deployed
 content/           canonical question banks & archetypes (seed source)
 design/            the frozen design spec (read-only reference)
 docs/              DECISIONS · SCHEMA-V2 · DEPLOYMENT · LOCAL-TESTING ·
@@ -77,7 +79,7 @@ docs/              DECISIONS · SCHEMA-V2 · DEPLOYMENT · LOCAL-TESTING ·
 
 ## Testing & CI
 
-- `npm run test:rules` — 23 security-rules tests against the emulator.
+- `npm run test:rules` — 19 security-rules tests against the emulator.
 - `firestore-tests/e2e-v2-loop.mjs` — the 14-step SDK end-to-end (seed →
   vote → k-floor → duel lifecycle) under `emulators:exec`.
 - Push to `main` touching `functions/**` or `firestore.rules` auto-deploys

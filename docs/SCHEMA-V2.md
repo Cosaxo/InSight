@@ -113,7 +113,7 @@ not per boot. `LIVE.stats` reports `bankSource` / `answersFetched` /
 
 ## Verification
 
-- `npm run test:rules` — 23 rules tests (12 legacy + 11 v2/social).
+- `npm run test:rules` — 19 rules tests (v2 surface + the retired-v1 guard).
 - `firestore-tests/e2e-v2-loop.mjs` under
   `firebase emulators:exec --only auth,firestore,functions` — the full
   SDK loop: anon auth → seed → fetch → vote → below-floor tooSmall →
