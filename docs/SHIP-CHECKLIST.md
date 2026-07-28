@@ -95,13 +95,26 @@ Both apps must be registered under `com.cosaxo.insight`:
   callable that verifies token↔uid; today a stolen token could be
   planted on another account for reveal-push spam (needs the victim's
   token, so friend-scale risk is nil).
-- **App Check enforcement** — the callables now enforce it in prod
-  (functions/src/ops.ts, `ENFORCE_APP_CHECK`; deploy with
-  `APPCHECK_ENFORCE=false` to soft-disable). Still to do in the
-  console: flip Firestore + Storage enforcement, and verify web has
-  `VITE_APPCHECK_RECAPTCHA_SITE_KEY` set in the production build —
-  without it web clients are unattested and callables will refuse
-  them once enforcement is live.
+- **App Check enforcement** — the callables enforce it in prod
+  (functions/src/ops.ts, `ENFORCE_APP_CHECK`; set the `APPCHECK_ENFORCE`
+  production variable to `false` to soft-disable during an incident).
+  A production **web** build with Firebase configured but no
+  `VITE_APPCHECK_RECAPTCHA_SITE_KEY` now fails the build rather than
+  shipping unattested (`vite.config.ts`); native bundles set
+  `CAPACITOR_BUILD=1` and need no key (DeviceCheck / Play Integrity).
+
+  Console steps, in this order — enforcement is not reversible without a
+  window where clients fail:
+  1. **Register the web app as a reCAPTCHA provider** in Firebase Console
+     → App Check. This is separate from setting the site key in the build:
+     the key is the client half, the registration is the server half, and
+     having only one of them looks identical to having neither.
+  2. Register the iOS (DeviceCheck/App Attest) and Android (Play
+     Integrity) apps.
+  3. Ship builds carrying attestation, then watch App Check → Metrics for
+     **24–48h**. Verified requests should approach 100% before anything
+     is enforced; anything else means a platform is misconfigured.
+  4. Only then flip enforcement for Firestore, then Storage.
 - **iOS reveal push — Mac-side finish.** The structural pieces are now
   committed: Package.swift lists the real plugin set (push-notifications,
   app-check, sentry), AppDelegate bridges APNs → Firebase Messaging and
@@ -118,6 +131,21 @@ Both apps must be registered under `com.cosaxo.insight`:
      provisioning profile regenerates with `aps-environment`.
   3. Apple Developer → upload the APNs key to Firebase (step already
      listed above), then verify the reveal flow end-to-end on device.
+- **Storage bucket — confirm empty, then lock down.** `storage.rules` was
+  configured in `firebase.json` and deployed by nothing; the deploy
+  workflow now applies it as its own step (watch that step's outcome — it
+  is `continue-on-error`, because `storage:rules` fails outright on a
+  project with no bucket provisioned). The only path it grants,
+  `users/{uid}/dailyPhotos/`, backed the v1 daily-report photo backup,
+  removed in D4. Before locking it to a catch-all deny:
+  1. Check whether a bucket exists and whether it holds any objects
+     (Firebase Console → Storage).
+  2. If objects exist, delete them first. `deleteAccount` does **not**
+     touch Storage, so revoking access while objects remain converts a
+     dead feature into an erasure gap — the data survives with no path
+     to remove it on request.
+  3. Only then reduce `storage.rules` to the catch-all deny, and update
+     `firestore-tests/storage.rules.test.ts` in the same commit.
 - **Version lockstep** — bump package.json `appBuild` + android
   `versionCode` + iOS `CURRENT_PROJECT_VERSION` together each release.
 

@@ -330,11 +330,20 @@ async function runAggregation(): Promise<{
       // Backwards-compat fields for clients reading the old shape.
       // Mirror big5 when present; otherwise fall back to the first
       // axis-set that passed (so something useful gets written).
-      count: big5Stats?.mean.length
+      //
+      // Each branch is guarded by its OWN floor flag. The previous chain
+      // fell through to bucket.morals.length whenever big5 and political
+      // were absent — so a cell where only media cleared the floor
+      // published a raw SUB-FLOOR contributor count into a world-readable
+      // document, which is exactly what the k-floor exists to suppress.
+      // 0 when nothing qualifies: the doc is written for its media block.
+      count: b5Ok
         ? bucket.big5.length
-        : polStats?.mean.length
+        : polOk
           ? bucket.political.length
-          : bucket.morals.length,
+          : mOk
+            ? bucket.morals.length
+            : 0,
       mean: big5Stats?.mean ?? polStats?.mean ?? mStats?.mean ?? [],
       stdev: big5Stats?.stdev ?? polStats?.stdev ?? mStats?.stdev ?? [],
       updatedAt: FieldValue.serverTimestamp(),

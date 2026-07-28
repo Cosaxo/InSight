@@ -110,7 +110,17 @@ service cloud.firestore {
             && request.resource.data.surface in ["daily", "feed", "test"]
             && request.resource.data.qid == aid
             && request.resource.data.optionIdx
-              < get(/databases/$(database)/documents/v2_questions/$(aid)).data.options.size();
+              < get(/databases/$(database)/documents/v2_questions/$(aid)).data.options.size()
+            // Honour the operational kill switch: a question flipped
+            // inactive stops accepting answers, not just showing itself.
+            && get(/databases/$(database)/documents/v2_questions/$(aid))
+                 .data.get("active", true) == true
+            // …and the claimed surface must match the question's own, so a
+            // duel-bank question can't be answered as a world question and
+            // land in the public aggregate. Defaults keep a field-less doc
+            // answerable rather than permanently bricked.
+            && get(/databases/$(database)/documents/v2_questions/$(aid))
+                 .data.get("surface", "daily") in ["daily", "feed", "test"];
         }
 
         // Sealed duel answers: id g_{gid}_{day}, member-only, and only
@@ -145,7 +155,11 @@ service cloud.firestore {
         allow create: if request.auth != null && request.auth.uid == uid
           && request.resource.data.optionIdx is int
           && request.resource.data.optionIdx >= 0
-          && request.resource.data.optionIdx < 20
+          // Outer sanity bound only — the real bound is per-question below
+          // (options.size(), or the group's member count for "pick"
+          // questions). Must clear GROUP_CAP (32, functions/src/v2social.ts)
+          // or members past the 20th become unpickable on every "pick" day.
+          && request.resource.data.optionIdx < 64
           && request.resource.data.answeredAt == request.time
           && isValidV2Anchors(request.resource.data.get("anchors", {}))
           && (isWorldAnswer() || isDuelAnswer());

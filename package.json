@@ -13,7 +13,7 @@
     "ios": "npx cap open ios",
     "android": "npx cap open android",
     "doctor": "npx cap doctor",
-    "test:rules": "firebase emulators:exec --only firestore \"vitest run --dir firestore-tests\"",
+    "test:rules": "firebase emulators:exec --only firestore,storage \"vitest run --dir firestore-tests\"",
     "test:e2e": "firebase emulators:exec --only auth,firestore,functions --project demo-insight \"node firestore-tests/e2e-v2-loop.mjs\"",
     "check:globals": "node scripts/check-spec-globals.mjs",
     "test:unit": "vitest run --dir src"

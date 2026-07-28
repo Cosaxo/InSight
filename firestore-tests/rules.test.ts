@@ -328,6 +328,59 @@ describe("v2 answers (owner-only, create-only — D5)", () => {
     await assertFails(setDoc(ref(QID), answer({ answeredAt: new Date() }))); // not request.time
   });
 
+  it("honours the active kill switch and the question's own surface", async () => {
+    await seed(async (db) => {
+      // flipped off by an operator — must stop accepting answers, not just
+      // stop being served
+      await setDoc(doc(db, "v2_questions", "off-000"), {
+        surface: "daily", seq: 1, type: "binary",
+        prompt: "?", options: ["a", "b"], active: false,
+      });
+      // a duel-bank question must not be answerable as a world question,
+      // or its votes land in the public aggregate
+      await setDoc(doc(db, "v2_questions", "group-gu0"), {
+        surface: "group", seq: 2, type: "binary",
+        prompt: "?", options: ["a", "b"], active: true,
+      });
+      // compatibility: a doc predating either field stays answerable
+      // (both checks use .get() defaults) rather than being bricked
+      await setDoc(doc(db, "v2_questions", "bare-000"), {
+        seq: 3, type: "binary", prompt: "?", options: ["a", "b"],
+      });
+    });
+    const ref = (id: string) => doc(asUser(OWNER), "v2_users", OWNER, "answers", id);
+    await assertFails(setDoc(ref("off-000"), answer({ qid: "off-000" })));
+    await assertFails(setDoc(ref("group-gu0"), answer({ qid: "group-gu0" })));
+    await assertSucceeds(setDoc(ref("bare-000"), answer({ qid: "bare-000" })));
+  });
+
+  it("a group 'pick' answer can name any member, not just the first 20", async () => {
+    // "pick" questions carry no bank options — the options ARE the group's
+    // members, and GROUP_CAP is 32. A blanket optionIdx < 20 made members
+    // 21-32 permanently unpickable, surfaced as a generic write failure.
+    const GID = "g_big";
+    const members = Array.from({ length: 32 }, (_, i) => `m${i}`);
+    const DAY = "2026-07-20";
+    await seed(async (db) => {
+      await setDoc(doc(db, "v2_questions", "group-pick0"), {
+        surface: "group", seq: 0, type: "pick", prompt: "Who?", options: [],
+      });
+      await setDoc(doc(db, "v2_groups", GID), {
+        name: "Big", mode: "group", memberUids: members,
+      });
+    });
+    const aid = `g_${GID}_${DAY}`;
+    const duel = (idx: number) => ({
+      qid: "group-pick0", surface: "group", optionIdx: idx,
+      gid: GID, day: DAY, answeredAt: serverTimestamp(), anchors: {},
+    });
+    await assertSucceeds(setDoc(
+      doc(asUser("m0"), "v2_users", "m0", "answers", aid), duel(31)));
+    // still bounded by the member count
+    await assertFails(setDoc(
+      doc(asUser("m1"), "v2_users", "m1", "answers", aid), duel(32)));
+  });
+
   it("two different users can answer the same question", async () => {
     await seedQuestion();
     await assertSucceeds(setDoc(
