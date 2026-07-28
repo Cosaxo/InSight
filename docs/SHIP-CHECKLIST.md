@@ -115,7 +115,14 @@ Both apps must be registered under `com.cosaxo.insight`:
   with Xcode for the iOS build; Play Console for Android.
 - Build flow: `npm run build && npx cap sync`, then open the native
   projects (`npm run ios` / `npm run android`), set signing, archive.
-- TestFlight / internal testing track for the five-friend test.
+- TestFlight / internal testing track for the friends test. **Invite ten,
+  not five.** The public mirror publishes once per 5 answers (D7's
+  amendment), so a group of 6-9 sees the world count sit on "5+" and never
+  move — accurate, and it reads as broken. At ten it steps to 10, and
+  cohort breakdowns need ≥5 per bucket *and* two publishable buckets, so
+  they stay withheld below roughly a dozen answers per question either way.
+  Test **duels first**: they work at N=2, need no crowd, and are the most
+  distinctive surface in the product.
 
 ## 4 · On-device verification list (first build)
 

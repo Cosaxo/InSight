@@ -137,6 +137,36 @@ then moves in steps of 5, so a small room feels less live. That is the
 trade — an attributable count is worse than a lagging one in an app whose
 claim is that its counts are honest and its floors are enforced.
 
+**A daily "settle publish" was considered and rejected.** The obvious
+complaint about the uniform cadence is the window it creates: with 6-9
+answers the public document sits at 5 and does not move, which a small
+pilot group reads as broken. The proposed fix was a scheduled function
+publishing the exact total once a day.
+
+It does not work, and the arithmetic says why. A settle publishes a step
+equal to `total - lastPublished`, which is 1 to 4 answers:
+
+| answers | last published | the settle step would expose |
+| --- | --- | --- |
+| 6 | 5 | **1 vote — fully attributable** |
+| 7 | 5 | **2 votes** |
+| 12 | 10 | **2 votes** |
+| 1004 | 1000 | 4 votes, mixed into 1004 |
+
+So it reintroduces exactly the channel this amendment removed, and it does
+so *worst at the sizes where it was supposed to help*. Where it is safe —
+thousands of answers — the ≤4 lag it would correct is already invisible.
+Unsafe where it helps, pointless where it is safe.
+
+**What was done instead is a UI change, not a backend one.** The published
+count is a lower bound, so live surfaces now say so: the daily reads
+"5+ votes" and the breakdown sheet says counts move in steps of five.
+That is simply accurate — printing a batched figure as exact was the real
+inaccuracy — and it costs no new function, no new schedule and no new
+failure mode. The remaining cost is that a pilot smaller than ten sees a
+number that rarely moves, which is a reason to invite ten people rather
+than a reason to weaken the floor.
+
 The moment this needs revisiting: when a single question regularly clears
 a few thousand answers a day, or when `onV2AnswerCreated` starts logging
 transaction retries.

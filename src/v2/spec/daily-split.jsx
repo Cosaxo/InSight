@@ -446,9 +446,17 @@ class DailySplit extends React.Component {
     const maxP = Math.max(...rp), myIdx = S.options.findIndex(o => o.id === myVote);
     // Below the k-floor the aggregate publishes nothing — say so instead
     // of dressing a single vote up as a population.
+    // Above the floor the published count is a LOWER BOUND, not a running
+    // total: the public mirror is rewritten once per 5 answers so no single
+    // step is attributable to one person (D7's amendment). So a live count
+    // reads "5+", which is true and is the honest way to say "this moves in
+    // fives". Printing it as exact is the actual inaccuracy — and a small
+    // room watching the number sit on 5 for four more answers reads as
+    // broken rather than as batched.
+    const liveTotal = S.live ? total.toLocaleString() + '+' : total.toLocaleString();
     const resultNote = (S.live && S.tooSmall)
       ? 'You\u2019re early \u2014 counts appear once 5 people have answered.'
-      : total.toLocaleString() + ' votes' + (voted ? (rp[myIdx] === maxP ? ' \u2014 you\u2019re with the majority' : ' \u2014 you picked the underdog') : '');
+      : liveTotal + ' votes' + (voted ? (rp[myIdx] === maxP ? ' \u2014 you\u2019re with the majority' : ' \u2014 you picked the underdog') : '');
     const onReset = () => this.setState(s => { const v = { ...s.votes }; delete v[S.id]; return { votes: v, filter: 'all', tab: null, feedOpen: false }; });
     const post = () => { const t = st.draft.trim(); if (!t || !voted) return; const c = { key: 'u' + Date.now(), name: 'You', init: 'Y', opt: myVote, text: t, ups: 0, time: 'now' }; this.setState(s => ({ mine: { ...s.mine, [S.id]: [c, ...(s.mine[S.id] || [])] }, draft: '' })); };
     const mineList = st.mine[S.id] || [];

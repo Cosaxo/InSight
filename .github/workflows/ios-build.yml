@@ -1,0 +1,116 @@
+# Compiles the iOS shell for the simulator.
+#
+# Why this exists: nothing verified iOS at all. ci.yml builds the Android
+# shell with `assembleDebug`, so a broken manifest or Gradle edit fails a
+# PR — but AppDelegate.swift, App.entitlements, Info.plist and the whole
+# pbxproj had zero coverage. The iOS project had never even been opened in
+# Xcode, which is how it ended up with no shared scheme (see the note in
+# App.xcscheme).
+#
+# SEPARATE WORKFLOW, not a job in ci.yml, because of cost. GitHub bills
+# macOS runners at 10x the Linux rate, so a ~5 minute build spends ~50
+# minutes of a private repo's quota. Running that on every PR would eat the
+# whole monthly allowance on web-only changes that cannot break a native
+# build. The triggers below are therefore narrowed to what actually affects
+# it: the native project, the Capacitor config, and the dependency set that
+# feeds SPM.
+#
+# NOT on the deploy path, and deliberately: the same rule as ci.yml's
+# client-only gates. A native build must never be able to block an
+# emergency rules fix.
+#
+# Unsigned. A simulator build needs no certificate, no provisioning profile
+# and no Apple Developer account — which is the point: this runs today,
+# before any of that exists.
+name: iOS build
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "ios/**"
+      - "capacitor.config.ts"
+      - "package.json"
+      - "package-lock.json"
+      - ".github/workflows/ios-build.yml"
+  pull_request:
+    paths:
+      - "ios/**"
+      - "capacitor.config.ts"
+      - "package.json"
+      - "package-lock.json"
+      - ".github/workflows/ios-build.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ios-build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  simulator-build:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: "22"
+          cache: npm
+
+      - run: npm ci
+
+      # cap sync copies dist/ into the native shell and rewrites the copied
+      # Capacitor config, so the web build has to exist first.
+      - run: npm run build
+
+      - run: npx cap sync ios
+
+      # Resolve Swift package dependencies as their own step. The plugin
+      # graph pulls firebase-ios-sdk, GoogleSignIn and (unused, see the
+      # Facebook note in DECISIONS) facebook-ios-sdk, which is a slow first
+      # fetch — separating it means a network flake reads as a resolve
+      # failure rather than a mysterious compile error.
+      - name: Resolve Swift packages
+        working-directory: ios/App
+        run: xcodebuild -resolvePackageDependencies -project App.xcodeproj -scheme App
+
+      # CODE_SIGNING_ALLOWED=NO is what lets this run with no Apple
+      # Developer account. A generic simulator destination (rather than a
+      # named device) means an Xcode image bump cannot break the build on a
+      # device name that stopped existing.
+      #
+      # Raw xcodebuild output, no prettifier: one less tool that has to be
+      # present on the runner image, and this job's whole job is to fail
+      # loudly the first time it runs.
+      - name: Build for simulator
+        working-directory: ios/App
+        run: |
+          xcodebuild build \
+            -project App.xcodeproj \
+            -scheme App \
+            -configuration Debug \
+            -sdk iphonesimulator \
+            -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO
+
+      # Proves the bundle actually assembled rather than the build merely
+      # exiting 0, and surfaces the two files that are supposed to be
+      # ABSENT — GoogleService-Info.plist is account-gated and untracked, so
+      # a build that somehow contains one means someone committed a secret.
+      - name: Inspect the built app bundle
+        working-directory: ios/App
+        run: |
+          APP=$(find build/Build/Products -maxdepth 2 -name "App.app" -type d | head -1)
+          if [ -z "$APP" ]; then echo "::error::no App.app was produced"; exit 1; fi
+          echo "built: $APP"
+          ls -la "$APP" | head -20
+          if [ -f "$APP/GoogleService-Info.plist" ]; then
+            echo "::error::GoogleService-Info.plist is inside the bundle — it must stay untracked and account-gated"
+            exit 1
+          fi
+          echo "::notice::iOS simulator build OK (unsigned, no Firebase config — that is expected)"

@@ -665,8 +665,9 @@ class WorldFeed extends React.Component {
             the floor is the product's claim, so the UI has to name it
             rather than quietly show a shorter list. */}
         <div style={{ fontFamily: 'var(--sans)', fontSize: 11.5, fontWeight: 600, color: 'var(--ink-3)', lineHeight: 1.5, textWrap: 'pretty' }}>
-          Only groups with enough answers to stay anonymous are shown. The
-          rest appear as more people answer.
+          Only groups with enough answers to stay anonymous are shown, and
+          counts update in steps of five — so these are floors, not
+          live totals. The rest appear as more people answer.
         </div>
       </div>
     );
