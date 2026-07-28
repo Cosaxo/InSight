@@ -6,6 +6,40 @@
   "storage": {
     "rules": "storage.rules"
   },
+  "hosting": {
+    "public": "web",
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**"
+    ],
+    "trailingSlash": false,
+    "rewrites": [
+      {
+        "source": "/",
+        "destination": "/home.html"
+      }
+    ],
+    "headers": [
+      {
+        "source": "**/*.@(html)",
+        "headers": [
+          {
+            "key": "X-Content-Type-Options",
+            "value": "nosniff"
+          },
+          {
+            "key": "Referrer-Policy",
+            "value": "no-referrer"
+          },
+          {
+            "key": "Content-Security-Policy",
+            "value": "default-src 'none'; style-src 'unsafe-inline'; img-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"
+          }
+        ]
+      }
+    ]
+  },
   "functions": [
     {
       "source": "functions",

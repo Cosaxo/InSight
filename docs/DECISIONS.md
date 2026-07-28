@@ -55,10 +55,23 @@ code has to be read out or copied by hand.
 
 Scope if it gets built: iOS needs the associated-domains entitlement plus
 an `apple-app-site-association` file; Android needs a `VIEW` intent-filter
-plus `assetlinks.json`. Both need a real domain — and `firebase.json` has
-no `hosting` block today, which is separately why there is no reachable
-privacy-policy URL for the store listings. One hosting target unblocks
-both.
+plus `assetlinks.json`. Both need a real domain.
+
+**Update (2026-07-28) — half of that is now done.** `firebase.json` has a
+`hosting` block serving `public/` on the project's default Firebase site
+(`https://prvfire33.web.app`), deployed as the last, `continue-on-error`
+step of the backend workflow. That was driven by the store requirement —
+both stores refuse a submission without a reachable privacy-policy URL —
+but it is the same origin deep links need, so the domain half of this
+record is satisfied without buying anything.
+
+What remains for links is the platform wiring: the entitlement and AASA
+file on iOS, the intent-filter and `assetlinks.json` on Android, and a
+route that turns a URL into a `joinGroupV2` call. A `.web.app` invite is
+serviceable but reads like a phishing link, so a real domain is still
+worth buying before invites are a growth loop rather than a test
+convenience — it attaches to the same hosting target with no code change
+beyond `LP_SITE` in `LivePrivacyPanel.tsx`.
 
 ## D7 · Backend scale ceilings — recorded, not engineered around
 

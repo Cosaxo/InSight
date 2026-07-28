@@ -8,6 +8,8 @@ on:
       - "firestore.rules"
       - "firestore.indexes.json"
       - "storage.rules"
+      - "public/**"
+      - "firebase.json"
       - ".github/workflows/firebase-deploy.yml"
   workflow_dispatch:
 
@@ -111,3 +113,17 @@ jobs:
         run: >
           npx firebase deploy --project prvfire33 --non-interactive --force
           --only "firestore:rules,firestore:indexes,functions:rebuildAreaAggregates,functions:scheduledAreaAggregates,functions:rebuildWorldAggregates,functions:scheduledWorldAggregates,functions:rebuildCityAggregates,functions:scheduledCityAggregates,functions:sendInboundImpression,functions:deleteAccount,functions:seedTaxonomies,functions:scheduledTaxonomies,functions:seedContentV2,functions:onV2AnswerCreated,functions:createGroupV2,functions:joinGroupV2,functions:leaveGroupV2,functions:scheduledDuelReveals,functions:revealDuelsNowV2"
+
+      # The legal pages and the landing page they are reached from. Both
+      # stores refuse a submission without a reachable privacy-policy URL,
+      # so this is a launch dependency, not a website.
+      #
+      # LAST, and continue-on-error, for the same reason the storage step
+      # is: nothing about static HTML should be able to abort — or worse,
+      # half-abort — a Firestore-rules or functions deploy. Check this
+      # step's outcome before assuming the policy URL is live.
+      - name: Deploy hosting
+        continue-on-error: true
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/sa-key.json
+        run: npx firebase deploy --project prvfire33 --non-interactive --only "hosting"

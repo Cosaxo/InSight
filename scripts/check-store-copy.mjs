@@ -23,7 +23,7 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 // Bracketed markers of the form [... set before launch] / [TODO ...] etc.
 const PLACEHOLDER = /\[[^\]\n]*\b(set before launch|TBD|TODO|FIXME|placeholder|your [a-z ]+ here)\b[^\]\n]*\]/gi;
 
-const PAGES = ["public/terms.html", "public/privacy.html"];
+const PAGES = ["web/terms.html", "web/privacy.html"];
 
 let problems = 0;
 
@@ -49,7 +49,7 @@ if (problems) {
     `\ncheck-store-copy: ${problems} placeholder(s) still in the store-facing pages.\n` +
     `These are legal facts — the operating entity, its jurisdiction and a\n` +
     `real monitored support address that GDPR erasure requests reach. They\n` +
-    `cannot be guessed; fill them in public/terms.html before submitting.`,
+    `cannot be guessed; fill them in web/terms.html before submitting.`,
   );
   process.exit(1);
 }
