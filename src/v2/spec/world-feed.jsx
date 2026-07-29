@@ -605,21 +605,33 @@ class WorldFeed extends React.Component {
     if (mine != null && this.state.beat === q.id) return this.renderBeat(q, T, big);
     const { p, total } = wfPcts(q.options.map((o) => o.count), mine);
     const fresh = this._fresh === q.id;
+    const v2 = this.opts.v2;
+    const maxP = Math.max(...p);
+    // Below the floor there is no share to draw, and the fill height IS the
+    // share — so the fill and the numeral are gated together. Drawing one
+    // without the other would publish the split geometrically instead of
+    // numerically, which is the same disclosure in a different alphabet.
+    const shares = mine != null && !(q.live && q.tooSmall);
     return (
       <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+        {/* square tiles: question, both sides and both shares sit above the
+            fold, so no number ever has to be scrolled to */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
           {q.options.map((o, i) => {
             const chosen = mine === i;
+            const win = p[i] === maxP;
+            // v2 drops the generated tile art for one quiet ground — the fill
+            // is the only ink that moves, so it has to be the only thing there
+            const bg = v2 ? 'var(--surface-2)' : wfTileArt(T.color, q.id);
             return (
-              <button key={i} className={mine == null ? 'press' : ''} onClick={() => mine == null && this.setVote(q, i)} style={{ position: 'relative', aspectRatio: big ? '3 / 4' : '4 / 3', border: chosen ? '2px solid ' + T.color : WF_LINE, borderRadius: 14, overflow: 'hidden', background: (chosen ? 'linear-gradient(color-mix(in oklch, ' + T.color + ' 20%, transparent), color-mix(in oklch, ' + T.color + ' 20%, transparent)), ' : '') + wfTileArt(T.color, q.id), boxShadow: chosen ? '0 0 0 3px color-mix(in oklch, ' + T.color + ' 22%, transparent), var(--shadow-lift)' : 'none', cursor: mine == null ? 'pointer' : 'default', padding: 0, WebkitAppearance: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: mine != null && !chosen ? 0.55 : 1, filter: mine != null && !chosen ? 'saturate(0.4)' : 'none', transition: 'opacity .45s ease, filter .45s ease, box-shadow .3s ease', animation: fresh && chosen ? 'tilePick .45s cubic-bezier(0.2,0.8,0.2,1)' : 'none' }}>
-                <span style={{ fontFamily: 'var(--sans)', fontWeight: 800, fontSize: big ? 16 : 14.5, color: 'var(--ink)', padding: '5px 12px', maxWidth: '85%', textAlign: 'center', lineHeight: 1.2, borderRadius: 11, background: 'color-mix(in oklch, var(--surface-2) 82%, transparent)', backdropFilter: 'blur(3px)', WebkitBackdropFilter: 'blur(3px)' }}>{o.label}</span>
-                {mine != null && !(q.live && q.tooSmall) && (
-                  <span style={{ position: 'absolute', bottom: big ? 10 : 8, left: big ? 10 : 8, padding: big ? '4px 12px' : '3px 10px', borderRadius: 999, fontFamily: 'var(--sans)', fontWeight: 800, fontSize: big ? 15 : 13, background: chosen ? T.color : 'var(--surface-2)', color: chosen ? '#fff' : 'var(--ink)', border: chosen ? 'none' : WF_LINE, boxShadow: 'var(--shadow-card)', animation: fresh ? 'chipPop .38s cubic-bezier(0.2,0.8,0.2,1) ' + (0.1 + i * 0.12) + 's both' : 'none' }}><WfCount to={p[i]} animate={fresh}></WfCount>%</span>
+              <button key={i} className={mine == null ? 'press' : ''} onClick={() => mine == null && this.setVote(q, i)} style={{ position: 'relative', aspectRatio: big ? '1 / 1' : '4 / 3', border: chosen ? '2px solid color-mix(in oklch, ' + T.color + ' 60%, var(--rule))' : WF_LINE, borderRadius: 14, overflow: 'hidden', background: bg, boxShadow: 'none', cursor: mine == null ? 'pointer' : 'default', padding: 0, WebkitAppearance: 'none', display: 'flex', alignItems: 'flex-end', justifyContent: 'center', opacity: mine != null && !chosen ? 0.94 : 1, transition: 'opacity .45s ease', animation: !v2 && fresh && chosen ? 'tilePick .45s cubic-bezier(0.2,0.8,0.2,1)' : 'none' }}>
+                {/* the share IS the tile — the side fills to its own percentage */}
+                {shares && (
+                  <span aria-hidden="true" style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: p[i] + '%', background: 'color-mix(in oklch, ' + T.color + ' ' + (win ? 40 : 24) + '%, ' + (v2 ? 'var(--surface)' : 'transparent') + ')', borderTop: '1.5px solid color-mix(in oklch, ' + T.color + ' 60%, transparent)', animation: fresh ? 'wfFillUp .85s cubic-bezier(0.2,0.8,0.2,1) both' : 'none', transition: 'height .7s cubic-bezier(0.2,0.8,0.2,1)' }}></span>
                 )}
-                {chosen && (
-                  <span style={{ position: 'absolute', top: 8, right: 8, width: 24, height: 24, borderRadius: '50%', background: T.color, display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: 'var(--shadow-card)', animation: fresh ? 'chipPop .4s cubic-bezier(0.2,0.8,0.2,1) .06s both' : 'none' }}>
-                    <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="#fff" strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round"><path d="M4.5 12.5 10 18 19.5 6.5"></path></svg>
-                  </span>
+                <span style={{ position: 'relative', fontFamily: 'var(--sans)', fontWeight: 800, fontSize: big ? 20 : 15.5, color: 'var(--ink)', padding: v2 ? '0 14px 13px' : '5px 12px', maxWidth: '88%', textAlign: 'center', lineHeight: 1.15, letterSpacing: '-0.02em', borderRadius: 11, background: v2 ? 'transparent' : 'color-mix(in oklch, var(--surface-2) 82%, transparent)', backdropFilter: v2 ? 'none' : 'blur(3px)', WebkitBackdropFilter: v2 ? 'none' : 'blur(3px)' }}>{o.label}</span>
+                {shares && (
+                  <span style={{ position: 'absolute', top: big ? 9 : 7, left: big ? 12 : 10, fontFamily: 'var(--sans)', fontWeight: win ? 800 : 650, fontSize: big ? (win ? 26 : 19) : (win ? 20 : 15), letterSpacing: '-0.03em', color: win ? 'var(--ink)' : 'var(--ink-2)' }}><WfCount to={p[i]} animate={fresh}></WfCount>%</span>
                 )}
               </button>
             );
@@ -1270,9 +1282,28 @@ class WorldFeed extends React.Component {
       </div>
     );
     const snap = !compact;
+    // Three densities give the scroll a pulse instead of one uniform stack:
+    // duels go full-bleed, text questions sit typographic on the ground, and
+    // only a collapsed card keeps the box. Under v2 every open card is bare —
+    // a hairline gives the stream its structure where borders and shadows
+    // used to, and the topic hue stays in the kicker.
+    const skin = collapsed ? 'card' : q.type === 'duel' ? 'bleed' : (this.opts.v2 || q.type === 'vote') ? 'bare' : 'card';
     const card = { background: 'var(--surface-2)', border: mk ? '1px solid color-mix(in oklch, ' + T.color + ' 32%, var(--rule))' : WF_LINE, borderRadius: 18, boxShadow: 'var(--shadow-card)', padding: collapsed ? '12px 14px' : '16px 15px', display: 'flex', flexDirection: 'column', gap: collapsed ? 8 : 12 };
     // hero cards carry a whisper of their topic hue so the breathing room reads designed, not blank
     if (!collapsed) card.backgroundImage = 'radial-gradient(120% 80% at 50% -25%, color-mix(in oklch, ' + T.color + ' 8%, transparent), transparent 62%)';
+    if (skin === 'bleed') {
+      card.margin = '0 -16px'; card.borderRadius = 0; card.borderLeft = 'none'; card.borderRight = 'none';
+      card.boxShadow = 'none'; card.padding = '16px 16px 20px';
+      // full-bleed means it IS the page here — --surface-2 is near-white and
+      // would read as a bright slab cut into the warm ground
+      card.background = 'var(--surface-a, var(--surface))';
+      if (this.opts.v2) card.borderBottom = 'none';
+    }
+    if (skin === 'bare') {
+      card.background = 'transparent'; card.border = 'none'; card.boxShadow = 'none';
+      card.padding = '10px 1px 22px'; card.backgroundImage = 'none';
+      if (this.opts.v2) { card.borderTop = WF_LINE; card.padding = '20px 1px 24px'; }
+    }
     if (snap) {
       // one question per view — the card fills most of the scroller; kicker
       // holds the top edge while the question + options sit centered,
@@ -1389,12 +1420,18 @@ class WorldFeed extends React.Component {
 
     return (
       <div ref={(n) => { this._root = n; }} style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 8 }}>
-        <div style={{ position: 'sticky', top: 0, zIndex: 6, display: 'flex', flexDirection: 'column', gap: 10, margin: '0 -16px', padding: '9px 16px 12px', background: 'var(--surface-a, var(--surface))', borderBottom: '0.5px solid color-mix(in oklch, var(--rule), transparent 25%)', transform: this.state.headHide ? 'translateY(-115%)' : 'none', opacity: this.state.headHide ? 0 : 1, pointerEvents: this.state.headHide ? 'none' : 'auto', transition: 'transform 0.32s ease, opacity 0.26s ease' }}>
+        {/* the rule sits ABOVE the chip row: it separates the daily card from
+            the feed, and the first feed card brings its own hairline (the v2
+            bare skin) — a bottom rule here would double it */}
+        <div style={{ position: 'sticky', top: 0, zIndex: 6, display: 'flex', flexDirection: 'column', gap: 10, margin: '6px -16px 0', padding: '12px 16px 10px', background: 'var(--surface-a, var(--surface))', borderTop: '0.5px solid color-mix(in oklch, var(--rule), transparent 15%)', transform: this.state.headHide ? 'translateY(-115%)' : 'none', opacity: this.state.headHide ? 0 : 1, pointerEvents: this.state.headHide ? 'none' : 'auto', transition: 'transform 0.32s ease, opacity 0.26s ease' }}>
           <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
           <div className="h-scroll" style={{ display: 'flex', gap: 8, flexWrap: 'nowrap', overflowX: 'auto', flex: 1, minWidth: 0, marginRight: -16, padding: '2px 82px 2px 0' }}>
-            {window.PassiveMeter && <window.PassiveMeter></window.PassiveMeter>}
+            {/* PassiveMeter used to lead this row; it lives in the app header
+                now (app-shell.jsx) so the chip row starts on the sort control */}
             {this.renderStrip()}
-            <button key="__sort" onClick={() => this.setState({ sort: sort === 'hot' ? 'top' : sort === 'top' ? 'new' : 'hot' })} aria-label={'Sort: ' + sort} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, flexShrink: 0, border: '0.5px solid color-mix(in oklch, var(--rule), var(--ink) 30%)', background: 'var(--surface-2)', color: 'var(--ink)', fontFamily: 'var(--sans)', fontWeight: 750, fontSize: 12, padding: '5px 11px', borderRadius: 999, cursor: 'pointer', WebkitAppearance: 'none', whiteSpace: 'nowrap' }}>{sort === 'top' ? 'top' : sort === 'new' ? 'new' : 'hot'}<svg viewBox="0 0 24 24" width="9" height="9" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M5 8.5 12 15.5 19 8.5"></path></svg></button>
+            {/* no chevron: it reads as a dropdown, and this cycles rather
+                than opening anything. The label alone is the affordance. */}
+            <button key="__sort" className="wf-chip" onClick={() => this.setState({ sort: sort === 'hot' ? 'top' : sort === 'top' ? 'new' : 'hot' })} aria-label={'Sort: ' + sort} style={{ display: 'inline-flex', alignItems: 'center', flexShrink: 0, border: '0.5px solid color-mix(in oklch, var(--ink) 22%, var(--rule))', background: 'var(--surface-2)', color: 'var(--ink)', fontFamily: 'var(--sans)', fontWeight: 700, fontSize: 12, padding: '5px 11px', borderRadius: 999, cursor: 'pointer', WebkitAppearance: 'none', whiteSpace: 'nowrap' }}>{sort === 'top' ? 'top' : sort === 'new' ? 'new' : 'hot'}</button>
             {chips.map((t, ci) => {
               const on = cats[t.id] !== false;
               const col = t.color;

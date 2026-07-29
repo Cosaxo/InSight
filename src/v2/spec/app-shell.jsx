@@ -222,8 +222,18 @@ function App() {
           <button aria-label="Profile" className={"avatar-btn" + (ov === 'profile' ? ' is-on' : '')} onClick={() => { if (ov === 'profile') { setOv(null); } else { closeAll(); setOv('profile'); } }}>
             {ov === 'profile' ? '✕' : (liveInitials != null ? liveInitials : me.initials)}
           </button>
-          <div className="h-title">in<em>Sight</em></div>
+          {/* On the Daily tab the header IS the mode switcher: DailySplit
+              portals its World/Group/1v1 row into this slot, which is why the
+              feed has no second tab row. Mirror has no modes, so it keeps the
+              wordmark. The slot must be a plain empty div — the portal target
+              is looked up by id at mount. */}
+          {tab === 'track'
+            ? <div className="h-modeslot" id="daily-mode-slot"></div>
+            : <div className="h-title">in<em>Sight</em></div>}
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            {/* the passive lens ring rides in the header, not in the feed's
+                chip row — it reports across tabs, not just the feed */}
+            {window.PassiveMeter && <window.PassiveMeter></window.PassiveMeter>}
             <button className="icon-btn" aria-label="Search" onClick={() => { closeAll(); setOv('search'); }}>
               <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><circle cx="11" cy="11" r="7"></circle><line x1="16.5" y1="16.5" x2="21" y2="21"></line></svg>
             </button>
