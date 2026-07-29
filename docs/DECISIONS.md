@@ -32,6 +32,50 @@ driven by profile anchors, not by location.
 Globe. Location-based Near already has a deployed, k-anonymous, tested
 implementation; anchor-based city/country need none of that machinery.
 
+**Amendment (2026-07-28) — the geohash half was never wired into v2, and
+the app collects no location at all.** This record reads as though Near is
+live. It is not, and the gap is total rather than partial:
+
+- No location is ever requested. There is no `navigator.geolocation` call,
+  no `@capacitor/geolocation` dependency, no `ACCESS_COARSE_LOCATION` or
+  `ACCESS_FINE_LOCATION` in the Android manifest, and no `NSLocation*` key
+  in `Info.plist`. Even if code asked, the OS would refuse — the purpose
+  strings a prompt requires do not exist.
+- The rollup still exists and is still deployed: `functions/src/index.ts`
+  buckets `insight_discoverable.geohash` into `aggregates_by_geohash5`
+  with a k-anonymity floor. But **nothing writes `insight_discoverable`
+  any more.** The v1 client that did was deleted under D4; the only
+  reference left in the functions is `deleteAccount` removing the doc.
+  The aggregator walks a collection that no longer grows.
+- So the Mirror's Near population renders from sample data, and says so:
+  "Preview · sample people until there's live data here"
+  (`mirror-tab.jsx`).
+
+City and country are therefore **typed by the user** in the profile's
+Basics card (D8), not derived from where they are. That is why the store
+privacy labels answer Location: none — and the answer is accurate today.
+
+**What turning Near on would actually cost**, so this is a decision rather
+than an oversight:
+
+1. `@capacitor/geolocation`, plus purpose strings and a runtime permission
+   prompt on both platforms.
+2. Computing the geohash5 cell **on the device** and sending only the
+   cell — never raw coordinates.
+3. Writing `insight_discoverable` again, which means **reopening the
+   collection D4 deliberately closed.** That is the one that held a Big
+   Five vector, political coordinates, age, gender, country, a free-text
+   bio and a ~5 km cell keyed by uid, readable by any signed-in user under
+   anonymous-first auth. Re-introducing it means re-introducing its rules
+   *and* its tests, and `firestore.rules.v1-archive` lists the gaps to fix
+   first.
+4. Store privacy labels change from "no location" to coarse location, and
+   the permission prompt becomes something a user can decline — so Near
+   has to degrade gracefully rather than break.
+
+Steps 1-2 are an afternoon. Step 3 is the real cost, and it trades away a
+guarantee the product currently makes for free.
+
 ## D3 · Anonymous-first auth with account linking
 
 **Decision.** First launch signs the user in anonymously; the full app works
