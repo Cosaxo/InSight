@@ -10,6 +10,7 @@
 // keeps the spec layer's render-time lookup working unchanged.
 import React from "react";
 import LIVE from "../data/live";
+import { consumeJoinCode, inviteLinkFor } from "../data/links";
 
 const LD_LINE = "1px solid color-mix(in oklch, var(--rule), transparent 25%)";
 const LD_NAME_LS = "insight.displayName.v1";
@@ -76,7 +77,9 @@ function LdBtn({ onClick, children, primary, disabled, small }: {
 // ── first-run: create or join ────────────────────────────────────
 function LdOnboard({ mode }: { mode?: string }) {
   const [name, setName] = React.useState("");
-  const [code, setCode] = React.useState("");
+  // A tapped invite link lands here: the stashed code prefills the join
+  // field (consume = one prefill, not a haunting).
+  const [code, setCode] = React.useState(() => consumeJoinCode() || "");
   const [me, setMe] = React.useState(ldName());
   const [busy, setBusy] = React.useState(false);
   const [err, setErr] = React.useState<string | null>(null);
@@ -170,7 +173,9 @@ function LdGroupCard({ g }: { g: LiveGroup }) {
   const members = g.memberUids || [];
   const copy = () => {
     try {
-      void navigator.clipboard.writeText(g.inviteCode || "");
+      // the LINK, not the bare code — pasteable anywhere, lands on the
+      // hosted /join page (or straight in the app once app-links verify)
+      void navigator.clipboard.writeText(g.inviteCode ? inviteLinkFor(g.inviteCode) : "");
       setCopied(true); setTimeout(() => setCopied(false), 1600);
     } catch { /* clipboard unavailable */ }
   };
@@ -186,7 +191,7 @@ function LdGroupCard({ g }: { g: LiveGroup }) {
         <span style={{ fontWeight: 800, fontSize: 17, flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{g.name}</span>
         {duo && (g.streak || 0) > 0 && <span style={{ fontSize: 11.5, fontWeight: 800, color: "var(--accent, var(--ink-2))" }}>{g.streak}-day run</span>}
         <span style={{ fontSize: 11, fontWeight: 700, color: "var(--ink-3)" }}>{members.length}{duo ? "/2" : ""}</span>
-        <button onClick={copy} aria-label="Copy invite code" title="Copy invite code" style={{ border: LD_LINE, background: "var(--surface-2)", borderRadius: 8, padding: "4px 9px", cursor: "pointer", fontFamily: "var(--mono, monospace)", fontSize: 11.5, fontWeight: 700, letterSpacing: "0.1em", color: "var(--ink-2)", WebkitAppearance: "none" }}>
+        <button onClick={copy} aria-label="Copy invite link" title="Copy invite link" style={{ border: LD_LINE, background: "var(--surface-2)", borderRadius: 8, padding: "4px 9px", cursor: "pointer", fontFamily: "var(--mono, monospace)", fontSize: 11.5, fontWeight: 700, letterSpacing: "0.1em", color: "var(--ink-2)", WebkitAppearance: "none" }}>
           {copied ? "copied ✓" : g.inviteCode}
         </button>
       </div>

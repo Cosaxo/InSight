@@ -29,6 +29,21 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
 
+            <!-- Invite links: https://prvfire33.web.app/join/CODE opens the
+                 app (appUrlOpen → src/v2/data/links.ts). autoVerify only
+                 succeeds once /.well-known/assetlinks.json carries the real
+                 Play signing SHA-256 (it ships with a placeholder — see
+                 SHIP-CHECKLIST); until then the link opens the hosted
+                 fallback page, which still works. -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https"
+                      android:host="prvfire33.web.app"
+                      android:pathPrefix="/join/" />
+            </intent-filter>
+
         </activity>
 
         <!-- Reveal notification presentation. Without the icon meta-data

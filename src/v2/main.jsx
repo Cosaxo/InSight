@@ -14,10 +14,16 @@ import './data/back';
 // open, so this costs nothing on a cold start.
 import './data/places';
 import { sentryInit } from '../lib/sentry';
+import { initDeepLinks } from './data/links';
 
 // Crash reporting first, so a boot error is the first thing captured.
 // No-op without VITE_SENTRY_DSN and honours the local telemetry opt-in.
 sentryInit();
+
+// Invite-link intake: stashes a /join/CODE from the launch URL (web) and
+// registers the native appUrlOpen listener. Must precede first render so
+// a cold start FROM a link lands with the code already pending.
+initDeepLinks();
 
 // Live mode (VITE_V2_LIVE=true + Firebase config) hydrates before first
 // render so the daily deck opens on real questions; on timeout or any

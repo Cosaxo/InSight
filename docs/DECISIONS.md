@@ -122,9 +122,18 @@ both stores refuse a submission without a reachable privacy-policy URL —
 but it is the same origin deep links need, so the domain half of this
 record is satisfied without buying anything.
 
-What remains for links is the platform wiring: the entitlement and AASA
-file on iOS, the intent-filter and `assetlinks.json` on Android, and a
-route that turns a URL into a `joinGroupV2` call. A `.web.app` invite is
+**Update (2026-07-29) — the code half of links is built.** Sharing copies
+`https://prvfire33.web.app/join/CODE` (one origin constant in
+`src/v2/data/links.ts`, shared with the legal pages). Hosting rewrites
+`/join/**` to a static fallback page that shows the code; the Android
+`autoVerify` intent-filter and the iOS associated-domains entitlement are
+committed, and the app consumes a tapped link via `appUrlOpen` →
+prefilled join field (parser unit-tested — server code alphabet only).
+What remains is account-gated: the real Play signing SHA-256 in
+`web/.well-known/assetlinks.json` and the real Team ID in
+`apple-app-site-association` (placeholders ship; until they land, links
+open the fallback page, which still works). Note the hosting `ignore`
+no longer excludes dotfiles — `.well-known` must deploy. A `.web.app` invite is
 serviceable but reads like a phishing link, so a real domain is still
 worth buying before invites are a growth loop rather than a test
 convenience — it attaches to the same hosting target with no code change

@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="robots" content="noindex" />
+  <title>Join a group · inSight</title>
+  <!--
+    The invite-link fallback. Firebase Hosting rewrites /join/** here
+    (firebase.json). Once the app-links files carry real fingerprints
+    (.well-known/), a tap on a phone with the app installed never sees
+    this page — the OS hands the URL straight to the app. Until then,
+    and on desktop forever, this IS the landing: show the code, make it
+    copyable, say where it goes. No analytics, no scripts beyond the
+    ~20 lines below, nothing loaded from anywhere.
+  -->
+  <style>
+    :root {
+      --paper: #f4efe6; --surface: #fbf8f2; --rule: #d9d0bf;
+      --ink: #2a2419; --ink-2: #4d4538; --ink-3: #7d705a;
+      --accent: #8a5a2b;
+    }
+    * { box-sizing: border-box; margin: 0; }
+    body {
+      background: var(--paper); color: var(--ink);
+      font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+      min-height: 100svh; display: flex; align-items: center; justify-content: center;
+      padding: 24px;
+    }
+    main { max-width: 420px; width: 100%; text-align: center; }
+    .mark { font-size: 22px; font-weight: 800; letter-spacing: -0.02em; }
+    .mark em { font-style: normal; color: var(--accent); }
+    h1 { margin-top: 18px; font-size: 26px; letter-spacing: -0.02em; line-height: 1.15; }
+    p { margin-top: 10px; color: var(--ink-2); font-size: 15px; line-height: 1.5; }
+    .code {
+      margin: 22px auto 0; display: inline-block; padding: 14px 22px;
+      background: var(--surface); border: 1px solid var(--rule); border-radius: 14px;
+      font-family: ui-monospace, Menlo, Consolas, monospace;
+      font-size: 26px; font-weight: 700; letter-spacing: 0.18em;
+    }
+    button {
+      margin-top: 14px; display: inline-block; border: none; cursor: pointer;
+      background: var(--ink); color: var(--surface); font: inherit; font-weight: 700;
+      font-size: 14px; padding: 12px 26px; border-radius: 999px;
+    }
+    .steps { margin-top: 26px; text-align: left; color: var(--ink-2); font-size: 14px; line-height: 1.6; }
+    .steps b { color: var(--ink); }
+    .quiet { margin-top: 26px; font-size: 12px; color: var(--ink-3); }
+  </style>
+</head>
+<body>
+  <main>
+    <div class="mark">in<em>Sight</em></div>
+    <h1>You’re invited to a group</h1>
+    <p id="lead">One question a day, answers sealed until tomorrow — then revealed with names, only to the people in it.</p>
+    <div class="code" id="code">········</div>
+    <div><button id="copy" hidden>Copy code</button></div>
+    <div class="steps">
+      In the app: <b>Daily</b> → <b>Group</b> → <b>Join with a code</b>.
+      If you opened this on your phone with inSight installed, the code is
+      already waiting in the join field.
+    </div>
+    <p class="quiet">No account or email needed — the app works anonymously from the first tap.</p>
+  </main>
+  <script>
+    // Same acceptance as the app's parser (src/v2/data/links.ts): the
+    // server's code alphabet only, so a mangled URL shows an honest
+    // failure instead of an uncopyable blob.
+    (function () {
+      var m = /(?:^|\/)join\/([^/?#]+)/.exec(location.pathname);
+      var raw = (m && m[1]) || new URLSearchParams(location.search).get("c") || "";
+      var code = decodeURIComponent(raw).trim().toUpperCase();
+      var el = document.getElementById("code");
+      var btn = document.getElementById("copy");
+      if (!/^[23456789ABCDEFGHJKMNPQRSTUVWXYZ]{6,12}$/.test(code)) {
+        el.textContent = "—";
+        document.getElementById("lead").textContent =
+          "This invite link is incomplete. Ask your friend to share it again.";
+        return;
+      }
+      el.textContent = code;
+      btn.hidden = false;
+      btn.addEventListener("click", function () {
+        navigator.clipboard.writeText(code).then(function () {
+          btn.textContent = "Copied ✓";
+          setTimeout(function () { btn.textContent = "Copy code"; }, 1600);
+        });
+      });
+    })();
+  </script>
+</body>
+</html>

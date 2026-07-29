@@ -14,5 +14,14 @@
 	     otherwise. -->
 	<key>aps-environment</key>
 	<string>$(APS_ENVIRONMENT)</string>
+	<!-- Invite links (universal links): iOS verifies this domain against
+	     /.well-known/apple-app-site-association at install time. The AASA
+	     ships with a TEAM_ID placeholder (see SHIP-CHECKLIST), so
+	     verification fails harmlessly until the real ID lands — links open
+	     the hosted fallback page instead of the app, which still works. -->
+	<key>com.apple.developer.associated-domains</key>
+	<array>
+		<string>applinks:prvfire33.web.app</string>
+	</array>
 </dict>
 </plist>
