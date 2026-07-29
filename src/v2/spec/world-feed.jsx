@@ -651,7 +651,7 @@ class WorldFeed extends React.Component {
       const cur = this.state.pending[q.id] || [];
       return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: big ? 10 : 8 }}>
-          <span style={{ fontSize: big ? 12.5 : 11.5, fontWeight: 600, color: 'var(--ink-3)' }}>Tap in your order</span>
+          <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--ink-3)' }}>Tap in your order</span>
           {q.items.map((it, i) => {
             const pos = cur.indexOf(i);
             return (
@@ -1326,7 +1326,9 @@ class WorldFeed extends React.Component {
       <div key={q.id} className={this._io ? 'wf-card' : ''} ref={(el) => { if (el && this._io && !el._wfSeen) { el._wfSeen = 1; this._io.observe(el); } }} style={card}>
         {kicker}
         {snap && !answered && <div aria-hidden="true" style={{ flex: '0.12 1 0' }}></div>}
-        <div style={{ fontFamily: 'var(--sans)', fontWeight: snap ? 800 : 750, fontSize: snap ? 26 : 16.5, lineHeight: snap ? 1.12 : 1.25, letterSpacing: snap ? -0.6 : -0.25, textWrap: 'pretty' }}>{q.prompt}</div>
+        {/* the bare skin has no box to compete with, so the question can carry
+            the card on its own — it steps up a size and tightens accordingly */}
+        <div style={{ fontFamily: 'var(--sans)', fontWeight: snap ? 800 : 750, fontSize: snap ? (skin === 'bare' ? 30 : 26) : 16.5, lineHeight: snap ? 1.1 : 1.25, letterSpacing: snap ? (skin === 'bare' ? -0.9 : -0.6) : -0.25, textWrap: 'pretty' }}>{q.prompt}</div>
         {q.type === 'vote' && this.renderVote(q, T, snap)}
         {q.type === 'duel' && this.renderDuel(q, T, snap)}
         {q.type === 'rank' && this.renderRank(q, T, snap)}
@@ -1392,10 +1394,15 @@ class WorldFeed extends React.Component {
     const tqs = window.TEST_FEED_QS || [];
     const lqs = window.LENS_FEED_QS || [];
     const feedList = []; let ti = 0, li = 0;
+    // Two independent ifs, and 9 rather than 8 — both deliberate. As an
+    // `else if` with a lens cadence of 8, every lens slot was also a test
+    // slot (8 is a multiple of 4), the test branch won every time, and NOT
+    // ONE lens question ever reached the feed. 9 is coprime with 4, so the
+    // two cadences drift past each other instead of colliding.
     sorted.forEach((q, i) => {
       feedList.push(q);
       if ((i + 1) % 4 === 0 && ti < tqs.length) feedList.push(tqs[ti++]);
-      else if ((i + 1) % 8 === 0 && li < lqs.length) feedList.push(lqs[li++]);
+      if ((i + 1) % 9 === 0 && li < lqs.length) feedList.push(lqs[li++]);
     });
     const nDone = qs.filter((q) => this.answered(q)).length;
     // One card near the top wears the closing ring. Chosen by hash of the

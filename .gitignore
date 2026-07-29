@@ -78,3 +78,6 @@ signing.properties
 google-services.json
 GoogleService-Info.plist
 
+
+# style-diff writes its full report here (scripts/style-diff.mjs)
+style-diff.json

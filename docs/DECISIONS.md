@@ -906,3 +906,55 @@ persisted `worldZoom: 'city'` and then goes live lands on a stop the axis
 no longer draws, leaving nothing selected. `MirrorTab` resolves city →
 country once, for the axis and the panel together. Verified by parking on
 City, flipping to live, and confirming Country comes up selected.
+
+### Why there is now a tool, and what it found
+
+Four rounds of "the visuals are wrong" were resolved by comparing
+screenshots by eye, one report at a time, with the user acting as the diff.
+That method has a floor it cannot get below — it finds what someone
+happens to look at — and the misses it left were exactly the ones eyes are
+worst at: a 30px headline rendering at 26px, a sort chip carrying a chevron
+the prototype does not have, a daily option 2px under its 56px floor, a
+rank hint at 12.5/600 instead of 13/500.
+
+`scripts/style-diff.mjs` walks both builds across seven screens and
+compares typography, colour and geometry per rendered string. Run once, it
+reported **15 distinct differences across 700 elements**; after fixing
+them, **0 across 2,891**. That is the whole visual gap, found in one pass
+rather than four rounds.
+
+It is not wired into CI: playwright is not a dependency of this repo (the
+e2e drives emulators over raw Node), a design reference is not a
+correctness gate, and some divergences from the prototype are deliberate.
+The script's header lists those.
+
+### The bug it found that no eye would have
+
+The same run reported five strings present in the prototype and absent
+from the app. They were five whole feed cards — every lens question, from
+all five minor lenses. The cause:
+
+```js
+if ((i + 1) % 4 === 0 && ti < tqs.length) feedList.push(tqs[ti++]);
+else if ((i + 1) % 8 === 0 && li < lqs.length) feedList.push(lqs[li++]);
+```
+
+Every multiple of 8 is a multiple of 4, so with `else if` the test branch
+won every lens slot and **not one lens question ever entered the feed**.
+Nothing in the tree could catch it: it type-checks, it lints,
+`check:globals` is happy, and the feed renders a perfectly plausible stack
+of cards. The only symptom was 58 cards where there should have been 63.
+
+Fixed to two independent `if`s with the prototype's cadence of 9, which is
+coprime with 4 so the two cadences drift past each other instead of
+colliding. `src/v2/data/feed-interleave.test.ts` pins the property — both
+streams must drain, and the lens cadence must not be a multiple of the
+test cadence — and includes the old shape as a test that asserts it
+produces zero lens cards, so the regression cannot come back quietly.
+
+### Deliberate divergence, kept
+
+The prototype offers `skip` on every unanswered card. The app hides it on
+test and lens questions: those fill an instrument, so a silent skip reads
+as a gap in your own results rather than a question you passed on. That is
+the one difference style-diff is told to expect.

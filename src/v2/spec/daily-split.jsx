@@ -610,7 +610,7 @@ class DailySplit extends React.Component {
         ? h('div', { style: col(10) },
             S.options.map((o, i) => h('button', { key: o.id, className: 'press sd-opt', onClick: () => { if (S.live && window.LIVE) window.LIVE.vote(S.id, o.id); this.syncToMap(S, o.id); this.showMapToast(S.id); this.setState(s => ({ votes: { ...s.votes, [S.id]: o.id }, filter: 'all', beat: (this.props.beats !== false && window.ConsequenceBeat) ? S.id : null })); }, style: { '--opt': o.color, minHeight: 56, background: 'color-mix(in oklch, ' + o.color + ' 11%, var(--surface-2))', border: '1px solid color-mix(in oklch, ' + o.color + ' 32%, var(--rule))', borderRadius: 15, padding: '13px 18px', display: 'flex', alignItems: 'center', gap: 13, cursor: 'pointer', textAlign: 'left', WebkitAppearance: 'none', boxShadow: 'none', transition: 'background .16s ease, border-color .16s ease' } },
               h('span', { style: { width: 13, height: 13, borderRadius: '50%', flexShrink: 0, background: o.color } }),
-              h('span', { style: { fontWeight: 700, fontSize: 17, color: 'var(--ink)', letterSpacing: '-0.01em' } }, o.label))))
+              h('span', { style: { fontWeight: 800, fontSize: 21, color: 'var(--ink)', letterSpacing: '-0.025em', textWrap: 'pretty' } }, o.label))))
         : (st.beat === S.id && window.ConsequenceBeat)
         ? h(window.ConsequenceBeat, { key: 'beat-' + S.id, seed: S.id, options: S.options, pcts: rp, mineIdx: myIdx, height: 320, onDone: () => this.setState({ beat: null }) })
         : h('div', { style: { ...col(10), animation: 'popIn .35s cubic-bezier(0.2,0.8,0.2,1)' } },
