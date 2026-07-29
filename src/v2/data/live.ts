@@ -713,6 +713,15 @@ const LIVE = {
   get displayName(): string {
     return state.profile.displayName;
   },
+  // The viewer's own city anchor ("Oslo, NO"), or "" if they have not
+  // picked one. Mirror's Near reads it to find its own bucket inside the
+  // public, k-floored city breakdown — it never reads anyone else's
+  // profile to do so (D5). Empty for a pre-D9 profile holding free text,
+  // which is why Near asks those users to re-pick rather than guessing.
+  get myCity(): string {
+    const city = state.profile.anchors.city || "";
+    return /^.+, [A-Z]{2}$/.test(city) ? city : "";
+  },
   async saveDisplayName(name: string): Promise<void> {
     const db = await getDb();
     const uid = state.uid;

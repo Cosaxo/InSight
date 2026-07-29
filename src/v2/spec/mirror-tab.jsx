@@ -149,6 +149,22 @@ function MirrorTab({ onPerson, pop, onPop, worldZoom, onZoom }) {
     );
   }
 
+  // near — in live mode this is your CITY, from the k-floored public
+  // aggregates, and it renders counts rather than people (D9). The demo
+  // field of six named neighbours below is prototype data: it never had a
+  // backend, and the v1 geohash one it was waiting for never produced a
+  // cell. Live gets the real thing or an honest empty state, never both.
+  if (p.id === 'near' && window.LIVE && window.LIVE.enabled && typeof window.LiveNearBody === 'function') {
+    return (
+      <div className="fade-in mf-flex" style={{ '--accent': 'var(--c-around)' }}>
+        <MirrorPopPicker popId={p.id} onPick={onPop} />
+        <div key="near-live" className="tab-swap mf-flex" style={{ overflowY: 'auto' }}>
+          <window.LiveNearBody />
+        </div>
+      </div>
+    );
+  }
+
   // named groups — their own body: member field + accrued group portrait
   if (p.id === 'groups' && typeof window.GroupsMirrorBody === 'function') {
     return (

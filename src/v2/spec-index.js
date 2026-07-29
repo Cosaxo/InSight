@@ -75,4 +75,5 @@ import './spec/profile-general.jsx';
 import './ui/LiveDuelPanel';
 import './ui/LivePrivacyPanel';
 import './ui/CityPicker';
+import './ui/LiveNearBody';
 import './spec/app-shell.jsx';

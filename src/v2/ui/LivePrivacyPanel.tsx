@@ -123,8 +123,10 @@ function LivePrivacyPanel() {
           {/* "No location" used to be unqualified. Since the Basics card
               started collecting a city and country, that reading was
               misleading even though no device location API is touched —
-              so the claim now says which is which. */}
-          <li>No device location, ever — no GPS, no IP lookup. City and country are only what you type in your profile, and only if you fill them in.</li>
+              so the claim now says which is which. D9 turned "type" into
+              "pick from a list" and made country follow from the city, so
+              the wording follows; the guarantee itself is unchanged. */}
+          <li>No device location, ever — no GPS, no IP lookup. Your city is one you pick from a list, only if you want to, and your country follows from it.</li>
           <li>No contacts. No comments from strangers. No ads, no tracking, no third-party analytics.</li>
         </ul>
         {/* Until now these pages shipped inside the bundle and were linked
