@@ -6,12 +6,18 @@
 import React from 'react';
 
 // mirror-tab.jsx — MIRROR: one tab, one verb — see yourself against a population.
-// Five stops, one telescope — from fully retracted to fully extended:
-//   you    → the telescope retracted — you, alone, visualized (the Map)
-//   circle → your people — close ties (PeopleTab)
-//   groups → your named circles — The Crew, Book Club… (GroupsMirrorBody)
-//   near   → the 5 km around you (AreaBody)
-//   world  → everyone — telescopes City → Country → World via the zoom control
+// One telescope, seven stops, from fully retracted to fully extended:
+//   you     → the telescope retracted — you, alone, visualized (the Map)
+//   circle  → your people — close ties (PeopleTab)
+//   groups  → your named circles — The Crew, Book Club… (GroupsMirrorBody)
+//   near    → your city (D9; the demo field still shows the 5 km neighbours)
+//   city    → demo only — live mode drops it, because Near IS your city
+//   country → everyone in your country
+//   world   → everyone
+//
+// MIRROR_POPS below is still five: `pop` is the state the rest of the app
+// reads, and the last three stops all resolve to pop 'world' at a
+// different zoom. MIRROR_STOPS is what the user actually sees.
 
 const MIRROR_POPS = [
   { id: 'you',    label: 'You',    kind: 'self', accent: 'var(--c-today)' },
@@ -60,55 +66,70 @@ function MirrorPopGlyph({ pop, i, on }) {
   return <span style={{ width: geoSize, height: geoSize, borderRadius: '50%', border: `1.2px solid ${c}`, background: on ? 'rgba(255,255,255,0.28)' : 'transparent' }}></span>;
 }
 
-// ─── the population selector — who the mirror reflects ───
-function MirrorPopPicker({ popId, onPick }) {
-  const idx = MIRROR_POPS.findIndex(p => p.id === popId);
-  const accent = mirrorAccent(popId);
+// ─── one graduated axis, from You to World, every stop named ───
+// The three world zooms used to sit in a second pill row inside the hero.
+// They are stops on the same telescope, so they belong on the same axis —
+// which leaves the Mirror with exactly two levels: WHO (here) and WHAT
+// (the lenses below) instead of three.
+const MIRROR_STOPS = [
+  { id: 'you', label: 'You', pop: 'you' },
+  { id: 'circle', label: 'Circle', pop: 'circle' },
+  { id: 'groups', label: 'Groups', pop: 'groups' },
+  { id: 'near', label: 'Near', pop: 'near' },
+  { id: 'city', label: 'City', pop: 'world', zoom: 'city' },
+  { id: 'country', label: 'Country', pop: 'world', zoom: 'country' },
+  { id: 'world', label: 'World', pop: 'world', zoom: 'world' },
+];
+const stopAccent = (id) => mirrorAccent((MIRROR_STOPS.find((s) => s.id === id) || MIRROR_STOPS[0]).pop);
+// D9 again, now on the axis: live mode drops City, because Near IS your
+// city there. Two stops onto one cohort is how a scale starts lying about
+// what it measures.
+const mirrorStops = (live) => (live ? MIRROR_STOPS.filter((s) => s.id !== 'city') : MIRROR_STOPS);
+
+function MirrorPopPicker({ stopId, onPick, live }) {
+  const stops = mirrorStops(live);
+  const n = stops.length;
+  const idx = Math.max(0, stops.findIndex(p => p.id === stopId));
+  const accent = stopAccent(stopId);
   return (
-    <div style={{ marginBottom: 14 }}>
-      <div style={{ display: 'flex', gap: 4, borderBottom: '0.5px solid color-mix(in oklch, var(--rule), transparent 20%)' }}>
-        {MIRROR_POPS.map((p) => {
-          const on = p.id === popId;
+    <div style={{ margin: '2px 0 10px' }}>
+      <div style={{ position: 'relative', display: 'flex', height: 44 }} role="tablist" aria-label="How far the mirror reaches">
+        {/* the axis itself — one hairline the ticks stand on */}
+        <div style={{ position: 'absolute', left: 6, right: 6, bottom: 16, height: 1, background: 'color-mix(in oklch, var(--rule), transparent 30%)' }}></div>
+        {stops.map((p, i) => {
+          const on = i === idx;
+          // ticks lengthen as the telescope extends, so the axis reads as a
+          // scale rather than as a row of equal buttons
+          const tick = 4.5 + (i / (n - 1)) * 6.5;
           return (
-            <button key={p.id} onClick={() => onPick(p.id)} style={{
-              flex: 1, minWidth: 0, padding: '9px 2px', border: 'none', background: 'none', cursor: 'pointer', WebkitAppearance: 'none',
-              fontFamily: 'var(--sans)', fontSize: 12.5, fontWeight: on ? 800 : 600, letterSpacing: '-0.01em',
-              color: on ? 'var(--ink)' : 'var(--ink-3)', whiteSpace: 'nowrap', transition: 'color .18s',
-            }}>{p.label}</button>
+            <button key={p.id} role="tab" aria-selected={on} aria-label={p.label} onClick={() => onPick(p)} style={{
+              flex: 1, minWidth: 0, position: 'relative', height: 44, border: 'none', background: 'none',
+              cursor: 'pointer', WebkitAppearance: 'none', padding: 0,
+            }}>
+              <span style={{
+                position: 'absolute', left: '50%', bottom: 16, transform: 'translateX(-50%)',
+                width: on ? 3 : 1.5, height: on ? 14 : tick, borderRadius: 99,
+                background: on ? accent : 'color-mix(in oklch, var(--ink-3), transparent 45%)',
+                transition: 'height .28s cubic-bezier(0.2,0.8,0.2,1), background .3s, width .2s',
+              }}></span>
+              <span style={{
+                position: 'absolute', left: 0, right: 0, bottom: 0, textAlign: 'center', whiteSpace: 'nowrap',
+                fontFamily: 'var(--sans)', fontSize: on ? 12 : 10.5, fontWeight: on ? 800 : 600,
+                letterSpacing: '-0.02em', color: on ? 'var(--ink)' : 'var(--ink-3)',
+                transition: 'color .2s, font-size .2s',
+              }}>{p.label}</span>
+            </button>
           );
         })}
-      </div>
-      {/* sliding accent underline — the one selection signal */}
-      <div style={{ position: 'relative', height: 3, marginTop: -1.5 }}>
-        <div style={{ position: 'absolute', top: 0, bottom: 0, left: 0, width: `${100 / MIRROR_POPS.length}%`, transform: `translateX(${Math.max(0, idx) * 100}%)`, transition: 'transform 0.34s cubic-bezier(0.2,0.8,0.2,1)', display: 'flex', justifyContent: 'center' }}>
-          <span style={{ width: 32, height: 3, borderRadius: 999, background: accent, transition: 'background 0.3s ease' }}></span>
-        </div>
       </div>
     </div>
   );
 }
 
-// ─── World's zoom control — three telescoping stops, living inside the hero card ───
-// `live` drops the City stop: after D9 the Near population IS your city, so
-// keeping it here would be the same panel behind two different chips.
-function WorldZoomControl({ zoom, onZoom, live }) {
-  const stops = live ? WORLD_ZOOMS.filter((z) => z.id !== 'city') : WORLD_ZOOMS;
-  return (
-    <div style={{ display: 'inline-flex', gap: 6, margin: live ? '2px 0 8px' : 0 }}>
-      {stops.map((z) => {
-        const on = z.id === zoom;
-        return (
-          <button key={z.id} className="press" onClick={() => onZoom(z.id)} style={{
-            border: '0.5px solid ' + (on ? 'color-mix(in oklch, var(--rule), var(--ink) 30%)' : 'var(--rule)'), borderRadius: 999, padding: '4px 11px', cursor: 'pointer', WebkitAppearance: 'none',
-            fontFamily: 'var(--sans)', fontSize: 11.5, fontWeight: on ? 750 : 600, letterSpacing: '-0.01em',
-            background: on ? 'var(--surface-2)' : 'transparent', color: on ? 'var(--ink)' : 'var(--ink-3)',
-            transition: 'background 0.16s ease, color 0.16s ease, border-color 0.16s ease',
-          }}>{z.label}</button>
-        );
-      })}
-    </div>
-  );
-}
+// WorldZoomControl is gone: the three zoom stops are stops on the axis
+// above now, so a separate pill row would be the same choice offered
+// twice. WORLD_ZOOMS survives because it still validates the persisted
+// `worldZoom` tweak and maps it to an audience (WORLD_AUD).
 
 // ─── which Daily-Question audience each population reflects ───
 const MIRROR_AUD = { circle: 'people', groups: 'groups', near: 'around' };
@@ -137,13 +158,21 @@ function MirrorTab({ onPerson, pop, onPop, worldZoom, onZoom }) {
   const scaleId = p.id === 'world' ? zoom : p.id;
   const audId = p.id === 'world' ? WORLD_AUD[zoom] : MIRROR_AUD[p.id];
   const field = typeof window.MirrorFieldBody === 'function';
+  // The axis carries the world zooms as stops of its own, so a pick has to
+  // set both halves of the old two-level state — and `live` hides the City
+  // stop, which means a session that persisted zoom === 'city' would leave
+  // the axis with nothing selected. Resolve that to Country here, once.
+  const liveGeo = !!(window.LIVE && window.LIVE.enabled);
+  const shownZoom = liveGeo && zoom === 'city' ? 'country' : zoom;
+  const stopId = p.id === 'world' ? shownZoom : p.id;
+  const pick = (s) => { if (s.pop === 'world') { onPop('world'); onZoom(s.zoom); } else onPop(s.pop); };
 
   // fully retracted — you, alone, visualized: the Map lives here
   if (p.id === 'you') {
     return (
       <div className="fade-in" style={{ '--accent': 'var(--c-today)', height: '100%', display: 'flex', flexDirection: 'column' }}>
         <div style={{ flexShrink: 0, padding: '10px 14px 0' }}>
-          <MirrorPopPicker popId={p.id} onPick={onPop} />
+          <MirrorPopPicker stopId={stopId} onPick={pick} live={liveGeo} />
         </div>
         <div className="tab-swap" style={{ flex: 1, minHeight: 0, position: 'relative' }}>
           <MapTab />
@@ -170,8 +199,7 @@ function MirrorTab({ onPerson, pop, onPop, worldZoom, onZoom }) {
     const scope = p.id === 'near' ? 'city' : liveZoom;
     return (
       <div className="fade-in mf-flex" style={{ '--accent': mirrorAccent(p.id) }}>
-        <MirrorPopPicker popId={p.id} onPick={onPop} />
-        {p.id === 'world' && <WorldZoomControl zoom={liveZoom} onZoom={onZoom} live />}
+        <MirrorPopPicker stopId={stopId} onPick={pick} live={liveGeo} />
         <div key={'geo-live:' + scope} className="tab-swap mf-flex" style={{ overflowY: 'auto' }}>
           <window.LiveCohortBody scope={scope} />
         </div>
@@ -187,7 +215,7 @@ function MirrorTab({ onPerson, pop, onPop, worldZoom, onZoom }) {
   if (p.id === 'circle' && window.LIVE && window.LIVE.enabled) {
     return (
       <div className="fade-in mf-flex" style={{ '--accent': 'var(--c-people)' }}>
-        <MirrorPopPicker popId={p.id} onPick={onPop} />
+        <MirrorPopPicker stopId={stopId} onPick={pick} live={liveGeo} />
         <div key="circle-live" className="tab-swap mf-flex">
           <div style={{ padding: '30px 22px', textAlign: 'center' }}>
             <div style={{ fontFamily: 'var(--serif)', fontSize: 17, color: 'var(--ink)', marginBottom: 7 }}>Your circle is empty</div>
@@ -206,7 +234,7 @@ function MirrorTab({ onPerson, pop, onPop, worldZoom, onZoom }) {
   if (p.id === 'groups' && typeof window.GroupsMirrorBody === 'function') {
     return (
       <div className="fade-in mf-flex" style={{ '--accent': 'var(--c-groups)' }}>
-        <MirrorPopPicker popId={p.id} onPick={onPop} />
+        <MirrorPopPicker stopId={stopId} onPick={pick} live={liveGeo} />
         <MirrorPreviewTag popId={p.id} />
         <div key="groups-mirror" className="tab-swap mf-flex">
           <window.GroupsMirrorBody onPerson={onPerson} />
@@ -218,11 +246,11 @@ function MirrorTab({ onPerson, pop, onPop, worldZoom, onZoom }) {
   if (field) {
     return (
       <div className="fade-in mf-flex" style={{ '--accent': mirrorAccent(p.id) }}>
-        <MirrorPopPicker popId={p.id} onPick={onPop} />
+        <MirrorPopPicker stopId={stopId} onPick={pick} live={liveGeo} />
         <MirrorPreviewTag popId={p.id} />
         <div key={scaleId + '-field'} className="tab-swap mf-flex">
           <MirrorFieldBody pop={p.id} worldZoom={zoom} onPerson={onPerson}
-            zoomCtl={p.id === 'world' ? <WorldZoomControl zoom={zoom} onZoom={onZoom} /> : null}
+            zoomCtl={null}
             levelTrait="gender" levelMarker={true} />
         </div>
       </div>
@@ -232,11 +260,11 @@ function MirrorTab({ onPerson, pop, onPop, worldZoom, onZoom }) {
   return (
     <div className="fade-in" style={{ '--accent': mirrorAccent(p.id) }}>
 
-      <MirrorPopPicker popId={p.id} onPick={onPop} />
+      <MirrorPopPicker stopId={stopId} onPick={pick} live={liveGeo} />
       <MirrorPreviewTag popId={p.id} />
 
       <div key={scaleId} className="tab-swap">
-        {p.kind === 'geo' && <AreaBody scaleId={scaleId} onPerson={onPerson} zoomCtl={p.id === 'world' ? <WorldZoomControl zoom={zoom} onZoom={onZoom} /> : null} />}
+        {p.kind === 'geo' && <AreaBody scaleId={scaleId} onPerson={onPerson} zoomCtl={null} />}
         {p.id === 'circle' && <PeopleTab embedded onPerson={onPerson} />}
         {p.id === 'groups' && <GroupsBody />}
         {typeof window.MirrorAnswers === 'function' && (
@@ -253,7 +281,6 @@ Object.assign(window, { MirrorTab });
 
 ;globalThis.MirrorPopGlyph = typeof MirrorPopGlyph === 'undefined' ? globalThis.MirrorPopGlyph : MirrorPopGlyph;
 ;globalThis.MirrorPopPicker = typeof MirrorPopPicker === 'undefined' ? globalThis.MirrorPopPicker : MirrorPopPicker;
-;globalThis.WorldZoomControl = typeof WorldZoomControl === 'undefined' ? globalThis.WorldZoomControl : WorldZoomControl;
 ;globalThis.MirrorTab = typeof MirrorTab === 'undefined' ? globalThis.MirrorTab : MirrorTab;
 ;globalThis.MIRROR_POPS = typeof MIRROR_POPS === 'undefined' ? globalThis.MIRROR_POPS : MIRROR_POPS;
 ;globalThis.mirrorPop = typeof mirrorPop === 'undefined' ? globalThis.mirrorPop : mirrorPop;

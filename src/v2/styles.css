@@ -688,6 +688,13 @@ button.card:active,
 .sd-switch-btn:active { transform: scale(0.96); }
 .sd-switch-btn.is-on { color: var(--sw-acc, var(--ink)); font-weight: 800; }
 .sd-thumb { position: absolute; z-index: 0; bottom: -0.5px; left: 0; width: calc(100% / 3); display: flex; justify-content: center; transition: transform 0.32s var(--ease-spring); }
+/* …and the same switcher once DailySplit portals it into the app header:
+   narrower, shorter, and without the rule, because the header already has
+   one under it. Only these three properties change — the switcher is the
+   same element, so the sliding thumb keeps working. */
+.h-modeslot { flex: 1; display: flex; justify-content: center; }
+.h-modeslot .sd-switch { width: 200px; border-bottom: none; }
+.h-modeslot .sd-switch-btn { min-height: 32px; padding: 3px 2px; font-size: 14px; }
 
 /* Daily pre-vote option — quiet at rest, faint accent tint on hover so the
    filled result reveal after answering feels like a real payoff. */
@@ -910,6 +917,8 @@ button.card:active,
 @keyframes barIn { from { width: 0; } }
 @keyframes chipPop { from { transform: scale(0.5); opacity: 0; } to { transform: none; opacity: 1; } }
 @keyframes tilePick { 0% { transform: scale(0.96); } 55% { transform: scale(1.012); } 100% { transform: none; } }
+/* a duel tile's share rises from its own floor — the fill IS the number */
+@keyframes wfFillUp { from { height: 0; } }
 @media (prefers-reduced-motion: reduce) { [style*="popIn"], [style*="barIn"], [style*="chipPop"], [style*="tilePick"] { animation: none !important; } }
 
 /* "Your people" hero card — full-bleed edge to edge */

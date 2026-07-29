@@ -31,7 +31,7 @@ const DAILYSPLIT_DQ_SYNC = { s1: { prompt: 'Pineapple on pizza?', map: { yes: 0,
 
 class DailySplit extends React.Component {
   state = {
-    mode: 'world', feedOpen: false, condensed: false, earlierOpen: false,
+    mode: 'world', feedOpen: false, condensed: false, earlierOpen: false, modeSlot: null,
     idx: 0, idxG: 0,
     votes: (window.LIVE && window.LIVE.enabled ? window.LIVE.myVotes() : {}), tab: null, filter: 'all', dim: 'friends', ups: {}, mine: {}, draft: '', dreplies: this.loadDailyReplies(), replyTo: null,
     mapToast: null, pressing: false,
@@ -114,6 +114,15 @@ class DailySplit extends React.Component {
   }
   componentDidMount() {
     if (window.DUELS) this._unsubDuels = window.DUELS.subscribe(() => this.forceUpdate());
+    // The mode switcher belongs in the app header, which is rendered by a
+    // component above this one — so it is portaled into a slot app-shell
+    // leaves for it. Resolved here rather than at render: the slot only
+    // exists once the header has mounted, and looking it up during render
+    // would read the DOM mid-commit.
+    if (typeof document !== 'undefined') {
+      const el = document.getElementById('daily-mode-slot');
+      if (el) this.setState({ modeSlot: el });
+    }
     // the window event fires on every store notify AND on push-tap
     // dispatch — either way, try to consume a pending reveal target
     this._pendingHandler = () => this.consumePendingReveal();
@@ -599,9 +608,9 @@ class DailySplit extends React.Component {
       h('div', { style: { fontFamily: BRIC, fontWeight: 800, fontSize: 31, lineHeight: 1.08, letterSpacing: -0.8, textWrap: 'pretty' } }, S.text),
       !voted
         ? h('div', { style: col(10) },
-            S.options.map((o, i) => h('button', { key: o.id, className: 'press sd-opt', onClick: () => { if (S.live && window.LIVE) window.LIVE.vote(S.id, o.id); this.syncToMap(S, o.id); this.showMapToast(S.id); this.setState(s => ({ votes: { ...s.votes, [S.id]: o.id }, filter: 'all', beat: (this.props.beats !== false && window.ConsequenceBeat) ? S.id : null })); }, style: { '--opt': o.color, background: 'color-mix(in oklch, ' + o.color + ' 8%, var(--surface-2))', border: '1px solid color-mix(in oklch, ' + o.color + ' 38%, var(--rule))', borderRadius: 14, padding: '16px 17px', display: 'flex', gap: 13, alignItems: 'center', cursor: 'pointer', textAlign: 'left', WebkitAppearance: 'none', boxShadow: 'none', transition: 'background .16s ease, border-color .16s ease' } },
+            S.options.map((o, i) => h('button', { key: o.id, className: 'press sd-opt', onClick: () => { if (S.live && window.LIVE) window.LIVE.vote(S.id, o.id); this.syncToMap(S, o.id); this.showMapToast(S.id); this.setState(s => ({ votes: { ...s.votes, [S.id]: o.id }, filter: 'all', beat: (this.props.beats !== false && window.ConsequenceBeat) ? S.id : null })); }, style: { '--opt': o.color, minHeight: 56, background: 'color-mix(in oklch, ' + o.color + ' 11%, var(--surface-2))', border: '1px solid color-mix(in oklch, ' + o.color + ' 32%, var(--rule))', borderRadius: 15, padding: '13px 18px', display: 'flex', alignItems: 'center', gap: 13, cursor: 'pointer', textAlign: 'left', WebkitAppearance: 'none', boxShadow: 'none', transition: 'background .16s ease, border-color .16s ease' } },
               h('span', { style: { width: 13, height: 13, borderRadius: '50%', flexShrink: 0, background: o.color } }),
-              h('span', { style: { fontWeight: 700, fontSize: 17, color: 'var(--ink)', letterSpacing: '-0.01em' } }, o.label))))
+              h('span', { style: { fontWeight: 800, fontSize: 21, color: 'var(--ink)', letterSpacing: '-0.025em', textWrap: 'pretty' } }, o.label))))
         : (st.beat === S.id && window.ConsequenceBeat)
         ? h(window.ConsequenceBeat, { key: 'beat-' + S.id, seed: S.id, options: S.options, pcts: rp, mineIdx: myIdx, height: 320, onDone: () => this.setState({ beat: null }) })
         : h('div', { style: { ...col(10), animation: 'popIn .35s cubic-bezier(0.2,0.8,0.2,1)' } },
@@ -759,7 +768,10 @@ class DailySplit extends React.Component {
 
     return {
       rootRef: (el) => this.setupGestures(el),
-      screen: h(F, null, switcher,
+      // the switcher renders into the header slot when there is one, and
+      // falls back to sitting inline — so a mount order that has not yet
+      // produced the slot still shows the modes rather than dropping them
+      screen: h(F, null, (st.modeSlot && st.modeSlot.isConnected) ? ReactDOM.createPortal(switcher, st.modeSlot) : switcher,
         // the sliding surface — swipes translate this, not the whole page
         h('div', { ref: (n) => { this.bodyEl = n; }, style: { display: 'flex', flexDirection: 'column', gap: 13, flex: 1, willChange: 'transform' } }, body),
         // quiet footer — suggest a question for the daily (community board)

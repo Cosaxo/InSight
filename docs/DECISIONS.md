@@ -850,10 +850,111 @@ the place of the who-voted button when present (it opens the same sheet).
 Confirmed by running the same probe against the unmodified file: same
 finding computed, no line drawn.
 
-### Not ported
+### Not ported — reversed, same day
 
-The prototype's v2 **card skin** — bare/bleed grounds instead of a boxed
-card. It rewrites the duel tiles and the rank list as well as the card
-shell, and this tree's versions of those have diverged from v14's. The
-`v2` flag here means the result *layout* (one hue per card, one footer
-line) and nothing about the card's ground.
+This section originally deferred the prototype's v2 **card skin**
+(bare/bleed grounds instead of a boxed card) on the grounds that it also
+rewrites the duel tiles and the rank list. That was the wrong call, and
+it was wrong in a way worth recording: the skin is the single most
+visible thing on the screen, so deferring it meant the app still did not
+look like the prototype it was being ported from — which was the entire
+point of the exercise. "Smallest change that closes the problem" is not
+the smallest change that compiles.
+
+The skin is now ported, along with three shell-level differences the
+module-by-module comparison never looked at, because it compared modules
+and not the shell they render into:
+
+| | was | now |
+| --- | --- | --- |
+| Daily header | `MH · inSight · 🔍`, tabs on a second row | `MH · World Group 1v1 · ⊙ · 🔍`, one row |
+| Mode switcher | rendered inline by `DailySplit` | portaled into `#daily-mode-slot` in the header |
+| `PassiveMeter` | led the feed's chip row | rides in the header, where it reports across tabs |
+| Feed card | boxed, shadowed, gradient | bare — a hairline and the page ground |
+| Duel tiles | generated tile art, label in a blurred pill | flat ground, label at the foot, share rising from the floor |
+
+Verified by rendering the prototype and the app at the same viewport and
+measuring: every landmark now lands within 2px of its counterpart, and
+the header's text sequence is identical.
+
+### One thing the skin port had to add that the prototype did not need
+
+A duel tile's fill height **is** its share. The prototype has no live
+cards, so it draws the fill whenever you have voted; here that would
+publish the split geometrically on a card sitting below the k-floor —
+the same disclosure as the numeral, in a different alphabet. Both the
+fill and the numeral are therefore gated on one `shares` predicate that
+includes `!(q.live && q.tooSmall)`.
+
+### The Mirror's scale was the same miss again
+
+The population picker was still the old two-level control: five stops
+(You · Circle · Groups · Near · World) with the three world zooms hidden
+in a second pill row inside the hero. v14 flattened them onto one
+graduated axis of seven — the zooms are stops on the same telescope, so
+they belong on the same telescope — leaving the Mirror with exactly two
+levels, WHO and WHAT, instead of three.
+
+Ported, with D9 preserved on the new axis rather than on the deleted
+control: **live mode drops the City stop**, because Near IS your city
+there, and two stops resolving to one cohort is how a scale starts lying
+about what it measures. `WorldZoomControl` is deleted — keeping it would
+offer the same choice twice.
+
+One edge case the flattening creates, and its fix: a session that
+persisted `worldZoom: 'city'` and then goes live lands on a stop the axis
+no longer draws, leaving nothing selected. `MirrorTab` resolves city →
+country once, for the axis and the panel together. Verified by parking on
+City, flipping to live, and confirming Country comes up selected.
+
+### Why there is now a tool, and what it found
+
+Four rounds of "the visuals are wrong" were resolved by comparing
+screenshots by eye, one report at a time, with the user acting as the diff.
+That method has a floor it cannot get below — it finds what someone
+happens to look at — and the misses it left were exactly the ones eyes are
+worst at: a 30px headline rendering at 26px, a sort chip carrying a chevron
+the prototype does not have, a daily option 2px under its 56px floor, a
+rank hint at 12.5/600 instead of 13/500.
+
+`scripts/style-diff.mjs` walks both builds across seven screens and
+compares typography, colour and geometry per rendered string. Run once, it
+reported **15 distinct differences across 700 elements**; after fixing
+them, **0 across 2,891**. That is the whole visual gap, found in one pass
+rather than four rounds.
+
+It is not wired into CI: playwright is not a dependency of this repo (the
+e2e drives emulators over raw Node), a design reference is not a
+correctness gate, and some divergences from the prototype are deliberate.
+The script's header lists those.
+
+### The bug it found that no eye would have
+
+The same run reported five strings present in the prototype and absent
+from the app. They were five whole feed cards — every lens question, from
+all five minor lenses. The cause:
+
+```js
+if ((i + 1) % 4 === 0 && ti < tqs.length) feedList.push(tqs[ti++]);
+else if ((i + 1) % 8 === 0 && li < lqs.length) feedList.push(lqs[li++]);
+```
+
+Every multiple of 8 is a multiple of 4, so with `else if` the test branch
+won every lens slot and **not one lens question ever entered the feed**.
+Nothing in the tree could catch it: it type-checks, it lints,
+`check:globals` is happy, and the feed renders a perfectly plausible stack
+of cards. The only symptom was 58 cards where there should have been 63.
+
+Fixed to two independent `if`s with the prototype's cadence of 9, which is
+coprime with 4 so the two cadences drift past each other instead of
+colliding. `src/v2/data/feed-interleave.test.ts` pins the property — both
+streams must drain, and the lens cadence must not be a multiple of the
+test cadence — and includes the old shape as a test that asserts it
+produces zero lens cards, so the regression cannot come back quietly.
+
+### Deliberate divergence, kept
+
+The prototype offers `skip` on every unanswered card. The app hides it on
+test and lens questions: those fill an instrument, so a silent skip reads
+as a gap in your own results rather than a question you passed on. That is
+the one difference style-diff is told to expect.
