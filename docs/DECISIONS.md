@@ -720,3 +720,72 @@ never requested until the button is tapped, and declining leaves the app
 fully functional. `insight_discoverable` stays closed (D4) — this amendment
 does not revive the geohash system, and the analysis above for why that
 system was not worth reviving is unaffected.
+
+---
+
+## D10 · @capacitor-firebase/app-check is installed under an npm alias
+
+**Decision.** `package.json` installs `@capacitor-firebase/app-check` under
+the alias `capacitor-firebase-app-check`, so it lands in
+`node_modules/capacitor-firebase-app-check` rather than at its scoped path.
+One import in `src/lib/appcheck.ts` uses the alias.
+`npm run check:ios-spm` enforces all of it.
+
+**Why.** The iOS build could not resolve its dependencies at all:
+
+```
+error: Could not resolve package dependencies:
+  product 'AppCheckCore' required by package 'googlesignin-ios'
+  target 'GoogleSignIn' not found in package 'app-check'.
+Conflicting identity for app-check: dependency 'github.com/google/app-check'
+  and dependency '…/node_modules/@capacitor-firebase/app-check' both point
+  to the same package identity 'app-check'.
+```
+
+SwiftPM derives a package's **identity from the last component of its
+path**. Two packages resolve to `app-check`:
+
+| Package | Comes from | Identity |
+| --- | --- | --- |
+| `@capacitor-firebase/app-check` | direct dependency, local path | `app-check` |
+| `github.com/google/app-check` | GoogleSignIn ← `@capacitor-firebase/authentication` | `app-check` |
+
+SwiftPM prefers the local package, so `GoogleSignIn` looks for its
+`AppCheckCore` product inside the Capacitor plugin, which has no such
+product, and resolution fails before anything compiles. Renaming the install
+directory renames the identity, and the two packages stop colliding.
+Nothing about either package changes.
+
+### What was rejected, and why the alias won
+
+| Option | Cost |
+| --- | --- |
+| **npm alias** ✅ | One odd-looking import, one guard script. No feature lost. |
+| Migrate iOS to CocoaPods | A native project migration and a CI rewrite, to work around a naming rule. |
+| Drop `@capacitor-firebase/app-check` | Loses native App Check attestation — D3 makes it the only control between the public surface and unlimited free anonymous accounts. |
+| Drop native Google sign-in | Removes GoogleSignIn and the collision, but D6 turned Android backup off, which makes linking Google the only way an anonymous session survives a lost phone. |
+| Hand-edit `ios/App/CapApp-SPM/Package.swift` | The file says `DO NOT MODIFY THIS FILE - managed by Capacitor CLI`; `cap sync` reverts it and `native-sync-drift` reports it. |
+| Bump the plugin version | Cannot help. The identity comes from the package *name*, which is the same at every version. |
+
+### The trap this leaves behind
+
+The alias is invisible everywhere except one import line, and the obvious
+tidy-up — reinstalling the package under its real scoped name — silently
+reverts it. The resulting failure is a macOS-only CI job whose error message
+mentions neither `package.json` nor the alias.
+
+So `scripts/check-ios-spm.mjs` asserts three things on every PR, on Linux,
+in under a second: the alias is declared and points at the real package, the
+scoped name is *not* a direct dependency, the generated `Package.swift`
+references the aliased path, and no source file imports the scoped name.
+Both regressions were tested by performing them.
+
+### Delete this when
+
+Either `@capacitor-firebase/app-check` renames its published package, or
+SwiftPM gains per-dependency identity overrides. Verify by reverting the
+alias and watching the iOS job: if it stays green, D10 is obsolete and the
+guard should go with it.
+
+**Note.** The alias install moved the plugin from 8.2.0 to 8.3.0 — a minor
+bump taken incidentally, not a deliberate upgrade.

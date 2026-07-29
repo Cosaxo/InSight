@@ -41,6 +41,11 @@ jobs:
       # Firestore map keys. A malformed row or an over-long name would be
       # pickable in the profile and then absent from every breakdown.
       - run: npm run check:cities
+      # The npm alias that keeps the iOS SwiftPM graph resolvable. Runs on
+      # ubuntu with the rest of the cheap checks rather than waiting for the
+      # macOS runner, where the same mistake costs four minutes and reports
+      # an error naming neither package.json nor the alias.
+      - run: npm run check:ios-spm
 
   typecheck-build:
     runs-on: ubuntu-latest
