@@ -408,6 +408,29 @@ describe("vote() optimistic path (inflight vs unaggregated)", () => {
     expect(LIVE.enabled).toBe(true);
   });
 
+  it("rank-type feed questions stay out of the live feed", async () => {
+    // The bank seeds rank questions, but no answer can carry an order yet —
+    // served as vote cards they collect single choices against a "rank
+    // them" prompt, which poisons the aggregate (D12). Fails without the
+    // q.type !== "rank" filter in hydrate's feedBank predicate.
+    h.bankDocs.push(
+      {
+        id: "q_feed_vote",
+        data: { surface: "feed", seq: 2, type: "vote", prompt: "Vote one",
+          options: ["A", "B"], topic: "culture", test: null, active: true },
+      },
+      {
+        id: "q_feed_rank",
+        data: { surface: "feed", seq: 3, type: "rank", prompt: "Rank them",
+          options: ["A", "B", "C"], topic: "sport", test: null, active: true },
+      },
+    );
+    await bootLive();
+    const feed = (window as unknown as { WORLD_FEED_QS?: Array<{ id: string }> }).WORLD_FEED_QS || [];
+    expect(feed.map((q) => q.id)).toContain("q_feed_vote");
+    expect(feed.map((q) => q.id)).not.toContain("q_feed_rank");
+  });
+
   it("reports and re-notifies when an agg listener errors", async () => {
     const LIVE = await bootLive();
     const listener = vi.fn();

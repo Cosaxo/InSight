@@ -983,3 +983,42 @@ The prototype offers `skip` on every unanswered card. The app hides it on
 test and lens questions: those fill an instrument, so a silent skip reads
 as a gap in your own results rather than a question you passed on. That is
 the one difference style-diff is told to expect.
+
+---
+
+## D12 · Rank questions are out of the live feed until answers can carry an order
+
+**Decided:** 2026-07-29 · **Status:** binding until the pipeline below exists
+
+The seeded bank carries 8 `type: "rank"` feed questions, and
+`buildFeedGlobals` served every feed question as a single-choice vote
+card — so "Pure athleticism — rank them" rendered live with a pick-one
+UI, folding single options into an aggregate that claims to be a ranking.
+Wrong-shaped answers are worse than no card: the counts stop being what
+the prompt says they are, which is the same honesty rule that makes
+answers immutable (D5). `live.ts` now excludes `type: "rank"` from the
+live feed bank (unit-tested; the test fails without the filter). The
+demo feed keeps its rank cards — they never touch aggregates.
+
+### What making them live actually costs
+
+1. **Answer shape.** A ranking is an order, not an index: `order:
+   number[]` alongside `optionIdx`. Rules can bound the list's size but
+   cannot iterate it (no forall), so element validation must live in
+   `onV2AnswerCreated` — malformed permutations dropped at fold time,
+   the same trust boundary every vote already crosses.
+2. **Aggregation.** Per-item position-sum + count is enough to publish a
+   crowd order (sort by mean position) and is k-safe at the same
+   `AGG_MIN_N`/`PUBLISH_EVERY` cadence as counts. A full permutation
+   histogram is NOT publishable — with n! cells, most cohorts put single
+   users in identifiable cells.
+3. **Client.** `buildFeedGlobals` mapping `type: "rank"` with `items` +
+   `crowd`, a `LIVE.vote` variant that sends the order, and the feed's
+   existing `renderRank`/`tapRank` (already built for demo) pointed at
+   real data.
+4. **Tests.** Rules (shape bounds), fold (dropped invalid orders, the
+   position-sum arithmetic), floor behaviour, and an e2e leg.
+
+None of it is hard, but every piece touches the enforced-privacy path,
+so it ships as one deliberate change or not at all. Until then the live
+feed is honest about what it can collect.

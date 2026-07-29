@@ -312,8 +312,17 @@ async function hydrate(): Promise<void> {
   const playable = (q: QuestionDoc & { id: string }) =>
     Array.isArray(q.options) && q.options.length >= 2;
   state.questions = active.filter((q) => q.surface === "daily" && playable(q));
+  // type "rank" is excluded from the LIVE feed on purpose. The bank seeds 8
+  // of them, and buildFeedGlobals used to serve them as single-choice vote
+  // cards — "Pure athleticism — rank them" with a pick-one UI, folding
+  // single options into aggregates that claim to be a ranking. Wrong-shaped
+  // answers are worse than no card: the counts stop being what the prompt
+  // says they are (the same honesty rule as D5). They return when answers
+  // can carry an order and the aggregator can fold one — the full
+  // arithmetic of that is recorded in docs/DECISIONS.md (D12). The demo
+  // feed keeps its rank cards; they never touch aggregates.
   state.feedBank = active.filter(
-    (q) => (q.surface === "feed" || q.surface === "test") && playable(q));
+    (q) => (q.surface === "feed" || q.surface === "test") && playable(q) && q.type !== "rank");
   state.duelBank = active.filter(
     (q) => (q.surface === "group" || q.surface === "duo")
       && (playable(q) || q.topic === "pick"));
