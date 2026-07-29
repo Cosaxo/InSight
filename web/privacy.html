@@ -187,8 +187,18 @@
       hiding one group would let you work it out by subtracting the rest,
       a second one is hidden too.
       <br />
-      Your city is chosen from a fixed list of places. We do not ask your
-      device where it is, and we do not work it out from your connection.
+      Your city is either chosen from a fixed list of places, or — only if
+      you tap &ldquo;use my location&rdquo; and allow it — worked out from a
+      single approximate location reading. That reading is matched to the
+      nearest city <em>on your own device</em>, using a list of cities that
+      ships inside the app. Your coordinates are not sent to us, not stored,
+      and not written down anywhere. What is saved is the city name, exactly
+      as if you had picked it from the list yourself.
+      <br />
+      Location is never requested unless you tap that button, is never read
+      in the background or continuously, and declining changes nothing
+      except that you pick your city by hand. We do not work out your
+      location from your internet connection.
       <br />
       We do not ask for political views, religion, health, ethnicity, or
       anything else the law treats as a special category, and none of it
@@ -215,10 +225,13 @@
   <h2>What we do not collect</h2>
 
   <p>
-    No device location — no GPS, no location permission, and no working
-    out where you are from your IP address. If you tell us your city you
-    pick it from a list, and that is the only sense in which we know where
-    you are.
+    No coordinates. The app can ask your device for an approximate location
+    if — and only if — you tap &ldquo;use my location&rdquo;, but that
+    reading is turned into a city name on your device and then discarded. No
+    latitude or longitude is ever transmitted to us or stored, so the most
+    precise thing we could ever hold about where you are is the name of a
+    city. No location history, no background location, and no working out
+    where you are from your IP address.
   </p>
 
   <p>

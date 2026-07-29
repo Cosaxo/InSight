@@ -333,7 +333,9 @@ import React from 'react';
                 from the chosen city rather than typed: as free text it was
                 minting a bucket per spelling ("Norway"/"norway"/"NO"), each
                 below the 5-person floor, so the country breakdown published
-                nothing at all. The picker asks for no device location. */}
+                nothing at all. The picker offers an optional "use my
+                location" that resolves to a city on the device; the
+                coordinate is never stored or sent (D9). */}
             <label style={fieldLabel}>City
               <CityPicker value={v.city || ''} onChange={next => upd('city', next)} />
             </label>

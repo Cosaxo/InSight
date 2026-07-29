@@ -36,6 +36,7 @@ let cities = 0;
 const countries = new Set();
 const perCountry = new Map();
 const seen = new Set();
+const coords = new Map();
 let headerCount = null;
 let headerCountries = null;
 
@@ -69,14 +70,29 @@ for (let i = 0; i < lines.length; i++) {
     continue;
   }
   const parts = line.split("\t");
-  if (parts.length !== 2) {
-    errors.push(`${at}: expected exactly one tab, got ${parts.length - 1}`);
+  if (parts.length !== 4) {
+    errors.push(`${at}: expected exactly three tabs (name, pop, lat, lon), got ${parts.length - 1}`);
     continue;
   }
-  const [name, pop] = parts;
+  const [name, pop, latS, lonS] = parts;
   if (!name) errors.push(`${at}: empty city name`);
   if (name !== name.trim()) errors.push(`${at}: city name has edge whitespace: ${JSON.stringify(name)}`);
   if (!/^\d+$/.test(pop)) errors.push(`${at}: population is not a positive integer: ${JSON.stringify(pop)}`);
+  // Coordinates drive nearest-city resolution on the device. A swapped
+  // lat/lon or a stray value does not crash anything — it silently puts
+  // someone in the wrong city, which is the failure this catches.
+  const lat = Number(latS);
+  const lon = Number(lonS);
+  if (!/^-?\d+(\.\d+)?$/.test(latS) || !(lat >= -90 && lat <= 90)) {
+    errors.push(`${at}: latitude out of range or malformed: ${JSON.stringify(latS)}`);
+  }
+  if (!/^-?\d+(\.\d+)?$/.test(lonS) || !(lon >= -180 && lon <= 180)) {
+    errors.push(`${at}: longitude out of range or malformed: ${JSON.stringify(lonS)}`);
+  }
+  // 0,0 is in the Gulf of Guinea. It is what a missing coordinate looks
+  // like once it has been through Number(), and it would silently become
+  // the nearest city for anyone whose fix failed to parse.
+  if (lat === 0 && lon === 0) errors.push(`${at}: null-island coordinate (0,0)`);
   const bucket = `${name}, ${country}`;
   if (bucket.length > MAX_BUCKET) {
     errors.push(`${at}: bucket key ${JSON.stringify(bucket)} is ${bucket.length} chars (max ${MAX_BUCKET})`);
@@ -88,6 +104,7 @@ for (let i = 0; i < lines.length; i++) {
   }
   if (seen.has(bucket)) errors.push(`${at}: duplicate bucket key ${JSON.stringify(bucket)}`);
   seen.add(bucket);
+  coords.set(`${country} ${name}`, { lat, lon });
   perCountry.set(country, perCountry.get(country) + 1);
   cities++;
 }
@@ -112,6 +129,32 @@ if (headerCount === null) errors.push("header is missing its `N places in M coun
 // otherwise pass every per-line check above.
 if (cities < 9000) errors.push(`only ${cities} cities — expected ~10.9k; the file looks truncated`);
 if (countries.size < 200) errors.push(`only ${countries.size} countries — expected ~245`);
+
+// A GLOBAL lat/lon swap passes every per-row range check — Oslo reversed is
+// (10.75, 59.91), and both halves are still legal numbers. It would simply
+// relocate the entire world and put every user in the wrong city. So a
+// handful of places are pinned to where they actually are.
+const FIXTURES = [
+  ["Oslo", "NO", 59.91, 10.75],
+  ["Tokyo", "JP", 35.69, 139.69],
+  ["Buenos Aires", "AR", -34.61, -58.38],
+  ["Sydney", "AU", -33.87, 151.21],
+  ["Reykjavík", "IS", 64.14, -21.90],
+];
+for (const [name, cc, lat, lon] of FIXTURES) {
+  const got = coords.get(`${cc} ${name}`);
+  if (!got) {
+    errors.push(`fixture ${name}, ${cc} is missing from the catalogue`);
+    continue;
+  }
+  // 0.2° ≈ 22 km — loose enough to survive GeoNames moving a city centroid,
+  // tight enough that a swap, a sign flip or a wrong row cannot pass.
+  if (Math.abs(got.lat - lat) > 0.2 || Math.abs(got.lon - lon) > 0.2) {
+    errors.push(
+      `fixture ${name}, ${cc} is at ${got.lat},${got.lon} — expected near ${lat},${lon}`,
+    );
+  }
+}
 
 if (errors.length) {
   console.error(`check:cities: ${errors.length} problem(s) in public/cities.txt`);

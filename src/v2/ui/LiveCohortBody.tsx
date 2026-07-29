@@ -94,9 +94,9 @@ function LiveCohortBody({ scope = "city" }: { scope?: CohortScope }) {
   if (scope !== "world" && !city) {
     return (
       <LnNote title={scope === "city" ? "Near needs a city" : "This needs a city"}>
-        Pick your city in your profile and this becomes the daily, answered by
-        everyone else who picked it. No location permission, no GPS — just the
-        city you choose from a list.
+        Set your city in your profile and this becomes the daily, answered by
+        everyone else in it. Use your location or pick from a list — either
+        way only the city name is saved, never your coordinates.
       </LnNote>
     );
   }

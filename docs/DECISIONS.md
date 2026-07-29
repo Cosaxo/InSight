@@ -23,11 +23,18 @@ itself), not fabricated activity.
 
 ## D2 · "Near" means geohash5 (~5 km), reusing the existing geo system
 
-> **Superseded for the Near population by [D9](#d9--near-is-your-picked-city-not-your-coordinates)
-> (2026-07-29).** Near is now the viewer's picked city, from the same
-> k-floored aggregates as everything else. The analysis below stands as the
-> record of what the geohash route would have cost; nothing in it was ever
-> built end to end.
+> **Superseded for the Near population by [D9](#d9--near-is-your-city--picked-from-a-list-or-located-on-the-device)
+> (2026-07-29).** Near is now the viewer's city, from the same k-floored
+> aggregates as everything else. The analysis below stands as the record of
+> what the *geohash* route would have cost; nothing in it was ever built end
+> to end, and it was not revived.
+>
+> **The 2026-07-28 amendment below is now a historical snapshot, not a
+> description of the app.** It inventories the absence of every location
+> API; D9's own amendment added an optional, coarse, on-device one. Points
+> 1, 2 and 4 of "what turning Near on would cost" were paid. Point 3 —
+> reopening `insight_discoverable` — was not, and remains the reason the
+> geohash Near stays dead.
 
 **Decision.** The Mirror's Near population is the ~5 km geohash5 cell
 system already implemented (`insight_discoverable`, `aggregates_by_geohash5`,
@@ -395,7 +402,7 @@ true historical membership) or deleting them.
 
 ## D8 · Per-anchor breakdowns are built; collecting the anchors is not
 
-> **Amended by [D9](#d9--near-is-your-picked-city-not-your-coordinates)
+> **Amended by [D9](#d9--near-is-your-city--picked-from-a-list-or-located-on-the-device)
 > (2026-07-29).** Two things below are now out of date. The recommendation
 > "country, not city" is reversed — `city` is in `BREAKDOWN_DIMS`, because
 > it is no longer free text. And `country`, which this record treated as
@@ -493,7 +500,20 @@ as deployed infrastructure. It now says what is true.
 
 ---
 
-## D9 · Near is your picked city, not your coordinates
+## D9 · Near is your city — picked from a list, or located on the device
+
+> **Amended the same day (2026-07-29), and the guarantee changed.** As first
+> written this record chose a manual picker *specifically to avoid asking
+> for location*, and said so: "no device location is requested or inferred,
+> so the store label stays Location: None". The product owner then asked for
+> location-based detection. It is built, and the honest consequences are in
+> **[Amendment: optional device location](#amendment-optional-device-location-2026-07-29)**
+> at the end of this record. Everything between here and there is the
+> original reasoning, which still explains why the *city* is the unit and
+> why the geohash Near was not revived — but any sentence below claiming
+> the app never asks for location is now false. The store label is Coarse
+> Location.
+
 
 **Decision.** The Mirror's Near population is the city the user **picks from
 a fixed catalogue** in their profile, and it renders the same k-floored
@@ -632,3 +652,71 @@ that reveals alone do not provide.
 your city, and keeping the stop would be the same panel behind two chips.
 The demo path keeps all three, since its city view is a different (mock)
 thing entirely.
+
+### Amendment: optional device location (2026-07-29)
+
+**Decision.** The profile's city field gains an optional **"Use my
+location"**: one coarse fix, resolved to a catalogue city **on the device**,
+coordinate discarded. The manual picker stays and is the fallback for every
+failure path. Requested by the product owner after the picker shipped.
+
+**What is actually collected.** A city name — `"Oslo, NO"`, the same string
+the manual picker produces. `src/v2/data/locate.ts` is the only module that
+ever holds a coordinate: `locateCity()` returns a catalogue **key** and a
+rounded distance, never a position, so no caller can obtain one even by
+accident. Nothing writes latitude or longitude to Firestore, to
+localStorage, or to Sentry. The most precise location this system can hold
+about a person is the name of a city, by construction rather than by
+policy — which is the property that makes the privacy copy checkable.
+
+**Precision is capped at both ends, deliberately.**
+
+| | |
+| --- | --- |
+| iOS | `NSLocationDefaultAccuracyReduced = true`; no `requestTemporaryFullAccuracy` call exists anywhere |
+| Android 12+ | `ACCESS_COARSE_LOCATION` only — FINE is capped at `maxSdkVersion="30"` and cannot be held |
+| Android 7–11 | FINE is declared, and the reason is below |
+| Catalogue | coordinates stored at 2dp (~1.1 km), so a finer fix could not change which city wins |
+
+The Android 7–11 exception is not a compromise anyone chose. Capacitor's
+plugin selects its permission alias by OS version: on API 31+ with
+`enableHighAccuracy: false` it requests COARSE alone, but below 31 it
+requests the alias `[COARSE, FINE]` — and Capacitor's Bridge resolves a
+multi-string alias as *all granted or none*
+(`Bridge.getPermissionStates`: "multiple permissions with the same alias
+must all be true, otherwise all false"). With COARSE alone declared, that
+alias can never reach GRANTED on API 24–30: the prompt appears, the user
+accepts, the call still fails, permanently. The WebView's own
+`navigator.geolocation` path has the identical check. So FINE is declared
+with `maxSdkVersion="30"`, confining it to the versions that structurally
+require it — and to the versions that never offered the user an
+Approximate/Precise choice in the first place. It goes away when minSdk
+reaches 31.
+
+**Store labels change, and the old justification is dead.**
+`docs/SHIP-CHECKLIST.md` said "Location: **None** — city/country are
+user-entered, not location". That argument does not survive a GPS button.
+The row is now **Coarse Location, linked, App functionality** — declared
+even though no coordinate is transmitted, because a city name is still
+coarse location data and under-declaring is the direction that gets an app
+pulled. Precise is **not** ticked, and the table above is why.
+
+**A hang found by running it rather than reasoning about it.** The first
+implementation set `PositionOptions.timeout = 12000` and assumed that
+bounded the operation. It does not: the Geolocation spec excludes the time
+spent acquiring permission from that timeout, so a prompt dismissed without
+an answer leaves `getCurrentPosition` pending **forever**. In a browser the
+button sat on "Finding your nearest city…" past 14 seconds. There is now a
+wall-clock deadline over the whole operation, permission included. All four
+failure paths — denied, unavailable, timeout, unsupported — were driven in
+a real browser and each returns to a usable picker with its own message;
+"we couldn't find you" after a deliberate refusal reads as broken software,
+so a refusal says "No problem — search for your city instead."
+
+**What did NOT change.** No reverse-geocoding service and no network call:
+the answer comes from the bundled catalogue, offline. No background or
+continuous location, no location history, no IP-based lookup. Location is
+never requested until the button is tapped, and declining leaves the app
+fully functional. `insight_discoverable` stays closed (D4) — this amendment
+does not revive the geohash system, and the analysis above for why that
+system was not worth reviving is unaffected.

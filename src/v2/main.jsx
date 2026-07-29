@@ -10,9 +10,11 @@ import { initLive } from './data/live';
 // side effect: publishes window.registerBackHandler for the shell
 import './data/back';
 // side effect: publishes globalThis.PLACES for the profile's city picker.
-// Import only — the ~139 KB catalogue itself is fetched lazily on first
+// Import only — the ~269 KB catalogue itself is fetched lazily on first
 // open, so this costs nothing on a cold start.
 import './data/places';
+// side effect: publishes globalThis.LOCATE for the picker's location button.
+import './data/locate';
 import { sentryInit } from '../lib/sentry';
 
 // Crash reporting first, so a boot error is the first thing captured.

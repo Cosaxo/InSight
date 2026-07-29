@@ -6,17 +6,36 @@
 // key, so a cohort is one place spelled one way instead of one bucket per
 // spelling.
 //
-// No device location is requested, and none is inferred. The list is
-// searched, not sorted by distance — see src/v2/data/places.ts for why, and
-// D9 for the GPS options that were priced and rejected.
+// Two ways in, and the manual one is always available: search the list, or
+// tap "Use my location" for a single coarse fix that src/v2/data/locate.ts
+// resolves to a city ON THE DEVICE and then discards. This component never
+// sees a coordinate — locateCity() hands back a catalogue key — so a
+// location leak cannot originate here even by mistake.
+//
+// A located city is SUGGESTED, never applied. Silently rewriting a profile
+// field from a sensor is the behaviour that makes a location prompt feel
+// like a trick, and the cost of avoiding it is one tap.
 //
 // Born in this repo, so typed TSX like LivePrivacyPanel; the globalThis
 // assignment at the bottom keeps the spec layer's render-time lookup
 // working from profile-general.jsx unchanged.
 import React from "react";
 import PLACES, { placeLabel, type Place } from "../data/places";
+import { locateCity, locateSupported, type LocateFail } from "../data/locate";
 
 const CP_LINE = "1px solid var(--rule)";
+
+// Why each failure needs its own sentence: "we couldn't find you" after the
+// user deliberately declined reads as broken software, and "try again"
+// after a hard refusal sends them in a loop. The manual picker is right
+// there in every case, so none of these is a dead end.
+const CP_FAIL: Record<LocateFail, string> = {
+  denied: "No problem — search for your city instead.",
+  unavailable: "Couldn't get a location fix. Search instead.",
+  timeout: "That took too long — indoors it often does. Search instead.",
+  unsupported: "This device can't share a location. Search instead.",
+  "no-match": "Couldn't match that to a city. Search instead.",
+};
 
 export type CityPickerProps = {
   /** Current anchor value, e.g. "Oslo, NO". May be legacy free text. */
@@ -32,6 +51,12 @@ function CityPicker({ value, onChange, inputStyle }: CityPickerProps) {
   const [err, setErr] = React.useState<string | null>(null);
   const [hi, setHi] = React.useState(0);
   const boxRef = React.useRef<HTMLDivElement | null>(null);
+  // The located suggestion is offered, never applied. Silently rewriting a
+  // profile field from a sensor is the behaviour that makes people distrust
+  // a location prompt, and the fix is one tap of confirmation.
+  const [locating, setLocating] = React.useState(false);
+  const [suggest, setSuggest] = React.useState<{ place: Place; km: number } | null>(null);
+  const [locErr, setLocErr] = React.useState<string | null>(null);
 
   // Fetch on first open, never on mount: the catalogue is ~139 KB and most
   // sessions never edit the profile at all.
@@ -74,6 +99,29 @@ function CityPicker({ value, onChange, inputStyle }: CityPickerProps) {
     onChange(PLACES.key(p));
     setOpen(false);
     setQ("");
+    setSuggest(null);
+    setLocErr(null);
+  };
+
+  const locate = async () => {
+    setLocating(true);
+    setLocErr(null);
+    setSuggest(null);
+    const r = await locateCity();
+    setLocating(false);
+    if (!r.ok) {
+      setLocErr(CP_FAIL[r.reason]);
+      return;
+    }
+    // locateCity returns a catalogue KEY, never a coordinate — the fix is
+    // resolved and discarded inside data/locate.ts. Parsing the key back is
+    // enough to render a label, and it is all this component can see.
+    const p = PLACES.parse(r.key);
+    if (!p) {
+      setLocErr(CP_FAIL["no-match"]);
+      return;
+    }
+    setSuggest({ place: p, km: r.km });
   };
 
   const onKeyDown = (e: React.KeyboardEvent) => {
@@ -129,6 +177,36 @@ function CityPicker({ value, onChange, inputStyle }: CityPickerProps) {
         maxHeight: 260, overflowY: "auto", background: "var(--surface)",
         border: CP_LINE, borderRadius: 10, boxShadow: "0 10px 30px rgba(0,0,0,0.14)",
       }}>
+        {/* Offered only while the query is empty: once someone is typing a
+            city name they have answered the question themselves, and a
+            location row above their results is just in the way. */}
+        {locateSupported() && !q && (
+          <div style={{ borderBottom: CP_LINE, padding: "9px 13px" }}>
+            {suggest ? (
+              <button type="button" onPointerDown={(e) => { e.preventDefault(); pick(suggest.place); }}
+                style={{ display: "block", width: "100%", textAlign: "left", cursor: "pointer",
+                  border: "none", background: "transparent", padding: 0,
+                  fontFamily: "var(--sans)", fontSize: 14, fontWeight: 700, color: "var(--ink)" }}>
+                {placeLabel(suggest.place)}
+                <span style={{ display: "block", fontSize: 11.5, fontWeight: 500, color: "var(--ink-3)", marginTop: 2 }}>
+                  Nearest city{suggest.km >= 1 ? ` · about ${Math.round(suggest.km)} km away` : ""} — tap to use it
+                </span>
+              </button>
+            ) : (
+              <button type="button" onPointerDown={(e) => { e.preventDefault(); void locate(); }}
+                disabled={locating}
+                style={{ display: "block", width: "100%", textAlign: "left",
+                  cursor: locating ? "default" : "pointer", border: "none", background: "transparent",
+                  padding: 0, opacity: locating ? 0.55 : 1,
+                  fontFamily: "var(--sans)", fontSize: 14, fontWeight: 700, color: "var(--accent)" }}>
+                {locating ? "Finding your nearest city…" : "Use my location"}
+                <span style={{ display: "block", fontSize: 11.5, fontWeight: 500, color: "var(--ink-3)", marginTop: 2 }}>
+                  {locErr || "Matched to a city on this phone. Your coordinates are never sent or saved."}
+                </span>
+              </button>
+            )}
+          </div>
+        )}
         {err && (
           <div style={{ padding: "12px 13px", fontSize: 13, fontWeight: 600, color: "oklch(0.5 0.19 25)" }}>
             Couldn&apos;t load the city list. Close and try again.

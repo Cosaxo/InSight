@@ -124,7 +124,7 @@ Both apps must be registered under `com.cosaxo.insight`:
   | Contact info → Name | Optional display name, shown in reveals | Yes | App functionality |
   | User content → Other | Answers, test results | Yes | App functionality |
   | **Sensitive info** | Politics test result; gender if entered | Yes | App functionality |
-  | Location | **None.** No GPS, no IP lookup, no location API | — | — |
+  | Location → Coarse | City name (see below) | Yes | App functionality |
   | Diagnostics → Crash data | Sentry, **opt-in, default OFF**, uid only | Yes | App functionality |
   | Purchases, Browsing, Search, Contacts, Ads | **None** | — | — |
 
@@ -132,9 +132,31 @@ Both apps must be registered under `com.cosaxo.insight`:
   - **Tracking = No.** Nothing here follows a user across other companies'
     apps or sites, and there is no IDFA/ATT prompt. Answer "No" on Apple's
     tracking question and leave Google's advertising boxes unticked.
-  - **City/country are user-entered, not location.** Declaring them under
-    Location would be wrong and would trigger questions the app cannot
-    answer; they are profile fields the user types and can leave blank.
+  - **Location is now a real Yes — Coarse, and only Coarse.** This row used
+    to read "None", on the argument that city and country were fields the
+    user typed. D9 added an optional "Use my location" button, so that
+    argument is dead and the honest answer is Coarse Location, linked,
+    for App Functionality.
+
+    Declare it that way even though **no coordinate is ever transmitted**.
+    The fix is resolved to a city name on the device
+    (`src/v2/data/locate.ts`) and discarded, so what is *collected* in
+    Apple's sense — sent off the device — is a city name and nothing
+    finer. A city name is still coarse location data, and under-declaring
+    is the direction that gets an app pulled.
+
+    Do **not** tick Precise Location. It is unobtainable by construction,
+    not by policy: iOS sets `NSLocationDefaultAccuracyReduced` and never
+    calls `requestTemporaryFullAccuracy`, and Android declares
+    `ACCESS_FINE_LOCATION` with `maxSdkVersion="30"` — so on Android 12+,
+    where the OS added the Approximate/Precise choice, the app cannot hold
+    the precise permission at all. The manifest comment explains why the
+    capped declaration exists (a Capacitor alias resolves as all-or-none
+    below API 31); if a reviewer asks, that is the answer.
+
+    Google's Data safety form additionally asks whether location is
+    *required*: it is **optional**. Declining leaves the city picker
+    working, and the app never prompts unless the button is tapped.
   - **Sensitive info is a real Yes.** The politics test result is
     special-category data under GDPR Art. 9. It never leaves the owner
     document and is never sliced by (D8), but the form asks what you
