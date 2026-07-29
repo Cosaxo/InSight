@@ -4,7 +4,7 @@
 // no-op. Requires the platform Firebase config files
 // (google-services.json / GoogleService-Info.plist) to actually deliver.
 import { Capacitor } from "@capacitor/core";
-import { arrayRemove, arrayUnion, doc, setDoc } from "firebase/firestore";
+import { getFunctions, httpsCallable } from "firebase/functions";
 import { getDb } from "../../lib/firebase";
 import { reportError } from "../../lib/sentry";
 
@@ -57,21 +57,17 @@ export async function registerPushForReveals(uid: string): Promise<void> {
           } catch {
             /* fall through to write */
           }
+          // The token write happens SERVER-SIDE (registerPushToken,
+          // functions/src/v2social.ts): the ruleset refuses fcmTokens from
+          // clients, because the array is the reveal sender's fan-out list
+          // and a client-writable one could carry a stolen token. The
+          // callable also drops the rotated predecessor in the same step.
           const db = await getDb();
-          if (staleToken) {
-            // arrayRemove + arrayUnion can't share one write; two small
-            // writes on a rotation (rare) beat an unbounded array.
-            await setDoc(
-              doc(db, "v2_users", uid),
-              { fcmTokens: arrayRemove(staleToken) },
-              { merge: true },
-            );
-          }
-          await setDoc(
-            doc(db, "v2_users", uid),
-            { fcmTokens: arrayUnion(token.value) },
-            { merge: true },
-          );
+          const fns = getFunctions(db.app, "us-central1");
+          await httpsCallable(fns, "registerPushToken")({
+            token: token.value,
+            prev: staleToken,
+          });
           try {
             localStorage.setItem(KEY, JSON.stringify({ uid, token: token.value }));
           } catch {

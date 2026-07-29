@@ -19,7 +19,7 @@ import { assertOperator, ENFORCE_APP_CHECK } from "./ops";
 import { onSchedule } from "firebase-functions/v2/scheduler";
 import { logger } from "firebase-functions";
 import { randomBytes } from "node:crypto";
-import { inviteCodeFromBytes, utcDayKey, nextStreak, shouldReveal } from "./pure";
+import { inviteCodeFromBytes, isPlausibleFcmToken, nextFcmTokens, nextStreak, shouldReveal, utcDayKey } from "./pure";
 
 const REGION = "us-central1";
 const GROUP_CAP = 32;
@@ -186,6 +186,60 @@ export const leaveGroupV2 = onCall({ region: REGION, enforceAppCheck: ENFORCE_AP
     return { gid, deleted: true };
   }
   return { gid, deleted: false };
+});
+
+// ── push token registration ─────────────────────────────────────
+//
+// fcmTokens is where sendRevealPushes fans out to, and it used to be a
+// direct client merge onto the profile doc — so any signed-in script
+// could plant a token it did not own on its own account and route reveal
+// pushes to someone else's device (needs the victim's token, so the risk
+// was friend-scale; see SHIP-CHECKLIST "before-public hardening"). The
+// write now happens only here, and the ruleset refuses fcmTokens from
+// clients outright.
+//
+// What binds token→uid: App Check. Behind enforcement the caller must be
+// the attested app, and inside the real app the only registration token
+// obtainable is the device's own. This is attestation, not cryptographic
+// possession proof — if that is ever warranted, the shape is a nonce sent
+// TO the token that the device echoes back, and this callable is where it
+// would live.
+//
+// The messaging dry-run below rejects tokens that are garbage or foreign
+// to this Firebase project. It deliberately fails OPEN on infrastructure
+// errors (unavailable, deadline): a flaky FCM must degrade to "token
+// accepted unverified", not "nobody can register push".
+export const registerPushToken = onCall({ region: REGION, enforceAppCheck: ENFORCE_APP_CHECK }, async (request) => {
+  if (!request.auth) throw new HttpsError("unauthenticated", "must be signed in");
+  const uid = request.auth.uid;
+  const token = request.data?.token;
+  const prevRaw = request.data?.prev;
+  if (!isPlausibleFcmToken(token)) throw new HttpsError("invalid-argument", "not a registration token");
+  // `prev` is the rotated predecessor the client wants dropped. Malformed
+  // prev is ignored rather than fatal: its only power is removing an entry
+  // from the caller's own list.
+  const prev = isPlausibleFcmToken(prevRaw) ? prevRaw : null;
+  try {
+    await getMessaging().send({ token, data: { kind: "validate" } }, /* dryRun */ true);
+  } catch (err) {
+    const code = (err as { code?: string }).code || "";
+    if (
+      code === "messaging/invalid-argument" ||
+      code === "messaging/invalid-registration-token" ||
+      code === "messaging/registration-token-not-registered"
+    ) {
+      throw new HttpsError("invalid-argument", "token is not live in this project");
+    }
+    logger.warn("registerPushToken: dry-run inconclusive, accepting", { code });
+  }
+  const db = getFirestore();
+  const ref = db.collection("v2_users").doc(uid);
+  await db.runTransaction(async (tx) => {
+    const snap = await tx.get(ref);
+    const tokens = nextFcmTokens(snap.exists ? snap.get("fcmTokens") : [], token, prev, 10);
+    tx.set(ref, { fcmTokens: tokens }, { merge: true });
+  });
+  return { ok: true };
 });
 
 // ── the reveal pipeline ─────────────────────────────────────────

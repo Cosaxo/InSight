@@ -119,7 +119,7 @@ jobs:
           GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/sa-key.json
         run: >
           npx firebase deploy --project prvfire33 --non-interactive --force
-          --only "firestore:rules,firestore:indexes,functions:rebuildAreaAggregates,functions:scheduledAreaAggregates,functions:rebuildWorldAggregates,functions:scheduledWorldAggregates,functions:rebuildCityAggregates,functions:scheduledCityAggregates,functions:sendInboundImpression,functions:deleteAccount,functions:seedTaxonomies,functions:scheduledTaxonomies,functions:seedContentV2,functions:onV2AnswerCreated,functions:createGroupV2,functions:joinGroupV2,functions:leaveGroupV2,functions:scheduledDuelReveals,functions:revealDuelsNowV2"
+          --only "firestore:rules,firestore:indexes,functions:rebuildAreaAggregates,functions:scheduledAreaAggregates,functions:rebuildWorldAggregates,functions:scheduledWorldAggregates,functions:rebuildCityAggregates,functions:scheduledCityAggregates,functions:sendInboundImpression,functions:deleteAccount,functions:seedTaxonomies,functions:scheduledTaxonomies,functions:seedContentV2,functions:onV2AnswerCreated,functions:createGroupV2,functions:joinGroupV2,functions:leaveGroupV2,functions:registerPushToken,functions:scheduledDuelReveals,functions:revealDuelsNowV2"
 
       # The legal pages and the landing page they are reached from. Both
       # stores refuse a submission without a reachable privacy-policy URL,

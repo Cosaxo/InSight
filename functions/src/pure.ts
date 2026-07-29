@@ -403,3 +403,46 @@ export function shouldPublishAgg(
   if (every <= 1) return true;
   return total % every === 0;
 }
+
+// ─── FCM token registration (registerPushToken, v2social.ts) ────────────
+//
+// Token writes used to be a direct client merge onto the profile doc.
+// The threat that moved them behind a callable: fcmTokens is where the
+// reveal sender fans out to, and the ruleset could only check the SHAPE
+// of the array — so any signed-in script could plant a token it did not
+// own on its own account and route reveal pushes to someone else's
+// device. The callable runs behind App Check (the caller must be the
+// real app, where the only token you can obtain is your own device's),
+// and these two pure pieces keep the rest testable.
+//
+// Honest scope: this binds token→uid by attestation, not by cryptographic
+// possession proof. If that is ever needed, the shape is a nonce sent TO
+// the token that the device echoes back — a place this callable leaves
+// room for.
+
+// A plausible FCM registration token: an instance id, a colon, and an
+// APA91… blob. Bounds chosen from observed tokens (~140–200 chars) with
+// slack for format drift; the point is rejecting garbage and truncation,
+// not modelling FCM's internals.
+export function isPlausibleFcmToken(t: unknown): t is string {
+  if (typeof t !== "string") return false;
+  if (t.length < 100 || t.length > 400) return false;
+  return /^[A-Za-z0-9_:%.-]+$/.test(t);
+}
+
+// The next fcmTokens array: `remove` dropped (a rotated predecessor),
+// `add` appended if absent, oldest evicted past `cap`. Mirrors the
+// arrayRemove+arrayUnion pair the client used to issue, in one
+// deterministic step the server can transaction.
+export function nextFcmTokens(
+  current: unknown,
+  add: string,
+  remove: string | null,
+  cap: number,
+): string[] {
+  const base = Array.isArray(current)
+    ? current.filter((x): x is string => typeof x === "string" && x !== remove && x !== add)
+    : [];
+  base.push(add);
+  return base.length > cap ? base.slice(base.length - cap) : base;
+}

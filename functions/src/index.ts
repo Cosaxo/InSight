@@ -1496,6 +1496,7 @@ export {
   createGroupV2,
   joinGroupV2,
   leaveGroupV2,
+  registerPushToken,
   scheduledDuelReveals,
   revealDuelsNowV2,
 } from "./v2social";
