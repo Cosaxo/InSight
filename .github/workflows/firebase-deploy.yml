@@ -8,7 +8,14 @@ on:
       - "firestore.rules"
       - "firestore.indexes.json"
       - "storage.rules"
-      - "public/**"
+      # The hosted legal pages. `web/`, not `public/` — hosting's public
+      # dir moved when the pages came out of the Vite bundle, and this
+      # trigger did not follow. The effect was silent and one-directional:
+      # a commit that edited ONLY the privacy policy matched no path here,
+      # so the deploy never ran and the live policy stayed stale while the
+      # repo looked correct. For a page both stores treat as a submission
+      # requirement, that is the wrong way round to fail.
+      - "web/**"
       - "firebase.json"
       - ".github/workflows/firebase-deploy.yml"
   workflow_dispatch:
