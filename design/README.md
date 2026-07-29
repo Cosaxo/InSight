@@ -1,15 +1,17 @@
 # The frozen design spec
 
 **`InSight_standalone_14.html` is the reference design** — the version the
-product is built to. `InSight_standalone_9.html` is the earlier reference,
-kept for history; it is **not** what the app should look like, and this
-file named it as the target for longer than it should have. If you are
-porting, port from 14.
+product is built to, and the file `scripts/style-diff.mjs` compares the
+app against. The earlier v9 prototype and the extracted `spec-modules/`
+directory were deleted on 2026-07-29: the port is complete, both had
+diverged from the live code, and keeping superseded references around is
+how this file came to name the wrong target for a full day of "the
+visuals are wrong". Git history has them if archaeology ever calls.
 
-Both are self-contained prototypes (React + Babel compiled in-browser, all
-data mocked): open either in a browser and it runs. Treat them as
-**read-only** — design iteration ended with these files, and changes from
-here happen in the real codebase.
+It is a self-contained prototype (React + Babel compiled in-browser, all
+data mocked): open it in a browser and it runs. Treat it as **read-only**
+— design iteration ended with this file, and changes from here happen in
+the real codebase.
 
 What v14 specifies: two tabs (**daily** · **mirror**), the daily's three
 modes (World blind-vote / Group / 1v1 duels with sealed next-day reveals)
@@ -47,27 +49,13 @@ your city, so live mode drops the City stop) and D11 (which prototype
 features are demo-only, and why they are unreachable rather than merely
 switched off).
 
-## spec-modules/
+## Where the extracted modules went
 
-The prototype's modules, extracted from the bundle and given readable names —
-this is what you port from. Naming notes:
-
-- `app-shell.jsx` — the root App: tabs, overlay routing, migrations.
-- `daily-split.jsx`, `group-daily.jsx`, `duo-daily.jsx`, `world-feed*.js(x)`,
-  `duels-data.js`, `consequence-beat.jsx` — the daily tab.
-- `mirror-*.jsx`, `map-*.js(x)`, `segment-explorer.jsx`, `relmap*` — the
-  mirror tab and its five populations.
-- `passive-*.js(x)`, `test-feed-data.js`, `test-definitions.js`,
-  `archetype-data.js`, `result-*.jsx`, `test-*.jsx`, `logic-test.jsx` — the
-  test system.
-- `sample-data.js` — the demo dataset (`window.IS_DATA`); its shapes become
-  TypeScript interfaces during the port.
-- `legacy-tabs.jsx`, `city-overlay.jsx`, `city-world-extras.jsx`,
-  `tab-area.jsx`, `demographics.*`, `feeds.jsx`, `insights`-adjacent modules —
-  carried in the bundle but superseded by the two-tab design; port only what
-  a live surface actually reaches.
-
-React/ReactDOM UMD builds and the Babel helper license are omitted.
+`spec-modules/` — the prototype's ~80 modules, extracted and given
+readable names for the port — was deleted once the port completed and the
+copies had diverged. `src/v2/spec/` is the only spec layer now; the
+ported files cite their original module in a header comment, and git
+history holds the originals.
 
 Canonical launch content (question banks, archetypes, scenes) is extracted to
 [`/content`](../content/) — edit it there, not here.

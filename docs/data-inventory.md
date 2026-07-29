@@ -14,7 +14,7 @@ Safety answers when store listing time comes.
 | Lens results | localStorage only (`insight.lenses.v1`) | this device | the nine minor instruments; deliberately not mirrored to the server (D8) |
 | Feed memory | localStorage only (`insight.readRoom.v1`) | this device | one bit per answered question, drives the answer strip |
 | Display name | `v2_users/{uid}` + `v2_groups.memberNames` | owner; group members | user-entered, for reveals |
-| Push tokens | `v2_users/{uid}.fcmTokens` | owner only | native only; used for the single reveal notification |
+| Push tokens | `v2_users/{uid}.fcmTokens` | owner reads; writes only via the `registerPushToken` callable (clients cannot mutate the list) | native only; used for the single reveal notification |
 | Group membership | `v2_groups/{gid}` | members | callable-managed; invite codes server-minted |
 | Reveals | `v2_groups/{gid}/reveals/{day}` | members | server-written; names + option picks for that day |
 | Aggregates (public) | `v2_question_aggs` | any signed-in user | k-floored (≥5), no per-vote timing, published once per 5 answers so no step is attributable |

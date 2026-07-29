@@ -433,7 +433,9 @@ class WorldFeed extends React.Component {
   renderFloorNote(big) {
     return (
       <div style={{ fontSize: big ? 12.5 : 11.5, fontWeight: 600, color: 'var(--ink-3)', padding: '2px 2px 0' }}>
-        You\u2019re early \u2014 counts appear once 5 people have answered.
+        {/* real characters, not \u escapes: JSX text children are literal,
+            so an escape here renders as a visible backslash on the card */}
+        {'You’re early — counts appear once 5 people have answered.'}
       </div>
     );
   }

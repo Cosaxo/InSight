@@ -1,7 +1,7 @@
 # Launch content
 
-Canonical question banks and taxonomies, extracted from the frozen design
-spec (`design/InSight_standalone_9.html`). These files are the source of
+Canonical question banks and taxonomies, extracted from the v9 design
+prototype (deleted 2026-07-29; in git history — `design/InSight_standalone_14.html` is the current reference). These files are the source of
 truth for seeding Firestore — the seed script (Phase 2) loads them, and
 after launch the live Firestore documents become the operational copy
 (editable without a redeploy, per the taxonomies pattern).

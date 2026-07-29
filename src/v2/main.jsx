@@ -13,8 +13,6 @@ import './data/back';
 // Import only — the ~269 KB catalogue itself is fetched lazily on first
 // open, so this costs nothing on a cold start.
 import './data/places';
-// side effect: publishes globalThis.LOCATE for the picker's location button.
-import './data/locate';
 import { sentryInit } from '../lib/sentry';
 
 // Crash reporting first, so a boot error is the first thing captured.

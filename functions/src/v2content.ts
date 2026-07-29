@@ -1,4 +1,6 @@
-// GENERATED from /content/*.json — do not hand-edit. Regenerate via scripts/gen-v2content.py.
+// GENERATED from /content/*.json — do not hand-edit. There is no checked-in
+// generator: scripts/gen-v2content.md records where it lived and the id
+// scheme it used. Re-run only if /content changes.
 // Canonical launch question bank for the v2 seed callable.
 export interface V2SeedQuestion { id: string; surface: string; seq: number; type: string; prompt: string; options: string[]; topic: string | null; axis: string | null; test: string | null; }
 export const V2_QUESTIONS: V2SeedQuestion[] = [

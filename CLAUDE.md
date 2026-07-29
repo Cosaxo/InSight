@@ -79,8 +79,10 @@ an emergency rules fix.
   would silently miss every v2 function. `check:fn-runtime` guards it.
 - **Answers are create-only and immutable.** Not an oversight — it is what
   makes the counts honest (D5). Do not add an update path.
-- **`git grep` returns two hits for most components.** `design/spec-modules/`
-  is a diverged, undeployed historical copy. `src/v2/spec/` is the live one.
+- **`src/v2/spec/` is the only copy of the spec layer.** The extracted
+  prototype modules (`design/spec-modules/`) were deleted 2026-07-29 once
+  the port was complete and they had diverged — they live in git history.
+  Ported files still cite them in header comments as provenance.
 - **The e2e cannot run in a sandbox that blocks
   `firebase-public.firebaseio.com`** — the functions emulator will not
   start. That is environmental, not a broken test.

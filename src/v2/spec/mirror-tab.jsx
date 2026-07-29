@@ -36,36 +36,6 @@ const WORLD_ZOOMS = [
   { id: 'world',   label: 'Globe' },
 ];
 
-// ─── glyph for each population — a solid core for your circle; geo circles telescope ───
-function MirrorPopGlyph({ pop, i, on }) {
-  const c = on ? 'var(--surface)' : 'color-mix(in oklch, var(--ink-3), transparent 35%)';
-  if (pop.id === 'you') {
-    // the telescope fully retracted — a single solid point: you
-    return <span style={{ width: 7, height: 7, borderRadius: '50%', background: c, flexShrink: 0 }}></span>;
-  }
-  if (pop.id === 'circle') {
-    // your closest ties — a small solid core inside a ring
-    return (
-      <svg viewBox="0 0 14 14" width="13" height="13">
-        <circle cx="7" cy="7" r="5.4" fill="none" stroke={c} strokeWidth="1.2"></circle>
-        <circle cx="7" cy="7" r="2.3" fill={c}></circle>
-      </svg>
-    );
-  }
-  if (pop.id === 'groups') {
-    // named circles — two rings overlapping: a group is people who share a middle
-    return (
-      <svg viewBox="0 0 14 14" width="13" height="13">
-        <circle cx="5.2" cy="7" r="3.9" fill="none" stroke={c} strokeWidth="1.2"></circle>
-        <circle cx="8.8" cy="7" r="3.9" fill="none" stroke={c} strokeWidth="1.2"></circle>
-        <circle cx="7" cy="7" r="1.5" fill={c}></circle>
-      </svg>
-    );
-  }
-  const geoSize = pop.id === 'near' ? 9 : 13;
-  return <span style={{ width: geoSize, height: geoSize, borderRadius: '50%', border: `1.2px solid ${c}`, background: on ? 'rgba(255,255,255,0.28)' : 'transparent' }}></span>;
-}
-
 // ─── one graduated axis, from You to World, every stop named ───
 // The three world zooms used to sit in a second pill row inside the hero.
 // They are stops on the same telescope, so they belong on the same axis —
@@ -293,7 +263,6 @@ function MirrorTab({ onPerson, pop, onPop, worldZoom, onZoom }) {
 
 Object.assign(window, { MirrorTab });
 
-;globalThis.MirrorPopGlyph = typeof MirrorPopGlyph === 'undefined' ? globalThis.MirrorPopGlyph : MirrorPopGlyph;
 ;globalThis.MirrorPopPicker = typeof MirrorPopPicker === 'undefined' ? globalThis.MirrorPopPicker : MirrorPopPicker;
 ;globalThis.MirrorTab = typeof MirrorTab === 'undefined' ? globalThis.MirrorTab : MirrorTab;
 ;globalThis.MIRROR_POPS = typeof MIRROR_POPS === 'undefined' ? globalThis.MIRROR_POPS : MIRROR_POPS;
