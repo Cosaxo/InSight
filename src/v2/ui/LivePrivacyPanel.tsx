@@ -120,7 +120,12 @@ function LivePrivacyPanel() {
           <li>Your answers are readable by you alone — enforced server-side.</li>
           <li>World stats show only combined counts, and only once ≥5 people answered.</li>
           <li>Group &amp; 1v1 answers stay sealed until the next day&apos;s reveal, then show with names — to members only.</li>
-          <li>No location is collected. No contacts. No comments from strangers.</li>
+          {/* "No location" used to be unqualified. Since the Basics card
+              started collecting a city and country, that reading was
+              misleading even though no device location API is touched —
+              so the claim now says which is which. */}
+          <li>No device location, ever — no GPS, no IP lookup. City and country are only what you type in your profile, and only if you fill them in.</li>
+          <li>No contacts. No comments from strangers. No ads, no tracking, no third-party analytics.</li>
         </ul>
         {/* Until now these pages shipped inside the bundle and were linked
             from nowhere — reachable only by knowing the filename. Both

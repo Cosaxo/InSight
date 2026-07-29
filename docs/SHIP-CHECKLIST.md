@@ -111,6 +111,39 @@ Both apps must be registered under `com.cosaxo.insight`:
   that lives there. A separate directory has neither failure mode, and the
   legal pages no longer ship inside the app bundle, since the panel links
   the hosted copies.
+- **Privacy nutrition labels (Apple) / Data safety form (Google).** Both
+  are mandatory — neither store lets you submit without one — and both are
+  a per-data-type declaration you attest to, not free text. Answer them
+  from `docs/data-inventory.md`, which is the audited list; the draft
+  below is that list translated into their categories.
+
+  | Their category | InSight | Linked to user? | Used for |
+  | --- | --- | --- | --- |
+  | Identifiers → User ID | Firebase uid (anonymous by default) | Yes | App functionality |
+  | Contact info → Email | Only if the user links Google | Yes | App functionality |
+  | Contact info → Name | Optional display name, shown in reveals | Yes | App functionality |
+  | User content → Other | Answers, test results | Yes | App functionality |
+  | **Sensitive info** | Politics test result; gender if entered | Yes | App functionality |
+  | Location | **None.** No GPS, no IP lookup, no location API | — | — |
+  | Diagnostics → Crash data | Sentry, **opt-in, default OFF**, uid only | Yes | App functionality |
+  | Purchases, Browsing, Search, Contacts, Ads | **None** | — | — |
+
+  Three things to get right, because they are the ones that bite:
+  - **Tracking = No.** Nothing here follows a user across other companies'
+    apps or sites, and there is no IDFA/ATT prompt. Answer "No" on Apple's
+    tracking question and leave Google's advertising boxes unticked.
+  - **City/country are user-entered, not location.** Declaring them under
+    Location would be wrong and would trigger questions the app cannot
+    answer; they are profile fields the user types and can leave blank.
+  - **Sensitive info is a real Yes.** The politics test result is
+    special-category data under GDPR Art. 9. It never leaves the owner
+    document and is never sliced by (D8), but the form asks what you
+    *collect*, not what you publish.
+
+  **Resolve the Facebook SDK before filling these in.** It is linked into
+  the iOS binary and never initialised (see the note in D3/D8 discussion);
+  an undisclosed advertising SDK is exactly the mismatch these forms exist
+  to catch. Either exclude it or declare it.
 - Apple Developer Program (~2 days to approve — start early) and a Mac
   with Xcode for the iOS build; Play Console for Android.
 - Build flow: `npm run build && npx cap sync`, then open the native
