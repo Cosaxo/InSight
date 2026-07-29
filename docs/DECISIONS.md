@@ -604,3 +604,31 @@ Removing sample people from the **other** Mirror populations (Circle,
 Groups, World) — they still render seeded names behind the "Preview ·
 sample people" badge that D1 requires. Near is done; the rest is tracked
 separately.
+
+### Sample people in the rest of the Mirror (2026-07-29)
+
+Near was one of five Mirror populations. Where the others stand in live
+mode, so the remaining work is a list rather than a discovery:
+
+| Population | Real backend | Live behaviour now |
+| --- | --- | --- |
+| You | the viewer's own profile | real |
+| Circle | **none** — v2 has no person-to-person graph at all | honest empty state pointing at groups |
+| Groups | `LIVE.social.groups()` exists | **still sample** — see below |
+| Near | city breakdown, floor 5 | real |
+| World | country breakdown + overall totals | real |
+
+`GroupsMirrorBody` is the one left. It reads `window.DUELS` (duels-data.js),
+which is entirely local: group definitions live in `localStorage` and its
+members are the 49 seeded people in `relmap-core.js`. The live group path
+(`LIVE.social.groups()`, `revealFor`) exists and is used by the daily's
+group card, but the Mirror's group portrait — alignment %, togetherness,
+contrarian/twin, the per-member field — is computed from `DUELS`'s local
+history and has no live equivalent. Rewiring it is a real piece of work,
+not a routing change, because the *statistics* need a server-side source
+that reveals alone do not provide.
+
+**World's City zoom stop is gone in live mode.** After this change Near IS
+your city, and keeping the stop would be the same panel behind two chips.
+The demo path keeps all three, since its city view is a different (mock)
+thing entirely.
