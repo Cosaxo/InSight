@@ -16,6 +16,7 @@ const WF_LS = 'insight.feedVotes.v1';
 const WF_REPLIES_LS = 'insight.feedReplies.v1';
 const WF_TAKES_LS = 'insight.feedTakes.v1';
 const WF_PASS_LS = 'insight.feedPass.v1';
+const WF_GUESS_LS = 'insight.feedGuess.v1';
 // where a vote lands on your Mirror — the ripple line shown after answering
 const WF_BRANCH = { food: 'Food', sport: 'Body', movies: 'Taste', music: 'Taste', tech: 'Mind', culture: 'Values', dilemma: 'Morals', event: 'Mind', people: 'Values', bigq: 'Values' };
 const WF_TOPICS = window.WORLD_TOPICS || [];
@@ -127,7 +128,7 @@ const WF_GROUPS = { age: ['18–24', '25–34', '35–44', '45+'], gender: ['Wom
 const WF_FRIENDS = [{ name: 'Alex', init: 'A' }, { name: 'Mia', init: 'M' }, { name: 'Jordi', init: 'J' }, { name: 'Sara', init: 'S' }, { name: 'Noah', init: 'N' }, { name: 'Elif', init: 'E' }];
 
 class WorldFeed extends React.Component {
-  state = { votes: wfLoad(), pending: {}, open: {}, panels: {}, dims: {}, boosts: {}, vh: 0, beat: null, sheet: null, sideFilter: null, replyTo: null, replies: wfLoadReplies(), myTakes: wfLoadTakes(), headHide: false, sort: 'hot', passed: wfLoadMap(WF_PASS_LS), ripple: null, patternTick: 0 };
+  state = { votes: wfLoad(), pending: {}, open: {}, panels: {}, dims: {}, boosts: {}, vh: 0, beat: null, sheet: null, sideFilter: null, replyTo: null, replies: wfLoadReplies(), myTakes: wfLoadTakes(), minds: {}, ctrIdx: {}, takeSort: 'mind', whyFor: null, headHide: false, sort: 'hot', guesses: wfLoadMap(WF_GUESS_LS), passed: wfLoadMap(WF_PASS_LS), ripple: null, patternTick: 0 };
 
   // Feature flags, carried over from the v13 prototype so each idea can be
   // switched off from the host without editing this file. Default ON; the
@@ -146,6 +147,20 @@ class WorldFeed extends React.Component {
       // with the day. Both are presentation only — neither shows anything
       // the k-floored aggregate has not already published.
       reveal: on('reveal'), clock: on('clock'),
+      // predict: call the winner before you commit to a side — your own
+      // guess, held in localStorage, never sent anywhere. why: a one-line
+      // reason captured while the vote is warm, which becomes one of YOUR
+      // takes. counter: a take can draw a rebuttal from someone who voted
+      // the other way. signals: rank takes by minds moved rather than by
+      // votes. crossfire: the strongest take from each side, head to head,
+      // above the list. v2: the prototype's result layout — one hue per
+      // card and a single footer line under the split.
+      //
+      // counter/signals/crossfire all touch takes, and takes are demo-only:
+      // renderEngage returns the k-floored breakdown alone when q.live, so
+      // none of that is reachable on a live card (D1).
+      predict: on('predict'), why: on('why'), counter: on('counter'),
+      signals: on('signals'), crossfire: on('crossfire'), v2: on('v2'),
     };
   }
 
@@ -295,7 +310,11 @@ class WorldFeed extends React.Component {
       const votes = { ...s.votes, [id]: val };
       try { localStorage.setItem(WF_LS, JSON.stringify(votes)); } catch { /* best-effort */ }
       const beat = (this.props.beats !== false && window.ConsequenceBeat) ? id : s.beat;
-      return { votes, beat, ripple: rip || s.ripple };
+      // Ask for a reason once, while the vote is warm, and only if this
+      // question has none of your takes yet. Demo cards only: a live card
+      // shows no takes, so there would be nowhere for the answer to go.
+      const askWhy = this.opts.why && !q.live && typeof val === 'number' && !(s.myTakes[id] || []).length ? id : s.whyFor;
+      return { votes, beat, ripple: rip || s.ripple, whyFor: askWhy };
     });
   }
 
@@ -328,6 +347,62 @@ class WorldFeed extends React.Component {
   // One question in view is closing — a ring draining with the day. Purely a
   // clock: it reads the wall time and nothing about the question, so it
   // cannot disclose a count.
+  // Which questions carry a predict stage. Hash-chosen so it is stable per
+  // question rather than jumping between renders, and roughly one card in
+  // four — a guess on every card would be a chore, not a game.
+  isPredict(q) { return q.predict != null ? !!q.predict : (q.type !== 'rank' && !!q.options && wfHash(q.id + ':pred') < 0.24); }
+
+  setGuess(q, i) {
+    this.setState((s) => {
+      const guesses = { ...s.guesses, [q.id]: i };
+      try { localStorage.setItem(WF_GUESS_LS, JSON.stringify(guesses)); } catch { /* private mode, quota */ }
+      return { guesses };
+    });
+  }
+
+  // Call the winner before you commit to a side. Dashed borders, because
+  // this is not the vote — the vote follows once the guess is in.
+  renderGuess(q, T, big) {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: big ? 11 : 8 }}>
+        <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink-2)' }}>Which side wins?</span>
+        {q.options.map((o, i) => (
+          <button key={i} className="press" onClick={() => this.setGuess(q, i)} style={{ border: '1.5px dashed color-mix(in oklch, ' + T.color + ' 50%, var(--rule))', borderRadius: big ? 16 : 12, background: 'transparent', boxShadow: 'none', padding: big ? '15px 16px' : '11px 14px', textAlign: 'left', cursor: 'pointer', fontFamily: 'var(--sans)', fontWeight: 700, fontSize: big ? 16.5 : 14, color: 'var(--ink)', WebkitAppearance: 'none' }}>{o.label}</button>
+        ))}
+      </div>
+    );
+  }
+
+  // One line on the card you just answered — the reason, while it is warm.
+  // Submitting adds it to YOUR takes (addTake), which is local state; it is
+  // offered only on demo cards, because a live card shows no takes at all.
+  renderWhy(q, T) {
+    if (!this.opts.why || this.state.whyFor !== q.id) return null;
+    const v = this.state.votes[q.id];
+    const col = typeof v === 'number' && q.options ? wfShade(T.color, v) : 'var(--ink-3)';
+    return (
+      <form onSubmit={(e) => { e.preventDefault(); const el = e.target.elements.why; const t = el.value.trim(); if (t) this.addTake(q.id, t); this.setState({ whyFor: null }); }} style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%' }}>
+        <span style={{ width: 4, alignSelf: 'stretch', minHeight: 30, borderRadius: 2, background: col, flexShrink: 0 }}></span>
+        <input name="why" placeholder="Why?" style={{ flex: 1, minWidth: 0, border: 'none', borderBottom: WF_LINE, background: 'none', padding: '6px 2px', fontFamily: 'var(--sans)', fontSize: 13.5, fontWeight: 500, color: 'var(--ink)', outline: 'none' }} />
+        <button type="button" onClick={() => this.setState({ whyFor: null })} aria-label="Skip" style={{ border: 'none', background: 'none', padding: 4, cursor: 'pointer', fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 15, color: 'var(--ink-3)', WebkitAppearance: 'none' }}>{'\u00d7'}</button>
+      </form>
+    );
+  }
+
+  // Which side each of the demo friends came down on. INVENTED from a hash,
+  // exactly like the same map in renderStats below — WF_FRIENDS are not real
+  // people and this is not a real reading of anyone's vote. Callers must gate
+  // it on !q.live; a named who-voted at world scale is what D1 forbids, and
+  // on a live card it would additionally be a fabrication.
+  friendSides(q, counts) {
+    const total = counts.reduce((a, b) => a + b, 0) || 1;
+    return WF_FRIENDS.map((f) => {
+      const r = wfHash(q.id + ':' + f.name); let acc = 0, oi = counts.length - 1;
+      for (let i = 0; i < counts.length; i++) { acc += counts[i] / total; if (r < acc) { oi = i; break; } }
+      return { ...f, oi };
+    });
+  }
+
   renderClock(T) {
     const now = new Date();
     const left = Math.max(1, 24 - now.getHours());
@@ -367,8 +442,11 @@ class WorldFeed extends React.Component {
     const mine = this.state.votes[q.id];
     if (mine != null && this.state.beat === q.id) return this.renderBeat(q, T, big);
     if (mine == null) {
+      const guess = this.state.guesses[q.id];
+      if (this.opts.predict && this.isPredict(q) && guess == null) return this.renderGuess(q, T, big);
       return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: big ? 11 : 8 }}>
+          {guess != null && <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink-3)' }}>your call: {q.options[guess].label} — now vote</span>}
           {q.options.map((o, i) => (
             <button key={i} className="press" onClick={() => this.setVote(q, i)} style={{ border: '1px solid color-mix(in oklch, ' + T.color + ' 45%, var(--rule))', borderRadius: big ? 16 : 12, background: 'color-mix(in oklch, ' + T.color + ' 10%, var(--surface))', boxShadow: 'none', padding: big ? '15px 16px' : '11px 14px', textAlign: 'left', cursor: 'pointer', fontFamily: 'var(--sans)', fontWeight: 700, fontSize: big ? 16.5 : 14, color: 'var(--ink)', WebkitAppearance: 'none' }}>{o.label}</button>
           ))}
@@ -393,48 +471,108 @@ class WorldFeed extends React.Component {
     const maxP = Math.max(...p);
     const fresh = this._fresh === q.id;
     const n = q.options.length;
+    const v2 = this.opts.v2;
+    const sides = q.live ? [] : this.friendSides(q, q.options.map((o) => o.count));
     // one row budget per option, so two options do not tower over four
     const H = (big ? 58 : 46) * n + (n - 1) * 7;
     return (
-      <div style={{ display: 'flex', flexDirection: 'column', gap: big ? 11 : 9, animation: fresh ? 'popIn .32s cubic-bezier(0.2,0.8,0.2,1)' : 'none' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: big ? 11 : 9, animation: !v2 && fresh ? 'popIn .32s cubic-bezier(0.2,0.8,0.2,1)' : 'none' }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 7, height: H }}>
           {q.options.map((o, i) => {
-            const col = wfOpt(T.color, i, n);
+            // v2: one hue per card. Tint strength tracks share, so 52/48 reads
+            // as 52/48 and not as two differently-coloured teams.
+            const col = v2 ? T.color : wfOpt(T.color, i, n);
+            const tint = 8 + 24 * (p[i] / (maxP || 1));
             const isMine = mine === i;
+            const fr = sides.filter((f) => f.oi === i);
             const win = p[i] === maxP;
             return (
-              <div key={i} style={{ flex: Math.max(p[i], 4) + ' 1 0', minHeight: big ? 36 : 30, border: isMine ? '1.5px solid color-mix(in oklch, ' + col + ' 60%, var(--rule))' : WF_LINE, borderRadius: big ? 16 : 13, background: 'color-mix(in oklch, ' + col + ' 26%, var(--surface))', overflow: 'hidden', position: 'relative', transition: 'flex-grow .7s cubic-bezier(0.2,0.8,0.2,1)' }}>
+              <div key={i} style={{ flex: Math.max(p[i], 4) + ' 1 0', minHeight: big ? 36 : 30, border: isMine ? '1.5px solid color-mix(in oklch, ' + col + ' 60%, var(--rule))' : WF_LINE, borderRadius: big ? 16 : 13, background: 'color-mix(in oklch, ' + col + ' ' + (v2 ? tint.toFixed(1) : 26) + '%, var(--surface))', overflow: 'hidden', position: 'relative', transition: 'flex-grow .7s cubic-bezier(0.2,0.8,0.2,1)' }}>
                 <div style={{ height: '100%', display: 'flex', alignItems: 'center', gap: 8, padding: big ? '0 18px' : '0 14px' }}>
                   <div style={{ display: 'flex', alignItems: 'baseline', gap: 7, minWidth: 0, flex: 1 }}>
                     <span style={{ fontWeight: win ? 800 : 700, fontSize: big ? 19 : 15, letterSpacing: '-0.02em' }}>{o.label}</span>
-                    {isMine && <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink-2)', whiteSpace: 'nowrap', animation: fresh ? 'chipPop .35s var(--ease-spring) .2s both' : 'none' }}>{'· you'}</span>}
+                    {isMine && <span style={{ fontSize: 13, fontWeight: v2 ? 500 : 700, color: 'var(--ink-2)', whiteSpace: 'nowrap', animation: !v2 && fresh ? 'chipPop .35s var(--ease-spring) .2s both' : 'none' }}>{'· you'}</span>}
                   </div>
+                  {/* Friend dots: DEMO CARDS ONLY. WF_FRIENDS are invented
+                      and friendSides derives their side from a hash, so on a
+                      live card this would be both a fabrication and the named
+                      who-voted at world scale that D1 forbids. v2 drops them
+                      from the tile — the footer row carries that weight. */}
+                  {!v2 && fr.length > 0 && (
+                    <button onClick={() => this.openSheet(q, T, 'stats')} aria-label={fr.map((f) => f.name).join(', ') + ' picked ' + o.label} style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '4px 2px', border: 'none', background: 'none', cursor: 'pointer', flexShrink: 0, WebkitAppearance: 'none' }}>
+                      {fr.map((f) => <span key={f.name} title={f.name} style={{ width: 9, height: 9, borderRadius: '50%', background: col, boxShadow: '0 0 0 1.5px var(--surface)' }}></span>)}
+                    </button>
+                  )}
                   {/* every side carries its number — one read of the split,
-                      not just the winner's. The prototype also drew friend
-                      dots here; that is a named who-voted at world scale,
-                      which D1 rules out, so it is absent rather than faked. */}
-                  <span style={{ fontFamily: 'var(--sans)', fontWeight: win ? 800 : 600, fontSize: big ? (win ? 24 : 17) : (win ? 18 : 14), letterSpacing: '-0.03em', color: win ? 'var(--ink)' : 'var(--ink-2)', flexShrink: 0 }}>{win ? <WfCount to={p[i]} animate={fresh}></WfCount> : p[i]}%</span>
+                      not just the winner's */}
+                  <span style={{ fontFamily: 'var(--sans)', fontWeight: win ? 800 : 600, fontSize: big ? (win ? 24 : 17) : (win ? 18 : 14), letterSpacing: '-0.03em', color: win ? 'var(--ink)' : 'var(--ink-2)', flexShrink: 0 }}>{v2 || !win ? p[i] : <WfCount to={p[i]} animate={fresh}></WfCount>}%</span>
                 </div>
               </div>
             );
           })}
         </div>
-        {this.renderMeta(q, T, big, total, p, mine)}
+        {!this.footInstead(q) && this.renderMeta(q, T, big, total, p, mine)}
       </div>
     );
+  }
+
+  // Whether the v2 footer will carry this card's vote count, so the tiles can
+  // drop renderMeta rather than printing the total twice.
+  //
+  // It is not simply `opts.v2`: renderEngage — the only caller of renderFoot —
+  // returns early for live and demoInProd cards, and on those the meta line is
+  // the ONLY place the count appears. Suppressing it there would delete the
+  // scale of the vote from every real card.
+  footInstead(q) {
+    return this.opts.v2 && !q.live && !(window.LIVE && window.LIVE.demoInProd);
+  }
+
+  // The v2 footer: exactly ONE line under the result, in priority order —
+  // the transient Mirror ripple, else your called/missed verdict, else the
+  // surprise cut, else the plain scale of the vote. Where renderMeta stacks
+  // two facts on one row, this picks the single one worth the line.
+  //
+  // Reached only from renderEngage's v2 branch, which sits below both the
+  // `q.live` and `demoInProd` early returns — so `total` here is always a
+  // demo count, never something the k-floor has an opinion about.
+  renderFoot(q, T, insight) {
+    const quiet = { fontFamily: 'var(--sans)', fontSize: 13, fontWeight: 500, color: 'var(--ink-3)' };
+    if (!q.options) return <span style={quiet}></span>;
+    const mine = this.state.votes[q.id];
+    const { p, total } = wfPcts(q.options.map((o) => o.count), mine);
+    const rip = this.state.ripple === q.id ? (WF_BRANCH[q.cat] || 'Interests') : null;
+    if (rip) {
+      return (
+        <button onClick={() => window.goTab && window.goTab('mirror')} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontFamily: 'var(--sans)', fontSize: 13, fontWeight: 600, color: 'var(--accent, var(--ink-2))', whiteSpace: 'nowrap', animation: 'toastFade 3.2s ease forwards' }}>added to {rip}<span aria-hidden="true">{'→'}</span></button>
+      );
+    }
+    // the predict stage pays off here: you called the winner, or you did not
+    const guess = this.state.guesses[q.id];
+    if (guess != null) {
+      const called = p[guess] === Math.max(...p);
+      return <span style={{ fontFamily: 'var(--sans)', fontWeight: 700, fontSize: 12.5, letterSpacing: '0.04em', textTransform: 'uppercase', padding: '3px 11px', borderRadius: 999, background: called ? T.color : 'transparent', color: called ? '#fff' : 'var(--ink-3)', border: called ? 'none' : '1px solid var(--rule)' }}>{called ? 'called it' : 'missed'}</span>;
+    }
+    if (insight) return insight;
+    return <span style={quiet}>{wfFmt(total)} votes</span>;
   }
 
   // One quiet line under the result: how big the vote is, and which side of
   // it you came down on.
   renderMeta(q, T, big, total, p, mine) {
     const maxP = Math.max(...p);
+    // Your predict-stage call, settled. Only ever says whether YOUR guess
+    // matched the winner the card already displays, so it adds no disclosure
+    // of its own — which is why it is safe on a live card too.
+    const guess = this.state.guesses[q.id];
+    const called = guess == null ? null : p[guess] === maxP;
     const rip = this.state.ripple === q.id ? (WF_BRANCH[q.cat] || 'Interests') : null;
     return (
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, minHeight: 18 }}>
         <span style={{ fontSize: big ? 12.5 : 11.5, fontWeight: 600, color: 'var(--ink-2)' }}>
           {wfFmt(total)} votes{p[mine] === maxP ? ' · with the majority' : ' · you picked the underdog'}
         </span>
-        {rip && <button onClick={() => window.goTab && window.goTab('mirror')} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontFamily: 'var(--sans)', fontSize: 12, fontWeight: 700, color: 'var(--accent, var(--ink-2))', whiteSpace: 'nowrap', animation: 'toastFade 3.2s ease forwards' }}>added to {rip}<span aria-hidden="true">{'→'}</span></button>}
+        {called != null && !rip && <span style={{ flexShrink: 0, fontFamily: 'var(--sans)', fontWeight: 800, fontSize: big ? 11.5 : 11, letterSpacing: '0.04em', textTransform: 'uppercase', padding: '3px 10px', borderRadius: 999, background: called ? T.color : 'transparent', color: called ? '#fff' : 'var(--ink-3)', border: called ? 'none' : '1px solid var(--rule)' }}>{called ? 'called it' : 'missed'}</span>}
+        {rip &&<button onClick={() => window.goTab && window.goTab('mirror')} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontFamily: 'var(--sans)', fontSize: 12, fontWeight: 700, color: 'var(--accent, var(--ink-2))', whiteSpace: 'nowrap', animation: 'toastFade 3.2s ease forwards' }}>added to {rip}<span aria-hidden="true">{'→'}</span></button>}
       </div>
     );
   }
@@ -553,11 +691,22 @@ class WorldFeed extends React.Component {
     if (window.LIVE && window.LIVE.demoInProd) return null;
     if (q.live) {
       if (q.type === 'rank') return null;
+      // The surprise line belongs HERE and only here: feedInsight reads
+      // agg.by, which exists only for live questions, so leaving it below
+      // this early return — as it was — meant it never rendered at all.
+      const ins = this.renderInsight(q, T, big);
       return (
-        <div style={{ display: 'flex', gap: 24, alignItems: 'center' }}>
-          <button className="press" onClick={() => this.setState({ sheet: { q, T, panel: 'stats' }, sideFilter: null, replyTo: null })} aria-label="who voted" title="who voted" style={{ background: 'none', border: 'none', padding: '4px 0', display: 'flex', alignItems: 'center', gap: 9, cursor: 'pointer', color: 'var(--ink)', WebkitAppearance: 'none' }}>
-            <svg width={big ? 23 : 22} height={big ? 23 : 22} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M5 19.5V13M12 19.5V5.5M19 19.5V10"></path></svg>
-          </button>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: big ? 12 : 10, alignItems: 'flex-start' }}>
+          {ins}
+          {/* the insight line is itself the way into the breakdown, so the
+              bar-chart button would be a second door to the same room */}
+          {!ins && (
+            <div style={{ display: 'flex', gap: 24, alignItems: 'center' }}>
+              <button className="press" onClick={() => this.setState({ sheet: { q, T, panel: 'stats' }, sideFilter: null, replyTo: null })} aria-label="who voted" title="who voted" style={{ background: 'none', border: 'none', padding: '4px 0', display: 'flex', alignItems: 'center', gap: 9, cursor: 'pointer', color: 'var(--ink)', WebkitAppearance: 'none' }}>
+                <svg width={big ? 23 : 22} height={big ? 23 : 22} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M5 19.5V13M12 19.5V5.5M19 19.5V10"></path></svg>
+              </button>
+            </div>
+          )}
         </div>
       );
     }
@@ -580,16 +729,38 @@ class WorldFeed extends React.Component {
     );
     const nReplies = takes.reduce((a, c, i) => a + (this.state.replies[q.id + ':' + i] || []).length, 0);
     const nOwn = (this.state.myTakes[q.id] || []).length;
-    const nTakes = takes.length + nReplies + nOwn;
+    // counters are takes too, so the badge counts them — otherwise the sheet
+    // opens on visibly more argument than the card advertised
+    const nCtr = this.opts.counter && window.WF_COUNTERS ? takes.reduce((a, c, i) => a + window.WF_COUNTERS(q.id + ':' + i).length, 0) : 0;
+    const nTakes = takes.length + nReplies + nOwn + nCtr;
     const takeFaces = takes.slice(0, 3).map((c, i) => av(c.opt != null ? wfShade(T.color, c.opt) : 'var(--ink-3)', c.opt != null ? wfShadeText(c.opt) : '#fff', c.init[0], i));
     const nMore = nTakes - takeFaces.length;
     if (nMore > 0) takeFaces.push(av('var(--surface-2)', 'var(--ink-2)', nMore > 9 ? '9+' : '+' + nMore, takeFaces.length));
+    // demo cards have no published breakdown, so there is no insight line to
+    // show here — feedInsight is live-only. Kept as a variable so the two
+    // branches below read the same as the prototype's.
     const insight = this.renderInsight(q, T, big);
+    const takesBtn = btn('takes', takeFaces, ico('M6.5 4.5h11a2 2 0 0 1 2 2V13a2 2 0 0 1-2 2H11l-4 3.8V15h-.5a2 2 0 0 1-2-2V6.5a2 2 0 0 1 2-2z'), nTakes + ' takes');
+    // v2: the surprise gets its own full-width line, then one quiet row —
+    // scale of the vote on the left, the way into the takes on the right.
+    if (this.opts.v2) {
+      return (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10, width: '100%' }}>
+          {insight}
+          {this.renderWhy(q, T)}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, width: '100%', minHeight: 30 }}>
+            {this.renderFoot(q, T, null)}
+            {takesBtn}
+          </div>
+        </div>
+      );
+    }
     return (
       <div style={{ display: 'flex', flexDirection: 'column', gap: big ? 12 : 10, alignItems: 'flex-start' }}>
         {insight}
+        {this.renderWhy(q, T)}
         <div style={{ display: 'flex', gap: 24, alignItems: 'center' }}>
-          {btn('takes', takeFaces, ico('M6.5 4.5h11a2 2 0 0 1 2 2V13a2 2 0 0 1-2 2H11l-4 3.8V15h-.5a2 2 0 0 1-2-2V6.5a2 2 0 0 1 2-2z'), nTakes + ' takes')}
+          {takesBtn}
           {/* the insight line IS the way into the breakdown, so the bar-chart
               button would be a second door to the same room */}
           {hasStats && !insight && btn('stats', null, ico('M5 19.5V13M12 19.5V5.5M19 19.5V10'), 'who voted')}
@@ -686,70 +857,135 @@ class WorldFeed extends React.Component {
     );
   }
 
+  // One take, with the argument against it folded underneath.
+  //
+  // DEMO CARDS ONLY, like everything else in this sheet: renderEngage returns
+  // the k-floored breakdown alone when q.live, so a take — free text attached
+  // to a named person — is structurally unreachable at world scale (D1). The
+  // counters come from world-feed-counters.js, which is invented data sitting
+  // beside the invented takes in world-feed-comments.js.
+  takeCard(q, T, item) {
+    const o = this.opts;
+    const { c, key, sig } = item;
+    const myVote = this.state.votes[q.id];
+    const mySide = typeof myVote === 'number' && q.options ? myVote : null;
+    const col = c.opt != null ? wfShade(T.color, c.opt) : 'var(--ink-3)';
+    const ctxt = c.opt != null ? wfShadeText(c.opt) : '#fff';
+    const mine = this.state.replies[key] || [];
+    const seeded = o.counter && window.WF_COUNTERS ? window.WF_COUNTERS(key) : [];
+    const list = seeded.concat(mine.map((t, i) => ({ name: 'You', opt: mySide, time: 'now', text: t, own: true, ckey: key + '#own' + i })));
+    const writing = this.state.replyTo === key;
+    // only across the aisle, only once, and only if you have a side yourself —
+    // a rebuttal from someone who agrees is just applause
+    const canCounter = o.counter && mySide != null && c.opt != null && c.opt !== mySide && mine.length === 0;
+    const idx = Math.max(0, Math.min(this.state.ctrIdx[key] == null ? 0 : this.state.ctrIdx[key], list.length - 1));
+    const cur = list[idx];
+    const act = (on, label, click) => (
+      <button onClick={click} aria-pressed={on} className="press" style={{ border: 'none', background: 'none', padding: '2px 0', cursor: 'pointer', fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 11.5, color: on ? 'var(--ink)' : 'var(--ink-3)', WebkitAppearance: 'none', whiteSpace: 'nowrap' }}>{label}</button>
+    );
+    const reactions = (k, ups, mind, pad) => (
+      <div style={{ display: 'flex', alignItems: 'center', gap: 14, paddingLeft: pad }}>
+        {act(!!this.state.boosts[k], '▲ ' + wfFmt(ups + (this.state.boosts[k] ? 1 : 0)), () => this.setState((s) => ({ boosts: { ...s.boosts, [k]: !s.boosts[k] } })))}
+        {/* minds moved, not likes — the only number here that says the take
+            changed anything */}
+        {o.signals && act(!!this.state.minds[k], '↺ ' + wfFmt(mind + (this.state.minds[k] ? 1 : 0)) + ' moved', () => this.setState((s) => ({ minds: { ...s.minds, [k]: !s.minds[k] } })))}
+        <span style={{ flex: 1 }}></span>
+        {k === key && canCounter && act(writing, 'Counter', () => this.setState({ replyTo: writing ? null : key }))}
+      </div>
+    );
+    const meta = (name, opt, time) => (
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: 7 }}>
+        {opt != null && <span aria-hidden="true" style={{ width: 7, height: 7, borderRadius: '50%', background: wfShade(T.color, opt), flexShrink: 0, alignSelf: 'center' }}></span>}
+        <span style={{ fontWeight: 800, fontSize: 12.5 }}>{name}</span>
+        <span style={{ fontSize: 10.5, fontWeight: 600, color: 'var(--ink-3)' }}>{time}</span>
+      </div>
+    );
+    return (
+      <div key={key} style={{ border: WF_LINE, borderRadius: 12, background: 'var(--surface)', padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 9 }}>
+        <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+          <span style={{ width: 30, height: 30, borderRadius: '50%', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 11.5, background: col, color: ctxt }}>{c.init}</span>
+          <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 3 }}>
+            {meta(c.name, null, c.time)}
+            <div style={{ fontSize: 13, lineHeight: 1.45, fontWeight: 500 }}>{c.text}</div>
+          </div>
+        </div>
+        {reactions(key, c.ups, sig.mind, 40)}
+        {cur && (
+          <div style={{ marginLeft: 40, paddingLeft: 10, borderLeft: '2px solid ' + (cur.opt != null ? wfShade(T.color, cur.opt) : 'var(--surface-3)'), display: 'flex', flexDirection: 'column', gap: 4 }}>
+            {meta(cur.own ? 'You' : cur.name, cur.opt, cur.time)}
+            <div style={{ fontSize: 12.5, lineHeight: 1.45, fontWeight: 500 }}>{cur.text}</div>
+            {!cur.own && reactions(cur.ckey, cur.ups, cur.sig.mind, 0)}
+            {/* several rebuttals stack behind one slot rather than turning the
+                take into a thread — one argument at a time, strongest first */}
+            {list.length > 1 && (
+              <div style={{ display: 'flex', gap: 5, alignItems: 'center', paddingTop: 1 }}>
+                {list.map((x, xi) => (
+                  <button key={xi} onClick={() => this.setState((s) => ({ ctrIdx: { ...s.ctrIdx, [key]: xi } }))} aria-label={'counter ' + (xi + 1)} style={{ width: 7, height: 7, padding: 0, borderRadius: '50%', border: 'none', cursor: 'pointer', background: xi === idx ? 'var(--ink)' : 'var(--surface-3)', WebkitAppearance: 'none' }}></button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+        {writing && (
+          <form onSubmit={(e) => { e.preventDefault(); const inp = e.target.elements.reply; const v = inp.value.trim(); if (v) { this.addReply(key, v); this.setState((s) => ({ ctrIdx: { ...s.ctrIdx, [key]: (s.replies[key] || []).length + seeded.length } })); } }} style={{ display: 'flex', gap: 6, marginLeft: 40 }}>
+            <input name="reply" autoFocus placeholder={'Where is it wrong…'} style={{ flex: 1, minWidth: 0, border: WF_LINE, borderRadius: 999, padding: '7px 12px', fontFamily: 'var(--sans)', fontSize: 12.5, fontWeight: 500, background: 'var(--surface-2)', color: 'var(--ink)', outline: 'none' }} />
+            <button type="submit" style={{ border: 'none', borderRadius: 999, padding: '7px 13px', fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 12, cursor: 'pointer', background: 'var(--ink)', color: 'var(--surface)', WebkitAppearance: 'none' }}>Send</button>
+          </form>
+        )}
+      </div>
+    );
+  }
+
   renderTakes(q, T, takes) {
+    const o = this.opts;
     const hasSides = !!q.options && takes.some((c) => c.opt != null);
     const filter = this.state.sideFilter;
     const myVote = this.state.votes[q.id];
     const mySide = typeof myVote === 'number' && q.options ? myVote : null;
-    const shown = takes.map((c, i) => [c, i]).filter(([c]) => filter == null || c.opt === filter);
+    const sigOf = (key, c) => (window.WF_TAKE_SIG ? window.WF_TAKE_SIG(key, c.ups) : { mind: 0, cross: 0.5 });
+    let items = takes.map((c, i) => { const key = q.id + ':' + i; return { c, i, key, sig: sigOf(key, c) }; });
+    // persuasion sort: what moved people, not what pleased them. A take whose
+    // counter did the moving still surfaces — the exchange is the unit.
+    const byMind = o.signals && this.state.takeSort === 'mind';
+    const best = (it) => { const cs = o.counter && window.WF_COUNTERS ? window.WF_COUNTERS(it.key) : []; return Math.max(it.sig.mind, cs.length ? cs[0].sig.mind : 0); };
+    items = items.slice().sort((a, b) => (byMind ? (best(b) + b.c.ups * b.sig.cross * 0.25) - (best(a) + a.c.ups * a.sig.cross * 0.25) : b.c.ups - a.c.ups));
+    // crossfire: your side against the strongest opposing take, before the list
+    let pair = null;
+    if (o.crossfire && filter == null && q.options) {
+      const a = items.find((it) => it.c.opt != null && (mySide == null ? true : it.c.opt === mySide));
+      const b = a ? items.find((it) => it.c.opt != null && it.c.opt !== a.c.opt) : null;
+      if (a && b) pair = [a, b];
+    }
+    const paired = pair ? [pair[0].key, pair[1].key] : [];
+    const shown = items.filter((it) => (filter == null || it.c.opt === filter) && paired.indexOf(it.key) < 0);
     const ownAll = this.state.myTakes[q.id] || [];
     const ownShown = ownAll.filter(() => filter == null || filter === mySide);
     const chip = (val, label, col, txt) => (
-      <button key={String(val)} onClick={() => this.setState({ sideFilter: val })} style={{ border: WF_LINE, borderRadius: 999, padding: '5px 12px', fontFamily: 'var(--sans)', fontWeight: 700, fontSize: 12, cursor: 'pointer', background: filter === val ? (col || 'var(--ink)') : 'var(--surface)', color: filter === val ? (txt || 'var(--surface)') : 'var(--ink)', WebkitAppearance: 'none', whiteSpace: 'nowrap', maxWidth: val == null ? 'none' : 130, overflow: 'hidden', textOverflow: 'ellipsis' }}>{label}</button>
+      <button key={String(val)} onClick={() => this.setState({ sideFilter: val })} style={{ border: WF_LINE, borderRadius: 999, padding: '5px 12px', fontFamily: 'var(--sans)', fontWeight: 700, fontSize: 12, cursor: 'pointer', background: filter === val ? (col || 'var(--ink)') : 'var(--surface)', color: filter === val ? (txt || 'var(--surface)') : 'var(--ink)', WebkitAppearance: 'none', whiteSpace: 'nowrap', flexShrink: 0, maxWidth: val == null ? 'none' : 130, overflow: 'hidden', textOverflow: 'ellipsis' }}>{label}</button>
     );
     return (
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-        {hasSides && (
-          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', paddingBottom: 4 }}>
-            {chip(null, 'All')}
-            {q.options.map((o, i) => chip(i, o.label, wfShade(T.color, i), wfShadeText(i)))}
+        {(hasSides || o.signals) && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6, alignItems: 'flex-start', paddingBottom: 4 }}>
+            {hasSides && <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>{[chip(null, 'All')].concat(q.options.map((oo, i) => chip(i, oo.label, wfShade(T.color, i), wfShadeText(i))))}</div>}
+            {o.signals && (
+              <button onClick={() => this.setState((s) => ({ takeSort: s.takeSort === 'mind' ? 'top' : 'mind' }))} style={{ border: 'none', background: 'none', padding: '5px 0', cursor: 'pointer', fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 11.5, color: 'var(--ink-3)', WebkitAppearance: 'none', whiteSpace: 'nowrap' }}>{byMind ? 'by minds moved' : 'by votes'}</button>
+            )}
           </div>
         )}
-        {shown.length === 0 && ownShown.length === 0 && <div style={{ fontFamily: 'var(--sans)', fontSize: 12.5, fontWeight: 600, color: 'var(--ink-3)', padding: '14px 0', textAlign: 'center' }}>{takes.length === 0 && ownAll.length === 0 ? 'No takes yet — yours could be first.' : 'No takes from this side yet.'}</div>}
-        {shown.map(([c, i]) => {
-          const key = q.id + ':' + i;
-          const boosted = !!this.state.boosts[key];
-          const optLabel = c.opt != null && q.options ? q.options[c.opt].label : null;
-          const myReplies = this.state.replies[key] || [];
-          const replying = this.state.replyTo === key;
-          return (
-            <div key={key} style={{ border: WF_LINE, borderRadius: 12, background: 'var(--surface)', padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 8 }}>
-              <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
-                <span style={{ width: 30, height: 30, borderRadius: '50%', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 11.5, background: c.opt != null ? wfShade(T.color, c.opt) : 'var(--ink-3)', color: c.opt != null ? wfShadeText(c.opt) : '#fff' }}>{c.init}</span>
-                <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 3 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 7, flexWrap: 'wrap' }}>
-                    <span style={{ fontWeight: 800, fontSize: 12.5 }}>{c.name}</span>
-                    {optLabel && <span style={{ background: wfShade(T.color, c.opt), color: wfShadeText(c.opt), fontSize: 10, fontWeight: 800, padding: '2px 8px', borderRadius: 999, whiteSpace: 'nowrap' }}>{optLabel}</span>}
-                    <span style={{ fontSize: 10.5, fontWeight: 600, color: 'var(--ink-3)' }}>{c.time}</span>
-                  </div>
-                  <div style={{ fontSize: 13, lineHeight: 1.45, fontWeight: 500 }}>{c.text}</div>
-                  <button onClick={() => this.setState({ replyTo: replying ? null : key })} style={{ alignSelf: 'flex-start', background: 'none', border: 'none', padding: '2px 0', cursor: 'pointer', fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 11, color: replying ? 'var(--ink)' : 'var(--ink-3)', WebkitAppearance: 'none' }}>Reply</button>
-                </div>
-                <button onClick={() => this.setState((s) => ({ boosts: { ...s.boosts, [key]: !s.boosts[key] } }))} aria-pressed={boosted} style={{ border: WF_LINE, borderRadius: 10, padding: '4px 8px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1, cursor: 'pointer', fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 10.5, background: boosted ? 'var(--ink)' : 'var(--surface-2)', color: boosted ? 'var(--surface)' : 'var(--ink)', flexShrink: 0, WebkitAppearance: 'none' }}>{'\u25B2'}<span>{wfFmt(c.ups + (boosted ? 1 : 0))}</span></button>
-              </div>
-              {(myReplies.length > 0 || replying) && (
-                <div style={{ marginLeft: 40, display: 'flex', flexDirection: 'column', gap: 6, borderLeft: '2px solid var(--surface-3)', paddingLeft: 10 }}>
-                  {myReplies.map((r, ri) => (
-                    <div key={ri} style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 7, flexWrap: 'wrap' }}>
-                        <span style={{ fontWeight: 800, fontSize: 12 }}>You</span>
-                        {mySide != null && <span style={{ background: wfShade(T.color, mySide), color: wfShadeText(mySide), fontSize: 9.5, fontWeight: 800, padding: '2px 7px', borderRadius: 999, whiteSpace: 'nowrap' }}>{q.options[mySide].label}</span>}
-                        <span style={{ fontSize: 10, fontWeight: 600, color: 'var(--ink-3)' }}>now</span>
-                      </div>
-                      <div style={{ fontSize: 12.5, lineHeight: 1.45, fontWeight: 500 }}>{r}</div>
-                    </div>
-                  ))}
-                  {replying && (
-                    <form onSubmit={(e) => { e.preventDefault(); const inp = e.target.elements.reply; const v = inp.value.trim(); if (v) this.addReply(key, v); }} style={{ display: 'flex', gap: 6 }}>
-                      <input name="reply" autoFocus placeholder="Your reply…" style={{ flex: 1, minWidth: 0, border: WF_LINE, borderRadius: 999, padding: '7px 12px', fontFamily: 'var(--sans)', fontSize: 12.5, fontWeight: 500, background: 'var(--surface-2)', color: 'var(--ink)', outline: 'none' }} />
-                      <button type="submit" style={{ border: 'none', borderRadius: 999, padding: '7px 13px', fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 12, cursor: 'pointer', background: 'var(--ink)', color: 'var(--surface)', WebkitAppearance: 'none' }}>Send</button>
-                    </form>
-                  )}
-                </div>
-              )}
+        {pair && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            {this.takeCard(q, T, pair[0])}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ flex: 1, height: 1, background: 'var(--surface-3)' }}></span>
+              <span style={{ fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 10.5, color: 'var(--ink-3)' }}>vs</span>
+              <span style={{ flex: 1, height: 1, background: 'var(--surface-3)' }}></span>
             </div>
-          );
-        })}
+            {this.takeCard(q, T, pair[1])}
+          </div>
+        )}
+        {shown.length === 0 && ownShown.length === 0 && !pair && <div style={{ fontFamily: 'var(--sans)', fontSize: 12.5, fontWeight: 600, color: 'var(--ink-3)', padding: '14px 0', textAlign: 'center' }}>{takes.length === 0 && ownAll.length === 0 ? 'No takes yet — yours could be first.' : 'No takes from this side yet.'}</div>}
+        {shown.map((it) => this.takeCard(q, T, it))}
         {ownShown.map((t, i) => (
           <div key={'own' + i} style={{ border: WF_LINE, borderRadius: 12, background: 'var(--surface)', padding: '10px 12px', display: 'flex', gap: 10, alignItems: 'flex-start' }}>
             <span style={{ width: 30, height: 30, borderRadius: '50%', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 11.5, background: mySide != null ? wfShade(T.color, mySide) : 'var(--ink)', color: mySide != null ? wfShadeText(mySide) : '#fff' }}>Y</span>
@@ -760,11 +996,12 @@ class WorldFeed extends React.Component {
                 <span style={{ fontSize: 10.5, fontWeight: 600, color: 'var(--ink-3)' }}>now</span>
               </div>
               <div style={{ fontSize: 13, lineHeight: 1.45, fontWeight: 500 }}>{t}</div>
+              {o.signals && <span style={{ fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 11, color: 'var(--ink-3)' }}>{'↺ ' + (window.WF_TAKE_SIG ? window.WF_TAKE_SIG(q.id + ':own' + i, 60).mind : 0) + ' moved'}</span>}
             </div>
           </div>
         ))}
         <form onSubmit={(e) => { e.preventDefault(); const inp = e.target.elements.take; const v = inp.value.trim(); if (v) { this.addTake(q.id, v); inp.value = ''; } }} style={{ display: 'flex', gap: 6, paddingTop: 2 }}>
-          <input name="take" placeholder="Add your take…" style={{ flex: 1, minWidth: 0, border: WF_LINE, borderRadius: 999, padding: '8px 13px', fontFamily: 'var(--sans)', fontSize: 12.5, fontWeight: 500, background: 'var(--surface)', color: 'var(--ink)', outline: 'none' }} />
+          <input name="take" placeholder={mySide == null && q.options ? 'Vote first to add a take…' : 'Add your take…'} disabled={mySide == null && !!q.options} style={{ flex: 1, minWidth: 0, border: WF_LINE, borderRadius: 999, padding: '8px 13px', fontFamily: 'var(--sans)', fontSize: 12.5, fontWeight: 500, background: 'var(--surface)', color: 'var(--ink)', outline: 'none' }} />
           <button type="submit" style={{ border: 'none', borderRadius: 999, padding: '8px 14px', fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 12, cursor: 'pointer', background: 'var(--ink)', color: 'var(--surface)', WebkitAppearance: 'none' }}>Send</button>
         </form>
       </div>
