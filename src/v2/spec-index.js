@@ -69,9 +69,10 @@ import './spec/map-chiprow.jsx';
 import './spec/map-tab.jsx';
 import './spec/logic-test.jsx';
 import './spec/profile-general.jsx';
-// The two live panels were born in this repo (never in design/) and
-// live as typed TSX under ui/; they self-register on globalThis so
-// the render-time lookups in daily-split / profile-overlay still work.
+// These were born in this repo (never in design/) and live as typed TSX
+// under ui/; they self-register on globalThis so the render-time lookups
+// in daily-split / profile-overlay / profile-general still work.
 import './ui/LiveDuelPanel';
 import './ui/LivePrivacyPanel';
+import './ui/CityPicker';
 import './spec/app-shell.jsx';

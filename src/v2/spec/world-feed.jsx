@@ -94,13 +94,28 @@ function wfShade(color, i) { return 'color-mix(in oklch, ' + color + ' ' + Math.
 function wfShadeText(i) { return i < 2 ? '#fff' : 'var(--ink)'; }
 // Live breakdown dimensions, in display order. Must stay a subset of
 // BREAKDOWN_DIMS (functions/src/pure.ts) — a dimension the server never
-// publishes would render an empty chip. `city` and `profession` are
-// collected but not sliced by (D8), and `friends` is demo-only: a named
-// who-voted at world scale is exactly what D1 rules out.
+// publishes would render an empty chip. `profession` is collected but not
+// sliced by (D8), and `friends` is demo-only: a named who-voted at world
+// scale is exactly what D1 rules out.
 const WF_LIVE_DIMS = [
-  ['ageBand', 'Age'], ['gender', 'Gender'], ['country', 'Where'],
+  ['ageBand', 'Age'], ['gender', 'Gender'], ['city', 'City'], ['country', 'Country'],
   ['education', 'Education'], ['relationship', 'Relationship'],
 ];
+
+// Bucket keys are stored canonically so that one cohort is one key
+// worldwide — `country` is the ISO code and `city` is "Oslo, NO" (D9). That
+// is the right thing to STORE and the wrong thing to show, so it is turned
+// back into a name here, in the reader's own language via Intl.
+function wfBucketLabel(dim, bucket) {
+  const P = window.PLACES;
+  if (!P) return bucket;
+  if (dim === 'country') return P.countryName(bucket);
+  if (dim === 'city') {
+    const p = P.parse(bucket);
+    return p ? P.label(p) : bucket;
+  }
+  return bucket;
+}
 const WF_DIMS = [['friends', 'Friends'], ['age', 'Age'], ['gender', 'Gender'], ['politics', 'Politics'], ['where', 'Where']];
 const WF_GROUPS = { age: ['18–24', '25–34', '35–44', '45+'], gender: ['Women', 'Men', 'Nonbinary'], politics: ['Left', 'Center', 'Right'], where: ['Americas', 'Europe', 'Asia', 'Elsewhere'] };
 const WF_FRIENDS = [{ name: 'Alex', init: 'A' }, { name: 'Mia', init: 'M' }, { name: 'Jordi', init: 'J' }, { name: 'Sara', init: 'S' }, { name: 'Noah', init: 'N' }, { name: 'Elif', init: 'E' }];
@@ -649,7 +664,7 @@ class WorldFeed extends React.Component {
             return (
               <div key={r.bucket} style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                 <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between' }}>
-                  <span style={{ fontWeight: 800, fontSize: 12 }}>{r.bucket}</span>
+                  <span style={{ fontWeight: 800, fontSize: 12 }}>{wfBucketLabel(dim, r.bucket)}</span>
                   <span style={{ fontSize: 10.5, fontWeight: 600, color: 'var(--ink-3)' }}>{wfFmt(r.n)} {r.n === 1 ? 'vote' : 'votes'}</span>
                 </div>
                 <div style={{ display: 'flex', height: 30, border: WF_LINE, borderRadius: 9, overflow: 'hidden', background: 'var(--surface)' }}>

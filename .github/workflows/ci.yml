@@ -37,6 +37,10 @@ jobs:
       - run: npm run check:globals
       # Five version numbers that must move together across three files.
       - run: npm run check:versions
+      # The city catalogue is parsed at runtime and its names become
+      # Firestore map keys. A malformed row or an over-long name would be
+      # pickable in the profile and then absent from every breakdown.
+      - run: npm run check:cities
 
   typecheck-build:
     runs-on: ubuntu-latest

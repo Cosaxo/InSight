@@ -214,9 +214,23 @@ export function slugifyCity(name: string): string {
 //    D7's ~1-write-per-second-per-document ceiling does not move. That only
 //    holds if the document cannot grow without bound — so breakdowns are
 //    restricted to low-cardinality anchors, and each dimension is capped at
-//    BREAKDOWN_MAX_BUCKETS distinct values. `city` and `profession` are
-//    deliberately excluded: they are free text up to 80 chars, so every
-//    distinct spelling would mint a key forever.
+//    BREAKDOWN_MAX_BUCKETS distinct values. `profession` is deliberately
+//    excluded: it is free text up to 80 chars, so every distinct spelling
+//    would mint a key forever.
+//
+//    `city` was excluded for that same reason until D9 replaced the profile's
+//    free-text city and country boxes with a picker over a fixed catalogue of
+//    10,929 places. Its values are now drawn from a closed vocabulary
+//    ("Oslo, NO"), every one of them verified at build time to fit
+//    BREAKDOWN_MAX_LABEL and to survive breakdownBucket — see
+//    scripts/check-cities.mjs. The bucket cap still applies and matters more
+//    here than anywhere else: a global question can touch far more than 24
+//    cities, so the long tail degrades rather than the dimension freezing.
+//
+//    `country` was NEVER safe under the old scheme and shipped anyway — as
+//    free text it split "Norway"/"norway"/"NO" into three sub-floor cohorts
+//    and published none of them. It now carries the ISO code derived from
+//    the picked city, which is why that dimension starts working at all.
 //
 // 2. K-ANONYMITY THAT SURVIVES SUBTRACTION. Suppressing cells below the
 //    floor is not sufficient on its own. If a dimension has exactly one
@@ -233,30 +247,55 @@ export function slugifyCity(name: string): string {
 export const BREAKDOWN_DIMS = [
   "ageBand",
   "gender",
+  "city",
   "country",
   "education",
   "relationship",
 ] as const;
 export type BreakdownDim = (typeof BREAKDOWN_DIMS)[number];
 
-// Per-dimension distinct-value cap. 5 dims x 24 buckets x up to 20 options is
-// ~2.4k integers worst case — tens of KB against Firestore's 1 MiB limit,
+// Per-dimension distinct-value cap. 6 dims x 24 buckets x up to 20 options is
+// ~2.9k integers worst case — tens of KB against Firestore's 1 MiB limit,
 // with room for the plain counts alongside.
 export const BREAKDOWN_MAX_BUCKETS = 24;
 // Bucket labels are stored as map keys; anything longer is a free-text field
 // that slipped through and should not be minting keys.
 export const BREAKDOWN_MAX_LABEL = 40;
 
+// Dimensions whose values come from a closed vocabulary get their shape
+// checked here as well as at the source.
+//
+// The bucket cap is first-come-first-served, so 24 junk values arriving
+// early would crowd out every real one for that question — and anchors are
+// written by the CLIENT onto its own answer doc, where firestore.rules can
+// only enforce a length. Anyone could mint 24 nonsense cities and blank the
+// dimension for everybody. Shape-checking `city` closes that, and it also
+// keeps the free text sitting in pre-D9 profiles ("oslo", "Oslo, Norway")
+// from competing for slots with the catalogue values.
+//
+// The other dimensions are short fixed lists chosen from <select>s; a bogus
+// value there costs one suppressed sub-floor bucket, not the dimension.
+const BREAKDOWN_DIM_SHAPE: Partial<Record<BreakdownDim, RegExp>> = {
+  // "Oslo, NO" — a catalogue name and an ISO 3166-1 alpha-2 code. Must
+  // agree with placeKey() in src/v2/data/places.ts.
+  city: /^.+, [A-Z]{2}$/,
+  // ISO 3166-1 alpha-2, derived client-side from the picked city.
+  country: /^[A-Z]{2}$/,
+};
+
 export type BreakdownCounts = Record<string, Record<string, Record<string, number>>>;
 
 // A bucket label Firestore can hold as a map key, or null to skip. Rejects
 // the empty string, over-long values, and the dotted/slashed forms that are
-// awkward as field paths.
-export function breakdownBucket(value: unknown): string | null {
+// awkward as field paths. With a dim, also rejects anything outside that
+// dimension's vocabulary shape.
+export function breakdownBucket(value: unknown, dim?: BreakdownDim): string | null {
   if (typeof value !== "string") return null;
   const v = value.trim();
   if (!v || v.length > BREAKDOWN_MAX_LABEL) return null;
   if (/[./[\]*~]/.test(v)) return null;
+  const shape = dim && BREAKDOWN_DIM_SHAPE[dim];
+  if (shape && !shape.test(v)) return null;
   return v;
 }
 
@@ -270,7 +309,7 @@ export function foldAnchors(
   if (!anchors || typeof anchors !== "object") return into;
   const src = anchors as Record<string, unknown>;
   for (const dim of BREAKDOWN_DIMS) {
-    const bucket = breakdownBucket(src[dim]);
+    const bucket = breakdownBucket(src[dim], dim);
     if (bucket === null) continue;
     const byDim = into[dim] || (into[dim] = {});
     // Cap reached and this is a new bucket: drop it rather than grow the
