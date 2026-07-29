@@ -93,6 +93,14 @@ const state = {
   groupsUnsub: null as null | (() => void),
   revealUnsubs: {} as Record<string, () => void>,
   revealDay: "",
+  // Reveal HISTORY, fetched on demand for the Mirror's Groups portrait —
+  // gid → day → doc, or null for a day that has no readable reveal
+  // (skipped day, or one revealed before this user joined; the rules
+  // return permission-denied for the latter and that is the rule working).
+  // In-memory only: ≤ REVEAL_HIST_DAYS doc reads per group per session,
+  // paid only when the portrait is opened, never at boot.
+  revealHist: {} as Record<string, Record<string, Record<string, unknown> | null>>,
+  revealHistLoading: {} as Record<string, boolean>,
 };
 
 // The anchor keys firestore.rules accepts, with its per-field length caps
@@ -112,6 +120,12 @@ function answerAnchors(): Record<string, string> {
 function utcDayKey(offsetDays = 0): string {
   return new Date(Date.now() + offsetDays * 86400000).toISOString().slice(0, 10);
 }
+
+// How far back the Groups portrait reads. 14 days ≈ the window a weekly
+// group actually remembers, and its cost ceiling is 13 doc reads per group
+// per session (yesterday rides the existing reveal listener) — paid only
+// when the portrait is opened.
+const REVEAL_HIST_DAYS = 14;
 
 // Set as deleteAccount's FIRST statement. "There is no undo" has to hold
 // against work already in flight: the post-vote refresh timer, the agg and
@@ -640,6 +654,65 @@ const SOCIAL = {
   revealFor(gid: string) {
     return state.reveals[gid] || null;
   },
+  // ── reveal history — the Groups portrait's data source ──
+  // Direct doc gets by day key, never a collection query: the reveal read
+  // rule gates on each doc's own `members` snapshot, which a list query
+  // cannot prove, so a query would be denied wholesale while per-doc gets
+  // succeed exactly for the days this user played.
+  async loadRevealHistory(gid: string, days = REVEAL_HIST_DAYS): Promise<void> {
+    if (state.revealHistLoading[gid]) return;
+    const have = (state.revealHist[gid] = state.revealHist[gid] || {});
+    const wanted: string[] = [];
+    // -2 backwards: yesterday (-1) already has a live listener (reveals),
+    // and revealHistory() below merges it in — fetching it twice would
+    // just double the read.
+    for (let i = 2; i <= days; i++) {
+      const key = utcDayKey(-i);
+      if (!(key in have)) wanted.push(key);
+    }
+    if (!wanted.length) return;
+    state.revealHistLoading[gid] = true;
+    try {
+      const db = await getDb();
+      const { getDoc } = await import("firebase/firestore");
+      await Promise.all(
+        wanted.map(async (key) => {
+          try {
+            const snap = await getDoc(doc(db, "v2_groups", gid, "reveals", key));
+            have[key] = snap.exists() ? (snap.data() as Record<string, unknown>) : null;
+          } catch (err) {
+            // permission-denied = a day revealed before this user joined;
+            // the doc will never become readable, so cache the null.
+            if ((err as { code?: string }).code === "permission-denied") {
+              have[key] = null;
+              return;
+            }
+            // transient (offline, deadline): leave the key absent so a
+            // later call retries it rather than freezing a gap into the
+            // portrait for the rest of the session
+            reportError(err, { where: "revealHistory", gid });
+          }
+        }),
+      );
+    } finally {
+      state.revealHistLoading[gid] = false;
+      notify();
+    }
+  },
+  // Every readable reveal for this group, newest first — the cached
+  // history plus yesterday's live listener doc. Shape matches what
+  // groupPortrait.ts consumes.
+  revealHistory(gid: string): Array<Record<string, unknown> & { day: string }> {
+    const out: Array<Record<string, unknown> & { day: string }> = [];
+    const yesterday = state.reveals[gid];
+    if (yesterday) out.push({ day: state.revealDay, ...yesterday } as Record<string, unknown> & { day: string });
+    const hist = state.revealHist[gid] || {};
+    for (const [day, docData] of Object.entries(hist)) {
+      if (docData) out.push({ day, ...docData } as Record<string, unknown> & { day: string });
+    }
+    out.sort((a, b) => (a.day < b.day ? 1 : -1));
+    return out;
+  },
   async createGroup(name: string, mode: string, displayName?: string) {
     const out = await callable<{ gid: string; inviteCode: string }>("createGroupV2", { name, mode, displayName });
     return out;
@@ -993,6 +1066,8 @@ function resetForNewUid(uid: string): void {
   state.aggs = {};
   state.groups = [];
   state.reveals = {};
+  state.revealHist = {};
+  state.revealHistLoading = {};
   state.profile = { displayName: "", testResults: {}, anchors: {} };
   state.deckIds = [];
   state.deckDay = -1;

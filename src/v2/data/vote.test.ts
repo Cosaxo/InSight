@@ -447,7 +447,8 @@ describe("window.LIVE public surface", () => {
   ];
   const EXPECTED_SOCIAL = [
     "bankQ", "createGroup", "groups", "joinGroup", "leaveGroup",
-    "myDuelVote", "revealFor", "todayKey", "todayQ", "voteDuel",
+    "loadRevealHistory", "myDuelVote", "revealFor", "revealHistory",
+    "todayKey", "todayQ", "voteDuel",
   ];
 
   it("exposes exactly the members the spec layer looks up by name", async () => {

@@ -230,6 +230,20 @@ function MirrorTab({ onPerson, pop, onPop, worldZoom, onZoom }) {
     );
   }
 
+  // named groups, live — the portrait computed from real reveal history
+  // (LiveGroupsMirrorBody). No Preview tag: nothing on it is sample data,
+  // which is the point of the replacement.
+  if (p.id === 'groups' && window.LIVE && window.LIVE.enabled && typeof window.LiveGroupsMirrorBody === 'function') {
+    return (
+      <div className="fade-in mf-flex" style={{ '--accent': 'var(--c-groups)' }}>
+        <MirrorPopPicker stopId={stopId} onPick={pick} live={liveGeo} />
+        <div key="groups-live" className="tab-swap mf-flex" style={{ overflowY: 'auto' }}>
+          <window.LiveGroupsMirrorBody />
+        </div>
+      </div>
+    );
+  }
+
   // named groups — their own body: member field + accrued group portrait
   if (p.id === 'groups' && typeof window.GroupsMirrorBody === 'function') {
     return (

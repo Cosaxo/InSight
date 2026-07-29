@@ -634,19 +634,44 @@ mode, so the remaining work is a list rather than a discovery:
 | --- | --- | --- |
 | You | the viewer's own profile | real |
 | Circle | **none** — v2 has no person-to-person graph at all | honest empty state pointing at groups |
-| Groups | `LIVE.social.groups()` exists | **still sample** — see below |
+| Groups | reveal history (`v2_groups/{gid}/reveals/{day}`) | **real** — see the 2026-07-29 update below |
 | Near | city breakdown, floor 5 | real |
 | World | country breakdown + overall totals | real |
 
-`GroupsMirrorBody` is the one left. It reads `window.DUELS` (duels-data.js),
-which is entirely local: group definitions live in `localStorage` and its
-members are the 49 seeded people in `relmap-core.js`. The live group path
-(`LIVE.social.groups()`, `revealFor`) exists and is used by the daily's
-group card, but the Mirror's group portrait — alignment %, togetherness,
-contrarian/twin, the per-member field — is computed from `DUELS`'s local
-history and has no live equivalent. Rewiring it is a real piece of work,
-not a routing change, because the *statistics* need a server-side source
-that reveals alone do not provide.
+**Update (2026-07-29, later the same day) — Groups is real now.** The
+paragraph below said the statistics "need a server-side source that
+reveals alone do not provide". That was wrong, and working out why is
+what unlocked the feature: the reveal docs already carry per-member votes
+with names, the read rule already scopes each doc to the members who
+played that day, and alignment / twin / contrarian are just arithmetic
+over those docs. No new collection, no new rules, no new function.
+
+`LiveGroupsMirrorBody` (typed TSX under `ui/`) renders the portrait from
+`LIVE.social.revealHistory(gid)`: up to 14 days of reveal docs, fetched
+by direct day-key `getDoc`s — never a collection query, which the
+member-snapshot rule cannot prove and would deny wholesale. Cost ceiling
+is 13 reads per group per session (yesterday rides the existing
+listener), paid only when the stop is opened. `permission-denied` on a
+day is cached as null: it is the late-joiner rule working, and the doc
+will never become readable.
+
+The arithmetic lives in `src/v2/data/groupPortrait.ts` (pure, tested):
+a 2–2 tie counts as *with* the majority for every voter in it, alignment
+is over days the viewer actually played, and nobody is named "most like
+you" on fewer than 2 shared days — one shared day is a coin flip, and a
+label built on it would be the fabrication this replacement removes.
+
+What the demo body showed that the live one deliberately does not:
+trait axes, compare populations, and "how they see you" crowns. No real
+source feeds them, so they are absent rather than faked. Duos are also
+excluded on purpose: with two voters any disagreement is a 1–1 tie, so
+the alignment ring would read 100% forever; a duo's real mirror is the
+1v1 tab's reveal.
+
+The original assessment, kept for the record: `GroupsMirrorBody` (the
+demo body, still what non-live builds render) reads `window.DUELS`,
+which is entirely local — group definitions in `localStorage`, members
+from the 49 seeded people in `relmap-core.js`.
 
 **World's City zoom stop is gone in live mode.** After this change Near IS
 your city, and keeping the stop would be the same panel behind two chips.

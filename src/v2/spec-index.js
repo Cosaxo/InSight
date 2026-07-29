@@ -79,4 +79,5 @@ import './ui/LiveDuelPanel';
 import './ui/LivePrivacyPanel';
 import './ui/CityPicker';
 import './ui/LiveCohortBody';
+import './ui/LiveGroupsMirrorBody';
 import './spec/app-shell.jsx';
