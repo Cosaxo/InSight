@@ -91,6 +91,12 @@ function WfCount({ to, animate, dur = 650 }) {
 // the overall counts + a hash, like the daily's.
 function wfHash(s) { let h = 9; for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 387420489); return ((h ^ (h >>> 9)) >>> 0) / 4294967295; }
 function wfShade(color, i) { return 'color-mix(in oklch, ' + color + ' ' + Math.max(70 - i * 22, 12) + '%, var(--surface-3))'; }
+// Per-option hue: option 0 keeps the topic colour, the rest rotate away from
+// it. The prototype calls this `wfShade`, but THIS file already has a
+// `wfShade` that ramps lightness for the live breakdown bars — same name,
+// different function. Ported under its other prototype name rather than
+// shadowing a helper the k-floored stats renderer depends on.
+function wfOpt(color, i, n) { return i === 0 ? color : 'oklch(from ' + color + ' 0.55 0.14 calc(h + ' + Math.round(i * ((n || 2) > 2 ? 120 : 150)) + '))'; }
 function wfShadeText(i) { return i < 2 ? '#fff' : 'var(--ink)'; }
 // Live breakdown dimensions, in display order. Must stay a subset of
 // BREAKDOWN_DIMS (functions/src/pure.ts) — a dimension the server never
@@ -133,7 +139,14 @@ class WorldFeed extends React.Component {
   get opts() {
     const o = this.props.opts || {};
     const on = (k) => o[k] !== false;
-    return { strip: on('strip'), ripple: on('ripple'), pass: on('pass'), pattern: on('pattern') };
+    return {
+      strip: on('strip'), ripple: on('ripple'), pass: on('pass'), pattern: on('pattern'),
+      // reveal: the result reads as tiles whose heights are the shares,
+      // rather than bars. clock: one card in view carries a ring draining
+      // with the day. Both are presentation only — neither shows anything
+      // the k-floored aggregate has not already published.
+      reveal: on('reveal'), clock: on('clock'),
+    };
   }
 
   // ── snap scrolling: cards arrive one at a time and snap into place ──
@@ -312,6 +325,36 @@ class WorldFeed extends React.Component {
   }
 
   // ── card bodies ──
+  // One question in view is closing — a ring draining with the day. Purely a
+  // clock: it reads the wall time and nothing about the question, so it
+  // cannot disclose a count.
+  renderClock(T) {
+    const now = new Date();
+    const left = Math.max(1, 24 - now.getHours());
+    const frac = left / 24, C = 2 * Math.PI * 7;
+    return (
+      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, flexShrink: 0, fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 11.5, color: 'var(--ink-2)' }}>
+        <svg width="16" height="16" viewBox="0 0 20 20" aria-hidden="true">
+          <circle cx="10" cy="10" r="7" fill="none" stroke="var(--rule)" strokeWidth="2.6"></circle>
+          <circle cx="10" cy="10" r="7" fill="none" stroke={T.color} strokeWidth="2.6" strokeLinecap="round" strokeDasharray={C} strokeDashoffset={C * (1 - frac)} transform="rotate(-90 10 10)"></circle>
+        </svg>
+        {left}h
+      </span>
+    );
+  }
+
+  // An unanswered card gets a comfortable floor so the question has air; an
+  // answered one shrinks to its result and lets the next question rise into
+  // view rather than ending on a screen of empty ground.
+  cardFloor(answered) {
+    const vh = this.state.vh || 620;
+    return answered ? 0 : Math.min(Math.max(vh - 300, 260), 400);
+  }
+
+  openSheet(q, T, panel) {
+    this.setState({ sheet: { q, T, panel }, sideFilter: null, replyTo: null });
+  }
+
   renderFloorNote(big) {
     return (
       <div style={{ fontSize: big ? 12.5 : 11.5, fontWeight: 600, color: 'var(--ink-3)', padding: '2px 2px 0' }}>
@@ -323,7 +366,6 @@ class WorldFeed extends React.Component {
   renderVote(q, T, big) {
     const mine = this.state.votes[q.id];
     if (mine != null && this.state.beat === q.id) return this.renderBeat(q, T, big);
-    const counts = q.options.map((o) => o.count);
     if (mine == null) {
       return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: big ? 11 : 8 }}>
@@ -333,7 +375,74 @@ class WorldFeed extends React.Component {
         </div>
       );
     }
-    const { p, total } = wfPcts(counts, mine);
+    // Below the k-floor there are no numbers to lay out, so the tile
+    // treatment — whose whole point is that height IS share — would be
+    // drawing a split it has not been told. Bars degrade honestly.
+    const floored = !!(q.live && q.tooSmall);
+    return this.opts.reveal && !floored
+      ? this.renderVoteTiles(q, T, big)
+      : this.renderVoteBars(q, T, big);
+  }
+
+  // The result as a stack whose HEIGHTS are the shares — a 52/48 reads as
+  // 52/48 rather than as a winner and an also-ran. Only ever reached above
+  // the floor (see renderVote), so every option can carry its own number.
+  renderVoteTiles(q, T, big) {
+    const mine = this.state.votes[q.id];
+    const { p, total } = wfPcts(q.options.map((o) => o.count), mine);
+    const maxP = Math.max(...p);
+    const fresh = this._fresh === q.id;
+    const n = q.options.length;
+    // one row budget per option, so two options do not tower over four
+    const H = (big ? 58 : 46) * n + (n - 1) * 7;
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: big ? 11 : 9, animation: fresh ? 'popIn .32s cubic-bezier(0.2,0.8,0.2,1)' : 'none' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 7, height: H }}>
+          {q.options.map((o, i) => {
+            const col = wfOpt(T.color, i, n);
+            const isMine = mine === i;
+            const win = p[i] === maxP;
+            return (
+              <div key={i} style={{ flex: Math.max(p[i], 4) + ' 1 0', minHeight: big ? 36 : 30, border: isMine ? '1.5px solid color-mix(in oklch, ' + col + ' 60%, var(--rule))' : WF_LINE, borderRadius: big ? 16 : 13, background: 'color-mix(in oklch, ' + col + ' 26%, var(--surface))', overflow: 'hidden', position: 'relative', transition: 'flex-grow .7s cubic-bezier(0.2,0.8,0.2,1)' }}>
+                <div style={{ height: '100%', display: 'flex', alignItems: 'center', gap: 8, padding: big ? '0 18px' : '0 14px' }}>
+                  <div style={{ display: 'flex', alignItems: 'baseline', gap: 7, minWidth: 0, flex: 1 }}>
+                    <span style={{ fontWeight: win ? 800 : 700, fontSize: big ? 19 : 15, letterSpacing: '-0.02em' }}>{o.label}</span>
+                    {isMine && <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink-2)', whiteSpace: 'nowrap', animation: fresh ? 'chipPop .35s var(--ease-spring) .2s both' : 'none' }}>{'· you'}</span>}
+                  </div>
+                  {/* every side carries its number — one read of the split,
+                      not just the winner's. The prototype also drew friend
+                      dots here; that is a named who-voted at world scale,
+                      which D1 rules out, so it is absent rather than faked. */}
+                  <span style={{ fontFamily: 'var(--sans)', fontWeight: win ? 800 : 600, fontSize: big ? (win ? 24 : 17) : (win ? 18 : 14), letterSpacing: '-0.03em', color: win ? 'var(--ink)' : 'var(--ink-2)', flexShrink: 0 }}>{win ? <WfCount to={p[i]} animate={fresh}></WfCount> : p[i]}%</span>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+        {this.renderMeta(q, T, big, total, p, mine)}
+      </div>
+    );
+  }
+
+  // One quiet line under the result: how big the vote is, and which side of
+  // it you came down on.
+  renderMeta(q, T, big, total, p, mine) {
+    const maxP = Math.max(...p);
+    const rip = this.state.ripple === q.id ? (WF_BRANCH[q.cat] || 'Interests') : null;
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, minHeight: 18 }}>
+        <span style={{ fontSize: big ? 12.5 : 11.5, fontWeight: 600, color: 'var(--ink-2)' }}>
+          {wfFmt(total)} votes{p[mine] === maxP ? ' · with the majority' : ' · you picked the underdog'}
+        </span>
+        {rip && <button onClick={() => window.goTab && window.goTab('mirror')} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontFamily: 'var(--sans)', fontSize: 12, fontWeight: 700, color: 'var(--accent, var(--ink-2))', whiteSpace: 'nowrap', animation: 'toastFade 3.2s ease forwards' }}>added to {rip}<span aria-hidden="true">{'→'}</span></button>}
+      </div>
+    );
+  }
+
+  renderVoteBars(q, T, big) {
+    const mine = this.state.votes[q.id];
+    const counts = q.options.map((o) => o.count);
+    const { p } = wfPcts(counts, mine);
     const maxP = Math.max(...p);
     const fresh = this._fresh === q.id;
     return (
@@ -452,7 +561,9 @@ class WorldFeed extends React.Component {
         </div>
       );
     }
-    const takes = (window.WORLD_FEED_COMMENTS || {})[q.id] || [];
+    // The 'add' panel has no question behind it, so every read of `q` from
+    // here down has to tolerate its absence.
+    const takes = q ? ((window.WORLD_FEED_COMMENTS || {})[q.id] || []) : [];
     const hasStats = q.type !== 'rank';
     const open = (id) => this.setState({ sheet: { q, T, panel: id }, sideFilter: null, replyTo: null });
     const D = big ? 32 : 30;
@@ -473,11 +584,42 @@ class WorldFeed extends React.Component {
     const takeFaces = takes.slice(0, 3).map((c, i) => av(c.opt != null ? wfShade(T.color, c.opt) : 'var(--ink-3)', c.opt != null ? wfShadeText(c.opt) : '#fff', c.init[0], i));
     const nMore = nTakes - takeFaces.length;
     if (nMore > 0) takeFaces.push(av('var(--surface-2)', 'var(--ink-2)', nMore > 9 ? '9+' : '+' + nMore, takeFaces.length));
+    const insight = this.renderInsight(q, T, big);
     return (
-      <div style={{ display: 'flex', gap: 24, alignItems: 'center' }}>
-        {btn('takes', takeFaces, ico('M6.5 4.5h11a2 2 0 0 1 2 2V13a2 2 0 0 1-2 2H11l-4 3.8V15h-.5a2 2 0 0 1-2-2V6.5a2 2 0 0 1 2-2z'), nTakes + ' takes')}
-        {hasStats && btn('stats', null, ico('M5 19.5V13M12 19.5V5.5M19 19.5V10'), 'who voted')}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: big ? 12 : 10, alignItems: 'flex-start' }}>
+        {insight}
+        <div style={{ display: 'flex', gap: 24, alignItems: 'center' }}>
+          {btn('takes', takeFaces, ico('M6.5 4.5h11a2 2 0 0 1 2 2V13a2 2 0 0 1-2 2H11l-4 3.8V15h-.5a2 2 0 0 1-2-2V6.5a2 2 0 0 1 2-2z'), nTakes + ' takes')}
+          {/* the insight line IS the way into the breakdown, so the bar-chart
+              button would be a second door to the same room */}
+          {hasStats && !insight && btn('stats', null, ico('M5 19.5V13M12 19.5V5.5M19 19.5V10'), 'who voted')}
+        </div>
       </div>
+    );
+  }
+
+  // ── the surprise line ── one published cut that disagrees with the room:
+  // a cohort that leans harder than everyone else, or one that flips the
+  // winner outright. Tapping it opens the full breakdown at that cut.
+  //
+  // Live questions only, and only above the floor — feedInsight returns null
+  // for anything it cannot say from real, already-k-floored data, and this
+  // renders nothing rather than inventing a line to fill the space.
+  renderInsight(q, T, big) {
+    if (!window.feedInsight) return null;
+    const ins = window.feedInsight(q);
+    if (!ins) return null;
+    const n = q.options.length;
+    const col = wfOpt(T.color, ins.sideIdx, n);
+    const text = ins.group
+      + (ins.kind === 'flip' ? ' flips to ' : ' leans toward ')
+      + q.options[ins.sideIdx].label;
+    return (
+      <button className="press" onClick={() => this.openSheet(q, T, 'stats')} style={{ display: 'flex', alignItems: 'center', gap: 9, maxWidth: '100%', border: WF_LINE, borderRadius: 14, background: 'var(--surface)', padding: big ? '9px 15px' : '7px 12px', cursor: 'pointer', WebkitAppearance: 'none', textAlign: 'left' }}>
+        <span aria-hidden="true" style={{ width: 9, height: 9, borderRadius: '50%', background: col, flexShrink: 0 }}></span>
+        <span style={{ fontFamily: 'var(--sans)', fontWeight: 750, fontSize: big ? 13.5 : 12.5, color: 'var(--ink)', minWidth: 0, textAlign: 'left' }}>{text}</span>
+        <span style={{ fontFamily: 'var(--sans)', fontWeight: 800, fontSize: big ? 13.5 : 12.5, color: 'var(--ink)', flexShrink: 0 }}>{ins.pct}%</span>
+      </button>
     );
   }
 
@@ -488,7 +630,9 @@ class WorldFeed extends React.Component {
     const host = document.querySelector('.app');
     if (!host) return null;
     const { q, T, panel } = s;
-    const takes = (window.WORLD_FEED_COMMENTS || {})[q.id] || [];
+    // The 'add' panel has no question behind it, so every read of `q` from
+    // here down has to tolerate its absence.
+    const takes = q ? ((window.WORLD_FEED_COMMENTS || {})[q.id] || []) : [];
     const close = () => {
       if (s.closing) return;
       this.setState({ sheet: { ...s, closing: true }, replyTo: null });
@@ -500,15 +644,46 @@ class WorldFeed extends React.Component {
         <div className="wf-sheet" onClick={(e) => e.stopPropagation()}>
           <div className="wf-sheet-grab"></div>
           <div style={{ padding: '10px 18px 8px', display: 'flex', alignItems: 'baseline', gap: 10 }}>
-            <span style={{ fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 15 }}>{panel === 'takes' ? 'Takes' : 'Who voted'}</span>
-            <span style={{ fontFamily: 'var(--sans)', fontWeight: 600, fontSize: 12, color: 'var(--ink-3)', flex: 1, minWidth: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{q.prompt || q.text || q.title}</span>
+            <span style={{ fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 15 }}>{panel === 'add' ? 'Add a topic' : panel === 'takes' ? 'Takes' : 'Who voted'}</span>
+            <span style={{ fontFamily: 'var(--sans)', fontWeight: 600, fontSize: 12, color: 'var(--ink-3)', flex: 1, minWidth: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{q ? (q.prompt || q.text || q.title) : ''}</span>
             <button onClick={close} aria-label="Close" style={{ border: 'none', background: 'var(--surface-2)', width: 26, height: 26, borderRadius: '50%', cursor: 'pointer', fontSize: 13, fontWeight: 800, color: 'var(--ink-2)', flexShrink: 0, WebkitAppearance: 'none' }}>{'\u2715'}</button>
           </div>
           <div className="wf-sheet-body">
-            {panel === 'takes' ? this.renderTakes(q, T, takes) : this.renderStats(q, T)}
+            {panel === 'add' ? this.renderAdd() : panel === 'takes' ? this.renderTakes(q, T, takes) : this.renderStats(q, T)}
           </div>
         </div>
       </div>, host);
+  }
+
+  // The topics you do not follow yet, offered from the rail's "+". Scenes are
+  // a local, client-side subscription (window.SCENES) — following one changes
+  // which questions the feed mixes in and nothing that leaves the device.
+  renderAdd() {
+    const SC = window.SCENES;
+    if (!SC) return null;
+    const open = SC.defs().filter((g) => !SC.has(g.id)).sort((a, b) => b.match - a.match);
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column' }}>
+        {open.map((g) => {
+          const col = SC.colorOf ? SC.colorOf(g.id) : null;
+          return (
+            <div key={g.id} style={{ display: 'flex', alignItems: 'center', gap: 11, padding: '11px 2px', borderTop: '0.5px solid color-mix(in oklch, var(--rule), transparent 25%)' }}>
+              {col && <span aria-hidden="true" style={{ width: 9, height: 9, borderRadius: '50%', background: col, flexShrink: 0 }}></span>}
+              <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 1 }}>
+                <span style={{ fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 14.5 }}>{g.name}</span>
+                <span style={{ fontFamily: 'var(--sans)', fontWeight: 600, fontSize: 11.5, color: 'var(--ink-3)' }}>{wfFmt(g.members)} people · {g.vibe}</span>
+              </div>
+              <button className="press" onClick={() => { SC.follow(g.id); this.forceUpdate(); }} style={{ flexShrink: 0, border: 'none', borderRadius: 999, padding: '7px 14px', fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 12.5, cursor: 'pointer', background: 'var(--ink)', color: 'var(--surface)', WebkitAppearance: 'none' }}>Follow</button>
+            </div>
+          );
+        })}
+        {open.length === 0 && (
+          <div style={{ fontFamily: 'var(--sans)', fontSize: 13, fontWeight: 600, color: 'var(--ink-3)', textAlign: 'center', padding: '28px 0' }}>You follow every topic.</div>
+        )}
+        {/* the one in-reach way to propose a question, now that the rail's + adds topics */}
+        <button className="press" onClick={() => { this.setState({ sheet: null }); if (window.openSuggestions) window.openSuggestions(); }} style={{ marginTop: 14, padding: '11px 0', border: '0.5px solid var(--rule)', background: 'var(--surface-2)', borderRadius: 14, cursor: 'pointer', fontFamily: 'var(--sans)', fontWeight: 700, fontSize: 13, color: 'var(--ink-2)', WebkitAppearance: 'none' }}>Suggest a question</button>
+      </div>
+    );
   }
 
   renderTakes(q, T, takes) {
@@ -824,7 +999,8 @@ class WorldFeed extends React.Component {
     );
   }
 
-  renderCard(q) {
+  renderCard(q, flags) {
+    const F = flags || {};
     // a passed card collapses to one undoable line — skipping should cost the
     // feed height, not erase the question
     if (this.state.passed[q.id]) {
@@ -851,6 +1027,8 @@ class WorldFeed extends React.Component {
     const kicker = (
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
         <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7, fontSize: 12.5, fontWeight: 700, letterSpacing: '0.01em', textTransform: 'lowercase', color: mk ? `color-mix(in oklch, ${T.color} 70%, var(--ink))` : 'var(--ink-2)', background: mk ? `color-mix(in oklch, ${T.color} 11%, transparent)` : 'transparent', border: '0.5px solid ' + (mk ? `color-mix(in oklch, ${T.color} 40%, var(--rule))` : 'var(--rule)'), borderRadius: 999, padding: '4px 12px 4px 10px', minWidth: 0 }}><span aria-hidden="true" style={{ width: 6, height: 6, borderRadius: '50%', background: T.color, flexShrink: 0 }}></span>{kickLabel}</span>
+        {F.closing && this.renderClock(T)}
+        <span style={{ flex: 1 }}></span>
         {window.PassiveTag && <window.PassiveTag q={q} answered={answered}></window.PassiveTag>}
       </div>
     );
@@ -860,8 +1038,11 @@ class WorldFeed extends React.Component {
     if (!collapsed) card.backgroundImage = 'radial-gradient(120% 80% at 50% -25%, color-mix(in oklch, ' + T.color + ' 8%, transparent), transparent 62%)';
     if (snap) {
       // one question per view — the card fills most of the scroller; kicker
-      // holds the top edge while the question + options sit centered, hero-scale
-      card.minHeight = Math.max((this.state.vh || 620) - 190, 350);
+      // holds the top edge while the question + options sit centered,
+      // hero-scale. Answered cards drop the floor entirely (cardFloor) so the
+      // result shrinks to its own height and the next question rises into
+      // view, instead of every card ending on a screen of empty ground.
+      card.minHeight = this.cardFloor(answered);
       card.boxSizing = 'border-box';
     }
     if (collapsed) {
@@ -876,7 +1057,7 @@ class WorldFeed extends React.Component {
     return (
       <div key={q.id} className={this._io ? 'wf-card' : ''} ref={(el) => { if (el && this._io && !el._wfSeen) { el._wfSeen = 1; this._io.observe(el); } }} style={card}>
         {kicker}
-        {snap && <div aria-hidden="true" style={{ flex: '0.12 1 0' }}></div>}
+        {snap && !answered && <div aria-hidden="true" style={{ flex: '0.12 1 0' }}></div>}
         <div style={{ fontFamily: 'var(--sans)', fontWeight: snap ? 800 : 750, fontSize: snap ? 26 : 16.5, lineHeight: snap ? 1.12 : 1.25, letterSpacing: snap ? -0.6 : -0.25, textWrap: 'pretty' }}>{q.prompt}</div>
         {q.type === 'vote' && this.renderVote(q, T, snap)}
         {q.type === 'duel' && this.renderDuel(q, T, snap)}
@@ -895,7 +1076,7 @@ class WorldFeed extends React.Component {
         {!answered && this.opts.pass && !mk && (
           <button className="press" onClick={() => this.setPass(q.id, true)} style={{ alignSelf: 'center', border: 'none', background: 'none', padding: '6px 16px', marginTop: 2, cursor: 'pointer', fontFamily: 'var(--sans)', fontWeight: 500, fontSize: 13, color: 'var(--ink-3)', WebkitAppearance: 'none' }}>skip</button>
         )}
-        {snap && <div aria-hidden="true" style={{ flex: '1 1 0' }}></div>}
+        {snap && !answered && <div aria-hidden="true" style={{ flex: '1 1 0' }}></div>}
       </div>
     );
   }
@@ -949,6 +1130,13 @@ class WorldFeed extends React.Component {
       else if ((i + 1) % 8 === 0 && li < lqs.length) feedList.push(lqs[li++]);
     });
     const nDone = qs.filter((q) => this.answered(q)).length;
+    // One card near the top wears the closing ring. Chosen by hash of the
+    // question id so it is stable across renders rather than jumping as the
+    // list re-sorts, and never the very first card — the ring is a grace
+    // note, not the thing you meet first.
+    const closingId = this.opts.clock
+      ? ((feedList.slice(0, 8).find((q) => wfHash(q.id + ':close') < 0.3) || feedList[1] || {}).id)
+      : null;
     // chip row = your scenes, then the always-on channels
     const chips = [
       ...scenes.map((s) => ({ id: s.id, label: s.name, color: window.SCENES && window.SCENES.colorOf ? window.SCENES.colorOf(s.id) : null, scene: true })),
@@ -986,7 +1174,7 @@ class WorldFeed extends React.Component {
           </div>
           <span aria-hidden="true" style={{ position: 'absolute', top: -2, bottom: -2, right: -16, width: 74, pointerEvents: 'none', background: 'linear-gradient(to right, transparent, var(--surface-a, var(--surface)) 55%)' }}></span>
           {/* always-in-reach suggest — no scrolling to the feed's end to propose a question */}
-          <button className="wf-chip press" onClick={() => window.openSuggestions && window.openSuggestions()} aria-label="Suggest a question" style={{ position: 'absolute', right: -8, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 30, height: 30, flexShrink: 0, border: '0.5px solid color-mix(in oklch, var(--accent) 45%, var(--rule))', background: 'color-mix(in oklch, var(--accent) 9%, var(--surface-2))', color: 'var(--accent)', borderRadius: 999, cursor: 'pointer', WebkitAppearance: 'none' }}>
+          <button className="wf-chip press" onClick={() => this.setState({ sheet: { panel: 'add' } })} aria-label="Add a topic" style={{ position: 'absolute', right: -8, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 30, height: 30, flexShrink: 0, border: '0.5px solid color-mix(in oklch, var(--accent) 45%, var(--rule))', background: 'color-mix(in oklch, var(--accent) 9%, var(--surface-2))', color: 'var(--accent)', borderRadius: 999, cursor: 'pointer', WebkitAppearance: 'none' }}>
             <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" aria-hidden="true"><path d="M12 5 V19 M5 12 H19"></path></svg>
           </button>
           </div>
@@ -997,7 +1185,7 @@ class WorldFeed extends React.Component {
             {/* the pattern beat rides at position 5 — far enough in that you
                 have scrolled past a few answers, not so far it is never seen */}
             {i === 5 && this.patternCard()}
-            {this.renderCard(q)}
+            {this.renderCard(q, { closing: q.id === closingId })}
           </React.Fragment>
         ))}
         {sugg && feedList.length <= 2 && this.renderSuggestion(sugg, snap)}

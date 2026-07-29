@@ -15,15 +15,18 @@
 // It reports no one else's behaviour, so it needs no k-anonymity floor and no
 // server surface: the honest half of the prototype's "read the room".
 //
-// DELIBERATELY NOT PORTED: the prototype's `feedInsight()`, which picked "the
-// most surprising split" out of demographic rows — women vs men, left vs
-// right. Those rows are `hash(qid:dim:bucket)` in the prototype: invented, to
-// make a demo room feel populated. Shipping them would put fabricated
-// population statistics behind a product whose claim is that its counts are
-// real and k-floored. The idea is a good one and is planned properly (real
-// per-anchor aggregation with a floor per cell, inside the existing
-// v2_aggs_private doc so D7's write ceiling does not move) — it just cannot
-// be lifted from the prototype, so it is not here.
+// `feedInsight()` — "the most surprising split" — now exists, and reads REAL
+// data. The prototype's version derived its rows from `hash(qid:dim:bucket)`:
+// invented, to make a demo room feel populated, and refused on those grounds.
+// What that refusal was waiting for is now built (D9): per-anchor aggregation
+// with a k-floor per cell and complementary suppression, published in the
+// public mirror as `agg.by`. So the rows are real, and this reads them.
+//
+// Two things it will not do. It never fabricates — a question with no
+// published breakdown returns null and the line simply does not appear,
+// rather than falling back to a plausible number. And it has no `friends`
+// kind: the prototype's best line is "3 of 5 friends went the other way",
+// which is a named who-voted at world scale and exactly what D1 rules out.
 (function () {
   const LS = 'insight.readRoom.v1';
   const subs = [];
@@ -75,5 +78,63 @@
       subs.push(f);
       return () => { const i = subs.indexOf(f); if (i >= 0) subs.splice(i, 1); };
     },
+  };
+
+  // How readable a cut has to be before it is worth a line of its own. A
+  // cohort that merely rounds differently from the room is noise; the point
+  // of the line is that it cuts AGAINST the overall result.
+  const MIN_GAP = 12;
+
+  // The one published cut that disagrees most with the room.
+  //
+  // Reads only `agg.by`, which the server has already floored per cell with
+  // complementary suppression (functions/src/pure.ts) — so anything visible
+  // here is publishable by construction, and this adds no disclosure of its
+  // own. Returns null for anything it cannot say honestly: a demo card, a
+  // question below the floor, a breakdown with nothing surprising in it.
+  window.feedInsight = function feedInsight(q) {
+    if (!q || !q.live || !q.options || q.options.length < 2) return null;
+    const L = window.LIVE;
+    const agg = L && L.enabled && L.aggFor ? L.aggFor(q.id) : null;
+    const by = agg && agg.by;
+    if (!by || agg.tooSmall !== false) return null;
+
+    const counts = q.options.map((o) => o.count || 0);
+    const roomTotal = counts.reduce((a, b) => a + b, 0);
+    if (!roomTotal) return null;
+    const roomPct = counts.map((c) => (c / roomTotal) * 100);
+    const roomWin = roomPct.indexOf(Math.max(...roomPct));
+
+    let best = null;
+    for (const dim of Object.keys(by)) {
+      const buckets = by[dim] || {};
+      for (const bucket of Object.keys(buckets)) {
+        const cell = buckets[bucket];
+        const n = Object.keys(cell).reduce((a, k) => a + cell[k], 0);
+        if (!n) continue;
+        const pct = q.options.map((_, i) => ((cell[String(i)] || 0) / n) * 100);
+        const win = pct.indexOf(Math.max(...pct));
+        // a flip — this cohort's winner is not the room's — outranks a lean,
+        // however wide the lean is: "X flips to Y" is the more surprising fact
+        const flip = win !== roomWin;
+        const gap = Math.abs(pct[win] - roomPct[win]);
+        if (!flip && gap < MIN_GAP) continue;
+        const score = (flip ? 1000 : 0) + gap;
+        if (!best || score > best.score) {
+          best = { score, dim, group: bucket, kind: flip ? 'flip' : 'lean', sideIdx: win, pct: Math.round(pct[win]) };
+        }
+      }
+    }
+    if (!best) return null;
+    // City and country are stored canonically ("Oslo, NO", "NO") so one
+    // cohort is one key worldwide; they read as names only after PLACES
+    // turns them back (D9).
+    const P = window.PLACES;
+    let label = best.group;
+    if (P) {
+      if (best.dim === 'country') label = P.countryName(best.group);
+      else if (best.dim === 'city') { const pl = P.parse(best.group); if (pl) label = pl.name; }
+    }
+    return { kind: best.kind, group: label, sideIdx: best.sideIdx, pct: best.pct, dim: best.dim };
   };
 })();
