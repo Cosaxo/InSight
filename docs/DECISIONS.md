@@ -885,3 +885,24 @@ publish the split geometrically on a card sitting below the k-floor —
 the same disclosure as the numeral, in a different alphabet. Both the
 fill and the numeral are therefore gated on one `shares` predicate that
 includes `!(q.live && q.tooSmall)`.
+
+### The Mirror's scale was the same miss again
+
+The population picker was still the old two-level control: five stops
+(You · Circle · Groups · Near · World) with the three world zooms hidden
+in a second pill row inside the hero. v14 flattened them onto one
+graduated axis of seven — the zooms are stops on the same telescope, so
+they belong on the same telescope — leaving the Mirror with exactly two
+levels, WHO and WHAT, instead of three.
+
+Ported, with D9 preserved on the new axis rather than on the deleted
+control: **live mode drops the City stop**, because Near IS your city
+there, and two stops resolving to one cohort is how a scale starts lying
+about what it measures. `WorldZoomControl` is deleted — keeping it would
+offer the same choice twice.
+
+One edge case the flattening creates, and its fix: a session that
+persisted `worldZoom: 'city'` and then goes live lands on a stop the axis
+no longer draws, leaving nothing selected. `MirrorTab` resolves city →
+country once, for the axis and the panel together. Verified by parking on
+City, flipping to live, and confirming Country comes up selected.
