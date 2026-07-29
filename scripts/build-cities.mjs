@@ -1,0 +1,175 @@
+// Generates public/cities.txt — the offline city catalogue behind the
+// profile's city picker (D9).
+//
+// WHY A GENERATED, COMMITTED ARTIFACT rather than a runtime dependency:
+// `all-the-cities` is ~10 MB of JSON for 135k places. We need 11k of them
+// and three fields each, so the package is a devDependency used once, here,
+// and never reaches a bundle. The output is committed so a clean checkout
+// builds without it — `npm run check:cities` re-runs this and fails if the
+// committed file drifts.
+//
+// WHY A .txt ASSET rather than a module: the catalogue is data, not code.
+// Shipped as JS it would be parsed and evaluated on every cold start, which
+// is exactly the cost check-bundle exists to bound. As a static asset it is
+// fetched once, on first open of the picker, and never touched otherwise.
+// It still ships *inside* the native package, so there is no network call.
+//
+// Data: GeoNames (https://www.geonames.org), CC BY 4.0, via the
+// `all-the-cities` package (MIT). Attribution ships in the file header and
+// in the privacy/terms pages.
+import { createRequire } from "node:module";
+import { writeFileSync } from "node:fs";
+import { resolve, dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+import { gzipSync } from "node:zlib";
+
+const require = createRequire(import.meta.url);
+const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
+const OUT = join(root, "public", "cities.txt");
+
+// Every place at or above this population, PLUS every national capital
+// (PPLC) and first-order administrative capital (PPLA) regardless of size.
+// Population alone leaves 30-odd small countries with no entry at all,
+// which reads as "your country is not supported".
+const MIN_POP = 50000;
+const ALWAYS = new Set(["PPLC", "PPLA"]);
+
+let all;
+try {
+  all = require("all-the-cities");
+} catch {
+  console.error(
+    "build-cities: `all-the-cities` is not installed.\n" +
+      "It is a devDependency used only by this script:\n" +
+      "  npm i --no-save all-the-cities@3.1.0",
+  );
+  process.exit(1);
+}
+
+const picked = all.filter(
+  (c) => c.population >= MIN_POP || ALWAYS.has(c.featureCode),
+);
+
+// Make every name usable as a Firestore map key.
+//
+// breakdownBucket() in functions/src/pure.ts rejects `. / [ ] * ~` because
+// they are field-path syntax. 29 real places carry one — "St. John's",
+// "Sault Ste. Marie", "Gasteiz / Vitoria", the Budapest districts. Offering
+// them in the picker and then dropping them from every breakdown is the
+// worst of the options, and deleting Canadian cities to satisfy a Firestore
+// escaping rule is the second worst. So the period goes and the slash
+// becomes a dash, which is what a person would write anyway.
+//
+// Length is preserved or reduced, so this cannot push a name past the cap.
+function sanitize(name) {
+  return name
+    .replace(/\//g, "-")
+    .replace(/[.[\]*~]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+for (const c of picked) c.name = sanitize(c.name);
+
+// Merge same-name-same-country entries into one, keeping the largest.
+//
+// 99 of the 11,041 picked places (0.9%) share a name with another place in
+// the same country; 90 of those pairs sit in different admin regions. The
+// alternative to merging is disambiguating in the label, and the only
+// disambiguator this dataset carries is GeoNames' numeric admin code —
+// "Springfield (25)" means nothing to a human. So the cohort is "a place
+// called X in country Y", the two Springfields share a bucket, and that is
+// written down here rather than discovered later. Revisit if we ever ship
+// admin1CodesASCII alongside.
+const byKey = new Map();
+for (const c of picked) {
+  const key = `${c.country} ${c.name}`;
+  const prev = byKey.get(key);
+  if (!prev || c.population > prev.population) byKey.set(key, c);
+}
+const cities = [...byKey.values()];
+
+// A tab, newline or leading "#" would corrupt the format itself. Nothing in
+// the dataset does this today, so it is a hard failure rather than a filter:
+// if it ever starts happening the format needs fixing, not the data hiding.
+const malformed = cities.filter(
+  (c) => /[\t\n\r]/.test(c.name) || c.name.startsWith("#"),
+);
+if (malformed.length) {
+  console.error(
+    `build-cities: ${malformed.length} name(s) would corrupt the file format, e.g. ` +
+      JSON.stringify(malformed.slice(0, 5).map((c) => c.name)),
+  );
+  process.exit(1);
+}
+
+// Length is a different problem. The breakdown bucket key is `Name, CC`
+// (see src/v2/data/places.ts), and functions/src/pure.ts caps a bucket key
+// at BREAKDOWN_MAX_LABEL = 40 chars — so a name over 36 could be picked in
+// the profile and then silently vanish from every breakdown it should have
+// counted toward. Better to not offer it.
+//
+// As of the GeoNames snapshot behind all-the-cities@3.1.0 that is exactly
+// ONE place: "Dolores Hidalgo Cuna de la Independencia Nacional" (MX, 59k),
+// which carries no altName to fall back on. Anyone there picks a neighbour.
+// Printed on every build so the number stays visible if it grows.
+const MAX_NAME = 40 - ", CC".length;
+const tooLong = cities.filter((c) => c.name.length > MAX_NAME);
+const usable = cities.filter((c) => c.name.length <= MAX_NAME);
+if (tooLong.length) {
+  console.warn(
+    `build-cities: dropped ${tooLong.length} place(s) whose name exceeds ${MAX_NAME} chars ` +
+      `and so could not be a breakdown bucket: ` +
+      tooLong.map((c) => `${c.name} (${c.country})`).join("; "),
+  );
+}
+cities.length = 0;
+cities.push(...usable);
+
+// Grouped by country, largest first within each. Grouping is not cosmetic:
+// it puts similar strings next to each other, which is most of why the file
+// gzips to a third of its size. Largest-first means the picker's own order
+// is the file's order — no sort at runtime.
+cities.sort((a, b) =>
+  a.country < b.country ? -1
+  : a.country > b.country ? 1
+  : b.population - a.population,
+);
+
+const countries = new Set(cities.map((c) => c.country));
+// Coordinates at 2 decimal places — ~1.1 km, which is far finer than the
+// question being asked ("which of these 11k cities is closest?"). Full
+// GeoNames precision would add ~45 KB to say nothing new, and shipping
+// more precision than a feature needs is its own small bad habit.
+const COORD_DP = 2;
+const round2 = (n) => Number(n.toFixed(COORD_DP));
+
+const lines = [
+  "# InSight city catalogue — GENERATED by scripts/build-cities.mjs, do not edit.",
+  "# Source: GeoNames (https://www.geonames.org), CC BY 4.0.",
+  `# ${cities.length} places in ${countries.size} countries: population >= ${MIN_POP}, plus every national and admin capital.`,
+  "# Format: a bare ISO 3166-1 alpha-2 code opens a country block;",
+  "# every following tab-bearing line is",
+  "# `name<TAB>population-in-thousands<TAB>lat<TAB>lon`.",
+  "#",
+  "# The coordinates exist so the device can answer 'which city am I nearest?'",
+  "# WITHOUT asking a server. They are read-only reference data about places,",
+  "# not about people: no user coordinate is ever transmitted or stored.",
+];
+let cur = null;
+for (const c of cities) {
+  if (c.country !== cur) {
+    cur = c.country;
+    lines.push(cur);
+  }
+  const [lon, lat] = c.loc.coordinates;
+  lines.push(
+    `${c.name}\t${Math.max(1, Math.round(c.population / 1000))}\t${round2(lat)}\t${round2(lon)}`,
+  );
+}
+const text = lines.join("\n") + "\n";
+
+writeFileSync(OUT, text);
+console.log(
+  `build-cities: wrote ${cities.length} places in ${countries.size} countries — ` +
+    `${(text.length / 1024).toFixed(0)} KB raw, ${(gzipSync(text).length / 1024).toFixed(0)} KB gzipped`,
+);

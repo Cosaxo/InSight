@@ -21,6 +21,9 @@
     "test:e2e": "firebase emulators:exec --only auth,firestore,functions --project demo-insight \"node firestore-tests/e2e-v2-loop.mjs\"",
     "test:e2e:erasure": "firebase emulators:exec --only auth,firestore,functions --project demo-insight \"node firestore-tests/e2e-delete-account.mjs\"",
     "check:globals": "node scripts/check-spec-globals.mjs",
+    "check:cities": "node scripts/check-cities.mjs",
+    "check:ios-spm": "node scripts/check-ios-spm.mjs",
+    "build:cities": "node scripts/build-cities.mjs",
     "check:deploy-targets": "node scripts/check-deploy-targets.mjs",
     "check:bundle": "node scripts/check-bundle.mjs",
     "check:fn-runtime": "node scripts/check-fn-runtime.mjs",
@@ -29,15 +32,17 @@
     "test:unit": "vitest run --dir src"
   },
   "dependencies": {
-    "@capacitor-firebase/app-check": "^8.2.0",
     "@capacitor-firebase/authentication": "^8.2.0",
+    "@capacitor/app": "^8.1.1",
     "@capacitor/core": "^8.3.3",
+    "@capacitor/geolocation": "^8.2.0",
     "@capacitor/keyboard": "^8.0.3",
     "@capacitor/push-notifications": "^8.1.2",
     "@capacitor/splash-screen": "^8.0.1",
     "@capacitor/status-bar": "^8.0.2",
     "@sentry/capacitor": "^4.2.0",
     "@sentry/react": "10.60.0",
+    "capacitor-firebase-app-check": "npm:@capacitor-firebase/app-check@^8.3.0",
     "firebase": "^12.13.0",
     "react": "^19.2.4",
     "react-dom": "^19.2.4"

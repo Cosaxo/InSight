@@ -23,6 +23,19 @@ itself), not fabricated activity.
 
 ## D2 · "Near" means geohash5 (~5 km), reusing the existing geo system
 
+> **Superseded for the Near population by [D9](#d9--near-is-your-city--picked-from-a-list-or-located-on-the-device)
+> (2026-07-29).** Near is now the viewer's city, from the same k-floored
+> aggregates as everything else. The analysis below stands as the record of
+> what the *geohash* route would have cost; nothing in it was ever built end
+> to end, and it was not revived.
+>
+> **The 2026-07-28 amendment below is now a historical snapshot, not a
+> description of the app.** It inventories the absence of every location
+> API; D9's own amendment added an optional, coarse, on-device one. Points
+> 1, 2 and 4 of "what turning Near on would cost" were paid. Point 3 —
+> reopening `insight_discoverable` — was not, and remains the reason the
+> geohash Near stays dead.
+
 **Decision.** The Mirror's Near population is the ~5 km geohash5 cell
 system already implemented (`insight_discoverable`, `aggregates_by_geohash5`,
 k-anonymity floor). City and country are zoom stops of the World population
@@ -31,6 +44,50 @@ driven by profile anchors, not by location.
 **Why.** The prototype telescopes Near (5 km) separately from City/Country/
 Globe. Location-based Near already has a deployed, k-anonymous, tested
 implementation; anchor-based city/country need none of that machinery.
+
+**Amendment (2026-07-28) — the geohash half was never wired into v2, and
+the app collects no location at all.** This record reads as though Near is
+live. It is not, and the gap is total rather than partial:
+
+- No location is ever requested. There is no `navigator.geolocation` call,
+  no `@capacitor/geolocation` dependency, no `ACCESS_COARSE_LOCATION` or
+  `ACCESS_FINE_LOCATION` in the Android manifest, and no `NSLocation*` key
+  in `Info.plist`. Even if code asked, the OS would refuse — the purpose
+  strings a prompt requires do not exist.
+- The rollup still exists and is still deployed: `functions/src/index.ts`
+  buckets `insight_discoverable.geohash` into `aggregates_by_geohash5`
+  with a k-anonymity floor. But **nothing writes `insight_discoverable`
+  any more.** The v1 client that did was deleted under D4; the only
+  reference left in the functions is `deleteAccount` removing the doc.
+  The aggregator walks a collection that no longer grows.
+- So the Mirror's Near population renders from sample data, and says so:
+  "Preview · sample people until there's live data here"
+  (`mirror-tab.jsx`).
+
+City and country are therefore **typed by the user** in the profile's
+Basics card (D8), not derived from where they are. That is why the store
+privacy labels answer Location: none — and the answer is accurate today.
+
+**What turning Near on would actually cost**, so this is a decision rather
+than an oversight:
+
+1. `@capacitor/geolocation`, plus purpose strings and a runtime permission
+   prompt on both platforms.
+2. Computing the geohash5 cell **on the device** and sending only the
+   cell — never raw coordinates.
+3. Writing `insight_discoverable` again, which means **reopening the
+   collection D4 deliberately closed.** That is the one that held a Big
+   Five vector, political coordinates, age, gender, country, a free-text
+   bio and a ~5 km cell keyed by uid, readable by any signed-in user under
+   anonymous-first auth. Re-introducing it means re-introducing its rules
+   *and* its tests, and `firestore.rules.v1-archive` lists the gaps to fix
+   first.
+4. Store privacy labels change from "no location" to coarse location, and
+   the permission prompt becomes something a user can decline — so Near
+   has to degrade gracefully rather than break.
+
+Steps 1-2 are an afternoon. Step 3 is the real cost, and it trades away a
+guarantee the product currently makes for free.
 
 ## D3 · Anonymous-first auth with account linking
 
@@ -136,6 +193,36 @@ The cost is real: a question now shows nothing until its 5th answer and
 then moves in steps of 5, so a small room feels less live. That is the
 trade — an attributable count is worse than a lagging one in an app whose
 claim is that its counts are honest and its floors are enforced.
+
+**A daily "settle publish" was considered and rejected.** The obvious
+complaint about the uniform cadence is the window it creates: with 6-9
+answers the public document sits at 5 and does not move, which a small
+pilot group reads as broken. The proposed fix was a scheduled function
+publishing the exact total once a day.
+
+It does not work, and the arithmetic says why. A settle publishes a step
+equal to `total - lastPublished`, which is 1 to 4 answers:
+
+| answers | last published | the settle step would expose |
+| --- | --- | --- |
+| 6 | 5 | **1 vote — fully attributable** |
+| 7 | 5 | **2 votes** |
+| 12 | 10 | **2 votes** |
+| 1004 | 1000 | 4 votes, mixed into 1004 |
+
+So it reintroduces exactly the channel this amendment removed, and it does
+so *worst at the sizes where it was supposed to help*. Where it is safe —
+thousands of answers — the ≤4 lag it would correct is already invisible.
+Unsafe where it helps, pointless where it is safe.
+
+**What was done instead is a UI change, not a backend one.** The published
+count is a lower bound, so live surfaces now say so: the daily reads
+"5+ votes" and the breakdown sheet says counts move in steps of five.
+That is simply accurate — printing a batched figure as exact was the real
+inaccuracy — and it costs no new function, no new schedule and no new
+failure mode. The remaining cost is that a pilot smaller than ten sees a
+number that rarely moves, which is a reason to invite ten people rather
+than a reason to weaken the floor.
 
 The moment this needs revisiting: when a single question regularly clears
 a few thousand answers a day, or when `onV2AnswerCreated` starts logging
@@ -315,6 +402,14 @@ true historical membership) or deleting them.
 
 ## D8 · Per-anchor breakdowns are built; collecting the anchors is not
 
+> **Amended by [D9](#d9--near-is-your-city--picked-from-a-list-or-located-on-the-device)
+> (2026-07-29).** Two things below are now out of date. The recommendation
+> "country, not city" is reversed — `city` is in `BREAKDOWN_DIMS`, because
+> it is no longer free text. And `country`, which this record treated as
+> the safe choice, shipped as free text and therefore published **nothing**
+> for as long as it existed: "Norway" / "norway" / "NO" were three
+> sub-floor cohorts. D9 has the arithmetic.
+
 **Decision.** The aggregation that answers "how did every kind of person
 split?" ships now, dimension-agnostic and with its own k-anonymity floor.
 Whether InSight ever *asks* a user for their age band, gender or country is
@@ -402,3 +497,295 @@ extension is configured in `firebase.json`, `DEPLOYMENT.md` or
 `SHIP-CHECKLIST.md`; `grep -ri bigquery` across the repo returns nothing.
 That line described the intended offline-analytics path for anchors and read
 as deployed infrastructure. It now says what is true.
+
+---
+
+## D9 · Near is your city — picked from a list, or located on the device
+
+> **Amended the same day (2026-07-29), and the guarantee changed.** As first
+> written this record chose a manual picker *specifically to avoid asking
+> for location*, and said so: "no device location is requested or inferred,
+> so the store label stays Location: None". The product owner then asked for
+> location-based detection. It is built, and the honest consequences are in
+> **[Amendment: optional device location](#amendment-optional-device-location-2026-07-29)**
+> at the end of this record. Everything between here and there is the
+> original reasoning, which still explains why the *city* is the unit and
+> why the geohash Near was not revived — but any sentence below claiming
+> the app never asks for location is now false. The store label is Coarse
+> Location.
+
+
+**Decision.** The Mirror's Near population is the city the user **picks from
+a fixed catalogue** in their profile, and it renders the same k-floored
+public aggregates as everything else — counts, never people. `city` is a
+canonical key (`"Oslo, NO"`) and joins `BREAKDOWN_DIMS`; `country` becomes
+the ISO code derived from that key rather than free text. No device location
+is requested or inferred, so the store label stays Location: None and the
+privacy panel's "no GPS, no IP lookup" stays true.
+
+This supersedes the Near half of D2. D8's recommendation of "country, not
+city" is superseded too, for the reason in *Why a city is now safe* below.
+
+### Why this rather than the geohash Near
+
+D2 priced the geohash route at "an afternoon plus reopening
+`insight_discoverable`". Two facts found while implementing this make that
+price much worse than recorded, and both were verified rather than reasoned
+about:
+
+- **The floor is 20, not 5.** `functions/src/index.ts:45` sets
+  `K_ANON_FLOOR = 20` for the geo aggregates. Near would need 20 users
+  inside one ~5 km cell before rendering anything at all. The city path
+  reuses `AGG_MIN_N = 5`.
+- **The geohash aggregator has almost certainly never produced a cell.**
+  `index.ts:239` reads `disc.geohash` — a top-level field — while the v1
+  writer wrote it nested under `location.geohash`
+  (`firestore.rules.v1-archive:135`). So the "deployed, tested
+  implementation" D2 leaned on was not merely unwired; the half that was
+  wired was reading the wrong path.
+
+So Near was not a feature awaiting a client. Finishing it meant reopening a
+collection D4 deliberately closed, adding a permission prompt, changing both
+store privacy labels, *and* fixing a latent field-path bug — to reach a
+20-per-5 km floor most cities would not clear for a long time.
+
+### Why a city is now safe when D8 said it was not
+
+D8 recommended "country, not city" and `pure.ts` excluded `city` from
+`BREAKDOWN_DIMS`, both because it was free text: "every distinct spelling
+would mint a key forever". That reasoning was right about free text and
+wrong about cities — the fix is to stop the field being free text.
+
+It also missed that **`country` was already in `BREAKDOWN_DIMS` as free
+text** and had been since D8 shipped. "Norway", "norway" and "NO" were three
+cohorts, each below the 5-person floor, each suppressed. The country
+breakdown has been publishing nothing at all. That is fixed here, and it is
+the largest single correction in this change.
+
+### The catalogue, and its arithmetic
+
+`public/cities.txt`, generated by `scripts/build-cities.mjs` from GeoNames
+(CC BY 4.0, via `all-the-cities`, MIT) and validated by
+`scripts/check-cities.mjs` in CI:
+
+| | |
+| --- | --- |
+| Places | 10,929 |
+| Countries | 245 of 246 |
+| Rule | population ≥ 50,000, plus every national and admin capital |
+| Size | 139 KB raw, 76 KB gzipped |
+| Cost at cold start | zero — fetched on first open of the picker |
+
+Known limits, recorded rather than discovered later:
+
+- **99 name collisions merge (0.9%).** Two places sharing a name within one
+  country become one cohort; 90 of the 99 pairs are in different admin
+  regions. The only disambiguator the dataset carries is GeoNames' numeric
+  admin code, and "Springfield (25)" means nothing to a reader. Revisit if
+  `admin1CodesASCII` ever ships alongside.
+- **One place is dropped.** "Dolores Hidalgo Cuna de la Independencia
+  Nacional" (MX, 59k) is 49 characters with no `altName`, and the bucket key
+  `Name, CC` must fit `BREAKDOWN_MAX_LABEL` = 40. The build prints it every
+  run so the count stays visible if it grows.
+- **29 names are normalised.** `.` and `/` are field-path syntax that
+  `breakdownBucket()` rejects, so "St. John's" becomes "St John's" and
+  "Gasteiz / Vitoria" becomes "Gasteiz - Vitoria". Offering a city in the
+  picker and then dropping it from every breakdown is the worse failure.
+- **The 24-bucket cap bites hardest here.** A global question can touch far
+  more than 24 cities; the long tail degrades rather than the dimension
+  freezing. `city` is the first dimension where that is a routine outcome
+  rather than a theoretical one.
+- **Pre-D9 profiles hold free text** ("oslo"). It does not parse, so those
+  users see their old value with a prompt to re-pick and contribute no
+  city or country cohort until they do. Their profile is not silently
+  blanked.
+
+### One thing the server now enforces that it did not before
+
+`breakdownBucket()` takes the dimension and shape-checks `city` and
+`country` against their vocabularies. Anchors are written by the **client**
+onto its own answer document, and `firestore.rules` can only cap their
+length — so before this, anyone could send 24 nonsense cities and, because
+the bucket cap is first-come-first-served, blank the city dimension for
+every other user of that question. That is closed, with a test.
+
+### What Near deliberately does not show
+
+People. Not names, not avatars, not "someone near you also said". D5 keeps
+the client out of every other user's documents and the aggregates carry
+only counts. The six named neighbours the prototype showed
+(`sample-data.js`) were never real and are gone from live mode; a field of
+strangers would be sample data wearing a live badge, which is the thing
+this replaces.
+
+### Still open
+
+Removing sample people from the **other** Mirror populations (Circle,
+Groups, World) — they still render seeded names behind the "Preview ·
+sample people" badge that D1 requires. Near is done; the rest is tracked
+separately.
+
+### Sample people in the rest of the Mirror (2026-07-29)
+
+Near was one of five Mirror populations. Where the others stand in live
+mode, so the remaining work is a list rather than a discovery:
+
+| Population | Real backend | Live behaviour now |
+| --- | --- | --- |
+| You | the viewer's own profile | real |
+| Circle | **none** — v2 has no person-to-person graph at all | honest empty state pointing at groups |
+| Groups | `LIVE.social.groups()` exists | **still sample** — see below |
+| Near | city breakdown, floor 5 | real |
+| World | country breakdown + overall totals | real |
+
+`GroupsMirrorBody` is the one left. It reads `window.DUELS` (duels-data.js),
+which is entirely local: group definitions live in `localStorage` and its
+members are the 49 seeded people in `relmap-core.js`. The live group path
+(`LIVE.social.groups()`, `revealFor`) exists and is used by the daily's
+group card, but the Mirror's group portrait — alignment %, togetherness,
+contrarian/twin, the per-member field — is computed from `DUELS`'s local
+history and has no live equivalent. Rewiring it is a real piece of work,
+not a routing change, because the *statistics* need a server-side source
+that reveals alone do not provide.
+
+**World's City zoom stop is gone in live mode.** After this change Near IS
+your city, and keeping the stop would be the same panel behind two chips.
+The demo path keeps all three, since its city view is a different (mock)
+thing entirely.
+
+### Amendment: optional device location (2026-07-29)
+
+**Decision.** The profile's city field gains an optional **"Use my
+location"**: one coarse fix, resolved to a catalogue city **on the device**,
+coordinate discarded. The manual picker stays and is the fallback for every
+failure path. Requested by the product owner after the picker shipped.
+
+**What is actually collected.** A city name — `"Oslo, NO"`, the same string
+the manual picker produces. `src/v2/data/locate.ts` is the only module that
+ever holds a coordinate: `locateCity()` returns a catalogue **key** and a
+rounded distance, never a position, so no caller can obtain one even by
+accident. Nothing writes latitude or longitude to Firestore, to
+localStorage, or to Sentry. The most precise location this system can hold
+about a person is the name of a city, by construction rather than by
+policy — which is the property that makes the privacy copy checkable.
+
+**Precision is capped at both ends, deliberately.**
+
+| | |
+| --- | --- |
+| iOS | `NSLocationDefaultAccuracyReduced = true`; no `requestTemporaryFullAccuracy` call exists anywhere |
+| Android 12+ | `ACCESS_COARSE_LOCATION` only — FINE is capped at `maxSdkVersion="30"` and cannot be held |
+| Android 7–11 | FINE is declared, and the reason is below |
+| Catalogue | coordinates stored at 2dp (~1.1 km), so a finer fix could not change which city wins |
+
+The Android 7–11 exception is not a compromise anyone chose. Capacitor's
+plugin selects its permission alias by OS version: on API 31+ with
+`enableHighAccuracy: false` it requests COARSE alone, but below 31 it
+requests the alias `[COARSE, FINE]` — and Capacitor's Bridge resolves a
+multi-string alias as *all granted or none*
+(`Bridge.getPermissionStates`: "multiple permissions with the same alias
+must all be true, otherwise all false"). With COARSE alone declared, that
+alias can never reach GRANTED on API 24–30: the prompt appears, the user
+accepts, the call still fails, permanently. The WebView's own
+`navigator.geolocation` path has the identical check. So FINE is declared
+with `maxSdkVersion="30"`, confining it to the versions that structurally
+require it — and to the versions that never offered the user an
+Approximate/Precise choice in the first place. It goes away when minSdk
+reaches 31.
+
+**Store labels change, and the old justification is dead.**
+`docs/SHIP-CHECKLIST.md` said "Location: **None** — city/country are
+user-entered, not location". That argument does not survive a GPS button.
+The row is now **Coarse Location, linked, App functionality** — declared
+even though no coordinate is transmitted, because a city name is still
+coarse location data and under-declaring is the direction that gets an app
+pulled. Precise is **not** ticked, and the table above is why.
+
+**A hang found by running it rather than reasoning about it.** The first
+implementation set `PositionOptions.timeout = 12000` and assumed that
+bounded the operation. It does not: the Geolocation spec excludes the time
+spent acquiring permission from that timeout, so a prompt dismissed without
+an answer leaves `getCurrentPosition` pending **forever**. In a browser the
+button sat on "Finding your nearest city…" past 14 seconds. There is now a
+wall-clock deadline over the whole operation, permission included. All four
+failure paths — denied, unavailable, timeout, unsupported — were driven in
+a real browser and each returns to a usable picker with its own message;
+"we couldn't find you" after a deliberate refusal reads as broken software,
+so a refusal says "No problem — search for your city instead."
+
+**What did NOT change.** No reverse-geocoding service and no network call:
+the answer comes from the bundled catalogue, offline. No background or
+continuous location, no location history, no IP-based lookup. Location is
+never requested until the button is tapped, and declining leaves the app
+fully functional. `insight_discoverable` stays closed (D4) — this amendment
+does not revive the geohash system, and the analysis above for why that
+system was not worth reviving is unaffected.
+
+---
+
+## D10 · @capacitor-firebase/app-check is installed under an npm alias
+
+**Decision.** `package.json` installs `@capacitor-firebase/app-check` under
+the alias `capacitor-firebase-app-check`, so it lands in
+`node_modules/capacitor-firebase-app-check` rather than at its scoped path.
+One import in `src/lib/appcheck.ts` uses the alias.
+`npm run check:ios-spm` enforces all of it.
+
+**Why.** The iOS build could not resolve its dependencies at all:
+
+```
+error: Could not resolve package dependencies:
+  product 'AppCheckCore' required by package 'googlesignin-ios'
+  target 'GoogleSignIn' not found in package 'app-check'.
+Conflicting identity for app-check: dependency 'github.com/google/app-check'
+  and dependency '…/node_modules/@capacitor-firebase/app-check' both point
+  to the same package identity 'app-check'.
+```
+
+SwiftPM derives a package's **identity from the last component of its
+path**. Two packages resolve to `app-check`:
+
+| Package | Comes from | Identity |
+| --- | --- | --- |
+| `@capacitor-firebase/app-check` | direct dependency, local path | `app-check` |
+| `github.com/google/app-check` | GoogleSignIn ← `@capacitor-firebase/authentication` | `app-check` |
+
+SwiftPM prefers the local package, so `GoogleSignIn` looks for its
+`AppCheckCore` product inside the Capacitor plugin, which has no such
+product, and resolution fails before anything compiles. Renaming the install
+directory renames the identity, and the two packages stop colliding.
+Nothing about either package changes.
+
+### What was rejected, and why the alias won
+
+| Option | Cost |
+| --- | --- |
+| **npm alias** ✅ | One odd-looking import, one guard script. No feature lost. |
+| Migrate iOS to CocoaPods | A native project migration and a CI rewrite, to work around a naming rule. |
+| Drop `@capacitor-firebase/app-check` | Loses native App Check attestation — D3 makes it the only control between the public surface and unlimited free anonymous accounts. |
+| Drop native Google sign-in | Removes GoogleSignIn and the collision, but D6 turned Android backup off, which makes linking Google the only way an anonymous session survives a lost phone. |
+| Hand-edit `ios/App/CapApp-SPM/Package.swift` | The file says `DO NOT MODIFY THIS FILE - managed by Capacitor CLI`; `cap sync` reverts it and `native-sync-drift` reports it. |
+| Bump the plugin version | Cannot help. The identity comes from the package *name*, which is the same at every version. |
+
+### The trap this leaves behind
+
+The alias is invisible everywhere except one import line, and the obvious
+tidy-up — reinstalling the package under its real scoped name — silently
+reverts it. The resulting failure is a macOS-only CI job whose error message
+mentions neither `package.json` nor the alias.
+
+So `scripts/check-ios-spm.mjs` asserts three things on every PR, on Linux,
+in under a second: the alias is declared and points at the real package, the
+scoped name is *not* a direct dependency, the generated `Package.swift`
+references the aliased path, and no source file imports the scoped name.
+Both regressions were tested by performing them.
+
+### Delete this when
+
+Either `@capacitor-firebase/app-check` renames its published package, or
+SwiftPM gains per-dependency identity overrides. Verify by reverting the
+alias and watching the iOS job: if it stays green, D10 is obsolete and the
+guard should go with it.
+
+**Note.** The alias install moved the plugin from 8.2.0 to 8.3.0 — a minor
+bump taken incidentally, not a deliberate upgrade.

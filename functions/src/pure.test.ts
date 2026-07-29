@@ -283,16 +283,24 @@ describe("slugifyCity", () => {
 });
 
 describe("per-anchor breakdowns", () => {
+  // Since D9 the client sends the canonical catalogue key for `city` and
+  // the ISO code (derived from it, never typed) for `country`.
   const anchors = (over: Record<string, unknown> = {}) => ({
-    ageBand: "25-34", gender: "Women", country: "Norway", ...over,
+    ageBand: "25-34", gender: "Women", country: "NO", ...over,
   });
 
-  it("folds only the low-cardinality anchors, and ignores junk buckets", () => {
+  it("folds the closed-vocabulary anchors, and ignores junk buckets", () => {
     const by = {};
-    foldAnchors(by, anchors({ city: "Oslo", profession: "Carpenter" }), 1);
-    // city and profession are free text — they must never mint keys
-    expect(Object.keys(by).sort()).toEqual(["ageBand", "country", "gender"]);
-    expect(by).toMatchObject({ ageBand: { "25-34": { "1": 1 } } });
+    foldAnchors(by, anchors({ city: "Oslo, NO", profession: "Carpenter" }), 1);
+    // `profession` is still free text up to 80 chars and must never mint a
+    // key. `city` may, since D9 — it comes from a fixed catalogue whose
+    // every entry check-cities.mjs verifies against these same rules.
+    expect(Object.keys(by).sort()).toEqual(["ageBand", "city", "country", "gender"]);
+    expect(by).toMatchObject({
+      ageBand: { "25-34": { "1": 1 } },
+      city: { "Oslo, NO": { "1": 1 } },
+      country: { NO: { "1": 1 } },
+    });
 
     // empty, over-long and field-path-hostile values are skipped, not stored
     const junk = {};
@@ -302,17 +310,57 @@ describe("per-anchor breakdowns", () => {
     expect(breakdownBucket(42)).toBeNull();
   });
 
+  it("refuses city and country values outside their vocabulary shape", () => {
+    // Anchors are written by the client onto its own answer doc and
+    // firestore.rules can only cap their length, so the bucket cap is
+    // reachable by anyone willing to send 24 junk cities. Without the shape
+    // check that blanks the dimension for every other user of the question.
+    const by = {};
+    for (const bad of ["oslo", "Oslo, Norway", "Oslo,NO", "Oslo, no", "OSLO"]) {
+      foldAnchors(by, { city: bad, country: bad }, 0);
+    }
+    expect(by).toEqual({});
+
+    // …and the canonical forms still land.
+    foldAnchors(by, { city: "Oslo, NO", country: "NO" }, 0);
+    expect(Object.keys(by).sort()).toEqual(["city", "country"]);
+
+    // A city name may itself contain a comma; the shape anchors on the tail.
+    expect(breakdownBucket("Washington, D C, US", "city")).toBe("Washington, D C, US");
+    // The dim is optional, and without it the check does not apply — the
+    // other five dimensions still accept their own free-form labels.
+    expect(breakdownBucket("oslo")).toBe("oslo");
+    expect(breakdownBucket("Prefer not to say", "gender")).toBe("Prefer not to say");
+  });
+
   it("caps distinct buckets per dimension but keeps counting known ones", () => {
+    // `education` rather than `country`: the cap is what is under test, and
+    // country now carries an ISO-shape check that a synthetic "C37" fails
+    // for an unrelated reason.
     const by: Record<string, Record<string, Record<string, number>>> = {};
     for (let i = 0; i < BREAKDOWN_MAX_BUCKETS + 10; i++) {
-      foldAnchors(by, { country: "C" + i }, 0);
+      foldAnchors(by, { education: "E" + i }, 0);
     }
-    expect(Object.keys(by.country)).toHaveLength(BREAKDOWN_MAX_BUCKETS);
+    expect(Object.keys(by.education)).toHaveLength(BREAKDOWN_MAX_BUCKETS);
     // a bucket already known keeps incrementing even once the cap is hit
-    foldAnchors(by, { country: "C0" }, 0);
-    expect(by.country.C0["0"]).toBe(2);
+    foldAnchors(by, { education: "E0" }, 0);
+    expect(by.education.E0["0"]).toBe(2);
     // …and a new one past the cap is dropped rather than growing the doc
-    expect(by.country["C99"]).toBeUndefined();
+    expect(by.education["E99"]).toBeUndefined();
+  });
+
+  it("caps the city dimension too, using real catalogue keys", () => {
+    // The cap matters most here: a global question can touch far more than
+    // 24 cities, so this is the dimension that actually degrades in
+    // production rather than in a test.
+    const by: Record<string, Record<string, Record<string, number>>> = {};
+    for (let i = 0; i < BREAKDOWN_MAX_BUCKETS + 10; i++) {
+      foldAnchors(by, { city: `City${i}, NO` }, 0);
+    }
+    expect(Object.keys(by.city)).toHaveLength(BREAKDOWN_MAX_BUCKETS);
+    foldAnchors(by, { city: "City0, NO" }, 0);
+    expect(by.city["City0, NO"]["0"]).toBe(2);
+    expect(by.city["City30, NO"]).toBeUndefined();
   });
 
   it("suppresses cells below the floor", () => {

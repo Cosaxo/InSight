@@ -53,11 +53,22 @@ ok("daily bank: " + qsnap.size + " questions; first: \"" + q0.get("prompt").slic
 // 4 · vote (owner-only answer write, rules enforced end-to-end)
 const uid = cred.user.uid;
 // anchors ride along so the per-anchor breakdown (D8) is exercised too.
+//
 // Everyone shares a country on purpose — one bucket is a population
-// statement, not a split, so that dimension must never publish.
+// statement, not a split, so that dimension must never publish. The value
+// is the ISO code, not "Norway": since D9 the client derives it from the
+// picked city and breakdownBucket() rejects anything else. Sending free
+// text here would make the assertion below pass for the wrong reason —
+// the dimension would be dropped at fold time and never reach the
+// single-bucket rule it is meant to be testing.
+//
+// The city split is 5/5 across Oslo and Bergen by the end, so the
+// dimension D9 added is exercised through the whole pipeline rather than
+// only in the pure unit tests.
 await setDoc(doc(db, "v2_users", uid, "answers", q0.id), {
   qid: q0.id, surface: "daily", optionIdx: 1,
-  answeredAt: serverTimestamp(), anchors: { ageBand: "25-34", country: "Norway" },
+  answeredAt: serverTimestamp(),
+  anchors: { ageBand: "25-34", country: "NO", city: "Oslo, NO" },
 });
 ok("answer written: " + uid.slice(0, 8) + "/answers/" + q0.id);
 
@@ -91,7 +102,11 @@ for (let n = 0; n < 4; n++) {
   await setDoc(doc(vDb, "v2_users", u.user.uid, "answers", q0.id), {
     qid: q0.id, surface: "daily", optionIdx: n % 2,
     answeredAt: serverTimestamp(),
-    anchors: { ageBand: n % 2 === 0 ? "25-34" : "35-44", country: "Norway" },
+    anchors: {
+      ageBand: n % 2 === 0 ? "25-34" : "35-44",
+      country: "NO",
+      city: n < 2 ? "Oslo, NO" : "Bergen, NO",
+    },
   });
 }
 let above = null;
@@ -106,11 +121,17 @@ if (above.total !== 5 || above.counts["0"] !== 2 || above.counts["1"] !== 3)
   fail("counts wrong above floor: " + JSON.stringify(above));
 ok("above floor: exact public counts {0:2, 1:3}, total 5 — no double counting");
 
-// 7b · the breakdown's own floor (D8). At total 5 the age bands hold 3 and 2,
-// so BOTH are under AGG_MIN_N and the dimension must be absent — the question
-// being past the overall floor is not permission to slice it.
-if (above.by && above.by.ageBand)
-  fail("breakdown published a sub-floor cell: " + JSON.stringify(above.by));
+// 7b · the breakdown's own floor (D8). At total 5 the age bands hold 3 and 2
+// and the cities 3 and 2, so EVERY cell is under AGG_MIN_N and no dimension
+// may appear — the question being past the overall floor is not permission
+// to slice it. Country is a single bucket of 5: over the floor, but one
+// bucket is a population statement rather than a split, so it is withheld
+// by a different rule and must be absent too.
+//
+// Asserted across the whole map, not one named dimension: checking only
+// ageBand is how a newly added dimension leaks without failing anything.
+if (above.by && Object.keys(above.by).length)
+  fail("breakdown published while every cell is under the floor: " + JSON.stringify(above.by));
 ok("breakdown: no dimension published while every cell is under the floor");
 
 // 7c · five more voters push both bands over the floor. Two into 25-34 and
@@ -125,7 +146,11 @@ for (let m = 0; m < 5; m++) {
   await setDoc(doc(vDb, "v2_users", u.user.uid, "answers", q0.id), {
     qid: q0.id, surface: "daily", optionIdx: 0,
     answeredAt: serverTimestamp(),
-    anchors: { ageBand: m < 2 ? "25-34" : "35-44", country: "Norway" },
+    anchors: {
+      ageBand: m < 2 ? "25-34" : "35-44",
+      country: "NO",
+      city: m < 2 ? "Oslo, NO" : "Bergen, NO",
+    },
   });
 }
 let split = null;
@@ -144,7 +169,18 @@ if (bandTotal("25-34") !== 5 || bandTotal("35-44") !== 5)
   fail("age bucket totals wrong: " + JSON.stringify(split.by.ageBand));
 if (split.by.country)
   fail("a one-bucket dimension was published: " + JSON.stringify(split.by.country));
-ok("breakdown: ageBand 5/5 published exactly; single-bucket country withheld");
+
+// The dimension D9 added, through the real trigger rather than a unit test:
+// the canonical "Name, CC" key survives being a Firestore map key, and lands
+// 5/5 exactly like the age bands.
+if (!split.by.city) fail("city dimension missing at 5/5: " + JSON.stringify(split.by));
+const cities = Object.keys(split.by.city).sort();
+if (cities.length !== 2 || cities[0] !== "Bergen, NO" || cities[1] !== "Oslo, NO")
+  fail("wrong city buckets published: " + JSON.stringify(split.by.city));
+const cityTotal = (c) => Object.values(split.by.city[c]).reduce((a, x) => a + x, 0);
+if (cityTotal("Oslo, NO") !== 5 || cityTotal("Bergen, NO") !== 5)
+  fail("city bucket totals wrong: " + JSON.stringify(split.by.city));
+ok("breakdown: ageBand and city both 5/5; single-bucket country withheld");
 
 // 7d · the publish cadence itself. One more answer takes the private total to
 // 11, which is not a publishing multiple — so the PUBLIC doc must stay at 10.

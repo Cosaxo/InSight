@@ -120,7 +120,18 @@ function LivePrivacyPanel() {
           <li>Your answers are readable by you alone — enforced server-side.</li>
           <li>World stats show only combined counts, and only once ≥5 people answered.</li>
           <li>Group &amp; 1v1 answers stay sealed until the next day&apos;s reveal, then show with names — to members only.</li>
-          <li>No location is collected. No contacts. No comments from strangers.</li>
+          {/* This line has been rewritten twice, and the second time the
+              GUARANTEE changed rather than the wording. "No device
+              location, ever" was true until D9 added the optional
+              "Use my location" button. What survives is the part that
+              actually matters and is still enforced by construction: the
+              fix is resolved to a city in src/v2/data/locate.ts and the
+              coordinate is discarded there — it is never returned to a
+              caller, stored, or transmitted. Claiming "no location" now
+              would be false, so it does not. */}
+          <li>Location is optional and off until you ask for it. If you tap &ldquo;use my location&rdquo;, your phone works out the nearest city <em>on the device</em> and sends only that name — never your coordinates, which are never stored or transmitted. You can skip it and pick your city from a list instead, and your country follows from the city either way.</li>
+          <li>No IP-based location lookup, no background or continuous location, no location history.</li>
+          <li>No contacts. No comments from strangers. No ads, no tracking, no third-party analytics.</li>
         </ul>
         {/* Until now these pages shipped inside the bundle and were linked
             from nowhere — reachable only by knowing the filename. Both

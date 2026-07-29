@@ -67,10 +67,50 @@
          shown. push.ts requests it via PushNotifications. -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
-    <!-- That is the complete list. The app requests no camera, no photo
-         library and no location: the v1 surfaces that needed them were
-         removed in D4. (Three comment blocks describing those permissions
-         outlived the permissions themselves and are gone — a manifest that
-         appears to discuss camera and location is the wrong thing to hand
-         a privacy reviewer for an app that collects neither.) -->
+    <!-- COARSE only, and never FINE (D9). The single question this answers
+         is "which of 10,929 cities is nearest?", which coarse location
+         settles comfortably — the catalogue's own coordinates are stored to
+         2dp (~1.1 km), so a finer fix could not change the answer.
+         Requesting FINE would ask for street-level precision the app has no
+         use for, and Android would rightly show the user the stronger
+         prompt.
+
+         The fix is resolved to a city name ON THE DEVICE and then
+         discarded: no coordinate is transmitted or stored, and what leaves
+         the phone is "Oslo, NO" — the same string the manual picker
+         produces. See src/v2/data/places.ts (nearestPlace).
+
+         Optional in the product sense too: declining leaves the city picker
+         working exactly as before. -->
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+
+    <!-- FINE, capped at API 30, and this needs its reason on the record
+         because it looks like exactly the over-ask the block above refuses.
+
+         @capacitor/geolocation picks its permission alias by OS version
+         (GeolocationPlugin.kt, getAlias): on API 31+ with
+         enableHighAccuracy:false it requests COARSE alone, but below 31 it
+         requests the alias [COARSE, FINE] — and Capacitor's Bridge resolves
+         a multi-string alias as "all granted, or none"
+         (Bridge.getPermissionStates). With COARSE alone declared, that alias
+         can NEVER reach GRANTED on API 24-30: the prompt appears, the user
+         accepts, and the call still fails. Permanently. The WebView's own
+         navigator.geolocation path has the identical check
+         (BridgeWebChromeClient.onGeolocationPermissionsShowPrompt), so
+         there is no way around it from JS either.
+
+         maxSdkVersion="30" confines that to the versions that structurally
+         need it. On API 31+ — where Android added the user-facing
+         Approximate/Precise choice this app actually cares about — FINE is
+         not declared at all, so precise location is unobtainable by
+         construction rather than by policy. On API 24-30 there is no such
+         choice in the OS prompt regardless of what is requested.
+
+         Delete this the day minSdkVersion reaches 31. -->
+    <uses-permission
+        android:name="android.permission.ACCESS_FINE_LOCATION"
+        android:maxSdkVersion="30" />
+
+    <!-- That is the complete list. The app requests no camera and no photo
+         library: the v1 surfaces that needed them were removed in D4. -->
 </manifest>

@@ -18,6 +18,12 @@ import { fileURLToPath } from "node:url";
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const specDir = join(root, "src/v2/spec");
 const uiDir = join(root, "src/v2/ui");
+// The typed data layer publishes globals too (live.ts's window.LIVE,
+// back.ts's window.registerBackHandler). This used to name live.ts alone,
+// which meant the SECOND data module to publish one was invisible here —
+// its consumer read as a dangling reference and the check failed with the
+// blame pointing at the consumer. Scanning the directory fixes the class.
+const dataDir = join(root, "src/v2/data");
 
 // Browser / runtime globals the spec layer legitimately reads off
 // window without defining. Extend deliberately, not casually.
@@ -47,9 +53,16 @@ for (const dir of [specDir, uiDir]) {
     if (/\.(jsx?|tsx?)$/.test(f)) files.push(join(dir, f));
   }
 }
+// Tests are excluded: they import what they exercise rather than reading it
+// off the global scope, so scanning them would add references with no
+// matching definition.
+for (const f of readdirSync(dataDir)) {
+  if (/\.(jsx?|tsx?)$/.test(f) && !/\.test\.[jt]sx?$/.test(f)) {
+    files.push(join(dataDir, f));
+  }
+}
 files.push(join(root, "src/v2/main.jsx"));
 files.push(join(root, "src/v2/spec-index.js"));
-files.push(join(root, "src/v2/data/live.ts"));
 
 const defined = new Set();
 const referenced = new Map(); // name -> [file:line]

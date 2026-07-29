@@ -111,11 +111,73 @@ Both apps must be registered under `com.cosaxo.insight`:
   that lives there. A separate directory has neither failure mode, and the
   legal pages no longer ship inside the app bundle, since the panel links
   the hosted copies.
+- **Privacy nutrition labels (Apple) / Data safety form (Google).** Both
+  are mandatory — neither store lets you submit without one — and both are
+  a per-data-type declaration you attest to, not free text. Answer them
+  from `docs/data-inventory.md`, which is the audited list; the draft
+  below is that list translated into their categories.
+
+  | Their category | InSight | Linked to user? | Used for |
+  | --- | --- | --- | --- |
+  | Identifiers → User ID | Firebase uid (anonymous by default) | Yes | App functionality |
+  | Contact info → Email | Only if the user links Google | Yes | App functionality |
+  | Contact info → Name | Optional display name, shown in reveals | Yes | App functionality |
+  | User content → Other | Answers, test results | Yes | App functionality |
+  | **Sensitive info** | Politics test result; gender if entered | Yes | App functionality |
+  | Location → Coarse | City name (see below) | Yes | App functionality |
+  | Diagnostics → Crash data | Sentry, **opt-in, default OFF**, uid only | Yes | App functionality |
+  | Purchases, Browsing, Search, Contacts, Ads | **None** | — | — |
+
+  Three things to get right, because they are the ones that bite:
+  - **Tracking = No.** Nothing here follows a user across other companies'
+    apps or sites, and there is no IDFA/ATT prompt. Answer "No" on Apple's
+    tracking question and leave Google's advertising boxes unticked.
+  - **Location is now a real Yes — Coarse, and only Coarse.** This row used
+    to read "None", on the argument that city and country were fields the
+    user typed. D9 added an optional "Use my location" button, so that
+    argument is dead and the honest answer is Coarse Location, linked,
+    for App Functionality.
+
+    Declare it that way even though **no coordinate is ever transmitted**.
+    The fix is resolved to a city name on the device
+    (`src/v2/data/locate.ts`) and discarded, so what is *collected* in
+    Apple's sense — sent off the device — is a city name and nothing
+    finer. A city name is still coarse location data, and under-declaring
+    is the direction that gets an app pulled.
+
+    Do **not** tick Precise Location. It is unobtainable by construction,
+    not by policy: iOS sets `NSLocationDefaultAccuracyReduced` and never
+    calls `requestTemporaryFullAccuracy`, and Android declares
+    `ACCESS_FINE_LOCATION` with `maxSdkVersion="30"` — so on Android 12+,
+    where the OS added the Approximate/Precise choice, the app cannot hold
+    the precise permission at all. The manifest comment explains why the
+    capped declaration exists (a Capacitor alias resolves as all-or-none
+    below API 31); if a reviewer asks, that is the answer.
+
+    Google's Data safety form additionally asks whether location is
+    *required*: it is **optional**. Declining leaves the city picker
+    working, and the app never prompts unless the button is tapped.
+  - **Sensitive info is a real Yes.** The politics test result is
+    special-category data under GDPR Art. 9. It never leaves the owner
+    document and is never sliced by (D8), but the form asks what you
+    *collect*, not what you publish.
+
+  **Resolve the Facebook SDK before filling these in.** It is linked into
+  the iOS binary and never initialised (see the note in D3/D8 discussion);
+  an undisclosed advertising SDK is exactly the mismatch these forms exist
+  to catch. Either exclude it or declare it.
 - Apple Developer Program (~2 days to approve — start early) and a Mac
   with Xcode for the iOS build; Play Console for Android.
 - Build flow: `npm run build && npx cap sync`, then open the native
   projects (`npm run ios` / `npm run android`), set signing, archive.
-- TestFlight / internal testing track for the five-friend test.
+- TestFlight / internal testing track for the friends test. **Invite ten,
+  not five.** The public mirror publishes once per 5 answers (D7's
+  amendment), so a group of 6-9 sees the world count sit on "5+" and never
+  move — accurate, and it reads as broken. At ten it steps to 10, and
+  cohort breakdowns need ≥5 per bucket *and* two publishable buckets, so
+  they stay withheld below roughly a dozen answers per question either way.
+  Test **duels first**: they work at N=2, need no crowd, and are the most
+  distinctive surface in the product.
 
 ## 4 · On-device verification list (first build)
 

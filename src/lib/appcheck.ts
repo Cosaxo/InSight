@@ -29,7 +29,21 @@
 // in, so the order is guaranteed.
 
 import { Capacitor } from "@capacitor/core";
-import { FirebaseAppCheck } from "@capacitor-firebase/app-check";
+// Imported under an npm ALIAS, not its published name — this is
+// `@capacitor-firebase/app-check`, installed into
+// node_modules/capacitor-firebase-app-check by package.json.
+//
+// SwiftPM derives a package's IDENTITY from the last component of its path.
+// At the published path that identity is `app-check`, which collides with
+// github.com/google/app-check — a transitive dependency of GoogleSignIn (via
+// @capacitor-firebase/authentication). SwiftPM prefers the local package, so
+// GoogleSignIn then cannot find the `AppCheckCore` product and the entire
+// iOS build fails to resolve its dependencies. Renaming the install
+// directory renames the identity and the collision is gone.
+//
+// The alias is therefore load-bearing: reverting it to the scoped name
+// re-breaks the iOS build. check-appcheck-alias.mjs guards it. See D10.
+import { FirebaseAppCheck } from "capacitor-firebase-app-check";
 
 let initialized = false;
 

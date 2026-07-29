@@ -139,11 +139,21 @@ import React from 'react';
   // anchor keys. Only the band is derived \u2014 the exact birthday never
   // leaves the device.
   function anchorsFrom(v) {
+    // `city` holds the canonical catalogue key ("Oslo, NO"), which is also
+    // the breakdown bucket key. `country` is DERIVED from it as the ISO
+    // code, never typed: the code is locale-independent, so a French phone
+    // and a Norwegian one land in the same cohort. The breakdown UI turns
+    // it back into "Norway" / "Norvège" at display time.
+    //
+    // A profile written before the picker holds free text, which does not
+    // parse — those keep their city string (it is still their answer) and
+    // simply contribute no country until they re-pick.
+    const city = v.city || '';
     return {
       ageBand: ageBandOf(calcAge(v.born, v.bornM, v.bornD) || v.age),
       gender: v.gender || '',
-      country: v.country || '',
-      city: v.city || '',
+      country: (window.PLACES && window.PLACES.countryOf(city)) || '',
+      city,
       education: v.education || '',
       profession: v.job || '',
       relationship: v.relationship || '',
@@ -319,10 +329,16 @@ import React from 'react';
             <label style={fieldLabel}>Education<Select value={EDU_OPTS.includes(v.education) ? v.education : ''} onChange={e => upd('education', e.target.value)} options={EDU_OPTS} placeholder="Level…" /></label>
             <label style={fieldLabel}>Gender<Select value={GENDER_OPTS.includes(v.gender) ? v.gender : ''} onChange={e => upd('gender', e.target.value)} options={GENDER_OPTS} placeholder="—" /></label>
             <label style={fieldLabel}>Relationship<Select value={REL_OPTS.includes(v.relationship) ? v.relationship : ''} onChange={e => upd('relationship', e.target.value)} options={REL_OPTS} placeholder="—" /></label>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-              <label style={fieldLabel}>Country<input style={{ ...inputBase, fontSize: 15, padding: '8px 11px' }} value={v.country || ''} maxLength={80} onChange={e => upd('country', e.target.value)} placeholder="Norway" /></label>
-              <label style={fieldLabel}>City<input style={{ ...inputBase, fontSize: 15, padding: '8px 11px' }} value={v.city || ''} maxLength={80} onChange={e => upd('city', e.target.value)} placeholder="Oslo" /></label>
-            </div>
+            {/* One picker, not two free-text boxes (D9). Country is derived
+                from the chosen city rather than typed: as free text it was
+                minting a bucket per spelling ("Norway"/"norway"/"NO"), each
+                below the 5-person floor, so the country breakdown published
+                nothing at all. The picker offers an optional "use my
+                location" that resolves to a city on the device; the
+                coordinate is never stored or sent (D9). */}
+            <label style={fieldLabel}>City
+              <CityPicker value={v.city || ''} onChange={next => upd('city', next)} />
+            </label>
             {/* Every field here is optional and skippable. The note says what
                 it buys, because "why does a privacy app want my age?" is the
                 right question to ask and it deserves an answer in place. */}

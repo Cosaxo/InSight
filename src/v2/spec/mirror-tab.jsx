@@ -89,10 +89,13 @@ function MirrorPopPicker({ popId, onPick }) {
 }
 
 // ─── World's zoom control — three telescoping stops, living inside the hero card ───
-function WorldZoomControl({ zoom, onZoom }) {
+// `live` drops the City stop: after D9 the Near population IS your city, so
+// keeping it here would be the same panel behind two different chips.
+function WorldZoomControl({ zoom, onZoom, live }) {
+  const stops = live ? WORLD_ZOOMS.filter((z) => z.id !== 'city') : WORLD_ZOOMS;
   return (
-    <div style={{ display: 'inline-flex', gap: 6 }}>
-      {WORLD_ZOOMS.map((z) => {
+    <div style={{ display: 'inline-flex', gap: 6, margin: live ? '2px 0 8px' : 0 }}>
+      {stops.map((z) => {
         const on = z.id === zoom;
         return (
           <button key={z.id} className="press" onClick={() => onZoom(z.id)} style={{
@@ -144,6 +147,56 @@ function MirrorTab({ onPerson, pop, onPop, worldZoom, onZoom }) {
         </div>
         <div className="tab-swap" style={{ flex: 1, minHeight: 0, position: 'relative' }}>
           <MapTab />
+        </div>
+      </div>
+    );
+  }
+
+  // near and world — in live mode these are the same question at three
+  // radii, from the k-floored public aggregates, rendered as counts rather
+  // than people (D9). The demo fields below are prototype data: Near's six
+  // named neighbours never had a backend, and the v1 geohash one they were
+  // waiting for never produced a cell. Live gets the real thing or an
+  // honest empty state, never both.
+  //
+  // World's "City" zoom stop is gone rather than duplicated: Near IS your
+  // city now, and two identical panels behind different chips is how a UI
+  // starts disagreeing with itself.
+  if (p.kind === 'geo' && window.LIVE && window.LIVE.enabled && typeof window.LiveCohortBody === 'function') {
+    // A session that last used the City stop still has zoom === 'city'
+    // persisted. Resolve it to Country for both the panel and the control,
+    // so the control does not render with nothing selected.
+    const liveZoom = zoom === 'world' ? 'world' : 'country';
+    const scope = p.id === 'near' ? 'city' : liveZoom;
+    return (
+      <div className="fade-in mf-flex" style={{ '--accent': mirrorAccent(p.id) }}>
+        <MirrorPopPicker popId={p.id} onPick={onPop} />
+        {p.id === 'world' && <WorldZoomControl zoom={liveZoom} onZoom={onZoom} live />}
+        <div key={'geo-live:' + scope} className="tab-swap mf-flex" style={{ overflowY: 'auto' }}>
+          <window.LiveCohortBody scope={scope} />
+        </div>
+      </div>
+    );
+  }
+
+  // circle — your close ties. v2 has no person-to-person graph at all:
+  // groups are the only real connection it can make, joined by an invite
+  // code (D3). The 49 named people below come from relmap-core.js and are
+  // prototype data, so live mode says what is missing rather than showing
+  // them behind a "sample" badge.
+  if (p.id === 'circle' && window.LIVE && window.LIVE.enabled) {
+    return (
+      <div className="fade-in mf-flex" style={{ '--accent': 'var(--c-people)' }}>
+        <MirrorPopPicker popId={p.id} onPick={onPop} />
+        <div key="circle-live" className="tab-swap mf-flex">
+          <div style={{ padding: '30px 22px', textAlign: 'center' }}>
+            <div style={{ fontFamily: 'var(--serif)', fontSize: 17, color: 'var(--ink)', marginBottom: 7 }}>Your circle is empty</div>
+            <div style={{ fontFamily: 'var(--sans)', fontSize: 13, fontWeight: 500, color: 'var(--ink-3)', lineHeight: 1.55, maxWidth: 330, margin: '0 auto', textWrap: 'pretty' }}>
+              One-to-one connections aren&apos;t built yet. Groups are how you
+              see named answers today — start one, or join with a code, and
+              the day after each round you&apos;ll see who picked what.
+            </div>
+          </div>
         </div>
       </div>
     );

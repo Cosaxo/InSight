@@ -8,12 +8,17 @@ Safety answers when store listing time comes.
 |---|---|---|---|
 | Answers (world/feed/test) | `v2_users/{uid}/answers` | owner only | immutable; doc id = question id |
 | Sealed duel answers (+ guess) | same, `g_{gid}_{day}` ids | owner only | become part of a member-only reveal doc next day |
-| Anchors snapshot | on each answer doc | owner only | empty `{}` until anchor editing ships |
+| Anchors snapshot | on each answer doc | owner only | age band, gender, country, city, education, profession, relationship — all optional, entered in the profile's Basics card. Snapshotted at vote time so a later edit cannot move a past answer's cohort |
+| Anchors (current) | `v2_users/{uid}.anchors` | owner only | the editable copy the snapshot is taken from |
+| Core test results | `v2_users/{uid}.testResults` | owner only | Big Five, politics, values, social. **Political results are special-category data under GDPR Art. 9** — they are never sliced by, never published, and never leave the owner doc |
+| Lens results | localStorage only (`insight.lenses.v1`) | this device | the nine minor instruments; deliberately not mirrored to the server (D8) |
+| Feed memory | localStorage only (`insight.readRoom.v1`) | this device | one bit per answered question, drives the answer strip |
 | Display name | `v2_users/{uid}` + `v2_groups.memberNames` | owner; group members | user-entered, for reveals |
 | Push tokens | `v2_users/{uid}.fcmTokens` | owner only | native only; used for the single reveal notification |
 | Group membership | `v2_groups/{gid}` | members | callable-managed; invite codes server-minted |
 | Reveals | `v2_groups/{gid}/reveals/{day}` | members | server-written; names + option picks for that day |
-| Aggregates (public) | `v2_question_aggs` | any signed-in user | k-floored (≥5), no per-vote timing |
+| Aggregates (public) | `v2_question_aggs` | any signed-in user | k-floored (≥5), no per-vote timing, published once per 5 answers so no step is attributable |
+| Per-anchor breakdowns | `v2_question_aggs.by` | any signed-in user | counts per cohort, floored per cell with complementary suppression; never carries a name or a uid |
 | Aggregates (exact) | `v2_aggs_private`, `v2_agg_events` | nobody (server only) | trigger internals |
 | Auth identity | Firebase Auth | — | anonymous by default; Google via linking |
 | Local device state | localStorage (~29 `insight.*` keys) | this device | vote cache, display-name draft, passive-test progress, replies, likes, scenes |

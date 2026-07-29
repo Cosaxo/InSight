@@ -44,5 +44,20 @@
 	<array>
 		<string>remote-notification</string>
 	</array>
+	<!-- Location, when-in-use only (D9). Shown verbatim in the system
+	     prompt, so it says what actually happens rather than what the
+	     feature is called. -->
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Used once, on this device, to work out which city you are nearest so the daily can show how your city answered. Your coordinates are never sent anywhere and never stored — only the city name. You can skip this and pick your city from a list instead.</string>
+	<!-- Ask for REDUCED accuracy by default (iOS 14+). The system then hands
+	     back a coarse fix — roughly neighbourhood-level — and the permission
+	     sheet shows "Precise: Off" with the user free to turn it on rather
+	     than the app asking for precision it has no use for.
+	     The catalogue's own coordinates are 2dp (~1.1 km), so a precise fix
+	     could not change which city is nearest. There is no
+	     requestTemporaryFullAccuracy call anywhere in this app: reduced is
+	     not a default we quietly escalate from. -->
+	<key>NSLocationDefaultAccuracyReduced</key>
+	<true/>
 </dict>
 </plist>
