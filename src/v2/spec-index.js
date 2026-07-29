@@ -35,6 +35,9 @@ import './spec/group-daily.jsx';
 import './spec/duo-daily.jsx';
 import './spec/world-feed-data.js';
 import './spec/world-feed-comments.js';
+// counters read WORLD_FEED_COUNTERS at call time, but keep them adjacent —
+// order in this file is semantic (see src/v2/README.md)
+import './spec/world-feed-counters.js';
 import './spec/feed-read.js';
 import './spec/consequence-beat.jsx';
 import './spec/world-feed.jsx';

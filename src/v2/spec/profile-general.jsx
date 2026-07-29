@@ -521,6 +521,33 @@ import React from 'react';
     { k: 'values', sub: 'values', name: 'Values' },
     { k: 'attachment', sub: 'attachment', name: 'Social' },
   ];
+  // The lenses as a 3x3 of dots — filled once a lens has enough answers to
+  // read. A shortcut to the Lenses sub-tab, which is otherwise only reachable
+  // by knowing it is there; the sibling of TestArcsCard above it.
+  function LensesRowCard({ onGo }) {
+    const L = window.LENSES;
+    if (!L) return null;
+    const n = L.KEYS.length, m = L.mapped();
+    return (
+      <button className="card press" onClick={() => onGo && onGo('lenses')} style={{
+        width: '100%', marginBottom: 16, padding: '13px 18px', cursor: 'pointer', textAlign: 'left',
+        WebkitAppearance: 'none', appearance: 'none', display: 'flex', alignItems: 'center', gap: 15,
+        border: '0.5px solid var(--rule)', fontFamily: 'var(--sans)', color: 'var(--ink)',
+      }}>
+        <div style={{ width: 54, height: 54, flexShrink: 0, display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 4, alignContent: 'center', justifyItems: 'center' }} aria-hidden="true">
+          {L.all.map((l) => (
+            <span key={l.id} style={{ width: 11, height: 11, borderRadius: '50%', background: L.complete(l.id) ? `oklch(0.56 0.13 ${l.hue})` : 'transparent', border: `1.5px solid oklch(0.56 0.13 ${l.hue})`, opacity: L.complete(l.id) ? 1 : 0.55 }}></span>
+          ))}
+        </div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontSize: 15, fontWeight: 700, letterSpacing: '-0.01em' }}>Lenses</div>
+          <div style={{ fontSize: 12.5, color: 'var(--ink-3)', marginTop: 3 }}>{m ? m + ' of ' + n + ' smaller readings mapped' : n + ' smaller readings · filling in from the feed'}</div>
+        </div>
+        <span style={{ color: 'var(--ink-3)', fontSize: 16, flexShrink: 0 }}>{'\u2192'}</span>
+      </button>
+    );
+  }
+
   function TestArcsCard({ onGo }) {
     const R = window.IS_TEST_RESULTS || {};
     const C = 2 * Math.PI * 23;
@@ -604,6 +631,7 @@ import React from 'react';
         <BasicsCard data={data} set={set} />
         <MapThumbCard />
         <TestArcsCard onGo={onGo} />
+        <LensesRowCard onGo={onGo} />
         <LogicCard />
         {typeof window.MirrorFieldBody === 'function' && (
           <div>

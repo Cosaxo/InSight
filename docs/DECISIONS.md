@@ -789,3 +789,71 @@ guard should go with it.
 
 **Note.** The alias install moved the plugin from 8.2.0 to 8.3.0 — a minor
 bump taken incidentally, not a deliberate upgrade.
+
+---
+
+## D11 · The feed's argument surfaces are demo-only, by structure not by flag
+
+**Decided:** 2026-07-29 · **Status:** binding
+
+The v14 prototype's world feed carries five ideas the live product cannot
+publish at world scale: named takes, counter-arguments, "minds moved"
+signals, crossfire (your side against the strongest opposing take), and
+friend dots on the result tiles. All five are ported and all five are live
+today — on demo cards only.
+
+The line is drawn in exactly one place, and it is not a feature flag:
+
+```js
+// world-feed.jsx, renderEngage
+if (window.LIVE && window.LIVE.demoInProd) return null;
+if (q.live) { … return the k-floored breakdown button alone … }
+```
+
+Everything else — `renderTakes`, `takeCard`, `WF_COUNTERS`, the sort
+toggle, `renderWhy` — hangs below that return and is unreachable from a
+live card no matter what `opts` says. `friendSides` is the one exception
+that had to be gated at its own call site, so it carries the reasoning
+inline. A second layer sits underneath: `live.ts`'s `buildFeedGlobals`
+sets `WORLD_FEED_COMMENTS = {}`, so in live mode there is no take data to
+render even if the gate were removed.
+
+This was verified rather than assumed. Forcing a demo question to
+`live: true`, seeding it a counter with a recognisable string, and voting
+it through in a browser leaves the card showing the who-voted button and
+the vote scale, and none of: the takes button, the friend dots, the "Why?"
+line, the minds-moved counts, or the seeded string.
+
+### Why demo-only rather than dropped
+
+Dropping them would make the prototype and the app diverge in a way nobody
+could evaluate — the demo build is how these ideas get judged before
+anyone decides whether a rules change is worth it. Keeping them behind a
+flag *only* would be worse: a flag is one careless `opts` change away from
+publishing free text and named votes at world scale, which is what D1
+forbids.
+
+### What it would take to make any of them live
+
+Free-text takes at world scale need a moderation path and a rules change,
+and named who-voted needs a reversal of D1. Neither is on the table. The
+counters, signals and crossfire additionally need real reply data, which
+no collection currently holds.
+
+### The one thing this port did change for live cards
+
+`renderInsight` — the published surprise cut (D8) — was dead code: its
+only call site sat *below* `renderEngage`'s `if (q.live)` return, while
+`feedInsight` returns null unless `q.live`. So the line could never
+render. It now renders on the live branch, where it belongs, and takes
+the place of the who-voted button when present (it opens the same sheet).
+Confirmed by running the same probe against the unmodified file: same
+finding computed, no line drawn.
+
+### Not ported
+
+The prototype's v2 **card skin** — bare/bleed grounds instead of a boxed
+card. It rewrites the duel tiles and the rank list as well as the card
+shell, and this tree's versions of those have diverged from v14's. The
+`v2` flag here means the result *layout* (one hue per card, one footer
+line) and nothing about the card's ground.

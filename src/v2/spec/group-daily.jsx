@@ -40,17 +40,21 @@ import ReactDOM from 'react-dom';
     );
   }
 
-  // small overlapping cluster — the group's face
-  function GDCluster({ members, size = 30 }) {
-    const shown = members.slice(0, 3);
+  // One mark per group: a single colour plus its initials. Three overlapping
+  // member avatars at rail size read as mush and never tell two groups apart
+  // — and a group is better identified by itself than by three of its people.
+  const ghash = (s) => { let h = 9; for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 387420489); return ((h ^ (h >>> 9)) >>> 0) / 4294967295; };
+  const ghue = (g) => Math.round(ghash(g.id) * 360);
+  const ginit = (name) => { const w = name.replace(/^The\s+/i, '').split(/\s+/).filter(Boolean); return (w.length > 1 ? w.slice(0, 2).map((x) => x[0]).join('') : (w[0] || '?').slice(0, 2)).toUpperCase(); };
+  function GDMark({ g, size = 34, faded }) {
     return (
-      <span style={{ display: 'inline-flex', alignItems: 'center' }}>
-        {shown.map((p, i) => (
-          <span key={p.id} style={{ marginLeft: i ? -Math.round(size * 0.3) : 0, display: 'inline-flex', zIndex: shown.length - i, position: 'relative' }}>
-            <GDAv p={p} size={size} dim={p.pending}></GDAv>
-          </span>
-        ))}
-      </span>
+      <span aria-hidden="true" style={{
+        width: size, height: size, borderRadius: 11, flexShrink: 0,
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        fontFamily: 'var(--sans)', fontWeight: 800, fontSize: Math.round(size * 0.38), letterSpacing: '-0.02em',
+        color: '#fff', background: `oklch(0.58 0.11 ${ghue(g)})`, opacity: faded ? 0.4 : 1,
+        transition: 'opacity .18s',
+      }}>{ginit(g.name)}</span>
     );
   }
 
@@ -104,7 +108,7 @@ import ReactDOM from 'react-dom';
               aria-label={g.name + ' — ' + (pending ? 'still to play' : 'done for today')}
               style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5, border: 'none', background: 'none', cursor: 'pointer', padding: '4px 8px', WebkitAppearance: 'none', flexShrink: 0 }}>
               <span style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', borderRadius: 999, padding: '3px 6px', boxShadow: sel ? `0 0 0 2px ${ACC}` : pending ? `0 0 0 1.5px color-mix(in oklch, ${ACC} 45%, transparent)` : '0 0 0 1px var(--rule)', opacity: pending || sel ? 1 : 0.55, transition: 'box-shadow .18s, opacity .18s' }}>
-                <GDCluster members={g.members} size={28}></GDCluster>
+                <GDMark g={g} size={28}></GDMark>
                 {pending
                   ? <span style={{ position: 'absolute', top: -2, right: -2, width: 11, height: 11, borderRadius: '50%', background: ACC, border: '2px solid var(--surface)' }}></span>
                   : <span style={{ position: 'absolute', bottom: -4, right: -4, width: 15, height: 15, borderRadius: '50%', background: ACC, color: '#fff', fontSize: 9, fontWeight: 900, display: 'flex', alignItems: 'center', justifyContent: 'center', border: '2px solid var(--surface)' }}>{'\u2713'}</span>}
@@ -144,7 +148,7 @@ import ReactDOM from 'react-dom';
         <span style={{ fontWeight: 800, fontSize: 14.5 }}>{g.name}</span>
         {nInvited > 0 && <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--ink-3)' }}>{nInvited} invited</span>}
         <span style={{ marginLeft: 'auto', display: 'inline-flex', alignItems: 'center', gap: 8 }}>
-          <GDCluster members={g.members} size={22}></GDCluster>
+          <GDMark g={g} size={22}></GDMark>
           <button aria-label={'Manage ' + g.name} onClick={() => setMg(true)}
             style={{ border: 'none', background: 'none', cursor: 'pointer', color: 'var(--ink-3)', fontSize: 17, fontWeight: 800, padding: '0 3px', lineHeight: 1, WebkitAppearance: 'none' }}>{'\u22ef'}</button>
         </span>
@@ -431,6 +435,6 @@ import ReactDOM from 'react-dom';
     );
   }
 
-  Object.assign(window, { GroupDailyBody, GDAv });
+  Object.assign(window, { GroupDailyBody, GDAv, GDMark });
 })();
 
