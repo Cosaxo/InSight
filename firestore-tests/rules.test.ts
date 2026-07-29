@@ -299,6 +299,40 @@ describe("v2 profile", () => {
     await assertFails(setDoc(mine, { testResults: "hacked" }, { merge: true }));
   });
 
+  // fcmTokens is the reveal sender's fan-out list. A client-writable list
+  // could carry a STOLEN token — reveal pushes routed to a device that never
+  // joined — so registration lives behind the registerPushToken callable and
+  // the ruleset refuses client mutation. Every case here is one of the ways
+  // that guarantee could quietly break.
+  it("clients cannot introduce or change fcmTokens — only the callable can", async () => {
+    const mine = doc(asUser(OWNER), "v2_users", OWNER);
+    // introducing it on create…
+    await assertFails(setDoc(mine, { displayName: "Mira", fcmTokens: ["tok-a"] }));
+    // …or via merge onto an existing doc without the field
+    await assertSucceeds(setDoc(mine, { displayName: "Mira" }));
+    await assertFails(setDoc(mine, { fcmTokens: ["tok-a"] }, { merge: true }));
+
+    // the callable writes with the admin SDK, which bypasses rules — seed()
+    // is the same privilege
+    await seed(async (db) => {
+      await setDoc(doc(db, "v2_users", OWNER), { fcmTokens: ["tok-a"] }, { merge: true });
+    });
+
+    // THE TRAP this test exists for: rules see request.resource.data as the
+    // POST-merge doc, so after the callable has written fcmTokens, an
+    // ordinary profile merge carries the field along unchanged. If the rule
+    // banned presence instead of mutation, this write would fail and the
+    // profile would be bricked for every push-registered user.
+    await assertSucceeds(setDoc(mine, { displayName: "Mira O." }, { merge: true }));
+
+    // mutation is still refused: replacing, growing, or clearing the list
+    await assertFails(setDoc(mine, { fcmTokens: ["tok-evil"] }, { merge: true }));
+    await assertFails(setDoc(mine, { fcmTokens: ["tok-a", "tok-evil"] }, { merge: true }));
+    await assertFails(setDoc(mine, { fcmTokens: [] }, { merge: true }));
+    // and writing the SAME value back is allowed (a no-op, not a change)
+    await assertSucceeds(setDoc(mine, { fcmTokens: ["tok-a"] }, { merge: true }));
+  });
+
   // The client builds this exact payload (ANCHOR_FIELDS in live.ts, filled
   // by the profile's Basics card). Rules reject the whole write on one bad
   // field, so client and ruleset agreeing is load-bearing, not cosmetic —

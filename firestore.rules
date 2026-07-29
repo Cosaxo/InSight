@@ -81,17 +81,30 @@ service cloud.firestore {
     // deliberately not before.
     match /v2_users/{uid} {
       allow read: if request.auth != null && request.auth.uid == uid;
+      // fcmTokens: clients may no longer INTRODUCE or CHANGE it — the array
+      // is where the reveal sender fans out to, and a client-writable list
+      // could carry a stolen token (reveal pushes routed to a device that
+      // never joined the group). Registration goes through the
+      // registerPushToken callable (functions/src/v2social.ts), behind App
+      // Check; the admin SDK bypasses rules, so the callable and the
+      // sender's dead-token cleanup keep working.
+      //
+      // The key stays in hasOnly ON PURPOSE: every client profile write is
+      // a merge, and rules evaluate request.resource.data as the POST-merge
+      // doc — so once the callable has written fcmTokens, dropping the key
+      // from hasOnly would brick saveDisplayName/saveAnchors for that user
+      // forever. Presence is allowed; mutation is not.
       allow create, update: if request.auth != null && request.auth.uid == uid
         && request.resource.data.keys().hasOnly([
           "displayName", "anchors", "anon", "createdAt", "updatedAt",
           "fcmTokens", "testResults",
         ])
+        && (!("fcmTokens" in request.resource.data)
+          || (resource != null
+            && request.resource.data.fcmTokens == resource.data.get("fcmTokens", null)))
         && (!("testResults" in request.resource.data)
           || (request.resource.data.testResults is map
             && request.resource.data.testResults.keys().size() <= 8))
-        && (!("fcmTokens" in request.resource.data)
-          || (request.resource.data.fcmTokens is list
-            && request.resource.data.fcmTokens.size() <= 10))
         && isOptionalShortString(request.resource.data.get("displayName", null), 60)
         && isValidV2Anchors(request.resource.data.get("anchors", {}));
       allow delete: if false; // deleteAccount (admin SDK) owns removal

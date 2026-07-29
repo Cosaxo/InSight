@@ -140,17 +140,9 @@ export function locateSupported(): boolean {
   return typeof navigator !== "undefined" && !!navigator.geolocation;
 }
 
+// No globalThis publication: the one consumer (CityPicker) is typed TSX
+// and imports locateCity/locateSupported directly. A global here would be
+// a name the spec scanner tracks with no caller behind it.
 const LOCATE = { city: locateCity, supported: locateSupported };
-
-declare global {
-  interface Window {
-    LOCATE?: typeof LOCATE;
-  }
-}
-
-// Object.assign rather than `globalThis.LOCATE = LOCATE` — the latter needs
-// an index signature on typeof globalThis (TS7017). The shared scanner
-// (scripts/spec-globals.mjs) matches this form.
-Object.assign(globalThis, { LOCATE });
 
 export default LOCATE;

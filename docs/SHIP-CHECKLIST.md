@@ -206,10 +206,16 @@ Both apps must be registered under `com.cosaxo.insight`:
 
 ## Before-public hardening (not friends-test blockers)
 
-- **FCM token binding** — token registration should move behind a
-  callable that verifies token↔uid; today a stolen token could be
-  planted on another account for reveal-push spam (needs the victim's
-  token, so friend-scale risk is nil).
+- ~~**FCM token binding**~~ Done (2026-07-29): registration goes through
+  the `registerPushToken` callable (App Check–enforced, dry-run token
+  validation, server-side cap/rotation), and `firestore.rules` refuses
+  client mutation of `fcmTokens` — the key stays in `hasOnly` because
+  merges evaluate the post-merge doc, but any write that introduces or
+  changes the list is denied (negative tests in
+  `firestore-tests/rules.test.ts`). The binding is by App Check
+  attestation, not cryptographic possession proof; if that is ever
+  warranted, the shape is a nonce sent to the token that the device
+  echoes back, and the callable is where it lives.
 - **App Check enforcement** — the callables enforce it in prod
   (functions/src/ops.ts, `ENFORCE_APP_CHECK`; set the `APPCHECK_ENFORCE`
   production variable to `false` to soft-disable during an incident).

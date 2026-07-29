@@ -1,6 +1,6 @@
 # InSight v2 — the ported app
 
-This is the frozen spec (`design/InSight_standalone_9.html`) running under
+This is the frozen spec (`design/InSight_standalone_14.html`) running under
 Vite. `index.html` points at `main.jsx`; the journal-era app lives in
 git history (decision D4) — `src/legacy/` was deleted after Phase 5 shipped,
 and its Firestore rules were retired to `firestore.rules.v1-archive`.
@@ -39,10 +39,11 @@ semantics instead of hand-converting 65 files to ESM at once:
   there passes tsc, eslint and check:globals, then blanks the Map on a
   device, so the key set is asserted against a checked-in literal.
 
-Regenerating: the transform lives in the session scratchpad
-(`transform.cjs`); its inputs are `design/spec-modules/` + the load order.
-Prefer editing `spec/` files directly from here on — the design is frozen,
-so regeneration should never be needed again.
+Regeneration is no longer possible and no longer meaningful: the
+extracted prototype modules (`design/spec-modules/`) were deleted once the
+port was complete and they had diverged — the `spec/` files ARE the
+source now, hand-edits and all. Compare against the prototype with
+`scripts/style-diff.mjs`, not by re-porting.
 
 ## Lint suppressions
 

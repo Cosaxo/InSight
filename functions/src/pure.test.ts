@@ -22,6 +22,8 @@ import {
   publishableBreakdown,
   BREAKDOWN_MAX_BUCKETS,
   shouldPublishAgg,
+  isPlausibleFcmToken,
+  nextFcmTokens,
 } from "./pure";
 
 // ── invite codes ────────────────────────────────────────────────
@@ -456,5 +458,44 @@ describe("public-mirror publish cadence", () => {
     // and a cadence of 1 is "publish every answer", the old behaviour,
     // kept expressible so a future operator choosing it does so knowingly
     expect(shouldPublishAgg(6, 5, 1)).toBe(true);
+  });
+});
+
+describe("FCM token registration helpers", () => {
+  const tok = (n: number, ch = "a") => "iid" + ch.repeat(20) + ":APA91b" + ch.repeat(n);
+
+  it("accepts a realistic token and rejects the garbage classes", () => {
+    expect(isPlausibleFcmToken(tok(140))).toBe(true);
+    expect(isPlausibleFcmToken("")).toBe(false);
+    expect(isPlausibleFcmToken("short:APA91b")).toBe(false); // truncation
+    expect(isPlausibleFcmToken("x".repeat(500))).toBe(false); // runaway
+    expect(isPlausibleFcmToken(tok(140) + " ")).toBe(false); // whitespace
+    expect(isPlausibleFcmToken(tok(140).slice(0, 120) + "\n" + "a".repeat(40))).toBe(false);
+    expect(isPlausibleFcmToken(42)).toBe(false);
+    expect(isPlausibleFcmToken(null)).toBe(false);
+    expect(isPlausibleFcmToken([tok(140)])).toBe(false);
+  });
+
+  it("adds a token once, idempotently", () => {
+    expect(nextFcmTokens([], "T1", null, 10)).toEqual(["T1"]);
+    expect(nextFcmTokens(["T1"], "T1", null, 10)).toEqual(["T1"]);
+    expect(nextFcmTokens(["T1", "T2"], "T2", null, 10)).toEqual(["T1", "T2"]);
+  });
+
+  it("drops the rotated predecessor in the same step", () => {
+    expect(nextFcmTokens(["OLD", "T2"], "NEW", "OLD", 10)).toEqual(["T2", "NEW"]);
+    // remove of something absent is a no-op, not an error
+    expect(nextFcmTokens(["T2"], "NEW", "GONE", 10)).toEqual(["T2", "NEW"]);
+  });
+
+  it("evicts oldest-first past the cap, never the token just registered", () => {
+    const cur = ["a", "b", "c"];
+    expect(nextFcmTokens(cur, "d", null, 3)).toEqual(["b", "c", "d"]);
+    expect(nextFcmTokens(cur, "d", null, 1)).toEqual(["d"]);
+  });
+
+  it("treats a corrupt current value as empty rather than throwing", () => {
+    expect(nextFcmTokens("not-an-array", "T", null, 10)).toEqual(["T"]);
+    expect(nextFcmTokens([1, null, "keep"], "T", null, 10)).toEqual(["keep", "T"]);
   });
 });
