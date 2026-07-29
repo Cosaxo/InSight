@@ -9,14 +9,13 @@
 // keeps the spec layer's render-time lookup working unchanged.
 import React from "react";
 import LIVE from "../data/live";
+// The hosted origin for the legal pages. Lives in data/links.ts now so
+// invites and legal links share one constant — a domain change stays a
+// single edit (D3).
+import { SITE_ORIGIN as LP_SITE } from "../data/links";
 import { setTelemetryEnabled, telemetryEnabled } from "../../lib/sentry";
 
 const LP_LINE = "1px solid color-mix(in oklch, var(--rule), transparent 25%)";
-// The hosted origin for the legal pages (firebase.json → hosting). A
-// constant rather than an inline string so the day a real domain replaces
-// the free .web.app one, there is exactly one place to change — and so it
-// is greppable from the deploy config that publishes them.
-const LP_SITE = "https://prvfire33.web.app";
 
 function LpRow({ title, sub, children }: {
   title: string;

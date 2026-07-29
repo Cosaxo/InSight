@@ -179,6 +179,23 @@ Both apps must be registered under `com.cosaxo.insight`:
   Test **duels first**: they work at N=2, need no crowd, and are the most
   distinctive surface in the product.
 
+## 3b · Invite links — two fingerprints (account-gated)
+
+The code half is live: sharing copies a `/join/CODE` link, the hosted
+fallback page works today, and the app prefills a tapped code. Direct
+app-open needs:
+
+1. `web/.well-known/assetlinks.json` — replace
+   `REPLACE_WITH_PLAY_SIGNING_SHA256` with the Play App Signing SHA-256
+   (Play Console → Setup → App signing).
+2. `web/.well-known/apple-app-site-association` — replace
+   `REPLACE_WITH_TEAM_ID` with the Apple Team ID.
+3. Redeploy hosting, reinstall the app, tap a link. Android:
+   `adb shell pm get-app-links com.cosaxo.insight` should show verified.
+   iOS re-fetches AASA on install (CDN-cached; allow up to a day).
+
+Until then links open the fallback page — degraded, not broken.
+
 ## 4 · On-device verification list (first build)
 
 - [ ] App opens frameless, header clear of the notch, dock clear of the
