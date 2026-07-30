@@ -48,6 +48,27 @@
     },
   };
 
+  // Baked demo segment slices, per question: how each cohort orders the
+  // global board (D16 — segments only ever reorder the published top,
+  // never surface their own long tail). Small per-entity counts inside a
+  // ≥floor cohort are publishable on purpose: "one of these fourteen
+  // picked Gengar" names nobody (the D8 k-argument). Real slices come
+  // from anchors folded at answer time; the demo can't know your cohort,
+  // so your own pick joins the global board only.
+  const BY = {
+    pk01: {
+      ageBand: {
+        '18-24': { 448: 14, 25: 8, 778: 6, 6: 6, 133: 5, 658: 5, 94: 4 },
+        '25-34': { 25: 15, 6: 13, 94: 10, 448: 9, 133: 8, 7: 6, 143: 6, 1: 5 },
+        '45+': { 25: 12, 6: 11, 1: 9, 7: 8, 133: 6, 143: 5 },
+      },
+      gender: {
+        Women: { 25: 14, 133: 12, 94: 9, 6: 9, 448: 7, 778: 6 },
+        Men: { 6: 21, 25: 16, 448: 15, 7: 9, 94: 8, 1: 8, 143: 7 },
+      },
+    },
+  };
+
   const api = {
     AGG_MIN_N,
     my(qid) { const v = mine[qid]; return v == null ? null : v; },
@@ -73,6 +94,28 @@
         .slice(0, TOP_N);
       const shown = top.reduce((a, r) => a + r.count, 0);
       return { top, rest: total - shown, total };
+    },
+    // The segment chips a question can offer — flattened from its BY data,
+    // in the data's own order. Empty when a question ships no slices.
+    segs(qid) {
+      const by = BY[qid];
+      if (!by) return [];
+      const out = [];
+      for (const dim of Object.keys(by)) {
+        for (const bucket of Object.keys(by[dim])) out.push({ dim, bucket });
+      }
+      return out;
+    },
+    // One segment's ordering of the global board: rows sorted by the
+    // cohort's own counts, plus the cohort size for the "as N of them see
+    // it" line. Null when the question has no slice for that segment.
+    canonSeg(qid, dim, bucket) {
+      const cell = BY[qid] && BY[qid][dim] && BY[qid][dim][bucket];
+      if (!cell) return null;
+      const rows = Object.keys(cell)
+        .map((k) => ({ entity: Number(k), count: cell[k] }))
+        .sort((a, b) => b.count - a.count || a.entity - b.entity);
+      return { rows, cohort: rows.reduce((a, r) => a + r.count, 0) };
     },
     subscribe(f) { subs.add(f); return () => subs.delete(f); },
   };
