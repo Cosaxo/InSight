@@ -1,9 +1,15 @@
 # Catalog questions — "favourite X" with a thousand options
 
-**Status: design sketch.** Nothing here is built, and nothing here is a
-decision record — if this ships, the load-bearing choices below (canonical
-keys, the leaderboard reveal, the breakdown deferral) graduate into
-`DECISIONS.md` at that point. Written 2026-07-30, after the v15 UI merge.
+**Status: built through step 4's machinery.** Written 2026-07-30 as a
+design sketch, after the v15 UI merge; the same day, steps 1–3 shipped
+(Pokédex catalogue, demo `pick` card, canon backend — **D14**) and step
+4's machinery followed (QID key sets, domain-aware validation, the
+Wikidata generator — **D15**). The load-bearing choices live in those
+decision records now; this document keeps the full arguments. What
+remains open: an operator run of `scripts/build-catalog.mjs` to generate
+the films/artists catalogues (needs network access to Wikidata — D15),
+the films/artists demo cards once those files exist, the pre-ship
+trademark check below, and going live per D14.
 
 ## The question class
 

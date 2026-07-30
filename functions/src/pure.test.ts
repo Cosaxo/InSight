@@ -326,19 +326,38 @@ describe("public-mirror publish cadence", () => {
 });
 
 describe("catalog answers (pick questions — docs/CATALOG-QUESTIONS.md)", () => {
-  const MAX = 1025; // CATALOG_MAX_ENTITY as shipped
+  const RANGE = { max: 1025 }; // pokemon: CATALOG_MAX_ENTITY as shipped
 
-  it("stores only integer keys inside the catalogue's domain", () => {
-    expect(catalogEntityKey(25, MAX)).toBe("25");
-    expect(catalogEntityKey(1025, MAX)).toBe("1025");
+  it("stores only integer keys inside a contiguous catalogue's range", () => {
+    expect(catalogEntityKey(25, RANGE)).toBe("25");
+    expect(catalogEntityKey(1025, RANGE)).toBe("1025");
     // 0 is "Not listed" — a real answer, never an entity
-    expect(catalogEntityKey(0, MAX)).toBe("0");
-    expect(catalogEntityKey(1026, MAX)).toBeNull();
-    expect(catalogEntityKey(-1, MAX)).toBeNull();
-    expect(catalogEntityKey(25.5, MAX)).toBeNull();
-    expect(catalogEntityKey("25", MAX)).toBeNull();
-    expect(catalogEntityKey(NaN, MAX)).toBeNull();
-    expect(catalogEntityKey(null, MAX)).toBeNull();
+    expect(catalogEntityKey(0, RANGE)).toBe("0");
+    expect(catalogEntityKey(1026, RANGE)).toBeNull();
+    expect(catalogEntityKey(-1, RANGE)).toBeNull();
+    expect(catalogEntityKey(25.5, RANGE)).toBeNull();
+    expect(catalogEntityKey("25", RANGE)).toBeNull();
+    expect(catalogEntityKey(NaN, RANGE)).toBeNull();
+    expect(catalogEntityKey(null, RANGE)).toBeNull();
+  });
+
+  it("validates sparse QID catalogues by membership, not range", () => {
+    // Films/artists keys are Wikidata QID numeric parts (D15). A range
+    // bound would admit every integer between two real QIDs, and each
+    // junk key an attacker lands mints a private-doc bucket forever.
+    const SPARSE = { keys: new Set([47703, 104123, 2831]) };
+    expect(catalogEntityKey(47703, SPARSE)).toBe("47703");
+    expect(catalogEntityKey(2831, SPARSE)).toBe("2831");
+    expect(catalogEntityKey(0, SPARSE)).toBe("0"); // Not listed, every domain
+    expect(catalogEntityKey(47704, SPARSE)).toBeNull(); // between real QIDs
+    expect(catalogEntityKey(-1, SPARSE)).toBeNull();
+    expect(catalogEntityKey(47703.5, SPARSE)).toBeNull();
+    // An empty set is a domain whose catalogue is not yet generated:
+    // nothing but "Not listed" validates, so nothing aggregates by
+    // accident before the operator step (D15).
+    const EMPTY = { keys: new Set<number>() };
+    expect(catalogEntityKey(47703, EMPTY)).toBeNull();
+    expect(catalogEntityKey(0, EMPTY)).toBe("0");
   });
 
   // The property that makes the canon's floor real rather than decorative.

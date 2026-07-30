@@ -76,7 +76,10 @@
   };
   window.PICKS = api;
 
-  // the feed question — one pilot domain (docs/CATALOG-QUESTIONS.md step 2)
+  // the feed questions — one per COMMITTED catalogue. Films/artists cards
+  // land here the day scripts/build-catalog.mjs output is committed (an
+  // operator step, D15) — a card whose catalogue is absent would open
+  // straight into the picker's error state, which is worse than no card.
   window.PICK_QS = [
     { id: 'pk01', cat: 'games', type: 'pick', domain: 'pokemon', prompt: 'Favourite Pokémon?', n: 242 },
   ];
