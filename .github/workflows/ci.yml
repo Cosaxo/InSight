@@ -92,6 +92,39 @@ jobs:
       - name: Audit backend dependencies
         run: npm audit --prefix functions --omit=dev --audit-level=high
 
+  # The store-facing legal pages. privacy.html routes GDPR erasure requests
+  # to "the support address listed on the terms of service page", so an
+  # unfilled placeholder there means a user exercising a legal right lands
+  # on a bracket.
+  #
+  # WARNING-ONLY, and that is the whole design. SHIP-CHECKLIST §3 kept this
+  # check out of CI on the reasoning that the values are unfilled today, so
+  # a blocking gate would red the tree immediately and "the first response
+  # would be to delete the check". That objection is exactly right about a
+  # blocking gate — and it left the check invisible instead, named in the
+  # README as one of the project's checks while running nowhere. That is
+  # the same shape as check:deploy-targets, which sat unrun for its whole
+  # life until it was wired into backend-checks.
+  #
+  # An annotation is the third option: it cannot red the tree, so it cannot
+  # provoke the deletion §3 predicted, and it cannot be silently forgotten
+  # either. Promote to a hard gate the day the placeholders are filled —
+  # from then on the failure mode is a REGRESSION, which is worth blocking.
+  #
+  # No `npm ci`: the script imports only node builtins.
+  store-copy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: "22"
+      - name: Report unfilled store-copy placeholders
+        run: |
+          if ! npm run check:store-copy; then
+            echo "::warning::Store-facing legal pages still carry unfilled placeholders (docs/SHIP-CHECKLIST.md §3). Blocks a store upload, deliberately not a merge."
+          fi
+
   # Capacitor copies the web build and rewrites native config on sync. If
   # that output drifts from what is committed, the native shells are built
   # from something nobody reviewed. Warning-only for now: a Capacitor CLI

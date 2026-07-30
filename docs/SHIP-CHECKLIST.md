@@ -80,10 +80,26 @@ Both apps must be registered under `com.cosaxo.insight`:
   right lands on a bracket.
 
   `npm run check:store-copy` is the tripwire. **Run it before every store
-  upload**; it exits non-zero while any placeholder remains. It is
-  deliberately *not* in CI — the values are unfilled today, so a CI gate
-  would red the tree immediately and the first response would be to delete
-  the check.
+  upload**; it exits non-zero while any placeholder remains.
+
+  **Amended (2026-07-30) — it is in CI now, as a warning, not a gate.**
+  This paragraph used to say the check was deliberately kept out of CI:
+  the values are unfilled today, so a blocking gate would red the tree
+  immediately and "the first response would be to delete the check". That
+  reasoning is still correct about a *blocking* gate, and nothing here
+  blocks. What it got wrong was treating block-or-nothing as the only
+  choice: the check ended up named in the README as one of the project's
+  checks while running nowhere at all, which is how `check:deploy-targets`
+  spent its entire life before it was wired into `backend-checks`.
+
+  The `store-copy` job in `ci.yml` runs it and emits a `::warning::`
+  annotation on failure. It cannot red the tree, so it cannot provoke the
+  deletion this paragraph predicted; it also cannot be quietly forgotten.
+
+  **Promote it to a hard gate the day the placeholders are filled.** From
+  that point the failure mode changes from "not done yet" to "someone
+  reintroduced a placeholder", which is a regression and worth blocking.
+  The one-line change is dropping the `if !` wrapper in that job.
 - **Hosting — done, but verify the first deploy.** `firebase.json` serves
   the `web/` directory on the project's default site, so the store-required
   URLs are:

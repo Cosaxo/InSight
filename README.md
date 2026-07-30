@@ -94,8 +94,10 @@ Local:
   version lockstep across the three projects, the bundle budget, and every
   exported function appearing in the deploy list.
 - `npm run check:store-copy` — no unfilled placeholders in the store-facing
-  legal pages. A pre-submission gate, not a CI one (see
-  [`docs/SHIP-CHECKLIST.md`](./docs/SHIP-CHECKLIST.md) §3 for why).
+  legal pages. Blocking before a store upload; in CI it only raises a
+  warning annotation, because the placeholders are unfilled today and a
+  hard gate would red every PR (see
+  [`docs/SHIP-CHECKLIST.md`](./docs/SHIP-CHECKLIST.md) §3).
 
 CI ([`.github/workflows/`](./.github/workflows/)):
 
