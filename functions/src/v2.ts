@@ -29,7 +29,9 @@ import {
   shouldPublishAgg,
   type BreakdownCounts,
   type CanonCounts,
+  type CatalogSpec,
 } from "./pure";
+import { FILM_KEYS, ARTIST_KEYS } from "./catalogKeys";
 
 const REGION = "us-central1";
 
@@ -58,12 +60,21 @@ export const AGG_MIN_N = 5;
 const PUBLISH_EVERY = 5;
 
 // Catalog questions (docs/CATALOG-QUESTIONS.md): the reveal's leaderboard
-// cap, and the catalogue's key ceiling. CATALOG_MAX_ENTITY must equal the
+// cap, and the per-domain key spaces. CATALOG_MAX_ENTITY must equal the
 // species count in public/pokedex.txt — scripts/check-pokedex.mjs
 // cross-checks this line against the committed catalogue, so regenerating
-// a grown catalogue fails CI until this number moves with it.
+// a grown catalogue fails CI until this number moves with it. The QID
+// domains carry generated key sets instead (catalogKeys.ts, agreement
+// enforced by scripts/check-catalogs.mjs); while a set is empty its
+// domain simply never aggregates — fail-safe until the catalogue is
+// generated and committed (D15).
 const CANON_TOP_N = 10;
 export const CATALOG_MAX_ENTITY = 1025;
+const CATALOG_DOMAINS: Record<string, CatalogSpec> = {
+  pokemon: { max: CATALOG_MAX_ENTITY },
+  films: { keys: FILM_KEYS },
+  artists: { keys: ARTIST_KEYS },
+};
 
 // ── content seed ────────────────────────────────────────────────
 
@@ -167,18 +178,30 @@ export const onV2AnswerCreated = onDocumentCreated(
     // arithmetic in docs/CATALOG-QUESTIONS.md — a 1,000-entity split times
     // 6 dimensions leaves nearly every cell under the floor.
     if (snap.get("entity") !== undefined) {
-      const key = catalogEntityKey(snap.get("entity"), CATALOG_MAX_ENTITY);
-      if (key === null) {
-        logger.warn(`[v2] answer ${event.params.uid}/${qid} has no usable entity key`);
-        return; // an unknown key never aggregates; the owner's doc stays, harmless
-      }
       const db = getFirestore();
       const eventRef = db.collection("v2_agg_events").doc(event.id);
       const privRef = db.collection("v2_aggs_private").doc(qid);
       const pubRef = db.collection("v2_question_aggs").doc(qid);
+      const qRef = db.collection("v2_questions").doc(qid);
       await db.runTransaction(async (tx) => {
         const seen = await tx.get(eventRef);
         if (seen.exists) return;
+        // The question's domain decides which key space validates this
+        // entity — the trigger's only question-doc read, catalog answers
+        // only. A missing or unknown domain never aggregates: with three
+        // key spaces (a contiguous range and two sparse QID sets, D15)
+        // there is no honest global fallback bound.
+        const qDoc = await tx.get(qRef);
+        const spec = CATALOG_DOMAINS[qDoc.get("domain") as string];
+        if (!spec) {
+          logger.warn(`[v2] catalog answer ${event.params.uid}/${qid} on a question with no known domain`);
+          return;
+        }
+        const key = catalogEntityKey(snap.get("entity"), spec);
+        if (key === null) {
+          logger.warn(`[v2] answer ${event.params.uid}/${qid} has no usable entity key`);
+          return; // an unknown key never aggregates; the owner's doc stays, harmless
+        }
         const priv = await tx.get(privRef);
         const ent: CanonCounts =
           (priv.exists && (priv.get("ent") as CanonCounts)) || {};

@@ -147,9 +147,11 @@ service cloud.firestore {
         // "catalog" accept them; the feed calls the card 'pick', but that
         // word already means a group's member-pick day in this file, so
         // the bank vocabulary differs on purpose. entity 0 is the "Not
-        // listed" bucket. The ceiling is a sanity bound only — the
-        // aggregate trigger validates the key against the real catalogue
-        // (CATALOG_MAX_ENTITY, functions/src/v2.ts) and an unknown key
+        // listed" bucket. The ceiling is a sanity bound only, sized for
+        // Wikidata-QID keys (films/artists store QID numeric parts,
+        // currently up to ~9 digits — D15) — the aggregate trigger
+        // validates the key against the real per-domain catalogue
+        // (CATALOG_DOMAINS, functions/src/v2.ts) and an unknown key
         // never aggregates; a thousand-entry `in` list is not a rules
         // construct.
         function isCatalogAnswer() {
@@ -160,7 +162,7 @@ service cloud.firestore {
             && request.resource.data.qid == aid
             && request.resource.data.entity is int
             && request.resource.data.entity >= 0
-            && request.resource.data.entity < 2048
+            && request.resource.data.entity < 1000000000
             && get(/databases/$(database)/documents/v2_questions/$(aid))
                  .data.get("type", "") == "catalog"
             // same kill switch and surface agreement as isWorldAnswer

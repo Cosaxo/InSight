@@ -52,6 +52,10 @@ jobs:
       # count — this check cross-checks the two, so it guards the deploy,
       # not just the client (ci.yml runs it too). Node stdlib only.
       - run: npm run check:pokedex
+      # Same for the QID-keyed domains: catalogKeys.ts is what the deployed
+      # trigger accepts, and it must equal the committed catalogue files
+      # exactly — absence included.
+      - run: npm run check:catalogs
 
   rules-tests:
     runs-on: ubuntu-latest

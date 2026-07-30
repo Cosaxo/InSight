@@ -28,15 +28,43 @@ Safety answers when store listing time comes.
 **Not collected:** contacts, photos, free-text from strangers, advertising
 or analytics identifiers. No product analytics of any kind ship today.
 
-**Location and sensitive info — read the precondition.** The v2 app asks
-for no location: the manifest declares no location permission and nothing
-in `src/` writes one. But the retired v1 `insight_discoverable` documents
-carry a ~5km geohash alongside a Big Five vector, political coordinates,
-age, gender, country and a free-text bio. Client access to them is now
-closed (D4), which is not the same as them being gone. **Declare location
-and sensitive personal info as "not collected" only after the discoverable
-scrub in `docs/SHIP-CHECKLIST.md` has actually run** — the honest scope is
-the whole document, not just its location field.
+**Location — declare Coarse, and read why the old wording was wrong.**
+This paragraph used to open "the v2 app asks for no location: the manifest
+declares no location permission and nothing in `src/` writes one." Both
+halves are now false, and this file is the audited list the store forms are
+answered from — so the stale version produced an **under-declaration**,
+which `docs/SHIP-CHECKLIST.md` correctly calls the direction that gets an
+app pulled.
+
+What is true today, after D9's amendment: `AndroidManifest.xml` declares
+`ACCESS_COARSE_LOCATION` outright (plus `ACCESS_FINE_LOCATION` capped at
+`maxSdkVersion="30"`, for the reason recorded beside it), `Info.plist`
+carries `NSLocationWhenInUseUsageDescription`, and `src/v2/data/locate.ts`
+calls `Geolocation.getCurrentPosition`. So: **Coarse location, linked to
+user, App Functionality, optional.**
+
+Declare it even though **no coordinate is ever transmitted** — the fix is
+resolved to a city name on the device and discarded, so what leaves the
+device is a city name. That is still coarse location data. Never tick
+Precise: it is unobtainable by construction, not by policy.
+
+**Sensitive info — read the precondition.** The retired v1
+`insight_discoverable` documents carry a ~5km geohash alongside a Big Five
+vector, political coordinates, age, gender, country and a free-text bio.
+Client access to them is now closed (D4), which is not the same as them
+being gone. **Declare sensitive personal info as "not collected" only
+after the discoverable scrub has actually run** — the honest scope is the
+whole document, not just its location field:
+
+```bash
+node scripts/scrub-v1-discoverable.mjs --project prvfire33          # report
+node scripts/scrub-v1-discoverable.mjs --project prvfire33 --apply  # delete
+```
+
+Note that the v2 surface has its own Art. 9 answer regardless: the
+politics test result is special-category data, so **Sensitive info stays a
+real Yes** even once the scrub has run. The scrub changes the scope of the
+claim, not the answer to that row.
 
 **Deletion.** The `deleteAccount` callable wipes the profile, all answers,
 group memberships, this user's votes and names inside shared reveals, the

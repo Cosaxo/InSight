@@ -42,8 +42,18 @@ Both apps must be registered under `com.cosaxo.insight`:
   Android → download `google-services.json` → drop into `android/app/`.
   This also activates FCM delivery for reveal pushes.
 - **iOS** — Add app → iOS → download `GoogleService-Info.plist` → add to
-  `ios/App/App/` in Xcode (add to target), and set the
-  `REVERSED_CLIENT_ID` in `Info.plist` for native Google sign-in.
+  `ios/App/App/` in Xcode (add to target), then copy that file's
+  `REVERSED_CLIENT_ID` value over the `REPLACE_WITH_REVERSED_CLIENT_ID`
+  placeholder in `Info.plist` → `CFBundleURLTypes` for native Google
+  sign-in. `npm run check:store-copy` fails while it is unreplaced.
+
+  That block is the OAuth callback route: the plugin's
+  `GoogleAuthProviderHandler` calls `GIDSignIn.signIn(withPresenting:)`,
+  and GoogleSignIn-iOS returns the result through that custom URL scheme.
+  Without it the build succeeds, the account sheet opens, and the flow
+  never comes back — taking D3's only anonymous-account upgrade path with
+  it. It is device-only and silent; no other gate in this repo sees it.
+
   For push: Apple Developer → Keys → create an APNs key and upload it in
   Firebase Console → Cloud Messaging → Apple app configuration.
 - **Enable the provider** — Firebase Console → Authentication → Sign-in
@@ -162,10 +172,50 @@ Both apps must be registered under `com.cosaxo.insight`:
     document and is never sliced by (D8), but the form asks what you
     *collect*, not what you publish.
 
-  **Resolve the Facebook SDK before filling these in.** It is linked into
-  the iOS binary and never initialised (see the note in D3/D8 discussion);
-  an undisclosed advertising SDK is exactly the mismatch these forms exist
-  to catch. Either exclude it or declare it.
+  **Facebook SDK — resolved, excluded (D16).** It *was* linked into every
+  iOS binary and never initialised, which is exactly the mismatch these
+  forms exist to catch. It is now stripped at `postinstall`
+  (`scripts/strip-facebook-sdk.mjs`) and the removal is asserted by
+  `npm run check:ios-facebook` in CI. **Answer both forms with no Facebook
+  SDK and no advertising SDK of any kind** — and note that the row above
+  already says Ads: None, which is now true of the binary as well as the
+  product.
+
+  The rest of this note is kept because the linkage is invisible to every
+  obvious check, so a future upgrade can reintroduce it quietly.
+
+  *Where it came from, since this is easy to "verify" wrongly.* It is a
+  transitive **SwiftPM** dependency of `@capacitor-firebase/authentication`,
+  declared in that plugin's own manifest inside `node_modules`:
+
+  ```
+  node_modules/@capacitor-firebase/authentication/Package.swift
+    .package(url: "https://github.com/facebook/facebook-ios-sdk.git", from: "18.0.0")
+    → products FacebookCore, FacebookLogin
+    → swiftSettings: .define("RGCFA_INCLUDE_FACEBOOK")
+  ```
+
+  Three greps say it is absent and all three are wrong: `package-lock.json`
+  (npm does not model SPM edges), `ios/App/CapApp-SPM/Package.swift` (names
+  the plugin, not the plugin's own dependencies) and `project.pbxproj` (SPM
+  resolves at build time, not in the project file). The only file that
+  shows it is the plugin's manifest — so check there, or check a resolved
+  `Package.resolved` after a build.
+
+  **The platforms differed, which was the tell.** On Android the same
+  plugin gates each provider behind a flag, and `rgcfaIncludeFacebook`
+  defaults to `false` — `android/variables.gradle` sets only
+  `rgcfaIncludeGoogle`, so Facebook was always absent from the Android
+  build. The iOS SPM manifest had no equivalent gate: both defines were
+  unconditional. So "we don't use Facebook login" was true of the product,
+  true of the Android binary, and false of the iOS binary — the two stores
+  would have taken different correct answers.
+
+  That asymmetry is why the strip exists and has no Android twin. If
+  `check:ios-facebook` ever fails, the manifest layout changed in an
+  upgrade and the SDK is back in the binary: fix
+  `FACEBOOK_PATTERNS` in the stripper rather than relaxing the check, and
+  re-check this row before submitting.
 - Apple Developer Program (~2 days to approve — start early) and a Mac
   with Xcode for the iOS build; Play Console for Android.
 - Build flow: `npm run build && npx cap sync`, then open the native
@@ -345,12 +395,31 @@ Until then links open the fallback page — degraded, not broken.
 - **Version lockstep** — bump package.json `appBuild` + android
   `versionCode` + iOS `CURRENT_PROJECT_VERSION` together each release.
 
-- **Discoverable location scrub** — rules now cap
-  `insight_discoverable` writes to a bare geohash5 cell (no exact
-  GeoPoint, no long hashes). Docs written before that rule may still
-  carry `location.geopoint` / full-precision hashes: run a one-time
-  admin scrub that truncates `location.geohash` to 5 chars and
-  deletes `location.geopoint` on every doc.
+- **Discoverable scrub — now a delete, not a truncate.** This entry used
+  to say "rules cap `insight_discoverable` writes to a bare geohash5 cell,
+  so truncate `location.geohash` to 5 chars and delete `location.geopoint`".
+  That cap is `isValidDiscoverableWrite()` in **`firestore.rules.v1-archive`**
+  — undeployed since D4. The live ruleset has no `insight_discoverable`
+  block at all, and `rules.test.ts` pins read *and* write as denied.
+
+  With the cap gone the remedy changes, because truncating one field
+  leaves the rest of the document standing: `personality` (Big Five),
+  `political` (econ/social — GDPR Art. 9), `age`, `bio`, `role`,
+  `displayName`. `docs/data-inventory.md` already says the honest scope is
+  "the whole document, not just its location field", and gates the store
+  privacy answers on this having run. The collection has no writer (D4
+  deleted the v1 client) and no reader (D13 deleted the aggregators), so
+  there is nothing to preserve:
+
+  ```bash
+  node scripts/scrub-v1-discoverable.mjs --project prvfire33          # report
+  node scripts/scrub-v1-discoverable.mjs --project prvfire33 --apply  # delete
+  ```
+
+  Dry run by default; it counts field *presence* and never prints a value
+  or a uid, so the report is safe to paste. Needs
+  `GOOGLE_APPLICATION_CREDENTIALS` or `gcloud auth application-default
+  login`. Verified against the Firestore emulator, not just reasoned about.
 
 ## Known deferrals (tracked, not blockers)
 

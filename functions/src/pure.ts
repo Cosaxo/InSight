@@ -170,7 +170,7 @@ export function meetsKFloor(count: number, floor: number): boolean {
 //    4-option question needs ~20 answers per city before any of it renders,
 //    with the surviving options no longer summing to the bucket total. That
 //    trades the product's one job, showing the split, for a bound the floor
-//    was never claiming. See D15 for the arithmetic.
+//    was never claiming. See D17 for the arithmetic.
 
 // Anchors coarse enough to bucket. Order is the display order.
 export const BREAKDOWN_DIMS = [
@@ -269,7 +269,7 @@ function bucketTotal(bucket: Record<string, number>): number {
 //
 // The per-option counts inside a surviving bucket are published as they
 // stand — the floor is a bound on cohort size, not on how lopsided a cohort
-// is allowed to be. Constraint 2 above has the reasoning and D15 the
+// is allowed to be. Constraint 2 above has the reasoning and D17 the
 // arithmetic; `publishes a lopsided split inside a bucket at the floor` in
 // pure.test.ts pins it so the property stays deliberate.
 export function publishableBreakdown(
@@ -354,14 +354,34 @@ export function shouldPublishAgg(
 // pointed at entities instead of demographic cells.
 
 /**
- * The stored form of a catalog answer's entity, or null to never aggregate.
- * `max` is the catalogue's key ceiling (CATALOG_MAX_ENTITY in v2.ts —
- * cross-checked against the committed catalogue by scripts/check-pokedex.mjs);
- * parameter-pure like meetsKFloor so this stays testable without it.
+ * How a domain's catalogue defines its key space. Contiguous catalogues
+ * (pokedex) need only a ceiling; QID-keyed catalogues (films, artists —
+ * D15) are sparse, so membership is the only honest test — a range would
+ * admit every integer between two real QIDs, and each junk key an attacker
+ * lands mints a bucket in the private doc forever (the document-growth
+ * constraint the breakdown cap exists for).
  */
-export function catalogEntityKey(value: unknown, max: number): string | null {
+export type CatalogSpec =
+  | { max: number }
+  | { keys: ReadonlySet<number> };
+
+/**
+ * The stored form of a catalog answer's entity, or null to never
+ * aggregate. 0 ("Not listed") is valid in every domain. Parameter-pure
+ * like meetsKFloor: the specs live in v2.ts (CATALOG_DOMAINS), the
+ * committed catalogues are cross-checked against them by
+ * scripts/check-pokedex.mjs and scripts/check-catalogs.mjs.
+ */
+export function catalogEntityKey(value: unknown, spec: CatalogSpec): string | null {
   if (typeof value !== "number" || !Number.isInteger(value)) return null;
-  if (value < 0 || value > max) return null;
+  if (value < 0) return null;
+  if (value !== 0) {
+    if ("max" in spec) {
+      if (value > spec.max) return null;
+    } else if (!spec.keys.has(value)) {
+      return null;
+    }
+  }
   return String(value);
 }
 
