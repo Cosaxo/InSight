@@ -52,7 +52,7 @@ v2_aggs_private/{qid}              exact counts — server-only (opaque)
                                    catalogue's ~1k keys, so D7's
                                    document arithmetic is unchanged
   entBy { dim: { bucket:           catalog questions: per-entity anchor
-           { entity: n } } }       slices (D16), the vote fold transposed
+           { entity: n } } }       slices (D17), the vote fold transposed
                                    with its own per-cell entity cap (32)
                                    on top of the bucket cap
   by { dim: { bucket: {opt:n} } }  per-anchor slices, exact (see D8).
@@ -80,7 +80,7 @@ v2_question_aggs/{qid}             the PUBLIC mirror, k-floored
     by { dim: { bucket:            ties and lone holes folded whole
       { entity: n } } } }          (publishableCanon, D14); bare total
                                    when nothing survives the fold. `by`
-                                   (D16) holds each segment's ordering
+                                   (D17) holds each segment's ordering
                                    of the board's OWN entities — floored
                                    on the shown cohort with the same
                                    complementary suppression as vote

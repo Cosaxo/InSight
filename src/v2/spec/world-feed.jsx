@@ -455,7 +455,7 @@ class WorldFeed extends React.Component {
     // everyone else in one bucket. Your own pick always shows to YOU — it
     // is your own answer, no floor applies — and when it is below the floor
     // the copy says so instead of pretending it counted. Segment chips
-    // (D16) reorder the SAME board by one cohort's counts — a segment
+    // (D17) reorder the SAME board by one cohort's counts — a segment
     // never surfaces entities the global board suppressed.
     const c = window.PICKS ? window.PICKS.canon(q.id) : { top: [], rest: 0, total: 0 };
     const segs = window.PICKS ? window.PICKS.segs(q.id) : [];

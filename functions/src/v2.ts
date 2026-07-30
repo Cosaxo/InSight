@@ -168,7 +168,7 @@ export const onV2AnswerCreated = onDocumentCreated(
     // questions. Same ledger, same private/public docs, same cadence; what
     // publishes is the canon fold (top-N + one "everyone else" bucket)
     // instead of per-option counts, plus per-segment orderings of that
-    // board restricted to its own entities (D16 — the top-N-only form D14
+    // board restricted to its own entities (D17 — the top-N-only form D14
     // said was the viable one; a full 1,000-entity split per segment
     // leaves nearly every cell under the floor).
     if (snap.get("entity") !== undefined) {
@@ -202,7 +202,7 @@ export const onV2AnswerCreated = onDocumentCreated(
         ent[key] = (ent[key] || 0) + 1;
         const total = ((priv.exists && (priv.get("total") as number)) || 0) + 1;
         // Per-entity anchor slices, transposed foldAnchors with its own
-        // per-cell entity cap (pure.ts, D16). Same document, same D7
+        // per-cell entity cap (pure.ts, D17). Same document, same D7
         // arithmetic as the vote path's `by`.
         const entBy: BreakdownCounts =
           (priv.exists && (priv.get("entBy") as BreakdownCounts)) || {};
@@ -225,7 +225,7 @@ export const onV2AnswerCreated = onDocumentCreated(
             // there IS a board, its per-segment orderings ride along:
             // cells restricted to the board's own entities, then the same
             // bucket-cohort floor + complementary suppression as the vote
-            // path (D16).
+            // path (D17).
             tx.set(
               pubRef,
               canon

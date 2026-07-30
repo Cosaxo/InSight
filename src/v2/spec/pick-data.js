@@ -49,7 +49,7 @@
   };
 
   // Baked demo segment slices, per question: how each cohort orders the
-  // global board (D16 — segments only ever reorder the published top,
+  // global board (D17 — segments only ever reorder the published top,
   // never surface their own long tail). Small per-entity counts inside a
   // ≥floor cohort are publishable on purpose: "one of these fourteen
   // picked Gengar" names nobody (the D8 k-argument). Real slices come

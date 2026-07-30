@@ -20,6 +20,31 @@
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
 	<string>$(MARKETING_VERSION)</string>
+	<!-- Google sign-in callback (D3: the only way an anonymous account can
+	     be upgraded without losing its uid and history). The plugin's
+	     GoogleAuthProviderHandler calls GIDSignIn.signIn(withPresenting:),
+	     and GoogleSignIn-iOS hands the OAuth result back through a custom
+	     URL scheme — the REVERSED_CLIENT_ID from GoogleService-Info.plist.
+	     Without this block registered there is no scheme to return to.
+
+	     The value cannot be committed: GoogleService-Info.plist is
+	     untracked (it is account-gated, see docs/SHIP-CHECKLIST.md §4), so
+	     this ships as a placeholder in the same REPLACE_WITH_* form as the
+	     two files under web/.well-known/. `npm run check:store-copy`
+	     fails while it is unreplaced — the failure is otherwise silent and
+	     device-only: everything compiles, the account sheet opens, and the
+	     flow simply never returns. -->
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>com.cosaxo.insight.googlesignin</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>REPLACE_WITH_REVERSED_CLIENT_ID</string>
+			</array>
+		</dict>
+	</array>
 	<key>CFBundleVersion</key>
 	<string>$(CURRENT_PROJECT_VERSION)</string>
 	<key>LSRequiresIPhoneOS</key>

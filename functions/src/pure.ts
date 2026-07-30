@@ -365,7 +365,7 @@ export function publishableCanon(
   return { top, rest: total - shown };
 }
 
-// ─── catalog breakdowns: how each segment orders the canon (D16) ────────
+// ─── catalog breakdowns: how each segment orders the canon (D17) ────────
 //
 // D14 deferred per-anchor breakdowns for catalog questions with the
 // arithmetic, and named the one viable form: breakdowns for the published
@@ -412,7 +412,7 @@ export function foldCanonAnchors(
  * k-argument carries over exactly (a per-entity count of 1 inside a
  * ≥floor bucket says "one of these five", never which one).
  *
- * Two deliberate conservatisms, recorded in D16:
+ * Two deliberate conservatisms, recorded in D17:
  * - the floor then applies to the SHOWN total (top-N answers in the
  *   bucket), not the bucket's true cohort — a bucket can be suppressed
  *   more than strictly necessary, never less;

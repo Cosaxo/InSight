@@ -1110,6 +1110,47 @@ reads them, and they hold k-floored anonymous averages (floor 20) with no
 per-user provenance, so they raise no erasure obligation. Dropping them is
 console work, not code.
 
+**`insight_discoverable` is the exception, and it is not inert.**
+Amendment (2026-07-30). The residue table above holds for the aggregates.
+It does not hold for `insight_discoverable`, which this record's own
+arithmetic listed as "written by nothing since D4" — a collection with no
+writer and, after D13, no reader, still holding one document per v1 user:
+`personality` (Big Five vector), `political` (econ/social coordinates),
+`age`, `bio`, `role`, `displayName` and a geohash
+(`firestore.rules.v1-archive:437-490` is the shape).
+
+`political` is special-category data under GDPR Art. 9. Unlike the
+aggregates there is no k-floor and no anonymity to appeal to: the document
+key *is* the uid.
+
+**The remedy changed, and the change is the point.** `docs/SHIP-CHECKLIST.md`
+carried a "scrub" item that truncated `location.geohash` to 5 chars and
+deleted `location.geopoint`, on the stated grounds that "rules now cap
+`insight_discoverable` writes to a bare geohash5 cell". That cap is
+`isValidDiscoverableWrite()`, which D4 moved to `firestore.rules.v1-archive`
+— undeployed. So the sentence justifying a field-level scrub described a
+rule that has not been enforced since D4, and the scrub it justified would
+have left the Art. 9 payload in place while reading as done.
+
+Field-level truncation is therefore the wrong operation twice over: it
+protects against a client read path that no longer exists (the live rules
+deny the collection outright, pinned in `rules.test.ts`), and it leaves
+standing the fields that actually carry the obligation.
+`docs/data-inventory.md` had it right — "the honest scope is the whole
+document, not just its location field" — and gates the store privacy
+answers on it.
+
+**Decision: delete the documents.** `scripts/scrub-v1-discoverable.mjs`,
+dry-run by default, `--apply` to delete. It counts field presence and
+never prints a value or a uid, because a report that echoes political
+coordinates into a terminal is its own disclosure. Verified against the
+Firestore emulator rather than reasoned about.
+
+Kept out of CI and out of the deploy path for the same reason
+`functions:delete` is: a merge that can empty a collection is a worse
+failure mode than a one-off command someone runs with the dry run in front
+of them. `deleteAccount`'s per-uid delete is unaffected and still tested.
+
 ### Reversing this
 
 Everything is in git history at `802e361`, the same place D4 left the v1
@@ -1210,7 +1251,101 @@ films` (or `artists`) anywhere with network, commit the two generated
 files, add the demo card, and later seed a `type: "catalog"` question
 carrying `domain` — the same one-deliberate-change discipline as D14.
 
-## D16 · Catalog breakdowns: each segment orders the board, never a board of its own
+---
+
+## D16 · The Facebook SDK is stripped from the iOS build, not declared
+
+**Decided:** 2026-07-30 · **Status:** binding
+
+**Decision.** `@capacitor-firebase/authentication` links the Facebook iOS
+SDK into every iOS build. A `postinstall` hook
+(`scripts/strip-facebook-sdk.mjs`) removes it from the plugin's SwiftPM
+manifest; `npm run check:ios-facebook` asserts the removal held, wired into
+`ci.yml`'s lint job. Apple's privacy labels and Google's Data safety form
+are answered with **no Facebook SDK and no advertising SDK of any kind**.
+
+**Why it was there at all.** Nobody added it. The plugin declares it
+unconditionally in its own manifest, inside `node_modules`:
+
+```
+node_modules/@capacitor-firebase/authentication/Package.swift
+  .package(url: ".../facebook/facebook-ios-sdk.git", from: "18.0.0")
+  → products FacebookCore, FacebookLogin
+  → swiftSettings: .define("RGCFA_INCLUDE_FACEBOOK")
+```
+
+**Android was never affected, and the asymmetry is the trap.** The same
+plugin gates each provider behind a Gradle flag on Android, and
+`rgcfaIncludeFacebook` defaults to `false` — `android/variables.gradle` sets
+only `rgcfaIncludeGoogle`, so Facebook has always been absent there. The iOS
+SPM manifest has no equivalent switch. So "we don't use Facebook login" was
+true of the product, true of the Android binary, and false of the iOS
+binary — and the two stores would have taken different correct answers.
+
+**It is invisible to the obvious checks.** Three greps say it is absent and
+all three read the wrong artifact: `package-lock.json` (npm does not model
+SwiftPM edges), `ios/App/CapApp-SPM/Package.swift` (names the plugin, not
+the plugin's dependencies) and `project.pbxproj` (SPM resolves at build
+time). Only the plugin's own manifest shows it. This is why the guard reads
+that file rather than anything committed.
+
+**Why strip rather than declare.** Declaring is honest and wrong: it would
+tell users the app carries an advertising SDK it does not use, permanently,
+to describe dead code. Stripping makes the honest answer "no" and removes
+the surface. It also drops a large dependency from every iOS archive and
+from `-resolvePackageDependencies` on the macOS runner.
+
+**Why it is safe.** Verified in the plugin source, not assumed: every FBSDK
+symbol in `FacebookAuthProviderHandler.swift` sits behind
+`#if RGCFA_INCLUDE_FACEBOOK` — import, stored `LoginManager`, initialiser
+and every method body. The class shell is unguarded, so
+`FirebaseAuthentication.swift`'s reference to it still compiles. Without the
+define, `signInWithFacebook` rejects with the plugin's own "provider not
+enabled" error, which is correct for a provider we do not offer.
+`capacitor.config.ts` declares `providers: ["google.com"]`, and nothing in
+`src/` calls the Facebook methods.
+
+### The split between stripper and check, which is load-bearing
+
+**The stripper can never fail the install.** A root `npm ci` runs on the
+**production deploy path**: `backend-checks.yml` (rules-tests and e2e) is
+called by both `ci.yml` and `firebase-deploy.yml`. A postinstall that exits
+non-zero would put an iOS-only, client-only concern in front of an emergency
+rules fix — exactly what `docs/DEPLOYMENT.md` says to keep off that path. So
+it warns and exits 0, always.
+
+The assertion therefore lives in a separate check on `ci.yml`'s lint job,
+which is off the deploy path. It catches what the stripper cannot report:
+a plugin upgrade that changes the manifest layout so the patterns match
+nothing, a tree where postinstall did not run (`--ignore-scripts`, a
+restored `node_modules` cache), or a hand-reinstalled plugin.
+
+**A bug worth recording, because it is the failure mode of the pattern.**
+The check imports `MANIFEST` from the stripper so the two cannot drift.
+When the stripper's logic sat at top level, that import *ran* it — and hit
+its `process.exit(0)` before the check's own assertion. The check passed
+vacuously: green, and asserting nothing. Found by running it rather than
+reading it. The stripper now guards execution on `process.argv[1]`, and
+`check-deploy-targets.mjs` already carries the same lesson in its "found NO
+exported functions, which cannot be right" branch.
+
+### What this does not cover, and how it would break
+
+Patching `node_modules` is not a supported extension point. An upgrade that
+restructures the manifest silently produces a warning at install and a red
+`check:ios-facebook` on the next PR — not a broken build, and not a shipped
+SDK, but it does need a human to update `FACEBOOK_PATTERNS`.
+
+The upstream fix is the plugin gaining an SPM-side opt-out to match its
+Gradle flags. Delete all of this the day that lands.
+
+**Not yet verified on device.** The macOS CI job (`ios-build.yml`) compiles
+the simulator build with the SDK removed, which is the real test of the
+`#if` analysis above. Google sign-in itself still cannot be exercised
+anywhere in CI — it needs the untracked `GoogleService-Info.plist` and a
+real device (see `docs/SHIP-CHECKLIST.md` §4).
+
+## D17 · Catalog breakdowns: each segment orders the board, never a board of its own
 
 **Decided:** 2026-07-30 · **Status:** binding
 

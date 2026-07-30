@@ -115,7 +115,7 @@ the floor, and the suppression bookkeeping across ~24,000 cells buys almost
 nothing visible. If demand appears, the viable form is breakdowns **for the
 published top-N only** — 10 entities × 6 dims is the same cell count a vote
 question already handles. *(Demand appeared the same day this shipped; the
-top-N-only form is now built — D16. The full-catalogue arithmetic above
+top-N-only form is now built — D17. The full-catalogue arithmetic above
 still stands.)*
 
 **"Not listed" is a real bucket but never enumerated** — it publishes as a

@@ -447,7 +447,7 @@ describe("catalog answers (pick questions — docs/CATALOG-QUESTIONS.md)", () =>
   });
 });
 
-describe("catalog breakdowns — segment orderings of the canon (D16)", () => {
+describe("catalog breakdowns — segment orderings of the canon (D17)", () => {
   const anchors = (over: Record<string, unknown> = {}) => ({
     ageBand: "25-34", gender: "Women", country: "NO", ...over,
   });
