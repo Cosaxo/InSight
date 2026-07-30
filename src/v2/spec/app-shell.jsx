@@ -269,7 +269,15 @@ function App() {
           <ErrorBoundary key={'tab-' + tab} onReset={() => { setTab('track'); setTweak('tab', 'track'); }}>
             <div className="tab-swap" key={tab}>
               {tab === 'track' && <DailySplit key={dailyKey} />}
-              {tab === 'mirror' && <MirrorTab onPerson={setPerson} pop={mirrorPop} onPop={(v) => setTweak('mirrorPop', v)} worldZoom={worldZoom} onZoom={(v) => setTweak('worldZoom', v)} />}
+              {/* The prototype drove the sparse first-run mirror from a Tweaks
+                  switch (`mirrorFirstRun`); the panel that hosted it is gone.
+                  Gate it on the real signal instead — feed-read's header names
+                  it: the sparse Mirror uses the answer count to know how well
+                  the feed has read you. 8 matches MFSparse's `need`. Live
+                  builds only: the demo keeps the prototype's default (full
+                  field), so style-diff still compares like with like. */}
+              {tab === 'mirror' && <MirrorTab onPerson={setPerson} pop={mirrorPop} onPop={(v) => setTweak('mirrorPop', v)} worldZoom={worldZoom} onZoom={(v) => setTweak('worldZoom', v)}
+                firstRun={!!(window.LIVE && window.LIVE.enabled && window.FEEDREAD && window.FEEDREAD.stats().n < 8)} />}
             </div>
           </ErrorBoundary>
         </div>

@@ -22,9 +22,12 @@ function ConsequenceBeat({ seed, options, pcts, mineIdx, height = 220, onDone })
   const rootRef = React.useRef(null), canvasRef = React.useRef(null), doneRef = React.useRef(false);
   const finish = () => { if (!doneRef.current) { doneRef.current = true; onDone && onDone(); } };
   const maxP = Math.max(...pcts), minP = Math.min(...pcts), mineP = pcts[mineIdx];
-  const msg = mineP === maxP ? 'You\u2019re with the majority \u2014 ' + mineP + '%'
-    : mineP === minP ? 'You took the rare side \u2014 ' + mineP + '%'
-    : 'You\u2019re with the ' + mineP + '%';
+  // name the side you picked — the number alone was never the payoff
+  const mineLabel = (options[mineIdx] && options[mineIdx].label) || '';
+  const chose = mineP + '% chose ' + mineLabel;
+  const msg = mineP === maxP ? chose + ' \u2014 you\u2019re with them'
+    : mineP === minP ? 'only ' + chose + ' \u2014 you\u2019re the rare side'
+    : chose + ' \u2014 you among them';
 
   React.useEffect(() => {
     if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) { const t = setTimeout(finish, 400); return () => clearTimeout(t); }

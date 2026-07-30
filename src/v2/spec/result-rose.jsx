@@ -102,12 +102,13 @@ function RosePetals({ dims, hueOf, subOf, animate }) {
         if (anchor === 'start' && lx + estW > W - 4) { lx2 = W - 4 - estW; nudge = s >= 0 ? 13 : -13; }
         else if (anchor === 'end' && lx - estW < 4) { lx2 = 4 + estW; nudge = s >= 0 ? 13 : -13; }
         else if (anchor === 'middle') { lx2 = Math.max(4 + estW / 2, Math.min(W - 4 - estW / 2, lx)); }
-        const ly = ly0 + (s < -0.4 ? -10 : s > 0.4 ? 10 : -3) + nudge;
+        const sub = subOf ? subOf(d) : '';
+        const ly = ly0 + (s < -0.4 ? -10 : s > 0.4 ? 10 : -3) + nudge + (sub ? 0 : 5);
         return (
           <g key={d.id}>
             <path className={animate ? 'rp-petal' : undefined} style={animate ? { transformOrigin: `${cx}px ${cy}px`, animationDelay: `${i * 75}ms` } : undefined} d={`M ${x0i.toFixed(1)} ${y0i.toFixed(1)} L ${x0.toFixed(1)} ${y0.toFixed(1)} A ${r.toFixed(1)} ${r.toFixed(1)} 0 0 1 ${x1.toFixed(1)} ${y1.toFixed(1)} L ${x1i.toFixed(1)} ${y1i.toFixed(1)} A ${r0} ${r0} 0 0 0 ${x0i.toFixed(1)} ${y0i.toFixed(1)} Z`} fill={rpPetal(hue)}></path>
             <text x={lx2} y={ly} textAnchor={anchor} style={{ fontFamily: 'var(--sans)', fontSize: 11, fontWeight: 600, fill: 'var(--ink)' }}>{d.label}</text>
-            <text x={lx2} y={ly + 13} textAnchor={anchor} style={{ fontFamily: 'var(--sans)', fontSize: 11.5, fontWeight: 800, fill: rpDeep(hue) }}>{subOf ? subOf(d) : d.value + '%'}</text>
+            {sub ? <text x={lx2} y={ly + 13} textAnchor={anchor} style={{ fontFamily: 'var(--sans)', fontSize: 11.5, fontWeight: 800, fill: rpDeep(hue) }}>{sub}</text> : null}
           </g>
         );
       })}

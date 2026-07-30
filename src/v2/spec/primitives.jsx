@@ -156,6 +156,24 @@ function Lazy({ minHeight = 240, children }) {
   return <div ref={ref} style={{ minHeight }} aria-hidden="true" />;
 }
 
+// ─── a ring that IS the match figure — arc sweep = how alike you are.
+//     Wraps an avatar (or stands alone as a small glyph). No numeral. ───
+function MatchRing({ pct, color = 'var(--accent)', size = 50, thick = 2.4, children, title }) {
+  const r = (size - thick) / 2;
+  const C = 2 * Math.PI * r;
+  return (
+    <span title={title || `${pct} match`} style={{ position: 'relative', width: size, height: size, flexShrink: 0, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
+      <svg viewBox={`0 0 ${size} ${size}`} width={size} height={size} style={{ position: 'absolute', inset: 0, transform: 'rotate(-90deg)' }}>
+        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="var(--rule)" strokeWidth={Math.max(1, thick * 0.55)} opacity="0.8"></circle>
+        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={color} strokeWidth={thick} strokeLinecap="round"
+          strokeDasharray={`${(Math.max(0, Math.min(100, pct)) / 100) * C} ${C}`}
+          style={{ transition: 'stroke-dasharray 0.4s cubic-bezier(0.2,0.8,0.2,1)' }}></circle>
+      </svg>
+      {children}
+    </span>
+  );
+}
+Object.assign(window, { MatchRing });
 ;globalThis.Av = typeof Av === 'undefined' ? globalThis.Av : Av;
 ;globalThis.AnonAv = typeof AnonAv === 'undefined' ? globalThis.AnonAv : AnonAv;
 ;globalThis.anonName = typeof anonName === 'undefined' ? globalThis.anonName : anonName;
@@ -166,3 +184,4 @@ function Lazy({ minHeight = 240, children }) {
 ;globalThis.InterestRun = typeof InterestRun === 'undefined' ? globalThis.InterestRun : InterestRun;
 ;globalThis.Pill = typeof Pill === 'undefined' ? globalThis.Pill : Pill;
 ;globalThis.Lazy = typeof Lazy === 'undefined' ? globalThis.Lazy : Lazy;
+;globalThis.MatchRing = typeof MatchRing === 'undefined' ? globalThis.MatchRing : MatchRing;

@@ -1,6 +1,6 @@
 # InSight v2 — the ported app
 
-This is the frozen spec (`design/InSight_standalone_14.html`) running under
+This is the frozen spec (`design/InSight_standalone_15.html`) running under
 Vite. `index.html` points at `main.jsx`; the journal-era app lives in
 git history (decision D4) — `src/legacy/` was deleted after Phase 5 shipped,
 and its Firestore rules were retired to `firestore.rules.v1-archive`.

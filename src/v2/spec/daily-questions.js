@@ -54,7 +54,7 @@ import React from 'react';
   const CAT_META = {
     Body: { seedId: 'health', hue: 150 }, Skills: { seedId: 'craft', hue: 40 }, Interests: { seedId: 'interests', hue: 78 },
     Home: { seedId: 'home', hue: 110 }, Story: { seedId: 'story', hue: 320 }, Goals: { seedId: 'goals', hue: 240 }, Values: { seedId: 'values', hue: 356 },
-    Sport: { hue: 18 }, Film: { hue: 265 }, Food: { hue: 35 }, Travel: { hue: 200 }, Mind: { hue: 255 }, Morals: { hue: 305 },
+    Sport: { hue: 18 }, Film: { hue: 265 }, Food: { hue: 35 }, Travel: { hue: 200 }, Mind: { hue: 255 }, Morals: { hue: 305 }, Music: { hue: 130 },
   };
   function catMeta(top) { const m = CAT_META[top] || { hue: 250 }; return { top, hue: m.hue, seedId: m.seedId || null, catId: m.seedId || ('top-' + slug(top)) }; }
   const EMERGENT_CATS = Object.keys(CAT_META).filter((k) => !CAT_META[k].seedId).map((k) => ({ id: 'top-' + slug(k), label: k, hue: CAT_META[k].hue }));
@@ -130,6 +130,53 @@ import React from 'react';
       cat: ['Travel', 'Seasons'], alts: [['Interests', 'Seasons'], ['Mind', 'Mood']] },
     { type: 'scale', prompt: 'Most people would help a stranger in need.', tag: 'Helping hands', axis: 'hopeful', tone: 'deep',
       cat: ['Morals', 'Faith in others'], alts: [['Values', 'Trust'], ['Mind', 'Outlook']] },
+    // ── deeper archive: keeps every topic browsable, not just a select few ──
+    { type: 'binary', prompt: 'Team sports or solo sports?', tag: 'Team or solo', options: ['Team', 'Solo'], tone: 'light',
+      cat: ['Sport', 'How you play'], alts: [['Body', 'Activity'], ['Interests', 'Sport']] },
+    { type: 'choice', prompt: 'Best way to watch a final?', tag: 'The final', options: ['Stadium', 'Pub', 'Sofa'], tone: 'light',
+      cat: ['Sport', 'Watching'], alts: [['Interests', 'Sport'], ['Home', 'Rituals']] },
+    { type: 'binary', prompt: 'Subtitles or dubbing?', tag: 'Subtitles', options: ['Subtitles', 'Dubbing'], tone: 'light',
+      cat: ['Film', 'How you watch'], alts: [['Film', 'Taste'], ['Mind', 'Language']] },
+    { type: 'choice', prompt: 'A great film should leave you…', tag: 'What film is for', options: ['Moved', 'Thinking', 'Entertained'], tone: 'blend',
+      cat: ['Film', 'What it’s for'], alts: [['Values', 'Art'], ['Mind', 'Feeling']] },
+    { type: 'binary', prompt: 'Cinema or sofa?', tag: 'Cinema night', options: ['Cinema', 'Sofa'], tone: 'light',
+      cat: ['Film', 'Where you watch'], alts: [['Home', 'Nights in'], ['Interests', 'Cinema']] },
+    { type: 'binary', prompt: 'Cook at home or eat out?', tag: 'Kitchen or table', options: ['Cook', 'Eat out'], tone: 'light',
+      cat: ['Food', 'Habits'], alts: [['Home', 'Kitchen'], ['Body', 'Health']] },
+    { type: 'choice', prompt: 'One cuisine, forever?', tag: 'One cuisine', options: ['Italian', 'Japanese', 'Mexican', 'Indian'], tone: 'light',
+      cat: ['Food', 'Taste'], alts: [['Travel', 'Places'], ['Interests', 'Food']] },
+    { type: 'scale', prompt: 'Breakfast is the best meal of the day.', tag: 'Breakfast', axis: 'breakfast-loyal', tone: 'light',
+      cat: ['Food', 'Meals'], alts: [['Body', 'Mornings'], ['Home', 'Rituals']] },
+    { type: 'binary', prompt: 'Mountains or sea?', tag: 'Mountains or sea', options: ['Mountains', 'Sea'], tone: 'light',
+      cat: ['Travel', 'Landscapes'], alts: [['Body', 'Outdoors'], ['Mind', 'Mood']] },
+    { type: 'choice', prompt: 'The best part of a trip?', tag: 'The trip', options: ['Planning it', 'Being there', 'Coming home'], tone: 'blend',
+      cat: ['Travel', 'The arc'], alts: [['Mind', 'Anticipation'], ['Home', 'Return']] },
+    { type: 'binary', prompt: 'One trip in a time machine: past or future?', tag: 'Time machine', options: ['The past', 'The future'], tone: 'blend',
+      cat: ['Travel', 'Time travel'], alts: [['Mind', 'Time'], ['Story', 'History']] },
+    { type: 'binary', prompt: 'A live gig or the perfect recording?', tag: 'Live or studio', options: ['Live', 'The recording'], tone: 'light',
+      cat: ['Music', 'How you listen'], alts: [['Interests', 'Music'], ['Body', 'Presence']] },
+    { type: 'choice', prompt: 'Music is mostly for…', tag: 'What music does', options: ['Dancing', 'Feeling', 'Focus', 'Memory'], tone: 'blend',
+      cat: ['Music', 'What it does'], alts: [['Mind', 'Mood'], ['Story', 'Memory']] },
+    { type: 'binary', prompt: 'Lyrics or melody?', tag: 'Lyrics or melody', options: ['Lyrics', 'Melody'], tone: 'light',
+      cat: ['Music', 'What hooks you'], alts: [['Mind', 'Language'], ['Values', 'Beauty']] },
+    { type: 'binary', prompt: 'Morning person or night owl?', tag: 'Your clock', options: ['Morning', 'Night owl'], tone: 'light',
+      cat: ['Body', 'Clock'], alts: [['Mind', 'Energy'], ['Home', 'Rhythm']] },
+    { type: 'scale', prompt: 'I feel better after moving — every time.', tag: 'Moving helps', axis: 'movement-powered', tone: 'blend',
+      cat: ['Body', 'Movement'], alts: [['Mind', 'Mood'], ['Sport', 'Habit']] },
+    { type: 'choice', prompt: 'Your childhood self would think you’re…', tag: 'Then and now', options: ['Doing great', 'Too serious', 'Surprising', 'A stranger'], tone: 'deep',
+      cat: ['Story', 'Then and now'], alts: [['Mind', 'Self'], ['Values', 'Identity']] },
+    { type: 'binary', prompt: 'Would you read a diary you kept at 15?', tag: 'The diary', options: ['Read it', 'Burn it'], tone: 'blend',
+      cat: ['Story', 'The archive'], alts: [['Mind', 'Memory'], ['Values', 'Self-kindness']] },
+    { type: 'choice', prompt: 'This decade is mostly for…', tag: 'The decade', options: ['Building', 'Exploring', 'Settling', 'Healing'], tone: 'deep',
+      cat: ['Goals', 'The decade'], alts: [['Story', 'Chapters'], ['Values', 'Direction']] },
+    { type: 'scale', prompt: 'I know what I want from the next five years.', tag: 'Five years', axis: 'clear-eyed', tone: 'deep',
+      cat: ['Goals', 'Clarity'], alts: [['Mind', 'Agency'], ['Values', 'Direction']] },
+    { type: 'choice', prompt: 'Home is mostly…', tag: 'What home is', options: ['A base', 'A nest', 'A project', 'A stopover'], tone: 'blend',
+      cat: ['Home', 'What it is'], alts: [['Values', 'Belonging'], ['Story', 'Place']] },
+    { type: 'binary', prompt: 'Master one thing, or dabble in many?', tag: 'Depth or range', options: ['Master one', 'Dabble'], tone: 'blend',
+      cat: ['Skills', 'Depth'], alts: [['Goals', 'Craft'], ['Mind', 'Curiosity']] },
+    { type: 'binary', prompt: 'New hobby: learn alone or join a club?', tag: 'How you start', options: ['Alone', 'Join a club'], tone: 'light',
+      cat: ['Interests', 'How you start'], alts: [['Skills', 'Learning'], ['Values', 'Community']] },
   ];
 
   const UNANSWERED_RECENT = 3; // today + 2 missed days carry no baked answer
@@ -167,9 +214,11 @@ import React from 'react';
     return softmaxPct(logits);
   }
 
-  // build the question objects
+  // build the question objects. Ids for the original 30 stay stable (map
+  // anchors reference them); later additions get their own 'dqx' series.
+  const DQ_BASE = 30;
   const QUESTIONS = Q.map((q, i) => {
-    const id = 'dq' + String(Q.length - i).padStart(2, '0');
+    const id = i < DQ_BASE ? 'dq' + String(DQ_BASE - i).padStart(2, '0') : 'dqx' + String(i - DQ_BASE + 1).padStart(2, '0');
     const d = new Date(TODAY.getTime() - i * 86400000);
     const n = nOf(q);
     const base = baseLogits({ ...q, id }, n);

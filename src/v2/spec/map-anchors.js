@@ -190,6 +190,7 @@ import React from 'react';
     Home:      [['age', 1, 'home answers settle with the decade'], ['values', 1, 'beauty 78 arranges the rooms']],
     Story:     [['age', 2, 'the timeline is the anchor'], ['edu', 1, 'the study years bent the path']],
     Goals:     [['values', 2, 'meaning 71 sets the horizon'], ['job', 1, 'the trade shapes the ambition']],
+    Music:     [['big5', 2, 'openness 78 sets the playlist'], ['age', 1, 'the ear is set young']],
   };
 
   function relate(qid, top) {

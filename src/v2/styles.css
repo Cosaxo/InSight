@@ -921,13 +921,6 @@ button.card:active,
 @keyframes wfFillUp { from { height: 0; } }
 @media (prefers-reduced-motion: reduce) { [style*="popIn"], [style*="barIn"], [style*="chipPop"], [style*="tilePick"] { animation: none !important; } }
 
-/* "Your people" hero card — full-bleed edge to edge */
-.pp-hero {
-  margin-left: -18px; margin-right: -18px;
-  border-radius: 0; border-left: none; border-right: none;
-}
-.app.compact .pp-hero { margin-left: -14px; margin-right: -14px; }
-
 /* Compare carousel — full-bleed snap rail of compare cards */
 .cb-rail{display:flex;align-items:stretch;gap:10px;overflow-x:auto;scroll-snap-type:x mandatory;margin:0 -18px;padding:2px 18px 6px;scroll-padding-left:18px;scrollbar-width:none}
 .cb-rail::-webkit-scrollbar{display:none}
@@ -986,6 +979,8 @@ button.card:active,
 .app.compact[data-tab="mirror"] > .app-body { padding-bottom: 20px; }
 .mf-flex { flex: 1 0 auto; display: flex; flex-direction: column; }
 .mf-stage { flex: 1 0 auto; display: flex; flex-direction: column; }
+/* the field takes the leftover column height — no void between it and the lens row */
+.mf-canvaswrap { position: relative; flex: 1 1 auto; min-height: 300px; }
 
 /* Likeness — gently breathing sigil core */
 @keyframes lk-pulse { 0%, 100% { opacity: 0.16; } 50% { opacity: 0.42; } }
@@ -1133,23 +1128,7 @@ button.card:active,
 }
 .test-pick-card:active { transform: translateY(0) scale(0.99); box-shadow: var(--shadow-card); }
 
-/* Likert answer buttons — fill toward the test accent on hover/focus */
-.likert-btn {
-  transition: transform 0.16s var(--ease-spring), background 0.16s ease, border-color 0.16s ease, box-shadow 0.16s ease;
-}
-.likert-btn:hover {
-  border-color: color-mix(in oklch, var(--lk-accent) 50%, var(--rule));
-  background: color-mix(in oklch, var(--lk-accent) 7%, var(--surface-2));
-  box-shadow: var(--shadow-card);
-}
 @media (hover: none) { .kb-hint { display: none; } }
-.likert-btn:hover .likert-key {
-  border-color: color-mix(in oklch, var(--lk-accent) 55%, var(--rule));
-  color: color-mix(in oklch, var(--lk-accent) 60%, var(--ink-2));
-}
-.likert-btn:active { transform: scale(0.985); }
-.likert-btn.is-selected { box-shadow: var(--shadow-card); }
-.likert-btn.is-selected:hover { transform: none; }
 
 /* Overlay headers shouldn't wrap their title (e.g. "Big Five", "Take a test") */
 .overlay .app-header .h-title { white-space: nowrap; }

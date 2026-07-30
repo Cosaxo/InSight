@@ -23,10 +23,11 @@ window.WORLD_TOPICS = [
   { id: 'event',   label: 'World events',   color: 'oklch(0.55 0.14 260)' },
   { id: 'people',  label: 'Famous people',  color: 'oklch(0.55 0.14 85)'  },
   { id: 'bigq',    label: 'Big questions',  color: 'oklch(0.55 0.14 290)' },
+  { id: 'places',  label: 'Places',         color: 'oklch(0.55 0.14 60)'  },
 ];
 
 // ── channels ── always-on formats (not communities); they follow your scenes in the chip row
-window.WORLD_CHANNELS = ['dilemma', 'event', 'people', 'bigq'];
+window.WORLD_CHANNELS = ['dilemma', 'event', 'people', 'bigq', 'places'];
 
 // ── question pool ──
 // type: 'vote' (pick one, see the split) · 'rank' (order the items, compare
@@ -129,3 +130,5 @@ window.WORLD_FEED_QS = [
   { id: 's17', scene: 'ferment', cat: 'food', type: 'vote', prompt: 'Kombucha or kefir?', options: [ { label: 'Kombucha', count: 900 }, { label: 'Kefir', count: 600 } ] },
 ];
 
+// the scorecard 'rate' questions (place-stats.js) join the pool
+if (window.PLACE_RATE_QS) window.WORLD_FEED_QS = window.WORLD_FEED_QS.concat(window.PLACE_RATE_QS);

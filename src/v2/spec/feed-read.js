@@ -6,10 +6,8 @@
 
 // feed-read.js — the feed's memory.
 //
-// Every answered question logs one bit: did you land with the crowd (and, on
-// predict cards, did you call the split). That lets the feed show a running
-// strip of your last answers, spot a streak, and name a pattern back to you —
-// so votes accumulate into something instead of evaporating.
+// Every answered question logs one bit: did you land with the crowd — the
+// sparse Mirror uses the count to know how well the feed has read you.
 //
 // Everything here is YOUR OWN answers, held in localStorage on your device.
 // It reports no one else's behaviour, so it needs no k-anonymity floor and no
@@ -29,7 +27,6 @@
 // which is a named who-voted at world scale and exactly what D1 rules out.
 (function () {
   const LS = 'insight.readRoom.v1';
-  const subs = [];
   function load() {
     try {
       const v = JSON.parse(localStorage.getItem(LS) || '{}');
@@ -40,18 +37,16 @@
   if (!Array.isArray(S.log)) S.log = [];
   function save() {
     try { localStorage.setItem(LS, JSON.stringify(S)); } catch { /* best-effort: private mode, quota */ }
-    subs.forEach((f) => { try { f(); } catch { /* one bad listener must not stop the others */ } });
   }
 
   window.FEEDREAD = {
-    // maj = you were with the majority · pred = you called the winner
-    // (null when the card had no predict stage). First write per question
-    // wins — answers are immutable server-side (D5), so the memory of one
-    // must be too, or the strip and the aggregate could tell different
-    // stories about the same vote.
+    // maj = you were with the majority. First write per question wins —
+    // answers are immutable server-side (D5), so the memory of one must be
+    // too, or the strip and the aggregate could tell different stories
+    // about the same vote.
     log(id, rec) {
       if (S.log.some((r) => r.id === id)) return;
-      S.log.push({ id, maj: !!rec.maj, pred: rec.pred == null ? null : !!rec.pred });
+      S.log.push({ id, maj: !!rec.maj });
       // 80 is ~9 strips of history: enough for every streak this reads, and
       // small enough that the JSON stays trivial to parse on every boot.
       if (S.log.length > 80) S.log = S.log.slice(-80);
@@ -63,21 +58,9 @@
       let streak = 0, majStreak = 0;
       for (let i = L.length - 1; i >= 0; i--) { if (!L[i].maj) streak++; else break; }
       for (let i = L.length - 1; i >= 0; i--) { if (L[i].maj) majStreak++; else break; }
-      const preds = L.filter((r) => r.pred != null);
-      return {
-        n, withMaj, rate: n ? withMaj / n : 0, streak, majStreak,
-        recent: L.slice(-9),
-        predN: preds.length, predHit: preds.filter((r) => r.pred).length,
-      };
+      return { n, withMaj, rate: n ? withMaj / n : 0, streak, majStreak, recent: L.slice(-9) };
     },
-    // a named pattern retires once acknowledged, so the feed cannot nag
-    dismissed(k) { return !!(S.seen && S.seen[k]); },
-    dismiss(k) { S.seen = S.seen || {}; S.seen[k] = 1; save(); },
     reset() { S = { log: [] }; save(); },
-    subscribe(f) {
-      subs.push(f);
-      return () => { const i = subs.indexOf(f); if (i >= 0) subs.splice(i, 1); };
-    },
   };
 
   // How readable a cut has to be before it is worth a line of its own. A

@@ -48,24 +48,30 @@ function PassiveMeter() {
               <span style={{ fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 15, flex: 1 }}>Your four profiles</span>
               <button onClick={close} aria-label="Close" style={{ border: 'none', background: 'var(--surface-2)', width: 26, height: 26, borderRadius: '50%', cursor: 'pointer', fontSize: 13, fontWeight: 800, color: 'var(--ink-2)', flexShrink: 0, WebkitAppearance: 'none' }}>{'\u2715'}</button>
             </div>
-            <div className="wf-sheet-body" style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
-              <div style={{ fontFamily: 'var(--sans)', fontSize: 12.5, fontWeight: 500, color: 'var(--ink-2)', lineHeight: 1.5, paddingBottom: 2 }}>Each test's own questions surface as marked cards in the feed — answer them there, or finish one in a single sitting.</div>
+            <div className="wf-sheet-body" style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              <div style={{ fontFamily: 'var(--sans)', fontSize: 13, fontWeight: 500, color: 'var(--ink-2)', lineHeight: 1.45, padding: '0 2px 10px' }}>Marked cards in the feed fill these in — or finish one in a sitting.</div>
               {P.KEYS.map((k) => {
-                const m = P.META[k], full = P.complete(k), nLeft = P.needed(k) - P.done(k);
+                const m = P.META[k], full = P.complete(k), n = P.needed(k), done = P.done(k);
+                const R = (window.IS_TEST_RESULTS || {})[k];
+                const mt = (R && R.dims && window.IS_matchArchetype) ? window.IS_matchArchetype(k, R.dims) : null;
+                const standing = mt ? mt.list[mt.idx].name : null;
                 const go = () => { close(); setTimeout(() => { if (window.openTest) window.openTest(k); else if (window.openOverlay) window.openOverlay('test'); }, 240); };
                 return (
-                  <button key={k} onClick={full ? undefined : go} disabled={full} style={{ display: 'flex', alignItems: 'center', gap: 12, width: '100%', textAlign: 'left', border: PM_LINE, borderRadius: 14, background: 'var(--surface)', padding: '12px 14px', cursor: full ? 'default' : 'pointer', WebkitAppearance: 'none' }}>
-                    <PassiveRing k={k} size={22} thick={5} hole="var(--surface)"></PassiveRing>
-                    <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 6 }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 8 }}>
-                        <span style={{ fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 14, color: 'var(--ink)' }}>{m.label}</span>
-                        <span style={{ fontFamily: 'var(--sans)', fontWeight: 700, fontSize: 11, color: full ? m.accent : 'var(--ink-3)', whiteSpace: 'nowrap' }}>{full ? 'complete' : nLeft + ' to go'}</span>
+                  <button key={k} onClick={full ? undefined : go} disabled={full} aria-label={m.label + ' \u2014 ' + (standing ? standing + ' \u2014 ' : '') + done + ' of ' + n + (full ? ' \u2014 complete' : ' \u2014 tap to finish')} style={{ display: 'flex', flexDirection: 'column', alignItems: 'stretch', gap: 11, width: '100%', textAlign: 'left', border: 'none', borderTop: PM_LINE, borderRadius: 0, background: 'none', padding: '15px 2px 17px', cursor: full ? 'default' : 'pointer', WebkitAppearance: 'none' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                        <span style={{ fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 17, letterSpacing: '-0.02em', color: full ? 'var(--ink-2)' : 'var(--ink)', flex: 1, minWidth: 0 }}>{m.label}</span>
+                        {!full && <span aria-hidden="true" style={{ fontFamily: 'var(--sans)', fontWeight: 700, fontSize: 19, lineHeight: 1, color: 'var(--ink-3)', flexShrink: 0 }}>{'\u203A'}</span>}
                       </div>
-                      <div style={{ height: 4, borderRadius: 999, background: 'color-mix(in oklch, var(--ink-3) 18%, transparent)', overflow: 'hidden' }}>
-                        <div style={{ height: '100%', width: P.pct(k) + '%', borderRadius: 999, background: m.accent, transition: 'width .3s ease' }}></div>
-                      </div>
+                      {/* where you stand right now — provisional while segments are unfilled */}
+                      {standing && <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7 }}>{window.TypeMark ? <window.TypeMark testKey={k} name={standing} size={18}></window.TypeMark> : null}<span style={{ fontFamily: 'var(--sans)', fontWeight: 650, fontSize: 13, letterSpacing: '-0.01em', color: `color-mix(in oklch, ${m.accent} 72%, var(--ink))` }}>{standing}</span></span>}
                     </div>
-                    {!full && <span style={{ fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 10.5, letterSpacing: '0.07em', textTransform: 'uppercase', color: 'var(--ink-2)', flexShrink: 0 }}>Finish {'\u203A'}</span>}
+                    {/* one dot per question — filled is answered. the count IS the visual; no numbers */}
+                    <span aria-hidden="true" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      {Array.from({ length: n }).map((_, i) => (
+                        <span key={i} style={{ width: 22, height: 10, borderRadius: 999, boxSizing: 'border-box', background: i < done ? m.accent : 'transparent', border: i < done ? 'none' : '1.5px solid color-mix(in oklch, var(--ink-3) 34%, transparent)', transition: 'background .3s ease' }}></span>
+                      ))}
+                    </span>
                   </button>
                 );
               })}

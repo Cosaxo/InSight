@@ -161,13 +161,16 @@ import React from 'react';
     const [sort, setSort] = useState('new');
     const [open, setOpen] = useState(null);
     const [all, setAll] = useState(false);
+    const [browse, setBrowse] = useState(false);
 
     const aud = DQ.audience(audId) || {};
     const qs = DQ.questions;
 
-    // top-level categories, in order of first appearance
-    const cats = [];
-    qs.forEach((q) => { const t = DQ.categoryPath(q)[0]; if (!cats.includes(t)) cats.push(t); });
+    // every topic in the pool, biggest first, with question counts
+    const counts = {};
+    qs.forEach((q) => { const t = DQ.categoryPath(q)[0]; counts[t] = (counts[t] || 0) + 1; });
+    const cats = Object.keys(counts).sort((a, b) => counts[b] - counts[a] || a.localeCompare(b));
+    const catHue = (c) => `oklch(0.55 0.13 ${(DQ.catMeta(c) || {}).hue || 250})`;
 
     let list = cat === 'all' ? qs.slice() : qs.filter((q) => DQ.categoryPath(q)[0] === cat);
     if (sort === 'split') list.sort((a, b) => topShare(a.dist[audId]) - topShare(b.dist[audId]));
@@ -181,23 +184,28 @@ import React from 'react';
       <div>
         <TabSection title="What they answered" sub={`every daily question, as ${aud.label || 'they'} answered it`} />
 
-        {/* one control band: category chips + sort */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '0 -4px 10px' }}>
-        <div className="subnav--scroll" style={{ flex: 1, minWidth: 0, display: 'flex', gap: 7, overflowX: 'auto', padding: '2px 4px' }}>
+        {/* one control band: category chips (scroll, or expand to see all) + sort */}
+        <div style={{ display: 'flex', alignItems: browse ? 'flex-start' : 'center', gap: 10, margin: '0 -4px 10px' }}>
+        <div className={browse ? '' : 'subnav--scroll'} style={{ flex: 1, minWidth: 0, display: 'flex', gap: 7, overflowX: browse ? 'visible' : 'auto', flexWrap: browse ? 'wrap' : 'nowrap', padding: '2px 4px' }}>
           {['all', ...cats].map((c) => {
             const on = cat === c;
             return (
               <button key={c} className="pill press" onClick={() => { setCat(c); setAll(false); setOpen(null); }} style={{
-                flexShrink: 0,
+                flexShrink: 0, display: 'inline-flex', alignItems: 'center', gap: 6,
                 background: on ? 'var(--accent)' : 'var(--surface)',
                 color: on ? 'var(--surface)' : 'var(--ink-2)',
                 borderColor: on ? 'var(--accent)' : 'var(--rule)',
                 fontWeight: on ? 700 : 500,
-              }}>{c === 'all' ? 'All' : c}</button>
+              }}>{c !== 'all' && <span style={{ width: 7, height: 7, borderRadius: '50%', flexShrink: 0, background: on ? 'var(--surface)' : catHue(c) }}></span>}{c === 'all' ? 'All' : c}{browse && c !== 'all' && <span style={{ fontWeight: 600, fontSize: 10.5, opacity: 0.65 }}>{counts[c]}</span>}</button>
             );
           })}
         </div>
-        <div style={{ flexShrink: 0, display: 'flex', gap: 10, paddingLeft: 10, borderLeft: '0.5px solid var(--rule)' }}>
+        <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: 10, paddingLeft: 10, borderLeft: '0.5px solid var(--rule)', paddingTop: browse ? 4 : 0 }}>
+          <button className="press" onClick={() => setBrowse(!browse)} aria-label={browse ? 'Collapse topics' : 'Show all topics'} title={browse ? 'Collapse topics' : 'Show all topics'} style={{
+            background: 'none', border: 'none', padding: '2px 0', cursor: 'pointer',
+            fontFamily: 'var(--sans)', fontSize: 11.5, fontWeight: browse ? 750 : 500, color: browse ? 'var(--ink)' : 'var(--ink-3)',
+            display: 'inline-flex', alignItems: 'center', gap: 4,
+          }}>Topics <span aria-hidden="true" style={{ fontSize: 8.5, transform: browse ? 'rotate(180deg)' : 'none', display: 'inline-block' }}>{'\u25BC'}</span></button>
           {MA_SORTS.map((s) => {
             const on = sort === s.id;
             return (

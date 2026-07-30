@@ -462,10 +462,12 @@ class DailySplit extends React.Component {
     // fives". Printing it as exact is the actual inaccuracy — and a small
     // room watching the number sit on 5 for four more answers reads as
     // broken rather than as batched.
+    // The tile heights + the 50% line say majority/underdog — the line
+    // stays a count.
     const liveTotal = S.live ? total.toLocaleString() + '+' : total.toLocaleString();
     const resultNote = (S.live && S.tooSmall)
       ? 'You\u2019re early \u2014 counts appear once 5 people have answered.'
-      : liveTotal + ' votes' + (voted ? (rp[myIdx] === maxP ? ' \u2014 you\u2019re with the majority' : ' \u2014 you picked the underdog') : '');
+      : liveTotal + ' votes';
     const onReset = () => this.setState(s => { const v = { ...s.votes }; delete v[S.id]; return { votes: v, filter: 'all', tab: null, feedOpen: false }; });
     const post = () => { const t = st.draft.trim(); if (!t || !voted) return; const c = { key: 'u' + Date.now(), name: 'You', init: 'Y', opt: myVote, text: t, ups: 0, time: 'now' }; this.setState(s => ({ mine: { ...s.mine, [S.id]: [c, ...(s.mine[S.id] || [])] }, draft: '' })); };
     const mineList = st.mine[S.id] || [];
@@ -498,7 +500,7 @@ class DailySplit extends React.Component {
     // ── the feed: answer today's question, then the feed starts ──
     const feedEnabled = this.props.feed !== false && window.WorldFeed && (!(window.LIVE && window.LIVE.enabled) || window.LIVE.feedReady); // live feed (Phase 4) or the demo feed offline
     const votedToday = !!st.votes[DATA[0].id];
-    const feedNode = !feedEnabled ? null : h(window.WorldFeed, { cats: st.cats, onToggle: (id) => this.toggleCat(id), density: this.props.feedDensity || 'comfy', beats: this.props.beats });
+    const feedNode = !feedEnabled ? null : h(window.WorldFeed, { cats: st.cats, onToggle: (id) => this.toggleCat(id), density: this.props.feedDensity || 'comfy', beats: this.props.beats, opts: this.props.feedOpts });
 
     // ── comments & who-voted — bottom sheets, portaled to the app screen ──
     const closeSheet = () => {
@@ -607,13 +609,18 @@ class DailySplit extends React.Component {
       chipRow,
       h('div', { style: { fontFamily: BRIC, fontWeight: 800, fontSize: 31, lineHeight: 1.08, letterSpacing: -0.8, textWrap: 'pretty' } }, S.text),
       !voted
-        ? h('div', { style: col(10) },
+        // asking: options size to their content and centre the label — a fixed
+        // 236px column left a 22px word floating in a 115px box, reading as a skeleton
+        // asking: each side carries its own hue mark and sits left-aligned, so
+        // the two rows read as choices rather than two empty boxes
+        ? h('div', { style: { display: 'flex', flexDirection: 'column', gap: 8 } },
             S.options.map((o, i) => h('button', { key: o.id, className: 'press sd-opt', onClick: () => { if (S.live && window.LIVE) window.LIVE.vote(S.id, o.id); this.syncToMap(S, o.id); this.showMapToast(S.id); this.setState(s => ({ votes: { ...s.votes, [S.id]: o.id }, filter: 'all', beat: (this.props.beats !== false && window.ConsequenceBeat) ? S.id : null })); }, style: { '--opt': o.color, minHeight: 56, background: 'color-mix(in oklch, ' + o.color + ' 11%, var(--surface-2))', border: '1px solid color-mix(in oklch, ' + o.color + ' 32%, var(--rule))', borderRadius: 15, padding: '13px 18px', display: 'flex', alignItems: 'center', gap: 13, cursor: 'pointer', textAlign: 'left', WebkitAppearance: 'none', boxShadow: 'none', transition: 'background .16s ease, border-color .16s ease' } },
-              h('span', { style: { width: 13, height: 13, borderRadius: '50%', flexShrink: 0, background: o.color } }),
+              h('span', { 'aria-hidden': true, style: { width: 9, height: 9, borderRadius: '50%', background: o.color, flexShrink: 0 } }),
               h('span', { style: { fontWeight: 800, fontSize: 21, color: 'var(--ink)', letterSpacing: '-0.025em', textWrap: 'pretty' } }, o.label))))
         : (st.beat === S.id && window.ConsequenceBeat)
         ? h(window.ConsequenceBeat, { key: 'beat-' + S.id, seed: S.id, options: S.options, pcts: rp, mineIdx: myIdx, height: 320, onDone: () => this.setState({ beat: null }) })
-        : h('div', { style: { ...col(10), animation: 'popIn .35s cubic-bezier(0.2,0.8,0.2,1)' } },
+        : h('div', { style: { ...col(11), animation: 'popIn .35s cubic-bezier(0.2,0.8,0.2,1)' } },
+            h('div', { style: { display: 'flex', flexDirection: 'column', gap: 7, height: 244 } },
             S.options.map((o, i) => {
               // change-vote lives behind a long-press on your own bar
               const mineRow = myVote === o.id;
@@ -625,21 +632,23 @@ class DailySplit extends React.Component {
                 title: 'Hold to change your vote',
                 'aria-label': o.label + ' \u2014 your vote. Hold to change it.',
               } : {};
-              return h('div', { key: o.id, ...lp, style: { border: mineRow ? '2px solid ' + o.color : LINE, borderRadius: 14, background: 'var(--surface)', overflow: 'hidden', position: 'relative', boxShadow: 'none', transform: (mineRow && st.pressing) ? 'scale(0.975)' : 'none', transition: 'transform .45s cubic-bezier(0.2,0.8,0.2,1)', touchAction: 'pan-y', userSelect: 'none', WebkitUserSelect: 'none', cursor: (mineRow && canChange) ? 'pointer' : 'default' } },
-              h('div', { style: { position: 'absolute', top: 0, left: 0, bottom: 0, width: rp[i] + '%', background: 'color-mix(in oklch, ' + o.color + ' 28%, transparent)', transformOrigin: 'left', animation: 'barIn .7s cubic-bezier(0.2,0.8,0.2,1)' } }),
-              h('div', { style: { position: 'relative', display: 'flex', alignItems: 'center', padding: '12px 14px', gap: 8 } },
-                h('div', { style: { display: 'flex', alignItems: 'baseline', gap: 7, minWidth: 0, flex: 1 } },
-                  h('span', { style: { fontWeight: 700, fontSize: 15 } }, o.label),
-                  myVote === o.id && h('span', { style: { fontSize: 12, fontWeight: 700, color: 'var(--ink-2)', whiteSpace: 'nowrap', animation: 'chipPop .35s var(--ease-spring) .2s both' } }, '\u00b7 you')),
-                // your circle's split, inline — one dot per friend on this side
-                (S.friends && S.friends.some(f => f.opt === o.id)) && h('button', {
-                  onClick: () => this.setState({ tab: 'stats', dim: 'friends' }),
-                  'aria-label': S.friends.filter(f => f.opt === o.id).map(f => f.name).join(', ') + ' picked ' + o.label,
-                  style: { display: 'flex', alignItems: 'center', gap: 4, padding: '4px 2px', border: 'none', background: 'none', cursor: 'pointer', flexShrink: 0, WebkitAppearance: 'none' }
-                }, S.friends.filter(f => f.opt === o.id).map(f =>
-                  h('span', { key: f.name, title: f.name, style: { width: 9, height: 9, borderRadius: '50%', background: o.color, boxShadow: '0 0 0 1.5px var(--surface-2)' } }))),
-                rp[i] === maxP && h('span', { style: { fontFamily: BRIC, fontWeight: 800, fontSize: 20, animation: 'popIn .4s cubic-bezier(0.2,0.8,0.2,1) .3s both' } }, rp[i] + '%')));
-            }),
+              // the option tiles ARE the chart — each one's height is its share
+              return h('div', { key: o.id, ...lp, style: { flex: Math.max(rp[i], 9) + ' 1 0', minHeight: 46, border: mineRow ? '1.5px solid ' + o.color : LINE, borderRadius: 16, background: 'color-mix(in oklch, ' + o.color + ' 26%, var(--surface))', overflow: 'hidden', position: 'relative', boxShadow: 'none', transform: (mineRow && st.pressing) ? 'scale(0.975)' : 'none', transition: 'flex-grow .7s cubic-bezier(0.2,0.8,0.2,1), transform .45s cubic-bezier(0.2,0.8,0.2,1)', touchAction: 'pan-y', userSelect: 'none', WebkitUserSelect: 'none', cursor: (mineRow && canChange) ? 'pointer' : 'default' } },
+              h('div', { style: { position: 'relative', height: '100%', display: 'flex', alignItems: 'center', padding: '0 18px', gap: 10 } },
+                // label, your mark and your circle's dots travel together — the
+                // dots read as people on this side, not a floating glyph
+                h('div', { style: { display: 'flex', alignItems: 'center', gap: 9, minWidth: 0, flex: 1 } },
+                  h('span', { style: { fontWeight: 800, fontSize: 19, letterSpacing: '-0.02em' } }, o.label),
+                  myVote === o.id && h('span', { style: { fontSize: 12, fontWeight: 700, color: 'var(--ink-2)', whiteSpace: 'nowrap', animation: 'chipPop .35s var(--ease-spring) .2s both' } }, '\u00b7 you'),
+                  (S.friends && S.friends.some(f => f.opt === o.id)) && h('button', {
+                    onClick: () => this.setState({ tab: 'stats', dim: 'friends' }),
+                    'aria-label': S.friends.filter(f => f.opt === o.id).map(f => f.name).join(', ') + ' picked ' + o.label,
+                    style: { display: 'flex', alignItems: 'center', gap: 4, padding: '4px 2px', border: 'none', background: 'none', cursor: 'pointer', flexShrink: 0, WebkitAppearance: 'none' }
+                  }, S.friends.filter(f => f.opt === o.id).map(f =>
+                    h('span', { key: f.name, title: f.name, style: { width: 8, height: 8, borderRadius: '50%', background: o.color, boxShadow: '0 0 0 1.5px color-mix(in oklch, var(--surface) 70%, transparent)' } })))),
+                // every side gets its number; only the winner gets the big one
+                h('span', { style: { fontFamily: BRIC, fontWeight: 800, fontSize: rp[i] === maxP ? 25 : 15, letterSpacing: '-0.03em', color: rp[i] === maxP ? 'var(--ink)' : 'var(--ink-2)', flexShrink: 0, animation: 'popIn .4s cubic-bezier(0.2,0.8,0.2,1) .3s both' } }, rp[i] + '%')));
+            })),
             // one quiet meta line; the map-add confirmation pops in on its right and fades on its own
             h('div', { style: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, minHeight: 18 } },
               h('span', { style: { fontSize: 12.5, fontWeight: 600, color: 'var(--ink-2)' } }, resultNote),
@@ -674,10 +683,12 @@ class DailySplit extends React.Component {
         })));
 
     const worldBody = h('div', { style: { ...col(13), flex: 1 } },
-      (voted && st.condensed) && h('div', { style: { display: 'flex', alignItems: 'center', gap: 10, padding: '7px 8px 7px 16px', borderRadius: 999, border: LINE, background: 'var(--surface-2)', boxShadow: 'var(--shadow-card)', animation: 'popIn .25s cubic-bezier(0.2,0.8,0.2,1)' } },
+      // condensed rail: the split as one quiet bar — two saturated % discs
+      // out-shouted everything else on the page
+      (voted && st.condensed) && h('div', { style: { display: 'flex', alignItems: 'center', gap: 12, padding: '9px 15px', borderRadius: 999, border: LINE, background: 'var(--surface-2)', boxShadow: 'var(--shadow-card)', animation: 'popIn .25s cubic-bezier(0.2,0.8,0.2,1)' } },
         h('span', { style: { flex: 1, minWidth: 0, fontWeight: 700, fontSize: 12, color: 'var(--ink-2)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, S.text),
-        h('span', { style: { display: 'flex', gap: 7, flexShrink: 0 } },
-          S.options.map((o, i) => h('span', { key: o.id, title: o.label, style: { width: 34, height: 34, borderRadius: '50%', background: o.color, color: o.textColor || '#fff', fontWeight: 800, fontSize: 11, display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: myVote === o.id ? '0 0 0 2px var(--surface-2), 0 0 0 4px ' + o.color : 'none' } }, rp[i] + '%')))),
+        h('span', { 'aria-hidden': true, style: { display: 'flex', gap: 1.5, width: 66, height: 9, borderRadius: 999, overflow: 'hidden', flexShrink: 0 } },
+          S.options.map((o, i) => h('span', { key: o.id, title: o.label + ' \u00b7 ' + rp[i] + '%', style: { width: rp[i] + '%', background: myVote === o.id ? o.color : 'color-mix(in oklch, ' + o.color + ' 32%, var(--surface-3))' } })))),
       dailyCard,
       sheetNode,
       feedNode);

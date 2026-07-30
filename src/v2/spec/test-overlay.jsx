@@ -189,7 +189,7 @@ function TestOverlay({ onClose, onComplete, kind: initialKind }) {
                             return word.toLowerCase() === top.label.toLowerCase() ? top.label : <>{top.label} · <span style={{ fontWeight: 800 }}>{word}</span></>;
                           })()}</span>
                         </div>
-                        {window.RoseMini ? React.createElement(window.RoseMini, { testKey: k, dims: saved.dims, size: 44 }) : null}
+                        {(() => { const mt = window.TypeMark && window.IS_matchArchetype && saved.dims ? window.IS_matchArchetype(k, saved.dims) : null; return mt ? React.createElement(window.TypeMark, { testKey: k, name: mt.list[mt.idx].name, size: 38, title: mt.list[mt.idx].name }) : (window.RoseMini ? React.createElement(window.RoseMini, { testKey: k, dims: saved.dims, size: 44 }) : null); })()}
                         <span style={{ fontFamily: 'var(--sans)', fontSize: 10.5, fontWeight: 700, letterSpacing: '0.08em', color: chipFg, flexShrink: 0, textTransform: 'uppercase' }}>{partial ? 'Finish →' : 'Retake →'}</span>
                       </>
                     ) : (
@@ -242,39 +242,25 @@ function TestOverlay({ onClose, onComplete, kind: initialKind }) {
             <div style={{ margin: 'auto 0', paddingBottom: 20 }}>
             <div key={step} className={`q-slide ${dir < 0 ? 'q-slide-back' : 'q-slide-fwd'}`}>
               <div className="kicker">Question {String(step + 1).padStart(2, '0')} of {qs.length}</div>
-              <div style={{ fontFamily: 'var(--serif)', fontSize: 24, fontStyle: 'var(--voice-italic)', lineHeight: 1.3, letterSpacing: '-0.01em', marginTop: 14 }}>
+              <div style={{ fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 24, lineHeight: 1.15, letterSpacing: '-0.02em', textWrap: 'pretty', marginTop: 14 }}>
                 {qs[step].q}
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 26 }}>
                 {['Strongly disagree', 'Disagree', 'Neither', 'Agree', 'Strongly agree'].map((label, i) => {
-                  const intensity = Math.abs(i - 2);           // 0 (neutral) .. 2 (strong)
-                  const ringD = 16 + intensity * 5;            // 16..26
-                  const isAgree = i > 2, isNeutral = i === 2;
                   const selected = answers[step] === i;
-                  const dotColor = isNeutral ? 'var(--ink-3)' : isAgree ? T.accent : 'color-mix(in oklch, var(--ink-3) 80%, var(--ink))';
                   return (
-                    <button key={label} className={`likert-btn${selected ? ' is-selected' : ''}`} onClick={() => choose(i)}
+                    <button key={label} className="press" onClick={() => choose(i)}
                       style={{
-                        '--lk-accent': T.accent,
-                        padding: '11px 14px', textAlign: 'left',
-                        background: selected ? `color-mix(in oklch, ${T.accent} 11%, var(--surface-2))` : 'var(--surface-2)',
-                        border: `0.5px solid ${selected ? `color-mix(in oklch, ${T.accent} 55%, var(--rule))` : 'var(--rule)'}`,
-                        borderRadius: 12, cursor: 'pointer',
-                        fontFamily: 'var(--sans)', fontSize: 14, fontWeight: 500,
+                        padding: '14px 16px', textAlign: 'left',
+                        background: selected ? `color-mix(in oklch, ${T.accent} 18%, var(--surface))` : `color-mix(in oklch, ${T.accent} 10%, var(--surface))`,
+                        border: selected ? `1.5px solid ${T.accent}` : `1px solid color-mix(in oklch, ${T.accent} 45%, var(--rule))`,
+                        borderRadius: 16, cursor: 'pointer', boxShadow: 'none', WebkitAppearance: 'none',
+                        fontFamily: 'var(--sans)', fontSize: 15.5, fontWeight: 700,
                         color: 'var(--ink)', display: 'flex', gap: 12, alignItems: 'center'
                       }}>
-                      <span style={{ width: 26, height: 26, flexShrink: 0, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
-                        <span style={{
-                          width: ringD, height: ringD, borderRadius: '50%',
-                          border: `1.5px solid ${dotColor}`,
-                          background: selected
-                            ? dotColor
-                            : isNeutral ? 'transparent' : `color-mix(in oklch, ${dotColor} ${intensity === 2 ? 100 : 22}%, transparent)`,
-                        }} />
-                      </span>
                       <span style={{ flex: 1 }}>{label}</span>
                       {selected
-                        ? <span style={{ fontFamily: 'var(--mono)', fontSize: 12, color: T.accent }}>✓</span>
+                        ? <span style={{ fontFamily: 'var(--sans)', fontSize: 13, fontWeight: 800, color: T.accent }}>✓</span>
                         : null}
                     </button>
                   );

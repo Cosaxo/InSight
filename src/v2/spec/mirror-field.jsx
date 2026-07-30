@@ -81,7 +81,7 @@ function mfLayout(nodes, seedDeg = -84) {
 // One dot language for every kind — the same solid dot + surface gap-halo the
 // You-map wears. Solid = yours / them; a quiet ring = suggested. No outlines,
 // no dashes, no polygons.
-function MFNode({ n, on, onTap, i }) {
+function MFNode({ n, on, onTap, i, hideLabel }) {
   const size = n.size || 13;
   // colour carries match too — a deeper accent = more like you (reinforces radius,
   // so hue never reads as random decoration)
@@ -130,7 +130,7 @@ function MFNode({ n, on, onTap, i }) {
         {n.home && <circle cx={n.x} cy={n.y} r={12} fill="none" stroke="var(--accent)" strokeWidth="1.2" opacity="0.55"></circle>}
         <circle cx={n.x} cy={n.y} r={7} fill={dot}></circle>
       </>)}
-      {n.label && (
+      {n.label && (!hideLabel || on) && (
         <text x={n.x} y={n.y + size + 12.5} textAnchor="middle" fontFamily="var(--sans)" fontSize="10.5"
           fontWeight={on ? 800 : 600} fill={labelFill} letterSpacing="-0.01em"
           stroke="var(--surface)" strokeWidth="3" strokeLinejoin="round" style={{ paintOrder: 'stroke' }}>{n.label}</text>
@@ -140,9 +140,22 @@ function MFNode({ n, on, onTap, i }) {
 }
 
 // ─── the field canvas ───
-function MFCanvas({ nodes, selId, onSel, seedDeg, mist = 0, mistSeed = 7, tall = false, stretch: stretchProp }) {
-  // tall: geo fields (Near / World) stretch the mist vertically to fill more of the page
-  const stretch = tall ? (stretchProp || 1.3) : 1;
+function MFCanvas({ nodes, selId, onSel, seedDeg, mist = 0, mistSeed = 7, tall = false, stretch: stretchProp, maxLabels }) {
+  // The field FILLS its frame: the wrapper takes the leftover column space and the
+  // svg (absolutely placed, so it can never feed back into that measurement) gets a
+  // viewBox matched to the measured aspect. Radii stay circular — only the amount of
+  // field around you grows, so there is no dead sky under a sparse population.
+  const wrapRef = React.useRef(null);
+  const [box, setBox] = React.useState(null);
+  React.useEffect(() => {
+    const el = wrapRef.current;
+    if (!el) return;
+    const read = () => { const r = el.getBoundingClientRect(); if (r.width > 8 && r.height > 8) setBox({ w: r.width, h: r.height }); };
+    read();
+    if (!window.ResizeObserver) return;
+    const ro = new ResizeObserver(read); ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
   const key = nodes.map((n) => n.id + ':' + n.match + (n.faint ? 'f' : '')).join('|');
   // Keyed on the content hash above, not on `nodes` — the array identity
   // changes every render while the layout only needs to move when a node's
@@ -154,31 +167,43 @@ function MFCanvas({ nodes, selId, onSel, seedDeg, mist = 0, mistSeed = 7, tall =
   // dynamic. Recorded rather than widened because there is no DOM test here.
   // eslint-disable-next-line react-hooks/exhaustive-deps -- see the note above
   const placed = React.useMemo(() => mfLayout(nodes, seedDeg), [key]);
+  // viewBox: content extent, then grown to the measured aspect ratio
+  const ext = React.useMemo(() => {
+    let top = MF_CY - 46, bot = MF_CY + 46;
+    placed.forEach((n) => { const s = n.size || 13; top = Math.min(top, n.y - s - 10); bot = Math.max(bot, n.y + s + (n.label ? 22 : 10)); });
+    const contentH = bot - top, cc = (top + bot) / 2;
+    const aspectH = box ? MF_W * (box.h / box.w) : (tall ? 470 : MF_H);
+    const h = Math.max(contentH, aspectH);
+    return { y: cc - h / 2, h };
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- ported effect; see src/v2/README.md § Lint suppressions
+  }, [key, box, tall]);
+  // how far the crowd reaches vertically — derived from the frame, not a magic number
+  const stretch = stretchProp || (mist ? Math.max(1, Math.min(2.3, (ext.h / 2 - 14) / 178)) : 1);
   const mistDots = React.useMemo(() => {
     if (!mist) return [];
+    const n = Math.round(mist * Math.min(1.7, Math.max(1, stretch)));
     const rnd = mfRand(mistSeed * 7919 + 17);
-    return Array.from({ length: mist }, () => {
+    return Array.from({ length: n }, () => {
       const t = Math.pow(rnd(), 1.4);
       const r = 60 + 118 * t;
       const a = rnd() * Math.PI * 2;
       return { x: MF_CX + Math.cos(a) * r, y: MF_CY + Math.sin(a) * r * stretch, o: (0.5 - t * 0.2) + rnd() * 0.12, s: 1.9 + rnd() * 1 };
     });
-  }, [mist, mistSeed, stretch]);
-  const sel = placed.find((n) => n.id === selId);
-  // crop the viewBox to the content — no dead sky above sparse fields
-  const ext = React.useMemo(() => {
-    let top = MF_CY - 46, bot = MF_CY + 46;
-    placed.forEach((n) => { const s = n.size || 13; top = Math.min(top, n.y - s - 8); bot = Math.max(bot, n.y + s + (n.label ? 20 : 8)); });
-    // a mist population fills its whole reach — keep the field tall and balanced
-    if (mist) { top = Math.min(top, MF_CY - 172 * stretch); bot = Math.max(bot, MF_CY + 172 * stretch); }
-    const y = tall ? top - 6 : Math.max(0, top - 6);
-    return { y, h: (tall ? bot + 6 : Math.min(MF_H, bot + 6)) - y };
   // eslint-disable-next-line react-hooks/exhaustive-deps -- ported effect; see src/v2/README.md § Lint suppressions
-  }, [key, mist, stretch]);
+  }, [mist, mistSeed, Math.round(stretch * 20)]);
+  const sel = placed.find((n) => n.id === selId);
+  // only the strongest few wear their name — the rest are read by position and
+  // give up their name on tap
+  const named = React.useMemo(() => {
+    if (!maxLabels) return null;
+    return new Set([...nodes].sort((a, b) => (b.match || 0) - (a.match || 0)).slice(0, maxLabels).map((n) => n.id));
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- ported effect; see src/v2/README.md § Lint suppressions
+  }, [key, maxLabels]);
   return (
-    <div style={{ position: 'relative', margin: '4px -6px 0' }}>
+    <div ref={wrapRef} className="mf-canvaswrap" style={{ margin: '4px -6px 0' }}>
       <style>{`@keyframes mfIn { from { opacity: 0; transform: scale(0.45); } } @keyframes mfDrift { to { transform: translate(var(--dx), var(--dy)); } } @keyframes mfBreathe { 0%, 100% { opacity: 0.07; } 50% { opacity: 0.17; } } @keyframes mfBreathe2 { 0%, 100% { opacity: 0.03; } 50% { opacity: 0.10; } } @keyframes mfRing { 0%, 100% { stroke-opacity: 1; } 50% { stroke-opacity: 0.45; } } @media (prefers-reduced-motion: reduce) { .mf-node, .mf-you-halo, .mf-ring, .mf-mist { animation: none !important; } }`}</style>
-      <svg viewBox={`0 ${ext.y} ${MF_W} ${ext.h}`} width="100%" style={{ display: 'block' }} onClick={() => onSel(null)}>
+      <svg viewBox={`0 ${ext.y} ${MF_W} ${ext.h}`} preserveAspectRatio="xMidYMid meet"
+        style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', display: 'block' }} onClick={() => onSel(null)}>
         <defs>
           <radialGradient id="mfGlow" cx="50%" cy="48%" r="55%">
             <stop offset="0%" stopColor="var(--accent)" stopOpacity="0.07"></stop>
@@ -213,7 +238,7 @@ function MFCanvas({ nodes, selId, onSel, seedDeg, mist = 0, mistSeed = 7, tall =
         <text x={MF_CX} y={MF_CY + 4} textAnchor="middle" fontFamily="var(--sans)" fontSize="11.5" fontWeight="700" fill="var(--surface)">you</text>
 
         {placed.map((n, i) => (
-          <MFNode key={n.id} n={n} i={i} on={n.id === selId} onTap={onSel}></MFNode>
+          <MFNode key={n.id} n={n} i={i} on={n.id === selId} onTap={onSel} hideLabel={!!named && !named.has(n.id)}></MFNode>
         ))}
       </svg>
     </div>
@@ -237,6 +262,34 @@ function MFKey({ items }) {
           </span>
         ))}
       </span>
+    </div>
+  );
+}
+
+// ─── the sparse mirror: a population you can see, a likeness you haven't earned ───
+// You + the rings + the crowd's mist are honest with no answers at all; the
+// placed dots are not, so they stay away until there is signal. Progress reads
+// as dots, not a sentence about dots.
+function MFSparse({ done = 0, need = 8 }) {
+  const left = Math.max(0, need - done);
+  return (
+    <div style={{ marginTop: 14, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, textAlign: 'center' }}>
+      <div style={{ display: 'flex', gap: 7 }}>
+        {Array.from({ length: need }).map((_, i) => (
+          <span key={i} style={{
+            width: 9, height: 9, borderRadius: '50%', boxSizing: 'border-box',
+            background: i < done ? 'var(--accent)' : 'transparent',
+            border: i < done ? 'none' : '1.3px solid color-mix(in oklch, var(--accent) 45%, var(--rule))',
+          }}></span>
+        ))}
+      </div>
+      <div style={{ fontFamily: 'var(--sans)', fontSize: 16.5, fontWeight: 700, letterSpacing: '-0.02em', color: 'var(--ink)', maxWidth: 250, lineHeight: 1.25, textWrap: 'pretty' }}>
+        {left} more answers and they take their places.
+      </div>
+      <button className="press" onClick={() => window.goTab && window.goTab('track')} style={{
+        border: 'none', borderRadius: 999, padding: '11px 20px', cursor: 'pointer', WebkitAppearance: 'none',
+        background: 'var(--ink)', color: 'var(--surface)', fontFamily: 'var(--sans)', fontSize: 14, fontWeight: 700, letterSpacing: '-0.01em',
+      }}>Answer today's</button>
     </div>
   );
 }
@@ -385,7 +438,8 @@ function MirrorLenses({ lenses }) {
   );
 }
 
-Object.assign(window, { MFCanvas, MFDetail, MFHeader, MFKey, MirrorLenses, mfRadius });
+Object.assign(window, { MFCanvas, MFDetail, MFHeader, MFKey, MFSparse, MirrorLenses, mfRadius });
+
 
 ;globalThis.mfRand = typeof mfRand === 'undefined' ? globalThis.mfRand : mfRand;
 ;globalThis.mfLayout = typeof mfLayout === 'undefined' ? globalThis.mfLayout : mfLayout;
@@ -401,3 +455,4 @@ Object.assign(window, { MFCanvas, MFDetail, MFHeader, MFKey, MirrorLenses, mfRad
 ;globalThis.mfGroupFill = typeof mfGroupFill === 'undefined' ? globalThis.mfGroupFill : mfGroupFill;
 ;globalThis.mfBandR = typeof mfBandR === 'undefined' ? globalThis.mfBandR : mfBandR;
 ;globalThis.MF_H = typeof MF_H === 'undefined' ? globalThis.MF_H : MF_H;
+;globalThis.MFSparse = typeof MFSparse === 'undefined' ? globalThis.MFSparse : MFSparse;
