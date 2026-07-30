@@ -476,11 +476,11 @@ surviving bucket goes too, so there are always either zero holes or at least
 two. A dimension left with fewer than two publishable buckets is omitted
 entirely, because one bucket is a population statement rather than a split.
 
-> **Corrected by [D14](#d14--the-breakdown-floor-bounds-cohort-size-not-the-split-inside-a-cohort)
+> **Corrected by [D15](#d15--the-breakdown-floor-bounds-cohort-size-not-the-split-inside-a-cohort)
 > (2026-07-30).** This paragraph said "per cell" and used *cell* for both a
 > bucket and the per-option counts inside it. Those have different
 > guarantees: the floor is tested against the bucket **total**, so a bucket
-> published at the floor can still show an option count of 1. D14 has the
+> published at the floor can still show an option count of 1. D15 has the
 > arithmetic and why it is not separately fixable.
 
 Six tests cover this, and all three mutations were checked to fail: removing
@@ -1125,9 +1125,54 @@ deliberately — and note that the geohash aggregator would need the
 `disc.geohash` field-path bug fixed before it could ever have worked
 (D9). `firestore.rules.v1-archive` still lists the rules gaps to fix first.
 
+## D14 · Catalog answers are keys into a shipped catalogue; the reveal is a canon
+
+**Decided:** 2026-07-30 · **Status:** binding
+
+docs/CATALOG-QUESTIONS.md graduated from sketch to machinery: the
+backend accepts catalog answers and publishes their reveal. The
+load-bearing choices, as built:
+
+- **An answer is a catalogue key, never a string.** `entity` is an
+  integer: 0 is the "Not listed" bucket, 1..CATALOG_MAX_ENTITY (1,025,
+  functions/src/v2.ts) indexes public/pokedex.txt. Three independently
+  sufficient reasons rule out free text — entity resolution is never
+  finished, the k-floor shreds a long tail of spellings (the pre-D9
+  country lesson), and immutable answers (D5) leave no cleanup path.
+  The sketch carries the full argument.
+- **Rules admit the shape; the trigger validates the key.** A
+  thousand-entry `in` list is not a rules construct, so firestore.rules
+  checks `entity` is an int in [0, 2048) on a `type == "catalog"`
+  question only (create-only, owner-only like every answer), and
+  `onV2AnswerCreated` validates against the real ceiling — an unknown
+  key never aggregates. scripts/check-pokedex.mjs pins the ceiling to
+  the committed catalogue, in ci.yml and backend-checks.yml both.
+- **The reveal is a leaderboard with one honest fold** —
+  `publishableCanon` (pure.ts): the top 10 entities at/above AGG_MIN_N,
+  everything else in a single `rest` bucket. Boundary ties fold whole,
+  so equals are never ranked arbitrarily. Exactly one folded entity
+  would be recoverable as `total − published`, so the smallest
+  published count folds with it — whole tie group at a time.
+  Deliberately conservative: a nonzero "Not listed" count inside `rest`
+  would often mask the hole, but often is not a floor. v1 also folds
+  the "Not listed" count into `rest` rather than publishing it as its
+  own number (the sketch allowed a bare count) — nothing about it is
+  enumerable until there is a reason to say more.
+- **No per-anchor breakdowns for catalog questions.** The arithmetic is
+  in docs/CATALOG-QUESTIONS.md: ~1,000 entities × 6 dims × ~4 buckets
+  needs ≥ 5 per (entity × bucket) cell, and even 10,000 answers leave
+  nearly every cell sub-floor. If demand appears, the viable form is
+  breakdowns for the published top-N only.
+
+Live catalog questions are not yet seeded; the feed card is demo-only
+behind the demo/live seam. Turning it live is: seed a `type: "catalog"`
+question, extend live.ts's vote path with an `entity` variant, and an
+e2e leg — each touches the enforced-privacy path, so it ships as one
+deliberate change or not at all (the D12 discipline).
+
 ---
 
-## D14 · The breakdown floor bounds cohort size, not the split inside a cohort
+## D15 · The breakdown floor bounds cohort size, not the split inside a cohort
 
 **Decided:** 2026-07-30 · **Status:** binding
 

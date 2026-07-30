@@ -22,10 +22,13 @@ import { onDocumentCreated } from "firebase-functions/v2/firestore";
 import { logger } from "firebase-functions";
 import { V2_QUESTIONS } from "./v2content";
 import {
+  catalogEntityKey,
   foldAnchors,
   publishableBreakdown,
+  publishableCanon,
   shouldPublishAgg,
   type BreakdownCounts,
+  type CanonCounts,
 } from "./pure";
 
 const REGION = "us-central1";
@@ -53,6 +56,14 @@ export const AGG_MIN_N = 5;
 // exactly where a per-answer stream is most attributable, because there are
 // few enough voters to guess among.
 const PUBLISH_EVERY = 5;
+
+// Catalog questions (docs/CATALOG-QUESTIONS.md): the reveal's leaderboard
+// cap, and the catalogue's key ceiling. CATALOG_MAX_ENTITY must equal the
+// species count in public/pokedex.txt — scripts/check-pokedex.mjs
+// cross-checks this line against the committed catalogue, so regenerating
+// a grown catalogue fails CI until this number moves with it.
+const CANON_TOP_N = 10;
+export const CATALOG_MAX_ENTITY = 1025;
 
 // ── content seed ────────────────────────────────────────────────
 
@@ -139,6 +150,59 @@ export const onV2AnswerCreated = onDocumentCreated(
       return;
     }
     const qid = event.params.qid;
+    // Catalog answers carry `entity`, never `optionIdx` — one pick from the
+    // shipped catalogue, admitted by rules only on type=="catalog"
+    // questions. Same ledger, same private/public docs, same cadence; what
+    // publishes is the canon fold (top-N + one "everyone else" bucket)
+    // instead of per-option counts. No `by` breakdown: deferred with the
+    // arithmetic in docs/CATALOG-QUESTIONS.md — a 1,000-entity split times
+    // 6 dimensions leaves nearly every cell under the floor.
+    if (snap.get("entity") !== undefined) {
+      const key = catalogEntityKey(snap.get("entity"), CATALOG_MAX_ENTITY);
+      if (key === null) {
+        logger.warn(`[v2] answer ${event.params.uid}/${qid} has no usable entity key`);
+        return; // an unknown key never aggregates; the owner's doc stays, harmless
+      }
+      const db = getFirestore();
+      const eventRef = db.collection("v2_agg_events").doc(event.id);
+      const privRef = db.collection("v2_aggs_private").doc(qid);
+      const pubRef = db.collection("v2_question_aggs").doc(qid);
+      await db.runTransaction(async (tx) => {
+        const seen = await tx.get(eventRef);
+        if (seen.exists) return;
+        const priv = await tx.get(privRef);
+        const ent: CanonCounts =
+          (priv.exists && (priv.get("ent") as CanonCounts)) || {};
+        ent[key] = (ent[key] || 0) + 1;
+        const total = ((priv.exists && (priv.get("total") as number)) || 0) + 1;
+        tx.set(eventRef, {
+          qid,
+          at: FieldValue.serverTimestamp(),
+          expireAt: new Date(Date.now() + 7 * 86400000),
+        });
+        // Bounded growth without a cap: keys are validated against the
+        // catalogue above, so this map can never exceed its ~1k entries —
+        // tens of KB against Firestore's 1 MiB limit.
+        tx.set(privRef, { ent, total }, { merge: false });
+        if (total >= AGG_MIN_N) {
+          if (shouldPublishAgg(total, AGG_MIN_N, PUBLISH_EVERY)) {
+            const canon = publishableCanon(ent, AGG_MIN_N, CANON_TOP_N);
+            // A null canon means nothing survives the fold's own floors —
+            // publish the bare total rather than a decorative board.
+            tx.set(
+              pubRef,
+              canon
+                ? { total, tooSmall: false, top: canon.top, rest: canon.rest }
+                : { total, tooSmall: false },
+              { merge: false },
+            );
+          }
+        } else {
+          tx.set(pubRef, { tooSmall: true }, { merge: false });
+        }
+      });
+      return;
+    }
     const optionIdx = snap.get("optionIdx");
     if (typeof optionIdx !== "number" || optionIdx < 0 || optionIdx > 19) {
       logger.warn(`[v2] answer ${event.params.uid}/${qid} has no usable index`);

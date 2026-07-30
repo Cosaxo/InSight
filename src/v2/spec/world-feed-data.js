@@ -24,10 +24,14 @@ window.WORLD_TOPICS = [
   { id: 'people',  label: 'Famous people',  color: 'oklch(0.55 0.14 85)'  },
   { id: 'bigq',    label: 'Big questions',  color: 'oklch(0.55 0.14 290)' },
   { id: 'places',  label: 'Places',         color: 'oklch(0.55 0.14 60)'  },
+  { id: 'games',   label: 'Games',          color: 'oklch(0.55 0.14 175)' },
 ];
 
 // ── channels ── always-on formats (not communities); they follow your scenes in the chip row
-window.WORLD_CHANNELS = ['dilemma', 'event', 'people', 'bigq', 'places'];
+// games is a channel, not just a topic: a non-channel cat only surfaces when
+// a followed scene pulls it, and the catalogue pick card must not be
+// invisible-by-default in a demo with no scenes followed.
+window.WORLD_CHANNELS = ['dilemma', 'event', 'people', 'bigq', 'places', 'games'];
 
 // ── question pool ──
 // type: 'vote' (pick one, see the split) · 'rank' (order the items, compare
@@ -132,3 +136,5 @@ window.WORLD_FEED_QS = [
 
 // the scorecard 'rate' questions (place-stats.js) join the pool
 if (window.PLACE_RATE_QS) window.WORLD_FEED_QS = window.WORLD_FEED_QS.concat(window.PLACE_RATE_QS);
+// …and the catalogue 'pick' questions (pick-data.js)
+if (window.PICK_QS) window.WORLD_FEED_QS = window.WORLD_FEED_QS.concat(window.PICK_QS);

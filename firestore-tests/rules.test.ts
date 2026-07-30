@@ -452,6 +452,73 @@ describe("v2 answers (owner-only, create-only — D5)", () => {
       answer({ optionIdx: 0 })));
   });
 
+  it("catalog answers: entity-keyed, create-only, and only on catalog questions", async () => {
+    // docs/CATALOG-QUESTIONS.md: the stored answer is a catalogue key, so
+    // the doc carries `entity` and no optionIdx at all. The grant is new,
+    // so every edge gets a negative: a catalog answer on a vote question
+    // would poison its per-option aggregate, and an optionIdx answer on a
+    // catalog question would do the reverse.
+    const CQ = "feed-cat0";
+    await seed(async (db) => {
+      await setDoc(doc(db, "v2_questions", CQ), {
+        surface: "feed", seq: 0, type: "catalog",
+        prompt: "Favourite?", options: [], active: true,
+      });
+    });
+    const ref = (id: string) => doc(asUser(OWNER), "v2_users", OWNER, "answers", id);
+    const cat = (over: Record<string, unknown> = {}) => ({
+      qid: CQ, surface: "feed", entity: 25,
+      answeredAt: serverTimestamp(), anchors: {}, ...over,
+    });
+    await assertSucceeds(setDoc(ref(CQ), cat()));
+    // immutable like every other answer (D5)
+    await assertFails(updateDoc(ref(CQ), { entity: 6 }));
+    await assertFails(deleteDoc(ref(CQ)));
+    await assertFails(setDoc(ref(CQ), cat({ entity: 6 })));
+    // …and invisible to strangers
+    await assertFails(getDoc(doc(asUser(STRANGER), "v2_users", OWNER, "answers", CQ)));
+    await assertFails(setDoc(
+      doc(asUser(STRANGER), "v2_users", OWNER, "answers", CQ), cat()));
+  });
+
+  it("catalog answers: rejects bad keys, mixed shapes, and non-catalog questions", async () => {
+    const CQ = "feed-cat1";
+    await seed(async (db) => {
+      await setDoc(doc(db, "v2_questions", CQ), {
+        surface: "feed", seq: 0, type: "catalog",
+        prompt: "Favourite?", options: [], active: true,
+      });
+      await setDoc(doc(db, "v2_questions", "feed-cat-off"), {
+        surface: "feed", seq: 1, type: "catalog",
+        prompt: "?", options: [], active: false,
+      });
+    });
+    const ref = (id: string) => doc(asUser(OWNER), "v2_users", OWNER, "answers", id);
+    const cat = (over: Record<string, unknown> = {}) => ({
+      qid: CQ, surface: "feed", entity: 25,
+      answeredAt: serverTimestamp(), anchors: {}, ...over,
+    });
+    // 0 is "Not listed" — a real answer
+    await assertSucceeds(setDoc(ref(CQ), cat({ entity: 0 })));
+    await seed(async (db) => {
+      await deleteDoc(doc(db, "v2_users", OWNER, "answers", CQ));
+    });
+    await assertFails(setDoc(ref(CQ), cat({ entity: -1 })));          // negative
+    await assertFails(setDoc(ref(CQ), cat({ entity: 2048 })));        // past the sanity bound
+    await assertFails(setDoc(ref(CQ), cat({ entity: 2.5 })));         // not an int
+    await assertFails(setDoc(ref(CQ), cat({ entity: "25" })));        // a string is never a key
+    await assertFails(setDoc(ref(CQ), cat({ optionIdx: 1 })));        // mixed shape
+    await assertFails(setDoc(ref(CQ), { qid: CQ, surface: "feed", optionIdx: 0,
+      answeredAt: serverTimestamp(), anchors: {} }));                 // optionIdx on a catalog question
+    await assertFails(setDoc(ref(CQ), cat({ surface: "group" })));    // not a world surface
+    await assertFails(setDoc(ref("feed-cat-off"),
+      cat({ qid: "feed-cat-off" })));                                 // kill switch holds
+    // a vote question never accepts an entity answer
+    await seedQuestion();
+    await assertFails(setDoc(ref(QID), { qid: QID, surface: "daily", entity: 1,
+      answeredAt: serverTimestamp(), anchors: {} }));
+  });
+
   it("answers are invisible and unwritable to other users", async () => {
     await seedQuestion();
     await assertSucceeds(setDoc(

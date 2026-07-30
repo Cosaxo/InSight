@@ -15,6 +15,8 @@ import {
   publishableBreakdown,
   BREAKDOWN_MAX_BUCKETS,
   shouldPublishAgg,
+  catalogEntityKey,
+  publishableCanon,
   isPlausibleFcmToken,
   nextFcmTokens,
 } from "./pure";
@@ -280,10 +282,10 @@ describe("per-anchor breakdowns", () => {
   // bucket sitting exactly on the floor can therefore publish a count of 1
   // for an option, which is one person's answer, disclosed to anyone who
   // already knows the other four. That is the documented k-anonymity
-  // residual (D14), not a suppression bug — and the plain `counts` beside
+  // residual (D15), not a suppression bug — and the plain `counts` beside
   // it carry the identical property at the identical floor.
   //
-  // If this test ever fails, the floor's unit changed. That is a D14
+  // If this test ever fails, the floor's unit changed. That is a D15
   // reversal and needs the record updated, not a green-again patch.
   it("publishes a lopsided split inside a bucket at the floor", () => {
     const by = {
@@ -346,6 +348,106 @@ describe("public-mirror publish cadence", () => {
     // and a cadence of 1 is "publish every answer", the old behaviour,
     // kept expressible so a future operator choosing it does so knowingly
     expect(shouldPublishAgg(6, 5, 1)).toBe(true);
+  });
+});
+
+describe("catalog answers (pick questions — docs/CATALOG-QUESTIONS.md)", () => {
+  const MAX = 1025; // CATALOG_MAX_ENTITY as shipped
+
+  it("stores only integer keys inside the catalogue's domain", () => {
+    expect(catalogEntityKey(25, MAX)).toBe("25");
+    expect(catalogEntityKey(1025, MAX)).toBe("1025");
+    // 0 is "Not listed" — a real answer, never an entity
+    expect(catalogEntityKey(0, MAX)).toBe("0");
+    expect(catalogEntityKey(1026, MAX)).toBeNull();
+    expect(catalogEntityKey(-1, MAX)).toBeNull();
+    expect(catalogEntityKey(25.5, MAX)).toBeNull();
+    expect(catalogEntityKey("25", MAX)).toBeNull();
+    expect(catalogEntityKey(NaN, MAX)).toBeNull();
+    expect(catalogEntityKey(null, MAX)).toBeNull();
+  });
+
+  // The property that makes the canon's floor real rather than decorative.
+  it("never leaves exactly one folded entity recoverable by subtraction", () => {
+    // Without complementary suppression this would publish {25:20, 6:12}
+    // and a reader knowing the total (35) recovers 35-20-12 = 3 — the
+    // exact count of the one entity the floor was hiding.
+    expect(publishableCanon({ "25": 20, "6": 12, "4": 3 }, 5, 10)).toEqual({
+      top: { "25": 20 },
+      rest: 15,
+    });
+    // …and the smallest survivor folds as a whole tie GROUP, or the fold
+    // itself would rank equals arbitrarily: here the lone sub-floor entity
+    // takes both 6-count entities down with it.
+    expect(publishableCanon({ "25": 9, "6": 6, "7": 6, "4": 3 }, 5, 10)).toEqual({
+      top: { "25": 9 },
+      rest: 15,
+    });
+  });
+
+  it("publishes nothing finer than the total when the fold empties the board", () => {
+    // every entity below the floor
+    expect(publishableCanon({ "1": 2, "2": 2, "3": 1 }, 5, 10)).toBeNull();
+    // one entity above it, but publishing it names the one below by
+    // subtraction, and folding it leaves nothing
+    expect(publishableCanon({ "25": 20, "4": 3 }, 5, 10)).toBeNull();
+  });
+
+  it("caps at topN and folds boundary ties whole", () => {
+    const ent: Record<string, number> = {};
+    for (let i = 1; i <= 12; i++) ent[String(i)] = 30 - i; // 29..18, distinct
+    const out = publishableCanon(ent, 5, 10);
+    expect(out).not.toBeNull();
+    expect(Object.keys(out!.top)).toHaveLength(10);
+    expect(out!.rest).toBe(19 + 18); // the two beyond the cap
+    // Ties at the boundary: with topN 3 over [9,8,7,7], publishing one 7
+    // would rank equals arbitrarily — the whole tie group folds.
+    expect(publishableCanon({ "1": 9, "2": 8, "3": 7, "4": 7 }, 5, 3)).toEqual({
+      top: { "1": 9, "2": 8 },
+      rest: 14,
+    });
+  });
+
+  it("counts 'Not listed' in the fold but never enumerates it", () => {
+    // Key "0" dominates here and still must not lead the board; it lands in
+    // rest, published as part of one bucket rather than as a standing.
+    expect(publishableCanon({ "0": 50, "25": 10, "6": 7 }, 5, 10)).toEqual({
+      top: { "25": 10, "6": 7 },
+      rest: 50,
+    });
+  });
+
+  it("publishes a clean board with rest 0 when everything clears", () => {
+    expect(publishableCanon({ "25": 10, "6": 7 }, 5, 10)).toEqual({
+      top: { "25": 10, "6": 7 },
+      rest: 0,
+    });
+  });
+
+  // Swept rather than spot-checked, like the cadence gap: the suppression
+  // arithmetic has enough branches (floor cut, cap cut, tie fold,
+  // complementary fold) that a hand-picked case can pass while a
+  // neighbouring shape leaks. Every 4-entity board with counts 0..8 is
+  // ~6.5k inputs — cheap, and exhaustive over the branch interactions.
+  it("holds the invariants across every small board", () => {
+    for (let a = 0; a <= 8; a++)
+      for (let b = 0; b <= 8; b++)
+        for (let c = 0; c <= 8; c++)
+          for (let nl = 0; nl <= 8; nl++) {
+            const ent = { "1": a, "2": b, "3": c, "0": nl };
+            const total = a + b + c + nl;
+            const out = publishableCanon(ent, 5, 2);
+            if (!out) continue;
+            const shown = Object.values(out.top).reduce((x, y) => x + y, 0);
+            // nothing invented, nothing lost
+            expect(shown + out.rest).toBe(total);
+            // every published entity clears the floor
+            for (const n of Object.values(out.top)) expect(n).toBeGreaterThanOrEqual(5);
+            // never exactly one recoverable hole among the answered,
+            // enumerable entities
+            const answered = [a, b, c].filter((n) => n > 0).length;
+            expect(answered - Object.keys(out.top).length).not.toBe(1);
+          }
   });
 });
 
