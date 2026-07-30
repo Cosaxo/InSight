@@ -46,6 +46,23 @@
       258: 2,  // Mudkip — below the floor
       0: 4,    // Not listed
     },
+    // daily catalog-question run, 2026-07-30 (docs/QUESTION-FARM.md § the
+    // daily catalog-question run)
+    pk02: {
+      94: 34,  // Gengar
+      778: 26, // Mimikyu
+      491: 18, // Darkrai
+      487: 15, // Giratina
+      354: 9,  // Banette
+      93: 8,   // Haunter
+      442: 7,  // Spiritomb
+      356: 6,  // Dusclops
+      425: 5,  // Drifloon
+      635: 5,  // Hydreigon
+      200: 3,  // Misdreavus — below the floor
+      92: 2,   // Gastly — below the floor
+      0: 6,    // Not listed
+    },
   };
 
   // Baked demo segment slices, per question: how each cohort orders the
@@ -65,6 +82,16 @@
       gender: {
         Women: { 25: 14, 133: 12, 94: 9, 6: 9, 448: 7, 778: 6 },
         Men: { 6: 21, 25: 16, 448: 15, 7: 9, 94: 8, 1: 8, 143: 7 },
+      },
+    },
+    pk02: {
+      ageBand: {
+        '18-24': { 778: 12, 94: 9, 491: 7, 354: 4, 425: 3 },
+        '25-34': { 94: 14, 778: 9, 491: 8, 487: 7, 354: 3 },
+      },
+      gender: {
+        Women: { 778: 14, 94: 10, 354: 5, 425: 4 },
+        Men: { 94: 18, 778: 10, 491: 9, 487: 8, 635: 4 },
       },
     },
   };
@@ -127,5 +154,8 @@
   // straight into the picker's error state, which is worse than no card.
   window.PICK_QS = [
     { id: 'pk01', cat: 'games', type: 'pick', domain: 'pokemon', prompt: 'Favourite Pokémon?', n: 242 },
+    // 2026-07-30 daily run: a different canon, not a rephrase — fear
+    // ranks ghosts; favouritism ranks starters and mascots.
+    { id: 'pk02', cat: 'games', type: 'pick', domain: 'pokemon', prompt: 'The scariest Pokémon?', n: 144 },
   ];
 })();
