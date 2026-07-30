@@ -62,29 +62,34 @@ topic is thin.
 
 Count questions per top-level category (first element of each `cat`).
 The budget is a **hard cap of 12 questions per run**, allocated through
-three lanes in priority order (maintainer's direction, 2026-07-30:
-demand leads, coverage is the baseline — not the other way around).
-A lane with no signal passes its budget down, so until engagement data
-is wired (see the roadmap under Future directions) the whole budget
-flows to lane 3 and behavior is the original thin-first rule.
+three lanes in strict priority order (maintainer's direction,
+2026-07-30, sharpened same day: once signals exist, the demand-driven
+lanes take the *whole* budget — coverage is a fallback, not a reserved
+slice). A lane with no signal passes its budget down, so until
+engagement data is wired (see the roadmap under Future directions) the
+whole budget flows to lane 3 and behavior is the original thin-first
+rule.
 
-1. **Replenishment — up to 6.** Topics whose pool the people active in
-   them have nearly finished. Signal, once wired, from k-floored public
-   aggregates only: when even the *least-answered* question in a topic
-   has crossed a healthy answer count, that topic's audience has
-   effectively consumed the pool — refill before they hit the bottom.
-   This is the aggregate reading of "users are close to completing the
-   topic"; per-user completion tracking is not the mechanism and may
-   never be (skip/pass telemetry stays local-only, D-series).
-2. **Demand — up to 4.** Topics ranked by popularity × depth:
-   popularity = total k-floored answers across the topic's questions;
-   depth = least-answered ÷ most-answered question in the topic (how
-   far its audience goes through the pool). Depth is in the product so
-   small-but-devoted topics earn content alongside big ones.
-3. **Coverage — the remainder (all 12 today).** A topic below **4
-   questions** cannot show demand; nobody can engage with content that
-   does not exist. Thinnest first, toward 5 each. The floor is
-   deliberately small — cold start and browsability, not the main
+1. **Replenishment — first claim, up to 6.** Topics whose pool the
+   people active in them have nearly finished. Signal, once wired, from
+   k-floored public aggregates only: when even the *least-answered*
+   question in a topic has crossed a healthy answer count, that topic's
+   audience has effectively consumed the pool — refill before they hit
+   the bottom. This is the aggregate reading of "users are close to
+   completing the topic"; per-user completion tracking is not the
+   mechanism and may never be (skip/pass telemetry stays local-only,
+   D-series).
+2. **Demand — everything replenishment leaves.** Topics ranked by
+   popularity × depth: popularity = total k-floored answers across the
+   topic's questions; depth = least-answered ÷ most-answered question
+   in the topic (how far its audience goes through the pool). Depth is
+   in the product so small-but-devoted topics earn content alongside
+   big ones.
+3. **Coverage — only what lanes 1–2 leave unclaimed.** Today, with no
+   signals wired, that is all 12; post-wiring it may often be zero, and
+   that is by design. A topic below **4 questions** cannot show demand;
+   nobody can engage with content that does not exist. Thinnest first,
+   toward 5 each — cold start and browsability, never the main
    allocation.
 
 If no lane has work — no exhaustion flags, no demand signals, nothing
