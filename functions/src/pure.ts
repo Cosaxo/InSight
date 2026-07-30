@@ -31,6 +31,52 @@ export function prevDayKey(dayKey: string): string {
   return new Date(d.getTime() - 86400000).toISOString().slice(0, 10);
 }
 
+// ── the pending-day marker (v2social) ───────────────────────────
+//
+// `v2_groups/{gid}.pendingDays` is the set of day keys this group has at
+// least one duel answer for and no reveal yet. onV2AnswerCreated adds to it
+// (arrayUnion); the reveal scan removes a day once it has settled it, either
+// by publishing the reveal or by deciding the day did not clear the bar.
+//
+// It exists so the scheduled scan can ask an INDEXED question — "which
+// groups played yesterday?" — instead of reading every group document 12
+// times a day to find the few that did. It also replaces the older
+// `lastCheckedDay` skip-marker outright, and that is the bigger win: the
+// marker needed a compensating delete from the answer trigger, whose
+// correctness rested on a specific commit ordering between two writers.
+// arrayUnion has no such ordering problem — a late answer re-adds the day
+// whatever else is happening, so the day re-opens by construction rather
+// than by argument.
+//
+// How many days to keep. firestore.rules refuses a duel answer for a day
+// more than 4 days behind request.time, so a pending day older than that can
+// never gain another answer and will never settle. 6 is that bound plus
+// headroom for the UTC-vs-local skew the rules' forward window allows.
+export const PENDING_DAYS_KEEP = 6;
+
+// The next pendingDays array: `settledDay` dropped, anything older than
+// `oldestKeptDay` dropped, duplicates and non-strings dropped. Day keys are
+// ISO `YYYY-MM-DD`, so a lexicographic compare is a chronological one.
+//
+// Pure, and separately tested, because the failure it prevents is silent:
+// an array that only ever grows turns a duo whose partner never plays into a
+// group document that accretes one string per day forever.
+export function prunePendingDays(
+  current: unknown,
+  settledDay: string,
+  oldestKeptDay: string,
+): string[] {
+  if (!Array.isArray(current)) return [];
+  const out: string[] = [];
+  for (const d of current) {
+    if (typeof d !== "string") continue;
+    if (d === settledDay) continue;
+    if (d < oldestKeptDay) continue;
+    if (!out.includes(d)) out.push(d);
+  }
+  return out;
+}
+
 // ── reveal conditions + streaks (v2social) ──────────────────────
 
 // The two reveal conditions (decision D5):
@@ -91,16 +137,40 @@ export function meetsKFloor(count: number, floor: number): boolean {
 //    and published none of them. It now carries the ISO code derived from
 //    the picked city, which is why that dimension starts working at all.
 //
-// 2. K-ANONYMITY THAT SURVIVES SUBTRACTION. Suppressing cells below the
+// 2. K-ANONYMITY THAT SURVIVES SUBTRACTION. Suppressing buckets below the
 //    floor is not sufficient on its own. If a dimension has exactly one
-//    suppressed cell and a reader knows the dimension's total, that cell is
-//    recoverable by subtracting the published ones — the floor would be
+//    suppressed bucket and a reader knows the dimension's total, that bucket
+//    is recoverable by subtracting the published ones — the floor would be
 //    decorative. publishableBreakdown therefore applies COMPLEMENTARY
-//    SUPPRESSION: if suppressing the sub-floor cells would leave exactly one
-//    hole, the smallest surviving cell is suppressed too, so there are always
+//    SUPPRESSION: if suppressing the sub-floor buckets would leave exactly one
+//    hole, the smallest surviving bucket is suppressed too, so there are always
 //    either zero holes or at least two. Standard practice in statistical
 //    disclosure control, and the reason this is a pure function with its own
 //    tests rather than three lines inside the trigger.
+//
+//    WHAT THE FLOOR DOES NOT DO, stated here because the wording used to
+//    imply otherwise. The unit the floor applies to is the BUCKET — the sum
+//    of a bucket's per-option counts. It is not applied per option. So a
+//    bucket published at exactly the floor can still carry a lopsided split:
+//    { "Oslo, NO": { "0": 4, "1": 1 } } says in as many words that exactly
+//    one of the five Oslo answers chose option 1.
+//
+//    That is k-anonymity behaving as specified rather than a hole in it. The
+//    floor protects IDENTIFICATION — no cohort is small enough to name a
+//    person — and does not protect ATTRIBUTE counts inside a cohort that
+//    clears it. Recovering whose answer the "1" is still requires knowing the
+//    other four, which is the same collusion bound D7 records for the publish
+//    cadence.
+//
+//    It is also not separately fixable here, which is why it is recorded
+//    rather than engineered around. The plain `counts` published alongside
+//    have exactly the same property at the same floor (a question at total 5
+//    splitting 4/1 discloses one person's option globally), so a per-option
+//    floor would have to apply there too — and a per-option floor means a
+//    4-option question needs ~20 answers per city before any of it renders,
+//    with the surviving options no longer summing to the bucket total. That
+//    trades the product's one job, showing the split, for a bound the floor
+//    was never claiming. See D18 for the arithmetic.
 
 // Anchors coarse enough to bucket. Order is the display order.
 export const BREAKDOWN_DIMS = [
@@ -182,16 +252,26 @@ export function foldAnchors(
   return into;
 }
 
-function cellTotal(cell: Record<string, number>): number {
+// A bucket's total across every option — the quantity the floor is applied
+// to. Named for the bucket rather than the "cell" this used to say, because
+// `cell` was doing duty for both this and the per-option numbers inside it,
+// and the two have different guarantees (see constraint 2 above).
+function bucketTotal(bucket: Record<string, number>): number {
   let n = 0;
-  for (const k of Object.keys(cell)) n += cell[k];
+  for (const k of Object.keys(bucket)) n += bucket[k];
   return n;
 }
 
-// The publishable view: every bucket at or above the floor, with
-// complementary suppression so no single bucket is recoverable by
+// The publishable view: every bucket whose TOTAL is at or above the floor,
+// with complementary suppression so no single bucket is recoverable by
 // subtraction. A dimension with nothing left to say is omitted entirely
 // rather than published empty.
+//
+// The per-option counts inside a surviving bucket are published as they
+// stand — the floor is a bound on cohort size, not on how lopsided a cohort
+// is allowed to be. Constraint 2 above has the reasoning and D18 the
+// arithmetic; `publishes a lopsided split inside a bucket at the floor` in
+// pure.test.ts pins it so the property stays deliberate.
 export function publishableBreakdown(
   by: BreakdownCounts,
   floor: number,
@@ -201,12 +281,12 @@ export function publishableBreakdown(
     const buckets = by[dim] || {};
     const rows = Object.keys(buckets).map((b) => ({
       bucket: b,
-      total: cellTotal(buckets[b]),
+      total: bucketTotal(buckets[b]),
     }));
     const kept = rows.filter((r) => meetsKFloor(r.total, floor));
     const suppressed = rows.length - kept.length;
     // Exactly one hole is a hole with a name on it — take the smallest
-    // survivor down with it so at least two cells are unknown.
+    // survivor down with it so at least two buckets are unknown.
     if (suppressed === 1 && kept.length > 0) {
       let smallest = 0;
       for (let i = 1; i < kept.length; i++) {

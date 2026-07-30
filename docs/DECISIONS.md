@@ -466,15 +466,22 @@ That only holds if the document cannot grow without bound, hence two limits:
 Worst case is 5 dims × 24 buckets × 20 options ≈ 2,400 integers, tens of KB
 against Firestore's 1 MiB document limit.
 
-**The floor is per cell, and it survives subtraction.** Suppressing cells
+**The floor is per bucket, and it survives subtraction.** Suppressing buckets
 below `AGG_MIN_N` is not sufficient alone: if a dimension has exactly one
-suppressed cell and a reader knows the dimension's total, that cell is
+suppressed bucket and a reader knows the dimension's total, that bucket is
 recoverable by subtracting the published ones, and the floor is decorative.
 `publishableBreakdown` therefore applies **complementary suppression** — if
-suppressing sub-floor cells would leave exactly one hole, the smallest
-surviving cell goes too, so there are always either zero holes or at least
+suppressing sub-floor buckets would leave exactly one hole, the smallest
+surviving bucket goes too, so there are always either zero holes or at least
 two. A dimension left with fewer than two publishable buckets is omitted
 entirely, because one bucket is a population statement rather than a split.
+
+> **Corrected by [D18](#d18--the-breakdown-floor-bounds-cohort-size-not-the-split-inside-a-cohort)
+> (2026-07-30).** This paragraph said "per cell" and used *cell* for both a
+> bucket and the per-option counts inside it. Those have different
+> guarantees: the floor is tested against the bucket **total**, so a bucket
+> published at the floor can still show an option count of 1. D18 has the
+> arithmetic and why it is not separately fixable.
 
 Six tests cover this, and all three mutations were checked to fail: removing
 complementary suppression, loosening the floor by two, and dropping the
@@ -1387,3 +1394,314 @@ Client: the demo reveal gains segment chips that reorder the same board
 (`PICKS.segs`/`canonSeg`, per-question demo slices in pick-data.js).
 Live rendering of `by` on catalog cards ships with live catalog
 questions (D14's one-deliberate-change).
+
+---
+
+## D18 · The breakdown floor bounds cohort size, not the split inside a cohort
+
+**Decided:** 2026-07-30 · **Status:** binding
+
+**Decision.** `AGG_MIN_N` is tested against a **bucket's total**, and that is
+the whole of what it guarantees. The per-option counts inside a surviving
+bucket are published as they stand, including a count of 1. No per-option
+floor is added.
+
+**Why this is a record and not a fix.** D8 described the mechanism as "the
+floor is per cell", using *cell* for two different things — the bucket
+("Oslo, NO") and the per-option numbers inside it (`{ "0": 4, "1": 1 }`).
+The code did the same: `cellTotal()` summed a bucket. Reading either one
+naturally suggests a guarantee that was never implemented, namely that no
+published number can be one person's answer. It can:
+
+| published | says |
+| --- | --- |
+| `"Oslo, NO": { "0": 4, "1": 1 }` | exactly one of five Oslo answers chose option 1 |
+| `counts: { "0": 4, "1": 1 }`, `total: 5` | the same thing, globally, at the same floor |
+
+That is k-anonymity working as specified rather than failing. The floor
+protects **identification** — no cohort is small enough to name someone —
+and does not protect **attribute counts** within a cohort that clears it.
+Turning the "1" into a person still requires knowing the other four, the
+same collusion bound D7 already records for the publish cadence.
+
+**Why a per-option floor was rejected.** It is not a local change, and it
+costs the product's one job:
+
+- The second row above is the plain `counts` document, which has the
+  identical property. A per-option floor on breakdowns but not on `counts`
+  fixes nothing; applying it to both means a question shows no split at all
+  until every option it offers has cleared the floor.
+- A 4-option question would need ~20 answers **per city** before its city
+  breakdown rendered anything.
+- Suppressed options do not sum to the bucket total, so the published split
+  would visibly not add up — an honest count that reads as a broken one, in
+  an app whose claim is that its counts are honest.
+
+**What was done instead.** The terminology now distinguishes the two —
+`bucketTotal()`, and "bucket" throughout `pure.ts`, `pure.test.ts` and D8 —
+and the residual is stated where the mechanism is defined rather than left
+to be inferred. `publishes a lopsided split inside a bucket at the floor`
+(`functions/src/pure.test.ts`) pins the behaviour with both directions
+asserted: a 4+1 bucket clears the floor, a 4 bucket does not.
+
+Checked rather than assumed: replacing `bucketTotal` with a per-option
+minimum fails that test and one other, and both pass again on revert. So
+a future change of the floor's unit cannot land quietly.
+
+**Revisit when** a question's options routinely carry real-world
+sensitivity — political affiliation is the obvious one, and D8 already
+keeps it out of `BREAKDOWN_DIMS` for a stronger reason (Article 9 consent).
+At that point the tool is l-diversity on the option distribution, not a
+larger k, and it needs its own record.
+
+---
+
+## D19 · The reveal scan asks an indexed question; the ops hook still reads everything
+
+**Decided:** 2026-07-30 · **Status:** binding
+
+**Decision.** `v2_groups` gains `pendingDays: string[]` — the day keys a group
+has at least one duel answer for and no reveal yet. `onV2AnswerCreated` adds
+to it, the reveal scan removes a day once it settles it, and
+`scheduledDuelReveals` finds its work with
+`where("pendingDays", "array-contains", day)` instead of reading every group
+document. `revealDuelsNowV2` keeps the full scan and is the recovery path.
+
+The `lastCheckedDay` skip-marker is deleted; the absence of a day from
+`pendingDays` is the same statement, expressed as a query.
+
+### The arithmetic
+
+The scan runs every 120 minutes, so 12 times a day, and read every group each
+time regardless of activity:
+
+| groups | daily activity | reads/day, before | after |
+| --- | --- | --- | --- |
+| 200 | 10% | 2,400 | 240 |
+| 2,000 | 10% | 24,000 | 2,400 |
+| 2,000 | 1% | 24,000 | 240 |
+
+The cost of the old scan grew with **registrations**; the new one grows with
+**play**. That is the difference that matters — a group created once and
+abandoned is now free forever instead of costing 12 reads a day in
+perpetuity.
+
+The marker itself is not a new write. The trigger already touched the group
+document on every duel answer to run the `lastCheckedDay` compensator, and
+that was a read plus a conditional write. It is now one blind
+`arrayUnion` — strictly cheaper.
+
+### Why this is also a correctness simplification
+
+`lastCheckedDay` needed a compensating delete from the answer trigger, and
+its correctness rested on an ordering argument spelled out over eleven lines
+of comment: a late answer either committed before the scan's re-read, or
+Firestore's serializability forced it after the marker, in which case the
+compensator's later read was *guaranteed* to observe the marker value and
+delete it.
+
+`arrayUnion` needs none of that. A late answer re-adds its day
+unconditionally, so the day ends up open if and only if an answer exists the
+scan did not see — in either commit order, with no argument required. The
+repo's most intricate race is gone rather than relocated.
+
+### Why the ops hook keeps the full scan
+
+The indexed query inherits `onV2AnswerCreated`'s at-least-once delivery. In
+the steady state that costs nothing: the scan runs every 2h, and a marker
+landing late is picked up by the next run, comfortably inside the ≤2h reveal
+delay the schedule already promises. A marker that never lands means the
+trigger failed permanently, which also means the answer never folded into any
+aggregate — a louder problem, already logged.
+
+But it does mean "the query returned nothing" and "nothing played" have
+stopped being the same statement. An operator reaching for `revealDuelsNowV2`
+is already responding to something being wrong, and that is the worst moment
+to hand them a scan that trusts the marker they may be there to repair. So it
+defaults to `scan: "full"` and accepts `scan: "indexed"` to exercise the
+scheduled path.
+
+That default is also what keeps the e2e honest: it writes duel answers and
+calls the hook immediately, so an indexed-only hook would fail on Eventarc
+timing rather than on behaviour. The indexed path has its own e2e leg (§8b)
+with a bounded wait for the marker, plus an assertion that a settled day
+leaves `pendingDays` and that a second indexed run then scans **zero**
+groups.
+
+### Bounds and assumptions, recorded rather than discovered
+
+- **The array cannot grow without bound.** A duo whose partner never plays
+  would otherwise accrue one day key per day played, forever. Both settle
+  paths prune to `PENDING_DAYS_KEEP` (6) days, which is the rules' 4-day
+  backfill window plus headroom — a day older than that can never gain
+  another answer, so it can never settle and must not linger. Pruning is
+  pinned by unit tests, including a 365-entry input.
+- **Day keys compare lexicographically.** The cutoff is a string `<`, correct
+  only because keys are ISO `YYYY-MM-DD`. Asserted directly in the tests, as
+  the assumption that breaks first if the format ever moves.
+- **No composite index is declared.** Firestore's automatic single-field
+  index for an array field is stored as (value, `__name__`), which should
+  already serve `array-contains` + `orderBy(__name__)`. This is an assumption
+  about Firestore that the emulator cannot verify — it creates whatever a
+  query asks for. If it is wrong, the scheduled run throws
+  FAILED_PRECONDITION with a console link, and the full-scan hook keeps
+  reveals flowing until the index exists. Loud and recoverable, which is why
+  it ships unverified rather than with a speculative index.
+- **No backfill.** Groups predating this carry no `pendingDays`, and
+  `array-contains` simply does not match them — which is exactly true, since
+  a group with no answers owes no reveal. Per D5's amendment, production has
+  zero duel answers anyway: the question bank is unseeded.
+
+### The scan ceiling now means something different
+
+`GROUP_SCAN_CAP` (2,000) used to bound "groups that exist" and would have
+fired on registration growth alone. It now bounds "groups that played that
+day", so hitting it is a real statement about activity. The remedy named in
+the log line changed with it: sharding the scan or moving it to a queue,
+since the indexed query it used to recommend is what this record built.
+
+---
+
+## D20 · Function runtime options are per-function; the global stays the heavy default
+
+**Decided:** 2026-07-30 · **Status:** binding
+
+**Decision.** `ops.ts` keeps `setGlobalOptions` at 512 MiB / 480 s /
+concurrency 1 as the **default**, and individual functions opt down:
+
+| function | memory | timeout | cpu / concurrency |
+| --- | --- | --- | --- |
+| `createGroupV2`, `joinGroupV2`, `registerPushToken` | 256 MiB | 60 s | — |
+| `leaveGroupV2` | 256 MiB | **480 s** | — |
+| `onV2AnswerCreated` | 512 MiB | 120 s | **cpu 1, concurrency 20** |
+| `deleteAccount`, `seedContentV2`, `scheduledDuelReveals`, `revealDuelsNowV2` | 512 MiB | 480 s | — |
+
+**Why the global is not simply lowered.** The property worth keeping is that
+forgetting to think about a new function is *safe*. A lower global would hand
+the next full-collection walker the same 60 s wall that killed the last ones
+— which is the failure `check:fn-runtime` exists to prevent. So the global
+stays sized for the heaviest thing in the deploy and the cheap functions opt
+down explicitly, one export at a time.
+
+**Why now.** The comment justifying 512 MiB said "the full-scan aggregators
+read whole collections into memory". **D13 deleted every one of them.** What
+was left inheriting an aggregator's footprint is five sub-second callables
+and `onV2AnswerCreated`, which runs once per answer and is the most-invoked
+function in the system. The sizing outlived its reason and no record noticed.
+
+**The two rules of thumb.** Memory is billed on every invocation, so it is
+the number to lower. Timeout costs nothing unless consumed, so anything with
+genuinely unbounded work keeps a generous one even when it is otherwise
+cheap — which is why `leaveGroupV2` drops to 256 MiB but keeps 480 s: it ends
+in a `recursiveDelete` of a group's whole reveal history when the last member
+leaves, and a timeout mid-delete leaves a half-erased group.
+
+**Why the hot trigger raises concurrency instead of dropping memory.** At
+concurrency 1 every simultaneous answer costs a whole instance, and
+`maxInstances: 10` then caps the entire system at 10 answers folding at once
+— a throughput ceiling nothing had written down. Sharing one instance across
+20 events collapses both that ceiling and the per-answer cost. Concurrency
+above 1 requires `cpu >= 1` (a Cloud Run constraint), and cpu 1 pairs with
+512 MiB rather than 256, so this is the one function that does **not** drop
+its memory. It is still far cheaper per answer, because the instance-seconds
+are divided by 20 instead of paid whole.
+
+**What is not proven here.** The emulator ignores memory, timeout, cpu and
+concurrency entirely, so CI proves only that the values are *set* —
+`check:fn-runtime` reads them off the compiled endpoint metadata and passes.
+Whether they are *right* is a post-deploy check:
+
+```
+gcloud functions describe <name> --gen2 --region us-central1 \
+  --format="value(serviceConfig.availableMemory,serviceConfig.timeoutSeconds)"
+```
+
+Revisit `onV2AnswerCreated`'s concurrency if its transaction ever starts
+holding memory per event; 20 events sharing 512 MiB is comfortable for three
+small documents and would not be for a large fold.
+
+---
+
+## D21 · The live-mode branches get a mount test; accessibility gets a ratchet
+
+**Decided:** 2026-07-30 · **Status:** binding
+
+Two frontend gaps, both of the same shape: a property the tree asserted in
+prose while nothing executed it.
+
+### The live branches were untested, including two privacy gates
+
+`test/smoke.test.jsx` mounts the app with `window.LIVE` **undefined**. Every
+`if (window.LIVE && window.LIVE.enabled)` branch in ~19.8k lines of spec
+layer was therefore unreached by the suite — including the two that are
+product decisions rather than cosmetics:
+
+- **D9** — live mode drops the Mirror's City stop, because Near IS your city
+  there and two stops onto one cohort is how a scale starts lying.
+- **D11** — the feed's argument surfaces (takes, counters, minds-moved,
+  crossfire, friend dots) are unreachable from a live card, and the
+  `demoInProd` fallback suppresses the whole engage row.
+
+D11 says these were "verified rather than assumed" by forcing a demo question
+live in a browser and looking. That was true, once, by hand, on one commit.
+`test/smoke-live.test.jsx` makes it true on every run, and each gate was
+mutation-checked: opening `q.live`, deleting the `demoInProd` return, and
+making the Mirror axis unconditional each fail exactly one case.
+
+**Three things the build of it found**, recorded because each is a way this
+kind of test lies:
+
+1. **A key-name pin does not pin a signature.** The fixture's first `vote`
+   took a question object; the real one takes `(qid, optionId)`. Both satisfy
+   `Object.keys(LIVE)`, so the surface pin passed while the tests recorded
+   every vote under `undefined`. The member list is now shared
+   (`test/live-surface.ts`) so at least the *names* cannot drift.
+2. **`renderEngage` only mounts after the card is answered and the reveal
+   animation clears `state.beat`.** The first D11 assertion ran on an unvoted
+   card and passed against a deliberately opened gate, because the block it
+   was checking for was never going to be there either way. Every gate case
+   now has a control asserting the row *does* render on the other branch.
+3. **The takes control's label is `${n} takes`, and n is 0 in live mode.** A
+   text search for a seeded string finds nothing whether the gate holds or
+   not; the assertion has to be the button.
+
+### Accessibility: a ratchet, and what it caught about itself
+
+`eslint-plugin-jsx-a11y` was absent. It now runs as its own gate,
+`npm run check:a11y`, against a per-file baseline of **69** that may only go
+down.
+
+**Why not in `npm run lint`.** That script carries `--max-warnings 0`, which
+is load-bearing (four hook warnings had become background noise once). There
+is no warn tier to hold existing debt, so the options were fail-on-day-one or
+a blanket disable — and `src/v2/README.md` is explicit that a blanket disable
+is the failure mode this repo has already been bitten by. A separate ratchet
+is the third option: new code cannot add to the number.
+
+**Why per file rather than a total.** A total lets a fix in one file pay for
+a regression in another and still report green.
+
+**Why 67 of the 69 are deferred.** They are all in `spec/`, the ported layer.
+Adding key handlers and focus behaviour to components no test asserts the
+interaction of is precisely the blind change the React Compiler findings are
+already deferred for. They get fixed behind interaction tests, not ahead of
+them. The remaining two are `autoFocus` on picker search fields the user has
+just tapped open — a deliberate keep, recorded in the baseline rather than
+silenced inline, because `--report-unused-disable-directives` would turn a
+disable comment naming a rule the main config lacks into a lint error.
+
+**The gate caught itself first, which is the part worth recording.** The
+initial config matched `src/**/*.{jsx,tsx}` under espree, so every `.tsx`
+failed to parse — and a parse failure reports as a fatal message with a null
+`ruleId`, which the "count jsx-a11y/* only" filter discarded. It read as
+"the hand-written panels have zero findings" when nothing had looked at them.
+Found by injecting a clickable `<div>` into `CityPicker` and watching the
+ratchet report green. With the TypeScript parser wired in there were four,
+and `check-a11y.mjs` now fails on any fatal message: **a file this gate
+cannot read is a file it is lying about.**
+
+Of those four, three were fixed rather than baselined, because they are
+hand-written code and not the frozen port: `LiveGroupsMirrorBody`'s
+expand/collapse row is now a real `<button>` with `aria-expanded` instead of
+a clickable `<div>`, which is the difference between a keyboard user being
+able to open a day's detail and not.

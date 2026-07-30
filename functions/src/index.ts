@@ -203,6 +203,16 @@ export const deleteAccount = onCall(
             batch.update(r.ref, {
               [`votes.${uid}`]: FieldValue.delete(),
               [`names.${uid}`]: FieldValue.delete(),
+              // The membership snapshot the reveal read rule gates on
+              // (firestore.rules, the /reveals/{day} match). Scrubbing the
+              // vote and the name but leaving the uid here left a
+              // pseudonymous identifier — and the group-day history it
+              // implies — surviving an erasure request. Removing it costs
+              // the deleted user read access to a reveal they can no longer
+              // authenticate for anyway, and costs no OTHER member
+              // anything: the rule tests `request.auth.uid in members`, so
+              // each entry only ever grants its own owner.
+              members: FieldValue.arrayRemove(uid),
             });
             if (++ops >= 450) {
               await batch.commit();

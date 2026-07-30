@@ -250,6 +250,59 @@ const gsnap = await getDoc(doc(db, "v2_groups", gid));
 if (gsnap.get("streak") !== 1) fail("streak != 1: " + gsnap.get("streak"));
 ok("duo streak = 1");
 
+// 8b · the pending-day marker, and the INDEXED scan the schedule uses.
+//
+// The reveal above went through revealDuelsNowV2's default FULL scan, which
+// reads every group and therefore cannot tell whether the marker works. The
+// schedule does not do that — it queries
+// `where("pendingDays","array-contains",day)` and only sees groups the
+// answer trigger has marked. So the marker is on the critical path in
+// production and on no path at all in the test above; this leg closes that.
+//
+// The wait is what the full scan exists to avoid: the marker is written by
+// onV2AnswerCreated, so it is Eventarc-asynchronous, and an indexed scan
+// fired immediately would be racing it. In production that race is free (the
+// scan runs every 2h), but a test has to wait for it explicitly.
+{
+  const mkGroup = await httpsCallable(fns, "createGroupV2")({ name: "Marker Crew", mode: "group" });
+  const mkGid = mkGroup.data.gid;
+  const mkDay = new Date(Date.now() - 2 * 86400000).toISOString().slice(0, 10);
+  await setDoc(doc(db, "v2_users", uid, "answers", `g_${mkGid}_${mkDay}`), {
+    qid: "group-gu0", surface: "group", optionIdx: 1,
+    gid: mkGid, day: mkDay, answeredAt: serverTimestamp(), anchors: {},
+  });
+
+  let marked = false;
+  for (let i = 0; i < 25 && !marked; i++) {
+    await new Promise((r) => setTimeout(r, 400));
+    const s = await getDoc(doc(db, "v2_groups", mkGid));
+    marked = (s.get("pendingDays") || []).includes(mkDay);
+  }
+  if (!marked) fail("onV2AnswerCreated never marked pendingDays — the indexed scan would see nothing");
+  ok("answer trigger marked the group's pending day");
+
+  const idx = await httpsCallable(fns, "revealDuelsNowV2")({ day: mkDay, scan: "indexed" });
+  if (idx.data.mode !== "indexed") fail("scan mode not honoured: " + JSON.stringify(idx.data));
+  if (idx.data.revealed < 1) fail("indexed scan revealed nothing — the marker query missed the group");
+  if (!(await getDoc(doc(db, "v2_groups", mkGid, "reveals", mkDay))).exists())
+    fail("indexed scan reported a reveal that is not there");
+  ok("indexed scan found the marked group and revealed it");
+
+  // Settling the day must clear it, or every later run re-reads this group
+  // for a day it has already published.
+  const after = await getDoc(doc(db, "v2_groups", mkGid));
+  if ((after.get("pendingDays") || []).includes(mkDay))
+    fail("the revealed day is still pending — the scan would loop on it");
+  ok("the reveal cleared its own pending day");
+
+  // …and the query really is a filter: a second indexed run for the same day
+  // now matches nothing, where the full scan would still walk every group.
+  const again = await httpsCallable(fns, "revealDuelsNowV2")({ day: mkDay, scan: "indexed" });
+  if (again.data.scanned !== 0)
+    fail("indexed rerun scanned " + again.data.scanned + " groups; expected 0 once nothing is pending");
+  ok("indexed rerun reads nothing once the day is settled");
+}
+
 // 9 · non-membership and post-reveal are SEPARATE denials. The old single
 // check conflated them with a uid fallback of "x", so it had three
 // independent reasons to fail and proved none of them.

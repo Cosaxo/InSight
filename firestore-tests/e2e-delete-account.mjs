@@ -80,6 +80,7 @@ await adb.doc(`v2_groups/${SOLO}`).set({
 });
 await adb.doc(`v2_groups/${SOLO}/reveals/${DAY}`).set({
   day: DAY, qid: "group-gu0", votes: { [uid]: { optionIdx: 1 } }, names: { [uid]: "Doomed" },
+  members: [uid],
 });
 
 // a group shared with someone else → must SURVIVE, scrubbed of them
@@ -90,6 +91,10 @@ await adb.doc(`v2_groups/${SHARED}/reveals/${DAY}`).set({
   day: DAY, qid: "group-gu0",
   votes: { [uid]: { optionIdx: 1 }, [OTHER]: { optionIdx: 0 } },
   names: { [uid]: "Doomed", [OTHER]: "Survivor" },
+  // The membership snapshot the reveal read rule gates on. Seeded here
+  // because erasure has to reach it too — it is a uid, and it carries the
+  // fact that this account played in this group on this day.
+  members: [uid, OTHER],
 });
 
 // one client-authored write, so the test also covers the real path
@@ -157,10 +162,16 @@ const reveal = await adb.doc(`v2_groups/${SHARED}/reveals/${DAY}`).get();
 if (!reveal.exists) fail("the shared group's reveal was deleted wholesale");
 const votes = reveal.get("votes") || {};
 const names = reveal.get("names") || {};
+const revealMembers = reveal.get("members") || [];
 if (votes[uid]) fail("the deleted user's vote survives in a shared reveal");
 if (names[uid]) fail("the deleted user's display name survives in a shared reveal");
+// The membership snapshot is a uid like any other. It is also the array
+// the reveal read rule gates on, so this assertion doubles as a check that
+// scrubbing it did not cost the SURVIVING member their access.
+if (revealMembers.includes(uid)) fail("the deleted uid survives in a reveal's members snapshot");
+if (!revealMembers.includes(OTHER)) fail("the surviving member lost their reveal read access");
 if (!votes[OTHER]) fail("the surviving member's vote was scrubbed too");
-ok("shared group survives; only the deleted user's vote and name were scrubbed");
+ok("shared group survives; the deleted user's vote, name and membership entry were scrubbed");
 
 console.log("\nALL ERASURE CHECKS PASSED");
 process.exit(0);

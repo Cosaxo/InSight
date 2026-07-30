@@ -17,7 +17,7 @@
 
 import { getFirestore, FieldValue } from "firebase-admin/firestore";
 import { onCall } from "firebase-functions/v2/https";
-import { assertOperator } from "./ops";
+import { assertOperator, HOT_TRIGGER } from "./ops";
 import { onDocumentCreated } from "firebase-functions/v2/firestore";
 import { logger } from "firebase-functions";
 import { V2_QUESTIONS } from "./v2content";
@@ -132,19 +132,25 @@ export const seedContentV2 = onCall({ region: REGION }, async (request) => {
 // ── answer → aggregate ──────────────────────────────────────────
 
 export const onV2AnswerCreated = onDocumentCreated(
-  { region: REGION, document: "v2_users/{uid}/answers/{qid}", retry: true },
+  { ...HOT_TRIGGER, region: REGION, document: "v2_users/{uid}/answers/{qid}", retry: true },
   async (event) => {
     const snap = event.data;
     if (!snap) return;
     // Group/duo answers are sealed duel material — they surface through
     // materialized reveals (v2social), never through world aggregates.
-    // A late duel answer must REOPEN its day for the reveal scan: the
-    // scan's lastCheckedDay skip-marker would otherwise close the day
-    // forever while rules still accepted the answer. This == check is
-    // race-free only because the scan writes the marker inside a
-    // transaction that re-reads the answers (see revealGroupDay): our
-    // answer either got counted there, or committed after the marker —
-    // so the read below is guaranteed to see lastCheckedDay === day.
+    //
+    // What this write is for: it flags the group's day as owing a reveal, so
+    // the scheduled scan can ask an INDEXED question ("which groups played
+    // yesterday?") instead of reading every group document to find the few
+    // that did. See prunePendingDays in pure.ts for the field's contract.
+    //
+    // It also replaces the `lastCheckedDay` skip-marker this branch used to
+    // compensate for. That was a read, a value comparison and a conditional
+    // delete whose correctness rested on a specific commit ordering between
+    // this trigger and the scan. arrayUnion needs none of it: a late answer
+    // re-adds its day unconditionally, so the day re-opens whatever order
+    // the two writers land in, and the scan's own transaction settles it.
+    // One blind write, no read, and one less race to reason about.
     const surface = snap.get("surface");
     if (surface === "group" || surface === "duo") {
       const gid = snap.get("gid");
@@ -152,12 +158,15 @@ export const onV2AnswerCreated = onDocumentCreated(
       if (typeof gid === "string" && typeof day === "string") {
         try {
           const gref = getFirestore().collection("v2_groups").doc(gid);
-          const g = await gref.get();
-          if (g.exists && g.get("lastCheckedDay") === day) {
-            await gref.update({ lastCheckedDay: FieldValue.delete() });
-          }
+          // update(), not set(merge): a group deleted between the answer and
+          // this trigger must stay deleted, and set() would resurrect it as a
+          // doc holding nothing but pendingDays. NOT_FOUND is the expected
+          // outcome there, not an error worth logging loudly.
+          await gref.update({ pendingDays: FieldValue.arrayUnion(day) });
         } catch (err) {
-          logger.warn(`[v2] reopen-day failed for ${gid}/${day}:`, err);
+          const code = (err as { code?: number | string }).code;
+          if (code === 5 || code === "not-found") return;
+          logger.warn(`[v2] pending-day mark failed for ${gid}/${day}:`, err);
         }
       }
       return;

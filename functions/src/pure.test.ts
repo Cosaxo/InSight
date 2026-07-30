@@ -9,6 +9,8 @@ import {
   prevDayKey,
   shouldReveal,
   nextStreak,
+  PENDING_DAYS_KEEP,
+  prunePendingDays,
   meetsKFloor,
   breakdownBucket,
   foldAnchors,
@@ -111,6 +113,60 @@ describe("shouldReveal", () => {
   it("unknown modes behave like group (the pipeline's default)", () => {
     expect(shouldReveal("", 1)).toBe(true);
     expect(shouldReveal("", 0)).toBe(false);
+  });
+});
+
+// ── the pending-day marker ──────────────────────────────────────
+
+describe("prunePendingDays", () => {
+  // 6 days back from 2026-07-27, i.e. what revealGroupDay computes as the
+  // oldest day a duel answer could still legally arrive for.
+  const OLDEST = "2026-07-21";
+
+  it("drops the settled day and keeps the rest", () => {
+    expect(prunePendingDays(["2026-07-25", "2026-07-26", "2026-07-27"], "2026-07-26", OLDEST))
+      .toEqual(["2026-07-25", "2026-07-27"]);
+  });
+
+  it("drops days older than the cutoff, so the array cannot grow forever", () => {
+    // The case this exists for: a duo whose partner never plays leaves one
+    // unsettled day per day played. Without the cutoff that is one string
+    // per day on the group document, permanently.
+    const year = Array.from({ length: 365 }, (_, i) => {
+      const d = new Date(Date.UTC(2025, 6, 27) + i * 86400000);
+      return d.toISOString().slice(0, 10);
+    });
+    const out = prunePendingDays(year, "2026-07-27", OLDEST);
+    expect(out).toEqual(["2026-07-21", "2026-07-22", "2026-07-23", "2026-07-24",
+      "2026-07-25", "2026-07-26"]);
+    expect(out.length).toBeLessThanOrEqual(PENDING_DAYS_KEEP);
+  });
+
+  it("keeps the cutoff day itself — the bound is inclusive", () => {
+    expect(prunePendingDays([OLDEST], "2026-07-27", OLDEST)).toEqual([OLDEST]);
+    expect(prunePendingDays(["2026-07-20"], "2026-07-27", OLDEST)).toEqual([]);
+  });
+
+  it("survives a missing, malformed or duplicated field", () => {
+    // A group that has never played has no pendingDays at all, and that is
+    // the normal state — it must read as "nothing pending", not throw.
+    expect(prunePendingDays(undefined, "2026-07-27", OLDEST)).toEqual([]);
+    expect(prunePendingDays(null, "2026-07-27", OLDEST)).toEqual([]);
+    expect(prunePendingDays("2026-07-26", "2026-07-27", OLDEST)).toEqual([]);
+    expect(prunePendingDays([1, null, {}, "2026-07-26"], "2026-07-27", OLDEST))
+      .toEqual(["2026-07-26"]);
+    // arrayUnion cannot produce duplicates, but a hand-repaired document can.
+    expect(prunePendingDays(["2026-07-26", "2026-07-26"], "2026-07-27", OLDEST))
+      .toEqual(["2026-07-26"]);
+  });
+
+  it("compares day keys lexicographically, which is chronological for ISO", () => {
+    // The whole cutoff rests on this, and it is the assumption that breaks
+    // first if the key format ever changes.
+    expect("2026-01-02" < "2026-01-10").toBe(true);
+    expect("2025-12-31" < "2026-01-01").toBe(true);
+    expect(prunePendingDays(["2025-12-31", "2026-01-05"], "x", "2026-01-01"))
+      .toEqual(["2026-01-05"]);
   });
 });
 
@@ -232,7 +288,7 @@ describe("per-anchor breakdowns", () => {
     expect(by.city["City30, NO"]).toBeUndefined();
   });
 
-  it("suppresses cells below the floor", () => {
+  it("suppresses buckets whose total is below the floor", () => {
     const by = {
       gender: {
         Women: { "0": 6, "1": 4 },   // 10 — publishable
@@ -247,16 +303,16 @@ describe("per-anchor breakdowns", () => {
   });
 
   // The property that makes the floor real rather than decorative.
-  it("never leaves exactly one suppressed cell recoverable by subtraction", () => {
+  it("never leaves exactly one suppressed bucket recoverable by subtraction", () => {
     const by = {
       ageBand: {
         "18-24": { "0": 20 },  // published
         "25-34": { "0": 12 },  // smallest survivor — must be taken too
-        "35-44": { "0": 3 },   // the only sub-floor cell
+        "35-44": { "0": 3 },   // the only sub-floor bucket
       },
     };
     const out = publishableBreakdown(by, 5);
-    // Without complementary suppression this would publish two cells and a
+    // Without complementary suppression this would publish two buckets and a
     // reader knowing the dimension total (35) recovers 35-20-12 = 3 exactly.
     expect(out.ageBand).toBeUndefined();
 
@@ -277,6 +333,32 @@ describe("per-anchor breakdowns", () => {
     // two clean buckets and nothing suppressed: published as-is
     const clean = { gender: { Women: { "0": 9 }, Men: { "0": 7 } } };
     expect(publishableBreakdown(clean, 5)).toEqual(clean);
+  });
+
+  // The floor's scope, pinned so it stays a decision rather than a
+  // discovery. It bounds COHORT SIZE — how many people are in a bucket —
+  // and says nothing about how lopsided that bucket's split may be. A
+  // bucket sitting exactly on the floor can therefore publish a count of 1
+  // for an option, which is one person's answer, disclosed to anyone who
+  // already knows the other four. That is the documented k-anonymity
+  // residual (D18), not a suppression bug — and the plain `counts` beside
+  // it carry the identical property at the identical floor.
+  //
+  // If this test ever fails, the floor's unit changed. That is a D18
+  // reversal and needs the record updated, not a green-again patch.
+  it("publishes a lopsided split inside a bucket at the floor", () => {
+    const by = {
+      city: {
+        "Oslo, NO": { "0": 4, "1": 1 },     // 5 — on the floor, 1 is a person
+        "Bergen, NO": { "0": 3, "1": 3 },   // 6 — publishable
+      },
+    };
+    const out = publishableBreakdown(by, 5);
+    expect(out.city["Oslo, NO"]).toEqual({ "0": 4, "1": 1 });
+    // …and the bucket total, not any single option, is what was tested
+    // against the floor: a bucket of 4+1 clears it, a bucket of 4 does not.
+    const below = { city: { "Oslo, NO": { "0": 4 }, "Bergen, NO": { "0": 9 } } };
+    expect(publishableBreakdown(below, 5).city).toBeUndefined();
   });
 
   it("does not alias the private counts into the published copy", () => {
