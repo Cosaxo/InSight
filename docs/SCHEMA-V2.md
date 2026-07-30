@@ -10,7 +10,9 @@ is server-written (aggregates now, reveals in Phase 3).
 v2_questions/{qid}                 canonical bank, seeded by seedContentV2
   surface: daily|feed|group|duo|test
   seq: int            rotation order within a surface
-  type: binary|choice|scale|rating|vote|duel|ranking
+  type: binary|choice|scale|rating|vote|duel|ranking|catalog
+  domain: pokemon|films|artists   (catalog questions only — names the key
+                                   space the trigger validates against, D15)
   prompt: string
   options: string[]   (scale → the 5-point agree scale; rating → "1".."10")
   topic, axis, test   metadata (test != null only on a test's own items)
@@ -34,9 +36,10 @@ v2_users/{uid}/answers/{qid}
     anywhere else; it described an intended path, not a deployed one.)
     Catalog questions (bank type "catalog" — docs/CATALOG-QUESTIONS.md,
     D14) store `entity` in place of optionIdx: an integer catalogue key,
-    0 = "Not listed". Rules bound it to [0, 2048); the trigger holds the
-    real ceiling (CATALOG_MAX_ENTITY) and an unknown key never
-    aggregates.
+    0 = "Not listed". Rules bound it to [0, 1e9) — QID scale, D15; the
+    trigger validates against the question's own domain (a range for
+    pokemon, generated QID key sets for films/artists) and an unknown
+    key never aggregates.
 create: owner, validated (question must exist; optionIdx < options.size())
 update/delete: nobody — immutability is what lets the aggregate be a
 plain increment with no reconciliation

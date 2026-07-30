@@ -24,6 +24,8 @@
     "check:cities": "node scripts/check-cities.mjs",
     "check:pokedex": "node scripts/check-pokedex.mjs",
     "build:pokedex": "node scripts/build-pokedex.mjs",
+    "check:catalogs": "node scripts/check-catalogs.mjs",
+    "build:catalog": "node scripts/build-catalog.mjs",
     "check:ios-spm": "node scripts/check-ios-spm.mjs",
     "build:cities": "node scripts/build-cities.mjs",
     "check:deploy-targets": "node scripts/check-deploy-targets.mjs",
