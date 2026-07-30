@@ -1158,3 +1158,97 @@ client. Restoring any of it means restoring its rules *and* its tests
 deliberately — and note that the geohash aggregator would need the
 `disc.geohash` field-path bug fixed before it could ever have worked
 (D9). `firestore.rules.v1-archive` still lists the rules gaps to fix first.
+
+---
+
+## D14 · The Facebook SDK is stripped from the iOS build, not declared
+
+**Decided:** 2026-07-30 · **Status:** binding
+
+**Decision.** `@capacitor-firebase/authentication` links the Facebook iOS
+SDK into every iOS build. A `postinstall` hook
+(`scripts/strip-facebook-sdk.mjs`) removes it from the plugin's SwiftPM
+manifest; `npm run check:ios-facebook` asserts the removal held, wired into
+`ci.yml`'s lint job. Apple's privacy labels and Google's Data safety form
+are answered with **no Facebook SDK and no advertising SDK of any kind**.
+
+**Why it was there at all.** Nobody added it. The plugin declares it
+unconditionally in its own manifest, inside `node_modules`:
+
+```
+node_modules/@capacitor-firebase/authentication/Package.swift
+  .package(url: ".../facebook/facebook-ios-sdk.git", from: "18.0.0")
+  → products FacebookCore, FacebookLogin
+  → swiftSettings: .define("RGCFA_INCLUDE_FACEBOOK")
+```
+
+**Android was never affected, and the asymmetry is the trap.** The same
+plugin gates each provider behind a Gradle flag on Android, and
+`rgcfaIncludeFacebook` defaults to `false` — `android/variables.gradle` sets
+only `rgcfaIncludeGoogle`, so Facebook has always been absent there. The iOS
+SPM manifest has no equivalent switch. So "we don't use Facebook login" was
+true of the product, true of the Android binary, and false of the iOS
+binary — and the two stores would have taken different correct answers.
+
+**It is invisible to the obvious checks.** Three greps say it is absent and
+all three read the wrong artifact: `package-lock.json` (npm does not model
+SwiftPM edges), `ios/App/CapApp-SPM/Package.swift` (names the plugin, not
+the plugin's dependencies) and `project.pbxproj` (SPM resolves at build
+time). Only the plugin's own manifest shows it. This is why the guard reads
+that file rather than anything committed.
+
+**Why strip rather than declare.** Declaring is honest and wrong: it would
+tell users the app carries an advertising SDK it does not use, permanently,
+to describe dead code. Stripping makes the honest answer "no" and removes
+the surface. It also drops a large dependency from every iOS archive and
+from `-resolvePackageDependencies` on the macOS runner.
+
+**Why it is safe.** Verified in the plugin source, not assumed: every FBSDK
+symbol in `FacebookAuthProviderHandler.swift` sits behind
+`#if RGCFA_INCLUDE_FACEBOOK` — import, stored `LoginManager`, initialiser
+and every method body. The class shell is unguarded, so
+`FirebaseAuthentication.swift`'s reference to it still compiles. Without the
+define, `signInWithFacebook` rejects with the plugin's own "provider not
+enabled" error, which is correct for a provider we do not offer.
+`capacitor.config.ts` declares `providers: ["google.com"]`, and nothing in
+`src/` calls the Facebook methods.
+
+### The split between stripper and check, which is load-bearing
+
+**The stripper can never fail the install.** A root `npm ci` runs on the
+**production deploy path**: `backend-checks.yml` (rules-tests and e2e) is
+called by both `ci.yml` and `firebase-deploy.yml`. A postinstall that exits
+non-zero would put an iOS-only, client-only concern in front of an emergency
+rules fix — exactly what `docs/DEPLOYMENT.md` says to keep off that path. So
+it warns and exits 0, always.
+
+The assertion therefore lives in a separate check on `ci.yml`'s lint job,
+which is off the deploy path. It catches what the stripper cannot report:
+a plugin upgrade that changes the manifest layout so the patterns match
+nothing, a tree where postinstall did not run (`--ignore-scripts`, a
+restored `node_modules` cache), or a hand-reinstalled plugin.
+
+**A bug worth recording, because it is the failure mode of the pattern.**
+The check imports `MANIFEST` from the stripper so the two cannot drift.
+When the stripper's logic sat at top level, that import *ran* it — and hit
+its `process.exit(0)` before the check's own assertion. The check passed
+vacuously: green, and asserting nothing. Found by running it rather than
+reading it. The stripper now guards execution on `process.argv[1]`, and
+`check-deploy-targets.mjs` already carries the same lesson in its "found NO
+exported functions, which cannot be right" branch.
+
+### What this does not cover, and how it would break
+
+Patching `node_modules` is not a supported extension point. An upgrade that
+restructures the manifest silently produces a warning at install and a red
+`check:ios-facebook` on the next PR — not a broken build, and not a shipped
+SDK, but it does need a human to update `FACEBOOK_PATTERNS`.
+
+The upstream fix is the plugin gaining an SPM-side opt-out to match its
+Gradle flags. Delete all of this the day that lands.
+
+**Not yet verified on device.** The macOS CI job (`ios-build.yml`) compiles
+the simulator build with the SDK removed, which is the real test of the
+`#if` analysis above. Google sign-in itself still cannot be exercised
+anywhere in CI — it needs the untracked `GoogleService-Info.plist` and a
+real device (see `docs/SHIP-CHECKLIST.md` §4).

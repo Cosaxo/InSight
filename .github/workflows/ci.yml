@@ -46,6 +46,14 @@ jobs:
       # macOS runner, where the same mistake costs four minutes and reports
       # an error naming neither package.json nor the alias.
       - run: npm run check:ios-spm
+      # The Facebook SDK is linked into every iOS build by
+      # @capacitor-firebase/authentication's own SPM manifest, and stripped
+      # by our postinstall (D14). This asserts the strip actually happened —
+      # the stripper cannot fail the install, because a root `npm ci` sits
+      # on the production deploy path via backend-checks.yml. Here is the
+      # right side of that line: client-only, and it reds a PR rather than
+      # a store submission.
+      - run: npm run check:ios-facebook
 
   typecheck-build:
     runs-on: ubuntu-latest

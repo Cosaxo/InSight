@@ -172,12 +172,19 @@ Both apps must be registered under `com.cosaxo.insight`:
     document and is never sliced by (D8), but the form asks what you
     *collect*, not what you publish.
 
-  **Resolve the Facebook SDK before filling these in.** It is linked into
-  the iOS binary and never initialised; an undisclosed advertising SDK is
-  exactly the mismatch these forms exist to catch. Either exclude it or
-  declare it.
+  **Facebook SDK — resolved, excluded (D14).** It *was* linked into every
+  iOS binary and never initialised, which is exactly the mismatch these
+  forms exist to catch. It is now stripped at `postinstall`
+  (`scripts/strip-facebook-sdk.mjs`) and the removal is asserted by
+  `npm run check:ios-facebook` in CI. **Answer both forms with no Facebook
+  SDK and no advertising SDK of any kind** — and note that the row above
+  already says Ads: None, which is now true of the binary as well as the
+  product.
 
-  *Where it comes from, since this is easy to "verify" wrongly.* It is a
+  The rest of this note is kept because the linkage is invisible to every
+  obvious check, so a future upgrade can reintroduce it quietly.
+
+  *Where it came from, since this is easy to "verify" wrongly.* It is a
   transitive **SwiftPM** dependency of `@capacitor-firebase/authentication`,
   declared in that plugin's own manifest inside `node_modules`:
 
@@ -195,17 +202,20 @@ Both apps must be registered under `com.cosaxo.insight`:
   shows it is the plugin's manifest — so check there, or check a resolved
   `Package.resolved` after a build.
 
-  **The platforms differ, which is the tell.** On Android the same plugin
-  gates each provider behind a flag, and `rgcfaIncludeFacebook` defaults to
-  `false` — `android/variables.gradle` sets only `rgcfaIncludeGoogle`, so
-  Facebook is genuinely absent from the Android build. The iOS SPM manifest
-  has no equivalent gate: both defines are unconditional. So "we don't use
-  Facebook login" is true of the product and true of the Android binary,
-  and still false of the iOS binary.
+  **The platforms differed, which was the tell.** On Android the same
+  plugin gates each provider behind a flag, and `rgcfaIncludeFacebook`
+  defaults to `false` — `android/variables.gradle` sets only
+  `rgcfaIncludeGoogle`, so Facebook was always absent from the Android
+  build. The iOS SPM manifest had no equivalent gate: both defines were
+  unconditional. So "we don't use Facebook login" was true of the product,
+  true of the Android binary, and false of the iOS binary — the two stores
+  would have taken different correct answers.
 
-  That asymmetry is the whole trap: the Play Data safety form and the Apple
-  privacy labels get different correct answers here, and the iOS one is the
-  one that needs a decision (exclude by patching the manifest, or declare).
+  That asymmetry is why the strip exists and has no Android twin. If
+  `check:ios-facebook` ever fails, the manifest layout changed in an
+  upgrade and the SDK is back in the binary: fix
+  `FACEBOOK_PATTERNS` in the stripper rather than relaxing the check, and
+  re-check this row before submitting.
 - Apple Developer Program (~2 days to approve — start early) and a Mac
   with Xcode for the iOS build; Play Console for Android.
 - Build flow: `npm run build && npx cap sync`, then open the native
