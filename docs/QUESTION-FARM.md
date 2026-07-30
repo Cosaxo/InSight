@@ -211,9 +211,17 @@ posture:
 ## Governance
 
 The Routine that fires this job lives on the maintainer's claude.ai
-account (visible via the session's Routine tools; weekly cadence, fresh
-session per firing, completion notifications on). The Routine's prompt is
-two sentences pointing here — this file is the job, so changes to the
-job's behavior are made by PR to this file, reviewed like anything else.
-Runs bill to the maintainer's subscription; a run that finds nothing to do
-costs nearly nothing and reports that honestly.
+account (visible via the session's Routine tools; weekly cadence). It
+fires into the maintainer's ongoing dev session, not a fresh session per
+firing: the 2026-07-30 diagnostics (run-log issue #31) proved
+Routine-spawned fresh sessions get read-only git access and no GitHub
+API tools — three runs completed and lost their work at the push, one
+after finishing the entire job. Push notifications per run went away
+with that rebind; the run log (#31) and the PRs themselves are the
+record instead. The Routine's prompt is a paragraph pointing here — this
+file is the job, so changes to the job's behavior are made by PR to this
+file, reviewed like anything else. Runs bill to the maintainer's
+subscription; a run that finds nothing to do costs nearly nothing and
+reports that honestly. If fresh-session Routines ever gain writable repo
+access, moving back to one-session-per-run is a one-trigger change —
+re-read this section's constraint before doing it.
