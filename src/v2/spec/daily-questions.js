@@ -177,6 +177,33 @@ import React from 'react';
       cat: ['Skills', 'Depth'], alts: [['Goals', 'Craft'], ['Mind', 'Curiosity']] },
     { type: 'binary', prompt: 'New hobby: learn alone or join a club?', tag: 'How you start', options: ['Alone', 'Join a club'], tone: 'light',
       cat: ['Interests', 'How you start'], alts: [['Skills', 'Learning'], ['Values', 'Community']] },
+    // ── question farm 2026-07-30 (docs/QUESTION-FARM.md): Home, Skills and
+    // Interests each had a single question — four more apiece, still browsable
+    // as archive via the dqx series. AI-proposed, human-reviewed via PR.
+    { type: 'binary', prompt: 'A tidy home or a lived-in one?', tag: 'Tidy or lived-in', options: ['Tidy', 'Lived-in'], tone: 'light',
+      cat: ['Home', 'How it looks'], alts: [['Mind', 'Order'], ['Values', 'Comfort']] },
+    { type: 'choice', prompt: 'What makes a place feel like home first?', tag: 'What makes it home', options: ['The people', 'The things', 'The routines', 'Time'], tone: 'deep',
+      cat: ['Home', 'What makes it'], alts: [['Values', 'Belonging'], ['Story', 'Place']] },
+    { type: 'binary', prompt: 'A full house or a quiet one?', tag: 'Full or quiet', options: ['Full house', 'Quiet'], tone: 'blend',
+      cat: ['Home', 'Guests'], alts: [['Values', 'Community'], ['Mind', 'Energy']] },
+    { type: 'choice', prompt: 'Your home’s one non-negotiable?', tag: 'Non-negotiable', options: ['Light', 'Quiet', 'Space', 'The view'], tone: 'blend',
+      cat: ['Home', 'Non-negotiables'], alts: [['Mind', 'Peace'], ['Values', 'Comfort']] },
+    { type: 'binary', prompt: 'Read the manual, or wing it?', tag: 'Manual or wing it', options: ['The manual', 'Wing it'], tone: 'light',
+      cat: ['Skills', 'How you learn'], alts: [['Mind', 'Learning'], ['Values', 'Patience']] },
+    { type: 'choice', prompt: 'Which would you master overnight, if you could?', tag: 'Overnight mastery', options: ['A language', 'An instrument', 'Cooking', 'Carpentry'], tone: 'blend',
+      cat: ['Skills', 'Wishlist'], alts: [['Goals', 'Craft'], ['Interests', 'Learning']] },
+    { type: 'choice', prompt: 'The hardest thing to learn?', tag: 'Hardest to learn', options: ['Patience', 'Listening', 'Asking for help', 'Letting go'], tone: 'deep',
+      cat: ['Skills', 'The hard ones'], alts: [['Mind', 'Growth'], ['Values', 'Humility']] },
+    { type: 'scale', prompt: 'Being bad at something new is half the fun.', tag: 'Half the fun', axis: 'beginner-hearted', tone: 'blend',
+      cat: ['Skills', 'Beginnings'], alts: [['Mind', 'Play'], ['Values', 'Humility']] },
+    { type: 'binary', prompt: 'Collect things, or experiences?', tag: 'What you collect', options: ['Things', 'Experiences'], tone: 'blend',
+      cat: ['Interests', 'Collecting'], alts: [['Values', 'What matters'], ['Home', 'Your things']] },
+    { type: 'choice', prompt: 'A free Saturday, no plans. What pulls you?', tag: 'Free Saturday', options: ['Outdoors', 'A project', 'People', 'The sofa'], tone: 'light',
+      cat: ['Interests', 'Free time'], alts: [['Mind', 'Energy'], ['Home', 'Weekends']] },
+    { type: 'scale', prompt: 'Everyone needs at least one useless hobby.', tag: 'Useless hobbies', axis: 'play-minded', tone: 'blend',
+      cat: ['Interests', 'Why we bother'], alts: [['Values', 'Play'], ['Mind', 'Rest']] },
+    { type: 'binary', prompt: 'Would you rather be interesting, or interested?', tag: 'Interesting or interested', options: ['Interesting', 'Interested'], tone: 'deep',
+      cat: ['Interests', 'The point'], alts: [['Values', 'Character'], ['Mind', 'Attention']] },
   ];
 
   const UNANSWERED_RECENT = 3; // today + 2 missed days carry no baked answer
