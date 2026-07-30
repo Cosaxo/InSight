@@ -114,7 +114,23 @@ function LgAnswersCard({ g, P }: { g: LiveGroup; P: GroupPortrait }) {
           const prompt = lgPrompt(r.qid);
           const mineLabel = r.mine != null && !r.withMajority ? lgOptionLabel(g, r.qid, r.mine) : null;
           return (
-            <div key={r.day} onClick={() => setOpen(open === r.day ? null : r.day)} style={{ padding: "11px 0", borderBottom: ri < rows.length - 1 ? LG_LINE : "none", cursor: "pointer" }}>
+            // A real <button>, not a clickable <div>: this row expands and
+            // collapses, so it is a control, and a control that only answers
+            // to a mouse is one a keyboard user cannot reach at all. The
+            // style block is the usual button reset — the row looks
+            // identical, it just also takes focus and fires on Enter/Space.
+            <button
+              key={r.day}
+              type="button"
+              aria-expanded={open === r.day}
+              onClick={() => setOpen(open === r.day ? null : r.day)}
+              style={{
+                display: "block", width: "100%", textAlign: "left",
+                background: "none", border: "none", font: "inherit", color: "inherit",
+                WebkitAppearance: "none",
+                padding: "11px 0", borderBottom: ri < rows.length - 1 ? LG_LINE : "none", cursor: "pointer",
+              }}
+            >
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 8 }}>
                 <span style={{ fontFamily: "var(--sans)", fontSize: 14.5, fontWeight: 800, letterSpacing: "-0.01em", color: "var(--ink)", textWrap: "pretty" }}>{lgOptionLabel(g, r.qid, r.majorityIdx)}</span>
                 <span style={{ flexShrink: 0, fontFamily: "var(--sans)", fontSize: 10.5, fontWeight: 700, color: "var(--ink-3)" }}>{r.day.slice(5)}</span>
@@ -135,7 +151,7 @@ function LgAnswersCard({ g, P }: { g: LiveGroup; P: GroupPortrait }) {
                   {prompt || "—"}{r.mine == null ? " — you sat this one out" : mineLabel ? ` — you picked ${mineLabel}` : ""}
                 </div>
               )}
-            </div>
+            </button>
           );
         })}
       </div>

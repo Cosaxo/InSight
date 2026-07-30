@@ -1394,3 +1394,89 @@ gcloud functions describe <name> --gen2 --region us-central1 \
 Revisit `onV2AnswerCreated`'s concurrency if its transaction ever starts
 holding memory per event; 20 events sharing 512 MiB is comfortable for three
 small documents and would not be for a large fold.
+
+---
+
+## D18 · The live-mode branches get a mount test; accessibility gets a ratchet
+
+**Decided:** 2026-07-30 · **Status:** binding
+
+Two frontend gaps, both of the same shape: a property the tree asserted in
+prose while nothing executed it.
+
+### The live branches were untested, including two privacy gates
+
+`test/smoke.test.jsx` mounts the app with `window.LIVE` **undefined**. Every
+`if (window.LIVE && window.LIVE.enabled)` branch in ~19.8k lines of spec
+layer was therefore unreached by the suite — including the two that are
+product decisions rather than cosmetics:
+
+- **D9** — live mode drops the Mirror's City stop, because Near IS your city
+  there and two stops onto one cohort is how a scale starts lying.
+- **D11** — the feed's argument surfaces (takes, counters, minds-moved,
+  crossfire, friend dots) are unreachable from a live card, and the
+  `demoInProd` fallback suppresses the whole engage row.
+
+D11 says these were "verified rather than assumed" by forcing a demo question
+live in a browser and looking. That was true, once, by hand, on one commit.
+`test/smoke-live.test.jsx` makes it true on every run, and each gate was
+mutation-checked: opening `q.live`, deleting the `demoInProd` return, and
+making the Mirror axis unconditional each fail exactly one case.
+
+**Three things the build of it found**, recorded because each is a way this
+kind of test lies:
+
+1. **A key-name pin does not pin a signature.** The fixture's first `vote`
+   took a question object; the real one takes `(qid, optionId)`. Both satisfy
+   `Object.keys(LIVE)`, so the surface pin passed while the tests recorded
+   every vote under `undefined`. The member list is now shared
+   (`test/live-surface.ts`) so at least the *names* cannot drift.
+2. **`renderEngage` only mounts after the card is answered and the reveal
+   animation clears `state.beat`.** The first D11 assertion ran on an unvoted
+   card and passed against a deliberately opened gate, because the block it
+   was checking for was never going to be there either way. Every gate case
+   now has a control asserting the row *does* render on the other branch.
+3. **The takes control's label is `${n} takes`, and n is 0 in live mode.** A
+   text search for a seeded string finds nothing whether the gate holds or
+   not; the assertion has to be the button.
+
+### Accessibility: a ratchet, and what it caught about itself
+
+`eslint-plugin-jsx-a11y` was absent. It now runs as its own gate,
+`npm run check:a11y`, against a per-file baseline of **69** that may only go
+down.
+
+**Why not in `npm run lint`.** That script carries `--max-warnings 0`, which
+is load-bearing (four hook warnings had become background noise once). There
+is no warn tier to hold existing debt, so the options were fail-on-day-one or
+a blanket disable — and `src/v2/README.md` is explicit that a blanket disable
+is the failure mode this repo has already been bitten by. A separate ratchet
+is the third option: new code cannot add to the number.
+
+**Why per file rather than a total.** A total lets a fix in one file pay for
+a regression in another and still report green.
+
+**Why 67 of the 69 are deferred.** They are all in `spec/`, the ported layer.
+Adding key handlers and focus behaviour to components no test asserts the
+interaction of is precisely the blind change the React Compiler findings are
+already deferred for. They get fixed behind interaction tests, not ahead of
+them. The remaining two are `autoFocus` on picker search fields the user has
+just tapped open — a deliberate keep, recorded in the baseline rather than
+silenced inline, because `--report-unused-disable-directives` would turn a
+disable comment naming a rule the main config lacks into a lint error.
+
+**The gate caught itself first, which is the part worth recording.** The
+initial config matched `src/**/*.{jsx,tsx}` under espree, so every `.tsx`
+failed to parse — and a parse failure reports as a fatal message with a null
+`ruleId`, which the "count jsx-a11y/* only" filter discarded. It read as
+"the hand-written panels have zero findings" when nothing had looked at them.
+Found by injecting a clickable `<div>` into `CityPicker` and watching the
+ratchet report green. With the TypeScript parser wired in there were four,
+and `check-a11y.mjs` now fails on any fatal message: **a file this gate
+cannot read is a file it is lying about.**
+
+Of those four, three were fixed rather than baselined, because they are
+hand-written code and not the frozen port: `LiveGroupsMirrorBody`'s
+expand/collapse row is now a real `<button>` with `aria-expanded` instead of
+a clickable `<div>`, which is the difference between a keyboard user being
+able to open a day's detail and not.

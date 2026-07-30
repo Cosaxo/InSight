@@ -35,6 +35,12 @@ jobs:
       - run: npm run lint
       # Static safety net for the spec layer's global-scope wiring.
       - run: npm run check:globals
+      # Accessibility, as a ratchet rather than a pass/fail sweep: the known
+      # findings are recorded per file and this fails when a file gains one.
+      # It is its own gate because `npm run lint` carries --max-warnings 0,
+      # which leaves no warn tier to put existing debt in — and a blanket
+      # disable is the failure mode src/v2/README.md exists to prevent.
+      - run: npm run check:a11y
       # Five version numbers that must move together across three files.
       - run: npm run check:versions
       # The city catalogue is parsed at runtime and its names become

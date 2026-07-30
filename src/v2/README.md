@@ -118,6 +118,61 @@ Two things to know before extending it:
   `eslint-disable-next-line` list above is its work queue — those findings
   stay deferred until a test can catch a re-run-timing regression.
 
+### …and `test/smoke-live.test.jsx`, the other half
+
+`smoke.test.jsx` runs with `window.LIVE` **undefined**, so every
+`if (window.LIVE && window.LIVE.enabled)` branch in this layer was
+unexercised by the suite. Those branches are where D9 drops the Mirror's
+City stop and where D11 keeps takes, counter-arguments and friend dots off
+world-scale cards — decisions whose only evidence was a browser probe run
+once by hand.
+
+`test/live-fixture.ts` installs a stand-in `window.LIVE` plus the feed
+globals `buildFeedGlobals()` publishes, and `smoke-live.test.jsx` walks the
+same surfaces with it, in six shapes: the happy path, below the k-floor
+(`aggFor` returns `{ tooSmall: true }` with **no** counts — its own render),
+the `demoInProd` fallback, and a profile with no city.
+
+Three things learned by making it, all now load-bearing:
+
+- **The fixture is built from the same checked-in member list the real
+  surface pin uses** (`test/live-surface.ts`, shared with
+  `data/vote.test.ts`). Without that, a member added to `live.ts` leaves the
+  fixture behind and the live tests keep passing against `undefined`.
+- **A key-name pin cannot catch a signature.** The first fixture had
+  `vote(question, optionId)`; the real one is `vote(qid, optionId)`. Both
+  have the key `vote`, so every guard was happy while the tests recorded
+  votes under `undefined`.
+- **`renderEngage` only mounts after the card is answered AND the reveal
+  animation clears `state.beat`.** A gate assertion on an unvoted card
+  asserts on a block that was never going to render — which is how the first
+  version passed against a deliberately opened gate.
+
+All three gate cases were mutation-checked: opening `q.live`, deleting the
+`demoInProd` return, and making the Mirror axis unconditional each fail
+exactly one case, and all pass again on revert.
+
+## Accessibility
+
+`npm run check:a11y` (`scripts/check-a11y.mjs`, `eslint.a11y.config.js`) is a
+**ratchet**, not a pass/fail sweep: the current findings are recorded per
+file and it fails when a file gains one.
+
+It is separate from `npm run lint` because that script carries
+`--max-warnings 0`, which is deliberate and worth keeping — so there is no
+"warn" tier to hold existing debt, and the alternative would be the blanket
+disable this file's Lint suppressions section exists to prevent.
+
+The baseline is **69**: 67 in `spec/`, plus two deliberate `autoFocus` keeps
+on picker search fields. The `spec/` findings are deferred for the same
+reason as the React Compiler ones — adding key handlers and focus behaviour
+to ported components no test asserts the interaction of is the blind change
+that trade refuses. Fix them behind interaction tests, not ahead of them.
+
+Per file, not a total, so a fix in one file cannot pay for a regression in
+another. Lowering it is the script's own output: fix something, run it, and
+it prints the replacement literal.
+
 ## Migration path (Phase 2+)
 
 Modules migrate off the global-scope bridge incrementally: when a module

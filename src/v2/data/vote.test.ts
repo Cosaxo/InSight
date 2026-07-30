@@ -11,6 +11,7 @@
 // resolution/rejection is driven by manually-settled promises.
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { LIVE_MEMBERS, LIVE_SOCIAL_MEMBERS } from "../test/live-surface";
 
 interface FakeSnapshotDoc {
   id: string;
@@ -458,21 +459,13 @@ describe("vote() optimistic path (inflight vs unaggregated)", () => {
 // that turns a rename into a failing test. Getters on the object literal
 // are enumerable own properties, so Object.keys sees them.
 describe("window.LIVE public surface", () => {
-  // Checked in verbatim. Update ONLY together with the spec-layer call
-  // sites that read the renamed member — that is the whole point.
-  const EXPECTED = [
-    "aggFor", "appBuild", "confirmedVotes", "dailyBank", "deck",
-    "deleteAccount", "demoInProd", "displayName", "enabled", "feedReady",
-    "latestBuild", "linkGoogle", "myCity", "myVotes", "ready", "saveAnchors",
-    "saveDisplayName",
-    "saveTestResult", "social", "stats", "subscribe", "uid",
-    "updateAvailable", "updateRequired", "updateUrl", "vote",
-  ];
-  const EXPECTED_SOCIAL = [
-    "bankQ", "createGroup", "groups", "joinGroup", "leaveGroup",
-    "loadRevealHistory", "myDuelVote", "revealFor", "revealHistory",
-    "todayKey", "todayQ", "voteDuel",
-  ];
+  // The list moved to test/live-surface.ts — verbatim, and still the same
+  // assertion. It is shared now because the live-mode mount fixture builds
+  // its stand-in from it, so a member added here cannot be missing there.
+  // Update ONLY together with the spec-layer call sites that read the
+  // renamed member — that is the whole point.
+  const EXPECTED = LIVE_MEMBERS;
+  const EXPECTED_SOCIAL = LIVE_SOCIAL_MEMBERS;
 
   it("exposes exactly the members the spec layer looks up by name", async () => {
     const LIVE = await bootLive();
