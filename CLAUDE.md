@@ -33,7 +33,7 @@ order is semantic** — later modules read globals set by earlier ones.
 Never sort it, never drop an entry.
 
 This is deliberate and temporary (see `src/v2/README.md`), but it is
-load-bearing today. Three guards make it survivable, and all three exist
+load-bearing today. Four guards make it survivable, and all four exist
 because something real slipped through:
 
 - `npm run check:globals` — dangling `window.X` references, files
@@ -48,6 +48,14 @@ because something real slipped through:
 - `src/v2/data/vote.test.ts` pins the `window.LIVE` member surface, because
   renaming a member there passes tsc (consumers are `.jsx`), eslint and
   check:globals — then blanks the Map on a device.
+- `src/v2/test/smoke.test.jsx` mounts `App` in jsdom and walks both tabs
+  and two overlays. The three guards above are all **name**-level; this is
+  the only one that executes a render. Measured, not assumed: injecting
+  `window.FEEDREAD.statsTypo()` into `MirrorTab` leaves check:globals,
+  eslint and `tsc -b` green, and fails only here.
+  **Assert on the `ErrorBoundary`, not on a thrown error** — `app-shell`
+  wraps every tab and overlay, so a crashed screen still returns cleanly
+  from `render()`.
 
 `src/v2/data/` and `src/v2/ui/` are typed and checked by `tsc -b`, but they
 are **not** exempt from the convention: `live.ts` publishes `window.LIVE`
@@ -57,7 +65,7 @@ and both `ui/` panels `Object.assign` onto `globalThis` on purpose.
 
 | Command | What it covers | Needs |
 | --- | --- | --- |
-| `npm run test:unit` | client store + pure deck logic | nothing |
+| `npm run test:unit` | client store, pure deck logic, spec-layer mount tests | nothing |
 | `npm run test --prefix functions` | k-anon floor, reveal, streak math | nothing |
 | `npm run test:rules` | Firestore **and** Storage rules | Java 21 |
 | `npm run test:e2e` / `test:e2e:erasure` | full loop, real emulated functions | Java 21 |

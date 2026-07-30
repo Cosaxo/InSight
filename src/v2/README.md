@@ -67,26 +67,56 @@ blankets were actually hiding was 60 React findings.
 `catch` blocks (now carrying the reason they are empty), and one bare
 U+2004 in JSX text.
 
-The remaining 42 carry a targeted `eslint-disable-next-line` naming the
+The remaining ones carry a targeted `eslint-disable-next-line` naming the
 one rule, so each is individually visible and greppable:
 
 ```bash
 git grep -c "eslint-disable-next-line" -- src/v2/spec   # the live count
 ```
 
+That count is **27 across 14 files** as of 2026-07-30. It is quoted here
+rather than left to the reader because this section previously claimed 42
+long after the number had moved — a stale figure in the one paragraph
+whose job is to size the debt.
+
 They are **deferred, not judged correct**. They are React Compiler
 findings — `exhaustive-deps`, `refs`, `purity`,
 `preserve-manual-memoization` — in JSX ported verbatim from the frozen
-prototype, and there is no DOM test infrastructure in this repo to catch
-a regression if the render logic is restructured. Changing effect
-re-run timing blind is a worse trade than recording the debt. The
-exception is `react-hooks/purity` in `person-mindmap.jsx`, which is a
-false positive with a specific note at each site: those are
-`performance.now()` calls inside pointer and rAF handlers, not render.
+prototype. Changing effect re-run timing blind is a worse trade than
+recording the debt. The exception is `react-hooks/purity` in
+`person-mindmap.jsx`, which is a false positive with a specific note at
+each site: those are `performance.now()` calls inside pointer and rAF
+handlers, not render.
 
-Whoever adds DOM tests should start here — the list is the work queue.
 Do not reintroduce a file-level disable to quiet a new finding; that is
 the failure mode this section exists to prevent.
+
+## Mount tests
+
+`test/smoke.test.jsx` mounts `App` in jsdom and walks the surfaces the
+header and tabbar reach: both tabs, the profile overlay, the search
+overlay. `test/setup-dom.ts` stubs the browser APIs jsdom lacks
+(`matchMedia`, the two observers, `scrollTo`, canvas contexts).
+
+It exists because **this layer's characteristic bug is invisible to every
+other gate.** A global that is defined but undefined *at render time* —
+load order in `spec-index.js` is semantic, and a renamed member passes
+name-level checks — throws only when the component paints. Verified, not
+assumed: injecting `window.FEEDREAD.statsTypo()` into `MirrorTab` leaves
+`check:globals`, `eslint` and `tsc -b` all green, and fails the mirror
+case here with `TypeError: window.FEEDREAD.statsTypo is not a function`.
+
+Two things to know before extending it:
+
+- **Assert on the boundary, not on a thrown error.** `app-shell` wraps
+  both tabs and every overlay in `ErrorBoundary`, so a crashed screen
+  still returns cleanly from `render()`. The helper checks the boundary's
+  `componentDidCatch` log and its fallback copy. A test that only caught
+  exceptions would have passed on both `ReferenceError`s this repo shipped.
+- **It is a smoke test.** It proves the screens mount, not that they are
+  right. Interaction coverage is the next layer, and the
+  `eslint-disable-next-line` list above is its work queue — those findings
+  stay deferred until a test can catch a re-run-timing regression.
 
 ## Migration path (Phase 2+)
 
