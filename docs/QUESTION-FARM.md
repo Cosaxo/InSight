@@ -35,6 +35,17 @@ topic is thin.
    reference the original 30 by id. Inserting or reordering silently
    renumbers everything after it. Appending extends the `dqx` archive
    series with older dates — exactly what "deeper archive" means.
+6. **No place-scoped civic questions.** Any question whose point is how a
+   specific city, country, or region splits — "Should Oslo ban cars
+   downtown?", "Is Norway too expensive?" — is sold inventory, not archive
+   filler: places wanting to know their citizens is a planned revenue path
+   (see "Paid geo-insight" under out-of-scope). The farm writes personal
+   questions only. A place may appear as personal flavor ("Mountains or
+   sea?"); it must never be the subject whose citizens are being polled.
+   The test: if the answer split is mainly interesting *to the place*
+   rather than *to the person answering*, it is the paid path. This rule
+   is default-on; only an explicit human instruction in the fire message
+   lifts it, for that run only.
 
 ## Picking topics
 
@@ -107,6 +118,16 @@ abort the run with no push rather than force it green.
 
 ## Deliberately out of scope (recorded so it stays a decision, not drift)
 
+- **Paid geo-insight (city / country / world questions).** Cities and
+  countries wanting to know more about their citizens is one of the ways
+  this product intends to earn money. Questions scoped to a place's
+  citizens are therefore commercial inventory, arriving through the same
+  human contract path as sponsored questions below — with the same
+  k-floored-aggregates-only window for the buyer. The farm never
+  generates them on its own (hard rule 6); giving away that inventory
+  for free would undercut the business, and a government-flavored
+  question written by an unsupervised job is exactly the kind of content
+  that must have a human's name on it.
 - **The live seed catalog** (`content/`, `functions/src/v2content.ts`).
   This job deepens the spec-layer archive only. Feeding generated questions
   into production seeding is a separate decision with its own review.
