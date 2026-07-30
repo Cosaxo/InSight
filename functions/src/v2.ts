@@ -22,8 +22,10 @@ import { onDocumentCreated } from "firebase-functions/v2/firestore";
 import { logger } from "firebase-functions";
 import { V2_QUESTIONS } from "./v2content";
 import {
+  canonBreakdownFor,
   catalogEntityKey,
   foldAnchors,
+  foldCanonAnchors,
   publishableBreakdown,
   publishableCanon,
   shouldPublishAgg,
@@ -165,9 +167,10 @@ export const onV2AnswerCreated = onDocumentCreated(
     // shipped catalogue, admitted by rules only on type=="catalog"
     // questions. Same ledger, same private/public docs, same cadence; what
     // publishes is the canon fold (top-N + one "everyone else" bucket)
-    // instead of per-option counts. No `by` breakdown: deferred with the
-    // arithmetic in docs/CATALOG-QUESTIONS.md — a 1,000-entity split times
-    // 6 dimensions leaves nearly every cell under the floor.
+    // instead of per-option counts, plus per-segment orderings of that
+    // board restricted to its own entities (D17 — the top-N-only form D14
+    // said was the viable one; a full 1,000-entity split per segment
+    // leaves nearly every cell under the floor).
     if (snap.get("entity") !== undefined) {
       const db = getFirestore();
       const eventRef = db.collection("v2_agg_events").doc(event.id);
@@ -198,24 +201,41 @@ export const onV2AnswerCreated = onDocumentCreated(
           (priv.exists && (priv.get("ent") as CanonCounts)) || {};
         ent[key] = (ent[key] || 0) + 1;
         const total = ((priv.exists && (priv.get("total") as number)) || 0) + 1;
+        // Per-entity anchor slices, transposed foldAnchors with its own
+        // per-cell entity cap (pure.ts, D17). Same document, same D7
+        // arithmetic as the vote path's `by`.
+        const entBy: BreakdownCounts =
+          (priv.exists && (priv.get("entBy") as BreakdownCounts)) || {};
+        foldCanonAnchors(entBy, snap.get("anchors"), key);
         tx.set(eventRef, {
           qid,
           at: FieldValue.serverTimestamp(),
           expireAt: new Date(Date.now() + 7 * 86400000),
         });
-        // Bounded growth without a cap: keys are validated against the
-        // catalogue above, so this map can never exceed its ~1k entries —
-        // tens of KB against Firestore's 1 MiB limit.
-        tx.set(privRef, { ent, total }, { merge: false });
+        // Bounded growth: `ent` is capped by catalogue validation (~1k
+        // entries); `entBy` by the bucket cap × its own per-cell entity
+        // cap (foldCanonAnchors) — tens of KB against Firestore's 1 MiB
+        // limit either way.
+        tx.set(privRef, { ent, entBy, total }, { merge: false });
         if (total >= AGG_MIN_N) {
           if (shouldPublishAgg(total, AGG_MIN_N, PUBLISH_EVERY)) {
             const canon = publishableCanon(ent, AGG_MIN_N, CANON_TOP_N);
             // A null canon means nothing survives the fold's own floors —
-            // publish the bare total rather than a decorative board.
+            // publish the bare total rather than a decorative board. When
+            // there IS a board, its per-segment orderings ride along:
+            // cells restricted to the board's own entities, then the same
+            // bucket-cohort floor + complementary suppression as the vote
+            // path (D17).
             tx.set(
               pubRef,
               canon
-                ? { total, tooSmall: false, top: canon.top, rest: canon.rest }
+                ? {
+                    total,
+                    tooSmall: false,
+                    top: canon.top,
+                    rest: canon.rest,
+                    by: publishableBreakdown(canonBreakdownFor(entBy, canon.top), AGG_MIN_N),
+                  }
                 : { total, tooSmall: false },
               { merge: false },
             );

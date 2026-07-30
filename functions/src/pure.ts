@@ -365,6 +365,82 @@ export function publishableCanon(
   return { top, rest: total - shown };
 }
 
+// ─── catalog breakdowns: how each segment orders the canon (D17) ────────
+//
+// D14 deferred per-anchor breakdowns for catalog questions with the
+// arithmetic, and named the one viable form: breakdowns for the published
+// top-N only — 10 entities × 6 dims is the same cell count a vote
+// question already handles. Demand appeared (2026-07-30), so this is that
+// form: each segment shows how IT orders the global board, never a board
+// of its own.
+//
+// Write side: the same fold as vote questions, transposed — cells hold
+// per-ENTITY counts instead of per-option counts. Options are bounded at
+// 20 by rules; entities are not, so without a per-cell cap one
+// (dim, bucket) cell could hold the whole 1,025-entry catalogue and the
+// document-growth constraint above collapses. Same cap semantics as the
+// bucket cap: first come, known entities keep counting, the long tail
+// degrades. A capped-out entity that later becomes popular undercounts in
+// that cell — visible only if it also reaches the global top 10, and 32
+// is far above the 10 the publish path can ever show.
+export const CANON_BY_MAX_ENTITIES = 32;
+
+export function foldCanonAnchors(
+  into: BreakdownCounts,
+  anchors: unknown,
+  entityKey: string,
+): BreakdownCounts {
+  if (!anchors || typeof anchors !== "object") return into;
+  const src = anchors as Record<string, unknown>;
+  for (const dim of BREAKDOWN_DIMS) {
+    const bucket = breakdownBucket(src[dim], dim);
+    if (bucket === null) continue;
+    const byDim = into[dim] || (into[dim] = {});
+    if (!byDim[bucket] && Object.keys(byDim).length >= BREAKDOWN_MAX_BUCKETS) continue;
+    const cell = byDim[bucket] || (byDim[bucket] = {});
+    if (!cell[entityKey] && Object.keys(cell).length >= CANON_BY_MAX_ENTITIES) continue;
+    cell[entityKey] = (cell[entityKey] || 0) + 1;
+  }
+  return into;
+}
+
+/**
+ * The publishable form of a catalog breakdown: every cell restricted to
+ * the entities the canon actually published. The caller then hands the
+ * result to publishableBreakdown, whose bucket-cohort floor, complementary
+ * suppression and minimum-comparison rules apply unchanged — D8's
+ * k-argument carries over exactly (a per-entity count of 1 inside a
+ * ≥floor bucket says "one of these five", never which one).
+ *
+ * Two deliberate conservatisms, recorded in D17:
+ * - the floor then applies to the SHOWN total (top-N answers in the
+ *   bucket), not the bucket's true cohort — a bucket can be suppressed
+ *   more than strictly necessary, never less;
+ * - entities outside the global top-N do not exist here. A segment's own
+ *   favourite that never made the global board is not published — the
+ *   D14 arithmetic, not an oversight.
+ */
+export function canonBreakdownFor(
+  entBy: BreakdownCounts,
+  top: CanonCounts,
+): BreakdownCounts {
+  const out: BreakdownCounts = {};
+  for (const dim of Object.keys(entBy)) {
+    const buckets = entBy[dim] || {};
+    const dimOut: Record<string, Record<string, number>> = {};
+    for (const bucket of Object.keys(buckets)) {
+      const cell = buckets[bucket];
+      const kept: Record<string, number> = {};
+      for (const k of Object.keys(cell)) {
+        if (top[k] !== undefined) kept[k] = cell[k];
+      }
+      if (Object.keys(kept).length > 0) dimOut[bucket] = kept;
+    }
+    if (Object.keys(dimOut).length > 0) out[dim] = dimOut;
+  }
+  return out;
+}
+
 // ─── FCM token registration (registerPushToken, v2social.ts) ────────────
 //
 // Token writes used to be a direct client merge onto the profile doc.

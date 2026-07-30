@@ -114,8 +114,9 @@ distribution leaves all but the top handful of (entity × bucket) cells below
 the floor, and the suppression bookkeeping across ~24,000 cells buys almost
 nothing visible. If demand appears, the viable form is breakdowns **for the
 published top-N only** — 10 entities × 6 dims is the same cell count a vote
-question already handles. Until then, `pick` publishes totals and the
-leaderboard, nothing sliced.
+question already handles. *(Demand appeared the same day this shipped; the
+top-N-only form is now built — D17. The full-catalogue arithmetic above
+still stands.)*
 
 **"Not listed" is a real bucket but never enumerated** — it publishes as a
 count only. The moment it dominates a domain, that is the signal the curated

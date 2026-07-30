@@ -48,9 +48,13 @@ read: owner only
 v2_aggs_private/{qid}              exact counts — server-only (opaque)
   counts, total                    exact, never floored
   ent { entity: n }                catalog questions: per-entity counts
-                                   in place of counts/by — bounded by
-                                   the catalogue's ~1k keys, so D7's
+                                   in place of counts — bounded by the
+                                   catalogue's ~1k keys, so D7's
                                    document arithmetic is unchanged
+  entBy { dim: { bucket:           catalog questions: per-entity anchor
+           { entity: n } } }       slices (D17), the vote fold transposed
+                                   with its own per-cell entity cap (32)
+                                   on top of the bucket cap
   by { dim: { bucket: {opt:n} } }  per-anchor slices, exact (see D8).
                                    Lives HERE, in the doc the trigger
                                    already writes, so D7's ~1 write/sec
@@ -72,10 +76,16 @@ v2_question_aggs/{qid}             the PUBLIC mirror, k-floored
                                    subtraction. A dim with <2 publishable
                                    buckets is omitted (D8)
   { total, tooSmall:false,         catalog questions: the canon — top
-    top {entity:n}, rest }         entities above the floor, boundary
-                                   ties and lone holes folded whole
-                                   (publishableCanon, D14); bare total
-                                   when nothing survives the fold
+    top {entity:n}, rest,          entities above the floor, boundary
+    by { dim: { bucket:            ties and lone holes folded whole
+      { entity: n } } } }          (publishableCanon, D14); bare total
+                                   when nothing survives the fold. `by`
+                                   (D17) holds each segment's ordering
+                                   of the board's OWN entities — floored
+                                   on the shown cohort with the same
+                                   complementary suppression as vote
+                                   breakdowns, never a segment-local
+                                   long tail
 read: signed-in · write: nobody
 
 v2_groups/{gid}                    groups AND duos (mode: group|duo)
