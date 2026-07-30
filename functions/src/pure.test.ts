@@ -227,7 +227,7 @@ describe("per-anchor breakdowns", () => {
     expect(by.city["City30, NO"]).toBeUndefined();
   });
 
-  it("suppresses cells below the floor", () => {
+  it("suppresses buckets whose total is below the floor", () => {
     const by = {
       gender: {
         Women: { "0": 6, "1": 4 },   // 10 — publishable
@@ -242,16 +242,16 @@ describe("per-anchor breakdowns", () => {
   });
 
   // The property that makes the floor real rather than decorative.
-  it("never leaves exactly one suppressed cell recoverable by subtraction", () => {
+  it("never leaves exactly one suppressed bucket recoverable by subtraction", () => {
     const by = {
       ageBand: {
         "18-24": { "0": 20 },  // published
         "25-34": { "0": 12 },  // smallest survivor — must be taken too
-        "35-44": { "0": 3 },   // the only sub-floor cell
+        "35-44": { "0": 3 },   // the only sub-floor bucket
       },
     };
     const out = publishableBreakdown(by, 5);
-    // Without complementary suppression this would publish two cells and a
+    // Without complementary suppression this would publish two buckets and a
     // reader knowing the dimension total (35) recovers 35-20-12 = 3 exactly.
     expect(out.ageBand).toBeUndefined();
 
@@ -272,6 +272,32 @@ describe("per-anchor breakdowns", () => {
     // two clean buckets and nothing suppressed: published as-is
     const clean = { gender: { Women: { "0": 9 }, Men: { "0": 7 } } };
     expect(publishableBreakdown(clean, 5)).toEqual(clean);
+  });
+
+  // The floor's scope, pinned so it stays a decision rather than a
+  // discovery. It bounds COHORT SIZE — how many people are in a bucket —
+  // and says nothing about how lopsided that bucket's split may be. A
+  // bucket sitting exactly on the floor can therefore publish a count of 1
+  // for an option, which is one person's answer, disclosed to anyone who
+  // already knows the other four. That is the documented k-anonymity
+  // residual (D14), not a suppression bug — and the plain `counts` beside
+  // it carry the identical property at the identical floor.
+  //
+  // If this test ever fails, the floor's unit changed. That is a D14
+  // reversal and needs the record updated, not a green-again patch.
+  it("publishes a lopsided split inside a bucket at the floor", () => {
+    const by = {
+      city: {
+        "Oslo, NO": { "0": 4, "1": 1 },     // 5 — on the floor, 1 is a person
+        "Bergen, NO": { "0": 3, "1": 3 },   // 6 — publishable
+      },
+    };
+    const out = publishableBreakdown(by, 5);
+    expect(out.city["Oslo, NO"]).toEqual({ "0": 4, "1": 1 });
+    // …and the bucket total, not any single option, is what was tested
+    // against the floor: a bucket of 4+1 clears it, a bucket of 4 does not.
+    const below = { city: { "Oslo, NO": { "0": 4 }, "Bergen, NO": { "0": 9 } } };
+    expect(publishableBreakdown(below, 5).city).toBeUndefined();
   });
 
   it("does not alias the private counts into the published copy", () => {

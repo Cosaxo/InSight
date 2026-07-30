@@ -327,17 +327,75 @@ async function revealGroupDay(
     names[members[i]] = (s.exists && s.get("displayName")) || "";
   });
 
-  // create(), not set(): scheduledDuelReveals (every 2h) and a manual
-  // revealDuelsNowV2 can overlap, and both may get past the existence
-  // check above before either writes. First writer wins; the loser's
-  // create() throws ALREADY_EXISTS. That matters because the slower
-  // run may have read FEWER answers — overwriting would shrink an
-  // already-published vote set.
-  try {
-    await revealRef.create({
+  // The reveal is built and written INSIDE a transaction that re-reads the
+  // answer docs, for the same reason the skip-marker above is one.
+  //
+  // The getAll() above is a snapshot, and a duel answer stays legal until
+  // the reveal doc exists — firestore.rules gates creation on
+  // `!exists(.../reveals/$(day))`, which is still true for the whole
+  // window between that read and the write. So an answer committing in
+  // that window passed rules, and then landed in a reveal that had already
+  // been assembled without it: the vote is dropped, permanently and
+  // silently, because create() never runs twice and the day can never be
+  // re-opened. The member sees a reveal their vote is missing from.
+  //
+  // Re-reading inside the transaction closes it in the direction that
+  // matters. Firestore's serializability leaves a late answer two
+  // outcomes: it commits before our re-read, and we include it; or it is
+  // forced to commit after our create(), in which case rules reject it
+  // outright (the reveal now exists) and the vote never claims to have
+  // been cast. Either way no accepted answer is silently discarded.
+  //
+  // tx.create(), not tx.set(): scheduledDuelReveals (every 2h) and a
+  // manual revealDuelsNowV2 can overlap. The existence read below already
+  // makes the loser retry and bail, so this is belt-and-braces — but
+  // overwriting would shrink an already-published vote set if it ever did
+  // happen, which is the one outcome worth being loud about.
+  //
+  // The streak now moves in the SAME transaction, off a fresh read of the
+  // group rather than the scan's page snapshot. It used to be a follow-up
+  // update() that could fail on its own, leaving a published reveal whose
+  // day the group had no record of — and the next run would then re-derive
+  // the streak from a lastRevealDay that never advanced.
+  let streak = 0;
+  let didReveal = false;
+  await db.runTransaction(async (tx) => {
+    // Reset per attempt: a transaction callback can run more than once,
+    // and a retry that bails early must not inherit the previous try's
+    // verdict.
+    didReveal = false;
+    streak = 0;
+    const [existing, gsnap, ...fresh] = await tx.getAll(
+      revealRef,
+      group.ref,
+      ...members.map((uid) => db.doc(`v2_users/${uid}/answers/${answerId}`)),
+    );
+    if (existing.exists) return;      // lost the race — the standing reveal wins
+    if (!gsnap.exists) return;        // last member left while we were reading
+    if (gsnap.get("lastRevealDay") === dayKey) return;
+
+    const freshVotes: Record<string, RevealVote> = {};
+    let freshQid: string | null = null;
+    fresh.forEach((s, i) => {
+      if (!s.exists) return;
+      const optionIdx = s.get("optionIdx");
+      if (typeof optionIdx !== "number") return;
+      const v: RevealVote = { optionIdx };
+      const guessIdx = s.get("guessIdx");
+      if (typeof guessIdx === "number") v.guessIdx = guessIdx;
+      freshVotes[members[i]] = v;
+      freshQid = freshQid || s.get("qid") || null;
+    });
+    // An answer can only appear between the two reads, never vanish
+    // (answers are create-only, D5) — so this can gain votes but not lose
+    // them, and the reveal condition cannot flip back to false. Re-checked
+    // anyway: the invariant is worth asserting rather than assuming.
+    if (!shouldReveal(mode, Object.keys(freshVotes).length)) return;
+
+    tx.create(revealRef, {
       day: dayKey,
-      qid,
-      votes,
+      qid: freshQid ?? qid,
+      votes: freshVotes,
       names,
       // Membership AT REVEAL TIME — load-bearing, not informational. The
       // reveal read rule gates on THIS array (firestore.rules, the
@@ -345,6 +403,11 @@ async function revealGroupDay(
       // retroactive: a later joiner cannot read this day, and a member who
       // leaves does not lose the days they played. Writing it in the same
       // create() as the votes is what stops the two from drifting.
+      //
+      // It is the scan's membership, deliberately, not gsnap's fresher
+      // one: these are the members whose answers were read, and a fresher
+      // list could hand yesterday's reveal to someone who joined this
+      // morning — the exact leak D5's amendment closed.
       //
       // Never remove or rename this field without changing that rule in the
       // opposite order to the way the pair shipped: the field had to go live
@@ -356,17 +419,15 @@ async function revealGroupDay(
       members,
       revealedAt: FieldValue.serverTimestamp(),
     });
-  } catch (err) {
-    const code = (err as { code?: number | string }).code;
-    if (code === 6 || code === "already-exists") return false; // lost the race — the standing reveal wins
-    throw err;
-  }
-  const streak = nextStreak(
-    group.get("lastRevealDay"),
-    dayKey,
-    group.get("streak") || 0,
-  );
-  await group.ref.update({ streak, lastRevealDay: dayKey });
+    streak = nextStreak(
+      gsnap.get("lastRevealDay"),
+      dayKey,
+      gsnap.get("streak") || 0,
+    );
+    tx.update(group.ref, { streak, lastRevealDay: dayKey });
+    didReveal = true;
+  });
+  if (!didReveal) return false;
 
   // The one notification the product earns (Phase 5): the reveal is out.
   // Tokens are best-effort — failures never block the reveal itself.
@@ -394,18 +455,22 @@ async function revealGroupDay(
         tokenOwners.set(t, owners);
       }
     }
-    const tokens = [...tokenOwners.keys()].slice(0, 64);
+    // CHUNKED, not truncated. This was `.slice(0, 64)`, which is below
+    // what a full group can hold: GROUP_CAP (32) members x the 10 tokens
+    // registerPushToken keeps each is 320. Past the 64th token — roughly
+    // the 7th member with a couple of devices — members simply never heard
+    // that the reveal was out, with nothing logged to say so. A silently
+    // unnotified member is indistinguishable from a broken feature, and
+    // reveals are the one push this product sends.
+    //
+    // 500 is FCM's own per-call ceiling for sendEachForMulticast, so today
+    // every group fits in one call and the loop runs once. It is a loop
+    // rather than a bare call so that raising GROUP_CAP or the token cap
+    // stays a capacity question instead of quietly reintroducing the same
+    // silent drop.
+    const FCM_BATCH = 500;
+    const tokens = [...tokenOwners.keys()];
     if (tokens.length) {
-      const res = await getMessaging().sendEachForMulticast({
-        tokens,
-        notification: {
-          title: group.get("name") || "Your duel",
-          body: mode === "duo"
-            ? "Yesterday's answers are out — see if you called it."
-            : "Yesterday's answers are revealed — see who said what.",
-        },
-        data: { kind: "reveal", gid, day: dayKey },
-      });
       // Prune tokens FCM says are gone for good. Only the two terminal
       // codes — transient errors must not evict a live device.
       const DEAD = new Set([
@@ -413,14 +478,27 @@ async function revealGroupDay(
         "messaging/invalid-registration-token",
       ]);
       const removals = new Map<string, string[]>(); // uid -> dead tokens
-      res.responses.forEach((r, i) => {
-        if (r.success || !r.error || !DEAD.has(r.error.code)) return;
-        for (const uid of tokenOwners.get(tokens[i]) || []) {
-          const dead = removals.get(uid) || [];
-          dead.push(tokens[i]);
-          removals.set(uid, dead);
-        }
-      });
+      for (let i = 0; i < tokens.length; i += FCM_BATCH) {
+        const chunk = tokens.slice(i, i + FCM_BATCH);
+        const res = await getMessaging().sendEachForMulticast({
+          tokens: chunk,
+          notification: {
+            title: group.get("name") || "Your duel",
+            body: mode === "duo"
+              ? "Yesterday's answers are out — see if you called it."
+              : "Yesterday's answers are revealed — see who said what.",
+          },
+          data: { kind: "reveal", gid, day: dayKey },
+        });
+        res.responses.forEach((r, j) => {
+          if (r.success || !r.error || !DEAD.has(r.error.code)) return;
+          for (const uid of tokenOwners.get(chunk[j]) || []) {
+            const dead = removals.get(uid) || [];
+            dead.push(chunk[j]);
+            removals.set(uid, dead);
+          }
+        });
+      }
       await Promise.all([...removals].map(([uid, dead]) =>
         db.doc(`v2_users/${uid}`)
           .update({ fcmTokens: FieldValue.arrayRemove(...dead) })

@@ -466,15 +466,22 @@ That only holds if the document cannot grow without bound, hence two limits:
 Worst case is 5 dims × 24 buckets × 20 options ≈ 2,400 integers, tens of KB
 against Firestore's 1 MiB document limit.
 
-**The floor is per cell, and it survives subtraction.** Suppressing cells
+**The floor is per bucket, and it survives subtraction.** Suppressing buckets
 below `AGG_MIN_N` is not sufficient alone: if a dimension has exactly one
-suppressed cell and a reader knows the dimension's total, that cell is
+suppressed bucket and a reader knows the dimension's total, that bucket is
 recoverable by subtracting the published ones, and the floor is decorative.
 `publishableBreakdown` therefore applies **complementary suppression** — if
-suppressing sub-floor cells would leave exactly one hole, the smallest
-surviving cell goes too, so there are always either zero holes or at least
+suppressing sub-floor buckets would leave exactly one hole, the smallest
+surviving bucket goes too, so there are always either zero holes or at least
 two. A dimension left with fewer than two publishable buckets is omitted
 entirely, because one bucket is a population statement rather than a split.
+
+> **Corrected by [D14](#d14--the-breakdown-floor-bounds-cohort-size-not-the-split-inside-a-cohort)
+> (2026-07-30).** This paragraph said "per cell" and used *cell* for both a
+> bucket and the per-option counts inside it. Those have different
+> guarantees: the floor is tested against the bucket **total**, so a bucket
+> published at the floor can still show an option count of 1. D14 has the
+> arithmetic and why it is not separately fixable.
 
 Six tests cover this, and all three mutations were checked to fail: removing
 complementary suppression, loosening the floor by two, and dropping the
@@ -1117,3 +1124,62 @@ client. Restoring any of it means restoring its rules *and* its tests
 deliberately — and note that the geohash aggregator would need the
 `disc.geohash` field-path bug fixed before it could ever have worked
 (D9). `firestore.rules.v1-archive` still lists the rules gaps to fix first.
+
+---
+
+## D14 · The breakdown floor bounds cohort size, not the split inside a cohort
+
+**Decided:** 2026-07-30 · **Status:** binding
+
+**Decision.** `AGG_MIN_N` is tested against a **bucket's total**, and that is
+the whole of what it guarantees. The per-option counts inside a surviving
+bucket are published as they stand, including a count of 1. No per-option
+floor is added.
+
+**Why this is a record and not a fix.** D8 described the mechanism as "the
+floor is per cell", using *cell* for two different things — the bucket
+("Oslo, NO") and the per-option numbers inside it (`{ "0": 4, "1": 1 }`).
+The code did the same: `cellTotal()` summed a bucket. Reading either one
+naturally suggests a guarantee that was never implemented, namely that no
+published number can be one person's answer. It can:
+
+| published | says |
+| --- | --- |
+| `"Oslo, NO": { "0": 4, "1": 1 }` | exactly one of five Oslo answers chose option 1 |
+| `counts: { "0": 4, "1": 1 }`, `total: 5` | the same thing, globally, at the same floor |
+
+That is k-anonymity working as specified rather than failing. The floor
+protects **identification** — no cohort is small enough to name someone —
+and does not protect **attribute counts** within a cohort that clears it.
+Turning the "1" into a person still requires knowing the other four, the
+same collusion bound D7 already records for the publish cadence.
+
+**Why a per-option floor was rejected.** It is not a local change, and it
+costs the product's one job:
+
+- The second row above is the plain `counts` document, which has the
+  identical property. A per-option floor on breakdowns but not on `counts`
+  fixes nothing; applying it to both means a question shows no split at all
+  until every option it offers has cleared the floor.
+- A 4-option question would need ~20 answers **per city** before its city
+  breakdown rendered anything.
+- Suppressed options do not sum to the bucket total, so the published split
+  would visibly not add up — an honest count that reads as a broken one, in
+  an app whose claim is that its counts are honest.
+
+**What was done instead.** The terminology now distinguishes the two —
+`bucketTotal()`, and "bucket" throughout `pure.ts`, `pure.test.ts` and D8 —
+and the residual is stated where the mechanism is defined rather than left
+to be inferred. `publishes a lopsided split inside a bucket at the floor`
+(`functions/src/pure.test.ts`) pins the behaviour with both directions
+asserted: a 4+1 bucket clears the floor, a 4 bucket does not.
+
+Checked rather than assumed: replacing `bucketTotal` with a per-option
+minimum fails that test and one other, and both pass again on revert. So
+a future change of the floor's unit cannot land quietly.
+
+**Revisit when** a question's options routinely carry real-world
+sensitivity — political affiliation is the obvious one, and D8 already
+keeps it out of `BREAKDOWN_DIMS` for a stronger reason (Article 9 consent).
+At that point the tool is l-diversity on the option distribution, not a
+larger k, and it needs its own record.
