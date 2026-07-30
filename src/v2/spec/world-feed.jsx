@@ -17,7 +17,7 @@ const WF_REPLIES_LS = 'insight.feedReplies.v1';
 const WF_TAKES_LS = 'insight.feedTakes.v1';
 const WF_PASS_LS = 'insight.feedPass.v1';
 // where a vote lands on your Mirror — the ripple line shown after answering
-const WF_BRANCH = { food: 'Food', sport: 'Body', movies: 'Taste', music: 'Taste', tech: 'Mind', culture: 'Values', dilemma: 'Morals', event: 'Mind', people: 'Values', bigq: 'Values' };
+const WF_BRANCH = { food: 'Food', sport: 'Body', movies: 'Taste', music: 'Taste', tech: 'Mind', culture: 'Values', dilemma: 'Morals', event: 'Mind', people: 'Values', bigq: 'Values', games: 'Interests' };
 const WF_TOPICS = window.WORLD_TOPICS || [];
 const WF_TOPIC = Object.fromEntries(WF_TOPICS.map((t) => [t.id, t]));
 const WF_CHANNELS = window.WORLD_CHANNELS || [];
@@ -46,7 +46,7 @@ function wfLoadTakes() {
   catch (e) { return {}; }
 }
 function wfFmt(n) { return n >= 1000 ? (n / 1000).toFixed(1).replace(/\.0$/, '') + 'K' : '' + n; }
-function wfVotes(q) { return q.type === 'rank' ? (q.votes || 0) : q.type === 'rate' ? (q.n || 0) : q.options.reduce((a, o) => a + o.count, 0); }
+function wfVotes(q) { return q.type === 'rank' ? (q.votes || 0) : q.type === 'rate' || q.type === 'pick' ? (q.n || 0) : q.options.reduce((a, o) => a + o.count, 0); }
 function wfPcts(counts, mineIdx) {
   const c = counts.map((n, i) => n + (mineIdx === i ? 1 : 0));
   const total = c.reduce((a, b) => a + b, 0);
@@ -403,6 +403,84 @@ class WorldFeed extends React.Component {
           <span style={{ position: 'absolute', top: '50%', left: 'calc(' + (v * 10) + '% - ' + (v * 1.6) + 'px)', transform: 'translateY(-50%)', width: 16, height: 16, borderRadius: '50%', background: T.color, border: '2.5px solid var(--surface)', boxShadow: '0 1px 4px rgba(20,20,40,0.3)' }}></span>
         </div>
         <span style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--ink-3)' }}>{wfFmt(n)} ratings · shapes the {placeName} scorecard</span>
+      </div>
+    );
+  }
+
+  // pick cards: one favourite from a shipped catalogue; the vote stored is
+  // the entry's key (docs/CATALOG-QUESTIONS.md — a key, never a string)
+  setPick(q, entity) {
+    this.setState((s) => {
+      const votes = { ...s.votes, [q.id]: { entity } };
+      try { localStorage.setItem(WF_LS, JSON.stringify(votes)); } catch { /* best-effort: private mode, quota */ }
+      return { votes };
+    });
+    if (window.PICKS) window.PICKS.pick(q.id, entity);
+  }
+
+  // key → display name, resolved at render time. The catalogue loads
+  // lazily, so a reveal rendered before it arrives kicks the load once and
+  // re-renders on completion; null means "not yet", and callers show a
+  // placeholder rather than the raw key.
+  pickName(entity) {
+    if (entity == null) return null;
+    if (!window.POKEDEX) return null;
+    if (entity === window.POKEDEX.NOT_LISTED) return 'Not listed';
+    const dex = window.POKEDEX.peek();
+    if (!dex) {
+      if (!this._dexKick) {
+        this._dexKick = 1;
+        window.POKEDEX.load().then(() => this.setState({ dexTick: 1 }), () => { this._dexKick = 0; });
+      }
+      return null;
+    }
+    return window.POKEDEX.nameOf(dex, entity);
+  }
+
+  renderPick(q, T, big) {
+    const v = this.state.votes[q.id];
+    if (v == null) {
+      return <PickSearch accent={T.color} big={big} onPick={(s) => this.setPick(q, s.dex)} onNotListed={() => this.setPick(q, window.POKEDEX ? window.POKEDEX.NOT_LISTED : 0)} />;
+    }
+    // The reveal is a canon, not a split: top entities above the floor,
+    // everyone else in one bucket. Your own pick always shows to YOU — it
+    // is your own answer, no floor applies — and when it is below the floor
+    // the copy says so instead of pretending it counted.
+    const c = window.PICKS ? window.PICKS.canon(q.domain, q.id) : { top: [], rest: 0, total: 0 };
+    const mineName = this.pickName(v.entity);
+    const max = c.top.length ? c.top[0].count : 1;
+    const inTop = c.top.some((r) => r.entity === v.entity);
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: big ? 10 : 8, animation: 'popIn .3s cubic-bezier(0.2,0.8,0.2,1)' }}>
+        {c.top.map((r, i) => {
+          const name = this.pickName(r.entity) || '…';
+          const isMine = r.entity === v.entity;
+          return (
+            <div key={r.entity} style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
+              <span style={{ width: 18, flexShrink: 0, fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 12, color: 'var(--ink-3)', fontVariantNumeric: 'tabular-nums', textAlign: 'right' }}>{i + 1}</span>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: 7 }}>
+                  <span style={{ fontFamily: 'var(--sans)', fontWeight: isMine ? 800 : 650, fontSize: big ? 14.5 : 13.5, color: 'var(--ink)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{name}</span>
+                  {isMine && <span aria-hidden="true" style={{ width: 9, height: 9, borderRadius: '50%', background: T.color, border: '2px solid var(--surface)', boxShadow: '0 0 0 1px ' + T.color, flexShrink: 0 }}></span>}
+                  <span style={{ marginLeft: 'auto', fontFamily: 'var(--sans)', fontWeight: 700, fontSize: 12, color: 'var(--ink-3)', fontVariantNumeric: 'tabular-nums' }}>{wfFmt(r.count)}</span>
+                </div>
+                <div style={{ marginTop: 3, height: 5, borderRadius: 999, background: 'color-mix(in oklch, ' + T.color + ' 8%, var(--surface-3))' }}>
+                  <div className="rpv2-bar" style={{ width: Math.max(4, Math.round((r.count / max) * 100)) + '%', height: '100%', borderRadius: 999, transformOrigin: 'left', background: isMine ? T.color : 'color-mix(in oklch, ' + T.color + ' 45%, var(--surface-3))' }}></div>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+        {c.rest > 0 && (
+          <span style={{ paddingLeft: 27, fontSize: 12.5, fontWeight: 600, color: 'var(--ink-3)' }}>everyone else · {wfFmt(c.rest)}</span>
+        )}
+        <span style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--ink-2)' }}>
+          {window.POKEDEX && v.entity === window.POKEDEX.NOT_LISTED
+            ? <>you: Not listed — counted with everyone else, never enumerated</>
+            : inTop
+              ? <>you: {mineName || '…'}</>
+              : <>you: {mineName || '…'} — too few {mineName || 'matching'} picks yet to count</>}
+        </span>
       </div>
     );
   }
@@ -1215,6 +1293,13 @@ class WorldFeed extends React.Component {
 
   // compact density: answered vote/duel cards collapse to one thin split bar
   renderThinBar(q, T) {
+    if (q.type === 'pick') {
+      const v = this.state.votes[q.id];
+      const name = this.pickName(v && v.entity);
+      const c = window.PICKS ? window.PICKS.canon(q.domain, q.id) : null;
+      const lead = c && c.top.length ? this.pickName(c.top[0].entity) : null;
+      return <span style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--ink-3)' }}>you {name || '…'} · crowd {lead || '—'}</span>;
+    }
     if (q.type === 'rate') {
       const v = this.state.votes[q.id];
       const c = window.PLACESTATS ? window.PLACESTATS.cat(q.scope, q.catId) : null;
@@ -1319,6 +1404,7 @@ class WorldFeed extends React.Component {
         {q.type === 'duel' && this.renderDuel(q, T, snap)}
         {q.type === 'rank' && this.renderRank(q, T, snap)}
         {q.type === 'rate' && this.renderRate(q, T, snap)}
+        {q.type === 'pick' && this.renderPick(q, T, snap)}
         {/* where this vote landed on your Mirror — transient, and only on the
             ~45% of cards setVote marked, so it stays a remark not a label */}
         {answered && this.state.ripple === q.id && (
@@ -1326,7 +1412,10 @@ class WorldFeed extends React.Component {
             ↳ landed on your Mirror — {WF_BRANCH[q.cat] || 'Interests'}
           </div>
         )}
-        {answered && this.state.beat !== q.id && q.type !== 'rate' && this.renderEngage(q, T, snap)}
+        {/* rate feeds the scorecards, pick publishes a leaderboard with no
+            agg.by (deferred with the arithmetic in docs/CATALOG-QUESTIONS.md)
+            — neither has takes or a who-voted split to open */}
+        {answered && this.state.beat !== q.id && q.type !== 'rate' && q.type !== 'pick' && this.renderEngage(q, T, snap)}
         {/* skip: only before answering, and never on a test/lens question —
             those fill an instrument, so a silent skip would read as a gap in
             your own results rather than a question you passed on */}
