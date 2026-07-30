@@ -21,13 +21,15 @@
   const AGG_MIN_N = 5;
   const TOP_N = 10;
 
-  // Baked demo crowd, dex → count, so the reveal is full from day one (the
+  // Baked demo crowd PER QUESTION (keyed by qid, not domain: two questions
+  // over the same catalogue are different questions and must not share a
+  // reveal), entity → count, so the board is full from day one (the
   // place-stats precedent). Sub-floor entries are here ON PURPOSE: the
   // reveal has to demonstrate the floor's honesty, not dodge it. Key '0' is
   // the "Not listed" bucket — published as a count inside "everyone else",
   // never enumerated.
   const CROWD = {
-    pokemon: {
+    pk01: {
       25: 41,  // Pikachu
       6: 38,   // Charizard
       448: 29, // Lucario
@@ -57,8 +59,8 @@
     // The published view: top entities above the floor plus the fold. Your
     // own pick joins the counts at read time (the wfPcts convention) — it
     // is your own answer, so no floor applies to your seeing it.
-    canon(domain, qid) {
-      const counts = { ...(CROWD[domain] || {}) };
+    canon(qid) {
+      const counts = { ...(CROWD[qid] || {}) };
       const v = qid != null ? api.my(qid) : null;
       if (v != null) counts[v] = (counts[v] || 0) + 1;
       let total = 0;

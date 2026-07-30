@@ -455,7 +455,7 @@ class WorldFeed extends React.Component {
     // everyone else in one bucket. Your own pick always shows to YOU — it
     // is your own answer, no floor applies — and when it is below the floor
     // the copy says so instead of pretending it counted.
-    const c = window.PICKS ? window.PICKS.canon(q.domain, q.id) : { top: [], rest: 0, total: 0 };
+    const c = window.PICKS ? window.PICKS.canon(q.id) : { top: [], rest: 0, total: 0 };
     const mineName = this.pickName(v.entity, q.domain);
     const max = c.top.length ? c.top[0].count : 1;
     const inTop = c.top.some((r) => r.entity === v.entity);
@@ -1305,7 +1305,7 @@ class WorldFeed extends React.Component {
     if (q.type === 'pick') {
       const v = this.state.votes[q.id];
       const name = this.pickName(v && v.entity, q.domain);
-      const c = window.PICKS ? window.PICKS.canon(q.domain, q.id) : null;
+      const c = window.PICKS ? window.PICKS.canon(q.id) : null;
       const lead = c && c.top.length ? this.pickName(c.top[0].entity, q.domain) : null;
       return <span style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--ink-3)' }}>you {name || '…'} · crowd {lead || '—'}</span>;
     }
