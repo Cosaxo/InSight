@@ -192,7 +192,7 @@ function mfpConfig(pop, zoom, mine) {
 }
 
 // ─── the field body — canvas, detail, lenses ───
-function MirrorFieldBody({ pop, worldZoom, zoomCtl, onPerson, levelTrait, levelMarker }) {
+function MirrorFieldBody({ pop, worldZoom, zoomCtl, onPerson, levelTrait, levelMarker, firstRun }) {
   const D = window.IS_DATA;
   const [selId, setSelId] = useStateMFP(null);
   const [mine, setMine] = useStateMFP(() => new Set(window.SCENES ? window.SCENES.list() : D.groups.filter((g) => g.joined).map((g) => g.id)));
@@ -204,13 +204,16 @@ function MirrorFieldBody({ pop, worldZoom, zoomCtl, onPerson, levelTrait, levelM
     return window.SCENES.subscribe(() => setMine(new Set(window.SCENES.list())));
   }, []);
 
-  useEffectMFP(() => { setSelId(null); }, [pop, worldZoom]);
+  useEffectMFP(() => { setSelId(null); setSelNode(null); }, [pop, worldZoom]);
 
   const cfg = mfpConfig(pop, worldZoom, mine);
-  const sel = cfg.nodes.find((n) => n.id === selId) || null;
+  const [selNode, setSelNode] = useStateMFP(null);
+  const sel = selNode;
 
   const onSel = (n) => {
-    setSelId(n && n.id !== selId ? n.id : null);
+    const hit = n && n.id !== selId ? n : null;
+    setSelId(hit ? hit.id : null);
+    setSelNode(hit);
     if (n && n.kind === 'group' && mine.has(n.data.id)) setGSelId(n.data.id);
   };
   const onJoin = (id) => {
@@ -225,6 +228,7 @@ function MirrorFieldBody({ pop, worldZoom, zoomCtl, onPerson, levelTrait, levelM
       return rest ? rest.id : null;
     });
     setSelId(null);
+    setSelNode(null);
   };
 
   // lenses — everything the old scroll held, now on demand
@@ -246,26 +250,43 @@ function MirrorFieldBody({ pop, worldZoom, zoomCtl, onPerson, levelTrait, levelM
       </React.Fragment>
     ) });
   }
-  if (pop === 'world' && window.SegmentExplorer) {
+  // the member scorecard — city / country / world, fed by rate questions in the feed
+  const rateScope = pop === 'world' ? (worldZoom === 'city' ? 'city' : worldZoom === 'country' ? 'country' : 'world') : null;
+  if (rateScope && window.PlaceStatsCard) {
+    lenses.push({ id: 'scores', label: 'Scores', render: () => <PlaceStatsCard scope={rateScope} accent="var(--accent)"></PlaceStatsCard> });
+  }
+  if (pop === 'world' && worldZoom !== 'city' && worldZoom !== 'country' && window.SegmentExplorer) {
     lenses.push({ id: 'explore', label: 'Explore', render: () => <SegmentExplorer></SegmentExplorer> });
   }
-  if (pop === 'groups' && gSel && window.GroupCompare) {
-    lenses.push({ id: 'compare', label: 'Compare', render: () => <GroupCompare g={gSel}></GroupCompare> });
-  } else if (cfg.compare && window.CompareBreakdown) {
+  // The prototype guarded a GroupCompare lens here, but its module
+  // (legacy-tabs) is gone in v15 — the guard could never pass, so the
+  // branch is gone rather than dead (check:globals would flag it).
+  if (cfg.compare && window.CompareBreakdown) {
     lenses.push({ id: 'compare', label: 'Compare', render: () => <CompareBreakdown scope={cfg.compare.scope} accent="var(--accent)" label={cfg.compare.label}></CompareBreakdown> });
   }
 
+  // Sparse mirror: the population is real, the likeness isn't yet. Field keeps
+  // you, the rings and the crowd's mist; the placed dots and every lens wait.
+  const readN = window.FEEDREAD ? (window.FEEDREAD.stats().n || 0) : 0;
+  const sparse = !!firstRun;
+
   // Circle: the full relationship map IS the picture — embedded, no field canvas.
-  const noCanvas = pop === 'circle' && typeof RelationshipMap === 'function';
+  const noCanvas = !sparse && pop === 'circle' && typeof RelationshipMap === 'function';
   const rm = window.RMCore;
   const rmHeader = noCanvas && rm ? { fig: String(rm.defaultPeople().length), unit: 'across ' + rm.DEFAULT_GROUPS.length + ' circles' } : null;
 
   return (
-    <div className="mf-stage" data-screen-label={`Mirror field — ${pop}${pop === 'world' ? ' · ' + worldZoom : ''}`}>
-      {!noCanvas && <MFHeader kicker={cfg.header.kicker} fig={cfg.header.fig} unit={cfg.header.unit} right={pop === 'world' ? zoomCtl : null}></MFHeader>}
+    <div className="mf-stage" data-screen-label={`Mirror field — ${pop}${pop === 'world' ? ' · ' + worldZoom : ''}${sparse ? ' · first run' : ''}`}>
+      {sparse && (<>
+        <MFHeader kicker={cfg.header.kicker} fig={cfg.header.fig} unit={cfg.header.unit}></MFHeader>
+        <MFCanvas key={'sparse:' + pop + ':' + (pop === 'world' ? worldZoom : '')} nodes={[]} selId={null} onSel={() => {}}
+          seedDeg={cfg.seed} mist={cfg.mist || 54} mistSeed={cfg.mistSeed || 1} tall={true} stretch={1.1}></MFCanvas>
+        <MFSparse done={Math.min(readN, 8)} need={8}></MFSparse>
+      </>)}
+      {!sparse && !noCanvas && <MFHeader kicker={cfg.header.kicker} fig={cfg.header.fig} unit={cfg.header.unit} right={pop === 'world' ? zoomCtl : null}></MFHeader>}
       {rmHeader && <MFHeader kicker="Your circle" fig={rmHeader.fig} unit={rmHeader.unit} right={null}></MFHeader>}
-      {!noCanvas && (<>
-        <MFCanvas key={pop + ':' + (pop === 'world' ? worldZoom : '')} nodes={cfg.nodes} selId={selId} onSel={onSel} seedDeg={cfg.seed} mist={cfg.mist} mistSeed={cfg.mistSeed || 1} tall={pop === 'near' || pop === 'world'} stretch={pop === 'world' ? 1.15 : 1.08}></MFCanvas>
+      {!sparse && !noCanvas && (<>
+        <MFCanvas key={pop + ':' + (pop === 'world' ? worldZoom : '')} nodes={cfg.nodes} selId={selId} onSel={onSel} seedDeg={cfg.seed} mist={cfg.mist} mistSeed={cfg.mistSeed || 1} tall={pop === 'near' || pop === 'world'} stretch={pop === 'world' ? 1.15 : 1.08} maxLabels={pop === 'world' && worldZoom === 'world' ? 3 : undefined}></MFCanvas>
         <MFKey items={cfg.key}></MFKey>
         <MFDetail node={sel} onPerson={onPerson} onJoin={onJoin} onLeave={onLeave} joined={sel && sel.kind === 'group' ? mine.has(sel.data.id) : false}></MFDetail>
       </>)}
@@ -274,7 +295,7 @@ function MirrorFieldBody({ pop, worldZoom, zoomCtl, onPerson, levelTrait, levelM
           <RelationshipMap embedded={true}></RelationshipMap>
         </div>
       )}
-      <MirrorLenses key={pop + ':' + (pop === 'world' ? worldZoom : '') + ':' + (gSel ? gSel.id : '')} lenses={lenses}></MirrorLenses>
+      {!sparse && <MirrorLenses key={pop + ':' + (pop === 'world' ? worldZoom : '') + ':' + (gSel ? gSel.id : '')} lenses={lenses}></MirrorLenses>}
     </div>
   );
 }

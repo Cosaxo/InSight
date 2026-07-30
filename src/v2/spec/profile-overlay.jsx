@@ -88,7 +88,7 @@ function ProfileOverlay({ onClose, me }) {
 
   const AttachmentPanel = () => (
     window.ResultProfileCard
-      ? <window.ResultProfileCard testKey="attachment" archetype="The Warm Loyalist" tagline="steady and affectionate — the friend who stays" />
+      ? <window.ResultProfileCard testKey="attachment" archetype="The Constant" tagline="steady and affectionate — the friend who stays" />
       : (window.AttachmentCard ? <window.AttachmentCard /> : <TestResultCard testKey="attachment" />)
   );
 

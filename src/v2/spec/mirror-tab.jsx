@@ -8,7 +8,7 @@ import React from 'react';
 // mirror-tab.jsx — MIRROR: one tab, one verb — see yourself against a population.
 // One telescope, seven stops, from fully retracted to fully extended:
 //   you     → the telescope retracted — you, alone, visualized (the Map)
-//   circle  → your people — close ties (PeopleTab)
+//   circle  → your people — close ties
 //   groups  → your named circles — The Crew, Book Club… (GroupsMirrorBody)
 //   near    → your city (D9; the demo field still shows the 5 km neighbours)
 //   city    → demo only — live mode drops it, because Near IS your city
@@ -99,11 +99,7 @@ function MirrorPopPicker({ stopId, onPick, live }) {
 // WorldZoomControl is gone: the three zoom stops are stops on the axis
 // above now, so a separate pill row would be the same choice offered
 // twice. WORLD_ZOOMS survives because it still validates the persisted
-// `worldZoom` tweak and maps it to an audience (WORLD_AUD).
-
-// ─── which Daily-Question audience each population reflects ───
-const MIRROR_AUD = { circle: 'people', groups: 'groups', near: 'around' };
-const WORLD_AUD = { city: 'city', country: 'country', world: 'world' };
+// `worldZoom` tweak.
 
 // ─── the Mirror tab ───
 function MirrorPreviewTag({ popId }) {
@@ -122,12 +118,10 @@ function MirrorPreviewTag({ popId }) {
   );
 }
 
-function MirrorTab({ onPerson, pop, onPop, worldZoom, onZoom }) {
+function MirrorTab({ onPerson, pop, onPop, worldZoom, onZoom, firstRun }) {
   const p = mirrorPop(pop);
   const zoom = WORLD_ZOOMS.some(z => z.id === worldZoom) ? worldZoom : 'world';
   const scaleId = p.id === 'world' ? zoom : p.id;
-  const audId = p.id === 'world' ? WORLD_AUD[zoom] : MIRROR_AUD[p.id];
-  const field = typeof window.MirrorFieldBody === 'function';
   // The axis carries the world zooms as stops of its own, so a pick has to
   // set both halves of the old two-level state — and `live` hides the City
   // stop, which means a session that persisted zoom === 'city' would leave
@@ -227,35 +221,14 @@ function MirrorTab({ onPerson, pop, onPop, worldZoom, onZoom }) {
     );
   }
 
-  if (field) {
-    return (
-      <div className="fade-in mf-flex" style={{ '--accent': mirrorAccent(p.id) }}>
-        <MirrorPopPicker stopId={stopId} onPick={pick} live={liveGeo} />
-        <MirrorPreviewTag popId={p.id} />
-        <div key={scaleId + '-field'} className="tab-swap mf-flex">
-          <MirrorFieldBody pop={p.id} worldZoom={zoom} onPerson={onPerson}
-            zoomCtl={null}
-            levelTrait="gender" levelMarker={true} />
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div className="fade-in" style={{ '--accent': mirrorAccent(p.id) }}>
-
+    <div className="fade-in mf-flex" style={{ '--accent': mirrorAccent(p.id) }}>
       <MirrorPopPicker stopId={stopId} onPick={pick} live={liveGeo} />
       <MirrorPreviewTag popId={p.id} />
-
-      <div key={scaleId} className="tab-swap">
-        {p.kind === 'geo' && <AreaBody scaleId={scaleId} onPerson={onPerson} zoomCtl={null} />}
-        {p.id === 'circle' && <PeopleTab embedded onPerson={onPerson} />}
-        {p.id === 'groups' && <GroupsBody />}
-        {typeof window.MirrorAnswers === 'function' && (
-          <Lazy minHeight={600}>
-            <MirrorAnswers audId={audId} />
-          </Lazy>
-        )}
+      <div key={scaleId + '-field'} className="tab-swap mf-flex">
+        <MirrorFieldBody pop={p.id} worldZoom={zoom} onPerson={onPerson}
+          zoomCtl={null} firstRun={firstRun}
+          levelTrait="gender" levelMarker={true} />
       </div>
     </div>
   );
@@ -269,5 +242,3 @@ Object.assign(window, { MirrorTab });
 ;globalThis.mirrorPop = typeof mirrorPop === 'undefined' ? globalThis.mirrorPop : mirrorPop;
 ;globalThis.mirrorAccent = typeof mirrorAccent === 'undefined' ? globalThis.mirrorAccent : mirrorAccent;
 ;globalThis.WORLD_ZOOMS = typeof WORLD_ZOOMS === 'undefined' ? globalThis.WORLD_ZOOMS : WORLD_ZOOMS;
-;globalThis.MIRROR_AUD = typeof MIRROR_AUD === 'undefined' ? globalThis.MIRROR_AUD : MIRROR_AUD;
-;globalThis.WORLD_AUD = typeof WORLD_AUD === 'undefined' ? globalThis.WORLD_AUD : WORLD_AUD;

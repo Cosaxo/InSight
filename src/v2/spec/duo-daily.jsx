@@ -25,7 +25,7 @@ import ReactDOM from 'react-dom';
   // one dot per revealed day — filled = a right guess. The dots ARE the score.
   function DuoDots({ days, color, size = 8 }) {
     return (
-      <span style={{ display: 'flex', gap: size * 0.44, alignItems: 'center' }}>
+      <span style={{ display: 'flex', gap: size * 0.2, alignItems: 'center' }}>
         {days.map((ok, i) => (
           <span key={i} style={{
             width: size, height: size, borderRadius: '50%', boxSizing: 'border-box',
@@ -54,8 +54,10 @@ import ReactDOM from 'react-dom';
                 {invited
                   ? <span style={{ position: 'absolute', bottom: -3, right: -3, width: 15, height: 15, borderRadius: '50%', background: 'var(--surface-3)', color: 'var(--ink-2)', fontSize: 9, fontWeight: 900, display: 'flex', alignItems: 'center', justifyContent: 'center', border: '2px solid var(--surface)' }}>{'\u2026'}</span>
                   : pending
+                  /* only the waiting state wears a mark — a check on every tie
+                     carried no information and made the rail read as noise */
                   ? <span style={{ position: 'absolute', top: -1, right: -1, width: 11, height: 11, borderRadius: '50%', background: ACC, border: '2px solid var(--surface)' }}></span>
-                  : <span style={{ position: 'absolute', bottom: -3, right: -3, width: 15, height: 15, borderRadius: '50%', background: GOOD, color: '#fff', fontSize: 9, fontWeight: 900, display: 'flex', alignItems: 'center', justifyContent: 'center', border: '2px solid var(--surface)' }}>{'\u2713'}</span>}
+                  : null}
               </span>
               <span style={{ fontFamily: 'var(--sans)', fontSize: 10.5, fontWeight: sel ? 800 : 600, color: sel ? 'var(--ink)' : 'var(--ink-3)' }}>{first(p)}</span>
             </button>
@@ -73,7 +75,7 @@ import ReactDOM from 'react-dom';
   }
 
   // ── one duel card — fills the view, snaps into place ──
-  function DuoCard({ p, vh, nextName }) {
+  function DuoCard({ p, vh, nextName, newest }) {
     const D = window.DUELS;
     const pid = p.id;
     const today = D.duoDay(pid, 0);
@@ -89,8 +91,8 @@ import ReactDOM from 'react-dom';
     );
     const optBtn = (label, onClick, lead) => (
       <button key={label} className="press" onClick={onClick} style={{
-        background: 'var(--surface-2)', border: `1px solid color-mix(in oklch, ${ACC} 26%, var(--rule))`, borderRadius: 16,
-        boxShadow: 'var(--shadow-card)', padding: '16px 17px', minHeight: 56,
+        background: `color-mix(in oklch, ${ACC} 7%, var(--surface))`, border: `1px solid color-mix(in oklch, ${ACC} 30%, var(--rule))`, borderRadius: 16,
+        boxShadow: 'none', padding: '15px 17px', minHeight: 56,
         display: 'flex', alignItems: 'center', gap: 11, cursor: 'pointer', textAlign: 'left', WebkitAppearance: 'none',
       }}>
         {lead}
@@ -100,15 +102,15 @@ import ReactDOM from 'react-dom';
     // one reveal row — did the guesser call the answer?
     const revealRow = (who, right, ansLabel, guessLabel, av) => (
       <div style={{
-        border: LINE, borderRadius: 13, padding: '8px 12px',
-        background: `color-mix(in oklch, ${right ? GOOD : MISS} 10%, var(--surface-2))`,
-        ...col(3),
+        border: 'none', borderRadius: 0, padding: '9px 0',
+        borderTop: '0.5px solid color-mix(in oklch, var(--rule), transparent 30%)',
+        ...col(4),
       }}>
-        <span style={{ fontSize: 10, fontWeight: 800, letterSpacing: '0.07em', textTransform: 'uppercase', color: 'var(--ink-3)' }}>{who}</span>
+        <span style={{ fontSize: 12.5, fontWeight: 500, color: 'var(--ink-3)' }}>{who}</span>
         <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           {av}
-          <span style={{ fontWeight: 700, fontSize: 13.5 }}>{ansLabel}</span>
-          <span style={{ marginLeft: 'auto', fontWeight: 800, fontSize: 11.5, color: right ? GOOD : MISS, whiteSpace: 'nowrap' }}>
+          <span style={{ fontWeight: 700, fontSize: 14 }}>{ansLabel}</span>
+          <span style={{ marginLeft: 'auto', fontWeight: 800, fontSize: 12.5, color: right ? GOOD : MISS, whiteSpace: 'nowrap' }}>
             {right ? 'called it' : 'guessed ' + guessLabel}
           </span>
         </span>
@@ -158,7 +160,7 @@ import ReactDOM from 'react-dom';
             </div>
           )}
           {prompt(today.q.prompt)}
-          <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: '0.07em', textTransform: 'uppercase', color: 'var(--ink-3)' }}>your answer</span>
+          <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--ink-3)' }}>your answer</span>
           <div style={col(9)}>
             {today.q.options.map((o, i) => optBtn(o, () => D.answerDuo(pid, { a: i })))}
           </div>
@@ -183,43 +185,43 @@ import ReactDOM from 'react-dom';
       body = (
         <div style={{ ...col(12), animation: 'popIn .35s cubic-bezier(0.2,0.8,0.2,1)' }} key="d">
           {prompt(today.q.prompt)}
-          <div style={{ border: LINE, borderRadius: 16, background: 'var(--surface-2)', boxShadow: 'var(--shadow-card)', overflow: 'hidden' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '12px 15px', animation: 'popIn .38s cubic-bezier(0.2,0.8,0.2,1) .05s both' }}>
-              <span style={{ flexShrink: 0, padding: '3px 9px', borderRadius: 999, fontWeight: 800, fontSize: 10, color: 'var(--surface)', background: 'var(--ink)' }}>you</span>
-              <span style={{ fontSize: 10.5, fontWeight: 800, letterSpacing: '0.05em', textTransform: 'uppercase', color: 'var(--ink-3)' }}>answered</span>
-              <span style={{ marginLeft: 'auto', fontWeight: 800, fontSize: 16, color: 'var(--ink)' }}>{today.q.options[m.a]}</span>
+          <div style={{ ...col(0), border: 'none' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '11px 0', borderBottom: '0.5px solid color-mix(in oklch, var(--rule), transparent 30%)', animation: 'popIn .38s cubic-bezier(0.2,0.8,0.2,1) .05s both' }}>
+              <span style={{ flexShrink: 0, padding: '3px 9px', borderRadius: 999, fontWeight: 800, fontSize: 10.5, color: 'var(--surface)', background: 'var(--ink)' }}>you</span>
+              {/* value sits next to its label — 200px of gap between them made
+                  the pair impossible to read as one statement */}
+              <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--ink-3)' }}>said</span>
+              <span style={{ fontWeight: 800, fontSize: 17, letterSpacing: -0.2, color: 'var(--ink)' }}>{today.q.options[m.a]}</span>
             </div>
-            <div style={{ height: 0.5, background: 'var(--rule)', margin: '0 15px' }}></div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '12px 15px', animation: 'popIn .38s cubic-bezier(0.2,0.8,0.2,1) .15s both' }}>
-              <GDAv p={p} size={20}></GDAv>
-              <span style={{ fontSize: 10.5, fontWeight: 800, letterSpacing: '0.05em', textTransform: 'uppercase', color: 'var(--ink-3)' }}>your read</span>
-              <span style={{ marginLeft: 'auto', fontWeight: 800, fontSize: 16, color: 'var(--ink)' }}>{today.q.options[m.g]}</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '11px 0', animation: 'popIn .38s cubic-bezier(0.2,0.8,0.2,1) .15s both' }}>
+              <GDAv p={p} size={22}></GDAv>
+              <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--ink-3)' }}>your read</span>
+              <span style={{ fontWeight: 800, fontSize: 17, letterSpacing: -0.2, color: 'var(--ink)' }}>{today.q.options[m.g]}</span>
             </div>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 11, border: LINE, borderRadius: 15, background: 'color-mix(in oklch, var(--surface-3) 42%, transparent)', padding: '12px 15px' }}>
-            <GDAv p={p} size={24}></GDAv>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, borderTop: '0.5px solid color-mix(in oklch, var(--rule), transparent 30%)', padding: '11px 0 0' }}>
+            <GDAv p={p} size={22}></GDAv>
             <div style={{ ...col(2), minWidth: 0, flex: 1 }}>
-              <span style={{ fontWeight: 800, fontSize: 13, color: 'var(--ink-2)' }}>{first(p)}{'\u2019'}s answer</span>
-              <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--ink-3)', textWrap: 'pretty' }}>{theyDone
-                ? (window.RevealClock
-                  ? <window.RevealClock prefix="reveals in" suffix=" \u2014 did you call it?"></window.RevealClock>
-                  : 'reveals tomorrow \u2014 did you call it?')
-                : first(p) + ' is still answering\u2026'}</span>
+              <span style={{ fontWeight: 700, fontSize: 13.5, color: 'var(--ink-2)' }}>{first(p)}{'\u2019'}s answer</span>
+              <span style={{ fontSize: 12, fontWeight: 500, color: 'var(--ink-3)', textWrap: 'pretty' }}>{theyDone ? (newest && window.RevealClock ? <window.RevealClock prefix="reveals in" suffix={' \u2014 did you call it?'}></window.RevealClock> : 'reveals tomorrow \u2014 did you call it?') : first(p) + ' is still answering\u2026'}</span>
             </div>
-            <span aria-hidden="true" style={{ fontWeight: 800, fontSize: 15, color: 'var(--ink)', filter: 'blur(6px)', opacity: 0.4, userSelect: 'none', pointerEvents: 'none', flexShrink: 0 }}>{today.q.options[0]}</span>
+            {/* a redaction block, not a blurred word — the blur read as a
+                loading skeleton rather than something deliberately withheld */}
+            <span aria-hidden="true" style={{ width: 58, height: 14, borderRadius: 4, background: 'color-mix(in oklch, var(--ink) 13%, transparent)', flexShrink: 0 }}></span>
           </div>
           {p.read.total > 0 && (
-            <div style={{ ...col(7) }}>
-              <span className="kicker" style={{ marginBottom: 0 }}>How well you read each other</span>
-              <div style={{ border: LINE, borderRadius: 16, background: 'var(--surface-2)', boxShadow: 'var(--shadow-card)', padding: '14px 15px', display: 'flex', alignItems: 'center', gap: 12 }}>
-                <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 9 }} aria-label="How well you read them">
-                  <span style={{ flexShrink: 0, padding: '3px 9px', borderRadius: 999, fontWeight: 800, fontSize: 10.5, color: 'var(--surface)', background: 'var(--ink)' }}>you</span>
-                  <DuoDots days={Array.from({ length: p.read.total }, (_, i) => D.duoDay(pid, p.read.total - i).readRight)} size={11}></DuoDots>
+            <div style={{ ...col(10), borderTop: '0.5px solid color-mix(in oklch, var(--rule), transparent 30%)', paddingTop: 16 }}>
+              <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--ink-3)' }}>how well you read each other</span>
+              {/* one row each, same axis — filled dot = a right call, so the two
+                  runs are comparable at a glance instead of two half-widths */}
+              <div style={{ ...col(10) }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 11 }} aria-label="How well you read them">
+                  <span style={{ flexShrink: 0, width: 62, padding: '3px 0', fontWeight: 800, fontSize: 12.5, color: 'var(--ink)' }}>you</span>
+                  <DuoDots days={Array.from({ length: p.read.total }, (_, i) => D.duoDay(pid, p.read.total - i).readRight)} size={14}></DuoDots>
                 </div>
-                <div style={{ width: 0.5, alignSelf: 'stretch', background: 'var(--rule)' }}></div>
-                <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 9 }} aria-label="How well they read you">
-                  <DuoDots days={Array.from({ length: p.readBy.total }, (_, i) => D.duoDay(pid, p.readBy.total - i).byRight)} color={ACC} size={11}></DuoDots>
-                  <GDAv p={p} size={24}></GDAv>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 11 }} aria-label="How well they read you">
+                  <span style={{ flexShrink: 0, width: 62, padding: '3px 0', fontWeight: 800, fontSize: 12.5, color: 'var(--ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{first(p)}</span>
+                  <DuoDots days={Array.from({ length: p.readBy.total }, (_, i) => D.duoDay(pid, p.readBy.total - i).byRight)} color={ACC} size={14}></DuoDots>
                 </div>
               </div>
             </div>
@@ -233,18 +235,15 @@ import ReactDOM from 'react-dom';
 
     return (
       <div data-duo-card={pid} style={{
-        minHeight: Math.max(Math.round((vh || 540) * 0.66), 330), boxSizing: 'border-box',
+        minHeight: step === 'done' || invited ? 0 : Math.min(Math.max((vh || 540) - 190, 250), 380),
+        boxSizing: 'border-box',
         scrollSnapAlign: 'start', scrollSnapStop: 'always',
-        display: 'flex', flexDirection: 'column', gap: 12,
-        border: LINE, borderRadius: 18, background: 'var(--surface-2)',
-        backgroundImage: 'radial-gradient(120% 80% at 50% -25%, color-mix(in oklch, ' + ACC + ' 6%, transparent), transparent 62%)',
-        boxShadow: 'var(--shadow-card)', padding: '16px 15px',
+        display: 'flex', flexDirection: 'column', gap: 16,
+        borderTop: LINE, padding: '20px 1px 26px',
       }}>
         {header}
         {menuRow}
-        <div aria-hidden="true" style={{ flex: '0.8 1 0' }}></div>
         {body}
-        <div aria-hidden="true" style={{ flex: '1 1 0' }}></div>
       </div>
     );
   }
@@ -318,7 +317,7 @@ import ReactDOM from 'react-dom';
         <div style={col(10)}>
           {ordered.map((p, i) => {
             const next = ordered.slice(i + 1).find(isPending);
-            return <DuoCard key={p.id} p={p} vh={vh} nextName={next ? first(next) : null}></DuoCard>;
+            return <DuoCard key={p.id} p={p} vh={vh} nextName={next ? first(next) : null} newest={i === 0}></DuoCard>;
           })}
         </div>
         {addOpen && document.querySelector('.app') && ReactDOM.createPortal(

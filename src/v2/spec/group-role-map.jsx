@@ -208,11 +208,27 @@ import React from 'react';
       if (selPerson) return selPerson.id !== p.id;
       return !(selRole.holderIds || []).includes(p.id);
     };
+    // the field takes the leftover column height; the viewBox grows around the
+    // constellation's centre so the wash fills the frame and the map never floats
+    // above a void (svg is absolutely placed, so it can't feed the measurement)
+    const wrapRef = React.useRef(null);
+    const [box, setBox] = useState(null);
+    React.useEffect(() => {
+      const el = wrapRef.current;
+      if (!el) return;
+      const read = () => { const r = el.getBoundingClientRect(); if (r.width > 8 && r.height > 8) setBox({ w: r.width, h: r.height }); };
+      read();
+      if (!window.ResizeObserver) return;
+      const ro = new ResizeObserver(read); ro.observe(el);
+      return () => ro.disconnect();
+    }, []);
+    const vbH = Math.max(H, box ? W * (box.h / box.w) : H);
+    const vbY = (H / 2) - vbH / 2;
     return (
-      <div>
-        <div style={{ position: 'relative', margin: '4px -6px 0' }}>
+      <div className="mf-flex">
+        <div ref={wrapRef} className="mf-canvaswrap" style={{ margin: '4px -6px 0' }}>
           <style>{`@keyframes grIn { from { opacity: 0; } to { opacity: 1; } } @keyframes grDrift { to { transform: translate(var(--dx), var(--dy)); } } @keyframes grFlow { to { stroke-dashoffset: -18; } }`}</style>
-          <svg viewBox={`0 0 ${W} ${H}`} width="100%" style={{ display: 'block' }} onClick={() => setSel(null)}>
+          <svg viewBox={`0 ${vbY} ${W} ${vbH}`} preserveAspectRatio="xMidYMid meet" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', display: 'block' }} onClick={() => setSel(null)}>
             {/* the field's ground — a soft wash of the group's hue anchors the constellation as one object */}
             <defs>
               <radialGradient id={'grWash-' + gid} cx="50%" cy="48%" r="58%">
@@ -221,7 +237,7 @@ import React from 'react';
                 <stop offset="100%" stopColor="var(--accent)" stopOpacity="0"></stop>
               </radialGradient>
             </defs>
-            <rect width={W} height={H} fill={`url(#grWash-${gid})`} style={{ animation: 'grIn 0.6s both' }}></rect>
+            <rect x="0" y={vbY} width={W} height={vbH} fill={`url(#grWash-${gid})`} style={{ animation: 'grIn 0.6s both' }}></rect>
             {/* orbit threads — role → holder(s); contested threads bow around the centre */}
             {field.sats.map((role) => (role.holderIds || []).map((hid) => {
               const p = field.byId[hid];

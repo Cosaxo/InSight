@@ -17,7 +17,6 @@ import './spec/iOS.jsx';
 import './spec/tweaks-panel.jsx';
 import './spec/primitives.jsx';
 import './spec/feeds.jsx';
-import './spec/city-world-extras.jsx';
 import './spec/viz-primitives.jsx';
 import './spec/compare-breakdown.jsx';
 import './spec/relmap-core.js';
@@ -26,13 +25,15 @@ import './spec/relmap-panels.jsx';
 import './spec/relmap.jsx';
 import './spec/test-viz.jsx';
 import './spec/profile-test-viz.jsx';
+import './spec/type-marks.jsx';
 import './spec/result-rose.jsx';
 import './spec/result-card.jsx';
-import './spec/tab-area.jsx';
-import './spec/legacy-tabs.jsx';
 import './spec/reveal-clock.js';
 import './spec/group-daily.jsx';
 import './spec/duo-daily.jsx';
+// place-stats.js must precede world-feed-data.js: the feed pool concatenates
+// window.PLACE_RATE_QS at module scope, so the rate cards must already exist.
+import './spec/place-stats.js';
 import './spec/world-feed-data.js';
 import './spec/world-feed-comments.js';
 // counters read WORLD_FEED_COUNTERS at call time, but keep them adjacent —
@@ -58,6 +59,7 @@ import './spec/person-overlay.jsx';
 import './spec/city-overlay.jsx';
 import './spec/suggestions.jsx';
 import './spec/demographics.jsx';
+import './spec/place-stats.jsx';
 import './spec/mirror-answers.jsx';
 import './spec/mirror-field.jsx';
 import './spec/mirror-field-pops.jsx';

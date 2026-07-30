@@ -1,11 +1,11 @@
 # The frozen design spec
 
-**`InSight_standalone_14.html` is the reference design** — the version the
+**`InSight_standalone_15.html` is the reference design** — the version the
 product is built to, and the file `scripts/style-diff.mjs` compares the
 app against. The earlier v9 prototype and the extracted `spec-modules/`
-directory were deleted on 2026-07-29: the port is complete, both had
-diverged from the live code, and keeping superseded references around is
-how this file came to name the wrong target for a full day of "the
+directory were deleted on 2026-07-29, and v14 on 2026-07-30 when v15
+superseded it: the port is complete, keeping superseded references around
+is how this file came to name the wrong target for a full day of "the
 visuals are wrong". Git history has them if archaeology ever calls.
 
 It is a self-contained prototype (React + Babel compiled in-browser, all
@@ -13,7 +13,17 @@ data mocked): open it in a browser and it runs. Treat it as **read-only**
 — design iteration ended with this file, and changes from here happen in
 the real codebase.
 
-What v14 specifies: two tabs (**daily** · **mirror**), the daily's three
+What v15 adds over v14: type marks (a drawn badge per archetype, plus the
+all-types sheet), place scorecards fed by `rate` cards in the feed (a
+Places channel; City / Country / World Scores lens), a redesigned result
+card (signature emblem banner, 100-dot rarity field, full "Where you
+stand" breakdown), a redesigned test-question screen, a deeper daily
+archive (Music topic, `dqx` id series), member-framed demographics, a
+FLIP-animated rank card, and the removal of the predict/guess stage, the
+pattern beat, and the legacy non-field Mirror bodies
+(tab-area / legacy-tabs / city-world-extras are gone).
+
+What v14 specified: two tabs (**daily** · **mirror**), the daily's three
 modes (World blind-vote / Group / 1v1 duels with sealed next-day reveals)
 switched from a row that lives *in the app header*, the question feed with
 passive test and lens cards on bare card grounds, the Mirror telescope as

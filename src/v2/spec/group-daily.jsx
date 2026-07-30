@@ -74,7 +74,7 @@ import ReactDOM from 'react-dom';
             <div key={r.oi} style={{
               position: 'relative', overflow: 'hidden', borderRadius: 14,
               border: isMine ? `1.5px solid color-mix(in oklch, ${ACC} 55%, transparent)` : LINE,
-              background: 'var(--surface-2)', boxShadow: 'var(--shadow-card)',
+              background: 'var(--surface-2)', boxShadow: 'none',
             }}>
               <div style={{ position: 'absolute', top: 0, left: 0, bottom: 0, width: (ct / total) * 100 + '%', background: `color-mix(in oklch, ${ACC} 13%, transparent)` }}></div>
               <div style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: 10, padding: '9px 12px' }}>
@@ -96,31 +96,31 @@ import ReactDOM from 'react-dom';
     );
   }
 
-  // ── the rail: every group at a glance — dot = waiting on you, check = done ──
+  // ── the rail: every group at a glance — one mark each, dot = waiting on you ──
   function GroupRail({ gs, cur, onPick, onAdd }) {
     return (
-      <div className="h-scroll" style={{ display: 'flex', gap: 2, overflowX: 'auto', padding: '3px 6px 2px' }}>
+      <div className="h-scroll" style={{ display: 'flex', gap: 4, overflowX: 'auto', padding: '3px 6px 2px' }}>
         {gs.map((g) => {
           const sel = g.id === cur;
           const pending = !g.done;
           return (
             <button key={g.id} onClick={() => onPick(g.id)} aria-current={sel ? 'true' : undefined}
               aria-label={g.name + ' — ' + (pending ? 'still to play' : 'done for today')}
-              style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5, border: 'none', background: 'none', cursor: 'pointer', padding: '4px 8px', WebkitAppearance: 'none', flexShrink: 0 }}>
-              <span style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', borderRadius: 999, padding: '3px 6px', boxShadow: sel ? `0 0 0 2px ${ACC}` : pending ? `0 0 0 1.5px color-mix(in oklch, ${ACC} 45%, transparent)` : '0 0 0 1px var(--rule)', opacity: pending || sel ? 1 : 0.55, transition: 'box-shadow .18s, opacity .18s' }}>
-                <GDMark g={g} size={28}></GDMark>
-                {pending
-                  ? <span style={{ position: 'absolute', top: -2, right: -2, width: 11, height: 11, borderRadius: '50%', background: ACC, border: '2px solid var(--surface)' }}></span>
-                  : <span style={{ position: 'absolute', bottom: -4, right: -4, width: 15, height: 15, borderRadius: '50%', background: ACC, color: '#fff', fontSize: 9, fontWeight: 900, display: 'flex', alignItems: 'center', justifyContent: 'center', border: '2px solid var(--surface)' }}>{'\u2713'}</span>}
+              style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, border: 'none', background: 'none', cursor: 'pointer', padding: '4px 6px', WebkitAppearance: 'none', flexShrink: 0, width: 62 }}>
+              <span style={{ position: 'relative', display: 'inline-flex', borderRadius: 14, padding: 2, boxShadow: sel ? `0 0 0 2px ${ACC}` : 'none', transition: 'box-shadow .18s' }}>
+                <GDMark g={g} size={38} faded={!pending && !sel}></GDMark>
+                {/* only the waiting state wears a mark — a check on every group
+                    carried no information and made the rail read as noise */}
+                {pending && <span style={{ position: 'absolute', top: -1, right: -1, width: 11, height: 11, borderRadius: '50%', background: ACC, border: '2px solid var(--surface)' }}></span>}
               </span>
-              <span style={{ fontFamily: 'var(--sans)', fontSize: 10.5, fontWeight: sel ? 800 : 600, color: sel ? 'var(--ink)' : 'var(--ink-3)', whiteSpace: 'nowrap' }}>{g.name}</span>
+              <span style={{ fontFamily: 'var(--sans)', fontSize: 10.5, fontWeight: sel ? 800 : 600, color: sel ? 'var(--ink)' : 'var(--ink-3)', whiteSpace: 'nowrap', maxWidth: 60, overflow: 'hidden', textOverflow: 'ellipsis' }}>{g.name}</span>
             </button>
           );
         })}
         {onAdd && (
           <button onClick={onAdd} aria-label="Create a group"
-            style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5, border: 'none', background: 'none', cursor: 'pointer', padding: '4px 8px', WebkitAppearance: 'none', flexShrink: 0 }}>
-            <span style={{ height: 34, minWidth: 48, borderRadius: 999, boxSizing: 'border-box', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1.5px dashed color-mix(in oklch, var(--ink-3) 55%, transparent)', color: 'var(--ink-2)', fontSize: 18, fontWeight: 600, lineHeight: 1 }}>+</span>
+            style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, border: 'none', background: 'none', cursor: 'pointer', padding: '4px 6px', WebkitAppearance: 'none', flexShrink: 0, width: 62 }}>
+            <span style={{ width: 38, height: 38, margin: 2, borderRadius: 11, boxSizing: 'border-box', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1.5px dashed color-mix(in oklch, var(--ink-3) 55%, transparent)', color: 'var(--ink-2)', fontSize: 18, fontWeight: 600, lineHeight: 1 }}>+</span>
             <span style={{ fontFamily: 'var(--sans)', fontSize: 10.5, fontWeight: 600, color: 'var(--ink-3)' }}>New</span>
           </button>
         )}
@@ -129,7 +129,7 @@ import ReactDOM from 'react-dom';
   }
 
   // ── one group card — fills the view, snaps into place ──
-  function GroupCard({ g, vh, nextName }) {
+  function GroupCard({ g, vh, nextName, first }) {
     const D = window.DUELS;
     const [day, setDay] = useState(0);
     const [mg, setMg] = useState(false);
@@ -144,14 +144,12 @@ import ReactDOM from 'react-dom';
       <div style={{ fontFamily: 'var(--sans)', fontWeight: 800, fontSize: fs, lineHeight: 1.12, letterSpacing: -0.6, textWrap: 'pretty' }}>{s}</div>
     );
     const header = (
-      <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
-        <span style={{ fontWeight: 800, fontSize: 14.5 }}>{g.name}</span>
-        {nInvited > 0 && <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--ink-3)' }}>{nInvited} invited</span>}
-        <span style={{ marginLeft: 'auto', display: 'inline-flex', alignItems: 'center', gap: 8 }}>
-          <GDMark g={g} size={22}></GDMark>
-          <button aria-label={'Manage ' + g.name} onClick={() => setMg(true)}
-            style={{ border: 'none', background: 'none', cursor: 'pointer', color: 'var(--ink-3)', fontSize: 17, fontWeight: 800, padding: '0 3px', lineHeight: 1, WebkitAppearance: 'none' }}>{'\u22ef'}</button>
-        </span>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <GDMark g={g} size={26}></GDMark>
+        <span style={{ fontWeight: 800, fontSize: 15 }}>{g.name}</span>
+        {nInvited > 0 && <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--ink-3)' }}>{nInvited} invited</span>}
+        <button aria-label={'Manage ' + g.name} onClick={() => setMg(true)}
+          style={{ marginLeft: 'auto', border: 'none', background: 'none', cursor: 'pointer', color: 'var(--ink-3)', fontSize: 17, fontWeight: 800, padding: '0 3px', lineHeight: 1, WebkitAppearance: 'none' }}>{'\u22ef'}</button>
       </div>
     );
     const manageSheet = mg && document.querySelector('.app') && ReactDOM.createPortal(
@@ -227,26 +225,26 @@ import ReactDOM from 'react-dom';
       const inT = D.groupInToday(g.id);
       const inCount = inT.done.length + (answered ? 1 : 0);
       body = answered ? (
-        <div style={{ ...col(14), animation: 'popIn .35s cubic-bezier(0.2,0.8,0.2,1)' }} key="done">
+        <div style={{ ...col(18), animation: 'popIn .35s cubic-bezier(0.2,0.8,0.2,1)' }} key="done">
           {prompt(d.prompt, 24)}
-          <div style={{ display: 'flex' }}>
-            <span style={{ background: ACC, color: '#fff', fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 15, padding: '9px 18px', borderRadius: 999, boxShadow: 'var(--shadow-card)', animation: 'chipPop .4s cubic-bezier(0.2,0.8,0.2,1) .08s both' }}>{d.options[mine]}</span>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 9 }}>
+            <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink-3)' }}>you said</span>
+            <span style={{ fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 19, letterSpacing: -0.3, color: 'var(--ink)' }}>{d.options[mine]}</span>
           </div>
-          <div style={{ ...col(11), borderTop: '0.5px solid color-mix(in oklch, var(--rule), transparent 20%)', padding: '16px 0 2px', textAlign: 'center' }}>
-            <div style={{ display: 'flex', justifyContent: 'center', gap: 6 }}>
-              {g.members.map((p) => <GDAv key={p.id} p={p} size={30} dim={!inT.done.includes(p.id)}></GDAv>)}
-              <YouChip size={30}></YouChip>
+          <div style={{ ...col(12), borderTop: '0.5px solid color-mix(in oklch, var(--rule), transparent 20%)', padding: '16px 0 2px' }}>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+              {g.members.map((p) => <GDAv key={p.id} p={p} size={34} dim={!inT.done.includes(p.id)}></GDAv>)}
+              <YouChip size={34}></YouChip>
             </div>
-            <div style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--ink-2)' }}>
+            <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink-2)' }}>
               {/* live countdown when it is available; "tomorrow" is the honest
                   fallback, and stays the wording everywhere else \u2014 the clock
                   counts to LOCAL midnight while the reveal is keyed on a UTC
                   day, so this is a sense of the evening closing, not a promise
                   about the server (reveal-clock.js says why). */}
-              {window.RevealClock
+              {first && window.RevealClock
                 ? <window.RevealClock prefix="Reveals in"></window.RevealClock>
-                : 'Reveals tomorrow'}
-              {nextName ? ' \u00b7 swipe down for ' + nextName : ''}
+                : (nextName ? 'Reveals tomorrow \u00b7 swipe down for ' + nextName : 'Reveals tomorrow')}
             </div>
           </div>
         </div>
@@ -265,12 +263,12 @@ import ReactDOM from 'react-dom';
               const mem = d.kind === 'pick' ? g.members.find((p) => p.name.split(' ')[0] === o) : null;
               return (
                 <button key={o} className="press" onClick={() => D.answerGroup(g.id, i)} style={{
-                  background: 'var(--surface-2)', border: LINE, borderRadius: 16,
-                  boxShadow: 'var(--shadow-card)', padding: '13px 15px', gap: 10,
+                  background: `color-mix(in oklch, ${ACC} 7%, var(--surface))`, border: `1px solid color-mix(in oklch, ${ACC} 30%, var(--rule))`, borderRadius: 16,
+                  boxShadow: 'none', padding: '14px 16px', gap: 11, minHeight: 54,
                   display: 'flex', alignItems: 'center', cursor: 'pointer', textAlign: 'left', WebkitAppearance: 'none',
                 }}>
                   {d.kind === 'pick' && (mem ? <GDAv p={mem} size={26}></GDAv> : <YouChip size={26}></YouChip>)}
-                  <span style={{ fontWeight: 700, fontSize: 15.5, color: 'var(--ink)' }}>{o}</span>
+                  <span style={{ fontWeight: 700, fontSize: 16, color: 'var(--ink)' }}>{o}</span>
                 </button>
               );
             })}
@@ -303,17 +301,14 @@ import ReactDOM from 'react-dom';
 
     return (
       <div data-group-card={g.id} style={{
-        minHeight: Math.max(Math.round((vh || 540) * 0.66), 330), boxSizing: 'border-box',
+        minHeight: (day === 0 && D.myGroup(g.id, 0) != null) ? 0 : Math.min(Math.max((vh || 540) - 190, 250), 380),
+        boxSizing: 'border-box',
         scrollSnapAlign: 'start', scrollSnapStop: 'always',
-        display: 'flex', flexDirection: 'column', gap: 12,
-        border: LINE, borderRadius: 18, background: 'var(--surface-2)',
-        backgroundImage: 'radial-gradient(120% 80% at 50% -25%, color-mix(in oklch, ' + ACC + ' 6%, transparent), transparent 62%)',
-        boxShadow: 'var(--shadow-card)', padding: '16px 15px',
+        display: 'flex', flexDirection: 'column', gap: 16,
+        borderTop: LINE, padding: '20px 1px 26px',
       }}>
         {header}
-        <div aria-hidden="true" style={{ flex: '0.8 1 0' }}></div>
         {body}
-        <div aria-hidden="true" style={{ flex: '1 1 0' }}></div>
         {days.length > 1 && dots}
         {manageSheet}
       </div>
@@ -390,7 +385,7 @@ import ReactDOM from 'react-dom';
         <div style={col(10)}>
           {ordered.map((g, i) => {
             const next = ordered.slice(i + 1).find((x) => !x.done);
-            return <GroupCard key={g.id} g={g} vh={vh} nextName={next ? next.name : null}></GroupCard>;
+            return <GroupCard key={g.id} g={g} vh={vh} nextName={next ? next.name : null} first={i === 0}></GroupCard>;
           })}
         </div>
         {addOpen && document.querySelector('.app') && ReactDOM.createPortal(
