@@ -41,6 +41,7 @@ import {
   Timestamp,
   where,
 } from "firebase/firestore";
+import type { Firestore } from "firebase/firestore";
 import { getFunctions, httpsCallable } from "firebase/functions";
 import {
   anonSignIn,
@@ -259,9 +260,13 @@ function computeDeck(): void {
   state.deckIds = computeDeckIds(state.questions.map((q) => q.id), today);
 }
 
-async function hydrate(): Promise<void> {
-  const db = await getDb();
-
+// The phases below were one 260-line hydrate(), split on the seams its own
+// section comments already marked. The bodies are unchanged; what is new is
+// that the signatures carry what used to be implicit. `contentRev` is the
+// ONLY value that threads between phases — everything else moves through
+// module `state` — and hydrate() at the foot of this group records which
+// parts of the order are real constraints rather than habit.
+async function hydrateMeta(db: Firestore): Promise<number> {
   // ── one meta read runs the whole cache story ──
   // contentRev invalidates the local question-bank cache; latest/min
   // build drive the in-app update prompts.
@@ -278,7 +283,12 @@ async function hydrate(): Promise<void> {
   } catch {
     /* meta is best-effort — absence just means no caching/update info */
   }
+  return contentRev;
+}
 
+// THROWS when every bank comes back empty. That is load-bearing rather than
+// defensive — see the comment at the end of this function.
+async function hydrateBank(db: Firestore, contentRev: number): Promise<void> {
   // ── question bank: localStorage cache keyed by contentRev ──
   // The bank is static content; a boot should cost 1 meta read, not
   // ~190 bank reads. Single-field query (no composite index).
@@ -351,7 +361,9 @@ async function hydrate(): Promise<void> {
   }
   // A bank with content but no *daily* question is different: the rest of
   // the app works, so stay live and let the daily surface say so.
+}
 
+async function hydrateAnswers(db: Firestore): Promise<void> {
   // ── my answers: cached + incremental (immutable docs never refetch) ──
   const ANS_LS = "insight.answersCache.v1";
   const uidA = state.uid;
@@ -396,7 +408,9 @@ async function hydrate(): Promise<void> {
       /* best-effort */
     }
   }
+}
 
+async function hydrateAggs(db: Firestore): Promise<void> {
   // ── aggregates: cached; fetch answered questions' aggs that are
   // missing OR still cached as too-small ──
   // Feed cards are blind pre-vote (counts show only after answering), so
@@ -464,9 +478,9 @@ async function hydrate(): Promise<void> {
   } catch (err) {
     reportError(err, { where: "hydrate.aggs" });
   }
+}
 
-  computeDeck();
-
+async function hydrateProfile(db: Firestore): Promise<void> {
   // my profile (display name + synced test results) — owner-only.
   // Guarded for the same reason: a missing display name is a cosmetic
   // loss, not a reason to spend the session on demo data.
@@ -498,9 +512,9 @@ async function hydrate(): Promise<void> {
       };
     }
   }
+}
 
-  await subscribeAggs();
-
+function hydrateFeedVotes(): void {
   // Feed vote hydration: the spec's feed keeps its voted-state in
   // localStorage (WF_LS) — mirror the Firestore answers into it so
   // world-feed renders prior votes natively on any device.
@@ -515,7 +529,32 @@ async function hydrate(): Promise<void> {
   } catch {
     /* localStorage unavailable — feed falls back to store votes */
   }
+}
 
+// Boot, in order. Three of these steps are genuinely ordered and the rest
+// are not, which the single long function could not say:
+//
+//   meta    → contentRev, and the bank cache is keyed on it
+//   bank    → state.questions / feedBank / duelBank. THROWS on an unseeded
+//             project, so nothing below runs and boot falls back to the
+//             honest mock deck rather than an empty live one
+//   answers → state.votes, which hydrateAggs reads to decide what to fetch.
+//             Deliberately unguarded, unlike its neighbours — the reason is
+//             inside the function
+//   aggs    → state.aggs, so computeDeck() has counts to shape the deck with
+//
+// The last three are independent of each other and of nothing above them;
+// they run here because none of the earlier phases needs them.
+async function hydrate(): Promise<void> {
+  const db = await getDb();
+  const contentRev = await hydrateMeta(db);
+  await hydrateBank(db, contentRev);
+  await hydrateAnswers(db);
+  await hydrateAggs(db);
+  computeDeck();
+  await hydrateProfile(db);
+  await subscribeAggs();
+  hydrateFeedVotes();
   buildFeedGlobals();
 }
 
@@ -573,7 +612,7 @@ function buildFeedGlobals(): void {
 // called from the groups snapshot and again on midnight rollover, so a
 // long-lived session (the reveal-push case) doesn't stay pinned to the
 // day it booted on.
-function subscribeReveals(db: import("firebase/firestore").Firestore): void {
+function subscribeReveals(db: Firestore): void {
   const yester = utcDayKey(-1);
   const dayChanged = state.revealDay !== yester;
   state.revealDay = yester;
