@@ -45,6 +45,10 @@ jobs:
       # dex-number keys into this file, so a gap or reorder is an answer
       # resolving to the wrong species.
       - run: npm run check:pokedex
+      # …and for the QID-keyed catalogues (films/artists): the committed
+      # files and the trigger's compiled-in key sets must agree exactly,
+      # absence included — the gate runs before any catalogue exists (D15).
+      - run: npm run check:catalogs
       # The npm alias that keeps the iOS SwiftPM graph resolvable. Runs on
       # ubuntu with the rest of the cheap checks rather than waiting for the
       # macOS runner, where the same mistake costs four minutes and reports
@@ -52,7 +56,7 @@ jobs:
       - run: npm run check:ios-spm
       # The Facebook SDK is linked into every iOS build by
       # @capacitor-firebase/authentication's own SPM manifest, and stripped
-      # by our postinstall (D15). This asserts the strip actually happened —
+      # by our postinstall (D16). This asserts the strip actually happened —
       # the stripper cannot fail the install, because a root `npm ci` sits
       # on the production deploy path via backend-checks.yml. Here is the
       # right side of that line: client-only, and it reds a PR rather than

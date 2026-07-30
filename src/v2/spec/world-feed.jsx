@@ -418,42 +418,51 @@ class WorldFeed extends React.Component {
     if (window.PICKS) window.PICKS.pick(q.id, entity);
   }
 
+  // Which catalogue a pick question resolves against (D15: pokemon is
+  // dex-keyed, films/artists are QID-keyed; same load/peek/nameOf shape).
+  pickStore(domain) {
+    return domain === 'films' ? window.FILMS : domain === 'artists' ? window.ARTISTS : window.POKEDEX;
+  }
+
   // key → display name, resolved at render time. The catalogue loads
   // lazily, so a reveal rendered before it arrives kicks the load once and
   // re-renders on completion; null means "not yet", and callers show a
   // placeholder rather than the raw key.
-  pickName(entity) {
+  pickName(entity, domain) {
     if (entity == null) return null;
-    if (!window.POKEDEX) return null;
-    if (entity === window.POKEDEX.NOT_LISTED) return 'Not listed';
-    const dex = window.POKEDEX.peek();
-    if (!dex) {
-      if (!this._dexKick) {
-        this._dexKick = 1;
-        window.POKEDEX.load().then(() => this.setState({ dexTick: 1 }), () => { this._dexKick = 0; });
+    const store = this.pickStore(domain);
+    if (!store) return null;
+    if (entity === store.NOT_LISTED) return 'Not listed';
+    const list = store.peek();
+    if (!list) {
+      const kicked = this._catKick || (this._catKick = {});
+      if (!kicked[domain]) {
+        kicked[domain] = 1;
+        store.load().then(() => this.setState({ dexTick: 1 }), () => { kicked[domain] = 0; });
       }
       return null;
     }
-    return window.POKEDEX.nameOf(dex, entity);
+    return store.nameOf(list, entity);
   }
 
   renderPick(q, T, big) {
     const v = this.state.votes[q.id];
+    const store = this.pickStore(q.domain);
     if (v == null) {
-      return <PickSearch accent={T.color} big={big} onPick={(s) => this.setPick(q, s.dex)} onNotListed={() => this.setPick(q, window.POKEDEX ? window.POKEDEX.NOT_LISTED : 0)} />;
+      return <PickSearch domain={q.domain} accent={T.color} big={big} onPick={(id) => this.setPick(q, id)} onNotListed={() => this.setPick(q, store ? store.NOT_LISTED : 0)} />;
     }
     // The reveal is a canon, not a split: top entities above the floor,
     // everyone else in one bucket. Your own pick always shows to YOU — it
     // is your own answer, no floor applies — and when it is below the floor
     // the copy says so instead of pretending it counted.
-    const c = window.PICKS ? window.PICKS.canon(q.domain, q.id) : { top: [], rest: 0, total: 0 };
-    const mineName = this.pickName(v.entity);
+    const c = window.PICKS ? window.PICKS.canon(q.id) : { top: [], rest: 0, total: 0 };
+    const mineName = this.pickName(v.entity, q.domain);
     const max = c.top.length ? c.top[0].count : 1;
     const inTop = c.top.some((r) => r.entity === v.entity);
     return (
       <div style={{ display: 'flex', flexDirection: 'column', gap: big ? 10 : 8, animation: 'popIn .3s cubic-bezier(0.2,0.8,0.2,1)' }}>
         {c.top.map((r, i) => {
-          const name = this.pickName(r.entity) || '…';
+          const name = this.pickName(r.entity, q.domain) || '…';
           const isMine = r.entity === v.entity;
           return (
             <div key={r.entity} style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
@@ -475,7 +484,7 @@ class WorldFeed extends React.Component {
           <span style={{ paddingLeft: 27, fontSize: 12.5, fontWeight: 600, color: 'var(--ink-3)' }}>everyone else · {wfFmt(c.rest)}</span>
         )}
         <span style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--ink-2)' }}>
-          {window.POKEDEX && v.entity === window.POKEDEX.NOT_LISTED
+          {store && v.entity === store.NOT_LISTED
             ? <>you: Not listed — counted with everyone else, never enumerated</>
             : inTop
               ? <>you: {mineName || '…'}</>
@@ -1295,9 +1304,9 @@ class WorldFeed extends React.Component {
   renderThinBar(q, T) {
     if (q.type === 'pick') {
       const v = this.state.votes[q.id];
-      const name = this.pickName(v && v.entity);
-      const c = window.PICKS ? window.PICKS.canon(q.domain, q.id) : null;
-      const lead = c && c.top.length ? this.pickName(c.top[0].entity) : null;
+      const name = this.pickName(v && v.entity, q.domain);
+      const c = window.PICKS ? window.PICKS.canon(q.id) : null;
+      const lead = c && c.top.length ? this.pickName(c.top[0].entity, q.domain) : null;
       return <span style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--ink-3)' }}>you {name || '…'} · crowd {lead || '—'}</span>;
     }
     if (q.type === 'rate') {

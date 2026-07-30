@@ -504,7 +504,13 @@ describe("v2 answers (owner-only, create-only — D5)", () => {
       await deleteDoc(doc(db, "v2_users", OWNER, "answers", CQ));
     });
     await assertFails(setDoc(ref(CQ), cat({ entity: -1 })));          // negative
-    await assertFails(setDoc(ref(CQ), cat({ entity: 2048 })));        // past the sanity bound
+    await assertFails(setDoc(ref(CQ), cat({ entity: 1000000000 })));  // past the QID-scale sanity bound
+    // a QID-scale key passes RULES (the per-domain key set lives in the
+    // trigger, where an unknown key never aggregates — D15)
+    await assertSucceeds(setDoc(ref(CQ), cat({ entity: 104123 })));
+    await seed(async (db) => {
+      await deleteDoc(doc(db, "v2_users", OWNER, "answers", CQ));
+    });
     await assertFails(setDoc(ref(CQ), cat({ entity: 2.5 })));         // not an int
     await assertFails(setDoc(ref(CQ), cat({ entity: "25" })));        // a string is never a key
     await assertFails(setDoc(ref(CQ), cat({ optionIdx: 1 })));        // mixed shape

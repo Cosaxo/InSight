@@ -274,14 +274,34 @@ export function shouldPublishAgg(
 // pointed at entities instead of demographic cells.
 
 /**
- * The stored form of a catalog answer's entity, or null to never aggregate.
- * `max` is the catalogue's key ceiling (CATALOG_MAX_ENTITY in v2.ts —
- * cross-checked against the committed catalogue by scripts/check-pokedex.mjs);
- * parameter-pure like meetsKFloor so this stays testable without it.
+ * How a domain's catalogue defines its key space. Contiguous catalogues
+ * (pokedex) need only a ceiling; QID-keyed catalogues (films, artists —
+ * D15) are sparse, so membership is the only honest test — a range would
+ * admit every integer between two real QIDs, and each junk key an attacker
+ * lands mints a bucket in the private doc forever (the document-growth
+ * constraint the breakdown cap exists for).
  */
-export function catalogEntityKey(value: unknown, max: number): string | null {
+export type CatalogSpec =
+  | { max: number }
+  | { keys: ReadonlySet<number> };
+
+/**
+ * The stored form of a catalog answer's entity, or null to never
+ * aggregate. 0 ("Not listed") is valid in every domain. Parameter-pure
+ * like meetsKFloor: the specs live in v2.ts (CATALOG_DOMAINS), the
+ * committed catalogues are cross-checked against them by
+ * scripts/check-pokedex.mjs and scripts/check-catalogs.mjs.
+ */
+export function catalogEntityKey(value: unknown, spec: CatalogSpec): string | null {
   if (typeof value !== "number" || !Number.isInteger(value)) return null;
-  if (value < 0 || value > max) return null;
+  if (value < 0) return null;
+  if (value !== 0) {
+    if ("max" in spec) {
+      if (value > spec.max) return null;
+    } else if (!spec.keys.has(value)) {
+      return null;
+    }
+  }
   return String(value);
 }
 

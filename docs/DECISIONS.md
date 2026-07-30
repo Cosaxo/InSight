@@ -1204,9 +1204,56 @@ question, extend live.ts's vote path with an `entity` variant, and an
 e2e leg — each touches the enforced-privacy path, so it ships as one
 deliberate change or not at all (the D12 discipline).
 
+**Amended 2026-07-30, same day (D15):** the entity sanity bound in rules
+is now [0, 1e9) — QID scale — and validation is per-domain
+(`CATALOG_DOMAINS` in v2.ts: a range for pokemon, generated key sets for
+films/artists), with the trigger reading the question doc's `domain` to
+pick the key space. The [0, 2048) figure above records the
+single-domain original.
+
+## D15 · Films/artists catalogues: QID keys, and generation is an operator step
+
+**Decided:** 2026-07-30 · **Status:** binding
+
+The second and third `pick` domains (docs/CATALOG-QUESTIONS.md step 4)
+are curated top-1,000 lists from Wikidata (CC0), keyed by **QID numeric
+part** (2831 = Q2831). QIDs, not ranks or row numbers, because the
+catalogues are curated by popularity and popularity reorders: a
+rank-derived key would silently repoint every stored favourite on
+refresh, which is the exact failure class the pokedex contiguity gate
+exists for, in a form no gate could catch.
+
+Sparse keys change the validation shape. A range bound would admit every
+integer between two real QIDs, and each junk key an attacker lands mints
+a private-doc bucket forever — so QID domains validate by **membership**
+in a generated key set (`functions/src/catalogKeys.ts`), the trigger
+learns the domain from the question doc (its only question-doc read,
+catalog answers only), and the rules' `entity` sanity bound rises to
+QID scale (< 1e9; D14 amended). `scripts/check-catalogs.mjs` pins the
+key sets to the committed catalogue files exactly — absence included —
+in ci.yml and backend-checks.yml both.
+
+**The catalogues themselves are not in this change, deliberately.** The
+generator (`scripts/build-catalog.mjs`, sitelink-ranked SPARQL with the
+queries recorded in the script) needs network access to Wikidata, and
+the sandboxed session that built this machinery verified it has none —
+query.wikidata.org, wikipedia.org and musicbrainz.org are all
+unreachable, and no verifiable film/artist dataset exists on the
+reachable package registries. Hand-writing ~1,000 QIDs from memory
+would trade a network limitation for silent key corruption; refused.
+Until an operator runs the builder from a networked machine and commits
+the result, the key sets are empty and the domains fail safe: rules
+accept nothing the trigger will aggregate, the client catalogues load
+as absent, and no demo card ships for them.
+
+Go-live for a QID domain is therefore: `node scripts/build-catalog.mjs
+films` (or `artists`) anywhere with network, commit the two generated
+files, add the demo card, and later seed a `type: "catalog"` question
+carrying `domain` — the same one-deliberate-change discipline as D14.
+
 ---
 
-## D15 · The Facebook SDK is stripped from the iOS build, not declared
+## D16 · The Facebook SDK is stripped from the iOS build, not declared
 
 **Decided:** 2026-07-30 · **Status:** binding
 

@@ -172,7 +172,7 @@ Both apps must be registered under `com.cosaxo.insight`:
     document and is never sliced by (D8), but the form asks what you
     *collect*, not what you publish.
 
-  **Facebook SDK — resolved, excluded (D15).** It *was* linked into every
+  **Facebook SDK — resolved, excluded (D16).** It *was* linked into every
   iOS binary and never initialised, which is exactly the mismatch these
   forms exist to catch. It is now stripped at `postinstall`
   (`scripts/strip-facebook-sdk.mjs`) and the removal is asserted by
