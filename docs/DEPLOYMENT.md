@@ -46,15 +46,30 @@ Firebase project `prvfire33`. Routine backend changes need no manual deploy.
   - Firestore rules (`firestore.rules`)
   - v2 functions: `seedContentV2`, `onV2AnswerCreated` (k-floored
     aggregates), `createGroupV2` / `joinGroupV2` / `leaveGroupV2`,
-    `scheduledDuelReveals` / `revealDuelsNowV2` (reveals + push)
-  - v1-era functions, still deployed: `rebuildAreaAggregates` /
-    `scheduledAreaAggregates`, `rebuildWorldAggregates` /
-    `scheduledWorldAggregates`, `rebuildCityAggregates` /
-    `scheduledCityAggregates`, `sendInboundImpression`,
-    `deleteAccount` (extended to wipe v2), `seedTaxonomies` /
-    `scheduledTaxonomies`
+    `registerPushToken`, `scheduledDuelReveals` / `revealDuelsNowV2`
+    (reveals + push)
+  - `deleteAccount` — the one v1-era function that carries forward, and
+    it still wipes the v1 collections (D13)
   - The deploy runs with `--force` — `onV2AnswerCreated` has a retry
     policy, which the CLI refuses non-interactively otherwise
+
+### One-off cleanup still owed in production (D13)
+
+Dropping a function from the `--only` list stops **deploying** it; it does
+not **delete** the deployed copy. The nine v1 functions removed in D13 are
+still live in `prvfire33` until someone runs, once:
+
+```bash
+npx firebase functions:delete rebuildAreaAggregates scheduledAreaAggregates \
+  rebuildWorldAggregates scheduledWorldAggregates rebuildCityAggregates \
+  scheduledCityAggregates sendInboundImpression seedTaxonomies \
+  scheduledTaxonomies --project prvfire33 --region us-central1 --force
+```
+
+Until that runs, three schedules keep firing against empty collections —
+harmless and near-free, but it is billed work that produces nothing. The
+inert `aggregates_*` and `taxonomies` documents they leave behind can be
+dropped from the console at the same time; nothing reads them.
 
 ## Authentication
 

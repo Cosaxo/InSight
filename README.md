@@ -65,10 +65,9 @@ src/v2/            the app — ported from the frozen design spec
   styles.css       the design system, verbatim from the spec
 src/lib/           firebase init + anonymous-first auth + emulator wiring
 functions/src/     v2.ts (seed + aggregates) · v2social.ts (groups, duos,
-                   reveals, push) · index.ts (v1-era aggregates & account
-                   deletion, still deployed)
+                   reveals, push) · index.ts (account deletion)
 firestore.rules    the access model (owner-only answers, k-floored aggs,
-                   member-only groups/reveals) — 32 emulator tests
+                   member-only groups/reveals) — 33 emulator tests
 firestore.rules.v1-archive  the retired v1 client rules (D4) — reference,
                    NOT deployed
 content/           canonical question banks & archetypes (seed source)
@@ -81,9 +80,10 @@ docs/              DECISIONS · SCHEMA-V2 · DEPLOYMENT · LOCAL-TESTING ·
 
 Local:
 
-- `npm run test:unit` — client + pure deck logic (vitest, no emulator).
+- `npm run test:unit` — client store, pure deck logic, and the spec-layer
+  mount tests (vitest + jsdom, no emulator).
 - `npm run test --prefix functions` — the k-anon floor, reveal and streak math.
-- `npm run test:rules` — 32 security-rules tests (Firestore + Storage)
+- `npm run test:rules` — 33 security-rules tests (Firestore + Storage)
   against the emulator.
 - `npm run test:e2e` — the v2 core loop under `emulators:exec`: anon auth →
   seed → vote → aggregate trigger → k-floor → duel create/join/seal/reveal.
@@ -123,6 +123,9 @@ platform config files, store accounts, on-device verification — are in
 
 InSight v1 was a private journal ("an interior social network") — its UI
 was removed after the v2 pivot (decision D4; it lives in git history
-before `src/legacy` was deleted). The v1 backend (geo aggregates,
-account deletion) remains deployed and carried forward. The full design
-evolution is preserved in `design/`.
+before `src/legacy` was deleted), its rules retired to
+`firestore.rules.v1-archive`, and its compute deleted in D13 once it was
+traced that nothing had written those collections since the client went.
+`deleteAccount` is the one v1-era function that carries forward, and it
+still erases the v1 collections. The full design evolution is preserved
+in `design/`.
