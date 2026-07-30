@@ -47,6 +47,11 @@ jobs:
       # reaches production. Parses source with a regex, so it needs no
       # build and no root node_modules.
       - run: npm run check:deploy-targets
+      # The aggregate trigger validates catalog `entity` keys against
+      # CATALOG_MAX_ENTITY, which must equal the committed catalogue's
+      # count — this check cross-checks the two, so it guards the deploy,
+      # not just the client (ci.yml runs it too). Node stdlib only.
+      - run: npm run check:pokedex
 
   rules-tests:
     runs-on: ubuntu-latest

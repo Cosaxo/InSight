@@ -72,6 +72,25 @@ if (headerCount === null) {
   errors.push(`header says ${headerCount} species, file has ${count}`);
 }
 
+// The functions-side ceiling must agree with the committed catalogue:
+// CATALOG_MAX_ENTITY (functions/src/v2.ts) is what the aggregate trigger
+// validates entity keys against, so a regenerated, larger catalogue under a
+// stale ceiling means new species that can be picked and never counted —
+// the same silent failure class as a city that can't be a bucket key.
+const FN = join(root, "functions", "src", "v2.ts");
+try {
+  const m = readFileSync(FN, "utf8").match(/CATALOG_MAX_ENTITY = (\d+)/);
+  if (!m) {
+    errors.push("functions/src/v2.ts: no CATALOG_MAX_ENTITY constant to cross-check");
+  } else if (Number(m[1]) !== count) {
+    errors.push(
+      `CATALOG_MAX_ENTITY is ${m[1]} in functions/src/v2.ts, catalogue has ${count} — move them together`,
+    );
+  }
+} catch {
+  errors.push("functions/src/v2.ts unreadable — cannot cross-check CATALOG_MAX_ENTITY");
+}
+
 if (errors.length) {
   console.error(`check:pokedex: ${errors.length} problem(s) in ${FILE}`);
   for (const e of errors.slice(0, 20)) console.error(`  - ${e}`);
