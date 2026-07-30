@@ -1110,6 +1110,47 @@ reads them, and they hold k-floored anonymous averages (floor 20) with no
 per-user provenance, so they raise no erasure obligation. Dropping them is
 console work, not code.
 
+**`insight_discoverable` is the exception, and it is not inert.**
+Amendment (2026-07-30). The residue table above holds for the aggregates.
+It does not hold for `insight_discoverable`, which this record's own
+arithmetic listed as "written by nothing since D4" — a collection with no
+writer and, after D13, no reader, still holding one document per v1 user:
+`personality` (Big Five vector), `political` (econ/social coordinates),
+`age`, `bio`, `role`, `displayName` and a geohash
+(`firestore.rules.v1-archive:437-490` is the shape).
+
+`political` is special-category data under GDPR Art. 9. Unlike the
+aggregates there is no k-floor and no anonymity to appeal to: the document
+key *is* the uid.
+
+**The remedy changed, and the change is the point.** `docs/SHIP-CHECKLIST.md`
+carried a "scrub" item that truncated `location.geohash` to 5 chars and
+deleted `location.geopoint`, on the stated grounds that "rules now cap
+`insight_discoverable` writes to a bare geohash5 cell". That cap is
+`isValidDiscoverableWrite()`, which D4 moved to `firestore.rules.v1-archive`
+— undeployed. So the sentence justifying a field-level scrub described a
+rule that has not been enforced since D4, and the scrub it justified would
+have left the Art. 9 payload in place while reading as done.
+
+Field-level truncation is therefore the wrong operation twice over: it
+protects against a client read path that no longer exists (the live rules
+deny the collection outright, pinned in `rules.test.ts`), and it leaves
+standing the fields that actually carry the obligation.
+`docs/data-inventory.md` had it right — "the honest scope is the whole
+document, not just its location field" — and gates the store privacy
+answers on it.
+
+**Decision: delete the documents.** `scripts/scrub-v1-discoverable.mjs`,
+dry-run by default, `--apply` to delete. It counts field presence and
+never prints a value or a uid, because a report that echoes political
+coordinates into a terminal is its own disclosure. Verified against the
+Firestore emulator rather than reasoned about.
+
+Kept out of CI and out of the deploy path for the same reason
+`functions:delete` is: a merge that can empty a collection is a worse
+failure mode than a one-off command someone runs with the dry run in front
+of them. `deleteAccount`'s per-uid delete is unaffected and still tested.
+
 ### Reversing this
 
 Everything is in git history at `802e361`, the same place D4 left the v1
