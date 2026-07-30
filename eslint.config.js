@@ -33,11 +33,21 @@ export default defineConfig([
     },
   },
   // The ported spec layer (src/v2/spec + its loaders). Files talk
-  // through the shared global scope by design, so no-undef would fire
-  // on every cross-module reference — off. no-unused-vars stays off
-  // for the same reason: modules "export" by defining globals the
-  // linter can't see being consumed. Everything else (hooks rules,
-  // no-dupe-keys, no-unreachable, …) applies.
+  // through the shared global scope by design, so a bare cross-module
+  // reference is normal here and eslint cannot resolve one on its own.
+  //
+  // The answer is NOT to switch the rules off — it is to tell eslint
+  // what the globals are. `specGlobals` above seeds them from the same
+  // scanner check:globals uses, which is what lets `no-undef` stay ON
+  // (see the rules block below, and the note there before touching it).
+  //
+  // `no-unused-vars` is the one that genuinely cannot work: modules
+  // "export" by defining globals the linter never sees consumed, so
+  // every one of them reads as unused. Everything else — hooks rules,
+  // no-dupe-keys, no-unreachable, … — applies.
+  //
+  // This comment used to say no-undef was off, and said it for as long
+  // as the line below has read 'error'. If you change one, change both.
   {
     files: ['src/v2/**/*.{js,jsx}'],
     extends: [

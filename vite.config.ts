@@ -41,5 +41,16 @@ export default defineConfig(({ mode }) => {
       // package.json with every store release.
       __APP_BUILD__: JSON.stringify(pkg.appBuild ?? 0),
     },
+    test: {
+      // Most of `--dir src` is pure logic and wants no DOM — a global
+      // jsdom environment would slow every one of those files down for
+      // the sake of one. Files opt in with the
+      // `// @vitest-environment jsdom` docblock instead; smoke.test.jsx
+      // is the only one today.
+      //
+      // setupFiles runs for ALL of them, so it must stay a no-op outside
+      // jsdom — see the guard at the top of the file.
+      setupFiles: ['./src/v2/test/setup-dom.ts'],
+    },
   }
 })

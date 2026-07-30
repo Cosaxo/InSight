@@ -1032,7 +1032,93 @@ None of it is hard, but every piece touches the enforced-privacy path,
 so it ships as one deliberate change or not at all. Until then the live
 feed is honest about what it can collect.
 
-## D13 · Catalog answers are keys into a shipped catalogue; the reveal is a canon
+---
+
+## D13 · The v1 compute is deleted, for the reason D4 deleted the v1 rules
+
+**Decided:** 2026-07-30 · **Status:** binding
+
+**Decision.** Nine Cloud Functions are deleted from `functions/src/index.ts`:
+`rebuildAreaAggregates` / `scheduledAreaAggregates`, `rebuildWorldAggregates` /
+`scheduledWorldAggregates`, `rebuildCityAggregates` / `scheduledCityAggregates`,
+`sendInboundImpression`, and `seedTaxonomies` / `scheduledTaxonomies`.
+`deleteAccount` stays, **including every line that erases a v1 collection**.
+The file goes from 1,502 lines to 314; the deployed surface from 18 functions
+to 9.
+
+**Why.** D4 retired the v1 *rules* on the argument that "unused-but-open is
+strictly worse than absent: live attack surface with no legitimate traffic to
+compare against and nobody watching it." It put the Cloud Functions on the
+*carries-forward* side of that same boundary. That was right when written and
+stopped being right, and no record noticed — D2's own amendment later said the
+aggregator "walks a collection that no longer grows" without drawing the
+conclusion. This record draws it.
+
+**The arithmetic — every one of the nine could not produce output.** Verified
+by tracing writers, not by reasoning about intent:
+
+| Collection | Written by | Read by |
+| --- | --- | --- |
+| `insight_discoverable` | **nothing** since D4 deleted the v1 client | the three aggregator families |
+| `insight_inbound_impressions` | `sendInboundImpression` only | world + city aggregators |
+| `taxonomies` | `seedTaxonomies` only | **nothing** (its reader was `src/data/taxonomies.ts`, deleted with the v1 client) |
+| `aggregates_by_geohash5` / `_media` / `_world` / `_city` | the aggregators | **nothing** in `src/` |
+
+`sendInboundImpression` had **zero callers** in `src/`. So the chain was
+closed at both ends: a callable nothing invoked, writing a collection only
+functions read, feeding documents nothing rendered. D9 had already found the
+one wired path was reading `disc.geohash` while the v1 writer wrote
+`location.geohash` — so even the half that ran was reading a field that never
+existed.
+
+Three of the nine were on schedules (02:00, 04:00 and 06:00 UTC), each holding
+512 MiB / 480 s per `ops.ts`. They were billed, monitored work with a
+guaranteed empty result.
+
+**What deliberately did NOT change.** `deleteAccount` still deletes
+`insight_discoverable/{uid}`, the `insight_inbound_impressions` this user sent
+into other subtrees, the `relations` naming them, and `insight_ratelimits/{uid}`.
+Production may still hold v1 data, and right-to-erasure has to reach it whether
+or not anything still reads it. Both `fieldOverrides` in
+`firestore.indexes.json` stay for the same reason — they index the two
+collection-group queries erasure depends on, not the deleted aggregators.
+`firestore-tests/e2e-delete-account.mjs` seeds and asserts all four, unchanged
+and still passing, which is what makes that claim checkable rather than stated.
+
+**`meetsKFloor` stays in `pure.ts`.** Its v1 caller is gone but
+`publishableBreakdown` uses it, so the k-floor remains one named decision
+instead of an inline `>=`. The genuinely orphaned helpers — `topMedia`,
+`summarise`, `averagePersonality`, `ageBucket`, `tally`, `topInterests`,
+`slugifyCity` and the media types — are deleted with their 16 tests (the
+suite goes 51 → 35). They
+described a media/personality/demographics API for a product surface that no
+longer exists; keeping tested-but-unreachable code is the same failure as
+keeping deployed-but-unreachable functions, one layer down.
+
+### The part this does not finish
+
+**Dropping a function from the deploy `--only` list stops deploying it; it does
+not delete the deployed copy.** All nine are still live in `prvfire33` until an
+operator runs `firebase functions:delete` once — the exact command is in
+`docs/DEPLOYMENT.md`. Until then the three schedules keep firing. This is
+recorded rather than automated because a `functions:delete` in CI is a
+destructive operation triggered by a merge, which is a worse failure mode than
+three cheap no-op schedules surviving a few days.
+
+The `aggregates_*` and `taxonomies` documents left behind are inert: nothing
+reads them, and they hold k-floored anonymous averages (floor 20) with no
+per-user provenance, so they raise no erasure obligation. Dropping them is
+console work, not code.
+
+### Reversing this
+
+Everything is in git history at `802e361`, the same place D4 left the v1
+client. Restoring any of it means restoring its rules *and* its tests
+deliberately — and note that the geohash aggregator would need the
+`disc.geohash` field-path bug fixed before it could ever have worked
+(D9). `firestore.rules.v1-archive` still lists the rules gaps to fix first.
+
+## D14 · Catalog answers are keys into a shipped catalogue; the reveal is a canon
 
 **Decided:** 2026-07-30 · **Status:** binding
 

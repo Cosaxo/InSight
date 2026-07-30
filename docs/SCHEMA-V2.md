@@ -33,7 +33,7 @@ v2_users/{uid}/answers/{qid}
     targeted this collection. None is configured, in firebase.json or
     anywhere else; it described an intended path, not a deployed one.)
     Catalog questions (bank type "catalog" — docs/CATALOG-QUESTIONS.md,
-    D13) store `entity` in place of optionIdx: an integer catalogue key,
+    D14) store `entity` in place of optionIdx: an integer catalogue key,
     0 = "Not listed". Rules bound it to [0, 2048); the trigger holds the
     real ceiling (CATALOG_MAX_ENTITY) and an unknown key never
     aggregates.
@@ -71,7 +71,7 @@ v2_question_aggs/{qid}             the PUBLIC mirror, k-floored
   { total, tooSmall:false,         catalog questions: the canon — top
     top {entity:n}, rest }         entities above the floor, boundary
                                    ties and lone holes folded whole
-                                   (publishableCanon, D13); bare total
+                                   (publishableCanon, D14); bare total
                                    when nothing survives the fold
 read: signed-in · write: nobody
 

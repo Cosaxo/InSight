@@ -28,11 +28,16 @@ service cloud.firestore {
       return value == null || (value is string && value.size() <= max);
     }
 
-    // Rate-limit ledgers — one doc per sender, holding recent
-    // impression-send timestamps. Written and read only by the
-    // sendInboundImpression callable (admin SDK, bypasses rules).
-    // Fully opaque to clients: a sender mustn't be able to read or
-    // reset their own quota.
+    // v1 rate-limit ledgers — one doc per sender, holding recent
+    // impression-send timestamps. Their writer (sendInboundImpression)
+    // was deleted in D13, so nothing creates these any more; existing
+    // docs in production are inert residue that deleteAccount still
+    // erases per-uid, which is why the path stays named here.
+    //
+    // Kept as an explicit deny rather than removed: this ruleset has no
+    // catch-all match, so deleting the block would leave the path
+    // denied by default — identical behaviour, minus the line that tells
+    // the next reader the collection exists and is deliberately shut.
     match /insight_ratelimits/{senderUid} {
       allow read, write: if false;
     }

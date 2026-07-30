@@ -19,9 +19,18 @@
 // (decision D5) — this module never reads another user's documents.
 // Comments and who-voted stay OFF for live questions (decision D1).
 
+// All three of these were ALSO imported dynamically further down, at
+// seven call sites, which bought exactly nothing: a module that is
+// statically imported anywhere in a file is already in that file's chunk,
+// so `await import()` of it cannot defer a byte. Rollup said so for
+// lib/firebase every build (INEFFECTIVE_DYNAMIC_IMPORT); the other two
+// were the same shape without the warning. Static everywhere now — the
+// awaits implied a lazy boundary that did not exist.
 import {
   collection,
   doc,
+  documentId,
+  getDoc,
   getDocs,
   limit,
   onSnapshot,
@@ -29,10 +38,18 @@ import {
   query,
   serverTimestamp,
   setDoc,
+  Timestamp,
   where,
 } from "firebase/firestore";
 import { getFunctions, httpsCallable } from "firebase/functions";
-import { anonSignIn, firebaseEnabled, getDb, subscribeToAuth } from "../../lib/firebase";
+import {
+  anonSignIn,
+  firebaseEnabled,
+  getDb,
+  googleSignOut,
+  linkGoogle,
+  subscribeToAuth,
+} from "../../lib/firebase";
 import { reportError, setSentryUser } from "../../lib/sentry";
 // Pure deck-shaping logic lives in ./deck (unit-testable, no firebase);
 // this module passes its store state in.
@@ -244,7 +261,6 @@ function computeDeck(): void {
 
 async function hydrate(): Promise<void> {
   const db = await getDb();
-  const { getDoc, Timestamp, documentId } = await import("firebase/firestore");
 
   // ── one meta read runs the whole cache story ──
   // contentRev invalidates the local question-bank cache; latest/min
@@ -457,7 +473,6 @@ async function hydrate(): Promise<void> {
   const uid0 = state.uid;
   if (uid0) {
     try {
-      const { getDoc } = await import("firebase/firestore");
       const prof = await getDoc(doc(db, "v2_users", uid0));
       if (prof.exists()) {
         state.profile.displayName = (prof.get("displayName") as string) || "";
@@ -683,7 +698,6 @@ const SOCIAL = {
     state.revealHistLoading[gid] = true;
     try {
       const db = await getDb();
-      const { getDoc } = await import("firebase/firestore");
       await Promise.all(
         wanted.map(async (key) => {
           try {
@@ -861,14 +875,12 @@ const LIVE = {
     })();
   },
   async linkGoogle(): Promise<void> {
-    const m = await import("../../lib/firebase");
-    return m.linkGoogle();
+    return linkGoogle();
   },
   async deleteAccount(): Promise<void> {
     torndown = true;
     const db = await getDb();
-    const { getFunctions: gf, httpsCallable: hc } = await import("firebase/functions");
-    await hc(gf(db.app, "us-central1"), "deleteAccount")({});
+    await httpsCallable(getFunctions(db.app, "us-central1"), "deleteAccount")({});
     // The account is gone: stop the uid-scoped groups listener before
     // the purge/reload — left running it would only error
     // (permission-denied) against the deleted account's query.
@@ -895,8 +907,7 @@ const LIVE = {
       /* best-effort */
     }
     try {
-      const m = await import("../../lib/firebase");
-      await m.googleSignOut();
+      await googleSignOut();
     } catch {
       /* session may already be invalid — reload handles the rest */
     }
@@ -1003,7 +1014,6 @@ const LIVE = {
         setTimeout(() => {
           void (async () => {
             try {
-              const { getDoc } = await import("firebase/firestore");
               const snap = await getDoc(doc(db, "v2_question_aggs", qid));
               if (snap.exists()) {
                 state.aggs[qid] = snap.data() as AggDoc;
