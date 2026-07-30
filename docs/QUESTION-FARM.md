@@ -61,14 +61,40 @@ topic is thin.
 ## Picking topics
 
 Count questions per top-level category (first element of each `cat`).
-A topic is **thin** below 4 questions. Take the thinnest topics first and
-write enough to bring each toward 5, within a **hard cap of 12 questions
-per run**. If no topic is below 4, the run is a no-op: open no PR, push
-nothing, and end with a summary saying the archive is full enough.
+The budget is a **hard cap of 12 questions per run**, allocated through
+three lanes in priority order (maintainer's direction, 2026-07-30:
+demand leads, coverage is the baseline — not the other way around).
+A lane with no signal passes its budget down, so until engagement data
+is wired (see the roadmap under Future directions) the whole budget
+flows to lane 3 and behavior is the original thin-first rule.
 
-For reference, at the time of writing: Home, Skills, Interests had 1 each;
-Body, Story, Goals had 2; Music 3 — those are the kind of gaps this job
-exists to fill.
+1. **Replenishment — up to 6.** Topics whose pool the people active in
+   them have nearly finished. Signal, once wired, from k-floored public
+   aggregates only: when even the *least-answered* question in a topic
+   has crossed a healthy answer count, that topic's audience has
+   effectively consumed the pool — refill before they hit the bottom.
+   This is the aggregate reading of "users are close to completing the
+   topic"; per-user completion tracking is not the mechanism and may
+   never be (skip/pass telemetry stays local-only, D-series).
+2. **Demand — up to 4.** Topics ranked by popularity × depth:
+   popularity = total k-floored answers across the topic's questions;
+   depth = least-answered ÷ most-answered question in the topic (how
+   far its audience goes through the pool). Depth is in the product so
+   small-but-devoted topics earn content alongside big ones.
+3. **Coverage — the remainder (all 12 today).** A topic below **4
+   questions** cannot show demand; nobody can engage with content that
+   does not exist. Thinnest first, toward 5 each. The floor is
+   deliberately small — cold start and browsability, not the main
+   allocation.
+
+If no lane has work — no exhaustion flags, no demand signals, nothing
+under the floor — the run is a no-op: open no PR, push nothing, and log
+the tallies on issue #31 saying the archive is full enough.
+
+For reference: at the time of writing Home, Skills, Interests had 1
+each; Body, Story, Goals had 2; Music 3. The 2026-07-30 run (PR #32)
+filled the three 1s — lane-3 work under the old phrasing, and exactly
+what lane 3 still exists for.
 
 ## Writing the questions
 
@@ -149,7 +175,9 @@ abort the run with no push rather than force it green.
   to learn which question forms do better is designed
   (`CATALOG-QUESTIONS.md` reflections apply) but not wired: this sandbox's
   egress may not reach the public mirror, and v1 works on fill signals
-  alone. Revisit when a safe read path exists.
+  alone. Graduated 2026-07-30 into the demand-driven selection roadmap
+  (Future directions below) at the maintainer's direction; the lane
+  model in "Picking topics" is its landing site.
 - **Skip/pass telemetry.** A pass is deliberately local-only on-device;
   collecting it server-side would be a real privacy decision, not a
   tweak. The farm must never depend on it.
@@ -207,6 +235,35 @@ posture:
 - **Provenance stays separated**: `source: 'editorial' | 'community' |
   'farm' | 'sponsor'` — the farm never writes sponsored content; sponsor
   questions arrive through a human contract path with their own review.
+
+### Demand-driven selection: the wiring plan (phases, not yet built)
+
+The lane model above is the destination; this is the honest path to it.
+Each phase is its own reviewed change — nothing here is licence to start.
+
+- **Phase A — a safe read path to the aggregates.** Lanes 1–2 read only
+  the k-floored public mirror, which by design exposes nothing below the
+  floor — reading it from a farm run leaks nothing. What needs building:
+  confirming this session's egress can reach it, and a small fetch step
+  in the run that turns per-question counts into the two topic scores
+  (popularity, depth) and the exhaustion flag. All arithmetic on
+  published numbers; no new collection.
+- **Phase B — close the demo/live gap.** Engagement data describes the
+  *live* question bank; the farm currently writes the *spec-layer demo
+  archive*. Until the "live seed catalog" decision (out-of-scope list)
+  is made deliberately, lanes 1–2 select topics using live signals but
+  still deliver into the archive — useful, but indirect. Feeding
+  farm output into production seeding is the gating decision that makes
+  demand-driven selection fully real, and it gets its own review and a
+  `DECISIONS.md` entry when taken.
+- **Phase C — event-driven replenishment.** "Close to completing" as a
+  trigger, not just a weekly check: a scheduled function computes
+  per-topic exhaustion flags from the same k-floored aggregates and the
+  farm reads them at run time; later, an off-cycle fire when a flag
+  trips. The client-side complement — the device alone knows *your*
+  completion state and could show "more coming here soon" — stays
+  on-device if built; it must never become server telemetry (the
+  skip/pass line, D-series).
 
 ## Governance
 
