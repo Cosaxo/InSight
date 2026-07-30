@@ -263,6 +263,88 @@ export function shouldPublishAgg(
   return total % every === 0;
 }
 
+// ─── catalog questions: key validation + the leaderboard fold ───────────
+//
+// docs/CATALOG-QUESTIONS.md. A catalog answer is one pick from a shipped
+// catalogue of ~1,025 entities, stored as the entry's integer key (0 is the
+// "Not listed" bucket). A favourite-of-a-thousand has no 52/48 to stage, so
+// the reveal is a canon, not a split: the top N entities above the k-floor,
+// and ONE "everyone else" bucket covering everything suppressed — which is
+// the same complementary-suppression argument as publishableBreakdown,
+// pointed at entities instead of demographic cells.
+
+/**
+ * The stored form of a catalog answer's entity, or null to never aggregate.
+ * `max` is the catalogue's key ceiling (CATALOG_MAX_ENTITY in v2.ts —
+ * cross-checked against the committed catalogue by scripts/check-pokedex.mjs);
+ * parameter-pure like meetsKFloor so this stays testable without it.
+ */
+export function catalogEntityKey(value: unknown, max: number): string | null {
+  if (typeof value !== "number" || !Number.isInteger(value)) return null;
+  if (value < 0 || value > max) return null;
+  return String(value);
+}
+
+export type CanonCounts = Record<string, number>;
+
+/**
+ * The publishable leaderboard: entities at or above the floor, capped at
+ * topN, everything else folded into `rest`. Null means nothing finer than
+ * the total may be published.
+ *
+ * Three rules beyond the plain floor, each with a reader in mind:
+ *
+ * - Key "0" ("Not listed") is counted but NEVER enumerated — the moment it
+ *   would lead a board, the catalogue is stale, not newsworthy.
+ * - Ties at the topN boundary fold entirely: publishing 2 of 4 entities
+ *   that share the boundary count would rank equals arbitrarily, and the
+ *   arbitrary half would look like a standing.
+ * - Complementary suppression, tie-group flavoured: exactly one folded
+ *   entity is recoverable as `total - published`, so the smallest published
+ *   COUNT (the whole tie group at that count, to keep the no-split rule)
+ *   folds with it. Conservative on purpose: a nonzero "Not listed" count
+ *   inside `rest` would often mask the hole, but "often" is not a floor.
+ */
+export function publishableCanon(
+  ent: CanonCounts,
+  floor: number,
+  topN: number,
+): { top: CanonCounts; rest: number } | null {
+  let total = 0;
+  for (const k of Object.keys(ent)) total += ent[k];
+  const rows = Object.keys(ent)
+    .filter((k) => k !== "0")
+    .map((k) => ({ k, n: ent[k] }))
+    .filter((r) => r.n > 0);
+  // Count desc; key asc only so equal inputs give equal outputs — the
+  // published map is unordered and the client re-sorts anyway.
+  rows.sort((a, b) => b.n - a.n || Number(a.k) - Number(b.k));
+  const cleared = rows.filter((r) => meetsKFloor(r.n, floor));
+  let kept = cleared.slice(0, topN);
+  // A floor cut cannot tie (below-floor < floor <= kept), so the boundary
+  // tie only exists where the topN cap did the cutting.
+  if (cleared.length > kept.length && kept.length > 0) {
+    const boundary = kept[kept.length - 1].n;
+    if (cleared[kept.length].n === boundary) {
+      kept = kept.filter((r) => r.n > boundary);
+    }
+  }
+  // rows, not cleared: the recoverable-hole count is over every answered
+  // entity a reader could name, whether the floor or the cap folded it.
+  if (rows.length - kept.length === 1 && kept.length > 0) {
+    const smallest = kept[kept.length - 1].n;
+    kept = kept.filter((r) => r.n > smallest);
+  }
+  if (kept.length === 0) return null;
+  const top: CanonCounts = {};
+  let shown = 0;
+  for (const r of kept) {
+    top[r.k] = r.n;
+    shown += r.n;
+  }
+  return { top, rest: total - shown };
+}
+
 // ─── FCM token registration (registerPushToken, v2social.ts) ────────────
 //
 // Token writes used to be a direct client merge onto the profile doc.

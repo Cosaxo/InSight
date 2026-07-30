@@ -116,7 +116,7 @@ function main() {
       "::warning::strip-facebook-sdk: the plugin manifest still references Facebook\n" +
         "after stripping. Its layout probably changed in an upgrade. The iOS build\n" +
         "will link the Facebook SDK until the patterns in this script are updated —\n" +
-        "see docs/DECISIONS.md D14. `npm run check:ios-facebook` fails until then.",
+        "see docs/DECISIONS.md D15. `npm run check:ios-facebook` fails until then.",
     );
     return;
   }

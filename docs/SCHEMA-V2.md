@@ -32,6 +32,11 @@ v2_users/{uid}/answers/{qid}
     (An earlier version of this line claimed a BigQuery extension
     targeted this collection. None is configured, in firebase.json or
     anywhere else; it described an intended path, not a deployed one.)
+    Catalog questions (bank type "catalog" — docs/CATALOG-QUESTIONS.md,
+    D14) store `entity` in place of optionIdx: an integer catalogue key,
+    0 = "Not listed". Rules bound it to [0, 2048); the trigger holds the
+    real ceiling (CATALOG_MAX_ENTITY) and an unknown key never
+    aggregates.
 create: owner, validated (question must exist; optionIdx < options.size())
 update/delete: nobody — immutability is what lets the aggregate be a
 plain increment with no reconciliation
@@ -39,6 +44,10 @@ read: owner only
 
 v2_aggs_private/{qid}              exact counts — server-only (opaque)
   counts, total                    exact, never floored
+  ent { entity: n }                catalog questions: per-entity counts
+                                   in place of counts/by — bounded by
+                                   the catalogue's ~1k keys, so D7's
+                                   document arithmetic is unchanged
   by { dim: { bucket: {opt:n} } }  per-anchor slices, exact (see D8).
                                    Lives HERE, in the doc the trigger
                                    already writes, so D7's ~1 write/sec
@@ -59,6 +68,11 @@ v2_question_aggs/{qid}             the PUBLIC mirror, k-floored
                                    lone hidden cell can't be recovered by
                                    subtraction. A dim with <2 publishable
                                    buckets is omitted (D8)
+  { total, tooSmall:false,         catalog questions: the canon — top
+    top {entity:n}, rest }         entities above the floor, boundary
+                                   ties and lone holes folded whole
+                                   (publishableCanon, D14); bare total
+                                   when nothing survives the fold
 read: signed-in · write: nobody
 
 v2_groups/{gid}                    groups AND duos (mode: group|duo)

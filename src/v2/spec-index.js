@@ -31,9 +31,11 @@ import './spec/result-card.jsx';
 import './spec/reveal-clock.js';
 import './spec/group-daily.jsx';
 import './spec/duo-daily.jsx';
-// place-stats.js must precede world-feed-data.js: the feed pool concatenates
-// window.PLACE_RATE_QS at module scope, so the rate cards must already exist.
+// place-stats.js and pick-data.js must precede world-feed-data.js: the feed
+// pool concatenates window.PLACE_RATE_QS and window.PICK_QS at module scope,
+// so both card sets must already exist.
 import './spec/place-stats.js';
+import './spec/pick-data.js';
 import './spec/world-feed-data.js';
 import './spec/world-feed-comments.js';
 // counters read WORLD_FEED_COUNTERS at call time, but keep them adjacent —
@@ -80,6 +82,7 @@ import './spec/profile-general.jsx';
 import './ui/LiveDuelPanel';
 import './ui/LivePrivacyPanel';
 import './ui/CityPicker';
+import './ui/PickSearch';
 import './ui/LiveCohortBody';
 import './ui/LiveGroupsMirrorBody';
 import './spec/app-shell.jsx';

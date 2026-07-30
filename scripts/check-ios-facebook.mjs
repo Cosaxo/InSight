@@ -17,7 +17,7 @@
 //     a restored node_modules cache, a hand-copied checkout)
 //   - someone reinstalling the plugin and committing the result
 //
-// See docs/DECISIONS.md D14 for why the SDK is excluded rather than
+// See docs/DECISIONS.md D15 for why the SDK is excluded rather than
 // declared on the store forms.
 
 import { readFileSync, existsSync } from "node:fs";
@@ -54,7 +54,7 @@ if (hits.length) {
       `it stripped nothing, the plugin changed its manifest layout — update\n` +
       `FACEBOOK_PATTERNS in that script. Do NOT relax this check; a linkage\n` +
       `eslint and tsc cannot see is one a store reviewer's binary scan can.\n\n` +
-      `Background: docs/DECISIONS.md D14.`,
+      `Background: docs/DECISIONS.md D15.`,
   );
   process.exit(1);
 }

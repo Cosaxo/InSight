@@ -141,6 +141,35 @@ service cloud.firestore {
                  .data.get("surface", "daily") in ["daily", "feed", "test"];
         }
 
+        // Catalog answers (docs/CATALOG-QUESTIONS.md): one pick from a
+        // shipped catalogue, stored as the entry's integer key — there is
+        // no optionIdx at all. Only questions the bank marks type ==
+        // "catalog" accept them; the feed calls the card 'pick', but that
+        // word already means a group's member-pick day in this file, so
+        // the bank vocabulary differs on purpose. entity 0 is the "Not
+        // listed" bucket. The ceiling is a sanity bound only — the
+        // aggregate trigger validates the key against the real catalogue
+        // (CATALOG_MAX_ENTITY, functions/src/v2.ts) and an unknown key
+        // never aggregates; a thousand-entry `in` list is not a rules
+        // construct.
+        function isCatalogAnswer() {
+          return request.resource.data.keys().hasOnly([
+              "qid", "surface", "entity", "answeredAt", "anchors",
+            ])
+            && request.resource.data.surface in ["daily", "feed", "test"]
+            && request.resource.data.qid == aid
+            && request.resource.data.entity is int
+            && request.resource.data.entity >= 0
+            && request.resource.data.entity < 2048
+            && get(/databases/$(database)/documents/v2_questions/$(aid))
+                 .data.get("type", "") == "catalog"
+            // same kill switch and surface agreement as isWorldAnswer
+            && get(/databases/$(database)/documents/v2_questions/$(aid))
+                 .data.get("active", true) == true
+            && get(/databases/$(database)/documents/v2_questions/$(aid))
+                 .data.get("surface", "daily") in ["daily", "feed", "test"];
+        }
+
         // Sealed duel answers: id g_{gid}_{day}, member-only, and only
         // while the day is UNREVEALED — answering after the reveal would
         // let you see everyone's cards before playing yours.
@@ -191,16 +220,23 @@ service cloud.firestore {
         }
 
         allow create: if request.auth != null && request.auth.uid == uid
-          && request.resource.data.optionIdx is int
-          && request.resource.data.optionIdx >= 0
-          // Outer sanity bound only — the real bound is per-question below
-          // (options.size(), or the group's member count for "pick"
-          // questions). Must clear GROUP_CAP (32, functions/src/v2social.ts)
-          // or members past the 20th become unpickable on every "pick" day.
-          && request.resource.data.optionIdx < 64
           && request.resource.data.answeredAt == request.time
           && isValidV2Anchors(request.resource.data.get("anchors", {}))
-          && (isWorldAnswer() || isDuelAnswer());
+          && (
+            (request.resource.data.optionIdx is int
+              && request.resource.data.optionIdx >= 0
+              // Outer sanity bound only — the real bound is per-question
+              // below (options.size(), or the group's member count for
+              // "pick" questions). Must clear GROUP_CAP (32,
+              // functions/src/v2social.ts) or members past the 20th become
+              // unpickable on every "pick" day.
+              && request.resource.data.optionIdx < 64
+              && (isWorldAnswer() || isDuelAnswer()))
+            // Catalog answers carry `entity` instead — the optionIdx block
+            // must not apply, and each branch's hasOnly keeps the other
+            // field out.
+            || isCatalogAnswer()
+          );
         allow update, delete: if false;
       }
     }
