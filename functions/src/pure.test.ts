@@ -19,6 +19,9 @@ import {
   shouldPublishAgg,
   catalogEntityKey,
   publishableCanon,
+  foldCanonAnchors,
+  canonBreakdownFor,
+  CANON_BY_MAX_ENTITIES,
   isPlausibleFcmToken,
   nextFcmTokens,
 } from "./pure";
@@ -338,10 +341,10 @@ describe("per-anchor breakdowns", () => {
   // bucket sitting exactly on the floor can therefore publish a count of 1
   // for an option, which is one person's answer, disclosed to anyone who
   // already knows the other four. That is the documented k-anonymity
-  // residual (D17), not a suppression bug — and the plain `counts` beside
+  // residual (D18), not a suppression bug — and the plain `counts` beside
   // it carry the identical property at the identical floor.
   //
-  // If this test ever fails, the floor's unit changed. That is a D17
+  // If this test ever fails, the floor's unit changed. That is a D18
   // reversal and needs the record updated, not a green-again patch.
   it("publishes a lopsided split inside a bucket at the floor", () => {
     const by = {
@@ -523,6 +526,78 @@ describe("catalog answers (pick questions — docs/CATALOG-QUESTIONS.md)", () =>
             const answered = [a, b, c].filter((n) => n > 0).length;
             expect(answered - Object.keys(out.top).length).not.toBe(1);
           }
+  });
+});
+
+describe("catalog breakdowns — segment orderings of the canon (D17)", () => {
+  const anchors = (over: Record<string, unknown> = {}) => ({
+    ageBand: "25-34", gender: "Women", country: "NO", ...over,
+  });
+
+  it("folds anchors per entity, sharing the vote fold's bucket rules", () => {
+    const by = {};
+    foldCanonAnchors(by, anchors({ city: "Oslo, NO", profession: "Carpenter" }), "25");
+    foldCanonAnchors(by, anchors(), "25");
+    foldCanonAnchors(by, anchors({ ageBand: "18-24" }), "6");
+    expect(by).toMatchObject({
+      ageBand: { "25-34": { "25": 2 }, "18-24": { "6": 1 } },
+      gender: { Women: { "25": 2, "6": 1 } },
+      city: { "Oslo, NO": { "25": 1 } },
+    });
+    // profession never mints a key — same closed list as foldAnchors
+    expect(Object.keys(by)).not.toContain("profession");
+  });
+
+  it("caps distinct entities per cell; known entities keep counting", () => {
+    // Options are rules-bounded at 20; entities are not — without this cap
+    // one cell could hold the whole catalogue and the document-growth
+    // bound collapses. Fill a cell to the cap, then check the cap's two
+    // sides: a new entity is dropped, a known one still counts.
+    const by: Record<string, Record<string, Record<string, number>>> = {};
+    for (let e = 1; e <= CANON_BY_MAX_ENTITIES; e++) {
+      foldCanonAnchors(by, { gender: "Women" }, String(e));
+    }
+    foldCanonAnchors(by, { gender: "Women" }, "999"); // over the cap: dropped
+    foldCanonAnchors(by, { gender: "Women" }, "1");   // known: keeps counting
+    const cell = by.gender.Women;
+    expect(Object.keys(cell)).toHaveLength(CANON_BY_MAX_ENTITIES);
+    expect(cell["999"]).toBeUndefined();
+    expect(cell["1"]).toBe(2);
+  });
+
+  it("publishes only the board's own entities, then the vote-path rules apply", () => {
+    // A segment's local favourite that never made the global board (dex
+    // 777) must not exist in the published slice — the D14 arithmetic.
+    const entBy = {
+      ageBand: {
+        "18-24": { "25": 4, "6": 1, "777": 9 },  // shown-total 5 once 777 is gone
+        "25-34": { "25": 6, "6": 2 },            // shown-total 8
+        "35-44": { "777": 12 },                  // nothing on-board: cell vanishes
+      },
+    };
+    const top = { "25": 30, "6": 11 }; // the published canon
+    const out = publishableBreakdown(canonBreakdownFor(entBy, top), 5);
+    // Both surviving buckets publish per-entity counts — including a 1
+    // inside a ≥5 cohort, which is D8's k-argument, not a leak.
+    expect(out).toEqual({
+      ageBand: {
+        "18-24": { "25": 4, "6": 1 },
+        "25-34": { "25": 6, "6": 2 },
+      },
+    });
+  });
+
+  it("suppresses on the SHOWN total — over-suppression is the safe direction", () => {
+    // The 18-24 cohort really has 12 answers, but only 3 are for on-board
+    // entities; the floor sees 3 and the bucket folds. With one bucket
+    // left the dimension cannot show a comparison and is omitted whole.
+    const entBy = {
+      ageBand: {
+        "18-24": { "25": 3, "777": 9 },
+        "25-34": { "25": 6 },
+      },
+    };
+    expect(publishableBreakdown(canonBreakdownFor(entBy, { "25": 30 }), 5)).toEqual({});
   });
 });
 

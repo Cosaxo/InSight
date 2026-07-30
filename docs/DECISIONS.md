@@ -476,11 +476,11 @@ surviving bucket goes too, so there are always either zero holes or at least
 two. A dimension left with fewer than two publishable buckets is omitted
 entirely, because one bucket is a population statement rather than a split.
 
-> **Corrected by [D17](#d17--the-breakdown-floor-bounds-cohort-size-not-the-split-inside-a-cohort)
+> **Corrected by [D18](#d18--the-breakdown-floor-bounds-cohort-size-not-the-split-inside-a-cohort)
 > (2026-07-30).** This paragraph said "per cell" and used *cell* for both a
 > bucket and the per-option counts inside it. Those have different
 > guarantees: the floor is tested against the bucket **total**, so a bucket
-> published at the floor can still show an option count of 1. D17 has the
+> published at the floor can still show an option count of 1. D18 has the
 > arithmetic and why it is not separately fixable.
 
 Six tests cover this, and all three mutations were checked to fail: removing
@@ -1352,9 +1352,52 @@ the simulator build with the SDK removed, which is the real test of the
 anywhere in CI — it needs the untracked `GoogleService-Info.plist` and a
 real device (see `docs/SHIP-CHECKLIST.md` §4).
 
+## D17 · Catalog breakdowns: each segment orders the board, never a board of its own
+
+**Decided:** 2026-07-30 · **Status:** binding
+
+Demand for per-segment views of catalog questions arrived (product owner,
+same day D14 deferred them), so the form D14 named as viable is now
+built: **breakdowns for the published top-N only** — how the 18–24
+cohort or the Norway cohort orders the global board. 10 entities ×
+6 dims is the same cell count a vote question already handles; the full
+per-segment re-rank over ~1,000 entities stays impossible under the
+floor, and that is arithmetic, not policy.
+
+As built:
+
+- **Write side** — `foldCanonAnchors` (pure.ts): the vote fold
+  transposed, cells keyed by entity, with its own per-cell entity cap
+  (`CANON_BY_MAX_ENTITIES = 32`). Options are rules-bounded at 20;
+  entities are not, so without the cap one (dim, bucket) cell could hold
+  the whole catalogue and the document-growth bound collapses. Cap
+  semantics match the bucket cap: first come, known entities keep
+  counting, the long tail degrades — and a capped-out entity matters
+  only if it reaches the global top 10, far below 32.
+- **Publish side** — `canonBreakdownFor` restricts every cell to the
+  canon's own entities, then the untouched `publishableBreakdown`
+  applies: bucket-cohort floor, complementary suppression, ≥2-bucket
+  minimum comparison. D8's k-argument carries over exactly — a
+  per-entity count of 1 inside a ≥5 cohort says "one of these five",
+  never which one.
+- **Two recorded conservatisms:** the floor applies to the SHOWN total
+  (on-board answers in the bucket), so a bucket can only ever be
+  suppressed more than strictly necessary; and a segment's local
+  favourite that never made the global board simply does not appear —
+  that is the D14 arithmetic doing its job, not a gap.
+- **Cross-bucket subtraction** (a reader knows each entity's global
+  count): suppressed buckets come in zeros-or-twos per dimension via
+  complementary suppression, and anchor-less answers add slack, so no
+  single suppressed cell is recoverable from the published row.
+
+Client: the demo reveal gains segment chips that reorder the same board
+(`PICKS.segs`/`canonSeg`, per-question demo slices in pick-data.js).
+Live rendering of `by` on catalog cards ships with live catalog
+questions (D14's one-deliberate-change).
+
 ---
 
-## D17 · The breakdown floor bounds cohort size, not the split inside a cohort
+## D18 · The breakdown floor bounds cohort size, not the split inside a cohort
 
 **Decided:** 2026-07-30 · **Status:** binding
 
@@ -1413,7 +1456,7 @@ larger k, and it needs its own record.
 
 ---
 
-## D18 · The reveal scan asks an indexed question; the ops hook still reads everything
+## D19 · The reveal scan asks an indexed question; the ops hook still reads everything
 
 **Decided:** 2026-07-30 · **Status:** binding
 
@@ -1519,7 +1562,7 @@ since the indexed query it used to recommend is what this record built.
 
 ---
 
-## D19 · Function runtime options are per-function; the global stays the heavy default
+## D20 · Function runtime options are per-function; the global stays the heavy default
 
 **Decided:** 2026-07-30 · **Status:** binding
 
@@ -1579,7 +1622,7 @@ small documents and would not be for a large fold.
 
 ---
 
-## D20 · The live-mode branches get a mount test; accessibility gets a ratchet
+## D21 · The live-mode branches get a mount test; accessibility gets a ratchet
 
 **Decided:** 2026-07-30 · **Status:** binding
 

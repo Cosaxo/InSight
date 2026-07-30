@@ -454,14 +454,30 @@ class WorldFeed extends React.Component {
     // The reveal is a canon, not a split: top entities above the floor,
     // everyone else in one bucket. Your own pick always shows to YOU — it
     // is your own answer, no floor applies — and when it is below the floor
-    // the copy says so instead of pretending it counted.
+    // the copy says so instead of pretending it counted. Segment chips
+    // (D17) reorder the SAME board by one cohort's counts — a segment
+    // never surfaces entities the global board suppressed.
     const c = window.PICKS ? window.PICKS.canon(q.id) : { top: [], rest: 0, total: 0 };
+    const segs = window.PICKS ? window.PICKS.segs(q.id) : [];
+    const sel = (this.state.pickSeg || {})[q.id] || null;
+    const seg = sel && window.PICKS ? window.PICKS.canonSeg(q.id, sel.dim, sel.bucket) : null;
+    const rows = seg ? seg.rows : c.top;
     const mineName = this.pickName(v.entity, q.domain);
-    const max = c.top.length ? c.top[0].count : 1;
+    const max = rows.length ? rows[0].count : 1;
     const inTop = c.top.some((r) => r.entity === v.entity);
+    const setSeg = (next) => this.setState((s) => ({ pickSeg: { ...(s.pickSeg || {}), [q.id]: next } }));
+    const chip = (label, active, onTap) => (
+      <button key={label} className="press" onClick={onTap} style={{ border: '0.5px solid ' + (active ? 'color-mix(in oklch, ' + T.color + ' 55%, var(--rule))' : 'var(--rule)'), borderRadius: 999, padding: '3px 10px', cursor: 'pointer', WebkitAppearance: 'none', fontFamily: 'var(--sans)', fontWeight: 700, fontSize: 11.5, color: active ? 'color-mix(in oklch, ' + T.color + ' 70%, var(--ink))' : 'var(--ink-3)', background: active ? 'color-mix(in oklch, ' + T.color + ' 11%, transparent)' : 'transparent' }}>{label}</button>
+    );
     return (
       <div style={{ display: 'flex', flexDirection: 'column', gap: big ? 10 : 8, animation: 'popIn .3s cubic-bezier(0.2,0.8,0.2,1)' }}>
-        {c.top.map((r, i) => {
+        {segs.length > 0 && (
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
+            {chip('everyone', !sel, () => setSeg(null))}
+            {segs.map((s) => chip(s.bucket.toLowerCase(), !!(sel && sel.dim === s.dim && sel.bucket === s.bucket), () => setSeg(s)))}
+          </div>
+        )}
+        {rows.map((r, i) => {
           const name = this.pickName(r.entity, q.domain) || '…';
           const isMine = r.entity === v.entity;
           return (
@@ -480,7 +496,9 @@ class WorldFeed extends React.Component {
             </div>
           );
         })}
-        {c.rest > 0 && (
+        {seg ? (
+          <span style={{ paddingLeft: 27, fontSize: 12.5, fontWeight: 600, color: 'var(--ink-3)' }}>the crowd&apos;s board, as {wfFmt(seg.cohort)} {sel.bucket.toLowerCase()} answers order it</span>
+        ) : c.rest > 0 && (
           <span style={{ paddingLeft: 27, fontSize: 12.5, fontWeight: 600, color: 'var(--ink-3)' }}>everyone else · {wfFmt(c.rest)}</span>
         )}
         <span style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--ink-2)' }}>
