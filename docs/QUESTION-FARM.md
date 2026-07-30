@@ -1,0 +1,133 @@
+# The question farm — a scheduled session that deepens the daily archive
+
+**This file is an instruction manual for an autonomous run.** A scheduled
+Routine on the maintainer's claude.ai subscription fires a fresh Claude Code
+session (weekly, plus manual test fires) whose entire job is defined here.
+If you are that session: follow this document exactly; where it is silent,
+follow `CLAUDE.md` and stop rather than improvise. Written 2026-07-30,
+alongside `CATALOG-QUESTIONS.md` — the reflection that produced this design
+(AI joins the existing review pipeline as a *proposer*; humans stay the gate).
+
+## The job in one sentence
+
+Find the thinnest topics in the daily-question archive, write a small batch
+of new questions in the product's voice, verify with the repo's own gates,
+and open a pull request for human review — or do nothing, loudly, if no
+topic is thin.
+
+## Hard rules (each one is load-bearing)
+
+1. **A PR is the only output.** Never push to `main`, never merge your own
+   PR, never touch a branch you didn't create. Human review is the gate the
+   whole design rests on.
+2. **Questions only.** You may edit exactly one file:
+   `src/v2/spec/daily-questions.js` (appending to the `Q` array). You may
+   not touch `firestore.rules`, `functions/`, the live content seeds, map
+   anchors, or anything else. If the job seems to need another file
+   changed, that is a finding for the PR description, not an edit.
+3. **No new categories.** Every question's `cat`/`alts` tops must be keys
+   that already exist in `CAT_META` in that same file. Proposing a new
+   category is out of scope for this run (see "Deliberately out of scope").
+4. **Never generate answers, votes, takes, or people.** Questions are
+   content; activity is fabrication (decision D1). There is no exception.
+5. **Append only, at the end of `Q`.** Ids are positional: entry `i` maps
+   to `dq…`/`dqx…` by index (`DQ_BASE` in the file), and map anchors
+   reference the original 30 by id. Inserting or reordering silently
+   renumbers everything after it. Appending extends the `dqx` archive
+   series with older dates — exactly what "deeper archive" means.
+
+## Picking topics
+
+Count questions per top-level category (first element of each `cat`).
+A topic is **thin** below 4 questions. Take the thinnest topics first and
+write enough to bring each toward 5, within a **hard cap of 12 questions
+per run**. If no topic is below 4, the run is a no-op: open no PR, push
+nothing, and end with a summary saying the archive is full enough.
+
+For reference, at the time of writing: Home, Skills, Interests had 1 each;
+Body, Story, Goals had 2; Music 3 — those are the kind of gaps this job
+exists to fill.
+
+## Writing the questions
+
+Read the existing `Q` array end to end before writing anything — it is the
+style guide. What its voice looks like:
+
+- **Short, concrete, blind-answerable.** "Mountains or sea?" — no setup, no
+  hedging, answerable without seeing anyone else's answer.
+- **Types**: `binary` (2 options) and `choice` (3–4 options) dominate;
+  `scale` (an agree–disagree statement with an `axis` slug) is the
+  seasoning. Match that mix.
+- **Tone mix**: `light` / `blend` / `deep` — a thin topic should get a
+  spread, not twelve `deep` ones. `tag` is a two-or-three-word label.
+- **`cat` is `[Top, 'Sub-topic']`**, `alts` is two alternative placements —
+  look at how existing questions in the same topic phrase their sub-topics
+  and stay consistent with them.
+- **Splits, not landslides.** A good daily divides people; "Is kindness
+  good?" is dead on arrival. But do not optimize for outrage — divisive
+  bait is the engagement loop this product deliberately refuses. When in
+  doubt, warmer and stranger beats hotter.
+
+**Dedup is part of writing, not a later pass.** A new question must not
+restate an existing one in different clothes — check the whole `Q` array
+*and* the suggestion board seeds in `src/v2/spec/suggestions.js`. After
+writing, re-read each candidate against its nearest existing neighbour and
+drop it if a user would say "I already answered that."
+
+## Verifying
+
+From the repo root, all of these must pass before any push:
+
+```
+npm ci
+npm run check:globals
+npm run lint
+npm run build
+npm run test:unit
+```
+
+No backend files change in this job, so the rules/e2e suites are not
+required — but if any gate above fails and the fix isn't obvious and tiny,
+abort the run with no push rather than force it green.
+
+## The PR
+
+- Branch: `claude/question-farm-<YYYY-MM-DD>` (UTC date; suffix `-2` etc.
+  if it exists). One commit, message in the repo's voice.
+- PR to `main`, using the repository's PR template honestly: unit gates
+  checked, privacy section skipped with the reason (spec-layer content
+  only, no rules/schema/function changes), decisions section noting
+  anything deferred.
+- Title: `Question farm: <n> questions for <topics>`.
+- The body must say the questions are AI-generated by this scheduled job
+  and name this document — provenance is part of the product's honesty
+  posture.
+- Do not merge it. Do not respond to reviews; the next run picks up any
+  merged feedback by reading the then-current archive.
+
+## Deliberately out of scope (recorded so it stays a decision, not drift)
+
+- **The live seed catalog** (`content/`, `functions/src/v2content.ts`).
+  This job deepens the spec-layer archive only. Feeding generated questions
+  into production seeding is a separate decision with its own review.
+- **New categories** — structural change (CAT_META hue, map-anchor
+  relations, chips). The farm may *note* in a PR body that a category
+  feels missing; a human decides.
+- **Performance-based learning.** Reading the k-floored public aggregates
+  to learn which question forms do better is designed
+  (`CATALOG-QUESTIONS.md` reflections apply) but not wired: this sandbox's
+  egress may not reach the public mirror, and v1 works on fill signals
+  alone. Revisit when a safe read path exists.
+- **Skip/pass telemetry.** A pass is deliberately local-only on-device;
+  collecting it server-side would be a real privacy decision, not a
+  tweak. The farm must never depend on it.
+
+## Governance
+
+The Routine that fires this job lives on the maintainer's claude.ai
+account (visible via the session's Routine tools; weekly cadence, fresh
+session per firing, completion notifications on). The Routine's prompt is
+two sentences pointing here — this file is the job, so changes to the
+job's behavior are made by PR to this file, reviewed like anything else.
+Runs bill to the maintainer's subscription; a run that finds nothing to do
+costs nearly nothing and reports that honestly.
