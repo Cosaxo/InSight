@@ -41,6 +41,10 @@ jobs:
       # Firestore map keys. A malformed row or an over-long name would be
       # pickable in the profile and then absent from every breakdown.
       - run: npm run check:cities
+      # Same argument for the Pokédex catalogue: stored `pick` answers are
+      # dex-number keys into this file, so a gap or reorder is an answer
+      # resolving to the wrong species.
+      - run: npm run check:pokedex
       # The npm alias that keeps the iOS SwiftPM graph resolvable. Runs on
       # ubuntu with the rest of the cheap checks rather than waiting for the
       # macOS runner, where the same mistake costs four minutes and reports
