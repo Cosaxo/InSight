@@ -46,6 +46,17 @@ topic is thin.
    rather than *to the person answering*, it is the paid path. This rule
    is default-on; only an explicit human instruction in the fire message
    lifts it, for that run only.
+7. **Every run ends with a comment on issue #31 (the run log).** PR
+   opened → link, topics, count. No-op → the per-topic tallies that
+   showed nothing thin. Aborted → which gate failed, errors verbatim.
+   This rule exists because the 2026-07-30 test fires finished without
+   leaving any trace on the repo, and from the outside "correctly idle"
+   and "silently broken" were the same thing. If you have no GitHub API
+   tools, push the same report as `FARM-DIAG.md` on a
+   `claude/farm-diag-<YYYY-MM-DD>` branch instead; if you can do
+   neither, you have no working GitHub access — say exactly that in
+   your final message, because the notification summary is then the
+   only record the maintainer gets.
 
 ## Picking topics
 
