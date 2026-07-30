@@ -27,6 +27,8 @@
     "check:catalogs": "node scripts/check-catalogs.mjs",
     "build:catalog": "node scripts/build-catalog.mjs",
     "check:ios-spm": "node scripts/check-ios-spm.mjs",
+    "check:ios-facebook": "node scripts/check-ios-facebook.mjs",
+    "postinstall": "node scripts/strip-facebook-sdk.mjs",
     "build:cities": "node scripts/build-cities.mjs",
     "check:deploy-targets": "node scripts/check-deploy-targets.mjs",
     "check:bundle": "node scripts/check-bundle.mjs",
