@@ -77,15 +77,22 @@ read: signed-in · write: nobody
 
 v2_groups/{gid}                    groups AND duos (mode: group|duo)
   name, mode, ownerUid, memberUids[≤32; duo ≤2], memberNames{uid:name},
-  inviteCode, streak, lastRevealDay, createdAt
+  inviteCode, streak, lastRevealDay, pendingDays[≤6], createdAt
   (memberNames rides on the group doc because profiles are owner-only;
   callables maintain it on create/join/leave)
+  (pendingDays: day keys with an answer and no reveal yet. onV2AnswerCreated
+  arrayUnions; the reveal scan removes a day once it settles it and prunes
+  past PENDING_DAYS_KEEP. It is how scheduledDuelReveals finds its work with
+  an indexed query instead of reading every group — D16)
 read: members · write: callables only (create/join/leave — codes, caps
 and pairing can't be forged client-side)
 
 v2_groups/{gid}/reveals/{day}      materialized by the reveal pipeline
-  day, qid, votes { uid: {optionIdx, guessIdx?} }, names, revealedAt
-read: members · write: nobody (D5)
+  day, qid, votes { uid: {optionIdx, guessIdx?} }, names, members[], revealedAt
+  (members is the membership snapshot AT REVEAL TIME, and it is load-bearing:
+  the read rule gates on THIS array, not the parent group's current roster,
+  which is what keeps the guarantee retroactive — D5's amendment)
+read: the reveal's own members · write: nobody (D5)
 
 Sealed duel answers live in the owner-only answers subcollection under
 composite ids (g_{gid}_{day}) with extra fields gid/day/guessIdx; rules

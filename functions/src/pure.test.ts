@@ -9,6 +9,8 @@ import {
   prevDayKey,
   shouldReveal,
   nextStreak,
+  PENDING_DAYS_KEEP,
+  prunePendingDays,
   meetsKFloor,
   breakdownBucket,
   foldAnchors,
@@ -108,6 +110,60 @@ describe("shouldReveal", () => {
   it("unknown modes behave like group (the pipeline's default)", () => {
     expect(shouldReveal("", 1)).toBe(true);
     expect(shouldReveal("", 0)).toBe(false);
+  });
+});
+
+// ── the pending-day marker ──────────────────────────────────────
+
+describe("prunePendingDays", () => {
+  // 6 days back from 2026-07-27, i.e. what revealGroupDay computes as the
+  // oldest day a duel answer could still legally arrive for.
+  const OLDEST = "2026-07-21";
+
+  it("drops the settled day and keeps the rest", () => {
+    expect(prunePendingDays(["2026-07-25", "2026-07-26", "2026-07-27"], "2026-07-26", OLDEST))
+      .toEqual(["2026-07-25", "2026-07-27"]);
+  });
+
+  it("drops days older than the cutoff, so the array cannot grow forever", () => {
+    // The case this exists for: a duo whose partner never plays leaves one
+    // unsettled day per day played. Without the cutoff that is one string
+    // per day on the group document, permanently.
+    const year = Array.from({ length: 365 }, (_, i) => {
+      const d = new Date(Date.UTC(2025, 6, 27) + i * 86400000);
+      return d.toISOString().slice(0, 10);
+    });
+    const out = prunePendingDays(year, "2026-07-27", OLDEST);
+    expect(out).toEqual(["2026-07-21", "2026-07-22", "2026-07-23", "2026-07-24",
+      "2026-07-25", "2026-07-26"]);
+    expect(out.length).toBeLessThanOrEqual(PENDING_DAYS_KEEP);
+  });
+
+  it("keeps the cutoff day itself — the bound is inclusive", () => {
+    expect(prunePendingDays([OLDEST], "2026-07-27", OLDEST)).toEqual([OLDEST]);
+    expect(prunePendingDays(["2026-07-20"], "2026-07-27", OLDEST)).toEqual([]);
+  });
+
+  it("survives a missing, malformed or duplicated field", () => {
+    // A group that has never played has no pendingDays at all, and that is
+    // the normal state — it must read as "nothing pending", not throw.
+    expect(prunePendingDays(undefined, "2026-07-27", OLDEST)).toEqual([]);
+    expect(prunePendingDays(null, "2026-07-27", OLDEST)).toEqual([]);
+    expect(prunePendingDays("2026-07-26", "2026-07-27", OLDEST)).toEqual([]);
+    expect(prunePendingDays([1, null, {}, "2026-07-26"], "2026-07-27", OLDEST))
+      .toEqual(["2026-07-26"]);
+    // arrayUnion cannot produce duplicates, but a hand-repaired document can.
+    expect(prunePendingDays(["2026-07-26", "2026-07-26"], "2026-07-27", OLDEST))
+      .toEqual(["2026-07-26"]);
+  });
+
+  it("compares day keys lexicographically, which is chronological for ISO", () => {
+    // The whole cutoff rests on this, and it is the assumption that breaks
+    // first if the key format ever changes.
+    expect("2026-01-02" < "2026-01-10").toBe(true);
+    expect("2025-12-31" < "2026-01-01").toBe(true);
+    expect(prunePendingDays(["2025-12-31", "2026-01-05"], "x", "2026-01-01"))
+      .toEqual(["2026-01-05"]);
   });
 });
 

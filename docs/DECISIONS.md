@@ -1228,3 +1228,169 @@ sensitivity — political affiliation is the obvious one, and D8 already
 keeps it out of `BREAKDOWN_DIMS` for a stronger reason (Article 9 consent).
 At that point the tool is l-diversity on the option distribution, not a
 larger k, and it needs its own record.
+
+---
+
+## D16 · The reveal scan asks an indexed question; the ops hook still reads everything
+
+**Decided:** 2026-07-30 · **Status:** binding
+
+**Decision.** `v2_groups` gains `pendingDays: string[]` — the day keys a group
+has at least one duel answer for and no reveal yet. `onV2AnswerCreated` adds
+to it, the reveal scan removes a day once it settles it, and
+`scheduledDuelReveals` finds its work with
+`where("pendingDays", "array-contains", day)` instead of reading every group
+document. `revealDuelsNowV2` keeps the full scan and is the recovery path.
+
+The `lastCheckedDay` skip-marker is deleted; the absence of a day from
+`pendingDays` is the same statement, expressed as a query.
+
+### The arithmetic
+
+The scan runs every 120 minutes, so 12 times a day, and read every group each
+time regardless of activity:
+
+| groups | daily activity | reads/day, before | after |
+| --- | --- | --- | --- |
+| 200 | 10% | 2,400 | 240 |
+| 2,000 | 10% | 24,000 | 2,400 |
+| 2,000 | 1% | 24,000 | 240 |
+
+The cost of the old scan grew with **registrations**; the new one grows with
+**play**. That is the difference that matters — a group created once and
+abandoned is now free forever instead of costing 12 reads a day in
+perpetuity.
+
+The marker itself is not a new write. The trigger already touched the group
+document on every duel answer to run the `lastCheckedDay` compensator, and
+that was a read plus a conditional write. It is now one blind
+`arrayUnion` — strictly cheaper.
+
+### Why this is also a correctness simplification
+
+`lastCheckedDay` needed a compensating delete from the answer trigger, and
+its correctness rested on an ordering argument spelled out over eleven lines
+of comment: a late answer either committed before the scan's re-read, or
+Firestore's serializability forced it after the marker, in which case the
+compensator's later read was *guaranteed* to observe the marker value and
+delete it.
+
+`arrayUnion` needs none of that. A late answer re-adds its day
+unconditionally, so the day ends up open if and only if an answer exists the
+scan did not see — in either commit order, with no argument required. The
+repo's most intricate race is gone rather than relocated.
+
+### Why the ops hook keeps the full scan
+
+The indexed query inherits `onV2AnswerCreated`'s at-least-once delivery. In
+the steady state that costs nothing: the scan runs every 2h, and a marker
+landing late is picked up by the next run, comfortably inside the ≤2h reveal
+delay the schedule already promises. A marker that never lands means the
+trigger failed permanently, which also means the answer never folded into any
+aggregate — a louder problem, already logged.
+
+But it does mean "the query returned nothing" and "nothing played" have
+stopped being the same statement. An operator reaching for `revealDuelsNowV2`
+is already responding to something being wrong, and that is the worst moment
+to hand them a scan that trusts the marker they may be there to repair. So it
+defaults to `scan: "full"` and accepts `scan: "indexed"` to exercise the
+scheduled path.
+
+That default is also what keeps the e2e honest: it writes duel answers and
+calls the hook immediately, so an indexed-only hook would fail on Eventarc
+timing rather than on behaviour. The indexed path has its own e2e leg (§8b)
+with a bounded wait for the marker, plus an assertion that a settled day
+leaves `pendingDays` and that a second indexed run then scans **zero**
+groups.
+
+### Bounds and assumptions, recorded rather than discovered
+
+- **The array cannot grow without bound.** A duo whose partner never plays
+  would otherwise accrue one day key per day played, forever. Both settle
+  paths prune to `PENDING_DAYS_KEEP` (6) days, which is the rules' 4-day
+  backfill window plus headroom — a day older than that can never gain
+  another answer, so it can never settle and must not linger. Pruning is
+  pinned by unit tests, including a 365-entry input.
+- **Day keys compare lexicographically.** The cutoff is a string `<`, correct
+  only because keys are ISO `YYYY-MM-DD`. Asserted directly in the tests, as
+  the assumption that breaks first if the format ever moves.
+- **No composite index is declared.** Firestore's automatic single-field
+  index for an array field is stored as (value, `__name__`), which should
+  already serve `array-contains` + `orderBy(__name__)`. This is an assumption
+  about Firestore that the emulator cannot verify — it creates whatever a
+  query asks for. If it is wrong, the scheduled run throws
+  FAILED_PRECONDITION with a console link, and the full-scan hook keeps
+  reveals flowing until the index exists. Loud and recoverable, which is why
+  it ships unverified rather than with a speculative index.
+- **No backfill.** Groups predating this carry no `pendingDays`, and
+  `array-contains` simply does not match them — which is exactly true, since
+  a group with no answers owes no reveal. Per D5's amendment, production has
+  zero duel answers anyway: the question bank is unseeded.
+
+### The scan ceiling now means something different
+
+`GROUP_SCAN_CAP` (2,000) used to bound "groups that exist" and would have
+fired on registration growth alone. It now bounds "groups that played that
+day", so hitting it is a real statement about activity. The remedy named in
+the log line changed with it: sharding the scan or moving it to a queue,
+since the indexed query it used to recommend is what this record built.
+
+---
+
+## D17 · Function runtime options are per-function; the global stays the heavy default
+
+**Decided:** 2026-07-30 · **Status:** binding
+
+**Decision.** `ops.ts` keeps `setGlobalOptions` at 512 MiB / 480 s /
+concurrency 1 as the **default**, and individual functions opt down:
+
+| function | memory | timeout | cpu / concurrency |
+| --- | --- | --- | --- |
+| `createGroupV2`, `joinGroupV2`, `registerPushToken` | 256 MiB | 60 s | — |
+| `leaveGroupV2` | 256 MiB | **480 s** | — |
+| `onV2AnswerCreated` | 512 MiB | 120 s | **cpu 1, concurrency 20** |
+| `deleteAccount`, `seedContentV2`, `scheduledDuelReveals`, `revealDuelsNowV2` | 512 MiB | 480 s | — |
+
+**Why the global is not simply lowered.** The property worth keeping is that
+forgetting to think about a new function is *safe*. A lower global would hand
+the next full-collection walker the same 60 s wall that killed the last ones
+— which is the failure `check:fn-runtime` exists to prevent. So the global
+stays sized for the heaviest thing in the deploy and the cheap functions opt
+down explicitly, one export at a time.
+
+**Why now.** The comment justifying 512 MiB said "the full-scan aggregators
+read whole collections into memory". **D13 deleted every one of them.** What
+was left inheriting an aggregator's footprint is five sub-second callables
+and `onV2AnswerCreated`, which runs once per answer and is the most-invoked
+function in the system. The sizing outlived its reason and no record noticed.
+
+**The two rules of thumb.** Memory is billed on every invocation, so it is
+the number to lower. Timeout costs nothing unless consumed, so anything with
+genuinely unbounded work keeps a generous one even when it is otherwise
+cheap — which is why `leaveGroupV2` drops to 256 MiB but keeps 480 s: it ends
+in a `recursiveDelete` of a group's whole reveal history when the last member
+leaves, and a timeout mid-delete leaves a half-erased group.
+
+**Why the hot trigger raises concurrency instead of dropping memory.** At
+concurrency 1 every simultaneous answer costs a whole instance, and
+`maxInstances: 10` then caps the entire system at 10 answers folding at once
+— a throughput ceiling nothing had written down. Sharing one instance across
+20 events collapses both that ceiling and the per-answer cost. Concurrency
+above 1 requires `cpu >= 1` (a Cloud Run constraint), and cpu 1 pairs with
+512 MiB rather than 256, so this is the one function that does **not** drop
+its memory. It is still far cheaper per answer, because the instance-seconds
+are divided by 20 instead of paid whole.
+
+**What is not proven here.** The emulator ignores memory, timeout, cpu and
+concurrency entirely, so CI proves only that the values are *set* —
+`check:fn-runtime` reads them off the compiled endpoint metadata and passes.
+Whether they are *right* is a post-deploy check:
+
+```
+gcloud functions describe <name> --gen2 --region us-central1 \
+  --format="value(serviceConfig.availableMemory,serviceConfig.timeoutSeconds)"
+```
+
+Revisit `onV2AnswerCreated`'s concurrency if its transaction ever starts
+holding memory per event; 20 events sharing 512 MiB is comfortable for three
+small documents and would not be for a large fold.

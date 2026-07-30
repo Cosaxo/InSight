@@ -15,11 +15,20 @@
 import { getFirestore, FieldValue } from "firebase-admin/firestore";
 import { getMessaging } from "firebase-admin/messaging";
 import { onCall, HttpsError } from "firebase-functions/v2/https";
-import { assertOperator, ENFORCE_APP_CHECK } from "./ops";
+import { assertOperator, ENFORCE_APP_CHECK, LIGHT_CALLABLE, LIGHT_UNBOUNDED } from "./ops";
 import { onSchedule } from "firebase-functions/v2/scheduler";
 import { logger } from "firebase-functions";
 import { randomBytes } from "node:crypto";
-import { inviteCodeFromBytes, isPlausibleFcmToken, nextFcmTokens, nextStreak, shouldReveal, utcDayKey } from "./pure";
+import {
+  inviteCodeFromBytes,
+  isPlausibleFcmToken,
+  nextFcmTokens,
+  nextStreak,
+  PENDING_DAYS_KEEP,
+  prunePendingDays,
+  shouldReveal,
+  utcDayKey,
+} from "./pure";
 
 const REGION = "us-central1";
 const GROUP_CAP = 32;
@@ -92,7 +101,7 @@ async function callerName(uid: string, given: unknown): Promise<string> {
   return (prof.exists && prof.get("displayName")) || "";
 }
 
-export const createGroupV2 = onCall({ region: REGION, enforceAppCheck: ENFORCE_APP_CHECK }, async (request) => {
+export const createGroupV2 = onCall({ ...LIGHT_CALLABLE, region: REGION, enforceAppCheck: ENFORCE_APP_CHECK }, async (request) => {
   if (!request.auth) throw new HttpsError("unauthenticated", "must be signed in");
   const uid = request.auth.uid;
   const name = String(request.data?.name || "").trim();
@@ -119,7 +128,7 @@ export const createGroupV2 = onCall({ region: REGION, enforceAppCheck: ENFORCE_A
   return { gid: ref.id, inviteCode: code };
 });
 
-export const joinGroupV2 = onCall({ region: REGION, enforceAppCheck: ENFORCE_APP_CHECK }, async (request) => {
+export const joinGroupV2 = onCall({ ...LIGHT_CALLABLE, region: REGION, enforceAppCheck: ENFORCE_APP_CHECK }, async (request) => {
   if (!request.auth) throw new HttpsError("unauthenticated", "must be signed in");
   const uid = request.auth.uid;
   const code = String(request.data?.code || "").trim().toUpperCase();
@@ -149,7 +158,7 @@ export const joinGroupV2 = onCall({ region: REGION, enforceAppCheck: ENFORCE_APP
   return out;
 });
 
-export const leaveGroupV2 = onCall({ region: REGION, enforceAppCheck: ENFORCE_APP_CHECK }, async (request) => {
+export const leaveGroupV2 = onCall({ ...LIGHT_UNBOUNDED, region: REGION, enforceAppCheck: ENFORCE_APP_CHECK }, async (request) => {
   if (!request.auth) throw new HttpsError("unauthenticated", "must be signed in");
   const uid = request.auth.uid;
   const gid = String(request.data?.gid || "");
@@ -209,7 +218,7 @@ export const leaveGroupV2 = onCall({ region: REGION, enforceAppCheck: ENFORCE_AP
 // to this Firebase project. It deliberately fails OPEN on infrastructure
 // errors (unavailable, deadline): a flaky FCM must degrade to "token
 // accepted unverified", not "nobody can register push".
-export const registerPushToken = onCall({ region: REGION, enforceAppCheck: ENFORCE_APP_CHECK }, async (request) => {
+export const registerPushToken = onCall({ ...LIGHT_CALLABLE, region: REGION, enforceAppCheck: ENFORCE_APP_CHECK }, async (request) => {
   if (!request.auth) throw new HttpsError("unauthenticated", "must be signed in");
   const uid = request.auth.uid;
   const token = request.data?.token;
@@ -258,11 +267,13 @@ async function revealGroupDay(
   const mode: string = group.get("mode") || "group";
   const members: string[] = group.get("memberUids") || [];
   if (!members.length) return false;
-  // Cheap skips first: already revealed, or already checked with no
-  // play — otherwise every scheduled run re-reads every member's docs
-  // for groups that sat idle.
+  // Cheap skip: already revealed. The other half of the old pair —
+  // "already checked and nobody played" — is now the absence of dayKey from
+  // pendingDays, which the indexed scan expresses as a query rather than a
+  // per-document test. A full scan reaches this line for every group and
+  // pays the reads below deliberately; that is what makes it the recovery
+  // path (see runDuelReveals).
   if (group.get("lastRevealDay") === dayKey) return false;
-  if (group.get("lastCheckedDay") === dayKey) return false;
   const revealRef = group.ref.collection("reveals").doc(dayKey);
   if ((await revealRef.get()).exists) return false;
 
@@ -288,35 +299,38 @@ async function revealGroupDay(
   });
   const played = Object.keys(votes).length;
 
+  // The oldest day still worth carrying in pendingDays. Both settle paths
+  // prune to this, so the array cannot grow without bound on a duo whose
+  // partner never plays. See PENDING_DAYS_KEEP in pure.ts for the bound.
+  const oldestKeptDay = utcDayKey(
+    -PENDING_DAYS_KEEP,
+    Date.parse(`${dayKey}T00:00:00Z`),
+  );
+
   // duo: both-or-nothing (and the streak lives or dies on it);
-  // group: at least one answer. Below the bar → write the skip-marker.
+  // group: at least one answer. Below the bar → settle the day unrevealed.
   if (!shouldReveal(mode, played)) {
-    // The marker write is a TRANSACTION that re-reads the answer docs,
-    // because a plain update races onV2AnswerCreated's compensating
-    // delete: an answer landing between the getAll() above and the
-    // marker write can trigger the compensator, which reads the group
-    // BEFORE lastCheckedDay=dayKey commits, sees a different value,
-    // does nothing — and the marker then closes the day forever. The
-    // transaction pins the ordering: a late answer either commits
-    // before our re-read (we see it here and leave the day open for
-    // the next scan), or Firestore's serializability forces it to
-    // commit strictly AFTER the marker — in which case the
-    // compensator's later group read is guaranteed to observe
-    // lastCheckedDay === day and delete it. No interleaving strands
-    // the day.
+    // Still a TRANSACTION that re-reads the answer docs, but the reason is
+    // now simply "do not close a day an answer just landed on" rather than
+    // the ordering argument the old skip-marker needed. Dropping dayKey from
+    // pendingDays is what closes it; a late answer's arrayUnion re-adds it
+    // unconditionally, so whichever order the two writers commit in, the day
+    // ends up open if and only if an answer exists that we did not see.
     await db.runTransaction(async (tx) => {
-      const fresh = await tx.getAll(
+      const [gsnap, ...fresh] = await tx.getAll(
+        group.ref,
         ...members.map((uid) => db.doc(`v2_users/${uid}/answers/${answerId}`)),
       );
+      if (!gsnap.exists) return;
       const freshPlayed = fresh.filter(
         (s) => s.exists && typeof s.get("optionIdx") === "number",
       ).length;
-      // A late answer flipped the decision — skip the marker so the
+      // A late answer flipped the decision — leave the day pending so the
       // next scan (≤2h away) performs the reveal.
       if (shouldReveal(mode, freshPlayed)) return;
       tx.update(group.ref, {
-        lastCheckedDay: dayKey,
-        ...(mode === "duo" && group.get("streak") ? { streak: 0 } : {}),
+        pendingDays: prunePendingDays(gsnap.get("pendingDays"), dayKey, oldestKeptDay),
+        ...(mode === "duo" && gsnap.get("streak") ? { streak: 0 } : {}),
       });
     });
     return false;
@@ -424,7 +438,15 @@ async function revealGroupDay(
       dayKey,
       gsnap.get("streak") || 0,
     );
-    tx.update(group.ref, { streak, lastRevealDay: dayKey });
+    // The day is settled, so it leaves pendingDays in the same write that
+    // publishes the reveal — the scan must not find this group again for
+    // this day, and a reveal that exists while the day still reads as owing
+    // one is the drift that would put the scan into a loop.
+    tx.update(group.ref, {
+      streak,
+      lastRevealDay: dayKey,
+      pendingDays: prunePendingDays(gsnap.get("pendingDays"), dayKey, oldestKeptDay),
+    });
     didReveal = true;
   });
   if (!didReveal) return false;
@@ -511,30 +533,77 @@ async function revealGroupDay(
   return true;
 }
 
-async function runDuelReveals(dayKey?: string): Promise<{ revealed: number }> {
+// Which groups a run looks at.
+//
+//   "indexed"  where("pendingDays", "array-contains", day) — only groups
+//              that actually have an answer for that day. What the schedule
+//              uses, 12 times a day, forever.
+//   "full"     every group document. The recovery path, and what the ops
+//              callable uses.
+//
+// Why both, rather than replacing one with the other: the marker is written
+// by onV2AnswerCreated, so the indexed query inherits that trigger's
+// at-least-once delivery. In the steady state that is free — the scan runs
+// every 2h and a marker that lands late is picked up by the next run, well
+// inside the ≤2h reveal delay the schedule already promises. But it does
+// mean "the query returned nothing" and "nothing played" are no longer the
+// same statement, and a run that needs to be certain has to read everything.
+// revealDuelsNowV2 is that run: an operator reaching for it is already
+// reacting to something being wrong, which is the worst moment to hand them
+// a scan that trusts the marker they may be there to repair.
+//
+// It is also what keeps the e2e honest. The loop writes duel answers and
+// calls revealDuelsNowV2 immediately; an indexed-only scan would be racing
+// Eventarc for the marker and would fail on timing rather than on
+// behaviour. The e2e exercises the indexed path in its own leg, with a
+// bounded wait, so both are covered for what each is actually for.
+type ScanMode = "indexed" | "full";
+
+async function runDuelReveals(
+  dayKey?: string,
+  mode: ScanMode = "indexed",
+): Promise<{ revealed: number; scanned: number; mode: ScanMode }> {
   const db = getFirestore();
   const yester = dayKey || utcDayKey(-1);
-  // Full-collection scan, PAGINATED. A `lastCheckedDay != yester` filter
-  // would be cheaper, but Firestore's != EXCLUDES docs missing the field —
-  // every never-checked (incl. freshly created) group would silently drop
-  // out — and "!= OR missing" isn't expressible in one query. So the full
-  // scan stays; what changed is that it no longer stops at one page.
+  // PAGINATED either way. It used to fetch GROUP_SCAN_CAP docs and process
+  // them one at a time; the 60s timeout bound at roughly 200-400 active
+  // groups — an order of magnitude below the cap — so the function died
+  // mid-loop and re-walked the same prefix on every run, with nothing but a
+  // log line saying why.
   //
-  // It used to fetch GROUP_SCAN_CAP docs and process them one at a time.
-  // The 60s timeout bound at roughly 200-400 active groups — an order of
-  // magnitude below the cap — so the function died mid-loop and re-walked
-  // the same prefix on every run, with nothing but a log line saying why.
+  // The full scan is what the indexed query replaces on the schedule. It was
+  // there because the obvious filter, `lastCheckedDay != yester`, cannot
+  // work: Firestore's != EXCLUDES documents missing the field, so every
+  // never-checked group would silently drop out, and "!= OR missing" is not
+  // expressible in one query. array-contains has no such hole — a group with
+  // no pendingDays field simply has no pending day, which is exactly true.
   //
   // Lanes: 5, not 10. The timeout raise is already 8x, and each reveal can
-  // fan out to 64 FCM tokens; more lanes buys throughput this does not need
-  // and multiplies peak memory and messaging concurrency.
+  // fan out to a group's whole token set; more lanes buys throughput this
+  // does not need and multiplies peak memory and messaging concurrency.
   const LANES = 5;
   let cursor: FirebaseFirestore.QueryDocumentSnapshot | null = null;
   let revealed = 0;
   let scanned = 0;
 
   for (;;) {
-    let q = db.collection("v2_groups").orderBy("__name__").limit(PAGE_SIZE);
+    // No composite index is declared for this, on the understanding that
+    // Firestore's automatic single-field index for an array field is stored
+    // as (value, __name__) and therefore already serves array-contains
+    // followed by orderBy(__name__). That is an assumption about Firestore,
+    // not something this repo can prove: the emulator creates whatever a
+    // query asks for, so a green test says nothing about production.
+    //
+    // If it is wrong the failure is loud rather than silent — the scheduled
+    // run throws FAILED_PRECONDITION carrying a console link to the index it
+    // wants — and it is recoverable without a deploy, because
+    // revealDuelsNowV2 still does the full scan. Add the index, then let the
+    // next scheduled run catch up.
+    let q = mode === "indexed"
+      ? db.collection("v2_groups")
+        .where("pendingDays", "array-contains", yester)
+        .orderBy("__name__").limit(PAGE_SIZE)
+      : db.collection("v2_groups").orderBy("__name__").limit(PAGE_SIZE);
     if (cursor) q = q.startAfter(cursor);
     const page = await q.get();
     if (page.empty) break;
@@ -562,31 +631,43 @@ async function runDuelReveals(dayKey?: string): Promise<{ revealed: number }> {
     // The tripwire, repurposed. It no longer bounds one page — it bounds
     // the whole run, so "I have outgrown this" still gets said rather than
     // quietly becoming a multi-minute job.
+    //
+    // Note what the two modes mean here. In "full" it counts every group in
+    // the collection, which is the number that used to grow with signups. In
+    // "indexed" it counts groups that PLAYED that day, so hitting the ceiling
+    // is a real statement about activity rather than about registration —
+    // and the remedy named below is the one that is actually left.
     if (scanned >= GROUP_SCAN_CAP) {
       logger.error(
-        `[v2social] scanned ${scanned} groups in one run (ceiling ` +
+        `[v2social] scanned ${scanned} groups in one ${mode} run (ceiling ` +
           `${GROUP_SCAN_CAP}). Groups beyond this are NOT checked this run; ` +
-          "their reveals land on a later run at best. Time to switch to an " +
-          "indexed lastCheckedDay query or shard the scan.",
+          "their reveals land on a later run at best. Time to shard the scan " +
+          "by day-key suffix or move it to a queue.",
       );
       break;
     }
   }
 
-  logger.info(`[v2social] reveals for ${yester}: ${revealed}`);
-  return { revealed };
+  logger.info(`[v2social] reveals for ${yester} (${mode}): ${revealed} of ${scanned} scanned`);
+  return { revealed, scanned, mode };
 }
 
 export const scheduledDuelReveals = onSchedule(
-  { schedule: "every 120 minutes", region: REGION }, // ≤2h reveal delay, half the scans
+  // ≤2h reveal delay, half the scans — and since the marker landed, each
+  // scan reads the groups that played rather than every group that exists.
+  { schedule: "every 120 minutes", region: REGION },
   async () => {
-    await runDuelReveals();
+    await runDuelReveals(undefined, "indexed");
   },
 );
 
 // Test/ops hook — emulator, or the SEED_ADMIN_UIDS operators.
+//
+// Defaults to the FULL scan, deliberately: see the ScanMode note above.
+// Pass scan:"indexed" to exercise the path the schedule takes.
 export const revealDuelsNowV2 = onCall({ region: REGION }, async (request) => {
   assertOperator(request);
   const dayKey = typeof request.data?.day === "string" ? request.data.day : undefined;
-  return runDuelReveals(dayKey);
+  const mode: ScanMode = request.data?.scan === "indexed" ? "indexed" : "full";
+  return runDuelReveals(dayKey, mode);
 });

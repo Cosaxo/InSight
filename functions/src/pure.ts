@@ -31,6 +31,52 @@ export function prevDayKey(dayKey: string): string {
   return new Date(d.getTime() - 86400000).toISOString().slice(0, 10);
 }
 
+// ── the pending-day marker (v2social) ───────────────────────────
+//
+// `v2_groups/{gid}.pendingDays` is the set of day keys this group has at
+// least one duel answer for and no reveal yet. onV2AnswerCreated adds to it
+// (arrayUnion); the reveal scan removes a day once it has settled it, either
+// by publishing the reveal or by deciding the day did not clear the bar.
+//
+// It exists so the scheduled scan can ask an INDEXED question — "which
+// groups played yesterday?" — instead of reading every group document 12
+// times a day to find the few that did. It also replaces the older
+// `lastCheckedDay` skip-marker outright, and that is the bigger win: the
+// marker needed a compensating delete from the answer trigger, whose
+// correctness rested on a specific commit ordering between two writers.
+// arrayUnion has no such ordering problem — a late answer re-adds the day
+// whatever else is happening, so the day re-opens by construction rather
+// than by argument.
+//
+// How many days to keep. firestore.rules refuses a duel answer for a day
+// more than 4 days behind request.time, so a pending day older than that can
+// never gain another answer and will never settle. 6 is that bound plus
+// headroom for the UTC-vs-local skew the rules' forward window allows.
+export const PENDING_DAYS_KEEP = 6;
+
+// The next pendingDays array: `settledDay` dropped, anything older than
+// `oldestKeptDay` dropped, duplicates and non-strings dropped. Day keys are
+// ISO `YYYY-MM-DD`, so a lexicographic compare is a chronological one.
+//
+// Pure, and separately tested, because the failure it prevents is silent:
+// an array that only ever grows turns a duo whose partner never plays into a
+// group document that accretes one string per day forever.
+export function prunePendingDays(
+  current: unknown,
+  settledDay: string,
+  oldestKeptDay: string,
+): string[] {
+  if (!Array.isArray(current)) return [];
+  const out: string[] = [];
+  for (const d of current) {
+    if (typeof d !== "string") continue;
+    if (d === settledDay) continue;
+    if (d < oldestKeptDay) continue;
+    if (!out.includes(d)) out.push(d);
+  }
+  return out;
+}
+
 // ── reveal conditions + streaks (v2social) ──────────────────────
 
 // The two reveal conditions (decision D5):
