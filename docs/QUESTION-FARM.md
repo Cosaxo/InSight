@@ -122,6 +122,60 @@ abort the run with no push rather than force it green.
   collecting it server-side would be a real privacy decision, not a
   tweak. The farm must never depend on it.
 
+## Future directions, recorded early (notes, not designs)
+
+Two features are wanted eventually. Neither is in scope for the farm today,
+and both sit close enough to the product's core claims that the shape of an
+acceptable version is worth writing down *before* anyone builds one. When
+either is picked up, it graduates to a real decision record in
+`DECISIONS.md` — these notes are the starting constraints, not approval.
+
+### Audience-tagged questions ("what kind of people get what kind of content")
+
+The wanted thing: use the collected stats to route content — outdoorsy
+questions to people who answer like outdoorsy people, and so on. The
+InSight-native way to do that is the inverse of ad-tech targeting:
+
+- **Tags on content, selection on the device.** A question may carry
+  audience hints (e.g. `aud: { ageBand: [...], interests: [...] }`), and
+  the *client* picks what to surface — it already knows the viewer's
+  anchors locally. Every device downloads the same bundle; the server
+  never learns which questions a person was shown, and no per-user
+  interest profile exists server-side. Same pattern as the city
+  catalogue: ship data, personalize on-device.
+- **The tags themselves come only from k-floored cohort aggregates**
+  ("scale questions land best with 25–34" is publishable arithmetic), and
+  only along dimensions the server already publishes (`BREAKDOWN_DIMS` —
+  the same discipline that keeps profession collected-but-never-sliced,
+  D8).
+- **The line not to cross:** server-side per-user content selection. The
+  moment the server picks *your* feed from *your* answers, a behavioral
+  profile exists and the privacy claim is dead regardless of intentions.
+
+### Sponsored questions (separated, with bounded priority)
+
+The wanted thing: a sponsor's question that is distinguishable and gets
+elevated placement. The version that survives this product's honesty
+posture:
+
+- **Disclosure is non-negotiable.** A `sponsored` field in the data and an
+  unmissable visual mark on the card — the app that labels demo data
+  "Preview · sample people" cannot show an undisclosed ad.
+- **Priority is a bounded cadence, not an auction.** The feed already
+  solves "mix a stream in at a rate" (the test/lens 4/9 interleave); a
+  sponsored slot is one more stream with a hard cap (e.g. at most one per
+  N cards), never a bidding system deciding what people see.
+- **Sponsors get the same window as everyone.** A sponsor sees the public
+  k-floored split for their question and nothing else — no demographic
+  report, no below-floor data, no special API. That is the enforceable
+  line that keeps "privacy enforced" true with money in the room.
+- **Targeting and sponsorship must not compound.** A sponsored question
+  gets at most coarse, disclosed audience tags — precisely-targeted paid
+  content is the ad-tech dynamic the product defines itself against.
+- **Provenance stays separated**: `source: 'editorial' | 'community' |
+  'farm' | 'sponsor'` — the farm never writes sponsored content; sponsor
+  questions arrive through a human contract path with their own review.
+
 ## Governance
 
 The Routine that fires this job lives on the maintainer's claude.ai
