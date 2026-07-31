@@ -192,7 +192,7 @@ function mfpConfig(pop, zoom, mine) {
 }
 
 // ─── the field body — canvas, detail, lenses ───
-function MirrorFieldBody({ pop, worldZoom, zoomCtl, onPerson, levelTrait, levelMarker, firstRun }) {
+function MirrorFieldBody({ pop, worldZoom, zoomCtl, onPerson, firstRun }) {
   const D = window.IS_DATA;
   const [selId, setSelId] = useStateMFP(null);
   const [mine, setMine] = useStateMFP(() => new Set(window.SCENES ? window.SCENES.list() : D.groups.filter((g) => g.joined).map((g) => g.id)));
@@ -238,13 +238,19 @@ function MirrorFieldBody({ pop, worldZoom, zoomCtl, onPerson, levelTrait, levelM
   // Kindred + Mix travel together — one "People" lens
   const hasKindred = pop === 'near' || pop === 'world';
   const hasMix = !!(cfg.makeupAud && window.DemographicsCard);
-  const hasLadderBreakdown = pop === 'groups' && gSel && window.GroupLevelBreakdown;
   const hasRead = pop === 'circle' && !!window.CircleReadCard;
-  if (hasKindred || hasMix || hasLadderBreakdown || hasRead) {
+  // A GroupLevelBreakdown lens was guarded here on the same pattern as the
+  // GroupCompare one below — and on the same broken premise: nothing in the
+  // tree has ever defined GroupLevelBreakdown, so the guard could not pass.
+  // It survived because `window.X &&` reads as a feature flag rather than a
+  // dangling reference; check:globals only saw it because the name sat in
+  // the scanner's known-dead allowlist. Branch and allowlist entry both gone
+  // 2026-07-31. Its `levelTrait` / `levelMarker` props went with it — they
+  // fed nothing else, and two call sites were still passing them.
+  if (hasKindred || hasMix || hasRead) {
     lenses.push({ id: 'people', label: 'People', render: () => (
       <React.Fragment>
         {hasRead && <CircleReadCard></CircleReadCard>}
-        {hasLadderBreakdown && <GroupLevelBreakdown g={gSel} defaultTrait={levelTrait} showMarker={levelMarker}></GroupLevelBreakdown>}
         {hasKindred && <KindredLensCard people={pop !== 'world' || worldZoom === 'city' ? MFP_KINDRED : worldZoom === 'country' ? MFP_KINDRED_COUNTRY : MFP_KINDRED_WORLD}></KindredLensCard>}
         {hasMix && <DemographicsCard audId={cfg.makeupAud}></DemographicsCard>}
       </React.Fragment>

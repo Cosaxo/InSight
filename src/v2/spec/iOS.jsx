@@ -8,7 +8,7 @@ import React from 'react';
 
 // iOS.jsx — Simplified iOS 26 (Liquid Glass) device frame
 // Based on the iOS 26 UI Kit + Figma status bar spec. No assets, no deps.
-// Exports: IOSDevice, IOSStatusBar, IOSNavBar, IOSGlassPill, IOSList, IOSListRow, IOSKeyboard
+// Exports: IOSDevice, IOSStatusBar, IOSNavBar, IOSGlassPill, IOSKeyboard
 
 // ─────────────────────────────────────────────────────────────
 // Status bar
@@ -129,64 +129,6 @@ function IOSNavBar({ title = 'Title', dark = false, trailingIcon = true }) {
         fontSize: 34, fontWeight: 700, lineHeight: '41px',
         color: text, letterSpacing: 0.4,
       }}>{title}</div>
-    </div>
-  );
-}
-
-// ─────────────────────────────────────────────────────────────
-// Grouped list (inset card, r:26) + row (52px)
-// ─────────────────────────────────────────────────────────────
-function IOSListRow({ title, detail, icon, chevron = true, isLast = false, dark = false }) {
-  const text = dark ? '#fff' : '#000';
-  const sec = dark ? 'rgba(235,235,245,0.6)' : 'rgba(60,60,67,0.6)';
-  const ter = dark ? 'rgba(235,235,245,0.3)' : 'rgba(60,60,67,0.3)';
-  const sep = dark ? 'rgba(84,84,88,0.65)' : 'rgba(60,60,67,0.12)';
-  return (
-    <div style={{
-      display: 'flex', alignItems: 'center', minHeight: 52,
-      padding: '0 16px', position: 'relative',
-      fontFamily: '-apple-system, system-ui', fontSize: 17,
-      letterSpacing: -0.43,
-    }}>
-      {icon && (
-        <div style={{
-          width: 30, height: 30, borderRadius: 7, background: icon,
-          marginRight: 12, flexShrink: 0,
-        }} />
-      )}
-      <div style={{ flex: 1, color: text }}>{title}</div>
-      {detail && <span style={{ color: sec, marginRight: 6 }}>{detail}</span>}
-      {chevron && (
-        <svg width="8" height="14" viewBox="0 0 8 14" style={{ flexShrink: 0 }}>
-          <path d="M1 1l6 6-6 6" stroke={ter} strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"/>
-        </svg>
-      )}
-      {!isLast && (
-        <div style={{
-          position: 'absolute', bottom: 0, right: 0,
-          left: icon ? 58 : 16, height: 0.5, background: sep,
-        }} />
-      )}
-    </div>
-  );
-}
-
-function IOSList({ header, children, dark = false }) {
-  const hc = dark ? 'rgba(235,235,245,0.6)' : 'rgba(60,60,67,0.6)';
-  const bg = dark ? '#1C1C1E' : '#fff';
-  return (
-    <div>
-      {header && (
-        <div style={{
-          fontFamily: '-apple-system, system-ui', fontSize: 13,
-          color: hc, textTransform: 'uppercase',
-          padding: '8px 36px 6px', letterSpacing: -0.08,
-        }}>{header}</div>
-      )}
-      <div style={{
-        background: bg, borderRadius: 26,
-        margin: '0 16px', overflow: 'hidden',
-      }}>{children}</div>
     </div>
   );
 }
@@ -358,13 +300,11 @@ function IOSKeyboard({ dark = false }) {
 }
 
 Object.assign(window, {
-  IOSDevice, IOSStatusBar, IOSNavBar, IOSGlassPill, IOSList, IOSListRow, IOSKeyboard,
+  IOSDevice, IOSStatusBar, IOSNavBar, IOSGlassPill, IOSKeyboard,
 });
 
 ;globalThis.IOSStatusBar = typeof IOSStatusBar === 'undefined' ? globalThis.IOSStatusBar : IOSStatusBar;
 ;globalThis.IOSGlassPill = typeof IOSGlassPill === 'undefined' ? globalThis.IOSGlassPill : IOSGlassPill;
 ;globalThis.IOSNavBar = typeof IOSNavBar === 'undefined' ? globalThis.IOSNavBar : IOSNavBar;
-;globalThis.IOSListRow = typeof IOSListRow === 'undefined' ? globalThis.IOSListRow : IOSListRow;
-;globalThis.IOSList = typeof IOSList === 'undefined' ? globalThis.IOSList : IOSList;
 ;globalThis.IOSDevice = typeof IOSDevice === 'undefined' ? globalThis.IOSDevice : IOSDevice;
 ;globalThis.IOSKeyboard = typeof IOSKeyboard === 'undefined' ? globalThis.IOSKeyboard : IOSKeyboard;

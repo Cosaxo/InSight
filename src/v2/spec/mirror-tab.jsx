@@ -227,8 +227,7 @@ function MirrorTab({ onPerson, pop, onPop, worldZoom, onZoom, firstRun }) {
       <MirrorPreviewTag popId={p.id} />
       <div key={scaleId + '-field'} className="tab-swap mf-flex">
         <MirrorFieldBody pop={p.id} worldZoom={zoom} onPerson={onPerson}
-          zoomCtl={null} firstRun={firstRun}
-          levelTrait="gender" levelMarker={true} />
+          zoomCtl={null} firstRun={firstRun} />
       </div>
     </div>
   );

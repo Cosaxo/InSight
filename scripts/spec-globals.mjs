@@ -40,11 +40,13 @@ const RUNTIME_ALLOWLIST = new Set([
   "parent", "postMessage", "focus", "blur", "close",
   // build-time / SDK globals defined outside the spec layer
   "Capacitor", "__APP_BUILD__",
-  // Known-dead optional features: referenced behind typeof/truthiness
-  // guards, defining module never ported from the prototype. The guard
-  // hides the feature at runtime. Delete from here when either the
-  // module is ported or the dead lens is removed.
-  "GroupLevelBreakdown",
+  // This list held one more entry until 2026-07-31: GroupLevelBreakdown,
+  // a lens referenced behind `window.X &&` whose defining module was
+  // never ported. The guard meant it could not crash, so it sat here as
+  // "known-dead" instead of being removed — which is how a dangling
+  // reference gets to look like a feature flag. The branch is gone now.
+  // Prefer that outcome to a new entry: anything parked here is a name
+  // the checker has agreed to stop checking.
 ]);
 
 const files = [];

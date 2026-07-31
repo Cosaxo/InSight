@@ -108,7 +108,7 @@ function affinityBreakdown(me, prof, p) {
   return { personality, politics, values, interests };
 }
 
-// ─── Affinity, broken into bars (replaces the donut) ───
+// ─── Affinity, broken into bars — the fallback when CompareCarousel is absent ───
 function AffinityBreakdown({ parts }) {
   const dims = [
     { k: 'personality', label: 'Personality', col: 'oklch(0.55 0.13 38)' },
@@ -373,13 +373,5 @@ window.PersonOverlay = PersonOverlay;
 
 ;globalThis.derivePerson = typeof derivePerson === 'undefined' ? globalThis.derivePerson : derivePerson;
 ;globalThis.affinityBreakdown = typeof affinityBreakdown === 'undefined' ? globalThis.affinityBreakdown : affinityBreakdown;
-;globalThis.AffinityDial = typeof AffinityDial === 'undefined' ? globalThis.AffinityDial : AffinityDial;
-;globalThis.DualCompass = typeof DualCompass === 'undefined' ? globalThis.DualCompass : DualCompass;
-;globalThis.TraitBridges = typeof TraitBridges === 'undefined' ? globalThis.TraitBridges : TraitBridges;
-;globalThis.InterestVenn = typeof InterestVenn === 'undefined' ? globalThis.InterestVenn : InterestVenn;
-;globalThis.alignmentNotes = typeof alignmentNotes === 'undefined' ? globalThis.alignmentNotes : alignmentNotes;
-;globalThis.pRng = typeof pRng === 'undefined' ? globalThis.pRng : pRng;
 ;globalThis.AffinityBreakdown = typeof AffinityBreakdown === 'undefined' ? globalThis.AffinityBreakdown : AffinityBreakdown;
-;globalThis.GeneticKinship = typeof GeneticKinship === 'undefined' ? globalThis.GeneticKinship : GeneticKinship;
-;globalThis.FollowerShares = typeof FollowerShares === 'undefined' ? globalThis.FollowerShares : FollowerShares;
 ;globalThis.PersonOverlay = typeof PersonOverlay === 'undefined' ? globalThis.PersonOverlay : PersonOverlay;

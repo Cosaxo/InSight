@@ -689,13 +689,6 @@ button.card:active,
 }
 .pill:hover { border-color: color-mix(in oklch, var(--rule), var(--ink) 40%); }
 .pill:active { transform: scale(0.94); }
-.pill.is-on {
-  background: var(--ink);
-  color: var(--surface);
-  border-color: var(--ink);
-}
-.pill.sienna.is-on { background: var(--sienna); border-color: var(--sienna); }
-.pill.sage.is-on { background: var(--sage); border-color: var(--sage); }
 
 /* Stamp */
 .stamp {
@@ -733,11 +726,6 @@ button.card:active,
   flex-shrink: 0;
   border: 0.5px solid rgba(0,0,0,0.08);
 }
-
-/* Bar */
-.bar { height: 4px; background: var(--surface-3); border-radius: 999px; overflow: hidden; }
-.bar > i { display: block; height: 100%; background: var(--ink); border-radius: 999px; }
-
 
 @keyframes scrimFade { from { opacity: 0; } to { opacity: 1; } }
 .sheet {

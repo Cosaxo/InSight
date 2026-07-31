@@ -33,7 +33,7 @@ const ASSETS = join(root, "dist", "assets");
 // removing them — which is why MAX_TOTAL_JS_KB is unchanged and why the
 // per-chunk limit is the one that measures this work.
 //
-// 900 → 940 with the v15 2026-07-31 revision (D26): the spec layer gained
+// 900 → 940 with the v15 2026-07-31 revision (D27): the spec layer gained
 // eleven modules (~68 KB minified into the entry — the Learn stack,
 // VOTECUTS, subtopics, catalogues, map groups), and each stays eager for a
 // load-order or subscription reason recorded there. The deferred world-feed
