@@ -5,7 +5,7 @@
 import React from 'react';
 import { createRoot } from 'react-dom/client';
 import './styles.css';
-import './spec-index.js';
+import { loadWorldFeed } from './spec-index.js';
 import { initLive } from './data/live';
 // side effect: publishes window.registerBackHandler for the shell
 import './data/back';
@@ -13,7 +13,7 @@ import './data/back';
 // Import only — the ~269 KB catalogue itself is fetched lazily on first
 // open, so this costs nothing on a cold start.
 import './data/places';
-import { sentryInit } from '../lib/sentry';
+import { reportError, sentryInit } from '../lib/sentry';
 import { initDeepLinks } from './data/links';
 
 // Crash reporting first, so a boot error is the first thing captured.
@@ -30,7 +30,26 @@ initDeepLinks();
 // boot failure the mock deck renders instead and live can attach later.
 initLive().finally(() => {
   const App = globalThis.App;
-  createRoot(document.getElementById('root')).render(<App />);
+  const root = createRoot(document.getElementById('root'));
+  root.render(<App />);
+
+  // The world feed (85 KB) is deliberately NOT part of that first render —
+  // see loadWorldFeed() in spec-index.js. Started here rather than on the
+  // first frame that wants it: the feed opens seconds later, when today's
+  // card is answered, so this is a defer past first paint rather than a
+  // defer until needed, and by the time it can be seen it is there.
+  //
+  // The re-render is not decoration. daily-split reads `window.WorldFeed`
+  // during render, so a user who answers BEFORE the chunk lands would sit
+  // on a feedless card with nothing scheduled to re-read the global. Same
+  // element type at the root, so React reconciles and App keeps its state.
+  //
+  // A failed chunk costs the feed, not the app: the guard that makes this
+  // lazy load possible is the same one that makes its failure survivable.
+  loadWorldFeed().then(
+    () => root.render(<App />),
+    (err) => reportError(err, { where: 'loadWorldFeed' }),
+  );
   // Native: drop the splash only now that real content is painted —
   // launchAutoHide is off so hydration happens behind the splash
   // instead of a blank WebView (capacitor.config.ts).

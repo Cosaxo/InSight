@@ -10,25 +10,28 @@ account-gated and device-gated work only a human can do.
 ## 1 · Seed production (5 minutes, once)
 
 The deployed backend is live but the question bank is empty until an
-operator seeds it:
+operator seeds it. **Steps 1–2 are done** (2026-07-31): `SEED_ADMIN_UIDS`
+is set on the production environment to the maintainer's uid and a deploy
+has carried it into the runtime — the deploy log's env step shows the
+value and no empty-warning. Only step 3 remains, and it must be run
+**signed in as that account** (the gate matches the exact signed-in uid).
 
-1. Run the app once against production (any build with `VITE_FIREBASE_*`
-   set and `VITE_V2_LIVE=true`) and copy your uid — it's shown by
+1. ~~Copy your uid~~ — done; the maintainer's Google-account uid, the
+   same one `MOD_UIDS` holds. (For a future extra operator: it's shown by
    `window.LIVE.uid` in the browser console, or in Firebase Console →
-   Authentication.
-2. Set that uid as the `SEED_ADMIN_UIDS` variable on the **production**
-   environment (GitHub → Settings → Environments → `production` →
-   Variables), then re-run **Deploy Firebase backend** via
-   `workflow_dispatch`. The deploy writes `functions/.env.prvfire33` from
-   that variable, so the uid reaches the deployed runtime.
-   Comma-separate for several operators.
+   Authentication.)
+2. ~~Set the `SEED_ADMIN_UIDS` variable~~ — done (GitHub → Settings →
+   Environments → `production` → Variables), carried by deploy run
+   30648976978. Comma-separate to add operators, and re-run **Deploy
+   Firebase backend** after any change — the value only reaches the
+   runtime on the next deploy.
 
    > Not a committed file: `.env` and `.env.*` are gitignored (including
    > under `functions/`), so the value cannot travel in the repo — the
    > workflow variable is the only path. A deploy with the variable unset
    > still succeeds but logs a warning, and every operator callable stays
    > `permission-denied`.
-3. From the app's console:
+3. **The remaining step.** From the app's console:
    `firebase.functions().httpsCallable("seedContentV2")()` — or simply
    tap through any flow that calls it; 191 questions land in
    `v2_questions`. Re-running is safe (idempotent, never resets the
@@ -436,4 +439,8 @@ Until then links open the fallback page — degraded, not broken.
   of the trigger).
 - Ranking/scale feed card types; Circle/Near mirror population fields
   (need geo opt-in + circle data); world comments are OUT by decision D1.
-- Bundle is one ~900KB chunk — split after the feature surface settles.
+- Bundle: the world feed now loads after first paint (D25), taking the
+  entry chunk to ~850 KB from ~947. The rest of the split — the Mirror tab
+  (~168 KB) and the overlays (~176 KB) — still waits on the feature
+  surface settling. Note the cost this is buying down is parse and eval on
+  a cold start, not network: the bundle ships inside the native package.
