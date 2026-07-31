@@ -10,7 +10,11 @@ e2e-tested against the real functions emulator in CI
 refusal demanded by exact error code, and the advisory guarantee
 asserted from a member's own view. `buildModQueueNow` exists as the
 scheduled build's moderator-gated on-demand twin — the e2e's handle and
-the maintainer's manual rebuild lever.
+the maintainer's manual rebuild lever. The verdict log is keyed per
+(take, queue generation); keyed by take alone it doubled as a lock that
+never released, and the daily re-judgement the ladder is made of stopped
+after the first verdict (see D22's amendments, which also cover the
+escalation the wholesale rebuild used to eat).
 
 **In production since 2026-07-31**: the substrate is deployed and the
 `MOD_UIDS` allowlist is set (production-environment variable, one uid —
@@ -73,6 +77,15 @@ that punishes honesty.
 doubt keep" (that abandons the target of borderline harassment). A run
 that escalates a lot is working, not failing.
 
+An escalation is therefore a **standing** signal, not a note on one
+queue generation: `v2_mod_queue` is rebuilt wholesale, so each entry
+carries an `escalations` count forward from the entry it replaces
+(`carriedEscalations`, pure.ts). Without it the valve had no outlet —
+the mark lived until the next 05:00 build and the log that kept the row
+is read by nothing yet. The entry stays re-judgeable on its new
+generation: a take the run escalates twice is a stronger signal than one
+it escalated once, not a duplicate to suppress.
+
 This file is the policy's single home. The run re-reads it every firing,
 so policy changes are PRs reviewed like anything else — policy drift by
 prompt-editing is structurally impossible, the same discipline as
@@ -119,7 +132,11 @@ verdict.
    the maintainer, auditable after the fact, and still erased by
    `deleteAccount` like everything else its author owns.
 5. **Bounded blast radius.** Hard cap of 50 verdicts per run. Every
-   verdict carries its policy line and run id. The dev session posts a
+   verdict carries its policy line, run id and queue generation — the
+   log is append-only, one entry per (take, generation), so a take
+   judged on successive runs accumulates a history rather than
+   overwriting one. That history *is* the advisory phase's evidence.
+   The dev session posts a
    weekly digest (counts per verdict per line, plus a random sample of
    removals for human review) — the analogue of the farm's run log.
 6. **Prompt hygiene, as the seatbelt it is.** Queue items arrive wrapped
@@ -188,7 +205,10 @@ becoming a surveillance system.
 
 1. **Escalation latency**: daily digest, or immediate push notification
    per escalation? (Immediate is more responsive; a digest batches a
-   possible harassment situation for hours.)
+   possible harassment situation for hours.) Still open — but no longer
+   blocking on plumbing: escalations now persist across rebuilds and are
+   readable through `fetchModQueue`, so either answer has something to
+   read. What is missing is the reader, not the record.
 2. **Flag threshold and queue size** (N flags to enter the queue, top-K
    per run): 3 and 25 feel right for a small userbase, but this is a
    product call.

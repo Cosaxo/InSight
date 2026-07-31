@@ -16,11 +16,23 @@ import { fileURLToPath } from "node:url";
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const ASSETS = join(root, "dist", "assets");
 
-// Current largest chunk is ~900 KB (the spec layer loads in one piece by
-// design — check-spec-globals requires every module stay imported). These
-// are ceilings to stop drift, not targets: lower them when the ESM
-// migration in src/v2/README.md makes splitting possible.
-const MAX_CHUNK_KB = 1024;
+// Current largest chunk is ~850 KB. The spec layer used to load in one
+// piece, and this comment used to say check-spec-globals required that —
+// it does not. Rule 2 substring-matches the './spec/…' strings in
+// spec-index.js, which a dynamic import satisfies exactly as a static one
+// does, so the file can defer a module and still account for it (D25).
+//
+// The world feed is the first module group to use that: ~85 KB that first
+// paint does not need. MAX_CHUNK_KB came down from 1024 with it, which is
+// the point of lowering a ceiling after a win — at 1024 the feed could
+// silently return to the entry chunk and nothing would say so.
+//
+// Still ceilings rather than targets. The next honest reductions are the
+// Mirror tab (~168 KB) and the overlays (~176 KB); the total will barely
+// move for any of them, because splitting relocates bytes rather than
+// removing them — which is why MAX_TOTAL_JS_KB is unchanged and why the
+// per-chunk limit is the one that measures this work.
+const MAX_CHUNK_KB = 900;
 const MAX_TOTAL_JS_KB = 1600;
 
 let files;

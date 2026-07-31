@@ -38,7 +38,12 @@ let errorSpy;
 let live;
 
 beforeAll(async () => {
-  await import("../spec-index.js");
+  const specIndex = await import("../spec-index.js");
+  // The feed is lazy since loadWorldFeed() (spec-index.js) and every D11
+  // case below asserts on a feed CARD, so without this they would assert on
+  // a tab that never rendered one — the vacuous pass this file's own
+  // comments were written about.
+  await specIndex.loadWorldFeed();
   App = globalThis.App;
 });
 

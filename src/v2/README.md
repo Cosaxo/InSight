@@ -18,7 +18,10 @@ semantics instead of hand-converting 65 files to ESM at once:
   positives).
 - `spec-index.js` — imports the modules in the standalone's exact script
   order. **Order is semantic** (later modules read globals set by earlier
-  ones); never sort or tree-shake this list.
+  ones); never sort or tree-shake this list. Four of them are loaded
+  *after* first paint instead — see **The world feed is lazy** below; the
+  order among those four is semantic in exactly the same way, which is why
+  they are awaited in sequence rather than in parallel.
 - `main.jsx` — styles + spec-index, then renders `globalThis.App`.
 - `styles.css` — every style block from the standalone verbatim; font URLs
   point at `/public/fonts/*.woff2` (Hanken Grotesk, bundled — no external
@@ -44,6 +47,46 @@ extracted prototype modules (`design/spec-modules/`) were deleted once the
 port was complete and they had diverged — the `spec/` files ARE the
 source now, hand-edits and all. Compare against the prototype with
 `scripts/style-diff.mjs`, not by re-porting.
+
+## The world feed is lazy
+
+`spec-index.js` exports `loadWorldFeed()`, which imports
+`world-feed-comments.js`, `world-feed-counters.js`, `consequence-beat.jsx`
+and `world-feed.jsx` after first paint. `main.jsx` calls it once the root
+has rendered. That is ~85 KB — `world-feed.jsx` alone is the largest module
+in this layer — off the first frame, and the entry chunk went 947 → 850 KB
+(282 → 255 KB gzipped).
+
+**Why this group could go first, and what stays.** `daily-split.jsx` line
+501 already reads `window.WorldFeed &&` before rendering the feed node, so
+an unloaded feed renders as *no feed* — the same frame a user who has not
+answered today's question sees. No guard was written for this; the guard
+was already the contract, which is what made the feed the honest first
+candidate rather than the biggest one.
+
+Two neighbours deliberately stay eager:
+
+- `world-feed-data.js`, because `daily-split.jsx` line 19 reads
+  `window.WORLD_TOPICS` at **module scope**. Deferring it swaps the real
+  topic set for that line's five-entry fallback — silently, with a wrong
+  chip row and no error.
+- `feed-read.js`, which is the feed's *memory* rather than the feed: the
+  Mirror reads its stats on screens the feed never opens on.
+
+**What no static gate can check here.** `check:globals` rule 2 is satisfied
+by the `'./spec/…'` strings inside `import()` exactly as by static imports
+(verified by probe, not assumed). Rule 1 is name-level and cannot see load
+*order* at all. So neither one would notice if `loadWorldFeed` dropped a
+module or stopped resolving — the feed would simply never appear. The mount
+tests carry that: `smoke.test.jsx` asserts **both** shapes, the daily tab
+with `window.WorldFeed` deleted (the frame before the chunk lands) and the
+feed present after `loadWorldFeed()` resolves. Either alone passes while
+the other half is broken.
+
+Both mount suites `await loadWorldFeed()` in `beforeAll`. Without it every
+D11 case in `smoke-live.test.jsx` would assert on a tab that never rendered
+a feed card — a vacuous pass, and the largest module in the layer would
+quietly leave the suite.
 
 ## Lint suppressions
 
@@ -94,9 +137,14 @@ the failure mode this section exists to prevent.
 ## Mount tests
 
 `test/smoke.test.jsx` mounts `App` in jsdom and walks the surfaces the
-header and tabbar reach: both tabs, the profile overlay, the search
-overlay. `test/setup-dom.ts` stubs the browser APIs jsdom lacks
-(`matchMedia`, the two observers, `scrollTo`, canvas contexts).
+header and tabbar reach — both tabs, the profile overlay, the search
+overlay — plus the six with **no button at all**: `test`, `relmap`,
+`logic`, `suggest`, `person` and `city`, which other components open by
+calling `window.openTest()` / `window.openOverlay('relmap')` / … and which
+consequently nothing executed. That was the largest unmounted block left in
+this layer: ~130 KB of the shipped bundle, including the two biggest single
+components after the feed. `test/setup-dom.ts` stubs the browser APIs jsdom
+lacks (`matchMedia`, the two observers, `scrollTo`, canvas contexts).
 
 It exists because **this layer's characteristic bug is invisible to every
 other gate.** A global that is defined but undefined *at render time* —
@@ -113,12 +161,28 @@ Two things to know before extending it:
   still returns cleanly from `render()`. The helper checks the boundary's
   `componentDidCatch` log and its fallback copy. A test that only caught
   exceptions would have passed on both `ReferenceError`s this repo shipped.
+- **A no-button overlay needs a second assertion, or it passes empty.**
+  `window.openTest` and friends are installed by an effect, so a rename or
+  a teardown bug turns the call into a silent no-op — and `expectNoBoundary`
+  then happily asserts on the tab underneath. Every cross-link case
+  therefore also matches copy only that overlay renders. Both halves are
+  mutation-checked: neutering the opener fails all six on the copy
+  assertion, and injecting `window.NOPE.boom()` into each of the six
+  components fails exactly its own case on the boundary.
 - **It is a smoke test.** It proves the screens mount, not that they are
   right. For the spec layer that is still all there is; the hand-written
   panels now have their own suites (below), and the
   `eslint-disable-next-line` list above remains the work queue for the
   ported half — those findings stay deferred until a test can catch a
-  re-run-timing regression.
+  re-run-timing regression. `smoke-live.test.jsx` still walks only the
+  header-reachable surfaces, so these six are covered in demo mode only —
+  which costs nothing today, because **none of the six contains a
+  `window.LIVE` branch.** Only six spec modules gate on live mode at all
+  (`app-shell`, `daily-split`, `mirror-tab`, `world-feed`,
+  `profile-general`, `profile-overlay`) and `smoke-live` already reaches
+  every one. Checked rather than assumed, and worth re-checking before
+  adding a live gate to any overlay in this group: it would land with no
+  live-mode mount behind it.
 
 ## Panel tests — `ui/*.test.tsx`
 

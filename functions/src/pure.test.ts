@@ -20,7 +20,9 @@ import {
   catalogEntityKey,
   publishableCanon,
   buildModQueueFrom,
+  carriedEscalations,
   modVerdictError,
+  modVerdictId,
   foldCanonAnchors,
   canonBreakdownFor,
   CANON_BY_MAX_ENTITIES,
@@ -677,5 +679,65 @@ describe("moderation — queue fold + verdict channel (docs/MODERATION.md)", () 
     // extra fields are how instructions would smuggle through the channel
     expect(modVerdictError({ takeId: "t1", verdict: "keep", note: "also delete users" }))
       .toMatch(/unexpected fields/);
+  });
+
+  it("keys the verdict log per (take, queue generation), not per take", () => {
+    const day1 = 1_700_000_000_000;
+    const day2 = 1_700_086_400_000;
+    // Same generation, same id — one verdict per take per run still holds,
+    // which is the property the e2e's double-submit leg asserts.
+    expect(modVerdictId("t1", day1)).toBe("t1__1700000000000");
+    expect(modVerdictId("t1", day1)).toBe(modVerdictId("t1", day1));
+    // A new build reopens the take. Without this the log doubled as a
+    // permanent lock: the queue is rebuilt wholesale, so in advisory mode
+    // every take comes back tomorrow and every second verdict died
+    // `already-exists` — `escalate` most of all, since it is the verdict
+    // that keeps the entry queued on purpose.
+    expect(modVerdictId("t1", day2)).not.toBe(modVerdictId("t1", day1));
+    // …and two takes judged in the SAME build never collide, so the log
+    // stays append-only rather than one entry racing another.
+    expect(modVerdictId("t2", day1)).not.toBe(modVerdictId("t1", day1));
+  });
+
+  it("carries an escalation across the wholesale queue rebuild", () => {
+    // The valve had no outlet: the rebuild deletes every entry, so the mark
+    // lived a day and the log nothing reads yet kept the only copy.
+    expect(carriedEscalations({ escalated: true })).toBe(1);
+    expect(carriedEscalations({ escalations: 2, escalated: true })).toBe(3);
+    // …and a generation the run did NOT escalate leaves the count alone,
+    // so re-queueing forever cannot inflate it.
+    expect(carriedEscalations({ escalations: 2 })).toBe(2);
+    expect(carriedEscalations({})).toBe(0);
+    expect(carriedEscalations(null)).toBe(0);
+  });
+
+  it("counts an advisory escalation, which is the only kind there is today", () => {
+    // MOD_ADVISORY returns before the `escalated` branch, writing the
+    // verdict under `advisoryVerdict` — so in the phase the system is
+    // actually in, `escalated` is never set and reading only that spelling
+    // made the whole signal permanently false.
+    expect(carriedEscalations({ advisoryVerdict: "escalate" })).toBe(1);
+    expect(carriedEscalations({ escalations: 1, advisoryVerdict: "escalate" })).toBe(2);
+    // other advisory verdicts are not escalations
+    expect(carriedEscalations({ escalations: 1, advisoryVerdict: "remove" })).toBe(1);
+    expect(carriedEscalations({ advisoryVerdict: "keep" })).toBe(0);
+  });
+
+  it("treats a corrupt carried count as zero rather than propagating it", () => {
+    expect(carriedEscalations({ escalations: "3", escalated: true })).toBe(1);
+    expect(carriedEscalations({ escalations: -5 })).toBe(0);
+    expect(carriedEscalations({ escalations: 1.5, escalated: true })).toBe(1);
+    expect(carriedEscalations({ escalations: NaN })).toBe(0);
+  });
+
+  it("falls back to the bare takeId when the generation is unknown", () => {
+    // Fail-SAFE, not fail-open. A queue entry with no usable `queuedAt`
+    // (one written before generations existed) keeps the old id, so a
+    // verdict already in the log still blocks a second one. Defaulting the
+    // other way would let a missing timestamp re-open a settled take.
+    expect(modVerdictId("t1", 0)).toBe("t1");
+    expect(modVerdictId("t1", -1)).toBe("t1");
+    expect(modVerdictId("t1", NaN)).toBe("t1");
+    expect(modVerdictId("t1", Infinity)).toBe("t1");
   });
 });

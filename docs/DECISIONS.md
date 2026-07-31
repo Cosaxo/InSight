@@ -1744,6 +1744,67 @@ list and missed `moderation.ts` entirely — three functions built,
 tested, green, and invisible to the gate whose whole job is catching
 that. It now discovers `functions/src/*.ts` instead of naming files.
 
+**Amendment (2026-07-31) — the verdict log is keyed per (take, queue
+generation), not per take.** As shipped it was `v2_mod_verdicts/{takeId}`,
+and the callable's own error text already claimed otherwise ("already has
+a verdict *this queue generation*"), as did the e2e leg asserting it. The
+key was the thing that did not agree.
+
+The consequence was not the duplicate-verdict refusal it looked like. The
+queue is rebuilt **wholesale** every run, and in advisory mode nothing is
+hidden and no flags are cleared — so every still-flagged take returns to
+the next day's queue by construction. One verdict per take *forever* meant
+the second day's judgement died `already-exists` on the first day's
+grounds, and the run's daily re-judgement — the evidence the ladder's flip
+is supposed to cite — stopped after one round. `escalate` inverted worst
+of all: it is the only verdict that deliberately keeps an entry queued for
+a human, so "come back to this" was exactly the decision nobody could come
+back to.
+
+The generation is the queue entry's own `queuedAt` (`modVerdictId`,
+pure.ts), not a counter: an entry is written once per build, so its
+timestamp already names the build. No second collection and no shared
+sequence — and no change to the verdict channel's shape, which stays the
+`{ takeId, verdict, policyLine? }` this record's first bullet fixes. The
+run cannot name a generation; the server reads it off the server-picked
+entry, so confinement is untouched. An entry with no usable `queuedAt`
+keeps the bare-takeId id, which is fail-safe: a verdict already logged
+still blocks a second one.
+
+Residual, stated rather than papered over: verdict documents written under
+the old bare-takeId id stay where they are. They are an append-only log,
+so they are readable history, but they no longer block — a take verdicted
+in the deploy window can be verdicted once more in the same generation.
+One-time, advisory-mode, and its worst outcome is a duplicate row in a log
+the maintainer reads by hand.
+
+**Amendment (2026-07-31) — escalations carry across the rebuild.** Found
+immediately downstream of the above, and the same shape: the wholesale
+rebuild was eating a signal aimed at a human. MODERATION.md calls
+`escalate` the safety valve and promises escalations reach a human in both
+phases, but `submitModVerdict` marked the queue entry and the next build
+deleted every entry — so the mark lived until 05:00 and the verdict log
+that kept the row is read by nothing yet (the digest is unbuilt). The valve
+had no outlet.
+
+In the phase the system is actually in it was not even a 24-hour window.
+`MOD_ADVISORY` returns before the `escalated` branch is reached, recording
+the verdict under `advisoryVerdict` — so the `escalated` flag
+`fetchModQueue` hands the run was permanently false. Both spellings are now
+read wherever the signal is.
+
+Each entry carries an `escalations` COUNT forward from the entry it
+replaces (`carriedEscalations`, pure.ts), read off the same fetch the
+rebuild already does to delete them, so it costs no extra query. A count
+rather than a flag because "escalated three builds running" is the signal
+the digest wants. The generation still advances, deliberately: an escalated
+take stays re-judgeable, and a second escalation is information.
+
+Known limit: the chain is entry-to-entry, so a take pushed out of the
+top-`MOD_QUEUE_SIZE` and later re-queued returns at zero. The verdict log
+holds the real history whenever the digest is built; the count is the run's
+cheap in-queue hint, not the record.
+
 Still open, recorded in MODERATION.md: the drafted thresholds (3 flags /
 25 queued / 50 cap), escalation latency, the maintainer's pass on the
 hard-line wording — and the two later phases, the client report control
@@ -1932,3 +1993,61 @@ layout.
 remaining 3 click/interaction findings are single sites in
 `consequence-beat` and `tweaks-panel`. The rest are the `autoFocus` keeps
 recorded in D21. The count only moves down.
+
+---
+
+## D25 · The world feed loads after first paint; the rest of the split waits
+
+**Decided:** 2026-07-31 · **Status:** binding
+
+**Decision.** `spec-index.js` defers `world-feed-comments.js`,
+`world-feed-counters.js`, `consequence-beat.jsx` and `world-feed.jsx` to a
+memoised `loadWorldFeed()`, called by `main.jsx` once the root has
+rendered. Entry chunk 947 → 850 KB (282 → 255 KB gzipped). The Mirror tab
+(~168 KB) and the overlays (~176 KB) stay eager, per the SHIP-CHECKLIST
+deferral.
+
+**Why the feed and not the biggest thing.** It is the biggest thing, but
+that is not the reason. `daily-split.jsx` line 501 already reads
+`window.WorldFeed &&` before rendering the feed node, so an unloaded feed
+renders as *no feed* — which is the frame a user who has not answered
+today's question already sees. No guard was added; the guard was the
+existing contract. A split that needs a new guard is a split whose
+failure mode is new.
+
+Started after first paint rather than on the frame that wants it: the feed
+opens seconds later when today's card is answered, so this is a defer past
+first paint, not a defer until needed. `main.jsx` re-renders the root when
+it resolves, because a user who answers before the chunk lands would
+otherwise sit on a feedless card with nothing scheduled to re-read the
+global.
+
+**Two neighbours stay eager, and the reason is the load-order rule this
+repo keeps re-learning.** `world-feed-data.js` is read at MODULE scope by
+`daily-split.jsx` line 19 (`window.WORLD_TOPICS`), so deferring it swaps
+the real topic set for that line's five-entry fallback — a wrong chip row,
+silently, with nothing thrown. `feed-read.js` is the feed's memory rather
+than the feed, and the Mirror reads its stats on screens the feed never
+opens on.
+
+**What this corrects about the gates.** `check-bundle.mjs` asserted that
+the spec layer loads in one piece because "check-spec-globals requires
+every module stay imported". It does not: rule 2 substring-matches the
+`'./spec/…'` strings in `spec-index.js`, and a dynamic import satisfies it
+exactly as a static one does. Verified by probe before relying on it.
+
+That cuts both ways, and it is the residual worth recording. Rule 1 is
+name-level and rule 2 matches text, so **neither can see load order** — a
+`loadWorldFeed()` that dropped a module or stopped resolving would leave
+both green and the feed would simply never appear. The mount tests carry
+it: `smoke.test.jsx` pins both shapes, the daily tab with `window.WorldFeed`
+deleted and the feed present after the load resolves, because either alone
+passes while the other half is broken. Any future group split by this
+mechanism needs the same pair, and that requirement — not the byte count —
+is what should pace the rest of the split.
+
+**What is being bought.** Parse and eval on a cold start, not network: the
+bundle ships inside the native package (`firebase.json` hosting serves
+only the marketing pages). `MAX_CHUNK_KB` came down 1024 → 900 to hold the
+win; the TOTAL is deliberately unchanged, because splitting relocates bytes
+rather than removing them.

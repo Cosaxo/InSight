@@ -436,4 +436,8 @@ Until then links open the fallback page — degraded, not broken.
   of the trigger).
 - Ranking/scale feed card types; Circle/Near mirror population fields
   (need geo opt-in + circle data); world comments are OUT by decision D1.
-- Bundle is one ~900KB chunk — split after the feature surface settles.
+- Bundle: the world feed now loads after first paint (D25), taking the
+  entry chunk to ~850 KB from ~947. The rest of the split — the Mirror tab
+  (~168 KB) and the overlays (~176 KB) — still waits on the feature
+  surface settling. Note the cost this is buying down is parse and eval on
+  a cold start, not network: the bundle ships inside the native package.

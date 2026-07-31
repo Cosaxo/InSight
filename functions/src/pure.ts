@@ -594,6 +594,88 @@ export function buildModQueueFrom(
 }
 
 /**
+ * The verdict log's document id: one entry per (take, QUEUE GENERATION).
+ *
+ * Keyed by takeId alone, the log doubled as a lock that never released —
+ * the first verdict on a take made every later one impossible. That reads
+ * as correct right up until you notice the queue is REBUILT WHOLESALE on
+ * every run: in advisory mode nothing is hidden and no flags are cleared,
+ * so the same take is back in tomorrow's queue, the run judges it again,
+ * and the submission dies `already-exists`. The daily re-judgement is not
+ * an edge case — it is the material the trust ladder is made of.
+ *
+ * `escalate` had it worst. It is the one verdict that deliberately KEEPS
+ * the entry queued for a human, so "come back to this" was precisely the
+ * decision that could never be come back to.
+ *
+ * The generation is the queue entry's own `queuedAt`, not a counter: an
+ * entry is written exactly once per build, so its timestamp already names
+ * the build that picked it — no second collection, no shared sequence.
+ * The moderation run never names it either. It submits the same
+ * `{ takeId, verdict, policyLine? }` as before and the SERVER reads the
+ * generation off the server-picked queue entry, so confinement is
+ * unchanged: the run can address the take in front of it, never a
+ * generation of its choosing.
+ *
+ * Unknown generation falls back to the bare takeId, which is fail-SAFE
+ * rather than fail-open — a verdict already in the log keeps blocking a
+ * second one. The reverse default would let a queue entry with no usable
+ * timestamp re-open a settled take.
+ */
+export function modVerdictId(takeId: string, gen: number): string {
+  return Number.isFinite(gen) && gen > 0 ? `${takeId}__${gen}` : takeId;
+}
+
+/**
+ * How many times a take has been escalated, carried across a queue
+ * rebuild. Takes the PREVIOUS queue entry's fields; returns the count to
+ * stamp on the new one.
+ *
+ * Escalation is the policy's safety valve — "uncertain → escalate", and
+ * docs/MODERATION.md promises escalations reach a human in BOTH phases.
+ * Nothing carried them. `submitModVerdict` marked the queue entry and
+ * `runBuildModQueue` rebuilds that collection wholesale, so the mark lived
+ * until the next daily build and then vanished; the verdict log kept the
+ * row, but nothing reads the log yet (the digest is unbuilt), so the valve
+ * had no outlet at all.
+ *
+ * It was worse than a 24-hour window in the phase the system is actually
+ * in. Under MOD_ADVISORY the callable returns after writing
+ * `advisoryVerdict`, so the `escalated` flag was never set — meaning the
+ * `escalated` field `fetchModQueue` hands the run was permanently false
+ * today. Both spellings are read here, so the signal means one thing in
+ * both phases.
+ *
+ * A COUNT rather than a flag: a take the run keeps escalating is a
+ * different signal from one it escalated once, and it is the signal the
+ * digest wants. Monotonic across rebuilds, and the fresh generation is
+ * left alone — an escalated take is still re-judgeable, deliberately. A
+ * second escalation is information, not a duplicate.
+ *
+ * Known limit, stated rather than engineered around: the chain is
+ * entry-to-entry, so a take that drops out of the top-MOD_QUEUE_SIZE and
+ * later returns comes back at zero. The verdict log holds the real history
+ * for the digest; this number is the run's cheap in-queue hint, not the
+ * record.
+ */
+export function carriedEscalations(prior: {
+  escalations?: unknown;
+  escalated?: unknown;
+  advisoryVerdict?: unknown;
+} | null | undefined): number {
+  if (!prior) return 0;
+  const base =
+    typeof prior.escalations === "number" &&
+    Number.isInteger(prior.escalations) &&
+    prior.escalations > 0
+      ? prior.escalations
+      : 0;
+  const escalatedThisGeneration =
+    prior.escalated === true || prior.advisoryVerdict === "escalate";
+  return escalatedThisGeneration ? base + 1 : base;
+}
+
+/**
  * Why a submitted verdict is invalid, or null when it is well-formed.
  * Returns the reason as text so the callable can hand it back verbatim.
  */

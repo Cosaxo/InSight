@@ -117,6 +117,42 @@ await expectCode("second verdict on the same take refused (already-exists)",
     runId: "e2e-run", verdict: { takeId: TAKE, verdict: "keep" },
   }));
 
+// 8b · …but a NEW generation reopens it, which is the half that was
+// broken. The queue is rebuilt wholesale every run and advisory mode
+// hides nothing and clears no flags, so this take is back tomorrow —
+// and while the verdict log was keyed by takeId alone, tomorrow's
+// verdict died `already-exists` on yesterday's grounds. `escalate` was
+// the worst case: the one verdict that keeps an entry queued for a human
+// was the one that could never be revisited. The two legs together are
+// the actual contract — one verdict per generation, a fresh judgement
+// per generation.
+await httpsCallable(fns, "buildModQueueNow")({});
+const regen = await httpsCallable(fns, "submitModVerdict")({
+  runId: "e2e-run-2", verdict: { takeId: TAKE, verdict: "escalate" },
+});
+if (!regen.data.ok) fail("re-verdict after rebuild: " + JSON.stringify(regen.data));
+ok("a rebuilt queue reopens the take for judgement (new generation)");
+
+// 8c · the escalation survives the NEXT rebuild. "Uncertain → escalate" is
+// the policy's safety valve and docs/MODERATION.md promises escalations
+// reach a human in both phases — but the rebuild deletes every queue entry,
+// so the mark used to live until 05:00 and then vanish, and the verdict log
+// that kept the row is read by nothing yet. Worse in advisory mode, which
+// returns before the `escalated` branch is reached: the flag fetchModQueue
+// handed the run was permanently false. This asserts the count arrives on
+// the far side of a wipe.
+await httpsCallable(fns, "buildModQueueNow")({});
+const carried = await httpsCallable(fns, "fetchModQueue")({});
+const carriedItem = carried.data.items.find((i) => i.takeId === TAKE);
+if (!carriedItem) fail("take fell out of the queue after rebuild");
+if (carriedItem.escalations !== 1) {
+  fail(`escalation not carried: escalations=${JSON.stringify(carriedItem.escalations)}`);
+}
+// …and it is a standing signal, not this generation's verdict: the fresh
+// entry carries no verdict of its own, so the run can judge it again.
+if (carriedItem.escalated) fail("a rebuilt entry claims a verdict it does not have");
+ok("the escalation survived the rebuild (escalations=1, entry re-judgeable)");
+
 // 9 · the dark collections stay dark to clients, moderator caller included
 await expectCode("client read of the queue refused", "permission-denied",
   () => getDoc(doc(db, "v2_mod_queue", TAKE)));
