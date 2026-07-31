@@ -169,11 +169,11 @@ growing the portfolio is the job's larger point, 2026-07-31 direction
 from the maintainer). Same governance as the farm: this section is the
 contract, the PR is the human gate, and every outcome logs to issue #31.
 
-**Status: paused 2026-07-31** (Routine disabled) — with Pokémon as the
-only committed catalogue, three canons deep, the honest-question well is
-near its floor and daily cards would drift toward filler. Re-enable the
-Routine once the films/artists catalogues land (the D15 operator step)
-or a new domain ships.
+**Status: running.** Paused 2026-07-31 while Pokémon (three canons deep)
+was the only committed catalogue — the honest-question well was near its
+floor; re-enabled the same day with the emoji domain (this PR's
+catalogue, the first built under the rules below). Films/artists still
+await the D15 operator step.
 
 Rules, each load-bearing:
 
