@@ -89,6 +89,47 @@ async function deleteQueryDocs(
   return total;
 }
 
+// Moderation-queue entries whose take no longer exists.
+//
+// v2_mod_queue holds a COPY of each flagged take's text — moderation.ts
+// copies it so the moderation run reads one collection and never the circle
+// around it. The cost of that confinement is that deleting a take does not
+// delete the words: the copy outlives it until the next 05:00 rebuild.
+//
+// Keyed on the take's ABSENCE rather than on an author, for two reasons.
+// The entry carries no author field and deliberately should not — a uid in
+// the run's one readable collection would hand it a person to judge instead
+// of a text. And absence is already the queue's own rule for "settled":
+// runBuildModQueue skips a take that no longer exists. So this collects
+// entries orphaned by an ordinary author-deletes-their-take as well, which
+// nothing swept before either.
+//
+// Bounded whatever the account looks like: the queue holds at most
+// MOD_QUEUE_SIZE entries (25, moderation.ts) in total across all users, so
+// this is one query, at most that many existence checks, and a single batch
+// far below the 500-write cap.
+async function deleteOrphanedModQueue(): Promise<number> {
+  const db = getFirestore();
+  const queue = await db.collection("v2_mod_queue").get();
+  const orphans: FirebaseFirestore.DocumentReference[] = [];
+  for (const q of queue.docs) {
+    const takeId = q.get("takeId");
+    // An entry naming no take can never be settled by anything — it is
+    // residue by definition, so it goes with the rest.
+    if (typeof takeId !== "string" || !takeId) {
+      orphans.push(q.ref);
+      continue;
+    }
+    const take = await db.collection("v2_takes").doc(takeId).get();
+    if (!take.exists) orphans.push(q.ref);
+  }
+  if (!orphans.length) return 0;
+  const batch = db.batch();
+  for (const ref of orphans) batch.delete(ref);
+  await batch.commit();
+  return orphans.length;
+}
+
 // Recursively delete every doc under insight_users/{uid}/*.
 // Firestore's CLI has `firestore:delete --recursive` but that's
 // admin tooling, not callable from a function. We do it by hand:
@@ -127,6 +168,12 @@ export const deleteAccount = onCall(
       discoverable: 0,
       othersRelations: 0,
       othersInbound: 0,
+      // Not per-user: the queue sweep is keyed on a take being gone, not on
+      // whose it was, so this counts every orphan it found (see
+      // deleteOrphanedModQueue). Reported because a nonzero number here on
+      // a routine deletion is the signal that something else is leaving
+      // entries behind.
+      modQueueOrphans: 0,
     };
     // Phases that threw. If ANY wipe phase fails we must refuse to
     // delete the auth user: deleting it anyway would strand the
@@ -157,13 +204,19 @@ export const deleteAccount = onCall(
     // v2_users subtree 1b erased — so right-to-erasure has to query them
     // out by uid. Hidden takes go too: the soft-hide exists for appeal
     // and audit, and a deleted account has ended both.
+    //
+    // deleteQueryDocs rather than one unbounded batch per collection: a
+    // batch caps at 500 writes, so an account with enough takes and flags
+    // failed this phase outright — and a failed phase refuses the auth
+    // delete, which turns "too talkative" into an account that can never
+    // finish deleting itself.
     try {
-      for (const [col, field] of [["v2_takes", "authorUid"], ["v2_flags", "uid"]] as const) {
-        const docs = await db.collection(col).where(field, "==", uid).get();
-        const batch = db.batch();
-        for (const d of docs.docs) batch.delete(d.ref);
-        await batch.commit();
-      }
+      await deleteQueryDocs(db.collection("v2_takes").where("authorUid", "==", uid));
+      await deleteQueryDocs(db.collection("v2_flags").where("uid", "==", uid));
+      // …and the queue's copy of the text, which the take's deletion does
+      // not take with it. Must run AFTER the takes are gone — it identifies
+      // its targets by their take being absent. See deleteOrphanedModQueue.
+      counts.modQueueOrphans = await deleteOrphanedModQueue();
     } catch (err) {
       logger.error("[deleteAccount] takes/flags wipe failed:", err);
       failed.push("takesFlags");

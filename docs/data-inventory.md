@@ -19,6 +19,10 @@ Safety answers when store listing time comes.
 | Reveals | `v2_groups/{gid}/reveals/{day}` | members | server-written; names + option picks for that day |
 | Aggregates (public) | `v2_question_aggs` | any signed-in user | k-floored (≥5), no per-vote timing, published once per 5 answers so no step is attributable |
 | Per-anchor breakdowns | `v2_question_aggs.by` | any signed-in user | counts per cohort, floored per cell with complementary suppression; never carries a name or a uid |
+| Takes (circle comments) | `v2_takes` | the take's circle; a mod-hidden one, only its author | free text ≤280 chars, D1 — never world-scale. No edit path; author may delete |
+| Flags on a take | `v2_flags` | nobody (write-only) | one per (take, user); anonymous to the circle AND to the moderation run, which sees only server-folded counts |
+| Moderation queue | `v2_mod_queue` | nobody (server only) | holds a **copy of a flagged take's text**, so the run reads one collection and never the circle around it. Carries no author uid, deliberately. Erased when its take is |
+| Moderation verdicts | `v2_mod_verdicts` | nobody (server only) | append-only audit log: take id, verdict, policy line, run id, generation, and the MODERATOR's uid. No author text and no author uid |
 | Aggregates (exact) | `v2_aggs_private`, `v2_agg_events` | nobody (server only) | trigger internals |
 | Auth identity | Firebase Auth | — | anonymous by default; Google via linking |
 | Local device state | localStorage (~29 `insight.*` keys) | this device | vote cache, display-name draft, passive-test progress, replies, likes, scenes |
@@ -69,16 +73,33 @@ claim, not the answer to that row.
 **Deletion.** The `deleteAccount` callable wipes the profile, all answers,
 group memberships, this user's votes and names inside shared reveals, the
 rate-limit ledgers, cross-user references (impressions they sent,
-relations naming them), and the auth user; it also purges every local
-`insight.*` key and the offline cache on the device that ran it. Two
-things deliberately survive, and both belong on a store form:
+relations naming them), their takes and flags, the moderation queue's copy
+of any take of theirs, and the auth user; it also purges every local
+`insight.*` key and the offline cache on the device that ran it.
+
+That queue copy is worth stating explicitly, because it is the one place a
+user's words lived somewhere other than where they wrote them: the
+moderation design copies a flagged take's text into `v2_mod_queue` so the
+review run reads one collection and never the circle around it, and for a
+while deleting the take did not delete the copy. It does now, and the
+erasure e2e asserts it — including that someone else's queued take is left
+alone.
+
+Three things deliberately survive, and all belong on a store form:
 
 - k-floored aggregate tallies (anonymous, no per-user attribution to
   unwind), and
 - **the uid attached to any Sentry event already sent.** `deleteAccount`
   does not reach into Sentry, so those reports persist for the Sentry
   project's retention period. Only relevant to users who opted telemetry
-  in.
+  in, and
+- **moderation verdict rows** (`v2_mod_verdicts`). They record that a take
+  id was removed, kept or escalated, under which policy line, by which
+  moderator — no author text, no author uid. Once the take, the flags and
+  the profile are gone the id resolves to nothing, so what remains is a
+  record of a moderator's decision rather than data about the person who
+  was moderated. Kept because the log is the audit trail the advisory
+  phase's judgement is assessed from, and it is append-only by design.
 
 Journal-era (v1) collections (`insight_users/*`, `insight_discoverable`,
 aggregates) are no longer reachable by any client — their rules were

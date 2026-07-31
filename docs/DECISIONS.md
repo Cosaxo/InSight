@@ -1805,6 +1805,39 @@ top-`MOD_QUEUE_SIZE` and later re-queued returns at zero. The verdict log
 holds the real history whenever the digest is built; the count is the run's
 cheap in-queue hint, not the record.
 
+**Amendment (2026-07-31) — `deleteAccount` sweeps the queue's copy of a
+take.** The third one found in this subsystem, and the only one on the
+erasure path. `v2_mod_queue` holds a COPY of a flagged take's text —
+`buildModQueue` copies it so the run reads one collection and never the
+circle around it, which is a real privacy win — and `deleteAccount` erased
+`v2_takes` and `v2_flags` by uid while touching neither the queue nor its
+copy. A deleted account's words survived until the next 05:00 rebuild
+happened to drop them. Self-healing, up to ~24h, and the wrong direction
+for a right-to-erasure path to fail in.
+
+The sweep keys on the take being **absent** rather than on an author,
+because the queue carries no author uid and deliberately should not: a uid
+in the run's one readable collection hands it a person to judge instead of
+a text. Absence is already the queue's own test for settled
+(`buildModQueue` skips a take that no longer exists), so the sweep also
+collects entries orphaned by an ordinary author-deletes-their-take, which
+nothing collected before. Bounded by `MOD_QUEUE_SIZE`: one query, at most
+25 existence checks, one batch.
+
+Found in the same pass: the takes/flags wipe built ONE unbounded batch per
+collection against Firestore's 500-write cap, so an account with enough of
+either failed the phase — and a failed phase refuses the auth delete, which
+turns "talkative" into an account that can never finish deleting itself. It
+now uses `deleteQueryDocs`, the paginating helper already in the file.
+
+The verdict log is deliberately NOT swept: a row names a take id, a verdict,
+a policy line, a run and the MODERATOR, and once the take, flags and profile
+are gone that id resolves to nothing. What remains is a record of a
+moderator's decision, and it is the audit trail the advisory phase's
+judgement is assessed from. Recorded on the store-facing list
+(docs/data-inventory.md) as one of the things deletion deliberately leaves
+behind, rather than left for someone to discover.
+
 Still open, recorded in MODERATION.md: the drafted thresholds (3 flags /
 25 queued / 50 cap), escalation latency, the maintainer's pass on the
 hard-line wording — and the two later phases, the client report control

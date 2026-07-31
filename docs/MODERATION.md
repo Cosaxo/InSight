@@ -157,6 +157,27 @@ circle and to the run (a count, not a list of who flagged). This is the
 minimum-necessary read, and it is what keeps a moderation system from
 becoming a surveillance system.
 
+**The queue holds a copy, and the copy is erasable.** `buildModQueue`
+copies a flagged take's `text` into `v2_mod_queue` precisely so the run
+reads one collection and never the circle around it — a real privacy win
+with a cost that went unnoticed: deleting the take did not delete the
+copy, so a deleted account's words outlived it until the next 05:00
+rebuild. `deleteAccount` now sweeps queue entries whose take is gone.
+
+That sweep keys on the take's **absence**, not on an author, because the
+queue carries no author uid and should not: a uid in the run's one
+readable collection would hand it a person to judge instead of a text.
+Absence is also the queue's own definition of settled — `buildModQueue`
+already skips a take that no longer exists — so the sweep collects
+entries orphaned by an ordinary self-delete too.
+
+The verdict log is deliberately **not** swept. A row names a take id, a
+verdict, a policy line, a run and the moderator; once the take, the flags
+and the profile are gone that id resolves to nothing, so what is left is
+a record of a moderator's decision rather than data about the person
+moderated — and it is the audit trail the advisory phase is assessed
+from.
+
 ## The flag pipeline (the substrate to build)
 
 - A **report control** on takes, available to circle members (the only
