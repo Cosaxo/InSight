@@ -152,6 +152,23 @@ export const deleteAccount = onCall(
       failed.push("v2Subtree");
     }
 
+    // 1b2. Wipe the user's takes and flags (docs/MODERATION.md). Both
+    // live in top-level collections keyed by takeId — outside the
+    // v2_users subtree 1b erased — so right-to-erasure has to query them
+    // out by uid. Hidden takes go too: the soft-hide exists for appeal
+    // and audit, and a deleted account has ended both.
+    try {
+      for (const [col, field] of [["v2_takes", "authorUid"], ["v2_flags", "uid"]] as const) {
+        const docs = await db.collection(col).where(field, "==", uid).get();
+        const batch = db.batch();
+        for (const d of docs.docs) batch.delete(d.ref);
+        await batch.commit();
+      }
+    } catch (err) {
+      logger.error("[deleteAccount] takes/flags wipe failed:", err);
+      failed.push("takesFlags");
+    }
+
     // 1c. Leave every v2 group: membership, name, and reveal entries all
     // reference the user — right-to-erasure means none may linger. A
     // group left empty is deleted outright (reveals included).
@@ -321,3 +338,4 @@ export {
   scheduledDuelReveals,
   revealDuelsNowV2,
 } from "./v2social";
+export { buildModQueue, buildModQueueNow, fetchModQueue, submitModVerdict } from "./moderation";

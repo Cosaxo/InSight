@@ -4,7 +4,7 @@
 //
 // WHY THIS EXISTS. D21 deferred spec-layer accessibility work on the grounds
 // that it should land *behind* interaction tests rather than ahead of them,
-// and D22 had to record a gap: the map/button conversions could not get one,
+// and D23 had to record a gap: the map/button conversions could not get one,
 // because the surfaces they touch never render in jsdom. These do. The
 // smoke suite already drives two of them, so the interaction test D21 asked
 // for is available here, and this is it.

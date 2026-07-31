@@ -83,12 +83,21 @@ jobs:
       - name: Write functions runtime env
         env:
           SEED_ADMIN_UIDS: ${{ vars.SEED_ADMIN_UIDS }}
+          MOD_UIDS: ${{ vars.MOD_UIDS }}
           APPCHECK_ENFORCE: ${{ vars.APPCHECK_ENFORCE }}
         run: |
           if [ -z "$SEED_ADMIN_UIDS" ]; then
             echo "::warning::SEED_ADMIN_UIDS is empty — seedContentV2, revealDuelsNowV2 and the rebuild* callables will return permission-denied. Set it on the production environment, then re-run via workflow_dispatch."
           fi
           printf 'SEED_ADMIN_UIDS=%s\n' "$SEED_ADMIN_UIDS" > functions/.env.prvfire33
+          # MOD_UIDS is the moderation allowlist — deliberately separate
+          # from SEED_ADMIN_UIDS (docs/MODERATION.md: a moderator identity
+          # can moderate and do nothing else). Empty just means the two
+          # moderation callables deny everyone, which is fail-safe.
+          if [ -z "$MOD_UIDS" ]; then
+            echo "::warning::MOD_UIDS is empty — fetchModQueue and submitModVerdict will return permission-denied for every caller."
+          fi
+          printf 'MOD_UIDS=%s\n' "$MOD_UIDS" >> functions/.env.prvfire33
           # Only ever write the escape hatch when it is explicitly "false";
           # any other value must leave App Check enforced by default.
           if [ "$APPCHECK_ENFORCE" = "false" ]; then
@@ -119,7 +128,7 @@ jobs:
           GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/sa-key.json
         run: >
           npx firebase deploy --project prvfire33 --non-interactive --force
-          --only "firestore:rules,firestore:indexes,functions:deleteAccount,functions:seedContentV2,functions:onV2AnswerCreated,functions:createGroupV2,functions:joinGroupV2,functions:leaveGroupV2,functions:registerPushToken,functions:scheduledDuelReveals,functions:revealDuelsNowV2"
+          --only "firestore:rules,firestore:indexes,functions:deleteAccount,functions:seedContentV2,functions:onV2AnswerCreated,functions:createGroupV2,functions:joinGroupV2,functions:leaveGroupV2,functions:registerPushToken,functions:scheduledDuelReveals,functions:revealDuelsNowV2,functions:buildModQueue,functions:buildModQueueNow,functions:fetchModQueue,functions:submitModVerdict"
 
       # The legal pages and the landing page they are reached from. Both
       # stores refuse a submission without a reachable privacy-policy URL,

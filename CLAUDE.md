@@ -68,10 +68,14 @@ and both `ui/` panels `Object.assign` onto `globalThis` on purpose.
 | `npm run test:unit` | client store, pure deck logic, spec-layer mount tests | nothing |
 | `npm run test --prefix functions` | k-anon floor, reveal, streak math | nothing |
 | `npm run test:rules` | Firestore **and** Storage rules | Java 21 |
-| `npm run test:e2e` / `test:e2e:erasure` | full loop, real emulated functions | Java 21 |
+| `npm run test:e2e` / `:erasure` / `:moderation` | full loop, erasure, moderation transport — real emulated functions | Java 21 |
 
 Plus the non-test gates: `check:globals`, `check:versions`,
-`check:bundle`, `check:deploy-targets`, `check:fn-runtime`.
+`check:bundle`, `check:deploy-targets`, `check:fn-runtime`, and the
+catalogue drift gates `check:cities`, `check:pokedex`, `check:catalogs`
+— the last two also run on the deploy path, because the aggregate
+trigger validates answer keys against the committed catalogues
+(D14–D17; docs/CATALOG-QUESTIONS.md).
 
 `backend-checks.yml` is a reusable workflow called by **both** `ci.yml` and
 `firebase-deploy.yml`, so what guards a PR is exactly what guards

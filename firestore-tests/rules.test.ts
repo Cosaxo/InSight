@@ -679,3 +679,95 @@ describe("v2 meta + server-only collections", () => {
     await assertFails(setDoc(doc(asUser(OWNER), "v2_ratelimits", OWNER), { events: [] }));
   });
 });
+
+describe("moderation substrate: takes + flags (docs/MODERATION.md, D22)", () => {
+  const GID = "g_mod";
+  const seedCircle = () => seed(async (db) => {
+    await setDoc(doc(db, "v2_groups", GID), {
+      name: "Mod", mode: "group", memberUids: [OWNER, FRIEND],
+    });
+  });
+  const take = (over: Record<string, unknown> = {}) => ({
+    gid: GID, authorUid: OWNER, text: "hot take",
+    createdAt: serverTimestamp(), ...over,
+  });
+  const flag = (takeId: string, uid: string, over: Record<string, unknown> = {}) => ({
+    takeId, gid: GID, uid, at: serverTimestamp(), ...over,
+  });
+
+  it("circle members write and read takes; strangers get neither", async () => {
+    await seedCircle();
+    await assertSucceeds(setDoc(doc(asUser(OWNER), "v2_takes", "t1"), take()));
+    await assertSucceeds(getDoc(doc(asUser(FRIEND), "v2_takes", "t1")));
+    await assertFails(getDoc(doc(asUser(STRANGER), "v2_takes", "t1")));
+    await assertFails(setDoc(doc(asUser(STRANGER), "v2_takes", "t2"),
+      take({ authorUid: STRANGER })));
+  });
+
+  it("takes are shape-bound, immutable, and only the author's to delete", async () => {
+    await seedCircle();
+    const ref = doc(asUser(OWNER), "v2_takes", "t1");
+    await assertFails(setDoc(ref, take({ text: "" })));                    // empty
+    await assertFails(setDoc(ref, take({ text: "x".repeat(281) })));      // over the cap
+    await assertFails(setDoc(ref, take({ authorUid: FRIEND })));          // authored as someone else
+    await assertFails(setDoc(ref, take({ extra: 1 })));                   // unknown field
+    await assertFails(setDoc(ref, take({ createdAt: new Date() })));      // not request.time
+    await assertSucceeds(setDoc(ref, take()));
+    // No edit path: an edited take invalidates the flags cast on what it
+    // used to say (the rules comment carries the argument).
+    await assertFails(updateDoc(ref, { text: "reworded" }));
+    await assertFails(deleteDoc(doc(asUser(FRIEND), "v2_takes", "t1")));
+    await assertSucceeds(deleteDoc(ref));
+  });
+
+  it("a mod-hidden take vanishes for the circle but not its author", async () => {
+    await seedCircle();
+    await seed(async (db) => {
+      await setDoc(doc(db, "v2_takes", "t_hidden"), {
+        gid: GID, authorUid: OWNER, text: "over the line",
+        createdAt: new Date(),
+        hidden: { by: "mod", policyLine: "H1" },
+      });
+    });
+    await assertFails(getDoc(doc(asUser(FRIEND), "v2_takes", "t_hidden")));
+    // The author still reads it — the soft-hide keeps the appeal honest.
+    await assertSucceeds(getDoc(doc(asUser(OWNER), "v2_takes", "t_hidden")));
+  });
+
+  it("flags: one per (take, user), members only, write-only, never on hidden takes", async () => {
+    await seedCircle();
+    await seed(async (db) => {
+      await setDoc(doc(db, "v2_takes", "t2"), {
+        gid: GID, authorUid: OWNER, text: "contested", createdAt: new Date(),
+      });
+      await setDoc(doc(db, "v2_takes", "t_gone"), {
+        gid: GID, authorUid: OWNER, text: "settled", createdAt: new Date(),
+        hidden: { by: "mod", policyLine: "H5" },
+      });
+    });
+    await assertSucceeds(setDoc(
+      doc(asUser(FRIEND), "v2_flags", "t2_" + FRIEND), flag("t2", FRIEND)));
+    // same doc again is an update — the one-flag-per-user pin
+    await assertFails(setDoc(
+      doc(asUser(FRIEND), "v2_flags", "t2_" + FRIEND), flag("t2", FRIEND)));
+    // an id that doesn't match takeId_uid would let one account stuff counts
+    await assertFails(setDoc(
+      doc(asUser(FRIEND), "v2_flags", "t2_sock2"), flag("t2", FRIEND)));
+    await assertFails(setDoc(
+      doc(asUser(STRANGER), "v2_flags", "t2_" + STRANGER), flag("t2", STRANGER)));
+    // write-only even for the flagger: anonymity is to the circle AND the run
+    await assertFails(getDoc(doc(asUser(FRIEND), "v2_flags", "t2_" + FRIEND)));
+    // a hidden take is settled — no further flag-stacking
+    await assertFails(setDoc(
+      doc(asUser(FRIEND), "v2_flags", "t_gone_" + FRIEND), flag("t_gone", FRIEND)));
+  });
+
+  it("the queue and verdict log are dark to every client", async () => {
+    await seedCircle();
+    await assertFails(getDoc(doc(asUser(OWNER), "v2_mod_queue", "t1")));
+    await assertFails(setDoc(doc(asUser(OWNER), "v2_mod_queue", "t1"), { takeId: "t1" }));
+    await assertFails(getDoc(doc(asUser(OWNER), "v2_mod_verdicts", "t1")));
+    await assertFails(setDoc(doc(asUser(OWNER), "v2_mod_verdicts", "t1"),
+      { takeId: "t1", verdict: "keep" }));
+  });
+});

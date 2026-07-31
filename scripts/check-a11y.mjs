@@ -48,7 +48,7 @@ import { ESLint } from "eslint";
 // and the reset on `.mmt-node` are what let a <button> lay out like the <div>
 // it replaced; `.mmt-astat-row` was the precedent.
 //
-// 2026-07-31, second pass: 47 → 23 (D23). The seven wf-scrim/wf-sheet
+// 2026-07-31, second pass: 47 → 23 (D24). The seven wf-scrim/wf-sheet
 // bottom sheets now go through one `Sheet` component (primitives.jsx), and
 // all eight full-screen overlays take `useDialog` — role, aria-modal,
 // aria-label, Escape, focus trap, focus restore. The findings went with it

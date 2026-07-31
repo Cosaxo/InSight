@@ -1706,9 +1706,52 @@ expand/collapse row is now a real `<button>` with `aria-expanded` instead of
 a clickable `<div>`, which is the difference between a keyboard user being
 able to open a day's detail and not.
 
+## D22 · Moderation substrate: confinement is structural, and advisory until trusted
+
+**Decided:** 2026-07-31 · **Status:** binding
+
+docs/MODERATION.md's load-bearing choices, graduated as built:
+
+- **The verdict channel accepts one shape.** `modVerdictError` (pure.ts,
+  tested) admits exactly `{ takeId, verdict, policyLine? }`: every
+  removal must cite H1–H5, nothing else may carry a line, extra fields
+  are rejected — the smuggling channel an injection would use is closed
+  at the type level.
+- **The server picks the targets.** `buildModQueue` (scheduled) folds
+  flag counts into `v2_mod_queue` via the pure, tested
+  `buildModQueueFrom`; `submitModVerdict` rejects any takeId not in the
+  queue. "Also moderate X" fails structurally, however persuasive the
+  text that asked.
+- **Least privilege cuts both ways.** The two callables are gated by
+  `MOD_UIDS`, deliberately separate from `SEED_ADMIN_UIDS`: an operator
+  is not thereby a moderator, and a leaked moderator credential can
+  moderate and do nothing else. Empty allowlist = everyone denied —
+  fail-safe.
+- **Soft-hide, author-visible.** A removed take stays readable by its
+  author (rules-enforced) so appeal happens against visible text; the
+  circle stops seeing it. No edit path on takes at all: an edited take
+  invalidates the flags cast on what it used to say.
+- **MOD_ADVISORY = true** until the dry-run phase earns the flip:
+  verdicts record and surface but hide nothing. Flipping it is a
+  one-line PR that must cite the advisory track record.
+- **Blast radius:** 50 verdicts per run (circuit breaker, not
+  invariant), flags anonymous to circle and run alike (write-only
+  collection, id-pinned one-per-user), `deleteAccount` erases a user's
+  takes and flags by uid query.
+
+Found while wiring: `check-deploy-targets` scanned a hardcoded source
+list and missed `moderation.ts` entirely — three functions built,
+tested, green, and invisible to the gate whose whole job is catching
+that. It now discovers `functions/src/*.ts` instead of naming files.
+
+Still open, recorded in MODERATION.md: the drafted thresholds (3 flags /
+25 queued / 50 cap), escalation latency, the maintainer's pass on the
+hard-line wording — and the two later phases, the client report control
+(needs a live takes surface first) and the low-privilege Routine.
+
 ---
 
-## D22 · The mouse-only spec-layer controls become buttons, ahead of the interaction tests D21 wanted
+## D23 · The mouse-only spec-layer controls become buttons, ahead of the interaction tests D21 wanted
 
 **Decided:** 2026-07-31 · **Status:** binding
 
@@ -1801,7 +1844,7 @@ Both are tracked, neither is a blocker, and the count only moves down.
 
 ---
 
-## D23 · Every overlay and sheet is a real modal dialog, and this time the interaction test came with it
+## D24 · Every overlay and sheet is a real modal dialog, and this time the interaction test came with it
 
 **Decided:** 2026-07-31 · **Status:** binding
 
@@ -1828,10 +1871,10 @@ is **gone**: it existed solely to stop the scrim's handler, so the scrim now
 tests `e.target === e.currentTarget` instead. One check removed both halves
 of the pair, which is why 24 findings closed rather than 12.
 
-**D22 owed an interaction test; this pays it.** `test/dialog.test.jsx` is
+**D23 owed an interaction test; this pays it.** `test/dialog.test.jsx` is
 seven cases over the two overlays reachable from the header — the same two
 `smoke.test.jsx` drives, and the reason it stops there is the same. Unlike
-the map surfaces in D22, these *do* render in jsdom, so the test is real
+the map surfaces in D23, these *do* render in jsdom, so the test is real
 rather than an assertion over an empty set. It pins the three things
 `check:a11y` structurally cannot see, because they are runtime behaviour and
 not source text: that focus actually moves into the dialog, that Escape
