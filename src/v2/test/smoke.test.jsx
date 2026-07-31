@@ -62,7 +62,12 @@ let errorSpy;
 beforeAll(async () => {
   // spec-index loads all ~85 modules for their side effects, in the order
   // the standalone's script tags had. `App` only exists afterwards.
-  await import("../spec-index.js");
+  const specIndex = await import("../spec-index.js");
+  // …except the world feed, which main.jsx loads after first paint. Await
+  // it here or every case below would silently stop covering the largest
+  // module in the layer — the feed renders on the daily tab, so dropping it
+  // costs coverage without failing anything.
+  await specIndex.loadWorldFeed();
   App = globalThis.App;
 });
 
@@ -97,6 +102,40 @@ describe("spec layer mounts", () => {
   it("renders the daily tab (the default) without tripping the boundary", () => {
     const expectNoBoundary = mountApp();
     expectNoBoundary("daily");
+  });
+
+  // The world feed loads after first paint (loadWorldFeed, spec-index.js),
+  // which gives the daily tab a SECOND renderable shape nothing used to
+  // exercise: the frame before the chunk lands. daily-split guards on
+  // `window.WorldFeed` and renders no feed node without it — these two cases
+  // pin both halves of that, because each is invisible to the other.
+  it("renders the daily tab before the world feed chunk has landed", () => {
+    const WorldFeed = window.WorldFeed;
+    const ConsequenceBeat = window.ConsequenceBeat;
+    delete window.WorldFeed;
+    delete window.ConsequenceBeat;
+    try {
+      const expectNoBoundary = mountApp();
+      expect(
+        screen.queryByRole("button", { name: /add a topic/i }),
+        "the feed rendered without its module — the guard is not the one being tested",
+      ).toBeNull();
+      expectNoBoundary("daily, feed not yet loaded");
+    } finally {
+      window.WorldFeed = WorldFeed;
+      window.ConsequenceBeat = ConsequenceBeat;
+    }
+  });
+
+  it("renders the world feed once its chunk has landed", () => {
+    // The other half, and the one that stops the deferral quietly becoming a
+    // deletion: if loadWorldFeed stopped resolving, or dropped a module, the
+    // case above would still pass and the feed would simply never appear.
+    mountApp();
+    expect(
+      screen.queryByRole("button", { name: /add a topic/i }),
+      "the feed did not render after loadWorldFeed resolved",
+    ).not.toBeNull();
   });
 
   it("renders the mirror tab without tripping the boundary", () => {

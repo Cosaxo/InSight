@@ -18,7 +18,10 @@ semantics instead of hand-converting 65 files to ESM at once:
   positives).
 - `spec-index.js` — imports the modules in the standalone's exact script
   order. **Order is semantic** (later modules read globals set by earlier
-  ones); never sort or tree-shake this list.
+  ones); never sort or tree-shake this list. Four of them are loaded
+  *after* first paint instead — see **The world feed is lazy** below; the
+  order among those four is semantic in exactly the same way, which is why
+  they are awaited in sequence rather than in parallel.
 - `main.jsx` — styles + spec-index, then renders `globalThis.App`.
 - `styles.css` — every style block from the standalone verbatim; font URLs
   point at `/public/fonts/*.woff2` (Hanken Grotesk, bundled — no external
@@ -44,6 +47,46 @@ extracted prototype modules (`design/spec-modules/`) were deleted once the
 port was complete and they had diverged — the `spec/` files ARE the
 source now, hand-edits and all. Compare against the prototype with
 `scripts/style-diff.mjs`, not by re-porting.
+
+## The world feed is lazy
+
+`spec-index.js` exports `loadWorldFeed()`, which imports
+`world-feed-comments.js`, `world-feed-counters.js`, `consequence-beat.jsx`
+and `world-feed.jsx` after first paint. `main.jsx` calls it once the root
+has rendered. That is ~85 KB — `world-feed.jsx` alone is the largest module
+in this layer — off the first frame, and the entry chunk went 947 → 850 KB
+(282 → 255 KB gzipped).
+
+**Why this group could go first, and what stays.** `daily-split.jsx` line
+501 already reads `window.WorldFeed &&` before rendering the feed node, so
+an unloaded feed renders as *no feed* — the same frame a user who has not
+answered today's question sees. No guard was written for this; the guard
+was already the contract, which is what made the feed the honest first
+candidate rather than the biggest one.
+
+Two neighbours deliberately stay eager:
+
+- `world-feed-data.js`, because `daily-split.jsx` line 19 reads
+  `window.WORLD_TOPICS` at **module scope**. Deferring it swaps the real
+  topic set for that line's five-entry fallback — silently, with a wrong
+  chip row and no error.
+- `feed-read.js`, which is the feed's *memory* rather than the feed: the
+  Mirror reads its stats on screens the feed never opens on.
+
+**What no static gate can check here.** `check:globals` rule 2 is satisfied
+by the `'./spec/…'` strings inside `import()` exactly as by static imports
+(verified by probe, not assumed). Rule 1 is name-level and cannot see load
+*order* at all. So neither one would notice if `loadWorldFeed` dropped a
+module or stopped resolving — the feed would simply never appear. The mount
+tests carry that: `smoke.test.jsx` asserts **both** shapes, the daily tab
+with `window.WorldFeed` deleted (the frame before the chunk lands) and the
+feed present after `loadWorldFeed()` resolves. Either alone passes while
+the other half is broken.
+
+Both mount suites `await loadWorldFeed()` in `beforeAll`. Without it every
+D11 case in `smoke-live.test.jsx` would assert on a tab that never rendered
+a feed card — a vacuous pass, and the largest module in the layer would
+quietly leave the suite.
 
 ## Lint suppressions
 

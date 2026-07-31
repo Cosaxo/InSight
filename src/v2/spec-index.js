@@ -36,14 +36,18 @@ import './spec/duo-daily.jsx';
 // so both card sets must already exist.
 import './spec/place-stats.js';
 import './spec/pick-data.js';
+// world-feed-data.js stays EAGER even though the feed itself does not:
+// daily-split.jsx reads window.WORLD_TOPICS at MODULE scope (line 19), and
+// deferring it would silently swap the real topic set for that line's
+// five-entry fallback — the failure mode being a wrong chip row rather than
+// an error anyone would see.
 import './spec/world-feed-data.js';
-import './spec/world-feed-comments.js';
-// counters read WORLD_FEED_COUNTERS at call time, but keep them adjacent —
-// order in this file is semantic (see src/v2/README.md)
-import './spec/world-feed-counters.js';
+// feed-read.js is the feed's MEMORY, not the feed: the Mirror reads its
+// stats (mirror-field-pops.jsx, app-shell.jsx) on screens the feed never
+// opens on. 1.6 KB, and eager.
 import './spec/feed-read.js';
-import './spec/consequence-beat.jsx';
-import './spec/world-feed.jsx';
+// The feed itself — the four modules below — loads after first paint. See
+// loadWorldFeed() at the foot of this file.
 import './spec/daily-split.jsx';
 import './spec/search-overlay.jsx';
 import './spec/test-definitions.js';
@@ -86,3 +90,45 @@ import './ui/PickSearch';
 import './ui/LiveCohortBody';
 import './ui/LiveGroupsMirrorBody';
 import './spec/app-shell.jsx';
+
+// ── the world feed, after first paint ──────────────────────────────────
+//
+// 85 KB of the bundle — world-feed.jsx alone is the largest module in this
+// layer — and nothing on the first frame needs it. The feed opens BELOW
+// today's card once the question is answered, so a cold start paints the
+// daily without it either way.
+//
+// This is a lazy load the spec layer could already absorb, which is why it
+// is the one worth doing: `daily-split.jsx` line 501 already reads
+// `window.WorldFeed &&` before rendering the feed node, so an unloaded feed
+// renders as no feed — exactly the frame a user who has not answered yet
+// sees. No guard was added for this; the guard was already the contract.
+//
+// SEQUENTIAL awaits, not Promise.all. Order in this file is semantic
+// (src/v2/README.md) and these four are no exception: world-feed.jsx reads
+// window.WORLD_TOPICS and window.WORLD_CHANNELS at module scope, and a
+// parallel load would resolve them in whatever order the network or disk
+// happened to finish in.
+//
+// Memoised, so the second caller waits on the first load rather than
+// starting another — main.jsx calls it once, the mount tests call it in
+// beforeAll, and both get the same promise.
+//
+// check:globals rule 2 is satisfied by the literal './spec/…' strings
+// below exactly as it was by the static imports (it substring-matches this
+// file). Rule 1 is name-level and cannot see load ORDER at all, so it would
+// not notice if this list were wrong — the mount tests are what covers
+// that, which is why smoke.test.jsx now asserts BOTH states: the app before
+// the chunk lands, and the feed present after.
+let worldFeedLoad = null;
+export function loadWorldFeed() {
+  if (!worldFeedLoad) {
+    worldFeedLoad = (async () => {
+      await import('./spec/world-feed-comments.js');
+      await import('./spec/world-feed-counters.js');
+      await import('./spec/consequence-beat.jsx');
+      await import('./spec/world-feed.jsx');
+    })();
+  }
+  return worldFeedLoad;
+}

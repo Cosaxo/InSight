@@ -1809,3 +1809,61 @@ Still open, recorded in MODERATION.md: the drafted thresholds (3 flags /
 25 queued / 50 cap), escalation latency, the maintainer's pass on the
 hard-line wording — and the two later phases, the client report control
 (needs a live takes surface first) and the low-privilege Routine.
+
+---
+
+## D23 · The world feed loads after first paint; the rest of the split waits
+
+**Decided:** 2026-07-31 · **Status:** binding
+
+**Decision.** `spec-index.js` defers `world-feed-comments.js`,
+`world-feed-counters.js`, `consequence-beat.jsx` and `world-feed.jsx` to a
+memoised `loadWorldFeed()`, called by `main.jsx` once the root has
+rendered. Entry chunk 947 → 850 KB (282 → 255 KB gzipped). The Mirror tab
+(~168 KB) and the overlays (~176 KB) stay eager, per the SHIP-CHECKLIST
+deferral.
+
+**Why the feed and not the biggest thing.** It is the biggest thing, but
+that is not the reason. `daily-split.jsx` line 501 already reads
+`window.WorldFeed &&` before rendering the feed node, so an unloaded feed
+renders as *no feed* — which is the frame a user who has not answered
+today's question already sees. No guard was added; the guard was the
+existing contract. A split that needs a new guard is a split whose
+failure mode is new.
+
+Started after first paint rather than on the frame that wants it: the feed
+opens seconds later when today's card is answered, so this is a defer past
+first paint, not a defer until needed. `main.jsx` re-renders the root when
+it resolves, because a user who answers before the chunk lands would
+otherwise sit on a feedless card with nothing scheduled to re-read the
+global.
+
+**Two neighbours stay eager, and the reason is the load-order rule this
+repo keeps re-learning.** `world-feed-data.js` is read at MODULE scope by
+`daily-split.jsx` line 19 (`window.WORLD_TOPICS`), so deferring it swaps
+the real topic set for that line's five-entry fallback — a wrong chip row,
+silently, with nothing thrown. `feed-read.js` is the feed's memory rather
+than the feed, and the Mirror reads its stats on screens the feed never
+opens on.
+
+**What this corrects about the gates.** `check-bundle.mjs` asserted that
+the spec layer loads in one piece because "check-spec-globals requires
+every module stay imported". It does not: rule 2 substring-matches the
+`'./spec/…'` strings in `spec-index.js`, and a dynamic import satisfies it
+exactly as a static one does. Verified by probe before relying on it.
+
+That cuts both ways, and it is the residual worth recording. Rule 1 is
+name-level and rule 2 matches text, so **neither can see load order** — a
+`loadWorldFeed()` that dropped a module or stopped resolving would leave
+both green and the feed would simply never appear. The mount tests carry
+it: `smoke.test.jsx` pins both shapes, the daily tab with `window.WorldFeed`
+deleted and the feed present after the load resolves, because either alone
+passes while the other half is broken. Any future group split by this
+mechanism needs the same pair, and that requirement — not the byte count —
+is what should pace the rest of the split.
+
+**What is being bought.** Parse and eval on a cold start, not network: the
+bundle ships inside the native package (`firebase.json` hosting serves
+only the marketing pages). `MAX_CHUNK_KB` came down 1024 → 900 to hold the
+win; the TOTAL is deliberately unchanged, because splitting relocates bytes
+rather than removing them.
