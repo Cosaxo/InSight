@@ -33,7 +33,7 @@ import {
   type CanonCounts,
   type CatalogSpec,
 } from "./pure";
-import { FILM_KEYS, ARTIST_KEYS } from "./catalogKeys";
+import { FILM_KEYS, ARTIST_KEYS, EMOJI_KEYS } from "./catalogKeys";
 
 const REGION = "us-central1";
 
@@ -76,6 +76,8 @@ const CATALOG_DOMAINS: Record<string, CatalogSpec> = {
   pokemon: { max: CATALOG_MAX_ENTITY },
   films: { keys: FILM_KEYS },
   artists: { keys: ARTIST_KEYS },
+  // Unicode codepoints — sparse like QIDs, stable by Unicode policy.
+  emoji: { keys: EMOJI_KEYS },
 };
 
 // ── content seed ────────────────────────────────────────────────

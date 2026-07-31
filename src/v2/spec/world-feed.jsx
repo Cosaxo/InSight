@@ -421,7 +421,7 @@ class WorldFeed extends React.Component {
   // Which catalogue a pick question resolves against (D15: pokemon is
   // dex-keyed, films/artists are QID-keyed; same load/peek/nameOf shape).
   pickStore(domain) {
-    return domain === 'films' ? window.FILMS : domain === 'artists' ? window.ARTISTS : window.POKEDEX;
+    return domain === 'films' ? window.FILMS : domain === 'artists' ? window.ARTISTS : domain === 'emoji' ? window.EMOJI : window.POKEDEX;
   }
 
   // key → display name, resolved at render time. The catalogue loads

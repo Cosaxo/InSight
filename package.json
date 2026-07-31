@@ -27,6 +27,7 @@
     "build:pokedex": "node scripts/build-pokedex.mjs",
     "check:catalogs": "node scripts/check-catalogs.mjs",
     "build:catalog": "node scripts/build-catalog.mjs",
+    "build:emoji": "node scripts/build-emoji.mjs",
     "check:ios-spm": "node scripts/check-ios-spm.mjs",
     "check:ios-facebook": "node scripts/check-ios-facebook.mjs",
     "postinstall": "node scripts/strip-facebook-sdk.mjs",

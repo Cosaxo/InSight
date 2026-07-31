@@ -18,7 +18,7 @@
 // working from world-feed.jsx.
 import React from "react";
 import POKEDEX, { type Species } from "../data/pokedex";
-import { FILMS, ARTISTS, type CatalogEntry } from "../data/catalogs";
+import { FILMS, ARTISTS, EMOJI, type CatalogEntry } from "../data/catalogs";
 
 const PS_LINE = "1px solid var(--rule)";
 
@@ -79,6 +79,16 @@ const DOMAINS: Record<string, DomainSpec> = {
   },
   films: catalogSpec(FILMS, "Search films…", "one favourite — the crowd's canon reveals after"),
   artists: catalogSpec(ARTISTS, "Search artists…", "one favourite — the crowd's canon reveals after"),
+  emoji: {
+    ...catalogSpec(EMOJI, "Search emoji…", "one pick from 1,391 — the crowd's canon reveals after"),
+    // A closed set, unlike the curated tops: every base emoji is here.
+    // Sequences are not — tones and combos count as their base, and a
+    // ZWJ-combo devotee's honest answer is Not listed.
+    noMatch:
+      "No match — every base emoji is in here, so try the word for it " +
+      "(“fire”, “skull”). Tones and combos count as their base; if yours " +
+      "truly isn't here, “Not listed” below is the honest answer.",
+  },
 };
 
 export type PickSearchProps = {
