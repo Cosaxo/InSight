@@ -70,6 +70,7 @@ function parseCatalogue(file, label) {
 
 const films = parseCatalogue(join(root, "public", "films.txt"), "films.txt");
 const artists = parseCatalogue(join(root, "public", "artists.txt"), "artists.txt");
+const emoji = parseCatalogue(join(root, "public", "emoji.txt"), "emoji.txt");
 
 // Agreement with the trigger's compiled-in sets: re-derive and compare.
 const KEYS_FILE = join(root, "functions", "src", "catalogKeys.ts");
@@ -93,6 +94,7 @@ if (src !== null) {
   for (const [name, cat, label] of [
     ["FILM_KEYS", films, "films.txt"],
     ["ARTIST_KEYS", artists, "artists.txt"],
+    ["EMOJI_KEYS", emoji, "emoji.txt"],
   ]) {
     const declared = declaredKeys(src, name);
     if (declared === null) {
@@ -117,5 +119,6 @@ if (errors.length) {
 }
 console.log(
   `check:catalogs OK — films ${films.present ? films.keys.length : "absent"}, ` +
-    `artists ${artists.present ? artists.keys.length : "absent"}, key sets agree`,
+    `artists ${artists.present ? artists.keys.length : "absent"}, ` +
+    `emoji ${emoji.present ? emoji.keys.length : "absent"}, key sets agree`,
 );

@@ -4,7 +4,9 @@
 // their committed form is gated by scripts/check-catalogs.mjs — what this
 // suite pins is the parse/search/resolve behaviour those files rely on.
 import { describe, expect, it } from "vitest";
-import { FILMS, parseCatalog } from "./catalogs";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+import { EMOJI, FILMS, parseCatalog } from "./catalogs";
 
 // Popularity order, sparse QID keys — the generator's output shape,
 // including a remake disambiguated by year and an accented name.
@@ -64,5 +66,32 @@ describe("search", () => {
 
   it("returns popularity order for an empty query", () => {
     expect(FILMS.search(entries, " ", 2).map((e) => e.key)).toEqual([47703, 104123]);
+  });
+});
+
+describe("the shipped emoji catalogue", () => {
+  // The pokedex.test.ts real-file leg, for the first domain built under
+  // the new-catalogue contract: the committed file must parse completely
+  // with unique codepoint keys, or a stored answer resolves wrong.
+  const real = parseCatalog(
+    readFileSync(resolve(__dirname, "../../../public/emoji.txt"), "utf8"),
+  );
+
+  it("parses completely with unique keys", () => {
+    expect(real.length).toBe(1391);
+    expect(new Set(real.map((e) => e.key)).size).toBe(real.length);
+  });
+
+  it("resolves a stored codepoint to its character-bearing name", () => {
+    expect(EMOJI.nameOf(real, 128514)).toBe("😂 face with tears of joy");
+  });
+
+  it("finds an emoji by its word", () => {
+    // File order is CLDR order, so "fire" surfaces 🚒 fire engine (travel
+    // group) before 🔥 itself — both must be in the results; exact-first
+    // is not the contract, presence is.
+    const fire = EMOJI.search(real, "fire").map((e) => e.key);
+    expect(fire).toContain(128293);
+    expect(EMOJI.search(real, "sparkles")[0].key).toBe(10024);
   });
 });

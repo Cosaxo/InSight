@@ -126,16 +126,20 @@ function makeCatalog(asset: string): Catalog {
 
 const FILMS = makeCatalog("films.txt");
 const ARTISTS = makeCatalog("artists.txt");
+// Codepoint-keyed (build-emoji.mjs); the display name embeds the character
+// ("😂 face with tears of joy"), so no renderer is needed here.
+const EMOJI = makeCatalog("emoji.txt");
 
 declare global {
   interface Window {
     FILMS?: Catalog;
     ARTISTS?: Catalog;
+    EMOJI?: Catalog;
   }
 }
 
 // Render-time lookup bridge for the spec layer (world-feed.jsx), the
 // places.ts Object.assign form.
-Object.assign(globalThis, { FILMS, ARTISTS });
+Object.assign(globalThis, { FILMS, ARTISTS, EMOJI });
 
-export { FILMS, ARTISTS };
+export { FILMS, ARTISTS, EMOJI };

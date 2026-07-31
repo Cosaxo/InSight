@@ -79,6 +79,25 @@
       427: 3,  // Buneary — below the floor
       0: 5,    // Not listed
     },
+    // first card of the emoji domain, 2026-07-31 (keys are Unicode
+    // codepoints — data/catalogs.ts, build-emoji.mjs)
+    pk04: {
+      128514: 43, // 😂 face with tears of joy
+      10084: 31,  // ❤️ red heart
+      128557: 27, // 😭 loudly crying face
+      128293: 22, // 🔥 fire
+      129315: 18, // 🤣 rolling on the floor laughing
+      128525: 14, // 😍 smiling face with heart-eyes
+      128128: 12, // 💀 skull
+      128077: 10, // 👍 thumbs up
+      10024: 8,   // ✨ sparkles
+      128591: 7,  // 🙏 folded hands
+      129401: 6,  // 🥹 face holding back tears — clears the floor, folds
+      128522: 5,  // 😊 smiling face with smiling eyes — same
+      127881: 4,  // 🎉 party popper — below the floor
+      128173: 2,  // 💭 thought balloon — below the floor
+      0: 9,       // Not listed — the ZWJ-combo and flag devotees
+    },
   };
 
   // Baked demo segment slices, per question: how each cohort orders the
@@ -118,6 +137,16 @@
       gender: {
         Women: { 133: 11, 175: 9, 39: 8, 300: 5, 173: 4 },
         Men: { 133: 9, 258: 8, 25: 7, 393: 6, 172: 4 },
+      },
+    },
+    pk04: {
+      ageBand: {
+        '18-24': { 128557: 11, 128128: 9, 128514: 8, 129401: 5, 10024: 4 },
+        '25-34': { 128514: 15, 10084: 9, 129315: 8, 128293: 7, 128077: 4 },
+      },
+      gender: {
+        Women: { 10084: 12, 128557: 10, 129401: 6, 10024: 6, 128525: 5 },
+        Men: { 128514: 16, 129315: 9, 128293: 8, 128128: 7, 128077: 6 },
       },
     },
   };
@@ -186,5 +215,9 @@
     // 2026-07-31 daily run: cuteness ranks the small and round — a third
     // canon next to favouritism and fear.
     { id: 'pk03', cat: 'games', type: 'pick', domain: 'pokemon', prompt: 'The cutest Pokémon?', n: 157 },
+    // 2026-07-31, first card of the emoji domain — "most-used" beats
+    // "favourite" here: it is the question people actually answer about
+    // emoji, and their keyboard already knows.
+    { id: 'pk04', cat: 'culture', type: 'pick', domain: 'emoji', prompt: 'Your most-used emoji?', n: 218 },
   ];
 })();
