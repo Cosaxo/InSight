@@ -16,7 +16,6 @@ import React from 'react';
   const { useState, useEffect, useRef } = React;
 
   const GKEY = 'insight.profileGeneral.v1';
-  const HERO_HUES = [38, 150, 220, 290, 80, 320];
 
   // ── seed from data.js, then overlay any saved edits ──
   function seedFromData() {
@@ -71,36 +70,12 @@ import React from 'react';
     boxSizing: 'border-box', width: '100%', minWidth: 0,
     transition: 'border-color 0.16s ease, box-shadow 0.16s ease',
   };
-  function TextInput(props) {
-    const { style, ...rest } = props;
-    const [foc, setFoc] = useState(false);
-    return (
-      <input
-        {...rest}
-        onFocus={(e) => { setFoc(true); rest.onFocus && rest.onFocus(e); }}
-        onBlur={(e) => { setFoc(false); rest.onBlur && rest.onBlur(e); }}
-        style={{
-          ...inputBase, fontSize: 15, padding: '8px 11px',
-          borderColor: foc ? 'var(--accent)' : 'var(--rule)',
-          boxShadow: foc ? '0 0 0 3px color-mix(in oklch, var(--accent) 14%, transparent)' : 'none',
-          ...style,
-        }}
-      />
-    );
-  }
 
   // ── select (fixed options — keeps profile fields filterable) ──
   const YEAR_NOW = new Date().getFullYear();
   const YEARS = Array.from({ length: YEAR_NOW - 13 - 1929 }, (_, i) => String(YEAR_NOW - 13 - i));
   const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
   const DAYS = Array.from({ length: 31 }, (_, i) => String(i + 1));
-  // sign is derived from the birthday, never chosen
-  function zodiacSign(m, d) {
-    if (!m || !d) return '';
-    const signs = ['Capricorn', 'Aquarius', 'Pisces', 'Aries', 'Taurus', 'Gemini', 'Cancer', 'Leo', 'Virgo', 'Libra', 'Scorpio', 'Sagittarius'];
-    const last = [19, 18, 20, 19, 20, 20, 22, 22, 21, 22, 21, 21];
-    return d > last[m - 1] ? signs[m % 12] : signs[m - 1];
-  }
   const monthNum = (name) => MONTHS.indexOf(name) + 1; // 0 when unset
   function calcAge(y, mName, d) {
     if (!y) return '';
@@ -109,12 +84,6 @@ import React from 'react';
     const m = monthNum(mName);
     if (m) { const cm = now.getMonth() + 1; if (cm < m || (cm === m && now.getDate() < Number(d || 0))) a--; }
     return String(a);
-  }
-  function signOf(v) { return zodiacSign(monthNum(v.bornM), Number(v.bornD)); }
-  function fmtBorn(v) {
-    if (!v.born) return '—';
-    if (v.bornM && v.bornD) return `${v.bornD} ${v.bornM.slice(0, 3)} ${v.born}`;
-    return v.born;
   }
   const JOB_OPTS = ['Arts & culture', 'Design & creative', 'Media & publishing', 'Writing & journalism', 'Education & research', 'Science', 'Software & IT', 'Tech & engineering', 'Engineering', 'Architecture', 'Healthcare', 'Mental health & care', 'Business & finance', 'Marketing & advertising', 'Sales', 'Consulting', 'Law & government', 'Public sector & nonprofit', 'Trades & crafts', 'Construction', 'Manufacturing', 'Agriculture & environment', 'Transport & logistics', 'Service & hospitality', 'Retail', 'Entrepreneur / self-employed', 'Student', 'Homemaker', 'Between jobs', 'Retired', 'Other'];
   // Anchor vocabularies (D8). Coarse on purpose: the breakdown floors get
@@ -347,7 +316,8 @@ import React from 'react';
               person split — never your exact birthday, and never a group small
               enough to point at one person.
             </div>
-            <span style={fieldLabel}>Sign{'\u2004'}<span style={{ ...inputBase, fontSize: 15, padding: '8px 11px', border: '1px solid transparent', background: 'transparent', color: 'var(--ink-2)', fontWeight: 500, textTransform: 'none', letterSpacing: 'normal' }}>{signOf(v) || 'set your birthday'}</span></span>
+            {/* the zodiac Sign row left with the v15 revision: signOf and
+                zodiacSign are gone from the prototype, so the row is too */}
           </div>
         )}
       </Card>
@@ -358,126 +328,6 @@ import React from 'react';
     fontFamily: 'var(--sans)', fontSize: 11.5, fontWeight: 600, letterSpacing: '0.04em',
     textTransform: 'uppercase', color: 'var(--ink-3)',
   };
-
-  // ── 2. Interests & tastes (merged — one card, one Edit) ──
-  function InterestsTastesCard({ data, set }) {
-    const [editing, setEditing] = useState(false);
-    return (
-      <Card title="Interests &amp; tastes" hint={editing ? 'Tap × to remove, type to add.' : null}
-        editable editing={editing} onToggle={() => setEditing(e => !e)}>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
-          <div>
-            <div style={tasteLabel}>Interests</div>
-            <Chips items={data.interests} editing={editing}
-              onChange={(next) => set(d => ({ ...d, interests: next }))} placeholder="interest…" />
-          </div>
-          <div>
-            <div style={tasteLabel}>Likes</div>
-            <Chips items={data.likes} editing={editing}
-              onChange={(next) => set(d => ({ ...d, likes: next }))} placeholder="like…" />
-          </div>
-          <div>
-            <div style={tasteLabel}>Dislikes</div>
-            <Chips items={data.dislikes} editing={editing} tone="dislike"
-              onChange={(next) => set(d => ({ ...d, dislikes: next }))} placeholder="dislike…" />
-          </div>
-        </div>
-      </Card>
-    );
-  }
-
-  // ── Interests ──
-  function InterestsCard({ data, set }) {
-    const [editing, setEditing] = useState(false);
-    return (
-      <Card title="Interests" hint={editing ? 'Tap × to remove, type to add.' : null}
-        editable editing={editing} onToggle={() => setEditing(e => !e)}>
-        <Chips items={data.interests} editing={editing}
-          onChange={(next) => set(d => ({ ...d, interests: next }))} placeholder="interest…" />
-      </Card>
-    );
-  }
-
-  // ── 3. Likes & dislikes ──
-  function TastesCard({ data, set }) {
-    const [editing, setEditing] = useState(false);
-    return (
-      <Card title="Likes &amp; dislikes" editable editing={editing} onToggle={() => setEditing(e => !e)}>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-          <div>
-            <div style={tasteLabel}>Likes</div>
-            <Chips items={data.likes} editing={editing}
-              onChange={(next) => set(d => ({ ...d, likes: next }))} placeholder="like…" />
-          </div>
-          <div>
-            <div style={tasteLabel}>Dislikes</div>
-            <Chips items={data.dislikes} editing={editing} tone="muted"
-              onChange={(next) => set(d => ({ ...d, dislikes: next }))} placeholder="dislike…" />
-          </div>
-        </div>
-      </Card>
-    );
-  }
-  const tasteLabel = {
-    fontFamily: 'var(--sans)', fontSize: 11.5, fontWeight: 700, letterSpacing: '0.1em',
-    textTransform: 'uppercase', color: 'var(--ink-3)', marginBottom: 11,
-  };
-
-  // ── 4. Heroes ──
-  function HeroesCard({ data, set }) {
-    const [editing, setEditing] = useState(false);
-    const heroes = data.heroes;
-    const updHero = (i, k, val) => set(d => ({ ...d, heroes: d.heroes.map((h, j) => j === i ? { ...h, [k]: val } : h) }));
-    const removeHero = (i) => set(d => ({ ...d, heroes: d.heroes.filter((_, j) => j !== i) }));
-    const addHero = () => set(d => ({
-      ...d,
-      heroes: [...d.heroes, { name: 'New hero', field: '', hue: HERO_HUES[d.heroes.length % HERO_HUES.length] }],
-    }));
-    return (
-      <Card title="Heroes" editable editing={editing} onToggle={() => setEditing(e => !e)}>
-        <div style={{ display: 'flex', flexDirection: 'column' }}>
-          {heroes.map((h, i) => (
-            <div key={i} style={{
-              display: 'flex', alignItems: 'center', gap: 13, padding: '11px 0',
-              borderTop: i === 0 ? 'none' : '1px solid color-mix(in oklch, var(--rule), transparent 35%)',
-            }}>
-              <div style={{
-                width: 40, height: 40, borderRadius: '50%', flexShrink: 0,
-                background: `oklch(0.93 0.05 ${h.hue})`, border: `1px solid oklch(0.7 0.1 ${h.hue})`,
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontFamily: 'var(--sans)', fontWeight: 700, fontSize: 14, color: `oklch(0.4 0.13 ${h.hue})`,
-              }}>{initials(h.name)}</div>
-              {editing ? (
-                <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 6 }}>
-                  <TextInput value={h.name} onChange={e => updHero(i, 'name', e.target.value)} style={{ fontSize: 14.5, fontWeight: 600, padding: '6px 10px' }} placeholder="Name" />
-                  <TextInput value={h.field} onChange={e => updHero(i, 'field', e.target.value)} style={{ fontSize: 13, padding: '6px 10px' }} placeholder="What they're known for" />
-                </div>
-              ) : (
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontFamily: 'var(--sans)', fontSize: 16, fontWeight: 600, letterSpacing: '-0.01em', color: 'var(--ink)' }}>{h.name}</div>
-                  {h.field && <div style={{ fontFamily: 'var(--sans)', fontSize: 13, color: 'var(--ink-3)', marginTop: 2 }}>{h.field}</div>}
-                </div>
-              )}
-              {editing && (
-                <button onClick={() => removeHero(i)} aria-label={'Remove ' + h.name} style={{
-                  flexShrink: 0, cursor: 'pointer', WebkitAppearance: 'none', appearance: 'none',
-                  width: 30, height: 30, borderRadius: '50%', border: '1px solid var(--rule)', background: 'transparent',
-                  color: 'var(--ink-3)', fontSize: 16, lineHeight: 1, display: 'flex', alignItems: 'center', justifyContent: 'center',
-                }}>×</button>
-              )}
-            </div>
-          ))}
-        </div>
-        {editing && (
-          <button onClick={addHero} style={{
-            marginTop: 12, width: '100%', cursor: 'pointer', WebkitAppearance: 'none', appearance: 'none',
-            padding: '11px', borderRadius: 12, border: '1px solid var(--rule)', background: 'transparent',
-            color: 'var(--ink-2)', fontFamily: 'var(--sans)', fontSize: 13.5, fontWeight: 600,
-          }}>+ Add hero</button>
-        )}
-      </Card>
-    );
-  }
 
   // ── the visual profile: mind-map thumbnail → Mirror · You ──
   function MapThumbCard() {

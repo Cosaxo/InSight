@@ -16,12 +16,16 @@ const WF_LS = 'insight.feedVotes.v1';
 const WF_REPLIES_LS = 'insight.feedReplies.v1';
 const WF_TAKES_LS = 'insight.feedTakes.v1';
 const WF_PASS_LS = 'insight.feedPass.v1';
-// where a vote lands on your Mirror — the ripple line shown after answering
-const WF_BRANCH = { food: 'Food', sport: 'Body', movies: 'Taste', music: 'Taste', tech: 'Mind', culture: 'Values', dilemma: 'Morals', event: 'Mind', people: 'Values', bigq: 'Values', games: 'Interests' };
+// where a vote lands on your Mirror — the ripple line after answering
+const WF_BRANCH = { food: 'Food', sport: 'Body', movies: 'Taste', music: 'Taste', tech: 'Mind', culture: 'Values', dilemma: 'Morals', event: 'Mind', people: 'Values', bigq: 'Values', fav: 'Taste' };
 const WF_TOPICS = window.WORLD_TOPICS || [];
 const WF_TOPIC = Object.fromEntries(WF_TOPICS.map((t) => [t.id, t]));
 const WF_CHANNELS = window.WORLD_CHANNELS || [];
 const WF_CHAN_SET = Object.fromEntries(WF_CHANNELS.map((id) => [id, true]));
+// second level of the tree: colour comes from the parent topic, label from the leaf
+const WF_SUB = (id) => (id && window.SUBTOPICS ? window.SUBTOPICS.get(id) : null);
+// background knowledge, only where a question can't be answered honestly without it
+const WF_BGTEXT = (q) => (q && (q.bg || (window.WORLD_BG || {})[q.id])) || null;
 const WF_LINE = '1px solid color-mix(in oklch, var(--rule), transparent 25%)';
 
 function wfLoad() {
@@ -46,7 +50,7 @@ function wfLoadTakes() {
   catch (e) { return {}; }
 }
 function wfFmt(n) { return n >= 1000 ? (n / 1000).toFixed(1).replace(/\.0$/, '') + 'K' : '' + n; }
-function wfVotes(q) { return q.type === 'rank' ? (q.votes || 0) : q.type === 'rate' || q.type === 'pick' ? (q.n || 0) : q.options.reduce((a, o) => a + o.count, 0); }
+function wfVotes(q) { return q.type === 'rank' ? (q.votes || 0) : q.type === 'rate' ? (q.n || 0) : q.type === 'pick' ? (q.n || (((window.WF_CATALOGS || {})[q.catalog] || {}).picks || 0)) : q.options ? q.options.reduce((a, o) => a + o.count, 0) : 0; }
 function wfPcts(counts, mineIdx) {
   const c = counts.map((n, i) => n + (mineIdx === i ? 1 : 0));
   const total = c.reduce((a, b) => a + b, 0);
@@ -62,9 +66,39 @@ function wfTileArt(color, seed) {
   const b = 'color-mix(in oklch, ' + color + ' 15%, var(--surface-2))';
   const v = Math.floor(wfHash('tile:' + seed) * 4);
   if (v === 0) return 'radial-gradient(110% 120% at 82% 100%, ' + a + ', transparent 58%), linear-gradient(150deg, ' + b + ', ' + a + ')';
-  if (v === 1) return 'radial-gradient(circle, ' + a + ' 1.7px, transparent 2.1px) 0 0 / 14px 14px, ' + b;
+  // a bare colour is not a valid background-image layer — it computes to `none`,
+  // leaving the dots floating on the card with no fill behind them
+  if (v === 1) return 'radial-gradient(circle, ' + a + ' 1.7px, transparent 2.1px) 0 0 / 14px 14px, linear-gradient(' + b + ', ' + b + ')';
   if (v === 2) return 'repeating-linear-gradient(135deg, ' + a + ' 0, ' + a + ' 2px, transparent 2px, transparent 11px), linear-gradient(160deg, ' + b + ', color-mix(in oklch, ' + color + ' 19%, var(--surface-2)))';
   return 'radial-gradient(120% 130% at 22% 12%, ' + a + ', transparent 62%), linear-gradient(160deg, ' + b + ', ' + a + ')';
+}
+
+// a catalogue's ranking is not one ranking — every population has its own, and the
+// difference between them is the whole point of the breakdown. Each group reweights
+// the same counts deterministically, so an item near a neighbour can overtake it
+// while a runaway leader usually holds. Shares are derived from those same weights
+// against the head's real share of the vote, so a group's numbers stay honest
+// arithmetic rather than a second invented statistic.
+function wfPickGroup(qid, key, ranked, headShare) {
+  const w = (it) => it.count * (0.45 + wfHash(qid + '|' + key + '|' + it.id) * 1.95);
+  const tot = ranked.reduce((a, it) => a + w(it), 0) || 1;
+  return ranked.map((it) => ({ it, share: (w(it) / tot) * headShare })).sort((a, b) => b.share - a.share);
+}
+
+// catalogue tiles stand in for real posters and portraits, so they need more
+// presence than the duel tiles' whisper — a strip of near-cream rectangles reads
+// as broken, not as artwork pending. Still one hue per card: strength and pattern
+// carry the difference between neighbours, never a second colour.
+function wfCatArt(color, seed) {
+  const t = 38 + Math.floor(wfHash('cat:' + seed) * 4) * 9;            // 38 / 47 / 56 / 65
+  const a = 'color-mix(in oklch, ' + color + ' ' + t + '%, var(--surface-2))';
+  const b = 'color-mix(in oklch, ' + color + ' ' + (t - 24) + '%, var(--surface-2))';
+  const v = Math.floor(wfHash('catp:' + seed) * 5);
+  if (v === 0) return 'radial-gradient(120% 130% at 78% 100%, ' + a + ', transparent 62%), linear-gradient(155deg, ' + b + ', ' + a + ')';
+  if (v === 1) return 'radial-gradient(circle, ' + a + ' 2px, transparent 2.5px) 0 0 / 15px 15px, linear-gradient(' + b + ', ' + b + ')';
+  if (v === 2) return 'repeating-linear-gradient(125deg, ' + a + ' 0, ' + a + ' 3px, transparent 3px, transparent 13px), linear-gradient(165deg, ' + b + ', ' + a + ')';
+  if (v === 3) return 'linear-gradient(135deg, ' + a + ' 0 46%, ' + b + ' 46%)';
+  return 'radial-gradient(100% 120% at 26% 14%, ' + a + ', transparent 66%), linear-gradient(200deg, ' + b + ', ' + a + ')';
 }
 
 // count-up for revealed percentages — runs only right after your vote
@@ -89,17 +123,40 @@ function WfCount({ to, animate, dur = 650 }) {
 // stay readable without a second palette. Splits derive deterministically from
 // the overall counts + a hash, like the daily's.
 function wfHash(s) { let h = 9; for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 387420489); return ((h ^ (h >>> 9)) >>> 0) / 4294967295; }
-function wfShade(color, i) { return 'color-mix(in oklch, ' + color + ' ' + Math.max(70 - i * 22, 12) + '%, var(--surface-3))'; }
-// Per-option hue: option 0 keeps the topic colour, the rest rotate away from
-// it. The prototype calls this `wfShade`, but THIS file already has a
-// `wfShade` that ramps lightness for the live breakdown bars — same name,
-// different function. Ported under its other prototype name rather than
-// shadowing a helper the k-floored stats renderer depends on.
+// Per-option hue: option 0 keeps the topic colour, the rest rotate away
+// from it. The v15 revision folds the old lightness-ramp wfShade into this
+// one family — live k-floored bars and demo bars now share the palette.
 function wfOpt(color, i, n) { return i === 0 ? color : 'oklch(from ' + color + ' 0.55 0.14 calc(h + ' + Math.round(i * ((n || 2) > 2 ? 120 : 150)) + '))'; }
 // v2: one hue per card. Strength encodes rank, so the winner reads first and a
 // scroll never shows more than the topic's own colour.
 function wfTint(color, rank, n) { const steps = Math.max((n || 4) - 1, 1); const s = 30 - (24 * Math.min(rank, steps)) / steps; return 'color-mix(in oklch, ' + color + ' ' + s.toFixed(1) + '%, var(--surface))'; }
-function wfShadeText(i) { return i < 2 ? '#fff' : 'var(--ink)'; }
+function wfShade(color, i, n) { return wfOpt(color, i, n); }
+function wfShadeText() { return '#fff'; }
+// rate cards have no sides — a 1–10 score reads as tint strength of the one hue
+function wfRateBg(color, s) { return 'color-mix(in oklch, ' + color + ' ' + (12 + s * 8.8).toFixed(1) + '%, var(--surface))'; }
+function wfRateInk(s) { return s >= 6 ? '#fff' : 'var(--ink)'; }
+// a group's rate on a knowledge card, drifted deterministically off the real one
+// (same trick as the opinion splits). ±23-point spread, so differences mean something.
+function wfKnowRate(id, key, p, bias) { return Math.max(4, Math.min(97, Math.round(p + (wfHash(id + ':k:' + key) - 0.5) * 40 + (bias || 0)))); }
+// education level is the one cut with a real direction on knowledge — leaving it
+// to pure noise produces headlines like “Trade school beats Doctorate on the
+// asteroid belt”, which reads as broken data rather than as an insight
+function wfKnowBias(dim, axis, n, i) { return dim === 'edu' && !axis && n > 1 ? (i / (n - 1) - 0.5) * 22 : 0; }
+// a group's average, drifted deterministically off the real one (same trick as the splits)
+function wfRateAvg(qid, key, avg) { return Math.max(1.2, Math.min(9.9, avg + (wfHash(qid + ':' + key) - 0.5) * 3.6)); }
+// every who-voted cut in one place (vote-cuts.js): demographics, then the four
+// tests — each opening into its own subvalues, the same axes the Circle map uses
+const WF_CUTS = () => (window.VOTECUTS ? window.VOTECUTS.dims() : [{ id: 'friends', label: 'Friends' }]);
+// Knowledge questions take a NARROWER set of cuts than opinions do. “Who voted
+// this way” by gender is a fact about identity; “who got this wrong” by gender is
+// a claim about competence, and that is not a chart this app should draw. What
+// legitimately explains knowing a fact: what you studied, what you do, how old
+// you are, where you live — so those, and nothing else.
+const WF_KNOW_CUTS = ['friends', 'age', 'edu', 'job', 'where'];
+const WF_SUBS = (dim) => (window.VOTECUTS ? window.VOTECUTS.subs(dim) : null);
+const WF_GRP = (dim, ax) => (window.VOTECUTS ? window.VOTECUTS.groups(dim, ax) : []);
+const WF_CUTKEY = (dim, ax) => (ax ? dim + ':' + ax : dim);
+const WF_YOU = (dim, ax) => (window.VOTECUTS ? window.VOTECUTS.you(dim, ax) : null);
 // Live breakdown dimensions, in display order. Must stay a subset of
 // BREAKDOWN_DIMS (functions/src/pure.ts) — a dimension the server never
 // publishes would render an empty chip. `profession` is collected but not
@@ -124,7 +181,6 @@ function wfBucketLabel(dim, bucket) {
   }
   return bucket;
 }
-const WF_DIMS = [['friends', 'Friends'], ['age', 'Age'], ['gender', 'Gender'], ['politics', 'Politics'], ['where', 'Where']];
 
 // FLIP list for the rank cards: rows slide to their new slot when the order
 // changes (same .3s curve as the rest of the feed). Only animates on a real
@@ -155,11 +211,10 @@ function WFFlipList({ rows, order, gap }) {
     </div>
   );
 }
-const WF_GROUPS = { age: ['18–24', '25–34', '35–44', '45+'], gender: ['Women', 'Men', 'Nonbinary'], politics: ['Left', 'Center', 'Right'], where: ['Americas', 'Europe', 'Asia', 'Elsewhere'] };
 const WF_FRIENDS = [{ name: 'Alex', init: 'A' }, { name: 'Mia', init: 'M' }, { name: 'Jordi', init: 'J' }, { name: 'Sara', init: 'S' }, { name: 'Noah', init: 'N' }, { name: 'Elif', init: 'E' }];
 
 class WorldFeed extends React.Component {
-  state = { votes: wfLoad(), pending: {}, open: {}, panels: {}, dims: {}, boosts: {}, vh: 0, beat: null, sheet: null, sideFilter: null, replyTo: null, replies: wfLoadReplies(), myTakes: wfLoadTakes(), minds: {}, ctrIdx: {}, takeSort: 'mind', whyFor: null, headHide: false, sort: 'hot', passed: wfLoadMap(WF_PASS_LS), ripple: null };
+  state = { votes: wfLoad(), knowRes: {}, pickQ: {}, pending: {}, open: {}, panels: {}, dims: {}, cutAxis: {}, boosts: {}, vh: 0, beat: null, sheet: null, sideFilter: null, reportFor: null, replyTo: null, replies: wfLoadReplies(), myTakes: wfLoadTakes(), minds: {}, ctrIdx: {}, takeSort: 'mind', whyFor: null, headHide: false, sort: 'hot', passed: wfLoadMap(WF_PASS_LS), ripple: null };
 
   // Feature flags, carried over from the prototype so each idea can be
   // switched off from the host without editing this file. Default ON; the
@@ -223,6 +278,9 @@ class WorldFeed extends React.Component {
         });
       })
       : null;
+    this._unsubSubs = window.SUBTOPICS ? window.SUBTOPICS.subscribe(() => this.forceUpdate()) : null;
+    this._unsubLearn = window.LEARN ? window.LEARN.subscribe(() => this.forceUpdate()) : null;
+    this._unsubLF = window.LEARN_FEED ? window.LEARN_FEED.subscribe(() => this.forceUpdate()) : null;
     // entrance: each card rises as it first scrolls into view (transform-only)
     this._io = typeof IntersectionObserver !== 'undefined' ? new IntersectionObserver((es) => {
       es.forEach((e) => { if (e.isIntersecting) { e.target.classList.add('wf-in'); this._io.unobserve(e.target); } });
@@ -235,6 +293,9 @@ class WorldFeed extends React.Component {
     clearTimeout(this._rippleT);
     if (this._unsubScenes) this._unsubScenes();
     if (this._unsubLive) this._unsubLive();
+    if (this._unsubSubs) this._unsubSubs();
+    if (this._unsubLearn) this._unsubLearn();
+    if (this._unsubLF) this._unsubLF();
     if (this._io) this._io.disconnect();
     const sc = this._scroller;
     if (sc && this._onScroll) sc.removeEventListener('scroll', this._onScroll);
@@ -336,6 +397,7 @@ class WorldFeed extends React.Component {
       const askWhy = this.opts.why && !q.live && typeof val === 'number' && !(s.myTakes[id] || []).length ? id : s.whyFor;
       return { votes, beat, ripple: rip || s.ripple, whyFor: askWhy };
     });
+    if (this.props.onVote) this.props.onVote(q, val);
   }
 
   // the consequence beat — replaces the result reveal for ~2s after a vote
@@ -388,8 +450,7 @@ class WorldFeed extends React.Component {
         </div>
       );
     }
-    const avg = c ? c.avg : 5, n = c ? c.n : 0;
-    const placeName = q.scope === 'city' ? 'Oslo' : q.scope === 'country' ? 'Norway' : 'World';
+    const avg = c ? c.avg : 5;
     return (
       <div style={{ display: 'flex', flexDirection: 'column', gap: big ? 13 : 10, animation: 'popIn .3s cubic-bezier(0.2,0.8,0.2,1)' }}>
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 7 }}>
@@ -402,7 +463,308 @@ class WorldFeed extends React.Component {
           <span className="rpv2-bar" style={{ position: 'absolute', top: 0, bottom: 0, left: 0, width: (avg * 10) + '%', borderRadius: 999, transformOrigin: 'left', background: 'linear-gradient(90deg, color-mix(in oklch, ' + T.color + ', transparent 55%), ' + T.color + ')' }}></span>
           <span style={{ position: 'absolute', top: '50%', left: 'calc(' + (v * 10) + '% - ' + (v * 1.6) + 'px)', transform: 'translateY(-50%)', width: 16, height: 16, borderRadius: '50%', background: T.color, border: '2.5px solid var(--surface)', boxShadow: '0 1px 4px rgba(20,20,40,0.3)' }}></span>
         </div>
-        <span style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--ink-3)' }}>{wfFmt(n)} ratings · shapes the {placeName} scorecard</span>
+      </div>
+    );
+  }
+
+  // the woven knowledge cards, planned ONCE per sitting. LEARN.plan re-derives
+  // from your position in the deck, so calling it every render would reshuffle
+  // the feed under you — the list is cached and only rebuilt when what you follow
+  // (or the frequency) actually changes, never when you answer.
+  knowQs(n, cats) {
+    const LF = window.LEARN_FEED, L = window.LEARN;
+    if (!LF || !L || !LF.every()) return [];
+    const muted = Object.keys(cats || {}).filter((k) => k.indexOf('lrn-') === 0 && cats[k] === false).sort().join(',');
+    const sig = LF.freq() + '|' + L.mine().map((f) => f.id).join(',') + '|' + muted;
+    if (this._kqSig !== sig || !this._kq) { this._kqSig = sig; this._kq = LF.cards(Math.max(14, n), cats); }
+    return this._kq.slice(0, n);
+  }
+
+  // ── catalogue cards ─────────────────────────────────────────────────────
+  // A vote has two sides and a bar. A catalogue has hundreds of entries, so the
+  // question is answered by searching — and the answer isn't a split, it's a
+  // position in a long tail. What the reveal has to say is therefore different:
+  // not who won, but how rare your pick is, and how little of the field the
+  // famous few actually hold.
+  setPickItem(q, id) {
+    if (this.state.votes[q.id] != null) return;
+    const votes = { ...this.state.votes, [q.id]: id };
+    try { localStorage.setItem(WF_LS, JSON.stringify(votes)); } catch (e) { /* localStorage can throw: private mode, quota, disabled storage. Best-effort — in-memory state stays correct. */ }
+    this.setState({ votes });
+  }
+  // catalogue cards from the prototype's demo store (world-catalogs.js) —
+  // repo pick cards (q.domain, real committed catalogues) dispatch here
+  // only when they carry a q.catalog; renderPick below owns the rest.
+  renderPickCatalog(q, T, big) {
+    const C = (window.WF_CATALOGS || {})[q.catalog];
+    if (!C) return null;
+    const mine = this.state.votes[q.id];
+    const ranked = C.items.slice().sort((a, b) => b.count - a.count);
+    const sh = (n) => (n / C.picks) * 100;
+    const art = (it, w, h) => ({ width: w, height: h, borderRadius: 12, background: wfCatArt(T.color, q.catalog + ':' + it.id), border: WF_LINE, display: 'block', flexShrink: 0, boxSizing: 'border-box' });
+
+    if (mine == null) {
+      const raw = this.state.pickQ[q.id] || '';
+      const term = raw.trim().toLowerCase();
+      const hits = term ? ranked.filter((i) => i.name.toLowerCase().indexOf(term) >= 0 || (i.meta || '').toLowerCase().indexOf(term) >= 0) : [];
+      const tw = big ? 104 : 92, th = C.shape === 'poster' ? Math.round(tw * 1.36) : tw;
+      return (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          <input value={raw} onChange={(e) => this.setState((s) => ({ pickQ: { ...s.pickQ, [q.id]: e.target.value } }))} placeholder={'Search ' + C.total + ' ' + C.noun}
+            style={{ width: '100%', boxSizing: 'border-box', border: 'none', borderBottom: '1px solid color-mix(in oklch, var(--ink) 20%, var(--rule))', background: 'none', padding: '8px 2px', fontFamily: 'var(--sans)', fontSize: 15, fontWeight: 600, color: 'var(--ink)', outline: 'none' }} />
+          {term ? (
+            hits.length ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {hits.slice(0, 6).map((it) => (
+                  <button key={it.id} className="press" onClick={() => this.setPickItem(q, it.id)} style={{ display: 'flex', alignItems: 'center', gap: 11, width: '100%', textAlign: 'left', border: WF_LINE, borderRadius: 12, background: 'var(--surface-2)', padding: 9, cursor: 'pointer', WebkitAppearance: 'none' }}>
+                    <span style={art(it, 34, C.shape === 'poster' ? 46 : 34)}></span>
+                    <span style={{ flex: 1, minWidth: 0, fontFamily: 'var(--sans)', fontWeight: 700, fontSize: 14.5, color: 'var(--ink)' }}>{it.name}</span>
+                    <span style={{ flexShrink: 0, fontFamily: 'var(--sans)', fontWeight: 600, fontSize: 11.5, color: 'var(--ink-3)' }}>{it.meta}</span>
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <span style={{ fontFamily: 'var(--sans)', fontSize: 13, fontWeight: 600, color: 'var(--ink-3)' }}>{'Nothing in the ranked ' + C.noun + ' yet — try another spelling.'}</span>
+            )
+          ) : (
+            <div className="h-scroll" style={{ display: 'flex', gap: 10, overflowX: 'auto', margin: '0 -16px', padding: '2px 16px 4px', WebkitMaskImage: 'linear-gradient(to right, #000 calc(100% - 46px), transparent)', maskImage: 'linear-gradient(to right, #000 calc(100% - 46px), transparent)' }}>
+              {ranked.map((it) => (
+                <button key={it.id} className="press" onClick={() => this.setPickItem(q, it.id)} style={{ flexShrink: 0, width: tw, display: 'flex', flexDirection: 'column', gap: 7, border: 'none', background: 'none', padding: 0, cursor: 'pointer', WebkitAppearance: 'none', textAlign: 'left' }}>
+                  <span style={art(it, tw, th)}></span>
+                  <span style={{ fontFamily: 'var(--sans)', fontWeight: 700, fontSize: 12.5, lineHeight: 1.25, color: 'var(--ink)', textWrap: 'pretty' }}>{it.name}</span>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    const myItem = C.items.find((i) => i.id === mine) || ranked[0];
+    const myRank = ranked.findIndex((i) => i.id === mine) + 1;
+    const top = ranked.slice(0, 5);
+    const inTop = top.some((i) => i.id === mine);
+    const maxS = sh(ranked[0].count);
+    const tail = Math.max(0, 100 - ranked.reduce((a, i) => a + sh(i.count), 0));
+    const agree = ranked[0].id === mine;
+    // yours against the crowd's, as two posters — the app's core move, and the one
+    // thing a catalogue reveal can do that a two-way bar cannot
+    const block = (it, label, strong, share, rank) => (
+      <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 7 }}>
+        <span style={{ fontFamily: 'var(--sans)', fontWeight: 700, fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase', color: strong ? 'var(--ink-2)' : 'var(--ink-3)' }}>{label}</span>
+        <span style={{ width: '100%', height: C.shape === 'poster' ? 118 : 92, borderRadius: 12, background: wfCatArt(T.color, q.catalog + ':' + it.id), border: strong ? `1.5px solid ${T.color}` : WF_LINE, boxSizing: 'border-box', display: 'block' }}></span>
+        <span style={{ fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 14.5, lineHeight: 1.2, textWrap: 'pretty', color: 'var(--ink)' }}>{it.name}</span>
+        <span style={{ fontFamily: 'var(--sans)', fontWeight: 600, fontSize: 12, color: 'var(--ink-3)', fontVariantNumeric: 'tabular-nums' }}>{(rank ? '#' + rank + ' of ' + C.total + ' · ' : '') + share.toFixed(1) + '%'}</span>
+      </div>
+    );
+    const row = (it, i) => {
+      const s = sh(it.count);
+      const isMine = it.id === mine;
+      return (
+        <div key={it.id} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <span style={{ width: 15, flexShrink: 0, fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 11.5, color: isMine ? 'var(--ink)' : 'var(--ink-3)', fontVariantNumeric: 'tabular-nums' }}>{i + 1}</span>
+          <span style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 4 }}>
+            <span style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
+              <span style={{ flex: 1, minWidth: 0, fontFamily: 'var(--sans)', fontWeight: isMine ? 800 : 650, fontSize: 13.5, color: isMine ? 'var(--ink)' : 'var(--ink-2)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{it.name}</span>
+              {i === 0 || isMine ? <span style={{ flexShrink: 0, fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 12, color: isMine ? 'var(--ink)' : 'var(--ink-3)', fontVariantNumeric: 'tabular-nums' }}>{s.toFixed(1)}%</span> : null}
+            </span>
+            <span style={{ position: 'relative', height: 6 }}>
+              <span style={{ position: 'absolute', inset: 0, borderRadius: 99, background: 'color-mix(in oklch, var(--ink-3) 11%, transparent)' }}></span>
+              <span style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: (s / maxS) * 100 + '%', borderRadius: 99, background: isMine ? T.color : `color-mix(in oklch, ${T.color} 40%, transparent)`, transformOrigin: 'left', animation: `wfBarIn .5s cubic-bezier(.2,.8,.2,1) ${(0.06 + i * 0.05).toFixed(2)}s both` }}></span>
+            </span>
+          </span>
+        </div>
+      );
+    };
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+        <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+          {agree
+            ? block(myItem, 'you and the crowd', true, sh(myItem.count), myRank)
+            : block(myItem, 'your pick', true, sh(myItem.count), myRank)}
+          {agree ? null : block(ranked[0], 'the crowd', false, sh(ranked[0].count), null)}
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          {top.map(row)}
+          {!inTop ? (
+            <>
+              <span aria-hidden="true" style={{ display: 'flex', gap: 3, padding: '1px 0 1px 25px' }}>{[0, 1, 2].map((d) => <span key={d} style={{ width: 3, height: 3, borderRadius: '50%', background: 'var(--ink-3)', opacity: 0.5 }}></span>)}</span>
+              {row(myItem, myRank - 1)}
+            </>
+          ) : null}
+        </div>
+        {tail > 1 ? <span style={{ fontFamily: 'var(--sans)', fontSize: 12.5, fontWeight: 600, color: 'var(--ink-3)' }}>{'the other ' + (C.total - C.items.length) + ' ' + C.noun + ' share ' + Math.round(tail) + '%'}</span> : null}
+        {this.opts.reveal ? this.renderPickInsight(q, T, C, ranked, mine) : null}
+      </div>
+    );
+  }
+
+  // the catalogue's surprise: the population that ranks your pick highest.
+  renderPickInsight(q, T, C, ranked, mine) {
+    const headShare = ranked.reduce((a, i) => a + (i.count / C.picks) * 100, 0);
+    let best = null;
+    WF_CUTS().filter((d) => d.id !== 'friends').forEach((d) => {
+      const subs = WF_SUBS(d.id);
+      (subs ? subs : [{ id: null }]).forEach((sb) => {
+        WF_GRP(d.id, sb.id).forEach((g) => {
+          const r = wfPickGroup(q.id, WF_CUTKEY(d.id, sb.id) + ':' + g.label, ranked, headShare);
+          const rank = r.findIndex((x) => x.it.id === mine) + 1;
+          if (rank && (!best || rank < best.rank)) best = { dim: d.id, axis: sb.id, label: g.label, rank };
+        });
+      });
+    });
+    if (!best) return null;
+    return (
+      <button className="press" onClick={() => this.setState((s) => ({ sheet: { q, T, panel: 'pick' }, dims: { ...s.dims, [q.id]: best.dim }, cutAxis: { ...s.cutAxis, [q.id]: best.axis } }))}
+        style={{ display: 'flex', alignItems: 'center', gap: 9, width: '100%', textAlign: 'left', border: WF_LINE, borderRadius: 12, background: 'var(--surface)', padding: '10px 12px', cursor: 'pointer', WebkitAppearance: 'none' }}>
+        <span aria-hidden="true" style={{ width: 7, height: 7, borderRadius: '50%', flexShrink: 0, background: T.color }}></span>
+        <span style={{ flex: 1, minWidth: 0, fontFamily: 'var(--sans)', fontWeight: 700, fontSize: 13, color: 'var(--ink-2)' }}>{best.rank === 1 ? best.label + ' make it their favourite' : best.label + ' rank it highest'}</span>
+        <span style={{ flexShrink: 0, fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 13, color: 'var(--ink)', fontVariantNumeric: 'tabular-nums' }}>{'#' + best.rank}</span>
+      </button>
+    );
+  }
+
+  // Every population has its own ranking, and the interesting thing is not who
+  // won overall — it's where the order breaks. So each row is a group and its own
+  // favourite: rows that match the overall winner recede, rows that disagree come
+  // forward, and the shape of the column tells you where taste divides.
+  renderPickStats(q, T) {
+    const C = (window.WF_CATALOGS || {})[q.catalog];
+    if (!C) return null;
+    const dim = this.state.dims[q.id] || 'friends';
+    const axis = this.state.cutAxis[q.id] || null, cutKey = WF_CUTKEY(dim, axis), youBand = WF_YOU(dim, axis);
+    const mine = this.state.votes[q.id];
+    const ranked = C.items.slice().sort((a, b) => b.count - a.count);
+    const headShare = ranked.reduce((a, i) => a + (i.count / C.picks) * 100, 0);
+    const overall = ranked[0];
+    const groups = dim === 'friends' ? WF_FRIENDS.map((f) => ({ label: f.name, init: f.init })) : WF_GRP(dim, axis);
+    const line = (g) => {
+      const r = wfPickGroup(q.id, cutKey + ':' + g.label, ranked, headShare);
+      const win = r[0];
+      const myRank = mine != null ? r.findIndex((x) => x.it.id === mine) + 1 : 0;
+      const diverges = win.it.id !== overall.id;
+      const you = youBand && g.label === youBand;
+      return (
+        <div key={g.label} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '7px 0', borderTop: '0.5px solid color-mix(in oklch, var(--rule), transparent 35%)' }}>
+          <span style={{ width: 84, flexShrink: 0, display: 'flex', alignItems: 'center', gap: 6, fontFamily: 'var(--sans)', fontWeight: you ? 800 : 700, fontSize: 11.5, color: you ? 'var(--ink)' : 'var(--ink-2)', whiteSpace: 'nowrap', overflow: 'hidden' }}>
+            {you ? <span aria-hidden="true" style={{ width: 7, height: 7, borderRadius: '50%', flexShrink: 0, boxShadow: `inset 0 0 0 2px ${T.color}` }}></span> : null}
+            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{g.label}</span>
+          </span>
+          <span aria-hidden="true" style={{ width: 26, height: C.shape === 'poster' ? 34 : 26, borderRadius: 7, flexShrink: 0, background: wfCatArt(T.color, q.catalog + ':' + win.it.id), border: WF_LINE, boxSizing: 'border-box' }}></span>
+          <span style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 2 }}>
+            <span style={{ fontFamily: 'var(--sans)', fontWeight: diverges ? 800 : 650, fontSize: 13.5, color: diverges ? 'var(--ink)' : 'var(--ink-3)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{win.it.name}</span>
+            <span style={{ position: 'relative', height: 4 }}>
+              <span style={{ position: 'absolute', inset: 0, borderRadius: 99, background: 'color-mix(in oklch, var(--ink-3) 11%, transparent)' }}></span>
+              <span style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: Math.min(100, (win.share / headShare) * 320) + '%', borderRadius: 99, background: diverges ? T.color : `color-mix(in oklch, ${T.color} 38%, transparent)` }}></span>
+            </span>
+          </span>
+          {myRank ? <span style={{ flexShrink: 0, width: 26, textAlign: 'right', fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 12.5, color: myRank <= 3 ? 'var(--ink)' : 'var(--ink-3)', fontVariantNumeric: 'tabular-nums' }}>{'#' + myRank}</span> : null}
+        </div>
+      );
+    };
+    const nDiv = groups.filter((g) => wfPickGroup(q.id, cutKey + ':' + g.label, ranked, headShare)[0].it.id !== overall.id).length;
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 13 }}>
+        {this.renderCutChips(q, dim)}
+        <div style={{ background: 'var(--ink)', color: 'var(--surface)', borderRadius: 12, padding: '12px 14px', fontFamily: 'var(--sans)', fontWeight: 700, fontSize: 14, display: 'flex', alignItems: 'center', gap: 10 }}>
+          <span style={{ flex: 1, minWidth: 0 }}>{nDiv ? nDiv + ' of ' + groups.length + ' put someone else first' : 'Every group agrees'}</span>
+          <span style={{ flexShrink: 0, fontSize: 12, fontWeight: 800, background: 'color-mix(in oklch, var(--surface) 22%, transparent)', borderRadius: 999, padding: '3px 10px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 130 }}>{overall.name}</span>
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column' }}>{groups.map(line)}</div>
+        {mine != null ? <span style={{ fontFamily: 'var(--sans)', fontSize: 11.5, fontWeight: 600, color: 'var(--ink-3)', textWrap: 'pretty' }}>{'# is where your pick lands in that group'}</span> : null}
+      </div>
+    );
+  }
+
+  // ── knowledge cards ──────────────────────────────────────────────────────
+  // The one thing here unlike anything else on the market: a wrong answer with a
+  // crowd split on it. The wrong options aren't dead ends, they're a map of what
+  // people get wrong — “a fifth picked that too” reframes being wrong as being
+  // normal, in the app's own language. Answer blind, then see the split: exactly
+  // the opinion feed's instrument, pointed at something with a right answer.
+  setKnow(q, i) {
+    if (this.state.votes[q.id] != null || !window.LEARN) return;
+    const r = window.LEARN.answer(q.learn, i);
+    if (!r) return;
+    const votes = { ...this.state.votes, [q.id]: i };
+    try { localStorage.setItem(WF_LS, JSON.stringify(votes)); } catch (e) { /* localStorage can throw: private mode, quota, disabled storage. Best-effort — in-memory state stays correct. */ }
+    this.setState((s) => ({ votes, knowRes: { ...s.knowRes, [q.id]: r } }));
+  }
+  // a reload keeps your pick but not the verdict object — rebuild it from the store
+  knowOf(q) {
+    const v = this.state.votes[q.id];
+    if (v == null) return null;
+    const live = this.state.knowRes[q.id];
+    if (live) return live;
+    const L = window.LEARN, c = L && L.card(q.learn);
+    if (!c) return null;
+    const cs = L.stateOf(q.learn) || {};
+    return { ok: v === c.c, correct: c.c, split: window.LEARN_SPLIT(c), streak: cs.s === 'known' ? L.STREAK : (cs.k || 0), mastered: false, lost: false, wasKnown: cs.s === 'known', replay: true };
+  }
+  renderKnow(q, T, big) {
+    const L = window.LEARN;
+    const card = L && L.card(q.learn);
+    if (!card) return null;
+    const r = this.knowOf(q);
+    const my = this.state.votes[q.id];
+    const fresh = !!this.state.knowRes[q.id];
+    const cs = L.stateOf(q.learn);
+    const streakNow = r ? r.streak : (cs && cs.s === 'learning' ? cs.k : 0);
+    const pale = `color-mix(in oklch, ${T.color} 16%, transparent)`;
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 11 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {card.a.map((label, i) => {
+            const isC = !!r && i === r.correct;
+            const isMine = !!r && my === i;
+            const pct = r ? r.split[i] : 0;
+            const showPct = !!r && (isC || (isMine && !r.ok));
+            return (
+              <button key={i} className="press" disabled={!!r} onClick={() => this.setKnow(q, i)}
+                style={{ position: 'relative', overflow: 'hidden', display: 'flex', alignItems: 'center', gap: 10, width: '100%', textAlign: 'left', minHeight: big ? 56 : 50, padding: big ? '14px 16px' : '12px 14px', borderRadius: 14, cursor: r ? 'default' : 'pointer', WebkitAppearance: 'none', transition: 'background .3s ease, color .3s ease',
+                  border: isMine && !isC ? '1.5px solid var(--ink)' : WF_LINE,
+                  background: isC ? T.color : 'var(--surface-2)', color: isC ? '#fff' : r && !isMine ? 'var(--ink-3)' : 'var(--ink)' }}>
+                {r && !isC ? <span aria-hidden="true" style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: pct + '%', background: pale, transformOrigin: 'left', animation: fresh ? `wfBarIn .55s cubic-bezier(.2,.8,.2,1) ${(0.08 + i * 0.06).toFixed(2)}s both` : 'none' }}></span> : null}
+                <span style={{ position: 'relative', flex: 1, minWidth: 0, fontFamily: 'var(--sans)', fontWeight: isC ? 800 : 600, fontSize: big ? 16.5 : 15, lineHeight: 1.3, textWrap: 'pretty' }}>{label}</span>
+                {showPct ? <span style={{ position: 'relative', fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 12.5, fontVariantNumeric: 'tabular-nums', opacity: 0.85 }}>{fresh ? <WfCount to={Math.round(pct)} animate={true}></WfCount> : Math.round(pct)}%</span> : null}
+                {isC ? <span style={{ position: 'relative', fontSize: 13, fontWeight: 800 }}>{'\u2713'}</span> : null}
+                {r && isMine && !isC ? <span style={{ position: 'relative', fontSize: 13, fontWeight: 800, color: 'var(--ink-2)' }}>{'\u2715'}</span> : null}
+              </button>
+            );
+          })}
+        </div>
+        {!r && streakNow > 0 ? <LMStreak k={streakNow} of={L.STREAK} col={T.color}></LMStreak> : null}
+        {r ? (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10, paddingTop: 1 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              {r.mastered ? (
+                <>
+                  <span style={{ width: 9, height: 9, borderRadius: '50%', background: T.color, flexShrink: 0 }}></span>
+                  <span style={{ flex: 1, fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 14 }}>Saved to your map.</span>
+                  <button onClick={() => { window.MAP_OPEN_GROUP = 'g-know'; if (window.goTab) window.goTab('mirror'); }} style={{ border: 'none', background: 'none', padding: 0, cursor: 'pointer', fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 12.5, color: 'var(--ink-3)', WebkitAppearance: 'none' }}>See it</button>
+                </>
+              ) : r.ok && r.wasKnown ? (
+                <>
+                  <LMStreak k={L.STREAK} of={L.STREAK} col={T.color}></LMStreak>
+                  <span style={{ flex: 1, fontFamily: 'var(--sans)', fontWeight: 700, fontSize: 13.5, color: 'var(--ink-2)' }}>Still yours.</span>
+                </>
+              ) : r.ok ? (
+                <>
+                  <LMStreak k={r.streak} of={L.STREAK} col={T.color}></LMStreak>
+                  <span style={{ flex: 1, fontFamily: 'var(--sans)', fontWeight: 700, fontSize: 13.5, color: 'var(--ink-2)' }}>{L.STREAK - r.streak <= 1 ? 'One more and it\u2019s yours.' : (L.STREAK - r.streak) + ' more in a row.'}</span>
+                </>
+              ) : (
+                <>
+                  <LMStreak k={0} of={L.STREAK} col={T.color}></LMStreak>
+                  <span style={{ flex: 1, fontFamily: 'var(--sans)', fontWeight: 700, fontSize: 13.5, color: 'var(--ink-2)' }}>{r.lost ? 'Off your map — three in a row to win it back.' : 'Three in a row to earn it.'}</span>
+                </>
+              )}
+            </div>
+            {card.w ? <p style={{ margin: 0, fontFamily: 'var(--sans)', fontSize: 13.5, fontWeight: 500, lineHeight: 1.5, color: 'var(--ink-2)', textWrap: 'pretty' }}>{card.w}</p> : null}
+            {this.opts.reveal ? this.renderKnowInsight(q, T) : null}
+            {window.LMFriends ? <LMFriends card={card} col={T.color}></LMFriends> : null}
+          </div>
+        ) : null}
       </div>
     );
   }
@@ -446,6 +808,7 @@ class WorldFeed extends React.Component {
   }
 
   renderPick(q, T, big) {
+    if (q.catalog) return this.renderPickCatalog(q, T, big);
     const v = this.state.votes[q.id];
     const store = this.pickStore(q.domain);
     if (v == null) {
@@ -466,11 +829,37 @@ class WorldFeed extends React.Component {
     const max = rows.length ? rows[0].count : 1;
     const inTop = c.top.some((r) => r.entity === v.entity);
     const setSeg = (next) => this.setState((s) => ({ pickSeg: { ...(s.pickSeg || {}), [q.id]: next } }));
+    // The catalogue's core move (v15): yours against the crowd's, as two
+    // tiles. Shares are real fractions of the whole vote (c.total), and a
+    // rank is a place on the PUBLISHED board only — a below-floor pick keeps
+    // the "too few to count" line instead of a fabricated #n.
+    const leader = c.top[0] || null;
+    const myIdx = c.top.findIndex((r) => r.entity === v.entity);
+    const myRow = myIdx >= 0 ? c.top[myIdx] : null;
+    const agree = !!leader && v.entity === leader.entity;
+    const notListed = store && v.entity === store.NOT_LISTED;
+    const shareOf = (count) => (c.total ? ((count / c.total) * 100).toFixed(1) + '%' : '');
+    const tile = (ent, nm, label, strong, count, rank) => (
+      <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 7 }}>
+        <span style={{ fontFamily: 'var(--sans)', fontWeight: 700, fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase', color: strong ? 'var(--ink-2)' : 'var(--ink-3)' }}>{label}</span>
+        <span aria-hidden="true" style={{ width: '100%', height: 92, borderRadius: 12, background: wfCatArt(T.color, q.domain + ':' + ent), border: strong ? `1.5px solid ${T.color}` : WF_LINE, boxSizing: 'border-box', display: 'block' }}></span>
+        <span style={{ fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 14.5, lineHeight: 1.2, textWrap: 'pretty', color: 'var(--ink)' }}>{nm || '\u2026'}</span>
+        <span style={{ fontFamily: 'var(--sans)', fontWeight: 600, fontSize: 12, color: 'var(--ink-3)', fontVariantNumeric: 'tabular-nums' }}>{count != null ? (rank ? '#' + rank + ' on the board \u00b7 ' : '') + shareOf(count) : 'below the floor'}</span>
+      </div>
+    );
     const chip = (label, active, onTap) => (
       <button key={label} className="press" onClick={onTap} style={{ border: '0.5px solid ' + (active ? 'color-mix(in oklch, ' + T.color + ' 55%, var(--rule))' : 'var(--rule)'), borderRadius: 999, padding: '3px 10px', cursor: 'pointer', WebkitAppearance: 'none', fontFamily: 'var(--sans)', fontWeight: 700, fontSize: 11.5, color: active ? 'color-mix(in oklch, ' + T.color + ' 70%, var(--ink))' : 'var(--ink-3)', background: active ? 'color-mix(in oklch, ' + T.color + ' 11%, transparent)' : 'transparent' }}>{label}</button>
     );
     return (
       <div style={{ display: 'flex', flexDirection: 'column', gap: big ? 10 : 8, animation: 'popIn .3s cubic-bezier(0.2,0.8,0.2,1)' }}>
+        {!seg && leader && !notListed && (
+          <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start', marginBottom: 4 }}>
+            {agree
+              ? tile(v.entity, mineName, 'you and the crowd', true, myRow && myRow.count, myIdx + 1)
+              : tile(v.entity, mineName, 'your pick', true, myRow && myRow.count, myRow ? myIdx + 1 : 0)}
+            {!agree && tile(leader.entity, this.pickName(leader.entity, q.domain), 'the crowd', false, leader.count, 1)}
+          </div>
+        )}
         {segs.length > 0 && (
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
             {chip('everyone', !sel, () => setSeg(null))}
@@ -569,8 +958,8 @@ class WorldFeed extends React.Component {
     return answered ? 0 : Math.min(Math.max(vh - 300, 260), 400);
   }
 
-  openSheet(q, T, panel) {
-    this.setState({ sheet: { q, T, panel }, sideFilter: null, replyTo: null });
+  openSheet(q, T, panel, dim) {
+    this.setState((s) => ({ sheet: { q, T, panel }, sideFilter: null, replyTo: null, dims: dim && q ? { ...s.dims, [q.id]: dim } : s.dims, cutAxis: dim && q ? { ...s.cutAxis, [q.id]: null } : s.cutAxis }));
   }
 
   renderFloorNote(big) {
@@ -679,14 +1068,18 @@ class WorldFeed extends React.Component {
   // demo count, never something the k-floor has an opinion about.
   renderFoot(q, T, insight) {
     const quiet = { fontFamily: 'var(--sans)', fontSize: 13, fontWeight: 500, color: 'var(--ink-3)' };
-    if (!q.options) return <span style={quiet}></span>;
-    const mine = this.state.votes[q.id];
-    const { p, total } = wfPcts(q.options.map((o) => o.count), mine);
     const rip = this.state.ripple === q.id ? (WF_BRANCH[q.cat] || 'Interests') : null;
     if (rip) return (
       <button onClick={() => window.goTab && window.goTab('mirror')} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontFamily: 'var(--sans)', fontSize: 13, fontWeight: 600, color: 'var(--accent, var(--ink-2))', whiteSpace: 'nowrap', animation: 'toastFade 3.2s ease forwards' }}>added to {rip}<span aria-hidden="true">→</span></button>
     );
     if (insight) return insight;
+    if (q.type === 'rate') {
+      const c = window.PLACESTATS ? window.PLACESTATS.cat(q.scope, q.catId) : null;
+      return <span style={quiet}>{wfFmt(c ? c.n : (q.n || 0))} ratings</span>;
+    }
+    if (!q.options) return <span style={quiet}></span>;
+    const mine = this.state.votes[q.id];
+    const { total } = wfPcts(q.options.map((o) => o.count), mine);
     return <span style={quiet}>{wfFmt(total)} votes</span>;
   }
 
@@ -808,7 +1201,7 @@ class WorldFeed extends React.Component {
             </div>
           );
         })}
-        <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--ink-3)' }}>You matched the crowd on {matches} of {q.items.length}</span>
+        <button className="press" onClick={() => this.setState({ sheet: { q, T, panel: 'stats' }, sideFilter: null, replyTo: null })} style={{ alignSelf: 'flex-start', display: 'inline-flex', alignItems: 'center', gap: 6, background: 'none', border: 'none', padding: '2px 0', cursor: 'pointer', fontFamily: 'var(--sans)', fontSize: 13, fontWeight: 500, color: 'var(--ink-3)', WebkitAppearance: 'none' }}>You matched the crowd on {matches} of {q.items.length}<span aria-hidden="true" style={{ fontWeight: 700 }}>{'\u2192'}</span></button>
       </div>
     );
   }
@@ -855,7 +1248,7 @@ class WorldFeed extends React.Component {
     // The 'add' panel has no question behind it, so every read of `q` from
     // here down has to tolerate its absence.
     const takes = q ? ((window.WORLD_FEED_COMMENTS || {})[q.id] || []) : [];
-    const hasStats = q.type !== 'rank';
+    const hasStats = true;
     const open = (id) => this.setState({ sheet: { q, T, panel: id }, sideFilter: null, replyTo: null });
     const D = big ? 32 : 30;
     const av = (bg, fg, txt, i) => (
@@ -875,7 +1268,9 @@ class WorldFeed extends React.Component {
     // opens on visibly more argument than the card advertised
     const nCtr = this.opts.counter && window.WF_COUNTERS ? takes.reduce((a, c, i) => a + window.WF_COUNTERS(q.id + ':' + i).length, 0) : 0;
     const nTakes = takes.length + nReplies + nOwn + nCtr;
-    const takeFaces = takes.slice(0, 3).map((c, i) => av(c.opt != null ? wfShade(T.color, c.opt) : 'var(--ink-3)', c.opt != null ? wfShadeText(c.opt) : '#fff', c.init[0], i));
+    const faceBg = (c) => (q.type === 'rate' ? (c.score != null ? wfRateBg(T.color, c.score) : 'var(--ink-3)') : (c.opt != null ? wfShade(T.color, c.opt) : 'var(--ink-3)'));
+    const faceInk = (c) => (q.type === 'rate' ? (c.score != null ? wfRateInk(c.score) : '#fff') : (c.opt != null ? wfShadeText(c.opt) : '#fff'));
+    const takeFaces = takes.slice(0, 3).map((c, i) => av(faceBg(c), faceInk(c), c.init[0], i));
     const nMore = nTakes - takeFaces.length;
     if (nMore > 0) takeFaces.push(av('var(--surface-2)', 'var(--ink-2)', nMore > 9 ? '9+' : '+' + nMore, takeFaces.length));
     // demo cards have no published breakdown, so there is no insight line to
@@ -918,15 +1313,61 @@ class WorldFeed extends React.Component {
   // Live questions only, and only above the floor — feedInsight returns null
   // for anything it cannot say from real, already-k-floored data, and this
   // renders nothing rather than inventing a line to fill the space.
+  // the rate card's surprise: the cut that sits furthest from the score you gave.
+  // Tapping it opens the breakdown already switched to that cut.
+  renderRateInsight(q, T, big) {
+    const v = this.state.votes[q.id];
+    if (typeof v !== 'number') return null;
+    const c = window.PLACESTATS ? window.PLACESTATS.cat(q.scope, q.catId) : null;
+    const avg = c ? c.avg : 5;
+    let best = null;
+    WF_CUTS().forEach((cut) => {
+      if (cut.id === 'friends') return;
+      WF_GRP(cut.id, null).forEach((g) => {
+        const a = wfRateAvg(q.id, cut.id + ':' + g.label, avg);
+        const d = Math.abs(a - v);
+        if (!best || d > best.d) best = { dim: cut.id, g: g.label, a, d };
+      });
+    });
+    if (!best || best.d < 1.2) return null;
+    const dir = best.a > v ? 'above' : 'below';
+    return (
+      <button onClick={() => this.openSheet(q, T, 'stats', best.dim)} style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', background: 'none', border: 'none', padding: 0, cursor: 'pointer', textAlign: 'left', WebkitAppearance: 'none' }}>
+        <span aria-hidden="true" style={{ width: 8, height: 8, borderRadius: '50%', background: T.color, flexShrink: 0 }}></span>
+        <span style={{ fontFamily: 'var(--sans)', fontSize: big ? 14 : 13.5, fontWeight: 600, color: 'var(--ink-2)' }}>{best.g} · {best.d.toFixed(1)} {dir} you</span>
+        <span aria-hidden="true" style={{ marginLeft: 'auto', fontSize: 13, fontWeight: 700, color: 'var(--ink-3)' }}>→</span>
+      </button>
+    );
+  }
+
   renderInsight(q, T, big) {
-    if (!window.feedInsight) return null;
-    const ins = window.feedInsight(q);
+    if (!this.opts.reveal) return null;
+    if (q.type === 'rate') return this.renderRateInsight(q, T, big);
+    if (!window.feedInsight || !q.options) return null;
+    const mine = typeof this.state.votes[q.id] === 'number' ? this.state.votes[q.id] : null;
+    const counts = q.options.map((o) => o.count);
+    // feedInsight here is the LIVE version (feed-read.js): it reads q alone,
+    // ignores the demo-signature args, and returns null on demo cards rather
+    // than inventing a cohort (its header says why).
+    const ins = window.feedInsight(q, counts, mine, wfHash, WF_FRIENDS);
     if (!ins) return null;
     const n = q.options.length;
-    const col = wfOpt(T.color, ins.sideIdx, n);
-    const text = ins.group
-      + (ins.kind === 'flip' ? ' flips to ' : ' leans toward ')
-      + q.options[ins.sideIdx].label;
+    const v2 = this.opts.v2;
+    const other = ins.kind === 'friends' ? (ins.mySide === 0 ? 1 : 0) : ins.sideIdx;
+    const col = v2 ? T.color : wfOpt(T.color, other, n);
+    // v2: one hue — side reads as filled vs hairline-outlined, not a second colour
+    const dot = (idx, k) => <span key={k} aria-hidden="true" style={{ width: 8, height: 8, borderRadius: '50%', boxSizing: 'border-box', flexShrink: 0, background: v2 ? (idx === 0 ? T.color : 'transparent') : wfOpt(T.color, idx, n), border: v2 && idx !== 0 ? '1.5px solid color-mix(in oklch, ' + T.color + ' 65%, var(--rule))' : 'none' }}></span>;
+    const text = ins.kind === 'friends'
+      ? (v2 ? (ins.of - ins.same) + ' of ' + ins.of + ' friends disagree' : (ins.of - ins.same) + ' of ' + ins.of + ' friends went the other way')
+      : ins.group + (ins.kind === 'flip' ? (q.options.length > 2 ? ' flips it to ' + q.options[ins.sideIdx].label : ' flips it') : ' leans ' + q.options[ins.sideIdx].label);
+    // full width, and it wraps rather than truncating — the line has to be readable
+    if (v2) return (
+      <button className="press" onClick={() => this.openSheet(q, T, 'stats', ins.dim)} style={{ display: 'flex', alignItems: 'center', gap: 10, width: '100%', boxSizing: 'border-box', border: WF_LINE, borderRadius: 14, background: 'var(--surface)', padding: '10px 14px', cursor: 'pointer', WebkitAppearance: 'none', textAlign: 'left' }}>
+        {dot(ins.kind === 'friends' ? (ins.mySide === 0 ? 1 : 0) : (ins.sideIdx === 0 ? 0 : 1), 'g')}
+        <span style={{ fontFamily: 'var(--sans)', fontWeight: 600, fontSize: 13.5, lineHeight: 1.3, color: 'var(--ink)', flex: 1, minWidth: 0, textWrap: 'pretty' }}>{text}</span>
+        {ins.pct != null && <span style={{ fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 14.5, color: 'var(--ink)', flexShrink: 0 }}>{ins.pct}%</span>}
+      </button>
+    );
     return (
       <button className="press" onClick={() => this.openSheet(q, T, 'stats')} style={{ display: 'flex', alignItems: 'center', gap: 9, maxWidth: '100%', border: WF_LINE, borderRadius: 14, background: 'var(--surface)', padding: big ? '9px 15px' : '7px 12px', cursor: 'pointer', WebkitAppearance: 'none', textAlign: 'left' }}>
         <span aria-hidden="true" style={{ width: 9, height: 9, borderRadius: '50%', background: col, flexShrink: 0 }}></span>
@@ -948,51 +1389,169 @@ class WorldFeed extends React.Component {
     const takes = q ? ((window.WORLD_FEED_COMMENTS || {})[q.id] || []) : [];
     const close = () => {
       if (s.closing) return;
-      this.setState({ sheet: { ...s, closing: true }, replyTo: null });
+      this.setState({ sheet: { ...s, closing: true }, replyTo: null, reportFor: null });
       clearTimeout(this._sheetT);
-      this._sheetT = setTimeout(() => this.setState({ sheet: null }), 230);
+      this._sheetT = setTimeout(() => this.setState((st) => (st.sheet && st.sheet.closing ? { sheet: null } : null)), 230);
     };
     return ReactDOM.createPortal(
       <Sheet onClose={close} closing={s.closing}
-        label={panel === 'add' ? 'Add a topic' : panel === 'takes' ? 'Takes' : 'Who voted'}>
+        label={panel === 'add' ? 'Add a topic' : panel === 'bg' ? 'About this question' : panel === 'takes' ? 'Takes' : panel === 'pick' || (q && q.type === 'pick') ? 'Who picked what' : panel === 'know' || (q && q.type === 'know') ? 'Who knows this' : q && q.type === 'rank' ? 'How people ranked' : 'Who voted'}>
           <div style={{ padding: '10px 18px 8px', display: 'flex', alignItems: 'baseline', gap: 10 }}>
-            <span style={{ fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 15 }}>{panel === 'add' ? 'Add a topic' : panel === 'takes' ? 'Takes' : 'Who voted'}</span>
+            <span style={{ fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 15 }}>{panel === 'add' ? 'Add a topic' : panel === 'bg' ? (WF_BGTEXT(q) ? 'What you need to know' : 'About this question') : panel === 'takes' ? 'Takes' : panel === 'pick' || (q && q.type === 'pick') ? 'Who picked what' : panel === 'know' || (q && q.type === 'know') ? 'Who knows this' : q && q.type === 'rank' ? 'How people ranked' : 'Who voted'}</span>
             <span style={{ fontFamily: 'var(--sans)', fontWeight: 600, fontSize: 12, color: 'var(--ink-3)', flex: 1, minWidth: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{q ? (q.prompt || q.text || q.title) : ''}</span>
             <button onClick={close} aria-label="Close" style={{ border: 'none', background: 'var(--surface-2)', width: 26, height: 26, borderRadius: '50%', cursor: 'pointer', fontSize: 13, fontWeight: 800, color: 'var(--ink-2)', flexShrink: 0, WebkitAppearance: 'none' }}>{'\u2715'}</button>
           </div>
           <div className="wf-sheet-body">
-            {panel === 'add' ? this.renderAdd() : panel === 'takes' ? this.renderTakes(q, T, takes) : this.renderStats(q, T)}
+            {panel === 'add' ? this.renderAdd() : panel === 'bg' ? this.renderContext(q, T) : panel === 'takes' ? this.renderTakes(q, T, takes) : this.renderStats(q, T)}
           </div>
       </Sheet>, host);
   }
 
-  // The topics you do not follow yet, offered from the rail's "+". Scenes are
-  // a local, client-side subscription (window.SCENES) — following one changes
-  // which questions the feed mixes in and nothing that leaves the device.
+  // ── follow more: topics (with their leaves) first, then communities ──
+  // Scenes are a local, client-side subscription (window.SCENES) — following
+  // one changes which questions the feed mixes in and nothing that leaves
+  // the device.
   renderAdd() {
     const SC = window.SCENES;
-    if (!SC) return null;
-    const open = SC.defs().filter((g) => !SC.has(g.id)).sort((a, b) => b.match - a.match);
+    const ST = window.SUBTOPICS;
+    const label = { fontFamily: 'var(--sans)', fontSize: 11.5, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--ink-3)', margin: '4px 2px 6px' };
+    const openLeaves = ST ? ST.all().filter((s) => {
+      if (ST.has(s.id)) return false;
+      const own = SC && SC.subOf ? SC.mine().some((g) => SC.subOf(g.id) === s.id) : false;
+      return !own;                                    // a followed community already covers its leaf
+    }) : [];
+    const open = SC ? SC.defs().filter((g) => !SC.has(g.id)).sort((a, b) => b.match - a.match) : [];
+    const L = window.LEARN, LF = window.LEARN_FEED;
+    const learnOpen = L ? L.fields().filter((f) => !L.has(f.id)) : [];
+    const row = (key, col, name, meta, onFollow, ring) => (
+      <div key={key} style={{ display: 'flex', alignItems: 'center', gap: 11, padding: '11px 2px', borderTop: '0.5px solid color-mix(in oklch, var(--rule), transparent 25%)' }}>
+        {col && <span aria-hidden="true" style={ring ? { width: 10, height: 10, borderRadius: '50%', background: 'transparent', boxShadow: `inset 0 0 0 2.5px ${col}`, flexShrink: 0 } : { width: 9, height: 9, borderRadius: '50%', background: col, flexShrink: 0 }}></span>}
+        <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 1 }}>
+          <span style={{ fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 14.5 }}>{name}</span>
+          <span style={{ fontFamily: 'var(--sans)', fontWeight: 600, fontSize: 11.5, color: 'var(--ink-3)' }}>{meta}</span>
+        </div>
+        <button className="press" onClick={onFollow} style={{ flexShrink: 0, border: 'none', borderRadius: 999, padding: '7px 14px', fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 12.5, cursor: 'pointer', background: 'var(--ink)', color: 'var(--surface)', WebkitAppearance: 'none' }}>Follow</button>
+      </div>
+    );
     return (
       <div style={{ display: 'flex', flexDirection: 'column' }}>
-        {open.map((g) => {
-          const col = SC.colorOf ? SC.colorOf(g.id) : null;
-          return (
-            <div key={g.id} style={{ display: 'flex', alignItems: 'center', gap: 11, padding: '11px 2px', borderTop: '0.5px solid color-mix(in oklch, var(--rule), transparent 25%)' }}>
-              {col && <span aria-hidden="true" style={{ width: 9, height: 9, borderRadius: '50%', background: col, flexShrink: 0 }}></span>}
-              <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 1 }}>
-                <span style={{ fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 14.5 }}>{g.name}</span>
-                <span style={{ fontFamily: 'var(--sans)', fontWeight: 600, fontSize: 11.5, color: 'var(--ink-3)' }}>{wfFmt(g.members)} people · {g.vibe}</span>
-              </div>
-              <button className="press" onClick={() => { SC.follow(g.id); this.forceUpdate(); }} style={{ flexShrink: 0, border: 'none', borderRadius: 999, padding: '7px 14px', fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 12.5, cursor: 'pointer', background: 'var(--ink)', color: 'var(--surface)', WebkitAppearance: 'none' }}>Follow</button>
-            </div>
-          );
-        })}
-        {open.length === 0 && (
+        {openLeaves.length ? <div style={label}>Topics</div> : null}
+        {openLeaves.map((s) => row(s.id, (WF_TOPIC[s.parent] || {}).color, s.label,
+          `${(WF_TOPIC[s.parent] || {}).label || s.parent} · ${ST.count(s.id)} questions`,
+          () => { ST.follow(s.id); this.forceUpdate(); }))}
+        {open.length ? <div style={{ ...label, marginTop: openLeaves.length ? 18 : 4 }}>Communities</div> : null}
+        {open.map((g) => row(g.id, SC && SC.colorOf ? SC.colorOf(g.id) : null, g.name,
+          `${wfFmt(g.members)} people · ${g.vibe}`,
+          () => { SC.follow(g.id); this.forceUpdate(); }))}
+        {open.length === 0 && openLeaves.length === 0 && !learnOpen.length && (
           <div style={{ fontFamily: 'var(--sans)', fontSize: 13, fontWeight: 600, color: 'var(--ink-3)', textAlign: 'center', padding: '28px 0' }}>You follow every topic.</div>
         )}
+        {/* knowledge — the frequency control lives where follows live, and stays
+            coarse: how many fields you follow is already an intensity dial. */}
+        {LF ? (
+          <div style={{ marginTop: open.length || openLeaves.length ? 20 : 2 }}>
+            <div style={label}>Learn</div>
+            <p style={{ margin: '0 2px 11px', fontFamily: 'var(--sans)', fontSize: 12.5, fontWeight: 500, lineHeight: 1.45, color: 'var(--ink-3)', textWrap: 'pretty' }}>Questions with a right answer, mixed into the feed. Get one right and it lands on your map.</p>
+            <div style={{ display: 'flex', gap: 4, padding: 3, border: '0.5px solid var(--rule)', background: 'var(--surface)', borderRadius: 999 }}>
+              {LF.LEVELS.map((v) => {
+                const on = LF.freq() === v;
+                return <button key={v} className="press" onClick={() => { LF.setFreq(v); this.forceUpdate(); }} aria-pressed={on} style={{ flex: 1, border: 'none', borderRadius: 999, padding: '8px 0', cursor: 'pointer', WebkitAppearance: 'none', fontFamily: 'var(--sans)', fontWeight: on ? 800 : 600, fontSize: 12.5, background: on ? 'var(--ink)' : 'transparent', color: on ? 'var(--surface)' : 'var(--ink-3)', transition: 'background .2s ease, color .2s ease' }}>{v}</button>;
+              })}
+            </div>
+            {learnOpen.map((f) => row('lrn-' + f.id, L.colorOf(f.id), f.label,
+              `${(L.subject(f.subject) || {}).label || ''} · ${L.total(f.id)} cards`,
+              () => { L.follow(f.id); this.forceUpdate(); }, true))}
+          </div>
+        ) : null}
         {/* the one in-reach way to propose a question, now that the rail's + adds topics */}
         <button className="press" onClick={() => { this.setState({ sheet: null }); if (window.openSuggestions) window.openSuggestions(); }} style={{ marginTop: 14, padding: '11px 0', border: '0.5px solid var(--rule)', background: 'var(--surface-2)', borderRadius: 14, cursor: 'pointer', fontFamily: 'var(--sans)', fontWeight: 700, fontSize: 13, color: 'var(--ink-2)', WebkitAppearance: 'none' }}>Suggest a question</button>
+      </div>
+    );
+  }
+
+  // ── context — the i on every card. Facts and definitions where a question needs
+  // them, and for every question the things that are otherwise invisible until
+  // you answer: where it came from, how big the vote is, and which branch of your
+  // Mirror your answer moves. Never the arguments — those live in the reveal.
+  renderContext(q, T) {
+    const bg = WF_BGTEXT(q);
+    const L = window.LEARN;
+    const kn = q.type === 'know' && L ? L.card(q.learn) : null;
+    const fd = kn ? L.field(q.f) : null;
+    const rows = [];
+    if (kn) {
+      rows.push(['Field', fd ? fd.label + ' \u00b7 ' + ((L.subject(fd.subject) || {}).label || '') : '']);
+      rows.push(['Crowd', kn.p + '% get this right']);
+      rows.push(['On your map', 'Knowledge']);
+    } else {
+      const scene = q.scene && window.SCENES ? window.SCENES.defs().find((g) => g.id === q.scene) : null;
+      const leaf = q.sub ? WF_SUB(q.sub) : null;
+      rows.push(['Asked in', scene ? scene.name : leaf ? leaf.label : T.label]);
+      const cat = q.type === 'pick' ? (window.WF_CATALOGS || {})[q.catalog] : null;
+      if (cat) rows.push(['Catalogue', cat.total + ' ' + cat.noun]);
+      const n = wfVotes(q);
+      if (n) rows.push(['Answers', wfFmt(n)]);
+      rows.push(['On your map', WF_BRANCH[q.cat] || 'Interests']);
+    }
+    // a knowledge card's explanation IS the answer — it waits until you've answered
+    const why = kn && this.answered(q) ? kn.w : null;
+    const para = bg || why;
+    return (
+      <div style={{ padding: '2px 0 14px', display: 'flex', flexDirection: 'column', gap: 14 }}>
+        {para ? <p style={{ margin: 0, fontFamily: 'var(--sans)', fontSize: 15, fontWeight: 500, lineHeight: 1.55, color: 'var(--ink)', textWrap: 'pretty' }}>{para}</p> : null}
+        <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', columnGap: 14, rowGap: 9, alignItems: 'baseline', borderTop: para ? '0.5px solid var(--rule)' : 'none', paddingTop: para ? 14 : 0 }}>
+          {rows.map(([k, v]) => (
+            <React.Fragment key={k}>
+              <span style={{ fontFamily: 'var(--sans)', fontSize: 12.5, fontWeight: 600, color: 'var(--ink-3)', whiteSpace: 'nowrap' }}>{k}</span>
+              <span style={{ fontFamily: 'var(--sans)', fontSize: 13.5, fontWeight: 700, color: 'var(--ink)' }}>{v}</span>
+            </React.Fragment>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  // ── what you need to know — facts and definitions only, never the arguments ──
+  renderBg(q) {
+    const t = WF_BGTEXT(q);
+    if (!t) return null;
+    return (
+      <div style={{ padding: '2px 0 14px' }}>
+        <p style={{ margin: 0, fontFamily: 'var(--sans)', fontSize: 15, fontWeight: 500, lineHeight: 1.55, color: 'var(--ink)', textWrap: 'pretty' }}>{t}</p>
+      </div>
+    );
+  }
+
+  // ── a take, and the counter it drew. Depth stops here: you can only counter
+  // someone who voted the other way, once — agreement is the upvote. Several
+  // rebuttals sit in the same slot, one at a time. ──
+  // one shared reason chooser — takes and counters both use it
+  reportRow(k, pad) {
+    if (this.state.reportFor !== k) return null;
+    const R = window.WF_REPORT;
+    if (!R) return null;
+    return (
+      <div style={{ marginLeft: pad || 0, display: 'flex', flexDirection: 'column', gap: 7, paddingTop: 2 }}>
+        <span style={{ fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 11.5, color: 'var(--ink-3)' }}>Report this take</span>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center' }}>
+          {R.REASONS.map((r) => (
+            <button key={r} className="press" onClick={() => { if (!this._jr) this._jr = new Set(); this._jr.add(k); R.report(k, r); this.setState({ reportFor: null }); }} style={{ border: WF_LINE, borderRadius: 999, padding: '6px 12px', background: 'var(--surface-2)', fontFamily: 'var(--sans)', fontWeight: 700, fontSize: 12, color: 'var(--ink)', cursor: 'pointer', WebkitAppearance: 'none', whiteSpace: 'nowrap' }}>{r}</button>
+          ))}
+          <button onClick={() => this.setState({ reportFor: null })} style={{ border: 'none', background: 'none', padding: '6px 4px', fontFamily: 'var(--sans)', fontWeight: 700, fontSize: 12, color: 'var(--ink-3)', cursor: 'pointer', WebkitAppearance: 'none' }}>Cancel</button>
+        </div>
+      </div>
+    );
+  }
+
+  // the placeholder a reported take leaves behind — only for this sitting, so
+  // Undo stays in reach without the sheet filling up with tombstones
+  reportedCard(k) {
+    const R = window.WF_REPORT;
+    if (!this._jr || !this._jr.has(k)) return null;
+    return (
+      <div key={k} style={{ border: WF_LINE, borderRadius: 12, background: 'var(--surface-2)', padding: '11px 12px', display: 'flex', alignItems: 'center', gap: 10 }}>
+        <span style={{ flex: 1, fontFamily: 'var(--sans)', fontSize: 12.5, fontWeight: 600, color: 'var(--ink-3)' }}>Reported. Hidden from your feed.</span>
+        <button className="press" onClick={() => { R.undo(k); this._jr.delete(k); this.forceUpdate(); }} style={{ border: 'none', background: 'none', padding: '2px 0', fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 12, color: 'var(--ink)', cursor: 'pointer', WebkitAppearance: 'none' }}>Undo</button>
       </div>
     );
   }
@@ -1002,17 +1561,21 @@ class WorldFeed extends React.Component {
   // DEMO CARDS ONLY, like everything else in this sheet: renderEngage returns
   // the k-floored breakdown alone when q.live, so a take — free text attached
   // to a named person — is structurally unreachable at world scale (D1). The
-  // counters come from world-feed-counters.js, which is invented data sitting
-  // beside the invented takes in world-feed-comments.js.
+  // counters come from world-feed-counters.js, invented data sitting beside
+  // the invented takes in world-feed-comments.js — and WF_REPORT is that demo
+  // sheet's report flow, not the live moderation transport (data layer).
   takeCard(q, T, item) {
     const o = this.opts;
     const { c, key, sig } = item;
+    const R = window.WF_REPORT;
+    if (R && R.has(key)) return this.reportedCard(key);
     const myVote = this.state.votes[q.id];
     const mySide = typeof myVote === 'number' && q.options ? myVote : null;
-    const col = c.opt != null ? wfShade(T.color, c.opt) : 'var(--ink-3)';
-    const ctxt = c.opt != null ? wfShadeText(c.opt) : '#fff';
+    const isRate = q.type === 'rate';
+    const col = isRate ? (c.score != null ? wfRateBg(T.color, c.score) : 'var(--ink-3)') : (c.opt != null ? wfShade(T.color, c.opt) : 'var(--ink-3)');
+    const ctxt = isRate ? (c.score != null ? wfRateInk(c.score) : '#fff') : (c.opt != null ? wfShadeText(c.opt) : '#fff');
     const mine = this.state.replies[key] || [];
-    const seeded = o.counter && window.WF_COUNTERS ? window.WF_COUNTERS(key) : [];
+    const seeded = (o.counter && window.WF_COUNTERS && !isRate ? window.WF_COUNTERS(key) : []).filter((x) => !(R && R.has(x.ckey)));
     const list = seeded.concat(mine.map((t, i) => ({ name: 'You', opt: mySide, time: 'now', text: t, own: true, ckey: key + '#own' + i })));
     const writing = this.state.replyTo === key;
     // only across the aisle, only once, and only if you have a side yourself —
@@ -1031,12 +1594,14 @@ class WorldFeed extends React.Component {
         {o.signals && act(!!this.state.minds[k], '↺ ' + wfFmt(mind + (this.state.minds[k] ? 1 : 0)) + ' moved', () => this.setState((s) => ({ minds: { ...s.minds, [k]: !s.minds[k] } })))}
         <span style={{ flex: 1 }}></span>
         {k === key && canCounter && act(writing, 'Counter', () => this.setState({ replyTo: writing ? null : key }))}
+        <button onClick={() => this.setState((s) => ({ reportFor: s.reportFor === k ? null : k }))} aria-label="Report" style={{ border: 'none', background: 'none', padding: '2px 0 2px 2px', cursor: 'pointer', fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 14, lineHeight: 1, color: this.state.reportFor === k ? 'var(--ink)' : 'var(--ink-3)', WebkitAppearance: 'none' }}>{'\u22ef'}</button>
       </div>
     );
-    const meta = (name, opt, time) => (
+    const meta = (name, opt, time, score) => (
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 7 }}>
         {opt != null && <span aria-hidden="true" style={{ width: 7, height: 7, borderRadius: '50%', background: wfShade(T.color, opt), flexShrink: 0, alignSelf: 'center' }}></span>}
         <span style={{ fontWeight: 800, fontSize: 12.5 }}>{name}</span>
+        {score != null && <span style={{ fontWeight: 800, fontSize: 11.5, color: 'var(--ink-3)', fontVariantNumeric: 'tabular-nums' }}>gave {score}</span>}
         <span style={{ fontSize: 10.5, fontWeight: 600, color: 'var(--ink-3)' }}>{time}</span>
       </div>
     );
@@ -1045,11 +1610,12 @@ class WorldFeed extends React.Component {
         <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
           <span style={{ width: 30, height: 30, borderRadius: '50%', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 11.5, background: col, color: ctxt }}>{c.init}</span>
           <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 3 }}>
-            {meta(c.name, null, c.time)}
+            {meta(c.name, null, c.time, isRate ? c.score : null)}
             <div style={{ fontSize: 13, lineHeight: 1.45, fontWeight: 500 }}>{c.text}</div>
           </div>
         </div>
         {reactions(key, c.ups, sig.mind, 40)}
+        {this.reportRow(key, 40)}
         {cur && (
           <div style={{ marginLeft: 40, paddingLeft: 10, borderLeft: '2px solid ' + (cur.opt != null ? wfShade(T.color, cur.opt) : 'var(--surface-3)'), display: 'flex', flexDirection: 'column', gap: 4 }}>
             {meta(cur.own ? 'You' : cur.name, cur.opt, cur.time)}
@@ -1057,6 +1623,7 @@ class WorldFeed extends React.Component {
             {!cur.own && reactions(cur.ckey, cur.ups, cur.sig.mind, 0)}
             {/* several rebuttals stack behind one slot rather than turning the
                 take into a thread — one argument at a time, strongest first */}
+            {!cur.own && this.reportRow(cur.ckey, 0)}
             {list.length > 1 && (
               <div style={{ display: 'flex', gap: 5, alignItems: 'center', paddingTop: 1 }}>
                 {list.map((x, xi) => (
@@ -1078,6 +1645,7 @@ class WorldFeed extends React.Component {
 
   renderTakes(q, T, takes) {
     const o = this.opts;
+    const isRate = q.type === 'rate';
     const hasSides = !!q.options && takes.some((c) => c.opt != null);
     const filter = this.state.sideFilter;
     const myVote = this.state.votes[q.id];
@@ -1128,11 +1696,12 @@ class WorldFeed extends React.Component {
         {shown.map((it) => this.takeCard(q, T, it))}
         {ownShown.map((t, i) => (
           <div key={'own' + i} style={{ border: WF_LINE, borderRadius: 12, background: 'var(--surface)', padding: '10px 12px', display: 'flex', gap: 10, alignItems: 'flex-start' }}>
-            <span style={{ width: 30, height: 30, borderRadius: '50%', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 11.5, background: mySide != null ? wfShade(T.color, mySide) : 'var(--ink)', color: mySide != null ? wfShadeText(mySide) : '#fff' }}>Y</span>
+            <span style={{ width: 30, height: 30, borderRadius: '50%', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 11.5, background: isRate && typeof myVote === 'number' ? wfRateBg(T.color, myVote) : mySide != null ? wfShade(T.color, mySide) : 'var(--ink)', color: isRate && typeof myVote === 'number' ? wfRateInk(myVote) : mySide != null ? wfShadeText(mySide) : '#fff' }}>Y</span>
             <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 3 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 7, flexWrap: 'wrap' }}>
                 <span style={{ fontWeight: 800, fontSize: 12.5 }}>You</span>
                 {mySide != null && <span style={{ background: wfShade(T.color, mySide), color: wfShadeText(mySide), fontSize: 10, fontWeight: 800, padding: '2px 8px', borderRadius: 999, whiteSpace: 'nowrap' }}>{q.options[mySide].label}</span>}
+                {isRate && typeof myVote === 'number' && <span style={{ fontSize: 11, fontWeight: 800, color: 'var(--ink-3)', fontVariantNumeric: 'tabular-nums' }}>gave {myVote}</span>}
                 <span style={{ fontSize: 10.5, fontWeight: 600, color: 'var(--ink-3)' }}>now</span>
               </div>
               <div style={{ fontSize: 13, lineHeight: 1.45, fontWeight: 500 }}>{t}</div>
@@ -1141,7 +1710,7 @@ class WorldFeed extends React.Component {
           </div>
         ))}
         <form onSubmit={(e) => { e.preventDefault(); const inp = e.target.elements.take; const v = inp.value.trim(); if (v) { this.addTake(q.id, v); inp.value = ''; } }} style={{ display: 'flex', gap: 6, paddingTop: 2 }}>
-          <input name="take" placeholder={mySide == null && q.options ? 'Vote first to add a take…' : 'Add your take…'} disabled={mySide == null && !!q.options} style={{ flex: 1, minWidth: 0, border: WF_LINE, borderRadius: 999, padding: '8px 13px', fontFamily: 'var(--sans)', fontSize: 12.5, fontWeight: 500, background: 'var(--surface)', color: 'var(--ink)', outline: 'none' }} />
+          <input name="take" placeholder={!this.answered(q) ? 'Answer first to add a take…' : 'Add your take…'} disabled={!this.answered(q)} style={{ flex: 1, minWidth: 0, border: WF_LINE, borderRadius: 999, padding: '8px 13px', fontFamily: 'var(--sans)', fontSize: 12.5, fontWeight: 500, background: 'var(--surface)', color: 'var(--ink)', outline: 'none' }} />
           <button type="submit" style={{ border: 'none', borderRadius: 999, padding: '8px 14px', fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 12, cursor: 'pointer', background: 'var(--ink)', color: 'var(--surface)', WebkitAppearance: 'none' }}>Send</button>
         </form>
       </div>
@@ -1240,6 +1809,199 @@ class WorldFeed extends React.Component {
     );
   }
 
+  // ── the cut control: which slice of the world, then — for a test — which of
+  // its subvalues (overall type, or one axis). Same pair the Circle map uses.
+  // Two deliberate rows — who people are, then how they test — so all nine cuts
+  // stay in sight without three ragged wrapped lines. ──
+  renderCutChips(q, dim, only) {
+    const axis = this.state.cutAxis[q.id] || null;
+    const subs = WF_SUBS(dim);
+    const all = only ? WF_CUTS().filter((d) => only.indexOf(d.id) >= 0) : WF_CUTS();
+    const chip = (d, small) => (
+      <button key={d.id} data-on={dim === d.id ? '1' : '0'} onClick={() => this.setState((s) => ({ dims: { ...s.dims, [q.id]: d.id }, cutAxis: { ...s.cutAxis, [q.id]: null } }))} style={{ flex: 'none', border: '1px solid ' + (dim === d.id ? 'var(--ink)' : 'var(--rule)'), borderRadius: 999, padding: small ? '4px 11px' : '5px 12px', fontFamily: 'var(--sans)', fontWeight: 700, fontSize: small ? 11.5 : 12, cursor: 'pointer', whiteSpace: 'nowrap', background: dim === d.id ? 'var(--ink)' : 'var(--surface)', color: dim === d.id ? 'var(--surface)' : small ? 'var(--ink-3)' : 'var(--ink-2)', WebkitAppearance: 'none' }}>{d.label}</button>
+    );
+    const row = (list, k, small) => (
+      <div key={k} className="h-scroll" ref={(el) => { const sig = q.id + '|' + dim; if (el && this['_dSig' + k] !== sig) { this['_dSig' + k] = sig; window.VOTECUTS && window.VOTECUTS.centerChip(el); } }} style={{ position: 'relative', display: 'flex', gap: 6, overflowX: 'auto', margin: '0 -18px', padding: '0 18px' }}>{list.map((d) => chip(d, small))}</div>
+    );
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+        {row(all.filter((d) => !d.test), 'demo')}
+        {all.some((d) => d.test) ? row(all.filter((d) => d.test), 'tests', true) : null}
+        {subs && (
+          <div className="h-scroll" ref={(row) => { const sig = q.id + '|' + dim + '|' + axis; if (row && this._axSig !== sig) { this._axSig = sig; window.VOTECUTS && window.VOTECUTS.centerChip(row); } }} style={{ display: 'flex', alignItems: 'center', gap: 4, overflowX: 'auto', margin: '0 -18px', padding: '0 18px 2px' }}>
+            {subs.map((sb, si) => {
+              const on = axis === sb.id;
+              const rule = !!sb.tier && !(subs[si - 1] || {}).tier;
+              return (
+                <React.Fragment key={sb.id || 'type'}>
+                  {rule && <span aria-hidden="true" style={{ flex: 'none', alignSelf: 'stretch', width: 1, margin: '3px 5px', background: 'var(--rule)' }}></span>}
+                  <button data-on={on ? '1' : '0'} onClick={() => this.setState((s) => ({ cutAxis: { ...s.cutAxis, [q.id]: sb.id } }))} style={{ flex: 'none', border: 'none', borderRadius: 999, padding: '4px 11px', fontFamily: 'var(--sans)', fontWeight: on ? 800 : 600, fontSize: 11.5, cursor: 'pointer', background: on ? 'var(--surface-3)' : 'transparent', color: on ? 'var(--ink)' : 'var(--ink-3)', WebkitAppearance: 'none' }}>{sb.label}</button>
+                </React.Fragment>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // rate breakdown: every cut on the same 1–10 track. Bar = that group's
+  // average, hairline = your score, so the gap is the message.
+  renderRateStats(q, T) {
+    const dim = this.state.dims[q.id] || 'friends';
+    const axis = this.state.cutAxis[q.id] || null, cutKey = WF_CUTKEY(dim, axis), youBand = WF_YOU(dim, axis);
+    const c = window.PLACESTATS ? window.PLACESTATS.cat(q.scope, q.catId) : null;
+    const avg = c ? c.avg : 5;
+    const v = this.state.votes[q.id];
+    const track = (g, a) => (
+      <div key={g.label} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <span style={{ width: 94, flexShrink: 0, display: 'flex', alignItems: 'center', gap: 6, fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 11.5, whiteSpace: 'nowrap', overflow: 'hidden' }}>
+          {g.color && <span aria-hidden="true" style={{ width: 7, height: 7, borderRadius: '50%', background: g.color, flexShrink: 0 }}></span>}
+          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{g.label}</span>
+        </span>
+        <span style={{ position: 'relative', flex: 1, height: 10 }}>
+          <span style={{ position: 'absolute', inset: 0, borderRadius: 999, background: 'color-mix(in oklch, ' + T.color + ' 9%, var(--surface-3))' }}></span>
+          <span style={{ position: 'absolute', top: 0, bottom: 0, left: 0, width: (a * 10) + '%', borderRadius: 999, background: 'linear-gradient(90deg, color-mix(in oklch, ' + T.color + ', transparent 55%), ' + T.color + ')' }}></span>
+          {typeof v === 'number' && <span aria-hidden="true" style={{ position: 'absolute', top: -3, bottom: -3, left: 'calc(' + (v * 10) + '% - 1px)', width: 2, borderRadius: 1, background: 'var(--ink)' }}></span>}
+        </span>
+        <span style={{ width: 26, flexShrink: 0, textAlign: 'right', fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 12.5, color: 'var(--ink)', fontVariantNumeric: 'tabular-nums' }}>{a.toFixed(1)}</span>
+      </div>
+    );
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 13 }}>
+        {this.renderCutChips(q, dim)}
+        {(typeof v === 'number' || youBand) && (
+          <div style={{ background: 'var(--ink)', color: 'var(--surface)', borderRadius: 12, padding: '12px 14px', fontFamily: 'var(--sans)', fontWeight: 700, fontSize: 14, display: 'flex', alignItems: 'center', gap: 10 }}>
+            <span style={{ flex: 1, minWidth: 0 }}>{typeof v === 'number' ? 'You gave it ' + v + ' · the crowd ' + avg.toFixed(1) : 'How the crowd scored it'}</span>
+            {youBand && <span style={{ flexShrink: 0, fontSize: 12, fontWeight: 800, background: 'color-mix(in oklch, var(--surface) 22%, transparent)', borderRadius: 999, padding: '3px 10px' }}>You · {youBand}</span>}
+          </div>
+        )}
+        {dim === 'friends' ? (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
+            {WF_FRIENDS.map((f) => {
+              const a = wfRateAvg(q.id, 'f:' + f.name, avg);
+              const s = Math.round(a);
+              return (
+                <div key={f.name} style={{ background: 'var(--surface)', border: WF_LINE, borderRadius: 12, padding: '9px 11px', display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <span style={{ width: 30, height: 30, borderRadius: '50%', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 12, background: wfRateBg(T.color, s), color: wfRateInk(s) }}>{f.init}</span>
+                  <span style={{ flex: 1, fontWeight: 800, fontSize: 13.5 }}>{f.name}</span>
+                  <span style={{ position: 'relative', width: 96, height: 8, flexShrink: 0 }}>
+                    <span style={{ position: 'absolute', inset: 0, borderRadius: 999, background: 'color-mix(in oklch, ' + T.color + ' 9%, var(--surface-3))' }}></span>
+                    <span style={{ position: 'absolute', top: 0, bottom: 0, left: 0, width: (a * 10) + '%', borderRadius: 999, background: T.color }}></span>
+                  </span>
+                  <span style={{ width: 22, textAlign: 'right', fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 12.5, fontVariantNumeric: 'tabular-nums' }}>{s}</span>
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 11 }}>
+            {WF_GRP(dim, axis).map((g) => track(g, wfRateAvg(q.id, cutKey + ':' + g.label, avg)))}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // On an opinion question the cuts tell you who thinks what. On a knowledge
+  // question they answer a different question — who KNOWS this — and that read
+  // isn't available anywhere else: a fact can belong to the old, to one country,
+  // to one field of study. Bar = share of that group who got it right, sorted, on
+  // one baseline, with the crowd's own rate as the hairline to read against.
+  renderKnowStats(q, T) {
+    const L = window.LEARN, card = L && L.card(q.learn);
+    if (!card) return null;
+    const dim = WF_KNOW_CUTS.indexOf(this.state.dims[q.id]) >= 0 ? this.state.dims[q.id] : 'friends';
+    const axis = this.state.cutAxis[q.id] || null, youBand = WF_YOU(dim, axis);
+    const p = card.p;
+    const r = this.knowOf(q);
+    const S = window.LEARN_SOCIAL;
+    const seen = S ? S.onCard(card) : [];
+    const rows = dim === 'friends' ? [] : (() => { const gs = WF_GRP(dim, axis); return gs.map((g, i) => ({ ...g, rate: wfKnowRate(q.id, WF_CUTKEY(dim, axis) + ':' + g.label, p, wfKnowBias(dim, axis, gs.length, i)) })).sort((a, b) => b.rate - a.rate); })();
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 13 }}>
+        {this.renderCutChips(q, dim, WF_KNOW_CUTS)}
+        <div style={{ background: 'var(--ink)', color: 'var(--surface)', borderRadius: 12, padding: '12px 14px', fontFamily: 'var(--sans)', fontWeight: 700, fontSize: 14, display: 'flex', alignItems: 'center', gap: 10 }}>
+          <span style={{ flex: 1, minWidth: 0 }}>{p + '% of people get this right'}</span>
+          {r ? <span style={{ flexShrink: 0, fontSize: 12, fontWeight: 800, background: 'color-mix(in oklch, var(--surface) 22%, transparent)', borderRadius: 999, padding: '3px 10px' }}>{r.ok ? 'You did' : 'You didn\u2019t'}</span> : null}
+        </div>
+        {dim === 'friends' ? (
+          seen.length ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {seen.slice().sort((a, b) => (b.ok ? 1 : 0) - (a.ok ? 1 : 0)).map((f) => (
+                <div key={f.id} style={{ background: 'var(--surface)', border: WF_LINE, borderRadius: 12, padding: '9px 11px', display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <span style={{ ...lmAv(f.ok ? T.color : 'var(--surface-2)', f.ok ? '#fff' : 'var(--ink-3)', 30), border: f.ok ? 'none' : '1px solid var(--rule)' }}>{f.init}</span>
+                  <span style={{ flex: 1, fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 13.5 }}>{f.name}</span>
+                  <span style={{ flexShrink: 0, fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 12.5, color: f.ok ? T.color : 'var(--ink-3)' }}>{f.ok ? 'got it' : 'missed'}</span>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div style={{ fontFamily: 'var(--sans)', fontSize: 13, fontWeight: 600, color: 'var(--ink-3)', textAlign: 'center', padding: '22px 0' }}>None of your friends has met this one yet.</div>
+          )
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
+            {rows.map((g) => {
+              const you = youBand && g.label === youBand;
+              return (
+                <div key={g.label} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <span style={{ width: 94, flexShrink: 0, display: 'flex', alignItems: 'center', gap: 6, fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 11.5, color: you ? 'var(--ink)' : 'var(--ink-2)', whiteSpace: 'nowrap', overflow: 'hidden' }}>
+                    {you ? <span aria-hidden="true" style={{ width: 7, height: 7, borderRadius: '50%', flexShrink: 0, boxShadow: `inset 0 0 0 2px ${T.color}` }}></span> : null}
+                    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{g.label}</span>
+                  </span>
+                  <span style={{ position: 'relative', flex: 1, height: 10 }}>
+                    <span style={{ position: 'absolute', inset: 0, borderRadius: 999, background: 'color-mix(in oklch, ' + T.color + ' 9%, var(--surface-3))' }}></span>
+                    <span style={{ position: 'absolute', top: 0, bottom: 0, left: 0, width: g.rate + '%', borderRadius: 999, background: T.color }}></span>
+                    <span aria-hidden="true" title="everyone" style={{ position: 'absolute', top: -3, bottom: -3, left: 'calc(' + p + '% - 1px)', width: 2, borderRadius: 1, background: 'var(--ink)' }}></span>
+                  </span>
+                  <span style={{ width: 30, flexShrink: 0, textAlign: 'right', fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 12.5, color: 'var(--ink)', fontVariantNumeric: 'tabular-nums' }}>{g.rate}%</span>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // the knowledge card's surprise: the group that knows this best. Two rules keep
+  // it honest. It ranks on the hash noise only — education carries a deliberate
+  // monotonic trend, and left in the comparison that systematic offset wins
+  // “furthest from the crowd” nearly every time, so the same line repeats on half
+  // the cards. And it only ever headlines the upward side: a card that says who
+  // knows something is generous, one that says who fails is a verdict, and a
+  // verdict on the least-schooled group is exactly the chart we refused to draw
+  // when we dropped the gender cut. The low end still shows in the sheet, where
+  // it reads as a distribution rather than a headline.
+  renderKnowInsight(q, T) {
+    const L = window.LEARN, card = L && L.card(q.learn);
+    if (!card) return null;
+    const p = card.p;
+    let best = null;
+    WF_CUTS().filter((d) => d.id !== 'friends' && WF_KNOW_CUTS.indexOf(d.id) >= 0).forEach((d) => {
+      const subs = WF_SUBS(d.id);
+      (subs ? subs : [{ id: null }]).forEach((sb) => {
+        const gs = WF_GRP(d.id, sb.id);
+        gs.forEach((g, i) => {
+          const bias = wfKnowBias(d.id, sb.id, gs.length, i);
+          const rate = wfKnowRate(q.id, WF_CUTKEY(d.id, sb.id) + ':' + g.label, p, bias);
+          if (rate <= p) return;
+          const gap = Math.abs(rate - p - bias);
+          if (!best || gap > best.gap) best = { dim: d.id, axis: sb.id, label: g.label, rate, gap };
+        });
+      });
+    });
+    if (!best || best.rate - p < 12) return null;
+    return (
+      <button className="press" onClick={() => this.setState((s) => ({ sheet: { q, T, panel: 'know' }, dims: { ...s.dims, [q.id]: best.dim }, cutAxis: { ...s.cutAxis, [q.id]: best.axis } }))}
+        style={{ display: 'flex', alignItems: 'center', gap: 9, width: '100%', textAlign: 'left', border: WF_LINE, borderRadius: 12, background: 'var(--surface)', padding: '10px 12px', cursor: 'pointer', WebkitAppearance: 'none' }}>
+        <span aria-hidden="true" style={{ width: 7, height: 7, borderRadius: '50%', flexShrink: 0, background: T.color }}></span>
+        <span style={{ flex: 1, minWidth: 0, fontFamily: 'var(--sans)', fontWeight: 700, fontSize: 13, color: 'var(--ink-2)' }}>{best.label + ' knows this best'}</span>
+        <span style={{ flexShrink: 0, fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 13, color: 'var(--ink)', fontVariantNumeric: 'tabular-nums' }}>{best.rate + '%'}</span>
+      </button>
+    );
+  }
+
   renderStats(q, T) {
     const by = this.liveBy(q);
     if (by) return this.renderLiveStats(q, T, by);
@@ -1253,7 +2015,12 @@ class WorldFeed extends React.Component {
         </div>
       );
     }
+    if (q.type === 'pick') return this.renderPickStats(q, T);
+    if (q.type === 'know') return this.renderKnowStats(q, T);
+    if (q.type === 'rate') return this.renderRateStats(q, T);
+    if (q.type === 'rank') return this.renderRankStats(q, T);
     const dim = this.state.dims[q.id] || 'friends';
+    const axis = this.state.cutAxis[q.id] || null, cutKey = WF_CUTKEY(dim, axis), youBand = WF_YOU(dim, axis);
     const counts = q.options.map((o) => o.count);
     const total = counts.reduce((a, b) => a + b, 0);
     const myVote = this.state.votes[q.id];
@@ -1262,20 +2029,17 @@ class WorldFeed extends React.Component {
     const pick = (name) => { const r = wfHash(q.id + ':' + name); let acc = 0; for (let i = 0; i < counts.length; i++) { acc += counts[i] / total; if (r < acc) return i; } return counts.length - 1; };
     const friends = WF_FRIENDS.map((f) => ({ ...f, oi: pick(f.name) }));
     const same = mySide == null ? null : friends.filter((f) => f.oi === mySide).length;
+    // the world's own split — it becomes the header bar (legend + baseline in one)
+    // and every group's seam is read against it
+    const op = counts.map((c) => Math.round((c / total) * 100));
+    op[op.indexOf(Math.max(...op))] += 100 - op.reduce((a, b) => a + b, 0);
+    const nG = WF_GRP(dim, axis).length;
+    const many = nG > 6;
+    const GRID = { display: 'grid', gridTemplateColumns: '92px 1fr', gap: 10, alignItems: 'center' };
+    const barH = many ? 19 : 24, rowGap = many ? 6 : 9;
     return (
       <div style={{ display: 'flex', flexDirection: 'column', gap: 11 }}>
-        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-          {WF_DIMS.map(([id, label]) => (
-            <button key={id} onClick={() => this.setState((s) => ({ dims: { ...s.dims, [q.id]: id } }))} style={{ border: WF_LINE, borderRadius: 999, padding: '5px 12px', fontFamily: 'var(--sans)', fontWeight: 700, fontSize: 12, cursor: 'pointer', background: dim === id ? 'var(--ink)' : 'var(--surface)', color: dim === id ? 'var(--surface)' : 'var(--ink)', WebkitAppearance: 'none' }}>{label}</button>
-          ))}
-        </div>
-        <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-          {q.options.map((o, i) => (
-            <span key={i} style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11.5, fontWeight: 700 }}>
-              <span style={{ width: 11, height: 11, borderRadius: 4, background: wfShade(T.color, i), display: 'inline-block' }}></span>{o.label}
-            </span>
-          ))}
-        </div>
+        {this.renderCutChips(q, dim)}
         {dim === 'friends' ? (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             <div style={{ background: 'var(--ink)', color: 'var(--surface)', borderRadius: 12, padding: '12px 14px', fontFamily: 'var(--sans)', fontWeight: 700, fontSize: 14 }}>{same != null ? same + ' of ' + friends.length + ' friends are on your side' : 'How your friends voted'}</div>
@@ -1288,25 +2052,36 @@ class WorldFeed extends React.Component {
             ))}
           </div>
         ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-          {WF_GROUPS[dim].map((g, gi) => {
-            const key = q.id + ':' + dim + ':' + gi;
+        <div style={{ display: 'flex', flexDirection: 'column', gap: rowGap }}>
+          <div style={{ ...GRID, alignItems: 'end', marginBottom: many ? 2 : 0 }}>
+            <span style={{ fontFamily: 'var(--sans)', fontWeight: 700, fontSize: 11.5, color: 'var(--ink-3)' }}>Everyone</span>
+            <span style={{ display: 'flex', height: 30, borderRadius: 8, overflow: 'hidden' }}>
+              {op.map((p, oi) => (
+                <span key={oi} style={{ width: p + '%', boxSizing: 'border-box', background: wfShade(T.color, oi), display: 'flex', alignItems: 'center', justifyContent: oi === op.length - 1 ? 'flex-end' : 'flex-start', padding: '0 9px', color: wfShadeText(oi), fontFamily: 'var(--sans)', fontSize: 11.5, fontWeight: 800, whiteSpace: 'nowrap', overflow: 'hidden' }}>{p >= 24 ? q.options[oi].label : ''}</span>
+              ))}
+            </span>
+          </div>
+          {WF_GRP(dim, axis).map((g, gi) => {
+            const key = q.id + ':' + cutKey + ':' + gi;
             const w = counts.map((c, oi) => (c / total) * (0.55 + wfHash(key + ':' + oi)));
             const sum = w.reduce((a, b) => a + b, 0);
             const ps = w.map((x) => Math.round((x / sum) * 100));
             ps[ps.indexOf(Math.max(...ps))] += 100 - ps.reduce((a, b) => a + b, 0);
-            const n = Math.round(300 + wfHash(key + ':n') * 3700);
+            return { g, gi, ps };
+          }).sort((a, b) => b.ps[0] - a.ps[0]).map(({ g, gi, ps }) => {
+            const you = g.label === youBand;
             return (
-              <div key={gi} style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between' }}>
-                  <span style={{ fontWeight: 800, fontSize: 12 }}>{g}</span>
-                  <span style={{ fontSize: 10.5, fontWeight: 600, color: 'var(--ink-3)' }}>{wfFmt(n)} votes</span>
-                </div>
-                <div style={{ display: 'flex', height: 30, border: WF_LINE, borderRadius: 9, overflow: 'hidden', background: 'var(--surface)' }}>
-                  {ps.map((p, oi) => (
-                    <span key={oi} style={{ width: p + '%', background: wfShade(T.color, oi), display: 'flex', alignItems: 'center', justifyContent: 'center', color: wfShadeText(oi), fontSize: 10.5, fontWeight: 800, overflow: 'hidden' }}>{p >= 14 ? p + '%' : ''}</span>
-                  ))}
-                </div>
+              <div key={gi} style={GRID}>
+                <span style={{ display: 'flex', alignItems: 'center', gap: 6, fontWeight: 800, fontSize: many ? 11.5 : 12, minWidth: 0, color: you ? 'var(--ink)' : 'var(--ink-2)' }}>
+                  {g.color && <span aria-hidden="true" style={{ width: 8, height: 8, borderRadius: '50%', background: g.color, flexShrink: 0 }}></span>}
+                  <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{g.label}</span>
+                </span>
+                <span style={{ position: 'relative', display: 'flex', height: barH, borderRadius: many ? 5 : 7, overflow: 'visible', boxShadow: you ? '0 0 0 1.5px var(--ink)' : 'none' }}>
+                  <span style={{ position: 'absolute', inset: 0, display: 'flex', borderRadius: many ? 5 : 7, overflow: 'hidden' }}>
+                    {ps.map((p, oi) => <span key={oi} style={{ width: p + '%', background: wfShade(T.color, oi) }}></span>)}
+                  </span>
+                  <span aria-hidden="true" style={{ position: 'absolute', top: -3, bottom: -3, left: op[0] + '%', width: 1.5, borderRadius: 1, background: 'var(--ink)', opacity: 0.55 }}></span>
+                </span>
               </div>
             );
           })}
@@ -1316,14 +2091,81 @@ class WorldFeed extends React.Component {
     );
   }
 
+  // ── how people ranked ── one row per item, one cell per position: fill is the
+  // share of people who put that item there. Peaked = the crowd agrees, flat =
+  // it doesn't. Your own placement is the ringed cell.
+  renderRankStats(q, T) {
+    const done = this.state.votes[q.id] || {};
+    const myOrder = done.order || [];
+    const N = q.items.length;
+    const dist = (i) => {
+      const r = q.crowd[i];
+      const w = [];
+      for (let p = 1; p <= N; p++) w.push(Math.exp(-Math.abs(p - r) * 0.85) * (0.75 + 0.5 * wfHash(q.id + ':' + i + ':' + p)));
+      const s = w.reduce((a, b) => a + b, 0);
+      const ps = w.map((x) => Math.round((x / s) * 100));
+      ps[ps.indexOf(Math.max(...ps))] += 100 - ps.reduce((a, b) => a + b, 0);
+      return ps;
+    };
+    const items = q.items.map((label, i) => ({ i, label, ps: dist(i) })).sort((a, b) => q.crowd[a.i] - q.crowd[b.i]);
+    // friends' first picks, weighted by the crowd's share at position one
+    const p1 = items.map((it) => it.ps[0]);
+    const tot1 = p1.reduce((a, b) => a + b, 0);
+    const firstOf = (name) => { const r = wfHash(q.id + ':first:' + name); let acc = 0; for (let k = 0; k < items.length; k++) { acc += p1[k] / tot1; if (r < acc) return k; } return 0; };
+    const top = items[0];
+    const nTop = WF_FRIENDS.filter((f) => firstOf(f.name) === 0).length;
+    const GRID = { display: 'grid', gridTemplateColumns: `84px repeat(${N}, 1fr)`, gap: 5, alignItems: 'center' };
+    const cellCol = (share) => `color-mix(in oklch, ${T.color} ${Math.min(100, Math.round(share * 1.7))}%, var(--surface-3))`;
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+          <span style={{ fontFamily: 'var(--sans)', fontSize: 11.5, fontWeight: 700, color: 'var(--ink-3)' }}>{wfFmt(q.votes || 0)} rankings</span>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontFamily: 'var(--sans)', fontSize: 11.5, fontWeight: 600, color: 'var(--ink-3)' }}>
+            <span aria-hidden="true" style={{ width: 13, height: 13, borderRadius: 4, background: 'var(--surface-3)', boxShadow: 'inset 0 0 0 1.5px var(--ink)' }}></span>your order
+          </span>
+        </div>
+        <div style={{ ...GRID, marginBottom: -2 }}>
+          <span></span>
+          {Array.from({ length: N }, (_, p) => (
+            <span key={p} style={{ textAlign: 'center', fontFamily: 'var(--sans)', fontSize: 10.5, fontWeight: 700, color: 'var(--ink-3)' }}>{p + 1}</span>
+          ))}
+        </div>
+        {items.map(({ i, label, ps }) => {
+          const mine = myOrder.indexOf(i);
+          return (
+            <div key={i} style={GRID}>
+              <span style={{ fontFamily: 'var(--sans)', fontSize: 12, fontWeight: 800, color: 'var(--ink-2)', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{label}</span>
+              {ps.map((share, p) => (
+                <span key={p} title={label + ' at #' + (p + 1) + ': ' + share + '%'} style={{ height: 26, borderRadius: 6, background: cellCol(share), boxShadow: mine === p ? 'inset 0 0 0 1.5px var(--ink)' : 'none' }}></span>
+              ))}
+            </div>
+          );
+        })}
+        <div style={{ fontFamily: 'var(--sans)', fontSize: 13, fontWeight: 500, color: 'var(--ink-2)', marginTop: 4 }}>{nTop} of {WF_FRIENDS.length} friends had {top.label.toLowerCase()} first.</div>
+      </div>
+    );
+  }
+
   // compact density: answered vote/duel cards collapse to one thin split bar
   renderThinBar(q, T) {
     if (q.type === 'pick') {
       const v = this.state.votes[q.id];
-      const name = this.pickName(v && v.entity, q.domain);
+      const ent = v && typeof v === 'object' ? v.entity : v;
+      const C = (window.WF_CATALOGS || {})[q.catalog];
+      if (C) {
+        const it = C.items.find((x) => x.id === ent);
+        if (!it) return null;
+        return <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}><span aria-hidden="true" style={{ width: 18, height: 18, borderRadius: 5, background: wfCatArt(T.color, q.catalog + ':' + it.id), flexShrink: 0 }}></span><span style={{ fontFamily: 'var(--sans)', fontSize: 12, fontWeight: 700, color: 'var(--ink-2)' }}>{it.name}</span></div>;
+      }
+      const name = this.pickName(ent, q.domain);
       const c = window.PICKS ? window.PICKS.canon(q.id) : null;
       const lead = c && c.top.length ? this.pickName(c.top[0].entity, q.domain) : null;
-      return <span style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--ink-3)' }}>you {name || '…'} · crowd {lead || '—'}</span>;
+      return <span style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--ink-3)' }}>you {name || '\u2026'} \u00b7 crowd {lead || '\u2014'}</span>;
+    }
+    if (q.type === 'know') {
+      const r = this.knowOf(q);
+      if (!r) return null;
+      return <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}><LMStreak k={r.streak} of={(window.LEARN || {}).STREAK || 3} col={T.color}></LMStreak><span style={{ fontFamily: 'var(--sans)', fontSize: 11.5, fontWeight: 700, color: 'var(--ink-3)' }}>{r.ok ? 'right' : 'missed'}</span></div>;
     }
     if (q.type === 'rate') {
       const v = this.state.votes[q.id];
@@ -1362,28 +2204,47 @@ class WorldFeed extends React.Component {
     // question wears its test's — otherwise it reads as an off-topic card
     const lz = !tm && q.lens && window.LENSES ? window.LENSES.get(q.lens) : null;
     const mk = tm || (lz ? { label: lz.title, accent: `oklch(0.56 0.13 ${lz.hue})` } : null);
-    const T = mk ? { label: mk.label, color: mk.accent } : (WF_TOPIC[q.cat] || { label: q.cat, color: 'var(--ink-3)' });
-    const scene = !mk && q.scene && window.SCENES ? window.SCENES.defs().find((g) => g.id === q.scene) : null;
-    const kickLabel = scene ? scene.name : (tm ? tm.label + ' test' : (lz ? lz.title : T.label));
+    // a knowledge card wears its field, coloured by its subject
+    const kn = q.type === 'know' && window.LEARN ? window.LEARN.field(q.f) : null;
+    // Favourites is a format channel, so the chip's hue can't also be the card's:
+    // three catalogues rendering in one green loses the subject entirely. The
+    // channel keeps the label, the catalogue supplies the colour.
+    const cg = q.type === 'pick' ? (window.WF_CATALOGS || {})[q.catalog || q.domain] : null;
+    const T = kn ? { label: kn.label, color: window.LEARN.colorOf(q.f) } : cg && cg.hue ? { label: (WF_TOPIC[q.cat] || {}).label || q.cat, color: 'oklch(0.55 0.14 ' + cg.hue + ')' } : mk ? { label: mk.label, color: mk.accent } : (WF_TOPIC[q.cat] || { label: q.cat, color: 'var(--ink-3)' });
+    const scene = !mk && !kn && q.scene && window.SCENES ? window.SCENES.defs().find((g) => g.id === q.scene) : null;
+    const leaf = !mk && !kn && !q.scene && q.sub ? WF_SUB(q.sub) : null;
+    const kickLabel = scene ? scene.name : (tm ? tm.label + ' test' : (lz ? lz.title : leaf ? leaf.label : T.label));
+    // the quiet marker that this one has a right answer: a ring, not a filled dot
+    const kickDot = kn
+      ? { width: 7, height: 7, borderRadius: '50%', background: 'transparent', boxShadow: `inset 0 0 0 2px ${T.color}`, flexShrink: 0 }
+      : { width: 6, height: 6, borderRadius: '50%', background: T.color, flexShrink: 0 };
+    const bgText = WF_BGTEXT(q);
     const compact = this.props.density === 'compact';
+    // focus mode: one question, hosted outside the feed (search results)
+    const focus = !!this.props.focus;
     const answered = this.answered(q);
     const open = !!this.state.open[q.id];
     const collapsed = compact && !open;
     const kicker = (
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7, fontSize: 12.5, fontWeight: 700, letterSpacing: '0.01em', textTransform: 'lowercase', color: mk ? `color-mix(in oklch, ${T.color} 70%, var(--ink))` : 'var(--ink-2)', background: mk ? `color-mix(in oklch, ${T.color} 11%, transparent)` : 'transparent', border: '0.5px solid ' + (mk ? `color-mix(in oklch, ${T.color} 40%, var(--rule))` : 'var(--rule)'), borderRadius: 999, padding: '4px 12px 4px 10px', minWidth: 0 }}><span aria-hidden="true" style={{ width: 6, height: 6, borderRadius: '50%', background: T.color, flexShrink: 0 }}></span>{kickLabel}</span>
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7, fontSize: 12.5, fontWeight: 700, letterSpacing: '0.01em', textTransform: 'lowercase', color: mk ? `color-mix(in oklch, ${T.color} 70%, var(--ink))` : 'var(--ink-2)', background: mk ? `color-mix(in oklch, ${T.color} 11%, transparent)` : 'transparent', border: '0.5px solid ' + (mk ? `color-mix(in oklch, ${T.color} 40%, var(--rule))` : 'var(--rule)'), borderRadius: 999, padding: '4px 12px 4px 10px', minWidth: 0 }}><span aria-hidden="true" style={kickDot}></span>{kickLabel}</span>
+        {bgText ? (
+          <button className="press" onClick={(e) => { e.stopPropagation(); clearTimeout(this._sheetT); this.setState({ sheet: { panel: 'bg', q, T } }); }} aria-label="What you need to know" style={{ flexShrink: 0, width: 20, height: 20, borderRadius: '50%', border: '0.5px solid color-mix(in oklch, var(--ink) 26%, var(--rule))', background: 'transparent', color: 'var(--ink-2)', fontFamily: 'var(--sans)', fontSize: 11.5, fontWeight: 800, lineHeight: 1, cursor: 'pointer', WebkitAppearance: 'none', padding: 0 }}>i</button>
+        ) : (
+          <button className="press" onClick={(e) => { e.stopPropagation(); clearTimeout(this._sheetT); this.setState({ sheet: { panel: 'bg', q, T } }); }} aria-label="About this question" style={{ flexShrink: 0, width: 20, height: 20, borderRadius: '50%', border: '0.5px solid var(--rule)', background: 'transparent', color: 'var(--ink-3)', fontFamily: 'var(--sans)', fontSize: 11.5, fontWeight: 800, lineHeight: 1, cursor: 'pointer', WebkitAppearance: 'none', padding: 0 }}>i</button>
+        )}
         {F.closing && this.renderClock(T)}
         <span style={{ flex: 1 }}></span>
         {window.PassiveTag && <window.PassiveTag q={q} answered={answered}></window.PassiveTag>}
       </div>
     );
-    const snap = !compact;
+    const snap = !compact && !focus;
     // Three densities give the scroll a pulse instead of one uniform stack:
     // duels go full-bleed, text questions sit typographic on the ground, and
-    // only a collapsed card keeps the box. Under v2 every open card is bare —
-    // a hairline gives the stream its structure where borders and shadows
-    // used to, and the topic hue stays in the kicker.
-    const skin = collapsed ? 'card' : q.type === 'duel' ? 'bleed' : (this.opts.v2 || q.type === 'vote') ? 'bare' : 'card';
+    // only a collapsed (or search-focused) card keeps the box. Under v2 every
+    // open card is bare — a hairline gives the stream its structure where
+    // borders and shadows used to, and the topic hue stays in the kicker.
+    const skin = collapsed || focus ? 'card' : q.type === 'duel' ? 'bleed' : (this.opts.v2 || q.type === 'vote') ? 'bare' : 'card';
     const card = { background: 'var(--surface-2)', border: mk ? '1px solid color-mix(in oklch, ' + T.color + ' 32%, var(--rule))' : WF_LINE, borderRadius: 18, boxShadow: 'var(--shadow-card)', padding: collapsed ? '12px 14px' : '16px 15px', display: 'flex', flexDirection: 'column', gap: collapsed ? 8 : 12 };
     // hero cards carry a whisper of their topic hue so the breathing room reads designed, not blank
     if (!collapsed) card.backgroundImage = 'radial-gradient(120% 80% at 50% -25%, color-mix(in oklch, ' + T.color + ' 8%, transparent), transparent 62%)';
@@ -1424,29 +2285,20 @@ class WorldFeed extends React.Component {
         {snap && !answered && <div aria-hidden="true" style={{ flex: '0.12 1 0' }}></div>}
         {/* the bare skin has no box to compete with, so the question can carry
             the card on its own — it steps up a size and tightens accordingly */}
-        <div style={{ fontFamily: 'var(--sans)', fontWeight: snap ? 800 : 750, fontSize: snap ? (skin === 'bare' ? 30 : 26) : 16.5, lineHeight: snap ? 1.1 : 1.25, letterSpacing: snap ? (skin === 'bare' ? -0.9 : -0.6) : -0.25, textWrap: 'pretty' }}>{q.prompt}</div>
+        <div style={{ fontFamily: 'var(--sans)', fontWeight: snap || focus ? 800 : 750, fontSize: snap ? (skin === 'bare' ? 30 : 26) : focus ? 20 : 16.5, lineHeight: snap ? 1.1 : focus ? 1.2 : 1.25, letterSpacing: snap ? (skin === 'bare' ? -0.9 : -0.6) : focus ? -0.4 : -0.25, textWrap: 'pretty' }}>{q.prompt}</div>
         {q.type === 'vote' && this.renderVote(q, T, snap)}
         {q.type === 'duel' && this.renderDuel(q, T, snap)}
         {q.type === 'rank' && this.renderRank(q, T, snap)}
         {q.type === 'rate' && this.renderRate(q, T, snap)}
+        {q.type === 'know' && this.renderKnow(q, T, snap)}
         {q.type === 'pick' && this.renderPick(q, T, snap)}
-        {/* where this vote landed on your Mirror — transient, and only on the
-            ~45% of cards setVote marked, so it stays a remark not a label */}
-        {answered && this.state.ripple === q.id && (
-          <div style={{ fontFamily: 'var(--sans)', fontWeight: 600, fontSize: 12.5, color: 'var(--ink-3)', textWrap: 'pretty' }}>
-            ↳ landed on your Mirror — {WF_BRANCH[q.cat] || 'Interests'}
-          </div>
-        )}
-        {/* rate feeds the scorecards, pick publishes a leaderboard with no
-            agg.by (deferred with the arithmetic in docs/CATALOG-QUESTIONS.md)
-            — neither has takes or a who-voted split to open */}
-        {answered && this.state.beat !== q.id && q.type !== 'rate' && q.type !== 'pick' && this.renderEngage(q, T, snap)}
         {/* skip: only before answering, and never on a test/lens question —
             those fill an instrument, so a silent skip would read as a gap in
             your own results rather than a question you passed on */}
         {!answered && this.opts.pass && !mk && (
           <button className="press" onClick={() => this.setPass(q.id, true)} style={{ alignSelf: 'center', border: 'none', background: 'none', padding: '6px 16px', marginTop: 2, cursor: 'pointer', fontFamily: 'var(--sans)', fontWeight: 500, fontSize: 13, color: 'var(--ink-3)', WebkitAppearance: 'none' }}>skip</button>
         )}
+        {answered && this.state.beat !== q.id && q.type !== 'know' && q.type !== 'pick' && this.renderEngage(q, T, snap)}
         {snap && !answered && <div aria-hidden="true" style={{ flex: '1 1 0' }}></div>}
       </div>
     );
@@ -1471,18 +2323,39 @@ class WorldFeed extends React.Component {
   }
 
   render() {
+    // focus mode — just the given question(s), no chip rail, no weaving.
+    // Search hosts this so a result IS the real card: same votes, same reveal.
+    if (this.props.focus) {
+      return (
+        <div ref={(n) => { this._root = n; }} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          {this.props.focus.filter(Boolean).map((q) => this.renderCard(q, {}))}
+          {this.renderSheet()}
+        </div>
+      );
+    }
     const { cats, onToggle } = this.props;
     const SC = window.SCENES;
     const scenes = SC ? SC.mine() : [];
-    // topics pulled in by a live (followed + unmuted) scene
+    // topics pulled in by a live (followed + unmuted) scene — but a scene that
+    // owns a subtopic pulls only that leaf, so the two never double up
+    const ST = window.SUBTOPICS;
     const pulled = {};
-    if (SC) scenes.forEach((s) => { const t = SC.topicOf(s.id); if (t && cats[s.id] !== false) pulled[t] = true; });
+    const leafOn = {};
+    const owned = {};
+    if (SC) scenes.forEach((s) => {
+      const lf = SC.subOf ? SC.subOf(s.id) : null;
+      if (lf) owned[lf] = true;
+      if (cats[s.id] === false) return;
+      if (lf) { leafOn[lf] = true; return; }
+      const t = SC.topicOf(s.id); if (t) pulled[t] = true;
+    });
+    if (ST) ST.mine().forEach((s) => { if (cats[s.id] !== false && !owned[s.id]) leafOn[s.id] = true; });
     const qs = (window.WORLD_FEED_QS || []).filter((q) => q.scene
       ? (SC ? SC.has(q.scene) && cats[q.scene] !== false : false)
-      : (WF_CHAN_SET[q.cat] ? cats[q.cat] !== false : (SC ? !!pulled[q.cat] : cats[q.cat] !== false)));
+      : (q.sub && leafOn[q.sub]) || (WF_CHAN_SET[q.cat] ? cats[q.cat] !== false : (SC ? !!pulled[q.cat] : cats[q.cat] !== false)));
     // interleave streams round-robin so the feed reads as a mix, not blocks
     const byKey = {}; const keys = [];
-    qs.forEach((q) => { const k = q.scene || q.cat; if (!byKey[k]) { byKey[k] = []; keys.push(k); } byKey[k].push(q); });
+    qs.forEach((q) => { const k = q.scene || q.sub || q.cat; if (!byKey[k]) { byKey[k] = []; keys.push(k); } byKey[k].push(q); });
     const lists = keys.map((k) => byKey[k]);
     const mixed = [];
     for (let i = 0; lists.some((l) => i < l.length); i++) lists.forEach((l) => { if (i < l.length) mixed.push(l[i]); });
@@ -1494,18 +2367,24 @@ class WorldFeed extends React.Component {
     // core tests own the feed; lenses trickle.
     const tqs = window.TEST_FEED_QS || [];
     const lqs = window.LENS_FEED_QS || [];
-    const feedList = []; let ti = 0, li = 0;
+    const kEvery = window.LEARN_FEED ? window.LEARN_FEED.every() : 0;
+    const kqs = kEvery ? this.knowQs(Math.ceil(sorted.length / kEvery) + 1, cats) : [];
+    const feedList = []; let ti = 0, li = 0, ki = 0;
     // Two independent ifs, and 9 rather than 8 — both deliberate. As an
     // `else if` with a lens cadence of 8, every lens slot was also a test
     // slot (8 is a multiple of 4), the test branch won every time, and NOT
     // ONE lens question ever reached the feed. 9 is coprime with 4, so the
-    // two cadences drift past each other instead of colliding.
+    // two cadences drift past each other instead of colliding. The knowledge
+    // stream keeps its own independent cadence for the same reason.
     sorted.forEach((q, i) => {
       feedList.push(q);
+      if (kEvery && (i + 1) % kEvery === 0 && ki < kqs.length) feedList.push(kqs[ki++]);
       if ((i + 1) % 4 === 0 && ti < tqs.length) feedList.push(tqs[ti++]);
       if ((i + 1) % 9 === 0 && li < lqs.length) feedList.push(lqs[li++]);
     });
-    const nDone = qs.filter((q) => this.answered(q)).length;
+    // mute every opinion topic and the knowledge stream should still be there —
+    // it's a subscription of its own, not a garnish on the others
+    if (sorted.length < kEvery) while (ki < kqs.length) feedList.push(kqs[ki++]);
     // One card near the top wears the closing ring. Chosen by hash of the
     // question id so it is stable across renders rather than jumping as the
     // list re-sorts, and never the very first card — the ring is a grace
@@ -1513,10 +2392,12 @@ class WorldFeed extends React.Component {
     const closingId = this.opts.clock
       ? ((feedList.slice(0, 8).find((q) => wfHash(q.id + ':close') < 0.3) || feedList[1] || {}).id)
       : null;
-    // chip row = your scenes, then the always-on channels
+    // chip row = your scenes, your followed leaves, then the always-on channels
     const chips = [
       ...scenes.map((s) => ({ id: s.id, label: s.name, color: window.SCENES && window.SCENES.colorOf ? window.SCENES.colorOf(s.id) : null, scene: true })),
+      ...(ST ? ST.mine().filter((s) => !owned[s.id]).map((s) => ({ id: s.id, label: s.label, color: (WF_TOPIC[s.parent] || {}).color || null })) : []),
       ...WF_CHANNELS.map((id) => WF_TOPIC[id]).filter(Boolean).map((t) => ({ id: t.id, label: t.label })),
+      ...(window.LEARN ? window.LEARN.mine().map((fd) => ({ id: 'lrn-' + fd.id, label: fd.label, color: window.LEARN.colorOf(fd.id), know: true })) : []),
     ];
     let sugg = null;
     if (SC) {
@@ -1542,7 +2423,7 @@ class WorldFeed extends React.Component {
               return (
                 <React.Fragment key={t.id}>
                   <button className="wf-chip" onClick={() => onToggle(t.id)} aria-pressed={on} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, border: '0.5px solid ' + (on ? (col ? `color-mix(in oklch, ${col} 40%, var(--rule))` : 'color-mix(in oklch, var(--rule), var(--ink) 22%)') : 'var(--rule)'), background: on ? (col ? `color-mix(in oklch, ${col} 10%, var(--surface-2))` : 'var(--surface-2)') : 'transparent', color: on ? 'var(--ink-2)' : 'var(--ink-3)', fontFamily: 'var(--sans)', fontWeight: on ? 700 : 600, fontSize: 12, padding: '5px 11px', borderRadius: 999, cursor: 'pointer', WebkitAppearance: 'none', whiteSpace: 'nowrap', opacity: on ? 1 : 0.72 }}>
-                    {col && on && <span aria-hidden="true" style={{ width: 6, height: 6, borderRadius: '50%', background: col, flexShrink: 0 }}></span>}
+                    {col && on && <span aria-hidden="true" style={t.know ? { width: 7, height: 7, borderRadius: '50%', background: 'transparent', boxShadow: `inset 0 0 0 2px ${col}`, flexShrink: 0 } : { width: 6, height: 6, borderRadius: '50%', background: col, flexShrink: 0 }}></span>}
                     {t.label.toLowerCase()}
                   </button>
                 </React.Fragment>
@@ -1595,7 +2476,6 @@ window.WorldFeed = WorldFeed;
 ;globalThis.WF_CHANNELS = typeof WF_CHANNELS === 'undefined' ? globalThis.WF_CHANNELS : WF_CHANNELS;
 ;globalThis.WF_CHAN_SET = typeof WF_CHAN_SET === 'undefined' ? globalThis.WF_CHAN_SET : WF_CHAN_SET;
 ;globalThis.WF_LINE = typeof WF_LINE === 'undefined' ? globalThis.WF_LINE : WF_LINE;
-;globalThis.WF_DIMS = typeof WF_DIMS === 'undefined' ? globalThis.WF_DIMS : WF_DIMS;
 ;globalThis.WF_LIVE_DIMS = typeof WF_LIVE_DIMS === 'undefined' ? globalThis.WF_LIVE_DIMS : WF_LIVE_DIMS;
 ;globalThis.WF_GROUPS = typeof WF_GROUPS === 'undefined' ? globalThis.WF_GROUPS : WF_GROUPS;
 ;globalThis.WF_FRIENDS = typeof WF_FRIENDS === 'undefined' ? globalThis.WF_FRIENDS : WF_FRIENDS;

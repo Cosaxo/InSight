@@ -14,18 +14,18 @@ const { useState, useEffect } = React;
 // were markers for a machine that stopped reading them — a plain object
 // now, edited by hand like any other constant.
 //
-// `dark` is the app's only dark-mode switch today, and it defaults off
-// with no prefers-color-scheme anywhere: on a phone set to dark, the app
-// is permanently light. Tracked as its own piece of work — do not "fix" it
-// by flipping this default, which would leave light-mode users stranded
-// the same way.
+// The v15 revision removed the dark-mode switch outright (the `.dark`
+// styles survive in styles.css with nothing setting the class). Dark mode
+// stays tracked as its own piece of work — resurrecting it means wiring
+// prefers-color-scheme, not just re-adding a key here.
 const TWEAK_DEFAULTS = {
   density: "compact",
-  dark: false,
   tab: "track",
-  mirrorPop: "near",
+  mirrorPop: "you",
   lensStyle: "underline",
   worldZoom: "world",
+  lensBoxed: false,
+  quietGround: true,
 };
 
 // Hand-drawn-feel SVG glyphs — each one a small ink illustration
@@ -110,7 +110,7 @@ function App() {
   // which test to open TestOverlay on (null = selection screen)
   const [testKind, setTestKind] = useState(null);
 
-  const mirrorPop = MIRROR_POP_IDS.includes(t.mirrorPop) ? t.mirrorPop : 'near';
+  const mirrorPop = MIRROR_POP_IDS.includes(t.mirrorPop) ? t.mirrorPop : 'you';
   const worldZoom = WORLD_ZOOM_IDS.includes(t.worldZoom) ? t.worldZoom : 'world';
 
   const closeAll = () => { setOv(null); setPerson(null); setCity(null); setTestKind(null); };
@@ -212,10 +212,10 @@ function App() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { if (t.tab !== tab) setTweak('tab', tab); }, [tab]);
 
-  const appClasses = `app surface-tint ${t.dark ? 'dark' : ''} ${t.density || 'regular'} voice-sans`;
+  const appClasses = `app surface-tint ${t.density || 'regular'} ${t.quietGround !== false ? 'quiet-ground' : ''}`;
 
   return (
-    <IOSDevice width={402} height={874} dark={t.dark}>
+    <IOSDevice width={402} height={874}>
       <div className={appClasses} data-tab={tab} data-lens-style={t.lensStyle || 'underline'} data-mpop={tab === 'mirror' ? mirrorPop : undefined} style={tab === 'mirror' ? { '--accent': mirrorPop === 'you' ? 'var(--c-today)' : mirrorPop === 'circle' ? 'var(--c-people)' : mirrorPop === 'groups' ? 'var(--c-groups)' : mirrorPop === 'world' ? 'var(--c-world)' : 'var(--c-city)' } : undefined}>
 
         <header className="app-header">
@@ -287,7 +287,7 @@ function App() {
           <div className="tab-group">
             {TABS.map(({ id, label }) => (
               <button key={id} className={"tab-btn" + (tab === id ? ' is-active' : '')}
-                onClick={() => { setTab(id); closeAll(); }}>
+                onClick={() => { setTab(id); closeAll(); if (id === 'mirror') setTweak('mirrorPop', 'you'); }}>
                 <span className="glyph"><NavGlyph id={id} active={tab === id} /></span>
                 <span>{label}</span>
               </button>
@@ -299,7 +299,7 @@ function App() {
         <ErrorBoundary key={'ov-' + (ov || 'none') + (person ? '-p' : '') + (city ? '-c' : '')} onReset={closeAll}>
           {person && <PersonOverlay p={person} me={me} onClose={() => setPerson(null)} />}
           {city && <CityOverlay city={city} onClose={() => setCity(null)} />}
-          {ov === 'profile' && <ProfileOverlay onClose={() => setOv(null)} me={me} />}
+          {ov === 'profile' && <ProfileOverlay onClose={() => setOv(null)} me={me} lensBoxed={!!t.lensBoxed} />}
           {ov === 'suggest' && <SuggestOverlay onClose={() => setOv(null)} />}
           {ov === 'search' && <SearchOverlay onClose={() => setOv(null)} onPerson={(p) => { setOv(null); setPerson(p); }} onCity={(c) => { setOv(null); setCity(c); }} />}
           {ov === 'test' && <TestOverlay kind={testKind} onClose={() => { setTestKind(null); backOv(); }} onComplete={() => { setTestKind(null); backOv(); }} />}
@@ -310,9 +310,10 @@ function App() {
 
       <TweaksPanel>
         <TweakSection label="Aesthetic" />
-        <TweakToggle label="Dark mode" value={t.dark} onChange={(v) => setTweak('dark', v)} />
+        <TweakToggle label="Quiet ground" value={t.quietGround !== false} onChange={(v) => setTweak('quietGround', v)} />
         <TweakRadio label="Density" value={t.density} options={['compact', 'regular']} onChange={(v) => setTweak('density', v)} />
         <TweakRadio label="Lens tabs" value={t.lensStyle || 'segmented'} options={['segmented', 'underline', 'chips']} onChange={(v) => setTweak('lensStyle', v)} />
+        <TweakToggle label="Lenses: boxed cards" value={!!t.lensBoxed} onChange={(v) => setTweak('lensBoxed', v)} />
         <TweakSection label="Daily" />
         <TweakButton label="Reset today's answers" secondary onClick={() => { if (window.DUELS) window.DUELS.resetToday(); setDailyKey((k) => k + 1); }} />
       </TweaksPanel>

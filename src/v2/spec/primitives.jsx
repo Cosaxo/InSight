@@ -84,8 +84,7 @@ function TabSection({ title, sub, art }) {
 function InterestRun({ items, size = 12.5, color = 'var(--ink-2)', dotColor = 'var(--ink-3)', markHue, style }) {
   return (
     <span style={{
-      fontFamily: 'var(--serif)', fontStyle: 'var(--voice-italic)',
-      fontSize: size, color, lineHeight: 1.55, letterSpacing: '0.005em',
+      fontFamily: 'var(--sans)', fontSize: size, color, lineHeight: 1.55, letterSpacing: '0.005em',
       ...style,
     }}>
       {(items || []).map((it, i) => {

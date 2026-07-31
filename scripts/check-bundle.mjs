@@ -32,7 +32,14 @@ const ASSETS = join(root, "dist", "assets");
 // move for any of them, because splitting relocates bytes rather than
 // removing them — which is why MAX_TOTAL_JS_KB is unchanged and why the
 // per-chunk limit is the one that measures this work.
-const MAX_CHUNK_KB = 900;
+//
+// 900 → 940 with the v15 2026-07-31 revision (D26): the spec layer gained
+// eleven modules (~68 KB minified into the entry — the Learn stack,
+// VOTECUTS, subtopics, catalogues, map groups), and each stays eager for a
+// load-order or subscription reason recorded there. The deferred world-feed
+// group absorbed the rest of that revision's growth (feed chunk 85 → 107 KB)
+// without touching first paint.
+const MAX_CHUNK_KB = 940;
 const MAX_TOTAL_JS_KB = 1600;
 
 let files;

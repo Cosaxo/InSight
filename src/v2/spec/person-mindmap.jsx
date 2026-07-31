@@ -15,7 +15,7 @@ import React from 'react';
 (function () {
 const { useState, useRef, useEffect, useMemo } = React;
 
-const PMM_ZLAB = 0.5;
+const PMM_ZLAB = (window.MapTabLayout && window.MapTabLayout.MT_ZLAB) || 0.5;
 function pmmHash(s) {
   let h = 2166136261 >>> 0;
   for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); }
@@ -120,7 +120,43 @@ function pmmBuild(p) {
 // ── the component ────────────────────────────────────────────────────────────
 function PersonMindMap({ p, following, centerName }) {
   // eslint-disable-next-line react-hooks/exhaustive-deps -- ported effect; see src/v2/README.md § Lint suppressions
-  const { CATS, nodes, seed, counts } = useMemo(() => pmmBuild(p), [p && p.id, following]);
+  const built = useMemo(() => pmmBuild(p), [p && p.id, following]);
+  const allCats = built.CATS, nodes0 = built.nodes, seed = built.seed, counts = built.counts;
+  // Same ladder as your own map: them → group → branch → sub → answer. At the
+  // top level the hubs are the over-categories and the answers stay as
+  // unlabelled mass inside them; drilling into one opens its branches.
+  const GRP = window.MAP_GROUPS;
+  const [openGroup, setOpenGroup] = useState(null);
+  const topOfId = useMemo(() => {
+    const parent = {};
+    allCats.forEach((c) => { parent[c.id] = 'root'; });
+    nodes0.forEach((n) => { parent[n.id] = n.parentId; });
+    const m = {};
+    nodes0.forEach((n) => {
+      let cur = n.id, guard = 0;
+      while (parent[cur] && parent[cur] !== 'root' && guard++ < 8) cur = parent[cur];
+      m[n.id] = cur;
+    });
+    return m;
+  }, [nodes0, allCats]);
+  const groups = useMemo(() => {
+    if (!GRP) return [];
+    const ct = {};
+    allCats.forEach((c) => { const g = GRP.of(c.id); ct[g] = (ct[g] || 0) + (counts[c.id] || 0); });
+    return GRP.all().filter((g) => ct[g.id] > 0).map((g) => ({ ...g, ct: ct[g.id] }));
+  }, [GRP, allCats, counts]);
+  const grouped = !!GRP && groups.length > 1 && !openGroup;
+  const openGroupDef = openGroup && GRP ? GRP.get(openGroup) : null;
+  const CATS = grouped ? groups : (openGroup ? allCats.filter((c) => GRP.of(c.id) === openGroup) : allCats);
+  const nodes = useMemo(() => {
+    if (openGroup) return nodes0.filter((n) => GRP.of(topOfId[n.id]) === openGroup);
+    if (!grouped) return nodes0;
+    return nodes0.filter((n) => !n.sub).map((n) => {
+      const gid = GRP.of(topOfId[n.id]);
+      return { ...n, parentId: gid, gid, sub: false, quiet: true };
+    });
+  }, [nodes0, topOfId, grouped, openGroup, GRP]);
+  const catCount = (id) => (grouped ? ((groups.find((g) => g.id === id) || {}).ct || 0) : (counts[id] || 0));
   const byParent = useMemo(() => {
     const m = {};
     nodes.forEach((n) => { (m[n.parentId] = m[n.parentId] || []).push(n); });
@@ -173,14 +209,14 @@ function PersonMindMap({ p, following, centerName }) {
     if (!el) return null;
     const w = el.clientWidth, h = el.clientHeight;
     if (w < 10 || h < 10) return null;
-    let x0 = -140, y0 = -140, x1 = 140, y1 = 140;
+    let x0 = -220, y0 = -220, x1 = 220, y1 = 220;
     for (const k in pos) {
       const pt = pos[k];
       x0 = Math.min(x0, pt.x); y0 = Math.min(y0, pt.y);
       x1 = Math.max(x1, pt.x); y1 = Math.max(y1, pt.y);
     }
-    x0 -= 110; x1 += 110; y0 -= 95; y1 += 95;
-    const z = Math.min(0.62, w / (x1 - x0), h / (y1 - y0));
+    x0 -= 130; x1 += 130; y0 -= 110; y1 += 110;
+    const z = Math.min(0.8, w / (x1 - x0), h / (y1 - y0));
     fitZRef.current = z;
     const cx = (x0 + x1) / 2, cy = (y0 + y1) / 2;
     return { x: w / 2 - cx * z, y: h / 2 - cy * z, z };
@@ -231,6 +267,17 @@ function PersonMindMap({ p, following, centerName }) {
     };
     step();
   };
+
+  // drilling in or out rebuilds the constellation — re-frame it
+  const lvlRef = useRef(openGroup);
+  useEffect(() => {
+    if (lvlRef.current === openGroup) return;
+    lvlRef.current = openGroup;
+    if (!view) return;
+    const t = fitAllTarget();
+    if (t) tweenTo(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- ported effect; see src/v2/README.md § Lint suppressions
+  }, [openGroup, pos]);
 
   const fitTo = (ids, maxZ) => {
     const el = ref.current;
@@ -407,6 +454,8 @@ function PersonMindMap({ p, following, centerName }) {
     if (had) { const t = fitAllTarget(); if (t) tweenTo(t); }
   };
   const selectCat = (id) => {
+    // at the top level a hub is a door, not a card
+    if (grouped) { setSel(null); setHlCat(null); setOpenGroup(id); return; }
     setSel(id); setHlCat(id);
     const ids = [id].concat(underCat(id).map((n) => n.id));
     fitTo(ids, 0.72);
@@ -423,6 +472,7 @@ function PersonMindMap({ p, following, centerName }) {
     const cur = sel && byId[sel];
     if (cur) { selectCat(topOf(cur)); return; }
     if (sel || hlCat) { clearSel(); return; }
+    if (openGroup) { setOpenGroup(null); return; }
     // nothing selected but zoomed in — settle back to the full map
     const v = viewRef.current;
     if (v && v.z > (fitZRef.current || 0.2) * 1.25) {
@@ -439,11 +489,12 @@ function PersonMindMap({ p, following, centerName }) {
     );
   }
 
-  const catScale = Math.max(1, Math.min(2.8, 0.78 / view.z));
-  const itemScale = Math.max(1, Math.min(2.4, 0.85 / view.z));
-  const centerScale = Math.max(1, Math.min(2.0, 0.5 / view.z));
+  const catScale = Math.max(1, Math.min(3.2, 0.78 / view.z));
+  const itemScale = Math.max(1, Math.min(2.8, 0.85 / view.z));
+  const centerScale = Math.max(1, Math.min(2.2, 0.5 / view.z));
   // labels counter-scale so on-screen type never drops below reading size
   const hubFs = Math.min(48, Math.max(13, 13 / (catScale * view.z)));
+  const centerFs = Math.min(48, Math.max(13.5, 13.5 / (centerScale * view.z)));
   const dotFs = Math.min(30, Math.max(10.5, 12 / (itemScale * view.z)));
 
   const selCat = CATS.find((c) => c.id === sel);
@@ -466,11 +517,12 @@ function PersonMindMap({ p, following, centerName }) {
       const w = 18 + String(c.label).length * 8;
       const sx = pt.x * z + view.x;
       kept.push({ x0: sx - w / 2, x1: sx + w / 2, y: pt.y * z + 16 });
+      kept.push({ x0: sx - 22, x1: sx + 22, y: pt.y * z });   // the hub dot itself is keep-out
     });
     const cands = [];
     nodes.forEach((n) => {
       const pt = pos[n.id];
-      if (!pt || hidden(n)) return;
+      if (!pt || hidden(n) || n.quiet) return;   // group level: mass without labels
       const zThr = n.sub ? PMM_ZLAB * 0.6 : PMM_ZLAB;
       if (!(z >= zThr || sel === n.id || hlCat === topOf(n))) return;
       const txt = String(n.tag || n.label);
@@ -504,7 +556,7 @@ function PersonMindMap({ p, following, centerName }) {
   }
 
   const Chips = window.MTBranchChips;
-  const maxCt = Math.max(1, ...CATS.map((c) => counts[c.id] || 0));
+  const maxCt = Math.max(1, ...CATS.map((c) => catCount(c.id)));
   // small same/different chip for the answer card
   const sameChip = (n) => n.mine == null ? null : (
     <div style={{ marginTop: 9, display: 'flex', alignItems: 'center', gap: 8, fontFamily: 'var(--sans)' }}>
@@ -514,7 +566,7 @@ function PersonMindMap({ p, following, centerName }) {
   );
 
   return (
-    <div className="mmt-root" data-screen-label="their-map">
+    <div className={'mmt-root' + (openGroup ? ' is-ingroup' : '')} data-screen-label="their-map">
       <div
         className="mmt-canvas is-dots"
         ref={ref}
@@ -529,13 +581,24 @@ function PersonMindMap({ p, following, centerName }) {
             const cat = CATS.find((c) => c.id === f.id);
             if (!cat) return null;
             const sz = (f.r + 70) * 2;
-            const fop = hlCat && hlCat !== f.id ? 0.12 : 0.5 + 0.5 * ((counts[f.id] || 0) / maxCt);
+            const fop = hlCat && hlCat !== f.id ? 0.12 : 0.5 + 0.5 * (catCount(f.id) / maxCt);
             return (
               <div key={f.id} className="mmt-field" aria-hidden="true"
                 style={{ '--hue': cat.hue, width: sz, height: sz, opacity: fop, transform: `translate(${f.x}px, ${f.y}px) translate(-50%, -50%)` }}></div>
             );
           })}
           <svg className="mmt-edges" viewBox="-1800 -1800 3600 3600" style={{ left: -1800, top: -1800, width: 3600, height: 3600 }}>
+            {/* spokes: them → each branch hub — the same gravity lines the You map
+                draws, so the branches read as one system instead of islands */}
+            {CATS.map((c) => {
+              if (!pos[c.id] || !pos.root) return null;
+              const dim = hlCat && hlCat !== c.id;
+              return (
+                <path key={'sp' + c.id} className="mmt-limb mmt-spoke" style={{ '--hue': c.hue }}
+                  d={`M ${pos.root.x} ${pos.root.y} L ${pos[c.id].x} ${pos[c.id].y}`}
+                  fill="none" opacity={dim ? 0.07 : 0.5} strokeWidth={1.6} strokeLinecap="round"></path>
+              );
+            })}
             {nodes.map((n) => {
               if (!pos[n.id] || !pos[n.parentId] || hidden(n)) return null;
               const cat = catOf(n);
@@ -559,23 +622,23 @@ function PersonMindMap({ p, following, centerName }) {
           {/* centre — them */}
           <button
             type="button"
-            className="mmt-node mmt-center"
-            style={{ transform: `translate(0px, 0px) translate(-50%, -50%) scale(${centerScale})` }}
-            aria-label={`${centerName || 'Them'} — their map, clear the selection`}
-            onClick={(e) => { e.stopPropagation(); clearSel(); }}
+            className={'mmt-node mmt-center is-solo' + (openGroupDef ? ' is-group' : '')}
+            style={{ '--hue': openGroupDef ? openGroupDef.hue : undefined, transform: `translate(0px, 0px) translate(-50%, -50%) scale(${centerScale})` }}
+            aria-label={openGroup ? 'Leave the group view' : `${centerName || 'Them'} — their map, clear the selection`}
+            onClick={(e) => { e.stopPropagation(); if (openGroup) { setSel(null); setHlCat(null); setOpenGroup(null); return; } clearSel(); }}
           >
             <div className="mmt-halo" aria-hidden="true"></div>
             <div className="mmt-center-disc">
-              <span className="mmt-center-name">{centerName || 'Them'}</span>
-              <span className="mmt-center-sub">their map</span>
+              {openGroupDef ? null : <span className="mmt-center-name">{String(centerName || 'Them').split(' ')[0]}</span>}
             </div>
+            {openGroupDef ? <span className="mmt-center-glabel" style={{ fontSize: centerFs }}>{openGroupDef.label}</span> : null}
           </button>
 
           {/* branch hubs */}
           {CATS.map((c) => {
             const pt = pos[c.id];
             if (!pt) return null;
-            const hubSz = 13 + Math.min(counts[c.id] || 0, 10) * 1.6;
+            const hubSz = 13 + Math.min(catCount(c.id), 12) * 1.5;
             const dim = hlCat && hlCat !== c.id;
             return (
               <button
@@ -589,7 +652,7 @@ function PersonMindMap({ p, following, centerName }) {
                 aria-hidden={dim || undefined}
                 aria-pressed={sel === c.id}
                 aria-label={c.label}
-                onClick={(e) => { e.stopPropagation(); sel === c.id ? clearSel() : selectCat(c.id); }}
+                onClick={(e) => { e.stopPropagation(); sel === c.id && !grouped ? clearSel() : selectCat(c.id); }}
               >
                 <span className="mmt-hub-dot" style={{ width: hubSz, height: hubSz }}></span>
                 <span className="mmt-hub-label" style={{ fontSize: hubFs }}>{c.label}</span>
@@ -604,7 +667,7 @@ function PersonMindMap({ p, following, centerName }) {
             const cat = catOf(n);
             const isHid = hidden(n);
             const sz = n.sub ? 9 : n.daily ? 12.5 : 11 + pmmHash(seed + n.id) * 3;
-            const showLab = labKeep.has(n.id);
+            const showLab = !n.quiet && labKeep.has(n.id);
             const labL = (pt.x * view.z + view.x) > (ref.current ? ref.current.clientWidth : 480) / 2;
             const dim = !inHl(n);
             return (
@@ -627,7 +690,7 @@ function PersonMindMap({ p, following, centerName }) {
                 aria-hidden={isHid || dim || undefined}
                 aria-pressed={sel === n.id}
                 aria-label={n.label}
-                onClick={(e) => { e.stopPropagation(); selectNode(n); }}
+                onClick={(e) => { e.stopPropagation(); if (isHid) return; if (n.quiet) { setSel(null); setHlCat(null); setOpenGroup(n.gid); } else selectNode(n); }}
               >
                 <span className="mmt-ddot"></span>
                 <span className="mmt-dlab" style={{ fontSize: n.sub ? dotFs * 0.9 : dotFs }}>{n.tag || n.label}</span>
@@ -643,8 +706,8 @@ function PersonMindMap({ p, following, centerName }) {
           cats={CATS}
           activeCat={activeCat}
           atHome={atHome}
-          onPick={(id) => { if (activeCat === id) { clearSel(); } else { selectCat(id); } }}
-          onHome={clearSel}
+          onPick={(id) => { if (grouped) { setSel(null); setHlCat(null); setOpenGroup(id); } else if (activeCat === id) { clearSel(); } else { selectCat(id); } }}
+          onHome={() => { if (openGroup) { setSel(null); setHlCat(null); setOpenGroup(null); } else clearSel(); }}
         ></Chips>
       ) : null}
       {lockedN > 0 && !sel ? (

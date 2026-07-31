@@ -23,6 +23,24 @@ FLIP-animated rank card, and the removal of the predict/guess stage, the
 pattern beat, and the legacy non-field Mirror bodies
 (tab-area / legacy-tabs / city-world-extras are gone).
 
+The 2026-07-31 revision of v15 (synced into `src/v2` the same day) adds:
+Learn — knowledge cards with a right answer, a trap option and crowd
+rates, run as a stream in the World feed with spaced three-in-a-row
+mastery (`learn-*.js`, `learn-bits.jsx`); VOTECUTS — one shared cut list
+(demographics, then the four tests with their axes) behind every
+who-voted breakdown, with job/education facet rows; world subtopics and
+background-knowledge notes (`world-subtopics.js`); catalogue pick cards
+with search-and-pick reveal and a Favourites format channel (`fav`
+replaces the repo's `games`); a per-take report flow
+(`world-feed-report.js`); the map's over-category ladder (You → group →
+branch → sub, `map-groups.js`, `map-learn-card.jsx`); a rebuilt search
+overlay that answers with questions, topics and people and can open a
+feed card in place (focus mode); the chrome-free Lenses redesign with one
+Sharpen queue and a provisional-colour tier; the "About this question"
+context sheet on daily and feed cards; a quiet-ground surface treatment
+replacing the dark-mode switch; and a slimmed person overlay (the zodiac
+Sign row is gone).
+
 What v14 specified: two tabs (**daily** · **mirror**), the daily's three
 modes (World blind-vote / Group / 1v1 duels with sealed next-day reveals)
 switched from a row that lives *in the app header*, the question feed with

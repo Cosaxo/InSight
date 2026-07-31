@@ -35,8 +35,8 @@ function GenderBar({ gender }) {
           return (
             <span key={g.k} style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
               <span style={{ width: 8, height: 8, borderRadius: '50%', background: GENDER_TINTS[i], flexShrink: 0 }} />
-              <span style={{ fontFamily: 'var(--mono)', fontSize: 10, letterSpacing: '0.04em', color: 'var(--ink-2)' }}>{g.label.toUpperCase()}</span>
-              <span style={{ fontFamily: 'var(--serif)', fontSize: 13, color: 'var(--ink)' }}>{v % 1 ? v.toFixed(1) : v}%</span>
+              <span style={{ fontFamily: 'var(--sans)', fontSize: 10, letterSpacing: '0.04em', color: 'var(--ink-2)' }}>{g.label.toUpperCase()}</span>
+              <span style={{ fontFamily: 'var(--sans)', fontSize: 13, color: 'var(--ink)' }}>{v % 1 ? v.toFixed(1) : v}%</span>
             </span>
           );
         })}
@@ -58,8 +58,8 @@ function AgeHistogram({ age, youBand }) {
           const you = i === youBand;
           return (
             <div key={i} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-end', height: '100%' }}>
-              {you && <div style={{ fontFamily: 'var(--mono)', fontSize: 8.5, color: 'var(--accent)', letterSpacing: '0.06em', marginBottom: 2 }}>YOU</div>}
-              <div style={{ fontFamily: 'var(--mono)', fontSize: 9, color: you ? 'var(--accent)' : 'var(--ink-3)', marginBottom: 3 }}>{Math.round(p)}</div>
+              {you && <div style={{ fontFamily: 'var(--sans)', fontSize: 8.5, color: 'var(--accent)', letterSpacing: '0.06em', marginBottom: 2 }}>YOU</div>}
+              <div style={{ fontFamily: 'var(--sans)', fontSize: 9, color: you ? 'var(--accent)' : 'var(--ink-3)', marginBottom: 3 }}>{Math.round(p)}</div>
               <div style={{
                 width: '100%', height: Math.max(2, (p / max) * (H - 26)), borderRadius: 3,
                 background: you ? 'var(--accent)' : 'var(--surface-3)',
@@ -71,7 +71,7 @@ function AgeHistogram({ age, youBand }) {
       </div>
       <div style={{ display: 'flex', gap: 5, marginTop: 5 }}>
         {bands.map((b, i) => (
-          <div key={b} style={{ flex: 1, textAlign: 'center', fontFamily: 'var(--mono)', fontSize: 8, letterSpacing: '0.01em', color: i === youBand ? 'var(--accent)' : 'var(--ink-3)' }}>{b}</div>
+          <div key={b} style={{ flex: 1, textAlign: 'center', fontFamily: 'var(--sans)', fontSize: 8, letterSpacing: '0.01em', color: i === youBand ? 'var(--accent)' : 'var(--ink-3)' }}>{b}</div>
         ))}
       </div>
     </div>
@@ -84,11 +84,11 @@ function ThirdBars({ rows }) {
     <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
       {rows.map((r, i) => (
         <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <div style={{ width: 132, flexShrink: 0, fontFamily: 'var(--serif)', fontSize: 13, color: 'var(--ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textAlign: 'right' }}>{r.k}</div>
+          <div style={{ width: 132, flexShrink: 0, fontFamily: 'var(--sans)', fontSize: 13, color: 'var(--ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textAlign: 'right' }}>{r.k}</div>
           <div style={{ flex: 1, height: 12, background: 'var(--surface-3)', borderRadius: 999, overflow: 'hidden', border: '0.5px solid var(--rule)' }}>
             <div style={{ width: (r.v / max) * 100 + '%', height: '100%', background: 'var(--accent)', borderRadius: 999, opacity: 0.75 }} />
           </div>
-          <div style={{ width: 30, flexShrink: 0, fontFamily: 'var(--mono)', fontSize: 11, color: 'var(--ink-3)', textAlign: 'right' }}>{r.v}%</div>
+          <div style={{ width: 30, flexShrink: 0, fontFamily: 'var(--sans)', fontSize: 11, color: 'var(--ink-3)', textAlign: 'right' }}>{r.v}%</div>
         </div>
       ))}
     </div>
@@ -106,29 +106,29 @@ function DemographicsCard({ audId }) {
         <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 12, paddingBottom: 14, borderBottom: '0.5px solid var(--rule)' }}>
           <div>
             <div className="fig-num" style={{ fontSize: 30 }}><em>{d.count}</em></div>
-            <div style={{ fontFamily: 'var(--mono)', fontSize: 10, letterSpacing: '0.06em', color: 'var(--ink-3)', marginTop: 2 }}>{d.countLabel.toUpperCase()}</div>
+            <div style={{ fontFamily: 'var(--sans)', fontSize: 10, letterSpacing: '0.06em', color: 'var(--ink-3)', marginTop: 2 }}>{d.countLabel.toUpperCase()}</div>
           </div>
           <div style={{ textAlign: 'right' }}>
             <div className="fig-num" style={{ fontSize: 30 }}><em>{d.medianAge}</em></div>
-            <div style={{ fontFamily: 'var(--mono)', fontSize: 10, letterSpacing: '0.06em', color: 'var(--ink-3)', marginTop: 2 }}>MEDIAN AGE</div>
+            <div style={{ fontFamily: 'var(--sans)', fontSize: 10, letterSpacing: '0.06em', color: 'var(--ink-3)', marginTop: 2 }}>MEDIAN AGE</div>
           </div>
         </div>
 
         {/* age */}
         <div style={{ marginTop: 14 }}>
-          <div style={{ fontFamily: 'var(--mono)', fontSize: 10, letterSpacing: '0.1em', color: 'var(--ink-3)', marginBottom: 10 }}>AGE · % OF GROUP</div>
+          <div style={{ fontFamily: 'var(--sans)', fontSize: 10, letterSpacing: '0.1em', color: 'var(--ink-3)', marginBottom: 10 }}>AGE · % OF GROUP</div>
           <AgeHistogram age={d.age} youBand={d.youBand} />
         </div>
 
         {/* gender */}
         <div style={{ marginTop: 16 }}>
-          <div style={{ fontFamily: 'var(--mono)', fontSize: 10, letterSpacing: '0.1em', color: 'var(--ink-3)', marginBottom: 8 }}>GENDER</div>
+          <div style={{ fontFamily: 'var(--sans)', fontSize: 10, letterSpacing: '0.1em', color: 'var(--ink-3)', marginBottom: 8 }}>GENDER</div>
           <GenderBar gender={d.gender} />
         </div>
 
         {/* third dimension */}
         <div style={{ marginTop: 16 }}>
-          <div style={{ fontFamily: 'var(--mono)', fontSize: 10, letterSpacing: '0.1em', color: 'var(--ink-3)', marginBottom: 10 }}>{d.thirdLabel}</div>
+          <div style={{ fontFamily: 'var(--sans)', fontSize: 10, letterSpacing: '0.1em', color: 'var(--ink-3)', marginBottom: 10 }}>{d.thirdLabel}</div>
           <ThirdBars rows={d.third} />
         </div>
 

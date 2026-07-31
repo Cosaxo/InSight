@@ -17,6 +17,22 @@ import ReactDOM from 'react-dom';
   const ACC = 'var(--c-likeness)';
 
   const col = (g) => ({ display: 'flex', flexDirection: 'column', gap: g });
+  const ghash = (s) => { let h = 9; for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 387420489); return ((h ^ (h >>> 9)) >>> 0) / 4294967295; };
+  // one mark per group: a single colour + its initials. Three overlapping
+  // avatars at rail size read as mush and never tell two groups apart.
+  const ghue = (g) => Math.round(ghash(g.id) * 360);
+  const ginit = (name) => { const w = name.replace(/^The\s+/i, '').split(/\s+/).filter(Boolean); return (w.length > 1 ? w.slice(0, 2).map((x) => x[0]).join('') : (w[0] || '?').slice(0, 2)).toUpperCase(); };
+  function GDMark({ g, size = 34, faded }) {
+    return (
+      <span aria-hidden="true" style={{
+        width: size, height: size, borderRadius: 11, flexShrink: 0,
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        fontFamily: 'var(--sans)', fontWeight: 800, fontSize: Math.round(size * 0.38), letterSpacing: '-0.02em',
+        color: '#fff', background: `oklch(0.58 0.11 ${ghue(g)})`, opacity: faded ? 0.4 : 1,
+        transition: 'opacity .18s',
+      }}>{ginit(g.name)}</span>
+    );
+  }
 
   function GDAv({ p, size = 22, dim }) {
     return (
@@ -37,24 +53,6 @@ import ReactDOM from 'react-dom';
         fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 10.5,
         color: 'var(--surface)', background: 'var(--ink)', boxShadow: '0 0 0 1.5px var(--surface-2)',
       }}>you</span>
-    );
-  }
-
-  // One mark per group: a single colour plus its initials. Three overlapping
-  // member avatars at rail size read as mush and never tell two groups apart
-  // — and a group is better identified by itself than by three of its people.
-  const ghash = (s) => { let h = 9; for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 387420489); return ((h ^ (h >>> 9)) >>> 0) / 4294967295; };
-  const ghue = (g) => Math.round(ghash(g.id) * 360);
-  const ginit = (name) => { const w = name.replace(/^The\s+/i, '').split(/\s+/).filter(Boolean); return (w.length > 1 ? w.slice(0, 2).map((x) => x[0]).join('') : (w[0] || '?').slice(0, 2)).toUpperCase(); };
-  function GDMark({ g, size = 34, faded }) {
-    return (
-      <span aria-hidden="true" style={{
-        width: size, height: size, borderRadius: 11, flexShrink: 0,
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        fontFamily: 'var(--sans)', fontWeight: 800, fontSize: Math.round(size * 0.38), letterSpacing: '-0.02em',
-        color: '#fff', background: `oklch(0.58 0.11 ${ghue(g)})`, opacity: faded ? 0.4 : 1,
-        transition: 'opacity .18s',
-      }}>{ginit(g.name)}</span>
     );
   }
 
@@ -220,7 +218,6 @@ import ReactDOM from 'react-dom';
       const mine = D.myGroup(g.id, 0);
       const answered = mine != null;
       const inT = D.groupInToday(g.id);
-      const inCount = inT.done.length + (answered ? 1 : 0);
       body = answered ? (
         <div style={{ ...col(18), animation: 'popIn .35s cubic-bezier(0.2,0.8,0.2,1)' }} key="done">
           {prompt(d.prompt, 24)}

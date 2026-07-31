@@ -109,8 +109,14 @@ function TensionSpine({ dims, poles, hues, avg, lead }) {
   );
 }
 
-// ── where you stand — full stat breakdown: every dim with your score, the
-// gap vs most people, and pole context. Biggest differences sort to the top.
+// ── where you stand — every dim with your score, and the stretch between the
+// average person and you drawn as a length. Biggest differences sort to the top.
+// σ≈15 dim points across people, so the top row can be read as a percentile.
+function rpv2Pctl(diff) {
+  const p = 1 / (1 + Math.exp(-1.702 * (diff / 15)));
+  const n = Math.max(1, Math.min(9, Math.round((diff > 0 ? p : 1 - p) * 10)));
+  return `${diff > 0 ? 'higher' : 'lower'} than ${n} in 10 members`;
+}
 function DifferRows({ testKey, R, cfg }) {
   const avg = (window.IS_TEST_AVG || {})[testKey];
   const ph = (window.IS_STANDOUT || {})[testKey] || {};
@@ -136,19 +142,18 @@ function DifferRows({ testKey, R, cfg }) {
           <div key={d.id}>
             <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 10, marginBottom: 5 }}>
               <span style={{ fontFamily: 'var(--sans)', fontSize: 13, fontWeight: 600, color: 'var(--ink)', lineHeight: 1.3 }}>{title.charAt(0).toUpperCase() + title.slice(1)}</span>
-              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, flexShrink: 0 }} title={diff === 0 ? 'right at the average' : `${Math.abs(Math.round(diff))} points ${diff > 0 ? 'above' : 'below'} most people`}>
-                <span style={{ fontFamily: 'var(--sans)', fontSize: 15, fontWeight: 800, color: deep, fontVariantNumeric: 'tabular-nums' }}>{Math.round(d.value)}</span>
-                {Math.round(diff) !== 0 ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, padding: '1.5px 7px 1.5px 6px', borderRadius: 999, background: `color-mix(in oklch, ${col} 11%, var(--surface-2))`, fontFamily: 'var(--sans)', fontSize: 10, fontWeight: 700, color: deep, fontVariantNumeric: 'tabular-nums' }}><svg width="7" height="6" viewBox="0 0 8 7" style={{ transform: diff > 0 ? 'none' : 'rotate(180deg)' }} aria-hidden="true"><path d="M4 0 L8 7 L0 7 Z" fill={col}></path></svg>{Math.abs(Math.round(diff))}</span> : null}
-              </span>
+              <span style={{ fontFamily: 'var(--sans)', fontSize: 15, fontWeight: 800, color: deep, fontVariantNumeric: 'tabular-nums', flexShrink: 0 }} title={diff === 0 ? 'right at the average' : `${Math.abs(Math.round(diff))} points ${diff > 0 ? 'above' : 'below'} most people`}>{Math.round(d.value)}</span>
             </div>
+            {k === 0 && Math.abs(diff) >= 6 ? <div style={{ fontFamily: 'var(--sans)', fontSize: 11.5, fontWeight: 600, color: 'var(--ink-3)', marginTop: -3, marginBottom: 7 }}>{rpv2Pctl(diff)}</div> : null}
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               {pp ? <span style={{ ...poleStyle(!right), textAlign: 'right' }}>{pp[0]}</span> : null}
               <div style={{ position: 'relative', flex: 1, height: 18 }}>
                 <span style={{ position: 'absolute', top: 5, bottom: 5, left: 0, right: 0, borderRadius: 999, background: `color-mix(in oklch, ${col} 10%, var(--surface-3))` }}></span>
-                <span className="rpv2-bar" style={{ position: 'absolute', top: 5, bottom: 5, borderRadius: 999, left: `${fl}%`, width: `${fw}%`, transformOrigin: right ? 'left' : 'right', animationDelay: `${k * 70}ms`, background: `linear-gradient(${right ? '90deg' : '270deg'}, color-mix(in oklch, ${col}, transparent ${cfg.bipolar ? 55 : 70}%), ${col})` }}></span>
+                <span style={{ position: 'absolute', top: 5, bottom: 5, borderRadius: 999, left: `${fl}%`, width: `${fw}%`, background: `color-mix(in oklch, ${col}, transparent 42%)` }}></span>
+                {hi - lo > 1.5 ? <span style={{ position: 'absolute', top: 7, bottom: 7, borderRadius: 999, left: `${lo}%`, width: `${hi - lo}%`, background: deep }}></span> : null}
                 {cfg.bipolar ? <span style={{ position: 'absolute', top: 3, bottom: 3, left: '50%', width: 1.5, marginLeft: -0.75, borderRadius: 1, background: 'var(--surface)', boxShadow: '0 0 0 0.5px var(--rule)' }}></span> : null}
                 <span style={{ position: 'absolute', top: '50%', left: `${a}%`, transform: 'translate(-50%,-50%)', width: 9, height: 9, borderRadius: '50%', background: 'var(--surface)', border: '1.5px solid var(--ink-3)', boxShadow: '0 0 0 1.5px var(--surface)' }}></span>
-                <span className="rpv2-pop" style={{ position: 'absolute', top: '50%', left: `${y}%`, transform: 'translate(-50%,-50%)', width: 15, height: 15, borderRadius: '50%', background: col, border: '2.5px solid var(--surface)', boxShadow: `0 1px 5px -1px color-mix(in oklch, ${col}, transparent 40%)`, animationDelay: `${k * 70 + 180}ms` }}></span>
+                <span style={{ position: 'absolute', top: '50%', left: `${y}%`, transform: 'translate(-50%,-50%)', width: 15, height: 15, borderRadius: '50%', background: col, border: '2.5px solid var(--surface)', boxShadow: `0 1px 5px -1px color-mix(in oklch, ${col}, transparent 40%)` }}></span>
               </div>
               {pp ? <span style={{ ...poleStyle(right), textAlign: 'left' }}>{pp[1]}</span> : null}
             </div>
@@ -243,12 +248,12 @@ function ResultProfileCard({ testKey, archetype, tagline }) {
           <div style={{ marginTop: testKey === 'values' ? 6 : 4, paddingTop: 14, borderTop: '0.5px solid var(--rule)' }}>
             <div className="kicker" style={{ marginBottom: 12 }}>Where you stand</div>
             <DifferRows testKey={testKey} R={R} cfg={cfg} />
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 16, marginTop: 15, paddingTop: 12, borderTop: '0.5px solid var(--rule)' }}>
-              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontFamily: 'var(--sans)', fontSize: 10.5, fontWeight: 600, color: 'var(--ink-3)', letterSpacing: '0.06em' }}>
-                <span style={{ width: 11, height: 11, borderRadius: '50%', background: cfg.banner, border: '2px solid var(--surface-2)', boxShadow: '0 0 0 0.5px var(--rule)' }}></span>YOU
+            <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginTop: 15, paddingTop: 12, borderTop: '0.5px solid var(--rule)' }}>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontFamily: 'var(--sans)', fontSize: 12, fontWeight: 600, color: 'var(--ink-3)' }}>
+                <span style={{ width: 11, height: 11, borderRadius: '50%', background: cfg.banner, border: '2px solid var(--surface-2)', boxShadow: '0 0 0 0.5px var(--rule)' }}></span>you
               </span>
-              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontFamily: 'var(--sans)', fontSize: 10.5, fontWeight: 600, color: 'var(--ink-3)', letterSpacing: '0.06em' }}>
-                <span style={{ width: 9, height: 9, borderRadius: '50%', background: 'var(--surface-2)', border: '1.4px solid var(--ink-3)' }}></span>MOST PEOPLE
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontFamily: 'var(--sans)', fontSize: 12, fontWeight: 600, color: 'var(--ink-3)' }}>
+                <span style={{ width: 9, height: 9, borderRadius: '50%', background: 'var(--surface-2)', border: '1.4px solid var(--ink-3)' }}></span>most people
               </span>
             </div>
           </div>

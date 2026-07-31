@@ -15,6 +15,7 @@ import ReactDOM from 'react-dom';
   const { useState, useEffect, useRef, useReducer } = React;
   const LINE = '1px solid color-mix(in oklch, var(--rule), transparent 25%)';
   const ACC = 'var(--c-people)';
+  const ROMANCE = 'oklch(0.55 0.13 12)';
   const GOOD = 'var(--c-likeness)';
   const MISS = 'var(--ochre)';
 
@@ -85,13 +86,16 @@ import ReactDOM from 'react-dom';
     const invited = p.state === 'invited';
     const step = m.a == null ? 'answer' : m.g == null ? 'guess' : 'done';
     const [menu, setMenu] = useState(false);
+    const mode = p.mode || 'friends';
+    const romantic = mode === 'romantic';
+    const tint = romantic ? ROMANCE : ACC;
 
     const prompt = (s) => (
       <div style={{ fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 25, lineHeight: 1.12, letterSpacing: -0.5, textWrap: 'pretty' }}>{s}</div>
     );
     const optBtn = (label, onClick, lead) => (
       <button key={label} className="press" onClick={onClick} style={{
-        background: `color-mix(in oklch, ${ACC} 7%, var(--surface))`, border: `1px solid color-mix(in oklch, ${ACC} 30%, var(--rule))`, borderRadius: 16,
+        background: `color-mix(in oklch, ${tint} 7%, var(--surface))`, border: `1px solid color-mix(in oklch, ${tint} 30%, var(--rule))`, borderRadius: 16,
         boxShadow: 'none', padding: '15px 17px', minHeight: 56,
         display: 'flex', alignItems: 'center', gap: 11, cursor: 'pointer', textAlign: 'left', WebkitAppearance: 'none',
       }}>
@@ -121,6 +125,7 @@ import ReactDOM from 'react-dom';
       <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
         <GDAv p={p} size={26}></GDAv>
         <span style={{ fontWeight: 800, fontSize: 14.5 }}>{first(p)}</span>
+        {romantic && <span aria-label="romantic mode" style={{ width: 7, height: 7, borderRadius: '50%', background: ROMANCE, flexShrink: 0 }}></span>}
         <span style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
           {p.streak > 0 && <span style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--ink-3)' }}>{p.streak}-day run</span>}
           {!invited && (
@@ -131,10 +136,25 @@ import ReactDOM from 'react-dom';
       </div>
     );
     const menuRow = menu && !invited && (
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, border: LINE, borderRadius: 13, background: 'var(--surface)', padding: '9px 12px' }}>
-        <span style={{ flex: 1, minWidth: 0, fontSize: 12, fontWeight: 600, color: 'var(--ink-2)', textWrap: 'pretty' }}>End this 1v1? Your history stays on your map.</span>
-        <button onClick={() => D.endDuo(pid)} style={{ flexShrink: 0, border: 'none', background: MISS, color: '#fff', fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 12, padding: '6px 13px', borderRadius: 999, cursor: 'pointer', WebkitAppearance: 'none' }}>End</button>
-        <button onClick={() => setMenu(false)} style={{ flexShrink: 0, border: LINE, background: 'var(--surface-2)', color: 'var(--ink)', fontFamily: 'var(--sans)', fontWeight: 700, fontSize: 12, padding: '6px 12px', borderRadius: 999, cursor: 'pointer', WebkitAppearance: 'none' }}>Keep</button>
+      <div style={{ ...col(9), border: LINE, borderRadius: 13, background: 'var(--surface)', padding: '10px 12px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <span style={{ flex: 1, minWidth: 0, fontSize: 12, fontWeight: 600, color: 'var(--ink-2)' }}>Question set</span>
+          <span style={{ display: 'flex', gap: 4, flexShrink: 0, background: 'var(--surface-2)', borderRadius: 999, padding: 2 }}>
+            {[['friends', 'Friends'], ['romantic', 'Romantic']].map(([k, label]) => (
+              <button key={k} onClick={() => D.setDuoMode(pid, k)} style={{
+                border: 'none', borderRadius: 999, padding: '5px 12px', cursor: 'pointer', WebkitAppearance: 'none',
+                fontFamily: 'var(--sans)', fontWeight: mode === k ? 800 : 600, fontSize: 12,
+                background: mode === k ? (k === 'romantic' ? ROMANCE : 'var(--ink)') : 'transparent',
+                color: mode === k ? 'var(--surface)' : 'var(--ink-3)',
+              }}>{label}</button>
+            ))}
+          </span>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, borderTop: '0.5px solid color-mix(in oklch, var(--rule), transparent 30%)', paddingTop: 9 }}>
+          <span style={{ flex: 1, minWidth: 0, fontSize: 12, fontWeight: 600, color: 'var(--ink-2)', textWrap: 'pretty' }}>End this 1v1? Your history stays on your map.</span>
+          <button onClick={() => D.endDuo(pid)} style={{ flexShrink: 0, border: 'none', background: MISS, color: '#fff', fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 12, padding: '6px 13px', borderRadius: 999, cursor: 'pointer', WebkitAppearance: 'none' }}>End</button>
+          <button onClick={() => setMenu(false)} style={{ flexShrink: 0, border: LINE, background: 'var(--surface-2)', color: 'var(--ink)', fontFamily: 'var(--sans)', fontWeight: 700, fontSize: 12, padding: '6px 12px', borderRadius: 999, cursor: 'pointer', WebkitAppearance: 'none' }}>Keep</button>
+        </div>
       </div>
     );
 

@@ -118,7 +118,7 @@ function TypeIndexSheet({ testKey, onClose }) {
         </div>
     </Sheet>, host);
 }
-Object.assign(window, { TypeMark, TypeIndexSheet, IS_TYPE_ART: TM_ART });
+Object.assign(window, { TypeMark, TypeIndexSheet });
 
 ;globalThis.tmC = typeof tmC === 'undefined' ? globalThis.tmC : tmC;
 ;globalThis.tmD = typeof tmD === 'undefined' ? globalThis.tmD : tmD;

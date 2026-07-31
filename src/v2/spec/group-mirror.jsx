@@ -184,32 +184,6 @@ import React from 'react';
   // ── Compare: the group vs most people, then your seat inside it ──
   // Trait positions are per-PERSON (stable across groups); the group is the mean.
   const gmh = (s) => { let x = 2166136261 >>> 0; for (let i = 0; i < s.length; i++) { x ^= s.charCodeAt(i); x = Math.imul(x, 16777619); } return ((x >>> 8) % 1000) / 1000; };
-  const GM_AXES = [
-    { id: 'chaos',  poles: ['planned', 'chaotic'],   hue: 25 },
-    { id: 'energy', poles: ['cosy', 'loud'],          hue: 96 },
-    { id: 'risk',   poles: ['careful', 'daring'],     hue: 350 },
-    { id: 'humor',  poles: ['dry', 'silly'],          hue: 150 },
-    { id: 'nov',    poles: ['traditions', 'novelty'], hue: 220 },
-  ];
-  function gmTraits(ms) {
-    return GM_AXES.map((ax) => {
-      const pts = ms.map((p) => ({ id: p.id, hue: p.hue, v: Math.round(15 + gmh('gt' + p.id + ax.id) * 70) }));
-      const you = Math.round(15 + gmh('gt-me-' + ax.id) * 70);
-      const all = pts.map((x) => x.v).concat(you);
-      return { ...ax, label: ax.poles[1], pts, you,
-        group: Math.round(all.reduce((a, b) => a + b, 0) / all.length),
-        avg: Math.round(42 + gmh('gpop' + ax.id) * 16),
-        lo: Math.min(...all), hi: Math.max(...all) };
-    });
-  }
-  const gmPos = (v) => 5 + (Math.max(0, Math.min(100, v)) / 100) * 90;
-  const gmKeyRow = (items) => (
-    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 16, marginTop: 14, paddingTop: 11, borderTop: LINE }}>
-      {items.map(([mark, label]) => (
-        <span key={label} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontFamily: 'var(--sans)', fontSize: 10.5, fontWeight: 600, color: 'var(--ink-3)', letterSpacing: '0.06em', textTransform: 'uppercase' }}>{mark}{label}</span>
-      ))}
-    </div>
-  );
 
   function GroupCompareCard({ g }) {
     const D = window.DUELS;

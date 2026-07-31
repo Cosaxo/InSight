@@ -1,5 +1,6 @@
-/* InSight v2 — ported verbatim from design/InSight_standalone_9.html (all style blocks, in order).
-   Font URLs rewritten to /fonts/. Treat as the design-token source until split into modules. */
+/* InSight v2 — ported verbatim from design/InSight_standalone_15.html (all style blocks,
+   in order; last synced with the 2026-07-31 revision). Font URLs rewritten to /fonts/.
+   Treat as the design-token source until split into modules. */
 
 /* cyrillic-ext */
 @font-face {
@@ -329,14 +330,11 @@
   --shadow-lift: 0 1px 1px color-mix(in oklch, var(--shadow-ink) 4%, transparent), 0 6px 14px -6px color-mix(in oklch, var(--shadow-ink) 9%, transparent), 0 18px 38px -14px color-mix(in oklch, var(--shadow-ink) 18%, transparent);
   --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
   --ease-spring: cubic-bezier(0.32, 1.32, 0.36, 1);
-  --serif: 'Hanken Grotesk', -apple-system, system-ui, sans-serif;
   --sans: 'Hanken Grotesk', -apple-system, system-ui, sans-serif;
-  --mono: 'Hanken Grotesk', -apple-system, system-ui, sans-serif;
-  --voice-italic: normal;
 }
 
 /* ── Voice ── one roman sans throughout; em carries no italic. */
-.app.voice-sans em { font-style: normal; }
+.app em { font-style: normal; }
 
 /* Per-tab accent lives inline in InSight.html (track + mirror only). */
 
@@ -374,9 +372,6 @@
   height: 320px;
   pointer-events: none;
   background: radial-gradient(130% 100% at 50% -30%, color-mix(in oklch, var(--accent) 6%, transparent), transparent 64%);
-}
-.app.dark.surface-tint::before {
-  background: radial-gradient(130% 100% at 50% -30%, color-mix(in oklch, var(--accent) 9%, transparent), transparent 64%);
 }
 
 /* Header — frosted */
@@ -420,7 +415,7 @@
 .icon-btn:hover { border-color: color-mix(in oklch, var(--rule), var(--accent) 45%); color: var(--ink); box-shadow: 0 2px 8px -3px rgba(18,22,34,0.14); }
 .icon-btn:active { transform: scale(0.92); }
 .h-meta {
-  font-family: var(--mono);
+  font-family: var(--sans);
   font-size: 11px;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -433,7 +428,7 @@
   border-radius: 50%;
   border: 0.5px solid var(--rule);
   background: var(--surface-2);
-  font-family: var(--serif);
+  font-family: var(--sans);
   font-size: 13px;
   font-weight: 500;
   color: var(--ink);
@@ -472,11 +467,6 @@
   background: linear-gradient(to bottom,
     color-mix(in oklch, var(--accent) 5%, transparent),
     color-mix(in oklch, var(--accent) 2%, transparent) 55%,
-    transparent);
-}
-.app.dark .app-body::before {
-  background: linear-gradient(to bottom,
-    color-mix(in oklch, var(--accent) 9%, transparent),
     transparent);
 }
 
@@ -555,35 +545,6 @@
   margin: 14px 0;
 }
 
-/* Section heads */
-.sec-head {
-  display: flex; align-items: baseline; justify-content: space-between;
-  margin: 4px 0 10px;
-}
-.sec-head h2 em {
-  color: var(--accent);
-}
-.sec-head h2 {
-  font-family: var(--sans);
-  font-size: 23px;
-  font-weight: 800;
-  font-style: normal;
-  margin: 0;
-  letter-spacing: -0.025em;
-  line-height: 1.15;
-  color: var(--ink);
-  min-width: 0;
-  /* titles are short by design; nowrap also keeps DOM-cloning screenshot
-     tools (whose substitute fonts run wider) from wrapping + clipping them */
-  white-space: nowrap;
-}
-.sec-head .num {
-  font-family: var(--mono);
-  font-size: 11px;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--ink-3);
-}
 /* Kicker — THE micro-label tier, app-wide. One spec (matches the edition's
    edMicro): sans 700 · 10.5px · 0.09em · uppercase · ink-3. */
 .kicker {
@@ -618,20 +579,17 @@ button.card {
 
 /* Clickable cards & card-buttons get a gentle tactile lift */
 button.card,
-.card[role="button"],
-.card.is-tap {
+.card[role="button"] {
   transition: transform 0.22s var(--ease-spring), box-shadow 0.2s ease, border-color 0.2s ease;
 }
 button.card:hover,
-.card[role="button"]:hover,
-.card.is-tap:hover {
+.card[role="button"]:hover {
   transform: translateY(-1.5px);
   box-shadow: var(--shadow-lift);
   border-color: color-mix(in oklch, var(--rule), var(--accent) 35%);
 }
 button.card:active,
-.card[role="button"]:active,
-.card.is-tap:active {
+.card[role="button"]:active {
   transform: translateY(0) scale(0.988);
   box-shadow: var(--shadow-card);
 }
@@ -698,14 +656,16 @@ button.card:active,
 .sd-switch-btn { position: relative; z-index: 1; flex: 1; min-height: 42px; padding: 8px 4px; border: none; background: none; cursor: pointer; font-family: var(--sans); font-size: 13.5px; font-weight: 650; letter-spacing: 0.01em; color: var(--ink-3); display: inline-flex; align-items: center; justify-content: center; transition: color 0.18s ease, transform 0.22s var(--ease-spring); }
 .sd-switch-btn:active { transform: scale(0.96); }
 .sd-switch-btn.is-on { color: var(--sw-acc, var(--ink)); font-weight: 800; }
-.sd-thumb { position: absolute; z-index: 0; bottom: -0.5px; left: 0; width: calc(100% / 3); display: flex; justify-content: center; transition: transform 0.32s var(--ease-spring); }
+.sd-thumb { position: absolute; z-index: 0; bottom: -0.5px; left: 0; width: calc(100% / var(--sw-n, 3)); display: flex; justify-content: center; transition: transform 0.32s var(--ease-spring); }
+
 /* …and the same switcher once DailySplit portals it into the app header:
    narrower, shorter, and without the rule, because the header already has
-   one under it. Only these three properties change — the switcher is the
-   same element, so the sliding thumb keeps working. */
-.h-modeslot { flex: 1; display: flex; justify-content: center; }
-.h-modeslot .sd-switch { width: 200px; border-bottom: none; }
-.h-modeslot .sd-switch-btn { min-height: 32px; padding: 3px 2px; font-size: 14px; }
+   one under it. The switcher is the same element, so the sliding thumb
+   (now sized by --sw-n for N modes) keeps working. */
+.h-modeslot { flex: 1; min-width: 0; display: flex; justify-content: center; }
+/* fluid, capped — a fixed width would push the header's right group out of frame */
+.h-modeslot .sd-switch { width: 100%; max-width: 200px; border-bottom: none; }
+.h-modeslot .sd-switch-btn { min-height: 32px; padding: 3px 1px; font-size: 12.5px; letter-spacing: -0.01em; }
 
 /* Daily pre-vote option — quiet at rest, faint accent tint on hover so the
    filled result reveal after answering feels like a real payoff. */
@@ -855,8 +815,7 @@ button.card:active,
 /* dotted track for stars */
 .stars { display: inline-flex; gap: 2px; }
 .star {
-  font-family: var(--serif);
-  font-style: var(--voice-italic);
+  font-family: var(--sans);
   font-size: 14px;
   color: var(--rule);
 }
@@ -866,8 +825,7 @@ button.card:active,
 .ico {
   width: 16px; height: 16px;
   display: inline-flex; align-items: center; justify-content: center;
-  font-family: var(--serif);
-  font-style: var(--voice-italic);
+  font-family: var(--sans);
   color: var(--ink-2);
   font-size: 14px;
 }
@@ -915,8 +873,6 @@ button.card:active,
 [data-lens-style="chips"] .mm-lensbtn::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: oklch(0.62 0.12 var(--lh)); opacity: 0.75; transition: opacity 0.18s ease; }
 [data-lens-style="chips"] .mm-lensbtn.is-on { background: color-mix(in oklch, oklch(0.62 0.12 var(--lh)) 12%, var(--surface-2)); border-color: oklch(0.62 0.12 var(--lh) / 0.5); color: oklch(0.36 0.12 var(--lh)); }
 [data-lens-style="chips"] .mm-lensbtn.is-on::before { opacity: 1; }
-.app.dark [data-lens-style="chips"] .mm-lensbtn::before, .app.dark[data-lens-style="chips"] .mm-lensbtn::before { background: oklch(0.72 0.11 var(--lh)); }
-.app.dark[data-lens-style="chips"] .mm-lensbtn.is-on, .app.dark [data-lens-style="chips"] .mm-lensbtn.is-on { color: oklch(0.8 0.09 var(--lh)); }
 
 /* Bare button — strips the UA chrome so a <button> lays out like the <div>
    it replaced. For the many spec-layer rows, tiles and chips that were
@@ -965,6 +921,12 @@ button.card:active,
   .wf-card { transform: translateY(18px) scale(0.99); transition: transform 0.55s var(--ease-out); }
   .wf-card.wf-in { transform: none; }
 }
+/* Duel tiles — the side's share rises as a level */
+@keyframes wfFillUp { from { height: 0; } }
+/* knowledge cards — the misconception bars grow in, staggered, so the reveal
+   reads as the crowd arriving rather than a table appearing */
+@keyframes wfBarIn { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+@media (prefers-reduced-motion: reduce) { @keyframes wfBarIn { from { transform: none; } to { transform: none; } } }
 /* Feed topic chips — tactile press + color transitions */
 .wf-chip { transition: transform 0.2s var(--ease-spring), background 0.18s ease, color 0.18s ease, border-color 0.18s ease; }
 .wf-chip:active { transform: scale(0.93); }
@@ -996,8 +958,7 @@ button.card:active,
 @media (prefers-reduced-motion: reduce) { .rm-you-pulse { animation: none; } }
 .rm-axisrow::-webkit-scrollbar { display: none; }
 /* Embedded relationship map (Mirror · Circle) — full-bleed like the daily */
-.rm-embed { position: relative; flex: 1 0 auto; min-height: 440px; overflow: hidden; margin: 2px -14px 0; --rm-canvas: color-mix(in oklch, var(--accent) 4%, var(--surface)); }
-.app.dark .rm-embed { --rm-canvas: color-mix(in oklch, var(--accent) 3.5%, oklch(0.982 0.004 75)); }
+.rm-embed { position: relative; flex: 1 0 auto; min-height: 440px; overflow: hidden; margin: 2px -14px 0; --rm-canvas: var(--surface-a); }
 /* Mirror pages — the whole page fills the view and the lens-button row
    (Answers / People / Compare) pins to the view bottom, so it lands at the
    same y on every population. flex 1 0 auto: grow to fill, never squash —
@@ -1010,34 +971,8 @@ button.card:active,
 /* the field takes the leftover column height — no void between it and the lens row */
 .mf-canvaswrap { position: relative; flex: 1 1 auto; min-height: 300px; }
 
-/* Likeness — gently breathing sigil core */
-@keyframes lk-pulse { 0%, 100% { opacity: 0.16; } 50% { opacity: 0.42; } }
-@media (prefers-reduced-motion: no-preference) {
-  .lk-core { animation: lk-pulse 3.4s ease-in-out infinite; }
-}
-
-/* dark mode override */
-.app.dark {
-  --surface: oklch(0.188 0.007 75);
-  --surface-2: oklch(0.228 0.008 75);
-  --surface-3: oklch(0.268 0.009 74);
-  --rule: oklch(0.355 0.010 72);
-  --ink: oklch(0.93 0.005 80);
-  --ink-2: oklch(0.78 0.007 78);
-  --ink-3: oklch(0.62 0.007 74);
-  --blush: oklch(0.32 0.04 30);
-  --shadow-ink: oklch(0.05 0.01 270);
-  --shadow-card: 0 1px 0 rgba(0,0,0,0.3), 0 6px 22px -8px rgba(0,0,0,0.6);
-  --shadow-lift: 0 1px 0 rgba(0,0,0,0.35), 0 10px 30px -10px rgba(0,0,0,0.7);
-  --surface-a: color-mix(in oklch, var(--surface) 96.5%, var(--accent));
-  --mood-l: 0.74;
-}
-.app.dark .pill { background: var(--surface-3); }
-.app.dark .tape { background: oklch(0.42 0.04 80 / 0.5); }
-.app.dark .stamp { background: oklch(0.58 0.13 38 / 0.12); }
 .app.compact .app-body { padding: 10px 14px 148px; }
 .app.compact .card { padding: 10px 12px; }
-.app.compact .sec-head h2 { font-size: 20px; }
 
 /* ── Search ───────────────────────────────────────────────────── */
 .search-head {
@@ -1104,20 +1039,12 @@ button.card:active,
 /* ── Polish pass ──────────────────────────────────────────────── */
 
 /* Small-caps labels never wrap — they're labels, not sentences. */
-.kicker, .sec-head .num { white-space: nowrap; }
+.kicker { white-space: nowrap; }
 
 /* Staggered entrance for the home stack and the create sheet.
    Transform-only (content is never invisible if animations pause). */
 @keyframes riseIn { from { transform: translateY(12px); } to { transform: none; } }
 
-/* ── Modern skin: Track tab ──────────────────────────────
-   Flat sans voice — no journal serif, no italics, no typewriter mono.
-   Scoped to the tab body so other tabs keep the editorial register. */
-.app[data-tab="track"] .app-body {
-  --serif: var(--sans);
-  --mono: 'Hanken Grotesk', -apple-system, system-ui, sans-serif;
-  --voice-italic: normal;
-}
 /* the Daily tab is one full-bleed widget — span edge to edge AND reach all
    the way down. The bottom nav is in normal flow, so no spacer is needed.
    DIRECT CHILD only — overlays layered over this tab keep normal padding. */
@@ -1137,12 +1064,8 @@ button.card:active,
   background: var(--surface-a);
   overscroll-behavior: contain;
 }
-.app[data-tab="track"] .app-body em { font-style: normal; }
 .app[data-tab="track"] .app-body .margin-note {
   font-family: var(--sans); font-style: normal; font-weight: 600; font-size: 13px;
-}
-.app[data-tab="track"] .app-body .sec-head h2 em {
-  font-family: var(--sans); font-style: normal; font-weight: 800; letter-spacing: -0.025em;
 }
 
 /* ── Test overlay ─────────────────────────────────────────── */
@@ -1223,6 +1146,17 @@ button.card:active,
 }
 
 
+/* ── Quiet ground ──────────────────────────────────────────────────────────
+   The default skin stacks three accent washes at the top of every screen —
+   6% in the ground, a 10% radial, and a 5% linear over the body — which over a
+   warm white reads as dust rather than colour, and drags the near-whites down
+   with it. One atmosphere instead of three: the ground keeps a whisper of the
+   tab hue (enough for wayfinding), the radial does the rest, and the body wash
+   goes. Cards and whites read clean again. Toggled from the Tweaks panel. */
+.app.quiet-ground { --surface: oklch(0.978 0.003 80); --surface-3: oklch(0.949 0.004 78); --surface-a: color-mix(in oklch, var(--surface) 97.5%, var(--accent)); }
+.app.quiet-ground.surface-tint::before { height: 340px; background: radial-gradient(130% 110% at 50% -34%, color-mix(in oklch, var(--accent) 5%, transparent), transparent 74%); }
+.app.quiet-ground .app-body::before { content: none; }
+
 /* Bottom fade — scrolling content shouldn't end in a hard cut at the tabbar */
 .tabbar { position: relative; z-index: 7; }
 .app[data-tab="track"] .tabbar::before { content: ''; position: absolute; left: 0; right: 0; bottom: 100%; height: 46px; pointer-events: none; background: linear-gradient(to top, var(--surface-a) 0%, color-mix(in oklch, var(--surface-a) 92%, transparent) 22%, color-mix(in oklch, var(--surface-a) 55%, transparent) 55%, transparent 100%); }
@@ -1248,6 +1182,9 @@ button.card:active,
 /* the mainstream boundary — inside this ring you're with the crowd, outside it the take is rarer; distance means something */
 .mmt-ground::after { content: ''; position: absolute; left: 50%; top: 50%; width: 640px; height: 640px; border-radius: 50%; transform: translate(-50%, -50%); border: 1.5px solid color-mix(in oklch, var(--ink) 26%, transparent); box-shadow: inset 0 0 0 14px color-mix(in oklch, var(--ink) 3%, transparent); }
 .app.dark .mmt-ground::after { border-color: color-mix(in oklch, var(--ink) 34%, transparent); }
+/* that boundary means “with the crowd vs a rarer take” — an opinion idea. Inside a
+   group it is just a sketch line, so it goes. */
+.mmt-root.is-ingroup .mmt-ground::after { display: none; }
 .mmt-edges { position: absolute; pointer-events: none; transition: opacity 0.3s ease; }
 .mmt-edges path { transition: opacity 0.3s ease; }
 .mmt-limb { stroke: oklch(0.68 0.09 var(--hue)); }
@@ -1302,10 +1239,24 @@ button.card:active,
 .mmt-center.is-solo .mmt-center-name { font-size: 15px; }
 .mmt-center.is-sel .mmt-center-disc { box-shadow: 0 0 0 5px var(--surface-2), 0 0 0 8px color-mix(in oklch, var(--ink) 30%, transparent); }
 .mmt-center-name { font-size: 19px; font-weight: 800; letter-spacing: -0.01em; color: var(--surface); transition: font-size 0.45s var(--ease-out); }
-.mmt-center-sub { font-family: var(--mono); font-size: 7.5px; letter-spacing: 0.14em; text-transform: uppercase; color: color-mix(in oklch, var(--surface), transparent 45%); }
 .app.dark .mmt-center-disc { background: var(--surface-3); }
 .app.dark .mmt-center-name { color: var(--ink); }
-.app.dark .mmt-center-sub { color: color-mix(in oklch, var(--ink), transparent 45%); }
+/* inside a group the centre IS the group — you opened it, so it holds the middle
+   and its branches orbit it. Tapping it steps back out to the groups. The name
+   sits below the disc like a branch label, and counter-scales the same way, so
+   it stays readable at fit zoom instead of shrinking with the world. */
+.mmt-center.is-group .mmt-center-disc { background: oklch(0.55 0.14 var(--hue)); width: 62px; height: 62px; }
+.app.dark .mmt-center.is-group .mmt-center-disc { background: oklch(0.6 0.135 var(--hue)); }
+.mmt-center-glabel {
+  position: absolute; left: 50%; top: 100%; transform: translate(-50%, 6px);
+  font-weight: 800; letter-spacing: -0.005em; white-space: nowrap;
+  color: oklch(0.36 0.09 var(--hue));
+  padding: 2px 10px; border-radius: 999px;
+  background: color-mix(in oklch, var(--surface-2) 88%, oklch(0.605 0.118 var(--hue)));
+  box-shadow: 0 1px 5px -1px color-mix(in oklch, oklch(0.30 0.05 var(--hue)) 24%, transparent), 0 0 0 0.5px color-mix(in oklch, oklch(0.605 0.118 var(--hue)) 26%, transparent);
+  -webkit-backdrop-filter: blur(3px); backdrop-filter: blur(3px);
+}
+.app.dark .mmt-center-glabel { color: oklch(0.86 0.06 var(--hue)); background: color-mix(in oklch, var(--surface-2) 86%, oklch(0.62 0.115 var(--hue))); }
 
 /* the anchor ring — profile facts at the centre of the map */
 .mmt-ringline {
@@ -1380,6 +1331,10 @@ button.card:active,
   box-shadow: 0 0 0 5px oklch(0.605 0.118 var(--hue) / 0.25); /* halo — rare takes read at fit zoom */
 }
 .app.dark .mmt-dotnode.is-rare .mmt-ddot { background: oklch(0.62 0.115 var(--hue) / 0.14); border-color: oklch(0.62 0.115 var(--hue)); box-shadow: 0 0 0 5px oklch(0.62 0.115 var(--hue) / 0.3); }
+/* knowledge reads as a different CLASS of thing from opinion: solid, with a
+   minted core. Opinions are positions; a fact you hold is struck. */
+.mmt-dotnode.is-known .mmt-ddot { position: relative; }
+.mmt-dotnode.is-known .mmt-ddot::after { content: ''; position: absolute; inset: 33%; border-radius: 50%; background: var(--surface-2); }
 /* time scrub — answers past the cutoff haven't happened yet; they pop in as replay reaches them */
 .mmt-dotnode.is-off { opacity: 0; pointer-events: none; }
 .mmt-dotnode.is-off .mmt-ddot { transform: scale(0.1); }
@@ -1469,7 +1424,7 @@ button.card:active,
 /* floating chrome */
 .mmt-chip {
   position: absolute; top: 10px; left: 12px; z-index: 4;
-  font-family: var(--mono); font-size: 10px; letter-spacing: 0.05em; text-transform: uppercase;
+  font-family: var(--sans); font-size: 10px; letter-spacing: 0.05em; text-transform: uppercase;
   color: var(--ink-3);
   background: color-mix(in oklch, var(--surface) 72%, transparent);
   -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
@@ -1479,7 +1434,7 @@ button.card:active,
 }
 .mmt-clearhl {
   position: absolute; top: 10px; right: 12px; z-index: 4;
-  font-family: var(--mono); font-size: 10px; letter-spacing: 0.05em; text-transform: uppercase;
+  font-family: var(--sans); font-size: 10px; letter-spacing: 0.05em; text-transform: uppercase;
   color: var(--ink-2); cursor: pointer;
   background: color-mix(in oklch, var(--surface-2) 88%, transparent);
   -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
@@ -1513,7 +1468,7 @@ button.card:active,
 /* locked-details hint — a quiet floating pill, bottom-centre (not in flow) */
 .mmt-hint {
   position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%); z-index: 4;
-  font-family: var(--mono); font-size: 10px; letter-spacing: 0.05em; text-transform: uppercase;
+  font-family: var(--sans); font-size: 10px; letter-spacing: 0.05em; text-transform: uppercase;
   color: var(--ink-3); white-space: nowrap;
   background: color-mix(in oklch, var(--surface) 72%, transparent);
   -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
@@ -1580,7 +1535,7 @@ button.card:active,
 .app.dark .mmt-spec-knob { background: oklch(0.68 0.12 var(--hue)); }
 .mmt-spec-ends {
   display: flex; justify-content: space-between; margin-top: 7px;
-  font-family: var(--mono); font-size: 9px; letter-spacing: 0.06em; text-transform: uppercase;
+  font-family: var(--sans); font-size: 9px; letter-spacing: 0.06em; text-transform: uppercase;
   color: var(--ink-3);
 }
 
@@ -1678,7 +1633,7 @@ button.card:active,
 .app.dark .mmt-ridge-col.is-peak::before { border-color: oklch(0.68 0.12 var(--hue)); }
 .mmt-ridge-foot {
   display: flex; justify-content: space-between; margin-top: 8px;
-  font-family: var(--mono); font-size: 9px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-3);
+  font-family: var(--sans); font-size: 9px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-3);
 }
 .mmt-ridge-foot .mmt-ridge-peaklab { color: oklch(0.50 0.09 var(--hue)); font-weight: 500; }
 .app.dark .mmt-ridge-foot .mmt-ridge-peaklab { color: oklch(0.78 0.08 var(--hue)); }
@@ -1694,7 +1649,7 @@ button.card:active,
 /* anchor card — your actual stat, before the group breakdown */
 .mmt-astat { margin: 2px 0 0; }
 .mmt-astat-big { font-size: 21px; font-weight: 800; letter-spacing: -0.01em; color: var(--ink); padding-right: 26px; }
-.mmt-astat-sub { margin-top: 3px; font-family: var(--mono); font-size: 9.5px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-3); }
+.mmt-astat-sub { margin-top: 3px; font-family: var(--sans); font-size: 9.5px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-3); }
 .mmt-astat-row { display: grid; grid-template-columns: 92px 1fr; align-items: center; gap: 13px; padding: 8px 4px; }
 .mmt-astat-lab { font-size: 12px; color: var(--ink-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .mmt-astat-bar { height: 5px; border-radius: 99px; background: color-mix(in oklch, var(--ink) 8%, transparent); overflow: visible; }
@@ -1736,7 +1691,7 @@ button.card:active,
 .mmt-astat-x { padding: 5px 8px 10px 107px; display: grid; gap: 7px; }
 .mmt-astat-ends {
   display: flex; justify-content: space-between; gap: 8px;
-  font-family: var(--mono); font-size: 9px; letter-spacing: 0.06em; text-transform: uppercase;
+  font-family: var(--sans); font-size: 9px; letter-spacing: 0.06em; text-transform: uppercase;
   color: var(--ink-3);
 }
 .mmt-astat-key { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
@@ -1777,7 +1732,7 @@ button.card:active,
 .mmt-samehead {
   display: flex; align-items: center; gap: 6px; margin-top: 14px; padding: 0;
   background: none; border: none; cursor: pointer;
-  font-family: var(--mono); font-size: 9.5px; letter-spacing: 0.08em; text-transform: uppercase;
+  font-family: var(--sans); font-size: 9.5px; letter-spacing: 0.08em; text-transform: uppercase;
   color: var(--ink-3);
 }
 .mmt-samehead-chev { font-size: 10px; transition: transform 0.15s ease; }
@@ -1822,7 +1777,7 @@ button.card:active,
 .mmt-slim-ct {
   flex: none; min-width: 20px; height: 20px; padding: 0 6px; border-radius: 999px;
   display: inline-flex; align-items: center; justify-content: center;
-  font-family: var(--mono); font-size: 10px; font-weight: 500;
+  font-family: var(--sans); font-size: 10px; font-weight: 500;
   background: oklch(0.95 0.03 var(--hue)); color: oklch(0.42 0.09 var(--hue));
 }
 .app.dark .mmt-slim-ct { background: oklch(0.295 0.045 var(--hue)); color: oklch(0.82 0.07 var(--hue)); }

@@ -31,9 +31,9 @@ const DAILYSPLIT_DQ_SYNC = { s1: { prompt: 'Pineapple on pizza?', map: { yes: 0,
 
 class DailySplit extends React.Component {
   state = {
-    mode: 'world', feedOpen: false, condensed: false, earlierOpen: false, modeSlot: null,
+    mode: 'world', feedOpen: false, condensed: false, earlierOpen: false, modeSlot: null, reportFor: null,
     idx: 0, idxG: 0,
-    votes: (window.LIVE && window.LIVE.enabled ? window.LIVE.myVotes() : {}), tab: null, filter: 'all', dim: 'friends', ups: {}, mine: {}, draft: '', dreplies: this.loadDailyReplies(), replyTo: null,
+    votes: (window.LIVE && window.LIVE.enabled ? window.LIVE.myVotes() : {}), tab: null, filter: 'all', dim: 'friends', dimAxis: null, ups: {}, mine: {}, draft: '', dreplies: this.loadDailyReplies(), replyTo: null,
     mapToast: null, pressing: false,
     group: {},
     cats: this.loadWorldCats(),
@@ -233,6 +233,19 @@ class DailySplit extends React.Component {
     try { const v = JSON.parse(localStorage.getItem('insight.dailyReplies.v1') || '{}'); return v && typeof v === 'object' ? v : {}; }
     catch (e) { return {}; }
   }
+  // reporting a comment — same short reason list the World feed uses
+  reportRow(k) {
+    if (this.state.reportFor !== k) return null;
+    const R = window.WF_REPORT;
+    if (!R) return null;
+    const h = React.createElement;
+    return h('div', { style: { display: 'flex', flexDirection: 'column', gap: 7, paddingTop: 4 } },
+      h('span', { style: { fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 11.5, color: 'var(--ink-3)' } }, 'Report this take'),
+      h('div', { style: { display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center' } },
+        R.REASONS.map((r) => h('button', { key: r, className: 'press', onClick: () => { if (!this._jr) this._jr = new Set(); this._jr.add(k); R.report(k, r); this.setState({ reportFor: null }); }, style: { border: '1px solid var(--rule)', borderRadius: 999, padding: '6px 12px', background: 'var(--surface)', fontFamily: 'var(--sans)', fontWeight: 700, fontSize: 12, color: 'var(--ink)', cursor: 'pointer', WebkitAppearance: 'none', whiteSpace: 'nowrap' } }, r)),
+        h('button', { onClick: () => this.setState({ reportFor: null }), style: { border: 'none', background: 'none', padding: '6px 4px', fontFamily: 'var(--sans)', fontWeight: 700, fontSize: 12, color: 'var(--ink-3)', cursor: 'pointer', WebkitAppearance: 'none' } }, 'Cancel')));
+  }
+
   addDailyReply(key, text) {
     this.setState(s => {
       const dreplies = { ...s.dreplies, [key]: [...(s.dreplies[key] || []), text] };
@@ -415,9 +428,11 @@ class DailySplit extends React.Component {
         friends: [ { name: 'Alex', init: 'A', opt: 'remote' }, { name: 'Mia', init: 'M', opt: 'hybrid' }, { name: 'Jordi', init: 'J', opt: 'remote' }, { name: 'Sara', init: 'S', opt: 'office' }, { name: 'Noah', init: 'N', opt: 'remote' }, { name: 'Elif', init: 'E', opt: 'hybrid' } ] },
     ];
   }
-  get statDimDefs() { return [ { id: 'friends', label: 'Friends' }, { id: 'age', label: 'Age' }, { id: 'gender', label: 'Gender' }, { id: 'politics', label: 'Politics' }, { id: 'job', label: 'Job' }, { id: 'where', label: 'Where' }, { id: 'big5', label: 'Big Five' }, { id: 'values', label: 'Values' }, { id: 'social', label: 'Social style' }, { id: 'thinking', label: 'Thinking' } ]; }
-  get groups() { return { age: ['18\u201324', '25\u201334', '35\u201344', '45+'], gender: ['Women', 'Men', 'Nonbinary'], politics: ['Left', 'Center', 'Right'], job: ['Tech', 'Creative', 'Business', 'Student'], where: ['Americas', 'Europe', 'Asia', 'Elsewhere'], big5: ['Curious', 'Orderly', 'Outgoing', 'Warm', 'Steady'], values: ['Meaning', 'Pleasure', 'Beauty', 'Family'], social: ['Warm', 'Loyal', 'Playful', 'Easygoing'], thinking: ['Analysts', 'Systems', 'Empaths', 'Makers'] }; }
-  get overrides() { return { 's1:age': [[64, 36], [55, 45], [44, 56], [34, 66]], 's3:politics': [[68, 32], [52, 48], [39, 61]], 's4:age': [[54, 31, 15], [51, 34, 15], [44, 35, 21], [31, 37, 32]] }; }
+  // cuts + subvalues come from the shared list (vote-cuts.js) so the daily and
+  // the feed break a vote down exactly the same way
+  get statDimDefs() { return window.VOTECUTS ? window.VOTECUTS.dims() : [{ id: 'friends', label: 'Friends' }]; }
+  get statSubs() { return window.VOTECUTS ? window.VOTECUTS.subs(this.state.dim) : null; }
+  get overrides() { return { 's1:age': [[64, 36], [55, 45], [44, 56], [34, 66]], 's4:age': [[54, 31, 15], [51, 34, 15], [44, 35, 21], [31, 37, 32]] }; }
 
   renderVals() {
     const st = this.state, h = React.createElement, F = React.Fragment;
@@ -475,6 +490,7 @@ class DailySplit extends React.Component {
     if (sortMode === 'top') all.sort((a, b) => b.shownUps - a.shownUps);
     const filtered = (st.filter === 'all' || !revealed) ? all : all.filter(c => c.opt === st.filter);
     const isComments = st.tab === 'comments';
+    const isCtx = st.tab === 'ctx';
     const isFriends = st.dim === 'friends';
 
     const svgI = (paths, size) => h('svg', { viewBox: '0 0 24 24', width: size || 20, height: size || 20, fill: 'none', stroke: 'currentColor', strokeWidth: 2, strokeLinecap: 'round', strokeLinejoin: 'round', 'aria-hidden': true, dangerouslySetInnerHTML: { __html: paths } });
@@ -499,7 +515,6 @@ class DailySplit extends React.Component {
 
     // ── the feed: answer today's question, then the feed starts ──
     const feedEnabled = this.props.feed !== false && window.WorldFeed && (!(window.LIVE && window.LIVE.enabled) || window.LIVE.feedReady); // live feed (Phase 4) or the demo feed offline
-    const votedToday = !!st.votes[DATA[0].id];
     const feedNode = !feedEnabled ? null : h(window.WorldFeed, { cats: st.cats, onToggle: (id) => this.toggleCat(id), density: this.props.feedDensity || 'comfy', beats: this.props.beats, opts: this.props.feedOpts });
 
     // ── comments & who-voted — bottom sheets, portaled to the app screen ──
@@ -507,7 +522,9 @@ class DailySplit extends React.Component {
       if (this.state.sheetClosing) return;
       this.setState({ sheetClosing: true, replyTo: null });
       clearTimeout(this._sheetT);
-      this._sheetT = setTimeout(() => this.setState({ tab: null, sheetClosing: false }), 230);
+      // only clear if nothing re-opened in the meantime — tapping the scrim and
+      // immediately opening another sheet must not be swallowed by this timeout
+      this._sheetT = setTimeout(() => this.setState((s) => (s.sheetClosing ? { tab: null, sheetClosing: false } : null)), 230);
     };
     const commentsBody = h('div', { style: col(12) },
       revealed && h('div', { style: col(8) },
@@ -519,6 +536,13 @@ class DailySplit extends React.Component {
         h('input', { value: st.draft, onChange: (e) => this.setState({ draft: e.target.value }), onKeyDown: (e) => { if (e.key === 'Enter') post(); }, placeholder: 'Add your take\u2026', style: { flex: 1, border: LINE, borderRadius: 999, padding: '10px 16px', fontSize: 13.5, fontWeight: 600, background: 'var(--surface-2)', color: INK, outline: 'none', minWidth: 0 } }),
         h('button', { onClick: post, style: { border: LINE, borderRadius: 999, padding: '0 18px', fontWeight: 800, fontSize: 13, cursor: 'pointer', background: voted ? S.options[myIdx].color : INK, color: voted ? (S.options[myIdx].textColor || '#fff') : PAPER, WebkitAppearance: 'none' } }, 'Post')),
       filtered.map(c => {
+        const R = window.WF_REPORT;
+        if (R && R.has(c.key)) {
+          if (!this._jr || !this._jr.has(c.key)) return null;
+          return h('div', { key: c.key, style: { background: 'var(--surface-2)', border: LINE, borderRadius: 14, padding: '12px 13px', display: 'flex', alignItems: 'center', gap: 10 } },
+            h('span', { style: { flex: 1, fontSize: 12.5, fontWeight: 600, color: 'var(--ink-3)' } }, 'Reported. Hidden from your feed.'),
+            h('button', { className: 'press', onClick: () => { R.undo(c.key); this._jr.delete(c.key); this.forceUpdate(); }, style: { border: 'none', background: 'none', padding: '2px 0', fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 12, color: INK, cursor: 'pointer', WebkitAppearance: 'none' } }, 'Undo'));
+        }
         const canUp = voted && c.opt === myVote;
         const rKey = S.id + '|' + c.key;
         const reps = st.dreplies[rKey] || [];
@@ -532,7 +556,10 @@ class DailySplit extends React.Component {
                 revealed && h('span', { style: { background: c.optObj.color, color: c.optObj.textColor || '#fff', fontSize: 10, fontWeight: 800, padding: '2px 8px', borderRadius: 999 } }, c.optObj.label),
                 h('span', { style: { fontSize: 11, fontWeight: 600, color: 'var(--ink-3)' } }, c.time)),
               h('div', { style: { fontSize: 13.5, lineHeight: 1.45, fontWeight: 500 } }, c.text),
-              h('button', { onClick: () => this.setState({ replyTo: replying ? null : rKey }), style: { alignSelf: 'flex-start', background: 'none', border: 'none', padding: '2px 0', cursor: 'pointer', fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 11, color: replying ? INK : 'var(--ink-3)', WebkitAppearance: 'none' } }, 'Reply')),
+              h('div', { style: { display: 'flex', alignItems: 'center', gap: 12 } },
+                h('button', { onClick: () => this.setState({ replyTo: replying ? null : rKey }), style: { background: 'none', border: 'none', padding: '2px 0', cursor: 'pointer', fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 11, color: replying ? INK : 'var(--ink-3)', WebkitAppearance: 'none' } }, 'Reply'),
+                h('button', { onClick: () => this.setState(s => ({ reportFor: s.reportFor === c.key ? null : c.key })), 'aria-label': 'Report', style: { background: 'none', border: 'none', padding: '2px', cursor: 'pointer', fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 14, lineHeight: 1, color: st.reportFor === c.key ? INK : 'var(--ink-3)', WebkitAppearance: 'none' } }, '\u22ef')),
+              this.reportRow(c.key)),
             canUp
               ? h('button', { onClick: () => this.setState(s => ({ ups: { ...s.ups, [c.key]: !s.ups[c.key] } })), style: { border: LINE, borderRadius: 10, padding: '5px 9px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1, cursor: 'pointer', fontWeight: 800, fontSize: 11, background: st.ups[c.key] ? INK : 'var(--surface-2)', color: st.ups[c.key] ? PAPER : INK, flexShrink: 0, WebkitAppearance: 'none' } }, '\u25B2', h('span', null, this.fmt(c.shownUps)))
               : h('div', { title: 'Only voters on their side can boost this', style: { border: '1px solid var(--rule)', borderRadius: 10, padding: '5px 9px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1, fontWeight: 800, fontSize: 11, color: 'var(--ink-3)', flexShrink: 0, cursor: 'not-allowed' } }, '\u25B2', h('span', null, this.fmt(c.shownUps)))),
@@ -550,24 +577,37 @@ class DailySplit extends React.Component {
     const statsBody = (() => {
         const legend = S.options;
         let friendRows = [], friendSummary = '', rows = [];
+        const youBand = (!isFriends && window.VOTECUTS) ? window.VOTECUTS.you(st.dim, st.dimAxis) : null;
         if (isFriends) {
           friendRows = S.friends.map(f => { const o = S.options.find(x => x.id === f.opt); return { name: f.name, init: f.init, color: o.color, textColor: o.textColor, chipLabel: o.label, chipColor: o.color }; });
           const same = S.friends.filter(f => f.opt === myVote).length;
           friendSummary = voted ? same + ' of ' + S.friends.length + ' friends are on your side' : 'How your friends voted';
         } else {
-          const gs = this.groups[st.dim], key = S.id + ':' + st.dim, ov = this.overrides[key];
+          const cutKey = st.dimAxis ? st.dim + ':' + st.dimAxis : st.dim;
+          const gs = window.VOTECUTS ? window.VOTECUTS.groups(st.dim, st.dimAxis) : [];
+          const key = S.id + ':' + cutKey, ov = this.overrides[key];
           rows = gs.map((g, gi) => {
             let ps;
-            if (ov) ps = [...ov[gi]];
+            if (ov && ov[gi]) ps = [...ov[gi]];
             else { const w = S.options.map((o, oi) => (counts[oi] / total) * (0.55 + this.hash(key + gi + ':' + oi))); const sum = w.reduce((a, b) => a + b, 0); ps = w.map(x => Math.round(x / sum * 100)); ps[ps.indexOf(Math.max(...ps))] += 100 - ps.reduce((a, b) => a + b, 0); }
-            const n = Math.round(300 + this.hash(key + gi + 'n') * 3700);
-            return { label: g, n: this.fmt(n) + ' votes', segments: S.options.map((o, oi) => ({ color: o.color, textColor: o.textColor, width: ps[oi] + '%', pctLabel: ps[oi] >= 14 ? ps[oi] + '%' : '' })) };
-          });
+            return { label: g.label, dot: g.color, you: g.label === youBand, p0: ps[0], segments: S.options.map((o, oi) => ({ color: o.color, width: ps[oi] + '%' })) };
+          }).sort((a, b) => b.p0 - a.p0);
         }
+        const op = counts.map(c => Math.round(c / total * 100));
+        op[op.indexOf(Math.max(...op))] += 100 - op.reduce((a, b) => a + b, 0);
+        const many = rows.length > 6;
+        const GRID = { display: 'grid', gridTemplateColumns: '96px 1fr', gap: 10, alignItems: 'center' };
         return h('div', { style: col(12) },
-          h('div', { style: { display: 'flex', gap: 6, flexWrap: 'wrap' } },
-            this.statDimDefs.map(d => h('button', { key: d.id, onClick: () => this.setState({ dim: d.id }), style: { border: LINE, borderRadius: 999, padding: '6px 13px', fontWeight: 700, fontSize: 12.5, cursor: 'pointer', background: st.dim === d.id ? INK : 'var(--surface-2)', color: st.dim === d.id ? PAPER : INK, WebkitAppearance: 'none' } }, d.label))),
-          h('div', { style: { display: 'flex', gap: 14, flexWrap: 'wrap' } },
+          h('div', { style: col(8) },
+            h('div', { className: 'h-scroll', ref: (el) => { const sg = 'd|' + st.dim; if (el && this._dSig1 !== sg) { this._dSig1 = sg; window.VOTECUTS && window.VOTECUTS.centerChip(el); } }, style: { display: 'flex', gap: 6, overflowX: 'auto' } },
+              this.statDimDefs.filter(dd => !dd.test).map(dd => h('button', { key: dd.id, 'data-on': st.dim === dd.id ? '1' : '0', onClick: () => this.setState({ dim: dd.id, dimAxis: null }), style: { flex: 'none', border: '1px solid ' + (st.dim === dd.id ? INK : 'var(--rule)'), borderRadius: 999, padding: '6px 13px', fontWeight: 700, fontSize: 12.5, cursor: 'pointer', whiteSpace: 'nowrap', background: st.dim === dd.id ? INK : 'var(--surface-2)', color: st.dim === dd.id ? PAPER : 'var(--ink-2)', WebkitAppearance: 'none' } }, dd.label))),
+            h('div', { className: 'h-scroll', ref: (el) => { const sg = 't|' + st.dim; if (el && this._dSig2 !== sg) { this._dSig2 = sg; window.VOTECUTS && window.VOTECUTS.centerChip(el); } }, style: { display: 'flex', gap: 6, overflowX: 'auto' } },
+              this.statDimDefs.filter(dd => dd.test).map(dd => h('button', { key: dd.id, 'data-on': st.dim === dd.id ? '1' : '0', onClick: () => this.setState({ dim: dd.id, dimAxis: null }), style: { flex: 'none', border: '1px solid ' + (st.dim === dd.id ? INK : 'var(--rule)'), borderRadius: 999, padding: '6px 13px', fontWeight: 700, fontSize: 12.5, cursor: 'pointer', whiteSpace: 'nowrap', background: st.dim === dd.id ? INK : 'var(--surface-2)', color: st.dim === dd.id ? PAPER : 'var(--ink-2)', WebkitAppearance: 'none' } }, dd.label))),
+            this.statSubs && h('div', { className: 'h-scroll', ref: (row) => { const sig = st.dim + '|' + st.dimAxis; if (row && this._axSig !== sig) { this._axSig = sig; window.VOTECUTS && window.VOTECUTS.centerChip(row); } }, style: { display: 'flex', alignItems: 'center', gap: 4, overflowX: 'auto', paddingBottom: 2 } },
+              this.statSubs.map((sb, si) => { const on = (st.dimAxis || null) === sb.id; const rule = !!sb.tier && !(this.statSubs[si - 1] || {}).tier; return h(React.Fragment, { key: sb.id || 'type' },
+                rule ? h('span', { 'aria-hidden': 'true', style: { flex: 'none', alignSelf: 'stretch', width: 1, margin: '3px 5px', background: 'var(--rule)' } }) : null,
+                h('button', { 'data-on': on ? '1' : '0', onClick: () => this.setState({ dimAxis: sb.id }), style: { flex: 'none', border: 'none', borderRadius: 999, padding: '4px 11px', fontWeight: on ? 800 : 600, fontSize: 11.5, cursor: 'pointer', whiteSpace: 'nowrap', background: on ? 'var(--surface-3)' : 'transparent', color: on ? INK : 'var(--ink-3)', WebkitAppearance: 'none' } }, sb.label)); }))),
+          isFriends && h('div', { style: { display: 'flex', gap: 14, flexWrap: 'wrap' } },
             legend.map(o => h('span', { key: o.id, style: { display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 700 } }, h('span', { style: { width: 12, height: 12, borderRadius: 4, background: o.color, border: '1px solid ' + BORD, display: 'inline-block' } }), o.label))),
           isFriends
             ? h('div', { style: col(10) },
@@ -576,22 +616,34 @@ class DailySplit extends React.Component {
                   h('span', { style: { ...av(f.color, 34, 14), color: f.textColor || '#fff' } }, f.init),
                   h('span', { style: { flex: 1, fontWeight: 800, fontSize: 14 } }, f.name),
                   h('span', { style: { background: f.chipColor, color: f.textColor || '#fff', fontSize: 11, fontWeight: 800, padding: '4px 10px', borderRadius: 999 } }, f.chipLabel))))
-            : h('div', { style: col(14) },
-                rows.map((row, ri) => h('div', { key: ri, style: col(6) },
-                  h('div', { style: { display: 'flex', alignItems: 'baseline', justifyContent: 'space-between' } },
-                    h('span', { style: { fontWeight: 800, fontSize: 13.5 } }, row.label),
-                    h('span', { style: { fontSize: 11, fontWeight: 600, color: 'var(--ink-3)' } }, row.n)),
-                  h('div', { style: { display: 'flex', height: 32, border: LINE, borderRadius: 10, overflow: 'hidden', background: 'var(--surface-2)' } },
-                    row.segments.map((seg, si) => h('div', { key: si, style: { width: seg.width, background: seg.color, display: 'flex', alignItems: 'center', justifyContent: 'center', color: seg.textColor || '#fff', fontSize: 11, fontWeight: 800, overflow: 'hidden' } }, seg.pctLabel)))))));
+            : h('div', { style: col(many ? 6 : 9) },
+                h('div', { style: { ...GRID, alignItems: 'end' } },
+                  h('span', { style: { fontWeight: 700, fontSize: 12, color: 'var(--ink-3)' } }, 'Everyone'),
+                  h('span', { style: { display: 'flex', height: 32, borderRadius: 9, overflow: 'hidden' } },
+                    op.map((p, oi) => h('span', { key: oi, style: { width: p + '%', boxSizing: 'border-box', background: S.options[oi].color, color: S.options[oi].textColor || '#fff', display: 'flex', alignItems: 'center', justifyContent: oi === op.length - 1 ? 'flex-end' : 'flex-start', padding: '0 10px', fontWeight: 800, fontSize: 12, whiteSpace: 'nowrap', overflow: 'hidden' } }, p >= 24 ? S.options[oi].label : '')))),
+                rows.map((row, ri) => h('div', { key: ri, style: GRID },
+                  h('span', { style: { display: 'flex', alignItems: 'center', gap: 7, fontWeight: 800, fontSize: many ? 12 : 13, minWidth: 0, color: row.you ? INK : 'var(--ink-2)' } },
+                    row.dot && h('span', { 'aria-hidden': true, style: { width: 9, height: 9, borderRadius: '50%', background: row.dot, flexShrink: 0 } }),
+                    h('span', { style: { overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, row.label)),
+                  h('span', { style: { position: 'relative', display: 'block', height: many ? 20 : 26, borderRadius: many ? 6 : 8, boxShadow: row.you ? '0 0 0 1.5px ' + INK : 'none' } },
+                    h('span', { style: { position: 'absolute', inset: 0, display: 'flex', borderRadius: many ? 6 : 8, overflow: 'hidden' } },
+                      row.segments.map((seg, si) => h('span', { key: si, style: { width: seg.width, background: seg.color } }))),
+                    h('span', { 'aria-hidden': true, style: { position: 'absolute', top: -3, bottom: -3, left: op[0] + '%', width: 1.5, borderRadius: 1, background: INK, opacity: 0.55 } }))))));
       })();
     const sheetHost = typeof document !== 'undefined' ? document.querySelector('.app') : null;
-    const sheetNode = (voted && st.tab && sheetHost) ? ReactDOM.createPortal(
-      h(Sheet, { onClose: closeSheet, closing: this.state.sheetClosing, label: isComments ? 'Comments' : 'Who voted' },
+    // context is the one panel that opens before you answer — that is the point of it
+    const ctxBody = h('div', { style: { padding: '2px 0 14px', display: 'grid', gridTemplateColumns: 'auto 1fr', columnGap: 14, rowGap: 9, alignItems: 'baseline' } },
+      [['Asked in', catLabel || 'Today'], ['Answers', (function () { const n = S.options.reduce((a, o) => a + (o.count || 0), 0); return n >= 1000 ? (n / 1000).toFixed(1).replace(/\.0$/, '') + 'K' : String(n); })()], ['On your map', S.region || 'Interests']]
+        .map(([k, v]) => h(F, { key: k },
+          h('span', { style: { fontSize: 12.5, fontWeight: 600, color: 'var(--ink-3)', whiteSpace: 'nowrap' } }, k),
+          h('span', { style: { fontSize: 13.5, fontWeight: 700, color: INK } }, v))));
+    const sheetNode = ((isCtx || (voted && st.tab)) && sheetHost) ? ReactDOM.createPortal(
+      h(Sheet, { onClose: closeSheet, closing: this.state.sheetClosing, label: isCtx ? 'About this question' : isComments ? 'Comments' : 'Who voted' },
           h('div', { style: { padding: '10px 18px 8px', display: 'flex', alignItems: 'baseline', gap: 10 } },
-            h('span', { style: { fontFamily: BRIC, fontWeight: 800, fontSize: 15, flexShrink: 0 } }, isComments ? 'Comments' : 'Who voted'),
+            h('span', { style: { fontFamily: BRIC, fontWeight: 800, fontSize: 15, flexShrink: 0 } }, isCtx ? 'About this question' : isComments ? 'Comments' : 'Who voted'),
             h('span', { style: { fontWeight: 600, fontSize: 12, color: 'var(--ink-3)', flex: 1, minWidth: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' } }, S.text),
             h('button', { onClick: closeSheet, 'aria-label': 'Close', style: { border: 'none', background: 'var(--surface-2)', width: 26, height: 26, borderRadius: '50%', cursor: 'pointer', fontSize: 13, fontWeight: 800, color: 'var(--ink-2)', flexShrink: 0, WebkitAppearance: 'none' } }, '\u2715')),
-          h('div', { className: 'wf-sheet-body' }, isComments ? commentsBody : statsBody)), sheetHost) : null;
+          h('div', { className: 'wf-sheet-body' }, isCtx ? ctxBody : isComments ? commentsBody : statsBody)), sheetHost) : null;
 
     // ── the daily, in its own container — one strong card, feed after ──
     // quiet per-topic tint — today's question carries its topic's hue, barely
@@ -603,6 +655,7 @@ class DailySplit extends React.Component {
           h('span', { className: 'kicker', style: { marginBottom: 0 } }, (S.dayLabel || dayNames[wIdx]) + (catLabel ? ' \u00b7 ' + catLabel : ''))),
         wIdx !== 0 && h('button', { onClick: () => this.jumpTo(0), style: { border: 'none', background: 'none', padding: 0, cursor: 'pointer', fontWeight: 700, fontSize: 12, color: 'var(--ink-2)', WebkitAppearance: 'none', whiteSpace: 'nowrap' } }, '\u2039 back to today'),
         h('span', { style: { flex: 1 } }),
+        h('button', { className: 'press', onClick: () => { clearTimeout(this._sheetT); this.setState({ tab: 'ctx', sheetClosing: false }); }, 'aria-label': 'About this question', style: { flexShrink: 0, width: 20, height: 20, borderRadius: '50%', border: '0.5px solid var(--rule)', background: 'transparent', color: 'var(--ink-3)', fontFamily: BRIC, fontSize: 11.5, fontWeight: 800, lineHeight: 1, cursor: 'pointer', WebkitAppearance: 'none', padding: 0 } }, 'i'),
         window.PassiveTag ? h(window.PassiveTag, { q: S, answered: voted }) : null),
       chipRow,
       h('div', { style: { fontFamily: BRIC, fontWeight: 800, fontSize: 31, lineHeight: 1.08, letterSpacing: -0.8, textWrap: 'pretty' } }, S.text),
@@ -639,7 +692,7 @@ class DailySplit extends React.Component {
                   h('span', { style: { fontWeight: 800, fontSize: 19, letterSpacing: '-0.02em' } }, o.label),
                   myVote === o.id && h('span', { style: { fontSize: 12, fontWeight: 700, color: 'var(--ink-2)', whiteSpace: 'nowrap', animation: 'chipPop .35s var(--ease-spring) .2s both' } }, '\u00b7 you'),
                   (S.friends && S.friends.some(f => f.opt === o.id)) && h('button', {
-                    onClick: () => this.setState({ tab: 'stats', dim: 'friends' }),
+                    onClick: () => this.setState({ tab: 'stats', dim: 'friends', dimAxis: null }),
                     'aria-label': S.friends.filter(f => f.opt === o.id).map(f => f.name).join(', ') + ' picked ' + o.label,
                     style: { display: 'flex', alignItems: 'center', gap: 4, padding: '4px 2px', border: 'none', background: 'none', cursor: 'pointer', flexShrink: 0, WebkitAppearance: 'none' }
                   }, S.friends.filter(f => f.opt === o.id).map(f =>
@@ -765,7 +818,7 @@ class DailySplit extends React.Component {
     };
     const MODE_TABS = [{ id: 'world', label: 'World' }, { id: 'group', label: 'Group' }, { id: 'duo', label: '1v1' }];
     const modeIdx = Math.max(0, MODE_TABS.findIndex(m => m.id === mode));
-    const switcher = h('div', { className: 'sd-switch' },
+    const switcher = h('div', { className: 'sd-switch', style: { '--sw-n': MODE_TABS.length } },
       h('span', { className: 'sd-thumb', 'aria-hidden': true, style: { transform: 'translateX(' + modeIdx * 100 + '%)' } },
         h('span', { style: { width: 34, height: 2.5, borderRadius: 99, background: accents[mode], display: 'block', transition: 'background .25s ease' } })),
       MODE_TABS.map(m => h('button', { key: m.id, className: 'sd-switch-btn' + (mode === m.id ? ' is-on' : ''), onClick: () => this.switchMode(m.id), style: { '--sw-acc': accents[m.id] } }, m.label,

@@ -101,7 +101,6 @@ function TestOverlay({ onClose, onComplete, kind: initialKind }) {
   if (!kind) {
     const SAVED = window.IS_TEST_RESULTS || {};
     const minutesFor = (T) => Math.max(4, Math.round(T.questions.length * 0.7));
-    const takenCount = Object.keys(tests).filter(k => SAVED[k]).length;
     const total = Object.keys(tests).length;
     let PROGRESS = {};
     try { PROGRESS = JSON.parse(localStorage.getItem(TEST_PROGRESS_KEY) || '{}'); } catch (e) { /* absent or corrupt payload — fall back to the default initialised above. */ }
@@ -141,7 +140,6 @@ function TestOverlay({ onClose, onComplete, kind: initialKind }) {
               const chipBg = `color-mix(in oklch, ${T.accent} 9%, var(--surface-2))`;
               const chipBd = `color-mix(in oklch, ${T.accent} 28%, var(--rule))`;
               const chipFg = `color-mix(in oklch, ${T.accent} 55%, var(--ink-2))`;
-              const maxV = saved ? Math.max(...saved.dims.map(d => d.value), 1) : 1;
               return (
                 <button type="button" key={k} onClick={() => startTest(k)}
                   className="card test-pick-card"
@@ -295,7 +293,7 @@ function TestOverlay({ onClose, onComplete, kind: initialKind }) {
             <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginTop: 10, marginBottom: 18, padding: 14, background: 'var(--surface-2)', border: '0.5px solid var(--rule)', borderRadius: 10 }}>
               <div style={{ flex: 1 }}>
                 <div style={{ fontFamily: 'var(--sans)', fontSize: 10, fontWeight: 700, color: 'var(--ink-3)', letterSpacing: '0.12em', textTransform: 'uppercase' }}>{flat ? 'Your shape' : bipT ? 'Strongest lean' : 'Strongest'}</div>
-                <div style={{ fontFamily: 'var(--serif)', fontSize: 20, fontStyle: 'var(--voice-italic)', marginTop: 2 }}>{flat ? 'Evenly balanced' : bipT && leanWord(topDim).toLowerCase() !== topDim.label.toLowerCase() ? <>{topDim.label} · <span style={{ color: T.accent }}>{leanWord(topDim)}</span></> : topDim.label}</div>
+                <div style={{ fontFamily: 'var(--sans)', fontSize: 20, marginTop: 2 }}>{flat ? 'Evenly balanced' : bipT && leanWord(topDim).toLowerCase() !== topDim.label.toLowerCase() ? <>{topDim.label} · <span style={{ color: T.accent }}>{leanWord(topDim)}</span></> : topDim.label}</div>
                 <div className="margin-note" style={{ fontSize: 15, marginTop: 2 }}>{flat ? 'no single trait stands out — you sit near the middle across the board' : topDim.blurb}</div>
               </div>
             </div>
@@ -336,7 +334,7 @@ function TestOverlay({ onClose, onComplete, kind: initialKind }) {
                 ? results.every(x => Math.abs(x.value - 50) <= 8)
                 : Math.max(...results.map(x => x.value)) - Math.min(...results.map(x => x.value)) <= 8;
               return (
-                <div style={{ marginBottom: 6, fontFamily: 'var(--serif)', fontStyle: 'var(--voice-italic)', fontSize: 16, lineHeight: 1.5, color: 'var(--ink-2)', textWrap: 'pretty' }}>
+                <div style={{ marginBottom: 6, fontFamily: 'var(--sans)', fontSize: 16, lineHeight: 1.5, color: 'var(--ink-2)', textWrap: 'pretty' }}>
                   {flat
                     ? <>Your profile is <em style={{ color: T.accent, fontStyle: 'inherit' }}>balanced</em> — no single {bipT ? 'lean' : 'trait'} dominates.</>
                     : bipT
@@ -378,29 +376,29 @@ function TestResultCard({ testKey, accent }) {
     <div className="card" style={{ marginBottom: 14 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 6 }}>
         <Kicker>{R.title} · result</Kicker>
-        <span style={{ fontFamily: 'var(--mono)', fontSize: 11, color: 'var(--ink-3)', letterSpacing: '0.1em' }}>{R.taken}</span>
+        <span style={{ fontFamily: 'var(--sans)', fontSize: 11, color: 'var(--ink-3)', letterSpacing: '0.1em' }}>{R.taken}</span>
       </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
         <div style={{
           width: 48, height: 48, borderRadius: '50%',
           border: `1.2px solid ${accent || R.accent}`,
           display: 'flex', alignItems: 'center', justifyContent: 'center',
-          fontFamily: 'var(--serif)', fontStyle: 'var(--voice-italic)', fontSize: 18, color: accent || R.accent,
+          fontFamily: 'var(--sans)', fontSize: 18, color: accent || R.accent,
         }}>{top.value}</div>
         <div style={{ flex: 1 }}>
-          <div style={{ fontFamily: 'var(--mono)', fontSize: 11, color: 'var(--ink-3)', letterSpacing: '0.1em' }}>STRONGEST</div>
-          <div style={{ fontFamily: 'var(--serif)', fontSize: 16, fontStyle: 'var(--voice-italic)' }}>{top.label}</div>
+          <div style={{ fontFamily: 'var(--sans)', fontSize: 11, color: 'var(--ink-3)', letterSpacing: '0.1em' }}>STRONGEST</div>
+          <div style={{ fontFamily: 'var(--sans)', fontSize: 16, }}>{top.label}</div>
           <div className="margin-note" style={{ fontSize: 15, marginTop: 1 }}>{top.blurb}</div>
         </div>
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
         {R.dims.map(d => (
           <div key={d.id} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span style={{ width: 90, fontFamily: 'var(--serif)', fontStyle: 'var(--voice-italic)', fontSize: 12 }}>{d.label}</span>
+            <span style={{ width: 90, fontFamily: 'var(--sans)', fontSize: 12 }}>{d.label}</span>
             <div style={{ flex: 1, height: 5, background: 'var(--surface-2)', border: '0.5px solid var(--rule)', borderRadius: 999 }}>
               <div style={{ height: '100%', width: `${d.value}%`, background: accent || R.accent, borderRadius: 999 }} />
             </div>
-            <span style={{ width: 26, textAlign: 'right', fontFamily: 'var(--mono)', fontSize: 11, color: 'var(--ink-3)' }}>{d.value}</span>
+            <span style={{ width: 26, textAlign: 'right', fontFamily: 'var(--sans)', fontSize: 11, color: 'var(--ink-3)' }}>{d.value}</span>
           </div>
         ))}
       </div>

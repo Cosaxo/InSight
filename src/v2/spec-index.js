@@ -13,14 +13,18 @@ import './spec/map-branches.js';
 import './spec/map-anchors.js';
 import './spec/map-group-stats.js';
 import './spec/duels-data.js';
+import './spec/reveal-clock.js';
 import './spec/iOS.jsx';
 import './spec/tweaks-panel.jsx';
 import './spec/primitives.jsx';
-import './spec/feeds.jsx';
 import './spec/viz-primitives.jsx';
 import './spec/compare-breakdown.jsx';
 import './spec/relmap-core.js';
 import './spec/relmap-lenses.jsx';
+// vote-cuts sits between the relmap lenses and their consumers, exactly where
+// the standalone loads it: VOTECUTS reuses the lens band definitions, and the
+// who-voted breakdowns (daily-split, world-feed) read VOTECUTS at render time.
+import './spec/vote-cuts.js';
 import './spec/relmap-panels.jsx';
 import './spec/relmap.jsx';
 import './spec/test-viz.jsx';
@@ -28,7 +32,6 @@ import './spec/profile-test-viz.jsx';
 import './spec/type-marks.jsx';
 import './spec/result-rose.jsx';
 import './spec/result-card.jsx';
-import './spec/reveal-clock.js';
 import './spec/group-daily.jsx';
 import './spec/duo-daily.jsx';
 // place-stats.js and pick-data.js must precede world-feed-data.js: the feed
@@ -42,6 +45,21 @@ import './spec/pick-data.js';
 // five-entry fallback — the failure mode being a wrong chip row rather than
 // an error anyone would see.
 import './spec/world-feed-data.js';
+// world-catalogs appends its questions to window.WORLD_FEED_QS at module
+// scope, so it has to follow world-feed-data (which creates the pool) — and
+// it stays eager for the same reason the pool does. In live mode live.ts
+// replaces the pool wholesale, so the demo catalogue cards never leak there.
+import './spec/world-catalogs.js';
+import './spec/world-subtopics.js';
+// The report store and the Learn stack are eager: SUBTOPICS/LEARN/LEARN_FEED
+// are subscribed to from eager screens (search, map) as well as the deferred
+// feed, and together they are a fraction of the feed chunk's weight.
+import './spec/world-feed-report.js';
+import './spec/learn-data.js';
+import './spec/learn-progress.js';
+import './spec/learn-social.js';
+import './spec/learn-feed.js';
+import './spec/learn-bits.jsx';
 // feed-read.js is the feed's MEMORY, not the feed: the Mirror reads its
 // stats (mirror-field-pops.jsx, app-shell.jsx) on screens the feed never
 // opens on. 1.6 KB, and eager.
@@ -56,9 +74,9 @@ import './spec/test-feed-data.js';
 // lens-defs builds LENS_FEED_QS at module scope off window.LENSES, so it has
 // to land after the core tests it deliberately trails in the feed.
 import './spec/lens-defs.js';
-import './spec/lens-cards.jsx';
 import './spec/passive-meter.jsx';
 import './spec/test-overlay.jsx';
+import './spec/lens-cards.jsx';
 import './spec/profile-overlay.jsx';
 import './spec/person-mindmap.jsx';
 import './spec/person-overlay.jsx';
@@ -74,8 +92,10 @@ import './spec/group-mirror.jsx';
 import './spec/segment-explorer.jsx';
 import './spec/mirror-tab.jsx';
 import './spec/map-bottom-card.jsx';
+import './spec/map-learn-card.jsx';
 import './spec/map-people.jsx';
 import './spec/map-layout.js';
+import './spec/map-groups.js';
 import './spec/map-chiprow.jsx';
 import './spec/map-tab.jsx';
 import './spec/logic-test.jsx';
@@ -93,13 +113,13 @@ import './spec/app-shell.jsx';
 
 // ── the world feed, after first paint ──────────────────────────────────
 //
-// 85 KB of the bundle — world-feed.jsx alone is the largest module in this
-// layer — and nothing on the first frame needs it. The feed opens BELOW
-// today's card once the question is answered, so a cold start paints the
-// daily without it either way.
+// The largest chunk in this layer — world-feed.jsx roughly doubled in the
+// v15 revision — and nothing on the first frame needs it. The feed opens
+// BELOW today's card once the question is answered, so a cold start paints
+// the daily without it either way.
 //
 // This is a lazy load the spec layer could already absorb, which is why it
-// is the one worth doing: `daily-split.jsx` line 501 already reads
+// is the one worth doing: `daily-split.jsx` already reads
 // `window.WorldFeed &&` before rendering the feed node, so an unloaded feed
 // renders as no feed — exactly the frame a user who has not answered yet
 // sees. No guard was added for this; the guard was already the contract.
@@ -109,6 +129,12 @@ import './spec/app-shell.jsx';
 // window.WORLD_TOPICS and window.WORLD_CHANNELS at module scope, and a
 // parallel load would resolve them in whatever order the network or disk
 // happened to finish in.
+//
+// The v15 modules that landed AROUND these four in the standalone's order
+// (world-catalogs, world-subtopics, world-feed-report, the learn stack) are
+// all eager imports above: each publishes a self-contained store nothing in
+// this group needs at module scope, so the deferred set stays exactly the
+// four it was.
 //
 // Memoised, so the second caller waits on the first load rather than
 // starting another — main.jsx calls it once, the mount tests call it in
