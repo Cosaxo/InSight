@@ -338,4 +338,4 @@ export {
   scheduledDuelReveals,
   revealDuelsNowV2,
 } from "./v2social";
-export { buildModQueue, fetchModQueue, submitModVerdict } from "./moderation";
+export { buildModQueue, buildModQueueNow, fetchModQueue, submitModVerdict } from "./moderation";

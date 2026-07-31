@@ -157,10 +157,12 @@ MOD_UIDS-gated callables (the D22 confinement)
   answer; duos only when BOTH played (and the shared streak advances or
   resets accordingly).
 - Moderation (docs/MODERATION.md, D22): `buildModQueue` (scheduled,
-  05:00 UTC daily) folds flags into the queue; `fetchModQueue` /
-  `submitModVerdict` (callables, `MOD_UIDS` allowlist — deliberately
-  separate from `SEED_ADMIN_UIDS`) are the moderation run's only two
-  instruments, and verdicts stay advisory until the trust ladder's flip.
+  05:00 UTC daily) folds flags into the queue, with `buildModQueueNow`
+  as its moderator-gated on-demand twin (the revealDuelsNowV2 pattern);
+  `fetchModQueue` / `submitModVerdict` (callables, `MOD_UIDS` allowlist
+  — deliberately separate from `SEED_ADMIN_UIDS`) are the moderation
+  run's only two instruments, and verdicts stay advisory until the
+  trust ladder's flip. Transport e2e-tested: `test:e2e:moderation`.
 
 ## Metadata
 

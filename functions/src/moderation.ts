@@ -58,9 +58,7 @@ function assertModerator(request: CallableRequest): void {
 // judges a fresh queue. Scans all flags; flags are one small doc per
 // (user, take) and the count is bounded by real user behavior, but the
 // work is unbounded in principle, so it keeps the long deadline.
-export const buildModQueue = onSchedule(
-  { ...LIGHT_UNBOUNDED, schedule: "0 5 * * *", region: REGION },
-  async () => {
+async function runBuildModQueue(): Promise<void> {
     const db = getFirestore();
     const flags = await db.collection("v2_flags").get();
     const counts: Record<string, number> = {};
@@ -100,8 +98,22 @@ export const buildModQueue = onSchedule(
       `[mod] queue rebuilt: ${queued} queued of ${queue.length} over-threshold ` +
         `(${flags.size} flags total, floor ${MOD_QUEUE_MIN_FLAGS})`,
     );
-  },
+}
+
+export const buildModQueue = onSchedule(
+  { ...LIGHT_UNBOUNDED, schedule: "0 5 * * *", region: REGION },
+  runBuildModQueue,
 );
+
+// The scheduled build's on-demand twin (the revealDuelsNowV2 pattern):
+// the e2e leg drives it in the emulator, and in production it is the
+// maintainer's manual rebuild lever. Moderator-gated like the other two
+// instruments — it reads flags, which nobody else may.
+export const buildModQueueNow = onCall({ ...LIGHT_UNBOUNDED, region: REGION }, async (request) => {
+  assertModerator(request);
+  await runBuildModQueue();
+  return { ok: true };
+});
 
 // ── the two instruments ─────────────────────────────────────────
 
