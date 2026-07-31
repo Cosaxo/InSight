@@ -2084,3 +2084,98 @@ bundle ships inside the native package (`firebase.json` hosting serves
 only the marketing pages). `MAX_CHUNK_KB` came down 1024 → 900 to hold the
 win; the TOTAL is deliberately unchanged, because splitting relocates bytes
 rather than removing them.
+
+---
+
+## D26 · The spec layer's dead render code is deleted; the one toolkit is kept
+
+**Decided:** 2026-07-31 · **Status:** binding
+
+The port carried forward render code from prototype generations the v15
+reference no longer has. None of it was reachable: **974 lines removed,
+13.7 KB off the built bundle** (entry chunk 852 → 839 KB, on top of the
+split D25 had just done), no behavioural change and no gate moved.
+
+Each removal had to clear the same bar — no JSX tag, no `window.X` lookup,
+no call site anywhere in `src/`, and no counterpart in
+`design/InSight_standalone_15.html`. That last check is what separates
+"nothing renders it today" from "it belongs to the frozen spec and the app
+simply has not wired it yet".
+
+| Removed | Why it was unreachable |
+| --- | --- |
+| `spec/feeds.jsx` (whole file) | An around/city/world report feed whose `ReportCard` never made it into this repo. Its own header describes a component the file does not contain; v15 has no `LikeButton`, no `AROUND_REPORTS`, no feed at all. Dead since the Phase-1 port. |
+| `person-overlay`: `AffinityDial`, `DualCompass`, `TraitBridges`, `InterestVenn`, `GeneticKinship`, `FollowerShares`, `alignmentNotes`, `pRng` | A previous generation of the affinity portrait. `PersonOverlay` now renders `CompareCarousel` + `PersonMindMap`; the surviving `AffinityBreakdown` still carries the comment that says it "replaces the donut" — the donut being `AffinityDial`. |
+| `profile-general`: `InterestsTastesCard`, `InterestsCard`, `TastesCard`, `HeroesCard` + `Chips`, `chipStyle`, `tasteLabel`, `TextInput`, `HERO_HUES`, `initials` | `GeneralPanel` renders `BasicsCard`, `MapThumbCard`, `TestArcsCard`, `LensesRowCard`, `LogicCard` — and has not rendered the other four since the panel was restructured. |
+| `profile-overlay`: `PoliticsCompass`; `viz-primitives`: `Compass2D` | The compass was superseded by `ResultProfileCard` / `TestRose`. `Compass2D` had no other consumer, so it fell with it. `RadarChart` and `Donut` stay — `city-overlay` uses both. |
+| `primitives`: `Bar`, `Pill`, `InterestRun` (+ the `.bar` / `.pill.is-on` CSS) | `InterestRun` was `InterestVenn`'s alone. The `.pill` base rules stay — `mirror-answers` uses the class directly — but the `.is-on` / `.sienna` / `.sage` variants were reachable only through the deleted component. |
+| `iOS`: `IOSList`, `IOSListRow` | The one call site (`app-shell`) mounts `IOSDevice`, which has no path to either. `IOSNavBar` / `IOSGlassPill` / `IOSKeyboard` **stay**: `IOSDevice` renders those behind its `title` and `keyboard` props, so they are one prop away, not unreachable. |
+| `type-marks`: the `IS_TYPE_ART` alias | A second publish of `TM_ART`, which is already exported under its own name. Zero readers. |
+
+### The one that was hiding behind a guard
+
+`MirrorFieldBody` guarded a `GroupLevelBreakdown` lens on
+`pop === 'groups' && gSel && window.GroupLevelBreakdown`. Nothing in the
+tree has ever defined that name — so the guard could not pass, and the lens
+was as dead as anything above. It survived longer than the rest because
+`window.X &&` reads as a feature flag rather than a dangling reference:
+`check:globals` did see it, but the name was parked in
+`scripts/spec-globals.mjs`'s `RUNTIME_ALLOWLIST` as "known-dead", where its
+own comment asked for exactly this deletion.
+
+That allowlist is the lesson, not the lens. **Anything parked there is a
+name the checker has agreed to stop checking** — the same silence that let
+two `ReferenceError`s ship when `no-undef` was off. The entry is gone and
+the comment in its place says to fix the code rather than add another.
+`levelTrait` / `levelMarker` went with the branch: they fed nothing else,
+and two call sites were still passing them.
+
+### What was deliberately kept
+
+**`tweaks-panel.jsx`'s `TweakSlider` / `TweakText` / `TweakNumber` /
+`TweakColor` are unused and stay.** They meet the "no call site" bar and
+fail the one that matters: the panel is not product code but a reusable
+design-time shell implementing a host protocol (`__activate_edit_mode` /
+`__edit_mode_available` over `postMessage`), and its widget set is the
+documented API — spelled out in the file's own usage example. Deleting half
+the vocabulary of a toolkit because this app happens to use the other half
+is a different decision from deleting code nothing can reach, and it is not
+one this cleanup should make. `__twkIsLight` and `__TwkCheck` stay with
+`TweakColor` for the same reason.
+
+**`profile-general`'s store keeps `interests` / `likes` / `dislikes` /
+`heroes`** although nothing renders them now. `GeneralPanel` persists the
+*whole* `data` object to `localStorage` on every edit, so dropping the keys
+from the seed/load path would make the next basics edit silently overwrite
+whatever a user saved under an older build. Inert round-tripping is the
+cheaper error. The reasoning sits in the file header, where the next reader
+will be standing when they wonder about it.
+
+### The scan, and why the obvious version of it lies
+
+The first pass matched `<Name` and missed everything rendered as
+`<window.Name …>` — which is most of this layer — and reported 44 dead
+components, at least 30 of them live. The second missed the multi-line
+`Object.assign(window, {…})` publish blocks and read them as use sites. The
+scan that produced this table blanks publish blocks and the
+`;globalThis.X = typeof X === 'undefined' ? …` tails first, then counts JSX
+tags, `window.X` lookups, calls and destructures. It was re-run after every
+removal, which is how `Compass2D` and `InterestRun` were caught — both were
+alive until the thing that used them was deleted in the same pass.
+
+Confirmed by the gates, not by reading: `check:globals` (341 → 311 globals
+defined, zero dangling), `lint` at `--max-warnings 0` with `no-undef` on for
+the spec layer, `tsc -b`, `check:a11y` unmoved at 19, `check:bundle`,
+`test:unit` at 201/201 and `functions` at 62/62.
+
+**And by a mount D25 had just added.** This work was branched before the
+overlay tests landed, so for most of it the person and city overlays were
+still in the block "nothing executed" — the exact condition under which
+deleting from `person-overlay.jsx` is a guess. The rebase closed that:
+`smoke.test.jsx`'s "opens a person's profile" and "opens a city's profile"
+now render both, and both pass. `PersonOverlay` reaches `AffinityBreakdown`,
+`CompareCarousel`, `PersonMindMap`, `Av`/`AnonAv` and `Kicker`, none of
+which this touched; `city-overlay` reaches `RadarChart` and `Donut`, which
+is why they stayed when `Compass2D` went. The static scan said the same
+thing first, but only the mount can say it about a layer whose references
+resolve at render time.

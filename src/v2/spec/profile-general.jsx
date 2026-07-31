@@ -7,16 +7,22 @@ import React from 'react';
 
 // ─────────────────────────────────────────────────────────────
 // General tab · the parts of you that aren't a test.
-// Redesigned: clean sans, airy, and inline-editable. Every personal
-// fact (basics, interests, likes/dislikes, heroes) can be edited in
-// place and persists to localStorage. The charts/patterns below it
-// stay read-only.
+// Redesigned: clean sans, airy, and inline-editable. The basics
+// (vitals) can be edited in place and persist to localStorage. The
+// charts/patterns below it stay read-only.
+//
+// The store still carries `interests` / `likes` / `dislikes` /
+// `heroes` even though nothing renders them any more: the cards that
+// did were deleted 2026-07-31 as dead code, but GeneralPanel writes
+// the WHOLE `data` object back to GKEY on every edit. Dropping the
+// keys from the seed/load path would make the next basics edit
+// overwrite whatever a user saved under an older build. They
+// round-trip inertly instead — cheap, and lossless if a card returns.
 // ─────────────────────────────────────────────────────────────
 (function () {
   const { useState, useEffect, useRef } = React;
 
   const GKEY = 'insight.profileGeneral.v1';
-  const HERO_HUES = [38, 150, 220, 290, 80, 320];
 
   // ── seed from data.js, then overlay any saved edits ──
   function seedFromData() {
@@ -61,8 +67,6 @@ import React from 'react';
     return seed;
   }
 
-  const initials = (name) => (name || '?').split(' ').map(w => w[0]).filter(Boolean).slice(0, 2).join('');
-
   // ── shared input styling ──
   const inputBase = {
     fontFamily: 'var(--sans)', color: 'var(--ink)',
@@ -71,23 +75,6 @@ import React from 'react';
     boxSizing: 'border-box', width: '100%', minWidth: 0,
     transition: 'border-color 0.16s ease, box-shadow 0.16s ease',
   };
-  function TextInput(props) {
-    const { style, ...rest } = props;
-    const [foc, setFoc] = useState(false);
-    return (
-      <input
-        {...rest}
-        onFocus={(e) => { setFoc(true); rest.onFocus && rest.onFocus(e); }}
-        onBlur={(e) => { setFoc(false); rest.onBlur && rest.onBlur(e); }}
-        style={{
-          ...inputBase, fontSize: 15, padding: '8px 11px',
-          borderColor: foc ? 'var(--accent)' : 'var(--rule)',
-          boxShadow: foc ? '0 0 0 3px color-mix(in oklch, var(--accent) 14%, transparent)' : 'none',
-          ...style,
-        }}
-      />
-    );
-  }
 
   // ── select (fixed options — keeps profile fields filterable) ──
   const YEAR_NOW = new Date().getFullYear();
@@ -237,70 +224,7 @@ import React from 'react';
     );
   }
 
-  // ── editable chip set ──
-  function chipStyle(tone) {
-    if (tone === 'dislike') {
-      return {
-        display: 'inline-flex', alignItems: 'center', gap: 6,
-        padding: '7px 13px', borderRadius: 999,
-        fontFamily: 'var(--sans)', fontSize: 13.5, fontWeight: 500, lineHeight: 1,
-        background: 'transparent',
-        border: '1px solid color-mix(in oklch, var(--rule), var(--ink) 6%)',
-        color: 'var(--ink-3)',
-        whiteSpace: 'nowrap',
-      };
-    }
-    const muted = tone === 'muted';
-    return {
-      display: 'inline-flex', alignItems: 'center', gap: 6,
-      padding: '7px 13px', borderRadius: 999,
-      fontFamily: 'var(--sans)', fontSize: 13.5, fontWeight: 500, lineHeight: 1,
-      background: muted ? 'transparent' : 'var(--surface)',
-      border: '1px solid ' + (muted ? 'var(--rule)' : 'color-mix(in oklch, var(--rule), var(--ink) 8%)'),
-      color: muted ? 'var(--ink-3)' : 'var(--ink-2)',
-      whiteSpace: 'nowrap',
-    };
-  }
-  function Chips({ items, onChange, editing, tone, placeholder = 'Add…' }) {
-    const [draft, setDraft] = useState('');
-    const add = () => {
-      const v = draft.trim();
-      if (v && !items.includes(v)) onChange([...items, v]);
-      setDraft('');
-    };
-    const remove = (i) => onChange(items.filter((_, j) => j !== i));
-    return (
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 9 }}>
-        {items.map((it, i) => (
-          <span key={it + i} style={chipStyle(tone)}>
-            {tone === 'dislike' && <span aria-hidden="true" style={{ color: 'var(--ink-3)', opacity: 0.6, fontWeight: 700, marginRight: -1 }}>−</span>}
-            {it}
-            {editing && (
-              <button onClick={() => remove(i)} aria-label={'Remove ' + it} style={{
-                cursor: 'pointer', WebkitAppearance: 'none', appearance: 'none', border: 'none', background: 'none',
-                padding: 0, marginRight: -3, display: 'inline-flex', color: 'var(--ink-3)', fontSize: 15, lineHeight: 1,
-              }}>×</button>
-            )}
-          </span>
-        ))}
-        {editing && (
-          <input
-            value={draft}
-            onChange={(e) => setDraft(e.target.value)}
-            onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); add(); } }}
-            onBlur={add}
-            placeholder={placeholder}
-            style={{
-              ...inputBase, fontSize: 13.5, padding: '7px 13px', width: 110,
-              color: 'var(--ink-2)',
-            }}
-          />
-        )}
-      </div>
-    );
-  }
-
-  // ── 1. Basics (vitals) ──
+  // ── Basics (vitals) ──
   function BasicsCard({ data, set }) {
     const [editing, setEditing] = useState(false);
     const v = data.vitals;
@@ -358,126 +282,6 @@ import React from 'react';
     fontFamily: 'var(--sans)', fontSize: 11.5, fontWeight: 600, letterSpacing: '0.04em',
     textTransform: 'uppercase', color: 'var(--ink-3)',
   };
-
-  // ── 2. Interests & tastes (merged — one card, one Edit) ──
-  function InterestsTastesCard({ data, set }) {
-    const [editing, setEditing] = useState(false);
-    return (
-      <Card title="Interests &amp; tastes" hint={editing ? 'Tap × to remove, type to add.' : null}
-        editable editing={editing} onToggle={() => setEditing(e => !e)}>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
-          <div>
-            <div style={tasteLabel}>Interests</div>
-            <Chips items={data.interests} editing={editing}
-              onChange={(next) => set(d => ({ ...d, interests: next }))} placeholder="interest…" />
-          </div>
-          <div>
-            <div style={tasteLabel}>Likes</div>
-            <Chips items={data.likes} editing={editing}
-              onChange={(next) => set(d => ({ ...d, likes: next }))} placeholder="like…" />
-          </div>
-          <div>
-            <div style={tasteLabel}>Dislikes</div>
-            <Chips items={data.dislikes} editing={editing} tone="dislike"
-              onChange={(next) => set(d => ({ ...d, dislikes: next }))} placeholder="dislike…" />
-          </div>
-        </div>
-      </Card>
-    );
-  }
-
-  // ── Interests ──
-  function InterestsCard({ data, set }) {
-    const [editing, setEditing] = useState(false);
-    return (
-      <Card title="Interests" hint={editing ? 'Tap × to remove, type to add.' : null}
-        editable editing={editing} onToggle={() => setEditing(e => !e)}>
-        <Chips items={data.interests} editing={editing}
-          onChange={(next) => set(d => ({ ...d, interests: next }))} placeholder="interest…" />
-      </Card>
-    );
-  }
-
-  // ── 3. Likes & dislikes ──
-  function TastesCard({ data, set }) {
-    const [editing, setEditing] = useState(false);
-    return (
-      <Card title="Likes &amp; dislikes" editable editing={editing} onToggle={() => setEditing(e => !e)}>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-          <div>
-            <div style={tasteLabel}>Likes</div>
-            <Chips items={data.likes} editing={editing}
-              onChange={(next) => set(d => ({ ...d, likes: next }))} placeholder="like…" />
-          </div>
-          <div>
-            <div style={tasteLabel}>Dislikes</div>
-            <Chips items={data.dislikes} editing={editing} tone="muted"
-              onChange={(next) => set(d => ({ ...d, dislikes: next }))} placeholder="dislike…" />
-          </div>
-        </div>
-      </Card>
-    );
-  }
-  const tasteLabel = {
-    fontFamily: 'var(--sans)', fontSize: 11.5, fontWeight: 700, letterSpacing: '0.1em',
-    textTransform: 'uppercase', color: 'var(--ink-3)', marginBottom: 11,
-  };
-
-  // ── 4. Heroes ──
-  function HeroesCard({ data, set }) {
-    const [editing, setEditing] = useState(false);
-    const heroes = data.heroes;
-    const updHero = (i, k, val) => set(d => ({ ...d, heroes: d.heroes.map((h, j) => j === i ? { ...h, [k]: val } : h) }));
-    const removeHero = (i) => set(d => ({ ...d, heroes: d.heroes.filter((_, j) => j !== i) }));
-    const addHero = () => set(d => ({
-      ...d,
-      heroes: [...d.heroes, { name: 'New hero', field: '', hue: HERO_HUES[d.heroes.length % HERO_HUES.length] }],
-    }));
-    return (
-      <Card title="Heroes" editable editing={editing} onToggle={() => setEditing(e => !e)}>
-        <div style={{ display: 'flex', flexDirection: 'column' }}>
-          {heroes.map((h, i) => (
-            <div key={i} style={{
-              display: 'flex', alignItems: 'center', gap: 13, padding: '11px 0',
-              borderTop: i === 0 ? 'none' : '1px solid color-mix(in oklch, var(--rule), transparent 35%)',
-            }}>
-              <div style={{
-                width: 40, height: 40, borderRadius: '50%', flexShrink: 0,
-                background: `oklch(0.93 0.05 ${h.hue})`, border: `1px solid oklch(0.7 0.1 ${h.hue})`,
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontFamily: 'var(--sans)', fontWeight: 700, fontSize: 14, color: `oklch(0.4 0.13 ${h.hue})`,
-              }}>{initials(h.name)}</div>
-              {editing ? (
-                <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 6 }}>
-                  <TextInput value={h.name} onChange={e => updHero(i, 'name', e.target.value)} style={{ fontSize: 14.5, fontWeight: 600, padding: '6px 10px' }} placeholder="Name" />
-                  <TextInput value={h.field} onChange={e => updHero(i, 'field', e.target.value)} style={{ fontSize: 13, padding: '6px 10px' }} placeholder="What they're known for" />
-                </div>
-              ) : (
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontFamily: 'var(--sans)', fontSize: 16, fontWeight: 600, letterSpacing: '-0.01em', color: 'var(--ink)' }}>{h.name}</div>
-                  {h.field && <div style={{ fontFamily: 'var(--sans)', fontSize: 13, color: 'var(--ink-3)', marginTop: 2 }}>{h.field}</div>}
-                </div>
-              )}
-              {editing && (
-                <button onClick={() => removeHero(i)} aria-label={'Remove ' + h.name} style={{
-                  flexShrink: 0, cursor: 'pointer', WebkitAppearance: 'none', appearance: 'none',
-                  width: 30, height: 30, borderRadius: '50%', border: '1px solid var(--rule)', background: 'transparent',
-                  color: 'var(--ink-3)', fontSize: 16, lineHeight: 1, display: 'flex', alignItems: 'center', justifyContent: 'center',
-                }}>×</button>
-              )}
-            </div>
-          ))}
-        </div>
-        {editing && (
-          <button onClick={addHero} style={{
-            marginTop: 12, width: '100%', cursor: 'pointer', WebkitAppearance: 'none', appearance: 'none',
-            padding: '11px', borderRadius: 12, border: '1px solid var(--rule)', background: 'transparent',
-            color: 'var(--ink-2)', fontFamily: 'var(--sans)', fontSize: 13.5, fontWeight: 600,
-          }}>+ Add hero</button>
-        )}
-      </Card>
-    );
-  }
 
   // ── the visual profile: mind-map thumbnail → Mirror · You ──
   function MapThumbCard() {
@@ -636,7 +440,7 @@ import React from 'react';
         {typeof window.MirrorFieldBody === 'function' && (
           <div>
             <Chapter>Scenes you follow</Chapter>
-            <window.MirrorFieldBody pop="groups" worldZoom="world" levelTrait="gender" levelMarker={true} />
+            <window.MirrorFieldBody pop="groups" worldZoom="world" />
           </div>
         )}
       </div>

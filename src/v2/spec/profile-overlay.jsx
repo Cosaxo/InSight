@@ -152,54 +152,6 @@ function ProfileOverlay({ onClose, me }) {
   );
 }
 
-function PoliticsCompass({ me }) {
-  const D = window.IS_DATA;
-  const axes = D.politicalAxes;
-
-  // 6-axis radar — your values + your circle's avg
-  const youVals    = axes.map(a => (me.political[a.id] + 100) / 2);
-  const circleVals = axes.map(a => (a.avgCircle + 100) / 2);
-
-  return (
-    <div className="card" style={{ marginBottom: 14 }}>
-      <Kicker>Six axes</Kicker>
-
-      {/* hex radar */}
-      <div style={{ marginTop: 6 }}>
-        <RadarChart
-          values={youVals}
-          compareValues={circleVals}
-          compareColor="var(--ink-3)"
-          labels={axes.map(a => a.label)}
-          color="var(--accent)"
-          size={260}
-        />
-      </div>
-      <div style={{ display: 'flex', justifyContent: 'center', gap: 16, fontFamily: 'var(--sans)', fontSize: 10.5, fontWeight: 600, color: 'var(--ink-3)', letterSpacing: '0.06em', marginTop: 4 }}>
-        <span><span style={{ display:'inline-block', width:10, height:2, background:'var(--accent)', verticalAlign:'middle', marginRight:5 }} />YOU</span>
-        <span><span style={{ display:'inline-block', width:10, height:2, background:'var(--ink-3)', verticalAlign:'middle', marginRight:5 }} />YOUR CIRCLE</span>
-      </div>
-
-      {/* 2D compass with ideology landmarks */}
-      <div style={{ marginTop: 16, paddingTop: 14, borderTop: '0.5px solid var(--rule)' }}>
-        <div style={{ fontFamily: 'var(--sans)', fontSize: 10.5, fontWeight: 700, color: 'var(--ink-3)', letterSpacing: '0.09em', textTransform: 'uppercase', marginBottom: 6 }}>Econ × social</div>
-        <Compass2D
-          x={me.political.econ} y={me.political.social * -1}
-          label="you"
-          xLabel={['Left', 'Right']} yLabel={['Liberty', 'Authority']}
-          size={260}
-          accent="var(--accent)"
-          comparePoints={D.ideologies.map(io => ({
-            x: io.econ, y: -io.social, label: io.name,
-            color: 'oklch(0.55 0.10 250)',
-          }))}
-        />
-      </div>
-    </div>
-  );
-}
-
-Object.assign(window, { ProfileOverlay, PoliticsCompass });
+Object.assign(window, { ProfileOverlay });
 
 ;globalThis.ProfileOverlay = typeof ProfileOverlay === 'undefined' ? globalThis.ProfileOverlay : ProfileOverlay;
-;globalThis.PoliticsCompass = typeof PoliticsCompass === 'undefined' ? globalThis.PoliticsCompass : PoliticsCompass;
