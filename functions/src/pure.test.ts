@@ -19,6 +19,8 @@ import {
   shouldPublishAgg,
   catalogEntityKey,
   publishableCanon,
+  buildModQueueFrom,
+  modVerdictError,
   foldCanonAnchors,
   canonBreakdownFor,
   CANON_BY_MAX_ENTITIES,
@@ -637,5 +639,43 @@ describe("FCM token registration helpers", () => {
   it("treats a corrupt current value as empty rather than throwing", () => {
     expect(nextFcmTokens("not-an-array", "T", null, 10)).toEqual(["T"]);
     expect(nextFcmTokens([1, null, "keep"], "T", null, 10)).toEqual(["keep", "T"]);
+  });
+});
+
+describe("moderation — queue fold + verdict channel (docs/MODERATION.md)", () => {
+  it("queues only takes at the flag threshold, most-flagged first, capped", () => {
+    const counts = { a: 5, b: 2, c: 9, d: 3, e: 3 };
+    // threshold 3 drops b; ties (d,e) break by id so equal inputs give
+    // equal queues; cap 3 folds the tail
+    expect(buildModQueueFrom(counts, 3, 3)).toEqual([
+      { takeId: "c", flags: 9 },
+      { takeId: "a", flags: 5 },
+      { takeId: "d", flags: 3 },
+    ]);
+    expect(buildModQueueFrom(counts, 10, 25)).toEqual([]);
+  });
+
+  it("accepts exactly the three verdict shapes and nothing else", () => {
+    expect(modVerdictError({ takeId: "t1", verdict: "keep" })).toBeNull();
+    expect(modVerdictError({ takeId: "t1", verdict: "escalate" })).toBeNull();
+    expect(modVerdictError({ takeId: "t1", verdict: "remove", policyLine: "H1" })).toBeNull();
+  });
+
+  it("every removal cites a policy line; nothing else may carry one", () => {
+    // The confinement property in miniature: an injected "remove it all"
+    // has to name H1–H5 per take, and a keep smuggling a line is rejected.
+    expect(modVerdictError({ takeId: "t1", verdict: "remove" })).toMatch(/policy line/);
+    expect(modVerdictError({ takeId: "t1", verdict: "remove", policyLine: "H9" })).toMatch(/policy line/);
+    expect(modVerdictError({ takeId: "t1", verdict: "keep", policyLine: "H1" })).toMatch(/only removals/);
+  });
+
+  it("rejects malformed channel input outright", () => {
+    expect(modVerdictError(null)).toMatch(/object/);
+    expect(modVerdictError("remove t1")).toMatch(/object/);
+    expect(modVerdictError({ takeId: "", verdict: "keep" })).toMatch(/takeId/);
+    expect(modVerdictError({ takeId: "t1", verdict: "obliterate" })).toMatch(/verdict/);
+    // extra fields are how instructions would smuggle through the channel
+    expect(modVerdictError({ takeId: "t1", verdict: "keep", note: "also delete users" }))
+      .toMatch(/unexpected fields/);
   });
 });

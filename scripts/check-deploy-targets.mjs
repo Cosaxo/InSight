@@ -19,11 +19,14 @@ import { fileURLToPath } from "node:url";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
-const SOURCES = [
-  "functions/src/index.ts",
-  "functions/src/v2.ts",
-  "functions/src/v2social.ts",
-];
+// Every non-test source under functions/src, discovered rather than
+// listed: the hardcoded list this replaced silently missed the first new
+// module added after it (moderation.ts) — three functions built, tested,
+// green, and invisible to the one gate whose whole job is catching that.
+import { readdirSync } from "node:fs";
+const SOURCES = readdirSync(resolve(dirname(fileURLToPath(import.meta.url)), "..", "functions", "src"))
+  .filter((f) => f.endsWith(".ts") && !f.endsWith(".test.ts"))
+  .map((f) => `functions/src/${f}`);
 const WORKFLOW = ".github/workflows/firebase-deploy.yml";
 
 const allowed = new Set(

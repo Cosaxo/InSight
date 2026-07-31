@@ -1705,3 +1705,46 @@ hand-written code and not the frozen port: `LiveGroupsMirrorBody`'s
 expand/collapse row is now a real `<button>` with `aria-expanded` instead of
 a clickable `<div>`, which is the difference between a keyboard user being
 able to open a day's detail and not.
+
+## D22 · Moderation substrate: confinement is structural, and advisory until trusted
+
+**Decided:** 2026-07-31 · **Status:** binding
+
+docs/MODERATION.md's load-bearing choices, graduated as built:
+
+- **The verdict channel accepts one shape.** `modVerdictError` (pure.ts,
+  tested) admits exactly `{ takeId, verdict, policyLine? }`: every
+  removal must cite H1–H5, nothing else may carry a line, extra fields
+  are rejected — the smuggling channel an injection would use is closed
+  at the type level.
+- **The server picks the targets.** `buildModQueue` (scheduled) folds
+  flag counts into `v2_mod_queue` via the pure, tested
+  `buildModQueueFrom`; `submitModVerdict` rejects any takeId not in the
+  queue. "Also moderate X" fails structurally, however persuasive the
+  text that asked.
+- **Least privilege cuts both ways.** The two callables are gated by
+  `MOD_UIDS`, deliberately separate from `SEED_ADMIN_UIDS`: an operator
+  is not thereby a moderator, and a leaked moderator credential can
+  moderate and do nothing else. Empty allowlist = everyone denied —
+  fail-safe.
+- **Soft-hide, author-visible.** A removed take stays readable by its
+  author (rules-enforced) so appeal happens against visible text; the
+  circle stops seeing it. No edit path on takes at all: an edited take
+  invalidates the flags cast on what it used to say.
+- **MOD_ADVISORY = true** until the dry-run phase earns the flip:
+  verdicts record and surface but hide nothing. Flipping it is a
+  one-line PR that must cite the advisory track record.
+- **Blast radius:** 50 verdicts per run (circuit breaker, not
+  invariant), flags anonymous to circle and run alike (write-only
+  collection, id-pinned one-per-user), `deleteAccount` erases a user's
+  takes and flags by uid query.
+
+Found while wiring: `check-deploy-targets` scanned a hardcoded source
+list and missed `moderation.ts` entirely — three functions built,
+tested, green, and invisible to the gate whose whole job is catching
+that. It now discovers `functions/src/*.ts` instead of naming files.
+
+Still open, recorded in MODERATION.md: the drafted thresholds (3 flags /
+25 queued / 50 cap), escalation latency, the maintainer's pass on the
+hard-line wording — and the two later phases, the client report control
+(needs a live takes surface first) and the low-privilege Routine.

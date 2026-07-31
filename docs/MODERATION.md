@@ -1,11 +1,13 @@
 # Moderation — flagged takes, a scheduled reviewer, and confinement
 
-**Status: design sketch.** Nothing here is built, and nothing here is a
-decision record — when the substrate ships, the load-bearing choices
-below (the policy's default, the verdict channel, the confinement rules)
-graduate into `DECISIONS.md`. Written 2026-07-31 from the maintainer's
-direction, in the `CATALOG-QUESTIONS.md` lineage: the sketch exists so
-the substrate gets built to fit the design, not the other way around.
+**Status: substrate built (D22), advisory mode on.** Written 2026-07-31
+as a design sketch; the substrate shipped the same day — takes, flags,
+queue, the two MOD_UIDS-gated callables, rules with negative tests —
+with `MOD_ADVISORY = true`, so verdicts record and surface but hide
+nothing until the dry-run phase earns the flip. Still ahead: the client
+report control (needs a live takes surface), the low-privilege Routine,
+and the maintainer's answers to the open questions at the end. The
+policy and threat model below remain the contract.
 
 ## The job in one sentence
 

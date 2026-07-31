@@ -111,6 +111,30 @@ Sealed duel answers live in the owner-only answers subcollection under
 composite ids (g_{gid}_{day}) with extra fields gid/day/guessIdx; rules
 require membership and deny creates once the day's reveal exists. Duel
 surfaces are excluded from world aggregates.
+
+v2_takes/{takeId}                  circle-scoped comments (D1; MODERATION.md)
+  gid, authorUid, qid?, text ≤280, createdAt (request.time)
+  hidden? { by, policyLine,        soft-hide (D22): the circle loses it,
+    runId, at }                    the author keeps reading it — appeal
+                                   stays possible against visible text
+create: circle members, shape-validated · update: nobody (an edit
+invalidates the flags cast on what it used to say — delete and repost)
+delete: author · read: circle members, minus hidden-for-non-authors
+(deleteAccount erases a user's takes and flags by uid query)
+
+v2_flags/{takeId}_{uid}            one flag per (take, user), write-only
+  takeId, gid, uid, at             anonymous to the circle AND the
+                                   moderation run — only server-folded
+                                   counts are ever read
+create: circle members, doc-id-pinned, never on a hidden take
+read/update/delete: nobody
+
+v2_mod_queue/{takeId}              server-built daily (buildModQueue):
+  text copy, flags, escalated?,    the top-K most-flagged takes — the
+  advisoryVerdict?                 ONLY thing the moderation run reads
+v2_mod_verdicts/{takeId}           audit log, one per queue generation
+read/write: nobody client-side — both reachable solely through the
+MOD_UIDS-gated callables (the D22 confinement)
 ```
 
 ## Functions
@@ -132,6 +156,11 @@ surfaces are excluded from world aggregates.
   operator) — materialize yesterday's reveals: groups reveal with ≥1
   answer; duos only when BOTH played (and the shared streak advances or
   resets accordingly).
+- Moderation (docs/MODERATION.md, D22): `buildModQueue` (scheduled,
+  05:00 UTC daily) folds flags into the queue; `fetchModQueue` /
+  `submitModVerdict` (callables, `MOD_UIDS` allowlist — deliberately
+  separate from `SEED_ADMIN_UIDS`) are the moderation run's only two
+  instruments, and verdicts stay advisory until the trust ladder's flip.
 
 ## Metadata
 
