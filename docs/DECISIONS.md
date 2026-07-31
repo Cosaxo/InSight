@@ -1778,6 +1778,33 @@ in the deploy window can be verdicted once more in the same generation.
 One-time, advisory-mode, and its worst outcome is a duplicate row in a log
 the maintainer reads by hand.
 
+**Amendment (2026-07-31) — escalations carry across the rebuild.** Found
+immediately downstream of the above, and the same shape: the wholesale
+rebuild was eating a signal aimed at a human. MODERATION.md calls
+`escalate` the safety valve and promises escalations reach a human in both
+phases, but `submitModVerdict` marked the queue entry and the next build
+deleted every entry — so the mark lived until 05:00 and the verdict log
+that kept the row is read by nothing yet (the digest is unbuilt). The valve
+had no outlet.
+
+In the phase the system is actually in it was not even a 24-hour window.
+`MOD_ADVISORY` returns before the `escalated` branch is reached, recording
+the verdict under `advisoryVerdict` — so the `escalated` flag
+`fetchModQueue` hands the run was permanently false. Both spellings are now
+read wherever the signal is.
+
+Each entry carries an `escalations` COUNT forward from the entry it
+replaces (`carriedEscalations`, pure.ts), read off the same fetch the
+rebuild already does to delete them, so it costs no extra query. A count
+rather than a flag because "escalated three builds running" is the signal
+the digest wants. The generation still advances, deliberately: an escalated
+take stays re-judgeable, and a second escalation is information.
+
+Known limit: the chain is entry-to-entry, so a take pushed out of the
+top-`MOD_QUEUE_SIZE` and later re-queued returns at zero. The verdict log
+holds the real history whenever the digest is built; the count is the run's
+cheap in-queue hint, not the record.
+
 Still open, recorded in MODERATION.md: the drafted thresholds (3 flags /
 25 queued / 50 cap), escalation latency, the maintainer's pass on the
 hard-line wording — and the two later phases, the client report control

@@ -65,6 +65,15 @@ that punishes honesty.
 doubt keep" (that abandons the target of borderline harassment). A run
 that escalates a lot is working, not failing.
 
+An escalation is therefore a **standing** signal, not a note on one
+queue generation: `v2_mod_queue` is rebuilt wholesale, so each entry
+carries an `escalations` count forward from the entry it replaces
+(`carriedEscalations`, pure.ts). Without it the valve had no outlet —
+the mark lived until the next 05:00 build and the log that kept the row
+is read by nothing yet. The entry stays re-judgeable on its new
+generation: a take the run escalates twice is a stronger signal than one
+it escalated once, not a duplicate to suppress.
+
 This file is the policy's single home. The run re-reads it every firing,
 so policy changes are PRs reviewed like anything else — policy drift by
 prompt-editing is structurally impossible, the same discipline as
@@ -184,7 +193,10 @@ becoming a surveillance system.
 
 1. **Escalation latency**: daily digest, or immediate push notification
    per escalation? (Immediate is more responsive; a digest batches a
-   possible harassment situation for hours.)
+   possible harassment situation for hours.) Still open — but no longer
+   blocking on plumbing: escalations now persist across rebuilds and are
+   readable through `fetchModQueue`, so either answer has something to
+   read. What is missing is the reader, not the record.
 2. **Flag threshold and queue size** (N flags to enter the queue, top-K
    per run): 3 and 25 feel right for a small userbase, but this is a
    product call.

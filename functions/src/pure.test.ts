@@ -20,6 +20,7 @@ import {
   catalogEntityKey,
   publishableCanon,
   buildModQueueFrom,
+  carriedEscalations,
   modVerdictError,
   modVerdictId,
   foldCanonAnchors,
@@ -696,6 +697,37 @@ describe("moderation — queue fold + verdict channel (docs/MODERATION.md)", () 
     // …and two takes judged in the SAME build never collide, so the log
     // stays append-only rather than one entry racing another.
     expect(modVerdictId("t2", day1)).not.toBe(modVerdictId("t1", day1));
+  });
+
+  it("carries an escalation across the wholesale queue rebuild", () => {
+    // The valve had no outlet: the rebuild deletes every entry, so the mark
+    // lived a day and the log nothing reads yet kept the only copy.
+    expect(carriedEscalations({ escalated: true })).toBe(1);
+    expect(carriedEscalations({ escalations: 2, escalated: true })).toBe(3);
+    // …and a generation the run did NOT escalate leaves the count alone,
+    // so re-queueing forever cannot inflate it.
+    expect(carriedEscalations({ escalations: 2 })).toBe(2);
+    expect(carriedEscalations({})).toBe(0);
+    expect(carriedEscalations(null)).toBe(0);
+  });
+
+  it("counts an advisory escalation, which is the only kind there is today", () => {
+    // MOD_ADVISORY returns before the `escalated` branch, writing the
+    // verdict under `advisoryVerdict` — so in the phase the system is
+    // actually in, `escalated` is never set and reading only that spelling
+    // made the whole signal permanently false.
+    expect(carriedEscalations({ advisoryVerdict: "escalate" })).toBe(1);
+    expect(carriedEscalations({ escalations: 1, advisoryVerdict: "escalate" })).toBe(2);
+    // other advisory verdicts are not escalations
+    expect(carriedEscalations({ escalations: 1, advisoryVerdict: "remove" })).toBe(1);
+    expect(carriedEscalations({ advisoryVerdict: "keep" })).toBe(0);
+  });
+
+  it("treats a corrupt carried count as zero rather than propagating it", () => {
+    expect(carriedEscalations({ escalations: "3", escalated: true })).toBe(1);
+    expect(carriedEscalations({ escalations: -5 })).toBe(0);
+    expect(carriedEscalations({ escalations: 1.5, escalated: true })).toBe(1);
+    expect(carriedEscalations({ escalations: NaN })).toBe(0);
   });
 
   it("falls back to the bare takeId when the generation is unknown", () => {
