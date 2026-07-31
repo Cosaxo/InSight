@@ -340,9 +340,14 @@ Until then links open the fallback page — degraded, not broken.
   the opposite order — rule first, then payload.
 - **Storage bucket — confirm empty, then lock down.** `storage.rules` was
   configured in `firebase.json` and deployed by nothing; the deploy
-  workflow now applies it as its own step (watch that step's outcome — it
-  is `continue-on-error`, because `storage:rules` fails outright on a
-  project with no bucket provisioned). The only path it grants,
+  workflow applies it as its own step, and as of 2026-07-31 that step
+  **works and has released the rules** (deploy run 30644637683). It had
+  silently failed on every prior run — the step used `--only
+  storage:rules`, which names a nonexistent deploy target, and
+  `continue-on-error` (there for the no-bucket case) swallowed the error;
+  PR #51 fixed the flag to `--only storage`. The step stays
+  `continue-on-error`, so keep checking its log, not its checkmark, after
+  workflow changes. The only path the rules grant,
   `users/{uid}/dailyPhotos/`, backed the v1 daily-report photo backup,
   removed in D4. Before locking it to a catch-all deny:
   1. Check whether a bucket exists and whether it holds any objects

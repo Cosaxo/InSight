@@ -10,10 +10,21 @@ e2e-tested against the real functions emulator in CI
 refusal demanded by exact error code, and the advisory guarantee
 asserted from a member's own view. `buildModQueueNow` exists as the
 scheduled build's moderator-gated on-demand twin — the e2e's handle and
-the maintainer's manual rebuild lever. Still ahead: the client report
-control (needs a live takes surface), the low-privilege Routine, and
-the maintainer's answers to the open questions at the end. The policy
-and threat model below remain the contract.
+the maintainer's manual rebuild lever.
+
+**In production since 2026-07-31**: the substrate is deployed and the
+`MOD_UIDS` allowlist is set (production-environment variable, one uid —
+the maintainer's; see docs/DEPLOYMENT.md → Runtime environment). The
+gate went live in fail-safe order: the callables deployed first with the
+allowlist empty, denying everyone, and the uid was added by a second
+deploy once the e2e leg was green in CI. During the advisory phase the
+maintainer's own account holds the moderator credential; the dedicated
+low-privilege identity comes with the Routine (step 4 below).
+
+Still ahead: the client report control (needs a live takes surface),
+the low-privilege Routine, and the maintainer's answers to the open
+questions at the end. The policy and threat model below remain the
+contract.
 
 ## The job in one sentence
 
