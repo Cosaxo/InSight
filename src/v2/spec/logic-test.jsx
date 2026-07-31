@@ -345,6 +345,7 @@ import React from 'react';
     { id: 'compare', label: 'Compare' },
   ];
   function LogicOverlay({ onClose }) {
+    const dlg = useDialog(onClose, 'Logic test');
     const [result, setResult] = useState(loadResult);
     const [qi, setQi] = useState(result ? -1 : 0); // -1 = result screen
     const [marks, setMarks] = useState([]);
@@ -386,7 +387,7 @@ import React from 'react';
     const k = result ? result.marks.filter(Boolean).length : 0;
 
     return (
-      <div className="overlay surface-tint">
+      <div className="overlay surface-tint" {...dlg}>
         <div className="app-header">
           <button className="avatar-btn" onClick={onClose}>✕</button>
           <div className="h-title">Logic</div>

@@ -487,7 +487,7 @@ import React from 'react';
         edges: v.edges.map(e => ({ ...e, opacity: Math.min(0.7, e.opacity * 2.4), width: e.width + 0.5 })),
       };
       return (
-        <div onClick={this.props.onOpen} style={{ position: 'relative', width: '100%', height: '100%', background: P.canvas, overflow: 'hidden', cursor: 'pointer', borderRadius: 'inherit' }}>
+        <button type="button" className="btn-bare" onClick={this.props.onOpen} aria-label="Explore your relationship map" style={{ position: 'relative', width: '100%', height: '100%', background: P.canvas, overflow: 'hidden', cursor: 'pointer', borderRadius: 'inherit' }}>
           {this.graphSvg(cv, true)}
           {/* legend chips, compact */}
           <div style={{ position: 'absolute', left: 14, bottom: 12, right: 14, display: 'flex', flexWrap: 'wrap', gap: '5px 12px', pointerEvents: 'none' }}>
@@ -500,7 +500,7 @@ import React from 'react';
           <div style={{ position: 'absolute', top: 13, right: 15, display: 'flex', alignItems: 'center', gap: 6, fontFamily: "'Hanken Grotesk', sans-serif", fontSize: 11, fontWeight: 700, letterSpacing: '0.12em', color: P.faint, textTransform: 'uppercase', pointerEvents: 'none' }}>
             Explore <span style={{ fontSize: 13 }}>↗</span>
           </div>
-        </div>
+        </button>
       );
     }
 
@@ -632,7 +632,10 @@ import React from 'react';
             {v.editable && st.editing && (st.adding ? (
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 2 }}>
                 <input value={st.newLabel} onChange={(e) => this.setState({ newLabel: e.target.value })}
-                  onKeyDown={(e) => { if (e.key === 'Enter') this.confirmAdd(); else if (e.key === 'Escape') this.cancelAdd(); }}
+                  // stopPropagation on Escape: this field sits inside the
+                  // relmap dialog, whose Escape closes the whole overlay.
+                  // Cancelling the rename should not also close the map.
+                  onKeyDown={(e) => { if (e.key === 'Enter') this.confirmAdd(); else if (e.key === 'Escape') { e.stopPropagation(); this.cancelAdd(); } }}
                   placeholder="Circle name…" style={{ ...inputStyle, width: 116 }} autoFocus />
                 <button onClick={(e) => { e.stopPropagation(); this.confirmAdd(); }} style={{ border: 'none', background: P.ink, color: P.canvas, cursor: 'pointer', padding: '8px 13px', borderRadius: 8, fontFamily: SANS, fontSize: 13, fontWeight: 600 }}>Add</button>
                 <button onClick={(e) => { e.stopPropagation(); this.cancelAdd(); }} title="Cancel" style={{ border: 'none', background: P.chipBg2, color: P.ink2, cursor: 'pointer', width: 31, height: 31, borderRadius: 8, fontSize: 16, lineHeight: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>×</button>
@@ -670,8 +673,9 @@ import React from 'react';
 
   // ── overlay shell — full-bleed warm canvas with a floating close ──
   function RelationshipMapOverlay({ onClose }) {
+    const dlg = useDialog(onClose, 'Your relationship map');
     return (
-      <div className="overlay" style={{ background: 'oklch(0.985 0.002 255)' }}>
+      <div className="overlay" {...dlg} style={{ background: 'oklch(0.985 0.002 255)' }}>
         <RelationshipMap onClose={onClose} />
       </div>
     );

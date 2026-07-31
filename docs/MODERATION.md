@@ -13,10 +13,22 @@ scheduled build's moderator-gated on-demand twin — the e2e's handle and
 the maintainer's manual rebuild lever. The verdict log is keyed per
 (take, queue generation); keyed by take alone it doubled as a lock that
 never released, and the daily re-judgement the ladder is made of stopped
-after the first verdict (see D22's amendment). Still ahead: the client report
-control (needs a live takes surface), the low-privilege Routine, and
-the maintainer's answers to the open questions at the end. The policy
-and threat model below remain the contract.
+after the first verdict (see D22's amendments, which also cover the
+escalation the wholesale rebuild used to eat).
+
+**In production since 2026-07-31**: the substrate is deployed and the
+`MOD_UIDS` allowlist is set (production-environment variable, one uid —
+the maintainer's; see docs/DEPLOYMENT.md → Runtime environment). The
+gate went live in fail-safe order: the callables deployed first with the
+allowlist empty, denying everyone, and the uid was added by a second
+deploy once the e2e leg was green in CI. During the advisory phase the
+maintainer's own account holds the moderator credential; the dedicated
+low-privilege identity comes with the Routine (step 4 below).
+
+Still ahead: the client report control (needs a live takes surface),
+the low-privilege Routine, and the maintainer's answers to the open
+questions at the end. The policy and threat model below remain the
+contract.
 
 ## The job in one sentence
 

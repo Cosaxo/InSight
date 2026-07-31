@@ -586,14 +586,12 @@ class DailySplit extends React.Component {
       })();
     const sheetHost = typeof document !== 'undefined' ? document.querySelector('.app') : null;
     const sheetNode = (voted && st.tab && sheetHost) ? ReactDOM.createPortal(
-      h('div', { className: 'wf-scrim' + (this.state.sheetClosing ? ' is-closing' : ''), onClick: closeSheet },
-        h('div', { className: 'wf-sheet', onClick: (e) => e.stopPropagation() },
-          h('div', { className: 'wf-sheet-grab' }),
+      h(Sheet, { onClose: closeSheet, closing: this.state.sheetClosing, label: isComments ? 'Comments' : 'Who voted' },
           h('div', { style: { padding: '10px 18px 8px', display: 'flex', alignItems: 'baseline', gap: 10 } },
             h('span', { style: { fontFamily: BRIC, fontWeight: 800, fontSize: 15, flexShrink: 0 } }, isComments ? 'Comments' : 'Who voted'),
             h('span', { style: { fontWeight: 600, fontSize: 12, color: 'var(--ink-3)', flex: 1, minWidth: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' } }, S.text),
             h('button', { onClick: closeSheet, 'aria-label': 'Close', style: { border: 'none', background: 'var(--surface-2)', width: 26, height: 26, borderRadius: '50%', cursor: 'pointer', fontSize: 13, fontWeight: 800, color: 'var(--ink-2)', flexShrink: 0, WebkitAppearance: 'none' } }, '\u2715')),
-          h('div', { className: 'wf-sheet-body' }, isComments ? commentsBody : statsBody))), sheetHost) : null;
+          h('div', { className: 'wf-sheet-body' }, isComments ? commentsBody : statsBody)), sheetHost) : null;
 
     // ── the daily, in its own container — one strong card, feed after ──
     // quiet per-topic tint — today's question carries its topic's hue, barely

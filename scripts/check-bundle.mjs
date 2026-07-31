@@ -20,7 +20,7 @@ const ASSETS = join(root, "dist", "assets");
 // piece, and this comment used to say check-spec-globals required that —
 // it does not. Rule 2 substring-matches the './spec/…' strings in
 // spec-index.js, which a dynamic import satisfies exactly as a static one
-// does, so the file can defer a module and still account for it (D23).
+// does, so the file can defer a module and still account for it (D25).
 //
 // The world feed is the first module group to use that: ~85 KB that first
 // paint does not need. MAX_CHUNK_KB came down from 1024 with it, which is

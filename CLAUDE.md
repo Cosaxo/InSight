@@ -31,7 +31,7 @@ const [t, setTweak] = useTweaks(TWEAK_DEFAULTS);
 `src/v2/spec-index.js` imports every module for side effects, and **the
 order is semantic** — later modules read globals set by earlier ones.
 Never sort it, never drop an entry. Four of them are deferred past first
-paint via `loadWorldFeed()` (D23) — still listed, still in order, just
+paint via `loadWorldFeed()` (D25) — still listed, still in order, just
 awaited in sequence instead of imported at the top.
 
 This is deliberate and temporary (see `src/v2/README.md`), but it is

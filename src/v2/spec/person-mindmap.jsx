@@ -557,9 +557,11 @@ function PersonMindMap({ p, following, centerName }) {
           </svg>
 
           {/* centre — them */}
-          <div
+          <button
+            type="button"
             className="mmt-node mmt-center"
             style={{ transform: `translate(0px, 0px) translate(-50%, -50%) scale(${centerScale})` }}
+            aria-label={`${centerName || 'Them'} — their map, clear the selection`}
             onClick={(e) => { e.stopPropagation(); clearSel(); }}
           >
             <div className="mmt-halo" aria-hidden="true"></div>
@@ -567,7 +569,7 @@ function PersonMindMap({ p, following, centerName }) {
               <span className="mmt-center-name">{centerName || 'Them'}</span>
               <span className="mmt-center-sub">their map</span>
             </div>
-          </div>
+          </button>
 
           {/* branch hubs */}
           {CATS.map((c) => {
@@ -576,16 +578,22 @@ function PersonMindMap({ p, following, centerName }) {
             const hubSz = 13 + Math.min(counts[c.id] || 0, 10) * 1.6;
             const dim = hlCat && hlCat !== c.id;
             return (
-              <div
+              <button
+                type="button"
                 key={c.id}
                 className={'mmt-node mmt-hub' + (sel === c.id ? ' is-sel' : '') + (dim ? ' is-dim' : '')}
                 data-screen-label={c.label}
                 style={{ '--hue': c.hue, transform: `translate(${pt.x}px, ${pt.y}px) translate(-50%, -50%) scale(${catScale})` }}
+                // .is-dim is pointer-events:none — see map-tab.jsx.
+                tabIndex={dim ? -1 : undefined}
+                aria-hidden={dim || undefined}
+                aria-pressed={sel === c.id}
+                aria-label={c.label}
                 onClick={(e) => { e.stopPropagation(); sel === c.id ? clearSel() : selectCat(c.id); }}
               >
                 <span className="mmt-hub-dot" style={{ width: hubSz, height: hubSz }}></span>
                 <span className="mmt-hub-label" style={{ fontSize: hubFs }}>{c.label}</span>
-              </div>
+              </button>
             );
           })}
 
@@ -600,7 +608,8 @@ function PersonMindMap({ p, following, centerName }) {
             const labL = (pt.x * view.z + view.x) > (ref.current ? ref.current.clientWidth : 480) / 2;
             const dim = !inHl(n);
             return (
-              <div
+              <button
+                type="button"
                 key={n.id}
                 className={'mmt-node mmt-dotnode' + (n.sub ? ' is-leaf' : '') + (sel === n.id ? ' is-sel' : '') + (showLab ? ' is-showlab' : '') + (dim ? ' is-dim' : '') + (labL ? ' is-labL' : '') + (n.daily && !n.maj ? ' is-rare' : '')}
                 style={{
@@ -611,11 +620,18 @@ function PersonMindMap({ p, following, centerName }) {
                   transform: `translate(${pt.x}px, ${pt.y}px) translate(-50%, -50%) scale(${itemScale})`,
                 }}
                 title={isHid ? undefined : n.label}
+                // Hidden and dimmed dots already opt out of pointer events;
+                // keep them out of the tab order too, or the map traps a
+                // keyboard user on targets they cannot see.
+                tabIndex={isHid || dim ? -1 : undefined}
+                aria-hidden={isHid || dim || undefined}
+                aria-pressed={sel === n.id}
+                aria-label={n.label}
                 onClick={(e) => { e.stopPropagation(); selectNode(n); }}
               >
                 <span className="mmt-ddot"></span>
                 <span className="mmt-dlab" style={{ fontSize: n.sub ? dotFs * 0.9 : dotFs }}>{n.tag || n.label}</span>
-              </div>
+              </button>
             );
           })}
         </div>

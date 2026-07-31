@@ -174,6 +174,110 @@ function MatchRing({ pct, color = 'var(--accent)', size = 50, thick = 2.4, child
   );
 }
 Object.assign(window, { MatchRing });
+
+// ── Modal dialogs ────────────────────────────────────────────────────
+// Until 2026-07-31 every overlay and bottom sheet here was a bare <div>:
+// no role, no aria-modal, no Escape, no focus trap, no focus restore.
+// Exactly one dialog existed in the whole spec layer — app-shell's update
+// gate. The two helpers below are the fix, and they live in primitives
+// because spec-index loads this module (18) before every consumer: the
+// earliest sheet is type-marks (28) and app-shell is last (88).
+//
+// `useDialog` is for the eight full-screen overlays, which each own a
+// top-level `.overlay` div. `Sheet` is for the seven wf-scrim/wf-sheet
+// bottom sheets, whose markup is identical enough to be one component.
+
+// What the trap treats as a Tab stop. Deliberately excludes
+// [tabindex="-1"]: the dialog container itself carries that so it can be
+// focused programmatically when it holds no controls, and it must never
+// become a Tab stop of its own.
+const DIALOG_FOCUSABLE = [
+  'a[href]', 'button:not([disabled])', 'input:not([disabled])',
+  'select:not([disabled])', 'textarea:not([disabled])',
+  '[tabindex]:not([tabindex="-1"])',
+].join(',');
+
+// Returns the props a dialog container needs. Spread it onto the element
+// that IS the dialog — one line per overlay:
+//     const dlg = useDialog(onClose, 'Profile');
+//     <div className="overlay" {...dlg}> …
+function useDialog(onClose, label) {
+  const ref = useRef(null);
+
+  useEffect(() => {
+    const node = ref.current;
+    if (!node) return undefined;
+    // Who opened us. Handing focus back on close is the difference between
+    // a screen reader resuming where the user was and restarting the page.
+    const opener = document.activeElement;
+    // Focus something inside, or the container itself — that fallback is
+    // the reason for tabIndex={-1} below.
+    const first = node.querySelector(DIALOG_FOCUSABLE);
+    (first || node).focus({ preventScroll: true });
+    return () => {
+      // document.contains: the opener may itself have been unmounted while
+      // the dialog was up (closing a group from inside its own sheet), and
+      // focusing a detached node silently sends focus to <body>.
+      if (opener && typeof opener.focus === 'function' && document.contains(opener)) {
+        opener.focus({ preventScroll: true });
+      }
+    };
+  }, []);
+
+  const onKeyDown = (e) => {
+    if (e.key === 'Escape') {
+      // Reaching here means nothing smaller consumed it. Inner controls
+      // with their own Escape meaning (the city/pick dropdowns, relmap's
+      // rename field) stopPropagation when they handle it, so this does
+      // not close the overlay out from under them.
+      e.stopPropagation();
+      onClose();
+      return;
+    }
+    if (e.key !== 'Tab' || !ref.current) return;
+    const items = [...ref.current.querySelectorAll(DIALOG_FOCUSABLE)];
+    // No visibility filter on purpose. The obvious one — offsetParent !==
+    // null — is null for position:fixed elements in a real browser AND for
+    // everything in jsdom, so it would empty the cycle in exactly the two
+    // places this runs. This layer hides things by not rendering them, so
+    // a detached-but-focusable control is not a case that arises.
+    if (!items.length) { e.preventDefault(); return; }
+    const first = items[0];
+    const last = items[items.length - 1];
+    if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+    else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+  };
+
+  return { ref, role: 'dialog', 'aria-modal': 'true', 'aria-label': label, tabIndex: -1, onKeyDown };
+}
+
+// The bottom-sheet pattern: scrim + sheet + grab handle, with the dialog
+// semantics already attached. `children` land inside the sheet.
+function Sheet({ onClose, closing, label, children }) {
+  const dlg = useDialog(onClose, label);
+  return (
+    <div
+      className={'wf-scrim' + (closing ? ' is-closing' : '')}
+      // The backdrop dismisses on click, but it is NOT a control: the
+      // sheet's own Close button and Escape are the real paths, and giving
+      // this a button role would announce a duplicate of both. presentation
+      // says what it is — decoration with a mouse convenience attached.
+      role="presentation"
+      // Target check rather than the stopPropagation handler the sheet used
+      // to carry. That handler existed only to stop this one, and it was
+      // itself a div-with-onClick the a11y gate counted. One test here
+      // removes both.
+      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+    >
+      <div className="wf-sheet" {...dlg}>
+        <div className="wf-sheet-grab"></div>
+        {children}
+      </div>
+    </div>
+  );
+}
+Object.assign(window, { useDialog, Sheet, DIALOG_FOCUSABLE });
+
 ;globalThis.Av = typeof Av === 'undefined' ? globalThis.Av : Av;
 ;globalThis.AnonAv = typeof AnonAv === 'undefined' ? globalThis.AnonAv : AnonAv;
 ;globalThis.anonName = typeof anonName === 'undefined' ? globalThis.anonName : anonName;

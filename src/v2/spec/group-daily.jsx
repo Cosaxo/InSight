@@ -153,9 +153,7 @@ import ReactDOM from 'react-dom';
       </div>
     );
     const manageSheet = mg && document.querySelector('.app') && ReactDOM.createPortal(
-      <div className={'wf-scrim' + (mgClosing ? ' is-closing' : '')} onClick={closeMg}>
-        <div className="wf-sheet" onClick={(e) => e.stopPropagation()}>
-          <div className="wf-sheet-grab"></div>
+      <Sheet onClose={closeMg} closing={mgClosing} label={g.name}>
           <div style={{ padding: '10px 18px 8px', display: 'flex', alignItems: 'baseline', gap: 10 }}>
             <span style={{ fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 15, flexShrink: 0 }}>{g.name}</span>
             <span style={{ fontWeight: 600, fontSize: 12, color: 'var(--ink-3)', flex: 1 }}>{g.members.length + 1} members</span>
@@ -199,8 +197,7 @@ import ReactDOM from 'react-dom';
               )}
             </div>
           </div>
-        </div>
-      </div>, document.querySelector('.app'));
+      </Sheet>, document.querySelector('.app'));
 
     let body;
     if (day > 0) {
@@ -389,9 +386,7 @@ import ReactDOM from 'react-dom';
           })}
         </div>
         {addOpen && document.querySelector('.app') && ReactDOM.createPortal(
-          <div className={'wf-scrim' + (closing ? ' is-closing' : '')} onClick={closeAdd}>
-            <div className="wf-sheet" onClick={(e) => e.stopPropagation()}>
-              <div className="wf-sheet-grab"></div>
+          <Sheet onClose={closeAdd} closing={closing} label="New group">
               <div style={{ padding: '10px 18px 8px', display: 'flex', alignItems: 'baseline', gap: 10 }}>
                 <span style={{ fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 15, flexShrink: 0 }}>New group</span>
                 <span style={{ fontWeight: 600, fontSize: 12, color: 'var(--ink-3)', flex: 1 }}>one question a day, revealed with names</span>
@@ -424,8 +419,7 @@ import ReactDOM from 'react-dom';
                   {canCreate ? 'Create · invites go out now' : sel.length < 2 ? 'Pick at least 2 people' : 'Name your group'}
                 </button>
               </div>
-            </div>
-          </div>, document.querySelector('.app'))}
+          </Sheet>, document.querySelector('.app'))}
       </div>
     );
   }

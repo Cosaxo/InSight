@@ -35,6 +35,7 @@ function SrchHit({ glyph, title, sub, q, onClick }) {
 }
 
 function SearchOverlay({ onClose, onPerson }) {
+  const dlg = useDialog(onClose, 'Search');
   const [q, setQ] = useSrchState('');
   const ref = useSrchRef(null);
   useSrchEffect(() => { const t = setTimeout(() => ref.current && ref.current.focus(), 80); return () => clearTimeout(t); }, []);
@@ -53,7 +54,7 @@ function SearchOverlay({ onClose, onPerson }) {
   const go = (fn) => { onClose(); fn(); };
 
   return (
-    <div className="overlay" style={{ fontFamily: 'var(--sans)' }}>
+    <div className="overlay" {...dlg} style={{ fontFamily: 'var(--sans)' }}>
       <div className="search-head">
         <div className="search-field">
           <span style={{ color: 'var(--ink-3)', display: 'flex' }}>

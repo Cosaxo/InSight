@@ -605,6 +605,17 @@
   position: relative;
   box-shadow: var(--shadow-card);
 }
+/* A <button class="card"> needs the UA chrome stripped, but NOT via
+   .btn-bare: that rule lives ~300 lines further down, so on equal (single
+   class) specificity it would win the cascade and take .card's own
+   background, border and padding with it — a card with a box-shadow and no
+   surface. Reset here instead, where .card is still in scope. */
+button.card {
+  appearance: none; -webkit-appearance: none;
+  font: inherit; color: inherit; text-align: inherit;
+  width: 100%; cursor: pointer;
+}
+
 /* Clickable cards & card-buttons get a gentle tactile lift */
 button.card,
 .card[role="button"],
@@ -906,6 +917,23 @@ button.card:active,
 [data-lens-style="chips"] .mm-lensbtn.is-on::before { opacity: 1; }
 .app.dark [data-lens-style="chips"] .mm-lensbtn::before, .app.dark[data-lens-style="chips"] .mm-lensbtn::before { background: oklch(0.72 0.11 var(--lh)); }
 .app.dark[data-lens-style="chips"] .mm-lensbtn.is-on, .app.dark [data-lens-style="chips"] .mm-lensbtn.is-on { color: oklch(0.8 0.09 var(--lh)); }
+
+/* Bare button — strips the UA chrome so a <button> lays out like the <div>
+   it replaced. For the many spec-layer rows, tiles and chips that were
+   div+onClick: those are unreachable without a mouse, and a <button> is the
+   only thing that gets Enter/Space, focus and a role for free.
+   Inline `style` on the element still wins, so a site keeping its own
+   padding/border just sets it as before. */
+.btn-bare {
+  appearance: none; -webkit-appearance: none;
+  border: 0; padding: 0; margin: 0; background: none;
+  font: inherit; color: inherit; text-align: inherit;
+  cursor: pointer;
+}
+/* Deliberately NO width here. A flex/grid child stretches on its own, and
+   forcing 100% would break the absolutely-positioned sites (a chip centred
+   with left:% + translate(-50%) becomes a full-width box). Sites that need
+   it in a plain block context set width themselves — cf. .mmt-astat-row. */
 
 /* Universal tactile press feedback */
 .press { transition: transform 0.22s var(--ease-spring); }
@@ -1229,8 +1257,19 @@ button.card:active,
 .mmt-field { display: none; }
 .mmt-field.is-dim { opacity: 0.12; }
 
-/* nodes */
-.mmt-node { position: absolute; left: 0; top: 0; cursor: pointer; user-select: none; -webkit-user-select: none; }
+/* nodes.
+   These are <button>, not <div>: selecting a node is a real action, and a
+   div with onClick is unreachable without a mouse. The reset below is what
+   makes a button look like the plain positioned box the map layout assumes
+   — same idiom as .mmt-astat-row further down, which was converted first.
+   Keep `position: absolute` after `appearance: none`; the shorthand reset
+   must not win over the layout the transform math depends on. */
+.mmt-node {
+  appearance: none; -webkit-appearance: none; border: 0; padding: 0;
+  background: none; font: inherit; color: inherit; text-align: inherit;
+  position: absolute; left: 0; top: 0; cursor: pointer;
+  user-select: none; -webkit-user-select: none;
+}
 .mmt-node.is-dim { opacity: 0.13; pointer-events: none; }
 /* the ring holds the stage — the outer map steps far back while You / an anchor is open */
 .mmt-root.is-ringstage .mmt-hub, .mmt-root.is-ringstage .mmt-dotnode { opacity: 0.14; }

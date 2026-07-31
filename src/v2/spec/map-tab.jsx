@@ -616,16 +616,18 @@ function MapTab({ rail = true, anchorsOn = true, recency = true, fields: fieldsO
           {anchorsOn ? (
             <div className={'mmt-ringline' + (ringRecede ? ' is-recede' : '') + (ringOpen ? '' : ' is-closed')} style={{ width: AR * 2, height: AR * 2, transform: `translate(-50%, -50%) scale(${ringOpen ? 1 : 0.3})` }} aria-hidden="true"></div>
           ) : null}
-          <div
+          <button
+            type="button"
             className={'mmt-node mmt-center' + (sel === 'root' ? ' is-sel' : '') + (selAnchor || ringRecede ? ' is-recede' : '') + (ringOpen ? '' : ' is-solo')}
             style={{ transform: `translate(0px, 0px) translate(-50%, -50%) scale(${centerScale})` }}
+            aria-label="You — centre the map on your own anchors"
             onClick={(e) => { e.stopPropagation(); setSel('root'); setHlCat(null); fitTo(['root', ...anchors.map((a) => 'ax-' + a.id)], 0.85); }}
           >
             <div className="mmt-halo" aria-hidden="true"></div>
             <div className="mmt-center-disc">
               <span className="mmt-center-name">You</span>
             </div>
-          </div>
+          </button>
           {anchorsOn ? anchors.map((a) => {
             const p = pos['ax-' + a.id];
             if (!p) return null;
@@ -635,11 +637,14 @@ function MapTab({ rail = true, anchorsOn = true, recency = true, fields: fieldsO
             const lab = showALab || isSel || sel === 'root' || !!selNode;
             const rk = ringOpen ? 1 : 0.12; // closed ring folds into the You dot
             return (
-              <div
+              <button
+                type="button"
                 key={a.id}
                 className={'mmt-node mmt-anchor' + (isSel ? ' is-sel' : '') + (soft ? ' is-soft' : '') + (lab ? '' : ' is-nolab') + (isFilter ? ' is-pulse' : '') + (ringOpen ? '' : ' is-closed')}
                 data-screen-label={'anchor-' + a.id}
                 style={{ '--hue': a.hue, transform: `translate(${p.x * rk}px, ${p.y * rk}px) translate(-50%, -50%) scale(${aScale})` }}
+                aria-pressed={!!isSel}
+                aria-label={a.label}
                 onClick={(e) => {
                   e.stopPropagation();
                   if (isSel) clearSel();
@@ -648,7 +653,7 @@ function MapTab({ rail = true, anchorsOn = true, recency = true, fields: fieldsO
               >
                 <span className="mmt-anchor-dot"></span>
                 <span className="mmt-anchor-label" style={{ fontSize: aFs }}>{a.label}</span>
-              </div>
+              </button>
             );
           }) : null}
 
@@ -661,17 +666,26 @@ function MapTab({ rail = true, anchorsOn = true, recency = true, fields: fieldsO
             const hubSz = 13 + Math.min(cnt, 12) * 1.5;
             // branch names always on — the map should read at a glance
             const hubLab = true;
+            const hubDim = !!(hlSet && !hlSet.has(c.id));
             return (
-              <div
+              <button
+                type="button"
                 key={c.id}
-                className={'mmt-node mmt-hub' + (isSel ? ' is-sel' : '') + (hlSet && !hlSet.has(c.id) ? ' is-dim' : '') + (hubLab ? '' : ' is-nolab')}
+                className={'mmt-node mmt-hub' + (isSel ? ' is-sel' : '') + (hubDim ? ' is-dim' : '') + (hubLab ? '' : ' is-nolab')}
                 data-screen-label={c.label}
                 style={{ '--hue': c.hue, transform: `translate(${p.x}px, ${p.y}px) translate(-50%, -50%) scale(${catScale})` }}
+                // .is-dim is pointer-events:none, so a dimmed hub is already
+                // dead to a mouse. As a <button> it would still take tab focus
+                // — keyboard users would land on targets nobody can click.
+                tabIndex={hubDim ? -1 : undefined}
+                aria-hidden={hubDim || undefined}
+                aria-pressed={!!isSel}
+                aria-label={c.label}
                 onClick={(e) => { e.stopPropagation(); selectCat(c.id); }}
               >
                 <span className="mmt-hub-dot" style={{ width: hubSz, height: hubSz }}></span>
                 <span className="mmt-hub-label" style={{ fontSize: hubFs }}>{c.label}</span>
-              </div>
+              </button>
             );
           })}
 
@@ -691,7 +705,8 @@ function MapTab({ rail = true, anchorsOn = true, recency = true, fields: fieldsO
             const showLab = labKeep.has(n.id);
             const labL = (p.x * view.z + view.x) > (ref.current ? ref.current.clientWidth : 480) / 2;
             return (
-              <div
+              <button
+                type="button"
                 key={n.id}
                 className={'mmt-node mmt-dotnode' + (n.sub ? ' is-leaf' : '') + (n.person ? ' is-person' : '') + (sel === n.id ? ' is-sel' : '')
                   + (showLab ? ' is-showlab' : '') + (dim ? ' is-dim' : '') + (off ? ' is-off' : '') + (labL ? ' is-labL' : '')
@@ -702,13 +717,20 @@ function MapTab({ rail = true, anchorsOn = true, recency = true, fields: fieldsO
                   transform: `translate(${p.x}px, ${p.y}px) translate(-50%, -50%) scale(${itemScale})`,
                 }}
                 title={n.label}
+                // .is-dim and .is-off are both pointer-events:none, and
+                // .is-off is opacity:0 — a focusable invisible target is the
+                // worst version of this, so keep both out of the tab order.
+                tabIndex={dim || off ? -1 : undefined}
+                aria-hidden={dim || off || undefined}
+                aria-pressed={sel === n.id}
+                aria-label={n.label}
                 onClick={(e) => { e.stopPropagation(); selectItem(n.id); }}
               >
                 {n.person
                   ? <span className="mmt-pdot" style={{ '--deg': Math.round((n.score || 0) * 360) + 'deg' }}></span>
                   : <span className="mmt-ddot"></span>}
                 <span className="mmt-dlab" style={{ fontSize: n.sub ? dotFs * 0.9 : dotFs }}>{n.daily ? n.tag : n.label}</span>
-              </div>
+              </button>
             );
           })}
         </div>

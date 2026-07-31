@@ -110,16 +110,24 @@ jobs:
           FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
         run: printf '%s' "$FIREBASE_SERVICE_ACCOUNT" > "$RUNNER_TEMP/sa-key.json"
 
-      # Separate from the main apply on purpose: storage:rules fails if the
-      # project has no Storage bucket provisioned, and that must not abort
+      # Separate from the main apply on purpose: the storage deploy fails if
+      # the project has no Storage bucket provisioned, and that must not abort
       # the Firestore-rules + functions deploy. `continue-on-error` keeps a
       # missing bucket from failing the run while still surfacing it in the
       # job summary — check this step before assuming storage.rules is live.
+      #
+      # `--only storage`, NOT `--only storage:rules`: in firebase-tools the
+      # colon form names a deploy *target* (the multi-bucket feature), so with
+      # this repo's plain single-bucket config it errors with "Could not find
+      # rules for the following storage targets: rules". That exact failure
+      # ran silently under continue-on-error on every deploy until run
+      # 30643945632's log was audited — storage.rules had never actually
+      # shipped from here.
       - name: Deploy storage rules
         continue-on-error: true
         env:
           GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/sa-key.json
-        run: npx firebase deploy --project prvfire33 --non-interactive --only "storage:rules"
+        run: npx firebase deploy --project prvfire33 --non-interactive --only "storage"
 
       # --force is required for non-interactive deploys of retry-enabled
       # triggers (docs/DEPLOYMENT.md).
