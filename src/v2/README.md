@@ -200,11 +200,15 @@ It is separate from `npm run lint` because that script carries
 "warn" tier to hold existing debt, and the alternative would be the blanket
 disable this file's Lint suppressions section exists to prevent.
 
-The baseline is **69**: 67 in `spec/`, plus two deliberate `autoFocus` keeps
-on picker search fields. The `spec/` findings are deferred for the same
-reason as the React Compiler ones — adding key handlers and focus behaviour
-to ported components no test asserts the interaction of is the blind change
-that trade refuses. Fix them behind interaction tests, not ahead of them.
+The baseline is **19**: 17 in `spec/`, plus two deliberate `autoFocus` keeps
+on picker search fields. It opened at 69 and came down in two steps — D23
+turned the mouse-only controls into buttons, D24 made every overlay and
+sheet a real modal dialog. What is left is mostly `profile-general`'s
+form-markup findings. The remaining `spec/` findings are deferred for the
+same reason as the React Compiler ones — adding key handlers and focus
+behaviour to ported components no test asserts the interaction of is the
+blind change that trade refuses. Fix them behind interaction tests, not
+ahead of them.
 
 Per file, not a total, so a fix in one file cannot pay for a regression in
 another. Lowering it is the script's own output: fix something, run it, and

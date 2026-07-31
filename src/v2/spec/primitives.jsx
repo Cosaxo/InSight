@@ -52,12 +52,6 @@ function anonFirst(p) {
   return (p.name || 'they').split(' ')[0];
 }
 
-function Bar({ value, max = 100, color = "var(--ink)" }) {
-  return (
-    <div className="bar"><i style={{ width: `${Math.min(100, (value / max) * 100)}%`, background: color }} /></div>
-  );
-}
-
 function Kicker({ children }) { return <div className="kicker">{children}</div>; }
 
 // Chapter divider — groups a tab's cards into a clear section: a quiet rule + bold title.
@@ -79,43 +73,7 @@ function TabSection({ title, sub, art }) {
   );
 }
 
-// Interests as a quiet prose run — the journal voice, not data chips.
-// items: strings or {t, c}. markHue(item) → hue to underline an emphasized item.
-function InterestRun({ items, size = 12.5, color = 'var(--ink-2)', dotColor = 'var(--ink-3)', markHue, style }) {
-  return (
-    <span style={{
-      fontFamily: 'var(--serif)', fontStyle: 'var(--voice-italic)',
-      fontSize: size, color, lineHeight: 1.55, letterSpacing: '0.005em',
-      ...style,
-    }}>
-      {(items || []).map((it, i) => {
-        const t = typeof it === 'string' ? it : it.t;
-        const hue = markHue ? markHue(it) : null;
-        return (
-          <React.Fragment key={i}>
-            {i > 0 && <span style={{ color: dotColor, fontStyle: 'normal' }}>{' · '}</span>}
-            <span style={{
-              whiteSpace: 'nowrap',
-              ...(hue != null ? {
-                textDecorationLine: 'underline',
-                textDecorationColor: `oklch(0.72 0.11 ${hue})`,
-                textDecorationThickness: 1, textUnderlineOffset: 3,
-              } : null),
-            }}>{t}</span>
-          </React.Fragment>
-        );
-      })}
-    </span>
-  );
-}
-
-function Pill({ active, color = "ink", children, onClick }) {
-  return (
-    <button className={"pill " + color + (active ? " is-on" : "")} onClick={onClick}>{children}</button>
-  );
-}
-
-Object.assign(window, { Av, AnonAv, anonName, anonFirst, Bar, Kicker, TabSection, Pill, InterestRun, Lazy });
+Object.assign(window, { Av, AnonAv, anonName, anonFirst, Kicker, TabSection, Lazy });
 
 // Defer-mount a heavy section until it nears the viewport, so a tab's initial
 // paint stays light (and the DOM stays small enough to screenshot). Reserves
@@ -282,10 +240,7 @@ Object.assign(window, { useDialog, Sheet, DIALOG_FOCUSABLE });
 ;globalThis.AnonAv = typeof AnonAv === 'undefined' ? globalThis.AnonAv : AnonAv;
 ;globalThis.anonName = typeof anonName === 'undefined' ? globalThis.anonName : anonName;
 ;globalThis.anonFirst = typeof anonFirst === 'undefined' ? globalThis.anonFirst : anonFirst;
-;globalThis.Bar = typeof Bar === 'undefined' ? globalThis.Bar : Bar;
 ;globalThis.Kicker = typeof Kicker === 'undefined' ? globalThis.Kicker : Kicker;
 ;globalThis.TabSection = typeof TabSection === 'undefined' ? globalThis.TabSection : TabSection;
-;globalThis.InterestRun = typeof InterestRun === 'undefined' ? globalThis.InterestRun : InterestRun;
-;globalThis.Pill = typeof Pill === 'undefined' ? globalThis.Pill : Pill;
 ;globalThis.Lazy = typeof Lazy === 'undefined' ? globalThis.Lazy : Lazy;
 ;globalThis.MatchRing = typeof MatchRing === 'undefined' ? globalThis.MatchRing : MatchRing;

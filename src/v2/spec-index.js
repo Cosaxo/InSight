@@ -16,7 +16,6 @@ import './spec/duels-data.js';
 import './spec/iOS.jsx';
 import './spec/tweaks-panel.jsx';
 import './spec/primitives.jsx';
-import './spec/feeds.jsx';
 import './spec/viz-primitives.jsx';
 import './spec/compare-breakdown.jsx';
 import './spec/relmap-core.js';
