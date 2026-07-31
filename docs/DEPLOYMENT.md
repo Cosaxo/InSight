@@ -13,6 +13,16 @@ Backend deploys are automated. Any push to `main` that changes
 `functions/**`, `firestore.rules`, or the workflow file deploys to the
 Firebase project `prvfire33`. Routine backend changes need no manual deploy.
 
+> **`prvfire33` is the only project, so merging to `main` IS deploying to
+> production.** There is no staging environment; the sole gate is
+> `backend-checks`. That is deliberate and recorded in
+> [D25](./DECISIONS.md#d25--there-is-one-firebase-project-and-merging-to-main-is-what-deploys-it),
+> along with what an emulator gate structurally cannot catch (cold-start
+> module loads, IAM, async index builds, `onSchedule` triggers) and the two
+> changes that would fix it, cheapest first. Worth knowing before you merge
+> a PR that touches `functions/**` — see "Planned: manual production
+> deploys, then a staging project" below.
+
 ## Pipeline
 
 - **Workflow:** `.github/workflows/firebase-deploy.yml`
@@ -210,6 +220,32 @@ signal reaches anyone.
 The repo was consolidated to a single default branch, **`main`**, holding the
 full app, the backend, and the CI workflow. Earlier scratch branches (the
 temporary `main` and `project-startup-analysis`) were merged in and removed.
+
+## Planned: manual production deploys, then a staging project
+
+Full reasoning and the revisit trigger are in
+[D25](./DECISIONS.md#d25--there-is-one-firebase-project-and-merging-to-main-is-what-deploys-it).
+Two separable changes, in this order — the first is most of the value:
+
+1. **Stop deploying on merge.** In `firebase-deploy.yml`, drop the
+   `push: branches: [main]` trigger and keep `workflow_dispatch`. Merging
+   becomes merging; deploying becomes a decision. No new project, no new
+   secrets. The `environment: production` block already exists so required
+   reviewers or a wait timer can be added without touching the file.
+2. **Add a staging project** once there are users to protect. A second
+   Firebase project deployed on merge, with production behind the manual
+   trigger from step 1. What it needs:
+   - a Firebase project (free tier is enough for staging);
+   - a second service-account secret and a `staging` GitHub environment,
+     with its own `SEED_ADMIN_UIDS` / `MOD_UIDS` — **not** production's;
+   - parameterising the project id: `--project prvfire33` is currently
+     hardcoded in all three deploy steps (storage rules, rules + functions,
+     hosting);
+   - one `seedContentV2` call against it to fill the question bank.
+
+   No change is needed to the runtime-env plumbing: the deploy already
+   writes `functions/.env.<projectId>`, which is why the section above says
+   a future non-prod project must not inherit production operator uids.
 
 ## Planned: Workload Identity Federation (drop the long-lived key)
 

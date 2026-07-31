@@ -1932,3 +1932,79 @@ layout.
 remaining 3 click/interaction findings are single sites in
 `consequence-beat` and `tweaks-panel`. The rest are the `autoFocus` keeps
 recorded in D21. The count only moves down.
+
+---
+
+## D25 · There is one Firebase project, and merging to `main` is what deploys it
+
+**Decided:** 2026-07-31 · **Status:** binding (revisit before public launch)
+
+**Decision.** `prvfire33` stays the only Firebase project, and the automatic
+push-to-`main` deploy stays. No staging project is built now. Recorded
+because the shape of it surprises people — including, on 2026-07-31, in the
+course of merging #50.
+
+**What the current arrangement actually is.** A merge to `main` touching
+`functions/**`, `firestore.rules`, `firestore.indexes.json`, `storage.rules`,
+`web/**` or `firebase.json` deploys to production, gated only on
+`backend-checks`. Merging *is* deploying. There is no other environment the
+code runs in first.
+
+**Why that is survivable today.** There are no users. A bad deploy costs a
+rollback (`docs/DEPLOYMENT.md` § Rolling back a bad deploy), not harm to
+anyone. And the gate is genuinely strong for its class: rules tests, the
+functions unit suite and three e2e suites against real emulated functions,
+the same `backend-checks` that guards a PR. Most of what a staging project
+would catch, the emulator already catches.
+
+**What the emulator structurally cannot catch, which is the actual cost.**
+Stated so this is a known limit rather than a surprise:
+
+- **Cold-start module-load failures.** The emulator runs functions in a
+  local Node process, not a Cloud Functions container. #50 shipped four
+  transitive `overrides` into `functions/` that change what `firebase-admin`
+  loads for network I/O — precisely this risk class. It deployed clean, but
+  nothing before the deploy could have told us that.
+- **IAM and service-account permissions.** The emulator has no permissions
+  model at all, so an over- or under-scoped SA surfaces only in production.
+- **Firestore index builds.** Indexes apply asynchronously and build in the
+  background. A missing or malformed composite index reports a green deploy
+  and *then* fails queries minutes later.
+- **Scheduled functions.** `scheduledDuelReveals` and `buildModQueue` are
+  `onSchedule`; the emulator does not run Cloud Scheduler. The daily reveal
+  is the product's core promise and its trigger is never exercised anywhere
+  but production.
+- **Real FCM delivery, App Check enforcement, and hot-document contention**
+  on the aggregate counters.
+
+**And the deploy is not atomic.** `storage:rules` and `hosting` are both
+`continue-on-error` on purpose (neither should abort a rules or functions
+apply), and `firebase deploy` applies functions one at a time. A failure
+part-way leaves some functions new and some old against one live database.
+That is the state a rollback has to reason about.
+
+**The cheaper half, and the order to do it in.** Two separable changes, and
+the first is most of the value:
+
+1. **Make the production deploy manual** — drop `push: branches: [main]` and
+   leave `workflow_dispatch`. Merging becomes merging; deploying becomes a
+   decision. A few lines, no new project, no new secrets. The
+   `environment: production` block already exists precisely so required
+   reviewers or a wait timer can be added "later without touching this file".
+2. **Then a staging project**, once there are users to protect: a second
+   Firebase project deployed on merge, production behind the manual trigger.
+   Cost is a free-tier project, a second service-account secret, a `staging`
+   GitHub environment, parameterising the `--project prvfire33` that is
+   currently hardcoded three times in `firebase-deploy.yml`, and one
+   `seedContentV2` run to fill its bank.
+
+**The env plumbing already assumes this will happen.** The deploy writes
+`functions/.env.<projectId>` rather than a fixed filename, and both the
+workflow comment and `docs/DEPLOYMENT.md` § Runtime environment say why:
+*"a future non-prod project must not inherit production operator uids."*
+The naming was built for a second project that was never created. Building
+it later is therefore additive, not a refactor — which is part of why
+deferring it is cheap.
+
+**Revisit trigger.** Before the first public release, or the first real
+user. Setting this up is a calm afternoon now and an emergency later.
