@@ -124,3 +124,7 @@ await expectCode("client read of the verdict log refused", "permission-denied",
   () => getDoc(doc(db, "v2_mod_verdicts", TAKE)));
 
 console.log("\nmoderation e2e: every leg green");
+// The client SDKs hold open connections; without an explicit exit the
+// process lingers and `emulators:exec` waits on it forever — which is
+// exactly how this leg hung its first CI run (deploy 30632906108).
+process.exit(0);
