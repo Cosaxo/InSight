@@ -4,10 +4,16 @@
 as a design sketch; the substrate shipped the same day — takes, flags,
 queue, the two MOD_UIDS-gated callables, rules with negative tests —
 with `MOD_ADVISORY = true`, so verdicts record and surface but hide
-nothing until the dry-run phase earns the flip. Still ahead: the client
-report control (needs a live takes surface), the low-privilege Routine,
-and the maintainer's answers to the open questions at the end. The
-policy and threat model below remain the contract.
+nothing until the dry-run phase earns the flip. The transport layer is
+e2e-tested against the real functions emulator in CI
+(`test:e2e:moderation`): the loop as real clients, every confinement
+refusal demanded by exact error code, and the advisory guarantee
+asserted from a member's own view. `buildModQueueNow` exists as the
+scheduled build's moderator-gated on-demand twin — the e2e's handle and
+the maintainer's manual rebuild lever. Still ahead: the client report
+control (needs a live takes surface), the low-privilege Routine, and
+the maintainer's answers to the open questions at the end. The policy
+and threat model below remain the contract.
 
 ## The job in one sentence
 
@@ -82,13 +88,16 @@ verdict.
    git, no GitHub tools, no deploy access** — the "stranded fresh
    session" shape from the 2026-07-31 delivery findings (run log #31),
    here as a feature. Its sole credential is the verdict channel below.
-2. **One verdict channel, shape-validated.** The session writes only
-   `v2_mod_verdicts/{takeId}` docs: `{ takeId, verdict: "remove" |
-   "keep" | "escalate", policyLine: "H1".."H5" | null, runId }` —
-   validated by rules the way answer docs are, applied by a server
-   trigger. There is no tool in the session that can edit a file, run
-   git, call another callable, or write any other document. The
-   injection above has no instrument to play.
+2. **One verdict channel, shape-validated.** The session submits only
+   `{ takeId, verdict: "remove" | "keep" | "escalate", policyLine:
+   "H1".."H5" | null }` — as built (D22), through the `submitModVerdict`
+   callable, which validates the shape (`modVerdictError`), requires
+   queue membership, and applies the verdict in one transaction; the
+   sketch's rules-validated-doc-plus-trigger variant collapsed into the
+   callable, same confinement with one fewer moving part. There is no
+   tool in the session that can edit a file, run git, call anything but
+   its two instruments, or write any other document. The injection
+   above has no instrument to play.
 3. **The server picks the targets.** A Cloud Function materializes
    `v2_mod_queue` from flag counts — top-K takes above a flag threshold.
    The session judges what the queue hands it; verdicts referencing ids

@@ -68,7 +68,7 @@ and both `ui/` panels `Object.assign` onto `globalThis` on purpose.
 | `npm run test:unit` | client store, pure deck logic, spec-layer mount tests | nothing |
 | `npm run test --prefix functions` | k-anon floor, reveal, streak math | nothing |
 | `npm run test:rules` | Firestore **and** Storage rules | Java 21 |
-| `npm run test:e2e` / `test:e2e:erasure` | full loop, real emulated functions | Java 21 |
+| `npm run test:e2e` / `:erasure` / `:moderation` | full loop, erasure, moderation transport — real emulated functions | Java 21 |
 
 Plus the non-test gates: `check:globals`, `check:versions`,
 `check:bundle`, `check:deploy-targets`, `check:fn-runtime`, and the
