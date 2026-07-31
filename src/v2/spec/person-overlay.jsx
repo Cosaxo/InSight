@@ -535,6 +535,7 @@ function FollowerShares({ p }) {
 }
 
 function PersonOverlay({ p: rawP, onClose, me }) {
+  const dlg = useDialog(onClose, rawP && rawP.name ? `${rawP.name} profile` : 'Person profile');
   // Hooks first, unconditionally, ABOVE the `!rawP` guard below. None of
   // them read rawP, so hoisting is behaviour-neutral — but leaving them
   // under an early return made hook order depend on a prop. That is
@@ -574,7 +575,7 @@ function PersonOverlay({ p: rawP, onClose, me }) {
   };
 
   return (
-    <div className="overlay surface-tint">
+    <div className="overlay surface-tint" {...dlg}>
       <div className="app-header">
         <button className="avatar-btn" onClick={onClose}>←</button>
         <div className="h-title" style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textTransform: p.anon ? 'capitalize' : 'none' }}>{anonName(p)}</div>

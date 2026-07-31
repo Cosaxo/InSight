@@ -41,9 +41,7 @@ function PassiveMeter() {
         {P.KEYS.map((k) => <PassiveRing key={k} k={k} size={13} thick={3.2}></PassiveRing>)}
       </button>
       {open && host && ReactDOM.createPortal(
-        <div className={'wf-scrim' + (closing ? ' is-closing' : '')} onClick={close}>
-          <div className="wf-sheet" onClick={(e) => e.stopPropagation()}>
-            <div className="wf-sheet-grab"></div>
+        <Sheet onClose={close} closing={closing} label="Your four profiles">
             <div style={{ padding: '10px 18px 8px', display: 'flex', alignItems: 'center', gap: 10 }}>
               <span style={{ fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 15, flex: 1 }}>Your four profiles</span>
               <button onClick={close} aria-label="Close" style={{ border: 'none', background: 'var(--surface-2)', width: 26, height: 26, borderRadius: '50%', cursor: 'pointer', fontSize: 13, fontWeight: 800, color: 'var(--ink-2)', flexShrink: 0, WebkitAppearance: 'none' }}>{'\u2715'}</button>
@@ -76,8 +74,7 @@ function PassiveMeter() {
                 );
               })}
             </div>
-          </div>
-        </div>, host)}
+        </Sheet>, host)}
     </React.Fragment>
   );
 }

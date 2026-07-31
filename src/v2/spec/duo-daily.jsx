@@ -321,9 +321,7 @@ import ReactDOM from 'react-dom';
           })}
         </div>
         {addOpen && document.querySelector('.app') && ReactDOM.createPortal(
-          <div className={'wf-scrim' + (closing ? ' is-closing' : '')} onClick={closeAdd}>
-            <div className="wf-sheet" onClick={(e) => e.stopPropagation()}>
-              <div className="wf-sheet-grab"></div>
+          <Sheet onClose={closeAdd} closing={closing} label="New 1v1">
               <div style={{ padding: '10px 18px 8px', display: 'flex', alignItems: 'baseline', gap: 10 }}>
                 <span style={{ fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 15, flexShrink: 0 }}>New 1v1</span>
                 <span style={{ fontWeight: 600, fontSize: 12, color: 'var(--ink-3)', flex: 1 }}>pick a friend</span>
@@ -346,8 +344,7 @@ import ReactDOM from 'react-dom';
                   </div>
                 )}
               </div>
-            </div>
-          </div>, document.querySelector('.app'))}
+          </Sheet>, document.querySelector('.app'))}
       </div>
     );
   }

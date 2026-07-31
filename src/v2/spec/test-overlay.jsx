@@ -10,6 +10,10 @@ import React from 'react';
 const TEST_PROGRESS_KEY = 'insight.testProgress.v1';
 
 function TestOverlay({ onClose, onComplete, kind: initialKind }) {
+  // One call, spread onto BOTH return branches below (the picker and the
+  // running test). Hooks cannot be called per-branch, and only one branch
+  // is mounted at a time, so a single ref is correct.
+  const dlg = useDialog(onClose, 'Tests');
   const [kind, setKind] = React.useState(null);
   const [step, setStep] = React.useState(0);
   const [answers, setAnswers] = React.useState([]);
@@ -102,7 +106,7 @@ function TestOverlay({ onClose, onComplete, kind: initialKind }) {
     let PROGRESS = {};
     try { PROGRESS = JSON.parse(localStorage.getItem(TEST_PROGRESS_KEY) || '{}'); } catch (e) { /* absent or corrupt payload — fall back to the default initialised above. */ }
     return (
-      <div className="overlay surface-tint">
+      <div className="overlay surface-tint" {...dlg}>
         <div className="app-header">
           <button className="avatar-btn" onClick={onClose}>✕</button>
           <div className="h-title">Take a <em>test</em></div>
@@ -220,7 +224,7 @@ function TestOverlay({ onClose, onComplete, kind: initialKind }) {
   const topDim = results ? [...results].sort((a, b) => strength(b) - strength(a))[0] : null;
 
   return (
-    <div className="overlay surface-tint">
+    <div className="overlay surface-tint" {...dlg}>
       <div className="app-header">
         <button className="avatar-btn" onClick={onClose}>✕</button>
         <div className="h-title">{T.title}</div>

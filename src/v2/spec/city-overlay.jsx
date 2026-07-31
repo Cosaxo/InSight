@@ -9,6 +9,7 @@ import React from 'react';
 const { useState: useStateCO } = React;
 
 function CityOverlay({ city, onClose }) {
+  const dlg = useDialog(onClose, city && city.name ? `${city.name} profile` : 'City profile');
   const D = window.IS_DATA;
   const cats = D.cityScoreCats;
   const scores = city.scores || {};
@@ -30,7 +31,7 @@ function CityOverlay({ city, onClose }) {
   const bots = ranked.slice(-2);
 
   return (
-    <div className="overlay surface-tint">
+    <div className="overlay surface-tint" {...dlg}>
       <div className="app-header">
         <button className="avatar-btn" onClick={onClose}>←</button>
         <div className="h-title" style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{city.name}</div>

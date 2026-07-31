@@ -89,9 +89,7 @@ function TypeIndexSheet({ testKey, onClose }) {
   const maxShare = list[0].share || 1;
   const banner = cfg ? cfg.banner : 'var(--accent)';
   return ReactDOM.createPortal(
-    <div className={'wf-scrim' + (closing ? ' is-closing' : '')} onClick={close}>
-      <div className="wf-sheet" onClick={(e) => e.stopPropagation()}>
-        <div className="wf-sheet-grab"></div>
+    <Sheet onClose={close} closing={closing} label={`The ${list.length} types`}>
         <div style={{ padding: '10px 18px 4px', display: 'flex', alignItems: 'baseline', gap: 10 }}>
           <span style={{ fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 15, flex: 1 }}>The {list.length} types</span>
           <span style={{ fontFamily: 'var(--sans)', fontSize: 11, fontWeight: 600, color: 'var(--ink-3)' }}>bar = how common</span>
@@ -118,8 +116,7 @@ function TypeIndexSheet({ testKey, onClose }) {
             );
           })}
         </div>
-      </div>
-    </div>, host);
+    </Sheet>, host);
 }
 Object.assign(window, { TypeMark, TypeIndexSheet, IS_TYPE_ART: TM_ART });
 

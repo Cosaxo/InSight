@@ -221,6 +221,7 @@ function sgSort(list, lens) {
 }
 
 function SuggestOverlay({ onClose }) {
+  const dlg = useDialog(onClose, 'Suggest a question');
   const SG = useSuggestions();
   const [formOpen, setFormOpen] = useSgState(false);
   const [lens, setLens] = useSgState('top');
@@ -228,7 +229,7 @@ function SuggestOverlay({ onClose }) {
   const shown = sgSort(SG.all(), lens);
   const max = Math.max(1, ...SG.all().map((x) => x.liveVotes));
   return (
-    <div className="overlay">
+    <div className="overlay" {...dlg}>
       <div className="app-header">
         <button className="avatar-btn" onClick={onClose}>✕</button>
         <div className="h-title">suggest a <em>question</em></div>

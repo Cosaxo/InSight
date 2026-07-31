@@ -1798,3 +1798,70 @@ yield to the same move.**
   event plumbing with no interaction to expose.
 
 Both are tracked, neither is a blocker, and the count only moves down.
+
+---
+
+## D23 · Every overlay and sheet is a real modal dialog, and this time the interaction test came with it
+
+**Decided:** 2026-07-31 · **Status:** binding
+
+`check:a11y` drops **47 → 23**. Two helpers in `primitives.jsx` carry it:
+
+- **`useDialog(onClose, label)`** returns the props a dialog container needs
+  — `role="dialog"`, `aria-modal`, `aria-label`, `tabIndex={-1}`, a ref, and
+  a key handler giving Escape-to-close and a Tab focus trap — plus focus-in
+  on mount and focus-restore-to-opener on unmount. Applied to all eight
+  full-screen overlays (profile, search, person, city, test, suggest, logic,
+  relmap), one line each.
+- **`Sheet`** wraps the seven `wf-scrim`/`wf-sheet` bottom sheets into one
+  component with the same semantics attached.
+
+Before this, the whole spec layer contained exactly one `aria-modal`:
+app-shell's update gate.
+
+**The findings went structurally, not by silencing.** The scrim is
+`role="presentation"` — a backdrop that dismisses on click is not a control,
+and every one of these sheets already shipped a real
+`<button aria-label="Close">`, so the accessible path existed and only the
+semantics were missing. And the sheet's `onClick={(e) => e.stopPropagation()}`
+is **gone**: it existed solely to stop the scrim's handler, so the scrim now
+tests `e.target === e.currentTarget` instead. One check removed both halves
+of the pair, which is why 24 findings closed rather than 12.
+
+**D22 owed an interaction test; this pays it.** `test/dialog.test.jsx` is
+seven cases over the two overlays reachable from the header — the same two
+`smoke.test.jsx` drives, and the reason it stops there is the same. Unlike
+the map surfaces in D22, these *do* render in jsdom, so the test is real
+rather than an assertion over an empty set. It pins the three things
+`check:a11y` structurally cannot see, because they are runtime behaviour and
+not source text: that focus actually moves into the dialog, that Escape
+reaches the handler, and that focus returns to the opener.
+
+**Escape had to be made to nest, or it would close two things at once.**
+Four controls own Escape for their own state — the city and pick dropdowns
+(`ui/CityPicker.tsx`, `ui/PickSearch.tsx`) and relmap's rename field. Each
+now stops propagation *only when it actually consumes the key*: the pickers
+guard on `open`, so with the list already shut Escape belongs to the
+overlay, exactly as a user would expect one press to do one thing.
+
+**One jsdom gap, stated because the test comment depends on it.**
+`fireEvent.click` does not move focus; a real browser's click on a button
+does. So the focus-restore case focuses the opener explicitly, or it would
+be asserting jsdom's gap rather than the restore path. Confirmed in Chromium
+that this is a jsdom artifact and not a real one: clicking the header
+Profile button focuses it, and Escape hands focus back to it.
+
+**Measured, not assumed.** Chromium at 420×880, mock mode: overlay opens
+with `aria-label="Your profile"` and focus inside; Escape closes it and
+focus returns to the header button; the sheet opens with
+`aria-label="Your four profiles"` and `role="presentation"` on its scrim;
+Escape closes it and focus returns to its opener; **backdrop click still
+dismisses**; no page errors. The `Sheet` refactor moved the grab handle into
+the component and changed the scrim's handler, so it was pixel-checked too:
+identical bounding box and **0 of 1,478,400 pixels differ**.
+
+**What is left at 23.** The 4 `relmap-panels` findings are the same
+`stopPropagation` shape the sheets just shed, but those panels have no scrim
+of their own to move the target check onto. The 8 `profile-general` findings
+are `label-has-associated-control` — real, unrelated, and a form-markup fix.
+The rest are the `autoFocus` keeps recorded in D21. The count only moves down.
