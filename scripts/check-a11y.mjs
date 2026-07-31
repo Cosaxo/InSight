@@ -59,11 +59,18 @@ import { ESLint } from "eslint";
 //     only to stop the scrim's handler, and the scrim now tests
 //     `e.target === e.currentTarget` instead. One check removed both halves.
 //
+// 2026-07-31, third pass: 23 → 19. relmap-panels' 4 findings were
+// `onClick={(e) => e.stopPropagation()}` on the two panel bodies, and the
+// fix was to DELETE them: they were dead code, guarding against a handler
+// that does not exist. The map's deselect lives on the <svg>'s
+// onPointerUp/onPointerDown, the panels are absolutely-positioned SIBLINGS
+// of that svg, and a pointerdown on a panel never reaches it — so `drag`
+// stays null and onPointerUp returns early. A click handler could not have
+// stopped a pointer handler in any case; they are different event types.
+// Confirmed in Chromium on both panels (person and hub) before removal:
+// open the panel, click inside it, panel stays. Identical with and without.
+//
 // What is left, and why each is a different bug:
-//   - relmap-panels (4): `onClick={(e) => e.stopPropagation()}` on the panel
-//     bodies. Pure event plumbing, no interaction to expose. Same shape as
-//     the sheet handler above and removable the same way, but the relmap
-//     panels have no scrim of their own to move the check onto.
 //   - profile-general (8): label-has-associated-control. Real, unrelated,
 //     and a form-markup fix rather than a dialog one.
 //   - no-autofocus (8) and the rest: recorded above and in D21.
@@ -74,7 +81,6 @@ const BASELINE = {
   "src/v2/spec/consequence-beat.jsx": 2,
   "src/v2/spec/group-daily.jsx": 1,
   "src/v2/spec/profile-general.jsx": 8,
-  "src/v2/spec/relmap-panels.jsx": 4,
   "src/v2/spec/relmap.jsx": 2,
   "src/v2/spec/suggestions.jsx": 1,
   "src/v2/spec/tweaks-panel.jsx": 1,

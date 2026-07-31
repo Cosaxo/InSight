@@ -1860,8 +1860,32 @@ dismisses**; no page errors. The `Sheet` refactor moved the grab handle into
 the component and changed the scrim's handler, so it was pixel-checked too:
 identical bounding box and **0 of 1,478,400 pixels differ**.
 
-**What is left at 23.** The 4 `relmap-panels` findings are the same
-`stopPropagation` shape the sheets just shed, but those panels have no scrim
-of their own to move the target check onto. The 8 `profile-general` findings
-are `label-has-associated-control` — real, unrelated, and a form-markup fix.
-The rest are the `autoFocus` keeps recorded in D21. The count only moves down.
+**Amendment, same day — 23 → 19: the relmap panels' handlers were dead
+code.** The 4 remaining `relmap-panels` findings looked like the same
+`stopPropagation` shape the sheets had just shed, and the note here first
+said they could not be fixed the same way because those panels have no scrim
+to move a target check onto. That was true and beside the point: the correct
+fix was to **delete** the handlers, because they were guarding against
+something that does not exist.
+
+The map's deselect lives on the `<svg>`'s `onPointerDown`/`onPointerUp`. The
+panels are absolutely-positioned **siblings** of that svg, so a pointerdown
+on a panel never reaches it — `this.drag` stays null and `onPointerUp`
+returns on its first line. And a click handler could not have stopped a
+pointer handler regardless: they are different event types, and pointer
+events fire first. Nothing in the tree listens for `click` above these
+panels; there are no document- or window-level click listeners either.
+
+Verified in Chromium before removing them, on **both** panels — the person
+panel and the hub panel (reached by asking `RMCore.buildGraph` which node
+ids are hubs, then tapping one twice: the first tap focuses its group, the
+second selects it). Open the panel, click inside its body, panel stays open.
+Identical with the handler and without it. No pixel check for this one, and
+deliberately: removing an event handler changes no style and cannot move
+layout.
+
+**What is left at 19.** The 8 `profile-general` findings are
+`label-has-associated-control` — real, unrelated, and a form-markup fix. The
+remaining 3 click/interaction findings are single sites in
+`consequence-beat` and `tweaks-panel`. The rest are the `autoFocus` keeps
+recorded in D21. The count only moves down.
