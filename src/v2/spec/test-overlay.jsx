@@ -139,8 +139,9 @@ function TestOverlay({ onClose, onComplete, kind: initialKind }) {
               const chipFg = `color-mix(in oklch, ${T.accent} 55%, var(--ink-2))`;
               const maxV = saved ? Math.max(...saved.dims.map(d => d.value), 1) : 1;
               return (
-                <div key={k} onClick={() => startTest(k)}
+                <button type="button" key={k} onClick={() => startTest(k)}
                   className="card test-pick-card"
+                  aria-label={`${T.title} — ${saved ? 'retake' : 'start'}, about ${minutesFor(T)} minutes`}
                   style={{ cursor: 'pointer', padding: 0, overflow: 'hidden' }}>
                   <div style={{ padding: '14px 14px 12px' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10 }}>
@@ -199,7 +200,7 @@ function TestOverlay({ onClose, onComplete, kind: initialKind }) {
                       </>
                     )}
                   </div>
-                </div>
+                </button>
               );
             })}
           </div>

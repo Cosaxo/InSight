@@ -487,7 +487,7 @@ import React from 'react';
         edges: v.edges.map(e => ({ ...e, opacity: Math.min(0.7, e.opacity * 2.4), width: e.width + 0.5 })),
       };
       return (
-        <div onClick={this.props.onOpen} style={{ position: 'relative', width: '100%', height: '100%', background: P.canvas, overflow: 'hidden', cursor: 'pointer', borderRadius: 'inherit' }}>
+        <button type="button" className="btn-bare" onClick={this.props.onOpen} aria-label="Explore your relationship map" style={{ position: 'relative', width: '100%', height: '100%', background: P.canvas, overflow: 'hidden', cursor: 'pointer', borderRadius: 'inherit' }}>
           {this.graphSvg(cv, true)}
           {/* legend chips, compact */}
           <div style={{ position: 'absolute', left: 14, bottom: 12, right: 14, display: 'flex', flexWrap: 'wrap', gap: '5px 12px', pointerEvents: 'none' }}>
@@ -500,7 +500,7 @@ import React from 'react';
           <div style={{ position: 'absolute', top: 13, right: 15, display: 'flex', alignItems: 'center', gap: 6, fontFamily: "'Hanken Grotesk', sans-serif", fontSize: 11, fontWeight: 700, letterSpacing: '0.12em', color: P.faint, textTransform: 'uppercase', pointerEvents: 'none' }}>
             Explore <span style={{ fontSize: 13 }}>↗</span>
           </div>
-        </div>
+        </button>
       );
     }
 

@@ -1705,3 +1705,96 @@ hand-written code and not the frozen port: `LiveGroupsMirrorBody`'s
 expand/collapse row is now a real `<button>` with `aria-expanded` instead of
 a clickable `<div>`, which is the difference between a keyboard user being
 able to open a day's detail and not.
+
+---
+
+## D22 · The mouse-only spec-layer controls become buttons, ahead of the interaction tests D21 wanted
+
+**Decided:** 2026-07-31 · **Status:** binding
+
+`check:a11y`'s baseline drops **69 → 47**. Eleven `div`+`onClick` sites in the
+ported layer are now real `<button>`: the Mirror map's graph nodes
+(`map-tab.jsx` ×4, `person-mindmap.jsx` ×3), the group-mirror comparison rows
+and person chips, the test-picker cards, and the relmap preview tile. Five
+files go to zero. `.btn-bare` and the reset on `.mmt-node` are what let a
+button lay out like the div it replaced; `.mmt-astat-row` was the precedent.
+
+**This is in tension with D21, which is why it is recorded rather than just
+done.** D21 deferred exactly this work with: *"Adding key handlers and focus
+behaviour to components no test asserts the interaction of is precisely the
+blind change the React Compiler findings are already deferred for. They get
+fixed behind interaction tests, not ahead of them."* No interaction test was
+written first. What makes this subset defensible is that it is a narrower
+class of change than the one D21 was guarding against:
+
+- **No behaviour was hand-rolled.** Not one key handler, focus call or
+  `tabIndex` heuristic was added to make a div act like a button. The element
+  became a button, and Enter/Space, focus, the role and the disabled
+  semantics come from the platform. Every `onClick` body is byte-identical.
+- **The residual risk is therefore visual, not behavioural** — a UA style
+  leaking into a layout the transform math depends on.
+
+**So the risk that remained was measured rather than argued.** Chromium at
+420×880, mock mode, before and after, same seed:
+
+- **Mirror → You (map-tab, 4 sites).** 86 `.mmt-node` both times;
+  `button.mmt-node` **0 → 86**; no page errors. Per-pixel diff: **258 of
+  1,478,400 pixels differ (0.0175%), max channel delta 12/255**, all in one
+  text-antialiasing cluster. A layout shift would be thousands of pixels at
+  delta ~255.
+- **Test picker (test-overlay, 1 site).** 4 cards, `button.test-pick-card`
+  **0 → 4**, **0 of 1,478,400 pixels differ**. Computed style confirms the
+  card keeps its surface, 1px border, 18px radius, shadow and inherited font.
+- **The remaining 6 sites do not render in mock mode** from any route
+  reachable here — `person-mindmap` needs an open person, the group-mirror
+  rows and chips need a populated group, the relmap tile needs a circle.
+  Their evidence is indirect but specific: `person-mindmap`'s 3 sites carry
+  the *same* `.mmt-node mmt-center/mmt-hub/mmt-dotnode` classes proven above,
+  so they are the same CSS path; and for the 3 `.btn-bare` sites, a real-
+  browser A/B against the app's own stylesheet — div vs `button.btn-bare`,
+  in both the flex-row and absolutely-positioned shapes the call sites use —
+  returns **identical** width, height, font, size, text-align, background,
+  border and padding.
+
+**A bug this caught, worth keeping as the reason the reset is not one class.**
+`test-pick-card` first got `.btn-bare` alongside `.card`. Both are single-
+class selectors, and `.btn-bare` sits ~300 lines later, so it won the cascade
+and took `.card`'s background, border and padding with it — a card with a
+box-shadow and no surface. `button.card` is therefore reset next to `.card`
+itself, where the ordering is local and visible, and `.btn-bare` deliberately
+sets no `width` (a forced 100% breaks the absolutely-positioned chip that
+centres itself with `left:%` + `translate(-50%)`).
+
+**What is NOT covered, stated plainly.** There is still no automated render
+test for these eleven sites, and adding one to `test/` would be theatre:
+measured while trying, `mirror-tab.jsx` mounts `<MapTab />` only for the
+retracted "You" population, and even there jsdom renders `.mmt-root` and
+`.mmt-canvas` with **zero** nodes — positions come from a layout pass jsdom
+does not perform, so every node early-returns. All 186 pre-existing tests
+stayed green with these nodes never rendered once. Faking that layout is the
+one thing `test/setup-dom.ts` rules out by name: *"A stub that fakes a RESULT
+the test then asserts on would be testing the stub."* A test asserting over
+an empty set is worse than none — the same argument `check-bundle.mjs` makes
+about a budget that passes on zero files. The enforced guard is `check:a11y`
+at 47, which reads source and would fail the day a button goes back to a div.
+The render-level gate arrives with the browser-based interaction layer D21
+already queued; that is the correct home for it.
+
+**The 22 findings left under the click rules are a different bug and will not
+yield to the same move.**
+
+- **24 findings across 12 sites are the modal scrim/sheet pair** —
+  `.wf-scrim` closes on click, `.wf-sheet` swallows the click so it does not
+  (`type-marks`, `passive-meter`, `world-feed`, `duo-daily`, `group-daily`
+  ×2). Neither is a button: one is a backdrop, the other is a container, and
+  a `<button>` wrapping a whole sheet would nest interactive content inside a
+  control and read to a screen reader as one enormous target. These want
+  `role="dialog"` + `aria-modal` + Escape + a focus trap. Worth knowing that
+  the keyboard path is not actually missing today — every one of these sheets
+  already ships a real `<button aria-label="Close">`; it is the *semantics*
+  that are absent, and exactly one `aria-modal` exists in the whole spec
+  layer (`app-shell.jsx`, the update gate).
+- **4 are `onClick={(e) => e.stopPropagation()}`** on the relmap panels: pure
+  event plumbing with no interaction to expose.
+
+Both are tracked, neither is a blocker, and the count only moves down.

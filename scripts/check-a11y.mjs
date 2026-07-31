@@ -42,6 +42,23 @@ import { ESLint } from "eslint";
 // user has just opened by tapping it: they opened it to type, and the
 // alternative is an overlay that needs a second tap to be usable. Revisit
 // if either overlay ever opens without a direct user action.
+// 2026-07-31: 69 → 47. Every remaining div+onClick that was genuinely a
+// button became one — the map/mindmap graph nodes, the group-mirror rows and
+// person chips, the test picker cards, the relmap preview tile. `.btn-bare`
+// and the reset on `.mmt-node` are what let a <button> lay out like the <div>
+// it replaced; `.mmt-astat-row` was the precedent.
+//
+// What is LEFT under click-events-have-key-events is not the same bug and
+// will not be fixed by the same move:
+//   - 24 of them are the modal scrim/sheet pair — `.wf-scrim` closes on
+//     click, `.wf-sheet` swallows the click so it does not. Neither is a
+//     button; a <button> wrapping a whole sheet would nest interactive
+//     content and read as one enormous control. The right fix is
+//     role="dialog" + aria-modal + Escape + a focus trap, and every one of
+//     these sheets already ships a real <button aria-label="Close">, so the
+//     keyboard path exists — it is the semantics that are missing.
+//   - 4 are `onClick={(e) => e.stopPropagation()}` on relmap panels: pure
+//     event plumbing, no interaction to expose at all.
 const BASELINE = {
   "src/v2/ui/CityPicker.tsx": 1,     // autoFocus — see note above
   "src/v2/ui/PickSearch.tsx": 1,     // autoFocus — see note above
@@ -49,15 +66,11 @@ const BASELINE = {
   "src/v2/spec/consequence-beat.jsx": 2,
   "src/v2/spec/duo-daily.jsx": 4,
   "src/v2/spec/group-daily.jsx": 9,
-  "src/v2/spec/group-mirror.jsx": 4,
-  "src/v2/spec/map-tab.jsx": 8,
   "src/v2/spec/passive-meter.jsx": 4,
-  "src/v2/spec/person-mindmap.jsx": 6,
   "src/v2/spec/profile-general.jsx": 8,
   "src/v2/spec/relmap-panels.jsx": 4,
-  "src/v2/spec/relmap.jsx": 4,
+  "src/v2/spec/relmap.jsx": 2,
   "src/v2/spec/suggestions.jsx": 1,
-  "src/v2/spec/test-overlay.jsx": 2,
   "src/v2/spec/tweaks-panel.jsx": 1,
   "src/v2/spec/type-marks.jsx": 4,
   "src/v2/spec/world-feed.jsx": 5,

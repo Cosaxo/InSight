@@ -102,7 +102,7 @@ import React from 'react';
         </div>
         <div style={{ marginTop: 6, display: 'flex', flexDirection: 'column' }}>
           {rows.map((r) => (
-            <div key={r.i} onClick={() => setOpen(open === r.i ? null : r.i)} style={{ padding: '11px 0', borderBottom: r.i < 6 ? LINE : 'none', cursor: 'pointer' }}>
+            <button type="button" className="btn-bare" key={r.i} aria-expanded={open === r.i} onClick={() => setOpen(open === r.i ? null : r.i)} style={{ padding: '11px 0', borderBottom: r.i < 6 ? LINE : 'none', cursor: 'pointer' }}>
               <div style={{ fontFamily: 'var(--sans)', fontSize: 14.5, fontWeight: 800, letterSpacing: '-0.01em', color: 'var(--ink)', textWrap: 'pretty' }}>{r.maj}</div>
               <div style={{ display: 'flex', gap: 5, marginTop: 8 }}>
                 {Array.from({ length: r.n }).map((_, j) => {
@@ -112,7 +112,7 @@ import React from 'react';
                 })}
               </div>
               {open === r.i && <div style={{ marginTop: 7, fontFamily: 'var(--sans)', fontSize: 11.5, fontWeight: 500, color: 'var(--ink-3)', textWrap: 'pretty' }}>{r.prompt}{r.mineLabel ? ` — you picked ${r.mineLabel}` : ''}</div>}
-            </div>
+            </button>
           ))}
         </div>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 16, marginTop: 4, paddingTop: 11, borderTop: LINE }}>
@@ -159,11 +159,11 @@ import React from 'react';
             const isTwin = P.twin && p.id === P.twin.id;
             const isCon = P.contrarian && p.id === P.contrarian.id;
             return (
-              <div key={p.id} onClick={() => window.openPerson && window.openPerson(p)} style={{ position: 'absolute', left: x + '%', top: cy + lvl * 46, transform: 'translate(-50%, -50%)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3, cursor: 'pointer' }}>
+              <button type="button" className="btn-bare" key={p.id} aria-label={`Open ${p.name}`} onClick={() => window.openPerson && window.openPerson(p)} style={{ position: 'absolute', left: x + '%', top: cy + lvl * 46, transform: 'translate(-50%, -50%)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3, cursor: 'pointer' }}>
                 <span style={{ borderRadius: '50%', display: 'inline-flex', boxShadow: isTwin ? '0 0 0 2px var(--accent)' : '0 0 0 2.5px var(--surface)' }}><window.GDAv p={p} size={28}></window.GDAv></span>
                 <span style={{ fontFamily: 'var(--sans)', fontSize: 10, fontWeight: 700, color: 'var(--ink-2)', whiteSpace: 'nowrap' }}>{p.name.split(' ')[0]}</span>
                 {(isTwin || isCon) && <span style={{ marginTop: -2, fontFamily: 'var(--sans)', fontSize: 9.5, fontWeight: 700, color: isTwin ? 'var(--accent)' : 'var(--ink-3)', whiteSpace: 'nowrap' }}>{isTwin ? 'most like you' : 'breaks ranks'}</span>}
-              </div>
+              </button>
             );
           })}
         </div>
