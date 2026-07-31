@@ -94,9 +94,14 @@ the failure mode this section exists to prevent.
 ## Mount tests
 
 `test/smoke.test.jsx` mounts `App` in jsdom and walks the surfaces the
-header and tabbar reach: both tabs, the profile overlay, the search
-overlay. `test/setup-dom.ts` stubs the browser APIs jsdom lacks
-(`matchMedia`, the two observers, `scrollTo`, canvas contexts).
+header and tabbar reach — both tabs, the profile overlay, the search
+overlay — plus the six with **no button at all**: `test`, `relmap`,
+`logic`, `suggest`, `person` and `city`, which other components open by
+calling `window.openTest()` / `window.openOverlay('relmap')` / … and which
+consequently nothing executed. That was the largest unmounted block left in
+this layer: ~130 KB of the shipped bundle, including the two biggest single
+components after the feed. `test/setup-dom.ts` stubs the browser APIs jsdom
+lacks (`matchMedia`, the two observers, `scrollTo`, canvas contexts).
 
 It exists because **this layer's characteristic bug is invisible to every
 other gate.** A global that is defined but undefined *at render time* —
@@ -113,12 +118,23 @@ Two things to know before extending it:
   still returns cleanly from `render()`. The helper checks the boundary's
   `componentDidCatch` log and its fallback copy. A test that only caught
   exceptions would have passed on both `ReferenceError`s this repo shipped.
+- **A no-button overlay needs a second assertion, or it passes empty.**
+  `window.openTest` and friends are installed by an effect, so a rename or
+  a teardown bug turns the call into a silent no-op — and `expectNoBoundary`
+  then happily asserts on the tab underneath. Every cross-link case
+  therefore also matches copy only that overlay renders. Both halves are
+  mutation-checked: neutering the opener fails all six on the copy
+  assertion, and injecting `window.NOPE.boom()` into each of the six
+  components fails exactly its own case on the boundary.
 - **It is a smoke test.** It proves the screens mount, not that they are
   right. For the spec layer that is still all there is; the hand-written
   panels now have their own suites (below), and the
   `eslint-disable-next-line` list above remains the work queue for the
   ported half — those findings stay deferred until a test can catch a
-  re-run-timing regression.
+  re-run-timing regression. Note that `smoke-live.test.jsx` still walks
+  only the header-reachable surfaces, so these six are covered in demo mode
+  only — the live-mode branches inside them are the next gap, not a closed
+  one.
 
 ## Panel tests — `ui/*.test.tsx`
 
