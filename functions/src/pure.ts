@@ -563,3 +563,59 @@ export function nextFcmTokens(
   base.push(add);
   return base.length > cap ? base.slice(base.length - cap) : base;
 }
+
+// ─── moderation: queue fold + verdict validation (docs/MODERATION.md) ───
+//
+// Both sides of the moderation run's confinement are pure and tested:
+// the SERVER picks the targets (buildModQueueFrom — the run judges what
+// the queue hands it, never chooses), and the verdict channel accepts
+// exactly one shape (modVerdictError — anything else is rejected before
+// it touches a document). The policy lines are H1–H5 in
+// docs/MODERATION.md; a `remove` without a line, or a line on a
+// non-remove, is invalid by construction so every removal is citable.
+
+export const MOD_POLICY_LINES = ["H1", "H2", "H3", "H4", "H5"] as const;
+
+/**
+ * Fold raw flag counts into the queue: takes at or above the flag
+ * threshold, most-flagged first (id ascending on ties so equal inputs
+ * give equal queues), capped at k.
+ */
+export function buildModQueueFrom(
+  flagCounts: Record<string, number>,
+  minFlags: number,
+  k: number,
+): { takeId: string; flags: number }[] {
+  return Object.keys(flagCounts)
+    .map((takeId) => ({ takeId, flags: flagCounts[takeId] }))
+    .filter((r) => r.flags >= minFlags)
+    .sort((a, b) => b.flags - a.flags || (a.takeId < b.takeId ? -1 : 1))
+    .slice(0, k);
+}
+
+/**
+ * Why a submitted verdict is invalid, or null when it is well-formed.
+ * Returns the reason as text so the callable can hand it back verbatim.
+ */
+export function modVerdictError(value: unknown): string | null {
+  if (!value || typeof value !== "object") return "verdict must be an object";
+  const v = value as Record<string, unknown>;
+  const keys = Object.keys(v).sort().join(",");
+  if (keys !== "policyLine,takeId,verdict" && keys !== "takeId,verdict") {
+    return "unexpected fields — takeId, verdict, and policyLine only";
+  }
+  if (typeof v.takeId !== "string" || !v.takeId || v.takeId.length > 128) {
+    return "takeId must be a non-empty string";
+  }
+  if (v.verdict !== "remove" && v.verdict !== "keep" && v.verdict !== "escalate") {
+    return "verdict must be remove, keep, or escalate";
+  }
+  if (v.verdict === "remove") {
+    if (!MOD_POLICY_LINES.includes(v.policyLine as never)) {
+      return "a removal must cite a policy line (H1–H5)";
+    }
+  } else if (v.policyLine != null) {
+    return "only removals carry a policy line";
+  }
+  return null;
+}

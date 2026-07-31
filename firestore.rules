@@ -297,5 +297,74 @@ service cloud.firestore {
       }
     }
 
+    // ─── moderation substrate (docs/MODERATION.md, D22) ────────────
+    //
+    // Takes are circle-scoped comments (D1). The moderation chain on top
+    // of them is deliberately server-heavy: flags are write-only counts,
+    // the queue and verdicts are reachable only through MOD_UIDS-gated
+    // callables, and clients can touch none of it.
+
+    match /v2_takes/{takeId} {
+      // Circle members read the circle's takes — except a mod-hidden take,
+      // which only its author still sees (the honest soft-hide: the author
+      // can appeal what they can still read; the circle is protected).
+      allow read: if request.auth != null
+        && request.auth.uid in
+          get(/databases/$(database)/documents/v2_groups/$(resource.data.gid)).data.memberUids
+        && (!("hidden" in resource.data)
+          || resource.data.authorUid == request.auth.uid);
+      allow create: if request.auth != null
+        && request.resource.data.keys().hasOnly(["gid", "authorUid", "qid", "text", "createdAt"])
+        && request.resource.data.authorUid == request.auth.uid
+        && request.resource.data.gid is string
+        && request.auth.uid in
+          get(/databases/$(database)/documents/v2_groups/$(request.resource.data.gid)).data.memberUids
+        && request.resource.data.text is string
+        && request.resource.data.text.size() >= 1
+        && request.resource.data.text.size() <= 280
+        && (!("qid" in request.resource.data) || request.resource.data.qid is string)
+        && request.resource.data.createdAt == request.time;
+      // No edit path: an edited take invalidates the flags cast on what it
+      // used to say. Delete-and-repost restarts the flag count honestly.
+      allow update: if false;
+      // Your speech stays yours to withdraw.
+      allow delete: if request.auth != null
+        && resource.data.authorUid == request.auth.uid;
+    }
+
+    match /v2_flags/{flagId} {
+      // Write-only, one per (take, user): the doc id pins uniqueness the
+      // way answer ids do — a second flag from the same account is an
+      // update, and updates are denied. Nobody reads flags: they are
+      // anonymous to the circle AND to the moderation run, which sees
+      // only server-folded counts (docs/MODERATION.md, privacy posture).
+      allow read: if false;
+      allow create: if request.auth != null
+        && request.resource.data.keys().hasOnly(["takeId", "gid", "uid", "at"])
+        && request.resource.data.uid == request.auth.uid
+        && flagId == request.resource.data.takeId + "_" + request.auth.uid
+        && request.resource.data.gid is string
+        && get(/databases/$(database)/documents/v2_takes/$(request.resource.data.takeId)).data.gid
+          == request.resource.data.gid
+        && request.auth.uid in
+          get(/databases/$(database)/documents/v2_groups/$(request.resource.data.gid)).data.memberUids
+        && !("hidden" in
+          get(/databases/$(database)/documents/v2_takes/$(request.resource.data.takeId)).data)
+        && request.resource.data.at == request.time;
+      allow update, delete: if false;
+    }
+
+    // Queue and verdict log: server-only surfaces of the confinement
+    // design. The moderation session reaches them exclusively through
+    // fetchModQueue / submitModVerdict (MOD_UIDS allowlist), so a client
+    // rule grant here would be a second door into a room built to have
+    // one. Explicit denies, like insight_ratelimits above.
+    match /v2_mod_queue/{takeId} {
+      allow read, write: if false;
+    }
+    match /v2_mod_verdicts/{takeId} {
+      allow read, write: if false;
+    }
+
   }
 }
