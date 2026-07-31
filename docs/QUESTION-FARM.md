@@ -1,12 +1,15 @@
 # The question farm — a scheduled session that deepens the daily archive
 
-**This file is an instruction manual for an autonomous run.** A scheduled
-Routine on the maintainer's claude.ai subscription fires a fresh Claude Code
-session (weekly, plus manual test fires) whose entire job is defined here.
-If you are that session: follow this document exactly; where it is silent,
-follow `CLAUDE.md` and stop rather than improvise. Written 2026-07-30,
-alongside `CATALOG-QUESTIONS.md` — the reflection that produced this design
-(AI joins the existing review pipeline as a *proposer*; humans stay the gate).
+**This file is an instruction manual for autonomous runs.** Scheduled
+Routines on the maintainer's claude.ai subscription fire into the
+maintainer's ongoing dev session (not fresh sessions — see Governance for
+why, and for the account-side inventory), and their jobs are defined
+here: the weekly question farm in the sections below, and the daily
+catalog run further down. If you are one of those runs: follow this
+document exactly; where it is silent, follow `CLAUDE.md` and stop rather
+than improvise. Written 2026-07-30, alongside `CATALOG-QUESTIONS.md` —
+the reflection that produced this design (AI joins the existing review
+pipeline as a *proposer*; humans stay the gate).
 
 ## The job in one sentence
 
@@ -369,3 +372,30 @@ subscription; a run that finds nothing to do costs nearly nothing and
 reports that honestly. If fresh-session Routines ever gain writable repo
 access, moving back to one-session-per-run is a one-trigger change —
 re-read this section's constraint before doing it.
+
+### Scheduled runs (the account-side inventory)
+
+The Routines themselves — schedules, prompts, bindings, enabled state —
+live on the maintainer's claude.ai account, not in this repo. This table
+is the repo-side record; update it whenever a Routine is added, rebound,
+re-paced, or retired.
+
+| Routine | Schedule (UTC) | Fires into | Contract |
+| --- | --- | --- | --- |
+| InSight question farm | Mondays 07:00 | maintainer's dev session | this file, the sections above |
+| Daily catalog question | daily 08:00 | maintainer's dev session | § The daily catalog-question run |
+
+Delivery mechanics, measured rather than assumed (run log #31,
+2026-07-31): **scheduled cron fires deliver into the bound session** —
+proven end to end by the 2026-07-31 daily run. **Manual fires spawn a
+fresh session with no repository attached**, which can neither run the
+job nor log the outcome; both prompts now tell a stranded session to
+notify-and-stop. So: test a run by asking the dev session to execute
+the job, never by manual fire.
+
+Modifying a Routine: ask the dev session (schedule, prompt, name,
+pause/resume are one tool call each), or use the claude.ai Routines UI
+directly. Either way, behavior belongs in THIS file via a reviewed PR —
+the prompts defer to it every firing — and a prompt edit must keep the
+prompt's summary in step with its section here, so the two cannot
+drift.
