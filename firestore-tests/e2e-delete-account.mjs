@@ -97,6 +97,34 @@ await adb.doc(`v2_groups/${SHARED}/reveals/${DAY}`).set({
   members: [uid, OTHER],
 });
 
+// takes, flags, and the moderation queue's COPY of a take's text
+// (docs/MODERATION.md). The queue is the interesting one: moderation.ts
+// copies the text in so the run reads one collection, which means deleting
+// the take does not delete the words — they sat there until the next 05:00
+// rebuild. Seeded with admin like everything else here; driving the real
+// flag→queue pipeline is the moderation e2e's job, not this file's.
+const MY_TAKE = "take_mine";
+const THEIR_TAKE = "take_theirs";
+await adb.doc(`v2_takes/${MY_TAKE}`).set({
+  gid: SHARED, authorUid: uid, qid: "q1", text: "words that must not outlive the account",
+});
+await adb.doc(`v2_flags/${MY_TAKE}_${uid}`).set({ takeId: MY_TAKE, gid: SHARED, uid });
+await adb.doc(`v2_mod_queue/${MY_TAKE}`).set({
+  takeId: MY_TAKE, gid: SHARED, text: "words that must not outlive the account",
+  flags: 3, escalations: 0,
+});
+// The control. Somebody ELSE's take, queued the same way, plus this
+// account's flag ON it. The flag is theirs to lose; the take and its queue
+// entry are not — a sweep that took the whole queue would pass every
+// assertion below without this pair.
+await adb.doc(`v2_takes/${THEIR_TAKE}`).set({
+  gid: SHARED, authorUid: OTHER, qid: "q1", text: "someone else's words",
+});
+await adb.doc(`v2_flags/${THEIR_TAKE}_${uid}`).set({ takeId: THEIR_TAKE, gid: SHARED, uid });
+await adb.doc(`v2_mod_queue/${THEIR_TAKE}`).set({
+  takeId: THEIR_TAKE, gid: SHARED, text: "someone else's words", flags: 3, escalations: 1,
+});
+
 // one client-authored write, so the test also covers the real path
 await setDoc(doc(db, "v2_users", uid, "answers", "client-written"), {
   qid: "client-written", surface: "daily", optionIdx: 0,
@@ -115,6 +143,11 @@ for (const [path, label] of [
   [`insight_users/${OTHER}/relations/r1`, "relation naming them"],
   [`v2_groups/${SOLO}`, "solo group"],
   [`v2_groups/${SHARED}`, "shared group"],
+  [`v2_takes/${MY_TAKE}`, "their take"],
+  [`v2_flags/${MY_TAKE}_${uid}`, "their flag on their own take"],
+  [`v2_mod_queue/${MY_TAKE}`, "the queue's copy of their take"],
+  [`v2_takes/${THEIR_TAKE}`, "someone else's take"],
+  [`v2_mod_queue/${THEIR_TAKE}`, "the queue's copy of someone else's take"],
 ]) await mustExist(path, label);
 ok("seeded every wipe phase, and verified it landed");
 
@@ -148,8 +181,26 @@ for (const [path, label] of [
   [`insight_users/${OTHER}/relations/r1`, "relation naming them in someone else's subtree"],
   [`v2_groups/${SOLO}`, "group they were the only member of"],
   [`v2_groups/${SOLO}/reveals/${DAY}`, "that group's reveal"],
+  [`v2_takes/${MY_TAKE}`, "their take"],
+  [`v2_flags/${MY_TAKE}_${uid}`, "their flag on their own take"],
+  [`v2_flags/${THEIR_TAKE}_${uid}`, "their flag on someone else's take"],
+  // The gap this leg exists for: the take was erased, and its words went on
+  // living in the moderation queue's copy of them.
+  [`v2_mod_queue/${MY_TAKE}`, "the queue's copy of their take"],
 ]) await mustBeGone(path, label);
 ok("every owned document, subcollection and cross-user reference is gone");
+
+// ── …and the sweep stopped at the edge of this account ──
+// deleteOrphanedModQueue keys on the take being ABSENT rather than on an
+// author, which is what lets it run without an authorUid in the queue — and
+// is exactly why it needs a control. Someone else's queued take is still
+// flagged, still visible, and still owed a verdict.
+const theirQueued = await adb.doc(`v2_mod_queue/${THEIR_TAKE}`).get();
+if (!theirQueued.exists) fail("the sweep took the whole queue, not just the orphans");
+if (theirQueued.get("text") !== "someone else's words") fail("someone else's queued take was altered");
+if (theirQueued.get("escalations") !== 1) fail("someone else's escalation count was lost");
+if (!(await exists(`v2_takes/${THEIR_TAKE}`))) fail("someone else's take was deleted");
+ok("someone else's take, its queue entry and its escalation count survive untouched");
 
 // ── the shared group survives, scrubbed ──
 const shared = await adb.doc(`v2_groups/${SHARED}`).get();
