@@ -20,6 +20,7 @@
     "test:rules": "firebase emulators:exec --only firestore,storage \"vitest run --dir firestore-tests\"",
     "test:e2e": "firebase emulators:exec --only auth,firestore,functions --project demo-insight \"node firestore-tests/e2e-v2-loop.mjs\"",
     "test:e2e:erasure": "firebase emulators:exec --only auth,firestore,functions --project demo-insight \"node firestore-tests/e2e-delete-account.mjs\"",
+    "test:e2e:moderation": "firebase emulators:exec --only auth,firestore,functions --project demo-insight \"node firestore-tests/e2e-moderation.mjs\"",
     "check:globals": "node scripts/check-spec-globals.mjs",
     "check:a11y": "node scripts/check-a11y.mjs",
     "check:cities": "node scripts/check-cities.mjs",

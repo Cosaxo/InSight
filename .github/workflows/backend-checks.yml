@@ -110,3 +110,8 @@ jobs:
       # bypassed), because reading as another user cannot tell "deleted"
       # from "permission-denied".
       - run: npm run test:e2e:erasure
+      # The moderation loop's transport layer — the callables, the
+      # moderator gate, the out-of-queue refusal, the advisory-mode
+      # guarantee — is executable only here, against the real functions
+      # emulator (docs/MODERATION.md, D22).
+      - run: npm run test:e2e:moderation
