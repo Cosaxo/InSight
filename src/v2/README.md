@@ -131,10 +131,15 @@ Two things to know before extending it:
   panels now have their own suites (below), and the
   `eslint-disable-next-line` list above remains the work queue for the
   ported half — those findings stay deferred until a test can catch a
-  re-run-timing regression. Note that `smoke-live.test.jsx` still walks
-  only the header-reachable surfaces, so these six are covered in demo mode
-  only — the live-mode branches inside them are the next gap, not a closed
-  one.
+  re-run-timing regression. `smoke-live.test.jsx` still walks only the
+  header-reachable surfaces, so these six are covered in demo mode only —
+  which costs nothing today, because **none of the six contains a
+  `window.LIVE` branch.** Only six spec modules gate on live mode at all
+  (`app-shell`, `daily-split`, `mirror-tab`, `world-feed`,
+  `profile-general`, `profile-overlay`) and `smoke-live` already reaches
+  every one. Checked rather than assumed, and worth re-checking before
+  adding a live gate to any overlay in this group: it would land with no
+  live-mode mount behind it.
 
 ## Panel tests — `ui/*.test.tsx`
 
