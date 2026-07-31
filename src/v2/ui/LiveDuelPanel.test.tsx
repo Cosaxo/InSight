@@ -1,0 +1,169 @@
+// @vitest-environment jsdom
+//
+// LiveDuelPanel is the surface D5 is about. A duel answer is sealed: nobody
+// may see anyone else's pick until the reveal doc exists, and the reveal doc
+// only exists once the server decides the condition is met. The rules and
+// the reveal pipeline enforce that; this panel is what a person actually
+// looks at, and it can leak in ways rules cannot see — by rendering a vote
+// it was handed, or by promising a reveal that will not happen.
+//
+// So these assert the two directions:
+//   before the reveal — the card shows YOUR sealed pick and nothing about
+//   anyone else, and the copy says what the condition actually is (a duo
+//   reveals only if both play, and saying otherwise sets up a broken promise);
+//   after it — the reveal renders.
+//
+// `../data/live` is mocked: what this panel needs from the store is one
+// group, one question, one vote and one reveal, and mocking is what lets the
+// pre-reveal state be exact. The real store cannot be asked for "a duel
+// where the partner HAS voted but the reveal has not landed" — that is
+// precisely the window the seal covers.
+
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+
+const LIVE = vi.hoisted(() => {
+  const social = {
+    groups: () => [] as Array<Record<string, unknown>>,
+    todayQ: () => null as Record<string, unknown> | null,
+    myDuelVote: () => null as { optionIdx: number } | null,
+    revealFor: () => null as Record<string, unknown> | null,
+    voteDuel: async (gid: string, idx: number, guess?: number) => { void gid; void idx; void guess; },
+    todayKey: () => "2026-07-30",
+  };
+  return { enabled: true, uid: "u_me", social, subscribe: () => () => {} };
+});
+vi.mock("../data/live", () => ({ default: LIVE }));
+
+const { default: LiveDuelPanel } = await import("./LiveDuelPanel");
+
+const DUO = {
+  id: "g1", name: "Us Two", mode: "duo", inviteCode: "ABCD2345", streak: 3,
+  memberUids: ["u_me", "u_ada"], memberNames: { u_me: "Me", u_ada: "Ada" },
+};
+const Q = { id: "duo-000", prompt: "Coffee or tea?", options: ["Coffee", "Tea"], kind: "classic" };
+
+beforeEach(() => {
+  LIVE.enabled = true;
+  LIVE.uid = "u_me";
+  LIVE.social.groups = () => [DUO];
+  LIVE.social.todayQ = () => Q;
+  LIVE.social.myDuelVote = () => null;
+  LIVE.social.revealFor = () => null;
+});
+afterEach(cleanup);
+
+describe("LiveDuelPanel · before the reveal, only your own pick is on screen", () => {
+  it("shows your sealed choice and names nobody else", () => {
+    LIVE.social.myDuelVote = () => ({ optionIdx: 0 });
+    render(<LiveDuelPanel mode="duo" />);
+
+    expect(screen.getByText(/Sealed:/)).toBeTruthy();
+    expect(screen.getByText("Coffee")).toBeTruthy();
+    // The partner exists in memberNames — the panel has their name in hand
+    // and must not attach it to an answer.
+    const text = document.body.textContent || "";
+    expect(text).not.toMatch(/Ada picked|Ada chose|Ada: /);
+  });
+
+  // The onboarding block below the cards explains the same rules in general
+  // terms, so a page-wide text search finds both and cannot say which one
+  // it found. Scope to the sealed confirmation itself: the claim under test
+  // is what the card tells you about the answer you just sealed.
+  const sealedBox = () => screen.getByText(/Sealed:/).textContent || "";
+
+  it("states the duo condition rather than promising a reveal outright", () => {
+    // "revealed after 00:00" alone would be a promise the pipeline does not
+    // keep: shouldReveal() is both-or-nothing for a duo, so a partner who
+    // never plays means no reveal and a streak of zero. The card has to say
+    // the condition, or the product looks broken on the morning it applies.
+    LIVE.social.myDuelVote = () => ({ optionIdx: 1 });
+    render(<LiveDuelPanel mode="duo" />);
+    expect(sealedBox()).toMatch(/if you both play/i);
+  });
+
+  it("promises names for a group, where one answer is enough", () => {
+    // The other branch of the same sentence, and the reason it is a branch:
+    // a group reveals on one answer and does show names, so borrowing the
+    // duo's hedge here would understate what happens.
+    LIVE.social.groups = () => [{ ...DUO, mode: "group", memberUids: ["u_me", "u_ada", "u_bo"] }];
+    LIVE.social.myDuelVote = () => ({ optionIdx: 0 });
+    render(<LiveDuelPanel mode="group" />);
+    expect(sealedBox()).toMatch(/revealed with names after/i);
+    expect(sealedBox()).not.toMatch(/if you both play/i);
+  });
+
+  it("offers the options for voting when you have not played", () => {
+    render(<LiveDuelPanel mode="duo" />);
+    expect(screen.getByRole("button", { name: "Coffee" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Tea" })).toBeTruthy();
+    expect(screen.queryByText(/Sealed:/)).toBeNull();
+  });
+});
+
+describe("LiveDuelPanel · sealing requires the guess a duo's scoring needs", () => {
+  it("keeps the submit disabled until both a pick and a guess are chosen", () => {
+    render(<LiveDuelPanel mode="duo" />);
+    const submit = () => screen.getByRole("button", { name: /Seal answer \+ guess/i }) as HTMLButtonElement;
+    expect(submit().disabled).toBe(true);
+
+    fireEvent.click(screen.getByRole("button", { name: "Coffee" }));
+    // Pick alone is not enough for a two-member duo — the guess is what the
+    // 1v1 reveal scores, and a vote sealed without one cannot be scored.
+    expect(submit().disabled).toBe(true);
+
+    // The guess row only appears after a pick, so query it now.
+    const guessRow = screen.getAllByRole("button", { name: "Tea" });
+    fireEvent.click(guessRow[guessRow.length - 1]);
+    expect(submit().disabled).toBe(false);
+  });
+
+  it("sends the pick and the guess through to the store", async () => {
+    const calls: Array<[string, number, number | undefined]> = [];
+    LIVE.social.voteDuel = async (gid: string, idx: number, guess?: number) => {
+      calls.push([gid, idx, guess]);
+    };
+    render(<LiveDuelPanel mode="duo" />);
+    fireEvent.click(screen.getByRole("button", { name: "Coffee" }));
+    const guessRow = screen.getAllByRole("button", { name: "Tea" });
+    fireEvent.click(guessRow[guessRow.length - 1]);
+    fireEvent.click(screen.getByRole("button", { name: /Seal answer \+ guess/i }));
+    await vi.waitFor(() => expect(calls.length).toBe(1));
+    expect(calls[0]).toEqual(["g1", 0, 1]);
+  });
+
+  it("surfaces a failed seal instead of looking like it worked", async () => {
+    // The write is owner-only and can be refused — a rules rejection for a
+    // day that has just revealed, most plausibly. Swallowing it leaves the
+    // user believing they played on a day they did not.
+    LIVE.social.voteDuel = async () => { throw new Error("permission-denied"); };
+    render(<LiveDuelPanel mode="duo" />);
+    fireEvent.click(screen.getByRole("button", { name: "Coffee" }));
+    const guessRow = screen.getAllByRole("button", { name: "Tea" });
+    fireEvent.click(guessRow[guessRow.length - 1]);
+    fireEvent.click(screen.getByRole("button", { name: /Seal answer \+ guess/i }));
+    expect(await screen.findByText(/didn.t save/i)).toBeTruthy();
+  });
+
+  it("needs only a pick in a group, where there is nothing to guess", () => {
+    LIVE.social.groups = () => [{ ...DUO, mode: "group", memberUids: ["u_me", "u_ada", "u_bo"] }];
+    render(<LiveDuelPanel mode="group" />);
+    fireEvent.click(screen.getByRole("button", { name: "Coffee" }));
+    const submit = screen.getByRole("button", { name: /Seal your answer/i }) as HTMLButtonElement;
+    expect(submit.disabled).toBe(false);
+  });
+});
+
+describe("LiveDuelPanel · a solo duo says why nothing is happening", () => {
+  it("asks you to share the code when the partner has not joined", () => {
+    LIVE.social.groups = () => [{ ...DUO, memberUids: ["u_me"] }];
+    render(<LiveDuelPanel mode="duo" />);
+    expect(screen.getByText(/the duel starts when they join/i)).toBeTruthy();
+  });
+
+  it("renders nothing when LIVE is off", () => {
+    LIVE.enabled = false;
+    const { container } = render(<LiveDuelPanel mode="duo" />);
+    expect(container.textContent).toBe("");
+  });
+});
