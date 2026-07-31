@@ -839,6 +839,17 @@ class WorldFeed extends React.Component {
     const agree = !!leader && v.entity === leader.entity;
     const notListed = store && v.entity === store.NOT_LISTED;
     const shareOf = (count) => (c.total ? ((count / c.total) * 100).toFixed(1) + '%' : '');
+    // The tail is real and the copy says why it is hidden — without naming
+    // it. The entity count renders only when the fold covers at least two
+    // entries (the subtraction-leak rule the backend fold keeps) and steps
+    // down like the vote counts do, so it never ticks per-answer.
+    const nounOf = { pokemon: 'Pokémon', emoji: 'emoji', films: 'films', artists: 'artists' };
+    const foldNoun = nounOf[q.domain] || 'picks';
+    const foldNote = c.restEntities >= 5
+      ? ` votes across ${Math.floor(c.restEntities / 5) * 5}+ other ${foldNoun}`
+      : c.restEntities >= 2 ? ` votes across a few other ${foldNoun}` : '';
+    const foldWhy = foldNote && c.restBelowFloor ? ' — none with 5 yet' : '';
+    const TOPN = (window.PICKS && window.PICKS.TOP_N) || 10;
     const tile = (ent, nm, label, strong, count, rank) => (
       <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 7 }}>
         <span style={{ fontFamily: 'var(--sans)', fontWeight: 700, fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase', color: strong ? 'var(--ink-2)' : 'var(--ink-3)' }}>{label}</span>
@@ -885,18 +896,45 @@ class WorldFeed extends React.Component {
             </div>
           );
         })}
+        {!seg && !inTop && !notListed && (
+          <>
+            {rows.length > 0 && <span aria-hidden="true" style={{ display: 'flex', gap: 3, padding: '1px 0 1px 27px' }}>{[0, 1, 2].map((d) => <span key={d} style={{ width: 3, height: 3, borderRadius: '50%', background: 'var(--ink-3)', opacity: 0.5 }}></span>)}</span>}
+            {/* the ghost row: YOUR below-floor pick, pinned under the board.
+                Rendered from your own stored vote, never from published
+                data — no one else's board shows it, so searching always
+                ends in finding yourself without enumerating the tail. */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
+              <span style={{ width: 18, flexShrink: 0, fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 12, color: 'var(--ink-3)', textAlign: 'right' }}>—</span>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: 7 }}>
+                  <span style={{ fontFamily: 'var(--sans)', fontWeight: 800, fontSize: big ? 14.5 : 13.5, color: 'var(--ink)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{mineName || '…'}</span>
+                  <span aria-hidden="true" style={{ width: 9, height: 9, borderRadius: '50%', background: T.color, border: '2px solid var(--surface)', boxShadow: '0 0 0 1px ' + T.color, flexShrink: 0 }}></span>
+                  <span style={{ marginLeft: 'auto', fontFamily: 'var(--sans)', fontWeight: 600, fontSize: 11.5, color: 'var(--ink-3)', whiteSpace: 'nowrap' }}>only you see this — too few to count yet</span>
+                </div>
+                <div style={{ marginTop: 3, height: 5, borderRadius: 999, border: '1px dashed color-mix(in oklch, ' + T.color + ' 40%, var(--rule))', boxSizing: 'border-box', background: 'transparent' }}></div>
+              </div>
+            </div>
+          </>
+        )}
         {seg ? (
           <span style={{ paddingLeft: 27, fontSize: 12.5, fontWeight: 600, color: 'var(--ink-3)' }}>the crowd&apos;s board, as {wfFmt(seg.cohort)} {sel.bucket.toLowerCase()} answers order it</span>
         ) : c.rest > 0 && (
-          <span style={{ paddingLeft: 27, fontSize: 12.5, fontWeight: 600, color: 'var(--ink-3)' }}>everyone else · {wfFmt(c.rest)}</span>
+          <span style={{ paddingLeft: 27, fontSize: 12.5, fontWeight: 600, color: 'var(--ink-3)', textWrap: 'pretty' }}>everyone else · {wfFmt(c.rest)}{foldNote}{foldWhy}</span>
         )}
-        <span style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--ink-2)' }}>
-          {store && v.entity === store.NOT_LISTED
-            ? <>you: Not listed — counted with everyone else, never enumerated</>
-            : inTop
-              ? <>you: {mineName || '…'}</>
-              : <>you: {mineName || '…'} — too few {mineName || 'matching'} picks yet to count</>}
-        </span>
+        {/* a sparse board reads as anticipation, not absence: name the empty
+            spots and what claims one, instead of a shorter list that looks
+            like a bug. Demo boards are full, so this is a launch-era line. */}
+        {!seg && rows.length < TOPN && (
+          <span style={{ paddingLeft: 27, fontSize: 12.5, fontWeight: 600, color: 'var(--ink-3)' }}>{rows.length} of {TOPN} spots on the board claimed — a spot needs 5 votes</span>
+        )}
+        {/* the below-floor case now lives in the ghost row above */}
+        {(notListed || inTop) && (
+          <span style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--ink-2)' }}>
+            {notListed
+              ? <>you: Not listed — counted with everyone else, never enumerated</>
+              : <>you: {mineName || '…'}</>}
+          </span>
+        )}
       </div>
     );
   }

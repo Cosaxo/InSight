@@ -100,6 +100,14 @@ A favourite-of-1,000 has no 52/48 to stage. The reveal is a **leaderboard**:
   demographic cells.
 - Capping at N bounds the public doc size regardless of catalogue size, and
   keeps the reveal readable. Ties at the boundary fold into the bucket.
+- The fold also carries **two aggregate scalars**: how many distinct entries
+  it covers and whether every one is still below the floor. They power the
+  honest tail copy ("47 votes across 30+ other films — none with 5 yet")
+  and the spots-claimed line on a sparse board. Neither enumerates: the
+  entity count renders only when the fold covers at least two entries (the
+  same subtraction-leak rule as above) and stepped down to fives, so it
+  never ticks per answer (the delta-disclosure rule). The demo store
+  (`pick-data.js` `canon()`) publishes the same shape.
 - **Your own pick always shows to you** — it is your own answer, no floor
   applies (the `feed-read.js` argument). When it is below the floor the
   copy says so honestly: "You: Mudkip — too few Mudkip picks yet to count."

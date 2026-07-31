@@ -153,6 +153,7 @@
 
   const api = {
     AGG_MIN_N,
+    TOP_N,
     my(qid) { const v = mine[qid]; return v == null ? null : v; },
     pick(qid, entity) {
       mine[qid] = entity;
@@ -175,7 +176,21 @@
         .filter((r) => r.count >= AGG_MIN_N)
         .slice(0, TOP_N);
       const shown = top.reduce((a, r) => a + r.count, 0);
-      return { top, rest: total - shown, total };
+      // The fold's two honest scalars: how many distinct entries it covers
+      // (excluding "Not listed", which is votes rather than an entry) and
+      // whether every one of them still sits below the floor. Aggregate
+      // properties of the tail, never an enumeration — the UI additionally
+      // renders the entity count only when the fold covers at least two
+      // entries and stepped down, the same subtraction-leak and
+      // delta-disclosure rules the published counts already keep
+      // (docs/CATALOG-QUESTIONS.md § the reveal).
+      const folded = Object.keys(counts)
+        .filter((k) => k !== '0' && !top.some((r) => String(r.entity) === k));
+      return {
+        top, rest: total - shown, total,
+        restEntities: folded.length,
+        restBelowFloor: folded.every((k) => counts[k] < AGG_MIN_N),
+      };
     },
     // The segment chips a question can offer — flattened from its BY data,
     // in the data's own order. Empty when a question ships no slices.
