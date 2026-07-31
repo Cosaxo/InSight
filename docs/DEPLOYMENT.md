@@ -112,7 +112,7 @@ Three values reach the deployed runtime, all as **variables on the
 
 | Variable | Read by | Effect |
 | --- | --- | --- |
-| `SEED_ADMIN_UIDS` | `functions/src/ops.ts` → `assertOperator()` | Comma-separated uids allowed to call the operator-only callables (`seedContentV2`, `revealDuelsNowV2`, `rebuild*`). Unset ⇒ **every** operator callable returns `permission-denied`. |
+| `SEED_ADMIN_UIDS` | `functions/src/ops.ts` → `assertOperator()` | Comma-separated uids allowed to call the operator-only callables (`seedContentV2`, `revealDuelsNowV2`, `rebuild*`). Unset ⇒ **every** operator callable returns `permission-denied`. Set 2026-07-31 to the maintainer's uid (same account as `MOD_UIDS` — the roles are separate, the person currently is not). |
 | `MOD_UIDS` | `functions/src/moderation.ts` → `assertModerator()` | Comma-separated uids allowed to call the moderation callables (`buildModQueueNow`, `fetchModQueue`, `submitModVerdict`). **Deliberately separate** from `SEED_ADMIN_UIDS` — a moderator identity can moderate and do nothing else (docs/MODERATION.md, D22). Unset ⇒ both callables deny everyone, which is fail-safe. Set 2026-07-31 to the maintainer's uid. |
 | `APPCHECK_ENFORCE` | `functions/src/ops.ts` → `ENFORCE_APP_CHECK` | Only the exact string `false` disables App Check enforcement, as an incident escape hatch. Unset (the normal state) ⇒ enforced. |
 
