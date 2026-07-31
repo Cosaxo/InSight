@@ -16,7 +16,8 @@ Firebase project `prvfire33`. Routine backend changes need no manual deploy.
 ## Pipeline
 
 - **Workflow:** `.github/workflows/firebase-deploy.yml`
-- **Triggers:** push to `main` (paths `functions/**`, `firestore.rules`, the
+- **Triggers:** push to `main` (paths `functions/**`, `firestore.rules`,
+  `firestore.indexes.json`, `storage.rules`, `web/**`, `firebase.json`, the
   workflow file) and manual `workflow_dispatch`.
 - **Steps:** checkout -> set up Node 22 -> install & build `functions` ->
   write `functions/.env.prvfire33` -> authenticate to Google Cloud ->
@@ -43,14 +44,29 @@ Firebase project `prvfire33`. Routine backend changes need no manual deploy.
   - `concurrency: cancel-in-progress: false` — a queued push waits for the
     in-flight deploy instead of cancelling it mid-apply.
 - **Deployed resources:**
-  - Firestore rules (`firestore.rules`)
+  - Firestore rules (`firestore.rules`) + indexes
+  - Storage rules (`storage.rules`) — its **own step**, before the main
+    apply, and `continue-on-error` so a project with no bucket cannot
+    abort a rules/functions deploy. The flag is `--only storage`, NOT
+    `--only storage:rules`: the colon form names a *deploy target* (the
+    multi-bucket feature, unconfigured here) and errors with "Could not
+    find rules for the following storage targets". That exact error ran
+    silently under `continue-on-error` on **every** deploy until
+    2026-07-31 (PR #51) — check the step's log, not its checkmark,
+    before assuming the rules are live. First real release: run
+    30644637683.
   - v2 functions: `seedContentV2`, `onV2AnswerCreated` (k-floored
     aggregates), `createGroupV2` / `joinGroupV2` / `leaveGroupV2`,
     `registerPushToken`, `scheduledDuelReveals` / `revealDuelsNowV2`
     (reveals + push)
+  - Moderation functions (docs/MODERATION.md, D22): `buildModQueue`
+    (scheduled) / `buildModQueueNow`, `fetchModQueue`,
+    `submitModVerdict`
   - `deleteAccount` — the one v1-era function that carries forward, and
     it still wipes the v1 collections (D13)
-  - The deploy runs with `--force` — `onV2AnswerCreated` has a retry
+  - Hosting (`web/` — the legal pages), as the **last** step and
+    `continue-on-error` for the same reason as storage
+  - The main apply runs with `--force` — `onV2AnswerCreated` has a retry
     policy, which the CLI refuses non-interactively otherwise
 
 ### One-off cleanup still owed in production (D13)
@@ -90,13 +106,14 @@ Actions secret `FIREBASE_SERVICE_ACCOUNT`.
 
 ## Runtime environment for the functions
 
-Two values reach the deployed runtime, both as **variables on the
+Three values reach the deployed runtime, all as **variables on the
 `production` environment** (GitHub → Settings → Environments → `production`
 → Variables — not secrets, and not committed files):
 
 | Variable | Read by | Effect |
 | --- | --- | --- |
 | `SEED_ADMIN_UIDS` | `functions/src/ops.ts` → `assertOperator()` | Comma-separated uids allowed to call the operator-only callables (`seedContentV2`, `revealDuelsNowV2`, `rebuild*`). Unset ⇒ **every** operator callable returns `permission-denied`. |
+| `MOD_UIDS` | `functions/src/moderation.ts` → `assertModerator()` | Comma-separated uids allowed to call the moderation callables (`buildModQueueNow`, `fetchModQueue`, `submitModVerdict`). **Deliberately separate** from `SEED_ADMIN_UIDS` — a moderator identity can moderate and do nothing else (docs/MODERATION.md, D22). Unset ⇒ both callables deny everyone, which is fail-safe. Set 2026-07-31 to the maintainer's uid. |
 | `APPCHECK_ENFORCE` | `functions/src/ops.ts` → `ENFORCE_APP_CHECK` | Only the exact string `false` disables App Check enforcement, as an incident escape hatch. Unset (the normal state) ⇒ enforced. |
 
 The deploy job writes these to `functions/.env.prvfire33`, which the CLI
@@ -104,8 +121,12 @@ bakes into each function's runtime config. The filename is
 project-scoped deliberately: a future non-prod project must not inherit
 production operator uids. `.env` and `.env.*` are gitignored repo-wide,
 so the workflow variable is the only path into production — a deploy with
-`SEED_ADMIN_UIDS` unset still succeeds, but logs a `::warning::` and
-leaves the question bank unseedable.
+`SEED_ADMIN_UIDS` or `MOD_UIDS` unset still succeeds, but logs a
+`::warning::` and leaves the affected callables denying everyone.
+Changing a variable does nothing by itself: the value only reaches the
+runtime on the next deploy, so re-run **Deploy Firebase backend** via
+`workflow_dispatch` after setting one, and check the "Write functions
+runtime env" step's log to confirm the value arrived.
 
 ## Rolling back a bad deploy
 
@@ -275,3 +296,11 @@ key/role mismatch trap below.
   roles. Fixed by re-issuing the key from that service account and
   updating the secret. (When auth succeeds but a specific API 403s, suspect a
   key/role mismatch.)
+- **`Could not find rules for the following storage targets: rules`** —
+  `--only storage:rules` treats `rules` as a deploy-target name, and this
+  project configures no storage targets. Use `--only storage`. This one
+  deserves its place here: it failed on every deploy for the workflow's
+  whole life, invisibly, because the step is `continue-on-error` — a
+  green run with a silently failed step. The general lesson: for any
+  `continue-on-error` step, an audit means reading the step's log, not
+  its checkmark.
