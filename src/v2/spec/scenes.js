@@ -21,6 +21,9 @@ import React from 'react';
   // the broad feed topic each scene pulls general questions from
   // (null = the scene has only its own questions)
   const TOPIC = { tennis: 'sport', swim: 'sport', football: 'sport', trail: 'sport', yoga: 'sport', ferment: 'food', writers: 'culture', philos: 'bigq', chess: null, fjord: 'music', press: 'culture', civic_g: 'event', makers: 'tech' };
+  // …but where a subtopic exists, the scene pulls THAT leaf instead of the whole
+  // parent: following the Tennis community should not flood you with football.
+  const SUB = { tennis: 'sub_tennis', football: 'sub_football', trail: 'sub_running' };
   // topic hue per scene (from its interest category) — shared by the orbit and the feed chips
   const hueOf = (id) => {
     const g = (((window.IS_DATA || {}).groups) || []).find((x) => x.id === id);
@@ -32,6 +35,7 @@ import React from 'react';
   const persist = () => { try { localStorage.setItem(LS, JSON.stringify([...ensure()])); } catch (e) { /* localStorage can throw: private mode, quota, disabled storage. Persistence here is best-effort and the in-memory state stays correct. */ } listeners.forEach((f) => f()); };
   window.SCENES = {
     topicOf: (id) => TOPIC[id] || null,
+    subOf: (id) => SUB[id] || null,
     hueOf, colorOf,
     defs: () => ((window.IS_DATA || {}).groups || []),
     mine: () => ((window.IS_DATA || {}).groups || []).filter((g) => ensure().has(g.id)),

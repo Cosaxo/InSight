@@ -301,7 +301,7 @@ function MFHeader({ kicker, fig, unit, right }) {
       <div style={{ minWidth: 0 }}>
         {kicker && <div className="kicker">{kicker}</div>}
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginTop: kicker ? 3 : 0 }}>
-          <span style={{ fontFamily: 'var(--serif)', fontSize: 29, letterSpacing: '-0.01em', color: 'var(--ink)', lineHeight: 1 }}>{fig}</span>
+          <span style={{ fontFamily: 'var(--sans)', fontSize: 29, letterSpacing: '-0.01em', color: 'var(--ink)', lineHeight: 1 }}>{fig}</span>
           <span style={{ fontFamily: 'var(--sans)', fontSize: 12.5, fontWeight: 500, color: 'var(--ink-3)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{unit}</span>
         </div>
       </div>

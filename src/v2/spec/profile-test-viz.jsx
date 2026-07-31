@@ -30,8 +30,8 @@ function TestHeroRow({ R, accent, taken }) {
         border: `1.5px solid ${accent}`, color: accent,
         display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', lineHeight: 1,
       }}>
-        <span style={{ fontFamily: 'var(--serif)', fontStyle: 'var(--voice-italic)', fontSize: 23 }}>{top.value}</span>
-        <span style={{ fontFamily: 'var(--mono)', fontSize: 7.5, letterSpacing: '0.12em', opacity: 0.7, marginTop: 1 }}>/ 100</span>
+        <span style={{ fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 24, letterSpacing: '-0.02em' }}>{top.value}</span>
+        <span style={{ fontFamily: 'var(--sans)', fontSize: 9.5, fontWeight: 700, letterSpacing: '0.06em', opacity: 0.7, marginTop: 2 }}>/ 100</span>
       </div>
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ fontFamily: 'var(--sans)', fontSize: 10.5, fontWeight: 700, color: 'var(--ink-3)', letterSpacing: '0.09em', textTransform: 'uppercase' }}>Strongest</div>
@@ -64,19 +64,28 @@ function AttachmentCard({ accent }) {
       </div>
       <TestHeroRow R={R} accent={a} />
       <div style={{ marginTop: 16, paddingTop: 16, borderTop: '0.5px solid var(--rule)', display: 'flex', flexDirection: 'column', gap: 13 }}>
-        {[...R.dims].sort((m, n) => n.value - m.value).map(d => (
-          <div key={d.id} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <span style={{ width: 74, flexShrink: 0, fontFamily: 'var(--sans)', fontSize: 13.5, fontWeight: 600, color: 'var(--ink)' }}>{d.label}</span>
-            <span style={{ flex: 1, height: 6, borderRadius: 99, background: 'var(--surface-3)', overflow: 'hidden' }}>
-              <span style={{ display: 'block', height: '100%', width: `${d.value}%`, background: a, borderRadius: 99 }} />
-            </span>
-            <span style={{ width: 24, textAlign: 'right', flexShrink: 0, fontFamily: 'var(--sans)', fontSize: 13.5, fontWeight: 600, color: 'var(--ink-2)' }}>{d.value}</span>
-          </div>
-        ))}
+        {[...R.dims].sort((m, n) => n.value - m.value).map(d => {
+          const t = ((window.IS_TEST_AVG || {}).attachment || {})[d.id];
+          return (
+            <div key={d.id} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <span style={{ width: 74, flexShrink: 0, fontFamily: 'var(--sans)', fontSize: 13.5, fontWeight: 600, color: 'var(--ink)' }}>{d.label}</span>
+              <span style={{ position: 'relative', flex: 1, height: 14, display: 'flex', alignItems: 'center' }}>
+                <span style={{ width: '100%', height: 7, borderRadius: 99, background: 'var(--surface-3)', overflow: 'hidden' }}>
+                  <span style={{ display: 'block', height: '100%', width: `${d.value}%`, background: a, borderRadius: 99 }}></span>
+                </span>
+                {t != null ? <span aria-hidden="true" style={{ position: 'absolute', left: `${t}%`, top: '50%', transform: 'translate(-50%,-50%)', width: 2, height: 13, borderRadius: 2, background: 'color-mix(in oklch, var(--ink-3) 70%, transparent)' }}></span> : null}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginTop: 11 }}>
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontFamily: 'var(--sans)', fontSize: 12, fontWeight: 600, color: 'var(--ink-3)' }}><span style={{ width: 15, height: 7, borderRadius: 99, background: a }}></span>you</span>
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontFamily: 'var(--sans)', fontSize: 12, fontWeight: 600, color: 'var(--ink-3)' }}><span style={{ width: 2, height: 12, borderRadius: 2, background: 'color-mix(in oklch, var(--ink-3) 70%, transparent)' }}></span>most people</span>
       </div>
       <div style={{
-        marginTop: 4, paddingTop: 12, borderTop: '0.5px solid var(--rule)',
-        fontFamily: 'var(--serif)', fontStyle: 'var(--voice-italic)', fontSize: 13, color: 'var(--ink-2)', lineHeight: 1.5, textWrap: 'pretty',
+        marginTop: 13, paddingTop: 12, borderTop: '0.5px solid var(--rule)',
+        fontFamily: 'var(--sans)', fontSize: 13, fontWeight: 500, color: 'var(--ink-2)', lineHeight: 1.5, textWrap: 'pretty',
       }}>
         {SOCIAL_NOTE[top.id] || <>You lead with <span style={{ color: a }}>{top.label.toLowerCase()}</span>.</>}
       </div>
@@ -136,7 +145,6 @@ function ValuesTiltCard({ me, accent }) {
           background: `color-mix(in oklch, ${a} 13%, var(--surface-2))`,
           border: `1px solid color-mix(in oklch, ${a} 38%, var(--rule))`,
           color: a, display: 'flex', alignItems: 'center', justifyContent: 'center',
-          fontSize: 25, fontFamily: 'var(--serif)', fontStyle: 'var(--voice-italic)',
         }}>{GL('◇')}</div>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontFamily: 'var(--sans)', fontSize: 19, fontWeight: 700, letterSpacing: '-0.01em', lineHeight: 1.15, textTransform: 'capitalize' }}>{me.moralLabel}</div>
@@ -187,11 +195,11 @@ function ValuesTiltCard({ me, accent }) {
 
       {/* one read-once key */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 16, marginTop: 16, paddingTop: 12, borderTop: '0.5px solid var(--rule)' }}>
-        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontFamily: 'var(--sans)', fontSize: 10.5, fontWeight: 600, color: 'var(--ink-3)', letterSpacing: '0.06em' }}>
-          <span style={{ width: 11, height: 11, borderRadius: '50%', background: a, border: '2px solid var(--surface)', boxShadow: '0 0 0 0.5px var(--rule)' }} />YOU
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontFamily: 'var(--sans)', fontSize: 12, fontWeight: 600, color: 'var(--ink-3)' }}>
+          <span style={{ width: 11, height: 11, borderRadius: '50%', background: a, border: '2px solid var(--surface)', boxShadow: '0 0 0 0.5px var(--rule)' }} />you
         </span>
-        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontFamily: 'var(--sans)', fontSize: 10.5, fontWeight: 600, color: 'var(--ink-3)', letterSpacing: '0.06em' }}>
-          <span style={{ width: 9, height: 9, borderRadius: '50%', background: 'var(--surface)', border: '1.4px solid var(--ink-3)' }} />MOST PEOPLE
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontFamily: 'var(--sans)', fontSize: 12, fontWeight: 600, color: 'var(--ink-3)' }}>
+          <span style={{ width: 9, height: 9, borderRadius: '50%', background: 'var(--surface)', border: '1.4px solid var(--ink-3)' }} />most people
         </span>
       </div>
     </div>

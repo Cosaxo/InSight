@@ -48,12 +48,12 @@ function CityOverlay({ city, onClose }) {
             display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
             flexShrink: 0, position: 'relative',
           }}>
-            <div style={{ fontFamily: 'var(--serif)', fontStyle: 'var(--voice-italic)', fontSize: 26, color: `oklch(0.30 0.13 ${city.hue})` }}>{city.country}</div>
-            <div style={{ fontFamily: 'var(--mono)', fontSize: 11, letterSpacing: '0.1em', marginTop: 4, color: 'var(--ink-3)' }}>{city.country}-VISA</div>
+            <div style={{ fontFamily: 'var(--sans)', fontSize: 26, color: `oklch(0.30 0.13 ${city.hue})` }}>{city.country}</div>
+            <div style={{ fontFamily: 'var(--sans)', fontSize: 11, letterSpacing: '0.1em', marginTop: 4, color: 'var(--ink-3)' }}>{city.country}-VISA</div>
           </div>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <h2 style={{ fontFamily: 'var(--serif)', fontSize: 28, fontStyle: 'var(--voice-italic)', margin: '0 0 4px', letterSpacing: '-0.01em', lineHeight: 1.05 }}>{city.name}</h2>
-            <div style={{ fontFamily: 'var(--mono)', fontSize: 12, color: 'var(--ink-3)', letterSpacing: '0.06em' }}>
+            <h2 style={{ fontFamily: 'var(--sans)', fontSize: 28, margin: '0 0 4px', letterSpacing: '-0.01em', lineHeight: 1.05 }}>{city.name}</h2>
+            <div style={{ fontFamily: 'var(--sans)', fontSize: 12, color: 'var(--ink-3)', letterSpacing: '0.06em' }}>
               POP {city.pop}
             </div>
             {city.blurb && (
@@ -78,7 +78,7 @@ function CityOverlay({ city, onClose }) {
               size={280}
             />
           </div>
-          <div style={{ display: 'flex', gap: 14, fontFamily: 'var(--mono)', fontSize: 11, color: 'var(--ink-3)', letterSpacing: '0.08em', marginTop: 4 }}>
+          <div style={{ display: 'flex', gap: 14, fontFamily: 'var(--sans)', fontSize: 11, color: 'var(--ink-3)', letterSpacing: '0.08em', marginTop: 4 }}>
             <span><span style={{ display:'inline-block', width:10, height:2, background:`oklch(0.55 0.12 ${city.hue})`, verticalAlign:'middle', marginRight:5 }} />{city.name.toUpperCase()}</span>
             <span><span style={{ display:'inline-block', width:10, height:2, background:'var(--ink-3)', verticalAlign:'middle', marginRight:5 }} />OSLO (HOME)</span>
           </div>
@@ -94,10 +94,10 @@ function CityOverlay({ city, onClose }) {
                 <div key={r.id}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 4 }}>
                     <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <span style={{ fontFamily: 'var(--mono)', fontSize: 12, color: accent, width: 16 }}>{GL(r.glyph)}</span>
-                      <span style={{ fontFamily: 'var(--serif)', fontStyle: 'var(--voice-italic)', fontSize: 14 }}>{r.label}</span>
+                      <span style={{ fontFamily: 'var(--sans)', fontSize: 12, color: accent, width: 16 }}>{GL(r.glyph)}</span>
+                      <span style={{ fontFamily: 'var(--sans)', fontSize: 14 }}>{r.label}</span>
                     </span>
-                    <span style={{ fontFamily: 'var(--mono)', fontSize: 12, color: 'var(--ink)' }}>{r.v}</span>
+                    <span style={{ fontFamily: 'var(--sans)', fontSize: 12, color: 'var(--ink)' }}>{r.v}</span>
                   </div>
                   <div style={{ position: 'relative', height: 6, background: 'var(--surface-2)', border: '0.5px solid var(--rule)', borderRadius: 3 }}>
                     <div style={{ position: 'absolute', inset: 0, width: `${r.v}%`, background: accent, opacity: 0.65 }} />
@@ -122,18 +122,18 @@ function CityOverlay({ city, onClose }) {
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 8 }}>
             {tops.map(r => (
               <span key={r.id} style={{
-                fontFamily: 'var(--mono)', fontSize: 12, letterSpacing: '0.1em',
+                fontFamily: 'var(--sans)', fontSize: 12, letterSpacing: '0.1em',
                 padding: '5px 10px',
                 background: 'var(--surface)', border: `0.5px solid oklch(0.55 0.12 ${city.hue})`,
                 color: `oklch(0.32 0.13 ${city.hue})`, borderRadius: 999,
               }}>{GL(r.glyph)} {r.label.toUpperCase()} · {r.v}</span>
             ))}
           </div>
-          <div style={{ fontFamily: 'var(--mono)', fontSize: 11, color: 'var(--ink-3)', letterSpacing: '0.1em', marginTop: 14, marginBottom: 6 }}>WHERE IT WOULDN'T</div>
+          <div style={{ fontFamily: 'var(--sans)', fontSize: 11, color: 'var(--ink-3)', letterSpacing: '0.1em', marginTop: 14, marginBottom: 6 }}>WHERE IT WOULDN'T</div>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
             {bots.map(r => (
               <span key={r.id} style={{
-                fontFamily: 'var(--mono)', fontSize: 12, letterSpacing: '0.1em',
+                fontFamily: 'var(--sans)', fontSize: 12, letterSpacing: '0.1em',
                 padding: '5px 10px',
                 background: 'var(--surface-2)', border: '0.5px solid var(--rule)',
                 color: 'var(--ink-3)', borderRadius: 999,
@@ -146,7 +146,7 @@ function CityOverlay({ city, onClose }) {
         <button style={{
           width: '100%', marginTop: 4, padding: '14px',
           background: 'transparent', border: '1px solid var(--rule)', borderRadius: 12,
-          fontFamily: 'var(--serif)', fontStyle: 'var(--voice-italic)', fontSize: 15, color: 'var(--ink-3)',
+          fontFamily: 'var(--sans)', fontSize: 15, color: 'var(--ink-3)',
           cursor: 'pointer'
         }}>+ add {city.name} to the wishlist</button>
       </div>

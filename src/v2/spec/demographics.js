@@ -12,7 +12,6 @@ import React from 'react';
 // the audience contains peers so age bands can show a "you" pin.
 (function () {
   const AGE_BANDS = ['<18', '18–24', '25–34', '35–44', '45–54', '55–64', '65+'];
-  const YOU_BAND = 3; // Mira is 34 → '35–44'? she's 34 → '25–34' is 2. Set to 2.
 
   // gender keys + labels (shared)
   const GENDER = [

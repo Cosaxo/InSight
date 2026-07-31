@@ -39,6 +39,14 @@
 //           instrument and a silent skip reads as a gap in your own
 //           results rather than a question you passed on.
 //
+//   c03     the prototype's "Your favourite Pokémon" catalogue card and its
+//           20 demo entries (Gengar … Bidoof) — dropped because pk01
+//           (pick-data.js) already asks it against the real Pokédex (D27).
+//           Its absence also shifts card positions, which pairs the feed's
+//           "i" context buttons off-by-one and reports their two ink
+//           colours swapped in both directions — noise from the same cause,
+//           not a colour miss.
+//
 // Anything else it reports is probably a miss.
 
 import { fileURLToPath } from "node:url";

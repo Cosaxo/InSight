@@ -10,6 +10,13 @@ import React from 'react';
 
 (function () {
 
+// deterministic 0..1 from any string — their drifted test values must be stable
+function poHash(s) {
+  let h = 2166136261 >>> 0;
+  for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); }
+  return ((h >>> 8) % 100000) / 100000;
+}
+
 // ─── Deterministic derivation of a person's full profile from p ───
 function derivePerson(p, me) {
   const seed = (key) => {
@@ -156,7 +163,6 @@ function PersonOverlay({ p: rawP, onClose, me }) {
   const themColor = `oklch(0.55 0.13 ${p.hue})`;
 
   const overall = Math.round(p.match);
-  const closestShared = prof.closest[0];
   const fStatus = !p.anon && p.id && window.FRIENDS ? window.FRIENDS.status(p.id) : 'none';
   const isFriend = fStatus === 'friends';
   const onFriendBtn = () => {
@@ -240,27 +246,83 @@ function PersonOverlay({ p: rawP, onClose, me }) {
           const rnd = (o) => Object.fromEntries(Object.entries(o).map(([k, v]) => [k, Math.round(v)]));
           const to01 = (o) => Object.fromEntries(Object.entries(o).map(([k, v]) => [k, Math.round((v + 100) / 2)]));
           const who = p.anon ? 'them' : (p.name ? p.name.split(' ')[0] : p.init);
-          const myCatSet = new Set((me.myInterests || []).map(i => i.c));
-          const sharedInts = p.interests.filter(i => myCatSet.has(i.c));
-          const onlyTheirs = p.interests.filter(i => !myCatSet.has(i.c));
-          const chip = (shared) => ({
-            padding: '5px 12px', borderRadius: 999, fontFamily: 'var(--sans)', fontSize: 12.5, whiteSpace: 'nowrap',
-            fontWeight: shared ? 700 : 500,
-            background: shared ? `color-mix(in oklch, ${themColor} 14%, var(--surface-2))` : 'var(--surface)',
-            border: `1px solid ${shared ? `color-mix(in oklch, ${themColor} 45%, var(--rule))` : 'var(--rule)'}`,
-            color: shared ? 'var(--ink)' : 'var(--ink-3)',
-          });
+          // the remaining assessments (Social, Thinking) have no counterpart in
+          // derivePerson — derive them the same way: their dims drift off yours,
+          // deterministically per person, pulled closer the higher the match
+          const drifted = (kind) => {
+            const R = (window.IS_TEST_RESULTS || {})[kind];
+            if (!R || !R.dims || !R.dims.length) return null;
+            const pull = Math.max(0, Math.min(1, ((p.match || 60) - 35) / 65));
+            const out = {};
+            R.dims.forEach((d) => {
+              const r = poHash(String(p.id || p.init || p.name || 'x') + '|' + kind + '|' + d.id);
+              const drift = (r - 0.5) * 2 * 46 * (1 - pull * 0.6);
+              out[d.id] = Math.max(3, Math.min(100, Math.round(d.value + drift)));
+            });
+            return out;
+          };
+          const themPop = { big5: rnd(prof.big5), political: to01(prof.political), values: to01(prof.morals) };
+          const social = drifted('attachment');
+          const thinking = drifted('cognitive');
+          if (social) themPop.attachment = social;
+          if (thinking) themPop.cognitive = thinking;
+          const myInts = me.myInterests || [];
+          const myCatSet = new Set(myInts.map(i => i.c));
+          const theirCatSet = new Set(p.interests.map(i => i.c));
+          const allCats = (window.IS_DATA && window.IS_DATA.interestCats) || [];
+          // Their interests are declared as CATEGORIES; yours as specific things
+          // inside them. So the compare is a category ladder: one row per
+          // category either of you keeps, your depth in it as count dots, their
+          // stake as a filled mark. Rows where both marks land are the overlap.
+          const rows = allCats
+            .filter(c => myCatSet.has(c.id) || theirCatSet.has(c.id))
+            .map(c => ({
+              c, mine: myInts.filter(i => i.c === c.id), them: theirCatSet.has(c.id),
+            }))
+            .sort((a, b) => {
+              const rk = (r) => (r.them && r.mine.length ? 0 : r.mine.length ? 1 : 2);
+              return rk(a) - rk(b);
+            });
+          const bothN = rows.filter(r => r.them && r.mine.length).length;
+          // one mark per side, per row: filled = keeps it, hollow = doesn't. Two
+          // columns, so a shared row reads as a pair without counting anything.
+          const mark = (on, col, tip) => (
+            <span title={tip || undefined} style={{
+              width: 9, height: 9, borderRadius: '50%', flexShrink: 0, boxSizing: 'border-box',
+              background: on ? col : 'transparent',
+              border: on ? 'none' : '1.5px solid color-mix(in oklch, var(--ink-3) 34%, transparent)',
+            }}></span>
+          );
           const interestsSlide = {
             kind: 'interests', title: 'Interests', sub: 'shared ground',
             align: Math.round(parts.interests),
             body: (
-              <div style={{ marginTop: 16 }}>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7 }}>
-                  {sharedInts.map(i => <span key={'s' + i.c} style={chip(true)}>{i.t}</span>)}
-                  {onlyTheirs.map(i => <span key={'o' + i.c} style={chip(false)}>{i.t}</span>)}
+              <div style={{ marginTop: 13 }}>
+                {/* the overlap, as length: how much of the ladder you both keep */}
+                <div style={{ display: 'flex', height: 7, borderRadius: 999, overflow: 'hidden', background: 'var(--surface-3)' }}>
+                  <span style={{ width: (rows.length ? (bothN / rows.length) * 100 : 0) + '%', background: themColor }}></span>
                 </div>
-                <div style={{ marginTop: 14, paddingTop: 12, borderTop: '0.5px solid var(--rule)', fontFamily: 'var(--sans)', fontSize: 10.5, fontWeight: 600, color: 'var(--ink-3)', letterSpacing: '0.06em', textTransform: 'uppercase' }}>
-                  filled · you both &nbsp;·&nbsp; outline · only {who}
+                <div style={{ marginTop: 6, display: 'flex', flexDirection: 'column' }}>
+                  {rows.map(({ c, mine, them }) => {
+                    const both = them && mine.length > 0;
+                    return (
+                      <div key={c.id} style={{
+                        display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px', margin: '0 -10px',
+                        borderRadius: 8,
+                        background: both ? `color-mix(in oklch, ${themColor} 9%, transparent)` : 'transparent',
+                      }}>
+                        <span style={{ flex: 1, minWidth: 0, fontFamily: 'var(--sans)', fontSize: 13.5, fontWeight: both ? 700 : 500, color: both ? 'var(--ink)' : 'var(--ink-2)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.label}</span>
+                        <span style={{ display: 'flex', alignItems: 'center', gap: 11, flexShrink: 0 }}>
+                          {mark(mine.length > 0, 'var(--ink)', mine.map((i) => i.t).join(', '))}
+                          {mark(them, themColor, who)}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+                <div style={{ marginTop: 11, paddingTop: 9, borderTop: '0.5px solid var(--rule)', display: 'flex', alignItems: 'center', gap: 14, fontFamily: 'var(--sans)', fontSize: 10.5, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--ink-3)' }}>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>{mark(true, 'var(--ink)')}you</span>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>{mark(true, themColor)}{who}</span>
                 </div>
               </div>
             ),
@@ -269,7 +331,7 @@ function PersonOverlay({ p: rawP, onClose, me }) {
             <div style={{ marginBottom: 20 }}>
               <div style={{ marginBottom: 9 }}><Kicker>What makes the number</Kicker></div>
               <window.CompareCarousel
-                pop={{ big5: rnd(prof.big5), political: to01(prof.political), values: to01(prof.morals) }}
+                pop={themPop}
                 accent={themColor} label={who}
                 aligns={{ big5: Math.round(parts.personality), political: Math.round(parts.politics), values: Math.round(parts.values) }}
                 extra={[interestsSlide]}
@@ -278,13 +340,17 @@ function PersonOverlay({ p: rawP, onClose, me }) {
           );
         })()}
 
-        {/* ─── Their map — read-only mind map ─── */}
+        {/* ─── Their map — read-only mind map, full-bleed so it reads as a view, not a pasted box ─── */}
         <div style={{ marginBottom: 26 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 9 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 10 }}>
             <Kicker>Their map</Kicker>
             {!isFriend && <span style={{ fontFamily: 'var(--sans)', fontSize: 11.5, fontWeight: 600, color: 'var(--ink-3)' }}>Friends see the full map</span>}
           </div>
-          <div style={{ height: 480, borderRadius: 18, overflow: 'hidden', border: '0.5px solid var(--rule)', background: 'var(--surface)', position: 'relative' }}>
+          <div style={{
+            height: 470, margin: '0 -18px', overflow: 'hidden', position: 'relative',
+            borderTop: '0.5px solid var(--rule)', borderBottom: '0.5px solid var(--rule)',
+            background: `radial-gradient(120% 70% at 50% 0%, color-mix(in oklch, ${themColor} 7%, transparent), transparent 70%), var(--surface)`,
+          }}>
             {window.PersonMindMap ? (
               <window.PersonMindMap
                 p={p}

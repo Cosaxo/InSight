@@ -8,7 +8,7 @@ import React from 'react';
 // InSight — ProfileOverlay (your own profile) + the Politics cards.
 // The test flow lives in test-overlay.jsx; question banks in test-defs.js.
 
-function ProfileOverlay({ onClose, me }) {
+function ProfileOverlay({ onClose, me, lensBoxed }) {
   const dims = [
     { label: 'Openness', v: me.personality.O },
     { label: 'Conscientiousness', v: me.personality.C },
@@ -145,7 +145,7 @@ function ProfileOverlay({ onClose, me }) {
           {sub === 'politics' && <><PoliticsPanel /><TestCTA k="political" /></>}
           {sub === 'values' && <><ValuesPanel /><TestCTA k="values" /></>}
           {sub === 'attachment' && <><AttachmentPanel /><TestCTA k="attachment" /></>}
-          {sub === 'lenses' && window.LensesPanel && <window.LensesPanel />}
+          {sub === 'lenses' && window.LensesPanel && <window.LensesPanel boxed={lensBoxed} />}
         </div>
       </div>
     </div>

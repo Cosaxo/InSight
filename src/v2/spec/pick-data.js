@@ -153,6 +153,7 @@
 
   const api = {
     AGG_MIN_N,
+    TOP_N,
     my(qid) { const v = mine[qid]; return v == null ? null : v; },
     pick(qid, entity) {
       mine[qid] = entity;
@@ -175,7 +176,21 @@
         .filter((r) => r.count >= AGG_MIN_N)
         .slice(0, TOP_N);
       const shown = top.reduce((a, r) => a + r.count, 0);
-      return { top, rest: total - shown, total };
+      // The fold's two honest scalars: how many distinct entries it covers
+      // (excluding "Not listed", which is votes rather than an entry) and
+      // whether every one of them still sits below the floor. Aggregate
+      // properties of the tail, never an enumeration — the UI additionally
+      // renders the entity count only when the fold covers at least two
+      // entries and stepped down, the same subtraction-leak and
+      // delta-disclosure rules the published counts already keep
+      // (docs/CATALOG-QUESTIONS.md § the reveal).
+      const folded = Object.keys(counts)
+        .filter((k) => k !== '0' && !top.some((r) => String(r.entity) === k));
+      return {
+        top, rest: total - shown, total,
+        restEntities: folded.length,
+        restBelowFloor: folded.every((k) => counts[k] < AGG_MIN_N),
+      };
     },
     // The segment chips a question can offer — flattened from its BY data,
     // in the data's own order. Empty when a question ships no slices.
@@ -207,17 +222,22 @@
   // land here the day scripts/build-catalog.mjs output is committed (an
   // operator step, D15) — a card whose catalogue is absent would open
   // straight into the picker's error state, which is worse than no card.
+  //
+  // cat 'fav', all of them: the v15 revision makes catalogue picks a FORMAT
+  // with a channel of their own (world-feed-data.js), replacing this repo's
+  // earlier 'games' channel — same guarantee (a pick card is never
+  // invisible-by-default), one home instead of a per-subject scatter.
   window.PICK_QS = [
-    { id: 'pk01', cat: 'games', type: 'pick', domain: 'pokemon', prompt: 'Favourite Pokémon?', n: 242 },
+    { id: 'pk01', cat: 'fav', type: 'pick', domain: 'pokemon', prompt: 'Favourite Pokémon?', n: 242 },
     // 2026-07-30 daily run: a different canon, not a rephrase — fear
     // ranks ghosts; favouritism ranks starters and mascots.
-    { id: 'pk02', cat: 'games', type: 'pick', domain: 'pokemon', prompt: 'The scariest Pokémon?', n: 144 },
+    { id: 'pk02', cat: 'fav', type: 'pick', domain: 'pokemon', prompt: 'The scariest Pokémon?', n: 144 },
     // 2026-07-31 daily run: cuteness ranks the small and round — a third
     // canon next to favouritism and fear.
-    { id: 'pk03', cat: 'games', type: 'pick', domain: 'pokemon', prompt: 'The cutest Pokémon?', n: 157 },
+    { id: 'pk03', cat: 'fav', type: 'pick', domain: 'pokemon', prompt: 'The cutest Pokémon?', n: 157 },
     // 2026-07-31, first card of the emoji domain — "most-used" beats
     // "favourite" here: it is the question people actually answer about
     // emoji, and their keyboard already knows.
-    { id: 'pk04', cat: 'culture', type: 'pick', domain: 'emoji', prompt: 'Your most-used emoji?', n: 218 },
+    { id: 'pk04', cat: 'fav', type: 'pick', domain: 'emoji', prompt: 'Your most-used emoji?', n: 218 },
   ];
 })();

@@ -24,14 +24,15 @@ window.WORLD_TOPICS = [
   { id: 'people',  label: 'Famous people',  color: 'oklch(0.55 0.14 85)'  },
   { id: 'bigq',    label: 'Big questions',  color: 'oklch(0.55 0.14 290)' },
   { id: 'places',  label: 'Places',         color: 'oklch(0.55 0.14 60)'  },
-  { id: 'games',   label: 'Games',          color: 'oklch(0.55 0.14 175)' },
+  // catalogue picks are a FORMAT, not a subject — so they live on a channel, the
+  // same way dilemmas and rankings do. It also means they always have a home:
+  // 'movies' has no scene pointing at it, so a film question filed under it can
+  // never reach the feed.
+  { id: 'fav',     label: 'Favourites',     color: 'oklch(0.55 0.14 170)' },
 ];
 
 // ── channels ── always-on formats (not communities); they follow your scenes in the chip row
-// games is a channel, not just a topic: a non-channel cat only surfaces when
-// a followed scene pulls it, and the catalogue pick card must not be
-// invisible-by-default in a demo with no scenes followed.
-window.WORLD_CHANNELS = ['dilemma', 'event', 'people', 'bigq', 'places', 'games'];
+window.WORLD_CHANNELS = ['dilemma', 'event', 'people', 'bigq', 'places', 'fav'];
 
 // ── question pool ──
 // type: 'vote' (pick one, see the split) · 'rank' (order the items, compare

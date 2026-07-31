@@ -48,22 +48,18 @@ function VizRange({ R, accent, compact }) {
         const you = clamp(d.value);
         const typ = d.avg != null ? clamp(d.avg) : null;
         const lead = idx === 0;
-        const delta = typ != null ? Math.round(d.value - d.avg) : null;
         return (
           <div key={d.id}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 6 }}>
-              <span style={{ fontFamily: 'var(--serif)', fontStyle: 'var(--voice-italic)', fontSize: lead ? 16 : 14.5, color: lead ? col : 'var(--ink)' }}>{d.label}</span>
+              <span style={{ fontFamily: 'var(--sans)', fontSize: lead ? 14.5 : 13.5, fontWeight: lead ? 700 : 600, color: lead ? col : 'var(--ink)' }}>{d.label}</span>
               <span style={{ display: 'inline-flex', alignItems: 'baseline', gap: 8 }}>
-                {delta != null && Math.abs(delta) >= 3 && (
-                  <span style={{ fontFamily: 'var(--mono)', fontSize: 10.5, color: delta > 0 ? col : 'var(--ink-3)' }}>{delta > 0 ? '+' : '−'}{Math.abs(delta)}</span>
-                )}
-                <span style={{ fontFamily: 'var(--serif)', fontSize: lead ? 18 : 15.5, color: 'var(--ink)', lineHeight: 1 }}>{d.value}</span>
+                <span style={{ fontFamily: 'var(--sans)', fontSize: lead ? 15.5 : 14, fontWeight: 700, color: 'var(--ink-2)', fontVariantNumeric: 'tabular-nums', lineHeight: 1 }}>{d.value}</span>
               </span>
             </div>
             <div style={{ position: 'relative', height: 16 }}>
               <div style={{ position: 'absolute', left: '4%', right: '4%', top: '50%', height: 1, background: 'var(--rule)', transform: 'translateY(-50%)' }} />
               {typ != null && (
-                <div style={{ position: 'absolute', top: '50%', transform: 'translateY(-50%)', height: 2.5, borderRadius: 2, background: col, opacity: 0.4, left: `${Math.min(pos(you), pos(typ))}%`, width: `${Math.abs(pos(you) - pos(typ))}%` }} />
+                <div style={{ position: 'absolute', top: '50%', transform: 'translateY(-50%)', height: 3, borderRadius: 2, background: col, opacity: 0.55, left: `${Math.min(pos(you), pos(typ))}%`, width: `${Math.abs(pos(you) - pos(typ))}%` }} />
               )}
               {typ != null && (
                 <span style={{ position: 'absolute', top: '50%', left: `${pos(typ)}%`, transform: 'translate(-50%,-50%)', width: 10, height: 10, borderRadius: '50%', background: 'var(--surface-2)', border: '1.4px solid var(--ink-3)' }} />

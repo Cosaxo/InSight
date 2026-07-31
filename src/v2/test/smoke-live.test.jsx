@@ -28,6 +28,11 @@
 import { beforeAll, afterEach, describe, expect, it, vi } from "vitest";
 import React from "react";
 import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
+
+// 15s per test, not the 5s default: every case here mounts the FULL app in
+// jsdom, and the v15 revision roughly doubled the spec layer's feed weight —
+// the slowest cases sat at ~4.8s before it and tip over under suite load.
+vi.setConfig({ testTimeout: 15000 });
 import { FEED_OPTIONS, fixtureSurfaceMismatch, installLive } from "./live-fixture";
 
 const BOUNDARY_LOG = "[InSight] boundary caught:";

@@ -264,11 +264,16 @@ window.LENSES = (function () {
   // A dimension you have not answered for returns null rather than a number:
   // in live mode there is no prior to fall back on, and drawing the
   // typical person's value as yours is the whole thing this avoids.
+  // In demo mode the prior is YOUR provisional lean — the population value
+  // with a stable personal offset — so d.demo stays a true reference point
+  // to read against instead of doubling as your own score.
+  function hsh(s) { let x = 17; for (let i = 0; i < s.length; i++) x = Math.imul(x ^ s.charCodeAt(i), 2654435761); return ((x ^ (x >>> 11)) >>> 0) / 4294967295; }
   function score(id) {
     const l = BY[id], a = answers(id), out = {};
     const pw = PRIOR_W();
     l.dims.forEach((d) => {
-      let sum = d.demo * pw, w = pw;
+      const lean = Math.max(4, Math.min(96, d.demo + Math.round((hsh(id + ':' + d.id) * 2 - 1) * 21)));
+      let sum = lean * pw, w = pw;                        // your provisional lean as the soft prior — weightless in live mode
       l.questions.forEach((q, i) => {
         if (q.d !== d.id || a[i] == null) return;
         let v = (a[i] / 4) * 100; if (q.invert) v = 100 - v;

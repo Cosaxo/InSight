@@ -61,7 +61,7 @@ import React from 'react';
               <div style={{ flex: 1, height: 9, background: 'var(--surface-3)', borderRadius: 999, overflow: 'hidden' }}>
                 <div style={{ width: Math.max(dist[i], 1) + '%', height: '100%', borderRadius: 999, background: 'var(--accent)', opacity: isMine ? 1 : 0.32 }} />
               </div>
-              <span style={{ width: 32, flexShrink: 0, textAlign: 'right', fontFamily: 'var(--mono)', fontSize: 10.5, color: 'var(--accent)', fontWeight: 700 }}>{isMine || (mine == null && i === lead) ? dist[i] + '%' : ''}</span>
+              <span style={{ width: 32, flexShrink: 0, textAlign: 'right', fontFamily: 'var(--sans)', fontSize: 10.5, color: 'var(--accent)', fontWeight: 700 }}>{isMine || (mine == null && i === lead) ? dist[i] + '%' : ''}</span>
             </div>
           );
         })}
@@ -89,7 +89,7 @@ import React from 'react';
             <div key={i} style={{ flex: 1, display: 'flex', justifyContent: 'center' }}>
               {mine === i
                 ? <span style={{ width: 5, height: 5, borderRadius: '50%', background: 'var(--accent)' }}></span>
-                : (i === 0 || i === 9) ? <span style={{ fontFamily: 'var(--mono)', fontSize: 8.5, color: 'var(--ink-3)' }}>{i + 1}</span> : null}
+                : (i === 0 || i === 9) ? <span style={{ fontFamily: 'var(--sans)', fontSize: 8.5, color: 'var(--ink-3)' }}>{i + 1}</span> : null}
             </div>
           ))}
         </div>
@@ -116,7 +116,7 @@ import React from 'react';
         }}>
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
             <span style={{ flex: 1, minWidth: 0, fontFamily: 'var(--sans)', fontSize: 14, fontWeight: 650, letterSpacing: '-0.01em', color: 'var(--ink)', lineHeight: 1.3 }}>{q.prompt}</span>
-            {showDate && <span style={{ flexShrink: 0, fontFamily: 'var(--mono)', fontSize: 9, letterSpacing: '0.05em', color: 'var(--ink-3)', opacity: 0.65 }}>{q.dateLabel.toUpperCase()}</span>}
+            {showDate && <span style={{ flexShrink: 0, fontFamily: 'var(--sans)', fontSize: 9, letterSpacing: '0.05em', color: 'var(--ink-3)', opacity: 0.65 }}>{q.dateLabel.toUpperCase()}</span>}
           </div>
           <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 10, marginTop: 9 }}>
             <span style={{ minWidth: 0, fontFamily: 'var(--sans)', fontSize: 12.5, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
@@ -227,7 +227,7 @@ import React from 'react';
             const pm = i > 0 ? ((shown[i - 1].dateLabel || '').split(' ')[1] || '') : null;
             return (
               <div key={q.id} style={{ borderTop: i === 0 ? 'none' : '0.5px solid var(--rule)' }}>
-                {sort === 'new' && m !== pm && <div style={{ padding: '10px 0 0', fontFamily: 'var(--mono)', fontSize: 9, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--ink-3)' }}>{m}</div>}
+                {sort === 'new' && m !== pm && <div style={{ padding: '10px 0 0', fontFamily: 'var(--sans)', fontSize: 9, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--ink-3)' }}>{m}</div>}
                 <MARow q={q} audId={audId} open={open === q.id} onToggle={() => setOpen(open === q.id ? null : q.id)} showDate={sort !== 'new'} />
               </div>
             );

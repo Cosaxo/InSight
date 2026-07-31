@@ -20,16 +20,14 @@ function MapTab({ rail = true, anchorsOn = true, recency = true, fields: fieldsO
   // editable branch labels (persisted)
   const LS_CATNAMES = 'insight.mapCatNames.v1';
   const [catNames, setCatNames] = useState(() => { try { return JSON.parse(localStorage.getItem(LS_CATNAMES) || '{}'); } catch (e) { return {}; } });
-  const renameCat = (id, label) => {
-    const v = (label || '').trim(); if (!v) return;
-    const next = { ...catNames, [id]: v }; setCatNames(next);
-    try { localStorage.setItem(LS_CATNAMES, JSON.stringify(next)); } catch (e) { /* localStorage can throw: private mode, quota, disabled storage. Persistence here is best-effort and the in-memory state stays correct. */ }
-  };
 
   // ── nodes: every daily answer, filed by its question's branch path ────────
   const [dqv, setDqv] = useState(0);
   useEffect(() => {
     if (window.DAILYQ && window.DAILYQ.subscribe) return window.DAILYQ.subscribe(() => setDqv((x) => x + 1));
+  }, []);
+  useEffect(() => {
+    if (window.LEARN && window.LEARN.subscribe) return window.LEARN.subscribe(() => setDqv((x) => x + 1));
   }, []);
   useEffect(() => {
     if (window.DUELS && window.DUELS.subscribe) return window.DUELS.subscribe(() => setDqv((x) => x + 1));
@@ -66,6 +64,35 @@ function MapTab({ rail = true, anchorsOn = true, recency = true, fields: fieldsO
         qtype: q.type, opts: q.options || null, aidx: idx, typ, maj,
       });
     });
+    // ── knowledge: only what you have MASTERED reaches the map. Cards still in
+    // the three-in-a-row queue stay off it — a map you cannot trust is furniture.
+    // Subject is the branch, field the sub-branch, the fact the leaf; typicality
+    // is the share of the crowd who get it right, so hard-won facts sit outward.
+    const L = window.LEARN;
+    if (L) {
+      const got = L.mastered();
+      const n = got.length;
+      got.forEach((m, i) => {
+        const c = m.card;
+        const fd = L.field(c.f);
+        const sj = fd ? L.subject(fd.subject) : null;
+        if (!fd || !sj) return;
+        const catId = 'lrn-' + sj.id;
+        if (!topSeen.has(catId)) topSeen.set(catId, { id: catId, label: sj.label, hue: sj.hue });
+        counts[catId] = (counts[catId] || 0) + 1;
+        const subId = 'lrnsub-' + fd.id;
+        let sub = subSeen.get(subId);
+        if (!sub) { sub = { id: subId, parentId: catId, fid: fd.id, label: fd.label, sub: true, learn: true, age: 999 }; subSeen.set(subId, sub); out.push(sub); }
+        const age = n - 1 - i;
+        sub.age = Math.min(sub.age, age);
+        sub.age0 = Math.max(sub.age0 || 0, age);
+        out.push({
+          id: 'lrn-' + c.id, parentId: subId, cid: c.id, qid: c.id, top: sj.label,
+          daily: true, learn: true, label: c.k, tag: c.k, ans: c.a[c.c], prompt: c.q,
+          note: 'known', age, typ: c.p / 100, maj: true,
+        });
+      });
+    }
     // single-answer sub-topics collapse into the answer itself — the sub card
     // and the answer card would be the same card, so keep only one step
     const kidCt = {};
@@ -81,11 +108,11 @@ function MapTab({ rail = true, anchorsOn = true, recency = true, fields: fieldsO
     return { nodes: kept, tops: Array.from(topSeen.values()), counts };
   // eslint-disable-next-line react-hooks/exhaustive-deps -- ported effect; see src/v2/README.md § Lint suppressions
   }, [dqv]);
-  const nodes = built.nodes;
-  const answers = useMemo(() => nodes.filter((n) => n.daily), [nodes]);
+  const nodes0 = built.nodes;
+  const allAnswers = useMemo(() => nodes0.filter((n) => n.daily), [nodes0]);
 
   // active branches: any that hold at least one answer — renames applied
-  const cats = useMemo(() => {
+  const allCats = useMemo(() => {
     const base = window.MapLens.CATS.concat(built.tops);
     const seen = new Set(); const out = [];
     base.forEach((c) => {
@@ -95,6 +122,53 @@ function MapTab({ rail = true, anchorsOn = true, recency = true, fields: fieldsO
     });
     return out;
   }, [built, catNames]);
+
+  // ── the grouping level ──────────────────────────────────────────
+  // You → group → branch → sub → answer, navigated by drilling. At the top level
+  // the ring is groups and the answers stay as unlabelled dots inside them: the
+  // constellation's silhouette survives, only the competing labels go.
+  const GRP = window.MAP_GROUPS;
+  const [openGroup, setOpenGroup] = useState(() => {
+    // Learn's “See it” hands the map the group to land on
+    const g = typeof window !== 'undefined' ? window.MAP_OPEN_GROUP : null;
+    if (g) { try { delete window.MAP_OPEN_GROUP; } catch (e) { /* localStorage can throw: private mode, quota, disabled storage. Best-effort — in-memory state stays correct. */ } return g; }
+    return null;
+  });
+
+  // each node's branch, resolved without needing the level-specific byId
+  const topOf = useMemo(() => {
+    const parent = {};
+    allCats.forEach((c) => { parent[c.id] = 'root'; });
+    nodes0.forEach((n) => { parent[n.id] = n.parentId; });
+    const m = {};
+    nodes0.forEach((n) => {
+      let cur = n.id, guard = 0;
+      while (parent[cur] && parent[cur] !== 'root' && guard++ < 8) cur = parent[cur];
+      m[n.id] = cur;
+    });
+    return m;
+  }, [nodes0, allCats]);
+
+  const groups = useMemo(() => {
+    if (!GRP) return [];
+    const ct = {};
+    allCats.forEach((c) => { const g = GRP.of(c.id); ct[g] = (ct[g] || 0) + (built.counts[c.id] || 0); });
+    return GRP.all().filter((g) => ct[g.id] > 0).map((g) => ({ ...g, ct: ct[g.id] }));
+  }, [GRP, allCats, built]);
+
+  const grouped = !!GRP && groups.length > 1 && !openGroup;
+  const openGroupDef = openGroup && GRP ? GRP.get(openGroup) : null;
+  const cats = grouped ? groups : (openGroup ? allCats.filter((c) => GRP.of(c.id) === openGroup) : allCats);
+  const nodes = useMemo(() => {
+    if (openGroup) return nodes0.filter((n) => GRP.of(topOf[n.id]) === openGroup);
+    if (!grouped) return nodes0;
+    return nodes0.filter((n) => n.daily).map((n) => {
+      const gid = GRP.of(topOf[n.id]);
+      return { ...n, parentId: gid, gid, sub: false, quiet: true };
+    });
+  }, [nodes0, topOf, grouped, openGroup, GRP]);
+  const answers = useMemo(() => nodes.filter((n) => n.daily && !n.quiet), [nodes]);
+  const catCount = (id) => (grouped ? ((groups.find((g) => g.id === id) || {}).ct || 0) : (built.counts[id] || 0));
   const byId = useMemo(() => {
     const m = { root: { id: 'root', parentId: null } };
     cats.forEach((c) => (m[c.id] = { id: c.id, parentId: 'root' }));
@@ -115,8 +189,6 @@ function MapTab({ rail = true, anchorsOn = true, recency = true, fields: fieldsO
   }, [nodes, cats, anchors]);
   const pos = laid.pos;
 
-  const relOf = (n) => (window.MapAnchors && n && n.daily ? window.MapAnchors.relate(n.qid, n.top) : []);
-
   // ── selection ──────────────────────────────────────────────────────────────
   const [sel, setSel] = useState(null);     // 'root' | catId | nodeId | 'ax-<anchor>'
   const [cut, setCut] = useState(null);     // time-scrub position (null = off)
@@ -129,8 +201,8 @@ function MapTab({ rail = true, anchorsOn = true, recency = true, fields: fieldsO
   const selNode = sel && sel !== 'root' && !selCat && !selAnchor ? byId[sel] : null;
   const selIsSub = selNode && selNode.sub;
   // the answer card's active group filter — sticky across answers
-  const effFilter = selNode && selNode.daily ? (pairA || (anchors[0] && anchors[0].id)) : null;
-  const anchorRows = selAnchor ? answers.slice().sort((a, b) => a.age - b.age) : [];
+  const effFilter = selNode && selNode.daily && !selNode.learn ? (pairA || (anchors[0] && anchors[0].id)) : null;
+  const anchorRows = selAnchor ? allAnswers.slice().sort((a, b) => a.age - b.age) : [];
 
   const hlSet = useMemo(() => {
     if (hlCat) {
@@ -142,7 +214,7 @@ function MapTab({ rail = true, anchorsOn = true, recency = true, fields: fieldsO
   }, [hlCat, nodes, byId]);
 
   // oldest answer — the far end of the time scrub
-  const maxAge = useMemo(() => answers.reduce((m, n) => Math.max(m, n.age || 0), 0), [answers]);
+  const maxAge = useMemo(() => allAnswers.reduce((m, n) => Math.max(m, n.age || 0), 0), [allAnswers]);
 
   // ---- view: pan / pinch / wheel ----
   const ref = useRef(null);
@@ -250,6 +322,17 @@ function MapTab({ rail = true, anchorsOn = true, recency = true, fields: fieldsO
     const cx = (x0 + x1) / 2, cy = (y0 + y1) / 2;
     tweenTo({ x: w / 2 - cx * z, y: h / 2 - cy * z, z });
   };
+
+  // drilling in or out rebuilds the whole constellation — re-frame it
+  const lvlRef = useRef(openGroup);
+  useEffect(() => {
+    if (lvlRef.current === openGroup) return;
+    lvlRef.current = openGroup;
+    if (!view) return;
+    const t = fitAllTarget();
+    if (t) tweenTo(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- ported effect; see src/v2/README.md § Lint suppressions
+  }, [openGroup, pos]);
 
   // ---- pan / zoom limits ----
   const contentBounds = () => {
@@ -425,6 +508,8 @@ function MapTab({ rail = true, anchorsOn = true, recency = true, fields: fieldsO
   };
   const selectCat = (id) => {
     closeScrub();
+    // at the top level a hub is a door, not a card — tapping it opens the group
+    if (grouped) { setSel(null); setHlCat(null); setOpenGroup(id); return; }
     setSel(id);
     setHlCat(id);
     const ids = [id];
@@ -445,13 +530,14 @@ function MapTab({ rail = true, anchorsOn = true, recency = true, fields: fieldsO
     fitTo(['root', ...anchors.map((a) => 'ax-' + a.id)], 0.85);
   };
 
-  // semantic back — one level out per tap: answer → its branch → whole map
+  // semantic back — one level out per tap: answer → its branch → group → all groups
   const stepBack = () => {
     if (selNode) {
       const catId = mtTopCat(selNode, byId);
       if (catId) { selectCat(catId); return; }
     }
     if (sel || hlCat) { clearSel(); return; }
+    if (openGroup) { setOpenGroup(null); return; }
     // nothing selected but zoomed in — settle back to the full map
     const v = viewRef.current;
     if (v && v.z > (fitZRef.current || 0.2) * 1.25) {
@@ -476,9 +562,10 @@ function MapTab({ rail = true, anchorsOn = true, recency = true, fields: fieldsO
   // the profile ring steps back while a branch holds the stage
   const ringRecede = !!hlCat && !selNode;
   // the ring is a mode, not furniture — closed until You or an answer asks for it
-  const ringOpen = sel === 'root' || !!selAnchor || !!(selNode && selNode.daily);
+  const ringOpen = sel === 'root' || !!selAnchor || !!(selNode && selNode.daily && !selNode.learn);
   // labels counter-scale so on-screen type never drops below reading size
   const hubFs = Math.min(48, Math.max(13, 13 / (catScale * view.z)));
+  const centerFs = Math.min(48, Math.max(13.5, 13.5 / (centerScale * view.z)));
   const dotFs = Math.min(30, Math.max(10.5, 12 / (itemScale * view.z)));
   const aFs = Math.min(26, Math.max(10, 11.5 / (aScale * view.z)));
 
@@ -500,11 +587,13 @@ function MapTab({ rail = true, anchorsOn = true, recency = true, fields: fieldsO
       const w = 18 + String(c.label).length * 8;
       const sx = p.x * z + view.x;
       kept.push({ x0: sx - w / 2, x1: sx + w / 2, y: p.y * z + 16 });
+      kept.push({ x0: sx - 22, x1: sx + 22, y: p.y * z });   // the hub dot itself is keep-out
     });
     const cands = [];
     nodes.forEach((n) => {
       const p = pos[n.id];
       if (!p) return;
+      if (n.quiet) return;   // group level: mass without labels
       // a spotlit branch owns the stage — never let dimmed branches' labels ghost through
       if (hlSet && !hlSet.has(n.id) && sel !== n.id) return;
       // topic labels surface a beat earlier than answer chips — structure first
@@ -564,7 +653,7 @@ function MapTab({ rail = true, anchorsOn = true, recency = true, fields: fieldsO
 
   const ringStage = sel === 'root' || !!selAnchor;
   return (
-    <div className={'mmt-root' + (ringStage ? ' is-ringstage' : '')} data-screen-label="map-tab">
+    <div className={'mmt-root' + (ringStage ? ' is-ringstage' : '') + (openGroup ? ' is-ingroup' : '')} data-screen-label="map-tab">
       <div
         className="mmt-canvas is-dots"
         ref={ref}
@@ -580,8 +669,8 @@ function MapTab({ rail = true, anchorsOn = true, recency = true, fields: fieldsO
             if (!cat) return null;
             const sz = (f.r + 70) * 2;
             // tint deepens where you've answered most
-            const maxCt = Math.max(1, ...cats.map((c) => built.counts[c.id] || 0));
-            const fop = hlSet && !hlSet.has(f.id) ? 0.12 : 0.5 + 0.5 * ((built.counts[f.id] || 0) / maxCt);
+            const maxCt = Math.max(1, ...cats.map((c) => catCount(c.id)));
+            const fop = hlSet && !hlSet.has(f.id) ? 0.12 : 0.5 + 0.5 * (catCount(f.id) / maxCt);
             return (
               <div
                 key={f.id}
@@ -613,22 +702,28 @@ function MapTab({ rail = true, anchorsOn = true, recency = true, fields: fieldsO
           </svg>
 
           {/* centre — you, ringed by your profile anchors */}
-          {anchorsOn ? (
+          {anchorsOn && !openGroup ? (
             <div className={'mmt-ringline' + (ringRecede ? ' is-recede' : '') + (ringOpen ? '' : ' is-closed')} style={{ width: AR * 2, height: AR * 2, transform: `translate(-50%, -50%) scale(${ringOpen ? 1 : 0.3})` }} aria-hidden="true"></div>
           ) : null}
           <button
             type="button"
-            className={'mmt-node mmt-center' + (sel === 'root' ? ' is-sel' : '') + (selAnchor || ringRecede ? ' is-recede' : '') + (ringOpen ? '' : ' is-solo')}
-            style={{ transform: `translate(0px, 0px) translate(-50%, -50%) scale(${centerScale})` }}
-            aria-label="You — centre the map on your own anchors"
-            onClick={(e) => { e.stopPropagation(); setSel('root'); setHlCat(null); fitTo(['root', ...anchors.map((a) => 'ax-' + a.id)], 0.85); }}
+            className={'mmt-node mmt-center' + (openGroupDef ? ' is-group' : '') + (sel === 'root' ? ' is-sel' : '') + (selAnchor || ringRecede ? ' is-recede' : '') + (ringOpen ? '' : ' is-solo')}
+            style={{ '--hue': openGroupDef ? openGroupDef.hue : undefined, transform: `translate(0px, 0px) translate(-50%, -50%) scale(${centerScale})` }}
+            aria-label={openGroup ? 'Leave the group view' : 'You — centre the map on your own anchors'}
+            onClick={(e) => {
+              e.stopPropagation();
+              // inside a group the centre is the way back out
+              if (openGroup) { setSel(null); setHlCat(null); setOpenGroup(null); return; }
+              setSel('root'); setHlCat(null); fitTo(['root', ...anchors.map((a) => 'ax-' + a.id)], 0.85);
+            }}
           >
             <div className="mmt-halo" aria-hidden="true"></div>
             <div className="mmt-center-disc">
-              <span className="mmt-center-name">You</span>
+              {openGroupDef ? null : <span className="mmt-center-name">You</span>}
             </div>
+            {openGroupDef ? <span className="mmt-center-glabel" style={{ fontSize: centerFs }}>{openGroupDef.label}</span> : null}
           </button>
-          {anchorsOn ? anchors.map((a) => {
+          {anchorsOn && !openGroup ? anchors.map((a) => {
             const p = pos['ax-' + a.id];
             if (!p) return null;
             const isSel = selAnchor && selAnchor.id === a.id;
@@ -662,7 +757,7 @@ function MapTab({ rail = true, anchorsOn = true, recency = true, fields: fieldsO
             const p = pos[c.id];
             if (!p) return null;
             const isSel = sel === c.id;
-            const cnt = built.counts[c.id] || 0;
+            const cnt = catCount(c.id);
             const hubSz = 13 + Math.min(cnt, 12) * 1.5;
             // branch names always on — the map should read at a glance
             const hubLab = true;
@@ -695,14 +790,13 @@ function MapTab({ rail = true, anchorsOn = true, recency = true, fields: fieldsO
             if (!p) return null;
             const catId = mtTopCat(n, byId);
             const cat = cats.find((c) => c.id === catId);
-            const depth2 = byId[n.parentId] && byId[n.parentId].parentId !== 'root';
             const dim = hlSet && !hlSet.has(n.id);
             const age = n.age ?? 30;
             const fresh = recency && n.daily && age <= 7;
             const off = hidden && hidden.has(n.id);
             // strict size ladder — hub > answer > topic; new dots land large and settle
             const sz = n.person ? 17 : (n.sub ? 9 : 14) + (recency && n.daily ? (age <= 2 ? 4 : age <= 7 ? 2 : 0) : 0);
-            const showLab = labKeep.has(n.id);
+            const showLab = !n.quiet && labKeep.has(n.id);
             const labL = (p.x * view.z + view.x) > (ref.current ? ref.current.clientWidth : 480) / 2;
             return (
               <button
@@ -710,7 +804,7 @@ function MapTab({ rail = true, anchorsOn = true, recency = true, fields: fieldsO
                 key={n.id}
                 className={'mmt-node mmt-dotnode' + (n.sub ? ' is-leaf' : '') + (n.person ? ' is-person' : '') + (sel === n.id ? ' is-sel' : '')
                   + (showLab ? ' is-showlab' : '') + (dim ? ' is-dim' : '') + (off ? ' is-off' : '') + (labL ? ' is-labL' : '')
-                  + (fresh ? ' is-fresh' : '') + (n.daily && !n.maj ? ' is-rare' : '') + (n.daily && n.age === 0 ? ' is-today' : '')}
+                  + (fresh ? ' is-fresh' : '') + (n.daily && !n.learn && !n.maj ? ' is-rare' : '') + (n.learn && !n.sub ? ' is-known' : '') + (n.daily && n.age === 0 ? ' is-today' : '')}
                 style={{
                   '--hue': cat ? cat.hue : 250,
                   width: sz, height: sz,
@@ -724,7 +818,7 @@ function MapTab({ rail = true, anchorsOn = true, recency = true, fields: fieldsO
                 aria-hidden={dim || off || undefined}
                 aria-pressed={sel === n.id}
                 aria-label={n.label}
-                onClick={(e) => { e.stopPropagation(); selectItem(n.id); }}
+                onClick={(e) => { e.stopPropagation(); if (n.quiet) { setSel(null); setHlCat(null); setOpenGroup(n.gid); } else selectItem(n.id); }}
               >
                 {n.person
                   ? <span className="mmt-pdot" style={{ '--deg': Math.round((n.score || 0) * 360) + 'deg' }}></span>
@@ -742,11 +836,11 @@ function MapTab({ rail = true, anchorsOn = true, recency = true, fields: fieldsO
           cats={cats}
           activeCat={activeCat}
           atHome={atHome}
-          onPick={(id) => { if (activeCat === id) { clearSel(); } else { selectCat(id); } }}
-          onHome={clearSel}
+          onPick={(id) => { if (grouped) { setSel(null); setHlCat(null); setOpenGroup(id); } else if (activeCat === id) { clearSel(); } else { selectCat(id); } }}
+          onHome={() => { if (openGroup) { setSel(null); setHlCat(null); setOpenGroup(null); } else clearSel(); }}
         ></MTBranchChips>
       ) : (
-        <div className="mmt-chip mmt-ui">{answers.length} answers · {cats.length} branches</div>
+        <div className="mmt-chip mmt-ui">{allAnswers.length} answers · {cats.length} branches</div>
       )}
       {!rail && (hlCat || selAnchor) ? (
         <button className="mmt-clearhl mmt-ui" onClick={clearSel}>✕ full map</button>
@@ -786,7 +880,7 @@ function MapTab({ rail = true, anchorsOn = true, recency = true, fields: fieldsO
         <div className="mmt-card mmt-ui" style={{ '--hue': cardHue }}>
           <button className="mmt-card-x" onClick={clearSel} aria-label="Close">✕</button>
           {sel === 'root' ? (
-            <MTRootCard count={answers.length} anchorCount={anchors.length}></MTRootCard>
+            <MTRootCard count={allAnswers.length} anchorCount={anchors.length}></MTRootCard>
           ) : selAnchor ? (
             <MTAnchorCard anchor={selAnchor} items={anchorRows} onPick={selectItem} key={selAnchor.id}></MTAnchorCard>
           ) : selCat ? (
@@ -800,6 +894,14 @@ function MapTab({ rail = true, anchorsOn = true, recency = true, fields: fieldsO
             ></MTBranchCard>
             )
           ) : selIsSub ? (
+            selNode.learn && window.MTLearnSubCard ? (
+              <MTLearnSubCard
+                node={selNode}
+                rows={answers.filter((n) => n.parentId === selNode.id).sort((a, b) => a.age - b.age)}
+                onPick={selectItem}
+                key={selNode.id}
+              ></MTLearnSubCard>
+            ) : (
             <MTSubCard
               node={selNode}
               cat={selNodeCat}
@@ -808,8 +910,11 @@ function MapTab({ rail = true, anchorsOn = true, recency = true, fields: fieldsO
               activeA={pairA || (anchors[0] && anchors[0].id)}
               onFilter={(aid) => setPairA(aid)}
             ></MTSubCard>
+            )
           ) : selNode ? (
-            selNode.person && window.MTPersonCard ? (
+            selNode.learn && window.MTLearnCard ? (
+              <MTLearnCard node={selNode} key={selNode.id}></MTLearnCard>
+            ) : selNode.person && window.MTPersonCard ? (
               <MTPersonCard node={selNode} key={selNode.id}></MTPersonCard>
             ) : (
             <MTAnswerCard

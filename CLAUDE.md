@@ -17,7 +17,7 @@ and stay binding until an explicitly recorded reversal.
 
 ### 1. The spec layer talks through global scope
 
-`src/v2/spec/` is ~18.5k lines of JSX ported verbatim from a frozen
+`src/v2/spec/` is ~22k lines of JSX ported verbatim from a frozen
 prototype. Modules do **not** import each other. They assign to
 `globalThis`/`window` and look each other up **by name at render time**:
 

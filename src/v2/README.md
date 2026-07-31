@@ -7,7 +7,9 @@ and its Firestore rules were retired to `firestore.rules.v1-archive`.
 
 ## How the port works
 
-The prototype ran as ~65 `<script type="text/babel">` tags sharing one
+The prototype ran as ~80 `<script type="text/babel">` tags (~65 before
+the 2026-07-31 v15 revision added the Learn stack, VOTECUTS, subtopics,
+catalogues and map groups) sharing one
 global scope — components and data stores reference each other as bare
 globals (`MirrorTab`, `window.DUELS`, …). The port preserves those
 semantics instead of hand-converting 65 files to ESM at once:
@@ -53,9 +55,11 @@ source now, hand-edits and all. Compare against the prototype with
 `spec-index.js` exports `loadWorldFeed()`, which imports
 `world-feed-comments.js`, `world-feed-counters.js`, `consequence-beat.jsx`
 and `world-feed.jsx` after first paint. `main.jsx` calls it once the root
-has rendered. That is ~85 KB — `world-feed.jsx` alone is the largest module
-in this layer — off the first frame, and the entry chunk went 947 → 850 KB
-(282 → 255 KB gzipped).
+has rendered. `world-feed.jsx` alone is the largest module in this layer,
+and the entry chunk went 947 → 850 KB (282 → 255 KB gzipped) when the group
+first deferred; after the v15 2026-07-31 revision the deferred chunk is
+~107 KB and the entry sits at ~918 KB under D27's 940 KB ceiling — the
+revision's biggest growth landed inside the group, off the first frame.
 
 **Why this group could go first, and what stays.** `daily-split.jsx` line
 501 already reads `window.WorldFeed &&` before rendering the feed node, so

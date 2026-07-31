@@ -81,13 +81,6 @@ import React from 'react';
   const YEARS = Array.from({ length: YEAR_NOW - 13 - 1929 }, (_, i) => String(YEAR_NOW - 13 - i));
   const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
   const DAYS = Array.from({ length: 31 }, (_, i) => String(i + 1));
-  // sign is derived from the birthday, never chosen
-  function zodiacSign(m, d) {
-    if (!m || !d) return '';
-    const signs = ['Capricorn', 'Aquarius', 'Pisces', 'Aries', 'Taurus', 'Gemini', 'Cancer', 'Leo', 'Virgo', 'Libra', 'Scorpio', 'Sagittarius'];
-    const last = [19, 18, 20, 19, 20, 20, 22, 22, 21, 22, 21, 21];
-    return d > last[m - 1] ? signs[m % 12] : signs[m - 1];
-  }
   const monthNum = (name) => MONTHS.indexOf(name) + 1; // 0 when unset
   function calcAge(y, mName, d) {
     if (!y) return '';
@@ -96,12 +89,6 @@ import React from 'react';
     const m = monthNum(mName);
     if (m) { const cm = now.getMonth() + 1; if (cm < m || (cm === m && now.getDate() < Number(d || 0))) a--; }
     return String(a);
-  }
-  function signOf(v) { return zodiacSign(monthNum(v.bornM), Number(v.bornD)); }
-  function fmtBorn(v) {
-    if (!v.born) return '—';
-    if (v.bornM && v.bornD) return `${v.bornD} ${v.bornM.slice(0, 3)} ${v.born}`;
-    return v.born;
   }
   const JOB_OPTS = ['Arts & culture', 'Design & creative', 'Media & publishing', 'Writing & journalism', 'Education & research', 'Science', 'Software & IT', 'Tech & engineering', 'Engineering', 'Architecture', 'Healthcare', 'Mental health & care', 'Business & finance', 'Marketing & advertising', 'Sales', 'Consulting', 'Law & government', 'Public sector & nonprofit', 'Trades & crafts', 'Construction', 'Manufacturing', 'Agriculture & environment', 'Transport & logistics', 'Service & hospitality', 'Retail', 'Entrepreneur / self-employed', 'Student', 'Homemaker', 'Between jobs', 'Retired', 'Other'];
   // Anchor vocabularies (D8). Coarse on purpose: the breakdown floors get
@@ -271,7 +258,8 @@ import React from 'react';
               person split — never your exact birthday, and never a group small
               enough to point at one person.
             </div>
-            <span style={fieldLabel}>Sign{'\u2004'}<span style={{ ...inputBase, fontSize: 15, padding: '8px 11px', border: '1px solid transparent', background: 'transparent', color: 'var(--ink-2)', fontWeight: 500, textTransform: 'none', letterSpacing: 'normal' }}>{signOf(v) || 'set your birthday'}</span></span>
+            {/* the zodiac Sign row left with the v15 revision: signOf and
+                zodiacSign are gone from the prototype, so the row is too */}
           </div>
         )}
       </Card>

@@ -250,5 +250,67 @@ window.WORLD_FEED_COMMENTS = {
     { name: 'Rosa P.', init: 'RP', opt: null, time: '2h', ups: 154, text: 'People #1 by a landslide. The deathbed consensus.' },
     { name: 'Marcus T.', init: 'MT', opt: null, time: '7h', ups: 88, text: 'Legacy last \u2014 you won\u2019t be there to enjoy it.' },
   ],
+
+  // ── scorecard takes ── rate cards have no sides, so a take carries the score
+  // its author gave (`score`); the avatar's tint strength shows it.
+  pr01: [
+    { name: 'Silje H.', init: 'SH', score: 9, time: '2h', ups: 188, text: 'I walk home at 2am without thinking about it. That is the whole review.' },
+    { name: 'Dawit A.', init: 'DA', score: 6, time: '5h', ups: 141, text: 'Safe, yes \u2014 but ask anyone who takes the last train east on a Friday.' },
+    { name: 'Kari N.', init: 'KN', score: 8, time: '1d', ups: 73, text: 'Safest place I have lived. It also has the least practice at handling trouble.' },
+  ],
+  pr02: [
+    { name: 'Fredrik L.', init: 'FL', score: 9, time: '1h', ups: 231, text: 'Tram, metro, bus, boat \u2014 one ticket. People do not know how rare that is.' },
+    { name: 'Amina S.', init: 'AS', score: 7, time: '4h', ups: 164, text: 'Superb inside Ring 3. Live outside it and the 8.6 stops making sense.' },
+    { name: 'Petter B.', init: 'PB', score: 5, time: '1d', ups: 97, text: 'Rate it in February, on a replacement bus, and see what number you write.' },
+  ],
+  pr03: [
+    { name: 'Hanne V.', init: 'HV', score: 2, time: '3h', ups: 274, text: 'Two incomes, no car, no kids \u2014 and rent still eats the first paycheck.' },
+    { name: 'Jonas R.', init: 'JR', score: 4, time: '6h', ups: 152, text: 'Expensive, but nothing here is out of reach the way it is in London.' },
+    { name: 'Nora T.', init: 'NT', score: 3, time: '1d', ups: 88, text: 'A beer costs a lunch. A lunch costs a day.' },
+  ],
+  pr04: [
+    { name: 'Ingrid K.', init: 'IK', score: 4, time: '2h', ups: 209, text: 'Polite is not friendly. Six years here and my friends are all from work.' },
+    { name: 'Tobias M.', init: 'TM', score: 8, time: '5h', ups: 118, text: 'Slow to open, impossible to lose. That is worth waiting for.' },
+    { name: 'Yara D.', init: 'YD', score: 6, time: '1d', ups: 81, text: 'Get on a hiking trail and everyone says hello. In town, nobody does.' },
+  ],
+  pr05: [
+    { name: 'Even S.', init: 'ES', score: 7, time: '4h', ups: 143, text: 'Grünerløkka on a summer Thursday is as good as anywhere in Europe.' },
+    { name: 'Malin O.', init: 'MO', score: 5, time: '8h', ups: 96, text: 'Everything shuts at three and costs a fortune to get to. 6.4 is generous.' },
+  ],
+  pr06: [
+    { name: 'Bjørn E.', init: 'BE', score: 10, time: '1h', ups: 302, text: 'You can be on a fjord within an hour of leaving your desk. Ten. No argument.' },
+    { name: 'Sofie A.', init: 'SA', score: 8, time: '6h', ups: 121, text: 'Spectacular \u2014 and we are salmon-farming and drilling straight through it.' },
+  ],
+  pr07: [
+    { name: 'Trine G.', init: 'TG', score: 3, time: '2h', ups: 247, text: 'Eight months of grey. The other four are genuinely perfect.' },
+    { name: 'Lars H.', init: 'LH', score: 6, time: '7h', ups: 134, text: 'There is no bad weather, only people who bought cheap jackets.' },
+    { name: 'Mette J.', init: 'MJ', score: 2, time: '1d', ups: 92, text: 'November alone should drag the average below four.' },
+  ],
+  pr08: [
+    { name: 'Anders V.', init: 'AV', score: 9, time: '3h', ups: 218, text: 'Nobody emails after four. That is not laziness, it is a functioning country.' },
+    { name: 'Priya N.', init: 'PN', score: 7, time: '6h', ups: 127, text: 'Wonderful if you are permanent. Freelancers here have no such balance.' },
+  ],
+  pr09: [
+    { name: 'Samir B.', init: 'SB', score: 4, time: '2h', ups: 264, text: 'The system is open. The dinner tables are not.' },
+    { name: 'Elin R.', init: 'ER', score: 7, time: '5h', ups: 118, text: 'Compared to most of Europe we are doing fine. That is a low bar, though.' },
+    { name: 'Grace O.', init: 'GO', score: 5, time: '1d', ups: 94, text: 'Ten years, fluent, still asked where I am really from.' },
+  ],
+  pr10: [
+    { name: 'Diego M.', init: 'DM', score: 2, time: '1h', ups: 341, text: 'Not one of them is planning past the next election. 3.4 is charitable.' },
+    { name: 'Aiko T.', init: 'AT', score: 5, time: '4h', ups: 176, text: 'We remember the good ones and forget how ordinary most eras were.' },
+  ],
+  pr11: [
+    { name: 'Nadia F.', init: 'NF', score: 8, time: '2h', ups: 229, text: 'Dropped my bag on the metro. Three people ran after me. Kindness is fine.' },
+    { name: 'Ravi P.', init: 'RP', score: 5, time: '6h', ups: 158, text: 'Kind in person, vicious online. Same people. That is the story.' },
+  ],
+  pr12: [
+    { name: 'Ana L.', init: 'AL', score: 3, time: '3h', ups: 288, text: 'Every graph I trust points the wrong way at the same time.' },
+    { name: 'Kenji W.', init: 'KW', score: 7, time: '7h', ups: 194, text: 'Child mortality, literacy, poverty \u2014 all improving. Pessimism is a vibe, not data.' },
+    { name: 'Mira S.', init: 'MS', score: 5, time: '1d', ups: 101, text: 'Better for most people, worse for the planet holding them. Call it a five.' },
+  ],
+  pr13: [
+    { name: 'Tomas K.', init: 'TK', score: 3, time: '2h', ups: 251, text: 'We are the first generation to watch it thin out in real time.' },
+    { name: 'Lucia G.', init: 'LG', score: 6, time: '5h', ups: 137, text: 'Forests are returning across Europe. It is not one story everywhere.' },
+  ],
 };
 

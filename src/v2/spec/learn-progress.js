@@ -1,0 +1,160 @@
+// Ported from design/InSight_standalone_15.html (learn-progress.js, 2026-07-31
+// revision). THIS file is the live source now, hand-edits and all.
+// Cross-module references resolve through the shared global scope and
+// spec-index.js load order is semantic — scripts/check-spec-globals.mjs
+// guards the wiring in CI.
+import React from 'react';
+
+// learn-progress.js — the engine behind Learn. Three ideas, no more:
+//
+//   1. Right first time → you know it. It goes on your map immediately.
+//   2. Wrong → the card drops into a queue and needs three rights IN A ROW to
+//      be earned. The three must be SPACED (at least GAP cards apart), or it is
+//      short-term memory, not knowledge. One miss empties all three dots.
+//   3. Your level per field is a target difficulty, expressed in the only unit
+//      the app trusts: the % of the crowd who get a card right. Right answers
+//      push you toward harder cards, misses back off. Aiming for ~80% success.
+//
+// Known cards come back once, rarely, weeks later. Miss the check-in and the
+// fact leaves your map — a map you cannot lose things from is not a map.
+window.LEARN = (function () {
+  const LS = 'insight.learn.v3';
+  const LS_F = 'insight.learnFields.v1';
+  const CARDS = window.LEARN_CARDS || [];
+  const FIELDS = window.LEARN_FIELDS || [];
+  const SUBJECTS = window.LEARN_SUBJECTS || [];
+  const GAP = 4;        // cards that must pass before a repeat counts
+  const STREAK = 3;     // rights in a row to earn a missed card
+  const CHECKIN_D = 12; // days before a known card comes back once
+  const L0 = 62;        // everyone starts where ~62% of the crowd is right
+  const LMIN = 24, LMAX = 92;
+
+  const BYID = {}, BYF = {}, FBY = {}, SBY = {};
+  CARDS.forEach((c) => { BYID[c.id] = c; (BYF[c.f] = BYF[c.f] || []).push(c); });
+  FIELDS.forEach((f) => { FBY[f.id] = f; });
+  SUBJECTS.forEach((s) => { SBY[s.id] = s; });
+
+  const listeners = new Set();
+  const fire = () => listeners.forEach((f) => { try { f(); } catch (e) { /* localStorage can throw: private mode, quota, disabled storage. Best-effort — in-memory state stays correct. */ } });
+
+  let S;
+  try { S = JSON.parse(localStorage.getItem(LS) || 'null'); } catch (e) { S = null; }
+  if (!S || typeof S !== 'object') S = null;
+  // first run is seeded, like friends and daily answers are: a few facts already
+  // held so the map is never an empty room, and one card mid-streak so the
+  // three-in-a-row rule is discoverable without having to fail at it first.
+  if (!S) {
+    S = { c: {}, lvl: {}, pos: 9, order: ['cell2', 'cell4', 'sol1', 'sol5', 'cap1', 'cap4'] };
+    const t0 = Date.now();
+    S.order.forEach((id, i) => { S.c[id] = { s: 'known', k: STREAK, seen: 1, miss: 0, pos: i, at: t0 - (6 - i) * 864e5 }; });
+    S.c.sol2 = { s: 'learning', k: 1, seen: 2, miss: 1, pos: 7, at: 0 };   // “Venus is hottest” — missed once, one right so far
+    S.lvl = { cell: 54, solar: 66, capitals: 58 };
+  }
+  S.c = S.c || {}; S.lvl = S.lvl || {}; S.pos = S.pos || 0; S.order = Array.isArray(S.order) ? S.order : [];
+
+  let F;
+  try { F = JSON.parse(localStorage.getItem(LS_F) || 'null'); } catch (e) { F = null; }
+  if (!Array.isArray(F)) F = ['cell', 'solar', 'capitals'];   // stocked from day one
+  F = F.filter((id) => FBY[id]);
+  if (!F.length) F = ['cell'];
+
+  const save = () => { try { localStorage.setItem(LS, JSON.stringify(S)); } catch (e) { /* localStorage can throw: private mode, quota, disabled storage. Best-effort — in-memory state stays correct. */ } fire(); };
+  const saveF = () => { try { localStorage.setItem(LS_F, JSON.stringify(F)); } catch (e) { /* localStorage can throw: private mode, quota, disabled storage. Best-effort — in-memory state stays correct. */ } fire(); };
+
+  const st = (id) => S.c[id] || null;
+  const lvl = (fid) => (S.lvl[fid] == null ? L0 : S.lvl[fid]);
+  const hueOf = (fid) => { const f = FBY[fid]; const s = f && SBY[f.subject]; return s ? s.hue : 250; };
+  const colorOf = (fid) => 'oklch(0.55 0.14 ' + hueOf(fid) + ')';
+  const pool = () => { const out = []; F.forEach((fid) => (BYF[fid] || []).forEach((c) => out.push(c))); return out; };
+
+  // plan the next n cards WITHOUT answering any of them, so the scroll can ship
+  // stocked instead of unlocking one card at a time. Same priority order as a
+  // single pick: a queued repeat that has waited, the rare check-in, then
+  // something new at your level.
+  function plan(n, only, exclude) {
+    let P = only ? (BYF[only] || []).slice() : pool();
+    if (exclude && exclude.length) P = P.filter((c) => exclude.indexOf(c.id) < 0);
+    if (!P.length) return [];
+    const now = Date.now();
+    const due = P.filter((c) => { const s = st(c.id); return s && s.s === 'learning' && s.k < STREAK && S.pos - s.pos >= GAP; }).sort((a, b) => st(a.id).pos - st(b.id).pos);
+    const chk = P.filter((c) => { const s = st(c.id); return s && s.s === 'known' && now - (s.at || 0) > CHECKIN_D * 864e5 && S.pos - s.pos >= 12; }).sort((a, b) => (st(a.id).at || 0) - (st(b.id).at || 0));
+    const fresh = P.filter((c) => !st(c.id)).sort((a, b) => Math.abs(a.p - lvl(a.f)) - Math.abs(b.p - lvl(b.f)));
+    const slow = P.filter((c) => { const s = st(c.id); return s && s.s === 'learning' && s.k < STREAK; }).sort((a, b) => st(a.id).pos - st(b.id).pos);
+    const warm = P.slice().sort((a, b) => ((st(a.id) || {}).pos || 0) - ((st(b.id) || {}).pos || 0));
+    const used = {};
+    const take = (arr) => { while (arr.length) { const c = arr.shift(); if (!used[c.id]) { used[c.id] = 1; return c; } } return null; };
+    const out = [];
+    for (let i = 0; out.length < n; i++) {
+      let c = null;
+      if ((S.pos + i) % 7 === 6) c = take(chk);
+      if (!c) c = take(due);
+      if (!c) c = take(fresh);
+      if (!c) c = take(slow);
+      if (!c) c = take(warm);
+      if (!c) break;
+      out.push(c);
+    }
+    return out;
+  }
+
+  function next(only, exclude) {
+    return plan(1, only, exclude)[0] || null;
+  }
+
+  function answer(id, pick) {
+    const card = BYID[id];
+    if (!card) return null;
+    const ok = pick === card.c;
+    const was = st(id);
+    const cur = was ? { ...was } : { s: 'new', k: 0, seen: 0, miss: 0, pos: -99, at: 0 };
+    const wasKnown = cur.s === 'known';
+    cur.seen++; cur.pos = S.pos;
+    let mastered = false, lost = false;
+    if (ok) {
+      if (wasKnown) cur.at = Date.now();                       // check-in passed
+      else if (cur.s === 'learning') { cur.k++; if (cur.k >= STREAK) { cur.s = 'known'; cur.at = Date.now(); mastered = true; } }
+      else { cur.s = 'known'; cur.k = STREAK; cur.at = Date.now(); mastered = true; }
+    } else {
+      if (wasKnown) lost = true;
+      cur.s = 'learning'; cur.k = 0; cur.miss++;
+    }
+    S.c[id] = cur;
+    S.pos++;
+    S.lvl[card.f] = Math.max(LMIN, Math.min(LMAX, lvl(card.f) + (ok ? -4 : 6)));
+    if (mastered && S.order.indexOf(id) < 0) S.order.push(id);
+    if (lost) S.order = S.order.filter((x) => x !== id);
+    save();
+    return { ok, mastered, lost, wasKnown, streak: cur.k, correct: card.c, split: window.LEARN_SPLIT(card) };
+  }
+
+  return {
+    STREAK,
+    subjects: () => SUBJECTS.slice(),
+    fields: () => FIELDS.slice(),
+    field: (id) => FBY[id] || null,
+    subject: (id) => SBY[id] || null,
+    fieldsOf: (sid) => FIELDS.filter((f) => f.subject === sid),
+    card: (id) => BYID[id] || null,
+    total: (fid) => (BYF[fid] || []).length,
+    hueOf, colorOf,
+    mine: () => F.map((id) => FBY[id]).filter(Boolean),
+    has: (id) => F.indexOf(id) >= 0,
+    follow: (id) => { if (FBY[id] && F.indexOf(id) < 0) { F.push(id); saveF(); } },
+    unfollow: (id) => { if (F.length > 1) { F = F.filter((x) => x !== id); saveF(); } },
+    toggle: (id) => { if (F.indexOf(id) >= 0) { if (F.length > 1) { F = F.filter((x) => x !== id); saveF(); } } else if (FBY[id]) { F.push(id); saveF(); } return F.indexOf(id) >= 0; },
+    next, answer, plan,
+    stateOf: (id) => st(id),
+    level: lvl,
+    // known facts, in the order you earned them — the map reads this
+    mastered: () => S.order.map((id, i) => ({ id, card: BYID[id], at: (S.c[id] || {}).at || 0, i })).filter((x) => x.card),
+    knownCount: () => S.order.length,
+    stats: (fid) => {
+      const cs = BYF[fid] || [];
+      let known = 0, learning = 0;
+      cs.forEach((c) => { const s = st(c.id); if (!s) return; if (s.s === 'known') known++; else learning++; });
+      return { known, learning, total: cs.length };
+    },
+    reset: () => { S = { c: {}, lvl: {}, pos: 0, order: [] }; save(); },
+    subscribe: (f) => { listeners.add(f); return () => listeners.delete(f); },
+  };
+})();

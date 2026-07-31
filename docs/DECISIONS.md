@@ -2179,3 +2179,53 @@ which this touched; `city-overlay` reaches `RadarChart` and `Donut`, which
 is why they stayed when `Compass2D` went. The static scan said the same
 thing first, but only the mount can say it about a layer whose references
 resolve at render time.
+## D27 · The v15 revision syncs in whole, and the honesty layer stays where it was
+
+**Date:** 2026-07-31 · **Status:** Adopted
+
+The 2026-07-31 revision of `design/InSight_standalone_15.html` landed as a
+full sync: 32 spec modules re-merged three-way (prototype-old → prototype-new
+against the repo's hand-edited copies), 11 new modules ported (the Learn
+stack, VOTECUTS, world subtopics, demo catalogues, the take-report store, the
+map's over-category ladder), `feeds.jsx` deleted with the prototype, and the
+style sheet re-merged the same way. Where the revision and this repo had
+independently built the same feature, the revision's UI won and the repo's
+enforcement stayed:
+
+- **Catalogue picks.** The revision's Favourites channel (`fav`) replaces
+  this repo's `games` channel — same guarantee (a pick card is never
+  invisible-by-default), one format home instead of a per-subject scatter —
+  and `pick-data.js`'s four live cards are retagged to it. The revision's
+  two-tile "you vs the crowd" reveal is adopted for the repo's
+  domain-keyed cards, but shares stay real fractions of the whole vote and
+  a rank exists only on the PUBLISHED board: the prototype's `#n of 1,025`
+  and its hash-drifted per-cohort boards (`wfPickGroup`) enumerate what the
+  k-floor suppresses, so those stay demo-catalogue-only (`q.catalog`),
+  never on a `q.domain` card. The prototype's own catalogue questions ship
+  minus `c03` — it duplicates `pk01` against a 20-entry demo head.
+- **The surprise line.** The revision routes it through VOTECUTS; this
+  repo's `feedInsight` (feed-read.js) still reads only published, floored
+  `agg.by` and returns null rather than inventing a cohort. Demo cards
+  therefore still show no surprise line — the same refusal recorded in
+  feed-read.js's header, unchanged by the new plumbing around it.
+- **Lenses.** The chrome-free redesign is adopted wholesale, with the
+  null-honesty divergence re-threaded: `LENSES.score()` still returns null
+  for an unanswered dimension in live mode, and every new visual draws "no
+  reading yet" instead of a zero. The revision's provisional-lean prior
+  applies only where the old prior did — demo mode (`PRIOR_W()`).
+- **Dark mode.** The revision removes the switch outright (`quiet-ground`
+  replaces it in the Aesthetic tweaks). The `.app.dark` variable block goes
+  with it; scattered `.dark` rules survive inert. Dark mode remains its own
+  tracked piece of work, now meaning prefers-color-scheme wiring, not a key.
+
+**The arithmetic.** The entry chunk went 850 → 918 KB minified: eleven new
+modules are eager because `world-catalogs.js` appends to the feed pool at
+module scope, SUBTOPICS/LEARN/LEARN_FEED are subscribed from eager screens
+(search, map), and D25's own rule stands — any further deferred group needs
+the smoke-test pair (absent before load, present after) before it needs a
+byte count. `MAX_CHUNK_KB` rises 900 → 940 to hold that line; the total
+budget is untouched (1,522 of 1,600 KB). The deferred feed group absorbed
+the revision's biggest growth (world-feed.jsx 82 → 145 KB source; its chunk
+85 → 107 KB) without touching first paint. The full-app smoke tests moved
+from the 5 s default to a 15 s per-file budget for the same reason — the
+slowest cases sat at ~4.8 s before the revision.

@@ -34,6 +34,7 @@ import React from 'react';
   S.groupIds = S.groupIds || {};   // seeded-gid → edited member ids
   S.groupPend = S.groupPend || {}; // gid → { pid → invite ts }
   S.left = Array.isArray(S.left) ? S.left : []; // gids you left
+  S.duoMode = S.duoMode || {}; // pid → 'friends' | 'romantic' (which pool this 1v1 draws from)
   const listeners = new Set();
   const fire = () => listeners.forEach((f) => { try { f(); } catch (e) { /* one listener throwing must not stop the others being notified. */ } });
   const save = () => { try { localStorage.setItem(LS, JSON.stringify(S)); } catch (e) { /* localStorage can throw: private mode, quota, disabled storage. Persistence here is best-effort and the in-memory state stays correct. */ } fire(); };
@@ -282,6 +283,34 @@ import React from 'react';
     { prompt: 'A week alone in a cabin. Gift or sentence?', options: ['Gift', 'Sentence'] },
     { prompt: 'Old age: surrounded, or independent?', options: ['Surrounded', 'Independent'] },
   ];
+  // The same game, aimed at a person you share a life with rather than a friend:
+  // the tells are domestic, and the deep end is about what happens next. Same
+  // shape as DUO_QS — light → deep, 2–4 options — so the ladder is identical.
+  const DUO_QS_ROMANTIC = [
+    { prompt: 'A free evening, both home. Ideal version?', options: ['Out somewhere', 'Sofa, one film', 'Cooking together'] },
+    { prompt: 'How do they like being woken?', options: ['Slowly, with coffee', 'Left alone', 'Talked at immediately'] },
+    { prompt: 'A good apology from them looks like…', options: ['Words', 'A gesture', 'Time, then normal'] },
+    { prompt: 'You are 20 minutes late to dinner. Their read?', options: ['Fine, orders a drink', 'Says nothing, remembers it'] },
+    { prompt: 'Love lands hardest as…', options: ['Being told', 'Being helped', 'Being touched', 'Being chosen'] },
+    { prompt: 'Mid-argument, they want…', options: ['To finish it now', 'A pause', 'Space, then dinner'] },
+    { prompt: 'The better anniversary?', options: ['A plan they made', 'A day with nothing in it'] },
+    { prompt: 'Money in this relationship should be…', options: ['Fully shared', 'Mostly shared', 'Separate, split bills'] },
+    { prompt: 'Their idea of being taken care of?', options: ['Food made', 'Admin handled', 'Left in peace', 'Asked about'] },
+    { prompt: 'A whole weekend together, no phones. Bliss or too much?', options: ['Bliss', 'Too much'] },
+    { prompt: 'They had a hard day and did not say so. The tell?', options: ['Goes quiet', 'Cleans something', 'Talks about nothing else'] },
+    { prompt: 'Five years out, they picture…', options: ['Same city, more room', 'Somewhere new', 'Somewhere quiet'] },
+    { prompt: 'A big decision that affects you both. They…', options: ['Decide together, slowly', 'Want you to choose', 'Already decided'] },
+    { prompt: 'Would they tell you a truth that would hurt for a week?', options: ['Yes', 'Only if asked', 'No'] },
+    { prompt: 'Jealousy shows up in them as…', options: ['A question', 'A joke', 'Silence', "It doesn't"] },
+    { prompt: 'Kids, someday?', options: ['Yes', 'Open to it', 'No'] },
+    { prompt: 'The thing they would never compromise on?', options: ['Where they live', 'Their work', 'Their people', 'Their solitude'] },
+    { prompt: 'If you needed a year somewhere else, they would…', options: ['Come', 'Wait', 'Ask you not to go'] },
+    { prompt: 'What would make them feel most loved this year?', options: ['More time', 'More plans', 'More calm', 'More honesty'] },
+    { prompt: 'Old age, the two of you: side by side, or side by side and busy?', options: ['Side by side', 'Busy, together'] },
+  ];
+  const DUO_POOL = (pid) => (duoMode(pid) === 'romantic' ? DUO_QS_ROMANTIC : DUO_QS);
+  function duoMode(pid) { return S.duoMode[pid] === 'romantic' ? 'romantic' : 'friends'; }
+  function setDuoMode(pid, mode) { S.duoMode[pid] = mode === 'romantic' ? 'romantic' : 'friends'; save(); }
   // days already played (and revealed) with each partner; 0 = never played
   const PLAYED = { f1: 6, f2: 5, f4: 3, f6: 2, f3: 0 };
   // how well YOU tend to read them / how well THEY tend to read you
@@ -304,7 +333,8 @@ import React from 'react';
     const played = PLAYED[pid] || 0;
     const depth = Math.max(played - dayIdx, 0); // 0 = first day together
     const jit = Math.floor(h01('dqb' + pid + ':' + dayIdx) * 2);
-    return DUO_QS[Math.min(depth * 2 + jit, DUO_QS.length - 1)];
+    const pool = DUO_POOL(pid);
+    return pool[Math.min(depth * 2 + jit, pool.length - 1)];
   }
   // one duel day; dayIdx 0 = today (yours from localStorage), 1+ = seeded history
   function duoDay(pid, dayIdx) {
@@ -351,10 +381,10 @@ import React from 'react';
       }
       const state = duoState(p.id);
       const streak = played + (state === 'sealed' ? 1 : 0);
-      return { ...p, played, read, readBy, misses, state, streak };
+      return { ...p, played, read, readBy, misses, state, streak, mode: duoMode(p.id) };
     });
     const invited = Object.keys(S.duoInv).map((pid) => personOf(pid)).filter(Boolean)
-      .map((p) => ({ ...p, played: 0, read: { right: 0, total: 0 }, readBy: { right: 0, total: 0 }, misses: [], state: 'invited', streak: 0 }));
+      .map((p) => ({ ...p, played: 0, read: { right: 0, total: 0 }, readBy: { right: 0, total: 0 }, misses: [], state: 'invited', streak: 0, mode: duoMode(p.id) }));
     return live.concat(invited);
   }
   function pendingDuos() { return partners().filter((p) => p.state === 'turn' || p.state === 'start').length; }
@@ -431,6 +461,7 @@ import React from 'react';
     createGroup, addGroupMembers, removeGroupMember, leaveGroup,
     SCENARIOS, roleVotes,
     duoQ, duoDay, myDuo, answerDuo, partnerToday, duoState, partners, pendingDuos, impressions,
+    duoMode, setDuoMode,
     duoAvailable, startDuo, cancelDuo, endDuo,
     resetToday,
     subscribe: (f) => { listeners.add(f); return () => listeners.delete(f); },
