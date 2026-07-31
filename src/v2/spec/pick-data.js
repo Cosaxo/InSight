@@ -63,6 +63,22 @@
       92: 2,   // Gastly — below the floor
       0: 6,    // Not listed
     },
+    // daily catalog-question run, 2026-07-31
+    pk03: {
+      133: 31, // Eevee
+      175: 24, // Togepi
+      39: 21,  // Jigglypuff
+      25: 17,  // Pikachu — cute AND everyone's favourite; overlap is honest
+      393: 14, // Piplup
+      258: 11, // Mudkip
+      300: 8,  // Skitty
+      417: 7,  // Pachirisu
+      173: 6,  // Cleffa
+      172: 6,  // Pichu
+      431: 4,  // Glameow — below the floor
+      427: 3,  // Buneary — below the floor
+      0: 5,    // Not listed
+    },
   };
 
   // Baked demo segment slices, per question: how each cohort orders the
@@ -92,6 +108,16 @@
       gender: {
         Women: { 778: 14, 94: 10, 354: 5, 425: 4 },
         Men: { 94: 18, 778: 10, 491: 9, 487: 8, 635: 4 },
+      },
+    },
+    pk03: {
+      ageBand: {
+        '18-24': { 175: 9, 133: 8, 39: 6, 393: 6, 258: 5 },
+        '25-34': { 133: 12, 39: 8, 175: 7, 25: 7, 300: 4 },
+      },
+      gender: {
+        Women: { 133: 11, 175: 9, 39: 8, 300: 5, 173: 4 },
+        Men: { 133: 9, 258: 8, 25: 7, 393: 6, 172: 4 },
       },
     },
   };
@@ -157,5 +183,8 @@
     // 2026-07-30 daily run: a different canon, not a rephrase — fear
     // ranks ghosts; favouritism ranks starters and mascots.
     { id: 'pk02', cat: 'games', type: 'pick', domain: 'pokemon', prompt: 'The scariest Pokémon?', n: 144 },
+    // 2026-07-31 daily run: cuteness ranks the small and round — a third
+    // canon next to favouritism and fear.
+    { id: 'pk03', cat: 'games', type: 'pick', domain: 'pokemon', prompt: 'The cutest Pokémon?', n: 157 },
   ];
 })();
