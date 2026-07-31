@@ -5,7 +5,9 @@ rules_version = '2';
 // holding opt-in cloud backups of daily-report photos. We deny
 // everything else by default.
 //
-// Deploy with: firebase deploy --only storage:rules
+// Deploy with: firebase deploy --only storage
+// (NOT `--only storage:rules` — the colon form names a multi-bucket
+// deploy target, which this project doesn't configure, and it errors.)
 service firebase.storage {
   match /b/{bucket}/o {
     match /users/{uid}/dailyPhotos/{filename} {
