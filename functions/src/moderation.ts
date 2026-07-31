@@ -20,7 +20,7 @@ import { onCall, HttpsError, type CallableRequest } from "firebase-functions/v2/
 import { onSchedule } from "firebase-functions/v2/scheduler";
 import { logger } from "firebase-functions";
 import { LIGHT_CALLABLE, LIGHT_UNBOUNDED } from "./ops";
-import { buildModQueueFrom, modVerdictError } from "./pure";
+import { buildModQueueFrom, modVerdictError, modVerdictId } from "./pure";
 
 const REGION = "us-central1";
 
@@ -72,6 +72,12 @@ async function runBuildModQueue(): Promise<void> {
 
     // Rebuild wholesale: stale entries (verdicted, or takes since deleted)
     // must not linger, and the queue is small by construction.
+    //
+    // Wholesale is also why the verdict log is keyed per generation: this
+    // run re-queues every take that is still flagged and still visible —
+    // in advisory mode, that is all of them — so a log keyed by takeId
+    // alone would refuse the second day's verdict on the first day's
+    // grounds. See modVerdictId in pure.ts.
     const existing = await db.collection("v2_mod_queue").get();
     const batch = db.batch();
     for (const doc of existing.docs) batch.delete(doc.ref);
@@ -157,7 +163,6 @@ export const submitModVerdict = onCall({ ...LIGHT_CALLABLE, region: REGION }, as
 
   await db.runTransaction(async (tx) => {
     const queueRef = db.collection("v2_mod_queue").doc(takeId);
-    const verdictRef = db.collection("v2_mod_verdicts").doc(takeId);
     const queued = await tx.get(queueRef);
     // THE confinement check: the server picked the targets, and a verdict
     // against anything else — however persuasive the text that asked for
@@ -165,6 +170,14 @@ export const submitModVerdict = onCall({ ...LIGHT_CALLABLE, region: REGION }, as
     if (!queued.exists) {
       throw new HttpsError("failed-precondition", "take is not in the moderation queue");
     }
+    // Which queue generation this verdict belongs to, read off the
+    // SERVER-picked entry rather than accepted from the run (which never
+    // names one — the channel shape is unchanged). modVerdictId in pure.ts
+    // carries why the log is keyed this way and why an unknown generation
+    // falls back to the old, stricter id.
+    const queuedAt = queued.get("queuedAt") as { toMillis?: () => number } | null;
+    const gen = typeof queuedAt?.toMillis === "function" ? queuedAt.toMillis() : 0;
+    const verdictRef = db.collection("v2_mod_verdicts").doc(modVerdictId(takeId, gen));
     const prior = await tx.get(verdictRef);
     if (prior.exists) {
       throw new HttpsError("already-exists", "take already has a verdict this queue generation");
@@ -174,6 +187,10 @@ export const submitModVerdict = onCall({ ...LIGHT_CALLABLE, region: REGION }, as
       verdict,
       policyLine: policyLine || null,
       runId,
+      // Stamped as well as keyed: the maintainer's digest groups the log by
+      // generation, and parsing it back out of the document id would be a
+      // second, silent copy of modVerdictId's format.
+      gen,
       by: request.auth?.uid || null,
       advisory: MOD_ADVISORY,
       at: FieldValue.serverTimestamp(),
@@ -181,6 +198,11 @@ export const submitModVerdict = onCall({ ...LIGHT_CALLABLE, region: REGION }, as
     if (MOD_ADVISORY) {
       // Trust-ladder phase: record and surface, touch nothing. The queue
       // entry keeps the verdict so the maintainer's review reads in place.
+      //
+      // The next rebuild drops these two fields with the rest of the entry,
+      // which is right rather than lossy: they annotate THIS generation's
+      // queue, and the durable record is the verdict log, which now keeps
+      // one entry per generation instead of overwriting nothing.
       tx.update(queueRef, { advisoryVerdict: verdict, advisoryLine: policyLine || null });
       return;
     }

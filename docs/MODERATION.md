@@ -10,7 +10,10 @@ e2e-tested against the real functions emulator in CI
 refusal demanded by exact error code, and the advisory guarantee
 asserted from a member's own view. `buildModQueueNow` exists as the
 scheduled build's moderator-gated on-demand twin — the e2e's handle and
-the maintainer's manual rebuild lever. Still ahead: the client report
+the maintainer's manual rebuild lever. The verdict log is keyed per
+(take, queue generation); keyed by take alone it doubled as a lock that
+never released, and the daily re-judgement the ladder is made of stopped
+after the first verdict (see D22's amendment). Still ahead: the client report
 control (needs a live takes surface), the low-privilege Routine, and
 the maintainer's answers to the open questions at the end. The policy
 and threat model below remain the contract.
@@ -108,7 +111,11 @@ verdict.
    the maintainer, auditable after the fact, and still erased by
    `deleteAccount` like everything else its author owns.
 5. **Bounded blast radius.** Hard cap of 50 verdicts per run. Every
-   verdict carries its policy line and run id. The dev session posts a
+   verdict carries its policy line, run id and queue generation — the
+   log is append-only, one entry per (take, generation), so a take
+   judged on successive runs accumulates a history rather than
+   overwriting one. That history *is* the advisory phase's evidence.
+   The dev session posts a
    weekly digest (counts per verdict per line, plus a random sample of
    removals for human review) — the analogue of the farm's run log.
 6. **Prompt hygiene, as the seatbelt it is.** Queue items arrive wrapped

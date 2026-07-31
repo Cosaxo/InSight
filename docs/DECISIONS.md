@@ -1744,6 +1744,40 @@ list and missed `moderation.ts` entirely — three functions built,
 tested, green, and invisible to the gate whose whole job is catching
 that. It now discovers `functions/src/*.ts` instead of naming files.
 
+**Amendment (2026-07-31) — the verdict log is keyed per (take, queue
+generation), not per take.** As shipped it was `v2_mod_verdicts/{takeId}`,
+and the callable's own error text already claimed otherwise ("already has
+a verdict *this queue generation*"), as did the e2e leg asserting it. The
+key was the thing that did not agree.
+
+The consequence was not the duplicate-verdict refusal it looked like. The
+queue is rebuilt **wholesale** every run, and in advisory mode nothing is
+hidden and no flags are cleared — so every still-flagged take returns to
+the next day's queue by construction. One verdict per take *forever* meant
+the second day's judgement died `already-exists` on the first day's
+grounds, and the run's daily re-judgement — the evidence the ladder's flip
+is supposed to cite — stopped after one round. `escalate` inverted worst
+of all: it is the only verdict that deliberately keeps an entry queued for
+a human, so "come back to this" was exactly the decision nobody could come
+back to.
+
+The generation is the queue entry's own `queuedAt` (`modVerdictId`,
+pure.ts), not a counter: an entry is written once per build, so its
+timestamp already names the build. No second collection and no shared
+sequence — and no change to the verdict channel's shape, which stays the
+`{ takeId, verdict, policyLine? }` this record's first bullet fixes. The
+run cannot name a generation; the server reads it off the server-picked
+entry, so confinement is untouched. An entry with no usable `queuedAt`
+keeps the bare-takeId id, which is fail-safe: a verdict already logged
+still blocks a second one.
+
+Residual, stated rather than papered over: verdict documents written under
+the old bare-takeId id stay where they are. They are an append-only log,
+so they are readable history, but they no longer block — a take verdicted
+in the deploy window can be verdicted once more in the same generation.
+One-time, advisory-mode, and its worst outcome is a duplicate row in a log
+the maintainer reads by hand.
+
 Still open, recorded in MODERATION.md: the drafted thresholds (3 flags /
 25 queued / 50 cap), escalation latency, the maintainer's pass on the
 hard-line wording — and the two later phases, the client report control
