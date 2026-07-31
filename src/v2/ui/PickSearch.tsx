@@ -157,7 +157,10 @@ function PickSearch({ domain, accent, big, onPick, onNotListed }: PickSearchProp
     } else if (e.key === "Enter") {
       e.preventDefault();
       if (results[hi]) pick(results[hi]);
-    } else if (e.key === "Escape") {
+    } else if (e.key === "Escape" && open) {
+      // See CityPicker: swallow Escape only while the list is open, so the
+      // enclosing dialog still gets it once there is nothing here to close.
+      e.stopPropagation();
       setOpen(false);
     }
   };

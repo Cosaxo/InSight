@@ -1748,3 +1748,187 @@ Still open, recorded in MODERATION.md: the drafted thresholds (3 flags /
 25 queued / 50 cap), escalation latency, the maintainer's pass on the
 hard-line wording — and the two later phases, the client report control
 (needs a live takes surface first) and the low-privilege Routine.
+
+---
+
+## D23 · The mouse-only spec-layer controls become buttons, ahead of the interaction tests D21 wanted
+
+**Decided:** 2026-07-31 · **Status:** binding
+
+`check:a11y`'s baseline drops **69 → 47**. Eleven `div`+`onClick` sites in the
+ported layer are now real `<button>`: the Mirror map's graph nodes
+(`map-tab.jsx` ×4, `person-mindmap.jsx` ×3), the group-mirror comparison rows
+and person chips, the test-picker cards, and the relmap preview tile. Five
+files go to zero. `.btn-bare` and the reset on `.mmt-node` are what let a
+button lay out like the div it replaced; `.mmt-astat-row` was the precedent.
+
+**This is in tension with D21, which is why it is recorded rather than just
+done.** D21 deferred exactly this work with: *"Adding key handlers and focus
+behaviour to components no test asserts the interaction of is precisely the
+blind change the React Compiler findings are already deferred for. They get
+fixed behind interaction tests, not ahead of them."* No interaction test was
+written first. What makes this subset defensible is that it is a narrower
+class of change than the one D21 was guarding against:
+
+- **No behaviour was hand-rolled.** Not one key handler, focus call or
+  `tabIndex` heuristic was added to make a div act like a button. The element
+  became a button, and Enter/Space, focus, the role and the disabled
+  semantics come from the platform. Every `onClick` body is byte-identical.
+- **The residual risk is therefore visual, not behavioural** — a UA style
+  leaking into a layout the transform math depends on.
+
+**So the risk that remained was measured rather than argued.** Chromium at
+420×880, mock mode, before and after, same seed:
+
+- **Mirror → You (map-tab, 4 sites).** 86 `.mmt-node` both times;
+  `button.mmt-node` **0 → 86**; no page errors. Per-pixel diff: **258 of
+  1,478,400 pixels differ (0.0175%), max channel delta 12/255**, all in one
+  text-antialiasing cluster. A layout shift would be thousands of pixels at
+  delta ~255.
+- **Test picker (test-overlay, 1 site).** 4 cards, `button.test-pick-card`
+  **0 → 4**, **0 of 1,478,400 pixels differ**. Computed style confirms the
+  card keeps its surface, 1px border, 18px radius, shadow and inherited font.
+- **The remaining 6 sites do not render in mock mode** from any route
+  reachable here — `person-mindmap` needs an open person, the group-mirror
+  rows and chips need a populated group, the relmap tile needs a circle.
+  Their evidence is indirect but specific: `person-mindmap`'s 3 sites carry
+  the *same* `.mmt-node mmt-center/mmt-hub/mmt-dotnode` classes proven above,
+  so they are the same CSS path; and for the 3 `.btn-bare` sites, a real-
+  browser A/B against the app's own stylesheet — div vs `button.btn-bare`,
+  in both the flex-row and absolutely-positioned shapes the call sites use —
+  returns **identical** width, height, font, size, text-align, background,
+  border and padding.
+
+**A bug this caught, worth keeping as the reason the reset is not one class.**
+`test-pick-card` first got `.btn-bare` alongside `.card`. Both are single-
+class selectors, and `.btn-bare` sits ~300 lines later, so it won the cascade
+and took `.card`'s background, border and padding with it — a card with a
+box-shadow and no surface. `button.card` is therefore reset next to `.card`
+itself, where the ordering is local and visible, and `.btn-bare` deliberately
+sets no `width` (a forced 100% breaks the absolutely-positioned chip that
+centres itself with `left:%` + `translate(-50%)`).
+
+**What is NOT covered, stated plainly.** There is still no automated render
+test for these eleven sites, and adding one to `test/` would be theatre:
+measured while trying, `mirror-tab.jsx` mounts `<MapTab />` only for the
+retracted "You" population, and even there jsdom renders `.mmt-root` and
+`.mmt-canvas` with **zero** nodes — positions come from a layout pass jsdom
+does not perform, so every node early-returns. All 186 pre-existing tests
+stayed green with these nodes never rendered once. Faking that layout is the
+one thing `test/setup-dom.ts` rules out by name: *"A stub that fakes a RESULT
+the test then asserts on would be testing the stub."* A test asserting over
+an empty set is worse than none — the same argument `check-bundle.mjs` makes
+about a budget that passes on zero files. The enforced guard is `check:a11y`
+at 47, which reads source and would fail the day a button goes back to a div.
+The render-level gate arrives with the browser-based interaction layer D21
+already queued; that is the correct home for it.
+
+**The 22 findings left under the click rules are a different bug and will not
+yield to the same move.**
+
+- **24 findings across 12 sites are the modal scrim/sheet pair** —
+  `.wf-scrim` closes on click, `.wf-sheet` swallows the click so it does not
+  (`type-marks`, `passive-meter`, `world-feed`, `duo-daily`, `group-daily`
+  ×2). Neither is a button: one is a backdrop, the other is a container, and
+  a `<button>` wrapping a whole sheet would nest interactive content inside a
+  control and read to a screen reader as one enormous target. These want
+  `role="dialog"` + `aria-modal` + Escape + a focus trap. Worth knowing that
+  the keyboard path is not actually missing today — every one of these sheets
+  already ships a real `<button aria-label="Close">`; it is the *semantics*
+  that are absent, and exactly one `aria-modal` exists in the whole spec
+  layer (`app-shell.jsx`, the update gate).
+- **4 are `onClick={(e) => e.stopPropagation()}`** on the relmap panels: pure
+  event plumbing with no interaction to expose.
+
+Both are tracked, neither is a blocker, and the count only moves down.
+
+---
+
+## D24 · Every overlay and sheet is a real modal dialog, and this time the interaction test came with it
+
+**Decided:** 2026-07-31 · **Status:** binding
+
+`check:a11y` drops **47 → 23**. Two helpers in `primitives.jsx` carry it:
+
+- **`useDialog(onClose, label)`** returns the props a dialog container needs
+  — `role="dialog"`, `aria-modal`, `aria-label`, `tabIndex={-1}`, a ref, and
+  a key handler giving Escape-to-close and a Tab focus trap — plus focus-in
+  on mount and focus-restore-to-opener on unmount. Applied to all eight
+  full-screen overlays (profile, search, person, city, test, suggest, logic,
+  relmap), one line each.
+- **`Sheet`** wraps the seven `wf-scrim`/`wf-sheet` bottom sheets into one
+  component with the same semantics attached.
+
+Before this, the whole spec layer contained exactly one `aria-modal`:
+app-shell's update gate.
+
+**The findings went structurally, not by silencing.** The scrim is
+`role="presentation"` — a backdrop that dismisses on click is not a control,
+and every one of these sheets already shipped a real
+`<button aria-label="Close">`, so the accessible path existed and only the
+semantics were missing. And the sheet's `onClick={(e) => e.stopPropagation()}`
+is **gone**: it existed solely to stop the scrim's handler, so the scrim now
+tests `e.target === e.currentTarget` instead. One check removed both halves
+of the pair, which is why 24 findings closed rather than 12.
+
+**D23 owed an interaction test; this pays it.** `test/dialog.test.jsx` is
+seven cases over the two overlays reachable from the header — the same two
+`smoke.test.jsx` drives, and the reason it stops there is the same. Unlike
+the map surfaces in D23, these *do* render in jsdom, so the test is real
+rather than an assertion over an empty set. It pins the three things
+`check:a11y` structurally cannot see, because they are runtime behaviour and
+not source text: that focus actually moves into the dialog, that Escape
+reaches the handler, and that focus returns to the opener.
+
+**Escape had to be made to nest, or it would close two things at once.**
+Four controls own Escape for their own state — the city and pick dropdowns
+(`ui/CityPicker.tsx`, `ui/PickSearch.tsx`) and relmap's rename field. Each
+now stops propagation *only when it actually consumes the key*: the pickers
+guard on `open`, so with the list already shut Escape belongs to the
+overlay, exactly as a user would expect one press to do one thing.
+
+**One jsdom gap, stated because the test comment depends on it.**
+`fireEvent.click` does not move focus; a real browser's click on a button
+does. So the focus-restore case focuses the opener explicitly, or it would
+be asserting jsdom's gap rather than the restore path. Confirmed in Chromium
+that this is a jsdom artifact and not a real one: clicking the header
+Profile button focuses it, and Escape hands focus back to it.
+
+**Measured, not assumed.** Chromium at 420×880, mock mode: overlay opens
+with `aria-label="Your profile"` and focus inside; Escape closes it and
+focus returns to the header button; the sheet opens with
+`aria-label="Your four profiles"` and `role="presentation"` on its scrim;
+Escape closes it and focus returns to its opener; **backdrop click still
+dismisses**; no page errors. The `Sheet` refactor moved the grab handle into
+the component and changed the scrim's handler, so it was pixel-checked too:
+identical bounding box and **0 of 1,478,400 pixels differ**.
+
+**Amendment, same day — 23 → 19: the relmap panels' handlers were dead
+code.** The 4 remaining `relmap-panels` findings looked like the same
+`stopPropagation` shape the sheets had just shed, and the note here first
+said they could not be fixed the same way because those panels have no scrim
+to move a target check onto. That was true and beside the point: the correct
+fix was to **delete** the handlers, because they were guarding against
+something that does not exist.
+
+The map's deselect lives on the `<svg>`'s `onPointerDown`/`onPointerUp`. The
+panels are absolutely-positioned **siblings** of that svg, so a pointerdown
+on a panel never reaches it — `this.drag` stays null and `onPointerUp`
+returns on its first line. And a click handler could not have stopped a
+pointer handler regardless: they are different event types, and pointer
+events fire first. Nothing in the tree listens for `click` above these
+panels; there are no document- or window-level click listeners either.
+
+Verified in Chromium before removing them, on **both** panels — the person
+panel and the hub panel (reached by asking `RMCore.buildGraph` which node
+ids are hubs, then tapping one twice: the first tap focuses its group, the
+second selects it). Open the panel, click inside its body, panel stays open.
+Identical with the handler and without it. No pixel check for this one, and
+deliberately: removing an event handler changes no style and cannot move
+layout.
+
+**What is left at 19.** The 8 `profile-general` findings are
+`label-has-associated-control` — real, unrelated, and a form-markup fix. The
+remaining 3 click/interaction findings are single sites in
+`consequence-beat` and `tweaks-panel`. The rest are the `autoFocus` keeps
+recorded in D21. The count only moves down.

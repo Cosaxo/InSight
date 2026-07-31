@@ -953,9 +953,8 @@ class WorldFeed extends React.Component {
       this._sheetT = setTimeout(() => this.setState({ sheet: null }), 230);
     };
     return ReactDOM.createPortal(
-      <div className={'wf-scrim' + (s.closing ? ' is-closing' : '')} onClick={close}>
-        <div className="wf-sheet" onClick={(e) => e.stopPropagation()}>
-          <div className="wf-sheet-grab"></div>
+      <Sheet onClose={close} closing={s.closing}
+        label={panel === 'add' ? 'Add a topic' : panel === 'takes' ? 'Takes' : 'Who voted'}>
           <div style={{ padding: '10px 18px 8px', display: 'flex', alignItems: 'baseline', gap: 10 }}>
             <span style={{ fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 15 }}>{panel === 'add' ? 'Add a topic' : panel === 'takes' ? 'Takes' : 'Who voted'}</span>
             <span style={{ fontFamily: 'var(--sans)', fontWeight: 600, fontSize: 12, color: 'var(--ink-3)', flex: 1, minWidth: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{q ? (q.prompt || q.text || q.title) : ''}</span>
@@ -964,8 +963,7 @@ class WorldFeed extends React.Component {
           <div className="wf-sheet-body">
             {panel === 'add' ? this.renderAdd() : panel === 'takes' ? this.renderTakes(q, T, takes) : this.renderStats(q, T)}
           </div>
-        </div>
-      </div>, host);
+      </Sheet>, host);
   }
 
   // The topics you do not follow yet, offered from the rail's "+". Scenes are

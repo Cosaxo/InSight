@@ -16,7 +16,7 @@ import React from 'react';
   function RMPersonPanel({ s, onSelect, onClose }) {
       const cardBtn = { display: 'inline-flex', alignItems: 'center', gap: 7, padding: '6px 11px 6px 9px', borderRadius: 100, border: '1px solid ' + P.rule, background: P.canvas, cursor: 'pointer', fontFamily: SANS, fontSize: 13, color: P.ink2 };
       return (
-        <div onClick={(e) => e.stopPropagation()} className="rm-scroll" style={{ position: 'absolute', left: 12, right: 12, bottom: 12, borderRadius: 20, padding: '18px 20px', maxHeight: 'min(62%, 450px)', display: 'flex', flexDirection: 'column', overflowY: 'auto', overflowX: 'hidden', zIndex: 7, animation: 'rmSheetUp 0.34s cubic-bezier(0.16,1,0.3,1) both', ...card, boxShadow: P.panelShadow }}>
+        <div className="rm-scroll" style={{ position: 'absolute', left: 12, right: 12, bottom: 12, borderRadius: 20, padding: '18px 20px', maxHeight: 'min(62%, 450px)', display: 'flex', flexDirection: 'column', overflowY: 'auto', overflowX: 'hidden', zIndex: 7, animation: 'rmSheetUp 0.34s cubic-bezier(0.16,1,0.3,1) both', ...card, boxShadow: P.panelShadow }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 18 }}>
             <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7, padding: '5px 11px 5px 9px', borderRadius: 100, background: s.tint, fontFamily: SANS, fontSize: 12, fontWeight: 600, color: s.color }}>
               <span style={{ width: 7, height: 7, borderRadius: '50%', background: s.color }}></span>{s.groupLabel}
@@ -98,7 +98,7 @@ import React from 'react';
   function RMHubPanel({ h, onSelect, onClose }) {
       const cardBtn = { display: 'inline-flex', alignItems: 'center', gap: 7, padding: '6px 11px 6px 9px', borderRadius: 100, border: '1px solid ' + P.rule, background: P.canvas, cursor: 'pointer', fontFamily: SANS, fontSize: 13, color: P.ink2 };
       return (
-        <div onClick={(e) => e.stopPropagation()} className="rm-scroll" style={{ position: 'absolute', left: 12, right: 12, bottom: 12, maxHeight: 'min(62%, 450px)', overflowY: 'auto', overflowX: 'hidden', borderRadius: 20, padding: '18px 20px', display: 'flex', flexDirection: 'column', zIndex: 7, animation: 'rmSheetUp 0.34s cubic-bezier(0.16,1,0.3,1) both', ...card, boxShadow: P.panelShadow }}>
+        <div className="rm-scroll" style={{ position: 'absolute', left: 12, right: 12, bottom: 12, maxHeight: 'min(62%, 450px)', overflowY: 'auto', overflowX: 'hidden', borderRadius: 20, padding: '18px 20px', display: 'flex', flexDirection: 'column', zIndex: 7, animation: 'rmSheetUp 0.34s cubic-bezier(0.16,1,0.3,1) both', ...card, boxShadow: P.panelShadow }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 18 }}>
             <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7, padding: '5px 11px 5px 9px', borderRadius: 100, background: h.tint, fontFamily: SANS, fontSize: 12, fontWeight: 600, color: h.color }}>
               <span style={{ width: 7, height: 7, borderRadius: '50%', background: h.color }}></span>Circle average

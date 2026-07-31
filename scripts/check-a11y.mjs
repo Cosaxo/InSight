@@ -42,25 +42,49 @@ import { ESLint } from "eslint";
 // user has just opened by tapping it: they opened it to type, and the
 // alternative is an overlay that needs a second tap to be usable. Revisit
 // if either overlay ever opens without a direct user action.
+// 2026-07-31: 69 → 47. Every remaining div+onClick that was genuinely a
+// button became one — the map/mindmap graph nodes, the group-mirror rows and
+// person chips, the test picker cards, the relmap preview tile. `.btn-bare`
+// and the reset on `.mmt-node` are what let a <button> lay out like the <div>
+// it replaced; `.mmt-astat-row` was the precedent.
+//
+// 2026-07-31, second pass: 47 → 23 (D24). The seven wf-scrim/wf-sheet
+// bottom sheets now go through one `Sheet` component (primitives.jsx), and
+// all eight full-screen overlays take `useDialog` — role, aria-modal,
+// aria-label, Escape, focus trap, focus restore. The findings went with it
+// for two structural reasons, not by silencing:
+//   - the scrim is `role="presentation"`: a backdrop that dismisses is not a
+//     control, and every sheet already ships a real Close button;
+//   - the sheet's `onClick={(e) => e.stopPropagation()}` is GONE. It existed
+//     only to stop the scrim's handler, and the scrim now tests
+//     `e.target === e.currentTarget` instead. One check removed both halves.
+//
+// 2026-07-31, third pass: 23 → 19. relmap-panels' 4 findings were
+// `onClick={(e) => e.stopPropagation()}` on the two panel bodies, and the
+// fix was to DELETE them: they were dead code, guarding against a handler
+// that does not exist. The map's deselect lives on the <svg>'s
+// onPointerUp/onPointerDown, the panels are absolutely-positioned SIBLINGS
+// of that svg, and a pointerdown on a panel never reaches it — so `drag`
+// stays null and onPointerUp returns early. A click handler could not have
+// stopped a pointer handler in any case; they are different event types.
+// Confirmed in Chromium on both panels (person and hub) before removal:
+// open the panel, click inside it, panel stays. Identical with and without.
+//
+// What is left, and why each is a different bug:
+//   - profile-general (8): label-has-associated-control. Real, unrelated,
+//     and a form-markup fix rather than a dialog one.
+//   - no-autofocus (8) and the rest: recorded above and in D21.
 const BASELINE = {
   "src/v2/ui/CityPicker.tsx": 1,     // autoFocus — see note above
   "src/v2/ui/PickSearch.tsx": 1,     // autoFocus — see note above
   "src/v2/spec/app-shell.jsx": 1,
   "src/v2/spec/consequence-beat.jsx": 2,
-  "src/v2/spec/duo-daily.jsx": 4,
-  "src/v2/spec/group-daily.jsx": 9,
-  "src/v2/spec/group-mirror.jsx": 4,
-  "src/v2/spec/map-tab.jsx": 8,
-  "src/v2/spec/passive-meter.jsx": 4,
-  "src/v2/spec/person-mindmap.jsx": 6,
+  "src/v2/spec/group-daily.jsx": 1,
   "src/v2/spec/profile-general.jsx": 8,
-  "src/v2/spec/relmap-panels.jsx": 4,
-  "src/v2/spec/relmap.jsx": 4,
+  "src/v2/spec/relmap.jsx": 2,
   "src/v2/spec/suggestions.jsx": 1,
-  "src/v2/spec/test-overlay.jsx": 2,
   "src/v2/spec/tweaks-panel.jsx": 1,
-  "src/v2/spec/type-marks.jsx": 4,
-  "src/v2/spec/world-feed.jsx": 5,
+  "src/v2/spec/world-feed.jsx": 1,
 };
 
 const eslint = new ESLint({ overrideConfigFile: "eslint.a11y.config.js" });

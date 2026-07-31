@@ -135,7 +135,12 @@ function CityPicker({ value, onChange, inputStyle }: CityPickerProps) {
     } else if (e.key === "Enter") {
       e.preventDefault();
       if (results[hi]) pick(results[hi]);
-    } else if (e.key === "Escape") {
+    } else if (e.key === "Escape" && open) {
+      // Only swallow it when there is a dropdown to close. The enclosing
+      // overlay is a dialog whose own Escape closes it (primitives.jsx
+      // useDialog), and one press should not do both — but with the list
+      // already shut, Escape belongs to the overlay.
+      e.stopPropagation();
       setOpen(false);
     }
   };

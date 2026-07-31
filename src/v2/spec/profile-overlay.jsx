@@ -92,8 +92,9 @@ function ProfileOverlay({ onClose, me }) {
       : (window.AttachmentCard ? <window.AttachmentCard /> : <TestResultCard testKey="attachment" />)
   );
 
+  const dlg = useDialog(onClose, 'Your profile');
   return (
-    <div className="overlay surface-tint" style={{ '--accent': 'var(--c-people)' }}>
+    <div className="overlay surface-tint" {...dlg} style={{ '--accent': 'var(--c-people)' }}>
       <div className="app-header">
         <button className="avatar-btn" onClick={onClose}>✕</button>
         <div className="h-title">Your <em>profile</em></div>
