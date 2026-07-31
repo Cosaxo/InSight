@@ -114,9 +114,46 @@ Two things to know before extending it:
   `componentDidCatch` log and its fallback copy. A test that only caught
   exceptions would have passed on both `ReferenceError`s this repo shipped.
 - **It is a smoke test.** It proves the screens mount, not that they are
-  right. Interaction coverage is the next layer, and the
-  `eslint-disable-next-line` list above is its work queue — those findings
-  stay deferred until a test can catch a re-run-timing regression.
+  right. For the spec layer that is still all there is; the hand-written
+  panels now have their own suites (below), and the
+  `eslint-disable-next-line` list above remains the work queue for the
+  ported half — those findings stay deferred until a test can catch a
+  re-run-timing regression.
+
+## Panel tests — `ui/*.test.tsx`
+
+One suite per hand-written panel, because these are the components that
+render **real user data** and each can lie in its own way. Mounting them
+inside the app (the two smoke files) proves they do not crash; these assert
+what they claim.
+
+| suite | the property it exists for |
+| --- | --- |
+| `LiveCohortBody` | an absent breakdown cell is WITHHELD, not zero, and is counted and named; the server's `tooSmall` flag beats any counts on the document; the printed floor equals `AGG_MIN_N` |
+| `LiveGroupsMirrorBody` | nobody is named on fewer than `MIN_SHARED` days; duos are excluded; alignment counts days *played*, not days revealed |
+| `LiveDuelPanel` | before a reveal only your own pick is on screen; the duo card states the both-play condition rather than promising a reveal |
+| `CityPicker` | every emitted value matches the server's own city shape; all five location failures land somewhere usable; a located city is suggested, never applied |
+| `PickSearch` | the id handed up is the catalogue key, not the row position; each domain searches its own store; "not listed" stays a distinct answer |
+| `LivePrivacyPanel` | deleting an account takes two deliberate taps, and a refused delete is shown rather than swallowed |
+
+Each of those rows was **mutation-checked**: the property was broken in the
+component, the suite was watched to fail, and the change reverted. A
+component test that passes against a broken component is worse than none,
+and these are exactly the assertions where that is easy to write by accident
+(three of the first drafts did — see the comments in
+`LiveDuelPanel.test.tsx` and `CityPicker.test.tsx` for what they missed).
+
+Two conventions worth copying if you add another:
+
+- **Mock `../data/live`, not Firebase.** What a panel consumes from the
+  store is a handful of getters; `vi.hoisted` + `vi.mock` gives you exact
+  control over states the real store cannot be asked for — "the partner has
+  voted but the reveal has not landed" is precisely the window the seal
+  covers.
+- **Do not mock the pure modules.** `CityPicker` uses the real
+  `data/places`, stubbing only the catalogue *fetch*, which is what makes
+  "the picker emits a key the server accepts" a statement about the real
+  vocabulary rather than about a fixture.
 
 ### …and `test/smoke-live.test.jsx`, the other half
 
