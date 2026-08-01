@@ -2239,10 +2239,11 @@ slowest cases sat at ~4.8 s before the revision.
 
 ## D28 · Fake accounts: prevention stays partial, the record becomes correctable
 
-**Date:** 2026-08-01 · **Status:** Proposed — pending owner adoption
-(first pushed marked "binding", which overstated it: the owner had asked
-for analysis, not a decision. Reclassified; the implementation sits on
-this branch as the thing being proposed.)
+**Date:** 2026-08-01 · **Status:** Adopted by the owner, 2026-08-01
+(History, kept because the sequence is instructive: first pushed marked
+"binding" ahead of the owner's decision, reclassified to Proposed the
+same day, then explicitly adopted. The implementation shipped alongside
+the proposal and is now standing.)
 
 **Decision.** No identity gate is added — no phone verification, no ID
 check, no proof-of-personhood. The defence against fake accounts is the
@@ -2351,8 +2352,20 @@ is weakest — finish that rollout before the store submission, not after.
 
 ## D29 · Device-bound activation: one counted account per device per month, silently
 
-**Date:** 2026-08-01 · **Status:** Proposed — pending owner adoption
+**Date:** 2026-08-01 · **Status:** Adopted by the owner, 2026-08-01
 **Owner's brief:** avoid fake users, low friction, global.
+**Implementation note (2026-08-01):** shipped same day — the callable
+(`functions/src/deviceBind.ts`, with the month/epoch logic unit-tested),
+the soft-enforce rules switch (`deviceBindEnforced()`, with the flipped
+text pre-tested by a second rules-test environment), the client
+activation flow wired into the live boot, and the e2e claim leg. What
+remains is owner-gated and listed in docs/DEVICE-BIND.md: the Apple key
+and Play Console recall opt-in, the two native token bridges (paste-ready
+there — not committed blind because this environment cannot compile
+them), the staging probe, and then the one-word enforcement flip. The
+"verify before building" list below was partially discharged: the
+decision logic handles both recall shapes (write dates present or
+absent), and the remaining API facts are flagged at their use sites.
 
 **Proposal.** An account starts counting toward aggregates only after a
 silent, per-device activation: the app sends a platform attestation token

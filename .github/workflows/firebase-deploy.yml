@@ -85,6 +85,12 @@ jobs:
           SEED_ADMIN_UIDS: ${{ vars.SEED_ADMIN_UIDS }}
           MOD_UIDS: ${{ vars.MOD_UIDS }}
           APPCHECK_ENFORCE: ${{ vars.APPCHECK_ENFORCE }}
+          DC_TEAM_ID: ${{ vars.DC_TEAM_ID }}
+          DC_KEY_ID: ${{ vars.DC_KEY_ID }}
+          # The .p8 contents — a SECRET, not a variable. Store it either
+          # verbatim (real newlines) or \n-escaped; the write below
+          # normalizes, and functions/src/deviceBind.ts unescapes.
+          DC_PRIVATE_KEY: ${{ secrets.DC_PRIVATE_KEY }}
         run: |
           if [ -z "$SEED_ADMIN_UIDS" ]; then
             echo "::warning::SEED_ADMIN_UIDS is empty — seedContentV2, revealDuelsNowV2 and the rebuild* callables will return permission-denied. Set it on the production environment, then re-run via workflow_dispatch."
@@ -104,6 +110,18 @@ jobs:
             echo "::warning::APPCHECK_ENFORCE=false — App Check enforcement is DISABLED for this deploy. Incident escape hatch only; unset the variable to restore enforcement."
             printf 'APPCHECK_ENFORCE=false\n' >> functions/.env.prvfire33
           fi
+          # D29 device binding (docs/DEVICE-BIND.md §1): DeviceCheck
+          # credentials for activateDeviceV2's iOS verifier. Empty means
+          # iOS activation fails with failed-precondition — fail-safe
+          # while rules enforcement is soft, warned so the gap is visible.
+          if [ -z "$DC_PRIVATE_KEY" ]; then
+            echo "::warning::DC_PRIVATE_KEY is empty — activateDeviceV2 cannot verify iOS devices yet (docs/DEVICE-BIND.md)."
+          fi
+          printf 'DC_TEAM_ID=%s\n' "$DC_TEAM_ID" >> functions/.env.prvfire33
+          printf 'DC_KEY_ID=%s\n' "$DC_KEY_ID" >> functions/.env.prvfire33
+          # Normalize real newlines to \n so the PEM survives dotenv's
+          # one-line-per-value format; the function unescapes either way.
+          printf 'DC_PRIVATE_KEY="%s"\n' "$(printf '%s' "$DC_PRIVATE_KEY" | sed ':a;N;$!ba;s/\n/\\n/g')" >> functions/.env.prvfire33
 
       - name: Write service account key
         env:
@@ -136,7 +154,7 @@ jobs:
           GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/sa-key.json
         run: >
           npx firebase deploy --project prvfire33 --non-interactive --force
-          --only "firestore:rules,firestore:indexes,functions:deleteAccount,functions:seedContentV2,functions:onV2AnswerCreated,functions:createGroupV2,functions:joinGroupV2,functions:leaveGroupV2,functions:registerPushToken,functions:scheduledDuelReveals,functions:revealDuelsNowV2,functions:buildModQueue,functions:buildModQueueNow,functions:fetchModQueue,functions:submitModVerdict"
+          --only "firestore:rules,firestore:indexes,functions:deleteAccount,functions:seedContentV2,functions:onV2AnswerCreated,functions:createGroupV2,functions:joinGroupV2,functions:leaveGroupV2,functions:registerPushToken,functions:scheduledDuelReveals,functions:revealDuelsNowV2,functions:buildModQueue,functions:buildModQueueNow,functions:fetchModQueue,functions:submitModVerdict,functions:activateDeviceV2"
 
       # The legal pages and the landing page they are reached from. Both
       # stores refuse a submission without a reachable privacy-policy URL,

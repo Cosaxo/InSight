@@ -410,3 +410,5 @@ export {
   revealDuelsNowV2,
 } from "./v2social";
 export { buildModQueue, buildModQueueNow, fetchModQueue, submitModVerdict } from "./moderation";
+// D29: the silent per-device activation gate (docs/DEVICE-BIND.md).
+export { activateDeviceV2 } from "./deviceBind";

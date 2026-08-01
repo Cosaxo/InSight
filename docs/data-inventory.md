@@ -25,7 +25,8 @@ Safety answers when store listing time comes.
 | Moderation verdicts | `v2_mod_verdicts` | nobody (server only) | append-only audit log: take id, verdict, policy line, run id, generation, and the MODERATOR's uid. No author text and no author uid |
 | Aggregates (exact) | `v2_aggs_private` | nobody (server only) | trigger internals; exact counts below the public floor |
 | Aggregate event ledger | `v2_agg_events` | nobody (server only) | one entry per counted answer: qid, **uid**, timestamp. Dedup for the trigger, plus the attribution that lets a discovered fake-account ring be subtracted from the counts (D28). Duplicates facts the answer docs already hold — no new category. 90-day TTL; a uid's entries are erased with the account |
-| Auth identity | Firebase Auth | — | anonymous by default; Google via linking |
+| Auth identity | Firebase Auth | — | anonymous by default; Google via linking. Accounts that passed device activation carry a `db: 1` custom claim (D29) — one boolean, no device information |
+| Device activation bits | **Apple / Google, not us** | nobody (the platforms hold them) | 2–3 bits per device (DeviceCheck / Play Integrity Device Recall) meaning "an account was activated from this device recently". The server receives allow/deny and stores **no device identifier**; there is nothing here for `deleteAccount` to erase because nothing is held (D29) |
 | Local device state | localStorage (~29 `insight.*` keys) | this device | vote cache, display-name draft, passive-test progress, replies, likes, scenes |
 | Offline data cache | Firestore `persistentLocalCache` (IndexedDB) | this device | mirrors the questions and answers fetched for this account |
 | Crash reports | Sentry (third party) | Sentry project members | **opt-in, default OFF**; errors carry the **uid** (no email, no name, no session replay, `sendDefaultPii: false`) |

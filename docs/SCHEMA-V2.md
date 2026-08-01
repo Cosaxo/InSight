@@ -165,6 +165,12 @@ MOD_UIDS-gated callables (the D22 confinement)
   operator) — materialize yesterday's reveals: groups reveal with ≥1
   answer; duos only when BOTH played (and the shared streak advances or
   resets accordingly).
+- `activateDeviceV2` (callable; D29, docs/DEVICE-BIND.md) — verifies a
+  platform attestation token against the per-device bits Apple/Google
+  hold (one counted account per device per calendar month) and stamps
+  the `db` custom claim; `firestore.rules` demands the claim on
+  aggregate-feeding answer creates once `deviceBindEnforced()` flips.
+  Emulator: grants unconditionally. Stores nothing about the device.
 - Moderation (docs/MODERATION.md, D22): `buildModQueue` (scheduled,
   05:00 UTC daily) folds flags into the queue, with `buildModQueueNow`
   as its moderator-gated on-demand twin (the revealDuelsNowV2 pattern);
