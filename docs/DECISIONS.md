@@ -2760,3 +2760,62 @@ refused; erasure seeds and asserts a learn answer beside the daily one
 (same subcollection — `recursiveDelete` covers it, now proven not
 assumed). Store forms: no new category — the existing "answers, test
 results" row's inventory text names learn answers (data-inventory.md).
+
+## D33 · The farm gets eyes and a faster clock: the scorecard, and daily runs
+
+**Date:** 2026-08-01 · **Status:** Adopted by the owner ("evaluate what
+questions do well, learn the routines to make better questions, fire
+very often")
+
+**The scorecard.** `scripts/question-scorecard.mjs` (Phase A of the
+demand-driven wiring plan, now TAKEN) reads the k-floored public
+aggregates and writes `content/scorecard.json`: per question, the
+published total (draw) and an evenness score — `1 − (maxShare − 1/n) /
+(1 − 1/n)`, the product's own "splits, not landslides" bar as a number —
+plus per-topic rollups, leaders, laggards, and retirement proposals.
+What it can honestly see is bounded by design: only the floored public
+mirror (the k-floor did the privacy work before the scorecard existed),
+never skip/pass rates (local-only, D-series), never anything per-user.
+The deck epoch (D30) is what makes daily draw comparable — under the
+no-wrap invariant each daily question has served exactly once, so totals
+rank cleanly (DAU drift between days is the recorded confound, flagged
+not corrected in v1). Feed totals are cumulative and rank only against
+each other. Grades hold their fire on small samples: a landslide verdict
+needs ≥20 answers, or it judges the early crowd rather than the
+question.
+
+**The artifact is committed, deliberately.** The numbers are already
+public by construction, and committing the scorecard is what lets a
+scheduled run read signals without holding production credentials — the
+`--fetch` step (anonymous auth + Firestore REST; writes nothing) is an
+operator or separately-scheduled action, so the farm session's egress
+stops mattering. Staleness rules in QUESTION-FARM.md: >14 days →
+advisory; >30 days or missing → lane 3 only.
+
+**How runs learn.** Prompt-level, not weights-level: every run reads the
+scorecard before writing — imitate the leaders' *shape* (a near-twin of
+a winner is a dupe), justify each new question against the laggards'
+failure mode (one line per question in the PR body: why this splits
+rather than slides), and cite `retireProposals` as `active: false`
+candidates. Guardrails that outrank the score, recorded because a
+metric this simple invites goodharting: warmth beats evenness whenever
+they conflict (no optimizing toward outrage), and the kill switch stays
+the operator's — the farm proposes retirements, it never edits the bank.
+
+**The clock.** The farm re-paces from 12/run weekly to **≤4/run daily**
+(~28/week potential vs the daily surface's 7/week consumption). Why
+this is safe at 2–3× the old volume: the archive is a holding pen —
+generation and serving are decoupled by the D30 promotion gate, which
+stays human; smaller daily batches are also easier to review well than
+a weekly twelve. Why not hourly: review capacity is the binding
+constraint, and a queue of unreviewed AI PRs is inventory, not
+progress. The daily catalog run is unchanged. One owner step remains,
+measured not assumed: a session outside the Routine's bound session
+cannot edit it (both prompt and cron refused org-wide from this CCR
+session, 2026-08-01), so the re-pace happens from the dev session or
+the Routines UI — the canonical daily prompt is checked into
+QUESTION-FARM.md's "Scheduled runs" section so prompt and manual
+cannot drift. Until that step runs, the farm still fires weekly under
+the old 12-question prompt; the manual's 4/run cap already governs
+(the prompt defers to the doc), so the only cost of the gap is
+cadence, not volume.

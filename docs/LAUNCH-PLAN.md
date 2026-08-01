@@ -361,7 +361,28 @@ inert; the reverse order is permission-denied noise).
 - **Screenshots after the final reseed and W3** — they must show the real app:
   15-question tests, the rebuilt logic test, a deep daily bank, live Learn.
   Nothing for screenshots/feature graphic/marketing copy exists yet; it is the
-  one launch item with no repo material at all.
+  one launch item with no repo material at all. **The imagery plan:**
+  1. *Capture harness first (repo work, doable now):* a Playwright script
+     against the web build at the store viewports (6.7"/6.5"/5.5" iPhone,
+     12.9" iPad if targeted, plus Play phone/tablet sizes), driving the five
+     screens worth showing — today's question, a reveal split, the Mirror
+     map, a duel reveal, the logic test mid-puzzle. Chromium renders the
+     same React tree the shells wrap, so these are honest app pixels;
+     device frames and captions are composition on top, not different UI.
+  2. *Content state matters more than tooling:* captures happen in LIVE
+     mode against seeded production once real answers exist (the TestFlight
+     week is the natural moment — ten testers put real k-floored splits on
+     screen). Demo mode is the fallback and its honesty badges will show —
+     which is acceptable for a fallback but is the argument for doing it
+     the live way.
+  3. *The Play feature graphic (1024×500) is a build artifact, not a
+     photoshoot:* generate it from `design/icon/mark.svg` + wordmark +
+     one-line tagline the same way `scripts/gen-icons.mjs` rasterises the
+     launcher set — deterministic, regenerable, reviewable in a PR.
+  4. In-app imagery stays out of scope for launch: questions are
+     deliberately text-first (images would add licensing surface, an
+     entirely new moderation class if ever user-supplied, and bundle
+     weight for zero mechanical benefit to a blind-answer product).
 - **Age rating / IARC** — the checklist delta this document adds: nothing in
   the repo has thought about it. The politics test (special-category data,
   already declared in the privacy forms) and user display names in group
