@@ -134,6 +134,27 @@ const median = (xs) => {
   return s.length ? s[Math.floor(s.length / 2)] : 0;
 };
 
+// Surprise (D36): total-variation distance between the farm's PREDICTED
+// split (the `pred` field authored with each new question, never emitted
+// to clients) and the measured one. 0 = the crowd did exactly what the
+// model expected; 1 = complete miss. High-surprise questions are the
+// product's magic made measurable — the crowd contradicting expectation —
+// and the running error is the farm's audience-model report card.
+const surpriseOf = (counts, n, pred) => {
+  if (!Array.isArray(pred) || pred.length !== n) return null;
+  let total = 0;
+  const cs = [];
+  for (let i = 0; i < n; i++) {
+    const c = Number(counts[String(i)] || 0);
+    cs.push(c);
+    total += c;
+  }
+  if (total <= 0) return null;
+  let tv = 0;
+  for (let i = 0; i < n; i++) tv += Math.abs((cs[i] / total) * 100 - pred[i]);
+  return +(tv / 200).toFixed(3);
+};
+
 function score(aggs, history) {
   const rows = [];
   daily.forEach((q, idx) => {
@@ -153,6 +174,7 @@ function score(aggs, history) {
       served,
       total,
       evenness: agg && agg.tooSmall === false ? evenness(agg.counts || {}, n) : null,
+      surprise: agg && agg.tooSmall === false ? surpriseOf(agg.counts || {}, n, q.pred) : null,
       signal: agg ? (agg.tooSmall === false ? "scored" : "below-floor") : served ? "no-answers" : "unserved",
     });
   });
@@ -170,6 +192,7 @@ function score(aggs, history) {
       served: true, // the feed serves continuously
       total,
       evenness: agg && agg.tooSmall === false ? evenness(agg.counts || {}, n) : null,
+      surprise: agg && agg.tooSmall === false ? surpriseOf(agg.counts || {}, n, q.pred) : null,
       signal: agg ? (agg.tooSmall === false ? "scored" : "below-floor") : "no-answers",
     });
   });
@@ -327,6 +350,22 @@ function score(aggs, history) {
       .map(({ qid, prompt, total, evenness: e }) => ({ qid, prompt, total, evenness: e })),
     learnCalibration,
     shapes,
+    // Prediction report (D36): questions where the crowd surprised the
+    // model (with volume — a surprise on 5 answers is noise), plus the
+    // mean error as the audience-model report card. Both need `pred`
+    // authored on the question; pre-D36 questions have none and are
+    // simply absent here.
+    surpriseLeaders: rows
+      .filter((r) => r.surprise != null && r.total >= 20)
+      .sort((a, b) => b.surprise - a.surprise)
+      .slice(0, 5)
+      .map(({ qid, prompt, surprise, total }) => ({ qid, prompt, surprise, total })),
+    predCalibration: (() => {
+      const withPred = rows.filter((r) => r.surprise != null && r.total >= 20);
+      return withPred.length
+        ? { n: withPred.length, meanSurprise: +(withPred.reduce((a, r) => a + r.surprise, 0) / withPred.length).toFixed(3) }
+        : null;
+    })(),
     velocityLeaders: rows
       .filter((r) => r.perDay != null && r.perDay > 0)
       .sort((a, b) => b.perDay - a.perDay)
@@ -373,6 +412,12 @@ function summarize(card) {
   }
   if ((card.velocityLeaders || []).length) {
     console.log(`  fastest feed cards: ${card.velocityLeaders.map((v) => `${v.qid} +${v.perDay}/d`).join(" · ")}`);
+  }
+  if (card.predCalibration) {
+    console.log(`  prediction: ${card.predCalibration.n} measured · mean surprise ${card.predCalibration.meanSurprise}`);
+  }
+  if ((card.surpriseLeaders || []).length) {
+    console.log(`  crowd surprised us most: ${card.surpriseLeaders.map((s) => `${s.qid} (${s.surprise})`).join(" · ")}`);
   }
 }
 

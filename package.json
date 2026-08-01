@@ -34,6 +34,8 @@
     "check:content": "node scripts/check-content.mjs",
     "build:content": "node scripts/gen-v2content.mjs --write",
     "scorecard": "node scripts/question-scorecard.mjs",
+    "promote:daily": "node scripts/promote-daily.mjs",
+    "similarity": "node scripts/question-similarity.mjs",
     "build:emoji": "node scripts/build-emoji.mjs",
     "check:ios-spm": "node scripts/check-ios-spm.mjs",
     "check:ios-facebook": "node scripts/check-ios-facebook.mjs",
