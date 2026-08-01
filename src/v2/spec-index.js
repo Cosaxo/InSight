@@ -98,6 +98,11 @@ import './spec/map-layout.js';
 import './spec/map-groups.js';
 import './spec/map-chiprow.jsx';
 import './spec/map-tab.jsx';
+// The typed puzzle generator publishes window.LOGIC_GEN, which the logic
+// overlay reads at render time — loaded immediately before it so the
+// global exists whenever the overlay can. (Order is semantic here, like
+// everything in this file.)
+import './data/logic-gen';
 import './spec/logic-test.jsx';
 import './spec/profile-general.jsx';
 // These were born in this repo (never in design/) and live as typed TSX

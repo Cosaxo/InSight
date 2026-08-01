@@ -213,6 +213,42 @@ describe("the overlays with no button — opened through window.*", () => {
     expectNoBoundary("logic overlay");
   });
 
+  it("logic test: a fresh start renders a generated puzzle with six answers", () => {
+    const expectNoBoundary = mountApp();
+    openVia("openLogicTest");
+    expectOpened(/Logic/, "logic overlay");
+    // With no saved result the overlay opens straight into item 1 of a
+    // freshly generated form — this executes the whole generator path
+    // (seed → LOGIC_GEN.generateForm → Prim) in jsdom, which no other
+    // test renders.
+    screen.getByLabelText(/3 by 3 puzzle grid/i);
+    expect(screen.getAllByLabelText(/^Answer \d of 6$/)).toHaveLength(6);
+    expectNoBoundary("logic fresh start");
+  });
+
+  it("logic test: a v1 saved result (no seed, no diffs) still renders the result screen", () => {
+    // The pre-generator payload shape: marks and a timestamp, nothing
+    // else — no v, seed, gv, diffs or times. loadResult back-fills the
+    // percentile and the lenses fall back per-field; this pins that old
+    // devices keep their result screen after the rebuild.
+    localStorage.setItem(
+      "insight.logicTest.v1",
+      JSON.stringify({
+        marks: [true, true, true, false, true, false, true, false, false, true, false, false],
+        when: 1,
+      }),
+    );
+    try {
+      const expectNoBoundary = mountApp();
+      openVia("openLogicTest");
+      expectOpened(/Logic/, "logic overlay (v1 result)");
+      screen.getByText(/Sharper than \d+% of players/i);
+      expectNoBoundary("logic v1 result screen");
+    } finally {
+      localStorage.removeItem("insight.logicTest.v1");
+    }
+  });
+
   it("opens the question suggestion overlay", () => {
     const expectNoBoundary = mountApp();
     openVia("openSuggestions");

@@ -2616,3 +2616,74 @@ resolves by it, so duel-bank growth shifts future rotation only.
   1500 (~two years of headroom) with the rule recorded at the call
   site: approach it with pagination, never another raise — a silent
   cap serves users a truncated bank with no error anywhere.
+
+## D31 · The logic test generates its puzzles; nothing ships an answer key
+
+**Date:** 2026-08-01 · **Status:** Adopted (docs/LAUNCH-PLAN.md, W3)
+
+**The problem.** The Logic overlay served 12 hardcoded puzzles in a fixed
+order with fixed option positions, and the answer key — literally
+`a: 2,4,3,1,4,2,3,1,3,4,0,3` — shipped in the bundle. The same test every
+attempt: memorizable, shareable, and Retake was a replay. The owner's
+brief asked for "an actual functional Raven's test … not the same every
+time so people can cheat it." Real Raven's items (SPM/APM) are
+Pearson-copyrighted and cannot be imported; generation is also the only
+design where freshness is structural rather than a bigger bank to leak.
+
+**The design.** `src/v2/data/logic-gen.ts` — typed, pure, deterministic
+per seed, published to the spec layer as `window.LOGIC_GEN` (the live.ts
+pattern). Each attempt draws a fresh 32-bit seed (crypto-sourced) and
+generates a 12-item form: 3×3 matrices over the overlay's existing
+Layer/Cell glyph vocabulary, so the Prim/Glyph/Matrix renderers are
+untouched. Twelve rule families mirror the retired bank motif for motif
+(size ramps, dot count/addition, shape cycling, fill deepening,
+overlay/decomposition, two Latin-square families, concentric growth)
+plus a distribution-of-two family in the hard tail — Carpenter's
+taxonomy, which is also the difficulty calibration: family weights are
+Carpenter-ordered and the ramp template ends where the old declared
+easy→hard ramp did, so `logicPctile`'s logistic (midpoint 62%) keeps its
+meaning without pretending to a norm study we do not have. The family
+SEQUENCE is deliberately fixed (every attempt comparable, "k of 12"
+means the same thing); the parameters, shapes, directions, distractors
+and option positions vary per seed. Distractors are principled
+corruptions — wrong-rule, incomplete-correlate, repetition of a visible
+neighbour, single-attribute perturbation — deduplicated canonically.
+
+**Honesty posture unchanged.** Stated in the module header: a
+client-side test is inspectable by a determined user; what this closes
+is memorization and the shipped constant, which was the actual hole.
+All five result lenses remain models and remain disclaimed once
+(LOGIC_FIELD_NOTE) — nothing new pretends to be a measurement.
+
+**Storage.** Same key (`insight.logicTest.v1`), schema v2:
+`{v:2, seed, gv, marks, times, diffs, pctile, when}` — the seed plus
+`gv` (generator version) mean a saved score's exact form is
+reconstructable forever, and a future generator change can never
+silently reinterpret an old seed. v1 payloads (marks/times/when) keep
+working: loadResult already back-fills `pctile`, the Pace lens already
+falls back on missing `times`, and the Answers lens falls back to
+index-order ramp positions when `diffs` is absent — pinned by a smoke
+case that opens the overlay over a stored v1 payload. Two latent bugs
+fixed in passing: the Answers lens hardcoded `/11` and mapped rows over
+the puzzle bank rather than the saved marks, so any result whose length
+differed from the current bank would have rendered against the wrong
+items.
+
+**Verification.** `logic-gen.test.ts` sweeps 200 seeds × 12 items:
+determinism, answer-key integrity (options key matches the constructed
+answer; all six options pairwise distinct canonically), answer position
+covers all six slots, renderability inside Prim's exact vocabulary,
+ramp monotonicity, pinned PRNG outputs — and per-family semantic
+validators that re-derive each rule's structure from the cells
+themselves (dot sums, Latin properties, ring counts, overlay identity)
+rather than trusting the construction path. Smoke: fresh start renders
+a generated matrix with six labelled answers; v1 payload renders the
+result screen.
+
+**Backend sync: deferred, with the arithmetic.** The test stays
+device-local — "this test sends nothing anywhere" stays literally true,
+and no store privacy form changes. If it ever syncs: the rules cap
+`testResults.keys().size() <= 8` currently holds 4 live keys, so a
+fifth (`logic`) fits without a rules change — a client-only
+`saveTestResult('logic', …)` plus a data-inventory row and a store-form
+re-answer. That bundle is exactly why it does not ride along now.

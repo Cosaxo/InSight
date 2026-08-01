@@ -8,9 +8,13 @@ import React from 'react';
 // ─────────────────────────────────────────────────────────────
 // Logic · Raven's-matrices-style test, run as a full overlay
 // (like the other tests). Twelve 3×3 matrices on a difficulty
-// ramp; no per-question feedback — score + percentile at the
-// end, persisted to localStorage. The General tab shows it as
-// a fifth ring in "Your tests".
+// ramp, GENERATED fresh per attempt by window.LOGIC_GEN
+// (src/v2/data/logic-gen.ts) from a random seed — the bank of
+// hardcoded puzzles (and its answer key in the bundle) is gone,
+// so no two attempts are the same and there is nothing to
+// memorize. No per-question feedback — score + percentile at
+// the end, persisted to localStorage. The General tab shows it
+// as a fifth ring in "Your tests".
 // ─────────────────────────────────────────────────────────────
 (function () {
   const { useState, useRef, useEffect } = React;
@@ -22,8 +26,8 @@ import React from 'react';
   // ── glyph model ──
   // A cell is an array of layers. Layer: {s: shape, z: size, f: 'n'|'s'}
   // Shapes: 'c' circle · 'q' square · 'd' diamond · 't' triangle · '.' dots{n}
-  const L = (s, z, f) => ({ s, z, f });
-  const ring = (s) => [L(s, 3, 'n'), L(s, 1.4, 's')];
+  // Cells come from the generator; the renderers below draw whatever its
+  // vocabulary produces (logic-gen's renderability test pins the match).
   const rad = (z) => 2.5 + 6.5 * z;
 
   const DOTS = {
@@ -57,72 +61,25 @@ import React from 'react';
     );
   }
 
-  // ── the twelve matrices, easy → hard ──
-  // cells: 8 row-major entries (bottom-right is the missing one)
-  // opts: 6 candidate tiles · a: index of the correct one
-  const D = (n) => ({ s: '.', n });
-  const PUZZLES = [
-    { // 1 · size grows across each row
-      cells: [[L('c', 1, 'n')], [L('c', 2, 'n')], [L('c', 3, 'n')], [L('q', 1, 'n')], [L('q', 2, 'n')], [L('q', 3, 'n')], [L('d', 1, 'n')], [L('d', 2, 'n')]],
-      opts: [[L('d', 2, 'n')], [L('d', 3, 's')], [L('d', 3, 'n')], [L('c', 3, 'n')], [L('q', 3, 'n')], [L('d', 1, 'n')]],
-      a: 2,
-    },
-    { // 2 · count increases down and across
-      cells: [[D(1)], [D(2)], [D(3)], [D(2)], [D(3)], [D(4)], [D(3)], [D(4)]],
-      opts: [[D(3)], [D(4)], [D(6)], [D(2)], [D(5)], [D(1)]],
-      a: 4,
-    },
-    { // 3 · shapes cycle one step left each row
-      cells: [[L('c', 3, 'n')], [L('q', 3, 'n')], [L('d', 3, 'n')], [L('q', 3, 'n')], [L('d', 3, 'n')], [L('c', 3, 'n')], [L('d', 3, 'n')], [L('c', 3, 'n')]],
-      opts: [[L('c', 3, 'n')], [L('t', 3, 'n')], [L('q', 3, 's')], [L('q', 3, 'n')], [L('d', 3, 'n')], [L('q', 2, 'n')]],
-      a: 3,
-    },
-    { // 4 · fill deepens across: outline → ring → solid
-      cells: [[L('q', 3, 'n')], ring('q'), [L('q', 3, 's')], [L('t', 3, 'n')], ring('t'), [L('t', 3, 's')], [L('c', 3, 'n')], ring('c')],
-      opts: [ring('c'), [L('c', 3, 's')], [L('c', 3, 'n')], [L('t', 3, 's')], [L('q', 3, 's')], [L('c', 2, 's')]],
-      a: 1,
-    },
-    { // 5 · size shrinks across, fill alternates down
-      cells: [[L('q', 3, 's')], [L('q', 2, 's')], [L('q', 1, 's')], [L('q', 3, 'n')], [L('q', 2, 'n')], [L('q', 1, 'n')], [L('q', 3, 's')], [L('q', 2, 's')]],
-      opts: [[L('q', 1, 'n')], [L('q', 2, 's')], [L('d', 1, 's')], [L('q', 3, 's')], [L('q', 1, 's')], [L('c', 1, 's')]],
-      a: 4,
-    },
-    { // 6 · third column = first plus second
-      cells: [[D(1)], [D(2)], [D(3)], [D(2)], [D(2)], [D(4)], [D(3)], [D(3)]],
-      opts: [[D(4)], [D(5)], [D(6)], [D(3)], [D(2)], [D(1)]],
-      a: 2,
-    },
-    { // 7 · third column overlays the first two
-      cells: [[L('c', 3, 'n')], [L('q', 1, 's')], [L('c', 3, 'n'), L('q', 1, 's')], [L('q', 3, 'n')], [L('d', 1, 's')], [L('q', 3, 'n'), L('d', 1, 's')], [L('d', 3, 'n')], [L('c', 1, 's')]],
-      opts: [[L('c', 3, 'n'), L('d', 1, 's')], [L('d', 3, 'n'), L('q', 1, 's')], [L('d', 3, 'n')], [L('d', 3, 'n'), L('c', 1, 's')], [L('d', 3, 'n'), L('c', 1, 'n')], [L('q', 3, 'n'), L('c', 1, 's')]],
-      a: 3,
-    },
-    { // 8 · outer shape fixed per row, inner cycles per column
-      cells: [[L('c', 3, 'n'), L('q', 1, 's')], [L('c', 3, 'n'), L('d', 1, 's')], [L('c', 3, 'n'), L('c', 1, 's')], [L('q', 3, 'n'), L('q', 1, 's')], [L('q', 3, 'n'), L('d', 1, 's')], [L('q', 3, 'n'), L('c', 1, 's')], [L('d', 3, 'n'), L('q', 1, 's')], [L('d', 3, 'n'), L('d', 1, 's')]],
-      opts: [[L('d', 3, 'n'), L('d', 1, 's')], [L('d', 3, 'n'), L('c', 1, 's')], [L('c', 3, 'n'), L('c', 1, 's')], [L('d', 3, 'n'), L('c', 1, 'n')], [L('d', 3, 's'), L('c', 1, 's')], [L('q', 3, 'n'), L('c', 1, 's')]],
-      a: 1,
-    },
-    { // 9 · every row and column holds each shape and each fill once
-      cells: [[L('c', 3, 'n')], [L('q', 3, 's')], ring('t'), ring('q'), [L('t', 3, 'n')], [L('c', 3, 's')], [L('t', 3, 's')], ring('c')],
-      opts: [[L('q', 3, 's')], [L('t', 3, 'n')], ring('q'), [L('q', 3, 'n')], [L('c', 3, 'n')], [L('d', 3, 'n')]],
-      a: 3,
-    },
-    { // 10 · every row and column holds each size once; shapes cycle
-      cells: [[L('c', 1, 'n')], [L('q', 2, 'n')], [L('d', 3, 'n')], [L('q', 3, 'n')], [L('d', 1, 'n')], [L('c', 2, 'n')], [L('d', 2, 'n')], [L('c', 3, 'n')]],
-      opts: [[L('q', 2, 'n')], [L('c', 1, 'n')], [L('q', 1, 's')], [L('t', 1, 'n')], [L('q', 1, 'n')], [L('d', 1, 'n')]],
-      a: 4,
-    },
-    { // 11 · one more concentric ring each column
-      cells: [[L('c', 3, 'n')], [L('c', 3, 'n'), L('c', 2, 'n')], [L('c', 3, 'n'), L('c', 2, 'n'), L('c', 1, 'n')], [L('q', 3, 'n')], [L('q', 3, 'n'), L('q', 2, 'n')], [L('q', 3, 'n'), L('q', 2, 'n'), L('q', 1, 'n')], [L('d', 3, 'n')], [L('d', 3, 'n'), L('d', 2, 'n')]],
-      opts: [[L('d', 3, 'n'), L('d', 2, 'n'), L('d', 1, 'n')], [L('d', 3, 'n'), L('d', 1, 'n')], [L('d', 3, 'n'), L('d', 2, 'n')], [L('c', 3, 'n'), L('c', 2, 'n'), L('c', 1, 'n')], [L('d', 3, 's'), L('d', 2, 'n'), L('d', 1, 'n')], [L('d', 3, 'n'), L('d', 2, 's'), L('d', 1, 's')]],
-      a: 0,
-    },
-    { // 12 · col 2 = the inner alone, grown solid · col 3 = the outer alone
-      cells: [[L('c', 3, 'n'), L('q', 1, 's')], [L('q', 3, 's')], [L('c', 3, 'n')], [L('d', 3, 'n'), L('c', 1, 's')], [L('c', 3, 's')], [L('d', 3, 'n')], [L('q', 3, 'n'), L('d', 1, 's')], [L('d', 3, 's')]],
-      opts: [[L('q', 3, 's')], [L('d', 3, 'n')], [L('q', 3, 'n'), L('d', 1, 's')], [L('q', 3, 'n')], [L('c', 3, 'n')], [L('q', 2, 'n')]],
-      a: 3,
-    },
-  ];
+  // ── per-attempt form ──
+  // The twelve matrices come from the generator, seeded fresh at every
+  // start. The seed is saved with the result so a future lens (or a bug
+  // report) can reconstruct exactly the form a score was earned on —
+  // LOGIC_GEN.version travels with it so a generator change can never
+  // silently reinterpret an old seed.
+  const newSeed = () => {
+    const c = (typeof globalThis !== 'undefined' && globalThis.crypto) || null;
+    if (c && c.getRandomValues) {
+      const u = new Uint32Array(1);
+      c.getRandomValues(u);
+      return u[0] >>> 0;
+    }
+    // Seed quality is irrelevant (this is variety, not security) — but
+    // crypto is the one source that cannot produce the same form for two
+    // players who opened the overlay in the same millisecond.
+    return Math.floor(Math.random() * 4294967296) >>> 0;
+  };
+  const makeForm = () => window.LOGIC_GEN.generateForm(newSeed());
 
   // ── persistence + scoring ──
   // pctile = share of players this score beats (rough normal-ish curve)
@@ -177,20 +134,34 @@ import React from 'react';
   // ── Answers lens: per puzzle, how each scoring range did — four bars, lower → top
   //    scorers; solve-rates derived from the difficulty ramp. Your dot at right. ──
   const BAND_ABILITY = [0.3, 0.52, 0.74, 0.95];
-  const solveRate = (qi, a) => Math.max(0.05, Math.min(0.97, a * 0.85 + 0.35 - (qi / 11) * 0.75));
-  function QBands({ marks }) {
+  // Ramp position is 0..1 along the saved per-item difficulties (v2
+  // results); a v1 result carried none, so its index stands in — the old
+  // bank WAS index-ordered. Both fixes here were latent bugs: the divisor
+  // used to be a hardcoded /11, and the rows mapped over the puzzle bank
+  // instead of the saved marks, so a result of any other length would have
+  // rendered against the wrong items.
+  const solveRate = (pos, a) => Math.max(0.05, Math.min(0.97, a * 0.85 + 0.35 - pos * 0.75));
+  function QBands({ marks, diffs }) {
     const BH = 16;
+    const n = marks.length;
+    const pos = (i) => {
+      if (Array.isArray(diffs) && diffs.length === n) {
+        const lo = Math.min(...diffs), hi = Math.max(...diffs);
+        return hi > lo ? (diffs[i] - lo) / (hi - lo) : 0.5;
+      }
+      return n > 1 ? i / (n - 1) : 0.5;
+    };
     return (
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8, width: '100%' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontFamily: 'var(--sans)', fontSize: 11, fontWeight: 600, color: 'var(--ink-3)', marginBottom: 2 }}>
           <span>solved by: lower → top scorers</span><span>● = you</span>
         </div>
-        {PUZZLES.map((_, qi) => (
+        {marks.map((_, qi) => (
           <div key={qi} style={{ display: 'flex', alignItems: 'flex-end', gap: 12 }}>
             <span style={{ fontFamily: 'var(--sans)', fontSize: 12, fontWeight: 700, color: 'var(--ink-3)', width: 26, flexShrink: 0 }}>{qi + 1}</span>
             <span style={{ display: 'flex', alignItems: 'flex-end', gap: 4, height: BH }}>
               {BAND_ABILITY.map((a, bi) => (
-                <span key={bi} style={{ width: 9, height: Math.max(2, Math.round(solveRate(qi, a) * BH)), borderRadius: 2, background: LOGIC_COL, opacity: 0.3 + bi * 0.22 }}></span>
+                <span key={bi} style={{ width: 9, height: Math.max(2, Math.round(solveRate(pos(qi), a) * BH)), borderRadius: 2, background: LOGIC_COL, opacity: 0.3 + bi * 0.22 }}></span>
               ))}
             </span>
             <span style={{ flex: 1 }}></span>
@@ -347,6 +318,12 @@ import React from 'react';
   function LogicOverlay({ onClose }) {
     const dlg = useDialog(onClose, 'Logic test');
     const [result, setResult] = useState(loadResult);
+    // The attempt's generated form. Created on open when there is no saved
+    // result (the overlay starts straight in the test), and on every
+    // Retake. A missing LOGIC_GEN throws here — loudly, into the
+    // ErrorBoundary — which is the correct failure for a broken
+    // spec-index order; the smoke test would catch it.
+    const [form, setForm] = useState(() => (result ? null : makeForm()));
     const [qi, setQi] = useState(result ? -1 : 0); // -1 = result screen
     const [marks, setMarks] = useState([]);
     const [picked, setPicked] = useState(null);
@@ -362,28 +339,32 @@ import React from 'react';
     const askedAt = useRef(0);
     useEffect(() => { if (qi >= 0) askedAt.current = Date.now(); }, [qi]);
 
-    const start = () => { setMarks([]); setTimes([]); setPicked(null); setQi(0); };
+    const start = () => { setForm(makeForm()); setMarks([]); setTimes([]); setPicked(null); setQi(0); };
     const pick = (i) => {
       if (picked !== null) return;
       setPicked(i);
-      const next = [...marks, i === PUZZLES[qi].a];
+      const next = [...marks, i === form.items[qi].a];
       setTimeout(() => {
         // Read the clock here, not in pick's body — same purity rule. The
         // reveal delay is subtracted because it is the animation's time, not
         // the solver's; left in, every puzzle would read 0.24s slow.
         const nt = [...times, askedAt.current ? Math.max(0, Date.now() - askedAt.current - PICK_DELAY) : FIELD_MED * 1000];
         setPicked(null);
-        if (qi + 1 < PUZZLES.length) { setMarks(next); setTimes(nt); setQi(qi + 1); }
+        if (qi + 1 < form.items.length) { setMarks(next); setTimes(nt); setQi(qi + 1); }
         else {
           const k = next.filter(Boolean).length;
-          const r = { marks: next, times: nt, pctile: logicPctile(k / next.length), when: Date.now() };
+          const r = {
+            v: 2, seed: form.seed, gv: form.version,
+            marks: next, times: nt, diffs: form.items.map((it) => it.diff),
+            pctile: logicPctile(k / next.length), when: Date.now(),
+          };
           saveResult(r); setResult(r); setMarks([]); setTimes([]); setQi(-1);
         }
       }, PICK_DELAY);
     };
 
     const inTest = qi >= 0;
-    const p = inTest ? PUZZLES[qi] : null;
+    const p = inTest ? form.items[qi] : null;
     const k = result ? result.marks.filter(Boolean).length : 0;
 
     return (
@@ -397,15 +378,17 @@ import React from 'react';
           {inTest && (
             <div style={{ maxWidth: 258, margin: '10px auto 0' }}>
               <div style={{ display: 'flex', gap: 4, marginBottom: 18 }}>
-                {PUZZLES.map((_, i) => (
+                {form.items.map((_, i) => (
                   <span key={i} style={{ flex: 1, height: 4, borderRadius: 2, background: i < qi ? 'var(--ink)' : i === qi ? LOGIC_COL : 'var(--rule)', transition: 'background 0.2s ease' }}></span>
                 ))}
               </div>
-              <Matrix cells={p.cells} />
+              <div role="img" aria-label="3 by 3 puzzle grid, bottom-right tile missing">
+                <Matrix cells={p.cells} />
+              </div>
               <div style={{ height: 1, background: 'var(--rule)', margin: '18px 0 16px' }}></div>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
                 {p.opts.map((o, i) => (
-                  <button key={i} onClick={() => pick(i)} style={{
+                  <button key={i} onClick={() => pick(i)} aria-label={'Answer ' + (i + 1) + ' of ' + p.opts.length} style={{
                     ...tileBase, cursor: 'pointer', WebkitAppearance: 'none', appearance: 'none',
                     borderColor: picked === i ? LOGIC_COL : 'var(--rule)',
                     boxShadow: picked === i ? `0 0 0 3px color-mix(in oklch, ${LOGIC_COL} 18%, transparent)` : 'none',
@@ -438,7 +421,7 @@ import React from 'react';
                   ))}
                 </div>
                 <div style={{ padding: '18px 16px 16px', marginTop: 2, background: 'var(--surface-2)', border: '0.5px solid var(--rule)', borderRadius: 12 }}>
-                  {lens === 'answers' && <QBands marks={result.marks} />}
+                  {lens === 'answers' && <QBands marks={result.marks} diffs={result.diffs} />}
                   {lens === 'ceiling' && <RampDots marks={result.marks} />}
                   {/* a result saved before timing was recorded has no
                       `times`; fall back to the modelled median rather than
