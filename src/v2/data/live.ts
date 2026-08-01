@@ -301,7 +301,13 @@ async function hydrate(): Promise<void> {
       query(
         collection(db, "v2_questions"),
         where("surface", "in", ["daily", "feed", "test", "group", "duo"]),
-        limit(400),
+        // Ceiling, not a target: 213 seeded post-W2, ~248 after the D30
+        // archive promotion, ~344 with the planned learn surface — and the
+        // promotion pipeline adds up to 12/week, ≈600/year. 1500 is about
+        // two years of headroom; if the bank ever approaches it, paginate
+        // rather than raise again (a silent cap here serves users a
+        // truncated bank with no error anywhere).
+        limit(1500),
       ),
     );
     all = qsnap.docs.map((d) => ({ id: d.id, ...(d.data() as QuestionDoc) }));

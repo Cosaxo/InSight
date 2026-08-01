@@ -138,8 +138,25 @@ export function buildS(
   };
 }
 
+// The rotation is anchored to a launch-day epoch, not to the raw day
+// number. Raw `today` is ~20,600 — deep in wrap territory for any bank —
+// so `today mod n` remaps EVERY visible day whenever n changes, including
+// the 7-day history pager: after a weekly promotion reseed (D30), a user's
+// answered "Yesterday" card would be replaced by a different question whose
+// vote state (keyed by qid) doesn't match, rendering unanswered. Rebased on
+// the epoch, the index stays below n while the bank outgrows the calendar
+// (promotion adds ~12/week against 7 days/week — D30 records the
+// arithmetic), so the mod never wraps and appending questions changes no
+// past or present day's mapping at all. Residual limit, recorded: if
+// promotion lapses for longer than the bank's runway (n days after epoch),
+// the wrap returns and one reseed remaps history once.
+// 2026-08-01 as a local-midnight day number (dayIndex), the day D30 landed.
+export const DECK_EPOCH = 20666;
+
 // One card per day, walking the bank backwards from `today` with a
-// double-mod so a negative (today - back) still wraps into [0, n).
+// double-mod so a negative (today - epoch - back) still wraps into [0, n)
+// (possible in the epoch's own first week, and again only if the wrap
+// above ever returns).
 export function computeDeckIds(
   questionIds: string[],
   today: number,
@@ -151,7 +168,7 @@ export function computeDeckIds(
   const n = questionIds.length;
   if (!n) return [];
   return Array.from({ length: Math.min(deckDays, n) }, (_, back) => {
-    const idx = (((today - back) % n) + n) % n;
+    const idx = (((today - DECK_EPOCH - back) % n) + n) % n;
     return questionIds[idx];
   });
 }

@@ -243,6 +243,39 @@ of a card. Rules, each load-bearing:
    daily run, propose it in the PR body, never add it silently.
    Branch: `claude/catalog-domain-<name>`.
 
+## Promoting questions into the live seed (Phase B — D30)
+
+Merged farm questions can now reach production, through a second gate.
+This is an **operator/dev-session job, never a scheduled run**: the farm
+keeps writing the spec-layer archive only, and a human carries questions
+across in a reviewed PR of their own. The two-gate shape is the point —
+AI proposes into the archive, a person decides what production serves.
+
+The mechanics are all reuse (spec `Q` entries and
+`content/daily-questions.json` entries share a shape):
+
+1. Pick merged archive entries (the `dqx` series) worth serving live.
+   The archive is the holding pen; not everything in it has to graduate.
+2. Append them to `content/daily-questions.json` — same fields, plus the
+   next free explicit `id` suffix (`"030"`, `"031"`, …). **Copy prompts
+   byte-for-byte**: live hydration joins the seeded bank to the demo
+   layer by prompt-string equality (`liveSync` in
+   `src/v2/spec/daily-questions.js` warns on orphans), so a reworded
+   promotion silently unhooks that question from the Map.
+3. `npm run build:content`, then `npm run check:content` — the dedup,
+   id-shape and drift gates all fire here.
+4. PR with the provenance trail (which farm PR each question came from).
+5. After merge and deploy, an operator runs `seedContentV2`. The seed is
+   merge-idempotent, never rewrites `active`, and bumps `contentRev` so
+   clients refetch. New questions extend the daily rotation without
+   remapping served days (the deck epoch, D30).
+
+Cadence arithmetic (D30): the daily surface consumes 7 questions/week;
+the farm's cap is 12/week. Promotion averaging ≥7/week keeps the bank
+growing faster than the calendar — users never see a repeat. Every
+promoted question buys one day of runway; a 90-question bank alone is
+~13 weeks even if promotion stops.
+
 ## Deliberately out of scope (recorded so it stays a decision, not drift)
 
 - **Paid geo-insight (city / country / world questions).** Cities and
@@ -256,9 +289,13 @@ of a card. Rules, each load-bearing:
   for free would undercut the business, and a government-flavored
   question written by an unsupervised job is exactly the kind of content
   that must have a human's name on it.
-- **The live seed catalog** (`content/`, `functions/src/v2content.ts`).
-  This job deepens the spec-layer archive only. Feeding generated questions
-  into production seeding is a separate decision with its own review.
+- **Writing the live seed catalog directly** (`content/`,
+  `functions/src/v2content.ts`). This job deepens the spec-layer archive
+  only — that half of the rule stands. What changed (D30, 2026-08-01):
+  farm questions may now *graduate* to production through the human
+  promotion gate above. The farm itself still never touches `content/`;
+  a scheduled job with write access to the production bank is exactly
+  what the two-gate shape exists to prevent.
 - **New categories** — structural change (CAT_META hue, map-anchor
   relations, chips). The farm may *note* in a PR body that a category
   feels missing; a human decides.
@@ -339,14 +376,12 @@ Each phase is its own reviewed change — nothing here is licence to start.
   in the run that turns per-question counts into the two topic scores
   (popularity, depth) and the exhaustion flag. All arithmetic on
   published numbers; no new collection.
-- **Phase B — close the demo/live gap.** Engagement data describes the
-  *live* question bank; the farm currently writes the *spec-layer demo
-  archive*. Until the "live seed catalog" decision (out-of-scope list)
-  is made deliberately, lanes 1–2 select topics using live signals but
-  still deliver into the archive — useful, but indirect. Feeding
-  farm output into production seeding is the gating decision that makes
-  demand-driven selection fully real, and it gets its own review and a
-  `DECISIONS.md` entry when taken.
+- **Phase B — close the demo/live gap. TAKEN (D30, 2026-08-01).** The
+  promotion path above is the closure: farm output reaches production
+  through an operator-run, human-reviewed promotion PR plus a reseed.
+  Lanes 1–2 can now select against live signals AND have their output
+  reach the live bank — demand-driven selection becomes fully real once
+  Phase A's read path is confirmed.
 - **Phase C — event-driven replenishment.** "Close to completing" as a
   trigger, not just a weekly check: a scheduled function computes
   per-topic exhaustion flags from the same k-floored aggregates and the

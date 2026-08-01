@@ -10,6 +10,7 @@ import {
   dayIndex,
   dayLabel,
   DECK_DAYS,
+  DECK_EPOCH,
   duelQFor,
   gHash,
   isTooSmall,
@@ -152,34 +153,47 @@ describe("buildS", () => {
 
 describe("computeDeckIds (deck rotation)", () => {
   const ids = ["q0", "q1", "q2", "q3", "q4"];
+  // All cases address days relative to the epoch — the rotation's whole
+  // point (D30) is that absolute day numbers never touch the modulus.
+  const E = DECK_EPOCH;
 
-  it("wraps negative (today - back) values back into range", () => {
-    // today=2 with n=5: backs 3 and 4 go negative and must wrap to 4, 3
-    expect(computeDeckIds(ids, 2)).toEqual(["q2", "q1", "q0", "q4", "q3"]);
-    // today=0: every back > 0 is negative
-    expect(computeDeckIds(["a", "b", "c"], 0)).toEqual(["a", "c", "b"]);
+  it("wraps negative (today - epoch - back) values back into range", () => {
+    // epoch+2 with n=5: backs 3 and 4 go negative and must wrap to 4, 3
+    expect(computeDeckIds(ids, E + 2)).toEqual(["q2", "q1", "q0", "q4", "q3"]);
+    // the epoch day itself: every back > 0 is negative
+    expect(computeDeckIds(["a", "b", "c"], E)).toEqual(["a", "c", "b"]);
   });
 
   it("cycles with period n", () => {
-    expect(computeDeckIds(ids, 10 + ids.length)).toEqual(computeDeckIds(ids, 10));
-    expect(computeDeckIds(ids, 11)).not.toEqual(computeDeckIds(ids, 10));
+    expect(computeDeckIds(ids, E + 10 + ids.length)).toEqual(computeDeckIds(ids, E + 10));
+    expect(computeDeckIds(ids, E + 11)).not.toEqual(computeDeckIds(ids, E + 10));
   });
 
   it("is stable for the same day", () => {
-    expect(computeDeckIds(ids, 20123)).toEqual(computeDeckIds(ids, 20123));
+    expect(computeDeckIds(ids, E + 123)).toEqual(computeDeckIds(ids, E + 123));
   });
 
   it("advances one card per day (yesterday's today is today's back-1)", () => {
-    const yesterday = computeDeckIds(ids, 99);
-    const today = computeDeckIds(ids, 100);
+    const yesterday = computeDeckIds(ids, E + 99);
+    const today = computeDeckIds(ids, E + 100);
     expect(today.slice(1)).toEqual(yesterday.slice(0, -1));
+  });
+
+  it("growing the bank preserves every already-served day's mapping (D30)", () => {
+    // The reseed scenario: 40 days after epoch, the bank grows 65 → 77.
+    // Every day already served (0..40 back, well past the 7-day pager)
+    // must keep its question; only unserved future days may differ.
+    const before = Array.from({ length: 65 }, (_, i) => "daily-" + i);
+    const after = before.concat(Array.from({ length: 12 }, (_, i) => "new-" + i));
+    const today = E + 40;
+    expect(computeDeckIds(after, today, 41)).toEqual(computeDeckIds(before, today, 41));
   });
 
   it("caps the deck at DECK_DAYS and floors it at the bank size", () => {
     const big = Array.from({ length: 12 }, (_, i) => "q" + i);
-    expect(computeDeckIds(big, 3)).toHaveLength(DECK_DAYS);
-    expect(computeDeckIds(["only", "two"], 3)).toEqual(["two", "only"]);
-    expect(computeDeckIds([], 3)).toEqual([]);
+    expect(computeDeckIds(big, E + 3)).toHaveLength(DECK_DAYS);
+    expect(computeDeckIds(["only", "two"], E + 3)).toEqual(["two", "only"]);
+    expect(computeDeckIds([], E + 3)).toEqual([]);
   });
 });
 

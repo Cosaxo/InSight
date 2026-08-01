@@ -2551,3 +2551,68 @@ path), keeping exact-count assertions green. The Apple/Google round
 trips themselves cannot run in the emulator; they get a staging probe
 script and a line in SHIP-CHECKLIST §4, stated as such rather than
 counted as covered.
+
+## D30 · Farm questions may graduate to the live seed; the deck gets an epoch
+
+**Date:** 2026-08-01 · **Status:** Adopted (docs/LAUNCH-PLAN.md, W1.2)
+
+**What this reverses.** QUESTION-FARM.md's out-of-scope list held "the
+live seed catalog" closed: the farm deepened the spec-layer archive
+only, and feeding generated questions into production was "a separate
+decision with its own review." This is that decision. The farm-side
+doc's "Promoting questions into the live seed" section is the operating
+contract; the shape is **two gates** — the farm PRs into the archive
+(gate one, existing), a human promotes archive entries into
+`content/daily-questions.json` in a reviewed PR of their own (gate two,
+new), and an operator reseeds. The farm itself still never writes
+`content/`; a scheduled job with production-bank write access is what
+the second gate exists to prevent. D1 is untouched throughout —
+questions are content; activity is fabrication.
+
+**Never-repeat arithmetic.** The daily surface consumes 7
+questions/week. The farm's budget cap is 12/week. Promotion averaging
+≥7/week therefore grows the bank faster than the calendar consumes it —
+no user ever sees a repeat — and the launch target of ~90 daily
+questions is by itself ~13 weeks of runway if promotion stops entirely.
+Every promoted question buys one day.
+
+**The deck epoch.** `computeDeckIds` mapped day → `bank[(today − back)
+mod n]` with `today` the absolute local day number (~20,600). That deep
+in wrap territory, ANY change of n remaps every visible day — including
+the 7-day history pager, where a user's answered card would be replaced
+by a question whose vote state (keyed by qid) doesn't match, rendering
+unanswered on every weekly promotion reseed. Fixed by rebasing on
+`DECK_EPOCH` (20666 = 2026-08-01): while `n ≥ days-since-epoch`, which
+the cadence arithmetic guarantees under sustained promotion, the mod
+never wraps and appending questions is a pure extension — no served
+day's mapping moves. Residual limit, recorded: if promotion lapses past
+the bank's runway, the wrap returns and the next reseed remaps history
+once. Unit-tested including the growth-preserves-served-days property.
+Duels need no epoch: reveal docs store the answered qid and history
+resolves by it, so duel-bank growth shifts future rotation only.
+
+**Invariants the promotion leans on, verified rather than assumed:**
+
+- **Reseed is safe by construction.** `runSeedV2` is merge-idempotent,
+  writes `active` only on first create (the ops kill switch survives
+  reseeds), and bumps `contentRev` so clients refetch once per boot.
+- **seq drift is harmless.** Appending daily entries leaves prior seq
+  values alone, but test-surface seq shifts on expansion (one counter
+  across four tests). seq only sorts the bank client-side; answers key
+  on the doc id, so a shifted seq re-orders nothing a user answered.
+- **The prompt join.** Live hydration (`liveSync`,
+  src/v2/spec/daily-questions.js) attaches seeded bank entries to demo
+  questions by prompt-string equality and warns on orphans. Promotion
+  copies prompts byte-for-byte; a reworded promotion silently unhooks
+  the question from the Map, which is why the farm doc's step 2 shouts.
+- **Id discipline (W1.1).** Every content entry carries an explicit id;
+  the generator refuses to invent one. Positional ids would re-key
+  every later question on an insert — answers are immutable docs keyed
+  by qid, so a re-key attaches live answers to the wrong prompt with no
+  cleanup path (the D15 failure class, applied to questions).
+- **The bank fetch ceiling.** live.ts fetched the bank with
+  `limit(400)`; 213 seeded post-W2 + ~35 archive promotion + ~96
+  planned learn cards ≈ 344, and promotion adds ≈600/year. Raised to
+  1500 (~two years of headroom) with the rule recorded at the call
+  site: approach it with pagination, never another raise — a silent
+  cap serves users a truncated bank with no error anywhere.
