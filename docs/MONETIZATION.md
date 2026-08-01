@@ -19,6 +19,12 @@ immutable answers, the exact counts in `v2_aggs_private`), and the
 k-floor is why selling it never sells a person (AGG_MIN_N, complementary
 suppression, D8/D18).
 
+The other side of the ledger is [`COSTS.md`](COSTS.md): what serving that
+asset costs at five sizes, and which three lines the bill actually
+consists of. The short version is that infrastructure is not the
+constraint — below 5k DAU it rounds to zero — so nothing in this document
+needs to earn before the product is proven.
+
 This is why the fake-account work is commercially load-bearing, not just
 hygienic: a place paying to learn how its citizens split is buying
 exactly the number a ring of fake accounts would corrupt. D28 keeps that
