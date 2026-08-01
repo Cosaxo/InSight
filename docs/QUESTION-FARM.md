@@ -138,6 +138,26 @@ are lowercase `WORLD_TOPICS` ids — score them per-surface, never mixed
 (daily totals are per-serve-day under the deck epoch; feed totals are
 cumulative).
 
+Beyond draw and evenness, three deeper signals (D35):
+
+- **`normDraw`** — a daily question's total divided by the median of
+  questions served within ±3 days. This cancels the DAU curve (each
+  daily serves exactly once under the deck epoch, so raw totals mostly
+  measure the day, not the question): 1.0 = an ordinary day's pull,
+  2.0 = twice the neighbourhood. Grading prefers it over raw totals.
+- **`perDay` velocity + `velocityLeaders`** — answers/day since the
+  previous snapshot, from the committed `scorecard-history.json`
+  (appended on real fetches only, capped at 90 snapshots). For feed —
+  a pool that accumulates — this is the evergreen signal: an old card
+  still pulling answers is doing something worth studying.
+- **`shapes`** — evenness and normDraw aggregated by question TYPE and
+  TONE over scored daily questions. This is the "what forms win"
+  evidence the mix decisions in "Writing the questions" used to take on
+  taste. Trust a cell only at n ≥ 5, and the standing order: shapes
+  BIAS the mix, they never override the voice rules — if the stats say
+  "deep scales underperform," write better deep scales before writing
+  none.
+
 Every run starts by reading it (`npm run scorecard` prints the
 summary). Then:
 
@@ -200,14 +220,20 @@ Pool arithmetic — what "never run out" means per pool, honestly:
 
 Duel and feed lane rules (the learn lane has its own section below):
 
-- **Duel batch:** `group` entries declare `kind` (`us`/`pick`/classic by
-  omission) and mint the next free explicit id; `oneVsOne` entries mint
-  the next `id` suffix. The phrasing bar is duel-specific: the reveal is
-  2–5 NAMED people, so never a prompt where the minority answer reads as
-  an accusation or a confession. Dedup against both duel banks AND the
-  daily archive. No scorecard exists for duels and never will — duel
-  answers are sealed per-group and produce no public aggregate — so the
-  duel lane runs on freshness, not demand.
+- **Duel batch — BOTH banks, every Monday:** the ≤4 cap splits between
+  `group` entries and `oneVsOne` (1v1) entries, thinner-bank-first
+  (launch sizes 24/20 → start ≈2+2). `group` entries declare `kind`
+  (`us`/`pick`/classic by omission) and mint the next free explicit id;
+  `oneVsOne` entries mint the next `id` suffix. The phrasing bar is
+  duel-specific and tighter for 1v1: the reveal is 2–5 NAMED people —
+  for `oneVsOne`, exactly two — so never a prompt where the minority
+  answer reads as an accusation or a confession, and for 1v1 never one
+  where either answer is a statement *about the partner* rather than
+  about yourself. Dedup against both duel banks AND the daily archive.
+  No scorecard exists for duels today — duel answers are sealed
+  per-group and produce no public aggregate — so the duel lane runs on
+  freshness; D35 records the designed (unbuilt) path to global
+  k-floored duel tallies that would change that.
 - **Feed batch:** `cat` must be an existing topic id in the same file's
   `topics` list; types `vote`/`duel` only — never `rank` (D12), never
   `catalog` (the daily catalog run owns picks); options carry demo

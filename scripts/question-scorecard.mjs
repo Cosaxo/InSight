@@ -129,7 +129,12 @@ const evenness = (counts, n) => {
   return Math.max(0, Math.min(1, 1 - (maxShare - 1 / n) / (1 - 1 / n)));
 };
 
-function score(aggs) {
+const median = (xs) => {
+  const s = xs.slice().sort((a, b) => a - b);
+  return s.length ? s[Math.floor(s.length / 2)] : 0;
+};
+
+function score(aggs, history) {
   const rows = [];
   daily.forEach((q, idx) => {
     const qid = `daily-${q.id}`;
@@ -141,6 +146,9 @@ function score(aggs) {
       qid,
       surface: "daily",
       topic: q.cat[0],
+      type: q.type,
+      tone: q.tone,
+      servedIdx: idx,
       prompt: q.prompt,
       served,
       total,
@@ -166,20 +174,80 @@ function score(aggs) {
     });
   });
 
+  // Day-normalized draw for daily questions: each served exactly once
+  // (the deck epoch's no-wrap invariant), so its total is confounded only
+  // by how many people were active THAT day. Dividing by the median total
+  // of questions served within ±3 days cancels the DAU curve — normDraw
+  // 1.0 = an ordinary day's pull, 2.0 = twice the neighbourhood.
+  const dailyScored = rows.filter((r) => r.surface === "daily" && r.signal === "scored");
+  for (const r of dailyScored) {
+    const window = dailyScored.filter(
+      (o) => o.qid !== r.qid && Math.abs(o.servedIdx - r.servedIdx) <= 3,
+    );
+    if (window.length >= 3) {
+      const med = median(window.map((o) => o.total));
+      r.normDraw = med > 0 ? +(r.total / med).toFixed(2) : null;
+    }
+  }
+
+  // Answer velocity from the committed snapshot history (real fetches
+  // only): answers/day since the previous snapshot. For feed and learn —
+  // pools that accumulate — this is the evergreen signal: an old card
+  // still pulling answers is doing something the farm should study.
+  const prev = history.length ? history[history.length - 1] : null;
+  const prevDays = prev ? (Date.now() - Date.parse(prev.at)) / 864e5 : 0;
+  if (prev && prevDays >= 0.5) {
+    for (const r of rows) {
+      if (r.surface === "feed" && r.signal === "scored") {
+        r.perDay = +(((r.total - (prev.totals[r.qid] || 0)) / prevDays).toFixed(1));
+      }
+    }
+  }
+
   // Grades are per-surface (daily totals are per-serve-day, feed totals
-  // are cumulative — never rank them against each other).
+  // are cumulative — never rank them against each other). Daily grading
+  // prefers normDraw when the window exists; raw totals are the fallback.
   for (const surface of ["daily", "feed"]) {
     const scored = rows.filter((r) => r.surface === surface && r.signal === "scored");
     const totals = scored.map((r) => r.total).sort((a, b) => a - b);
-    const median = totals.length ? totals[Math.floor(totals.length / 2)] : 0;
+    const med = totals.length ? totals[Math.floor(totals.length / 2)] : 0;
     for (const r of scored) {
+      const draw = r.normDraw ?? (med > 0 ? r.total / med : 1);
       // A landslide needs volume before it's a verdict on the question
       // rather than on a tiny early sample.
       if (r.evenness !== null && r.evenness < 0.18 && r.total >= 20) r.grade = "landslide";
-      else if (r.evenness !== null && r.evenness >= 0.5 && r.total >= median) r.grade = "strong";
-      else if (r.total < median * 0.5 && totals.length >= 8) r.grade = "low-draw";
+      else if (r.evenness !== null && r.evenness >= 0.5 && draw >= 1) r.grade = "strong";
+      else if (draw < 0.5 && totals.length >= 8) r.grade = "low-draw";
       else r.grade = "middling";
     }
+  }
+
+  // Shape analysis over daily scored rows: which FORMS win — type, tone —
+  // so the farm's mix decisions get evidence instead of taste. Trust a
+  // cell only at n ≥ 5 (the doc's rule); cells are emitted regardless so
+  // the n is visible.
+  const shapes = {};
+  for (const key of ["type", "tone"]) {
+    const cells = {};
+    for (const r of dailyScored) {
+      const c = (cells[r[key]] ||= { n: 0, evenSum: 0, drawSum: 0, drawN: 0 });
+      c.n++;
+      c.evenSum += r.evenness ?? 0;
+      if (r.normDraw != null) {
+        c.drawSum += r.normDraw;
+        c.drawN++;
+      }
+    }
+    shapes[key] = Object.fromEntries(
+      Object.entries(cells).map(([k, c]) => [
+        k,
+        {
+          n: c.n,
+          avgEvenness: +(c.evenSum / c.n).toFixed(3),
+          avgNormDraw: c.drawN ? +(c.drawSum / c.drawN).toFixed(2) : null,
+        },
+      ]),
+    );
   }
 
   // Topic rollups — the demand signal lanes 1–2 read.
@@ -258,6 +326,12 @@ function score(aggs) {
       .filter((r) => r.grade === "landslide")
       .map(({ qid, prompt, total, evenness: e }) => ({ qid, prompt, total, evenness: e })),
     learnCalibration,
+    shapes,
+    velocityLeaders: rows
+      .filter((r) => r.perDay != null && r.perDay > 0)
+      .sort((a, b) => b.perDay - a.perDay)
+      .slice(0, 5)
+      .map(({ qid, prompt, perDay, total }) => ({ qid, prompt, perDay, total })),
     perQuestion: rows,
   };
 }
@@ -286,13 +360,50 @@ function summarize(card) {
     if (off.length) console.log(`  learn p recalibrations proposed: ${off.map((r) => r.qid).join(", ")}`);
     if (traps.length) console.log(`  learn traps missing their mark: ${traps.map((r) => r.qid).join(", ")}`);
   }
+  for (const key of ["type", "tone"]) {
+    const cells = Object.entries((card.shapes || {})[key] || {});
+    if (cells.length) {
+      console.log(
+        `  by ${key}: ` +
+          cells
+            .map(([k, c]) => `${k} n=${c.n} even=${c.avgEvenness}${c.avgNormDraw != null ? ` draw=${c.avgNormDraw}` : ""}`)
+            .join(" · "),
+      );
+    }
+  }
+  if ((card.velocityLeaders || []).length) {
+    console.log(`  fastest feed cards: ${card.velocityLeaders.map((v) => `${v.qid} +${v.perDay}/d`).join(" · ")}`);
+  }
+}
+
+const HIST = join(root, "content", "scorecard-history.json");
+function loadHistory() {
+  try {
+    const h = JSON.parse(readFileSync(HIST, "utf8"));
+    return Array.isArray(h) ? h : [];
+  } catch {
+    return [];
+  }
 }
 
 if (FETCH || INPUT) {
   const aggs = INPUT ? JSON.parse(readFileSync(resolve(INPUT), "utf8")) : await fetchAggs();
-  const card = score(aggs);
+  const history = loadHistory();
+  const card = score(aggs, history);
   writeFileSync(OUT, JSON.stringify(card, null, 2) + "\n");
   console.log(`scorecard: wrote ${OUT}`);
+  // The snapshot history feeds velocity. Real fetches only — a test
+  // fixture (--input) must never masquerade as a production observation.
+  // Capped at 90 snapshots; with daily refreshes that is a quarter of
+  // history, plenty for velocity and small enough to commit.
+  if (FETCH) {
+    const totals = {};
+    for (const r of card.perQuestion) if (r.total > 0) totals[r.qid] = r.total;
+    for (const r of card.learnCalibration) totals[r.qid] = r.total;
+    history.push({ at: card.generatedAt, totals });
+    writeFileSync(HIST, JSON.stringify(history.slice(-90)) + "\n");
+    console.log(`scorecard: snapshot ${history.length} appended to ${HIST}`);
+  }
   summarize(card);
 } else {
   let card;

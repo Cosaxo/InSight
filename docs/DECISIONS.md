@@ -2871,3 +2871,58 @@ humans apply them. The batch caps are review-capacity numbers, not
 technical ones — raising them is a one-line doc change if review keeps
 up. The Routine prompt update rides the same pending owner step as
 D33's re-pace.
+
+## D35 · The scorecard learns to see: normalized draw, velocity, shapes — and the duel-tally design
+
+**Date:** 2026-08-01 · **Status:** Analytics adopted and built; the duel
+tally recorded as designed, deliberately unbuilt
+
+**Owner's brief:** "really good analytics and algorithmic tools to make
+sure the questions are more and more engaging."
+
+**Three signals added to `scripts/question-scorecard.mjs`, all still
+derived from nothing but the k-floored public mirror:**
+
+1. **Day-normalized draw (`normDraw`).** A daily question serves exactly
+   once (the deck epoch's no-wrap invariant), so its raw total mostly
+   measures that day's active users, not the question. Dividing by the
+   median total of questions served within ±3 days cancels the DAU
+   curve; grading now prefers `normDraw` (strong needs ≥ 1.0, low-draw
+   < 0.5) with raw-median fallback where the window is thin. This
+   retires v1's recorded "DAU drift flagged, not corrected" confound.
+2. **Velocity (`perDay`).** Every real `--fetch` appends a compact
+   totals snapshot to the committed `content/scorecard-history.json`
+   (capped at 90; `--input` fixtures never write it — a test dump must
+   not masquerade as a production observation). Velocity = answers/day
+   since the last snapshot; for the accumulate-forever pools (feed,
+   learn) it is the evergreen signal — an old card still pulling
+   answers is the one worth studying.
+3. **Shape analysis (`shapes`).** Evenness and normDraw aggregated by
+   question TYPE and TONE over scored daily questions — the "what forms
+   win" evidence for the farm's mix decisions. Standing order recorded
+   with it: cells are trusted at n ≥ 5, and shapes bias the mix but
+   never override the voice rules — "deep scales underperform" means
+   write better deep scales, not none. Same anti-goodharting posture as
+   D33's warmth-beats-evenness.
+
+**The duel gap, and the designed fix that is deliberately NOT built.**
+Duels produce no public aggregates — answers are sealed per-group,
+reveals are member-only — so no script can measure duel-question
+engagement today; the Monday lane runs on freshness alone. The honest
+fix is server-side: extend `onV2AnswerCreated` to also fold group/duo
+answers into a GLOBAL k-floored per-question tally (same
+`AGG_MIN_N`/`PUBLISH_EVERY` machinery), which leaks nothing the floor
+doesn't already guard — a global "how did everyone split on gu5" is
+exactly as anonymous as any world question, and the seal that protects
+a partner's individual answer before reveal is untouched because floors
+and publish-steps hide individual contributions by construction. The
+design's edges, recorded so the builder doesn't rediscover them:
+**`pick` questions must never fold globally** (their optionIdx indexes
+group MEMBERS — meaningless and wrong across groups); duel answers are
+currently **exempt from the D29 device binding** on the rules side, an
+exemption that would need rethinking the moment they feed a public
+aggregate; and it touches the enforced-privacy path, so it ships as one
+deliberate change with rules review, functions tests and an e2e leg —
+whole or not at all, the D14 discipline. Unbuilt today because its
+value is real but not launch-gating, and this close to submission the
+privacy path stays frozen.
