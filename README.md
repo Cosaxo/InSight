@@ -73,7 +73,8 @@ firestore.rules.v1-archive  the retired v1 client rules (D4) — reference,
 content/           canonical question banks & archetypes (seed source)
 design/            the frozen design spec (read-only reference)
 docs/              DECISIONS · SCHEMA-V2 · DEPLOYMENT · LOCAL-TESTING ·
-                   SHIP-CHECKLIST · data-inventory
+                   SHIP-CHECKLIST · data-inventory · DEVICE-BIND ·
+                   MONETIZATION
 ```
 
 ## Testing & CI

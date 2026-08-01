@@ -4,6 +4,11 @@ Direction-setting decisions for InSight v2 (the daily/mirror app). Each is
 binding for v1 of the shipped product unless explicitly overturned — record
 the reversal here when that happens.
 
+One exception to that default: a record whose Status line says **Proposed**
+is a draft awaiting the owner's adoption. It binds nothing until the owner
+flips the status — adoption is an explicit act, not a side effect of the
+text existing in this file.
+
 ---
 
 ## D1 · Comments and "who voted" are circle-scoped only
@@ -2229,3 +2234,320 @@ the revision's biggest growth (world-feed.jsx 82 → 145 KB source; its chunk
 85 → 107 KB) without touching first paint. The full-app smoke tests moved
 from the 5 s default to a 15 s per-file budget for the same reason — the
 slowest cases sat at ~4.8 s before the revision.
+
+---
+
+## D28 · Fake accounts: prevention stays partial, the record becomes correctable
+
+**Date:** 2026-08-01 · **Status:** Adopted by the owner, 2026-08-01
+(History, kept because the sequence is instructive: first pushed marked
+"binding" ahead of the owner's decision, reclassified to Proposed the
+same day, then explicitly adopted. The implementation shipped alongside
+the proposal and is now standing.)
+
+**Decision.** No identity gate is added — no phone verification, no ID
+check, no proof-of-personhood. The defence against fake accounts is the
+stack already shipped (App Check attestation on the callables and, once
+console enforcement lands, on Firestore; the k-floor; the publish cadence;
+one immutable answer per question per account), plus one new property this
+record adds: the aggregate event ledger now makes every counted answer
+**attributable and therefore subtractable** after the fact.
+`v2_agg_events` entries gain the answering `uid` alongside `qid`/`at`, the
+TTL window moves 7 → 90 days (`LEDGER_RETENTION_DAYS`, functions/src/v2.ts),
+`deleteAccount` sweeps a uid's entries with the account, and the
+correction procedure is written down in DEPLOYMENT.md ("Correcting
+aggregates") while the system is calm.
+
+**Why prevention cannot be finished, so nobody re-litigates it.** Sybil
+resistance without a trusted identity authority is a proven negative
+(Douceur 2002). Every "complete" fix relocates trust rather than removing
+it — and each costs this product something it cannot pay: KYC binds a
+government identity to a stored politics result (Art. 9 data, D8's
+exclusion exists for the same reason); phone verification collects a
+number from every honest user and is defeated by the SIM-farm tier it
+targets; attestation proves a device, never a person. The app's own
+arithmetic already prices the payoff: shifting a 50/50 split by 10 points
+takes F ≈ R/4 fakes against R real answers (the shift is (F/2)/(R+F)) —
+about 10 fakes against a 40-answer question, 250 against 1,000. So the
+exposure is worst at launch and decays with every honest vote, and the
+cheap tier (scripted Auth REST + direct Firestore writes, config lifted
+from the bundle) is exactly the tier App Check's service enforcement
+refuses outright. What no tier can be denied is real devices with real
+patience — which is why the fallback property matters.
+
+**The reframe this record binds:** the product's claim is not "no fake
+accounts" — unprovable, and any vendor selling it is selling a
+false-accept rate. The claim is that the published number is **honest,
+bounded in how wrong it can silently be, and correctable once an attack
+is found**. D5's immutability and the private/public split already gave
+two of the three; the attribution window is the missing third. A
+discovered ring is now: query its uids' ledger entries, subtract from
+`v2_aggs_private`, republish through the same floors. Wrong for a while,
+not wrong forever.
+
+**The retention arithmetic.** Dedup alone needs ~7 days (Eventarc's
+redelivery horizon). Attribution needs the window in which a human
+notices an attack and investigates it — weeks, not days; 90 days is that
+plus headroom. Storage at D7's own write ceiling (~14k answers/day
+sustained): ~1.26M live entries ≈ tens of MB of documents plus their
+single-field indexes — immaterial against Firestore pricing, and D7's
+per-document write arithmetic is untouched because the entry rides in the
+transaction the trigger already runs, one field heavier.
+
+**The privacy trade, stated rather than papered over.** A ledger entry
+duplicates facts the owner's own answer doc already carries (which
+question, answered when — the doc id and `answeredAt`), so no new data
+category is collected; but it is a second, uid-keyed copy in a collection
+whose lifetime is not the account's. That is a real data-minimisation
+cost, bought deliberately, and bounded three ways: rules deny all client
+access (pinned in firestore-tests/rules.test.ts — the uid an entry names
+cannot read it); the TTL bounds retention at 90 days where the answer doc
+lives indefinitely; and `deleteAccount` phase 4c sweeps the uid's entries,
+asserted by the erasure e2e including the control that another account's
+entries survive. After erasure the tallies a user fed are anonymous
+again — the inventory's "nothing to attribute" claim stays true, now by
+sweep rather than by absence.
+
+**Residuals, so they are decisions rather than surprises:**
+
+- **Vote-then-erase escapes correction.** An attacker who erases their
+  accounts takes the attribution with them — right-to-erasure wins over
+  forensics, deliberately. Their votes' effect on the tallies persists
+  uncorrectably; what bounds it is the account cost (App Check) and one
+  vote per question with no update path, so the damage is linear in
+  accounts spent and the spent accounts are gone.
+- **The in-flight race.** An answer still traversing Eventarc when
+  `deleteAccount` runs can land its ledger entry after the sweep — at
+  most one entry per in-flight answer, self-erasing at TTL. The same
+  race already governs the count itself (an in-flight answer still gets
+  counted after erasure), so this adds no new class of residue.
+- **The window starts at deploy.** Pre-D28 entries carry no uid and age
+  out on their old 7-day `expireAt`; attribution is not retroactive.
+- **Detection is out of scope.** The record guarantees correction given
+  a uid list, not that a ring will be noticed. The ledger's timestamps
+  are the raw material velocity analysis would read, but no analysis
+  ships today.
+
+**Deliberately NOT built, with the reasoning:**
+
+- **Warm-up / velocity gating** (delay or down-weight young accounts).
+  Hurts most at launch — precisely when cohorts are small and the app
+  already reads empty — to deter a tier that App Check has not yet been
+  proven insufficient against. Revisit on evidence: correlated bursts in
+  the ledger that enforcement didn't stop.
+- **The vote choice in the ledger.** Correction reads the choice from
+  the ring's answer docs, which exist whenever correction is possible at
+  all (see the runbook's "correct before you delete"). A second copy of
+  the vote itself would be worse minimisation for zero forensic gain.
+- **A correction script.** The runbook is the deliverable; machinery
+  written against an imagined incident is untested machinery (D7's
+  reasoning). The first real ring shapes the script.
+
+**Sequencing note, not a new decision:** the App Check console
+enforcement steps (SHIP-CHECKLIST §"Before-public hardening") are what
+close the cheap tier, and the launch window is where the skew arithmetic
+is weakest — finish that rollout before the store submission, not after.
+
+---
+
+## D29 · Device-bound activation: one counted account per device per month, silently
+
+**Date:** 2026-08-01 · **Status:** Adopted by the owner, 2026-08-01
+**Owner's brief:** avoid fake users, low friction, global.
+**Implementation note (2026-08-01):** shipped same day — the callable
+(`functions/src/deviceBind.ts`, with the month/epoch logic unit-tested),
+the soft-enforce rules switch (`deviceBindEnforced()`, with the flipped
+text pre-tested by a second rules-test environment), the client
+activation flow wired into the live boot, and the e2e claim leg. What
+remains is owner-gated and listed in docs/DEVICE-BIND.md: the Apple key
+and Play Console recall opt-in, the two native token bridges (paste-ready
+there — not committed blind because this environment cannot compile
+them), the staging probe, and then the one-word enforcement flip. The
+"verify before building" list below was partially discharged: the
+decision logic handles both recall shapes (write dates present or
+absent), and the remaining API facts are flagged at their use sites.
+
+**Proposal.** An account starts counting toward aggregates only after a
+silent, per-device activation: the app sends a platform attestation token
+to a new callable, the backend checks a few bits Apple/Google store on the
+device itself, and stamps the account with a custom claim
+(`db: 1`) that `firestore.rules` requires on every aggregate-feeding
+answer write. The bits' semantics: **one activation per physical device
+per calendar month.** No prompt, no code, no wait, no data collected —
+the whole exchange is invisible to an honest user on any device in any
+country the stores serve.
+
+Anonymous-first auth (D3) is untouched: accounts stay free and instant.
+What is gated is *counting*, which has been this backend's stance since
+the k-floor — defend the aggregate, not the registry.
+
+### The gap this closes, stated as the correction it is
+
+D28 (and the analysis behind it) said App Check refuses the cheap tier.
+That was true of the *scripted* tier — config lifted from the bundle,
+Auth REST, direct writes — and wrong about a cheaper one: on a single
+genuine device, clear app storage → fresh anonymous uid → vote again.
+App Check passes (real app, real device), rules pass (new uid,
+create-only per uid), and the loop repeats indefinitely. Hand-driven
+that is dozens of duplicate votes a day; driven by adb against a real
+phone, hundreds. The k-floor and PUBLISH_EVERY absorb bursts of five,
+not patience. Nothing currently shipped or previously proposed bounds
+this attack, and it is the cheapest one that remains.
+
+After this proposal: the same device's second account in the same month
+attests fine and activates **nothing**. One device buys one counted
+account per month. The cycling attack collapses from "unbounded, free"
+to "+1 vote per device per month" — below the publish cadence's own
+noise floor.
+
+### Mechanism, per platform
+
+Both platforms expose the same unusual primitive: a few bits of state,
+stored by the *platform vendor*, keyed to the physical device, surviving
+reinstall — designed so the developer can ask "has this device done the
+thing?" without ever receiving an identifier for the device. That
+no-identifier property is load-bearing for this product (see Privacy).
+
+- **iOS — DeviceCheck two bits.** `DCDevice.generateToken()` on device;
+  server exchanges it with Apple for `bit0`/`bit1` plus a
+  `last_update_time` at **month** granularity, and can set the bits.
+  Survives reinstall and even device erase. Semantics here: allow if
+  `bit0 == 0` or `last_update_time != current month`; on allow, set
+  `bit0` (the write refreshes the month stamp). Exactly one activation
+  per calendar month, no epoch arithmetic needed — Apple's own
+  granularity IS the cooldown clock.
+- **Android — Play Integrity Device Recall.** Recall values (3 booleans)
+  ride the same integrity verdicts App Check already uses, written back
+  server-side, persisting across reinstalls. If the verdict's recall
+  payload carries write dates (verify against current docs — see the
+  checklist below), Android mirrors iOS exactly. If it carries values
+  only, encode the month in the three bits: state `s = (monthIndex mod
+  7) + 1`, allow if stored state ≠ `s`, write `s` on allow. Cost of the
+  encoding: a device whose last activation was exactly 7, 14, …
+  calendar months ago collides with the current stamp and waits out the
+  month — a rare, bounded, honest-copy case ("this device recently
+  activated an account — try again next month"), not a support fire.
+
+### The gate: activation callable + claim + one rules line
+
+- `activateDeviceV2` (callable, App Check enforced — the
+  `registerPushToken` pattern): takes the platform token, verifies with
+  Apple/Google, applies the month rule, then sets custom claim
+  `{ db: 1 }` on the calling uid. Client refreshes its ID token.
+  Emulator: sets the claim unconditionally (the `seedContentV2` gating
+  pattern), so the e2e loop keeps running without Apple/Google.
+- `firestore.rules`: world/feed/test and catalog answer creates gain
+  `request.auth.token.get("db", 0) == 1`. **Duel answers deliberately do
+  not** — they feed member-only reveals, never aggregates, and a duel
+  already requires a real human to have handed you an invite code. No
+  friction lands on groups.
+- Per-vote cost: zero. The claim rides the ID token the client already
+  sends; no new read, no new document, no change to D7's per-document
+  write arithmetic. Activation itself is once per account.
+
+### What it costs honest users, with numbers
+
+- **Everyone, everywhere: nothing visible.** One extra callable during
+  onboarding, in the background, typically sub-second.
+- **Second person on a shared device, same month:** browses everything,
+  votes next month. The one real friction case; honest copy, rare.
+- **Returning user re-onboarding on a device that held an account
+  before:** iOS, fine unless same month. Android under the epoch
+  fallback: waits only on an exact multiple-of-7-months return.
+- **Bought a used phone:** previous owner's bit survives erase; blocked
+  only if they activated that same month.
+- **One human, several devices:** unaffected — linking one account
+  across devices needs no second activation; only *new accounts* per
+  device are bounded.
+- **Devices that cannot attest** (rooted, GMS-less, emulators): cannot
+  activate — the same population App Check enforcement already excludes,
+  now excluded one layer deeper.
+
+### Privacy: the bits are the on-brand version of this control
+
+Nothing new enters the data inventory. The device-side state is two or
+three bits held by Apple/Google against the device — the server receives
+allow/deny and stores nothing about the device; the account-side state is
+one boolean claim carrying nothing about the device. Neither side can
+reconstruct the other. There is no identifier to leak, subpoena, or
+erase: `deleteAccount` needs no new phase, because we hold nothing —
+the claim dies with the auth user, and the platform bits were never
+ours. Store labels: unchanged. This is "we rate-limit devices without
+the ability to recognise your device," enforced by API shape rather
+than promised by policy — the product's own standard.
+
+One deliberate consequence: deletion does **not** clear the device's
+month stamp (the server would need a fresh device token at delete time,
+and erasure must not depend on the device cooperating). So
+create-vote-delete-recreate is bounded by the same month rule as
+everything else. A user who deletes in remorse and returns the same
+month waits out the month to *vote* (the app itself works); recorded
+here as the trade rather than discovered in support.
+
+### What this does not stop, so the layer above stays honest
+
+Device farms. 250 physical attested devices buy 250 counted votes a
+month — enough to move a 1,000-answer question ten points once
+(F ≈ R/4, D28). At launch sizes the bar is lower: ~10 devices against a
+40-answer question. So the launch window remains the soft spot even
+after this ships; what covers it is the floor arithmetic (nothing below
+5 surfaces at all), the App Check sequencing note in D28, and the
+correction ledger as backstop. This proposal prices the attack in
+hardware; D28 keeps the record correctable when someone pays it.
+
+### Rollout shape (when adopted)
+
+1. Console/account prerequisites: a DeviceCheck key (.p8) from the
+   Apple developer account; Play Integrity + Device Recall opt-in in
+   Play Console. Two function secrets. Same "code plus console steps"
+   shape as App Check, and the same account-gating.
+2. Soft-enforce first: `DEVICE_BIND_ENFORCE=false` deploys the callable
+   and claim-stamping with the rules requirement absent — measure
+   activation success rates across real devices before any vote is
+   refused. Flip by redeploying rules, not by code change.
+3. Old clients cannot activate (no client code), so enforcement waits on
+   uptake — `v2_meta.latestBuild`/`minBuild` is the existing machinery
+   for exactly this.
+
+### Verify before building — API facts this record does not assume
+
+Repo rule: verify rather than assume, and say which it was. The
+mechanism above is designed from API knowledge that must be re-checked
+against current docs at implementation time, because both APIs are
+newer or quieter than App Check:
+
+- Device Recall: min Android/GMS requirements, whether standard
+  verdicts include recall **write dates** (decides month-exact vs
+  epoch encoding), the server write method's exact shape, and quota
+  (default Play Integrity quota is fine for once-per-account calls —
+  confirm).
+- DeviceCheck: exact `query_two_bits`/`update_two_bits` response fields
+  and the `last_update_time` format (recorded here as `YYYY-MM`).
+- Capacitor: neither token is exposed by the App Check plugin (D10) —
+  both need a small native bridge (tens of lines per platform, no new
+  npm dependency, so D10's alias analysis is unaffected). Confirm no
+  community plugin has since made this standard.
+
+### Tightening later (owner's note: "later we might tighten this even more")
+
+The claim is the extension point — each step below reuses it, none
+requires a schema change:
+
+- Require `db` on take/flag writes too (spam control for circles).
+- Risk-tier the activation: Play Integrity verdicts carry device-risk
+  detail; a risky verdict could earn a longer cooldown rather than a
+  binary allow.
+- Velocity analysis over `v2_agg_events` timestamps (D28's ledger),
+  feeding manual review rather than automatic denial.
+- Per-vote App Attest assertions (iOS) if a farm ever targets the app —
+  heavyweight, so only on evidence.
+
+### Test plan (when adopted)
+
+Unit: the month/epoch arithmetic, collision cases pinned. Rules: answer
+create without the claim denied, with it allowed — both directions.
+E2e: activation step inserted before each voter in the loop (emulator
+path), keeping exact-count assertions green. The Apple/Google round
+trips themselves cannot run in the emulator; they get a staging probe
+script and a line in SHIP-CHECKLIST §4, stated as such rather than
+counted as covered.

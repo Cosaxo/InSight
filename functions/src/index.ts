@@ -190,8 +190,10 @@ export const deleteAccount = onCall(
     }
 
     // 1b. Wipe the v2 subtree (profile + answers). Aggregate counts the
-    // user contributed stay — they are k-floored, anonymous tallies with
-    // no per-user attribution to unwind.
+    // user contributed stay — k-floored, anonymous tallies. The one place
+    // that CAN attribute a count to this uid is the agg-events ledger
+    // (D28), and phase 4c deletes it, so the tallies are anonymous again
+    // the moment this call returns.
     try {
       await db.recursiveDelete(db.collection("v2_users").doc(uid));
     } catch (err) {
@@ -349,6 +351,22 @@ export const deleteAccount = onCall(
       failed.push("ratelimits");
     }
 
+    // 4c. The aggregate event ledger's entries for this uid. Same
+    //     reasoning as 4b — server-only, but each entry says this account
+    //     answered this question at this time, which is exactly the
+    //     attribution D28 added it for. Erasure takes the attribution
+    //     with the account; the k-floored tallies it fed stay (1b).
+    //
+    //     An answer still in flight through Eventarc when this runs can
+    //     land its entry AFTER the sweep — bounded residue, gone at TTL,
+    //     recorded in D28 rather than chased with a second pass.
+    try {
+      await deleteQueryDocs(db.collection("v2_agg_events").where("uid", "==", uid));
+    } catch (err) {
+      logger.error("[deleteAccount] agg-event ledger wipe failed:", err);
+      failed.push("aggEvents");
+    }
+
     // 5. Any wipe failure above must abort BEFORE the auth delete:
     //    the user stays signed in and can simply retry. Swallowing
     //    the error and deleting the auth user would orphan the
@@ -392,3 +410,5 @@ export {
   revealDuelsNowV2,
 } from "./v2social";
 export { buildModQueue, buildModQueueNow, fetchModQueue, submitModVerdict } from "./moderation";
+// D29: the silent per-device activation gate (docs/DEVICE-BIND.md).
+export { activateDeviceV2 } from "./deviceBind";

@@ -36,6 +36,20 @@ const cred = await signInAnonymously(auth);
 if (!cred.user.uid) fail("anon sign-in");
 ok("anonymous sign-in: " + cred.user.uid.slice(0, 8));
 
+// 1b · D29 device binding: the activation callable stamps the `db` custom
+// claim the answer rules will demand once deviceBindEnforced() flips. In
+// the emulator the callable grants unconditionally (no Apple/Google), so
+// what this leg proves is the grant path end to end: callable → custom
+// claim → visible on a force-refreshed ID token. The enforced rules
+// branch is pinned separately in rules.test.ts against the flipped text.
+const act = await httpsCallable(fns, "activateDeviceV2")({ platform: "web" });
+if (!act.data?.ok) fail("activateDeviceV2 refused: " + JSON.stringify(act.data));
+const tokenResult = await cred.user.getIdTokenResult(/* forceRefresh */ true);
+if (tokenResult.claims.db !== 1) {
+  fail("db claim missing after activation: " + JSON.stringify(tokenResult.claims));
+}
+ok("device binding: activation granted, db claim live on the refreshed token");
+
 // 2 · seed the question bank through the callable
 const seed = await httpsCallable(fns, "seedContentV2")({});
 if (!seed.data || seed.data.written < 190) fail("seed wrote " + JSON.stringify(seed.data));

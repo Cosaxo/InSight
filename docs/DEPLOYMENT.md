@@ -106,15 +106,20 @@ Actions secret `FIREBASE_SERVICE_ACCOUNT`.
 
 ## Runtime environment for the functions
 
-Three values reach the deployed runtime, all as **variables on the
-`production` environment** (GitHub → Settings → Environments → `production`
-→ Variables — not secrets, and not committed files):
+These values reach the deployed runtime via the `production` environment
+(GitHub → Settings → Environments → `production`). All are **Variables**
+except `DC_PRIVATE_KEY`, which is a **Secret** — it is a signing key.
+None are committed files:
 
 | Variable | Read by | Effect |
 | --- | --- | --- |
 | `SEED_ADMIN_UIDS` | `functions/src/ops.ts` → `assertOperator()` | Comma-separated uids allowed to call the operator-only callables (`seedContentV2`, `revealDuelsNowV2`, `rebuild*`). Unset ⇒ **every** operator callable returns `permission-denied`. Set 2026-07-31 to the maintainer's uid (same account as `MOD_UIDS` — the roles are separate, the person currently is not). |
 | `MOD_UIDS` | `functions/src/moderation.ts` → `assertModerator()` | Comma-separated uids allowed to call the moderation callables (`buildModQueueNow`, `fetchModQueue`, `submitModVerdict`). **Deliberately separate** from `SEED_ADMIN_UIDS` — a moderator identity can moderate and do nothing else (docs/MODERATION.md, D22). Unset ⇒ both callables deny everyone, which is fail-safe. Set 2026-07-31 to the maintainer's uid. |
 | `APPCHECK_ENFORCE` | `functions/src/ops.ts` → `ENFORCE_APP_CHECK` | Only the exact string `false` disables App Check enforcement, as an incident escape hatch. Unset (the normal state) ⇒ enforced. |
+| `DC_TEAM_ID`, `DC_KEY_ID` | `functions/src/deviceBind.ts` | Apple team id and DeviceCheck key id for `activateDeviceV2`'s iOS verifier (D29, docs/DEVICE-BIND.md). Unset ⇒ iOS activation fails `failed-precondition` — fail-safe while rules enforcement is soft. |
+| `DC_PRIVATE_KEY` *(secret, not a variable)* | `functions/src/deviceBind.ts` | The DeviceCheck `.p8` contents. Stored as a GitHub **secret**; the deploy step \n-escapes it into the dotenv, the function unescapes. |
+| `DC_ENV` | `functions/src/deviceBind.ts` | Set to `development` only when probing with development-signed builds — Apple routes dev-signed device tokens to the development endpoint. Unset ⇒ production endpoint. |
+| `PLAY_PACKAGE_NAME` | `functions/src/deviceBind.ts` | Android package for Play Integrity decode/recall. Unset ⇒ `com.cosaxo.insight`, which is correct; exists so a future flavor/id change is one variable. |
 
 The deploy job writes these to `functions/.env.prvfire33`, which the CLI
 bakes into each function's runtime config. The filename is
@@ -170,6 +175,57 @@ npx firebase functions:log --project prvfire33 --only onV2AnswerCreated
 The aggregate ledger makes replay safe: `v2_agg_events/{eventId}` is
 checked inside the same transaction that increments counts, so
 redelivered events are no-ops rather than double counts.
+
+## Correcting aggregates after a fake-account ring (D28)
+
+Fake-account prevention is deliberately partial — App Check prices
+accounts, the k-floor and publish cadence hide small distortions, and D28
+records why no mechanism can make it complete. What the system guarantees
+instead is that the published numbers stay **correctable**: answers are
+immutable (D5), exact counts live server-side in `v2_aggs_private`, and
+every counted answer leaves a `v2_agg_events` entry `{ qid, uid, at }`
+for `LEDGER_RETENTION_DAYS` (90). This runbook is the procedure that
+cashes that guarantee in. Write nothing here during an incident that this
+section didn't already say while the system was calm.
+
+**What this runbook does NOT do is find the ring.** Identification is
+investigative — Auth creation-time clusters, App Check token metadata in
+the function logs, answer velocity across `v2_agg_events` timestamps.
+What is guaranteed is mechanical once you HAVE a uid list: attribution,
+subtraction, republication, in that order.
+
+1. **Correct before you delete.** The ring's answer docs
+   (`v2_users/{uid}/answers/{qid}`) hold the option each fake picked and
+   the anchors it claimed; the ledger holds which (uid, qid) pairs were
+   actually counted. Deleting the accounts first destroys both. Ban ≠
+   erase: disable the Auth users if you need the ring stopped while you
+   work.
+2. **Attribute.** For each uid: `v2_agg_events where uid == X` → the
+   (qid, at) pairs that reached the counts. Use the ledger, not the
+   answer docs alone — an answer whose trigger never completed was never
+   counted, and subtracting it would corrupt the tally in the other
+   direction.
+3. **Subtract, in a transaction per qid.** In `v2_aggs_private/{qid}`:
+   decrement `counts[optionIdx]` (or `ent[entity]`) and `total` per
+   attributed answer, and the `by`/`entBy` cells for the anchors on that
+   answer doc — the snapshot-at-vote-time rule (D8) is what makes this
+   subtraction exact rather than approximate.
+4. **Republish through the same floors.** Rewrite
+   `v2_question_aggs/{qid}` from the corrected private doc exactly as the
+   trigger would: `tooSmall: true` below `AGG_MIN_N`, else counts +
+   `publishableBreakdown(by, AGG_MIN_N)`. A hand-written public doc that
+   skips the floors is a worse incident than the one being corrected.
+5. **Then delete the accounts** (admin SDK), which removes their answer
+   docs and — via the uid sweep — their ledger entries.
+
+Bounds, so nobody discovers them mid-incident: entries older than 90 days
+have expired, so a ring dormant longer than the window is subtractable
+only for its last 90 days of activity. An account erased via
+`deleteAccount` took its attribution with it — right-to-erasure wins over
+forensics by design (D28 records the trade). No correction script ships
+in this repo: the first real incident should shape one against its actual
+form, not inherit an untested one; what must not be improvised is the
+order of operations above.
 
 ## Alerting (one alert, deliberately)
 

@@ -120,6 +120,27 @@ service cloud.firestore {
       match /answers/{aid} {
         allow read: if request.auth != null && request.auth.uid == uid;
 
+        // D29 device binding: aggregate-feeding answers require the account
+        // to have passed one silent per-device activation (activateDeviceV2
+        // stamps the `db` custom claim; one counted account per physical
+        // device per calendar month). Duel answers are deliberately exempt —
+        // they feed member-only reveals, never aggregates, and joining a
+        // duel already required a human's invite code.
+        //
+        // Soft-enforce switch (D29 rollout step 2): while deviceBindEnforced
+        // returns false the claim is stamped but not yet demanded, so
+        // activation success can be measured on real devices before any
+        // vote is refused. The flip is this one literal plus a rules
+        // deploy — and the flipped text is ALREADY tested: rules.test.ts
+        // runs a second emulator environment against this file with the
+        // literal rewritten to true, so flip day ships a one-word diff
+        // whose behavior is pinned in both states.
+        function deviceBindEnforced() { return false; }
+        function deviceBound() {
+          return !deviceBindEnforced()
+            || request.auth.token.get("db", 0) == 1;
+        }
+
         // World-facing surfaces: one doc per question, id == qid.
         function isWorldAnswer() {
           return request.resource.data.keys().hasOnly([
@@ -233,11 +254,12 @@ service cloud.firestore {
               // functions/src/v2social.ts) or members past the 20th become
               // unpickable on every "pick" day.
               && request.resource.data.optionIdx < 64
-              && (isWorldAnswer() || isDuelAnswer()))
+              && ((isWorldAnswer() && deviceBound()) || isDuelAnswer()))
             // Catalog answers carry `entity` instead — the optionIdx block
             // must not apply, and each branch's hasOnly keeps the other
-            // field out.
-            || isCatalogAnswer()
+            // field out. They feed aggregates, so they carry the D29
+            // binding the duel branch is exempt from.
+            || (isCatalogAnswer() && deviceBound())
           );
         allow update, delete: if false;
       }

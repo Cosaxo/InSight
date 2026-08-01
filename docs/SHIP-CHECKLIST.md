@@ -267,12 +267,28 @@ Until then links open the fallback page — degraded, not broken.
 
 - **TTL for the aggregate event ledger** (one-time, console or gcloud):
   `gcloud firestore fields ttls update expireAt --collection-group=v2_agg_events --enable-ttl --project=prvfire33`
-  — the trigger stamps `expireAt` (+7 days); without the policy the
-  dedup ledger grows forever (harmless, but why pay for it).
+  — the trigger stamps `expireAt` (+90 days, `LEDGER_RETENTION_DAYS`).
+  The window is sized for attribution, not dedup: entries carry the
+  answering uid so a discovered fake-account ring can be subtracted from
+  the exact counts months later (D28; the correction runbook is in
+  DEPLOYMENT.md). Without the policy the ledger grows forever (harmless,
+  but why pay for it — and a bounded retention is part of the D28
+  privacy trade).
 - **Release versioning:** bump `appBuild` in package.json each store
   release; set `latestBuild` (soft banner) and, only when an old client
   would misbehave, `minBuild` (hard gate) plus `updateUrl` on the
   `v2_meta/app` doc in the console.
+- **Device binding (D29, docs/DEVICE-BIND.md)** — four owner steps, in
+  order: (1) Apple DeviceCheck key → `DC_TEAM_ID`/`DC_KEY_ID` variables +
+  `DC_PRIVATE_KEY` secret on the deploy environment; (2) Play Console →
+  App integrity → link the Cloud project, opt in to device recall,
+  enable the Play Integrity API for the functions service account;
+  (3) paste the two native token bridges in Xcode / Android Studio
+  (DEVICE-BIND.md §2 — the JS side waits for them, nothing breaks
+  meanwhile); (4) after the staging probe (§3), flip
+  `deviceBindEnforced()` in `firestore.rules` to `true` and deploy —
+  the flipped text is already pinned by rules tests. Until (4), the
+  claim is stamped but not demanded.
 
 ## Before-public hardening (not friends-test blockers)
 

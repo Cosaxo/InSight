@@ -268,7 +268,11 @@ describe("v2 questions + aggregates", () => {
   it("aggregate internals (private counts, event ledger) are fully opaque", async () => {
     await seed(async (db) => {
       await setDoc(doc(db, "v2_aggs_private", "daily-000"), { counts: { "0": 1 }, total: 1 });
-      await setDoc(doc(db, "v2_agg_events", "evt1"), { qid: "daily-000" });
+      // The fixture carries what the real trigger writes — including the
+      // OWNER's own uid (D28's attribution), because the read denial below
+      // is what makes it safe to hold: even the uid it names cannot read
+      // which questions it answered, when, out of this ledger.
+      await setDoc(doc(db, "v2_agg_events", "evt1"), { qid: "daily-000", uid: OWNER });
     });
     await assertFails(getDoc(doc(asUser(OWNER), "v2_aggs_private", "daily-000")));
     await assertFails(setDoc(doc(asUser(OWNER), "v2_aggs_private", "daily-000"), { total: 9 }));
@@ -769,5 +773,110 @@ describe("moderation substrate: takes + flags (docs/MODERATION.md, D22)", () => 
     await assertFails(getDoc(doc(asUser(OWNER), "v2_mod_verdicts", "t1")));
     await assertFails(setDoc(doc(asUser(OWNER), "v2_mod_verdicts", "t1"),
       { takeId: "t1", verdict: "keep" }));
+  });
+});
+
+describe("D29 device binding: soft today, and the flip is pre-tested", () => {
+  // The deployed rules do not yet demand the `db` claim
+  // (deviceBindEnforced() returns false — D29 rollout step 2). This block
+  // pins BOTH texts: the soft behavior of the file as it ships, and the
+  // enforced behavior of the same file with the one-word flip applied,
+  // run against a second emulator environment. Flip day's whole diff is
+  // therefore already green here before it is made.
+  const QID = "daily-000";
+  const CATQ = "cat-bind0";
+  const GID = "gbind";
+  const DAY = dayOffset(-1);
+
+  let enfEnv: RulesTestEnvironment;
+
+  beforeAll(async () => {
+    const raw = readFileSync(resolve(__dirname, "../firestore.rules"), "utf8");
+    const SOFT = "function deviceBindEnforced() { return false; }";
+    // If the literal is renamed or moved this must fail HERE, loudly —
+    // the silent alternative is testing the unflipped text twice and
+    // reporting the flip as covered.
+    if (raw.split(SOFT).length !== 2) {
+      throw new Error("deviceBindEnforced() literal not found exactly once in firestore.rules — update this test alongside the rules");
+    }
+    enfEnv = await initializeTestEnvironment({
+      projectId: "insight-rules-enforced",
+      firestore: {
+        rules: raw.replace(SOFT, "function deviceBindEnforced() { return true; }"),
+      },
+    });
+  });
+  afterAll(async () => {
+    await enfEnv.cleanup();
+  });
+
+  const seedInto = (e: RulesTestEnvironment) =>
+    e.withSecurityRulesDisabled(async (ctx) => {
+      const db = ctx.firestore();
+      await setDoc(doc(db, "v2_questions", QID), {
+        surface: "daily", seq: 0, type: "binary",
+        prompt: "?", options: ["Yes", "No"], active: true,
+      });
+      await setDoc(doc(db, "v2_questions", CATQ), {
+        surface: "feed", seq: 0, type: "catalog",
+        prompt: "?", options: [], active: true,
+      });
+      await setDoc(doc(db, "v2_questions", "group-gu0"), {
+        surface: "group", seq: 0, type: "choice",
+        prompt: "?", options: ["A", "B", "C", "D"], active: true,
+      });
+      await setDoc(doc(db, "v2_groups", GID), {
+        name: "Bind", mode: "duo", ownerUid: OWNER,
+        memberUids: [OWNER, FRIEND], inviteCode: "BIND2345", streak: 0,
+      });
+    });
+
+  const worldAnswer = () => ({
+    qid: QID, surface: "daily", optionIdx: 1,
+    answeredAt: serverTimestamp(), anchors: {},
+  });
+  const catAnswer = () => ({
+    qid: CATQ, surface: "feed", entity: 7,
+    answeredAt: serverTimestamp(), anchors: {},
+  });
+  const duelAid = `g_${GID}_${DAY}`;
+  const duelAnswer = () => ({
+    qid: "group-gu0", surface: "duo", optionIdx: 1, guessIdx: 2,
+    gid: GID, day: DAY, answeredAt: serverTimestamp(), anchors: {},
+  });
+
+  it("soft mode (the deployed text): the claim is optional in both directions", async () => {
+    await seedInto(env);
+    await assertSucceeds(setDoc(
+      doc(asUser(OWNER), "v2_users", OWNER, "answers", QID), worldAnswer()));
+    const bound = env.authenticatedContext(FRIEND, { db: 1 }).firestore();
+    await assertSucceeds(setDoc(
+      doc(bound, "v2_users", FRIEND, "answers", QID), worldAnswer()));
+  });
+
+  it("enforced text: world and catalog answers demand the claim; duels stay exempt", async () => {
+    await enfEnv.clearFirestore();
+    await seedInto(enfEnv);
+    const plain = enfEnv.authenticatedContext(OWNER).firestore();
+    const bound = enfEnv.authenticatedContext(FRIEND, { db: 1 }).firestore();
+    // Aggregate-feeding surfaces: refused bare, accepted bound.
+    await assertFails(setDoc(doc(plain, "v2_users", OWNER, "answers", QID), worldAnswer()));
+    await assertSucceeds(setDoc(doc(bound, "v2_users", FRIEND, "answers", QID), worldAnswer()));
+    await assertFails(setDoc(doc(plain, "v2_users", OWNER, "answers", CATQ), catAnswer()));
+    await assertSucceeds(setDoc(doc(bound, "v2_users", FRIEND, "answers", CATQ), catAnswer()));
+    // The duel branch is exempt by decision, not omission: sealed answers
+    // feed member-only reveals, never aggregates, and membership already
+    // required a human's invite code (D29).
+    await assertSucceeds(setDoc(doc(plain, "v2_users", OWNER, "answers", duelAid), duelAnswer()));
+  });
+
+  it("enforced text: the claim check is type-strict — only the server's exact value passes", async () => {
+    await enfEnv.clearFirestore();
+    await seedInto(enfEnv);
+    // Clients cannot mint claims at all; this pins that the rule demands
+    // the integer the callable sets, so a future refactor to a truthy
+    // string or boolean fails tests instead of silently widening the gate.
+    const stringy = enfEnv.authenticatedContext(OWNER, { db: "1" }).firestore();
+    await assertFails(setDoc(doc(stringy, "v2_users", OWNER, "answers", QID), worldAnswer()));
   });
 });

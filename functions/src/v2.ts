@@ -11,7 +11,10 @@
 //                       from a tiny cohort (same principle as the geo
 //                       aggregates' K_ANON_FLOOR). Idempotent via an
 //                       event ledger, so at-least-once delivery and
-//                       retry-on-failure cannot double-count.
+//                       retry-on-failure cannot double-count. The same
+//                       ledger carries uid attribution, which is what
+//                       keeps the aggregates CORRECTABLE after a
+//                       fake-account ring is discovered (D28).
 //
 // Schema and access decisions: docs/SCHEMA-V2.md, docs/DECISIONS.md (D5).
 
@@ -60,6 +63,37 @@ export const AGG_MIN_N = 5;
 // exactly where a per-answer stream is most attributable, because there are
 // few enough voters to guess among.
 const PUBLISH_EVERY = 5;
+
+// How long a ledger entry lives (expireAt powers the Firestore TTL policy —
+// SHIP-CHECKLIST §5). Two jobs with very different horizons share the doc:
+//
+//   Dedup needs ~7 days — Eventarc redelivers for at most that long, so any
+//   window covering it prevents double counts.
+//
+//   Attribution needs longer. The ledger is what lets an operator subtract a
+//   discovered ring of fake accounts from v2_aggs_private and republish
+//   (docs/DEPLOYMENT.md, "Correcting aggregates"); prevention cannot be made
+//   complete (D28), so the fallback is that the record stays correctable.
+//   That only works while the ring's entries still exist, and an attack is
+//   noticed on a human timescale — weeks after the fact, not days. 90 days
+//   is notice + investigation headroom; the storage arithmetic is in D28.
+//
+// deleteAccount erases a uid's entries with the account, so retention here
+// never outlives the account it attributes (index.ts phase 4c).
+export const LEDGER_RETENTION_DAYS = 90;
+
+// One shape for both write sites (vote and catalog), so the forensic fields
+// cannot drift apart. `uid` is the attribution: qid alone dedups fine, but
+// leaves no way to identify — and unwind — a fake account's contributions
+// after the fact.
+function ledgerEntry(uid: string, qid: string) {
+  return {
+    qid,
+    uid,
+    at: FieldValue.serverTimestamp(),
+    expireAt: new Date(Date.now() + LEDGER_RETENTION_DAYS * 86400000),
+  };
+}
 
 // Catalog questions (docs/CATALOG-QUESTIONS.md): the reveal's leaderboard
 // cap, and the per-domain key spaces. CATALOG_MAX_ENTITY must equal the
@@ -218,11 +252,7 @@ export const onV2AnswerCreated = onDocumentCreated(
         const entBy: BreakdownCounts =
           (priv.exists && (priv.get("entBy") as BreakdownCounts)) || {};
         foldCanonAnchors(entBy, snap.get("anchors"), key);
-        tx.set(eventRef, {
-          qid,
-          at: FieldValue.serverTimestamp(),
-          expireAt: new Date(Date.now() + 7 * 86400000),
-        });
+        tx.set(eventRef, ledgerEntry(event.params.uid, qid));
         // Bounded growth: `ent` is capped by catalogue validation (~1k
         // entries); `entBy` by the bucket cap × its own per-cell entity
         // cap (foldCanonAnchors) — tens of KB against Firestore's 1 MiB
@@ -287,14 +317,7 @@ export const onV2AnswerCreated = onDocumentCreated(
       const by: BreakdownCounts =
         (priv.exists && (priv.get("by") as BreakdownCounts)) || {};
       foldAnchors(by, snap.get("anchors"), optionIdx);
-      // expireAt powers a Firestore TTL policy (see SHIP-CHECKLIST) —
-      // dedup only matters within the ~7-day retry window, so the
-      // ledger must not grow forever.
-      tx.set(eventRef, {
-        qid,
-        at: FieldValue.serverTimestamp(),
-        expireAt: new Date(Date.now() + 7 * 86400000),
-      });
+      tx.set(eventRef, ledgerEntry(event.params.uid, qid));
       tx.set(privRef, { counts, total, by }, { merge: false });
       // The public mirror: k-floored, and deliberately without a fresh
       // timestamp — per-vote timing deltas shouldn't be attributable.

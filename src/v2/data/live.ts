@@ -1150,6 +1150,7 @@ async function resubscribeForToday(): Promise<void> {
 // rather than starting a second one.
 let refreshInFlight: Promise<void> | null = null;
 let pushRegistered = false;
+let deviceBindAttempted = false;
 
 export function refreshLive(): Promise<void> {
   if (torndown) return Promise.resolve();
@@ -1169,6 +1170,16 @@ export function refreshLive(): Promise<void> {
       void import("./push")
         .then((m) => m.registerPushForReveals(state.uid as string))
         .catch(() => { pushRegistered = false; });
+    }
+    // fire-and-forget, same shape: the D29 device-binding activation.
+    // Once per process; ensureDeviceBound() itself memoizes per uid in
+    // localStorage, handles the missing native bridge, and never surfaces
+    // UI — see src/v2/data/deviceBind.ts.
+    if (!deviceBindAttempted) {
+      deviceBindAttempted = true;
+      void import("./deviceBind")
+        .then((m) => m.ensureDeviceBound(state.uid as string))
+        .catch(() => { deviceBindAttempted = false; });
     }
     LIVE.enabled = true;
     notify();

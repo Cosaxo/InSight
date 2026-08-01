@@ -23,8 +23,10 @@ Safety answers when store listing time comes.
 | Flags on a take | `v2_flags` | nobody (write-only) | one per (take, user); anonymous to the circle AND to the moderation run, which sees only server-folded counts |
 | Moderation queue | `v2_mod_queue` | nobody (server only) | holds a **copy of a flagged take's text**, so the run reads one collection and never the circle around it. Carries no author uid, deliberately. Erased when its take is |
 | Moderation verdicts | `v2_mod_verdicts` | nobody (server only) | append-only audit log: take id, verdict, policy line, run id, generation, and the MODERATOR's uid. No author text and no author uid |
-| Aggregates (exact) | `v2_aggs_private`, `v2_agg_events` | nobody (server only) | trigger internals |
-| Auth identity | Firebase Auth | — | anonymous by default; Google via linking |
+| Aggregates (exact) | `v2_aggs_private` | nobody (server only) | trigger internals; exact counts below the public floor |
+| Aggregate event ledger | `v2_agg_events` | nobody (server only) | one entry per counted answer: qid, **uid**, timestamp. Dedup for the trigger, plus the attribution that lets a discovered fake-account ring be subtracted from the counts (D28). Duplicates facts the answer docs already hold — no new category. 90-day TTL; a uid's entries are erased with the account |
+| Auth identity | Firebase Auth | — | anonymous by default; Google via linking. Accounts that passed device activation carry a `db: 1` custom claim (D29) — one boolean, no device information |
+| Device activation bits | **Apple / Google, not us** | nobody (the platforms hold them) | 2–3 bits per device (DeviceCheck / Play Integrity Device Recall) meaning "an account was activated from this device recently". The server receives allow/deny and stores **no device identifier**; there is nothing here for `deleteAccount` to erase because nothing is held (D29) |
 | Local device state | localStorage (~29 `insight.*` keys) | this device | vote cache, display-name draft, passive-test progress, replies, likes, scenes |
 | Offline data cache | Firestore `persistentLocalCache` (IndexedDB) | this device | mirrors the questions and answers fetched for this account |
 | Crash reports | Sentry (third party) | Sentry project members | **opt-in, default OFF**; errors carry the **uid** (no email, no name, no session replay, `sendDefaultPii: false`) |
@@ -72,10 +74,11 @@ claim, not the answer to that row.
 
 **Deletion.** The `deleteAccount` callable wipes the profile, all answers,
 group memberships, this user's votes and names inside shared reveals, the
-rate-limit ledgers, cross-user references (impressions they sent,
-relations naming them), their takes and flags, the moderation queue's copy
-of any take of theirs, and the auth user; it also purges every local
-`insight.*` key and the offline cache on the device that ran it.
+rate-limit ledgers, the aggregate event ledger's entries naming them,
+cross-user references (impressions they sent, relations naming them),
+their takes and flags, the moderation queue's copy of any take of theirs,
+and the auth user; it also purges every local `insight.*` key and the
+offline cache on the device that ran it.
 
 That queue copy is worth stating explicitly, because it is the one place a
 user's words lived somewhere other than where they wrote them: the
@@ -87,8 +90,12 @@ alone.
 
 Three things deliberately survive, and all belong on a store form:
 
-- k-floored aggregate tallies (anonymous, no per-user attribution to
-  unwind), and
+- k-floored aggregate tallies. The counts themselves never name anyone,
+  and the one record that could attribute them — the event ledger — is
+  swept in the same call, so what survives is anonymous the moment the
+  deletion returns. (One bounded exception: an answer still in flight
+  through the trigger when the sweep runs can land its ledger entry
+  afterwards; it self-erases at the 90-day TTL — D28.) And
 - **the uid attached to any Sentry event already sent.** `deleteAccount`
   does not reach into Sentry, so those reports persist for the Sentry
   project's retention period. Only relevant to users who opted telemetry
