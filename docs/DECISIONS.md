@@ -2926,3 +2926,63 @@ deliberate change with rules review, functions tests and an e2e leg —
 whole or not at all, the D14 discipline. Unbuilt today because its
 value is real but not launch-gating, and this close to submission the
 privacy path stays frozen.
+
+## D36 · The loop closes: auto-seed, in-run refresh, mechanized promotion, predicted splits
+
+**Date:** 2026-08-01 · **Status:** Adopted (owner: "let's start with
+these improvements")
+
+The generation-and-learning loop had three joints held together by
+human memory, and one algorithmic blind spot. All four closed:
+
+**1. Content merges seed themselves.** The seed loop moved to
+`functions/src/seedCore.ts` (runtime-agnostic; unit-tested for the
+properties a refactor must not lose — `active` only on first create,
+contentRev bumped once and last, batches split at 450) so the callable
+and the deploy workflow's new last step (`scripts/seed-prod.mjs`, run
+when the compiled bank changed in the push) execute the SAME code. The
+step is last so a seed failure can never block the rules/functions
+apply, and deliberately not continue-on-error — a red run is the alarm
+that replaced "operator forgot to reseed". The gate on content reaching
+production is now the merge itself, which is where the review already
+was. SHIP-CHECKLIST §1 step 3 amended: the first content merge performs
+the first seed.
+
+**2. The scorecard refreshes inside the farm run** when
+`FIREBASE_API_KEY` is in the session environment, committed in the same
+PR as the questions it informed — signal and consequence travel
+together. No key → committed scorecard + staleness rules, as before.
+One owner step: put the key in the dev session env.
+
+**3. Promotion is a script the farm may run.**
+`scripts/promote-daily.mjs` (npm run promote:daily) copies unpromoted
+archive entries verbatim — order-correspondence asserted, prompts
+byte-identical for the liveSync join, runway arithmetic in the dry-run
+— and the farm opens the promotion PR when runway < 30 days. The
+two-gate principle survives because the copy property is
+machine-checkable in review and a human still merges; what died is the
+silent-runway-decay failure mode (never-repeat needs ≥7
+promotions/week, and gate two used to require someone finding an hour).
+
+**4. Predicted splits generalize learn's calibration to opinions.**
+Every new daily/feed question ships a `pred` field (authored metadata,
+validated by check:content, never emitted); the scorecard scores
+total-variation distance between prediction and the k-floored
+measurement. `surpriseLeaders` — the crowd contradicting the model,
+with volume — is the product's magic made measurable, and
+`predCalibration`'s running error is the farm's audience-model report
+card. The authoring rule guards the signal: predict honestly, because a
+hedged all-equal guess makes surprise worthless. Plus the near-dupe
+radar (`npm run similarity`): token/bigram ranking across all pools and
+the suggestion seeds, exit-nonzero at ≥ 0.5 so the farm justifies or
+drops near-misses. Its first corpus scan found real ones — "One
+cuisine, forever?" (archive) vs "One cuisine forever" (feed), ported
+independently from the prototype — left standing as a content decision
+for the owner, since retiring either is the kill switch's job, not a
+script's.
+
+**Recorded as future options, not adopted:** a rolling weekly farm PR
+(one branch, daily commits, one merge) if daily PR volume outgrows
+review capacity; run-start self-verification of the previous run's
+issue-#31 trace; rotating the bound dev session periodically and
+re-probing whether fresh Routine sessions still lack git write access.

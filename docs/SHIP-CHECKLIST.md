@@ -31,11 +31,14 @@ value and no empty-warning. Only step 3 remains, and it must be run
    > workflow variable is the only path. A deploy with the variable unset
    > still succeeds but logs a warning, and every operator callable stays
    > `permission-denied`.
-3. **The remaining step.** From the app's console:
-   `firebase.functions().httpsCallable("seedContentV2")()` — or simply
-   tap through any flow that calls it; 191 questions land in
-   `v2_questions`. Re-running is safe (idempotent, never resets the
-   `active` kill switch).
+3. **The remaining step — now also automatic (D36).** The deploy
+   workflow's last step seeds the bank whenever the compiled content
+   changed in the push, so the next content merge performs this step
+   itself (a red "Seed question bank" step on the deploy run is the
+   alarm). The manual path still works and is the fallback: from the
+   app's console, `firebase.functions().httpsCallable("seedContentV2")()`
+   — the full 369-question bank lands in `v2_questions`. Re-running is
+   safe either way (idempotent, never resets the `active` kill switch).
 
 ## 2 · Native Firebase config files (account-gated)
 

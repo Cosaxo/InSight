@@ -34,6 +34,8 @@ do nothing, loudly, if no pool needs work.
    | duel | `content/duel-questions.json` (append to `group`/`oneVsOne`) | single-gate: merged = seeded next reseed |
    | learn | `content/learn-questions.json` (append to `cards`) | single-gate: merged = seeded next reseed |
    | feed | `content/feed-questions.json` (append to `questions`) | single-gate: merged = seeded next reseed |
+   | promotion | `content/daily-questions.json` — via `npm run promote:daily -- --write` ONLY, never hand-written | verbatim copy; human merges (D30/D36) |
+   | scorecard | `content/scorecard.json` + `scorecard-history.json` — via `npm run scorecard -- --fetch` ONLY | signal refresh, rides the run's PR (D36) |
 
    Never `firestore.rules`, `functions/`, map anchors, or anything else —
    and a single run edits a single lane's file plus (daily days) the
@@ -185,6 +187,16 @@ change like any other, its numbers are already public by construction
 (the k-floor did the privacy work), and committing it is what lets a
 scheduled run read signals without needing production credentials.
 
+**The refresh runs inside the farm run (D36).** When `FIREBASE_API_KEY`
+is present in the session's environment, every run STARTS with
+`npm run scorecard -- --fetch` and commits the refreshed
+`scorecard.json` + `scorecard-history.json` in the same PR as the
+questions it informed — signal and consequence travel together, which
+is also the best review context. No key in the environment → the
+committed scorecard is used as-is and the staleness rules above apply.
+(Owner step, once: add the public web API key to the dev session's
+environment.)
+
 ## Every pool has a lane (D34): the weekly pool schedule
 
 Every question in the app is Claude-written — daily, feed, duels, learn
@@ -273,9 +285,23 @@ style guide. What its voice looks like:
 
 **Dedup is part of writing, not a later pass.** A new question must not
 restate an existing one in different clothes — check the whole `Q` array
-*and* the suggestion board seeds in `src/v2/spec/suggestions.js`. After
-writing, re-read each candidate against its nearest existing neighbour and
-drop it if a user would say "I already answered that."
+*and* the suggestion board seeds in `src/v2/spec/suggestions.js`. Run
+`npm run similarity -- --against "<candidate>"` for every candidate
+(D36): it ranks the whole corpus by token/bigram overlap and exits
+non-zero at ≥ 0.5 — at that line, justify the near-miss in the PR body
+or drop the candidate. The tool ranks; the judgement stays yours. After
+writing, re-read each candidate against its nearest existing neighbour
+and drop it if a user would say "I already answered that."
+
+**Every new question ships a predicted split (D36).** Author a `pred`
+field — your honest percentage guess per option — on each new daily and
+feed entry (`check:content` validates shape; it is never emitted to
+clients). The scorecard scores predictions against the k-floored
+measurement: the running error is your audience-model report card, and
+the questions where the crowd surprises the model are the ones worth
+studying. Predict honestly — a hedged all-equal guess makes the surprise
+signal worthless, and the point of writing a split-seeker is that you
+believe it splits.
 
 ## Verifying
 
@@ -412,10 +438,23 @@ The mechanics are all reuse (spec `Q` entries and
 3. `npm run build:content`, then `npm run check:content` — the dedup,
    id-shape and drift gates all fire here.
 4. PR with the provenance trail (which farm PR each question came from).
-5. After merge and deploy, an operator runs `seedContentV2`. The seed is
-   merge-idempotent, never rewrites `active`, and bumps `contentRev` so
-   clients refetch. New questions extend the daily rotation without
-   remapping served days (the deck epoch, D30).
+5. After merge, the deploy workflow seeds automatically (D36): the
+   "Seed question bank" step runs the same loop as `seedContentV2`
+   whenever the compiled bank changed in the push — merge-idempotent,
+   never rewrites `active`, bumps `contentRev` so clients refetch. New
+   questions extend the daily rotation without remapping served days
+   (the deck epoch, D30). A red seed step on the deploy run is the
+   alarm; the manual callable remains for first-seed and staging.
+
+Steps 1–2 are mechanized (D36): `npm run promote:daily` reports the
+unpromoted archive entries and the runway arithmetic; `--write` appends
+them verbatim with the next ids. **The farm may run it and open the
+promotion PR** — a separate PR from any content authoring, containing
+only the script's verbatim copy plus the `build:content` regen — because
+the copy property is machine-checkable in review and the human gate is
+the merge itself. The farm checks promotion lag every run: when runway
+< 30 days and unpromoted entries exist, open the promotion PR and say so
+on issue #31.
 
 Cadence arithmetic (D30, re-paced by D33): the daily surface consumes 7
 questions/week; the farm's generation potential is ≤4/day (~28/week).
@@ -626,24 +665,31 @@ docs/QUESTION-FARM.md on origin/main and follow it exactly — it is the
 complete instruction manual, it changes, and it outranks this prompt's
 summary; re-read it every run.
 
-The job in one sentence: read the committed scorecard first (npm run
-scorecard; stale or missing → coverage lane only, per the manual's
-staleness rule), then do the DAILY lanes — up to 4 new questions across
+The job in one sentence: refresh the scorecard first if you can (npm
+run scorecard -- --fetch when FIREBASE_API_KEY is in the environment,
+committed in your PR; otherwise npm run scorecard and the staleness
+rules apply), then do the DAILY lanes — up to 4 new questions across
 the manual's three priority lanes (replenishment, demand, coverage)
 into the daily-question archive (src/v2/spec/daily-questions.js on
 origin/main) — PLUS the day's pool batch per the manual's "Every pool
 has a lane" schedule: Monday a duel batch (≤4 →
 content/duel-questions.json), Wednesday a learn batch (≤8 →
 content/learn-questions.json, the learn-card lane's rules), Friday a
-feed batch (≤6 → content/feed-questions.json). A content/* edit
+feed batch (≤6 → content/feed-questions.json). Every new daily/feed
+question ships a pred field (your honest predicted split — the manual's
+D36 rule) and passes npm run similarity -- --against "<candidate>"
+(justify or drop anything ≥ 0.5). Check promotion lag every run: when
+runway < 30 days and unpromoted archive entries exist (npm run
+promote:daily reports both), open a SEPARATE promotion PR via npm run
+promote:daily -- --write + npm run build:content. A content/* edit
 obliges npm run build:content and committing the regenerated
-functions/src/v2content.ts in the same PR. Run the repo's gates
-(check:content, check:globals, lint, test:unit, build) and open a pull
-request for human review — pool-batch PRs carry production weight
-(merged = seeded next reseed), so their bodies argue every item. Learn
-per the manual's scorecard section: imitate the leaders' SHAPE, never
-their subject; one PR-body line per question on why it splits rather
-than slides; cite retireProposals as active:false candidates and learn
+functions/src/v2content.ts in the same PR — and merged content deploys
+AND seeds itself (D36), so every content PR body argues every item.
+Run the repo's gates (check:content, check:globals, lint, test:unit,
+build) and open a pull request for human review. Learn per the
+manual's scorecard section: imitate the leaders' SHAPE, never their
+subject; one PR-body line per question on why it splits rather than
+slides; cite retireProposals as active:false candidates and learn
 p-recalibration proposals for the operator. Warmth outranks any score
 — do not optimize toward outrage. If no pool has work, the run is a
 no-op that says so.
