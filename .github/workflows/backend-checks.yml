@@ -56,6 +56,12 @@ jobs:
       # trigger accepts, and it must equal the committed catalogue files
       # exactly — absence included.
       - run: npm run check:catalogs
+      # The seed callable compiles functions/src/v2content.ts in, so drift
+      # between it and /content is a statement about what reaches
+      # production: a hand edit to the generated file, or a /content change
+      # without a regen, ships a bank nobody reviewed. Regenerates in
+      # memory and compares bytes. Node stdlib only, no root node_modules.
+      - run: npm run check:content
 
   rules-tests:
     runs-on: ubuntu-latest

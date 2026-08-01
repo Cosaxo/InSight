@@ -138,8 +138,25 @@ export function buildS(
   };
 }
 
+// The rotation is anchored to a launch-day epoch, not to the raw day
+// number. Raw `today` is ~20,600 — deep in wrap territory for any bank —
+// so `today mod n` remaps EVERY visible day whenever n changes, including
+// the 7-day history pager: after a weekly promotion reseed (D30), a user's
+// answered "Yesterday" card would be replaced by a different question whose
+// vote state (keyed by qid) doesn't match, rendering unanswered. Rebased on
+// the epoch, the index stays below n while the bank outgrows the calendar
+// (promotion adds ~12/week against 7 days/week — D30 records the
+// arithmetic), so the mod never wraps and appending questions changes no
+// past or present day's mapping at all. Residual limit, recorded: if
+// promotion lapses for longer than the bank's runway (n days after epoch),
+// the wrap returns and one reseed remaps history once.
+// 2026-08-01 as a local-midnight day number (dayIndex), the day D30 landed.
+export const DECK_EPOCH = 20666;
+
 // One card per day, walking the bank backwards from `today` with a
-// double-mod so a negative (today - back) still wraps into [0, n).
+// double-mod so a negative (today - epoch - back) still wraps into [0, n)
+// (possible in the epoch's own first week, and again only if the wrap
+// above ever returns).
 export function computeDeckIds(
   questionIds: string[],
   today: number,
@@ -151,9 +168,52 @@ export function computeDeckIds(
   const n = questionIds.length;
   if (!n) return [];
   return Array.from({ length: Math.min(deckDays, n) }, (_, back) => {
-    const idx = (((today - back) % n) + n) % n;
+    const idx = (((today - DECK_EPOCH - back) % n) + n) % n;
     return questionIds[idx];
   });
+}
+
+// The per-surface bank split, extracted from live.ts's refresh path so the
+// fencing is testable: each bank is an ALLOWLIST, so a mistake in one
+// predicate cannot leak a surface into a bank it was never meant to touch —
+// a learn card (D32) must never appear in the daily deck or the feed, where
+// its "options" would render as an opinion vote with a secretly right
+// answer.
+//
+// Bank docs are hand-editable in the console — the kill switch expects an
+// operator in there — and nothing validates them on the way in. A doc
+// missing `options` used to throw inside q.options.map, blanking a whole
+// tab behind the ErrorBoundary. Drop unusable docs instead. "pick" duel
+// questions are the deliberate exception: they carry no bank options
+// because their options ARE the group's members.
+export function splitBanks(active: Array<QuestionDoc & { id: string }>): {
+  daily: Array<QuestionDoc & { id: string }>;
+  feed: Array<QuestionDoc & { id: string }>;
+  duel: Array<QuestionDoc & { id: string }>;
+  learn: Array<QuestionDoc & { id: string }>;
+} {
+  const playable = (q: QuestionDoc & { id: string }) =>
+    Array.isArray(q.options) && q.options.length >= 2;
+  return {
+    daily: active.filter((q) => q.surface === "daily" && playable(q)),
+    // type "rank" is excluded from the LIVE feed on purpose. The bank seeds
+    // 8 of them, and buildFeedGlobals used to serve them as single-choice
+    // vote cards — folding single options into aggregates that claim to be
+    // a ranking. Wrong-shaped answers are worse than no card (the same
+    // honesty rule as D5); the full arithmetic is in D12.
+    feed: active.filter(
+      (q) =>
+        (q.surface === "feed" || q.surface === "test") &&
+        playable(q) &&
+        q.type !== "rank",
+    ),
+    duel: active.filter(
+      (q) =>
+        (q.surface === "group" || q.surface === "duo") &&
+        (playable(q) || q.topic === "pick"),
+    ),
+    learn: active.filter((q) => q.surface === "learn" && playable(q)),
+  };
 }
 
 // The client mirrors the server's deterministic rotation: the day's

@@ -142,11 +142,15 @@ service cloud.firestore {
         }
 
         // World-facing surfaces: one doc per question, id == qid.
+        // "learn" is in the class since D32: a learn card's first attempt
+        // is a plain world answer, and THIS create-only path is what makes
+        // the crowd stat a people-rate — the scheduler's spaced retries
+        // have nothing they are allowed to write.
         function isWorldAnswer() {
           return request.resource.data.keys().hasOnly([
               "qid", "surface", "optionIdx", "answeredAt", "anchors",
             ])
-            && request.resource.data.surface in ["daily", "feed", "test"]
+            && request.resource.data.surface in ["daily", "feed", "test", "learn"]
             && request.resource.data.qid == aid
             && request.resource.data.optionIdx
               < get(/databases/$(database)/documents/v2_questions/$(aid)).data.options.size()
@@ -159,7 +163,7 @@ service cloud.firestore {
             // land in the public aggregate. Defaults keep a field-less doc
             // answerable rather than permanently bricked.
             && get(/databases/$(database)/documents/v2_questions/$(aid))
-                 .data.get("surface", "daily") in ["daily", "feed", "test"];
+                 .data.get("surface", "daily") in ["daily", "feed", "test", "learn"];
         }
 
         // Catalog answers (docs/CATALOG-QUESTIONS.md): one pick from a

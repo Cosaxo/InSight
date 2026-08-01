@@ -214,6 +214,7 @@
   ],
   "oneVsOne": [
     {
+      "id": "000",
       "prompt": "Plans get cancelled last minute. First feeling?",
       "options": [
         "Relief",
@@ -221,6 +222,7 @@
       ]
     },
     {
+      "id": "001",
       "prompt": "Phone rings, unknown number.",
       "options": [
         "Answer",
@@ -229,6 +231,7 @@
       ]
     },
     {
+      "id": "002",
       "prompt": "A compliment in front of everyone — love it or squirm?",
       "options": [
         "Love it",
@@ -236,6 +239,7 @@
       ]
     },
     {
+      "id": "003",
       "prompt": "Running late. Their text says…",
       "options": [
         "\"5 min\" (it’s 20)",
@@ -244,6 +248,7 @@
       ]
     },
     {
+      "id": "004",
       "prompt": "The food arrives wrong. Say something?",
       "options": [
         "Say something",
@@ -251,6 +256,7 @@
       ]
     },
     {
+      "id": "005",
       "prompt": "Lost in a new city. They…",
       "options": [
         "Ask someone",
@@ -259,6 +265,7 @@
       ]
     },
     {
+      "id": "006",
       "prompt": "A free Saturday, zero plans. Bliss or restless?",
       "options": [
         "Bliss",
@@ -266,6 +273,7 @@
       ]
     },
     {
+      "id": "007",
       "prompt": "Karaoke machine appears.",
       "options": [
         "Grabs the mic",
@@ -274,6 +282,7 @@
       ]
     },
     {
+      "id": "008",
       "prompt": "Someone takes their joke too far. Laugh it off, or say so?",
       "options": [
         "Laugh it off",
@@ -281,6 +290,7 @@
       ]
     },
     {
+      "id": "009",
       "prompt": "Big decision to make. How do they call it?",
       "options": [
         "Gut",
@@ -290,6 +300,7 @@
       ]
     },
     {
+      "id": "010",
       "prompt": "Cry in a film — freely, or fight it?",
       "options": [
         "Freely",
@@ -297,6 +308,7 @@
       ]
     },
     {
+      "id": "011",
       "prompt": "Ideal holiday day?",
       "options": [
         "Packed itinerary",
@@ -305,6 +317,7 @@
       ]
     },
     {
+      "id": "012",
       "prompt": "They win €10k. First move?",
       "options": [
         "Save it",
@@ -314,6 +327,7 @@
       ]
     },
     {
+      "id": "013",
       "prompt": "An old friend owes an apology. Bring it up, or let it go?",
       "options": [
         "Bring it up",
@@ -321,6 +335,7 @@
       ]
     },
     {
+      "id": "014",
       "prompt": "Deep talk at 2am, or a proper night of sleep?",
       "options": [
         "The talk",
@@ -328,6 +343,7 @@
       ]
     },
     {
+      "id": "015",
       "prompt": "When hurt, they go…",
       "options": [
         "Quiet",
@@ -336,6 +352,7 @@
       ]
     },
     {
+      "id": "016",
       "prompt": "Hard truth or comfortable silence?",
       "options": [
         "Hard truth",
@@ -343,6 +360,7 @@
       ]
     },
     {
+      "id": "017",
       "prompt": "After a brutal week, what refills them?",
       "options": [
         "People",
@@ -352,6 +370,7 @@
       ]
     },
     {
+      "id": "018",
       "prompt": "A week alone in a cabin. Gift or sentence?",
       "options": [
         "Gift",
@@ -359,6 +378,7 @@
       ]
     },
     {
+      "id": "019",
       "prompt": "Old age: surrounded, or independent?",
       "options": [
         "Surrounded",

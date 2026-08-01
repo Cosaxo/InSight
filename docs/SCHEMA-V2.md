@@ -8,7 +8,7 @@ is server-written (aggregates now, reveals in Phase 3).
 
 ```
 v2_questions/{qid}                 canonical bank, seeded by seedContentV2
-  surface: daily|feed|group|duo|test
+  surface: daily|feed|group|duo|test|learn
   seq: int            rotation order within a surface
   type: binary|choice|scale|rating|vote|duel|ranking|catalog
   domain: pokemon|films|artists   (catalog questions only — names the key
@@ -18,6 +18,14 @@ v2_questions/{qid}                 canonical bank, seeded by seedContentV2
   topic, axis, test   metadata (test != null only on a test's own items)
   active: bool
 read: signed-in · write: nobody (admin SDK only)
+  Learn cards (surface "learn", D32) carry only prompt/options/topic —
+  the correctness metadata (correct index, trap, authored estimate, map
+  label) stays client-side in content/learn-questions.json; the server
+  never learns which option is right, and "% got it right" is
+  counts[correct]/total computed on the device from the public agg.
+  A user's ONLY server-side learn answer is their first attempt per card
+  (create-only answers make retries unrecordable by construction — D5);
+  the scheduler's spaced retries stay in device localStorage.
 
 v2_users/{uid}
   displayName?, anon?, anchors { city country ageBand gender

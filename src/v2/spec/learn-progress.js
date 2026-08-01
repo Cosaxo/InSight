@@ -43,12 +43,24 @@ window.LEARN = (function () {
   // first run is seeded, like friends and daily answers are: a few facts already
   // held so the map is never an empty room, and one card mid-streak so the
   // three-in-a-row rule is discoverable without having to fail at it first.
+  //
+  // …in the DEMO build only. A live build starts Learn at its real zero
+  // (D32): the map claims mastery of what you actually answered, and six
+  // pre-known cards would be fabricated activity (D1). Gated on the build
+  // flag rather than window.LIVE.enabled because this seed runs at module
+  // scope, before the live boot has attached — the same signal live.ts's
+  // demoInProd reads.
+  const LIVE_BUILD = import.meta.env && import.meta.env.VITE_V2_LIVE === 'true';
   if (!S) {
-    S = { c: {}, lvl: {}, pos: 9, order: ['cell2', 'cell4', 'sol1', 'sol5', 'cap1', 'cap4'] };
-    const t0 = Date.now();
-    S.order.forEach((id, i) => { S.c[id] = { s: 'known', k: STREAK, seen: 1, miss: 0, pos: i, at: t0 - (6 - i) * 864e5 }; });
-    S.c.sol2 = { s: 'learning', k: 1, seen: 2, miss: 1, pos: 7, at: 0 };   // “Venus is hottest” — missed once, one right so far
-    S.lvl = { cell: 54, solar: 66, capitals: 58 };
+    if (LIVE_BUILD) {
+      S = { c: {}, lvl: {}, pos: 0, order: [] };
+    } else {
+      S = { c: {}, lvl: {}, pos: 9, order: ['cell2', 'cell4', 'sol1', 'sol5', 'cap1', 'cap4'] };
+      const t0 = Date.now();
+      S.order.forEach((id, i) => { S.c[id] = { s: 'known', k: STREAK, seen: 1, miss: 0, pos: i, at: t0 - (6 - i) * 864e5 }; });
+      S.c.sol2 = { s: 'learning', k: 1, seen: 2, miss: 1, pos: 7, at: 0 };   // “Venus is hottest” — missed once, one right so far
+      S.lvl = { cell: 54, solar: 66, capitals: 58 };
+    }
   }
   S.c = S.c || {}; S.lvl = S.lvl || {}; S.pos = S.pos || 0; S.order = Array.isArray(S.order) ? S.order : [];
 
@@ -106,6 +118,14 @@ window.LEARN = (function () {
     if (!card) return null;
     const ok = pick === card.c;
     const was = st(id);
+    // First exposure only feeds the crowd stat (D32): `was == null` means
+    // this tap is the first time this device has seen the card — the one
+    // moment that measures difficulty rather than the scheduler's own
+    // retries. Later attempts stay in this file's localStorage, and the
+    // create-only answer rule refuses them server-side anyway.
+    if (!was && window.LIVE && window.LIVE.enabled && window.LIVE.learnAnswer) {
+      window.LIVE.learnAnswer(id, pick);
+    }
     const cur = was ? { ...was } : { s: 'new', k: 0, seen: 0, miss: 0, pos: -99, at: 0 };
     const wasKnown = cur.s === 'known';
     cur.seen++; cur.pos = S.pos;

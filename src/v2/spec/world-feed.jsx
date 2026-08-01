@@ -760,6 +760,17 @@ class WorldFeed extends React.Component {
                 </>
               )}
             </div>
+            {/* D32/D1: in live mode the split above is either a real
+                measurement or the authored estimate — and the estimate is
+                never allowed to pass as measured, so the reveal says which
+                one it is. Demo builds carry their own honesty layers. */}
+            {window.LIVE && window.LIVE.enabled ? (
+              <div style={{ fontFamily: 'var(--sans)', fontSize: 11, color: 'var(--ink-3)', lineHeight: 1.45 }}>
+                {(window.LEARN_SPLIT_SRC ? window.LEARN_SPLIT_SRC(card) : 'estimate') === 'measured'
+                  ? 'Real answers from ' + (((window.LIVE.learnAgg && window.LIVE.learnAgg(card.id)) || {}).total || 5) + '+ players.'
+                  : 'Our estimate — becomes measured once enough people have answered.'}
+              </div>
+            ) : null}
             {card.w ? <p style={{ margin: 0, fontFamily: 'var(--sans)', fontSize: 13.5, fontWeight: 500, lineHeight: 1.5, color: 'var(--ink-2)', textWrap: 'pretty' }}>{card.w}</p> : null}
             {this.opts.reveal ? this.renderKnowInsight(q, T) : null}
             {window.LMFriends ? <LMFriends card={card} col={T.color}></LMFriends> : null}

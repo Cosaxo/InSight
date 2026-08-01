@@ -2551,3 +2551,271 @@ path), keeping exact-count assertions green. The Apple/Google round
 trips themselves cannot run in the emulator; they get a staging probe
 script and a line in SHIP-CHECKLIST §4, stated as such rather than
 counted as covered.
+
+## D30 · Farm questions may graduate to the live seed; the deck gets an epoch
+
+**Date:** 2026-08-01 · **Status:** Adopted (docs/LAUNCH-PLAN.md, W1.2)
+
+**What this reverses.** QUESTION-FARM.md's out-of-scope list held "the
+live seed catalog" closed: the farm deepened the spec-layer archive
+only, and feeding generated questions into production was "a separate
+decision with its own review." This is that decision. The farm-side
+doc's "Promoting questions into the live seed" section is the operating
+contract; the shape is **two gates** — the farm PRs into the archive
+(gate one, existing), a human promotes archive entries into
+`content/daily-questions.json` in a reviewed PR of their own (gate two,
+new), and an operator reseeds. The farm itself still never writes
+`content/`; a scheduled job with production-bank write access is what
+the second gate exists to prevent. D1 is untouched throughout —
+questions are content; activity is fabrication.
+
+**Never-repeat arithmetic.** The daily surface consumes 7
+questions/week. The farm's budget cap is 12/week. Promotion averaging
+≥7/week therefore grows the bank faster than the calendar consumes it —
+no user ever sees a repeat — and the launch target of ~90 daily
+questions is by itself ~13 weeks of runway if promotion stops entirely.
+Every promoted question buys one day.
+
+**The deck epoch.** `computeDeckIds` mapped day → `bank[(today − back)
+mod n]` with `today` the absolute local day number (~20,600). That deep
+in wrap territory, ANY change of n remaps every visible day — including
+the 7-day history pager, where a user's answered card would be replaced
+by a question whose vote state (keyed by qid) doesn't match, rendering
+unanswered on every weekly promotion reseed. Fixed by rebasing on
+`DECK_EPOCH` (20666 = 2026-08-01): while `n ≥ days-since-epoch`, which
+the cadence arithmetic guarantees under sustained promotion, the mod
+never wraps and appending questions is a pure extension — no served
+day's mapping moves. Residual limit, recorded: if promotion lapses past
+the bank's runway, the wrap returns and the next reseed remaps history
+once. Unit-tested including the growth-preserves-served-days property.
+Duels need no epoch: reveal docs store the answered qid and history
+resolves by it, so duel-bank growth shifts future rotation only.
+
+**Invariants the promotion leans on, verified rather than assumed:**
+
+- **Reseed is safe by construction.** `runSeedV2` is merge-idempotent,
+  writes `active` only on first create (the ops kill switch survives
+  reseeds), and bumps `contentRev` so clients refetch once per boot.
+- **seq drift is harmless.** Appending daily entries leaves prior seq
+  values alone, but test-surface seq shifts on expansion (one counter
+  across four tests). seq only sorts the bank client-side; answers key
+  on the doc id, so a shifted seq re-orders nothing a user answered.
+- **The prompt join.** Live hydration (`liveSync`,
+  src/v2/spec/daily-questions.js) attaches seeded bank entries to demo
+  questions by prompt-string equality and warns on orphans. Promotion
+  copies prompts byte-for-byte; a reworded promotion silently unhooks
+  the question from the Map, which is why the farm doc's step 2 shouts.
+- **Id discipline (W1.1).** Every content entry carries an explicit id;
+  the generator refuses to invent one. Positional ids would re-key
+  every later question on an insert — answers are immutable docs keyed
+  by qid, so a re-key attaches live answers to the wrong prompt with no
+  cleanup path (the D15 failure class, applied to questions).
+- **The bank fetch ceiling.** live.ts fetched the bank with
+  `limit(400)`; 213 seeded post-W2 + ~35 archive promotion + ~96
+  planned learn cards ≈ 344, and promotion adds ≈600/year. Raised to
+  1500 (~two years of headroom) with the rule recorded at the call
+  site: approach it with pagination, never another raise — a silent
+  cap serves users a truncated bank with no error anywhere.
+
+## D31 · The logic test generates its puzzles; nothing ships an answer key
+
+**Date:** 2026-08-01 · **Status:** Adopted (docs/LAUNCH-PLAN.md, W3)
+
+**The problem.** The Logic overlay served 12 hardcoded puzzles in a fixed
+order with fixed option positions, and the answer key — literally
+`a: 2,4,3,1,4,2,3,1,3,4,0,3` — shipped in the bundle. The same test every
+attempt: memorizable, shareable, and Retake was a replay. The owner's
+brief asked for "an actual functional Raven's test … not the same every
+time so people can cheat it." Real Raven's items (SPM/APM) are
+Pearson-copyrighted and cannot be imported; generation is also the only
+design where freshness is structural rather than a bigger bank to leak.
+
+**The design.** `src/v2/data/logic-gen.ts` — typed, pure, deterministic
+per seed, published to the spec layer as `window.LOGIC_GEN` (the live.ts
+pattern). Each attempt draws a fresh 32-bit seed (crypto-sourced) and
+generates a 12-item form: 3×3 matrices over the overlay's existing
+Layer/Cell glyph vocabulary, so the Prim/Glyph/Matrix renderers are
+untouched. Twelve rule families mirror the retired bank motif for motif
+(size ramps, dot count/addition, shape cycling, fill deepening,
+overlay/decomposition, two Latin-square families, concentric growth)
+plus a distribution-of-two family in the hard tail — Carpenter's
+taxonomy, which is also the difficulty calibration: family weights are
+Carpenter-ordered and the ramp template ends where the old declared
+easy→hard ramp did, so `logicPctile`'s logistic (midpoint 62%) keeps its
+meaning without pretending to a norm study we do not have. The family
+SEQUENCE is deliberately fixed (every attempt comparable, "k of 12"
+means the same thing); the parameters, shapes, directions, distractors
+and option positions vary per seed. Distractors are principled
+corruptions — wrong-rule, incomplete-correlate, repetition of a visible
+neighbour, single-attribute perturbation — deduplicated canonically.
+
+**Honesty posture unchanged.** Stated in the module header: a
+client-side test is inspectable by a determined user; what this closes
+is memorization and the shipped constant, which was the actual hole.
+All five result lenses remain models and remain disclaimed once
+(LOGIC_FIELD_NOTE) — nothing new pretends to be a measurement.
+
+**Storage.** Same key (`insight.logicTest.v1`), schema v2:
+`{v:2, seed, gv, marks, times, diffs, pctile, when}` — the seed plus
+`gv` (generator version) mean a saved score's exact form is
+reconstructable forever, and a future generator change can never
+silently reinterpret an old seed. v1 payloads (marks/times/when) keep
+working: loadResult already back-fills `pctile`, the Pace lens already
+falls back on missing `times`, and the Answers lens falls back to
+index-order ramp positions when `diffs` is absent — pinned by a smoke
+case that opens the overlay over a stored v1 payload. Two latent bugs
+fixed in passing: the Answers lens hardcoded `/11` and mapped rows over
+the puzzle bank rather than the saved marks, so any result whose length
+differed from the current bank would have rendered against the wrong
+items.
+
+**Verification.** `logic-gen.test.ts` sweeps 200 seeds × 12 items:
+determinism, answer-key integrity (options key matches the constructed
+answer; all six options pairwise distinct canonically), answer position
+covers all six slots, renderability inside Prim's exact vocabulary,
+ramp monotonicity, pinned PRNG outputs — and per-family semantic
+validators that re-derive each rule's structure from the cells
+themselves (dot sums, Latin properties, ring counts, overlay identity)
+rather than trusting the construction path. Smoke: fresh start renders
+a generated matrix with six labelled answers; v1 payload renders the
+result screen.
+
+**Backend sync: deferred, with the arithmetic.** The test stays
+device-local — "this test sends nothing anywhere" stays literally true,
+and no store privacy form changes. If it ever syncs: the rules cap
+`testResults.keys().size() <= 8` currently holds 4 live keys, so a
+fifth (`logic`) fits without a rules change — a client-only
+`saveTestResult('logic', …)` plus a data-inventory row and a store-form
+re-answer. That bundle is exactly why it does not ride along now.
+
+## D32 · Learn's crowd stat is measured — first attempts only, estimates labeled
+
+**Date:** 2026-08-01 · **Status:** Adopted by the owner ("build real
+crowd stats now"), docs/LAUNCH-PLAN.md W-Learn
+
+**What changed.** A learn card's "X% of people got this right" was an
+authored number (`p`) presented by demo surfaces. At launch it becomes a
+measured one: learn cards join the live bank (surface `"learn"`, 96 docs
+seeded from the new single source `content/learn-questions.json`), first
+attempts aggregate through the existing k-floored pipeline, and the
+reveal names its source. The whole workstream is content + rules-lines +
+client: **the aggregate trigger is untouched**, verified by the new e2e
+leg — the vote fold was already surface-agnostic over `optionIdx`.
+
+**First attempt counts, and D5 is the mechanism.** Learn's scheduler
+re-asks cards by design (GAP 4, STREAK 3, 12-day check-ins), which
+collides with a people-rate: counting attempts would measure the
+scheduler (a struggling user contributes four answers, mostly wrong).
+Resolution: the first exposure — the one moment that measures difficulty
+— is written as a plain world answer (`v2_users/{uid}/answers/learn-<id>`,
+create-only, id == qid); every later attempt is denied as an update by
+the same rule that makes every answer immutable. The psychometric policy
+and the privacy invariant are one mechanism, enforced at the rules level
+(a rules case pins the refused retry) — not client politeness. The
+alternative (a separate attempts collection) needs its own trigger,
+deploy-allowlist entry and per-event dedup, and its dedup requirement
+collapses back into exactly this keying.
+
+**The server never learns the right answer.** Learn docs carry only
+prompt/options/topic; `c`, the trap, the estimate and the map label stay
+client-side (the bundle ships `c` today regardless). "% got it right" =
+`counts[c]/total`, computed on the device from the public agg. The e2e
+leg's shape is the proof: counts fold with zero server-side learn code.
+
+**Cold start: the estimate is labeled, always.** Below the floor (or
+unfetched), the reveal shows the authored `LEARN_SPLIT` model with "Our
+estimate — becomes measured once enough people have answered"; above it,
+the measured split with "Real answers from N+ players" (the lower-bound
+phrasing the publish cadence already established, D7). The seam is one
+function (`LEARN_SPLIT` + `LEARN_SPLIT_SRC`, unit-pinned): an authored
+number can never render as a measurement (D1).
+
+**Leveling stays on the authored `p` — display-only measurement for
+now.** At n=5..20 answers, one publish step can move a card's rate by
+tens of points; leveling on it would re-rank "on your level" between
+sittings and make mastery drift. Revisit when cards routinely clear
+~100 first attempts (one publish step then moves the rate ≤5 points).
+
+**Demo honesty in live builds.** The first-run fake mastered seed (six
+known cards, one mid-streak) is demo-only, gated on the build flag
+(module scope runs before the live boot attaches — the same signal as
+live.ts's demoInProd); a live build starts Learn at its real zero.
+learn-social's synthetic friend standings render honest absence in live
+mode (the D11 structural pattern).
+
+**Single source of truth, and the farm's one single-gate lane.** The 96
+cards moved to `content/learn-questions.json` (extracted by script,
+verified deep-equal); learn-data.js imports it statically — a data
+import, not cross-module load-order coupling — so the demo cards and the
+seeded docs cannot drift. Consequence, recorded in QUESTION-FARM.md's
+learn-lane section: a merged learn-card PR reaches production on the
+next reseed, so its review bar is production-level.
+
+**Coverage.** Rules: accept/retry-refused/range/class cases. Unit: bank
+fencing (splitBanks allowlists — a learn card in the daily deck would be
+an opinion vote with a secretly right answer), the LEARN_SPLIT seam's
+three states, the LIVE surface pin (+learnAnswer/learnAgg). E2e (deploy
+path): five first attempts cross the floor with exact counts, the retry
+refused; erasure seeds and asserts a learn answer beside the daily one
+(same subcollection — `recursiveDelete` covers it, now proven not
+assumed). Store forms: no new category — the existing "answers, test
+results" row's inventory text names learn answers (data-inventory.md).
+
+## D33 · The farm gets eyes and a faster clock: the scorecard, and daily runs
+
+**Date:** 2026-08-01 · **Status:** Adopted by the owner ("evaluate what
+questions do well, learn the routines to make better questions, fire
+very often")
+
+**The scorecard.** `scripts/question-scorecard.mjs` (Phase A of the
+demand-driven wiring plan, now TAKEN) reads the k-floored public
+aggregates and writes `content/scorecard.json`: per question, the
+published total (draw) and an evenness score — `1 − (maxShare − 1/n) /
+(1 − 1/n)`, the product's own "splits, not landslides" bar as a number —
+plus per-topic rollups, leaders, laggards, and retirement proposals.
+What it can honestly see is bounded by design: only the floored public
+mirror (the k-floor did the privacy work before the scorecard existed),
+never skip/pass rates (local-only, D-series), never anything per-user.
+The deck epoch (D30) is what makes daily draw comparable — under the
+no-wrap invariant each daily question has served exactly once, so totals
+rank cleanly (DAU drift between days is the recorded confound, flagged
+not corrected in v1). Feed totals are cumulative and rank only against
+each other. Grades hold their fire on small samples: a landslide verdict
+needs ≥20 answers, or it judges the early crowd rather than the
+question.
+
+**The artifact is committed, deliberately.** The numbers are already
+public by construction, and committing the scorecard is what lets a
+scheduled run read signals without holding production credentials — the
+`--fetch` step (anonymous auth + Firestore REST; writes nothing) is an
+operator or separately-scheduled action, so the farm session's egress
+stops mattering. Staleness rules in QUESTION-FARM.md: >14 days →
+advisory; >30 days or missing → lane 3 only.
+
+**How runs learn.** Prompt-level, not weights-level: every run reads the
+scorecard before writing — imitate the leaders' *shape* (a near-twin of
+a winner is a dupe), justify each new question against the laggards'
+failure mode (one line per question in the PR body: why this splits
+rather than slides), and cite `retireProposals` as `active: false`
+candidates. Guardrails that outrank the score, recorded because a
+metric this simple invites goodharting: warmth beats evenness whenever
+they conflict (no optimizing toward outrage), and the kill switch stays
+the operator's — the farm proposes retirements, it never edits the bank.
+
+**The clock.** The farm re-paces from 12/run weekly to **≤4/run daily**
+(~28/week potential vs the daily surface's 7/week consumption). Why
+this is safe at 2–3× the old volume: the archive is a holding pen —
+generation and serving are decoupled by the D30 promotion gate, which
+stays human; smaller daily batches are also easier to review well than
+a weekly twelve. Why not hourly: review capacity is the binding
+constraint, and a queue of unreviewed AI PRs is inventory, not
+progress. The daily catalog run is unchanged. One owner step remains,
+measured not assumed: a session outside the Routine's bound session
+cannot edit it (both prompt and cron refused org-wide from this CCR
+session, 2026-08-01), so the re-pace happens from the dev session or
+the Routines UI — the canonical daily prompt is checked into
+QUESTION-FARM.md's "Scheduled runs" section so prompt and manual
+cannot drift. Until that step runs, the farm still fires weekly under
+the old 12-question prompt; the manual's 4/run cap already governs
+(the prompt defers to the doc), so the only cost of the gap is
+cadence, not volume.

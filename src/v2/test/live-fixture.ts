@@ -142,6 +142,11 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
     saveDisplayName: async () => {},
     saveAnchors: () => {},
     saveTestResult: () => {},
+    // Learn (D32): the fixture answers nothing and has no aggregates, so
+    // every learn reveal renders the ESTIMATE path with its label — which
+    // is exactly the honest cold-start state the live tests should see.
+    learnAnswer: () => {},
+    learnAgg: () => null,
     linkGoogle: async () => {},
     deleteAccount: async () => {},
   };
