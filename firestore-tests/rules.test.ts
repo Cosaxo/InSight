@@ -456,6 +456,45 @@ describe("v2 answers (owner-only, create-only — D5)", () => {
       answer({ optionIdx: 0 })));
   });
 
+  it("learn answers (D32): the first attempt records once; a retry has nothing it may write", async () => {
+    // Learn's crowd stat must be a people-rate, not an attempt-rate — the
+    // scheduler deliberately re-asks cards (GAP/STREAK/check-ins), so if a
+    // retry could write, a struggling user would count four times, mostly
+    // wrong, and the stat would measure the scheduler. First-attempt-only
+    // is enforced HERE, by the create-only rule, not by client politeness:
+    // this case is the one that pins the policy at the rules level.
+    await seed(async (db) => {
+      await setDoc(doc(db, "v2_questions", "learn-cell1"), {
+        surface: "learn", seq: 0, type: "choice",
+        prompt: "What do ribosomes build?",
+        options: ["Proteins", "Lipids", "DNA", "Sugars"], active: true,
+      });
+    });
+    const learnAnswer = (over: Record<string, unknown> = {}) => ({
+      qid: "learn-cell1", surface: "learn", optionIdx: 2,
+      answeredAt: serverTimestamp(), anchors: {}, ...over,
+    });
+    const ref = doc(asUser(OWNER), "v2_users", OWNER, "answers", "learn-cell1");
+    await assertSucceeds(setDoc(ref, learnAnswer()));
+    // the spaced retry — denied as an update, right or wrong either way
+    await assertFails(setDoc(ref, learnAnswer({ optionIdx: 0 })));
+    // bounded by the card's own options
+    await assertFails(setDoc(
+      doc(asUser(FRIEND), "v2_users", FRIEND, "answers", "learn-cell1"),
+      learnAnswer({ optionIdx: 4 })));
+    // and the world-class check still fences duel questions from a
+    // "learn"-claimed answer (same class rule as daily/feed/test)
+    await seed(async (db) => {
+      await setDoc(doc(db, "v2_questions", "group-gu9"), {
+        surface: "group", seq: 9, type: "choice",
+        prompt: "?", options: ["a", "b"], active: true,
+      });
+    });
+    await assertFails(setDoc(
+      doc(asUser(FRIEND), "v2_users", FRIEND, "answers", "group-gu9"),
+      learnAnswer({ qid: "group-gu9", optionIdx: 0 })));
+  });
+
   it("catalog answers: entity-keyed, create-only, and only on catalog questions", async () => {
     // docs/CATALOG-QUESTIONS.md: the stored answer is a catalogue key, so
     // the doc carries `entity` and no optionIdx at all. The grant is new,
