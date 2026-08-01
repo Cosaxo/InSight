@@ -69,6 +69,38 @@ picker UX.
   (the `check:bundle` argument in `scripts/build-cities.mjs` applies
   verbatim).
 
+## Entity images — where they could come from, and why launch is text-first
+
+Names and keys are data: CC0 facts (Wikidata) or nominative use in a
+"favourite" poll. **Images are creative works with their own copyright**,
+so the licensing class changes per domain and there is no single "image
+source" to adopt. The honest per-domain map (owner question, 2026-08-01):
+
+| Domain | Image source | Verdict |
+| --- | --- | --- |
+| Emoji | the character itself | **Solved by construction.** The catalogue stores the glyph in the display name; the platform emoji font renders it. Zero licensing. (Twemoji CC-BY / Noto OFL exist if pixel-identical cross-platform rendering ever matters — it doesn't today.) |
+| Pokémon | official art / game sprites | **Refused, the D15 way.** The artwork is Nintendo/Creatures/Game Freak copyright; PokéAPI *hosts* sprites but hosting is not a licence, and reproducing the art in a commercial store app would be the largest IP exposure in the product — against a famously litigious rights-holder, on top of the nominative-use trademark check the names already owe. Silhouettes and fan art are still derivative works. Names stay text; at most, generic decoration (type-coloured chips) that reproduces nothing. |
+| Films | posters | **Not at launch; TMDB is the route if ever.** Posters are studio copyright; Wikimedia Commons doesn't host them (Wikipedia's fair-use rationales do not transfer to us). The industry-standard path is TMDB's API (posters + required attribution) — that is a terms review plus a network-surface decision (external image CDN vs the app's Firebase-only egress posture), and it gets its own DECISIONS entry post-launch or not at all. |
+| Music artists | Wikidata P18 → Wikimedia Commons | **The one real free-content route.** Many notable artists have CC-licensed portraits on Commons, reachable mechanically: `build-catalog.mjs` already speaks SPARQL, so the build can pull P18 + licence + author per row. Costs that make it post-launch: coverage is partial and uneven (a half-illustrated picker reads as broken), every image needs its attribution shipped in-app, and thumbnails must be rehosted — never hotlinked, never bundled. |
+| People in daily/duel prompts (Messi, Tarantino…) | same Commons route | **Out.** The text is the product; likeness/publicity considerations arrive for zero mechanical benefit to a blind-answer card. |
+
+If any domain ever goes visual, the rules (recorded now so it is a
+decision, not drift):
+
+1. **Images are sourced at build time by the operator scripts**, with
+   per-file licence, author, and source-URL columns beside the key —
+   never fetched from third parties at runtime, and **never sourced by
+   the farm or any scheduled run** (the D15 "never from model memory"
+   rule, applied to media: every image needs a verifiable licence, which
+   is a human-verifiable-source problem).
+2. **Rehosted on our hosting as sized thumbnails, lazy-loaded** on first
+   picker open — never in the JS bundle (`check:bundle`/D27 applies
+   verbatim), never hotlinked from Commons or anyone's CDN.
+3. **Attribution renders in-app** wherever the images do.
+4. `check:catalogs` extends to bind image and licence columns the same
+   both-directions way it binds keys.
+5. One DECISIONS entry per domain that goes visual.
+
 ## The card: a new `pick` type
 
 Feed card shape mirrors `rate` (the v15 precedent for a type that feeds its
