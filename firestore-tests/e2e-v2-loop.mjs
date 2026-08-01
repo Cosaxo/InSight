@@ -365,5 +365,57 @@ const duelAgg = await getDoc(doc(db, "v2_question_aggs", "group-gu0"));
 if (duelAgg.exists()) fail("duel answers leaked into world aggregates");
 ok("duel answers stay out of world aggregates");
 
+// 9 · learn (D32): first attempts ride the same fold as votes — the floor
+// holds, the counts are a people-rate, and a retry has nothing it may
+// write. The trigger is deliberately untouched by D32, which is exactly
+// what this leg proves: a learn answer aggregates with zero server-side
+// learn code.
+const LQ = "learn-cell1";
+// the primary user's first attempt — wrong, picked the trap (option 2)
+await setDoc(doc(db, "v2_users", uid, "answers", LQ), {
+  qid: LQ, surface: "learn", optionIdx: 2,
+  answeredAt: serverTimestamp(), anchors: {},
+});
+// the scheduler's spaced retry — refused by the create-only rule, so the
+// crowd stat cannot double-count even a client that skips the
+// first-attempt gate entirely
+await expectDenied("learn retry refused (people-rate, not attempt-rate)", () =>
+  setDoc(doc(db, "v2_users", uid, "answers", LQ), {
+    qid: LQ, surface: "learn", optionIdx: 0,
+    answeredAt: serverTimestamp(), anchors: {},
+  }));
+let lpub = null;
+for (let i = 0; i < 40; i++) {
+  const snap = await getDoc(doc(db, "v2_question_aggs", LQ));
+  if (snap.exists()) { lpub = snap.data(); break; }
+  await new Promise((r) => setTimeout(r, 500));
+}
+if (!lpub || lpub.tooSmall !== true || lpub.counts) fail("learn k-floor breach below MIN_N: " + JSON.stringify(lpub));
+ok("learn below floor: public agg is tooSmall-only");
+// four more first attempts cross the floor: three right, one more wrong
+for (let n = 0; n < 4; n++) {
+  const lApp = initializeApp({ projectId: "demo-insight", apiKey: "demo", appId: "demo" }, "learner" + n);
+  const lAuth = getAuth(lApp); connectAuthEmulator(lAuth, "http://127.0.0.1:9099", { disableWarnings: true });
+  const lDb = getFirestore(lApp); connectFirestoreEmulator(lDb, "127.0.0.1", 8080);
+  const u = await signInAnonymously(lAuth);
+  await setDoc(doc(lDb, "v2_users", u.user.uid, "answers", LQ), {
+    qid: LQ, surface: "learn", optionIdx: n < 3 ? 0 : 1,
+    answeredAt: serverTimestamp(), anchors: {},
+  });
+}
+let labove = null;
+for (let i = 0; i < 40; i++) {
+  const snap = await getDoc(doc(db, "v2_question_aggs", LQ));
+  if (snap.exists() && snap.get("tooSmall") === false) { labove = snap.data(); break; }
+  await new Promise((r) => setTimeout(r, 500));
+}
+if (!labove) fail("learn counts never appeared above the floor");
+// trap, then 0,0,0,1 → {0:3, 1:1, 2:1}, total 5. "% got it right" is
+// counts[correct]/total = 3/5, computed client-side — the server never
+// learned which option was correct.
+if (labove.total !== 5 || labove.counts["0"] !== 3 || labove.counts["1"] !== 1 || labove.counts["2"] !== 1)
+  fail("learn counts wrong above floor: " + JSON.stringify(labove));
+ok("learn crowd stat: 5 first attempts, floor held, 3/5 right");
+
 console.log("\nALL E2E CHECKS PASSED");
 process.exit(0);

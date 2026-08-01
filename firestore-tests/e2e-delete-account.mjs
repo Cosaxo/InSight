@@ -63,6 +63,10 @@ const SHARED = "grp_shared";
 // still has to clean them up for accounts that predate that.
 await adb.doc(`v2_users/${uid}`).set({ displayName: "Doomed", anon: true });
 await adb.doc(`v2_users/${uid}/answers/daily-000`).set({ qid: "daily-000", optionIdx: 1 });
+// A learn first attempt (D32) lives in the same answers subcollection —
+// erasure must cover it identically, and this seed is what proves the
+// claim instead of assuming the recursiveDelete reaches it.
+await adb.doc(`v2_users/${uid}/answers/learn-cell1`).set({ qid: "learn-cell1", surface: "learn", optionIdx: 2 });
 await adb.doc(`insight_users/${uid}`).set({ sharePrefs: {} });
 await adb.doc(`insight_users/${uid}/insight_daily/${DAY}`).set({ date: DAY, mood: 60 });
 await adb.doc(`insight_discoverable/${uid}`).set({ location: { geohash: "u4pru" } });
@@ -144,6 +148,7 @@ await setDoc(doc(db, "v2_users", uid, "answers", "client-written"), {
 for (const [path, label] of [
   [`v2_users/${uid}`, "v2 profile"],
   [`v2_users/${uid}/answers/daily-000`, "v2 answer"],
+  [`v2_users/${uid}/answers/learn-cell1`, "learn answer (D32)"],
   [`insight_users/${uid}`, "v1 profile"],
   [`insight_discoverable/${uid}`, "discoverable doc"],
   [`insight_ratelimits/${uid}`, "v1 rate-limit ledger"],
@@ -202,6 +207,7 @@ ok("auth user is gone");
 for (const [path, label] of [
   [`v2_users/${uid}`, "v2 profile"],
   [`v2_users/${uid}/answers/daily-000`, "v2 answer (subcollection)"],
+  [`v2_users/${uid}/answers/learn-cell1`, "learn answer (subcollection, D32)"],
   [`v2_users/${uid}/answers/client-written`, "client-written answer"],
   [`insight_users/${uid}`, "v1 profile"],
   [`insight_users/${uid}/insight_daily/${DAY}`, "v1 daily report (subcollection)"],

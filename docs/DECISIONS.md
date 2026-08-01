@@ -2687,3 +2687,76 @@ and no store privacy form changes. If it ever syncs: the rules cap
 fifth (`logic`) fits without a rules change — a client-only
 `saveTestResult('logic', …)` plus a data-inventory row and a store-form
 re-answer. That bundle is exactly why it does not ride along now.
+
+## D32 · Learn's crowd stat is measured — first attempts only, estimates labeled
+
+**Date:** 2026-08-01 · **Status:** Adopted by the owner ("build real
+crowd stats now"), docs/LAUNCH-PLAN.md W-Learn
+
+**What changed.** A learn card's "X% of people got this right" was an
+authored number (`p`) presented by demo surfaces. At launch it becomes a
+measured one: learn cards join the live bank (surface `"learn"`, 96 docs
+seeded from the new single source `content/learn-questions.json`), first
+attempts aggregate through the existing k-floored pipeline, and the
+reveal names its source. The whole workstream is content + rules-lines +
+client: **the aggregate trigger is untouched**, verified by the new e2e
+leg — the vote fold was already surface-agnostic over `optionIdx`.
+
+**First attempt counts, and D5 is the mechanism.** Learn's scheduler
+re-asks cards by design (GAP 4, STREAK 3, 12-day check-ins), which
+collides with a people-rate: counting attempts would measure the
+scheduler (a struggling user contributes four answers, mostly wrong).
+Resolution: the first exposure — the one moment that measures difficulty
+— is written as a plain world answer (`v2_users/{uid}/answers/learn-<id>`,
+create-only, id == qid); every later attempt is denied as an update by
+the same rule that makes every answer immutable. The psychometric policy
+and the privacy invariant are one mechanism, enforced at the rules level
+(a rules case pins the refused retry) — not client politeness. The
+alternative (a separate attempts collection) needs its own trigger,
+deploy-allowlist entry and per-event dedup, and its dedup requirement
+collapses back into exactly this keying.
+
+**The server never learns the right answer.** Learn docs carry only
+prompt/options/topic; `c`, the trap, the estimate and the map label stay
+client-side (the bundle ships `c` today regardless). "% got it right" =
+`counts[c]/total`, computed on the device from the public agg. The e2e
+leg's shape is the proof: counts fold with zero server-side learn code.
+
+**Cold start: the estimate is labeled, always.** Below the floor (or
+unfetched), the reveal shows the authored `LEARN_SPLIT` model with "Our
+estimate — becomes measured once enough people have answered"; above it,
+the measured split with "Real answers from N+ players" (the lower-bound
+phrasing the publish cadence already established, D7). The seam is one
+function (`LEARN_SPLIT` + `LEARN_SPLIT_SRC`, unit-pinned): an authored
+number can never render as a measurement (D1).
+
+**Leveling stays on the authored `p` — display-only measurement for
+now.** At n=5..20 answers, one publish step can move a card's rate by
+tens of points; leveling on it would re-rank "on your level" between
+sittings and make mastery drift. Revisit when cards routinely clear
+~100 first attempts (one publish step then moves the rate ≤5 points).
+
+**Demo honesty in live builds.** The first-run fake mastered seed (six
+known cards, one mid-streak) is demo-only, gated on the build flag
+(module scope runs before the live boot attaches — the same signal as
+live.ts's demoInProd); a live build starts Learn at its real zero.
+learn-social's synthetic friend standings render honest absence in live
+mode (the D11 structural pattern).
+
+**Single source of truth, and the farm's one single-gate lane.** The 96
+cards moved to `content/learn-questions.json` (extracted by script,
+verified deep-equal); learn-data.js imports it statically — a data
+import, not cross-module load-order coupling — so the demo cards and the
+seeded docs cannot drift. Consequence, recorded in QUESTION-FARM.md's
+learn-lane section: a merged learn-card PR reaches production on the
+next reseed, so its review bar is production-level.
+
+**Coverage.** Rules: accept/retry-refused/range/class cases. Unit: bank
+fencing (splitBanks allowlists — a learn card in the daily deck would be
+an opinion vote with a secretly right answer), the LEARN_SPLIT seam's
+three states, the LIVE surface pin (+learnAnswer/learnAgg). E2e (deploy
+path): five first attempts cross the floor with exact counts, the retry
+refused; erasure seeds and asserts a learn answer beside the daily one
+(same subcollection — `recursiveDelete` covers it, now proven not
+assumed). Store forms: no new category — the existing "answers, test
+results" row's inventory text names learn answers (data-inventory.md).

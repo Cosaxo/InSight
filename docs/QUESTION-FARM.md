@@ -276,6 +276,36 @@ growing faster than the calendar — users never see a repeat. Every
 promoted question buys one day of runway; a 90-question bank alone is
 ~13 weeks even if promotion stops.
 
+## The learn-card lane (D32 — a single-gate lane, so the bar is higher)
+
+Learn cards live in `content/learn-questions.json` — the single source of
+truth since D32: the same file feeds `window.LEARN_CARDS` (via a static
+import in `src/v2/spec/learn-data.js`) and the seeded live bank (via
+`gen-v2content.mjs`). Unlike dailies there is no spec-vs-live split to
+graduate across, so a merged learn card reaches production on the next
+reseed. **One gate instead of two means the PR review IS the production
+review.** Rules for a learn run:
+
+- **Budget ≤8 cards/run**, thinnest fields first (a field below 8 cards
+  cannot sustain the scheduler's spacing).
+- **The trap `t` is the product, not filler** — the PR body argues each
+  card's trap individually: which wrong answer real people actually pick,
+  and why. A card whose wrong options are noise is not an InSight card.
+- **`p` is the authored cold-start estimate**, shown labeled ("our
+  estimate") until the measured rate clears the k-floor — never presented
+  as measured (D1). Estimate honestly; it is also the difficulty input to
+  "on your level".
+- **`c`/`t` mistakes ship a card that teaches the wrong answer** —
+  `check:content` validates ranges and c≠t, but only a human can check the
+  fact. Cite a source for any card that could be contested.
+- **`k` is the map label**: 2–6 words, and it must be true standing alone.
+- **New fields or subjects are a human decision** proposed in the PR body,
+  never added by the run (the map's group layout is structural).
+- Ids: next free suffix in the field's series (`cell9`, …); append at the
+  end of `cards`; never renumber (answers key on `learn-<id>` forever).
+- Gates before the PR: `npm run check:content`, `check:globals`, `lint`,
+  `test:unit`, `build`. Same PR shape and run log as the daily job.
+
 ## Deliberately out of scope (recorded so it stays a decision, not drift)
 
 - **Paid geo-insight (city / country / world questions).** Cities and
