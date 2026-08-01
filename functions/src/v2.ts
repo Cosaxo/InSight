@@ -24,6 +24,7 @@ import { assertOperator, HOT_TRIGGER } from "./ops";
 import { onDocumentCreated } from "firebase-functions/v2/firestore";
 import { logger } from "firebase-functions";
 import { V2_QUESTIONS } from "./v2content";
+import { seedQuestions } from "./seedCore";
 import {
   canonBreakdownFor,
   catalogEntityKey,
@@ -115,53 +116,16 @@ const CATALOG_DOMAINS: Record<string, CatalogSpec> = {
 };
 
 // ── content seed ────────────────────────────────────────────────
+// The seed loop itself lives in seedCore.ts so the deploy workflow's
+// post-deploy seeder (scripts/seed-prod.mjs, D36) runs the SAME code —
+// two copies of "active only on create" would drift exactly where it
+// matters most.
 
 async function runSeedV2(): Promise<{ written: number }> {
-  const db = getFirestore();
-  const refs = V2_QUESTIONS.map((q) => db.collection("v2_questions").doc(q.id));
-  // `active` is the operational kill switch — the seed must never flip a
-  // question ops disabled back on, so it is only written on first create.
-  const existing = new Set(
-    (await db.getAll(...refs)).filter((s) => s.exists).map((s) => s.id),
+  const { written } = await seedQuestions(getFirestore(), V2_QUESTIONS, (m) =>
+    logger.info(`[v2] ${m}`),
   );
-  let batch = db.batch();
-  let inBatch = 0;
-  for (let i = 0; i < V2_QUESTIONS.length; i++) {
-    const q = V2_QUESTIONS[i];
-    const payload: Record<string, unknown> = {
-      surface: q.surface,
-      seq: q.seq,
-      type: q.type,
-      // The aggregate trigger reads the question doc's `domain` to pick the
-      // catalogue an `entity` answer validates against (D14/D15) — the seed
-      // must transport it or live catalog questions can never aggregate.
-      domain: q.domain,
-      prompt: q.prompt,
-      options: q.options,
-      topic: q.topic,
-      axis: q.axis,
-      test: q.test,
-      updatedAt: FieldValue.serverTimestamp(),
-    };
-    if (!existing.has(q.id)) payload.active = true;
-    batch.set(refs[i], payload, { merge: true });
-    // Firestore batches cap at 500 ops.
-    if (++inBatch === 450) {
-      await batch.commit();
-      batch = db.batch();
-      inBatch = 0;
-    }
-  }
-  if (inBatch > 0) await batch.commit();
-  // Bump the content revision — clients cache the question bank locally
-  // and refetch only when this changes (one meta read per boot instead
-  // of ~190 bank reads).
-  await db.collection("v2_meta").doc("app").set(
-    { contentRev: FieldValue.serverTimestamp() },
-    { merge: true },
-  );
-  logger.info(`[v2] seeded ${V2_QUESTIONS.length} questions (${existing.size} pre-existing)`);
-  return { written: V2_QUESTIONS.length };
+  return { written };
 }
 
 export const seedContentV2 = onCall({ region: REGION }, async (request) => {

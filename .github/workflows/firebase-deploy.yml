@@ -51,6 +51,10 @@ jobs:
     environment: production
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          # Full history: the seed step below diffs github.event.before..sha
+          # to decide whether the bank changed in this push.
+          fetch-depth: 0
 
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
@@ -169,3 +173,28 @@ jobs:
         env:
           GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/sa-key.json
         run: npx firebase deploy --project prvfire33 --non-interactive --only "hosting"
+
+      # Content reaches production the moment its merge deploys (D36):
+      # when the compiled bank changed in this push, seed it with the same
+      # loop the seedContentV2 callable runs (functions/lib/seedCore.js —
+      # built above). LAST on purpose, so a seed failure can never block
+      # the rules/functions apply — and deliberately NOT continue-on-error:
+      # a red run here is the alarm that replaced the "operator forgot to
+      # reseed" failure mode. Merge-idempotent; `active` never rewritten.
+      # workflow_dispatch and unknowable diffs default to seeding — the
+      # safe direction, since the seed is idempotent.
+      - name: Seed question bank
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/sa-key.json
+        run: |
+          CHANGED=1
+          if [ "${{ github.event_name }}" = "push" ] && [ "${{ github.event.before }}" != "0000000000000000000000000000000000000000" ]; then
+            if DIFF=$(git diff --name-only "${{ github.event.before }}" "${{ github.sha }}" -- functions/src/v2content.ts 2>/dev/null); then
+              if [ -z "$DIFF" ]; then CHANGED=0; fi
+            fi
+          fi
+          if [ "$CHANGED" = "1" ]; then
+            node scripts/seed-prod.mjs
+          else
+            echo "question bank unchanged in this push — skipping seed"
+          fi
