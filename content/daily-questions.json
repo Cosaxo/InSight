@@ -1609,5 +1609,634 @@
         "Attention"
       ]
     ]
+  },
+  {
+    "id": "065",
+    "type": "choice",
+    "prompt": "Which chapter are you in?",
+    "tag": "The chapter",
+    "options": [
+      "Early pages",
+      "The thick of it",
+      "A turning point",
+      "A quiet chapter"
+    ],
+    "tone": "deep",
+    "cat": [
+      "Story",
+      "Chapters"
+    ],
+    "alts": [
+      [
+        "Goals",
+        "The decade"
+      ],
+      [
+        "Mind",
+        "Self"
+      ]
+    ]
+  },
+  {
+    "id": "066",
+    "type": "choice",
+    "prompt": "The story you tell most often is about…",
+    "tag": "Retellings",
+    "options": [
+      "A triumph",
+      "A disaster",
+      "A coincidence",
+      "A person"
+    ],
+    "tone": "blend",
+    "cat": [
+      "Story",
+      "Retellings"
+    ],
+    "alts": [
+      [
+        "Interests",
+        "Stories"
+      ],
+      [
+        "Mind",
+        "Memory"
+      ]
+    ]
+  },
+  {
+    "id": "067",
+    "type": "binary",
+    "prompt": "Do you remember your past in pictures, or in stories?",
+    "tag": "How you remember",
+    "options": [
+      "Pictures",
+      "Stories"
+    ],
+    "tone": "blend",
+    "cat": [
+      "Story",
+      "Memory"
+    ],
+    "alts": [
+      [
+        "Mind",
+        "Memory"
+      ],
+      [
+        "Interests",
+        "How minds work"
+      ]
+    ]
+  },
+  {
+    "id": "068",
+    "type": "choice",
+    "prompt": "If someone wrote your biography, the title would mention…",
+    "tag": "The biography",
+    "options": [
+      "A place",
+      "A person",
+      "A struggle",
+      "A joke"
+    ],
+    "tone": "blend",
+    "cat": [
+      "Story",
+      "The book of you"
+    ],
+    "alts": [
+      [
+        "Mind",
+        "Identity"
+      ],
+      [
+        "Values",
+        "What matters"
+      ]
+    ]
+  },
+  {
+    "id": "069",
+    "type": "binary",
+    "prompt": "Big goals: write them down, or keep them quiet?",
+    "tag": "Goal keeping",
+    "options": [
+      "Write them down",
+      "Keep them quiet"
+    ],
+    "tone": "blend",
+    "cat": [
+      "Goals",
+      "Method"
+    ],
+    "alts": [
+      [
+        "Mind",
+        "Habits"
+      ],
+      [
+        "Skills",
+        "Discipline"
+      ]
+    ]
+  },
+  {
+    "id": "070",
+    "type": "scale",
+    "prompt": "I'd rather aim high and miss than aim safe and hit.",
+    "tag": "Aim high",
+    "axis": "high-aiming",
+    "tone": "deep",
+    "cat": [
+      "Goals",
+      "Ambition"
+    ],
+    "alts": [
+      [
+        "Values",
+        "Risk"
+      ],
+      [
+        "Mind",
+        "Temperament"
+      ]
+    ]
+  },
+  {
+    "id": "071",
+    "type": "choice",
+    "prompt": "What usually stops you?",
+    "tag": "The obstacle",
+    "options": [
+      "Starting",
+      "Sticking with it",
+      "Finishing",
+      "Knowing what I want"
+    ],
+    "tone": "deep",
+    "cat": [
+      "Goals",
+      "The obstacle"
+    ],
+    "alts": [
+      [
+        "Mind",
+        "Agency"
+      ],
+      [
+        "Skills",
+        "Follow-through"
+      ]
+    ]
+  },
+  {
+    "id": "072",
+    "type": "binary",
+    "prompt": "Retire early, or never fully retire?",
+    "tag": "The long game",
+    "options": [
+      "Early",
+      "Never fully"
+    ],
+    "tone": "blend",
+    "cat": [
+      "Goals",
+      "The long game"
+    ],
+    "alts": [
+      [
+        "Values",
+        "Work"
+      ],
+      [
+        "Story",
+        "The future"
+      ]
+    ]
+  },
+  {
+    "id": "073",
+    "type": "choice",
+    "prompt": "Your body mostly asks for…",
+    "tag": "Body signals",
+    "options": [
+      "Sleep",
+      "Food",
+      "Movement",
+      "Quiet"
+    ],
+    "tone": "light",
+    "cat": [
+      "Body",
+      "Signals"
+    ],
+    "alts": [
+      [
+        "Mind",
+        "Needs"
+      ],
+      [
+        "Home",
+        "Rhythm"
+      ]
+    ]
+  },
+  {
+    "id": "074",
+    "type": "binary",
+    "prompt": "Sauna or ice bath?",
+    "tag": "Heat or cold",
+    "options": [
+      "Sauna",
+      "Ice bath"
+    ],
+    "tone": "light",
+    "cat": [
+      "Body",
+      "Heat or cold"
+    ],
+    "alts": [
+      [
+        "Interests",
+        "Rituals"
+      ],
+      [
+        "Travel",
+        "Nordic things"
+      ]
+    ]
+  },
+  {
+    "id": "075",
+    "type": "scale",
+    "prompt": "Eight hours of sleep is non-negotiable.",
+    "tag": "Sleep rules",
+    "axis": "sleep-strict",
+    "tone": "blend",
+    "cat": [
+      "Body",
+      "Sleep"
+    ],
+    "alts": [
+      [
+        "Mind",
+        "Discipline"
+      ],
+      [
+        "Home",
+        "Rhythm"
+      ]
+    ]
+  },
+  {
+    "id": "076",
+    "type": "binary",
+    "prompt": "Stairs or escalator?",
+    "tag": "Small choices",
+    "options": [
+      "Stairs",
+      "Escalator"
+    ],
+    "tone": "light",
+    "cat": [
+      "Body",
+      "Everyday movement"
+    ],
+    "alts": [
+      [
+        "Mind",
+        "Habits"
+      ],
+      [
+        "Values",
+        "Effort"
+      ]
+    ]
+  },
+  {
+    "id": "077",
+    "type": "binary",
+    "prompt": "Music while you work?",
+    "tag": "Work soundtrack",
+    "options": [
+      "Always",
+      "Never"
+    ],
+    "tone": "light",
+    "cat": [
+      "Music",
+      "When you listen"
+    ],
+    "alts": [
+      [
+        "Mind",
+        "Focus"
+      ],
+      [
+        "Skills",
+        "How you work"
+      ]
+    ]
+  },
+  {
+    "id": "078",
+    "type": "choice",
+    "prompt": "The music that made you was from your…",
+    "tag": "Formative years",
+    "options": [
+      "Teens",
+      "Twenties",
+      "Childhood",
+      "Last year"
+    ],
+    "tone": "blend",
+    "cat": [
+      "Music",
+      "Formative years"
+    ],
+    "alts": [
+      [
+        "Story",
+        "Then and now"
+      ],
+      [
+        "Mind",
+        "Memory"
+      ]
+    ]
+  },
+  {
+    "id": "079",
+    "type": "binary",
+    "prompt": "One album forever, or shuffle forever?",
+    "tag": "One album",
+    "options": [
+      "One album",
+      "Shuffle"
+    ],
+    "tone": "light",
+    "cat": [
+      "Music",
+      "How you listen"
+    ],
+    "alts": [
+      [
+        "Mind",
+        "Depth or range"
+      ],
+      [
+        "Interests",
+        "Music"
+      ]
+    ]
+  },
+  {
+    "id": "080",
+    "type": "binary",
+    "prompt": "Same place every year, or somewhere new every time?",
+    "tag": "Repeat or explore",
+    "options": [
+      "Same place",
+      "Somewhere new"
+    ],
+    "tone": "blend",
+    "cat": [
+      "Travel",
+      "Repeat or explore"
+    ],
+    "alts": [
+      [
+        "Values",
+        "Novelty"
+      ],
+      [
+        "Home",
+        "Rituals"
+      ]
+    ]
+  },
+  {
+    "id": "081",
+    "type": "binary",
+    "prompt": "Underdog stories or dynasties?",
+    "tag": "Who you root for",
+    "options": [
+      "Underdogs",
+      "Dynasties"
+    ],
+    "tone": "blend",
+    "cat": [
+      "Sport",
+      "Rooting"
+    ],
+    "alts": [
+      [
+        "Story",
+        "Narratives"
+      ],
+      [
+        "Values",
+        "What you admire"
+      ]
+    ]
+  },
+  {
+    "id": "082",
+    "type": "binary",
+    "prompt": "Sweet or salty?",
+    "tag": "Cravings",
+    "options": [
+      "Sweet",
+      "Salty"
+    ],
+    "tone": "light",
+    "cat": [
+      "Food",
+      "Cravings"
+    ],
+    "alts": [
+      [
+        "Body",
+        "Signals"
+      ],
+      [
+        "Interests",
+        "Taste"
+      ]
+    ]
+  },
+  {
+    "id": "083",
+    "type": "binary",
+    "prompt": "Spoilers: ruin everything, or don't matter?",
+    "tag": "Spoilers",
+    "options": [
+      "Ruin everything",
+      "Don't matter"
+    ],
+    "tone": "light",
+    "cat": [
+      "Film",
+      "Spoilers"
+    ],
+    "alts": [
+      [
+        "Mind",
+        "Anticipation"
+      ],
+      [
+        "Values",
+        "Surprise"
+      ]
+    ]
+  },
+  {
+    "id": "084",
+    "type": "dilemma",
+    "prompt": "You can know one true thing about how someone sees you. Ask, or not?",
+    "tag": "The one truth",
+    "options": [
+      "Ask",
+      "Never ask"
+    ],
+    "tone": "deep",
+    "cat": [
+      "Values",
+      "Truth"
+    ],
+    "alts": [
+      [
+        "Mind",
+        "Self"
+      ],
+      [
+        "Morals",
+        "Courage"
+      ]
+    ]
+  },
+  {
+    "id": "085",
+    "type": "scale",
+    "prompt": "An apology can fix almost anything.",
+    "tag": "Repair",
+    "axis": "forgiving",
+    "tone": "deep",
+    "cat": [
+      "Values",
+      "Repair"
+    ],
+    "alts": [
+      [
+        "Morals",
+        "Forgiveness"
+      ],
+      [
+        "Mind",
+        "Relationships"
+      ]
+    ]
+  },
+  {
+    "id": "086",
+    "type": "choice",
+    "prompt": "Who do you owe most?",
+    "tag": "Debts",
+    "options": [
+      "Family",
+      "Friends",
+      "Strangers in need",
+      "Yourself"
+    ],
+    "tone": "deep",
+    "cat": [
+      "Morals",
+      "Debts"
+    ],
+    "alts": [
+      [
+        "Values",
+        "Circle"
+      ],
+      [
+        "Mind",
+        "Priorities"
+      ]
+    ]
+  },
+  {
+    "id": "087",
+    "type": "dilemma",
+    "prompt": "A favourite artist turns out to have done something awful. Keep listening?",
+    "tag": "Art and artist",
+    "options": [
+      "Keep listening",
+      "Can't anymore"
+    ],
+    "tone": "deep",
+    "cat": [
+      "Morals",
+      "Art and artist"
+    ],
+    "alts": [
+      [
+        "Music",
+        "What it does"
+      ],
+      [
+        "Values",
+        "Principles"
+      ]
+    ]
+  },
+  {
+    "id": "088",
+    "type": "choice",
+    "prompt": "The best seat in your home is…",
+    "tag": "The good spot",
+    "options": [
+      "The sofa",
+      "The kitchen table",
+      "The bed",
+      "By the window"
+    ],
+    "tone": "light",
+    "cat": [
+      "Home",
+      "The good spot"
+    ],
+    "alts": [
+      [
+        "Body",
+        "Comfort"
+      ],
+      [
+        "Interests",
+        "Small pleasures"
+      ]
+    ]
+  },
+  {
+    "id": "089",
+    "type": "rating",
+    "prompt": "How alive is your curiosity these days?",
+    "tag": "Curiosity",
+    "axis": "curious",
+    "tone": "blend",
+    "cat": [
+      "Interests",
+      "Curiosity"
+    ],
+    "alts": [
+      [
+        "Mind",
+        "Energy"
+      ],
+      [
+        "Goals",
+        "Growth"
+      ]
+    ]
   }
 ]

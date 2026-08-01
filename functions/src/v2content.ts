@@ -1090,6 +1090,414 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "test": null
  },
  {
+  "id": "daily-065",
+  "surface": "daily",
+  "seq": 65,
+  "type": "choice",
+  "domain": null,
+  "prompt": "Which chapter are you in?",
+  "options": [
+   "Early pages",
+   "The thick of it",
+   "A turning point",
+   "A quiet chapter"
+  ],
+  "topic": "deep",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "daily-066",
+  "surface": "daily",
+  "seq": 66,
+  "type": "choice",
+  "domain": null,
+  "prompt": "The story you tell most often is about…",
+  "options": [
+   "A triumph",
+   "A disaster",
+   "A coincidence",
+   "A person"
+  ],
+  "topic": "blend",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "daily-067",
+  "surface": "daily",
+  "seq": 67,
+  "type": "binary",
+  "domain": null,
+  "prompt": "Do you remember your past in pictures, or in stories?",
+  "options": [
+   "Pictures",
+   "Stories"
+  ],
+  "topic": "blend",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "daily-068",
+  "surface": "daily",
+  "seq": 68,
+  "type": "choice",
+  "domain": null,
+  "prompt": "If someone wrote your biography, the title would mention…",
+  "options": [
+   "A place",
+   "A person",
+   "A struggle",
+   "A joke"
+  ],
+  "topic": "blend",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "daily-069",
+  "surface": "daily",
+  "seq": 69,
+  "type": "binary",
+  "domain": null,
+  "prompt": "Big goals: write them down, or keep them quiet?",
+  "options": [
+   "Write them down",
+   "Keep them quiet"
+  ],
+  "topic": "blend",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "daily-070",
+  "surface": "daily",
+  "seq": 70,
+  "type": "scale",
+  "domain": null,
+  "prompt": "I'd rather aim high and miss than aim safe and hit.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "deep",
+  "axis": "high-aiming",
+  "test": null
+ },
+ {
+  "id": "daily-071",
+  "surface": "daily",
+  "seq": 71,
+  "type": "choice",
+  "domain": null,
+  "prompt": "What usually stops you?",
+  "options": [
+   "Starting",
+   "Sticking with it",
+   "Finishing",
+   "Knowing what I want"
+  ],
+  "topic": "deep",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "daily-072",
+  "surface": "daily",
+  "seq": 72,
+  "type": "binary",
+  "domain": null,
+  "prompt": "Retire early, or never fully retire?",
+  "options": [
+   "Early",
+   "Never fully"
+  ],
+  "topic": "blend",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "daily-073",
+  "surface": "daily",
+  "seq": 73,
+  "type": "choice",
+  "domain": null,
+  "prompt": "Your body mostly asks for…",
+  "options": [
+   "Sleep",
+   "Food",
+   "Movement",
+   "Quiet"
+  ],
+  "topic": "light",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "daily-074",
+  "surface": "daily",
+  "seq": 74,
+  "type": "binary",
+  "domain": null,
+  "prompt": "Sauna or ice bath?",
+  "options": [
+   "Sauna",
+   "Ice bath"
+  ],
+  "topic": "light",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "daily-075",
+  "surface": "daily",
+  "seq": 75,
+  "type": "scale",
+  "domain": null,
+  "prompt": "Eight hours of sleep is non-negotiable.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "blend",
+  "axis": "sleep-strict",
+  "test": null
+ },
+ {
+  "id": "daily-076",
+  "surface": "daily",
+  "seq": 76,
+  "type": "binary",
+  "domain": null,
+  "prompt": "Stairs or escalator?",
+  "options": [
+   "Stairs",
+   "Escalator"
+  ],
+  "topic": "light",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "daily-077",
+  "surface": "daily",
+  "seq": 77,
+  "type": "binary",
+  "domain": null,
+  "prompt": "Music while you work?",
+  "options": [
+   "Always",
+   "Never"
+  ],
+  "topic": "light",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "daily-078",
+  "surface": "daily",
+  "seq": 78,
+  "type": "choice",
+  "domain": null,
+  "prompt": "The music that made you was from your…",
+  "options": [
+   "Teens",
+   "Twenties",
+   "Childhood",
+   "Last year"
+  ],
+  "topic": "blend",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "daily-079",
+  "surface": "daily",
+  "seq": 79,
+  "type": "binary",
+  "domain": null,
+  "prompt": "One album forever, or shuffle forever?",
+  "options": [
+   "One album",
+   "Shuffle"
+  ],
+  "topic": "light",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "daily-080",
+  "surface": "daily",
+  "seq": 80,
+  "type": "binary",
+  "domain": null,
+  "prompt": "Same place every year, or somewhere new every time?",
+  "options": [
+   "Same place",
+   "Somewhere new"
+  ],
+  "topic": "blend",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "daily-081",
+  "surface": "daily",
+  "seq": 81,
+  "type": "binary",
+  "domain": null,
+  "prompt": "Underdog stories or dynasties?",
+  "options": [
+   "Underdogs",
+   "Dynasties"
+  ],
+  "topic": "blend",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "daily-082",
+  "surface": "daily",
+  "seq": 82,
+  "type": "binary",
+  "domain": null,
+  "prompt": "Sweet or salty?",
+  "options": [
+   "Sweet",
+   "Salty"
+  ],
+  "topic": "light",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "daily-083",
+  "surface": "daily",
+  "seq": 83,
+  "type": "binary",
+  "domain": null,
+  "prompt": "Spoilers: ruin everything, or don't matter?",
+  "options": [
+   "Ruin everything",
+   "Don't matter"
+  ],
+  "topic": "light",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "daily-084",
+  "surface": "daily",
+  "seq": 84,
+  "type": "dilemma",
+  "domain": null,
+  "prompt": "You can know one true thing about how someone sees you. Ask, or not?",
+  "options": [
+   "Ask",
+   "Never ask"
+  ],
+  "topic": "deep",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "daily-085",
+  "surface": "daily",
+  "seq": 85,
+  "type": "scale",
+  "domain": null,
+  "prompt": "An apology can fix almost anything.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "deep",
+  "axis": "forgiving",
+  "test": null
+ },
+ {
+  "id": "daily-086",
+  "surface": "daily",
+  "seq": 86,
+  "type": "choice",
+  "domain": null,
+  "prompt": "Who do you owe most?",
+  "options": [
+   "Family",
+   "Friends",
+   "Strangers in need",
+   "Yourself"
+  ],
+  "topic": "deep",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "daily-087",
+  "surface": "daily",
+  "seq": 87,
+  "type": "dilemma",
+  "domain": null,
+  "prompt": "A favourite artist turns out to have done something awful. Keep listening?",
+  "options": [
+   "Keep listening",
+   "Can't anymore"
+  ],
+  "topic": "deep",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "daily-088",
+  "surface": "daily",
+  "seq": 88,
+  "type": "choice",
+  "domain": null,
+  "prompt": "The best seat in your home is…",
+  "options": [
+   "The sofa",
+   "The kitchen table",
+   "The bed",
+   "By the window"
+  ],
+  "topic": "light",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "daily-089",
+  "surface": "daily",
+  "seq": 89,
+  "type": "rating",
+  "domain": null,
+  "prompt": "How alive is your curiosity these days?",
+  "options": [
+   "1",
+   "2",
+   "3",
+   "4",
+   "5",
+   "6",
+   "7",
+   "8",
+   "9",
+   "10"
+  ],
+  "topic": "blend",
+  "axis": "curious",
+  "test": null
+ },
+ {
   "id": "feed-f01",
   "surface": "feed",
   "seq": 0,
