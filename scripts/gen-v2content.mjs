@@ -13,14 +13,19 @@
 // deliberate, reviewed regeneration of v2content.ts.
 //
 // Id scheme (stable forever — answers are immutable docs keyed by qid):
-//   daily-NNN / duo-NNN      positional, zero-padded to 3
-//   feed-<id> / group-<id>   explicit ids from the source JSON
-//   test-<key>-NN            positional within each test, zero-padded to 2
-// Positional ids mean INSERTING mid-array re-keys every later question and
-// silently attaches live answers to the wrong prompt — append only.
+//   daily-NNN / duo-NNN      explicit "NNN" on the source entry (3 digits)
+//   feed-<id> / group-<id>   explicit ids on the source entry
+//   test-<key>-NN            explicit "NN" on each item in tests.json
+// Every source entry MUST carry its id. The bank was positional once, and
+// positional ids mean inserting mid-array re-keys every later question —
+// silently attaching live immutable answers to the wrong prompt, the same
+// failure class D15 refuses for catalogue keys. New entries mint the next
+// free suffix deliberately; this script never invents one on its own.
 //
 // Modes: default = check (exit 1 if the committed file differs);
-//        --write = regenerate the file (`npm run build:content`).
+//        --write = regenerate the file (`npm run build:content`);
+//        --assign-ids = one-time migration, idempotent: writes the current
+//        positional suffix onto any entry that lacks an id.
 import { readFileSync, writeFileSync } from "node:fs";
 import { resolve, dirname, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -57,13 +62,25 @@ export function loadContent() {
 // counter across all four tests (test-political-00 has seq 10, not 0).
 // Property order in each entry is load-bearing — JSON.stringify preserves
 // insertion order, and the drift gate compares bytes.
+// Missing ids are a hard stop, not a fallback to position — falling back
+// would quietly reintroduce the re-keying hazard the ids exist to close.
+function requireId(q, where) {
+  if (typeof q.id !== "string" || q.id === "") {
+    throw new Error(
+      `${where}: entry ${JSON.stringify(q.prompt ?? "?")} has no id — ` +
+        "assign the next free suffix explicitly (see the id scheme in scripts/gen-v2content.mjs)",
+    );
+  }
+  return q.id;
+}
+
 export function buildEntries(content = loadContent()) {
   const { daily, feed, duel, tests } = content;
   const entries = [];
 
   daily.forEach((q, i) => {
     entries.push({
-      id: `daily-${String(i).padStart(3, "0")}`,
+      id: `daily-${requireId(q, `daily-questions.json[${i}]`)}`,
       surface: "daily",
       seq: i,
       type: q.type,
@@ -84,7 +101,7 @@ export function buildEntries(content = loadContent()) {
   // rank crowd/votes are dropped — live counts come from real answers (D1).
   feed.questions.forEach((q, i) => {
     entries.push({
-      id: `feed-${q.id}`,
+      id: `feed-${requireId(q, `feed-questions.json[${i}]`)}`,
       surface: "feed",
       seq: i,
       type: q.type,
@@ -101,7 +118,7 @@ export function buildEntries(content = loadContent()) {
   // (the group's members are the options, filled in client-side).
   duel.group.forEach((q, i) => {
     entries.push({
-      id: `group-${q.id}`,
+      id: `group-${requireId(q, `duel-questions.json group[${i}]`)}`,
       surface: "group",
       seq: i,
       type: "choice",
@@ -115,7 +132,7 @@ export function buildEntries(content = loadContent()) {
 
   duel.oneVsOne.forEach((q, i) => {
     entries.push({
-      id: `duo-${String(i).padStart(3, "0")}`,
+      id: `duo-${requireId(q, `duel-questions.json oneVsOne[${i}]`)}`,
       surface: "duo",
       seq: i,
       // Always "binary" — the duo reveal renders a two-sided comparison
@@ -133,7 +150,7 @@ export function buildEntries(content = loadContent()) {
   for (const [key, t] of Object.entries(tests)) {
     t.questions.forEach((q, i) => {
       entries.push({
-        id: `test-${key}-${String(i).padStart(2, "0")}`,
+        id: `test-${key}-${requireId(q, `tests.json ${key}[${i}]`)}`,
         surface: "test",
         seq: testSeq++,
         type: "scale",
@@ -167,7 +184,48 @@ export function generate(content = loadContent()) {
 // triggering a check run.
 if (import.meta.url === pathToFileURL(process.argv[1] ?? "").href) {
   const WRITE = process.argv.includes("--write");
-  const generated = generate();
+
+  if (process.argv.includes("--assign-ids")) {
+    // Migration from positional to explicit ids, idempotent: only entries
+    // without an id get one, and the suffix written is exactly the position
+    // the entry already emits under — so the generated output (and
+    // therefore v2content.ts) does not change by a byte. All three sources
+    // round-trip `JSON.stringify(…, null, 2) + "\n"` losslessly (probed
+    // before this mode existed), which is what makes an in-place rewrite
+    // a minimal diff.
+    const pad = (n, w) => String(n).padStart(w, "0");
+    const withId = (q, id) => (q.id === undefined ? { id, ...q } : q);
+    const rewrite = (name, transform) => {
+      const path = join(CONTENT, name);
+      const data = transform(JSON.parse(readFileSync(path, "utf8")));
+      writeFileSync(path, JSON.stringify(data, null, 2) + "\n");
+    };
+    rewrite("daily-questions.json", (d) =>
+      d.map((q, i) => withId(q, pad(i, 3))),
+    );
+    rewrite("duel-questions.json", (d) => ({
+      ...d,
+      oneVsOne: d.oneVsOne.map((q, i) => withId(q, pad(i, 3))),
+    }));
+    rewrite("tests.json", (tests) => {
+      for (const t of Object.values(tests)) {
+        t.questions = t.questions.map((q, i) => withId(q, pad(i, 2)));
+      }
+      return tests;
+    });
+    console.log(
+      "gen-v2content: assigned missing ids in place — confirm with the default check mode",
+    );
+    process.exit(0);
+  }
+
+  let generated;
+  try {
+    generated = generate();
+  } catch (e) {
+    console.error(`gen-v2content: ${e.message}`);
+    process.exit(1);
+  }
   let committed = null;
   try {
     committed = readFileSync(OUT, "utf8");

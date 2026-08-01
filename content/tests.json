@@ -32,42 +32,52 @@
     ],
     "questions": [
       {
+        "id": "00",
         "q": "I find new ideas more interesting than familiar ones.",
         "d": "O"
       },
       {
+        "id": "01",
         "q": "I enjoy thinking about abstract concepts.",
         "d": "O"
       },
       {
+        "id": "02",
         "q": "I keep appointments and rarely run late.",
         "d": "C"
       },
       {
+        "id": "03",
         "q": "I finish what I start, even when it gets dull.",
         "d": "C"
       },
       {
+        "id": "04",
         "q": "I feel energised by spending time with strangers.",
         "d": "E"
       },
       {
+        "id": "05",
         "q": "I prefer a loud party to a quiet evening.",
         "d": "E"
       },
       {
+        "id": "06",
         "q": "I try to keep the peace, even at some cost.",
         "d": "A"
       },
       {
+        "id": "07",
         "q": "I trust people until they give me reason not to.",
         "d": "A"
       },
       {
+        "id": "08",
         "q": "I worry about things I can't control.",
         "d": "N"
       },
       {
+        "id": "09",
         "q": "Small setbacks throw off my whole day.",
         "d": "N"
       }
@@ -111,53 +121,65 @@
     ],
     "questions": [
       {
+        "id": "00",
         "q": "Markets, left to themselves, distribute fairly.",
         "d": "econ"
       },
       {
+        "id": "01",
         "q": "A society is judged by how it treats the weakest.",
         "d": "econ",
         "invert": true
       },
       {
+        "id": "02",
         "q": "Some speech is harmful enough to restrict.",
         "d": "auth"
       },
       {
+        "id": "03",
         "q": "The state should keep out of private life.",
         "d": "auth",
         "invert": true
       },
       {
+        "id": "04",
         "q": "My country should help others before its own poor.",
         "d": "foreign"
       },
       {
+        "id": "05",
         "q": "Borders should be more open than they are now.",
         "d": "foreign"
       },
       {
+        "id": "06",
         "q": "Climate action is worth real economic cost.",
         "d": "env"
       },
       {
+        "id": "07",
         "q": "Green rules should hold even when jobs are on the line.",
         "d": "env"
       },
       {
+        "id": "08",
         "q": "New technology, on balance, makes life better.",
         "d": "tech"
       },
       {
+        "id": "09",
         "q": "Some technologies should be slowed down on purpose.",
         "d": "tech",
         "invert": true
       },
       {
+        "id": "10",
         "q": "Strong leaders matter more than strong institutions.",
         "d": "estab"
       },
       {
+        "id": "11",
         "q": "The system is rigged against ordinary people.",
         "d": "estab"
       }
@@ -201,52 +223,64 @@
     ],
     "questions": [
       {
+        "id": "00",
         "q": "Future generations will live better than ours.",
         "d": "future"
       },
       {
+        "id": "01",
         "q": "Most of what's changing right now is change for the better.",
         "d": "future"
       },
       {
+        "id": "02",
         "q": "What I owe my family weighs more than what I owe strangers.",
         "d": "circle",
         "invert": true
       },
       {
+        "id": "03",
         "q": "I'd sacrifice comfort now for a stranger's future.",
         "d": "circle"
       },
       {
+        "id": "04",
         "q": "Pleasure needs no justification.",
         "d": "hedonism"
       },
       {
+        "id": "05",
         "q": "Obligations come before enjoyment.",
         "d": "hedonism",
         "invert": true
       },
       {
+        "id": "06",
         "q": "Suffering can give life meaning, not just pain.",
         "d": "meaning"
       },
       {
+        "id": "07",
         "q": "A hard life spent on something big beats an easy one.",
         "d": "meaning"
       },
       {
+        "id": "08",
         "q": "There are objective right answers in ethics.",
         "d": "moral"
       },
       {
+        "id": "09",
         "q": "Some things are wrong in every era and every culture.",
         "d": "moral"
       },
       {
+        "id": "10",
         "q": "Beauty matters as much as truth.",
         "d": "beauty"
       },
       {
+        "id": "11",
         "q": "A beautiful thing needs no other use.",
         "d": "beauty"
       }
@@ -285,42 +319,52 @@
     ],
     "questions": [
       {
+        "id": "00",
         "q": "I show people I care without being asked.",
         "d": "warm"
       },
       {
+        "id": "01",
         "q": "I'm quick with a hug or a kind word.",
         "d": "warm"
       },
       {
+        "id": "02",
         "q": "Friends know I'll show up when it matters.",
         "d": "loyal"
       },
       {
+        "id": "03",
         "q": "Once you're my friend, you're my friend for years.",
         "d": "loyal"
       },
       {
+        "id": "04",
         "q": "I say what I'm feeling rather than keeping it in.",
         "d": "open"
       },
       {
+        "id": "05",
         "q": "I let people see the messy parts of me.",
         "d": "open"
       },
       {
+        "id": "06",
         "q": "I'm usually the one keeping things light and fun.",
         "d": "play"
       },
       {
+        "id": "07",
         "q": "I'd rather joke around than be too serious.",
         "d": "play"
       },
       {
+        "id": "08",
         "q": "Little gets under my skin in a friendship.",
         "d": "easy"
       },
       {
+        "id": "09",
         "q": "I give people room and don't keep score.",
         "d": "easy"
       }
