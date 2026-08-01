@@ -107,7 +107,7 @@ function persistTestResult(kind, result) {
 const IS_TESTS = {
     big5: {
       title: 'Big Five',
-      tag: 'personality · 10 questions · 5 traits',
+      tag: 'personality · 15 questions · 5 traits',
       accent: 'var(--c-around)',
       dims: [
         { id: 'O', label: 'Openness',          blurb: 'curiosity & range' },
@@ -127,11 +127,19 @@ const IS_TESTS = {
         { q: "I trust people until they give me reason not to.",       d: 'A' },
         { q: "I worry about things I can't control.",                  d: 'N' },
         { q: "Small setbacks throw off my whole day.",                 d: 'N' },
+        // Round 2 (one per trait, all reverse-keyed): the first ten items
+        // all keyed agreement to the high pole, so an agree-with-everything
+        // response style scored as a personality. These anchor the low end.
+        { q: "I stick with what I know works rather than experiment.", d: 'O', invert: true },
+        { q: "I leave things to the last minute more often than not.", d: 'C', invert: true },
+        { q: "A full day alone recharges me more than a night out.",   d: 'E', invert: true },
+        { q: "I'd rather win the argument than smooth things over.",   d: 'A', invert: true },
+        { q: "It takes a lot to rattle me.",                           d: 'N', invert: true },
       ],
     },
     political: {
       title: 'Politics',
-      tag: 'compass · 12 questions · 6 axes',
+      tag: 'compass · 18 questions · 6 axes',
       accent: 'var(--c-world)',
       dims: [
         { id: 'econ',    label: 'Economic',   blurb: 'left ←→ right' },
@@ -154,11 +162,19 @@ const IS_TESTS = {
         { q: "Some technologies should be slowed down on purpose.",    d: 'tech', invert: true },
         { q: "Strong leaders matter more than strong institutions.",   d: 'estab' },
         { q: "The system is rigged against ordinary people.",          d: 'estab' },
+        // Round 2: the axes that had both items keyed the same way
+        // (foreign/env/estab) get their reverse-keyed item here.
+        { q: "Lower taxes matter more than more public services.",     d: 'econ' },
+        { q: "More surveillance is a fair price for more safety.",     d: 'auth' },
+        { q: "My country should put its own people first.",            d: 'foreign', invert: true },
+        { q: "The dangers of climate change are exaggerated.",         d: 'env', invert: true },
+        { q: "Progress means building first and fixing problems as they come.", d: 'tech' },
+        { q: "Experts and institutions usually get it right.",         d: 'estab', invert: true },
       ],
     },
     values: {
       title: 'Values',
-      tag: '12 questions · six tensions',
+      tag: '18 questions · six tensions',
       accent: 'var(--c-people)',
       dims: [
         { id: 'future',   label: 'Future',   blurb: 'pessimist ←→ optimist' },
@@ -181,11 +197,19 @@ const IS_TESTS = {
         { q: "Some things are wrong in every era and every culture.",           d: 'moral' },
         { q: "Beauty matters as much as truth.",                                d: 'beauty' },
         { q: "A beautiful thing needs no other use.",                           d: 'beauty' },
+        // Round 2: reverse-keyed items for the tensions that lacked one
+        // (future/meaning/moral/beauty).
+        { q: "The world is mostly getting worse.",                              d: 'future', invert: true },
+        { q: "A stranger's suffering moves me as much as a neighbour's.",       d: 'circle' },
+        { q: "Enjoying myself is a good enough reason to do something.",        d: 'hedonism' },
+        { q: "A calm, happy life beats a hard, important one.",                 d: 'meaning', invert: true },
+        { q: "Right and wrong depend on the culture you're standing in.",       d: 'moral', invert: true },
+        { q: "Whether something works matters more than how it looks.",         d: 'beauty', invert: true },
       ],
     },
     attachment: {
       title: 'Social',
-      tag: '10 questions · what kind of friend you are',
+      tag: '15 questions · what kind of friend you are',
       accent: 'oklch(0.58 0.12 320)',
       dims: [
         { id: 'warm',  label: 'Warm',      blurb: 'reserved ←→ warm' },
@@ -205,6 +229,13 @@ const IS_TESTS = {
         { q: "I'd rather joke around than be too serious.",           d: 'play' },
         { q: "Little gets under my skin in a friendship.",            d: 'easy' },
         { q: "I give people room and don't keep score.",              d: 'easy' },
+        // Round 2 (one per dimension, all reverse-keyed — same
+        // acquiescence fix as big5).
+        { q: "Showing affection doesn't come naturally to me.",       d: 'warm', invert: true },
+        { q: "I drift between friend groups rather than settling into one.", d: 'loyal', invert: true },
+        { q: "I keep my problems to myself.",                         d: 'open', invert: true },
+        { q: "I take most things seriously, even the small stuff.",   d: 'play', invert: true },
+        { q: "I notice straight away when a friend pulls back.",      d: 'easy', invert: true },
       ],
     },
 };

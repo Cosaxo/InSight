@@ -1,7 +1,7 @@
 {
   "big5": {
     "title": "Big Five",
-    "tag": "personality · 10 questions · 5 traits",
+    "tag": "personality · 15 questions · 5 traits",
     "accent": "var(--c-around)",
     "dims": [
       {
@@ -80,12 +80,42 @@
         "id": "09",
         "q": "Small setbacks throw off my whole day.",
         "d": "N"
+      },
+      {
+        "id": "10",
+        "q": "I stick with what I know works rather than experiment.",
+        "d": "O",
+        "invert": true
+      },
+      {
+        "id": "11",
+        "q": "I leave things to the last minute more often than not.",
+        "d": "C",
+        "invert": true
+      },
+      {
+        "id": "12",
+        "q": "A full day alone recharges me more than a night out.",
+        "d": "E",
+        "invert": true
+      },
+      {
+        "id": "13",
+        "q": "I'd rather win the argument than smooth things over.",
+        "d": "A",
+        "invert": true
+      },
+      {
+        "id": "14",
+        "q": "It takes a lot to rattle me.",
+        "d": "N",
+        "invert": true
       }
     ]
   },
   "political": {
     "title": "Politics",
-    "tag": "compass · 12 questions · 6 axes",
+    "tag": "compass · 18 questions · 6 axes",
     "accent": "var(--c-world)",
     "dims": [
       {
@@ -182,12 +212,45 @@
         "id": "11",
         "q": "The system is rigged against ordinary people.",
         "d": "estab"
+      },
+      {
+        "id": "12",
+        "q": "Lower taxes matter more than more public services.",
+        "d": "econ"
+      },
+      {
+        "id": "13",
+        "q": "More surveillance is a fair price for more safety.",
+        "d": "auth"
+      },
+      {
+        "id": "14",
+        "q": "My country should put its own people first.",
+        "d": "foreign",
+        "invert": true
+      },
+      {
+        "id": "15",
+        "q": "The dangers of climate change are exaggerated.",
+        "d": "env",
+        "invert": true
+      },
+      {
+        "id": "16",
+        "q": "Progress means building first and fixing problems as they come.",
+        "d": "tech"
+      },
+      {
+        "id": "17",
+        "q": "Experts and institutions usually get it right.",
+        "d": "estab",
+        "invert": true
       }
     ]
   },
   "values": {
     "title": "Values",
-    "tag": "12 questions · six tensions",
+    "tag": "18 questions · six tensions",
     "accent": "var(--c-people)",
     "dims": [
       {
@@ -283,12 +346,46 @@
         "id": "11",
         "q": "A beautiful thing needs no other use.",
         "d": "beauty"
+      },
+      {
+        "id": "12",
+        "q": "The world is mostly getting worse.",
+        "d": "future",
+        "invert": true
+      },
+      {
+        "id": "13",
+        "q": "A stranger's suffering moves me as much as a neighbour's.",
+        "d": "circle"
+      },
+      {
+        "id": "14",
+        "q": "Enjoying myself is a good enough reason to do something.",
+        "d": "hedonism"
+      },
+      {
+        "id": "15",
+        "q": "A calm, happy life beats a hard, important one.",
+        "d": "meaning",
+        "invert": true
+      },
+      {
+        "id": "16",
+        "q": "Right and wrong depend on the culture you're standing in.",
+        "d": "moral",
+        "invert": true
+      },
+      {
+        "id": "17",
+        "q": "Whether something works matters more than how it looks.",
+        "d": "beauty",
+        "invert": true
       }
     ]
   },
   "attachment": {
     "title": "Social",
-    "tag": "10 questions · what kind of friend you are",
+    "tag": "15 questions · what kind of friend you are",
     "accent": "oklch(0.58 0.12 320)",
     "dims": [
       {
@@ -367,6 +464,36 @@
         "id": "09",
         "q": "I give people room and don't keep score.",
         "d": "easy"
+      },
+      {
+        "id": "10",
+        "q": "Showing affection doesn't come naturally to me.",
+        "d": "warm",
+        "invert": true
+      },
+      {
+        "id": "11",
+        "q": "I drift between friend groups rather than settling into one.",
+        "d": "loyal",
+        "invert": true
+      },
+      {
+        "id": "12",
+        "q": "I keep my problems to myself.",
+        "d": "open",
+        "invert": true
+      },
+      {
+        "id": "13",
+        "q": "I take most things seriously, even the small stuff.",
+        "d": "play",
+        "invert": true
+      },
+      {
+        "id": "14",
+        "q": "I notice straight away when a friend pulls back.",
+        "d": "easy",
+        "invert": true
       }
     ]
   }
