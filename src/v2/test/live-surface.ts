@@ -24,7 +24,8 @@
 export const LIVE_MEMBERS = [
   "aggFor", "appBuild", "confirmedVotes", "dailyBank", "deck",
   "deleteAccount", "demoInProd", "displayName", "enabled", "feedReady",
-  "latestBuild", "linkGoogle", "myCity", "myVotes", "ready", "saveAnchors",
+  "latestBuild", "learnAgg", "learnAnswer", "linkGoogle", "myCity",
+  "myVotes", "ready", "saveAnchors",
   "saveDisplayName",
   "saveTestResult", "social", "stats", "subscribe", "uid",
   "updateAvailable", "updateRequired", "updateUrl", "vote",

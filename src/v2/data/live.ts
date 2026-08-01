@@ -60,6 +60,7 @@ import {
   dayIndex as dayIndexPure,
   duelQFor as duelQForPure,
   isTooSmall,
+  splitBanks,
   utcDayIndex as utcDayIndexPure,
 } from "./deck";
 import type { AggDoc, LiveQuestion, QuestionDoc, VoteContext } from "./deck";
@@ -73,6 +74,17 @@ const state = {
   uid: null as string | null,
   questions: [] as Array<QuestionDoc & { id: string }>,
   feedBank: [] as Array<QuestionDoc & { id: string }>,
+  // Learn cards (D32) — consumed only through LIVE.learnAnswer/learnAgg;
+  // splitBanks fences them out of every other bank.
+  learnBank: [] as Array<QuestionDoc & { id: string }>,
+  // Per-session cache for learn aggregates: null = fetch in flight or
+  // found nothing; a doc = the k-floored public agg. On-demand getDoc at
+  // reveal time, NOT a standing subscription — 96 snapshots for cards
+  // mostly never seen is the wrong cost shape.
+  learnAggs: {} as Record<string, AggDoc | null>,
+  // First-attempt sends already fired this session (belt to the rules'
+  // braces: the create-only rule is the real enforcement).
+  learnSent: {} as Record<string, true>,
   deckDay: -1,
   deckIds: [] as string[],
   aggs: {} as Record<string, AggDoc>,
@@ -300,7 +312,7 @@ async function hydrate(): Promise<void> {
     const qsnap = await getDocs(
       query(
         collection(db, "v2_questions"),
-        where("surface", "in", ["daily", "feed", "test", "group", "duo"]),
+        where("surface", "in", ["daily", "feed", "test", "group", "duo", "learn"]),
         // Ceiling, not a target: 213 seeded post-W2, ~248 after the D30
         // archive promotion, ~344 with the planned learn surface — and the
         // promotion pipeline adds up to 12/week, ≈600/year. 1500 is about
@@ -322,32 +334,14 @@ async function hydrate(): Promise<void> {
     .filter((q) => q.active !== false)
     .sort((a, b) => (a.seq || 0) - (b.seq || 0));
 
-  // Bank docs are hand-editable in the console — the kill switch expects
-  // an operator in there — and nothing validates them on the way in. A doc
-  // missing `options` used to throw inside q.options.map, blanking a whole
-  // tab behind the ErrorBoundary. Drop unusable docs instead.
-  //
-  // Applied per bank rather than once over `active`, so a mistake in one
-  // predicate cannot empty a bank it was never meant to touch. "pick"
-  // duel questions are the deliberate exception: they carry no bank
-  // options because their options ARE the group's members.
-  const playable = (q: QuestionDoc & { id: string }) =>
-    Array.isArray(q.options) && q.options.length >= 2;
-  state.questions = active.filter((q) => q.surface === "daily" && playable(q));
-  // type "rank" is excluded from the LIVE feed on purpose. The bank seeds 8
-  // of them, and buildFeedGlobals used to serve them as single-choice vote
-  // cards — "Pure athleticism — rank them" with a pick-one UI, folding
-  // single options into aggregates that claim to be a ranking. Wrong-shaped
-  // answers are worse than no card: the counts stop being what the prompt
-  // says they are (the same honesty rule as D5). They return when answers
-  // can carry an order and the aggregator can fold one — the full
-  // arithmetic of that is recorded in docs/DECISIONS.md (D12). The demo
-  // feed keeps its rank cards; they never touch aggregates.
-  state.feedBank = active.filter(
-    (q) => (q.surface === "feed" || q.surface === "test") && playable(q) && q.type !== "rank");
-  state.duelBank = active.filter(
-    (q) => (q.surface === "group" || q.surface === "duo")
-      && (playable(q) || q.topic === "pick"));
+  // Allowlist split per surface — pure and unit-tested in deck.ts
+  // (splitBanks carries the why-comments: playability, the D12 rank
+  // exclusion, and the D32 learn fencing).
+  const banks = splitBanks(active);
+  state.questions = banks.daily;
+  state.feedBank = banks.feed;
+  state.duelBank = banks.duel;
+  state.learnBank = banks.learn;
   // A completely unseeded project is a real failure: throw so boot leaves
   // LIVE disabled and the mock deck renders. Returning here used to let
   // boot flip enabled=true on an empty deck, which pins the user on
@@ -924,6 +918,66 @@ const LIVE = {
   },
   aggFor(qid: string): AggDoc | null {
     return state.aggs[qid] || null;
+  },
+  // ── Learn (D32) ──
+  // The first attempt on a learn card is a plain world answer; the
+  // scheduler's spaced retries stay device-local and the create-only rule
+  // refuses them anyway. Fire-and-forget: a failed write costs one crowd
+  // datum, never the local mastery flow.
+  learnAnswer(cardId: string, optionIdx: number): void {
+    if (!this.enabled) return;
+    const qid = "learn-" + cardId;
+    if (state.learnSent[qid]) return;
+    // Only cards the seeded bank actually carries — a demo-only card (or a
+    // farm card ahead of its reseed) has no question doc, so a write would
+    // just bounce off the rules' question lookup.
+    const q = state.learnBank.find((x) => x.id === qid);
+    if (!q) return;
+    if (!Number.isInteger(optionIdx) || optionIdx < 0 || optionIdx >= q.options.length) return;
+    state.learnSent[qid] = true;
+    void (async () => {
+      try {
+        const db = await getDb();
+        const uid = state.uid;
+        if (!uid) return;
+        await setDoc(doc(db, "v2_users", uid, "answers", qid), {
+          qid,
+          surface: "learn",
+          optionIdx,
+          answeredAt: serverTimestamp(),
+          // No anchors on learn answers: the crowd stat is one global
+          // number, and starting without segments means nothing to
+          // suppress and nothing to re-argue under D8's floors.
+          anchors: {},
+        });
+      } catch (err) {
+        reportError(err, { where: "learnAnswer" });
+      }
+    })();
+  },
+  // Synchronous cached read with a one-shot background fetch: LEARN_SPLIT
+  // calls this in a render path, so it can never await. First call for a
+  // card returns null (the authored estimate renders, labeled) and kicks
+  // one getDoc; if a published agg exists, notify() re-renders subscribers
+  // with the measured split. One read per distinct card per session.
+  learnAgg(cardId: string): AggDoc | null {
+    const qid = "learn-" + cardId;
+    if (qid in state.learnAggs) return state.learnAggs[qid];
+    state.learnAggs[qid] = null;
+    void (async () => {
+      try {
+        const db = await getDb();
+        const snap = await getDoc(doc(db, "v2_question_aggs", qid));
+        if (snap.exists()) {
+          state.learnAggs[qid] = snap.data() as AggDoc;
+          notify();
+        }
+      } catch (err) {
+        // Leave the null cache entry: the estimate stays up, labeled.
+        reportError(err, { where: "learnAgg", qid });
+      }
+    })();
+    return null;
   },
   enabled: false,
   // True when this is a LIVE build (VITE_V2_LIVE) whose boot has NOT

@@ -173,6 +173,49 @@ export function computeDeckIds(
   });
 }
 
+// The per-surface bank split, extracted from live.ts's refresh path so the
+// fencing is testable: each bank is an ALLOWLIST, so a mistake in one
+// predicate cannot leak a surface into a bank it was never meant to touch —
+// a learn card (D32) must never appear in the daily deck or the feed, where
+// its "options" would render as an opinion vote with a secretly right
+// answer.
+//
+// Bank docs are hand-editable in the console — the kill switch expects an
+// operator in there — and nothing validates them on the way in. A doc
+// missing `options` used to throw inside q.options.map, blanking a whole
+// tab behind the ErrorBoundary. Drop unusable docs instead. "pick" duel
+// questions are the deliberate exception: they carry no bank options
+// because their options ARE the group's members.
+export function splitBanks(active: Array<QuestionDoc & { id: string }>): {
+  daily: Array<QuestionDoc & { id: string }>;
+  feed: Array<QuestionDoc & { id: string }>;
+  duel: Array<QuestionDoc & { id: string }>;
+  learn: Array<QuestionDoc & { id: string }>;
+} {
+  const playable = (q: QuestionDoc & { id: string }) =>
+    Array.isArray(q.options) && q.options.length >= 2;
+  return {
+    daily: active.filter((q) => q.surface === "daily" && playable(q)),
+    // type "rank" is excluded from the LIVE feed on purpose. The bank seeds
+    // 8 of them, and buildFeedGlobals used to serve them as single-choice
+    // vote cards — folding single options into aggregates that claim to be
+    // a ranking. Wrong-shaped answers are worse than no card (the same
+    // honesty rule as D5); the full arithmetic is in D12.
+    feed: active.filter(
+      (q) =>
+        (q.surface === "feed" || q.surface === "test") &&
+        playable(q) &&
+        q.type !== "rank",
+    ),
+    duel: active.filter(
+      (q) =>
+        (q.surface === "group" || q.surface === "duo") &&
+        (playable(q) || q.topic === "pick"),
+    ),
+    learn: active.filter((q) => q.surface === "learn" && playable(q)),
+  };
+}
+
 // The client mirrors the server's deterministic rotation: the day's
 // question for a group is bank[(hash(gid) + utcDay) % len] over the
 // matching-surface bank. "pick" questions take the members as options.

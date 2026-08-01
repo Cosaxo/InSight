@@ -36,11 +36,38 @@ window.LEARN_FIELDS = LEARN_CONTENT.fields;
 window.LEARN_CARDS = LEARN_CONTENT.cards;
 
 // ── the crowd split ─────────────────────────────────────────────────────────
-// The correct answer takes p%. The rest goes mostly to the trap — a wrong
-// answer that lots of people pick is the interesting part of the card, and the
-// same instrument the app uses for opinions reads it. Deterministic, so the
-// split never shifts between sittings.
+// Two sources, one seam (D32). In live mode, once a card's k-floored public
+// aggregate has cleared the floor, the split IS the measurement — real
+// first attempts, normalised to percentages. Until then (and in the demo)
+// it falls back to the authored model below: correct takes p%, the rest
+// goes mostly to the trap. LEARN_SPLIT_SRC tells the reveal which source
+// this card renders from, so the authored number is never shown unlabeled
+// (D1) — the reveal's footer copy hangs off it.
+function learnMeasured(card) {
+  const L = window.LIVE;
+  if (!(L && L.enabled && L.learnAgg)) return null;
+  const agg = L.learnAgg(card.id);
+  if (!agg || agg.tooSmall !== false || !agg.counts) return null;
+  const n = card.a.length;
+  const counts = [];
+  let total = 0;
+  for (let i = 0; i < n; i++) {
+    const c = Number(agg.counts[String(i)] || 0);
+    counts.push(c);
+    total += c;
+  }
+  if (total <= 0) return null;
+  const pcts = counts.map((c) => Math.floor((c / total) * 100));
+  let rem = 100 - pcts.reduce((a, b) => a + b, 0);
+  for (let i = 0; rem > 0; i = (i + 1) % pcts.length, rem--) pcts[i]++;
+  return pcts;
+}
+window.LEARN_SPLIT_SRC = function (card) {
+  return learnMeasured(card) ? 'measured' : 'estimate';
+};
 window.LEARN_SPLIT = function (card) {
+  const measured = learnMeasured(card);
+  if (measured) return measured;
   const n = card.a.length;
   let h = 0;
   for (let i = 0; i < card.id.length; i++) h = (h * 31 + card.id.charCodeAt(i)) >>> 0;

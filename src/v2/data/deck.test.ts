@@ -11,6 +11,7 @@ import {
   dayLabel,
   DECK_DAYS,
   DECK_EPOCH,
+  splitBanks,
   duelQFor,
   gHash,
   isTooSmall,
@@ -148,6 +149,29 @@ describe("buildS", () => {
   it("labels cards by how many days back they sit", () => {
     expect(buildS(qd("q"), 1, noVote, WED).dayLabel).toBe("Yesterday");
     expect(buildS(qd("q"), 2, noVote, WED).dayLabel).toBe("Mon");
+  });
+});
+
+describe("splitBanks (per-surface allowlists)", () => {
+  it("a learn card lands in the learn bank and nowhere else (D32 fencing)", () => {
+    // A learn card leaking into daily/feed would render as an opinion vote
+    // with a secretly right answer; the allowlists make that structurally
+    // impossible, and this case is what notices if one of them widens.
+    const banks = splitBanks([
+      qd("daily-000"),
+      qd("feed-f01", { surface: "feed" }),
+      qd("test-big5-00", { surface: "test" }),
+      qd("group-gu0", { surface: "group" }),
+      qd("group-gp0", { surface: "group", type: "pick", topic: "pick", options: [] }),
+      qd("duo-000", { surface: "duo" }),
+      qd("learn-cell1", { surface: "learn", options: ["a", "b", "c", "d"] }),
+      qd("feed-f03", { surface: "feed", type: "rank" }), // D12: never in the live feed
+      qd("daily-bad", { options: [] }), // unplayable — dropped
+    ]);
+    expect(banks.learn.map((x) => x.id)).toEqual(["learn-cell1"]);
+    expect(banks.daily.map((x) => x.id)).toEqual(["daily-000"]);
+    expect(banks.feed.map((x) => x.id)).toEqual(["feed-f01", "test-big5-00"]);
+    expect(banks.duel.map((x) => x.id)).toEqual(["group-gu0", "group-gp0", "duo-000"]);
   });
 });
 
