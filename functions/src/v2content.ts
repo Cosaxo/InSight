@@ -527,6 +527,569 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "test": null
  },
  {
+  "id": "daily-030",
+  "surface": "daily",
+  "seq": 30,
+  "type": "binary",
+  "domain": null,
+  "prompt": "Team sports or solo sports?",
+  "options": [
+   "Team",
+   "Solo"
+  ],
+  "topic": "light",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "daily-031",
+  "surface": "daily",
+  "seq": 31,
+  "type": "choice",
+  "domain": null,
+  "prompt": "Best way to watch a final?",
+  "options": [
+   "Stadium",
+   "Pub",
+   "Sofa"
+  ],
+  "topic": "light",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "daily-032",
+  "surface": "daily",
+  "seq": 32,
+  "type": "binary",
+  "domain": null,
+  "prompt": "Subtitles or dubbing?",
+  "options": [
+   "Subtitles",
+   "Dubbing"
+  ],
+  "topic": "light",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "daily-033",
+  "surface": "daily",
+  "seq": 33,
+  "type": "choice",
+  "domain": null,
+  "prompt": "A great film should leave you…",
+  "options": [
+   "Moved",
+   "Thinking",
+   "Entertained"
+  ],
+  "topic": "blend",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "daily-034",
+  "surface": "daily",
+  "seq": 34,
+  "type": "binary",
+  "domain": null,
+  "prompt": "Cinema or sofa?",
+  "options": [
+   "Cinema",
+   "Sofa"
+  ],
+  "topic": "light",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "daily-035",
+  "surface": "daily",
+  "seq": 35,
+  "type": "binary",
+  "domain": null,
+  "prompt": "Cook at home or eat out?",
+  "options": [
+   "Cook",
+   "Eat out"
+  ],
+  "topic": "light",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "daily-036",
+  "surface": "daily",
+  "seq": 36,
+  "type": "choice",
+  "domain": null,
+  "prompt": "One cuisine, forever?",
+  "options": [
+   "Italian",
+   "Japanese",
+   "Mexican",
+   "Indian"
+  ],
+  "topic": "light",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "daily-037",
+  "surface": "daily",
+  "seq": 37,
+  "type": "scale",
+  "domain": null,
+  "prompt": "Breakfast is the best meal of the day.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "light",
+  "axis": "breakfast-loyal",
+  "test": null
+ },
+ {
+  "id": "daily-038",
+  "surface": "daily",
+  "seq": 38,
+  "type": "binary",
+  "domain": null,
+  "prompt": "Mountains or sea?",
+  "options": [
+   "Mountains",
+   "Sea"
+  ],
+  "topic": "light",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "daily-039",
+  "surface": "daily",
+  "seq": 39,
+  "type": "choice",
+  "domain": null,
+  "prompt": "The best part of a trip?",
+  "options": [
+   "Planning it",
+   "Being there",
+   "Coming home"
+  ],
+  "topic": "blend",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "daily-040",
+  "surface": "daily",
+  "seq": 40,
+  "type": "binary",
+  "domain": null,
+  "prompt": "One trip in a time machine: past or future?",
+  "options": [
+   "The past",
+   "The future"
+  ],
+  "topic": "blend",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "daily-041",
+  "surface": "daily",
+  "seq": 41,
+  "type": "binary",
+  "domain": null,
+  "prompt": "A live gig or the perfect recording?",
+  "options": [
+   "Live",
+   "The recording"
+  ],
+  "topic": "light",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "daily-042",
+  "surface": "daily",
+  "seq": 42,
+  "type": "choice",
+  "domain": null,
+  "prompt": "Music is mostly for…",
+  "options": [
+   "Dancing",
+   "Feeling",
+   "Focus",
+   "Memory"
+  ],
+  "topic": "blend",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "daily-043",
+  "surface": "daily",
+  "seq": 43,
+  "type": "binary",
+  "domain": null,
+  "prompt": "Lyrics or melody?",
+  "options": [
+   "Lyrics",
+   "Melody"
+  ],
+  "topic": "light",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "daily-044",
+  "surface": "daily",
+  "seq": 44,
+  "type": "binary",
+  "domain": null,
+  "prompt": "Morning person or night owl?",
+  "options": [
+   "Morning",
+   "Night owl"
+  ],
+  "topic": "light",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "daily-045",
+  "surface": "daily",
+  "seq": 45,
+  "type": "scale",
+  "domain": null,
+  "prompt": "I feel better after moving — every time.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "blend",
+  "axis": "movement-powered",
+  "test": null
+ },
+ {
+  "id": "daily-046",
+  "surface": "daily",
+  "seq": 46,
+  "type": "choice",
+  "domain": null,
+  "prompt": "Your childhood self would think you’re…",
+  "options": [
+   "Doing great",
+   "Too serious",
+   "Surprising",
+   "A stranger"
+  ],
+  "topic": "deep",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "daily-047",
+  "surface": "daily",
+  "seq": 47,
+  "type": "binary",
+  "domain": null,
+  "prompt": "Would you read a diary you kept at 15?",
+  "options": [
+   "Read it",
+   "Burn it"
+  ],
+  "topic": "blend",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "daily-048",
+  "surface": "daily",
+  "seq": 48,
+  "type": "choice",
+  "domain": null,
+  "prompt": "This decade is mostly for…",
+  "options": [
+   "Building",
+   "Exploring",
+   "Settling",
+   "Healing"
+  ],
+  "topic": "deep",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "daily-049",
+  "surface": "daily",
+  "seq": 49,
+  "type": "scale",
+  "domain": null,
+  "prompt": "I know what I want from the next five years.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "deep",
+  "axis": "clear-eyed",
+  "test": null
+ },
+ {
+  "id": "daily-050",
+  "surface": "daily",
+  "seq": 50,
+  "type": "choice",
+  "domain": null,
+  "prompt": "Home is mostly…",
+  "options": [
+   "A base",
+   "A nest",
+   "A project",
+   "A stopover"
+  ],
+  "topic": "blend",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "daily-051",
+  "surface": "daily",
+  "seq": 51,
+  "type": "binary",
+  "domain": null,
+  "prompt": "Master one thing, or dabble in many?",
+  "options": [
+   "Master one",
+   "Dabble"
+  ],
+  "topic": "blend",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "daily-052",
+  "surface": "daily",
+  "seq": 52,
+  "type": "binary",
+  "domain": null,
+  "prompt": "New hobby: learn alone or join a club?",
+  "options": [
+   "Alone",
+   "Join a club"
+  ],
+  "topic": "light",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "daily-053",
+  "surface": "daily",
+  "seq": 53,
+  "type": "binary",
+  "domain": null,
+  "prompt": "A tidy home or a lived-in one?",
+  "options": [
+   "Tidy",
+   "Lived-in"
+  ],
+  "topic": "light",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "daily-054",
+  "surface": "daily",
+  "seq": 54,
+  "type": "choice",
+  "domain": null,
+  "prompt": "What makes a place feel like home first?",
+  "options": [
+   "The people",
+   "The things",
+   "The routines",
+   "Time"
+  ],
+  "topic": "deep",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "daily-055",
+  "surface": "daily",
+  "seq": 55,
+  "type": "binary",
+  "domain": null,
+  "prompt": "A full house or a quiet one?",
+  "options": [
+   "Full house",
+   "Quiet"
+  ],
+  "topic": "blend",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "daily-056",
+  "surface": "daily",
+  "seq": 56,
+  "type": "choice",
+  "domain": null,
+  "prompt": "Your home’s one non-negotiable?",
+  "options": [
+   "Light",
+   "Quiet",
+   "Space",
+   "The view"
+  ],
+  "topic": "blend",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "daily-057",
+  "surface": "daily",
+  "seq": 57,
+  "type": "binary",
+  "domain": null,
+  "prompt": "Read the manual, or wing it?",
+  "options": [
+   "The manual",
+   "Wing it"
+  ],
+  "topic": "light",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "daily-058",
+  "surface": "daily",
+  "seq": 58,
+  "type": "choice",
+  "domain": null,
+  "prompt": "Which would you master overnight, if you could?",
+  "options": [
+   "A language",
+   "An instrument",
+   "Cooking",
+   "Carpentry"
+  ],
+  "topic": "blend",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "daily-059",
+  "surface": "daily",
+  "seq": 59,
+  "type": "choice",
+  "domain": null,
+  "prompt": "The hardest thing to learn?",
+  "options": [
+   "Patience",
+   "Listening",
+   "Asking for help",
+   "Letting go"
+  ],
+  "topic": "deep",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "daily-060",
+  "surface": "daily",
+  "seq": 60,
+  "type": "scale",
+  "domain": null,
+  "prompt": "Being bad at something new is half the fun.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "blend",
+  "axis": "beginner-hearted",
+  "test": null
+ },
+ {
+  "id": "daily-061",
+  "surface": "daily",
+  "seq": 61,
+  "type": "binary",
+  "domain": null,
+  "prompt": "Collect things, or experiences?",
+  "options": [
+   "Things",
+   "Experiences"
+  ],
+  "topic": "blend",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "daily-062",
+  "surface": "daily",
+  "seq": 62,
+  "type": "choice",
+  "domain": null,
+  "prompt": "A free Saturday, no plans. What pulls you?",
+  "options": [
+   "Outdoors",
+   "A project",
+   "People",
+   "The sofa"
+  ],
+  "topic": "light",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "daily-063",
+  "surface": "daily",
+  "seq": 63,
+  "type": "scale",
+  "domain": null,
+  "prompt": "Everyone needs at least one useless hobby.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "blend",
+  "axis": "play-minded",
+  "test": null
+ },
+ {
+  "id": "daily-064",
+  "surface": "daily",
+  "seq": 64,
+  "type": "binary",
+  "domain": null,
+  "prompt": "Would you rather be interesting, or interested?",
+  "options": [
+   "Interesting",
+   "Interested"
+  ],
+  "topic": "deep",
+  "axis": null,
+  "test": null
+ },
+ {
   "id": "feed-f01",
   "surface": "feed",
   "seq": 0,

@@ -726,5 +726,888 @@
         "Outlook"
       ]
     ]
+  },
+  {
+    "id": "030",
+    "type": "binary",
+    "prompt": "Team sports or solo sports?",
+    "tag": "Team or solo",
+    "options": [
+      "Team",
+      "Solo"
+    ],
+    "tone": "light",
+    "cat": [
+      "Sport",
+      "How you play"
+    ],
+    "alts": [
+      [
+        "Body",
+        "Activity"
+      ],
+      [
+        "Interests",
+        "Sport"
+      ]
+    ]
+  },
+  {
+    "id": "031",
+    "type": "choice",
+    "prompt": "Best way to watch a final?",
+    "tag": "The final",
+    "options": [
+      "Stadium",
+      "Pub",
+      "Sofa"
+    ],
+    "tone": "light",
+    "cat": [
+      "Sport",
+      "Watching"
+    ],
+    "alts": [
+      [
+        "Interests",
+        "Sport"
+      ],
+      [
+        "Home",
+        "Rituals"
+      ]
+    ]
+  },
+  {
+    "id": "032",
+    "type": "binary",
+    "prompt": "Subtitles or dubbing?",
+    "tag": "Subtitles",
+    "options": [
+      "Subtitles",
+      "Dubbing"
+    ],
+    "tone": "light",
+    "cat": [
+      "Film",
+      "How you watch"
+    ],
+    "alts": [
+      [
+        "Film",
+        "Taste"
+      ],
+      [
+        "Mind",
+        "Language"
+      ]
+    ]
+  },
+  {
+    "id": "033",
+    "type": "choice",
+    "prompt": "A great film should leave you…",
+    "tag": "What film is for",
+    "options": [
+      "Moved",
+      "Thinking",
+      "Entertained"
+    ],
+    "tone": "blend",
+    "cat": [
+      "Film",
+      "What it’s for"
+    ],
+    "alts": [
+      [
+        "Values",
+        "Art"
+      ],
+      [
+        "Mind",
+        "Feeling"
+      ]
+    ]
+  },
+  {
+    "id": "034",
+    "type": "binary",
+    "prompt": "Cinema or sofa?",
+    "tag": "Cinema night",
+    "options": [
+      "Cinema",
+      "Sofa"
+    ],
+    "tone": "light",
+    "cat": [
+      "Film",
+      "Where you watch"
+    ],
+    "alts": [
+      [
+        "Home",
+        "Nights in"
+      ],
+      [
+        "Interests",
+        "Cinema"
+      ]
+    ]
+  },
+  {
+    "id": "035",
+    "type": "binary",
+    "prompt": "Cook at home or eat out?",
+    "tag": "Kitchen or table",
+    "options": [
+      "Cook",
+      "Eat out"
+    ],
+    "tone": "light",
+    "cat": [
+      "Food",
+      "Habits"
+    ],
+    "alts": [
+      [
+        "Home",
+        "Kitchen"
+      ],
+      [
+        "Body",
+        "Health"
+      ]
+    ]
+  },
+  {
+    "id": "036",
+    "type": "choice",
+    "prompt": "One cuisine, forever?",
+    "tag": "One cuisine",
+    "options": [
+      "Italian",
+      "Japanese",
+      "Mexican",
+      "Indian"
+    ],
+    "tone": "light",
+    "cat": [
+      "Food",
+      "Taste"
+    ],
+    "alts": [
+      [
+        "Travel",
+        "Places"
+      ],
+      [
+        "Interests",
+        "Food"
+      ]
+    ]
+  },
+  {
+    "id": "037",
+    "type": "scale",
+    "prompt": "Breakfast is the best meal of the day.",
+    "tag": "Breakfast",
+    "axis": "breakfast-loyal",
+    "tone": "light",
+    "cat": [
+      "Food",
+      "Meals"
+    ],
+    "alts": [
+      [
+        "Body",
+        "Mornings"
+      ],
+      [
+        "Home",
+        "Rituals"
+      ]
+    ]
+  },
+  {
+    "id": "038",
+    "type": "binary",
+    "prompt": "Mountains or sea?",
+    "tag": "Mountains or sea",
+    "options": [
+      "Mountains",
+      "Sea"
+    ],
+    "tone": "light",
+    "cat": [
+      "Travel",
+      "Landscapes"
+    ],
+    "alts": [
+      [
+        "Body",
+        "Outdoors"
+      ],
+      [
+        "Mind",
+        "Mood"
+      ]
+    ]
+  },
+  {
+    "id": "039",
+    "type": "choice",
+    "prompt": "The best part of a trip?",
+    "tag": "The trip",
+    "options": [
+      "Planning it",
+      "Being there",
+      "Coming home"
+    ],
+    "tone": "blend",
+    "cat": [
+      "Travel",
+      "The arc"
+    ],
+    "alts": [
+      [
+        "Mind",
+        "Anticipation"
+      ],
+      [
+        "Home",
+        "Return"
+      ]
+    ]
+  },
+  {
+    "id": "040",
+    "type": "binary",
+    "prompt": "One trip in a time machine: past or future?",
+    "tag": "Time machine",
+    "options": [
+      "The past",
+      "The future"
+    ],
+    "tone": "blend",
+    "cat": [
+      "Travel",
+      "Time travel"
+    ],
+    "alts": [
+      [
+        "Mind",
+        "Time"
+      ],
+      [
+        "Story",
+        "History"
+      ]
+    ]
+  },
+  {
+    "id": "041",
+    "type": "binary",
+    "prompt": "A live gig or the perfect recording?",
+    "tag": "Live or studio",
+    "options": [
+      "Live",
+      "The recording"
+    ],
+    "tone": "light",
+    "cat": [
+      "Music",
+      "How you listen"
+    ],
+    "alts": [
+      [
+        "Interests",
+        "Music"
+      ],
+      [
+        "Body",
+        "Presence"
+      ]
+    ]
+  },
+  {
+    "id": "042",
+    "type": "choice",
+    "prompt": "Music is mostly for…",
+    "tag": "What music does",
+    "options": [
+      "Dancing",
+      "Feeling",
+      "Focus",
+      "Memory"
+    ],
+    "tone": "blend",
+    "cat": [
+      "Music",
+      "What it does"
+    ],
+    "alts": [
+      [
+        "Mind",
+        "Mood"
+      ],
+      [
+        "Story",
+        "Memory"
+      ]
+    ]
+  },
+  {
+    "id": "043",
+    "type": "binary",
+    "prompt": "Lyrics or melody?",
+    "tag": "Lyrics or melody",
+    "options": [
+      "Lyrics",
+      "Melody"
+    ],
+    "tone": "light",
+    "cat": [
+      "Music",
+      "What hooks you"
+    ],
+    "alts": [
+      [
+        "Mind",
+        "Language"
+      ],
+      [
+        "Values",
+        "Beauty"
+      ]
+    ]
+  },
+  {
+    "id": "044",
+    "type": "binary",
+    "prompt": "Morning person or night owl?",
+    "tag": "Your clock",
+    "options": [
+      "Morning",
+      "Night owl"
+    ],
+    "tone": "light",
+    "cat": [
+      "Body",
+      "Clock"
+    ],
+    "alts": [
+      [
+        "Mind",
+        "Energy"
+      ],
+      [
+        "Home",
+        "Rhythm"
+      ]
+    ]
+  },
+  {
+    "id": "045",
+    "type": "scale",
+    "prompt": "I feel better after moving — every time.",
+    "tag": "Moving helps",
+    "axis": "movement-powered",
+    "tone": "blend",
+    "cat": [
+      "Body",
+      "Movement"
+    ],
+    "alts": [
+      [
+        "Mind",
+        "Mood"
+      ],
+      [
+        "Sport",
+        "Habit"
+      ]
+    ]
+  },
+  {
+    "id": "046",
+    "type": "choice",
+    "prompt": "Your childhood self would think you’re…",
+    "tag": "Then and now",
+    "options": [
+      "Doing great",
+      "Too serious",
+      "Surprising",
+      "A stranger"
+    ],
+    "tone": "deep",
+    "cat": [
+      "Story",
+      "Then and now"
+    ],
+    "alts": [
+      [
+        "Mind",
+        "Self"
+      ],
+      [
+        "Values",
+        "Identity"
+      ]
+    ]
+  },
+  {
+    "id": "047",
+    "type": "binary",
+    "prompt": "Would you read a diary you kept at 15?",
+    "tag": "The diary",
+    "options": [
+      "Read it",
+      "Burn it"
+    ],
+    "tone": "blend",
+    "cat": [
+      "Story",
+      "The archive"
+    ],
+    "alts": [
+      [
+        "Mind",
+        "Memory"
+      ],
+      [
+        "Values",
+        "Self-kindness"
+      ]
+    ]
+  },
+  {
+    "id": "048",
+    "type": "choice",
+    "prompt": "This decade is mostly for…",
+    "tag": "The decade",
+    "options": [
+      "Building",
+      "Exploring",
+      "Settling",
+      "Healing"
+    ],
+    "tone": "deep",
+    "cat": [
+      "Goals",
+      "The decade"
+    ],
+    "alts": [
+      [
+        "Story",
+        "Chapters"
+      ],
+      [
+        "Values",
+        "Direction"
+      ]
+    ]
+  },
+  {
+    "id": "049",
+    "type": "scale",
+    "prompt": "I know what I want from the next five years.",
+    "tag": "Five years",
+    "axis": "clear-eyed",
+    "tone": "deep",
+    "cat": [
+      "Goals",
+      "Clarity"
+    ],
+    "alts": [
+      [
+        "Mind",
+        "Agency"
+      ],
+      [
+        "Values",
+        "Direction"
+      ]
+    ]
+  },
+  {
+    "id": "050",
+    "type": "choice",
+    "prompt": "Home is mostly…",
+    "tag": "What home is",
+    "options": [
+      "A base",
+      "A nest",
+      "A project",
+      "A stopover"
+    ],
+    "tone": "blend",
+    "cat": [
+      "Home",
+      "What it is"
+    ],
+    "alts": [
+      [
+        "Values",
+        "Belonging"
+      ],
+      [
+        "Story",
+        "Place"
+      ]
+    ]
+  },
+  {
+    "id": "051",
+    "type": "binary",
+    "prompt": "Master one thing, or dabble in many?",
+    "tag": "Depth or range",
+    "options": [
+      "Master one",
+      "Dabble"
+    ],
+    "tone": "blend",
+    "cat": [
+      "Skills",
+      "Depth"
+    ],
+    "alts": [
+      [
+        "Goals",
+        "Craft"
+      ],
+      [
+        "Mind",
+        "Curiosity"
+      ]
+    ]
+  },
+  {
+    "id": "052",
+    "type": "binary",
+    "prompt": "New hobby: learn alone or join a club?",
+    "tag": "How you start",
+    "options": [
+      "Alone",
+      "Join a club"
+    ],
+    "tone": "light",
+    "cat": [
+      "Interests",
+      "How you start"
+    ],
+    "alts": [
+      [
+        "Skills",
+        "Learning"
+      ],
+      [
+        "Values",
+        "Community"
+      ]
+    ]
+  },
+  {
+    "id": "053",
+    "type": "binary",
+    "prompt": "A tidy home or a lived-in one?",
+    "tag": "Tidy or lived-in",
+    "options": [
+      "Tidy",
+      "Lived-in"
+    ],
+    "tone": "light",
+    "cat": [
+      "Home",
+      "How it looks"
+    ],
+    "alts": [
+      [
+        "Mind",
+        "Order"
+      ],
+      [
+        "Values",
+        "Comfort"
+      ]
+    ]
+  },
+  {
+    "id": "054",
+    "type": "choice",
+    "prompt": "What makes a place feel like home first?",
+    "tag": "What makes it home",
+    "options": [
+      "The people",
+      "The things",
+      "The routines",
+      "Time"
+    ],
+    "tone": "deep",
+    "cat": [
+      "Home",
+      "What makes it"
+    ],
+    "alts": [
+      [
+        "Values",
+        "Belonging"
+      ],
+      [
+        "Story",
+        "Place"
+      ]
+    ]
+  },
+  {
+    "id": "055",
+    "type": "binary",
+    "prompt": "A full house or a quiet one?",
+    "tag": "Full or quiet",
+    "options": [
+      "Full house",
+      "Quiet"
+    ],
+    "tone": "blend",
+    "cat": [
+      "Home",
+      "Guests"
+    ],
+    "alts": [
+      [
+        "Values",
+        "Community"
+      ],
+      [
+        "Mind",
+        "Energy"
+      ]
+    ]
+  },
+  {
+    "id": "056",
+    "type": "choice",
+    "prompt": "Your home’s one non-negotiable?",
+    "tag": "Non-negotiable",
+    "options": [
+      "Light",
+      "Quiet",
+      "Space",
+      "The view"
+    ],
+    "tone": "blend",
+    "cat": [
+      "Home",
+      "Non-negotiables"
+    ],
+    "alts": [
+      [
+        "Mind",
+        "Peace"
+      ],
+      [
+        "Values",
+        "Comfort"
+      ]
+    ]
+  },
+  {
+    "id": "057",
+    "type": "binary",
+    "prompt": "Read the manual, or wing it?",
+    "tag": "Manual or wing it",
+    "options": [
+      "The manual",
+      "Wing it"
+    ],
+    "tone": "light",
+    "cat": [
+      "Skills",
+      "How you learn"
+    ],
+    "alts": [
+      [
+        "Mind",
+        "Learning"
+      ],
+      [
+        "Values",
+        "Patience"
+      ]
+    ]
+  },
+  {
+    "id": "058",
+    "type": "choice",
+    "prompt": "Which would you master overnight, if you could?",
+    "tag": "Overnight mastery",
+    "options": [
+      "A language",
+      "An instrument",
+      "Cooking",
+      "Carpentry"
+    ],
+    "tone": "blend",
+    "cat": [
+      "Skills",
+      "Wishlist"
+    ],
+    "alts": [
+      [
+        "Goals",
+        "Craft"
+      ],
+      [
+        "Interests",
+        "Learning"
+      ]
+    ]
+  },
+  {
+    "id": "059",
+    "type": "choice",
+    "prompt": "The hardest thing to learn?",
+    "tag": "Hardest to learn",
+    "options": [
+      "Patience",
+      "Listening",
+      "Asking for help",
+      "Letting go"
+    ],
+    "tone": "deep",
+    "cat": [
+      "Skills",
+      "The hard ones"
+    ],
+    "alts": [
+      [
+        "Mind",
+        "Growth"
+      ],
+      [
+        "Values",
+        "Humility"
+      ]
+    ]
+  },
+  {
+    "id": "060",
+    "type": "scale",
+    "prompt": "Being bad at something new is half the fun.",
+    "tag": "Half the fun",
+    "axis": "beginner-hearted",
+    "tone": "blend",
+    "cat": [
+      "Skills",
+      "Beginnings"
+    ],
+    "alts": [
+      [
+        "Mind",
+        "Play"
+      ],
+      [
+        "Values",
+        "Humility"
+      ]
+    ]
+  },
+  {
+    "id": "061",
+    "type": "binary",
+    "prompt": "Collect things, or experiences?",
+    "tag": "What you collect",
+    "options": [
+      "Things",
+      "Experiences"
+    ],
+    "tone": "blend",
+    "cat": [
+      "Interests",
+      "Collecting"
+    ],
+    "alts": [
+      [
+        "Values",
+        "What matters"
+      ],
+      [
+        "Home",
+        "Your things"
+      ]
+    ]
+  },
+  {
+    "id": "062",
+    "type": "choice",
+    "prompt": "A free Saturday, no plans. What pulls you?",
+    "tag": "Free Saturday",
+    "options": [
+      "Outdoors",
+      "A project",
+      "People",
+      "The sofa"
+    ],
+    "tone": "light",
+    "cat": [
+      "Interests",
+      "Free time"
+    ],
+    "alts": [
+      [
+        "Mind",
+        "Energy"
+      ],
+      [
+        "Home",
+        "Weekends"
+      ]
+    ]
+  },
+  {
+    "id": "063",
+    "type": "scale",
+    "prompt": "Everyone needs at least one useless hobby.",
+    "tag": "Useless hobbies",
+    "axis": "play-minded",
+    "tone": "blend",
+    "cat": [
+      "Interests",
+      "Why we bother"
+    ],
+    "alts": [
+      [
+        "Values",
+        "Play"
+      ],
+      [
+        "Mind",
+        "Rest"
+      ]
+    ]
+  },
+  {
+    "id": "064",
+    "type": "binary",
+    "prompt": "Would you rather be interesting, or interested?",
+    "tag": "Interesting or interested",
+    "options": [
+      "Interesting",
+      "Interested"
+    ],
+    "tone": "deep",
+    "cat": [
+      "Interests",
+      "The point"
+    ],
+    "alts": [
+      [
+        "Values",
+        "Character"
+      ],
+      [
+        "Mind",
+        "Attention"
+      ]
+    ]
   }
 ]
