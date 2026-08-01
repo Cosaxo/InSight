@@ -2819,3 +2819,55 @@ cannot drift. Until that step runs, the farm still fires weekly under
 the old 12-question prompt; the manual's 4/run cap already governs
 (the prompt defers to the doc), so the only cost of the gap is
 cadence, not volume.
+
+## D34 · Every pool has a lane: the farm feeds duels, learn and the feed too
+
+**Date:** 2026-08-01 · **Status:** Adopted by the owner ("all questions
+in the entire app are Claude-made — people should never run out of
+either learn or normal questions")
+
+**The gap.** The farm generated only the daily archive. Feed questions
+(73, static), duel banks (24 group / 20 duo — a group walks its bank at
+7/week, so a repeat lands after ~3 weeks), and learn cards (96, a lane
+contract but no clock) had nothing generating them.
+
+**The design: one Routine, one clock, a weekly pool schedule.** The
+daily run keeps its daily lanes (≤4, scorecard-driven, two-gate) and
+gains a per-day pool batch: Monday duels (≤4 →
+`content/duel-questions.json`), Wednesday learn (≤8 →
+`content/learn-questions.json`), Friday feed (≤6 →
+`content/feed-questions.json`). Hard rule 2 became a per-lane file-scope
+table; a `content/*` edit obliges regenerating `v2content.ts` in the
+same PR (`check:content` enforces). One Routine rather than four keeps
+one run log, one review stream, and one place for the kill decision.
+
+**Gate shapes, recorded.** Daily stays two-gate — its spec archive is
+load-bearing (map anchors; the prompt-join). Duel, feed and learn are
+single-gate on the learn-lane precedent (D32): their live cards build
+from `content/` directly, there is no spec twin to graduate from, so
+the one PR carries production weight and the review bar is set there.
+The spec demo feed deliberately does not grow — it is a frozen showcase.
+
+**Pool arithmetic, honest version.** Daily: 28/week potential vs 7/week
+consumption — never repeats (D30). Learn: per-user consumption; +8/week
+to the thinnest fields outruns any learner. Feed: browse-once; +6/week
+keeps return visits fresh. **Duel: the recorded compromise** — +4/week
+lengthens the repeat period continuously but never closes it (that
+would take ≥14/week across both banks, more AI content review than the
+benefit warrants); accepted because duels tolerate repeats — the reveal
+among named group members IS the product, and groups sit at different
+bank offsets. Revisit if testers report otherwise. Duels also get no
+scorecard, structurally: their answers are sealed per-group and produce
+no public aggregate, so that lane runs on freshness alone.
+
+**Learn calibration closes the learn loop.** The scorecard now measures
+each learn card's authored `p` against the k-floored right-rate
+(`pError`, recalibration proposed at |error| ≥ 20 with ≥ 20 answers —
+`p` is also the leveling prior, so a bad estimate mis-serves "on your
+level") and the trap against where wrong answers actually went
+(`trapShare`; a trap catching under a third of misses at volume means
+the misconception was misidentified). Proposals land in PR bodies;
+humans apply them. The batch caps are review-capacity numbers, not
+technical ones — raising them is a one-line doc change if review keeps
+up. The Routine prompt update rides the same pending owner step as
+D33's re-pace.

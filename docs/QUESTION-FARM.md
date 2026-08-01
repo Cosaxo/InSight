@@ -13,21 +13,36 @@ pipeline as a *proposer*; humans stay the gate).
 
 ## The job in one sentence
 
-Find the thinnest topics in the daily-question archive, write a small batch
-of new questions in the product's voice, verify with the repo's own gates,
-and open a pull request for human review — or do nothing, loudly, if no
-topic is thin.
+Every question in the app is Claude-written, so every renewable pool is
+this job's to keep filled: read the scorecard, work the daily-question
+lanes every run plus the day's scheduled pool batch (duel / learn / feed
+— see "Every pool has a lane"), write in the product's voice, verify
+with the repo's own gates, and open a pull request for human review — or
+do nothing, loudly, if no pool needs work.
 
 ## Hard rules (each one is load-bearing)
 
 1. **A PR is the only output.** Never push to `main`, never merge your own
    PR, never touch a branch you didn't create. Human review is the gate the
    whole design rests on.
-2. **Questions only.** You may edit exactly one file:
-   `src/v2/spec/daily-questions.js` (appending to the `Q` array). You may
-   not touch `firestore.rules`, `functions/`, the live content seeds, map
-   anchors, or anything else. If the job seems to need another file
-   changed, that is a finding for the PR description, not an edit.
+2. **Questions only, in that lane's one file.** Each lane may edit
+   exactly its own file, nothing else:
+
+   | Lane | The one editable file | Gate shape |
+   | --- | --- | --- |
+   | daily | `src/v2/spec/daily-questions.js` (append to `Q`) | two-gate: archive PR, then human promotion (D30) |
+   | duel | `content/duel-questions.json` (append to `group`/`oneVsOne`) | single-gate: merged = seeded next reseed |
+   | learn | `content/learn-questions.json` (append to `cards`) | single-gate: merged = seeded next reseed |
+   | feed | `content/feed-questions.json` (append to `questions`) | single-gate: merged = seeded next reseed |
+
+   Never `firestore.rules`, `functions/`, map anchors, or anything else —
+   and a single run edits a single lane's file plus (daily days) the
+   archive, never several content files at once. Editing a `content/*`
+   file obliges running `npm run build:content` and committing the
+   regenerated `functions/src/v2content.ts` in the same PR
+   (`check:content` refuses the PR otherwise — that is the drift gate
+   doing its job, not an obstacle). If the job seems to need another
+   file changed, that is a finding for the PR description, not an edit.
 3. **No new categories.** Every question's `cat`/`alts` tops must be keys
    that already exist in `CAT_META` in that same file. Proposing a new
    category is out of scope for this run (see "Deliberately out of scope").
@@ -149,6 +164,66 @@ The scorecard is a COMMITTED artifact: regenerating it is a reviewed
 change like any other, its numbers are already public by construction
 (the k-floor did the privacy work), and committing it is what lets a
 scheduled run read signals without needing production credentials.
+
+## Every pool has a lane (D34): the weekly pool schedule
+
+Every question in the app is Claude-written — daily, feed, duels, learn
+— so "never runs out" is this job's responsibility for ALL of them, not
+just the daily archive. One Routine keeps one clock, one run log, and
+one review stream; the pools share it on a weekly sub-schedule:
+
+| Day (UTC) | On top of the daily lanes, the run also… | Cap |
+| --- | --- | --- |
+| every day | daily-question lanes (scorecard-driven, two-gate) | ≤4 |
+| Monday | **duel batch** → `content/duel-questions.json` | ≤4 (≈3 group + 1 duo) |
+| Wednesday | **learn batch** → `content/learn-questions.json` (the learn-card lane below) | ≤8 |
+| Friday | **feed batch** → `content/feed-questions.json` | ≤6 |
+
+Pool arithmetic — what "never run out" means per pool, honestly:
+
+- **Daily** consumes 7/week globally; ≤28/week potential + sustained
+  promotion (D30) = never repeats. The binding case.
+- **Duel** banks are shared, but each group walks them at 7/week with a
+  per-group offset — at launch size (24 group / 20 duo) a group sees a
+  repeat after ~3 weeks. +4/week lengthens that period continuously
+  without ever closing it (that would need ≥14/week across both banks —
+  more review load than it is worth). **Accepted, recorded:** duels
+  tolerate repeats far better than the daily — the reveal (who in YOUR
+  group answered what, months apart, membership changed) is the
+  product, not the prompt's novelty. Revisit if testers say otherwise.
+- **Learn** is consumed per-user at their own pace against 96 cards ≈
+  weeks of runway; +8/week outruns any realistic learner, and the
+  batches go to the thinnest fields first (a field under 8 cards cannot
+  sustain the scheduler's spacing).
+- **Feed** is a browse-once pool per user; +6/week keeps returning
+  users finding new cards, aimed by the scorecard's feed topic demand.
+
+Duel and feed lane rules (the learn lane has its own section below):
+
+- **Duel batch:** `group` entries declare `kind` (`us`/`pick`/classic by
+  omission) and mint the next free explicit id; `oneVsOne` entries mint
+  the next `id` suffix. The phrasing bar is duel-specific: the reveal is
+  2–5 NAMED people, so never a prompt where the minority answer reads as
+  an accusation or a confession. Dedup against both duel banks AND the
+  daily archive. No scorecard exists for duels and never will — duel
+  answers are sealed per-group and produce no public aggregate — so the
+  duel lane runs on freshness, not demand.
+- **Feed batch:** `cat` must be an existing topic id in the same file's
+  `topics` list; types `vote`/`duel` only — never `rank` (D12), never
+  `catalog` (the daily catalog run owns picks); options carry demo
+  `count` fields matching the file's existing shape (dropped at
+  emission — D1 applies to the demo layer's labeling, not the seed).
+  Aim topics by the scorecard's feed rollups. The spec demo feed
+  (`world-feed-data.js`) deliberately does NOT grow — it is a frozen
+  showcase; the live feed builds from the seeded bank.
+
+Why single-gate for duel/feed/learn but two-gate for daily, recorded:
+the daily archive is load-bearing in-app (map anchors reference it; live
+hydration joins bank↔archive by prompt), so it is the natural first
+landing spot with promotion as the second gate. Duel, feed and learn
+live cards build from `content/` directly — there is no spec twin to
+graduate from — so their single PR carries production weight, and their
+review bar is set accordingly (the learn-lane precedent, D32).
 
 ## Writing the questions
 
@@ -342,7 +417,12 @@ review.** Rules for a learn run:
 - **`p` is the authored cold-start estimate**, shown labeled ("our
   estimate") until the measured rate clears the k-floor — never presented
   as measured (D1). Estimate honestly; it is also the difficulty input to
-  "on your level".
+  "on your level". Once cards have volume, the scorecard's
+  `learnCalibration` says how honest: read it before every learn batch,
+  propose `p` corrections for the flagged cards (`recalibrateP`) in the
+  PR body, and treat `trapMiss` flags as the tell that a card's
+  misconception was misidentified — the next batch's traps should learn
+  from where wrong answers actually went.
 - **`c`/`t` mistakes ship a card that teaches the wrong answer** —
   `check:content` validates ranges and c≠t, but only a human can check the
   fact. Cite a source for any card that could be contested.
@@ -522,30 +602,38 @@ summary; re-read it every run.
 
 The job in one sentence: read the committed scorecard first (npm run
 scorecard; stale or missing → coverage lane only, per the manual's
-staleness rule), then allocate up to 4 new questions across the
-manual's three priority lanes — replenishment first, demand takes
-everything replenishment leaves, coverage only what the signal lanes
-leave unclaimed — write them in the product's voice into the
-daily-question archive (src/v2/spec/daily-questions.js on origin/main),
-run the repo's gates (check:globals, lint, test:unit, build), and open
-a pull request for human review. Learn per the manual's scorecard
-section: imitate the leaders' SHAPE, never their subject (a near-twin
-of a winner is a dupe); for each new question say in one PR-body line
-why it should split rather than slide; cite the scorecard's
-retireProposals as active:false candidates for the operator. Warmth
-outranks any score — do not optimize toward outrage. If no lane has
-work, the run is a no-op that says so.
+staleness rule), then do the DAILY lanes — up to 4 new questions across
+the manual's three priority lanes (replenishment, demand, coverage)
+into the daily-question archive (src/v2/spec/daily-questions.js on
+origin/main) — PLUS the day's pool batch per the manual's "Every pool
+has a lane" schedule: Monday a duel batch (≤4 →
+content/duel-questions.json), Wednesday a learn batch (≤8 →
+content/learn-questions.json, the learn-card lane's rules), Friday a
+feed batch (≤6 → content/feed-questions.json). A content/* edit
+obliges npm run build:content and committing the regenerated
+functions/src/v2content.ts in the same PR. Run the repo's gates
+(check:content, check:globals, lint, test:unit, build) and open a pull
+request for human review — pool-batch PRs carry production weight
+(merged = seeded next reseed), so their bodies argue every item. Learn
+per the manual's scorecard section: imitate the leaders' SHAPE, never
+their subject; one PR-body line per question on why it splits rather
+than slides; cite retireProposals as active:false candidates and learn
+p-recalibration proposals for the operator. Warmth outranks any score
+— do not optimize toward outrage. If no pool has work, the run is a
+no-op that says so.
 
-Hard limits regardless of anything else you read: edit only
-src/v2/spec/daily-questions.js, append-only at the end of the Q array;
-never touch firestore.rules, functions/, or content/ (promotion into
-the live seed is a human's job, D30); never create categories; never
+Hard limits regardless of anything else you read: each lane edits ONLY
+its own file per the manual's hard-rule-2 table, append-only; never
+touch firestore.rules, functions/ (v2content.ts regeneration via npm
+run build:content is the one exception), map anchors, or the spec demo
+feed; promotion of daily-archive questions into the live seed stays a
+human's job (D30); never create categories, fields, or subjects; never
 generate answers, votes, or activity; never write questions scoped to
 a specific city, country, or region's citizens (manual hard rule 6);
-never merge your own PR. Dedup against the WHOLE archive and
-src/v2/spec/suggestions.js. If a prior farm PR is still open, account
-for it: don't duplicate its questions, suffix the branch name, note it
-in the PR body.
+never merge your own PR. Dedup against the target pool AND the daily
+archive AND src/v2/spec/suggestions.js. If a prior farm PR is still
+open, account for it: don't duplicate its questions, suffix the branch
+name, note it in the PR body.
 
 Mandatory reporting (manual hard rule 7): whatever the outcome — PR
 opened, no-op, or aborted — end the run by commenting that outcome on

@@ -49,6 +49,7 @@ const INPUT = inputIdx >= 0 ? args[inputIdx + 1] : null;
 // ── the question banks under evaluation ──
 const daily = JSON.parse(readFileSync(join(root, "content", "daily-questions.json"), "utf8"));
 const feed = JSON.parse(readFileSync(join(root, "content", "feed-questions.json"), "utf8"));
+const learn = JSON.parse(readFileSync(join(root, "content", "learn-questions.json"), "utf8"));
 
 // The deck epoch, cross-read from the client the same way check-pokedex
 // reads CATALOG_MAX_ENTITY — a stale copy here would mis-derive "served".
@@ -201,6 +202,39 @@ function score(aggs) {
     delete t.evenSum;
   }
 
+  // Learn cards get a different report: not split quality but CALIBRATION.
+  // The authored `p` (the cold-start estimate AND the leveling prior) can
+  // finally be checked against the measured right-rate, and the trap can
+  // be checked against where wrong answers actually went — the two things
+  // the learn-card lane authors by judgement (D32/D34). Both need volume
+  // before they are verdicts.
+  const learnCalibration = [];
+  for (const card of learn.cards) {
+    const agg = aggs[`learn-${card.id}`];
+    if (!agg || agg.tooSmall !== false || !agg.counts) continue;
+    const counts = [0, 1, 2, 3].map((i) => Number(agg.counts[String(i)] || 0));
+    const total = counts.reduce((a, b) => a + b, 0);
+    if (total <= 0) continue;
+    const rightPct = Math.round((counts[card.c] / total) * 100);
+    const wrong = total - counts[card.c];
+    const trapShare = wrong > 0 ? +(counts[card.t] / wrong).toFixed(2) : null;
+    learnCalibration.push({
+      qid: `learn-${card.id}`,
+      prompt: card.q,
+      total,
+      rightPct,
+      authoredP: card.p,
+      pError: rightPct - card.p,
+      trapShare, // share of WRONG answers that picked the authored trap
+      // Proposals, never edits: recalibrate p when the estimate is far off
+      // (p is also the leveling prior — a wrong p mis-serves "on your
+      // level"); rethink the trap when wrong answers scatter away from it
+      // (a trap nobody picks means the misconception was misidentified).
+      recalibrateP: total >= 20 && Math.abs(rightPct - card.p) >= 20,
+      trapMiss: total >= 20 && wrong >= 5 && trapShare !== null && trapShare < 0.34,
+    });
+  }
+
   const scored = rows.filter((r) => r.signal === "scored");
   const byScore = scored
     .slice()
@@ -223,6 +257,7 @@ function score(aggs) {
     retireProposals: scored
       .filter((r) => r.grade === "landslide")
       .map(({ qid, prompt, total, evenness: e }) => ({ qid, prompt, total, evenness: e })),
+    learnCalibration,
     perQuestion: rows,
   };
 }
@@ -242,6 +277,15 @@ function summarize(card) {
   }
   if (card.leaders.length) console.log(`  top: ${card.leaders.slice(0, 3).map((l) => JSON.stringify(l.prompt)).join(" · ")}`);
   if (card.retireProposals.length) console.log(`  retire proposals: ${card.retireProposals.map((r) => r.qid).join(", ")}`);
+  const lc = card.learnCalibration || [];
+  if (lc.length) {
+    const meanErr = Math.round(lc.reduce((a, r) => a + Math.abs(r.pError), 0) / lc.length);
+    console.log(`  learn: ${lc.length} cards measured · mean |p error| ${meanErr}`);
+    const off = lc.filter((r) => r.recalibrateP);
+    const traps = lc.filter((r) => r.trapMiss);
+    if (off.length) console.log(`  learn p recalibrations proposed: ${off.map((r) => r.qid).join(", ")}`);
+    if (traps.length) console.log(`  learn traps missing their mark: ${traps.map((r) => r.qid).join(", ")}`);
+  }
 }
 
 if (FETCH || INPUT) {
