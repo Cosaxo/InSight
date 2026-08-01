@@ -1,11 +1,12 @@
 # How InSight plans to make money
 
-This consolidates the revenue intentions already recorded across the
-repo — docs/QUESTION-FARM.md (where the paid paths were first written
-down as farm constraints), web/terms.html (the consumer-pricing terms),
-and docs/data-inventory.md (the posture that rules paths out). It adds
-no new commitments: what is decided is marked decided, what is reserved
-is marked reserved, and picking any of it up graduates to a record in
+The revenue paths, in one place: the two recorded in
+docs/QUESTION-FARM.md as farm constraints, plus feed ads, which the
+owner keeps open (2026-08-01). Consumer freemium/paid tiers are
+deliberately NOT part of the plan — the owner removed them from this
+doc the same day; web/terms.html's pricing boilerplate stays as legal
+reserve language, permitting a future change of mind without promising
+one. Picking up or reshaping any path here graduates to a record in
 DECISIONS.md like everything else.
 
 ## The asset, named plainly
@@ -56,24 +57,29 @@ everyone, no compounding of sponsorship with precise targeting, and a
 community and farm content. Building it graduates those notes to a
 decision record.
 
-## Reserved, not decided
-
-**Consumer freemium / paid tiers.** web/terms.html reserves the space
-("free, freemium, or paid… shown in the store listing or the in-app
-purchase flow"), and nothing in the tree implements any of it — no IAP
-dependency, no entitlement checks, no priced features. Whether InSight
-ever charges its users, and for what, is an open product decision. If it
-is picked up, the shape that fits the existing posture is paying for
-*more product* (history, groups, instruments), never paying to *remove a
-privacy harm* — there is no such harm to sell back.
+**3 · Ads in the world feed** — open as a path by the owner
+(2026-08-01), not ruled out. The version that coexists with the
+standing posture is an ad *card*: disclosed like a sponsored question,
+riding the feed's bounded-cadence interleave (the sponsored-question
+slot mechanics generalize to it), and selected **without a per-user
+profile** — contextual, or at most the on-device cohort tags
+QUESTION-FARM.md's audience-tags notes allow. Nothing about an ad card
+requires collecting anything: the device already knows what to show
+without telling the server who saw what. Building it graduates to a
+decision record, where the CPM-vs-flat question and the cadence cap get
+decided.
 
 ## Ruled out by standing posture
 
-- **Advertising and ad-tech targeting.** The data inventory declares no
-  advertising or analytics identifiers, and QUESTION-FARM.md draws the
-  structural line: server-side per-user content selection is the moment
-  a behavioral profile exists, whatever the intentions. Audience tags,
-  if ever built, are k-floored cohort hints selected **on the device**.
+Narrower than "no ads" — ads are path 3. What stays out is the
+**tracking apparatus**, because other standing records pin it:
+
+- **Advertising/analytics identifiers and per-user targeting.** The
+  data inventory declares none collected, and QUESTION-FARM.md draws
+  the structural line: server-side per-user content selection is the
+  moment a behavioral profile exists, whatever the intentions. An ad
+  path that needs those is a reversal of THOSE records, not an edit to
+  this doc — its own decision, taken knowingly, if ever.
 - **Selling personal or below-floor data.** Not a policy promise — there
   is no code path that could serve it. Exact counts are server-only,
   the floor applies to every reader, and the politics result never
@@ -82,6 +88,6 @@ privacy harm* — there is no such harm to sell back.
 
 ## The one-sentence version
 
-Places and sponsors pay to ask; nobody ever pays with their identity;
-and the thing sold — an honest, floored split — is the same thing every
-user sees for free.
+Places, sponsors and feed advertisers pay to appear or to ask; users
+never pay — with money or with their identity; and the sold split is
+the same honest, floored number every user sees for free.
