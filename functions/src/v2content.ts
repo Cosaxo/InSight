@@ -4074,5 +4074,1637 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "topic": "test",
   "axis": "easy",
   "test": "attachment"
+ },
+ {
+  "id": "learn-cell1",
+  "surface": "learn",
+  "seq": 0,
+  "type": "choice",
+  "domain": null,
+  "prompt": "What do ribosomes build?",
+  "options": [
+   "Proteins",
+   "Lipids",
+   "DNA",
+   "Sugars"
+  ],
+  "topic": "cell",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "learn-cell2",
+  "surface": "learn",
+  "seq": 1,
+  "type": "choice",
+  "domain": null,
+  "prompt": "Which organelle releases most of a cell’s energy?",
+  "options": [
+   "Mitochondrion",
+   "Nucleus",
+   "Ribosome",
+   "Lysosome"
+  ],
+  "topic": "cell",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "learn-cell3",
+  "surface": "learn",
+  "seq": 2,
+  "type": "choice",
+  "domain": null,
+  "prompt": "A plant cell wall is made mostly of…",
+  "options": [
+   "Cellulose",
+   "Chitin",
+   "Keratin",
+   "Starch"
+  ],
+  "topic": "cell",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "learn-cell4",
+  "surface": "learn",
+  "seq": 3,
+  "type": "choice",
+  "domain": null,
+  "prompt": "Where does an animal cell keep its DNA?",
+  "options": [
+   "The nucleus",
+   "The cytoplasm",
+   "The membrane",
+   "A vacuole"
+  ],
+  "topic": "cell",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "learn-cell5",
+  "surface": "learn",
+  "seq": 4,
+  "type": "choice",
+  "domain": null,
+  "prompt": "What does a lysosome do?",
+  "options": [
+   "Breaks down waste",
+   "Stores water",
+   "Builds proteins",
+   "Splits the cell"
+  ],
+  "topic": "cell",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "learn-cell6",
+  "surface": "learn",
+  "seq": 5,
+  "type": "choice",
+  "domain": null,
+  "prompt": "Which of these cells has no nucleus?",
+  "options": [
+   "A bacterium",
+   "A plant cell",
+   "A fungal cell",
+   "They all have one"
+  ],
+  "topic": "cell",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "learn-cell7",
+  "surface": "learn",
+  "seq": 6,
+  "type": "choice",
+  "domain": null,
+  "prompt": "Photosynthesis happens in the…",
+  "options": [
+   "Chloroplast",
+   "Mitochondrion",
+   "Nucleus",
+   "Ribosome"
+  ],
+  "topic": "cell",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "learn-cell8",
+  "surface": "learn",
+  "seq": 7,
+  "type": "choice",
+  "domain": null,
+  "prompt": "Division that makes two identical cells is…",
+  "options": [
+   "Mitosis",
+   "Meiosis",
+   "Osmosis",
+   "Mutation"
+  ],
+  "topic": "cell",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "learn-gene1",
+  "surface": "learn",
+  "seq": 8,
+  "type": "choice",
+  "domain": null,
+  "prompt": "DNA’s four bases are A, C, G and…",
+  "options": [
+   "T",
+   "U",
+   "P",
+   "M"
+  ],
+  "topic": "gene",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "learn-gene2",
+  "surface": "learn",
+  "seq": 9,
+  "type": "choice",
+  "domain": null,
+  "prompt": "How many chromosomes are in a human body cell?",
+  "options": [
+   "46",
+   "23",
+   "92",
+   "64"
+  ],
+  "topic": "gene",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "learn-gene3",
+  "surface": "learn",
+  "seq": 10,
+  "type": "choice",
+  "domain": null,
+  "prompt": "A variant that shows only when inherited from both parents is…",
+  "options": [
+   "Recessive",
+   "Dominant",
+   "Mutant",
+   "Linked"
+  ],
+  "topic": "gene",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "learn-gene4",
+  "surface": "learn",
+  "seq": 11,
+  "type": "choice",
+  "domain": null,
+  "prompt": "RNA uses which base in place of thymine?",
+  "options": [
+   "Uracil",
+   "Guanine",
+   "Adenine",
+   "Cytosine"
+  ],
+  "topic": "gene",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "learn-gene5",
+  "surface": "learn",
+  "seq": 12,
+  "type": "choice",
+  "domain": null,
+  "prompt": "Who published DNA’s double helix in 1953?",
+  "options": [
+   "Watson & Crick",
+   "Mendel",
+   "Darwin",
+   "Pasteur"
+  ],
+  "topic": "gene",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "learn-gene6",
+  "surface": "learn",
+  "seq": 13,
+  "type": "choice",
+  "domain": null,
+  "prompt": "Mendel worked out inheritance by breeding…",
+  "options": [
+   "Pea plants",
+   "Fruit flies",
+   "Mice",
+   "Roses"
+  ],
+  "topic": "gene",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "learn-gene7",
+  "surface": "learn",
+  "seq": 14,
+  "type": "choice",
+  "domain": null,
+  "prompt": "Identical twins share…",
+  "options": [
+   "All their DNA",
+   "Half their DNA",
+   "A quarter of it",
+   "None of it"
+  ],
+  "topic": "gene",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "learn-gene8",
+  "surface": "learn",
+  "seq": 15,
+  "type": "choice",
+  "domain": null,
+  "prompt": "A change in a DNA sequence is a…",
+  "options": [
+   "Mutation",
+   "Mitosis",
+   "Meiosis",
+   "Marker"
+  ],
+  "topic": "gene",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "learn-body1",
+  "surface": "learn",
+  "seq": 16,
+  "type": "choice",
+  "domain": null,
+  "prompt": "Which vessels carry blood away from the heart?",
+  "options": [
+   "Arteries",
+   "Veins",
+   "Capillaries",
+   "Ventricles"
+  ],
+  "topic": "body",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "learn-body2",
+  "surface": "learn",
+  "seq": 17,
+  "type": "choice",
+  "domain": null,
+  "prompt": "How many chambers does the heart have?",
+  "options": [
+   "Four",
+   "Two",
+   "Three",
+   "Six"
+  ],
+  "topic": "body",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "learn-body3",
+  "surface": "learn",
+  "seq": 18,
+  "type": "choice",
+  "domain": null,
+  "prompt": "The largest organ in the body is the…",
+  "options": [
+   "Skin",
+   "Liver",
+   "Lung",
+   "Brain"
+  ],
+  "topic": "body",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "learn-body4",
+  "surface": "learn",
+  "seq": 19,
+  "type": "choice",
+  "domain": null,
+  "prompt": "Which organ makes insulin?",
+  "options": [
+   "The pancreas",
+   "The liver",
+   "A kidney",
+   "The spleen"
+  ],
+  "topic": "body",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "learn-body5",
+  "surface": "learn",
+  "seq": 20,
+  "type": "choice",
+  "domain": null,
+  "prompt": "Where does most nutrient absorption happen?",
+  "options": [
+   "Small intestine",
+   "Stomach",
+   "Large intestine",
+   "Liver"
+  ],
+  "topic": "body",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "learn-body6",
+  "surface": "learn",
+  "seq": 21,
+  "type": "choice",
+  "domain": null,
+  "prompt": "How many bones does an adult have?",
+  "options": [
+   "206",
+   "About 300",
+   "About 150",
+   "412"
+  ],
+  "topic": "body",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "learn-body7",
+  "surface": "learn",
+  "seq": 22,
+  "type": "choice",
+  "domain": null,
+  "prompt": "Which part of the brain handles balance?",
+  "options": [
+   "Cerebellum",
+   "Cerebrum",
+   "Brain stem",
+   "Hippocampus"
+  ],
+  "topic": "body",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "learn-body8",
+  "surface": "learn",
+  "seq": 23,
+  "type": "choice",
+  "domain": null,
+  "prompt": "Red blood cells carry oxygen using…",
+  "options": [
+   "Haemoglobin",
+   "Insulin",
+   "Collagen",
+   "Keratin"
+  ],
+  "topic": "body",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "learn-evo1",
+  "surface": "learn",
+  "seq": 24,
+  "type": "choice",
+  "domain": null,
+  "prompt": "Natural selection acts on…",
+  "options": [
+   "Inherited variation",
+   "Individual effort",
+   "Learned habits",
+   "Random wishes"
+  ],
+  "topic": "evo",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "learn-evo2",
+  "surface": "learn",
+  "seq": 25,
+  "type": "choice",
+  "domain": null,
+  "prompt": "Darwin’s finches came from the…",
+  "options": [
+   "Galápagos",
+   "Canaries",
+   "Azores",
+   "Falklands"
+  ],
+  "topic": "evo",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "learn-evo3",
+  "surface": "learn",
+  "seq": 26,
+  "type": "choice",
+  "domain": null,
+  "prompt": "Humans and chimpanzees have…",
+  "options": [
+   "A common ancestor",
+   "Direct descent",
+   "No relation",
+   "An identical genome"
+  ],
+  "topic": "evo",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "learn-evo4",
+  "surface": "learn",
+  "seq": 27,
+  "type": "choice",
+  "domain": null,
+  "prompt": "Whales evolved from…",
+  "options": [
+   "Land mammals",
+   "Fish",
+   "Reptiles",
+   "Sharks"
+  ],
+  "topic": "evo",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "learn-evo5",
+  "surface": "learn",
+  "seq": 28,
+  "type": "choice",
+  "domain": null,
+  "prompt": "Same origin, different use — those structures are…",
+  "options": [
+   "Homologous",
+   "Analogous",
+   "Vestigial",
+   "Convergent"
+  ],
+  "topic": "evo",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "learn-evo6",
+  "surface": "learn",
+  "seq": 29,
+  "type": "choice",
+  "domain": null,
+  "prompt": "Roughly how old is the Earth?",
+  "options": [
+   "4.5 billion years",
+   "4.5 million years",
+   "450 million years",
+   "45 billion years"
+  ],
+  "topic": "evo",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "learn-evo7",
+  "surface": "learn",
+  "seq": 30,
+  "type": "choice",
+  "domain": null,
+  "prompt": "Birds are the living descendants of…",
+  "options": [
+   "Dinosaurs",
+   "Pterosaurs",
+   "Crocodiles",
+   "Early mammals"
+  ],
+  "topic": "evo",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "learn-evo8",
+  "surface": "learn",
+  "seq": 31,
+  "type": "choice",
+  "domain": null,
+  "prompt": "Antibiotic resistance is an example of…",
+  "options": [
+   "Evolution in action",
+   "A lab error",
+   "A virus",
+   "Natural immunity"
+  ],
+  "topic": "evo",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "learn-sol1",
+  "surface": "learn",
+  "seq": 32,
+  "type": "choice",
+  "domain": null,
+  "prompt": "Which planet is closest to the Sun?",
+  "options": [
+   "Mercury",
+   "Venus",
+   "Mars",
+   "Earth"
+  ],
+  "topic": "solar",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "learn-sol2",
+  "surface": "learn",
+  "seq": 33,
+  "type": "choice",
+  "domain": null,
+  "prompt": "Which planet is hottest?",
+  "options": [
+   "Venus",
+   "Mercury",
+   "Mars",
+   "Jupiter"
+  ],
+  "topic": "solar",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "learn-sol3",
+  "surface": "learn",
+  "seq": 34,
+  "type": "choice",
+  "domain": null,
+  "prompt": "How many moons does Mars have?",
+  "options": [
+   "Two",
+   "One",
+   "None",
+   "Four"
+  ],
+  "topic": "solar",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "learn-sol4",
+  "surface": "learn",
+  "seq": 35,
+  "type": "choice",
+  "domain": null,
+  "prompt": "Which planet has the fastest winds?",
+  "options": [
+   "Neptune",
+   "Jupiter",
+   "Saturn",
+   "Earth"
+  ],
+  "topic": "solar",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "learn-sol5",
+  "surface": "learn",
+  "seq": 36,
+  "type": "choice",
+  "domain": null,
+  "prompt": "The largest planet is…",
+  "options": [
+   "Jupiter",
+   "Saturn",
+   "Neptune",
+   "Uranus"
+  ],
+  "topic": "solar",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "learn-sol6",
+  "surface": "learn",
+  "seq": 37,
+  "type": "choice",
+  "domain": null,
+  "prompt": "Reclassified as a dwarf planet in 2006:",
+  "options": [
+   "Pluto",
+   "Ceres",
+   "Eris",
+   "Charon"
+  ],
+  "topic": "solar",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "learn-sol7",
+  "surface": "learn",
+  "seq": 38,
+  "type": "choice",
+  "domain": null,
+  "prompt": "A year on Venus is shorter than…",
+  "options": [
+   "Its own day",
+   "An Earth month",
+   "An Earth day",
+   "Nothing"
+  ],
+  "topic": "solar",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "learn-sol8",
+  "surface": "learn",
+  "seq": 39,
+  "type": "choice",
+  "domain": null,
+  "prompt": "The asteroid belt sits between…",
+  "options": [
+   "Mars and Jupiter",
+   "Earth and Mars",
+   "Jupiter and Saturn",
+   "Venus and Earth"
+  ],
+  "topic": "solar",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "learn-str1",
+  "surface": "learn",
+  "seq": 40,
+  "type": "choice",
+  "domain": null,
+  "prompt": "Our galaxy is the…",
+  "options": [
+   "Milky Way",
+   "Andromeda",
+   "Triangulum",
+   "Sombrero"
+  ],
+  "topic": "stars",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "learn-str2",
+  "surface": "learn",
+  "seq": 41,
+  "type": "choice",
+  "domain": null,
+  "prompt": "The Sun is a…",
+  "options": [
+   "Yellow dwarf",
+   "Red giant",
+   "White dwarf",
+   "Supergiant"
+  ],
+  "topic": "stars",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "learn-str3",
+  "surface": "learn",
+  "seq": 42,
+  "type": "choice",
+  "domain": null,
+  "prompt": "A light year measures…",
+  "options": [
+   "Distance",
+   "Time",
+   "Brightness",
+   "Mass"
+  ],
+  "topic": "stars",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "learn-str4",
+  "surface": "learn",
+  "seq": 43,
+  "type": "choice",
+  "domain": null,
+  "prompt": "A massive star’s collapse can leave…",
+  "options": [
+   "A black hole",
+   "A nebula",
+   "A comet",
+   "A planet"
+  ],
+  "topic": "stars",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "learn-str5",
+  "surface": "learn",
+  "seq": 44,
+  "type": "choice",
+  "domain": null,
+  "prompt": "The nearest star to the Sun is…",
+  "options": [
+   "Proxima Centauri",
+   "Sirius",
+   "Alpha Centauri A",
+   "Polaris"
+  ],
+  "topic": "stars",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "learn-str6",
+  "surface": "learn",
+  "seq": 45,
+  "type": "choice",
+  "domain": null,
+  "prompt": "Most of a galaxy’s visible mass sits in its…",
+  "options": [
+   "Stars",
+   "Central black hole",
+   "Dust clouds",
+   "Planets"
+  ],
+  "topic": "stars",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "learn-str7",
+  "surface": "learn",
+  "seq": 46,
+  "type": "choice",
+  "domain": null,
+  "prompt": "The universe is about…",
+  "options": [
+   "13.8 billion years old",
+   "4.5 billion years old",
+   "100 billion years old",
+   "A trillion years old"
+  ],
+  "topic": "stars",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "learn-str8",
+  "surface": "learn",
+  "seq": 47,
+  "type": "choice",
+  "domain": null,
+  "prompt": "Which colour of star burns hottest?",
+  "options": [
+   "Blue",
+   "Red",
+   "Yellow",
+   "Orange"
+  ],
+  "topic": "stars",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "learn-anc1",
+  "surface": "learn",
+  "seq": 48,
+  "type": "choice",
+  "domain": null,
+  "prompt": "The Great Pyramid at Giza was built for…",
+  "options": [
+   "Khufu",
+   "Tutankhamun",
+   "Ramesses II",
+   "Cleopatra"
+  ],
+  "topic": "ancient",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "learn-anc2",
+  "surface": "learn",
+  "seq": 49,
+  "type": "choice",
+  "domain": null,
+  "prompt": "Hieroglyphs were deciphered thanks to the…",
+  "options": [
+   "Rosetta Stone",
+   "Dead Sea Scrolls",
+   "Code of Hammurabi",
+   "Parthenon friezes"
+  ],
+  "topic": "ancient",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "learn-anc3",
+  "surface": "learn",
+  "seq": 50,
+  "type": "choice",
+  "domain": null,
+  "prompt": "The first known written law code comes from…",
+  "options": [
+   "Mesopotamia",
+   "Egypt",
+   "Greece",
+   "China"
+  ],
+  "topic": "ancient",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "learn-anc4",
+  "surface": "learn",
+  "seq": 51,
+  "type": "choice",
+  "domain": null,
+  "prompt": "Which empire built Machu Picchu?",
+  "options": [
+   "Inca",
+   "Maya",
+   "Aztec",
+   "Olmec"
+  ],
+  "topic": "ancient",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "learn-anc5",
+  "surface": "learn",
+  "seq": 52,
+  "type": "choice",
+  "domain": null,
+  "prompt": "Athens is credited with the first…",
+  "options": [
+   "Democracy",
+   "Republic",
+   "Monarchy",
+   "Empire"
+  ],
+  "topic": "ancient",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "learn-anc6",
+  "surface": "learn",
+  "seq": 53,
+  "type": "choice",
+  "domain": null,
+  "prompt": "Alexander the Great was tutored by…",
+  "options": [
+   "Aristotle",
+   "Plato",
+   "Socrates",
+   "Homer"
+  ],
+  "topic": "ancient",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "learn-anc7",
+  "surface": "learn",
+  "seq": 54,
+  "type": "choice",
+  "domain": null,
+  "prompt": "The Colosseum held roughly…",
+  "options": [
+   "50,000 people",
+   "5,000 people",
+   "200,000 people",
+   "12,000 people"
+  ],
+  "topic": "ancient",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "learn-anc8",
+  "surface": "learn",
+  "seq": 55,
+  "type": "choice",
+  "domain": null,
+  "prompt": "Rome’s republic gave way to empire under…",
+  "options": [
+   "Augustus",
+   "Julius Caesar",
+   "Nero",
+   "Hadrian"
+  ],
+  "topic": "ancient",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "learn-c201",
+  "surface": "learn",
+  "seq": 56,
+  "type": "choice",
+  "domain": null,
+  "prompt": "The Berlin Wall fell in…",
+  "options": [
+   "1989",
+   "1991",
+   "1985",
+   "1979"
+  ],
+  "topic": "c20",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "learn-c202",
+  "surface": "learn",
+  "seq": 57,
+  "type": "choice",
+  "domain": null,
+  "prompt": "The first person in space was…",
+  "options": [
+   "Yuri Gagarin",
+   "Neil Armstrong",
+   "Alan Shepard",
+   "Valentina Tereshkova"
+  ],
+  "topic": "c20",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "learn-c203",
+  "surface": "learn",
+  "seq": 58,
+  "type": "choice",
+  "domain": null,
+  "prompt": "The Second World War ended in…",
+  "options": [
+   "1945",
+   "1944",
+   "1946",
+   "1939"
+  ],
+  "topic": "c20",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "learn-c204",
+  "surface": "learn",
+  "seq": 59,
+  "type": "choice",
+  "domain": null,
+  "prompt": "Apollo 11 landed on the Moon in…",
+  "options": [
+   "1969",
+   "1968",
+   "1972",
+   "1965"
+  ],
+  "topic": "c20",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "learn-c205",
+  "surface": "learn",
+  "seq": 60,
+  "type": "choice",
+  "domain": null,
+  "prompt": "Penicillin was discovered by…",
+  "options": [
+   "Alexander Fleming",
+   "Louis Pasteur",
+   "Marie Curie",
+   "Jonas Salk"
+  ],
+  "topic": "c20",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "learn-c206",
+  "surface": "learn",
+  "seq": 61,
+  "type": "choice",
+  "domain": null,
+  "prompt": "The United Nations was founded in…",
+  "options": [
+   "1945",
+   "1919",
+   "1950",
+   "1930"
+  ],
+  "topic": "c20",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "learn-c207",
+  "surface": "learn",
+  "seq": 62,
+  "type": "choice",
+  "domain": null,
+  "prompt": "Which country launched the first satellite?",
+  "options": [
+   "The Soviet Union",
+   "The USA",
+   "Germany",
+   "Japan"
+  ],
+  "topic": "c20",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "learn-c208",
+  "surface": "learn",
+  "seq": 63,
+  "type": "choice",
+  "domain": null,
+  "prompt": "Apartheid in South Africa formally ended in the…",
+  "options": [
+   "Early 1990s",
+   "Late 1970s",
+   "Early 1980s",
+   "Late 1990s"
+  ],
+  "topic": "c20",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "learn-ear1",
+  "surface": "learn",
+  "seq": 64,
+  "type": "choice",
+  "domain": null,
+  "prompt": "The longest river in the world is the…",
+  "options": [
+   "Nile",
+   "Amazon",
+   "Yangtze",
+   "Mississippi"
+  ],
+  "topic": "earth",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "learn-ear2",
+  "surface": "learn",
+  "seq": 65,
+  "type": "choice",
+  "domain": null,
+  "prompt": "Everest sits on the border of Nepal and…",
+  "options": [
+   "China",
+   "India",
+   "Bhutan",
+   "Pakistan"
+  ],
+  "topic": "earth",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "learn-ear3",
+  "surface": "learn",
+  "seq": 66,
+  "type": "choice",
+  "domain": null,
+  "prompt": "The deepest ocean trench is the…",
+  "options": [
+   "Mariana Trench",
+   "Puerto Rico Trench",
+   "Java Trench",
+   "Tonga Trench"
+  ],
+  "topic": "earth",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "learn-ear4",
+  "surface": "learn",
+  "seq": 67,
+  "type": "choice",
+  "domain": null,
+  "prompt": "Which river flows through Paris?",
+  "options": [
+   "The Seine",
+   "The Loire",
+   "The Rhône",
+   "The Rhine"
+  ],
+  "topic": "earth",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "learn-ear5",
+  "surface": "learn",
+  "seq": 68,
+  "type": "choice",
+  "domain": null,
+  "prompt": "The largest freshwater lake by volume is…",
+  "options": [
+   "Lake Baikal",
+   "Lake Superior",
+   "Lake Victoria",
+   "The Caspian Sea"
+  ],
+  "topic": "earth",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "learn-ear6",
+  "surface": "learn",
+  "seq": 69,
+  "type": "choice",
+  "domain": null,
+  "prompt": "Which continent has no rivers to speak of?",
+  "options": [
+   "Antarctica",
+   "Australia",
+   "Africa",
+   "Europe"
+  ],
+  "topic": "earth",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "learn-ear7",
+  "surface": "learn",
+  "seq": 70,
+  "type": "choice",
+  "domain": null,
+  "prompt": "The Andes run along which coast?",
+  "options": [
+   "Western South America",
+   "Eastern South America",
+   "Western Africa",
+   "Southern Asia"
+  ],
+  "topic": "earth",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "learn-ear8",
+  "surface": "learn",
+  "seq": 71,
+  "type": "choice",
+  "domain": null,
+  "prompt": "The Sahara is roughly the size of…",
+  "options": [
+   "The USA",
+   "Spain",
+   "India",
+   "Australia’s outback"
+  ],
+  "topic": "earth",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "learn-cap1",
+  "surface": "learn",
+  "seq": 72,
+  "type": "choice",
+  "domain": null,
+  "prompt": "The capital of Australia is…",
+  "options": [
+   "Canberra",
+   "Sydney",
+   "Melbourne",
+   "Perth"
+  ],
+  "topic": "capitals",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "learn-cap2",
+  "surface": "learn",
+  "seq": 73,
+  "type": "choice",
+  "domain": null,
+  "prompt": "The capital of Turkey is…",
+  "options": [
+   "Ankara",
+   "Istanbul",
+   "Izmir",
+   "Bursa"
+  ],
+  "topic": "capitals",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "learn-cap3",
+  "surface": "learn",
+  "seq": 74,
+  "type": "choice",
+  "domain": null,
+  "prompt": "The capital of Canada is…",
+  "options": [
+   "Ottawa",
+   "Toronto",
+   "Vancouver",
+   "Montreal"
+  ],
+  "topic": "capitals",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "learn-cap4",
+  "surface": "learn",
+  "seq": 75,
+  "type": "choice",
+  "domain": null,
+  "prompt": "The capital of Brazil is…",
+  "options": [
+   "Brasília",
+   "Rio de Janeiro",
+   "São Paulo",
+   "Salvador"
+  ],
+  "topic": "capitals",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "learn-cap5",
+  "surface": "learn",
+  "seq": 76,
+  "type": "choice",
+  "domain": null,
+  "prompt": "The capital of Switzerland is…",
+  "options": [
+   "Bern",
+   "Zurich",
+   "Geneva",
+   "Basel"
+  ],
+  "topic": "capitals",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "learn-cap6",
+  "surface": "learn",
+  "seq": 77,
+  "type": "choice",
+  "domain": null,
+  "prompt": "The capital of New Zealand is…",
+  "options": [
+   "Wellington",
+   "Auckland",
+   "Christchurch",
+   "Dunedin"
+  ],
+  "topic": "capitals",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "learn-cap7",
+  "surface": "learn",
+  "seq": 78,
+  "type": "choice",
+  "domain": null,
+  "prompt": "The capital of Morocco is…",
+  "options": [
+   "Rabat",
+   "Casablanca",
+   "Marrakesh",
+   "Fez"
+  ],
+  "topic": "capitals",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "learn-cap8",
+  "surface": "learn",
+  "seq": 79,
+  "type": "choice",
+  "domain": null,
+  "prompt": "The capital of Myanmar is…",
+  "options": [
+   "Naypyidaw",
+   "Yangon",
+   "Mandalay",
+   "Bago"
+  ],
+  "topic": "capitals",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "learn-org1",
+  "surface": "learn",
+  "seq": 80,
+  "type": "choice",
+  "domain": null,
+  "prompt": "“Salary” comes from the Latin for…",
+  "options": [
+   "Salt",
+   "Silver",
+   "Service",
+   "Sale"
+  ],
+  "topic": "origins",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "learn-org2",
+  "surface": "learn",
+  "seq": 81,
+  "type": "choice",
+  "domain": null,
+  "prompt": "“Quarantine” comes from the Italian for…",
+  "options": [
+   "Forty",
+   "Quiet",
+   "Border",
+   "Clean"
+  ],
+  "topic": "origins",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "learn-org3",
+  "surface": "learn",
+  "seq": 82,
+  "type": "choice",
+  "domain": null,
+  "prompt": "“Sandwich” is named after…",
+  "options": [
+   "An English earl",
+   "A Dutch town",
+   "A baker",
+   "A ship"
+  ],
+  "topic": "origins",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "learn-org4",
+  "surface": "learn",
+  "seq": 83,
+  "type": "choice",
+  "domain": null,
+  "prompt": "“Muscle” comes from the Latin for…",
+  "options": [
+   "Little mouse",
+   "Strong rope",
+   "Living thread",
+   "Warm flesh"
+  ],
+  "topic": "origins",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "learn-org5",
+  "surface": "learn",
+  "seq": 84,
+  "type": "choice",
+  "domain": null,
+  "prompt": "“Alcohol” entered English from…",
+  "options": [
+   "Arabic",
+   "Latin",
+   "Greek",
+   "German"
+  ],
+  "topic": "origins",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "learn-org6",
+  "surface": "learn",
+  "seq": 85,
+  "type": "choice",
+  "domain": null,
+  "prompt": "“Robot” was coined in a…",
+  "options": [
+   "Czech play",
+   "German novel",
+   "Russian film",
+   "British essay"
+  ],
+  "topic": "origins",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "learn-org7",
+  "surface": "learn",
+  "seq": 86,
+  "type": "choice",
+  "domain": null,
+  "prompt": "“Avocado” traces back to…",
+  "options": [
+   "Nahuatl",
+   "Spanish",
+   "Portuguese",
+   "Quechua"
+  ],
+  "topic": "origins",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "learn-org8",
+  "surface": "learn",
+  "seq": 87,
+  "type": "choice",
+  "domain": null,
+  "prompt": "“Nightmare” originally meant a…",
+  "options": [
+   "Crushing spirit",
+   "Bad dream",
+   "Dark horse",
+   "Night fever"
+  ],
+  "topic": "origins",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "learn-con1",
+  "surface": "learn",
+  "seq": 88,
+  "type": "choice",
+  "domain": null,
+  "prompt": "Turning on its own axis is…",
+  "options": [
+   "Rotation",
+   "Orbit",
+   "Revolution",
+   "Tilt"
+  ],
+  "topic": "confused",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "learn-con2",
+  "surface": "learn",
+  "seq": 89,
+  "type": "choice",
+  "domain": null,
+  "prompt": "“Affect” is usually a…",
+  "options": [
+   "Verb",
+   "Noun",
+   "Adjective",
+   "Adverb"
+  ],
+  "topic": "confused",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "learn-con3",
+  "surface": "learn",
+  "seq": 90,
+  "type": "choice",
+  "domain": null,
+  "prompt": "With things you can count, use…",
+  "options": [
+   "Fewer",
+   "Less",
+   "Either",
+   "Neither"
+  ],
+  "topic": "confused",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "learn-con4",
+  "surface": "learn",
+  "seq": 91,
+  "type": "choice",
+  "domain": null,
+  "prompt": "“Its” without an apostrophe means…",
+  "options": [
+   "Belonging to it",
+   "It is",
+   "It has",
+   "The plural of it"
+  ],
+  "topic": "confused",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "learn-con5",
+  "surface": "learn",
+  "seq": 92,
+  "type": "choice",
+  "domain": null,
+  "prompt": "A “principal” is…",
+  "options": [
+   "A person or the main thing",
+   "A rule",
+   "A belief",
+   "Interest owed"
+  ],
+  "topic": "confused",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "learn-con6",
+  "surface": "learn",
+  "seq": 93,
+  "type": "choice",
+  "domain": null,
+  "prompt": "“Literally” strictly means…",
+  "options": [
+   "Exactly as stated",
+   "Very much",
+   "Almost",
+   "Figuratively"
+  ],
+  "topic": "confused",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "learn-con7",
+  "surface": "learn",
+  "seq": 94,
+  "type": "choice",
+  "domain": null,
+  "prompt": "“Compliment” with an i means…",
+  "options": [
+   "Praise",
+   "A completion",
+   "A match",
+   "A full set"
+  ],
+  "topic": "confused",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "learn-con8",
+  "surface": "learn",
+  "seq": 95,
+  "type": "choice",
+  "domain": null,
+  "prompt": "Who implies — and who infers?",
+  "options": [
+   "Speaker implies",
+   "Listener implies",
+   "The text implies",
+   "The editor implies"
+  ],
+  "topic": "confused",
+  "axis": null,
+  "test": null
  }
 ];

@@ -54,6 +54,7 @@ export function loadContent() {
     feed: load("feed-questions.json"),
     duel: load("duel-questions.json"),
     tests: load("tests.json"),
+    learn: load("learn-questions.json"),
   };
 }
 
@@ -75,7 +76,7 @@ function requireId(q, where) {
 }
 
 export function buildEntries(content = loadContent()) {
-  const { daily, feed, duel, tests } = content;
+  const { daily, feed, duel, tests, learn } = content;
   const entries = [];
 
   daily.forEach((q, i) => {
@@ -171,6 +172,27 @@ export function buildEntries(content = loadContent()) {
       });
     });
   }
+
+  // Learn cards (D32): the server doc carries ONLY what rules and the
+  // aggregate fold need — prompt, options, the field as topic. The
+  // correctness metadata (c, t, p, k, w) stays client-side in
+  // content/learn-questions.json / window.LEARN_CARDS: nothing server-side
+  // reads correctness, and "% got it right" is counts[c]/total computed on
+  // the client, which ships c in the bundle anyway.
+  learn.cards.forEach((q, i) => {
+    entries.push({
+      id: `learn-${requireId(q, `learn-questions.json[${i}]`)}`,
+      surface: "learn",
+      seq: i,
+      type: "choice",
+      domain: null,
+      prompt: q.q,
+      options: q.a,
+      topic: q.f,
+      axis: null,
+      test: null,
+    });
+  });
 
   return entries;
 }
