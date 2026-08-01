@@ -98,6 +98,27 @@
       128173: 2,  // 💭 thought balloon — below the floor
       0: 9,       // Not listed — the ZWJ-combo and flag devotees
     },
+    // daily catalog-question run, 2026-08-01 — annoyance is its own canon:
+    // pk04 ranks what people SEND, this ranks what they roll their eyes
+    // at RECEIVING, and the boards disagree from the top down (😂 sits
+    // high on both, which is honest — beloved and resented at once).
+    pk05: {
+      128580: 37, // 🙄 face with rolling eyes
+      128514: 29, // 😂 tears of joy — the backlash vote
+      128077: 25, // 👍 thumbs up — the passive-aggressive reply
+      128169: 21, // 💩 pile of poo
+      129313: 17, // 🤡 clown face
+      128579: 13, // 🙃 upside-down face
+      128175: 11, // 💯 hundred points
+      128536: 8,  // 😘 face blowing a kiss
+      128521: 7,  // 😉 winking face
+      129392: 6,  // 🥰 smiling face with hearts
+      10024: 5,   // ✨ sparkles — clears the floor but not the top 10; folds
+      129315: 5,  // 🤣 rolling on the floor laughing — same
+      128556: 3,  // 😬 grimacing face — below the floor
+      129760: 2,  // 🫠 melting face — below the floor
+      0: 8,       // Not listed
+    },
   };
 
   // Baked demo segment slices, per question: how each cohort orders the
@@ -147,6 +168,18 @@
       gender: {
         Women: { 10084: 12, 128557: 10, 129401: 6, 10024: 6, 128525: 5 },
         Men: { 128514: 16, 129315: 9, 128293: 8, 128128: 7, 128077: 6 },
+      },
+    },
+    pk05: {
+      ageBand: {
+        // the 😂 backlash is a young-cohort phenomenon; older cohorts
+        // resent the passive-aggressive 👍 more
+        '18-24': { 128514: 12, 128077: 9, 128580: 7, 129313: 6, 128175: 4 },
+        '25-34': { 128580: 11, 128514: 8, 128169: 7, 128077: 6, 128579: 5 },
+      },
+      gender: {
+        Women: { 128580: 13, 128077: 8, 128514: 7, 128536: 6, 128521: 5 },
+        Men: { 128514: 10, 128580: 9, 129313: 9, 128169: 8, 128175: 5 },
       },
     },
   };
@@ -239,5 +272,9 @@
     // "favourite" here: it is the question people actually answer about
     // emoji, and their keyboard already knows.
     { id: 'pk04', cat: 'fav', type: 'pick', domain: 'emoji', prompt: 'Your most-used emoji?', n: 218 },
+    // 2026-08-01 daily run: annoyance, not usage — what you send (pk04)
+    // and what makes you wince are different questions with different
+    // winners.
+    { id: 'pk05', cat: 'fav', type: 'pick', domain: 'emoji', prompt: 'The most annoying emoji?', n: 197 },
   ];
 })();
