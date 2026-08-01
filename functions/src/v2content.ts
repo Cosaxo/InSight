@@ -1,14 +1,17 @@
-// GENERATED from /content/*.json — do not hand-edit. There is no checked-in
-// generator: scripts/gen-v2content.md records where it lived and the id
-// scheme it used. Re-run only if /content changes.
+// GENERATED from /content/*.json by scripts/gen-v2content.mjs — do not
+// hand-edit. Regenerate with `npm run build:content`; `npm run
+// check:content` compares this file byte-for-byte against what /content
+// generates, on the deploy path, so a hand edit here (or a /content
+// change without a regen) fails the gate.
 // Canonical launch question bank for the v2 seed callable.
-export interface V2SeedQuestion { id: string; surface: string; seq: number; type: string; prompt: string; options: string[]; topic: string | null; axis: string | null; test: string | null; }
+export interface V2SeedQuestion { id: string; surface: string; seq: number; type: string; domain: string | null; prompt: string; options: string[]; topic: string | null; axis: string | null; test: string | null; }
 export const V2_QUESTIONS: V2SeedQuestion[] = [
  {
   "id": "daily-000",
   "surface": "daily",
   "seq": 0,
   "type": "binary",
+  "domain": null,
   "prompt": "Messi or Ronaldo?",
   "options": [
    "Messi",
@@ -23,6 +26,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "surface": "daily",
   "seq": 1,
   "type": "binary",
+  "domain": null,
   "prompt": "Tarantino or Wes Anderson?",
   "options": [
    "Tarantino",
@@ -37,6 +41,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "surface": "daily",
   "seq": 2,
   "type": "binary",
+  "domain": null,
   "prompt": "Pineapple on pizza?",
   "options": [
    "Yes",
@@ -51,6 +56,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "surface": "daily",
   "seq": 3,
   "type": "choice",
+  "domain": null,
   "prompt": "What do you want more of this year?",
   "options": [
    "Time",
@@ -67,6 +73,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "surface": "daily",
   "seq": 4,
   "type": "scale",
+  "domain": null,
   "prompt": "It's okay to do nothing sometimes.",
   "options": [
    "Strongly disagree",
@@ -84,6 +91,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "surface": "daily",
   "seq": 5,
   "type": "binary",
+  "domain": null,
   "prompt": "Are people getting kinder, or meaner?",
   "options": [
    "Kinder",
@@ -98,6 +106,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "surface": "daily",
   "seq": 6,
   "type": "dilemma",
+  "domain": null,
   "prompt": "You find €500 in cash on an empty street. What do you do?",
   "options": [
    "Keep it",
@@ -113,6 +122,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "surface": "daily",
   "seq": 7,
   "type": "rating",
+  "domain": null,
   "prompt": "How optimistic are you about the next ten years?",
   "options": [
    "1",
@@ -135,6 +145,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "surface": "daily",
   "seq": 8,
   "type": "scale",
+  "domain": null,
   "prompt": "People are basically trustworthy.",
   "options": [
    "Strongly disagree",
@@ -152,6 +163,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "surface": "daily",
   "seq": 9,
   "type": "binary",
+  "domain": null,
   "prompt": "A pill that ends your need for sleep. Take it?",
   "options": [
    "Take it",
@@ -166,6 +178,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "surface": "daily",
   "seq": 10,
   "type": "choice",
+  "domain": null,
   "prompt": "What should schools teach more of?",
   "options": [
    "Money",
@@ -182,6 +195,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "surface": "daily",
   "seq": 11,
   "type": "dilemma",
+  "domain": null,
   "prompt": "A job you would love means moving somewhere your partner would hate. Do you take it?",
   "options": [
    "Take it",
@@ -197,6 +211,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "surface": "daily",
   "seq": 12,
   "type": "binary",
+  "domain": null,
   "prompt": "Would you rather watch sport, or play it?",
   "options": [
    "Watch",
@@ -211,6 +226,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "surface": "daily",
   "seq": 13,
   "type": "scale",
+  "domain": null,
   "prompt": "Suffering can give life meaning.",
   "options": [
    "Strongly disagree",
@@ -228,6 +244,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "surface": "daily",
   "seq": 14,
   "type": "rating",
+  "domain": null,
   "prompt": "How much do you trust the news you read?",
   "options": [
    "1",
@@ -250,6 +267,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "surface": "daily",
   "seq": 15,
   "type": "binary",
+  "domain": null,
   "prompt": "Will AI make everyday life better, or worse?",
   "options": [
    "Better",
@@ -264,6 +282,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "surface": "daily",
   "seq": 16,
   "type": "choice",
+  "domain": null,
   "prompt": "Humanity's best invention?",
   "options": [
    "Writing",
@@ -280,6 +299,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "surface": "daily",
   "seq": 17,
   "type": "scale",
+  "domain": null,
   "prompt": "Technology is making us lonelier.",
   "options": [
    "Strongly disagree",
@@ -297,6 +317,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "surface": "daily",
   "seq": 18,
   "type": "choice",
+  "domain": null,
   "prompt": "What matters most in a life well lived?",
   "options": [
    "Connection",
@@ -313,6 +334,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "surface": "daily",
   "seq": 19,
   "type": "dilemma",
+  "domain": null,
   "prompt": "Would you rather know the exact date of your death?",
   "options": [
    "Know",
@@ -327,6 +349,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "surface": "daily",
   "seq": 20,
   "type": "rating",
+  "domain": null,
   "prompt": "How much of your life so far is luck?",
   "options": [
    "1",
@@ -349,6 +372,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "surface": "daily",
   "seq": 21,
   "type": "scale",
+  "domain": null,
   "prompt": "I'd rather have a few deep friendships than many.",
   "options": [
    "Strongly disagree",
@@ -366,6 +390,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "surface": "daily",
   "seq": 22,
   "type": "dilemma",
+  "domain": null,
   "prompt": "A lie that spares someone real pain. Tell it?",
   "options": [
    "Tell it",
@@ -380,6 +405,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "surface": "daily",
   "seq": 23,
   "type": "scale",
+  "domain": null,
   "prompt": "It's better to be honest than kind.",
   "options": [
    "Strongly disagree",
@@ -397,6 +423,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "surface": "daily",
   "seq": 24,
   "type": "scale",
+  "domain": null,
   "prompt": "Money buys happiness.",
   "options": [
    "Strongly disagree",
@@ -414,6 +441,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "surface": "daily",
   "seq": 25,
   "type": "rating",
+  "domain": null,
   "prompt": "How much control do you feel over your life?",
   "options": [
    "1",
@@ -436,6 +464,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "surface": "daily",
   "seq": 26,
   "type": "choice",
+  "domain": null,
   "prompt": "Where does your sense of self come from?",
   "options": [
    "What I do",
@@ -452,6 +481,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "surface": "daily",
   "seq": 27,
   "type": "binary",
+  "domain": null,
   "prompt": "Relive your best day, or live a new one?",
   "options": [
    "Relive it",
@@ -466,6 +496,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "surface": "daily",
   "seq": 28,
   "type": "choice",
+  "domain": null,
   "prompt": "Pick a season for the soul.",
   "options": [
    "Spring",
@@ -482,6 +513,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "surface": "daily",
   "seq": 29,
   "type": "scale",
+  "domain": null,
   "prompt": "Most people would help a stranger in need.",
   "options": [
    "Strongly disagree",
@@ -499,6 +531,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "surface": "feed",
   "seq": 0,
   "type": "duel",
+  "domain": null,
   "prompt": "The better night in front of the TV?",
   "options": [
    "Champions League final",
@@ -513,6 +546,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "surface": "feed",
   "seq": 1,
   "type": "vote",
+  "domain": null,
   "prompt": "Would you rather win…",
   "options": [
    "Olympic gold",
@@ -527,6 +561,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "surface": "feed",
   "seq": 2,
   "type": "rank",
+  "domain": null,
   "prompt": "Pure athleticism — rank them",
   "options": [
    "Gymnasts",
@@ -543,6 +578,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "surface": "feed",
   "seq": 3,
   "type": "vote",
+  "domain": null,
   "prompt": "VAR made football better.",
   "options": [
    "Better",
@@ -557,6 +593,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "surface": "feed",
   "seq": 4,
   "type": "vote",
+  "domain": null,
   "prompt": "Best sport to watch live in a stadium",
   "options": [
    "Football",
@@ -572,6 +609,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "surface": "feed",
   "seq": 5,
   "type": "vote",
+  "domain": null,
   "prompt": "E-sports are real sports.",
   "options": [
    "They are",
@@ -586,6 +624,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "surface": "feed",
   "seq": 6,
   "type": "vote",
+  "domain": null,
   "prompt": "Your team wins it all — but you can never watch them again. Deal?",
   "options": [
    "Take it",
@@ -600,6 +639,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "surface": "feed",
   "seq": 7,
   "type": "duel",
+  "domain": null,
   "prompt": "One cuisine forever",
   "options": [
    "Italian",
@@ -614,6 +654,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "surface": "feed",
   "seq": 8,
   "type": "vote",
+  "domain": null,
   "prompt": "Milk before cereal is a crime.",
   "options": [
    "A crime",
@@ -628,6 +669,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "surface": "feed",
   "seq": 9,
   "type": "rank",
+  "domain": null,
   "prompt": "Rank the potato formats",
   "options": [
    "Fries",
@@ -644,6 +686,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "surface": "feed",
   "seq": 10,
   "type": "vote",
+  "domain": null,
   "prompt": "Would you eat lab-grown meat?",
   "options": [
    "Sure",
@@ -658,6 +701,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "surface": "feed",
   "seq": 11,
   "type": "vote",
+  "domain": null,
   "prompt": "A free pill replaces all meals. Food becomes hobby-only. Take it?",
   "options": [
    "Take it",
@@ -672,6 +716,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "surface": "feed",
   "seq": 12,
   "type": "duel",
+  "domain": null,
   "prompt": "Final dessert on earth",
   "options": [
    "Tiramisu",
@@ -686,6 +731,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "surface": "feed",
   "seq": 13,
   "type": "vote",
+  "domain": null,
   "prompt": "Spicy food: worth the pain?",
   "options": [
    "Always",
@@ -700,6 +746,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "surface": "feed",
   "seq": 14,
   "type": "vote",
+  "domain": null,
   "prompt": "The book is always better.",
   "options": [
    "Always",
@@ -714,6 +761,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "surface": "feed",
   "seq": 15,
   "type": "rank",
+  "domain": null,
   "prompt": "Rank by rewatchability",
   "options": [
    "Comedies",
@@ -730,6 +778,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "surface": "feed",
   "seq": 16,
   "type": "duel",
+  "domain": null,
   "prompt": "One world to live in",
   "options": [
    "Space opera",
@@ -744,6 +793,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "surface": "feed",
   "seq": 17,
   "type": "vote",
+  "domain": null,
   "prompt": "Watching at 1.5× speed is disrespectful.",
   "options": [
    "Disrespectful",
@@ -758,6 +808,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "surface": "feed",
   "seq": 18,
   "type": "vote",
+  "domain": null,
   "prompt": "The ideal movie length",
   "options": [
    "90 minutes",
@@ -773,6 +824,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "surface": "feed",
   "seq": 19,
   "type": "vote",
+  "domain": null,
   "prompt": "Spoilers ruin nothing for a good story.",
   "options": [
    "True",
@@ -787,6 +839,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "surface": "feed",
   "seq": 20,
   "type": "vote",
+  "domain": null,
   "prompt": "Great lyrics or great melody?",
   "options": [
    "Lyrics",
@@ -801,6 +854,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "surface": "feed",
   "seq": 21,
   "type": "rank",
+  "domain": null,
   "prompt": "Rank the live music",
   "options": [
    "Stadium show",
@@ -817,6 +871,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "surface": "feed",
   "seq": 22,
   "type": "vote",
+  "domain": null,
   "prompt": "Vinyl actually sounds better.",
   "options": [
    "It does",
@@ -831,6 +886,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "surface": "feed",
   "seq": 23,
   "type": "vote",
+  "domain": null,
   "prompt": "Music while working?",
   "options": [
    "Always",
@@ -846,6 +902,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "surface": "feed",
   "seq": 24,
   "type": "duel",
+  "domain": null,
   "prompt": "One decade of music forever",
   "options": [
    "The 70s",
@@ -860,6 +917,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "surface": "feed",
   "seq": 25,
   "type": "vote",
+  "domain": null,
   "prompt": "Brain-computer interface, once it’s proven safe?",
   "options": [
    "Plug me in",
@@ -874,6 +932,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "surface": "feed",
   "seq": 26,
   "type": "vote",
+  "domain": null,
   "prompt": "Phones should be banned in schools.",
   "options": [
    "Ban them",
@@ -888,6 +947,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "surface": "feed",
   "seq": 27,
   "type": "rank",
+  "domain": null,
   "prompt": "Which would you give up last?",
   "options": [
    "Messaging",
@@ -904,6 +964,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "surface": "feed",
   "seq": 28,
   "type": "vote",
+  "domain": null,
   "prompt": "Delete all your data and start clean, or keep everything forever?",
   "options": [
    "Clean slate",
@@ -918,6 +979,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "surface": "feed",
   "seq": 29,
   "type": "vote",
+  "domain": null,
   "prompt": "A robot does your chores but records everything. Deal?",
   "options": [
    "Deal",
@@ -932,6 +994,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "surface": "feed",
   "seq": 30,
   "type": "vote",
+  "domain": null,
   "prompt": "Would you ride a driverless taxi tonight?",
   "options": [
    "Get in",
@@ -946,6 +1009,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "surface": "feed",
   "seq": 31,
   "type": "vote",
+  "domain": null,
   "prompt": "Tipping should be abolished.",
   "options": [
    "Abolish it",
@@ -960,6 +1024,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "surface": "feed",
   "seq": 32,
   "type": "vote",
+  "domain": null,
   "prompt": "Ten minutes early or exactly on time?",
   "options": [
    "Early",
@@ -974,6 +1039,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "surface": "feed",
   "seq": 33,
   "type": "rank",
+  "domain": null,
   "prompt": "Rank the perfect weekend",
   "options": [
    "Slow morning",
@@ -990,6 +1056,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "surface": "feed",
   "seq": 34,
   "type": "vote",
+  "domain": null,
   "prompt": "The best age to be",
   "options": [
    "18",
@@ -1006,6 +1073,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "surface": "feed",
   "seq": 35,
   "type": "duel",
+  "domain": null,
   "prompt": "The view from your window, forever",
   "options": [
    "Ocean",
@@ -1020,6 +1088,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "surface": "feed",
   "seq": 36,
   "type": "vote",
+  "domain": null,
   "prompt": "Small talk is a skill, not a chore.",
   "options": [
    "A skill",
@@ -1034,6 +1103,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "surface": "feed",
   "seq": 37,
   "type": "vote",
+  "domain": null,
   "prompt": "Read minds — but everyone knows you can. Take it?",
   "options": [
    "Take it",
@@ -1048,6 +1118,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "surface": "feed",
   "seq": 38,
   "type": "vote",
+  "domain": null,
   "prompt": "$1M now, but a stranger somewhere loses everything. Press the button?",
   "options": [
    "Press",
@@ -1062,6 +1133,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "surface": "feed",
   "seq": 39,
   "type": "vote",
+  "domain": null,
   "prompt": "Would you want to know the date of your death?",
   "options": [
    "Tell me",
@@ -1076,6 +1148,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "surface": "feed",
   "seq": 40,
   "type": "vote",
+  "domain": null,
   "prompt": "Five years in a job you hate, then never work again?",
   "options": [
    "Take the deal",
@@ -1090,6 +1163,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "surface": "feed",
   "seq": 41,
   "type": "vote",
+  "domain": null,
   "prompt": "Restart life at 10, everything you know intact?",
   "options": [
    "Restart",
@@ -1104,6 +1178,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "surface": "feed",
   "seq": 42,
   "type": "vote",
+  "domain": null,
   "prompt": "Perfect memory — but you can never forget anything. Take it?",
   "options": [
    "Take it",
@@ -1118,6 +1193,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "surface": "feed",
   "seq": 43,
   "type": "vote",
+  "domain": null,
   "prompt": "Your dog talks for one day, or understands you forever?",
   "options": [
    "Talks one day",
@@ -1132,6 +1208,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "surface": "feed",
   "seq": 44,
   "type": "vote",
+  "domain": null,
   "prompt": "Should voting be mandatory?",
   "options": [
    "Mandatory",
@@ -1146,6 +1223,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "surface": "feed",
   "seq": 45,
   "type": "vote",
+  "domain": null,
   "prompt": "Four-day work week: inevitable or fantasy?",
   "options": [
    "Inevitable",
@@ -1160,6 +1238,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "surface": "feed",
   "seq": 46,
   "type": "vote",
+  "domain": null,
   "prompt": "City centers should be car-free.",
   "options": [
    "Car-free",
@@ -1174,6 +1253,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "surface": "feed",
   "seq": 47,
   "type": "vote",
+  "domain": null,
   "prompt": "Would you move to another country for good?",
   "options": [
    "I’d go",
@@ -1188,6 +1268,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "surface": "feed",
   "seq": 48,
   "type": "vote",
+  "domain": null,
   "prompt": "Judge the art apart from the artist?",
   "options": [
    "Separate them",
@@ -1202,6 +1283,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "surface": "feed",
   "seq": 49,
   "type": "vote",
+  "domain": null,
   "prompt": "Celebrities should stay out of politics.",
   "options": [
    "Stay out",
@@ -1216,6 +1298,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "surface": "feed",
   "seq": 50,
   "type": "vote",
+  "domain": null,
   "prompt": "Dinner with one",
   "options": [
    "A scientist you admire",
@@ -1231,6 +1314,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "surface": "feed",
   "seq": 51,
   "type": "vote",
+  "domain": null,
   "prompt": "Free will is an illusion.",
   "options": [
    "An illusion",
@@ -1245,6 +1329,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "surface": "feed",
   "seq": 52,
   "type": "vote",
+  "domain": null,
   "prompt": "We’re not alone in the universe.",
   "options": [
    "Not alone",
@@ -1259,6 +1344,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "surface": "feed",
   "seq": 53,
   "type": "vote",
+  "domain": null,
   "prompt": "Money can buy happiness.",
   "options": [
    "It can",
@@ -1273,6 +1359,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "surface": "feed",
   "seq": 54,
   "type": "vote",
+  "domain": null,
   "prompt": "Humanity’s best days are ahead.",
   "options": [
    "Ahead",
@@ -1287,6 +1374,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "surface": "feed",
   "seq": 55,
   "type": "rank",
+  "domain": null,
   "prompt": "What matters most — rank them",
   "options": [
    "People",
@@ -1303,6 +1391,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "surface": "feed",
   "seq": 56,
   "type": "vote",
+  "domain": null,
   "prompt": "Doubles or singles?",
   "options": [
    "Doubles",
@@ -1317,6 +1406,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "surface": "feed",
   "seq": 57,
   "type": "vote",
+  "domain": null,
   "prompt": "Pick your surface",
   "options": [
    "Clay",
@@ -1332,6 +1422,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "surface": "feed",
   "seq": 58,
   "type": "vote",
+  "domain": null,
   "prompt": "Line judges or full electronic calls?",
   "options": [
    "Keep humans",
@@ -1346,6 +1437,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "surface": "feed",
   "seq": 59,
   "type": "vote",
+  "domain": null,
   "prompt": "Cold water: wetsuit or skin?",
   "options": [
    "Wetsuit",
@@ -1360,6 +1452,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "surface": "feed",
   "seq": 60,
   "type": "rank",
+  "domain": null,
   "prompt": "Rank the strokes",
   "options": [
    "Freestyle",
@@ -1376,6 +1469,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "surface": "feed",
   "seq": 61,
   "type": "vote",
+  "domain": null,
   "prompt": "Pool or open water?",
   "options": [
    "Pool",
@@ -1390,6 +1484,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "surface": "feed",
   "seq": 62,
   "type": "vote",
+  "domain": null,
   "prompt": "First drafts: longhand or keyboard?",
   "options": [
    "Longhand",
@@ -1404,6 +1499,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "surface": "feed",
   "seq": 63,
   "type": "vote",
+  "domain": null,
   "prompt": "Plot it all, or find it as you write?",
   "options": [
    "Plot it",
@@ -1418,6 +1514,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "surface": "feed",
   "seq": 64,
   "type": "vote",
+  "domain": null,
   "prompt": "Can great writing be taught?",
   "options": [
    "Taught",
@@ -1432,6 +1529,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "surface": "feed",
   "seq": 65,
   "type": "vote",
+  "domain": null,
   "prompt": "The Ship of Theseus, fully replaced — same ship?",
   "options": [
    "Same ship",
@@ -1446,6 +1544,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "surface": "feed",
   "seq": 66,
   "type": "vote",
+  "domain": null,
   "prompt": "Is morality discovered or invented?",
   "options": [
    "Discovered",
@@ -1460,6 +1559,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "surface": "feed",
   "seq": 67,
   "type": "vote",
+  "domain": null,
   "prompt": "A perfectly happy simulated life — plug in?",
   "options": [
    "Plug in",
@@ -1474,6 +1574,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "surface": "feed",
   "seq": 68,
   "type": "vote",
+  "domain": null,
   "prompt": "Blitz or classical?",
   "options": [
    "Blitz",
@@ -1488,6 +1589,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "surface": "feed",
   "seq": 69,
   "type": "vote",
+  "domain": null,
   "prompt": "Best first move",
   "options": [
    "e4",
@@ -1503,6 +1605,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "surface": "feed",
   "seq": 70,
   "type": "vote",
+  "domain": null,
   "prompt": "A draw offer from a stronger player — take it?",
   "options": [
    "Take it",
@@ -1517,6 +1620,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "surface": "feed",
   "seq": 71,
   "type": "vote",
+  "domain": null,
   "prompt": "Your sourdough starter deserves a name.",
   "options": [
    "Named, obviously",
@@ -1531,6 +1635,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "surface": "feed",
   "seq": 72,
   "type": "vote",
+  "domain": null,
   "prompt": "Kombucha or kefir?",
   "options": [
    "Kombucha",
@@ -1545,6 +1650,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "surface": "group",
   "seq": 0,
   "type": "choice",
+  "domain": null,
   "prompt": "What actually holds this group together?",
   "options": [
    "Food",
@@ -1561,6 +1667,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "surface": "group",
   "seq": 1,
   "type": "choice",
+  "domain": null,
   "prompt": "Who'd survive longest in the wild?",
   "options": [],
   "topic": "pick",
@@ -1572,6 +1679,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "surface": "group",
   "seq": 2,
   "type": "choice",
+  "domain": null,
   "prompt": "This group's superpower?",
   "options": [
    "Honesty",
@@ -1588,6 +1696,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "surface": "group",
   "seq": 3,
   "type": "choice",
+  "domain": null,
   "prompt": "Best dinner together: cook, or book a table?",
   "options": [
    "Cook together",
@@ -1602,6 +1711,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "surface": "group",
   "seq": 4,
   "type": "choice",
+  "domain": null,
   "prompt": "When we disagree, we…",
   "options": [
    "Talk it out",
@@ -1618,6 +1728,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "surface": "group",
   "seq": 5,
   "type": "choice",
+  "domain": null,
   "prompt": "Who replies to the group chat within a minute?",
   "options": [],
   "topic": "pick",
@@ -1629,6 +1740,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "surface": "group",
   "seq": 6,
   "type": "choice",
+  "domain": null,
   "prompt": "A stranger joins us for an evening. They leave thinking…",
   "options": [
    "So loud",
@@ -1645,6 +1757,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "surface": "group",
   "seq": 7,
   "type": "choice",
+  "domain": null,
   "prompt": "A winter cabin with no wifi. How long do you last?",
   "options": [
    "One night",
@@ -1661,6 +1774,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "surface": "group",
   "seq": 8,
   "type": "choice",
+  "domain": null,
   "prompt": "What are we most likely to be late for?",
   "options": [
    "Nothing",
@@ -1677,6 +1791,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "surface": "group",
   "seq": 9,
   "type": "choice",
+  "domain": null,
   "prompt": "Who gives the best advice?",
   "options": [],
   "topic": "pick",
@@ -1688,6 +1803,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "surface": "group",
   "seq": 10,
   "type": "choice",
+  "domain": null,
   "prompt": "Our default plan on a free Friday?",
   "options": [
    "Big dinner",
@@ -1704,6 +1820,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "surface": "group",
   "seq": 11,
   "type": "choice",
+  "domain": null,
   "prompt": "A surprise party for you — love it or dread it?",
   "options": [
    "Love it",
@@ -1718,6 +1835,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "surface": "group",
   "seq": 12,
   "type": "choice",
+  "domain": null,
   "prompt": "The thing we never say out loud?",
   "options": [
    "I miss you",
@@ -1734,6 +1852,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "surface": "group",
   "seq": 13,
   "type": "choice",
+  "domain": null,
   "prompt": "Who would you call from jail at 3am?",
   "options": [],
   "topic": "pick",
@@ -1745,6 +1864,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "surface": "group",
   "seq": 14,
   "type": "choice",
+  "domain": null,
   "prompt": "In ten years, this group is…",
   "options": [
    "Same but older",
@@ -1761,6 +1881,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "surface": "group",
   "seq": 15,
   "type": "choice",
+  "domain": null,
   "prompt": "On the road trip, you are the…",
   "options": [
    "Driver",
@@ -1777,6 +1898,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "surface": "group",
   "seq": 16,
   "type": "choice",
+  "domain": null,
   "prompt": "Our group chat is mostly…",
   "options": [
    "Plans",
@@ -1793,6 +1915,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "surface": "group",
   "seq": 17,
   "type": "choice",
+  "domain": null,
   "prompt": "Who changes the plan at the last minute?",
   "options": [],
   "topic": "pick",
@@ -1804,6 +1927,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "surface": "group",
   "seq": 18,
   "type": "choice",
+  "domain": null,
   "prompt": "What would break this group?",
   "options": [
    "Nothing",
@@ -1820,6 +1944,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "surface": "group",
   "seq": 19,
   "type": "choice",
+  "domain": null,
   "prompt": "Group holiday: one house together, or rooms apart?",
   "options": [
    "One house",
@@ -1834,6 +1959,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "surface": "group",
   "seq": 20,
   "type": "choice",
+  "domain": null,
   "prompt": "Who secretly runs this group?",
   "options": [],
   "topic": "pick",
@@ -1845,6 +1971,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "surface": "group",
   "seq": 21,
   "type": "choice",
+  "domain": null,
   "prompt": "Our best time together is usually…",
   "options": [
    "Late night",
@@ -1861,6 +1988,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "surface": "group",
   "seq": 22,
   "type": "choice",
+  "domain": null,
   "prompt": "Who would win a group argument on a technicality?",
   "options": [],
   "topic": "pick",
@@ -1872,6 +2000,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "surface": "group",
   "seq": 23,
   "type": "choice",
+  "domain": null,
   "prompt": "New person wants in. We are…",
   "options": [
    "Open door",
@@ -1888,6 +2017,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "surface": "duo",
   "seq": 0,
   "type": "binary",
+  "domain": null,
   "prompt": "Plans get cancelled last minute. First feeling?",
   "options": [
    "Relief",
@@ -1902,6 +2032,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "surface": "duo",
   "seq": 1,
   "type": "binary",
+  "domain": null,
   "prompt": "Phone rings, unknown number.",
   "options": [
    "Answer",
@@ -1917,6 +2048,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "surface": "duo",
   "seq": 2,
   "type": "binary",
+  "domain": null,
   "prompt": "A compliment in front of everyone — love it or squirm?",
   "options": [
    "Love it",
@@ -1931,6 +2063,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "surface": "duo",
   "seq": 3,
   "type": "binary",
+  "domain": null,
   "prompt": "Running late. Their text says…",
   "options": [
    "\"5 min\" (it’s 20)",
@@ -1946,6 +2079,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "surface": "duo",
   "seq": 4,
   "type": "binary",
+  "domain": null,
   "prompt": "The food arrives wrong. Say something?",
   "options": [
    "Say something",
@@ -1960,6 +2094,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "surface": "duo",
   "seq": 5,
   "type": "binary",
+  "domain": null,
   "prompt": "Lost in a new city. They…",
   "options": [
    "Ask someone",
@@ -1975,6 +2110,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "surface": "duo",
   "seq": 6,
   "type": "binary",
+  "domain": null,
   "prompt": "A free Saturday, zero plans. Bliss or restless?",
   "options": [
    "Bliss",
@@ -1989,6 +2125,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "surface": "duo",
   "seq": 7,
   "type": "binary",
+  "domain": null,
   "prompt": "Karaoke machine appears.",
   "options": [
    "Grabs the mic",
@@ -2004,6 +2141,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "surface": "duo",
   "seq": 8,
   "type": "binary",
+  "domain": null,
   "prompt": "Someone takes their joke too far. Laugh it off, or say so?",
   "options": [
    "Laugh it off",
@@ -2018,6 +2156,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "surface": "duo",
   "seq": 9,
   "type": "binary",
+  "domain": null,
   "prompt": "Big decision to make. How do they call it?",
   "options": [
    "Gut",
@@ -2034,6 +2173,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "surface": "duo",
   "seq": 10,
   "type": "binary",
+  "domain": null,
   "prompt": "Cry in a film — freely, or fight it?",
   "options": [
    "Freely",
@@ -2048,6 +2188,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "surface": "duo",
   "seq": 11,
   "type": "binary",
+  "domain": null,
   "prompt": "Ideal holiday day?",
   "options": [
    "Packed itinerary",
@@ -2063,6 +2204,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "surface": "duo",
   "seq": 12,
   "type": "binary",
+  "domain": null,
   "prompt": "They win €10k. First move?",
   "options": [
    "Save it",
@@ -2079,6 +2221,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "surface": "duo",
   "seq": 13,
   "type": "binary",
+  "domain": null,
   "prompt": "An old friend owes an apology. Bring it up, or let it go?",
   "options": [
    "Bring it up",
@@ -2093,6 +2236,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "surface": "duo",
   "seq": 14,
   "type": "binary",
+  "domain": null,
   "prompt": "Deep talk at 2am, or a proper night of sleep?",
   "options": [
    "The talk",
@@ -2107,6 +2251,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "surface": "duo",
   "seq": 15,
   "type": "binary",
+  "domain": null,
   "prompt": "When hurt, they go…",
   "options": [
    "Quiet",
@@ -2122,6 +2267,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "surface": "duo",
   "seq": 16,
   "type": "binary",
+  "domain": null,
   "prompt": "Hard truth or comfortable silence?",
   "options": [
    "Hard truth",
@@ -2136,6 +2282,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "surface": "duo",
   "seq": 17,
   "type": "binary",
+  "domain": null,
   "prompt": "After a brutal week, what refills them?",
   "options": [
    "People",
@@ -2152,6 +2299,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "surface": "duo",
   "seq": 18,
   "type": "binary",
+  "domain": null,
   "prompt": "A week alone in a cabin. Gift or sentence?",
   "options": [
    "Gift",
@@ -2166,6 +2314,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "surface": "duo",
   "seq": 19,
   "type": "binary",
+  "domain": null,
   "prompt": "Old age: surrounded, or independent?",
   "options": [
    "Surrounded",
@@ -2180,6 +2329,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "surface": "test",
   "seq": 0,
   "type": "scale",
+  "domain": null,
   "prompt": "I find new ideas more interesting than familiar ones.",
   "options": [
    "Strongly disagree",
@@ -2197,6 +2347,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "surface": "test",
   "seq": 1,
   "type": "scale",
+  "domain": null,
   "prompt": "I enjoy thinking about abstract concepts.",
   "options": [
    "Strongly disagree",
@@ -2214,6 +2365,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "surface": "test",
   "seq": 2,
   "type": "scale",
+  "domain": null,
   "prompt": "I keep appointments and rarely run late.",
   "options": [
    "Strongly disagree",
@@ -2231,6 +2383,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "surface": "test",
   "seq": 3,
   "type": "scale",
+  "domain": null,
   "prompt": "I finish what I start, even when it gets dull.",
   "options": [
    "Strongly disagree",
@@ -2248,6 +2401,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "surface": "test",
   "seq": 4,
   "type": "scale",
+  "domain": null,
   "prompt": "I feel energised by spending time with strangers.",
   "options": [
    "Strongly disagree",
@@ -2265,6 +2419,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "surface": "test",
   "seq": 5,
   "type": "scale",
+  "domain": null,
   "prompt": "I prefer a loud party to a quiet evening.",
   "options": [
    "Strongly disagree",
@@ -2282,6 +2437,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "surface": "test",
   "seq": 6,
   "type": "scale",
+  "domain": null,
   "prompt": "I try to keep the peace, even at some cost.",
   "options": [
    "Strongly disagree",
@@ -2299,6 +2455,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "surface": "test",
   "seq": 7,
   "type": "scale",
+  "domain": null,
   "prompt": "I trust people until they give me reason not to.",
   "options": [
    "Strongly disagree",
@@ -2316,6 +2473,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "surface": "test",
   "seq": 8,
   "type": "scale",
+  "domain": null,
   "prompt": "I worry about things I can't control.",
   "options": [
    "Strongly disagree",
@@ -2333,6 +2491,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "surface": "test",
   "seq": 9,
   "type": "scale",
+  "domain": null,
   "prompt": "Small setbacks throw off my whole day.",
   "options": [
    "Strongly disagree",
@@ -2350,6 +2509,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "surface": "test",
   "seq": 10,
   "type": "scale",
+  "domain": null,
   "prompt": "Markets, left to themselves, distribute fairly.",
   "options": [
    "Strongly disagree",
@@ -2367,6 +2527,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "surface": "test",
   "seq": 11,
   "type": "scale",
+  "domain": null,
   "prompt": "A society is judged by how it treats the weakest.",
   "options": [
    "Strongly disagree",
@@ -2384,6 +2545,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "surface": "test",
   "seq": 12,
   "type": "scale",
+  "domain": null,
   "prompt": "Some speech is harmful enough to restrict.",
   "options": [
    "Strongly disagree",
@@ -2401,6 +2563,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "surface": "test",
   "seq": 13,
   "type": "scale",
+  "domain": null,
   "prompt": "The state should keep out of private life.",
   "options": [
    "Strongly disagree",
@@ -2418,6 +2581,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "surface": "test",
   "seq": 14,
   "type": "scale",
+  "domain": null,
   "prompt": "My country should help others before its own poor.",
   "options": [
    "Strongly disagree",
@@ -2435,6 +2599,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "surface": "test",
   "seq": 15,
   "type": "scale",
+  "domain": null,
   "prompt": "Borders should be more open than they are now.",
   "options": [
    "Strongly disagree",
@@ -2452,6 +2617,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "surface": "test",
   "seq": 16,
   "type": "scale",
+  "domain": null,
   "prompt": "Climate action is worth real economic cost.",
   "options": [
    "Strongly disagree",
@@ -2469,6 +2635,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "surface": "test",
   "seq": 17,
   "type": "scale",
+  "domain": null,
   "prompt": "Green rules should hold even when jobs are on the line.",
   "options": [
    "Strongly disagree",
@@ -2486,6 +2653,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "surface": "test",
   "seq": 18,
   "type": "scale",
+  "domain": null,
   "prompt": "New technology, on balance, makes life better.",
   "options": [
    "Strongly disagree",
@@ -2503,6 +2671,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "surface": "test",
   "seq": 19,
   "type": "scale",
+  "domain": null,
   "prompt": "Some technologies should be slowed down on purpose.",
   "options": [
    "Strongly disagree",
@@ -2520,6 +2689,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "surface": "test",
   "seq": 20,
   "type": "scale",
+  "domain": null,
   "prompt": "Strong leaders matter more than strong institutions.",
   "options": [
    "Strongly disagree",
@@ -2537,6 +2707,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "surface": "test",
   "seq": 21,
   "type": "scale",
+  "domain": null,
   "prompt": "The system is rigged against ordinary people.",
   "options": [
    "Strongly disagree",
@@ -2554,6 +2725,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "surface": "test",
   "seq": 22,
   "type": "scale",
+  "domain": null,
   "prompt": "Future generations will live better than ours.",
   "options": [
    "Strongly disagree",
@@ -2571,6 +2743,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "surface": "test",
   "seq": 23,
   "type": "scale",
+  "domain": null,
   "prompt": "Most of what's changing right now is change for the better.",
   "options": [
    "Strongly disagree",
@@ -2588,6 +2761,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "surface": "test",
   "seq": 24,
   "type": "scale",
+  "domain": null,
   "prompt": "What I owe my family weighs more than what I owe strangers.",
   "options": [
    "Strongly disagree",
@@ -2605,6 +2779,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "surface": "test",
   "seq": 25,
   "type": "scale",
+  "domain": null,
   "prompt": "I'd sacrifice comfort now for a stranger's future.",
   "options": [
    "Strongly disagree",
@@ -2622,6 +2797,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "surface": "test",
   "seq": 26,
   "type": "scale",
+  "domain": null,
   "prompt": "Pleasure needs no justification.",
   "options": [
    "Strongly disagree",
@@ -2639,6 +2815,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "surface": "test",
   "seq": 27,
   "type": "scale",
+  "domain": null,
   "prompt": "Obligations come before enjoyment.",
   "options": [
    "Strongly disagree",
@@ -2656,6 +2833,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "surface": "test",
   "seq": 28,
   "type": "scale",
+  "domain": null,
   "prompt": "Suffering can give life meaning, not just pain.",
   "options": [
    "Strongly disagree",
@@ -2673,6 +2851,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "surface": "test",
   "seq": 29,
   "type": "scale",
+  "domain": null,
   "prompt": "A hard life spent on something big beats an easy one.",
   "options": [
    "Strongly disagree",
@@ -2690,6 +2869,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "surface": "test",
   "seq": 30,
   "type": "scale",
+  "domain": null,
   "prompt": "There are objective right answers in ethics.",
   "options": [
    "Strongly disagree",
@@ -2707,6 +2887,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "surface": "test",
   "seq": 31,
   "type": "scale",
+  "domain": null,
   "prompt": "Some things are wrong in every era and every culture.",
   "options": [
    "Strongly disagree",
@@ -2724,6 +2905,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "surface": "test",
   "seq": 32,
   "type": "scale",
+  "domain": null,
   "prompt": "Beauty matters as much as truth.",
   "options": [
    "Strongly disagree",
@@ -2741,6 +2923,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "surface": "test",
   "seq": 33,
   "type": "scale",
+  "domain": null,
   "prompt": "A beautiful thing needs no other use.",
   "options": [
    "Strongly disagree",
@@ -2758,6 +2941,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "surface": "test",
   "seq": 34,
   "type": "scale",
+  "domain": null,
   "prompt": "I show people I care without being asked.",
   "options": [
    "Strongly disagree",
@@ -2775,6 +2959,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "surface": "test",
   "seq": 35,
   "type": "scale",
+  "domain": null,
   "prompt": "I'm quick with a hug or a kind word.",
   "options": [
    "Strongly disagree",
@@ -2792,6 +2977,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "surface": "test",
   "seq": 36,
   "type": "scale",
+  "domain": null,
   "prompt": "Friends know I'll show up when it matters.",
   "options": [
    "Strongly disagree",
@@ -2809,6 +2995,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "surface": "test",
   "seq": 37,
   "type": "scale",
+  "domain": null,
   "prompt": "Once you're my friend, you're my friend for years.",
   "options": [
    "Strongly disagree",
@@ -2826,6 +3013,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "surface": "test",
   "seq": 38,
   "type": "scale",
+  "domain": null,
   "prompt": "I say what I'm feeling rather than keeping it in.",
   "options": [
    "Strongly disagree",
@@ -2843,6 +3031,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "surface": "test",
   "seq": 39,
   "type": "scale",
+  "domain": null,
   "prompt": "I let people see the messy parts of me.",
   "options": [
    "Strongly disagree",
@@ -2860,6 +3049,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "surface": "test",
   "seq": 40,
   "type": "scale",
+  "domain": null,
   "prompt": "I'm usually the one keeping things light and fun.",
   "options": [
    "Strongly disagree",
@@ -2877,6 +3067,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "surface": "test",
   "seq": 41,
   "type": "scale",
+  "domain": null,
   "prompt": "I'd rather joke around than be too serious.",
   "options": [
    "Strongly disagree",
@@ -2894,6 +3085,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "surface": "test",
   "seq": 42,
   "type": "scale",
+  "domain": null,
   "prompt": "Little gets under my skin in a friendship.",
   "options": [
    "Strongly disagree",
@@ -2911,6 +3103,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "surface": "test",
   "seq": 43,
   "type": "scale",
+  "domain": null,
   "prompt": "I give people room and don't keep score.",
   "options": [
    "Strongly disagree",

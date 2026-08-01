@@ -84,6 +84,11 @@ export function buildEntries(content = loadContent()) {
       surface: "daily",
       seq: i,
       type: q.type,
+      // `domain` names the catalogue key space (pokemon/films/…) the
+      // aggregate trigger validates `entity` answers against (D14/D15).
+      // null everywhere until live catalog questions ship; carried on every
+      // entry so the seed path can already transport it.
+      domain: q.domain ?? null,
       prompt: q.prompt,
       // scale/rating entries carry no options in the source — the scales
       // are synthesized; everything else lists its options explicitly.
@@ -105,6 +110,7 @@ export function buildEntries(content = loadContent()) {
       surface: "feed",
       seq: i,
       type: q.type,
+      domain: q.domain ?? null,
       prompt: q.prompt,
       options: q.options ? q.options.map((o) => o.label) : q.items,
       topic: q.cat,
@@ -122,6 +128,7 @@ export function buildEntries(content = loadContent()) {
       surface: "group",
       seq: i,
       type: "choice",
+      domain: null,
       prompt: q.prompt,
       options: q.options ?? [],
       topic: q.kind ?? "classic",
@@ -138,6 +145,7 @@ export function buildEntries(content = loadContent()) {
       // Always "binary" — the duo reveal renders a two-sided comparison
       // even for the 3–4-option prompts.
       type: "binary",
+      domain: null,
       prompt: q.prompt,
       options: q.options,
       topic: null,
@@ -154,6 +162,7 @@ export function buildEntries(content = loadContent()) {
         surface: "test",
         seq: testSeq++,
         type: "scale",
+        domain: null,
         prompt: q.q,
         options: LIKERT,
         topic: "test",
@@ -169,11 +178,13 @@ export function buildEntries(content = loadContent()) {
 // The header is emitted verbatim, ending mid-line so the array literal from
 // JSON.stringify lands on the same line as the `=`. Terminator is `;\n`.
 const HEADER =
-  "// GENERATED from /content/*.json — do not hand-edit. There is no checked-in\n" +
-  "// generator: scripts/gen-v2content.md records where it lived and the id\n" +
-  "// scheme it used. Re-run only if /content changes.\n" +
+  "// GENERATED from /content/*.json by scripts/gen-v2content.mjs — do not\n" +
+  "// hand-edit. Regenerate with `npm run build:content`; `npm run\n" +
+  "// check:content` compares this file byte-for-byte against what /content\n" +
+  "// generates, on the deploy path, so a hand edit here (or a /content\n" +
+  "// change without a regen) fails the gate.\n" +
   "// Canonical launch question bank for the v2 seed callable.\n" +
-  "export interface V2SeedQuestion { id: string; surface: string; seq: number; type: string; prompt: string; options: string[]; topic: string | null; axis: string | null; test: string | null; }\n" +
+  "export interface V2SeedQuestion { id: string; surface: string; seq: number; type: string; domain: string | null; prompt: string; options: string[]; topic: string | null; axis: string | null; test: string | null; }\n" +
   "export const V2_QUESTIONS: V2SeedQuestion[] = ";
 
 export function generate(content = loadContent()) {

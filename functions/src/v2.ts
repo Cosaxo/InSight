@@ -132,6 +132,10 @@ async function runSeedV2(): Promise<{ written: number }> {
       surface: q.surface,
       seq: q.seq,
       type: q.type,
+      // The aggregate trigger reads the question doc's `domain` to pick the
+      // catalogue an `entity` answer validates against (D14/D15) — the seed
+      // must transport it or live catalog questions can never aggregate.
+      domain: q.domain,
       prompt: q.prompt,
       options: q.options,
       topic: q.topic,
