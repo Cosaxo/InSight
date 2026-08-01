@@ -247,7 +247,8 @@ of a card. Rules, each load-bearing:
 
 - **Paid geo-insight (city / country / world questions).** Cities and
   countries wanting to know more about their citizens is one of the ways
-  this product intends to earn money. Questions scoped to a place's
+  this product intends to earn money (the revenue paths are consolidated
+  in `docs/MONETIZATION.md`; this section remains the farm-side rule). Questions scoped to a place's
   citizens are therefore commercial inventory, arriving through the same
   human contract path as sponsored questions below — with the same
   k-floored-aggregates-only window for the buyer. The farm never
