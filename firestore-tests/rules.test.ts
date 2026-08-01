@@ -268,7 +268,11 @@ describe("v2 questions + aggregates", () => {
   it("aggregate internals (private counts, event ledger) are fully opaque", async () => {
     await seed(async (db) => {
       await setDoc(doc(db, "v2_aggs_private", "daily-000"), { counts: { "0": 1 }, total: 1 });
-      await setDoc(doc(db, "v2_agg_events", "evt1"), { qid: "daily-000" });
+      // The fixture carries what the real trigger writes — including the
+      // OWNER's own uid (D28's attribution), because the read denial below
+      // is what makes it safe to hold: even the uid it names cannot read
+      // which questions it answered, when, out of this ledger.
+      await setDoc(doc(db, "v2_agg_events", "evt1"), { qid: "daily-000", uid: OWNER });
     });
     await assertFails(getDoc(doc(asUser(OWNER), "v2_aggs_private", "daily-000")));
     await assertFails(setDoc(doc(asUser(OWNER), "v2_aggs_private", "daily-000"), { total: 9 }));

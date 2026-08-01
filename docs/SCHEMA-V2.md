@@ -61,7 +61,15 @@ v2_aggs_private/{qid}              exact counts — server-only (opaque)
                                    per document is unchanged. Bounded:
                                    low-cardinality anchors only (no city,
                                    no profession) and ≤24 buckets/dim.
-v2_agg_events/{eventId}            trigger idempotency ledger (opaque)
+v2_agg_events/{eventId}            trigger ledger (opaque), two jobs (D28)
+  { qid, uid, at, expireAt }       dedup: at-least-once delivery can't
+                                   double-count. Attribution: uid is what
+                                   lets an operator subtract a discovered
+                                   fake-account ring from the exact counts
+                                   and republish (DEPLOYMENT.md,
+                                   "Correcting aggregates"). TTL'd at 90
+                                   days (LEDGER_RETENTION_DAYS); a uid's
+                                   entries are erased with the account
 v2_question_aggs/{qid}             the PUBLIC mirror, k-floored
   { tooSmall: true }               while total < AGG_MIN_N (5)
   { counts, total, tooSmall:false } at/above the floor, and only on every
@@ -147,7 +155,8 @@ MOD_UIDS-gated callables (the D22 confinement)
 - `onV2AnswerCreated` (Firestore trigger, retry on) — transactionally
   folds each answer into `v2_aggs_private` and mirrors the k-floored
   public doc; idempotent via the `v2_agg_events` ledger (at-least-once
-  delivery can't double-count).
+  delivery can't double-count), which also records uid attribution so a
+  discovered fake-account ring can be subtracted after the fact (D28).
 - `deleteAccount` also recursively deletes `v2_users/{uid}`.
 - Social callables: `createGroupV2` (invite code minted server-side),
   `joinGroupV2` (by code; duo cap 2, group cap 32), `leaveGroupV2`

@@ -2229,3 +2229,112 @@ the revision's biggest growth (world-feed.jsx 82 → 145 KB source; its chunk
 85 → 107 KB) without touching first paint. The full-app smoke tests moved
 from the 5 s default to a 15 s per-file budget for the same reason — the
 slowest cases sat at ~4.8 s before the revision.
+
+---
+
+## D28 · Fake accounts: prevention stays partial, the record becomes correctable
+
+**Date:** 2026-08-01 · **Status:** binding
+
+**Decision.** No identity gate is added — no phone verification, no ID
+check, no proof-of-personhood. The defence against fake accounts is the
+stack already shipped (App Check attestation on the callables and, once
+console enforcement lands, on Firestore; the k-floor; the publish cadence;
+one immutable answer per question per account), plus one new property this
+record adds: the aggregate event ledger now makes every counted answer
+**attributable and therefore subtractable** after the fact.
+`v2_agg_events` entries gain the answering `uid` alongside `qid`/`at`, the
+TTL window moves 7 → 90 days (`LEDGER_RETENTION_DAYS`, functions/src/v2.ts),
+`deleteAccount` sweeps a uid's entries with the account, and the
+correction procedure is written down in DEPLOYMENT.md ("Correcting
+aggregates") while the system is calm.
+
+**Why prevention cannot be finished, so nobody re-litigates it.** Sybil
+resistance without a trusted identity authority is a proven negative
+(Douceur 2002). Every "complete" fix relocates trust rather than removing
+it — and each costs this product something it cannot pay: KYC binds a
+government identity to a stored politics result (Art. 9 data, D8's
+exclusion exists for the same reason); phone verification collects a
+number from every honest user and is defeated by the SIM-farm tier it
+targets; attestation proves a device, never a person. The app's own
+arithmetic already prices the payoff: shifting a 50/50 split by 10 points
+takes F ≈ R/4 fakes against R real answers (the shift is (F/2)/(R+F)) —
+about 10 fakes against a 40-answer question, 250 against 1,000. So the
+exposure is worst at launch and decays with every honest vote, and the
+cheap tier (scripted Auth REST + direct Firestore writes, config lifted
+from the bundle) is exactly the tier App Check's service enforcement
+refuses outright. What no tier can be denied is real devices with real
+patience — which is why the fallback property matters.
+
+**The reframe this record binds:** the product's claim is not "no fake
+accounts" — unprovable, and any vendor selling it is selling a
+false-accept rate. The claim is that the published number is **honest,
+bounded in how wrong it can silently be, and correctable once an attack
+is found**. D5's immutability and the private/public split already gave
+two of the three; the attribution window is the missing third. A
+discovered ring is now: query its uids' ledger entries, subtract from
+`v2_aggs_private`, republish through the same floors. Wrong for a while,
+not wrong forever.
+
+**The retention arithmetic.** Dedup alone needs ~7 days (Eventarc's
+redelivery horizon). Attribution needs the window in which a human
+notices an attack and investigates it — weeks, not days; 90 days is that
+plus headroom. Storage at D7's own write ceiling (~14k answers/day
+sustained): ~1.26M live entries ≈ tens of MB of documents plus their
+single-field indexes — immaterial against Firestore pricing, and D7's
+per-document write arithmetic is untouched because the entry rides in the
+transaction the trigger already runs, one field heavier.
+
+**The privacy trade, stated rather than papered over.** A ledger entry
+duplicates facts the owner's own answer doc already carries (which
+question, answered when — the doc id and `answeredAt`), so no new data
+category is collected; but it is a second, uid-keyed copy in a collection
+whose lifetime is not the account's. That is a real data-minimisation
+cost, bought deliberately, and bounded three ways: rules deny all client
+access (pinned in firestore-tests/rules.test.ts — the uid an entry names
+cannot read it); the TTL bounds retention at 90 days where the answer doc
+lives indefinitely; and `deleteAccount` phase 4c sweeps the uid's entries,
+asserted by the erasure e2e including the control that another account's
+entries survive. After erasure the tallies a user fed are anonymous
+again — the inventory's "nothing to attribute" claim stays true, now by
+sweep rather than by absence.
+
+**Residuals, so they are decisions rather than surprises:**
+
+- **Vote-then-erase escapes correction.** An attacker who erases their
+  accounts takes the attribution with them — right-to-erasure wins over
+  forensics, deliberately. Their votes' effect on the tallies persists
+  uncorrectably; what bounds it is the account cost (App Check) and one
+  vote per question with no update path, so the damage is linear in
+  accounts spent and the spent accounts are gone.
+- **The in-flight race.** An answer still traversing Eventarc when
+  `deleteAccount` runs can land its ledger entry after the sweep — at
+  most one entry per in-flight answer, self-erasing at TTL. The same
+  race already governs the count itself (an in-flight answer still gets
+  counted after erasure), so this adds no new class of residue.
+- **The window starts at deploy.** Pre-D28 entries carry no uid and age
+  out on their old 7-day `expireAt`; attribution is not retroactive.
+- **Detection is out of scope.** The record guarantees correction given
+  a uid list, not that a ring will be noticed. The ledger's timestamps
+  are the raw material velocity analysis would read, but no analysis
+  ships today.
+
+**Deliberately NOT built, with the reasoning:**
+
+- **Warm-up / velocity gating** (delay or down-weight young accounts).
+  Hurts most at launch — precisely when cohorts are small and the app
+  already reads empty — to deter a tier that App Check has not yet been
+  proven insufficient against. Revisit on evidence: correlated bursts in
+  the ledger that enforcement didn't stop.
+- **The vote choice in the ledger.** Correction reads the choice from
+  the ring's answer docs, which exist whenever correction is possible at
+  all (see the runbook's "correct before you delete"). A second copy of
+  the vote itself would be worse minimisation for zero forensic gain.
+- **A correction script.** The runbook is the deliverable; machinery
+  written against an imagined incident is untested machinery (D7's
+  reasoning). The first real ring shapes the script.
+
+**Sequencing note, not a new decision:** the App Check console
+enforcement steps (SHIP-CHECKLIST §"Before-public hardening") are what
+close the cheap tier, and the launch window is where the skew arithmetic
+is weakest — finish that rollout before the store submission, not after.

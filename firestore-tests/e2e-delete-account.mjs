@@ -69,6 +69,15 @@ await adb.doc(`insight_discoverable/${uid}`).set({ location: { geohash: "u4pru" 
 await adb.doc(`insight_ratelimits/${uid}`).set({ events: [] });
 await adb.doc(`v2_ratelimits/join_${uid}`).set({ events: [] });
 
+// Agg-event ledger entries (D28): each says "this uid answered this qid at
+// this time" — the attribution that keeps aggregates correctable, and
+// therefore data erasure must reach. One synthetic entry for the doomed
+// account; one for OTHER as the control, because the sweep is a uid query
+// and a sweep that took the whole ledger would destroy the correction
+// record for every account that still exists.
+await adb.doc(`v2_agg_events/evt_mine`).set({ qid: "daily-000", uid });
+await adb.doc(`v2_agg_events/evt_theirs`).set({ qid: "daily-000", uid: OTHER });
+
 // cross-user leftovers: data ABOUT the deleted user, living under others
 await adb.doc(`insight_users/${OTHER}/insight_inbound_impressions/i1`)
   .set({ senderUid: uid, traits: ["kind"], createdAt: 1 });
@@ -148,8 +157,30 @@ for (const [path, label] of [
   [`v2_mod_queue/${MY_TAKE}`, "the queue's copy of their take"],
   [`v2_takes/${THEIR_TAKE}`, "someone else's take"],
   [`v2_mod_queue/${THEIR_TAKE}`, "the queue's copy of someone else's take"],
+  [`v2_agg_events/evt_mine`, "their agg-ledger entry"],
+  [`v2_agg_events/evt_theirs`, "someone else's agg-ledger entry"],
 ]) await mustExist(path, label);
 ok("seeded every wipe phase, and verified it landed");
+
+// The seeded daily-000 answer fires the REAL onV2AnswerCreated, so besides
+// the synthetic entries above there is an organic ledger entry keyed by an
+// event id nobody here knows. Wait for it, for two reasons: it proves the
+// trigger actually stamps uid (the property the sweep's query stands on —
+// a synthetic seed alone would pass against a trigger that stopped writing
+// it), and letting it land BEFORE deleteAccount keeps this test off the
+// known in-flight race D28 records (an answer folding after the sweep
+// leaves an entry until TTL).
+const myLedgerEntries = async () =>
+  (await adb.collection("v2_agg_events").where("uid", "==", uid).get()).docs;
+let organic = null;
+for (let i = 0; i < 30 && !organic; i++) {
+  organic = (await myLedgerEntries())
+    .find((d) => d.id !== "evt_mine" && d.get("qid") === "daily-000") || null;
+  if (!organic) await new Promise((r) => setTimeout(r, 400));
+}
+if (!organic) fail("the answer trigger never wrote a uid-attributed ledger entry");
+if (!organic.get("expireAt")) fail("organic ledger entry has no expireAt — the TTL policy would never collect it");
+ok("the real trigger attributed the answer: uid + qid + expireAt in the ledger");
 
 // ── the call under test ──
 const res = await httpsCallable(fns, "deleteAccount")({});
@@ -187,7 +218,14 @@ for (const [path, label] of [
   // The gap this leg exists for: the take was erased, and its words went on
   // living in the moderation queue's copy of them.
   [`v2_mod_queue/${MY_TAKE}`, "the queue's copy of their take"],
+  [`v2_agg_events/evt_mine`, "their agg-ledger entry"],
 ]) await mustBeGone(path, label);
+
+// …including the organic entry, whose id nobody knows — so ask by query,
+// the way the sweep itself does. Anything left here is an erased account
+// still attributable in the aggregate record.
+if ((await myLedgerEntries()).length !== 0)
+  fail("agg-ledger entries for the deleted uid survive the sweep");
 ok("every owned document, subcollection and cross-user reference is gone");
 
 // ── …and the sweep stopped at the edge of this account ──
@@ -201,6 +239,16 @@ if (theirQueued.get("text") !== "someone else's words") fail("someone else's que
 if (theirQueued.get("escalations") !== 1) fail("someone else's escalation count was lost");
 if (!(await exists(`v2_takes/${THEIR_TAKE}`))) fail("someone else's take was deleted");
 ok("someone else's take, its queue entry and its escalation count survive untouched");
+
+// The ledger sweep is a uid query, and this is why it has to be: another
+// account's attribution record must outlive this deletion, or one erasure
+// destroys the correction record (D28) for everyone.
+if (!(await exists(`v2_agg_events/evt_theirs`))) fail("someone else's agg-ledger entry was swept");
+// And the tally the answer fed stays, per 1b's standing decision: counts
+// are k-floored and — once the ledger entry is gone — anonymous again.
+// Erasure removes the attribution, not the aggregate.
+if (!(await exists(`v2_aggs_private/daily-000`))) fail("erasure destroyed the aggregate tally itself");
+ok("someone else's ledger entry and the anonymous tally both survive");
 
 // ── the shared group survives, scrubbed ──
 const shared = await adb.doc(`v2_groups/${SHARED}`).get();

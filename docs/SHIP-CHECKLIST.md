@@ -267,8 +267,13 @@ Until then links open the fallback page — degraded, not broken.
 
 - **TTL for the aggregate event ledger** (one-time, console or gcloud):
   `gcloud firestore fields ttls update expireAt --collection-group=v2_agg_events --enable-ttl --project=prvfire33`
-  — the trigger stamps `expireAt` (+7 days); without the policy the
-  dedup ledger grows forever (harmless, but why pay for it).
+  — the trigger stamps `expireAt` (+90 days, `LEDGER_RETENTION_DAYS`).
+  The window is sized for attribution, not dedup: entries carry the
+  answering uid so a discovered fake-account ring can be subtracted from
+  the exact counts months later (D28; the correction runbook is in
+  DEPLOYMENT.md). Without the policy the ledger grows forever (harmless,
+  but why pay for it — and a bounded retention is part of the D28
+  privacy trade).
 - **Release versioning:** bump `appBuild` in package.json each store
   release; set `latestBuild` (soft banner) and, only when an old client
   would misbehave, `minBuild` (hard gate) plus `updateUrl` on the
