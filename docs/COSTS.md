@@ -69,7 +69,15 @@ Per active user per day:
 | 50,000 | 21 | 2 | **148** | 125 | 295 |
 | 500,000 | 21 | 2 | 148 | **1,250** | 1,420 |
 
-### Finding 1 — the weekly reseed is the biggest line until ~50k DAU
+### Finding 1 — the weekly reseed was the biggest line until ~50k DAU · **FIXED (D34)**
+
+> Closed 2026-08-02. The seed now skips unchanged documents, `updatedAt`
+> is a real cursor, and the client pages the delta instead of refetching
+> the bank — a weekly promotion costs 7 reads per device instead of 369,
+> so the 148 reads/user/day below becomes ~3. The rest of this section is
+> kept because it is the arithmetic that justified the change; the "with
+> both read fixes" table above is now the *left* column for reads.
+
 
 `runSeedV2` ends with an **unconditional** `contentRev` bump
 (functions/src/v2.ts:159 — a `serverTimestamp()` written on every run,
@@ -85,22 +93,19 @@ static content that changed by perhaps 7 questions.
 Worse, it is charged against *MAU*, not DAU. A monthly user who opens the
 app once pays the full 369 reads for a bank they will barely use.
 
-Two fixes, either sufficient:
+**What was done (D34).** Not the one-line hash that first suggested
+itself — that only makes *no-op* reseeds free, and a weekly promotion is
+not a no-op, so it would have left the 148 essentially untouched. The
+change that actually pays is incremental: the seed rewrites only changed
+documents, which makes the `updatedAt` it was already stamping mean
+something, and the client asks `where("updatedAt", ">", cursor)` against
+its cached bank. Seven changed questions cost seven reads.
 
-1. **Bump `contentRev` only when the content changed.** `V2_QUESTIONS` is
-   a compile-time constant; hash it and write the hash instead of a
-   timestamp. One line, removes the no-op reseed's cost entirely, and
-   makes idempotent re-runs genuinely free — which is what
-   SHIP-CHECKLIST already claims they are.
-2. **Serve the bank as a static asset.** 369 documents / 80.2 KiB is a
-   single gzipped JSON file on Firebase Hosting, CDN-cached, one
-   conditional GET instead of 369 billable reads. The only reasons it
-   lives in Firestore are the per-question `active` kill switch and
-   console editability — both preserved by keeping a small overrides doc
-   in Firestore and folding it over the static bank at boot.
-
-Fix 1 is a one-liner and should land before launch. Fix 2 is the real
-answer and can wait for evidence.
+**Still available, if it is ever worth it.** Serve the bank as a static
+asset: 369 documents / 80.2 KiB is one gzipped JSON file on Hosting,
+CDN-cached, one conditional GET instead of any billable reads. That
+removes the cold-boot 369 as well as the delta — but the cold boot is
+once per device, so it is now a rounding error. Deferred.
 
 ### Finding 2 — the deck listeners are quadratic in DAU
 
@@ -211,11 +216,13 @@ infrastructure at all.
 
 Two caveats worth carrying:
 
-- **The bill is 97% reads, and two thirds of those reads are self-inflicted**
-  (an unconditional cache bust and a listener that streams what it could
-  poll). Both are cheap to fix and neither is urgent below 5 k DAU.
+- **The bill is 97% reads.** Two thirds of them were self-inflicted; the
+  cache-bust half is now closed (D34), and the listener fan-out half is
+  recorded and deliberately not built, because D7's write ceiling binds
+  ~3.5× earlier than it does.
 - **Check the auth billing mode.** It is the only line in this document
-  that could be four figures a month without any code being wrong.
+  that could be four figures a month without any code being wrong, and
+  it is the one remaining pre-launch cost action.
 
 ## What would change these numbers
 

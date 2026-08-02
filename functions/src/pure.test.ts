@@ -23,6 +23,8 @@ import {
   carriedEscalations,
   modVerdictError,
   modVerdictId,
+  seedDocMatches,
+  SEEDED_FIELDS,
   foldCanonAnchors,
   canonBreakdownFor,
   CANON_BY_MAX_ENTITIES,
@@ -739,5 +741,56 @@ describe("moderation — queue fold + verdict channel (docs/MODERATION.md)", () 
     expect(modVerdictId("t1", -1)).toBe("t1");
     expect(modVerdictId("t1", NaN)).toBe("t1");
     expect(modVerdictId("t1", Infinity)).toBe("t1");
+  });
+});
+
+describe("seedDocMatches — the seed's write skip", () => {
+  const desired = {
+    surface: "daily", seq: 3, type: "binary", domain: null,
+    prompt: "Messi or Ronaldo?", options: ["Messi", "Ronaldo"],
+    topic: "light", axis: null, test: null,
+  };
+
+  it("matches a stored doc that already says the same thing", () => {
+    expect(seedDocMatches({ ...desired }, desired)).toBe(true);
+  });
+
+  it("ignores fields the seed does not own", () => {
+    // `active` is the operational kill switch and `updatedAt` is the
+    // cursor the skip exists to keep meaningful. A doc that differs only
+    // in those must NOT be rewritten — rewriting it would flip a killed
+    // question back on and re-invalidate every client's cache entry.
+    expect(seedDocMatches({ ...desired, active: false, updatedAt: 123 }, desired)).toBe(true);
+  });
+
+  it("treats a missing doc as a write", () => {
+    expect(seedDocMatches(null, desired)).toBe(false);
+    expect(seedDocMatches(undefined, desired)).toBe(false);
+  });
+
+  it("catches every seeded field changing", () => {
+    for (const f of SEEDED_FIELDS) {
+      const stored: Record<string, unknown> = { ...desired };
+      stored[f] = f === "options" ? ["Messi", "Maradona"] : "CHANGED";
+      expect(seedDocMatches(stored, desired), `${f} should force a write`).toBe(false);
+    }
+  });
+
+  it("compares options element-wise, including order and length", () => {
+    expect(seedDocMatches({ ...desired, options: ["Ronaldo", "Messi"] }, desired)).toBe(false);
+    expect(seedDocMatches({ ...desired, options: ["Messi"] }, desired)).toBe(false);
+    expect(seedDocMatches({ ...desired, options: "Messi,Ronaldo" }, desired)).toBe(false);
+  });
+
+  it("upgrades a doc seeded before a field existed", () => {
+    // The absent-vs-null distinction is the whole reason this is strict:
+    // `domain` was added for D14/D15 and docs seeded before it read back
+    // undefined. Those must be rewritten so catalog answers can aggregate.
+    const old = { ...desired } as Record<string, unknown>;
+    delete old.domain;
+    expect(seedDocMatches(old, { ...desired, domain: "pokemon" })).toBe(false);
+    // …but a null domain and an absent one describe the same question, so
+    // the common case does not churn every doc on every deploy.
+    expect(seedDocMatches(old, desired)).toBe(true);
   });
 });

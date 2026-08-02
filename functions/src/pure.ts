@@ -701,3 +701,49 @@ export function modVerdictError(value: unknown): string | null {
   }
   return null;
 }
+
+// ── seed diffing (v2 content seed) ──────────────────────────────
+//
+// The seed used to write all 369 question docs and bump `contentRev`
+// on every run, unconditionally. Both halves were waste, and the second
+// was expensive: `contentRev` keys the client's whole-bank cache
+// (live.ts), so every bump made every returning device re-read the
+// entire bank — 369 billable reads for content that had usually not
+// moved at all. docs/COSTS.md carries the arithmetic.
+//
+// So the seed now asks this: does the stored doc already say what we are
+// about to say? Only the fields the client actually consumes are
+// compared. `active` is deliberately NOT among them — it is the
+// operational kill switch, owned by whoever flipped it in the console,
+// and the seed only ever writes it on create.
+export const SEEDED_FIELDS = [
+  "surface", "seq", "type", "domain", "prompt", "options", "topic", "axis", "test",
+] as const;
+
+/**
+ * True when `existing` already carries every seeded field of `desired`.
+ * `existing` is null/undefined for a doc that does not exist yet.
+ *
+ * Array-valued fields (`options`) compare element-wise; everything else
+ * is a scalar or null. Deliberately strict about null vs undefined:
+ * Firestore round-trips an explicit null as null, and a doc seeded
+ * before a field existed reads it back as undefined — treating those as
+ * equal would leave old docs permanently un-upgraded.
+ */
+export function seedDocMatches(
+  existing: Record<string, unknown> | null | undefined,
+  desired: Record<string, unknown>,
+): boolean {
+  if (!existing) return false;
+  for (const f of SEEDED_FIELDS) {
+    const a = existing[f];
+    const b = desired[f];
+    if (Array.isArray(b)) {
+      if (!Array.isArray(a) || a.length !== b.length) return false;
+      for (let i = 0; i < b.length; i++) if (a[i] !== b[i]) return false;
+    } else if ((a ?? null) !== (b ?? null)) {
+      return false;
+    }
+  }
+  return true;
+}

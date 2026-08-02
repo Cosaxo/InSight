@@ -2819,3 +2819,75 @@ cannot drift. Until that step runs, the farm still fires weekly under
 the old 12-question prompt; the manual's 4/run cap already governs
 (the prompt defers to the doc), so the only cost of the gap is
 cadence, not volume.
+
+## D34 · The seed stops rewriting what it already said, and the bank pages in
+
+**Date:** 2026-08-02 · **Status:** Adopted (cost review; `docs/COSTS.md`)
+
+**The problem, with its arithmetic.** `runSeedV2` rewrote all 369
+question documents on every run and closed with an unconditional
+`contentRev` bump — a `serverTimestamp()` written whether or not a single
+question had moved. `contentRev` keys the client's whole-bank cache
+(`live.ts`), so every bump made every returning device re-read the entire
+bank: **369 billable reads per returning user per reseed.** At the
+promotion cadence D30 sets up, that is `369 × 4/30 × 3` ≈ **148 reads per
+active user per day — 70–80% of all Firestore reads below 50k DAU**, and
+it is charged against *monthly* users, not daily ones, so the least
+engaged users cost the most. It bought nothing: the payload is 80 KiB of
+static content that had typically changed by seven questions.
+
+**The decision.** Three changes, all reusing machinery that was already
+there:
+
+1. **The seed skips unchanged documents.** It already read every existing
+   doc (`db.getAll`) to protect the `active` kill switch, so the diff is
+   free — `seedDocMatches` in `pure.ts` compares the nine fields the seed
+   owns. `active` and `updatedAt` are deliberately excluded: the first is
+   the operator's, and the second is what the skip exists to keep
+   meaningful.
+2. **`updatedAt` becomes a real cursor.** It was already written on every
+   doc, and therefore meant nothing — it moved on every reseed regardless.
+   Now it moves only on documents actually rewritten.
+3. **The client pages the delta.** `hydrate()` asks
+   `where("updatedAt", ">", cursor − 5s)` against its cached bank instead
+   of refetching, the same incremental shape the answers path has always
+   used. A weekly promotion costs **7 reads instead of 369** — the 148
+   drops to ~3.
+
+The 5-second rewind is not superstition: a batch commit stamps every doc
+in it with one server timestamp, so a strict `>` against the highest
+cursor held can step over a doc committed in the same instant by a later
+batch. Re-reading a few rows already held is much the cheaper mistake.
+
+**What `contentRev` is now.** The full-invalidation lever, and nothing
+else. It is written on the first seed of an empty project and on an
+explicit `seedContentV2({bumpRev: true})`. **New questions deliberately
+do not bump it** — a promotion is precisely the case this exists to make
+cheap, and creates carry `updatedAt` like any other write.
+
+**The residual limit, recorded.** The cursor cannot see an `active` flag
+flipped **by hand in the console**, because that changes no document the
+seed writes. So: after a console kill, run `seedContentV2({bumpRev:true})`
+to push it. This is a cosmetic gap, not a correctness one —
+`firestore.rules` re-checks `active` on every answer write, so a killed
+question still on someone's screen is refused server-side rather than
+silently accepted. The old behaviour only covered this by accident.
+
+A second residual: a question document hand-created in the console with
+no `updatedAt` is invisible to the delta query. Seed properly, or bump.
+
+**What proves it.** `seedDocMatches` unit tests (functions/pure.test.ts)
+including the absent-vs-null upgrade case; `src/v2/data/bank-cache.test.ts`
+asserts on the *query the module issues*, not its output, because a delta
+that silently degrades to a full fetch costs money with no symptom —
+both directions were mutation-probed. An e2e leg pins that a reseed writes
+0 documents, skips 369, and holds `contentRev`, and that `bumpRev` still
+moves it. The null round-trip through real Firestore — the one thing
+unit tests could not settle, and the thing that would have made the whole
+optimisation inert — was checked against the emulator before this landed.
+
+**Not done, deliberately.** The other read finding in COSTS.md — the deck
+listeners' `DAU²/400` fan-out — is left alone. It is invisible below
+50k DAU, D7's write-contention ceiling (~14.4k DAU) binds first, and the
+fix trades live counts for polled ones. Recorded, not built: same posture
+as D7.

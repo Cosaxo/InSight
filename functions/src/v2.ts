@@ -31,6 +31,7 @@ import {
   foldCanonAnchors,
   publishableBreakdown,
   publishableCanon,
+  seedDocMatches,
   shouldPublishAgg,
   type BreakdownCounts,
   type CanonCounts,
@@ -116,16 +117,24 @@ const CATALOG_DOMAINS: Record<string, CatalogSpec> = {
 
 // ── content seed ────────────────────────────────────────────────
 
-async function runSeedV2(): Promise<{ written: number }> {
+async function runSeedV2(bumpRev = false): Promise<{ written: number; skipped: number }> {
   const db = getFirestore();
   const refs = V2_QUESTIONS.map((q) => db.collection("v2_questions").doc(q.id));
   // `active` is the operational kill switch — the seed must never flip a
   // question ops disabled back on, so it is only written on first create.
-  const existing = new Set(
-    (await db.getAll(...refs)).filter((s) => s.exists).map((s) => s.id),
-  );
+  // The full snapshots (not just the id set) are kept because they are also
+  // what makes the write skip below possible: getAll has already paid for
+  // the read, so diffing is free.
+  const stored = new Map<string, Record<string, unknown>>();
+  const present = new Set<string>();
+  for (const s of await db.getAll(...refs)) {
+    if (!s.exists) continue;
+    present.add(s.id);
+    stored.set(s.id, s.data() as Record<string, unknown>);
+  }
   let batch = db.batch();
   let inBatch = 0;
+  let written = 0;
   for (let i = 0; i < V2_QUESTIONS.length; i++) {
     const q = V2_QUESTIONS[i];
     const payload: Record<string, unknown> = {
@@ -141,10 +150,17 @@ async function runSeedV2(): Promise<{ written: number }> {
       topic: q.topic,
       axis: q.axis,
       test: q.test,
-      updatedAt: FieldValue.serverTimestamp(),
     };
-    if (!existing.has(q.id)) payload.active = true;
+    // Unchanged docs are not rewritten. Two things depend on this, and the
+    // second is the expensive one: `updatedAt` only means something as an
+    // incremental cursor if it moves when the content moves (live.ts reads
+    // the bank with `updatedAt > cursor`), and `contentRev` below only
+    // bumps when something actually changed.
+    if (seedDocMatches(stored.get(q.id), payload)) continue;
+    payload.updatedAt = FieldValue.serverTimestamp();
+    if (!present.has(q.id)) payload.active = true;
     batch.set(refs[i], payload, { merge: true });
+    written++;
     // Firestore batches cap at 500 ops.
     if (++inBatch === 450) {
       await batch.commit();
@@ -153,20 +169,47 @@ async function runSeedV2(): Promise<{ written: number }> {
     }
   }
   if (inBatch > 0) await batch.commit();
-  // Bump the content revision — clients cache the question bank locally
-  // and refetch only when this changes (one meta read per boot instead
-  // of ~190 bank reads).
-  await db.collection("v2_meta").doc("app").set(
-    { contentRev: FieldValue.serverTimestamp() },
-    { merge: true },
+  // `contentRev` is the FULL-invalidation lever: it blows away every
+  // device's cached bank so the next boot re-reads all of it. That costs
+  // 369 reads per returning user (docs/COSTS.md), so it is no longer
+  // spent on every run — only when this seed created documents, and when
+  // an operator asks for it explicitly.
+  //
+  // Ordinary content growth does NOT need it: new and edited docs carry a
+  // fresh `updatedAt`, and clients page them in against their cursor.
+  //
+  // `bumpRev` exists for the one case the cursor cannot see — an `active`
+  // flag flipped by hand in the console, which changes no document the
+  // seed writes. Note that a stale client is a cosmetic problem, not a
+  // correctness one: firestore.rules re-checks `active` on every answer
+  // write, so a killed question that is still on someone's screen is
+  // refused server-side rather than silently accepted.
+  //
+  // NEW questions deliberately do NOT bump it either, which is the whole
+  // point: a promotion is exactly the case this exists to make cheap, and
+  // creates carry `updatedAt` like every other write, so the cursor pages
+  // them in. The only automatic bump left is the first seed of an empty
+  // project, which initialises the field.
+  const metaRef = db.collection("v2_meta").doc("app");
+  const firstEver = (await metaRef.get()).get("contentRev") === undefined;
+  const bumped = bumpRev || firstEver;
+  if (bumped) {
+    await metaRef.set({ contentRev: FieldValue.serverTimestamp() }, { merge: true });
+  }
+  const skipped = V2_QUESTIONS.length - written;
+  logger.info(
+    `[v2] seeded ${written} questions, ${skipped} unchanged ` +
+      `(${present.size} pre-existing, contentRev ${bumped ? "bumped" : "held"})`,
   );
-  logger.info(`[v2] seeded ${V2_QUESTIONS.length} questions (${existing.size} pre-existing)`);
-  return { written: V2_QUESTIONS.length };
+  return { written, skipped };
 }
 
 export const seedContentV2 = onCall({ region: REGION }, async (request) => {
   assertOperator(request);
-  return runSeedV2();
+  // bumpRev forces the full cache invalidation the seed no longer spends
+  // by default — see runSeedV2. Use it after flipping `active` by hand in
+  // the console; ordinary content growth does not need it.
+  return runSeedV2(request.data?.bumpRev === true);
 });
 
 // ── answer → aggregate ──────────────────────────────────────────

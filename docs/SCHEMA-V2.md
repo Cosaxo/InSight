@@ -191,8 +191,13 @@ MOD_UIDS-gated callables (the D22 confinement)
 
 ```
 v2_meta/app                        operator/seed-written metadata
-  contentRev     bumped by seedContentV2 — invalidates the client's
-                 local question-bank cache
+  contentRev     the FULL-invalidation lever for the client's local
+                 question-bank cache. Written on the first seed of an
+                 empty project, and on seedContentV2({bumpRev:true}) —
+                 which is how a hand-flipped `active` reaches clients.
+                 Ordinary content growth does NOT move it: changed docs
+                 carry a fresh `updatedAt` and clients page the delta
+                 (D34, docs/COSTS.md)
   latestBuild    soft in-app "update available" banner when > appBuild
   minBuild       hard "update needed" gate when > appBuild
   updateUrl      store link the prompts open (web falls back to reload)
@@ -201,10 +206,14 @@ read: signed-in · write: nobody
 
 ## Read economics (client)
 
-A live boot costs ~10 reads, not ~380: one `v2_meta/app` read decides
-everything. The question bank (191 docs) caches in localStorage keyed by
-`contentRev`; answers are immutable, so the local cache only pulls docs
-newer than its high-water mark; aggregates cache locally and fetch only
+A live boot costs ~20 reads, not ~380: one `v2_meta/app` read decides
+everything. The question bank (369 docs) caches in localStorage keyed by
+`contentRev`, and refreshes **incrementally** — one query for docs newer
+than the cache's `updatedAt` cursor, so a promotion cycle costs the
+handful of questions it added rather than the whole bank (D34;
+docs/COSTS.md has the arithmetic for why that mattered more than it
+looks). Answers are immutable, so that local cache likewise only pulls
+docs newer than its high-water mark; aggregates cache locally and fetch only
 answered questions' missing docs (feed cards are blind pre-vote — there
 is nothing to show). The 7 deck aggregates keep live snapshots; voted
 aggregates refresh once, delayed. Push tokens write once per new token,

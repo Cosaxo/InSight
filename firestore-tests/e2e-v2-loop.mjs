@@ -55,6 +55,40 @@ const seed = await httpsCallable(fns, "seedContentV2")({});
 if (!seed.data || seed.data.written < 190) fail("seed wrote " + JSON.stringify(seed.data));
 ok("seedContentV2 wrote " + seed.data.written + " questions");
 
+// 2b · the reseed is a no-op, and says so in the two places that cost money.
+// A reseed used to rewrite every question and bump contentRev regardless,
+// which invalidated every device's cached bank — 369 reads per returning
+// user for content that had not moved (docs/COSTS.md). Assert the skip
+// rather than trusting it: the failure mode is silent and only shows up on
+// an invoice.
+// Compared at NANOSECOND resolution, not toMillis(): two seed calls a few
+// round trips apart can land in the same millisecond, and a test that
+// fails once a month is worse than no test.
+const stamp = async () => {
+  const t = (await getDoc(doc(db, "v2_meta", "app"))).get("contentRev");
+  return t ? `${t.seconds}.${t.nanoseconds}` : null;
+};
+const revBefore = await stamp();
+if (!revBefore) fail("the first seed did not initialise contentRev");
+const reseed = await httpsCallable(fns, "seedContentV2")({});
+if (reseed.data?.written !== 0) {
+  fail("reseed rewrote " + JSON.stringify(reseed.data) + " — expected 0 written");
+}
+if (reseed.data?.skipped !== seed.data.written) {
+  fail("reseed skipped " + reseed.data?.skipped + ", expected " + seed.data.written);
+}
+if (await stamp() !== revBefore) {
+  fail("reseed moved contentRev — every client's bank cache just died for nothing");
+}
+ok(`reseed wrote 0, skipped ${reseed.data.skipped}, contentRev held`);
+
+// …and the operator's explicit lever still works, because a console
+// `active` flip has no other way to reach a cached client.
+const forced = await httpsCallable(fns, "seedContentV2")({ bumpRev: true });
+if (forced.data?.written !== 0) fail("bumpRev should not rewrite documents");
+if (await stamp() === revBefore) fail("bumpRev did not move contentRev");
+ok("bumpRev forces the full invalidation without rewriting a document");
+
 // 3 · fetch the daily bank the way the client does
 const qsnap = await getDocs(query(
   collection(db, "v2_questions"),
