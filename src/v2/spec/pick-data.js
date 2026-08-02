@@ -119,6 +119,28 @@
       129760: 2,  // 🫠 melting face — below the floor
       0: 8,       // Not listed
     },
+    // daily catalog-question run, 2026-08-02 — power is the fourth pokemon
+    // canon: favouritism ranks mascots, fear ranks ghosts, cuteness ranks
+    // the small and round; strength ranks the box legendaries, with
+    // Charizard as the honest fan-vote overlap (a favourite people also
+    // insist is strong).
+    pk06: {
+      150: 39, // Mewtwo
+      493: 33, // Arceus
+      384: 28, // Rayquaza
+      890: 14, // Eternatus
+      6: 12,   // Charizard — the fan vote
+      383: 10, // Groudon
+      382: 9,  // Kyogre
+      487: 8,  // Giratina
+      888: 7,  // Zacian
+      149: 6,  // Dragonite — takes the last slot on the entity tie-break
+      483: 6,  // Dialga — same count, higher dex; folds
+      448: 5,  // Lucario — clears the floor but not the top 10; folds
+      445: 3,  // Garchomp — below the floor
+      248: 2,  // Tyranitar — below the floor
+      0: 7,    // Not listed
+    },
   };
 
   // Baked demo segment slices, per question: how each cohort orders the
@@ -180,6 +202,18 @@
       gender: {
         Women: { 128580: 13, 128077: 8, 128514: 7, 128536: 6, 128521: 5 },
         Men: { 128514: 10, 128580: 9, 129313: 9, 128169: 8, 128175: 5 },
+      },
+    },
+    pk06: {
+      ageBand: {
+        // younger cohorts reach for the newest box legendaries; the
+        // older ones hold the Kanto line
+        '18-24': { 384: 9, 150: 8, 493: 7, 890: 6, 888: 5 },
+        '25-34': { 150: 13, 493: 10, 384: 8, 6: 6, 382: 4 },
+      },
+      gender: {
+        Women: { 150: 9, 493: 8, 384: 6, 6: 5, 487: 4 },
+        Men: { 150: 14, 384: 10, 493: 9, 383: 6, 149: 4 },
       },
     },
   };
@@ -276,5 +310,8 @@
     // and what makes you wince are different questions with different
     // winners.
     { id: 'pk05', cat: 'fav', type: 'pick', domain: 'emoji', prompt: 'The most annoying emoji?', n: 197 },
+    // 2026-08-02 daily run: strength, the fourth pokemon canon — a
+    // legendary board, not the mascot board favouritism produces.
+    { id: 'pk06', cat: 'fav', type: 'pick', domain: 'pokemon', prompt: 'The strongest Pokémon?', n: 189 },
   ];
 })();
