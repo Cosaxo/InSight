@@ -297,38 +297,108 @@ async function hydrate(): Promise<void> {
   interface BankEntry extends QuestionDoc {
     id: string;
   }
+  // Ceiling, not a target: 213 seeded post-W2, ~248 after the D30 archive
+  // promotion, ~344 with the planned learn surface — and the promotion
+  // pipeline adds up to 12/week, ≈600/year. 1500 is about two years of
+  // headroom; if the bank ever approaches it, paginate rather than raise
+  // again (a silent cap here serves users a truncated bank with no error
+  // anywhere).
+  const BANK_LIMIT = 1500;
+  const BANK_SURFACES = ["daily", "feed", "test", "group", "duo", "learn"];
   let all: BankEntry[] | null = null;
-  const BANK_LS = "insight.bankCache.v1";
+  // v2: the entry gained an `updatedAt` cursor. A v1 payload simply misses
+  // and pays one full refetch, which is the correct upgrade cost.
+  const BANK_LS = "insight.bankCache.v2";
+  let cursor = 0;
   try {
     const cached = JSON.parse(localStorage.getItem(BANK_LS) || "null");
     if (cached && cached.rev === contentRev && Array.isArray(cached.questions) && cached.questions.length) {
       all = cached.questions as BankEntry[];
+      cursor = Number(cached.cursor || 0);
       state.stats.bankSource = "cache";
     }
   } catch {
     /* corrupt cache — refetch below */
   }
+  // Rows are stored without `updatedAt`: it is a transport field, and a
+  // Timestamp does not survive JSON round-tripping as a Timestamp. Keeping
+  // it would leave a plain {seconds,nanoseconds} object on the cache path
+  // and a real Timestamp on the network path — the kind of difference that
+  // only shows up in whichever branch nobody tested.
+  const rowsOf = (snap: Awaited<ReturnType<typeof getDocs>>): BankEntry[] =>
+    snap.docs
+      .map((d) => {
+        // data() hands back a fresh object per call, so dropping the field
+        // in place is safe and keeps the cached row shape identical on both
+        // the delta and full-fetch paths.
+        const row = d.data() as QuestionDoc & { updatedAt?: unknown };
+        delete row.updatedAt;
+        return { id: d.id, ...row };
+      })
+      .filter((q) => BANK_SURFACES.includes(q.surface));
+  const cursorOf = (snap: Awaited<ReturnType<typeof getDocs>>): number =>
+    snap.docs.reduce((mx, d) => {
+      const u = d.get("updatedAt");
+      return u && typeof u.toMillis === "function" ? Math.max(mx, u.toMillis()) : mx;
+    }, 0);
+
+  // ── the incremental path ──
+  // A weekly promotion changes ~7 documents out of 369. Re-reading the
+  // whole bank for that was the single largest read cost in the system
+  // (docs/COSTS.md): 369 reads per returning device per reseed, charged
+  // against monthly users, not daily ones. The seed now moves `updatedAt`
+  // only on documents it actually rewrote, so the delta is fetchable.
+  //
+  // The 5s rewind is not superstition: a batch commit stamps every doc in
+  // it with one server timestamp, so a strict `>` against the highest one
+  // we have seen can step over a doc committed in the same instant by a
+  // later batch. Re-reading a handful of rows we already hold is the
+  // cheaper mistake by far.
+  if (all && cursor > 0) {
+    try {
+      const dsnap = await getDocs(
+        query(
+          collection(db, "v2_questions"),
+          where("updatedAt", ">", Timestamp.fromMillis(cursor - 5000)),
+          limit(BANK_LIMIT),
+        ),
+      );
+      if (dsnap.size >= BANK_LIMIT) {
+        // A delta that fills the page is not a delta. Fall through to the
+        // full fetch rather than silently serving a truncated bank.
+        all = null;
+      } else {
+        const byId = new Map(all.map((q) => [q.id, q]));
+        for (const row of rowsOf(dsnap)) byId.set(row.id, row);
+        all = [...byId.values()];
+        cursor = Math.max(cursor, cursorOf(dsnap));
+        if (dsnap.size) state.stats.bankSource = "delta";
+      }
+    } catch (err) {
+      // A failed delta must not cost the session: fall back to the cached
+      // bank we already have. Worst case the user is one promotion behind
+      // until the next boot, which is invisible — the deck rotates over
+      // questions they already hold (D30's epoch makes growth pure
+      // extension).
+      reportError(err, { where: "hydrate.bankDelta" });
+    }
+  }
   if (!all) {
     const qsnap = await getDocs(
       query(
         collection(db, "v2_questions"),
-        where("surface", "in", ["daily", "feed", "test", "group", "duo", "learn"]),
-        // Ceiling, not a target: 213 seeded post-W2, ~248 after the D30
-        // archive promotion, ~344 with the planned learn surface — and the
-        // promotion pipeline adds up to 12/week, ≈600/year. 1500 is about
-        // two years of headroom; if the bank ever approaches it, paginate
-        // rather than raise again (a silent cap here serves users a
-        // truncated bank with no error anywhere).
-        limit(1500),
+        where("surface", "in", BANK_SURFACES),
+        limit(BANK_LIMIT),
       ),
     );
-    all = qsnap.docs.map((d) => ({ id: d.id, ...(d.data() as QuestionDoc) }));
+    all = rowsOf(qsnap);
+    cursor = cursorOf(qsnap);
     state.stats.bankSource = "network";
-    try {
-      localStorage.setItem(BANK_LS, JSON.stringify({ rev: contentRev, questions: all }));
-    } catch {
-      /* cache is best-effort */
-    }
+  }
+  try {
+    localStorage.setItem(BANK_LS, JSON.stringify({ rev: contentRev, cursor, questions: all }));
+  } catch {
+    /* cache is best-effort */
   }
   const active = all
     .filter((q) => q.active !== false)

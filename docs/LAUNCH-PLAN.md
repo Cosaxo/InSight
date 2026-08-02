@@ -93,7 +93,9 @@ eligible for the live seed. Mechanics are all reuse — spec `Q` entries and
 `content/daily-questions.json` entries share a shape, so promotion is copying
 entries, minting the next ids (`daily-030`+), `--write`, `check:content`, PR,
 operator reseed. `runSeedV2` is merge-idempotent, writes `active` only on
-create, and bumps `contentRev` so clients refetch. QUESTION-FARM.md gains a
+create, and — since D34 — writes only the documents whose content changed,
+leaving `contentRev` alone; clients page the new questions in against their
+`updatedAt` cursor rather than refetching the bank. QUESTION-FARM.md gains a
 "Promotion" section: an operator/dev-session job with human review, not a
 scheduled Routine — the farm keeps writing the spec layer only.
 
@@ -353,9 +355,11 @@ inert; the reverse order is permission-denied noise).
 ## Store chain (human/console — runs in parallel; SHIP-CHECKLIST §§1–5 owns every step)
 
 - **Seed production now.** Five minutes, already unblocked (SHIP-CHECKLIST §1
-  step 3). Reseeds are merge-idempotent, so seeding today costs nothing later;
-  batch the *final* reseed (tests + learn + daily-90) since each bumps
-  `contentRev` and, until the epoch fix lands, remaps the daily rotation.
+  step 3). Reseeds are merge-idempotent, so seeding today costs nothing later.
+  The reason to batch the final reseed is gone on both counts: the epoch fix
+  landed (D30), and D34 stopped reseeds from bumping `contentRev` at all, so
+  they no longer cost every returning device a full bank refetch. Reseed as
+  often as content lands.
 - **Start the Apple Developer application on day 1** (~2-day approval) and
   treat the legal-entity values (`web/terms.html` placeholders, gated by
   `check:store-copy`) as the schedule wildcard — they block upload and their

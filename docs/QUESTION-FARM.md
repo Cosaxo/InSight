@@ -312,9 +312,12 @@ The mechanics are all reuse (spec `Q` entries and
    id-shape and drift gates all fire here.
 4. PR with the provenance trail (which farm PR each question came from).
 5. After merge and deploy, an operator runs `seedContentV2`. The seed is
-   merge-idempotent, never rewrites `active`, and bumps `contentRev` so
-   clients refetch. New questions extend the daily rotation without
-   remapping served days (the deck epoch, D30).
+   merge-idempotent, never rewrites `active`, and (D34) writes only the
+   documents whose content actually changed — so a promotion costs each
+   returning device the handful of new questions rather than a full
+   369-doc bank refetch. `contentRev` stays put; clients page the new
+   questions in against their `updatedAt` cursor. New questions extend the
+   daily rotation without remapping served days (the deck epoch, D30).
 
 Cadence arithmetic (D30, re-paced by D33): the daily surface consumes 7
 questions/week; the farm's generation potential is ≤4/day (~28/week).

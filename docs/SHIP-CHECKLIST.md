@@ -33,9 +33,22 @@ value and no empty-warning. Only step 3 remains, and it must be run
    > `permission-denied`.
 3. **The remaining step.** From the app's console:
    `firebase.functions().httpsCallable("seedContentV2")()` — or simply
-   tap through any flow that calls it; 191 questions land in
+   tap through any flow that calls it; 369 questions land in
    `v2_questions`. Re-running is safe (idempotent, never resets the
-   `active` kill switch).
+   `active` kill switch) and, since D34, genuinely cheap: it rewrites only
+   documents whose content changed and leaves `contentRev` alone, so a
+   reseed no longer costs every returning device a 369-read bank refetch.
+   The call returns `{written, skipped}` — a no-op reseed reports
+   `written: 0`.
+
+   **One operator case needs the extra argument.** If you flip a
+   question's `active` flag **by hand in the Firebase console**, the seed
+   cannot see it (it changed no document the seed writes), so cached
+   clients keep showing the question. Push it with
+   `httpsCallable("seedContentV2")({ bumpRev: true })`, which invalidates
+   every device's cached bank. Nothing is at risk while you wait:
+   `firestore.rules` re-checks `active` on every answer write, so a killed
+   question still on screen is refused server-side, not silently accepted.
 
 ## 2 · Native Firebase config files (account-gated)
 
@@ -274,6 +287,36 @@ Until then links open the fallback page — degraded, not broken.
   DEPLOYMENT.md). Without the policy the ledger grows forever (harmless,
   but why pay for it — and a bounded retention is part of the D28
   privacy trade).
+- **Confirm the Authentication billing edition — console-only, 30 seconds,
+  and the largest unknown on the bill.** D3 makes the app anonymous-first,
+  so *every install that reaches first paint* becomes an authenticated
+  identity before the user has tapped anything. That is free forever on
+  **Firebase Authentication**, and MAU-priced on **Firebase Authentication
+  with Identity Platform** — 50k MAU free, then $0.0055/MAU tapering to
+  $0.0032. At 1.5M MAU the two answers are $0 and ~$6,015/month, with no
+  code difference whatsoever (docs/COSTS.md, finding 3).
+
+  Firebase Console → **Authentication**. An un-upgraded project shows an
+  *"Upgrade to Identity Platform"* call to action; an upgraded one does
+  not, and its Settings carry the Identity-Platform-only tabs (multi-factor,
+  blocking functions, user actions). The unambiguous version of the same
+  question is Cloud Console → **Billing → Reports**, grouped by service:
+  if *Identity Platform* is not listed for `prvfire33`, it is not billing.
+
+  Two things make this cheap to resolve either way. The upgrade is an
+  explicit, deliberate console action, and nothing in this repo's history
+  has ever taken it — Identity Platform appears in no commit, and the
+  deploy workflow touches only rules, indexes, functions, storage and
+  hosting, never auth configuration. And the app uses **no Identity
+  Platform feature at all**: `signInAnonymously` and `GoogleAuthProvider`
+  are the entire surface (`src/lib/firebaseImpl.ts`) — no phone/SMS, no
+  SAML or OIDC, no MFA, no tenants. So an upgraded project here would be
+  paying per user for capabilities the product does not use.
+
+  Record the answer next to this line once checked; it is the difference
+  between "infrastructure is free below 5k DAU" being true and being
+  approximately true.
+
 - **Release versioning:** bump `appBuild` in package.json each store
   release; set `latestBuild` (soft banner) and, only when an old client
   would misbehave, `minBuild` (hard gate) plus `updateUrl` on the
