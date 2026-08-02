@@ -32,6 +32,21 @@ workstreams merged to main in PR #60 (D30–D33). The workstream sections
 stay as the record of what was built and why; the live part of this
 document is now the revised calendar at the bottom.
 
+**Update, 2026-08-02:** the stretch grew a second act after PR #60 —
+the learning loop, D34–D39, awaiting merge on
+`claude/app-store-launch-plan-tbegln`: every pool got a farm lane
+(D34), the scorecard grew normalized draw / velocity / shape / cohort
+reads (D35, D38), the generation loop closed (D36 — merged content
+deploys AND seeds itself, the scorecard refreshes in-run, promotion is
+mechanized), the feed's hot sort learned unanswered-first / freshness /
+circle affinity inside the D5 boundary (D37), served questions froze
+behind a mechanical immutability gate plus the pre-launch eval bench
+and blind panel (D38), and cadence re-paced to daily with a topical
+second fire and learn's own panel rubric (D39). **Merging that branch
+also performs the first production seed** — the deploy workflow's seed
+step fires on the compiled bank's diff (D36) — which turns the manual
+`seedContentV2` errand below into the fallback path.
+
 Decisions taken for this stretch (owner-confirmed 2026-08-01):
 
 1. Logic test rebuilds on a **procedural generator** — real Raven's items are
@@ -356,6 +371,8 @@ inert; the reverse order is permission-denied noise).
   step 3). Reseeds are merge-idempotent, so seeding today costs nothing later;
   batch the *final* reseed (tests + learn + daily-90) since each bumps
   `contentRev` and, until the epoch fix lands, remaps the daily rotation.
+  *(Superseded by D36: merging content performs the seed via the deploy
+  workflow's last step; the callable stays as the manual fallback.)*
 - **Start the Apple Developer application on day 1** (~2-day approval) and
   treat the legal-entity values (`web/terms.html` placeholders, gated by
   `check:store-copy`) as the schedule wildcard — they block upload and their
@@ -429,12 +446,17 @@ different floors:
 The critical path now — nothing in the repo gates any of it:
 
 1. **Day 1:** Apple Developer application + Play Console account
-   ($25, ID check); the two owner steps (`seedContentV2` as the
-   operator; the farm Routine re-pace to daily — D33, prompt in
-   QUESTION-FARM.md); the three `web/terms.html` values as a sole
-   trader (`check:store-copy` to zero); Firebase console (Google
-   provider on, Anonymous stays — D3, config files downloaded, App
-   Check apps registered so the soak starts now).
+   ($25, ID check); merge the pending D34–D39 branch — its deploy run
+   performs the first production seed (D36; `seedContentV2` stays the
+   manual fallback); one Routine-editing session for the account-side
+   steps (QUESTION-FARM.md § Scheduled runs holds the copy-paste
+   prompts): re-pace the farm to daily 07:00 (D33), create the 16:00
+   topical fire (D39), and add `FIREBASE_API_KEY` to the dev session's
+   environment so the scorecard refreshes in-run (D36); the three
+   `web/terms.html` values as a sole trader (`check:store-copy` to
+   zero); Firebase console (Google provider on, Anonymous stays — D3,
+   config files downloaded, App Check apps registered so the soak
+   starts now).
 2. **Day 2–3 (Apple approval lands):** App Store Connect record for
    `com.cosaxo.insight`; APNs key → Firebase Cloud Messaging; Mac/Xcode
    signing + first archive; **upload a signed build to the Play closed
@@ -465,3 +487,10 @@ would cost.
    start, display-only leveling with its revisit threshold, the
    single-source-of-truth move and the farm's single-gate learn lane (W-Learn).
 4. Catalog go-live per D14 — or its dated deferral (W1.4).
+
+Landed: 1–3 as D30–D33 in PR #60; 4 stays open with the W1.4 deferral.
+The stretch then kept writing — D34–D39 (the learning loop: a lane for
+every pool, the deep-signal scorecard, the closed generation loop, the
+feed's hot sort, the immutability gate + eval bench + blind panel, the
+cadence re-pace + topical fire + learn's rubric) — all on the pending
+branch named in the 2026-08-02 update above.

@@ -10,8 +10,9 @@ promised. That is the lens for most decisions here: if the UI says
 something about who can see what, `firestore.rules` or a Cloud Function
 has to make it true, and a test has to prove it.
 
-Binding decisions live in [`docs/DECISIONS.md`](docs/DECISIONS.md) (D1–D7)
-and stay binding until an explicitly recorded reversal.
+Binding decisions live in [`docs/DECISIONS.md`](docs/DECISIONS.md) (the
+numbered D-series) and stay binding until an explicitly recorded
+reversal.
 
 ## Two conventions that will surprise you
 
