@@ -27,6 +27,11 @@ assumed:
 - Learn's "X% of people got this right" is authored, not measured, and Learn
   has no backend representation at all.
 
+**Update, 2026-08-01 (same day):** every gap below is closed — all four
+workstreams merged to main in PR #60 (D30–D33). The workstream sections
+stay as the record of what was built and why; the live part of this
+document is now the revised calendar at the bottom.
+
 Decisions taken for this stretch (owner-confirmed 2026-08-01):
 
 1. Logic test rebuilds on a **procedural generator** — real Raven's items are
@@ -396,33 +401,58 @@ inert; the reverse order is permission-denied noise).
 
 ---
 
-## Sequencing and the calendar
+## Sequencing and the calendar — revised 2026-08-01: engineering is done
 
-```
-W1.1 generator+gate ──► W2 tests ──────┐
-        ├──► W-Learn ──────────────────┼──► final reseed ─► screenshots ─► TestFlight ─► submit
-        └──► W1.2 Phase B (daily→90,   │
-             epoch, limit) ────────────┘
-W3 logic rebuild — parallel throughout, lands before screenshots
-W1.4 catalogues — the deferral candidate if the date presses
-Human chain in parallel: Apple wait · Play Console · configs · App Check soak ·
-  legal values (wildcard) · seed production immediately
-```
+Every engineering workstream above (W1.1–W1.3, W2, W3, W-Learn, the
+daily-90 authoring, plus the D33 scorecard) landed on main in **PR #60**
+(squash `08ac631`, 2026-08-01) — the plan's three engineering weeks
+collapsed into a day, and the original 5-week table below it is now
+history. W1.4 (catalogues) stays the recorded deferral. What remains is
+the human chain only, and it splits into two store tracks with
+different floors:
 
-Engineering total ≈ **18–20 sessions**: W1 ≈ 6, W2 ≈ 2, W3 ≈ 4–5, W-Learn ≈ 4,
-daily-90 authoring 1–2. At roughly one session/day alongside console work:
+- **iOS — ~2–3 weeks.** Apple Developer enrollment (**as an
+  individual**: ~1–2 days, no D-U-N-S; convertible to an organization
+  later — enrolling as an org first costs 1–2 weeks of entity + D-U-N-S
+  verification for nothing launch needs) → console config + the App
+  Check 24–48h soak in parallel → Mac signing session + first archive →
+  screenshots (imagery plan above) → a few days of TestFlight with ten
+  testers (D7 arithmetic) → submit → review, often 24–48h; budget the
+  one likely 4.8 round, reply pre-drafted in SHIP-CHECKLIST.
+- **Android — ~3–4 weeks, floor set by policy, not effort.** A personal
+  Play Console account must run a **closed test with 12+ opted-in
+  testers for 14 continuous days** before Google grants production
+  access. That clock starts only once the account exists and a signed
+  build is uploaded — started in week 1 it runs parallel to everything;
+  started late it runs serial after iOS.
 
-| Week | Engineering | Human chain |
-| --- | --- | --- |
-| 1 | W1.1 generator + gate; W2 test expansion | Apple/Play applications, Firebase configs, **first production seed**, catalogue operator run, farm cycle 1 |
-| 2 | W-Learn end-to-end | App Check registration + soak, device verification (§4), farm cycle 2 |
-| 3 | W3 bulk; W1.2 Phase B (daily→90, epoch, limit); batched final reseed | Remaining daily authoring if farm cycles fall short |
-| 4 | W3 finish + polish | Screenshots, feature graphic, marketing copy, privacy forms; `check:store-copy`, `check:versions --fix`; TestFlight opens with ten testers |
-| 5 | Fixes from testers | Tester soak, archive/sign, **submit**; budget the 4.8 round |
+The critical path now — nothing in the repo gates any of it:
 
-**~5 weeks to submission**, then store review (typically 1–7 days, one likely
-4.8 conversation). The non-compressible parts are all human: Apple approval,
-the App Check soak, the tester week, and the legal-entity values.
+1. **Day 1:** Apple Developer application + Play Console account
+   ($25, ID check); the two owner steps (`seedContentV2` as the
+   operator; the farm Routine re-pace to daily — D33, prompt in
+   QUESTION-FARM.md); the three `web/terms.html` values as a sole
+   trader (`check:store-copy` to zero); Firebase console (Google
+   provider on, Anonymous stays — D3, config files downloaded, App
+   Check apps registered so the soak starts now).
+2. **Day 2–3 (Apple approval lands):** App Store Connect record for
+   `com.cosaxo.insight`; APNs key → Firebase Cloud Messaging; Mac/Xcode
+   signing + first archive; **upload a signed build to the Play closed
+   test immediately** (starts the 14-day clock); recruit ten TestFlight
+   + twelve Play testers.
+3. **Week 2:** TestFlight soak and fixes; screenshots + feature graphic
+   off real k-floored content; privacy forms from the SHIP-CHECKLIST §3
+   table; the IARC/age-rating questionnaire.
+4. **Week 2–3:** iOS submit (+ the possible 4.8 round). **Week 3–4:**
+   Play production application once the 14 days complete, then Play
+   review.
+
+Non-compressible, no matter the effort: the Play 14-day test, the App
+Check soak, and both stores' review queues. Everything else is
+initiative. **Best case: iOS live inside ~2 weeks; both stores in
+~3–4.** The old ~5 weeks stands only as the outer bound — what
+incorporation-first, a second review round, or slow tester recruitment
+would cost.
 
 ## DECISIONS.md entries this stretch adds
 
