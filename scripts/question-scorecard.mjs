@@ -134,6 +134,50 @@ const median = (xs) => {
   return s.length ? s[Math.floor(s.length / 2)] : 0;
 };
 
+// Option fingerprints for synthesized scales (must match the generator's
+// constants — a drift here would false-alarm the immutability guard).
+const LIKERT_FP = ["Strongly disagree", "Disagree", "Neutral", "Agree", "Strongly agree"];
+const RATING_FP = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10"];
+
+// Cohort signals (D38) from the k-floored `by` breakdowns the scorecard
+// previously ignored. Breadth = how many cohort cells published (broad
+// appeal vs a niche's question). Divergence = the largest total-variation
+// distance between any two published buckets within a dimension — the
+// "cities disagree about this" number, arguably a better engagement proxy
+// than evenness. Published cells only: the floors already did the privacy
+// work, and suppressed cells simply do not exist here.
+const cohortBreadth = (by) => {
+  if (!by || typeof by !== "object") return 0;
+  let cells = 0;
+  for (const dim of Object.values(by)) cells += Object.keys(dim || {}).length;
+  return cells;
+};
+const cohortDivergence = (by, n) => {
+  if (!by || typeof by !== "object") return null;
+  let worst = null;
+  for (const dim of Object.values(by)) {
+    const buckets = Object.values(dim || {}).map((cell) => {
+      const cs = [];
+      let t = 0;
+      for (let i = 0; i < n; i++) {
+        const c = Number((cell || {})[String(i)] || 0);
+        cs.push(c);
+        t += c;
+      }
+      return t > 0 ? cs.map((c) => c / t) : null;
+    }).filter(Boolean);
+    for (let a = 0; a < buckets.length; a++) {
+      for (let b = a + 1; b < buckets.length; b++) {
+        let tv = 0;
+        for (let i = 0; i < n; i++) tv += Math.abs(buckets[a][i] - buckets[b][i]);
+        tv /= 2;
+        if (worst === null || tv > worst) worst = tv;
+      }
+    }
+  }
+  return worst === null ? null : +worst.toFixed(3);
+};
+
 // Surprise (D36): total-variation distance between the farm's PREDICTED
 // split (the `pred` field authored with each new question, never emitted
 // to clients) and the measured one. 0 = the crowd did exactly what the
@@ -173,8 +217,14 @@ function score(aggs, history) {
       prompt: q.prompt,
       served,
       total,
+      // Fingerprints for the served-question immutability guard (D38):
+      // check:content compares the CURRENT content against what these
+      // answers were recorded under. Present on every row with an agg.
+      opts: (q.options ?? (q.type === "scale" ? LIKERT_FP : q.type === "rating" ? RATING_FP : [])).join(" | "),
       evenness: agg && agg.tooSmall === false ? evenness(agg.counts || {}, n) : null,
       surprise: agg && agg.tooSmall === false ? surpriseOf(agg.counts || {}, n, q.pred) : null,
+      cohortCells: agg && agg.tooSmall === false ? cohortBreadth(agg.by) : null,
+      cohortDivergence: agg && agg.tooSmall === false ? cohortDivergence(agg.by, n) : null,
       signal: agg ? (agg.tooSmall === false ? "scored" : "below-floor") : served ? "no-answers" : "unserved",
     });
   });
@@ -191,8 +241,11 @@ function score(aggs, history) {
       prompt: q.prompt,
       served: true, // the feed serves continuously
       total,
+      opts: (q.options ? q.options.map((o) => o.label) : []).join(" | "),
       evenness: agg && agg.tooSmall === false ? evenness(agg.counts || {}, n) : null,
       surprise: agg && agg.tooSmall === false ? surpriseOf(agg.counts || {}, n, q.pred) : null,
+      cohortCells: agg && agg.tooSmall === false ? cohortBreadth(agg.by) : null,
+      cohortDivergence: agg && agg.tooSmall === false ? cohortDivergence(agg.by, n) : null,
       signal: agg ? (agg.tooSmall === false ? "scored" : "below-floor") : "no-answers",
     });
   });
@@ -300,6 +353,20 @@ function score(aggs, history) {
   // the learn-card lane authors by judgement (D32/D34). Both need volume
   // before they are verdicts.
   const learnCalibration = [];
+  // Fingerprints for EVERY learn card with any recorded answers (including
+  // below-floor — one answer is enough to freeze the card, D38).
+  const servedLearn = [];
+  for (const card of learn.cards) {
+    const anyAgg = aggs[`learn-${card.id}`];
+    if (anyAgg) {
+      servedLearn.push({
+        qid: `learn-${card.id}`,
+        prompt: card.q,
+        opts: card.a.join(" | "),
+        c: card.c,
+      });
+    }
+  }
   for (const card of learn.cards) {
     const agg = aggs[`learn-${card.id}`];
     if (!agg || agg.tooSmall !== false || !agg.counts) continue;
@@ -349,6 +416,7 @@ function score(aggs, history) {
       .filter((r) => r.grade === "landslide")
       .map(({ qid, prompt, total, evenness: e }) => ({ qid, prompt, total, evenness: e })),
     learnCalibration,
+    servedLearn,
     shapes,
     // Prediction report (D36): questions where the crowd surprised the
     // model (with volume — a surprise on 5 answers is noise), plus the

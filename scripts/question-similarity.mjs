@@ -18,35 +18,37 @@
 //                        (the farm runs this per candidate before a PR)
 import { readFileSync } from "node:fs";
 import { resolve, dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-const againstIdx = process.argv.indexOf("--against");
-const AGAINST = againstIdx >= 0 ? process.argv[againstIdx + 1] : null;
 
 // ── corpus: every prompt in every pool, plus the suggestion seeds ──
-const prompts = [];
-const push = (source, text) => {
-  if (text && typeof text === "string") prompts.push({ source, text });
-};
-
-const spec = readFileSync(join(root, "src", "v2", "spec", "daily-questions.js"), "utf8");
-const qStart = spec.indexOf("const Q = [");
-const qEnd = spec.indexOf("\n  ];", qStart);
-new Function("return [" + spec.slice(qStart + "const Q = [".length, qEnd) + "]")().forEach((q) =>
-  push("daily-archive", q.prompt),
-);
-const feed = JSON.parse(readFileSync(join(root, "content", "feed-questions.json"), "utf8"));
-feed.questions.forEach((q) => push("feed", q.prompt));
-const duel = JSON.parse(readFileSync(join(root, "content", "duel-questions.json"), "utf8"));
-duel.group.forEach((q) => push("group", q.prompt));
-duel.oneVsOne.forEach((q) => push("duo", q.prompt));
-const learn = JSON.parse(readFileSync(join(root, "content", "learn-questions.json"), "utf8"));
-learn.cards.forEach((c) => push("learn", c.q));
-// Suggestion-board seeds: regex the prompt literals out rather than
-// evaluating a JSX module.
-const sugg = readFileSync(join(root, "src", "v2", "spec", "suggestions.js"), "utf8");
-for (const m of sugg.matchAll(/prompt: '((?:[^'\\]|\\.)*)'/g)) push("suggestion", m[1]);
+// Exported for eval-questions.mjs (D38), which scores candidate batches
+// against the same corpus with the same metric.
+export function buildCorpus() {
+  const prompts = [];
+  const push = (source, text) => {
+    if (text && typeof text === "string") prompts.push({ source, text });
+  };
+  const spec = readFileSync(join(root, "src", "v2", "spec", "daily-questions.js"), "utf8");
+  const qStart = spec.indexOf("const Q = [");
+  const qEnd = spec.indexOf("\n  ];", qStart);
+  new Function("return [" + spec.slice(qStart + "const Q = [".length, qEnd) + "]")().forEach((q) =>
+    push("daily-archive", q.prompt),
+  );
+  const feed = JSON.parse(readFileSync(join(root, "content", "feed-questions.json"), "utf8"));
+  feed.questions.forEach((q) => push("feed", q.prompt));
+  const duel = JSON.parse(readFileSync(join(root, "content", "duel-questions.json"), "utf8"));
+  duel.group.forEach((q) => push("group", q.prompt));
+  duel.oneVsOne.forEach((q) => push("duo", q.prompt));
+  const learn = JSON.parse(readFileSync(join(root, "content", "learn-questions.json"), "utf8"));
+  learn.cards.forEach((c) => push("learn", c.q));
+  // Suggestion-board seeds: regex the prompt literals out rather than
+  // evaluating a JSX module.
+  const sugg = readFileSync(join(root, "src", "v2", "spec", "suggestions.js"), "utf8");
+  for (const m of sugg.matchAll(/prompt: '((?:[^'\\]|\\.)*)'/g)) push("suggestion", m[1]);
+  return prompts;
+}
 
 // ── similarity ──
 const tokens = (s) =>
@@ -62,15 +64,28 @@ const jaccard = (a, b) => {
   for (const x of a) if (b.has(x)) inter++;
   return inter / (a.size + b.size - inter);
 };
-const features = (text) => {
+export const features = (text) => {
   const ts = tokens(text);
   return { t: new Set(ts), b: new Set(bigrams(ts)) };
 };
-const similarity = (fa, fb) => +((jaccard(fa.t, fb.t) + jaccard(fa.b, fb.b)) / 2).toFixed(3);
+export const similarity = (fa, fb) => +((jaccard(fa.t, fb.t) + jaccard(fa.b, fb.b)) / 2).toFixed(3);
 
-const feats = prompts.map((p) => ({ ...p, f: features(p.text) }));
+// Rank the corpus against one candidate; the 0.5 line is the farm's
+// justify-or-drop threshold (QUESTION-FARM.md).
+export function rankAgainst(text, corpus = buildCorpus()) {
+  const fa = features(text);
+  return corpus
+    .map((p) => ({ source: p.source, text: p.text, score: similarity(fa, features(p.text)) }))
+    .sort((a, b) => b.score - a.score);
+}
 
-if (AGAINST) {
+if (import.meta.url === pathToFileURL(process.argv[1] ?? "").href) {
+  const againstIdx = process.argv.indexOf("--against");
+  const AGAINST = againstIdx >= 0 ? process.argv[againstIdx + 1] : null;
+  const prompts = buildCorpus();
+  const feats = prompts.map((p) => ({ ...p, f: features(p.text) }));
+
+  if (AGAINST) {
   const fa = features(AGAINST);
   const ranked = feats
     .map((p) => ({ ...p, score: similarity(fa, p.f) }))
@@ -97,4 +112,5 @@ if (AGAINST) {
     console.log(`  ${p.score.toFixed(3)}  [${p.a.source}] ${JSON.stringify(p.a.text)}`);
     console.log(`         [${p.b.source}] ${JSON.stringify(p.b.text)}`);
   }
+}
 }

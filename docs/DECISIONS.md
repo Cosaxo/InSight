@@ -3034,3 +3034,59 @@ bit, so it ships — if ever — as a deliberate privacy-path change with
 rules review and an e2e leg. A follow-style friend layer with opt-in
 activity sharing is the full unlock and is a product surface of its
 own, not a feed tweak.
+
+## D38 · Served questions freeze, candidates earn their seat, cohorts get read
+
+**Date:** 2026-08-01 · **Status:** Adopted (owner: "let's do the best
+of those")
+
+**The immutability guard — the missing safety gate.** Nothing stopped an
+edit to a served question's text: the seed merges field changes, answers
+store `optionIdx` forever, so rewording an option would silently
+reinterpret every recorded count (the D15 failure class applied to
+text), a daily prompt edit would unhook the Map's prompt-join, and a
+learn `c` edit would rewrite what "got it right" meant historically. Now
+hard rule 8: **revision = retire + new id, never edit** — and
+`check:content` enforces it mechanically. The committed scorecard is the
+memory: every row with an agg doc carries prompt/options fingerprints
+(`opts`, plus `servedLearn` covering below-floor learn cards — one
+answer freezes a card), and the gate refuses a diff that changes any of
+them, or that REMOVES an answered question (retirement is `active:
+false` in the console; deletion abandons a live doc). Probed both ways:
+an option edit and a learn-`c` edit each fail with the pointed message;
+no committed scorecard → inert, which is the honest pre-launch state.
+
+**The eval bench + blind panel — the only quality lever that pays
+before users exist.** Every learning signal (D33–D36) needs real
+answers; until launch the farm flew on taste. Now every batch
+overgenerates ~2× and passes two gates: `npm run eval:questions --
+--diff` (mechanical: shape, taxonomy, pred hygiene including
+hedged-prediction detection, length, similarity top-hit — hard failures
+never reach a PR; emits the PR body's truth-table, with the
+why-it-splits column deliberately left to the author because the bench
+measures and never argues) and then a blind panel of three fresh
+subagent judges scoring five 0–2 dimensions (blind-answerable ·
+splits-not-slides · warm-not-hot · voice · one claim), keep at mean ≥ 7
+with no zero, cull to budget. Probed: a clean candidate passes, a
+rephrase of an archive question hard-fails at the 0.5 line, a
+missing-pred/overlong candidate hard-fails.
+
+**The explore slot.** One daily slot may carry a deliberate off-shape
+experiment (`explore: true`, authored metadata) — exempt from shape
+conformance, exempt from nothing else. Shape analysis without
+counterfactuals ossifies the mix into whatever won early.
+
+**Cohort signals.** The scorecard now reads the k-floored `by`
+breakdowns it previously ignored: `cohortCells` (how many cohort cells
+published — breadth of appeal) and `cohortDivergence` (largest
+total-variation distance between any two published buckets in a
+dimension — the "cities disagree about this" number, arguably a better
+engagement proxy than evenness). Published cells only; the floors did
+the privacy work before this code existed. Verified exact on synthetic
+data (Oslo 80/20 vs Bergen 20/80 → 0.6).
+
+**Still deferred, unchanged:** half-life fitting (needs snapshot
+depth), the baseline-prediction control group, live velocity ranking
+(a scheduled function, post-launch), the D35 duel tally, learn
+trap-mining (which the retire-and-replace rule now makes buildable
+safely).

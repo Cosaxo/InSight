@@ -77,6 +77,15 @@ do nothing, loudly, if no pool needs work.
    neither, you have no working GitHub access — say exactly that in
    your final message, because the notification summary is then the
    only record the maintainer gets.
+8. **Never edit a served question's prompt, options, or (learn) correct
+   index.** Answers store `optionIdx` forever, so an option edit
+   silently reinterprets every recorded count, a prompt edit unhooks
+   the Map's join, and a learn `c` edit rewrites what "got it right"
+   meant historically — the D15 failure class, applied to text.
+   Revision = retire (`active: false`, operator console) + a NEW id.
+   `check:content` enforces this against the committed scorecard's
+   fingerprints (D38); before the first scorecard exists nothing has
+   answers and the guard is inert.
 
 ## Picking topics
 
@@ -305,6 +314,39 @@ the questions where the crowd surprises the model are the ones worth
 studying. Predict honestly — a hedged all-equal guess makes the surprise
 signal worthless, and the point of writing a split-seeker is that you
 believe it splits.
+
+## The eval bench and the blind panel (D38)
+
+The scorecard learns from real users, which means before launch — and
+for every question before it has answers — quality control is the
+farm's own discipline. It has two halves, and every batch goes through
+both:
+
+**Overgenerate, then cull.** Draft roughly 2× the lane's budget. Run
+`npm run eval:questions -- --diff` — the mechanical bench: shape,
+taxonomy, pred hygiene (missing or hedged predictions flagged — a
+near-uniform pred on a small option set means you are not actually
+claiming it splits), prompt length, and the similarity top-hit per
+candidate. **Hard failures never reach a PR.** The bench prints the
+truth-table for the PR body; the "why it splits" argument stays yours
+to write, one line per survivor — the bench measures, it never argues.
+
+**The blind panel.** For the survivors, spawn three fresh subagent
+judges (no shared context, no authorship knowledge — blind). Each
+scores every candidate 0–2 on five dimensions: blind-answerable ·
+splits-not-slides · warm-not-hot · the product's voice · one claim
+only. Keep a candidate only at mean ≥ 7 with no dimension at 0; cull to
+the lane's budget from the top. Panel notes on borderline candidates go
+in the PR body — disagreement between judges is exactly the information
+a reviewer wants.
+
+**The explore slot.** One of the daily lane's four slots MAY carry a
+deliberate off-shape experiment — a form or register the shapes data
+says underperforms, or has never tried — marked `explore: true` in its
+entry (authored metadata). Explores skip the shape-conformance
+expectations but NOT the panel or the hard rules. Without this, shape
+analysis slowly ossifies the mix into whatever won early; the explore
+slot is how the stats keep earning counterfactuals.
 
 ## Verifying
 
@@ -680,8 +722,14 @@ content/duel-questions.json), Wednesday a learn batch (≤8 →
 content/learn-questions.json, the learn-card lane's rules), Friday a
 feed batch (≤6 → content/feed-questions.json). Every new daily/feed
 question ships a pred field (your honest predicted split — the manual's
-D36 rule) and passes npm run similarity -- --against "<candidate>"
-(justify or drop anything ≥ 0.5). Check promotion lag every run: when
+D36 rule). Overgenerate roughly 2× the budget, then run npm run
+eval:questions -- --diff (the mechanical bench — hard failures never
+ship) and the manual's blind panel (§ The eval bench: three fresh
+subagent judges, no shared context, five 0–2 dimensions, keep only
+mean ≥ 7 with no zero); cull to budget and paste the bench's
+truth-table in the PR body with a why-it-splits line per survivor.
+Never edit a served question (manual hard rule 8 — revision = retire +
+new id). Check promotion lag every run: when
 runway < 30 days and unpromoted archive entries exist (npm run
 promote:daily reports both), open a SEPARATE promotion PR via npm run
 promote:daily -- --write + npm run build:content. A content/* edit
