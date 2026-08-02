@@ -2801,6 +2801,9 @@ candidates. Guardrails that outrank the score, recorded because a
 metric this simple invites goodharting: warmth beats evenness whenever
 they conflict (no optimizing toward outrage), and the kill switch stays
 the operator's — the farm proposes retirements, it never edits the bank.
+(The warmth clause is sharpened by D39, 2026-08-02, at the owner's
+correction: a floor against outrage-seeking, not a standing trump —
+among candidates that clear the floor, the scores decide.)
 
 **The clock.** The farm re-paces from 12/run weekly to **≤4/run daily**
 (~28/week potential vs the daily surface's 7/week consumption). Why
@@ -3090,3 +3093,68 @@ depth), the baseline-prediction control group, live velocity ranking
 (a scheduled function, post-launch), the D35 duel tally, learn
 trap-mining (which the retire-and-replace rule now makes buildable
 safely).
+
+## D39 · The warmth floor, the topical second fire, and learn's own rubric
+
+**Date:** 2026-08-02 · **Status:** Adopted (owner: approved the topical
+fire; corrected the guardrail — "warmth should not permanently outweigh
+other scores")
+
+**The warmth guardrail, corrected.** D33 phrased the anti-goodharting
+rule as "warmth beats evenness whenever they conflict; outranks any
+score," and the canonical prompt carried it as "warmth outranks any
+score." The owner is right that this overstates the intent: as written,
+a dull-but-warm candidate would permanently beat a sharp, honest
+split-seeker — which just optimizes for blandness, a different
+goodharting failure than the one the rule was guarding against. The
+corrected contract: **outrage-seeking is a floor, not a trump.** A
+question whose split would come from making people angry at each other
+never ships, whatever its numbers; among candidates that clear that
+floor, the scores decide; "warmer and stranger beats hotter" survives
+only as the tiebreaker for genuinely close calls. Notably, the
+enforcement already had exactly this shape — the blind panel (D38)
+keeps at mean ≥ 7 with NO dimension at 0, so warm-not-hot was always a
+hard floor (a 0 culls) plus one scored dimension among five (scores
+decide). Only the prose promoted warmth to a trump; the reword aligns
+the words with the arithmetic. Updated: QUESTION-FARM.md's scorecard
+section and the canonical farm prompt.
+
+**The topical second fire.** The owner wanted more-than-daily cadence;
+the consumption arithmetic (D33: the daily surface consumes 1/day per
+user; D36: merge cadence is what users actually feel) says a second
+generic batch would only queue behind review. What a second fire CAN
+add that the morning run cannot is timeliness, so its contract pays
+only when the calendar does: a separate Routine, daily 16:00 UTC,
+**default no-op**, at most 2 questions when a real, datable, globally
+legible moment falls within about a week. **Feed lane only, by
+arithmetic:** a daily-archive append serves through promotion plus the
+deck rotation — days to weeks out, stale by design for an event — while
+the feed is live on the next reseed and browsed now. Cards carry
+`seasonal: true` (authored metadata like `pred`/`explore`: never
+emitted, ignored by every gate — verified against check-content's
+field handling before writing the contract). The flag is the honesty
+device for aging: once the event passes, the card is a retirement
+candidate because the calendar says so, cited in the next farm PR
+body, and its decay is expected aging, never a shape signal. Hard rule
+6 unchanged — an event may flavor a question; a place's citizens are
+never its subject. Creating the Routine is an owner step (org policy
+blocks Routine edits/creation from non-bound sessions, measured in
+D33); the canonical topical prompt is checked into QUESTION-FARM.md
+beside the farm's, under the same no-drift rule.
+
+**"What about learn questions."** Learn cards learn through
+calibration, not warmth: their measured loop is `learnCalibration` —
+`pError`/`recalibrateP` against the k-floored right-rate,
+`trapShare`/`trapMiss` against where wrong answers actually went
+(D34/D35) — and warmth is simply not one of their axes; a learn card
+fails by being *wrong* or *contestable*, and the cite-a-source rule is
+the control for that. The real gap was pre-launch quality coverage:
+the eval bench's shape checks are daily-only (a learn card's schema
+would hard-fail them, wrongly) and the blind panel's five dimensions
+were daily-shaped. Closed doc-side, no new code: the mechanical half
+for learn IS `check:content` (it already validates every card rule
+across the whole file at authoring time), similarity-per-candidate is
+now mandated (the corpus already contains every learn card), and the
+panel gets five learn dimensions — fact-verifiable · trap-plausible ·
+blind-answerable · k-stands-alone · one claim — at the same
+mean ≥ 7 no-zero bar. Recorded in the learn-card lane's section.

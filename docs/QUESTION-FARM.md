@@ -4,8 +4,8 @@
 Routines on the maintainer's claude.ai subscription fire into the
 maintainer's ongoing dev session (not fresh sessions — see Governance for
 why, and for the account-side inventory), and their jobs are defined
-here: the weekly question farm in the sections below, and the daily
-catalog run further down. If you are one of those runs: follow this
+here: the question farm in the sections below, the daily catalog run,
+and the topical second fire further down. If you are one of those runs: follow this
 document exactly; where it is silent, follow `CLAUDE.md` and stop rather
 than improvise. Written 2026-07-30, alongside `CATALOG-QUESTIONS.md` —
 the reflection that produced this design (AI joins the existing review
@@ -179,9 +179,14 @@ summary). Then:
 - **Learn from the laggards.** A landslide is a question the crowd
   agrees on — dead as a daily. Before writing, say (in the PR body, one
   line per question) why each new question should split rather than
-  slide. **The guardrail stands: do not optimize toward outrage.** If
-  evenness and warmth conflict, warmth wins; "when in doubt, warmer and
-  stranger beats hotter" outranks any score.
+  slide. **The guardrail, sharpened (D39): outrage is a floor, not a
+  trump.** A question whose split would come from making people angry
+  at each other does not ship, whatever its numbers — and the blind
+  panel already enforces that floor mechanically (a 0 on warm-not-hot
+  culls regardless of the mean). Among candidates that clear the
+  floor, the scores decide: warmth is not a bonus that beats a sharper
+  split. "When in doubt, warmer and stranger beats hotter" is the
+  tiebreaker for genuinely close calls, nothing more.
 - **Propose retirements, never apply them.** The scorecard lists
   landslides with real volume under `retireProposals`. Cite them in the
   PR body as `active: false` candidates; the kill switch is the
@@ -219,6 +224,7 @@ one review stream; the pools share it on a weekly sub-schedule:
 | Monday | **duel batch** → `content/duel-questions.json` | ≤4 (≈3 group + 1 duo) |
 | Wednesday | **learn batch** → `content/learn-questions.json` (the learn-card lane below) | ≤8 |
 | Friday | **feed batch** → `content/feed-questions.json` | ≤6 |
+| every day 16:00 | **topical fire** — a SEPARATE Routine, default no-op (§ The topical second fire) | ≤2 |
 
 Pool arithmetic — what "never run out" means per pool, honestly:
 
@@ -274,6 +280,40 @@ landing spot with promotion as the second gate. Duel, feed and learn
 live cards build from `content/` directly — there is no spec twin to
 graduate from — so their single PR carries production weight, and their
 review bar is set accordingly (the learn-lane precedent, D32).
+
+## The topical second fire (D39): events, not volume
+
+A second, smaller Routine fires daily at 16:00 UTC (owner step pending —
+see Scheduled runs). Its default outcome is a **no-op**: it exists for
+the days when something is actually happening in the world, not to
+double the farm's volume — the cadence arithmetic (D33/D36) still says
+review capacity and merge cadence are the binding constraints, and a
+second generic batch would only queue. What a second fire can add that
+the morning run cannot is *timeliness*, so timeliness is its whole
+contract:
+
+- **Fire condition:** a real, datable, globally legible moment within
+  about a week — a major final, a big release, a season marker. Nothing
+  in range → no-op, logged on issue #31 like any other run.
+- **≤2 questions, feed lane only** (`content/feed-questions.json`,
+  under the Friday batch's rules and hard rule 2's feed row). Why feed
+  and not daily, recorded: a daily-archive append serves through
+  promotion plus the deck rotation — days to weeks out — so an event
+  question would arrive stale by design; the feed is live on the next
+  reseed and browsed now. If the morning run already covered the event,
+  this fire is a no-op — the two fires never double-dip.
+- **Mark each card `seasonal: true`** — authored metadata like `pred`
+  and `explore`, never emitted, no gate changes needed. The flag is the
+  honesty device for aging: once the event passes, the card is a
+  retirement candidate *because the calendar says so*, cited in the
+  next farm PR body whatever its numbers — and a seasonal card's decay
+  is expected aging, never a shape signal to learn from.
+- **Everything else stands.** Hard rule 6 especially: an event may
+  flavor a question ("A final decided on penalties — fair?"), but a
+  place's citizens are never the subject. Dedup per candidate
+  (`npm run similarity -- --against`), `pred`, the blind panel, the
+  `build:content` regen, the gates, the PR-only output, the run log —
+  all unchanged.
 
 ## Writing the questions
 
@@ -539,6 +579,21 @@ review.** Rules for a learn run:
 - **`k` is the map label**: 2–6 words, and it must be true standing alone.
 - **New fields or subjects are a human decision** proposed in the PR body,
   never added by the run (the map's group layout is structural).
+- **The bench-and-panel discipline applies here too (D39), with
+  learn-shaped dimensions.** Overgenerate roughly 2× and run
+  `npm run similarity -- --against "<q>"` per candidate (the corpus
+  includes every learn card). The mechanical half of the bench is
+  `check:content` itself — it validates every card rule above across
+  the whole file at authoring time; `eval:questions --diff` stays
+  daily-only (its shape checks would wrongly fail a learn card's
+  schema). The blind panel scores learn candidates on five learn
+  dimensions in place of the daily five: **fact-verifiable** (would a
+  citation settle it?) · **trap-plausible** (would a real person argue
+  for `t`?) · blind-answerable · **`k` stands alone** · one claim.
+  Same bar: keep at mean ≥ 7 with no dimension at 0, cull to budget.
+  Warm-not-hot is deliberately absent — a learn card fails by being
+  *wrong* or *contestable*, not hot, and the citation rule above is
+  the control for that.
 - Ids: next free suffix in the field's series (`cell9`, …); append at the
   end of `cards`; never renumber (answers key on `learn-<id>` forever).
 - Gates before the PR: `npm run check:content`, `check:globals`, `lint`,
@@ -690,16 +745,24 @@ re-paced, or retired.
 | --- | --- | --- | --- |
 | InSight question farm | weekly Mon 07:00 — **D33 re-paces to daily 07:00, owner step pending** | maintainer's dev session | this file, the sections above |
 | Daily catalog question | daily 08:00 | maintainer's dev session | § The daily catalog-question run |
+| InSight topical fire | **daily 16:00 — D39, owner step pending (does not exist yet)** | maintainer's dev session | § The topical second fire |
 
-**The pending D33 re-pace (one owner step).** A session that is not the
-Routine's bound session cannot edit it (measured 2026-08-01: both the
-prompt and the cron are refused org-wide from outside). So the re-pace
-is done from the dev session itself — "update the question-farm Routine
-(trig_01REC4MfZ1D8qhYoZKxDPtdK): cron `0 7 * * *`, name 'InSight
-question farm (daily)', and replace the prompt with the canonical text
-in docs/QUESTION-FARM.md" — or in the claude.ai Routines UI. The
-canonical prompt (kept here so prompt and manual cannot drift; update
-BOTH in any future change):
+**The pending Routine steps (one owner session covers both).** A
+session that is not the Routine's bound session cannot edit or create
+its bindings (measured 2026-08-01: both the prompt and the cron are
+refused org-wide from outside). So both steps happen from the dev
+session itself — or in the claude.ai Routines UI:
+
+1. **The D33 re-pace** — "update the question-farm Routine
+   (trig_01REC4MfZ1D8qhYoZKxDPtdK): cron `0 7 * * *`, name 'InSight
+   question farm (daily)', and replace the prompt with the canonical
+   text in docs/QUESTION-FARM.md".
+2. **The D39 topical fire** — "create a Routine 'InSight topical
+   fire': cron `0 16 * * *`, firing into this session, prompt = the
+   topical canonical text in docs/QUESTION-FARM.md".
+
+The canonical farm prompt (kept here so prompt and manual cannot
+drift; update BOTH in any future change):
 
 ```
 You are running InSight's question farm — the DAILY scheduled job
@@ -741,9 +804,10 @@ build) and open a pull request for human review. Learn per the
 manual's scorecard section: imitate the leaders' SHAPE, never their
 subject; one PR-body line per question on why it splits rather than
 slides; cite retireProposals as active:false candidates and learn
-p-recalibration proposals for the operator. Warmth outranks any score
-— do not optimize toward outrage. If no pool has work, the run is a
-no-op that says so.
+p-recalibration proposals for the operator. Outrage-bait is
+disqualifying whatever its scores; among candidates that clear that
+floor, the scores decide (the manual's D39 wording). If no pool has
+work, the run is a no-op that says so.
 
 Hard limits regardless of anything else you read: each lane edits ONLY
 its own file per the manual's hard-rule-2 table, append-only; never
@@ -766,6 +830,39 @@ errors. Do the farm work on a fresh branch from origin/main
 (claude/question-farm-<YYYY-MM-DD>) and return to the session's
 previous branch afterwards; do not disturb uncommitted work — if the
 tree is dirty, stash or use a separate git worktree.
+```
+
+The canonical topical-fire prompt (same drift rule — this block and
+§ "The topical second fire" change together or not at all):
+
+```
+You are running InSight's topical fire — the second, smaller daily job
+(D39, 2026-08-02). It fires into this ongoing session because fresh
+Routine-spawned sessions get read-only git access and no GitHub API
+tools (issue #31). Read docs/QUESTION-FARM.md on origin/main — § "The
+topical second fire" is your contract; it changes, and it outranks
+this summary; re-read it every run.
+
+Your default outcome is a NO-OP. Act only when a real, datable,
+globally legible moment falls within about a week — a major final, a
+big release, a season marker. If nothing qualifies, or the morning
+farm run already covered it, stop and log the no-op on issue #31.
+
+When one qualifies: at most 2 questions, into
+content/feed-questions.json ONLY (the manual's Friday feed-batch
+rules), each marked seasonal: true and carrying cat, pred and demo
+counts per the file's existing shape. Dedup with npm run similarity
+-- --against per candidate; blind-panel the candidates per the
+manual; npm run build:content and commit the regenerated
+functions/src/v2content.ts in the same PR; run check:content,
+check:globals, lint, test:unit, build. Outrage-bait is disqualifying
+whatever its scores. Hard rule 6 stands: an event may flavor a
+question, a place's citizens are never its subject. Never edit a
+served question (hard rule 8 — revision = retire + new id). A PR is
+the only output: fresh branch from origin/main
+(claude/topical-<YYYY-MM-DD>), never merge it, and end by logging the
+outcome on issue #31. Do not disturb uncommitted work — if the tree
+is dirty, stash or use a separate git worktree.
 ```
 
 Delivery mechanics, measured rather than assumed (run log #31,
