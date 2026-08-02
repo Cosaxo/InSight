@@ -103,6 +103,10 @@ import './spec/map-tab.jsx';
 // global exists whenever the overlay can. (Order is semantic here, like
 // everything in this file.)
 import './data/logic-gen';
+// The typed feed-order module publishes window.FEED_ORDER for the world
+// feed's hot sort (D37). Eager on purpose although world-feed itself is
+// deferred (D25): the global must exist whenever loadWorldFeed resolves.
+import './data/feed-order';
 import './spec/logic-test.jsx';
 import './spec/profile-general.jsx';
 // These were born in this repo (never in design/) and live as typed TSX

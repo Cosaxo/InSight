@@ -2,6 +2,7 @@
   "group": [
     {
       "id": "gu0",
+      "cat": "people",
       "kind": "us",
       "prompt": "What actually holds this group together?",
       "options": [
@@ -13,11 +14,13 @@
     },
     {
       "id": "gp0",
+      "cat": "people",
       "kind": "pick",
       "prompt": "Who'd survive longest in the wild?"
     },
     {
       "id": "gu1",
+      "cat": "people",
       "kind": "us",
       "prompt": "This group's superpower?",
       "options": [
@@ -29,6 +32,7 @@
     },
     {
       "id": "gd3",
+      "cat": "food",
       "prompt": "Best dinner together: cook, or book a table?",
       "options": [
         "Cook together",
@@ -37,6 +41,7 @@
     },
     {
       "id": "gu3",
+      "cat": "people",
       "kind": "us",
       "prompt": "When we disagree, we…",
       "options": [
@@ -48,11 +53,13 @@
     },
     {
       "id": "gp1",
+      "cat": "people",
       "kind": "pick",
       "prompt": "Who replies to the group chat within a minute?"
     },
     {
       "id": "gu4",
+      "cat": "people",
       "kind": "us",
       "prompt": "A stranger joins us for an evening. They leave thinking…",
       "options": [
@@ -64,6 +71,7 @@
     },
     {
       "id": "gd0",
+      "cat": "culture",
       "prompt": "A winter cabin with no wifi. How long do you last?",
       "options": [
         "One night",
@@ -74,6 +82,7 @@
     },
     {
       "id": "gu5",
+      "cat": "people",
       "kind": "us",
       "prompt": "What are we most likely to be late for?",
       "options": [
@@ -85,11 +94,13 @@
     },
     {
       "id": "gp2",
+      "cat": "people",
       "kind": "pick",
       "prompt": "Who gives the best advice?"
     },
     {
       "id": "gu2",
+      "cat": "event",
       "kind": "us",
       "prompt": "Our default plan on a free Friday?",
       "options": [
@@ -101,6 +112,7 @@
     },
     {
       "id": "gd4",
+      "cat": "event",
       "prompt": "A surprise party for you — love it or dread it?",
       "options": [
         "Love it",
@@ -109,6 +121,7 @@
     },
     {
       "id": "gu6",
+      "cat": "people",
       "kind": "us",
       "prompt": "The thing we never say out loud?",
       "options": [
@@ -120,11 +133,13 @@
     },
     {
       "id": "gp3",
+      "cat": "people",
       "kind": "pick",
       "prompt": "Who would you call from jail at 3am?"
     },
     {
       "id": "gu7",
+      "cat": "bigq",
       "kind": "us",
       "prompt": "In ten years, this group is…",
       "options": [
@@ -136,6 +151,7 @@
     },
     {
       "id": "gd6",
+      "cat": "culture",
       "prompt": "On the road trip, you are the…",
       "options": [
         "Driver",
@@ -146,6 +162,7 @@
     },
     {
       "id": "gu8",
+      "cat": "people",
       "kind": "us",
       "prompt": "Our group chat is mostly…",
       "options": [
@@ -157,11 +174,13 @@
     },
     {
       "id": "gp4",
+      "cat": "people",
       "kind": "pick",
       "prompt": "Who changes the plan at the last minute?"
     },
     {
       "id": "gu9",
+      "cat": "people",
       "kind": "us",
       "prompt": "What would break this group?",
       "options": [
@@ -173,6 +192,7 @@
     },
     {
       "id": "gd7",
+      "cat": "culture",
       "prompt": "Group holiday: one house together, or rooms apart?",
       "options": [
         "One house",
@@ -181,11 +201,13 @@
     },
     {
       "id": "gp5",
+      "cat": "people",
       "kind": "pick",
       "prompt": "Who secretly runs this group?"
     },
     {
       "id": "gu10",
+      "cat": "event",
       "kind": "us",
       "prompt": "Our best time together is usually…",
       "options": [
@@ -197,11 +219,13 @@
     },
     {
       "id": "gp6",
+      "cat": "people",
       "kind": "pick",
       "prompt": "Who would win a group argument on a technicality?"
     },
     {
       "id": "gu11",
+      "cat": "people",
       "kind": "us",
       "prompt": "New person wants in. We are…",
       "options": [
@@ -215,6 +239,7 @@
   "oneVsOne": [
     {
       "id": "000",
+      "cat": "people",
       "prompt": "Plans get cancelled last minute. First feeling?",
       "options": [
         "Relief",
@@ -223,6 +248,7 @@
     },
     {
       "id": "001",
+      "cat": "tech",
       "prompt": "Phone rings, unknown number.",
       "options": [
         "Answer",
@@ -232,6 +258,7 @@
     },
     {
       "id": "002",
+      "cat": "people",
       "prompt": "A compliment in front of everyone — love it or squirm?",
       "options": [
         "Love it",
@@ -240,6 +267,7 @@
     },
     {
       "id": "003",
+      "cat": "people",
       "prompt": "Running late. Their text says…",
       "options": [
         "\"5 min\" (it’s 20)",
@@ -249,6 +277,7 @@
     },
     {
       "id": "004",
+      "cat": "food",
       "prompt": "The food arrives wrong. Say something?",
       "options": [
         "Say something",
@@ -257,6 +286,7 @@
     },
     {
       "id": "005",
+      "cat": "culture",
       "prompt": "Lost in a new city. They…",
       "options": [
         "Ask someone",
@@ -266,6 +296,7 @@
     },
     {
       "id": "006",
+      "cat": "event",
       "prompt": "A free Saturday, zero plans. Bliss or restless?",
       "options": [
         "Bliss",
@@ -274,6 +305,7 @@
     },
     {
       "id": "007",
+      "cat": "music",
       "prompt": "Karaoke machine appears.",
       "options": [
         "Grabs the mic",
@@ -283,6 +315,7 @@
     },
     {
       "id": "008",
+      "cat": "people",
       "prompt": "Someone takes their joke too far. Laugh it off, or say so?",
       "options": [
         "Laugh it off",
@@ -291,6 +324,7 @@
     },
     {
       "id": "009",
+      "cat": "bigq",
       "prompt": "Big decision to make. How do they call it?",
       "options": [
         "Gut",
@@ -301,6 +335,7 @@
     },
     {
       "id": "010",
+      "cat": "movies",
       "prompt": "Cry in a film — freely, or fight it?",
       "options": [
         "Freely",
@@ -309,6 +344,7 @@
     },
     {
       "id": "011",
+      "cat": "culture",
       "prompt": "Ideal holiday day?",
       "options": [
         "Packed itinerary",
@@ -318,6 +354,7 @@
     },
     {
       "id": "012",
+      "cat": "dilemma",
       "prompt": "They win €10k. First move?",
       "options": [
         "Save it",
@@ -328,6 +365,7 @@
     },
     {
       "id": "013",
+      "cat": "dilemma",
       "prompt": "An old friend owes an apology. Bring it up, or let it go?",
       "options": [
         "Bring it up",
@@ -336,6 +374,7 @@
     },
     {
       "id": "014",
+      "cat": "people",
       "prompt": "Deep talk at 2am, or a proper night of sleep?",
       "options": [
         "The talk",
@@ -344,6 +383,7 @@
     },
     {
       "id": "015",
+      "cat": "people",
       "prompt": "When hurt, they go…",
       "options": [
         "Quiet",
@@ -353,6 +393,7 @@
     },
     {
       "id": "016",
+      "cat": "dilemma",
       "prompt": "Hard truth or comfortable silence?",
       "options": [
         "Hard truth",
@@ -361,6 +402,7 @@
     },
     {
       "id": "017",
+      "cat": "people",
       "prompt": "After a brutal week, what refills them?",
       "options": [
         "People",
@@ -371,6 +413,7 @@
     },
     {
       "id": "018",
+      "cat": "culture",
       "prompt": "A week alone in a cabin. Gift or sentence?",
       "options": [
         "Gift",
@@ -379,6 +422,7 @@
     },
     {
       "id": "019",
+      "cat": "bigq",
       "prompt": "Old age: surrounded, or independent?",
       "options": [
         "Surrounded",

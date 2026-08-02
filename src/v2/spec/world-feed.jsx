@@ -249,6 +249,20 @@ class WorldFeed extends React.Component {
   // card fills most of the viewport (next one peeking) and snap-aligns to top.
   componentDidMount() {
     this.applySnap(); this._retry = setTimeout(() => this.applySnap(), 400);
+    // Hot-order signals, snapshotted ONCE per sitting (D37): answering
+    // must never re-sort the feed under the user's thumb (the knowQs
+    // rule), so the answered-set and the circle-affinity set freeze at
+    // mount and the next visit gets a fresh snapshot. Affinity reads only
+    // reveals already in memory — revealHistory loads lazily elsewhere;
+    // empty just means no boost, never a fetch from here.
+    const FO = window.FEED_ORDER;
+    const soc = window.LIVE && window.LIVE.enabled && window.LIVE.social;
+    this._orderCtx = FO ? {
+      answered: new Set(Object.keys(this.state.votes || {})),
+      affinity: soc && soc.groups && soc.revealHistory
+        ? FO.affinityFrom((soc.groups() || []).flatMap((g) => soc.revealHistory(g.id) || []))
+        : new Set(),
+    } : null;
     // scenes followed elsewhere (orbit, suggestion card) appear here live
     this._unsubScenes = window.SCENES ? window.SCENES.subscribe(() => this.forceUpdate()) : null;
     // Reconcile with the live store. The feed seeds its votes from
@@ -2408,9 +2422,15 @@ class WorldFeed extends React.Component {
     const lists = keys.map((k) => byKey[k]);
     const mixed = [];
     for (let i = 0; lists.some((l) => i < l.length); i++) lists.forEach((l) => { if (i < l.length) mixed.push(l[i]); });
-    // sort lenses: hot = the interleaved mix · top = most votes · new = latest first
+    // sort lenses: hot = the interleaved mix, re-tiered by FEED_ORDER
+    // (fresh-unanswered first, then circle-adjacent, then the mix, answered
+    // last — D37) · top = most votes · new = latest first. The bank arrives
+    // in seq order, so the tail of the filtered list IS the newest content.
     const sort = this.state.sort;
-    const sorted = sort === 'top' ? [...qs].sort((a, b) => wfVotes(b) - wfVotes(a)) : sort === 'new' ? [...qs].reverse() : mixed;
+    const hot = window.FEED_ORDER && this._orderCtx
+      ? window.FEED_ORDER.orderFeed(mixed, { ...this._orderCtx, recentIds: new Set(qs.slice(-window.FEED_ORDER.RECENT_N).map((q) => q.id)) })
+      : mixed;
+    const sorted = sort === 'top' ? [...qs].sort((a, b) => wfVotes(b) - wfVotes(a)) : sort === 'new' ? [...qs].reverse() : hot;
     // weave in the tests' own questions — one marked card every few feed
     // items — and the lenses' questions behind them at half that rate. The
     // core tests own the feed; lenses trickle.

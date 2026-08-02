@@ -2986,3 +2986,51 @@ script's.
 review capacity; run-start self-verification of the previous run's
 issue-#31 trace; rotating the bound dev session periodically and
 re-probing whether fresh Routine sessions still lack git write access.
+
+## D37 · The feed's hot sort learns three things — and what circle signals may never leak
+
+**Date:** 2026-08-01 · **Status:** Adopted (owner: unanswered-first,
+freshness, and "you have your circle")
+
+**What the hot sort was.** A deterministic topic round-robin over the
+filtered bank — the same order for every user, every day, with no
+freshness, no answer-awareness, and no social signal. Honest and dumb.
+
+**What it is now** (`src/v2/data/feed-order.ts`, pure and unit-tested;
+`world-feed.jsx` calls it through `window.FEED_ORDER`): the round-robin
+mix survives, re-tiered by three stable partitions — (1)
+unanswered-and-fresh first (the tail of the seq-ordered bank; the farm
+ships weekly and its questions used to land at the bottom of a
+round-robin nobody scrolls to; `RECENT_N = 8`, one batch's worth — a
+doorway, not a takeover), (2) unanswered-and-circle-adjacent (below),
+(3) the rest, answered always last. Partitions are stable so the
+interleave's mixing survives inside each tier, and the inputs are
+SNAPSHOTTED once per sitting at mount — answering never re-sorts the
+feed under the user's thumb (the knowQs rule). `top` and `new` stay
+pure user-chosen modes; `top`'s cumulative-count bias toward old
+content is recorded here as known, fixable by velocity-informed
+ranking post-launch.
+
+**The circle signal, and its hard boundary.** The owner's correction
+stands: circles ARE a real live social graph. What the privacy model
+hides is member ACTIVITY — answers are owner-only forever (D5), and
+the sealed duel reveal is the one activity surface circle members
+already share by design. So the affinity boost reads EXACTLY that and
+nothing else: revealed duel qids → authored `cat` tags on the duel
+content (44 entries, `check:content`-required, never emitted — the
+bank's `topic` field carries the us/pick/classic kind and must keep
+doing so) → feed topics your circles demonstrably engage. Reads only
+reveals already in memory; empty means no boost, never a fetch.
+
+**Deferred with the arithmetic, so nobody rebuilds it naively:** a
+"N of your circle answered this" participation signal needs the same
+k-floor as every published count, and the floor is 5 while most
+circles are 3–8 — a 4-person circle can NEVER clear it, a 5-person
+circle only when literally everyone answered. That is the same
+arithmetic that already deferred circle-scoped Mirror views; it holds
+until circles are large or signals aggregate across all of a user's
+circles, and even an invisible ranking boost leaks a bounded activity
+bit, so it ships — if ever — as a deliberate privacy-path change with
+rules review and an e2e leg. A follow-style friend layer with opt-in
+activity sharing is the full unlock and is a product surface of its
+own, not a feed tweak.

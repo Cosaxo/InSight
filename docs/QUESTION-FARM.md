@@ -236,12 +236,15 @@ Duel and feed lane rules (the learn lane has its own section below):
   `group` entries and `oneVsOne` (1v1) entries, thinner-bank-first
   (launch sizes 24/20 → start ≈2+2). `group` entries declare `kind`
   (`us`/`pick`/classic by omission) and mint the next free explicit id;
-  `oneVsOne` entries mint the next `id` suffix. The phrasing bar is
-  duel-specific and tighter for 1v1: the reveal is 2–5 NAMED people —
-  for `oneVsOne`, exactly two — so never a prompt where the minority
-  answer reads as an accusation or a confession, and for 1v1 never one
-  where either answer is a statement *about the partner* rather than
-  about yourself. Dedup against both duel banks AND the daily archive.
+  `oneVsOne` entries mint the next `id` suffix. Every duel entry carries
+  a `cat` — a feed topic/channel id (D37): authored metadata, never
+  emitted, and the hinge of the feed's circle-affinity boost (a revealed
+  duel's `cat` is what tells the feed which topics your circle engages).
+  `check:content` requires it. The phrasing bar is duel-specific and
+  tighter for 1v1: the reveal is 2–5 NAMED people — for `oneVsOne`,
+  exactly two — so never a prompt where the minority answer reads as an
+  accusation or a confession, and for 1v1 never one where either answer
+  is a statement *about the partner* rather than about yourself. Dedup against both duel banks AND the daily archive.
   No scorecard exists for duels today — duel answers are sealed
   per-group and produce no public aggregate — so the duel lane runs on
   freshness; D35 records the designed (unbuilt) path to global
