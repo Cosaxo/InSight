@@ -287,6 +287,36 @@ Until then links open the fallback page — degraded, not broken.
   DEPLOYMENT.md). Without the policy the ledger grows forever (harmless,
   but why pay for it — and a bounded retention is part of the D28
   privacy trade).
+- **Confirm the Authentication billing edition — console-only, 30 seconds,
+  and the largest unknown on the bill.** D3 makes the app anonymous-first,
+  so *every install that reaches first paint* becomes an authenticated
+  identity before the user has tapped anything. That is free forever on
+  **Firebase Authentication**, and MAU-priced on **Firebase Authentication
+  with Identity Platform** — 50k MAU free, then $0.0055/MAU tapering to
+  $0.0032. At 1.5M MAU the two answers are $0 and ~$6,015/month, with no
+  code difference whatsoever (docs/COSTS.md, finding 3).
+
+  Firebase Console → **Authentication**. An un-upgraded project shows an
+  *"Upgrade to Identity Platform"* call to action; an upgraded one does
+  not, and its Settings carry the Identity-Platform-only tabs (multi-factor,
+  blocking functions, user actions). The unambiguous version of the same
+  question is Cloud Console → **Billing → Reports**, grouped by service:
+  if *Identity Platform* is not listed for `prvfire33`, it is not billing.
+
+  Two things make this cheap to resolve either way. The upgrade is an
+  explicit, deliberate console action, and nothing in this repo's history
+  has ever taken it — Identity Platform appears in no commit, and the
+  deploy workflow touches only rules, indexes, functions, storage and
+  hosting, never auth configuration. And the app uses **no Identity
+  Platform feature at all**: `signInAnonymously` and `GoogleAuthProvider`
+  are the entire surface (`src/lib/firebaseImpl.ts`) — no phone/SMS, no
+  SAML or OIDC, no MFA, no tenants. So an upgraded project here would be
+  paying per user for capabilities the product does not use.
+
+  Record the answer next to this line once checked; it is the difference
+  between "infrastructure is free below 5k DAU" being true and being
+  approximately true.
+
 - **Release versioning:** bump `appBuild` in package.json each store
   release; set `latestBuild` (soft banner) and, only when an old client
   would misbehave, `minBuild` (hard gate) plus `updateUrl` on the

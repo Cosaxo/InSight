@@ -147,8 +147,21 @@ in this repo has recorded:
 | 150,000 | $505/mo |
 | 1,500,000 | $6,015/mo |
 
-**Go look at which one `prvfire33` is on before launch.** Same code, same
-users, and a difference of $6 k/month at the top row.
+**Go look at which one `prvfire33` is on before launch** — it is a
+console-only fact, exposed on no unauthenticated endpoint, and it is now a
+line item in SHIP-CHECKLIST §5 with the exact place to look. Same code,
+same users, and a difference of $6 k/month at the top row.
+
+Two pieces of evidence point at the free tier without settling it. The
+upgrade is an explicit console action and **nothing in this repo's history
+has ever taken it** — Identity Platform appears in no commit, and the
+deploy workflow touches only rules, indexes, functions, storage and
+hosting, never auth config. And the app uses **no Identity Platform
+feature**: `signInAnonymously` and `GoogleAuthProvider` are the whole
+surface — no phone/SMS, no SAML/OIDC, no MFA, no tenants. Neither fact is
+proof, because the edition is a property of the project rather than of the
+code, which is exactly why it has to be looked at rather than reasoned
+about.
 
 The counterintuitive part, if it *is* Identity Platform: bad retention
 makes this line worse, not better. MAU counts everyone who opened the app
