@@ -3321,6 +3321,43 @@ rather than fixed: the alternative is a gate asserting the shape of the
 build's chunk graph, which is more machinery than the ~13 KB it would
 protect.
 
+### Driven in a real browser, because jsdom is not the same thing
+
+The mount tests are the coverage, but this is the first change to the spec
+layer's **load order**, and jsdom's `import()` is not a network fetch. So
+the production build was served with `vite preview` and driven in Chromium.
+Both halves, measured rather than assumed:
+
+**Loaded.** All seven modules arrive as seven separate requests — 837 KB
+entry, then `person-mindmap` (18.3), `test-overlay` (16.3), `logic-test`
+(13.8), `suggestions` (13.7), `person-overlay` (12.6), `city-overlay` (5.8),
+`logic-gen` (5.1) — every one after the entry chunk, all seven resolved
+754 ms from navigation against a 368 ms first paint. All five overlays open
+and render through their real openers, `relmap` as the eager control, with
+**zero console errors and zero page errors**.
+
+**Aborted.** With every overlay request failed at the network layer, the
+shell still paints in full (13.7k characters of content, tabbar intact), the
+`ErrorBoundary` does **not** trip, `openTest()` resolves without opening, and
+the Mirror tab still works afterwards. The console carries exactly the two
+designed lines and nothing else: `main.jsx`'s `reportError({where:
+'loadOverlays'})` and app-shell's `[InSight] overlay chunk failed to load`.
+That is the degradation path working end to end, which is more than the
+jsdom cases can show — they delete a global, this one breaks the fetch.
+
+Only **one** chunk needed aborting to fail the group: the awaits are
+sequential, so the first rejection ends the chain. All-or-nothing is the
+intended shape — a half-loaded overlay group has no honest behaviour — and
+it is worth knowing that the failure is not per-module.
+
+One thing the run did *not* establish: that every chunk is requested strictly
+after first paint. It is not, and that is correct — `main.jsx` calls
+`loadOverlays()` immediately after `root.render()`, and React 19 paints
+concurrently, so the requests are in flight around the same instant. The
+property that matters is that first paint does not *depend* on them, and the
+aborted run is the proof: the shell painted completely with all seven
+missing.
+
 ### Follow-on not taken here: extracting pure logic out of `spec/`
 
 The other half of this work — lifting arithmetic out of the ported JSX into
