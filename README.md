@@ -98,6 +98,11 @@ Local:
 - `npm run check:versions` / `check:bundle` / `check:deploy-targets` —
   version lockstep across the three projects, the bundle budget, and every
   exported function appearing in the deploy list.
+- `npm run check:appcheck` — every callable either demands App Check
+  attestation or is named with the reason it cannot (decision D36). The
+  five that cannot are the operator and moderator instruments, gated on
+  uid allowlists instead; the gate fails in both directions, so an
+  exemption cannot outlive its reason or spread by copy-paste.
 - `npm run check:store-copy` — no unfilled placeholders in the store-facing
   legal pages. A pre-submission gate, not a CI one (see
   [`docs/SHIP-CHECKLIST.md`](./docs/SHIP-CHECKLIST.md) §3 for why).

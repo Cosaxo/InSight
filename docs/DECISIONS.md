@@ -2990,3 +2990,113 @@ only one that distinguishes a working scanner from a decorative one.
 mutations above were run by hand. Adding fixtures for a 130-line scanner that
 CI runs on every PR is machinery guarding machinery — the tree it checks is
 the fixture. Recorded so the next reader knows it was weighed, not missed.
+
+---
+
+## D36 · Five callables cannot attest; the uid allowlists are the control, and a gate holds the list
+
+**Date:** 2026-08-03 · **Status:** Adopted
+
+**Decision.** Every callable sets `enforceAppCheck: ENFORCE_APP_CHECK`,
+except the five operator and moderator instruments — `seedContentV2`,
+`revealDuelsNowV2`, `buildModQueueNow`, `fetchModQueue`, `submitModVerdict`
+— which cannot, and are gated on uid allowlists instead.
+`npm run check:appcheck` holds that exemption list, on the deploy path via
+`backend-checks.yml`.
+
+**Why this is a record and not a fix.** Six of the eleven callables carried
+the option and five did not, and nothing anywhere said which of those was a
+decision. That is the whole problem with `enforceAppCheck`: it is a
+per-function option, so omitting it is **silent** — the function builds,
+deploys, passes every test, and serves any caller on the internet. There is
+no error, no warning, and no place a reader could look to tell "deliberate"
+from "forgotten". App Check is the only control between the public surface
+and unlimited free anonymous accounts (D3), and D28/D29 both lean on it as
+the tier that prices a fake account in hardware, so an unexplained gap in
+its coverage is exactly the thing this file exists to close.
+
+### Why each of the five cannot attest
+
+Both groups share a shape: invoked from **outside the app**, where no App
+Check token exists to send.
+
+- `seedContentV2` — called from a browser console as the one remaining step
+  of SHIP-CHECKLIST §1, and by the e2e. Adding enforcement here would refuse
+  the call that checklist step is written around, which makes this the one
+  exemption that must not be "tidied up" without rewriting the seeding
+  procedure first.
+- `revealDuelsNowV2` — the scheduled scan's manual lever, reached from a
+  console during an incident (DEPLOYMENT.md → rollback) and by the e2e. A
+  control that fails when it is most needed is not a control.
+- `buildModQueueNow`, `fetchModQueue`, `submitModVerdict` — the moderation
+  Routine runs in a dedicated low-privilege environment with **no repo
+  checkout and no app** (D22, docs/MODERATION.md). Confinement is the entire
+  point of that environment; there is no attested client for it to call
+  from, by construction.
+
+What stands in App Check's place is `assertOperator` (`SEED_ADMIN_UIDS`) and
+`assertModerator` (`MOD_UIDS`) — deliberately disjoint lists, because least
+privilege cuts both ways: an operator uid is not thereby a moderator, and a
+leaked moderator credential cannot seed content or trigger reveals. Both
+went live in fail-safe order: the callables deployed first with the
+allowlist empty, denying everyone, and the uid was added by a second deploy.
+
+### The residual, stated rather than papered over
+
+These five are protected by **possession of an allowlisted account** and
+nothing else — there is no second factor at the function boundary. App Check
+would have been that second factor everywhere it is possible, and here it is
+not. Blast radius if an allowlisted Google account is compromised:
+`seedContentV2` rewrites the question bank (idempotent, and D34 means a
+reseed changes only documents whose content moved), `revealDuelsNowV2`
+forces reveals a day early, and the moderation three hide takes — today,
+nothing at all, because `MOD_ADVISORY = true` means verdicts record and
+surface without hiding.
+
+**A shared secret was rejected** as the substitute. It would be a new thing
+to store, rotate and leak, standing in for an allowlist that already exists
+and is already deployed — and for the moderation three it is worse than
+neutral: putting a credential inside the low-privilege environment re-arms
+precisely what D22 disarmed by keeping that environment empty.
+
+### Why the gate is a source scan
+
+The natural home is `check-fn-runtime.mjs`, which already walks every
+exported function asserting explicit memory and timeout. It cannot live
+there, and the reason is worth writing down because it is invisible: that
+script sets `FUNCTIONS_EMULATOR=true` to keep the import off the metadata
+server, and `ENFORCE_APP_CHECK` is *defined* as
+`FUNCTIONS_EMULATOR !== "true"` (`functions/src/ops.ts`) — so under that env
+every callable's `__endpoint.callableTrigger` reads `{}`, enforcing and
+non-enforcing alike. Checked by printing them, not assumed.
+
+The gate therefore parses source, and demands the shared constant
+specifically rather than the presence of the key: `enforceAppCheck: false`
+would satisfy a presence check while doing the opposite, and a hardcoded
+`true` would break every emulator suite, which is the whole reason the
+constant turns itself off there.
+
+**What proves it.** Four mutations, each run and reverted: dropping
+enforcement from `createGroupV2` fails; adding enforcement to an exempt
+callable fails (an exemption must not outlive its reason); `enforceAppCheck:
+true` in place of the constant fails; and reformatting a one-line callable
+to multi-line still passes, so the pattern is not brittle about layout.
+
+The fifth guard is the one that earned its place immediately. The script
+counts `onCall(` **sites** separately from the option blocks it parses, and
+fails when they disagree — and on its first run it did: `deleteAccount`
+carries a two-line comment between the paren and the brace, which the first
+pattern could not cross. So the gate's very first act was to report that it
+was silently skipping the callable whose failure mode is a job the user can
+never complete. A gate that cannot read a function is a gate that is lying
+about it — the same lesson `check-a11y.mjs` records about files that do not
+parse.
+
+**One thing reasoned rather than probed.** SECURITY.md notes that App Check
+enforcement is not yet enabled console-side. That toggle governs the App
+Check *service* for Firestore, Storage and the rest; the per-function
+`enforceAppCheck` option is independent of it, so the six enforcing
+callables are understood to be rejecting unattested calls in production
+today. That follows from the API shape and has not been driven against
+production — worth confirming when the console flip happens, since it
+determines whether that flip is a change for callables or a no-op.

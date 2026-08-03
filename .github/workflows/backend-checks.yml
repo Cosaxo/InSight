@@ -38,6 +38,18 @@ jobs:
       # defaults (256MiB / 60s) are where the aggregators and deleteAccount
       # died. Reads the compiled output, so it runs after the build.
       - run: npm run check:fn-runtime
+      # Every callable either demands App Check attestation or is named in
+      # the script's exemption list with the reason it cannot. Omitting
+      # `enforceAppCheck` is silent — the function builds, deploys, passes
+      # every test and serves any caller on the internet — and App Check is
+      # the only control between the public surface and unlimited free
+      # anonymous accounts (D3). Backend rather than client for the same
+      # reason as check:deploy-targets: it is a statement about what
+      # production accepts. Source scan, so no build and no root
+      # node_modules; it CANNOT read the compiled output, because
+      # ENFORCE_APP_CHECK is false under FUNCTIONS_EMULATOR and that is what
+      # check:fn-runtime sets.
+      - run: npm run check:appcheck
       # Every exported function must appear in firebase-deploy.yml's --only
       # list, or it builds, passes every test, goes green — and is never
       # deployed. This gate existed and ran nowhere for its whole life: it

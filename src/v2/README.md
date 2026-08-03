@@ -121,10 +121,17 @@ one rule, so each is individually visible and greppable:
 git grep -c "eslint-disable-next-line" -- src/v2/spec   # the live count
 ```
 
-That count is **27 across 14 files** as of 2026-07-30. It is quoted here
-rather than left to the reader because this section previously claimed 42
-long after the number had moved — a stale figure in the one paragraph
-whose job is to size the debt.
+That count is **30 across 15 files**. It is quoted here rather than left to
+the reader because this section previously claimed 42 long after the number
+had moved — a stale figure in the one paragraph whose job is to size the
+debt.
+
+Then it went stale a second time, sitting at 27 after the tree reached 30.
+Twice is enough evidence: a figure maintained by hand in prose goes stale,
+however loudly the paragraph around it says not to let that happen. So
+`npm run check:a11y` now recomputes this sentence's numbers and fails if
+they disagree with the tree — which is why there is no longer an "as of"
+date on it. It is current or CI is red.
 
 They are **deferred, not judged correct**. They are React Compiler
 findings — `exhaustive-deps`, `refs`, `purity`,
@@ -268,19 +275,31 @@ It is separate from `npm run lint` because that script carries
 "warn" tier to hold existing debt, and the alternative would be the blanket
 disable this file's Lint suppressions section exists to prevent.
 
-The baseline is **19**: 17 in `spec/`, plus two deliberate `autoFocus` keeps
-on picker search fields. It opened at 69 and came down in two steps — D23
+The baseline is **11**: 9 in `spec/`, plus two deliberate `autoFocus` keeps
+on picker search fields. It opened at 69 and came down in three steps — D23
 turned the mouse-only controls into buttons, D24 made every overlay and
-sheet a real modal dialog. What is left is mostly `profile-general`'s
-form-markup findings. The remaining `spec/` findings are deferred for the
-same reason as the React Compiler ones — adding key handlers and focus
-behaviour to ported components no test asserts the interaction of is the
-blind change that trade refuses. Fix them behind interaction tests, not
-ahead of them.
+sheet a real modal dialog, and D35 gave the Basics editor's selects explicit
+`htmlFor`/`id` pairs, which cleared `label-has-associated-control` entirely
+and uncovered a real defect on the way (the label wrapping `CityPicker` was
+winning the accessible-name computation, so the chosen city never reached a
+screen reader). What is left in `spec/` is six `no-autofocus` findings and
+three div-with-onClick sites. They are deferred for the same reason as the
+React Compiler ones — adding key handlers and focus behaviour to ported
+components no test asserts the interaction of is the blind change that trade
+refuses. Fix them behind interaction tests, not ahead of them.
 
 Per file, not a total, so a fix in one file cannot pay for a regression in
 another. Lowering it is the script's own output: fix something, run it, and
 it prints the replacement literal.
+
+**Both numbers in the paragraph above are gate-enforced**, along with the
+suppression count under Lint suppressions. `check-a11y.mjs` recomputes all
+four and fails on a mismatch, naming the sentence to correct. The 2026-08-03
+pass is why: it lowered the baseline from 19 to 11 in the script and left
+this file saying 19, which is the same failure the suppression paragraph had
+already recorded once. A number that lives in two places needs something
+holding them equal, and a paragraph explaining that it must not go stale is
+not that something.
 
 ## Migration path (Phase 2+)
 
