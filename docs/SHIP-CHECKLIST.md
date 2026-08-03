@@ -79,8 +79,9 @@ Both apps must be registered under `com.cosaxo.insight`:
   For push: Apple Developer → Keys → create an APNs key and upload it in
   Firebase Console → Cloud Messaging → Apple app configuration.
 - **Enable the provider** — Firebase Console → Authentication → Sign-in
-  method → enable **Google** (and keep **Anonymous** enabled; D3 depends
-  on it). The client side is wired: `capacitor.config.ts` declares
+  method → enable **Google** and **Anonymous** (D3 depends on the latter;
+  measured OFF on 2026-08-03 — it was never enabled, so do not read this
+  as already done). The client side is wired: `capacitor.config.ts` declares
   `providers: ["google.com"]` and `android/variables.gradle` sets
   `rgcfaIncludeGoogle = true`. Both are required — without the Gradle
   flag the Google libraries are `compileOnly`, so an Android build

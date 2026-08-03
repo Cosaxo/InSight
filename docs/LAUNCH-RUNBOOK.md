@@ -75,8 +75,12 @@ Apple has no equivalent gate — enrollment is ~1–2 days, review usually
       Open it today even though the build is days away — the account has
       to exist before a build can start the 14-day clock.
 - [ ] **1.3 Firebase Console → Authentication → Sign-in method:** enable
-      **Google**, and confirm **Anonymous** stays enabled (D3's entire
-      first-run path depends on it). `SHIP-CHECKLIST §2`.
+      **Anonymous** AND **Google**. Earlier drafts said "confirm Anonymous
+      stays enabled" — measured 2026-08-03 (anonymous sign-up returns
+      `ADMIN_ONLY_OPERATION`): it was never on, so this is an enablement,
+      not a confirmation. D3's entire first-run path depends on it, and
+      the scorecard fetch (`QUESTION-FARM.md` Phase A) is blocked on the
+      same switch. `SHIP-CHECKLIST §2`.
 - [ ] **1.4 Firebase Console → App Check: register all three apps** — web
       (reCAPTCHA provider), iOS (DeviceCheck/App Attest), Android (Play
       Integrity). Do this on day 1 so the soak overlaps the rest of the
