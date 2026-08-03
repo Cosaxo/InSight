@@ -4,6 +4,7 @@
 // spec-index.js load order is semantic — scripts/check-spec-globals.mjs
 // guards the wiring in CI.
 import React from 'react';
+import { Kicker, useDialog } from './primitives.jsx';
 
 // InSight — TestOverlay: pick a test, answer, see the result. Question banks
 // and persistence live in test-defs.js.

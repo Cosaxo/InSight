@@ -4,6 +4,7 @@
 // spec-index.js load order is semantic — scripts/check-spec-globals.mjs
 // guards the wiring in CI.
 import React from 'react';
+import { Av, TabSection, MatchRing } from './primitives.jsx';
 
 // mirror-field-pops.jsx — the four Mirror populations, each built as a node
 // list for the shared field canvas (mirror-field.jsx). One grammar throughout:

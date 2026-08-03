@@ -4,6 +4,7 @@
 // spec-index.js load order is semantic — scripts/check-spec-globals.mjs
 // guards the wiring in CI.
 import React from 'react';
+import { Kicker } from './primitives.jsx';
 
 // compare-breakdown.jsx — "you vs them" across every assessment, in the SAME
 // visual language as the results profile (result-rose.jsx): per-trait hue

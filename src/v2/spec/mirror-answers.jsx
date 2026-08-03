@@ -4,6 +4,7 @@
 // spec-index.js load order is semantic — scripts/check-spec-globals.mjs
 // guards the wiring in CI.
 import React from 'react';
+import { TabSection } from './primitives.jsx';
 
 // mirror-answers.jsx — "The daily record" on Mirror: every daily question,
 // answered by the population the mirror currently reflects. Category chips

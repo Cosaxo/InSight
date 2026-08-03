@@ -4,6 +4,7 @@
 // spec-index.js load order is semantic — scripts/check-spec-globals.mjs
 // guards the wiring in CI.
 import React from 'react';
+import { Kicker, useDialog } from './primitives.jsx';
 
 // CityOverlay — opens when you tap a city in the World tab atlas
 const { useState: useStateCO } = React;

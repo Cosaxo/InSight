@@ -369,28 +369,51 @@ survivable enough to live with indefinitely.
 **Rule 4** counts every site where one file reads a name another file
 assigns to global scope, per file, and the number may only go down. The
 baseline is in `scripts/check-spec-globals.mjs`; `npm run check:globals`
-prints the current total on every run.
+prints the current total on every run. The count today is **755 across 57
+files**, down from 799 when the ratchet landed.
 
 The mechanism needs no bookkeeping, which is what makes it usable. The
 scanner already suppresses a JSX reference when the file declares the name
 locally, and `import { Chip } from './primitives.jsx'` is a local
 declaration — so converting a consumer takes its sites to zero by itself.
 
-**Suggested order, cheapest first.** Convert the providers that depend on
-nothing themselves, because they can move with no load-order risk at all:
-`primitives.jsx` (22 consumers), `sample-data.js` (13), `daily-questions.js`
-(6), `world-catalogs.js` (5), `follows.js` (4), `result-rose.jsx` (4). Each
-becomes a real module with a compat line beneath —
+### `primitives.jsx` is converted — what it cost, and what it taught
 
-```js
-export function Chip({ ... }) { ... }
-// Compat while consumers still read the bare name at render time.
-// Delete once check:globals reports no references left.
-globalThis.Chip = Chip;
-```
+The first module off the bridge, chosen because it has the most consumers
+(22 by the ratchet's count) and depends on nothing itself. Its eleven names
+are plain named exports; **it publishes nothing to `globalThis` at all**,
+because all 24 consumers moved in the same change. 799 → 755.
 
-— which keeps every unconverted consumer working and the count unchanged
-until the consumers follow, one small PR each.
+The plan here said to leave a `globalThis.X = X` compat line beneath the
+exports so unconverted consumers keep working. That was not needed once it
+turned out the consumer set was closed — 24 files, all in `spec/`, with the
+only other mentions of these names being three comments. **Check for that
+before assuming a compat line is required**: a provider whose consumers all
+fit in one change is cheaper to finish than to bridge, and a compat line
+nobody needs is dead code with a deletion ticket attached.
+
+Three things worth knowing before converting the next one:
+
+- **`window.X` sites do not convert themselves.** `result-card.jsx` held
+  `{window.Av ? … <window.Av /> …}` — a defensive guard that existed only
+  because load order could leave the global unset. An import cannot be
+  unset, so the guard went with the conversion rather than being rewritten
+  as `{Av ? …}`.
+- **Two different gates catch a missed consumer, and neither catches both
+  cases.** A JSX reference (`<Sheet/>`) is invisible to eslint — base
+  `no-undef` does not treat JSX tag names as identifier references — and is
+  caught by `check:globals` rule 1. A bare call (`useDialog(…)`) is the
+  reverse: rule 1 never sees it, `no-undef` reports it. Both were verified
+  by deleting an import and watching the right gate fail.
+- **`h(Foo, …)` was invisible to both the checker and the ratchet** until
+  this change added a rule for it. `daily-split.jsx` renders
+  `h(Sheet, {…})`, which is a cross-module reference written through a
+  createElement alias. One site layer-wide, but it was a hole in a ratchet
+  whose whole job is that the number cannot be gamed.
+
+**Next, cheapest first**, same criterion — providers that depend on nothing
+themselves: `sample-data.js` (13 consumers), `daily-questions.js` (6),
+`world-catalogs.js` (5), `follows.js` (4), `result-rose.jsx` (4).
 
 **What NOT to start with.** The layer has import cycles, and they cluster:
 `test-definitions.js ↔ daily-split.jsx`, and `app-shell.jsx →

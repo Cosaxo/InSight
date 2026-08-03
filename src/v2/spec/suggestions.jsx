@@ -4,6 +4,7 @@
 // spec-index.js load order is semantic — scripts/check-spec-globals.mjs
 // guards the wiring in CI.
 import React from 'react';
+import { useDialog } from './primitives.jsx';
 
 // suggestions.jsx — "Suggest a question": community board + composer (overlay).
 // Propose a question, upvote others; the top, once reviewed, become Dailies.

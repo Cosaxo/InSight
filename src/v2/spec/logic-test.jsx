@@ -4,6 +4,7 @@
 // spec-index.js load order is semantic — scripts/check-spec-globals.mjs
 // guards the wiring in CI.
 import React from 'react';
+import { useDialog } from './primitives.jsx';
 
 // ─────────────────────────────────────────────────────────────
 // Logic · Raven's-matrices-style test, run as a full overlay

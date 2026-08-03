@@ -57,8 +57,10 @@ for (const f of readdirSync(specDir)) {
 //
 // WHAT THIS COUNTS. Every site where a file reads a name that ANOTHER
 // file in the scanned set assigns to global scope — `window.LIVE`,
-// `<Chip/>`, `globalThis.DUELS`. That is the coupling itself, not a
-// proxy for it: 799 sites across 57 files at the baseline below.
+// `<Chip/>`, `h(Chip, …)`, `globalThis.DUELS`. That is the coupling
+// itself, not a proxy for it. It opened at 799 sites across 57 files;
+// the baseline below is the current line, and src/v2/README.md quotes
+// the live total (checked at the foot of this script).
 //
 // WHY IT EXISTS. src/v2/README.md has carried a "Migration path
 // (Phase 2+)" section since the port landed, saying modules move off the
@@ -77,11 +79,10 @@ for (const f of readdirSync(specDir)) {
 // the name locally, and an `import { Chip }` is a local declaration. So
 // converting a provider to a real module and its consumer to a real
 // import takes that consumer's sites to zero on their own. The
-// suggested order is providers with no dependencies of their own
-// (primitives.jsx, sample-data.js, daily-questions.js …) — they can
-// export today with a `globalThis.X = X` compat line beneath, which
-// keeps every unconverted consumer working and this count unchanged
-// until the consumers follow.
+// suggested order is providers with no dependencies of their own —
+// primitives.jsx went first (D39, 799 → 755); sample-data.js,
+// daily-questions.js, world-catalogs.js and follows.js are next, and
+// src/v2/README.md carries the per-file consumer counts.
 //
 // PER FILE, NOT A TOTAL, for the reason check-a11y.mjs is: a total lets
 // a conversion in one file pay for new coupling in another and reports
@@ -94,16 +95,16 @@ const COUPLING_BASELINE = {
   "src/v2/main.jsx": 1,
   "src/v2/spec/app-shell.jsx": 54,
   "src/v2/spec/archetype-data.js": 2,
-  "src/v2/spec/city-overlay.jsx": 6,
-  "src/v2/spec/compare-breakdown.jsx": 7,
+  "src/v2/spec/city-overlay.jsx": 3,
+  "src/v2/spec/compare-breakdown.jsx": 4,
   "src/v2/spec/daily-questions.js": 3,
   "src/v2/spec/daily-split.jsx": 85,
-  "src/v2/spec/demographics.jsx": 4,
+  "src/v2/spec/demographics.jsx": 3,
   "src/v2/spec/duels-data.js": 8,
-  "src/v2/spec/duo-daily.jsx": 14,
+  "src/v2/spec/duo-daily.jsx": 13,
   "src/v2/spec/feed-read.js": 2,
-  "src/v2/spec/group-daily.jsx": 8,
-  "src/v2/spec/group-mirror.jsx": 20,
+  "src/v2/spec/group-daily.jsx": 6,
+  "src/v2/spec/group-mirror.jsx": 17,
   "src/v2/spec/group-role-map.jsx": 5,
   "src/v2/spec/learn-bits.jsx": 1,
   "src/v2/spec/learn-data.js": 1,
@@ -117,36 +118,36 @@ const COUPLING_BASELINE = {
   "src/v2/spec/map-bottom-card.jsx": 9,
   "src/v2/spec/map-branches.js": 3,
   "src/v2/spec/map-learn-card.jsx": 5,
-  "src/v2/spec/map-people.jsx": 9,
+  "src/v2/spec/map-people.jsx": 8,
   "src/v2/spec/map-tab.jsx": 34,
-  "src/v2/spec/mirror-answers.jsx": 4,
-  "src/v2/spec/mirror-field-pops.jsx": 39,
-  "src/v2/spec/mirror-field.jsx": 13,
+  "src/v2/spec/mirror-answers.jsx": 3,
+  "src/v2/spec/mirror-field-pops.jsx": 36,
+  "src/v2/spec/mirror-field.jsx": 7,
   "src/v2/spec/mirror-tab.jsx": 17,
-  "src/v2/spec/passive-meter.jsx": 15,
+  "src/v2/spec/passive-meter.jsx": 14,
   "src/v2/spec/passive-progress.js": 5,
   "src/v2/spec/person-mindmap.jsx": 11,
-  "src/v2/spec/person-overlay.jsx": 23,
+  "src/v2/spec/person-overlay.jsx": 18,
   "src/v2/spec/place-stats.jsx": 3,
   "src/v2/spec/profile-general.jsx": 27,
-  "src/v2/spec/profile-overlay.jsx": 31,
-  "src/v2/spec/profile-test-viz.jsx": 5,
+  "src/v2/spec/profile-overlay.jsx": 30,
+  "src/v2/spec/profile-test-viz.jsx": 3,
   "src/v2/spec/relmap-lenses.jsx": 2,
   "src/v2/spec/relmap-panels.jsx": 3,
   "src/v2/spec/relmap.jsx": 4,
-  "src/v2/spec/result-card.jsx": 34,
+  "src/v2/spec/result-card.jsx": 32,
   "src/v2/spec/scenes.js": 5,
-  "src/v2/spec/search-overlay.jsx": 14,
-  "src/v2/spec/segment-explorer.jsx": 2,
+  "src/v2/spec/search-overlay.jsx": 12,
+  "src/v2/spec/segment-explorer.jsx": 1,
   "src/v2/spec/suggestions.jsx": 3,
   "src/v2/spec/test-definitions.js": 7,
   "src/v2/spec/test-feed-data.js": 2,
-  "src/v2/spec/test-overlay.jsx": 33,
-  "src/v2/spec/test-viz.jsx": 3,
-  "src/v2/spec/type-marks.jsx": 6,
+  "src/v2/spec/test-overlay.jsx": 30,
+  "src/v2/spec/test-viz.jsx": 2,
+  "src/v2/spec/type-marks.jsx": 5,
   "src/v2/spec/vote-cuts.js": 1,
   "src/v2/spec/world-feed-data.js": 9,
-  "src/v2/spec/world-feed.jsx": 166,
+  "src/v2/spec/world-feed.jsx": 165,
   "src/v2/spec/world-subtopics.js": 3,
 };
 
@@ -200,6 +201,35 @@ if (!added.length && removed.length) {
   for (const r of removed) console.error(`    ${r.file}: ${r.was} → ${r.now}`);
   console.error(`\n  total ${couplingBase} → ${couplingTotal}. Replace COUPLING_BASELINE with:\n`);
   console.error(nextLiteral());
+}
+
+// The figure src/v2/README.md quotes for this ratchet, held equal to the
+// tree here rather than by intention — same argument as check-a11y.mjs's
+// figures block, and for the same repeatedly-demonstrated reason. It lives
+// in THIS script because this script owns the number; recomputing it in
+// check-figures.mjs would be a second implementation of the count, which is
+// the drift it exists to prevent.
+if (!failed) {
+  const SPEC_README = "src/v2/README.md";
+  const prose = readFileSync(join(root, SPEC_README), "utf8");
+  const claim = prose.match(/The count today is \*\*(\d+) across (\d+)\s*\n?files\*\*/);
+  if (!claim) {
+    failed = true;
+    console.error(
+      `\n✗ ${SPEC_README}: could not find the "The count today is **N across M files**"\n`
+      + "  sentence. If the figure is no longer quoted there, delete this block\n"
+      + "  with it — a gate reading for a sentence nobody writes cannot be satisfied.",
+    );
+  } else if (Number(claim[1]) !== couplingTotal || Number(claim[2]) !== Object.keys(coupling).length) {
+    failed = true;
+    console.error(
+      `\n✗ ${SPEC_README} states ${claim[1]} across ${claim[2]} files; the tree has `
+      + `${couplingTotal} across ${Object.keys(coupling).length}.\n`
+      + `  Correct the sentence to: "The count today is **${couplingTotal} across `
+      + `${Object.keys(coupling).length} files**".\n`
+      + "  Not a coupling regression — the ratchet itself is fine.",
+    );
+  }
 }
 
 if (failed) {

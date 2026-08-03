@@ -4,6 +4,7 @@
 // spec-index.js load order is semantic — scripts/check-spec-globals.mjs
 // guards the wiring in CI.
 import React from 'react';
+import { Av } from './primitives.jsx';
 
 // result-card.jsx — test profile cards: each test keeps the shared banner
 // language but owns its NATIVE geometry:
@@ -69,10 +70,13 @@ function SigEmblem({ testKey, sig, color, people, typeName }) {
         })}
       </svg>
       {mark ? <span style={{ position: 'absolute', left: '50%', top: '50%', transform: 'translate(-50%,-50%)', display: 'inline-flex' }}><span className="rpv2-pop" style={{ display: 'inline-flex', animationDelay: '80ms' }}>{React.createElement(mark, { testKey, name: typeName, size: 82 })}</span></span> : null}
-      {window.Av ? ppl.map((p, i) => {
+      {/* The `window.Av &&` guard this used to carry is gone with D39: Av is
+          an import now, so it cannot be undefined at render. The guard was
+          never about `ppl` — an empty list maps to nothing on its own. */}
+      {ppl.map((p, i) => {
         const [x, y] = pt(132 + i * 33, R - 5);
-        return <span key={p.id} className="rpv2-pop" style={{ position: 'absolute', left: x - 10, top: y - 10, borderRadius: '50%', boxShadow: '0 0 0 2px var(--surface-2)', display: 'inline-flex', animationDelay: `${300 + i * 70}ms` }}><window.Av init={p.init} hue={p.hue} size={20} /></span>;
-      }) : null}
+        return <span key={p.id} className="rpv2-pop" style={{ position: 'absolute', left: x - 10, top: y - 10, borderRadius: '50%', boxShadow: '0 0 0 2px var(--surface-2)', display: 'inline-flex', animationDelay: `${300 + i * 70}ms` }}><Av init={p.init} hue={p.hue} size={20} /></span>;
+      })}
     </div>
   );
 }

@@ -4,6 +4,7 @@
 // spec-index.js load order is semantic — scripts/check-spec-globals.mjs
 // guards the wiring in CI.
 import React from 'react';
+import { Av, AnonAv, anonName, Kicker, useDialog } from './primitives.jsx';
 
 // Expanded Person profile — a detailed portrait of similarity
 // Replaces the basic PersonOverlay registered in overlays.jsx

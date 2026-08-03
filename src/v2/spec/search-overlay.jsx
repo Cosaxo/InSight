@@ -4,6 +4,7 @@
 // spec-index.js load order is semantic — scripts/check-spec-globals.mjs
 // guards the wiring in CI.
 import React from 'react';
+import { Av, AnonAv, anonName, useDialog } from './primitives.jsx';
 
 // search-overlay.jsx — one field, three kinds of answer: questions, topics, people.
 // A question hit is the real question: tap it and the feed's own card opens in

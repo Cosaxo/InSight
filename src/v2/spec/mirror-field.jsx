@@ -4,6 +4,7 @@
 // spec-index.js load order is semantic — scripts/check-spec-globals.mjs
 // guards the wiring in CI.
 import React from 'react';
+import { Av, Lazy, MatchRing } from './primitives.jsx';
 
 // mirror-field.jsx — the Mirror rendered as a FIELD, not a scroll of cards.
 // One grammar for every population (borrowed from the Map tab):

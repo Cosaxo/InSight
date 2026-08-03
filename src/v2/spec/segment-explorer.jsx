@@ -4,6 +4,7 @@
 // spec-index.js load order is semantic — scripts/check-spec-globals.mjs
 // guards the wiring in CI.
 import React from 'react';
+import { TabSection } from './primitives.jsx';
 
 // segment-explorer.jsx — the World's Explore lens: pick trait chips (age,
 // gender, politics, place) and see what that slice of the world believes —

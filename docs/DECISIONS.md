@@ -3508,3 +3508,67 @@ amortised for 10× the headroom, and the e2e's exact-count assertions need
 one helper rather than two rewrites. Still not worth doing at zero users;
 worth recording as an M rather than an XL, so the decision is made against
 the real price.
+
+### D39 amendment (2026-08-03) · `primitives.jsx` is converted, and the ratchet had a hole
+
+The first module is off the bridge. `primitives.jsx` — the layer's most
+consumed provider, and one that depends on nothing itself — now exports its
+eleven names and **publishes nothing to `globalThis` at all**. All 24
+consumers import them. **799 → 755.**
+
+**The compat line this record recommended turned out to be unnecessary**,
+and that is worth carrying forward rather than quietly dropping. D39 says to
+export with `globalThis.X = X` beneath so unconverted consumers keep
+working. That is the right shape when the consumer set is open-ended; here
+it was closed — 24 files, all in `spec/`, with the only other mentions of
+these names being three comments in `ui/` and `test/`. Checking that first
+turns a two-step migration into a one-step one, and avoids leaving dead
+compat behind. The rule to carry: grep for the full consumer set before
+assuming a bridge is needed.
+
+### The hole, found by doing the work rather than by review
+
+`daily-split.jsx` renders `h(Sheet, {…})` — a cross-module reference
+written through a `React.createElement` alias. **Rule 3 could not see it**
+(not a JSX tag), **rule 1 could not see it** (not `window.X`), and so
+**rule 4 did not count it**. Only `no-undef` was watching, and `no-undef`
+counts nothing.
+
+That is worse than an undercount by one. A ratchet whose job is that the
+number cannot go up was bypassable by writing the reference in a different
+syntax. The scanner now matches `h(Capitalised…)` the same way it matches a
+tag, with the same local-declaration suppression.
+
+Fixing it exposed a second scanner defect underneath, which is why the
+first one mattered: `const st = this.state, h = React.createElement, F =
+React.Fragment;` declares `F` locally, but the local-name scan only ever
+looked at the **first** declarator in a list, so `h(F, …)` immediately
+reported `F` as an undefined global. Per this repo's standing rule — if a
+gate fires on a legitimate name, fix the scanner, never add an exception —
+the declarator-list case is now handled. Neither defect changed the count
+(both names resolve locally), so the baseline is unaffected; what changed
+is that the count can no longer be avoided.
+
+### Two gates, and neither covers both reference styles
+
+Verified by deleting an import and watching which gate failed:
+
+| reference | caught by | why not the other |
+| --- | --- | --- |
+| `<Sheet/>` | `check:globals` rule 1 | base `no-undef` does not treat JSX tag names as identifier references |
+| `useDialog(…)` | eslint `no-undef` | rule 1 only matches `window.X`, and rule 3 only capitalised tags |
+
+Worth stating because the obvious assumption — that `npm run lint` going
+green means no bare references survive a conversion — is false, and it was
+the assumption in play when `result-card.jsx`'s two `window.Av` sites went
+unconverted. Lint passed; `check:globals` caught them.
+
+Those two were a defensive guard, `{window.Av ? … <window.Av /> …}`, which
+only existed because load order could leave the global unset. An import
+cannot be unset, so the guard was deleted rather than rewritten — the
+conversion removes the condition, not just the prefix.
+
+**The figure in `src/v2/README.md` is gate-checked**, in
+`check-spec-globals.mjs` rather than in `check-figures.mjs`, because that
+script owns the count and a second implementation of it would be the drift
+the gate exists to prevent.

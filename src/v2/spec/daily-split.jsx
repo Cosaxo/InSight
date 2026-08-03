@@ -4,6 +4,7 @@
 // spec-index.js load order is semantic — scripts/check-spec-globals.mjs
 // guards the wiring in CI.
 import React from 'react';
+import { Sheet } from './primitives.jsx';
 import ReactDOM from 'react-dom';
 
 // daily-split.jsx — SPLIT: the daily tab. Three modes — World (vote blind,

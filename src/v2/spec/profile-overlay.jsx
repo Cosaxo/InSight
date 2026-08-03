@@ -4,6 +4,7 @@
 // spec-index.js load order is semantic — scripts/check-spec-globals.mjs
 // guards the wiring in CI.
 import React from 'react';
+import { Av, useDialog } from './primitives.jsx';
 
 // InSight — ProfileOverlay (your own profile) + the Politics cards.
 // The test flow lives in test-overlay.jsx; question banks in test-defs.js.
