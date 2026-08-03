@@ -1,9 +1,17 @@
 // Ported from design/spec-modules/duels-data.js (the historical prototype — no sync
-// script survives; THIS file is the live source now, hand-edits and all).
+// script survives; THIS file is the live source of the BEHAVIOR, hand-edits
+// and all). The group/1v1 banks themselves moved to
+// content/duel-questions.json (2026-08-03, the D32 learn-data shape): one
+// source feeds both this module and the seeded Firestore bank via
+// scripts/gen-v2content.mjs, so the demo banks and the live docs cannot
+// drift. (A static JSON import, not a cross-module import — the spec
+// layer's no-imports convention bans load-order coupling between modules,
+// which data has none of.)
 // Cross-module references resolve through the shared global scope and
 // spec-index.js load order is semantic — scripts/check-spec-globals.mjs
 // guards the wiring in CI.
 import React from 'react';
+import DUEL_CONTENT from '../../../content/duel-questions.json';
 import { FRIENDS } from './follows.js';
 import { IS_DATA } from './sample-data.js';
 
@@ -74,32 +82,11 @@ import { IS_DATA } from './sample-data.js';
   // about one of you) and 'us' (options describe the group — feeds its portrait).
   // Mostly 'us' (feeds the portrait) + verdict 'pick's. Role-cast scenarios
   // (heist/island/sitcom/zombie) live ONLY in SCENARIOS — no duplicates here.
-  const GROUP_QS = [
-    { id: 'gu0', kind: 'us', prompt: 'What actually holds this group together?', options: ['Food', 'Banter', 'Showing up', 'History'] },
-    { id: 'gp0', kind: 'pick', prompt: "Who'd survive longest in the wild?" },
-    { id: 'gu1', kind: 'us', prompt: "This group's superpower?", options: ['Honesty', 'Loyalty', 'Chaos', 'Calm'] },
-    { id: 'gd3', prompt: 'Best dinner together: cook, or book a table?', options: ['Cook together', 'Book a table'] },
-    { id: 'gu3', kind: 'us', prompt: 'When we disagree, we…', options: ['Talk it out', 'Vote', 'Let it slide', 'Loudest wins'] },
-    { id: 'gp1', kind: 'pick', prompt: 'Who replies to the group chat within a minute?' },
-    { id: 'gu4', kind: 'us', prompt: 'A stranger joins us for an evening. They leave thinking…', options: ['So loud', 'So close', 'So weird', 'So fun'] },
-    { id: 'gd0', prompt: 'A winter cabin with no wifi. How long do you last?', options: ['One night', 'A weekend', 'A week', 'Move me in'] },
-    { id: 'gu5', kind: 'us', prompt: 'What are we most likely to be late for?', options: ['Nothing', 'Everything', 'Dinner', 'The airport'] },
-    { id: 'gp2', kind: 'pick', prompt: 'Who gives the best advice?' },
-    { id: 'gu2', kind: 'us', prompt: 'Our default plan on a free Friday?', options: ['Big dinner', 'Out out', 'Sofa + film', 'Spontaneous'] },
-    { id: 'gd4', prompt: 'A surprise party for you — love it or dread it?', options: ['Love it', 'Dread it'] },
-    { id: 'gu6', kind: 'us', prompt: 'The thing we never say out loud?', options: ['I miss you', 'You were right', 'I need help', 'We say everything'] },
-    { id: 'gp3', kind: 'pick', prompt: 'Who would you call from jail at 3am?' },
-    { id: 'gu7', kind: 'us', prompt: 'In ten years, this group is…', options: ['Same but older', 'Scattered, still close', 'Neighbours', 'A yearly reunion'] },
-    { id: 'gd6', prompt: 'On the road trip, you are the…', options: ['Driver', 'DJ', 'Navigator', 'Snacks'] },
-    { id: 'gu8', kind: 'us', prompt: 'Our group chat is mostly…', options: ['Plans', 'Memes', 'Life updates', 'Silence'] },
-    { id: 'gp4', kind: 'pick', prompt: 'Who changes the plan at the last minute?' },
-    { id: 'gu9', kind: 'us', prompt: 'What would break this group?', options: ['Nothing', 'Distance', 'Money', 'A secret'] },
-    { id: 'gd7', prompt: 'Group holiday: one house together, or rooms apart?', options: ['One house', 'Rooms apart'] },
-    { id: 'gp5', kind: 'pick', prompt: 'Who secretly runs this group?' },
-    { id: 'gu10', kind: 'us', prompt: 'Our best time together is usually…', options: ['Late night', 'Long dinner', 'Outdoors', 'Doing nothing'] },
-    { id: 'gp6', kind: 'pick', prompt: 'Who would win a group argument on a technicality?' },
-    { id: 'gu11', kind: 'us', prompt: 'New person wants in. We are…', options: ['Open door', 'Slow to warm', 'Full — sorry', 'Depends who'] },
-  ];
+  // The bank lives in content/duel-questions.json — the same file
+  // gen-v2content.mjs seeds the live Firestore bank from, so demo and live
+  // can never drift (single source, the D32 shape). Array order is the
+  // rotation order and is deliberately interleaved: append, never sort.
+  const GROUP_QS = DUEL_CONTENT.group;
   // seeded groups — each runs the shared pool at its own offset
   const GROUPS = [
     { id: 'g1', name: 'The Crew', ids: ['f1', 'f2', 'f4', 'f6', 'f3'] },
@@ -263,28 +250,11 @@ import { IS_DATA } from './sample-data.js';
   // them. Mixed option counts (2–4): more options = a right guess means more.
   // Ordered light → deep: early days stay easy, long streaks earn the
   // revealing ones (duoQ walks the pool by streak depth, not at random).
-  const DUO_QS = [
-    { prompt: 'Plans get cancelled last minute. First feeling?', options: ['Relief', 'Annoyed'] },
-    { prompt: 'Phone rings, unknown number.', options: ['Answer', 'Ignore', 'Text back later'] },
-    { prompt: 'A compliment in front of everyone — love it or squirm?', options: ['Love it', 'Squirm'] },
-    { prompt: 'Running late. Their text says…', options: ['"5 min" (it\u2019s 20)', 'The honest ETA', 'Nothing — just arrives'] },
-    { prompt: 'The food arrives wrong. Say something?', options: ['Say something', 'Eat it anyway'] },
-    { prompt: 'Lost in a new city. They…', options: ['Ask someone', 'Map it out', 'Just wander'] },
-    { prompt: 'A free Saturday, zero plans. Bliss or restless?', options: ['Bliss', 'Restless'] },
-    { prompt: 'Karaoke machine appears.', options: ['Grabs the mic', 'One duet, then done', 'Vanishes'] },
-    { prompt: 'Someone takes their joke too far. Laugh it off, or say so?', options: ['Laugh it off', 'Say so'] },
-    { prompt: 'Big decision to make. How do they call it?', options: ['Gut', 'A list', 'Ask everyone', 'Sleep on it'] },
-    { prompt: 'Cry in a film — freely, or fight it?', options: ['Freely', 'Fight it'] },
-    { prompt: 'Ideal holiday day?', options: ['Packed itinerary', 'One plan, then drift', 'Pool. Book. Done.'] },
-    { prompt: 'They win €10k. First move?', options: ['Save it', 'Book a trip that night', 'Treat someone else', 'Spend a little now'] },
-    { prompt: 'An old friend owes an apology. Bring it up, or let it go?', options: ['Bring it up', 'Let it go'] },
-    { prompt: 'Deep talk at 2am, or a proper night of sleep?', options: ['The talk', 'The sleep'] },
-    { prompt: 'When hurt, they go…', options: ['Quiet', 'Loud', 'Busy'] },
-    { prompt: 'Hard truth or comfortable silence?', options: ['Hard truth', 'Silence'] },
-    { prompt: 'After a brutal week, what refills them?', options: ['People', 'Solitude', 'Movement', 'Sleep'] },
-    { prompt: 'A week alone in a cabin. Gift or sentence?', options: ['Gift', 'Sentence'] },
-    { prompt: 'Old age: surrounded, or independent?', options: ['Surrounded', 'Independent'] },
-  ];
+  // Bank in content/duel-questions.json, single source as GROUP_QS above.
+  // JSON entries carry an `id` the live seed keys on; unused here — demo
+  // duo state keys on the partner, not the question. The light → deep
+  // ordering contract travels with the JSON: append deep.
+  const DUO_QS = DUEL_CONTENT.oneVsOne;
   // The same game, aimed at a person you share a life with rather than a friend:
   // the tells are domestic, and the deep end is about what happens next. Same
   // shape as DUO_QS — light → deep, 2–4 options — so the ladder is identical.

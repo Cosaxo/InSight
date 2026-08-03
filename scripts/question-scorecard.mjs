@@ -16,6 +16,14 @@
 //     ("splits, not landslides" — a good daily divides people) as a
 //     number: evenness = 1 − (maxShare − 1/n) / (1 − 1/n), 1.0 = even,
 //     0.0 = unanimous.
+//   - OPTION SHAPE: the same public counts, kept as per-option shares
+//     (`optionShares` per question; `types`/`optionSlots` rollups). This
+//     can only steer NEW questions: a shipped question's options are
+//     never edited or reordered, because answers store (qid, optionIdx)
+//     forever and a reorder silently re-keys them (the D30 re-key
+//     failure class). What it is for: which forms split best, and
+//     whether a 3rd/4th option earns its place, before the next
+//     question is written.
 //   - NOT skip/pass rates: deliberately never collected (server-side
 //     telemetry would be a privacy decision, not a tweak — QUESTION-FARM
 //     out-of-scope list). NOT per-user anything: only the floored public
@@ -115,7 +123,7 @@ async function fetchAggs() {
 }
 
 // ── scoring ──
-const evenness = (counts, n) => {
+const optionShares = (counts, n) => {
   const vals = [];
   let total = 0;
   for (let i = 0; i < n; i++) {
@@ -124,9 +132,15 @@ const evenness = (counts, n) => {
     total += c;
   }
   if (total <= 0 || n <= 1) return null;
-  const maxShare = Math.max(...vals) / total;
+  return vals.map((c) => c / total);
+};
+
+const evennessOf = (shares, n) => {
+  const maxShare = Math.max(...shares);
   return Math.max(0, Math.min(1, 1 - (maxShare - 1 / n) / (1 - 1 / n)));
 };
+
+const round3 = (v) => +v.toFixed(3);
 
 function score(aggs) {
   const rows = [];
@@ -136,14 +150,17 @@ function score(aggs) {
     const agg = aggs[qid];
     const served = idx < daysElapsed;
     const total = agg && agg.tooSmall === false ? Number(agg.total || 0) : 0;
+    const sh = agg && agg.tooSmall === false ? optionShares(agg.counts || {}, n) : null;
     rows.push({
       qid,
       surface: "daily",
       topic: q.cat[0],
+      type: q.type,
       prompt: q.prompt,
       served,
       total,
-      evenness: agg && agg.tooSmall === false ? evenness(agg.counts || {}, n) : null,
+      evenness: sh ? evennessOf(sh, n) : null,
+      optionShares: sh ? sh.map(round3) : null,
       signal: agg ? (agg.tooSmall === false ? "scored" : "below-floor") : served ? "no-answers" : "unserved",
     });
   });
@@ -153,14 +170,17 @@ function score(aggs) {
     const n = q.options ? q.options.length : (q.items || []).length;
     const agg = aggs[qid];
     const total = agg && agg.tooSmall === false ? Number(agg.total || 0) : 0;
+    const sh = agg && agg.tooSmall === false ? optionShares(agg.counts || {}, n) : null;
     rows.push({
       qid,
       surface: "feed",
       topic: q.cat,
+      type: q.type,
       prompt: q.prompt,
       served: true, // the feed serves continuously
       total,
-      evenness: agg && agg.tooSmall === false ? evenness(agg.counts || {}, n) : null,
+      evenness: sh ? evennessOf(sh, n) : null,
+      optionShares: sh ? sh.map(round3) : null,
       signal: agg ? (agg.tooSmall === false ? "scored" : "below-floor") : "no-answers",
     });
   });
@@ -201,6 +221,53 @@ function score(aggs) {
     delete t.evenSum;
   }
 
+  // Form rollups — which question SHAPES earn their place. Per surface,
+  // for the same reason grades are: daily and feed totals never compare.
+  const types = { daily: {}, feed: {} };
+  for (const r of rows) {
+    const t = (types[r.surface][r.type] ||= { questions: 0, scored: 0, answers: 0, evenSum: 0, strong: 0, landslides: 0 });
+    t.questions++;
+    if (r.signal === "scored") {
+      t.scored++;
+      t.answers += r.total;
+      t.evenSum += r.evenness ?? 0;
+      if (r.grade === "strong") t.strong++;
+      if (r.grade === "landslide") t.landslides++;
+    }
+  }
+  for (const surf of Object.values(types)) {
+    for (const t of Object.values(surf)) {
+      t.avgEvenness = t.scored ? +(t.evenSum / t.scored).toFixed(3) : null;
+      delete t.evenSum;
+    }
+  }
+
+  // Slot diagnostics per (surface, type/optionCount). avgMinShare is the
+  // honest "does the weakest option earn its place" number — a set whose
+  // weakest slot averages ~0 is carrying an option nobody wanted. The
+  // positional avgShares are label-stable only for scale/rating (fixed
+  // labels); for binary/choice the slot order is authorial, so read them
+  // as distribution shape, not as "slot 3 is bad".
+  const optionSlots = { daily: {}, feed: {} };
+  for (const r of rows) {
+    if (!r.optionShares) continue;
+    const key = `${r.type}/${r.optionShares.length}`;
+    const s = (optionSlots[r.surface][key] ||= {
+      questions: 0, minSum: 0, sums: Array(r.optionShares.length).fill(0),
+    });
+    s.questions++;
+    s.minSum += Math.min(...r.optionShares);
+    r.optionShares.forEach((v, i) => { s.sums[i] += v; });
+  }
+  for (const surf of Object.values(optionSlots)) {
+    for (const s of Object.values(surf)) {
+      s.avgMinShare = round3(s.minSum / s.questions);
+      s.avgShares = s.sums.map((v) => round3(v / s.questions));
+      delete s.minSum;
+      delete s.sums;
+    }
+  }
+
   const scored = rows.filter((r) => r.signal === "scored");
   const byScore = scored
     .slice()
@@ -215,14 +282,18 @@ function score(aggs) {
       unserved: rows.filter((r) => r.signal === "unserved").length,
     },
     topics,
-    leaders: byScore.slice(0, 10).map(({ qid, prompt, total, evenness: e }) => ({ qid, prompt, total, evenness: e })),
-    laggards: byScore.slice(-10).reverse().map(({ qid, prompt, total, evenness: e, grade }) => ({ qid, prompt, total, evenness: e, grade })),
+    types,
+    optionSlots,
+    // Leaders/laggards carry their optionShares so a run can imitate (or
+    // avoid) the SHAPE of a split, not just its score.
+    leaders: byScore.slice(0, 10).map(({ qid, prompt, total, evenness: e, optionShares: o }) => ({ qid, prompt, total, evenness: e, optionShares: o })),
+    laggards: byScore.slice(-10).reverse().map(({ qid, prompt, total, evenness: e, grade, optionShares: o }) => ({ qid, prompt, total, evenness: e, grade, optionShares: o })),
     // Landslides are PROPOSALS for the operator's kill switch (active:
     // false), never auto-applied — the farm may cite them in a PR body;
     // only a human flips a question off.
     retireProposals: scored
       .filter((r) => r.grade === "landslide")
-      .map(({ qid, prompt, total, evenness: e }) => ({ qid, prompt, total, evenness: e })),
+      .map(({ qid, prompt, total, evenness: e, optionShares: o }) => ({ qid, prompt, total, evenness: e, optionShares: o })),
     perQuestion: rows,
   };
 }
@@ -239,6 +310,14 @@ function summarize(card) {
   }
   for (const [t, v] of Object.entries(card.topics).sort((a, b) => b[1].answers - a[1].answers).slice(0, 8)) {
     console.log(`  ${t}: ${v.scored}/${v.questions} scored · ${v.answers} answers · evenness ${v.avgEvenness ?? "—"}`);
+  }
+  // Optional-chained: a scorecard committed before the form rollups
+  // existed still summarizes cleanly.
+  for (const surface of ["daily", "feed"]) {
+    const forms = Object.entries(card.types?.[surface] || {}).filter(([, v]) => v.scored);
+    if (forms.length) {
+      console.log(`  ${surface} forms: ` + forms.map(([k, v]) => `${k} ${v.avgEvenness ?? "—"} (${v.scored})`).join(" · "));
+    }
   }
   if (card.leaders.length) console.log(`  top: ${card.leaders.slice(0, 3).map((l) => JSON.stringify(l.prompt)).join(" · ")}`);
   if (card.retireProposals.length) console.log(`  retire proposals: ${card.retireProposals.map((r) => r.qid).join(", ")}`);
