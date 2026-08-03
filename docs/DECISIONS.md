@@ -3704,3 +3704,33 @@ the only thing standing between that and a quietly wrong meter was someone
 reading the attribution while doing an unrelated conversion. The first
 multi-writer global to be converted would have moved the count in the wrong
 direction and looked like a regression.
+
+### D39 amendment (2026-08-03, fifth) · `follows.js` — 691 → 673, and a guard shape the earlier conversions missed
+
+`FRIENDS` is IIFE-wrapped like `DAILYQ` and took the same hoisted
+`export let`. Its 18 sites across four consumers were unusually dense in
+presence guards — six of them — and one was another module-scope read:
+`duels-data.js` ends with `FRIENDS.subscribe(fire)`, which is what makes a
+befriend or unfriend ripple into duos and groups. It was written
+`if (window.FRIENDS) window.FRIENDS.subscribe(fire)`, so reordering
+`spec-index.js` would have dropped the subscription **silently** — the same
+failure `map-branches.js` carried, in a different feature. Probed rather
+than reasoned about: inviting a friend still fires the DUELS listeners.
+
+**A miss from the `sample-data.js` conversion, found and fixed here.** That
+change removed the `(window.IS_DATA || {})` and `window.IS_DATA?.` shapes by
+explicit rewrite and then renamed the rest in bulk. That left four sites
+reading `(IS_DATA && IS_DATA.people) || []` — dead for the same reason the
+others were, and invisible to every gate in the tree, because a redundant
+`&&` is valid code that computes the right answer.
+
+Worth recording as a method correction rather than a typo. The guard shapes
+are a **list**, not a pattern:
+
+    (X || {})      X?.        X ? … : …
+    !X || …        X && …     if (X) …
+
+Grep the name and read every site. A bulk rename is the right tool for the
+reference itself and the wrong tool for the conditions around it, and
+nothing downstream will tell you — `check:globals` sees no coupling, eslint
+sees valid code, and the tests pass because the guard evaluates true.

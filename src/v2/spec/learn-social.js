@@ -4,6 +4,7 @@
 // spec-index.js load order is semantic — scripts/check-spec-globals.mjs
 // guards the wiring in CI.
 import React from 'react';
+import { FRIENDS } from './follows.js';
 import { IS_DATA } from './sample-data.js';
 
 // learn-social.js — the friend layer for Learn. Deterministic per (friend, card)
@@ -16,10 +17,9 @@ window.LEARN_SOCIAL = (function () {
     for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); }
     return ((h >>> 0) % 10000) / 10000;
   }
-  const people = () => (IS_DATA && IS_DATA.people) || [];
+  const people = () => IS_DATA.people || [];
   function friends() {
-    const F = window.FRIENDS;
-    const ids = F ? F.list() : [];
+    const ids = FRIENDS.list();
     const by = {};
     people().forEach((p) => { by[p.id] = p; });
     return ids.map((id) => by[id]).filter(Boolean);

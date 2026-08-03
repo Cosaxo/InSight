@@ -4,6 +4,7 @@
 // spec-index.js load order is semantic — scripts/check-spec-globals.mjs
 // guards the wiring in CI.
 import React from 'react';
+import { FRIENDS } from './follows.js';
 import { IS_DATA } from './sample-data.js';
 import { Av, AnonAv, anonName, Kicker, useDialog } from './primitives.jsx';
 
@@ -145,7 +146,7 @@ function PersonOverlay({ p: rawP, onClose, me }) {
   // unconditionally, React blows up on a mismatched hook order far from
   // the edit that caused it.
   const [, fBump] = React.useReducer((x) => x + 1, 0);
-  React.useEffect(() => (window.FRIENDS ? window.FRIENDS.subscribe(fBump) : undefined), []);
+  React.useEffect(() => (FRIENDS ? FRIENDS.subscribe(fBump) : undefined), []);
   const [confirmRemove, setConfirmRemove] = React.useState(false);
 
   if (!rawP) return null;
@@ -165,12 +166,12 @@ function PersonOverlay({ p: rawP, onClose, me }) {
   const themColor = `oklch(0.55 0.13 ${p.hue})`;
 
   const overall = Math.round(p.match);
-  const fStatus = !p.anon && p.id && window.FRIENDS ? window.FRIENDS.status(p.id) : 'none';
+  const fStatus = !p.anon && p.id ? FRIENDS.status(p.id) : 'none';
   const isFriend = fStatus === 'friends';
   const onFriendBtn = () => {
-    if (!window.FRIENDS || !p.id) return;
-    if (fStatus === 'none') window.FRIENDS.invite(p.id);
-    else if (fStatus === 'invited') window.FRIENDS.cancel(p.id);
+    if (!p.id) return;
+    if (fStatus === 'none') FRIENDS.invite(p.id);
+    else if (fStatus === 'invited') FRIENDS.cancel(p.id);
     else setConfirmRemove(true);
   };
 
@@ -212,10 +213,10 @@ function PersonOverlay({ p: rawP, onClose, me }) {
           </div>
 
           <div style={{ marginTop: 16, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 7 }}>
-            {!p.anon && p.id && window.FRIENDS && (confirmRemove ? (
+            {!p.anon && p.id && (confirmRemove ? (
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <span style={{ fontFamily: 'var(--sans)', fontSize: 12.5, fontWeight: 600, color: 'var(--ink-2)', whiteSpace: 'nowrap' }}>Remove from your circle?</span>
-                <button className="press" onClick={() => { window.FRIENDS.unfriend(p.id); setConfirmRemove(false); }} style={{ padding: '7px 16px', borderRadius: 999, border: 'none', cursor: 'pointer', whiteSpace: 'nowrap', fontFamily: 'var(--sans)', fontSize: 12.5, fontWeight: 800, background: 'var(--ochre)', color: '#fff' }}>Remove</button>
+                <button className="press" onClick={() => { FRIENDS.unfriend(p.id); setConfirmRemove(false); }} style={{ padding: '7px 16px', borderRadius: 999, border: 'none', cursor: 'pointer', whiteSpace: 'nowrap', fontFamily: 'var(--sans)', fontSize: 12.5, fontWeight: 800, background: 'var(--ochre)', color: '#fff' }}>Remove</button>
                 <button className="press" onClick={() => setConfirmRemove(false)} style={{ padding: '7px 14px', borderRadius: 999, border: '0.5px solid var(--rule)', cursor: 'pointer', whiteSpace: 'nowrap', fontFamily: 'var(--sans)', fontSize: 12.5, fontWeight: 700, background: 'var(--surface-2)', color: 'var(--ink)' }}>Keep</button>
               </div>
             ) : (
@@ -271,7 +272,7 @@ function PersonOverlay({ p: rawP, onClose, me }) {
           const myInts = me.myInterests || [];
           const myCatSet = new Set(myInts.map(i => i.c));
           const theirCatSet = new Set(p.interests.map(i => i.c));
-          const allCats = (IS_DATA && IS_DATA.interestCats) || [];
+          const allCats = IS_DATA.interestCats || [];
           // Their interests are declared as CATEGORIES; yours as specific things
           // inside them. So the compare is a category ladder: one row per
           // category either of you keeps, your depth in it as count dots, their

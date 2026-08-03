@@ -369,7 +369,7 @@ survivable enough to live with indefinitely.
 **Rule 4** counts every site where one file reads a name another file
 assigns to global scope, per file, and the number may only go down. The
 baseline is in `scripts/check-spec-globals.mjs`; `npm run check:globals`
-prints the current total on every run. The count today is **691 across 53
+prints the current total on every run. The count today is **673 across 52
 files**, down from 799 when the ratchet landed.
 
 The mechanism needs no bookkeeping, which is what makes it usable. The
@@ -495,7 +495,34 @@ meter getting more honest rather than the tree getting better — worth
 separating, because a ratchet that miscounts in the flattering direction is
 the one failure it cannot report itself.
 
-**Next, cheapest first**: `follows.js` (4 consumers), `result-rose.jsx` (4).
+### `follows.js` — and the guard shape the previous conversions missed
+
+691 → 673. `FRIENDS` is IIFE-wrapped like `DAILYQ` and got the same hoisted
+`export let`. Its 18 sites across four consumers were dense in presence
+guards — six of them — including one more module-scope read:
+`duels-data.js` ends with `FRIENDS.subscribe(fire)` so circle changes ripple
+into duos and groups, and it was written `if (window.FRIENDS)
+window.FRIENDS.subscribe(fire)`. A reorder of `spec-index.js` would have
+dropped that subscription silently, exactly like `map-branches.js`.
+Probed rather than assumed: inviting a friend still fires the DUELS
+listeners.
+
+**A miss from the `sample-data.js` conversion, fixed here.** That change
+removed the `(window.IS_DATA || {})` and `window.IS_DATA?.` guard shapes by
+explicit rewrite, and then renamed everything else in bulk — which left four
+sites reading `(IS_DATA && IS_DATA.people) || []`. Dead in exactly the same
+way, and invisible to every gate, because a redundant `&&` is valid code
+that does the right thing.
+
+The lesson for the next conversion is that the guard shapes are a list, not
+a pattern: `(X || {})`, `X?.`, `X ? … : …`, `!X || …`, `X && …`, and
+`if (X) …`. Grep for the name and read every site; do not assume the bulk
+rename caught the guards.
+
+**Next**: `result-rose.jsx` (4 consumers) is the last of the pure providers.
+After it the remaining bulk is `world-feed.jsx` (165), `daily-split.jsx`
+(79) and `app-shell.jsx` (51) — consumers in the cycle cluster, which need
+the extract-into-`data/` treatment rather than conversion in place.
 
 **What NOT to start with.** The layer has import cycles, and they cluster:
 `test-definitions.js ↔ daily-split.jsx`, and `app-shell.jsx →

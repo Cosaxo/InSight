@@ -4,6 +4,7 @@
 // spec-index.js load order is semantic — scripts/check-spec-globals.mjs
 // guards the wiring in CI.
 import React from 'react';
+import { FRIENDS } from './follows.js';
 import { DAILYQ } from './daily-questions.js';
 import { IS_DATA } from './sample-data.js';
 import { Av, AnonAv, anonName, useDialog } from './primitives.jsx';
@@ -216,7 +217,7 @@ function SearchOverlay({ onClose, onPerson }) {
 
   // no query — your friends; with a query — everyone you can reach
   const people = useSrchMemo(() => {
-    const friends = (window.FRIENDS ? window.FRIENDS.list() : []).map(id => (D.people || []).find(p => p.id === id)).filter(Boolean);
+    const friends = FRIENDS.list().map(id => (D.people || []).find(p => p.id === id)).filter(Boolean);
     if (!query) return friends;
     const all = friends.concat((D.nearby || []).filter(n => !friends.some(f => f.id === n.id)));
     return all.filter(p => srchMatch(p.name + ' ' + (p.role || p.rel || '') + ' ' + (p.interests || []).map(i => i.t || i).join(' '), query));

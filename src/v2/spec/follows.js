@@ -9,6 +9,12 @@ import React from 'react';
 // 1v1s, the groups, and the circle populations. Adding someone sends a request;
 // in this prototype the other side accepts after a short, believable delay.
 // Persisted locally.
+//
+// The IIFE is vestigial under ESM (D39) and stays only because unwrapping it
+// re-indents the file for no behavioural gain; the binding is hoisted out.
+// Same shape as daily-questions.js — see the note there.
+export let FRIENDS;
+
 (function () {
   const LS = 'insight.friends.v1';
   const SEED = ['f1', 'f2', 'f4', 'f6', 'f3'];
@@ -34,7 +40,7 @@ import React from 'react';
     timer = setInterval(() => { if (!Object.keys(S.invited).length) { clearInterval(timer); timer = null; return; } sweep(); }, 2500);
   }
   if (Object.keys(S.invited).length) ensureTimer();
-  window.FRIENDS = {
+  FRIENDS = {
     status: (id) => (S.friends.includes(id) ? 'friends' : S.invited[id] != null ? 'invited' : 'none'),
     isFriend: (id) => S.friends.includes(id),
     invite: (id) => { if (id && !S.friends.includes(id) && S.invited[id] == null) { S.invited[id] = Date.now(); ensureTimer(); save(); } },
