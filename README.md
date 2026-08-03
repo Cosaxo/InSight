@@ -59,7 +59,8 @@ width (or under Capacitor) it goes full-bleed with safe-area insets.
 
 ```
 src/v2/            the app — ported from the frozen design spec
-  spec/            UI modules (shared-global style; see src/v2/README.md)
+  spec/            UI modules (shared-global style, shrinking module by
+                   module under a ratchet — see src/v2/README.md, D39)
   data/live.ts     the live data layer: window.LIVE (deck, feed, social)
   data/push.ts     reveal push registration (native only)
   styles.css       the design system, verbatim from the spec
@@ -70,6 +71,8 @@ firestore.rules    the access model (owner-only answers, k-floored aggs,
                    member-only groups/reveals) — 44 emulator tests
 firestore.rules.v1-archive  the retired v1 client rules (D4) — reference,
                    NOT deployed
+monitoring/        Cloud Monitoring policies, applied by hand rather than
+                   by the pipeline (DEPLOYMENT.md § Alerting)
 content/           canonical question banks & archetypes (seed source)
 design/            the frozen design spec (read-only reference)
 docs/              DECISIONS · SCHEMA-V2 · DEPLOYMENT · LOCAL-TESTING ·
@@ -102,7 +105,12 @@ Local:
   / `groupPortrait.ts` at 100% — the honesty arithmetic is genuinely
   covered — against `deviceBind.ts`'s Apple/Google verification at 27%,
   which is the half D29 can only prove on a real device (D37).
-- `npm run check:globals` — the spec layer's shared-global wiring.
+- `npm run check:globals` — the spec layer's shared-global wiring: dangling
+  references, files `spec-index.js` forgot, undefined JSX tags, and
+  (**rule 4**) a ratchet on how much shared-global coupling is left. The
+  count may only go down, so new coupling fails and a conversion asks for
+  the baseline to come down with it. It prints the live figure on every
+  run; `src/v2/README.md` has the migration procedure (decision D39).
 - `npm run check:labels` — every `htmlFor` / `aria-labelledby` /
   `aria-describedby` / `aria-controls` resolves to an id in the same file.
   jsx-a11y only checks such an attribute is present, never that it points at
@@ -115,6 +123,11 @@ Local:
   five that cannot are the operator and moderator instruments, gated on
   uid allowlists instead; the gate fails in both directions, so an
   exemption cannot outlive its reason or spread by copy-paste.
+- `npm run check:figures` — the counts this file quotes, held equal to the
+  suites. It exists because the rules-test figure said 40 in two places
+  while the suite ran 44, which was the fourth instance of one error: a
+  number kept current by intention does not stay current. `check:a11y` and
+  `check:globals` carry the same treatment for the figures they own.
 - `npm run check:store-copy` — no unfilled placeholders in the store-facing
   legal pages. A pre-submission gate, not a CI one (see
   [`docs/SHIP-CHECKLIST.md`](./docs/SHIP-CHECKLIST.md) §3 for why).
