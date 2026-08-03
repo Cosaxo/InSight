@@ -357,3 +357,50 @@ it from `spec-index.js`'s implicit dependency web. The mock data stores
 (`sample-data.js`, `duels-data.js`, `daily-questions.js`, `passive-progress.js`,
 `scenes.js`, `follows.js`) are the seams where Firestore plugs in — each
 already funnels all reads/writes through one `window.*` API object.
+
+### …and it now has a meter
+
+That paragraph has been here since the port, and until 2026-08-03 nothing
+measured whether any of it was happening. It was not. A migration with no
+meter does not run — it gets described, which is a comfortable place for it
+to sit given that rules 1-3 of `check:globals` make the convention
+survivable enough to live with indefinitely.
+
+**Rule 4** counts every site where one file reads a name another file
+assigns to global scope, per file, and the number may only go down. The
+baseline is in `scripts/check-spec-globals.mjs`; `npm run check:globals`
+prints the current total on every run.
+
+The mechanism needs no bookkeeping, which is what makes it usable. The
+scanner already suppresses a JSX reference when the file declares the name
+locally, and `import { Chip } from './primitives.jsx'` is a local
+declaration — so converting a consumer takes its sites to zero by itself.
+
+**Suggested order, cheapest first.** Convert the providers that depend on
+nothing themselves, because they can move with no load-order risk at all:
+`primitives.jsx` (22 consumers), `sample-data.js` (13), `daily-questions.js`
+(6), `world-catalogs.js` (5), `follows.js` (4), `result-rose.jsx` (4). Each
+becomes a real module with a compat line beneath —
+
+```js
+export function Chip({ ... }) { ... }
+// Compat while consumers still read the bare name at render time.
+// Delete once check:globals reports no references left.
+globalThis.Chip = Chip;
+```
+
+— which keeps every unconverted consumer working and the count unchanged
+until the consumers follow, one small PR each.
+
+**What NOT to start with.** The layer has import cycles, and they cluster:
+`test-definitions.js ↔ daily-split.jsx`, and `app-shell.jsx →
+passive-meter.jsx → passive-progress.js → test-definitions.js →
+daily-split.jsx → world-feed.jsx → app-shell.jsx`. Those are the files
+where the global bridge is genuinely load-bearing rather than merely
+legacy — ESM handles cyclic value bindings badly, and the failure is a
+temporal-dead-zone error that appears only at render, which is this
+layer's worst class of bug. Dissolve them instead: `passive-progress` and
+`test-definitions` are a store and a schema, neither needs JSX, and moving
+them to `data/` the way `deck.ts` and `groupPortrait.ts` were extracted
+takes both cycles out as a side effect — with tests, which the versions in
+`spec/` cannot have.

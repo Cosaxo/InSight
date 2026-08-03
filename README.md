@@ -67,7 +67,7 @@ src/lib/           firebase init + anonymous-first auth + emulator wiring
 functions/src/     v2.ts (seed + aggregates) · v2social.ts (groups, duos,
                    reveals, push) · index.ts (account deletion)
 firestore.rules    the access model (owner-only answers, k-floored aggs,
-                   member-only groups/reveals) — 40 emulator tests
+                   member-only groups/reveals) — 44 emulator tests
 firestore.rules.v1-archive  the retired v1 client rules (D4) — reference,
                    NOT deployed
 content/           canonical question banks & archetypes (seed source)
@@ -84,8 +84,10 @@ Local:
 - `npm run test:unit` — client store, pure deck logic, and the spec-layer
   mount tests (vitest + jsdom, no emulator).
 - `npm run test --prefix functions` — the k-anon floor, reveal and streak math.
-- `npm run test:rules` — 40 security-rules tests (Firestore + Storage)
-  against the emulator.
+- `npm run test:rules` — 44 security-rules tests (Firestore + Storage)
+  against the emulator. `npm run check:figures` holds this number and the
+  one in the repo map above equal to the suites, because both said 40 for
+  long enough to be quoted twice.
 - `npm run test:e2e` — the v2 core loop under `emulators:exec`: anon auth →
   seed → vote → aggregate trigger → k-floor → duel create/join/seal/reveal.
 - `npm run test:e2e:erasure` — deleteAccount, with leftovers observed via

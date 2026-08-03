@@ -277,7 +277,7 @@ in this repo: the first real incident should shape one against its actual
 form, not inherit an untested one; what must not be improvised is the
 order of operations above.
 
-## Alerting (one alert, deliberately)
+## Alerting (two alerts, deliberately)
 
 Everything above assumes somebody already knows something is wrong. Until
 this was added, nothing told them: detection was a human choosing to run
@@ -306,16 +306,48 @@ gcloud alpha monitoring policies create --project prvfire33 \
 
 Verify it: `gcloud alpha monitoring policies list --project prvfire33`.
 
-**Why only one alert.** An alert nobody acts on trains people to ignore
-the channel, and at zero users most signals are noise. This is the single
-condition where the gap between "broken" and "visibly broken" is measured
-in days rather than seconds. The scheduled aggregators
+### The second alert: aggregate contention
+
+`monitoring/onV2AnswerCreated-contention.json` watches D7's per-question
+write ceiling. It needs a log-based metric first, because what it counts
+is a log line rather than a built-in signal:
+
+```bash
+# 1. The metric: one data point per contended aggregate write
+gcloud logging metrics create agg_contention --project prvfire33 \
+  --description="onV2AnswerCreated transaction attempts >= 3 (D7 write ceiling)" \
+  --log-filter='severity>=WARNING AND jsonPayload.metric="agg_contention"'
+
+# 2. The policy, with the same channel as above
+gcloud alpha monitoring policies create --project prvfire33 \
+  --policy-from-file=monitoring/onV2AnswerCreated-contention.json \
+  --notification-channels=projects/prvfire33/notificationChannels/CHANNEL_ID
+```
+
+**This paragraph used to claim the error alert already carried this
+signal**, and it did not — which is worth recording, because the mistake
+is the kind that survives review. Contention is not an error: Firestore's
+SDK retries an ABORTED transaction inside `runTransaction`, the write
+commits, and nothing is ever logged above INFO. A policy filtering
+`severity>=ERROR` cannot match that condition however severe it gets. So
+D7's stated revisit trigger ("when `onV2AnswerCreated` starts logging
+transaction retries") named an instrument that did not exist, and the
+sentence here asserting the signal reached someone was describing a path
+with no source at either end.
+
+`runAggTransaction` (`functions/src/v2.ts`) now counts its own callback
+invocations and logs at three attempts, which is the source; the metric
+and policy above are the path.
+
+**Why only these two.** An alert nobody acts on trains people to ignore
+the channel, and at zero users most signals are noise. These are the two
+conditions where the gap between "broken" and "visibly broken" is measured
+in days: a crashing trigger that accumulates redeliveries, and a ceiling
+that arrives as latency rather than as an error. The scheduled aggregators
 (`scheduledWorldAggregates`, `scheduledCityAggregates`) are the obvious
-second and third — they are 24h jobs whose failure delays a surface by a
-day and self-heals on the next run, so they can wait until someone is
-actually reading the alerts. D7 records the retry-logging threshold that
-should trigger revisiting the sharding decision; this alert is how that
-signal reaches anyone.
+next — they are 24h jobs whose failure delays a surface by a day and
+self-heals on the next run, so they can wait until someone is actually
+reading the alerts.
 
 ## Running a deploy manually
 

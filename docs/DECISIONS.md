@@ -3379,3 +3379,132 @@ the candidates: the data layer's weak spots are `live.ts` (58% statements,
 and `push.ts` at zero — the latter two by nature, since D9's four location
 failure paths were driven in a real browser rather than in jsdom. Extract
 against that report, one module per change.
+
+---
+
+## D39 · The spec-layer migration gets a meter, and two figures get a gate
+
+**Date:** 2026-08-03 · **Status:** Adopted
+
+**Decision.** `check:globals` gains a fourth rule: the number of
+cross-module shared-global references, counted **per file**, may only go
+down. The baseline is 799 sites across 57 files. New coupling fails CI;
+removed coupling also fails, asking for the baseline to come down with it.
+
+### Why a ratchet and not a plan
+
+`src/v2/README.md` has carried a "Migration path (Phase 2+)" section since
+the port landed, and `CLAUDE.md` calls the shared-global convention
+"deliberate and temporary". Thirty-eight records later it is neither
+finished nor started. Nothing measured it, so there was never a moment
+where anyone had to notice.
+
+The uncomfortable part is that the four existing guards are *why*. Each one
+absorbs a class of bug the convention creates — dangling references,
+forgotten imports, undefined JSX tags, globals that exist but are wrong at
+render time — and together they make the layer survivable enough to keep
+indefinitely. That is a good outcome for correctness and a bad one for the
+migration: the guards removed the pain that would otherwise have argued for
+leaving. Rule 4 is the counterweight, and it is the smallest thing that
+could be: not a deadline, not a target number, only a direction.
+
+### What it counts, and why the mechanism needs no bookkeeping
+
+Every site where a file reads a name **another** file in the scanned set
+assigns to global scope — `window.LIVE`, `<Chip/>`, `globalThis.DUELS`.
+That is the coupling itself rather than a proxy for it.
+
+The scanner already suppresses a JSX reference when the file declares the
+name locally, and an `import { Chip }` is a local declaration. So
+converting a consumer to a real import drops its sites to zero on its own,
+with nothing to update by hand. Verified by performing both mutations
+before trusting the rule: adding `window.DUELS` to `vote-cuts.js` fails it
+upward (1 → 2), and rewriting `logic-test.jsx`'s `window.LOGIC_GEN` as an
+import fails it downward (1 → 0) with the replacement literal printed.
+
+### The order this implies, which is not the order intuition gives
+
+The graph was measured rather than guessed: 81 files, 319 owned globals,
+230 file→file edges, 20 cycles. It is not uniformly tangled. **28 files are
+pure providers** — consumed by others, depending on nothing themselves —
+and those can convert with no load-order risk at all, `primitives.jsx` (22
+consumers) first. Each moves as an `export` plus a `globalThis.X = X`
+compat line, so unconverted consumers keep working and the count does not
+move until they follow.
+
+The cycles are the part to leave alone, and they cluster on
+`daily-split.jsx`, `test-definitions.js` and `app-shell.jsx`. ESM handles
+cyclic value bindings badly and fails at render, which is this layer's
+worst class of bug. Those dissolve by extraction into `data/` — the move
+`deck.ts` and `groupPortrait.ts` already demonstrate — not by conversion in
+place.
+
+### And the figures gate, for the fourth instance of one error
+
+`npm run check:figures` holds README.md's quoted test counts equal to the
+suites. It exists because the count said **40 in two places while the rules
+suite ran 44**.
+
+That is the fourth instance of a single failure: the spec layer's
+suppression count went stale twice (42, then 27) — the second time inside
+the paragraph explaining that it is quoted inline *because* it had gone
+stale before — and the a11y baseline once (19 after a pass took it to 11).
+D35 closed those three by making `check:a11y` recompute them. The lesson
+generalises and had not been generalised: a number that lives in prose and
+in the tree needs something holding them equal, and a paragraph asking
+people to keep it current is not that something.
+
+It is a separate script rather than a fifth job for `check-a11y.mjs`,
+because a doc mismatch reported by a gate named "a11y" reads as an
+accessibility regression — the confusion that script's own header warns
+about. It is on `ci.yml` and deliberately **not** on `backend-checks.yml`:
+a stale README figure says nothing about whether a rules fix is safe to
+deploy, and nothing that cannot answer that question gets to block one.
+
+Coverage percentages are out of scope and the script says so — they need a
+full coverage run, and the prose already hedges them as "what it says
+today".
+
+---
+
+## D7 amendment (2026-08-03) · The retry-logging trigger now has an instrument
+
+D7 names the condition for revisiting the sharding decision: "when
+`onV2AnswerCreated` starts logging transaction retries." **It never logged
+them**, and `docs/DEPLOYMENT.md` separately claimed the error alert was how
+that signal reached anyone. Both were describing a path with no source at
+either end.
+
+Contention is not an error. Firestore's SDK retries an ABORTED transaction
+inside `runTransaction`; the write commits, nothing is logged above INFO,
+and a policy filtering `severity>=ERROR` cannot match the condition however
+severe it gets. The only place a retry is visible is inside the callback,
+by counting its own invocations — which is what `runAggTransaction`
+(`functions/src/v2.ts`) now does, logging at three attempts with the `qid`
+attached. Three, not two: one attempt is the normal case and two is
+ordinary interleaving.
+
+`monitoring/onV2AnswerCreated-contention.json` and a log-based metric turn
+that into an alert; both are applied by hand, like the error policy, and
+for the same reason (the deploy service account has no monitoring role).
+
+**A correction to this record's own framing while here.** D7 says of the
+uniform publish cadence: "the public mirror is not rewritten on every
+answer — it publishes every 5th, cutting writes to `pubRef` by ~80%." True,
+and it reads as though the ceiling moved. It did not. `privRef` is written
+on **every** answer inside the same transaction, and a transaction is
+bounded by its most contended document, so the ~1 write/sec/question
+ceiling is exactly where the arithmetic above puts it. `PUBLISH_EVERY`
+bought a disclosure fix and a cost reduction, not headroom.
+
+**What would move it**, when the instrument says it is time: shard
+`v2_aggs_private/{qid}` alone. D7 priced sharding as XL on the basis of "N
+shard docs, a periodic roll-up, a new scheduled function, a deploy-allowlist
+edit" — but two of those four fall away if only the private document is
+sharded, because the publish path already runs 1-in-5 and is already the
+only reader of the total. It sums the shards there. No roll-up job, no new
+function, no allowlist entry. At N=10 the cost is ~2 extra reads per answer
+amortised for 10× the headroom, and the e2e's exact-count assertions need
+one helper rather than two rewrites. Still not worth doing at zero users;
+worth recording as an M rather than an XL, so the decision is made against
+the real price.

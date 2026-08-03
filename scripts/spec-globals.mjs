@@ -68,6 +68,12 @@ files.push(join(root, "src/v2/spec-index.js"));
 
 const defined = new Set();
 const referenced = new Map(); // name -> [file:line]
+// name -> the root-relative file that assigns it. First assignment wins:
+// a name assigned in two places is already a bug the dangling-reference
+// rule cannot see, and picking the first keeps the owner stable rather
+// than dependent on readdir order. Only rule 4 (the migration ratchet)
+// reads this — it needs to tell a file's OWN globals from its neighbours'.
+const definedBy = new Map();
 
 const DEFINE_RES = [
   /(?:globalThis|window)\.([A-Za-z_$][\w$]*)\s*=[^=]/g,
@@ -94,6 +100,11 @@ function stripComments(src) {
 
 for (const file of files) {
   const src = stripComments(readFileSync(file, "utf8"));
+  const rel = file.slice(root.length + 1);
+  const own = (name) => {
+    defined.add(name);
+    if (!definedBy.has(name)) definedBy.set(name, rel);
+  };
   for (const re of DEFINE_RES) {
     re.lastIndex = 0;
     let m;
@@ -102,10 +113,10 @@ for (const file of files) {
         // Object.assign(globalThis, { A, B: x }) — take the keys.
         for (const part of m[1].split(",")) {
           const key = part.split(":")[0].trim();
-          if (/^[A-Za-z_$][\w$]*$/.test(key)) defined.add(key);
+          if (/^[A-Za-z_$][\w$]*$/.test(key)) own(key);
         }
       } else {
-        defined.add(m[1]);
+        own(m[1]);
       }
     }
   }
@@ -162,5 +173,5 @@ for (const file of files) {
 
 
 export function collectSpecGlobals() {
-  return { defined, referenced, files, specDir, root, RUNTIME_ALLOWLIST };
+  return { defined, definedBy, referenced, files, specDir, root, RUNTIME_ALLOWLIST };
 }

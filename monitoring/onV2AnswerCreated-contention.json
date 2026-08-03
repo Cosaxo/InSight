@@ -1,0 +1,33 @@
+{
+  "displayName": "onV2AnswerCreated is contending on the per-question aggregate",
+  "documentation": {
+    "content": "The aggregate trigger is retrying its transaction often enough that D7's per-question write ceiling is the likely cause.\n\nWhat fires this: `runAggTransaction` (functions/src/v2.ts) counts its own callback invocations and logs `metric: agg_contention` at WARNING once an answer needs 3 or more attempts. Firestore's SDK retries an ABORTED transaction internally, so without that counter a contended write is invisible — it succeeds, slowly, and reports nothing.\n\nWhy this is a separate policy from the error alert: contention is not an error. The transaction still commits, no answer is lost, and severity never reaches ERROR — so the error policy cannot see this condition no matter how bad it gets.\n\nWhat it means. D7: Firestore sustains roughly one write per second per document, and both documents the trigger touches are single docs keyed by question id. Sustained contention on one question means that question is at its ceiling — past it, latency climbs and eventually aggregation falls behind. Note that PUBLISH_EVERY does not relieve this: the private doc is written on every answer inside the same transaction.\n\nFirst response is to confirm which question, not to change anything: the log line carries `qid`. A single hot question during a spike is expected and self-resolves. The same question hot across days is the signal D7 names for revisiting the sharding decision — shard `v2_aggs_private/{qid}` and have the publish path sum the shards.\n\nNot urgent unless the Mirror is visibly stale: containment for that is the error policy's runbook, and docs/DEPLOYMENT.md, 'Rolling back a bad deploy'.",
+    "mimeType": "text/markdown"
+  },
+  "combiner": "OR",
+  "conditions": [
+    {
+      "displayName": "contended aggregate writes above 5/min for 15 minutes",
+      "conditionThreshold": {
+        "filter": "metric.type=\"logging.googleapis.com/user/agg_contention\"",
+        "comparison": "COMPARISON_GT",
+        "thresholdValue": 5,
+        "duration": "900s",
+        "aggregations": [
+          {
+            "alignmentPeriod": "60s",
+            "perSeriesAligner": "ALIGN_SUM"
+          }
+        ]
+      }
+    }
+  ],
+  "alertStrategy": {
+    "notificationRateLimit": {
+      "period": "3600s"
+    },
+    "autoClose": "604800s"
+  },
+  "enabled": true,
+  "notificationChannels": []
+}
