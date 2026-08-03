@@ -145,19 +145,54 @@ function App() {
     return false;
   }) : undefined), []);
 
-  useEffect(() => {
-    window.openSuggestions = () => { setOv('suggest'); };
-    window.openLogicTest = () => { closeAll(); setOv('logic'); };
-    return () => { delete window.openSuggestions; delete window.openLogicTest; };
+  // The no-button overlays live in a chunk that loads after first paint
+  // (loadOverlays, spec-index.js), so every opener below AWAITS it before
+  // setting the state that mounts one. That await is the synchronisation,
+  // not the `window.X &&` guards at the render sites: setting `ov` with the
+  // chunk still in flight renders nothing and schedules nothing to re-read
+  // the global, so the overlay would stay blank until an unrelated state
+  // change. The guards are the second line, for a chunk that never arrives.
+  //
+  // Failing to load must not leave a dead button, so each opener logs and
+  // returns rather than opening onto nothing. console.error rather than
+  // Sentry's reportError: this layer has no import path to src/lib, and the
+  // ErrorBoundary above logs the same way.
+  //
+  // window.loadOverlays is published by spec-index.js, which is where the
+  // dynamic imports live (check:globals rule 2 matches the './spec/…'
+  // strings in that file) — see the note there for why it is a global
+  // rather than an import from either spec-index or data/.
+  //
+  // A missing loader throws here and is caught: that is a wiring bug, and
+  // opening onto an overlay whose module never arrives is worse than not
+  // opening, because the guards below would render a blank screen with no
+  // way back to the tab.
+  const openDeferred = React.useCallback(async (open) => {
+    try {
+      await window.loadOverlays();
+    } catch (e) {
+      console.error('[InSight] overlay chunk failed to load:', e);
+      return;
+    }
+    open();
   }, []);
 
   useEffect(() => {
+    window.openSuggestions = () => openDeferred(() => { setOv('suggest'); });
+    window.openLogicTest = () => openDeferred(() => { closeAll(); setOv('logic'); });
+    return () => { delete window.openSuggestions; delete window.openLogicTest; };
+  }, [openDeferred]);
+
+  useEffect(() => {
     window.openOverlay = (key) => {
-      if (LIVE_OVERLAYS.includes(key)) {
-        const from = ovRef.current;
+      if (!LIVE_OVERLAYS.includes(key)) return;
+      const from = ovRef.current;
+      const show = () => {
         closeAll(); setOv(key);
         setOvBack(from === 'profile' && key !== 'profile' ? 'profile' : null);
-      }
+      };
+      // `profile`, `search` and `relmap` are eager; only `test` waits.
+      return key === 'test' ? openDeferred(show) : show();
     };
     window.goTab = (id) => {
       closeAll();
@@ -167,21 +202,28 @@ function App() {
     // open the test flow — straight into a specific test, or the picker
     window.openTest = (k) => {
       const from = ovRef.current;
-      closeAll();
-      setTestKind(k || null);
-      setOv('test');
-      setOvBack(from === 'profile' ? 'profile' : null);
+      return openDeferred(() => {
+        closeAll();
+        setTestKind(k || null);
+        setOv('test');
+        setOvBack(from === 'profile' ? 'profile' : null);
+      });
     };
     // cross-link: any component can open a city's profile by name
+    //
+    // The lookup stays OUTSIDE openDeferred: a name that matches nothing
+    // should not pay for a chunk, and — more to the point — should not
+    // resolve to "loaded, then nothing happened", which is indistinguishable
+    // from a failed load. Same for openPerson below.
     window.openCity = (name) => {
       const c = (window.IS_DATA.cities || []).find(x => x.name === name);
-      if (c) { closeAll(); setCity(c); }
+      if (c) return openDeferred(() => { closeAll(); setCity(c); });
     };
     // cross-link: open a person's profile (record, or id/name lookup)
     window.openPerson = (who) => {
       const list = window.IS_DATA.people || [];
       const p = typeof who === 'object' ? who : list.find(x => x.id === who || x.name === who);
-      if (p) { closeAll(); setPerson(p); }
+      if (p) return openDeferred(() => { closeAll(); setPerson(p); });
     };
     return () => { delete window.openOverlay; delete window.goTab; delete window.openCity; delete window.openPerson; };
     // Mount-only by design: this registers the window.* cross-link
@@ -297,12 +339,19 @@ function App() {
 
         {/* Overlays — one at a time, keyed by `ov` */}
         <ErrorBoundary key={'ov-' + (ov || 'none') + (person ? '-p' : '') + (city ? '-c' : '')} onReset={closeAll}>
-          {person && <PersonOverlay p={person} me={me} onClose={() => setPerson(null)} />}
-          {city && <CityOverlay city={city} onClose={() => setCity(null)} />}
+          {/* The five below read their component off window rather than as a
+              bare identifier: they ship in the after-first-paint overlay
+              chunk (loadOverlays, spec-index.js), and a bare name would be a
+              ReferenceError rather than a blank if the chunk ever failed.
+              The openers await the chunk, so in practice these are never
+              false while their state is set — see openDeferred above.
+              `logic` was already written this way and is unchanged. */}
+          {person && window.PersonOverlay && <window.PersonOverlay p={person} me={me} onClose={() => setPerson(null)} />}
+          {city && window.CityOverlay && <window.CityOverlay city={city} onClose={() => setCity(null)} />}
           {ov === 'profile' && <ProfileOverlay onClose={() => setOv(null)} me={me} lensBoxed={!!t.lensBoxed} />}
-          {ov === 'suggest' && <SuggestOverlay onClose={() => setOv(null)} />}
+          {ov === 'suggest' && window.SuggestOverlay && <window.SuggestOverlay onClose={() => setOv(null)} />}
           {ov === 'search' && <SearchOverlay onClose={() => setOv(null)} onPerson={(p) => { setOv(null); setPerson(p); }} onCity={(c) => { setOv(null); setCity(c); }} />}
-          {ov === 'test' && <TestOverlay kind={testKind} onClose={() => { setTestKind(null); backOv(); }} onComplete={() => { setTestKind(null); backOv(); }} />}
+          {ov === 'test' && window.TestOverlay && <window.TestOverlay kind={testKind} onClose={() => { setTestKind(null); backOv(); }} onComplete={() => { setTestKind(null); backOv(); }} />}
           {ov === 'logic' && window.LogicOverlay && <window.LogicOverlay onClose={() => setOv(null)} />}
           {ov === 'relmap' && <RelationshipMapOverlay onClose={() => setOv(null)} />}
         </ErrorBoundary>

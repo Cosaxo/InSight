@@ -18,7 +18,14 @@ const specGlobals = Object.fromEntries([
 export default defineConfig([
   // functions/lib is tsc output — linting generated JS reports errors no
   // one can fix in source, and only on machines that have built functions.
-  globalIgnores(['dist', 'functions/lib']),
+  //
+  // coverage/ is the same class and bites harder: v8's HTML reporter ships
+  // its own prettify/sorter scripts carrying eslint-disable comments, so
+  // `npm run lint` (which runs --report-unused-disable-directives) fails on
+  // vendored files nobody wrote — and only on machines that have run
+  // test:coverage. Gitignoring them is not enough; eslint does not read
+  // .gitignore.
+  globalIgnores(['dist', 'functions/lib', 'coverage', 'functions/coverage']),
   {
     files: ['**/*.{ts,tsx}'],
     extends: [

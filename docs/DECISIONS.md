@@ -2990,3 +2990,392 @@ only one that distinguishes a working scanner from a decorative one.
 mutations above were run by hand. Adding fixtures for a 130-line scanner that
 CI runs on every PR is machinery guarding machinery — the tree it checks is
 the fixture. Recorded so the next reader knows it was weighed, not missed.
+
+---
+
+## D36 · Five callables cannot attest; the uid allowlists are the control, and a gate holds the list
+
+**Date:** 2026-08-03 · **Status:** Adopted
+
+**Decision.** Every callable sets `enforceAppCheck: ENFORCE_APP_CHECK`,
+except the five operator and moderator instruments — `seedContentV2`,
+`revealDuelsNowV2`, `buildModQueueNow`, `fetchModQueue`, `submitModVerdict`
+— which cannot, and are gated on uid allowlists instead.
+`npm run check:appcheck` holds that exemption list, on the deploy path via
+`backend-checks.yml`.
+
+**Why this is a record and not a fix.** Six of the eleven callables carried
+the option and five did not, and nothing anywhere said which of those was a
+decision. That is the whole problem with `enforceAppCheck`: it is a
+per-function option, so omitting it is **silent** — the function builds,
+deploys, passes every test, and serves any caller on the internet. There is
+no error, no warning, and no place a reader could look to tell "deliberate"
+from "forgotten". App Check is the only control between the public surface
+and unlimited free anonymous accounts (D3), and D28/D29 both lean on it as
+the tier that prices a fake account in hardware, so an unexplained gap in
+its coverage is exactly the thing this file exists to close.
+
+### Why each of the five cannot attest
+
+Both groups share a shape: invoked from **outside the app**, where no App
+Check token exists to send.
+
+- `seedContentV2` — called from a browser console as the one remaining step
+  of SHIP-CHECKLIST §1, and by the e2e. Adding enforcement here would refuse
+  the call that checklist step is written around, which makes this the one
+  exemption that must not be "tidied up" without rewriting the seeding
+  procedure first.
+- `revealDuelsNowV2` — the scheduled scan's manual lever, reached from a
+  console during an incident (DEPLOYMENT.md → rollback) and by the e2e. A
+  control that fails when it is most needed is not a control.
+- `buildModQueueNow`, `fetchModQueue`, `submitModVerdict` — the moderation
+  Routine runs in a dedicated low-privilege environment with **no repo
+  checkout and no app** (D22, docs/MODERATION.md). Confinement is the entire
+  point of that environment; there is no attested client for it to call
+  from, by construction.
+
+What stands in App Check's place is `assertOperator` (`SEED_ADMIN_UIDS`) and
+`assertModerator` (`MOD_UIDS`) — deliberately disjoint lists, because least
+privilege cuts both ways: an operator uid is not thereby a moderator, and a
+leaked moderator credential cannot seed content or trigger reveals. Both
+went live in fail-safe order: the callables deployed first with the
+allowlist empty, denying everyone, and the uid was added by a second deploy.
+
+### The residual, stated rather than papered over
+
+These five are protected by **possession of an allowlisted account** and
+nothing else — there is no second factor at the function boundary. App Check
+would have been that second factor everywhere it is possible, and here it is
+not. Blast radius if an allowlisted Google account is compromised:
+`seedContentV2` rewrites the question bank (idempotent, and D34 means a
+reseed changes only documents whose content moved), `revealDuelsNowV2`
+forces reveals a day early, and the moderation three hide takes — today,
+nothing at all, because `MOD_ADVISORY = true` means verdicts record and
+surface without hiding.
+
+**A shared secret was rejected** as the substitute. It would be a new thing
+to store, rotate and leak, standing in for an allowlist that already exists
+and is already deployed — and for the moderation three it is worse than
+neutral: putting a credential inside the low-privilege environment re-arms
+precisely what D22 disarmed by keeping that environment empty.
+
+### Why the gate is a source scan
+
+The natural home is `check-fn-runtime.mjs`, which already walks every
+exported function asserting explicit memory and timeout. It cannot live
+there, and the reason is worth writing down because it is invisible: that
+script sets `FUNCTIONS_EMULATOR=true` to keep the import off the metadata
+server, and `ENFORCE_APP_CHECK` is *defined* as
+`FUNCTIONS_EMULATOR !== "true"` (`functions/src/ops.ts`) — so under that env
+every callable's `__endpoint.callableTrigger` reads `{}`, enforcing and
+non-enforcing alike. Checked by printing them, not assumed.
+
+The gate therefore parses source, and demands the shared constant
+specifically rather than the presence of the key: `enforceAppCheck: false`
+would satisfy a presence check while doing the opposite, and a hardcoded
+`true` would break every emulator suite, which is the whole reason the
+constant turns itself off there.
+
+**What proves it.** Four mutations, each run and reverted: dropping
+enforcement from `createGroupV2` fails; adding enforcement to an exempt
+callable fails (an exemption must not outlive its reason); `enforceAppCheck:
+true` in place of the constant fails; and reformatting a one-line callable
+to multi-line still passes, so the pattern is not brittle about layout.
+
+The fifth guard is the one that earned its place immediately. The script
+counts `onCall(` **sites** separately from the option blocks it parses, and
+fails when they disagree — and on its first run it did: `deleteAccount`
+carries a two-line comment between the paren and the brace, which the first
+pattern could not cross. So the gate's very first act was to report that it
+was silently skipping the callable whose failure mode is a job the user can
+never complete. A gate that cannot read a function is a gate that is lying
+about it — the same lesson `check-a11y.mjs` records about files that do not
+parse.
+
+**One thing reasoned rather than probed.** SECURITY.md notes that App Check
+enforcement is not yet enabled console-side. That toggle governs the App
+Check *service* for Firestore, Storage and the rest; the per-function
+`enforceAppCheck` option is independent of it, so the six enforcing
+callables are understood to be rejecting unattested calls in production
+today. That follows from the API shape and has not been driven against
+production — worth confirming when the console flip happens, since it
+determines whether that flip is a change for callables or a no-op.
+
+---
+
+## D37 · The device-bind flip becomes deterministic, then measured — the trigger is two numbers, not a judgement
+
+**Date:** 2026-08-03 · **Status:** Adopted (amends
+[D29](#d29--device-bound-activation-one-counted-account-per-device-per-month-silently)'s
+rollout step, not its decision)
+
+**Decision.** `deviceBindEnforced()` flips after two things, in order:
+`v2_meta.minBuild` is raised to the first activation-capable build, and the
+fleet's activation **error rate** is under 1% (with zero `DeviceCheck auth
+rejected`) and Android's `verdict without deviceRecall` rate under 5%, each
+over 24h. Procedure and queries in docs/DEVICE-BIND.md §4.
+
+This replaces "after enough client uptake that activation-capable builds
+dominate", which named the right levers and then used them as a statistic.
+
+The two percentages are engineering defaults, not physics, and the owner can
+move them — but in a known direction each: raising the error-rate ceiling
+trades honest users' votes for an earlier flip, and raising the recall
+ceiling trades the Android half of the guarantee for the same. The
+*structure* — minBuild first, then two separate numbers, `cooldown` counted
+as success — is what this record binds.
+
+**Why this is a record.** D29 shipped with a soft-enforce switch and a
+pre-tested flipped ruleset — unusually careful, and both halves of the
+behaviour are pinned by `rules.test.ts` running a second emulator
+environment against the rewritten literal. What it did not carry was a
+condition anyone could evaluate. "Dominate" is not a number, and a flip with
+no threshold happens either too early or never; both are failures, and only
+one of them is visible.
+
+### The cost of an early flip is invisible, which is the whole problem
+
+After the flip, an account without the `db` claim has every
+aggregate-feeding answer refused by rules — and **nothing tells the user**.
+`live.ts`'s `vote()` catch rolls the optimistic state back and reports to
+Sentry: the option takes, then silently un-takes. Duel answers are exempt
+(D29), so the app keeps working *partly*, which is worse than failing
+cleanly — it reads as flakiness, not refusal.
+
+So the failure mode of flipping early is not a support queue naming the
+cause. It is a product that feels broken, discovered from Sentry volume if
+anyone is watching it. That asymmetry is the argument for measuring first:
+the flip is cheap to delay and expensive to diagnose.
+
+### Why `minBuild` is a change of kind, not of patience
+
+Two populations lack the claim. The first — clients on builds predating the
+activation flow — was what "uptake" was about, and it does not need
+measuring at all, because `minBuild` already exists and is a **hard** gate:
+`LIVE.updateRequired` renders a full-screen dialog over the app, so a client
+below it cannot reach a vote. Raising it to the first capable build empties
+that population by construction.
+
+Waiting for uptake instead leaves a tail: at 95% capable builds, 5% of
+honest voters get the silent rollback above, indefinitely, and the number
+never reaches zero on its own. Same lever, used as a guarantee rather than
+as encouragement.
+
+`updateUrl` has to be set alongside it — without one the dialog's button
+falls back to `location.reload()`, which on a native shell reloads the same
+bundle it is trying to replace.
+
+The second population — capable build, activation failed — cannot be driven
+to zero, so it is the one that gets a threshold.
+
+### Why two thresholds and not one
+
+They guard opposite failures, and a single number would hide whichever it
+was not measuring:
+
+- **Error rate < 1%, zero `DeviceCheck auth rejected`.** This is "are we
+  refusing honest users". The second clause is separate because that line is
+  *always* a misconfigured key and never a device condition — one occurrence
+  is a configuration bug, so a small-percentage allowance would be wrong at
+  any volume.
+- **`verdict without deviceRecall` < 5% of Android activations.** This is
+  "does the flip buy what it is for". That path allows on integrity alone,
+  so it refuses nobody and cannot show up in the first number at all — yet a
+  high rate means the month bound is not biting on Android, which is the
+  entire mechanism D29 exists to install. Passing the safety threshold while
+  failing this one means flipping for no benefit.
+
+**`cooldown` is deliberately counted as success.** It is the mechanism
+working — a second account on the same device in the same month, correctly
+given no claim. Folding it into the error rate would make the metric
+deteriorate exactly as the system began doing its job, which is the shape of
+a metric that gets a good change reverted.
+
+### Not an alert
+
+DEPLOYMENT.md's "one alert, deliberately" reasoning applies and was not
+overridden: an alert nobody acts on trains people to ignore the channel.
+These are numbers read **once**, at a deliberate decision, from
+`gcloud logging read`. A standing alert on a rate that matters on exactly
+one day is the noise that argument warns about.
+
+**Written, not run.** The queries are composed from the log lines in
+`deviceBind.ts` and the resource shape in the existing monitoring policy.
+They have not been executed against production and cannot be, because
+activation has never run there — the native bridges are still not in the
+tree (DEVICE-BIND §2). The outcome strings are certain, being read from
+source; the log field (`jsonPayload.message` vs `textPayload`) is the part
+to expect to adjust on first use.
+
+### The follow-up this names rather than fixes
+
+A refused answer write is silent to the user, today, flip or no flip. That
+is a real UX defect independent of D29 — the same rollback happens on a
+network failure or a duplicate write from a second device — and fixing it
+means deciding what a refused vote should *say*, which is a product
+question, not a rollout one. Recorded here because the flip is what makes it
+matter, and because discovering it during the flip would misattribute it to
+the flip.
+
+---
+
+## D38 · The no-button overlays load after first paint; relmap stays eager because the Mirror reads it
+
+**Date:** 2026-08-03 · **Status:** Adopted (follow-on to
+[D25](#d25--the-world-feed-loads-after-first-paint-the-rest-of-the-split-waits))
+
+**Decision.** `loadOverlays()` defers `test-overlay`, `person-mindmap`,
+`person-overlay`, `city-overlay`, `suggestions`, `data/logic-gen` and
+`logic-test` past first paint, the way D25 deferred the world feed. Entry
+chunk **922 → 837 KB**; `check:bundle`'s per-chunk ceiling comes down
+940 → 850 with it. `relmap.jsx` is excluded, and that is the interesting
+half of this record.
+
+**Why now.** The entry chunk sat 18 KB under its ceiling. That is not a
+budget, it is a tripwire waiting for the next revision — D27 alone added
+~68 KB. The headroom is now ~13 KB against a ceiling 90 KB lower, which is
+the same tightness measuring a much smaller chunk.
+
+### The rule this applies, and what it excludes
+
+D25's argument was not "defer the biggest module". It was: **defer the
+module whose absence is already a legitimate frame.** `daily-split` reads
+`window.WorldFeed &&` before rendering the feed node, so an unloaded feed
+renders as no feed — the guard was already the contract.
+
+Applying that literally selects the five no-button overlays, because nothing
+on the first frame can reach any of them: they open only through the
+`window.open*` cross-links app-shell installs in an effect.
+
+It also **rejects `relmap.jsx`, the largest candidate at ~43 KB.**
+`mirror-field-pops.jsx` reads `typeof RelationshipMap === 'function'` to
+decide whether the Mirror's Circle population renders the embedded map or
+the generic field canvas. That read happens during a render nothing
+re-triggers, so deferring it would silently swap the Circle picture for the
+fallback until some later state change — no error, no crash, just a
+different picture. Exactly why `world-feed-data.js` stays eager. Excluding
+the biggest item on reachability grounds is the rule doing its job rather
+than the rule being inconvenient.
+
+### The await is the mechanism; the guards are not
+
+This group differs from the feed in one structural way, and getting it
+backwards produces a bug that looks like a fix.
+
+The obvious implementation is to guard each render site
+(`{ov === 'test' && window.TestOverlay && …}`) and let the openers stay
+synchronous. That is **wrong here**: `setOv('test')` with the chunk still in
+flight renders nothing *and schedules nothing to re-read the global*, so the
+overlay stays blank until an unrelated state change — a tap that does
+nothing, permanently. The feed does not have this problem because its
+absence is a frame a user reaches anyway, and `main.jsx` re-renders when the
+chunk lands.
+
+So the openers `await loadOverlays()` before setting state, and that await is
+the synchronisation. No re-render is needed, unlike the feed. The render
+guards remain, downgraded to what they are: the degradation path for a chunk
+that never arrives.
+
+### Where the loader is published, and why it is not where it should be
+
+`spec-index.js` sets `globalThis.loadOverlays`. The house pattern would put
+it in `data/` — that is how `back.ts` hands `registerBackHandler` to this
+same shell. It cannot go there: `data/` is TypeScript with no `allowJs`, so
+a module there cannot import `spec-index.js`, and the dynamic imports must
+stay in `spec-index.js` because that is the file `check:globals` rule 2
+matches its `'./spec/…'` strings against. The one-directional boundary
+(`data/` and `ui/` publish globals, `spec/` reads them; never the reverse)
+is deliberate and worth more than the symmetry.
+
+`await import('../spec-index.js')` from app-shell also works, and was the
+first implementation. It was replaced because it emits
+`INEFFECTIVE_DYNAMIC_IMPORT` on **every build** — spec-index is statically
+imported by `main.jsx`, so it cannot move to a chunk of its own, nor should
+it. check-bundle.mjs's own header records what a warning on every build
+becomes: background noise hiding the next real one. Publishing from
+spec-index costs no gate, because `scripts/spec-globals.mjs` already scans
+that file for definitions alongside `main.jsx`.
+
+### What proves it, and what nothing proves
+
+`smoke.test.jsx` gained five cases that delete each overlay's global and
+assert the shell degrades to a blank rather than a `ReferenceError`.
+Mutation-checked: restoring any one render site to its bare identifier fails
+exactly that row on the boundary assertion and passes again on revert. The
+thirteen existing cases already cover the loaded path, and their `openVia`
+helper now uses an awaited `act`, without which every assertion would run
+against the frame before the overlay rendered — the vacuous pass this file
+exists to prevent, in a new shape.
+
+**The ceiling's coverage is measured, not claimed**, by re-adding the static
+imports a group at a time: nothing 837 KB, test-overlay 854, person + city +
+suggest 887, all of it 922. At 850 the group and every module large enough
+to matter go red. `city-overlay` alone would not — it fits under the 13 KB
+of headroom, and closing that gap means zero headroom, which reds the tree
+on any legitimate growth instead.
+
+**Nothing checks eager-vs-lazy directly.** Re-adding a static import to
+`spec-index.js` leaves lint, `check:globals`, `tsc -b` and all 269 unit
+tests green; only the ceiling notices, and only above its headroom. Recorded
+rather than fixed: the alternative is a gate asserting the shape of the
+build's chunk graph, which is more machinery than the ~13 KB it would
+protect.
+
+### Driven in a real browser, because jsdom is not the same thing
+
+The mount tests are the coverage, but this is the first change to the spec
+layer's **load order**, and jsdom's `import()` is not a network fetch. So
+the production build was served with `vite preview` and driven in Chromium.
+Both halves, measured rather than assumed:
+
+**Loaded.** All seven modules arrive as seven separate requests — 837 KB
+entry, then `person-mindmap` (18.3), `test-overlay` (16.3), `logic-test`
+(13.8), `suggestions` (13.7), `person-overlay` (12.6), `city-overlay` (5.8),
+`logic-gen` (5.1) — every one after the entry chunk, all seven resolved
+754 ms from navigation against a 368 ms first paint. All five overlays open
+and render through their real openers, `relmap` as the eager control, with
+**zero console errors and zero page errors**.
+
+**Aborted.** With every overlay request failed at the network layer, the
+shell still paints in full (13.7k characters of content, tabbar intact), the
+`ErrorBoundary` does **not** trip, `openTest()` resolves without opening, and
+the Mirror tab still works afterwards. The console carries exactly the two
+designed lines and nothing else: `main.jsx`'s `reportError({where:
+'loadOverlays'})` and app-shell's `[InSight] overlay chunk failed to load`.
+That is the degradation path working end to end, which is more than the
+jsdom cases can show — they delete a global, this one breaks the fetch.
+
+Only **one** chunk needed aborting to fail the group: the awaits are
+sequential, so the first rejection ends the chain. All-or-nothing is the
+intended shape — a half-loaded overlay group has no honest behaviour — and
+it is worth knowing that the failure is not per-module.
+
+One thing the run did *not* establish: that every chunk is requested strictly
+after first paint. It is not, and that is correct — `main.jsx` calls
+`loadOverlays()` immediately after `root.render()`, and React 19 paints
+concurrently, so the requests are in flight around the same instant. The
+property that matters is that first paint does not *depend* on them, and the
+aborted run is the proof: the shell painted completely with all seven
+missing.
+
+### Follow-on not taken here: extracting pure logic out of `spec/`
+
+The other half of this work — lifting arithmetic out of the ported JSX into
+typed, tested modules under `data/`, the way `feed-interleave.test.ts`
+already did after D11's `else if` swallowed every lens question — is
+deliberately **not** in this change.
+
+Two reasons, and the second is the load-bearing one. It is a different kind
+of change: this one moves modules between chunks and is proved by a bundle
+ceiling and five mount cases; that one moves *code* and needs its own tests
+per extraction. Bundling them would produce a diff where a regression in
+either is hard to attribute.
+
+And the target should now be chosen from evidence rather than from reading.
+`npm run test:coverage` exists as of this change, and it already disagrees
+with the intuition that named `map-layout.js` and `passive-progress.js` as
+the candidates: the data layer's weak spots are `live.ts` (58% statements,
+64% branches, the largest module) and the browser-API modules `locate.ts`
+and `push.ts` at zero — the latter two by nature, since D9's four location
+failure paths were driven in a real browser rather than in jsdom. Extract
+against that report, one module per change.

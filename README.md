@@ -90,6 +90,16 @@ Local:
   seed → vote → aggregate trigger → k-floor → duel create/join/seal/reveal.
 - `npm run test:e2e:erasure` — deleteAccount, with leftovers observed via
   the admin SDK (rules bypassed, so "gone" means gone).
+- `npm run test:coverage` (and `--prefix functions`) — **report only, never a
+  gate.** Scoped to the typed layers where an untested branch is where a
+  wrong number reaches a screen: `src/v2/data` on the client, `pure.ts` +
+  `deviceBind.ts` on the backend. `spec/` is excluded on purpose — its only
+  tests are mount smoke tests, so a coverage number there would be both
+  meaningless and an invitation to raise it without asserting anything.
+  What it says today: `pure.ts` 98% statements / 96% branches and `deck.ts`
+  / `groupPortrait.ts` at 100% — the honesty arithmetic is genuinely
+  covered — against `deviceBind.ts`'s Apple/Google verification at 27%,
+  which is the half D29 can only prove on a real device (D37).
 - `npm run check:globals` — the spec layer's shared-global wiring.
 - `npm run check:labels` — every `htmlFor` / `aria-labelledby` /
   `aria-describedby` / `aria-controls` resolves to an id in the same file.
@@ -98,6 +108,11 @@ Local:
 - `npm run check:versions` / `check:bundle` / `check:deploy-targets` —
   version lockstep across the three projects, the bundle budget, and every
   exported function appearing in the deploy list.
+- `npm run check:appcheck` — every callable either demands App Check
+  attestation or is named with the reason it cannot (decision D36). The
+  five that cannot are the operator and moderator instruments, gated on
+  uid allowlists instead; the gate fails in both directions, so an
+  exemption cannot outlive its reason or spread by copy-paste.
 - `npm run check:store-copy` — no unfilled placeholders in the store-facing
   legal pages. A pre-submission gate, not a CI one (see
   [`docs/SHIP-CHECKLIST.md`](./docs/SHIP-CHECKLIST.md) §3 for why).

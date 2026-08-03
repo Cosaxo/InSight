@@ -16,5 +16,21 @@ export default defineConfig({
   test: {
     include: ["src/**/*.test.ts"],
     environment: "node",
+    // Report-only, scoped to the two modules whose branches ARE the privacy
+    // guarantees: pure.ts holds the k-anon floor, complementary suppression
+    // and the publish cadence (D7, D8, D18), and deviceBind.ts holds the
+    // month rule (D29). An untested branch in either is where a number that
+    // should have been withheld gets published — and "87 tests pass" cannot
+    // tell you which branch that is, while a coverage report can.
+    //
+    // v2content.ts is excluded by omission: 6.1k lines of GENERATED question
+    // data (check:content proves it matches /content byte for byte), so its
+    // coverage number would measure how much of a data file the tests happen
+    // to read. No thresholds, for the reason in the root vite.config.ts.
+    coverage: {
+      provider: "v8",
+      include: ["src/pure.ts", "src/deviceBind.ts"],
+      reporter: ["text", "html"],
+    },
   },
 });

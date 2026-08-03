@@ -5,7 +5,7 @@
 import React from 'react';
 import { createRoot } from 'react-dom/client';
 import './styles.css';
-import { loadWorldFeed } from './spec-index.js';
+import { loadWorldFeed, loadOverlays } from './spec-index.js';
 import { initLive } from './data/live';
 // side effect: publishes window.registerBackHandler for the shell
 import './data/back';
@@ -50,6 +50,21 @@ initLive().finally(() => {
     () => root.render(<App />),
     (err) => reportError(err, { where: 'loadWorldFeed' }),
   );
+
+  // The six no-button overlays (~100 KB) follow, for the same reason and on
+  // the same schedule: nothing on the first frame can reach any of them.
+  //
+  // No re-render here, unlike the feed above, and the difference is the
+  // point. daily-split reads `window.WorldFeed` during a render nothing
+  // would re-trigger, so the feed needs one. Every overlay in this group is
+  // reachable ONLY through an app-shell opener, and those await this same
+  // memoised promise before setting the state that mounts one — so the
+  // await is the synchronisation and a re-render would buy nothing.
+  //
+  // Started AFTER loadWorldFeed rather than alongside it: both are pure
+  // parse-and-eval off local disk in a native package, so they contend for
+  // the same main thread, and the feed is the one a user reaches first.
+  loadOverlays().catch((err) => reportError(err, { where: 'loadOverlays' }));
   // Native: drop the splash only now that real content is painted —
   // launchAutoHide is off so hydration happens behind the splash
   // instead of a blank WebView (capacitor.config.ts).

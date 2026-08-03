@@ -75,13 +75,11 @@ import './spec/test-feed-data.js';
 // to land after the core tests it deliberately trails in the feed.
 import './spec/lens-defs.js';
 import './spec/passive-meter.jsx';
-import './spec/test-overlay.jsx';
+// test-overlay.jsx loads after first paint — see loadOverlays() below.
 import './spec/lens-cards.jsx';
 import './spec/profile-overlay.jsx';
-import './spec/person-mindmap.jsx';
-import './spec/person-overlay.jsx';
-import './spec/city-overlay.jsx';
-import './spec/suggestions.jsx';
+// person-mindmap.jsx, person-overlay.jsx, city-overlay.jsx and
+// suggestions.jsx load after first paint too, from the same group.
 import './spec/demographics.jsx';
 import './spec/place-stats.jsx';
 import './spec/mirror-answers.jsx';
@@ -98,12 +96,10 @@ import './spec/map-layout.js';
 import './spec/map-groups.js';
 import './spec/map-chiprow.jsx';
 import './spec/map-tab.jsx';
-// The typed puzzle generator publishes window.LOGIC_GEN, which the logic
-// overlay reads at render time — loaded immediately before it so the
-// global exists whenever the overlay can. (Order is semantic here, like
+// data/logic-gen and logic-test.jsx load after first paint, still adjacent
+// and still in this order — the generator publishes window.LOGIC_GEN, which
+// the overlay reads at render time. (Order is semantic here, like
 // everything in this file.)
-import './data/logic-gen';
-import './spec/logic-test.jsx';
 import './spec/profile-general.jsx';
 // These were born in this repo (never in design/) and live as typed TSX
 // under ui/; they self-register on globalThis so the render-time lookups
@@ -163,3 +159,87 @@ export function loadWorldFeed() {
   }
   return worldFeedLoad;
 }
+
+// ── the no-button overlays, after first paint ──────────────────────────
+//
+// The five overlays with no control in the header or tabbar: `test`,
+// `person`, `city`, `suggest` and `logic` — reached only through the
+// window.open* cross-links app-shell installs in an effect. Nothing on the
+// first frame can reach any of them, which is what makes them the next
+// group after the feed (D25's argument, applied to the next candidate).
+//
+// SYNCHRONISED BY THE OPENER, NOT BY A RE-RENDER. This is the one
+// structural difference from loadWorldFeed, and it is why the group is
+// safe. main.jsx has to re-render after the feed lands because daily-split
+// reads `window.WorldFeed` during a render nothing would re-trigger. These
+// do not: every one is reachable ONLY through an opener, and the openers
+// await this promise before setting the state that mounts the overlay. The
+// await IS the synchronisation, so there is no window in which an overlay
+// is open and its module is missing.
+//
+// That also means the guards at the render sites (`window.TestOverlay &&`
+// …) are a second line rather than the mechanism. Without the awaits they
+// would be actively wrong: `setOv('test')` with the chunk still in flight
+// renders nothing, and nothing is scheduled to re-read the global, so the
+// overlay would stay blank until some unrelated state change. Guard alone
+// is not enough here — that is the difference between this group and the
+// feed, whose absence is a legitimate frame.
+//
+// SEQUENTIAL awaits and this exact order, which is spec-index's own order
+// with the eager modules removed: data/logic-gen publishes window.LOGIC_GEN
+// and logic-test.jsx is its only consumer, so the pair stays adjacent and
+// in that direction.
+//
+// relmap.jsx is deliberately NOT here despite being the largest candidate
+// (~43 KB). It is the one overlay with a first-frame consumer:
+// mirror-field-pops.jsx reads `typeof RelationshipMap === 'function'` to
+// decide whether the Mirror's Circle population renders the embedded map or
+// the generic field canvas. That read is on a render nothing re-triggers,
+// so deferring it would silently swap the Circle picture for the fallback
+// until some later state change — the same failure world-feed-data.js stays
+// eager to avoid. Not a size decision; a reachability one.
+//
+// Memoised for the same reason as loadWorldFeed: main.jsx starts it once,
+// every opener awaits it, and the mount tests await it in beforeAll — all
+// of them get the same promise rather than racing separate loads.
+let overlaysLoad = null;
+export function loadOverlays() {
+  if (!overlaysLoad) {
+    overlaysLoad = (async () => {
+      await import('./spec/test-overlay.jsx');
+      await import('./spec/person-mindmap.jsx');
+      await import('./spec/person-overlay.jsx');
+      await import('./spec/city-overlay.jsx');
+      await import('./spec/suggestions.jsx');
+      await import('./data/logic-gen');
+      await import('./spec/logic-test.jsx');
+    })();
+  }
+  return overlaysLoad;
+}
+
+// …and published on globalThis, because app-shell's openers have to await
+// it and there is no other way for a spec module to reach it.
+//
+// The two alternatives both fail, and it is worth saying how so nobody
+// "tidies" this into one of them:
+//
+//   - `await import('../spec-index.js')` inside app-shell works, but the
+//     bundler then warns INEFFECTIVE_DYNAMIC_IMPORT on every single build
+//     (spec-index is statically imported by main.jsx, so it cannot move to
+//     its own chunk — nor should it). check-bundle.mjs's header records what
+//     happens to a warning that fires on every build: it becomes background
+//     noise, and the next real one is invisible behind it.
+//   - publishing it from a `data/` module — the house pattern, and how
+//     back.ts hands registerBackHandler to this same shell — cannot work
+//     here. That module would have to import this file, and `data/` is
+//     TypeScript with no `allowJs`, so importing a .js is a tsc error. The
+//     one-directional boundary is deliberate: data/ and ui/ never import
+//     spec/, they publish globals that spec/ reads.
+//
+// Publishing from here is free of both problems and costs no gate:
+// scripts/spec-globals.mjs already scans spec-index.js for definitions
+// (alongside main.jsx), so check:globals resolves app-shell's reference
+// without an allowlist entry — which is the outcome that file's
+// RUNTIME_ALLOWLIST comment asks for.
+globalThis.loadOverlays = loadOverlays;

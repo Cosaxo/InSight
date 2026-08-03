@@ -130,6 +130,16 @@ export const buildModQueue = onSchedule(
   runBuildModQueue,
 );
 
+// NO enforceAppCheck on any of the three moderation callables below, and
+// that is the decision rather than the omission it looks like. The
+// moderation Routine runs in a dedicated low-privilege environment with no
+// repo checkout and no app (docs/MODERATION.md, D22) — confinement is the
+// entire point of that environment, so there is no attested client for it
+// to call from and attestation would refuse the only caller these have.
+// assertModerator + MOD_UIDS is the control that stands in its place.
+// `npm run check:appcheck` holds the exemption and fails if it is ever
+// copied onto a callable that could attest.
+//
 // The scheduled build's on-demand twin (the revealDuelsNowV2 pattern):
 // the e2e leg drives it in the emulator, and in production it is the
 // maintainer's manual rebuild lever. Moderator-gated like the other two

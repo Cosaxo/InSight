@@ -239,6 +239,17 @@ left here is a **recapture against live data**, plus the two forms.
       package.json's values into both native projects). Bump `appBuild` +
       android `versionCode` + iOS `CURRENT_PROJECT_VERSION` together for
       every release.
+- [ ] **5.7 Add a second operator uid.** `SEED_ADMIN_UIDS` and `MOD_UIDS`
+      each hold one uid, the same person's. Losing that Google account
+      breaks nothing — the scheduled twins keep running and rules keep
+      enforcing — but it removes the ability to seed content, force a
+      reveal, or moderate, with no in-repo path back. Both variables are
+      already comma-separated, so this is one edit each plus a re-run of
+      **Deploy Firebase backend** (values only reach the runtime on a
+      deploy). Keep the two lists **disjoint** (D22), and verify the new
+      uid by confirming it is *denied* the instrument it should not have —
+      a silently dropped uid looks identical to one never added.
+      `DEPLOYMENT.md § Operator continuity`.
 
 ## Phase 6 — Submit
 
@@ -262,11 +273,21 @@ left here is a **recapture against live data**, plus the two forms.
 
 ## Not blockers — these can trail the launch
 
-- **Device binding enforcement (D29).** Four owner steps in
+- **Device binding enforcement (D29, D37).** Four owner steps in
   `docs/DEVICE-BIND.md`: DeviceCheck key → deploy env vars; Play Integrity
-  linkage; the two native token bridges; then flip `deviceBindEnforced()`
-  in `firestore.rules` to `true`. Until the flip the claim is stamped but
-  not demanded — soft-enforced, which is a working state.
+  linkage; the two native token bridges; then the flip. Until the flip the
+  claim is stamped but not demanded — soft-enforced, which is a working
+  state.
+
+  **The flip is a sequence, not a moment** (D37, DEVICE-BIND §4): raise
+  `v2_meta.minBuild` to the first activation-capable build **first** —
+  it is a hard gate, so it empties the old-build population outright
+  instead of waiting for it to shrink — then read two rates over 24h
+  (activation errors **< 1%** with **zero** `DeviceCheck auth rejected`;
+  Android `verdict without deviceRecall` **< 5%**), and only then set
+  `deviceBindEnforced()` to `true`. Flipping early is silent: a refused
+  answer write rolls the vote back with no message, so it reads as a flaky
+  app rather than a refusal, and produces no report that names the cause.
 - **Sign in with Apple.** See 6.2 — only if a reviewer cites 4.8.
 - **The `check:store-copy` app-link placeholders** (2.7) block *linking*,
   not *shipping*.

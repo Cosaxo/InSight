@@ -663,6 +663,13 @@ export const scheduledDuelReveals = onSchedule(
 
 // Test/ops hook — emulator, or the SEED_ADMIN_UIDS operators.
 //
+// NO enforceAppCheck, unlike the four member callables above: this is the
+// scheduled scan's manual lever, reached from a console during an incident
+// (docs/DEPLOYMENT.md → rollback) and by the e2e. Neither caller can
+// attest, and a control that fails when it is most needed is not a control.
+// assertOperator + SEED_ADMIN_UIDS gates it; `npm run check:appcheck` holds
+// the exemption so it cannot spread by copy-paste.
+//
 // Defaults to the FULL scan, deliberately: see the ScanMode note above.
 // Pass scan:"indexed" to exercise the path the schedule takes.
 export const revealDuelsNowV2 = onCall({ region: REGION }, async (request) => {

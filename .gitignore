@@ -82,6 +82,12 @@ GoogleService-Info.plist
 # style-diff writes its full report here (scripts/style-diff.mjs)
 style-diff.json
 
+# vitest coverage reports (npm run test:coverage, and --prefix functions).
+# Report-only and regenerated on demand — see vite.config.ts for why there
+# are no thresholds and why spec/ is excluded.
+coverage/
+functions/coverage/
+
 # Store screenshot captures (scripts/gen-screenshots.mjs). The PNGs are
 # ~3.8 MB per run and get recaptured every release — and the demo-mode
 # set is explicitly NOT uploadable (the harness names which scene and

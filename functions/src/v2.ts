@@ -204,6 +204,13 @@ async function runSeedV2(bumpRev = false): Promise<{ written: number; skipped: n
   return { written, skipped };
 }
 
+// NO enforceAppCheck, deliberately: this is invoked from a browser console
+// as the last remaining step of SHIP-CHECKLIST §1, and by the e2e — neither
+// carries an App Check token. assertOperator + SEED_ADMIN_UIDS is the
+// control instead. Held by `npm run check:appcheck`, which also fails if
+// enforcement is ever added here without removing the exemption, because
+// adding it would refuse the console call that checklist step is written
+// around.
 export const seedContentV2 = onCall({ region: REGION }, async (request) => {
   assertOperator(request);
   // bumpRev forces the full cache invalidation the seed no longer spends

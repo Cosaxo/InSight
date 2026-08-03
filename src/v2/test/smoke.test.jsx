@@ -73,6 +73,13 @@ beforeAll(async () => {
   // module in the layer — the feed renders on the daily tab, so dropping it
   // costs coverage without failing anything.
   await specIndex.loadWorldFeed();
+  // …and the six no-button overlays, for the same reason. Every case in the
+  // cross-link describe below opens one of these, and the openers await this
+  // same memoised promise — so strictly this line only removes a wait from
+  // the first such case. It is here rather than implied because a suite that
+  // depends on a load nobody in it names is a suite that breaks confusingly
+  // the day the openers stop awaiting.
+  await specIndex.loadOverlays();
   App = globalThis.App;
 });
 
@@ -174,9 +181,15 @@ describe("spec layer mounts", () => {
 // through a button, so the call has to run inside act(): it sets state from
 // outside React's event system, and without act() the assertion below runs
 // against the frame before the overlay rendered.
-function openVia(name, ...args) {
+async function openVia(name, ...args) {
   expect(typeof window[name], `window.${name} is not installed`).toBe("function");
-  act(() => { window[name](...args); });
+  // AWAITED act, because these openers are async now: each awaits
+  // loadOverlays() before setting the state that mounts its overlay
+  // (spec-index.js, app-shell's openDeferred). A bare synchronous
+  // `act(() => …)` returns before the promise settles, so every assertion
+  // below would run against the frame BEFORE the overlay rendered — which
+  // is the vacuous pass this file exists to prevent, wearing a new shape.
+  await act(async () => { await window[name](...args); });
 }
 
 // Copy only the opened overlay renders. textContent, not getByText, because
@@ -187,25 +200,25 @@ function expectOpened(re, where) {
 }
 
 describe("the overlays with no button — opened through window.*", () => {
-  it("opens the test flow on its picker", () => {
+  it("opens the test flow on its picker", async () => {
     const expectNoBoundary = mountApp();
     // No argument = the selection screen rather than a specific test, which
     // is the one state reachable without inventing a test kind.
-    openVia("openTest");
+    await openVia("openTest");
     expectOpened(/Take a\s*test/i, "test overlay");
     expectNoBoundary("test overlay");
   });
 
-  it("opens the relationship map", () => {
+  it("opens the relationship map", async () => {
     const expectNoBoundary = mountApp();
-    openVia("openOverlay", "relmap");
+    await openVia("openOverlay", "relmap");
     expectOpened(/Relationship map/i, "relmap overlay");
     expectNoBoundary("relmap overlay");
   });
 
-  it("opens the logic test", () => {
+  it("opens the logic test", async () => {
     const expectNoBoundary = mountApp();
-    openVia("openLogicTest");
+    await openVia("openLogicTest");
     // `ov === 'logic'` renders only `window.LogicOverlay && <…>`, so a
     // module that stopped registering would render nothing at all and the
     // boundary would stay clean. This is the assertion that notices.
@@ -213,9 +226,9 @@ describe("the overlays with no button — opened through window.*", () => {
     expectNoBoundary("logic overlay");
   });
 
-  it("logic test: a fresh start renders a generated puzzle with six answers", () => {
+  it("logic test: a fresh start renders a generated puzzle with six answers", async () => {
     const expectNoBoundary = mountApp();
-    openVia("openLogicTest");
+    await openVia("openLogicTest");
     expectOpened(/Logic/, "logic overlay");
     // With no saved result the overlay opens straight into item 1 of a
     // freshly generated form — this executes the whole generator path
@@ -226,7 +239,7 @@ describe("the overlays with no button — opened through window.*", () => {
     expectNoBoundary("logic fresh start");
   });
 
-  it("logic test: a v1 saved result (no seed, no diffs) still renders the result screen", () => {
+  it("logic test: a v1 saved result (no seed, no diffs) still renders the result screen", async () => {
     // The pre-generator payload shape: marks and a timestamp, nothing
     // else — no v, seed, gv, diffs or times. loadResult back-fills the
     // percentile and the lenses fall back per-field; this pins that old
@@ -240,7 +253,7 @@ describe("the overlays with no button — opened through window.*", () => {
     );
     try {
       const expectNoBoundary = mountApp();
-      openVia("openLogicTest");
+      await openVia("openLogicTest");
       expectOpened(/Logic/, "logic overlay (v1 result)");
       screen.getByText(/Sharper than \d+% of players/i);
       expectNoBoundary("logic v1 result screen");
@@ -249,14 +262,14 @@ describe("the overlays with no button — opened through window.*", () => {
     }
   });
 
-  it("opens the question suggestion overlay", () => {
+  it("opens the question suggestion overlay", async () => {
     const expectNoBoundary = mountApp();
-    openVia("openSuggestions");
+    await openVia("openSuggestions");
     expectOpened(/suggest a\s*question/i, "suggest overlay");
     expectNoBoundary("suggest overlay");
   });
 
-  it("opens a person's profile", () => {
+  it("opens a person's profile", async () => {
     const expectNoBoundary = mountApp();
     // Named from the fixture rather than hardcoded: openPerson looks the
     // record up in window.IS_DATA, so a hardcoded name would start silently
@@ -264,7 +277,7 @@ describe("the overlays with no button — opened through window.*", () => {
     // would never open, which is the vacuous pass this file guards against.
     const who = (window.IS_DATA.people || []).find((p) => p.name && !p.anon);
     expect(who, "sample data has no named person to open").toBeTruthy();
-    openVia("openPerson", who);
+    await openVia("openPerson", who);
     // The heading is anonName(p), which is the plain name for a non-anon
     // record — hence the find() above rather than [0], so this assertion
     // stays true if the fixture's first entry ever becomes anonymous.
@@ -272,12 +285,54 @@ describe("the overlays with no button — opened through window.*", () => {
     expectNoBoundary("person overlay");
   });
 
-  it("opens a city's profile", () => {
+  it("opens a city's profile", async () => {
     const expectNoBoundary = mountApp();
     const city = (window.IS_DATA.cities || [])[0];
     expect(city, "sample data has no cities to open").toBeTruthy();
-    openVia("openCity", city.name);
+    await openVia("openCity", city.name);
     expectOpened(new RegExp(city.name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")), "city overlay");
     expectNoBoundary("city overlay");
+  });
+
+  // ── the other half: the chunk that never arrives ────────────────────
+  //
+  // Everything above runs with loadOverlays() already resolved, so it only
+  // ever exercises the happy path. These five components ship in a chunk
+  // that loads after first paint, and app-shell reads each off `window`
+  // rather than as a bare identifier precisely so a failed load degrades to
+  // a blank instead of a ReferenceError that takes the whole shell down.
+  //
+  // Nothing else in this repo can catch that. `check:globals` and eslint's
+  // no-undef are name-level and see a legitimately-defined global either
+  // way; the cases above pass with bare identifiers because by then the
+  // module is loaded. Deleting the global is the only way to render the
+  // frame a broken chunk produces.
+  //
+  // Mutation-checked: restoring any of these five to a bare identifier in
+  // app-shell.jsx fails exactly its own row here on the boundary assertion,
+  // and passes again on revert.
+  describe("a failed overlay chunk degrades rather than crashing", () => {
+    const GUARDED = [
+      ["TestOverlay", "openTest", []],
+      ["SuggestOverlay", "openSuggestions", []],
+      ["LogicOverlay", "openLogicTest", []],
+      ["PersonOverlay", "openPerson", () => [(window.IS_DATA.people || []).find((p) => p.name && !p.anon)]],
+      ["CityOverlay", "openCity", () => [(window.IS_DATA.cities || [])[0]?.name]],
+    ];
+
+    for (const [global, opener, argsFor] of GUARDED) {
+      it(`${opener} with ${global} missing renders nothing and does not trip the boundary`, async () => {
+        const saved = window[global];
+        expect(saved, `${global} was never registered — the deferred load is broken`).toBeTruthy();
+        delete window[global];
+        try {
+          const expectNoBoundary = mountApp();
+          await openVia(opener, ...(typeof argsFor === "function" ? argsFor() : argsFor));
+          expectNoBoundary(`${opener} with ${global} missing`);
+        } finally {
+          window[global] = saved;
+        }
+      });
+    }
   });
 });

@@ -407,7 +407,9 @@ Until then links open the fallback page — degraded, not broken.
 - **Release versioning:** bump `appBuild` in package.json each store
   release; set `latestBuild` (soft banner) and, only when an old client
   would misbehave, `minBuild` (hard gate) plus `updateUrl` on the
-  `v2_meta/app` doc in the console.
+  `v2_meta/app` doc in the console. The device-bind flip below is the
+  first concrete instance of "would misbehave" — a pre-activation client
+  votes into a silent rollback once enforcement is on (D37).
 - **Device binding (D29, docs/DEVICE-BIND.md)** — four owner steps, in
   order: (1) Apple DeviceCheck key → `DC_TEAM_ID`/`DC_KEY_ID` variables +
   `DC_PRIVATE_KEY` secret on the deploy environment; (2) Play Console →
@@ -415,10 +417,32 @@ Until then links open the fallback page — degraded, not broken.
   enable the Play Integrity API for the functions service account;
   (3) paste the two native token bridges in Xcode / Android Studio
   (DEVICE-BIND.md §2 — the JS side waits for them, nothing breaks
-  meanwhile); (4) after the staging probe (§3), flip
+  meanwhile); (4) after the staging probe (§3), raise `minBuild` to the
+  first activation-capable build, read the two rates, and only then flip
   `deviceBindEnforced()` in `firestore.rules` to `true` and deploy —
   the flipped text is already pinned by rules tests. Until (4), the
   claim is stamped but not demanded.
+
+  Step (4) is a sequence rather than a moment (D37, DEVICE-BIND.md §4):
+  `minBuild` first, because it is a hard gate and empties the
+  old-build population outright instead of waiting for it to shrink;
+  then error rate **< 1%** with **zero** `DeviceCheck auth rejected`,
+  and Android `verdict without deviceRecall` **< 5%**, each over 24h.
+  An early flip is silent — a refused answer write rolls the vote back
+  with no message to the user — so it produces a product that feels
+  flaky rather than reports that name the cause.
+- **A second operator uid, before launch** (docs/DEPLOYMENT.md →
+  Operator continuity). `SEED_ADMIN_UIDS` and `MOD_UIDS` each hold one
+  uid, the same person's. Losing that Google account does not break the
+  app — the scheduled twins keep running and rules keep enforcing — it
+  removes the ability to seed content, force a reveal, or moderate, with
+  no in-repo path back. Both variables are already comma-separated, so
+  the fix is one edit each plus a deploy. Keep the lists **disjoint**
+  (D22), and verify the new uid by checking it is *denied* the
+  instrument it should not have, since a silently dropped uid looks
+  exactly like one that was never added. The service-account secret and
+  the two store accounts are single-holder too and need account-level
+  delegation instead.
 
 ## Before-public hardening (not friends-test blockers)
 

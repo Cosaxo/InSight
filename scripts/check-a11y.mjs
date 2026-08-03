@@ -22,6 +22,7 @@
 // replacement literal, so lowering the baseline is a copy-paste and never a
 // guess. Deleting a file's entry entirely is correct once it reaches zero.
 
+import { readdirSync, readFileSync } from "node:fs";
 import { ESLint } from "eslint";
 
 // Findings per file, as of 2026-07-30. The rules behind almost all of them:
@@ -183,8 +184,108 @@ if (better.length) {
 }
 
 const outsideSpec = Object.keys(actual).filter((f) => !f.startsWith("src/v2/spec/"));
+const specTotal = total - outsideSpec.reduce((a, f) => a + actual[f], 0);
+
+// ── the figures src/v2/README.md quotes ─────────────────────────
+//
+// WHY THIS IS HERE. Two paragraphs of that README quote counts this tree
+// computes — the a11y baseline, and the number of deferred single-line
+// eslint suppressions in the spec layer — and BOTH have gone stale. The
+// suppression figure sat at 27 after the tree reached 30, in the very
+// paragraph that says it is quoted inline *because* it previously claimed
+// 42 long after the number moved. The a11y figure sat at 19 after the
+// 2026-08-03 pass lowered the BASELINE below to 11.
+//
+// (That paragraph deliberately does not spell the directive out. A comment
+// line here that BEGINS with the directive name is parsed by eslint as a
+// real directive, not as prose — `npm run lint` failed on exactly that
+// while this section was being written, reporting a rule named after the
+// rest of the sentence. The scanner below matches the literal instead.)
+//
+// So the evidence is now two independent instances of the same failure,
+// one of them a repeat inside the paragraph warning against it. A prose
+// figure kept current by intention does not stay current; something has to
+// hold it equal to the tree.
+//
+// It lives in THIS script rather than a new gate for one reason: this
+// script already owns BASELINE, the source of truth for one of the two
+// figures. A separate gate would either duplicate that literal — a second
+// place to go stale, which is the bug — or re-run eslint over src/ to
+// recompute it, doubling the slowest job in ci.yml. The suppression count
+// is a cheap file scan and rides along rather than earning a gate of its
+// own. Failures below say "documented figure" and name the sentence, so a
+// doc mismatch never reads as an accessibility regression.
+const README = "src/v2/README.md";
+const readme = readFileSync(README, "utf8");
+const docErrors = [];
+
+// "The baseline is **11**: 9 in `spec/`, plus two deliberate…"
+const baselineClaim = readme.match(/The baseline is \*\*(\d+)\*\*: (\d+) in `spec\/`/);
+if (!baselineClaim) {
+  docErrors.push(
+    `${README}: could not find the "The baseline is **N**: M in \`spec/\`" sentence.\n`
+    + "    Either it was reworded or the section was removed. If the figure is no\n"
+    + "    longer quoted there, delete this check with it — a gate reading for a\n"
+    + "    sentence that no longer exists is one nobody can satisfy.",
+  );
+} else {
+  const [, claimedTotal, claimedSpec] = baselineClaim.map(Number);
+  if (claimedTotal !== baseTotal || claimedSpec !== specTotal) {
+    docErrors.push(
+      `${README} states the baseline is ${claimedTotal} (${claimedSpec} in spec/);\n`
+      + `    BASELINE in this script totals ${baseTotal} (${specTotal} in spec/).\n`
+      + `    Correct the sentence to: "The baseline is **${baseTotal}**: ${specTotal} in \`spec/\`".`,
+    );
+  }
+}
+
+// The deferred React Compiler suppressions, counted the way the README's
+// own `git grep -c` snippet counts them: lines carrying the directive, per
+// file. Read from disk rather than shelling out to git, so the number is
+// the same in a worktree, a CI checkout and an export.
+let suppressions = 0;
+let suppressionFiles = 0;
+for (const f of readdirSync("src/v2/spec")) {
+  if (!/\.jsx?$/.test(f)) continue;
+  const hits = readFileSync(`src/v2/spec/${f}`, "utf8")
+    .split("\n")
+    .filter((l) => l.includes("eslint-disable-next-line")).length;
+  if (hits) { suppressions += hits; suppressionFiles += 1; }
+}
+
+// "That count is **30 across 15 files**."
+const suppressionClaim = readme.match(/That count is \*\*(\d+) across (\d+) files\*\*/);
+if (!suppressionClaim) {
+  docErrors.push(
+    `${README}: could not find the "That count is **N across M files**" sentence.\n`
+    + "    Same note as above — if the figure is no longer quoted, remove this check.",
+  );
+} else {
+  const [, claimedN, claimedFiles] = suppressionClaim.map(Number);
+  if (claimedN !== suppressions || claimedFiles !== suppressionFiles) {
+    docErrors.push(
+      `${README} states ${claimedN} suppressions across ${claimedFiles} files;\n`
+      + `    src/v2/spec has ${suppressions} across ${suppressionFiles}.\n`
+      + `    Correct the sentence to: "That count is **${suppressions} across ${suppressionFiles} files**".`,
+    );
+  }
+}
+
+if (docErrors.length) {
+  console.error("\ncheck-a11y: documented figures no longer match the tree:\n");
+  for (const e of docErrors) console.error(`  ${e}\n`);
+  console.error(
+    "  This is not an accessibility regression — the ratchet itself is fine.\n"
+    + "  It is the README quoting a number that has moved, which is the one\n"
+    + "  documentation error this repo keeps re-committing.",
+  );
+  process.exit(1);
+}
+
 console.log(
   `\ncheck:a11y OK — ${total} known findings, none new`
-  + ` (${total - outsideSpec.reduce((a, f) => a + actual[f], 0)} in the ported spec layer,`
-  + ` ${outsideSpec.length} deliberate elsewhere)`,
+  + ` (${specTotal} in the ported spec layer,`
+  + ` ${outsideSpec.length} deliberate elsewhere);`
+  + ` ${suppressions} deferred suppressions across ${suppressionFiles} files;`
+  + ` ${README} agrees with both`,
 );

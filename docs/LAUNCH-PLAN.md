@@ -408,6 +408,17 @@ inert; the reverse order is permission-denied noise).
   **ten** testers, not five (D7's publish-every-5 makes a group of 6–9 read as
   broken). `check:store-copy` and `check:versions` before every archive —
   the former is deliberately not in CI.
+- **`node scripts/style-diff.mjs` once before the first archive.** It walks
+  both builds across seven screens and compares typography, colour and
+  geometry per rendered string. It is deliberately not in CI (playwright is
+  not a dependency here, and some divergence from the prototype is
+  intentional — its header lists which), which currently means it runs only
+  when someone remembers it exists. On its one run it reported 15
+  differences across 700 elements, and after the fixes 0 across 2,891 — and
+  it found five whole feed cards that were missing because every lens
+  question was being swallowed by an `else if` (D11). Four rounds of
+  comparing screenshots by eye had not found any of them. That is worth one
+  scheduled run per release rather than a tool nobody invokes.
 
 ---
 
