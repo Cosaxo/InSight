@@ -3379,3 +3379,108 @@ the candidates: the data layer's weak spots are `live.ts` (58% statements,
 and `push.ts` at zero — the latter two by nature, since D9's four location
 failure paths were driven in a real browser rather than in jsdom. Extract
 against that report, one module per change.
+
+## D39 · Duels get a content lane and a question-level signal — proposed
+
+**Date:** 2026-08-03 · **Status:** Proposed (a draft awaiting the owner's
+adoption, per this file's header — it binds nothing until the status
+flips)
+
+**Proposal.** Give the group/1v1 duel banks what every other content
+surface already has: a growth path (a lane under `docs/QUESTION-FARM.md`
+governance) and a feedback signal (a k-floored, cross-group,
+question-level aggregate written at reveal time). Four separately
+adoptable parts, smallest first.
+
+**Why duels, and why now — the arithmetic.** The 1v1 bank is 20
+questions and live rotation is `bank[(hash(gid) + utcDay) % len]`
+(`duelQFor`, `src/v2/data/deck.ts`): an active pair sees the whole pool
+in 20 days and repeats from day 21. Groups: 24 questions, repeats from
+day 25. Compare the daily surface: 90 questions (~13 weeks of runway
+with zero promotion, D30), a daily farm lane, a scorecard (D33), and a
+promotion path. Duels are the surface whose streak mechanics most
+reward daily return, and the only one with no lane, no signal, and no
+growth path — before 2026-08-03 the word "duel" did not appear in
+QUESTION-FARM.md at all. Meanwhile 20 finished romantic-mode 1v1
+questions (`DUO_QS_ROMANTIC`, `src/v2/spec/duels-data.js`) sit
+spec-only, unreachable by the live app.
+
+### Part 1 — single-source banks (the read side is taken)
+
+`src/v2/spec/duels-data.js` now imports `content/duel-questions.json`
+for `GROUP_QS`/`DUO_QS` instead of carrying hand-duplicated copies —
+the D32 learn-data shape, landed alongside this record after verifying
+the spec arrays were byte-identical to the JSON (group) or identical
+minus the seed's `id` fields (1v1, which the demo never reads: its duo
+state keys on the partner, not the question). This is a pure
+consolidation, no behavior change, and it is the precondition for any
+lane: a lane that writes two copies of a bank is a drift generator.
+
+### Part 2 — a duel lane (single gate, learn-style)
+
+`content/duel-questions.json` seeds production on the next reseed, so —
+exactly as D32 recorded for learn cards — a merged duel-question PR IS
+the production review; one gate, production-level bar. Lane rules on
+adoption (to be written into QUESTION-FARM.md as the contract):
+budget-capped (suggest ≤4/run, at most weekly to start), append-only at
+the end of each array (group order is rotation order — interleaved,
+never sorted; 1v1 order is the spec ladder's light → deep, so deep
+questions append naturally), ids continue each series, and every farm
+hard rule inherits: dedup against both banks, the product's voice, no
+place-scoped questions, PR-only output, run log on issue #31. Duel-bank
+growth shifts future rotation only (D30: reveal docs store the answered
+qid, so history never remaps).
+
+### Part 3 — the signal (the real decision in this record)
+
+Duel answers never reach `v2_question_aggs` — the aggregate trigger
+short-circuits group/duo answers into the sealed reveal path
+(`functions/src/v2.ts`), which is correct and stays. The proposal is a
+separate, deliberately smaller aggregate written where the answers are
+already being read anyway: at reveal time, `revealGroupDay` increments
+a per-question document — plays, per-option counts, and for 1v1 the
+guess-match count — aggregated across ALL groups, k-floored with the
+same `AGG_MIN_N`/`tooSmall` discipline as every published number.
+
+What it may never contain: gids, uids, names, member sets, per-group
+anything, or anything below the floor. The privacy arithmetic: every
+input is a vote the group's own members already see with names attached
+at reveal; the aggregate is strictly less revealing than the reveal
+itself, summed across groups and floored — the same "the floor did the
+privacy work" argument D33 recorded for the scorecard. The cost
+arithmetic: zero extra reads (the reveal transaction already holds
+every counted answer) and one extra doc write per group per day.
+
+The guess-match rate is the duel analogue of evenness: matches near
+100% mean no tension (a dead duel question), matches near chance mean
+the question has no tells (noise) — the good zone is the band between,
+"guessable if you truly know them" as a number. With this doc in
+`v2_question_aggs` (namespaced ids, e.g. `duel-<qid>`) the scorecard's
+`--fetch` already downloads it; scoring duels becomes a small
+`score()` extension, and the lane in Part 2 gets leaders and laggards
+on day one.
+
+### Part 4 — graduate the romantic pool
+
+Move `DUO_QS_ROMANTIC` into `content/duel-questions.json` under a
+`mode: 'romantic'` field, seed it, and let the live 1v1 select its pool
+by the pair's chosen mode (the spec layer's `duoMode`/`setDuoMode` is
+the reference behavior; live needs a mode on the duo doc and a picker
+in `LiveDuelPanel`). Until the mode plumbing exists, romantic entries
+must NOT be appended to the shared pool — they would rotate into
+friend-pair duels. This part doubles the 1v1 bank with content that is
+already written and reviewed.
+
+**What stays true until adoption.** QUESTION-FARM.md hard rule 2 stands:
+no scheduled run touches `content/duel-questions.json`; no duel
+aggregate exists; the romantic pool stays spec-only. Part 1 alone is
+live, because it changes no behavior and closes a real drift seam.
+
+**Alternatives considered.** Mining the sealed reveal docs offline for
+question quality — rejected: it needs production credentials and reads
+group-scoped documents, exactly what the committed-scorecard shape
+(D33) exists to avoid. Client-side duel telemetry — rejected: the
+skip/pass line (a pass is local-only; server collection is a privacy
+decision this record does not make). Doing nothing — rejected with the
+runway numbers above: repeats begin on day 21 for precisely the
+most-engaged pairs.

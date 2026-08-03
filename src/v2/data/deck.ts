@@ -216,9 +216,14 @@ export function splitBanks(active: Array<QuestionDoc & { id: string }>): {
   };
 }
 
-// The client mirrors the server's deterministic rotation: the day's
-// question for a group is bank[(hash(gid) + utcDay) % len] over the
-// matching-surface bank. "pick" questions take the members as options.
+// Every member's client computes the day's question independently — the
+// same pure function of (gid, utcDay, bank) on every device: bank[(hash(gid)
+// + utcDay) % len] over the matching-surface bank. There is NO server-side
+// chooser to mirror: rules only require the answered qid to exist in the
+// bank, and the reveal stores whichever qid the first counted answer
+// carried — so a client that drifts from this rotation still reveals
+// coherently, it has just answered a different question than its group.
+// "pick" questions take the members as options.
 export function duelQFor(
   g: Record<string, unknown> & { id: string },
   duelBank: Array<QuestionDoc & { id: string }>,
