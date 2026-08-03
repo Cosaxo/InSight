@@ -72,7 +72,7 @@ and both `ui/` panels `Object.assign` onto `globalThis` on purpose.
 | `npm run test:rules` | Firestore **and** Storage rules | Java 21 |
 | `npm run test:e2e` / `:erasure` / `:moderation` | full loop, erasure, moderation transport — real emulated functions | Java 21 |
 
-Plus the non-test gates: `check:globals`, `check:versions`,
+Plus the non-test gates: `check:globals`, `check:labels`, `check:versions`,
 `check:bundle`, `check:deploy-targets`, `check:fn-runtime`, and the
 catalogue drift gates `check:cities`, `check:pokedex`, `check:catalogs`
 — the last two also run on the deploy path, because the aggregate

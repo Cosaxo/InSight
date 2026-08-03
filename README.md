@@ -91,6 +91,10 @@ Local:
 - `npm run test:e2e:erasure` — deleteAccount, with leftovers observed via
   the admin SDK (rules bypassed, so "gone" means gone).
 - `npm run check:globals` — the spec layer's shared-global wiring.
+- `npm run check:labels` — every `htmlFor` / `aria-labelledby` /
+  `aria-describedby` / `aria-controls` resolves to an id in the same file.
+  jsx-a11y only checks such an attribute is present, never that it points at
+  anything.
 - `npm run check:versions` / `check:bundle` / `check:deploy-targets` —
   version lockstep across the three projects, the bundle budget, and every
   exported function appearing in the deploy list.
