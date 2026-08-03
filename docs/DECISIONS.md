@@ -3734,3 +3734,63 @@ Grep the name and read every site. A bulk rename is the right tool for the
 reference itself and the wrong tool for the conditions around it, and
 nothing downstream will tell you — `check:globals` sees no coupling, eslint
 sees valid code, and the tests pass because the guard evaluates true.
+
+### D39 amendment (2026-08-03, sixth) · `result-rose.jsx` — 673 → 657, and the seam is exhausted
+
+Four exports (`RP_TESTS`, `RoseMini`, `PoleRows`, `TestRose`), sixteen
+sites, and all seven `(window.RP_TESTS || {})` guards.
+
+**Half its globals had no consumers.** `RosePetals`, `rpPetal`, `rpDeep`
+and `rpDot` were on `window` because the port registered every top-level
+declaration, not because anything read them. As a real module they are
+private, so this removed **eight** names from the global namespace to
+export four. That ratio should be expected again: the bridge published
+everything, so a converted module usually exports fewer names than it used
+to publish. Global count across the layer is now 310, from 334 when the
+ratchet landed.
+
+### Where this stops, and why
+
+Six providers converted, 799 → 657 (**18%**). The pure-provider list is now
+empty, and the remaining 657 references are not more of the same work.
+
+They are concentrated in files that are **consumers**, not providers:
+`world-feed.jsx` (165), `daily-split.jsx` (79), `app-shell.jsx` (51),
+`mirror-field-pops.jsx` (33), `map-tab.jsx` (30), `test-overlay.jsx` (27).
+Their providers are the cycle cluster — `test-definitions.js`,
+`passive-progress.js`, and `daily-split.jsx` itself, which is both. An ESM
+cycle fails at render with a temporal-dead-zone error, and a render-time
+failure in ported JSX is precisely this layer's worst bug class and the
+reason four guards exist.
+
+So the next step is **not** another conversion. It is the extraction this
+record already names: `passive-progress` and `test-definitions` are a store
+and a schema, neither needs JSX, and moving them to `data/` as typed tested
+modules dissolves both cycles as a side effect. That is a different size of
+change and wants planning, not momentum.
+
+**What the six conversions actually bought**, stated plainly so the next
+decision is made on evidence:
+
+- Three live load-order landmines removed — module-scope reads behind
+  presence guards, where reordering `spec-index.js` would have silently
+  dropped a feature with no error: `map-branches.js` (seven map
+  categories), `duels-data.js` (circle changes rippling into duos and
+  groups), and `world-feed-data.js`'s pool ordering, which is now a
+  dependency rather than a comment.
+- Three defects in the gate itself: the `h(Foo, …)` blind spot, the
+  multi-writer mis-attribution that overcounted by 11, and the
+  declarator-list local-name miss.
+- 24 dead load-order guards deleted, and 24 names off `window`.
+- **No behaviour change, no bundle saving, no user-visible effect.** Entry
+  chunk moved 858 → ~790 KB and total JS did not move at all; that is
+  chunking, not weight.
+
+The honest read: this was worth doing at the price it cost, because each
+conversion was an afternoon and each surfaced something real. The next
+tranche costs considerably more and surfaces less, and this project's
+binding constraint is a launch checklist with unticked device verification,
+not the elegance of its module graph. The ratchet is what makes stopping
+safe — the number cannot go back up, so the work can resume opportunistically
+(**convert on touch**: when a feature takes you into a spec file, convert
+the providers it reads first) rather than as a project.

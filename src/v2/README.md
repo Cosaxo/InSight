@@ -369,7 +369,7 @@ survivable enough to live with indefinitely.
 **Rule 4** counts every site where one file reads a name another file
 assigns to global scope, per file, and the number may only go down. The
 baseline is in `scripts/check-spec-globals.mjs`; `npm run check:globals`
-prints the current total on every run. The count today is **673 across 52
+prints the current total on every run. The count today is **657 across 52
 files**, down from 799 when the ratchet landed.
 
 The mechanism needs no bookkeeping, which is what makes it usable. The
@@ -519,10 +519,37 @@ a pattern: `(X || {})`, `X?.`, `X ? … : …`, `!X || …`, `X && …`, and
 `if (X) …`. Grep for the name and read every site; do not assume the bulk
 rename caught the guards.
 
-**Next**: `result-rose.jsx` (4 consumers) is the last of the pure providers.
-After it the remaining bulk is `world-feed.jsx` (165), `daily-split.jsx`
-(79) and `app-shell.jsx` (51) — consumers in the cycle cluster, which need
-the extract-into-`data/` treatment rather than conversion in place.
+### `result-rose.jsx` — the last pure provider, and where this stops
+
+673 → 657. Four exports (`RP_TESTS`, `RoseMini`, `PoleRows`, `TestRose`)
+and all seven `(window.RP_TESTS || {})` guards gone.
+
+**Four of its eight globals had no consumers at all.** `RosePetals`,
+`rpPetal`, `rpDeep` and `rpDot` were published because the porter
+registered every top-level declaration, not because anything wanted them.
+As a real module they are simply private, so the conversion removed eight
+names from the global namespace to export four. Expect that ratio again —
+the bridge published everything, so a converted module usually exports
+fewer names than it used to publish.
+
+**This is the end of the cheap seam.** Six providers are converted and the
+pure-provider list is now empty. What remains is 657 references
+concentrated in files that are *consumers*, not providers —
+`world-feed.jsx` (165), `daily-split.jsx` (79), `app-shell.jsx` (51),
+`mirror-field-pops.jsx` (33), `map-tab.jsx` (30), `test-overlay.jsx` (27) —
+and their providers are the cycle cluster (`test-definitions.js`,
+`passive-progress.js`, `daily-split.jsx` itself). Converting those in place
+means ESM cycles, which fail at render with a TDZ error, which is this
+layer's worst bug class.
+
+The next step there is **not** another conversion. It is the extraction
+described above: move `passive-progress` and `test-definitions` into
+`data/` as typed, tested modules, which dissolves both cycles as a side
+effect. That is a different size of change and should be planned as one.
+
+Until then the ratchet holds the line, and the cheapest way to keep the
+number moving is **convert on touch**: when a feature takes you into a spec
+file, convert the providers it reads first.
 
 **What NOT to start with.** The layer has import cycles, and they cluster:
 `test-definitions.js ↔ daily-split.jsx`, and `app-shell.jsx →

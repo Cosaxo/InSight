@@ -4,6 +4,7 @@
 // spec-index.js load order is semantic — scripts/check-spec-globals.mjs
 // guards the wiring in CI.
 import React from 'react';
+import { RP_TESTS } from './result-rose.jsx';
 import { Sheet } from './primitives.jsx';
 import ReactDOM from 'react-dom';
 
@@ -80,7 +81,7 @@ function TypeIndexSheet({ testKey, onClose }) {
   const [closing, setClosing] = React.useState(false);
   const close = () => { if (closing) return; setClosing(true); setTimeout(onClose, 230); };
   const sys = (window.IS_ARCHETYPES || {})[testKey];
-  const cfg = (window.RP_TESTS || {})[testKey];
+  const cfg = RP_TESTS[testKey];
   const host = typeof document !== 'undefined' ? document.querySelector('.app') : null;
   if (!sys || !host) return null;
   const R = (window.IS_TEST_RESULTS || {})[testKey];
