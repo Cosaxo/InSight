@@ -1,0 +1,86 @@
+{
+  "capturedFrom": "http://localhost:4173/",
+  "mode": "demo",
+  "profiles": {
+    "iphone-6.9": {
+      "store": "App Store — iPhone 6.9\"",
+      "expect": "1320×2868",
+      "shots": [
+        {
+          "file": "01-daily.png",
+          "scene": "daily",
+          "caption": "One blind question a day."
+        },
+        {
+          "file": "02-reveal.png",
+          "scene": "reveal",
+          "caption": "Answer first — then see how the world split.",
+          "demoOnlyAffordances": [
+            "Comments",
+            "Who voted what"
+          ]
+        },
+        {
+          "file": "03-mirror.png",
+          "scene": "mirror",
+          "caption": "Every answer becomes a dot in your constellation."
+        },
+        {
+          "file": "04-duel.png",
+          "scene": "duel",
+          "caption": "Sealed until tomorrow. Did you call it?"
+        },
+        {
+          "file": "05-group.png",
+          "scene": "group",
+          "caption": "Your people, one question, everyone revealed at once."
+        },
+        {
+          "file": "06-profiles.png",
+          "scene": "profiles",
+          "caption": "Four profiles that fill themselves in as you answer."
+        }
+      ]
+    },
+    "play-phone": {
+      "store": "Play — phone",
+      "expect": "1080×1920",
+      "shots": [
+        {
+          "file": "01-daily.png",
+          "scene": "daily",
+          "caption": "One blind question a day."
+        },
+        {
+          "file": "02-reveal.png",
+          "scene": "reveal",
+          "caption": "Answer first — then see how the world split.",
+          "demoOnlyAffordances": [
+            "Comments",
+            "Who voted what"
+          ]
+        },
+        {
+          "file": "03-mirror.png",
+          "scene": "mirror",
+          "caption": "Every answer becomes a dot in your constellation."
+        },
+        {
+          "file": "04-duel.png",
+          "scene": "duel",
+          "caption": "Sealed until tomorrow. Did you call it?"
+        },
+        {
+          "file": "05-group.png",
+          "scene": "group",
+          "caption": "Your people, one question, everyone revealed at once."
+        },
+        {
+          "file": "06-profiles.png",
+          "scene": "profiles",
+          "caption": "Four profiles that fill themselves in as you answer."
+        }
+      ]
+    }
+  }
+}

@@ -153,21 +153,34 @@ Apple has no equivalent gate — enrollment is ~1–2 days, review usually
 
 ## Phase 4 — Build the listings (do this while the clocks run)
 
-- [ ] **4.1 Screenshots — capture in LIVE mode against seeded production,
-      after real answers exist.** The TestFlight week is the natural
-      moment: ten testers put real k-floored splits on screen. Five screens
-      are worth showing — today's question, a reveal split, the Mirror map,
-      a duel reveal, the logic test mid-puzzle. A Playwright harness
-      against the web build at store viewports renders the same React tree
-      the shells wrap, so those are honest app pixels. Demo mode is the
-      fallback and its honesty badges will show. `LAUNCH-PLAN.md` §store
-      chain.
-- [ ] **4.2 Play feature graphic (1024×500)** — generate from
-      `design/icon/mark.svg` + wordmark + tagline, the way
-      `scripts/gen-icons.mjs` rasterises the launcher set. A build
-      artifact, not a photoshoot.
-- [ ] **4.3 Marketing copy** — title, subtitle, description, keywords, for
-      both stores. The one launch item with no repo material at all.
+The harness, the graphic and the copy all landed 2026-08-03 — what is
+left here is a **recapture against live data**, plus the two forms.
+
+- [ ] **4.1 Recapture the screenshots in LIVE mode.** The harness is
+      built and committed:
+      ```bash
+      npm i -D playwright && npx playwright install chromium   # once
+      npm run build && npm run build:screenshots
+      ```
+      Six scenes × both store sizes (1320×2868 and 1080×1920), asserted
+      against the store specs at generation. **The committed captures are
+      a demo preview, not the shipping set** — the harness names the one
+      that must not be uploaded as-is (the reveal shows Comments and "Who
+      voted", both `!S.live`-gated by D1, so no real user sees them on a
+      live question — App Store 2.3.3). The TestFlight week is the moment
+      to recapture: ten testers put real k-floored splits on screen.
+      *Note the iPad set every guide lists does not apply —
+      `TARGETED_DEVICE_FAMILY = 1`, iPhone only.*
+- [ ] **4.2 Play feature graphic — done.** `npm run build:feature-graphic`
+      → `design/store/feature-graphic.png`, 1024×500, built from
+      `mark.svg` and the app's own stylesheet so it cannot drift from the
+      palette. Regenerate if the mark or tagline changes.
+- [ ] **4.3 Marketing copy — drafted, needs your read.**
+      `design/store/listing.json` carries every field both consoles ask
+      for; `npm run check:store-listing` holds each against its character
+      limit (all currently fit, the longest at 161/170). Edit the voice to
+      taste — it is a draft, not a decision. One placeholder remains:
+      `shared.supportEmail`, the same address as 0.3.
 - [ ] **4.4 Privacy nutrition labels (Apple) + Data safety form (Google).**
       Mandatory; neither store accepts a submission without one. Answer
       from the table in `SHIP-CHECKLIST §3`, which is
@@ -179,9 +192,12 @@ Apple has no equivalent gate — enrollment is ~1–2 days, review usually
       written down if a reviewer asks); **Sensitive info = Yes** (the
       politics result is GDPR Art. 9 data — the form asks what you
       *collect*, not what you publish).
-- [ ] **4.5 Age rating / IARC questionnaire.** Answer it deliberately —
-      the politics test and user display names in group reveals are the
-      inputs that need care. Likely 12+/Teen.
+- [ ] **4.5 Age rating / IARC questionnaire.** The answers are now written
+      down in `SHIP-CHECKLIST §3`, including the scan showing every
+      *content* category is None and the three structural facts that
+      actually drive the rating. Expect 12+/Teen. **Read the Apple 1.2
+      table there before submitting** — the support email from 0.3 is a
+      1.2 dependency, not only a GDPR one.
 
 ## Phase 5 — Production hygiene before the app is public
 
@@ -226,7 +242,8 @@ Apple has no equivalent gate — enrollment is ~1–2 days, review usually
 
 - [ ] **6.1 Pre-flight, before every archive and every upload:**
       ```bash
-      npm run check:store-copy   # must exit 0 — deliberately NOT in CI
+      npm run check:store-copy      # must exit 0 — deliberately NOT in CI
+      npm run check:store-listing   # every field inside its store limit
       npm run check:versions
       npm run build && npx cap sync
       ```
