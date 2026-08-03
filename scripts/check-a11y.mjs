@@ -70,9 +70,29 @@ import { ESLint } from "eslint";
 // Confirmed in Chromium on both panels (person and hub) before removal:
 // open the panel, click inside it, panel stays. Identical with and without.
 //
+// 2026-08-03, fourth pass: 19 → 11. profile-general's 8 were the whole of
+// label-has-associated-control, in one contiguous block of the Basics editor,
+// and they were two different bugs wearing one rule's name:
+//   - Seven <label>Day<Select …/></label> rows. `Select` renders a NATIVE
+//     <select>, so nesting was already valid implicit association and the
+//     markup was accessible — the rule simply cannot see through a custom
+//     component. Fixed by threading an `id` to the <select> and pairing it
+//     with htmlFor, not by declaring `Select` in `controlComponents`:
+//     that option would have made the rule accept the nesting on trust, and
+//     kept accepting it if `Select` were ever rewritten as a div-based
+//     dropdown. Explicit ids state the association where both the linter and
+//     a reader of the call site can check it.
+//   - One <label>City<CityPicker/></label>, which was a REAL defect and the
+//     reason the first fix was worth doing properly. CityPicker renders a
+//     <button> collapsed and an <input role="combobox"> open; both are
+//     labelable, so the wrapper won the accessible-name computation and the
+//     chosen city never reached a screen reader. ui/CityPicker.tsx still
+//     carries the aria-label added to work around it. The wrapper is a plain
+//     <span> caption now, so the cause is gone rather than compensated for.
+// Verified by probe before committing to the approach: nesting a custom
+// component fails the rule, htmlFor+id passes.
+//
 // What is left, and why each is a different bug:
-//   - profile-general (8): label-has-associated-control. Real, unrelated,
-//     and a form-markup fix rather than a dialog one.
 //   - no-autofocus (8) and the rest: recorded above and in D21.
 const BASELINE = {
   "src/v2/ui/CityPicker.tsx": 1,     // autoFocus — see note above
@@ -80,7 +100,6 @@ const BASELINE = {
   "src/v2/spec/app-shell.jsx": 1,
   "src/v2/spec/consequence-beat.jsx": 2,
   "src/v2/spec/group-daily.jsx": 1,
-  "src/v2/spec/profile-general.jsx": 8,
   "src/v2/spec/relmap.jsx": 2,
   "src/v2/spec/suggestions.jsx": 1,
   "src/v2/spec/tweaks-panel.jsx": 1,

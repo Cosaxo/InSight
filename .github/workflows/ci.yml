@@ -41,6 +41,14 @@ jobs:
       # which leaves no warn tier to put existing debt in — and a blanket
       # disable is the failure mode src/v2/README.md exists to prevent.
       - run: npm run check:a11y
+      # …and the half the ratchet cannot see: jsx-a11y checks that a <label>
+      # HAS an htmlFor, never that the htmlFor resolves. profile-general.jsx
+      # traded nesting (which cannot dangle) for seven explicit htmlFor/id
+      # pairs, so a one-sided rename now breaks an association while every
+      # other gate here stays green. Client-only, so it belongs on this job
+      # and deliberately NOT on backend-checks.yml — nothing it says bears on
+      # whether a rules fix is safe to deploy.
+      - run: npm run check:labels
       # Five version numbers that must move together across three files.
       - run: npm run check:versions
       # The city catalogue is parsed at runtime and its names become
