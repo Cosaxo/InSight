@@ -144,6 +144,26 @@ worth buying before invites are a growth loop rather than a test
 convenience — it attaches to the same hosting target with no code change
 beyond `LP_SITE` in `LivePrivacyPanel.tsx`.
 
+**Amendment (2026-08-03) — reconsidered against the fake-user worry, and
+two facts measured.** The owner asked whether anonymous sign-in is at
+odds with the fake-account defense, pre-launch being the last cheap
+moment to change course. The analysis, recorded so the question stays
+answered: identity requirements are a *weaker* defense than what is
+built — emails and Google accounts are farmable in minutes, while D29
+binds counted answers to device attestation (one physical device, a
+bounded number of accounts) and D36 binds callables to the real app
+binary. Requiring accounts would also create the PII surface the product
+defines itself against (D1/D8 posture, the store listing's "no account
+required", the erasure story) while buying nothing attestation does not
+already buy better. D3 stands; the escalation path if attestation ever
+proves insufficient is tightening device-bind (D37's levers), not
+identity. Measured the same day: the **Anonymous provider was never
+enabled in prvfire33** (`accounts:signUp` → `ADMIN_ONLY_OPERATION` with
+the valid public key) — every doc that said "keep Anonymous enabled"
+assumed a state that did not exist. Runbook step 1.3 and SHIP-CHECKLIST
+§2 corrected from "confirm" to "enable"; the scorecard fetch (D33 Phase
+A) waits on the same toggle.
+
 ## D7 · Backend scale ceilings — recorded, not engineered around
 
 **Decision.** Fix what breaks at any size; write down what breaks at scale

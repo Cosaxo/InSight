@@ -514,7 +514,18 @@ Each phase is its own reviewed change — nothing here is licence to start.
   variables, after which any dev session can refresh the committed
   scorecard on a reviewed branch. The key is public by design (it
   ships in the web bundle); putting it in the environment leaks
-  nothing the deployed app does not already publish.
+  nothing the deployed app does not already publish. Do NOT commit
+  the key into the script as a default: GitHub push protection blocks
+  `AIza…` strings and secret scanning flags them forever — the
+  environment variable is the right home. Second measurement, later
+  the same day, WITH the key: anonymous sign-in itself fails with
+  `ADMIN_ONLY_OPERATION` — the **Anonymous provider has never been
+  enabled** in prvfire33 (runbook step 1.3, corrected the same day).
+  The fetch is one console toggle away (Authentication → Sign-in
+  method → Anonymous → Enable); with no users yet, expect the first
+  committed scorecard to honestly report everything unserved or
+  below-floor — its value is the pipeline working and a real
+  `generatedAt` for the staleness rule.
 - **Phase B — close the demo/live gap. TAKEN (D30, 2026-08-01).** The
   promotion path above is the closure: farm output reaches production
   through an operator-run, human-reviewed promotion PR plus a reseed.
