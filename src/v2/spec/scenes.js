@@ -4,6 +4,7 @@
 // spec-index.js load order is semantic — scripts/check-spec-globals.mjs
 // guards the wiring in CI.
 import React from 'react';
+import { IS_DATA } from './sample-data.js';
 
 // scenes.js — Scenes are the one follow list shared by the whole app: the orbit
 // (Mirror) is where you see and manage them, the World feed chip row is the same
@@ -15,7 +16,7 @@ import React from 'react';
   function ensure() {
     if (set) return set;
     try { const v = JSON.parse(localStorage.getItem(LS) || 'null'); if (Array.isArray(v)) set = new Set(v); } catch (e) { /* absent or corrupt payload — fall back to the default initialised above. */ }
-    if (!set) set = new Set(((window.IS_DATA || {}).groups || []).filter((g) => g.joined).map((g) => g.id));
+    if (!set) set = new Set((IS_DATA.groups || []).filter((g) => g.joined).map((g) => g.id));
     return set;
   }
   // the broad feed topic each scene pulls general questions from
@@ -26,8 +27,8 @@ import React from 'react';
   const SUB = { tennis: 'sub_tennis', football: 'sub_football', trail: 'sub_running' };
   // topic hue per scene (from its interest category) — shared by the orbit and the feed chips
   const hueOf = (id) => {
-    const g = (((window.IS_DATA || {}).groups) || []).find((x) => x.id === id);
-    const c = g && (((window.IS_DATA || {}).interestCats) || []).find((x) => x.id === g.cat);
+    const g = (IS_DATA.groups || []).find((x) => x.id === id);
+    const c = g && (IS_DATA.interestCats || []).find((x) => x.id === g.cat);
     return c ? c.hue : null;
   };
   const colorOf = (id) => { const h = hueOf(id); return h == null ? 'var(--accent)' : `color-mix(in oklch, var(--accent) 45%, oklch(0.60 0.12 ${h}))`; };
@@ -37,8 +38,8 @@ import React from 'react';
     topicOf: (id) => TOPIC[id] || null,
     subOf: (id) => SUB[id] || null,
     hueOf, colorOf,
-    defs: () => ((window.IS_DATA || {}).groups || []),
-    mine: () => ((window.IS_DATA || {}).groups || []).filter((g) => ensure().has(g.id)),
+    defs: () => (IS_DATA.groups || []),
+    mine: () => (IS_DATA.groups || []).filter((g) => ensure().has(g.id)),
     list: () => [...ensure()],
     has: (id) => ensure().has(id),
     follow: (id) => { ensure().add(id); persist(); },

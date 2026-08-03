@@ -6,7 +6,7 @@
 import React from 'react';
 
 // Sample data for InSight prototype — richer than repo defaults
-window.IS_DATA = {
+export const IS_DATA = {
   me: {
     name: "Mira Halvorsen",
     initials: "MH",
@@ -710,10 +710,9 @@ window.IS_DATA = {
 };
 
 // compact population formatter — 340, 9.4k, 1.2M
-window.fmtPop = function (n) {
+export function fmtPop(n) {
   if (n == null) return '—';
   if (n >= 1e6) { const v = n / 1e6; return (v >= 10 ? Math.round(v) : Math.round(v * 10) / 10) + 'M'; }
   if (n >= 1000) { const v = n / 1000; return (v >= 10 ? Math.round(v) : Math.round(v * 10) / 10) + 'k'; }
   return String(n);
-};
-
+}

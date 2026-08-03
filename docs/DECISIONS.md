@@ -3379,3 +3379,418 @@ the candidates: the data layer's weak spots are `live.ts` (58% statements,
 and `push.ts` at zero — the latter two by nature, since D9's four location
 failure paths were driven in a real browser rather than in jsdom. Extract
 against that report, one module per change.
+
+---
+
+## D39 · The spec-layer migration gets a meter, and two figures get a gate
+
+**Date:** 2026-08-03 · **Status:** Adopted
+
+**Decision.** `check:globals` gains a fourth rule: the number of
+cross-module shared-global references, counted **per file**, may only go
+down. The baseline is 799 sites across 57 files. New coupling fails CI;
+removed coupling also fails, asking for the baseline to come down with it.
+
+### Why a ratchet and not a plan
+
+`src/v2/README.md` has carried a "Migration path (Phase 2+)" section since
+the port landed, and `CLAUDE.md` calls the shared-global convention
+"deliberate and temporary". Thirty-eight records later it is neither
+finished nor started. Nothing measured it, so there was never a moment
+where anyone had to notice.
+
+The uncomfortable part is that the four existing guards are *why*. Each one
+absorbs a class of bug the convention creates — dangling references,
+forgotten imports, undefined JSX tags, globals that exist but are wrong at
+render time — and together they make the layer survivable enough to keep
+indefinitely. That is a good outcome for correctness and a bad one for the
+migration: the guards removed the pain that would otherwise have argued for
+leaving. Rule 4 is the counterweight, and it is the smallest thing that
+could be: not a deadline, not a target number, only a direction.
+
+### What it counts, and why the mechanism needs no bookkeeping
+
+Every site where a file reads a name **another** file in the scanned set
+assigns to global scope — `window.LIVE`, `<Chip/>`, `globalThis.DUELS`.
+That is the coupling itself rather than a proxy for it.
+
+The scanner already suppresses a JSX reference when the file declares the
+name locally, and an `import { Chip }` is a local declaration. So
+converting a consumer to a real import drops its sites to zero on its own,
+with nothing to update by hand. Verified by performing both mutations
+before trusting the rule: adding `window.DUELS` to `vote-cuts.js` fails it
+upward (1 → 2), and rewriting `logic-test.jsx`'s `window.LOGIC_GEN` as an
+import fails it downward (1 → 0) with the replacement literal printed.
+
+### The order this implies, which is not the order intuition gives
+
+The graph was measured rather than guessed: 81 files, 319 owned globals,
+230 file→file edges, 20 cycles. It is not uniformly tangled. **28 files are
+pure providers** — consumed by others, depending on nothing themselves —
+and those can convert with no load-order risk at all, `primitives.jsx` (22
+consumers) first. Each moves as an `export` plus a `globalThis.X = X`
+compat line, so unconverted consumers keep working and the count does not
+move until they follow.
+
+The cycles are the part to leave alone, and they cluster on
+`daily-split.jsx`, `test-definitions.js` and `app-shell.jsx`. ESM handles
+cyclic value bindings badly and fails at render, which is this layer's
+worst class of bug. Those dissolve by extraction into `data/` — the move
+`deck.ts` and `groupPortrait.ts` already demonstrate — not by conversion in
+place.
+
+### And the figures gate, for the fourth instance of one error
+
+`npm run check:figures` holds README.md's quoted test counts equal to the
+suites. It exists because the count said **40 in two places while the rules
+suite ran 44**.
+
+That is the fourth instance of a single failure: the spec layer's
+suppression count went stale twice (42, then 27) — the second time inside
+the paragraph explaining that it is quoted inline *because* it had gone
+stale before — and the a11y baseline once (19 after a pass took it to 11).
+D35 closed those three by making `check:a11y` recompute them. The lesson
+generalises and had not been generalised: a number that lives in prose and
+in the tree needs something holding them equal, and a paragraph asking
+people to keep it current is not that something.
+
+It is a separate script rather than a fifth job for `check-a11y.mjs`,
+because a doc mismatch reported by a gate named "a11y" reads as an
+accessibility regression — the confusion that script's own header warns
+about. It is on `ci.yml` and deliberately **not** on `backend-checks.yml`:
+a stale README figure says nothing about whether a rules fix is safe to
+deploy, and nothing that cannot answer that question gets to block one.
+
+Coverage percentages are out of scope and the script says so — they need a
+full coverage run, and the prose already hedges them as "what it says
+today".
+
+---
+
+## D7 amendment (2026-08-03) · The retry-logging trigger now has an instrument
+
+D7 names the condition for revisiting the sharding decision: "when
+`onV2AnswerCreated` starts logging transaction retries." **It never logged
+them**, and `docs/DEPLOYMENT.md` separately claimed the error alert was how
+that signal reached anyone. Both were describing a path with no source at
+either end.
+
+Contention is not an error. Firestore's SDK retries an ABORTED transaction
+inside `runTransaction`; the write commits, nothing is logged above INFO,
+and a policy filtering `severity>=ERROR` cannot match the condition however
+severe it gets. The only place a retry is visible is inside the callback,
+by counting its own invocations — which is what `runAggTransaction`
+(`functions/src/v2.ts`) now does, logging at three attempts with the `qid`
+attached. Three, not two: one attempt is the normal case and two is
+ordinary interleaving.
+
+`monitoring/onV2AnswerCreated-contention.json` and a log-based metric turn
+that into an alert; both are applied by hand, like the error policy, and
+for the same reason (the deploy service account has no monitoring role).
+
+**A correction to this record's own framing while here.** D7 says of the
+uniform publish cadence: "the public mirror is not rewritten on every
+answer — it publishes every 5th, cutting writes to `pubRef` by ~80%." True,
+and it reads as though the ceiling moved. It did not. `privRef` is written
+on **every** answer inside the same transaction, and a transaction is
+bounded by its most contended document, so the ~1 write/sec/question
+ceiling is exactly where the arithmetic above puts it. `PUBLISH_EVERY`
+bought a disclosure fix and a cost reduction, not headroom.
+
+**What would move it**, when the instrument says it is time: shard
+`v2_aggs_private/{qid}` alone. D7 priced sharding as XL on the basis of "N
+shard docs, a periodic roll-up, a new scheduled function, a deploy-allowlist
+edit" — but two of those four fall away if only the private document is
+sharded, because the publish path already runs 1-in-5 and is already the
+only reader of the total. It sums the shards there. No roll-up job, no new
+function, no allowlist entry. At N=10 the cost is ~2 extra reads per answer
+amortised for 10× the headroom, and the e2e's exact-count assertions need
+one helper rather than two rewrites. Still not worth doing at zero users;
+worth recording as an M rather than an XL, so the decision is made against
+the real price.
+
+### D39 amendment (2026-08-03) · `primitives.jsx` is converted, and the ratchet had a hole
+
+The first module is off the bridge. `primitives.jsx` — the layer's most
+consumed provider, and one that depends on nothing itself — now exports its
+eleven names and **publishes nothing to `globalThis` at all**. All 24
+consumers import them. **799 → 755.**
+
+**The compat line this record recommended turned out to be unnecessary**,
+and that is worth carrying forward rather than quietly dropping. D39 says to
+export with `globalThis.X = X` beneath so unconverted consumers keep
+working. That is the right shape when the consumer set is open-ended; here
+it was closed — 24 files, all in `spec/`, with the only other mentions of
+these names being three comments in `ui/` and `test/`. Checking that first
+turns a two-step migration into a one-step one, and avoids leaving dead
+compat behind. The rule to carry: grep for the full consumer set before
+assuming a bridge is needed.
+
+### The hole, found by doing the work rather than by review
+
+`daily-split.jsx` renders `h(Sheet, {…})` — a cross-module reference
+written through a `React.createElement` alias. **Rule 3 could not see it**
+(not a JSX tag), **rule 1 could not see it** (not `window.X`), and so
+**rule 4 did not count it**. Only `no-undef` was watching, and `no-undef`
+counts nothing.
+
+That is worse than an undercount by one. A ratchet whose job is that the
+number cannot go up was bypassable by writing the reference in a different
+syntax. The scanner now matches `h(Capitalised…)` the same way it matches a
+tag, with the same local-declaration suppression.
+
+Fixing it exposed a second scanner defect underneath, which is why the
+first one mattered: `const st = this.state, h = React.createElement, F =
+React.Fragment;` declares `F` locally, but the local-name scan only ever
+looked at the **first** declarator in a list, so `h(F, …)` immediately
+reported `F` as an undefined global. Per this repo's standing rule — if a
+gate fires on a legitimate name, fix the scanner, never add an exception —
+the declarator-list case is now handled. Neither defect changed the count
+(both names resolve locally), so the baseline is unaffected; what changed
+is that the count can no longer be avoided.
+
+### Two gates, and neither covers both reference styles
+
+Verified by deleting an import and watching which gate failed:
+
+| reference | caught by | why not the other |
+| --- | --- | --- |
+| `<Sheet/>` | `check:globals` rule 1 | base `no-undef` does not treat JSX tag names as identifier references |
+| `useDialog(…)` | eslint `no-undef` | rule 1 only matches `window.X`, and rule 3 only capitalised tags |
+
+Worth stating because the obvious assumption — that `npm run lint` going
+green means no bare references survive a conversion — is false, and it was
+the assumption in play when `result-card.jsx`'s two `window.Av` sites went
+unconverted. Lint passed; `check:globals` caught them.
+
+Those two were a defensive guard, `{window.Av ? … <window.Av /> …}`, which
+only existed because load order could leave the global unset. An import
+cannot be unset, so the guard was deleted rather than rewritten — the
+conversion removes the condition, not just the prefix.
+
+**The figure in `src/v2/README.md` is gate-checked**, in
+`check-spec-globals.mjs` rather than in `check-figures.mjs`, because that
+script owns the count and a second implementation of it would be the drift
+the gate exists to prevent.
+
+### D39 amendment (2026-08-03, later) · `sample-data.js` converted — 755 → 726
+
+The second module off the bridge, and the layer's largest data module (719
+lines). `IS_DATA` and `fmtPop` are exports; nothing assigns to `window`.
+`scenes.js` is now the first file in `spec/` with **no cross-module global
+references at all**, which is the shape the migration is aiming at one file
+at a time.
+
+Two differences from `primitives.jsx`, both of which generalise:
+
+**The consumer set was not closed.** `test/smoke.test.jsx` reads `IS_DATA`
+to pick a real person and city for its overlay cases — using the fixture
+rather than hardcoding a name, deliberately, so the test does not silently
+stop finding anybody when the sample data is edited. So the conversion
+reached into `test/`. The previous amendment's rule stands and gets sharper:
+grep `ui/`, `data/`, `test/` and `main.jsx` before assuming a provider's
+consumers live only in `spec/`, because that answer is what decides whether
+a compat line is needed at all.
+
+**Every reference was `window.IS_DATA`, not a bare name.** Nine carried
+`(window.IS_DATA || {})` or `window.IS_DATA?.` — the same
+might-not-be-loaded guard `result-card.jsx` had around `Av`, and dead for
+the same reason: an imported const cannot be unset, and `sample-data.js`
+depends on nothing, so no cycle can put it in TDZ. Removed. The **inner**
+`|| []` / `|| {}` on `.groups`, `.people`, `.me` stayed — those guard
+missing data rather than a missing module, and conflating the two would
+have deleted real defensive code.
+
+That distinction is the one to carry: converting a provider removes the
+load-order condition, never the data condition.
+
+**The bundle number moved and it is not a win.** Entry chunk 853 → 818 KB,
+because `sample-data` became its own chunk — one that first paint still
+preloads, since `app-shell` imports it eagerly. Total JS is unchanged at
+1529 KB. This is exactly the case `check:bundle`'s header predicts ("a
+per-chunk limit alone is dodged by splitting one large chunk into two
+merely-large ones"), and the reason it asserts a total as well. Recorded so
+that the extra headroom under the 850 KB ceiling is not read as room that
+was earned.
+
+### D39 amendment (2026-08-03, third) · `daily-questions.js` — 726 → 708
+
+The first conversion where the module was **not** a pure provider, and the
+first where the conversion removed a real fragility rather than a syntax.
+
+**It is not a leaf, and that did not matter.** `daily-questions.js` reads
+`window.LIVE` in three places, so unlike `primitives.jsx` and
+`sample-data.js` it carries outgoing coupling of its own — which stays.
+Converting what a module *provides* is independent of what it *consumes*;
+the earlier records' "providers that depend on nothing" ordering is about
+load-order risk being zero, not a precondition. Do not wait for a module to
+be a leaf before exporting from it.
+
+**The IIFE.** `window.DAILYQ = api` sat inside a `(function(){…})()`
+wrapper, so `api` was not reachable at module top level. The wrapper is
+vestigial — an ESM module already has its own scope, and it is what this
+file needed when every module shared one — but unwrapping it re-indents 480
+lines and would bury four real edits in a whitespace diff. So the binding is
+hoisted (`export let DAILYQ;` above, assigned inside) rather than the
+wrapper removed. ESM exports are live and the module finishes evaluating
+before any importer's body runs, so a consumer never sees the hole. Recorded
+because the next IIFE-wrapped module should get the same treatment and not a
+reflexive de-indent.
+
+### The fragility this one removed
+
+`map-branches.js` reads `DAILYQ.EMERGENT_CATS` at **module-evaluation
+time** — not in a component, not on an event — to merge seven topical
+categories into the Map's category list. It worked only because
+`spec-index.js` lists `daily-questions.js` fifth and `map-branches.js`
+eleventh. Swapping those two lines would have dropped all seven categories
+**silently**: the old code was `if (window.DAILYQ && Array.isArray(…))`, so
+an unset global meant the merge simply did not happen, with no error
+anywhere and a Map that looked plausible.
+
+That is precisely the failure class CLAUDE.md describes the spec layer's
+load order as carrying, and it is now a module-graph guarantee instead of a
+property of a list nobody may reorder. The presence half of that guard is
+gone with it; the `Array.isArray` half stays, per the rule from the
+`sample-data.js` amendment — a conversion removes the load-order condition,
+never the data one.
+
+**Verified by probe rather than by reasoning**, since a silent no-op is the
+exact failure: all seven (`top-sport`, `top-film`, `top-food`, `top-travel`,
+`top-mind`, `top-morals`, `top-music`) still merge into `MapLens.CATS`
+after the change.
+
+Entry chunk 818 → 793 KB, same relocation-not-saving as the last one —
+total JS unchanged at 1529 KB across 34 chunks.
+
+### D39 amendment (2026-08-03, fourth) · `world-catalogs.js` — 708 → 691, and the meter was overcounting
+
+Two independent things, worth separating because only one of them is the
+tree improving.
+
+**Half the module converts.** `world-catalogs.js` assigns two names and only
+one is its export. `WF_CATALOGS` is a plain data object with a single
+writer; it converted like the others, and all six consumer sites in
+`world-feed.jsx` carried the same `(window.WF_CATALOGS || {})` load-order
+guard, now gone.
+
+`WORLD_FEED_QS` did **not** convert, deliberately. It has four writers:
+`world-feed-data.js` creates the pool, this file and `world-subtopics.js`
+append to it, and `data/live.ts` replaces it wholesale in live mode — which
+is how D11's guarantee that demo catalogue cards never reach live surfaces
+is implemented. Making that an ESM export means designing an owning module
+with an add/replace API and moving four writers onto it, across the
+live/demo boundary. That is a design change, not a conversion, and it does
+not belong in a batch of mechanical ones. The append site now carries that
+reasoning inline so the next person does not have to re-derive it.
+
+**The ratchet was overcounting, and this is how it surfaced.** `definedBy`
+was a first-assignment-wins map, so a multi-writer global got one arbitrary
+owner decided by `readdir` order. `world-catalogs.js` sorts before
+`world-feed-data.js`, so it was recorded as owning `WORLD_FEED_QS` — and
+`world-feed-data.js`'s five reads of **the global it creates itself** were
+counted as coupling to a file that merely appends to it. Same for
+`world-subtopics.js`.
+
+It is now `Map<name, Set<file>>`, and rule 4 asks "does this file assign
+this name?" — a question that still has an answer when several files do.
+**11 of this change's 17-site drop are that correction**, not converted
+code.
+
+Recorded at this length because of what the failure was: a ratchet
+miscounting in the *flattering* direction is the one error it cannot report
+about itself. The number went down for a reason that was not progress, and
+the only thing standing between that and a quietly wrong meter was someone
+reading the attribution while doing an unrelated conversion. The first
+multi-writer global to be converted would have moved the count in the wrong
+direction and looked like a regression.
+
+### D39 amendment (2026-08-03, fifth) · `follows.js` — 691 → 673, and a guard shape the earlier conversions missed
+
+`FRIENDS` is IIFE-wrapped like `DAILYQ` and took the same hoisted
+`export let`. Its 18 sites across four consumers were unusually dense in
+presence guards — six of them — and one was another module-scope read:
+`duels-data.js` ends with `FRIENDS.subscribe(fire)`, which is what makes a
+befriend or unfriend ripple into duos and groups. It was written
+`if (window.FRIENDS) window.FRIENDS.subscribe(fire)`, so reordering
+`spec-index.js` would have dropped the subscription **silently** — the same
+failure `map-branches.js` carried, in a different feature. Probed rather
+than reasoned about: inviting a friend still fires the DUELS listeners.
+
+**A miss from the `sample-data.js` conversion, found and fixed here.** That
+change removed the `(window.IS_DATA || {})` and `window.IS_DATA?.` shapes by
+explicit rewrite and then renamed the rest in bulk. That left four sites
+reading `(IS_DATA && IS_DATA.people) || []` — dead for the same reason the
+others were, and invisible to every gate in the tree, because a redundant
+`&&` is valid code that computes the right answer.
+
+Worth recording as a method correction rather than a typo. The guard shapes
+are a **list**, not a pattern:
+
+    (X || {})      X?.        X ? … : …
+    !X || …        X && …     if (X) …
+
+Grep the name and read every site. A bulk rename is the right tool for the
+reference itself and the wrong tool for the conditions around it, and
+nothing downstream will tell you — `check:globals` sees no coupling, eslint
+sees valid code, and the tests pass because the guard evaluates true.
+
+### D39 amendment (2026-08-03, sixth) · `result-rose.jsx` — 673 → 657, and the seam is exhausted
+
+Four exports (`RP_TESTS`, `RoseMini`, `PoleRows`, `TestRose`), sixteen
+sites, and all seven `(window.RP_TESTS || {})` guards.
+
+**Half its globals had no consumers.** `RosePetals`, `rpPetal`, `rpDeep`
+and `rpDot` were on `window` because the port registered every top-level
+declaration, not because anything read them. As a real module they are
+private, so this removed **eight** names from the global namespace to
+export four. That ratio should be expected again: the bridge published
+everything, so a converted module usually exports fewer names than it used
+to publish. Global count across the layer is now 310, from 334 when the
+ratchet landed.
+
+### Where this stops, and why
+
+Six providers converted, 799 → 657 (**18%**). The pure-provider list is now
+empty, and the remaining 657 references are not more of the same work.
+
+They are concentrated in files that are **consumers**, not providers:
+`world-feed.jsx` (165), `daily-split.jsx` (79), `app-shell.jsx` (51),
+`mirror-field-pops.jsx` (33), `map-tab.jsx` (30), `test-overlay.jsx` (27).
+Their providers are the cycle cluster — `test-definitions.js`,
+`passive-progress.js`, and `daily-split.jsx` itself, which is both. An ESM
+cycle fails at render with a temporal-dead-zone error, and a render-time
+failure in ported JSX is precisely this layer's worst bug class and the
+reason four guards exist.
+
+So the next step is **not** another conversion. It is the extraction this
+record already names: `passive-progress` and `test-definitions` are a store
+and a schema, neither needs JSX, and moving them to `data/` as typed tested
+modules dissolves both cycles as a side effect. That is a different size of
+change and wants planning, not momentum.
+
+**What the six conversions actually bought**, stated plainly so the next
+decision is made on evidence:
+
+- Three live load-order landmines removed — module-scope reads behind
+  presence guards, where reordering `spec-index.js` would have silently
+  dropped a feature with no error: `map-branches.js` (seven map
+  categories), `duels-data.js` (circle changes rippling into duos and
+  groups), and `world-feed-data.js`'s pool ordering, which is now a
+  dependency rather than a comment.
+- Three defects in the gate itself: the `h(Foo, …)` blind spot, the
+  multi-writer mis-attribution that overcounted by 11, and the
+  declarator-list local-name miss.
+- 24 dead load-order guards deleted, and 24 names off `window`.
+- **No behaviour change, no bundle saving, no user-visible effect.** Entry
+  chunk moved 858 → ~790 KB and total JS did not move at all; that is
+  chunking, not weight.
+
+The honest read: this was worth doing at the price it cost, because each
+conversion was an afternoon and each surfaced something real. The next
+tranche costs considerably more and surfaces less, and this project's
+binding constraint is a launch checklist with unticked device verification,
+not the elegance of its module graph. The ratchet is what makes stopping
+safe — the number cannot go back up, so the work can resume opportunistically
+(**convert on touch**: when a feature takes you into a spec file, convert
+the providers it reads first) rather than as a project.

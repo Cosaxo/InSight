@@ -48,6 +48,7 @@
 import { beforeAll, afterEach, describe, expect, it, vi } from "vitest";
 import React from "react";
 import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { IS_DATA } from "../spec/sample-data.js";
 
 // 15s per test, not the 5s default: every case here mounts the FULL app in
 // jsdom, and the v15 revision roughly doubled the spec layer's feed weight —
@@ -272,10 +273,10 @@ describe("the overlays with no button — opened through window.*", () => {
   it("opens a person's profile", async () => {
     const expectNoBoundary = mountApp();
     // Named from the fixture rather than hardcoded: openPerson looks the
-    // record up in window.IS_DATA, so a hardcoded name would start silently
+    // record up in IS_DATA, so a hardcoded name would start silently
     // finding nobody the day the sample data is edited — and the overlay
     // would never open, which is the vacuous pass this file guards against.
-    const who = (window.IS_DATA.people || []).find((p) => p.name && !p.anon);
+    const who = (IS_DATA.people || []).find((p) => p.name && !p.anon);
     expect(who, "sample data has no named person to open").toBeTruthy();
     await openVia("openPerson", who);
     // The heading is anonName(p), which is the plain name for a non-anon
@@ -287,7 +288,7 @@ describe("the overlays with no button — opened through window.*", () => {
 
   it("opens a city's profile", async () => {
     const expectNoBoundary = mountApp();
-    const city = (window.IS_DATA.cities || [])[0];
+    const city = (IS_DATA.cities || [])[0];
     expect(city, "sample data has no cities to open").toBeTruthy();
     await openVia("openCity", city.name);
     expectOpened(new RegExp(city.name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")), "city overlay");
@@ -316,8 +317,8 @@ describe("the overlays with no button — opened through window.*", () => {
       ["TestOverlay", "openTest", []],
       ["SuggestOverlay", "openSuggestions", []],
       ["LogicOverlay", "openLogicTest", []],
-      ["PersonOverlay", "openPerson", () => [(window.IS_DATA.people || []).find((p) => p.name && !p.anon)]],
-      ["CityOverlay", "openCity", () => [(window.IS_DATA.cities || [])[0]?.name]],
+      ["PersonOverlay", "openPerson", () => [(IS_DATA.people || []).find((p) => p.name && !p.anon)]],
+      ["CityOverlay", "openCity", () => [(IS_DATA.cities || [])[0]?.name]],
     ];
 
     for (const [global, opener, argsFor] of GUARDED) {

@@ -4,6 +4,7 @@
 // spec-index.js load order is semantic — scripts/check-spec-globals.mjs
 // guards the wiring in CI.
 import React from 'react';
+import { DAILYQ } from './daily-questions.js';
 
 // InSight — Map tab: a constellation of every Daily-Question answer around a
 // ring of profile anchors (age · work · study · the test results). Tap an
@@ -24,7 +25,7 @@ function MapTab({ rail = true, anchorsOn = true, recency = true, fields: fieldsO
   // ── nodes: every daily answer, filed by its question's branch path ────────
   const [dqv, setDqv] = useState(0);
   useEffect(() => {
-    if (window.DAILYQ && window.DAILYQ.subscribe) return window.DAILYQ.subscribe(() => setDqv((x) => x + 1));
+    if (DAILYQ.subscribe) return DAILYQ.subscribe(() => setDqv((x) => x + 1));
   }, []);
   useEffect(() => {
     if (window.LEARN && window.LEARN.subscribe) return window.LEARN.subscribe(() => setDqv((x) => x + 1));
@@ -33,7 +34,7 @@ function MapTab({ rail = true, anchorsOn = true, recency = true, fields: fieldsO
     if (window.DUELS && window.DUELS.subscribe) return window.DUELS.subscribe(() => setDqv((x) => x + 1));
   }, []);
   const built = useMemo(() => {
-    const D = window.DAILYQ;
+    const D = DAILYQ;
     const out = []; const subSeen = new Map(); const topSeen = new Map(); const counts = {};
     if (D) D.answered().forEach((q) => {
       const idx = D.myAnswer(q);

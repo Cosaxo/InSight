@@ -13,7 +13,7 @@ import React from 'react';
 // Colours link chart ↔ rows, so almost no labels are repeated.
 
 // ── Per-test config: banner colour, hue per dimension, pole pairs ──
-const RP_TESTS = {
+export const RP_TESTS = {
   big5: {
     banner: 'oklch(0.48 0.11 30)',
     kicker: 'Personality · Big Five',
@@ -118,7 +118,7 @@ function RosePetals({ dims, hueOf, subOf, animate }) {
 }
 
 // ── RoseMini — tiny label-free rose for list cards (same encoding as TestRose) ──
-function RoseMini({ testKey, dims, size = 46 }) {
+export function RoseMini({ testKey, dims, size = 46 }) {
   const cfg = RP_TESTS[testKey];
   if (!cfg || !dims || !dims.length) return null;
   const hueOf = (id, i) => (cfg.hues[id] != null ? cfg.hues[id] : (30 + i * 47) % 360);
@@ -140,7 +140,7 @@ function RoseMini({ testKey, dims, size = 46 }) {
 }
 
 // ── Pole rows — each score on its bipolar axis, hollow ring = most people ──
-function PoleRows({ dims, poles, hueOf, avg }) {
+export function PoleRows({ dims, poles, hueOf, avg }) {
   const pos = (v) => 5 + (Math.max(0, Math.min(100, v)) / 100) * 90;
   return (
     <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', gap: 15 }}>
@@ -183,7 +183,7 @@ function PoleRows({ dims, poles, hueOf, avg }) {
 // values) encode petal length as CONVICTION (distance from centre) and label
 // each petal with the pole it leans toward — a raw 13-of-100 is a strong
 // stance, not a short petal. Unipolar tests keep score = length. ──
-function TestRose({ testKey, dims, animate }) {
+export function TestRose({ testKey, dims, animate }) {
   const cfg = RP_TESTS[testKey];
   if (!cfg || !dims || !dims.length) return null;
   const hueOf = (id, i) => (cfg.hues[id] != null ? cfg.hues[id] : (30 + i * 47) % 360);
@@ -195,14 +195,3 @@ function TestRose({ testKey, dims, animate }) {
     : null;
   return <RosePetals dims={roseDims} hueOf={hueOf} subOf={subOf} animate={animate} />;
 }
-
-Object.assign(window, { RosePetals, PoleRows, TestRose, RoseMini, RP_TESTS });
-
-;globalThis.RosePetals = typeof RosePetals === 'undefined' ? globalThis.RosePetals : RosePetals;
-;globalThis.RoseMini = typeof RoseMini === 'undefined' ? globalThis.RoseMini : RoseMini;
-;globalThis.PoleRows = typeof PoleRows === 'undefined' ? globalThis.PoleRows : PoleRows;
-;globalThis.TestRose = typeof TestRose === 'undefined' ? globalThis.TestRose : TestRose;
-;globalThis.RP_TESTS = typeof RP_TESTS === 'undefined' ? globalThis.RP_TESTS : RP_TESTS;
-;globalThis.rpPetal = typeof rpPetal === 'undefined' ? globalThis.rpPetal : rpPetal;
-;globalThis.rpDeep = typeof rpDeep === 'undefined' ? globalThis.rpDeep : rpDeep;
-;globalThis.rpDot = typeof rpDot === 'undefined' ? globalThis.rpDot : rpDot;

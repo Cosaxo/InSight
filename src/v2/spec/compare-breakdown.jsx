@@ -4,6 +4,8 @@
 // spec-index.js load order is semantic — scripts/check-spec-globals.mjs
 // guards the wiring in CI.
 import React from 'react';
+import { RP_TESTS } from './result-rose.jsx';
+import { Kicker } from './primitives.jsx';
 
 // compare-breakdown.jsx — "you vs them" across every assessment, in the SAME
 // visual language as the results profile (result-rose.jsx): per-trait hue
@@ -33,7 +35,7 @@ const CB_EXTRA_CFG = {
     },
   },
 };
-const cbCfg = (kind) => (window.RP_TESTS || {})[kind] || CB_EXTRA_CFG[kind];
+const cbCfg = (kind) => RP_TESTS[kind] || CB_EXTRA_CFG[kind];
 
 // Which assessments to show, in order. Dims (ids, labels, your values) come
 // from IS_TEST_RESULTS so compare stays in sync with retakes.

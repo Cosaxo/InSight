@@ -18,7 +18,7 @@
 //
 // Schema and access decisions: docs/SCHEMA-V2.md, docs/DECISIONS.md (D5).
 
-import { getFirestore, FieldValue } from "firebase-admin/firestore";
+import { getFirestore, FieldValue, type Firestore, type Transaction } from "firebase-admin/firestore";
 import { onCall } from "firebase-functions/v2/https";
 import { assertOperator, HOT_TRIGGER } from "./ops";
 import { onDocumentCreated } from "firebase-functions/v2/firestore";
@@ -94,6 +94,59 @@ function ledgerEntry(uid: string, qid: string) {
     at: FieldValue.serverTimestamp(),
     expireAt: new Date(Date.now() + LEDGER_RETENTION_DAYS * 86400000),
   };
+}
+
+// ── contention, made observable ─────────────────────────────────
+//
+// D7 records the per-question write ceiling — Firestore sustains roughly
+// one write per second per document, and both documents these
+// transactions touch are single docs keyed by qid — and then names the
+// condition for revisiting it: "when onV2AnswerCreated starts logging
+// transaction retries". It never logged them. The condition was written
+// as though the instrument existed, so the first evidence of the ceiling
+// would have been a Mirror that stopped moving and nobody able to say why.
+//
+// Firestore's SDK retries an ABORTED transaction inside runTransaction, so
+// a retry leaves no trace outside unless the callback counts its own
+// invocations. One attempt is the normal case and two is ordinary
+// interleaving; three is the ceiling arriving, which is why that is where
+// this logs. A line per contended answer, not per answer.
+//
+// WHAT PUBLISH_EVERY DID NOT BUY. It cuts writes to pubRef by ~80% and
+// closes a disclosure channel (see the constant above), and it is easy to
+// read that as headroom. It is not: privRef is written on EVERY answer
+// inside the same transaction, and a transaction is bounded by its most
+// contended document. The ceiling is exactly where D7's arithmetic puts
+// it. This measures it; sharding privRef is what would move it.
+const CONTENTION_ATTEMPTS = 3;
+
+// Exported for its test only — nothing outside this module calls it. The
+// test drives a fake `runTransaction` that invokes the callback N times,
+// which is the one thing worth pinning here: the threshold, and that a
+// body's failure still propagates rather than being swallowed by the
+// counter. Whether Firestore re-invokes the callback on ABORTED is its
+// contract, not something a unit test can establish.
+export async function runAggTransaction(
+  db: Firestore,
+  qid: string,
+  body: (tx: Transaction) => Promise<void>,
+): Promise<void> {
+  let attempts = 0;
+  await db.runTransaction(async (tx) => {
+    attempts += 1;
+    await body(tx);
+  });
+  // Structured fields as well as the message: the message is what a human
+  // greps, the fields are what a log-based metric groups by. Both, because
+  // monitoring/onV2AnswerCreated-contention.json counts these and an
+  // operator then wants to know WHICH question.
+  if (attempts >= CONTENTION_ATTEMPTS) {
+    logger.warn(`[v2] aggregate contention on ${qid} — ${attempts} attempts`, {
+      metric: "agg_contention",
+      qid,
+      attempts,
+    });
+  }
 }
 
 // Catalog questions (docs/CATALOG-QUESTIONS.md): the reveal's leaderboard
@@ -276,7 +329,7 @@ export const onV2AnswerCreated = onDocumentCreated(
       const privRef = db.collection("v2_aggs_private").doc(qid);
       const pubRef = db.collection("v2_question_aggs").doc(qid);
       const qRef = db.collection("v2_questions").doc(qid);
-      await db.runTransaction(async (tx) => {
+      await runAggTransaction(db, qid, async (tx) => {
         const seen = await tx.get(eventRef);
         if (seen.exists) return;
         // The question's domain decides which key space validates this
@@ -350,7 +403,7 @@ export const onV2AnswerCreated = onDocumentCreated(
     const eventRef = db.collection("v2_agg_events").doc(event.id);
     const privRef = db.collection("v2_aggs_private").doc(qid);
     const pubRef = db.collection("v2_question_aggs").doc(qid);
-    await db.runTransaction(async (tx) => {
+    await runAggTransaction(db, qid, async (tx) => {
       // Idempotency: Eventarc is at-least-once and retry is on — the
       // ledger makes redelivery a no-op instead of a double count.
       const seen = await tx.get(eventRef);

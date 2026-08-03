@@ -4,6 +4,7 @@
 // spec-index.js load order is semantic — scripts/check-spec-globals.mjs
 // guards the wiring in CI.
 import React from 'react';
+import { Kicker } from './primitives.jsx';
 
 // profile-test-viz.jsx — distinctive visuals for the per-test profile tabs.
 // Each test gets a recognizable hero chart rather than the generic dot-line:

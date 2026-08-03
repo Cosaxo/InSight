@@ -14,7 +14,7 @@ import React from 'react';
 // is implied by `total` — the app knows the full list; this is the part that has
 // enough votes to rank. `picks` is the total answers, so every share is a real
 // fraction of the whole vote and the untallied tail is honest arithmetic.
-window.WF_CATALOGS = {
+export const WF_CATALOGS = {
   films: {
     noun: 'films', shape: 'poster', hue: 310, total: 812, picks: 47000,
     items: [
@@ -102,5 +102,13 @@ window.WF_CATALOGS = {
     // keyed to the real committed Pokédex rather than this 20-entry demo
     // head — two cards asking the same thing would race each other in the feed.
   ];
+  // WORLD_FEED_QS stays a shared global, deliberately (D39). It is not this
+  // module's export to convert: world-feed-data.js CREATES the pool, this
+  // file and world-subtopics.js APPEND to it, and data/live.ts REPLACES it
+  // wholesale in live mode. Turning that into an ESM export means designing
+  // an owner with an add/replace API and moving four writers onto it — a
+  // design change, not a mechanical conversion, and one that touches the
+  // live/demo boundary. WF_CATALOGS above has a single writer and converted
+  // on its own.
   window.WORLD_FEED_QS = (window.WORLD_FEED_QS || []).concat(QS);
 })();

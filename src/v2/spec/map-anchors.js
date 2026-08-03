@@ -4,6 +4,7 @@
 // spec-index.js load order is semantic — scripts/check-spec-globals.mjs
 // guards the wiring in CI.
 import React from 'react';
+import { IS_DATA } from './sample-data.js';
 
 // InSight — Map anchors: the profile facts every daily answer reads against.
 // Eight anchors — age, work, study, plus the five test results — sit in a ring
@@ -19,7 +20,7 @@ import React from 'react';
       .map((d) => d.label + ' ' + d.value).join(' · ');
   }
   function list() {
-    const me = (window.IS_DATA || {}).me || {};
+    const me = IS_DATA.me || {};
     const s = me.stats || {};
     return [
       { id: 'age',        label: 'Age',      hue: 265, value: 'age ' + (s.age || 34),                sub: 'born ' + (s.birthYear || 1991) },

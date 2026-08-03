@@ -4,6 +4,8 @@
 // spec-index.js load order is semantic — scripts/check-spec-globals.mjs
 // guards the wiring in CI.
 import React from 'react';
+import { WF_CATALOGS } from './world-catalogs.js';
+import { Sheet } from './primitives.jsx';
 import ReactDOM from 'react-dom';
 
 // world-feed.jsx — the question feed under the World daily. Answer today's
@@ -50,7 +52,7 @@ function wfLoadTakes() {
   catch (e) { return {}; }
 }
 function wfFmt(n) { return n >= 1000 ? (n / 1000).toFixed(1).replace(/\.0$/, '') + 'K' : '' + n; }
-function wfVotes(q) { return q.type === 'rank' ? (q.votes || 0) : q.type === 'rate' ? (q.n || 0) : q.type === 'pick' ? (q.n || (((window.WF_CATALOGS || {})[q.catalog] || {}).picks || 0)) : q.options ? q.options.reduce((a, o) => a + o.count, 0) : 0; }
+function wfVotes(q) { return q.type === 'rank' ? (q.votes || 0) : q.type === 'rate' ? (q.n || 0) : q.type === 'pick' ? (q.n || ((WF_CATALOGS[q.catalog] || {}).picks || 0)) : q.options ? q.options.reduce((a, o) => a + o.count, 0) : 0; }
 function wfPcts(counts, mineIdx) {
   const c = counts.map((n, i) => n + (mineIdx === i ? 1 : 0));
   const total = c.reduce((a, b) => a + b, 0);
@@ -496,7 +498,7 @@ class WorldFeed extends React.Component {
   // repo pick cards (q.domain, real committed catalogues) dispatch here
   // only when they carry a q.catalog; renderPick below owns the rest.
   renderPickCatalog(q, T, big) {
-    const C = (window.WF_CATALOGS || {})[q.catalog];
+    const C = WF_CATALOGS[q.catalog];
     if (!C) return null;
     const mine = this.state.votes[q.id];
     const ranked = C.items.slice().sort((a, b) => b.count - a.count);
@@ -629,7 +631,7 @@ class WorldFeed extends React.Component {
   // favourite: rows that match the overall winner recede, rows that disagree come
   // forward, and the shape of the column tells you where taste divides.
   renderPickStats(q, T) {
-    const C = (window.WF_CATALOGS || {})[q.catalog];
+    const C = WF_CATALOGS[q.catalog];
     if (!C) return null;
     const dim = this.state.dims[q.id] || 'friends';
     const axis = this.state.cutAxis[q.id] || null, cutKey = WF_CUTKEY(dim, axis), youBand = WF_YOU(dim, axis);
@@ -1536,7 +1538,7 @@ class WorldFeed extends React.Component {
       const scene = q.scene && window.SCENES ? window.SCENES.defs().find((g) => g.id === q.scene) : null;
       const leaf = q.sub ? WF_SUB(q.sub) : null;
       rows.push(['Asked in', scene ? scene.name : leaf ? leaf.label : T.label]);
-      const cat = q.type === 'pick' ? (window.WF_CATALOGS || {})[q.catalog] : null;
+      const cat = q.type === 'pick' ? WF_CATALOGS[q.catalog] : null;
       if (cat) rows.push(['Catalogue', cat.total + ' ' + cat.noun]);
       const n = wfVotes(q);
       if (n) rows.push(['Answers', wfFmt(n)]);
@@ -2200,7 +2202,7 @@ class WorldFeed extends React.Component {
     if (q.type === 'pick') {
       const v = this.state.votes[q.id];
       const ent = v && typeof v === 'object' ? v.entity : v;
-      const C = (window.WF_CATALOGS || {})[q.catalog];
+      const C = WF_CATALOGS[q.catalog];
       if (C) {
         const it = C.items.find((x) => x.id === ent);
         if (!it) return null;
@@ -2258,7 +2260,7 @@ class WorldFeed extends React.Component {
     // Favourites is a format channel, so the chip's hue can't also be the card's:
     // three catalogues rendering in one green loses the subject entirely. The
     // channel keeps the label, the catalogue supplies the colour.
-    const cg = q.type === 'pick' ? (window.WF_CATALOGS || {})[q.catalog || q.domain] : null;
+    const cg = q.type === 'pick' ? WF_CATALOGS[q.catalog || q.domain] : null;
     const T = kn ? { label: kn.label, color: window.LEARN.colorOf(q.f) } : cg && cg.hue ? { label: (WF_TOPIC[q.cat] || {}).label || q.cat, color: 'oklch(0.55 0.14 ' + cg.hue + ')' } : mk ? { label: mk.label, color: mk.accent } : (WF_TOPIC[q.cat] || { label: q.cat, color: 'var(--ink-3)' });
     const scene = !mk && !kn && q.scene && window.SCENES ? window.SCENES.defs().find((g) => g.id === q.scene) : null;
     const leaf = !mk && !kn && !q.scene && q.sub ? WF_SUB(q.sub) : null;

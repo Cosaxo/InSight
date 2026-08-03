@@ -4,6 +4,8 @@
 // spec-index.js load order is semantic — scripts/check-spec-globals.mjs
 // guards the wiring in CI.
 import React from 'react';
+import { RP_TESTS, RoseMini, PoleRows, TestRose } from './result-rose.jsx';
+import { Kicker, useDialog } from './primitives.jsx';
 
 // InSight — TestOverlay: pick a test, answer, see the result. Question banks
 // and persistence live in test-defs.js.
@@ -129,7 +131,7 @@ function TestOverlay({ onClose, onComplete, kind: initialKind }) {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             {Object.entries(tests).map(([k, T]) => {
               const saved = SAVED[k];
-              const rp = (window.RP_TESTS || {})[k];
+              const rp = RP_TESTS[k];
               const bip = !!(rp && rp.bipolar);
               // for bipolar tests "strongest" = most pronounced lean, not max score
               const top = saved ? [...saved.dims].sort((a, b) => bip ? (Math.abs(b.value - 50) - Math.abs(a.value - 50)) : (b.value - a.value))[0] : null;
@@ -192,7 +194,7 @@ function TestOverlay({ onClose, onComplete, kind: initialKind }) {
                             return word.toLowerCase() === top.label.toLowerCase() ? top.label : <>{top.label} · <span style={{ fontWeight: 800 }}>{word}</span></>;
                           })()}</span>
                         </div>
-                        {(() => { const mt = window.TypeMark && window.IS_matchArchetype && saved.dims ? window.IS_matchArchetype(k, saved.dims) : null; return mt ? React.createElement(window.TypeMark, { testKey: k, name: mt.list[mt.idx].name, size: 38, title: mt.list[mt.idx].name }) : (window.RoseMini ? React.createElement(window.RoseMini, { testKey: k, dims: saved.dims, size: 44 }) : null); })()}
+                        {(() => { const mt = window.TypeMark && window.IS_matchArchetype && saved.dims ? window.IS_matchArchetype(k, saved.dims) : null; return mt ? React.createElement(window.TypeMark, { testKey: k, name: mt.list[mt.idx].name, size: 38, title: mt.list[mt.idx].name }) : (RoseMini ? React.createElement(RoseMini, { testKey: k, dims: saved.dims, size: 44 }) : null); })()}
                         <span style={{ fontFamily: 'var(--sans)', fontSize: 10.5, fontWeight: 700, letterSpacing: '0.08em', color: chipFg, flexShrink: 0, textTransform: 'uppercase' }}>{partial ? 'Finish →' : 'Retake →'}</span>
                       </>
                     ) : (
@@ -215,7 +217,7 @@ function TestOverlay({ onClose, onComplete, kind: initialKind }) {
   const qs = T.questions;
   const done = step >= qs.length;
   const results = done ? scoreTest(T, answers) : null;
-  const rpCfg = (window.RP_TESTS || {})[kind];
+  const rpCfg = RP_TESTS[kind];
   const bipT = !!(rpCfg && rpCfg.bipolar);
   const leanWord = (d) => (rpCfg && rpCfg.poles[d.id] || ['low', 'high'])[d.value >= 50 ? 1 : 0];
   const strength = (d) => bipT ? Math.abs(d.value - 50) : d.value;
@@ -302,15 +304,15 @@ function TestOverlay({ onClose, onComplete, kind: initialKind }) {
 
             {/* you vs. most people — the SAME rose + pole rows the profile keeps */}
             {(() => {
-              const cfg = (window.RP_TESTS || {})[kind];
-              if (!cfg || !window.TestRose) return null;
+              const cfg = RP_TESTS[kind];
+              if (!cfg || !TestRose) return null;
               const hueOf = (id, i) => (cfg.hues[id] != null ? cfg.hues[id] : (30 + i * 47) % 360);
               const avgMap = Object.fromEntries(results.map(d => [d.id, d.avg]));
               return (
                 <div style={{ padding: '6px 16px 16px', marginBottom: 16, background: 'var(--surface-2)', border: '0.5px solid var(--rule)', borderRadius: 12 }}>
-                  <window.TestRose testKey={kind} dims={results} animate={true} />
+                  <TestRose testKey={kind} dims={results} animate={true} />
                   <div style={{ marginTop: 4, paddingTop: 16, borderTop: '0.5px solid var(--rule)' }}>
-                    <window.PoleRows dims={results} poles={cfg.poles} hueOf={hueOf} avg={avgMap} />
+                    <PoleRows dims={results} poles={cfg.poles} hueOf={hueOf} avg={avgMap} />
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 16, marginTop: 15, paddingTop: 12, borderTop: '0.5px solid var(--rule)' }}>
                     <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontFamily: 'var(--sans)', fontSize: 10.5, fontWeight: 600, color: 'var(--ink-3)', letterSpacing: '0.06em' }}>

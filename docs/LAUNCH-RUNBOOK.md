@@ -230,11 +230,12 @@ left here is a **recapture against live data**, plus the two forms.
       `deleteAccount` does not touch Storage, so revoking access while
       objects remain converts a dead feature into an erasure gap. Update
       `firestore-tests/storage.rules.test.ts` in the same commit.
-- [ ] **5.5 Apply the one monitoring alert** (`monitoring/onV2AnswerCreated-errors.json`)
-      — create a notification channel, then the policy. It is not applied
-      by the pipeline. This is the failure that looks like nothing from the
-      outside: the app keeps serving while the Mirror stops moving.
-      `DEPLOYMENT.md § Alerting`.
+- [ ] **5.5 Apply the two monitoring alerts** (`monitoring/*.json`) — create
+      a notification channel, then the error policy, then the
+      `agg_contention` log-based metric and its policy. Neither is applied
+      by the pipeline. Both cover failures that look like nothing from the
+      outside: the app keeps serving while the Mirror stops moving, or
+      keeps moving while falling further behind. `DEPLOYMENT.md § Alerting`.
 - [ ] **5.6 Version lockstep.** `npm run check:versions` (`--fix` writes
       package.json's values into both native projects). Bump `appBuild` +
       android `versionCode` + iOS `CURRENT_PROJECT_VERSION` together for

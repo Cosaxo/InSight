@@ -4,6 +4,7 @@
 // spec-index.js load order is semantic — scripts/check-spec-globals.mjs
 // guards the wiring in CI.
 import React from 'react';
+import { Kicker } from './primitives.jsx';
 
 // group-mirror.jsx — the Mirror's GROUPS stop: your named circles as a cast
 // list. Pick a group → the role constellation, then the standard three lenses

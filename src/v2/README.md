@@ -357,3 +357,209 @@ it from `spec-index.js`'s implicit dependency web. The mock data stores
 (`sample-data.js`, `duels-data.js`, `daily-questions.js`, `passive-progress.js`,
 `scenes.js`, `follows.js`) are the seams where Firestore plugs in — each
 already funnels all reads/writes through one `window.*` API object.
+
+### …and it now has a meter
+
+That paragraph has been here since the port, and until 2026-08-03 nothing
+measured whether any of it was happening. It was not. A migration with no
+meter does not run — it gets described, which is a comfortable place for it
+to sit given that rules 1-3 of `check:globals` make the convention
+survivable enough to live with indefinitely.
+
+**Rule 4** counts every site where one file reads a name another file
+assigns to global scope, per file, and the number may only go down. The
+baseline is in `scripts/check-spec-globals.mjs`; `npm run check:globals`
+prints the current total on every run. The count today is **657 across 52
+files**, down from 799 when the ratchet landed.
+
+The mechanism needs no bookkeeping, which is what makes it usable. The
+scanner already suppresses a JSX reference when the file declares the name
+locally, and `import { Chip } from './primitives.jsx'` is a local
+declaration — so converting a consumer takes its sites to zero by itself.
+
+### `primitives.jsx` is converted — what it cost, and what it taught
+
+The first module off the bridge, chosen because it has the most consumers
+(22 by the ratchet's count) and depends on nothing itself. Its eleven names
+are plain named exports; **it publishes nothing to `globalThis` at all**,
+because all 24 consumers moved in the same change. 799 → 755.
+
+The plan here said to leave a `globalThis.X = X` compat line beneath the
+exports so unconverted consumers keep working. That was not needed once it
+turned out the consumer set was closed — 24 files, all in `spec/`, with the
+only other mentions of these names being three comments. **Check for that
+before assuming a compat line is required**: a provider whose consumers all
+fit in one change is cheaper to finish than to bridge, and a compat line
+nobody needs is dead code with a deletion ticket attached.
+
+Three things worth knowing before converting the next one:
+
+- **`window.X` sites do not convert themselves.** `result-card.jsx` held
+  `{window.Av ? … <window.Av /> …}` — a defensive guard that existed only
+  because load order could leave the global unset. An import cannot be
+  unset, so the guard went with the conversion rather than being rewritten
+  as `{Av ? …}`.
+- **Two different gates catch a missed consumer, and neither catches both
+  cases.** A JSX reference (`<Sheet/>`) is invisible to eslint — base
+  `no-undef` does not treat JSX tag names as identifier references — and is
+  caught by `check:globals` rule 1. A bare call (`useDialog(…)`) is the
+  reverse: rule 1 never sees it, `no-undef` reports it. Both were verified
+  by deleting an import and watching the right gate fail.
+- **`h(Foo, …)` was invisible to both the checker and the ratchet** until
+  this change added a rule for it. `daily-split.jsx` renders
+  `h(Sheet, {…})`, which is a cross-module reference written through a
+  createElement alias. One site layer-wide, but it was a hole in a ratchet
+  whose whole job is that the number cannot be gamed.
+
+### `sample-data.js` is converted too
+
+The second, and the largest data module in the layer (719 lines).
+`IS_DATA` and `fmtPop` are exports; nothing assigns to `window` here
+either. 755 → 726, and `scenes.js` became the first file in the layer with
+**no cross-module global references at all**.
+
+Two things differed from `primitives.jsx`, both worth expecting again:
+
+- **The consumer set was NOT closed.** `test/smoke.test.jsx` reads
+  `IS_DATA` to pick a real person and city for the overlay cases, so the
+  conversion reached into `test/` as well as `spec/`. Check `ui/`, `data/`,
+  `test/` and `main.jsx` before assuming a provider's consumers all live in
+  `spec/` — the grep is cheap and the answer decides whether a compat line
+  is needed.
+- **Every reference was `window.IS_DATA`, not a bare name**, so nine of
+  them carried `(window.IS_DATA || {})` or `window.IS_DATA?.` — the same
+  might-not-be-loaded guard `result-card.jsx` had around `Av`. Those are
+  gone: an imported const cannot be unset, and `sample-data.js` depends on
+  nothing so no cycle can put it in TDZ. The **inner** `|| []` / `|| {}` on
+  `.groups`, `.people` and `.me` stayed — those guard missing *data*, which
+  is a real condition and nothing to do with module loading.
+
+**One bundle effect worth not misreading.** The entry chunk went 853 → 818
+KB, and that is not 35 KB saved: `sample-data` became its own chunk that
+first paint still preloads, because `app-shell` imports it eagerly. Total
+JS is unchanged at 1529 KB. `check:bundle` asserts a total precisely so a
+split cannot read as a win — see its header.
+
+### `daily-questions.js` — the first one that was not a pure provider
+
+726 → 708, and `mirror-answers.jsx` joins `scenes.js` at zero. Two new
+shapes here, both of which will recur:
+
+- **It is wrapped in an IIFE**, so `api` was not reachable at module top
+  level to export. The wrapper is vestigial — an ESM module already has its
+  own scope, and it is what this file needed when every module shared one —
+  but unwrapping re-indents 480 lines and would bury four real edits in a
+  whitespace diff. The binding is hoisted instead: `export let DAILYQ;`
+  above the IIFE, assigned inside it. ESM exports are live and the module
+  finishes evaluating before any importer's body runs, so consumers always
+  see the object. Unwrap it in its own commit if it is ever worth doing.
+- **It reads `window.LIVE` itself**, so unlike the first two it is not a
+  pure provider — it has 3 outgoing references of its own, which stay.
+  Converting what a module *provides* is independent of what it *consumes*;
+  do not wait for a module to be a leaf before exporting from it.
+
+**This is the conversion that removed a real fragility rather than just
+syntax.** `map-branches.js` reads `DAILYQ.EMERGENT_CATS` at
+module-evaluation time — not inside a component, not on an event. It worked
+only because `spec-index.js` lists `daily-questions.js` (5th) before
+`map-branches.js` (11th); reordering those two lines would have silently
+dropped seven map categories, with no error anywhere. That ordering is now
+a module-graph guarantee. Verified by probe rather than assumed: all seven
+(`top-sport`, `top-film`, `top-food`, `top-travel`, `top-mind`,
+`top-morals`, `top-music`) still merge after the change.
+
+### `world-catalogs.js` — half of it converts, and the meter had a bug
+
+708 → 691, in two independent parts.
+
+**The module owns two names and only one of them is its export.**
+`WF_CATALOGS` is a plain data object with a single writer, and it converted
+like the others (6 sites in `world-feed.jsx`, all of them the same
+`(window.WF_CATALOGS || {})` load-order guard). `WORLD_FEED_QS` did **not**,
+and deliberately: `world-feed-data.js` creates the pool, this file and
+`world-subtopics.js` append to it, and `data/live.ts` replaces it wholesale
+in live mode. Four writers and a live/demo boundary is a design change —
+an owning module with an add/replace API — not a mechanical conversion. The
+append site carries that reasoning inline.
+
+**And it exposed a real defect in the ratchet.** `definedBy` was a
+first-assignment-wins map, so a multi-writer global got one arbitrary owner
+picked by readdir order. `world-catalogs.js` sorts before
+`world-feed-data.js`, so it was recorded as owning `WORLD_FEED_QS` — and
+`world-feed-data.js`'s five reads of **the global it creates itself** were
+counted as coupling to a file that only appends to it. The map is a
+`Map<name, Set<file>>` now and rule 4 asks "does this file assign the
+name?", which is a question with an answer when several do. That correction
+alone removed **11 false positives**, so part of this change's drop is the
+meter getting more honest rather than the tree getting better — worth
+separating, because a ratchet that miscounts in the flattering direction is
+the one failure it cannot report itself.
+
+### `follows.js` — and the guard shape the previous conversions missed
+
+691 → 673. `FRIENDS` is IIFE-wrapped like `DAILYQ` and got the same hoisted
+`export let`. Its 18 sites across four consumers were dense in presence
+guards — six of them — including one more module-scope read:
+`duels-data.js` ends with `FRIENDS.subscribe(fire)` so circle changes ripple
+into duos and groups, and it was written `if (window.FRIENDS)
+window.FRIENDS.subscribe(fire)`. A reorder of `spec-index.js` would have
+dropped that subscription silently, exactly like `map-branches.js`.
+Probed rather than assumed: inviting a friend still fires the DUELS
+listeners.
+
+**A miss from the `sample-data.js` conversion, fixed here.** That change
+removed the `(window.IS_DATA || {})` and `window.IS_DATA?.` guard shapes by
+explicit rewrite, and then renamed everything else in bulk — which left four
+sites reading `(IS_DATA && IS_DATA.people) || []`. Dead in exactly the same
+way, and invisible to every gate, because a redundant `&&` is valid code
+that does the right thing.
+
+The lesson for the next conversion is that the guard shapes are a list, not
+a pattern: `(X || {})`, `X?.`, `X ? … : …`, `!X || …`, `X && …`, and
+`if (X) …`. Grep for the name and read every site; do not assume the bulk
+rename caught the guards.
+
+### `result-rose.jsx` — the last pure provider, and where this stops
+
+673 → 657. Four exports (`RP_TESTS`, `RoseMini`, `PoleRows`, `TestRose`)
+and all seven `(window.RP_TESTS || {})` guards gone.
+
+**Four of its eight globals had no consumers at all.** `RosePetals`,
+`rpPetal`, `rpDeep` and `rpDot` were published because the porter
+registered every top-level declaration, not because anything wanted them.
+As a real module they are simply private, so the conversion removed eight
+names from the global namespace to export four. Expect that ratio again —
+the bridge published everything, so a converted module usually exports
+fewer names than it used to publish.
+
+**This is the end of the cheap seam.** Six providers are converted and the
+pure-provider list is now empty. What remains is 657 references
+concentrated in files that are *consumers*, not providers —
+`world-feed.jsx` (165), `daily-split.jsx` (79), `app-shell.jsx` (51),
+`mirror-field-pops.jsx` (33), `map-tab.jsx` (30), `test-overlay.jsx` (27) —
+and their providers are the cycle cluster (`test-definitions.js`,
+`passive-progress.js`, `daily-split.jsx` itself). Converting those in place
+means ESM cycles, which fail at render with a TDZ error, which is this
+layer's worst bug class.
+
+The next step there is **not** another conversion. It is the extraction
+described above: move `passive-progress` and `test-definitions` into
+`data/` as typed, tested modules, which dissolves both cycles as a side
+effect. That is a different size of change and should be planned as one.
+
+Until then the ratchet holds the line, and the cheapest way to keep the
+number moving is **convert on touch**: when a feature takes you into a spec
+file, convert the providers it reads first.
+
+**What NOT to start with.** The layer has import cycles, and they cluster:
+`test-definitions.js ↔ daily-split.jsx`, and `app-shell.jsx →
+passive-meter.jsx → passive-progress.js → test-definitions.js →
+daily-split.jsx → world-feed.jsx → app-shell.jsx`. Those are the files
+where the global bridge is genuinely load-bearing rather than merely
+legacy — ESM handles cyclic value bindings badly, and the failure is a
+temporal-dead-zone error that appears only at render, which is this
+layer's worst class of bug. Dissolve them instead: `passive-progress` and
+`test-definitions` are a store and a schema, neither needs JSX, and moving
+them to `data/` the way `deck.ts` and `groupPortrait.ts` were extracted
+takes both cycles out as a side effect — with tests, which the versions in
+`spec/` cannot have.

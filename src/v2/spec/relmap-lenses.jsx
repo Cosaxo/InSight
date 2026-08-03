@@ -4,6 +4,7 @@
 // spec-index.js load order is semantic — scripts/check-spec-globals.mjs
 // guards the wiring in CI.
 import React from 'react';
+import { IS_DATA } from './sample-data.js';
 
 // RMLenses — the four test lenses for the Circle map.
 // Each lens: axes (with pole words), an overall "type" per person, a diverging
@@ -172,7 +173,7 @@ import React from 'react';
 
   // your real results, normalised to 0..100 per axis
   function youVals(testKey) {
-    const me = (window.IS_DATA || {}).me || {};
+    const me = IS_DATA.me || {};
     if (testKey === 'big5' && me.personality) return { ...me.personality };
     if (testKey === 'politics' && me.political) {
       const o = {};

@@ -4,6 +4,10 @@
 // spec-index.js load order is semantic — scripts/check-spec-globals.mjs
 // guards the wiring in CI.
 import React from 'react';
+import { FRIENDS } from './follows.js';
+import { DAILYQ } from './daily-questions.js';
+import { IS_DATA } from './sample-data.js';
+import { Av, AnonAv, anonName, useDialog } from './primitives.jsx';
 
 // search-overlay.jsx — one field, three kinds of answer: questions, topics, people.
 // A question hit is the real question: tap it and the feed's own card opens in
@@ -132,7 +136,7 @@ function SearchOverlay({ onClose, onPerson }) {
   useSrchEffect(() => { const t = setTimeout(() => ref.current && ref.current.focus(), 80); return () => clearTimeout(t); }, []);
 
   const query = q.trim().toLowerCase();
-  const D = window.IS_DATA;
+  const D = IS_DATA;
   const TOPIC = useSrchMemo(() => Object.fromEntries((window.WORLD_TOPICS || []).map((t) => [t.id, t])), []);
   const ST = window.SUBTOPICS;
   const SC = window.SCENES;
@@ -198,7 +202,7 @@ function SearchOverlay({ onClose, onPerson }) {
   // the daily archive — a different mechanism (it lives on the Daily tab), so it
   // gets its own group and simply takes you there instead of faking a card
   const dailies = useSrchMemo(() => {
-    const DQ = window.DAILYQ;
+    const DQ = DAILYQ;
     if (!query || !DQ) return [];
     return DQ.questions
       .map((x) => ({ x, s: srchQScore({ prompt: x.prompt, options: (x.options || []).map((l) => ({ label: l })) }, query, '') }))
@@ -213,7 +217,7 @@ function SearchOverlay({ onClose, onPerson }) {
 
   // no query — your friends; with a query — everyone you can reach
   const people = useSrchMemo(() => {
-    const friends = (window.FRIENDS ? window.FRIENDS.list() : []).map(id => (D.people || []).find(p => p.id === id)).filter(Boolean);
+    const friends = FRIENDS.list().map(id => (D.people || []).find(p => p.id === id)).filter(Boolean);
     if (!query) return friends;
     const all = friends.concat((D.nearby || []).filter(n => !friends.some(f => f.id === n.id)));
     return all.filter(p => srchMatch(p.name + ' ' + (p.role || p.rel || '') + ' ' + (p.interests || []).map(i => i.t || i).join(' '), query));

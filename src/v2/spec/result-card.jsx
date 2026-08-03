@@ -4,6 +4,9 @@
 // spec-index.js load order is semantic — scripts/check-spec-globals.mjs
 // guards the wiring in CI.
 import React from 'react';
+import { RP_TESTS, RoseMini, TestRose } from './result-rose.jsx';
+import { IS_DATA } from './sample-data.js';
+import { Av } from './primitives.jsx';
 
 // result-card.jsx — test profile cards: each test keeps the shared banner
 // language but owns its NATIVE geometry:
@@ -45,7 +48,7 @@ function RarityField({ pct, label, color, title }) {
 // test hue. Defining dims read darker; same-type friends orbit the rim.
 function SigEmblem({ testKey, sig, color, people, typeName }) {
   const mark = typeName && window.TypeMark ? window.TypeMark : null;
-  const cfg = (window.RP_TESTS || {})[testKey];
+  const cfg = RP_TESTS[testKey];
   const ids = cfg ? Object.keys(cfg.hues).filter(id => sig && sig[id] != null) : [];
   if (!cfg || !ids.length) return null;
   const size = 170, C = size / 2, R = C - 3, r0 = 6, n = ids.length, slice = 360 / n, gapD = n > 6 ? 10 : 14;
@@ -69,10 +72,13 @@ function SigEmblem({ testKey, sig, color, people, typeName }) {
         })}
       </svg>
       {mark ? <span style={{ position: 'absolute', left: '50%', top: '50%', transform: 'translate(-50%,-50%)', display: 'inline-flex' }}><span className="rpv2-pop" style={{ display: 'inline-flex', animationDelay: '80ms' }}>{React.createElement(mark, { testKey, name: typeName, size: 82 })}</span></span> : null}
-      {window.Av ? ppl.map((p, i) => {
+      {/* The `window.Av &&` guard this used to carry is gone with D39: Av is
+          an import now, so it cannot be undefined at render. The guard was
+          never about `ppl` — an empty list maps to nothing on its own. */}
+      {ppl.map((p, i) => {
         const [x, y] = pt(132 + i * 33, R - 5);
-        return <span key={p.id} className="rpv2-pop" style={{ position: 'absolute', left: x - 10, top: y - 10, borderRadius: '50%', boxShadow: '0 0 0 2px var(--surface-2)', display: 'inline-flex', animationDelay: `${300 + i * 70}ms` }}><window.Av init={p.init} hue={p.hue} size={20} /></span>;
-      }) : null}
+        return <span key={p.id} className="rpv2-pop" style={{ position: 'absolute', left: x - 10, top: y - 10, borderRadius: '50%', boxShadow: '0 0 0 2px var(--surface-2)', display: 'inline-flex', animationDelay: `${300 + i * 70}ms` }}><Av init={p.init} hue={p.hue} size={20} /></span>;
+      })}
     </div>
   );
 }
@@ -168,7 +174,7 @@ function DifferRows({ testKey, R, cfg }) {
 function ResultProfileCard({ testKey, archetype, tagline }) {
   const [typesOpen, setTypesOpen] = React.useState(false);
   const R = (window.IS_TEST_RESULTS || {})[testKey];
-  const cfg = (window.RP_TESTS || {})[testKey];
+  const cfg = RP_TESTS[testKey];
   if (!R || !cfg || !R.dims || !R.dims.length) return null;
   const arch = window.IS_matchArchetype ? window.IS_matchArchetype(testKey, R.dims) : null;
   const you = arch ? arch.idx : -1;
@@ -184,7 +190,7 @@ function ResultProfileCard({ testKey, archetype, tagline }) {
   const sameType = (() => {
     if (!arch) return [];
     const map = (window.IS_FRIEND_TYPES || {})[testKey] || {};
-    const ppl = ((window.IS_DATA || {}).people) || [];
+    const ppl = IS_DATA.people || [];
     return ppl.filter(p => map[p.id] === arch.list[you].name);
   })();
   const typeLine = arch ? arch.list[you].line : null;
@@ -193,7 +199,7 @@ function ResultProfileCard({ testKey, archetype, tagline }) {
   const pct = window.PASSIVE ? window.PASSIVE.pct(testKey) : 100;
   const nLeft = window.PASSIVE ? Math.max(0, window.PASSIVE.needed(testKey) - window.PASSIVE.done(testKey)) : 0;
   const avg = (window.IS_TEST_AVG || {})[testKey];
-  const hero = window.TestRose ? <window.TestRose testKey={testKey} dims={R.dims} animate={true} /> : null;
+  const hero = TestRose ? <TestRose testKey={testKey} dims={R.dims} animate={true} /> : null;
   const otherAxes = null;
   return (
     <div className="card" style={{ padding: 0, overflow: 'hidden', marginBottom: 14 }}>
@@ -231,7 +237,7 @@ function ResultProfileCard({ testKey, archetype, tagline }) {
           <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginTop: 10, flexWrap: 'wrap' }}>
             {near.map(({ a, why, border }) => (
               <span key={a.name} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '4px 10px 4px 5px', borderRadius: 999, background: border ? `color-mix(in oklch, ${cfg.banner} 8%, var(--surface))` : 'var(--surface)', border: `0.5px solid ${border ? `color-mix(in oklch, ${cfg.banner} 45%, var(--rule))` : 'var(--rule)'}`, fontFamily: 'var(--sans)', fontSize: 11.5, fontWeight: 600, color: 'var(--ink-2)' }}>
-                {window.TypeMark ? <window.TypeMark testKey={testKey} name={a.name} size={20} /> : (window.RoseMini ? <window.RoseMini testKey={testKey} dims={sigDims(a)} size={18} /> : null)}{a.name}
+                {window.TypeMark ? <window.TypeMark testKey={testKey} name={a.name} size={20} /> : (RoseMini ? <RoseMini testKey={testKey} dims={sigDims(a)} size={18} /> : null)}{a.name}
                 {why ? <span style={{ fontWeight: 500, color: 'var(--ink-3)' }}>if {why}</span> : null}
               </span>
             ))}
