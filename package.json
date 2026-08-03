@@ -47,6 +47,9 @@
     "check:appcheck": "node scripts/check-appcheck.mjs",
     "check:versions": "node scripts/check-versions.mjs",
     "check:store-copy": "node scripts/check-store-copy.mjs",
+    "check:store-listing": "node scripts/check-store-listing.mjs",
+    "build:screenshots": "node scripts/gen-screenshots.mjs",
+    "build:feature-graphic": "node scripts/gen-feature-graphic.mjs",
     "test:unit": "vitest run --dir src",
     "test:coverage": "vitest run --dir src/v2/data --coverage"
   },

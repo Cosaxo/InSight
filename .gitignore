@@ -87,3 +87,12 @@ style-diff.json
 # are no thresholds and why spec/ is excluded.
 coverage/
 functions/coverage/
+
+# Store screenshot captures (scripts/gen-screenshots.mjs). The PNGs are
+# ~3.8 MB per run and get recaptured every release — and the demo-mode
+# set is explicitly NOT uploadable (the harness names which scene and
+# why), so keeping them in history mostly invites uploading the wrong
+# ones. manifest.json IS tracked: it is the record of what was captured,
+# in which mode, and what was flagged. The feature graphic is tracked
+# too — that one is a finished asset, not a preview.
+design/store/screenshots/*/*.png

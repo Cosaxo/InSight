@@ -1,5 +1,11 @@
 # Launch plan — the final stretch
 
+> **The engineering this document planned is done** (PR #60, 2026-08-01);
+> what survives it is the human chain. That chain is now an ordered to-do
+> list in [`LAUNCH-RUNBOOK.md`](LAUNCH-RUNBOOK.md) — start there. This file
+> stays as the record of what was built and why, plus the calendar
+> arithmetic at the bottom. Archive it once the app is live.
+
 This is the sequencing overlay for getting InSight submitted to both stores.
 It does not replace [`SHIP-CHECKLIST.md`](SHIP-CHECKLIST.md) — that stays the
 canonical store checklist and every store step below points into it. What this

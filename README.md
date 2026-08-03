@@ -73,8 +73,8 @@ firestore.rules.v1-archive  the retired v1 client rules (D4) — reference,
 content/           canonical question banks & archetypes (seed source)
 design/            the frozen design spec (read-only reference)
 docs/              DECISIONS · SCHEMA-V2 · DEPLOYMENT · LOCAL-TESTING ·
-                   SHIP-CHECKLIST · data-inventory · DEVICE-BIND ·
-                   MONETIZATION · COSTS
+                   SHIP-CHECKLIST · LAUNCH-RUNBOOK · data-inventory ·
+                   DEVICE-BIND · MONETIZATION · COSTS
 ```
 
 ## Testing & CI
@@ -137,7 +137,9 @@ CI ([`.github/workflows/`](./.github/workflows/)):
 The code side is complete through Phase 5 (native shell, reveal push,
 account/privacy panel). The remaining human steps — production seed,
 platform config files, store accounts, on-device verification — are in
-[`docs/SHIP-CHECKLIST.md`](./docs/SHIP-CHECKLIST.md).
+[`docs/SHIP-CHECKLIST.md`](./docs/SHIP-CHECKLIST.md), and the same work
+in dependency order as a to-do list is
+[`docs/LAUNCH-RUNBOOK.md`](./docs/LAUNCH-RUNBOOK.md).
 
 ## History
 
