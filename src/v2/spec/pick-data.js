@@ -141,6 +141,27 @@
       248: 2,  // Tyranitar — below the floor
       0: 7,    // Not listed
     },
+    // daily catalog-question run, 2026-08-03 — identity, the fifth pokemon
+    // canon: not what you love (pk01) or fear (pk02) but who you ARE.
+    // Snorlax and Psyduck lead a board favouritism never produces —
+    // self-image runs on naps and mild panic, not on mascots.
+    pk07: {
+      143: 34, // Snorlax — the nap vote
+      54: 27,  // Psyduck — the quietly overwhelmed vote
+      133: 24, // Eevee — undecided, all potential
+      129: 19, // Magikarp — late bloomer, cope pending
+      132: 15, // Ditto — fits in anywhere
+      79: 12,  // Slowpoke — gets there eventually
+      94: 10,  // Gengar — the menace self-image
+      25: 8,   // Pikachu — main-character energy
+      6: 7,    // Charizard
+      39: 6,   // Jigglypuff — sings anyway
+      448: 5,  // Lucario — clears the floor but not the top 10; folds
+      202: 5,  // Wobbuffet — same
+      7: 3,    // Squirtle — below the floor
+      4: 2,    // Charmander — below the floor
+      0: 8,    // Not listed
+    },
   };
 
   // Baked demo segment slices, per question: how each cohort orders the
@@ -214,6 +235,18 @@
       gender: {
         Women: { 150: 9, 493: 8, 384: 6, 6: 5, 487: 4 },
         Men: { 150: 14, 384: 10, 493: 9, 383: 6, 149: 4 },
+      },
+    },
+    pk07: {
+      ageBand: {
+        // the overwhelmed-Psyduck and Magikarp-cope votes skew young;
+        // the settled Snorlax vote grows with age
+        '18-24': { 54: 10, 129: 8, 143: 7, 94: 6, 133: 5 },
+        '25-34': { 143: 12, 54: 8, 133: 7, 132: 5, 79: 5 },
+      },
+      gender: {
+        Women: { 133: 9, 143: 8, 54: 7, 39: 5, 129: 5 },
+        Men: { 143: 11, 94: 7, 129: 7, 6: 6, 25: 5 },
       },
     },
   };
@@ -313,5 +346,8 @@
     // 2026-08-02 daily run: strength, the fourth pokemon canon — a
     // legendary board, not the mascot board favouritism produces.
     { id: 'pk06', cat: 'fav', type: 'pick', domain: 'pokemon', prompt: 'The strongest Pokémon?', n: 189 },
+    // 2026-08-03 daily run: identity — who you are, not what you love.
+    // Warmer and stranger than a fifth ranking of the same mascots.
+    { id: 'pk07', cat: 'fav', type: 'pick', domain: 'pokemon', prompt: 'The Pokémon you’d be?', n: 185 },
   ];
 })();
