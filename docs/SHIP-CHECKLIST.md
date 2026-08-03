@@ -1,5 +1,11 @@
 # Ship checklist — from green builds to phones
 
+> **Doing the launch rather than reading about it?**
+> [`LAUNCH-RUNBOOK.md`](LAUNCH-RUNBOOK.md) is the same work as an ordered
+> to-do list — open steps only, dependency order, one line each. It holds
+> order and status; this file holds the reasoning and stays canonical. If
+> they ever disagree, this file is right and the runbook is stale.
+
 Phase-5 state: the code side is done — the app renders frameless with
 safe-area insets on any phone-sized screen or native shell, reveal push
 notifications are wired end-to-end (server send + client registration),
