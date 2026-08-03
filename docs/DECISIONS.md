@@ -2891,3 +2891,102 @@ listeners' `DAU²/400` fan-out — is left alone. It is invisible below
 50k DAU, D7's write-contention ceiling (~14.4k DAU) binds first, and the
 fix trades live counts for polled ones. Recorded, not built: same posture
 as D7.
+
+## D35 · Label association becomes explicit, and a static gate replaces the render test that would have proved it
+
+**Date:** 2026-08-03 · **Status:** Adopted (follow-on to
+[D21](#d21--the-live-mode-branches-get-a-mount-test-accessibility-gets-a-ratchet))
+
+**The problem.** `profile-general.jsx` carried **8 of the ratchet's 19
+findings** — the whole of `label-has-associated-control`, in one contiguous
+block of the Basics editor. They read as one bug and were two.
+
+Seven were **not defects**. `Select` renders a *native* `<select>`, so
+`<label>Day<Select …/></label>` was already valid implicit association; the
+rule cannot see through a custom component. The eighth was **real**:
+`CityPicker` renders a `<button>` collapsed and an `<input role="combobox">`
+open, both labelable, so the wrapping `<label>City …</label>` won the
+accessible-name computation and the chosen city never reached a screen
+reader. That one had already been found and *worked around* rather than
+fixed — `ui/CityPicker.tsx` carried an `aria-label` added for exactly this
+wrapper.
+
+**The decision, and what it traded.** The seven were fixed by threading an
+`id` to the native `<select>` and pairing it with `htmlFor`; the eighth by
+demoting the wrapper to a plain `<span>` caption, so the cause is gone
+instead of compensated for.
+
+`controlComponents: ["Select"]` was rejected. It would have made the rule
+accept the nesting **on trust**, and kept accepting it if `Select` were ever
+rewritten as a div-based dropdown — a name eslint cannot see, which is the
+class `scripts/spec-globals.mjs` exists to refuse.
+
+But the fix **traded a structural guarantee for a textual one**, and that is
+the part worth recording. A control nested inside its label cannot dangle.
+Seven string matches spread across two attributes can — and
+`label-has-associated-control` checks only that the attribute is *present*.
+Probed before relying on it: a label pointing at `"totally-dangling"` while
+the control carries a different id **passes the rule silently**, and passes
+`lint`, `check:globals` and `tsc -b` with it. The same failure shape
+`data/vote.test.ts` pins `window.LIVE` against.
+
+**Why the guard is static rather than a render.** Both were written. The
+runtime test mounts the app, opens the Basics editor, and asserts all seven
+captions resolve through `getByLabelText` to a `SELECT` and that
+`getByLabelText("City")` is null. It works, and it was used to verify this
+change — it is simply not committed.
+
+The arithmetic: that single assertion costs **~18s** wall, against
+`smoke.test.jsx`'s **~56s for 15 mount cases**. One screen's labels would
+have added roughly a third of the entire mount-test file. `check-labels.mjs`
+covers the dangling/rename class **repo-wide** in **~70ms** — about 250×
+cheaper — needs no mount, and cannot be broken by unrelated button copy the
+way a full-app render can. It also generalises: `aria-labelledby`,
+`aria-describedby` and `aria-controls` dangle identically, and
+`PickSearch.tsx` / `CityPicker.tsx` already carry a real `aria-controls`
+pair. Nine references across 52 files today, all resolving.
+
+References must resolve; definitions are collected permissively — any `id=`
+counts, including `<NavGlyph id={id}/>` (a nav key, not a DOM id) and the SVG
+gradient ids. Over-collecting can only cause a **missed** failure, never a
+false one, and a gate that reds a green tree on a guess is one people learn
+to skip.
+
+**The residual limits, recorded — the render test was not free to drop.**
+
+1. A `<label htmlFor={x}>` put back around `CityPicker` with a matching `id`
+   **resolves fine**, so `check:labels` passes and `check:a11y` passes, and
+   the accessible-name hijack returns exactly as before. This is the case the
+   dropped test caught and nothing now does. It is a narrower hole than the
+   one that shipped — that one needed no matching id at all, and the ratchet
+   catches *that* — but it is a hole.
+2. The gate cannot verify an id reaches the DOM. `<Select id={x}/>` satisfies
+   it; if `Select` stopped forwarding `id` to its `<select>`, the pair still
+   matches here. Only a render sees that.
+3. It does not resolve across files, flag duplicate ids, or flag ids nothing
+   points at. All three have false-positive shapes (conditional branches, SVG
+   defs) that need more than a regex.
+
+The trigger for revisiting: a **second** screen growing `htmlFor` pairs. One
+screen does not justify an 18s mount; several would amortise it, and the test
+already exists to lift.
+
+**What proves it.** `check:a11y` is the test for the markup change and fails
+without it — revert the fix and `profile-general.jsx` goes 0 → 8 against its
+new baseline of 0 (total **19 → 11**). `check-labels.mjs` was mutation-checked
+in both directions, because a gate that only passes on a green tree proves
+nothing: renaming one side of a pair fails; breaking `aria-controls` fails; a
+commented-out `id` does **not** satisfy a live `htmlFor`; a dangling `htmlFor`
+in prose or a JSX comment does **not** raise a phantom.
+
+The mutation that matters is the fourth: two ids differing only *after* the
+`}` of `` `${uid}` ``. Brace matching is **counted, not regexed**, because
+`` htmlFor={`${uid}-bornD`} `` contains a `}` inside its own value — a lazy
+`/\{([^}]*)\}/` truncates **both** sides to `` `${uid ``, so they still match
+and the scanner reports green while checking nothing. That mutation is the
+only one that distinguishes a working scanner from a decorative one.
+
+**Not done, deliberately.** The gate has no committed self-test; the five
+mutations above were run by hand. Adding fixtures for a 130-line scanner that
+CI runs on every PR is machinery guarding machinery — the tree it checks is
+the fixture. Recorded so the next reader knows it was weighed, not missed.
