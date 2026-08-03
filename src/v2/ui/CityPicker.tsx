@@ -154,11 +154,15 @@ function CityPicker({ value, onChange, inputStyle }: CityPickerProps) {
 
   if (!open) {
     return (
-      // aria-label rather than relying on the button's own text: a <button>
-      // is a labelable element, so the wrapping <label>City …</label> in
-      // profile-general.jsx wins the accessible-name computation and the
-      // chosen city never reaches a screen reader. Found by a locator that
-      // could not see it either.
+      // aria-label rather than relying on the button's own text, and it stays
+      // even though the wrapper that forced it is gone. A <button> is a
+      // labelable element, so the <label>City …</label> that used to wrap
+      // this in profile-general.jsx won the accessible-name computation and
+      // the chosen city never reached a screen reader — found by a locator
+      // that could not see it either. That call site is a plain <span>
+      // caption now, so the hijack cannot recur; the aria-label is kept
+      // because it is the better name regardless, carrying the "City:"
+      // context the button's own text ("Oslo, Norway") does not.
       <button type="button" className="press" onClick={() => setOpen(true)}
         aria-haspopup="listbox" aria-expanded={false}
         aria-label={value ? `City: ${shown}. Change` : "Choose your city"}

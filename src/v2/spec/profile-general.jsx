@@ -20,7 +20,7 @@ import React from 'react';
 // round-trip inertly instead — cheap, and lossless if a card returns.
 // ─────────────────────────────────────────────────────────────
 (function () {
-  const { useState, useEffect, useRef } = React;
+  const { useState, useEffect, useRef, useId } = React;
 
   const GKEY = 'insight.profileGeneral.v1';
 
@@ -135,11 +135,17 @@ import React from 'react';
   }
 
   const EDU_OPTS = ['Primary school', 'Middle school', 'High school', 'Vocational / trade', 'Some college', 'Associate degree', "Bachelor's", 'Postgraduate diploma', "Master's", 'MBA', 'Doctorate', 'Postdoctoral', 'Professional certification', 'Self-taught', 'Other'];
-  function Select({ value, onChange, options, placeholder = 'Choose…' }) {
+  // `id` is threaded down to the native <select> so the caller's <label> can
+  // point at it with htmlFor. Nesting the control inside the label is valid
+  // implicit association on its own, but only to something that can see
+  // through this component — jsx-a11y cannot, and neither can a reader of the
+  // call site. The explicit pair states the association where both can check
+  // it, and survives the control moving out of the label.
+  function Select({ id, value, onChange, options, placeholder = 'Choose…' }) {
     const [foc, setFoc] = useState(false);
     return (
       <span style={{ position: 'relative', display: 'block', minWidth: 0 }}>
-        <select value={value} onChange={onChange} onFocus={() => setFoc(true)} onBlur={() => setFoc(false)}
+        <select id={id} value={value} onChange={onChange} onFocus={() => setFoc(true)} onBlur={() => setFoc(false)}
           style={{
             ...inputBase, fontSize: 15, padding: '8px 30px 8px 11px', cursor: 'pointer',
             fontWeight: 400, textTransform: 'none', letterSpacing: 'normal',
@@ -214,6 +220,10 @@ import React from 'react';
   // ── Basics (vitals) ──
   function BasicsCard({ data, set }) {
     const [editing, setEditing] = useState(false);
+    // One prefix per mounted card, so the ids stay unique if this ever
+    // renders twice on a screen. Suffixes are field names rather than
+    // indexes — a reordered grid must not silently re-point a label.
+    const uid = useId();
     const v = data.vitals;
     const upd = (k, val) => set(d => ({ ...d, vitals: { ...d.vitals, [k]: val } }));
     const setPart = (k, val) => set(d => {
@@ -231,15 +241,15 @@ import React from 'react';
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             <div style={{ display: 'grid', gridTemplateColumns: '0.9fr 1.4fr 1.1fr 0.7fr', gap: 8 }}>
-              <label style={fieldLabel}>Day<Select value={DAYS.includes(v.bornD) ? v.bornD : ''} onChange={e => setPart('bornD', e.target.value)} options={DAYS} placeholder="—" /></label>
-              <label style={fieldLabel}>Month<Select value={MONTHS.includes(v.bornM) ? v.bornM : ''} onChange={e => setPart('bornM', e.target.value)} options={MONTHS} placeholder="—" /></label>
-              <label style={fieldLabel}>Year<Select value={YEARS.includes(v.born) ? v.born : ''} onChange={e => setPart('born', e.target.value)} options={YEARS} placeholder="—" /></label>
+              <label style={fieldLabel} htmlFor={`${uid}-bornD`}>Day<Select id={`${uid}-bornD`} value={DAYS.includes(v.bornD) ? v.bornD : ''} onChange={e => setPart('bornD', e.target.value)} options={DAYS} placeholder="—" /></label>
+              <label style={fieldLabel} htmlFor={`${uid}-bornM`}>Month<Select id={`${uid}-bornM`} value={MONTHS.includes(v.bornM) ? v.bornM : ''} onChange={e => setPart('bornM', e.target.value)} options={MONTHS} placeholder="—" /></label>
+              <label style={fieldLabel} htmlFor={`${uid}-born`}>Year<Select id={`${uid}-born`} value={YEARS.includes(v.born) ? v.born : ''} onChange={e => setPart('born', e.target.value)} options={YEARS} placeholder="—" /></label>
               <span style={fieldLabel}>Age<span style={{ ...inputBase, fontSize: 15, padding: '8px 11px', border: '1px solid transparent', background: 'transparent', color: 'var(--ink-2)', fontWeight: 500, textTransform: 'none', letterSpacing: 'normal' }}>{age || '—'}</span></span>
             </div>
-            <label style={fieldLabel}>Job<Select value={JOB_OPTS.includes(v.job) ? v.job : ''} onChange={e => upd('job', e.target.value)} options={JOB_OPTS} placeholder="Field…" /></label>
-            <label style={fieldLabel}>Education<Select value={EDU_OPTS.includes(v.education) ? v.education : ''} onChange={e => upd('education', e.target.value)} options={EDU_OPTS} placeholder="Level…" /></label>
-            <label style={fieldLabel}>Gender<Select value={GENDER_OPTS.includes(v.gender) ? v.gender : ''} onChange={e => upd('gender', e.target.value)} options={GENDER_OPTS} placeholder="—" /></label>
-            <label style={fieldLabel}>Relationship<Select value={REL_OPTS.includes(v.relationship) ? v.relationship : ''} onChange={e => upd('relationship', e.target.value)} options={REL_OPTS} placeholder="—" /></label>
+            <label style={fieldLabel} htmlFor={`${uid}-job`}>Job<Select id={`${uid}-job`} value={JOB_OPTS.includes(v.job) ? v.job : ''} onChange={e => upd('job', e.target.value)} options={JOB_OPTS} placeholder="Field…" /></label>
+            <label style={fieldLabel} htmlFor={`${uid}-education`}>Education<Select id={`${uid}-education`} value={EDU_OPTS.includes(v.education) ? v.education : ''} onChange={e => upd('education', e.target.value)} options={EDU_OPTS} placeholder="Level…" /></label>
+            <label style={fieldLabel} htmlFor={`${uid}-gender`}>Gender<Select id={`${uid}-gender`} value={GENDER_OPTS.includes(v.gender) ? v.gender : ''} onChange={e => upd('gender', e.target.value)} options={GENDER_OPTS} placeholder="—" /></label>
+            <label style={fieldLabel} htmlFor={`${uid}-relationship`}>Relationship<Select id={`${uid}-relationship`} value={REL_OPTS.includes(v.relationship) ? v.relationship : ''} onChange={e => upd('relationship', e.target.value)} options={REL_OPTS} placeholder="—" /></label>
             {/* One picker, not two free-text boxes (D9). Country is derived
                 from the chosen city rather than typed: as free text it was
                 minting a bucket per spelling ("Norway"/"norway"/"NO"), each
@@ -247,9 +257,18 @@ import React from 'react';
                 nothing at all. The picker offers an optional "use my
                 location" that resolves to a city on the device; the
                 coordinate is never stored or sent (D9). */}
-            <label style={fieldLabel}>City
+            {/* A <span>, not a <label>, and this row is the reason the rule
+                above is worth obeying rather than configuring away.
+                CityPicker renders a <button> collapsed and an
+                <input role="combobox"> open; both are labelable, so a
+                wrapping <label> WINS the accessible-name computation and the
+                chosen city stops reaching a screen reader entirely. That
+                already happened once — ui/CityPicker.tsx carries an
+                aria-label added to work around this exact wrapper. The
+                caption is visual; the control names itself. */}
+            <span style={fieldLabel}>City
               <CityPicker value={v.city || ''} onChange={next => upd('city', next)} />
-            </label>
+            </span>
             {/* Every field here is optional and skippable. The note says what
                 it buys, because "why does a privacy app want my age?" is the
                 right question to ask and it deserves an answer in place. */}
