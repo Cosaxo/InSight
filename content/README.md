@@ -11,7 +11,7 @@ operational copy (editable without a redeploy, per the taxonomies pattern).
 
 | File | Contents |
 |---|---|
-| `daily-questions.json` | The daily World question pool (30) — scale / binary / choice / rating types |
+| `daily-questions.json` | The daily World question pool (90) — scale / binary / choice / rating / dilemma types |
 | `feed-questions.json` | Feed questions (73) + topic and channel definitions |
 | `duel-questions.json` | Group daily bank (24: classic / pick-a-member / about-us) and 1v1 bank (20). Single source since 2026-08-03: `src/v2/spec/duels-data.js` imports it for the demo layer (the D32 learn-data shape), so demo and seed cannot drift |
 | `tests.json` | The four core tests' item banks (big5 · political · values · attachment) |

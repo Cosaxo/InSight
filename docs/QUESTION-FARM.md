@@ -21,8 +21,12 @@ topic is thin.
 ## Hard rules (each one is load-bearing)
 
 1. **A PR is the only output.** Never push to `main`, never merge your own
-   PR, never touch a branch you didn't create. Human review is the gate the
-   whole design rests on.
+   PR, never touch a branch you didn't create — and a branch created by an
+   earlier run of the same lane counts as this lane's own: rolling a new
+   commit onto the lane's open PR is this rule working, not an exception
+   (§ The PR, 2026-08-03 — before that clause, runs read this rule strictly
+   and stacked a new branch per day, which is exactly how the #58 → #62 →
+   #65 pile happened). Human review is the gate the whole design rests on.
 2. **Questions only.** You may edit exactly one file:
    `src/v2/spec/daily-questions.js` (appending to the `Q` array). You may
    not touch `firestore.rules`, `functions/`, the live content seeds, map
@@ -213,10 +217,17 @@ abort the run with no push rather than force it green.
   → #65): three PRs, one reviewer, and because each contained its
   predecessors the only practical review unit was the newest anyway.
   D33 already named review capacity the binding constraint; rolling up
-  keeps the queue depth at one without touching the human gate. The one
-  exception: if the open PR no longer merges cleanly into `main`, leave
-  it for the human — open a fresh branch from `origin/main` and note the
-  standing conflict in both PR bodies.
+  stops new PRs joining the queue without touching the human gate. The
+  one exception: if the open PR no longer merges cleanly into `main`,
+  leave it for the human — open a fresh branch from `origin/main` and
+  note the standing conflict in both PR bodies. Transition case, spelled
+  out because the first run under this rule will hit it: if MORE than
+  one lane PR is already open (a pre-rule stack), roll onto the newest —
+  the one whose branch already contains the others — and list the
+  superseded PRs in its body as "contained here; close when this
+  merges". Closing them is the human's call, not the run's: the standing
+  queue drains at the gate, and this rule's job is only to stop it
+  growing.
 - Branch (when no lane PR is open): `claude/question-farm-<YYYY-MM-DD>`
   (UTC date; suffix `-2` etc. if it exists). One commit per run, message
   in the repo's voice.
@@ -423,11 +434,14 @@ review.** Rules for a learn run:
 
 ## Future directions, recorded early (notes, not designs)
 
-Two features are wanted eventually. Neither is in scope for the farm today,
-and both sit close enough to the product's core claims that the shape of an
-acceptable version is worth writing down *before* anyone builds one. When
-either is picked up, it graduates to a real decision record in
-`DECISIONS.md` — these notes are the starting constraints, not approval.
+The features here are wanted eventually. None is in scope for the farm
+today, and each sits close enough to the product's core claims that the
+shape of an acceptable version is worth writing down *before* anyone
+builds one. When one is picked up, it graduates to a real decision record
+in `DECISIONS.md` — these notes are the starting constraints, not
+approval. (A note may also arrive already pointing at a **Proposed**
+record, as the duel lane does — the same rule seen from the other side:
+Proposed binds nothing until the owner adopts it.)
 
 ### Audience-tagged questions ("what kind of people get what kind of content")
 
@@ -597,10 +611,11 @@ never merge your own PR. Dedup against the WHOLE archive and
 src/v2/spec/suggestions.js. If a prior farm PR is still open, roll up
 instead of stacking: check out its branch, dedup against it, append
 one commit, retitle the PR to cover the span, and add a dated section
-to its body — at most one open farm PR (manual § The PR). A fresh
-branch is only for when no farm PR is open, or the open one no longer
-merges cleanly into main (then leave it for the human and note the
-conflict in both PR bodies).
+to its body (if several are open — a pre-rule stack — roll onto the
+newest, list the others in its body as contained; closing them is the
+human's call). A fresh branch is only for when no farm PR is open, or
+the open one no longer merges cleanly into main (then leave it for the
+human and note the conflict in both PR bodies).
 
 Mandatory reporting (manual hard rule 7): whatever the outcome — PR
 opened, no-op, or aborted — end the run by commenting that outcome on
