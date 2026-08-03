@@ -98,6 +98,70 @@
       128173: 2,  // 💭 thought balloon — below the floor
       0: 9,       // Not listed — the ZWJ-combo and flag devotees
     },
+    // daily catalog-question run, 2026-08-01 — annoyance is its own canon:
+    // pk04 ranks what people SEND, this ranks what they roll their eyes
+    // at RECEIVING, and the boards disagree from the top down (😂 sits
+    // high on both, which is honest — beloved and resented at once).
+    pk05: {
+      128580: 37, // 🙄 face with rolling eyes
+      128514: 29, // 😂 tears of joy — the backlash vote
+      128077: 25, // 👍 thumbs up — the passive-aggressive reply
+      128169: 21, // 💩 pile of poo
+      129313: 17, // 🤡 clown face
+      128579: 13, // 🙃 upside-down face
+      128175: 11, // 💯 hundred points
+      128536: 8,  // 😘 face blowing a kiss
+      128521: 7,  // 😉 winking face
+      129392: 6,  // 🥰 smiling face with hearts
+      10024: 5,   // ✨ sparkles — clears the floor but not the top 10; folds
+      129315: 5,  // 🤣 rolling on the floor laughing — same
+      128556: 3,  // 😬 grimacing face — below the floor
+      129760: 2,  // 🫠 melting face — below the floor
+      0: 8,       // Not listed
+    },
+    // daily catalog-question run, 2026-08-02 — power is the fourth pokemon
+    // canon: favouritism ranks mascots, fear ranks ghosts, cuteness ranks
+    // the small and round; strength ranks the box legendaries, with
+    // Charizard as the honest fan-vote overlap (a favourite people also
+    // insist is strong).
+    pk06: {
+      150: 39, // Mewtwo
+      493: 33, // Arceus
+      384: 28, // Rayquaza
+      890: 14, // Eternatus
+      6: 12,   // Charizard — the fan vote
+      383: 10, // Groudon
+      382: 9,  // Kyogre
+      487: 8,  // Giratina
+      888: 7,  // Zacian
+      149: 6,  // Dragonite — takes the last slot on the entity tie-break
+      483: 6,  // Dialga — same count, higher dex; folds
+      448: 5,  // Lucario — clears the floor but not the top 10; folds
+      445: 3,  // Garchomp — below the floor
+      248: 2,  // Tyranitar — below the floor
+      0: 7,    // Not listed
+    },
+    // daily catalog-question run, 2026-08-03 — identity, the fifth pokemon
+    // canon: not what you love (pk01) or fear (pk02) but who you ARE.
+    // Snorlax and Psyduck lead a board favouritism never produces —
+    // self-image runs on naps and mild panic, not on mascots.
+    pk07: {
+      143: 34, // Snorlax — the nap vote
+      54: 27,  // Psyduck — the quietly overwhelmed vote
+      133: 24, // Eevee — undecided, all potential
+      129: 19, // Magikarp — late bloomer, cope pending
+      132: 15, // Ditto — fits in anywhere
+      79: 12,  // Slowpoke — gets there eventually
+      94: 10,  // Gengar — the menace self-image
+      25: 8,   // Pikachu — main-character energy
+      6: 7,    // Charizard
+      39: 6,   // Jigglypuff — sings anyway
+      448: 5,  // Lucario — clears the floor but not the top 10; folds
+      202: 5,  // Wobbuffet — same
+      7: 3,    // Squirtle — below the floor
+      4: 2,    // Charmander — below the floor
+      0: 8,    // Not listed
+    },
   };
 
   // Baked demo segment slices, per question: how each cohort orders the
@@ -147,6 +211,42 @@
       gender: {
         Women: { 10084: 12, 128557: 10, 129401: 6, 10024: 6, 128525: 5 },
         Men: { 128514: 16, 129315: 9, 128293: 8, 128128: 7, 128077: 6 },
+      },
+    },
+    pk05: {
+      ageBand: {
+        // the 😂 backlash is a young-cohort phenomenon; older cohorts
+        // resent the passive-aggressive 👍 more
+        '18-24': { 128514: 12, 128077: 9, 128580: 7, 129313: 6, 128175: 4 },
+        '25-34': { 128580: 11, 128514: 8, 128169: 7, 128077: 6, 128579: 5 },
+      },
+      gender: {
+        Women: { 128580: 13, 128077: 8, 128514: 7, 128536: 6, 128521: 5 },
+        Men: { 128514: 10, 128580: 9, 129313: 9, 128169: 8, 128175: 5 },
+      },
+    },
+    pk06: {
+      ageBand: {
+        // younger cohorts reach for the newest box legendaries; the
+        // older ones hold the Kanto line
+        '18-24': { 384: 9, 150: 8, 493: 7, 890: 6, 888: 5 },
+        '25-34': { 150: 13, 493: 10, 384: 8, 6: 6, 382: 4 },
+      },
+      gender: {
+        Women: { 150: 9, 493: 8, 384: 6, 6: 5, 487: 4 },
+        Men: { 150: 14, 384: 10, 493: 9, 383: 6, 149: 4 },
+      },
+    },
+    pk07: {
+      ageBand: {
+        // the overwhelmed-Psyduck and Magikarp-cope votes skew young;
+        // the settled Snorlax vote grows with age
+        '18-24': { 54: 10, 129: 8, 143: 7, 94: 6, 133: 5 },
+        '25-34': { 143: 12, 54: 8, 133: 7, 132: 5, 79: 5 },
+      },
+      gender: {
+        Women: { 133: 9, 143: 8, 54: 7, 39: 5, 129: 5 },
+        Men: { 143: 11, 94: 7, 129: 7, 6: 6, 25: 5 },
       },
     },
   };
@@ -239,5 +339,15 @@
     // "favourite" here: it is the question people actually answer about
     // emoji, and their keyboard already knows.
     { id: 'pk04', cat: 'fav', type: 'pick', domain: 'emoji', prompt: 'Your most-used emoji?', n: 218 },
+    // 2026-08-01 daily run: annoyance, not usage — what you send (pk04)
+    // and what makes you wince are different questions with different
+    // winners.
+    { id: 'pk05', cat: 'fav', type: 'pick', domain: 'emoji', prompt: 'The most annoying emoji?', n: 197 },
+    // 2026-08-02 daily run: strength, the fourth pokemon canon — a
+    // legendary board, not the mascot board favouritism produces.
+    { id: 'pk06', cat: 'fav', type: 'pick', domain: 'pokemon', prompt: 'The strongest Pokémon?', n: 189 },
+    // 2026-08-03 daily run: identity — who you are, not what you love.
+    // Warmer and stranger than a fifth ranking of the same mascots.
+    { id: 'pk07', cat: 'fav', type: 'pick', domain: 'pokemon', prompt: 'The Pokémon you’d be?', n: 185 },
   ];
 })();

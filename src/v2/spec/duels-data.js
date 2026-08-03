@@ -12,6 +12,8 @@
 // guards the wiring in CI.
 import React from 'react';
 import DUEL_CONTENT from '../../../content/duel-questions.json';
+import { FRIENDS } from './follows.js';
+import { IS_DATA } from './sample-data.js';
 
 // duels-data.js — the "know each other" layer.
 //  · GROUP: one question a day for each named circle; answers sealed until
@@ -20,7 +22,7 @@ import DUEL_CONTENT from '../../../content/duel-questions.json';
 //    both sides reveal tomorrow. 1v1s start with an invite (friends only).
 // Partner behaviour is deterministic mock; your own answers, your custom
 // groups and your invites persist to localStorage. The circle = your friends
-// (window.FRIENDS). Read/being-read scores feed the Map's People branch.
+// (FRIENDS). Read/being-read scores feed the Map's People branch.
 (function () {
   const DAYS = ['Today', 'Yesterday', 'Tue', 'Mon', 'Sun', 'Sat', 'Fri'];
   function h01(s) {
@@ -49,8 +51,8 @@ import DUEL_CONTENT from '../../../content/duel-questions.json';
 
   // ── the circle — your friends ───────────────────────────────────────────────
   const IDS = ['f1', 'f2', 'f4', 'f6', 'f3']; // fallback if FRIENDS is absent
-  const allPeople = () => (window.IS_DATA && window.IS_DATA.people) || [];
-  const circleIds = () => (window.FRIENDS ? window.FRIENDS.list() : IDS);
+  const allPeople = () => IS_DATA.people || [];
+  const circleIds = () => (FRIENDS ? FRIENDS.list() : IDS);
   function members() { return circleIds().map((id) => allPeople().find((p) => p.id === id)).filter(Boolean); }
   const personOf = (pid) => allPeople().find((p) => p.id === pid);
 
@@ -291,7 +293,7 @@ import DUEL_CONTENT from '../../../content/duel-questions.json';
 
   // active 1v1 pids — seeded to the circle on first run, friends only
   function duoList() { if (!S.duoList) S.duoList = IDS.slice(); return S.duoList; }
-  const duoIds = () => duoList().filter((pid) => !window.FRIENDS || window.FRIENDS.isFriend(pid));
+  const duoIds = () => duoList().filter((pid) => FRIENDS.isFriend(pid));
   function duoAvailable() { return members().filter((p) => !duoList().includes(p.id) && S.duoInv[p.id] == null); }
   function startDuo(pid) { if (duoList().includes(pid) || S.duoInv[pid] != null) return; S.duoInv[pid] = Date.now(); ensureTimer(); save(); }
   function cancelDuo(pid) { delete S.duoInv[pid]; save(); }
@@ -437,6 +439,6 @@ import DUEL_CONTENT from '../../../content/duel-questions.json';
     subscribe: (f) => { listeners.add(f); return () => listeners.delete(f); },
   };
   // circle changes (befriend / unfriend) ripple into duos & groups
-  if (window.FRIENDS) window.FRIENDS.subscribe(fire);
+  FRIENDS.subscribe(fire);
 })();
 

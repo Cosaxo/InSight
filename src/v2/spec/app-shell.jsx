@@ -4,6 +4,7 @@
 // spec-index.js load order is semantic — scripts/check-spec-globals.mjs
 // guards the wiring in CI.
 import React from 'react';
+import { IS_DATA } from './sample-data.js';
 
 
 const { useState, useEffect } = React;
@@ -216,12 +217,12 @@ function App() {
     // resolve to "loaded, then nothing happened", which is indistinguishable
     // from a failed load. Same for openPerson below.
     window.openCity = (name) => {
-      const c = (window.IS_DATA.cities || []).find(x => x.name === name);
+      const c = (IS_DATA.cities || []).find(x => x.name === name);
       if (c) return openDeferred(() => { closeAll(); setCity(c); });
     };
     // cross-link: open a person's profile (record, or id/name lookup)
     window.openPerson = (who) => {
-      const list = window.IS_DATA.people || [];
+      const list = IS_DATA.people || [];
       const p = typeof who === 'object' ? who : list.find(x => x.id === who || x.name === who);
       if (p) return openDeferred(() => { closeAll(); setPerson(p); });
     };
@@ -233,7 +234,7 @@ function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const me = window.IS_DATA.me;
+  const me = IS_DATA.me;
   // live identity: initials from the real display name (demo persona off)
   const liveOn = window.LIVE && window.LIVE.enabled;
   const liveInitials = liveOn

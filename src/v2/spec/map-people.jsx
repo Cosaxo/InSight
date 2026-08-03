@@ -4,6 +4,7 @@
 // spec-index.js load order is semantic — scripts/check-spec-globals.mjs
 // guards the wiring in CI.
 import React from 'react';
+import { Kicker } from './primitives.jsx';
 
 // map-people.jsx — how you and your circle read each other in the daily
 // duels. Lives on the CIRCLE stop (a lens card under the relationship map),

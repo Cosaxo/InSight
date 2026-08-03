@@ -10,6 +10,15 @@ import React from 'react';
 // per-audience answer distribution so every tab (around / city / groups /
 // world / people) shows a DIFFERENT crowd. The user's own answers persist to
 // localStorage; "you vs them" is computed live from the current answer.
+//
+// The IIFE below is vestigial as of D39 — an ESM module already has its own
+// scope, and the wrapper is what this file needed when every module shared
+// one. It stays because unwrapping it re-indents 480 lines, which would bury
+// four real edits in a whitespace diff. The export is hoisted out instead:
+// ESM bindings are live and this module finishes evaluating before any
+// importer's body runs, so DAILYQ is the api object by the time it is read.
+export let DAILYQ;
+
 (function () {
   // ── seeded RNG (mulberry32) ───────────────────────────────────────────────
   function hashStr(s) { let h = 2166136261 >>> 0; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; }
@@ -432,7 +441,7 @@ import React from 'react';
       return { pct: same, text: `${same}% of ${audLabel} are with you` };
     },
   };
-  window.DAILYQ = api;
+  DAILYQ = api;
 
   // ── live hydration (Phase 4b) ─────────────────────────────────────
   // The Map's constellation and the Mirror's daily record read this

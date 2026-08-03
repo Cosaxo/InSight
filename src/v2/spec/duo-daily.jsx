@@ -4,6 +4,7 @@
 // spec-index.js load order is semantic — scripts/check-spec-globals.mjs
 // guards the wiring in CI.
 import React from 'react';
+import { Sheet } from './primitives.jsx';
 import ReactDOM from 'react-dom';
 
 // duo-daily.jsx — the daily tab's 1v1 mode. A vertical stack of duels, one

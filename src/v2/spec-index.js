@@ -16,6 +16,12 @@ import './spec/duels-data.js';
 import './spec/reveal-clock.js';
 import './spec/iOS.jsx';
 import './spec/tweaks-panel.jsx';
+// primitives.jsx no longer publishes globals (D39) — its consumers import
+// it by name, so this line loads nothing anybody is waiting for. It stays
+// because check:globals rule 2 requires every file in spec/ to appear here,
+// and that rule is what catches a module silently dropping out of the
+// bundle. When the next provider converts, it keeps its line for the same
+// reason; the list stops being a load-order contract one module at a time.
 import './spec/primitives.jsx';
 import './spec/viz-primitives.jsx';
 import './spec/compare-breakdown.jsx';

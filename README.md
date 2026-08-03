@@ -59,7 +59,8 @@ width (or under Capacitor) it goes full-bleed with safe-area insets.
 
 ```
 src/v2/            the app — ported from the frozen design spec
-  spec/            UI modules (shared-global style; see src/v2/README.md)
+  spec/            UI modules (shared-global style, shrinking module by
+                   module under a ratchet — see src/v2/README.md, D39)
   data/live.ts     the live data layer: window.LIVE (deck, feed, social)
   data/push.ts     reveal push registration (native only)
   styles.css       the design system, verbatim from the spec
@@ -67,9 +68,11 @@ src/lib/           firebase init + anonymous-first auth + emulator wiring
 functions/src/     v2.ts (seed + aggregates) · v2social.ts (groups, duos,
                    reveals, push) · index.ts (account deletion)
 firestore.rules    the access model (owner-only answers, k-floored aggs,
-                   member-only groups/reveals) — 40 emulator tests
+                   member-only groups/reveals) — 44 emulator tests
 firestore.rules.v1-archive  the retired v1 client rules (D4) — reference,
                    NOT deployed
+monitoring/        Cloud Monitoring policies, applied by hand rather than
+                   by the pipeline (DEPLOYMENT.md § Alerting)
 content/           canonical question banks & archetypes (seed source)
 design/            the frozen design spec (read-only reference)
 docs/              DECISIONS · SCHEMA-V2 · DEPLOYMENT · LOCAL-TESTING ·
@@ -84,8 +87,10 @@ Local:
 - `npm run test:unit` — client store, pure deck logic, and the spec-layer
   mount tests (vitest + jsdom, no emulator).
 - `npm run test --prefix functions` — the k-anon floor, reveal and streak math.
-- `npm run test:rules` — 40 security-rules tests (Firestore + Storage)
-  against the emulator.
+- `npm run test:rules` — 44 security-rules tests (Firestore + Storage)
+  against the emulator. `npm run check:figures` holds this number and the
+  one in the repo map above equal to the suites, because both said 40 for
+  long enough to be quoted twice.
 - `npm run test:e2e` — the v2 core loop under `emulators:exec`: anon auth →
   seed → vote → aggregate trigger → k-floor → duel create/join/seal/reveal.
 - `npm run test:e2e:erasure` — deleteAccount, with leftovers observed via
@@ -100,7 +105,12 @@ Local:
   / `groupPortrait.ts` at 100% — the honesty arithmetic is genuinely
   covered — against `deviceBind.ts`'s Apple/Google verification at 27%,
   which is the half D29 can only prove on a real device (D37).
-- `npm run check:globals` — the spec layer's shared-global wiring.
+- `npm run check:globals` — the spec layer's shared-global wiring: dangling
+  references, files `spec-index.js` forgot, undefined JSX tags, and
+  (**rule 4**) a ratchet on how much shared-global coupling is left. The
+  count may only go down, so new coupling fails and a conversion asks for
+  the baseline to come down with it. It prints the live figure on every
+  run; `src/v2/README.md` has the migration procedure (decision D39).
 - `npm run check:labels` — every `htmlFor` / `aria-labelledby` /
   `aria-describedby` / `aria-controls` resolves to an id in the same file.
   jsx-a11y only checks such an attribute is present, never that it points at
@@ -113,6 +123,11 @@ Local:
   five that cannot are the operator and moderator instruments, gated on
   uid allowlists instead; the gate fails in both directions, so an
   exemption cannot outlive its reason or spread by copy-paste.
+- `npm run check:figures` — the counts this file quotes, held equal to the
+  suites. It exists because the rules-test figure said 40 in two places
+  while the suite ran 44, which was the fourth instance of one error: a
+  number kept current by intention does not stay current. `check:a11y` and
+  `check:globals` carry the same treatment for the figures they own.
 - `npm run check:store-copy` — no unfilled placeholders in the store-facing
   legal pages. A pre-submission gate, not a CI one (see
   [`docs/SHIP-CHECKLIST.md`](./docs/SHIP-CHECKLIST.md) §3 for why).

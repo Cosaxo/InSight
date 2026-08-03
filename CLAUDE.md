@@ -35,8 +35,17 @@ paint via `loadWorldFeed()` (D25) — still listed, still in order, just
 awaited in sequence instead of imported at the top.
 
 This is deliberate and temporary (see `src/v2/README.md`), but it is
-load-bearing today. Four guards make it survivable, and all four exist
-because something real slipped through:
+load-bearing today — and "temporary" only became true when something
+started measuring it (D39; see **The convention is shrinking** below).
+
+Six modules are already off the bridge: `primitives.jsx`, `sample-data.js`,
+`daily-questions.js`, `world-catalogs.js`, `follows.js` and
+`result-rose.jsx` are ordinary ESM modules with named exports. They are
+still listed in `spec-index.js` — rule 2 requires it — but nothing waits on
+their side effects.
+
+Four guards make the rest survivable, and all four exist because something
+real slipped through:
 
 - `npm run check:globals` — dangling `window.X` references, files
   `spec-index.js` forgot, **and undefined JSX tags**. That last rule found
@@ -62,6 +71,28 @@ because something real slipped through:
 `src/v2/data/` and `src/v2/ui/` are typed and checked by `tsc -b`, but they
 are **not** exempt from the convention: `live.ts` publishes `window.LIVE`
 and both `ui/` panels `Object.assign` onto `globalThis` on purpose.
+
+**The convention is shrinking, and there is a number for it.** Those four
+guards make the bridge safe, which also made it comfortable enough to keep
+forever — the migration section in `src/v2/README.md` sat there unmeasured
+from the port until D39. `check:globals` **rule 4** is the counterweight:
+it counts every cross-module shared-global reference, per file, and the
+count may only go **down**. New coupling fails CI; converting a module
+lowers the number and also fails, asking for the baseline to come down with
+it. Run `npm run check:globals` for the live figure — it is deliberately
+not quoted in prose here, because a hand-maintained figure is the one
+documentation error this repo keeps re-committing (D39, `check:figures`).
+
+Two rules for working with it:
+
+- **Convert on touch.** The cheap seam is exhausted, so this is no longer a
+  project. When a feature takes you into a spec file, convert the providers
+  it reads first. `src/v2/README.md` has the procedure and the traps.
+- **A conversion removes the load-order condition, never the data one.**
+  `(window.X || {})`, `X?.`, `if (X)` and `X && …` around a converted
+  module are dead — an imported binding cannot be unset. The inner
+  `|| []` on `.people` is not; that guards missing data. The guard shapes
+  are a list, not a pattern, so grep the name and read every site.
 
 ### 2. There are four test runners, and they are not interchangeable
 

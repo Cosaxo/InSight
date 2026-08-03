@@ -530,12 +530,12 @@ Each phase is its own reviewed change — nothing here is licence to start.
   on-device if built; it must never become server telemetry (the
   skip/pass line, D-series).
 
-### The duel lane (proposed — D39)
+### The duel lane (proposed — D40)
 
 The group/1v1 banks are the thinnest surface in the product (24 and 20
 questions — an active pair sees the whole 1v1 pool in 20 days) and the
 only one with no lane, no signal, and no growth path; the word "duel"
-appeared nowhere in this file until this note. D39 (Status: Proposed —
+appeared nowhere in this file until this note. D40 (Status: Proposed —
 binding nothing until the owner adopts it) sketches the acceptable
 shape: single-source banks (the read side is taken — the spec layer now
 imports `content/duel-questions.json`), a learn-style single-gate lane,

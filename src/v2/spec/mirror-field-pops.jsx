@@ -4,6 +4,8 @@
 // spec-index.js load order is semantic — scripts/check-spec-globals.mjs
 // guards the wiring in CI.
 import React from 'react';
+import { IS_DATA, fmtPop } from './sample-data.js';
+import { Av, TabSection, MatchRing } from './primitives.jsx';
 
 // mirror-field-pops.jsx — the four Mirror populations, each built as a node
 // list for the shared field canvas (mirror-field.jsx). One grammar throughout:
@@ -90,7 +92,7 @@ function KindredLensCard({ people = MFP_KINDRED }) {
 
 // ─── per-population field config ───
 function mfpConfig(pop, zoom, mine) {
-  const D = window.IS_DATA;
+  const D = IS_DATA;
 
   if (pop === 'circle') {
     return {
@@ -116,7 +118,7 @@ function mfpConfig(pop, zoom, mine) {
     // member profile) — yours read inside the dotted threshold, suggested beyond it
     return {
       seed: -120, mist: 0,
-      header: { kicker: 'Your scenes', fig: String(yours.length), unit: `followed · ${window.fmtPop(totalMembers)} people` },
+      header: { kicker: 'Your scenes', fig: String(yours.length), unit: `followed · ${fmtPop(totalMembers)} people` },
       key: [{ label: 'closer = members more like you' }, { glyph: 'ring', label: 'suggested' }],
       nodes: [...yours, ...suggested].map((g) => {
         const isMine = mine.has(g.id);
@@ -193,7 +195,7 @@ function mfpConfig(pop, zoom, mine) {
 
 // ─── the field body — canvas, detail, lenses ───
 function MirrorFieldBody({ pop, worldZoom, zoomCtl, onPerson, firstRun }) {
-  const D = window.IS_DATA;
+  const D = IS_DATA;
   const [selId, setSelId] = useStateMFP(null);
   const [mine, setMine] = useStateMFP(() => new Set(window.SCENES ? window.SCENES.list() : D.groups.filter((g) => g.joined).map((g) => g.id)));
   const [gSelId, setGSelId] = useStateMFP(() => { const g = D.groups.find((x) => x.joined); return g ? g.id : null; });

@@ -4,6 +4,7 @@
 // spec-index.js load order is semantic — scripts/check-spec-globals.mjs
 // guards the wiring in CI.
 import React from 'react';
+import { TabSection } from './primitives.jsx';
 
 // demographics.jsx — one reusable "who they are" card, driven by audience id.
 // Age histogram (with a YOU pin), a gender split bar, and an audience-specific

@@ -4,6 +4,7 @@
 // spec-index.js load order is semantic — scripts/check-spec-globals.mjs
 // guards the wiring in CI.
 import React from 'react';
+import { useDialog } from './primitives.jsx';
 
 // RelationshipMap — a force-directed map of your people.
 // You sit at the center; each circle (family, friends, work…) gathers around its

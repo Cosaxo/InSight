@@ -4,6 +4,7 @@
 // spec-index.js load order is semantic — scripts/check-spec-globals.mjs
 // guards the wiring in CI.
 import React from 'react';
+import { Kicker } from './primitives.jsx';
 
 // ─── Test result visualizations — one unified language for every test ───
 // "Radar": a polygon plotted across one axis per dimension; the filled shape
