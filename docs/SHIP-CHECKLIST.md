@@ -22,6 +22,15 @@ has carried it into the runtime — the deploy log's env step shows the
 value and no empty-warning. Only step 3 remains, and it must be run
 **signed in as that account** (the gate matches the exact signed-in uid).
 
+**So §2's provider switch comes first, and the dependency is easy to
+miss** — the two facts live in different sections of this file. `runSeedV2`
+throws `unauthenticated` without `request.auth` before it ever consults
+`SEED_ADMIN_UIDS` (`functions/src/ops.ts`), and the uid it wants is a
+**Google-account** uid. Google sign-in was measured off on 2026-08-03
+along with Anonymous, so today there is no way to be that uid at all.
+Enable the providers, then seed. LAUNCH-RUNBOOK 0.1 carries the same
+warning, because it had this step filed under "no accounts needed".
+
 1. ~~Copy your uid~~ — done; the maintainer's Google-account uid, the
    same one `MOD_UIDS` holds. (For a future extra operator: it's shown by
    `window.LIVE.uid` in the browser console, or in Firebase Console →
@@ -126,6 +135,20 @@ Both apps must be registered under `com.cosaxo.insight`:
   for a company address; launching as a sole trader was chosen instead
   (LAUNCH-RUNBOOK 1.1 — enrolling as an organization first costs 1–2 weeks
   of D-U-N-S verification for nothing launch needs).
+
+  **That parenthesis is about Apple, and it was wrong to read it as
+  settling both stores (D41).** On Apple an organization enrollment buys
+  nothing launch needs, so individual is right. On Play the same 1–2 weeks
+  buy exemption from a 12-testers × 14-days closed-testing gate that is
+  otherwise a 3–4 week floor, so the trade inverts: **the Play Console
+  account opens as an organization**, backed by an ENK and a D-U-N-S.
+  Two stores, two answers.
+
+  Registering the ENK does not change the values above — an ENK is not a
+  separate legal person, so the operator is still Olaf Taule. **If it is
+  registered under a business name, revisit this page**: the operator line
+  should name the entity a user is actually contracting with, and
+  `check:store-copy` cannot tell a correct name from a stale one.
 
   It closes three separate dependencies at once, which is why it was the
   schedule wildcard: `web/privacy.html` routes erasure requests to "the
@@ -320,8 +343,11 @@ Both apps must be registered under `com.cosaxo.insight`:
 
   If the live takes surface ships later, 1.2 stops being comfortable and
   the report control has to ship with it, not after it.
-- Apple Developer Program (~2 days to approve — start early) and a Mac
-  with Xcode for the iOS build; Play Console for Android.
+- Apple Developer Program (~2 days to approve — start early, as an
+  **individual** enrollment) and a Mac with Xcode for the iOS build; Play
+  Console for Android, as an **organization** account (D41 — it is the
+  exemption from the closed-testing gate, and it needs the ENK's D-U-N-S
+  in hand first, so start that chain on day one).
 - Build flow: `npm run build && npx cap sync`, then open the native
   projects (`npm run ios` / `npm run android`), set signing, archive.
 - TestFlight / internal testing track for the friends test. **Invite ten,
