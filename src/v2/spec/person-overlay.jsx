@@ -4,6 +4,7 @@
 // spec-index.js load order is semantic — scripts/check-spec-globals.mjs
 // guards the wiring in CI.
 import React from 'react';
+import { IS_DATA } from './sample-data.js';
 import { Av, AnonAv, anonName, Kicker, useDialog } from './primitives.jsx';
 
 // Expanded Person profile — a detailed portrait of similarity
@@ -75,7 +76,7 @@ function derivePerson(p, me) {
   const sleepAvg = (6.4 + r('sleep') * 2.2).toFixed(1) + 'h';
 
   // closest ideology in econ × social
-  const ideos = window.IS_DATA.ideologies;
+  const ideos = IS_DATA.ideologies;
   const closest = ideos.map(io => {
     const dx = io.econ - political.econ, dy = io.social - political.social;
     return { ...io, d: Math.sqrt(dx*dx + dy*dy) };
@@ -150,7 +151,7 @@ function PersonOverlay({ p: rawP, onClose, me }) {
   if (!rawP) return null;
   // Normalize interests — some sources (IS_DATA.people) store them as
   // category-id strings; person-overlay expects [{t, c}] objects.
-  const cats = window.IS_DATA?.interestCats || [];
+  const cats = IS_DATA.interestCats || [];
   const normInterests = (rawP.interests || []).map(i => {
     if (typeof i === 'string') {
       const cat = cats.find(c => c.id === i);
@@ -270,7 +271,7 @@ function PersonOverlay({ p: rawP, onClose, me }) {
           const myInts = me.myInterests || [];
           const myCatSet = new Set(myInts.map(i => i.c));
           const theirCatSet = new Set(p.interests.map(i => i.c));
-          const allCats = (window.IS_DATA && window.IS_DATA.interestCats) || [];
+          const allCats = (IS_DATA && IS_DATA.interestCats) || [];
           // Their interests are declared as CATEGORIES; yours as specific things
           // inside them. So the compare is a category ladder: one row per
           // category either of you keeps, your depth in it as count dots, their

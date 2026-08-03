@@ -4,6 +4,7 @@
 // spec-index.js load order is semantic — scripts/check-spec-globals.mjs
 // guards the wiring in CI.
 import React from 'react';
+import { IS_DATA } from './sample-data.js';
 
 // ─────────────────────────────────────────────────────────────
 // General tab · the parts of you that aren't a test.
@@ -26,7 +27,7 @@ import React from 'react';
 
   // ── seed from data.js, then overlay any saved edits ──
   function seedFromData() {
-    const me = (window.IS_DATA && window.IS_DATA.me) || {};
+    const me = (IS_DATA && IS_DATA.me) || {};
     const s = me.stats || {};
     return {
       vitals: {

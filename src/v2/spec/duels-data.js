@@ -4,6 +4,7 @@
 // spec-index.js load order is semantic — scripts/check-spec-globals.mjs
 // guards the wiring in CI.
 import React from 'react';
+import { IS_DATA } from './sample-data.js';
 
 // duels-data.js — the "know each other" layer.
 //  · GROUP: one question a day for each named circle; answers sealed until
@@ -41,7 +42,7 @@ import React from 'react';
 
   // ── the circle — your friends ───────────────────────────────────────────────
   const IDS = ['f1', 'f2', 'f4', 'f6', 'f3']; // fallback if FRIENDS is absent
-  const allPeople = () => (window.IS_DATA && window.IS_DATA.people) || [];
+  const allPeople = () => (IS_DATA && IS_DATA.people) || [];
   const circleIds = () => (window.FRIENDS ? window.FRIENDS.list() : IDS);
   function members() { return circleIds().map((id) => allPeople().find((p) => p.id === id)).filter(Boolean); }
   const personOf = (pid) => allPeople().find((p) => p.id === pid);

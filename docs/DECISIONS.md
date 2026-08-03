@@ -3572,3 +3572,43 @@ conversion removes the condition, not just the prefix.
 `check-spec-globals.mjs` rather than in `check-figures.mjs`, because that
 script owns the count and a second implementation of it would be the drift
 the gate exists to prevent.
+
+### D39 amendment (2026-08-03, later) · `sample-data.js` converted — 755 → 726
+
+The second module off the bridge, and the layer's largest data module (719
+lines). `IS_DATA` and `fmtPop` are exports; nothing assigns to `window`.
+`scenes.js` is now the first file in `spec/` with **no cross-module global
+references at all**, which is the shape the migration is aiming at one file
+at a time.
+
+Two differences from `primitives.jsx`, both of which generalise:
+
+**The consumer set was not closed.** `test/smoke.test.jsx` reads `IS_DATA`
+to pick a real person and city for its overlay cases — using the fixture
+rather than hardcoding a name, deliberately, so the test does not silently
+stop finding anybody when the sample data is edited. So the conversion
+reached into `test/`. The previous amendment's rule stands and gets sharper:
+grep `ui/`, `data/`, `test/` and `main.jsx` before assuming a provider's
+consumers live only in `spec/`, because that answer is what decides whether
+a compat line is needed at all.
+
+**Every reference was `window.IS_DATA`, not a bare name.** Nine carried
+`(window.IS_DATA || {})` or `window.IS_DATA?.` — the same
+might-not-be-loaded guard `result-card.jsx` had around `Av`, and dead for
+the same reason: an imported const cannot be unset, and `sample-data.js`
+depends on nothing, so no cycle can put it in TDZ. Removed. The **inner**
+`|| []` / `|| {}` on `.groups`, `.people`, `.me` stayed — those guard
+missing data rather than a missing module, and conflating the two would
+have deleted real defensive code.
+
+That distinction is the one to carry: converting a provider removes the
+load-order condition, never the data condition.
+
+**The bundle number moved and it is not a win.** Entry chunk 853 → 818 KB,
+because `sample-data` became its own chunk — one that first paint still
+preloads, since `app-shell` imports it eagerly. Total JS is unchanged at
+1529 KB. This is exactly the case `check:bundle`'s header predicts ("a
+per-chunk limit alone is dodged by splitting one large chunk into two
+merely-large ones"), and the reason it asserts a total as well. Recorded so
+that the extra headroom under the 850 KB ceiling is not read as room that
+was earned.

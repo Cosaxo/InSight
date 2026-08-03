@@ -4,6 +4,7 @@
 // spec-index.js load order is semantic — scripts/check-spec-globals.mjs
 // guards the wiring in CI.
 import React from 'react';
+import { IS_DATA } from './sample-data.js';
 import { Av, AnonAv, anonName, useDialog } from './primitives.jsx';
 
 // search-overlay.jsx — one field, three kinds of answer: questions, topics, people.
@@ -133,7 +134,7 @@ function SearchOverlay({ onClose, onPerson }) {
   useSrchEffect(() => { const t = setTimeout(() => ref.current && ref.current.focus(), 80); return () => clearTimeout(t); }, []);
 
   const query = q.trim().toLowerCase();
-  const D = window.IS_DATA;
+  const D = IS_DATA;
   const TOPIC = useSrchMemo(() => Object.fromEntries((window.WORLD_TOPICS || []).map((t) => [t.id, t])), []);
   const ST = window.SUBTOPICS;
   const SC = window.SCENES;

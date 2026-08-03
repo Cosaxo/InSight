@@ -369,7 +369,7 @@ survivable enough to live with indefinitely.
 **Rule 4** counts every site where one file reads a name another file
 assigns to global scope, per file, and the number may only go down. The
 baseline is in `scripts/check-spec-globals.mjs`; `npm run check:globals`
-prints the current total on every run. The count today is **755 across 57
+prints the current total on every run. The count today is **726 across 56
 files**, down from 799 when the ratchet landed.
 
 The mechanism needs no bookkeeping, which is what makes it usable. The
@@ -411,9 +411,38 @@ Three things worth knowing before converting the next one:
   createElement alias. One site layer-wide, but it was a hole in a ratchet
   whose whole job is that the number cannot be gamed.
 
+### `sample-data.js` is converted too
+
+The second, and the largest data module in the layer (719 lines).
+`IS_DATA` and `fmtPop` are exports; nothing assigns to `window` here
+either. 755 → 726, and `scenes.js` became the first file in the layer with
+**no cross-module global references at all**.
+
+Two things differed from `primitives.jsx`, both worth expecting again:
+
+- **The consumer set was NOT closed.** `test/smoke.test.jsx` reads
+  `IS_DATA` to pick a real person and city for the overlay cases, so the
+  conversion reached into `test/` as well as `spec/`. Check `ui/`, `data/`,
+  `test/` and `main.jsx` before assuming a provider's consumers all live in
+  `spec/` — the grep is cheap and the answer decides whether a compat line
+  is needed.
+- **Every reference was `window.IS_DATA`, not a bare name**, so nine of
+  them carried `(window.IS_DATA || {})` or `window.IS_DATA?.` — the same
+  might-not-be-loaded guard `result-card.jsx` had around `Av`. Those are
+  gone: an imported const cannot be unset, and `sample-data.js` depends on
+  nothing so no cycle can put it in TDZ. The **inner** `|| []` / `|| {}` on
+  `.groups`, `.people` and `.me` stayed — those guard missing *data*, which
+  is a real condition and nothing to do with module loading.
+
+**One bundle effect worth not misreading.** The entry chunk went 853 → 818
+KB, and that is not 35 KB saved: `sample-data` became its own chunk that
+first paint still preloads, because `app-shell` imports it eagerly. Total
+JS is unchanged at 1529 KB. `check:bundle` asserts a total precisely so a
+split cannot read as a win — see its header.
+
 **Next, cheapest first**, same criterion — providers that depend on nothing
-themselves: `sample-data.js` (13 consumers), `daily-questions.js` (6),
-`world-catalogs.js` (5), `follows.js` (4), `result-rose.jsx` (4).
+themselves: `daily-questions.js` (6 consumers), `world-catalogs.js` (5),
+`follows.js` (4), `result-rose.jsx` (4).
 
 **What NOT to start with.** The layer has import cycles, and they cluster:
 `test-definitions.js ↔ daily-split.jsx`, and `app-shell.jsx →

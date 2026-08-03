@@ -4,6 +4,7 @@
 // spec-index.js load order is semantic — scripts/check-spec-globals.mjs
 // guards the wiring in CI.
 import React from 'react';
+import { IS_DATA } from './sample-data.js';
 import { Kicker, useDialog } from './primitives.jsx';
 
 // CityOverlay — opens when you tap a city in the World tab atlas
@@ -11,7 +12,7 @@ const { useState: useStateCO } = React;
 
 function CityOverlay({ city, onClose }) {
   const dlg = useDialog(onClose, city && city.name ? `${city.name} profile` : 'City profile');
-  const D = window.IS_DATA;
+  const D = IS_DATA;
   const cats = D.cityScoreCats;
   const scores = city.scores || {};
 

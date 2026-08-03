@@ -4,6 +4,7 @@
 // spec-index.js load order is semantic — scripts/check-spec-globals.mjs
 // guards the wiring in CI.
 import React from 'react';
+import { IS_DATA } from './sample-data.js';
 import { Av } from './primitives.jsx';
 
 // result-card.jsx — test profile cards: each test keeps the shared banner
@@ -188,7 +189,7 @@ function ResultProfileCard({ testKey, archetype, tagline }) {
   const sameType = (() => {
     if (!arch) return [];
     const map = (window.IS_FRIEND_TYPES || {})[testKey] || {};
-    const ppl = ((window.IS_DATA || {}).people) || [];
+    const ppl = IS_DATA.people || [];
     return ppl.filter(p => map[p.id] === arch.list[you].name);
   })();
   const typeLine = arch ? arch.list[you].line : null;

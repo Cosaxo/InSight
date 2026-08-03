@@ -4,6 +4,7 @@
 // spec-index.js load order is semantic — scripts/check-spec-globals.mjs
 // guards the wiring in CI.
 import React from 'react';
+import { IS_DATA, fmtPop } from './sample-data.js';
 import { Av, Lazy, MatchRing } from './primitives.jsx';
 
 // mirror-field.jsx — the Mirror rendered as a FIELD, not a scroll of cards.
@@ -368,7 +369,7 @@ function MFDetail({ node, onPerson, onJoin, onLeave, joined }) {
       </MatchRing>
     );
     title = d.name;
-    sub = `${window.fmtPop(d.members)} people · ${d.vibe}`;
+    sub = `${fmtPop(d.members)} people · ${d.vibe}`;
     action = joined
       ? btn('Unfollow', () => onLeave(d.id))
       : btn('Follow', () => onJoin(d.id), true);
@@ -376,7 +377,7 @@ function MFDetail({ node, onPerson, onJoin, onLeave, joined }) {
     av = <MatchRing pct={node.match} color={`oklch(0.5 0.13 ${hue})`} size={52}><span style={{ width: 13, height: 13, borderRadius: '50%', background: `oklch(0.63 0.13 ${hue})` }}></span></MatchRing>;
     title = d.name || node.label;
     sub = node.home ? 'where you live now' : [d.country, d.mood].filter(Boolean).join(' · ');
-    const known = window.IS_DATA.cities && window.IS_DATA.cities.some((c) => c.name === title);
+    const known = IS_DATA.cities && IS_DATA.cities.some((c) => c.name === title);
     if (known && window.openCity) action = btn('Explore →', () => window.openCity(title));
   }
 
