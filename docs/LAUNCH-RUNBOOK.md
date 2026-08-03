@@ -13,8 +13,9 @@ the section that explains them; read that before doing anything whose
 reasoning is not obvious, especially the App Check ordering (§ hardening)
 and the reveal/rules deploy order.
 
-State verified 2026-08-03: `npm run check:store-copy` reports **6**
-unfilled placeholders (three legal values, three account-gated IDs); the
+State verified 2026-08-03: `npm run check:store-copy` reports **3**
+unfilled placeholders, all account-gated IDs (the three legal values were
+filled the same day); `check:store-listing` and `check:versions` pass; the
 daily bank is at 90 questions; the production backend is deployed.
 
 ## Two clocks you cannot compress
@@ -22,31 +23,49 @@ daily bank is at 90 questions; the production backend is deployed.
 Everything else is initiative. These two are waiting, so start them on day
 one and do the rest while they run:
 
-1. **Google Play: 12 opted-in testers × 14 continuous days**, then a
-   production-access application Google reviews in up to ~7 days. Personal
-   developer accounts created after 2023-11-13 cannot ship to production
-   without it; organization accounts (D-U-N-S) are exempt. "Opted in" means
-   the tester accepted *and installed* — invited-not-installed does not
-   count. The clock starts when a signed build reaches the closed track,
-   not when the account opens. **Realistic Android floor: 3–4 weeks.**
+1. **Google Play: the D-U-N-S wait** — because the account opens as an
+   **organization** (D41), which is exempt from the closed-testing gate
+   personal accounts face. What is left is the entity chain: ENK →
+   organisasjonsnummer → D-U-N-S → Google's org verification, then a
+   production-access application reviewed in up to ~7 days. A D-U-N-S is
+   free and usually lands in ~1–2 weeks, but D&B quotes up to ~30 business
+   days. **Start it on day one — it is the long pole, and it is pure
+   waiting.**
+
+   *The path this replaces, kept because the fallback is real:* a personal
+   account created after 2023-11-13 must run **12 opted-in testers × 14
+   continuous days** on a closed track first. "Opted in" means accepted
+   *and installed*, the 14 days are continuous, and dropping below 12
+   restarts them — so 3–4 weeks is that path's floor, not its estimate. If
+   the org exemption does not hold when you reach the account-type flow,
+   this is where you land, having lost only a wait that overlapped Apple's.
 2. **App Check: a 24–48h metrics soak** before enforcement is flipped.
    Registering the apps starts it; enforcement without it is how you find
    out a platform is misconfigured from users instead of a graph.
 
 Apple has no equivalent gate — enrollment is ~1–2 days, review usually
-24–48h. **iOS can be live in ~2 weeks; both stores in ~3–4.**
+24–48h. **iOS can be live in ~2 weeks; both stores in ~3–4**, and the iOS
+date does not depend on which way Play's account type resolves.
 
 ---
 
-## Phase 0 — Do these first (about an hour, no accounts needed)
+## Phase 0 — Do these first (about an hour, one console)
 
-- [ ] **0.1 Seed the production question bank.** Signed in as the operator
-      account, from the app's console:
+- [ ] **0.1 Seed the production question bank — but do 1.3 first.** Signed
+      in as the operator account, from the app's console:
       `firebase.functions().httpsCallable("seedContentV2")()`.
       369 questions land in `v2_questions`. Idempotent and, since D34,
       cheap to repeat — reseed whenever content lands. `SHIP-CHECKLIST §1`.
       *Until this runs the deployed backend serves an empty app, so it
       blocks every screenshot and every tester.*
+
+      **This step is not account-free, which earlier drafts had wrong.**
+      `seedContentV2` throws `unauthenticated` without `request.auth` and
+      then gates on a uid in `SEED_ADMIN_UIDS` (`functions/src/ops.ts`) —
+      the maintainer's **Google-account** uid. With no sign-in provider
+      enabled in Firebase Auth there is no way to be that uid, so **1.3
+      is this step's precondition**, not a parallel task. Nothing else in
+      Phase 0 depends on it; do 1.3, then come back here.
 - [ ] **0.2 Confirm the hosting pages are actually live.** Open
       `https://prvfire33.web.app/privacy.html` and
       `https://prvfire33.web.app/`. Both store listings require these
@@ -70,10 +89,33 @@ Apple has no equivalent gate — enrollment is ~1–2 days, review usually
 - [ ] **1.1 Apple Developer Program — enroll as an *individual*** ($99/yr,
       ~1–2 days). Convertible to an organization later; enrolling as an org
       first costs 1–2 weeks of entity + D-U-N-S verification for nothing
-      launch needs. Start it before anything else on this list.
-- [ ] **1.2 Google Play Console account** ($25 one-time, identity check).
-      Open it today even though the build is days away — the account has
-      to exist before a build can start the 14-day clock.
+      launch needs. Start it before anything else on this list. **This
+      reasoning is Apple-only** — it inverts on Play, which is why 1.2 goes
+      the other way (D41).
+- [ ] **1.1b Register the ENK and apply for the D-U-N-S — day one, before
+      1.2.** Notify Brønnøysundregistrene via Altinn; registration in
+      Enhetsregisteret is free and yields the organisasjonsnummer a D-U-N-S
+      application needs. The D-U-N-S itself is free from D&B, usually ~1–2
+      weeks, quoted up to ~30 business days. Everything else on this list
+      runs while it waits. `D41`.
+- [ ] **1.2 Google Play Console account — open it as an *organization*,
+      not personal** ($25 one-time, identity check). The organization type
+      is exempt from the 12-testers × 14-days closed-testing gate; a
+      personal account created after 2023-11-13 is not, and that is a 3–4
+      week floor (D41). Needs the D-U-N-S from 1.1b, so this step waits on
+      that one — which is the whole reason 1.1b is a day-one task.
+
+      **Do not open a personal account "to get started".** Sources
+      disagree on whether Play Console converts personal → organization at
+      all, and the ones that say it does disagree on whether the testing
+      requirement follows the converted account. Picking organization at
+      creation costs nothing and makes the question moot; the fallback if
+      you pick wrong is a second account plus an app transfer.
+
+      **Confirm the exemption in the account-type flow before paying for a
+      D-U-N-S expedite.** D41 records why: the claim is sourced from
+      secondary write-ups rather than Google's own policy page, which the
+      research environment could not reach.
 - [ ] **1.3 Firebase Console → Authentication → Sign-in method:** enable
       **Anonymous** AND **Google**. Earlier drafts said "confirm Anonymous
       stays enabled" — measured 2026-08-03 (anonymous sign-up returns
@@ -134,12 +176,24 @@ Apple has no equivalent gate — enrollment is ~1–2 days, review usually
       invite links open the fallback page — degraded, not broken, so this
       does not block submission. `SHIP-CHECKLIST §3b`.
 
-## Phase 3 — The testing tracks (the clocks run here)
+## Phase 3 — The testing tracks
 
-- [ ] **3.1 Upload a signed AAB to the Play closed track the day you have
-      one.** This is what starts the 14 days. Recruit **12+ testers who
-      actually install**; churn mid-window resets nothing but a drop below
-      12 pauses progress.
+Under D41 the Play clock no longer runs here — it runs in 1.1b, as the
+D-U-N-S wait, and these tracks are for finding bugs rather than for
+satisfying a gate. The App Check soak (3.4) is the one clock still in this
+phase. On the personal-account fallback, 3.1 is also where the 14 days
+start.
+
+- [ ] **3.1 Upload a signed AAB to a Play testing track the day you have
+      one.** With the organization account (D41) this is testing, not a
+      gate — no tester minimum, no 14-day clock, and no reason to wait for
+      a headcount before uploading. Use it the way TestFlight is used in
+      3.2: real installs on real Android hardware, duels first.
+
+      *If the org exemption did not hold and the account is personal:* this
+      upload is what starts the 14 days, and it needs **12+ testers who
+      actually install** — churn mid-window resets nothing, but a drop
+      below 12 pauses progress.
 - [ ] **3.2 TestFlight with ten testers, not five.** The public mirror
       publishes once per 5 answers (D7), so a group of 6–9 watches the
       world count sit on "5+" and never move — accurate, and it reads as
@@ -185,8 +239,9 @@ left here is a **recapture against live data**, plus the two forms.
       `design/store/listing.json` carries every field both consoles ask
       for; `npm run check:store-listing` holds each against its character
       limit (all currently fit, the longest at 161/170). Edit the voice to
-      taste — it is a draft, not a decision. One placeholder remains:
-      `shared.supportEmail`, the same address as 0.3.
+      taste — it is a draft, not a decision. No placeholders remain:
+      `shared.supportEmail` was filled with 0.3's address on 2026-08-03,
+      and `check:store-listing` passes.
 - [ ] **4.4 Privacy nutrition labels (Apple) + Data safety form (Google).**
       Mandatory; neither store accepts a submission without one. Answer
       from the table in `SHIP-CHECKLIST §3`, which is
@@ -272,9 +327,11 @@ left here is a **recapture against live data**, plus the two forms.
       optional upgrade rather than a login wall, and no email or name is
       collected through it. Only add the Apple provider if a reviewer
       insists.
-- [ ] **6.3 Apply for Play production access** once the 14 days complete —
-      a three-section application, reviewed in up to ~7 days. Then submit
-      the production release.
+- [ ] **6.3 Apply for Play production access** — a three-section
+      application, reviewed in up to ~7 days, then submit the production
+      release. On the organization account (D41) nothing gates this but the
+      application itself; on the personal fallback it cannot be filed until
+      the 14 days complete.
 
 ## Not blockers — these can trail the launch
 
@@ -303,4 +360,13 @@ left here is a **recapture against live data**, plus the two forms.
 ## Sources for the store-policy claims
 
 - [App testing requirements for new personal developer accounts — Play Console Help](https://support.google.com/googleplay/android-developer/answer/14151465?hl=en)
+- [Choose a developer account type — Play Console Help](https://support.google.com/googleplay/android-developer/answer/13634885?hl=en)
 - [Google Play closed testing: 12 testers, 14 days](https://www.testerscommunity.com/google-play-closed-testing)
+- [Starting and registering a sole proprietorship — Altinn](https://info.altinn.no/en/start-and-run-business/planning-starting/registration-of-the-enterprise/starting-and-registering-a-sole-proprietorship/)
+
+The two Play Console Help pages are the authority for D41's account-type
+exemption and **neither was read directly** — the environment this was
+researched from returned 403 at its proxy for every outbound host, so the
+exemption is sourced from secondary write-ups. Read them before spending
+money on a D-U-N-S expedite; D41 records the fallback if they say something
+different.

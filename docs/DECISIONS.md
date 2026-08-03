@@ -3919,3 +3919,94 @@ skip/pass line (a pass is local-only; server collection is a privacy
 decision this record does not make). Doing nothing — rejected with the
 runway numbers above: repeats begin on day 21 for precisely the
 most-engaged pairs.
+
+## D41 · The two stores' account types are decided separately — Play as an organization, Apple as an individual
+
+**Date:** 2026-08-03 · **Status:** Adopted (owner-confirmed — the closed-testing
+path was rejected outright, and this write-up requested in the same exchange)
+
+**Decision.** The Google Play Console account is opened as an
+**organization** account, backed by a Norwegian enkeltpersonforetak (ENK)
+and a D-U-N-S number. The Apple Developer Program enrollment stays an
+**individual** enrollment (LAUNCH-RUNBOOK 1.1, unchanged). The account
+type is decided per store, not once for both.
+
+**Why.** Google's closed-testing requirement — 12 opted-in testers for 14
+continuous days before a production-access application, itself reviewed in
+up to ~7 days — binds **personal** developer accounts created on or after
+2023-11-13. Organization accounts, verified with a D-U-N-S number, are
+exempt from it entirely. There is no waiver, no small-developer carve-out,
+and no appeal, so the account type at creation is the whole decision.
+
+**The arithmetic.**
+
+| | Personal | Organization |
+| --- | --- | --- |
+| Closed testing | 14 continuous days, 12 testers who install *and stay opted in* | none |
+| Production access review | up to ~7 days | up to ~7 days |
+| Setup before either | none | ENK registration + D-U-N-S + Google's org verification |
+| Realistic total | 3–4 weeks | 1–3 weeks |
+| How it fails | a tester uninstalls on day 11 and the clock restarts | waiting, but nothing resets |
+
+The organization path is not reliably *faster* in the worst case — a
+D-U-N-S is free but D&B quotes up to ~30 business days, commonly ~1–2
+weeks. It is better on two axes that matter more than the median: the wait
+is parallelizable dead time rather than active recruiting, and it has no
+reset condition. The 14 days are *continuous*; dropping below 12 opted-in
+testers restarts them, which makes the personal path's 3–4 weeks a floor
+rather than an estimate.
+
+**The correction this record makes.** SHIP-CHECKLIST §3 read "launching as
+a sole trader was chosen instead (LAUNCH-RUNBOOK 1.1 — enrolling as an
+organization first costs 1–2 weeks of D-U-N-S verification for nothing
+launch needs)". That reasoning is sound and stays true **for Apple**, where
+an organization enrollment buys nothing launch needs. It was then carried
+across to Play as if it settled both stores. On Play the same 1–2 weeks buy
+the removal of a 3–4 week gate, so the trade inverts. Two stores, two
+answers, one sentence that had only considered one of them.
+
+**Do not open a personal account first.** Sources disagree on whether Play
+Console supports converting personal → organization at all; the ones that
+say it does disagree on whether the testing requirement follows the
+converted account. The clean move is to pick organization at creation,
+which makes the question moot. The account had not been opened when this
+was decided (LAUNCH-RUNBOOK 1.2 unchecked), so the option was free — it
+would not have been a week later, where the fallback is a second account
+plus an app transfer.
+
+**Precondition, and what it does not change.** An ENK is registered by
+notifying Brønnøysundregistrene via Altinn; registration in Enhetsregisteret
+is free and yields an organisasjonsnummer, which is what a D-U-N-S
+application needs. An ENK is not a separate legal person — the operator is
+still Olaf Taule — so `web/terms.html`'s operator and jurisdiction values
+stand as written. **If the ENK is registered under a business name, revisit
+that page**: the operator line should then name the entity a user would
+actually be contracting with, and `check:store-copy` cannot see the
+difference between a correct name and a stale one.
+
+**Alternatives considered.**
+
+- **Tester-exchange groups and paid tester farms** — rejected. They exist,
+  Google actively polices them, and the downside is account termination:
+  a bet that risks the account to save 14 days on it.
+- **Open testing instead of closed** — rejected as unavailable, not as
+  unattractive. The requirement names closed testing specifically; an open
+  track does not satisfy it.
+- **An existing pre-2023-11-13 developer account** — genuinely exempt, and
+  the cheapest path if one exists. Checked and none is held; recorded so
+  the option is not rediscovered as new.
+- **Shipping iOS first and deciding Play later** — not an alternative but a
+  fact that holds under either choice, and the reason this decision is not
+  urgent for the iOS date. Apple has no equivalent gate; iOS can be live in
+  ~2 weeks regardless.
+
+**Sourcing, stated because it is weaker than this file's norm.** Google's
+own support pages could not be read directly — the network policy of the
+environment this was researched from returned 403 at the proxy for every
+outbound host — so the exemption and the timelines come from search results
+and secondary write-ups, not from the primary policy page. That is enough
+to choose an account type at creation, when the choice is free; it is not
+enough to spend money on. **Confirm the exemption in the Play Console
+account-type flow before paying for a D-U-N-S expedite**, and if it turns
+out not to hold, the fallback is the 12×14 path with nothing lost but a
+wait that overlapped Apple's anyway.
