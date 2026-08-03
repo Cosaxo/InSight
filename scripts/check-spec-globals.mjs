@@ -137,27 +137,31 @@ const COUPLING_BASELINE = {
   "src/v2/spec/search-overlay.jsx": 10,
   "src/v2/spec/segment-explorer.jsx": 1,
   "src/v2/spec/suggestions.jsx": 3,
-  "src/v2/spec/test-definitions.js": 7,
+  "src/v2/spec/test-definitions.js": 4,
   "src/v2/spec/test-feed-data.js": 2,
   "src/v2/spec/test-overlay.jsx": 30,
   "src/v2/spec/test-viz.jsx": 2,
   "src/v2/spec/type-marks.jsx": 5,
   "src/v2/spec/vote-cuts.js": 1,
-  "src/v2/spec/world-feed-data.js": 9,
-  "src/v2/spec/world-feed.jsx": 165,
-  "src/v2/spec/world-subtopics.js": 3,
+  "src/v2/spec/world-feed-data.js": 4,
+  "src/v2/spec/world-feed.jsx": 159,
 };
 
 const coupling = {};
 for (const [name, sites] of referenced) {
-  const owner = definedBy.get(name);
-  // No owner means the name is not defined anywhere in the scanned set —
-  // rule 1 has already reported it, and counting it here would double the
-  // report and inflate the meter with names that are bugs, not coupling.
-  if (!owner) continue;
+  const assigners = definedBy.get(name);
+  // Not assigned anywhere in the scanned set means the name is not coupling
+  // but a bug — rule 1 has already reported it, and counting it here would
+  // double the report and inflate the meter with dangling references.
+  if (!assigners) continue;
   for (const site of sites) {
     const file = site.slice(0, site.lastIndexOf(":"));
-    if (file === owner) continue; // a file reading its own global is not coupling
+    // A file reading a global it assigns itself is not coupled to anyone.
+    // `assigners` is a SET because several files legitimately write the same
+    // name (WORLD_FEED_QS: created by one, appended by two, replaced by
+    // live.ts) — with a single owner, the writers that were not picked had
+    // their own reads counted as coupling to a file they do not depend on.
+    if (assigners.has(file)) continue;
     coupling[file] = (coupling[file] || 0) + 1;
   }
 }

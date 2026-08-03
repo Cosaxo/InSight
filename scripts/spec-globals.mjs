@@ -68,11 +68,18 @@ files.push(join(root, "src/v2/spec-index.js"));
 
 const defined = new Set();
 const referenced = new Map(); // name -> [file:line]
-// name -> the root-relative file that assigns it. First assignment wins:
-// a name assigned in two places is already a bug the dangling-reference
-// rule cannot see, and picking the first keeps the owner stable rather
-// than dependent on readdir order. Only rule 4 (the migration ratchet)
-// reads this — it needs to tell a file's OWN globals from its neighbours'.
+// name -> the set of root-relative files that assign it. A Set rather than
+// a single owner because multi-writer globals are a real pattern here, not
+// a bug: `WORLD_FEED_QS` is created by world-feed-data.js and appended to
+// by world-catalogs.js and world-subtopics.js, then replaced wholesale by
+// data/live.ts in live mode.
+//
+// It was a single "first assignment wins" map until 2026-08-03, and that
+// mis-attributed exactly this case — readdir order made world-catalogs.js
+// the owner, so world-feed-data.js's five reads of the global IT creates
+// were counted as coupling to a file that only appends to it. Rule 4 asks
+// "does this file assign the name?", which is the question that has an
+// answer when several files do.
 const definedBy = new Map();
 
 const DEFINE_RES = [
@@ -117,7 +124,8 @@ for (const file of files) {
   const rel = file.slice(root.length + 1);
   const own = (name) => {
     defined.add(name);
-    if (!definedBy.has(name)) definedBy.set(name, rel);
+    if (!definedBy.has(name)) definedBy.set(name, new Set());
+    definedBy.get(name).add(rel);
   };
   for (const re of DEFINE_RES) {
     re.lastIndex = 0;

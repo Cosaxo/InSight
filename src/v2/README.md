@@ -369,7 +369,7 @@ survivable enough to live with indefinitely.
 **Rule 4** counts every site where one file reads a name another file
 assigns to global scope, per file, and the number may only go down. The
 baseline is in `scripts/check-spec-globals.mjs`; `npm run check:globals`
-prints the current total on every run. The count today is **708 across 54
+prints the current total on every run. The count today is **691 across 53
 files**, down from 799 when the ratchet landed.
 
 The mechanism needs no bookkeeping, which is what makes it usable. The
@@ -468,8 +468,34 @@ a module-graph guarantee. Verified by probe rather than assumed: all seven
 (`top-sport`, `top-film`, `top-food`, `top-travel`, `top-mind`,
 `top-morals`, `top-music`) still merge after the change.
 
-**Next, cheapest first**: `world-catalogs.js` (5 consumers), `follows.js`
-(4), `result-rose.jsx` (4).
+### `world-catalogs.js` — half of it converts, and the meter had a bug
+
+708 → 691, in two independent parts.
+
+**The module owns two names and only one of them is its export.**
+`WF_CATALOGS` is a plain data object with a single writer, and it converted
+like the others (6 sites in `world-feed.jsx`, all of them the same
+`(window.WF_CATALOGS || {})` load-order guard). `WORLD_FEED_QS` did **not**,
+and deliberately: `world-feed-data.js` creates the pool, this file and
+`world-subtopics.js` append to it, and `data/live.ts` replaces it wholesale
+in live mode. Four writers and a live/demo boundary is a design change —
+an owning module with an add/replace API — not a mechanical conversion. The
+append site carries that reasoning inline.
+
+**And it exposed a real defect in the ratchet.** `definedBy` was a
+first-assignment-wins map, so a multi-writer global got one arbitrary owner
+picked by readdir order. `world-catalogs.js` sorts before
+`world-feed-data.js`, so it was recorded as owning `WORLD_FEED_QS` — and
+`world-feed-data.js`'s five reads of **the global it creates itself** were
+counted as coupling to a file that only appends to it. The map is a
+`Map<name, Set<file>>` now and rule 4 asks "does this file assign the
+name?", which is a question with an answer when several do. That correction
+alone removed **11 false positives**, so part of this change's drop is the
+meter getting more honest rather than the tree getting better — worth
+separating, because a ratchet that miscounts in the flattering direction is
+the one failure it cannot report itself.
+
+**Next, cheapest first**: `follows.js` (4 consumers), `result-rose.jsx` (4).
 
 **What NOT to start with.** The layer has import cycles, and they cluster:
 `test-definitions.js ↔ daily-split.jsx`, and `app-shell.jsx →

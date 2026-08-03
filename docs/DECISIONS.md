@@ -3662,3 +3662,45 @@ after the change.
 
 Entry chunk 818 → 793 KB, same relocation-not-saving as the last one —
 total JS unchanged at 1529 KB across 34 chunks.
+
+### D39 amendment (2026-08-03, fourth) · `world-catalogs.js` — 708 → 691, and the meter was overcounting
+
+Two independent things, worth separating because only one of them is the
+tree improving.
+
+**Half the module converts.** `world-catalogs.js` assigns two names and only
+one is its export. `WF_CATALOGS` is a plain data object with a single
+writer; it converted like the others, and all six consumer sites in
+`world-feed.jsx` carried the same `(window.WF_CATALOGS || {})` load-order
+guard, now gone.
+
+`WORLD_FEED_QS` did **not** convert, deliberately. It has four writers:
+`world-feed-data.js` creates the pool, this file and `world-subtopics.js`
+append to it, and `data/live.ts` replaces it wholesale in live mode — which
+is how D11's guarantee that demo catalogue cards never reach live surfaces
+is implemented. Making that an ESM export means designing an owning module
+with an add/replace API and moving four writers onto it, across the
+live/demo boundary. That is a design change, not a conversion, and it does
+not belong in a batch of mechanical ones. The append site now carries that
+reasoning inline so the next person does not have to re-derive it.
+
+**The ratchet was overcounting, and this is how it surfaced.** `definedBy`
+was a first-assignment-wins map, so a multi-writer global got one arbitrary
+owner decided by `readdir` order. `world-catalogs.js` sorts before
+`world-feed-data.js`, so it was recorded as owning `WORLD_FEED_QS` — and
+`world-feed-data.js`'s five reads of **the global it creates itself** were
+counted as coupling to a file that merely appends to it. Same for
+`world-subtopics.js`.
+
+It is now `Map<name, Set<file>>`, and rule 4 asks "does this file assign
+this name?" — a question that still has an answer when several files do.
+**11 of this change's 17-site drop are that correction**, not converted
+code.
+
+Recorded at this length because of what the failure was: a ratchet
+miscounting in the *flattering* direction is the one error it cannot report
+about itself. The number went down for a reason that was not progress, and
+the only thing standing between that and a quietly wrong meter was someone
+reading the attribution while doing an unrelated conversion. The first
+multi-writer global to be converted would have moved the count in the wrong
+direction and looked like a regression.
