@@ -119,21 +119,33 @@ Both apps must be registered under `com.cosaxo.insight`:
     both gated on `!S.live` by D1, so a real user never sees them on a
     live question. Recapture against seeded production once real answers
     exist — App Store 2.3.3 wants screenshots that reflect the app.
-- **Legal pages — three values owed, deliberately.** `web/terms.html`
-  still carries `[support email — set before launch]`, `[legal entity name
-  — set before launch]` and `[country / state — set before launch]`. These
-  are held open on purpose: the plan is to incorporate and use a company
-  address, and guessing them now would mean shipping a support address
-  nobody reads. That matters more than it looks — `web/privacy.html`
-  routes GDPR erasure requests to "the support address listed on the terms
-  of service page", so until these are filled, a user exercising a legal
-  right lands on a bracket.
+- **Legal pages — filled 2026-08-03 (owner-confirmed).** `web/terms.html`
+  now names `olaftaule01@gmail.com`, operator **Olaf Taule**, jurisdiction
+  **Norway**. That resolves the three values this entry used to hold open
+  for a company address; launching as a sole trader was chosen instead
+  (LAUNCH-RUNBOOK 1.1 — enrolling as an organization first costs 1–2 weeks
+  of D-U-N-S verification for nothing launch needs).
+
+  It closes three separate dependencies at once, which is why it was the
+  schedule wildcard: `web/privacy.html` routes erasure requests to "the
+  support address listed on the terms of service page", so a user
+  exercising a legal right used to land on a bracket; Apple guideline 1.2
+  requires published contact info for a UGC app; and both store listings
+  ask for a support contact.
+
+  **Norway is EEA, so GDPR applies in full.** One thing that follows and
+  is *not* done: EEA users have the right to lodge a complaint with a
+  supervisory authority (here, Datatilsynet), and `web/privacy.html` does
+  not mention it — the page has no jurisdiction-specific language at all.
+  Not a submission blocker for either store, and not a code problem;
+  flagged here so it is a decision rather than an oversight.
 
   `npm run check:store-copy` is the tripwire. **Run it before every store
-  upload**; it exits non-zero while any placeholder remains. It is
-  deliberately *not* in CI — the values are unfilled today, so a CI gate
-  would red the tree immediately and the first response would be to delete
-  the check.
+  upload**; it exits non-zero while any placeholder remains. Three remain,
+  all account-gated (the Play signing SHA-256, the Apple Team ID, the
+  `REVERSED_CLIENT_ID`), so it is still deliberately *not* in CI — it
+  would red the tree today, and the first response to that would be to
+  delete the check.
 - **Hosting — done, but verify the first deploy.** `firebase.json` serves
   the `web/` directory on the project's default site, so the store-required
   URLs are:

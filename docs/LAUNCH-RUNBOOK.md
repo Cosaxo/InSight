@@ -55,13 +55,15 @@ Apple has no equivalent gate — enrollment is ~1–2 days, review usually
       pages deployed — read that step's log. If it failed for want of a
       default site, create one in Firebase Console → Hosting and re-run.
       `SHIP-CHECKLIST §3`.
-- [ ] **0.3 Fill the three legal values in `web/terms.html`** — support
-      email, legal entity name, country/state. As a sole trader these are
-      answerable today; waiting on incorporation is the one thing that can
-      silently add weeks. The support address is not cosmetic:
-      `web/privacy.html` routes GDPR erasure requests to it, so until it is
-      real a user exercising a legal right lands on a bracket. Redeploy
-      hosting after editing. `SHIP-CHECKLIST §3`.
+- [x] **0.3 Fill the three legal values in `web/terms.html` — done
+      2026-08-03.** `olaftaule01@gmail.com`, operator Olaf Taule,
+      jurisdiction Norway, launching as a sole trader.
+      `check:store-copy` dropped from 6 placeholders to 3, and the
+      remaining three are all account-gated IDs from Phases 1–2.
+      **Still owed: redeploy hosting** so the live page shows the filled
+      values — the committed file is not what a store reviewer reads.
+      `SHIP-CHECKLIST §3` also notes one EEA follow-up that is a decision,
+      not a blocker.
 
 ## Phase 1 — Day 1: open the accounts, start both clocks
 
