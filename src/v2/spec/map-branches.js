@@ -4,6 +4,7 @@
 // spec-index.js load order is semantic — scripts/check-spec-globals.mjs
 // guards the wiring in CI.
 import React from 'react';
+import { DAILYQ } from './daily-questions.js';
 
 // InSight — Map branches: the shared category list for the Map tab (and the
 // per-person mini-maps). The old statistical lens engine is gone — answers now
@@ -19,8 +20,8 @@ import React from 'react';
     { id: 'values',    label: 'Values',             hue: 356 },
   ];
   // Topical branches the Daily-Question system grows into the map (Sport, Film, …).
-  if (window.DAILYQ && Array.isArray(window.DAILYQ.EMERGENT_CATS)) {
-    window.DAILYQ.EMERGENT_CATS.forEach((c) => { if (!CATS.some((x) => x.id === c.id)) CATS.push({ id: c.id, label: c.label, hue: c.hue }); });
+  if (Array.isArray(DAILYQ.EMERGENT_CATS)) {
+    DAILYQ.EMERGENT_CATS.forEach((c) => { if (!CATS.some((x) => x.id === c.id)) CATS.push({ id: c.id, label: c.label, hue: c.hue }); });
   }
 
   function buildById(nodes) {

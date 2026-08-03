@@ -3612,3 +3612,53 @@ per-chunk limit alone is dodged by splitting one large chunk into two
 merely-large ones"), and the reason it asserts a total as well. Recorded so
 that the extra headroom under the 850 KB ceiling is not read as room that
 was earned.
+
+### D39 amendment (2026-08-03, third) · `daily-questions.js` — 726 → 708
+
+The first conversion where the module was **not** a pure provider, and the
+first where the conversion removed a real fragility rather than a syntax.
+
+**It is not a leaf, and that did not matter.** `daily-questions.js` reads
+`window.LIVE` in three places, so unlike `primitives.jsx` and
+`sample-data.js` it carries outgoing coupling of its own — which stays.
+Converting what a module *provides* is independent of what it *consumes*;
+the earlier records' "providers that depend on nothing" ordering is about
+load-order risk being zero, not a precondition. Do not wait for a module to
+be a leaf before exporting from it.
+
+**The IIFE.** `window.DAILYQ = api` sat inside a `(function(){…})()`
+wrapper, so `api` was not reachable at module top level. The wrapper is
+vestigial — an ESM module already has its own scope, and it is what this
+file needed when every module shared one — but unwrapping it re-indents 480
+lines and would bury four real edits in a whitespace diff. So the binding is
+hoisted (`export let DAILYQ;` above, assigned inside) rather than the
+wrapper removed. ESM exports are live and the module finishes evaluating
+before any importer's body runs, so a consumer never sees the hole. Recorded
+because the next IIFE-wrapped module should get the same treatment and not a
+reflexive de-indent.
+
+### The fragility this one removed
+
+`map-branches.js` reads `DAILYQ.EMERGENT_CATS` at **module-evaluation
+time** — not in a component, not on an event — to merge seven topical
+categories into the Map's category list. It worked only because
+`spec-index.js` lists `daily-questions.js` fifth and `map-branches.js`
+eleventh. Swapping those two lines would have dropped all seven categories
+**silently**: the old code was `if (window.DAILYQ && Array.isArray(…))`, so
+an unset global meant the merge simply did not happen, with no error
+anywhere and a Map that looked plausible.
+
+That is precisely the failure class CLAUDE.md describes the spec layer's
+load order as carrying, and it is now a module-graph guarantee instead of a
+property of a list nobody may reorder. The presence half of that guard is
+gone with it; the `Array.isArray` half stays, per the rule from the
+`sample-data.js` amendment — a conversion removes the load-order condition,
+never the data one.
+
+**Verified by probe rather than by reasoning**, since a silent no-op is the
+exact failure: all seven (`top-sport`, `top-film`, `top-food`, `top-travel`,
+`top-mind`, `top-morals`, `top-music`) still merge into `MapLens.CATS`
+after the change.
+
+Entry chunk 818 → 793 KB, same relocation-not-saving as the last one —
+total JS unchanged at 1529 KB across 34 chunks.

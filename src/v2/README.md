@@ -369,7 +369,7 @@ survivable enough to live with indefinitely.
 **Rule 4** counts every site where one file reads a name another file
 assigns to global scope, per file, and the number may only go down. The
 baseline is in `scripts/check-spec-globals.mjs`; `npm run check:globals`
-prints the current total on every run. The count today is **726 across 56
+prints the current total on every run. The count today is **708 across 54
 files**, down from 799 when the ratchet landed.
 
 The mechanism needs no bookkeeping, which is what makes it usable. The
@@ -440,9 +440,36 @@ first paint still preloads, because `app-shell` imports it eagerly. Total
 JS is unchanged at 1529 KB. `check:bundle` asserts a total precisely so a
 split cannot read as a win — see its header.
 
-**Next, cheapest first**, same criterion — providers that depend on nothing
-themselves: `daily-questions.js` (6 consumers), `world-catalogs.js` (5),
-`follows.js` (4), `result-rose.jsx` (4).
+### `daily-questions.js` — the first one that was not a pure provider
+
+726 → 708, and `mirror-answers.jsx` joins `scenes.js` at zero. Two new
+shapes here, both of which will recur:
+
+- **It is wrapped in an IIFE**, so `api` was not reachable at module top
+  level to export. The wrapper is vestigial — an ESM module already has its
+  own scope, and it is what this file needed when every module shared one —
+  but unwrapping re-indents 480 lines and would bury four real edits in a
+  whitespace diff. The binding is hoisted instead: `export let DAILYQ;`
+  above the IIFE, assigned inside it. ESM exports are live and the module
+  finishes evaluating before any importer's body runs, so consumers always
+  see the object. Unwrap it in its own commit if it is ever worth doing.
+- **It reads `window.LIVE` itself**, so unlike the first two it is not a
+  pure provider — it has 3 outgoing references of its own, which stay.
+  Converting what a module *provides* is independent of what it *consumes*;
+  do not wait for a module to be a leaf before exporting from it.
+
+**This is the conversion that removed a real fragility rather than just
+syntax.** `map-branches.js` reads `DAILYQ.EMERGENT_CATS` at
+module-evaluation time — not inside a component, not on an event. It worked
+only because `spec-index.js` lists `daily-questions.js` (5th) before
+`map-branches.js` (11th); reordering those two lines would have silently
+dropped seven map categories, with no error anywhere. That ordering is now
+a module-graph guarantee. Verified by probe rather than assumed: all seven
+(`top-sport`, `top-film`, `top-food`, `top-travel`, `top-mind`,
+`top-morals`, `top-music`) still merge after the change.
+
+**Next, cheapest first**: `world-catalogs.js` (5 consumers), `follows.js`
+(4), `result-rose.jsx` (4).
 
 **What NOT to start with.** The layer has import cycles, and they cluster:
 `test-definitions.js ↔ daily-split.jsx`, and `app-shell.jsx →

@@ -4,6 +4,7 @@
 // spec-index.js load order is semantic — scripts/check-spec-globals.mjs
 // guards the wiring in CI.
 import React from 'react';
+import { DAILYQ } from './daily-questions.js';
 import { Sheet } from './primitives.jsx';
 import ReactDOM from 'react-dom';
 
@@ -212,15 +213,15 @@ class DailySplit extends React.Component {
 
   syncToMap(S, optId) {
     const s = DAILYSPLIT_DQ_SYNC[S.id];
-    if (!s || !window.DAILYQ) return;
-    const q = window.DAILYQ.questions.find(x => x.prompt === s.prompt);
-    if (q && s.map[optId] != null) window.DAILYQ.answer(q.id, s.map[optId]);
+    if (!s) return;
+    const q = DAILYQ.questions.find(x => x.prompt === s.prompt);
+    if (q && s.map[optId] != null) DAILYQ.answer(q.id, s.map[optId]);
   }
   mapBranch(S) {
     const s = DAILYSPLIT_DQ_SYNC[S.id];
-    if (s && window.DAILYQ) {
-      const q = window.DAILYQ.questions.find(x => x.prompt === s.prompt);
-      if (q) return window.DAILYQ.categoryPath(q)[0];
+    if (s) {
+      const q = DAILYQ.questions.find(x => x.prompt === s.prompt);
+      if (q) return DAILYQ.categoryPath(q)[0];
     }
     const byRegion = { Taste: 'Food', Work: 'Mind', Society: 'Values' };
     const byCat = { dilemma: 'Morals', event: 'Mind', people: 'Values', bigq: 'Values' };

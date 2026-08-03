@@ -4,6 +4,7 @@
 // spec-index.js load order is semantic — scripts/check-spec-globals.mjs
 // guards the wiring in CI.
 import React from 'react';
+import { DAILYQ } from './daily-questions.js';
 import { TabSection } from './primitives.jsx';
 
 // mirror-answers.jsx — "The daily record" on Mirror: every daily question,
@@ -19,7 +20,7 @@ import { TabSection } from './primitives.jsx';
 
   function useDailySub() {
     const [, bump] = useReducer((x) => x + 1, 0);
-    useEffect(() => window.DAILYQ.subscribe(bump), []);
+    useEffect(() => DAILYQ.subscribe(bump), []);
   }
 
   // ── collapsed stack: one thin bar, your segment in accent ─────────────────
@@ -103,7 +104,7 @@ import { TabSection } from './primitives.jsx';
 
   // ── one question row ───────────────────────────────────────────────────────
   function MARow({ q, audId, open, onToggle, showDate }) {
-    const DQ = window.DAILYQ;
+    const DQ = DAILYQ;
     const dist = q.dist[audId];
     const mine = DQ.myAnswer(q);
     const head = DQ.headline(q, audId);
@@ -157,7 +158,7 @@ import { TabSection } from './primitives.jsx';
   // ── the section ────────────────────────────────────────────────────────────
   function MirrorAnswers({ audId }) {
     useDailySub();
-    const DQ = window.DAILYQ;
+    const DQ = DAILYQ;
     const [cat, setCat] = useState('all');
     const [sort, setSort] = useState('new');
     const [open, setOpen] = useState(null);

@@ -4,6 +4,7 @@
 // spec-index.js load order is semantic — scripts/check-spec-globals.mjs
 // guards the wiring in CI.
 import React from 'react';
+import { DAILYQ } from './daily-questions.js';
 import { IS_DATA } from './sample-data.js';
 import { Av, AnonAv, anonName, useDialog } from './primitives.jsx';
 
@@ -200,7 +201,7 @@ function SearchOverlay({ onClose, onPerson }) {
   // the daily archive — a different mechanism (it lives on the Daily tab), so it
   // gets its own group and simply takes you there instead of faking a card
   const dailies = useSrchMemo(() => {
-    const DQ = window.DAILYQ;
+    const DQ = DAILYQ;
     if (!query || !DQ) return [];
     return DQ.questions
       .map((x) => ({ x, s: srchQScore({ prompt: x.prompt, options: (x.options || []).map((l) => ({ label: l })) }, query, '') }))

@@ -4,6 +4,7 @@
 // spec-index.js load order is semantic — scripts/check-spec-globals.mjs
 // guards the wiring in CI.
 import React from 'react';
+import { DAILYQ } from './daily-questions.js';
 
 // InSight — PersonMindMap: a read-only map of someone else's answers, grown
 // from the SAME daily-question pool as your own map: same branches, same
@@ -42,7 +43,7 @@ const PMM_POOLS = {
 
 // ── their node set — the real question pool, answered deterministically ─────
 function pmmBuild(p) {
-  const D = window.DAILYQ;
+  const D = DAILYQ;
   const seedCats = (window.MapLens ? window.MapLens.CATS : []).slice();
   const seed = String(p.id || p.init || p.name || 'x');
   const H = (s) => pmmHash(seed + '|' + s);
