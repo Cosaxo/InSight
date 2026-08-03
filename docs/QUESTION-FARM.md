@@ -502,7 +502,19 @@ Each phase is its own reviewed change — nothing here is licence to start.
   operating contract. The remaining sub-question — whether the farm
   session's own egress reaches Firestore — no longer gates anything:
   the run reads the committed artifact, and the fetch is an operator
-  (or separately scheduled) step.
+  (or separately scheduled) step. Measured 2026-08-03, from a remote
+  session: `googleapis.com` (identitytoolkit + firestore) IS reachable
+  through the session proxy, but the hosting domains
+  (`prvfire33.web.app` / `.firebaseapp.com`) are refused at CONNECT,
+  and the web API key lives only in GitHub secrets and the deployed
+  bundle — so the fetch fails here for want of the KEY, not the
+  network. Two working paths: the operator's own shell
+  (`FIREBASE_API_KEY=… npm run scorecard -- --fetch`, commit the
+  result), or adding `FIREBASE_API_KEY` to the remote environment's
+  variables, after which any dev session can refresh the committed
+  scorecard on a reviewed branch. The key is public by design (it
+  ships in the web bundle); putting it in the environment leaks
+  nothing the deployed app does not already publish.
 - **Phase B — close the demo/live gap. TAKEN (D30, 2026-08-01).** The
   promotion path above is the closure: farm output reaches production
   through an operator-run, human-reviewed promotion PR plus a reseed.
@@ -564,7 +576,11 @@ re-paced, or retired.
 
 **The pending D33 re-pace (one owner step).** A session that is not the
 Routine's bound session cannot edit it (measured 2026-08-01: both the
-prompt and the cron are refused org-wide from outside). So the re-pace
+prompt and the cron are refused org-wide from outside; re-measured
+2026-08-03 from a sibling remote session — `list_triggers` works, but
+`update_trigger` is refused for the prompt *and* for cron+name alone,
+so the constraint holds and this step really is dev-session-or-UI
+only). So the re-pace
 is done from the dev session itself — "update the question-farm Routine
 (trig_01REC4MfZ1D8qhYoZKxDPtdK): cron `0 7 * * *`, name 'InSight
 question farm (daily)', and replace the prompt with the canonical text
