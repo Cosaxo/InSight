@@ -27,11 +27,10 @@ const ASSETS = join(root, "dist", "assets");
 // the point of lowering a ceiling after a win — at 1024 the feed could
 // silently return to the entry chunk and nothing would say so.
 //
-// Still ceilings rather than targets. The next honest reductions are the
-// Mirror tab (~168 KB) and the overlays (~176 KB); the total will barely
-// move for any of them, because splitting relocates bytes rather than
-// removing them — which is why MAX_TOTAL_JS_KB is unchanged and why the
-// per-chunk limit is the one that measures this work.
+// Still ceilings rather than targets. The total will barely move for any of
+// this work, because splitting relocates bytes rather than removing them —
+// which is why MAX_TOTAL_JS_KB is unchanged and why the per-chunk limit is
+// the one that measures it.
 //
 // 900 → 940 with the v15 2026-07-31 revision (D27): the spec layer gained
 // eleven modules (~68 KB minified into the entry — the Learn stack,
@@ -39,7 +38,35 @@ const ASSETS = join(root, "dist", "assets");
 // load-order or subscription reason recorded there. The deferred world-feed
 // group absorbed the rest of that revision's growth (feed chunk 85 → 107 KB)
 // without touching first paint.
-const MAX_CHUNK_KB = 940;
+//
+// 940 → 850 with the no-button overlay group (D38, 2026-08-03): test,
+// person, city, suggest and logic now load after first paint like the feed,
+// taking the entry chunk 922 → 837 KB. The ceiling comes down WITH the win
+// for the reason the last one did — at 940 the whole group could silently
+// return to the entry chunk and nothing would say so.
+//
+// WHAT 850 ACTUALLY CATCHES, measured rather than asserted, by re-adding the
+// static imports one group at a time and rebuilding:
+//
+//   | eager again              | entry  | 850 |
+//   | ------------------------ | -----: | --- |
+//   | nothing (today)          | 837 KB | ok  |
+//   | test-overlay             | 854 KB | RED |
+//   | person + city + suggest  | 887 KB | RED |
+//   | the whole group          | 922 KB | RED |
+//
+// So it catches the group and every single module large enough to matter.
+// It does NOT catch the smallest one (city-overlay) returning to eager on
+// its own — that is under the 13 KB of headroom, and closing the gap means
+// zero headroom, which reds the tree on any legitimate growth instead. The
+// honest statement is that this is a ceiling on the group, not a per-module
+// assertion; nothing else in the tree checks eager-vs-lazy at all, since the
+// mount tests pass either way.
+//
+// The Mirror tab (~168 KB) is what is left of the obvious candidates, and it
+// is a harder one: it renders on the first frame for anyone who opens the
+// app on that tab, so it needs a guard the overlays did not.
+const MAX_CHUNK_KB = 850;
 const MAX_TOTAL_JS_KB = 1600;
 
 let files;

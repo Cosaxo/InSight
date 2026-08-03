@@ -90,6 +90,16 @@ Local:
   seed → vote → aggregate trigger → k-floor → duel create/join/seal/reveal.
 - `npm run test:e2e:erasure` — deleteAccount, with leftovers observed via
   the admin SDK (rules bypassed, so "gone" means gone).
+- `npm run test:coverage` (and `--prefix functions`) — **report only, never a
+  gate.** Scoped to the typed layers where an untested branch is where a
+  wrong number reaches a screen: `src/v2/data` on the client, `pure.ts` +
+  `deviceBind.ts` on the backend. `spec/` is excluded on purpose — its only
+  tests are mount smoke tests, so a coverage number there would be both
+  meaningless and an invitation to raise it without asserting anything.
+  What it says today: `pure.ts` 98% statements / 96% branches and `deck.ts`
+  / `groupPortrait.ts` at 100% — the honesty arithmetic is genuinely
+  covered — against `deviceBind.ts`'s Apple/Google verification at 27%,
+  which is the half D29 can only prove on a real device (D37).
 - `npm run check:globals` — the spec layer's shared-global wiring.
 - `npm run check:labels` — every `htmlFor` / `aria-labelledby` /
   `aria-describedby` / `aria-controls` resolves to an id in the same file.

@@ -3216,3 +3216,129 @@ means deciding what a refused vote should *say*, which is a product
 question, not a rollout one. Recorded here because the flip is what makes it
 matter, and because discovering it during the flip would misattribute it to
 the flip.
+
+---
+
+## D38 · The no-button overlays load after first paint; relmap stays eager because the Mirror reads it
+
+**Date:** 2026-08-03 · **Status:** Adopted (follow-on to
+[D25](#d25--the-world-feed-loads-after-first-paint-the-rest-of-the-split-waits))
+
+**Decision.** `loadOverlays()` defers `test-overlay`, `person-mindmap`,
+`person-overlay`, `city-overlay`, `suggestions`, `data/logic-gen` and
+`logic-test` past first paint, the way D25 deferred the world feed. Entry
+chunk **922 → 837 KB**; `check:bundle`'s per-chunk ceiling comes down
+940 → 850 with it. `relmap.jsx` is excluded, and that is the interesting
+half of this record.
+
+**Why now.** The entry chunk sat 18 KB under its ceiling. That is not a
+budget, it is a tripwire waiting for the next revision — D27 alone added
+~68 KB. The headroom is now ~13 KB against a ceiling 90 KB lower, which is
+the same tightness measuring a much smaller chunk.
+
+### The rule this applies, and what it excludes
+
+D25's argument was not "defer the biggest module". It was: **defer the
+module whose absence is already a legitimate frame.** `daily-split` reads
+`window.WorldFeed &&` before rendering the feed node, so an unloaded feed
+renders as no feed — the guard was already the contract.
+
+Applying that literally selects the five no-button overlays, because nothing
+on the first frame can reach any of them: they open only through the
+`window.open*` cross-links app-shell installs in an effect.
+
+It also **rejects `relmap.jsx`, the largest candidate at ~43 KB.**
+`mirror-field-pops.jsx` reads `typeof RelationshipMap === 'function'` to
+decide whether the Mirror's Circle population renders the embedded map or
+the generic field canvas. That read happens during a render nothing
+re-triggers, so deferring it would silently swap the Circle picture for the
+fallback until some later state change — no error, no crash, just a
+different picture. Exactly why `world-feed-data.js` stays eager. Excluding
+the biggest item on reachability grounds is the rule doing its job rather
+than the rule being inconvenient.
+
+### The await is the mechanism; the guards are not
+
+This group differs from the feed in one structural way, and getting it
+backwards produces a bug that looks like a fix.
+
+The obvious implementation is to guard each render site
+(`{ov === 'test' && window.TestOverlay && …}`) and let the openers stay
+synchronous. That is **wrong here**: `setOv('test')` with the chunk still in
+flight renders nothing *and schedules nothing to re-read the global*, so the
+overlay stays blank until an unrelated state change — a tap that does
+nothing, permanently. The feed does not have this problem because its
+absence is a frame a user reaches anyway, and `main.jsx` re-renders when the
+chunk lands.
+
+So the openers `await loadOverlays()` before setting state, and that await is
+the synchronisation. No re-render is needed, unlike the feed. The render
+guards remain, downgraded to what they are: the degradation path for a chunk
+that never arrives.
+
+### Where the loader is published, and why it is not where it should be
+
+`spec-index.js` sets `globalThis.loadOverlays`. The house pattern would put
+it in `data/` — that is how `back.ts` hands `registerBackHandler` to this
+same shell. It cannot go there: `data/` is TypeScript with no `allowJs`, so
+a module there cannot import `spec-index.js`, and the dynamic imports must
+stay in `spec-index.js` because that is the file `check:globals` rule 2
+matches its `'./spec/…'` strings against. The one-directional boundary
+(`data/` and `ui/` publish globals, `spec/` reads them; never the reverse)
+is deliberate and worth more than the symmetry.
+
+`await import('../spec-index.js')` from app-shell also works, and was the
+first implementation. It was replaced because it emits
+`INEFFECTIVE_DYNAMIC_IMPORT` on **every build** — spec-index is statically
+imported by `main.jsx`, so it cannot move to a chunk of its own, nor should
+it. check-bundle.mjs's own header records what a warning on every build
+becomes: background noise hiding the next real one. Publishing from
+spec-index costs no gate, because `scripts/spec-globals.mjs` already scans
+that file for definitions alongside `main.jsx`.
+
+### What proves it, and what nothing proves
+
+`smoke.test.jsx` gained five cases that delete each overlay's global and
+assert the shell degrades to a blank rather than a `ReferenceError`.
+Mutation-checked: restoring any one render site to its bare identifier fails
+exactly that row on the boundary assertion and passes again on revert. The
+thirteen existing cases already cover the loaded path, and their `openVia`
+helper now uses an awaited `act`, without which every assertion would run
+against the frame before the overlay rendered — the vacuous pass this file
+exists to prevent, in a new shape.
+
+**The ceiling's coverage is measured, not claimed**, by re-adding the static
+imports a group at a time: nothing 837 KB, test-overlay 854, person + city +
+suggest 887, all of it 922. At 850 the group and every module large enough
+to matter go red. `city-overlay` alone would not — it fits under the 13 KB
+of headroom, and closing that gap means zero headroom, which reds the tree
+on any legitimate growth instead.
+
+**Nothing checks eager-vs-lazy directly.** Re-adding a static import to
+`spec-index.js` leaves lint, `check:globals`, `tsc -b` and all 269 unit
+tests green; only the ceiling notices, and only above its headroom. Recorded
+rather than fixed: the alternative is a gate asserting the shape of the
+build's chunk graph, which is more machinery than the ~13 KB it would
+protect.
+
+### Follow-on not taken here: extracting pure logic out of `spec/`
+
+The other half of this work — lifting arithmetic out of the ported JSX into
+typed, tested modules under `data/`, the way `feed-interleave.test.ts`
+already did after D11's `else if` swallowed every lens question — is
+deliberately **not** in this change.
+
+Two reasons, and the second is the load-bearing one. It is a different kind
+of change: this one moves modules between chunks and is proved by a bundle
+ceiling and five mount cases; that one moves *code* and needs its own tests
+per extraction. Bundling them would produce a diff where a regression in
+either is hard to attribute.
+
+And the target should now be chosen from evidence rather than from reading.
+`npm run test:coverage` exists as of this change, and it already disagrees
+with the intuition that named `map-layout.js` and `passive-progress.js` as
+the candidates: the data layer's weak spots are `live.ts` (58% statements,
+64% branches, the largest module) and the browser-API modules `locate.ts`
+and `push.ts` at zero — the latter two by nature, since D9's four location
+failure paths were driven in a real browser rather than in jsdom. Extract
+against that report, one module per change.

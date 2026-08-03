@@ -92,6 +92,54 @@ D11 case in `smoke-live.test.jsx` would assert on a tab that never rendered
 a feed card — a vacuous pass, and the largest module in the layer would
 quietly leave the suite.
 
+## …and so are the five no-button overlays
+
+`loadOverlays()` (D38) defers `test-overlay`, `person-mindmap`,
+`person-overlay`, `city-overlay`, `suggestions`, `data/logic-gen` and
+`logic-test` — the overlays with no control in the header or tabbar, reached
+only through the `window.open*` cross-links. Entry chunk 922 → 837 KB.
+
+**The synchronisation is different from the feed's, and that difference is
+the whole design.** The feed needs `main.jsx` to re-render after its chunk
+lands, because `daily-split` reads `window.WorldFeed` during a render nothing
+would re-trigger. These overlays need no re-render: each is reachable *only*
+through an app-shell opener, and the openers `await` the same memoised
+promise before setting the state that mounts one.
+
+That ordering is required, not tidy. Guarding the render site alone —
+`{ov === 'test' && window.TestOverlay && …}` — and letting `setOv('test')`
+run while the chunk is still in flight renders nothing **and schedules
+nothing to re-read the global**, so the overlay stays blank until an
+unrelated state change. The guards are a second line, for a chunk that never
+arrives at all; the await is the mechanism.
+
+**`relmap.jsx` stays eager despite being the biggest candidate (~43 KB).**
+It is the only one with a first-frame consumer: `mirror-field-pops.jsx`
+reads `typeof RelationshipMap === 'function'` to choose between the embedded
+map and the generic field canvas for the Mirror's Circle population. Same
+shape as `world-feed-data.js` above — a reachability decision, not a size
+one.
+
+**Two gates, and what each does not cover.** `check:bundle`'s per-chunk
+ceiling came down 940 → 850 with the win, and its header records exactly
+which regressions that catches (measured, not assumed — the smallest single
+module can still slip under the headroom). `smoke.test.jsx` gained five
+cases that delete each global and assert the shell degrades to a blank
+rather than a `ReferenceError`; those were mutation-checked by restoring the
+bare identifiers one at a time. Neither gate can see eager-vs-lazy itself:
+re-adding a static import to `spec-index.js` leaves every test green and is
+caught only by the ceiling.
+
+**`window.loadOverlays` is published from `spec-index.js`**, not from
+`data/` where the house pattern would put it (`back.ts` →
+`window.registerBackHandler`). `data/` is TypeScript without `allowJs`, so a
+module there cannot import this `.js` file — and the dynamic imports have to
+live in `spec-index.js` because that is the file `check:globals` rule 2
+matches `'./spec/…'` strings against. The full reasoning, including why
+`await import('../spec-index.js')` from app-shell is worse (a permanent
+`INEFFECTIVE_DYNAMIC_IMPORT` on every build), is at the foot of
+`spec-index.js`.
+
 ## Lint suppressions
 
 21 files in `spec/` used to open with a bare `/* eslint-disable */`,

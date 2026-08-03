@@ -81,3 +81,9 @@ GoogleService-Info.plist
 
 # style-diff writes its full report here (scripts/style-diff.mjs)
 style-diff.json
+
+# vitest coverage reports (npm run test:coverage, and --prefix functions).
+# Report-only and regenerated on demand — see vite.config.ts for why there
+# are no thresholds and why spec/ is excluded.
+coverage/
+functions/coverage/

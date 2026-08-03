@@ -51,6 +51,39 @@ export default defineConfig(({ mode }) => {
       // setupFiles runs for ALL of them, so it must stay a no-op outside
       // jsdom — see the guard at the top of the file.
       setupFiles: ['./src/v2/test/setup-dom.ts'],
+      // Coverage is REPORT-ONLY and deliberately scoped, not a gate.
+      //
+      // What it is for: src/v2/data is pure, typed, and holds the client
+      // half of the honesty rules — the deck shaping, the k-floor display
+      // logic, the group-portrait arithmetic. An untested branch there is
+      // where a wrong number reaches a screen, and a coverage report names
+      // which branch, which no amount of test-counting does.
+      //
+      // spec/ is EXCLUDED on purpose. It is ~22k lines of ported JSX whose
+      // only tests are mount smoke tests (src/v2/README.md), so its number
+      // would be both meaningless and an invitation to write assertions
+      // that raise it without asserting anything — which the panel-test
+      // section of that README records three first drafts already doing.
+      // A metric you cannot act on honestly is worse than no metric.
+      //
+      // No thresholds. A threshold turns a report into a gate, and a gate
+      // on a number nobody has calibrated fails a legitimate PR before it
+      // catches a real gap. Read `npm run test:coverage` when changing the
+      // data layer; raise it to a gate only with a number that came from
+      // looking at the report first.
+      //
+      // `test:coverage` runs `--dir src/v2/data`, NOT the whole of `--dir
+      // src` that `test:unit` covers, and that is a timeout fact rather than
+      // a preference: v8 instrumentation roughly triples the mount tests, and
+      // two smoke-live cases already sit at 8-9 s against a 15 s limit, so
+      // the full run fails on time rather than on truth. Scoping to the data
+      // tests also makes the number the honest one — "what the data layer's
+      // own tests reach", not what a mount test incidentally walks through.
+      coverage: {
+        provider: 'v8',
+        include: ['src/v2/data/**/*.ts'],
+        reporter: ['text', 'html'],
+      },
     },
   }
 })

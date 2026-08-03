@@ -89,7 +89,15 @@ function ProfileOverlay({ onClose, me, lensBoxed }) {
   const AttachmentPanel = () => (
     window.ResultProfileCard
       ? <window.ResultProfileCard testKey="attachment" archetype="The Constant" tagline="steady and affectionate — the friend who stays" />
-      : (window.AttachmentCard ? <window.AttachmentCard /> : <TestResultCard testKey="attachment" />)
+      // Third fallback reads off window like the two before it, because
+      // TestResultCard now ships in the after-first-paint overlay chunk
+      // (loadOverlays) while this overlay is eager — a bare identifier
+      // would be a ReferenceError rather than a blank. Unreachable today:
+      // ResultProfileCard and AttachmentCard are both eager, so the first
+      // branch always wins. Written defensively anyway, because "the other
+      // two are eager" is a fact about load order, and load order in this
+      // layer is exactly what changes.
+      : (window.AttachmentCard ? <window.AttachmentCard /> : (window.TestResultCard ? <window.TestResultCard testKey="attachment" /> : null))
   );
 
   const dlg = useDialog(onClose, 'Your profile');
