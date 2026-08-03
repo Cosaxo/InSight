@@ -199,9 +199,94 @@ One word in `firestore.rules` — `deviceBindEnforced()`'s literal,
 (`backend-checks.yml` gates it). The flipped text is already pinned by
 `rules.test.ts` (a second emulator environment runs the rewritten
 rules), so the flip commit's behavior is tested before it exists.
-Sequence per D29: after the staging probe, and after enough client
-uptake that activation-capable builds dominate (`v2_meta.latestBuild` /
-`minBuild` are the existing levers).
 
 Rolling back mid-incident is the same word back again — rules deploy,
 no code change, no console visit.
+
+### What the flip costs if it is early, and why that is not obvious
+
+After the flip, an account without the `db` claim has every
+aggregate-feeding answer **refused by rules**. The client does not say so.
+`live.ts`'s `vote()` catch rolls the optimistic state back and reports to
+Sentry: the user taps an option, watches it take, and watches it silently
+revert, with no message and nothing to retry. Duel answers are unaffected
+(D29 exempts them), so the app keeps working *partly*, which is worse than
+failing outright — it reads as a flaky product rather than a refused write.
+
+So an early flip does not generate reports that name the cause. That is the
+argument for measuring before flipping rather than flipping and watching,
+and it is why the sequence below replaces "enough client uptake that
+activation-capable builds dominate". Two populations lack the claim, and
+they need different treatment:
+
+| Population | Driven to zero by | Needs a number? |
+| --- | --- | --- |
+| On a build predating the activation flow | `v2_meta.minBuild` | **No** |
+| On a capable build, activation failed | nothing — it is a floor | **Yes** |
+
+### Step 1 · Raise `minBuild`, do not wait for uptake
+
+`minBuild` is a **hard** gate, not a nudge: `LIVE.updateRequired` renders a
+full-screen `role="dialog"` over the whole app (`app-shell.jsx`), so a
+client below it cannot reach a vote at all. Set `v2_meta/app.minBuild` to
+the first activation-capable build and population 1 becomes empty by
+construction, immediately, rather than shrinking asymptotically while its
+tail votes into a silent rollback.
+
+That is a change of kind, not of patience: "dominate" is a statistic with a
+tail of refused honest voters; `minBuild` is a guarantee with none. Set
+`updateUrl` at the same time — without it the dialog's button falls back to
+`location.reload()`, which on a native shell reloads the same old bundle.
+
+One thing this does NOT cover: a build number is not an activation. A
+capable build still has to succeed, which is step 2.
+
+### Step 2 · Read the two rates, and only then flip
+
+The staging probe (§3) proves the round trip works on *one* device. These
+are the fleet numbers, and they guard two different failures — one is
+"we are refusing honest users", the other is "we are not actually stopping
+the attack". Both must pass; neither substitutes for the other.
+
+| | Threshold | What failing it means |
+| --- | --- | --- |
+| **Error rate** — DeviceCheck/Play failures ÷ all `activateDeviceV2` invocations, over 24h | **< 1%**, and **zero** `DeviceCheck auth rejected` | Honest users on capable builds would be refused. `auth rejected` is always a misconfigured key, never a device condition, so its threshold is zero rather than small. |
+| **Android recall coverage** — `verdict without deviceRecall` ÷ Android activations, over 24h | **< 5%** | Recall is not reaching real devices as configured. That path allows on integrity alone, so it refuses nobody — the flip simply does not buy the month bound on Android, which is the thing it exists for. |
+
+Note what is deliberately **not** in the error rate: `cooldown` is a
+success. It is the mechanism working — a second account on the same device
+in the same month, correctly given no claim. Counting it as failure would
+make the metric go bad exactly when the system starts doing its job.
+
+Read them with (substitute the day):
+
+```bash
+# Every activateDeviceV2 log line for one day, tallied by outcome.
+gcloud logging read \
+  'resource.labels.service_name="activatedevicev2"
+   AND timestamp>="2026-08-04T00:00:00Z" AND timestamp<"2026-08-05T00:00:00Z"' \
+  --project prvfire33 --format='value(jsonPayload.message,textPayload)' \
+  | sed -n 's/.*\[deviceBind\] \([a-zA-Z ]*\).*/\1/p' | sort | uniq -c | sort -rn
+```
+
+The outcome strings to expect, from `functions/src/deviceBind.ts`:
+`activated` and `cooldown` (both fine), against `DeviceCheck auth
+rejected`, `DeviceCheck query failed`, `DeviceCheck update failed`,
+`Play Integrity decode failed`, `Play Integrity recall write failed`, and
+the Android-coverage line `verdict without deviceRecall`.
+
+**Not an alert, on purpose.** DEPLOYMENT.md's "one alert, deliberately"
+argument holds: an alert nobody acts on trains people to ignore the
+channel. This is a number read **once**, at the moment of a deliberate
+decision, and then not again unless the flip is rolled back. A standing
+alert on a rate that only matters on one day is the noise that reasoning
+warns about.
+
+**Written, not run.** These queries are composed from the log lines in
+`deviceBind.ts` and the resource shape in
+`monitoring/onV2AnswerCreated-errors.json`; they have not been executed
+against production, because activation has never run there — the native
+bridges (§2) are not in the tree yet. Expect to adjust the `--format`
+field if the runtime writes `textPayload` where `jsonPayload.message` is
+assumed. The tallied strings are the part that is certain, since they are
+read straight from the source.

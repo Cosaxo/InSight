@@ -3100,3 +3100,119 @@ callables are understood to be rejecting unattested calls in production
 today. That follows from the API shape and has not been driven against
 production — worth confirming when the console flip happens, since it
 determines whether that flip is a change for callables or a no-op.
+
+---
+
+## D37 · The device-bind flip becomes deterministic, then measured — the trigger is two numbers, not a judgement
+
+**Date:** 2026-08-03 · **Status:** Adopted (amends
+[D29](#d29--device-bound-activation-one-counted-account-per-device-per-month-silently)'s
+rollout step, not its decision)
+
+**Decision.** `deviceBindEnforced()` flips after two things, in order:
+`v2_meta.minBuild` is raised to the first activation-capable build, and the
+fleet's activation **error rate** is under 1% (with zero `DeviceCheck auth
+rejected`) and Android's `verdict without deviceRecall` rate under 5%, each
+over 24h. Procedure and queries in docs/DEVICE-BIND.md §4.
+
+This replaces "after enough client uptake that activation-capable builds
+dominate", which named the right levers and then used them as a statistic.
+
+The two percentages are engineering defaults, not physics, and the owner can
+move them — but in a known direction each: raising the error-rate ceiling
+trades honest users' votes for an earlier flip, and raising the recall
+ceiling trades the Android half of the guarantee for the same. The
+*structure* — minBuild first, then two separate numbers, `cooldown` counted
+as success — is what this record binds.
+
+**Why this is a record.** D29 shipped with a soft-enforce switch and a
+pre-tested flipped ruleset — unusually careful, and both halves of the
+behaviour are pinned by `rules.test.ts` running a second emulator
+environment against the rewritten literal. What it did not carry was a
+condition anyone could evaluate. "Dominate" is not a number, and a flip with
+no threshold happens either too early or never; both are failures, and only
+one of them is visible.
+
+### The cost of an early flip is invisible, which is the whole problem
+
+After the flip, an account without the `db` claim has every
+aggregate-feeding answer refused by rules — and **nothing tells the user**.
+`live.ts`'s `vote()` catch rolls the optimistic state back and reports to
+Sentry: the option takes, then silently un-takes. Duel answers are exempt
+(D29), so the app keeps working *partly*, which is worse than failing
+cleanly — it reads as flakiness, not refusal.
+
+So the failure mode of flipping early is not a support queue naming the
+cause. It is a product that feels broken, discovered from Sentry volume if
+anyone is watching it. That asymmetry is the argument for measuring first:
+the flip is cheap to delay and expensive to diagnose.
+
+### Why `minBuild` is a change of kind, not of patience
+
+Two populations lack the claim. The first — clients on builds predating the
+activation flow — was what "uptake" was about, and it does not need
+measuring at all, because `minBuild` already exists and is a **hard** gate:
+`LIVE.updateRequired` renders a full-screen dialog over the app, so a client
+below it cannot reach a vote. Raising it to the first capable build empties
+that population by construction.
+
+Waiting for uptake instead leaves a tail: at 95% capable builds, 5% of
+honest voters get the silent rollback above, indefinitely, and the number
+never reaches zero on its own. Same lever, used as a guarantee rather than
+as encouragement.
+
+`updateUrl` has to be set alongside it — without one the dialog's button
+falls back to `location.reload()`, which on a native shell reloads the same
+bundle it is trying to replace.
+
+The second population — capable build, activation failed — cannot be driven
+to zero, so it is the one that gets a threshold.
+
+### Why two thresholds and not one
+
+They guard opposite failures, and a single number would hide whichever it
+was not measuring:
+
+- **Error rate < 1%, zero `DeviceCheck auth rejected`.** This is "are we
+  refusing honest users". The second clause is separate because that line is
+  *always* a misconfigured key and never a device condition — one occurrence
+  is a configuration bug, so a small-percentage allowance would be wrong at
+  any volume.
+- **`verdict without deviceRecall` < 5% of Android activations.** This is
+  "does the flip buy what it is for". That path allows on integrity alone,
+  so it refuses nobody and cannot show up in the first number at all — yet a
+  high rate means the month bound is not biting on Android, which is the
+  entire mechanism D29 exists to install. Passing the safety threshold while
+  failing this one means flipping for no benefit.
+
+**`cooldown` is deliberately counted as success.** It is the mechanism
+working — a second account on the same device in the same month, correctly
+given no claim. Folding it into the error rate would make the metric
+deteriorate exactly as the system began doing its job, which is the shape of
+a metric that gets a good change reverted.
+
+### Not an alert
+
+DEPLOYMENT.md's "one alert, deliberately" reasoning applies and was not
+overridden: an alert nobody acts on trains people to ignore the channel.
+These are numbers read **once**, at a deliberate decision, from
+`gcloud logging read`. A standing alert on a rate that matters on exactly
+one day is the noise that argument warns about.
+
+**Written, not run.** The queries are composed from the log lines in
+`deviceBind.ts` and the resource shape in the existing monitoring policy.
+They have not been executed against production and cannot be, because
+activation has never run there — the native bridges are still not in the
+tree (DEVICE-BIND §2). The outcome strings are certain, being read from
+source; the log field (`jsonPayload.message` vs `textPayload`) is the part
+to expect to adjust on first use.
+
+### The follow-up this names rather than fixes
+
+A refused answer write is silent to the user, today, flip or no flip. That
+is a real UX defect independent of D29 — the same rollback happens on a
+network failure or a duplicate write from a second device — and fixing it
+means deciding what a refused vote should *say*, which is a product
+question, not a rollout one. Recorded here because the flip is what makes it
+matter, and because discovering it during the flip would misattribute it to
+the flip.

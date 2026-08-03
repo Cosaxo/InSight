@@ -133,6 +133,56 @@ runtime on the next deploy, so re-run **Deploy Firebase backend** via
 `workflow_dispatch` after setting one, and check the "Write functions
 runtime env" step's log to confirm the value arrived.
 
+### Operator continuity — one account is a single point of failure
+
+`SEED_ADMIN_UIDS` and `MOD_UIDS` both hold exactly one uid today, and it is
+the same person's. The roles are separated correctly in code (D22, D36) and
+not yet in people, which the table above already notes. What it does not
+say is what that costs, so:
+
+**Everything operator-gated is reachable only by signing in as that
+account.** There is no second factor at the function boundary (D36) and no
+second holder. If that Google account is lost — recovery failure, a
+forgotten device, anything — the following stop being possible, with no
+in-repo path to restore them:
+
+- seeding or re-seeding the question bank (`seedContentV2`), including
+  `bumpRev` after a hand-edited `active` flag
+- forcing a duel reveal during an incident (`revealDuelsNowV2`)
+- every moderation instrument (`buildModQueueNow`, `fetchModQueue`,
+  `submitModVerdict`)
+
+Nothing *breaks* — the scheduled twins keep running and rules keep
+enforcing, because the allowlist gates the manual levers, not the app. The
+loss is the ability to intervene, discovered at the moment intervention is
+wanted.
+
+**The fix is free and is config, not code.** Both variables are
+comma-separated and already parsed that way; adding a second uid is one
+edit per variable plus a re-run of **Deploy Firebase backend** (the value
+only reaches the runtime on a deploy — see above). Do it **before** launch
+rather than after: afterwards it competes with whatever incident made it
+urgent.
+
+Two things to keep right when adding one:
+
+- **Keep the lists disjoint.** A second moderator should go in `MOD_UIDS`
+  only. `assertOperator` and `assertModerator` are deliberately separate so
+  a leaked moderator credential cannot seed content (D22) — one person
+  currently holding both is a fact about staffing, not a licence to merge
+  the lists.
+- **Verify by failure, not by success.** After the deploy, confirm the *new*
+  uid can call the instrument it should and gets `permission-denied` on the
+  one it should not. A uid that was silently dropped from the parse looks
+  identical to one that was never added, and the fail-safe direction here
+  means the error is silence.
+
+What this does not solve, and is worth naming: the Firebase service-account
+secret, the Apple Developer account and the Play Console account are all
+single-holder too, and none of them is a comma-separated variable. Those are
+account-level delegation (Play has user management; Apple has App Store
+Connect roles), and they belong on the pre-launch list for the same reason.
+
 ## Rolling back a bad deploy
 
 Rules, indexes and functions roll back by different mechanics — a rules
