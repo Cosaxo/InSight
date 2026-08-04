@@ -4071,13 +4071,23 @@ is a fact about the calendar and the content, and it changes at midnight
 without a commit. At adoption: 90 in the bank, 3 days elapsed, 87 days of
 runway, 0 unpromoted in the archive.
 
-**`--check` is a real gate and is deliberately not in CI.** It exits
-non-zero below 21 days of runway and on an expired scorecard. Wiring it into
-CI would fail unrelated work on a Tuesday for a reason that pull request
-cannot fix — the same argument that keeps `check:figures` off the backend
-path, pointed the other way. Where it belongs is the farm's scheduled run,
-beside the scorecard read it already does. That wiring lives outside this
-repo, so the script prints the recommendation rather than pretending.
+**`--check` is a real gate, and it runs on a clock rather than on a diff.**
+It exits non-zero below 21 days of runway and on an expired scorecard.
+Putting it in a pull-request check would fail unrelated work on a Tuesday
+for a reason that pull request cannot fix — the same argument that keeps
+`check:figures` off the backend path, pointed the other way. A check whose
+subject changes on its own belongs on a schedule, which is the split
+`security-audit.yml` already makes for `npm audit`.
+
+`.github/workflows/pulse.yml` (added 2026-08-04, on the owner's answer to
+"does it update automatically?" — it did not) runs at 06:00 UTC daily,
+commits `pulse.json` and the trail only when they moved, writes the headline
+figures to the run summary, and runs `--check` **last** so a bad day still
+gets its trail row before the job goes red. It never runs `npm ci`: pulse is
+Node stdlib only, verified in a dependency-free clone, because a console
+whose job is to report that the ground moved must not be able to fail
+because a registry did. Scheduled workflows only run from the default
+branch, so it is inert until merged.
 
 **One structural change to existing code, and it was forced.** The cost
 arithmetic moved from `scripts/cost-model.mjs` into `scripts/cost-arith.mjs`

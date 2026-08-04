@@ -1,0 +1,109 @@
+# Daily pulse — regenerate the decision console and record one row of trail.
+#
+# WHY A CRON AND NOT CI. Every other check in this repo answers "is this
+# change safe". This one answers "has the ground moved", and the ground here
+# moves without commits: the deck runway shortens by one every midnight
+# whether or not anyone opened a pull request (D30/D42). A check whose
+# subject changes on its own belongs on a clock, not on a diff — the same
+# split security-audit.yml makes for `npm audit`.
+#
+# WHY IT NEVER RUNS `npm ci`. pulse.mjs is Node stdlib only, so this job
+# needs a checkout and a Node binary and nothing else. That is not just
+# speed: a console whose job is to tell you the ground moved must not be
+# able to fail because a registry did. Verified in a dependency-free clone
+# before this file was written. Keep it that way — if pulse ever grows an
+# import that needs node_modules, that is the bug, not this omission.
+#
+# WHAT IT COMMITS. monitoring/pulse.json and monitoring/pulse-trail.jsonl,
+# and only when they actually changed. The rendered HTML is gitignored and
+# stays that way — the job writes the headline figures into the run summary
+# instead, which covers the common case (you want the numbers, not the page)
+# without pinning a third-party upload action. That is the same trade
+# security-audit.yml records: one less SHA to pin, audit and keep current.
+# `npm run pulse` renders the page locally in about a second.
+#
+# NOTE: scheduled workflows only run from the DEFAULT branch, so this does
+# nothing until it is merged to main. GitHub also disables schedules after
+# 60 days of repository inactivity — if the trail develops a gap that long,
+# that is the reason, and `workflow_dispatch` re-arms it.
+name: Pulse
+
+on:
+  schedule:
+    # 06:00 UTC daily — after the UTC day has rolled the deck index over,
+    # before a European working day starts. The runway is measured in days,
+    # so the exact hour only decides which side of midnight a row lands on.
+    - cron: "0 6 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: pulse
+  cancel-in-progress: false
+
+jobs:
+  pulse:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: "22"
+          # Deliberately no `cache: npm` — there is nothing to install, and
+          # a cache key would be the only npm-shaped failure mode left.
+
+      - name: Regenerate the console
+        run: node scripts/pulse.mjs
+
+      # The headline figures on the run page, so the common case — nothing
+      # is wrong, you just want the numbers — costs one click and no clone.
+      - name: Summarise
+        run: |
+          node -e '
+            const p = require("./monitoring/pulse.json");
+            const d = p.pipeline.deck, m = p.money, i = p.instrumentation;
+            const rows = [
+              ["Deck runway", `${d.runwayDays} days`, `wraps ${d.wrapsOn} at today${String.fromCharCode(39)}s bank size`],
+              ["Promotion backlog", `${p.pipeline.archive.unpromoted} unpromoted`, `${p.pipeline.archive.orphans} orphans`],
+              ["Burn at 5,000 DAU", `$${m.breakEven[2].burnUsd}/mo`, `revenue $${m.revenueUsdPerMonth}/mo`],
+              ["Question bank", `${p.pipeline.totalQuestions}`, `${p.cost.seededBankDocs} seeded docs`],
+              ["Functions alerted", `${i.alertedCount}/${i.functionCount}`, `${i.logMetrics.length} log metric(s)`],
+              ["Scorecard", p.pipeline.scorecard.staleness, p.population.state],
+            ];
+            console.log(`## Pulse — ${p.generatedOn}\n`);
+            console.log("| | | |\n| --- | ---: | --- |");
+            for (const r of rows) console.log(`| ${r[0]} | **${r[1]}** | ${r[2]} |`);
+          ' >> "$GITHUB_STEP_SUMMARY"
+
+      # Committed BEFORE the gate below, deliberately: a day the runway is
+      # short is exactly the day the trail most needs its row, and a gate
+      # that ran first would skip recording it.
+      - name: Commit if the numbers moved
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if git diff --quiet -- monitoring/pulse.json monitoring/pulse-trail.jsonl; then
+            echo "pulse: nothing moved today."
+            exit 0
+          fi
+          git add monitoring/pulse.json monitoring/pulse-trail.jsonl
+          git commit -m "pulse: $(date -u +%Y-%m-%d)"
+          # Retry around a concurrent push to the default branch. --rebase
+          # is safe here because this job only ever touches two files nobody
+          # edits by hand.
+          for i in 1 2 3 4; do
+            git push && exit 0
+            echo "push failed, retry $i"
+            sleep $((2 ** i))
+            git pull --rebase origin "${GITHUB_REF_NAME}" || true
+          done
+          echo "::error::pulse could not push its update after 4 attempts."
+          exit 1
+
+      # Last, and allowed to fail the run. A red scheduled job emails whoever
+      # owns the repo and blocks nobody's pull request, which is the whole
+      # reason this lives on a clock instead of in CI (D42).
+      - name: Operator gate
+        run: node scripts/pulse.mjs --check

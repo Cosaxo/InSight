@@ -200,6 +200,32 @@ can silently delete one. Applied by hand, deliberately — but not for the
 reason written down. The console reports policies as *committed*, never as
 *deployed*, because the repo cannot know.
 
+## How it stays current
+
+`.github/workflows/pulse.yml` runs it at **06:00 UTC daily**, commits
+`pulse.json` and the trail only when they actually moved, and writes the
+headline figures into the run summary. Then it runs `--check` last, so a
+short runway or an expired scorecard turns the scheduled job red — an email
+to whoever owns the repo, blocking nobody's pull request.
+
+Three properties worth keeping:
+
+- **It never runs `npm ci`.** pulse.mjs is Node stdlib only, so the job
+  needs a checkout and a Node binary. That is not about speed: a console
+  whose job is to say the ground moved must not be able to fail because a
+  registry did. Verified in a dependency-free clone. If pulse ever grows an
+  import that needs `node_modules`, that is the bug — not the omission.
+- **The commit happens before the gate.** A day the runway is short is
+  exactly the day the trail most needs its row; a gate that ran first would
+  skip recording it.
+- **Two pinned actions, both already in this repo.** No upload action for
+  the rendered page — the summary table covers the common case, and
+  security-audit.yml's reasoning applies: one less SHA to pin and audit.
+
+Scheduled workflows only run from the default branch, so this does nothing
+until it is merged. GitHub also disables schedules after 60 days of repo
+inactivity; a trail gap that long is why, and `workflow_dispatch` re-arms it.
+
 ## What was deliberately not built
 
 Four things that were tempting and are wrong:
@@ -207,14 +233,13 @@ Four things that were tempting and are wrong:
 1. **A CI gate.** `npm run pulse -- --check` is a real gate — it exits
    non-zero below 21 days of runway, and on an expired scorecard — and it
    is deliberately not in CI. The runway shortens by one every midnight
-   whether or not anyone opened a pull request, so wiring it in would fail
-   unrelated work on a Tuesday for a reason that pull request cannot fix.
-   That is the same argument that keeps `check:figures` off the backend
-   path, pointed the other way. Where it belongs is the farm's scheduled
-   run, beside the scorecard read it already does — a job that runs daily
-   and whose job it *is* to write questions. That wiring lives outside this
-   repo, so the script prints the recommendation rather than pretending to
-   have done it.
+   whether or not anyone opened a pull request, so wiring it into a
+   pull-request check would fail unrelated work on a Tuesday for a reason
+   that pull request cannot fix. That is the same argument that keeps
+   `check:figures` off the backend path, pointed the other way. It runs on
+   a clock instead (above), which is the same split `security-audit.yml`
+   makes for `npm audit`: a check whose subject changes on its own belongs
+   on a schedule, not on a diff.
 
 2. **A live fetch of its own.** The scorecard already fetches the public
    aggregates and commits the result; pulse reads that artifact, exactly as
