@@ -306,7 +306,11 @@ function MirrorTab({ onPerson, pop, onPop, worldZoom, onZoom, firstRun, topNav, 
   }
   // the live bodies draw real, k-floored data — only the demo fields wear the tag
   const tag = isGeoLive || isCircleLive || isGroupsLive ? null : <MirrorPreviewTag popId={p.id} />;
-  const accentVar = isYou ? 'var(--c-today)' : p.id === 'groups' ? 'var(--c-groups)' : p.id === 'circle' ? 'var(--c-people)' : mirrorAccent(p.id);
+  // One lookup, not a ladder: the five branches above each named their own
+  // accent when each returned its own frame, and MIRROR_POPS already holds
+  // exactly those five values. Spelling them out again is a second copy that
+  // can disagree with the first.
+  const accentVar = mirrorAccent(p.id);
 
   return (
     <div ref={backRef} className={'fade-in' + (isYou ? '' : ' mf-flex')}
