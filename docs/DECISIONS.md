@@ -4010,3 +4010,94 @@ enough to spend money on. **Confirm the exemption in the Play Console
 account-type flow before paying for a D-U-N-S expedite**, and if it turns
 out not to hold, the fallback is the 12×14 path with nothing lost but a
 wait that overlapped Apple's anyway.
+
+## D42 · InSight launches on iOS alone; Play is deferred, and the path to it gets cheaper while it waits
+
+**Date:** 2026-08-04 · **Status:** Adopted (owner-confirmed: "iphone only
+launch is fine for now")
+
+**Decision.** Ship the App Store first and alone. Google Play is deferred
+indefinitely and revisited **after** iOS has an installed base, not on a
+date. No ENK is registered, no D-U-N-S applied for, and no Play Console
+account opened until that review says to.
+
+**Why, and this is the part that is not obvious.** The two routes onto
+Play have costs that move in **opposite directions over time**, so
+deferring is not merely postponing a bill:
+
+- The **organization route** (D41) costs the same whenever it is taken:
+  an ENK, a D-U-N-S wait, and the ongoing obligation of being a
+  registered business. Constant.
+- The **12 testers × 14 continuous days** route is brutal *cold* — twelve
+  people who install and stay opted in, where a drop below twelve
+  restarts the clock — and easy once the product has users, some of whom
+  carry Android phones and will ask to be let in. **Decaying.**
+
+So a launch that finds an audience may convert the expensive option into
+the cheap one and retire D41 unused. A launch that does not find one
+saves the cost entirely. Deferring is the dominant move in both branches,
+which is why this record exists rather than a date.
+
+**What this does to D41.** Not reversed — **made conditional**. If Play is
+opened *before* there is an installed base, organization is still the
+right account type and everything in that record stands. If it is opened
+*after*, the closed-testing gate may already be satisfiable by asking
+existing users, and the organization account becomes optional rather than
+the point. Re-read D41 at that moment; do not assume either half.
+
+**The arithmetic, verified 2026-08-04** (searched, not recalled — the
+sources are linked at the foot of LAUNCH-RUNBOOK.md):
+
+| Item | Cost | When required |
+| --- | --- | --- |
+| Enhetsregisteret (the organisasjonsnummer) | free, via Altinn | always, for an ENK |
+| Foretaksregisteret | 2,832 kr, or 3,883 kr filed with the above | only for resale of purchased goods, or 5+ employees |
+| D-U-N-S | free (5–30 business days; paid expedite ≈8) | for a Play organization account |
+| Play Console | $25 one-time | — |
+
+An app resells no purchased goods, so the cash cost of the whole deferred
+path is about **$25**, not thousands. That is worth writing down plainly
+because "moderately costly" was the reason for deferring, and the fees are
+not where the cost lives. **The cost is the ongoing one**: an ENK obliges
+an annual business filing whether or not it earns. VAT does not enter yet
+— the threshold is NOK 50,000 of turnover over a rolling 12 months, and
+docs/MONETIZATION.md records that launch has no consumer paid tier and
+"nothing in this document needs to earn before the product is proven."
+
+**One link in that chain is unverified, and it is the load-bearing one.**
+Whether Google's organization verification accepts an
+Enhetsregisteret-only ENK, or wants what Foretaksregisteret provides. If
+it wants the latter, the free path collapses into the fee-bearing one and
+the table above is wrong by ~3,000 kr. Check it in the Play Console
+account-type flow before spending anything. Nothing turns on it today,
+which is exactly why it is recorded rather than resolved.
+
+**What the deferral costs, stated so none of it arrives as a surprise:**
+
+- `npm run check:store-copy` keeps reporting the
+  `REPLACE_WITH_PLAY_SIGNING_SHA256` placeholder in
+  `web/.well-known/assetlinks.json`. That is now a **known permanent
+  non-blocker**, not an unfinished task — and the reason that check is
+  deliberately not in CI.
+- Android users tapping a `/join/CODE` link get the hosted fallback page.
+  Already the designed behaviour; with no Android app it is simply the
+  only behaviour.
+- The Android shell stays in CI (`android-build`, `native-sync-drift`) so
+  it cannot rot while parked. **Do not remove those jobs to tidy up** —
+  the whole value of parking rather than deleting is that the shell still
+  compiles on the day this is revisited.
+- `check:versions` keeps `versionCode` in lockstep with an app nobody is
+  shipping. Harmless, and cheaper than special-casing it.
+
+**What it does not cost.** Nothing on the iOS path. Apple has no testing
+gate; enrollment is ~1–2 days and review usually 24–48h. The iOS date was
+never a function of Play's.
+
+**Alternatives considered.** Registering the ENK now "to have the option"
+— rejected: it buys an option whose value falls the longer it is unused,
+at the price of a permanent filing obligation. A personal Play account
+now, converting later — rejected in D41 and still rejected: conversion
+support is disputed and the fallback is a second account plus an app
+transfer. Shipping both stores simultaneously — rejected as the thing
+this whole record is about: it puts a 3–4 week Android floor in front of
+an iOS build that is otherwise ~2 weeks out.
