@@ -47,10 +47,18 @@ and do the rest while it runs:
    out a platform is misconfigured from users instead of a graph.
 
 Apple has no gate of its own — enrollment is ~1–2 days, review usually
-24–48h. **iOS can be live in ~2 weeks**, and the single hard dependency
-left is a Mac: `ios-build.yml` is deliberately simulator-only and unsigned
-(it exists so the native project had coverage before any Apple account
-did), so it cannot produce an App Store archive.
+24–48h. **iOS can be live in ~2 weeks.**
+
+**A Mac is no longer required.** It used to be the only hard dependency
+left once D42 parked Play, so `.github/workflows/ios-release.yml` now does
+the signed archive, the two silent-failure gates and the App Store Connect
+upload on a macOS runner — see [`IOS-RELEASE.md`](IOS-RELEASE.md) for the
+four values it needs. (`ios-build.yml` does **not** substitute: it is
+deliberately simulator-only and unsigned, so the native project had
+coverage before any Apple account existed.) A Mac is still the more
+comfortable way to debug a signing failure, and the release workflow has
+never been run — treat its first dispatch, with `upload=false`, as the
+real test.
 
 *[PARKED] Play's clock, for when this is picked up:* a personal account
 created after 2023-11-13 must run **12 opted-in testers × 14 continuous
@@ -191,10 +199,18 @@ arithmetic.
 - [ ] **2.3 APNs key.** Apple Developer → Keys → create an APNs key →
       upload in Firebase Console → Cloud Messaging → Apple app
       configuration. Without it no reveal push arrives on iOS.
-- [ ] **2.4 First iOS archive** (Mac + Xcode). `npm run build && npx cap
-      sync`, then `npm run ios`. Signing & Capabilities: confirm Push
-      Notifications appears from the entitlements file and the provisioning
-      profile regenerates with `aps-environment`. Archive.
+- [ ] **2.4 First iOS archive — CI or Xcode.**
+
+      *Preferred, no Mac:* Actions → **iOS release** → Run workflow with
+      **upload unticked**. It archives, runs both silent-failure gates and
+      attaches a signed `.ipa`. Set the four values in
+      [`IOS-RELEASE.md`](IOS-RELEASE.md) first; it hard-gates on
+      `check-store-copy --ios` before spending runner minutes.
+
+      *With a Mac:* `npm run build && npx cap sync`, then `npm run ios`.
+      Signing & Capabilities: confirm Push Notifications appears from the
+      entitlements file and the provisioning profile regenerates with
+      `aps-environment`. Archive.
 - [ ] **2.5 Verify the archive's APNs environment before uploading:**
       ```bash
       codesign -d --entitlements :- /path/to/App.app | grep -A1 aps-environment
@@ -202,6 +218,9 @@ arithmetic.
       It must say `production`. This failure is completely silent — the
       device registers with the APNs sandbox, FCM sends to production,
       nothing errors and no push ever arrives. `SHIP-CHECKLIST § hardening`.
+      **The iOS release workflow runs this check for you** and fails the
+      build on anything but `production`, so this step is manual only when
+      you archive from a Mac.
 - [ ] **2.6 [PARKED — D42] Android signing.** Generate the upload keystore **outside the
       repo**, and **enrol in Play App Signing** so a lost upload key is
       recoverable. Before the first release commit run `git status
