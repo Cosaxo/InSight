@@ -27,7 +27,11 @@ export const LIVE_MEMBERS = [
   "latestBuild", "learnAgg", "learnAnswer", "linkGoogle", "myCity",
   "myVotes", "ready", "saveAnchors",
   "saveDisplayName",
-  "saveTestResult", "social", "stats", "subscribe", "uid",
+  // Operator-only, and the one member here no spec-layer JSX reads — it is
+  // typed into a browser console by hand (SHIP-CHECKLIST §1). It is listed
+  // anyway because this file is what both guards check the real object
+  // against, so an unlisted member fails the pin whatever its caller is.
+  "saveTestResult", "seedContent", "social", "stats", "subscribe", "uid",
   "updateAvailable", "updateRequired", "updateUrl", "vote",
 ];
 

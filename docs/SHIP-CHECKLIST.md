@@ -46,22 +46,39 @@ warning, because it had this step filed under "no accounts needed".
    > workflow variable is the only path. A deploy with the variable unset
    > still succeeds but logs a warning, and every operator callable stays
    > `permission-denied`.
-3. **The remaining step.** From the app's console:
-   `firebase.functions().httpsCallable("seedContentV2")()` — or simply
-   tap through any flow that calls it; 369 questions land in
-   `v2_questions`. Re-running is safe (idempotent, never resets the
-   `active` kill switch) and, since D34, genuinely cheap: it rewrites only
-   documents whose content changed and leaves `contentRev` alone, so a
-   reseed no longer costs every returning device a 369-read bank refetch.
-   The call returns `{written, skipped}` — a no-op reseed reports
-   `written: 0`.
+3. **The remaining step.** Sign in as the operator, then from the app's
+   browser console:
+
+   ```js
+   await window.LIVE.seedContent()
+   ```
+
+   369 questions land in `v2_questions`. Re-running is safe (idempotent,
+   never resets the `active` kill switch) and, since D34, genuinely cheap:
+   it rewrites only documents whose content changed and leaves `contentRev`
+   alone, so a reseed no longer costs every returning device a 369-read
+   bank refetch. The call returns `{written, skipped}` — a no-op reseed
+   reports `written: 0`.
+
+   **This line used to read
+   `firebase.functions().httpsCallable("seedContentV2")()` and could never
+   have worked.** That is Firebase v8 namespaced syntax; the app is on the
+   modular SDK (`firebase ^12`) and publishes no global `firebase`, so it
+   threw `ReferenceError: firebase is not defined` — on the one step
+   standing between a deployed backend and an app with content in it. The
+   helper that does it correctly was module-private in `live.ts` with no
+   way in, which is why `LIVE.seedContent` now exists. It adds no
+   privilege: `assertOperator` + `SEED_ADMIN_UIDS` was always the control,
+   and under D3 "signed in" is not one. `vote.test.ts` pins the callable
+   name, region and payload, because a typo here is an `internal` error
+   with nothing to read.
 
    **One operator case needs the extra argument.** If you flip a
    question's `active` flag **by hand in the Firebase console**, the seed
    cannot see it (it changed no document the seed writes), so cached
    clients keep showing the question. Push it with
-   `httpsCallable("seedContentV2")({ bumpRev: true })`, which invalidates
-   every device's cached bank. Nothing is at risk while you wait:
+   `await window.LIVE.seedContent(true)`, which invalidates every device's
+   cached bank. Nothing is at risk while you wait:
    `firestore.rules` re-checks `active` on every answer write, so a killed
    question still on screen is refused server-side, not silently accepted.
 

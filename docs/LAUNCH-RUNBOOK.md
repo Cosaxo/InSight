@@ -52,10 +52,12 @@ date does not depend on which way Play's account type resolves.
 ## Phase 0 — Do these first (about an hour, one console)
 
 - [ ] **0.1 Seed the production question bank — but do 1.3 first.** Signed
-      in as the operator account, from the app's console:
-      `firebase.functions().httpsCallable("seedContentV2")()`.
+      in as the operator account, from the app's browser console:
+      `await window.LIVE.seedContent()`.
       369 questions land in `v2_questions`. Idempotent and, since D34,
       cheap to repeat — reseed whenever content lands. `SHIP-CHECKLIST §1`.
+      *(This step used to name a `firebase.functions()...` call that could
+      not work — v8 syntax on a modular-SDK app. See the checklist.)*
       *Until this runs the deployed backend serves an empty app, so it
       blocks every screenshot and every tester.*
 
