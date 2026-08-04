@@ -66,6 +66,18 @@ export const B = {
   peakWindowMin: 240,  // D7's 4-hour morning window
   mauMultiple: 3,      // MAU = 3 x DAU
   reseedsPerMonth: 4,  // the launch plan's weekly promotion cadence
+  // How many bank documents a reseed actually changes. This is the input
+  // D34 created and the model did not have: `runSeedV2` writes only changed
+  // documents and the client pages `updatedAt > cursor`, so a promotion
+  // costs the DELTA, not the bank. 7 is D30's promotion cadence — one new
+  // daily question per day consumed.
+  //
+  // Before this existed the model had only a binary staticBank toggle: full
+  // bank (369) or nothing (0). Neither is the shipped state, so the default
+  // table described the pre-D34 world and overstated reads by ~145 per user
+  // per day at every size — while COSTS.md's own prose already said the
+  // real figure was ~3. Set to `bank` to recover the pre-D34 arithmetic.
+  changedPerReseed: 7,
 };
 
 export const SCENARIOS = [
@@ -113,8 +125,13 @@ export function costModel({ regional = false, bank = bankDocs() } = {}) {
     // A question under the floor is re-read at most once per 6 h, so roughly
     // one boot in four pays for it. Mature communities have few left.
     const topUp = ((mature ? 5 : AGG_CAP) / 4) * B.boots;
-    // Charged per MAU, not per DAU: a monthly visitor pays the full bank.
-    const reseed = staticBank ? 0 : (bank * B.reseedsPerMonth * B.mauMultiple) / 30;
+    // Charged per MAU, not per DAU: a monthly visitor pays for every
+    // promotion since their last visit, not just the ones since yesterday.
+    // Post-D34 that is the delta (7 changed docs), not the bank (369) —
+    // `staticBank` is the REMAINING unbuilt fix (serve the bank off Hosting,
+    // which takes this to zero), not the one that shipped.
+    const changed = staticBank ? 0 : B.changedPerReseed;
+    const reseed = (changed * B.reseedsPerMonth * B.mauMultiple) / 30;
     // The quadratic one. Publishes scale with DAU; concurrent listeners
     // scale with DAU; every delivery is a billed read. ~1 of the 3 world
     // answers is the globally shared daily, which is the hot document.

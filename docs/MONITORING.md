@@ -91,6 +91,21 @@ binds ~3.5× earlier than the read fan-out does. **Every figure in this
 panel is modelled, not measured.** There is no invoice yet. COSTS.md was
 written to be diffed against the first one; nothing has diffed it.
 
+**Building this panel found a bug in its own input, which is the argument
+for building it.** The model charged every returning user a full 369-document
+bank refetch per reseed — the pre-D34 world. D34 shipped on 2026-08-02: the
+seed writes only changed documents and the client pages `updatedAt > cursor`.
+COSTS.md's *prose* said so and had said so for two days; COSTS.md's *tables*
+went on describing the version it fixed, because `cost-model.mjs` had no
+input for "documents changed per reseed" — only whole-bank or nothing, and
+the shipped state is neither. Verified in both halves of the code before
+changing anything (`runSeedV2`'s skip count and `bankCache.v2`'s cursor),
+then fixed with `B.changedPerReseed`, and COSTS.md's tables regenerated. The
+correction is worth about 145 reads per user per day at every size: $18/mo →
+$5/mo at 5,000 DAU, $305 → $175 at 50,000. A prose note that the arithmetic
+beside it does not implement is the failure `check:figures` exists for, one
+layer down.
+
 ### 3 · Money — "what would I have to charge, and to how many?"
 
 Revenue is $0 and the panel says so in the tile rather than in a footnote.

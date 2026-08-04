@@ -330,10 +330,14 @@ function panelCost(p) {
         <th>With read fixes</th><th>Saving</th><th>D7 write rate</th>
       </tr></thead><tbody>${rows}</tbody>
     </table></div>
-    <p class="note tight">The last two columns are the decision: the two read fixes
-      (static bank, polled deck aggregates) are recorded and deliberately unbuilt.
-      Build them when the saving column stops being rounding error — not before,
-      because the write-contention wall binds ~3.5× earlier than the read fan-out does.</p>
+    <p class="note tight">The last two columns are the decision. The baseline already
+      includes D34 — the seed writes only changed documents and the client pages the
+      delta, so a promotion costs ${esc(c.assumptions.changedPerReseed)} reads per device
+      rather than the whole bank. What is still <b>recorded and deliberately unbuilt</b>
+      is the other pair: serve the bank as a static asset off Hosting, and poll today's
+      aggregate instead of streaming it. Build them when the saving column stops being
+      rounding error — not before, because the write-contention wall binds ~3.5× earlier
+      than the read fan-out does.</p>
 
     <h3>Where the reads actually go</h3>
     <div class="legend">${READ_SERIES.map((s) =>

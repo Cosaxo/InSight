@@ -4105,3 +4105,24 @@ no instrument bind at sizes this product has not approached.
 `onV2AnswerCreated` is alerted precisely because it is the one that fails
 *silently* — `retry:true` means a crash accumulates for ~7 days while the
 app looks healthy.
+
+**A defect this work found in its own input.** The console's cost panel
+reads `scripts/cost-arith.mjs`, and building it surfaced that the model was
+still charging every returning user a full 369-document bank refetch per
+reseed — the **pre-D34** world. D34 shipped 2026-08-02: `runSeedV2` writes
+only changed documents and the client pages `updatedAt > cursor`. COSTS.md's
+prose said so; COSTS.md's *tables* did not, because `cost-model.mjs` had no
+input for "documents changed per reseed" — only whole-bank or nothing, and
+the shipped state is neither. Verified in both halves of the code before
+touching the model (the seed's skip count, and `insight.bankCache.v2`'s
+cursor query), then fixed with `B.changedPerReseed` (default 7 — D30's
+promotion cadence) and COSTS.md's tables regenerated. Worth ~145 reads per
+user per day at every size: **$18/mo → $5/mo at 5,000 DAU, $305 → $175 at
+50,000, $13,215 → $11,910 at 500,000.** The remaining `staticBank` toggle now
+means what it says — the *unbuilt* Hosting fix — rather than doubling as a
+stand-in for the one that shipped.
+
+That is the argument for the console in one paragraph: a number nobody looks
+at goes stale in the direction of whatever was true when it was written, and
+a prose correction the arithmetic beside it does not implement is the failure
+`check:figures` exists for, one layer down.

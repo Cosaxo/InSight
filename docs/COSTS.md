@@ -42,17 +42,28 @@ single-region database is roughly half.
 
 | Scenario | DAU | reads/day | writes/day | Firestore $/mo | Functions $/mo | **Total $/mo** |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: |
-| Launch / TestFlight | 50 | 10.5 K | 710 | 0.00 | 0.00 | **0.00** |
-| Friends-of-friends | 500 | 106 K | 7.1 K | 1.01 | 0.00 | **1.01** |
-| Real traction | 5,000 | 914 K | 59 K | 18.20 | 0.00 | **18.20** |
-| Scale | 50,000 | 14.8 M | 590 K | 303.49 | 1.60 | **305.09** |
-| Hit | 500,000 | 710 M | 5.9 M | 13,180 | 33 | **13,215** |
+| Launch / TestFlight | 50 | 3.3 K | 710 | 0.00 | 0.00 | **0.00** |
+| Friends-of-friends | 500 | 33.5 K | 7.1 K | 0.00 | 0.00 | **0.00** |
+| Real traction | 5,000 | 190 K | 59 K | 5.17 | 0.00 | **5.17** |
+| Scale | 50,000 | 7.5 M | 590 K | 173 | 1.60 | **175** |
+| Hit | 500,000 | 638 M | 5.9 M | 11,877 | 33 | **11,910** |
+
+> **Corrected 2026-08-04 (D42).** This table used to charge every returning
+> user a full 369-document bank refetch per reseed, which is the *pre-D34*
+> world — and finding 1 below has said so in prose since D34 landed while
+> these numbers went on describing the version it fixed. The model had no
+> way to express the shipped state: its only reseed inputs were "whole bank"
+> and "nothing", and D34 is neither. `B.changedPerReseed` (default 7, D30's
+> promotion cadence) is that input, and the table above is its output.
+> The old figures are not deleted — they are finding 1's arithmetic, which
+> is still what justified the change.
 
 Two things fall out immediately. **Compute is free and stays free** —
 the trigger is 4 invocations per user per day at 200 ms, and Cloud Run's
 free tier (180 k vCPU-s/month) covers ~900 k answers/month on its own;
-even at 500 k DAU the functions bill is $33. And **reads are ~97% of the
-bill at every size.** Firestore writes never exceed 3% of the total.
+even at 500 k DAU the functions bill is $33. And **reads still dominate
+the bill at every size** — writes never exceed 3% of the total — but since
+D34 the read bill is one source rather than two.
 
 So the entire cost story of this app is *reads*, and reads have exactly
 three sources.
@@ -61,13 +72,18 @@ three sources.
 
 Per active user per day:
 
-| DAU | boot | agg top-up | **reseed refetch** | **listener fan-out** | total/user |
+| DAU | boot | agg top-up | reseed delta | **listener fan-out** | total/user |
 | ---: | ---: | ---: | ---: | ---: | ---: |
-| 50 | 21 | 42 | **148** | 0 | 211 |
-| 500 | 21 | 42 | **148** | 1 | 212 |
-| 5,000 | 21 | 2 | **148** | 12 | 183 |
-| 50,000 | 21 | 2 | **148** | 125 | 295 |
-| 500,000 | 21 | 2 | 148 | **1,250** | 1,420 |
+| 50 | 21 | 42 | 3 | 0 | 66 |
+| 500 | 21 | 42 | 3 | 1 | 67 |
+| 5,000 | 21 | 2 | 3 | 13 | 38 |
+| 50,000 | 21 | 2 | 3 | **125** | 151 |
+| 500,000 | 21 | 2 | 3 | **1,250** | 1,276 |
+
+With D34 applied the reseed column stops being the story and the fan-out
+becomes the only source that grows without bound. Below 50 k DAU the whole
+per-user read cost is now the boot and the top-up — both flat, both cheap,
+neither worth optimising. That is the intended shape.
 
 ### Finding 1 — the weekly reseed was the biggest line until ~50k DAU · **FIXED (D34)**
 
@@ -75,8 +91,14 @@ Per active user per day:
 > is a real cursor, and the client pages the delta instead of refetching
 > the bank — a weekly promotion costs 7 reads per device instead of 369,
 > so the 148 reads/user/day below becomes ~3. The rest of this section is
-> kept because it is the arithmetic that justified the change; the "with
-> both read fixes" table above is now the *left* column for reads.
+> kept because it is the arithmetic that justified the change.
+>
+> **The tables above now say ~3 too** (D42, 2026-08-04). For two days they
+> did not: this note claimed the fix and the model kept charging 148,
+> because `cost-model.mjs` had no input for "documents changed per reseed"
+> — only whole-bank or nothing. A prose correction that the arithmetic
+> beside it does not implement is the same failure `check:figures` exists
+> for, one layer down. `B.changedPerReseed` is the missing input.
 
 
 `runSeedV2` ends with an **unconditional** `contentRev` bump
@@ -218,10 +240,11 @@ does not scale down when usage does.
 
 ## The honest summary
 
-**Below 5,000 DAU this app costs about $30/month, and $30 of that is the
+**Below 5,000 DAU this app costs about $30/month, and $28 of that is the
 Apple developer program and a Claude subscription.** The infrastructure is
-free — genuinely free, inside the Firestore and Cloud Run free tiers, with
-the one-line `contentRev` fix.
+free — genuinely free, inside the Firestore and Cloud Run free tiers — and
+since D34 it is free with more headroom than this document originally
+claimed: $5/month at 5,000 DAU rather than $18.
 
 That is the correct answer to "can I afford to launch this": yes, by a
 wide margin, and the cost of being wrong about demand is not measured in
@@ -229,10 +252,12 @@ infrastructure at all.
 
 Two caveats worth carrying:
 
-- **The bill is 97% reads.** Two thirds of them were self-inflicted; the
-  cache-bust half is now closed (D34), and the listener fan-out half is
-  recorded and deliberately not built, because D7's write ceiling binds
-  ~3.5× earlier than it does.
+- **The bill is almost entirely reads, and now it is one read source.**
+  Two thirds of them were self-inflicted; the cache-bust half is closed
+  (D34) and the tables here finally reflect it (D42). The listener fan-out
+  half is recorded and deliberately not built, because D7's write ceiling
+  binds ~3.5× earlier than it does. Below 50 k DAU there is no longer a
+  read line worth optimising.
 - **Check the auth billing mode.** It is the only line in this document
   that could be four figures a month without any code being wrong, and
   it is the one remaining pre-launch cost action.
@@ -241,12 +266,15 @@ Two caveats worth carrying:
 
 - **Engagement per user.** The model assumes 4 answers/day. Doubling that
   roughly doubles writes and compute, and barely moves reads — the read
-  cost is dominated by boots and cache busts, not by answering.
-- **Reseed frequency.** The single most sensitive input below 50 k DAU.
-  Weekly → monthly cuts total reads by ~60% at 5 k DAU, on its own.
+  cost is dominated by boots, not by answering.
+- **Reseed frequency.** *Was* the single most sensitive input below 50 k
+  DAU; D34 took most of the sensitivity out with it. What matters now is
+  `changedPerReseed` (how many questions a promotion actually moves), not
+  how often a reseed runs — the same 7 questions cost the same 7 reads
+  whether they ship weekly or monthly.
 - **MAU/DAU ratio.** Assumed 3. A worse retention curve raises the reseed
-  refetch and the auth bill together, because both are charged per
-  *monthly* user.
+  delta and the auth bill together, because both are charged per *monthly*
+  user — but post-D34 only the auth half of that is material.
 - **Region.** A single-region database halves every Firestore line. The
   project is currently on the multi-region default, which is the safer
   and more expensive choice — worth a deliberate decision rather than an
