@@ -76,7 +76,7 @@ window.LEARN = (function () {
   const st = (id) => S.c[id] || null;
   const lvl = (fid) => (S.lvl[fid] == null ? L0 : S.lvl[fid]);
   const hueOf = (fid) => { const f = FBY[fid]; const s = f && SBY[f.subject]; return s ? s.hue : 250; };
-  const colorOf = (fid) => 'oklch(0.55 0.14 ' + hueOf(fid) + ')';
+  const colorOf = (fid) => 'oklch(0.52 0.14 ' + hueOf(fid) + ')';
   const pool = () => { const out = []; F.forEach((fid) => (BYF[fid] || []).forEach((c) => out.push(c))); return out; };
 
   // plan the next n cards WITHOUT answering any of them, so the scroll can ship

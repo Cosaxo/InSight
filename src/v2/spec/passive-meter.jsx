@@ -4,6 +4,7 @@
 // spec-index.js load order is semantic — scripts/check-spec-globals.mjs
 // guards the wiring in CI.
 import React from 'react';
+import { TypeMark, typeColor, typeSplit } from './type-marks.jsx';
 import { Sheet } from './primitives.jsx';
 import ReactDOM from 'react-dom';
 
@@ -38,8 +39,11 @@ function PassiveMeter() {
   const host = typeof document !== 'undefined' ? document.querySelector('.app') : null;
   return (
     <React.Fragment>
-      <button onClick={() => setOpen(true)} aria-label="Your four profiles — mapping as you answer" title="Your four profiles — mapping as you answer" style={{ display: 'inline-flex', alignItems: 'center', gap: 5, flexShrink: 0, border: '0.5px solid color-mix(in oklch, var(--rule), var(--ink) 22%)', background: 'var(--surface-2)', padding: '5px 9px', borderRadius: 999, cursor: 'pointer', WebkitAppearance: 'none' }}>
-        {P.KEYS.map((k) => <PassiveRing key={k} k={k} size={13} thick={3.2}></PassiveRing>)}
+      <button className="pm-chip" onClick={() => setOpen(true)} aria-label="Your four profiles — mapping as you answer" title="Your four profiles — mapping as you answer" style={{ background: 'var(--surface-2)', cursor: 'pointer', WebkitAppearance: 'none' }}>
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+          {P.KEYS.map((k) => <PassiveRing key={k} k={k} size={13} thick={3.2}></PassiveRing>)}
+        </span>
+        <span style={{ fontFamily: 'var(--sans)', fontWeight: 700, fontSize: 10.5, letterSpacing: '0.04em', color: 'var(--ink-3)' }}>profile</span>
       </button>
       {open && host && ReactDOM.createPortal(
         <Sheet onClose={close} closing={closing} label="Your four profiles">
@@ -54,6 +58,13 @@ function PassiveMeter() {
                 const R = (window.IS_TEST_RESULTS || {})[k];
                 const mt = (R && R.dims && window.IS_matchArchetype) ? window.IS_matchArchetype(k, R.dims) : null;
                 const standing = mt ? mt.list[mt.idx].name : null;
+                // the row takes the colour of the type you currently ARE, so the mark,
+                // its name and the dots read as one thing. Falls back to the test's
+                // category hue before a standing exists.
+                const col = (standing && typeColor) ? typeColor(k, standing, null, m.accent) : m.accent;
+                // each answered segment wears the type's two-tone split, same as its
+                // mark — as two solid parts, not a gradient, so 40+ dots stay cheap
+                const sp = (standing && typeSplit) ? typeSplit(k, standing) : null;
                 const go = () => { close(); setTimeout(() => { if (window.openTest) window.openTest(k); else if (window.openOverlay) window.openOverlay('test'); }, 240); };
                 return (
                   <button key={k} onClick={full ? undefined : go} disabled={full} aria-label={m.label + ' \u2014 ' + (standing ? standing + ' \u2014 ' : '') + done + ' of ' + n + (full ? ' \u2014 complete' : ' \u2014 tap to finish')} style={{ display: 'flex', flexDirection: 'column', alignItems: 'stretch', gap: 11, width: '100%', textAlign: 'left', border: 'none', borderTop: PM_LINE, borderRadius: 0, background: 'none', padding: '15px 2px 17px', cursor: full ? 'default' : 'pointer', WebkitAppearance: 'none' }}>
@@ -63,12 +74,14 @@ function PassiveMeter() {
                         {!full && <span aria-hidden="true" style={{ fontFamily: 'var(--sans)', fontWeight: 700, fontSize: 19, lineHeight: 1, color: 'var(--ink-3)', flexShrink: 0 }}>{'\u203A'}</span>}
                       </div>
                       {/* where you stand right now — provisional while segments are unfilled */}
-                      {standing && <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7 }}>{window.TypeMark ? <window.TypeMark testKey={k} name={standing} size={18}></window.TypeMark> : null}<span style={{ fontFamily: 'var(--sans)', fontWeight: 650, fontSize: 13, letterSpacing: '-0.01em', color: `color-mix(in oklch, ${m.accent} 72%, var(--ink))` }}>{standing}</span></span>}
+                      {standing && <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7 }}>{TypeMark ? <TypeMark testKey={k} name={standing} size={18}></TypeMark> : null}<span style={{ fontFamily: 'var(--sans)', fontWeight: 650, fontSize: 13, letterSpacing: '-0.01em', color: `color-mix(in oklch, ${col} 78%, var(--ink))` }}>{standing}</span></span>}
                     </div>
                     {/* one dot per question — filled is answered. the count IS the visual; no numbers */}
                     <span aria-hidden="true" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                       {Array.from({ length: n }).map((_, i) => (
-                        <span key={i} style={{ width: 22, height: 10, borderRadius: 999, boxSizing: 'border-box', background: i < done ? m.accent : 'transparent', border: i < done ? 'none' : '1.5px solid color-mix(in oklch, var(--ink-3) 34%, transparent)', transition: 'background .3s ease' }}></span>
+                        <span key={i} style={{ width: 22, height: 10, borderRadius: 999, boxSizing: 'border-box', overflow: 'hidden', display: 'flex', background: i < done ? (sp ? sp.deep : col) : 'transparent', border: i < done ? 'none' : '1.5px solid color-mix(in oklch, var(--ink-3) 34%, transparent)', transition: 'background .3s ease' }}>
+                          {i < done && sp ? <span style={{ marginLeft: 'auto', width: ((1 - sp.ratio) * 100).toFixed(1) + '%', background: sp.lift }}></span> : null}
+                        </span>
                       ))}
                     </span>
                   </button>

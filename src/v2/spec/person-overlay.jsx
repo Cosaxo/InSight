@@ -4,6 +4,9 @@
 // spec-index.js load order is semantic — scripts/check-spec-globals.mjs
 // guards the wiring in CI.
 import React from 'react';
+import { PersonMindMap } from './person-mindmap.jsx';
+import { DuoDomains } from './duo-daily.jsx';
+import { ReadRun } from './read-run.jsx';
 import { FRIENDS } from './follows.js';
 import { IS_DATA } from './sample-data.js';
 import { Av, AnonAv, anonName, Kicker, useDialog } from './primitives.jsx';
@@ -148,6 +151,9 @@ function PersonOverlay({ p: rawP, onClose, me }) {
   const [, fBump] = React.useReducer((x) => x + 1, 0);
   React.useEffect(() => (FRIENDS ? FRIENDS.subscribe(fBump) : undefined), []);
   const [confirmRemove, setConfirmRemove] = React.useState(false);
+  // hoisted for the same reason as the two above: the mind-map still opens
+  // full-screen from a tap, and its state must not sit past the early return.
+  const [mapOpen, setMapOpen] = React.useState(false);
 
   if (!rawP) return null;
   // Normalize interests — some sources (IS_DATA.people) store them as
@@ -166,6 +172,7 @@ function PersonOverlay({ p: rawP, onClose, me }) {
   const themColor = `oklch(0.55 0.13 ${p.hue})`;
 
   const overall = Math.round(p.match);
+  const firstName = p.anon ? 'Them' : (p.name ? p.name.split(' ')[0] : p.init);
   const fStatus = !p.anon && p.id ? FRIENDS.status(p.id) : 'none';
   const isFriend = fStatus === 'friends';
   const onFriendBtn = () => {
@@ -202,11 +209,11 @@ function PersonOverlay({ p: rawP, onClose, me }) {
               boxShadow: `0 6px 16px -6px color-mix(in oklch, ${themColor} 55%, transparent)`, border: '2.5px solid var(--surface)',
             }}>
               <span style={{ fontFamily: 'var(--sans)', fontSize: 14.5, fontWeight: 800, letterSpacing: '-0.01em' }}>{overall}</span>
-              <span style={{ fontFamily: 'var(--sans)', fontSize: 9.5, fontWeight: 700, letterSpacing: '0.12em', opacity: 0.8 }}>AFFINITY</span>
+              <span style={{ fontFamily: 'var(--sans)', fontSize: 10.5, fontWeight: 700, letterSpacing: '0.09em' }}>AFFINITY</span>
             </div>
           </div>
           <div style={{ fontFamily: 'var(--sans)', fontSize: 28, fontWeight: 800, marginTop: 18, letterSpacing: '-0.03em', lineHeight: 1.1, textTransform: p.anon ? 'capitalize' : 'none' }}>{anonName(p)}</div>
-          <div style={{ fontFamily: 'var(--sans)', fontSize: 12, fontWeight: 600, color: 'var(--ink-3)', letterSpacing: '0.06em', marginTop: 6, textTransform: 'uppercase' }}>
+          <div style={{ fontFamily: 'var(--sans)', fontSize: 10.5, fontWeight: 700, color: 'var(--ink-3)', letterSpacing: '0.09em', marginTop: 7, textTransform: 'uppercase' }}>
             {p.anon
               ? `${p.role || 'nearby'} · ${p.dist || 'nearby'}`
               : <>{p.role || p.rel} · {p.age ? `aged ${p.age} · ` : ''}{p.dist || 'in your orbit'}</>}
@@ -323,7 +330,7 @@ function PersonOverlay({ p: rawP, onClose, me }) {
                     );
                   })}
                 </div>
-                <div style={{ marginTop: 11, paddingTop: 9, borderTop: '0.5px solid var(--rule)', display: 'flex', alignItems: 'center', gap: 14, fontFamily: 'var(--sans)', fontSize: 10.5, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--ink-3)' }}>
+                <div style={{ marginTop: 11, paddingTop: 9, borderTop: '0.5px solid var(--rule)', display: 'flex', alignItems: 'center', gap: 14, fontFamily: 'var(--sans)', fontSize: 10.5, fontWeight: 700, letterSpacing: '0.09em', textTransform: 'uppercase', color: 'var(--ink-3)' }}>
                   <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>{mark(true, 'var(--ink)')}you</span>
                   <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>{mark(true, themColor)}{who}</span>
                 </div>
@@ -343,28 +350,89 @@ function PersonOverlay({ p: rawP, onClose, me }) {
           );
         })()}
 
-        {/* ─── Their map — read-only mind map, full-bleed so it reads as a view, not a pasted box ─── */}
+        {/* ─── The 1v1 record — the one thing only a duel can tell you: how well
+            each of you actually reads the other. Same dot language as the daily,
+            so a filled dot means the same thing everywhere. ─── */}
+        {(() => {
+          const D = window.DUELS;
+          const duo = D && D.partners ? D.partners().find((x) => x.id === p.id && x.played > 0) : null;
+          if (!duo) return null;
+          const row = (label, n, key, color) => (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 11 }}>
+              <span style={{ width: 64, flexShrink: 0, fontFamily: 'var(--sans)', fontSize: 12.5, fontWeight: 800, color: 'var(--ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{label}</span>
+              <ReadRun days={Array.from({ length: n }, (_, i) => D.duoDay(p.id, n - i)[key])} color={color} size={13}></ReadRun>
+            </div>
+          );
+          // deep enough to split by domain? then WHICH parts you read beats
+          // two aggregate streak rows. Shallow ties keep the simple version.
+          const rows = D.domainRows ? D.domainRows(duo) : [];
+          const weak = rows.length >= 2 && D.weakDomain ? D.weakDomain(duo) : null;
+          return (
+            <div style={{ marginBottom: 26 }}>
+              <div style={{ marginBottom: 11 }}><Kicker>How well you read each other</Kicker></div>
+              {rows.length >= 2 && DuoDomains
+                ? <DuoDomains rows={rows} themColor={themColor} themName={firstName}></DuoDomains>
+                : <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                    {row('you', duo.read.total, 'readRight')}
+                    {row(firstName, duo.readBy.total, 'byRight', themColor)}
+                  </div>}
+              {weak ? <div style={{ marginTop: 13, fontFamily: 'var(--sans)', fontSize: 13, fontWeight: 600, color: 'var(--ink-2)', lineHeight: 1.45, textWrap: 'pretty' }}>Your {weak.noun || weak.label} is where you{'\u2019'}re least legible to {firstName}.</div> : null}
+            </div>
+          );
+        })()}
+
+        {/* ─── The map is its OWN screen, not a panel in this scroll: a live
+            pannable map wedged into a scrolling page fights the page for every
+            gesture. So the profile carries a small portrait of the overlap and
+            one way in; the map itself opens full-screen. ─── */}
         <div style={{ marginBottom: 26 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 10 }}>
-            <Kicker>Their map</Kicker>
-            {!isFriend && <span style={{ fontFamily: 'var(--sans)', fontSize: 11.5, fontWeight: 600, color: 'var(--ink-3)' }}>Friends see the full map</span>}
-          </div>
-          <div style={{
-            height: 470, margin: '0 -18px', overflow: 'hidden', position: 'relative',
-            borderTop: '0.5px solid var(--rule)', borderBottom: '0.5px solid var(--rule)',
-            background: `radial-gradient(120% 70% at 50% 0%, color-mix(in oklch, ${themColor} 7%, transparent), transparent 70%), var(--surface)`,
+          <div style={{ marginBottom: 11 }}><Kicker>Where your maps meet</Kicker></div>
+          <div className="press" role="button" tabIndex={0} onClick={() => setMapOpen(true)}
+            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setMapOpen(true); } }}
+            aria-label={`Open ${firstName}'s map`} style={{
+            cursor: 'pointer', border: '0.5px solid var(--rule)', borderRadius: 16, overflow: 'hidden',
+            background: `radial-gradient(120% 80% at 50% 0%, color-mix(in oklch, ${themColor} 8%, transparent), transparent 72%), var(--surface)`,
           }}>
-            {window.PersonMindMap ? (
-              <window.PersonMindMap
-                p={p}
-                following={isFriend}
-                centerName={p.anon ? 'Them' : (p.name ? p.name.split(' ')[0] : p.init)}
-              />
-            ) : null}
+            {/* a CROP of the portrait, not a shrunk copy: the map lays out in a
+                full-height box and the card shows the middle band, so dots and
+                branch names stay the size they are on the real screen */}
+            <div style={{ height: 152, position: 'relative', overflow: 'hidden', pointerEvents: 'none' }}>
+              <div style={{ position: 'absolute', left: 0, right: 0, top: '50%', height: 330, transform: 'translateY(-50%)' }}>
+                <PersonMindMap p={p} following={isFriend} centerName={firstName} still />
+              </div>
+            </div>
+            <div style={{
+              display: 'flex', alignItems: 'center', gap: 10, padding: '12px 14px',
+              borderTop: '0.5px solid var(--rule)',
+            }}>
+              <span style={{ flex: 1, minWidth: 0, fontFamily: 'var(--sans)', fontSize: 14.5, fontWeight: 700, letterSpacing: '-0.01em', color: 'var(--ink)' }}>
+                Open {firstName}{'\u2019'}s map
+              </span>
+              {!isFriend && <span style={{ fontFamily: 'var(--sans)', fontSize: 11.5, fontWeight: 600, color: 'var(--ink-3)' }}>partial</span>}
+              <span style={{ fontFamily: 'var(--sans)', fontSize: 15, fontWeight: 700, color: themColor }}>↗</span>
+            </div>
           </div>
         </div>
 
       </div>
+
+      {/* the live map gets the whole screen — where it can actually be explored */}
+      {mapOpen ? (
+        <div className="overlay surface-tint" style={{ zIndex: 24 }}>
+          <div className="app-header">
+            <button className="avatar-btn" onClick={() => setMapOpen(false)}>←</button>
+            <div className="h-title" style={{ flex: 1, minWidth: 0 }}>{firstName}{'\u2019'}s map</div>
+          </div>
+          <div style={{ flex: 1, minHeight: 0, position: 'relative' }}>
+            <PersonMindMap p={p} following={isFriend} centerName={firstName} />
+          </div>
+          {/* the legend belongs where the dots are big enough to read */}
+          <div style={{ flexShrink: 0, display: 'flex', gap: 16, padding: '10px 16px 14px', borderTop: '0.5px solid var(--rule)', fontFamily: 'var(--sans)', fontSize: 10.5, fontWeight: 700, letterSpacing: '0.09em', textTransform: 'uppercase', color: 'var(--ink-3)' }}>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7 }}><span style={{ width: 10, height: 10, borderRadius: 99, background: themColor }}></span>same answer</span>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7 }}><span style={{ width: 10, height: 10, borderRadius: 99, boxSizing: 'border-box', border: `2px solid ${themColor}` }}></span>you differ</span>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

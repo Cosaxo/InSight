@@ -52,20 +52,19 @@ function ProfileOverlay({ onClose, me, lensBoxed }) {
   const meta = labels[top.label];
 
   // ── one tab per test — the unified "results profile" card ──
-  // take/retake button, at the foot of each test's tab
+  // CTA only when a test has never been taken. A partial picture needs no
+  // nudge: the feed keeps filling it in as you answer.
   const TestCTA = ({ k }) => {
-    const P = window.PASSIVE;
     const taken = !!(window.IS_TEST_RESULTS || {})[k];
-    const nLeft = P && !P.complete(k) ? P.needed(k) - P.done(k) : 0;
+    if (taken) return null;
     return (
       <button onClick={() => window.openTest ? window.openTest(k) : window.openOverlay('test')} style={{
         width: '100%', padding: '13px', marginBottom: 14, cursor: 'pointer',
         WebkitAppearance: 'none', appearance: 'none',
-        background: taken && !nLeft ? 'var(--surface-2)' : 'var(--ink)',
-        color: taken && !nLeft ? 'var(--ink)' : 'var(--surface)',
-        border: taken && !nLeft ? '0.5px solid var(--rule)' : 'none', borderRadius: 14,
+        background: 'var(--ink)', color: 'var(--surface)',
+        border: 'none', borderRadius: 14,
         fontFamily: 'var(--sans)', fontSize: 14.5, fontWeight: 700, letterSpacing: '-0.01em',
-      }}>{nLeft ? `Finish the test — ${nLeft} question${nLeft === 1 ? '' : 's'} left` : taken ? 'Retake this test' : 'Take this test'} →</button>
+      }}>Take this test →</button>
     );
   };
 
@@ -107,7 +106,7 @@ function ProfileOverlay({ onClose, me, lensBoxed }) {
       <div className="app-header">
         <button className="avatar-btn" onClick={onClose}>✕</button>
         <div className="h-title">Your <em>profile</em></div>
-        <div style={{ width: 36 }} />
+        <div style={{ width: 32, flexShrink: 0 }} />
       </div>
       <div className="app-body" style={{ paddingTop: 0 }}>
         {/* compact identity row — the content is the star, not the header */}
@@ -133,17 +132,10 @@ function ProfileOverlay({ onClose, me, lensBoxed }) {
 
         {/* sticky sub-tab nav — frosted so content scrolls beneath it */}
         <div className="profile-subnav">
-          <div className="subnav" style={{ display: 'inline-flex', gap: 4, background: 'var(--surface-3)', borderRadius: 999, padding: 3, border: '0.5px solid var(--rule)', maxWidth: '100%', overflowX: 'auto', flexWrap: 'nowrap', justifyContent: 'flex-start', scrollbarWidth: 'none' }}>
-            {SUBTABS.map(s => {
-              const on = s.id === sub;
-              return (
-                <button key={s.id} onClick={() => setSub(s.id)} className={"subnav-btn" + (on ? ' is-on' : '')} style={{
-                  flex: '0 0 auto', padding: '8px 11px', borderRadius: 999, border: 'none', cursor: 'pointer',
-                  WebkitAppearance: 'none', appearance: 'none',
-                  fontFamily: 'var(--sans)', fontSize: 12, fontWeight: 600, letterSpacing: '0.01em', whiteSpace: 'nowrap',
-                }}>{s.label}</button>
-              );
-            })}
+          <div className="subnav subnav--scroll" style={{ maxWidth: '100%' }}>
+            {SUBTABS.map(s => (
+              <button key={s.id} onClick={() => setSub(s.id)} className={"subnav-btn" + (s.id === sub ? ' is-on' : '')}>{s.label}</button>
+            ))}
           </div>
         </div>
 

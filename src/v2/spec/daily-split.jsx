@@ -4,6 +4,9 @@
 // spec-index.js load order is semantic — scripts/check-spec-globals.mjs
 // guards the wiring in CI.
 import React from 'react';
+import { VOTECUTS } from './vote-cuts.js';
+import { navCoasting } from './swipe-back.js';
+import { WPAL } from './world-palette.js';
 import { DAILYQ } from './daily-questions.js';
 import { Sheet } from './primitives.jsx';
 import ReactDOM from 'react-dom';
@@ -33,7 +36,7 @@ const DAILYSPLIT_DQ_SYNC = { s1: { prompt: 'Pineapple on pizza?', map: { yes: 0,
 
 class DailySplit extends React.Component {
   state = {
-    mode: 'world', feedOpen: false, condensed: false, earlierOpen: false, modeSlot: null, reportFor: null,
+    mode: this.props.mode || 'world', feedOpen: false, condensed: false, earlierOpen: false, modeSlot: null, reportFor: null,
     idx: 0, idxG: 0,
     votes: (window.LIVE && window.LIVE.enabled ? window.LIVE.myVotes() : {}), tab: null, filter: 'all', dim: 'friends', dimAxis: null, ups: {}, mine: {}, draft: '', dreplies: this.loadDailyReplies(), replyTo: null,
     mapToast: null, pressing: false,
@@ -148,6 +151,7 @@ class DailySplit extends React.Component {
       this.consumePendingReveal();
     });
     this.syncAppAccent();
+    this.watchRuler();
   }
 
   // A tapped reveal notification (src/v2/data/push.ts) stores the gid;
@@ -161,7 +165,41 @@ class DailySplit extends React.Component {
     try { sessionStorage.removeItem('insight.pendingReveal'); } catch { /* best-effort */ }
     this.setState({ mode: g.mode === 'duo' ? 'duo' : 'group' });
   }
-  componentDidUpdate() {
+
+  // ── docking: once the in-flow ruler has scrolled away, the wordmark steps
+  // aside and a compact ruler takes the header. One snap at a threshold, with
+  // hysteresis, rather than a scroll-linked shrink — a scrubbed header jitters
+  // and fights the feed's own entrance animations.
+  // Dock when the ruler itself has left the scroller — not at a scrollTop
+  // number. Group and 1v1 hand scrolling to their own snap stacks, so a
+  // threshold on one container docked the header while the ruler was still
+  // on screen. Capture phase, because scroll doesn't bubble: whichever
+  // container actually moved, the check runs.
+  watchRuler() {
+    if (this._offScroll) { this._offScroll(); this._offScroll = null; }
+    if (!this.props.ruler || !this.props.dock) return;
+    const host = this.rootEl && this.rootEl.closest('.app');
+    if (!host) return;
+    const check = () => {
+      const el = this._rulerEl, sc = this.rootEl && this.rootEl.parentElement;
+      if (!el || !sc) return;
+      const r = el.getBoundingClientRect(), s = sc.getBoundingClientRect();
+      // hysteresis: gone past the top edge docks, 8px back into view releases
+      this.setDocked(this._docked ? r.bottom <= s.top + 8 : r.bottom <= s.top + 1);
+    };
+    this._check = check;
+    host.addEventListener('scroll', check, { passive: true, capture: true });
+    this._offScroll = () => host.removeEventListener('scroll', check, true);
+  }
+
+  setDocked(v) {
+    if (this._docked === v) return;
+    this._docked = v;
+    if (this.props.onDock) this.props.onDock(v);
+  }
+  componentDidUpdate(prevProps) {
+    // nav v2: the bottom bar owns the mode — follow it when it changes
+    if (prevProps && this.props.mode && this.props.mode !== prevProps.mode && this.props.mode !== this.state.mode && !this._switching) this.switchMode(this.props.mode);
     this.syncAppAccent();
     // enter half of the click-driven mode switch — runs synchronously after
     // the commit, so the body can never be left stuck in its exit state
@@ -176,15 +214,44 @@ class DailySplit extends React.Component {
       this._switching = false;
     }
   }
-  componentWillUnmount() { clearTimeout(this._toastT); clearTimeout(this._lpT); clearTimeout(this._sheetT); if (this._unsubDuels) this._unsubDuels(); if (this._unsubLive) this._unsubLive(); if (this._pendingHandler) window.removeEventListener('insight-live-update', this._pendingHandler); const app = document.querySelector('.app'); if (app) app.style.removeProperty('--accent'); }
+  componentWillUnmount() { clearTimeout(this._toastT); clearTimeout(this._lpT); clearTimeout(this._sheetT); if (this._unsubDuels) this._unsubDuels(); if (this._offScroll) this._offScroll(); if (this._docked && this.props.onDock) this.props.onDock(false); if (this._unsubLive) this._unsubLive(); if (this._pendingHandler) window.removeEventListener('insight-live-update', this._pendingHandler); const app = document.querySelector('.app'); if (app) app.style.removeProperty('--accent'); }
+
+  // one axis, three stops. Which axis depends on how the app is navigating:
+  // ruler/pill run the daily's own scale, the 4-tab bar borrows the bar's order.
+  get modeAxis() { return ['world', 'group', 'duo']; }
+
+  // ── the daily's scale: World · Circle · 1v1 — the same ruler the Mirror wears,
+  // because it is the same kind of choice: how far out this answer reaches.
+  dailyRuler(mode, accents, badges) {
+    const h = React.createElement;
+    const STOPS = [{ id: 'world', label: 'World' }, { id: 'group', label: 'Circle' }, { id: 'duo', label: '1v1' }];
+    const n = STOPS.length;
+    const idx = Math.max(0, STOPS.findIndex((s) => s.id === mode));
+    const acc = accents[mode];
+    // the ruler reads as a primary switch, not a caption: labels at real size,
+    // the graduation kept but scaled to match
+    return h('div', { ref: (n) => { this._rulerEl = n; }, style: { margin: '-6px 0 -4px' } },
+      h('div', { style: { position: 'relative', display: 'flex', height: 50 }, role: 'tablist', 'aria-label': 'How far this answer reaches' },
+        h('div', { style: { position: 'absolute', left: 6, right: 6, bottom: 21, height: 1, background: 'color-mix(in oklch, var(--rule), transparent 30%)' } }),
+        STOPS.map((s, i) => {
+          const on = i === idx;
+          // taller tick = wider scale, so the graduation narrows toward 1v1
+          const tick = 11 - (i / (n - 1)) * 5.5;
+          return h('button', { key: s.id, role: 'tab', 'aria-selected': on, 'aria-label': s.label, onClick: () => this.switchMode(s.id), style: { flex: 1, minWidth: 0, position: 'relative', height: 50, border: 'none', background: 'none', cursor: 'pointer', WebkitAppearance: 'none', padding: 0 } },
+            badges[s.id] && h('span', { 'aria-hidden': true, style: { position: 'absolute', left: '50%', bottom: 39, marginLeft: -2.5, width: 5, height: 5, borderRadius: '50%', background: 'var(--c-around)' } }),
+            h('span', { style: { position: 'absolute', left: '50%', bottom: 21, transform: 'translateX(-50%)', width: on ? 3 : 1.5, height: on ? 14 : tick, borderRadius: 99, background: on ? acc : 'color-mix(in oklch, var(--ink-3), transparent 45%)', transition: 'height .28s cubic-bezier(0.2,0.8,0.2,1), background .3s, width .2s' } }),
+            h('span', { style: { position: 'absolute', left: 0, right: 0, bottom: 0, textAlign: 'center', whiteSpace: 'nowrap', fontFamily: 'var(--sans)', fontSize: on ? 15 : 13.5, fontWeight: on ? 800 : 600, letterSpacing: '-0.02em', color: on ? 'var(--ink)' : 'var(--ink-3)', transition: 'color .2s, font-size .2s' } }, s.label));
+        })));
+  }
 
   // click-driven mode switch — same slide the swipe gesture makes, so the
   // switcher and the gesture feel like one mechanism
   switchMode(id) {
-    const MODES = ['world', 'group', 'duo'];
+    const MODES = this.modeAxis;
     const mi = MODES.indexOf(this.state.mode), ni = MODES.indexOf(id);
     if (ni === mi || ni < 0) return;
     const b = this.bodyEl, dir = ni > mi ? 1 : -1;
+    if (this.props.onMode) this.props.onMode(id);
     const reduce = typeof matchMedia !== 'undefined' && matchMedia('(prefers-reduced-motion: reduce)').matches;
     if (!b || reduce || this._switching) { this.setState({ mode: id }); return; }
     this._switching = true;
@@ -194,6 +261,7 @@ class DailySplit extends React.Component {
       this._enterDir = dir; // componentDidUpdate finishes the move
       this.setState({ mode: id });
       const sc = this.rootEl && this.rootEl.parentElement; if (sc) sc.scrollTop = 0;
+      if (this._check) this._check();
     }, 160);
   }
 
@@ -271,12 +339,12 @@ class DailySplit extends React.Component {
   // sides get distinct hues rotated from the topic's — same oklch family
   // (one lightness+chroma tier), so the choice has real contrast but every
   // color still derives from the question's topic.
-  optColor(tc, i, n) { return i === 0 ? tc : 'oklch(from ' + tc + ' 0.55 0.14 calc(h + ' + Math.round(i * (n > 2 ? 120 : 150)) + '))'; }
+  optColor(tc, i, n) { return WPAL.opt(tc, i, n, true); }
   get worldDeck() {
     const all = this.data;
     const on = all.filter(q => this.state.cats[q.cat] !== false);
     return (on.length ? on : all).map(q => {
-      const tc = (WORLD_TOPICS_V2.find(c => c.id === q.cat) || {}).color || 'var(--c-around)';
+      const tc = WPAL.c((WORLD_TOPICS_V2.find(c => c.id === q.cat) || {}).color || 'var(--c-around)');
       return { ...q, topicColor: tc, options: q.options.map((o, i) => ({ ...o, color: this.optColor(tc, i, q.options.length), textColor: '#fff' })) };
     });
   }
@@ -300,19 +368,23 @@ class DailySplit extends React.Component {
     }, { passive: true });
     // only the question body slides — the mode switcher and page chrome hold still
     const T = () => this.bodyEl || el;
-    // horizontal swipe moves between the three modes — World ↔ Group ↔ 1v1;
-    // the page itself scrolls vertically (question, then the feed). Earlier
-    // days are reached by tapping the day dots, not by swiping.
-    const MODES = ['world', 'group', 'duo'];
+    // horizontal swipe moves along the axis; the page itself scrolls vertically
+    // (question, then the feed). Earlier days are reached by tapping the day dots.
     const commit = (dir) => {
+      // read the axis live — setupGestures runs once per mount, but the Nav tweak
+      // can flip the axis under it without remounting
+      const MODES = this.modeAxis;
       const mi = MODES.indexOf(this.state.mode), ni = mi + dir;
-      if (ni < 0 || ni >= MODES.length) { spring(); return; } // spring at the ends
+      // the axis continues past the far end into Mirror — act, then see
+      if (ni >= MODES.length) { if ((this.props.hideSwitcher || this.props.ruler) && window.goNav) { window.goNav('mirror'); return; } spring(); return; }
+      if (ni < 0) { spring(); return; } // spring at the near end
       try { localStorage.setItem('insight.swipeHinted', '1'); } catch { /* best-effort */ } // they've learned it — no more hinting
       const b = T();
       b.style.transition = 'transform 0.17s ease, opacity 0.17s ease';
       b.style.transform = 'translateX(' + (-dir * 64) + 'px)'; b.style.opacity = '0';
       setTimeout(() => {
-        this.setState({ mode: MODES[ni] }); scroller.scrollTop = 0;
+        this.setState({ mode: MODES[ni] }); scroller.scrollTop = 0; if (this._check) this._check();
+        if (this.props.onMode) this.props.onMode(MODES[ni]);
         requestAnimationFrame(() => {
           const b2 = T();
           b2.style.transition = 'none'; b2.style.transform = 'translateX(' + (dir * 64) + 'px)'; b2.style.opacity = '0';
@@ -328,11 +400,11 @@ class DailySplit extends React.Component {
       if (horiz === null && (Math.abs(mx) > 8 || Math.abs(my) > 8)) horiz = Math.abs(mx) > Math.abs(my);
       if (horiz) { e.preventDefault(); dx = mx; const b = T(); b.style.transform = 'translateX(' + (mx * 0.7) + 'px)'; b.style.opacity = String(1 - Math.min(Math.abs(mx) / 520, 0.4)); }
     }, { passive: false });
-    const end = () => { if (!dragging) return; dragging = false; if (horiz && Math.abs(dx) > 66) commit(dx < 0 ? 1 : -1); else spring(); };
+    const end = () => { if (!dragging) return; dragging = false; if (horiz && Math.abs(dx) > 66 && !navCoasting()) commit(dx < 0 ? 1 : -1); else spring(); };
     scroller.addEventListener('touchend', end); scroller.addEventListener('touchcancel', end);
     let wheelLock = false;
     scroller.addEventListener('wheel', (e) => {
-      if (Math.abs(e.deltaX) > Math.abs(e.deltaY) + 4) { e.preventDefault(); if (wheelLock || Math.abs(e.deltaX) < 24) return; wheelLock = true; commit(e.deltaX > 0 ? 1 : -1); setTimeout(() => { wheelLock = false; }, 650); }
+      if (Math.abs(e.deltaX) > Math.abs(e.deltaY) + 4) { e.preventDefault(); if (wheelLock || Math.abs(e.deltaX) < 24) return; if (navCoasting()) return; wheelLock = true; commit(e.deltaX > 0 ? 1 : -1); setTimeout(() => { wheelLock = false; }, 650); }
     }, { passive: false });
     // first-run hint — a gentle sideways nudge teaches that modes swipe; retires after the first real swipe
     try {
@@ -432,8 +504,8 @@ class DailySplit extends React.Component {
   }
   // cuts + subvalues come from the shared list (vote-cuts.js) so the daily and
   // the feed break a vote down exactly the same way
-  get statDimDefs() { return window.VOTECUTS ? window.VOTECUTS.dims() : [{ id: 'friends', label: 'Friends' }]; }
-  get statSubs() { return window.VOTECUTS ? window.VOTECUTS.subs(this.state.dim) : null; }
+  get statDimDefs() { return VOTECUTS ? VOTECUTS.dims() : [{ id: 'friends', label: 'Friends' }]; }
+  get statSubs() { return VOTECUTS ? VOTECUTS.subs(this.state.dim) : null; }
   get overrides() { return { 's1:age': [[64, 36], [55, 45], [44, 56], [34, 66]], 's4:age': [[54, 31, 15], [51, 34, 15], [44, 35, 21], [31, 37, 32]] }; }
 
   renderVals() {
@@ -555,7 +627,7 @@ class DailySplit extends React.Component {
             h('div', { style: { flex: 1, ...col(4), minWidth: 0 } },
               h('div', { style: { display: 'flex', alignItems: 'center', gap: 7, flexWrap: 'wrap' } },
                 h('span', { style: { fontWeight: 800, fontSize: 13.5 } }, c.name),
-                revealed && h('span', { style: { background: c.optObj.color, color: c.optObj.textColor || '#fff', fontSize: 10, fontWeight: 800, padding: '2px 8px', borderRadius: 999 } }, c.optObj.label),
+                revealed && h('span', { style: { background: c.optObj.color, color: c.optObj.textColor || '#fff', fontSize: 10.5, fontWeight: 800, padding: '2px 8px', borderRadius: 999, whiteSpace: 'nowrap' } }, c.optObj.label),
                 h('span', { style: { fontSize: 11, fontWeight: 600, color: 'var(--ink-3)' } }, c.time)),
               h('div', { style: { fontSize: 13.5, lineHeight: 1.45, fontWeight: 500 } }, c.text),
               h('div', { style: { display: 'flex', alignItems: 'center', gap: 12 } },
@@ -568,25 +640,25 @@ class DailySplit extends React.Component {
           (reps.length > 0 || replying) && h('div', { style: { marginLeft: 46, ...col(6), borderLeft: '2px solid color-mix(in oklch, var(--rule), transparent 25%)', paddingLeft: 10 } },
             reps.map((r, ri) => h('div', { key: ri, style: col(2) },
               h('div', { style: { display: 'flex', alignItems: 'center', gap: 7, flexWrap: 'wrap' } },
-                h('span', { style: { fontWeight: 800, fontSize: 12.5 } }, 'You'),
-                voted && h('span', { style: { background: S.options[myIdx].color, color: S.options[myIdx].textColor || '#fff', fontSize: 9.5, fontWeight: 800, padding: '2px 7px', borderRadius: 999, whiteSpace: 'nowrap' } }, S.options[myIdx].label),
-                h('span', { style: { fontSize: 10.5, fontWeight: 600, color: 'var(--ink-3)' } }, 'now')),
-              h('div', { style: { fontSize: 13, lineHeight: 1.45, fontWeight: 500 } }, r))),
+                h('span', { style: { fontWeight: 800, fontSize: 13.5 } }, 'You'),
+                voted && h('span', { style: { background: S.options[myIdx].color, color: S.options[myIdx].textColor || '#fff', fontSize: 10.5, fontWeight: 800, padding: '2px 8px', borderRadius: 999, whiteSpace: 'nowrap' } }, S.options[myIdx].label),
+                h('span', { style: { fontSize: 11, fontWeight: 600, color: 'var(--ink-3)' } }, 'now')),
+              h('div', { style: { fontSize: 13.5, lineHeight: 1.45, fontWeight: 500 } }, r))),
             replying && h('form', { onSubmit: (e) => { e.preventDefault(); const inp = e.target.elements.reply; const v = inp.value.trim(); if (v) this.addDailyReply(rKey, v); }, style: { display: 'flex', gap: 6 } },
-              h('input', { name: 'reply', autoFocus: true, placeholder: 'Your reply\u2026', style: { flex: 1, minWidth: 0, border: LINE, borderRadius: 999, padding: '8px 13px', fontFamily: 'var(--sans)', fontSize: 13, fontWeight: 500, background: 'var(--surface)', color: INK, outline: 'none' } }),
+              h('input', { name: 'reply', autoFocus: true, autoComplete: 'off', autoCapitalize: 'sentences', enterKeyHint: 'send', placeholder: 'Your reply\u2026', style: { flex: 1, minWidth: 0, border: LINE, borderRadius: 999, padding: '8px 13px', fontFamily: 'var(--sans)', fontSize: 13, fontWeight: 500, background: 'var(--surface)', color: INK, outline: 'none' } }),
               h('button', { type: 'submit', style: { border: 'none', borderRadius: 999, padding: '8px 14px', fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 12.5, cursor: 'pointer', background: INK, color: PAPER, WebkitAppearance: 'none' } }, 'Send'))));
       }));
     const statsBody = (() => {
         const legend = S.options;
         let friendRows = [], friendSummary = '', rows = [];
-        const youBand = (!isFriends && window.VOTECUTS) ? window.VOTECUTS.you(st.dim, st.dimAxis) : null;
+        const youBand = (!isFriends && VOTECUTS) ? VOTECUTS.you(st.dim, st.dimAxis) : null;
         if (isFriends) {
           friendRows = S.friends.map(f => { const o = S.options.find(x => x.id === f.opt); return { name: f.name, init: f.init, color: o.color, textColor: o.textColor, chipLabel: o.label, chipColor: o.color }; });
           const same = S.friends.filter(f => f.opt === myVote).length;
           friendSummary = voted ? same + ' of ' + S.friends.length + ' friends are on your side' : 'How your friends voted';
         } else {
           const cutKey = st.dimAxis ? st.dim + ':' + st.dimAxis : st.dim;
-          const gs = window.VOTECUTS ? window.VOTECUTS.groups(st.dim, st.dimAxis) : [];
+          const gs = VOTECUTS ? VOTECUTS.groups(st.dim, st.dimAxis) : [];
           const key = S.id + ':' + cutKey, ov = this.overrides[key];
           rows = gs.map((g, gi) => {
             let ps;
@@ -601,11 +673,11 @@ class DailySplit extends React.Component {
         const GRID = { display: 'grid', gridTemplateColumns: '96px 1fr', gap: 10, alignItems: 'center' };
         return h('div', { style: col(12) },
           h('div', { style: col(8) },
-            h('div', { className: 'h-scroll', ref: (el) => { const sg = 'd|' + st.dim; if (el && this._dSig1 !== sg) { this._dSig1 = sg; window.VOTECUTS && window.VOTECUTS.centerChip(el); } }, style: { display: 'flex', gap: 6, overflowX: 'auto' } },
+            h('div', { className: 'h-scroll', ref: (el) => { const sg = 'd|' + st.dim; if (el && this._dSig1 !== sg) { this._dSig1 = sg; VOTECUTS && VOTECUTS.centerChip(el); } }, style: { display: 'flex', gap: 6, overflowX: 'auto' } },
               this.statDimDefs.filter(dd => !dd.test).map(dd => h('button', { key: dd.id, 'data-on': st.dim === dd.id ? '1' : '0', onClick: () => this.setState({ dim: dd.id, dimAxis: null }), style: { flex: 'none', border: '1px solid ' + (st.dim === dd.id ? INK : 'var(--rule)'), borderRadius: 999, padding: '6px 13px', fontWeight: 700, fontSize: 12.5, cursor: 'pointer', whiteSpace: 'nowrap', background: st.dim === dd.id ? INK : 'var(--surface-2)', color: st.dim === dd.id ? PAPER : 'var(--ink-2)', WebkitAppearance: 'none' } }, dd.label))),
-            h('div', { className: 'h-scroll', ref: (el) => { const sg = 't|' + st.dim; if (el && this._dSig2 !== sg) { this._dSig2 = sg; window.VOTECUTS && window.VOTECUTS.centerChip(el); } }, style: { display: 'flex', gap: 6, overflowX: 'auto' } },
+            h('div', { className: 'h-scroll', ref: (el) => { const sg = 't|' + st.dim; if (el && this._dSig2 !== sg) { this._dSig2 = sg; VOTECUTS && VOTECUTS.centerChip(el); } }, style: { display: 'flex', gap: 6, overflowX: 'auto' } },
               this.statDimDefs.filter(dd => dd.test).map(dd => h('button', { key: dd.id, 'data-on': st.dim === dd.id ? '1' : '0', onClick: () => this.setState({ dim: dd.id, dimAxis: null }), style: { flex: 'none', border: '1px solid ' + (st.dim === dd.id ? INK : 'var(--rule)'), borderRadius: 999, padding: '6px 13px', fontWeight: 700, fontSize: 12.5, cursor: 'pointer', whiteSpace: 'nowrap', background: st.dim === dd.id ? INK : 'var(--surface-2)', color: st.dim === dd.id ? PAPER : 'var(--ink-2)', WebkitAppearance: 'none' } }, dd.label))),
-            this.statSubs && h('div', { className: 'h-scroll', ref: (row) => { const sig = st.dim + '|' + st.dimAxis; if (row && this._axSig !== sig) { this._axSig = sig; window.VOTECUTS && window.VOTECUTS.centerChip(row); } }, style: { display: 'flex', alignItems: 'center', gap: 4, overflowX: 'auto', paddingBottom: 2 } },
+            this.statSubs && h('div', { className: 'h-scroll', ref: (row) => { const sig = st.dim + '|' + st.dimAxis; if (row && this._axSig !== sig) { this._axSig = sig; VOTECUTS && VOTECUTS.centerChip(row); } }, style: { display: 'flex', alignItems: 'center', gap: 4, overflowX: 'auto', paddingBottom: 2 } },
               this.statSubs.map((sb, si) => { const on = (st.dimAxis || null) === sb.id; const rule = !!sb.tier && !(this.statSubs[si - 1] || {}).tier; return h(React.Fragment, { key: sb.id || 'type' },
                 rule ? h('span', { 'aria-hidden': 'true', style: { flex: 'none', alignSelf: 'stretch', width: 1, margin: '3px 5px', background: 'var(--rule)' } }) : null,
                 h('button', { 'data-on': on ? '1' : '0', onClick: () => this.setState({ dimAxis: sb.id }), style: { flex: 'none', border: 'none', borderRadius: 999, padding: '4px 11px', fontWeight: on ? 800 : 600, fontSize: 11.5, cursor: 'pointer', whiteSpace: 'nowrap', background: on ? 'var(--surface-3)' : 'transparent', color: on ? INK : 'var(--ink-3)', WebkitAppearance: 'none' } }, sb.label)); }))),
@@ -650,6 +722,9 @@ class DailySplit extends React.Component {
     // ── the daily, in its own container — one strong card, feed after ──
     // quiet per-topic tint — today's question carries its topic's hue, barely
     const topicCol = S.topicColor || 'var(--c-around)';
+    // feed hierarchy: today's question wins on type alone — 37px against the
+    // feed's 24.5px. A tinted band did the work of a border, not a zone.
+    const hier = !!this.props.feedHier;
     const dailyCard = h('div', { style: { ...col(14), position: 'relative', padding: '4px 1px 20px' } },
       h('div', { style: { display: 'flex', alignItems: 'center', gap: 12, minHeight: 18 } },
         h('div', { style: { display: 'flex', alignItems: 'center', gap: 7 } },
@@ -660,7 +735,7 @@ class DailySplit extends React.Component {
         h('button', { className: 'press', onClick: () => { clearTimeout(this._sheetT); this.setState({ tab: 'ctx', sheetClosing: false }); }, 'aria-label': 'About this question', style: { flexShrink: 0, width: 20, height: 20, borderRadius: '50%', border: '0.5px solid var(--rule)', background: 'transparent', color: 'var(--ink-3)', fontFamily: BRIC, fontSize: 11.5, fontWeight: 800, lineHeight: 1, cursor: 'pointer', WebkitAppearance: 'none', padding: 0 } }, 'i'),
         window.PassiveTag ? h(window.PassiveTag, { q: S, answered: voted }) : null),
       chipRow,
-      h('div', { style: { fontFamily: BRIC, fontWeight: 800, fontSize: 31, lineHeight: 1.08, letterSpacing: -0.8, textWrap: 'pretty' } }, S.text),
+      h('div', { style: { fontFamily: BRIC, fontWeight: 800, fontSize: hier ? 37 : 31, lineHeight: 1.06, letterSpacing: hier ? -1.1 : -0.8, textWrap: 'balance' } }, S.text),
       !voted
         // asking: options size to their content and centre the label — a fixed
         // 236px column left a 22px word floating in a 115px box, reading as a skeleton
@@ -692,7 +767,7 @@ class DailySplit extends React.Component {
                 // dots read as people on this side, not a floating glyph
                 h('div', { style: { display: 'flex', alignItems: 'center', gap: 9, minWidth: 0, flex: 1 } },
                   h('span', { style: { fontWeight: 800, fontSize: 19, letterSpacing: '-0.02em' } }, o.label),
-                  myVote === o.id && h('span', { style: { fontSize: 12, fontWeight: 700, color: 'var(--ink-2)', whiteSpace: 'nowrap', animation: 'chipPop .35s var(--ease-spring) .2s both' } }, '\u00b7 you'),
+                  myVote === o.id && h('span', { style: { fontSize: 12, fontWeight: 700, color: 'var(--ink-2)', whiteSpace: 'nowrap', animation: 'chipPop .35s var(--ease-spring) var(--rv-2) both' } }, '\u00b7 you'),
                   (S.friends && S.friends.some(f => f.opt === o.id)) && h('button', {
                     onClick: () => this.setState({ tab: 'stats', dim: 'friends', dimAxis: null }),
                     'aria-label': S.friends.filter(f => f.opt === o.id).map(f => f.name).join(', ') + ' picked ' + o.label,
@@ -755,7 +830,7 @@ class DailySplit extends React.Component {
 
     // ===== TEST =====
     const testBody = (() => {
-      const OCHRE = 'var(--ochre)';
+      const OCHRE = 'var(--ochre-ink)';
       const defs = this.testDefs;
 
       // just finished a test — one clear payoff card
@@ -773,18 +848,19 @@ class DailySplit extends React.Component {
             h('button', { onClick: () => this.setState({ testJustDone: null }), style: { alignSelf: 'center', border: 'none', borderRadius: 12, padding: '11px 20px', fontWeight: 800, fontSize: 14, cursor: 'pointer', background: INK, color: PAPER } }, TSTAT.active ? 'Next test \u203A' : 'Done')));
       }
 
-      // everything answered — retake any test to see how you've shifted
+      // everything answered — the picture stays current from daily play, so
+      // there is nothing to re-take here; just show what has been mapped.
       if (!TSTAT.active) {
         return h('div', { style: col(13) },
           h('div', { style: { border: LINE, borderRadius: 16, background: 'var(--surface-2)', padding: '18px 16px', ...col(12) } },
             h('div', { style: { textAlign: 'center', ...col(5) } },
-              h('span', { style: { fontFamily: BRIC, fontWeight: 800, fontSize: 22 } }, 'All tests done'),
-              h('span', { style: { fontSize: 13, fontWeight: 600, color: 'var(--ink-2)' } }, 'Retake one to see how you\u2019ve shifted.')),
+              h('span', { style: { fontFamily: BRIC, fontWeight: 800, fontSize: 22 } }, 'Fully mapped'),
+              h('span', { style: { fontSize: 13, fontWeight: 600, color: 'var(--ink-2)' } }, 'Your answers keep it current.')),
             h('div', { style: col(8) },
-              Object.entries(defs).map(([tk, TT]) => h('button', { key: tk, onClick: () => this.setState({ testRetake: tk, testJustDone: null }), style: { display: 'flex', alignItems: 'center', gap: 10, width: '100%', textAlign: 'left', border: LINE, borderRadius: 12, background: 'var(--surface)', padding: '10px 13px', cursor: 'pointer', WebkitAppearance: 'none' } },
+              Object.entries(defs).map(([tk, TT]) => h('div', { key: tk, style: { display: 'flex', alignItems: 'center', gap: 10, width: '100%', border: LINE, borderRadius: 12, background: 'var(--surface)', padding: '10px 13px' } },
                 h('span', { style: { width: 9, height: 9, borderRadius: '50%', background: TT.accent, flexShrink: 0 } }),
                 h('span', { style: { flex: 1, minWidth: 0, fontWeight: 800, fontSize: 14, color: INK } }, TT.title),
-                h('span', { style: { fontWeight: 800, fontSize: 10.5, letterSpacing: '0.07em', textTransform: 'uppercase', color: OCHRE, flexShrink: 0 } }, 'Retake \u203A'))))));
+                h('span', { style: { fontWeight: 800, fontSize: 13, color: OCHRE, flexShrink: 0 } }, '\u2713'))))));
       }
 
       // one question a tap — same pool, same progress as the profile's tests
@@ -799,7 +875,7 @@ class DailySplit extends React.Component {
           h('span', { style: { border: LINE, fontWeight: 700, fontSize: 12, padding: '4px 10px', borderRadius: 999 } }, (qi + 1) + ' of ' + T.questions.length)),
         base > 0 && h('span', { style: { fontSize: 12, fontWeight: 600, color: 'var(--ink-3)', marginTop: -6 } }, 'first ' + base + ' mapped from your feed answers — picking up from there'),
         h('div', { key: k + ':' + qi, style: { ...col(13), animation: 'popIn .3s cubic-bezier(0.2,0.8,0.2,1)' } },
-          h('div', { style: { fontFamily: BRIC, fontWeight: 800, fontSize: 27, lineHeight: 1.12, letterSpacing: -0.7, textWrap: 'pretty' } }, T.questions[qi].q),
+          h('div', { style: { fontFamily: BRIC, fontWeight: 800, fontSize: 27, lineHeight: 1.12, letterSpacing: -0.7, textWrap: 'balance' } }, T.questions[qi].q),
           h('div', { style: col(9) },
             LIKERT.map((label, i) => {
               const intensity = Math.abs(i - 2);
@@ -835,7 +911,7 @@ class DailySplit extends React.Component {
       // the switcher renders into the header slot when there is one, and
       // falls back to sitting inline — so a mount order that has not yet
       // produced the slot still shows the modes rather than dropping them
-      screen: h(F, null, (st.modeSlot && st.modeSlot.isConnected) ? ReactDOM.createPortal(switcher, st.modeSlot) : switcher,
+      screen: h(F, null, this.props.ruler ? this.dailyRuler(mode, accents, badges) : this.props.hideSwitcher ? null : (st.modeSlot && st.modeSlot.isConnected) ? ReactDOM.createPortal(switcher, st.modeSlot) : switcher,
         // the sliding surface — swipes translate this, not the whole page
         h('div', { ref: (n) => { this.bodyEl = n; }, style: { display: 'flex', flexDirection: 'column', gap: 13, flex: 1, willChange: 'transform' } }, body),
         // quiet footer — suggest a question for the daily (community board)

@@ -4,7 +4,8 @@
 // spec-index.js load order is semantic — scripts/check-spec-globals.mjs
 // guards the wiring in CI.
 import React from 'react';
-import { Kicker } from './primitives.jsx';
+import { MirrorLensRow } from './mirror-field.jsx';
+import { Kicker, Lazy } from './primitives.jsx';
 
 // group-mirror.jsx — the Mirror's GROUPS stop: your named circles as a cast
 // list. Pick a group → the role constellation, then the standard three lenses
@@ -21,7 +22,7 @@ import { Kicker } from './primitives.jsx';
     g.members.forEach((p) => { sx += Math.cos(p.hue * Math.PI / 180); sy += Math.sin(p.hue * Math.PI / 180); });
     return Math.round(((Math.atan2(sy, sx) * 180 / Math.PI) + 360) % 360);
   }
-  const gmAccent = (g) => `oklch(0.55 0.14 ${gmGroupHue(g)})`;
+  const gmAccent = (g) => `oklch(0.52 0.14 ${gmGroupHue(g)})`;
 
   // group identity mark — the member cluster wrapped by the alignment ring;
   // ring sweep = how often you land with this group's majority (no number)
@@ -117,8 +118,8 @@ import { Kicker } from './primitives.jsx';
           ))}
         </div>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 16, marginTop: 4, paddingTop: 11, borderTop: LINE }}>
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontFamily: 'var(--sans)', fontSize: 10.5, fontWeight: 600, color: 'var(--ink-3)', letterSpacing: '0.06em', textTransform: 'uppercase' }}><span style={{ width: 9, height: 9, borderRadius: '50%', background: 'color-mix(in oklch, var(--accent) 75%, var(--surface))' }}></span>picked it</span>
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontFamily: 'var(--sans)', fontSize: 10.5, fontWeight: 600, color: 'var(--ink-3)', letterSpacing: '0.06em', textTransform: 'uppercase' }}>{youDot}you</span>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontFamily: 'var(--sans)', fontSize: 10.5, fontWeight: 700, color: 'var(--ink-3)', letterSpacing: '0.09em', textTransform: 'uppercase' }}><span style={{ width: 9, height: 9, borderRadius: '50%', background: 'color-mix(in oklch, var(--accent) 75%, var(--surface))' }}></span>picked it</span>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontFamily: 'var(--sans)', fontSize: 10.5, fontWeight: 700, color: 'var(--ink-3)', letterSpacing: '0.09em', textTransform: 'uppercase' }}>{youDot}you</span>
         </div>
       </div>
     );
@@ -150,27 +151,34 @@ import { Kicker } from './primitives.jsx';
       <div className="card" style={{ marginTop: 14 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
           <Kicker>Who's who</Kicker>
-          <span style={{ fontFamily: 'var(--sans)', fontSize: 10.5, fontWeight: 600, color: 'var(--ink-3)', letterSpacing: '0.06em', textTransform: 'uppercase' }}>closer → more like you</span>
+          <span style={{ fontFamily: 'var(--sans)', fontSize: 10.5, fontWeight: 700, color: 'var(--ink-3)', letterSpacing: '0.09em', textTransform: 'uppercase' }}>closer → more like you</span>
         </div>
         <div style={{ position: 'relative', height: BH, marginTop: 6 }}>
           <div style={{ position: 'absolute', left: '2%', right: '2%', top: cy, height: 1, background: 'var(--rule)' }}></div>
           <div style={{ position: 'absolute', left: xOf(100) + '%', top: cy, transform: 'translate(-50%, -50%)', width: 10, height: 10, borderRadius: '50%', background: 'var(--ink)', border: '2px solid var(--surface)', boxShadow: '0 0 0 0.5px var(--rule)' }}></div>
-          <div style={{ position: 'absolute', left: xOf(100) + '%', transform: 'translateX(-50%)', top: cy + 9, fontFamily: 'var(--sans)', fontSize: 10, fontWeight: 700, color: 'var(--ink-3)' }}>you</div>
+          <div style={{ position: 'absolute', left: xOf(100) + '%', transform: 'translateX(-50%)', top: cy + 9, fontFamily: 'var(--sans)', fontSize: 10.5, fontWeight: 700, color: 'var(--ink-3)' }}>you</div>
           {pts.map(({ p, x, lvl }) => {
             const isTwin = P.twin && p.id === P.twin.id;
             const isCon = P.contrarian && p.id === P.contrarian.id;
             return (
               <button type="button" className="btn-bare" key={p.id} aria-label={`Open ${p.name}`} onClick={() => window.openPerson && window.openPerson(p)} style={{ position: 'absolute', left: x + '%', top: cy + lvl * 46, transform: 'translate(-50%, -50%)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3, cursor: 'pointer' }}>
-                <span style={{ borderRadius: '50%', display: 'inline-flex', boxShadow: isTwin ? '0 0 0 2px var(--accent)' : '0 0 0 2.5px var(--surface)' }}><window.GDAv p={p} size={28}></window.GDAv></span>
-                <span style={{ fontFamily: 'var(--sans)', fontSize: 10, fontWeight: 700, color: 'var(--ink-2)', whiteSpace: 'nowrap' }}>{p.name.split(' ')[0]}</span>
-                {(isTwin || isCon) && <span style={{ marginTop: -2, fontFamily: 'var(--sans)', fontSize: 9.5, fontWeight: 700, color: isTwin ? 'var(--accent)' : 'var(--ink-3)', whiteSpace: 'nowrap' }}>{isTwin ? 'most like you' : 'breaks ranks'}</span>}
+                <span style={{ borderRadius: '50%', display: 'inline-flex', boxShadow: isTwin ? '0 0 0 2px var(--accent)' : isCon ? '0 0 0 2px var(--ink-3)' : '0 0 0 2.5px var(--surface)' }}><window.GDAv p={p} size={28} plain></window.GDAv></span>
+                <span style={{ fontFamily: 'var(--sans)', fontSize: 10.5, fontWeight: 700, color: 'var(--ink-2)', whiteSpace: 'nowrap' }}>{p.name.split(' ')[0]}</span>
               </button>
             );
           })}
         </div>
+        {/* the two called-out seats wear a ring; the words live down here, once,
+            at a size you can actually read — not at 9.5px under each avatar */}
+        {(P.twin || P.contrarian) && (
+          <div className="legend" style={{ justifyContent: 'center', marginTop: 2 }}>
+            {P.twin && <span style={{ '--lgc': 'var(--accent)' }}><span className="lg-dot"></span>most like you</span>}
+            {P.contrarian && <span style={{ '--lgc': 'var(--ink-3)' }}><span className="lg-dot" data-hollow=""></span>breaks ranks</span>}
+          </div>
+        )}
         {shared.length > 0 && (
           <div style={{ marginTop: 13, paddingTop: 13, borderTop: LINE, display: 'flex', alignItems: 'center', gap: 10 }}>
-            <span style={{ flexShrink: 0, fontFamily: 'var(--sans)', fontSize: 10.5, fontWeight: 600, color: 'var(--ink-3)', letterSpacing: '0.06em', textTransform: 'uppercase' }}>in common</span>
+            <span style={{ flexShrink: 0, fontFamily: 'var(--sans)', fontSize: 10.5, fontWeight: 700, color: 'var(--ink-3)', letterSpacing: '0.09em', textTransform: 'uppercase' }}>in common</span>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
               {shared.map(([t]) => (
                 <span key={t} style={{ fontFamily: 'var(--sans)', fontSize: 12.5, fontWeight: 700, letterSpacing: '-0.01em', color: 'var(--ink-2)', padding: '4px 12px', borderRadius: 999, background: 'var(--surface-2)', border: LINE }}>{t}</span>
@@ -226,7 +234,7 @@ import { Kicker } from './primitives.jsx';
                 </span>
               ))}
             </div>
-            {crowns.some((r) => r.contested) && <div style={{ marginTop: 9, display: 'flex', alignItems: 'center', gap: 6, fontFamily: 'var(--sans)', fontSize: 10.5, fontWeight: 600, color: 'var(--ink-3)', letterSpacing: '0.06em', textTransform: 'uppercase' }}><span style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--surface)', border: '1.6px solid var(--ink-3)' }}></span>hollow = contested</div>}
+            {crowns.some((r) => r.contested) && <div style={{ marginTop: 9, display: 'flex', alignItems: 'center', gap: 6, fontFamily: 'var(--sans)', fontSize: 10.5, fontWeight: 700, color: 'var(--ink-3)', letterSpacing: '0.09em', textTransform: 'uppercase' }}><span style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--surface)', border: '1.6px solid var(--ink-3)' }}></span>hollow = contested</div>}
             </>
           ) : (
             <div style={{ marginTop: 10, fontFamily: 'var(--sans)', fontSize: 13, color: 'var(--ink-3)' }}>No crowns yet — the next scenario vote could change that.</div>
@@ -243,13 +251,14 @@ import { Kicker } from './primitives.jsx';
     );
   }
 
-  function GroupsMirrorBody({ onPerson }) {
+  function GroupsMirrorBody({ onPerson, topLenses }) {
     const D = window.DUELS;
     const [, bump] = useReducer((x) => x + 1, 0);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- ported effect; see src/v2/README.md § Lint suppressions
     useEffect(() => D.subscribe(bump), []);
     const gs = D.groups();
     const [gid, setGid] = useState(gs[0] && gs[0].id);
+    const [lensOpen, setLensOpen] = useState('__ov');
     const g = gs.find((x) => x.id === gid) || gs[0];
     if (!g) return null;
     const P = D.groupPortrait(g.id);
@@ -259,6 +268,10 @@ import { Kicker } from './primitives.jsx';
       { id: 'people', label: 'People', render: () => <GroupPeopleCard g={g}></GroupPeopleCard> },
       { id: 'compare', label: 'Compare', render: () => <GroupCompareCard g={g}></GroupCompareCard> },
     ];
+    // nav v2: lens row above the content, the role map as its first tab
+    const lensList = topLenses ? [{ id: '__ov', label: 'Overview' }, ...lenses] : lenses;
+    const openId = topLenses ? (lensList.some((l) => l.id === lensOpen) ? lensOpen : '__ov') : null;
+    const openLens = topLenses && openId !== '__ov' ? lenses.find((l) => l.id === openId) : null;
     return (
       <div className="mf-stage" data-screen-label="Mirror — groups" style={{ '--accent': gmAccent(g) }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 14, margin: '6px 2px 0' }}>
@@ -269,8 +282,10 @@ import { Kicker } from './primitives.jsx';
           </div>
         </div>
         <GroupPicker gs={gs} cur={g.id} onPick={setGid}></GroupPicker>
-        <window.GroupRoleMap key={g.id} gid={g.id} gname={g.name}></window.GroupRoleMap>
-        <MirrorLenses key={'lens-' + g.id} lenses={lenses}></MirrorLenses>
+        {topLenses && <MirrorLensRow lenses={lensList} open={openId} onOpen={setLensOpen}></MirrorLensRow>}
+        {(!topLenses || openId === '__ov') && <window.GroupRoleMap key={g.id} gid={g.id} gname={g.name}></window.GroupRoleMap>}
+        {openLens && <div key={openId} className="fade-in" style={{ paddingTop: 4 }}><Lazy minHeight={480}>{openLens.render()}</Lazy></div>}
+        {!topLenses && <MirrorLenses key={'lens-' + g.id} lenses={lenses}></MirrorLenses>}
       </div>
     );
   }

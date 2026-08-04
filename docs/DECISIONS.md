@@ -4101,3 +4101,103 @@ support is disputed and the fallback is a second account plus an app
 transfer. Shipping both stores simultaneously — rejected as the thing
 this whole record is about: it puts a 3–4 week Android floor in front of
 an iOS build that is otherwise ~2 weeks out.
+
+---
+
+## D43 · The v17 sync: what the prototype won, and what this repo kept
+
+**Decided:** 2026-08-04 · **Status:** binding
+
+`design/InSight_standalone_17.html` supersedes v15. The sync was done as a
+**three-way merge**, not a re-port: v15 as the base, v17 as theirs, the
+tree as ours. That is the only method that can answer the question this
+repo actually has — *which* of two differences is the change, and which is
+a decision already made here. 59 of the 79 spec modules merged clean; the
+20 that conflicted are the ones below.
+
+### What v17 changes
+
+**Navigation.** The daily's three modes leave the header and become a
+ruler in flow — World · Circle · 1v1, the same graduated axis the Mirror
+wears. Scroll past it and it docks into the header, crossfading with the
+wordmark. `navMode` keeps the other two shapes the prototype ships for
+comparison (`pill`, the old header switcher; `bar`, a flat four-item bar
+with new group/1v1 glyphs). The axis runs past its far end into the
+Mirror, and the Mirror swipes back onto 1v1.
+
+**Colour.** Every accent drops `oklch(0.55 …)` → `0.52` (gold `0.53`),
+`--ink-3` `0.55` → `0.51`, and `--ochre-ink` / `--accent-ink` arrive for
+hues that carry text. World's topic hues now pass through a per-hue
+lightness/chroma ramp (`world-palette.js`) measured against the sRGB
+boundary.
+
+**Nine new modules**, six of them pure side effects that install one
+document listener each: haptics, swipe-back, sheet-escape, sheet-drag,
+scroll-memory, edge-fade — plus `world-palette.js`, `explain-sheet.jsx`
+(one ⓘ sheet for every instrument) and `read-run.jsx`.
+
+Plus: motion on one `--rv-step` constant, signature-derived type marks,
+tests that open their saved result, per-domain 1v1 records, duel tiles
+that take photography, and a circle map that collapses to drillable discs
+past ~72 people.
+
+### What this repo kept — the twenty conflicts, and the rule behind them
+
+The rule is: **v17 wins on design, this repo wins on enforcement, and
+neither wins by default.** Concretely —
+
+| Kept from this tree | Because |
+| --- | --- |
+| `renderDuel`'s `shares` gate (world-feed) | v17 rewrote the tile around `mine != null`; the fill height IS the share, so both it and the numeral stay gated on the k-anon floor (D1). The new band and riding numeral are v17's. |
+| Every live-mode branch in `mirror-tab` | v17 restructured the tab so ONE ruler spans every stop. The four live bodies (D1/D9/D3) were rewritten to pick a *body* instead of returning their own frame — same structure, same guarantees. |
+| `mirrorStops(live)` dropping the City stop | D9. v17 has no live mode to drop it for. |
+| The `blank` "no reading yet" state (lens-cards) | Live mode has no typical-person prior; drawing null as 0 is a false claim. v17's ⓘ row sits above it. |
+| `useDialog` / `Sheet` (D24) | `explain-sheet.jsx` is built on the primitive rather than the prototype's hand-rolled scrim, so the new sheet arrives with the focus trap and Escape the other seven have. |
+| `<button>` conversions (D26's a11y pass) | v17 re-divs three of them. Two stay buttons. The **third** — the test picker card — becomes v17's `role="button"` div on purpose: v17 nests the ⓘ inside it, and a button cannot nest in a button. `tabIndex` + `onKeyDown` keep it reachable, and check:a11y is unmoved at 11. |
+| `--surface-a` at 98%, blur `saturate(1.4)`, a 320px ground wash | This app's quieter ground. v17 touches none of them; style-diff's header now lists them so nobody chases them as misses. |
+| No `Bar` / `Pill` / `InterestRun` / `PoliticsCompass` / `Compass2D` | D26 deleted them as dead. v17 deletes the last two itself — convergent. v17's edit to `.bar > i` therefore has nothing here to apply to. |
+| `DUO_QS` from `content/duel-questions.json` | D32's single source. v17's new `d:` (domain) field was added to the JSON, where the live seed reads it too. |
+| The 15-question Social test tag | Repo content. Only v17's accent moved. |
+
+**One prototype bug was not copied.** v17 inserts the per-domain tally
+between `if (day.byRight) readBy.right++;` and its `else`, which orphans
+the `else` onto the new `if (dm)` — so `impressions()` would fill with
+every day whose question had no domain instead of every day they misread
+you. Fixed here with braces, and the reason is in the code.
+
+### The ratchet went down, not up
+
+D39's rule 4 only moves down, and a sync that adds nine modules is exactly
+where it would otherwise be argued with. Nine providers converted on touch
+instead: `tweaks-panel`, `archetype-data`, `reveal-clock`, `vote-cuts`,
+`relmap-core`, `type-marks`, `result-card`, `mirror-field`,
+`person-mindmap` (plus `DuoDomains` out of duo-daily). All nine new modules
+publish **named exports**, not globals.
+
+Two settings were inverted rather than converted: the prototype has
+`world-palette.js` and `type-marks.jsx` read `window.IS_WPAL` /
+`window.IS_MARK_STYLE`; here the shell **pushes** them in (`WPAL.setMode`,
+`setMarkStyle`). Same for `window.NAV_AT`, which became `markNav()` /
+`navCoasting()` in `swipe-back.js` — the module that owns the gesture owns
+its coast timer. A setting is not a module reference, and making it one is
+how a global bridge grows back.
+
+**657 → 620 across 52 files.**
+
+### What now proves it
+
+`smoke.test.jsx` gained three cases for the nav, because it is the only
+gate that executes a render and every other one is name-level: the ruler is
+a tab list under either nav, so `check:globals` and `tsc` cannot tell the
+shapes apart, and `data-view` is a string nothing type-checks. All three
+were mutation-checked — forcing `ruler={false}` fails the first two.
+
+Verified in a browser as well as in jsdom: the ruler docks on scroll,
+edge-fade sets `data-ef` on the profile subnav, the ⓘ sheet opens and
+Escape closes it, and the console is clean.
+
+**What this does not cover.** `scripts/style-diff.mjs` now points at v17
+but has not been run against it — it needs a browser and a dev server, and
+its output is a report to read rather than a gate to pass. The screenshots
+above are a smoke check, not that comparison. Running it is the next
+cheap thing anyone touching this layer can do.

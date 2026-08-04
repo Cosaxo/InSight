@@ -20,7 +20,7 @@ const MF_W = 380, MF_H = 404, MF_CX = 190, MF_CY = 196;
 const mfRadius = (m) => Math.max(46, Math.min(164, 48 + ((95 - m) / 45) * 112));
 
 // scenes carry their topic hue (shared with the feed chips) — one formula everywhere
-const mfGroupFill = (hue) => hue != null ? `color-mix(in oklch, var(--accent) 45%, oklch(0.60 0.12 ${hue}))` : 'var(--accent)';
+const mfGroupFill = (hue) => hue != null ? `color-mix(in oklch, var(--accent) 45%, oklch(0.52 0.12 ${hue}))` : 'var(--accent)';
 
 // banded radius: the node keeps its likeness ordering but inside a fixed ring band
 // (groups: yours inside the dotted threshold, suggested beyond it)
@@ -85,6 +85,7 @@ function mfLayout(nodes, seedDeg = -84) {
 // no dashes, no polygons.
 function MFNode({ n, on, onTap, i, hideLabel }) {
   const size = n.size || 13;
+  const dim = hideLabel && !on;
   // colour carries match too — a deeper accent = more like you (reinforces radius,
   // so hue never reads as random decoration)
   const mix = Math.round(Math.max(62, Math.min(100, n.match != null ? n.match : 70)));
@@ -98,6 +99,9 @@ function MFNode({ n, on, onTap, i, hideLabel }) {
   return (
     <g className="mf-node" onClick={(e) => { e.stopPropagation(); onTap(n); }} style={{
       cursor: 'pointer', transformBox: 'fill-box', transformOrigin: 'center',
+      // unlabelled dots sit back a step, so the labelled few read as an edited
+      // choice rather than an unfinished one
+      opacity: dim ? 0.62 : 1, transition: 'opacity .3s ease',
       '--dx': (r1 * 6 - 3).toFixed(1) + 'px', '--dy': (r2 * 6 - 3).toFixed(1) + 'px',
       animation: `mfIn 0.5s cubic-bezier(0.2,0.8,0.2,1) ${0.06 + i * 0.045}s both, mfDrift ${(4.5 + r3 * 3).toFixed(1)}s ease-in-out ${(0.7 + r1 * 2).toFixed(1)}s infinite alternate`,
     }}>
@@ -403,6 +407,27 @@ function MFDetail({ node, onPerson, onJoin, onLeave, joined }) {
   );
 }
 
+// ─── nav v2: the lens row alone, promoted to the top of the screen. The row is
+// real tabs and "Overview" is the field itself, so all navigation sits above
+// the content instead of hiding at the bottom edge.
+// Exported by name (D39, "convert on touch"): the Mirror bodies import it.
+// It stays on the window bag below for the sites that have not moved.
+export function MirrorLensRow({ lenses, open, onOpen }) {
+  const idx = lenses.findIndex((l) => l.id === open);
+  // six stops have to fit a phone without clipping — the row never scrolls
+  const fs = lenses.length >= 6 ? 11.5 : lenses.length === 5 ? 13 : 14.5;
+  return (
+    <div className="mm-lensrow mm-lensrow-top" role="tablist" aria-label="Lenses" style={{ '--n': lenses.length }}>
+      <span className={'mm-lensthumb' + (idx < 0 ? ' is-off' : '')} style={{ transform: `translateX(${Math.max(0, idx) * 100}%)` }} aria-hidden="true"></span>
+      {lenses.map((l) => (
+        <button key={l.id} data-lens={l.id} role="tab" aria-selected={open === l.id}
+          className={'mm-lensbtn' + (open === l.id ? ' is-on' : '')} style={{ fontSize: fs, padding: '10px 3px' }}
+          onClick={() => onOpen(l.id)}>{l.label}</button>
+      ))}
+    </div>
+  );
+}
+
 // ─── lens chips — the old sections, now opt-in layers under the field ───
 function MirrorLenses({ lenses }) {
   const [open, setOpen] = React.useState(null);
@@ -440,7 +465,7 @@ function MirrorLenses({ lenses }) {
   );
 }
 
-Object.assign(window, { MFCanvas, MFDetail, MFHeader, MFKey, MFSparse, MirrorLenses, mfRadius });
+Object.assign(window, { MFCanvas, MFDetail, MFHeader, MFKey, MFSparse, MirrorLenses, MirrorLensRow, mfRadius });
 
 
 ;globalThis.mfRand = typeof mfRand === 'undefined' ? globalThis.mfRand : mfRand;

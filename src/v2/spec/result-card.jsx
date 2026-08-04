@@ -4,6 +4,7 @@
 // spec-index.js load order is semantic — scripts/check-spec-globals.mjs
 // guards the wiring in CI.
 import React from 'react';
+import { ExplainBtn, ExplainSheet, EX_GLYPH } from './explain-sheet.jsx';
 import { RP_TESTS, RoseMini, TestRose } from './result-rose.jsx';
 import { IS_DATA } from './sample-data.js';
 import { Av } from './primitives.jsx';
@@ -33,13 +34,13 @@ const rpv2Order = (() => { const idx = Array.from({ length: 100 }, (_, i) => i);
 function RarityField({ pct, label, color, title }) {
   const lit = new Set(rpv2Order.slice(0, Math.max(1, Math.min(100, Math.round(pct)))));
   return (
-    <div className="rpv2-fade" style={{ display: 'flex', alignItems: 'center', gap: 9, flexShrink: 0, animationDelay: '200ms' }} title={title}>
+    <div className="rpv2-fade" style={{ display: 'flex', alignItems: 'center', gap: 9, flexShrink: 0, animationDelay: 'var(--rv-2)' }} title={title}>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(25, 3px)', gap: 2 }}>
         {Array.from({ length: 100 }, (_, i) => (
           <span key={i} style={{ width: 3, height: 3, borderRadius: '50%', background: lit.has(i) ? color : `color-mix(in oklch, ${color} 16%, var(--surface-3))` }}></span>
         ))}
       </div>
-      <span style={{ fontFamily: 'var(--sans)', fontSize: 10.5, fontWeight: 700, color: color, whiteSpace: 'nowrap', opacity: 0.8 }}>{label}</span>
+      <span style={{ fontFamily: 'var(--sans)', fontSize: 10.5, fontWeight: 700, color: color, whiteSpace: 'nowrap' }}>{label}</span>
     </div>
   );
 }
@@ -68,7 +69,7 @@ function SigEmblem({ testKey, sig, color, people, typeName }) {
           const r = r0 + (v / 100) * (R - 14 - r0);
           const [xa, ya] = pt(a0, r0), [xb, yb] = pt(a0, r), [xc, yc] = pt(a1, r), [xd, yd] = pt(a1, r0);
           const op = 0.15 + (Math.abs(raw - 50) / 50) * 0.22;
-          return <path key={id} className="rpv2-pop" style={{ transformOrigin: `${C}px ${C}px`, animationDelay: `${i * 60}ms` }} d={`M ${xa.toFixed(1)} ${ya.toFixed(1)} L ${xb.toFixed(1)} ${yb.toFixed(1)} A ${r.toFixed(1)} ${r.toFixed(1)} 0 0 1 ${xc.toFixed(1)} ${yc.toFixed(1)} L ${xd.toFixed(1)} ${yd.toFixed(1)} A ${r0} ${r0} 0 0 0 ${xa.toFixed(1)} ${ya.toFixed(1)} Z`} fill={color} opacity={op}></path>;
+          return <path key={id} className="rpv2-pop" style={{ transformOrigin: `${C}px ${C}px`, animationDelay: `calc(var(--rv-row) * ${i})` }} d={`M ${xa.toFixed(1)} ${ya.toFixed(1)} L ${xb.toFixed(1)} ${yb.toFixed(1)} A ${r.toFixed(1)} ${r.toFixed(1)} 0 0 1 ${xc.toFixed(1)} ${yc.toFixed(1)} L ${xd.toFixed(1)} ${yd.toFixed(1)} A ${r0} ${r0} 0 0 0 ${xa.toFixed(1)} ${ya.toFixed(1)} Z`} fill={color} opacity={op}></path>;
         })}
       </svg>
       {mark ? <span style={{ position: 'absolute', left: '50%', top: '50%', transform: 'translate(-50%,-50%)', display: 'inline-flex' }}><span className="rpv2-pop" style={{ display: 'inline-flex', animationDelay: '80ms' }}>{React.createElement(mark, { testKey, name: typeName, size: 82 })}</span></span> : null}
@@ -98,12 +99,12 @@ function TensionSpine({ dims, poles, hues, avg, lead }) {
         const isLead = d.id === leadId;
         const lo = Math.min(50, youP), hi = Math.max(50, youP);
         const t = avg && avg[d.id] != null ? pos(avg[d.id]) : null;
-        const poleStyle = (isLean) => ({ fontFamily: 'var(--sans)', fontSize: isLead ? 12.5 : 11.5, whiteSpace: 'nowrap', fontWeight: isLean ? 700 : 500, color: isLean ? rpv2Deep(hue) : 'var(--ink-3)', opacity: isLean ? 1 : 0.65 });
+        const poleStyle = (isLean) => ({ fontFamily: 'var(--sans)', fontSize: isLead ? 12.5 : 11.5, whiteSpace: 'nowrap', fontWeight: isLean ? 700 : 500, color: isLean ? rpv2Deep(hue) : 'var(--ink-3)' });
         return (
           <div key={d.id} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <span style={{ ...poleStyle(!right), width: 68, flexShrink: 0, textAlign: 'right' }}>{pp[0]}</span>
             <div style={{ position: 'relative', flex: 1, height: 15 }}>
-              <span className="rpv2-bar" style={{ position: 'absolute', top: '50%', marginTop: isLead ? -2.5 : -1.5, height: isLead ? 5 : 3, borderRadius: 999, left: `${lo}%`, width: `${hi - lo}%`, transformOrigin: right ? 'left' : 'right', animationDelay: `${i * 60}ms`, background: `linear-gradient(${right ? '90deg' : '270deg'}, color-mix(in oklch, ${col}, transparent 80%), ${col})` }}></span>
+              <span className="rpv2-bar" style={{ position: 'absolute', top: '50%', marginTop: isLead ? -2.5 : -1.5, height: isLead ? 5 : 3, borderRadius: 999, left: `${lo}%`, width: `${hi - lo}%`, transformOrigin: right ? 'left' : 'right', animationDelay: `calc(var(--rv-row) * ${i})`, background: `linear-gradient(${right ? '90deg' : '270deg'}, color-mix(in oklch, ${col}, transparent 80%), ${col})` }}></span>
               {t != null && <span style={{ position: 'absolute', top: '50%', left: `${t}%`, transform: 'translate(-50%,-50%)', width: 8, height: 8, borderRadius: '50%', background: 'var(--surface-2)', border: '1.4px solid var(--ink-3)', opacity: 0.6 }}></span>}
               <span className="rpv2-pop" style={{ position: 'absolute', top: '50%', left: `${youP}%`, transform: 'translate(-50%,-50%)', width: isLead ? 15 : 12, height: isLead ? 15 : 12, borderRadius: '50%', background: col, border: '2px solid var(--surface-2)', boxShadow: '0 1px 4px -1px rgba(20,20,40,0.3)', animationDelay: `${i * 60 + 150}ms` }}></span>
             </div>
@@ -143,7 +144,7 @@ function DifferRows({ testKey, R, cfg }) {
         const right = d.value >= 50;
         const f0 = cfg.bipolar ? pos(50) : pos(0);
         const fl = Math.min(f0, y), fw = Math.max(f0, y) - Math.min(f0, y);
-        const poleStyle = (isLean) => ({ fontFamily: 'var(--sans)', fontSize: 10.5, whiteSpace: 'nowrap', fontWeight: isLean ? 700 : 500, color: isLean ? deep : 'var(--ink-3)', opacity: isLean ? 1 : 0.6, width: 62, flexShrink: 0 });
+        const poleStyle = (isLean) => ({ fontFamily: 'var(--sans)', fontSize: 10.5, whiteSpace: 'nowrap', fontWeight: isLean ? 700 : 500, color: isLean ? deep : 'var(--ink-3)', width: 62, flexShrink: 0 });
         return (
           <div key={d.id}>
             <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 10, marginBottom: 5 }}>
@@ -171,8 +172,11 @@ function DifferRows({ testKey, R, cfg }) {
 }
 
 // ── the v2 card: banner (identity + rarity + near-misses) → native chart → differ ──
-function ResultProfileCard({ testKey, archetype, tagline }) {
+// Exported by name (D39, "convert on touch"): the test overlay shows the
+// same card, and imports it rather than waiting on a global.
+export function ResultProfileCard({ testKey, archetype, tagline }) {
   const [typesOpen, setTypesOpen] = React.useState(false);
+  const [explain, setExplain] = React.useState(false);
   const R = (window.IS_TEST_RESULTS || {})[testKey];
   const cfg = RP_TESTS[testKey];
   if (!R || !cfg || !R.dims || !R.dims.length) return null;
@@ -210,8 +214,11 @@ function ResultProfileCard({ testKey, archetype, tagline }) {
         <SigEmblem testKey={testKey} sig={arch ? arch.list[you].sig : R.dims.reduce((o, d) => (o[d.id] = d.value, o), {})} color={cfg.banner} people={sameType} typeName={arch ? arch.list[you].name : null} />
         <div style={{ position: 'relative', zIndex: 1, paddingRight: 96 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 10 }}>
-            <span className="kicker" style={{ color: cfg.banner, marginBottom: 0 }}>{cfg.kicker}</span>
-            {pct >= 100 && fit === 'textbook' ? <span style={{ fontFamily: 'var(--sans)', fontSize: 10, fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', color: cfg.banner, whiteSpace: 'nowrap' }}>textbook fit</span> : null}
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
+              <span className="kicker" style={{ color: cfg.banner, marginBottom: 0 }}>{cfg.kicker}</span>
+              <ExplainBtn onClick={() => setExplain(true)} label="What this measures" />
+            </span>
+            {pct >= 100 && fit === 'textbook' ? <span style={{ fontFamily: 'var(--sans)', fontSize: 10.5, fontWeight: 700, letterSpacing: '0.09em', textTransform: 'uppercase', color: cfg.banner, whiteSpace: 'nowrap' }}>textbook fit</span> : null}
           </div>
           <div style={{ fontFamily: 'var(--sans)', fontSize: 25, fontWeight: 800, letterSpacing: '-0.02em', lineHeight: 1.1, textTransform: 'capitalize', color: `color-mix(in oklch, ${cfg.banner} 78%, var(--ink))`, marginTop: 9 }}>{arch ? arch.list[you].name : archetype}</div>
           {streak ? <div style={{ fontFamily: 'var(--sans)', fontSize: 12.5, fontWeight: 600, color: `color-mix(in oklch, ${cfg.banner} 72%, var(--ink))`, marginTop: 4, lineHeight: 1.35 }}>with a {streak} streak</div> : null}
@@ -228,11 +235,12 @@ function ResultProfileCard({ testKey, archetype, tagline }) {
               })}
             </div>
           ) : null}
-          {rar ? <div style={{ marginTop: 14, opacity: pct < 100 ? 0.75 : 1 }}><RarityField pct={rar.pct} label={rar.label.toLowerCase()} color={cfg.banner} title={`${rar.label.toLowerCase()} sit as far from average as you — also this type: ${sameType.map(p => p.name.split(' ')[0]).join(', ') || 'none of yours'}`} /></div> : null}
+          {rar ? <div style={{ marginTop: 14 }}><RarityField pct={rar.pct} label={rar.label.toLowerCase()} color={cfg.banner} title={`${rar.label.toLowerCase()} sit as far from average as you — also this type: ${sameType.map(p => p.name.split(' ')[0]).join(', ') || 'none of yours'}`} /></div> : null}
         </div>
       </div>
       <div style={{ padding: '10px 16px 16px' }}>
         {hero}
+        {hero ? <div style={{ textAlign: 'center', fontFamily: 'var(--sans)', fontSize: 11.5, fontWeight: 600, color: 'var(--ink-3)' }}>{cfg.bipolar ? 'petal length = how far from the middle you sit' : 'petal length = how strongly the trait shows'}</div> : null}
         {arch ? (
           <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginTop: 10, flexWrap: 'wrap' }}>
             {near.map(({ a, why, border }) => (
@@ -265,6 +273,16 @@ function ResultProfileCard({ testKey, archetype, tagline }) {
           </div>
         ) : null}
       </div>
+      {explain ? (
+        <ExplainSheet title={R.title} kicker="test" dimKey={testKey}
+          dims={R.dims.map((d) => ({ ...d, poles: cfg.poles ? cfg.poles[d.id] : null }))}
+          keyRows={[
+            [EX_GLYPH.you(cfg.banner), 'The solid dot is you.'],
+            [EX_GLYPH.most(), 'The hollow ring is where most people sit.'],
+            [EX_GLYPH.petal(cfg.banner), cfg.bipolar ? 'Petal length is how far from the middle you sit — a long petal is a strong stance either way.' : 'Petal length is how strongly the trait shows.'],
+          ]}
+          onClose={() => setExplain(false)} />
+      ) : null}
     </div>
   );
 }

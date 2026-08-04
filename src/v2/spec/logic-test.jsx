@@ -373,7 +373,7 @@ import { useDialog } from './primitives.jsx';
         <div className="app-header">
           <button className="avatar-btn" onClick={onClose}>✕</button>
           <div className="h-title">Logic</div>
-          <div style={{ width: 36 }}></div>
+          <div style={{ width: 32, flexShrink: 0 }}></div>
         </div>
         <div className="app-body">
           {inTest && (

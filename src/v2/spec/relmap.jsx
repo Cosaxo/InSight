@@ -4,6 +4,7 @@
 // spec-index.js load order is semantic — scripts/check-spec-globals.mjs
 // guards the wiring in CI.
 import React from 'react';
+import { RMCore } from './relmap-core.js';
 import { useDialog } from './primitives.jsx';
 
 // RelationshipMap — a force-directed map of your people.
@@ -14,7 +15,7 @@ import { useDialog } from './primitives.jsx';
 (function () {
   const { DEFAULT_GROUPS, AGE_BANDS, ageBand, ageColor, statusMeta, yearsWord,
     politicalColor, personalityColor, politicalLabel, personalityLabel,
-    P, groupDefs, buildGraph, defaultPeople } = window.RMCore;
+    P, groupDefs, buildGraph, defaultPeople } = RMCore;
   const { RMPersonPanel, RMHubPanel } = window;
 
   class RelationshipMap extends React.Component {
@@ -28,7 +29,7 @@ import { useDialog } from './primitives.jsx';
       this.state = {
         selectedId: null, hoveredId: null, hoveredLegend: null,
         query: '', mode: props.initialView || 'circles', lensAxis: null, layout: 'web',
-        zoom: 1, panX: 0, panY: 0, positions: {}, focusGroup: null, searchOpen: false,
+        zoom: 1, panX: 0, panY: 0, positions: {}, focusGroup: null, searchOpen: false, drill: [],
         groups: DEFAULT_GROUPS, people: defaultPeople(),
         adding: false, newLabel: '', editing: false,
       };
@@ -37,9 +38,26 @@ import { useDialog } from './primitives.jsx';
     }
     componentDidMount() {
       if (this.svgEl && !this.props.compact && !this.props.embedded) this.svgEl.addEventListener('wheel', this.onWheel, { passive: false });
+      this._onWinResize = () => this.measure();
+      window.addEventListener('resize', this._onWinResize);
+      this.measure();
     }
     componentWillUnmount() {
       if (this.svgEl) this.svgEl.removeEventListener('wheel', this.onWheel);
+      if (this._onWinResize) window.removeEventListener('resize', this._onWinResize);
+    }
+
+    // How many CSS px one graph unit draws at. Label sizes are authored in
+    // graph units, so without this a name reads at 12px in one frame and 5px
+    // in another purely because the viewBox is fitted differently. Measured
+    // once the frame exists, then only on a real window resize.
+    measure() {
+      if (!this.svgEl) return;
+      const r = this.svgEl.getBoundingClientRect();
+      if (r.width < 20 || r.height < 20) { if ((this._mTries = (this._mTries || 0) + 1) < 30) setTimeout(() => this.measure(), 120); return; }
+      const g = this.ensureGraph();
+      const s = Math.min(r.width / g.W, r.height / g.H);
+      if (s > 0 && Math.abs(s - (this.state.pxScale || 0)) > 0.004) this.setState({ pxScale: s });
     }
 
     // Keep the view from zooming out past its fitted size (zoom < 1) or being
@@ -59,13 +77,35 @@ import { useDialog } from './primitives.jsx';
     ensureGraph() {
       const st = this.state;
       const portrait = this.props.compact || this.props.embedded;
-      const sig = (this.props.compact ? 'c#' : this.props.embedded ? 'e#' : 'f#') + st.layout + '#' + st.groups.map(g => g.key + ':' + g.hue + ':' + g.label).join('|') + '#' + st.people.map(p => p.group + '/' + p.name).join(',');
-      // Compact preview / embedded tab live in a tall phone-width frame — lay the
-      // graph out portrait so it fills the frame instead of letterboxing a landscape fit.
-      if (this._sig !== sig) { this._g = portrait ? buildGraph(st.groups, st.people, 660, 900, 0.05, this.props.compact ? 'web' : st.layout) : buildGraph(st.groups, st.people, 1000, 680, 0.012, st.layout); this._sig = sig; }
+      const dv = RMCore.drillView(st.groups, st.people, st.drill);
+      const sig = (this.props.compact ? 'c#' : this.props.embedded ? 'e#' : 'f#') + st.layout + '#' + st.groups.map(g => g.key + ':' + g.hue + ':' + g.label).join('|')
+        + '#' + st.people.length + '/' + (st.people[0] || {}).name + '/' + (st.people[st.people.length - 1] || {}).name + '#' + (st.drill || []).join('>');
+      // Every frame here is a tall phone — lay the graph out portrait so it
+      // fills the screen. (The full map used to build a 1000×680 landscape and
+      // letterbox it into the middle third, which shrank the whole graph and
+      // its labels to about 40% and left dead space above and below.)
+      if (this._sig !== sig) {
+        this._g = buildGraph(dv.groups, dv.people, 660, portrait ? 900 : 760, 0.05, this.props.compact ? 'web' : st.layout);
+        this._g.G = groupDefs(dv.groups);
+        this._g.drillLabel = dv.label; this._g.drillLevel = dv.level;
+        this._sig = sig;
+      }
       return this._g;
     }
 
+    // a disc is a promise that the people inside are reachable — tapping one
+    // goes down a level rather than selecting an aggregate you can't inspect
+    drillInto(key) {
+      if (key == null) return;
+      this.setState(s => ({ drill: [...s.drill, key], zoom: 1, panX: 0, panY: 0, positions: {}, selectedId: null, hoveredLegend: null, focusGroup: null }));
+    }
+    drillOut() {
+      this.setState(s => ({ drill: s.drill.slice(0, -1), zoom: 1, panX: 0, panY: 0, positions: {}, selectedId: null, hoveredLegend: null, focusGroup: null }));
+    }
+    setScale(n) {
+      if (RMCore.setMapScale) RMCore.setMapScale(n);
+      this.setState({ people: RMCore.peopleAtScale(n), drill: [], positions: {}, selectedId: null, hoveredLegend: null, focusGroup: null, zoom: 1, panX: 0, panY: 0 });
+    }
     newHue() {
       const used = this.state.groups.map(g => g.hue);
       const palette = [12, 128, 268, 50, 340, 95, 222, 175, 215, 62, 110, 290];
@@ -144,7 +184,8 @@ import { useDialog } from './primitives.jsx';
         if (d.nodeId != null) {
           this.lastTap = null;
           const node = this.ensureGraph().byId[d.nodeId];
-          if (node && node.isHub && this.state.focusGroup !== node.group) this.focusOnGroup(node.group);
+          if (node && node.isHub && node.collapsed && this.state.drill.length < 4) this.drillInto(node.drillKey);
+          else if (node && node.isHub && this.state.focusGroup !== node.group) this.focusOnGroup(node.group);
           else this.setState(s => ({ selectedId: s.selectedId === d.nodeId ? null : d.nodeId, hoveredLegend: null, query: '' }));
         } else {
           const now = Date.now(), lt = this.lastTap;
@@ -196,12 +237,16 @@ import { useDialog } from './primitives.jsx';
 
     computeVals() {
       const g = this.ensureGraph();
-      const G = groupDefs(this.state.groups);
+      const G = g.G || groupDefs(this.state.groups);
       const st = this.state;
       const { selectedId, hoveredId, hoveredLegend, query, mode, zoom, panX, panY, positions } = st;
       const q = (query || '').trim().toLowerCase();
 
       const posOf = (id) => positions[id] || { x: g.byId[id].cx, y: g.byId[id].cy };
+      // text in graph units → text at a fixed size on screen. Labels grow a
+      // little as you zoom in (0.8) rather than tracking the zoom outright.
+      const sc = st.pxScale || (this.props.embedded ? 0.5 : 0.55);
+      const upx = (t) => t / sc / Math.max(1, zoom * 0.8);
       // ── test lenses: stable per-person values for the active test ──
       const RL = window.RMLenses;
       const isLens = RL && RL.TESTS[mode];
@@ -215,7 +260,11 @@ import { useDialog } from './primitives.jsx';
             : RL.personVals(n.name, mode, n.political, n.personality);
         });
         g.nodes.forEach(n => {
-          if (n.isHub) lensVals[n.id] = RL.meanVals(g.groupMembers[n.group].map(id => lensVals[id]), mode);
+          if (!n.isHub) return;
+          const ids = g.groupMembers[n.group] || [];
+          if (ids.length) { lensVals[n.id] = RL.meanVals(ids.map(id => lensVals[id]), mode); return; }
+          const src = (g.groupPeople[n.group] || []).slice(0, 300);
+          lensVals[n.id] = RL.meanVals(src.map(q => RL.personVals(q.name, mode, q.political, q.personality)), mode);
         });
       }
       const lensColor = (id) => {
@@ -226,16 +275,16 @@ import { useDialog } from './primitives.jsx';
       const colorOf = (n) => {
         if (isLens) return lensColor(n.id);
         if (n.isHub) {
-          if (n.avgAge == null) return G[n.group].color;
+          if (n.avgAge == null) return (G[n.group] || {}).color || P.ink3;
           if (mode === 'age') return ageColor(n.avgAge);
-          return G[n.group].color;
+          return (G[n.group] || {}).color || P.ink3;
         }
         if (n.id === 0) {
           if (mode === 'age') return ageColor(n.age);
           return P.youDot;
         }
         if (mode === 'age') return ageColor(n.age);
-        return G[n.group].color;
+        return (G[n.group] || {}).color || P.ink3;
       };
       const colorById = (id) => colorOf(g.byId[id]);
 
@@ -245,7 +294,8 @@ import { useDialog } from './primitives.jsx';
         legendTitle = 'Circles';
         legend = Object.keys(g.groupMembers).map(key => {
           legendSets[key] = new Set([0, g.groupHubId[key], ...g.groupMembers[key]]);
-          return { key, label: G[key].label, color: G[key].color, count: g.groupMembers[key].length, removable: true };
+          const gd = G[key] || {};
+          return { key, label: gd.label || key, color: gd.color, count: g.groupCounts[key], removable: true };
         });
       } else if (mode === 'age') {
         legendTitle = 'Age';
@@ -303,12 +353,17 @@ import { useDialog } from './primitives.jsx';
           fill: col, color: col, stroke: P.nodeStroke, strokeW: n.isHub ? 2 : 1.5,
           opacity: inFocus ? 1 : 0.12,
           ringR: n.r + (n.isHub ? 7 : 6), ringOpacity: isActive ? 0.9 : (n.isHub ? 0.4 : 0),
-          labelY: p.y + n.r + (n.isHub ? 17 : 14),
-          labelSize: n.id === 0 ? 15 : (n.isHub ? 14 : Math.max(7.5, (n.closeness >= 4 ? 12.5 : 11.5) / Math.max(1, zoom * 0.72))),
-          labelWeight: (n.id === 0 || n.isHub) ? 700 : (isActive ? 700 : 500),
+          labelX: n.ang != null ? p.x + Math.cos(n.ang) * (n.r + 19) : p.x,
+          labelY: n.ang != null ? p.y + Math.sin(n.ang) * (n.r + 19) + 5 : p.y + n.r + (n.isHub ? 17 : 14),
+          labelAnchor: n.ang == null ? 'middle' : (Math.cos(n.ang) > 0.35 ? 'start' : Math.cos(n.ang) < -0.35 ? 'end' : 'middle'),
+          labelSize: n.isHub ? upx(n.collapsed ? 13 : 12) : upx(n.closeness >= 4 ? 11.5 : 10.5),
+          labelWeight: n.isHub ? 700 : (isActive ? 700 : 500),
           labelFill: n.isHub ? col : P.ink2,
-          labelOpacity: labelShown ? 1 : 0,
-          initials: n.initials, initSize: n.isHub ? 13 : Math.max(9, n.r * 0.8), initOpacity: showInit ? 1 : 0,
+          // the centre node already says You inside it — no second label
+          labelOpacity: (labelShown && n.id !== 0) ? 1 : 0,
+          initials: n.initials,
+          initSize: n.isHub ? (n.collapsed ? Math.min(n.r * 0.62, upx(21)) : Math.min(n.r * 0.9, upx(10))) : Math.max(9, n.r * 0.8),
+          initOpacity: showInit ? 1 : 0,
         };
       });
 
@@ -324,10 +379,11 @@ import { useDialog } from './primitives.jsx';
         const bow = (e.hub ? 0.10 : 0.16) * len * sign;
         const cpx = mx + (-dy / len) * bow, cpy = my + (dx / len) * bow;
         const d = 'M ' + a.x + ' ' + a.y + ' Q ' + cpx + ' ' + cpy + ' ' + b.x + ' ' + b.y;
-        let stroke = lightEdge, width = e.hub ? 1.1 : baseW, opacity;
-        if (!dimmed) opacity = st.layout === 'rings' ? (e.hub ? 0.10 : 0.05) : (e.hub ? 0.34 : (0.14 + e.strength * 0.06));
+        const hubW = g.discMode ? 1.6 : 0.7 + e.strength * 0.34;
+        let stroke = lightEdge, width = e.hub ? hubW : baseW, opacity;
+        if (!dimmed) opacity = st.layout === 'rings' ? (e.hub ? 0.10 : 0.05) : (e.hub ? (g.discMode ? 0.5 : 0.34) : (0.14 + e.strength * 0.06));
         else if (touchesActive) { stroke = colorById(activeId); width = baseW + 0.8; opacity = 0.82; }
-        else if (inFocus) { width = e.hub ? 1.1 : baseW; opacity = e.hub ? 0.4 : 0.26; }
+        else if (inFocus) { width = e.hub ? hubW : baseW; opacity = e.hub ? 0.55 : 0.26; }
         else { width = 1; opacity = 0.04; }
         return { d, stroke, width, opacity };
       });
@@ -335,7 +391,7 @@ import { useDialog } from './primitives.jsx';
       let selected = null;
       if (selectedId != null && !g.byId[selectedId].isHub) {
         const s = g.byId[selectedId];
-        const gd = G[s.group];
+        const gd = G[s.group] || { label: s.group, color: P.ink3, tint: P.chipBg };
         const neighborIds = [...g.adj[selectedId]].filter(id => id !== selectedId && id !== 0 && !g.byId[id].isHub);
         const mutuals = neighborIds.slice(0, 12).map(id => ({ id, name: g.byId[id].name, color: colorById(id) }));
         const totalN = neighborIds.length;
@@ -346,6 +402,15 @@ import { useDialog } from './primitives.jsx';
           location: s.location, color: gd.color, tint: gd.tint, groupLabel: gd.label,
           politicalLabel: politicalLabel(s.political), personalityLabel: personalityLabel(s.personality),
           politicalColor: politicalColor(s.political), personalityColor: personalityColor(s.personality),
+          // all four instruments, each in its own type's colour — the same reading
+          // the test lenses use, so a person's standing never depends on the mode
+          standings: ['big5', 'politics', 'values', 'social'].map((k) => {
+            const T = RL.TESTS[k];
+            const v = s.id === 0 ? (RL.youVals(k) || RL.personVals('You', k, 3, 3))
+                                 : RL.personVals(s.name, k, s.political, s.personality);
+            const ty = T.typeOf(v);
+            return { k, label: T.label, value: ty.label, color: ty.color };
+          }),
           yearsLabel: yearsWord(s.years), age: s.age, ageColor: ageColor(s.age), mutuals,
           lastLabel: s.id === 0 ? '—' : s.lastLabel,
           statusLabel: sm.label, statusColor: sm.color, statusTint: sm.tint,
@@ -377,9 +442,9 @@ import { useDialog } from './primitives.jsx';
       let selectedHub = null;
       if (selectedId != null && g.byId[selectedId].isHub) {
         const h = g.byId[selectedId];
-        const gd = G[h.group];
-        const members = g.groupMembers[h.group].map(id => ({ id, name: g.byId[id].name, color: colorById(id) }));
-        const cnt = g.groupMembers[h.group].length;
+        const gd = G[h.group] || { label: h.group, color: P.ink3, tint: P.chipBg };
+        const members = (g.groupMembers[h.group] || []).map(id => ({ id, name: g.byId[id].name, color: colorById(id) }));
+        const cnt = g.groupCounts[h.group];
         selectedHub = {
           name: gd.label, color: gd.color, tint: gd.tint, count: cnt,
           countLabel: cnt + ' people in this circle',
@@ -389,19 +454,25 @@ import { useDialog } from './primitives.jsx';
             { label: 'Personality', value: personalityLabel(h.avgPersonality), color: personalityColor(h.avgPersonality) },
             { label: 'Age', value: h.avgAge != null ? '~' + Math.round(h.avgAge) : '—', color: ageColor(Math.round(h.avgAge || 34)) },
           ],
-          members,
+          members, drillKey: h.drillKey,
+          drillable: !!h.collapsed && (st.drill || []).length < 4,
+          names: h.collapsed ? (g.groupPeople[h.group] || []).map(q => q.name) : null,
         };
       }
 
       const degOf = (id) => g.adj[id].size - 1;
       let big = Object.keys(g.groupMembers)[0];
-      Object.keys(g.groupMembers).forEach(kk => { if (big && g.groupMembers[kk].length > g.groupMembers[big].length) big = kk; });
+      Object.keys(g.groupCounts).forEach(kk => { if (big && g.groupCounts[kk] > g.groupCounts[big]) big = kk; });
       let mostId = null;
       g.nodes.forEach(n => { if (n.id !== 0 && !n.isHub && (mostId == null || degOf(n.id) > degOf(mostId))) mostId = n.id; });
       const stats = [
         { label: 'Connections', value: '' + g.peopleCount },
-        { label: 'Largest circle', value: big ? G[big].label + ' · ' + g.groupMembers[big].length : '—' },
-        { label: 'Most connected', value: mostId != null ? g.byId[mostId].name + ' · ' + degOf(mostId) : '—' },
+        { label: 'Largest circle', value: big ? ((G[big] || {}).label || big) + ' · ' + g.groupCounts[big] : '—' },
+        // "Most connected" needs peer nodes, which a disc view doesn't draw —
+        // an em dash is not a statistic, so at scale it reports closeness instead
+        g.discMode
+          ? { label: 'Close ties', value: '' + Object.keys(g.groupPeople).reduce((s, k) => s + g.groupPeople[k].filter(q => q.closeness >= 4).length, 0) }
+          : { label: 'Most connected', value: mostId != null ? g.byId[mostId].name + ' · ' + degOf(mostId) : '—' },
       ];
 
       const modes = [['circles', 'Circles'], ['age', 'Age'], ['big5', 'Big 5'], ['politics', 'Politics'], ['values', 'Values'], ['social', 'Social']];
@@ -413,12 +484,13 @@ import { useDialog } from './primitives.jsx';
         selected, hasSelected: selected != null, selectedHub,
         totalPeople: g.peopleCount, groupCount: Object.keys(g.groupMembers).length,
         stats,
-        showStatsPanel: selected == null && selectedHub == null && zoom === 1 && !q && !st.focusGroup,
+        showStatsPanel: selected == null && selectedHub == null && zoom === 1 && !q && !st.focusGroup && !(st.drill || []).length,
         editable: mode === 'circles',
         hasQuery: q.length > 0, resultText: resultCount === 0 ? 'No matches' : (resultCount === 1 ? '1 match' : resultCount + ' matches'),
         showReset: zoom !== 1 || panX !== 0 || panY !== 0 || Object.keys(positions).length > 0,
         ringGuides: st.layout === 'rings' ? g.ringGuides : null, ringCenter: posOf(0),
         focusLabel: st.focusGroup && G[st.focusGroup] ? G[st.focusGroup].label : null,
+        drillLabel: g.drillLabel, drillDepth: (st.drill || []).length, scale: RMCore.mapScale ? RMCore.mapScale() : 0,
       };
     }
 
@@ -458,8 +530,17 @@ import { useDialog } from './primitives.jsx';
                   <circle cx={n.cx} cy={n.cy} r={n.ringR} fill="none" stroke={n.color} strokeWidth="1.5" opacity={n.ringOpacity} style={{ transition: 'opacity 0.25s ease' }} />
                   <circle cx={n.cx} cy={n.cy} r={n.r} fill={n.fill} stroke={n.stroke} strokeWidth={n.strokeW} style={{ transition: 'fill 0.3s ease' }} />
                   <text x={n.cx} y={n.cy} textAnchor="middle" dominantBaseline="central" fontFamily="var(--sans)" fontSize={n.initSize} fontWeight="600" fill="oklch(0.99 0.005 90)" opacity={n.initOpacity} style={{ pointerEvents: 'none', transition: 'opacity 0.25s ease' }}>{n.initials}</text>
-                  <text x={n.cx} y={n.labelY} textAnchor="middle" fontFamily="var(--sans)" fontSize={n.labelSize} fontWeight={n.labelWeight} fill={n.labelFill} opacity={n.labelOpacity} style={{ transition: 'opacity 0.25s ease', pointerEvents: 'none' }}>{n.name}</text>
                 </g>
+              ))}
+            </g>
+            {/* labels last, and haloed — a circle name has to stay readable where
+                it crosses its own cluster of dots */}
+            <g style={{ pointerEvents: 'none' }}>
+              {v.nodes.map((n) => (
+                <text key={'l' + n.id} x={n.labelX != null ? n.labelX : n.cx} y={n.labelY} textAnchor={n.labelAnchor || 'middle'} fontFamily="var(--sans)"
+                  fontSize={n.labelSize} fontWeight={n.labelWeight} fill={n.labelFill}
+                  opacity={n.labelOpacity * n.opacity}
+                  style={{ transition: 'opacity 0.25s ease', stroke: P.canvas, strokeWidth: n.labelSize * 0.34, strokeLinejoin: 'round', paintOrder: 'stroke' }}>{n.name}</text>
               ))}
             </g>
           </g>
@@ -488,7 +569,7 @@ import { useDialog } from './primitives.jsx';
         edges: v.edges.map(e => ({ ...e, opacity: Math.min(0.7, e.opacity * 2.4), width: e.width + 0.5 })),
       };
       return (
-        <button type="button" className="btn-bare" onClick={this.props.onOpen} aria-label="Explore your relationship map" style={{ position: 'relative', width: '100%', height: '100%', background: P.canvas, overflow: 'hidden', cursor: 'pointer', borderRadius: 'inherit' }}>
+        <button type="button" className="btn-bare" onClick={this.props.onOpen} aria-label="Open the circle map" style={{ position: 'relative', width: '100%', height: '100%', background: P.canvas, overflow: 'hidden', cursor: 'pointer', borderRadius: 'inherit' }}>
           {this.graphSvg(cv, true)}
           {/* legend chips, compact */}
           <div style={{ position: 'absolute', left: 14, bottom: 12, right: 14, display: 'flex', flexWrap: 'wrap', gap: '5px 12px', pointerEvents: 'none' }}>
@@ -540,8 +621,8 @@ import { useDialog } from './primitives.jsx';
               style={{ position: 'absolute', top: 12, right: 14, zIndex: 7, display: 'flex', alignItems: 'center', gap: 6, padding: '7px 13px', borderRadius: 100, border: '1px solid ' + P.rule, background: P.card, boxShadow: P.shadow, cursor: 'pointer', fontFamily: SANS, fontSize: 12, fontWeight: 700, color: P.ink2, whiteSpace: 'nowrap' }}>
               Full map <span style={{ fontSize: 13, lineHeight: 1 }}>↗</span></button>
           )}
-          {this.props.embedded && (v.focusLabel || v.showReset) && (
-            <button onClick={(e) => { e.stopPropagation(); this.setState({ zoom: 1, panX: 0, panY: 0, positions: {}, focusGroup: null }); }}
+          {this.props.embedded && (v.focusLabel || v.showReset || v.drillDepth > 0) && (
+            <button onClick={(e) => { e.stopPropagation(); this.setState({ zoom: 1, panX: 0, panY: 0, positions: {}, focusGroup: null, drill: [] }); }}
               style={{ position: 'absolute', top: 12, left: 14, zIndex: 6, cursor: 'pointer', fontFamily: SANS, fontSize: 12, fontWeight: 600, padding: '7px 13px', borderRadius: 100, color: P.ink2, background: P.card, border: '1px solid ' + P.rule, boxShadow: P.shadow }}>{v.focusLabel ? '← All circles' : 'Reset view'}</button>
           )}
 
@@ -552,6 +633,7 @@ import { useDialog } from './primitives.jsx';
               <div style={{ display: 'flex', alignItems: 'center', gap: 9, borderRadius: 100, padding: '8px 14px', width: '100%', boxSizing: 'border-box', ...pillBg }}>
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke={P.ink3} strokeWidth="2.2" strokeLinecap="round"><circle cx="11" cy="11" r="7"></circle><line x1="16.5" y1="16.5" x2="21" y2="21"></line></svg>
                 <input autoFocus value={st.query} onChange={(e) => this.setState({ query: e.target.value, selectedId: null })} placeholder="Search people…"
+                  autoComplete="off" autoCorrect="off" autoCapitalize="none" spellCheck={false} inputMode="search" enterKeyHint="search"
                   style={{ border: 'none', outline: 'none', background: 'transparent', fontFamily: SANS, fontSize: 13.5, color: P.ink, flex: 1, minWidth: 0 }} />
                 {v.hasQuery && <span style={{ fontFamily: SANS, fontSize: 12, color: P.ink3, whiteSpace: 'nowrap' }}>{v.resultText}</span>}
                 <button onClick={(e) => { e.stopPropagation(); this.setState({ searchOpen: false, query: '' }); }} aria-label="Close search"
@@ -587,7 +669,17 @@ import { useDialog } from './primitives.jsx';
                     style={{ border: 'none', cursor: 'pointer', fontFamily: SANS, fontSize: 11.5, fontWeight: 600, padding: '5px 11px', borderRadius: 100, background: st.layout === k ? P.ink : 'transparent', color: st.layout === k ? P.canvas : P.ink3, transition: 'background 0.2s ease, color 0.2s ease' }}>{lab}</button>
                 ))}
               </div>
-              {v.focusLabel && (
+              <div style={{ display: 'flex', gap: 2, borderRadius: 100, padding: 3, ...pillBg }} title="Scale harness">
+                {[['Real', 0], ['60', 60], ['300', 300], ['1200', 1200]].map(([lab, n]) => (
+                  <button key={lab} onClick={(e) => { e.stopPropagation(); if (v.scale !== n) this.setScale(n); }}
+                    style={{ border: 'none', cursor: 'pointer', fontFamily: SANS, fontSize: 11.5, fontWeight: 600, padding: '5px 10px', borderRadius: 100, background: v.scale === n ? P.ink : 'transparent', color: v.scale === n ? P.canvas : P.ink2 }}>{lab}</button>
+                ))}
+              </div>
+              {v.drillDepth > 0 && (
+                <button onClick={(e) => { e.stopPropagation(); this.drillOut(); }}
+                  style={{ cursor: 'pointer', fontFamily: SANS, fontSize: 12.5, fontWeight: 600, padding: '7px 13px', borderRadius: 100, color: P.ink, ...pillBg }}>{'\u2190 '}{v.drillLabel}</button>
+              )}
+              {v.focusLabel && v.drillDepth === 0 && (
                 <button onClick={(e) => { e.stopPropagation(); this.setState({ focusGroup: null, zoom: 1, panX: 0, panY: 0 }); }}
                   style={{ cursor: 'pointer', fontFamily: SANS, fontSize: 12.5, fontWeight: 600, padding: '7px 13px', borderRadius: 100, color: P.ink, ...pillBg }}>← All circles</button>
               )}
@@ -601,7 +693,7 @@ import { useDialog } from './primitives.jsx';
 
           {/* zoom buttons */}
           {!this.props.embedded && !v.selected && !v.selectedHub && (
-            <div style={{ position: 'absolute', right: 16, top: '50%', transform: 'translateY(-50%)', display: 'flex', flexDirection: 'column', gap: 6, zIndex: 5 }}>
+            <div style={{ position: 'absolute', right: 16, bottom: 216, display: 'flex', flexDirection: 'column', gap: 6, zIndex: 5 }}>
               {[['+', 1.35], ['−', 1 / 1.35]].map(([lab, f]) => (
                 <button key={lab} onClick={(e) => { e.stopPropagation(); this.zoomStep(f); }} aria-label={lab === '+' ? 'Zoom in' : 'Zoom out'}
                   style={{ width: 34, height: 34, borderRadius: '50%', border: '1px solid ' + P.rule, cursor: 'pointer', fontSize: 17, lineHeight: 1, color: P.ink2, display: 'flex', alignItems: 'center', justifyContent: 'center', background: P.card, boxShadow: P.shadow }}>{lab}</button>
@@ -615,7 +707,7 @@ import { useDialog } from './primitives.jsx';
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 2 }}>
               <span style={{ ...upLabel, letterSpacing: '0.12em' }}>{v.legendTitle}</span>
               {v.editable && (
-                <button onClick={(e) => { e.stopPropagation(); this.setState(s => ({ editing: !s.editing, adding: false })); }}
+                <button className="tap44" onClick={(e) => { e.stopPropagation(); this.setState(s => ({ editing: !s.editing, adding: false })); }}
                   style={{ border: 'none', background: 'transparent', cursor: 'pointer', fontFamily: SANS, fontSize: 12, fontWeight: 600, color: P.faint, padding: 0 }}>{st.editing ? 'Done' : 'Edit'}</button>
               )}
             </div>
@@ -637,7 +729,8 @@ import { useDialog } from './primitives.jsx';
                   // relmap dialog, whose Escape closes the whole overlay.
                   // Cancelling the rename should not also close the map.
                   onKeyDown={(e) => { if (e.key === 'Enter') this.confirmAdd(); else if (e.key === 'Escape') { e.stopPropagation(); this.cancelAdd(); } }}
-                  placeholder="Circle name…" style={{ ...inputStyle, width: 116 }} autoFocus />
+                  placeholder="Circle name…" style={{ ...inputStyle, width: 116 }} autoFocus
+                  autoComplete="off" autoCapitalize="words" enterKeyHint="done" />
                 <button onClick={(e) => { e.stopPropagation(); this.confirmAdd(); }} style={{ border: 'none', background: P.ink, color: P.canvas, cursor: 'pointer', padding: '8px 13px', borderRadius: 8, fontFamily: SANS, fontSize: 13, fontWeight: 600 }}>Add</button>
                 <button onClick={(e) => { e.stopPropagation(); this.cancelAdd(); }} title="Cancel" style={{ border: 'none', background: P.chipBg2, color: P.ink2, cursor: 'pointer', width: 31, height: 31, borderRadius: 8, fontSize: 16, lineHeight: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>×</button>
               </div>
@@ -665,7 +758,7 @@ import { useDialog } from './primitives.jsx';
           {/* selected person panel */}
           {v.selected && <RMPersonPanel s={v.selected} onSelect={(id) => this.setState({ selectedId: id })} onClose={() => this.setState({ selectedId: null })} />}
           {/* selected hub panel */}
-          {v.selectedHub && <RMHubPanel h={v.selectedHub} onSelect={(id) => this.setState({ selectedId: id })} onClose={() => this.setState({ selectedId: null })} />}
+          {v.selectedHub && <RMHubPanel h={v.selectedHub} onSelect={(id) => this.setState({ selectedId: id })} onDrill={(k) => this.drillInto(k)} onClose={() => this.setState({ selectedId: null })} />}
         </div>
       );
     }

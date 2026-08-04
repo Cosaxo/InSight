@@ -25,11 +25,11 @@ function MTLearnCard({ node }) {
       <div className="mmt-title" style={{ marginTop: 4 }}>{card.k}</div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 7, marginTop: 12 }}>
         <div style={{ position: 'relative', height: 8, borderRadius: 99, background: 'color-mix(in oklch, var(--surface-3), transparent 25%)', overflow: 'hidden' }}>
-          <i style={{ position: 'absolute', inset: '0 auto 0 0', width: card.p + '%', borderRadius: 99, background: 'oklch(0.55 0.14 var(--hue))' }}></i>
+          <i style={{ position: 'absolute', inset: '0 auto 0 0', width: card.p + '%', borderRadius: 99, background: 'oklch(0.52 0.14 var(--hue))' }}></i>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <span style={{ flex: 1, fontFamily: 'var(--sans)', fontSize: 12.5, fontWeight: 600, color: 'var(--ink-2)' }}>{card.p + '% of people get this right'}</span>
-          {earned && window.LMStreak ? <window.LMStreak k={3} of={3} col={'oklch(0.55 0.14 ' + (s ? s.hue : 250) + ')'}></window.LMStreak> : null}
+          {earned && window.LMStreak ? <window.LMStreak k={3} of={3} col={'oklch(0.52 0.14 ' + (s ? s.hue : 250) + ')'}></window.LMStreak> : null}
         </div>
       </div>
     </div>
@@ -42,7 +42,7 @@ function MTLearnSubCard({ node, rows, onPick }) {
   const f = L && node.fid ? L.field(node.fid) : null;
   const s = f ? L.subject(f.subject) : null;
   const stats = f ? L.stats(f.id) : { known: 0, total: 0 };
-  const col = 'oklch(0.55 0.14 ' + (s ? s.hue : 250) + ')';
+  const col = 'oklch(0.52 0.14 ' + (s ? s.hue : 250) + ')';
   return (
     <div style={{ '--hue': s ? s.hue : 250 }}>
       <div className="mmt-slim">
