@@ -162,6 +162,28 @@
       4: 2,    // Charmander — below the floor
       0: 8,    // Not listed
     },
+    // daily catalog-question run, 2026-08-04 — permanence, the third emoji
+    // canon: pk04 ranks what you send daily, pk05 what you wince at;
+    // this ranks what you would carry in ink for good. Commitment
+    // produces a symbol board — hearts, moons, butterflies — not the
+    // reaction board usage produces.
+    pk08: {
+      10084: 33,  // ❤️ red heart — the classic for a reason
+      129419: 28, // 🦋 butterfly — yes, it is a cliché; clichés chart
+      127769: 24, // 🌙 crescent moon
+      128293: 18, // 🔥 fire
+      127754: 15, // 🌊 water wave
+      10024: 12,  // ✨ sparkles
+      128013: 10, // 🐍 snake
+      127801: 9,  // 🌹 rose
+      9889: 7,    // ⚡ high voltage
+      9854: 6,    // ♾️ infinity
+      11088: 5,   // ⭐ star — clears the floor but not the top 10; folds
+      128128: 5,  // 💀 skull — same
+      128330: 3,  // 🕊️ dove — below the floor
+      129535: 2,  // 🧿 nazar amulet — below the floor
+      0: 9,       // Not listed
+    },
   };
 
   // Baked demo segment slices, per question: how each cohort orders the
@@ -247,6 +269,17 @@
       gender: {
         Women: { 133: 9, 143: 8, 54: 7, 39: 5, 129: 5 },
         Men: { 143: 11, 94: 7, 129: 7, 6: 6, 25: 5 },
+      },
+    },
+    pk08: {
+      ageBand: {
+        // butterflies and moons skew young; the plain heart holds with age
+        '18-24': { 129419: 9, 127769: 8, 128013: 6, 10084: 5, 128293: 5 },
+        '25-34': { 10084: 11, 129419: 8, 127754: 6, 10024: 5, 9854: 4 },
+      },
+      gender: {
+        Women: { 129419: 12, 127769: 9, 10084: 8, 127801: 5, 10024: 5 },
+        Men: { 10084: 9, 128293: 8, 128013: 7, 9889: 5, 127754: 5 },
       },
     },
   };
@@ -349,5 +382,9 @@
     // 2026-08-03 daily run: identity — who you are, not what you love.
     // Warmer and stranger than a fifth ranking of the same mascots.
     { id: 'pk07', cat: 'fav', type: 'pick', domain: 'pokemon', prompt: 'The Pokémon you’d be?', n: 185 },
+    // 2026-08-04 daily run: permanence — what you send (pk04) and what
+    // you resent (pk05) change weekly; what you'd wear for good is a
+    // different question with a different, symbol-heavy board.
+    { id: 'pk08', cat: 'fav', type: 'pick', domain: 'emoji', prompt: 'The emoji you’d tattoo?', n: 186 },
   ];
 })();
