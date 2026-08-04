@@ -305,6 +305,14 @@ left here is a **recapture against live data**, plus the two forms.
       taste — it is a draft, not a decision. No placeholders remain:
       `shared.supportEmail` was filled with 0.3's address on 2026-08-03,
       and `check:store-listing` passes.
+
+      **You do not have to retype it into the web form.**
+      `npm run asc:push` pushes name, subtitle, description, keywords,
+      promotional text and the URLs to App Store Connect from this file —
+      dry run by default, `-- --apply` to write. Same API key as the
+      release workflow (`IOS-RELEASE.md`). It deliberately does NOT touch
+      screenshots, the privacy questionnaire or the age rating; those are
+      attestations, and `STORE-FORMS.md` is the transcribe-by-hand answer.
 - [ ] **4.4 Privacy nutrition labels (Apple) + Data safety form (Google).**
       Mandatory; neither store accepts a submission without one. Answer
       from the table in `SHIP-CHECKLIST §3`, which is
@@ -352,10 +360,16 @@ left here is a **recapture against live data**, plus the two forms.
       `deleteAccount` does not touch Storage, so revoking access while
       objects remain converts a dead feature into an erasure gap. Update
       `firestore-tests/storage.rules.test.ts` in the same commit.
-- [ ] **5.5 Apply the two monitoring alerts** (`monitoring/*.json`) — create
-      a notification channel, then the error policy, then the
-      `agg_contention` log-based metric and its policy. Neither is applied
-      by the pipeline. Both cover failures that look like nothing from the
+- [ ] **5.5 Apply the two monitoring alerts** (`monitoring/*.json`):
+      ```bash
+      npm run monitoring:apply -- --email you@example.com           # report
+      npm run monitoring:apply -- --email you@example.com --apply   # do it
+      ```
+      One command for what used to be four console steps with a channel id
+      pasted between them. Idempotent and dry-run by default. Neither
+      policy is applied by the pipeline, and this script must not be put on
+      it — the deploy service account has no monitoring role, and widening
+      it for two policies is the worse trade. Both cover failures that look like nothing from the
       outside: the app keeps serving while the Mirror stops moving, or
       keeps moving while falling further behind. `DEPLOYMENT.md § Alerting`.
 - [ ] **5.6 Version lockstep.** `npm run check:versions` (`--fix` writes
