@@ -136,10 +136,20 @@ date does not depend on which way Play's account type resolves.
 ## Phase 2 — Wire the native builds (needs Phase 1 accounts + a Mac)
 
 - [ ] **2.1 Android config.** Firebase Console → Project settings → Add app
-      → Android, package `com.cosaxo.insight` → download
-      `google-services.json` → drop into `android/app/`. This also
-      activates FCM for reveal pushes. Gitignored on purpose — never commit
-      it. `SHIP-CHECKLIST §2`.
+      → Android, package `com.cosaxo.insight`. **Add the debug keystore
+      SHA-1 first**, then download `google-services.json` → drop into
+      `android/app/`. This also activates FCM for reveal pushes.
+      Gitignored on purpose — never commit it. `SHIP-CHECKLIST §2`.
+      ```bash
+      keytool -list -v -keystore ~/.android/debug.keystore \
+        -alias androiddebugkey -storepass android
+      ```
+      *Skipping the fingerprint is silent, the Android twin of 2.2:* the
+      downloaded file carries no Android `oauth_client`, so the build
+      compiles and ships and `signInWithGoogle` fails at runtime with
+      `DEVELOPER_ERROR` (status 10). Add the **Play App Signing** SHA-1 too
+      once 2.6 gives you one, and **re-download** the file — it is a
+      snapshot, not a live lookup.
 - [ ] **2.2 iOS config.** Add app → iOS → download
       `GoogleService-Info.plist` → add to `ios/App/App/` **and to the App
       target in Xcode** (AppDelegate skips `FirebaseApp.configure()`

@@ -89,6 +89,28 @@ Both apps must be registered under `com.cosaxo.insight`:
 - **Android** — Firebase Console → Project settings → Add app →
   Android → download `google-services.json` → drop into `android/app/`.
   This also activates FCM delivery for reveal pushes.
+
+  **Register the signing SHA-1 BEFORE downloading that file**, or Google
+  sign-in is dead on Android in exactly the way the iOS
+  `REVERSED_CLIENT_ID` below is dead — silently, at runtime, on a build
+  that compiled and shipped. `google-services.json` only contains an
+  Android `oauth_client` entry (client_type 1) if a SHA-1 is registered
+  for the package at the moment you download it; without one the file is
+  valid, FCM works, Firestore works, and `signInWithGoogle` fails with
+  `DEVELOPER_ERROR` (status 10). D3's only account-upgrade path, gone on
+  one platform.
+
+  Two fingerprints, from different places at different times:
+
+  | Which | Where | When |
+  | --- | --- | --- |
+  | Debug keystore SHA-1 | `keytool -list -v -keystore ~/.android/debug.keystore -alias androiddebugkey -storepass android` | Now — it is what makes sign-in work on a dev install |
+  | Play App Signing SHA-1 | Play Console → Setup → App signing | Only after the first upload — same screen as §3b's SHA-256 |
+
+  Re-download `google-services.json` after adding the Play fingerprint;
+  the file is a snapshot, not a live lookup. Nothing in this repo can see
+  either omission: the file is gitignored and account-gated, so
+  `check:store-copy` and CI are both blind to it.
 - **iOS** — Add app → iOS → download `GoogleService-Info.plist` → add to
   `ios/App/App/` in Xcode (add to target), then copy that file's
   `REVERSED_CLIENT_ID` value over the `REPLACE_WITH_REVERSED_CLIENT_ID`
