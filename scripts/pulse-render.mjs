@@ -88,6 +88,10 @@ button.theme {
   padding: 6px 11px; font: inherit; font-size: 13px; cursor: pointer;
 }
 button.theme:hover { color: var(--ink); }
+/* Keyboard users get the same affordance the mouse does. */
+button.theme:focus-visible, a:focus-visible {
+  outline: 2px solid var(--s1); outline-offset: 2px; color: var(--ink);
+}
 
 .banner {
   display: flex; gap: 10px; align-items: flex-start;
@@ -228,6 +232,7 @@ footer { color: var(--ink-muted); font-size: 12.5px; margin: 30px 0 0; max-width
   .bar-row { grid-template-columns: 92px 1fr 44px; }
 }
 @media print { button.theme, #tip { display: none; } section.panel { break-inside: avoid; } }
+@media (prefers-reduced-motion: reduce) { #tip { transition: none; } }
 `;
 
 const READ_SERIES = [
