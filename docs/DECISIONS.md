@@ -4188,3 +4188,36 @@ in the model to rot; the `+ 0.2` in the writes formula is unsourced; and the
 deletes line assumes a Firestore TTL policy that is a hand-run command in
 SHIP-CHECKLIST §5, not a deployed artifact — if it was never run, deletes
 are zero and storage grows without bound.
+
+**Second amendment (2026-08-04) — the console follows the product, not only
+the clock.** Asked whether it could update as the product changes, which the
+daily cron did not do: promote twelve questions at noon and the runway tile
+was a day behind until the next morning.
+
+`pulse.yml` now also runs on **every push to `main`**, so the two triggers
+cover the two ways these numbers move — the clock for the changes nobody
+made (the calendar eating runway, a scorecard ageing), the push for the ones
+somebody did. `--check` then runs against the change that caused it rather
+than against a tree that has since moved on.
+
+**No `paths:` filter, and that is the deliberate half.** A path list would be
+a hand-maintained copy of "every file pulse reads" — the content banks, the
+four source files it parses constants out of, the archive, the rate card,
+the alert policies, the cities header, its own scripts. This record already
+documents two costs of exactly that shape of duplicate, and the failure is
+the quiet one: pulse grows an input, the filter does not, and the console
+stops noticing the thing it exists to notice. The job installs nothing
+(Node stdlib only) and takes about twenty seconds, so running it always is
+cheaper than maintaining the list that would let it run less. It cannot
+loop — a push made with the default `GITHUB_TOKEN` does not trigger
+workflows.
+
+**The commit path was made race-safe, because two triggers can now overlap.**
+A rejected push is no longer rebased: rebasing two runs that both wrote the
+same day's row means conflicting on the same line of the same file, which is
+the one case rebase cannot resolve. Instead the tree resets to the branch
+head and the row is recomputed against it. The row is a pure function of the
+tree and the date, so this always converges, and the losing run finds the row
+already written and exits clean. Exercised with two clones racing a real
+bare remote — A pushed, B was rejected, reset, recomputed, found nothing to
+do; one row, one commit, no conflict.

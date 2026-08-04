@@ -209,11 +209,41 @@ reason written down. The console reports policies as *committed*, never as
 
 ## How it stays current
 
-`.github/workflows/pulse.yml` runs it at **06:00 UTC daily**, commits
-`pulse.json` and the trail only when they actually moved, and writes the
-headline figures into the run summary. Then it runs `--check` last, so a
-short runway or an expired scorecard turns the scheduled job red — an email
-to whoever owns the repo, blocking nobody's pull request.
+`.github/workflows/pulse.yml` runs on **two triggers**, because two
+different things move these numbers:
+
+- **06:00 UTC daily** — the changes nobody made. The calendar eats a day of
+  runway whether or not anyone commits; a scorecard ages past its staleness
+  rule by sitting still.
+- **Every push to `main`** — the changes somebody did make. Promote twelve
+  questions and the runway moves that afternoon rather than the next
+  morning, and `--check` runs against the change that caused it.
+
+Either way it records the trail row, writes the headline figures into the
+run summary, and runs `--check` last — so a short runway or an expired
+scorecard turns the job red: an email to whoever owns the repo, blocking
+nobody's pull request.
+
+**The push trigger has no `paths:` filter, deliberately.** A path list
+would be a hand-maintained copy of "every file pulse reads" — the content
+banks, the four source files it parses constants out of, the archive, the
+rate card, the alert policies, the cities header, its own scripts. This repo
+has now paid twice for that exact shape of duplicate (D34's reseed figure,
+then four retyped constants), and the failure is the quiet one: pulse grows
+an input, nobody updates the filter, and the console stops noticing the
+thing it exists to notice. The job installs nothing and takes about twenty
+seconds, so running it on every push is cheaper than maintaining the list
+that would avoid it. It cannot loop: a push made with the default
+`GITHUB_TOKEN` does not trigger workflows, so the job's own commit is inert.
+
+**A rejected push resets and recomputes rather than rebasing.** With two
+triggers, two runs can be in flight over the same day's row — the same line
+of the same file, which is the one case a rebase cannot resolve. So a
+rejected push is not merged: the tree resets to the branch head and the row
+is recomputed against it. The row is derived from the tree and the date, so
+this always converges, and the run that lost simply finds the row already
+written and exits happy. Exercised against a real remote with two clones
+racing, not reasoned about.
 
 Three properties worth keeping:
 

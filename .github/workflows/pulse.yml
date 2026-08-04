@@ -38,7 +38,27 @@ on:
     # 06:00 UTC daily — after the UTC day has rolled the deck index over,
     # before a European working day starts. The runway is measured in days,
     # so the exact hour only decides which side of midnight a row lands on.
+    # This trigger catches the changes NOBODY MADE: the calendar eating a
+    # day of runway, a scorecard ageing past its staleness rule.
     - cron: "0 6 * * *"
+  push:
+    branches: [main]
+    # …and this one catches the changes somebody did make. Promote twelve
+    # questions and the runway moves that afternoon, not the next morning.
+    #
+    # DELIBERATELY NO `paths:` FILTER, which is the surprising half. A path
+    # list here would be a hand-maintained copy of "every file pulse reads"
+    # — content banks, four source files it parses constants out of, the
+    # archive, the rate card, the alert policies, the cities header, its own
+    # scripts. This repo has now paid twice for exactly that shape of
+    # duplicate (D34's reseed figure, then four retyped constants), and the
+    # failure mode is the quiet one: pulse grows a new input, nobody updates
+    # the filter, and the console stops noticing the thing it was built to
+    # notice. The job installs nothing and takes ~20 seconds, so running it
+    # on every push is cheaper than maintaining the list that would avoid it.
+    #
+    # This does not loop. A push made with the default GITHUB_TOKEN does not
+    # trigger workflows, so the job's own trail commit cannot re-trigger it.
   workflow_dispatch:
 
 permissions:
@@ -46,7 +66,11 @@ permissions:
 
 concurrency:
   group: pulse
-  cancel-in-progress: false
+  # Only the newest state matters — a superseded run would recompute the
+  # same day's row from an older tree. Cancelling is safe because the trail
+  # row is derived, not accumulated: whatever run finishes last writes the
+  # same answer.
+  cancel-in-progress: true
 
 jobs:
   pulse:
@@ -89,22 +113,31 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          if git diff --quiet -- monitoring/pulse-trail.jsonl; then
-            echo "pulse: today's row is already recorded."
-            exit 0
-          fi
-          git add monitoring/pulse-trail.jsonl
-          git commit -m "pulse: trail row for $(date -u +%Y-%m-%d)"
-          # Retry around a concurrent push to the default branch. --rebase is
-          # safe here because this job only ever touches one append-only file
-          # that nobody edits by hand.
-          for i in 1 2 3 4; do
-            git push && exit 0
-            echo "push failed, retry $i"
-            sleep $((2 ** i))
-            git pull --rebase origin "${GITHUB_REF_NAME}" || true
+
+          # RESET-AND-REGENERATE, NOT REBASE. Since this job runs on push as
+          # well as on a clock, two runs can be in flight over the same day's
+          # row — and both would be editing the same line of the same file,
+          # which is the one thing a rebase cannot resolve. So a rejected
+          # push is not merged: the tree is reset to whatever is on the
+          # branch now and the row is recomputed against it. The row is
+          # derived from the tree and the date, so regenerating is always
+          # safe and always converges — and if the winning run already wrote
+          # today's row, the diff comes back empty and this exits happy.
+          for attempt in 1 2 3 4; do
+            node scripts/pulse.mjs > /dev/null
+            if git diff --quiet -- monitoring/pulse-trail.jsonl; then
+              echo "pulse: today's row is already recorded."
+              exit 0
+            fi
+            git add monitoring/pulse-trail.jsonl
+            git commit -m "pulse: trail row for $(date -u +%Y-%m-%d)"
+            if git push; then exit 0; fi
+            echo "push rejected (attempt ${attempt}) — re-syncing and recomputing"
+            sleep $((2 ** attempt))
+            git fetch origin "${GITHUB_REF_NAME}"
+            git reset --hard "origin/${GITHUB_REF_NAME}"
           done
-          echo "::error::pulse could not push its update after 4 attempts."
+          echo "::error::pulse could not record today's row after 4 attempts."
           exit 1
 
       # Last, and allowed to fail the run. A red scheduled job emails whoever
