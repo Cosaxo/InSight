@@ -26,10 +26,16 @@ value and no empty-warning. Only step 3 remains, and it must be run
 miss** — the two facts live in different sections of this file. `runSeedV2`
 throws `unauthenticated` without `request.auth` before it ever consults
 `SEED_ADMIN_UIDS` (`functions/src/ops.ts`), and the uid it wants is a
-**Google-account** uid. Google sign-in was measured off on 2026-08-03
-along with Anonymous, so today there is no way to be that uid at all.
-Enable the providers, then seed. LAUNCH-RUNBOOK 0.1 carries the same
-warning, because it had this step filed under "no accounts needed".
+**Google-account** uid. LAUNCH-RUNBOOK 0.1 carries the same warning,
+because it had this step filed under "no accounts needed".
+
+**Status 2026-08-04: the switch is thrown, so this is unblocked** —
+Anonymous is measured working (`accounts:signUp` returns an `idToken`,
+where the same probe returned `ADMIN_ONLY_OPERATION` a day earlier).
+Google is enabled but **unverified**: the project-config endpoint returns
+only `authorizedDomains` to an unauthenticated caller, never `idpConfig`,
+so there is no remote probe for it. Signing in and running the seed IS
+the verification — treat a successful seed as proof of both.
 
 1. ~~Copy your uid~~ — done; the maintainer's Google-account uid, the
    same one `MOD_UIDS` holds. (For a future extra operator: it's shown by
@@ -126,10 +132,13 @@ Both apps must be registered under `com.cosaxo.insight`:
 
   For push: Apple Developer → Keys → create an APNs key and upload it in
   Firebase Console → Cloud Messaging → Apple app configuration.
-- **Enable the provider** — Firebase Console → Authentication → Sign-in
-  method → enable **Google** and **Anonymous** (D3 depends on the latter;
-  measured OFF on 2026-08-03 — it was never enabled, so do not read this
-  as already done). The client side is wired: `capacitor.config.ts` declares
+- ~~**Enable the provider**~~ — **done 2026-08-04.** Firebase Console →
+  Authentication → Sign-in method: both **Google** and **Anonymous** are
+  on. D3 depends on Anonymous and it is measured, not assumed — the same
+  `accounts:signUp` probe that returned `ADMIN_ONLY_OPERATION` on
+  2026-08-03 now returns an `idToken`. Google is enabled but has no remote
+  probe (§1 explains why); the seed run verifies it. The client side is
+  wired: `capacitor.config.ts` declares
   `providers: ["google.com"]` and `android/variables.gradle` sets
   `rgcfaIncludeGoogle = true`. Both are required — without the Gradle
   flag the Google libraries are `compileOnly`, so an Android build
@@ -206,12 +215,22 @@ Both apps must be registered under `com.cosaxo.insight`:
   requires published contact info for a UGC app; and both store listings
   ask for a support contact.
 
-  **Norway is EEA, so GDPR applies in full.** One thing that follows and
-  is *not* done: EEA users have the right to lodge a complaint with a
-  supervisory authority (here, Datatilsynet), and `web/privacy.html` does
-  not mention it — the page has no jurisdiction-specific language at all.
-  Not a submission blocker for either store, and not a code problem;
-  flagged here so it is a decision rather than an oversight.
+  **Norway is EEA, so GDPR applies in full — and the follow-up this entry
+  used to hold open is done.** It read: *"EEA users have the right to
+  lodge a complaint with a supervisory authority (here, Datatilsynet), and
+  `web/privacy.html` does not mention it — the page has no
+  jurisdiction-specific language at all."* Measured 2026-08-04: the page
+  carries an **"If you are in the EEA"** section that says the GDPR applies
+  in full, names Datatilsynet, links datatilsynet.no, and states the right
+  can be exercised without raising it here first. That is GDPR Art. 13(2)(d)
+  satisfied.
+
+  The gap closed and this paragraph did not, which is the documentation
+  error this repo keeps re-committing (D39) wearing a different hat: not a
+  stale *number* this time but a stale *status*, on the one page a store
+  reviewer and a regulator both read. `check:figures` cannot see it — its
+  subject is README test counts — so the only guard is looking at the file,
+  which is what turned it up.
 
   `npm run check:store-copy` is the tripwire. **Run it before every store
   upload**; it exits non-zero while any placeholder remains. Three remain,
