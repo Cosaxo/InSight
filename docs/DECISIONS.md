@@ -4010,3 +4010,98 @@ enough to spend money on. **Confirm the exemption in the Play Console
 account-type flow before paying for a D-U-N-S expedite**, and if it turns
 out not to hold, the fallback is the 12×14 path with nothing lost but a
 wait that overlapped Apple's anyway.
+
+## D42 · Monitoring grows a decision console — and the refusals become part of it
+
+**Date:** 2026-08-04 · **Status:** Adopted (owner-requested: "increase the
+scope of the monitoring to include cost and profits and other stats, along
+with algorithm effect, question generation stats, user analysis, and have it
+presented in some sort of visual tool to help me make decisions")
+
+**Decision.** `npm run pulse` computes a four-panel decision console from
+committed artifacts and renders it as one self-contained HTML page.
+`monitoring/pulse.json` is committed (the data, so a change in the burn or
+the runway is a reviewable diff); `monitoring/pulse-trail.jsonl` appends one
+row per day; the HTML is gitignored and regenerated in under a second. The
+full argument is [`docs/MONITORING.md`](MONITORING.md).
+
+**The part that needed deciding.** Three of the four requests — cost,
+money, question-pipeline stats — are ordinary engineering. The fourth,
+"user analysis", is not available here, and the decision is that **the
+console displays the refusals rather than omitting them.**
+
+Five things a monitoring dashboard would normally show are structurally
+unavailable: per-user funnels and session analytics (no client event
+pipeline exists, by design), retention or engagement sliced by anchor
+(D8/D18's k-floor and complementary suppression), anything sliced by
+political result (D8, Art. 9), skip/pass rates (QUESTION-FARM's out-of-scope
+list), and per-user content selection (MONETIZATION's standing posture).
+A console that showed four empty charts where those belong would read as
+"the data is coming". Each is listed with the record it would reverse,
+because "we decided not to" is only useful with the decision attached.
+
+The second row is the one worth sitting with: **the same suppression that
+stops a paying city identifying a person stops the owner doing it.** That is
+the guarantee working. If the tooling ever grows a way around it, the
+guarantee was never enforced.
+
+**What is honestly available, and was built.** The k-floored public mirror
+gives floors on real activity — never measurements, since a question below
+`AGG_MIN_N` publishes nothing. Everything else in the console computes from
+committed files with no credentials: bank inventory, deck runway, promotion
+backlog, alert coverage, and the modelled bill.
+
+**What is available and was deliberately NOT built.** DAU and D1–D7
+retention need **no new collection**: `v2_agg_events` already holds
+`(qid, uid, at)` with a 90-day TTL, erased with the account. Counting
+distinct uids per day is a scheduled function over a collection that exists.
+But D28 justified that collection as fake-account attribution and trigger
+dedup — those two purposes. Counting users with it is a **new purpose for
+existing data**, which is a decision record, not a script. It is listed in
+the console's "unbuilt" column with that catch stated. Deferred here rather
+than taken, because the console's whole point is to make this class of thing
+visible rather than to quietly do it.
+
+**The one number whose neglect breaks the product.** Deck runway. D30's
+no-wrap invariant holds while the daily bank has at least as many questions
+as days elapsed since `DECK_EPOCH`; past zero the next reseed silently
+remaps every user's answered history once. `deck.test.ts` pins the property,
+but a unit test cannot know today's date relative to the shipped bank — that
+is a fact about the calendar and the content, and it changes at midnight
+without a commit. At adoption: 90 in the bank, 3 days elapsed, 87 days of
+runway, 0 unpromoted in the archive.
+
+**`--check` is a real gate and is deliberately not in CI.** It exits
+non-zero below 21 days of runway and on an expired scorecard. Wiring it into
+CI would fail unrelated work on a Tuesday for a reason that pull request
+cannot fix — the same argument that keeps `check:figures` off the backend
+path, pointed the other way. Where it belongs is the farm's scheduled run,
+beside the scorecard read it already does. That wiring lives outside this
+repo, so the script prints the recommendation rather than pretending.
+
+**One structural change to existing code, and it was forced.** The cost
+arithmetic moved from `scripts/cost-model.mjs` into `scripts/cost-arith.mjs`
+so the console and the CLI share one model. The alternative was a second
+copy of the price sheet, which is the drift this repo gates against
+everywhere else. Same shape as `store-render.mjs`. `npm run costs` output is
+byte-identical in both price regions — diffed, not inspected.
+
+**A correction this record makes.** `docs/DEPLOYMENT.md` explains that alert
+policies are applied by hand because "the deploy service account has no
+monitoring role". Line 103 of the same document says that account holds
+`Editor` + `Firebase Admin`, and `Editor` includes
+`monitoring.alertPolicies.create`. The stated reason does not hold. The
+conclusion still does, for two better ones: a policy is useless without a
+notification channel id, which is not in the repo and should not be; and a
+pipeline that can silently rewrite an alert policy can silently delete one.
+The console therefore reports policies as *committed*, never as *deployed* —
+the repo cannot know which.
+
+**Recorded, not fixed.** 1 of 14 deployed functions has an alert policy, and
+three of COSTS.md's four walls have no instrument. Both are surfaced by the
+console rather than closed here: the uncovered functions are mostly
+callables, which fail loudly to a caller who can notice, and the walls with
+no instrument bind at sizes this product has not approached.
+`onV2AnswerCreated` is alerted precisely because it is the one that fails
+*silently* — `retry:true` means a crash accumulates for ~7 days while the
+app looks healthy.

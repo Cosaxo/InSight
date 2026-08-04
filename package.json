@@ -37,6 +37,7 @@
     "build:content": "node scripts/gen-v2content.mjs --write",
     "scorecard": "node scripts/question-scorecard.mjs",
     "costs": "node scripts/cost-model.mjs",
+    "pulse": "node scripts/pulse.mjs",
     "build:emoji": "node scripts/build-emoji.mjs",
     "check:ios-spm": "node scripts/check-ios-spm.mjs",
     "check:ios-facebook": "node scripts/check-ios-facebook.mjs",

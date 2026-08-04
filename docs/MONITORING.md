@@ -1,0 +1,243 @@
+# What InSight watches, and what it refuses to
+
+Written 2026-08-04. The question that produced this document was "can the
+monitoring cover cost and profit and other stats, plus what the question
+algorithm is doing, plus user analysis — and can I see it all somewhere?"
+
+Three of those four are ordinary engineering. The fourth is the one worth
+writing down, because **the honest answer to "user analysis" here is mostly
+no**, and the reason is the product's own load-bearing claim rather than a
+gap in the tooling. A console that quietly omitted the refusals would read
+as "the data is coming"; one that lists them reads as what it is.
+
+The tool is `npm run pulse`. The argument is below.
+
+## What existed before, and what was missing
+
+Two instruments, neither of them a view:
+
+| | What it does | What it cannot say |
+| --- | --- | --- |
+| `npm run costs` | prints the predicted bill at five sizes | anything about what the bill nets against |
+| `npm run scorecard` | scores questions the crowd has answered | anything before launch, and no history — one output path, overwritten |
+| `monitoring/*.json` | two alert policies, applied by hand | which of the other 13 functions has no alert |
+
+Between them sat things nobody was computing at all: how many days of
+question runway are left, whether anything is already written and waiting
+to be promoted, what a city contract would have to charge to cover the
+burn, and how much of the backend has an instrument pointed at it. Those
+are decisions, and they were being made from memory.
+
+`npm run pulse` writes `monitoring/pulse.json` (committed — a change in the
+burn or the runway becomes a reviewable diff), appends one row per day to
+`monitoring/pulse-trail.jsonl`, and renders `monitoring/pulse.html`, which
+is self-contained and opens from a `file://` path with no server, no
+network and no build step.
+
+## The four panels, and the decision each one serves
+
+A panel that serves no decision was cut. These are the four that survived.
+
+### 1 · The question pipeline — "do I need to write questions this week?"
+
+The most live panel: nearly all of it computes from committed files today,
+pre-launch, with no credentials. It also holds the only number in this
+console whose neglect causes a **user-visible failure** rather than a bad
+estimate.
+
+**Deck runway.** D30's no-wrap invariant holds while the daily bank has at
+least as many questions as days elapsed since `DECK_EPOCH`. Past zero, the
+wrap returns and the next reseed silently remaps every user's answered
+history once — a card they voted on renders unanswered, because vote state
+is keyed by qid and the qid moved. Nothing else in the tree can notice
+this. `deck.test.ts` pins the property, but a unit test cannot know today's
+date relative to the shipped bank; that is a fact about the calendar and
+the content, and it changes at midnight without a commit.
+
+**Promotion backlog.** The runway says *how long*; the backlog says *what
+kind of afternoon*. A short runway with a full archive is a promotion PR; a
+short runway with an empty one is a writing session. Joined by prompt
+string — the same join `liveSync` does at runtime, and the same one D30's
+promotion step copies byte-for-byte to preserve — so the orphan count is
+not bookkeeping: a non-zero one means the client is already warning.
+
+> Measured, not assumed, and worth recording because it looked exactly like
+> a bug: a first pass reported 6 orphans. All six prompts contain an
+> apostrophe and are double-quoted in the archive while the rest are
+> single-quoted. The scan was wrong, not the content. The current numbers
+> are 90 archive entries, 90 live, zero unpromoted, zero orphans.
+
+**Bank inventory** cross-checks against the seeded document count read
+independently out of `functions/src/v2content.ts`. Two paths, one number
+(369 at the time of writing) — `check:content` already guarantees this
+byte-for-byte, so the agreement is that gate showing its work rather than a
+new gate.
+
+### 2 · Cost — "is it time to build either recorded read fix?"
+
+Straight through `scripts/cost-arith.mjs`, which is also what `npm run
+costs` prints. That module is new, and it is the *only* structural change
+this work made to existing code: the arithmetic used to live inside the CLI,
+and the moment the console wanted the same numbers there would have been two
+copies. Same reasoning as `store-render.mjs` — a module two consumers share
+so the two cannot drift apart. The CLI's output is byte-identical in both
+price regions; that was checked by diffing before and after, not by
+inspection.
+
+The panel's decision lives in two columns: the bill now, and the bill with
+the two recorded-but-unbuilt read fixes. Build them when the gap stops
+being rounding error — and not before, because the write-contention wall
+binds ~3.5× earlier than the read fan-out does. **Every figure in this
+panel is modelled, not measured.** There is no invoice yet. COSTS.md was
+written to be diffed against the first one; nothing has diffed it.
+
+### 3 · Money — "what would I have to charge, and to how many?"
+
+Revenue is $0 and the panel says so in the tile rather than in a footnote.
+What it computes instead is the break-even surface: the burn at each size,
+the cost per user per month, and — for each recorded revenue path — how
+many units would cover the whole burn. That question needs no revenue data,
+which is why it is answerable today and why it is the only money question
+worth putting on a screen right now.
+
+The inputs live in `monitoring/rates.json`, because they are the only
+numbers in the whole console that are neither derivable from the repo nor
+stated in a doc: they are pricing intent. **Every path defaults to a price
+of zero**, so an unedited rate card produces an honest "no path priced"
+rather than a flattering guess. An unpriced path reads as `unpriced`, not
+as `0` — a question, not a zero.
+
+The panel stays small because of a constraint, not because of effort:
+there is no premium data tier to model. A paying city's window is the same
+k-floored aggregate every user sees for free, enforced by `firestore.rules`
+rather than by contract.
+
+### 4 · Population — "is anyone here, and can I say so honestly?"
+
+This panel mostly refuses, and the refusals are the content. Three columns:
+
+**Derivable today** — from the k-floored public mirror, which the scorecard
+already reads. These are *floors* on real activity, never measurements: a
+question below `AGG_MIN_N` publishes nothing, so every number understates.
+
+**Unbuilt, not forbidden** — each could be built without reversing
+anything, and each has a real cost. The largest is worth naming here
+because it is genuinely available and genuinely not free:
+
+> **DAU and retention need no new collection.** `v2_agg_events` already
+> holds `(qid, uid, at)` with a 90-day TTL, erased with the account.
+> Counting distinct uids per day is a scheduled function over a collection
+> that exists. **But** that collection was justified as fake-account
+> attribution and trigger dedup — those two purposes (D28). Counting users
+> with it is a *new purpose for existing data*, which is a decision record,
+> not a script. That is exactly the sort of thing this console exists to
+> make visible rather than to quietly do.
+
+The other two are dull and worth doing: a Cloud Billing export would turn
+the entire cost panel from prediction into measurement, and install →
+first-answer conversion is two numbers pasted monthly from the store
+consoles, which are not in this repo and never will be.
+
+**Off the table** — each entry names the record it would reverse, because
+"we decided not to" is only useful with the decision attached:
+
+| Refused | Record |
+| --- | --- |
+| Per-user funnels, session analytics, engagement scoring | data-inventory.md — "No product analytics of any kind ship today" |
+| Retention or engagement sliced by anchor | D8 / D18 — the k-floor and complementary suppression |
+| Anything sliced by political result | D8; GDPR Art. 9 |
+| Skip / pass / hesitation rates | QUESTION-FARM.md, "Deliberately out of scope" |
+| Per-user content selection, ad targeting profiles | MONETIZATION.md, "Ruled out by standing posture" |
+
+The second row is the one worth sitting with. The same suppression that
+stops a paying city identifying a person stops the owner doing it. That is
+the guarantee working, not a hole in the tooling — and if the tooling ever
+grows a way around it, the guarantee was never enforced in the first place.
+
+## The fifth thing: instrumentation
+
+Not a decision panel so much as a mirror. Scanned from the tree rather than
+listed by hand, so a new function or a new policy appears without anyone
+remembering to add it — that omission being the exact failure this whole
+console reduces.
+
+**1 of 14 deployed functions has an alert policy.** That is a finding, not
+necessarily a bug. The uncovered ones are mostly callables, which fail
+loudly to the caller: a user sees an error and there is a person to notice.
+`onV2AnswerCreated` is alerted precisely because it does *not* do that — it
+runs with `retry:true`, so a crash accumulates for ~7 days while the app
+looks healthy and the Mirror quietly stops moving. Coverage here is a
+judgement, not a percentage to maximise.
+
+Three of the four walls COSTS.md names have no instrument at all. That is
+recorded rather than fixed: two of them bind at sizes this product has not
+approached, and the arithmetic for when to care is already in COSTS.md.
+
+**A correction, found while surveying.** `docs/DEPLOYMENT.md` explains that
+alert policies are applied by hand because "the deploy service account has
+no monitoring role". Line 103 of the same document says that account holds
+`Editor` + `Firebase Admin`, and `Editor` includes
+`monitoring.alertPolicies.create`. The stated reason does not hold. **The
+conclusion still does**, for two better reasons: a policy is useless
+without a notification channel id, which is not in the repo and should not
+be; and a pipeline that silently rewrites alert policies is a pipeline that
+can silently delete one. Applied by hand, deliberately — but not for the
+reason written down. The console reports policies as *committed*, never as
+*deployed*, because the repo cannot know.
+
+## What was deliberately not built
+
+Four things that were tempting and are wrong:
+
+1. **A CI gate.** `npm run pulse -- --check` is a real gate — it exits
+   non-zero below 21 days of runway, and on an expired scorecard — and it
+   is deliberately not in CI. The runway shortens by one every midnight
+   whether or not anyone opened a pull request, so wiring it in would fail
+   unrelated work on a Tuesday for a reason that pull request cannot fix.
+   That is the same argument that keeps `check:figures` off the backend
+   path, pointed the other way. Where it belongs is the farm's scheduled
+   run, beside the scorecard read it already does — a job that runs daily
+   and whose job it *is* to write questions. That wiring lives outside this
+   repo, so the script prints the recommendation rather than pretending to
+   have done it.
+
+2. **A live fetch of its own.** The scorecard already fetches the public
+   aggregates and commits the result; pulse reads that artifact, exactly as
+   a scheduled farm run does. Two fetch paths against the same aggregates
+   would be two things to keep in step, and the second would drift.
+
+3. **A dependency.** No chart library, no CDN, no fonts. The page is one
+   self-contained file because a console you have to build is a console you
+   do not open. The palette is the validated eight-slot default, four slots
+   used, run through the colourblind-separation validator in both light and
+   dark before any chart code was written — two of the four sit below 3:1
+   on the light surface, which is why every stacked segment carries a
+   visible label and every chart has its table beside it.
+
+4. **Averages where the shape is the point.** Evenness is bucketed, never
+   meaned: "splits, not landslides" is a distribution, and a mean hides
+   exactly the failure it is supposed to surface. The farm doc's guardrail
+   outranks the chart anyway — if evenness and warmth conflict, warmth
+   wins. A metric this simple invites goodharting (D33), and putting it on
+   a dashboard doubles the invitation, so the warning ships next to it.
+
+## Known limits, recorded rather than fixed
+
+- **The trail starts today.** One row per day, append-only, so it becomes a
+  trend on the second run and not before. The console says so rather than
+  drawing a flat line through one point.
+- **The cost panel is a prediction end to end**, including the soft
+  behaviour assumptions (3 world answers/day, 1.4 boots, MAU = 3 × DAU).
+  They are printed under the table rather than buried, because they are
+  guesses about humans, not facts about the code.
+- **`pulse.json` changes daily** even with no commits, because the runway
+  does. It is committed for the diff, not gated for equality — there is
+  nothing here that a drift check could assert that would not fire at
+  midnight.
+- **The scorecard still has no history of its own.** Pulse's trail carries
+  the two figures worth trending across launch; the per-question series
+  that would let the farm prove a lever moved a metric does not exist, and
+  building it is a scorecard change, not a console one.
+- **The function scan is a regex** over `export const x = onCall(…)` and
+  friends. A wrapper form would be missed, which is why the count is
+  reported beside the list rather than asserted as complete.
