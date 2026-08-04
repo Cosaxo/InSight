@@ -286,6 +286,19 @@ exactly the one that looks like nothing from the outside — the app keeps
 serving, the Mirror just stops moving while Eventarc piles up redeliveries
 for ~7 days.
 
+> **One command applies all of this**, idempotently and dry-run by default:
+>
+> ```bash
+> npm run monitoring:apply -- --email you@example.com           # report
+> npm run monitoring:apply -- --email you@example.com --apply   # do it
+> ```
+>
+> It creates the channel, the log-based metric and both policies in the
+> order below, skipping whatever already exists. The manual steps stay
+> written out because the script is a convenience over them, not a
+> replacement for knowing what it did — and because the reason each object
+> exists is the useful part.
+
 `monitoring/onV2AnswerCreated-errors.json` is a Cloud Monitoring policy
 that fires on any `severity>=ERROR` from that trigger. It is **not applied
 by the pipeline** — the deploy service account has no monitoring role, and

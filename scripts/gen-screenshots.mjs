@@ -36,11 +36,35 @@
 //      there is no clean demo capture of the reveal, which is exactly
 //      why the plan says to capture against seeded production.
 
-import { mkdirSync, writeFileSync, rmSync, readdirSync } from "node:fs";
+import { mkdirSync, writeFileSync, rmSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { ROOT, loadPlaywright, ensureServer, pngSize } from "./store-render.mjs";
 
 const OUT_ROOT = join(ROOT, "design/store/screenshots");
+
+// Captions come from design/store/listing.json, which is the marketing copy
+// file check-store-listing.mjs already owns. They used to be literals in
+// SCENES below AND keys in that file, and three of the six had already
+// drifted apart — the same "two copies of one string" shape D40 Part 1
+// refuses for the duel banks. One source, and a missing key is an error
+// rather than an undefined caption written into the manifest.
+const CAPTIONS = JSON.parse(
+  readFileSync(join(ROOT, "design/store/listing.json"), "utf8"),
+).screenshotCaptions;
+
+function captionFor(n, sceneId) {
+  const key = `${n}-${sceneId}`;
+  const caption = CAPTIONS[key];
+  if (!caption) {
+    console.error(
+      `gen-screenshots: no caption for "${key}" in design/store/listing.json.\n`
+      + "    Add it under screenshotCaptions — the key is the generated\n"
+      + "    filename without .png, so it changes when a scene is renamed\n"
+      + "    or reordered.");
+    process.exit(1);
+  }
+  return caption;
+}
 
 // ── device profiles ─────────────────────────────────────────────────
 // Apple 2026 only needs the largest device in each family and scales the
@@ -63,12 +87,10 @@ const PROFILES = {
 const SCENES = [
   {
     id: "daily",
-    caption: "One blind question a day.",
     async drive() {},
   },
   {
     id: "reveal",
-    caption: "Answer first — then see how the world split.",
     async drive(p) {
       await p.getByRole("button", { name: "Absolutely" }).first().click();
       await p.waitForTimeout(1400); // the split animates in
@@ -76,7 +98,6 @@ const SCENES = [
   },
   {
     id: "mirror",
-    caption: "Every answer becomes a dot in your constellation.",
     async drive(p) {
       await p.getByRole("button", { name: /mirror/i }).first().click();
       await p.waitForTimeout(1200);
@@ -84,7 +105,6 @@ const SCENES = [
   },
   {
     id: "duel",
-    caption: "Sealed until tomorrow. Did you call it?",
     async drive(p) {
       await p.getByRole("button", { name: /1v1/ }).first().click();
       await p.waitForTimeout(900);
@@ -92,7 +112,6 @@ const SCENES = [
   },
   {
     id: "group",
-    caption: "Your people, one question, everyone revealed at once.",
     async drive(p) {
       await p.getByRole("button", { name: /Group/ }).first().click();
       await p.waitForTimeout(900);
@@ -100,7 +119,6 @@ const SCENES = [
   },
   {
     id: "profiles",
-    caption: "Four profiles that fill themselves in as you answer.",
     async drive(p) {
       await p.getByRole("button", { name: /Your four profiles/ }).first().click();
       await p.waitForTimeout(900);
@@ -122,7 +140,19 @@ if (!scenes.length) { console.error(`gen-screenshots: unknown --scene. Have: ${S
 
 const { url, stop: stopServer } = await ensureServer(urlArg);
 const { chromium } = await loadPlaywright();
-const browser = await chromium.launch();
+// PLAYWRIGHT_CHROMIUM_EXECUTABLE escapes the version pin. Playwright bakes a
+// browser BUILD NUMBER into the path it looks for, so an environment with a
+// preinstalled Chromium (CI images, sandboxes) fails with "Executable doesn't
+// exist at .../chromium_headless_shell-<n>" whenever the installed playwright
+// is not the exact version that image was built against — and the advice it
+// prints, `npx playwright install`, is the one thing such an environment
+// usually forbids. Unset in normal use, so the checklist's
+// `npx playwright install chromium` path is unchanged.
+const browser = await chromium.launch(
+  process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE
+    ? { executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE }
+    : {},
+);
 const problems = [];
 const notShippable = new Set();
 const manifest = { capturedFrom: url, mode: null, profiles: {} };
@@ -177,7 +207,7 @@ for (const [profileId, cfg] of profiles) {
       `  ${ok && !errors.length ? "✓" : "✗"} ${profileId}/${n}-${scene.id}.png  ${size ? size.join("×") : "?"}` +
       (demoOnly.length ? `  ⚠ demo-only UI: ${demoOnly.join(", ")}` : ""));
     shots.push({
-      file: `${n}-${scene.id}.png`, scene: scene.id, caption: scene.caption,
+      file: `${n}-${scene.id}.png`, scene: scene.id, caption: captionFor(n, scene.id),
       ...(demoOnly.length ? { demoOnlyAffordances: demoOnly } : {}),
     });
     if (demoOnly.length) notShippable.add(`${scene.id} (${demoOnly.join(", ")})`);

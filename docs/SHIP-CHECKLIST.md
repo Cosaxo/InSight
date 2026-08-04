@@ -183,6 +183,16 @@ Both apps must be registered under `com.cosaxo.insight`:
   account opens as an organization**, backed by an ENK and a D-U-N-S.
   Two stores, two answers.
 
+  **Superseded on timing by [D42](DECISIONS.md) (2026-08-04): Play is
+  deferred and InSight launches on iOS alone.** D41's answer is not
+  reversed, it is conditional — organization is still the right account
+  type *if Play is opened before there is an installed base*. After one,
+  the 12×14 gate may be satisfiable by asking existing users, because the
+  two routes' costs move in opposite directions: the ENK chain costs the
+  same whenever taken, while recruiting twelve installed testers is brutal
+  cold and easy with an audience. So deferring may retire D41 unused
+  rather than merely postponing it. Nothing below about Apple changes.
+
   Registering the ENK does not change the values above — an ENK is not a
   separate legal person, so the operator is still Olaf Taule. **If it is
   registered under a business name, revisit this page**: the operator line
@@ -241,6 +251,14 @@ Both apps must be registered under `com.cosaxo.insight`:
   a per-data-type declaration you attest to, not free text. Answer them
   from `docs/data-inventory.md`, which is the audited list; the draft
   below is that list translated into their categories.
+
+  > **[`STORE-FORMS.md`](STORE-FORMS.md) is the same answers as a
+  > field-by-field sheet to transcribe**, including the categories to
+  > leave *unticked* and why three of them look tickable but are not. Use
+  > it at submission time; the table below is the summary, and
+  > `data-inventory.md` stays the source both derive from. It also carries
+  > the age-rating answers and flags one inconsistency in this file's own
+  > guideline 4.8 talking point.
 
   | Their category | InSight | Linked to user? | Used for |
   | --- | --- | --- | --- |
