@@ -195,7 +195,12 @@ function mfpConfig(pop, zoom, mine) {
 }
 
 // ─── the field body — canvas, detail, lenses ───
-function MirrorFieldBody({ pop, worldZoom, zoomCtl, onPerson, levelTrait, levelMarker, firstRun, topLenses }) {
+// No `levelTrait` / `levelMarker`, though v17's signature still names them:
+// they only ever fed GroupLevelBreakdown, and that branch went in 2026-07-31
+// (see the note below). The prototype kept both the dangling branch and the
+// props; taking its parameter list would have re-declared two arguments
+// nothing can read.
+function MirrorFieldBody({ pop, worldZoom, zoomCtl, onPerson, firstRun, topLenses }) {
   const D = IS_DATA;
   const [lensOpen, setLensOpen] = useStateMFP('__ov');
   const [selId, setSelId] = useStateMFP(null);
