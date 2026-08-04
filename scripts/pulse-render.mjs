@@ -564,17 +564,46 @@ function sparkline(trail, key, title) {
       second day. A snapshot that overwrites itself cannot show a direction, and
       direction is most of what a decision needs.</div>`;
   }
-  const W = 720, H = 120, PAD = { t: 12, r: 12, b: 22, l: 42 };
+  // PAD.b carries two things under the plot: the gap rule and the date
+  // labels. 22 put the rule on top of the text — measured, not guessed.
+  const W = 720, H = 124, PAD = { t: 12, r: 12, b: 32, l: 42 };
   const vals = pts.map((r) => r[key]);
   const lo = Math.min(...vals), hi = Math.max(...vals);
   const span = hi - lo || 1;
-  const x = (i) => PAD.l + (i / (pts.length - 1)) * (W - PAD.l - PAD.r);
+
+  // X IS TIME, NOT POSITION IN THE ARRAY. The first version spaced points
+  // evenly by index, which draws a fortnight-long gap exactly like a
+  // one-day step — and this trail WILL have gaps: GitHub disables a
+  // schedule after 60 days of repository quiet, and the whole argument for
+  // keeping history is that direction is worth more than a snapshot. A
+  // chart that hides when it stopped looking is worse than no chart.
+  const dayOf = (r) => Math.round(Date.parse(`${r.on}T00:00:00Z`) / 86400000);
+  const d0 = dayOf(pts[0]);
+  const days = dayOf(pts[pts.length - 1]) - d0 || 1;
+  const x = (r) => PAD.l + ((dayOf(r) - d0) / days) * (W - PAD.l - PAD.r);
   const y = (v) => PAD.t + (1 - (v - lo) / span) * (H - PAD.t - PAD.b);
-  const d = pts.map((r, i) => `${i ? "L" : "M"}${x(i).toFixed(1)},${y(r[key]).toFixed(1)}`).join("");
+  const d = pts.map((r, i) => `${i ? "L" : "M"}${x(r).toFixed(1)},${y(r[key]).toFixed(1)}`).join("");
+
+  // A run of days with no reading gets a hairline over the stretch it
+  // covers, so the gap is marked rather than merely implied by spacing —
+  // the line still crosses it, and a straight segment across two weeks
+  // would otherwise read as two weeks of steady change that nobody saw.
+  const gaps = pts.slice(1).map((r, i) => {
+    const prev = pts[i];
+    const missed = dayOf(r) - dayOf(prev) - 1;
+    if (missed < 2) return "";
+    return `<line x1="${x(prev).toFixed(1)}" y1="${H - PAD.b + 6}"
+      x2="${x(r).toFixed(1)}" y2="${H - PAD.b + 6}"
+      stroke="var(--serious)" stroke-width="2" stroke-linecap="round"
+      data-tip="No readings|${missed} days between ${esc(prev.on)} and ${esc(r.on)}"/>`;
+  }).join("");
+  const missedTotal = pts.slice(1).reduce(
+    (a, r, i) => a + Math.max(0, dayOf(r) - dayOf(pts[i]) - 1), 0);
+
   // Markers at >=8px hit size, but drawn small: the line carries the shape,
   // the endpoints carry the numbers.
-  const dots = pts.map((r, i) =>
-    `<circle cx="${x(i).toFixed(1)}" cy="${y(r[key]).toFixed(1)}" r="4"
+  const dots = pts.map((r) =>
+    `<circle cx="${x(r).toFixed(1)}" cy="${y(r[key]).toFixed(1)}" r="4"
       fill="var(--s1)" stroke="var(--surface)" stroke-width="2"
       data-tip="${esc(r.on)}|${esc(title)}: ${r[key]}"><title>${esc(r.on)}: ${r[key]}</title></circle>`).join("");
   const last = pts[pts.length - 1], first = pts[0];
@@ -588,12 +617,16 @@ function sparkline(trail, key, title) {
       <text x="${PAD.l - 8}" y="${y(hi) + 4}" text-anchor="end" font-size="11" fill="var(--ink-muted)">${int(hi)}</text>
       <text x="${PAD.l - 8}" y="${y(lo) + 4}" text-anchor="end" font-size="11" fill="var(--ink-muted)">${int(lo)}</text>
       <path d="${d}" fill="none" stroke="var(--s1)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+      ${gaps}
       ${dots}
       <text x="${PAD.l}" y="${H - 6}" font-size="11" fill="var(--ink-muted)">${esc(first.on)}</text>
       <text x="${W - PAD.r}" y="${H - 6}" text-anchor="end" font-size="11" fill="var(--ink-muted)">${esc(last.on)}</text>
     </svg></div>
-    <p class="note tight">${pts.length} readings ·
-      ${delta === 0 ? "unchanged" : `${delta > 0 ? "+" : ""}${int(delta)} over the window`}.
+    <p class="note tight">${pts.length} readings over ${days} day${days === 1 ? "" : "s"} ·
+      ${delta === 0 ? "unchanged" : `${delta > 0 ? "+" : ""}${int(delta)} over the window`}${
+        missedTotal > 0
+          ? ` · <b style="color:var(--serious)">${missedTotal} day${missedTotal === 1 ? "" : "s"} with no reading</b>`
+          : ""}.
       From <code>monitoring/pulse-trail.jsonl</code>, one row per day, append-only.</p>`;
 }
 
@@ -768,12 +801,14 @@ export function renderPulse(p, trail = []) {
   ${panelInstrumentation(p)}
 
   <footer>
-    Regenerate with <code>npm run pulse</code>. This page is derived and not committed;
-    <code>monitoring/pulse.json</code> is the committed artifact, so a change in the burn,
-    the runway or the alert coverage shows up as a reviewable diff rather than as a
-    surprise. <code>npm run pulse -- --check</code> is the operator gate and is
-    deliberately not in CI — the conditions it catches shorten by one every midnight,
-    which is not something a pull request can fix.
+    Regenerate with <code>npm run pulse</code>. This page and
+    <code>monitoring/pulse.json</code> are both derived and neither is committed —
+    <code>monitoring/pulse-trail.jsonl</code> is, because it is the only output holding
+    something the tree does not already know: what these numbers were on days nobody is
+    looking at any more. <code>npm run pulse -- --check</code> is the operator gate. It
+    runs daily on a schedule rather than on pull requests, because the conditions it
+    catches shorten by one every midnight — which is not something a pull request
+    can fix.
   </footer>
 </div>
 <script>

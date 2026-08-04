@@ -53,6 +53,7 @@
     "build:screenshots": "node scripts/gen-screenshots.mjs",
     "build:feature-graphic": "node scripts/gen-feature-graphic.mjs",
     "test:unit": "vitest run --dir src",
+    "test:scripts": "vitest run --dir scripts",
     "test:coverage": "vitest run --dir src/v2/data --coverage"
   },
   "dependencies": {

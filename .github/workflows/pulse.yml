@@ -14,8 +14,13 @@
 # before this file was written. Keep it that way — if pulse ever grows an
 # import that needs node_modules, that is the bug, not this omission.
 #
-# WHAT IT COMMITS. monitoring/pulse.json and monitoring/pulse-trail.jsonl,
-# and only when they actually changed. The rendered HTML is gitignored and
+# WHAT IT COMMITS. monitoring/pulse-trail.jsonl, and nothing else. pulse.json
+# and the rendered HTML are both derivable from the tree plus today's date —
+# the trail is the only output holding something the repo does not already
+# know, namely what the numbers were on days nobody is looking at any more.
+# An earlier version committed pulse.json too, which meant a bot commit every
+# single day forever (runwayDays moves at midnight by construction) for a
+# file `npm run pulse` rebuilds in a second. The rendered HTML is gitignored and
 # stays that way — the job writes the headline figures into the run summary
 # instead, which covers the common case (you want the numbers, not the page)
 # without pinning a third-party upload action. That is the same trade
@@ -80,19 +85,19 @@ jobs:
       # Committed BEFORE the gate below, deliberately: a day the runway is
       # short is exactly the day the trail most needs its row, and a gate
       # that ran first would skip recording it.
-      - name: Commit if the numbers moved
+      - name: Record today's row
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          if git diff --quiet -- monitoring/pulse.json monitoring/pulse-trail.jsonl; then
-            echo "pulse: nothing moved today."
+          if git diff --quiet -- monitoring/pulse-trail.jsonl; then
+            echo "pulse: today's row is already recorded."
             exit 0
           fi
-          git add monitoring/pulse.json monitoring/pulse-trail.jsonl
-          git commit -m "pulse: $(date -u +%Y-%m-%d)"
-          # Retry around a concurrent push to the default branch. --rebase
-          # is safe here because this job only ever touches two files nobody
-          # edits by hand.
+          git add monitoring/pulse-trail.jsonl
+          git commit -m "pulse: trail row for $(date -u +%Y-%m-%d)"
+          # Retry around a concurrent push to the default branch. --rebase is
+          # safe here because this job only ever touches one append-only file
+          # that nobody edits by hand.
           for i in 1 2 3 4; do
             git push && exit 0
             echo "push failed, retry $i"

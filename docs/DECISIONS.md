@@ -4136,3 +4136,55 @@ That is the argument for the console in one paragraph: a number nobody looks
 at goes stale in the direction of whatever was true when it was written, and
 a prose correction the arithmetic beside it does not implement is the failure
 `check:figures` exists for, one layer down.
+
+**Amendment (2026-08-04, same day) — four follow-ups from a review of the
+above.** Recorded rather than folded in silently, because two of them are
+corrections to decisions this record made a few hours earlier.
+
+1. **Only the trail is committed now.** `monitoring/pulse.json` was
+   committed on the argument that a change in the burn should be a
+   reviewable diff. But `runwayDays` moves at midnight by construction, so
+   committing it meant one bot commit per day forever for a file derivable
+   from the tree plus the date — and the trail already carries burn, runway
+   and alert coverage, so the diff argument is served without the churn.
+   `pulse.json` and the rendered page are both gitignored.
+
+2. **The sparkline plots time, not array position.** The first version
+   spaced readings evenly by index, which draws a six-week gap exactly like
+   a one-day step. That is not cosmetic: GitHub disables a schedule after 60
+   days of repository quiet, so the trail WILL gap, and a chart that hides
+   when it stopped looking is worse than no chart. X is now the date, and a
+   run of missed days gets a hairline under the stretch it covers plus a
+   count in the caption.
+
+3. **Four cost constants read from source instead of being retyped.**
+   `DECK_DAYS`, `AGG_ID_CAP`, `PUBLISH_EVERY` and `HOT_TRIGGER`'s footprint
+   were hand-copied into the model with the real location in a trailing
+   comment — the same shape as the D34 defect this record already documents,
+   left in place while fixing it. They are now parsed from `deck.ts`,
+   `live.ts`, `v2.ts` and `ops.ts`, and throw loudly on a rename rather than
+   falling back to whatever was true in August. `TRIG.sec` is the exception
+   and cannot be read: 200 ms is an estimate of wall-clock per invocation,
+   and it sits beside three hard numbers, which is worth knowing before
+   tuning that object.
+
+4. **The console has tests, and `pulse.mjs` was split to allow them.**
+   Collection moved to `scripts/pulse-collect.mjs` (pure, no side effects on
+   import); `pulse.mjs` is the CLI, the trail's file I/O and `--check`.
+   `npm run test:scripts` covers the places where a wrong answer looks like
+   a right one: the archive prompt join (which already produced a convincing
+   false positive — six phantom orphans, all apostrophes), the trail's
+   same-day replacement, the runway arithmetic, that the constants above
+   still match their sources, that a gap draws as a gap, and the scorecard
+   block — which had **never executed**, since there is no scorecard yet and
+   its first run would otherwise have been launch day. On CI's lint job, not
+   backend-checks: it is tooling, and nothing it says bears on whether a
+   rules fix is safe to deploy.
+
+Three known limits were written into MONITORING.md rather than fixed, all
+pre-existing: `boot = 15` is a hand-counted inventory of `hydrate()`'s
+queries with no single declaration to read, and is now the likeliest number
+in the model to rot; the `+ 0.2` in the writes formula is unsourced; and the
+deletes line assumes a Firestore TTL policy that is a hand-run command in
+SHIP-CHECKLIST §5, not a deployed artifact — if it was never run, deletes
+are zero and storage grows without bound.

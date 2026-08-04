@@ -47,12 +47,61 @@ export function bankDocs() {
   return JSON.parse(body.slice(0, body.lastIndexOf("];") + 1)).length;
 }
 
-export const DECK_DAYS = 7;         // src/v2/data/deck.ts
-export const AGG_CAP = 120;         // live.ts hydrate() top-up cap
-export const PUBLISH_EVERY = 5;     // functions/src/v2.ts
-// HOT_TRIGGER, functions/src/ops.ts. 200 ms is an estimate — two reads and
-// two-to-three writes in one transaction — and is the softest input here.
-export const TRIG = { mem: 0.5, cpu: 1, conc: 20, sec: 0.2 };
+// READ FROM SOURCE, NOT RETYPED. These four used to be hand-copied numbers
+// with the real location in a trailing comment, which is precisely the shape
+// of the bug D42 found: the model said 148 reseed reads for two days after
+// D34 made the real answer 3, and nothing could notice because nothing was
+// comparing. A comment naming the source file is not a link to it.
+//
+// Deliberately throwing rather than defaulting: a rename in deck.ts should
+// break `npm run costs` loudly on the next run, not silently fall back to
+// whatever was true in August. The scan is narrow on purpose — it matches
+// the exact declaration, so a changed VALUE is picked up and a changed SHAPE
+// is an error. Same trade bankDocs() below already takes.
+function readNum(rel, re, what) {
+  const src = readFileSync(join(ROOT, rel), "utf8");
+  const m = src.match(re);
+  if (!m) {
+    throw new Error(
+      `cost-arith: could not read ${what} from ${rel}.\n`
+      + `    Pattern ${re} matched nothing. The constant was probably renamed or\n`
+      + "    reshaped. Fix the pattern here — do NOT paste the number back in,\n"
+      + "    which is the failure this function exists to prevent (D42).",
+    );
+  }
+  return Number(m[1]);
+}
+
+// Deck listeners attached per boot — 7 onSnapshot subscriptions, and the
+// single largest term in the boot read count.
+export const DECK_DAYS = readNum(
+  "src/v2/data/deck.ts", /export const DECK_DAYS = (\d+)/, "DECK_DAYS");
+
+// live.ts hydrate() top-up cap: how many still-under-floor aggregates a boot
+// will re-check at most.
+export const AGG_CAP = readNum(
+  "src/v2/data/live.ts", /const AGG_ID_CAP = (\d+)/, "AGG_ID_CAP");
+
+// How often the public mirror is rewritten. Drives both the mature write
+// multiplier and the listener fan-out rate.
+export const PUBLISH_EVERY = readNum(
+  "functions/src/v2.ts", /const PUBLISH_EVERY = (\d+)/, "PUBLISH_EVERY");
+
+// HOT_TRIGGER, functions/src/ops.ts — memory in GiB, cpu, concurrency read
+// from the deployed options object. `sec` is NOT read and cannot be: 200 ms
+// is an estimate of wall-clock per invocation — two reads and two-to-three
+// writes in one transaction — and is the softest input in this file. It sits
+// beside three hard numbers, which is a trap worth naming: if you tune this
+// object, only one of its four fields is a guess.
+export const TRIG = {
+  mem: readNum("functions/src/ops.ts",
+    /export const HOT_TRIGGER = \{[^}]*memory: "(\d+)MiB"/s, "HOT_TRIGGER.memory") / 1024,
+  cpu: readNum("functions/src/ops.ts",
+    /export const HOT_TRIGGER = \{[^}]*cpu: (\d+)/s, "HOT_TRIGGER.cpu"),
+  conc: readNum("functions/src/ops.ts",
+    /export const HOT_TRIGGER = \{[^}]*concurrency: (\d+)/s, "HOT_TRIGGER.concurrency"),
+  sec: 0.2,
+};
 
 // ── behaviour assumptions ───────────────────────────────────────
 // The soft numbers. Every one of these is a guess about humans, not a fact

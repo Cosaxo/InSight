@@ -28,11 +28,18 @@ to be promoted, what a city contract would have to charge to cover the
 burn, and how much of the backend has an instrument pointed at it. Those
 are decisions, and they were being made from memory.
 
-`npm run pulse` writes `monitoring/pulse.json` (committed — a change in the
-burn or the runway becomes a reviewable diff), appends one row per day to
-`monitoring/pulse-trail.jsonl`, and renders `monitoring/pulse.html`, which
-is self-contained and opens from a `file://` path with no server, no
-network and no build step.
+`npm run pulse` appends one row per day to `monitoring/pulse-trail.jsonl`
+(**the only committed output**), writes `monitoring/pulse.json`, and renders
+`monitoring/pulse.html`, which is self-contained and opens from a `file://`
+path with no server, no network and no build step.
+
+Only the trail is committed because it is the only one of the three holding
+something the tree does not already know: what these numbers were on days
+nobody is looking at any more. `pulse.json` was committed at first and should
+not have been — it is derivable from the tree plus today's date, and
+`runwayDays` moves every midnight by construction, so committing it meant a
+bot commit every day forever for a file that rebuilds in a second. The trail
+already carries the figures worth diffing.
 
 ## The four panels, and the decision each one serves
 
@@ -270,10 +277,12 @@ Four things that were tempting and are wrong:
   behaviour assumptions (3 world answers/day, 1.4 boots, MAU = 3 × DAU).
   They are printed under the table rather than buried, because they are
   guesses about humans, not facts about the code.
-- **`pulse.json` changes daily** even with no commits, because the runway
-  does. It is committed for the diff, not gated for equality — there is
-  nothing here that a drift check could assert that would not fire at
-  midnight.
+- **Nothing here is gated for equality.** `pulse.json` changes daily even
+  with no commits, because the runway does, so there is no drift check that
+  would not fire at midnight. `npm run test:scripts` gates the console's
+  *structure* instead — that its constants still match the source they claim
+  to read, that a trail gap is drawn as a gap, that the scorecard path
+  renders — which is the part a commit can actually break.
 - **The scorecard still has no history of its own.** Pulse's trail carries
   the two figures worth trending across launch; the per-question series
   that would let the farm prove a lever moved a metric does not exist, and
@@ -281,3 +290,15 @@ Four things that were tempting and are wrong:
 - **The function scan is a regex** over `export const x = onCall(…)` and
   friends. A wrapper form would be missed, which is why the count is
   reported beside the list rather than asserted as complete.
+- **`boot = 15` is still hand-counted.** It is an inventory of `hydrate()`'s
+  queries, correct against the code today, and nothing holds it there — add a
+  query to `live.ts` and the model understates from then on, silently. The
+  four constants beside it now read from source (D42); this one has no single
+  declaration to read, which is exactly why it is the likeliest to rot.
+- **`+ 0.2` in the writes formula is unexplained.** Presumably profile and
+  anchor writes. It is the only unsourced number in the cost model and it was
+  carried through the refactor verbatim rather than resolved.
+- **The deletes line assumes the Firestore TTL policy was actually applied.**
+  It is a hand-run `gcloud` command in SHIP-CHECKLIST §5, not a deployed
+  artifact. If it was never run, deletes are zero and storage grows without
+  bound — the model is wrong in the expensive direction and nothing checks.

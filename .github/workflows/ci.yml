@@ -44,6 +44,14 @@ jobs:
       # about whether a rules fix is safe to deploy, and this repo's rule is
       # that nothing which cannot answer that question gets to block one.
       - run: npm run check:figures
+      # The pulse console's collectors and renderer. Same placement rule and
+      # the same reason: this is tooling, not the product, and nothing it
+      # says bears on whether a rules fix is safe to deploy. Note this is the
+      # console's STRUCTURE — that its constants still match the source they
+      # claim to read, that a gap in the trail is drawn as a gap, that the
+      # scorecard path renders. The console's own operator gate (`pulse
+      # --check`) is a different thing and is on a schedule, not here (D42).
+      - run: npm run test:scripts
       # Accessibility, as a ratchet rather than a pass/fail sweep: the known
       # findings are recorded per file and this fails when a file gains one.
       # It is its own gate because `npm run lint` carries --max-warnings 0,
