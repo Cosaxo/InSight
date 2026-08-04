@@ -122,7 +122,19 @@ if (!scenes.length) { console.error(`gen-screenshots: unknown --scene. Have: ${S
 
 const { url, stop: stopServer } = await ensureServer(urlArg);
 const { chromium } = await loadPlaywright();
-const browser = await chromium.launch();
+// PLAYWRIGHT_CHROMIUM_EXECUTABLE escapes the version pin. Playwright bakes a
+// browser BUILD NUMBER into the path it looks for, so an environment with a
+// preinstalled Chromium (CI images, sandboxes) fails with "Executable doesn't
+// exist at .../chromium_headless_shell-<n>" whenever the installed playwright
+// is not the exact version that image was built against — and the advice it
+// prints, `npx playwright install`, is the one thing such an environment
+// usually forbids. Unset in normal use, so the checklist's
+// `npx playwright install chromium` path is unchanged.
+const browser = await chromium.launch(
+  process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE
+    ? { executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE }
+    : {},
+);
 const problems = [];
 const notShippable = new Set();
 const manifest = { capturedFrom: url, mode: null, profiles: {} };

@@ -252,6 +252,14 @@ Both apps must be registered under `com.cosaxo.insight`:
   from `docs/data-inventory.md`, which is the audited list; the draft
   below is that list translated into their categories.
 
+  > **[`STORE-FORMS.md`](STORE-FORMS.md) is the same answers as a
+  > field-by-field sheet to transcribe**, including the categories to
+  > leave *unticked* and why three of them look tickable but are not. Use
+  > it at submission time; the table below is the summary, and
+  > `data-inventory.md` stays the source both derive from. It also carries
+  > the age-rating answers and flags one inconsistency in this file's own
+  > guideline 4.8 talking point.
+
   | Their category | InSight | Linked to user? | Used for |
   | --- | --- | --- | --- |
   | Identifiers → User ID | Firebase uid (anonymous by default) | Yes | App functionality |
