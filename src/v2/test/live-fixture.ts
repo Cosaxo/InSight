@@ -148,6 +148,10 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
     learnAnswer: () => {},
     learnAgg: () => null,
     linkGoogle: async () => {},
+    // Operator-only and never rendered; present so the fixture's key set
+    // still matches the real surface (fixtureSurfaceMismatch checks both
+    // directions).
+    seedContent: async () => ({ written: 0, skipped: 0 }),
     deleteAccount: async () => {},
   };
 

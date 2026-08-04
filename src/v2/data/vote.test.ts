@@ -482,3 +482,52 @@ describe("window.LIVE public surface", () => {
     expect(Object.keys(social).sort()).toEqual([...EXPECTED_SOCIAL].sort());
   });
 });
+
+// The operator seed hook.
+//
+// The surface pin above proves `seedContent` EXISTS. It cannot prove the
+// name it calls, and the name is the whole value here: SHIP-CHECKLIST §1's
+// remaining step is an operator typing this into a console against
+// production, where a typo'd callable name is an `internal` error with
+// nothing to read. The previous documented command
+// (`firebase.functions()...`, v8 syntax on a modular-SDK app) failed that
+// way for a different reason, so the region and payload are asserted too.
+describe("LIVE.seedContent — the operator instrument", () => {
+  // Call AFTER bootLive(): boot runs the device-bind activation, which is
+  // itself an httpsCallable, so an uncleared mock puts `activateDeviceV2`
+  // at calls[0] and the name assertion below reads the wrong call. (Found
+  // by writing the assertion first and watching it fail on that name.)
+  async function captureCallable() {
+    const fns = await import("firebase/functions");
+    const invoke = vi.fn(() => Promise.resolve({ data: { written: 369, skipped: 0 } }));
+    vi.mocked(fns.getFunctions).mockClear().mockReturnValue({ __fns: true } as never);
+    vi.mocked(fns.httpsCallable).mockClear().mockReturnValue(invoke as never);
+    return { fns, invoke };
+  }
+
+  it("calls seedContentV2 in us-central1 and returns its payload", async () => {
+    const LIVE = await bootLive();
+    const { fns, invoke } = await captureCallable();
+
+    const res = await LIVE.seedContent();
+
+    expect(vi.mocked(fns.getFunctions).mock.calls[0][1]).toBe("us-central1");
+    expect(vi.mocked(fns.httpsCallable).mock.calls[0][1]).toBe("seedContentV2");
+    // Default is the cheap reseed (D34): rewrite changed documents, leave
+    // contentRev alone so returning devices don't refetch the whole bank.
+    expect(invoke).toHaveBeenCalledWith({ bumpRev: false });
+    expect(res).toEqual({ written: 369, skipped: 0 });
+  });
+
+  it("passes bumpRev only when explicitly asked", async () => {
+    const LIVE = await bootLive();
+    const { invoke } = await captureCallable();
+
+    await LIVE.seedContent(true);
+
+    // The console argument is documented as `seedContent(true)`; anything
+    // truthy-but-not-true would silently invalidate every device's cached
+    // bank, so the wire value is normalised rather than forwarded.
+    expect(invoke).toHaveBeenCalledWith({ bumpRev: true });
+  });
+});

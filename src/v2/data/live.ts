@@ -947,6 +947,32 @@ const LIVE = {
   async linkGoogle(): Promise<void> {
     return linkGoogle();
   },
+  // The operator seed, reachable from a browser console.
+  //
+  // WHY THIS EXISTS AT ALL. SHIP-CHECKLIST §1 step 3 — the one remaining
+  // step between a deployed backend and an app with questions in it — is
+  // written around a console call, and the command it gave
+  // (`firebase.functions().httpsCallable("seedContentV2")()`) is v8
+  // namespaced syntax. This app is on the modular SDK and publishes no
+  // global `firebase`, so that line threw `ReferenceError` on a project
+  // nobody could seed. The private `callable()` above did the right thing
+  // and had no way in.
+  //
+  // WHY IT IS SAFE TO SHIP IN EVERY BUNDLE. The control was never this
+  // handle: `assertOperator` refuses any uid outside SEED_ADMIN_UIDS
+  // (functions/src/ops.ts), and D3 means "signed in" is not a control at
+  // all — anonymous auth makes every install an identity. Exposing the
+  // call adds no privilege; withholding it only hid the instrument from
+  // the operator, since anyone else could always POST the endpoint
+  // directly.
+  //
+  // WHY IT IS SEED-SHAPED RATHER THAN A GENERIC callFn(name, data). A
+  // console lever that invokes any callable by name is a debugging tool
+  // that outlives its reason and gets reached for from spec-layer code;
+  // this one names its function and cannot become that.
+  async seedContent(bumpRev = false): Promise<unknown> {
+    return callable("seedContentV2", { bumpRev: bumpRev === true });
+  },
   async deleteAccount(): Promise<void> {
     torndown = true;
     const db = await getDb();
