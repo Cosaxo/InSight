@@ -188,14 +188,13 @@ withdrawn, only superseded by a higher build number.
 
 ---
 
-## Why the archive is unsigned
+## Why the archive signs, and the detour that says it must
 
-The archive step passes `CODE_SIGNING_ALLOWED=NO` and signing happens only
-at export. That looks wrong and is deliberate.
+The archive step signs. It briefly did not, and the round trip is worth
+keeping because the error that caused it was misread in a way anyone would
+misread it.
 
-Automatic signing asks for a **development** provisioning profile when it
-archives, and Apple refuses to issue one to a team with no registered
-devices:
+**Run 3**, with an App-Manager-role key:
 
 ```
 Communication with Apple failed: Your team has no devices from which to
@@ -204,23 +203,40 @@ No profiles for 'com.cosaxo.insight' were found: Xcode couldn't find any
 iOS App Development provisioning profiles.
 ```
 
-Registering a device is the obvious answer and is a trap here: getting an
-iPhone's UDID essentially requires a Mac, which is the dependency this
-whole workflow exists to remove.
+Read as *"archiving always wants a development profile"*. Since a team
+with no registered devices cannot have one — and reading an iPhone's UDID
+essentially needs a Mac, the dependency this workflow exists to remove —
+the archive was changed to skip signing and let `exportArchive` do it.
 
-A **distribution** profile has no device requirement — devices are a
-development concept — and `exportArchive` is the step that mints one. So
-the archive skips signing entirely and the export does it. The exported
-`.ipa` is the only artifact that ships, so it is the only one that has to
-be signed correctly.
+**Run 5** showed what that costs. Xcode applies `CODE_SIGN_ENTITLEMENTS`
+at **signing** time, so an unsigned archive carries no entitlements at all
+and `exportArchive` has nothing to forward:
 
-**If this turns out to be wrong**, the post-export gate is what says so:
-an export that fails to apply the entitlements yields an empty
-`aps-environment` and fails the job. The fallback is manual signing — a
-distribution certificate exported as a `.p12`, imported into a keychain on
-the runner, with `CODE_SIGN_STYLE=Manual` and an explicit
-`PROVISIONING_PROFILE_SPECIFIER`. That is more setup and one more secret,
-which is why it is the fallback rather than the first attempt.
+```
+aps-environment is 'empty', must be 'production'
+```
+
+The export succeeded. The `.ipa` existed. It simply would never have
+received a push, and nothing in the build would have said so — which is
+precisely why that gate exists, and the one time it has fired it was on
+this repo's own workflow rather than on a mistake from outside.
+
+**The better reading of run 3: the development profile was a fallback.**
+An App Manager key cannot create a distribution certificate (run 4 —
+`Cloud signing permission error`), so Xcode dropped to development and hit
+the no-devices wall *there*. The wall was a symptom of the role, not a
+property of archiving.
+
+With an **Admin** key, cloud signing mints the distribution certificate and
+`-allowProvisioningUpdates` creates the matching profile. No devices are
+involved, because devices are a development concept.
+
+**If the archive still asks for a development profile**, that reading is
+wrong and the fallback is manual signing: generate a CSR with `openssl`
+(no Mac needed), upload it at Certificates, Identifiers & Profiles, download
+the `.cer`, convert to a `.p12`, import it into a keychain on the runner and
+set `CODE_SIGN_STYLE=Manual` with an explicit
+`PROVISIONING_PROFILE_SPECIFIER`.
 
 ---
 
