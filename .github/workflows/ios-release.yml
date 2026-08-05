@@ -45,8 +45,10 @@
 #                       Same "not a secret" reasoning as APPLE_TEAM_ID.
 #
 # docs/IOS-RELEASE.md says where each comes from. The ASC key needs the
-# App Manager role: automatic signing creates the distribution certificate
-# and provisioning profile on demand, and a Developer-role key cannot.
+# ADMIN role: export uses Apple's cloud signing to create the distribution
+# certificate on demand, and only Admin may create one. App Manager can
+# manage profiles, which is why it looks sufficient and is not — it fails
+# at export with "Cloud signing permission error".
 name: iOS release
 
 on:

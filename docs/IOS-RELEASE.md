@@ -16,11 +16,25 @@ a way that only shows up as a signing failure twenty minutes into a build.
 App Store Connect → **Users and Access** → **Integrations** → **App Store
 Connect API** → **+**.
 
-- **Access role: App Manager.** Not Developer. Automatic signing creates
-  the distribution certificate and the provisioning profile on demand
-  through this key, and a Developer-role key is not allowed to, so the
-  archive fails at signing with an error that reads like a certificate
-  problem rather than a permissions one.
+- **Access role: Admin.** Not App Manager, and definitely not Developer.
+  Export uses Apple's *cloud signing* to create the distribution
+  certificate and the provisioning profile on demand, and **only an Admin
+  key may create a distribution certificate.** App Manager can manage
+  profiles, which is why it looks sufficient and is not. A key with too
+  little access fails at export like this:
+
+  ```
+  error: exportArchive Cloud signing permission error
+  error: exportArchive No signing certificate "iOS Distribution" found
+  error: exportArchive No profiles for 'com.cosaxo.insight' were found
+  ```
+
+  Note that the certificate error and the profile error appear together:
+  the profile cannot exist because the certificate it would reference
+  cannot be created. Chasing the profile line first is the wrong end.
+
+  **This file said App Manager until 2026-08-05**, and run 4 is how that
+  was found — after the archive itself had already succeeded.
 - Download the `.p8` **immediately**. Apple serves it once and never
   again; a lost key is revoked and replaced, not recovered.
 - Note the **Key ID** (10 characters) and the **Issuer ID** (a UUID shown
@@ -33,7 +47,7 @@ Settings → Secrets and variables → Actions.
 
 | Name | Kind | Value |
 | --- | --- | --- |
-| `ASC_KEY_ID` | Secret | the 10-character Key ID |
+| `ASC_KEY_ID` | Secret | the 10-character Key ID (from an **Admin**-role key — see § 1) |
 | `ASC_ISSUER_ID` | Secret | the Issuer UUID |
 | `ASC_PRIVATE_KEY` | Secret | the **contents** of the `.p8`, including the `-----BEGIN PRIVATE KEY-----` and `-----END PRIVATE KEY-----` lines |
 | `GOOGLE_SERVICE_INFO_PLIST` | Secret | `base64 -i GoogleService-Info.plist` — paste the output |
