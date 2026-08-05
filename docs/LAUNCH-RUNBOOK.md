@@ -56,9 +56,21 @@ upload on a macOS runner — see [`IOS-RELEASE.md`](IOS-RELEASE.md) for the
 four values it needs. (`ios-build.yml` does **not** substitute: it is
 deliberately simulator-only and unsigned, so the native project had
 coverage before any Apple account existed.) A Mac is still the more
-comfortable way to debug a signing failure, and the release workflow has
-never been run — treat its first dispatch, with `upload=false`, as the
-real test.
+comfortable way to debug a signing failure.
+
+**Measured 2026-08-05: it works.** Run 6 archived, exported and passed both
+gates in 6m 2s — `archive aps-environment = production`, still `production`
+in the exported `.ipa`, Firebase config in the bundle at both ends. It took
+six dispatches, and the five failures are each worth one line because they
+are the ones anyone repeating this will hit: a missing `VITE_FIREBASE_*`
+(run 1 — a signed *demo* app), a manual signing identity conflicting with
+automatic (2), automatic signing demanding a device the team does not have
+(3), an App-Manager-role API key that cannot mint a distribution
+certificate (4), and an unsigned archive that carried no entitlements for
+export to forward (5). `IOS-RELEASE.md` has each in full.
+
+**The upload half is still untried** — every run so far has been
+`upload=false`, deliberately.
 
 *[PARKED] Play's clock, for when this is picked up:* a personal account
 created after 2023-11-13 must run **12 opted-in testers × 14 continuous
@@ -171,7 +183,7 @@ arithmetic.
       registered 2026-08-04 (app id `…:web:4c3d2ec4e1bbe13ab8a760`); the
       reCAPTCHA provider registration is what remains.
 
-## Phase 2 — Wire the native builds (needs Phase 1 accounts + a Mac)
+## Phase 2 — Wire the native builds (needs Phase 1 accounts)
 
 - [ ] **2.1 [PARKED — D42] Android config.** Firebase Console → Project settings → Add app
       → Android, package `com.cosaxo.insight`. **Add the debug keystore
@@ -188,39 +200,55 @@ arithmetic.
       `DEVELOPER_ERROR` (status 10). Add the **Play App Signing** SHA-1 too
       once 2.6 gives you one, and **re-download** the file — it is a
       snapshot, not a live lookup.
-- [ ] **2.2 iOS config.** Add app → iOS → download
-      `GoogleService-Info.plist` → add to `ios/App/App/` **and to the App
-      target in Xcode** (AppDelegate skips `FirebaseApp.configure()`
-      without it). Then copy that file's `REVERSED_CLIENT_ID` over the
-      `REPLACE_WITH_REVERSED_CLIENT_ID` placeholder in `Info.plist`.
+- [x] **2.2 iOS config — done 2026-08-05.** The iOS app is registered and
+      `GoogleService-Info.plist` lives in the `GOOGLE_SERVICE_INFO_PLIST`
+      repository secret, base64. `Info.plist`'s
+      `REPLACE_WITH_REVERSED_CLIENT_ID` is filled.
       *Skipping the URL scheme is silent:* the build succeeds, the account
       sheet opens, and Google sign-in never returns — taking D3's only
       account-upgrade path with it. `SHIP-CHECKLIST §2`.
+
+      **"Add it to the App target in Xcode" is the step a runner cannot
+      do**, and it is the reason `scripts/ios-link-firebase-plist.rb`
+      exists: it adds the `PBXFileReference` at build time. The reference
+      is deliberately not committed — a reference to a file absent from
+      every checkout is a hard build error, and `ios-build.yml` asserts the
+      plist is *absent* from the simulator bundle so a committed secret
+      cannot pass unnoticed. Both release gates confirm it lands: it is in
+      the archived bundle and in the exported `.ipa` (run 6).
 - [ ] **2.3 APNs key.** Apple Developer → Keys → create an APNs key →
       upload in Firebase Console → Cloud Messaging → Apple app
       configuration. Without it no reveal push arrives on iOS.
-- [ ] **2.4 First iOS archive — CI or Xcode.**
+- [x] **2.4 First iOS archive — done 2026-08-05, run 6, no Mac.** Actions →
+      **iOS release** → Run workflow, upload unticked: archive, export,
+      both silent-failure gates, signed `.ipa` attached as an artifact.
+      6m 2s. The four values in [`IOS-RELEASE.md`](IOS-RELEASE.md) are set,
+      and it hard-gates on `check-store-copy --ios` before spending runner
+      minutes.
 
-      *Preferred, no Mac:* Actions → **iOS release** → Run workflow with
-      **upload unticked**. It archives, runs both silent-failure gates and
-      attaches a signed `.ipa`. Set the four values in
-      [`IOS-RELEASE.md`](IOS-RELEASE.md) first; it hard-gates on
-      `check-store-copy --ios` before spending runner minutes.
+      Repeat this whenever the shell or its config changes. `appBuild` must
+      go up before any run with upload ticked — App Store Connect refuses a
+      build number it has seen, *after* the transfer completes.
 
-      *With a Mac:* `npm run build && npx cap sync`, then `npm run ios`.
-      Signing & Capabilities: confirm Push Notifications appears from the
-      entitlements file and the provisioning profile regenerates with
-      `aps-environment`. Archive.
-- [ ] **2.5 Verify the archive's APNs environment before uploading:**
+      *With a Mac, if you ever want to debug a signing failure
+      interactively:* `npm run build && npx cap sync`, then `npm run ios`.
+- [x] **2.5 Verify the APNs environment before uploading — automated, and
+      it has already caught one.** The release workflow reads it at both
+      ends and fails on anything but `production`, so this is manual only
+      when you archive from a Mac:
       ```bash
       codesign -d --entitlements :- /path/to/App.app | grep -A1 aps-environment
       ```
-      It must say `production`. This failure is completely silent — the
-      device registers with the APNs sandbox, FCM sends to production,
-      nothing errors and no push ever arrives. `SHIP-CHECKLIST § hardening`.
-      **The iOS release workflow runs this check for you** and fails the
-      build on anything but `production`, so this step is manual only when
-      you archive from a Mac.
+      This failure is completely silent — the device registers with the
+      APNs sandbox, FCM sends to production, nothing errors and no push
+      ever arrives. `SHIP-CHECKLIST § hardening`.
+
+      **Run 5 is the proof it is worth automating.** The export succeeded
+      and produced a valid, signed, uploadable `.ipa` whose entitlement was
+      empty, because the archive it came from was unsigned and Xcode
+      applies entitlements at signing time. Nothing else in the build said
+      a word. The one time this gate has fired, it fired on this repo's own
+      workflow rather than on a mistake from outside.
 - [ ] **2.6 [PARKED — D42] Android signing.** Generate the upload keystore **outside the
       repo**, and **enrol in Play App Signing** so a lost upload key is
       recoverable. Before the first release commit run `git status
