@@ -229,22 +229,18 @@ jobs:
       # that ever wins over the target's automatic signing, the archive is
       # development-signed and this prints "development" — so a
       # wrongly-signed archive fails here rather than at a user's phone.
-      - name: Verify the archive is production-signed for APNs
+      # Bundle CONTENT only. Signing is deliberately not asserted here — see
+      # the post-export step, which is where the entitlement that ships can
+      # first be read.
+      - name: Verify the archive carries the Firebase config
         run: |
           APP="$RUNNER_TEMP/App.xcarchive/Products/Applications/App.app"
           [ -d "$APP" ] || { echo "::error::no App.app in the archive"; exit 1; }
-          ENV=$(codesign -d --entitlements :- "$APP" 2>/dev/null \
-                | plutil -extract aps-environment raw -o - - 2>/dev/null || true)
-          echo "aps-environment = ${ENV:-<empty>}"
-          if [ "$ENV" != "production" ]; then
-            echo "::error::aps-environment is '${ENV:-empty}', must be 'production'. A development entitlement means the device registers with the APNs sandbox while FCM sends to production — no push ever arrives, and nothing errors. See SHIP-CHECKLIST § hardening."
-            exit 1
-          fi
-          # The other silent one: a bundle with no Firebase config.
           [ -f "$APP/GoogleService-Info.plist" ] || {
             echo "::error::GoogleService-Info.plist is not in the built bundle — the plist link step did not take, and this app would run with no Firebase.";
             exit 1;
           }
+          echo "GoogleService-Info.plist present in the archived bundle"
 
       - name: Export the .ipa
         working-directory: ios/App
@@ -277,6 +273,42 @@ jobs:
             -authenticationKeyPath "$RUNNER_TEMP/keys/AuthKey_${ASC_KEY_ID}.p8" \
             -authenticationKeyID "$ASC_KEY_ID" \
             -authenticationKeyIssuerID "$ASC_ISSUER_ID"
+
+      # THE APNs GATE, and it runs here rather than on the archive because
+      # the archive is the wrong artifact to read it from.
+      #
+      # With CODE_SIGN_STYLE = Automatic, `xcodebuild archive` signs with a
+      # DEVELOPMENT profile — Apple's own error message says so when the two
+      # disagree ("App is automatically signed for development") — and
+      # `exportArchive` is what re-signs for distribution. So the entitlement
+      # embedded in the archive is not the entitlement that ships; the .ipa's
+      # is. Checking the archive would have failed every correct build.
+      #
+      # What it catches is unchanged and still silent: a development
+      # aps-environment means the device registers with the APNs sandbox
+      # while FCM sends to production. No error anywhere, and no reveal push
+      # ever arrives. SHIP-CHECKLIST § hardening.
+      - name: Verify the .ipa is production-signed for APNs
+        run: |
+          IPA=$(ls "$RUNNER_TEMP"/export/*.ipa | head -1)
+          WORK="$RUNNER_TEMP/ipa-check"
+          rm -rf "$WORK" && mkdir -p "$WORK"
+          unzip -q "$IPA" -d "$WORK"
+          APP=$(ls -d "$WORK"/Payload/*.app | head -1)
+          [ -d "$APP" ] || { echo "::error::no .app inside $IPA"; exit 1; }
+          ENV=$(codesign -d --entitlements :- "$APP" 2>/dev/null \
+                | plutil -extract aps-environment raw -o - - 2>/dev/null || true)
+          echo "aps-environment = ${ENV:-<empty>}"
+          if [ "$ENV" != "production" ]; then
+            echo "::error::aps-environment is '${ENV:-empty}', must be 'production'. The device would register with the APNs sandbox while FCM sends to production — no push ever arrives, and nothing errors. See SHIP-CHECKLIST § hardening."
+            exit 1
+          fi
+          # And the plist survived re-signing into the shipped bundle.
+          [ -f "$APP/GoogleService-Info.plist" ] || {
+            echo "::error::GoogleService-Info.plist is missing from the exported .ipa.";
+            exit 1;
+          }
+          echo "the .ipa is production-signed and carries the Firebase config"
 
       # Uploaded before the App Store Connect step so a build that signs
       # correctly but fails to upload is still in hand — the expensive part
