@@ -35,6 +35,7 @@
     "build:catalog": "node scripts/build-catalog.mjs",
     "check:content": "node scripts/check-content.mjs",
     "build:content": "node scripts/gen-v2content.mjs --write",
+    "promote": "node scripts/promote-questions.mjs",
     "scorecard": "node scripts/question-scorecard.mjs",
     "costs": "node scripts/cost-model.mjs",
     "build:emoji": "node scripts/build-emoji.mjs",
