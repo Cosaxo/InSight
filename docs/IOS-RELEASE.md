@@ -114,14 +114,31 @@ working-looking build that is broken on a device, with nothing in any log:
 1. **`aps-environment` must be `production`.** A development entitlement
    means the device registers with the APNs sandbox while FCM sends to
    production: no error anywhere, and no reveal push ever arrives. The
-   workflow reads the entitlement out of the signed archive and fails if
-   it is anything else.
+   workflow reads the entitlement out of the exported **`.ipa`** and fails
+   if it is anything else.
 
-   This also catches a trap specific to this project: `project.pbxproj`
-   sets `CODE_SIGN_IDENTITY = "iPhone Developer"` at **project** level. The
-   App target's `CODE_SIGN_STYLE = Automatic` should win, but if it ever
-   does not, the archive is development-signed — and that shows up here as
-   `aps-environment = development` rather than at a user's phone.
+   **Out of the `.ipa`, not the archive, and the difference is the whole
+   point.** Under `CODE_SIGN_STYLE = Automatic`, `xcodebuild archive` signs
+   with a **development** profile and `exportArchive` re-signs for
+   distribution. So the archive's entitlement is not the one that ships.
+   Checking the archive — which this workflow did on its first two runs —
+   fails every correct build.
+
+   The related trap, learned the same way: **do not set
+   `CODE_SIGN_IDENTITY` at all when signing automatically.** An earlier
+   commit set it to `"Apple Distribution"` at project level, reasoning that
+   an archive should be distribution-signed. Xcode refused outright:
+
+   ```
+   App has conflicting provisioning settings. App is automatically signed
+   for development, but a conflicting code signing identity Apple
+   Distribution has been manually specified.
+   ```
+
+   Automatic signing resolves the identity per action, and any explicit
+   value is a conflict rather than a hint. The project-level Release entry
+   is now absent; Debug keeps `"iPhone Developer"`, which is correct for it
+   and never reached by an archive.
 
 2. **`GoogleService-Info.plist` must be inside the bundle.** It is
    gitignored, and it is *not referenced in `project.pbxproj`* — in Xcode
