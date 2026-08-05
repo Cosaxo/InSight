@@ -255,17 +255,23 @@ with `CODE_SIGN_STYLE=Manual` and an explicit
 ## What is proven, and what is not
 
 It was written without an Apple account or a macOS runner to test against.
-Five dispatches have since moved most of it from written to demonstrated:
+Six dispatches have since moved all but one step from written to
+demonstrated. **Run 6 was green end to end** (`5a22bd2`, 6m 2s):
 
 | Step | State |
 | --- | --- |
 | Build, `check:web-firebase`, `cap sync` | proven (run 1 caught the missing `VITE_FIREBASE_*` — a signed demo app) |
 | Plist write, `plutil -lint`, Ruby link step | proven |
 | ASC key auth, Swift package resolution | proven |
-| Archive | proven under automatic signing (run 2), then blocked on the development profile (run 3). **Ad-hoc signing is untried.** |
+| Archive, ad-hoc | proven (run 6) — `Signing Identity: "Sign to Run Locally"`, then `archive aps-environment = production` |
 | Export via cloud signing | proven (run 5), with an **Admin** key |
-| `aps-environment` gate | proven — it is what refused run 5's `.ipa` |
+| `aps-environment` gate | proven at both ends — it refused run 5's `.ipa` and passed run 6's |
 | Upload to App Store Connect | **untried.** Every run so far has been `upload = false`. |
+
+The one thing worth reading twice: the archive's entitlement came out
+`production` under a throwaway ad-hoc signature, and survived being
+re-signed for distribution. That is the mechanism this whole section is
+about, and it is now measured rather than argued.
 
 Failures still worth recognising on sight:
 
