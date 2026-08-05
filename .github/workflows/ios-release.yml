@@ -201,10 +201,31 @@ jobs:
             echo "::error::APPLE_TEAM_ID variable is not set — see docs/IOS-RELEASE.md."
             exit 1
           fi
-          # -allowProvisioningUpdates lets Xcode create the distribution
-          # certificate and provisioning profile through the API key, which
-          # is what removes the Mac: there is no keychain to prepare and no
-          # .p12 to smuggle through a secret.
+          # ARCHIVE UNSIGNED, ON PURPOSE. Signing happens at export.
+          #
+          # Automatic signing asks for a DEVELOPMENT provisioning profile at
+          # archive time, and Apple will not issue one to a team with no
+          # registered devices:
+          #
+          #   Communication with Apple failed: Your team has no devices from
+          #   which to generate a provisioning profile.
+          #   No profiles for 'com.cosaxo.insight' were found: Xcode couldn't
+          #   find any iOS App Development provisioning profiles.
+          #
+          # A DISTRIBUTION profile has no such requirement — devices are a
+          # development concept — so the way past this without owning a Mac
+          # to read a UDID from is to skip signing here and let
+          # `exportArchive` mint the App Store profile and sign with it.
+          # That is the only step whose output ships, so it is the only one
+          # that has to be signed correctly.
+          #
+          # DEVELOPMENT_TEAM stays set: export needs to know the team, and
+          # the archive records it.
+          #
+          # The safety net for this being wrong is the post-export gate: if
+          # exportArchive does not apply the entitlements, aps-environment
+          # comes back empty there and the job fails rather than shipping an
+          # app whose pushes silently never arrive.
           xcodebuild archive \
             -project App.xcodeproj \
             -scheme App \
@@ -216,7 +237,9 @@ jobs:
             -authenticationKeyID "$ASC_KEY_ID" \
             -authenticationKeyIssuerID "$ASC_ISSUER_ID" \
             DEVELOPMENT_TEAM="$TEAM_ID" \
-            CODE_SIGN_STYLE=Automatic
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO
 
       # SHIP-CHECKLIST § hardening makes this a manual pre-upload check
       # because the failure is completely silent: the device registers with

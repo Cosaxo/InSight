@@ -174,6 +174,42 @@ withdrawn, only superseded by a higher build number.
 
 ---
 
+## Why the archive is unsigned
+
+The archive step passes `CODE_SIGNING_ALLOWED=NO` and signing happens only
+at export. That looks wrong and is deliberate.
+
+Automatic signing asks for a **development** provisioning profile when it
+archives, and Apple refuses to issue one to a team with no registered
+devices:
+
+```
+Communication with Apple failed: Your team has no devices from which to
+generate a provisioning profile.
+No profiles for 'com.cosaxo.insight' were found: Xcode couldn't find any
+iOS App Development provisioning profiles.
+```
+
+Registering a device is the obvious answer and is a trap here: getting an
+iPhone's UDID essentially requires a Mac, which is the dependency this
+whole workflow exists to remove.
+
+A **distribution** profile has no device requirement — devices are a
+development concept — and `exportArchive` is the step that mints one. So
+the archive skips signing entirely and the export does it. The exported
+`.ipa` is the only artifact that ships, so it is the only one that has to
+be signed correctly.
+
+**If this turns out to be wrong**, the post-export gate is what says so:
+an export that fails to apply the entitlements yields an empty
+`aps-environment` and fails the job. The fallback is manual signing — a
+distribution certificate exported as a `.p12`, imported into a keychain on
+the runner, with `CODE_SIGN_STYLE=Manual` and an explicit
+`PROVISIONING_PROFILE_SPECIFIER`. That is more setup and one more secret,
+which is why it is the fallback rather than the first attempt.
+
+---
+
 ## Known risk: this has never been run
 
 It was written without an Apple account or a macOS runner to test against,
