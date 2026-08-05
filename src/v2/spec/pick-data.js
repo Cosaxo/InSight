@@ -184,6 +184,27 @@
       129535: 2,  // 🧿 nazar amulet — below the floor
       0: 9,       // Not listed
     },
+    // daily catalog-question run, 2026-08-05 — wordcraft, the sixth pokemon
+    // canon: not the creature, the NAME. Wobbuffet and Bidoof lead a board
+    // no other canon produces — nobody calls Bidoof strong, scary or cute,
+    // but the word is a small masterpiece and people know it.
+    pk09: {
+      202: 31, // Wobbuffet — a name you can hear
+      399: 27, // Bidoof — the people's champion
+      122: 22, // Mr. Mime — unsettling AND formal
+      39: 18,  // Jigglypuff — onomatopoeia with a career
+      103: 14, // Exeggutor — the pun that got away with it
+      272: 12, // Ludicolo
+      707: 9,  // Klefki — it is a key ring and it OWNS that
+      143: 8,  // Snorlax
+      54: 7,   // Psyduck
+      129: 6,  // Magikarp
+      25: 5,   // Pikachu — clears the floor but not the top 10; folds
+      771: 5,  // Pyukumuku — same, tragically
+      587: 3,  // Emolga — below the floor
+      869: 2,  // Alcremie — below the floor
+      0: 8,    // Not listed
+    },
   };
 
   // Baked demo segment slices, per question: how each cohort orders the
@@ -280,6 +301,18 @@
       gender: {
         Women: { 129419: 12, 127769: 9, 10084: 8, 127801: 5, 10024: 5 },
         Men: { 10084: 9, 128293: 8, 128013: 7, 9889: 5, 127754: 5 },
+      },
+    },
+    pk09: {
+      ageBand: {
+        // Bidoof is a young internet's in-joke; Mr. Mime lands with the
+        // cohort that grew up unsettled by him
+        '18-24': { 399: 9, 202: 7, 707: 6, 129: 5, 272: 4 },
+        '25-34': { 202: 10, 122: 8, 399: 7, 103: 5, 39: 5 },
+      },
+      gender: {
+        Women: { 39: 8, 202: 7, 399: 6, 272: 5, 54: 4 },
+        Men: { 202: 11, 399: 8, 122: 7, 103: 6, 129: 5 },
       },
     },
   };
@@ -386,5 +419,8 @@
     // you resent (pk05) change weekly; what you'd wear for good is a
     // different question with a different, symbol-heavy board.
     { id: 'pk08', cat: 'fav', type: 'pick', domain: 'emoji', prompt: 'The emoji you’d tattoo?', n: 186 },
+    // 2026-08-05 daily run: the name, not the creature — a wordcraft
+    // canon whose board no appraisal question produces.
+    { id: 'pk09', cat: 'fav', type: 'pick', domain: 'pokemon', prompt: 'The best Pokémon name?', n: 177 },
   ];
 })();
