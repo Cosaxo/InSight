@@ -24,6 +24,19 @@
 //     failure class). What it is for: which forms split best, and
 //     whether a 3rd/4th option earns its place, before the next
 //     question is written.
+//   - LEARN (2026-08-05): a separate bar, in a separate section — a card
+//     the crowd gets right is not a landslide failure. Measured per
+//     card: CALIBRATION (the authored cold-start `p` vs the measured
+//     correct rate; `p` is also the difficulty input to "on your level",
+//     D32) and TRAP SHARE (the fraction of WRONG votes landing on `t` —
+//     a trap below uniform chance among the wrong options maps no
+//     misconception; it is decoration). Findings aim the learn lane's
+//     PR bodies; editing a shipped card stays a human PR at D32's
+//     production-level bar.
+//   - NOT the catalog surface, deliberately (2026-08-05): pick cards are
+//     not seeded and no client write path exists yet, so any qid form
+//     scored here would be an invented key — the D15 failure class.
+//     Score catalogs when the surface goes live and defines its ids.
 //   - NOT skip/pass rates: deliberately never collected (server-side
 //     telemetry would be a privacy decision, not a tweak — QUESTION-FARM
 //     out-of-scope list). NOT per-user anything: only the floored public
@@ -57,6 +70,7 @@ const INPUT = inputIdx >= 0 ? args[inputIdx + 1] : null;
 // ── the question banks under evaluation ──
 const daily = JSON.parse(readFileSync(join(root, "content", "daily-questions.json"), "utf8"));
 const feed = JSON.parse(readFileSync(join(root, "content", "feed-questions.json"), "utf8"));
+const learn = JSON.parse(readFileSync(join(root, "content", "learn-questions.json"), "utf8"));
 
 // The deck epoch, cross-read from the client the same way check-pokedex
 // reads CATALOG_MAX_ENTITY — a stale copy here would mis-derive "served".
@@ -268,6 +282,63 @@ function score(aggs) {
     }
   }
 
+  // ── the learn surface: a separate ledger, because the bar differs ──
+  // Correct-heavy is fine here; what the lane needs measured is whether
+  // the authored numbers were honest. Rows never join the daily/feed
+  // grading, leaders, or retire proposals.
+  const learnRows = [];
+  learn.cards.forEach((card) => {
+    const qid = `learn-${card.id}`; // the client's answer key (live.ts)
+    const n = card.a.length;
+    const agg = aggs[qid];
+    const isScored = agg && agg.tooSmall === false;
+    const sh = isScored ? optionShares(agg.counts || {}, n) : null;
+    const total = isScored ? Number(agg.total || 0) : 0;
+    const measuredP = sh ? sh[card.c] : null;
+    const wrongShare = sh ? 1 - sh[card.c] : null;
+    learnRows.push({
+      qid,
+      field: card.f,
+      n,
+      prompt: card.q,
+      total,
+      authoredP: round3(card.p / 100),
+      measuredP: measuredP === null ? null : round3(measuredP),
+      gap: measuredP === null ? null : round3(measuredP - card.p / 100),
+      // share of the WRONG vote landing on the trap — null until someone
+      // is wrong; a fully-correct crowd says nothing about `t`.
+      trapShare: wrongShare ? round3(sh[card.t] / wrongShare) : null,
+      wrongCount: wrongShare === null ? 0 : Math.round(total * wrongShare),
+      signal: agg ? (isScored ? "scored" : "below-floor") : "no-answers",
+    });
+  });
+  const learnFields = {};
+  for (const r of learnRows) {
+    const f = (learnFields[r.field] ||= { cards: 0, scored: 0, answers: 0, gapSum: 0 });
+    f.cards++;
+    if (r.signal === "scored") {
+      f.scored++;
+      f.answers += r.total;
+      f.gapSum += Math.abs(r.gap ?? 0);
+    }
+  }
+  for (const f of Object.values(learnFields)) {
+    f.avgAbsGap = f.scored ? +(f.gapSum / f.scored).toFixed(3) : null;
+    delete f.gapSum;
+  }
+  const learnScored = learnRows.filter((r) => r.signal === "scored");
+  // Volume gates mirror the landslide rule's reasoning: a verdict on an
+  // authored number needs volume before it is a verdict on the number
+  // rather than on a tiny early sample.
+  const miscalibrated = learnScored
+    .filter((r) => r.total >= 20 && r.gap !== null)
+    .sort((a, b) => Math.abs(b.gap) - Math.abs(a.gap))
+    .slice(0, 10)
+    .map(({ qid, prompt, total, authoredP, measuredP, gap }) => ({ qid, prompt, total, authoredP, measuredP, gap }));
+  const weakTraps = learnScored
+    .filter((r) => r.trapShare !== null && r.wrongCount >= 10 && r.trapShare < 1 / (r.n - 1))
+    .map(({ qid, prompt, total, trapShare, wrongCount }) => ({ qid, prompt, total, trapShare, wrongCount }));
+
   const scored = rows.filter((r) => r.signal === "scored");
   const byScore = scored
     .slice()
@@ -294,6 +365,20 @@ function score(aggs) {
     retireProposals: scored
       .filter((r) => r.grade === "landslide")
       .map(({ qid, prompt, total, evenness: e, optionShares: o }) => ({ qid, prompt, total, evenness: e, optionShares: o })),
+    learn: {
+      coverage: {
+        cards: learnRows.length,
+        scored: learnScored.length,
+        belowFloor: learnRows.filter((r) => r.signal === "below-floor").length,
+      },
+      fields: learnFields,
+      // Advisory for the learn lane's PR bodies — like retireProposals,
+      // never auto-applied: a `p` correction or a trap swap on a shipped
+      // card is a human PR at D32's production-level bar.
+      miscalibrated,
+      weakTraps,
+      perCard: learnRows,
+    },
     perQuestion: rows,
   };
 }
@@ -321,6 +406,17 @@ function summarize(card) {
   }
   if (card.leaders.length) console.log(`  top: ${card.leaders.slice(0, 3).map((l) => JSON.stringify(l.prompt)).join(" · ")}`);
   if (card.retireProposals.length) console.log(`  retire proposals: ${card.retireProposals.map((r) => r.qid).join(", ")}`);
+  // Optional-chained: a scorecard committed before the learn section
+  // existed still summarizes cleanly.
+  const lc = card.learn?.coverage;
+  if (lc) {
+    const worst = card.learn.miscalibrated?.[0];
+    console.log(
+      `  learn: ${lc.scored}/${lc.cards} scored` +
+        (worst ? ` · worst calibration ${JSON.stringify(worst.prompt)} (authored ${worst.authoredP}, measured ${worst.measuredP})` : "") +
+        (card.learn.weakTraps?.length ? ` · weak traps: ${card.learn.weakTraps.map((t) => t.qid).join(", ")}` : ""),
+    );
+  }
 }
 
 if (FETCH || INPUT) {
