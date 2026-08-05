@@ -81,7 +81,12 @@ function token() {
   return `${signingInput}.${b64u(sig)}`;
 }
 
-const API = "https://api.appstoreconnect.apple.com";
+// ASC_API_BASE exists so this file can be exercised against a stub. It has
+// no account to run against in review and no way to be tried safely against
+// a real one — the first live run would be against the owner's listing —
+// so the alternative to a seam here is shipping the request shapes
+// unverified. Unset in every real use.
+const API = process.env.ASC_API_BASE || "https://api.appstoreconnect.apple.com";
 
 async function call(method, path, body) {
   const res = await fetch(path.startsWith("http") ? path : `${API}${path}`, {
