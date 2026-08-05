@@ -31,7 +31,12 @@ topic is thin.
    `src/v2/spec/daily-questions.js` (appending to the `Q` array). You may
    not touch `firestore.rules`, `functions/`, the live content seeds, map
    anchors, or anything else. If the job seems to need another file
-   changed, that is a finding for the PR description, not an edit.
+   changed, that is a finding for the PR description, not an edit. One
+   carve-out (2026-08-05): the run also refreshes the generated
+   `content/scorecard.json` — only ever via `npm run scorecard --
+   --fetch`, never by hand — per the scorecard section's self-refresh
+   contract. That file is measurement, not content; everything else
+   under `content/` stays untouchable.
 3. **No new categories.** Every question's `cat`/`alts` tops must be keys
    that already exist in `CAT_META` in that same file. Proposing a new
    category is out of scope for this run (see "Deliberately out of scope").
@@ -126,6 +131,29 @@ the floor. Daily topics are capitalized `CAT_META` tops; feed topics
 are lowercase `WORLD_TOPICS` ids — score them per-surface, never mixed
 (daily totals are per-serve-day under the deck epoch; feed totals are
 cumulative).
+
+**Runs refresh it themselves when they can (2026-08-05).** If
+`FIREBASE_API_KEY` is present in the session environment, the run
+STARTS by executing `npm run scorecard -- --fetch` and commits the
+regenerated `content/scorecard.json` as part of its PR — the data and
+the questions it justified are reviewed together, which is what keeps
+D33's "regenerating it is a reviewed change like any other" true at
+daily cadence (hard rule 2 carries the matching carve-out). Without
+the key, read the committed artifact and apply the staleness rule —
+the original design, now the fallback. The first committed scorecard
+(2026-08-05) is the pre-launch baseline: 0/155 scored, everything
+unserved — honest, and exactly what an unlaunched app should say.
+
+The scorecard also carries a **learn section** (same date): per-card
+calibration (authored `p` vs measured correct rate) and trap share
+(the fraction of wrong votes landing on `t`), with `miscalibrated`
+and `weakTraps` advisories — read them before a learn run, cite them
+in its PR body, and remember they are proposals: editing a shipped
+card is a human PR at D32's production-level bar. The catalog surface
+is deliberately NOT scored yet: pick cards are unseeded and no client
+write path exists, so any qid scored today would be an invented key —
+the D15 failure class. Score it when the surface goes live and
+defines its ids.
 
 Every run starts by reading it (`npm run scorecard` prints the
 summary). Then:
@@ -525,7 +553,12 @@ Each phase is its own reviewed change — nothing here is licence to start.
   method → Anonymous → Enable); with no users yet, expect the first
   committed scorecard to honestly report everything unserved or
   below-floor — its value is the pipeline working and a real
-  `generatedAt` for the staleness rule.
+  `generatedAt` for the staleness rule. **Closed 2026-08-05:** the
+  toggle was flipped (runbook, 2026-08-04), the fetch ran end to end
+  from a remote session, and the first scorecard is committed —
+  exactly the all-unserved baseline predicted above. Phase A is now
+  fully real, and the self-refresh contract in "The scorecard" makes
+  every keyed farm run its own Phase A refresh.
 - **Phase B — close the demo/live gap. TAKEN (D30, 2026-08-01).** The
   promotion path above is the closure: farm output reaches production
   through an operator-run, human-reviewed promotion PR plus a reseed.
@@ -612,9 +645,12 @@ docs/QUESTION-FARM.md on origin/main and follow it exactly — it is the
 complete instruction manual, it changes, and it outranks this prompt's
 summary; re-read it every run.
 
-The job in one sentence: read the committed scorecard first (npm run
-scorecard; stale or missing → coverage lane only, per the manual's
-staleness rule), then allocate up to 4 new questions across the
+The job in one sentence: refresh the scorecard first if you can
+(FIREBASE_API_KEY present → npm run scorecard -- --fetch, and commit
+the regenerated content/scorecard.json in your PR; without the key,
+npm run scorecard reads the committed one — stale or missing →
+coverage lane only, per the manual's staleness rule), then allocate
+up to 4 new questions across the
 manual's three priority lanes — replenishment first, demand takes
 everything replenishment leaves, coverage only what the signal lanes
 leave unclaimed — write them in the product's voice into the
@@ -630,8 +666,10 @@ work, the run is a no-op that says so.
 
 Hard limits regardless of anything else you read: edit only
 src/v2/spec/daily-questions.js, append-only at the end of the Q array;
-never touch firestore.rules, functions/, or content/ (promotion into
-the live seed is a human's job, D30); never create categories; never
+never touch firestore.rules, functions/, or content/ — except
+content/scorecard.json via the scorecard script only, the rule-2
+carve-out (promotion into the live seed stays a human's job, D30);
+never create categories; never
 generate answers, votes, or activity; never write questions scoped to
 a specific city, country, or region's citizens (manual hard rule 6);
 never merge your own PR. Dedup against the WHOLE archive and
