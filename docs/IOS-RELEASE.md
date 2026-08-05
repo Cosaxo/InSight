@@ -16,11 +16,25 @@ a way that only shows up as a signing failure twenty minutes into a build.
 App Store Connect → **Users and Access** → **Integrations** → **App Store
 Connect API** → **+**.
 
-- **Access role: App Manager.** Not Developer. Automatic signing creates
-  the distribution certificate and the provisioning profile on demand
-  through this key, and a Developer-role key is not allowed to, so the
-  archive fails at signing with an error that reads like a certificate
-  problem rather than a permissions one.
+- **Access role: Admin.** Not App Manager, and definitely not Developer.
+  Export uses Apple's *cloud signing* to create the distribution
+  certificate and the provisioning profile on demand, and **only an Admin
+  key may create a distribution certificate.** App Manager can manage
+  profiles, which is why it looks sufficient and is not. A key with too
+  little access fails at export like this:
+
+  ```
+  error: exportArchive Cloud signing permission error
+  error: exportArchive No signing certificate "iOS Distribution" found
+  error: exportArchive No profiles for 'com.cosaxo.insight' were found
+  ```
+
+  Note that the certificate error and the profile error appear together:
+  the profile cannot exist because the certificate it would reference
+  cannot be created. Chasing the profile line first is the wrong end.
+
+  **This file said App Manager until 2026-08-05**, and run 4 is how that
+  was found — after the archive itself had already succeeded.
 - Download the `.p8` **immediately**. Apple serves it once and never
   again; a lost key is revoked and replaced, not recovered.
 - Note the **Key ID** (10 characters) and the **Issuer ID** (a UUID shown
@@ -33,7 +47,7 @@ Settings → Secrets and variables → Actions.
 
 | Name | Kind | Value |
 | --- | --- | --- |
-| `ASC_KEY_ID` | Secret | the 10-character Key ID |
+| `ASC_KEY_ID` | Secret | the 10-character Key ID (from an **Admin**-role key — see § 1) |
 | `ASC_ISSUER_ID` | Secret | the Issuer UUID |
 | `ASC_PRIVATE_KEY` | Secret | the **contents** of the `.p8`, including the `-----BEGIN PRIVATE KEY-----` and `-----END PRIVATE KEY-----` lines |
 | `GOOGLE_SERVICE_INFO_PLIST` | Secret | `base64 -i GoogleService-Info.plist` — paste the output |
@@ -174,22 +188,101 @@ withdrawn, only superseded by a higher build number.
 
 ---
 
-## Known risk: this has never been run
+## Why the archive is ad-hoc signed
 
-It was written without an Apple account or a macOS runner to test against,
-so treat the first dispatch as the real test. The **code** is known to
-compile for iOS — `ios-build.yml` builds the shell on every relevant PR —
-so what is untested here is signing, export and upload, which is where iOS
-CI usually fails.
+Both of the settings you would reach for first fail, in opposite
+directions, and the two runs that prove it are worth keeping.
 
-Most likely first-run failures, in the order they would appear:
+**`CODE_SIGN_STYLE=Automatic` (run 3)** asks Apple for a **development**
+profile, and a team with no registered devices cannot have one:
+
+```
+GatherProvisioningInputs
+error: Communication with Apple failed: Your team has no devices from which
+to generate a provisioning profile.
+error: No profiles for 'com.cosaxo.insight' were found: Xcode couldn't find
+any iOS App Development provisioning profiles.
+```
+
+Automatic signing provisions development at archive time and re-signs for
+distribution at export. Registering a device would satisfy it, but that
+needs a UDID, which needs the Mac this workflow exists to remove.
+
+This was briefly read as a *fallback* caused by the API key's role, since
+run 4 had just shown that an App Manager key cannot create a distribution
+certificate. **The log refutes it.** There is no failed distribution
+attempt anywhere in run 3 — no `No signing certificate "iOS Distribution"
+found`, which is exactly what run 4's export logs when the role is the
+problem. Xcode went straight to development. The role and the profile type
+are independent, and an Admin key does not move this.
+
+**`CODE_SIGNING_ALLOWED=NO` (run 5)** avoids the profile and loses the
+entitlements with it. Xcode applies `CODE_SIGN_ENTITLEMENTS` at **signing**
+time, so an unsigned archive carries none and `exportArchive` has nothing
+to forward:
+
+```
+aps-environment is 'empty', must be 'production'
+```
+
+The export succeeded and the `.ipa` existed. It simply would never have
+received a push, and nothing in the build would have said so — which is why
+that gate exists, and the one time it has fired it was on this repo's own
+workflow rather than on a mistake from outside.
+
+**Ad-hoc has neither problem.** `codesign -s -` embeds
+`CODE_SIGN_ENTITLEMENTS`, so `APS_ENVIRONMENT` expands to `production` from
+the App target's Release config and lands in the signature, while needing no
+certificate, no profile and no device. The signature is throwaway:
+`exportArchive` re-signs for distribution with the Admin key's cloud
+signing and keeps the entitlements it reads there.
+
+`AD_HOC_CODE_SIGNING_ALLOWED` defaults to `NO` for iOS and has to be turned
+on explicitly — that one setting is the difference between this working and
+reading like run 5 again.
+
+**If the archive fails with entitlements missing**, ad-hoc is not embedding
+them and the fallback is a real distribution identity, which the Admin key
+can mint without a Mac: generate a key and CSR with `openssl` on the
+runner, `POST /v1/certificates` and `POST /v1/profiles` (`IOS_APP_STORE`)
+against the App Store Connect API, import into a temporary keychain, archive
+with `CODE_SIGN_STYLE=Manual` and an explicit
+`PROVISIONING_PROFILE_SPECIFIER`, then `DELETE /v1/certificates/{id}` in an
+`always()` step so the account's certificate slots do not accumulate.
+
+---
+
+## What is proven, and what is not
+
+It was written without an Apple account or a macOS runner to test against.
+Six dispatches have since moved all but one step from written to
+demonstrated. **Run 6 was green end to end** (`5a22bd2`, 6m 2s):
+
+| Step | State |
+| --- | --- |
+| Build, `check:web-firebase`, `cap sync` | proven (run 1 caught the missing `VITE_FIREBASE_*` — a signed demo app) |
+| Plist write, `plutil -lint`, Ruby link step | proven |
+| ASC key auth, Swift package resolution | proven |
+| Archive, ad-hoc | proven (run 6) — `Signing Identity: "Sign to Run Locally"`, then `archive aps-environment = production` |
+| Export via cloud signing | proven (run 5), with an **Admin** key |
+| `aps-environment` gate | proven at both ends — it refused run 5's `.ipa` and passed run 6's |
+| Upload to App Store Connect | **untried.** Every run so far has been `upload = false`. |
+
+The one thing worth reading twice: the archive's entitlement came out
+`production` under a throwaway ad-hoc signature, and survived being
+re-signed for distribution. That is the mechanism this whole section is
+about, and it is now measured rather than argued.
+
+Failures still worth recognising on sight:
 
 | Symptom | Cause |
 | --- | --- |
-| Archive fails at signing | The API key is Developer-role, not App Manager |
-| `No profiles for 'com.cosaxo.insight'` | The bundle ID has no App Store Connect app record yet — create it first |
-| `aps-environment` gate fails as `development` | The project-level `CODE_SIGN_IDENTITY` won; add `CODE_SIGN_IDENTITY="Apple Distribution"` to the archive command |
+| Archive fails, entitlements missing | Ad-hoc did not embed them; see the fallback above |
+| `Cloud signing permission error` at export | The API key is App Manager, not Admin — § 1 |
+| `No profiles for 'com.cosaxo.insight'` at export | The bundle ID has no App Store Connect app record yet — create it first |
 | Export fails on `method` | An older Xcode image; change `app-store-connect` to `app-store` in the ExportOptions plist |
 | Upload rejected for build number | `appBuild` was not bumped |
 
-None of these are ambiguous once seen. Each is one line in the workflow.
+Each is one line in the workflow. What no line fixes is the archive's
+signing style, which is why the reasoning for it is written out above
+rather than compressed into this table.

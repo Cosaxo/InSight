@@ -45,8 +45,10 @@
 #                       Same "not a secret" reasoning as APPLE_TEAM_ID.
 #
 # docs/IOS-RELEASE.md says where each comes from. The ASC key needs the
-# App Manager role: automatic signing creates the distribution certificate
-# and provisioning profile on demand, and a Developer-role key cannot.
+# ADMIN role: export uses Apple's cloud signing to create the distribution
+# certificate on demand, and only Admin may create one. App Manager can
+# manage profiles, which is why it looks sufficient and is not — it fails
+# at export with "Cloud signing permission error".
 name: iOS release
 
 on:
@@ -201,22 +203,64 @@ jobs:
             echo "::error::APPLE_TEAM_ID variable is not set — see docs/IOS-RELEASE.md."
             exit 1
           fi
-          # -allowProvisioningUpdates lets Xcode create the distribution
-          # certificate and provisioning profile through the API key, which
-          # is what removes the Mac: there is no keychain to prepare and no
-          # .p12 to smuggle through a secret.
+          # THE ARCHIVE IS AD-HOC SIGNED, and the two runs that say why are
+          # worth keeping, because both of the obvious settings fail.
+          #
+          # CODE_SIGN_STYLE=Automatic (run 3) asks Apple for a DEVELOPMENT
+          # profile, and a team with no registered devices cannot have one:
+          #
+          #   GatherProvisioningInputs
+          #   error: Communication with Apple failed: Your team has no devices
+          #   from which to generate a provisioning profile.
+          #   error: Xcode couldn't find any iOS App DEVELOPMENT provisioning
+          #   profiles matching 'com.cosaxo.insight'.
+          #
+          # That was first read as a fallback caused by the API key's role —
+          # run 4 had shown an App Manager key cannot create a distribution
+          # certificate. The log refutes it: there is no failed distribution
+          # attempt anywhere in run 3, the way run 4's export plainly logs
+          # `No signing certificate "iOS Distribution" found`. Automatic
+          # signing asks for development at archive time and re-signs for
+          # distribution at export. An Admin key does not change that, and
+          # registering a device needs a UDID, which needs the Mac this
+          # workflow exists to avoid.
+          #
+          # CODE_SIGNING_ALLOWED=NO (run 5) skips the profile and loses the
+          # entitlements with it. Xcode applies CODE_SIGN_ENTITLEMENTS at
+          # SIGNING time, so an unsigned archive carries none and
+          # exportArchive has nothing to forward:
+          #
+          #   aps-environment = <empty>
+          #
+          # Ad-hoc is the setting that has neither problem. `codesign -s -`
+          # embeds CODE_SIGN_ENTITLEMENTS — so APS_ENVIRONMENT expands to
+          # `production` from the target's Release config and lands in the
+          # signature — while needing no certificate, no profile and no
+          # device. The signature itself is throwaway: exportArchive re-signs
+          # for distribution and keeps the entitlements it reads here.
+          #
+          # AD_HOC_CODE_SIGNING_ALLOWED defaults to NO for iOS, so it has to
+          # be turned on explicitly. The empty PROVISIONING_PROFILE_SPECIFIER
+          # is belt and braces: nothing should re-enter provisioning, and an
+          # empty specifier means a stale one in the project cannot.
+          #
+          # No -allowProvisioningUpdates and no API key here, deliberately.
+          # This step now needs nothing from Apple, and the flags that made
+          # it reach out are the flags that led it to the development
+          # profile.
           xcodebuild archive \
             -project App.xcodeproj \
             -scheme App \
             -configuration Release \
             -destination 'generic/platform=iOS' \
             -archivePath "$RUNNER_TEMP/App.xcarchive" \
-            -allowProvisioningUpdates \
-            -authenticationKeyPath "$RUNNER_TEMP/keys/AuthKey_${ASC_KEY_ID}.p8" \
-            -authenticationKeyID "$ASC_KEY_ID" \
-            -authenticationKeyIssuerID "$ASC_ISSUER_ID" \
             DEVELOPMENT_TEAM="$TEAM_ID" \
-            CODE_SIGN_STYLE=Automatic
+            CODE_SIGN_STYLE=Manual \
+            CODE_SIGN_IDENTITY="-" \
+            AD_HOC_CODE_SIGNING_ALLOWED=YES \
+            CODE_SIGNING_REQUIRED=YES \
+            CODE_SIGNING_ALLOWED=YES \
+            PROVISIONING_PROFILE_SPECIFIER=""
 
       # SHIP-CHECKLIST § hardening makes this a manual pre-upload check
       # because the failure is completely silent: the device registers with
@@ -226,13 +270,18 @@ jobs:
       #
       # It also catches the other trap in this project. project.pbxproj
       # carries CODE_SIGN_IDENTITY = "iPhone Developer" at PROJECT level; if
-      # that ever wins over the target's automatic signing, the archive is
+      # that ever wins over the archive's ad-hoc identity, the archive is
       # development-signed and this prints "development" — so a
       # wrongly-signed archive fails here rather than at a user's phone.
-      # Bundle CONTENT only. Signing is deliberately not asserted here — see
-      # the post-export step, which is where the entitlement that ships can
-      # first be read.
-      - name: Verify the archive carries the Firebase config
+      #
+      # The entitlement is asserted TWICE, here and after export, and the
+      # pair is the diagnosis. Ad-hoc signing is what puts aps-environment
+      # into the archive at all (run 5 shipped an unsigned archive and the
+      # export had nothing to forward), so:
+      #   fails here          → ad-hoc did not embed entitlements
+      #   passes here, fails after export → export dropped them
+      # One run distinguishes those instead of two.
+      - name: Verify the archive carries the Firebase config and the APNs entitlement
         run: |
           APP="$RUNNER_TEMP/App.xcarchive/Products/Applications/App.app"
           [ -d "$APP" ] || { echo "::error::no App.app in the archive"; exit 1; }
@@ -241,6 +290,13 @@ jobs:
             exit 1;
           }
           echo "GoogleService-Info.plist present in the archived bundle"
+          ENV=$(codesign -d --entitlements :- "$APP" 2>/dev/null \
+                | plutil -extract aps-environment raw -o - - 2>/dev/null || true)
+          echo "archive aps-environment = ${ENV:-<empty>}"
+          if [ "$ENV" != "production" ]; then
+            echo "::error::the archive's aps-environment is '${ENV:-empty}', expected 'production' from APS_ENVIRONMENT on the App target's Release config. Ad-hoc signing did not embed CODE_SIGN_ENTITLEMENTS — export cannot forward what is not here. See docs/IOS-RELEASE.md."
+            exit 1
+          fi
 
       - name: Export the .ipa
         working-directory: ios/App
@@ -274,15 +330,16 @@ jobs:
             -authenticationKeyID "$ASC_KEY_ID" \
             -authenticationKeyIssuerID "$ASC_ISSUER_ID"
 
-      # THE APNs GATE, and it runs here rather than on the archive because
-      # the archive is the wrong artifact to read it from.
+      # THE APNs GATE. The archive step checks this too, but THIS is the one
+      # that decides, because `exportArchive` re-signs and a re-signed app
+      # gets the entitlements of the profile it is re-signed against — which
+      # is a different question from what the archive happened to carry.
       #
-      # With CODE_SIGN_STYLE = Automatic, `xcodebuild archive` signs with a
-      # DEVELOPMENT profile — Apple's own error message says so when the two
-      # disagree ("App is automatically signed for development") — and
-      # `exportArchive` is what re-signs for distribution. So the entitlement
-      # embedded in the archive is not the entitlement that ships; the .ipa's
-      # is. Checking the archive would have failed every correct build.
+      # It stayed here alone for three runs on the reasoning that the archive
+      # was always development-signed under automatic signing and would fail
+      # every correct build. True while archiving was automatic; the archive
+      # is ad-hoc now and gets `production` straight from the Release config,
+      # so both ends are readable and the pair localises the failure.
       #
       # What it catches is unchanged and still silent: a development
       # aps-environment means the device registers with the APNs sandbox
