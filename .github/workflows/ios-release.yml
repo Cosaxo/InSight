@@ -28,9 +28,21 @@
 #   ASC_ISSUER_ID       the issuer UUID shown above the key list
 #   ASC_PRIVATE_KEY     the .p8 file's CONTENTS, including the BEGIN/END lines
 #   GOOGLE_SERVICE_INFO_PLIST  base64 of ios/App/App/GoogleService-Info.plist
+#   VITE_SENTRY_DSN            optional; without it the release ships with no
+#                              crash reporting (sentryInit no-ops)
 # Variables (same page → Variables):
 #   APPLE_TEAM_ID       10-char Team ID. Not a secret — it ships in every
 #                       binary and in apple-app-site-association.
+#   VITE_FIREBASE_API_KEY, VITE_FIREBASE_AUTH_DOMAIN,
+#   VITE_FIREBASE_PROJECT_ID, VITE_FIREBASE_APP_ID
+#                       the JS half of the Firebase config. REQUIRED — with
+#                       any one empty the archive is the mock-mode demo app,
+#                       signed and uploadable. `npm run check:web-firebase`
+#                       fails the job rather than letting that ship.
+#   VITE_FIREBASE_STORAGE_BUCKET, VITE_FIREBASE_MESSAGING_SENDER_ID,
+#   VITE_FIREBASE_MEASUREMENT_ID
+#                       optional; each costs a feature, not the backend.
+#                       Same "not a secret" reasoning as APPLE_TEAM_ID.
 #
 # docs/IOS-RELEASE.md says where each comes from. The ASC key needs the
 # App Manager role: automatic signing creates the distribution certificate
@@ -79,7 +91,51 @@ jobs:
           node scripts/check-store-copy.mjs --ios
           npm run check:versions
 
-      - run: npm run build
+      # The JavaScript half of the Firebase config, and the exact mirror of
+      # the plist step below.
+      #
+      # This step used to be a bare `npm run build`. No VITE_* variable was
+      # set anywhere in .github/, and `.env` is gitignored, so the bundle was
+      # built with an empty config: `firebaseEnabled` in src/lib/firebase.ts
+      # requires those four values to be non-empty strings, and initLive()
+      # returns early without them. The archive signed and uploaded below was
+      # therefore the mock-mode demo app — it builds, signs, uploads,
+      # installs, and shows the demo deck to whoever installs it. Exactly the
+      # failure the plist step calls "silent in the worst way", one layer up
+      # and unguarded, while that step lints the native plist twice.
+      #
+      # CAPACITOR_BUILD=1 is what tells vite.config.ts this is a native
+      # bundle, which is why no reCAPTCHA site key is needed: iOS attests
+      # through DeviceCheck / App Attest and never reads it. Without this the
+      # config's own guard fails the build — correctly.
+      #
+      # Firebase web keys are Variables rather than Secrets on purpose, the
+      # same reasoning as APPLE_TEAM_ID: they identify a project, they ship
+      # inside every binary, and access control lives in firestore.rules.
+      # Storing a public value as a secret only makes it harder to read in a
+      # log when a build goes wrong.
+      - name: Build the web bundle with the production config
+        env:
+          CAPACITOR_BUILD: "1"
+          VITE_V2_LIVE: "true"
+          VITE_FIREBASE_API_KEY: ${{ vars.VITE_FIREBASE_API_KEY }}
+          VITE_FIREBASE_AUTH_DOMAIN: ${{ vars.VITE_FIREBASE_AUTH_DOMAIN }}
+          VITE_FIREBASE_PROJECT_ID: ${{ vars.VITE_FIREBASE_PROJECT_ID }}
+          VITE_FIREBASE_APP_ID: ${{ vars.VITE_FIREBASE_APP_ID }}
+          VITE_FIREBASE_STORAGE_BUCKET: ${{ vars.VITE_FIREBASE_STORAGE_BUCKET }}
+          VITE_FIREBASE_MESSAGING_SENDER_ID: ${{ vars.VITE_FIREBASE_MESSAGING_SENDER_ID }}
+          VITE_FIREBASE_MEASUREMENT_ID: ${{ vars.VITE_FIREBASE_MEASUREMENT_ID }}
+          # Optional. Absent, sentryInit() no-ops and the release ships with
+          # no crash reporting — which is survivable, so it is not gated.
+          VITE_SENTRY_DSN: ${{ secrets.VITE_SENTRY_DSN }}
+          VITE_RELEASE_TAG: ${{ github.sha }}
+        run: |
+          npm run build
+          # Assert against dist/ rather than against the environment: the
+          # question is whether THIS build saw the config, and a stale dist/
+          # from a reordered step answers that differently. Runs before
+          # `cap sync` so a demo bundle is never copied into the shell.
+          npm run check:web-firebase
 
       - run: npx cap sync ios
 

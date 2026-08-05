@@ -27,7 +27,7 @@ Connect API** → **+**.
   above the key list — it is per-account, not per-key, and it is the one
   people miss).
 
-## 2 · The four repository values
+## 2 · The repository values
 
 Settings → Secrets and variables → Actions.
 
@@ -37,12 +37,33 @@ Settings → Secrets and variables → Actions.
 | `ASC_ISSUER_ID` | Secret | the Issuer UUID |
 | `ASC_PRIVATE_KEY` | Secret | the **contents** of the `.p8`, including the `-----BEGIN PRIVATE KEY-----` and `-----END PRIVATE KEY-----` lines |
 | `GOOGLE_SERVICE_INFO_PLIST` | Secret | `base64 -i GoogleService-Info.plist` — paste the output |
+| `VITE_SENTRY_DSN` | Secret | optional; without it the release ships with no crash reporting |
 | `APPLE_TEAM_ID` | **Variable** | the 10-character Team ID |
+| `VITE_FIREBASE_API_KEY` | **Variable** | from the Firebase console → Project settings → your **web** app |
+| `VITE_FIREBASE_AUTH_DOMAIN` | **Variable** | same panel, e.g. `prvfire33.firebaseapp.com` |
+| `VITE_FIREBASE_PROJECT_ID` | **Variable** | same panel, e.g. `prvfire33` |
+| `VITE_FIREBASE_APP_ID` | **Variable** | same panel, the `1:…:web:…` string |
+| `VITE_FIREBASE_STORAGE_BUCKET` | **Variable** | optional |
+| `VITE_FIREBASE_MESSAGING_SENDER_ID` | **Variable** | optional |
+| `VITE_FIREBASE_MEASUREMENT_ID` | **Variable** | optional |
 
-`APPLE_TEAM_ID` is a variable rather than a secret on purpose: it ships in
-every binary and is published in `web/.well-known/apple-app-site-association`.
-Storing a public value as a secret only makes it harder to read in logs
-when a build fails.
+`APPLE_TEAM_ID` and the `VITE_FIREBASE_*` values are variables rather than
+secrets on purpose: they ship in every binary — the Team ID is published in
+`web/.well-known/apple-app-site-association`, and the Firebase web keys
+identify a project rather than authorise anything, because access control
+lives in `firestore.rules`. Storing a public value as a secret only makes it
+harder to read in logs when a build fails.
+
+**The four required `VITE_FIREBASE_*` values are not optional in the way
+they look.** `GoogleService-Info.plist` configures the *native* half of the
+app; these configure the JavaScript half, and the app talks to Firestore
+from the JavaScript. `src/lib/firebase.ts` treats any one of them being
+empty as "run in mock mode", so a release built without them is a working
+demo app — signed, uploadable, and showing whoever installs it a deck of
+questions nobody else can see. `npm run check:web-firebase` runs
+immediately after the build, against `dist/` rather than against the
+environment, and fails the job before `cap sync` copies anything into the
+shell. It is the JS-side counterpart to the `plutil -lint` on the plist.
 
 On macOS, `base64 -i file`. On Linux, `base64 -w0 file`.
 
