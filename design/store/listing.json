@@ -1,6 +1,17 @@
 {
   "_comment": [
     "Store listing copy, in the shape the two consoles ask for. Kept as data",
+    "The App Store NAME is not the on-device name. What shows under the icon",
+    "is CFBundleDisplayName (Info.plist) / appName (capacitor.config.ts) /",
+    "app_name (strings.xml), all of which stay \"InSight\". This field is the",
+    "listing title only. It reads \"InSight: Daily Perspective\" because plain",
+    "\"InSight\" was already taken on the App Store on 2026-08-05 — a first-come",
+    "reservation by another developer, not a trademark matter.",
+    "",
+    "play.title is kept identical so the two stores do not silently diverge,",
+    "but it is NOT bound by that collision: Play has its own namespace, so",
+    "revisit it if Play is ever un-parked (D42).",
+    "",
     "rather than prose so scripts/check-store-listing.mjs can hold every",
     "field against its store's character limit — both stores reject an",
     "over-length field at the end of a long manual form, and Apple's",
@@ -22,7 +33,7 @@
     "bundleId": "com.cosaxo.insight"
   },
   "apple": {
-    "name": "InSight: One Question a Day",
+    "name": "InSight: Daily Perspective",
     "subtitle": "Answer blind, then compare",
     "promotionalText": "One question a day. You answer before you can see anyone else's answer — then the split appears, and you find out whether you're with the crowd or the rare side.",
     "keywords": "poll,opinion,personality,quiz,friends,daily,vote,debate,big five,politics,values,survey",
@@ -32,7 +43,7 @@
     "whatsNew": "First release."
   },
   "play": {
-    "title": "InSight: One Question a Day",
+    "title": "InSight: Daily Perspective",
     "shortDescription": "One blind question a day — then see exactly how everyone else answered.",
     "fullDescription": "One question a day. You answer it blind — no counts, no comments, nothing to anchor you — and only then does the split appear.\n\nSometimes you're with the crowd. Sometimes you're the rare side. Either way you found out honestly, because you committed first.\n\n<b>The daily</b>\nA single question every day, plus a feed of extras when you want more. You never see how anyone voted until your own answer is locked in. The counts you then see are real: nothing is shown until enough people have answered for the number to mean something.\n\n<b>Duels</b>\nGroups and one-on-ones with people you actually know. Everyone answers the same question, everyone's answer stays sealed until the next day, then it all opens at once with names attached. In a 1v1 you also guess what they'll pick — call it right and the streak grows.\n\n<b>The map</b>\nEvery answer becomes a dot in your constellation. Four profiles — personality, politics, values, social style — fill themselves in from questions you already answered. No questionnaires, no homework. Watch yourself take shape.\n\n<b>Built so the privacy claims are true</b>\nThis is the part most apps put in a policy and hope you don't check. Here it's in the code:\n\n• Your answers are owner-only. The database rules enforce it — it isn't a policy you have to take on faith.\n• Crowd numbers are floored. A split stays hidden until enough people have answered that no count can be traced back to one person.\n• Sealed means sealed. Duel answers are unlocked by the server on reveal day, so nobody can peek early and then play.\n• Nothing here is fake. No invented users, no seeded comments, no head start on your profiles — they start empty because you haven't filled them in yet.\n• No sign-up wall. Open it and start: no email, no phone number. Linking a Google account later is optional and keeps everything you already have.\n• Deleting your account erases your profile, your answers and your memberships.\n\nOne question. An honest answer. Then the truth about where you stand.",
     "category": "Social",
