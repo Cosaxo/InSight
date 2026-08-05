@@ -78,7 +78,7 @@ window.IS_LENSES = [
     viz: 'spine',
     dims: [
       { id: 'trust',     label: 'Strangers', poles: ['wary', 'trusting'],      demo: 64 },
-      { id: 'zerosum',   label: 'The pie',   poles: ['grows', 'is fixed'],     demo: 29 },
+      { id: 'zerosum',   label: 'Gains',     poles: ['grows', 'is fixed'],     demo: 29 },
       { id: 'justworld', label: 'Outcomes',  poles: ['luck', 'deserved'],      demo: 37 },
     ],
     seed: 0.5,
@@ -153,7 +153,7 @@ window.IS_LENSES = [
       { id: 'affiliative', label: 'Warm',      demo: 78 },
       { id: 'selfenh',     label: 'Wry',       demo: 61 },
       { id: 'aggressive',  label: 'Cutting',   demo: 34 },
-      { id: 'selfdef',     label: 'Self-cost', demo: 42 },
+      { id: 'selfdef',     label: 'At myself', demo: 42 },
     ],
     seed: 0.25,
     questions: [

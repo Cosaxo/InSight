@@ -13,22 +13,22 @@ import React from 'react';
 
 // ── topic palette ── id doubles as the question's cat. Hues share one chroma tier.
 window.WORLD_TOPICS = [
-  { id: 'sport',   label: 'Sport',          color: 'oklch(0.55 0.14 145)' },
-  { id: 'food',    label: 'Food',           color: 'oklch(0.55 0.14 40)'  },
-  { id: 'movies',  label: 'Movies & TV',    color: 'oklch(0.55 0.14 310)' },
-  { id: 'music',   label: 'Music',          color: 'oklch(0.55 0.14 355)' },
-  { id: 'tech',    label: 'Tech',           color: 'oklch(0.55 0.14 235)' },
-  { id: 'culture', label: 'Culture',        color: 'oklch(0.55 0.14 200)' },
-  { id: 'dilemma', label: 'Dilemmas',       color: 'oklch(0.55 0.14 25)'  },
-  { id: 'event',   label: 'World events',   color: 'oklch(0.55 0.14 260)' },
-  { id: 'people',  label: 'Famous people',  color: 'oklch(0.55 0.14 85)'  },
-  { id: 'bigq',    label: 'Big questions',  color: 'oklch(0.55 0.14 290)' },
-  { id: 'places',  label: 'Places',         color: 'oklch(0.55 0.14 60)'  },
+  { id: 'sport',   label: 'Sport',          color: 'oklch(0.52 0.14 145)' },
+  { id: 'food',    label: 'Food',           color: 'oklch(0.52 0.14 40)'  },
+  { id: 'movies',  label: 'Movies & TV',    color: 'oklch(0.52 0.14 310)' },
+  { id: 'music',   label: 'Music',          color: 'oklch(0.52 0.14 355)' },
+  { id: 'tech',    label: 'Tech',           color: 'oklch(0.52 0.14 235)' },
+  { id: 'culture', label: 'Culture',        color: 'oklch(0.52 0.14 200)' },
+  { id: 'dilemma', label: 'Dilemmas',       color: 'oklch(0.52 0.14 25)'  },
+  { id: 'event',   label: 'World events',   color: 'oklch(0.52 0.14 260)' },
+  { id: 'people',  label: 'Famous people',  color: 'oklch(0.52 0.14 85)'  },
+  { id: 'bigq',    label: 'Big questions',  color: 'oklch(0.52 0.14 290)' },
+  { id: 'places',  label: 'Places',         color: 'oklch(0.52 0.14 60)'  },
   // catalogue picks are a FORMAT, not a subject — so they live on a channel, the
   // same way dilemmas and rankings do. It also means they always have a home:
   // 'movies' has no scene pointing at it, so a film question filed under it can
   // never reach the feed.
-  { id: 'fav',     label: 'Favourites',     color: 'oklch(0.55 0.14 170)' },
+  { id: 'fav',     label: 'Favourites',     color: 'oklch(0.52 0.14 170)' },
 ];
 
 // ── channels ── always-on formats (not communities); they follow your scenes in the chip row
@@ -37,6 +37,10 @@ window.WORLD_CHANNELS = ['dilemma', 'event', 'people', 'bigq', 'places', 'fav'];
 // ── question pool ──
 // type: 'vote' (pick one, see the split) · 'rank' (order the items, compare
 // with the crowd) · 'duel' (two image tiles head-to-head).
+// duel options take an optional `img:` (any URL or local path) — the tile holds
+// its own aspect ratio and fades the photo up once decoded, so dropping real
+// imagery in never shifts layout. Without one, the generated tile art stands in.
+// One treatment is applied in CSS (.wf-tileimg), not per photo.
 // rank: items + crowd, where crowd[i] = the crowd's rank (1-based) of items[i].
 window.WORLD_FEED_QS = [
   // sport

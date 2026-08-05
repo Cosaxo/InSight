@@ -4,6 +4,8 @@
 // spec-index.js load order is semantic — scripts/check-spec-globals.mjs
 // guards the wiring in CI.
 import React from 'react';
+import { ReadRun, RUN_DOTS } from './read-run.jsx';
+import { RevealClock } from './reveal-clock.js';
 import { Sheet } from './primitives.jsx';
 import ReactDOM from 'react-dom';
 
@@ -12,6 +14,10 @@ import ReactDOM from 'react-dom';
 // above today's question, answering morphs into guessing in place, and when a
 // duel seals you just swipe down — the next person is waiting. The sticky rail
 // on top shows who's left (dot) and who's done (check); tap a face to jump.
+// `DuoDomains` is exported by name (D39, "convert on touch") — person-overlay
+// imports it. Everything else here still publishes through the window bag,
+// so the export is hoisted out of the IIFE rather than the IIFE unwound.
+let DuoDomainsImpl;
 (function () {
   const { useState, useEffect, useRef, useReducer } = React;
   const LINE = '1px solid color-mix(in oklch, var(--rule), transparent 25%)';
@@ -39,6 +45,37 @@ import ReactDOM from 'react-dom';
     );
   }
 
+  // Which PARTS of each other you read. One unit per domain carrying both
+  // sides on a shared left edge — the interesting fact is the asymmetry, so
+  // the mismatch has to be the shape you see, not something you compute.
+  // Dot order is NOT chronological: across a domain it carries no meaning, so
+  // filled-first clusters it into a length you can read at a glance.
+  function DuoDomains({ rows, themColor, themName }) {
+    // filled-first WHILE it is dots; a strip or a rate line is a timeline and
+    // must stay in order, or the shape it draws is a lie
+    const clust = (a) => (a.length <= RUN_DOTS ? a.slice().sort((x, y) => (y ? 1 : 0) - (x ? 1 : 0)) : a);
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 13 }}>
+        {rows.map((r) => (
+          <div key={r.id} style={{ display: 'flex', alignItems: 'flex-start', gap: 11 }}>
+            <span style={{ width: 88, flexShrink: 0, paddingTop: 1, fontFamily: 'var(--sans)', fontSize: 12.5, fontWeight: 800, color: 'var(--ink)', lineHeight: 1.25 }}>{r.label}</span>
+            <span style={{ display: 'flex', flexDirection: 'column', gap: 5, paddingTop: 2 }}>
+              <ReadRun days={clust(r.read)} size={11}></ReadRun>
+              <ReadRun days={clust(r.by)} color={themColor} size={11}></ReadRun>
+            </span>
+          </div>
+        ))}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, fontFamily: 'var(--sans)', fontSize: 11, fontWeight: 700, color: 'var(--ink-2)' }}>
+          {[['you read them', GOOD], [themName + ' reads you', themColor]].map(([t, c]) => (
+            <span key={t} style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+              <span style={{ width: 7, height: 7, borderRadius: '50%', background: c }}></span>{t}
+            </span>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
   // ── the rail: everyone at a glance — dot = waiting on you, check = done ──
   function DuoRail({ ps, cur, onPick, onAdd }) {
     return (
@@ -52,7 +89,7 @@ import ReactDOM from 'react-dom';
               aria-label={first(p) + ' — ' + (invited ? 'invited, waiting' : pending ? 'still to play' : 'done for today')}
               style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5, border: 'none', background: 'none', cursor: 'pointer', padding: '4px 7px', WebkitAppearance: 'none', flexShrink: 0 }}>
               <span style={{ position: 'relative', display: 'inline-flex', borderRadius: '50%', padding: 2, boxShadow: sel ? `0 0 0 2px ${ACC}` : pending ? `0 0 0 1.5px color-mix(in oklch, ${ACC} 45%, transparent)` : '0 0 0 1px var(--rule)', opacity: invited ? 0.5 : pending || sel ? 1 : 0.55, transition: 'box-shadow .18s, opacity .18s' }}>
-                <GDAv p={p} size={38}></GDAv>
+                <GDAv p={p} size={38} plain></GDAv>
                 {invited
                   ? <span style={{ position: 'absolute', bottom: -3, right: -3, width: 15, height: 15, borderRadius: '50%', background: 'var(--surface-3)', color: 'var(--ink-2)', fontSize: 9, fontWeight: 900, display: 'flex', alignItems: 'center', justifyContent: 'center', border: '2px solid var(--surface)' }}>{'\u2026'}</span>
                   : pending
@@ -130,7 +167,7 @@ import ReactDOM from 'react-dom';
         <span style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
           {p.streak > 0 && <span style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--ink-3)' }}>{p.streak}-day run</span>}
           {!invited && (
-            <button aria-label={'Options for ' + first(p)} aria-expanded={menu} onClick={() => setMenu((v) => !v)}
+            <button className="tap44" aria-label={'Options for ' + first(p)} aria-expanded={menu} onClick={() => setMenu((v) => !v)}
               style={{ border: 'none', background: 'none', cursor: 'pointer', color: 'var(--ink-3)', fontSize: 17, fontWeight: 800, padding: '0 3px', lineHeight: 1, WebkitAppearance: 'none' }}>{'\u22ef'}</button>
           )}
         </span>
@@ -153,7 +190,7 @@ import ReactDOM from 'react-dom';
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, borderTop: '0.5px solid color-mix(in oklch, var(--rule), transparent 30%)', paddingTop: 9 }}>
           <span style={{ flex: 1, minWidth: 0, fontSize: 12, fontWeight: 600, color: 'var(--ink-2)', textWrap: 'pretty' }}>End this 1v1? Your history stays on your map.</span>
-          <button onClick={() => D.endDuo(pid)} style={{ flexShrink: 0, border: 'none', background: MISS, color: '#fff', fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 12, padding: '6px 13px', borderRadius: 999, cursor: 'pointer', WebkitAppearance: 'none' }}>End</button>
+          <button onClick={() => D.endDuo(pid)} style={{ flexShrink: 0, border: 'none', background: 'var(--ochre-ink)', color: '#fff', fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 12, padding: '6px 13px', borderRadius: 999, cursor: 'pointer', WebkitAppearance: 'none' }}>End</button>
           <button onClick={() => setMenu(false)} style={{ flexShrink: 0, border: LINE, background: 'var(--surface-2)', color: 'var(--ink)', fontFamily: 'var(--sans)', fontWeight: 700, fontSize: 12, padding: '6px 12px', borderRadius: 999, cursor: 'pointer', WebkitAppearance: 'none' }}>Keep</button>
         </div>
       </div>
@@ -207,46 +244,45 @@ import ReactDOM from 'react-dom';
         <div style={{ ...col(12), animation: 'popIn .35s cubic-bezier(0.2,0.8,0.2,1)' }} key="d">
           {prompt(today.q.prompt)}
           <div style={{ ...col(0), border: 'none' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '11px 0', borderBottom: '0.5px solid color-mix(in oklch, var(--rule), transparent 30%)', animation: 'popIn .38s cubic-bezier(0.2,0.8,0.2,1) .05s both' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '11px 0', animation: 'popIn .38s cubic-bezier(0.2,0.8,0.2,1) .05s both' }}>
               <span style={{ flexShrink: 0, padding: '3px 9px', borderRadius: 999, fontWeight: 800, fontSize: 10.5, color: 'var(--surface)', background: 'var(--ink)' }}>you</span>
               {/* value sits next to its label — 200px of gap between them made
                   the pair impossible to read as one statement */}
               <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--ink-3)' }}>said</span>
               <span style={{ fontWeight: 800, fontSize: 17, letterSpacing: -0.2, color: 'var(--ink)' }}>{today.q.options[m.a]}</span>
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '11px 0', animation: 'popIn .38s cubic-bezier(0.2,0.8,0.2,1) .15s both' }}>
-              <GDAv p={p} size={22}></GDAv>
-              <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--ink-3)' }}>your read</span>
-              <span style={{ fontWeight: 800, fontSize: 17, letterSpacing: -0.2, color: 'var(--ink)' }}>{today.q.options[m.g]}</span>
-            </div>
           </div>
+          {/* your read is ABOUT their answer, so it rides on that row instead of
+              earning a labelled line of its own */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, borderTop: '0.5px solid color-mix(in oklch, var(--rule), transparent 30%)', padding: '11px 0 0' }}>
             <GDAv p={p} size={22}></GDAv>
             <div style={{ ...col(2), minWidth: 0, flex: 1 }}>
-              <span style={{ fontWeight: 700, fontSize: 13.5, color: 'var(--ink-2)' }}>{first(p)}{'\u2019'}s answer</span>
-              <span style={{ fontSize: 12, fontWeight: 500, color: 'var(--ink-3)', textWrap: 'pretty' }}>{theyDone ? (newest && window.RevealClock ? <window.RevealClock prefix="reveals in" suffix={' \u2014 did you call it?'}></window.RevealClock> : 'reveals tomorrow \u2014 did you call it?') : first(p) + ' is still answering\u2026'}</span>
+              <span style={{ fontWeight: 700, fontSize: 13.5, color: 'var(--ink-2)' }}>{first(p)}{'\u2019'}s answer {'\u00b7'} <span style={{ color: 'var(--ink)', fontWeight: 800 }}>you called {today.q.options[m.g]}</span></span>
+              <span style={{ fontSize: 12, fontWeight: 500, color: 'var(--ink-3)', textWrap: 'pretty' }}>{theyDone ? (newest ? <RevealClock prefix="reveals in"></RevealClock> : 'reveals tomorrow') : first(p) + ' is still answering\u2026'}</span>
             </div>
             {/* a redaction block, not a blurred word — the blur read as a
                 loading skeleton rather than something deliberately withheld */}
             <span aria-hidden="true" style={{ width: 58, height: 14, borderRadius: 4, background: 'color-mix(in oklch, var(--ink) 13%, transparent)', flexShrink: 0 }}></span>
           </div>
-          {p.read.total > 0 && (
-            <div style={{ ...col(10), borderTop: '0.5px solid color-mix(in oklch, var(--rule), transparent 30%)', paddingTop: 16 }}>
-              <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--ink-3)' }}>how well you read each other</span>
-              {/* one row each, same axis — filled dot = a right call, so the two
-                  runs are comparable at a glance instead of two half-widths */}
-              <div style={{ ...col(10) }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 11 }} aria-label="How well you read them">
-                  <span style={{ flexShrink: 0, width: 62, padding: '3px 0', fontWeight: 800, fontSize: 12.5, color: 'var(--ink)' }}>you</span>
-                  <DuoDots days={Array.from({ length: p.read.total }, (_, i) => D.duoDay(pid, p.read.total - i).readRight)} size={14}></DuoDots>
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 11 }} aria-label="How well they read you">
-                  <span style={{ flexShrink: 0, width: 62, padding: '3px 0', fontWeight: 800, fontSize: 12.5, color: 'var(--ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{first(p)}</span>
-                  <DuoDots days={Array.from({ length: p.readBy.total }, (_, i) => D.duoDay(pid, p.readBy.total - i).byRight)} color={ACC} size={14}></DuoDots>
-                </div>
+          {p.read.total > 0 && (() => {
+            // ReadRun picks its own resolution from the span: dots for a short
+            // run, a density strip for months, a rate line for years.
+            const N = p.read.total;
+                    return (
+            <div style={{ ...col(8), borderTop: '0.5px solid color-mix(in oklch, var(--rule), transparent 30%)', paddingTop: 13 }}>
+              {/* the two runs on one axis — filled dot = a right call. Each row's
+                  own name is its label, so the section header is gone. */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 11 }} aria-label="How well you read them">
+                <span style={{ flexShrink: 0, width: 62, padding: '3px 0', fontWeight: 800, fontSize: 12.5, color: 'var(--ink)' }}>you</span>
+                <ReadRun days={Array.from({ length: N }, (_, i) => D.duoDay(pid, N - i).readRight)} size={14}></ReadRun>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 11 }} aria-label="How well they read you">
+                <span style={{ flexShrink: 0, width: 62, padding: '3px 0', fontWeight: 800, fontSize: 12.5, color: 'var(--ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{first(p)}</span>
+                <ReadRun days={Array.from({ length: N }, (_, i) => D.duoDay(pid, N - i).byRight)} color={ACC} size={14}></ReadRun>
               </div>
             </div>
-          )}
+            );
+          })()}
           {nextName && <div style={{ textAlign: 'center', fontSize: 12.5, fontWeight: 600, color: 'var(--ink-3)' }}>
             {'Swipe down \u2014 ' + nextName + ' is waiting'}
           </div>}
@@ -352,7 +388,7 @@ import ReactDOM from 'react-dom';
                 {avail.length ? avail.map((p) => (
                   <button key={p.id} className="press" onClick={() => { D.startDuo(p.id); closeAdd(); }}
                     style={{ display: 'flex', alignItems: 'center', gap: 11, border: LINE, borderRadius: 14, background: 'var(--surface-2)', padding: '11px 13px', cursor: 'pointer', textAlign: 'left', WebkitAppearance: 'none' }}>
-                    <GDAv p={p} size={34}></GDAv>
+                    <GDAv p={p} size={34} plain></GDAv>
                     <span style={{ display: 'flex', flexDirection: 'column', gap: 1, flex: 1, minWidth: 0 }}>
                       <span style={{ fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 14.5, color: 'var(--ink)' }}>{p.name}</span>
                       <span style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--ink-3)' }}>{p.rel}</span>
@@ -370,6 +406,9 @@ import ReactDOM from 'react-dom';
     );
   }
 
-  Object.assign(window, { DuoBody, DuoDots });
+  Object.assign(window, { DuoBody, DuoDots, DuoDomains });
+  DuoDomainsImpl = DuoDomains;
 })();
 
+// A live binding, not a wrapper component — see person-mindmap.jsx.
+export { DuoDomainsImpl as DuoDomains };

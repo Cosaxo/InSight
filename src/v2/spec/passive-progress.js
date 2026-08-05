@@ -15,7 +15,7 @@ window.PASSIVE = (function () {
     big5:       { label: 'Big 5',    accent: 'var(--c-around)' },
     political:  { label: 'Politics', accent: 'var(--c-world)' },
     values:     { label: 'Values',   accent: 'var(--c-people)' },
-    attachment: { label: 'Social',   accent: 'oklch(0.58 0.12 320)' },
+    attachment: { label: 'Social',   accent: 'oklch(0.52 0.13 320)' },
   };
   const KEYS = Object.keys(META);
   // demo stagger: how many of each test's own questions you've already answered

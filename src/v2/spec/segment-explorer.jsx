@@ -16,8 +16,10 @@ import { TabSection } from './primitives.jsx';
 //     ramps with it so a strong majority also reads heavier at a glance.
 //   · the first finding of the leading section is a HERO bar (same grammar,
 //     scaled up) — it carries the read-once key for the everyone caliper.
-//   · numbers live INSIDE the fill, so the right edge stays a clean gutter for
-//     the "you differ" ring. No micro-label lines under rows.
+//   · numbers live in a fixed COLUMN right of the track — inside the fill they
+//     collided with the fill's own end at high shares. No micro-labels.
+//   · length measures the majority ABOVE 40%: real answers cluster at 77–88%
+//     and full-scale bars made a ranking look like four identical rows.
 //   · the picker is one control, not a wall: dimension tabs open one chip row.
 (function () {
   const { useState, useMemo } = React;
@@ -65,6 +67,10 @@ import { TabSection } from './primitives.jsx';
   const sxAnswer = { fontFamily: 'var(--sans)', fontWeight: 800, letterSpacing: '-0.012em', color: 'var(--ink)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' };
   const sxIn = { fontFamily: 'var(--sans)', fontWeight: 800, color: 'color-mix(in oklch, var(--ink) 62%, transparent)', flexShrink: 0, fontVariantNumeric: 'tabular-nums' };
   const SX_GUTTER = 15; // right column reserved for the "you differ" ring
+  // Length = majority above this floor. The exact share is stated in the value
+  // column, so length is free to carry the RANKING instead of the absolute.
+  const SX_FLOOR = 0.4;
+  const sxW = (s) => Math.max(4, Math.min(100, ((s - SX_FLOOR) / (1 - SX_FLOOR)) * 100));
 
   // One question. base = Everyone's share of THIS row's top option, drawn as a
   // caliper mark taller than the track. big = hero treatment.
@@ -72,11 +78,11 @@ import { TabSection } from './primitives.jsx';
     const c = color || 'var(--accent)';
     const pct = Math.round(shares[top] * 100);
     const differs = vote != null && vote !== top;
-    const h = big ? 36 : 23;
-    const inside = pct >= 34;
+    const h = big ? 34 : 23;
+    const w = sxW(shares[top]);
     return (
       <div>
-        <div style={{ ...sxPrompt, fontSize: big ? 14.5 : 13.5, fontWeight: big ? 650 : 600, color: big ? 'var(--ink)' : 'var(--ink-2)' }}>{q.prompt}</div>
+        <div style={{ ...sxPrompt, fontSize: big ? 14 : 12.5, fontWeight: big ? 600 : 550 }}>{q.prompt}</div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginTop: big ? 9 : 6 }}>
           <div style={{ position: 'relative', flex: 1, minWidth: 0 }}>
             <div style={{ position: 'relative', height: h, borderRadius: 999, background: 'var(--surface-3)', overflow: 'hidden' }}>
@@ -89,18 +95,18 @@ import { TabSection } from './primitives.jsx';
                       <div style={{ position: 'absolute', top: 0, bottom: 0, left: '50%', width: 1.5, marginLeft: -0.75, background: 'color-mix(in oklch, var(--ink) 26%, transparent)' }}></div>
                     </>);
                   })()
-                : <div style={{ position: 'absolute', top: 0, bottom: 0, left: 0, width: pct + '%', borderRadius: 999, background: sxFill(c, shares[top]), transition: 'width 320ms var(--ease-out, ease)' }}></div>}
-              <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, padding: big ? '0 14px' : '0 11px' }}>
-                <span style={{ ...sxAnswer, fontSize: big ? 15.5 : 12.5, maxWidth: divided ? '48%' : '100%' }}>{q.options[divided ? 0 : top].label}</span>
-                {divided && <span style={{ ...sxAnswer, fontSize: big ? 15.5 : 12.5, maxWidth: '48%', opacity: 0.72 }}>{q.options[1].label}</span>}
-                {!divided && inside && <span style={{ ...sxIn, fontSize: big ? 20 : 12.5 }}>{pct}<span style={{ fontSize: big ? 12 : 9.5 }}>%</span></span>}
+                : <div style={{ position: 'absolute', top: 0, bottom: 0, left: 0, width: w + '%', borderRadius: 999, background: sxFill(c, shares[top]), transition: 'width 320ms var(--ease-out, ease)' }}></div>}
+              <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: divided ? 'space-between' : 'flex-start', gap: 8, padding: big ? '0 14px' : '0 11px' }}>
+                <span style={{ ...sxAnswer, fontSize: big ? 17 : 13.5, maxWidth: divided ? '48%' : '100%' }}>{q.options[divided ? 0 : top].label}</span>
+                {divided && <span style={{ ...sxAnswer, fontSize: big ? 17 : 13.5, maxWidth: '48%', color: 'var(--ink-2)' }}>{q.options[1].label}</span>}
               </div>
             </div>
             {!divided && base != null && Math.abs(base - shares[top]) > 0.015 && (
-              <span title="everyone" style={{ position: 'absolute', left: 'calc(' + (base * 100) + '% - 1px)', top: -3.5, bottom: -3.5, width: 2, borderRadius: 2, background: 'color-mix(in oklch, var(--ink) 50%, transparent)' }}></span>
+              <span title="everyone" style={{ position: 'absolute', left: 'calc(' + sxW(base) + '% - 1px)', top: -3.5, bottom: -3.5, width: 2, borderRadius: 2, background: 'color-mix(in oklch, var(--ink) 50%, transparent)' }}></span>
             )}
           </div>
-          {!divided && !inside && <span style={{ ...sxIn, fontSize: 12.5, color: 'var(--ink-3)', width: 28, textAlign: 'right' }}>{pct}<span style={{ fontSize: 9.5 }}>%</span></span>}
+          {/* value column — same x on every row, so no fill can crowd a number */}
+          <span style={{ ...sxIn, fontSize: big ? 19 : 12.5, width: big ? 40 : 30, textAlign: 'right', color: big ? 'var(--ink)' : undefined, visibility: divided ? 'hidden' : 'visible' }}>{pct}<span style={{ fontSize: big ? 11 : 9.5 }}>%</span></span>
           {/* right gutter: a ring only when your answer isn't this slice's */}
           <span style={{ width: SX_GUTTER, flexShrink: 0, display: 'flex', justifyContent: 'flex-end' }}>
             {differs && !divided && <span title={'you said ' + q.options[vote].label} style={{ width: 9, height: 9, borderRadius: 999, boxShadow: 'inset 0 0 0 1.6px color-mix(in oklch, var(--ink) 40%, transparent)' }}></span>}
@@ -128,19 +134,21 @@ import { TabSection } from './primitives.jsx';
     const row = (shares, top, color) => {
       const pct = Math.round(shares[top] * 100);
       return (
-        <div style={{ position: 'relative', height: 21, borderRadius: 999, background: 'var(--surface-3)', overflow: 'hidden' }}>
-          <div style={{ position: 'absolute', top: 0, bottom: 0, left: 0, width: pct + '%', borderRadius: 999, background: sxFill(color, shares[top]) }}></div>
-          <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, padding: '0 11px' }}>
-            <span style={{ ...sxAnswer, fontSize: 12.5 }}>{q.options[top].label}</span>
-            <span style={{ ...sxIn, fontSize: 12 }}>{pct}<span style={{ fontSize: 9.5 }}>%</span></span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+          <div style={{ position: 'relative', flex: 1, minWidth: 0, height: 21, borderRadius: 999, background: 'var(--surface-3)', overflow: 'hidden' }}>
+            <div style={{ position: 'absolute', top: 0, bottom: 0, left: 0, width: sxW(shares[top]) + '%', borderRadius: 999, background: sxFill(color, shares[top]) }}></div>
+            <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', padding: '0 11px' }}>
+              <span style={{ ...sxAnswer, fontSize: 13 }}>{q.options[top].label}</span>
+            </div>
           </div>
+          <span style={{ ...sxIn, fontSize: 12, width: 30, textAlign: 'right' }}>{pct}<span style={{ fontSize: 9.5 }}>%</span></span>
         </div>
       );
     };
     return (
       <div>
         <div style={sxPrompt}>{q.prompt}</div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginTop: 7, paddingRight: SX_GUTTER + 7 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginTop: 7, paddingRight: SX_GUTTER }}>
           {row(a.shares, a.top, 'var(--accent)')}
           {row(b.shares, b.top, SX_B)}
         </div>
@@ -161,7 +169,9 @@ import { TabSection } from './primitives.jsx';
     );
   }
 
-  const SX_FADE = { maskImage: 'linear-gradient(90deg, #000 calc(100% - 26px), transparent)', WebkitMaskImage: 'linear-gradient(90deg, #000 calc(100% - 26px), transparent)' };
+  // Rails fade only on a side that still has content — edge-fade.js sets
+  // data-ef on .h-scroll and styles.css owns the mask. A static mask here
+  // faded rows that already fit, which read as a clipped label.
 
   // The picker: dimension tabs open ONE chip row, instead of stacking four.
   function SXChips({ sel, setSel, accent }) {
@@ -186,7 +196,7 @@ import { TabSection } from './primitives.jsx';
             );
           })}
         </div>
-        <div className="h-scroll" style={{ display: 'flex', gap: 6, overflowX: 'auto', marginTop: 10, ...SX_FADE }}>
+        <div className="h-scroll" style={{ display: 'flex', gap: 6, overflowX: 'auto', marginTop: 10 }}>
           {gs.map((g, gi) => {
             const on = sel[dim] === gi;
             return (
@@ -206,13 +216,6 @@ import { TabSection } from './primitives.jsx';
     );
   }
 
-  const SX_PRESETS = [
-    ['Gen Z Europe', { age: 0, where: 1 }],
-    ['45+ Right', { age: 3, politics: 2 }],
-    ['Women · Asia', { gender: 0, where: 2 }],
-    ['Left · Americas', { politics: 0, where: 0 }],
-  ];
-
   function SegmentExplorer() {
     const [sel, setSel] = useState({});
     const [selB, setSelB] = useState(null); // null = single-slice mode
@@ -228,7 +231,6 @@ import { TabSection } from './primitives.jsx';
     const rowsB = useMemo(() => duo ? sxRows(selB) : null, [duo && JSON.stringify(selB)]);
     const nameA = sxName(sel, 'Everyone'), nameB = duo ? sxName(selB, 'Everyone') : null;
     const hasSel = sxCount(sel) > 0;
-    const pick = (s) => { setSel(s); setEditing('a'); setOpen(false); };
     const seg = (on, accent) => ({
       border: 'none', WebkitAppearance: 'none', cursor: 'pointer', padding: '5px 12px', borderRadius: 999,
       fontFamily: 'var(--sans)', fontSize: 12.5, fontWeight: on ? 800 : 600,
@@ -239,10 +241,11 @@ import { TabSection } from './primitives.jsx';
     });
     const kicker = { fontFamily: 'var(--sans)', fontSize: 11, fontWeight: 800, color: 'var(--ink-2)', letterSpacing: '0.075em', textTransform: 'uppercase' };
     const group = { display: 'flex', flexDirection: 'column', gap: 15 };
-    const sect = (label, first) => (
+    const sect = (label, first, right) => (
       <div style={{ display: 'flex', alignItems: 'center', gap: 9, marginTop: first ? 20 : 26, marginBottom: 3 }}>
         <span style={kicker}>{label}</span>
         <span style={{ flex: 1, height: '0.5px', background: 'color-mix(in oklch, var(--rule), transparent 25%)' }}></span>
+        {right}
       </div>
     );
     let body, keyRing = false;
@@ -254,14 +257,26 @@ import { TabSection } from './primitives.jsx';
       const agree = rows.filter((r) => !unlikeIds.has(r.q.id)).sort((a, b) => b.topShare - a.topShare).slice(0, hasSel ? 3 : 4);
       const split = rows.filter((r) => !unlikeIds.has(r.q.id)).sort((a, b) => a.topShare - b.topShare).slice(0, 3);
       keyRing = [...unlike, ...agree].some((r) => votes[r.q.id] != null && votes[r.q.id] !== r.top);
+      // read-once key, parked on the first section header that actually has rings
+      let keyLeft = keyRing;
+      const ringKey = () => {
+        if (!keyLeft) return null;
+        keyLeft = false;
+        return (
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+            <span style={{ width: 9, height: 9, borderRadius: 999, boxShadow: 'inset 0 0 0 1.6px color-mix(in oklch, var(--ink) 40%, transparent)' }}></span>
+            <span style={{ fontFamily: 'var(--sans)', fontSize: 11, fontWeight: 650, color: 'var(--ink-3)' }}>you differ</span>
+          </span>
+        );
+      };
       const bar = (r, i, showBase) => (
         <SXBar key={r.q.id} q={r.q} shares={r.shares} top={r.top} big={i === 0} baseKey={i === 0}
           base={showBase ? baseByQ[r.q.id] && baseByQ[r.q.id].shares[r.top] : null} vote={votes[r.q.id]}></SXBar>
       );
       body = (<>
-        {hasSel && sect('Most unlike everyone', true)}
+        {hasSel && sect('Most unlike everyone', true, ringKey())}
         {hasSel && <div style={group}>{unlike.map((r, i) => bar(r, i, true))}</div>}
-        {sect('Agree most on', !hasSel)}
+        {sect('Agree most on', !hasSel, ringKey())}
         <div style={group}>{agree.map((r, i) => bar(r, hasSel ? i + 1 : i, hasSel))}</div>
         {sect('Most divided')}
         <div style={group}>
@@ -322,23 +337,8 @@ import { TabSection } from './primitives.jsx';
           </div>
           {open && <div style={{ marginTop: 9 }}>
             <SXChips key={duo ? editing : 'a'} sel={editSel} setSel={(!duo || editing === 'a') ? setSel : setSelB} accent={editAccent}></SXChips>
-            {!duo && !hasSel && <div className="h-scroll" style={{ display: 'flex', gap: 6, overflowX: 'auto', marginTop: 11, paddingTop: 11, borderTop: '0.5px solid color-mix(in oklch, var(--rule), transparent 30%)', ...SX_FADE }}>
-              {SX_PRESETS.map(([label, s]) => (
-                <button key={label} onClick={() => pick(s)} style={{
-                  border: '0.5px solid var(--rule)', WebkitAppearance: 'none', cursor: 'pointer', background: 'var(--surface-2)',
-                  fontFamily: 'var(--sans)', fontSize: 12, fontWeight: 700, color: 'var(--ink-2)', padding: '5px 12px', borderRadius: 999, whiteSpace: 'nowrap',
-                }}>{label}</button>
-              ))}
-            </div>}
           </div>}
         </div>
-        {/* read-once key for the gutter ring — replaces a "you said …" line per row */}
-        {keyRing && (
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 6, marginTop: 12, paddingRight: 3 }}>
-            <span style={{ width: 9, height: 9, borderRadius: 999, boxShadow: 'inset 0 0 0 1.6px color-mix(in oklch, var(--ink) 40%, transparent)' }}></span>
-            <span style={{ fontFamily: 'var(--sans)', fontSize: 11.5, fontWeight: 650, color: 'var(--ink-3)' }}>you answered otherwise</span>
-          </div>
-        )}
         {body}
       </div>
     );

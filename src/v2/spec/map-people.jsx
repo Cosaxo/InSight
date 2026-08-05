@@ -4,6 +4,7 @@
 // spec-index.js load order is semantic — scripts/check-spec-globals.mjs
 // guards the wiring in CI.
 import React from 'react';
+import { ReadRun } from './read-run.jsx';
 import { Kicker } from './primitives.jsx';
 
 // map-people.jsx — how you and your circle read each other in the daily
@@ -14,18 +15,9 @@ import { Kicker } from './primitives.jsx';
 
   const first = (name) => String(name).split(' ')[0];
 
-  function MPDots({ days, color }) {
-    return (
-      <span style={{ display: 'flex', gap: 3.5, alignItems: 'center' }}>
-        {days.map((ok, i) => (
-          <span key={i} style={{
-            width: 8, height: 8, borderRadius: '50%', boxSizing: 'border-box',
-            background: ok ? (color || 'var(--c-likeness)') : 'transparent',
-            border: ok ? 'none' : `1.5px solid color-mix(in oklch, ${color || 'var(--c-likeness)'} 55%, transparent)`,
-          }}></span>
-        ))}
-      </span>
-    );
+  // same rule as everywhere else: the span picks the encoding
+  function MPRun({ days, color }) {
+    return <ReadRun days={days} color={color || 'var(--c-likeness)'} size={9}></ReadRun>;
   }
   const dotsFor = (pid, total, key) => {
     const D = window.DUELS;
@@ -51,7 +43,7 @@ import { Kicker } from './primitives.jsx';
             <button key={p.id} className="mpc-row" onClick={() => onPick('pp-' + p.id)}>
               <span className="mpc-av" style={{ '--phue': p.hue }}>{p.init}</span>
               <span className="mpc-name">{first(p.name)}</span>
-              <MPDots days={dotsFor(p.id, p.read.total, 'readRight')}></MPDots>
+              <MPRun days={dotsFor(p.id, p.read.total, 'readRight')}></MPRun>
             </button>
           ))}
         </div>
@@ -87,11 +79,11 @@ import { Kicker } from './primitives.jsx';
         <div className="mpc-pair">
           <div className="mpc-side">
             <span className="mpc-lab">you read them</span>
-            <MPDots days={dotsFor(p.id, p.read.total, 'readRight')}></MPDots>
+            <MPRun days={dotsFor(p.id, p.read.total, 'readRight')}></MPRun>
           </div>
           <div className="mpc-side">
             <span className="mpc-lab">they read you</span>
-            <MPDots days={dotsFor(p.id, p.readBy.total, 'byRight')} color="var(--c-people)"></MPDots>
+            <MPRun days={dotsFor(p.id, p.readBy.total, 'byRight')} color="var(--c-people)"></MPRun>
           </div>
         </div>
         {gap && (
@@ -125,7 +117,7 @@ import { Kicker } from './primitives.jsx';
             <button key={p.id} className="mpc-row" onClick={() => window.openPerson && window.openPerson(p.id)}>
               <span className="mpc-av" style={{ '--phue': p.hue }}>{p.init}</span>
               <span className="mpc-name">{first(p.name)}</span>
-              <MPDots days={dotsFor(p.id, p.read.total, 'readRight')}></MPDots>
+              <MPRun days={dotsFor(p.id, p.read.total, 'readRight')}></MPRun>
             </button>
           ))}
         </div>

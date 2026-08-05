@@ -28,7 +28,7 @@ function PlaceStatsCard({ scope, accent }) {
   const ratedAny = rows.some((c) => PS.myScore(scope, c.id) != null);
   const mid = `calc(${PS_LW}px + ${PS_GAP}px + (100% - ${PS_LW}px - ${PS_GAP}px) / 2)`;
   return (
-    <div className="card" style={{ padding: '16px 16px 14px', marginBottom: 14 }}>
+    <div className="card" style={{ padding: '16px 16px 14px', margin: '16px 0 14px' }}>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 7, paddingBottom: 13, borderBottom: '0.5px solid var(--rule)', marginBottom: 13 }}>
         <span style={{ fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 32, letterSpacing: '-0.03em', color: deep, fontVariantNumeric: 'tabular-nums', lineHeight: 1 }}>{overall.toFixed(1)}</span>
         <span style={{ fontFamily: 'var(--sans)', fontSize: 12.5, fontWeight: 600, color: 'var(--ink-3)' }}>/ 10</span>

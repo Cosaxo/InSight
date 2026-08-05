@@ -4,12 +4,14 @@
 // spec-index.js load order is semantic — scripts/check-spec-globals.mjs
 // guards the wiring in CI.
 import React from 'react';
+import { ExplainBtn, ExplainSheet, EX_GLYPH } from './explain-sheet.jsx';
 
 // lens-cards.jsx — the profile's Lenses tab. Chrome-free: no card boxes, no
 // per-lens buttons. Each lens is a hairline-separated reading in the idiom its
 // shape deserves — ranked bars (moral) · domain columns (risk) · tension spine
-// (trust, taste, tier 2) · discount curve (time). One Sharpen queue at the top
-// walks whichever lens is thinnest, so the charts are the only ink on screen.
+// (trust, taste, tier 2) · discount curve (time). Each carries an ⓘ
+// (explain-sheet.jsx) saying what it measures and what every mark means.
+// One Sharpen queue at the top walks whichever lens is thinnest.
 //
 // DIVERGENCE FROM THE PROTOTYPE: LENSES.score() returns null for a dimension
 // you have not answered for, because live mode has no typical-person prior to
@@ -173,7 +175,7 @@ import React from 'react';
     const q = lens.questions[i];
     return (
       <div>
-        <div style={{ fontFamily: 'var(--sans)', fontSize: 11, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: deep(lens.hue) }}>{lens.title}</div>
+        <div style={{ fontFamily: 'var(--sans)', fontSize: 10.5, fontWeight: 700, letterSpacing: '0.09em', textTransform: 'uppercase', color: deep(lens.hue) }}>{lens.title}</div>
         <div style={{ fontFamily: 'var(--sans)', fontSize: 15.5, fontWeight: 600, lineHeight: 1.35, letterSpacing: '-0.01em', textWrap: 'pretty', marginTop: 7 }}>{q.q}</div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 12 }}>
           <span style={{ ...tiny, fontSize: 11, whiteSpace: 'nowrap' }}>no</span>
@@ -205,7 +207,7 @@ import React from 'react';
   }
 
   // ── one reading — title, optional lead, chart. No box. ──
-  function LensRow({ lens, first, onTick }) {
+  function LensRow({ lens, first, onTick, onExplain }) {
     const L = window.LENSES;
     const [asking, setAsking] = useState(false);
     const pct = L.pct(lens.id), full = L.complete(lens.id);
@@ -215,20 +217,22 @@ import React from 'react';
     const fill = pct < 60 ? prov(lens.hue) : col(lens.hue);
     // live mode with nothing answered: say so instead of a chart of dashes
     const blank = lens.dims.every((d) => !has(v, d.id));
-    const head = (
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: t2 ? 13 : 15 }}>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontFamily: 'var(--sans)', fontSize: t2 ? 14.5 : 16, fontWeight: 700, letterSpacing: '-0.015em' }}>{lens.title}</div>
-          <div style={{ ...tiny, marginTop: 3, fontWeight: 500, color: 'var(--ink-2)' }}>{reading(lens, v)}</div>
-        </div>
-        {!full && <Ring pct={pct} hue={lens.hue} />}
+    const headInner = (
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontFamily: 'var(--sans)', fontSize: t2 ? 14.5 : 16, fontWeight: 700, letterSpacing: '-0.015em' }}>{lens.title}</div>
+        <div style={{ ...tiny, marginTop: 3, fontWeight: 500, color: 'var(--ink-2)' }}>{reading(lens, v)}</div>
       </div>
     );
     return (
       <div style={{ padding: t2 ? '17px 2px' : '21px 2px', borderTop: first ? 'none' : '0.5px solid var(--rule)' }}>
-        {full ? head : (
-          <button onClick={() => setAsking(a => !a)} style={{ display: 'block', width: '100%', textAlign: 'left', padding: 0, border: 'none', background: 'none', cursor: 'pointer', WebkitAppearance: 'none', appearance: 'none', color: 'inherit' }}>{head}</button>
-        )}
+        {/* the ⓘ sits outside the tap target: a button can't nest in a button */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: t2 ? 13 : 15 }}>
+          {full ? headInner : (
+            <button onClick={() => setAsking(a => !a)} style={{ flex: 1, minWidth: 0, display: 'flex', textAlign: 'left', padding: 0, border: 'none', background: 'none', cursor: 'pointer', WebkitAppearance: 'none', appearance: 'none', color: 'inherit' }}>{headInner}</button>
+          )}
+          {!full && <Ring pct={pct} hue={lens.hue} />}
+          <ExplainBtn onClick={() => onExplain(lens)} label={'What ' + lens.title + ' measures'} />
+        </div>
         {blank
           ? <div style={{ ...NOREAD, padding: '2px 2px 2px', lineHeight: 1.5, textWrap: 'pretty' }}>No reading yet — this fills in as its questions come round in the feed, or answer a few now.</div>
           : <Viz dims={lens.dims} v={v} hue={lens.hue} fill={fill} />}
@@ -237,28 +241,6 @@ import React from 'react';
             <Asker lens={lens} onDone={() => { onTick(); if (L.complete(lens.id)) setAsking(false); }} />
           </div>
         )}
-      </div>
-    );
-  }
-
-  // ── the one sharpen affordance: a queue across every lens, thinnest first ──
-  function Queue({ onTick }) {
-    const L = window.LENSES;
-    const [open, setOpen] = useState(false);
-    const left = L.all.reduce((n, l) => n + (L.needed(l.id) - L.done(l.id)), 0);
-    const next = L.all.filter(l => !L.complete(l.id)).sort((a, b) => L.pct(a.id) - L.pct(b.id) || a.tier - b.tier)[0];
-    if (!next || left <= 0) return null;
-    if (!open) return (
-      <button className="press" onClick={() => setOpen(true)} style={{
-        width: '100%', margin: '16px 0 4px', padding: '13px 16px', cursor: 'pointer', WebkitAppearance: 'none', appearance: 'none',
-        background: 'var(--surface-2)', border: '0.5px solid var(--rule)', borderRadius: 14, color: 'var(--ink)',
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        fontFamily: 'var(--sans)', fontSize: 14, fontWeight: 650, letterSpacing: '-0.01em',
-      }}><span>Sharpen a lens</span><span style={{ ...tiny, fontWeight: 600 }}>{left} questions left</span></button>
-    );
-    return (
-      <div style={{ margin: '16px 0 4px', padding: '15px 16px 5px', borderRadius: 16, background: 'var(--surface-2)', border: '0.5px solid var(--rule)' }}>
-        <Asker key={next.id + L.done(next.id)} lens={next} onDone={onTick} />
       </div>
     );
   }
@@ -295,9 +277,19 @@ import React from 'react';
   function LensesPanel({ boxed }) {
     const L = window.LENSES;
     const [tick, setTick] = useState(0);
+    const [explain, setExplain] = useState(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- ported effect; see src/v2/README.md § Lint suppressions
     useEffect(() => L.subscribe(() => setTick(t => t + 1)), []);
     const bump = () => setTick(t => t + 1);
+    const sheet = explain ? (
+      <ExplainSheet title={explain.title} kicker="lens" dimKey={explain.id} dims={explain.dims}
+        keyRows={[
+          [EX_GLYPH.bar(col(explain.hue)), 'The filled bar — or the dot on the line — is you.'],
+          [EX_GLYPH.tick(), 'The tick marks where most people sit.'],
+          [EX_GLYPH.pale(col(explain.hue)), 'Pale means the reading is still an estimate. Answer more of its questions to firm it up.'],
+        ]}
+        onClose={() => setExplain(null)} />
+    ) : null;
     if (boxed) return (
       <div style={{ paddingBottom: 8 }}>
         <div style={{ ...tiny, fontSize: 13.5, lineHeight: 1.5, margin: '14px 2px 16px', fontWeight: 500, textWrap: 'pretty' }}>
@@ -307,19 +299,28 @@ import React from 'react';
       </div>
     );
     const t1 = L.all.filter(l => l.tier === 1), t2 = L.all.filter(l => l.tier === 2);
+    const groupHead = (label, sub, first) => (
+      <div style={{ margin: first ? '18px 2px 0' : '26px 2px 0' }}>
+        <span style={{ fontFamily: 'var(--sans)', fontSize: 11, fontWeight: 800, letterSpacing: '0.075em', textTransform: 'uppercase', color: 'var(--ink-2)' }}>{label}</span>
+        <div style={{ ...tiny, marginTop: 3, fontWeight: 500 }}>{sub}</div>
+      </div>
+    );
     return (
       <div style={{ paddingBottom: 12 }}>
-        <Queue onTick={bump} />
-        <div style={{ display: 'flex', alignItems: 'center', gap: 14, margin: '14px 2px 0' }}>
+        <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '6px 14px', margin: '14px 2px 0' }}>
           <span style={{ ...tiny, display: 'inline-flex', alignItems: 'center', gap: 6 }}><span style={{ width: 15, height: 7, borderRadius: 99, background: 'var(--ink-2)' }}></span>you</span>
           <span style={{ ...tiny, display: 'inline-flex', alignItems: 'center', gap: 6 }}><span style={{ width: 2, height: 12, borderRadius: 2, background: typ }}></span>most people</span>
+          <span style={{ ...tiny, display: 'inline-flex', alignItems: 'center', gap: 6 }}><span style={{ width: 15, height: 7, borderRadius: 99, background: prov(30) }}></span>still an estimate</span>
         </div>
-        <div style={{ marginTop: 13, borderTop: '0.5px solid var(--rule)' }}>
-          {t1.map((l, i) => <LensRow key={l.id} lens={l} first={i === 0} onTick={bump} />)}
+        {groupHead('Core lenses', 'why you hold what you hold', true)}
+        <div style={{ marginTop: 11, borderTop: '0.5px solid var(--rule)' }}>
+          {t1.map((l, i) => <LensRow key={l.id} lens={l} first={i === 0} onTick={bump} onExplain={setExplain} />)}
         </div>
-        <div style={{ marginTop: 14, borderTop: '0.5px solid var(--rule)' }}>
-          {t2.map((l, i) => <LensRow key={l.id} lens={l} first={i === 0} onTick={bump} />)}
+        {groupHead('Extra lenses', 'narrower, still telling')}
+        <div style={{ marginTop: 11, borderTop: '0.5px solid var(--rule)' }}>
+          {t2.map((l, i) => <LensRow key={l.id} lens={l} first={i === 0} onTick={bump} onExplain={setExplain} />)}
         </div>
+        {sheet}
       </div>
     );
   }

@@ -10,7 +10,10 @@ import React from 'react';
 // the overall type, or a single axis split into the same five bands the Circle
 // map colours people by — rm-test-lenses.js owns both, so a cut here and a lens
 // there always mean the same thing.
-(function () {
+// Converted off the shared-global bridge (D39, "convert on touch"):
+// daily-split.jsx imports this by name. The window mirror stays for the
+// who-voted breakdowns that have not moved.
+export const VOTECUTS = (function () {
   const DEMO = [
     { id: 'friends', label: 'Friends' },
     { id: 'age',     label: 'Age',    groups: ['18–24', '25–34', '35–44', '45+'] },
@@ -103,5 +106,6 @@ import React from 'react';
     });
   }
 
-  window.VOTECUTS = { dims, subs, groups, key, you, centerChip, TEST_IDS };
+  return { dims, subs, groups, key, you, centerChip, TEST_IDS };
 })();
+window.VOTECUTS = VOTECUTS;

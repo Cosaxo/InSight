@@ -50,7 +50,7 @@ window.IS_TEST_RESULTS = {
   attachment: {
     title: 'Social style',
     taken: '2 weeks ago',
-    accent: 'oklch(0.58 0.12 320)',
+    accent: 'oklch(0.52 0.13 320)',
     dims: [
       { id: 'warm',  label: 'Warm',      value: 78, blurb: 'openly affectionate' },
       { id: 'loyal', label: 'Loyal',     value: 84, blurb: 'few and deep, kept for years' },
@@ -210,7 +210,7 @@ const IS_TESTS = {
     attachment: {
       title: 'Social',
       tag: '15 questions · what kind of friend you are',
-      accent: 'oklch(0.58 0.12 320)',
+      accent: 'oklch(0.52 0.13 320)',
       dims: [
         { id: 'warm',  label: 'Warm',      blurb: 'reserved ←→ warm' },
         { id: 'loyal', label: 'Loyal',     blurb: 'many & light ←→ few & deep' },

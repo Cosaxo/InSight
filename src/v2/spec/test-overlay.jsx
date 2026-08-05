@@ -4,12 +4,53 @@
 // spec-index.js load order is semantic — scripts/check-spec-globals.mjs
 // guards the wiring in CI.
 import React from 'react';
-import { RP_TESTS, RoseMini, PoleRows, TestRose } from './result-rose.jsx';
+import { TypeMark } from './type-marks.jsx';
+import { ResultProfileCard } from './result-card.jsx';
+import { ExplainBtn, ExplainSheet, EX_GLYPH } from './explain-sheet.jsx';
+import { RP_TESTS, RoseMini } from './result-rose.jsx';
 import { Kicker, useDialog } from './primitives.jsx';
 
 // InSight — TestOverlay: pick a test, answer, see the result. Question banks
-// and persistence live in test-defs.js.
+// and persistence live in test-defs.js. Results autosave the moment the last
+// question lands, and a finished test opens its saved result (ResultProfileCard
+// — the same treatment the profile tabs use) instead of sitting inert.
 const TEST_PROGRESS_KEY = 'insight.testProgress.v1';
+
+// One tick per question — filled = answered, here or passively in the feed.
+// The same strip runs across a picker card and above the questions, so
+// "how far in am I" needs no number.
+function TickStrip({ n, filled, accent, height = 3, gap = 2, cur = -1 }) {
+  return (
+    <div style={{ display: 'flex', gap }} aria-hidden="true">
+      {Array.from({ length: n }).map((_, i) => (
+        <div key={i} style={{
+          flex: 1, height, borderRadius: height > 2 ? 999 : 0,
+          background: i < filled ? accent : i === cur ? `color-mix(in oklch, ${accent} 45%, var(--surface-3))` : `color-mix(in oklch, ${accent} 12%, var(--surface-3))`,
+          transition: 'background 0.25s ease',
+        }} />
+      ))}
+    </div>
+  );
+}
+
+// The likert scale, drawn as a scale: mark size = how strong, fill = which way.
+// Both ends are emphatic, the middle is small — so the row of marks reads
+// before any of the words do.
+const IS_SCALE = [
+  { label: 'Strongly disagree', side: -1, strong: true },
+  { label: 'Disagree', side: -1 },
+  { label: 'Neither', side: 0 },
+  { label: 'Agree', side: 1 },
+  { label: 'Strongly agree', side: 1, strong: true },
+];
+
+function ScaleMark({ side, strong, accent }) {
+  const d = side === 0 ? 9 : strong ? 20 : 14;
+  const base = { width: d, height: d, borderRadius: '50%', flexShrink: 0, boxSizing: 'border-box' };
+  if (side === 0) return <span style={{ ...base, border: '1.5px solid var(--ink-3)', opacity: 0.55 }}></span>;
+  if (side < 0) return <span style={{ ...base, border: `${strong ? 2.5 : 2}px solid color-mix(in oklch, ${accent} 62%, var(--rule))` }}></span>;
+  return <span style={{ ...base, background: strong ? accent : `color-mix(in oklch, ${accent} 62%, var(--surface))` }}></span>;
+}
 
 function TestOverlay({ onClose, onComplete, kind: initialKind }) {
   // One call, spread onto BOTH return branches below (the picker and the
@@ -20,18 +61,48 @@ function TestOverlay({ onClose, onComplete, kind: initialKind }) {
   const [step, setStep] = React.useState(0);
   const [answers, setAnswers] = React.useState([]);
   const [dir, setDir] = React.useState(1); // +1 forward, -1 back — drives the slide direction
+  const [explain, setExplain] = React.useState(null); // testKey whose ⓘ sheet is open
+  const [savedView, setSavedView] = React.useState(false); // viewing a stored result
+  const entry = React.useRef(initialKind ? 'direct' : 'pick').current;
 
-  // record an answer at the current step (replacing if revisited) and advance
+  // one sheet spec for every test: what it measures, how to read its marks
+  const explainSheet = (k) => {
+    const T2 = tests[k], cfg = RP_TESTS[k];
+    if (!T2) return null;
+    const dims = T2.dims.map((d) => ({ ...d, poles: cfg && cfg.poles ? cfg.poles[d.id] : null }));
+    const G = EX_GLYPH;
+    return (
+      <ExplainSheet title={T2.title} kicker="test" dimKey={k} dims={dims}
+        keyRows={[
+          [G.you(T2.accent), 'The solid dot is you.'],
+          [G.most(), 'The hollow ring is where most people sit.'],
+          [G.petal(T2.accent), cfg && cfg.bipolar ? 'Petal length is how far from the middle you sit — a long petal is a strong stance either way.' : 'Petal length is how strongly the trait shows.'],
+        ]}
+        onClose={() => setExplain(null)} />
+    );
+  };
+
+  // record an answer at the current step (replacing if revisited) and advance.
+  // The last answer also SAVES the result then and there — closing with ✕ no
+  // longer throws it away (completion was recorded either way).
   const choose = (i) => {
-    setAnswers(a => { const n = a.slice(); n[step] = i; return n; });
-    setDir(1); setStep(s => s + 1);
+    const next = answers.slice(); next[step] = i;
+    setAnswers(next);
+    setDir(1); setStep(step + 1);
+    const TT = tests[kind];
+    if (TT && step + 1 >= TT.questions.length && window.IS_persistTestResult) {
+      window.IS_persistTestResult(kind, {
+        title: TT.title, taken: 'just now', accent: TT.accent,
+        dims: scoreTest(TT, next, kind),
+      });
+    }
   };
   const goBack = () => { setDir(-1); setStep(s => Math.max(0, s - 1)); };
 
   // Keyboard: 1–5 to answer, ←/Backspace to revisit (active only during questions)
   React.useEffect(() => {
     const onKey = (e) => {
-      if (!kind) return;
+      if (!kind || savedView) return;
       const TT = tests[kind]; if (!TT) return;
       if (step >= TT.questions.length) return;
       if (e.key >= '1' && e.key <= '5') {
@@ -43,32 +114,41 @@ function TestOverlay({ onClose, onComplete, kind: initialKind }) {
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   // eslint-disable-next-line react-hooks/exhaustive-deps -- ported effect; see src/v2/README.md § Lint suppressions
-  }, [kind, step]);
+  }, [kind, step, savedView]);
 
   // Resume an unfinished test, or start clean, when a test is picked.
-  const startTest = (k) => {
+  // `fresh` forces a full retake — no resume, no passive prefill.
+  const startTest = (k, fresh) => {
     let resume = null;
-    try {
-      const p = JSON.parse(localStorage.getItem(TEST_PROGRESS_KEY) || '{}');
-      if (p[k] && Array.isArray(p[k].answers) && p[k].answers.length) resume = p[k];
-    } catch (e) { /* ignore */ }
+    if (!fresh) {
+      try {
+        const p = JSON.parse(localStorage.getItem(TEST_PROGRESS_KEY) || '{}');
+        if (p[k] && Array.isArray(p[k].answers) && p[k].answers.length) resume = p[k];
+      } catch (e) { /* ignore */ }
+    }
     // no explicit progress → resume past what the feed already mapped
     // (a complete test starts clean = retake)
     let pre = null;
-    if (!resume && window.PASSIVE && !window.PASSIVE.complete(k) && window.PASSIVE.passiveDone(k) > 0) pre = window.PASSIVE.prefill(k);
+    if (!fresh && !resume && window.PASSIVE && !window.PASSIVE.complete(k) && window.PASSIVE.passiveDone(k) > 0) pre = window.PASSIVE.prefill(k);
+    setSavedView(false);
     setKind(k);
     setAnswers(resume ? resume.answers : (pre || []));
     setStep(resume ? resume.step : (pre ? pre.length : 0));
     setDir(1);
   };
 
-  // Jump straight into a specific test when opened with one (resumes saved progress)
+  // Jump straight into a specific test when opened with one (resumes saved
+  // progress; a finished test opens its result instead of restarting).
+  React.useEffect(() => {
+    if (!initialKind) return;
+    if ((window.IS_TEST_RESULTS || {})[initialKind]) { setKind(initialKind); setSavedView(true); }
+    else startTest(initialKind);
   // eslint-disable-next-line react-hooks/exhaustive-deps -- ported effect; see src/v2/README.md § Lint suppressions
-  React.useEffect(() => { if (initialKind) startTest(initialKind); }, []);
+  }, []);
 
   // Save in-progress answers so a refresh mid-test doesn't lose them.
   React.useEffect(() => {
-    if (!kind) return;
+    if (!kind || savedView) return;
     const TT = tests[kind]; if (!TT) return;
     try {
       const p = JSON.parse(localStorage.getItem(TEST_PROGRESS_KEY) || '{}');
@@ -78,12 +158,12 @@ function TestOverlay({ onClose, onComplete, kind: initialKind }) {
     } catch (e) { /* ignore */ }
     if (window.PASSIVE) { if (step >= TT.questions.length) window.PASSIVE.markComplete(kind); else window.PASSIVE.poke(); }
   // eslint-disable-next-line react-hooks/exhaustive-deps -- ported effect; see src/v2/README.md § Lint suppressions
-  }, [kind, step, answers]);
+  }, [kind, step, answers, savedView]);
 
   const tests = window.IS_TESTS;
 
   // ─── result helpers ───
-  function scoreTest(t, ans) {
+  function scoreTest(t, ans, k) {
     const totals = {};
     const counts = {};
     t.questions.forEach((q, i) => {
@@ -92,18 +172,19 @@ function TestOverlay({ onClose, onComplete, kind: initialKind }) {
       totals[q.d] = (totals[q.d] || 0) + norm;
       counts[q.d] = (counts[q.d] || 0) + 1;
     });
-    const pop = (window.IS_TEST_AVG || {})[kind] || {};
+    const pop = (window.IS_TEST_AVG || {})[k] || {};
     return t.dims.map(d => {
       const a = counts[d.id] ? totals[d.id] / counts[d.id] : 2;
       return { ...d, value: Math.round((a / 4) * 100), avg: pop[d.id] ?? 50 };
     });
   }
 
+  const finished = !!(kind && !savedView && tests[kind] && step >= tests[kind].questions.length);
+
   // ─── selection screen ───
   if (!kind) {
     const SAVED = window.IS_TEST_RESULTS || {};
     const minutesFor = (T) => Math.max(4, Math.round(T.questions.length * 0.7));
-    const total = Object.keys(tests).length;
     let PROGRESS = {};
     try { PROGRESS = JSON.parse(localStorage.getItem(TEST_PROGRESS_KEY) || '{}'); } catch (e) { /* absent or corrupt payload — fall back to the default initialised above. */ }
     return (
@@ -111,23 +192,9 @@ function TestOverlay({ onClose, onComplete, kind: initialKind }) {
         <div className="app-header">
           <button className="avatar-btn" onClick={onClose}>✕</button>
           <div className="h-title">Take a <em>test</em></div>
-          <div style={{ width: 36 }} />
+          <div style={{ width: 32, flexShrink: 0 }} />
         </div>
         <div className="app-body">
-          {/* completion meter — the bars say it all */}
-          <div style={{ marginBottom: 6 }}>
-            <Kicker>Your profile</Kicker>
-          </div>
-          <div style={{ display: 'flex', gap: 4, marginBottom: 18 }}>
-            {Object.entries(tests).map(([k, T]) => {
-              const p = window.PASSIVE ? window.PASSIVE.pct(k) : (SAVED[k] ? 100 : 0);
-              return (
-                <div key={k} style={{ flex: 1, height: 4, borderRadius: 999, background: 'var(--surface-2)', border: p >= 100 ? 'none' : '0.5px solid var(--rule)', overflow: 'hidden' }}>
-                  <div style={{ height: '100%', width: `${p}%`, borderRadius: 999, background: T.accent }} />
-                </div>
-              );
-            })}
-          </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             {Object.entries(tests).map(([k, T]) => {
               const saved = SAVED[k];
@@ -137,34 +204,39 @@ function TestOverlay({ onClose, onComplete, kind: initialKind }) {
               const top = saved ? [...saved.dims].sort((a, b) => bip ? (Math.abs(b.value - 50) - Math.abs(a.value - 50)) : (b.value - a.value))[0] : null;
               const prog = PROGRESS[k];
               const inProgress = !saved && prog && prog.answers && prog.answers.length;
-              const p = window.PASSIVE ? window.PASSIVE.pct(k) : (saved ? 100 : 0);
+              const nQ = T.questions.length;
+              const mapped = window.PASSIVE ? window.PASSIVE.done(k) : (saved ? nQ : (inProgress ? prog.step : 0));
               const partial = !!(saved && window.PASSIVE && !window.PASSIVE.complete(k));
               const chipBg = `color-mix(in oklch, ${T.accent} 9%, var(--surface-2))`;
               const chipBd = `color-mix(in oklch, ${T.accent} 28%, var(--rule))`;
               const chipFg = `color-mix(in oklch, ${T.accent} 55%, var(--ink-2))`;
+              // a test with any result opens that result — the remaining
+              // questions arrive through the feed, not a grind screen
+              const go = () => saved ? (setKind(k), setSavedView(true)) : startTest(k);
               return (
-                <button type="button" key={k} onClick={() => startTest(k)}
+                // A div with role="button", not a <button>: v17 puts the ⓘ
+                // inside the card, and a button cannot nest in a button.
+                // role + tabIndex + onKeyDown keep it keyboard-reachable,
+                // which is what the <button> conversion was for.
+                <div key={k} onClick={go} role="button" tabIndex={0}
                   className="card test-pick-card"
-                  aria-label={`${T.title} — ${saved ? 'retake' : 'start'}, about ${minutesFor(T)} minutes`}
+                  aria-label={saved
+                    ? `${T.title} result`
+                    : `${inProgress ? 'Continue' : 'Start'} ${T.title} — about ${minutesFor(T)} minutes`}
+                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go(); } }}
                   style={{ cursor: 'pointer', padding: 0, overflow: 'hidden' }}>
-                  <div style={{ padding: '14px 14px 12px' }}>
+                  {/* how much of this test is mapped — no percentage needed */}
+                  <TickStrip n={nQ} filled={mapped} accent={T.accent} height={3} gap={1.5} />
+                  <div style={{ padding: '13px 14px 12px' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10 }}>
                       <div style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', gap: 9, fontFamily: 'var(--sans)', fontSize: 18, fontWeight: 800, letterSpacing: '-0.025em', lineHeight: 1.15, textWrap: 'balance' }}>
                         <span style={{ width: 9, height: 9, borderRadius: '50%', background: T.accent, flexShrink: 0 }}></span>
                         {T.title}
+                        <ExplainBtn onClick={(e) => { if (e && e.stopPropagation) e.stopPropagation(); setExplain(k); }} label={'What ' + T.title + ' measures'} />
                       </div>
-                      {saved && !partial ? (
-                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, flexShrink: 0, fontFamily: 'var(--sans)', fontSize: 11, fontWeight: 600, letterSpacing: '0.02em', color: chipFg }}>
-                          <span style={{ width: 14, height: 14, borderRadius: '50%', background: T.accent, color: 'var(--surface)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 9 }}>✓</span>
-                          {saved.taken}
-                        </span>
-                      ) : partial ? (
-                        <span style={{ flexShrink: 0, fontFamily: 'var(--sans)', fontSize: 11, fontWeight: 600, letterSpacing: '0.02em', color: chipFg }}>{p}% mapped in the feed</span>
-                      ) : inProgress ? (
-                        <span style={{ flexShrink: 0, fontFamily: 'var(--sans)', fontSize: 11, fontWeight: 600, letterSpacing: '0.02em', color: chipFg }}>{prog.step}/{T.questions.length} done</span>
-                      ) : (
-                        <span style={{ flexShrink: 0, fontFamily: 'var(--sans)', fontSize: 11, fontWeight: 600, letterSpacing: '0.02em', color: 'var(--ink-3)' }}>~{minutesFor(T)} min</span>
-                      )}
+                      <span style={{ flexShrink: 0, fontFamily: 'var(--sans)', fontSize: 11, fontWeight: 600, letterSpacing: '0.02em', color: saved ? chipFg : 'var(--ink-3)' }}>
+                        {saved ? saved.taken : inProgress ? 'in progress' : `~${minutesFor(T)} min`}
+                      </span>
                     </div>
                     {!saved && <div style={{ fontFamily: 'var(--sans)', fontSize: 12, fontWeight: 500, color: 'var(--ink-3)', marginTop: 5 }}>{T.tag}</div>}
                     {!saved && <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginTop: 10 }}>
@@ -177,7 +249,7 @@ function TestOverlay({ onClose, onComplete, kind: initialKind }) {
                       ))}
                     </div>}
                   </div>
-                  {/* saved-result footer: strongest trait + distribution + retake */}
+                  {/* saved-result footer: strongest trait + type mark */}
                   <div style={{
                     display: 'flex', alignItems: 'center', gap: 12,
                     padding: '10px 14px',
@@ -187,86 +259,116 @@ function TestOverlay({ onClose, onComplete, kind: initialKind }) {
                     {saved ? (
                       <>
                         <div style={{ minWidth: 0, flex: 1, display: 'flex', flexDirection: 'column', gap: 2 }}>
-                          <span style={{ fontFamily: 'var(--sans)', fontSize: 9.5, fontWeight: 700, letterSpacing: '0.12em', color: 'var(--ink-3)', textTransform: 'uppercase' }}>{partial ? 'Early read' : bip ? 'Strongest lean' : 'Strongest'}</span>
+                          <span style={{ fontFamily: 'var(--sans)', fontSize: 10.5, fontWeight: 700, letterSpacing: '0.09em', color: 'var(--ink-3)', textTransform: 'uppercase' }}>{partial ? 'Early read' : bip ? 'Strongest lean' : 'Strongest'}</span>
                           <span style={{ fontFamily: 'var(--sans)', fontSize: 15, fontWeight: 700, letterSpacing: '-0.01em', color: chipFg, lineHeight: 1.1 }}>{(() => {
                             if (!bip) return <>{top.label} <span style={{ fontWeight: 800, fontSize: 13 }}>{top.value}</span></>;
                             const word = (rp.poles[top.id] || ['low','high'])[top.value >= 50 ? 1 : 0];
                             return word.toLowerCase() === top.label.toLowerCase() ? top.label : <>{top.label} · <span style={{ fontWeight: 800 }}>{word}</span></>;
                           })()}</span>
                         </div>
-                        {(() => { const mt = window.TypeMark && window.IS_matchArchetype && saved.dims ? window.IS_matchArchetype(k, saved.dims) : null; return mt ? React.createElement(window.TypeMark, { testKey: k, name: mt.list[mt.idx].name, size: 38, title: mt.list[mt.idx].name }) : (RoseMini ? React.createElement(RoseMini, { testKey: k, dims: saved.dims, size: 44 }) : null); })()}
-                        <span style={{ fontFamily: 'var(--sans)', fontSize: 10.5, fontWeight: 700, letterSpacing: '0.08em', color: chipFg, flexShrink: 0, textTransform: 'uppercase' }}>{partial ? 'Finish →' : 'Retake →'}</span>
+                        {(() => { const mt = TypeMark && window.IS_matchArchetype && saved.dims ? window.IS_matchArchetype(k, saved.dims) : null; return mt ? React.createElement(TypeMark, { testKey: k, name: mt.list[mt.idx].name, size: 38, title: mt.list[mt.idx].name }) : (RoseMini ? React.createElement(RoseMini, { testKey: k, dims: saved.dims, size: 44 }) : null); })()}
+                        <span style={{ fontFamily: 'var(--sans)', fontSize: 10.5, fontWeight: 700, letterSpacing: '0.08em', color: chipFg, flexShrink: 0, textTransform: 'uppercase' }}>{'\u2192'}</span>
                       </>
                     ) : (
                       <>
-                        <span style={{ flex: 1, fontFamily: 'var(--sans)', fontSize: 13.5, fontWeight: 500, color: 'var(--ink-3)' }}>{inProgress ? 'In progress' : 'Not taken yet'}</span>
+                        <span style={{ flex: 1, fontFamily: 'var(--sans)', fontSize: 13.5, fontWeight: 500, color: 'var(--ink-3)' }}>{inProgress ? `${prog.step} of ${nQ} answered` : 'Not taken yet'}</span>
                         <span style={{ fontFamily: 'var(--sans)', fontSize: 10.5, fontWeight: 700, letterSpacing: '0.08em', color: chipFg, textTransform: 'uppercase' }}>{inProgress ? 'Resume →' : 'Start →'}</span>
                       </>
                     )}
                   </div>
-                </button>
+                </div>
               );
             })}
           </div>
         </div>
+        {explain && explainSheet(explain)}
       </div>
     );
   }
 
   const T = tests[kind];
   const qs = T.questions;
-  const done = step >= qs.length;
-  const results = done ? scoreTest(T, answers) : null;
-  const rpCfg = RP_TESTS[kind];
-  const bipT = !!(rpCfg && rpCfg.bipolar);
-  const leanWord = (d) => (rpCfg && rpCfg.poles[d.id] || ['low', 'high'])[d.value >= 50 ? 1 : 0];
-  const strength = (d) => bipT ? Math.abs(d.value - 50) : d.value;
-  const topDim = results ? [...results].sort((a, b) => strength(b) - strength(a))[0] : null;
+  const showResult = savedView || finished;
+  const P = window.PASSIVE;
+  const nLeft = P ? Math.max(0, P.needed(kind) - P.done(kind)) : 0;
+  // a just-finished test is complete by definition — PASSIVE catches up in an
+  // effect, so don't let its stale count offer to "finish" what just finished
+  const partial = !finished && !!(P && !P.complete(kind) && nLeft > 0);
+  const backToPick = () => { setSavedView(false); setKind(null); setStep(0); setAnswers([]); };
 
+  // ── result: one canonical treatment (the same card the profile tabs show),
+  // then a single dark CTA for whatever comes next ──
+  if (showResult) {
+    // No "finish the test" nudge — a partial picture fills itself in from the
+    // feed. Retaking is only offered once the picture is whole.
+    const cta = partial ? null
+      : finished
+      ? { text: 'Done', act: onComplete }
+      : { text: 'Retake the test →', act: () => startTest(kind, true) };
+    return (
+      <div className="overlay surface-tint">
+        <div className="app-header">
+          <button className="avatar-btn" onClick={entry === 'pick' ? backToPick : onClose}>{entry === 'pick' ? '←' : '✕'}</button>
+          <div className="h-title">{T.title}</div>
+          <div style={{ width: 32, flexShrink: 0 }} />
+        </div>
+        <div className="app-body" style={{ paddingBottom: 32 }}>
+          {ResultProfileCard
+            ? <ResultProfileCard testKey={kind} archetype={T.title} />
+            : null}
+          {cta && <button className="press" onClick={cta.act} style={{
+            width: '100%', padding: '13px', cursor: 'pointer',
+            WebkitAppearance: 'none', appearance: 'none',
+            background: 'var(--ink)', color: 'var(--surface)',
+            border: 'none', borderRadius: 14,
+            fontFamily: 'var(--sans)', fontSize: 14.5, fontWeight: 700, letterSpacing: '-0.01em',
+          }}>{cta.text}</button>}
+          <div style={{ display: 'flex', justifyContent: 'center', gap: 22, marginTop: cta ? 14 : 4 }}>
+            <button onClick={backToPick} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontFamily: 'var(--sans)', fontSize: 12.5, fontWeight: 600, color: 'var(--ink-3)' }}>Another test</button>
+            {!finished && <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontFamily: 'var(--sans)', fontSize: 12.5, fontWeight: 600, color: 'var(--ink-3)' }}>Close</button>}
+            {finished && !partial && <button onClick={() => startTest(kind, true)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontFamily: 'var(--sans)', fontSize: 12.5, fontWeight: 600, color: 'var(--ink-3)' }}>Retake</button>}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ── questions ──
   return (
     <div className="overlay surface-tint" {...dlg}>
       <div className="app-header">
         <button className="avatar-btn" onClick={onClose}>✕</button>
         <div className="h-title">{T.title}</div>
-        <div className="h-meta">{Math.min(step + 1, qs.length)}/{qs.length}</div>
+        <div style={{ width: 32, flexShrink: 0 }} />
       </div>
       <div className="app-body" style={{ display: 'flex', flexDirection: 'column', paddingBottom: 32 }}>
-        {!done ? (
-          <div style={{ marginTop: 18, flex: 1, display: 'flex', flexDirection: 'column' }}>
-            {/* progress — one tick per question, filled as you go */}
-            <div style={{ display: 'flex', gap: 3, marginBottom: 22 }}>
-              {qs.map((_, i) => (
-                <div key={i} style={{
-                  flex: 1, height: 3, borderRadius: 999,
-                  background: i < step ? T.accent : i === step ? `color-mix(in oklch, ${T.accent} 45%, var(--surface-2))` : 'var(--surface-2)',
-                  border: i >= step ? '0.5px solid var(--rule)' : 'none',
-                  transition: 'background 0.25s ease',
-                }} />
-              ))}
-            </div>
-            <div style={{ margin: 'auto 0', paddingBottom: 20 }}>
+        <div style={{ marginTop: 18, flex: 1, display: 'flex', flexDirection: 'column' }}>
+          {/* progress — one tick per question. The only count on the screen. */}
+          <TickStrip n={qs.length} filled={step} cur={step} accent={T.accent} height={3} gap={3} />
+          <div style={{ margin: 'auto 0', paddingBottom: 20 }}>
             <div key={step} className={`q-slide ${dir < 0 ? 'q-slide-back' : 'q-slide-fwd'}`}>
-              <div className="kicker">Question {String(step + 1).padStart(2, '0')} of {qs.length}</div>
-              <div style={{ fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 24, lineHeight: 1.15, letterSpacing: '-0.02em', textWrap: 'pretty', marginTop: 14 }}>
+              <div style={{ fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 25, lineHeight: 1.15, letterSpacing: '-0.02em', textWrap: 'pretty', marginTop: 26 }}>
                 {qs[step].q}
               </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 26 }}>
-                {['Strongly disagree', 'Disagree', 'Neither', 'Agree', 'Strongly agree'].map((label, i) => {
+              <div role="radiogroup" aria-label="How much do you agree" style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 26 }}>
+                {IS_SCALE.map((o, i) => {
                   const selected = answers[step] === i;
+                  const away = o.strong ? 11 : o.side === 0 ? 4 : 7; // tint ramps with strength, both ways
                   return (
-                    <button key={label} className="press" onClick={() => choose(i)}
+                    <button key={o.label} className="press" onClick={() => choose(i)}
+                      role="radio" aria-checked={selected}
                       style={{
-                        padding: '14px 16px', textAlign: 'left',
-                        background: selected ? `color-mix(in oklch, ${T.accent} 18%, var(--surface))` : `color-mix(in oklch, ${T.accent} 10%, var(--surface))`,
-                        border: selected ? `1.5px solid ${T.accent}` : `1px solid color-mix(in oklch, ${T.accent} 45%, var(--rule))`,
+                        padding: '13px 15px', textAlign: 'left',
+                        background: selected ? `color-mix(in oklch, ${T.accent} 17%, var(--surface))` : `color-mix(in oklch, ${T.accent} ${away}%, var(--surface))`,
+                        border: selected ? `1.5px solid ${T.accent}` : `1px solid color-mix(in oklch, ${T.accent} ${o.strong ? 40 : 28}%, var(--rule))`,
                         borderRadius: 16, cursor: 'pointer', boxShadow: 'none', WebkitAppearance: 'none',
                         fontFamily: 'var(--sans)', fontSize: 15.5, fontWeight: 700,
-                        color: 'var(--ink)', display: 'flex', gap: 12, alignItems: 'center'
+                        color: 'var(--ink)', display: 'flex', gap: 13, alignItems: 'center'
                       }}>
-                      <span style={{ flex: 1 }}>{label}</span>
-                      {selected
-                        ? <span style={{ fontFamily: 'var(--sans)', fontSize: 13, fontWeight: 800, color: T.accent }}>✓</span>
-                        : null}
+                      <span style={{ width: 22, display: 'flex', justifyContent: 'center', flexShrink: 0 }}>
+                        <ScaleMark side={o.side} strong={o.strong} accent={T.accent} />
+                      </span>
+                      <span style={{ flex: 1 }}>{o.label}</span>
                     </button>
                   );
                 })}
@@ -281,90 +383,10 @@ function TestOverlay({ onClose, onComplete, kind: initialKind }) {
               ) : <span />}
               <span className="kb-hint" style={{ fontFamily: 'var(--sans)', fontSize: 11, fontWeight: 500, color: 'var(--ink-3)' }}>press 1–5 · ← to revisit</span>
             </div>
-            </div>
           </div>
-        ) : (
-          /* ── results breakdown ── */
-          <div style={{ marginTop: 10 }}>
-            <Kicker>Result · {T.title}</Kicker>
-            {(() => {
-              const flat = bipT
-                ? results.every(d => Math.abs(d.value - 50) <= 8)
-                : Math.max(...results.map(d => d.value)) - Math.min(...results.map(d => d.value)) <= 8;
-              return (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginTop: 10, marginBottom: 18, padding: 14, background: 'var(--surface-2)', border: '0.5px solid var(--rule)', borderRadius: 10 }}>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontFamily: 'var(--sans)', fontSize: 10, fontWeight: 700, color: 'var(--ink-3)', letterSpacing: '0.12em', textTransform: 'uppercase' }}>{flat ? 'Your shape' : bipT ? 'Strongest lean' : 'Strongest'}</div>
-                <div style={{ fontFamily: 'var(--sans)', fontSize: 20, marginTop: 2 }}>{flat ? 'Evenly balanced' : bipT && leanWord(topDim).toLowerCase() !== topDim.label.toLowerCase() ? <>{topDim.label} · <span style={{ color: T.accent }}>{leanWord(topDim)}</span></> : topDim.label}</div>
-                <div className="margin-note" style={{ fontSize: 15, marginTop: 2 }}>{flat ? 'no single trait stands out — you sit near the middle across the board' : topDim.blurb}</div>
-              </div>
-            </div>
-              );
-            })()}
-
-            {/* you vs. most people — the SAME rose + pole rows the profile keeps */}
-            {(() => {
-              const cfg = RP_TESTS[kind];
-              if (!cfg || !TestRose) return null;
-              const hueOf = (id, i) => (cfg.hues[id] != null ? cfg.hues[id] : (30 + i * 47) % 360);
-              const avgMap = Object.fromEntries(results.map(d => [d.id, d.avg]));
-              return (
-                <div style={{ padding: '6px 16px 16px', marginBottom: 16, background: 'var(--surface-2)', border: '0.5px solid var(--rule)', borderRadius: 12 }}>
-                  <TestRose testKey={kind} dims={results} animate={true} />
-                  <div style={{ marginTop: 4, paddingTop: 16, borderTop: '0.5px solid var(--rule)' }}>
-                    <PoleRows dims={results} poles={cfg.poles} hueOf={hueOf} avg={avgMap} />
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 16, marginTop: 15, paddingTop: 12, borderTop: '0.5px solid var(--rule)' }}>
-                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontFamily: 'var(--sans)', fontSize: 10.5, fontWeight: 600, color: 'var(--ink-3)', letterSpacing: '0.06em' }}>
-                      <span style={{ width: 11, height: 11, borderRadius: '50%', background: T.accent, border: '2px solid var(--surface-2)', boxShadow: '0 0 0 0.5px var(--rule)' }}></span>YOU
-                    </span>
-                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontFamily: 'var(--sans)', fontSize: 10.5, fontWeight: 600, color: 'var(--ink-3)', letterSpacing: '0.06em' }}>
-                      <span style={{ width: 9, height: 9, borderRadius: '50%', background: 'var(--surface-2)', border: '1.4px solid var(--ink-3)' }}></span>MOST PEOPLE
-                    </span>
-                  </div>
-                </div>
-              );
-            })()}
-
-            {/* plain-language read — strongest + biggest gap from typical */}
-            {(() => {
-              const ranked = [...results].sort((a, b) => strength(b) - strength(a));
-              const gap = [...results].sort((a, b) => Math.abs(b.value - b.avg) - Math.abs(a.value - a.avg))[0];
-              const d = gap.value - gap.avg;
-              const dir = d >= 0 ? 'above' : 'below';
-              const flat = bipT
-                ? results.every(x => Math.abs(x.value - 50) <= 8)
-                : Math.max(...results.map(x => x.value)) - Math.min(...results.map(x => x.value)) <= 8;
-              return (
-                <div style={{ marginBottom: 6, fontFamily: 'var(--sans)', fontSize: 16, lineHeight: 1.5, color: 'var(--ink-2)', textWrap: 'pretty' }}>
-                  {flat
-                    ? <>Your profile is <em style={{ color: T.accent, fontStyle: 'inherit' }}>balanced</em> — no single {bipT ? 'lean' : 'trait'} dominates.</>
-                    : bipT
-                    ? <><em style={{ color: T.accent, fontStyle: 'inherit' }}>{ranked[0].label}</em> is your most pronounced lean — toward {leanWord(ranked[0])}.</>
-                    : <><em style={{ color: T.accent, fontStyle: 'inherit' }}>{ranked[0].label}</em> leads your profile at {ranked[0].value}.</>}
-                  {Math.abs(d) >= 6 && <> You sit <strong style={{ fontWeight: 600, fontStyle: 'normal', fontFamily: 'var(--sans)', fontSize: 14 }}>{Math.abs(d)} {dir}</strong> the typical person on {gap.label.toLowerCase()}.</>}
-                </div>
-              );
-            })()}
-
-            <div style={{ display: 'flex', gap: 8, marginTop: 22 }}>
-              <button onClick={() => setKind(null)} style={{
-                flex: 1, padding: '13px', background: 'var(--surface-2)', color: 'var(--ink)',
-                border: '0.5px solid var(--rule)', borderRadius: 14, cursor: 'pointer',
-                fontFamily: 'var(--sans)', fontSize: 14.5, fontWeight: 700, letterSpacing: '-0.01em',
-              }}>Another test</button>
-              <button onClick={() => {
-                window.IS_persistTestResult(kind, { title: T.title, taken: 'just now', accent: T.accent, dims: results });
-                onComplete();
-              }} style={{
-                flex: 1, padding: '13px', background: 'var(--ink)', color: 'var(--surface)',
-                border: 'none', borderRadius: 14, cursor: 'pointer',
-                fontFamily: 'var(--sans)', fontSize: 14.5, fontWeight: 700, letterSpacing: '-0.01em',
-              }}>Save & close</button>
-            </div>
-          </div>
-        )}
+        </div>
       </div>
+      {explain && explainSheet(explain)}
     </div>
   );
 }
@@ -408,7 +430,7 @@ function TestResultCard({ testKey, accent }) {
   );
 }
 
-Object.assign(window, { TestOverlay, TestResultCard });
+Object.assign(window, { TestOverlay, TestResultCard, TickStrip });
 
 ;globalThis.TestOverlay = typeof TestOverlay === 'undefined' ? globalThis.TestOverlay : TestOverlay;
 ;globalThis.TestResultCard = typeof TestResultCard === 'undefined' ? globalThis.TestResultCard : TestResultCard;

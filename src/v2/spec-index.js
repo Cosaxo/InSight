@@ -14,6 +14,17 @@ import './spec/map-anchors.js';
 import './spec/map-group-stats.js';
 import './spec/duels-data.js';
 import './spec/reveal-clock.js';
+// The app-feel layer (v17). Five of these are pure side effects — they install
+// one document-level listener each and no component knows they exist — so
+// their only wiring IS this list. haptics.js and swipe-back.js publish named
+// exports instead of globals; they are listed for check:globals rule 2, not
+// because anything waits on them.
+import './spec/haptics.js';
+import './spec/swipe-back.js';
+import './spec/sheet-escape.js';
+import './spec/sheet-drag.js';
+import './spec/scroll-memory.js';
+import './spec/edge-fade.js';
 import './spec/iOS.jsx';
 import './spec/tweaks-panel.jsx';
 // primitives.jsx no longer publishes globals (D39) — its consumers import
@@ -23,6 +34,10 @@ import './spec/tweaks-panel.jsx';
 // bundle. When the next provider converts, it keeps its line for the same
 // reason; the list stops being a load-order contract one module at a time.
 import './spec/primitives.jsx';
+// explain-sheet.jsx sits here in the standalone's order, and it is a named-
+// export module too — but it builds on primitives' `Sheet`, so the line above
+// it is a real dependency rather than a load-order relic.
+import './spec/explain-sheet.jsx';
 import './spec/viz-primitives.jsx';
 import './spec/compare-breakdown.jsx';
 import './spec/relmap-core.js';
@@ -39,12 +54,17 @@ import './spec/type-marks.jsx';
 import './spec/result-rose.jsx';
 import './spec/result-card.jsx';
 import './spec/group-daily.jsx';
+import './spec/read-run.jsx';
 import './spec/duo-daily.jsx';
 // place-stats.js and pick-data.js must precede world-feed-data.js: the feed
 // pool concatenates window.PLACE_RATE_QS and window.PICK_QS at module scope,
 // so both card sets must already exist.
 import './spec/place-stats.js';
 import './spec/pick-data.js';
+// world-palette.js — the hue gate every World surface runs its colours
+// through. A named-export module; its position here is the standalone's, and
+// it reads no other module at load time.
+import './spec/world-palette.js';
 // world-feed-data.js stays EAGER even though the feed itself does not:
 // daily-split.jsx reads window.WORLD_TOPICS at MODULE scope (line 19), and
 // deferring it would silently swap the real topic set for that line's

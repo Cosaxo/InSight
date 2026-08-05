@@ -11,7 +11,10 @@ import React from 'react';
 // rare ones genuinely rare). Your result maps to the NEAREST type live.
 // Signatures are deliberately EXTREME on each type's 1–2 defining dims and
 // near-neutral elsewhere, so nearest-type matching stays stable.
-window.IS_ARCHETYPES = {
+// Converted off the shared-global bridge (D39, "convert on touch"):
+// type-marks.jsx imports this by name. The window mirror stays for the
+// consumers that have not moved.
+export const IS_ARCHETYPES = {
   big5: { list: [
     { name: 'The Enthusiast',      share: 6,  line: 'Says yes first, plans later.',                    sig: { O: 88, C: 40, E: 75, A: 55, N: 45 } },
     { name: 'The Planner',         share: 5,  line: 'Builds the system, then trusts it.',              sig: { O: 80, C: 90, E: 32, A: 42, N: 35 } },
@@ -153,7 +156,7 @@ const ARCH_W_FLOOR = 6;      // every dim counts a little
 const ARCH_SHARE_PULL = 210; // strength of the commonness prior
 
 window.IS_archScores = function (testKey, dims) {
-  const sys = window.IS_ARCHETYPES[testKey];
+  const sys = IS_ARCHETYPES[testKey];
   if (!sys || !dims || !dims.length) return null;
   const avg = (window.IS_TEST_AVG || {})[testKey] || {};
   const maxShare = Math.max.apply(null, sys.list.map(a => a.share || 1));
@@ -222,7 +225,7 @@ window.IS_typeRuleParts = function (testKey, dims, a, max) {
 
 // Nearest type → { list, idx, dists (priored), fits (raw), rms, gap }
 window.IS_matchArchetype = function (testKey, dims) {
-  const sys = window.IS_ARCHETYPES[testKey];
+  const sys = IS_ARCHETYPES[testKey];
   const sc = window.IS_archScores(testKey, dims);
   if (!sc) return null;
   let best = 0;
@@ -239,3 +242,4 @@ window.IS_matchArchetype = function (testKey, dims) {
   };
 };
 
+window.IS_ARCHETYPES = IS_ARCHETYPES;
