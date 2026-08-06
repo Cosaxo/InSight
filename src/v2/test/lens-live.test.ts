@@ -105,7 +105,7 @@ describe("LENS_FEED_QS follows liveness", () => {
     }
   });
 
-  it("live cards carry selfOnly, demo cards do not (D49)", () => {
+  it("live cards carry selfOnly, demo cards do not (D50)", () => {
     // The flag is what tells world-feed the card's counts are authored
     // rather than measured — no aggregate exists for lens answers, which
     // stay on-device. Demo mode is all authored numbers anyway, so the
@@ -136,7 +136,7 @@ describe("LENS_FEED_QS follows liveness", () => {
   });
 });
 
-describe("the local purge drops the in-memory store (D49)", () => {
+describe("the local purge drops the in-memory store (D50)", () => {
   // live.ts's purgeLocalTrace() removes every insight.* key on account
   // deletion and uid change, then dispatches insight:local-purge — the
   // uid-change path has no reload behind it, so the store must drop its

@@ -78,7 +78,7 @@ window.LEARN = (function () {
 
   const save = () => { try { localStorage.setItem(LS, JSON.stringify(S)); } catch (e) { /* localStorage can throw: private mode, quota, disabled storage. Best-effort — in-memory state stays correct. */ } fire(); };
   const saveF = () => { try { localStorage.setItem(LS_F, JSON.stringify(F)); } catch (e) { /* localStorage can throw: private mode, quota, disabled storage. Best-effort — in-memory state stays correct. */ } fire(); };
-  // The purge (data/live.ts, D50): both keys are already gone; drop the
+  // The purge (data/live.ts, D51): both keys are already gone; drop the
   // in-memory mastery map and field list to their fresh-boot shapes too, or
   // the next answer()'s save() writes the previous account's map back under
   // the new uid. fire() without save() — do not re-create the purged keys.

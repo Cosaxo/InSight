@@ -3,7 +3,7 @@
 // The other half of scripts/check-purge-listeners.mjs: the scan proves a
 // store REGISTERS for `insight:local-purge`; these cases prove what the
 // listeners DO. Each store is driven through the resurrection scenario the
-// event exists to prevent (D49/D50):
+// event exists to prevent (D50/D51):
 //
 //   1. seed    — mutate through the public API; the insight.* key exists;
 //   2. purge   — remove every insight.* key and dispatch the event,
@@ -76,7 +76,7 @@ beforeEach(() => {
   purge();
 });
 
-describe("module stores drop their memory on the purge (D50)", () => {
+describe("module stores drop their memory on the purge (D51)", () => {
   it("FEEDREAD: the read-room log", () => {
     W.FEEDREAD.log("purge-w-1", { maj: true });
     expect(W.FEEDREAD.stats().n).toBe(1);

@@ -4672,7 +4672,96 @@ pinned item-for-item against `content/tests.json` by
 `test/content-parity.test.jsx`. **Deferred** because the conversion was
 already an 18-file change and moving a module across the typed boundary in
 the same commit would have put a refactor and a re-typing in one diff.
-## D49 · A lens question in a live feed is a self-report item, not a poll
+
+## D49 · The Skip control becomes a button, the alert chain gets a gate, and the feed's split stops at its arithmetic
+
+**Date:** 2026-08-06 · **Status:** Adopted
+
+**Decision.** Three fixes, and one of them is mostly a correction to what an
+earlier survey claimed was there.
+
+**1. The post-vote beat's Skip control is a real `<button>`.** It carried
+`role="button"` and `aria-label="Skip"` — everything `check:a11y` can read —
+with no `tabIndex` and no key handler. The beat is a 320px animation that
+covers the result for several seconds after a vote, and Skip is the only way
+past it, so the one control on screen was the one control a keyboard or
+switch user could not reach. Every static gate stayed green throughout.
+
+Landed behind an interaction test, which is D21's rule and
+`dialog.test.jsx`'s precedent: `test/consequence-beat.test.jsx` pins that the
+control takes focus and is a `<button>`, both mutation-checked by reverting
+the element. It asserts the ELEMENT rather than a keystroke on purpose —
+jsdom does not implement a button's default activation, so
+`fireEvent.keyDown(el, {key:'Enter'})` produces no click however correct the
+markup is. A first draft hid that behind `if (!called) click()` and passed
+against the unfixed div, which is the vacuous-test shape `src/v2/README.md`
+warns about. The `<button>` is what carries Enter and Space; that is what is
+pinned.
+
+The a11y baseline goes **11 → 9**. What is left is eight `no-autofocus`
+findings and one `no-static-element-interactions` in `tweaks-panel.jsx`, the
+host-era debug panel rather than a user surface.
+
+**And the count was wrong before this touched it.** `src/v2/README.md` said
+"six `no-autofocus` findings and three div-with-onClick sites". There were
+eight autofocus findings, and the three were not three sites — they were
+three RULES on one element. So work described as three deferred fixes was
+one, and it took an afternoon. `check:a11y` did not catch the drift because
+it holds the total and the per-file counts, not the breakdown by rule: a
+figure can be gate-enforced in one dimension and stale in another.
+
+**2. `check:monitoring` gates the alert chain, and only the half in the
+repo.** Alert policies are applied by hand (D47) and nothing here can reach
+Cloud Monitoring, so this does not try. It checks that every policy on disk
+is in `apply-monitoring`'s list, that every condition resolves to a metric
+that script creates, and that every metric's `jsonPayload.metric="X"`
+selector matches a `metric: "X"` a function actually emits.
+
+Every link fails the same silent way — the policy exists, the console is
+green, and it can never fire — which is `check:deploy-targets`' failure class
+with a different noun. Each of the four rules was verified by breaking that
+link and watching the gate fail. On `ci.yml` rather than `backend-checks.yml`
+on that workflow's own rule: nothing it says bears on whether a rules fix is
+safe to deploy, and an alerting mistake must not block an emergency one.
+
+**3. The World feed's split stops at its arithmetic, and the reason is a
+measurement.** An earlier survey called `world-feed.jsx` the highest-leverage
+file in the repo and said its "23 top-level definitions" meant the seams
+already existed. That counted definitions without sizing them. The file is
+one class component of ~2,350 lines plus about 30 helpers of 3–28 lines; the
+component holds 62 methods, the largest being `render` (160),
+`renderPick` (136), `renderCard` (121). There are no leaf components to lift
+out — there is one god-component and a band of small functions.
+
+Decomposing that component means threading state and callbacks through JSX
+ported verbatim from the prototype, whose only coverage is a smoke mount.
+That is the blind change D21's trade refuses, and it is not made safer by
+being large. **Deferred**, and deliberately not attempted in the same change
+as anything else.
+
+What was taken is the part that is safe and was worth having on its own:
+thirteen pure functions move to `world-feed-math.js` as real exports, with
+`test/world-feed-math.test.js` behind them. `wfPcts` is why — it is the split
+printed on every feed card, it adds the viewer's own vote (the other half of
+`data/live.ts`'s "counts exclude the viewer" contract), and it forces the
+rounded parts to sum to exactly 100 by pushing the residue onto the largest
+bucket. Neither behaviour had a test.
+
+**A note on how that suite was checked, because the first version passed a
+mutation it should have caught.** Redirecting the residue to the *smallest*
+bucket left all 17 tests green: the cases were `[1,1,1]` (symmetric, so both
+rules pick the same bucket) and `[10,3,3]` (residue too small to move the
+winner). The cases are now chosen to distinguish the two — `[1,1,4]` gives
+`[17,17,66]` under max and `[16,17,67]` under min — plus the general property
+those pin, that a maximal bucket stays maximal so rounding never hands the
+card's headline to a side that did not win. Five mutations, five failures.
+
+Thirteen names also leave the shared-global namespace, none of which had a
+consumer outside the file: the same ratio `result-rose.jsx` found, where the
+bridge published everything and a real module exports only what is wanted.
+The coupling count is unchanged at 540, correctly — these were file-local
+reads, not cross-module ones, and a meter that moved here would be lying.
+## D50 · A lens question in a live feed is a self-report item, not a poll
 
 **Date:** 2026-08-06 · **Status:** Adopted
 
@@ -4727,7 +4816,7 @@ feed with a lens card, answers it, and asserts the record landed locally
 (inverted), nothing reached `LIVE.vote`, and the card shows the
 acknowledgment with no split, no votes count and no engage row.
 
-## D50 · Deleting the keys is only half the wipe: every local store hears the purge
+## D51 · Deleting the keys is only half the wipe: every local store hears the purge
 
 **Date:** 2026-08-06 · **Status:** Adopted
 
@@ -4743,7 +4832,7 @@ listener at the component level. `scripts/check-purge-listeners.mjs`
 `insight.*` key must listen or be exempted with a reason, and a stale
 exemption fails too.
 
-**The audit that produced this.** D49 found the hole in one store
+**The audit that produced this.** D50 found the hole in one store
 (lens-defs' uncalled `reset()`); this is the sweep of the other 28 files
 that touch localStorage. Fourteen module stores had the same bug —
 `feed-read`, `follows`, `learn-progress`, `learn-feed`,
@@ -4793,7 +4882,7 @@ reaches disk; `smoke-live.test.jsx` proves the component half in a
 mounted tree; `vote.test.ts` pins that the announcement fires on the
 uid-change path.
 
-## D51 · The content review: what got fixed, what got flagged, and the two lines that held
+## D52 · The content review: what got fixed, what got flagged, and the two lines that held
 
 **Date:** 2026-08-06 · **Status:** Adopted
 
@@ -4883,7 +4972,7 @@ items, and appends.
 `seedContentV2` run with `bumpRev` per the deploy runbook — nothing here
 re-keys an existing answer, by construction of the four allowed shapes.
 
-## D52 · The logic test measured: zero ambiguity in 60,000 items, and the curve gets pinned
+## D53 · The logic test measured: zero ambiguity in 60,000 items, and the curve gets pinned
 
 **Date:** 2026-08-06 · **Status:** Adopted
 

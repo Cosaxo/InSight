@@ -85,7 +85,7 @@ export const PASSIVE = (function () {
   function markComplete(k) { if (!st.full[k]) { st.full[k] = true; save(); notify(); } }
   function subscribe(fn) { subs.push(fn); return () => { const i = subs.indexOf(fn); if (i >= 0) subs.splice(i, 1); }; }
   function notify() { subs.forEach((f) => { try { f(); } catch { /* best-effort */ } }); }
-  // The purge (data/live.ts, D50): the key is already gone; drop the
+  // The purge (data/live.ts, D51): the key is already gone; drop the
   // in-memory seen/full maps too, or the next record()'s save() writes the
   // previous account's test progress back under the new uid — inflating the
   // new account's rings with answers it never gave. notify() without

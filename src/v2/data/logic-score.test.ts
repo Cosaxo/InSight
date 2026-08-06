@@ -20,7 +20,7 @@ import {
 
 beforeEach(() => localStorage.clear());
 
-describe("logicPctile (the modelled curve — D52)", () => {
+describe("logicPctile (the modelled curve — D53)", () => {
   it("pins the landmarks: floor, chance, midpoint, ceiling", () => {
     expect(logicPctile(0)).toBe(1); // clamped floor
     // pure guessing expects 2 of 12 with six options — the floor a random
@@ -31,7 +31,7 @@ describe("logicPctile (the modelled curve — D52)", () => {
     expect(logicPctile(8 / 12)).toBe(58);
     // The 94 ceiling is deliberate: a perfect score is the test's ceiling,
     // and a ceiling cannot distinguish top-6% from top-1% ability. If this
-    // pin surprises you, the reasoning lives in logic-score.ts and D52 —
+    // pin surprises you, the reasoning lives in logic-score.ts and D53 —
     // change both or neither.
     expect(logicPctile(1)).toBe(94);
   });

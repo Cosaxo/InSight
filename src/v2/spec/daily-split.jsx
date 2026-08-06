@@ -125,7 +125,7 @@ class DailySplit extends React.Component {
   }
   componentDidMount() {
     if (window.DUELS) this._unsubDuels = window.DUELS.subscribe(() => this.forceUpdate());
-    // The purge (data/live.ts, D50): this component persists dreplies,
+    // The purge (data/live.ts, D51): this component persists dreplies,
     // cats and testProg by spreading state back to the keys the purge just
     // removed, and it stays mounted across a uid change — drop them, or
     // one interaction writes the previous account's maps back. votes

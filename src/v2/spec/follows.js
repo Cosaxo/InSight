@@ -51,7 +51,7 @@ export let FRIENDS;
     count: () => S.friends.length,
     subscribe: (f) => { listeners.add(f); return () => listeners.delete(f); },
   };
-  // The purge (data/live.ts, D50): drop to the fresh-boot state — the SEED
+  // The purge (data/live.ts, D51): drop to the fresh-boot state — the SEED
   // circle, exactly what load() yields with the key gone — or the next
   // invite/unfriend save() writes the previous account's edits back. fire()
   // without save(): notify, but do not re-create the purged key.

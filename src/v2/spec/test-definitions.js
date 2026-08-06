@@ -103,7 +103,7 @@ try {
   const saved = JSON.parse(localStorage.getItem(TEST_RESULTS_KEY) || '{}');
   Object.keys(saved).forEach(k => { IS_TEST_RESULTS[k] = saved[k]; });
 } catch (e) { /* ignore corrupt storage */ }
-// The purge (data/live.ts, D50). Disk cannot resurrect here —
+// The purge (data/live.ts, D51). Disk cannot resurrect here —
 // persistTestResult below reads storage fresh on every write — but this
 // mirror object is what the profile surfaces render, and without the drop
 // it keeps showing the previous account's results until an app restart.

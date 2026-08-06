@@ -62,7 +62,7 @@
     },
     reset() { S = { log: [] }; save(); },
   };
-  // The purge (data/live.ts, D50): the key is already gone; drop the
+  // The purge (data/live.ts, D51): the key is already gone; drop the
   // in-memory copy too, or the next log()'s save() writes the previous
   // account's read-room history back under the new uid. No save() — that
   // would re-create the key the purge just removed.

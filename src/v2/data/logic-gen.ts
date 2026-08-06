@@ -27,7 +27,7 @@
 // determinism, option-key integrity, distractor uniqueness, renderability,
 // per-family semantics and the ambiguity sweep (no distractor may satisfy
 // the rule a solver perceives). The overlay (src/v2/spec/logic-test.jsx)
-// imports this directly — it left the window.LOGIC_GEN bridge with D52 —
+// imports this directly — it left the window.LOGIC_GEN bridge with D53 —
 // and results stay on-device (no backend — D31).
 
 // ── the glyph vocabulary (must stay inside what Prim renders) ──
@@ -484,6 +484,6 @@ export function generateForm(seed: number): Form {
 }
 
 // No window publication: logic-test.jsx imports { generateForm, version }
-// directly (D52). The global this module used to publish had exactly one
+// directly (D53). The global this module used to publish had exactly one
 // consumer, and a real import is one fewer name the spec-globals ratchet
 // has to carry.

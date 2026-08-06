@@ -62,7 +62,7 @@ import React from 'react';
     },
     subscribe(f) { listeners.add(f); return () => listeners.delete(f); },
   };
-  // The purge (data/live.ts, D50): drop the in-memory copy too, or the next
+  // The purge (data/live.ts, D51): drop the in-memory copy too, or the next
   // toggleVote()'s persist writes the previous account's submissions back
   // under the new uid — authored questions rendered as "You". Notify
   // without re-creating the purged key.

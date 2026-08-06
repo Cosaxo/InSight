@@ -56,6 +56,7 @@
     "build:screenshots": "node scripts/gen-screenshots.mjs",
     "asc:push": "node scripts/asc-push.mjs",
     "monitoring:apply": "node scripts/apply-monitoring.mjs",
+    "check:monitoring": "node scripts/check-monitoring.mjs",
     "build:feature-graphic": "node scripts/gen-feature-graphic.mjs",
     "test:unit": "vitest run --dir src",
     "test:scripts": "vitest run --dir scripts",

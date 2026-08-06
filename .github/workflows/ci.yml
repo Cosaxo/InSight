@@ -67,11 +67,22 @@ jobs:
       # whether a rules fix is safe to deploy.
       - run: npm run check:labels
       # Every store that persists insight.* state must hear the purge
-      # (insight:local-purge, D50) — deleting the keys is only half the
+      # (insight:local-purge, D51) — deleting the keys is only half the
       # wipe when the in-memory copy writes itself back on the next
-      # mutation. lens-defs shipped exactly that hole (D49). Client-only,
+      # mutation. lens-defs shipped exactly that hole (D50). Client-only,
       # same argument as above for staying off backend-checks.yml.
       - run: npm run check:purge
+      # The alert chain, from the log line a function emits to the policy
+      # that reads it. Every link fails the same silent way — the policy
+      # exists, the console is green, and it can never fire — which is the
+      # class check:deploy-targets and check:appcheck exist for.
+      #
+      # Here rather than on backend-checks.yml on that workflow's own rule:
+      # nothing this says bears on whether a rules fix is safe to deploy,
+      # and an alerting mistake must not be able to block an emergency one.
+      # It cannot reach Cloud Monitoring and does not pretend to — policies
+      # are applied by hand (D47), so this checks the half in the repo.
+      - run: npm run check:monitoring
       # Five version numbers that must move together across three files.
       - run: npm run check:versions
       # The city catalogue is parsed at runtime and its names become

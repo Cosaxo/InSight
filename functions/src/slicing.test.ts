@@ -16,7 +16,7 @@ import { describe, expect, it } from "vitest";
 import { POLITICAL_QIDS, slicesDemographics } from "./v2";
 import { V2_QUESTIONS } from "./v2content";
 
-// Both markers (D44, D51): the political test's own items, and ordinary
+// Both markers (D44, D52): the political test's own items, and ordinary
 // opinion cards carrying `political: true` — the flag a feed question uses
 // because reusing `test` would count it toward the test's progress rings.
 const political = V2_QUESTIONS.filter(
@@ -63,7 +63,7 @@ describe("D44 · political items never slice", () => {
   });
 
   it("the flag reaches feed/daily opinion items, not only the test", () => {
-    // The non-vacuity guard for D51's half of the set: if the generator
+    // The non-vacuity guard for D52's half of the set: if the generator
     // stopped passing `political` through, the flagged civic items would
     // quietly rejoin the sliceable pool with every other assertion green.
     const flagged = V2_QUESTIONS.filter((q) => q.political === true);

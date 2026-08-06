@@ -39,7 +39,7 @@ export interface LiveFixtureOptions {
   /**
    * How many live world cards WORLD_FEED_QS carries (default 1). The feed
    * weaves one LENS card in after every 9th world card, so a case that needs
-   * a lens card on screen asks for at least 9 (D49).
+   * a lens card on screen asks for at least 9 (D50).
    */
   feedCards?: number;
 }

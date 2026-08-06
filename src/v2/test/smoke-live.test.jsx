@@ -250,7 +250,7 @@ describe("the live gates hold in the DOM, not just in the source", () => {
     expect(window.WORLD_FEED_COMMENTS).toEqual({});
   });
 
-  // D49. A lens question woven into a LIVE feed is a self-report item: the
+  // D50. A lens question woven into a LIVE feed is a self-report item: the
   // answer lands in the on-device lens store, no backend aggregate exists,
   // and the authored demo counts the card carries must never render as a
   // split. buildFeedGlobals (data/live.ts) replaces WORLD_FEED_QS and
@@ -301,7 +301,7 @@ describe("the live gates hold in the DOM, not just in the source", () => {
     }
   });
 
-  // D50. The module stores' purge listeners are covered in
+  // D51. The module stores' purge listeners are covered in
   // purge-wipe.test.ts; this is the COMPONENT half: the feed stays mounted
   // across a uid change and persists four of its maps by spreading state
   // back to the purged keys, so the event must reach component state too.

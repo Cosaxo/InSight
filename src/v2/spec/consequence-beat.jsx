@@ -102,10 +102,33 @@ function ConsequenceBeat({ seed, options, pcts, mineIdx, height = 220, onDone })
   }, []);
 
   return (
-    <div ref={rootRef} onClick={finish} role="button" aria-label="Skip" style={{ position: 'relative', height, cursor: 'pointer', transition: 'opacity .15s linear' }}>
+    // A real <button>, not a div carrying role="button" (D23's rule, and the
+    // last non-autofocus finding in this layer). The div had the role and the
+    // label — everything check:a11y can read — and no tabIndex and no key
+    // handler, so the one control on screen was the one control a keyboard
+    // could not reach, for the several seconds this animation covers the
+    // result. `type="button"` because a bare <button> submits.
+    //
+    // The style block carries the UA reset the div did not need: border,
+    // background, padding, font and display all have non-zero defaults on a
+    // button, and `width: 100%` restores the block box the canvas inside
+    // measures itself against.
+    <button
+      type="button"
+      ref={rootRef}
+      onClick={finish}
+      aria-label="Skip"
+      style={{
+        position: 'relative', height, width: '100%', display: 'block',
+        border: 0, padding: 0, margin: 0, background: 'transparent',
+        font: 'inherit', color: 'inherit', textAlign: 'inherit',
+        WebkitAppearance: 'none', appearance: 'none',
+        cursor: 'pointer', transition: 'opacity .15s linear',
+      }}
+    >
       <canvas ref={canvasRef} style={{ width: '100%', height: '100%', display: 'block' }}></canvas>
       <div style={{ position: 'absolute', left: 0, right: 0, bottom: 4, textAlign: 'center', fontFamily: 'var(--sans)', fontWeight: 700, fontSize: 13, color: 'var(--ink-2)', opacity: 0, animation: 'cbIn .3s cubic-bezier(0.2,0.8,0.2,1) .5s forwards', pointerEvents: 'none' }}>{msg}</div>
-    </div>
+    </button>
   );
 }
 

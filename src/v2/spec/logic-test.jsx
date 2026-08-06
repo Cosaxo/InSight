@@ -12,7 +12,7 @@ import { FIELD_MED, loadResult, logicPctile, logicSecs, saveResult } from '../da
 // Logic · Raven's-matrices-style test, run as a full overlay
 // (like the other tests). Twelve 3×3 matrices on a difficulty
 // ramp, GENERATED fresh per attempt by src/v2/data/logic-gen.ts
-// (a direct import since D52 — this file was the global's only
+// (a direct import since D53 — this file was the global's only
 // consumer) from a random seed — the bank of hardcoded puzzles
 // (and its answer key in the bundle) is gone, so no two attempts
 // are the same and there is nothing to memorize. No per-question
@@ -301,7 +301,7 @@ import { FIELD_MED, loadResult, logicPctile, logicSecs, saveResult } from '../da
     const [result, setResult] = useState(loadResult);
     // The attempt's generated form. Created on open when there is no saved
     // result (the overlay starts straight in the test), and on every
-    // Retake. The generator is a direct import (D52), so "module missing"
+    // Retake. The generator is a direct import (D53), so "module missing"
     // is a build failure now, not a render-time one.
     const [form, setForm] = useState(() => (result ? null : makeForm()));
     const [qi, setQi] = useState(result ? -1 : 0); // -1 = result screen
@@ -324,7 +324,7 @@ import { FIELD_MED, loadResult, logicPctile, logicSecs, saveResult } from '../da
       if (picked !== null) return;
       setPicked(i);
       const next = [...marks, i === form.items[qi].a];
-      // Deliberately never cancelled on unmount (D52): this timeout is also
+      // Deliberately never cancelled on unmount (D53): this timeout is also
       // the final item's save, so closing the overlay 200ms after the last
       // pick must still keep the score. Mid-test, the late callback's
       // setState is a no-op on an unmounted component — a 240ms timer is

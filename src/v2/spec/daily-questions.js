@@ -91,7 +91,7 @@ export let DAILYQ;
       cat: ['Mind', 'Rest'], alts: [['Values', 'Rest'], ['Body', 'Recovery']] },
     { type: 'binary', prompt: 'Are people getting kinder, or meaner?', tag: 'People today', options: ['Kinder', 'Meaner'], tone: 'deep',
       cat: ['Morals', 'Direction'], alts: [['Mind', 'Outlook'], ['Values', 'Hope']] },
-    // Prompt synced with content/daily-questions.json 006 (D51: currency
+    // Prompt synced with content/daily-questions.json 006 (D52: currency
     // left the prompts) — liveSync and the pulse archive join key on
     // prompt-string equality, so the twins must not drift.
     { type: 'dilemma', prompt: "You find a week's pay in cash on an empty street. What do you do?", tag: 'Found cash', options: ['Keep it', 'Hand it in', 'Leave it'], tone: 'deep',
@@ -104,7 +104,7 @@ export let DAILYQ;
       cat: ['Mind', 'Human limits'], alts: [['Body', 'Sleep'], ['Values', 'Being human']] },
     { type: 'choice', prompt: 'What should schools teach more of?', tag: 'Schools', options: ['Money', 'Emotions', 'Making things', 'History'], tone: 'deep',
       cat: ['Values', 'Education'], alts: [['Mind', 'Learning'], ['Goals', 'Next generation']] },
-    // Synced with content 011 (D51: the partner assumption dropped) — same
+    // Synced with content 011 (D52: the partner assumption dropped) — same
     // prompt-equality join as 006 above.
     { type: 'dilemma', prompt: 'A job you would love means moving somewhere the person closest to you would hate. Do you take it?', tag: 'Job or move', options: ['Take it', 'Stay', 'Find a third way'], tone: 'deep',
       cat: ['Morals', 'Loyalty'], alts: [['Values', 'Loyalty'], ['Goals', 'Career']] },
@@ -497,7 +497,7 @@ export let DAILYQ;
   }
   if (typeof window !== 'undefined' && window.addEventListener) {
     window.addEventListener('insight-live-update', liveSync);
-    // The purge (data/live.ts, D50): both keys are already gone; drop the
+    // The purge (data/live.ts, D51): both keys are already gone; drop the
     // in-memory answer and branch-override maps too, or the next answer()'s
     // save writes the previous account's daily answers back under the new
     // uid. liveSync above then re-fills from the NEW uid's confirmed votes

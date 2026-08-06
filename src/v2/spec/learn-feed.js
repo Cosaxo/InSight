@@ -21,7 +21,7 @@ window.LEARN_FEED = (function () {
   try { const v = localStorage.getItem(LS); if (v && RATE[v] !== undefined) f = v; } catch (e) { /* absent or corrupt payload — keep the default above */ }
   const subs = new Set();
   const toQ = (c) => ({ id: 'lrn-' + c.id, type: 'know', learn: c.id, f: c.f, cat: 'lrn-' + c.f, prompt: c.q, options: c.a.map((t) => ({ label: t, count: 0 })) });
-  // The purge (data/live.ts, D50): a frequency is thin as personal data
+  // The purge (data/live.ts, D51): a frequency is thin as personal data
   // goes, but it is still the previous account's setting — drop to the
   // default the purged key loads as. Directly on `f`, not via setFreq():
   // that would write the key the purge just removed straight back.
