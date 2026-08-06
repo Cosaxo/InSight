@@ -124,10 +124,9 @@ import './spec/map-layout.js';
 import './spec/map-groups.js';
 import './spec/map-chiprow.jsx';
 import './spec/map-tab.jsx';
-// data/logic-gen and logic-test.jsx load after first paint, still adjacent
-// and still in this order — the generator publishes window.LOGIC_GEN, which
-// the overlay reads at render time. (Order is semantic here, like
-// everything in this file.)
+// logic-test.jsx loads after first paint; it imports data/logic-gen
+// directly (D50), so the generator rides the same deferred chunk without
+// a listing of its own.
 import './spec/profile-general.jsx';
 // These were born in this repo (never in design/) and live as typed TSX
 // under ui/; they self-register on globalThis so the render-time lookups
@@ -214,9 +213,10 @@ export function loadWorldFeed() {
 // feed, whose absence is a legitimate frame.
 //
 // SEQUENTIAL awaits and this exact order, which is spec-index's own order
-// with the eager modules removed: data/logic-gen publishes window.LOGIC_GEN
-// and logic-test.jsx is its only consumer, so the pair stays adjacent and
-// in that direction.
+// with the eager modules removed. (data/logic-gen used to be listed here
+// explicitly for its window.LOGIC_GEN side effect; logic-test.jsx imports
+// it directly now — D50 — so the ESM graph carries it into the same
+// chunk without a line of its own.)
 //
 // relmap.jsx is deliberately NOT here despite being the largest candidate
 // (~43 KB). It is the one overlay with a first-frame consumer:
@@ -239,7 +239,6 @@ export function loadOverlays() {
       await import('./spec/person-overlay.jsx');
       await import('./spec/city-overlay.jsx');
       await import('./spec/suggestions.jsx');
-      await import('./data/logic-gen');
       await import('./spec/logic-test.jsx');
     })();
   }

@@ -95,8 +95,9 @@ quietly leave the suite.
 ## …and so are the five no-button overlays
 
 `loadOverlays()` (D38) defers `test-overlay`, `person-mindmap`,
-`person-overlay`, `city-overlay`, `suggestions`, `data/logic-gen` and
-`logic-test` — the overlays with no control in the header or tabbar, reached
+`person-overlay`, `city-overlay`, `suggestions` and `logic-test` (which
+imports `data/logic-gen` directly since D50, pulling it into the same
+chunk) — the overlays with no control in the header or tabbar, reached
 only through the `window.open*` cross-links. Entry chunk 922 → 837 KB.
 
 **The synchronisation is different from the feed's, and that difference is
@@ -369,7 +370,7 @@ survivable enough to live with indefinitely.
 **Rule 4** counts every site where one file reads a name another file
 assigns to global scope, per file, and the number may only go down. The
 baseline is in `scripts/check-spec-globals.mjs`; `npm run check:globals`
-prints the current total on every run. The count today is **620 across 52
+prints the current total on every run. The count today is **619 across 51
 files**, down from 799 when the ratchet landed.
 
 The mechanism needs no bookkeeping, which is what makes it usable. The

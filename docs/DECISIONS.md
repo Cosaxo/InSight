@@ -4620,3 +4620,65 @@ items, and appends.
 **Ops note.** These are bank edits; production picks them up on the next
 `seedContentV2` run with `bumpRev` per the deploy runbook — nothing here
 re-keys an existing answer, by construction of the four allowed shapes.
+
+## D50 · The logic test measured: zero ambiguity in 60,000 items, and the curve gets pinned
+
+**Date:** 2026-08-06 · **Status:** Adopted
+
+**The review's method.** A matrix test's cardinal risk is an ambiguous
+item — a distractor a careful solver could defend. That is measurable, so
+it was measured: a per-family completion predicate (the family's line
+rules plus the visible grid's uniformities and shape vocabulary), swept
+over every option of every item for 5,000 seeds. Three tuning iterations
+were needed, each round's false positives being a constraint humans
+obviously use that the model had missed — fillRamp's size uniformity,
+dist2's exact element identity, ringGrow's outline-only vocabulary.
+
+**What it found.** Zero ambiguous options in 60,000 items, with the
+constructed answer passing its predicate 60,000 of 60,000 times. Answer
+positions uniform (16.3–17.0% per slot). dist2's degenerate case
+(identical absence patterns) occurred 0 times in 2,466. No duplicate
+puzzles within a form, no distractor-pool exhaustion, ~0.25ms per form.
+Distractor composition matches the design's claim: 72.8% family-authored
+wrong-rule mutants, 14.1% neighbour-cell repeats, 13.1% generic
+perturbations. This CORRECTS the earlier framing that "distinct is not
+wrong" was a live hole — it is a theoretical one only, and the sweep now
+lives in logic-gen.test.ts permanently (answers must pass, no distractor
+may), so a future family that opens the hole fails CI instead of
+shipping. If a new family's ANSWERS fail the sweep, the predicate is
+missing that family's grammar: extend the model, never weaken the sweep.
+
+**The curve is a decision now, not an accident.** logicPctile moved to
+`data/logic-score.ts` (typed, with loadResult/saveResult/logicSecs) and
+its landmarks are pinned: chance (2/12 with six options) reads 4,
+6/12 → 30, the load-bearing midpoint 62% → 50, and a perfect 12/12 reads
+**94 — deliberately**. A perfect score is the test's ceiling, and a
+ceiling cannot distinguish "better than 94%" from "better than 99%"; the
+honest claim stops where the instrument does. The floor clamps at 1 for
+the symmetric reason.
+
+**The overlay left the bridge.** logic-test.jsx now imports the generator
+and the scoring directly; window.LOGIC_GEN is gone (it had exactly one
+consumer), loadOverlays() dropped its explicit import line (the ESM graph
+carries the generator into the same deferred chunk), and the coupling
+ratchet came down 620 → 619 across 51 files. The reveal-delay timeout is
+deliberately never cancelled on unmount: it is also the final item's
+save, and closing the overlay 200ms after the last pick must keep the
+score — a 240ms timer is the whole cost of that guarantee.
+
+**New coverage.** `logic-overlay.test.jsx` drives a full attempt through
+the real generator (the seed pinned by stubbing crypto, the overlay's own
+seed source), asserting the v2 payload to the millisecond — the 240ms
+reveal delay subtracted from every recorded time — plus a wrong-pick run,
+all five result lenses (four had never rendered in any test) each showing
+the modelled-yardstick disclosure, and an 8-mark result pinning the
+Answers lens against the old /11 regression. `logic-score.test.ts` pins
+the curve, the v1 back-fill, and the times-fallback.
+
+**Accepted limits, recorded.** Puzzle timing counts backgrounded-tab time
+(skews the Pace lens toward "deliberate" — it is a modelled yardstick and
+says so). Retake discards the previous attempt's result and seed — one
+result, not a history, matches the device-local minimalism of D31. The
+test is inherently visual; options are labelled by position for assistive
+tech, and a non-visual rendering of a matrix test is out of scope rather
+than pending.

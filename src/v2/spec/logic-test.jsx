@@ -5,22 +5,24 @@
 // guards the wiring in CI.
 import React from 'react';
 import { useDialog } from './primitives.jsx';
+import { generateForm } from '../data/logic-gen';
+import { FIELD_MED, loadResult, logicPctile, logicSecs, saveResult } from '../data/logic-score';
 
 // ─────────────────────────────────────────────────────────────
 // Logic · Raven's-matrices-style test, run as a full overlay
 // (like the other tests). Twelve 3×3 matrices on a difficulty
-// ramp, GENERATED fresh per attempt by window.LOGIC_GEN
-// (src/v2/data/logic-gen.ts) from a random seed — the bank of
-// hardcoded puzzles (and its answer key in the bundle) is gone,
-// so no two attempts are the same and there is nothing to
-// memorize. No per-question feedback — score + percentile at
-// the end, persisted to localStorage. The General tab shows it
-// as a fifth ring in "Your tests".
+// ramp, GENERATED fresh per attempt by src/v2/data/logic-gen.ts
+// (a direct import since D50 — this file was the global's only
+// consumer) from a random seed — the bank of hardcoded puzzles
+// (and its answer key in the bundle) is gone, so no two attempts
+// are the same and there is nothing to memorize. No per-question
+// feedback — score + percentile at the end, persisted via
+// data/logic-score.ts, where the curve is typed and pinned. The
+// General tab shows it as a fifth ring in "Your tests".
 // ─────────────────────────────────────────────────────────────
 (function () {
   const { useState, useRef, useEffect } = React;
 
-  const LKEY = 'insight.logicTest.v1';
   // How long the picked-answer state shows before advancing.
   const PICK_DELAY = 240;
 
@@ -66,7 +68,7 @@ import { useDialog } from './primitives.jsx';
   // The twelve matrices come from the generator, seeded fresh at every
   // start. The seed is saved with the result so a future lens (or a bug
   // report) can reconstruct exactly the form a score was earned on —
-  // LOGIC_GEN.version travels with it so a generator change can never
+  // the generator version travels with it so a generator change can never
   // silently reinterpret an old seed.
   const newSeed = () => {
     const c = (typeof globalThis !== 'undefined' && globalThis.crypto) || null;
@@ -80,24 +82,7 @@ import { useDialog } from './primitives.jsx';
     // players who opened the overlay in the same millisecond.
     return Math.floor(Math.random() * 4294967296) >>> 0;
   };
-  const makeForm = () => window.LOGIC_GEN.generateForm(newSeed());
-
-  // ── persistence + scoring ──
-  // pctile = share of players this score beats (rough normal-ish curve)
-  const logicPctile = (frac) => Math.max(1, Math.min(99, Math.round(100 / (1 + Math.exp(-((frac * 100) - 62) / 14)))));
-  function loadResult() {
-    try {
-      const r = JSON.parse(localStorage.getItem(LKEY) || 'null');
-      if (r && Array.isArray(r.marks) && r.marks.length) {
-        if (r.pctile == null) r.pctile = logicPctile(r.marks.filter(Boolean).length / r.marks.length);
-        return r;
-      }
-    } catch (e) { /* ignore */ }
-    return null;
-  }
-  function saveResult(r) {
-    try { localStorage.setItem(LKEY, JSON.stringify(r)); } catch (e) { /* ignore */ }
-  }
+  const makeForm = () => generateForm(newSeed());
 
   // ── tiles ──
   const tileBase = {
@@ -254,7 +239,6 @@ import { useDialog } from './primitives.jsx';
   //    you whether you got there quickly or by grinding, which is the one
   //    thing this adds. ──
   const seeded = (s) => { const x = Math.sin(s * 12.9898) * 43758.5453; return x - Math.floor(x); };
-  const FIELD_MED = 17; // modelled median seconds per puzzle
   function PacePlot({ pctile, secs }) {
     const W = 300, H = 172, PL = 16, PR = 14, PT = 14, PB = 26;
     const xp = (v) => PL + v * (W - PL - PR);
@@ -300,12 +284,8 @@ import { useDialog } from './primitives.jsx';
   // That is defensible for a self-test (the comparison is a yardstick, not a
   // population statistic) but it was previously unsaid, and this file now
   // draws five of them. The result screen says so once, in LOGIC_FIELD_NOTE,
-  // rather than letting five charts imply five measurements.
-  function logicSecs(r) {
-    return r && Array.isArray(r.times) && r.times.length
-      ? r.times.reduce((a, b) => a + b, 0) / r.times.length / 1000
-      : FIELD_MED;
-  }
+  // rather than letting five charts imply five measurements. The curve and
+  // the persistence live in data/logic-score.ts, typed and pinned.
 
   const LOGIC_FIELD_NOTE = 'Comparisons here are a modelled yardstick, not other players’ results — this test sends nothing anywhere.';
 
@@ -321,9 +301,8 @@ import { useDialog } from './primitives.jsx';
     const [result, setResult] = useState(loadResult);
     // The attempt's generated form. Created on open when there is no saved
     // result (the overlay starts straight in the test), and on every
-    // Retake. A missing LOGIC_GEN throws here — loudly, into the
-    // ErrorBoundary — which is the correct failure for a broken
-    // spec-index order; the smoke test would catch it.
+    // Retake. The generator is a direct import (D50), so "module missing"
+    // is a build failure now, not a render-time one.
     const [form, setForm] = useState(() => (result ? null : makeForm()));
     const [qi, setQi] = useState(result ? -1 : 0); // -1 = result screen
     const [marks, setMarks] = useState([]);
@@ -345,6 +324,11 @@ import { useDialog } from './primitives.jsx';
       if (picked !== null) return;
       setPicked(i);
       const next = [...marks, i === form.items[qi].a];
+      // Deliberately never cancelled on unmount (D50): this timeout is also
+      // the final item's save, so closing the overlay 200ms after the last
+      // pick must still keep the score. Mid-test, the late callback's
+      // setState is a no-op on an unmounted component — a 240ms timer is
+      // the whole cost, and losing a finished attempt would be the bug.
       setTimeout(() => {
         // Read the clock here, not in pick's body — same purity rule. The
         // reveal delay is subtracted because it is the animation's time, not

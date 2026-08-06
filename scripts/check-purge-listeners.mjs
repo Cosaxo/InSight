@@ -57,9 +57,10 @@ const EXEMPT = {
   "src/v2/spec/test-overlay.jsx":
     "saves read the progress map fresh from storage each time and touch "
     + "only their own test's entry — nothing old is spread back",
-  "src/v2/spec/logic-test.jsx":
-    "the result loads at mount and every save writes a whole fresh "
-    + "attempt — no old state is spread back",
+  "src/v2/data/logic-score.ts":
+    "stateless helpers (D50): the result loads per mount and every save "
+    + "writes a whole fresh attempt — no module-scope copy exists to go "
+    + "stale or be spread back",
   "src/v2/spec/profile-general.jsx":
     "component state whose persist effect also runs on mount, so any "
     + "post-purge mount writes defaults; only an editor already open "
