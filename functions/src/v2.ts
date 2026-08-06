@@ -373,11 +373,18 @@ export async function runSeedV2(
   return { written, skipped };
 }
 
-// NO enforceAppCheck, deliberately: this is invoked from a browser console
-// as the last remaining step of SHIP-CHECKLIST §1, and by the e2e — neither
-// carries an App Check token. assertOperator + SEED_ADMIN_UIDS is the
-// control instead. Held by `npm run check:appcheck`, which also fails if
-// enforcement is ever added here without removing the exemption, because
+// NO enforceAppCheck, deliberately: this is invoked by the *Seed content*
+// workflow (scripts/seed-content.mjs) as the last remaining step of
+// SHIP-CHECKLIST §1, and by the e2e — neither carries an App Check token.
+// assertOperator + SEED_ADMIN_UIDS is the control instead.
+//
+// This comment said "from a browser console" until 2026-08-06, which was
+// the reason given for the exemption and was describing a caller that did
+// not exist: hosting serves only web/ (home, join, privacy, terms) and the
+// app ships as the native iOS shell, so there is no browser build to open a
+// console on. The exemption was right; its stated caller was imaginary.
+//
+// Held by `npm run check:appcheck`, which also fails if
 // adding it would refuse the console call that checklist step is written
 // around.
 export const seedContentV2 = onCall({ region: REGION }, async (request) => {

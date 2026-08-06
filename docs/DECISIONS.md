@@ -3045,6 +3045,16 @@ Check token exists to send.
   the call that checklist step is written around, which makes this the one
   exemption that must not be "tidied up" without rewriting the seeding
   procedure first.
+
+  > **Amendment, 2026-08-06.** "From a browser console" was never true. The
+  > app has no browser build — hosting serves `web/` (home, join, privacy,
+  > terms) and the app ships as the native iOS shell — so the caller this
+  > exemption was granted for did not exist. **The exemption stands
+  > unchanged**, and for the same reason: the seed is now invoked by the
+  > *Seed content* workflow (`scripts/seed-content.mjs`), which carries no
+  > App Check token either. Only the description was wrong, in all three
+  > places it was written down — here, `check-appcheck.mjs` and
+  > `functions/src/v2.ts`.
 - `revealDuelsNowV2` — the scheduled scan's manual lever, reached from a
   console during an incident (DEPLOYMENT.md → rollback) and by the e2e. A
   control that fails when it is most needed is not a control.

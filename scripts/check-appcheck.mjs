@@ -47,12 +47,16 @@ const SRC = join(root, "functions", "src");
 // fails this script too, so the exemption cannot quietly outlive its
 // reason — and it must not be added casually: the seed callable is the
 // one remaining step of SHIP-CHECKLIST §1, and enforcing attestation on it
-// would refuse the console call that step is written around.
+// would refuse the CI call that step is written around. (Until 2026-08-06
+// that read "the console call", naming a caller that never existed — the
+// app has no browser build. The exemption was right; only its stated
+// caller was wrong, in all three places it was written down.)
 const EXEMPT = {
   // Operator instruments (assertOperator, SEED_ADMIN_UIDS).
   seedContentV2:
-    "operator callable, invoked from a browser console (SHIP-CHECKLIST §1) "
-    + "and by the e2e; gated on SEED_ADMIN_UIDS",
+    "operator callable, invoked by the Seed content workflow "
+    + "(scripts/seed-content.mjs, SHIP-CHECKLIST §1) and by the e2e; "
+    + "gated on SEED_ADMIN_UIDS",
   revealDuelsNowV2:
     "operator callable, the scheduled scan's manual lever (D19 rollback "
     + "runbook); gated on SEED_ADMIN_UIDS",
