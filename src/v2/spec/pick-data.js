@@ -316,6 +316,10 @@
     },
     subscribe(f) { subs.add(f); return () => subs.delete(f); },
   };
+  // The purge (data/live.ts, D48): drop your picks too, or the next
+  // pick()'s save writes the previous account's back under the new uid.
+  // Notify without re-creating the purged key.
+  window.addEventListener('insight:local-purge', () => { mine = {}; subs.forEach((f) => f()); });
   window.PICKS = api;
 
   // the feed questions — one per COMMITTED catalogue. Films/artists cards

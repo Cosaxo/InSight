@@ -28,6 +28,7 @@
     "check:figures": "node scripts/check-figures.mjs",
     "check:a11y": "node scripts/check-a11y.mjs",
     "check:labels": "node scripts/check-labels.mjs",
+    "check:purge": "node scripts/check-purge-listeners.mjs",
     "check:cities": "node scripts/check-cities.mjs",
     "check:pokedex": "node scripts/check-pokedex.mjs",
     "build:pokedex": "node scripts/build-pokedex.mjs",

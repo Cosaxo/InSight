@@ -492,6 +492,12 @@ export let DAILYQ;
   }
   if (typeof window !== 'undefined' && window.addEventListener) {
     window.addEventListener('insight-live-update', liveSync);
+    // The purge (data/live.ts, D48): both keys are already gone; drop the
+    // in-memory answer and branch-override maps too, or the next answer()'s
+    // save writes the previous account's daily answers back under the new
+    // uid. liveSync above then re-fills from the NEW uid's confirmed votes
+    // on the next live update — the same heal the feed's reconcile does.
+    window.addEventListener('insight:local-purge', () => { saved = {}; savedCat = {}; listeners.forEach((f) => f()); });
   }
   liveSync();
 })();

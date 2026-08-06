@@ -289,6 +289,15 @@ class WorldFeed extends React.Component {
     this._unsubSubs = window.SUBTOPICS ? window.SUBTOPICS.subscribe(() => this.forceUpdate()) : null;
     this._unsubLearn = window.LEARN ? window.LEARN.subscribe(() => this.forceUpdate()) : null;
     this._unsubLF = window.LEARN_FEED ? window.LEARN_FEED.subscribe(() => this.forceUpdate()) : null;
+    // The purge (data/live.ts, D48): this component PERSISTS four of its
+    // maps (votes, passed, takes, replies) by spreading state back to the
+    // keys the purge just removed — and it stays mounted across a uid
+    // change, so without this drop the previous account's maps survive on
+    // screen and one interaction writes them back. votes clears too and the
+    // LIVE reconcile above refills it for the new uid; knowRes and pickQ
+    // are this-session answer echoes of stores that drop themselves.
+    this._onPurge = () => this.setState({ votes: {}, passed: {}, myTakes: {}, replies: {}, knowRes: {}, pickQ: {} });
+    window.addEventListener('insight:local-purge', this._onPurge);
     // entrance: each card rises as it first scrolls into view (transform-only)
     this._io = typeof IntersectionObserver !== 'undefined' ? new IntersectionObserver((es) => {
       es.forEach((e) => { if (e.isIntersecting) { e.target.classList.add('wf-in'); this._io.unobserve(e.target); } });
@@ -304,6 +313,7 @@ class WorldFeed extends React.Component {
     if (this._unsubSubs) this._unsubSubs();
     if (this._unsubLearn) this._unsubLearn();
     if (this._unsubLF) this._unsubLF();
+    if (this._onPurge) window.removeEventListener('insight:local-purge', this._onPurge);
     if (this._io) this._io.disconnect();
     const sc = this._scroller;
     if (sc && this._onScroll) sc.removeEventListener('scroll', this._onScroll);

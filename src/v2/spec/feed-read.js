@@ -62,6 +62,11 @@
     },
     reset() { S = { log: [] }; save(); },
   };
+  // The purge (data/live.ts, D48): the key is already gone; drop the
+  // in-memory copy too, or the next log()'s save() writes the previous
+  // account's read-room history back under the new uid. No save() — that
+  // would re-create the key the purge just removed.
+  window.addEventListener('insight:local-purge', () => { S = { log: [] }; });
 
   // How readable a cut has to be before it is worth a line of its own. A
   // cohort that merely rounds differently from the room is noise; the point

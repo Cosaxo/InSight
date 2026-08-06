@@ -86,10 +86,25 @@ window.IS_TEST_AVG = {
 // merged duty+altruism into one moral-circle tension. Old v1 results would
 // carry retired dims, so they are simply not read.)
 const TEST_RESULTS_KEY = 'insight.testResults.v2';
+// A pristine copy of the demo results ABOVE, taken before the saved-result
+// overlay below lands — the purge listener restores it, because the
+// fresh-boot state of this object is the demo seed plus an empty overlay,
+// not an empty object.
+const IS_TEST_RESULTS_DEMO = JSON.parse(JSON.stringify(window.IS_TEST_RESULTS));
 try {
   const saved = JSON.parse(localStorage.getItem(TEST_RESULTS_KEY) || '{}');
   Object.keys(saved).forEach(k => { window.IS_TEST_RESULTS[k] = saved[k]; });
 } catch (e) { /* ignore corrupt storage */ }
+// The purge (data/live.ts, D48). Disk cannot resurrect here —
+// persistTestResult below reads storage fresh on every write — but this
+// mirror object is what the profile surfaces render, and without the drop
+// it keeps showing the previous account's results until an app restart.
+// In place, not reassigned: consumers hold references to this object.
+window.addEventListener('insight:local-purge', () => {
+  const R = window.IS_TEST_RESULTS;
+  Object.keys(R).forEach((k) => { delete R[k]; });
+  Object.keys(IS_TEST_RESULTS_DEMO).forEach((k) => { R[k] = JSON.parse(JSON.stringify(IS_TEST_RESULTS_DEMO[k])); });
+});
 
 function persistTestResult(kind, result) {
   window.IS_TEST_RESULTS[kind] = result;

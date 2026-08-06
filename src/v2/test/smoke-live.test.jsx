@@ -300,4 +300,44 @@ describe("the live gates hold in the DOM, not just in the source", () => {
       localStorage.removeItem("insight.lenses.v1");
     }
   });
+
+  // D48. The module stores' purge listeners are covered in
+  // purge-wipe.test.ts; this is the COMPONENT half: the feed stays mounted
+  // across a uid change and persists four of its maps by spreading state
+  // back to the purged keys, so the event must reach component state too.
+  // Asserted through the DOM — an answered card's exact-label option
+  // buttons are gone (the result tiles carry the share in their name), and
+  // the purge brings them back: the new account meets a fresh card.
+  // daily-split.jsx carries the same listener shape; the scan
+  // (check:purge) holds both registered.
+  const removeInsightKeys = () => {
+    for (let i = localStorage.length - 1; i >= 0; i--) {
+      const k = localStorage.key(i);
+      if (k && k.startsWith("insight.")) localStorage.removeItem(k);
+    }
+  };
+
+  it("the mounted feed drops its answered state when the purge announces", async () => {
+    // Earlier cases voted this same fixture card, and the feed seeds its
+    // votes from insight.feedVotes.v1 at mount — start from clean keys or
+    // the card mounts already answered and there is nothing to click.
+    removeInsightKeys();
+    const expectNoBoundary = mountLive();
+    fireEvent.click(screen.getByRole("button", { name: FEED_OPTIONS[0] }));
+    await act(async () => { await new Promise((r) => setTimeout(r, 1200)); });
+    expect(
+      screen.queryByRole("button", { name: FEED_OPTIONS[1] }),
+      "the fixture card did not reach its answered state",
+    ).toBeNull();
+    act(() => {
+      // exactly purgeLocalTrace's behaviour: keys first, then the announcement
+      removeInsightKeys();
+      window.dispatchEvent(new Event("insight:local-purge"));
+    });
+    expect(
+      screen.queryByRole("button", { name: FEED_OPTIONS[1] }),
+      "the purge did not clear the feed's vote state",
+    ).not.toBeNull();
+    expectNoBoundary("feed after purge");
+  });
 });

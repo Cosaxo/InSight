@@ -4464,3 +4464,69 @@ and the purge listener; `src/v2/test/smoke-live.test.jsx` mounts a live
 feed with a lens card, answers it, and asserts the record landed locally
 (inverted), nothing reached `LIVE.vote`, and the card shows the
 acknowledgment with no split, no votes count and no engage row.
+
+## D48 · Deleting the keys is only half the wipe: every local store hears the purge
+
+**Date:** 2026-08-06 · **Status:** Adopted
+
+**Decision.** Every module-scope store that persists `insight.*` state
+drops its in-memory copy to the fresh-boot shape when
+`insight:local-purge` fires, notifying its subscribers and **without**
+calling its save — a save in the listener would re-create the key the
+purge just removed. The two long-mounted components that persist state by
+spreading it back (`world-feed.jsx`: votes, passed, takes, replies;
+`daily-split.jsx`: dreplies, cats, testProg, votes) carry the same
+listener at the component level. `scripts/check-purge-listeners.mjs`
+(CI's `check:purge`) holds the set closed: a file that writes an
+`insight.*` key must listen or be exempted with a reason, and a stale
+exemption fails too.
+
+**The audit that produced this.** D47 found the hole in one store
+(lens-defs' uncalled `reset()`); this is the sweep of the other 28 files
+that touch localStorage. Fourteen module stores had the same bug —
+`feed-read`, `follows`, `learn-progress`, `learn-feed`,
+`passive-progress`, `pick-data`, `place-stats`, `scenes`,
+`world-subtopics`, `suggestions`, `duels-data`, `world-feed-report`,
+`daily-questions`, `test-definitions` — each holding a module-scope map
+whose next mutation saved the whole thing back: daily answers, duel
+answers and group edits, test progress (inflating the new account's rings
+with answers it never gave), authored suggestions rendered as the new
+account's "You", follow lists, ratings, picks, reports, the read-room
+log. The always-mounted feed and daily components had the same shape in
+component state; the feed's votes already healed through its LIVE
+reconcile (absent from both store and mirror → dropped), which is the
+model the rest now follows.
+
+**Fresh-boot, not empty.** The drop target is what a cold load with no
+keys produces, which is not always `{}`: `follows` returns to its seed
+circle, `learn-progress` to its demo stagger (empty in live builds — the
+same `VITE_V2_LIVE` gate the load uses), `scenes`/`world-subtopics` to
+their day-one defaults by nulling the lazy cache so `ensure()` re-derives,
+and `IS_TEST_RESULTS` restores a pristine copy of the demo literal taken
+before the saved-result overlay. `duels-data` and `learn-progress` got
+their load normalisation extracted into one function used by both paths,
+so a field added later cannot leave the listener building a stale shape.
+
+**Exemptions, each with its reason in the script.** `live.ts` (the
+dispatcher; caches uid-scoped or public), `deviceBind`/`push` (memos
+carry the uid and are compared before use), `sentry` (flag read from
+storage per check), `test-overlay` (read-modify-write of only its own
+kind, fresh from storage), `logic-test` (whole fresh object per save),
+`profile-general` (persist effect runs on mount, so a post-purge mount
+writes defaults), and the two `ui/` panels (scalar written only on
+explicit save of the new value).
+
+**Two observations recorded, not fixed.** `insight.mapCatNames.v1` is
+read by `map-tab.jsx` and written by nothing — a dead key. And Sentry
+telemetry consent is read per event but an already-started SDK keeps
+running across a uid change until restart; the flag itself heals
+correctly, the running session is a consent nuance this entry flags for
+whoever next touches `lib/sentry.ts`.
+
+**Enforcement.** `check:purge` on the CI lint job (client-only, so
+deliberately not on `backend-checks.yml`);
+`src/v2/test/purge-wipe.test.ts` drives all fourteen module stores
+through seed → purge → remutate and asserts the resurrection never
+reaches disk; `smoke-live.test.jsx` proves the component half in a
+mounted tree; `vote.test.ts` pins that the announcement fires on the
+uid-change path.

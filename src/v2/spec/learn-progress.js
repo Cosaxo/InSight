@@ -51,27 +51,38 @@ window.LEARN = (function () {
   // scope, before the live boot has attached — the same signal live.ts's
   // demoInProd reads.
   const LIVE_BUILD = import.meta.env && import.meta.env.VITE_V2_LIVE === 'true';
-  if (!S) {
-    if (LIVE_BUILD) {
-      S = { c: {}, lvl: {}, pos: 0, order: [] };
-    } else {
-      S = { c: {}, lvl: {}, pos: 9, order: ['cell2', 'cell4', 'sol1', 'sol5', 'cap1', 'cap4'] };
-      const t0 = Date.now();
-      S.order.forEach((id, i) => { S.c[id] = { s: 'known', k: STREAK, seen: 1, miss: 0, pos: i, at: t0 - (6 - i) * 864e5 }; });
-      S.c.sol2 = { s: 'learning', k: 1, seen: 2, miss: 1, pos: 7, at: 0 };   // “Venus is hottest” — missed once, one right so far
-      S.lvl = { cell: 54, solar: 66, capitals: 58 };
-    }
+  // One builder for the fresh-boot state, used by the cold load AND the
+  // purge listener below — a field added to the shape lands in both, so the
+  // two can never diverge.
+  function freshS() {
+    if (LIVE_BUILD) return { c: {}, lvl: {}, pos: 0, order: [] };
+    const s = { c: {}, lvl: {}, pos: 9, order: ['cell2', 'cell4', 'sol1', 'sol5', 'cap1', 'cap4'] };
+    const t0 = Date.now();
+    s.order.forEach((id, i) => { s.c[id] = { s: 'known', k: STREAK, seen: 1, miss: 0, pos: i, at: t0 - (6 - i) * 864e5 }; });
+    s.c.sol2 = { s: 'learning', k: 1, seen: 2, miss: 1, pos: 7, at: 0 };   // “Venus is hottest” — missed once, one right so far
+    s.lvl = { cell: 54, solar: 66, capitals: 58 };
+    return s;
   }
+  function freshF() {
+    const f = ['cell', 'solar', 'capitals'].filter((id) => FBY[id]);   // stocked from day one
+    return f.length ? f : ['cell'];
+  }
+  if (!S) S = freshS();
   S.c = S.c || {}; S.lvl = S.lvl || {}; S.pos = S.pos || 0; S.order = Array.isArray(S.order) ? S.order : [];
 
   let F;
   try { F = JSON.parse(localStorage.getItem(LS_F) || 'null'); } catch (e) { F = null; }
-  if (!Array.isArray(F)) F = ['cell', 'solar', 'capitals'];   // stocked from day one
+  if (!Array.isArray(F)) F = freshF();
   F = F.filter((id) => FBY[id]);
   if (!F.length) F = ['cell'];
 
   const save = () => { try { localStorage.setItem(LS, JSON.stringify(S)); } catch (e) { /* localStorage can throw: private mode, quota, disabled storage. Best-effort — in-memory state stays correct. */ } fire(); };
   const saveF = () => { try { localStorage.setItem(LS_F, JSON.stringify(F)); } catch (e) { /* localStorage can throw: private mode, quota, disabled storage. Best-effort — in-memory state stays correct. */ } fire(); };
+  // The purge (data/live.ts, D48): both keys are already gone; drop the
+  // in-memory mastery map and field list to their fresh-boot shapes too, or
+  // the next answer()'s save() writes the previous account's map back under
+  // the new uid. fire() without save() — do not re-create the purged keys.
+  window.addEventListener('insight:local-purge', () => { S = freshS(); F = freshF(); fire(); });
 
   const st = (id) => S.c[id] || null;
   const lvl = (fid) => (S.lvl[fid] == null ? L0 : S.lvl[fid]);
