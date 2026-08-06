@@ -87,14 +87,14 @@ describe("answer key integrity (every seed, every item)", () => {
 
 });
 
-// ── the banded template (v3, D59) ──
+// ── the banded template (v3, D61) ──
 // The WEIGHT ramp is the calibration the percentile curve is derived
 // against, so it is pinned verbatim; the family occupying a slot is drawn
 // from that slot's same-weight band, so the sequence varies per attempt.
 // The pools are pinned literally here on purpose: moving a family between
 // bands (or changing a weight) is a recalibration and must show up as a
 // test edit. Eleven of twenty-five slots sit at weight 3.5+ — the
-// tail-heavy shape D59 chose for top-end discrimination.
+// tail-heavy shape D61 chose for top-end discrimination.
 describe("the banded template (v3)", () => {
   const P1 = ["sizeRamp", "dotCount"];
   const P15 = ["shapeCycle", "sizeCycle"];
@@ -335,7 +335,7 @@ describe("family semantics", () => {
     expect(rows.some((row) => (mask(row[0]) & mask(row[1])) !== 0)).toBe(true);
   });
 
-  // ── the D59 families ──
+  // ── the D61 families ──
   const ringCount = (c: Cell) => c.length;
   const allOutlineNested = (c: Cell) => {
     expect(new Set(c.map((l) => l.s)).size).toBe(1);
@@ -620,7 +620,7 @@ const SATISFIES: Record<string, Pred> = {
     );
   },
 
-  // ── the D59 families ──
+  // ── the D61 families ──
   ringLatin: (V, C) => {
     const s = C[0]?.s;
     if (!s || s === "." || C.some((l) => l.s !== s)) return false;

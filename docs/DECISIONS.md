@@ -5788,7 +5788,130 @@ deploy workflow's --only list names them.
   k-anonymity story, and the measured-percentile flip are separate
   decisions.
 
-## D58 · The verified percentile becomes a measurement at one hundred players
+## D58 · The seed refuses to edit a shipped option set
+
+**Date:** 2026-08-06 · **Status:** Adopted
+
+**What was enforced by nothing.** D52 records "shipped option sets are
+never edited" as an invariant, because answers store `(qid, optionIdx)`
+and nothing else. Swap two options on a live question and every historical
+vote silently changes meaning: no count moves, no aggregate recomputes,
+nothing anywhere reports it. It is the D30 re-key class applied
+retroactively to data already collected — and the enforcement was a human
+reading the diff. `runSeedV2` took an edited `options` array straight
+through `seedDocMatches` (which returns false on *any* changed field,
+including this one) and `batch.set(…, { merge: true })` it over the live
+doc.
+
+Every content review so far has got this right. That is a record, not a
+mechanism. D55's own review found sixteen things by reading; this is the
+class of defect that reading is worst at, because the diff looks like an
+ordinary content edit and the damage is invisible in every artifact
+afterwards.
+
+**The refusal.** `seedOptionConflict` compares the stored option array
+against the one about to be written; a conflict skips that document and
+the run throws `failed-precondition` naming every refusal, old set and
+new. Per-document rather than per-run: a batch of legitimate prompt fixes
+must not be held hostage by one bad edit, and the throw makes sure the
+skip cannot be mistaken for success either way. The legitimate writes are
+already committed when it throws — holding them back would punish the rest
+of the batch for one line.
+
+**Deliberately narrow.** `prompt` edits stay allowed, and that is not an
+oversight: D52's own fix list is mostly prompt rewrites preserving a
+question's meaning ("€500" → "a week's pay"), and a prompt carries no
+index any answer refers to. Only `options` re-keys stored data.
+
+**Appends count as edits.** Adding an option orphans no existing index,
+but it changes what the question asked the people who already answered it
+without that choice. D52's appends are to *banks* — new questions — never
+to a shipped question's option list.
+
+**Creates and pre-`options` docs pass.** A document that does not exist
+has no votes to re-key, and neither does one stored without an `options`
+array. Refusing either would wedge the seed permanently.
+
+**The operator's two legitimate paths are unchanged**: `active: false` to
+retire a question, or append a new qid to replace it. Neither goes through
+this code.
+
+**`runSeedV2` takes its `Firestore` as an argument now**, following
+`runAggTransaction`'s precedent, and the reason is the whole point of this
+record. The guarantee is about what the seed *refuses to write*, and a
+`getFirestore()` inside the body would have made that refusal untestable
+without an emulator — which is the same shape as the gap being closed
+here. `seed.test.ts` drives the real function against a stand-in db and
+asserts the refused document is never written, the allowed prompt fix in
+the same run still is, a create is never refused, and the run's own log
+does not count a refusal as "unchanged". Mutation-checked: deleting the
+four-line guard from `runSeedV2` fails four of the six, and the two that
+survive are the controls that should pass either way.
+
+Testing the predicate alone would not have been enough, and the
+distinction matters: `seedOptionConflict` answering perfectly while
+nothing called it looks identical in `pure.test.ts` and still loses every
+historical vote on the edited question.
+
+**Not done: the CI-side manifest.** A committed snapshot of every shipped
+option set, diffed by `check:content`, would catch the edit one step
+earlier — at review rather than at seed. It is redundant with this, needs
+a new artifact to maintain, and would go stale in the one direction that
+matters (a manifest nobody regenerates passes everything). The
+server-side refusal is authoritative because it reads the live documents;
+that is where the invariant is actually about to be broken.
+
+## D59 · The deferred chunks stop caching their own failure
+
+**Date:** 2026-08-06 · **Status:** Adopted
+
+**The bug.** `spec-index.js` memoised both deferred groups (D25, D48) into
+a plain module-level variable: `if (!p) p = (async () => …)()`. That is
+correct for what it was written for — `main.jsx` starts each load once,
+every opener awaits the same promise, the mount tests await them in
+`beforeAll` — but `if (!p)` cannot tell a resolved promise from a rejected
+one. One failed chunk fetch (a dropped connection, a stale asset after a
+deploy, a flaky native file read) was therefore **permanent for the
+session**: every later call replayed the same rejection. The World feed
+and all five cross-link overlays stayed gone until relaunch, and because
+app-shell's openers catch and return, the symptom was a tap that did
+nothing — no toast, no retry, no report.
+
+**The fix is one helper.** `data/lazy.ts`'s `retryable()` clears the
+cached promise on rejection and rethrows. No retry loop, no backoff — the
+caller decides whether to ask again. The overlays get recovery for free
+precisely because every one is reached through an opener that awaits this
+promise: the second tap re-attempts the import. Nothing else changed.
+
+**The success path is unchanged, which matters as much.** Concurrent
+callers still receive the same promise object, so this cannot turn one
+deferred group into two parallel downloads — pinned by a test asserting
+identity, not just equal values.
+
+**Cleared before the rethrow, not in a `finally`.** A caller that catches
+and retries synchronously — the exact shape app-shell's openers have —
+must find an empty slot rather than the promise it just saw reject.
+
+**Mutation-checked.** Reverting `lazy.ts` to `if (!inflight) inflight =
+load()` fails three of the five cases and passes the two success-path
+ones. A test suite that only covered the success path would have passed on
+the bug, which is how it shipped in the first place.
+
+**The feed still gets one shot.** `main.jsx` calls `loadWorldFeed()` once
+and reports a failure to Sentry; nothing re-attempts it, so a failed feed
+chunk still costs the feed for the session. Retry is now *possible* there
+rather than automatic — wiring a user-visible retry into the daily card is
+a UI decision, not a memoisation one, and is left for whoever designs that
+affordance.
+
+**One import that is not a spec module.** `spec-index.js` now imports
+`./data/lazy`, above the ordered list rather than inside it, because
+nothing in that list reads it and the list's order is a contract. The
+direction is the allowed one: `spec/` and `spec-index` may import `data/`
+(as `main.jsx` and `logic-test.jsx` already do); `data/` may not import
+them back.
+
+## D60 · The verified percentile becomes a measurement at one hundred players
 
 **Date:** 2026-08-06 · **Status:** Adopted (owner: "do the measured
 percentile flip when we have enough data") — the flip D57 recorded as
@@ -5849,7 +5972,7 @@ sketches, and the saved result carries `source`/`n`. The submit path's
 change is read-always + branch — the emulated e2e leg remains deferred
 with D57's environmental reason.
 
-## D59 · Twenty-five items, tail-heavy: the form grows before the norms freeze it
+## D61 · Twenty-five items, tail-heavy: the form grows before the norms freeze it
 
 **Date:** 2026-08-06 · **Status:** Adopted (owner: "do 25 items with the
 harder tail", against the assistant's 20-item recommendation — 25 sits
@@ -5858,7 +5981,7 @@ inside the owner's original 20–30 range)
 **Why now, and why at all.** Twelve items give thirteen raw scores and
 squeeze all top-end discrimination into the last two or three; by
 Spearman–Brown, a 0.78-reliability 12-item form reaches ≈ 0.87 at 25
-items. And D58 froze the clock: the norms histogram buckets scores by
+items. And D60 froze the clock: the norms histogram buckets scores by
 form length, so every verified attempt accumulated under 12 items would
 be discarded by a later change. The histogram is empty today — this is
 the last cheap moment.
@@ -5891,7 +6014,7 @@ tail-heavy ramp earns the model more ceiling than D53's 94, still
 capped below 99 because a curve still cannot rank perfect scores. The
 12-item curve keeps its historic name, parameters and pins: v1 payload
 back-fills must not re-rank, and unknown legacy lengths fall back to
-it. All of this is bootstrap only — D58's measured flip supersedes the
+it. All of this is bootstrap only — D60's measured flip supersedes the
 model at n = 100 regardless of parameters.
 
 **Era safety, both directions.** The norms histogram now stamps the
@@ -5922,3 +6045,54 @@ measurements; the odd/even split-half submission idea (D57's reflection)
 remains future work. The Answers lens draws 25 rows on a phone screen —
 scrollable and legible, but dense; redesigning it is deferred until the
 measured Field lens work touches those lenses anyway.
+
+## D62 · The test starts learning its own difficulty: family and slot solve rates
+
+**Date:** 2026-08-06 · **Status:** Adopted (owner: "add some learning to
+it so we better learn how hard each question is")
+
+**What is learnable, and from where.** Questions are generated, so there
+is no bank to rate — the difficulty-bearing units are the 28 rule
+FAMILIES (the Carpenter-prior weights D56/D61 assigned them are exactly
+the numbers worth checking) and the 25 SLOTS (same family late in the
+sitting may solve less: fatigue and time pressure are real and worth
+separating from family hardness). The only place this is honestly
+observable is a verified attempt: the server regenerates the form, so it
+alone knows which family each item was and whether the pick was right.
+Practice attempts still send nothing.
+
+**The fold.** `foldDifficultyStats` counts, per family, appearances and
+solves, and per slot, solves (`n` is every slot's exposure). It runs in
+`logicSubmitV2`'s transaction under the SAME gate as the histogram —
+verified first attempts of the current era only (D32's rule: retakes
+measure practice; D61's era stamp: 12-item stats never mix with
+25-item ones) — into `v2_logic_norms_private/families`, mirrored to
+`v2_logic_norms/families` at the same floor and cadence as everything
+else. The two docs ride the existing collections, so ZERO rules changed;
+the rules test asserts the new paths anyway, so a future rename cannot
+silently split the coverage.
+
+**What is deliberately absent.** Timings: per-item solve times are the
+strongest difficulty signal and they stay on the device, because D57
+promised exactly that in the data inventory — difficulty is learned from
+solve rates alone, and that trade is recorded here rather than quietly
+made. Anchors and uids: never attached; the ledger is counts, same
+survivability-after-deletion argument as the histogram.
+
+**The loop this exists to close, later.** With measured per-family solve
+rates, three recorded futures become data-driven instead of
+prior-driven: recalibrating the band weights (a family measurably easier
+than its band mis-prices "k of 25"), auditing the ramp's monotonicity in
+reality (slot solve rates should broadly fall left to right — if slot 19
+outsolves slot 12, the ramp lies), and replacing the Answers lens's
+modelled solve-rate bars with real ones. Each is its own decision once
+n is meaningful; nothing reads the mirror yet, matching the D60
+histogram-mirror precedent.
+
+**Verification.** Pure fold pinned from nothing, over priors, and over a
+full real form (25 distinct families seen once each — the no-repeat rule
+observed from the data side). `scoreLogicPicks` now returns the families
+alongside the marks, asserted against the generator; the wire to the
+client is unchanged (families are derivable from the disclosed seed
+post-scoring, so nothing new leaks). Rules suite covers the new doc
+paths in both collections.

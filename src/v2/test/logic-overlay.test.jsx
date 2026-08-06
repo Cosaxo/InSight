@@ -179,7 +179,7 @@ describe("a verified attempt (D57)", () => {
     expect(saved.times).toHaveLength(25); // local timings ride along for Pace
   });
 
-  it("a measured response flips the claim: rank among n verified players (D58)", async () => {
+  it("a measured response flips the claim: rank among n verified players (D60)", async () => {
     vi.useFakeTimers();
     const expected = generateForm(SEED);
     vi.mocked(startVerified).mockResolvedValue({ items: serverItems(expected), capMs: 90000, deadlineMs: 26 * 90000 });

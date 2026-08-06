@@ -87,7 +87,7 @@ describe("logicSecs", () => {
   });
 });
 
-describe("logicPctileFor (the 25-item curve — D59)", () => {
+describe("logicPctileFor (the 25-item curve — D61)", () => {
   it("pins the landmarks: chance→4, half→42, midpoint→50, 20/25→90, perfect→98", () => {
     // The server copy (functions/src/logic.ts) pins these same values in
     // logic.test.ts — if either side moves alone, one suite fails.

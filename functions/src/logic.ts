@@ -53,7 +53,7 @@ export const LOGIC_DEADLINE_MS = LOGIC_ITEMS * LOGIC_ITEM_CAP_MS + LOGIC_ITEM_CA
 
 // Items per generator era: an attempt opened before a form-length change
 // and submitted after it must be validated and scored against ITS form,
-// not the current one (D59) — the deadline bounds that window to minutes,
+// not the current one (D61) — the deadline bounds that window to minutes,
 // but a refusal there would swallow an honest finisher's attempt.
 export function logicItemsFor(gv: number): number {
   return gv >= 3 ? 25 : 12;
@@ -71,9 +71,9 @@ export const LOGIC_REVERIFY_DAYS = 30;
 // The percentile curves, byte-for-byte the client's logicPctileFor
 // (src/v2/data/logic-score.ts) — one per form length, landmarks asserted
 // equal in logic.test.ts so the copies cannot drift apart silently. The
-// 12-item parameters are D53's; the 25-item parameters are D59's
+// 12-item parameters are D53's; the 25-item parameters are D61's
 // re-derivation for the tail-heavy ramp. Both are only the bootstrap
-// below the D58 measured floor.
+// below the D60 measured floor.
 const CURVES: Record<number, { mid: number; slope: number }> = {
   12: { mid: 62, slope: 14 },
   25: { mid: 54, slope: 12 },
@@ -141,10 +141,14 @@ export function scoreLogicPicks(
   seed: number,
   gv: number,
   picks: number[],
-): { marks: boolean[]; score: number } {
+): { marks: boolean[]; score: number; families: string[] } {
   const form = generateForm(seed, gv);
   const marks = form.items.map((item, i) => picks[i] === item.a);
-  return { marks, score: marks.filter(Boolean).length };
+  // The families ride along for the difficulty fold (D62) — server-side
+  // knowledge only until scoring, and derivable by anyone from the seed
+  // the response discloses afterwards, so this hands the client nothing
+  // it could not already compute.
+  return { marks, score: marks.filter(Boolean).length, families: form.items.map((it) => it.rules[0]) };
 }
 
 // What the client is allowed to see at start time: renderable cells and
@@ -168,7 +172,7 @@ export function clientItems(seed: number, gv: number): LogicClientItem[] {
 // ── norms histogram fold (pure; the callable wraps it in a transaction) ──
 // Flat b0..b25 buckets + n + the form length it counts (`items` — a
 // histogram of 12-item scores must never mix with 25-item ones, so a
-// length change starts a fresh era, D59). Exact counts live in the
+// length change starts a fresh era, D61). Exact counts live in the
 // private doc; the
 // public mirror appears only at or above the same floor as the question
 // aggregates, and only every PUBLISH_EVERY-th count — the same
@@ -184,7 +188,33 @@ export function foldNorms(prev: LogicNorms | null, score: number): LogicNorms {
   return next;
 }
 
-// ── the measured percentile (D58) ──
+// ── the difficulty fold (D62) ──
+// The Carpenter weights are priors; this is the measurement that will
+// eventually correct them. Per FAMILY: how often it appeared and how often
+// it was solved; per SLOT: how often it was solved (every slot appears
+// once per attempt, so `n` is its exposure count). Verified FIRST attempts
+// only — the same D32 rule the histogram uses, for the same reason:
+// retakes measure practice. Counts only: no uid, no anchors, and no
+// timings (per-item timings never leave the device — the D57 promise
+// holds; difficulty is learned from solve rates alone).
+export function foldDifficultyStats(
+  prev: LogicNorms | null,
+  families: string[],
+  marks: boolean[],
+): LogicNorms {
+  const next: LogicNorms = { ...(prev || {}) };
+  next.n = (next.n || 0) + 1;
+  families.forEach((fam, i) => {
+    next[`f_${fam}_seen`] = (next[`f_${fam}_seen`] || 0) + 1;
+    if (marks[i]) {
+      next[`f_${fam}_solved`] = (next[`f_${fam}_solved`] || 0) + 1;
+      next[`s_${i}_solved`] = (next[`s_${i}_solved`] || 0) + 1;
+    }
+  });
+  return next;
+}
+
+// ── the measured percentile (D60) ──
 // Once the histogram holds enough verified first attempts, the percentile
 // stops being a curve and becomes a count: the share of counted players
 // this score strictly beats. Ties are not beaten — the claim stays "share
@@ -193,7 +223,7 @@ export function foldNorms(prev: LogicNorms | null, score: number): LogicNorms {
 // the job: an empirical percentile over a handful of players whipsaws by
 // tens of points per submission, which is noise wearing a number.
 //
-// The floor's arithmetic (D58): at n = 100 the worst-case standard error
+// The floor's arithmetic (D60): at n = 100 the worst-case standard error
 // of an empirical percentile is sqrt(0.5·0.5/100) ≈ 5 points — comparable
 // to the modelled curve's own honesty margin — and the k-anonymity floor
 // (AGG_MIN_N) is cleared twenty times over. One constant; lowering it is
@@ -282,12 +312,12 @@ export const logicSubmitV2 = onCall(
         throw new HttpsError("invalid-argument", `picks must be ${items} integers in -1..5`);
       }
 
-      const { marks, score } = scoreLogicPicks(attempt.seed, attempt.gv, picks);
+      const { marks, score, families } = scoreLogicPicks(attempt.seed, attempt.gv, picks);
       const durationMs = now - attempt.startedAtMs;
 
       // The histogram is read on EVERY submit now (still before any write,
       // as transactions require): it is the fold target for a first
-      // attempt (D32's rule) and, since D58, the percentile's comparison
+      // attempt (D32's rule) and, since D60, the percentile's comparison
       // population. Read PRE-fold on purpose — "sharper than X% of N
       // verified players" compares against the players counted before this
       // one, so a submitter is never a member of their own field, and a
@@ -308,6 +338,17 @@ export const logicSubmitV2 = onCall(
       const norms: LogicNorms | null = countsNorms
         ? { ...foldNorms(prevNorms, score), items: LOGIC_ITEMS }
         : null;
+      // The difficulty stats advance in lockstep with the histogram (same
+      // first-attempt gate, same era stamp) — reads still precede every
+      // write, as transactions require.
+      const famRef = db.collection("v2_logic_norms_private").doc("families");
+      let famStats: LogicNorms | null = null;
+      if (countsNorms) {
+        const famSnap = await tx.get(famRef);
+        const famStored = famSnap.exists ? (famSnap.data() as LogicNorms) : null;
+        const famPrev = famStored != null && famStored.items === LOGIC_ITEMS ? famStored : null;
+        famStats = { ...foldDifficultyStats(famPrev, families, marks), items: LOGIC_ITEMS };
+      }
 
       tx.set(ref, {
         ...attempt,
@@ -347,6 +388,12 @@ export const logicSubmitV2 = onCall(
         tx.set(privRef, norms);
         if (shouldPublishAgg(norms.n, AGG_MIN_N, PUBLISH_EVERY)) {
           tx.set(db.collection("v2_logic_norms").doc("global"), { ...norms, updatedAtMs: now });
+        }
+      }
+      if (famStats) {
+        tx.set(famRef, famStats);
+        if (shouldPublishAgg(famStats.n, AGG_MIN_N, PUBLISH_EVERY)) {
+          tx.set(db.collection("v2_logic_norms").doc("families"), { ...famStats, updatedAtMs: now });
         }
       }
       // The seed is disclosed only NOW — the attempt is scored and cannot

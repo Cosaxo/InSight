@@ -12,7 +12,7 @@ import { startVerified, submitVerified, verifyErrorMessage } from '../data/logic
 // ─────────────────────────────────────────────────────────────
 // Logic · Raven's-matrices-style test, run as a full overlay
 // (like the other tests). Twenty-five 3×3 matrices on a
-// tail-heavy difficulty ramp (D59), GENERATED fresh per attempt
+// tail-heavy difficulty ramp (D61), GENERATED fresh per attempt
 // by src/v2/data/logic-gen.ts
 // (a direct import since D53 — this file was the global's only
 // consumer) from a random seed — the bank of hardcoded puzzles
@@ -300,7 +300,7 @@ import { startVerified, submitVerified, verifyErrorMessage } from '../data/logic
   // seeded and scored server-side (data/logic-verify.ts): the picks leave
   // the device and the score joins an anonymous count once — its
   // percentile is the same modelled yardstick until the histogram clears
-  // the D58 floor, after which it arrives MEASURED (source "measured",
+  // the D60 floor, after which it arrives MEASURED (source "measured",
   // ranked against the n verified first attempts counted so far). Even
   // then, the lens CHARTS stay modelled sketches — the measured note says
   // exactly that, so one real number never dresses up four drawn ones.
@@ -398,7 +398,7 @@ import { startVerified, submitVerified, verifyErrorMessage } from '../data/logic
           // back post-scoring so this result stays reconstructable, like
           // every practice result before it. `source` and `n` are the
           // server's word on what the percentile IS — a modelled curve, or
-          // a measured rank among n verified players (D58).
+          // a measured rank among n verified players (D60).
           const r = {
             v: 2, verified: true, seed: res.seed, gv: res.gv,
             marks: res.marks, times: nt, diffs: form.items.map((it) => it.diff),

@@ -9,7 +9,7 @@
 // overlay draws — and the result screen discloses it (LOGIC_FIELD_NOTE /
 // LOGIC_VERIFIED_NOTE / LOGIC_MEASURED_NOTE). Practice attempts stay
 // on-device and always score against the modelled curve. Verified
-// attempts (D57) are seeded and scored server-side, and since D58 their
+// attempts (D57) are seeded and scored server-side, and since D60 their
 // percentile FLIPS to a measurement once the anonymous histogram clears
 // its floor: the server compares the score against the verified first
 // attempts counted so far and the result arrives with source "measured"
@@ -27,7 +27,7 @@ export interface LogicResult {
   /** D57: scored server-side — marks and pctile are the server's */
   verified?: boolean;
   /** where the percentile came from: "model", or "measured" once the
-   *  histogram clears the D58 floor */
+   *  histogram clears the D60 floor */
   source?: string;
   /** the measured comparison's population size — the verified first
    *  attempts this score was ranked against (present iff measured) */
@@ -59,14 +59,14 @@ export const FIELD_MED = 17;
 //     chance (2/12, six options) → 4 · 6/12 → 30 · 12/12 → 94.
 //     The 94 ceiling is DELIBERATE: a curve cannot rank perfect scores,
 //     so the honest modelled claim stops at the instrument's ceiling.
-//   25 items (v3 forms, D59): midpoint 54 (~13.5 of 25 — the modelled
+//   25 items (v3 forms, D61): midpoint 54 (~13.5 of 25 — the modelled
 //     median solver clears the low bands and roughly half the middle),
 //     slope 12. chance (~4.2/25) → 4 · 20/25 → 90 · 25/25 → 98: the
 //     tail-heavy ramp earns the model more ceiling than D53's 94,
 //     still capped below 99 for the same reason.
 //
 // Both are MODELS and both are only the bootstrap: once the verified
-// histogram clears the D58 floor, the server ranks against real players
+// histogram clears the D60 floor, the server ranks against real players
 // and none of this applies to verified results.
 const CURVES: Record<number, { mid: number; slope: number }> = {
   12: { mid: 62, slope: 14 },

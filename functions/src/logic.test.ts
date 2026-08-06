@@ -10,6 +10,7 @@ import {
   LOGIC_REVERIFY_DAYS,
   canStartLogic,
   clientItems,
+  foldDifficultyStats,
   foldNorms,
   logicItemsFor,
   logicPctile,
@@ -48,7 +49,7 @@ describe("the percentile curves match the client's, landmark for landmark", () =
     expect(logicPctile(0)).toBe(1);
   });
 
-  it("25 items (D59): chance→4, half→42, midpoint→50, 20/25→90, perfect→98, floor 1", () => {
+  it("25 items (D61): chance→4, half→42, midpoint→50, 20/25→90, perfect→98, floor 1", () => {
     expect(logicPctileFor(1 / 6, 25)).toBe(4); // chance with six options
     expect(logicPctileFor(0.5, 25)).toBe(42);
     expect(logicPctileFor(0.54, 25)).toBe(50);
@@ -107,7 +108,7 @@ describe("validLogicPicks", () => {
     expect(validLogicPicks({})).toBe(false);
   });
 
-  it("validates against an attempt's own era: a gv2 attempt takes 12 picks (D59)", () => {
+  it("validates against an attempt's own era: a gv2 attempt takes 12 picks (D61)", () => {
     expect(logicItemsFor(2)).toBe(12);
     expect(logicItemsFor(3)).toBe(25);
     expect(validLogicPicks(Array.from({ length: 12 }, () => 0), logicItemsFor(2))).toBe(true);
@@ -123,6 +124,7 @@ describe("scoreLogicPicks", () => {
     expect(scoreLogicPicks(seed, GEN_VERSION, right)).toEqual({
       marks: Array.from({ length: LOGIC_ITEMS }, () => true),
       score: LOGIC_ITEMS,
+      families: generateForm(seed).items.map((it) => it.rules[0]),
     });
     const oneWrong = [...right];
     oneWrong[3] = (right[3] + 1) % 6;
@@ -158,6 +160,34 @@ describe("clientItems — what the wire carries", () => {
   });
 });
 
+describe("foldDifficultyStats (D62)", () => {
+  it("counts family exposure and solves, and per-slot solves, from nothing", () => {
+    const stats = foldDifficultyStats(null, ["sizeRamp", "dist2Xor"], [true, false]);
+    expect(stats).toEqual({ n: 1, f_sizeRamp_seen: 1, f_sizeRamp_solved: 1, s_0_solved: 1, f_dist2Xor_seen: 1 });
+  });
+
+  it("accumulates over priors without touching untouched counters", () => {
+    const prev = { n: 3, f_sizeRamp_seen: 3, f_sizeRamp_solved: 2, s_0_solved: 2, f_ringLatin_seen: 1 };
+    const stats = foldDifficultyStats(prev, ["sizeRamp", "ringLatin"], [false, true]);
+    expect(stats).toEqual({
+      n: 4,
+      f_sizeRamp_seen: 4, f_sizeRamp_solved: 2, s_0_solved: 2,
+      f_ringLatin_seen: 2, f_ringLatin_solved: 1, s_1_solved: 1,
+    });
+  });
+
+  it("a full form folds one seen per family and n slot-solve counters at most", () => {
+    const { marks, families } = scoreLogicPicks(31337, GEN_VERSION, generateForm(31337).items.map((it) => it.a));
+    const stats = foldDifficultyStats(null, families, marks);
+    expect(stats.n).toBe(1);
+    // 25 distinct families per form (the no-repeat rule), each seen once
+    expect(Object.keys(stats).filter((k) => k.endsWith("_seen"))).toHaveLength(25);
+    for (const fam of families) expect(stats[`f_${fam}_seen`]).toBe(1);
+    // a perfect run solves every slot
+    expect(Object.keys(stats).filter((k) => k.startsWith("s_"))).toHaveLength(25);
+  });
+});
+
 describe("foldNorms", () => {
   it("counts n and the score bucket, from nothing and from priors", () => {
     expect(foldNorms(null, 7)).toEqual({ n: 1, b7: 1 });
@@ -165,7 +195,7 @@ describe("foldNorms", () => {
   });
 });
 
-describe("measuredPctile (D58)", () => {
+describe("measuredPctile (D60)", () => {
   it("stays null below the floor — the model keeps the job", () => {
     expect(measuredPctile(null, 8)).toBeNull();
     expect(measuredPctile({ n: LOGIC_NORMS_MIN_N - 1, b0: LOGIC_NORMS_MIN_N - 1 }, 12)).toBeNull();

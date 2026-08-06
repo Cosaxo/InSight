@@ -5,7 +5,7 @@
 // the same order with the same option positions on every attempt, so one
 // memorized (or shared) key beat it permanently. This module replaces the
 // bank with a generator: each attempt draws a fresh form from a seed —
-// 25 items since v3 (D59); 12 in the frozen v1/v2 paths — with fresh
+// 25 items since v3 (D61); 12 in the frozen v1/v2 paths — with fresh
 // shapes, directions, rule parameters and shuffled option positions. What
 // ships is the rule machinery, not an answer key. (Any client-side test is
 // inspectable by a determined user; what this closes is memorization and
@@ -25,7 +25,7 @@
 // its percentile curve is derived against), but since v2 each slot draws
 // its family from a same-weight band (D56) — a repeat taker no longer
 // knows that item 3 is a shape cycle, only that it carries weight 1.5.
-// v3 (D59) lengthens the ramp to 25 slots and extends it upward with two
+// v3 (D61) lengthens the ramp to 25 slots and extends it upward with two
 // new bands: weight-4 two-rule compositions and a weight-4.5 tail of
 // triple-rule and dual-law items, Carpenter's hardest classes. Every
 // retired plan stays generable: generateForm(seed, 1|2) reproduces those
@@ -507,7 +507,7 @@ const FAMILIES: Record<string, Family> = {
     };
   },
 
-  // ── families added with the 25-item ramp (D59) ──
+  // ── families added with the 25-item ramp (D61) ──
   // The w4 band is two simultaneous rules; w4.5 is three, or two elements
   // obeying two DIFFERENT laws — Carpenter's hardest classes.
 
@@ -861,7 +861,7 @@ function planV2(seed: number): { family: string; diff: number }[] {
   return out;
 }
 
-// v3 (D59): 25 slots, tail-heavy — eleven of them at weight 3.5 or above,
+// v3 (D61): 25 slots, tail-heavy — eleven of them at weight 3.5 or above,
 // against v2's one. The two new bands hold the compositions: w4 is two
 // simultaneous rules, w4.5 is three (or two elements under two different
 // laws). Band salts are v3-distinct (0xc300+) so pool edits here can
