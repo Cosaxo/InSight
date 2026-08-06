@@ -33,6 +33,7 @@
     "check:pokedex": "node scripts/check-pokedex.mjs",
     "build:pokedex": "node scripts/build-pokedex.mjs",
     "check:catalogs": "node scripts/check-catalogs.mjs",
+    "check:logic-sync": "node scripts/check-logic-sync.mjs",
     "build:catalog": "node scripts/build-catalog.mjs",
     "check:content": "node scripts/check-content.mjs",
     "build:content": "node scripts/gen-v2content.mjs --write",

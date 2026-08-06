@@ -6,9 +6,15 @@
 // midpoint as the reference), and nothing could assert its values.
 //
 // Everything here is a MODEL, not a measurement — the overlay discloses
-// that once, on the result screen (LOGIC_FIELD_NOTE). No other player's
-// result is read, stored or aggregated anywhere; results stay on-device
-// (no backend — D31).
+// that on the result screen (LOGIC_FIELD_NOTE / LOGIC_VERIFIED_NOTE).
+// Practice attempts stay on-device. Verified attempts (D55, reversing
+// D31's deferral) are seeded and scored server-side: the marks and
+// percentile on a verified result are the SERVER's, the canonical copy
+// lives on the owner-only profile doc where rules refuse client mutation,
+// and the first scored attempt per account joins an anonymous histogram.
+// The percentile curve itself is still the modelled logistic below for
+// both kinds — flipping verified results to the measured histogram once
+// it clears the aggregate floor is future work, recorded in D55.
 
 export interface LogicResult {
   /** payload version: absent = pre-generator (v1), 2 = generator era */
@@ -17,8 +23,16 @@ export interface LogicResult {
   seed?: number;
   /** generator version the seed means something under (v2) */
   gv?: number;
+  /** D55: scored server-side — marks and pctile are the server's */
+  verified?: boolean;
+  /** where the percentile came from ("model" until norms replace it) */
+  source?: string;
+  /** server-observed attempt duration (verified results only) */
+  durationMs?: number;
   marks: boolean[];
-  /** per-puzzle solve time in ms, reveal delay already subtracted (v2) */
+  /** per-puzzle solve time in ms, reveal delay already subtracted (v2).
+   *  Stays device-local even for verified results — the server never
+   *  receives per-item timings, only its own observed duration */
   times?: number[];
   /** per-item family weights, saved so the Answers lens can place rows on
    *  the ramp without re-deriving the form */

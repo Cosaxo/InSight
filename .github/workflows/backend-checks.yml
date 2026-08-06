@@ -68,6 +68,11 @@ jobs:
       # trigger accepts, and it must equal the committed catalogue files
       # exactly — absence included.
       - run: npm run check:catalogs
+      # logicSubmitV2 scores against the form the deployed generator copy
+      # produces; it must be byte-identical to the client's generator or
+      # the server marks puzzles the player never saw (D55). Node stdlib
+      # only, no root node_modules.
+      - run: npm run check:logic-sync
       # The seed callable compiles functions/src/v2content.ts in, so drift
       # between it and /content is a statement about what reaches
       # production: a hand edit to the generated file, or a /content change

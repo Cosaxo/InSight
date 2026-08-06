@@ -28,6 +28,7 @@ import {
   setDoc,
   updateDoc,
   deleteDoc,
+  deleteField,
   serverTimestamp,
   type Firestore,
 } from "firebase/firestore";
@@ -335,6 +336,74 @@ describe("v2 profile", () => {
     await assertFails(setDoc(mine, { fcmTokens: [] }, { merge: true }));
     // and writing the SAME value back is allowed (a no-op, not a change)
     await assertSucceeds(setDoc(mine, { fcmTokens: ["tok-a"] }, { merge: true }));
+  });
+
+  // testResults.logic is the VERIFIED logic score (D55): written by
+  // logicSubmitV2 after server-side scoring. A client-writable copy would
+  // be a forgeable one — same threat shape as fcmTokens, so the rule and
+  // this test mirror that block case for case.
+  it("clients cannot introduce or change testResults.logic — only the callable can", async () => {
+    const mine = doc(asUser(OWNER), "v2_users", OWNER);
+    // introducing it on create…
+    await assertFails(setDoc(mine, {
+      displayName: "Mira",
+      testResults: { logic: { pctile: 94, verified: true } },
+    }));
+    // …or via merge onto an existing doc without the key
+    await assertSucceeds(setDoc(mine, { displayName: "Mira" }));
+    await assertFails(setDoc(mine, {
+      testResults: { logic: { pctile: 94 } },
+    }, { merge: true }));
+
+    // the callable's write (admin SDK, rules bypassed)
+    await seed(async (db) => {
+      await setDoc(doc(db, "v2_users", OWNER), {
+        testResults: { logic: { v: 2, verified: true, pctile: 62, marks: [true] } },
+      }, { merge: true });
+    });
+
+    // the POST-merge trap, same as fcmTokens: other test results must
+    // still be writable while the server-written logic key rides along
+    // unchanged — banning presence instead of mutation would brick every
+    // core-test sync for verified users.
+    await assertSucceeds(setDoc(mine, {
+      testResults: { big5: { dims: [], title: "Big Five" } },
+    }, { merge: true }));
+
+    // mutation is still refused: replacing or clearing the verified score
+    await assertFails(setDoc(mine, {
+      testResults: { logic: { v: 2, verified: true, pctile: 99, marks: [true] } },
+    }, { merge: true }));
+    await assertFails(setDoc(mine, { testResults: { logic: null } }, { merge: true }));
+
+    // DELETING your own verified score is allowed on purpose (it is your
+    // doc; the cooldown and the norms count live in the server-only
+    // attempt doc, so deletion resets nothing) — but the door does not
+    // swing back: reintroducing the key after a delete is a create against
+    // a null prior, and that is forgery, refused.
+    await assertSucceeds(updateDoc(mine, { "testResults.logic": deleteField() }));
+    await assertFails(setDoc(mine, {
+      testResults: { logic: { v: 2, verified: true, pctile: 94, marks: [true] } },
+    }, { merge: true }));
+  });
+
+  // The D55 server-side surfaces around the verified score.
+  it("logic attempt docs are opaque even to their owner; norms mirror is read-only", async () => {
+    await seed(async (db) => {
+      // the attempt doc holds the SEED — the answer key, until scored
+      await setDoc(doc(db, "v2_logic_attempts", OWNER), { seed: 7, gv: 2, status: "open" });
+      await setDoc(doc(db, "v2_logic_norms_private", "global"), { n: 3, b12: 3 });
+      await setDoc(doc(db, "v2_logic_norms", "global"), { n: 25, b7: 6 });
+    });
+    // not even the owner reads their attempt — an owner-readable seed is a
+    // devtools answer key mid-attempt
+    await assertFails(getDoc(doc(asUser(OWNER), "v2_logic_attempts", OWNER)));
+    await assertFails(setDoc(doc(asUser(OWNER), "v2_logic_attempts", OWNER), { status: "scored" }));
+    // exact counts stay server-side; the public mirror reads, never writes
+    await assertFails(getDoc(doc(asUser(OWNER), "v2_logic_norms_private", "global")));
+    await assertSucceeds(getDoc(doc(asUser(OWNER), "v2_logic_norms", "global")));
+    await assertFails(setDoc(doc(asUser(OWNER), "v2_logic_norms", "global"), { n: 999 }));
+    await assertFails(getDoc(doc(asSignedOut(), "v2_logic_norms", "global")));
   });
 
   // The client builds this exact payload (ANCHOR_FIELDS in live.ts, filled

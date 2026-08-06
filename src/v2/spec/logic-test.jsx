@@ -7,6 +7,7 @@ import React from 'react';
 import { useDialog } from './primitives.jsx';
 import { generateForm } from '../data/logic-gen';
 import { FIELD_MED, loadResult, logicPctile, logicSecs, saveResult } from '../data/logic-score';
+import { startVerified, submitVerified, verifyErrorMessage } from '../data/logic-verify';
 
 // ─────────────────────────────────────────────────────────────
 // Logic · Raven's-matrices-style test, run as a full overlay
@@ -286,19 +287,23 @@ import { FIELD_MED, loadResult, logicPctile, logicSecs, saveResult } from '../da
     );
   }
 
-  // EVERY "field" in this test is a MODEL, not a measurement: logicPctile is
-  // a logistic curve, solveRate and fieldRate are formulas, FieldCurve is a
-  // Gaussian, and PacePlot's scatter comes from a fixed seed. No other
-  // player's result is read, stored or aggregated anywhere — there is no
-  // backend for this test at all.
+  // EVERY "field" chart in this test is a MODEL, not a measurement:
+  // logicPctile is a logistic curve, solveRate and fieldRate are formulas,
+  // FieldCurve is a Gaussian, and PacePlot's scatter comes from a fixed
+  // seed. That is defensible for a self-test (the comparison is a
+  // yardstick, not a population statistic), and the result screen says so
+  // once rather than letting five charts imply five measurements.
   //
-  // That is defensible for a self-test (the comparison is a yardstick, not a
-  // population statistic) but it was previously unsaid, and this file now
-  // draws five of them. The result screen says so once, in LOGIC_FIELD_NOTE,
-  // rather than letting five charts imply five measurements. The curve and
-  // the persistence live in data/logic-score.ts, typed and pinned.
+  // Since D55 there are TWO truths to tell, so there are two notes. A
+  // practice attempt still sends nothing anywhere. A VERIFIED attempt is
+  // seeded and scored server-side (data/logic-verify.ts): the picks leave
+  // the device, the score joins an anonymous count once — and its charts
+  // are STILL the modelled yardstick, until enough verified scores exist
+  // to measure against (that flip is future work, recorded in D55).
 
-  const LOGIC_FIELD_NOTE = 'Comparisons here are a modelled yardstick, not other players’ results — this test sends nothing anywhere.';
+  const LOGIC_FIELD_NOTE = 'Comparisons here are a modelled yardstick, not other players’ results — practice attempts send nothing anywhere.';
+  const LOGIC_VERIFIED_NOTE = 'Verified: scored on the server, counted once toward an anonymous field count. Comparisons are still a modelled yardstick until enough verified scores exist.';
+  const LOGIC_VERIFY_DISCLOSURE = 'Verified sends your picks to be scored on the server; your score joins an anonymous count. Nothing else leaves this device.';
 
   const LOGIC_LENSES = [
     { id: 'answers', label: 'Answers' },
@@ -320,9 +325,17 @@ import { FIELD_MED, loadResult, logicPctile, logicSecs, saveResult } from '../da
     const [picked, setPicked] = useState(null);
     const [lens, setLens] = useState('answers');
     // How long each puzzle took, in ms. Local to the run and saved beside
-    // the marks; the Pace lens is the only reader. Nothing leaves the
-    // device — this test has no backend.
+    // the marks; the Pace lens is the only reader. Device-local in BOTH
+    // modes: a verified attempt sends picks, never per-item timings.
     const [times, setTimes] = useState([]);
+    // The raw pick per puzzle (-1 = expired). In practice mode this is
+    // redundant with marks; in verified mode it is the payload — the
+    // client cannot mark what it cannot know (D55 withholds the answers).
+    const [picks, setPicks] = useState([]);
+    // Verified-attempt lifecycle, one state: null, or
+    // {phase:'starting'} | {phase:'start-error', msg}
+    // | {phase:'sending'} | {phase:'send-error', msg, picks, times}.
+    const [verify, setVerify] = useState(null);
     // Seconds left on the current puzzle, rendered only inside the final
     // stretch (null = hidden). Driven by the interval below.
     const [countdown, setCountdown] = useState(null);
@@ -338,7 +351,7 @@ import { FIELD_MED, loadResult, logicPctile, logicSecs, saveResult } from '../da
       timeUpRef.current = () => {
         if (picked !== null || qi < 0) return;
         setPicked(-1); // no option highlighted — the clock ran out
-        settle(false);
+        settle(-1);
       };
     });
     useEffect(() => {
@@ -357,16 +370,54 @@ import { FIELD_MED, loadResult, logicPctile, logicSecs, saveResult } from '../da
       return () => clearInterval(id);
     }, [qi]);
 
-    const start = () => { setForm(makeForm()); setMarks([]); setTimes([]); setPicked(null); setQi(0); };
-    // Shared by a pick and an expiry: records the mark, then advances (or
-    // saves) after the reveal delay.
-    const settle = (ok) => {
-      const next = [...marks, ok];
+    const start = () => { setForm(makeForm()); setMarks([]); setTimes([]); setPicks([]); setPicked(null); setVerify(null); setQi(0); };
+
+    // ── verified attempt round trip (D55) ──
+    const beginVerified = () => {
+      setVerify({ phase: 'starting' });
+      startVerified().then(
+        (s) => {
+          setForm({ items: s.items, verified: true });
+          setMarks([]); setTimes([]); setPicks([]); setPicked(null);
+          setVerify(null); setQi(0);
+        },
+        (err) => setVerify({ phase: 'start-error', msg: verifyErrorMessage(err) }),
+      );
+    };
+    const sendVerified = (pk, nt) => {
+      setVerify({ phase: 'sending' });
+      submitVerified(pk).then(
+        (res) => {
+          // The server's marks and percentile are the result; the local
+          // per-item times ride along for the Pace lens only. seed+gv come
+          // back post-scoring so this result stays reconstructable, like
+          // every practice result before it.
+          const r = {
+            v: 2, verified: true, seed: res.seed, gv: res.gv,
+            marks: res.marks, times: nt, diffs: form.items.map((it) => it.diff),
+            pctile: res.pctile, durationMs: res.durationMs, source: 'model',
+            when: Date.now(),
+          };
+          saveResult(r); setResult(r); setVerify(null);
+        },
+        (err) => setVerify({ phase: 'send-error', msg: verifyErrorMessage(err), picks: pk, times: nt }),
+      );
+    };
+
+    // Shared by a pick and an expiry: records the pick (and, in practice
+    // mode, the mark), then advances / saves / submits after the reveal
+    // delay. pickIdx is -1 when the clock ran out.
+    const settle = (pickIdx) => {
+      const next = [...marks, !form.verified && pickIdx === form.items[qi].a];
+      const pk = [...picks, pickIdx];
       // Deliberately never cancelled on unmount (D53): this timeout is also
       // the final item's save, so closing the overlay 200ms after the last
       // pick must still keep the score. Mid-test, the late callback's
       // setState is a no-op on an unmounted component — a 240ms timer is
       // the whole cost, and losing a finished attempt would be the bug.
+      // (A verified submit that outlives the overlay still lands: the
+      // server writes the canonical result regardless of what this
+      // component can no longer render.)
       setTimeout(() => {
         // Read the clock here, not in the caller's body — same purity rule.
         // The reveal delay is subtracted because it is the animation's time,
@@ -374,22 +425,25 @@ import { FIELD_MED, loadResult, logicPctile, logicSecs, saveResult } from '../da
         // cap bounds what an expired (or backgrounded) puzzle records.
         const nt = [...times, askedAt.current ? Math.min(ITEM_CAP, Math.max(0, Date.now() - askedAt.current - PICK_DELAY)) : FIELD_MED * 1000];
         setPicked(null);
-        if (qi + 1 < form.items.length) { setMarks(next); setTimes(nt); setQi(qi + 1); }
-        else {
+        if (qi + 1 < form.items.length) { setMarks(next); setTimes(nt); setPicks(pk); setQi(qi + 1); }
+        else if (form.verified) {
+          setMarks([]); setTimes([]); setPicks([]); setQi(-1);
+          sendVerified(pk, nt);
+        } else {
           const k = next.filter(Boolean).length;
           const r = {
             v: 2, seed: form.seed, gv: form.version,
             marks: next, times: nt, diffs: form.items.map((it) => it.diff),
             pctile: logicPctile(k / next.length), when: Date.now(),
           };
-          saveResult(r); setResult(r); setMarks([]); setTimes([]); setQi(-1);
+          saveResult(r); setResult(r); setMarks([]); setTimes([]); setPicks([]); setQi(-1);
         }
       }, PICK_DELAY);
     };
     const pick = (i) => {
       if (picked !== null) return;
       setPicked(i);
-      settle(i === form.items[qi].a);
+      settle(i);
     };
 
     const inTest = qi >= 0;
@@ -432,7 +486,25 @@ import { FIELD_MED, loadResult, logicPctile, logicSecs, saveResult } from '../da
               </div>
             </div>
           )}
-          {!inTest && result && (
+          {!inTest && verify && (verify.phase === 'sending' || verify.phase === 'send-error') && (
+            <div style={{ maxWidth: 300, margin: '0 auto', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14, paddingTop: 60, textAlign: 'center' }}>
+              {verify.phase === 'sending' ? (
+                <div style={{ fontFamily: 'var(--sans)', fontSize: 13.5, fontWeight: 600, color: 'var(--ink-2)' }}>Scoring on the server…</div>
+              ) : (
+                <>
+                  <div style={{ fontFamily: 'var(--sans)', fontSize: 13.5, color: 'var(--ink-2)', lineHeight: 1.45 }}>{verify.msg}</div>
+                  <div style={{ display: 'flex', gap: 10 }}>
+                    {/* the picks are held in this state, so a flaky network
+                        never costs a finished attempt — retry resubmits the
+                        same twelve */}
+                    <button onClick={() => sendVerified(verify.picks, verify.times)} style={pillBtn(true)}>Retry</button>
+                    <button onClick={() => setVerify(null)} style={pillBtn(false)}>Discard</button>
+                  </div>
+                </>
+              )}
+            </div>
+          )}
+          {!inTest && !(verify && (verify.phase === 'sending' || verify.phase === 'send-error')) && result && (
             <div style={{ maxWidth: 340, margin: '0 auto', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14, paddingTop: 22, paddingBottom: 30 }}>
               {(() => { const R = 48, C = 2 * Math.PI * R; return (
                 <svg width="128" height="128" viewBox="0 0 128 128">
@@ -444,6 +516,9 @@ import { FIELD_MED, loadResult, logicPctile, logicSecs, saveResult } from '../da
               ); })()}
               <div style={{ fontFamily: 'var(--sans)', fontSize: 13.5, color: 'var(--ink-3)', textAlign: 'center', maxWidth: 240, lineHeight: 1.45 }}>
                 Sharper than {result.pctile}% of players.
+                {result.verified && (
+                  <span style={{ display: 'inline-block', marginLeft: 7, padding: '1.5px 8px', borderRadius: 999, fontSize: 10.5, fontWeight: 700, letterSpacing: '0.03em', color: 'var(--surface)', background: LOGIC_COL, verticalAlign: '1px' }}>verified</span>
+                )}
               </div>
               <div data-lens-style="underline" style={{ width: '100%', marginTop: 4 }}>
                 <div className="mm-lensrow" role="tablist" aria-label="Logic lenses" style={{ '--n': LOGIC_LENSES.length }}>
@@ -463,13 +538,22 @@ import { FIELD_MED, loadResult, logicPctile, logicSecs, saveResult } from '../da
                   {lens === 'pace' && <PacePlot pctile={result.pctile} secs={logicSecs(result)} />}
                   {lens === 'field' && <FieldCurve pctile={result.pctile} />}
                   {lens === 'compare' && <CompareRows pctile={result.pctile} />}
-                  <div style={{ fontFamily: 'var(--sans)', fontSize: 11, color: 'var(--ink-3)', marginTop: 12, lineHeight: 1.45, borderTop: '0.5px solid var(--rule)', paddingTop: 10 }}>{LOGIC_FIELD_NOTE}</div>
+                  <div style={{ fontFamily: 'var(--sans)', fontSize: 11, color: 'var(--ink-3)', marginTop: 12, lineHeight: 1.45, borderTop: '0.5px solid var(--rule)', paddingTop: 10 }}>{result.verified ? LOGIC_VERIFIED_NOTE : LOGIC_FIELD_NOTE}</div>
                 </div>
               </div>
               <div style={{ display: 'flex', gap: 10, marginTop: 8 }}>
                 <button onClick={start} style={pillBtn(false)}>Retake</button>
+                <button onClick={beginVerified} disabled={verify && verify.phase === 'starting'} style={{ ...pillBtn(false), opacity: verify && verify.phase === 'starting' ? 0.5 : 1 }}>
+                  {verify && verify.phase === 'starting' ? 'Preparing…' : 'Verified attempt'}
+                </button>
                 <button onClick={onClose} style={pillBtn(true)}>Done</button>
               </div>
+              {verify && verify.phase === 'start-error' && (
+                <div style={{ fontFamily: 'var(--sans)', fontSize: 11.5, color: 'var(--ink-2)', textAlign: 'center', lineHeight: 1.45 }}>{verify.msg}</div>
+              )}
+              {/* consent is a sentence, not a dialog: what Verified sends is
+                  stated where the button is, before it is ever pressed */}
+              <div style={{ fontFamily: 'var(--sans)', fontSize: 10.5, color: 'var(--ink-3)', textAlign: 'center', maxWidth: 260, lineHeight: 1.5 }}>{LOGIC_VERIFY_DISCLOSURE}</div>
             </div>
           )}
         </div>

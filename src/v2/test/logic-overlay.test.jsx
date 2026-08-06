@@ -21,6 +21,15 @@ import React from "react";
 import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { generateForm, version as genVersion } from "../data/logic-gen";
 import { LKEY, logicPctile } from "../data/logic-score";
+// The verified transport is mocked wholesale: these tests own the overlay's
+// state machine, not the wire — the callables' real behaviour is pinned in
+// functions/src/logic.test.ts and the rules suite.
+vi.mock("../data/logic-verify", () => ({
+  startVerified: vi.fn(),
+  submitVerified: vi.fn(),
+  verifyErrorMessage: (e) => (e && e.message) || "err",
+}));
+import { startVerified, submitVerified } from "../data/logic-verify";
 import "../spec/logic-test.jsx";
 
 const SEED = 424242;
@@ -124,6 +133,90 @@ describe("a full attempt", () => {
     // the expired item records the full budget — never a phantom fast solve
     expect(saved.times[0]).toBe(90000);
     expect(saved.times[1]).toBe(0); // instant pick, reveal delay subtracted
+  });
+});
+
+describe("a verified attempt (D55)", () => {
+  // What the server actually sends: cells, opts and diff — no answer
+  // index, no family names, no seed.
+  const serverItems = (form) => form.items.map(({ cells, opts, diff }) => ({ cells, opts, diff }));
+  const priorResult = () => ({
+    v: 2, seed: 1, gv: genVersion,
+    marks: Array.from({ length: 12 }, () => true),
+    times: Array.from({ length: 12 }, () => 1500),
+    diffs: generateForm(1).items.map((it) => it.diff),
+    pctile: logicPctile(1), when: 1,
+  });
+
+  it("start → answer-blind run → picks submitted → the server's result saved, badged", async () => {
+    vi.useFakeTimers();
+    const expected = generateForm(SEED);
+    vi.mocked(startVerified).mockResolvedValue({ items: serverItems(expected), capMs: 90000, deadlineMs: 13 * 90000 });
+    vi.mocked(submitVerified).mockResolvedValue({
+      marks: expected.items.map(() => true), score: 12, pctile: logicPctile(1),
+      durationMs: 60000, seed: SEED, gv: genVersion,
+    });
+    localStorage.setItem(LKEY, JSON.stringify(priorResult()));
+    render(<LogicOverlay onClose={() => {}} />);
+
+    // the consent sentence sits with the button, before any press
+    screen.getByText(/sends your picks to be scored on the server/i);
+    fireEvent.click(screen.getByText("Verified attempt"));
+    await act(async () => {}); // resolve startVerified
+    for (let i = 0; i < 12; i++) {
+      fireEvent.click(screen.getByLabelText(`Answer ${expected.items[i].a + 1} of 6`));
+      act(() => { vi.advanceTimersByTime(PICK_DELAY); });
+    }
+    await act(async () => {}); // resolve submitVerified
+
+    // the payload is the raw picks, exactly as clicked
+    expect(vi.mocked(submitVerified)).toHaveBeenCalledWith(expected.items.map((it) => it.a));
+    screen.getByText("verified"); // the badge
+    screen.getByText(/counted once toward an anonymous field count/i);
+    const saved = JSON.parse(localStorage.getItem(LKEY));
+    expect(saved).toMatchObject({ verified: true, seed: SEED, gv: genVersion, pctile: logicPctile(1), source: "model" });
+    expect(saved.marks.every(Boolean)).toBe(true);
+    expect(saved.times).toHaveLength(12); // local timings ride along for Pace
+  });
+
+  it("a refused start reports the server's reason and leaves the result screen intact", async () => {
+    vi.mocked(startVerified).mockRejectedValue(new Error("too many starts today"));
+    localStorage.setItem(LKEY, JSON.stringify(priorResult()));
+    render(<LogicOverlay onClose={() => {}} />);
+    fireEvent.click(screen.getByText("Verified attempt"));
+    await act(async () => {});
+    screen.getByText(/too many starts today/);
+    screen.getByText("Retake"); // still on the result screen
+  });
+
+  it("a failed submit keeps the picks: Retry resubmits the same twelve", async () => {
+    vi.useFakeTimers();
+    const expected = generateForm(SEED);
+    vi.mocked(startVerified).mockResolvedValue({ items: serverItems(expected), capMs: 90000, deadlineMs: 13 * 90000 });
+    vi.mocked(submitVerified)
+      .mockRejectedValueOnce(new Error("couldn't reach the server"))
+      .mockResolvedValueOnce({
+        marks: expected.items.map((_, i) => i !== 0), score: 11, pctile: logicPctile(11 / 12),
+        durationMs: 60000, seed: SEED, gv: genVersion,
+      });
+    localStorage.setItem(LKEY, JSON.stringify(priorResult()));
+    render(<LogicOverlay onClose={() => {}} />);
+    fireEvent.click(screen.getByText("Verified attempt"));
+    await act(async () => {});
+    for (let i = 0; i < 12; i++) {
+      const right = expected.items[i].a;
+      fireEvent.click(screen.getByLabelText(`Answer ${(i === 0 ? (right + 1) % 6 : right) + 1} of 6`));
+      act(() => { vi.advanceTimersByTime(PICK_DELAY); });
+    }
+    await act(async () => {});
+    screen.getByText(/couldn't reach the server/);
+    fireEvent.click(screen.getByText("Retry"));
+    await act(async () => {});
+    expect(vi.mocked(submitVerified)).toHaveBeenCalledTimes(2);
+    expect(vi.mocked(submitVerified).mock.calls[1][0]).toEqual(vi.mocked(submitVerified).mock.calls[0][0]);
+    const saved = JSON.parse(localStorage.getItem(LKEY));
+    expect(saved).toMatchObject({ verified: true, pctile: logicPctile(11 / 12) });
+    expect(saved.marks[0]).toBe(false);
   });
 });
 
