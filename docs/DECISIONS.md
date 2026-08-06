@@ -5078,3 +5078,103 @@ or a discovered ring the correction runbook (DEPLOYMENT.md, "Correcting
 aggregates") could not adequately unwind. If adoption is proposed, it
 gets its own numbered decision carrying the mechanism, the vendor, the
 rollout, and the inventory rewrite sequenced first.
+
+---
+
+## D54 · The ledger gets eyes: a daily velocity scan, feeding manual review
+
+**Date:** 2026-08-06 · **Status:** Adopted
+
+**Decision.** `ledgerVelocityScan` (functions/src/velocity.ts) runs
+daily over the `v2_agg_events` entries since its last run and logs —
+only logs — four ring-shaped signals: impossible per-uid volume,
+scripted answer cadence, Auth creation-time clusters among the window's
+voters, and per-question bursts against each question's own trailing
+baseline. Flags are WARNING lines carrying uids; the operator reads
+them into the D28 correction runbook, whose "identification is
+investigative" gap this closes the first pass of. Nothing is denied,
+delayed or down-weighted — D29 recorded this lever's shape as "feeding
+manual review rather than automatic denial", and that clause is load-
+bearing here.
+
+**Why now.** D28's guarantee is correction *given a uid list*, and its
+residuals section says plainly that detection was out of scope — "the
+ledger's timestamps are the raw material velocity analysis would read,
+but no analysis ships today." That left the correction story
+conditioned on luck: a ring had to be noticed by someone with no
+instrument for noticing. The scan is that instrument, built from the
+signals DEPLOYMENT.md's runbook already named as the investigative
+step.
+
+**The purpose-limitation check, because D47 makes it a live question.**
+D47 deferred DAU counting over this same collection as "a new purpose
+for existing data, which is a decision record, not a script." This is
+not that: fake-account attribution is the purpose D28 collected the
+ledger for, and D29 names this exact analysis as a tightening lever.
+Same data, recorded purpose, so a script — this record exists to say
+that distinction out loud rather than let the two cases blur.
+
+**The signals, and the honest twin each must spare.** Every threshold
+is an exported constant, pinned at its boundary by velocity.test.ts,
+and an engineering default in D37's sense — movable, each in a known
+direction (raise for quieter logs and later notice, lower for the
+reverse):
+
+- **Volume** (> the aggregate-feeding bank size in one window): no
+  honest twin. Answers are create-only per question and the sweep-on-
+  erase keeps uids single-lived, so exceeding the bank is dedup failure
+  or forged writes — the nearest thing to a verdict in the set.
+- **Cadence** (15+ answers with gap CV < 0.25 or mean < 2s): the twin
+  is the backlog binge, spared by gap variance — humans read at
+  question-dependent speeds; scripts must jitter wider than ±40% of
+  their own mean to pass, which costs them throughput.
+- **Cluster** (5+ of the window's voters created within 10 minutes,
+  overlapping windows merged): the twin is a launch spike or press
+  mention — a *good* day. This signal is why the output is review, not
+  action.
+- **Burst** (4× a question's trailing mean, floor 10, needing 3+
+  recorded baseline days): the twin is the deck itself — the daily
+  question and promoted debuts are bursts by design, excluded by the
+  baseline requirement, so the signal sees only the attack shape: an
+  old, settled question suddenly stuffed. A ring riding the current
+  daily question hides in its crowd; that one belongs to cadence and
+  cluster.
+
+**Cost, at the system's own ceilings.** At D7's ~14k answers/day the
+scan reads ~14k ledger entries (paginated, projected), ~140 batched
+Auth lookups, and one state doc — pennies per month; at launch volumes,
+effectively nothing. The state doc (`v2_velocity/state`, cursor plus
+seven days of per-question counts) is denied to clients in rules and
+pinned so in rules.test.ts: readable it would be a side channel under
+`AGG_MIN_N`, writable it would let an attacker inflate their own
+baselines. One new deployed function; check:fn-runtime and
+check:deploy-targets both hold it, check:appcheck is untouched (no
+callable surface).
+
+**Deliberately NOT built, with the reasoning:**
+
+- **Automatic denial or down-weighting.** The false-positive twins
+  above are the product's best days; machinery that punishes them on
+  pattern-match is worse than an operator reading a log line. D28's
+  warm-up-gating rejection stands unchanged.
+- **An alert policy.** DEPLOYMENT.md's "applied by hand, once,
+  deliberately" reasoning governs: these are numbers read daily during
+  calm. The heartbeat and flag lines carry `metric` fields so a
+  log-based metric can be attached the day evidence warrants standing
+  eyes — plumbing shipped, policy deliberately not.
+- **The vote choice in the flags.** Same as D28's ledger reasoning:
+  correction reads choices from the ring's answer docs; a copy in the
+  log would be worse minimisation for zero forensic gain.
+
+**Limits, so the layer above stays honest.** The scan cannot see the
++1-per-device-per-month drip (designed to sit under the publish
+cadence's noise floor), paid humans at human cadence, or a ring patient
+enough to mimic organic arrival across days. Its job is narrower and
+real: it forces an effective attacker into exactly that slow,
+human-shaped posture, and the device-bind month rule then prices that
+posture per physical device. Detection latency is up to a day plus the
+72h catch-up cap after an outage; entries beyond the cap are never
+analysed (logged as a gap, not absorbed). And a scan that runs is not a
+scan that is read — the flags are only as good as the operator's habit
+of looking, which is the argument the metric-field plumbing exists to
+answer when it stops holding.
