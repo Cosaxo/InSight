@@ -92,7 +92,7 @@ jobs:
       - run: npm run check:store-forms
       # Five version numbers that must move together across three files.
       - run: npm run check:versions
-      # Near-duplicate questions across the banks (D58). Exact-dupe checks
+      # Near-duplicate questions across the banks (D63). Exact-dupe checks
       # live in check:content on the deploy path; this is the similarity
       # half, and it is content QUALITY, not backend correctness — so it
       # belongs here and deliberately NOT on backend-checks.yml, where it

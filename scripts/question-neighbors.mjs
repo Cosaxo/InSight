@@ -1,5 +1,5 @@
 // question-neighbors.mjs — near-duplicate gate for the question banks, and
-// the lookup tool the farm runs while writing (D58).
+// the lookup tool the farm runs while writing (D63).
 //
 // WHY THIS EXISTS. Every content lane's dedup rule ("a new question must
 // not restate an existing one in different clothes" — QUESTION-FARM.md) is

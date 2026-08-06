@@ -13,6 +13,7 @@ import {
   LKEY,
   loadResult,
   logicPctile,
+  logicPctileFor,
   logicSecs,
   saveResult,
   type LogicResult,
@@ -83,5 +84,23 @@ describe("logicSecs", () => {
     // "instant" on the Pace lens; the honest fallback is the model's median
     expect(logicSecs({ marks: [true], pctile: 1, when: 1 })).toBe(FIELD_MED);
     expect(logicSecs(null)).toBe(FIELD_MED);
+  });
+});
+
+describe("logicPctileFor (the 25-item curve — D61)", () => {
+  it("pins the landmarks: chance→4, half→42, midpoint→50, 20/25→90, perfect→98", () => {
+    // The server copy (functions/src/logic.ts) pins these same values in
+    // logic.test.ts — if either side moves alone, one suite fails.
+    expect(logicPctileFor(1 / 6, 25)).toBe(4);
+    expect(logicPctileFor(0.5, 25)).toBe(42);
+    expect(logicPctileFor(0.54, 25)).toBe(50);
+    expect(logicPctileFor(20 / 25, 25)).toBe(90);
+    expect(logicPctileFor(1, 25)).toBe(98);
+    expect(logicPctileFor(0, 25)).toBe(1);
+  });
+
+  it("legacy lengths keep the 12-item curve — a v1 back-fill must not re-rank", () => {
+    expect(logicPctileFor(0.5, 12)).toBe(logicPctile(0.5));
+    expect(logicPctileFor(0.5, 4)).toBe(logicPctile(0.5)); // truncated legacy payloads
   });
 });

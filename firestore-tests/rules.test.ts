@@ -410,6 +410,11 @@ describe("v2 profile", () => {
       await setDoc(doc(db, "v2_logic_attempts", OWNER), { seed: 7, gv: 2, status: "open" });
       await setDoc(doc(db, "v2_logic_norms_private", "global"), { n: 3, b12: 3 });
       await setDoc(doc(db, "v2_logic_norms", "global"), { n: 25, b7: 6 });
+      // the D62 difficulty stats ride the same collections, so the same
+      // rules cover them — asserted so a future path rename cannot
+      // silently split the two
+      await setDoc(doc(db, "v2_logic_norms_private", "families"), { n: 3, f_dist2Xor_seen: 3 });
+      await setDoc(doc(db, "v2_logic_norms", "families"), { n: 25, f_dist2Xor_seen: 20 });
     });
     // not even the owner reads their attempt — an owner-readable seed is a
     // devtools answer key mid-attempt
@@ -418,6 +423,9 @@ describe("v2 profile", () => {
     // exact counts stay server-side; the public mirror reads, never writes
     await assertFails(getDoc(doc(asUser(OWNER), "v2_logic_norms_private", "global")));
     await assertSucceeds(getDoc(doc(asUser(OWNER), "v2_logic_norms", "global")));
+    await assertFails(getDoc(doc(asUser(OWNER), "v2_logic_norms_private", "families")));
+    await assertSucceeds(getDoc(doc(asUser(OWNER), "v2_logic_norms", "families")));
+    await assertFails(setDoc(doc(asUser(OWNER), "v2_logic_norms", "families"), { n: 999 }));
     await assertFails(setDoc(doc(asUser(OWNER), "v2_logic_norms", "global"), { n: 999 }));
     await assertFails(getDoc(doc(asSignedOut(), "v2_logic_norms", "global")));
   });

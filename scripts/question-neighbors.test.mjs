@@ -1,4 +1,4 @@
-// Pins the near-duplicate detector (question-neighbors.mjs, D58): the
+// Pins the near-duplicate detector (question-neighbors.mjs, D63): the
 // normalization that makes the metric see through phrasing, the id
 // mapping the ALLOW list keys on, and the live corpus staying under the
 // gate. The corpus assertion runs here as well as in check:neighbors on

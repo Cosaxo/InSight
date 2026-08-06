@@ -3045,6 +3045,16 @@ Check token exists to send.
   the call that checklist step is written around, which makes this the one
   exemption that must not be "tidied up" without rewriting the seeding
   procedure first.
+
+  > **Amendment, 2026-08-06.** "From a browser console" was never true. The
+  > app has no browser build — hosting serves `web/` (home, join, privacy,
+  > terms) and the app ships as the native iOS shell — so the caller this
+  > exemption was granted for did not exist. **The exemption stands
+  > unchanged**, and for the same reason: the seed is now invoked by the
+  > *Seed content* workflow (`scripts/seed-content.mjs`), which carries no
+  > App Check token either. Only the description was wrong, in all three
+  > places it was written down — here, `check-appcheck.mjs` and
+  > `functions/src/v2.ts`.
 - `revealDuelsNowV2` — the scheduled scan's manual lever, reached from a
   console during an incident (DEPLOYMENT.md → rollback) and by the e2e. A
   control that fails when it is most needed is not a control.
@@ -5788,7 +5798,315 @@ deploy workflow's --only list names them.
   k-anonymity story, and the measured-percentile flip are separate
   decisions.
 
-## D58 · Near-duplicate questions get a measured gate
+## D58 · The seed refuses to edit a shipped option set
+
+**Date:** 2026-08-06 · **Status:** Adopted
+
+**What was enforced by nothing.** D52 records "shipped option sets are
+never edited" as an invariant, because answers store `(qid, optionIdx)`
+and nothing else. Swap two options on a live question and every historical
+vote silently changes meaning: no count moves, no aggregate recomputes,
+nothing anywhere reports it. It is the D30 re-key class applied
+retroactively to data already collected — and the enforcement was a human
+reading the diff. `runSeedV2` took an edited `options` array straight
+through `seedDocMatches` (which returns false on *any* changed field,
+including this one) and `batch.set(…, { merge: true })` it over the live
+doc.
+
+Every content review so far has got this right. That is a record, not a
+mechanism. D55's own review found sixteen things by reading; this is the
+class of defect that reading is worst at, because the diff looks like an
+ordinary content edit and the damage is invisible in every artifact
+afterwards.
+
+**The refusal.** `seedOptionConflict` compares the stored option array
+against the one about to be written; a conflict skips that document and
+the run throws `failed-precondition` naming every refusal, old set and
+new. Per-document rather than per-run: a batch of legitimate prompt fixes
+must not be held hostage by one bad edit, and the throw makes sure the
+skip cannot be mistaken for success either way. The legitimate writes are
+already committed when it throws — holding them back would punish the rest
+of the batch for one line.
+
+**Deliberately narrow.** `prompt` edits stay allowed, and that is not an
+oversight: D52's own fix list is mostly prompt rewrites preserving a
+question's meaning ("€500" → "a week's pay"), and a prompt carries no
+index any answer refers to. Only `options` re-keys stored data.
+
+**Appends count as edits.** Adding an option orphans no existing index,
+but it changes what the question asked the people who already answered it
+without that choice. D52's appends are to *banks* — new questions — never
+to a shipped question's option list.
+
+**Creates and pre-`options` docs pass.** A document that does not exist
+has no votes to re-key, and neither does one stored without an `options`
+array. Refusing either would wedge the seed permanently.
+
+**The operator's two legitimate paths are unchanged**: `active: false` to
+retire a question, or append a new qid to replace it. Neither goes through
+this code.
+
+**`runSeedV2` takes its `Firestore` as an argument now**, following
+`runAggTransaction`'s precedent, and the reason is the whole point of this
+record. The guarantee is about what the seed *refuses to write*, and a
+`getFirestore()` inside the body would have made that refusal untestable
+without an emulator — which is the same shape as the gap being closed
+here. `seed.test.ts` drives the real function against a stand-in db and
+asserts the refused document is never written, the allowed prompt fix in
+the same run still is, a create is never refused, and the run's own log
+does not count a refusal as "unchanged". Mutation-checked: deleting the
+four-line guard from `runSeedV2` fails four of the six, and the two that
+survive are the controls that should pass either way.
+
+Testing the predicate alone would not have been enough, and the
+distinction matters: `seedOptionConflict` answering perfectly while
+nothing called it looks identical in `pure.test.ts` and still loses every
+historical vote on the edited question.
+
+**Not done: the CI-side manifest.** A committed snapshot of every shipped
+option set, diffed by `check:content`, would catch the edit one step
+earlier — at review rather than at seed. It is redundant with this, needs
+a new artifact to maintain, and would go stale in the one direction that
+matters (a manifest nobody regenerates passes everything). The
+server-side refusal is authoritative because it reads the live documents;
+that is where the invariant is actually about to be broken.
+
+## D59 · The deferred chunks stop caching their own failure
+
+**Date:** 2026-08-06 · **Status:** Adopted
+
+**The bug.** `spec-index.js` memoised both deferred groups (D25, D48) into
+a plain module-level variable: `if (!p) p = (async () => …)()`. That is
+correct for what it was written for — `main.jsx` starts each load once,
+every opener awaits the same promise, the mount tests await them in
+`beforeAll` — but `if (!p)` cannot tell a resolved promise from a rejected
+one. One failed chunk fetch (a dropped connection, a stale asset after a
+deploy, a flaky native file read) was therefore **permanent for the
+session**: every later call replayed the same rejection. The World feed
+and all five cross-link overlays stayed gone until relaunch, and because
+app-shell's openers catch and return, the symptom was a tap that did
+nothing — no toast, no retry, no report.
+
+**The fix is one helper.** `data/lazy.ts`'s `retryable()` clears the
+cached promise on rejection and rethrows. No retry loop, no backoff — the
+caller decides whether to ask again. The overlays get recovery for free
+precisely because every one is reached through an opener that awaits this
+promise: the second tap re-attempts the import. Nothing else changed.
+
+**The success path is unchanged, which matters as much.** Concurrent
+callers still receive the same promise object, so this cannot turn one
+deferred group into two parallel downloads — pinned by a test asserting
+identity, not just equal values.
+
+**Cleared before the rethrow, not in a `finally`.** A caller that catches
+and retries synchronously — the exact shape app-shell's openers have —
+must find an empty slot rather than the promise it just saw reject.
+
+**Mutation-checked.** Reverting `lazy.ts` to `if (!inflight) inflight =
+load()` fails three of the five cases and passes the two success-path
+ones. A test suite that only covered the success path would have passed on
+the bug, which is how it shipped in the first place.
+
+**The feed still gets one shot.** `main.jsx` calls `loadWorldFeed()` once
+and reports a failure to Sentry; nothing re-attempts it, so a failed feed
+chunk still costs the feed for the session. Retry is now *possible* there
+rather than automatic — wiring a user-visible retry into the daily card is
+a UI decision, not a memoisation one, and is left for whoever designs that
+affordance.
+
+**One import that is not a spec module.** `spec-index.js` now imports
+`./data/lazy`, above the ordered list rather than inside it, because
+nothing in that list reads it and the list's order is a contract. The
+direction is the allowed one: `spec/` and `spec-index` may import `data/`
+(as `main.jsx` and `logic-test.jsx` already do); `data/` may not import
+them back.
+
+## D60 · The verified percentile becomes a measurement at one hundred players
+
+**Date:** 2026-08-06 · **Status:** Adopted (owner: "do the measured
+percentile flip when we have enough data") — the flip D57 recorded as
+future work, built now and gated on data, not on a later deploy.
+
+**What flips, exactly.** `logicSubmitV2` now reads the private norms
+histogram on every submit (pre-fold, before any write, as transactions
+require). Once it holds at least `LOGIC_NORMS_MIN_N` verified first
+attempts, the percentile stops being the logistic and becomes a count:
+the share of counted players this score STRICTLY beats — ties are not
+beaten, which keeps the claim wording ("share of players this score
+beats") identical to the curve it replaces. The result and the response
+carry `source: "measured"` and `n`, the population ranked against; the
+client says "Sharper than X% of N verified players" and swaps the note
+for one that names what is measured and what is not. Below the floor,
+nothing changes: same logistic, same `source: "model"`, pinned equal in
+both suites.
+
+**The floor, with the arithmetic.** `LOGIC_NORMS_MIN_N = 100`. At
+n = 100 the worst-case standard error of an empirical percentile is
+√(0.5·0.5/100) ≈ 5 points — comparable to the modelled curve's own
+honesty margin — and the k-anonymity floor (AGG_MIN_N = 5) is cleared
+twenty times over. Below that, an empirical rank whipsaws by tens of
+points per submission: noise wearing a number. One constant; lowering
+it is a recorded decision, not a tweak.
+
+**Pre-fold comparison, on purpose.** The population is the players
+counted BEFORE this submission, so a submitter is never a member of
+their own field, and a re-verifier (who never folds — D32's
+first-attempt rule) is ranked against the same kind of population as a
+first-timer. `n` is therefore exact in the claim: each counted player
+appears once, which is precisely what the first-attempt rule bought.
+
+**The ceiling argument retires — for measured results only.** D53
+capped the modelled curve at 94 because a curve cannot rank perfect
+scores. A count can: 12/12 among a field where 10% score perfect reads
+"sharper than 90%", and among 150 perfects of 200 it reads 25 — the
+data speaks, however deflating. The [1, 99] clamp stays at both ends
+for display sanity ("top 0%" and "sharper than 100%" are absurd at any
+n), and the modelled path keeps its 94 untouched.
+
+**What deliberately did NOT change.** Practice attempts still score
+against the modelled curve, on-device — ranking an unlimited-retake
+practice run against the verified-first-attempt population would
+compare unlike things and muddy both claims. The lens charts (solve
+bars, field Gaussian, pace cloud) remain modelled sketches even on a
+measured result — the measured note says so explicitly, so one real
+number never dresses up four drawn ones. Drawing the Field lens from
+the public mirror is the natural next step and is recorded here as NOT
+done. The mirror's publish cadence and floor are untouched.
+
+**Verification.** `measuredPctile` is pure and pinned: null below the
+floor (the model keeps the job), strictly-below share at it, tie
+handling, both clamps, the perfect-among-perfects case, and the
+995-of-1000 rounding edge. The overlay suite drives a measured response
+end-to-end: the claim names its population, the note declares the
+sketches, and the saved result carries `source`/`n`. The submit path's
+change is read-always + branch — the emulated e2e leg remains deferred
+with D57's environmental reason.
+
+## D61 · Twenty-five items, tail-heavy: the form grows before the norms freeze it
+
+**Date:** 2026-08-06 · **Status:** Adopted (owner: "do 25 items with the
+harder tail", against the assistant's 20-item recommendation — 25 sits
+inside the owner's original 20–30 range)
+
+**Why now, and why at all.** Twelve items give thirteen raw scores and
+squeeze all top-end discrimination into the last two or three; by
+Spearman–Brown, a 0.78-reliability 12-item form reaches ≈ 0.87 at 25
+items. And D60 froze the clock: the norms histogram buckets scores by
+form length, so every verified attempt accumulated under 12 items would
+be discarded by a later change. The histogram is empty today — this is
+the last cheap moment.
+
+**The v3 ramp.** 25 slots, non-decreasing:
+`1,1 · 1.5,1.5 · 2,2,2 · 2.5,2.5,2.5 · 3,3,3,3 · 3.5,3.5,3.5,3.5 ·
+4,4,4,4 · 4.5,4.5,4.5` — eleven of twenty-five at 3.5+, against one of
+twelve in v2. Ten new families joined so every band draws from a real
+pool: `ringLatin` (w3.5); the w4 two-rule compositions
+`latinShapeSizeFill`, `outerLatinInnerLatin`, `ringGrowFill`,
+`innerGrowCycle`, `fillRampShapeCycle`; and the w4.5 tail —
+`dist2Latin` and `xorLatin` (three simultaneous rules), `ringLatinShape`
+(double distribution over a low-salience attribute), and `dist2Xor`
+(two elements under two DIFFERENT laws) — Carpenter's hardest classes.
+28 families total; band draws now yield 2·2·24·6·24·24·120·24 ≈ 9.6e8
+family sequences. The sweep caught one real ambiguity during
+construction — a skipped-ring distractor satisfying a count-only
+reading of the new ring-Latin families — closed the D53 way: the
+predicates now demand the exact consecutive ring geometry every visible
+cell teaches, the same exact-vocabulary constraint dist2's elements got.
+(The legacy `ringGrow` never had the hole live: its column counts are
+always 1 or 3, so a two-ring answer cannot occur there.)
+
+**The 25-item curve, re-derived and pinned.** `logicPctileFor(frac,
+items)` carries one logistic per form length. The v3 parameters are
+midpoint 54 (a modelled median solver clears the low bands and roughly
+half the middle: ≈13.5/25) and slope 12; landmarks pinned in both
+suites: chance (1/6) → 4, half → 42, 20/25 → 90, perfect → **98** — the
+tail-heavy ramp earns the model more ceiling than D53's 94, still
+capped below 99 because a curve still cannot rank perfect scores. The
+12-item curve keeps its historic name, parameters and pins: v1 payload
+back-fills must not re-rank, and unknown legacy lengths fall back to
+it. All of this is bootstrap only — D60's measured flip supersedes the
+model at n = 100 regardless of parameters.
+
+**Era safety, both directions.** The norms histogram now stamps the
+form length it counts (`items`); a stored histogram from another era
+ranks nothing and folds nothing, so the first current-era submit starts
+the count fresh — 12-item scores can never mix with 25-item ones. An
+attempt OPENED under gv 2 and submitted after this deploys is validated
+and scored against its own 12-item form (`logicItemsFor(gv)`), scored
+by the 12-item curve, and kept out of the 25-item histogram — the
+deadline bounds that window to minutes, but a refusal there would
+swallow an honest finisher. Reconstruction holds for every era:
+generateForm(seed, 1|2) reproduce their frozen generators, pinned by
+goldens (v2's captured pre-change, seed 11 down to full option order),
+and an unknown gv still throws.
+
+**What it costs the sitting.** Typical runs move from ~3–5 to ~6–8
+minutes (modelled median 17s/item); the worst case, every 90s clock run
+out, is 37.5 minutes, and the verified deadline is 26 × 90s = 39
+minutes. The per-item cap stays flat at 90s across all bands — a
+per-band cap would be tighter administration but a second thing to
+explain; recorded as not done.
+
+**Accepted limits, recorded.** The w1, w1.5 and w2.5 bands have pool ==
+slots, so their family SETS are fixed and only order varies — the
+variety budget went to the tail, where coaching pays most. Reliability
+numbers quoted here are still Spearman–Brown projections, not
+measurements; the odd/even split-half submission idea (D57's reflection)
+remains future work. The Answers lens draws 25 rows on a phone screen —
+scrollable and legible, but dense; redesigning it is deferred until the
+measured Field lens work touches those lenses anyway.
+
+## D62 · The test starts learning its own difficulty: family and slot solve rates
+
+**Date:** 2026-08-06 · **Status:** Adopted (owner: "add some learning to
+it so we better learn how hard each question is")
+
+**What is learnable, and from where.** Questions are generated, so there
+is no bank to rate — the difficulty-bearing units are the 28 rule
+FAMILIES (the Carpenter-prior weights D56/D61 assigned them are exactly
+the numbers worth checking) and the 25 SLOTS (same family late in the
+sitting may solve less: fatigue and time pressure are real and worth
+separating from family hardness). The only place this is honestly
+observable is a verified attempt: the server regenerates the form, so it
+alone knows which family each item was and whether the pick was right.
+Practice attempts still send nothing.
+
+**The fold.** `foldDifficultyStats` counts, per family, appearances and
+solves, and per slot, solves (`n` is every slot's exposure). It runs in
+`logicSubmitV2`'s transaction under the SAME gate as the histogram —
+verified first attempts of the current era only (D32's rule: retakes
+measure practice; D61's era stamp: 12-item stats never mix with
+25-item ones) — into `v2_logic_norms_private/families`, mirrored to
+`v2_logic_norms/families` at the same floor and cadence as everything
+else. The two docs ride the existing collections, so ZERO rules changed;
+the rules test asserts the new paths anyway, so a future rename cannot
+silently split the coverage.
+
+**What is deliberately absent.** Timings: per-item solve times are the
+strongest difficulty signal and they stay on the device, because D57
+promised exactly that in the data inventory — difficulty is learned from
+solve rates alone, and that trade is recorded here rather than quietly
+made. Anchors and uids: never attached; the ledger is counts, same
+survivability-after-deletion argument as the histogram.
+
+**The loop this exists to close, later.** With measured per-family solve
+rates, three recorded futures become data-driven instead of
+prior-driven: recalibrating the band weights (a family measurably easier
+than its band mis-prices "k of 25"), auditing the ramp's monotonicity in
+reality (slot solve rates should broadly fall left to right — if slot 19
+outsolves slot 12, the ramp lies), and replacing the Answers lens's
+modelled solve-rate bars with real ones. Each is its own decision once
+n is meaningful; nothing reads the mirror yet, matching the D60
+histogram-mirror precedent.
+
+**Verification.** Pure fold pinned from nothing, over priors, and over a
+full real form (25 distinct families seen once each — the no-repeat rule
+observed from the data side). `scoreLogicPicks` now returns the families
+alongside the marks, asserted against the generator; the wire to the
+client is unchanged (families are derivable from the disclosed seed
+post-scoring, so nothing new leaks). Rules suite covers the new doc
+paths in both collections.
+## D63 · Near-duplicate questions get a measured gate
 
 **Date:** 2026-08-06 · **Status:** Adopted
 
@@ -5928,10 +6246,12 @@ doc says `duoMode: "romantic"`; the picker lives in LiveDuelPanel.
    FRIEND-pair duels. The picker refuses to render for a pool that
    cannot serve (`romanticPoolReady`), so the flip is invisible until
    activation. **The activation step, for the runbook:** flip the 20
-   `duo-020`–`duo-039` docs to `active: true` in the console, then call
-   `seedContentV2` with `bumpRev: true` — console flips touch no
-   `updatedAt`, so without the rev bump returning clients' cursors never
-   see the pool.
+   `duo-020`–`duo-039` docs to `active: true` in the Firestore console,
+   then run the **Seed content** workflow with `bump_rev: true`
+   (`scripts/seed-content.mjs --bump-rev` — the post-D36-amendment
+   seeding path; the app itself has no console to type in) — console
+   flips touch no `updatedAt`, so without the rev bump returning
+   clients' cursors never see the pool.
 5. **`duoMode` is written by a rules carve-out, not a callable** — the
    schema's first member-writable field on a group doc: member + duo doc
    + that field alone (affectedKeys) + closed enum. No cap, budget or

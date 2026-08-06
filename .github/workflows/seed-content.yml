@@ -1,0 +1,93 @@
+# Seed the production question bank. One click, no dev machine.
+#
+# WHY THIS EXISTS. SHIP-CHECKLIST §1 said to run
+# `await window.LIVE.seedContent()` from "the app's browser console". There
+# is no such console. `firebase.json` serves `web/` — home, join, privacy,
+# terms — and the app ships only as the native iOS shell, so
+# prvfire33.web.app is a landing page and nothing else. The one step
+# between a deployed backend and an app with questions in it could not be
+# performed as written.
+#
+# That is the SECOND time this step has been documented as something it is
+# not. The first: it named `firebase.functions().httpsCallable(...)`, v8
+# syntax on a modular-SDK app, which would have thrown ReferenceError. Both
+# failures share a cause — the instruction was never executed by anyone,
+# because executing it needed a thing nobody had. A workflow is executable
+# by construction.
+#
+# WHY IT RECURS, and why this is not a one-off script. Seeding is not a
+# launch step that gets ticked. Every content change lands the same way
+# (D30's promotion cadence, D33's farm), and each one needs this run again.
+# It is idempotent and, since D34, cheap: it rewrites only documents whose
+# content changed and leaves contentRev alone, so a reseed no longer costs
+# every returning device a 369-read bank refetch.
+#
+# WHAT IT GRANTS, which is nothing new. seedContentV2 is gated on
+# assertOperator — signed in, uid in SEED_ADMIN_UIDS — and is deliberately
+# App Check exempt (functions/src/v2.ts) because it was meant to be called
+# from a console. The service-account key here already deploys the rules
+# that protect v2_questions, so it could write that collection directly.
+# Going through the callable keeps ONE seeding code path, so what this runs
+# is what the documented console call ran.
+
+name: Seed content
+
+on:
+  workflow_dispatch:
+    inputs:
+      bump_rev:
+        description: "Invalidate every device's cached bank (only needed after flipping `active` by hand)"
+        type: boolean
+        default: false
+      dry_run:
+        description: "Resolve credentials and stop, without seeding"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: seed-content
+  cancel-in-progress: false
+
+jobs:
+  seed:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    # The same environment firebase-deploy.yml uses, because that is where
+    # SEED_ADMIN_UIDS lives and where FIREBASE_SERVICE_ACCOUNT is scoped.
+    environment: production
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 22
+
+      - name: Seed
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          SEED_ADMIN_UIDS: ${{ vars.SEED_ADMIN_UIDS }}
+          VITE_FIREBASE_API_KEY: ${{ vars.VITE_FIREBASE_API_KEY }}
+          FIREBASE_PROJECT_ID: prvfire33
+        run: |
+          ARGS=""
+          [ "${{ inputs.bump_rev }}" = "true" ] && ARGS="$ARGS --bump-rev"
+          [ "${{ inputs.dry_run }}" = "true" ] && ARGS="$ARGS --dry-run"
+          node scripts/seed-content.mjs $ARGS | tee "$RUNNER_TEMP/seed.log"
+
+      - name: Summary
+        if: always()
+        run: |
+          {
+            echo "### Seed content"
+            echo ""
+            echo '```'
+            cat "$RUNNER_TEMP/seed.log" 2>/dev/null || echo "(failed before the seed ran — see the step log)"
+            echo '```'
+            echo ""
+            echo "Re-running is safe and, since D34, cheap: only changed documents are"
+            echo "rewritten and \`contentRev\` is held, so returning devices do not"
+            echo "re-read the whole bank. \`written: 0\` means it already matched."
+          } >> "$GITHUB_STEP_SUMMARY"
