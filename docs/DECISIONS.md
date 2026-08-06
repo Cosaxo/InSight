@@ -4603,8 +4603,61 @@ the SURVIVING member, so there was nothing of the deleted user's in it to
 miss. The fixture now names the doomed account, which is the ordinary case,
 and asserts the field is gone.
 
-**Still not fixed, recorded so the absence is deliberate.** The reveal's
-`members` snapshot is still taken at reveal time rather than play time, so a
-member who joins between UTC midnight and the scan reads the previous day's
-votes and names. That one is a schema change (a per-member `joinedAt`) and
-has its own arithmetic; it is not closed by this record.
+**Amendment (2026-08-06, third) — the reveal's membership snapshot.**
+
+**9 · A day's reveal is scoped to the members who were there for that day.**
+The reveal doc carries its own `members` array and firestore.rules gates the
+read on it, which is what makes the guarantee retroactive in one direction —
+joining tomorrow does not hand you every past day, leaving does not retract
+the days you played. The array was membership AT REVEAL TIME, which is not
+the same thing as membership on the day revealed.
+
+Day D is revealed by the D+1 scan, and that scan runs `every 120 minutes`.
+So anyone joining between 00:00 UTC and it was a current member when the
+snapshot was taken, went into `members`, and read day D's votes and names
+for a day they were not in the group for. Up to two hours, every day.
+`revealGroupDay` claimed to have closed this by preferring the page snapshot
+to a fresher read — but both reads happen on D+1, so that only ever closed
+the seconds between them.
+
+Groups now carry `memberJoinedAt { uid: Timestamp }`, written by
+`createGroupV2` and `joinGroupV2` and removed by `leaveGroupV2` and
+`deleteAccount` — the same four paths as `memberNames`, because a uid left in
+either map is the erasure leak §8 records. `revealMembersFor` (pure.ts)
+filters the array to members who joined before the END of the day (someone
+who joined midway through it was there for it), plus anyone who actually
+played it.
+
+**Why the played-it clause.** Rules accept a duel answer up to four days
+late, so a member can legitimately land a vote for a day preceding their
+join: an offline client flushing a queue, or a fresh group playing a recent
+day. Without the clause the pipeline publishes a reveal containing someone's
+own vote that they alone cannot read — and "you see the days you played" is
+the invariant the e2e already asserted.
+
+**A member with no recorded join time is included, and that is the answer
+rather than a fallback.** The field is written from the day this shipped, so
+its absence means the member joined before that, which is before any day the
+function will be asked about. Reading absence as "exclude" would blank every
+reveal for every group alive on deploy day — which is also why there is no
+ordering hazard in the rollout: the read side degrades permissively, so the
+field can appear before anything depends on it. The residual is one day
+wide: members who joined before the deploy keep the old scope for days not
+yet revealed.
+
+**The e2e was asserting the leak.** Its latecomer leg read the reveal as the
+LATECOMER — an account that joined three days after the day in question and
+never played it — and failed if the read was denied. It now reads as the
+creator who played, and asserts the latecomer is denied, so the leg proves
+the fix instead of the bug.
+
+**KNOWN RESIDUAL, stated because it is a real one.** The played-it clause is
+also an unlock: join a group, backfill an answer for a day inside the
+four-day window, and the reveal admits you. Strictly narrower than what it
+replaces — passive joining now reveals nothing, and the unlock costs a
+visible vote in the circle's own reveal — but not nothing. Closing it means
+bounding the WRITE rather than the read: firestore.rules would have to refuse
+a duel answer for a day preceding the member's join. That is a change to the
+densest rule in the file, whose failure mode the file itself describes as "a
+vote that vanishes", and it would refuse the legitimate fresh-group case
+above. It is a decision of its own and is deliberately not taken here.

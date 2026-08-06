@@ -106,9 +106,15 @@ read: signed-in · write: nobody
 
 v2_groups/{gid}                    groups AND duos (mode: group|duo)
   name, mode, ownerUid, memberUids[≤32; duo ≤2], memberNames{uid:name},
+  memberJoinedAt{uid:ts},
   inviteCode, streak, lastRevealDay, pendingDays[≤6], createdAt
   (memberNames rides on the group doc because profiles are owner-only;
   callables maintain it on create/join/leave)
+  (memberJoinedAt is read only by revealGroupDay, to scope a day's reveal to
+  the members who were in the group FOR that day. Maintained on the same
+  three paths as memberNames, plus deleteAccount — a uid left in either map
+  outlives the account. Absent for members who predate the field, which
+  revealMembersFor reads as "joined before any day it will be asked about")
   (pendingDays: day keys with an answer and no reveal yet. onV2AnswerCreated
   arrayUnions; the reveal scan removes a day once it settles it and prunes
   past PENDING_DAYS_KEEP. It is how scheduledDuelReveals finds its work with
@@ -118,9 +124,11 @@ and pairing can't be forged client-side)
 
 v2_groups/{gid}/reveals/{day}      materialized by the reveal pipeline
   day, qid, votes { uid: {optionIdx, guessIdx?} }, names, members[], revealedAt
-  (members is the membership snapshot AT REVEAL TIME, and it is load-bearing:
-  the read rule gates on THIS array, not the parent group's current roster,
-  which is what keeps the guarantee retroactive — D5's amendment)
+  (members is the membership snapshot the read rule gates on — not the
+  parent group's current roster, which is what keeps the guarantee
+  retroactive: D5's amendment. It is the members who were in the group ON
+  `day`, not at reveal time; the two differ by up to one scan interval, and
+  the difference was a joiner reading the previous day — D47 §9)
 read: the reveal's own members · write: nobody (D5)
 
 Sealed duel answers live in the owner-only answers subcollection under

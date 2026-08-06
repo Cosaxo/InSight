@@ -96,6 +96,77 @@ export function nextStreak(
   return lastRevealDay === prevDayKey(dayKey) ? currentStreak + 1 : 1;
 }
 
+// Who a day's reveal may be shown to.
+//
+// The reveal doc carries its own `members` array and firestore.rules gates
+// the read on THAT, not on the group's current membership — which is what
+// makes the guarantee retroactive in one direction: joining tomorrow does
+// not hand you every past day, and leaving does not retract the days you
+// played. The array was the membership AT REVEAL TIME, and that is a
+// different thing from membership on the day being revealed.
+//
+// The gap it left is one scan wide, every day. Day D is revealed by the D+1
+// scan, which runs `every 120 minutes` — so anyone who joined between
+// 00:00 UTC and that scan was a current member when the snapshot was taken,
+// went into `members`, and could read day D's votes and names for a day they
+// were not in the group for. `revealGroupDay`'s own comment claimed to have
+// closed this by preferring the page snapshot to a fresher read, but both
+// reads happen on D+1, so it only ever closed the seconds between them.
+//
+// The bound is the END of the day being revealed, not its start: someone who
+// joined midway through day D was there for it and may have played it.
+//
+// …and anyone who DID play the day is included whatever their join time
+// says. firestore.rules accepts a duel answer up to four days late, so a
+// member can legitimately land a vote for a day that precedes their join —
+// an offline client flushing a queue, or a fresh group playing a recent day.
+// Excluding them would publish a reveal containing their own vote that they
+// alone cannot read, and "you see the days you played" is the invariant the
+// e2e already asserts.
+//
+// KNOWN RESIDUAL, recorded rather than papered over: that clause is also an
+// unlock. Join a group, backfill an answer for a day inside the four-day
+// window, and the reveal admits you. It is strictly narrower than what this
+// replaces — passive joining now reveals nothing, and the unlock costs a
+// visible vote in the circle's own reveal — but it is not nothing. Closing
+// it means bounding the write, not the read: firestore.rules would have to
+// refuse a duel answer for a day preceding the member's join. That is a
+// change to the densest rule in the file, whose failure mode is a vote that
+// silently vanishes, and it would refuse the legitimate fresh-group case
+// above. Left for a decision of its own (D47 §9).
+//
+// A uid with NO recorded join time is included, and that is not a fallback —
+// it is the correct answer. The field is written by createGroupV2 and
+// joinGroupV2 from the day this shipped, so its absence means the member
+// joined before that, which is necessarily before any day this function will
+// ever be asked about. Reading absence as "unknown, exclude" would blank
+// every reveal for every group that existed on deploy day.
+//
+// Takes plain millis rather than Timestamps so this stays firebase-free like
+// the rest of the module; the caller converts.
+export function revealMembersFor(
+  members: readonly string[],
+  joinedAtMs: Record<string, unknown>,
+  dayKey: string,
+  playedUids: readonly string[] = [],
+): string[] {
+  const dayEnd = Date.parse(`${dayKey}T00:00:00Z`) + 86400000;
+  // Server-generated (utcDayKey), so this is unreachable in the pipeline. It
+  // degrades to the previous behaviour rather than to an empty array: a
+  // reveal nobody can read is a worse failure than one scoped too widely,
+  // and a malformed day key means the reveal is already wrong.
+  if (!Number.isFinite(dayEnd)) return [...members];
+  const played = new Set(playedUids);
+  return members.filter((uid) => {
+    if (played.has(uid)) return true;
+    const at = Object.prototype.hasOwnProperty.call(joinedAtMs, uid)
+      ? joinedAtMs[uid]
+      : undefined;
+    if (typeof at !== "number" || !Number.isFinite(at)) return true;
+    return at < dayEnd;
+  });
+}
+
 // ── k-anonymity gate (v2) ───────────────────────────────────────
 
 // The k-floor decision in one place: a bucket is publishable only at

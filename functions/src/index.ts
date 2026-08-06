@@ -245,6 +245,9 @@ export const deleteAccount = onCall(
           await g.ref.update({
             memberUids: FieldValue.arrayRemove(uid),
             [`memberNames.${uid}`]: FieldValue.delete(),
+            // The join-time map revealGroupDay scopes reveals by. A uid here
+            // is the same erasure leak as the two fields around it.
+            [`memberJoinedAt.${uid}`]: FieldValue.delete(),
             // …and `ownerUid`, when it names the departing user. It is
             // stamped by createGroupV2 and read by NOTHING — a repo-wide
             // grep finds the one write and no reader — so dropping it is

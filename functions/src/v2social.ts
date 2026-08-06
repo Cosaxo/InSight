@@ -26,6 +26,7 @@ import {
   nextStreak,
   PENDING_DAYS_KEEP,
   prunePendingDays,
+  revealMembersFor,
   shouldReveal,
   utcDayKey,
 } from "./pure";
@@ -55,6 +56,24 @@ async function assertMembershipCap(uid: string): Promise<void> {
   if (mine.size >= MEMBERSHIP_CAP) {
     throw new HttpsError("resource-exhausted", "too many groups on this account");
   }
+}
+
+// `memberJoinedAt` as plain millis, for revealMembersFor. Firestore hands
+// back Timestamps; pure.ts takes numbers so it stays firebase-free.
+//
+// A value that is not a Timestamp becomes `undefined`, which
+// revealMembersFor reads as "no recorded join time" and therefore includes —
+// the same answer it gives a member who predates the field. Both are the
+// permissive direction, and deliberately so: the alternative is a reveal its
+// own members cannot read.
+function joinedAtMs(raw: unknown): Record<string, number> {
+  const out: Record<string, number> = Object.create(null);
+  if (!raw || typeof raw !== "object") return out;
+  for (const [uid, v] of Object.entries(raw as Record<string, unknown>)) {
+    const ms = (v as { toMillis?: () => number })?.toMillis?.();
+    if (typeof ms === "number" && Number.isFinite(ms)) out[uid] = ms;
+  }
+  return out;
 }
 
 // Collision-checked (31^8 space, so retries are cosmically rare — but
@@ -120,6 +139,13 @@ export const createGroupV2 = onCall({ ...LIGHT_CALLABLE, region: REGION, enforce
     ownerUid: uid,
     memberUids: [uid],
     memberNames: { [uid]: myName },
+    // When each member became one. Read only by revealGroupDay, to scope a
+    // day's reveal to the people who were in the group for that day — see
+    // revealMembersFor (pure.ts). Same map shape as memberNames, and it is
+    // removed on the same two paths (leaveGroupV2, deleteAccount phase 1c),
+    // because a uid left behind here is the shape D47 §8 records ownerUid
+    // having.
+    memberJoinedAt: { [uid]: FieldValue.serverTimestamp() },
     inviteCode: code,
     streak: 0,
     lastRevealDay: null,
@@ -152,6 +178,10 @@ export const joinGroupV2 = onCall({ ...LIGHT_CALLABLE, region: REGION, enforceAp
     tx.update(ref, {
       memberUids: FieldValue.arrayUnion(uid),
       [`memberNames.${uid}`]: myName,
+      // Set on every join, including a rejoin after leaving: the days
+      // between are days this account was not in the group, and a stale
+      // earlier timestamp would hand them back.
+      [`memberJoinedAt.${uid}`]: FieldValue.serverTimestamp(),
     });
     return { gid: ref.id, name: snap.get("name") };
   });
@@ -186,6 +216,7 @@ export const leaveGroupV2 = onCall({ ...LIGHT_UNBOUNDED, region: REGION, enforce
     tx.update(ref, {
       memberUids: FieldValue.arrayRemove(uid),
       [`memberNames.${uid}`]: FieldValue.delete(),
+      [`memberJoinedAt.${uid}`]: FieldValue.delete(),
     });
     return "left" as const;
   });
@@ -421,7 +452,22 @@ async function revealGroupDay(
       // It is the scan's membership, deliberately, not gsnap's fresher
       // one: these are the members whose answers were read, and a fresher
       // list could hand yesterday's reveal to someone who joined this
-      // morning — the exact leak D5's amendment closed.
+      // morning.
+      //
+      // That reasoning was right about the risk and wrong about the size of
+      // it. BOTH reads happen on D+1, so preferring one over the other only
+      // ever closed the seconds between them — while the scan runs `every
+      // 120 minutes`, so anyone joining between 00:00 UTC and it was a
+      // current member either way, and read a day they were not in the group
+      // for. What actually scopes this is WHEN each member joined, which is
+      // why the array below is filtered rather than taken (revealMembersFor,
+      // pure.ts; D47 §9).
+      //
+      // The filtered array can in principle come out empty — every member
+      // who played day D has left, and everyone now in the group joined
+      // after it. The reveal still writes, readable by nobody, which is the
+      // correct answer to "who was here for this day"; it also settles the
+      // day so the scan stops re-examining it.
       //
       // Never remove or rename this field without changing that rule in the
       // opposite order to the way the pair shipped: the field had to go live
@@ -430,7 +476,12 @@ async function revealGroupDay(
       // written in that window would carry no `members` and be permanently
       // unreadable by their own members). Dropping it means the rule stops
       // depending on it FIRST.
-      members,
+      members: revealMembersFor(
+        members,
+        joinedAtMs(gsnap.get("memberJoinedAt")),
+        dayKey,
+        Object.keys(freshVotes),
+      ),
       revealedAt: FieldValue.serverTimestamp(),
     });
     streak = nextStreak(

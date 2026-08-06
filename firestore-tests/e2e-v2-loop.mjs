@@ -389,8 +389,17 @@ const groupAnswer = (idx) => ({
 await setDoc(doc(db, "v2_users", uid, "answers", lateAid), groupAnswer(1));
 const lateReveal = await httpsCallable(fns, "revealDuelsNowV2")({ day: OTHERDAY });
 if (lateReveal.data.revealed < 1) fail("group day did not reveal on one answer");
-if (!(await getDoc(doc(lateDb, "v2_groups", lateGid, "reveals", OTHERDAY))).exists())
+// Read as the CREATOR, who played this day. This used to read as the
+// latecomer, which asserted the leak D47 §9 closed as though it were the
+// contract: OTHERDAY is three days before either account joined the group,
+// and the latecomer never played it.
+if (!(await getDoc(doc(db, "v2_groups", lateGid, "reveals", OTHERDAY))).exists())
   fail("group reveal doc missing");
+// …and the latecomer must NOT reach it. The reveal is scoped to the members
+// who were in the group for the day, plus whoever actually played it
+// (revealMembersFor, pure.ts) — a non-playing joiner is neither.
+await expectDenied("a joiner cannot read a reveal for a day before they joined", () =>
+  getDoc(doc(lateDb, "v2_groups", lateGid, "reveals", OTHERDAY)));
 await expectDenied("member cannot answer a day already revealed", () =>
   setDoc(doc(lateDb, "v2_users", latecomer.user.uid, "answers", lateAid), groupAnswer(0)));
 

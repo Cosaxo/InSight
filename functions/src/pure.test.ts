@@ -11,6 +11,7 @@ import {
   nextStreak,
   PENDING_DAYS_KEEP,
   prunePendingDays,
+  revealMembersFor,
   meetsKFloor,
   breakdownBucket,
   foldAnchors,
@@ -180,6 +181,92 @@ describe("prunePendingDays", () => {
     expect("2025-12-31" < "2026-01-01").toBe(true);
     expect(prunePendingDays(["2025-12-31", "2026-01-05"], "x", "2026-01-01"))
       .toEqual(["2026-01-05"]);
+  });
+});
+
+// ── who a day's reveal belongs to ───────────────────────────────
+
+describe("revealMembersFor", () => {
+  const DAY = "2026-07-27";
+  const at = (iso: string) => Date.parse(iso);
+
+  it("excludes someone who joined after the day ended", () => {
+    // The leak, exactly: day D is revealed by the D+1 scan, which runs every
+    // 120 minutes, so a 00:05 joiner was a current member when the snapshot
+    // was taken and read a day they were not in the group for.
+    const members = ["old", "latecomer"];
+    const joined = {
+      old: at("2026-07-20T09:00:00Z"),
+      latecomer: at("2026-07-28T00:05:00Z"),
+    };
+    expect(revealMembersFor(members, joined, DAY)).toEqual(["old"]);
+  });
+
+  it("includes someone who joined partway through the day", () => {
+    // The bound is the END of the day, not its start — they were there for
+    // it, and duel answers stay writable while the day is unrevealed, so
+    // they may well have played it.
+    const joined = { mid: at("2026-07-27T18:30:00Z") };
+    expect(revealMembersFor(["mid"], joined, DAY)).toEqual(["mid"]);
+  });
+
+  it("includes a member joining in the last second, and excludes the first second after", () => {
+    const joined = {
+      justIn: at("2026-07-27T23:59:59.999Z"),
+      justOut: at("2026-07-28T00:00:00.000Z"),
+    };
+    expect(revealMembersFor(["justIn", "justOut"], joined, DAY)).toEqual(["justIn"]);
+  });
+
+  it("includes members who predate the field", () => {
+    // Not a fallback — the correct answer. createGroupV2/joinGroupV2 write
+    // this from the day it shipped, so absence means the member joined
+    // before that, which is before any day this is ever asked about.
+    // Reading absence as "exclude" would blank every reveal for every group
+    // that existed on deploy day.
+    expect(revealMembersFor(["a", "b"], {}, DAY)).toEqual(["a", "b"]);
+    expect(revealMembersFor(["a", "b"], { a: at("2026-07-01T00:00:00Z") }, DAY))
+      .toEqual(["a", "b"]);
+  });
+
+  it("includes a member whose recorded time is unusable", () => {
+    // Same permissive direction, and for the same reason: a reveal its own
+    // members cannot read is a worse failure than one scoped too widely.
+    for (const bad of [null, undefined, "2026-07-01", NaN, {}, 0 / 0]) {
+      expect(revealMembersFor(["a"], { a: bad }, DAY)).toEqual(["a"]);
+    }
+  });
+
+  it("includes anyone who played the day, whatever their join time says", () => {
+    // Duel answers are accepted up to four days late, so a member can
+    // legitimately land a vote for a day preceding their join — an offline
+    // client flushing a queue, or a fresh group playing a recent day.
+    // Excluding them would publish a reveal holding their own vote that they
+    // alone could not read.
+    const joined = { player: at("2026-08-01T00:00:00Z"), lurker: at("2026-08-01T00:00:00Z") };
+    expect(revealMembersFor(["player", "lurker"], joined, DAY, ["player"]))
+      .toEqual(["player"]);
+  });
+
+  it("can return an empty array, and says so rather than falling back", () => {
+    // Everyone who played the day has left; everyone now in the group joined
+    // after it. Nobody was there, so nobody may read it — the reveal still
+    // writes, which settles the day for the scan.
+    const joined = { newA: at("2026-08-01T00:00:00Z"), newB: at("2026-08-02T00:00:00Z") };
+    expect(revealMembersFor(["newA", "newB"], joined, DAY)).toEqual([]);
+  });
+
+  it("does not read join times off the prototype", () => {
+    // The group document's maps are keyed by uid, and D47 is the record of
+    // what a prototype lookup does to a uid-keyed map read from Firestore.
+    expect(revealMembersFor(["constructor"], {}, DAY)).toEqual(["constructor"]);
+    expect(revealMembersFor(["toString"], {}, DAY)).toEqual(["toString"]);
+  });
+
+  it("degrades to the previous behaviour on a malformed day key", () => {
+    // Server-generated (utcDayKey), so unreachable in the pipeline.
+    const joined = { late: at("2030-01-01T00:00:00Z") };
+    expect(revealMembersFor(["late"], joined, "not-a-day")).toEqual(["late"]);
   });
 });
 
