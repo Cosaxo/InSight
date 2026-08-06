@@ -1,14 +1,20 @@
 // Ported from design/spec-modules/test-definitions.js (the historical prototype — no sync
 // script survives; THIS file is the live source now, hand-edits and all).
-// Cross-module references resolve through the shared global scope and
-// spec-index.js load order is semantic — scripts/check-spec-globals.mjs
-// guards the wiring in CI.
-import React from 'react';
+//
+// CONVERTED off the shared-global bridge (D39): the four names below are
+// plain named exports and this file publishes nothing to globalThis.
+// `window.LIVE` stays a global read — that one is data/live.ts's published
+// surface, which is the convention working as intended, not legacy.
+//
+// It was listed in src/v2/README.md's "what NOT to start with" as half of a
+// `test-definitions.js ↔ daily-split.jsx` cycle. That cycle did not exist:
+// this module's only outgoing reference of any kind was to `window.LIVE`.
+// See the README's own section for what the meter was actually seeing.
 
 // InSight — test definitions & saved results: demo data, typical-person
 // baselines, the question banks, and result persistence. No JSX — plain script.
 // ─── Saved test results · pre-computed for the demo ───
-window.IS_TEST_RESULTS = {
+export const IS_TEST_RESULTS = {
   big5: {
     title: 'Big Five',
     taken: '10 days ago',
@@ -74,7 +80,7 @@ window.IS_TEST_RESULTS = {
 
 // Typical-person baselines per dimension — used to show "you vs. most people".
 // Grounded, not precise: enough to give every score a reference point.
-window.IS_TEST_AVG = {
+export const IS_TEST_AVG = {
   big5:       { O: 60, C: 58, E: 52, A: 65, N: 48 },
   political:  { econ: 50, auth: 52, foreign: 48, env: 55, tech: 60, estab: 55 },
   values:     { future: 52, circle: 45, hedonism: 55, meaning: 58, moral: 55, beauty: 60 },
@@ -88,11 +94,14 @@ window.IS_TEST_AVG = {
 const TEST_RESULTS_KEY = 'insight.testResults.v2';
 try {
   const saved = JSON.parse(localStorage.getItem(TEST_RESULTS_KEY) || '{}');
-  Object.keys(saved).forEach(k => { window.IS_TEST_RESULTS[k] = saved[k]; });
+  Object.keys(saved).forEach(k => { IS_TEST_RESULTS[k] = saved[k]; });
 } catch (e) { /* ignore corrupt storage */ }
 
-function persistTestResult(kind, result) {
-  window.IS_TEST_RESULTS[kind] = result;
+// Exported as `persistTestResult`; consumers used to reach it as
+// `window.IS_persistTestResult`, which is why the import in daily-split and
+// test-overlay does not match the old global's name.
+export function persistTestResult(kind, result) {
+  IS_TEST_RESULTS[kind] = result;
   if (window.LIVE && window.LIVE.enabled && window.LIVE.saveTestResult) window.LIVE.saveTestResult(kind, result);
   try {
     const saved = JSON.parse(localStorage.getItem(TEST_RESULTS_KEY) || '{}');
@@ -103,8 +112,7 @@ function persistTestResult(kind, result) {
 
 // Each question maps answer values (0..4) to dimension deltas via `dims`
 // Result is computed by summing values per dimension, normalised to 0..100
-// (module scope — the Daily tab's Test mode reads this via window.IS_TESTS)
-const IS_TESTS = {
+export const IS_TESTS = {
     big5: {
       title: 'Big Five',
       tag: 'personality · 15 questions · 5 traits',
@@ -239,9 +247,3 @@ const IS_TESTS = {
       ],
     },
 };
-window.IS_TESTS = IS_TESTS;
-window.IS_persistTestResult = persistTestResult;
-
-;globalThis.persistTestResult = typeof persistTestResult === 'undefined' ? globalThis.persistTestResult : persistTestResult;
-;globalThis.TEST_RESULTS_KEY = typeof TEST_RESULTS_KEY === 'undefined' ? globalThis.TEST_RESULTS_KEY : TEST_RESULTS_KEY;
-;globalThis.IS_TESTS = typeof IS_TESTS === 'undefined' ? globalThis.IS_TESTS : IS_TESTS;

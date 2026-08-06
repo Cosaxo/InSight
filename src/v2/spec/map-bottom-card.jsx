@@ -4,6 +4,7 @@
 // spec-index.js load order is semantic — scripts/check-spec-globals.mjs
 // guards the wiring in CI.
 import React from 'react';
+import { IS_TESTS, IS_TEST_RESULTS } from './test-definitions.js';
 
 // InSight — Map tab bottom card. Group-comparison model:
 //  · answer card — pick one of the 7 profile filters (chips), see how that
@@ -149,14 +150,14 @@ function MTAnswerCard({ node, cat, anchors, activeA, onFilter }) {
 // Bar rows are a scope selector: pick one axis and the whole comparison below
 // (match % + differ list) recomputes against people who match you on just it.
 function mtDimEnds(testKey, dimId) {
-  const T = (window.IS_TESTS || {})[testKey];
+  const T = IS_TESTS[testKey];
   const d = T && T.dims ? T.dims.find((x) => x.id === dimId) : null;
   if (d && d.blurb && d.blurb.includes('←→')) return d.blurb.split('←→').map((s) => s.trim());
   return null;
 }
 
 function MTAnchorStat({ anchor, openDim, onDim }) {
-  const R = (window.IS_TEST_RESULTS || {})[anchor.id];
+  const R = IS_TEST_RESULTS[anchor.id];
   if (R && R.dims) {
     return (
       <div className="mmt-astat">
@@ -203,7 +204,7 @@ function MTAnchorStat({ anchor, openDim, onDim }) {
 // ── anchor card: your stat · match headline · differences ───────────────────
 function MTAnchorCard({ anchor, items, onPick }) {
   const [dimId, setDimId] = React.useState(null);
-  const R = (window.IS_TEST_RESULTS || {})[anchor.id];
+  const R = IS_TEST_RESULTS[anchor.id];
   const dim = dimId && R && R.dims ? R.dims.find((d) => d.id === dimId) : null;
   const gkey = dim ? anchor.id + '·' + dim.id : anchor.id;   // axis scope → own group
   const who = dim ? 'people near you on ' + dim.label : window.MapStats.groupLabel(anchor.id);
@@ -216,7 +217,7 @@ function MTAnchorCard({ anchor, items, onPick }) {
   const diffs = rows.filter((r) => !r.match);
   const pct = rows.length ? Math.round((same.length / rows.length) * 100) : 0;
   const [showSame, setShowSame] = React.useState(false);
-  const T = (window.IS_TEST_RESULTS || {})[anchor.id];
+  const T = IS_TEST_RESULTS[anchor.id];
   return (
     <div style={{ '--hue': anchor.hue }}>
       <div className="mmt-kicker"><span className="mmt-dot"></span>{anchor.label}{T && T.taken ? ' · taken ' + T.taken : ''}</div>

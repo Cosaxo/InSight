@@ -9,6 +9,8 @@ import { ResultProfileCard } from './result-card.jsx';
 import { ExplainBtn, ExplainSheet, EX_GLYPH } from './explain-sheet.jsx';
 import { RP_TESTS, RoseMini } from './result-rose.jsx';
 import { Kicker, useDialog } from './primitives.jsx';
+import { IS_TESTS, IS_TEST_AVG, IS_TEST_RESULTS, persistTestResult } from './test-definitions.js';
+import { PASSIVE } from './passive-progress.js';
 
 // InSight — TestOverlay: pick a test, answer, see the result. Question banks
 // and persistence live in test-defs.js. Results autosave the moment the last
@@ -90,8 +92,8 @@ function TestOverlay({ onClose, onComplete, kind: initialKind }) {
     setAnswers(next);
     setDir(1); setStep(step + 1);
     const TT = tests[kind];
-    if (TT && step + 1 >= TT.questions.length && window.IS_persistTestResult) {
-      window.IS_persistTestResult(kind, {
+    if (TT && step + 1 >= TT.questions.length) {
+      persistTestResult(kind, {
         title: TT.title, taken: 'just now', accent: TT.accent,
         dims: scoreTest(TT, next, kind),
       });
@@ -129,7 +131,7 @@ function TestOverlay({ onClose, onComplete, kind: initialKind }) {
     // no explicit progress → resume past what the feed already mapped
     // (a complete test starts clean = retake)
     let pre = null;
-    if (!fresh && !resume && window.PASSIVE && !window.PASSIVE.complete(k) && window.PASSIVE.passiveDone(k) > 0) pre = window.PASSIVE.prefill(k);
+    if (!fresh && !resume && !PASSIVE.complete(k) && PASSIVE.passiveDone(k) > 0) pre = PASSIVE.prefill(k);
     setSavedView(false);
     setKind(k);
     setAnswers(resume ? resume.answers : (pre || []));
@@ -141,7 +143,7 @@ function TestOverlay({ onClose, onComplete, kind: initialKind }) {
   // progress; a finished test opens its result instead of restarting).
   React.useEffect(() => {
     if (!initialKind) return;
-    if ((window.IS_TEST_RESULTS || {})[initialKind]) { setKind(initialKind); setSavedView(true); }
+    if (IS_TEST_RESULTS[initialKind]) { setKind(initialKind); setSavedView(true); }
     else startTest(initialKind);
   // eslint-disable-next-line react-hooks/exhaustive-deps -- ported effect; see src/v2/README.md § Lint suppressions
   }, []);
@@ -156,11 +158,11 @@ function TestOverlay({ onClose, onComplete, kind: initialKind }) {
       else p[kind] = { step, answers };
       localStorage.setItem(TEST_PROGRESS_KEY, JSON.stringify(p));
     } catch (e) { /* ignore */ }
-    if (window.PASSIVE) { if (step >= TT.questions.length) window.PASSIVE.markComplete(kind); else window.PASSIVE.poke(); }
+    if (step >= TT.questions.length) PASSIVE.markComplete(kind); else PASSIVE.poke();
   // eslint-disable-next-line react-hooks/exhaustive-deps -- ported effect; see src/v2/README.md § Lint suppressions
   }, [kind, step, answers, savedView]);
 
-  const tests = window.IS_TESTS;
+  const tests = IS_TESTS;
 
   // ─── result helpers ───
   function scoreTest(t, ans, k) {
@@ -172,7 +174,7 @@ function TestOverlay({ onClose, onComplete, kind: initialKind }) {
       totals[q.d] = (totals[q.d] || 0) + norm;
       counts[q.d] = (counts[q.d] || 0) + 1;
     });
-    const pop = (window.IS_TEST_AVG || {})[k] || {};
+    const pop = IS_TEST_AVG[k] || {};
     return t.dims.map(d => {
       const a = counts[d.id] ? totals[d.id] / counts[d.id] : 2;
       return { ...d, value: Math.round((a / 4) * 100), avg: pop[d.id] ?? 50 };
@@ -183,7 +185,7 @@ function TestOverlay({ onClose, onComplete, kind: initialKind }) {
 
   // ─── selection screen ───
   if (!kind) {
-    const SAVED = window.IS_TEST_RESULTS || {};
+    const SAVED = IS_TEST_RESULTS;
     const minutesFor = (T) => Math.max(4, Math.round(T.questions.length * 0.7));
     let PROGRESS = {};
     try { PROGRESS = JSON.parse(localStorage.getItem(TEST_PROGRESS_KEY) || '{}'); } catch (e) { /* absent or corrupt payload — fall back to the default initialised above. */ }
@@ -205,8 +207,8 @@ function TestOverlay({ onClose, onComplete, kind: initialKind }) {
               const prog = PROGRESS[k];
               const inProgress = !saved && prog && prog.answers && prog.answers.length;
               const nQ = T.questions.length;
-              const mapped = window.PASSIVE ? window.PASSIVE.done(k) : (saved ? nQ : (inProgress ? prog.step : 0));
-              const partial = !!(saved && window.PASSIVE && !window.PASSIVE.complete(k));
+              const mapped = PASSIVE.done(k);
+              const partial = !!(saved && !PASSIVE.complete(k));
               const chipBg = `color-mix(in oklch, ${T.accent} 9%, var(--surface-2))`;
               const chipBd = `color-mix(in oklch, ${T.accent} 28%, var(--rule))`;
               const chipFg = `color-mix(in oklch, ${T.accent} 55%, var(--ink-2))`;
@@ -289,11 +291,11 @@ function TestOverlay({ onClose, onComplete, kind: initialKind }) {
   const T = tests[kind];
   const qs = T.questions;
   const showResult = savedView || finished;
-  const P = window.PASSIVE;
-  const nLeft = P ? Math.max(0, P.needed(kind) - P.done(kind)) : 0;
+  const P = PASSIVE;
+  const nLeft = Math.max(0, P.needed(kind) - P.done(kind));
   // a just-finished test is complete by definition — PASSIVE catches up in an
   // effect, so don't let its stale count offer to "finish" what just finished
-  const partial = !finished && !!(P && !P.complete(kind) && nLeft > 0);
+  const partial = !finished && !P.complete(kind) && nLeft > 0;
   const backToPick = () => { setSavedView(false); setKind(null); setStep(0); setAnswers([]); };
 
   // ── result: one canonical treatment (the same card the profile tabs show),
@@ -393,7 +395,7 @@ function TestOverlay({ onClose, onComplete, kind: initialKind }) {
 
 // ─── A reusable card showing a saved test result (or a CTA to take it) ───
 function TestResultCard({ testKey, accent }) {
-  const R = (window.IS_TEST_RESULTS || {})[testKey];
+  const R = IS_TEST_RESULTS[testKey];
   if (!R) return null;
   const top = [...R.dims].sort((a, b) => b.value - a.value)[0];
   return (

@@ -9,6 +9,7 @@ import { HAPTIC } from './haptics.js';
 import { WF_CATALOGS } from './world-catalogs.js';
 import { Sheet } from './primitives.jsx';
 import ReactDOM from 'react-dom';
+import { PASSIVE } from './passive-progress.js';
 
 // world-feed.jsx — the question feed under the World daily. Answer today's
 // question and the feed starts: dilemmas, this-or-thats, rankings and image
@@ -372,7 +373,7 @@ class WorldFeed extends React.Component {
     const id = q.id;
     // live cards persist to Firestore too (owner-only answer + aggregate)
     if (q.live && window.LIVE && typeof val === 'number') window.LIVE.vote(id, String(val));
-    if (window.PASSIVE) window.PASSIVE.record(q); // no-op unless this is a test's own question (q.test)
+    PASSIVE.record(q); // no-op unless this is a test's own question (q.test)
     // …and the same for a lens question. The scale runs agree→disagree while
     // the lens stores disagree→agree, hence 4 - val.
     if (window.LENSES && q.lens) window.LENSES.record({ ...q, value: typeof val === 'number' ? 4 - val : 2 });
@@ -2291,7 +2292,7 @@ class WorldFeed extends React.Component {
         </button>
       );
     }
-    const tm = q.test && window.PASSIVE ? window.PASSIVE.META[q.test] : null;
+    const tm = q.test ? PASSIVE.META[q.test] : null;
     // a lens question wears its lens's own name and hue, the same way a test
     // question wears its test's — otherwise it reads as an off-topic card
     const lz = !tm && q.lens && window.LENSES ? window.LENSES.get(q.lens) : null;

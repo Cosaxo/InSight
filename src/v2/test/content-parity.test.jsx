@@ -14,14 +14,14 @@
 // inverts, which let an agree-with-everything response style score as a
 // personality.
 import { describe, expect, it } from "vitest";
-import "../spec/test-definitions.js";
+import { IS_TESTS } from "../spec/test-definitions.js";
 import contentTests from "../../../content/tests.json";
 
 // Items per dimension. Raising it (W2 planned 3 now, possibly 4 later) is
 // a content change; this constant is the single place the gate learns it.
 const K = 3;
 
-const spec = window.IS_TESTS;
+const spec = IS_TESTS;
 
 describe("personality test banks (spec ≡ content)", () => {
   it("defines the same tests in the same order", () => {

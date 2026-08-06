@@ -5,6 +5,7 @@
 // guards the wiring in CI.
 import React from 'react';
 import { Av, useDialog } from './primitives.jsx';
+import { IS_TEST_RESULTS } from './test-definitions.js';
 
 // InSight — ProfileOverlay (your own profile) + the Politics cards.
 // The test flow lives in test-overlay.jsx; question banks in test-defs.js.
@@ -55,7 +56,7 @@ function ProfileOverlay({ onClose, me, lensBoxed }) {
   // CTA only when a test has never been taken. A partial picture needs no
   // nudge: the feed keeps filling it in as you answer.
   const TestCTA = ({ k }) => {
-    const taken = !!(window.IS_TEST_RESULTS || {})[k];
+    const taken = !!IS_TEST_RESULTS[k];
     if (taken) return null;
     return (
       <button onClick={() => window.openTest ? window.openTest(k) : window.openOverlay('test')} style={{

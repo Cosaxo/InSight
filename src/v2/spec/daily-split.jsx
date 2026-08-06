@@ -10,6 +10,8 @@ import { WPAL } from './world-palette.js';
 import { DAILYQ } from './daily-questions.js';
 import { Sheet } from './primitives.jsx';
 import ReactDOM from 'react-dom';
+import { IS_TESTS, IS_TEST_AVG, IS_TEST_RESULTS, persistTestResult } from './test-definitions.js';
+import { PASSIVE } from './passive-progress.js';
 
 // daily-split.jsx — SPLIT: the daily tab. Three modes — World (vote blind,
 // see how the crowd & every kind of person split), Group (one question a day
@@ -48,27 +50,25 @@ class DailySplit extends React.Component {
   // ── tests, fed into the daily as their own category ──
   // Questions come from the same pool as the profile's tests (window.IS_TESTS)
   // and progress/results share the same storage, so both stay in sync.
-  get testDefs() { return window.IS_TESTS || {}; }
+  get testDefs() { return IS_TESTS; }
   loadTestProg() {
     try { const v = JSON.parse(localStorage.getItem('insight.testProgress.v1') || '{}'); return v && typeof v === 'object' ? v : {}; }
     catch (e) { return {}; }
   }
-  saveTestProg(p) { try { localStorage.setItem('insight.testProgress.v1', JSON.stringify(p)); } catch { /* best-effort */ } if (window.PASSIVE) window.PASSIVE.poke(); }
+  saveTestProg(p) { try { localStorage.setItem('insight.testProgress.v1', JSON.stringify(p)); } catch { /* best-effort */ } PASSIVE.poke(); }
   testStats() {
-    const defs = this.testDefs, SAVED = window.IS_TEST_RESULTS || {}, prog = this.state.testProg, P = window.PASSIVE;
+    const defs = this.testDefs, prog = this.state.testProg, P = PASSIVE;
     let total = 0, done = 0;
     Object.entries(defs).forEach(([k, T]) => {
       total += T.questions.length;
-      if (P) done += P.done(k); // passive feed coverage + explicit answers
-      else if (SAVED[k]) done += T.questions.length;
-      else if (prog[k] && Array.isArray(prog[k].answers)) done += Math.min(prog[k].answers.length, T.questions.length);
+      done += P.done(k); // passive feed coverage + explicit answers
     });
     const pct = total ? Math.round(done / total * 100) : 0;
     // active test: an explicit retake first, then anything in progress
     // (even over a saved result — a retake survives leaving the tab), then first not taken
     let active = this.state.testRetake && defs[this.state.testRetake] ? this.state.testRetake : null;
     if (!active) active = Object.keys(defs).find(k => prog[k] && Array.isArray(prog[k].answers) && prog[k].answers.length);
-    if (!active) active = Object.keys(defs).find(k => (window.PASSIVE ? !window.PASSIVE.complete(k) : !SAVED[k]));
+    if (!active) active = Object.keys(defs).find(k => !PASSIVE.complete(k));
     return { pct, total, done, active };
   }
   scoreTestDaily(kind, T, ans) {
@@ -79,7 +79,7 @@ class DailySplit extends React.Component {
       totals[q.d] = (totals[q.d] || 0) + norm;
       counts[q.d] = (counts[q.d] || 0) + 1;
     });
-    const pop = (window.IS_TEST_AVG || {})[kind] || {};
+    const pop = IS_TEST_AVG[kind] || {};
     return T.dims.map(d => ({ ...d, value: Math.round(((counts[d.id] ? totals[d.id] / counts[d.id] : 2) / 4) * 100), avg: pop[d.id] ?? 50 }));
   }
   answerTest(kind, i) {
@@ -91,16 +91,22 @@ class DailySplit extends React.Component {
         : null;
       if (!cur) {
         // fresh start: resume past what the feed already mapped (not on a retake)
-        const pre = (window.PASSIVE && s.testRetake !== kind && !window.PASSIVE.complete(kind)) ? window.PASSIVE.prefill(kind) : [];
+        const pre = (s.testRetake !== kind && !PASSIVE.complete(kind)) ? PASSIVE.prefill(kind) : [];
         cur = { step: pre.length, answers: pre.slice() };
       }
       cur.answers[cur.step] = i; cur.step += 1;
       if (cur.step >= T.questions.length) {
         const dims = this.scoreTestDaily(kind, T, cur.answers);
         const result = { title: T.title, taken: 'just now', accent: T.accent, dims };
-        if (window.IS_persistTestResult) window.IS_persistTestResult(kind, result);
-        else { window.IS_TEST_RESULTS = window.IS_TEST_RESULTS || {}; window.IS_TEST_RESULTS[kind] = result; }
-        if (window.PASSIVE) window.PASSIVE.markComplete(kind);
+        // The `else` branch here rebound window.IS_TEST_RESULTS when
+        // test-definitions.js had not loaded yet. That made daily-split a
+        // SECOND writer of the name, which is the whole reason the coupling
+        // meter drew a daily-split → passive-progress → daily-split cycle
+        // (src/v2/README.md's "what NOT to start with"). An imported binding
+        // cannot be unset, so the fallback is unreachable and the cycle with
+        // it.
+        persistTestResult(kind, result);
+        PASSIVE.markComplete(kind);
         delete prog[kind];
         this.saveTestProg(prog);
         return { testProg: prog, testJustDone: kind, testRetake: null };
@@ -836,7 +842,7 @@ class DailySplit extends React.Component {
       // just finished a test — one clear payoff card
       if (st.testJustDone && defs[st.testJustDone]) {
         const k = st.testJustDone, T = defs[k];
-        const saved = (window.IS_TEST_RESULTS || {})[k];
+        const saved = IS_TEST_RESULTS[k];
         const top = saved ? [...saved.dims].sort((a, b) => b.value - a.value)[0] : null;
         return h('div', { style: col(13) },
           h('div', { style: { ...col(12), border: LINE, borderRadius: 18, background: 'var(--surface-2)', boxShadow: 'var(--shadow-card)', padding: '20px 18px', textAlign: 'center', animation: 'popIn .35s cubic-bezier(0.2,0.8,0.2,1)' } },
@@ -865,7 +871,7 @@ class DailySplit extends React.Component {
 
       // one question a tap — same pool, same progress as the profile's tests
       const k = TSTAT.active, T = defs[k];
-      const base = (window.PASSIVE && st.testRetake !== k && !window.PASSIVE.complete(k)) ? window.PASSIVE.passiveDone(k) : 0;
+      const base = (st.testRetake !== k && !PASSIVE.complete(k)) ? PASSIVE.passiveDone(k) : 0;
       const cur = st.testProg[k] && Array.isArray(st.testProg[k].answers) ? st.testProg[k] : { step: base, answers: [] };
       const qi = Math.min(cur.step || 0, T.questions.length - 1);
       const LIKERT = ['Strongly disagree', 'Disagree', 'Neither', 'Agree', 'Strongly agree'];
