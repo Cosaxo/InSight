@@ -93,14 +93,14 @@ the verification — treat a successful seed as proof of both.
    name, region and payload, because a typo here is an `internal` error
    with nothing to read.
 
-   **One operator case needs the extra argument.** If you flip a
-   question's `active` flag **by hand in the Firebase console**, the seed
-   cannot see it (it changed no document the seed writes), so cached
-   clients keep showing the question. Push it with
-   `await window.LIVE.seedContent(true)`, which invalidates every device's
-   cached bank. Nothing is at risk while you wait:
-   `firestore.rules` re-checks `active` on every answer write, so a killed
-   question still on screen is refused server-side, not silently accepted.
+   **One failure is not a bug and must not be retried away.** Since D58 the
+   seed **refuses** to edit the option set of a question that has already
+   shipped, and fails the whole run with `failed-precondition` naming each
+   one. Answers store `(qid, optionIdx)` and nothing else, so swapping two
+   options re-keys every vote already cast (D52). The legitimate writes in
+   that run are already durable; what you do next is fix the content, not
+   re-run. To retire a question set `active: false`; to replace one, append
+   a new qid.
 
 ## 2 · Native Firebase config files (account-gated)
 
@@ -420,7 +420,7 @@ Both apps must be registered under `com.cosaxo.insight`:
   | --- | --- |
   | Filter objectionable content | Moderation substrate deployed, `MOD_ADVISORY = true` (D22) |
   | Report mechanism | Report control exists in the spec layer; the takes surface it attaches to is demo-only |
-  | Block abusive users | `removeGroupMember` / `leaveGroup` — removal from the circle **is** the block, because D1 means circle members are the only people whose content you can see |
+  | Block abusive users | `leaveGroupV2`, wired to the **Leave circle** control on each live circle card — leaving **is** the block, because D1 means circle members are the only people whose content you can see. No owner-side *remove* callable exists (D55 §14) |
   | Published contact info | The support address owed in `web/terms.html` |
 
   Two things follow. First, **the support email is a 1.2 dependency**, not

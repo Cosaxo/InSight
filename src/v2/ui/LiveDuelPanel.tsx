@@ -170,6 +170,11 @@ function LdGroupCard({ g }: { g: LiveGroup }) {
   const [pick, setPick] = React.useState<number | null>(null);
   const [copied, setCopied] = React.useState(false);
   const [voteErr, setVoteErr] = React.useState<string | null>(null);
+  // Leaving. Two-step, because the last member out takes the group and every
+  // reveal in it (leaveGroupV2's recursiveDelete) — the same reason the
+  // privacy panel's delete confirms.
+  const [confirmLeave, setConfirmLeave] = React.useState(false);
+  const [leaveErr, setLeaveErr] = React.useState<string | null>(null);
   const members = g.memberUids || [];
   const copy = () => {
     try {
@@ -178,6 +183,11 @@ function LdGroupCard({ g }: { g: LiveGroup }) {
       void navigator.clipboard.writeText(g.inviteCode ? inviteLinkFor(g.inviteCode) : "");
       setCopied(true); setTimeout(() => setCopied(false), 1600);
     } catch { /* clipboard unavailable */ }
+  };
+  const leave = async () => {
+    setLeaveErr(null);
+    try { await S.leaveGroup(g.id); }
+    catch { setLeaveErr("Couldn\u2019t leave \u2014 check your connection and try again."); }
   };
   const submit = async () => {
     if (pick == null) return;
@@ -199,6 +209,38 @@ function LdGroupCard({ g }: { g: LiveGroup }) {
         <div style={{ fontSize: 13, fontWeight: 600, color: "var(--ink-2)", lineHeight: 1.4 }}>
           Share the code above — the duel starts when they join.
         </div>
+      )}
+      {/* The only way out of a circle short of deleting the account.
+          LIVE.social.leaveGroup has shipped since the social layer landed and
+          had ZERO call sites in any live surface — the demo panel's Leave
+          button is swapped out when live is on — while STORE-FORMS.md
+          answered Apple guideline 1.2 with it. */}
+      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        {confirmLeave ? (
+          <>
+            <span style={{ flex: 1, fontSize: 12, fontWeight: 600, color: "var(--ink-2)" }}>
+              {members.length <= 1
+                ? "You\u2019re the last one here — leaving deletes this circle and its history."
+                : "Leave this circle? You keep the days you played; you stop seeing new ones."}
+            </span>
+            <button className="press" onClick={() => setConfirmLeave(false)}
+              style={{ border: LD_LINE, background: "transparent", borderRadius: 8, padding: "4px 10px", cursor: "pointer", fontFamily: "var(--sans)", fontSize: 12, fontWeight: 700, color: "var(--ink-2)", WebkitAppearance: "none" }}>
+              Cancel
+            </button>
+            <button className="press" onClick={() => { void leave(); }}
+              style={{ border: "none", background: "var(--ochre-ink, var(--ink))", borderRadius: 8, padding: "4px 10px", cursor: "pointer", fontFamily: "var(--sans)", fontSize: 12, fontWeight: 800, color: "#fff", WebkitAppearance: "none" }}>
+              Leave
+            </button>
+          </>
+        ) : (
+          <button className="press" onClick={() => setConfirmLeave(true)}
+            style={{ marginLeft: "auto", border: "none", background: "transparent", padding: "2px 0", cursor: "pointer", fontFamily: "var(--sans)", fontSize: 12, fontWeight: 700, color: "var(--ink-3)", WebkitAppearance: "none" }}>
+            Leave circle
+          </button>
+        )}
+      </div>
+      {leaveErr && (
+        <div role="status" style={{ fontSize: 12.5, fontWeight: 600, color: "oklch(0.5 0.19 25)" }}>{leaveErr}</div>
       )}
       {reveal && <LdReveal g={g} reveal={reveal} />}
       {q && (

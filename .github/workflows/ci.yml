@@ -66,6 +66,12 @@ jobs:
       # and deliberately NOT on backend-checks.yml — nothing it says bears on
       # whether a rules fix is safe to deploy.
       - run: npm run check:labels
+      # Every store that persists insight.* state must hear the purge
+      # (insight:local-purge, D51) — deleting the keys is only half the
+      # wipe when the in-memory copy writes itself back on the next
+      # mutation. lens-defs shipped exactly that hole (D50). Client-only,
+      # same argument as above for staying off backend-checks.yml.
+      - run: npm run check:purge
       # The alert chain, from the log line a function emits to the policy
       # that reads it. Every link fails the same silent way — the policy
       # exists, the console is green, and it can never fire — which is the
@@ -90,6 +96,11 @@ jobs:
       # Firestore map keys. A malformed row or an over-long name would be
       # pickable in the profile and then absent from every breakdown.
       - run: npm run check:cities
+      # …and the four dimensions that DO have a closed vocabulary: the
+      # profile's <select>s and the trigger's BREAKDOWN_DIM_VOCAB must hold
+      # the same strings, or a level stops counting silently. Runs on the
+      # deploy path too (backend-checks.yml).
+      - run: npm run check:anchors
       # Same argument for the Pokédex catalogue: stored `pick` answers are
       # dex-number keys into this file, so a gap or reorder is an answer
       # resolving to the wrong species.
@@ -98,6 +109,10 @@ jobs:
       # files and the trigger's compiled-in key sets must agree exactly,
       # absence included — the gate runs before any catalogue exists (D15).
       - run: npm run check:catalogs
+      # The logic generator ships in two byte-identical copies (client +
+      # functions, D57) — drift means the server scores forms the client
+      # never rendered. backend-checks.yml runs it on the deploy path too.
+      - run: npm run check:logic-sync
       # The npm alias that keeps the iOS SwiftPM graph resolvable. Runs on
       # ubuntu with the rest of the cheap checks rather than waiting for the
       # macOS runner, where the same mistake costs four minutes and reports

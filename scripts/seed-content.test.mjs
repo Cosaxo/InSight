@@ -122,6 +122,27 @@ describe("seed-content", () => {
     seedResponse = { result: { written: 369, skipped: 0 } };
   });
 
+  it("tells the operator a D58 refusal is not retryable", async () => {
+    // The one failure that looks transient and is not: re-running clears
+    // nothing, because the content itself is what the seed objects to.
+    seedStatus = 400;
+    seedResponse = {
+      error: {
+        status: "FAILED_PRECONDITION",
+        message: "refused 2 option-set edit(s) to already-seeded questions; daily-004, feed-011",
+      },
+    };
+    const err = await seed().then(() => null, (e) => e);
+    expect(err).not.toBeNull();
+    expect(String(err.stderr)).toMatch(/re-running will not/);
+    expect(String(err.stderr)).toMatch(/active:false/);
+    // The server's own list of offenders has to survive into the operator's
+    // console, or they cannot act on it.
+    expect(String(err.stderr)).toMatch(/daily-004, feed-011/);
+    seedStatus = 200;
+    seedResponse = { result: { written: 369, skipped: 0 } };
+  });
+
   it("explains permission-denied as the deploy-lag trap, not a wrong uid", async () => {
     // The failure that will actually happen: SEED_ADMIN_UIDS set in the
     // GitHub environment but not yet carried into the runtime by a deploy,

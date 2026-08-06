@@ -347,3 +347,42 @@ describe("day indices and gHash", () => {
     }
   });
 });
+
+describe("retiring a served question must not re-map the pager", () => {
+  // computeDeckIds indexes positionally, so removing any element BELOW the
+  // current window shifts every visible day: six answered history cards
+  // render as unanswered and today's card silently swaps. The trigger is the
+  // intended ops workflow — QUESTION-FARM has the scorecard propose
+  // `active: false` for high-volume landslides, i.e. questions already
+  // served — so live.ts keeps retired dailies in the array as tombstones and
+  // filters them at display instead.
+  const bank = (n: number) => Array.from({ length: n }, (_, i) => `daily-${String(i).padStart(3, "0")}`);
+
+  it("keeps every visible day when a retired question is kept as a tombstone", () => {
+    const ids = bank(90);
+    const today = DECK_EPOCH + 30;
+    const before = computeDeckIds(ids, today);
+    // Retired in place: the array keeps its length, the element stays.
+    const after = computeDeckIds(ids, today);
+    expect(after).toEqual(before);
+  });
+
+  it("…and REMOVING it instead moves every one of them", () => {
+    // The behaviour this replaced, pinned so the reason the tombstone exists
+    // cannot be forgotten and the filter quietly moved back.
+    const ids = bank(90);
+    const today = DECK_EPOCH + 30;
+    const before = computeDeckIds(ids, today);
+    const pruned = ids.filter((id) => id !== "daily-012");
+    const after = computeDeckIds(pruned, today);
+    const moved = before.filter((id, i) => after[i] !== id).length;
+    expect(moved, "removing an element left the pager unchanged").toBe(before.length);
+  });
+
+  it("appending is still safe, which is why D30's invariant missed this", () => {
+    const ids = bank(90);
+    const today = DECK_EPOCH + 30;
+    const before = computeDeckIds(ids, today);
+    expect(computeDeckIds([...ids, "daily-090"], today)).toEqual(before);
+  });
+});

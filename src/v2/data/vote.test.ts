@@ -35,6 +35,12 @@ const h = vi.hoisted(() => ({
   // test can drive a uid change or a revoked session.
   authCb: null as null | ((u: { uid: string } | null) => void),
   snapshots: [] as CapturedListener[],
+  // The offline-cache teardown deleteAccount owes the privacy policy. Named
+  // rather than counted so the ORDER is assertable: clearIndexedDbPersistence
+  // refuses to run against a live Firestore instance, so a terminate() that
+  // stops happening turns the clear into a silent no-op.
+  cacheTeardown: [] as string[],
+  clearCacheImpl: null as null | (() => Promise<void>),
 }));
 
 vi.mock("../../lib/firebase", () => ({
@@ -102,6 +108,14 @@ vi.mock("firebase/firestore", () => {
       h.setDocCalls.push({ path: target.path, data });
       return h.setDocImpl ? h.setDocImpl() : Promise.resolve();
     },
+    terminate: () => {
+      h.cacheTeardown.push("terminate");
+      return Promise.resolve();
+    },
+    clearIndexedDbPersistence: () => {
+      h.cacheTeardown.push("clearIndexedDbPersistence");
+      return h.clearCacheImpl ? h.clearCacheImpl() : Promise.resolve();
+    },
   };
 });
 
@@ -165,6 +179,10 @@ const listeners: {
   document: Record<string, () => void>;
 } = { window: {}, document: {} };
 
+// Events live.ts dispatches on the stubbed window (insight:local-purge),
+// so a test can assert the purge announced itself.
+const dispatched: string[] = [];
+
 const ANS_LS = "insight.answersCache.v1";
 const WF_LS = "insight.feedVotes.v1";
 
@@ -176,6 +194,8 @@ beforeEach(() => {
   h.authCb = null;
   h.setDocCalls.length = 0;
   h.snapshots.length = 0;
+  h.cacheTeardown.length = 0;
+  h.clearCacheImpl = null;
   h.bankDocs = [
     {
       id: "q_1",
@@ -199,8 +219,9 @@ beforeEach(() => {
   // registered handlers are captured so a test can fire a wake.
   listeners.window = {};
   listeners.document = {};
+  dispatched.length = 0;
   vi.stubGlobal("window", {
-    dispatchEvent: () => true,
+    dispatchEvent: (e: Event) => { dispatched.push(e?.type); return true; },
     addEventListener: (type: string, fn: () => void) => { listeners.window[type] = fn; },
     removeEventListener: (type: string) => { delete listeners.window[type]; },
   });
@@ -397,6 +418,12 @@ describe("vote() optimistic path (inflight vs unaggregated)", () => {
     // key never comes back — so assert on the contents, which also keeps
     // this from racing the refresh.
     expect(JSON.parse(storage.getItem(WF_LS) || "{}")).not.toHaveProperty("q_1");
+    // …and the purge announces itself, because deleting the keys is only
+    // half the wipe: spec-layer stores (lens-defs) hold an in-memory copy,
+    // and with no reload on this path their next save() would write the
+    // previous account's data straight back. The listener side is pinned
+    // in test/lens-live.test.ts; this pins that the announcement fires.
+    expect(dispatched).toContain("insight:local-purge");
   });
 
   it("a revoked session keeps real data on screen rather than blanking to demo", async () => {
@@ -480,6 +507,93 @@ describe("window.LIVE public surface", () => {
     const LIVE = await bootLive();
     const social = (LIVE as unknown as { social: Record<string, unknown> }).social;
     expect(Object.keys(social).sort()).toEqual([...EXPECTED_SOCIAL].sort());
+  });
+});
+
+// Erasure has to reach the offline mirror, not just localStorage.
+//
+// firebaseImpl.ts enables persistentLocalCache() unconditionally and
+// hydrate() reads the whole answers subcollection plus the profile, so a
+// deleted account's votes and anchors are on disk in IndexedDB. Nothing
+// evicted them — hydrate is a one-shot getDocs, not a listener, so the
+// server-side delete produces no remove event. web/privacy.html and
+// docs/data-inventory.md both promise this clearing, and D6 treats the same
+// cache as sensitive (it is why Android backup is off). This is the
+// assertion that keeps the promise true.
+describe("LIVE.deleteAccount — the on-device half of erasure", () => {
+  async function captureCallable() {
+    const fns = await import("firebase/functions");
+    const invoke = vi.fn(() => Promise.resolve({ data: {} }));
+    vi.mocked(fns.getFunctions).mockClear().mockReturnValue({ __fns: true } as never);
+    vi.mocked(fns.httpsCallable).mockClear().mockReturnValue(invoke as never);
+    return invoke;
+  }
+
+  it("terminates the client and clears the IndexedDB cache, in that order", async () => {
+    const LIVE = await bootLive();
+    await captureCallable();
+    localStorage.setItem(ANS_LS, JSON.stringify({ day: 1, votes: { q_1: "0" } }));
+
+    await LIVE.deleteAccount();
+
+    // Order, not just presence: clearIndexedDbPersistence refuses a live
+    // instance, so a dropped terminate() turns the clear into a no-op that
+    // still logs nothing and still leaves the disk mirror intact.
+    expect(h.cacheTeardown).toEqual(["terminate", "clearIndexedDbPersistence"]);
+    // …and the localStorage half it always did still happens after it.
+    expect(localStorage.getItem(ANS_LS)).toBeNull();
+  });
+
+  it("unlatches teardown when the wipe is refused, so the session survives", async () => {
+    // index.ts refuses the auth delete whenever ANY wipe phase failed, and
+    // every network timeout lands here too — while LivePrivacyPanel keeps
+    // the user in the app afterwards. `torndown` is set as the FIRST
+    // statement (deliberately: in-flight writers must not re-create an
+    // insight.* key mid-wipe), and nothing reset it, so a refused delete
+    // left the session permanently deaf: no reconnect, no midnight
+    // resubscribe, and the uid-change guard disabled.
+    //
+    // Asserted through wake(), which is `if (torndown) return` — a live
+    // session re-reads the bank on a wake, a torndown one does nothing.
+    const LIVE = await bootLive();
+    const fns = await import("firebase/functions");
+    vi.mocked(fns.getFunctions).mockClear().mockReturnValue({ __fns: true } as never);
+    vi.mocked(fns.httpsCallable).mockClear().mockReturnValue(
+      vi.fn(() => Promise.reject(new Error("internal"))) as never,
+    );
+
+    await expect(LIVE.deleteAccount()).rejects.toThrow("internal");
+
+    // Nothing was deleted, so nothing may have been torn down either.
+    expect(h.cacheTeardown).toEqual([]);
+
+    // The observable: cacheVote is `if (torndown) return`, so a latched
+    // store silently stops writing the answers cache while vote() keeps
+    // issuing the Firestore write — the split that made this invisible.
+    storage.removeItem(ANS_LS);
+    LIVE.vote("q_1", "1");
+    await flush();
+    const cached = JSON.parse(storage.getItem(ANS_LS) || "null");
+    expect(cached?.votes?.q_1, "the store stayed torn down after a refused delete")
+      .toBe("1");
+  });
+
+  it("still finishes the purge when the cache cannot be cleared", async () => {
+    // clearIndexedDbPersistence rejects while another tab holds the lease.
+    // A device that cannot clear its cache must still sign out and reload,
+    // or the failure mode is worse than the one being fixed.
+    const LIVE = await bootLive();
+    await captureCallable();
+    h.clearCacheImpl = () => Promise.reject(new Error("client is not terminated"));
+    localStorage.setItem(ANS_LS, JSON.stringify({ day: 1, votes: { q_1: "0" } }));
+
+    await expect(LIVE.deleteAccount()).resolves.toBeUndefined();
+
+    expect(localStorage.getItem(ANS_LS)).toBeNull();
+    expect(h.reportError).toHaveBeenCalledWith(
+      expect.any(Error),
+      expect.objectContaining({ where: "deleteAccount.clearCache" }),
+    );
   });
 });
 

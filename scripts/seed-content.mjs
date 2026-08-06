@@ -41,7 +41,6 @@
 //                console, which changes no document the seed writes.
 //   --dry-run    resolve credentials and report what would be called
 
-import { readFileSync } from "node:fs";
 import { createSign } from "node:crypto";
 
 const argv = process.argv.slice(2);
@@ -152,7 +151,14 @@ if (!res.ok || body.error) {
     + "      That variable only reaches the runtime on a deploy, so setting it\n"
     + "      without re-running 'Deploy Firebase backend' looks exactly like\n"
     + "      never having set it.\n"
-    + "    unauthenticated → the token did not attach; re-run with --dry-run.",
+    + "    unauthenticated → the token did not attach; re-run with --dry-run.\n"
+    + "    failed-precondition → NOT a transient error and re-running will not\n"
+    + "      clear it. Since D58 the seed refuses to edit the option set of a\n"
+    + "      question that has already shipped: answers store (qid, optionIdx)\n"
+    + "      and nothing else, so swapping options re-keys every vote already\n"
+    + "      cast (D52). The message above names each one. Retire a question\n"
+    + "      with active:false, or append a new qid — do not 'fix' it by\n"
+    + "      editing the options back.",
   );
 }
 

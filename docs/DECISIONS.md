@@ -3045,6 +3045,16 @@ Check token exists to send.
   the call that checklist step is written around, which makes this the one
   exemption that must not be "tidied up" without rewriting the seeding
   procedure first.
+
+  > **Amendment, 2026-08-06.** "From a browser console" was never true. The
+  > app has no browser build — hosting serves `web/` (home, join, privacy,
+  > terms) and the app ships as the native iOS shell — so the caller this
+  > exemption was granted for did not exist. **The exemption stands
+  > unchanged**, and for the same reason: the seed is now invoked by the
+  > *Seed content* workflow (`scripts/seed-content.mjs`), which carries no
+  > App Check token either. Only the description was wrong, in all three
+  > places it was written down — here, `check-appcheck.mjs` and
+  > `functions/src/v2.ts`.
 - `revealDuelsNowV2` — the scheduled scan's manual lever, reached from a
   console during an incident (DEPLOYMENT.md → rollback) and by the e2e. A
   control that fails when it is most needed is not a control.
@@ -4761,3 +4771,1152 @@ consumer outside the file: the same ratio `result-rose.jsx` found, where the
 bridge published everything and a real module exports only what is wanted.
 The coupling count is unchanged at 540, correctly — these were file-local
 reads, not cross-module ones, and a meter that moved here would be lying.
+## D50 · A lens question in a live feed is a self-report item, not a poll
+
+**Date:** 2026-08-06 · **Status:** Adopted
+
+**Decision.** Lens cards woven into a live session's feed carry
+`selfOnly: true`, stamped by `LENS_FEED_QS`'s builder — which now rebuilds
+per liveness instead of snapshotting at module scope. `world-feed.jsx`
+keeps every crowd surface off a `selfOnly` card: no share fill, no
+percentage numeral, no votes count, no takes/who-voted row, no consequence
+beat, no with-the-majority bit into FEEDREAD, no Mirror ripple, no thin
+bar on the collapsed card. After answering, the card says where the answer
+actually went — "Saved to your ‹lens› lens — only you see it." — and the
+answer records to the on-device store exactly as before.
+
+**What was shipping.** `buildFeedGlobals()` (data/live.ts) replaces
+`WORLD_FEED_QS` and `TEST_FEED_QS` with live-shaped cards on boot but
+never touched `LENS_FEED_QS` — and every "no fake data" gate in
+world-feed keys on `q.live`, which lens cards do not carry. So a real
+user answering a lens card saw a split drawn over thousands of authored
+votes (`count: 180 + w × 1900` per option — roughly 3–6k "votes" per
+card), rendered identically to the real k-floored splits on neighbouring
+cards, plus a votes-count line under it. That is fabricated activity
+inside a live session — the thing D1 exists to forbid — and the asymmetry
+with `TEST_FEED_QS`, which did get the live treatment, marks it as an
+oversight rather than a choice.
+
+**Two adjacent repairs in the same seam, found by the same audit.**
+First: the module-scope snapshot meant live sessions always wove the DEMO
+pool, which excludes each lens's seeded prefix as "already answered" —
+but live mode starts every lens at zero, so ~20 of the 48 lens items were
+unreachable from a live feed (`moral` capped at 4 of 8 for a feed-only
+user, while the blank state promised the feed would fill it in). Second:
+`LENSES.reset()` — whose own comment claims the account-deletion/uid-change
+wipe contract — had no caller, so the uid-change path purged
+`insight.lenses.v1` from localStorage while the store's in-memory state
+survived to be written back under the new uid. The purge announces itself
+now (`insight:local-purge`) and the store listens.
+
+**Why acknowledge instead of aggregate.** The honest alternatives were
+(a) suppress the fake crowd, (b) build a real one. Lens answers are
+deliberately device-local (the persistence note in `lens-defs.js`): no
+write leaves the device, so there is nothing for a backend to aggregate
+without first reversing that decision — a new collection, its k-floor,
+rules and their tests, for numbers whose product value is unproven. (a)
+is the smallest change that makes the UI true, and it leaves (b) open: if
+lens aggregation ever ships, the flag comes off exactly the cards whose
+questions gain a real aggregate, and this entry gets its reversal note.
+
+**Enforcement.** `src/v2/test/lens-live.test.ts` re-derives both pool
+shapes from `IS_LENSES`' seed arithmetic and pins the `selfOnly` stamp
+and the purge listener; `src/v2/test/smoke-live.test.jsx` mounts a live
+feed with a lens card, answers it, and asserts the record landed locally
+(inverted), nothing reached `LIVE.vote`, and the card shows the
+acknowledgment with no split, no votes count and no engage row.
+
+## D51 · Deleting the keys is only half the wipe: every local store hears the purge
+
+**Date:** 2026-08-06 · **Status:** Adopted
+
+**Decision.** Every module-scope store that persists `insight.*` state
+drops its in-memory copy to the fresh-boot shape when
+`insight:local-purge` fires, notifying its subscribers and **without**
+calling its save — a save in the listener would re-create the key the
+purge just removed. The two long-mounted components that persist state by
+spreading it back (`world-feed.jsx`: votes, passed, takes, replies;
+`daily-split.jsx`: dreplies, cats, testProg, votes) carry the same
+listener at the component level. `scripts/check-purge-listeners.mjs`
+(CI's `check:purge`) holds the set closed: a file that writes an
+`insight.*` key must listen or be exempted with a reason, and a stale
+exemption fails too.
+
+**The audit that produced this.** D50 found the hole in one store
+(lens-defs' uncalled `reset()`); this is the sweep of the other 28 files
+that touch localStorage. Fourteen module stores had the same bug —
+`feed-read`, `follows`, `learn-progress`, `learn-feed`,
+`passive-progress`, `pick-data`, `place-stats`, `scenes`,
+`world-subtopics`, `suggestions`, `duels-data`, `world-feed-report`,
+`daily-questions`, `test-definitions` — each holding a module-scope map
+whose next mutation saved the whole thing back: daily answers, duel
+answers and group edits, test progress (inflating the new account's rings
+with answers it never gave), authored suggestions rendered as the new
+account's "You", follow lists, ratings, picks, reports, the read-room
+log. The always-mounted feed and daily components had the same shape in
+component state; the feed's votes already healed through its LIVE
+reconcile (absent from both store and mirror → dropped), which is the
+model the rest now follows.
+
+**Fresh-boot, not empty.** The drop target is what a cold load with no
+keys produces, which is not always `{}`: `follows` returns to its seed
+circle, `learn-progress` to its demo stagger (empty in live builds — the
+same `VITE_V2_LIVE` gate the load uses), `scenes`/`world-subtopics` to
+their day-one defaults by nulling the lazy cache so `ensure()` re-derives,
+and `IS_TEST_RESULTS` restores a pristine copy of the demo literal taken
+before the saved-result overlay. `duels-data` and `learn-progress` got
+their load normalisation extracted into one function used by both paths,
+so a field added later cannot leave the listener building a stale shape.
+
+**Exemptions, each with its reason in the script.** `live.ts` (the
+dispatcher; caches uid-scoped or public), `deviceBind`/`push` (memos
+carry the uid and are compared before use), `sentry` (flag read from
+storage per check), `test-overlay` (read-modify-write of only its own
+kind, fresh from storage), `logic-test` (whole fresh object per save),
+`profile-general` (persist effect runs on mount, so a post-purge mount
+writes defaults), and the two `ui/` panels (scalar written only on
+explicit save of the new value).
+
+**Two observations recorded, not fixed.** `insight.mapCatNames.v1` is
+read by `map-tab.jsx` and written by nothing — a dead key. And Sentry
+telemetry consent is read per event but an already-started SDK keeps
+running across a uid change until restart; the flag itself heals
+correctly, the running session is a consent nuance this entry flags for
+whoever next touches `lib/sentry.ts`.
+
+**Enforcement.** `check:purge` on the CI lint job (client-only, so
+deliberately not on `backend-checks.yml`);
+`src/v2/test/purge-wipe.test.ts` drives all fourteen module stores
+through seed → purge → remutate and asserts the resurrection never
+reaches disk; `smoke-live.test.jsx` proves the component half in a
+mounted tree; `vote.test.ts` pins that the announcement fires on the
+uid-change path.
+
+## D52 · The content review: what got fixed, what got flagged, and the two lines that held
+
+**Date:** 2026-08-06 · **Status:** Adopted
+
+**The review.** All seven question surfaces read end to end — 90 daily, 73
+feed, 44 duel, 96 learn cards, the four core tests, the nine lenses, and
+the cross-bank seams. Two invariants shaped every fix: shipped **option
+sets are never edited** (answers store `(qid, optionIdx)` forever — the
+D30 re-key class), and the **daily list is never shortened mid-epoch**
+(the deck maps day→question by position; a removal re-keys every later
+day). So fixes took four shapes only: prompt edits that preserve the
+question's meaning, metadata edits, `active: false` retirement for feed
+items, and appends.
+
+**Fixed.**
+- **Six feed duplicates retired** (`active: false`, honoured by deck.ts's
+  `active !== false` filter, now passed through the generator): f08, f20,
+  f21, f24, f40, f54 — each the same question as a live daily (one
+  cuisine, spoilers, lyrics/melody, music-while-working, death date,
+  money-buys-happiness), splitting the same crowd twice.
+- **D44 extends to opinion cards**: new optional `political: true` marker
+  on f45 (mandatory voting), f46 (four-day week), f47 (car-free centres)
+  and daily-014 (news trust) joins them to the no-slice set. A second
+  marker rather than `test: "political"` because PASSIVE.record and the
+  feed's test kicker key off `q.test` — reusing it would count feed cards
+  toward the political test's rings. `slicing.test.ts` pins both markers
+  and the generator pass-through, non-vacuously. Considered and left
+  sliceable: f27 (phones in schools), f32 (tipping), f50 (celebrities in
+  politics), daily-015 (AI) — opinions that correlate with politics less
+  than they express it; the line is "expresses a political position",
+  not "correlates with one".
+- **Currency leaves the prompts**: daily-006 "€500" → "a week's pay"
+  (scales with the reader, travels), duo-12 "€10k" → "a surprise
+  windfall", f39 "$1M" → "a million". The time lens's "€100 today beats
+  €160 in a year" became plain numbers — the 60% premium is the
+  instrument, the currency was noise.
+- **Duel voice unified**: seven 1v1 prompts rewritten you-voice/neutral
+  (3, 8, 9, 12, 15, 17, plus 16 gaining its missing direction — hear the
+  hard truth, not tell it). The duo overlay renders prompts verbatim in
+  both the answer-about-yourself and guess phases, so they-voice items
+  read wrong for half the flow.
+- **Instrument items replaced in both layers** (tests.json ≡
+  test-definitions.js, parity-gated): political-01's motherhood statement
+  ("a society is judged…" — near-universal agreement, no discrimination)
+  → public-ownership item; values-03's time/circle cross-load → pure
+  circle; attachment-11 (drifting groups measured breadth, not loyalty)
+  and attachment-14 (noticing withdrawal measured vigilance, not
+  un-easygoingness) → maintenance and score-keeping items.
+- **The lenses' acquiescence hole closed**: `moral` and `humor` gained
+  their first reverse-keyed items, appended (lens answers and feed ids
+  are index-keyed; only the tail is safe). A new structural gate
+  (`src/v2/test/lens-content.test.ts`) holds every lens to: questions key
+  to declared dims, every dim has a question, ids unique, viz known, and
+  ≥1 invert per lens — the per-LENS floor, since single-item dims cannot
+  carry the core tests' per-dimension rule.
+- **Learn**: sol6's stem sharpened to "Demoted from planet to dwarf
+  planet in 2006" (Ceres and Eris were also reclassified/designated in
+  2006 — the old stem had three defensible answers); cell5's trap
+  repointed to the lysis-wordplay distractor already in its options.
+
+**Flagged, not fixed — and why.**
+- Authored landslides that need retirement or a rewrite the invariants
+  forbid: daily-004 ("okay to do nothing" — double-hedged truism),
+  daily-013 ("can give meaning" — the modal concedes it), daily-061,
+  daily-081, f53, f15's "always" strawman, f23/f33's missing third camp.
+  Daily items wait for an epoch-safe retire lane; option edits wait for
+  the farm's replace flow. The scorecard will say which of these the
+  crowd actually kills.
+- Duel reveal-safety trio (gu3 "loudest wins", gu9 "what would break this
+  group", gu11 "new person wants in") — option-level content that can
+  land on real people once names attach; retire/replace candidates for
+  the duel lane, recorded here so D40's content lane inherits them.
+- Duel trait overweight: five of twenty 1v1 items probe
+  introvert/extrovert, four probe confront/avoid — variety debt for the
+  next duel batch, not an edit to shipped items.
+- Learn calibration gaps: `origins` and `capitals` ramp p=26–63 with no
+  easy rung — needs appended easy cards (the learn lane's job), not
+  edits. Weak traps whose options offer no better candidate (gene8,
+  body8, sol7, ear3, ear8) stay as recall cards.
+- daily-007's your-life/the-world ambiguity and daily-011's costless
+  "find a third way" dodge — meaning-changing fixes deferred to human
+  editorial; recorded so they are a decision, not a discovery.
+- The daily↔feed near-dup *class* (f36/daily-038 survives this pass):
+  worth a similarity warn-tier in check:content the day a third instance
+  appears.
+
+**Ops note.** These are bank edits; production picks them up on the next
+`seedContentV2` run with `bumpRev` per the deploy runbook — nothing here
+re-keys an existing answer, by construction of the four allowed shapes.
+
+## D53 · The logic test measured: zero ambiguity in 60,000 items, and the curve gets pinned
+
+**Date:** 2026-08-06 · **Status:** Adopted
+
+**The review's method.** A matrix test's cardinal risk is an ambiguous
+item — a distractor a careful solver could defend. That is measurable, so
+it was measured: a per-family completion predicate (the family's line
+rules plus the visible grid's uniformities and shape vocabulary), swept
+over every option of every item for 5,000 seeds. Three tuning iterations
+were needed, each round's false positives being a constraint humans
+obviously use that the model had missed — fillRamp's size uniformity,
+dist2's exact element identity, ringGrow's outline-only vocabulary.
+
+**What it found.** Zero ambiguous options in 60,000 items, with the
+constructed answer passing its predicate 60,000 of 60,000 times. Answer
+positions uniform (16.3–17.0% per slot). dist2's degenerate case
+(identical absence patterns) occurred 0 times in 2,466. No duplicate
+puzzles within a form, no distractor-pool exhaustion, ~0.25ms per form.
+Distractor composition matches the design's claim: 72.8% family-authored
+wrong-rule mutants, 14.1% neighbour-cell repeats, 13.1% generic
+perturbations. This CORRECTS the earlier framing that "distinct is not
+wrong" was a live hole — it is a theoretical one only, and the sweep now
+lives in logic-gen.test.ts permanently (answers must pass, no distractor
+may), so a future family that opens the hole fails CI instead of
+shipping. If a new family's ANSWERS fail the sweep, the predicate is
+missing that family's grammar: extend the model, never weaken the sweep.
+
+**The curve is a decision now, not an accident.** logicPctile moved to
+`data/logic-score.ts` (typed, with loadResult/saveResult/logicSecs) and
+its landmarks are pinned: chance (2/12 with six options) reads 4,
+6/12 → 30, the load-bearing midpoint 62% → 50, and a perfect 12/12 reads
+**94 — deliberately**. A perfect score is the test's ceiling, and a
+ceiling cannot distinguish "better than 94%" from "better than 99%"; the
+honest claim stops where the instrument does. The floor clamps at 1 for
+the symmetric reason.
+
+**The overlay left the bridge.** logic-test.jsx now imports the generator
+and the scoring directly; window.LOGIC_GEN is gone (it had exactly one
+consumer), loadOverlays() dropped its explicit import line (the ESM graph
+carries the generator into the same deferred chunk), and the coupling
+ratchet came down 620 → 619 across 51 files. The reveal-delay timeout is
+deliberately never cancelled on unmount: it is also the final item's
+save, and closing the overlay 200ms after the last pick must keep the
+score — a 240ms timer is the whole cost of that guarantee.
+
+**New coverage.** `logic-overlay.test.jsx` drives a full attempt through
+the real generator (the seed pinned by stubbing crypto, the overlay's own
+seed source), asserting the v2 payload to the millisecond — the 240ms
+reveal delay subtracted from every recorded time — plus a wrong-pick run,
+all five result lenses (four had never rendered in any test) each showing
+the modelled-yardstick disclosure, and an 8-mark result pinning the
+Answers lens against the old /11 regression. `logic-score.test.ts` pins
+the curve, the v1 back-fill, and the times-fallback.
+
+**Accepted limits, recorded.** Puzzle timing counts backgrounded-tab time
+(skews the Pace lens toward "deliberate" — it is a modelled yardstick and
+says so). Retake discards the previous attempt's result and seed — one
+result, not a history, matches the device-local minimalism of D31. The
+test is inherently visual; options are labelled by position for assistive
+tech, and a non-visual rendering of a matrix test is out of scope rather
+than pending.
+---
+
+## D28 amendment (2026-08-06) · Identity verification (passport / driver's licence class) recorded as a possible future requirement
+
+**Date:** 2026-08-06 · **Status:** Owner's forward note, recorded.
+Nothing changes today — D28's "no identity gate" clause still governs
+everything built and shipped.
+
+**The note.** The owner directs the record to carry this: if the shipped
+stack — App Check (D36), device-bound activation (D29/D37), the floors,
+the attribution ledger — proves insufficient against fake accounts in
+practice, the product will in the future require government identity
+verification (passport or driver's licence class) as a condition of
+counting. This widens the escalation path D3's 2026-08-03 amendment
+recorded: tightening device-bind stays first, and identity verification
+now stands recorded behind it, at the owner's option, on evidence.
+
+**What adoption would change, priced now so it is a decision rather than
+a surprise later.** D28's reasoning does not dissolve because the feature
+is wanted; it is the bill:
+
+- **It reverses the product's defining claim.** "No account required" is
+  in the store listing, and the privacy posture (D1/D8/D44) exists
+  because the app stores politics- and relationship-class answers. An ID
+  check binds a government identity to exactly that data (Art. 9), so
+  the data inventory, both stores' privacy labels, SECURITY.md and the
+  erasure story (D45/D51) must be rewritten and re-reviewed **before**
+  the gate ships, not after.
+- **It adds a processor.** Document capture, liveness and retention are
+  a vendor relationship — a new breach and subpoena surface, and a real
+  per-verification cost paid on every honest user.
+- **What it buys is bounded, and the bound is already recorded.**
+  Documents are buyable and paid real humans pass any ID check (D28's
+  Douceur argument is unchanged) — so the gate re-prices a fake account
+  in documents rather than in hardware, which for some attackers is
+  cheaper than D29's per-device bar. It trades friction on every honest
+  user for a bar that some attackers step over.
+
+**The trigger stays evidence, not mood.** "Insufficient in practice"
+means signals from the ledger — the velocity-analysis lever D29 names —
+or a discovered ring the correction runbook (DEPLOYMENT.md, "Correcting
+aggregates") could not adequately unwind. If adoption is proposed, it
+gets its own numbered decision carrying the mechanism, the vendor, the
+rollout, and the inventory rewrite sequenced first.
+
+---
+
+## D54 · The ledger gets eyes: a daily velocity scan, feeding manual review
+
+**Date:** 2026-08-06 · **Status:** Adopted
+
+**Decision.** `ledgerVelocityScan` (functions/src/velocity.ts) runs
+daily over the `v2_agg_events` entries since its last run and logs —
+only logs — four ring-shaped signals: impossible per-uid volume,
+scripted answer cadence, Auth creation-time clusters among the window's
+voters, and per-question bursts against each question's own trailing
+baseline. Flags are WARNING lines carrying uids; the operator reads
+them into the D28 correction runbook, whose "identification is
+investigative" gap this closes the first pass of. Nothing is denied,
+delayed or down-weighted — D29 recorded this lever's shape as "feeding
+manual review rather than automatic denial", and that clause is load-
+bearing here.
+
+**Why now.** D28's guarantee is correction *given a uid list*, and its
+residuals section says plainly that detection was out of scope — "the
+ledger's timestamps are the raw material velocity analysis would read,
+but no analysis ships today." That left the correction story
+conditioned on luck: a ring had to be noticed by someone with no
+instrument for noticing. The scan is that instrument, built from the
+signals DEPLOYMENT.md's runbook already named as the investigative
+step.
+
+**The purpose-limitation check, because D47 makes it a live question.**
+D47 deferred DAU counting over this same collection as "a new purpose
+for existing data, which is a decision record, not a script." This is
+not that: fake-account attribution is the purpose D28 collected the
+ledger for, and D29 names this exact analysis as a tightening lever.
+Same data, recorded purpose, so a script — this record exists to say
+that distinction out loud rather than let the two cases blur.
+
+**The signals, and the honest twin each must spare.** Every threshold
+is an exported constant, pinned at its boundary by velocity.test.ts,
+and an engineering default in D37's sense — movable, each in a known
+direction (raise for quieter logs and later notice, lower for the
+reverse):
+
+- **Volume** (> the aggregate-feeding bank size in one window): no
+  honest twin. Answers are create-only per question and the sweep-on-
+  erase keeps uids single-lived, so exceeding the bank is dedup failure
+  or forged writes — the nearest thing to a verdict in the set.
+- **Cadence** (15+ answers with gap CV < 0.25 or mean < 2s): the twin
+  is the backlog binge, spared by gap variance — humans read at
+  question-dependent speeds; scripts must jitter wider than ±40% of
+  their own mean to pass, which costs them throughput.
+- **Cluster** (5+ of the window's voters created within 10 minutes,
+  overlapping windows merged): the twin is a launch spike or press
+  mention — a *good* day. This signal is why the output is review, not
+  action.
+- **Burst** (4× a question's trailing mean, floor 10, needing 3+
+  recorded baseline days): the twin is the deck itself — the daily
+  question and promoted debuts are bursts by design, excluded by the
+  baseline requirement, so the signal sees only the attack shape: an
+  old, settled question suddenly stuffed. A ring riding the current
+  daily question hides in its crowd; that one belongs to cadence and
+  cluster.
+
+**Cost, at the system's own ceilings.** At D7's ~14k answers/day the
+scan reads ~14k ledger entries (paginated, projected), ~140 batched
+Auth lookups, and one state doc — pennies per month; at launch volumes,
+effectively nothing. The state doc (`v2_velocity/state`, cursor plus
+seven days of per-question counts) is denied to clients in rules and
+pinned so in rules.test.ts: readable it would be a side channel under
+`AGG_MIN_N`, writable it would let an attacker inflate their own
+baselines. One new deployed function; check:fn-runtime and
+check:deploy-targets both hold it, check:appcheck is untouched (no
+callable surface).
+
+**Deliberately NOT built, with the reasoning:**
+
+- **Automatic denial or down-weighting.** The false-positive twins
+  above are the product's best days; machinery that punishes them on
+  pattern-match is worse than an operator reading a log line. D28's
+  warm-up-gating rejection stands unchanged.
+- **An alert policy.** DEPLOYMENT.md's "applied by hand, once,
+  deliberately" reasoning governs: these are numbers read daily during
+  calm. The heartbeat and flag lines carry `metric` fields so a
+  log-based metric can be attached the day evidence warrants standing
+  eyes — plumbing shipped, policy deliberately not.
+- **The vote choice in the flags.** Same as D28's ledger reasoning:
+  correction reads choices from the ring's answer docs; a copy in the
+  log would be worse minimisation for zero forensic gain.
+
+**Limits, so the layer above stays honest.** The scan cannot see the
++1-per-device-per-month drip (designed to sit under the publish
+cadence's noise floor), paid humans at human cadence, or a ring patient
+enough to mimic organic arrival across days. Its job is narrower and
+real: it forces an effective attacker into exactly that slow,
+human-shaped posture, and the device-bind month rule then prices that
+posture per physical device. Detection latency is up to a day plus the
+72h catch-up cap after an outage; entries beyond the cap are never
+analysed (logged as a gap, not absorbed). And a scan that runs is not a
+scan that is read — the flags are only as good as the operator's habit
+of looking, which is the argument the metric-field plumbing exists to
+answer when it stops holding.
+
+## D55 · Three guarantees were enforced on a value and not on the way it moves
+
+**Status.** Adopted 2026-08-06. Found by a code review of the tree at
+c592042; each was reproduced before it was believed, and each carries a
+test that fails against the code as it stood.
+
+**Decision.** Three fixes, one shape between them.
+
+**1 · The publish cadence applies per BUCKET, not only per question.**
+`shouldPublishAgg` bounds how often `v2_question_aggs` is rewritten, and
+D7's amendment records why: a client holds an `onSnapshot` on that
+document, so a step attributable to one person discloses that person's
+answer past any floor. The unit it bounds is the QUESTION. `by` — the
+per-anchor breakdown added later — is counted per BUCKET, and nothing
+bounded that. `steppedBreakdown` (pure.ts) now re-emits a bucket's previous
+value until the bucket has gained `AGG_MIN_N`, and the trigger stores the
+last released map as `v2_aggs_private/{qid}.byPub` (and `.entByPub` for the
+catalog path).
+
+The arithmetic that makes this not theoretical: anchors are empty until the
+user fills the Basics card (D8), so a five-answer publish window routinely
+carries exactly one anchored answer. Replaying the real fold, two
+consecutive published states differed by
+
+```
+{"gender":{"f":{"0":5}}}  →  {"gender":{"f":{"0":5,"1":1}}}
+```
+
+— one vote, isolated, in a cohort that had cleared the floor. And because
+the six anchors travel on the same answer, all six dimensions step together,
+so the disclosure is a full {ageBand, gender, city, country, education,
+relationship} tuple joined to an option, not a single cell. That is
+re-identification, not the residual D18 records.
+
+Cost: a bucket now lags by at most `AGG_MIN_N - 1` answers, the same bound
+the cadence already gives `counts`; the private doc keeps exact totals, so
+nothing is lost. First publish after deploy sees no stored `byPub` and
+releases current state once — identical to the behaviour it replaces, not
+worse.
+
+**Corrected 2026-08-06, by CI.** The baseline stored was first written as
+`steppedBreakdown`'s own output rather than what `publishableBreakdown`
+went on to publish. Those differ whenever a bucket is suppressed — and a
+bucket under the floor is suppressed by definition — so a cohort that had
+not yet cleared the floor had nonetheless SPENT its step budget on a value
+no reader ever saw, and then needed twice the floor to appear. In the shape
+`e2e-v2-loop.mjs` drives (two cohorts at 3 and 2, both reaching exactly 5 on
+the publish at total 10) it never appeared at all.
+
+The bound belongs to what was OBSERVABLE: a bucket the reader never saw has
+no delta to hide, so its next release is a first appearance, disclosing a
+cohort of at least the floor arriving together — the floor's own guarantee.
+`publishBreakdown` now returns one value that is both what is published and
+what is stored, so the two cannot be wired apart again.
+
+Worth recording where it was caught. The unit tests passed throughout: they
+pinned the RULE, and the defect was in how the trigger wired it. The e2e —
+the leg this record already flagged as unrunnable in the authoring sandbox —
+is what found it, on the first CI run. That is the argument for the e2e
+staying on the deploy path, made by the e2e.
+
+**2 · An anchor value may not be a key on `Object.prototype`.**
+`breakdownBucket` shape-checks `city` and `country`; the other four
+dimensions have no closed vocabulary, and `firestore.rules` can only bound
+an anchor's LENGTH — the constraint the shape map's own comment already
+records. So `anchors: { gender: "__proto__" }` passed the rules (verified in
+the emulator, anonymous auth), and `byDim[bucket] || (byDim[bucket] = {})`
+then set the PROTOTYPE rather than a property. The counter beneath it landed
+on `Object.prototype`, so every breakdown cell created afterwards in that
+instance started at 1: five voters published as six, on unrelated questions,
+until the instance recycled. `constructor` and `toString` are the same shape
+one step weaker — they read back truthy, so they also walk past
+`BREAKDOWN_MAX_BUCKETS`.
+
+Rejected by membership in the prototype rather than by a blocklist: a list
+of names the language owns is a list this repo would have to maintain
+against it.
+
+**3 · A take id may not be tallied on an object literal.** `takeId` is the
+take's document id and the CLIENT chooses it — the ruleset constrains a
+take's fields, never its name (verified: `v2_takes/constructor` creates, and
+another member can flag it). `counts[takeId] = (counts[takeId] || 0) + 1`
+therefore read back through the prototype, and ten flags on a take called
+`constructor` became the string `"function Object() { [native code]
+}1111111111"`. Every comparison in `buildModQueueFrom` against it is
+NaN-false, so the take never entered the queue however often it was
+flagged — moderation immunity, chosen at post time, nothing logged.
+`tallyFlags` (pure.ts) uses a Map; `priorEscalations` likewise, where the
+miss path would otherwise have written the Object constructor into a queue
+entry's `escalations` field.
+
+**4 · `--force` no longer reaches a firestore target.** Not a fourth bug so
+much as the same class in the deploy path — see docs/DEPLOYMENT.md for the
+arithmetic. `check:deploy-targets` now fails if the steps are recombined.
+
+**Why these are one record.** Every one of them enforced a guarantee on a
+STATE and not on a TRANSITION: the floor is checked in each published
+snapshot but never between two of them (1); the anchor is validated for
+length and shape but not for what assigning it does (2, 3); the index file
+is compared to the project but nothing asks what the comparison is allowed
+to delete (4). The guard that would have caught all four is differential —
+replay a sequence and assert a property of every adjacent pair, rather than
+of any single frame. `steppedBreakdown`'s test is written that way
+deliberately: it measures the minimum step over every adjacent pair of
+published states across 80 answers, because a spot check survives a policy
+that steps by one past some size, which is the bug it closes.
+
+**Amendment (2026-08-06) — two more from the same review, same shape.**
+Both were listed below as deferred when this record was written; they are
+now closed, and they belong here rather than in a record of their own
+because each is again a guarantee enforced on a value and not on the way it
+moves.
+
+**5 · The profile's live-mode guard holds on every mount, not the first.**
+`GeneralPanel` seeds from `localStorage` and writes the whole blob back on
+mount with no edit made, so the first open persisted a record and every open
+after it took `loadGen`'s merge path — which spread the sample persona
+underneath. The live guard sat past that branch, reachable only when there
+was no saved blob, which after the first mount was never. A live user
+therefore got `age 34 · Editor · independent press · MA Literature` back as
+their own, and the anchors effect wrote it to `v2_users/{uid}`, from where
+`answerAnchors()` stamped it onto every later answer. Answers are
+create-only (D5): the ones already written have no correction path, and a
+fabricated `ageBand` folds into published breakdowns as a real cohort.
+
+So the guard is now the BASE of the merge rather than a branch beside it,
+and the storage key moved to `insight.profileGeneral.v2` with a migration
+that drops any vital equal to the seed's value for that field. The trade is
+explicit: a user who genuinely typed a value the sample persona also has
+retypes one field. The alternative was leaving a fabricated anchor to be
+stamped onto answers nobody can edit.
+
+The mount-time anchors write is deliberately NOT suppressed, though the
+review proposed it as a cost saving. It is the only thing that repairs a
+profile whose anchors were already written — opening the profile once
+replaces the map wholesale — so gating it behind a first-run flag would have
+left every corrupted profile corrupted.
+
+**6 · Erasure reaches the offline mirror.** `firebaseImpl.ts` enables
+`persistentLocalCache()` unconditionally and `hydrate()` reads the whole
+answers subcollection plus the profile, so a deleted account's votes and
+anchors sat in IndexedDB. Nothing evicted them: `hydrate` is a one-shot
+`getDocs` rather than a listener, so the server-side delete produces no
+remove event, and the cache outlived the account on a device the user may
+sell. `deleteAccount` now calls `terminate()` then
+`clearIndexedDbPersistence()` — in that order, because the second refuses a
+live instance — both best-effort, before the existing `insight.*` purge.
+
+This one was a documentation defect as much as a code defect.
+`web/privacy.html` states that deletion "clears the app's data on the device
+you ran it from" and `docs/data-inventory.md` says the same; that claim was
+true of `localStorage` and of nothing else, in the document both stores
+require. D6 already treats this cache as sensitive — it is why Android
+backup is off. Fixing the code rather than the copy, because the copy
+described the right behaviour.
+
+**Amendment (2026-08-06, second) — the bucket cap and `ownerUid`.**
+
+**7 · The anchor bucket cap is no longer allocated first-come-first-served.**
+A dimension holds `BREAKDOWN_MAX_BUCKETS` (24) buckets, nothing evicted one,
+and `by` is carried across every publish — so whoever filled the slots first
+decided what the dimension could ever show. 24 nonsense values blanked it
+permanently, and firestore.rules can only bound an anchor's length. Two
+defences, because the six dimensions are two different shapes:
+
+- **Four have a closed vocabulary SHORTER THAN THE CAP.** ageBand, gender,
+  education and relationship come from `<select>`s of 7, 4, 15 and 6 values.
+  Checking membership means those dimensions cannot be exhausted at all —
+  there are fewer legal buckets than slots. That is the complete fix, and it
+  is available only in the trigger: the rules layer cannot hold a
+  vocabulary, and a client choosing from a list says nothing about what a
+  script sends. `npm run check:anchors` holds `BREAKDOWN_DIM_VOCAB` equal to
+  the profile's lists, on both the PR and the deploy path.
+
+- **City and country cannot be closed that way** — 10,929 places and ~249
+  countries against 24 slots — so the cap itself changed. A bucket below the
+  k-floor is published to nobody, so it is now evictable: a new bucket
+  displaces the smallest sub-floor one, and a bucket at or above the floor is
+  never evicted. Among equals it is oldest-out, and that is required rather
+  than tolerated — the attack state IS 24 buckets of one answer each, so a
+  rule protecting incumbents there would protect exactly the junk. What it
+  costs is the long tail, which the cap was already documented to degrade;
+  what it buys is that recurrence wins.
+
+The eviction loss is real and bounded: an evicted bucket's partial count is
+discarded, so a value that returns restarts and undercounts by at most
+`AGG_MIN_N - 1`. It only ever applies to counts no reader has seen, and it
+replaces a dimension that showed nothing at all.
+
+**Found while writing the vocabulary: `Vocational / trade` never counted.**
+It shipped as an `<select>` option and `breakdownBucket` rejected it for its
+entire life, because a slash is in that function's rejected character class.
+The answer wrote; the aggregate silently never counted it. Renamed to
+`Vocational or trade` on both sides, and rule 3 of check:anchors is that bug
+turned into a check.
+
+**8 · `deleteAccount` removes `ownerUid`.** `createGroupV2` stamps it and
+NOTHING reads it — a repo-wide grep finds one write and no reader — which is
+exactly why three erasure phases walked past it while scrubbing the two
+load-bearing fields beside it. firestore.rules serves the whole group
+document to every current member, so it published a deleted account's raw
+uid to the circle, and to anyone they invited afterwards, indefinitely. That
+is the shape the reveal scrub one screen below already refuses.
+
+Deleted rather than reassigned to a surviving member: nothing reads it, so
+inventing a successor would be a fact this codebase has no use for.
+`leaveGroupV2` is deliberately NOT changed — D45 settles that leaving a
+group is not an erasure request.
+
+The erasure e2e could not see this: its shared-group fixture was owned by
+the SURVIVING member, so there was nothing of the deleted user's in it to
+miss. The fixture now names the doomed account, which is the ordinary case,
+and asserts the field is gone.
+
+**Amendment (2026-08-06, third) — the reveal's membership snapshot.**
+
+**9 · A day's reveal is scoped to the members who were there for that day.**
+The reveal doc carries its own `members` array and firestore.rules gates the
+read on it, which is what makes the guarantee retroactive in one direction —
+joining tomorrow does not hand you every past day, leaving does not retract
+the days you played. The array was membership AT REVEAL TIME, which is not
+the same thing as membership on the day revealed.
+
+Day D is revealed by the D+1 scan, and that scan runs `every 120 minutes`.
+So anyone joining between 00:00 UTC and it was a current member when the
+snapshot was taken, went into `members`, and read day D's votes and names
+for a day they were not in the group for. Up to two hours, every day.
+`revealGroupDay` claimed to have closed this by preferring the page snapshot
+to a fresher read — but both reads happen on D+1, so that only ever closed
+the seconds between them.
+
+Groups now carry `memberJoinedAt { uid: Timestamp }`, written by
+`createGroupV2` and `joinGroupV2` and removed by `leaveGroupV2` and
+`deleteAccount` — the same four paths as `memberNames`, because a uid left in
+either map is the erasure leak §8 records. `revealMembersFor` (pure.ts)
+filters the array to members who joined before the END of the day (someone
+who joined midway through it was there for it), plus anyone who actually
+played it.
+
+**Why the played-it clause.** Rules accept a duel answer up to four days
+late, so a member can legitimately land a vote for a day preceding their
+join: an offline client flushing a queue, or a fresh group playing a recent
+day. Without the clause the pipeline publishes a reveal containing someone's
+own vote that they alone cannot read — and "you see the days you played" is
+the invariant the e2e already asserted.
+
+**A member with no recorded join time is included, and that is the answer
+rather than a fallback.** The field is written from the day this shipped, so
+its absence means the member joined before that, which is before any day the
+function will be asked about. Reading absence as "exclude" would blank every
+reveal for every group alive on deploy day — which is also why there is no
+ordering hazard in the rollout: the read side degrades permissively, so the
+field can appear before anything depends on it. The residual is one day
+wide: members who joined before the deploy keep the old scope for days not
+yet revealed.
+
+**The e2e was asserting the leak.** Its latecomer leg read the reveal as the
+LATECOMER — an account that joined three days after the day in question and
+never played it — and failed if the read was denied. It now reads as the
+creator who played, and asserts the latecomer is denied, so the leg proves
+the fix instead of the bug.
+
+**Amendment (2026-08-06, fourth) — three ways a thing stopped happening.**
+
+**10 · The reveal scan asks about the whole pending window.** It asked about
+exactly one day, `utcDayKey(-1)`, and the schedule never passed one — so a
+group-day was revealable during the single UTC day after it and never again.
+That is not the window the rest of the system works in: rules accept a duel
+answer four days late, deliberately, and `onV2AnswerCreated` re-adds the day
+to `pendingDays` whenever one arrives. An answer syncing on D+2 therefore
+re-opened day D, correctly, into a scan that would never ask about day D
+again. Nothing errored: both members had answered, the day sat pending
+forever, and a duo's streak stayed at whatever the earlier empty settle left
+it. Only an operator calling `revealDuelsNowV2({day})` recovered it.
+
+`scanDays` now returns `PENDING_DAYS_KEEP` days, which is the same bound the
+pruning uses — a pending day older than that can never gain another answer,
+so the scan asks about exactly the days that can still change. Steady-state
+cost is five extra indexed queries per run returning nothing. An explicit
+`dayKey` still means that day alone, which is what the operator lever and
+every e2e leg pass.
+
+**The second cause, independent of the first.** `onV2AnswerCreated`
+downgraded any non-NOT_FOUND failure of the `pendingDays` mark to
+`logger.warn` and returned normally, which made the trigger's `retry: true`
+dead on that branch. The mark is the ONLY thing that puts a day in front of
+the scan, so losing it lost the reveal. D19's stated safety net — "the answer
+never folded into any aggregate, a louder problem, already logged" — is true
+of the vote path and false here: the duel branch returns before any aggregate
+work, and `monitoring/onV2AnswerCreated-errors.json` filters severity>=ERROR
+while this logged WARNING. It rethrows now; `arrayUnion` is idempotent, so
+redelivery is free.
+
+**11 · `runBuildModQueue` pages through `v2_flags`.** It called `.get()` on
+the whole collection, and the collection has no upper bound: `MOD_ADVISORY`
+makes the keep-verdict sweep the only path that deletes a flag and it is dead
+code while advisory is on, `deleteAccount` removes one uid's, nothing else
+does, and there is no TTL. On a 256 MiB instance — `LIGHT_UNBOUNDED`, whose
+own rationale describes a *streaming* `recursiveDelete` — that is an OOM well
+before the 480 s deadline the code reasons about. Silent in-band, too: the
+stale queue keeps serving, `queuedAt` never advances, `gen` freezes, and
+every re-judgement throws `already-exists`. `buildModQueueNow` shares the
+options, so the manual recovery lever died the same way.
+
+What it holds now is one counter per DISTINCT take rather than one object per
+flag. **That is not a hard bound and this record does not claim one** — it
+grows with the number of takes ever flagged. The real bound is retention, and
+choosing one (a flag TTL, or running the sweep in advisory mode) is a
+data-policy decision with its own arithmetic. Deliberately not taken here.
+
+**12 · `deleteAccount` unlatches `torndown` when the wipe is refused.** The
+latch is set as the callable's first statement, deliberately — work already
+in flight must not re-create an `insight.*` key mid-wipe — and nothing ever
+reset it. But a refused wipe is an expected outcome, not an exceptional one:
+`index.ts` refuses the auth delete whenever any phase failed, every network
+timeout lands there too, and `LivePrivacyPanel` keeps the user in the app
+afterwards. Left latched, that session was permanently deaf and nothing said
+so: `refreshLive()` and `wake()` no-op so it can never reconnect after going
+offline, `resubscribeForToday()` no-ops so the midnight rollover renders a
+new deck while the previous day's listeners stay attached and billed, and
+`subscribeToAuth`'s handler bails — disabling the uid-change guard whose own
+comment says it exists to stop one person's answers being shown to another.
+`vote()` is not gated, so writes kept flowing. Only a restart cleared it.
+
+**Amendment (2026-08-06, fifth) — the tail of the review.**
+
+**13 · The gates that could not see.** `check:appcheck` and
+`check:deploy-targets` read one directory level, so a callable in a
+subdirectory was invisible to both — and to their own vacuity counters,
+which only count what they read. `check:globals` rule 2 substring-matched
+`spec-index.js` without stripping comments, so commenting out a side-effect
+import passed; five v17 modules assign no global at all, making that line
+their whole wiring. `check:cities` restated `BREAKDOWN_MAX_LABEL` and the
+rejected character class instead of reading them. And `npm run lint` applied
+ZERO rules to `scripts/` and `firestore-tests/` — measured, against 106 for
+`src/lib/firebase.ts` — so `--max-warnings 0` said nothing about the code
+whose job is saying things about other code. All four fixed; the last found
+one dead import immediately, and then caught a genuine bug in this very
+change (an undefined `adb` in the moderation e2e) before it was committed.
+
+**14 · What the UI and the store forms claimed.** `LIVE.social.leaveGroup`
+had shipped with **zero call sites in any live surface** — the demo panel's
+Leave button is swapped out when live is on — while `STORE-FORMS.md` and
+`SHIP-CHECKLIST.md` answered Apple guideline 1.2 with
+"`removeGroupMember` / `leaveGroup`". No `removeGroupMember*` callable has
+ever existed. A **Leave circle** control is now wired into `LiveDuelPanel`,
+two-step because the last member out takes the group and its reveals, and
+both documents now describe what ships. **No owner-side remove callable was
+added**: ejecting someone is a moderation power in a mutual-consent circle
+and needs its own decision, so the forms say so rather than implying one.
+
+**15 · Three claims that were false in the code's own voice.**
+`slicing.test.ts` stated in the present indicative that an e2e leg proved
+D44; no such leg was ever written, and mutating `slices` to `true` left all
+four runners green while eighteen Art. 9 items published their cross-tab.
+The enforcement point is now `breakdownFor` in v2.ts with cases of its own.
+`feed-interleave.test.ts` declared its own copy of the loop and its own
+constants, so nine assertions exercised the test file — and the shipped loop
+had meanwhile grown a third stream the copy did not model; the loop now
+lives in `data/feed-interleave.ts` and both import it. `e2e-moderation`
+step 6 printed a pass for an assertion nobody wrote (`void judged;`), and
+the erasure e2e's only client-authored write was denied every run and
+swallowed, so it asserted the absence of a document that never existed.
+
+**16 · The rest.** The privacy panel's Sentry OFF is enforced at the two
+send sites rather than trusted to a teardown that cannot happen, and
+`setSentryUser` is gated too — `wake()` was re-attaching the uid after
+opt-out, turning an anonymous residual into an identified one. `linked` is
+derived from auth instead of local state seeded to false, which was telling
+Google-linked users they were anonymous. `resetForNewUid` publishes
+`window.IS_TEST_RESULTS` through a shared helper and clears the two
+one-shot flags, which are now per-uid. Retired daily questions stay in the
+bank as tombstones so the kill switch stops re-mapping the pager. The
+reveal's profile reads carry a `fieldMask` — measured at 50 KB to 42 bytes
+on a profile whose `testResults` the rules bound only by key count.
+twin/contrarian need a spread, not just a sample: a three-way tie was
+crowning one member and calling another "breaks ranks" beside a literal
+3/3. And `check:figures` is file-aware, which is how `SCHEMA-V2.md` came to
+say the seed writes 191 docs on one line and 369 on another.
+
+**Deliberately NOT done, with the reason.** Invite codes are still permanent
+bearer credentials — rotating one inside `leaveGroupV2` would break the
+code for every remaining member, and the growth loop is the reason the code
+is shared at all; that is a product trade, not a bug fix. `v2_flags` still
+has no retention bound (§11). No `content/options.lock.json` gate was added
+for question option arrays: it is the right shape, but it needs a decision
+about what a legitimate option edit looks like before a ratchet can refuse
+the illegitimate ones.
+
+**KNOWN RESIDUAL, stated because it is a real one.** The played-it clause is
+also an unlock: join a group, backfill an answer for a day inside the
+four-day window, and the reveal admits you. Strictly narrower than what it
+replaces — passive joining now reveals nothing, and the unlock costs a
+visible vote in the circle's own reveal — but not nothing. Closing it means
+bounding the WRITE rather than the read: firestore.rules would have to refuse
+a duel answer for a day preceding the member's join. That is a change to the
+densest rule in the file, whose failure mode the file itself describes as "a
+vote that vanishes", and it would refuse the legitimate fresh-group case
+above. It is a decision of its own and is deliberately not taken here.
+
+## D56 · The logic test stops telegraphing its rules: banded families, and every puzzle is on the clock
+
+**Date:** 2026-08-06 · **Status:** Adopted (owner: "the biggest impact"
+inside the D31 posture)
+
+**The problem.** D31 made every attempt's puzzles fresh, but deliberately
+fixed the family SEQUENCE — item 3 was always a shape cycle, items 9–11
+always Latin squares. That fixed order was the one piece of a fresh form a
+repeat taker still knew in advance: with thirteen families in a known
+order, the test was coachable per slot, which converts fluid reasoning
+into partly-practiced pattern matching. Separately, an attempt had no time
+bound at all — an item could be held open indefinitely, which is neither
+how matrix tests are administered nor neutral against mid-item consulting,
+and D53 had already recorded unbounded backgrounded time as an accepted
+timing skew.
+
+**What changed (generator v2).** The twelve slot WEIGHTS are untouched —
+`1,1,1.5,2,2,2,2.5,2.5,3,3,3,3.5` is the calibration D31 anchored
+`logicPctile` to, and it does not move. What varies is which family
+occupies a slot: each weight band draws from a pool, without replacement,
+on its own seeded stream. Five families joined so every band has a real
+pool: `sizeCycle` (w1.5), `dotSub` (w2), `innerGrow` (w2.5), `latinDots`
+(w3) and `overlayXor` (w3.5 — Carpenter's figure
+addition-and-subtraction, the classic APM tail motif). The arithmetic:
+band draws yield 2·2·24·6·24·3 = **41,472 family sequences** (ordered
+draws: 2! · C(2,1) · P(4,3) · P(3,2) · P(4,3) · C(3,1)), each then
+parameterised per item as before — the sequence is no longer knowledge.
+No family repeats within a form.
+
+**The clock.** Every puzzle now has a 90-second budget (>5× the modelled
+median of 17s — a careful solver is never rushed). An expired item
+settles as unanswered: marked wrong, timed at the full budget. The
+countdown renders only inside the final 20 seconds, absolutely
+positioned so its appearance never shifts the puzzle mid-solve. Expiry is
+deadline arithmetic, not tick counting, so a backgrounded tab cannot buy
+unbounded think time — this caps (not fixes) the D53 accepted limit on
+Pace timing. Recorded times are clamped to the budget.
+
+**What deliberately did NOT change.** The weight ramp, the percentile
+curve and its 94 ceiling (raising the honest ceiling needs harder items
+AND measured norms — a curve re-derivation without data would be
+model-on-model), the result schema (v2 payloads carry `gv`, which now
+reads 2), and the D31 device-local posture: this test still sends nothing
+anywhere, and the client-side honesty note in logic-gen.ts still holds —
+banding closes advance knowledge and coaching surface, not devtools.
+Verified server-scored attempts remain the recorded ticket price for any
+social or comparative surface (D31's deferral arithmetic stands).
+
+**Reconstruction survives the version bump.** D31 commits to {seed, gv}
+rebuilding a result's exact form forever, so v1 stayed generable:
+`generateForm(seed, 1)` dispatches to the frozen template (identical
+construction and option streams), and golden tests pin three v1 seeds —
+one per tail family, seed 7 down to every visible cell and the full
+option order — so drift in the frozen path fails CI rather than quietly
+reinterpreting history. An unknown gv throws. The overlay stamps
+`gv: form.version` as before; old saved results render unchanged.
+
+**Verification.** The D53 ambiguity sweep now covers the new families —
+each got a completion predicate (the family rule plus the grid's visible
+uniformities and exact element identities), and the sweep's contract is
+unchanged: every answer must satisfy its predicate, no distractor may,
+across every seed × item × option in the suite's 200-seed sweep.
+`overlayXor`'s construction guarantees a visible row whose operands
+overlap — on that row XOR visibly differs from union/intersection/copy,
+so the union corruption is a wrong answer, not an ambiguous one — and the
+family validator asserts that property from the cells. The banded
+template is pinned literally in the test (weights per slot, pool
+membership per slot, no-repeat), so moving a family between bands is a
+visible recalibration. The overlay suite drives a full expiry: countdown
+hidden at 69.5s, visible at 70s, item settled wrong at 90s + reveal
+delay, recorded at exactly 90000ms.
+
+**Accepted limits, recorded.** The w1 band holds only two families, so
+slots 1–2 vary in order but not membership — acceptable at the easy end,
+where coaching buys least. The 90s cap counts real-world interruptions
+(a phone call mid-item forfeits that item; Retake exists, and a bounded
+loss beats an unbounded hole). The countdown is visual plus a
+`role="timer"` label; the test's non-visual scope is unchanged from D53.
+Family draws are per-band independent, so cross-band composition (one
+item combining two bands' rules) is still future work — it is the honest
+route to raising the ceiling past 94, once there are measured norms to
+recalibrate against.
+
+## D57 · Verified logic attempts: D31's deferral reversed — the server holds the key
+
+**Date:** 2026-08-06 · **Status:** Adopted (owner: "lets do the backend
+verified attempts too, reverse d31") — this reverses the "Backend sync:
+deferred" clause of D31. Everything else in D31 (generation over a bank,
+the honesty posture, v1 reconstruction) stands.
+
+**The reversal, and what it cost.** D31 priced the sync bundle and
+deferred it: a fifth `testResults` key under the ≤8 rules cap, a
+data-inventory row, a store-form re-answer. That exact bundle now ships —
+plus one thing D31's costing could not have known, because it priced an
+UNVERIFIED sync: a verified score cannot ride the client-only
+`saveTestResult` path at all. A client-writable key is a forgeable one,
+so `testResults.logic` lands with a rules change after all — the
+fcmTokens presence-not-mutation pattern, case-for-case — and only the
+scoring callable writes it. The store-form re-answer came back clean:
+the score is User Content → "Answers and test results", already declared
+Yes/linked; the histogram carries no identifier. Practice attempts still
+send nothing anywhere, and the result-screen copy now says "practice"
+where it used to say "this test", in the same commit that made the
+distinction real.
+
+**The design.** Two callables (App Check-enforced, LIGHT_CALLABLE,
+us-central1), one attempt doc per account at `v2_logic_attempts/{uid}`,
+opaque even to its owner:
+
+- `logicStartV2` mints a crypto seed server-side, stores
+  `{seed, gv, status: "open", startedAtMs, deadlineMs, dayKey,
+  startsToday, normsCounted}`, and returns the twelve puzzles as
+  `{cells, opts, diff}` — the answer index, the family names and the
+  seed are withheld. Given cells and options, the only route to the
+  answers is solving. Guards: 3 starts per UTC day (an unfinished
+  restart is a preview channel, so it is bounded, not free), and a
+  30-day re-verify cooldown once scored. A crashed attempt can restart;
+  it just burns a start.
+- `logicSubmitV2` takes twelve raw pick indexes (-1 = expired),
+  regenerates the form from the stored `{seed, gv}`, scores inside the
+  deadline (12 × 90s + one item of slack — the D56 cap arithmetic,
+  server-enforced in aggregate), and in one transaction: marks the
+  attempt scored, writes the canonical result to `testResults.logic`,
+  and folds the account's FIRST scored attempt into the norms
+  histogram. The response returns marks, score, percentile — and only
+  now the seed, which post-scoring is no longer an answer key, so the
+  local copy stays reconstructable (the D31 property practice results
+  have always had).
+
+**Why the seed never travels, with the arithmetic.** The generator is
+public byte-for-byte on every client, so seed → full answer key in
+~0.25ms. Recovering the seed from the puzzles means sweeping the 2^32
+seed space against the served cells: ≈ 4.3e9 × 0.25ms ≈ 12 CPU-days,
+perhaps 10× less with a construction-only matcher — against a ~19.5
+minute submission window. Feasible for a cluster, and beside the point:
+cracking the seed yields exactly what photographing the puzzles and
+asking a strong solver yields, at far higher cost. Solve-by-proxy
+strictly dominates, no unproctored test prevents it, and the clock
+bounds it. "Verified" therefore claims precisely: scored server-side, on
+a form the client could not have seen in advance, within the standard
+administration window, one canonical score per account per cooldown.
+It does not claim proctored. (The 2^32 space is a generator-inherited
+bound; a future gv can widen it if verified scores ever gate something
+worth a cluster.)
+
+**Norms, and the flip that has NOT happened.** Exact counts in
+`v2_logic_norms_private/global` (13 score buckets + n, no uid, no
+anchors, no timing); public mirror at `v2_logic_norms/global`
+materialized only at or above AGG_MIN_N and rewritten every
+PUBLISH_EVERY-th count — the same floor and the same step-attribution
+argument as the question aggregates, imported from the same constants.
+Only first scored attempts count (D32's rule, D32's reason: retakes
+measure practice). The displayed percentile is STILL the modelled
+logistic — the result stores `source: "model"` — because a histogram of
+n < floor is not a norm study. Flipping verified percentiles to the
+measured distribution once n clears the floor is deliberate future work
+and will be its own recorded decision; nothing in the UI claims
+measurement today (LOGIC_VERIFIED_NOTE says so explicitly).
+
+**Erasure.** The attempt doc is uid-keyed OUTSIDE the v2_users subtree,
+so `deleteAccount` gained a dedicated phase, and the erasure e2e seeds
+and asserts the doc like every other per-uid path. The histogram
+survives deletion — it was never attributable to begin with, same as
+the k-floored question aggregates a deleted account's answers fed.
+Deleting your OWN verified score from your profile doc is allowed and
+pinned by a rules test (it is your doc; the cooldown and the norms count
+live server-side, so deletion resets nothing) — but the door does not
+swing back: reintroducing the key is forgery and is refused.
+
+**Enforcement inventory, because a claim needs a test.** Rules: clients
+cannot introduce, mutate, or reintroduce `testResults.logic`; the
+attempt doc and exact norms are denied to everyone; the mirror is
+read-only — all pinned in rules.test.ts, including the post-merge trap
+that keeps big5/politics syncs working while the logic key rides along.
+Functions: logic.test.ts pins the curve landmark-for-landmark against
+the client copy, scoring against the real generator, the cooldown/rate
+arithmetic, the wire shape (cells+opts+diff and NOTHING else), and the
+foldNorms algebra. The generator ships as two byte-identical copies
+(functions/tsconfig compiles only its own src/), held equal by
+`check:logic-sync` in ci.yml and on the deploy path via
+backend-checks.yml — a drifted server copy would score forms the client
+never rendered. check:appcheck counts both callables enforcing;
+check:fn-runtime and check:deploy-targets cover the new exports; the
+deploy workflow's --only list names them.
+
+**Accepted limits, recorded.**
+- The callables' end-to-end leg (emulated functions driving start →
+  submit → testResults + norms assertions) is deferred: the functions
+  emulator cannot start in this development sandbox (the CLAUDE.md
+  environmental note). Coverage today = pure unit + rules + overlay
+  tests over a mocked transport; the erasure e2e rows DID land and run
+  in CI. Writing an e2e leg that cannot be executed before commit would
+  trade a recorded gap for unverified green — the worse deal.
+- A failed submit keeps the picks in memory for Retry; killing the app
+  between finish and submit loses the attempt (it expires server-side,
+  having cost one of the day's three starts). Not persisted to storage
+  on purpose — a stored pick queue is a new erasure surface for one
+  narrow failure window.
+- Per-item timings stay device-local even on verified results; the Pace
+  lens reads the local values and the server stores only the duration it
+  observed. The verified record makes no claim about per-item speed.
+- The `db` device-bind claim (D29) is not demanded by the callables —
+  matching the answer rules' soft-enforce state. If D29 step 2 flips,
+  revisit here: the claim is the anti-account-cycling control, and the
+  3-start/30-day limits are per-ACCOUNT, not per-device, until then.
+- No social or comparative surface reads the verified score yet. This
+  decision builds the score that could survive one; the surface, its
+  k-anonymity story, and the measured-percentile flip are separate
+  decisions.
+
+## D58 · The seed refuses to edit a shipped option set
+
+**Date:** 2026-08-06 · **Status:** Adopted
+
+**What was enforced by nothing.** D52 records "shipped option sets are
+never edited" as an invariant, because answers store `(qid, optionIdx)`
+and nothing else. Swap two options on a live question and every historical
+vote silently changes meaning: no count moves, no aggregate recomputes,
+nothing anywhere reports it. It is the D30 re-key class applied
+retroactively to data already collected — and the enforcement was a human
+reading the diff. `runSeedV2` took an edited `options` array straight
+through `seedDocMatches` (which returns false on *any* changed field,
+including this one) and `batch.set(…, { merge: true })` it over the live
+doc.
+
+Every content review so far has got this right. That is a record, not a
+mechanism. D55's own review found sixteen things by reading; this is the
+class of defect that reading is worst at, because the diff looks like an
+ordinary content edit and the damage is invisible in every artifact
+afterwards.
+
+**The refusal.** `seedOptionConflict` compares the stored option array
+against the one about to be written; a conflict skips that document and
+the run throws `failed-precondition` naming every refusal, old set and
+new. Per-document rather than per-run: a batch of legitimate prompt fixes
+must not be held hostage by one bad edit, and the throw makes sure the
+skip cannot be mistaken for success either way. The legitimate writes are
+already committed when it throws — holding them back would punish the rest
+of the batch for one line.
+
+**Deliberately narrow.** `prompt` edits stay allowed, and that is not an
+oversight: D52's own fix list is mostly prompt rewrites preserving a
+question's meaning ("€500" → "a week's pay"), and a prompt carries no
+index any answer refers to. Only `options` re-keys stored data.
+
+**Appends count as edits.** Adding an option orphans no existing index,
+but it changes what the question asked the people who already answered it
+without that choice. D52's appends are to *banks* — new questions — never
+to a shipped question's option list.
+
+**Creates and pre-`options` docs pass.** A document that does not exist
+has no votes to re-key, and neither does one stored without an `options`
+array. Refusing either would wedge the seed permanently.
+
+**The operator's two legitimate paths are unchanged**: `active: false` to
+retire a question, or append a new qid to replace it. Neither goes through
+this code.
+
+**`runSeedV2` takes its `Firestore` as an argument now**, following
+`runAggTransaction`'s precedent, and the reason is the whole point of this
+record. The guarantee is about what the seed *refuses to write*, and a
+`getFirestore()` inside the body would have made that refusal untestable
+without an emulator — which is the same shape as the gap being closed
+here. `seed.test.ts` drives the real function against a stand-in db and
+asserts the refused document is never written, the allowed prompt fix in
+the same run still is, a create is never refused, and the run's own log
+does not count a refusal as "unchanged". Mutation-checked: deleting the
+four-line guard from `runSeedV2` fails four of the six, and the two that
+survive are the controls that should pass either way.
+
+Testing the predicate alone would not have been enough, and the
+distinction matters: `seedOptionConflict` answering perfectly while
+nothing called it looks identical in `pure.test.ts` and still loses every
+historical vote on the edited question.
+
+**Not done: the CI-side manifest.** A committed snapshot of every shipped
+option set, diffed by `check:content`, would catch the edit one step
+earlier — at review rather than at seed. It is redundant with this, needs
+a new artifact to maintain, and would go stale in the one direction that
+matters (a manifest nobody regenerates passes everything). The
+server-side refusal is authoritative because it reads the live documents;
+that is where the invariant is actually about to be broken.
+
+## D59 · The deferred chunks stop caching their own failure
+
+**Date:** 2026-08-06 · **Status:** Adopted
+
+**The bug.** `spec-index.js` memoised both deferred groups (D25, D48) into
+a plain module-level variable: `if (!p) p = (async () => …)()`. That is
+correct for what it was written for — `main.jsx` starts each load once,
+every opener awaits the same promise, the mount tests await them in
+`beforeAll` — but `if (!p)` cannot tell a resolved promise from a rejected
+one. One failed chunk fetch (a dropped connection, a stale asset after a
+deploy, a flaky native file read) was therefore **permanent for the
+session**: every later call replayed the same rejection. The World feed
+and all five cross-link overlays stayed gone until relaunch, and because
+app-shell's openers catch and return, the symptom was a tap that did
+nothing — no toast, no retry, no report.
+
+**The fix is one helper.** `data/lazy.ts`'s `retryable()` clears the
+cached promise on rejection and rethrows. No retry loop, no backoff — the
+caller decides whether to ask again. The overlays get recovery for free
+precisely because every one is reached through an opener that awaits this
+promise: the second tap re-attempts the import. Nothing else changed.
+
+**The success path is unchanged, which matters as much.** Concurrent
+callers still receive the same promise object, so this cannot turn one
+deferred group into two parallel downloads — pinned by a test asserting
+identity, not just equal values.
+
+**Cleared before the rethrow, not in a `finally`.** A caller that catches
+and retries synchronously — the exact shape app-shell's openers have —
+must find an empty slot rather than the promise it just saw reject.
+
+**Mutation-checked.** Reverting `lazy.ts` to `if (!inflight) inflight =
+load()` fails three of the five cases and passes the two success-path
+ones. A test suite that only covered the success path would have passed on
+the bug, which is how it shipped in the first place.
+
+**The feed still gets one shot.** `main.jsx` calls `loadWorldFeed()` once
+and reports a failure to Sentry; nothing re-attempts it, so a failed feed
+chunk still costs the feed for the session. Retry is now *possible* there
+rather than automatic — wiring a user-visible retry into the daily card is
+a UI decision, not a memoisation one, and is left for whoever designs that
+affordance.
+
+**One import that is not a spec module.** `spec-index.js` now imports
+`./data/lazy`, above the ordered list rather than inside it, because
+nothing in that list reads it and the list's order is a contract. The
+direction is the allowed one: `spec/` and `spec-index` may import `data/`
+(as `main.jsx` and `logic-test.jsx` already do); `data/` may not import
+them back.

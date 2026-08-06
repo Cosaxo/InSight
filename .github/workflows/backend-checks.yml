@@ -68,12 +68,25 @@ jobs:
       # trigger accepts, and it must equal the committed catalogue files
       # exactly — absence included.
       - run: npm run check:catalogs
+      # logicSubmitV2 scores against the form the deployed generator copy
+      # produces; it must be byte-identical to the client's generator or
+      # the server marks puzzles the player never saw (D57). Node stdlib
+      # only, no root node_modules.
+      - run: npm run check:logic-sync
       # The seed callable compiles functions/src/v2content.ts in, so drift
       # between it and /content is a statement about what reaches
       # production: a hand edit to the generated file, or a /content change
       # without a regen, ships a bank nobody reviewed. Regenerates in
       # memory and compares bytes. Node stdlib only, no root node_modules.
       - run: npm run check:content
+      # The four closed anchor vocabularies. Same argument as the catalogue
+      # gates above: the deployed trigger buckets on these exact strings, so
+      # a label the client can send and pure.ts does not know folds into no
+      # bucket — the answer writes and is never counted. The length rule is
+      # the load-bearing one: a vocabulary shorter than the bucket cap cannot
+      # be exhausted by a caller, which is the property that closes D47's
+      # slot-exhaustion hole. Node stdlib only.
+      - run: npm run check:anchors
 
   rules-tests:
     runs-on: ubuntu-latest

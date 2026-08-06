@@ -25,9 +25,9 @@
 // wraps every tab and overlay in ErrorBoundary, so a crashed screen still
 // returns cleanly from render(). Assert on the boundary, never on a throw.
 
-import { beforeAll, afterEach, describe, expect, it, vi } from "vitest";
+import { beforeAll, beforeEach, afterEach, describe, expect, it, vi } from "vitest";
 import React from "react";
-import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 
 // 15s per test, not the 5s default: every case here mounts the FULL app in
 // jsdom, and the v15 revision roughly doubled the spec layer's feed weight —
@@ -248,5 +248,194 @@ describe("the live gates hold in the DOM, not just in the source", () => {
     // to draw. Asserting the layer exists, not just that the gate does.
     mountLive();
     expect(window.WORLD_FEED_COMMENTS).toEqual({});
+  });
+
+  // D50. A lens question woven into a LIVE feed is a self-report item: the
+  // answer lands in the on-device lens store, no backend aggregate exists,
+  // and the authored demo counts the card carries must never render as a
+  // split. buildFeedGlobals (data/live.ts) replaces WORLD_FEED_QS and
+  // TEST_FEED_QS with live-shaped cards but leaves the lens pool alone —
+  // this is the case that notices if the selfOnly treatment ever comes off.
+  it("a live lens card records locally and shows no invented crowd", () => {
+    // Nine world cards: the weave inserts the first lens card after the
+    // ninth. The live pool starts at qi 0 (lens-live.test.ts pins that), so
+    // the first lens card on screen is the first lens's first question.
+    const expectNoBoundary = mountLive({ feedCards: 9 });
+    const lens = window.IS_LENSES[0];
+    const q0 = lens.questions[0].q;
+    // The prompt div is a direct child of the card root, so its parent
+    // scopes every query to THIS card — nine world cards share their two
+    // option labels, and 'Strongly agree' repeats on later lens cards.
+    const card = screen.getByText(q0).parentElement;
+    try {
+      fireEvent.click(within(card).getByRole("button", { name: "Strongly agree" }));
+      // selfOnly cards skip the consequence beat, so the answered state is
+      // already on screen — no settle wait, unlike the D11 cases above.
+      // 1. The instrument recorded it, inverted: the feed scale runs
+      //    agree→disagree while the store runs disagree→agree, so option 0
+      //    stores value 4 — which one answered, uninverted item scores as
+      //    100 on its dimension in live mode (no prior to dilute it).
+      expect(window.LENSES.done(lens.id)).toBe(1);
+      expect(window.LENSES.score(lens.id)[lens.questions[0].d]).toBe(
+        lens.questions[0].invert ? 0 : 100,
+      );
+      // 2. Nothing left the device: LIVE.vote never saw the lens card (D31's
+      //    contract for self-tests — lens answers have no backend at all).
+      expect(live.votes).toEqual({});
+      // 3. No split, no votes count — the acknowledgment instead. Both
+      //    halves matter: the numeral/fill suppression AND the note, so a
+      //    broken gate and a vacuous render both fail here.
+      expect(card.textContent).not.toMatch(/\d\s*%/);
+      expect(card.textContent).not.toMatch(/votes/i);
+      expect(card.textContent).toContain(`Saved to your ${lens.title} lens`);
+      // 4. No engage row: takes and who-voted are demo surfaces (D11), and
+      //    a lens card must not resurrect them inside a live session.
+      expect(within(card).queryByRole("button", { name: /takes$/i })).toBeNull();
+      expect(within(card).queryByRole("button", { name: /who voted/i })).toBeNull();
+      expectNoBoundary("live lens card");
+    } finally {
+      // The lens store persists to localStorage and lives for the module —
+      // leave it as the next case expects to find it.
+      window.LENSES.reset();
+      localStorage.removeItem("insight.lenses.v1");
+    }
+  });
+
+  // D51. The module stores' purge listeners are covered in
+  // purge-wipe.test.ts; this is the COMPONENT half: the feed stays mounted
+  // across a uid change and persists four of its maps by spreading state
+  // back to the purged keys, so the event must reach component state too.
+  // Asserted through the DOM — an answered card's exact-label option
+  // buttons are gone (the result tiles carry the share in their name), and
+  // the purge brings them back: the new account meets a fresh card.
+  // daily-split.jsx carries the same listener shape; the scan
+  // (check:purge) holds both registered.
+  const removeInsightKeys = () => {
+    for (let i = localStorage.length - 1; i >= 0; i--) {
+      const k = localStorage.key(i);
+      if (k && k.startsWith("insight.")) localStorage.removeItem(k);
+    }
+  };
+
+  it("the mounted feed drops its answered state when the purge announces", async () => {
+    // Earlier cases voted this same fixture card, and the feed seeds its
+    // votes from insight.feedVotes.v1 at mount — start from clean keys or
+    // the card mounts already answered and there is nothing to click.
+    removeInsightKeys();
+    const expectNoBoundary = mountLive();
+    fireEvent.click(screen.getByRole("button", { name: FEED_OPTIONS[0] }));
+    await act(async () => { await new Promise((r) => setTimeout(r, 1200)); });
+    expect(
+      screen.queryByRole("button", { name: FEED_OPTIONS[1] }),
+      "the fixture card did not reach its answered state",
+    ).toBeNull();
+    act(() => {
+      // exactly purgeLocalTrace's behaviour: keys first, then the announcement
+      removeInsightKeys();
+      window.dispatchEvent(new Event("insight:local-purge"));
+    });
+    expect(
+      screen.queryByRole("button", { name: FEED_OPTIONS[1] }),
+      "the purge did not clear the feed's vote state",
+    ).not.toBeNull();
+    expectNoBoundary("feed after purge");
+  });
+});
+
+// The demo persona must not become a live user's profile — on ANY mount.
+//
+// GeneralPanel seeds its state from localStorage and writes the whole blob
+// back on mount, with no edit made. So the first open persisted a record,
+// and every open after that found one and took the merge path — which used
+// to spread the sample persona (`age 34 · Editor · independent press · MA
+// Literature · Univ. of Oslo`) underneath it. The live-mode guard sat past
+// that branch and was unreachable from the second mount onward.
+//
+// It does not stop at cosmetics: GeneralPanel's other effect maps the same
+// vitals onto the seven anchor keys and calls LIVE.saveAnchors, which writes
+// them to `v2_users/{uid}`; answerAnchors() then stamps that map onto every
+// answer the user creates. Answers are create-only (D5), so a fabricated
+// ageBand cannot be corrected after the fact — it is folded into published
+// breakdowns as a real cohort.
+//
+// TWO mounts, not one, because one passes on the code this replaced.
+describe("live mode never inherits the sample persona (D55)", () => {
+  const DEMO_JOB = "Editor · independent press";
+  const DEMO_EDU = "MA Literature · Univ. of Oslo";
+
+  function openProfile() {
+    fireEvent.click(screen.getByRole("button", { name: /^profile$/i }));
+  }
+
+  // jsdom's localStorage is shared across cases in this file, and the panel
+  // persists on mount — so without this, case order decides what case two
+  // reads. (Case two failed exactly that way when it was written.)
+  beforeEach(() => { localStorage.clear(); });
+
+  it("shows no demo vitals on a reopened profile, and anchors none", () => {
+    const saved = [];
+    live = installLive();
+    window.LIVE.saveAnchors = (a) => { saved.push(a); };
+    errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    // First open — writes the localStorage record that used to poison the
+    // second one.
+    const first = render(<App />);
+    openProfile();
+    expect(screen.queryByDisplayValue(DEMO_JOB)).toBeNull();
+    first.unmount();
+
+    // Second open, same device, same storage.
+    render(<App />);
+    openProfile();
+    expect(
+      screen.queryByDisplayValue(DEMO_JOB),
+      "the sample persona's job came back on the second mount",
+    ).toBeNull();
+    expect(
+      screen.queryByDisplayValue(DEMO_EDU),
+      "the sample persona's education came back on the second mount",
+    ).toBeNull();
+
+    // …and nothing derived from it reached the anchors write. This is the
+    // half that outlives the session: an anchor lands on immutable answers.
+    expect(saved.length, "the anchors effect never ran — assertion is vacuous")
+      .toBeGreaterThan(0);
+    for (const a of saved) {
+      expect(a.profession ?? "").toBe("");
+      expect(a.education ?? "").toBe("");
+      expect(a.ageBand ?? "").toBe("");
+    }
+  });
+
+  it("drops the v1 record's demo values but keeps what the user changed", () => {
+    // A device that already ran the old build carries the persona on disk as
+    // its own properties, by then indistinguishable from typed input. The
+    // migration keeps every field that DIFFERS from the seed — only the user
+    // could have put those there — and drops the rest.
+    //
+    // Asserted through the anchors write rather than the DOM, because that
+    // is the half that outlives the device: `job` and `education` are two of
+    // the seven keys saveAnchors sends to v2_users/{uid}.
+    localStorage.setItem("insight.profileGeneral.v1", JSON.stringify({
+      vitals: { job: "Baker", education: DEMO_EDU },
+      interests: [], likes: [], dislikes: [], heroes: [],
+    }));
+    const saved = [];
+    live = installLive();
+    window.LIVE.saveAnchors = (a) => { saved.push(a); };
+    errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    render(<App />);
+    openProfile();
+
+    expect(saved.length, "the anchors effect never ran — assertion is vacuous")
+      .toBeGreaterThan(0);
+    const last = saved[saved.length - 1];
+    expect(last.profession, "the migration dropped a value the user had changed").toBe("Baker");
+    expect(last.education, "a demo value survived the migration").toBe("");
+    // The old key is retired, so the migration cannot run a second time and
+    // re-seed what the user has since cleared.
+    expect(localStorage.getItem("insight.profileGeneral.v1")).toBeNull();
   });
 });

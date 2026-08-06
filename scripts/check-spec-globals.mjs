@@ -28,7 +28,7 @@
 
 import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
-import { collectSpecGlobals } from "./spec-globals.mjs";
+import { collectSpecGlobals, stripComments } from "./spec-globals.mjs";
 
 const { defined, definedBy, referenced, files, specDir, root } = collectSpecGlobals();
 
@@ -44,13 +44,41 @@ for (const [name, sites] of [...referenced].sort()) {
 }
 
 // 2. spec files spec-index.js forgot
-const indexSrc = readFileSync(join(root, "src/v2/spec-index.js"), "utf8");
-for (const f of readdirSync(specDir)) {
-  if (!/\.(jsx?|tsx?)$/.test(f)) continue;
-  if (!indexSrc.includes(`./spec/${f}`)) {
-    failed = true;
-    console.error(`✗ src/v2/spec/${f} is not imported by spec-index.js — its globals never load`);
+//
+// stripComments FIRST, for the reason spec-globals.mjs applies it to every
+// other file it scans: this is a substring test, so a commented-out
+// `import './spec/sheet-escape.js';` satisfied it. Five modules in the v17
+// block are pure side effects — sheet-escape, sheet-drag, scroll-memory,
+// edge-fade, subnav-thumb — so that line is the WHOLE of their wiring. They
+// assign no global, so rule 1 cannot see them; rule 4's count is unaffected;
+// eslint and tsc see nothing. Escape would stop closing bottom sheets on a
+// device with the tree green.
+//
+// …and the question is whether the file LOADS, not whether one particular
+// file names it. A module the ESM graph already pulls in — imported by
+// another spec file, the way world-feed.jsx imports world-feed-math.js — is
+// loaded whatever spec-index.js says, and converted modules are increasingly
+// this shape (D39). Accepting that is what lets the comment trick go: before
+// stripComments, the only way to keep such a file out of the entry chunk was
+// to name it in a COMMENT and rely on the substring match, which is a
+// reference that loads nothing and would have gone on passing if the real
+// import were deleted too.
+const indexSrc = stripComments(readFileSync(join(root, "src/v2/spec-index.js"), "utf8"));
+const specFiles = readdirSync(specDir).filter((f) => /\.(jsx?|tsx?)$/.test(f));
+const importedBySibling = new Set();
+for (const f of specFiles) {
+  const src = stripComments(readFileSync(join(specDir, f), "utf8"));
+  for (const m of src.matchAll(/from\s+['"]\.\/([^'"]+)['"]|import\s+['"]\.\/([^'"]+)['"]/g)) {
+    importedBySibling.add(m[1] || m[2]);
   }
+}
+for (const f of specFiles) {
+  if (indexSrc.includes(`./spec/${f}`) || importedBySibling.has(f)) continue;
+  failed = true;
+  console.error(
+    `✗ src/v2/spec/${f} is loaded by nothing — neither spec-index.js nor an`
+    + " import from another spec file. Its globals never load.",
+  );
 }
 
 // ── 4. the migration ratchet ────────────────────────────────────
@@ -111,7 +139,6 @@ const COUPLING_BASELINE = {
   "src/v2/spec/learn-social.js": 5,
   "src/v2/spec/lens-cards.jsx": 4,
   "src/v2/spec/lens-defs.js": 2,
-  "src/v2/spec/logic-test.jsx": 1,
   "src/v2/spec/map-bottom-card.jsx": 5,
   "src/v2/spec/map-learn-card.jsx": 5,
   "src/v2/spec/map-people.jsx": 8,

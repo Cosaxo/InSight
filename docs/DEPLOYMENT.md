@@ -66,8 +66,22 @@ Firebase project `prvfire33`. Routine backend changes need no manual deploy.
     it still wipes the v1 collections (D13)
   - Hosting (`web/` — the legal pages), as the **last** step and
     `continue-on-error` for the same reason as storage
-  - The main apply runs with `--force` — `onV2AnswerCreated` has a retry
-    policy, which the CLI refuses non-interactively otherwise
+  - The apply is **two steps, and the split is load-bearing.** Rules and
+    indexes go first with no `--force`; functions follow with it.
+    `onV2AnswerCreated` has a retry policy, which the CLI refuses
+    non-interactively without the flag — but `--force` is deploy-wide, not
+    a functions option. `firebase-tools` reads it as
+    `shouldDeleteIndexes`/`shouldDeleteFields` (`lib/firestore/api.js`), so
+    while the two shared one command, every deploy deleted whatever indexes
+    and field overrides production held that `firestore.indexes.json` does
+    not name — and that file declares `"indexes": []`. The two the runbook
+    tells an operator to create by hand are exactly that shape: the
+    `v2_agg_events.expireAt` TTL (LAUNCH-RUNBOOK §5.1, the 90-day bound D28
+    rests on) and the composite index `v2social.ts` names if the duel scan
+    throws `FAILED_PRECONDITION`. Both were being reverted silently, green.
+    Without `--force`, a non-interactive deploy logs the would-be deletions
+    and continues. `npm run check:deploy-targets` fails the build if the
+    two are ever recombined.
 
 ### One-off cleanup still owed in production (D13)
 
@@ -241,8 +255,12 @@ section didn't already say while the system was calm.
 **What this runbook does NOT do is find the ring.** Identification is
 investigative — Auth creation-time clusters, App Check token metadata in
 the function logs, answer velocity across `v2_agg_events` timestamps.
-What is guaranteed is mechanical once you HAVE a uid list: attribution,
-subtraction, republication, in that order.
+Since D54 the first pass of that investigation runs on a clock:
+`ledgerVelocityScan` reads the ledger daily and logs `velocity_flag`
+lines ("Reading the velocity scan" below). A flag is this runbook's
+INPUT, not a verdict — honest crowds trip the same signals on their best
+days. What is guaranteed is mechanical once you HAVE a uid list:
+attribution, subtraction, republication, in that order.
 
 1. **Correct before you delete.** The ring's answer docs
    (`v2_users/{uid}/answers/{qid}`) hold the option each fake picked and
@@ -276,6 +294,56 @@ forensics by design (D28 records the trade). No correction script ships
 in this repo: the first real incident should shape one against its actual
 form, not inherit an untested one; what must not be improvised is the
 order of operations above.
+
+### Reading the velocity scan (D54)
+
+`ledgerVelocityScan` runs daily at 03:47 UTC over the ledger entries
+since its last run (72h catch-up cap) and emits two kinds of line —
+a heartbeat per run, and a warning per finding:
+
+```bash
+# The heartbeat — one per day; a silent week means the scan is not running:
+gcloud logging read 'resource.type="cloud_run_revision"
+  resource.labels.service_name="ledgervelocityscan"
+  jsonPayload.metric="velocity_scan"' \
+  --project prvfire33 --limit 7 --format="value(timestamp,jsonPayload.message)"
+
+# The flags, newest first — kind is volume | cadence | cluster | burst:
+gcloud logging read 'resource.type="cloud_run_revision"
+  jsonPayload.metric="velocity_flag"' \
+  --project prvfire33 --limit 50 \
+  --format="value(timestamp,jsonPayload.kind,jsonPayload.message)"
+```
+
+(The log-field shapes follow the existing policies' filters; as with the
+D37 queries, expect to adjust the resource labels on first real use —
+the outcome strings are read from source, the labels are not.)
+
+What each kind means, and the honest false positive it carries:
+
+- `volume` — a uid with more window entries than the aggregate-feeding
+  bank has questions. No honest client can do this (answers are
+  create-only per question); it is a dedup failure or forged writes
+  either way, so this one is the closest thing to a verdict.
+- `cadence` — inter-answer gaps too regular or too fast to be a person
+  reading questions. False positive: the closest honest shape is the
+  backlog binge, which passes on its gap variance; thresholds in
+  `functions/src/velocity.ts` (`CADENCE_*`).
+- `cluster` — 5+ of the window's voting accounts created within 10
+  minutes of each other. False positive: a launch spike, a press
+  mention, a classroom. This is why flags feed review, not denial.
+- `burst` — a question with an established quiet baseline suddenly
+  taking 4× its trailing mean. False positive: a question going
+  organically viral. Promoted questions' debut days deliberately cannot
+  flag (no baseline yet).
+
+A flag worth acting on becomes a uid list, and the uid list enters the
+correction procedure above — attribute, subtract, republish, then
+delete. Deliberately NO alert policy ships for these (this section's own
+"applied by hand, once, deliberately" reasoning): the flags are a daily
+read during calm, an hourly one during an incident. If evidence ever
+justifies standing eyes, the `metric: velocity_flag` field is what a
+log-based metric selects on — the plumbing is in the line already.
 
 ## Alerting (three alerts, deliberately)
 

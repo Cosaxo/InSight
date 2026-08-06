@@ -19,7 +19,7 @@
 // Schema and access decisions: docs/SCHEMA-V2.md, docs/DECISIONS.md (D5).
 
 import { getFirestore, FieldValue, type Firestore, type Transaction } from "firebase-admin/firestore";
-import { onCall } from "firebase-functions/v2/https";
+import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { assertOperator, HOT_TRIGGER } from "./ops";
 import { onDocumentCreated } from "firebase-functions/v2/firestore";
 import { logger } from "firebase-functions";
@@ -29,13 +29,16 @@ import {
   catalogEntityKey,
   foldAnchors,
   foldCanonAnchors,
-  publishableBreakdown,
+  publishBreakdown,
   publishableCanon,
   seedDocMatches,
+  seedOptionConflict,
+  describeSeedOptionConflicts,
   shouldPublishAgg,
   type BreakdownCounts,
   type CanonCounts,
   type CatalogSpec,
+  type SeedOptionConflict,
 } from "./pure";
 import { FILM_KEYS, ARTIST_KEYS, EMOJI_KEYS } from "./catalogKeys";
 
@@ -63,7 +66,9 @@ export const AGG_MIN_N = 5;
 // there is visible. True, and beside the point: the small-question case is
 // exactly where a per-answer stream is most attributable, because there are
 // few enough voters to guess among.
-const PUBLISH_EVERY = 5;
+// Exported since D57: the logic norms histogram publishes its public
+// mirror on the same cadence, for the same attribution argument.
+export const PUBLISH_EVERY = 5;
 
 // ── questions that never slice (D44) ────────────────────────────
 //
@@ -88,8 +93,17 @@ const PUBLISH_EVERY = 5;
 // question doc (the catalog path's read is the documented exception).
 // check:content holds v2content.ts byte-identical to /content on the deploy
 // path, so a new political item joins this set by existing.
+//
+// Two markers, one set (D52). `test === "political"` is the political
+// TEST's own items. `political === true` is the same Art. 9 judgement
+// applied to ordinary opinion cards — a feed question like "Should voting
+// be mandatory?" is a political opinion in exactly the sense this set
+// exists for, and it cannot reuse the `test` marker: PASSIVE.record and
+// the feed's test-kicker key off `q.test`, so marking a feed card
+// "political" that way would silently count it toward the political
+// test's progress rings.
 export const POLITICAL_QIDS: ReadonlySet<string> = new Set(
-  V2_QUESTIONS.filter((q) => q.test === "political").map((q) => q.id),
+  V2_QUESTIONS.filter((q) => q.test === "political" || q.political === true).map((q) => q.id),
 );
 
 // The predicate, exported because the set alone cannot be asserted against
@@ -99,6 +113,28 @@ export const POLITICAL_QIDS: ReadonlySet<string> = new Set(
 // for the non-political items that share their surface.
 export function slicesDemographics(qid: string): boolean {
   return !POLITICAL_QIDS.has(qid);
+}
+
+/**
+ * The per-anchor breakdown this answer leaves behind — D44's ENFORCEMENT
+ * point, extracted from the trigger so it has cases of its own.
+ *
+ * Returning `{}` for a political item rather than merely skipping the fold
+ * is deliberate: privRef is written with merge:false, so the next answer to
+ * a political question also ERASES any breakdown folded before this guard
+ * existed, instead of carrying it forward untouched forever.
+ */
+export function breakdownFor(
+  qid: string,
+  storedBy: BreakdownCounts | null | undefined,
+  anchors: unknown,
+  optionIdx: number,
+  floor: number,
+): BreakdownCounts {
+  if (!slicesDemographics(qid)) return {};
+  const by: BreakdownCounts = storedBy || {};
+  foldAnchors(by, anchors, optionIdx, floor);
+  return by;
 }
 
 // How long a ledger entry lives (expireAt powers the Firestore TTL policy —
@@ -206,8 +242,18 @@ const CATALOG_DOMAINS: Record<string, CatalogSpec> = {
 
 // ── content seed ────────────────────────────────────────────────
 
-async function runSeedV2(bumpRev = false): Promise<{ written: number; skipped: number }> {
-  const db = getFirestore();
+/**
+ * Exported and db-injected for the same reason runAggTransaction is: the
+ * refusal below (D58) is a guarantee about what this function REFUSES to
+ * write, and a guarantee nothing executes is a comment. `getFirestore()`
+ * inside the body would have made the enforcement untestable without an
+ * emulator — which is exactly the gap that let the invariant go unenforced
+ * for as long as it did. seed.test.ts drives it with a stand-in.
+ */
+export async function runSeedV2(
+  db: Firestore,
+  bumpRev = false,
+): Promise<{ written: number; skipped: number }> {
   const refs = V2_QUESTIONS.map((q) => db.collection("v2_questions").doc(q.id));
   // `active` is the operational kill switch — the seed must never flip a
   // question ops disabled back on, so it is only written on first create.
@@ -224,6 +270,7 @@ async function runSeedV2(bumpRev = false): Promise<{ written: number; skipped: n
   let batch = db.batch();
   let inBatch = 0;
   let written = 0;
+  const refused: SeedOptionConflict[] = [];
   for (let i = 0; i < V2_QUESTIONS.length; i++) {
     const q = V2_QUESTIONS[i];
     const payload: Record<string, unknown> = {
@@ -246,6 +293,18 @@ async function runSeedV2(bumpRev = false): Promise<{ written: number; skipped: n
     // the bank with `updatedAt > cursor`), and `contentRev` below only
     // bumps when something actually changed.
     if (seedDocMatches(stored.get(q.id), payload)) continue;
+    // D52's un-editable invariant, enforced where the edit would land rather
+    // than in the reviewer's eye. A changed option set on a LIVE question
+    // re-keys every vote already stored against it, silently — so this doc
+    // is refused and the rest of the seed proceeds. Refusing per-document
+    // rather than aborting the run is deliberate: a batch of legitimate
+    // prompt fixes must not be held hostage by one bad edit, and the throw
+    // at the end makes sure the refusal cannot be missed either way.
+    const conflict = seedOptionConflict(q.id, stored.get(q.id), payload);
+    if (conflict) {
+      refused.push(conflict);
+      continue;
+    }
     payload.updatedAt = FieldValue.serverTimestamp();
     if (!present.has(q.id)) payload.active = true;
     batch.set(refs[i], payload, { merge: true });
@@ -285,19 +344,47 @@ async function runSeedV2(bumpRev = false): Promise<{ written: number; skipped: n
   if (bumped) {
     await metaRef.set({ contentRev: FieldValue.serverTimestamp() }, { merge: true });
   }
-  const skipped = V2_QUESTIONS.length - written;
+  const skipped = V2_QUESTIONS.length - written - refused.length;
   logger.info(
     `[v2] seeded ${written} questions, ${skipped} unchanged ` +
       `(${present.size} pre-existing, contentRev ${bumped ? "bumped" : "held"})`,
   );
+  // Loud, and after the commit. The legitimate writes are already durable —
+  // holding them back would punish the rest of the batch for one bad edit —
+  // but the run does NOT get to report success, because a silently-skipped
+  // question is exactly the outcome D52 exists to prevent. An operator who
+  // genuinely means to retire a question has `active: false`; an operator
+  // who genuinely means to replace one appends a new qid. Neither path goes
+  // through here.
+  if (refused.length) {
+    const detail = describeSeedOptionConflicts(refused);
+    logger.error(
+      `[v2] REFUSED ${refused.length} option-set edit(s) to live questions ` +
+        `(D52 — answers store optionIdx, so editing options re-keys every ` +
+        `vote already cast): ${detail}`,
+    );
+    throw new HttpsError(
+      "failed-precondition",
+      `refused ${refused.length} option-set edit(s) to already-seeded questions; ` +
+        `shipped option sets are immutable (D52). Retire with active:false or ` +
+        `append a new qid instead. ${detail}`,
+    );
+  }
   return { written, skipped };
 }
 
-// NO enforceAppCheck, deliberately: this is invoked from a browser console
-// as the last remaining step of SHIP-CHECKLIST §1, and by the e2e — neither
-// carries an App Check token. assertOperator + SEED_ADMIN_UIDS is the
-// control instead. Held by `npm run check:appcheck`, which also fails if
-// enforcement is ever added here without removing the exemption, because
+// NO enforceAppCheck, deliberately: this is invoked by the *Seed content*
+// workflow (scripts/seed-content.mjs) as the last remaining step of
+// SHIP-CHECKLIST §1, and by the e2e — neither carries an App Check token.
+// assertOperator + SEED_ADMIN_UIDS is the control instead.
+//
+// This comment said "from a browser console" until 2026-08-06, which was
+// the reason given for the exemption and was describing a caller that did
+// not exist: hosting serves only web/ (home, join, privacy, terms) and the
+// app ships as the native iOS shell, so there is no browser build to open a
+// console on. The exemption was right; its stated caller was imaginary.
+//
+// Held by `npm run check:appcheck`, which also fails if
 // adding it would refuse the console call that checklist step is written
 // around.
 export const seedContentV2 = onCall({ region: REGION }, async (request) => {
@@ -305,7 +392,7 @@ export const seedContentV2 = onCall({ region: REGION }, async (request) => {
   // bumpRev forces the full cache invalidation the seed no longer spends
   // by default — see runSeedV2. Use it after flipping `active` by hand in
   // the console; ordinary content growth does not need it.
-  return runSeedV2(request.data?.bumpRev === true);
+  return runSeedV2(getFirestore(), request.data?.bumpRev === true);
 });
 
 // ── answer → aggregate ──────────────────────────────────────────
@@ -345,7 +432,24 @@ export const onV2AnswerCreated = onDocumentCreated(
         } catch (err) {
           const code = (err as { code?: number | string }).code;
           if (code === 5 || code === "not-found") return;
-          logger.warn(`[v2] pending-day mark failed for ${gid}/${day}:`, err);
+          // RETHROWN, so `retry: true` above actually means something on this
+          // branch. It used to warn and return normally, which made the retry
+          // policy dead here: the mark is the ONLY thing that puts this day
+          // in front of the scheduled scan, so losing it loses the reveal —
+          // for a group-day where the single answerer has already played,
+          // silently and permanently.
+          //
+          // D19's stated safety net does not cover it. "The answer never
+          // folded into any aggregate — a louder problem, already logged" is
+          // true of the vote path; this branch returns before any aggregate
+          // work. And the monitoring filter is severity>=ERROR while this
+          // logged WARNING, so nothing was watching either.
+          //
+          // Safe to retry: arrayUnion is idempotent, and the NOT_FOUND case
+          // above still returns cleanly rather than retrying against a group
+          // that is deliberately gone.
+          logger.error(`[v2] pending-day mark failed for ${gid}/${day}:`, err);
+          throw err;
         }
       }
       return;
@@ -402,20 +506,40 @@ export const onV2AnswerCreated = onDocumentCreated(
         const entBy: BreakdownCounts = entSlices
           ? (priv.exists && (priv.get("entBy") as BreakdownCounts)) || {}
           : {};
-        if (entSlices) foldCanonAnchors(entBy, snap.get("anchors"), key);
+        if (entSlices) foldCanonAnchors(entBy, snap.get("anchors"), key, AGG_MIN_N);
+        // What the last publish released, per bucket. The publish CADENCE is
+        // counted in answers to the question; a bucket's own movement is not,
+        // so the k that shouldPublishAgg gives `total` has to be applied a
+        // second time, per bucket, or a step of one names a person
+        // (steppedBreakdown, pure.ts).
+        const entReleased: BreakdownCounts = entSlices
+          ? (priv.exists && (priv.get("entByPub") as BreakdownCounts)) || {}
+          : {};
+        const publishing = total >= AGG_MIN_N
+          && shouldPublishAgg(total, AGG_MIN_N, PUBLISH_EVERY);
+        const canon = publishing ? publishableCanon(ent, AGG_MIN_N, CANON_TOP_N) : null;
+        // Only a publish moves the released map — an answer that changes
+        // nothing on screen must not consume a bucket's step budget.
+        // Same rule as the vote path: store what was PUBLISHED, so a
+        // suppressed bucket does not spend its step budget unseen.
+        const entByPub = canon
+          ? publishBreakdown(canonBreakdownFor(entBy, canon.top), entReleased, AGG_MIN_N)
+          : entReleased;
         tx.set(eventRef, ledgerEntry(event.params.uid, qid));
         // Bounded growth: `ent` is capped by catalogue validation (~1k
         // entries); `entBy` by the bucket cap × its own per-cell entity
         // cap (foldCanonAnchors) — tens of KB against Firestore's 1 MiB
-        // limit either way.
-        tx.set(privRef, { ent, entBy, total }, { merge: false });
+        // limit either way. `entByPub` is a subset of `entBy` restricted to
+        // the published board, so it is bounded by CANON_TOP_N × the bucket
+        // cap and adds no new growth term.
+        tx.set(privRef, { ent, entBy, entByPub, total }, { merge: false });
         if (total >= AGG_MIN_N) {
-          if (shouldPublishAgg(total, AGG_MIN_N, PUBLISH_EVERY)) {
-            const canon = publishableCanon(ent, AGG_MIN_N, CANON_TOP_N);
+          if (publishing) {
             // A null canon means nothing survives the fold's own floors —
             // publish the bare total rather than a decorative board. When
             // there IS a board, its per-segment orderings ride along:
-            // cells restricted to the board's own entities, then the same
+            // cells restricted to the board's own entities, stepped so no
+            // bucket moves by less than the floor, then the same
             // bucket-cohort floor + complementary suppression as the vote
             // path (D17).
             tx.set(
@@ -426,7 +550,7 @@ export const onV2AnswerCreated = onDocumentCreated(
                     tooSmall: false,
                     top: canon.top,
                     rest: canon.rest,
-                    by: publishableBreakdown(canonBreakdownFor(entBy, canon.top), AGG_MIN_N),
+                    by: entByPub,
                   }
                 : { total, tooSmall: false },
               { merge: false },
@@ -472,12 +596,38 @@ export const onV2AnswerCreated = onDocumentCreated(
       // political question also ERASES any breakdown folded before this
       // guard existed, rather than carrying it forward untouched forever.
       const slices = slicesDemographics(qid);
-      const by: BreakdownCounts = slices
-        ? (priv.exists && (priv.get("by") as BreakdownCounts)) || {}
+      const by = breakdownFor(
+        qid,
+        priv.exists ? (priv.get("by") as BreakdownCounts) : null,
+        snap.get("anchors"),
+        optionIdx,
+        AGG_MIN_N,
+      );
+      // The breakdown a reader has already seen. PUBLISH_EVERY bounds the
+      // delta of `counts`, whose unit is the question; a bucket's unit is the
+      // bucket, and a five-answer window routinely carries a single anchored
+      // answer (anchors stay empty until the Basics card is filled, D8), so
+      // without a second gate one publish moves one bucket by one and names
+      // that person's vote — with every dimension moving together, which is a
+      // quasi-identifier rather than a cell. steppedBreakdown (pure.ts)
+      // re-emits the previous value until a bucket has gained AGG_MIN_N.
+      const released: BreakdownCounts = slices
+        ? (priv.exists && (priv.get("byPub") as BreakdownCounts)) || {}
         : {};
-      if (slices) foldAnchors(by, snap.get("anchors"), optionIdx);
+      const publishing = total >= AGG_MIN_N
+        && shouldPublishAgg(total, AGG_MIN_N, PUBLISH_EVERY);
+      // Only a publish moves the released map. An answer that rewrites
+      // nothing must not spend a bucket's step budget, or the gate would
+      // decay to "every fifth answer" — which is the bound that was already
+      // there and is not the one this needs.
+      //
+      // publishBreakdown returns ONE value that is both what goes on the
+      // public document and what is stored as the next baseline. They were
+      // two expressions once, and the e2e caught the difference: storing the
+      // stepped map charged a suppressed bucket for a value no reader saw.
+      const byPub = publishing ? publishBreakdown(by, released, AGG_MIN_N) : released;
       tx.set(eventRef, ledgerEntry(event.params.uid, qid));
-      tx.set(privRef, { counts, total, by }, { merge: false });
+      tx.set(privRef, { counts, total, by, byPub }, { merge: false });
       // The public mirror: k-floored, and deliberately without a fresh
       // timestamp — per-vote timing deltas shouldn't be attributable.
       //
@@ -494,12 +644,12 @@ export const onV2AnswerCreated = onDocumentCreated(
       // nothing is lost; the public mirror lags by at most
       // PUBLISH_EVERY - 1 answers.
       if (total >= AGG_MIN_N) {
-        if (shouldPublishAgg(total, AGG_MIN_N, PUBLISH_EVERY)) {
+        if (publishing) {
           // The breakdown carries its OWN floor, per cell, plus
           // complementary suppression (pure.ts). A question past the
           // overall floor still shows no slice until that slice can be
-          // shown without singling anyone out.
-          const byPub = publishableBreakdown(by, AGG_MIN_N);
+          // shown without singling anyone out — and, since the step gate,
+          // no slice moves by less than that floor either.
           tx.set(pubRef, { counts, total, tooSmall: false, by: byPub }, { merge: false });
         }
       } else {

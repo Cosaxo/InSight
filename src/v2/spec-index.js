@@ -1,3 +1,9 @@
+// The one import in this file that is NOT a spec module and carries no load
+// order: a pure helper for the two deferred groups at the foot of the file.
+// It sits above the ordered list rather than inside it because nothing in
+// that list reads it, and the list's order is a contract (see below).
+import { retryable } from './data/lazy';
+
 // Load order mirrors the standalone's script tags — order is semantic, do not sort.
 import './spec/sample-data.js';
 import './spec/archetype-data.js';
@@ -97,8 +103,10 @@ import './spec/search-overlay.jsx';
 import './spec/test-definitions.js';
 import './spec/passive-progress.js';
 import './spec/test-feed-data.js';
-// lens-defs builds LENS_FEED_QS at module scope off window.LENSES, so it has
-// to land after the core tests it deliberately trails in the feed.
+// lens-defs' feed pool (LENS_FEED_QS) is a lazy builder now — it differs
+// between demo and live, and liveness lands only after boot — so nothing
+// here waits on a module-scope snapshot anymore; the listing itself is
+// still load-bearing (rule 2).
 import './spec/lens-defs.js';
 import './spec/passive-meter.jsx';
 // test-overlay.jsx loads after first paint — see loadOverlays() below.
@@ -122,10 +130,9 @@ import './spec/map-layout.js';
 import './spec/map-groups.js';
 import './spec/map-chiprow.jsx';
 import './spec/map-tab.jsx';
-// data/logic-gen and logic-test.jsx load after first paint, still adjacent
-// and still in this order — the generator publishes window.LOGIC_GEN, which
-// the overlay reads at render time. (Order is semantic here, like
-// everything in this file.)
+// logic-test.jsx loads after first paint; it imports data/logic-gen
+// directly (D53), so the generator rides the same deferred chunk without
+// a listing of its own.
 import './spec/profile-general.jsx';
 // These were born in this repo (never in design/) and live as typed TSX
 // under ui/; they self-register on globalThis so the render-time lookups
@@ -173,25 +180,26 @@ import './spec/app-shell.jsx';
 // not notice if this list were wrong — the mount tests are what covers
 // that, which is why smoke.test.jsx now asserts BOTH states: the app before
 // the chunk lands, and the feed present after.
-let worldFeedLoad = null;
-export function loadWorldFeed() {
-  if (!worldFeedLoad) {
-    worldFeedLoad = (async () => {
-      await import('./spec/world-feed-comments.js');
-      await import('./spec/world-feed-counters.js');
-      await import('./spec/consequence-beat.jsx');
-      // world-feed-math.js is NOT awaited here and does not need to be —
-      // world-feed.jsx imports it directly, so the module graph orders it.
-      // It is named below purely to satisfy check:globals rule 2, which
-      // substring-matches './spec/…' in this file and would otherwise call
-      // it an unimported file. Listed in the lazy group rather than at the
-      // top so it stays out of the entry chunk with the rest of the feed.
-      //   './spec/world-feed-math.js'
-      await import('./spec/world-feed.jsx');
-    })();
-  }
-  return worldFeedLoad;
-}
+// retryable(), not `if (!p) p = …`: the hand-rolled memo cached a REJECTED
+// promise exactly as it cached a resolved one, so one failed chunk fetch
+// removed this group for the rest of the session. data/lazy.ts carries the
+// reasoning and the tests; the sharing every comment here relies on is
+// unchanged.
+export const loadWorldFeed = retryable(async () => {
+  await import('./spec/world-feed-comments.js');
+  await import('./spec/world-feed-counters.js');
+  await import('./spec/consequence-beat.jsx');
+  // world-feed-math.js is NOT awaited here and does not need to be —
+  // world-feed.jsx imports it directly, so the module graph orders it,
+  // and it stays out of the entry chunk with the rest of the feed.
+  //
+  // It used to be named in a COMMENT below this line, to satisfy
+  // check:globals rule 2 by substring match. That rule now strips
+  // comments (a commented-out side-effect import loads nothing, which is
+  // how five v17 modules could have been silently unwired) and instead
+  // accepts a file the ESM graph already reaches. Nothing to name here.
+  await import('./spec/world-feed.jsx');
+});
 
 // ── the no-button overlays, after first paint ──────────────────────────
 //
@@ -219,9 +227,10 @@ export function loadWorldFeed() {
 // feed, whose absence is a legitimate frame.
 //
 // SEQUENTIAL awaits and this exact order, which is spec-index's own order
-// with the eager modules removed: data/logic-gen publishes window.LOGIC_GEN
-// and logic-test.jsx is its only consumer, so the pair stays adjacent and
-// in that direction.
+// with the eager modules removed. (data/logic-gen used to be listed here
+// explicitly for its window.LOGIC_GEN side effect; logic-test.jsx imports
+// it directly now — D53 — so the ESM graph carries it into the same
+// chunk without a line of its own.)
 //
 // relmap.jsx is deliberately NOT here despite being the largest candidate
 // (~43 KB). It is the one overlay with a first-frame consumer:
@@ -235,21 +244,20 @@ export function loadWorldFeed() {
 // Memoised for the same reason as loadWorldFeed: main.jsx starts it once,
 // every opener awaits it, and the mount tests await it in beforeAll — all
 // of them get the same promise rather than racing separate loads.
-let overlaysLoad = null;
-export function loadOverlays() {
-  if (!overlaysLoad) {
-    overlaysLoad = (async () => {
-      await import('./spec/test-overlay.jsx');
-      await import('./spec/person-mindmap.jsx');
-      await import('./spec/person-overlay.jsx');
-      await import('./spec/city-overlay.jsx');
-      await import('./spec/suggestions.jsx');
-      await import('./data/logic-gen');
-      await import('./spec/logic-test.jsx');
-    })();
-  }
-  return overlaysLoad;
-}
+//
+// And retryable() for the same reason too — but the recovery lands harder
+// here than it does on the feed. Every overlay in this group is reached ONLY
+// through an opener that awaits this promise, so a cached rejection turned
+// each of them into a tap that does nothing, permanently. Now the second tap
+// re-attempts the import; nothing else had to change to get that.
+export const loadOverlays = retryable(async () => {
+  await import('./spec/test-overlay.jsx');
+  await import('./spec/person-mindmap.jsx');
+  await import('./spec/person-overlay.jsx');
+  await import('./spec/city-overlay.jsx');
+  await import('./spec/suggestions.jsx');
+  await import('./spec/logic-test.jsx');
+});
 
 // …and published on globalThis, because app-shell's openers have to await
 // it and there is no other way for a spec module to reach it.

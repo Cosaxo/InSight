@@ -14,10 +14,20 @@ import {
   getFirestore, connectFirestoreEmulator, doc, getDoc, setDoc, serverTimestamp,
 } from "firebase/firestore";
 import { getFunctions, connectFunctionsEmulator, httpsCallable } from "firebase/functions";
+import { initializeApp as adminInit } from "firebase-admin/app";
+import { getFirestore as adminFirestore } from "firebase-admin/firestore";
 
 const app = initializeApp({ projectId: "demo-insight", apiKey: "demo", appId: "demo" });
 const auth = getAuth(app); connectAuthEmulator(auth, "http://127.0.0.1:9099", { disableWarnings: true });
 const db = getFirestore(app); connectFirestoreEmulator(db, "127.0.0.1", 8080);
+
+// Admin, rules bypassed — the only way to observe v2_mod_queue, which is
+// `allow read, write: if false` to every client by design (the queue is a
+// server-only surface of the confinement model). fetchModQueue's projection
+// does not return the advisory fields, so step 6 has no other way to check
+// what it claims. Same pattern as e2e-delete-account.mjs.
+adminInit({ projectId: "demo-insight" });
+const adb = adminFirestore();
 const fns = getFunctions(app, "us-central1"); connectFunctionsEmulator(fns, "127.0.0.1", 5001);
 
 const fail = (msg) => { console.error("✗ " + msg); process.exit(1); };
@@ -99,10 +109,21 @@ const verdict = await httpsCallable(fns, "submitModVerdict")({
   runId: "e2e-run", verdict: { takeId: TAKE, verdict: "remove", policyLine: "H1" },
 });
 if (!verdict.data.ok || !verdict.data.advisory) fail("verdict reply: " + JSON.stringify(verdict.data));
-const after = await httpsCallable(fns, "fetchModQueue")({});
-const judged = after.data.items.find((i) => i.takeId === TAKE);
-ok("advisory remove recorded (surfaced on the queue entry)");
-void judged;
+// Read the queue DOC with admin, not fetchModQueue: the callable's
+// projection (moderation.ts) returns neither advisoryVerdict nor
+// advisoryLine, so the fields this step is about are unreachable from it.
+// This step printed a pass for an assertion nobody had written — `const
+// judged = …; ok(…); void judged;` compared nothing, and the claim was
+// unachievable through that call anyway.
+const entry = await adb.doc(`v2_mod_queue/${TAKE}`).get();
+if (!entry.exists) fail("the queue entry vanished on an advisory verdict — it must stay for the human");
+if (entry.get("advisoryVerdict") !== "remove") {
+  fail("advisoryVerdict not recorded: " + JSON.stringify(entry.get("advisoryVerdict")));
+}
+if (entry.get("advisoryLine") !== "H1") {
+  fail("advisoryLine not recorded: " + JSON.stringify(entry.get("advisoryLine")));
+}
+ok("advisory remove recorded on the queue entry, with its policy line");
 
 // 7 · …and hides NOTHING: a circle member still reads the take
 const takeDoc = await getDoc(doc(db, "v2_takes", TAKE));

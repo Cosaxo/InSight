@@ -73,6 +73,10 @@ await adb.doc(`v2_users/${uid}/answers/daily-000`).set({ qid: "daily-000", optio
 // erasure must cover it identically, and this seed is what proves the
 // claim instead of assuming the recursiveDelete reaches it.
 await adb.doc(`v2_users/${uid}/answers/learn-cell1`).set({ qid: "learn-cell1", surface: "learn", optionIdx: 2 });
+// The verified-logic attempt doc (D57) sits in its own top-level
+// collection keyed by uid — outside the subtree recursiveDelete reaches —
+// so erasure needs (and has) a dedicated phase, proven here.
+await adb.doc(`v2_logic_attempts/${uid}`).set({ seed: 7, gv: 2, status: "scored", score: 9 });
 await adb.doc(`insight_users/${uid}`).set({ sharePrefs: {} });
 await adb.doc(`insight_users/${uid}/insight_daily/${DAY}`).set({ date: DAY, mood: 60 });
 await adb.doc(`insight_discoverable/${uid}`).set({ location: { geohash: "u4pru" } });
@@ -103,8 +107,14 @@ await adb.doc(`v2_groups/${SOLO}/reveals/${DAY}`).set({
 });
 
 // a group shared with someone else → must SURVIVE, scrubbed of them
+//
+// `ownerUid` is the DOOMED account deliberately. It used to be OTHER here,
+// which is the reason this suite could not see that erasure never removed
+// the field: the group the assertions run against was owned by the surviving
+// member, so there was nothing of the deleted user's left in it to miss. A
+// creator deleting their account is the ordinary case, not the exotic one.
 await adb.doc(`v2_groups/${SHARED}`).set({
-  name: "Shared", mode: "group", ownerUid: OTHER, memberUids: [uid, OTHER], streak: 3,
+  name: "Shared", mode: "group", ownerUid: uid, memberUids: [uid, OTHER], streak: 3,
 });
 await adb.doc(`v2_groups/${SHARED}/reveals/${DAY}`).set({
   day: DAY, qid: "group-gu0",
@@ -157,17 +167,29 @@ await adb.doc(`v2_mod_queue/${THEIR_TAKE}`).set({
   takeId: THEIR_TAKE, gid: SHARED, text: "someone else's words", flags: 3, escalations: 1,
 });
 
-// one client-authored write, so the test also covers the real path
+// One client-authored write, so the test also covers the real path.
+//
+// The question is SEEDED first and the write is no longer swallowed. Without
+// the seed, isWorldAnswer()'s get() on the missing question denied this every
+// run — the repo asserts that exact shape itself in rules.test.ts — and the
+// .catch() ate it, so the row below asserted the absence of a document that
+// had never existed. The file's own header says this leg covers the real
+// path; it did not.
+await adb.doc("v2_questions/client-written").set({
+  surface: "daily", seq: 9001, type: "vote", prompt: "client-written probe",
+  options: ["a", "b"], active: true,
+});
 await setDoc(doc(db, "v2_users", uid, "answers", "client-written"), {
   qid: "client-written", surface: "daily", optionIdx: 0,
   answeredAt: serverTimestamp(), anchors: {},
-}).catch(() => { /* rules may reject an unseeded qid — not what we're testing */ });
+});
 
 // prove the setup actually landed, or the wipe assertions are vacuous
 for (const [path, label] of [
   [`v2_users/${uid}`, "v2 profile"],
   [`v2_users/${uid}/answers/daily-000`, "v2 answer"],
   [`v2_users/${uid}/answers/learn-cell1`, "learn answer (D32)"],
+  [`v2_logic_attempts/${uid}`, "verified logic attempt (D57)"],
   [`insight_users/${uid}`, "v1 profile"],
   [`insight_discoverable/${uid}`, "discoverable doc"],
   [`insight_ratelimits/${uid}`, "v1 rate-limit ledger"],
@@ -249,6 +271,7 @@ for (const [path, label] of [
   [`v2_users/${uid}/answers/daily-000`, "v2 answer (subcollection)"],
   [`v2_users/${uid}/answers/learn-cell1`, "learn answer (subcollection, D32)"],
   [`v2_users/${uid}/answers/client-written`, "client-written answer"],
+  [`v2_logic_attempts/${uid}`, "verified logic attempt (D57)"],
   [`insight_users/${uid}`, "v1 profile"],
   [`insight_users/${uid}/insight_daily/${DAY}`, "v1 daily report (subcollection)"],
   [`insight_discoverable/${uid}`, "discoverable doc"],
@@ -302,6 +325,12 @@ if (!shared.exists) fail("the SHARED group was deleted — it still had another 
 const members = shared.get("memberUids") || [];
 if (members.includes(uid)) fail("deleted uid still in the shared group's memberUids");
 if (!members.includes(OTHER)) fail("the surviving member was removed from the shared group");
+// The field nothing reads, which is why it outlived three erasure phases:
+// firestore.rules serves the whole group document to every current member,
+// so a leftover ownerUid publishes the deleted account's raw uid to the
+// circle forever.
+if (shared.get("ownerUid") === uid) fail("the deleted user's uid survives as the shared group's ownerUid");
+if (shared.get("name") !== "Shared") fail("erasure damaged the surviving group's own fields");
 
 const reveal = await adb.doc(`v2_groups/${SHARED}/reveals/${DAY}`).get();
 if (!reveal.exists) fail("the shared group's reveal was deleted wholesale");

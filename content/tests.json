@@ -157,7 +157,7 @@
       },
       {
         "id": "01",
-        "q": "A society is judged by how it treats the weakest.",
+        "q": "Essential services belong in public hands, not markets.",
         "d": "econ",
         "invert": true
       },
@@ -303,7 +303,7 @@
       },
       {
         "id": "03",
-        "q": "I'd sacrifice comfort now for a stranger's future.",
+        "q": "I'd give up real comfort to help a stranger.",
         "d": "circle"
       },
       {
@@ -473,7 +473,7 @@
       },
       {
         "id": "11",
-        "q": "I drift between friend groups rather than settling into one.",
+        "q": "My friendships tend to fade when life gets busy.",
         "d": "loyal",
         "invert": true
       },
@@ -491,7 +491,7 @@
       },
       {
         "id": "14",
-        "q": "I notice straight away when a friend pulls back.",
+        "q": "I keep track of who reached out last.",
         "d": "easy",
         "invert": true
       }

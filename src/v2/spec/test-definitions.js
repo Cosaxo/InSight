@@ -92,10 +92,26 @@ export const IS_TEST_AVG = {
 // merged duty+altruism into one moral-circle tension. Old v1 results would
 // carry retired dims, so they are simply not read.)
 const TEST_RESULTS_KEY = 'insight.testResults.v2';
+// A pristine copy of the demo results ABOVE, taken before the saved-result
+// overlay below lands — the purge listener restores it, because the
+// fresh-boot state of this object is the demo seed plus an empty overlay,
+// not an empty object. The module's own binding, not a window read: this
+// file left the global bridge (D39-style conversion, #85), so the export
+// is the only copy there is.
+const IS_TEST_RESULTS_DEMO = JSON.parse(JSON.stringify(IS_TEST_RESULTS));
 try {
   const saved = JSON.parse(localStorage.getItem(TEST_RESULTS_KEY) || '{}');
   Object.keys(saved).forEach(k => { IS_TEST_RESULTS[k] = saved[k]; });
 } catch (e) { /* ignore corrupt storage */ }
+// The purge (data/live.ts, D51). Disk cannot resurrect here —
+// persistTestResult below reads storage fresh on every write — but this
+// mirror object is what the profile surfaces render, and without the drop
+// it keeps showing the previous account's results until an app restart.
+// In place, not reassigned: consumers hold references to this object.
+window.addEventListener('insight:local-purge', () => {
+  Object.keys(IS_TEST_RESULTS).forEach((k) => { delete IS_TEST_RESULTS[k]; });
+  Object.keys(IS_TEST_RESULTS_DEMO).forEach((k) => { IS_TEST_RESULTS[k] = JSON.parse(JSON.stringify(IS_TEST_RESULTS_DEMO[k])); });
+});
 
 // Exported as `persistTestResult`; consumers used to reach it as
 // `window.IS_persistTestResult`, which is why the import in daily-split and
@@ -159,7 +175,7 @@ export const IS_TESTS = {
       ],
       questions: [
         { q: "Markets, left to themselves, distribute fairly.",        d: 'econ' },
-        { q: "A society is judged by how it treats the weakest.",      d: 'econ', invert: true },
+        { q: "Essential services belong in public hands, not markets.",      d: 'econ', invert: true },
         { q: "Some speech is harmful enough to restrict.",             d: 'auth' },
         { q: "The state should keep out of private life.",             d: 'auth', invert: true },
         { q: "My country should help others before its own poor.",     d: 'foreign' },
@@ -196,7 +212,7 @@ export const IS_TESTS = {
         { q: "Future generations will live better than ours.",                  d: 'future' },
         { q: "Most of what's changing right now is change for the better.",     d: 'future' },
         { q: "What I owe my family weighs more than what I owe strangers.",     d: 'circle', invert: true },
-        { q: "I'd sacrifice comfort now for a stranger's future.",              d: 'circle' },
+        { q: "I'd give up real comfort to help a stranger.",              d: 'circle' },
         { q: "Pleasure needs no justification.",                                d: 'hedonism' },
         { q: "Obligations come before enjoyment.",                              d: 'hedonism', invert: true },
         { q: "Suffering can give life meaning, not just pain.",                 d: 'meaning' },
@@ -240,10 +256,10 @@ export const IS_TESTS = {
         // Round 2 (one per dimension, all reverse-keyed — same
         // acquiescence fix as big5).
         { q: "Showing affection doesn't come naturally to me.",       d: 'warm', invert: true },
-        { q: "I drift between friend groups rather than settling into one.", d: 'loyal', invert: true },
+        { q: "My friendships tend to fade when life gets busy.", d: 'loyal', invert: true },
         { q: "I keep my problems to myself.",                         d: 'open', invert: true },
         { q: "I take most things seriously, even the small stuff.",   d: 'play', invert: true },
-        { q: "I notice straight away when a friend pulls back.",      d: 'easy', invert: true },
+        { q: "I keep track of who reached out last.",      d: 'easy', invert: true },
       ],
     },
 };

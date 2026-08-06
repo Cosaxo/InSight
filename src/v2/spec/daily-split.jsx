@@ -125,6 +125,13 @@ class DailySplit extends React.Component {
   }
   componentDidMount() {
     if (window.DUELS) this._unsubDuels = window.DUELS.subscribe(() => this.forceUpdate());
+    // The purge (data/live.ts, D51): this component persists dreplies,
+    // cats and testProg by spreading state back to the keys the purge just
+    // removed, and it stays mounted across a uid change — drop them, or
+    // one interaction writes the previous account's maps back. votes
+    // clears too; the live-update sync refills it for the new uid.
+    this._onPurge = () => this.setState({ dreplies: {}, cats: {}, testProg: {}, votes: {} });
+    window.addEventListener('insight:local-purge', this._onPurge);
     // The mode switcher belongs in the app header, which is rendered by a
     // component above this one — so it is portaled into a slot app-shell
     // leaves for it. Resolved here rather than at render: the slot only
@@ -220,7 +227,7 @@ class DailySplit extends React.Component {
       this._switching = false;
     }
   }
-  componentWillUnmount() { clearTimeout(this._toastT); clearTimeout(this._lpT); clearTimeout(this._sheetT); if (this._unsubDuels) this._unsubDuels(); if (this._offScroll) this._offScroll(); if (this._docked && this.props.onDock) this.props.onDock(false); if (this._unsubLive) this._unsubLive(); if (this._pendingHandler) window.removeEventListener('insight-live-update', this._pendingHandler); const app = document.querySelector('.app'); if (app) app.style.removeProperty('--accent'); }
+  componentWillUnmount() { clearTimeout(this._toastT); clearTimeout(this._lpT); clearTimeout(this._sheetT); if (this._unsubDuels) this._unsubDuels(); if (this._offScroll) this._offScroll(); if (this._docked && this.props.onDock) this.props.onDock(false); if (this._unsubLive) this._unsubLive(); if (this._pendingHandler) window.removeEventListener('insight-live-update', this._pendingHandler); if (this._onPurge) window.removeEventListener('insight:local-purge', this._onPurge); const app = document.querySelector('.app'); if (app) app.style.removeProperty('--accent'); }
 
   // one axis, three stops. Which axis depends on how the app is navigating:
   // ruler/pill run the daily's own scale, the 4-tab bar borrows the bar's order.

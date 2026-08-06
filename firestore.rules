@@ -107,9 +107,18 @@ service cloud.firestore {
         && (!("fcmTokens" in request.resource.data)
           || (resource != null
             && request.resource.data.fcmTokens == resource.data.get("fcmTokens", null)))
+        // testResults.logic is the VERIFIED logic score, written only by
+        // logicSubmitV2 (admin SDK bypasses rules) after server-side
+        // scoring — a client-writable copy would be a forgeable one (D57).
+        // Same shape as fcmTokens above: presence allowed (every client
+        // profile write is a merge, so the key rides along), mutation not.
         && (!("testResults" in request.resource.data)
           || (request.resource.data.testResults is map
-            && request.resource.data.testResults.keys().size() <= 8))
+            && request.resource.data.testResults.keys().size() <= 8
+            && (!("logic" in request.resource.data.testResults)
+              || (resource != null
+                && request.resource.data.testResults.logic
+                  == resource.data.get("testResults", {}).get("logic", null)))))
         && isOptionalShortString(request.resource.data.get("displayName", null), 60)
         && isValidV2Anchors(request.resource.data.get("anchors", {}));
       allow delete: if false; // deleteAccount (admin SDK) owns removal
@@ -287,6 +296,34 @@ service cloud.firestore {
       allow read, write: if false;
     }
     match /v2_ratelimits/{docId} {
+      allow read, write: if false;
+    }
+    // Velocity-scan state (D54): the daily ledger scan's cursor and
+    // trailing per-question day counts. Server-only, same posture as
+    // the ledger it summarizes — a client that could read it would
+    // learn per-question daily counts below the published floor.
+    match /v2_velocity/{docId} {
+      allow read, write: if false;
+    }
+
+    // ─── verified logic attempts (D57) ─────────────────────────────
+    // The attempt doc holds the seed — the answer key, until scored. Not
+    // even the owner may read it: the whole design is that the client
+    // learns the answers by solving, and an owner-readable seed hands a
+    // devtools user the key mid-attempt. Written only by logicStartV2 /
+    // logicSubmitV2 (admin SDK); erased by deleteAccount.
+    match /v2_logic_attempts/{uid} {
+      allow read, write: if false;
+    }
+    // Anonymous score histogram: exact counts server-only, public mirror
+    // readable once it exists (the server materializes it only at or
+    // above the aggregate floor, every PUBLISH_EVERY-th count — same
+    // discipline as v2_question_aggs).
+    match /v2_logic_norms/{docId} {
+      allow read: if request.auth != null;
+      allow write: if false;
+    }
+    match /v2_logic_norms_private/{docId} {
       allow read, write: if false;
     }
 

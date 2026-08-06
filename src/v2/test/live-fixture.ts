@@ -36,6 +36,12 @@ export interface LiveFixtureOptions {
   demoInProd?: boolean;
   /** The viewer's city anchor, "" for a profile that has not picked one. */
   myCity?: string;
+  /**
+   * How many live world cards WORLD_FEED_QS carries (default 1). The feed
+   * weaves one LENS card in after every 9th world card, so a case that needs
+   * a lens card on screen asks for at least 9 (D50).
+   */
+  feedCards?: number;
 }
 
 const OPTION_COLORS = ["var(--c-around)", "var(--c-today)", "var(--c-likeness)"];
@@ -148,6 +154,10 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
     learnAnswer: () => {},
     learnAgg: () => null,
     linkGoogle: async () => {},
+    // Anonymous-first (D3) is the default state, so that is what the fixture
+    // renders — the branch the privacy panel and profile overlay both
+    // describe in copy.
+    linked: false,
     // Operator-only and never rendered; present so the fixture's key set
     // still matches the real surface (fixtureSurfaceMismatch checks both
     // directions).
@@ -193,19 +203,25 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
   // Deliberately NOT the deck's questions. The daily tab renders the deck
   // card and the feed on the same screen, so reusing the prompts put every
   // string on it twice and left a test unable to say which card it had hold
-  // of. FEED_PROMPT and FEED_OPTIONS below are unique to the feed card.
-  w.WORLD_FEED_QS = [{
-    id: "feed-fixture-0",
-    cat: "culture",
-    type: "vote",
-    prompt: FEED_PROMPT,
-    options: FEED_OPTIONS.map((label, i) => ({
-      label,
-      count: tooSmall ? 0 : [14, 9][i],
-    })),
-    live: true,
-    tooSmall,
-  }];
+  // of. FEED_PROMPT and FEED_OPTIONS below are unique to the feed card —
+  // card 0 keeps them verbatim so existing exact-match queries still bind
+  // to exactly one card; the extras a feedCards case asks for carry a
+  // numbered suffix.
+  w.WORLD_FEED_QS = Array.from(
+    { length: Math.max(1, opts.feedCards ?? 1) },
+    (_, i) => ({
+      id: `feed-fixture-${i}`,
+      cat: "culture",
+      type: "vote",
+      prompt: i === 0 ? FEED_PROMPT : `${FEED_PROMPT} (${i + 1})`,
+      options: FEED_OPTIONS.map((label, j) => ({
+        label,
+        count: tooSmall ? 0 : [14, 9][j],
+      })),
+      live: true,
+      tooSmall,
+    }),
+  );
   w.TEST_FEED_QS = [];
   w.WORLD_FEED_COMMENTS = {};
 

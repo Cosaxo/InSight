@@ -13,6 +13,16 @@ holds the reasoning for the three that bite.
 Re-derive this file if any of these change: a new stored field, a new SDK,
 the takes surface going live, or product analytics being added.
 
+**Re-derived 2026-08-06 for D57 (verified logic attempts).** New stored
+fields: `testResults.logic` (server-written verified score, owner-only),
+`v2_logic_attempts/{uid}` (server-only), and the anonymous
+`v2_logic_norms*` histogram. **No answer below changes**: the score is
+User Content → Other User Content (already **Yes**, linked, App
+Functionality — "Answers and test results"); the attempt doc is
+server-side operational data about that same content; the histogram
+carries no identifier and no linkage. Practice attempts still send
+nothing. `data-inventory.md` carries the audited rows.
+
 ---
 
 ## 1 · Apple Privacy Nutrition Labels
@@ -187,7 +197,7 @@ default.
 | --- | --- |
 | Filter objectionable content | Moderation substrate deployed, `MOD_ADVISORY = true` (D22) |
 | Report mechanism | Report control exists in the spec layer; the takes surface it attaches to is demo-only at launch |
-| Block abusive users | `removeGroupMember` / `leaveGroup` — removal from the circle **is** the block, because D1 means circle members are the only people whose content you can see |
+| Block abusive users | `leaveGroupV2`, wired to the **Leave circle** control on each live circle card — leaving **is** the block, because D1 means circle members are the only people whose content you can see. There is no owner-side *remove* callable yet (D55 §14): the answer at launch is that anyone can leave, not that an owner can eject |
 | Published contact info | `olaftaule01@gmail.com`, on `web/terms.html` |
 
 If a reviewer asks how users block one another, the circle model is a real
