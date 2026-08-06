@@ -4410,7 +4410,217 @@ not need one. This belongs on release paths, next to the plist check it
 mirrors — and `check:web-firebase` fails loudly when run without an
 environment, which is correct for a release gate and wrong for a PR.
 
-## D47 · Three limits accepted while closing the reveal-alert, bridge and boot-state gaps
+## D47 · Monitoring grows a decision console — and the refusals become part of it
+
+**Date:** 2026-08-04 · **Status:** Adopted (owner-requested: "increase the
+scope of the monitoring to include cost and profits and other stats, along
+with algorithm effect, question generation stats, user analysis, and have it
+presented in some sort of visual tool to help me make decisions")
+
+**Decision.** `npm run pulse` computes a four-panel decision console from
+committed artifacts and renders it as one self-contained HTML page.
+`monitoring/pulse.json` is committed (the data, so a change in the burn or
+the runway is a reviewable diff); `monitoring/pulse-trail.jsonl` appends one
+row per day; the HTML is gitignored and regenerated in under a second. The
+full argument is [`docs/MONITORING.md`](MONITORING.md).
+
+**The part that needed deciding.** Three of the four requests — cost,
+money, question-pipeline stats — are ordinary engineering. The fourth,
+"user analysis", is not available here, and the decision is that **the
+console displays the refusals rather than omitting them.**
+
+Five things a monitoring dashboard would normally show are structurally
+unavailable: per-user funnels and session analytics (no client event
+pipeline exists, by design), retention or engagement sliced by anchor
+(D8/D18's k-floor and complementary suppression), anything sliced by
+political result (D8, Art. 9), skip/pass rates (QUESTION-FARM's out-of-scope
+list), and per-user content selection (MONETIZATION's standing posture).
+A console that showed four empty charts where those belong would read as
+"the data is coming". Each is listed with the record it would reverse,
+because "we decided not to" is only useful with the decision attached.
+
+The second row is the one worth sitting with: **the same suppression that
+stops a paying city identifying a person stops the owner doing it.** That is
+the guarantee working. If the tooling ever grows a way around it, the
+guarantee was never enforced.
+
+**What is honestly available, and was built.** The k-floored public mirror
+gives floors on real activity — never measurements, since a question below
+`AGG_MIN_N` publishes nothing. Everything else in the console computes from
+committed files with no credentials: bank inventory, deck runway, promotion
+backlog, alert coverage, and the modelled bill.
+
+**What is available and was deliberately NOT built.** DAU and D1–D7
+retention need **no new collection**: `v2_agg_events` already holds
+`(qid, uid, at)` with a 90-day TTL, erased with the account. Counting
+distinct uids per day is a scheduled function over a collection that exists.
+But D28 justified that collection as fake-account attribution and trigger
+dedup — those two purposes. Counting users with it is a **new purpose for
+existing data**, which is a decision record, not a script. It is listed in
+the console's "unbuilt" column with that catch stated. Deferred here rather
+than taken, because the console's whole point is to make this class of thing
+visible rather than to quietly do it.
+
+**The one number whose neglect breaks the product.** Deck runway. D30's
+no-wrap invariant holds while the daily bank has at least as many questions
+as days elapsed since `DECK_EPOCH`; past zero the next reseed silently
+remaps every user's answered history once. `deck.test.ts` pins the property,
+but a unit test cannot know today's date relative to the shipped bank — that
+is a fact about the calendar and the content, and it changes at midnight
+without a commit. At adoption: 90 in the bank, 3 days elapsed, 87 days of
+runway, 0 unpromoted in the archive.
+
+**`--check` is a real gate, and it runs on a clock rather than on a diff.**
+It exits non-zero below 21 days of runway and on an expired scorecard.
+Putting it in a pull-request check would fail unrelated work on a Tuesday
+for a reason that pull request cannot fix — the same argument that keeps
+`check:figures` off the backend path, pointed the other way. A check whose
+subject changes on its own belongs on a schedule, which is the split
+`security-audit.yml` already makes for `npm audit`.
+
+`.github/workflows/pulse.yml` (added 2026-08-04, on the owner's answer to
+"does it update automatically?" — it did not) runs at 06:00 UTC daily,
+commits `pulse.json` and the trail only when they moved, writes the headline
+figures to the run summary, and runs `--check` **last** so a bad day still
+gets its trail row before the job goes red. It never runs `npm ci`: pulse is
+Node stdlib only, verified in a dependency-free clone, because a console
+whose job is to report that the ground moved must not be able to fail
+because a registry did. Scheduled workflows only run from the default
+branch, so it is inert until merged.
+
+**One structural change to existing code, and it was forced.** The cost
+arithmetic moved from `scripts/cost-model.mjs` into `scripts/cost-arith.mjs`
+so the console and the CLI share one model. The alternative was a second
+copy of the price sheet, which is the drift this repo gates against
+everywhere else. Same shape as `store-render.mjs`. `npm run costs` output is
+byte-identical in both price regions — diffed, not inspected.
+
+**A correction this record makes.** `docs/DEPLOYMENT.md` explains that alert
+policies are applied by hand because "the deploy service account has no
+monitoring role". Line 103 of the same document says that account holds
+`Editor` + `Firebase Admin`, and `Editor` includes
+`monitoring.alertPolicies.create`. The stated reason does not hold. The
+conclusion still does, for two better ones: a policy is useless without a
+notification channel id, which is not in the repo and should not be; and a
+pipeline that can silently rewrite an alert policy can silently delete one.
+The console therefore reports policies as *committed*, never as *deployed* —
+the repo cannot know which.
+
+**Recorded, not fixed.** 1 of 14 deployed functions has an alert policy, and
+three of COSTS.md's four walls have no instrument. Both are surfaced by the
+console rather than closed here: the uncovered functions are mostly
+callables, which fail loudly to a caller who can notice, and the walls with
+no instrument bind at sizes this product has not approached.
+`onV2AnswerCreated` is alerted precisely because it is the one that fails
+*silently* — `retry:true` means a crash accumulates for ~7 days while the
+app looks healthy.
+
+**A defect this work found in its own input.** The console's cost panel
+reads `scripts/cost-arith.mjs`, and building it surfaced that the model was
+still charging every returning user a full 369-document bank refetch per
+reseed — the **pre-D34** world. D34 shipped 2026-08-02: `runSeedV2` writes
+only changed documents and the client pages `updatedAt > cursor`. COSTS.md's
+prose said so; COSTS.md's *tables* did not, because `cost-model.mjs` had no
+input for "documents changed per reseed" — only whole-bank or nothing, and
+the shipped state is neither. Verified in both halves of the code before
+touching the model (the seed's skip count, and `insight.bankCache.v2`'s
+cursor query), then fixed with `B.changedPerReseed` (default 7 — D30's
+promotion cadence) and COSTS.md's tables regenerated. Worth ~145 reads per
+user per day at every size: **$18/mo → $5/mo at 5,000 DAU, $305 → $175 at
+50,000, $13,215 → $11,910 at 500,000.** The remaining `staticBank` toggle now
+means what it says — the *unbuilt* Hosting fix — rather than doubling as a
+stand-in for the one that shipped.
+
+That is the argument for the console in one paragraph: a number nobody looks
+at goes stale in the direction of whatever was true when it was written, and
+a prose correction the arithmetic beside it does not implement is the failure
+`check:figures` exists for, one layer down.
+
+**Amendment (2026-08-04, same day) — four follow-ups from a review of the
+above.** Recorded rather than folded in silently, because two of them are
+corrections to decisions this record made a few hours earlier.
+
+1. **Only the trail is committed now.** `monitoring/pulse.json` was
+   committed on the argument that a change in the burn should be a
+   reviewable diff. But `runwayDays` moves at midnight by construction, so
+   committing it meant one bot commit per day forever for a file derivable
+   from the tree plus the date — and the trail already carries burn, runway
+   and alert coverage, so the diff argument is served without the churn.
+   `pulse.json` and the rendered page are both gitignored.
+
+2. **The sparkline plots time, not array position.** The first version
+   spaced readings evenly by index, which draws a six-week gap exactly like
+   a one-day step. That is not cosmetic: GitHub disables a schedule after 60
+   days of repository quiet, so the trail WILL gap, and a chart that hides
+   when it stopped looking is worse than no chart. X is now the date, and a
+   run of missed days gets a hairline under the stretch it covers plus a
+   count in the caption.
+
+3. **Four cost constants read from source instead of being retyped.**
+   `DECK_DAYS`, `AGG_ID_CAP`, `PUBLISH_EVERY` and `HOT_TRIGGER`'s footprint
+   were hand-copied into the model with the real location in a trailing
+   comment — the same shape as the D34 defect this record already documents,
+   left in place while fixing it. They are now parsed from `deck.ts`,
+   `live.ts`, `v2.ts` and `ops.ts`, and throw loudly on a rename rather than
+   falling back to whatever was true in August. `TRIG.sec` is the exception
+   and cannot be read: 200 ms is an estimate of wall-clock per invocation,
+   and it sits beside three hard numbers, which is worth knowing before
+   tuning that object.
+
+4. **The console has tests, and `pulse.mjs` was split to allow them.**
+   Collection moved to `scripts/pulse-collect.mjs` (pure, no side effects on
+   import); `pulse.mjs` is the CLI, the trail's file I/O and `--check`.
+   `npm run test:scripts` covers the places where a wrong answer looks like
+   a right one: the archive prompt join (which already produced a convincing
+   false positive — six phantom orphans, all apostrophes), the trail's
+   same-day replacement, the runway arithmetic, that the constants above
+   still match their sources, that a gap draws as a gap, and the scorecard
+   block — which had **never executed**, since there is no scorecard yet and
+   its first run would otherwise have been launch day. On CI's lint job, not
+   backend-checks: it is tooling, and nothing it says bears on whether a
+   rules fix is safe to deploy.
+
+Three known limits were written into MONITORING.md rather than fixed, all
+pre-existing: `boot = 15` is a hand-counted inventory of `hydrate()`'s
+queries with no single declaration to read, and is now the likeliest number
+in the model to rot; the `+ 0.2` in the writes formula is unsourced; and the
+deletes line assumes a Firestore TTL policy that is a hand-run command in
+SHIP-CHECKLIST §5, not a deployed artifact — if it was never run, deletes
+are zero and storage grows without bound.
+
+**Second amendment (2026-08-04) — the console follows the product, not only
+the clock.** Asked whether it could update as the product changes, which the
+daily cron did not do: promote twelve questions at noon and the runway tile
+was a day behind until the next morning.
+
+`pulse.yml` now also runs on **every push to `main`**, so the two triggers
+cover the two ways these numbers move — the clock for the changes nobody
+made (the calendar eating runway, a scorecard ageing), the push for the ones
+somebody did. `--check` then runs against the change that caused it rather
+than against a tree that has since moved on.
+
+**No `paths:` filter, and that is the deliberate half.** A path list would be
+a hand-maintained copy of "every file pulse reads" — the content banks, the
+four source files it parses constants out of, the archive, the rate card,
+the alert policies, the cities header, its own scripts. This record already
+documents two costs of exactly that shape of duplicate, and the failure is
+the quiet one: pulse grows an input, the filter does not, and the console
+stops noticing the thing it exists to notice. The job installs nothing
+(Node stdlib only) and takes about twenty seconds, so running it always is
+cheaper than maintaining the list that would let it run less. It cannot
+loop — a push made with the default `GITHUB_TOKEN` does not trigger
+workflows.
+
+**The commit path was made race-safe, because two triggers can now overlap.**
+A rejected push is no longer rebased: rebasing two runs that both wrote the
+same day's row means conflicting on the same line of the same file, which is
+the one case rebase cannot resolve. Instead the tree resets to the branch
+head and the row is recomputed against it. The row is a pure function of the
+tree and the date, so this always converges, and the losing run finds the row
+already written and exits clean. Exercised with two clones racing a real
+bare remote — A pushed, B was rejected, reset, recomputed, found nothing to
+do; one row, one commit, no conflict.
+## D48 · Three limits accepted while closing the reveal-alert, bridge and boot-state gaps
 
 **Date:** 2026-08-06 · **Status:** Adopted
 

@@ -93,23 +93,32 @@ Three of those are worth knowing *why*, because each looks tickable:
    dynamically only after the user opts in (`insight.telemetry.v1`,
    default off).
 
-### ⚠ One inconsistency to resolve before you submit
+### The guideline 4.8 reply, and the clause that was cut from it
 
-`SHIP-CHECKLIST § hardening` drafts a reply to a possible guideline 4.8
-challenge that ends: *"note the app collects no email or name via Google
-either."* **That sentence is wrong, and it contradicts the Email Address
-row above.**
+**Resolved 2026-08-05.** `SHIP-CHECKLIST § hardening` used to end its
+draft reply to a guideline 4.8 challenge with *"note the app collects no
+email or name via Google either"* — which contradicted the Email Address
+row above. The checklist has been corrected; this note stays because the
+sentence is the kind that gets rewritten from memory.
 
-`linkWithPopup(user, new GoogleAuthProvider())` requests Google's default
-scopes, so Firebase Auth stores the account's email — and its profile
-name — on the auth user record. The app's own code never reads them, which
-is probably what the sentence meant, but "collects" on these forms means
-what lands on your servers, and Firebase Auth is your server.
+`linkGoogle()` calls `new GoogleAuthProvider()` with no `addScope`
+(`src/lib/firebaseImpl.ts:167`), so Firebase requests `email` and
+`profile` by default and Firebase Auth stores both on the user record. The
+app's own code never reads them, which is probably what the sentence
+meant, but "collects" on these forms means what lands on your servers, and
+Firebase Auth is your server.
 
-**Do not say that line to a reviewer while the nutrition label declares
-Email Address.** The rest of the 4.8 reply stands and is the strong part:
-the primary path is anonymous, no account is required to use the app, and
-Google is an optional upgrade rather than a login wall.
+**Never say that line to a reviewer while the nutrition label declares
+Email Address** — a listing that contradicts its own developer response is
+a worse problem than the one the sentence was trying to solve. The rest of
+the 4.8 reply stands and is the strong part: the primary path is anonymous,
+no account is required to use the app, and Google is an optional upgrade
+rather than a login wall.
+
+If you would rather the claim were true than the label complete, that is a
+code change and not a forms change: request no scopes at all, accept that
+the profile name has to come from somewhere else, and re-answer both rows.
+It is not needed for launch.
 
 ---
 

@@ -4,19 +4,30 @@
 //   node scripts/apply-monitoring.mjs --email you@example.com            # report
 //   node scripts/apply-monitoring.mjs --email you@example.com --apply    # do it
 //
-// WHY THIS EXISTS. docs/DEPLOYMENT.md § Alerting spells out four console
-// steps: a notification channel, a log-based metric, and two policies that
-// each need the channel id pasted in from the first step's output. It is
+// WHY THIS EXISTS. docs/DEPLOYMENT.md § Alerting spells out the console
+// steps: a notification channel, two log-based metrics, and three policies
+// that each need the channel id pasted in from the first step's output. It is
 // not hard, it is just fiddly enough that it stays undone — and what it
 // guards is the failure mode that runbook calls the urgent one, the one
 // that looks like nothing from the outside: the app keeps serving, the
 // Mirror stops moving, and Eventarc piles up redeliveries for ~7 days.
 //
-// NOT on the deploy path, and it must not become so: the deploy service
-// account has no monitoring role, and widening it for two policies is a
-// worse trade than running this once. That reasoning is DEPLOYMENT.md's,
-// not this script's — it is repeated here because a script that looks
-// runnable in CI invites someone to run it there.
+// NOT on the deploy path, and it must not become so. The reasoning is
+// DEPLOYMENT.md's, not this script's — repeated here because a script that
+// looks runnable in CI invites someone to run it there — but the version
+// this file first carried was the wrong one, and copying it forward is how
+// a wrong reason outlives the doc that retired it (D47):
+//
+//   NOT because the deploy service account lacks the permission. It holds
+//   `Editor` + `Firebase Admin`, and `Editor` includes
+//   `monitoring.alertPolicies.create`. Permission was never the obstacle.
+//
+//   BUT because a policy is useless without a notification channel id,
+//   which is an email address or a Slack hook — per operator, per project,
+//   and correctly not in this repo. And because a pipeline that can rewrite
+//   an alert policy can delete one silently, in a deploy that was about
+//   something else, and the blast radius is "you stop being told when the
+//   Mirror stops moving".
 //
 // Dry run by default, same posture as scrub-v1-discoverable.mjs: it prints
 // what it would create and changes nothing without --apply.
