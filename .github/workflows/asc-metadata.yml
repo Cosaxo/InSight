@@ -103,6 +103,12 @@ jobs:
           fi
 
           echo "running: asc-push $MODE"
+          # pipefail: `cmd | tee` otherwise reports TEE's exit status, so a
+          # failed push would be a green job. The seed workflow shipped
+          # exactly that bug and reported Success while the script printed a
+          # 500 — caught on its first real run, and fixed in both places at
+          # once because one instance of a mistake is rarely the only one.
+          set -o pipefail
           node scripts/asc-push.mjs $MODE | tee "$RUNNER_TEMP/asc.log"
 
       - name: Summary

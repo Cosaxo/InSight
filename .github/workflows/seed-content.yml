@@ -72,10 +72,34 @@ jobs:
           VITE_FIREBASE_API_KEY: ${{ vars.VITE_FIREBASE_API_KEY }}
           FIREBASE_PROJECT_ID: prvfire33
         run: |
+          # pipefail, and it is not a style preference. `cmd | tee` reports
+          # TEE's exit status, so without this a failing seed is a GREEN job.
+          # Run 1 did exactly that: the script printed "seedContentV2 failed
+          # (500)" and the run reported Success. A workflow whose whole
+          # purpose is to make a step verifiable must not be able to lie
+          # about whether the step happened.
+          set -o pipefail
           ARGS=""
           [ "${{ inputs.bump_rev }}" = "true" ] && ARGS="$ARGS --bump-rev"
           [ "${{ inputs.dry_run }}" = "true" ] && ARGS="$ARGS --dry-run"
           node scripts/seed-content.mjs $ARGS | tee "$RUNNER_TEMP/seed.log"
+
+      # A callable that throws anything other than an HttpsError reaches the
+      # caller as a bare "INTERNAL", with the real error visible only in Cloud
+      # Logging. Fetching it here turns an unactionable status into the actual
+      # stack trace, at the one moment someone is looking.
+      - name: Why it failed — the function's own log
+        if: failure()
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: |
+          printf '%s' "$FIREBASE_SERVICE_ACCOUNT" > "$RUNNER_TEMP/sa-key.json"
+          export GOOGLE_APPLICATION_CREDENTIALS="$RUNNER_TEMP/sa-key.json"
+          echo "--- seedContentV2, most recent entries ---"
+          npx --yes firebase-tools functions:log \
+            --only seedContentV2 --project prvfire33 2>&1 \
+            | tail -60 | tee "$RUNNER_TEMP/fnlog.txt" \
+            || echo "(could not read the function log — the service account may lack logging.viewer)"
 
       - name: Summary
         if: always()
@@ -86,6 +110,17 @@ jobs:
             echo '```'
             cat "$RUNNER_TEMP/seed.log" 2>/dev/null || echo "(failed before the seed ran — see the step log)"
             echo '```'
+            if [ -s "$RUNNER_TEMP/fnlog.txt" ]; then
+              echo ""
+              echo "#### seedContentV2's own log"
+              echo ""
+              echo "The callable returned a bare \`INTERNAL\`, which means it threw"
+              echo "something that was not an \`HttpsError\`. The real error is here:"
+              echo ""
+              echo '```'
+              cat "$RUNNER_TEMP/fnlog.txt"
+              echo '```'
+            fi
             echo ""
             echo "Re-running is safe and, since D34, cheap: only changed documents are"
             echo "rewritten and \`contentRev\` is held, so returning devices do not"
