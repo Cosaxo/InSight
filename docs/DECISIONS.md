@@ -4620,3 +4620,55 @@ tree and the date, so this always converges, and the losing run finds the row
 already written and exits clean. Exercised with two clones racing a real
 bare remote — A pushed, B was rejected, reset, recomputed, found nothing to
 do; one row, one commit, no conflict.
+## D48 · Three limits accepted while closing the reveal-alert, bridge and boot-state gaps
+
+**Date:** 2026-08-06 · **Status:** Adopted
+
+**Decision.** Three things were deferred or traded rather than solved while
+landing the reveal-loop alert, the `test-definitions` / `passive-progress`
+conversion, and the web boot state. Each is recorded here with what it
+costs, because each is invisible in a green tree.
+
+**1. The reveal alert cannot see "it never worked".**
+`monitoring/scheduledDuelReveals-silent.json` is a metric-absence condition,
+and absence needs a time series that has existed at least once — against a
+metric with no points it does not fire. So the policy proves "the scheduled
+scan worked and then stopped", never "the scheduled scan has never run".
+The arithmetic on what it *does* cover: the schedule is every 120 minutes
+and the condition is 6h, so it fires on three consecutive missed runs, well
+inside the one-day window a reveal promises. The gap is the first run only,
+and it is closed by a human: `npm run monitoring:apply` prints the
+`gcloud logging read` that confirms a first heartbeat landed, and the
+runbook says to apply this policy after observing one. **Accepted rather
+than fixed** because the alternative — a synthetic canary that plays a duel
+end to end on a schedule — is a second scheduled function with its own
+failure modes, which is a larger thing than the gap it closes at zero users.
+
+**2. Nothing holds the boot state's ground colour equal to the app's.**
+`index.html` hard-codes `#15171c`, duplicating `html, body { background }`
+at `styles.css:2100`. It cannot read the token: `styles.css` is imported by
+`main.jsx`, so it arrives with the bundle whose load the boot state exists
+to cover. If that ground moves and `index.html` does not, a cold start
+flashes one colour into another — which is the exact defect this change
+removed, reintroduced from the other side. **No gate**, deliberately: the
+check would have to parse a CSS literal out of two files and compare them,
+and the failure it prevents is one frame of wrong colour on a web cold
+start. That is the cheapest honest statement of the trade — a gate here
+costs more than the flash. Both files carry a comment naming the other.
+
+**3. `test-definitions.js` and `passive-progress.js` stay in `spec/`.**
+They came off the shared-global bridge as ordinary ESM modules
+(657 → 540 references) but did **not** move to `data/` as typed, tested
+modules, which is what `src/v2/README.md` had proposed. The reason the move
+was proposed no longer holds: it was going to dissolve two import cycles,
+and neither cycle existed (see the README section — one was never there,
+the other was a multi-writer artifact of a defensive fallback in
+`daily-split.jsx`, deleted with the conversion). What is left is the
+ordinary benefit — types and tests. `passive-progress.js` is 77 lines of
+pure arithmetic over a store (`pct`, `done`, `passiveDone`, `prefill`) with
+no JSX and no test, so it is the better candidate of the two;
+`test-definitions.js` is 247 lines that are mostly question banks already
+pinned item-for-item against `content/tests.json` by
+`test/content-parity.test.jsx`. **Deferred** because the conversion was
+already an 18-file change and moving a module across the typed boundary in
+the same commit would have put a refactor and a re-typing in one diff.

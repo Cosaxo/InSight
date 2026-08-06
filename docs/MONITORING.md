@@ -20,7 +20,7 @@ Two instruments, neither of them a view:
 | --- | --- | --- |
 | `npm run costs` | prints the predicted bill at five sizes | anything about what the bill nets against |
 | `npm run scorecard` | scores questions the crowd has answered | anything before launch, and no history — one output path, overwritten |
-| `monitoring/*.json` | two alert policies, put live by `npm run monitoring:apply` | which of the other 13 functions has no alert |
+| `monitoring/*.json` | three alert policies, put live by `npm run monitoring:apply` | which of the other 12 functions has no alert |
 
 Between them sat things nobody was computing at all: how many days of
 question runway are left, whether anything is already written and waiting
@@ -183,13 +183,28 @@ listed by hand, so a new function or a new policy appears without anyone
 remembering to add it — that omission being the exact failure this whole
 console reduces.
 
-**1 of 14 deployed functions has an alert policy.** That is a finding, not
+**2 of 14 deployed functions have an alert policy.** That is a finding, not
 necessarily a bug. The uncovered ones are mostly callables, which fail
 loudly to the caller: a user sees an error and there is a person to notice.
-`onV2AnswerCreated` is alerted precisely because it does *not* do that — it
-runs with `retry:true`, so a crash accumulates for ~7 days while the app
-looks healthy and the Mirror quietly stops moving. Coverage here is a
-judgement, not a percentage to maximise.
+The two that are alerted are alerted precisely because they do *not* do
+that, and they fail silently in opposite ways — which is why the policies
+watching them are different shapes:
+
+- `onV2AnswerCreated` runs with `retry:true`, so a crash accumulates for
+  ~7 days while the app looks healthy and the Mirror quietly stops moving.
+  Watched **by severity**.
+- `scheduledDuelReveals` is a cron, whose characteristic failure is not
+  throwing but not running — scheduler stopped, dropped from a deploy's
+  `--only` list, revision will not start. Nothing executes, so nothing
+  logs, and a severity policy stays green through the whole outage.
+  Watched **by absence** of its heartbeat.
+
+Coverage here is a judgement, not a percentage to maximise — and the number
+is computed from what each policy WATCHES (its displayName and conditions),
+never from its runbook prose. Reading the whole file counted
+`revealDuelsNowV2` as alerted because the reveal policy's first-response
+step names it, which would have made this read 3 of 14 on the strength of a
+better-written runbook.
 
 Three of the four walls COSTS.md names have no instrument at all. That is
 recorded rather than fixed: two of them bind at sizes this product has not

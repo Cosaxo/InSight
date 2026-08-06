@@ -277,7 +277,7 @@ in this repo: the first real incident should shape one against its actual
 form, not inherit an untested one; what must not be improvised is the
 order of operations above.
 
-## Alerting (two alerts, deliberately)
+## Alerting (three alerts, deliberately)
 
 Everything above assumes somebody already knows something is wrong. Until
 this was added, nothing told them: detection was a human choosing to run
@@ -293,8 +293,8 @@ for ~7 days.
 > npm run monitoring:apply -- --email you@example.com --apply   # do it
 > ```
 >
-> It creates the channel, the log-based metric and both policies in the
-> order below, skipping whatever already exists. The manual steps stay
+> It creates the channel, both log-based metrics and all three policies in
+> the order below, skipping whatever already exists. The manual steps stay
 > written out because the script is a convenience over them, not a
 > replacement for knowing what it did — and because the reason each object
 > exists is the useful part.
@@ -366,15 +366,67 @@ with no source at either end.
 invocations and logs at three attempts, which is the source; the metric
 and policy above are the path.
 
-**Why only these two.** An alert nobody acts on trains people to ignore
-the channel, and at zero users most signals are noise. These are the two
+### The third alert: the reveal scan going quiet
+
+`monitoring/scheduledDuelReveals-silent.json` watches the duel reveal loop.
+It is the first policy here that alerts on **absence** rather than on a
+signal, and the difference is the point: the other two watch a trigger that
+runs when a user acts, so an outage produces log lines. This watches a
+cron, whose characteristic failure is not throwing but **not running** —
+Cloud Scheduler stops firing, the function falls out of a deploy's `--only`
+list, the revision fails to start. Nothing executes, so nothing logs, and a
+`severity>=ERROR` policy stays green for the entire outage.
+
+```bash
+# 1. The metric: one data point per completed SCHEDULED scan.
+#    The mode filter is load-bearing — see below.
+gcloud logging metrics create duel_reveal_run --project prvfire33 \
+  --description="scheduledDuelReveals completed a scheduled (indexed) scan" \
+  --log-filter='jsonPayload.metric="duel_reveal_run" AND jsonPayload.mode="indexed"'
+
+# 2. The policy, with the same channel as above
+gcloud alpha monitoring policies create --project prvfire33 \
+  --policy-from-file=monitoring/scheduledDuelReveals-silent.json \
+  --notification-channels=projects/prvfire33/notificationChannels/CHANNEL_ID
+```
+
+**Why the metric filters on `mode`.** `runDuelReveals` is shared by the
+schedule (`"indexed"`) and by `revealDuelsNowV2`'s manual lever, which
+defaults to `"full"`. Both emit the heartbeat. Without the filter, an
+operator running the lever during an incident — the first thing this
+policy's own runbook tells them to do — would reset the absence timer and
+silence the alert for the outage they are working on.
+
+**Why this one does not wait for "someone is actually reading the alerts",
+unlike the aggregators below.** A missed reveal does **not** self-heal.
+`runDuelReveals` computes `const yester = dayKey || utcDayKey(-1)`, and the
+schedule passes no `dayKey` — so every run handles *yesterday and only
+yesterday*. A three-day outage does not resolve into a catch-up run; it
+leaves two days permanently unrevealed, because no later scheduled run ever
+looks at them again. Recovering them needs a manual `revealDuelsNowV2` with
+an explicit `day`, which needs someone to know which days to name. The
+detection gap and the data loss are the same window.
+
+**Known limit, recorded rather than discovered later.** A metric-absence
+condition needs a time series that has existed at least once; against a
+metric with no points it does not fire. So this policy is blind to "the
+scheduled reveal never worked at all" and only ever proves "it worked and
+then stopped." Apply it, then confirm a first run actually landed —
+`npm run monitoring:apply` prints the `gcloud logging read` that checks —
+or it sits green meaning nothing.
+
+**Why only these three.** An alert nobody acts on trains people to ignore
+the channel, and at zero users most signals are noise. These are the
 conditions where the gap between "broken" and "visibly broken" is measured
-in days: a crashing trigger that accumulates redeliveries, and a ceiling
-that arrives as latency rather than as an error. The scheduled aggregators
+in days: a crashing trigger that accumulates redeliveries, a ceiling that
+arrives as latency rather than as an error, and a cron whose silence is
+indistinguishable from health. The scheduled aggregators
 (`scheduledWorldAggregates`, `scheduledCityAggregates`) are the obvious
 next — they are 24h jobs whose failure delays a surface by a day and
 self-heals on the next run, so they can wait until someone is actually
-reading the alerts.
+reading the alerts. That "self-heals" is doing real work in this paragraph:
+it is exactly what is NOT true of the reveal scan, which is why that one
+did not wait.
 
 ## Running a deploy manually
 

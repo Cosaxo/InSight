@@ -648,7 +648,26 @@ async function runDuelReveals(
     }
   }
 
-  logger.info(`[v2social] reveals for ${yester} (${mode}): ${revealed} of ${scanned} scanned`);
+  // The heartbeat, and the only evidence the scheduled scan ran at all.
+  //
+  // Structured fields as well as the message, for the same reason the
+  // contention line in v2.ts carries them: the message is what a human
+  // greps, the fields are what a log-based metric selects on.
+  //
+  // `mode` is load-bearing here rather than decorative.
+  // monitoring/scheduledDuelReveals-silent.json alerts on the ABSENCE of
+  // this line, and runDuelReveals is shared by the schedule ("indexed")
+  // and revealDuelsNowV2's manual lever ("full"). Without a mode to
+  // filter on, an operator running the lever during an incident would
+  // emit the heartbeat and reset the absence timer — silencing the alert
+  // for the outage it was run to fix.
+  logger.info(`[v2social] reveals for ${yester} (${mode}): ${revealed} of ${scanned} scanned`, {
+    metric: "duel_reveal_run",
+    day: yester,
+    mode,
+    revealed,
+    scanned,
+  });
   return { revealed, scanned, mode };
 }
 

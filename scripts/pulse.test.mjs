@@ -192,6 +192,27 @@ describe("the pulse artifact", () => {
     expect(trigger.alerted).toBe(true);
   });
 
+  it("counts a function a policy WATCHES, not one its runbook merely names", () => {
+    // The two halves of the scope this is computed over, each pinned by the
+    // case that broke when the other was used alone.
+    const { functions } = p.instrumentation;
+    const named = (n) => functions.find((f) => f.name === n);
+
+    // 1. displayName is required. scheduledDuelReveals-silent.json's
+    //    condition names the LOG METRIC (duel_reveal_run) and never the
+    //    function, so a conditions-only scope reported it unalerted — a
+    //    real alert dropped, which reads as a coverage gap that is not one.
+    expect(named("scheduledDuelReveals").alerted).toBe(true);
+
+    // 2. documentation must be excluded. That same policy's runbook tells
+    //    the operator to run revealDuelsNowV2 as the first response.
+    //    Scanning the raw file counted the callable as alerted — coverage
+    //    rising because someone wrote a better runbook, which is the
+    //    flattering direction this survey exists not to miscount in.
+    expect(named("revealDuelsNowV2").alerted).toBe(false);
+    expect(read("monitoring/scheduledDuelReveals-silent.json")).toContain("revealDuelsNowV2");
+  });
+
   it("reads the addressable place count out of the generated catalogue", () => {
     const a = addressablePlaces();
     expect(a.places).toBeGreaterThan(1000);

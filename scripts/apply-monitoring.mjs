@@ -1,12 +1,12 @@
 #!/usr/bin/env node
-// apply-monitoring.mjs — put the two alert policies in place, in one command.
+// apply-monitoring.mjs — put the three alert policies in place, in one command.
 //
 //   node scripts/apply-monitoring.mjs --email you@example.com            # report
 //   node scripts/apply-monitoring.mjs --email you@example.com --apply    # do it
 //
-// WHY THIS EXISTS. docs/DEPLOYMENT.md § Alerting spells out four console
-// steps: a notification channel, a log-based metric, and two policies that
-// each need the channel id pasted in from the first step's output. It is
+// WHY THIS EXISTS. docs/DEPLOYMENT.md § Alerting spells out the console
+// steps: a notification channel, two log-based metrics, and three policies
+// that each need the channel id pasted in from the first step's output. It is
 // not hard, it is just fiddly enough that it stays undone — and what it
 // guards is the failure mode that runbook calls the urgent one, the one
 // that looks like nothing from the outside: the app keeps serving, the
@@ -54,10 +54,29 @@ const PROJECT = argOf("--project") || "prvfire33";
 const EMAIL = argOf("--email");
 const CHANNEL_NAME = argOf("--channel-name") || "InSight oncall";
 
-const METRIC = "agg_contention";
+// Log-based metrics, created before the policies that read them.
+const METRICS = [
+  {
+    name: "agg_contention",
+    description: "onV2AnswerCreated transaction attempts >= 3 (D7 write ceiling)",
+    filter: 'severity>=WARNING AND jsonPayload.metric="agg_contention"',
+  },
+  {
+    // The scheduled reveal scan's heartbeat. Filtered to mode="indexed" —
+    // the schedule's mode — on purpose: runDuelReveals is shared with
+    // revealDuelsNowV2's manual lever, which defaults to "full", and an
+    // operator running the lever during an incident must not reset the
+    // absence timer on the alert that reported it.
+    name: "duel_reveal_run",
+    description: "scheduledDuelReveals completed a scheduled (indexed) scan",
+    filter: 'jsonPayload.metric="duel_reveal_run" AND jsonPayload.mode="indexed"',
+  },
+];
+
 const POLICIES = [
   "monitoring/onV2AnswerCreated-errors.json",
   "monitoring/onV2AnswerCreated-contention.json",
+  "monitoring/scheduledDuelReveals-silent.json",
 ];
 
 if (!EMAIL) {
@@ -136,19 +155,22 @@ if (channel && channel.labels?.email_address && channel.labels.email_address !==
   );
 }
 
-// ── 2. the log-based metric ─────────────────────────────────────────
-// The contention policy counts a LOG LINE, not a built-in signal, so the
-// metric has to exist before the policy that reads it — otherwise the
+// ── 2. the log-based metrics ────────────────────────────────────────
+// Two policies count a LOG LINE rather than a built-in signal, so their
+// metrics have to exist before the policies that read them — otherwise a
 // policy is created against a metric type that resolves to nothing and
-// never fires, which looks identical to "no contention".
+// never fires, which looks identical to "no contention" and to "the
+// reveal scan is healthy" respectively.
 const metrics = gcloud(["logging", "metrics", "list", "--format", "json"]);
-step(`log-based metric ${METRIC}`, metrics.some((m) => m.name === METRIC), () => {
-  gcloud([
-    "logging", "metrics", "create", METRIC,
-    "--description", "onV2AnswerCreated transaction attempts >= 3 (D7 write ceiling)",
-    "--log-filter", 'severity>=WARNING AND jsonPayload.metric="agg_contention"',
-  ], { json: false });
-});
+for (const m of METRICS) {
+  step(`log-based metric ${m.name}`, metrics.some((x) => x.name === m.name), () => {
+    gcloud([
+      "logging", "metrics", "create", m.name,
+      "--description", m.description,
+      "--log-filter", m.filter,
+    ], { json: false });
+  });
+}
 
 // ── 3. the policies ─────────────────────────────────────────────────
 const existing = gcloud(["alpha", "monitoring", "policies", "list", "--format", "json"]);
@@ -171,6 +193,14 @@ console.log(
     ? "\napply-monitoring: done. Verify with:\n"
       + `  gcloud alpha monitoring policies list --project ${PROJECT}\n`
       + "Then send yourself a test page from the console — an alert nobody has\n"
-      + "ever seen arrive is an alert you do not know is wired up."
+      + "ever seen arrive is an alert you do not know is wired up.\n"
+      + "\n"
+      + '  ! "scheduledDuelReveals has gone quiet" is a metric-ABSENCE policy,\n'
+      + "    and absence conditions need a time series that has existed at\n"
+      + "    least once. Until the first scheduled (indexed) reveal scan has\n"
+      + "    run in production, it cannot fire — it is green because there is\n"
+      + "    nothing to be absent, not because the loop is healthy. Confirm\n"
+      + "    one run landed before counting it as cover:\n"
+      + `      gcloud logging read 'jsonPayload.metric="duel_reveal_run"' --limit 1 --project ${PROJECT}`
     : "\napply-monitoring: dry run. Re-run with --apply to create the above.",
 );

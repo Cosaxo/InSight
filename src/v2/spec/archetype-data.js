@@ -4,6 +4,7 @@
 // spec-index.js load order is semantic — scripts/check-spec-globals.mjs
 // guards the wiring in CI.
 import React from 'react';
+import { IS_TEST_AVG } from './test-definitions.js';
 
 // archetype-data.js — named type systems per test. Each type has a signature
 // vector on the test's dims, a one-line definition (`line`), and a realistic
@@ -158,7 +159,7 @@ const ARCH_SHARE_PULL = 210; // strength of the commonness prior
 window.IS_archScores = function (testKey, dims) {
   const sys = IS_ARCHETYPES[testKey];
   if (!sys || !dims || !dims.length) return null;
-  const avg = (window.IS_TEST_AVG || {})[testKey] || {};
+  const avg = IS_TEST_AVG[testKey] || {};
   const maxShare = Math.max.apply(null, sys.list.map(a => a.share || 1));
   return sys.list.map(a => {
     let s = 0, w = 0;
@@ -183,7 +184,7 @@ window.IS_archScores = function (testKey, dims) {
 // so z = rms/15 and the share of people at least this far out follows the
 // fitted survival curve exp(−0.916·z^2.33)  (z=1 → ~40%, 1.5 → ~9%, 2 → ~1%).
 window.IS_profileRarity = function (testKey, dims) {
-  const avg = (window.IS_TEST_AVG || {})[testKey];
+  const avg = IS_TEST_AVG[testKey];
   if (!avg || !dims || !dims.length) return null;
   let s = 0, n = 0;
   dims.forEach(d => { if (avg[d.id] != null) { const e = d.value - avg[d.id]; s += e * e; n++; } });

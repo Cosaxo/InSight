@@ -5,6 +5,8 @@
 // guards the wiring in CI.
 import React from 'react';
 import { IS_DATA } from './sample-data.js';
+import { IS_TEST_RESULTS } from './test-definitions.js';
+import { PASSIVE } from './passive-progress.js';
 
 // ─────────────────────────────────────────────────────────────
 // General tab · the parts of you that aren't a test.
@@ -361,7 +363,7 @@ import { IS_DATA } from './sample-data.js';
   }
 
   function TestArcsCard({ onGo }) {
-    const R = window.IS_TEST_RESULTS || {};
+    const R = IS_TEST_RESULTS;
     const C = 2 * Math.PI * 23;
     return (
       <Card title="Your tests">
@@ -369,7 +371,7 @@ import { IS_DATA } from './sample-data.js';
           {ARC_TESTS.map(({ k, sub, name }) => {
             const res = R[k];
             const top = res ? [...res.dims].sort((a, b) => b.value - a.value)[0] : null;
-            const pct = window.PASSIVE ? window.PASSIVE.pct(k) : (res ? 100 : 0);
+            const pct = PASSIVE.pct(k);
             return (
               <button key={k} className="press" onClick={() => onGo && onGo(sub)} style={{
                 cursor: 'pointer', WebkitAppearance: 'none', appearance: 'none', background: 'none', border: 'none',

@@ -530,14 +530,30 @@ export function collectInstrumentation() {
     };
   });
 
-  // Which functions any policy actually names. Substring rather than a
+  // Which functions any policy actually WATCHES. Substring rather than a
   // parse: the filters spell the function name in two casings (Cloud Run
   // service names are lowercased), so a case-insensitive contains is both
   // the simplest and the most forgiving test.
+  //
+  // Scanned over `displayName` + `conditions` — what the policy IS — and
+  // deliberately NOT `documentation`, which is the runbook and names
+  // functions the policy does not watch. Reading the raw file swept the
+  // runbook too: scheduledDuelReveals-silent.json tells the operator to run
+  // revealDuelsNowV2 as the first response, and that counted the callable
+  // as alerted — 3 of 14 on a console whose honest answer was 2. Coverage
+  // that rises because someone wrote a BETTER runbook is precisely the
+  // flattering direction a survey must not miscount in.
+  //
+  // Both halves are load-bearing, and conditions alone is not enough: a
+  // policy can watch a function without naming it in a filter. The reveal
+  // policy's condition names the log-based metric (duel_reveal_run), never
+  // the function — so a conditions-only test reported 1 of 14 and dropped a
+  // real alert. displayName is where that policy says what it is about.
   const watchedNames = new Set();
   for (const f of policyFiles) {
-    const raw = read(`monitoring/${f}`).toLowerCase();
-    for (const fn of functions) if (raw.includes(fn.name.toLowerCase())) watchedNames.add(fn.name);
+    const p = readJson(`monitoring/${f}`) || {};
+    const scope = `${p.displayName || ""} ${JSON.stringify(p.conditions ?? [])}`.toLowerCase();
+    for (const fn of functions) if (scope.includes(fn.name.toLowerCase())) watchedNames.add(fn.name);
   }
 
   return {
