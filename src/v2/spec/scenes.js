@@ -34,6 +34,10 @@ import { IS_DATA } from './sample-data.js';
   const colorOf = (id) => { const h = hueOf(id); return h == null ? 'var(--accent)' : `color-mix(in oklch, var(--accent) 45%, oklch(0.52 0.12 ${h}))`; };
   const listeners = new Set();
   const persist = () => { try { localStorage.setItem(LS, JSON.stringify([...ensure()])); } catch (e) { /* localStorage can throw: private mode, quota, disabled storage. Persistence here is best-effort and the in-memory state stays correct. */ } listeners.forEach((f) => f()); };
+  // The purge (data/live.ts, D51): null the cache and ensure() re-derives
+  // from storage — now empty, so the sample-data default — instead of the
+  // previous account's follow list surviving to be persisted back.
+  window.addEventListener('insight:local-purge', () => { set = null; listeners.forEach((f) => f()); });
   window.SCENES = {
     topicOf: (id) => TOPIC[id] || null,
     subOf: (id) => SUB[id] || null,

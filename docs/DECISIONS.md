@@ -4410,7 +4410,631 @@ not need one. This belongs on release paths, next to the plist check it
 mirrors — and `check:web-firebase` fails loudly when run without an
 environment, which is correct for a release gate and wrong for a PR.
 
-## D47 · Three guarantees were enforced on a value and not on the way it moves
+## D47 · Monitoring grows a decision console — and the refusals become part of it
+
+**Date:** 2026-08-04 · **Status:** Adopted (owner-requested: "increase the
+scope of the monitoring to include cost and profits and other stats, along
+with algorithm effect, question generation stats, user analysis, and have it
+presented in some sort of visual tool to help me make decisions")
+
+**Decision.** `npm run pulse` computes a four-panel decision console from
+committed artifacts and renders it as one self-contained HTML page.
+`monitoring/pulse.json` is committed (the data, so a change in the burn or
+the runway is a reviewable diff); `monitoring/pulse-trail.jsonl` appends one
+row per day; the HTML is gitignored and regenerated in under a second. The
+full argument is [`docs/MONITORING.md`](MONITORING.md).
+
+**The part that needed deciding.** Three of the four requests — cost,
+money, question-pipeline stats — are ordinary engineering. The fourth,
+"user analysis", is not available here, and the decision is that **the
+console displays the refusals rather than omitting them.**
+
+Five things a monitoring dashboard would normally show are structurally
+unavailable: per-user funnels and session analytics (no client event
+pipeline exists, by design), retention or engagement sliced by anchor
+(D8/D18's k-floor and complementary suppression), anything sliced by
+political result (D8, Art. 9), skip/pass rates (QUESTION-FARM's out-of-scope
+list), and per-user content selection (MONETIZATION's standing posture).
+A console that showed four empty charts where those belong would read as
+"the data is coming". Each is listed with the record it would reverse,
+because "we decided not to" is only useful with the decision attached.
+
+The second row is the one worth sitting with: **the same suppression that
+stops a paying city identifying a person stops the owner doing it.** That is
+the guarantee working. If the tooling ever grows a way around it, the
+guarantee was never enforced.
+
+**What is honestly available, and was built.** The k-floored public mirror
+gives floors on real activity — never measurements, since a question below
+`AGG_MIN_N` publishes nothing. Everything else in the console computes from
+committed files with no credentials: bank inventory, deck runway, promotion
+backlog, alert coverage, and the modelled bill.
+
+**What is available and was deliberately NOT built.** DAU and D1–D7
+retention need **no new collection**: `v2_agg_events` already holds
+`(qid, uid, at)` with a 90-day TTL, erased with the account. Counting
+distinct uids per day is a scheduled function over a collection that exists.
+But D28 justified that collection as fake-account attribution and trigger
+dedup — those two purposes. Counting users with it is a **new purpose for
+existing data**, which is a decision record, not a script. It is listed in
+the console's "unbuilt" column with that catch stated. Deferred here rather
+than taken, because the console's whole point is to make this class of thing
+visible rather than to quietly do it.
+
+**The one number whose neglect breaks the product.** Deck runway. D30's
+no-wrap invariant holds while the daily bank has at least as many questions
+as days elapsed since `DECK_EPOCH`; past zero the next reseed silently
+remaps every user's answered history once. `deck.test.ts` pins the property,
+but a unit test cannot know today's date relative to the shipped bank — that
+is a fact about the calendar and the content, and it changes at midnight
+without a commit. At adoption: 90 in the bank, 3 days elapsed, 87 days of
+runway, 0 unpromoted in the archive.
+
+**`--check` is a real gate, and it runs on a clock rather than on a diff.**
+It exits non-zero below 21 days of runway and on an expired scorecard.
+Putting it in a pull-request check would fail unrelated work on a Tuesday
+for a reason that pull request cannot fix — the same argument that keeps
+`check:figures` off the backend path, pointed the other way. A check whose
+subject changes on its own belongs on a schedule, which is the split
+`security-audit.yml` already makes for `npm audit`.
+
+`.github/workflows/pulse.yml` (added 2026-08-04, on the owner's answer to
+"does it update automatically?" — it did not) runs at 06:00 UTC daily,
+commits `pulse.json` and the trail only when they moved, writes the headline
+figures to the run summary, and runs `--check` **last** so a bad day still
+gets its trail row before the job goes red. It never runs `npm ci`: pulse is
+Node stdlib only, verified in a dependency-free clone, because a console
+whose job is to report that the ground moved must not be able to fail
+because a registry did. Scheduled workflows only run from the default
+branch, so it is inert until merged.
+
+**One structural change to existing code, and it was forced.** The cost
+arithmetic moved from `scripts/cost-model.mjs` into `scripts/cost-arith.mjs`
+so the console and the CLI share one model. The alternative was a second
+copy of the price sheet, which is the drift this repo gates against
+everywhere else. Same shape as `store-render.mjs`. `npm run costs` output is
+byte-identical in both price regions — diffed, not inspected.
+
+**A correction this record makes.** `docs/DEPLOYMENT.md` explains that alert
+policies are applied by hand because "the deploy service account has no
+monitoring role". Line 103 of the same document says that account holds
+`Editor` + `Firebase Admin`, and `Editor` includes
+`monitoring.alertPolicies.create`. The stated reason does not hold. The
+conclusion still does, for two better ones: a policy is useless without a
+notification channel id, which is not in the repo and should not be; and a
+pipeline that can silently rewrite an alert policy can silently delete one.
+The console therefore reports policies as *committed*, never as *deployed* —
+the repo cannot know which.
+
+**Recorded, not fixed.** 1 of 14 deployed functions has an alert policy, and
+three of COSTS.md's four walls have no instrument. Both are surfaced by the
+console rather than closed here: the uncovered functions are mostly
+callables, which fail loudly to a caller who can notice, and the walls with
+no instrument bind at sizes this product has not approached.
+`onV2AnswerCreated` is alerted precisely because it is the one that fails
+*silently* — `retry:true` means a crash accumulates for ~7 days while the
+app looks healthy.
+
+**A defect this work found in its own input.** The console's cost panel
+reads `scripts/cost-arith.mjs`, and building it surfaced that the model was
+still charging every returning user a full 369-document bank refetch per
+reseed — the **pre-D34** world. D34 shipped 2026-08-02: `runSeedV2` writes
+only changed documents and the client pages `updatedAt > cursor`. COSTS.md's
+prose said so; COSTS.md's *tables* did not, because `cost-model.mjs` had no
+input for "documents changed per reseed" — only whole-bank or nothing, and
+the shipped state is neither. Verified in both halves of the code before
+touching the model (the seed's skip count, and `insight.bankCache.v2`'s
+cursor query), then fixed with `B.changedPerReseed` (default 7 — D30's
+promotion cadence) and COSTS.md's tables regenerated. Worth ~145 reads per
+user per day at every size: **$18/mo → $5/mo at 5,000 DAU, $305 → $175 at
+50,000, $13,215 → $11,910 at 500,000.** The remaining `staticBank` toggle now
+means what it says — the *unbuilt* Hosting fix — rather than doubling as a
+stand-in for the one that shipped.
+
+That is the argument for the console in one paragraph: a number nobody looks
+at goes stale in the direction of whatever was true when it was written, and
+a prose correction the arithmetic beside it does not implement is the failure
+`check:figures` exists for, one layer down.
+
+**Amendment (2026-08-04, same day) — four follow-ups from a review of the
+above.** Recorded rather than folded in silently, because two of them are
+corrections to decisions this record made a few hours earlier.
+
+1. **Only the trail is committed now.** `monitoring/pulse.json` was
+   committed on the argument that a change in the burn should be a
+   reviewable diff. But `runwayDays` moves at midnight by construction, so
+   committing it meant one bot commit per day forever for a file derivable
+   from the tree plus the date — and the trail already carries burn, runway
+   and alert coverage, so the diff argument is served without the churn.
+   `pulse.json` and the rendered page are both gitignored.
+
+2. **The sparkline plots time, not array position.** The first version
+   spaced readings evenly by index, which draws a six-week gap exactly like
+   a one-day step. That is not cosmetic: GitHub disables a schedule after 60
+   days of repository quiet, so the trail WILL gap, and a chart that hides
+   when it stopped looking is worse than no chart. X is now the date, and a
+   run of missed days gets a hairline under the stretch it covers plus a
+   count in the caption.
+
+3. **Four cost constants read from source instead of being retyped.**
+   `DECK_DAYS`, `AGG_ID_CAP`, `PUBLISH_EVERY` and `HOT_TRIGGER`'s footprint
+   were hand-copied into the model with the real location in a trailing
+   comment — the same shape as the D34 defect this record already documents,
+   left in place while fixing it. They are now parsed from `deck.ts`,
+   `live.ts`, `v2.ts` and `ops.ts`, and throw loudly on a rename rather than
+   falling back to whatever was true in August. `TRIG.sec` is the exception
+   and cannot be read: 200 ms is an estimate of wall-clock per invocation,
+   and it sits beside three hard numbers, which is worth knowing before
+   tuning that object.
+
+4. **The console has tests, and `pulse.mjs` was split to allow them.**
+   Collection moved to `scripts/pulse-collect.mjs` (pure, no side effects on
+   import); `pulse.mjs` is the CLI, the trail's file I/O and `--check`.
+   `npm run test:scripts` covers the places where a wrong answer looks like
+   a right one: the archive prompt join (which already produced a convincing
+   false positive — six phantom orphans, all apostrophes), the trail's
+   same-day replacement, the runway arithmetic, that the constants above
+   still match their sources, that a gap draws as a gap, and the scorecard
+   block — which had **never executed**, since there is no scorecard yet and
+   its first run would otherwise have been launch day. On CI's lint job, not
+   backend-checks: it is tooling, and nothing it says bears on whether a
+   rules fix is safe to deploy.
+
+Three known limits were written into MONITORING.md rather than fixed, all
+pre-existing: `boot = 15` is a hand-counted inventory of `hydrate()`'s
+queries with no single declaration to read, and is now the likeliest number
+in the model to rot; the `+ 0.2` in the writes formula is unsourced; and the
+deletes line assumes a Firestore TTL policy that is a hand-run command in
+SHIP-CHECKLIST §5, not a deployed artifact — if it was never run, deletes
+are zero and storage grows without bound.
+
+**Second amendment (2026-08-04) — the console follows the product, not only
+the clock.** Asked whether it could update as the product changes, which the
+daily cron did not do: promote twelve questions at noon and the runway tile
+was a day behind until the next morning.
+
+`pulse.yml` now also runs on **every push to `main`**, so the two triggers
+cover the two ways these numbers move — the clock for the changes nobody
+made (the calendar eating runway, a scorecard ageing), the push for the ones
+somebody did. `--check` then runs against the change that caused it rather
+than against a tree that has since moved on.
+
+**No `paths:` filter, and that is the deliberate half.** A path list would be
+a hand-maintained copy of "every file pulse reads" — the content banks, the
+four source files it parses constants out of, the archive, the rate card,
+the alert policies, the cities header, its own scripts. This record already
+documents two costs of exactly that shape of duplicate, and the failure is
+the quiet one: pulse grows an input, the filter does not, and the console
+stops noticing the thing it exists to notice. The job installs nothing
+(Node stdlib only) and takes about twenty seconds, so running it always is
+cheaper than maintaining the list that would let it run less. It cannot
+loop — a push made with the default `GITHUB_TOKEN` does not trigger
+workflows.
+
+**The commit path was made race-safe, because two triggers can now overlap.**
+A rejected push is no longer rebased: rebasing two runs that both wrote the
+same day's row means conflicting on the same line of the same file, which is
+the one case rebase cannot resolve. Instead the tree resets to the branch
+head and the row is recomputed against it. The row is a pure function of the
+tree and the date, so this always converges, and the losing run finds the row
+already written and exits clean. Exercised with two clones racing a real
+bare remote — A pushed, B was rejected, reset, recomputed, found nothing to
+do; one row, one commit, no conflict.
+## D48 · Three limits accepted while closing the reveal-alert, bridge and boot-state gaps
+
+**Date:** 2026-08-06 · **Status:** Adopted
+
+**Decision.** Three things were deferred or traded rather than solved while
+landing the reveal-loop alert, the `test-definitions` / `passive-progress`
+conversion, and the web boot state. Each is recorded here with what it
+costs, because each is invisible in a green tree.
+
+**1. The reveal alert cannot see "it never worked".**
+`monitoring/scheduledDuelReveals-silent.json` is a metric-absence condition,
+and absence needs a time series that has existed at least once — against a
+metric with no points it does not fire. So the policy proves "the scheduled
+scan worked and then stopped", never "the scheduled scan has never run".
+The arithmetic on what it *does* cover: the schedule is every 120 minutes
+and the condition is 6h, so it fires on three consecutive missed runs, well
+inside the one-day window a reveal promises. The gap is the first run only,
+and it is closed by a human: `npm run monitoring:apply` prints the
+`gcloud logging read` that confirms a first heartbeat landed, and the
+runbook says to apply this policy after observing one. **Accepted rather
+than fixed** because the alternative — a synthetic canary that plays a duel
+end to end on a schedule — is a second scheduled function with its own
+failure modes, which is a larger thing than the gap it closes at zero users.
+
+**2. Nothing holds the boot state's ground colour equal to the app's.**
+`index.html` hard-codes `#15171c`, duplicating `html, body { background }`
+at `styles.css:2100`. It cannot read the token: `styles.css` is imported by
+`main.jsx`, so it arrives with the bundle whose load the boot state exists
+to cover. If that ground moves and `index.html` does not, a cold start
+flashes one colour into another — which is the exact defect this change
+removed, reintroduced from the other side. **No gate**, deliberately: the
+check would have to parse a CSS literal out of two files and compare them,
+and the failure it prevents is one frame of wrong colour on a web cold
+start. That is the cheapest honest statement of the trade — a gate here
+costs more than the flash. Both files carry a comment naming the other.
+
+**3. `test-definitions.js` and `passive-progress.js` stay in `spec/`.**
+They came off the shared-global bridge as ordinary ESM modules
+(657 → 540 references) but did **not** move to `data/` as typed, tested
+modules, which is what `src/v2/README.md` had proposed. The reason the move
+was proposed no longer holds: it was going to dissolve two import cycles,
+and neither cycle existed (see the README section — one was never there,
+the other was a multi-writer artifact of a defensive fallback in
+`daily-split.jsx`, deleted with the conversion). What is left is the
+ordinary benefit — types and tests. `passive-progress.js` is 77 lines of
+pure arithmetic over a store (`pct`, `done`, `passiveDone`, `prefill`) with
+no JSX and no test, so it is the better candidate of the two;
+`test-definitions.js` is 247 lines that are mostly question banks already
+pinned item-for-item against `content/tests.json` by
+`test/content-parity.test.jsx`. **Deferred** because the conversion was
+already an 18-file change and moving a module across the typed boundary in
+the same commit would have put a refactor and a re-typing in one diff.
+
+## D49 · The Skip control becomes a button, the alert chain gets a gate, and the feed's split stops at its arithmetic
+
+**Date:** 2026-08-06 · **Status:** Adopted
+
+**Decision.** Three fixes, and one of them is mostly a correction to what an
+earlier survey claimed was there.
+
+**1. The post-vote beat's Skip control is a real `<button>`.** It carried
+`role="button"` and `aria-label="Skip"` — everything `check:a11y` can read —
+with no `tabIndex` and no key handler. The beat is a 320px animation that
+covers the result for several seconds after a vote, and Skip is the only way
+past it, so the one control on screen was the one control a keyboard or
+switch user could not reach. Every static gate stayed green throughout.
+
+Landed behind an interaction test, which is D21's rule and
+`dialog.test.jsx`'s precedent: `test/consequence-beat.test.jsx` pins that the
+control takes focus and is a `<button>`, both mutation-checked by reverting
+the element. It asserts the ELEMENT rather than a keystroke on purpose —
+jsdom does not implement a button's default activation, so
+`fireEvent.keyDown(el, {key:'Enter'})` produces no click however correct the
+markup is. A first draft hid that behind `if (!called) click()` and passed
+against the unfixed div, which is the vacuous-test shape `src/v2/README.md`
+warns about. The `<button>` is what carries Enter and Space; that is what is
+pinned.
+
+The a11y baseline goes **11 → 9**. What is left is eight `no-autofocus`
+findings and one `no-static-element-interactions` in `tweaks-panel.jsx`, the
+host-era debug panel rather than a user surface.
+
+**And the count was wrong before this touched it.** `src/v2/README.md` said
+"six `no-autofocus` findings and three div-with-onClick sites". There were
+eight autofocus findings, and the three were not three sites — they were
+three RULES on one element. So work described as three deferred fixes was
+one, and it took an afternoon. `check:a11y` did not catch the drift because
+it holds the total and the per-file counts, not the breakdown by rule: a
+figure can be gate-enforced in one dimension and stale in another.
+
+**2. `check:monitoring` gates the alert chain, and only the half in the
+repo.** Alert policies are applied by hand (D47) and nothing here can reach
+Cloud Monitoring, so this does not try. It checks that every policy on disk
+is in `apply-monitoring`'s list, that every condition resolves to a metric
+that script creates, and that every metric's `jsonPayload.metric="X"`
+selector matches a `metric: "X"` a function actually emits.
+
+Every link fails the same silent way — the policy exists, the console is
+green, and it can never fire — which is `check:deploy-targets`' failure class
+with a different noun. Each of the four rules was verified by breaking that
+link and watching the gate fail. On `ci.yml` rather than `backend-checks.yml`
+on that workflow's own rule: nothing it says bears on whether a rules fix is
+safe to deploy, and an alerting mistake must not block an emergency one.
+
+**3. The World feed's split stops at its arithmetic, and the reason is a
+measurement.** An earlier survey called `world-feed.jsx` the highest-leverage
+file in the repo and said its "23 top-level definitions" meant the seams
+already existed. That counted definitions without sizing them. The file is
+one class component of ~2,350 lines plus about 30 helpers of 3–28 lines; the
+component holds 62 methods, the largest being `render` (160),
+`renderPick` (136), `renderCard` (121). There are no leaf components to lift
+out — there is one god-component and a band of small functions.
+
+Decomposing that component means threading state and callbacks through JSX
+ported verbatim from the prototype, whose only coverage is a smoke mount.
+That is the blind change D21's trade refuses, and it is not made safer by
+being large. **Deferred**, and deliberately not attempted in the same change
+as anything else.
+
+What was taken is the part that is safe and was worth having on its own:
+thirteen pure functions move to `world-feed-math.js` as real exports, with
+`test/world-feed-math.test.js` behind them. `wfPcts` is why — it is the split
+printed on every feed card, it adds the viewer's own vote (the other half of
+`data/live.ts`'s "counts exclude the viewer" contract), and it forces the
+rounded parts to sum to exactly 100 by pushing the residue onto the largest
+bucket. Neither behaviour had a test.
+
+**A note on how that suite was checked, because the first version passed a
+mutation it should have caught.** Redirecting the residue to the *smallest*
+bucket left all 17 tests green: the cases were `[1,1,1]` (symmetric, so both
+rules pick the same bucket) and `[10,3,3]` (residue too small to move the
+winner). The cases are now chosen to distinguish the two — `[1,1,4]` gives
+`[17,17,66]` under max and `[16,17,67]` under min — plus the general property
+those pin, that a maximal bucket stays maximal so rounding never hands the
+card's headline to a side that did not win. Five mutations, five failures.
+
+Thirteen names also leave the shared-global namespace, none of which had a
+consumer outside the file: the same ratio `result-rose.jsx` found, where the
+bridge published everything and a real module exports only what is wanted.
+The coupling count is unchanged at 540, correctly — these were file-local
+reads, not cross-module ones, and a meter that moved here would be lying.
+## D50 · A lens question in a live feed is a self-report item, not a poll
+
+**Date:** 2026-08-06 · **Status:** Adopted
+
+**Decision.** Lens cards woven into a live session's feed carry
+`selfOnly: true`, stamped by `LENS_FEED_QS`'s builder — which now rebuilds
+per liveness instead of snapshotting at module scope. `world-feed.jsx`
+keeps every crowd surface off a `selfOnly` card: no share fill, no
+percentage numeral, no votes count, no takes/who-voted row, no consequence
+beat, no with-the-majority bit into FEEDREAD, no Mirror ripple, no thin
+bar on the collapsed card. After answering, the card says where the answer
+actually went — "Saved to your ‹lens› lens — only you see it." — and the
+answer records to the on-device store exactly as before.
+
+**What was shipping.** `buildFeedGlobals()` (data/live.ts) replaces
+`WORLD_FEED_QS` and `TEST_FEED_QS` with live-shaped cards on boot but
+never touched `LENS_FEED_QS` — and every "no fake data" gate in
+world-feed keys on `q.live`, which lens cards do not carry. So a real
+user answering a lens card saw a split drawn over thousands of authored
+votes (`count: 180 + w × 1900` per option — roughly 3–6k "votes" per
+card), rendered identically to the real k-floored splits on neighbouring
+cards, plus a votes-count line under it. That is fabricated activity
+inside a live session — the thing D1 exists to forbid — and the asymmetry
+with `TEST_FEED_QS`, which did get the live treatment, marks it as an
+oversight rather than a choice.
+
+**Two adjacent repairs in the same seam, found by the same audit.**
+First: the module-scope snapshot meant live sessions always wove the DEMO
+pool, which excludes each lens's seeded prefix as "already answered" —
+but live mode starts every lens at zero, so ~20 of the 48 lens items were
+unreachable from a live feed (`moral` capped at 4 of 8 for a feed-only
+user, while the blank state promised the feed would fill it in). Second:
+`LENSES.reset()` — whose own comment claims the account-deletion/uid-change
+wipe contract — had no caller, so the uid-change path purged
+`insight.lenses.v1` from localStorage while the store's in-memory state
+survived to be written back under the new uid. The purge announces itself
+now (`insight:local-purge`) and the store listens.
+
+**Why acknowledge instead of aggregate.** The honest alternatives were
+(a) suppress the fake crowd, (b) build a real one. Lens answers are
+deliberately device-local (the persistence note in `lens-defs.js`): no
+write leaves the device, so there is nothing for a backend to aggregate
+without first reversing that decision — a new collection, its k-floor,
+rules and their tests, for numbers whose product value is unproven. (a)
+is the smallest change that makes the UI true, and it leaves (b) open: if
+lens aggregation ever ships, the flag comes off exactly the cards whose
+questions gain a real aggregate, and this entry gets its reversal note.
+
+**Enforcement.** `src/v2/test/lens-live.test.ts` re-derives both pool
+shapes from `IS_LENSES`' seed arithmetic and pins the `selfOnly` stamp
+and the purge listener; `src/v2/test/smoke-live.test.jsx` mounts a live
+feed with a lens card, answers it, and asserts the record landed locally
+(inverted), nothing reached `LIVE.vote`, and the card shows the
+acknowledgment with no split, no votes count and no engage row.
+
+## D51 · Deleting the keys is only half the wipe: every local store hears the purge
+
+**Date:** 2026-08-06 · **Status:** Adopted
+
+**Decision.** Every module-scope store that persists `insight.*` state
+drops its in-memory copy to the fresh-boot shape when
+`insight:local-purge` fires, notifying its subscribers and **without**
+calling its save — a save in the listener would re-create the key the
+purge just removed. The two long-mounted components that persist state by
+spreading it back (`world-feed.jsx`: votes, passed, takes, replies;
+`daily-split.jsx`: dreplies, cats, testProg, votes) carry the same
+listener at the component level. `scripts/check-purge-listeners.mjs`
+(CI's `check:purge`) holds the set closed: a file that writes an
+`insight.*` key must listen or be exempted with a reason, and a stale
+exemption fails too.
+
+**The audit that produced this.** D50 found the hole in one store
+(lens-defs' uncalled `reset()`); this is the sweep of the other 28 files
+that touch localStorage. Fourteen module stores had the same bug —
+`feed-read`, `follows`, `learn-progress`, `learn-feed`,
+`passive-progress`, `pick-data`, `place-stats`, `scenes`,
+`world-subtopics`, `suggestions`, `duels-data`, `world-feed-report`,
+`daily-questions`, `test-definitions` — each holding a module-scope map
+whose next mutation saved the whole thing back: daily answers, duel
+answers and group edits, test progress (inflating the new account's rings
+with answers it never gave), authored suggestions rendered as the new
+account's "You", follow lists, ratings, picks, reports, the read-room
+log. The always-mounted feed and daily components had the same shape in
+component state; the feed's votes already healed through its LIVE
+reconcile (absent from both store and mirror → dropped), which is the
+model the rest now follows.
+
+**Fresh-boot, not empty.** The drop target is what a cold load with no
+keys produces, which is not always `{}`: `follows` returns to its seed
+circle, `learn-progress` to its demo stagger (empty in live builds — the
+same `VITE_V2_LIVE` gate the load uses), `scenes`/`world-subtopics` to
+their day-one defaults by nulling the lazy cache so `ensure()` re-derives,
+and `IS_TEST_RESULTS` restores a pristine copy of the demo literal taken
+before the saved-result overlay. `duels-data` and `learn-progress` got
+their load normalisation extracted into one function used by both paths,
+so a field added later cannot leave the listener building a stale shape.
+
+**Exemptions, each with its reason in the script.** `live.ts` (the
+dispatcher; caches uid-scoped or public), `deviceBind`/`push` (memos
+carry the uid and are compared before use), `sentry` (flag read from
+storage per check), `test-overlay` (read-modify-write of only its own
+kind, fresh from storage), `logic-test` (whole fresh object per save),
+`profile-general` (persist effect runs on mount, so a post-purge mount
+writes defaults), and the two `ui/` panels (scalar written only on
+explicit save of the new value).
+
+**Two observations recorded, not fixed.** `insight.mapCatNames.v1` is
+read by `map-tab.jsx` and written by nothing — a dead key. And Sentry
+telemetry consent is read per event but an already-started SDK keeps
+running across a uid change until restart; the flag itself heals
+correctly, the running session is a consent nuance this entry flags for
+whoever next touches `lib/sentry.ts`.
+
+**Enforcement.** `check:purge` on the CI lint job (client-only, so
+deliberately not on `backend-checks.yml`);
+`src/v2/test/purge-wipe.test.ts` drives all fourteen module stores
+through seed → purge → remutate and asserts the resurrection never
+reaches disk; `smoke-live.test.jsx` proves the component half in a
+mounted tree; `vote.test.ts` pins that the announcement fires on the
+uid-change path.
+
+## D52 · The content review: what got fixed, what got flagged, and the two lines that held
+
+**Date:** 2026-08-06 · **Status:** Adopted
+
+**The review.** All seven question surfaces read end to end — 90 daily, 73
+feed, 44 duel, 96 learn cards, the four core tests, the nine lenses, and
+the cross-bank seams. Two invariants shaped every fix: shipped **option
+sets are never edited** (answers store `(qid, optionIdx)` forever — the
+D30 re-key class), and the **daily list is never shortened mid-epoch**
+(the deck maps day→question by position; a removal re-keys every later
+day). So fixes took four shapes only: prompt edits that preserve the
+question's meaning, metadata edits, `active: false` retirement for feed
+items, and appends.
+
+**Fixed.**
+- **Six feed duplicates retired** (`active: false`, honoured by deck.ts's
+  `active !== false` filter, now passed through the generator): f08, f20,
+  f21, f24, f40, f54 — each the same question as a live daily (one
+  cuisine, spoilers, lyrics/melody, music-while-working, death date,
+  money-buys-happiness), splitting the same crowd twice.
+- **D44 extends to opinion cards**: new optional `political: true` marker
+  on f45 (mandatory voting), f46 (four-day week), f47 (car-free centres)
+  and daily-014 (news trust) joins them to the no-slice set. A second
+  marker rather than `test: "political"` because PASSIVE.record and the
+  feed's test kicker key off `q.test` — reusing it would count feed cards
+  toward the political test's rings. `slicing.test.ts` pins both markers
+  and the generator pass-through, non-vacuously. Considered and left
+  sliceable: f27 (phones in schools), f32 (tipping), f50 (celebrities in
+  politics), daily-015 (AI) — opinions that correlate with politics less
+  than they express it; the line is "expresses a political position",
+  not "correlates with one".
+- **Currency leaves the prompts**: daily-006 "€500" → "a week's pay"
+  (scales with the reader, travels), duo-12 "€10k" → "a surprise
+  windfall", f39 "$1M" → "a million". The time lens's "€100 today beats
+  €160 in a year" became plain numbers — the 60% premium is the
+  instrument, the currency was noise.
+- **Duel voice unified**: seven 1v1 prompts rewritten you-voice/neutral
+  (3, 8, 9, 12, 15, 17, plus 16 gaining its missing direction — hear the
+  hard truth, not tell it). The duo overlay renders prompts verbatim in
+  both the answer-about-yourself and guess phases, so they-voice items
+  read wrong for half the flow.
+- **Instrument items replaced in both layers** (tests.json ≡
+  test-definitions.js, parity-gated): political-01's motherhood statement
+  ("a society is judged…" — near-universal agreement, no discrimination)
+  → public-ownership item; values-03's time/circle cross-load → pure
+  circle; attachment-11 (drifting groups measured breadth, not loyalty)
+  and attachment-14 (noticing withdrawal measured vigilance, not
+  un-easygoingness) → maintenance and score-keeping items.
+- **The lenses' acquiescence hole closed**: `moral` and `humor` gained
+  their first reverse-keyed items, appended (lens answers and feed ids
+  are index-keyed; only the tail is safe). A new structural gate
+  (`src/v2/test/lens-content.test.ts`) holds every lens to: questions key
+  to declared dims, every dim has a question, ids unique, viz known, and
+  ≥1 invert per lens — the per-LENS floor, since single-item dims cannot
+  carry the core tests' per-dimension rule.
+- **Learn**: sol6's stem sharpened to "Demoted from planet to dwarf
+  planet in 2006" (Ceres and Eris were also reclassified/designated in
+  2006 — the old stem had three defensible answers); cell5's trap
+  repointed to the lysis-wordplay distractor already in its options.
+
+**Flagged, not fixed — and why.**
+- Authored landslides that need retirement or a rewrite the invariants
+  forbid: daily-004 ("okay to do nothing" — double-hedged truism),
+  daily-013 ("can give meaning" — the modal concedes it), daily-061,
+  daily-081, f53, f15's "always" strawman, f23/f33's missing third camp.
+  Daily items wait for an epoch-safe retire lane; option edits wait for
+  the farm's replace flow. The scorecard will say which of these the
+  crowd actually kills.
+- Duel reveal-safety trio (gu3 "loudest wins", gu9 "what would break this
+  group", gu11 "new person wants in") — option-level content that can
+  land on real people once names attach; retire/replace candidates for
+  the duel lane, recorded here so D40's content lane inherits them.
+- Duel trait overweight: five of twenty 1v1 items probe
+  introvert/extrovert, four probe confront/avoid — variety debt for the
+  next duel batch, not an edit to shipped items.
+- Learn calibration gaps: `origins` and `capitals` ramp p=26–63 with no
+  easy rung — needs appended easy cards (the learn lane's job), not
+  edits. Weak traps whose options offer no better candidate (gene8,
+  body8, sol7, ear3, ear8) stay as recall cards.
+- daily-007's your-life/the-world ambiguity and daily-011's costless
+  "find a third way" dodge — meaning-changing fixes deferred to human
+  editorial; recorded so they are a decision, not a discovery.
+- The daily↔feed near-dup *class* (f36/daily-038 survives this pass):
+  worth a similarity warn-tier in check:content the day a third instance
+  appears.
+
+**Ops note.** These are bank edits; production picks them up on the next
+`seedContentV2` run with `bumpRev` per the deploy runbook — nothing here
+re-keys an existing answer, by construction of the four allowed shapes.
+
+## D53 · The logic test measured: zero ambiguity in 60,000 items, and the curve gets pinned
+
+**Date:** 2026-08-06 · **Status:** Adopted
+
+**The review's method.** A matrix test's cardinal risk is an ambiguous
+item — a distractor a careful solver could defend. That is measurable, so
+it was measured: a per-family completion predicate (the family's line
+rules plus the visible grid's uniformities and shape vocabulary), swept
+over every option of every item for 5,000 seeds. Three tuning iterations
+were needed, each round's false positives being a constraint humans
+obviously use that the model had missed — fillRamp's size uniformity,
+dist2's exact element identity, ringGrow's outline-only vocabulary.
+
+**What it found.** Zero ambiguous options in 60,000 items, with the
+constructed answer passing its predicate 60,000 of 60,000 times. Answer
+positions uniform (16.3–17.0% per slot). dist2's degenerate case
+(identical absence patterns) occurred 0 times in 2,466. No duplicate
+puzzles within a form, no distractor-pool exhaustion, ~0.25ms per form.
+Distractor composition matches the design's claim: 72.8% family-authored
+wrong-rule mutants, 14.1% neighbour-cell repeats, 13.1% generic
+perturbations. This CORRECTS the earlier framing that "distinct is not
+wrong" was a live hole — it is a theoretical one only, and the sweep now
+lives in logic-gen.test.ts permanently (answers must pass, no distractor
+may), so a future family that opens the hole fails CI instead of
+shipping. If a new family's ANSWERS fail the sweep, the predicate is
+missing that family's grammar: extend the model, never weaken the sweep.
+
+**The curve is a decision now, not an accident.** logicPctile moved to
+`data/logic-score.ts` (typed, with loadResult/saveResult/logicSecs) and
+its landmarks are pinned: chance (2/12 with six options) reads 4,
+6/12 → 30, the load-bearing midpoint 62% → 50, and a perfect 12/12 reads
+**94 — deliberately**. A perfect score is the test's ceiling, and a
+ceiling cannot distinguish "better than 94%" from "better than 99%"; the
+honest claim stops where the instrument does. The floor clamps at 1 for
+the symmetric reason.
+
+**The overlay left the bridge.** logic-test.jsx now imports the generator
+and the scoring directly; window.LOGIC_GEN is gone (it had exactly one
+consumer), loadOverlays() dropped its explicit import line (the ESM graph
+carries the generator into the same deferred chunk), and the coupling
+ratchet came down 620 → 619 across 51 files. The reveal-delay timeout is
+deliberately never cancelled on unmount: it is also the final item's
+save, and closing the overlay 200ms after the last pick must keep the
+score — a 240ms timer is the whole cost of that guarantee.
+
+**New coverage.** `logic-overlay.test.jsx` drives a full attempt through
+the real generator (the seed pinned by stubbing crypto, the overlay's own
+seed source), asserting the v2 payload to the millisecond — the 240ms
+reveal delay subtracted from every recorded time — plus a wrong-pick run,
+all five result lenses (four had never rendered in any test) each showing
+the modelled-yardstick disclosure, and an 8-mark result pinning the
+Answers lens against the old /11 regression. `logic-score.test.ts` pins
+the curve, the v1 back-fill, and the times-fallback.
+
+**Accepted limits, recorded.** Puzzle timing counts backgrounded-tab time
+(skews the Pace lens toward "deliberate" — it is a modelled yardstick and
+says so). Retake discards the previous attempt's result and seed — one
+result, not a history, matches the device-local minimalism of D31. The
+test is inherently visual; options are labelled by position for assistive
+tech, and a non-visual rendering of a matrix test is out of scope rather
+than pending.
+
+## D54 · Three guarantees were enforced on a value and not on the way it moves
 
 **Status.** Adopted 2026-08-06. Found by a code review of the tree at
 c592042; each was reproduced before it was believed, and each carries a

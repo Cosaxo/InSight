@@ -1,0 +1,71 @@
+{
+  "_README": [
+    "The only numbers in the pulse console that are neither derivable from the",
+    "repo nor stated in a doc: what things cost that Firebase does not bill,",
+    "and what the owner intends to charge. Everything else pulse.mjs computes.",
+    "",
+    "assumedUsdPerUnit and assumedUnits default to 0 on every path, so an",
+    "unedited rate card produces an honest 'no revenue modelled' rather than a",
+    "flattering guess. Set a price to make the break-even panel answer 'how",
+    "many of these covers the bill' — that is the decision this file exists",
+    "for, and a price here is a hypothesis, not a commitment.",
+    "",
+    "Nothing reads this at runtime. It is an operator input to a local script."
+  ],
+
+  "fixed": [
+    {
+      "item": "Apple Developer Program",
+      "usdPerMonth": 8.25,
+      "note": "$99/yr, amortised",
+      "source": "docs/COSTS.md, 'Everything that is not Firestore'"
+    },
+    {
+      "item": "Google Play registration",
+      "usdPerMonth": 0.0,
+      "note": "$25 once — not a recurring cost, listed at zero so the line is visible",
+      "source": "docs/COSTS.md"
+    },
+    {
+      "item": "The question farm (claude.ai subscription)",
+      "usdPerMonth": 20.0,
+      "note": "The only recurring operational expense that does NOT scale down when usage does. D30's never-repeat arithmetic depends on >=7 promoted questions/week indefinitely, and that is what pays for them. Set to your actual plan.",
+      "source": "docs/COSTS.md, 'The question farm'; docs/QUESTION-FARM.md"
+    }
+  ],
+
+  "paths": [
+    {
+      "id": "geo",
+      "name": "Paid geo-insight",
+      "state": "recorded intent, not built",
+      "unit": "one place, per month",
+      "assumedUsdPerUnit": 0,
+      "assumedUnits": 0,
+      "source": "docs/MONETIZATION.md path 1",
+      "note": "A place-scoped question is an ordinary question with an ordinary aggregate — no code is needed to serve the first buyer. What the buyer gets is the public k-floored aggregate and nothing else."
+    },
+    {
+      "id": "sponsored",
+      "name": "Sponsored questions",
+      "state": "designed, constraints recorded, not built",
+      "unit": "one sponsored question placement",
+      "assumedUsdPerUnit": 0,
+      "assumedUnits": 0,
+      "source": "docs/MONETIZATION.md path 2; docs/QUESTION-FARM.md 'Sponsored questions'",
+      "note": "Bounded cadence in the existing interleave, never an auction. Building it graduates the farm doc's notes to a decision record."
+    },
+    {
+      "id": "feedads",
+      "name": "Ads in the world feed",
+      "state": "open as a path, nothing designed",
+      "unit": "1000 impressions (CPM)",
+      "assumedUsdPerUnit": 0,
+      "assumedUnits": 0,
+      "source": "docs/MONETIZATION.md path 3",
+      "note": "Contextual only. Per-user targeting is ruled out by standing posture, so the achievable CPM is the untargeted one — assume low single digits, not programmatic rates, if you price this."
+    }
+  ],
+
+  "constraint": "Users never pay, with money or with their identity, and the sold split is the same honest floored number every user sees for free. There is no premium data tier to model: a paying city's window is the public k-floored aggregate, enforced by firestore.rules rather than by contract (docs/MONETIZATION.md)."
+}

@@ -53,13 +53,32 @@ for (const [name, sites] of [...referenced].sort()) {
 // assign no global, so rule 1 cannot see them; rule 4's count is unaffected;
 // eslint and tsc see nothing. Escape would stop closing bottom sheets on a
 // device with the tree green.
+//
+// …and the question is whether the file LOADS, not whether one particular
+// file names it. A module the ESM graph already pulls in — imported by
+// another spec file, the way world-feed.jsx imports world-feed-math.js — is
+// loaded whatever spec-index.js says, and converted modules are increasingly
+// this shape (D39). Accepting that is what lets the comment trick go: before
+// stripComments, the only way to keep such a file out of the entry chunk was
+// to name it in a COMMENT and rely on the substring match, which is a
+// reference that loads nothing and would have gone on passing if the real
+// import were deleted too.
 const indexSrc = stripComments(readFileSync(join(root, "src/v2/spec-index.js"), "utf8"));
-for (const f of readdirSync(specDir)) {
-  if (!/\.(jsx?|tsx?)$/.test(f)) continue;
-  if (!indexSrc.includes(`./spec/${f}`)) {
-    failed = true;
-    console.error(`✗ src/v2/spec/${f} is not imported by spec-index.js — its globals never load`);
+const specFiles = readdirSync(specDir).filter((f) => /\.(jsx?|tsx?)$/.test(f));
+const importedBySibling = new Set();
+for (const f of specFiles) {
+  const src = stripComments(readFileSync(join(specDir, f), "utf8"));
+  for (const m of src.matchAll(/from\s+['"]\.\/([^'"]+)['"]|import\s+['"]\.\/([^'"]+)['"]/g)) {
+    importedBySibling.add(m[1] || m[2]);
   }
+}
+for (const f of specFiles) {
+  if (indexSrc.includes(`./spec/${f}`) || importedBySibling.has(f)) continue;
+  failed = true;
+  console.error(
+    `✗ src/v2/spec/${f} is loaded by nothing — neither spec-index.js nor an`
+    + " import from another spec file. Its globals never load.",
+  );
 }
 
 // ── 4. the migration ratchet ────────────────────────────────────
@@ -103,11 +122,10 @@ for (const f of readdirSync(specDir)) {
 const COUPLING_BASELINE = {
   "src/v2/main.jsx": 1,
   "src/v2/spec/app-shell.jsx": 43,
-  "src/v2/spec/archetype-data.js": 2,
   "src/v2/spec/city-overlay.jsx": 2,
-  "src/v2/spec/compare-breakdown.jsx": 3,
+  "src/v2/spec/compare-breakdown.jsx": 1,
   "src/v2/spec/daily-questions.js": 3,
-  "src/v2/spec/daily-split.jsx": 67,
+  "src/v2/spec/daily-split.jsx": 50,
   "src/v2/spec/demographics.jsx": 3,
   "src/v2/spec/duo-daily.jsx": 9,
   "src/v2/spec/feed-read.js": 2,
@@ -121,38 +139,32 @@ const COUPLING_BASELINE = {
   "src/v2/spec/learn-social.js": 5,
   "src/v2/spec/lens-cards.jsx": 4,
   "src/v2/spec/lens-defs.js": 2,
-  "src/v2/spec/logic-test.jsx": 1,
-  "src/v2/spec/map-anchors.js": 2,
-  "src/v2/spec/map-bottom-card.jsx": 9,
+  "src/v2/spec/map-bottom-card.jsx": 5,
   "src/v2/spec/map-learn-card.jsx": 5,
   "src/v2/spec/map-people.jsx": 8,
   "src/v2/spec/map-tab.jsx": 30,
   "src/v2/spec/mirror-field-pops.jsx": 33,
   "src/v2/spec/mirror-field.jsx": 4,
   "src/v2/spec/mirror-tab.jsx": 13,
-  "src/v2/spec/passive-meter.jsx": 11,
-  "src/v2/spec/passive-progress.js": 5,
+  "src/v2/spec/passive-meter.jsx": 6,
+  "src/v2/spec/passive-progress.js": 2,
   "src/v2/spec/person-mindmap.jsx": 10,
-  "src/v2/spec/person-overlay.jsx": 4,
+  "src/v2/spec/person-overlay.jsx": 3,
   "src/v2/spec/place-stats.jsx": 3,
-  "src/v2/spec/profile-general.jsx": 25,
-  "src/v2/spec/profile-overlay.jsx": 29,
-  "src/v2/spec/profile-test-viz.jsx": 3,
-  "src/v2/spec/relmap-lenses.jsx": 1,
+  "src/v2/spec/profile-general.jsx": 22,
+  "src/v2/spec/profile-overlay.jsx": 28,
   "src/v2/spec/relmap-panels.jsx": 3,
   "src/v2/spec/relmap.jsx": 3,
-  "src/v2/spec/result-card.jsx": 25,
+  "src/v2/spec/result-card.jsx": 17,
   "src/v2/spec/search-overlay.jsx": 8,
   "src/v2/spec/segment-explorer.jsx": 1,
   "src/v2/spec/suggestions.jsx": 3,
   "src/v2/spec/test-definitions.js": 4,
-  "src/v2/spec/test-feed-data.js": 2,
-  "src/v2/spec/test-overlay.jsx": 21,
-  "src/v2/spec/test-viz.jsx": 2,
-  "src/v2/spec/type-marks.jsx": 3,
+  "src/v2/spec/test-overlay.jsx": 2,
+  "src/v2/spec/type-marks.jsx": 2,
   "src/v2/spec/vote-cuts.js": 1,
   "src/v2/spec/world-feed-data.js": 4,
-  "src/v2/spec/world-feed.jsx": 159,
+  "src/v2/spec/world-feed.jsx": 155,
 };
 
 const coupling = {};

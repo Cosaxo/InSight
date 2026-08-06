@@ -7,6 +7,8 @@ import React from 'react';
 import { TypeMark, typeColor, typeSplit } from './type-marks.jsx';
 import { Sheet } from './primitives.jsx';
 import ReactDOM from 'react-dom';
+import { IS_TEST_RESULTS } from './test-definitions.js';
+import { PASSIVE } from './passive-progress.js';
 
 // passive-meter.jsx — UI for the passive test progress: PassiveRing (one
 // conic ring per test), PassiveMeter (persistent indicator by the feed chips;
@@ -15,12 +17,12 @@ const PM_LINE = '1px solid color-mix(in oklch, var(--rule), transparent 25%)';
 
 function usePassive() {
   const [, tick] = React.useState(0);
-  React.useEffect(() => (window.PASSIVE ? window.PASSIVE.subscribe(() => tick((t) => t + 1)) : undefined), []);
-  return window.PASSIVE;
+  React.useEffect(() => PASSIVE.subscribe(() => tick((t) => t + 1)), []);
+  return PASSIVE;
 }
 
 function PassiveRing({ k, size = 15, thick = 3, hole = 'var(--surface-2)' }) {
-  const P = window.PASSIVE; if (!P) return null;
+  const P = PASSIVE;
   const m = P.META[k], p = P.pct(k);
   return (
     <span aria-hidden="true" style={{ width: size, height: size, borderRadius: '50%', flexShrink: 0, background: `conic-gradient(${m.accent} ${p * 3.6}deg, color-mix(in oklch, var(--ink-3) 24%, transparent) 0)`, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', transition: 'background .3s ease' }}>
@@ -55,7 +57,7 @@ function PassiveMeter() {
               <div style={{ fontFamily: 'var(--sans)', fontSize: 13, fontWeight: 500, color: 'var(--ink-2)', lineHeight: 1.45, padding: '0 2px 10px' }}>Marked cards in the feed fill these in — or finish one in a sitting.</div>
               {P.KEYS.map((k) => {
                 const m = P.META[k], full = P.complete(k), n = P.needed(k), done = P.done(k);
-                const R = (window.IS_TEST_RESULTS || {})[k];
+                const R = IS_TEST_RESULTS[k];
                 const mt = (R && R.dims && window.IS_matchArchetype) ? window.IS_matchArchetype(k, R.dims) : null;
                 const standing = mt ? mt.list[mt.idx].name : null;
                 // the row takes the colour of the type you currently ARE, so the mark,

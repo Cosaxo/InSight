@@ -179,6 +179,10 @@ const listeners: {
   document: Record<string, () => void>;
 } = { window: {}, document: {} };
 
+// Events live.ts dispatches on the stubbed window (insight:local-purge),
+// so a test can assert the purge announced itself.
+const dispatched: string[] = [];
+
 const ANS_LS = "insight.answersCache.v1";
 const WF_LS = "insight.feedVotes.v1";
 
@@ -215,8 +219,9 @@ beforeEach(() => {
   // registered handlers are captured so a test can fire a wake.
   listeners.window = {};
   listeners.document = {};
+  dispatched.length = 0;
   vi.stubGlobal("window", {
-    dispatchEvent: () => true,
+    dispatchEvent: (e: Event) => { dispatched.push(e?.type); return true; },
     addEventListener: (type: string, fn: () => void) => { listeners.window[type] = fn; },
     removeEventListener: (type: string) => { delete listeners.window[type]; },
   });
@@ -413,6 +418,12 @@ describe("vote() optimistic path (inflight vs unaggregated)", () => {
     // key never comes back — so assert on the contents, which also keeps
     // this from racing the refresh.
     expect(JSON.parse(storage.getItem(WF_LS) || "{}")).not.toHaveProperty("q_1");
+    // …and the purge announces itself, because deleting the keys is only
+    // half the wipe: spec-layer stores (lens-defs) hold an in-memory copy,
+    // and with no reload on this path their next save() would write the
+    // previous account's data straight back. The listener side is pinned
+    // in test/lens-live.test.ts; this pins that the announcement fires.
+    expect(dispatched).toContain("insight:local-purge");
   });
 
   it("a revoked session keeps real data on screen rather than blanking to demo", async () => {

@@ -144,7 +144,7 @@ export const createGroupV2 = onCall({ ...LIGHT_CALLABLE, region: REGION, enforce
     // day's reveal to the people who were in the group for that day — see
     // revealMembersFor (pure.ts). Same map shape as memberNames, and it is
     // removed on the same two paths (leaveGroupV2, deleteAccount phase 1c),
-    // because a uid left behind here is the shape D47 §8 records ownerUid
+    // because a uid left behind here is the shape D54 §8 records ownerUid
     // having.
     memberJoinedAt: { [uid]: FieldValue.serverTimestamp() },
     inviteCode: code,
@@ -480,7 +480,7 @@ async function revealGroupDay(
       // current member either way, and read a day they were not in the group
       // for. What actually scopes this is WHEN each member joined, which is
       // why the array below is filtered rather than taken (revealMembersFor,
-      // pure.ts; D47 §9).
+      // pure.ts; D54 §9).
       //
       // The filtered array can in principle come out empty — every member
       // who played day D has left, and everyone now in the group joined
@@ -645,9 +645,36 @@ async function runDuelReveals(
     // day in the window.
     if (one.cappedOut) break;
   }
+  // The heartbeat, and the only evidence the scheduled scan ran at all.
+  //
+  // Structured fields as well as the message, for the same reason the
+  // contention line in v2.ts carries them: the message is what a human
+  // greps, the fields are what a log-based metric selects on.
+  //
+  // `mode` is load-bearing here rather than decorative.
+  // monitoring/scheduledDuelReveals-silent.json alerts on the ABSENCE of
+  // this line, and runDuelReveals is shared by the schedule ("indexed") and
+  // revealDuelsNowV2's manual lever ("full"). Without a mode to filter on,
+  // an operator running the lever during an incident would emit the
+  // heartbeat and reset the absence timer — silencing the alert for the
+  // outage it was run to fix.
+  //
+  // ONCE PER RUN, not per day: a run now covers the whole pending window
+  // (scanDays), and one point per day would make the metric's rate a
+  // statement about the window size rather than about the scan running.
+  // `day` stays the day the schedule is primarily about — yesterday — so a
+  // filter on it means what it always did.
   logger.info(
     `[v2social] reveals for ${days.join(",")} (${mode}): ` +
       `${revealedTotal} of ${scannedTotal} scanned`,
+    {
+      metric: "duel_reveal_run",
+      day: days[0],
+      days: days.length,
+      mode,
+      revealed: revealedTotal,
+      scanned: scannedTotal,
+    },
   );
   return { revealed: revealedTotal, scanned: scannedTotal, mode, days };
 }

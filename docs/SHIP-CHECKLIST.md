@@ -406,7 +406,7 @@ Both apps must be registered under `com.cosaxo.insight`:
   | --- | --- |
   | Filter objectionable content | Moderation substrate deployed, `MOD_ADVISORY = true` (D22) |
   | Report mechanism | Report control exists in the spec layer; the takes surface it attaches to is demo-only |
-  | Block abusive users | `leaveGroupV2`, wired to the **Leave circle** control on each live circle card — leaving **is** the block, because D1 means circle members are the only people whose content you can see. No owner-side *remove* callable exists (D47 §14) |
+  | Block abusive users | `leaveGroupV2`, wired to the **Leave circle** control on each live circle card — leaving **is** the block, because D1 means circle members are the only people whose content you can see. No owner-side *remove* callable exists (D54 §14) |
   | Published contact info | The support address owed in `web/terms.html` |
 
   Two things follow. First, **the support email is a 1.2 dependency**, not
@@ -420,10 +420,12 @@ Both apps must be registered under `com.cosaxo.insight`:
   If the live takes surface ships later, 1.2 stops being comfortable and
   the report control has to ship with it, not after it.
 - Apple Developer Program (~2 days to approve — start early, as an
-  **individual** enrollment) and a Mac with Xcode for the iOS build; Play
-  Console for Android, as an **organization** account (D41 — it is the
-  exemption from the closed-testing gate, and it needs the ENK's D-U-N-S
-  in hand first, so start that chain on day one).
+  **individual** enrollment). **A Mac is no longer required**: since
+  2026-08-05 `.github/workflows/ios-release.yml` archives, exports and
+  uploads on a macOS runner, measured working end to end. Play Console for
+  Android, as an **organization** account (D41 — it is the exemption from
+  the closed-testing gate, and it needs the ENK's D-U-N-S in hand first,
+  so start that chain on day one).
 - Build flow: `npm run build && npx cap sync`, then open the native
   projects (`npm run ios` / `npm run android`), set signing, archive.
 - TestFlight / internal testing track for the friends test. **Invite ten,
@@ -585,16 +587,26 @@ Until then links open the fallback page — degraded, not broken.
   posts the **FCM** token to the Capacitor plugin, FirebaseCore +
   FirebaseMessaging are linked to the App target, and
   `App/App.entitlements` carries `aps-environment` (wired via
-  `CODE_SIGN_ENTITLEMENTS`). What still needs a Mac + console:
-  1. Drop `GoogleService-Info.plist` into `ios/App/App` and add it to
-     the App target (it is intentionally untracked; AppDelegate skips
-     `FirebaseApp.configure()` without it). Replace the
-     `REVERSED_CLIENT_ID` placeholder in Info.plist from the same file.
-  2. Xcode → Signing & Capabilities: confirm the Push Notifications
-     capability shows up from the entitlements file and the
-     provisioning profile regenerates with `aps-environment`.
-  3. Apple Developer → upload the APNs key to Firebase (step already
-     listed above), then verify the reveal flow end-to-end on device.
+  `CODE_SIGN_ENTITLEMENTS`). **Two of the three steps below no longer need
+  a Mac**, which is what changed on 2026-08-05:
+  1. ~~Drop `GoogleService-Info.plist` into `ios/App/App` and add it to the
+     App target~~ — **done, and automated.** The file lives in the
+     `GOOGLE_SERVICE_INFO_PLIST` repository secret;
+     `scripts/ios-link-firebase-plist.rb` adds it to the target at build
+     time, because "drag it onto the target in Xcode" is precisely the step
+     a runner cannot do. The `REVERSED_CLIENT_ID` placeholder in
+     `Info.plist` is filled. Both release gates assert the file is in the
+     bundle — AppDelegate skips `FirebaseApp.configure()` without it, and
+     the app then ships with no backend at all.
+  2. ~~Xcode → Signing & Capabilities: confirm the provisioning profile
+     regenerates with `aps-environment`~~ — **done, and automated.** The
+     workflow reads the entitlement out of the archive *and* the exported
+     `.ipa` and fails on anything but `production`. Run 6 reports
+     `production` at both ends.
+  3. **Still outstanding, and it is console work rather than Mac work:**
+     Apple Developer → upload the APNs key to Firebase (step already listed
+     above), then verify the reveal flow end-to-end on device. A device is
+     still a device — that half cannot be automated.
 - **Reveal membership snapshot — both deploys shipped.** Reveal reads used
   to be gated on a group's *current* `memberUids`, so joining a group
   exposed every past day's votes and display names. The fix was two
@@ -666,7 +678,23 @@ Until then links open the fallback page — degraded, not broken.
   pass without it, because the app's *primary* path is anonymous: no
   account is required, nothing is requested, and Google is an optional
   upgrade rather than a login wall. If a reviewer cites 4.8, reply with
-  that, and note the app collects no email or name via Google either.
+  that — and **stop there**.
+
+  **This bullet used to add "and the app collects no email or name via
+  Google either". Delete that from any reply; it is false.**
+  `linkGoogle()` calls `new GoogleAuthProvider()` with no `addScope`
+  (`src/lib/firebaseImpl.ts:167`), and Firebase requests `email` and
+  `profile` by default — so the Firebase Auth user record holds an email
+  address and a display name for every linked account. No Firestore
+  document of ours stores them, which is probably how the sentence got
+  written, but Apple's question is what the app and its partners
+  *collect*, not what our own schema keeps.
+
+  The consequence is not the 4.8 reply, which stands without that clause.
+  It is the privacy questionnaire: **Contact Info → Email Address** and
+  **Contact Info → Name** are collected, linked to identity, and used for
+  App Functionality. `docs/STORE-FORMS.md` is the file to answer from, and
+  it has this right — this bullet was the copy that did not.
 
   Only if they insist: add the Apple provider. Enable the capability in
   the developer portal **before** committing the entitlement, and use

@@ -14,6 +14,9 @@ window.WF_REPORT = (function () {
   try { S = JSON.parse(localStorage.getItem(LS) || '{}') || {}; } catch (e) { S = {}; }
   const listeners = new Set();
   const save = () => { try { localStorage.setItem(LS, JSON.stringify(S)); } catch (e) { /* localStorage can throw: private mode, quota, disabled storage. Best-effort — in-memory state stays correct. */ } listeners.forEach((f) => { try { f(); } catch (e) { /* localStorage can throw: private mode, quota, disabled storage. Best-effort — in-memory state stays correct. */ } }); };
+  // The purge (data/live.ts, D51): drop the report history too, or the next
+  // report()'s save writes the previous account's back under the new uid.
+  window.addEventListener('insight:local-purge', () => { S = {}; listeners.forEach((f) => { try { f(); } catch (e) { /* best-effort */ } }); });
   return {
     REASONS: ['Abuse or hate', 'Harassment', 'Spam', 'Misleading'],
     has: (k) => !!S[k],

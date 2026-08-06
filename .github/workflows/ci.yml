@@ -44,6 +44,14 @@ jobs:
       # about whether a rules fix is safe to deploy, and this repo's rule is
       # that nothing which cannot answer that question gets to block one.
       - run: npm run check:figures
+      # The pulse console's collectors and renderer. Same placement rule and
+      # the same reason: this is tooling, not the product, and nothing it
+      # says bears on whether a rules fix is safe to deploy. Note this is the
+      # console's STRUCTURE — that its constants still match the source they
+      # claim to read, that a gap in the trail is drawn as a gap, that the
+      # scorecard path renders. The console's own operator gate (`pulse
+      # --check`) is a different thing and is on a schedule, not here (D47).
+      - run: npm run test:scripts
       # Accessibility, as a ratchet rather than a pass/fail sweep: the known
       # findings are recorded per file and this fails when a file gains one.
       # It is its own gate because `npm run lint` carries --max-warnings 0,
@@ -58,6 +66,30 @@ jobs:
       # and deliberately NOT on backend-checks.yml — nothing it says bears on
       # whether a rules fix is safe to deploy.
       - run: npm run check:labels
+      # Every store that persists insight.* state must hear the purge
+      # (insight:local-purge, D51) — deleting the keys is only half the
+      # wipe when the in-memory copy writes itself back on the next
+      # mutation. lens-defs shipped exactly that hole (D50). Client-only,
+      # same argument as above for staying off backend-checks.yml.
+      - run: npm run check:purge
+      # The alert chain, from the log line a function emits to the policy
+      # that reads it. Every link fails the same silent way — the policy
+      # exists, the console is green, and it can never fire — which is the
+      # class check:deploy-targets and check:appcheck exist for.
+      #
+      # Here rather than on backend-checks.yml on that workflow's own rule:
+      # nothing this says bears on whether a rules fix is safe to deploy,
+      # and an alerting mistake must not be able to block an emergency one.
+      # It cannot reach Cloud Monitoring and does not pretend to — policies
+      # are applied by hand (D47), so this checks the half in the repo.
+      - run: npm run check:monitoring
+      # The privacy nutrition label exists twice on purpose: as JSON that
+      # gets pushed to Apple, and as prose a human reads before approving
+      # it. Two copies of one attestation is the shape that produced the
+      # "collects no email or name via Google" error — the same false claim
+      # in three documents, because nothing compared them. Client/docs-only,
+      # same placement rule as check:figures above.
+      - run: npm run check:store-forms
       # Five version numbers that must move together across three files.
       - run: npm run check:versions
       # The city catalogue is parsed at runtime and its names become

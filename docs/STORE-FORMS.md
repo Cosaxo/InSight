@@ -17,6 +17,17 @@ the takes surface going live, or product analytics being added.
 
 ## 1 · Apple Privacy Nutrition Labels
 
+> **You no longer have to type this in.**
+> `design/store/app-privacy.json` holds every answer below as data, and
+> **Actions → App Store metadata** pushes it — dry-run by default, so the
+> first run prints the exact diff and changes nothing.
+>
+> Read this page before ticking *apply*. What you are approving is a legal
+> statement about what the app collects; the workflow transcribes that
+> decision, it does not make it. `npm run check:store-forms` holds the two
+> files equal, so this page cannot quietly stop describing what gets
+> pushed.
+
 App Store Connect → your app → App Privacy. For each type you answer three
 things: **collected?**, **linked to identity?**, **used for tracking?**,
 plus purposes.
@@ -93,23 +104,32 @@ Three of those are worth knowing *why*, because each looks tickable:
    dynamically only after the user opts in (`insight.telemetry.v1`,
    default off).
 
-### ⚠ One inconsistency to resolve before you submit
+### The guideline 4.8 reply, and the clause that was cut from it
 
-`SHIP-CHECKLIST § hardening` drafts a reply to a possible guideline 4.8
-challenge that ends: *"note the app collects no email or name via Google
-either."* **That sentence is wrong, and it contradicts the Email Address
-row above.**
+**Resolved 2026-08-05.** `SHIP-CHECKLIST § hardening` used to end its
+draft reply to a guideline 4.8 challenge with *"note the app collects no
+email or name via Google either"* — which contradicted the Email Address
+row above. The checklist has been corrected; this note stays because the
+sentence is the kind that gets rewritten from memory.
 
-`linkWithPopup(user, new GoogleAuthProvider())` requests Google's default
-scopes, so Firebase Auth stores the account's email — and its profile
-name — on the auth user record. The app's own code never reads them, which
-is probably what the sentence meant, but "collects" on these forms means
-what lands on your servers, and Firebase Auth is your server.
+`linkGoogle()` calls `new GoogleAuthProvider()` with no `addScope`
+(`src/lib/firebaseImpl.ts:167`), so Firebase requests `email` and
+`profile` by default and Firebase Auth stores both on the user record. The
+app's own code never reads them, which is probably what the sentence
+meant, but "collects" on these forms means what lands on your servers, and
+Firebase Auth is your server.
 
-**Do not say that line to a reviewer while the nutrition label declares
-Email Address.** The rest of the 4.8 reply stands and is the strong part:
-the primary path is anonymous, no account is required to use the app, and
-Google is an optional upgrade rather than a login wall.
+**Never say that line to a reviewer while the nutrition label declares
+Email Address** — a listing that contradicts its own developer response is
+a worse problem than the one the sentence was trying to solve. The rest of
+the 4.8 reply stands and is the strong part: the primary path is anonymous,
+no account is required to use the app, and Google is an optional upgrade
+rather than a login wall.
+
+If you would rather the claim were true than the label complete, that is a
+code change and not a forms change: request no scopes at all, accept that
+the profile name has to come from somewhere else, and re-answer both rows.
+It is not needed for launch.
 
 ---
 
@@ -167,7 +187,7 @@ default.
 | --- | --- |
 | Filter objectionable content | Moderation substrate deployed, `MOD_ADVISORY = true` (D22) |
 | Report mechanism | Report control exists in the spec layer; the takes surface it attaches to is demo-only at launch |
-| Block abusive users | `leaveGroupV2`, wired to the **Leave circle** control on each live circle card — leaving **is** the block, because D1 means circle members are the only people whose content you can see. There is no owner-side *remove* callable yet (D47 §14): the answer at launch is that anyone can leave, not that an owner can eject |
+| Block abusive users | `leaveGroupV2`, wired to the **Leave circle** control on each live circle card — leaving **is** the block, because D1 means circle members are the only people whose content you can see. There is no owner-side *remove* callable yet (D54 §14): the answer at launch is that anyone can leave, not that an owner can eject |
 | Published contact info | `olaftaule01@gmail.com`, on `web/terms.html` |
 
 If a reviewer asks how users block one another, the circle model is a real

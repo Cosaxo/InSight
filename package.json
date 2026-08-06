@@ -29,6 +29,7 @@
     "check:a11y": "node scripts/check-a11y.mjs",
     "check:anchors": "node scripts/check-anchors.mjs",
     "check:labels": "node scripts/check-labels.mjs",
+    "check:purge": "node scripts/check-purge-listeners.mjs",
     "check:cities": "node scripts/check-cities.mjs",
     "check:pokedex": "node scripts/check-pokedex.mjs",
     "build:pokedex": "node scripts/build-pokedex.mjs",
@@ -39,6 +40,7 @@
     "promote": "node scripts/promote-questions.mjs",
     "scorecard": "node scripts/question-scorecard.mjs",
     "costs": "node scripts/cost-model.mjs",
+    "pulse": "node scripts/pulse.mjs",
     "build:emoji": "node scripts/build-emoji.mjs",
     "check:ios-spm": "node scripts/check-ios-spm.mjs",
     "check:ios-facebook": "node scripts/check-ios-facebook.mjs",
@@ -55,9 +57,12 @@
     "build:screenshots": "node scripts/gen-screenshots.mjs",
     "asc:push": "node scripts/asc-push.mjs",
     "monitoring:apply": "node scripts/apply-monitoring.mjs",
+    "check:monitoring": "node scripts/check-monitoring.mjs",
     "build:feature-graphic": "node scripts/gen-feature-graphic.mjs",
     "test:unit": "vitest run --dir src",
-    "test:coverage": "vitest run --dir src/v2/data --coverage"
+    "test:scripts": "vitest run --dir scripts",
+    "test:coverage": "vitest run --dir src/v2/data --coverage",
+    "check:store-forms": "node scripts/check-store-forms.mjs"
   },
   "dependencies": {
     "@capacitor-firebase/authentication": "^8.2.0",

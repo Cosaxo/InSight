@@ -95,8 +95,9 @@ quietly leave the suite.
 ## …and so are the five no-button overlays
 
 `loadOverlays()` (D38) defers `test-overlay`, `person-mindmap`,
-`person-overlay`, `city-overlay`, `suggestions`, `data/logic-gen` and
-`logic-test` — the overlays with no control in the header or tabbar, reached
+`person-overlay`, `city-overlay`, `suggestions` and `logic-test` (which
+imports `data/logic-gen` directly since D51, pulling it into the same
+chunk) — the overlays with no control in the header or tabbar, reached
 only through the `window.open*` cross-links. Entry chunk 922 → 837 KB.
 
 **The synchronisation is different from the feed's, and that difference is
@@ -323,18 +324,38 @@ It is separate from `npm run lint` because that script carries
 "warn" tier to hold existing debt, and the alternative would be the blanket
 disable this file's Lint suppressions section exists to prevent.
 
-The baseline is **11**: 9 in `spec/`, plus two deliberate `autoFocus` keeps
-on picker search fields. It opened at 69 and came down in three steps — D23
+The baseline is **9**: 7 in `spec/`, plus two deliberate `autoFocus` keeps
+on picker search fields. It opened at 69 and came down in four steps — D23
 turned the mouse-only controls into buttons, D24 made every overlay and
-sheet a real modal dialog, and D35 gave the Basics editor's selects explicit
+sheet a real modal dialog, D35 gave the Basics editor's selects explicit
 `htmlFor`/`id` pairs, which cleared `label-has-associated-control` entirely
 and uncovered a real defect on the way (the label wrapping `CityPicker` was
 winning the accessible-name computation, so the chosen city never reached a
-screen reader). What is left in `spec/` is six `no-autofocus` findings and
-three div-with-onClick sites. They are deferred for the same reason as the
-React Compiler ones — adding key handlers and focus behaviour to ported
-components no test asserts the interaction of is the blind change that trade
-refuses. Fix them behind interaction tests, not ahead of them.
+screen reader), and D49 made the post-vote beat's Skip control a real
+button.
+
+What is left is **eight `no-autofocus` findings** and **one
+`no-static-element-interactions`** in `tweaks-panel.jsx`, the host-era debug
+panel rather than a user surface.
+
+That sentence used to say "six `no-autofocus` findings and three
+div-with-onClick sites", and both halves were wrong in a way worth naming,
+because `check:a11y` did not catch either: it holds the TOTAL and the
+per-file counts, not the breakdown by rule. There were eight autofocus
+findings, not six. And the three were not three sites — they were three
+rules firing on **one** element (`click-events-have-key-events`,
+`interactive-supports-focus`, `no-static-element-interactions`), so the
+work described as three deferred fixes was one, and it took an afternoon.
+A count kept by hand drifts even inside a paragraph whose own file is
+gate-enforced; prefer "run the gate" to a number, and where a number is
+load-bearing, make the gate own it.
+
+The remaining autofocus findings stay deferred for the reason the React
+Compiler ones do — changing focus behaviour in ported components no test
+asserts the interaction of is the blind change that trade refuses. Fix them
+behind interaction tests, not ahead of them:
+`test/consequence-beat.test.jsx` is what that looks like, and
+`test/dialog.test.jsx` is the precedent it follows.
 
 Per file, not a total, so a fix in one file cannot pay for a regression in
 another. Lowering it is the script's own output: fix something, run it, and
@@ -369,7 +390,7 @@ survivable enough to live with indefinitely.
 **Rule 4** counts every site where one file reads a name another file
 assigns to global scope, per file, and the number may only go down. The
 baseline is in `scripts/check-spec-globals.mjs`; `npm run check:globals`
-prints the current total on every run. The count today is **620 across 52
+prints the current total on every run. The count today is **539 across 45
 files**, down from 799 when the ratchet landed.
 
 The mechanism needs no bookkeeping, which is what makes it usable. The
@@ -532,34 +553,81 @@ names from the global namespace to export four. Expect that ratio again —
 the bridge published everything, so a converted module usually exports
 fewer names than it used to publish.
 
-**This is the end of the cheap seam.** Six providers are converted and the
-pure-provider list is now empty. What remains is 657 references
-concentrated in files that are *consumers*, not providers —
-`world-feed.jsx` (165), `daily-split.jsx` (79), `app-shell.jsx` (51),
-`mirror-field-pops.jsx` (33), `map-tab.jsx` (30), `test-overlay.jsx` (27) —
-and their providers are the cycle cluster (`test-definitions.js`,
-`passive-progress.js`, `daily-split.jsx` itself). Converting those in place
-means ESM cycles, which fail at render with a TDZ error, which is this
-layer's worst bug class.
+**This was called the end of the cheap seam**, on the reading that the six
+converted modules were pure providers and everything left was a consumer
+whose own providers sat in an import cycle. The second half of that was
+wrong — see the next section.
 
-The next step there is **not** another conversion. It is the extraction
-described above: move `passive-progress` and `test-definitions` into
-`data/` as typed, tested modules, which dissolves both cycles as a side
-effect. That is a different size of change and should be planned as one.
+### `test-definitions.js` + `passive-progress.js` — and a cycle that was not one
 
-Until then the ratchet holds the line, and the cheapest way to keep the
-number moving is **convert on touch**: when a feature takes you into a spec
-file, convert the providers it reads first.
+657 → 540, the largest single drop since the ratchet landed, across 18
+consumer files. Both modules had been named in this file as the ones
+**not** to start with, on the grounds that they formed import cycles:
+`test-definitions.js ↔ daily-split.jsx`, and a six-hop loop through
+`app-shell.jsx → passive-meter.jsx → passive-progress.js →
+test-definitions.js → daily-split.jsx → world-feed.jsx → app-shell.jsx`.
 
-**What NOT to start with.** The layer has import cycles, and they cluster:
-`test-definitions.js ↔ daily-split.jsx`, and `app-shell.jsx →
-passive-meter.jsx → passive-progress.js → test-definitions.js →
-daily-split.jsx → world-feed.jsx → app-shell.jsx`. Those are the files
-where the global bridge is genuinely load-bearing rather than merely
-legacy — ESM handles cyclic value bindings badly, and the failure is a
-temporal-dead-zone error that appears only at render, which is this
-layer's worst class of bug. Dissolve them instead: `passive-progress` and
-`test-definitions` are a store and a schema, neither needs JSX, and moving
-them to `data/` the way `deck.ts` and `groupPortrait.ts` were extracted
-takes both cycles out as a side effect — with tests, which the versions in
-`spec/` cannot have.
+**Neither cycle existed.** Checked by building the reference graph out of
+`spec-globals.mjs`'s own `definedBy`/`referenced` maps — the same data
+rule 4 counts — rather than by reading the paragraph again:
+
+- `test-definitions.js` had **no outgoing reference into `daily-split.jsx`
+  at all**, and only one outgoing edge of any kind: `window.LIVE`. It was a
+  pure provider with 17 consumers the whole time. The claimed edge back to
+  `daily-split.jsx` was never there.
+- `passive-progress.js` did produce a real edge, and it was an artifact of
+  the same multi-writer attribution that `world-catalogs.js` exposed once
+  already. It read `IS_TEST_RESULTS`; `test-definitions.js` creates that
+  object, and `daily-split.jsx` **also assigned it** — in an `else` branch
+  that ran only when `test-definitions.js` had not loaded. `definedBy` is a
+  `Set`, so the graph drew an edge to both writers, and the second one
+  closed a loop.
+
+So the fallback was the cycle. Converting `test-definitions.js` made
+`persistTestResult` always present, which made that `else` unreachable;
+deleting it removed `daily-split.jsx` as a writer of the name, and the loop
+with it. The lesson is the one the `WORLD_FEED_QS` correction already
+taught, arriving from the other direction: **a multi-writer global does not
+just miscount the meter, it can invent a dependency that no code has.**
+Verify a cycle against the graph before planning around it — this one had
+been load-bearing in the docs for long enough to defer its own fix.
+
+Two shapes worth expecting again:
+
+- **A defensive fallback is a second writer.** `daily-split.jsx`'s
+  `else { window.IS_TEST_RESULTS = window.IS_TEST_RESULTS || {}; … }` was
+  the same class of thing as `result-card.jsx`'s `{window.Av ? …}` — a
+  guard that existed only because a global could be unset. It read as
+  robustness and behaved as coupling.
+- **`window.X` and the exported name need not match.** Consumers reached
+  the persist function as `window.IS_persistTestResult`; the function is
+  `persistTestResult` and exports under that name. The bridge let a
+  publisher rename what it published, so do not assume the global's
+  spelling is the export's.
+
+What remains at 540 is genuinely consumer-side: `world-feed.jsx` (155),
+`app-shell.jsx` (43), `profile-overlay.jsx` (28), `profile-general.jsx`
+(22), `result-card.jsx` (17). `daily-split.jsx` and `test-overlay.jsx`,
+which this change took to 0 and 2, are no longer on that list.
+
+**These two are still worth moving to `data/` eventually** — as typed,
+tested modules, the way `deck.ts` and `groupPortrait.ts` were extracted.
+`passive-progress.js` in particular is pure arithmetic over a store
+(`pct`, `done`, `passiveDone`, `prefill`) with no JSX and no test. That is
+now an ordinary refactor rather than a cycle-breaking prerequisite, which
+is the whole difference this change made.
+
+**What NOT to start with.** The layer still has reference cycles, and they
+are still where the global bridge is load-bearing rather than merely
+legacy: ESM handles cyclic value bindings badly, and the failure is a
+temporal-dead-zone error that appears only at render, which is this layer's
+worst class of bug. What is deliberately **not** written here is which
+files, or how many. That is a question for the graph, and a hand-maintained
+answer in this paragraph is what deferred these two modules for the whole
+life of the port. Build the edges from `collectSpecGlobals()`'s
+`definedBy`/`referenced` maps and read the answer off the tree.
+
+Two things that probe cheaply and are worth doing before planning around a
+cycle at all: a global-reference cycle is not an ESM import cycle (`spec/`
+currently has none of the latter), and a name with more than one writer can
+manufacture an edge that no code actually has.

@@ -160,7 +160,7 @@ export function nextStreak(
 // refuse a duel answer for a day preceding the member's join. That is a
 // change to the densest rule in the file, whose failure mode is a vote that
 // silently vanishes, and it would refuse the legitimate fresh-group case
-// above. Left for a decision of its own (D47 §9).
+// above. Left for a decision of its own (D54 §9).
 //
 // A uid with NO recorded join time is included, and that is not a fallback —
 // it is the correct answer. The field is written by createGroupV2 and

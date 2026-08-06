@@ -2097,6 +2097,11 @@ button.card:active,
 /* ═══ next style block ═══ */
 
 
+  /* This ground is DUPLICATED as a literal in index.html's inline boot
+     state, which paints before this file exists (it is imported by
+     main.jsx). Move one and move the other, or a web cold start flashes
+     one colour into the other. Nothing holds them equal — D47.2 records
+     why a gate for that costs more than the frame it saves. */
   html, body { margin: 0; padding: 0; background: #15171c; min-height: 100vh; }
   body { display: flex; align-items: center; justify-content: center; font-family: 'Hanken Grotesk', system-ui, sans-serif; padding: 20px; box-sizing: border-box; }
   #root { display: contents; }

@@ -1372,6 +1372,17 @@ function purgeLocalTrace(): void {
   } catch {
     /* best-effort */
   }
+  // Announce it. Spec-layer stores (lens-defs today) keep an in-memory
+  // copy of what was just removed, and the uid-change path has no reload
+  // behind it — without this, the store's next save() writes the previous
+  // account's data straight back under the new uid. An event rather than
+  // hand-wired calls, for this function's own reason: a hand-listed
+  // subset of stores goes stale the day a new store is added.
+  try {
+    window.dispatchEvent(new Event("insight:local-purge"));
+  } catch {
+    /* best-effort: no window in plain-node tests */
+  }
 }
 
 // Re-attach the day's listeners after a rollover. Called from the wake

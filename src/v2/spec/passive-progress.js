@@ -1,15 +1,25 @@
 // Ported from design/spec-modules/passive-progress.js (the historical prototype — no sync
 // script survives; THIS file is the live source now, hand-edits and all).
-// Cross-module references resolve through the shared global scope and
-// spec-index.js load order is semantic — scripts/check-spec-globals.mjs
-// guards the wiring in CI.
+//
+// CONVERTED off the shared-global bridge (D39): `PASSIVE` is a named export
+// and this file publishes nothing to globalThis. `window.LIVE` stays a
+// global read — data/live.ts's published surface, which is the convention
+// working as intended.
+//
+// This module was the real half of src/v2/README.md's cycle warning, and it
+// was a multi-writer artifact rather than a dependency: its one reference
+// into daily-split.jsx was reading IS_TEST_RESULTS, which daily-split also
+// ASSIGNED — in a fallback branch that only ran when test-definitions.js had
+// not loaded. Importing the name from its real owner removed the edge, and
+// converting test-definitions.js made that fallback dead code, so it went too.
 import React from 'react';
+import { IS_TESTS, IS_TEST_RESULTS } from './test-definitions.js';
 
 // passive-progress.js — progress for the four core tests. Only a test's OWN
 // questions count: they surface as marked cards in the World feed (TEST_FEED_QS)
 // or get answered in the test itself. Regular feed questions carry no signal.
 // Staggered demo seeds included. Plain script.
-window.PASSIVE = (function () {
+export const PASSIVE = (function () {
   const LS = 'insight.passive.v1';
   const META = {
     big5:       { label: 'Big 5',    accent: 'var(--c-around)' },
@@ -32,7 +42,10 @@ window.PASSIVE = (function () {
     catch (e) { return { seen: {}, full: {} }; }
   }
   function save() { try { localStorage.setItem(LS, JSON.stringify(st)); } catch { /* best-effort */ } }
-  function needed(k) { const T = (window.IS_TESTS || {})[k]; return T && T.questions ? T.questions.length : 0; }
+  // The `(window.IS_TESTS || {})` guard here was a load-order guard, not a
+  // missing-data one — an imported binding cannot be unset, so it is gone.
+  // The inner `T && T.questions` stays: that guards an unknown test key.
+  function needed(k) { const T = IS_TESTS[k]; return T && T.questions ? T.questions.length : 0; }
   function explicitN(k) {
     try { const p = JSON.parse(localStorage.getItem('insight.testProgress.v1') || '{}')[k]; return p && Array.isArray(p.answers) ? p.answers.length : 0; }
     catch (e) { return 0; }
@@ -60,8 +73,8 @@ window.PASSIVE = (function () {
   // synthesize likert answers for the already-answered stretch from the saved
   // result, so a resumed fast path scores consistently
   function prefill(k) {
-    const T = (window.IS_TESTS || {})[k]; if (!T) return [];
-    const R = (window.IS_TEST_RESULTS || {})[k];
+    const T = IS_TESTS[k]; if (!T) return [];
+    const R = IS_TEST_RESULTS[k];
     const dimV = {}; if (R && R.dims) R.dims.forEach((d) => { dimV[d.id] = d.value; });
     return T.questions.slice(0, passiveDone(k)).map((q) => {
       const v = dimV[q.d] != null ? dimV[q.d] : 50;
@@ -72,6 +85,12 @@ window.PASSIVE = (function () {
   function markComplete(k) { if (!st.full[k]) { st.full[k] = true; save(); notify(); } }
   function subscribe(fn) { subs.push(fn); return () => { const i = subs.indexOf(fn); if (i >= 0) subs.splice(i, 1); }; }
   function notify() { subs.forEach((f) => { try { f(); } catch { /* best-effort */ } }); }
+  // The purge (data/live.ts, D51): the key is already gone; drop the
+  // in-memory seen/full maps too, or the next record()'s save() writes the
+  // previous account's test progress back under the new uid — inflating the
+  // new account's rings with answers it never gave. notify() without
+  // save(): do not re-create the purged key.
+  window.addEventListener('insight:local-purge', () => { st = { seen: {}, full: {} }; notify(); });
   return { META, KEYS, needed, done, passiveDone, pct, complete, testFor, seedCount, record, prefill, markComplete, subscribe, poke: notify };
 })();
 

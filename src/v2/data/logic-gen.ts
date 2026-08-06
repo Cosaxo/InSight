@@ -24,10 +24,11 @@
 // hardest families by seed.
 //
 // Everything here is pure and deterministic per seed — vitest covers
-// determinism, option-key integrity, distractor uniqueness, renderability
-// and per-family semantics. The overlay (src/v2/spec/logic-test.jsx) reads
-// this through window.LOGIC_GEN per the spec layer's global-scope
-// convention; results stay on-device (no backend — D31).
+// determinism, option-key integrity, distractor uniqueness, renderability,
+// per-family semantics and the ambiguity sweep (no distractor may satisfy
+// the rule a solver perceives). The overlay (src/v2/spec/logic-test.jsx)
+// imports this directly — it left the window.LOGIC_GEN bridge with D53 —
+// and results stay on-device (no backend — D31).
 
 // ── the glyph vocabulary (must stay inside what Prim renders) ──
 export type Shape = "c" | "q" | "d" | "t";
@@ -482,15 +483,7 @@ export function generateForm(seed: number): Form {
   return { seed: s, version, items };
 }
 
-// Published for the spec layer (the overlay reads window.LOGIC_GEN at
-// render time — src/v2/README.md convention; scripts/check-spec-globals.mjs
-// discovers this definition). Guarded: the vitest suite imports this module
-// in plain node, where there is no window.
-declare global {
-  interface Window {
-    LOGIC_GEN: { generateForm: typeof generateForm; version: number };
-  }
-}
-if (typeof window !== "undefined") {
-  window.LOGIC_GEN = { generateForm, version };
-}
+// No window publication: logic-test.jsx imports { generateForm, version }
+// directly (D53). The global this module used to publish had exactly one
+// consumer, and a real import is one fewer name the spec-globals ratchet
+// has to carry.

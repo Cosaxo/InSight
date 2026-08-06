@@ -87,7 +87,7 @@ async function runBuildModQueue(): Promise<void> {
     // number of takes ever flagged — but it is the smallest thing the queue
     // can be built from, and it is smaller than the flag count by however
     // many people flagged the same take. The real bound is retention, and
-    // that is a policy decision this does not take (D47 §11).
+    // that is a policy decision this does not take (D54 §11).
     //
     // tallyFlagsInto, not an object literal keyed in place: takeId is a
     // client-chosen document id, and the prototype names read back truthy

@@ -8,6 +8,7 @@ import ReactDOM from 'react-dom';
 import { RP_TESTS } from './result-rose.jsx';
 import { Sheet } from './primitives.jsx';
 import { IS_ARCHETYPES } from './archetype-data.js';
+import { IS_TEST_RESULTS } from './test-definitions.js';
 
 // type-marks.jsx — data-true type marks. A type's mark IS its signature.
 // Archetype signatures are built EXTREME on 1–2 defining axes and near-neutral
@@ -144,7 +145,7 @@ function TypeIndexSheet({ testKey, onClose }) {
   const cfg = RP_TESTS[testKey];
   const host = typeof document !== 'undefined' ? document.querySelector('.app') : null;
   if (!sys || !host) return null;
-  const R = (window.IS_TEST_RESULTS || {})[testKey];
+  const R = IS_TEST_RESULTS[testKey];
   const arch = R && R.dims && window.IS_matchArchetype ? window.IS_matchArchetype(testKey, R.dims) : null;
   const yours = arch ? arch.list[arch.idx].name : null;
   const list = sys.list.slice().sort((a, b) => (b.share || 0) - (a.share || 0));

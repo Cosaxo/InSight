@@ -390,7 +390,7 @@ await setDoc(doc(db, "v2_users", uid, "answers", lateAid), groupAnswer(1));
 const lateReveal = await httpsCallable(fns, "revealDuelsNowV2")({ day: OTHERDAY });
 if (lateReveal.data.revealed < 1) fail("group day did not reveal on one answer");
 // Read as the CREATOR, who played this day. This used to read as the
-// latecomer, which asserted the leak D47 §9 closed as though it were the
+// latecomer, which asserted the leak D54 §9 closed as though it were the
 // contract: OTHERDAY is three days before either account joined the group,
 // and the latecomer never played it.
 if (!(await getDoc(doc(db, "v2_groups", lateGid, "reveals", OTHERDAY))).exists())

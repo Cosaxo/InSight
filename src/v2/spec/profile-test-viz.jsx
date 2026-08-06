@@ -5,6 +5,7 @@
 // guards the wiring in CI.
 import React from 'react';
 import { Kicker } from './primitives.jsx';
+import { IS_TEST_AVG, IS_TEST_RESULTS } from './test-definitions.js';
 
 // profile-test-viz.jsx — distinctive visuals for the per-test profile tabs.
 // Each test gets a recognizable hero chart rather than the generic dot-line:
@@ -16,7 +17,7 @@ const { useState: usePTV } = React;
 
 // shared: pull a test result + its sorted dims
 function ptvResult(testKey) {
-  const R = (window.IS_TEST_RESULTS || {})[testKey];
+  const R = IS_TEST_RESULTS[testKey];
   if (!R) return null;
   return R;
 }
@@ -66,7 +67,7 @@ function AttachmentCard({ accent }) {
       <TestHeroRow R={R} accent={a} />
       <div style={{ marginTop: 16, paddingTop: 16, borderTop: '0.5px solid var(--rule)', display: 'flex', flexDirection: 'column', gap: 13 }}>
         {[...R.dims].sort((m, n) => n.value - m.value).map(d => {
-          const t = ((window.IS_TEST_AVG || {}).attachment || {})[d.id];
+          const t = (IS_TEST_AVG.attachment || {})[d.id];
           return (
             <div key={d.id} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
               <span style={{ width: 74, flexShrink: 0, fontFamily: 'var(--sans)', fontSize: 13.5, fontWeight: 600, color: 'var(--ink)' }}>{d.label}</span>
@@ -122,7 +123,7 @@ function ValuesTiltCard({ me, accent }) {
   const a = accent || 'var(--c-people)';
   const morals = me.morals || {};
   // "most people" baseline, from the saved-test averages (0..100 → −100..100)
-  const avg = (window.IS_TEST_AVG || {}).values || {};
+  const avg = IS_TEST_AVG.values || {};
   const typ = (id) => (avg[id] != null ? avg[id] * 2 - 100 : null);
 
   const clamp = (n) => Math.max(0, Math.min(100, n));

@@ -8,6 +8,8 @@ import { ExplainBtn, ExplainSheet, EX_GLYPH } from './explain-sheet.jsx';
 import { RP_TESTS, RoseMini, TestRose } from './result-rose.jsx';
 import { IS_DATA } from './sample-data.js';
 import { Av } from './primitives.jsx';
+import { IS_TEST_AVG, IS_TEST_RESULTS } from './test-definitions.js';
+import { PASSIVE } from './passive-progress.js';
 
 // result-card.jsx — test profile cards: each test keeps the shared banner
 // language but owns its NATIVE geometry:
@@ -125,7 +127,7 @@ function rpv2Pctl(diff) {
   return `${diff > 0 ? 'higher' : 'lower'} than ${n} in 10 members`;
 }
 function DifferRows({ testKey, R, cfg }) {
-  const avg = (window.IS_TEST_AVG || {})[testKey];
+  const avg = IS_TEST_AVG[testKey];
   const ph = (window.IS_STANDOUT || {})[testKey] || {};
   if (!avg) return null;
   const rows = R.dims.map((d, i) => ({ d, i, diff: avg[d.id] != null ? d.value - avg[d.id] : 0 }))
@@ -177,7 +179,7 @@ function DifferRows({ testKey, R, cfg }) {
 export function ResultProfileCard({ testKey, archetype, tagline }) {
   const [typesOpen, setTypesOpen] = React.useState(false);
   const [explain, setExplain] = React.useState(false);
-  const R = (window.IS_TEST_RESULTS || {})[testKey];
+  const R = IS_TEST_RESULTS[testKey];
   const cfg = RP_TESTS[testKey];
   if (!R || !cfg || !R.dims || !R.dims.length) return null;
   const arch = window.IS_matchArchetype ? window.IS_matchArchetype(testKey, R.dims) : null;
@@ -200,9 +202,9 @@ export function ResultProfileCard({ testKey, archetype, tagline }) {
   const typeLine = arch ? arch.list[you].line : null;
   const sigDims = (a) => R.dims.map(d => ({ id: d.id, label: d.id, value: a.sig[d.id] != null ? a.sig[d.id] : 50 }));
   // passive coverage: how much of this test the feed has mapped so far
-  const pct = window.PASSIVE ? window.PASSIVE.pct(testKey) : 100;
-  const nLeft = window.PASSIVE ? Math.max(0, window.PASSIVE.needed(testKey) - window.PASSIVE.done(testKey)) : 0;
-  const avg = (window.IS_TEST_AVG || {})[testKey];
+  const pct = PASSIVE.pct(testKey);
+  const nLeft = Math.max(0, PASSIVE.needed(testKey) - PASSIVE.done(testKey));
+  const avg = IS_TEST_AVG[testKey];
   const hero = TestRose ? <TestRose testKey={testKey} dims={R.dims} animate={true} /> : null;
   const otherAxes = null;
   return (

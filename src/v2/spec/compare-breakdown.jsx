@@ -6,6 +6,7 @@
 import React from 'react';
 import { RP_TESTS } from './result-rose.jsx';
 import { Kicker } from './primitives.jsx';
+import { IS_TEST_RESULTS } from './test-definitions.js';
 
 // compare-breakdown.jsx — "you vs them" across every assessment, in the SAME
 // visual language as the results profile (result-rose.jsx): per-trait hue
@@ -199,7 +200,7 @@ function CompareBreakdown({ scope, accent = 'var(--accent)', label, n, pop: popP
   const cards = [];
   const aligns = [];
   CB_ASSESS.forEach(a => {
-    const R = (window.IS_TEST_RESULTS || {})[a.kind];
+    const R = IS_TEST_RESULTS[a.kind];
     const cfg = cbCfg(a.kind);
     const themV = pop[a.kind];
     if (!R || !R.dims || !R.dims.length || !cfg || !themV) return;
@@ -255,7 +256,7 @@ function CompareCarousel({ pop, accent = 'var(--accent)', label, aligns = {}, ex
   const who = label || pop.label || 'them';
   const slides = [];
   CB_ASSESS.forEach(a => {
-    const R = (window.IS_TEST_RESULTS || {})[a.kind];
+    const R = IS_TEST_RESULTS[a.kind];
     const cfg = cbCfg(a.kind);
     const themV = pop[a.kind];
     if (!R || !R.dims || !R.dims.length || !cfg || !themV) return;
