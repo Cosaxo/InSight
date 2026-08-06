@@ -38,6 +38,7 @@
     "promote": "node scripts/promote-questions.mjs",
     "scorecard": "node scripts/question-scorecard.mjs",
     "costs": "node scripts/cost-model.mjs",
+    "pulse": "node scripts/pulse.mjs",
     "build:emoji": "node scripts/build-emoji.mjs",
     "check:ios-spm": "node scripts/check-ios-spm.mjs",
     "check:ios-facebook": "node scripts/check-ios-facebook.mjs",
@@ -56,6 +57,7 @@
     "monitoring:apply": "node scripts/apply-monitoring.mjs",
     "build:feature-graphic": "node scripts/gen-feature-graphic.mjs",
     "test:unit": "vitest run --dir src",
+    "test:scripts": "vitest run --dir scripts",
     "test:coverage": "vitest run --dir src/v2/data --coverage"
   },
   "dependencies": {

@@ -301,9 +301,23 @@ for ~7 days.
 
 `monitoring/onV2AnswerCreated-errors.json` is a Cloud Monitoring policy
 that fires on any `severity>=ERROR` from that trigger. It is **not applied
-by the pipeline** — the deploy service account has no monitoring role, and
-widening it for one policy is a worse trade than applying this by hand
-once. Apply it with:
+by the pipeline**, for two reasons — neither of them the one this paragraph
+used to give.
+
+> **Correction (2026-08-04, D47).** It said "the deploy service account has
+> no monitoring role". It has `Editor` + `Firebase Admin` (see the IAM note
+> above), and `Editor` includes `monitoring.alertPolicies.create`. The
+> permission was never the obstacle. The conclusion survives on better
+> ground, which is what is written below.
+
+A policy is useless without a notification channel id, and that id is not in
+this repo and should not be — it is an email address or a Slack hook, per
+operator, per project. And a pipeline that can rewrite an alert policy can
+delete one, silently, in a deploy that was about something else; the
+blast radius of getting that wrong is "you stop being told when the Mirror
+stops moving". Applied by hand, once, deliberately. `npm run pulse` reports
+policies as *committed*, never as *deployed*, because the repo cannot know
+which. Apply it with:
 
 ```bash
 # 1. Create a notification channel once (email; use --type=sms|slack etc. as preferred)
