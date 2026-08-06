@@ -258,15 +258,20 @@ function MapTab({ rail = true, anchorsOn = true, recency = true, fields: fieldsO
     return { x: w / 2 - cx * z, y: h / 2 - cy * z, z };
   };
 
-  // first fit — retry until the pane is measurable
+  // first fit — retry until the pane is measurable (capped, so a pane that
+  // never lays out can't leave a timer bouncing for the life of the session).
+  // This one is the Mirror tab's default `you` population, so an uncapped
+  // loop here is ~30k wake-ups/hour of dwell, each forcing a layout read in
+  // fitAllTarget — same cap, same 60, same reason as the sibling copy of
+  // this construct in person-mindmap.jsx, which was capped and this was not.
   useEffect(() => {
     if (view) return;
-    let cancelled = false;
+    let cancelled = false, tries = 0;
     const tryFit = () => {
       if (cancelled) return;
       const t = fitAllTarget();
       if (t) setView(t);
-      else setTimeout(tryFit, 120);
+      else if (++tries < 60) setTimeout(tryFit, 120);
     };
     tryFit();
     return () => { cancelled = true; };

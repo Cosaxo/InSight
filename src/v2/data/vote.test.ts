@@ -426,6 +426,114 @@ describe("vote() optimistic path (inflight vs unaggregated)", () => {
     expect(dispatched).toContain("insight:local-purge");
   });
 
+  // ── the coalesced agg cache (D58) ───────────────────────────────────
+  //
+  // saveAggCache used to run JSON.stringify over the WHOLE aggs map
+  // synchronously inside the agg snapshot handler, and that handler fires
+  // once per publish on a globally-shared question — COSTS.md finding 2's
+  // own fan-out numbers make that ~0.7 full serialisations/sec at 50k DAU
+  // and ~6.9/sec at 500k, on the main thread. It is coalesced now, which
+  // buys the throughput and costs three new ways to be wrong: a write that
+  // never lands, a write that lands after the purge, and a write lost to a
+  // backgrounded WebView. One case each.
+  //
+  // Real timers rather than fake ones: boot itself schedules a write, and
+  // switching clocks underneath a pending real timer leaks it into whatever
+  // test runs next. Each case waits out the window instead.
+  const AGG_LS = "insight.aggsCache.v1";
+  const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+  const emitAgg = (total: number) => {
+    const l = h.snapshots.find((s) => s.path === "v2_question_aggs/q_1");
+    expect(l).toBeDefined();
+    l!.next({
+      exists: () => true,
+      data: () => ({ counts: { "0": total, "1": 0 }, total, tooSmall: false }),
+    });
+  };
+  const aggWrites = (spy: { mock: { calls: unknown[][] } }) =>
+    spy.mock.calls.filter((c) => c[0] === AGG_LS).length;
+
+  it("coalesces a burst of agg snapshots into one cache write, carrying the last state", async () => {
+    await bootLive();
+    await sleep(1200); // let boot's own write land, so the spy counts only ours
+    const spy = vi.spyOn(storage, "setItem");
+
+    for (let i = 1; i <= 5; i++) emitAgg(i);
+    // Nothing synchronous — that is the whole point; the handler used to
+    // stringify the map five times right here.
+    expect(aggWrites(spy)).toBe(0);
+
+    await sleep(1200);
+    expect(aggWrites(spy)).toBe(1);
+    // Leading-schedule/trailing-write: the write happens a beat after the
+    // FIRST snapshot but serialises state at write time, so it carries the
+    // fifth one's total rather than the first's.
+    expect(JSON.parse(storage.getItem(AGG_LS) || "{}")).toMatchObject({
+      q_1: { total: 5 },
+    });
+    spy.mockRestore();
+  });
+
+  it("a uid change carries no previous account's aggregate past the purge", async () => {
+    // Same contract as the feed-vote mirror above — none of the previous
+    // account's data survives, NOT that the key never comes back — and the
+    // coalescing is what makes it worth re-pinning here: between the
+    // snapshot and the purge there is now a write in flight that there
+    // never used to be.
+    //
+    // Honest about what this does and does not prove. Removing the
+    // cancelAggCache() call from purgeLocalTrace fails NOTHING in this
+    // tree, this case included, and that is not a gap in the case: on this
+    // path resetForNewUid empties state.aggs before it purges, so a
+    // surviving timer can only write `{}`, and the new session re-creates
+    // the key empty within the window regardless. The cancel is hygiene.
+    // What is actually load-bearing here is the assertion below.
+    await bootLive();
+    await sleep(1200);
+    expect(storage.getItem(AGG_LS)).not.toBeNull(); // boot wrote one
+
+    emitAgg(9); // schedules a write…
+    expect(h.authCb).toBeTypeOf("function");
+    h.authCb!({ uid: "someone_else" }); // …and the purge lands first
+    await flush();
+    expect(storage.getItem(AGG_LS)).toBeNull();
+
+    // Past the window the pending write would have fired in: the key may be
+    // back (the new uid's own listener writes it), but never with the
+    // previous account's counts in it.
+    await sleep(1200);
+    expect(JSON.parse(storage.getItem(AGG_LS) || "{}")).not.toHaveProperty("q_1");
+  });
+
+  it("hiding the app flushes the pending agg write rather than losing it", async () => {
+    // Hiding is the last callback a mobile WebView is guaranteed before the
+    // OS may kill it. Before coalescing, the write was already on disk by
+    // then; now it can be up to a second in the future.
+    await bootLive();
+    await sleep(1200);
+    const spy = vi.spyOn(storage, "setItem");
+
+    emitAgg(7);
+    expect(aggWrites(spy)).toBe(0); // still pending
+
+    expect(listeners.document.visibilitychange).toBeTypeOf("function");
+    (document as unknown as { hidden: boolean }).hidden = true;
+    listeners.document.visibilitychange();
+
+    // Synchronous — the flush is the point.
+    expect(aggWrites(spy)).toBe(1);
+    expect(JSON.parse(storage.getItem(AGG_LS) || "{}")).toMatchObject({
+      q_1: { total: 7 },
+    });
+
+    // …and exactly once: the flush cancels the timer, so the window
+    // expiring afterwards must not write the same map a second time.
+    await sleep(1200);
+    expect(aggWrites(spy)).toBe(1);
+    (document as unknown as { hidden: boolean }).hidden = false;
+    spy.mockRestore();
+  });
+
   it("a revoked session keeps real data on screen rather than blanking to demo", async () => {
     const LIVE = await bootLive();
     expect(LIVE.enabled).toBe(true);

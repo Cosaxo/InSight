@@ -137,7 +137,19 @@ jobs:
           cache: npm
       - run: npm ci
       # tsc -b (strict) + vite build — same gate a release goes through.
+      #
+      # The DSN is a dummy, and it is load-bearing. src/lib/sentry.ts reads
+      # import.meta.env.VITE_SENTRY_DSN; Vite replaces that with a literal at
+      # build time, so with the variable unset the whole
+      # import("@sentry/capacitor") branch is provably dead and rolldown drops
+      # it. This job claimed to be "the same gate a release goes through"
+      # while building 481 KB lighter than the release does — ios-release.yml
+      # sets the real DSN and never runs check:bundle, so nothing had ever
+      # weighed the shipping bundle. Any non-empty string restores the
+      # branch; no secret is needed, and nothing here runs the app.
       - run: npm run build
+        env:
+          VITE_SENTRY_DSN: https://ci@example.invalid/0
       # The bundle ships inside a native package, so the cost is parse and
       # eval rather than network — but nothing was watching it move.
       - run: npm run check:bundle
