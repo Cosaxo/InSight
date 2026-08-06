@@ -163,11 +163,22 @@ await adb.doc(`v2_mod_queue/${THEIR_TAKE}`).set({
   takeId: THEIR_TAKE, gid: SHARED, text: "someone else's words", flags: 3, escalations: 1,
 });
 
-// one client-authored write, so the test also covers the real path
+// One client-authored write, so the test also covers the real path.
+//
+// The question is SEEDED first and the write is no longer swallowed. Without
+// the seed, isWorldAnswer()'s get() on the missing question denied this every
+// run — the repo asserts that exact shape itself in rules.test.ts — and the
+// .catch() ate it, so the row below asserted the absence of a document that
+// had never existed. The file's own header says this leg covers the real
+// path; it did not.
+await adb.doc("v2_questions/client-written").set({
+  surface: "daily", seq: 9001, type: "vote", prompt: "client-written probe",
+  options: ["a", "b"], active: true,
+});
 await setDoc(doc(db, "v2_users", uid, "answers", "client-written"), {
   qid: "client-written", surface: "daily", optionIdx: 0,
   answeredAt: serverTimestamp(), anchors: {},
-}).catch(() => { /* rules may reject an unseeded qid — not what we're testing */ });
+});
 
 // prove the setup actually landed, or the wipe assertions are vacuous
 for (const [path, label] of [

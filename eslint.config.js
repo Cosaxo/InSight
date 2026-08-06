@@ -26,6 +26,30 @@ export default defineConfig([
   // test:coverage. Gitignoring them is not enough; eslint does not read
   // .gitignore.
   globalIgnores(['dist', 'functions/lib', 'coverage', 'functions/coverage']),
+  // Node tooling: the guard-rail scripts, the emulator suites, and the flat
+  // configs themselves. Measured with eslint's own resolver, every file
+  // under scripts/ resolved to ZERO rules while src/lib/firebase.ts got 106
+  // — so `--max-warnings 0` said nothing at all about the code whose whole
+  // job is saying things about other code.
+  //
+  // Browser globals as well as node: gen-screenshots.mjs and
+  // gen-feature-graphic.mjs pass callbacks to page.evaluate(), which runs
+  // them in the page. Without them that is six false no-undef errors and a
+  // red CI for code that is correct.
+  {
+    files: [
+      'scripts/**/*.mjs',
+      'firestore-tests/**/*.mjs',
+      '*.config.js',
+      'eslint.a11y.config.js',
+    ],
+    extends: [js.configs.recommended],
+    languageOptions: {
+      ecmaVersion: 'latest',
+      sourceType: 'module',
+      globals: { ...globals.node, ...globals.browser },
+    },
+  },
   {
     files: ['**/*.{ts,tsx}'],
     extends: [

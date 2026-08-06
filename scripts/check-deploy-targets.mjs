@@ -14,7 +14,7 @@
 // left out (a work-in-progress trigger, say).
 
 import { readFileSync } from "node:fs";
-import { resolve, dirname } from "node:path";
+import { resolve, dirname, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
@@ -23,8 +23,18 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 // listed: the hardcoded list this replaced silently missed the first new
 // module added after it (moderation.ts) — three functions built, tested,
 // green, and invisible to the one gate whose whole job is catching that.
+// RECURSIVE. `readdirSync` without it returns directory ENTRIES, which the
+// .ts filter then drops silently — so a callable in functions/src/duels/
+// would be invisible here and in check-appcheck.mjs, and neither script's
+// vacuity counter can save it: both count only what they read. Latent while
+// functions/src is flat, which is exactly how the moderation.ts miss this
+// script's own comment records happened.
 import { readdirSync } from "node:fs";
-const SOURCES = readdirSync(resolve(dirname(fileURLToPath(import.meta.url)), "..", "functions", "src"))
+const SOURCES = readdirSync(
+  resolve(dirname(fileURLToPath(import.meta.url)), "..", "functions", "src"),
+  { recursive: true },
+)
+  .map((f) => String(f).split(sep).join("/"))
   .filter((f) => f.endsWith(".ts") && !f.endsWith(".test.ts"))
   .map((f) => `functions/src/${f}`);
 const WORKFLOW = ".github/workflows/firebase-deploy.yml";
@@ -90,7 +100,7 @@ const deployed = new Set(
 // Comments are stripped first: the prose above the split step names both
 // `--force` and a firestore target, and a scanner that reads its own
 // explanation as the thing it forbids is worse than no scanner. (The same
-// mistake check:globals rule 2 still makes on spec-index.js.)
+// mistake check:globals rule 2 used to make on spec-index.js.)
 const steps = workflow
   .split("\n")
   .filter((l) => !/^\s*#/.test(l))

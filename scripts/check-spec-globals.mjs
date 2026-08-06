@@ -28,7 +28,7 @@
 
 import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
-import { collectSpecGlobals } from "./spec-globals.mjs";
+import { collectSpecGlobals, stripComments } from "./spec-globals.mjs";
 
 const { defined, definedBy, referenced, files, specDir, root } = collectSpecGlobals();
 
@@ -44,7 +44,16 @@ for (const [name, sites] of [...referenced].sort()) {
 }
 
 // 2. spec files spec-index.js forgot
-const indexSrc = readFileSync(join(root, "src/v2/spec-index.js"), "utf8");
+//
+// stripComments FIRST, for the reason spec-globals.mjs applies it to every
+// other file it scans: this is a substring test, so a commented-out
+// `import './spec/sheet-escape.js';` satisfied it. Five modules in the v17
+// block are pure side effects — sheet-escape, sheet-drag, scroll-memory,
+// edge-fade, subnav-thumb — so that line is the WHOLE of their wiring. They
+// assign no global, so rule 1 cannot see them; rule 4's count is unaffected;
+// eslint and tsc see nothing. Escape would stop closing bottom sheets on a
+// device with the tree green.
+const indexSrc = stripComments(readFileSync(join(root, "src/v2/spec-index.js"), "utf8"));
 for (const f of readdirSync(specDir)) {
   if (!/\.(jsx?|tsx?)$/.test(f)) continue;
   if (!indexSrc.includes(`./spec/${f}`)) {

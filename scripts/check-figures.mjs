@@ -32,8 +32,28 @@ import { resolve, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
+// FILE-AWARE. This began as a README-only check and stayed that way, which
+// is how docs/SCHEMA-V2.md came to say the seed writes "191 docs" on one
+// line and "369 docs" on another — the two contradicting each other inside
+// one file, with the gate reading neither. Each figure now names the file it
+// lives in.
+const SOURCES = new Map();
+function textOf(file) {
+  if (!SOURCES.has(file)) SOURCES.set(file, readFileSync(join(root, file), "utf8"));
+  return SOURCES.get(file);
+}
 const README = "README.md";
-const readme = readFileSync(join(root, README), "utf8");
+const SCHEMA = "docs/SCHEMA-V2.md";
+
+// The shipped question bank, counted from the generated module the seed
+// compiles in — the same artifact check:content holds byte-identical to
+// /content. Derived, never restated.
+const bankSize = (textOf("functions/src/v2content.ts").match(/^\s*"id":/gm) || []).length;
+if (!bankSize) {
+  console.error("check-figures: counted 0 questions in functions/src/v2content.ts.");
+  console.error("Fix the pattern in this script rather than letting it pass vacuously.");
+  process.exit(1);
+}
 
 // Count top-level test cases by their `it(` declarations.
 //
@@ -70,25 +90,48 @@ const rulesTests =
 // delete the entry, not to restore the sentence.
 const FIGURES = [
   {
+    file: README,
     what: "rules tests (the repo map)",
     re: /—\s*(\d+) emulator tests/,
     actual: rulesTests,
     fix: (n) => `"— ${n} emulator tests"`,
   },
   {
+    file: README,
     what: "rules tests (the testing section)",
     re: /(\d+) security-rules tests \(Firestore \+ Storage\)/,
     actual: rulesTests,
     fix: (n) => `"${n} security-rules tests (Firestore + Storage)"`,
   },
+  {
+    file: SCHEMA,
+    what: "seeded question count",
+    re: /into `v2_questions` \((\d+) docs/,
+    actual: bankSize,
+    fix: (n) => `"into \`v2_questions\` (${n} docs"`,
+  },
+  {
+    file: SCHEMA,
+    what: "cached question count",
+    re: /The question bank \((\d+) docs\)/,
+    actual: bankSize,
+    fix: (n) => `"The question bank (${n} docs)"`,
+  },
+  {
+    file: SCHEMA,
+    what: "rules tests (the testing section)",
+    re: /test:rules` — (\d+) rules tests/,
+    actual: rulesTests,
+    fix: (n) => `"test:rules\` — ${n} rules tests"`,
+  },
 ];
 
 const errors = [];
 for (const fig of FIGURES) {
-  const m = readme.match(fig.re);
+  const m = textOf(fig.file).match(fig.re);
   if (!m) {
     errors.push(
-      `${README}: could not find the sentence quoting ${fig.what}\n`
+      `${fig.file}: could not find the sentence quoting ${fig.what}\n`
       + `    (pattern ${fig.re}).\n`
       + "    If the figure is no longer quoted there, delete its entry from\n"
       + "    FIGURES in this script rather than restoring the sentence.",
@@ -98,7 +141,7 @@ for (const fig of FIGURES) {
   const claimed = Number(m[1]);
   if (claimed !== fig.actual) {
     errors.push(
-      `${README} states ${claimed} for ${fig.what}; the tree has ${fig.actual}.\n`
+      `${fig.file} states ${claimed} for ${fig.what}; the tree has ${fig.actual}.\n`
       + `    Correct the sentence to: ${fig.fix(fig.actual)}.`,
     );
   }

@@ -190,8 +190,14 @@ function PickSearch({ domain, accent, big, onPick, onNotListed }: PickSearchProp
 
   return (
     <div ref={boxRef} style={{ position: "relative" }}>
+      {/* aria-activedescendant, or `hi` is a background colour and nothing
+          more: a screen-reader user hears nothing as the highlight moves,
+          and since `hi` starts at 0 and resets to 0 on every keystroke,
+          Enter with no arrow presses commits results[0] — an entity whose
+          name was never announced, permanent under D5. */}
       <input autoFocus value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={onKeyDown}
         role="combobox" aria-expanded aria-controls="picksearch-list" aria-autocomplete="list"
+        aria-activedescendant={results[hi] ? `picksearch-opt-${results[hi].id}` : undefined}
         aria-label={spec.placeholder} placeholder={spec.placeholder} style={base} />
       <div role="listbox" id="picksearch-list" style={{
         position: "absolute", zIndex: 40, left: 0, right: 0, top: "calc(100% + 4px)",
@@ -199,24 +205,31 @@ function PickSearch({ domain, accent, big, onPick, onNotListed }: PickSearchProp
         border: PS_LINE, borderRadius: 12, boxShadow: "0 10px 30px rgba(0,0,0,0.14)",
       }}>
         {err && (
-          <div style={{ padding: "12px 13px", fontSize: 13, fontWeight: 600, color: "oklch(0.5 0.19 25)" }}>
+          <div role="status" style={{ padding: "12px 13px", fontSize: 13, fontWeight: 600, color: "oklch(0.5 0.19 25)" }}>
             Couldn&apos;t load the catalogue. Close and try again.
           </div>
         )}
         {!err && !rows && (
-          <div style={{ padding: "12px 13px", fontSize: 13, fontWeight: 500, color: "var(--ink-3)" }}>Loading…</div>
+          <div role="status" style={{ padding: "12px 13px", fontSize: 13, fontWeight: 500, color: "var(--ink-3)" }}>Loading…</div>
         )}
         {!err && rows && !results.length && (
-          <div style={{ padding: "12px 13px", fontSize: 13, fontWeight: 500, color: "var(--ink-3)", lineHeight: 1.5 }}>
+          <div role="status" style={{ padding: "12px 13px", fontSize: 13, fontWeight: 500, color: "var(--ink-3)", lineHeight: 1.5 }}>
             {spec.noMatch}
           </div>
         )}
         {!err && results.map((r, i) => (
-          <button key={r.id} type="button" role="option" aria-selected={i === hi}
+          <button key={r.id} type="button" role="option" id={`picksearch-opt-${r.id}`}
+            aria-selected={i === hi}
             onPointerEnter={() => setHi(i)}
-            // pointerdown, not click — the outside-tap handler above runs on
-            // pointerdown and would close the list before click fired.
-            onPointerDown={(e) => { e.preventDefault(); pick(r); }}
+            // preventDefault on pointerdown, ACT on click. The outside-tap
+            // handler above runs on pointerdown and would close the list
+            // before click fired — hence the first half. But acting there
+            // too made these controls dead to the keyboard and to assistive
+            // tech, which activate by dispatching a synthesized CLICK and
+            // never a pointer event. Mouse and touch still emit both, in
+            // this order, so the pointer path is unchanged.
+            onPointerDown={(e) => { e.preventDefault(); }}
+            onClick={() => pick(r)}
             style={{
               display: "block", width: "100%", textAlign: "left", cursor: "pointer",
               border: "none", borderBottom: PS_LINE, padding: "9px 13px",
@@ -231,8 +244,13 @@ function PickSearch({ domain, accent, big, onPick, onNotListed }: PickSearchProp
             )}
           </button>
         ))}
+        {/* "Not listed" is the one control here with no keyboard-reachable
+            equivalent, and this component's own copy sends users to it —
+            "this is a curated top list… 'Not listed' below is a real
+            answer". Same split as the options above. */}
         <button type="button"
-          onPointerDown={(e) => { e.preventDefault(); setOpen(false); setQ(""); onNotListed(); }}
+          onPointerDown={(e) => { e.preventDefault(); }}
+          onClick={() => { setOpen(false); setQ(""); onNotListed(); }}
           style={{
             display: "block", width: "100%", textAlign: "left", cursor: "pointer",
             border: "none", padding: "10px 13px", position: "sticky", bottom: 0,

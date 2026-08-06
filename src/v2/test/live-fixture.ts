@@ -148,6 +148,10 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
     learnAnswer: () => {},
     learnAgg: () => null,
     linkGoogle: async () => {},
+    // Anonymous-first (D3) is the default state, so that is what the fixture
+    // renders — the branch the privacy panel and profile overlay both
+    // describe in copy.
+    linked: false,
     // Operator-only and never rendered; present so the fixture's key set
     // still matches the real surface (fixtureSurfaceMismatch checks both
     // directions).

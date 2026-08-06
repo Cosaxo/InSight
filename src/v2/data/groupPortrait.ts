@@ -130,6 +130,25 @@ export function groupPortrait(reveals: PortraitReveal[], myUid: string | null): 
     .sort((x, y) => y.pct - x.pct || y.shared - x.shared || (x.uid < y.uid ? -1 : 1));
 
   const eligible = people.filter((p) => p.shared >= MIN_SHARED);
+  // Both labels need a SPREAD, not just a sample.
+  //
+  // The comparator's final clause is a uid tiebreak that never returns 0, so
+  // a fully tied list is ordered by uid alone — and taking first and last of
+  // it crowned one person "most like you" and called another "breaks ranks"
+  // on identical numbers. Reproduced: three members each 3/3 with me yields
+  // twin=ann, contrarian=cy, and LiveGroupsMirrorBody renders "breaks ranks"
+  // beside a literal 3/3 and a full accent bar. The inverse fires too — with
+  // everyone at 0%, someone is crowned the twin.
+  //
+  // Reachable on day two of a live group (3 members, 2 shared days is the
+  // minimum clearing MIN_SHARED), and stable across sessions, so the same
+  // person is named the dissenter every time they open it. MIN_SHARED bounds
+  // the sample size; nothing bounded the spread.
+  //
+  // A single eligible member is still a twin — "most like you" of one person
+  // claims no contrast. What is meaningless is TWO OR MORE at the same
+  // number, where first and last are the uid tiebreak talking.
+  const flatTie = eligible.length > 1 && eligible[0].pct === eligible[eligible.length - 1].pct;
   return {
     days: rows.length,
     daysPlayed,
@@ -137,7 +156,7 @@ export function groupPortrait(reveals: PortraitReveal[], myUid: string | null): 
     alignPct: daysPlayed ? Math.round((meWithMaj / daysPlayed) * 100) : 0,
     rows,
     people,
-    twin: eligible[0] || null,
-    contrarian: eligible.length > 1 ? eligible[eligible.length - 1] : null,
+    twin: flatTie ? null : (eligible[0] || null),
+    contrarian: !flatTie && eligible.length > 1 ? eligible[eligible.length - 1] : null,
   };
 }

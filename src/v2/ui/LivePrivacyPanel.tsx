@@ -42,7 +42,12 @@ function LivePrivacyPanel() {
   const [saved, setSaved] = React.useState(false);
   const [busy, setBusy] = React.useState(false);
   const [confirmDel, setConfirmDel] = React.useState(false);
-  const [linked, setLinked] = React.useState(false);
+  // Derived from auth via the store, not local state seeded to false: the
+  // panel is remounted on every subtab change (profile-overlay.jsx keys on
+  // it), so a Google-linked user was told they were anonymous and offered a
+  // link that then failed with auth/provider-already-linked.
+  const [linkedNow, setLinkedNow] = React.useState(false);
+  const linked = LIVE.linked || linkedNow;
   const [telemetry, setTelemetry] = React.useState(telemetryEnabled);
   const [err, setErr] = React.useState<string | null>(null);
   if (!LIVE.enabled) return null;
@@ -60,7 +65,7 @@ function LivePrivacyPanel() {
   };
   const link = async () => {
     setBusy(true); setErr(null);
-    try { await LIVE.linkGoogle(); setLinked(true); } catch (e) { setErr(String((e instanceof Error && e.message) || e)); }
+    try { await LIVE.linkGoogle(); setLinkedNow(true); } catch (e) { setErr(String((e instanceof Error && e.message) || e)); }
     setBusy(false);
   };
   const nuke = async () => {
@@ -108,8 +113,8 @@ function LivePrivacyPanel() {
 
       <LpRow title="Crash reports"
         sub={telemetry
-          ? "On — anonymous crash and error reports (uid only, never content) help fix bugs. Fully off on next launch if disabled."
-          : "Off — nothing is reported. Turn on to send anonymous crash reports (uid only, never your answers)."}>
+          ? "On — anonymous crash and error reports (uid only, never content) help fix bugs."
+          : "Off — this app sends no reports. Turn on to send anonymous crash reports (uid only, never your answers)."}>
         {btn(telemetry ? "On ✓" : "Off", toggleTelemetry)}
       </LpRow>
 

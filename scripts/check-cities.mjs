@@ -16,10 +16,27 @@ import { fileURLToPath } from "node:url";
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const FILE = join(root, "public", "cities.txt");
 
-// Must match BREAKDOWN_MAX_LABEL in functions/src/pure.ts. A city that
-// cannot be a bucket key would be pickable in the profile and then absent
-// from every breakdown — the silent failure this whole check exists for.
-const MAX_BUCKET = 40;
+// READ OUT OF functions/src/pure.ts, not copied. A city that cannot be a
+// bucket key would be pickable in the profile and then absent from every
+// breakdown — the silent failure this whole check exists for — and a
+// hand-maintained copy of the bound is one more way to arrive there. Same
+// argument check-pokedex.mjs already makes by cross-reading
+// CATALOG_MAX_ENTITY, and the one D39 makes about figures in prose.
+const PURE = readFileSync(join(root, "functions", "src", "pure.ts"), "utf8");
+function fromPure(pattern, what) {
+  const m = PURE.match(pattern);
+  if (!m) {
+    console.error(`check-cities: could not read ${what} from functions/src/pure.ts.`);
+    console.error("Fix the pattern in this script rather than restating the value.");
+    process.exit(1);
+  }
+  return m[1];
+}
+const MAX_BUCKET = Number(fromPure(/BREAKDOWN_MAX_LABEL = (\d+)/, "BREAKDOWN_MAX_LABEL"));
+// …and the character class breakdownBucket rejects, for the same reason.
+const REJECT = new RegExp(
+  fromPure(/if \(\/(\[[^\n]*?)\/\.test\(v\)\) return null;/, "the rejected character class"),
+);
 
 let text;
 try {
@@ -97,9 +114,9 @@ for (let i = 0; i < lines.length; i++) {
   if (bucket.length > MAX_BUCKET) {
     errors.push(`${at}: bucket key ${JSON.stringify(bucket)} is ${bucket.length} chars (max ${MAX_BUCKET})`);
   }
-  // The characters breakdownBucket() in functions/src/pure.ts rejects. A
+  // The characters breakdownBucket() rejects (read from pure.ts above). A
   // name containing one is unpickable-but-offered, the same silent hole.
-  if (/[./[\]*~]/.test(bucket)) {
+  if (REJECT.test(bucket)) {
     errors.push(`${at}: bucket key ${JSON.stringify(bucket)} contains a character breakdownBucket rejects`);
   }
   if (seen.has(bucket)) errors.push(`${at}: duplicate bucket key ${JSON.stringify(bucket)}`);

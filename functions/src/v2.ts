@@ -102,6 +102,28 @@ export function slicesDemographics(qid: string): boolean {
   return !POLITICAL_QIDS.has(qid);
 }
 
+/**
+ * The per-anchor breakdown this answer leaves behind — D44's ENFORCEMENT
+ * point, extracted from the trigger so it has cases of its own.
+ *
+ * Returning `{}` for a political item rather than merely skipping the fold
+ * is deliberate: privRef is written with merge:false, so the next answer to
+ * a political question also ERASES any breakdown folded before this guard
+ * existed, instead of carrying it forward untouched forever.
+ */
+export function breakdownFor(
+  qid: string,
+  storedBy: BreakdownCounts | null | undefined,
+  anchors: unknown,
+  optionIdx: number,
+  floor: number,
+): BreakdownCounts {
+  if (!slicesDemographics(qid)) return {};
+  const by: BreakdownCounts = storedBy || {};
+  foldAnchors(by, anchors, optionIdx, floor);
+  return by;
+}
+
 // How long a ledger entry lives (expireAt powers the Firestore TTL policy —
 // SHIP-CHECKLIST §5). Two jobs with very different horizons share the doc:
 //
@@ -508,10 +530,13 @@ export const onV2AnswerCreated = onDocumentCreated(
       // political question also ERASES any breakdown folded before this
       // guard existed, rather than carrying it forward untouched forever.
       const slices = slicesDemographics(qid);
-      const by: BreakdownCounts = slices
-        ? (priv.exists && (priv.get("by") as BreakdownCounts)) || {}
-        : {};
-      if (slices) foldAnchors(by, snap.get("anchors"), optionIdx, AGG_MIN_N);
+      const by = breakdownFor(
+        qid,
+        priv.exists ? (priv.get("by") as BreakdownCounts) : null,
+        snap.get("anchors"),
+        optionIdx,
+        AGG_MIN_N,
+      );
       // The breakdown a reader has already seen. PUBLISH_EVERY bounds the
       // delta of `counts`, whose unit is the question; a bucket's unit is the
       // bucket, and a five-answer window routinely carries a single anchored

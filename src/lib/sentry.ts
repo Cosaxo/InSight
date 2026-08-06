@@ -48,11 +48,20 @@ export function setTelemetryEnabled(on: boolean): void {
   if (on) {
     sentryInit();
   } else if (sdk) {
-    // Already-initialised Sentry can't be cleanly torn down at runtime;
-    // the closest we can do is null the user. The toggle takes full
-    // effect on the next launch (sentryInit early-returns).
+    // Already-initialised Sentry cannot be cleanly torn down at runtime, so
+    // OFF is enforced at the two send sites (reportError, setSentryUser)
+    // rather than trusted to teardown — they gate on consent, not on `sdk`
+    // being non-null. Nulling the user and closing the client is the
+    // best-effort half; the gates are the half that holds.
+    //
+    // The panel used to say "Off — nothing is reported" while this ran, and
+    // that was false for the rest of the session: ~30 reportError sites, all
+    // unhandled exceptions, and 5% of traces kept transmitting, and
+    // setSentryUser (reached from wake()) re-attached the uid afterwards, so
+    // the residual was uid-linked.
     try {
       sdk.setUser(null);
+      sdk.getClient?.()?.close?.();
     } catch {
       // ignore
     }
@@ -117,6 +126,16 @@ export function reportError(
   err: unknown,
   context?: Record<string, unknown>,
 ): void {
+  // Consent, not `sdk`. An SDK initialised before the user opted out is
+  // still up, and dispatching on its presence is what made the panel's
+  // absolute claim false. Console mirroring below is unaffected: it never
+  // leaves the device.
+  if (!telemetryEnabled()) {
+    if (import.meta.env.DEV || !import.meta.env.VITE_SENTRY_DSN) {
+      console.error("[reportError]", err, context);
+    }
+    return;
+  }
   if (sdk) {
     sdk.captureException(err, { extra: context });
     return;
@@ -138,6 +157,10 @@ export function reportError(
 // name — so PII stays out of the reporting pipeline. Safe to call
 // before init: the value applies when the SDK comes up.
 export function setSentryUser(uid: string | null): void {
+  // Same gate. wake() calls this on every foreground, so without it an
+  // opted-out session re-attached its uid to a live client — turning the
+  // residual from anonymous into identified.
+  if (uid && !telemetryEnabled()) return;
   pendingUid = uid;
   if (!sdk) return;
   if (uid) {

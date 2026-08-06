@@ -76,7 +76,7 @@ const choose = async (re: RegExp) => {
   await waitFor(() => expect(screen.getAllByRole("option").length).toBeGreaterThan(0));
   const opt = screen.getAllByRole("option").find((o) => re.test(o.textContent || ""));
   expect(opt, `no result matched ${re}`).toBeTruthy();
-  fireEvent.pointerDown(opt!);
+  fireEvent.click(opt!);
 };
 
 afterEach(cleanup);
@@ -140,7 +140,7 @@ describe("PickSearch · 'not listed' is a real answer", () => {
     const { onPick, onNotListed } = mount("films");
     const notListed = screen.getAllByRole("button").find((b) => /not listed/i.test(b.textContent || ""));
     expect(notListed, "the not-listed control is missing").toBeTruthy();
-    fireEvent.pointerDown(notListed!);
+    fireEvent.click(notListed!);
     expect(onNotListed).toHaveBeenCalledTimes(1);
     // Not routed through onPick with a sentinel — the card decides what 0
     // means, and conflating the two here would hide the distinction.
@@ -161,5 +161,41 @@ describe("PickSearch · 'not listed' is a real answer", () => {
     mount("pokemon");
     type("zzzzz");
     expect(await screen.findByText(/every species is in here/i)).toBeTruthy();
+  });
+});
+
+describe("reachable without a pointer", () => {
+  // Keyboard and screen-reader activation dispatch a synthesized CLICK and
+  // never a pointer event, so a control that acted only on onPointerDown was
+  // focusable and dead. "Not listed" is the one with no keyboard-reachable
+  // equivalent — and this component's own copy sends users to it.
+  //
+  // check:a11y cannot see any of this: no jsx-a11y rule inspects pointer
+  // events, and both files render genuine <button>s.
+  it("commits a pick on click alone", async () => {
+    const { onPick } = mount("pokemon");
+    type("Snorlax");
+    await waitFor(() => expect(screen.getAllByRole("option").length).toBeGreaterThan(0));
+    fireEvent.click(screen.getAllByRole("option")[0]);
+    expect(onPick, "the option was dead to keyboard and AT activation").toHaveBeenCalled();
+  });
+
+  it("reaches 'Not listed' on click alone", async () => {
+    const { onNotListed } = mount("pokemon");
+    const btn = screen.getAllByRole("button").find((b) => /not listed/i.test(b.textContent || ""));
+    expect(btn, "no 'Not listed' control rendered").toBeTruthy();
+    fireEvent.click(btn!);
+    expect(onNotListed, "the honest long-tail answer was pointer-only").toHaveBeenCalled();
+  });
+
+  it("points aria-activedescendant at the highlighted option", async () => {
+    // Without it `hi` is a background colour: nothing is announced as the
+    // highlight moves, and Enter with no arrow presses commits results[0].
+    mount("pokemon");
+    type("Snorlax");
+    await waitFor(() => expect(screen.getAllByRole("option").length).toBeGreaterThan(0));
+    const opt = screen.getAllByRole("option")[0];
+    expect(opt.id, "options carry no id, so nothing can point at them").toBeTruthy();
+    expect(screen.getByRole("combobox").getAttribute("aria-activedescendant")).toBe(opt.id);
   });
 });

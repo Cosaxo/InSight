@@ -310,12 +310,30 @@ async function revealGroupDay(
   if ((await revealRef.get()).exists) return false;
 
   const answerId = `g_${gid}_${dayKey}`;
-  const snaps = await db.getAll(
+  // TWO reads, because only one of them wants whole documents.
+  //
+  // The profiles are read for exactly two fields — displayName here, and
+  // fcmTokens in the push fan-out below — but were fetched entire. A profile
+  // is client-writable and firestore.rules bounds only some of it:
+  // displayName and the anchors are capped, `testResults` only by KEY COUNT
+  // (8), and `anon`/`createdAt`/`updatedAt` not at all. So a member can
+  // legitimately hold a document approaching Firestore's 1 MiB, and
+  // LANES = 5 × GROUP_CAP = 32 puts up to 160 of them in flight on the
+  // 512 MiB instance. Worse, this runs BEFORE the shouldReveal gate below,
+  // and pendingDays is only pruned inside transactions that never run on an
+  // OOM — so the next scan hits the same page and dies the same way, wedging
+  // reveals for every group ordered after the fat ones by __name__.
+  //
+  // A fieldMask bounds the exposure regardless of what any rule permits,
+  // which is the reason to fix it here rather than by capping testResults:
+  // `anon` is equally unbounded and the next field added would be too.
+  const answerSnaps = await db.getAll(
     ...members.map((uid) => db.doc(`v2_users/${uid}/answers/${answerId}`)),
-    ...members.map((uid) => db.doc(`v2_users/${uid}`)),
   );
-  const answerSnaps = snaps.slice(0, members.length);
-  const profileSnaps = snaps.slice(members.length);
+  const profileSnaps = await db.getAll(
+    ...members.map((uid) => db.doc(`v2_users/${uid}`)),
+    { fieldMask: ["displayName", "fcmTokens"] },
+  );
 
   const votes: Record<string, RevealVote> = {};
   let qid: string | null = null;

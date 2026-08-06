@@ -28,7 +28,7 @@
 // same discipline as check-deploy-targets and check-content.
 
 import { readdirSync, readFileSync } from "node:fs";
-import { resolve, dirname, join } from "node:path";
+import { resolve, dirname, join, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
@@ -94,7 +94,13 @@ const enforcing = [];
 const missing = [];
 let onCallSites = 0;
 
-for (const file of readdirSync(SRC).sort()) {
+// RECURSIVE, for the reason check-deploy-targets.mjs now is: a callable in a
+// subdirectory is one this gate does not read, and `onCallSites` is counted
+// inside this same loop — so an unread file contributes 0 to both sides of
+// the cross-check below and the vacuity guard passes too.
+for (const file of readdirSync(SRC, { recursive: true })
+  .map((f) => String(f).split(sep).join("/"))
+  .sort()) {
   if (!file.endsWith(".ts") || file.endsWith(".test.ts")) continue;
   const src = readFileSync(join(SRC, file), "utf8");
 

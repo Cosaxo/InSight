@@ -4713,6 +4713,71 @@ new deck while the previous day's listeners stay attached and billed, and
 comment says it exists to stop one person's answers being shown to another.
 `vote()` is not gated, so writes kept flowing. Only a restart cleared it.
 
+**Amendment (2026-08-06, fifth) — the tail of the review.**
+
+**13 · The gates that could not see.** `check:appcheck` and
+`check:deploy-targets` read one directory level, so a callable in a
+subdirectory was invisible to both — and to their own vacuity counters,
+which only count what they read. `check:globals` rule 2 substring-matched
+`spec-index.js` without stripping comments, so commenting out a side-effect
+import passed; five v17 modules assign no global at all, making that line
+their whole wiring. `check:cities` restated `BREAKDOWN_MAX_LABEL` and the
+rejected character class instead of reading them. And `npm run lint` applied
+ZERO rules to `scripts/` and `firestore-tests/` — measured, against 106 for
+`src/lib/firebase.ts` — so `--max-warnings 0` said nothing about the code
+whose job is saying things about other code. All four fixed; the last found
+one dead import immediately, and then caught a genuine bug in this very
+change (an undefined `adb` in the moderation e2e) before it was committed.
+
+**14 · What the UI and the store forms claimed.** `LIVE.social.leaveGroup`
+had shipped with **zero call sites in any live surface** — the demo panel's
+Leave button is swapped out when live is on — while `STORE-FORMS.md` and
+`SHIP-CHECKLIST.md` answered Apple guideline 1.2 with
+"`removeGroupMember` / `leaveGroup`". No `removeGroupMember*` callable has
+ever existed. A **Leave circle** control is now wired into `LiveDuelPanel`,
+two-step because the last member out takes the group and its reveals, and
+both documents now describe what ships. **No owner-side remove callable was
+added**: ejecting someone is a moderation power in a mutual-consent circle
+and needs its own decision, so the forms say so rather than implying one.
+
+**15 · Three claims that were false in the code's own voice.**
+`slicing.test.ts` stated in the present indicative that an e2e leg proved
+D44; no such leg was ever written, and mutating `slices` to `true` left all
+four runners green while eighteen Art. 9 items published their cross-tab.
+The enforcement point is now `breakdownFor` in v2.ts with cases of its own.
+`feed-interleave.test.ts` declared its own copy of the loop and its own
+constants, so nine assertions exercised the test file — and the shipped loop
+had meanwhile grown a third stream the copy did not model; the loop now
+lives in `data/feed-interleave.ts` and both import it. `e2e-moderation`
+step 6 printed a pass for an assertion nobody wrote (`void judged;`), and
+the erasure e2e's only client-authored write was denied every run and
+swallowed, so it asserted the absence of a document that never existed.
+
+**16 · The rest.** The privacy panel's Sentry OFF is enforced at the two
+send sites rather than trusted to a teardown that cannot happen, and
+`setSentryUser` is gated too — `wake()` was re-attaching the uid after
+opt-out, turning an anonymous residual into an identified one. `linked` is
+derived from auth instead of local state seeded to false, which was telling
+Google-linked users they were anonymous. `resetForNewUid` publishes
+`window.IS_TEST_RESULTS` through a shared helper and clears the two
+one-shot flags, which are now per-uid. Retired daily questions stay in the
+bank as tombstones so the kill switch stops re-mapping the pager. The
+reveal's profile reads carry a `fieldMask` — measured at 50 KB to 42 bytes
+on a profile whose `testResults` the rules bound only by key count.
+twin/contrarian need a spread, not just a sample: a three-way tie was
+crowning one member and calling another "breaks ranks" beside a literal
+3/3. And `check:figures` is file-aware, which is how `SCHEMA-V2.md` came to
+say the seed writes 191 docs on one line and 369 on another.
+
+**Deliberately NOT done, with the reason.** Invite codes are still permanent
+bearer credentials — rotating one inside `leaveGroupV2` would break the
+code for every remaining member, and the growth loop is the reason the code
+is shared at all; that is a product trade, not a bug fix. `v2_flags` still
+has no retention bound (§11). No `content/options.lock.json` gate was added
+for question option arrays: it is the right shape, but it needs a decision
+about what a legitimate option edit looks like before a ratchet can refuse
+the illegitimate ones.
+
 **KNOWN RESIDUAL, stated because it is a real one.** The played-it clause is
 also an unlock: join a group, backfill an answer for a day inside the
 four-day window, and the reveal admits you. Strictly narrower than what it

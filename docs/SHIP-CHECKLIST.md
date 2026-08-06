@@ -406,7 +406,7 @@ Both apps must be registered under `com.cosaxo.insight`:
   | --- | --- |
   | Filter objectionable content | Moderation substrate deployed, `MOD_ADVISORY = true` (D22) |
   | Report mechanism | Report control exists in the spec layer; the takes surface it attaches to is demo-only |
-  | Block abusive users | `removeGroupMember` / `leaveGroup` — removal from the circle **is** the block, because D1 means circle members are the only people whose content you can see |
+  | Block abusive users | `leaveGroupV2`, wired to the **Leave circle** control on each live circle card — leaving **is** the block, because D1 means circle members are the only people whose content you can see. No owner-side *remove* callable exists (D47 §14) |
   | Published contact info | The support address owed in `web/terms.html` |
 
   Two things follow. First, **the support email is a 1.2 dependency**, not
