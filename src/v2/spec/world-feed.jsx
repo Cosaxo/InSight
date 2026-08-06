@@ -10,6 +10,10 @@ import { WF_CATALOGS } from './world-catalogs.js';
 import { Sheet } from './primitives.jsx';
 import ReactDOM from 'react-dom';
 import { PASSIVE } from './passive-progress.js';
+import {
+  wfCatArt, wfFmt, wfHash, wfKnowBias, wfKnowRate, wfPcts, wfPickGroup,
+  wfRateAvg, wfRateBg, wfRateInk, wfShadeText, wfTileArt, wfTint,
+} from './world-feed-math.js';
 
 // world-feed.jsx — the question feed under the World daily. Answer today's
 // question and the feed starts: dilemmas, this-or-thats, rankings and image
@@ -54,57 +58,10 @@ function wfLoadTakes() {
   try { const v = JSON.parse(localStorage.getItem(WF_TAKES_LS) || '{}'); return v && typeof v === 'object' ? v : {}; }
   catch (e) { return {}; }
 }
-function wfFmt(n) { return n >= 1000 ? (n / 1000).toFixed(1).replace(/\.0$/, '') + 'K' : '' + n; }
 function wfVotes(q) { return q.type === 'rank' ? (q.votes || 0) : q.type === 'rate' ? (q.n || 0) : q.type === 'pick' ? (q.n || ((WF_CATALOGS[q.catalog] || {}).picks || 0)) : q.options ? q.options.reduce((a, o) => a + o.count, 0) : 0; }
-function wfPcts(counts, mineIdx) {
-  const c = counts.map((n, i) => n + (mineIdx === i ? 1 : 0));
-  const total = c.reduce((a, b) => a + b, 0);
-  const p = c.map((n) => Math.round((n / total) * 100));
-  p[p.indexOf(Math.max(...p))] += 100 - p.reduce((a, b) => a + b, 0);
-  return { p, total };
-}
 
-// image placeholder tile art — topic-tinted, pattern varies per card so the
-// feed doesn't read as one repeating texture (real images drop in later)
-function wfTileArt(color, seed) {
-  const a = 'color-mix(in oklch, ' + color + ' 32%, var(--surface-2))';
-  const b = 'color-mix(in oklch, ' + color + ' 15%, var(--surface-2))';
-  const v = Math.floor(wfHash('tile:' + seed) * 4);
-  if (v === 0) return 'radial-gradient(110% 120% at 82% 100%, ' + a + ', transparent 58%), linear-gradient(150deg, ' + b + ', ' + a + ')';
-  // a bare colour is not a valid background-image layer — it computes to `none`,
-  // leaving the dots floating on the card with no fill behind them
-  if (v === 1) return 'radial-gradient(circle, ' + a + ' 1.7px, transparent 2.1px) 0 0 / 14px 14px, linear-gradient(' + b + ', ' + b + ')';
-  if (v === 2) return 'repeating-linear-gradient(135deg, ' + a + ' 0, ' + a + ' 2px, transparent 2px, transparent 11px), linear-gradient(160deg, ' + b + ', color-mix(in oklch, ' + color + ' 19%, var(--surface-2)))';
-  return 'radial-gradient(120% 130% at 22% 12%, ' + a + ', transparent 62%), linear-gradient(160deg, ' + b + ', ' + a + ')';
-}
 
-// a catalogue's ranking is not one ranking — every population has its own, and the
-// difference between them is the whole point of the breakdown. Each group reweights
-// the same counts deterministically, so an item near a neighbour can overtake it
-// while a runaway leader usually holds. Shares are derived from those same weights
-// against the head's real share of the vote, so a group's numbers stay honest
-// arithmetic rather than a second invented statistic.
-function wfPickGroup(qid, key, ranked, headShare) {
-  const w = (it) => it.count * (0.45 + wfHash(qid + '|' + key + '|' + it.id) * 1.95);
-  const tot = ranked.reduce((a, it) => a + w(it), 0) || 1;
-  return ranked.map((it) => ({ it, share: (w(it) / tot) * headShare })).sort((a, b) => b.share - a.share);
-}
 
-// catalogue tiles stand in for real posters and portraits, so they need more
-// presence than the duel tiles' whisper — a strip of near-cream rectangles reads
-// as broken, not as artwork pending. Still one hue per card: strength and pattern
-// carry the difference between neighbours, never a second colour.
-function wfCatArt(color, seed) {
-  const t = 38 + Math.floor(wfHash('cat:' + seed) * 4) * 9;            // 38 / 47 / 56 / 65
-  const a = 'color-mix(in oklch, ' + color + ' ' + t + '%, var(--surface-2))';
-  const b = 'color-mix(in oklch, ' + color + ' ' + (t - 24) + '%, var(--surface-2))';
-  const v = Math.floor(wfHash('catp:' + seed) * 5);
-  if (v === 0) return 'radial-gradient(120% 130% at 78% 100%, ' + a + ', transparent 62%), linear-gradient(155deg, ' + b + ', ' + a + ')';
-  if (v === 1) return 'radial-gradient(circle, ' + a + ' 2px, transparent 2.5px) 0 0 / 15px 15px, linear-gradient(' + b + ', ' + b + ')';
-  if (v === 2) return 'repeating-linear-gradient(125deg, ' + a + ' 0, ' + a + ' 3px, transparent 3px, transparent 13px), linear-gradient(165deg, ' + b + ', ' + a + ')';
-  if (v === 3) return 'linear-gradient(135deg, ' + a + ' 0 46%, ' + b + ' 46%)';
-  return 'radial-gradient(100% 120% at 26% 14%, ' + a + ', transparent 66%), linear-gradient(200deg, ' + b + ', ' + a + ')';
-}
 
 // count-up for revealed percentages — runs only right after your vote
 function WfCount({ to, animate, dur = 650, delay = 180 }) {
@@ -128,28 +85,10 @@ function WfCount({ to, animate, dur = 650, delay = 180 }) {
 
 // ── who-voted breakdowns ── one topic hue; option = shade strength, so sides
 // stay readable without a second palette. Splits derive deterministically from
-// the overall counts + a hash, like the daily's.
-function wfHash(s) { let h = 9; for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 387420489); return ((h ^ (h >>> 9)) >>> 0) / 4294967295; }
 // sides get distinct hues rotated off the topic's — one lightness+chroma tier,
 // the same family the daily uses, so the feed and the daily read as one product
 function wfOpt(color, i, n) { return WPAL.opt(color, i, n); }
 function wfShade(color, i, n) { return WPAL.opt(color, i, n, true); }
-// v2: one hue per card. Strength encodes rank, so the winner reads first and a
-// scroll never shows more than the topic's own colour.
-function wfTint(color, rank, n) { const steps = Math.max((n || 4) - 1, 1); const s = 30 - (24 * Math.min(rank, steps)) / steps; return 'color-mix(in oklch, ' + color + ' ' + s.toFixed(1) + '%, var(--surface))'; }
-function wfShadeText() { return '#fff'; }
-// rate cards have no sides — a 1–10 score reads as tint strength of the one hue
-function wfRateBg(color, s) { return 'color-mix(in oklch, ' + color + ' ' + (10 + s * 5.9).toFixed(1) + '%, var(--surface))'; }
-function wfRateInk() { return 'var(--ink)'; }
-// a group's rate on a knowledge card, drifted deterministically off the real one
-// (same trick as the opinion splits). ±23-point spread, so differences mean something.
-function wfKnowRate(id, key, p, bias) { return Math.max(4, Math.min(97, Math.round(p + (wfHash(id + ':k:' + key) - 0.5) * 40 + (bias || 0)))); }
-// education level is the one cut with a real direction on knowledge — leaving it
-// to pure noise produces headlines like “Trade school beats Doctorate on the
-// asteroid belt”, which reads as broken data rather than as an insight
-function wfKnowBias(dim, axis, n, i) { return dim === 'edu' && !axis && n > 1 ? (i / (n - 1) - 0.5) * 22 : 0; }
-// a group's average, drifted deterministically off the real one (same trick as the splits)
-function wfRateAvg(qid, key, avg) { return Math.max(1.2, Math.min(9.9, avg + (wfHash(qid + ':' + key) - 0.5) * 3.6)); }
 // every who-voted cut in one place (vote-cuts.js): demographics, then the four
 // tests — each opening into its own subvalues, the same axes the Circle map uses
 const WF_CUTS = () => (window.VOTECUTS ? window.VOTECUTS.dims() : [{ id: 'friends', label: 'Friends' }]);
@@ -2554,14 +2493,9 @@ window.WorldFeed = WorldFeed;
 ;globalThis.wfLoad = typeof wfLoad === 'undefined' ? globalThis.wfLoad : wfLoad;
 ;globalThis.wfLoadReplies = typeof wfLoadReplies === 'undefined' ? globalThis.wfLoadReplies : wfLoadReplies;
 ;globalThis.wfLoadTakes = typeof wfLoadTakes === 'undefined' ? globalThis.wfLoadTakes : wfLoadTakes;
-;globalThis.wfFmt = typeof wfFmt === 'undefined' ? globalThis.wfFmt : wfFmt;
 ;globalThis.wfVotes = typeof wfVotes === 'undefined' ? globalThis.wfVotes : wfVotes;
-;globalThis.wfPcts = typeof wfPcts === 'undefined' ? globalThis.wfPcts : wfPcts;
-;globalThis.wfTileArt = typeof wfTileArt === 'undefined' ? globalThis.wfTileArt : wfTileArt;
 ;globalThis.WfCount = typeof WfCount === 'undefined' ? globalThis.WfCount : WfCount;
-;globalThis.wfHash = typeof wfHash === 'undefined' ? globalThis.wfHash : wfHash;
 ;globalThis.wfShade = typeof wfShade === 'undefined' ? globalThis.wfShade : wfShade;
-;globalThis.wfShadeText = typeof wfShadeText === 'undefined' ? globalThis.wfShadeText : wfShadeText;
 ;globalThis.WorldFeed = typeof WorldFeed === 'undefined' ? globalThis.WorldFeed : WorldFeed;
 ;globalThis.WF_LS = typeof WF_LS === 'undefined' ? globalThis.WF_LS : WF_LS;
 ;globalThis.WF_REPLIES_LS = typeof WF_REPLIES_LS === 'undefined' ? globalThis.WF_REPLIES_LS : WF_REPLIES_LS;
