@@ -279,6 +279,22 @@ describe("v2 questions + aggregates", () => {
     await assertFails(getDoc(doc(asUser(OWNER), "v2_agg_events", "evt1")));
     await assertFails(setDoc(doc(asUser(OWNER), "v2_agg_events", "evt2"), { qid: "x" }));
   });
+
+  it("velocity-scan state (D54) is opaque to clients", async () => {
+    // The scan's state doc holds per-question daily counts below the
+    // published floor — readable, it would be a side channel around
+    // AGG_MIN_N; writable, an attacker could blind the scan to their
+    // own burst by inflating its baselines.
+    await seed(async (db) => {
+      await setDoc(doc(db, "v2_velocity", "state"), {
+        lastScanAt: 1,
+        days: { "2026-08-05": { "daily-000": 3 } },
+      });
+    });
+    await assertFails(getDoc(doc(asUser(OWNER), "v2_velocity", "state")));
+    await assertFails(setDoc(doc(asUser(OWNER), "v2_velocity", "state"), { lastScanAt: 0 }));
+    await assertFails(deleteDoc(doc(asUser(OWNER), "v2_velocity", "state")));
+  });
 });
 
 describe("v2 profile", () => {
