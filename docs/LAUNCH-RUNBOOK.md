@@ -4,7 +4,9 @@ Everything between this tree and a live App Store listing, in the order it
 has to happen, with the command or console path for each step. Nothing
 here is engineering work: the code side is complete (LAUNCH-PLAN.md's
 workstreams all landed in PR #60), so every remaining step needs an
-account, a device, a Mac, or a legal fact.
+account, a device, or a legal fact. **A Mac is no longer on that list** —
+it was, and removing it was the last piece of engineering this file
+required (`IOS-RELEASE.md`).
 
 **This document holds order and status only.** Every *why* lives in
 [`SHIP-CHECKLIST.md`](SHIP-CHECKLIST.md), which stays canonical — where the
@@ -13,15 +15,24 @@ the section that explains them; read that before doing anything whose
 reasoning is not obvious, especially the App Check ordering (§ hardening)
 and the reveal/rules deploy order.
 
-State verified 2026-08-04: `npm run check:store-copy` reports **3**
-unfilled placeholders, all account-gated IDs — and one of them
-(`REPLACE_WITH_PLAY_SIGNING_SHA256`) is now a permanent non-blocker under
-D42, so the live count for an iOS launch is **2**. `check:store-listing`
-and `check:versions` pass; the daily bank is at 90 questions; the
-production backend is deployed. **Measured the same day:** anonymous
-sign-in works (`accounts:signUp` returns an `idToken`, where it returned
-`ADMIN_ONLY_OPERATION` on 2026-08-03), the InSight web app is registered,
-and the default hosting site `prvfire33` exists.
+State verified 2026-08-05: `npm run check:store-copy` reports **1**
+unfilled placeholder, and it is `REPLACE_WITH_PLAY_SIGNING_SHA256` — a
+permanent non-blocker under D42, excused by `--ios`. **For an iOS launch
+the count is zero**, which is a change from 2026-08-04: the Team ID and the
+`REVERSED_CLIENT_ID` were the other two and both are filled.
+
+`check:store-listing` and `check:versions` pass; the daily bank is at 90
+questions of 369 seeded; the production backend is deployed. **Measured
+2026-08-04:** anonymous sign-in works (`accounts:signUp` returns an
+`idToken`, where it returned `ADMIN_ONLY_OPERATION` on 2026-08-03), the
+InSight web app is registered, and the default hosting site `prvfire33`
+exists. **Measured 2026-08-05:** the iOS release workflow archives,
+exports and passes both gates with no Mac (run 6).
+
+Those two question counts are held by `npm run check:figures` against
+`functions/src/v2content.ts`, because a number quoted in prose and kept
+current by intention is the one documentation error this repo keeps
+re-committing (D39).
 
 > ## iOS only, as of 2026-08-04 (D42)
 >
@@ -124,12 +135,19 @@ arithmetic.
 
 ## Phase 1 — Day 1: open the account, start the clock
 
-- [ ] **1.1 Apple Developer Program — enroll as an *individual*** ($99/yr,
-      ~1–2 days). Convertible to an organization later; enrolling as an org
+- [x] **1.1 Apple Developer Program — done 2026-08-05, as an
+      *individual*** ($99/yr). Team ID `U2LVW456S7`, which is what
+      `web/.well-known/apple-app-site-association` and every signing step
+      below use. Convertible to an organization later; enrolling as an org
       first costs 1–2 weeks of entity + D-U-N-S verification for nothing
-      launch needs. Start it before anything else on this list. **This
-      reasoning is Apple-only** — it inverts on Play, which is why 1.2 goes
-      the other way (D41).
+      launch needs. **This reasoning is Apple-only** — it inverts on Play,
+      which is why 1.2 goes the other way (D41).
+
+      The App ID carries **Push Notifications** and **Associated Domains**
+      and deliberately nothing else. A provisioning profile cannot grant an
+      entitlement the App ID lacks, so a missing capability fails the
+      *archive*, not just the feature — and an unused one is an entitlement
+      to carry and a question to answer at review.
 - [ ] **1.1b [PARKED — D42] Register the ENK and apply for the D-U-N-S.**
       *Not being done: Play is deferred until iOS has users.* Notify Brønnøysundregistrene via Altinn; registration in
       Enhetsregisteret is free and yields the organisasjonsnummer a D-U-N-S
@@ -179,9 +197,20 @@ arithmetic.
       the iOS app does not exist in the project until it is added — so
       only the web half is doable on day 1. Earlier drafts had all three
       here as though they were parallel; they are not, and the Android
-      one was blocked the same way before it was parked. The web app was
-      registered 2026-08-04 (app id `…:web:4c3d2ec4e1bbe13ab8a760`); the
-      reCAPTCHA provider registration is what remains.
+      one was blocked the same way before it was parked.
+
+      **Status:** the web app was registered 2026-08-04 (app id
+      `…:web:4c3d2ec4e1bbe13ab8a760`) and the iOS app with the DeviceCheck
+      provider on 2026-08-05, which starts the soak clock — 3.4 is the
+      earliest thing that can now happen, and it cannot happen before
+      2026-08-07. What remains here is the **web reCAPTCHA v3 provider**,
+      and it is worth naming why it is easy to think is done: registering
+      the app and configuring its provider are two separate actions in the
+      same console page, and having one without the other looks identical
+      to having neither.
+
+      DeviceCheck needs a `.p8` key, not a toggle — an earlier note in
+      this conversation said "one click, no keys" and that was wrong.
 
 ## Phase 2 — Wire the native builds (needs Phase 1 accounts)
 
@@ -255,14 +284,18 @@ arithmetic.
       --ignored` and confirm nothing sensitive is tracked — a `git add -A`
       after a signing session is an incident a revert cannot fix.
       `SHIP-CHECKLIST § hardening`.
-- [ ] **2.7 The app-link fingerprints — Apple half only.** Apple
-      Developer → Membership gives the Team ID for
-      `web/.well-known/apple-app-site-association`. The
+- [ ] **2.7 The app-link fingerprints — the file is filled, the deploy is
+      owed.** `web/.well-known/apple-app-site-association` carries the real
+      Team ID as of 2026-08-05 (`U2LVW456S7.com.cosaxo.insight`). The
       `assetlinks.json` SHA-256 comes from Play Console → Setup → App
       signing and is **[PARKED — D42]**, so `check:store-copy` will keep
       reporting that one placeholder: a known permanent non-blocker, not
       an unfinished task.
-      Replace both, redeploy hosting, reinstall, tap a `/join/CODE` link.
+
+      **What remains is a hosting redeploy**, which this step shares with
+      0.2 and 0.3 — three separate reasons the live site is behind the
+      repo, one deploy that closes all three. *The committed file is not
+      what iOS fetches.* Then reinstall and tap a `/join/CODE` link.
       Android verifies with `adb shell pm get-app-links com.cosaxo.insight`;
       iOS re-fetches AASA on install (CDN-cached, allow a day). Until then
       invite links open the fallback page — degraded, not broken, so this
