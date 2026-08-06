@@ -30,6 +30,8 @@ import {
   modVerdictError,
   modVerdictId,
   seedDocMatches,
+  seedOptionConflict,
+  describeSeedOptionConflicts,
   SEEDED_FIELDS,
   foldCanonAnchors,
   canonBreakdownFor,
@@ -1231,5 +1233,79 @@ describe("publishBreakdown — publish and baseline are the same value", () => {
     foldAnchors(by, { gender: "Woman" }, 1, FLOOR);
     expect(publishBreakdown(by, first, FLOOR).gender, "one vote moved a published bucket")
       .toEqual({ Woman: { "0": 5 }, Man: { "0": 5 } });
+  });
+});
+
+// ── D52: shipped option sets are immutable ──────────────────────
+
+describe("seedOptionConflict — the edit the seed must refuse", () => {
+  const desired = {
+    surface: "daily", seq: 3, type: "binary", domain: null,
+    prompt: "Messi or Ronaldo?", options: ["Messi", "Ronaldo"],
+    topic: "light", axis: null, test: null,
+  };
+
+  it("passes a doc that does not exist yet — a create is never a re-key", () => {
+    expect(seedOptionConflict("daily-003", null, desired)).toBeNull();
+    expect(seedOptionConflict("daily-003", undefined, desired)).toBeNull();
+  });
+
+  it("passes an unchanged option set", () => {
+    expect(seedOptionConflict("daily-003", { ...desired }, desired)).toBeNull();
+  });
+
+  it("refuses a reorder — the case that changes meaning without changing counts", () => {
+    // Every stored answer keeps its optionIdx. Swapping the labels turns
+    // every "Messi" vote into a "Ronaldo" vote, and no count moves, so
+    // nothing downstream can notice.
+    const c = seedOptionConflict("daily-003", { ...desired, options: ["Ronaldo", "Messi"] }, desired);
+    expect(c).not.toBeNull();
+    expect(c?.qid).toBe("daily-003");
+    expect(c?.stored).toEqual(["Ronaldo", "Messi"]);
+    expect(c?.desired).toEqual(["Messi", "Ronaldo"]);
+  });
+
+  it("refuses a relabel, a removal and an append alike", () => {
+    const cases = [
+      ["Messi", "CR7"],                     // relabel
+      ["Messi"],                            // removal — later indices orphaned
+      ["Messi", "Ronaldo", "Maradona"],     // append — changes what the question asked
+    ];
+    for (const options of cases) {
+      expect(
+        seedOptionConflict("daily-003", { ...desired, options }, desired),
+        `${JSON.stringify(options)} should be refused`,
+      ).not.toBeNull();
+    }
+  });
+
+  it("allows a prompt edit on a live question — D52's own fix shape", () => {
+    // D52's fix list is mostly prompt rewrites that preserve meaning
+    // ("€500" → "a week's pay"). A prompt carries no index any answer
+    // refers to, so it is editable and must stay that way — a guard that
+    // blocked it would have blocked the content review it came from.
+    const stored = { ...desired, prompt: "Who is better, Messi or Ronaldo?" };
+    expect(seedOptionConflict("daily-003", stored, desired)).toBeNull();
+    // …and the seed still rewrites it, because this is a separate question
+    // from "should we write at all".
+    expect(seedDocMatches(stored, desired)).toBe(false);
+  });
+
+  it("has nothing to protect when the stored doc has no option array", () => {
+    // A question seeded before `options` existed has no vote keyed to an
+    // index it never had. Refusing here would wedge the seed permanently.
+    const noOptions = { ...desired } as Record<string, unknown>;
+    delete noOptions.options;
+    expect(seedOptionConflict("daily-003", noOptions, desired)).toBeNull();
+    expect(seedOptionConflict("daily-003", { ...desired, options: "Messi,Ronaldo" }, desired)).toBeNull();
+  });
+
+  it("describes conflicts in a form an operator can act on", () => {
+    const line = describeSeedOptionConflicts([
+      { qid: "daily-003", stored: ["Messi", "Ronaldo"], desired: ["Ronaldo", "Messi"] },
+      { qid: "f12", stored: ["Yes"], desired: ["Yes", "No"] },
+    ]);
+    expect(line).toContain("daily-003: [Messi | Ronaldo] -> [Ronaldo | Messi]");
+    expect(line).toContain("f12: [Yes] -> [Yes | No]");
   });
 });
