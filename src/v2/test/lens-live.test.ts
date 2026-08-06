@@ -49,13 +49,14 @@ const W = window as unknown as {
     liveOn(): boolean;
     reset(): void;
     answer(id: string, i: number, val: number): void;
-    answers(id: string): Record<number, number>;
     done(id: string): number;
     subscribe(fn: () => void): () => void;
   };
   LENS_FEED_QS: () => FeedCard[];
   LIVE?: { enabled: boolean };
 };
+
+const LS_KEY = "insight.lenses.v1";
 
 const byId = (l: LensDef) => l.id;
 // The demo pool's exclusion rule, re-derived: Math.round(seed × questions)
@@ -132,5 +133,53 @@ describe("LENS_FEED_QS follows liveness", () => {
     expect(W.LENS_FEED_QS().map((c) => c.id).sort()).toEqual(
       demoA.map((c) => c.id).sort(),
     );
+  });
+});
+
+describe("the local purge drops the in-memory store (D47)", () => {
+  // live.ts's purgeLocalTrace() removes every insight.* key on account
+  // deletion and uid change, then dispatches insight:local-purge — the
+  // uid-change path has no reload behind it, so the store must drop its
+  // in-memory copy too. Before the listener existed, the copy survived
+  // and the NEXT answer()'s save() wrote the previous account's lens
+  // answers straight back under the new uid. vote.test.ts pins that the
+  // announcement fires; these pin what the store does with it.
+  const announcePurge = () => {
+    localStorage.removeItem(LS_KEY); // what purgeLocalTrace just did…
+    window.dispatchEvent(new Event("insight:local-purge")); // …and then says
+  };
+
+  it("empties the store without re-creating the purged key", () => {
+    W.LIVE = { enabled: true };
+    W.LENSES.answer("moral", 0, 4);
+    expect(W.LENSES.done("moral")).toBe(1);
+    expect(JSON.parse(localStorage.getItem(LS_KEY)!).ans.moral).toBeTruthy();
+    announcePurge();
+    expect(W.LENSES.done("moral")).toBe(0);
+    // no save() in the listener: writing the key back, even empty, works
+    // against "remove every local trace"
+    expect(localStorage.getItem(LS_KEY)).toBeNull();
+  });
+
+  it("the next answer starts a fresh record — the resurrection bug", () => {
+    W.LIVE = { enabled: true };
+    W.LENSES.answer("moral", 0, 4);
+    announcePurge();
+    // the new account answers ONE risk question; before the listener, this
+    // save() brought the old account's moral answers back beside it
+    W.LENSES.answer("risk", 0, 2);
+    expect(JSON.parse(localStorage.getItem(LS_KEY)!).ans).toEqual({ risk: { 0: 2 } });
+    expect(W.LENSES.done("moral")).toBe(0);
+  });
+
+  it("notifies subscribers, so mounted lens UI re-renders empty", () => {
+    let calls = 0;
+    const unsub = W.LENSES.subscribe(() => { calls += 1; });
+    try {
+      announcePurge();
+      expect(calls).toBe(1);
+    } finally {
+      unsub();
+    }
   });
 });

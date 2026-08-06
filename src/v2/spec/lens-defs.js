@@ -306,8 +306,17 @@ window.LENSES = (function () {
     return q.lens;
   }
   function mapped() { return KEYS.filter(complete).length; }
-  // wipe on account deletion / uid change, same contract as the other stores
+  // the public wipe. The account-deletion / uid-change contract is served
+  // by the insight:local-purge listener below, not by callers of this.
   function reset() { st = { ans: {}, seen: {} }; save(); notify(); }
+  // live.ts's purgeLocalTrace() removes every insight.* key on account
+  // deletion and uid change, then announces it. Drop the in-memory copy
+  // too: the uid-change path has no reload behind it, so without this the
+  // next answer()'s save() would write the previous account's lens answers
+  // straight back under the new uid. Deliberately NOT reset() — no save():
+  // re-creating the key the purge just removed, even empty, works against
+  // "remove every local trace".
+  window.addEventListener('insight:local-purge', () => { st = { ans: {}, seen: {} }; notify(); });
   // liveOn is published for LENS_FEED_QS below: its pool differs between
   // demo and live, and re-deriving the flag there would mean a second
   // window.LIVE read for a fact this store already owns. It is the LENS
