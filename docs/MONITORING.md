@@ -21,6 +21,7 @@ Two instruments, neither of them a view:
 | `npm run costs` | prints the predicted bill at five sizes | anything about what the bill nets against |
 | `npm run scorecard` | scores questions the crowd has answered | anything before launch, and no history — one output path, overwritten |
 | `monitoring/*.json` | three alert policies, put live by `npm run monitoring:apply` | which of the other 12 functions has no alert |
+| `npm run check:monitoring` | that each policy's condition resolves to a metric `monitoring:apply` creates, and each metric to a `metric:` field a function emits | whether any of it is live in Cloud Monitoring — by design, since policies are applied by hand |
 
 Between them sat things nobody was computing at all: how many days of
 question runway are left, whether anything is already written and waiting

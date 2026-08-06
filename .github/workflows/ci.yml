@@ -66,6 +66,17 @@ jobs:
       # and deliberately NOT on backend-checks.yml — nothing it says bears on
       # whether a rules fix is safe to deploy.
       - run: npm run check:labels
+      # The alert chain, from the log line a function emits to the policy
+      # that reads it. Every link fails the same silent way — the policy
+      # exists, the console is green, and it can never fire — which is the
+      # class check:deploy-targets and check:appcheck exist for.
+      #
+      # Here rather than on backend-checks.yml on that workflow's own rule:
+      # nothing this says bears on whether a rules fix is safe to deploy,
+      # and an alerting mistake must not be able to block an emergency one.
+      # It cannot reach Cloud Monitoring and does not pretend to — policies
+      # are applied by hand (D47), so this checks the half in the repo.
+      - run: npm run check:monitoring
       # Five version numbers that must move together across three files.
       - run: npm run check:versions
       # The city catalogue is parsed at runtime and its names become
