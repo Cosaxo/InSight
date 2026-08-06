@@ -19,7 +19,7 @@
 // Schema and access decisions: docs/SCHEMA-V2.md, docs/DECISIONS.md (D5).
 
 import { getFirestore, FieldValue, type Firestore, type Transaction } from "firebase-admin/firestore";
-import { onCall } from "firebase-functions/v2/https";
+import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { assertOperator, HOT_TRIGGER } from "./ops";
 import { onDocumentCreated } from "firebase-functions/v2/firestore";
 import { logger } from "firebase-functions";
@@ -32,10 +32,13 @@ import {
   publishBreakdown,
   publishableCanon,
   seedDocMatches,
+  seedOptionConflict,
+  describeSeedOptionConflicts,
   shouldPublishAgg,
   type BreakdownCounts,
   type CanonCounts,
   type CatalogSpec,
+  type SeedOptionConflict,
 } from "./pure";
 import { FILM_KEYS, ARTIST_KEYS, EMOJI_KEYS } from "./catalogKeys";
 
@@ -257,6 +260,7 @@ async function runSeedV2(bumpRev = false): Promise<{ written: number; skipped: n
   let batch = db.batch();
   let inBatch = 0;
   let written = 0;
+  const refused: SeedOptionConflict[] = [];
   for (let i = 0; i < V2_QUESTIONS.length; i++) {
     const q = V2_QUESTIONS[i];
     const payload: Record<string, unknown> = {
@@ -279,6 +283,18 @@ async function runSeedV2(bumpRev = false): Promise<{ written: number; skipped: n
     // the bank with `updatedAt > cursor`), and `contentRev` below only
     // bumps when something actually changed.
     if (seedDocMatches(stored.get(q.id), payload)) continue;
+    // D52's un-editable invariant, enforced where the edit would land rather
+    // than in the reviewer's eye. A changed option set on a LIVE question
+    // re-keys every vote already stored against it, silently — so this doc
+    // is refused and the rest of the seed proceeds. Refusing per-document
+    // rather than aborting the run is deliberate: a batch of legitimate
+    // prompt fixes must not be held hostage by one bad edit, and the throw
+    // at the end makes sure the refusal cannot be missed either way.
+    const conflict = seedOptionConflict(q.id, stored.get(q.id), payload);
+    if (conflict) {
+      refused.push(conflict);
+      continue;
+    }
     payload.updatedAt = FieldValue.serverTimestamp();
     if (!present.has(q.id)) payload.active = true;
     batch.set(refs[i], payload, { merge: true });
@@ -318,11 +334,32 @@ async function runSeedV2(bumpRev = false): Promise<{ written: number; skipped: n
   if (bumped) {
     await metaRef.set({ contentRev: FieldValue.serverTimestamp() }, { merge: true });
   }
-  const skipped = V2_QUESTIONS.length - written;
+  const skipped = V2_QUESTIONS.length - written - refused.length;
   logger.info(
     `[v2] seeded ${written} questions, ${skipped} unchanged ` +
       `(${present.size} pre-existing, contentRev ${bumped ? "bumped" : "held"})`,
   );
+  // Loud, and after the commit. The legitimate writes are already durable —
+  // holding them back would punish the rest of the batch for one bad edit —
+  // but the run does NOT get to report success, because a silently-skipped
+  // question is exactly the outcome D52 exists to prevent. An operator who
+  // genuinely means to retire a question has `active: false`; an operator
+  // who genuinely means to replace one appends a new qid. Neither path goes
+  // through here.
+  if (refused.length) {
+    const detail = describeSeedOptionConflicts(refused);
+    logger.error(
+      `[v2] REFUSED ${refused.length} option-set edit(s) to live questions ` +
+        `(D52 — answers store optionIdx, so editing options re-keys every ` +
+        `vote already cast): ${detail}`,
+    );
+    throw new HttpsError(
+      "failed-precondition",
+      `refused ${refused.length} option-set edit(s) to already-seeded questions; ` +
+        `shipped option sets are immutable (D52). Retire with active:false or ` +
+        `append a new qid instead. ${detail}`,
+    );
+  }
   return { written, skipped };
 }
 

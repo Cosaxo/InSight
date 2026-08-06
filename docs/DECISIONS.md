@@ -5787,3 +5787,109 @@ deploy workflow's --only list names them.
   decision builds the score that could survive one; the surface, its
   k-anonymity story, and the measured-percentile flip are separate
   decisions.
+
+## D58 · The seed refuses to edit a shipped option set
+
+**Date:** 2026-08-06 · **Status:** Adopted
+
+**What was enforced by nothing.** D52 records "shipped option sets are
+never edited" as an invariant, because answers store `(qid, optionIdx)`
+and nothing else. Swap two options on a live question and every historical
+vote silently changes meaning: no count moves, no aggregate recomputes,
+nothing anywhere reports it. It is the D30 re-key class applied
+retroactively to data already collected — and the enforcement was a human
+reading the diff. `runSeedV2` took an edited `options` array straight
+through `seedDocMatches` (which returns false on *any* changed field,
+including this one) and `batch.set(…, { merge: true })` it over the live
+doc.
+
+Every content review so far has got this right. That is a record, not a
+mechanism. D55's own review found sixteen things by reading; this is the
+class of defect that reading is worst at, because the diff looks like an
+ordinary content edit and the damage is invisible in every artifact
+afterwards.
+
+**The refusal.** `seedOptionConflict` compares the stored option array
+against the one about to be written; a conflict skips that document and
+the run throws `failed-precondition` naming every refusal, old set and
+new. Per-document rather than per-run: a batch of legitimate prompt fixes
+must not be held hostage by one bad edit, and the throw makes sure the
+skip cannot be mistaken for success either way. The legitimate writes are
+already committed when it throws — holding them back would punish the rest
+of the batch for one line.
+
+**Deliberately narrow.** `prompt` edits stay allowed, and that is not an
+oversight: D52's own fix list is mostly prompt rewrites preserving a
+question's meaning ("€500" → "a week's pay"), and a prompt carries no
+index any answer refers to. Only `options` re-keys stored data.
+
+**Appends count as edits.** Adding an option orphans no existing index,
+but it changes what the question asked the people who already answered it
+without that choice. D52's appends are to *banks* — new questions — never
+to a shipped question's option list.
+
+**Creates and pre-`options` docs pass.** A document that does not exist
+has no votes to re-key, and neither does one stored without an `options`
+array. Refusing either would wedge the seed permanently.
+
+**The operator's two legitimate paths are unchanged**: `active: false` to
+retire a question, or append a new qid to replace it. Neither goes through
+this code.
+
+**Not done: the CI-side manifest.** A committed snapshot of every shipped
+option set, diffed by `check:content`, would catch the edit one step
+earlier — at review rather than at seed. It is redundant with this, needs
+a new artifact to maintain, and would go stale in the one direction that
+matters (a manifest nobody regenerates passes everything). The
+server-side refusal is authoritative because it reads the live documents;
+that is where the invariant is actually about to be broken.
+
+## D59 · The deferred chunks stop caching their own failure
+
+**Date:** 2026-08-06 · **Status:** Adopted
+
+**The bug.** `spec-index.js` memoised both deferred groups (D25, D48) into
+a plain module-level variable: `if (!p) p = (async () => …)()`. That is
+correct for what it was written for — `main.jsx` starts each load once,
+every opener awaits the same promise, the mount tests await them in
+`beforeAll` — but `if (!p)` cannot tell a resolved promise from a rejected
+one. One failed chunk fetch (a dropped connection, a stale asset after a
+deploy, a flaky native file read) was therefore **permanent for the
+session**: every later call replayed the same rejection. The World feed
+and all five cross-link overlays stayed gone until relaunch, and because
+app-shell's openers catch and return, the symptom was a tap that did
+nothing — no toast, no retry, no report.
+
+**The fix is one helper.** `data/lazy.ts`'s `retryable()` clears the
+cached promise on rejection and rethrows. No retry loop, no backoff — the
+caller decides whether to ask again. The overlays get recovery for free
+precisely because every one is reached through an opener that awaits this
+promise: the second tap re-attempts the import. Nothing else changed.
+
+**The success path is unchanged, which matters as much.** Concurrent
+callers still receive the same promise object, so this cannot turn one
+deferred group into two parallel downloads — pinned by a test asserting
+identity, not just equal values.
+
+**Cleared before the rethrow, not in a `finally`.** A caller that catches
+and retries synchronously — the exact shape app-shell's openers have —
+must find an empty slot rather than the promise it just saw reject.
+
+**Mutation-checked.** Reverting `lazy.ts` to `if (!inflight) inflight =
+load()` fails three of the five cases and passes the two success-path
+ones. A test suite that only covered the success path would have passed on
+the bug, which is how it shipped in the first place.
+
+**The feed still gets one shot.** `main.jsx` calls `loadWorldFeed()` once
+and reports a failure to Sentry; nothing re-attempts it, so a failed feed
+chunk still costs the feed for the session. Retry is now *possible* there
+rather than automatic — wiring a user-visible retry into the daily card is
+a UI decision, not a memoisation one, and is left for whoever designs that
+affordance.
+
+**One import that is not a spec module.** `spec-index.js` now imports
+`./data/lazy`, above the ordered list rather than inside it, because
+nothing in that list reads it and the list's order is a contract. The
+direction is the allowed one: `spec/` and `spec-index` may import `data/`
+(as `main.jsx` and `logic-test.jsx` already do); `data/` may not import
+them back.

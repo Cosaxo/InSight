@@ -1118,3 +1118,65 @@ export function seedDocMatches(
   }
   return true;
 }
+
+// ── the one seeded field that may never be edited (D52) ─────────
+//
+// Answers store `(qid, optionIdx)` and nothing else — that is what makes
+// them cheap, and it is why D52 records "shipped option sets are never
+// edited" as an invariant rather than a preference. Swap two options on a
+// live question and every historical vote silently changes meaning: the
+// counts do not move, the aggregates do not recompute, and nothing anywhere
+// reports that the answer to "which do you prefer?" now says the opposite.
+// It is the D30 re-key class, applied retroactively to data already
+// collected.
+//
+// Until now that invariant was enforced by a human reading the diff. The
+// seed itself would take an edited `options` array straight through
+// `seedDocMatches` (which returns false on ANY changed field, including this
+// one) and `batch.set(…, { merge: true })` it over the live doc. A content
+// review that got it right every time so far is a record, not a mechanism.
+//
+// Deliberately narrow. `prompt` edits ARE allowed — D52's own fix list is
+// mostly prompt rewrites that preserve a question's meaning, and a prompt
+// carries no index that an answer refers to. Only `options` re-keys stored
+// data. Length changes count: appending an option changes no existing
+// index, but it changes what a question means to everyone who already
+// answered it without that choice, and D52's appends are to BANKS (new
+// questions), never to a shipped question's option list.
+export interface SeedOptionConflict {
+  qid: string;
+  stored: string[];
+  desired: string[];
+}
+
+/**
+ * The option-set edit `desired` would make to an already-stored question,
+ * or null when there is none. `stored` is undefined for a doc that does not
+ * exist yet — a create is never a conflict, only a rewrite is.
+ *
+ * Non-array or absent stored options are treated as "nothing to protect":
+ * a question seeded before the field existed has no votes keyed to an
+ * index it never had.
+ */
+export function seedOptionConflict(
+  qid: string,
+  stored: Record<string, unknown> | null | undefined,
+  desired: Record<string, unknown>,
+): SeedOptionConflict | null {
+  if (!stored) return null;
+  const a = stored.options;
+  const b = desired.options;
+  if (!Array.isArray(a) || !Array.isArray(b)) return null;
+  const same = a.length === b.length && a.every((v, i) => v === b[i]);
+  if (same) return null;
+  return { qid, stored: a.map(String), desired: b.map(String) };
+}
+
+/** One line per conflict, for the log and the operator's error. */
+export function describeSeedOptionConflicts(
+  conflicts: readonly SeedOptionConflict[],
+): string {
+  return conflicts
+    .map((c) => `${c.qid}: [${c.stored.join(" | ")}] -> [${c.desired.join(" | ")}]`)
+    .join("; ");
+}
