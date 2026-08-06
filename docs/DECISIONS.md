@@ -4496,11 +4496,59 @@ deliberately: it measures the minimum step over every adjacent pair of
 published states across 80 answers, because a spot check survives a policy
 that steps by one past some size, which is the bug it closes.
 
-**Not fixed here, recorded so the absence is deliberate.** The same review
-found the bucket cap is still first-come-first-served with no closed
-vocabulary on four dimensions (24 junk values permanently blank a
-dimension), the reveal's `members` snapshot is still taken at reveal time
-rather than play time, `deleteAccount` still leaves `ownerUid` and the
-IndexedDB mirror, and `web/privacy.html` still claims an on-device erasure
-the client does not perform. Each is a separate change with its own
-arithmetic; none is closed by this record.
+**Amendment (2026-08-06) — two more from the same review, same shape.**
+Both were listed below as deferred when this record was written; they are
+now closed, and they belong here rather than in a record of their own
+because each is again a guarantee enforced on a value and not on the way it
+moves.
+
+**5 · The profile's live-mode guard holds on every mount, not the first.**
+`GeneralPanel` seeds from `localStorage` and writes the whole blob back on
+mount with no edit made, so the first open persisted a record and every open
+after it took `loadGen`'s merge path — which spread the sample persona
+underneath. The live guard sat past that branch, reachable only when there
+was no saved blob, which after the first mount was never. A live user
+therefore got `age 34 · Editor · independent press · MA Literature` back as
+their own, and the anchors effect wrote it to `v2_users/{uid}`, from where
+`answerAnchors()` stamped it onto every later answer. Answers are
+create-only (D5): the ones already written have no correction path, and a
+fabricated `ageBand` folds into published breakdowns as a real cohort.
+
+So the guard is now the BASE of the merge rather than a branch beside it,
+and the storage key moved to `insight.profileGeneral.v2` with a migration
+that drops any vital equal to the seed's value for that field. The trade is
+explicit: a user who genuinely typed a value the sample persona also has
+retypes one field. The alternative was leaving a fabricated anchor to be
+stamped onto answers nobody can edit.
+
+The mount-time anchors write is deliberately NOT suppressed, though the
+review proposed it as a cost saving. It is the only thing that repairs a
+profile whose anchors were already written — opening the profile once
+replaces the map wholesale — so gating it behind a first-run flag would have
+left every corrupted profile corrupted.
+
+**6 · Erasure reaches the offline mirror.** `firebaseImpl.ts` enables
+`persistentLocalCache()` unconditionally and `hydrate()` reads the whole
+answers subcollection plus the profile, so a deleted account's votes and
+anchors sat in IndexedDB. Nothing evicted them: `hydrate` is a one-shot
+`getDocs` rather than a listener, so the server-side delete produces no
+remove event, and the cache outlived the account on a device the user may
+sell. `deleteAccount` now calls `terminate()` then
+`clearIndexedDbPersistence()` — in that order, because the second refuses a
+live instance — both best-effort, before the existing `insight.*` purge.
+
+This one was a documentation defect as much as a code defect.
+`web/privacy.html` states that deletion "clears the app's data on the device
+you ran it from" and `docs/data-inventory.md` says the same; that claim was
+true of `localStorage` and of nothing else, in the document both stores
+require. D6 already treats this cache as sensitive — it is why Android
+backup is off. Fixing the code rather than the copy, because the copy
+described the right behaviour.
+
+**Still not fixed, recorded so the absence is deliberate.** The bucket cap
+is still first-come-first-served with no closed vocabulary on four
+dimensions (24 junk values permanently blank a dimension), the reveal's
+`members` snapshot is still taken at reveal time rather than play time, and
+`deleteAccount` still leaves `ownerUid` on every multi-member group its
+owner created. Each is a separate change with its own arithmetic; none is
+closed by this record.

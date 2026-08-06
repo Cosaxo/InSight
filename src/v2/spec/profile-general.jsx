@@ -23,7 +23,11 @@ import { IS_DATA } from './sample-data.js';
 (function () {
   const { useState, useEffect, useRef, useId } = React;
 
-  const GKEY = 'insight.profileGeneral.v1';
+  const GKEY = 'insight.profileGeneral.v2';
+  // The key this replaced. A v1 blob may hold the sample persona as its own
+  // properties, because the build that wrote it could not tell the two apart
+  // — see loadGen and migrateV1 below.
+  const GKEY_V1 = 'insight.profileGeneral.v1';
 
   // ── seed from data.js, then overlay any saved edits ──
   function seedFromData() {
@@ -46,26 +50,77 @@ import { IS_DATA } from './sample-data.js';
       heroes: (me.heroes || []).map(h => ({ ...h })),
     };
   }
-  function loadGen() {
-    const seed = seedFromData();
+  // What the panel starts from, BEFORE any saved edits are laid over it. In
+  // live mode that is nothing at all: the basics card fills only with what
+  // the user actually enters.
+  //
+  // This is a base for the merge rather than a branch beside it, and the
+  // difference is the whole bug. The live guard used to sit after the saved
+  // blob was read, reachable only when there was no blob — and the persist
+  // effect below writes one on mount, with no edit made. So the SECOND mount
+  // always found a blob, always took the merge path, and that path spread
+  // `seed.vitals` underneath it: a live user got the sample persona back
+  // ("age 35 · Editor · MA Literature") the moment they reopened the
+  // profile, whereupon the anchors effect wrote it to `v2_users/{uid}` and
+  // answerAnchors() stamped it onto every answer after that. Answers are
+  // create-only (D5), so the ones already written have no correction path —
+  // which is why the guard has to hold on every mount, not the first.
+  function baseFor(live) {
+    if (!live) return seedFromData();
+    return { vitals: {}, interests: [], likes: [], dislikes: [], heroes: [] };
+  }
+
+  // One-time carry-over from GKEY_V1, which on a device that ran the build
+  // above holds the sample persona as own properties — indistinguishable, by
+  // then, from typed input.
+  //
+  // In live mode a vital equal to the seed's value for that field is that
+  // residue and is dropped; anything the user actually changed differs from
+  // the seed and survives. The trade is explicit: someone who genuinely
+  // typed a value the sample persona also has retypes one field, and the
+  // alternative is leaving a fabricated anchor to be stamped onto answers
+  // that cannot be edited. Demo mode carries the blob over untouched — there
+  // the persona IS the content.
+  function migrateV1(live) {
+    let old = null;
     try {
-      const saved = JSON.parse(localStorage.getItem(GKEY) || 'null');
+      old = JSON.parse(localStorage.getItem(GKEY_V1) || 'null');
+    } catch (e) { return null; }
+    if (!old || typeof old !== 'object') return null;
+    let next = old;
+    if (live) {
+      const seed = seedFromData();
+      const vitals = {};
+      for (const k of Object.keys(old.vitals || {})) {
+        if (old.vitals[k] !== seed.vitals[k]) vitals[k] = old.vitals[k];
+      }
+      next = { ...old, vitals };
+    }
+    // Written before the old key is dropped, so a failure here loses the
+    // migration rather than the data.
+    try {
+      localStorage.setItem(GKEY, JSON.stringify(next));
+      localStorage.removeItem(GKEY_V1);
+    } catch (e) { /* best-effort — the panel still renders `next` */ }
+    return next;
+  }
+
+  function loadGen() {
+    const live = !!(window.LIVE && window.LIVE.enabled);
+    const base = baseFor(live);
+    try {
+      const saved = JSON.parse(localStorage.getItem(GKEY) || 'null') || migrateV1(live);
       if (saved && typeof saved === 'object') {
         return {
-          vitals: { ...seed.vitals, ...(saved.vitals || {}) },
-          interests: saved.interests || seed.interests,
-          likes: saved.likes || seed.likes,
-          dislikes: saved.dislikes || seed.dislikes,
-          heroes: saved.heroes || seed.heroes,
+          vitals: { ...base.vitals, ...(saved.vitals || {}) },
+          interests: saved.interests || base.interests,
+          likes: saved.likes || base.likes,
+          dislikes: saved.dislikes || base.dislikes,
+          heroes: saved.heroes || base.heroes,
         };
       }
-    } catch (e) { /* corrupt — fall through to seed */ }
-    // live mode: no demo prefill — the basics card starts empty and
-    // fills only with what the user actually enters
-    if (window.LIVE && window.LIVE.enabled) {
-      return { vitals: {}, interests: [], likes: [], dislikes: [], heroes: [] };
-    }
-    return seed;
+    } catch (e) { /* corrupt — fall through to the base */ }
+    return base;
   }
 
   // ── shared input styling ──
@@ -432,6 +487,14 @@ import { IS_DATA } from './sample-data.js';
     const anchorsJson = window.LIVE && window.LIVE.enabled
       ? JSON.stringify(anchorsFrom(data.vitals || {}))
       : null;
+    // Deliberately fires on MOUNT as well as on edit, and deliberately not
+    // gated behind a first-run ref. A profile whose anchors were written by
+    // the build loadGen describes still holds them server-side, and this
+    // write is the only thing that corrects them: opening the profile once
+    // replaces the map wholesale (saveAnchors, live.ts), so a repaired
+    // device stops stamping the sample persona onto new answers. Suppressing
+    // the mount write to save a Firestore write would leave the fabricated
+    // anchors exactly where they are.
     useEffect(() => {
       if (anchorsJson == null) return;
       try { window.LIVE.saveAnchors(JSON.parse(anchorsJson)); } catch (e) { /* best-effort */ }

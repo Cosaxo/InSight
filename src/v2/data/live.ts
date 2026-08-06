@@ -27,6 +27,7 @@
 // were the same shape without the warning. Static everywhere now — the
 // awaits implied a lazy boundary that did not exist.
 import {
+  clearIndexedDbPersistence,
   collection,
   doc,
   documentId,
@@ -38,6 +39,7 @@ import {
   query,
   serverTimestamp,
   setDoc,
+  terminate,
   Timestamp,
   where,
 } from "firebase/firestore";
@@ -992,6 +994,30 @@ const LIVE = {
     state.groupsUnsub = null;
     state.aggUnsubs = {};
     state.revealUnsubs = {};
+    // The offline mirror, which localStorage is not. firebaseImpl.ts enables
+    // persistentLocalCache() unconditionally, and hydrate reads the whole
+    // answers subcollection plus the profile — so every vote the account
+    // ever cast and its full anchors map sit in IndexedDB. Nothing removed
+    // them: hydrate is a one-shot getDocs rather than a listener, so the
+    // server-side delete produces no remove event, and the cache outlived
+    // the account on a device the user may go on to sell.
+    //
+    // Not a nicety. web/privacy.html — the document both stores require —
+    // states that this clears the app's data on the device it ran from, and
+    // docs/data-inventory.md repeats it; D6 already treats this same cache
+    // as sensitive, which is why Android backup is off. The claim was true
+    // of `insight.*` and of nothing else.
+    //
+    // terminate() first: clearIndexedDbPersistence refuses a live instance.
+    // Both best-effort, and both before the purge — clearIndexedDbPersistence
+    // also rejects while another tab holds the lease, and a device that
+    // cannot clear its cache must still finish signing out and reload.
+    try {
+      await terminate(db);
+      await clearIndexedDbPersistence(db);
+    } catch (err) {
+      reportError(err, { where: "deleteAccount.clearCache" });
+    }
     // "There is no undo" must include THIS device: purge every local
     // trace so the next (fresh anonymous) session doesn't resurrect the
     // deleted account's votes, results, or identity — then drop the

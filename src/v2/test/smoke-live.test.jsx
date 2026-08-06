@@ -25,7 +25,7 @@
 // wraps every tab and overlay in ErrorBoundary, so a crashed screen still
 // returns cleanly from render(). Assert on the boundary, never on a throw.
 
-import { beforeAll, afterEach, describe, expect, it, vi } from "vitest";
+import { beforeAll, beforeEach, afterEach, describe, expect, it, vi } from "vitest";
 import React from "react";
 import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 
@@ -248,5 +248,103 @@ describe("the live gates hold in the DOM, not just in the source", () => {
     // to draw. Asserting the layer exists, not just that the gate does.
     mountLive();
     expect(window.WORLD_FEED_COMMENTS).toEqual({});
+  });
+});
+
+// The demo persona must not become a live user's profile — on ANY mount.
+//
+// GeneralPanel seeds its state from localStorage and writes the whole blob
+// back on mount, with no edit made. So the first open persisted a record,
+// and every open after that found one and took the merge path — which used
+// to spread the sample persona (`age 34 · Editor · independent press · MA
+// Literature · Univ. of Oslo`) underneath it. The live-mode guard sat past
+// that branch and was unreachable from the second mount onward.
+//
+// It does not stop at cosmetics: GeneralPanel's other effect maps the same
+// vitals onto the seven anchor keys and calls LIVE.saveAnchors, which writes
+// them to `v2_users/{uid}`; answerAnchors() then stamps that map onto every
+// answer the user creates. Answers are create-only (D5), so a fabricated
+// ageBand cannot be corrected after the fact — it is folded into published
+// breakdowns as a real cohort.
+//
+// TWO mounts, not one, because one passes on the code this replaced.
+describe("live mode never inherits the sample persona (D47)", () => {
+  const DEMO_JOB = "Editor · independent press";
+  const DEMO_EDU = "MA Literature · Univ. of Oslo";
+
+  function openProfile() {
+    fireEvent.click(screen.getByRole("button", { name: /^profile$/i }));
+  }
+
+  // jsdom's localStorage is shared across cases in this file, and the panel
+  // persists on mount — so without this, case order decides what case two
+  // reads. (Case two failed exactly that way when it was written.)
+  beforeEach(() => { localStorage.clear(); });
+
+  it("shows no demo vitals on a reopened profile, and anchors none", () => {
+    const saved = [];
+    live = installLive();
+    window.LIVE.saveAnchors = (a) => { saved.push(a); };
+    errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    // First open — writes the localStorage record that used to poison the
+    // second one.
+    const first = render(<App />);
+    openProfile();
+    expect(screen.queryByDisplayValue(DEMO_JOB)).toBeNull();
+    first.unmount();
+
+    // Second open, same device, same storage.
+    render(<App />);
+    openProfile();
+    expect(
+      screen.queryByDisplayValue(DEMO_JOB),
+      "the sample persona's job came back on the second mount",
+    ).toBeNull();
+    expect(
+      screen.queryByDisplayValue(DEMO_EDU),
+      "the sample persona's education came back on the second mount",
+    ).toBeNull();
+
+    // …and nothing derived from it reached the anchors write. This is the
+    // half that outlives the session: an anchor lands on immutable answers.
+    expect(saved.length, "the anchors effect never ran — assertion is vacuous")
+      .toBeGreaterThan(0);
+    for (const a of saved) {
+      expect(a.profession ?? "").toBe("");
+      expect(a.education ?? "").toBe("");
+      expect(a.ageBand ?? "").toBe("");
+    }
+  });
+
+  it("drops the v1 record's demo values but keeps what the user changed", () => {
+    // A device that already ran the old build carries the persona on disk as
+    // its own properties, by then indistinguishable from typed input. The
+    // migration keeps every field that DIFFERS from the seed — only the user
+    // could have put those there — and drops the rest.
+    //
+    // Asserted through the anchors write rather than the DOM, because that
+    // is the half that outlives the device: `job` and `education` are two of
+    // the seven keys saveAnchors sends to v2_users/{uid}.
+    localStorage.setItem("insight.profileGeneral.v1", JSON.stringify({
+      vitals: { job: "Baker", education: DEMO_EDU },
+      interests: [], likes: [], dislikes: [], heroes: [],
+    }));
+    const saved = [];
+    live = installLive();
+    window.LIVE.saveAnchors = (a) => { saved.push(a); };
+    errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    render(<App />);
+    openProfile();
+
+    expect(saved.length, "the anchors effect never ran — assertion is vacuous")
+      .toBeGreaterThan(0);
+    const last = saved[saved.length - 1];
+    expect(last.profession, "the migration dropped a value the user had changed").toBe("Baker");
+    expect(last.education, "a demo value survived the migration").toBe("");
+    // The old key is retired, so the migration cannot run a second time and
+    // re-seed what the user has since cleared.
+    expect(localStorage.getItem("insight.profileGeneral.v1")).toBeNull();
   });
 });
