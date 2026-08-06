@@ -1,4 +1,4 @@
-// Client transport for verified logic attempts (D55).
+// Client transport for verified logic attempts (D56).
 //
 // A verified attempt inverts the practice flow's trust: the server mints
 // the seed, keeps it, and returns puzzles with the answer index withheld —
@@ -36,7 +36,7 @@ export interface VerifiedScore {
   score: number;
   pctile: number;
   durationMs: number;
-  /** disclosed only after scoring — no longer an answer key (D55) */
+  /** disclosed only after scoring — no longer an answer key (D56) */
   seed: number;
   gv: number;
 }

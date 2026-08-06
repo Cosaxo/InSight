@@ -1,4 +1,4 @@
-// Unit tests for the verified-logic pure layer (D55). Runs in plain node —
+// Unit tests for the verified-logic pure layer (D56). Runs in plain node —
 // the callables' Firestore glue stays thin; everything decidable is
 // decided here, the pure.ts discipline.
 import { describe, expect, it } from "vitest";

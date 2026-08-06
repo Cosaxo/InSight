@@ -1,4 +1,4 @@
-// Verified logic attempts (D55 — the recorded reversal of D31's
+// Verified logic attempts (D56 — the recorded reversal of D31's
 // device-local deferral).
 //
 // The design in one line: the client is never the answer authority.
@@ -43,7 +43,7 @@ import { AGG_MIN_N, PUBLISH_EVERY } from "./v2";
 const REGION = "us-central1";
 
 // ── administration constants ──
-// The per-item cap mirrors the overlay's ITEM_CAP (90s, D54); the server
+// The per-item cap mirrors the overlay's ITEM_CAP (90s, D55); the server
 // enforces the TOTAL: items × cap + slack for network and render. Slack is
 // one extra item's worth — generous, because a refusal here surfaces to an
 // honest finisher as a swallowed attempt.
@@ -133,7 +133,7 @@ export function scoreLogicPicks(
 // What the client is allowed to see at start time: renderable cells and
 // options plus the (public, fixed-ramp) weight. NOT `a`, NOT `rules` —
 // the family names would tell a coached solver which rule to hunt for,
-// which is exactly the advance knowledge D54 removed.
+// which is exactly the advance knowledge D55 removed.
 export interface LogicClientItem {
   cells: Cell[];
   opts: Cell[];

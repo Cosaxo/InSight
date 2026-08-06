@@ -13,7 +13,7 @@ holds the reasoning for the three that bite.
 Re-derive this file if any of these change: a new stored field, a new SDK,
 the takes surface going live, or product analytics being added.
 
-**Re-derived 2026-08-06 for D55 (verified logic attempts).** New stored
+**Re-derived 2026-08-06 for D56 (verified logic attempts).** New stored
 fields: `testResults.logic` (server-written verified score, owner-only),
 `v2_logic_attempts/{uid}` (server-only), and the anonymous
 `v2_logic_norms*` histogram. **No answer below changes**: the score is

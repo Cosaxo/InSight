@@ -70,7 +70,7 @@ jobs:
       - run: npm run check:catalogs
       # logicSubmitV2 scores against the form the deployed generator copy
       # produces; it must be byte-identical to the client's generator or
-      # the server marks puzzles the player never saw (D55). Node stdlib
+      # the server marks puzzles the player never saw (D56). Node stdlib
       # only, no root node_modules.
       - run: npm run check:logic-sync
       # The seed callable compiles functions/src/v2content.ts in, so drift

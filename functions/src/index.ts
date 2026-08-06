@@ -206,7 +206,7 @@ export const deleteAccount = onCall(
       failed.push("v2Subtree");
     }
 
-    // 1b1. The verified-logic attempt doc (D55) — keyed by uid in its own
+    // 1b1. The verified-logic attempt doc (D56) — keyed by uid in its own
     // collection, so the subtree wipe above never reaches it. It holds the
     // account's seed, score and timing; the anonymous norms HISTOGRAM the
     // first attempt fed stays, same as the k-floored question aggregates a
@@ -536,4 +536,7 @@ export {
 export { buildModQueue, buildModQueueNow, fetchModQueue, submitModVerdict } from "./moderation";
 // D29: the silent per-device activation gate (docs/DEVICE-BIND.md).
 export { activateDeviceV2 } from "./deviceBind";
+// D54: the daily ledger velocity scan — detection for D28's correction
+// story. Logs flags for manual review; never denies a vote.
+export { ledgerVelocityScan } from "./velocity";
 export { logicStartV2, logicSubmitV2 } from "./logic";

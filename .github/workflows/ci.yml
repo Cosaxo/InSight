@@ -105,7 +105,7 @@ jobs:
       # absence included — the gate runs before any catalogue exists (D15).
       - run: npm run check:catalogs
       # The logic generator ships in two byte-identical copies (client +
-      # functions, D55) — drift means the server scores forms the client
+      # functions, D56) — drift means the server scores forms the client
       # never rendered. backend-checks.yml runs it on the deploy path too.
       - run: npm run check:logic-sync
       # The npm alias that keeps the iOS SwiftPM graph resolvable. Runs on
