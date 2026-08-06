@@ -128,7 +128,7 @@ v2_groups/{gid}/reveals/{day}      materialized by the reveal pipeline
   parent group's current roster, which is what keeps the guarantee
   retroactive: D5's amendment. It is the members who were in the group ON
   `day`, not at reveal time; the two differ by up to one scan interval, and
-  the difference was a joiner reading the previous day — D54 §9)
+  the difference was a joiner reading the previous day — D55 §9)
 read: the reveal's own members · write: nobody (D5)
 
 Sealed duel answers live in the owner-only answers subcollection under
@@ -242,7 +242,7 @@ not per boot. `LIVE.stats` reports `bankSource` / `answersFetched` /
 
 ## Verification
 
-- `npm run test:rules` — 44 rules tests (Firestore + Storage; the v2
+- `npm run test:rules` — 45 rules tests (Firestore + Storage; the v2
   surface, the anonymous-default lens, and the retired-v1 guard).
 - `firestore-tests/e2e-v2-loop.mjs` under
   `firebase emulators:exec --only auth,firestore,functions` — the full

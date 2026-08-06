@@ -144,7 +144,7 @@ export const createGroupV2 = onCall({ ...LIGHT_CALLABLE, region: REGION, enforce
     // day's reveal to the people who were in the group for that day — see
     // revealMembersFor (pure.ts). Same map shape as memberNames, and it is
     // removed on the same two paths (leaveGroupV2, deleteAccount phase 1c),
-    // because a uid left behind here is the shape D54 §8 records ownerUid
+    // because a uid left behind here is the shape D55 §8 records ownerUid
     // having.
     memberJoinedAt: { [uid]: FieldValue.serverTimestamp() },
     inviteCode: code,
@@ -480,7 +480,7 @@ async function revealGroupDay(
       // current member either way, and read a day they were not in the group
       // for. What actually scopes this is WHEN each member joined, which is
       // why the array below is filtered rather than taken (revealMembersFor,
-      // pure.ts; D54 §9).
+      // pure.ts; D55 §9).
       //
       // The filtered array can in principle come out empty — every member
       // who played day D has left, and everyone now in the group joined

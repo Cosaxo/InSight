@@ -359,7 +359,7 @@ describe("the live gates hold in the DOM, not just in the source", () => {
 // breakdowns as a real cohort.
 //
 // TWO mounts, not one, because one passes on the code this replaced.
-describe("live mode never inherits the sample persona (D54)", () => {
+describe("live mode never inherits the sample persona (D55)", () => {
   const DEMO_JOB = "Editor · independent press";
   const DEMO_EDU = "MA Literature · Univ. of Oslo";
 

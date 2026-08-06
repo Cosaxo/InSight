@@ -546,3 +546,6 @@ export {
 export { buildModQueue, buildModQueueNow, fetchModQueue, submitModVerdict } from "./moderation";
 // D29: the silent per-device activation gate (docs/DEVICE-BIND.md).
 export { activateDeviceV2 } from "./deviceBind";
+// D54: the daily ledger velocity scan — detection for D28's correction
+// story. Logs flags for manual review; never denies a vote.
+export { ledgerVelocityScan } from "./velocity";

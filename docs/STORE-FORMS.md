@@ -187,7 +187,7 @@ default.
 | --- | --- |
 | Filter objectionable content | Moderation substrate deployed, `MOD_ADVISORY = true` (D22) |
 | Report mechanism | Report control exists in the spec layer; the takes surface it attaches to is demo-only at launch |
-| Block abusive users | `leaveGroupV2`, wired to the **Leave circle** control on each live circle card — leaving **is** the block, because D1 means circle members are the only people whose content you can see. There is no owner-side *remove* callable yet (D54 §14): the answer at launch is that anyone can leave, not that an owner can eject |
+| Block abusive users | `leaveGroupV2`, wired to the **Leave circle** control on each live circle card — leaving **is** the block, because D1 means circle members are the only people whose content you can see. There is no owner-side *remove* callable yet (D55 §14): the answer at launch is that anyone can leave, not that an owner can eject |
 | Published contact info | `olaftaule01@gmail.com`, on `web/terms.html` |
 
 If a reviewer asks how users block one another, the circle model is a real

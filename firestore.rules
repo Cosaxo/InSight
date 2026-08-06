@@ -289,6 +289,13 @@ service cloud.firestore {
     match /v2_ratelimits/{docId} {
       allow read, write: if false;
     }
+    // Velocity-scan state (D54): the daily ledger scan's cursor and
+    // trailing per-question day counts. Server-only, same posture as
+    // the ledger it summarizes — a client that could read it would
+    // learn per-question daily counts below the published floor.
+    match /v2_velocity/{docId} {
+      allow read, write: if false;
+    }
 
     // Groups — schema foundations; membership mutations and reveals are
     // Phase 3 (invite links + materialized reveal docs). Until then:
