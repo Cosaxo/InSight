@@ -26,6 +26,7 @@ import {
   nextStreak,
   PENDING_DAYS_KEEP,
   prunePendingDays,
+  scanDays,
   revealMembersFor,
   shouldReveal,
   utcDayKey,
@@ -613,9 +614,32 @@ type ScanMode = "indexed" | "full";
 async function runDuelReveals(
   dayKey?: string,
   mode: ScanMode = "indexed",
-): Promise<{ revealed: number; scanned: number; mode: ScanMode }> {
+): Promise<{ revealed: number; scanned: number; mode: ScanMode; days: string[] }> {
+  const days = scanDays(dayKey);
+  let revealedTotal = 0;
+  let scannedTotal = 0;
+  for (const day of days) {
+    const one = await runDuelRevealsForDay(day, mode, scannedTotal);
+    revealedTotal += one.revealed;
+    scannedTotal += one.scanned;
+    // The tripwire bounds the RUN, not a day — so a run that hits it stops
+    // asking about later days too, rather than paying the ceiling once per
+    // day in the window.
+    if (one.cappedOut) break;
+  }
+  logger.info(
+    `[v2social] reveals for ${days.join(",")} (${mode}): ` +
+      `${revealedTotal} of ${scannedTotal} scanned`,
+  );
+  return { revealed: revealedTotal, scanned: scannedTotal, mode, days };
+}
+
+async function runDuelRevealsForDay(
+  yester: string,
+  mode: ScanMode,
+  scannedBefore: number,
+): Promise<{ revealed: number; scanned: number; cappedOut: boolean }> {
   const db = getFirestore();
-  const yester = dayKey || utcDayKey(-1);
   // PAGINATED either way. It used to fetch GROUP_SCAN_CAP docs and process
   // them one at a time; the 60s timeout bound at roughly 200-400 active
   // groups — an order of magnitude below the cap — so the function died
@@ -683,24 +707,28 @@ async function runDuelReveals(
     // the whole run, so "I have outgrown this" still gets said rather than
     // quietly becoming a multi-minute job.
     //
+    // Counted across the run's whole day window (`scannedBefore`), not per
+    // day: the ceiling is about how long one invocation may take, and a run
+    // now asks about PENDING_DAYS_KEEP days.
+    //
     // Note what the two modes mean here. In "full" it counts every group in
     // the collection, which is the number that used to grow with signups. In
     // "indexed" it counts groups that PLAYED that day, so hitting the ceiling
     // is a real statement about activity rather than about registration —
     // and the remedy named below is the one that is actually left.
-    if (scanned >= GROUP_SCAN_CAP) {
+    if (scannedBefore + scanned >= GROUP_SCAN_CAP) {
       logger.error(
-        `[v2social] scanned ${scanned} groups in one ${mode} run (ceiling ` +
-          `${GROUP_SCAN_CAP}). Groups beyond this are NOT checked this run; ` +
-          "their reveals land on a later run at best. Time to shard the scan " +
-          "by day-key suffix or move it to a queue.",
+        `[v2social] scanned ${scannedBefore + scanned} groups in one ${mode} run ` +
+          `(ceiling ${GROUP_SCAN_CAP}), stopping at ${yester}. Groups and days ` +
+          "beyond this are NOT checked this run; their reveals land on a later " +
+          "run at best. Time to shard the scan by day-key suffix or move it to " +
+          "a queue.",
       );
-      break;
+      return { revealed, scanned, cappedOut: true };
     }
   }
 
-  logger.info(`[v2social] reveals for ${yester} (${mode}): ${revealed} of ${scanned} scanned`);
-  return { revealed, scanned, mode };
+  return { revealed, scanned, cappedOut: false };
 }
 
 export const scheduledDuelReveals = onSchedule(

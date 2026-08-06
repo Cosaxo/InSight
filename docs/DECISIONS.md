@@ -4651,6 +4651,68 @@ never played it — and failed if the read was denied. It now reads as the
 creator who played, and asserts the latecomer is denied, so the leg proves
 the fix instead of the bug.
 
+**Amendment (2026-08-06, fourth) — three ways a thing stopped happening.**
+
+**10 · The reveal scan asks about the whole pending window.** It asked about
+exactly one day, `utcDayKey(-1)`, and the schedule never passed one — so a
+group-day was revealable during the single UTC day after it and never again.
+That is not the window the rest of the system works in: rules accept a duel
+answer four days late, deliberately, and `onV2AnswerCreated` re-adds the day
+to `pendingDays` whenever one arrives. An answer syncing on D+2 therefore
+re-opened day D, correctly, into a scan that would never ask about day D
+again. Nothing errored: both members had answered, the day sat pending
+forever, and a duo's streak stayed at whatever the earlier empty settle left
+it. Only an operator calling `revealDuelsNowV2({day})` recovered it.
+
+`scanDays` now returns `PENDING_DAYS_KEEP` days, which is the same bound the
+pruning uses — a pending day older than that can never gain another answer,
+so the scan asks about exactly the days that can still change. Steady-state
+cost is five extra indexed queries per run returning nothing. An explicit
+`dayKey` still means that day alone, which is what the operator lever and
+every e2e leg pass.
+
+**The second cause, independent of the first.** `onV2AnswerCreated`
+downgraded any non-NOT_FOUND failure of the `pendingDays` mark to
+`logger.warn` and returned normally, which made the trigger's `retry: true`
+dead on that branch. The mark is the ONLY thing that puts a day in front of
+the scan, so losing it lost the reveal. D19's stated safety net — "the answer
+never folded into any aggregate, a louder problem, already logged" — is true
+of the vote path and false here: the duel branch returns before any aggregate
+work, and `monitoring/onV2AnswerCreated-errors.json` filters severity>=ERROR
+while this logged WARNING. It rethrows now; `arrayUnion` is idempotent, so
+redelivery is free.
+
+**11 · `runBuildModQueue` pages through `v2_flags`.** It called `.get()` on
+the whole collection, and the collection has no upper bound: `MOD_ADVISORY`
+makes the keep-verdict sweep the only path that deletes a flag and it is dead
+code while advisory is on, `deleteAccount` removes one uid's, nothing else
+does, and there is no TTL. On a 256 MiB instance — `LIGHT_UNBOUNDED`, whose
+own rationale describes a *streaming* `recursiveDelete` — that is an OOM well
+before the 480 s deadline the code reasons about. Silent in-band, too: the
+stale queue keeps serving, `queuedAt` never advances, `gen` freezes, and
+every re-judgement throws `already-exists`. `buildModQueueNow` shares the
+options, so the manual recovery lever died the same way.
+
+What it holds now is one counter per DISTINCT take rather than one object per
+flag. **That is not a hard bound and this record does not claim one** — it
+grows with the number of takes ever flagged. The real bound is retention, and
+choosing one (a flag TTL, or running the sweep in advisory mode) is a
+data-policy decision with its own arithmetic. Deliberately not taken here.
+
+**12 · `deleteAccount` unlatches `torndown` when the wipe is refused.** The
+latch is set as the callable's first statement, deliberately — work already
+in flight must not re-create an `insight.*` key mid-wipe — and nothing ever
+reset it. But a refused wipe is an expected outcome, not an exceptional one:
+`index.ts` refuses the auth delete whenever any phase failed, every network
+timeout lands there too, and `LivePrivacyPanel` keeps the user in the app
+afterwards. Left latched, that session was permanently deaf and nothing said
+so: `refreshLive()` and `wake()` no-op so it can never reconnect after going
+offline, `resubscribeForToday()` no-ops so the midnight rollover renders a
+new deck while the previous day's listeners stay attached and billed, and
+`subscribeToAuth`'s handler bails — disabling the uid-change guard whose own
+comment says it exists to stop one person's answers being shown to another.
+`vote()` is not gated, so writes kept flowing. Only a restart cleared it.
+
 **KNOWN RESIDUAL, stated because it is a real one.** The played-it clause is
 also an unlock: join a group, backfill an answer for a day inside the
 four-day window, and the reveal admits you. Strictly narrower than what it

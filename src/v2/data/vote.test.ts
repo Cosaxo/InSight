@@ -533,6 +533,40 @@ describe("LIVE.deleteAccount — the on-device half of erasure", () => {
     expect(localStorage.getItem(ANS_LS)).toBeNull();
   });
 
+  it("unlatches teardown when the wipe is refused, so the session survives", async () => {
+    // index.ts refuses the auth delete whenever ANY wipe phase failed, and
+    // every network timeout lands here too — while LivePrivacyPanel keeps
+    // the user in the app afterwards. `torndown` is set as the FIRST
+    // statement (deliberately: in-flight writers must not re-create an
+    // insight.* key mid-wipe), and nothing reset it, so a refused delete
+    // left the session permanently deaf: no reconnect, no midnight
+    // resubscribe, and the uid-change guard disabled.
+    //
+    // Asserted through wake(), which is `if (torndown) return` — a live
+    // session re-reads the bank on a wake, a torndown one does nothing.
+    const LIVE = await bootLive();
+    const fns = await import("firebase/functions");
+    vi.mocked(fns.getFunctions).mockClear().mockReturnValue({ __fns: true } as never);
+    vi.mocked(fns.httpsCallable).mockClear().mockReturnValue(
+      vi.fn(() => Promise.reject(new Error("internal"))) as never,
+    );
+
+    await expect(LIVE.deleteAccount()).rejects.toThrow("internal");
+
+    // Nothing was deleted, so nothing may have been torn down either.
+    expect(h.cacheTeardown).toEqual([]);
+
+    // The observable: cacheVote is `if (torndown) return`, so a latched
+    // store silently stops writing the answers cache while vote() keeps
+    // issuing the Firestore write — the split that made this invisible.
+    storage.removeItem(ANS_LS);
+    LIVE.vote("q_1", "1");
+    await flush();
+    const cached = JSON.parse(storage.getItem(ANS_LS) || "null");
+    expect(cached?.votes?.q_1, "the store stayed torn down after a refused delete")
+      .toBe("1");
+  });
+
   it("still finishes the purge when the cache cannot be cleared", async () => {
     // clearIndexedDbPersistence rejects while another tab holds the lease.
     // A device that cannot clear its cache must still sign out and reload,

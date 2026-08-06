@@ -346,7 +346,24 @@ export const onV2AnswerCreated = onDocumentCreated(
         } catch (err) {
           const code = (err as { code?: number | string }).code;
           if (code === 5 || code === "not-found") return;
-          logger.warn(`[v2] pending-day mark failed for ${gid}/${day}:`, err);
+          // RETHROWN, so `retry: true` above actually means something on this
+          // branch. It used to warn and return normally, which made the retry
+          // policy dead here: the mark is the ONLY thing that puts this day
+          // in front of the scheduled scan, so losing it loses the reveal —
+          // for a group-day where the single answerer has already played,
+          // silently and permanently.
+          //
+          // D19's stated safety net does not cover it. "The answer never
+          // folded into any aggregate — a louder problem, already logged" is
+          // true of the vote path; this branch returns before any aggregate
+          // work. And the monitoring filter is severity>=ERROR while this
+          // logged WARNING, so nothing was watching either.
+          //
+          // Safe to retry: arrayUnion is idempotent, and the NOT_FOUND case
+          // above still returns cleanly rather than retrying against a group
+          // that is deliberately gone.
+          logger.error(`[v2] pending-day mark failed for ${gid}/${day}:`, err);
+          throw err;
         }
       }
       return;

@@ -976,9 +976,28 @@ const LIVE = {
     return callable("seedContentV2", { bumpRev: bumpRev === true });
   },
   async deleteAccount(): Promise<void> {
+    // Latched BEFORE the call, deliberately — see `torndown` above: work
+    // already in flight must not re-create an `insight.*` key while the wipe
+    // runs.
     torndown = true;
-    const db = await getDb();
-    await httpsCallable(getFunctions(db.app, "us-central1"), "deleteAccount")({});
+    // …and UNLATCHED when the wipe does not happen, which is an expected
+    // outcome rather than an exceptional one: index.ts refuses the auth
+    // delete whenever ANY wipe phase failed, and every network timeout lands
+    // here too, while LivePrivacyPanel deliberately keeps the user in the app
+    // afterwards.
+    //
+    // Left latched, that session was permanently deaf and nothing said so.
+    // refreshLive() and wake() no-op, so it can never reconnect after going
+    // offline — days, on mobile. resubscribeForToday() no-ops, so the
+    // midnight rollover renders a new deck while the previous day's agg and
+    // reveal listeners stay attached and billed. subscribeToAuth's handler
+    // bails, which disables the uid-change guard whose own comment says it
+    // exists to stop one person's answers being shown to another. vote() is
+    // not gated, so writes kept flowing the whole time. Only a restart
+    // cleared it.
+    const db = await getDb().catch((err) => { torndown = false; throw err; });
+    await httpsCallable(getFunctions(db.app, "us-central1"), "deleteAccount")({})
+      .catch((err) => { torndown = false; throw err; });
     // The account is gone: stop the uid-scoped groups listener before
     // the purge/reload — left running it would only error
     // (permission-denied) against the deleted account's query.

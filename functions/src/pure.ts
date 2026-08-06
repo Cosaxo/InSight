@@ -77,6 +77,33 @@ export function prunePendingDays(
   return out;
 }
 
+// WHICH DAYS a run looks at, and this is the half that used to be wrong.
+//
+// The scan asked about exactly one day — `utcDayKey(-1)` — and the schedule
+// never passed one, so a group-day was eligible for reveal during the single
+// UTC day after it and never again. That is not the window the rest of the
+// system works in: firestore.rules accepts a duel answer up to FOUR days
+// late (deliberately, so a client flushing a queue after ~3 days offline
+// still lands its vote), and onV2AnswerCreated re-adds the day to
+// `pendingDays` whenever one arrives. So an answer syncing on D+2 re-opened
+// day D, correctly, into a scan that would never ask about day D again.
+// Nothing errored: both members had answered, the day sat pending forever,
+// and the duo's streak stayed at whatever the earlier empty settle left it.
+//
+// The window is PENDING_DAYS_KEEP, because that is already the bound the
+// pruning uses — a pending day older than that can never gain another answer
+// and is dropped. Matching them means the scan asks about exactly the days
+// that can still change, which is the definition `pendingDays` was given.
+//
+// Steady-state cost is five extra indexed queries per run that return
+// nothing. An explicit `dayKey` still means that day alone: the operator
+// lever and the e2e both pass one, and narrowing is what an operator
+// reaching for it during an incident usually wants.
+export function scanDays(dayKey?: string, nowMs: number = Date.now()): string[] {
+  if (dayKey) return [dayKey];
+  return Array.from({ length: PENDING_DAYS_KEEP }, (_, i) => utcDayKey(-(i + 1), nowMs));
+}
+
 // ── reveal conditions + streaks (v2social) ──────────────────────
 
 // The two reveal conditions (decision D5):
@@ -866,12 +893,28 @@ export const MOD_POLICY_LINES = ["H1", "H2", "H3", "H4", "H5"] as const;
  * found this had to create a take called `constructor` to see it.
  */
 export function tallyFlags(takeIds: readonly unknown[]): Record<string, number> {
-  const counts = new Map<string, number>();
+  return Object.fromEntries(tallyFlagsInto(new Map(), takeIds));
+}
+
+/**
+ * The same tally, one page at a time.
+ *
+ * `v2_flags` has no upper bound — MOD_ADVISORY makes the keep-verdict sweep
+ * that deletes flags dead code, nothing else deletes them, and there is no
+ * TTL — so the caller pages through it and folds each page in rather than
+ * materialising the collection. What is retained is one entry per DISTINCT
+ * take, which is smaller than the flag count by however many people flagged
+ * the same take, and is the smallest thing the queue can be built from.
+ */
+export function tallyFlagsInto(
+  counts: Map<string, number>,
+  takeIds: readonly unknown[],
+): Map<string, number> {
   for (const takeId of takeIds) {
     if (typeof takeId !== "string" || !takeId) continue;
     counts.set(takeId, (counts.get(takeId) || 0) + 1);
   }
-  return Object.fromEntries(counts);
+  return counts;
 }
 
 /**

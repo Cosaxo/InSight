@@ -25,7 +25,7 @@ import {
   carriedEscalations,
   modVerdictError,
   modVerdictId,
-  tallyFlags,
+  tallyFlagsInto,
 } from "./pure";
 
 const REGION = "us-central1";
@@ -61,17 +61,53 @@ function assertModerator(request: CallableRequest): void {
 // ── the queue: server-picked targets ────────────────────────────
 
 // Daily, an hour before the moderation Routine's slot, so the run always
-// judges a fresh queue. Scans all flags; flags are one small doc per
-// (user, take) and the count is bounded by real user behavior, but the
-// work is unbounded in principle, so it keeps the long deadline.
+// judges a fresh queue. Reads every flag, a page at a time — the collection
+// is unbounded (see below), so the work is unbounded too and it keeps the
+// long deadline. What it HOLDS is bounded by the number of distinct takes,
+// which is what made paging worth doing rather than raising the memory.
 async function runBuildModQueue(): Promise<void> {
     const db = getFirestore();
-    const flags = await db.collection("v2_flags").get();
-    // tallyFlags, not an object literal keyed in place: takeId is a
+    // PAGED, not `.get()` on the collection.
+    //
+    // v2_flags has no upper bound. MOD_ADVISORY makes the keep-verdict sweep
+    // below the only path that deletes a flag, and it is dead code while
+    // advisory is on; deleteAccount removes one uid's; nothing else does, and
+    // there is no TTL. So the collection only grows, and materialising it
+    // here put a snapshot of every flag ever cast on a 256 MiB instance
+    // (LIGHT_UNBOUNDED, whose ops.ts rationale describes a STREAMING
+    // recursiveDelete). At roughly 1.2 KB of heap per snapshot doc that is
+    // an OOM somewhere above 100k flags — well before the 480 s deadline the
+    // comment above reasons about, and the failure is silent in-band: the
+    // stale queue keeps serving, `queuedAt` never advances, so `gen` freezes
+    // and every re-judgement throws already-exists. buildModQueueNow shares
+    // these options, so the manual recovery lever died the same way.
+    //
+    // What is retained now is one counter per DISTINCT take rather than one
+    // object per flag. That is not a hard bound either — it grows with the
+    // number of takes ever flagged — but it is the smallest thing the queue
+    // can be built from, and it is smaller than the flag count by however
+    // many people flagged the same take. The real bound is retention, and
+    // that is a policy decision this does not take (D47 §11).
+    //
+    // tallyFlagsInto, not an object literal keyed in place: takeId is a
     // client-chosen document id, and the prototype names read back truthy
     // (see tallyFlags in pure.ts — a take posted as `constructor` was
     // unqueueable however often it was flagged).
-    const counts = tallyFlags(flags.docs.map((f) => f.get("takeId")));
+    const FLAG_PAGE = 1000;
+    const tally = new Map<string, number>();
+    let flagCursor: FirebaseFirestore.QueryDocumentSnapshot | null = null;
+    let flagCount = 0;
+    for (;;) {
+      let fq = db.collection("v2_flags").orderBy("__name__").limit(FLAG_PAGE);
+      if (flagCursor) fq = fq.startAfter(flagCursor);
+      const page = await fq.get();
+      if (page.empty) break;
+      tallyFlagsInto(tally, page.docs.map((f) => f.get("takeId")));
+      flagCount += page.size;
+      if (page.size < FLAG_PAGE) break;
+      flagCursor = page.docs[page.docs.length - 1];
+    }
+    const counts = Object.fromEntries(tally);
     const queue = buildModQueueFrom(counts, MOD_QUEUE_MIN_FLAGS, MOD_QUEUE_SIZE);
 
     // Rebuild wholesale: stale entries (verdicted, or takes since deleted)
@@ -129,7 +165,7 @@ async function runBuildModQueue(): Promise<void> {
     await batch.commit();
     logger.info(
       `[mod] queue rebuilt: ${queued} queued of ${queue.length} over-threshold ` +
-        `(${flags.size} flags total, floor ${MOD_QUEUE_MIN_FLAGS}); ` +
+        `(${flagCount} flags over ${tally.size} takes, floor ${MOD_QUEUE_MIN_FLAGS}); ` +
         `${carried} carrying a prior escalation`,
     );
 }

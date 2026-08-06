@@ -11,6 +11,7 @@ import {
   nextStreak,
   PENDING_DAYS_KEEP,
   prunePendingDays,
+  scanDays,
   revealMembersFor,
   meetsKFloor,
   breakdownBucket,
@@ -23,6 +24,7 @@ import {
   publishableCanon,
   buildModQueueFrom,
   tallyFlags,
+  tallyFlagsInto,
   carriedEscalations,
   modVerdictError,
   modVerdictId,
@@ -181,6 +183,49 @@ describe("prunePendingDays", () => {
     expect("2025-12-31" < "2026-01-01").toBe(true);
     expect(prunePendingDays(["2025-12-31", "2026-01-05"], "x", "2026-01-01"))
       .toEqual(["2026-01-05"]);
+  });
+});
+
+// ── which days a reveal run asks about ──────────────────────────
+
+describe("scanDays", () => {
+  const T = Date.UTC(2026, 6, 27, 12, 0, 0); // 2026-07-27T12:00Z
+
+  it("covers the whole pending window, not just yesterday", () => {
+    // The bug: the scan asked about utcDayKey(-1) and the schedule never
+    // passed a day, so a group-day was revealable during the single UTC day
+    // after it and never again — while rules accept a duel answer four days
+    // late and onV2AnswerCreated re-adds the day to pendingDays whenever one
+    // arrives. An answer syncing on D+2 re-opened a day nothing would ask
+    // about again. Both members had answered; the day sat pending forever.
+    expect(scanDays(undefined, T)).toEqual([
+      "2026-07-26", "2026-07-25", "2026-07-24",
+      "2026-07-23", "2026-07-22", "2026-07-21",
+    ]);
+  });
+
+  it("matches the pruning window exactly", () => {
+    // prunePendingDays drops anything older than PENDING_DAYS_KEEP, so a day
+    // outside this window can never gain another answer. Asking about
+    // exactly the days that can still change is the definition pendingDays
+    // was given; the two drifting apart is how the gap reopens.
+    expect(scanDays(undefined, T)).toHaveLength(PENDING_DAYS_KEEP);
+    const oldest = scanDays(undefined, T)[PENDING_DAYS_KEEP - 1];
+    expect(prunePendingDays([oldest], "x", oldest)).toEqual([oldest]);
+    expect(prunePendingDays([prevDayKey(oldest)], "x", oldest)).toEqual([]);
+  });
+
+  it("an explicit day still means that day alone", () => {
+    // The operator lever and every e2e leg pass one, and narrowing is what
+    // an operator reaching for it during an incident usually wants.
+    expect(scanDays("2026-01-01", T)).toEqual(["2026-01-01"]);
+  });
+
+  it("crosses a month boundary", () => {
+    expect(scanDays(undefined, Date.UTC(2026, 7, 2, 3, 0, 0))).toEqual([
+      "2026-08-01", "2026-07-31", "2026-07-30",
+      "2026-07-29", "2026-07-28", "2026-07-27",
+    ]);
   });
 });
 
@@ -979,6 +1024,21 @@ describe("moderation — queue fold + verdict channel (docs/MODERATION.md)", () 
 
   it("ignores flag docs with no usable takeId", () => {
     expect(tallyFlags(["a", "", null, undefined, 7, {}, "a"])).toEqual({ a: 2 });
+  });
+
+  it("folds page by page to the same tally as one pass", () => {
+    // v2_flags has no upper bound — MOD_ADVISORY makes the keep-verdict
+    // sweep dead code, nothing else deletes a flag, and there is no TTL — so
+    // runBuildModQueue pages through it instead of materialising it on a 256
+    // MiB instance. The paged fold has to agree with the whole-collection
+    // one, including across a page boundary that splits a take's flags.
+    const all = ["t1", "t2", "t1", "t3", "t1", "t2", "constructor", "constructor"];
+    const paged = new Map<string, number>();
+    for (let i = 0; i < all.length; i += 3) {
+      tallyFlagsInto(paged, all.slice(i, i + 3));
+    }
+    expect(Object.fromEntries(paged)).toEqual(tallyFlags(all));
+    expect(Object.fromEntries(paged)).toEqual({ t1: 3, t2: 2, t3: 1, constructor: 2 });
   });
 
   it("accepts exactly the three verdict shapes and nothing else", () => {
