@@ -40,6 +40,15 @@
 //     misconception; it is decoration). Findings aim the learn lane's
 //     PR bodies; editing a shipped card stays a human PR at D32's
 //     production-level bar.
+//   - DUEL (2026-08-06, D40 part 3): its own section, its own units.
+//     Plays are group-days from the reveal-time fold, totals are persons,
+//     and for 1v1 the GUESS-MATCH RATE is the duel analogue of evenness —
+//     near 100% is a dead question (guessable by heart, no tension), at
+//     or under chance (1/options) is noise (no tells); the good zone is
+//     the band between. `deadDuels`/`noisyDuels` are the retire-proposal
+//     analogues the duel lane cites. Pick questions carry no counts by
+//     design (their optionIdx values index each group's own member list),
+//     so they score plays and draw only.
 //   - NOT the catalog surface, deliberately (2026-08-05): pick cards are
 //     not seeded and no client write path exists yet, so any qid form
 //     scored here would be an invented key — the D15 failure class.
@@ -79,6 +88,7 @@ const INPUT = inputIdx >= 0 ? args[inputIdx + 1] : null;
 const daily = JSON.parse(readFileSync(join(root, "content", "daily-questions.json"), "utf8"));
 const feed = JSON.parse(readFileSync(join(root, "content", "feed-questions.json"), "utf8"));
 const learn = JSON.parse(readFileSync(join(root, "content", "learn-questions.json"), "utf8"));
+const duel = JSON.parse(readFileSync(join(root, "content", "duel-questions.json"), "utf8"));
 
 // The deck epoch, cross-read from the client the same way check-pokedex
 // reads CATALOG_MAX_ENTITY — a stale copy here would mis-derive "served".
@@ -342,6 +352,67 @@ function score(aggs) {
     .filter((r) => r.trapShare !== null && r.wrongCount >= 10 && r.trapShare < 1 / (r.n - 1))
     .map(({ qid, prompt, total, trapShare, wrongCount }) => ({ qid, prompt, total, trapShare, wrongCount }));
 
+  // ── the duel surface: its own ledger, because the units differ ──
+  // Aggregates arrive from the reveal-time fold (D40 part 3) as
+  // `duel-<qid>` docs: plays are group-days, totals are persons, and for
+  // 1v1 the guess-match rate is the duel analogue of evenness — matches
+  // near 100% mean no tension (a dead question), matches near chance
+  // (1/options) mean no tells (noise); the good zone is the band between.
+  // Rows never join the daily/feed grading or leaders: plays are
+  // cumulative like feed totals and rank only against each other.
+  const duelRows = [];
+  const duelRow = (q, mode, docId) => {
+    const qid = `duel-${docId}`;
+    const n = (q.options || []).length;
+    const agg = aggs[qid];
+    const isScored = agg && agg.tooSmall === false;
+    const sh = isScored && n >= 2 ? optionShares(agg.counts || {}, n) : null;
+    const guessTotal = isScored ? Number(agg.guessTotal || 0) : 0;
+    duelRows.push({
+      qid,
+      mode, // group | duo | romantic
+      kind: q.kind ?? (mode === "group" ? "classic" : null),
+      prompt: q.prompt,
+      plays: isScored ? Number(agg.plays || 0) : 0,
+      total: isScored ? Number(agg.total || 0) : 0,
+      // Duel options are unordered — the categorical bar, or null for
+      // pick questions (whose per-option counts are deliberately never
+      // aggregated) and below-floor rows.
+      evenness: sh ? splitQualityOf("choice", sh, n) : null,
+      guessTotal,
+      guessMatches: isScored ? Number(agg.guessMatches || 0) : 0,
+      guessMatchRate:
+        guessTotal > 0 ? round3(Number(agg.guessMatches || 0) / guessTotal) : null,
+      chance: n >= 2 ? round3(1 / n) : null,
+      signal: agg
+        ? (isScored ? "scored" : "below-floor")
+        : q.active === false ? "unserved" : "no-answers",
+    });
+  };
+  duel.group.forEach((q) => duelRow(q, "group", `group-${q.id}`));
+  duel.oneVsOne.forEach((q) => duelRow(q, "duo", `duo-${q.id}`));
+  (duel.romantic ?? []).forEach((q) => duelRow(q, "romantic", `duo-${q.id}`));
+  const duelScored = duelRows.filter((r) => r.signal === "scored");
+  // Advisory lists, retire-proposal style — cited in a duel lane's PR
+  // body, never auto-applied. Volume gates mirror the landslide rule's
+  // reasoning: a verdict needs volume before it judges the question.
+  const deadDuels = duelScored
+    .filter((r) => r.guessTotal >= 20 && r.guessMatchRate >= 0.9)
+    .map(({ qid, prompt, guessTotal, guessMatchRate }) => ({ qid, prompt, guessTotal, guessMatchRate }));
+  const noisyDuels = duelScored
+    .filter((r) => r.guessTotal >= 20 && r.chance !== null && r.guessMatchRate <= r.chance)
+    .map(({ qid, prompt, guessTotal, guessMatchRate, chance }) => ({ qid, prompt, guessTotal, guessMatchRate, chance }));
+  const duelModes = {};
+  for (const r of duelRows) {
+    const m = (duelModes[r.mode] ||= { questions: 0, scored: 0, plays: 0, answers: 0 });
+    m.questions++;
+    if (r.signal === "scored") {
+      m.scored++;
+      m.plays += r.plays;
+      m.answers += r.total;
+    }
+  }
+
   const scored = rows.filter((r) => r.signal === "scored");
   const byScore = scored
     .slice()
@@ -382,6 +453,21 @@ function score(aggs) {
       weakTraps,
       perCard: learnRows,
     },
+    duel: {
+      coverage: {
+        questions: duelRows.length,
+        scored: duelScored.length,
+        belowFloor: duelRows.filter((r) => r.signal === "below-floor").length,
+        unserved: duelRows.filter((r) => r.signal === "unserved").length,
+      },
+      modes: duelModes,
+      // Advisory for the duel lane's PR bodies (QUESTION-FARM.md), same
+      // never-auto-applied rule as retireProposals: dead = guessable by
+      // heart (no tension), noisy = at or under chance (no tells).
+      deadDuels,
+      noisyDuels,
+      perQuestion: duelRows,
+    },
     perQuestion: rows,
   };
 }
@@ -418,6 +504,16 @@ function summarize(card) {
       `  learn: ${lc.scored}/${lc.cards} scored` +
         (worst ? ` · worst calibration ${JSON.stringify(worst.prompt)} (authored ${worst.authoredP}, measured ${worst.measuredP})` : "") +
         (card.learn.weakTraps?.length ? ` · weak traps: ${card.learn.weakTraps.map((t) => t.qid).join(", ")}` : ""),
+    );
+  }
+  // Same optional-chaining rule for the duel section (D40 part 3).
+  const dc = card.duel?.coverage;
+  if (dc) {
+    console.log(
+      `  duel: ${dc.scored}/${dc.questions} scored` +
+        (dc.unserved ? ` (${dc.unserved} unserved)` : "") +
+        (card.duel.deadDuels?.length ? ` · dead: ${card.duel.deadDuels.map((d) => d.qid).join(", ")}` : "") +
+        (card.duel.noisyDuels?.length ? ` · noisy: ${card.duel.noisyDuels.map((d) => d.qid).join(", ")}` : ""),
     );
   }
 }

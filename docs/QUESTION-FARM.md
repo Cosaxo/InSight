@@ -439,6 +439,46 @@ review.** Rules for a learn run:
 - Gates before the PR: `npm run check:content`, `check:globals`, `lint`,
   `test:unit`, `build`. Same PR shape and run log as the daily job.
 
+## The duel lane (D40, adopted 2026-08-06 — single gate, learn-style)
+
+Duel questions live in `content/duel-questions.json` — three pools:
+`group`, `oneVsOne`, and `romantic` (D40 part 4: seeded as duo-surface
+docs with `mode: "romantic"`, served only to pairs whose duo doc chose
+the pool). Like learn cards there is no spec-vs-live split to graduate
+across — the same file feeds the demo layer and the seeded bank — so a
+merged duel PR IS the production review: one gate, production-level bar.
+No Routine fires this lane yet; it runs when the maintainer asks a dev
+session (the learn lane's shape), and adding a Routine is an owner step
+recorded under Governance when taken. Rules for a duel run:
+
+- **Budget ≤4 questions/run, at most weekly to start.** A group sees one
+  question a day from a pool of 24; runway is the goal, not volume.
+- **Append only, at the end of the right array.** Group order is
+  rotation order — interleaved us/pick/classic, never sorted. Both 1v1
+  pools are ordered light → deep; append deep. Ids continue each series
+  (group: the gu/gp/gd prefixes; 1v1: the next `NNN` suffix, shared
+  across `oneVsOne` and `romantic` — they are one `duo-NNN` id
+  namespace).
+- **Match the pool's `active` posture.** While the romantic pool is dark
+  (its entries carry `"active": false` — see D40's adoption record), new
+  romantic entries ship dark too; once the operator lights the pool up,
+  new entries ship active (no flag). The other pools always ship active.
+- **Dedup against all three pools**: `npm run check:neighbors --
+  --candidate "…" --domain duel` per candidate, plus the re-read — the
+  gate holds the duel domain under 0.5 like every surface.
+- **Read the signal first.** The scorecard's `duel` section (D40 part 3)
+  scores plays, split, and — for 1v1 — the **guess-match rate**, the
+  duel analogue of evenness: near 100% is a dead question (guessable by
+  heart, no tension), at or under chance (1 / options) is noise (no
+  tells); write toward the band between. `deadDuels` / `noisyDuels` are
+  the retire-proposal analogues: cite them in the PR body as
+  `active: false` candidates; the kill switch stays the operator's.
+- **Every farm hard rule inherits**: the product's voice, no
+  place-scoped questions, never generated activity, PR-only output, the
+  roll-up rule for open lane PRs, and the run log on issue #31.
+- Gates before the PR: `npm run check:content`, `check:neighbors`,
+  `check:globals`, `lint`, `test:unit`, `build`.
+
 ## Deliberately out of scope (recorded so it stays a decision, not drift)
 
 - **Paid geo-insight (city / country / world questions).** Cities and
@@ -587,19 +627,16 @@ Each phase is its own reviewed change — nothing here is licence to start.
   on-device if built; it must never become server telemetry (the
   skip/pass line, D-series).
 
-### The duel lane (proposed — D40)
+### The duel lane (ADOPTED 2026-08-06 — see its section above)
 
-The group/1v1 banks are the thinnest surface in the product (24 and 20
-questions — an active pair sees the whole 1v1 pool in 20 days) and the
-only one with no lane, no signal, and no growth path; the word "duel"
-appeared nowhere in this file until this note. D40 (Status: Proposed —
-binding nothing until the owner adopts it) sketches the acceptable
-shape: single-source banks (the read side is taken — the spec layer now
-imports `content/duel-questions.json`), a learn-style single-gate lane,
-a cross-group k-floored question-level signal written at reveal time,
-and graduating the spec-only romantic pool. Until adoption, duel banks
-stay hand-written and out of every scheduled run's scope — hard rule 2
-is unchanged.
+This note used to hold the proposal; D40's adoption made it real. All
+four parts shipped: single-source banks, the lane (its contract is "The
+duel lane" section above), the reveal-time cross-group signal the
+scorecard's `duel` section reads, and the graduated romantic pool
+(seeded dark until the mode-aware client is the fleet — the adoption
+record in DECISIONS.md carries the activation step). Duel banks remain
+out of the DAILY farm run's scope — hard rule 2 is unchanged; the duel
+lane is its own job with its own section.
 
 ## Governance
 

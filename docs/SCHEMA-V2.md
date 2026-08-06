@@ -102,6 +102,18 @@ v2_question_aggs/{qid}             the PUBLIC mirror, k-floored
                                    complementary suppression as vote
                                    breakdowns, never a segment-local
                                    long tail
+  duel-{qid} ids (D40 part 3):     the duel signal — written at reveal
+  { plays, total, tooSmall:false,   time (foldDuelSignal), summed across
+    counts?, guessTotal?,           ALL groups. plays = group-days,
+    guessMatches? }                 total = persons (the floor's unit);
+                                   counts only for bank-option questions
+                                   (a pick's optionIdx indexes each
+                                   group's own members — never summed);
+                                   guess fields only when a duo guessed.
+                                   Same floor, crossing-based cadence
+                                   (a reveal folds a batch), no
+                                   timestamp. Never: gids, uids, names,
+                                   member sets, per-group anything
 read: signed-in · write: nobody
 
 v2_groups/{gid}                    groups AND duos (mode: group|duo)

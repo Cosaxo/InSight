@@ -3815,11 +3815,11 @@ safe — the number cannot go back up, so the work can resume opportunistically
 (**convert on touch**: when a feature takes you into a spec file, convert
 the providers it reads first) rather than as a project.
 
-## D40 · Duels get a content lane and a question-level signal — proposed
+## D40 · Duels get a content lane and a question-level signal
 
-**Date:** 2026-08-03 · **Status:** Proposed (a draft awaiting the owner's
-adoption, per this file's header — it binds nothing until the status
-flips)
+**Date:** 2026-08-03 · **Status:** Adopted (owner-directed, 2026-08-06 —
+"do the D40 duel lane"; what shipped and the deltas from this proposal
+are in the D40 adoption record at the end of this file)
 
 **Proposal.** Give the group/1v1 duel banks what every other content
 surface already has: a growth path (a lane under `docs/QUESTION-FARM.md`
@@ -5878,3 +5878,74 @@ committed number moves, and the next `--fetch` under the self-refresh
 contract picks the metric up. That timing is the point of amending now —
 the metric changes before the first measured value exists, instead of
 under it.
+
+## D40 adoption (2026-08-06) · All four parts shipped, with five deltas
+
+**What shipped.** Part 1 was already live. Part 2: the duel lane's
+contract is now a section of QUESTION-FARM.md (single gate, learn-style,
+≤4/run at most weekly, run-on-request — no Routine yet). Part 3:
+`foldDuelSignal` (functions/src/v2social.ts) folds each committed reveal
+into `v2_aggs_private/duel-<qid>` and mirrors
+`v2_question_aggs/duel-<qid>` at the same `AGG_MIN_N` floor as every
+published number; the scorecard grew a `duel` section (plays, split,
+guess-match rate, `deadDuels`/`noisyDuels` advisories) with no new read
+path. Part 4: the 20 romantic questions moved into
+`content/duel-questions.json` (ids `020`–`039` — one `duo-NNN` id
+namespace across both 1v1 pools), seed as duo docs with
+`mode: "romantic"`, and `duelQFor` serves them only to a pair whose duo
+doc says `duoMode: "romantic"`; the picker lives in LiveDuelPanel.
+
+**The deltas, each with its reason:**
+
+1. **Pick questions publish plays and total only — no per-option
+   counts.** The proposal said "per-option counts"; a pick's optionIdx
+   values index each group's OWN member list, so summed across groups
+   they are wrong-shaped data wearing numbers (the D12 class). The fold
+   bounds counts by the question's option count, which pick's empty
+   options make zero.
+2. **The fold costs two reads, not zero.** "Zero extra reads" held for
+   the delta (the reveal transaction already holds every answer) but not
+   for the running state or the option count: the fold is its own small
+   transaction reading the private doc and the question doc. It runs
+   OUTSIDE the reveal transaction deliberately — the aggregate doc is
+   contended across every group revealing the same question, and a
+   conflict there must retry a two-read fold, never the reveal. Accepted
+   residual, recorded: a crash between reveal commit and fold
+   undercounts an advisory floored aggregate by one reveal, permanently
+   (the reveal doc's existence settles the day); the fold logs at ERROR
+   so monitoring sees a systematic failure.
+3. **The publish cadence is crossing-based** (`shouldPublishDuelAgg`),
+   not the vote path's `total % PUBLISH_EVERY`: a reveal folds a whole
+   group-day at once, so a batch can jump over a multiple and the modulo
+   cadence would go silent until it happened to land exactly. Per-reveal
+   granularity was already covered by this record's
+   strictly-less-revealing argument; the cadence bounds doc rewrites.
+   Neither doc carries a timestamp — the vote mirror's attribution rule,
+   applied here to "which scan window did a group reveal in".
+4. **The romantic pool ships dark** (`active: false` at seed) **until
+   the mode-aware client is the fleet.** A pre-mode client's `duelQFor`
+   has no pool filter, so an active romantic doc would rotate into
+   FRIEND-pair duels. The picker refuses to render for a pool that
+   cannot serve (`romanticPoolReady`), so the flip is invisible until
+   activation. **The activation step, for the runbook:** flip the 20
+   `duo-020`–`duo-039` docs to `active: true` in the console, then call
+   `seedContentV2` with `bumpRev: true` — console flips touch no
+   `updatedAt`, so without the rev bump returning clients' cursors never
+   see the pool.
+5. **`duoMode` is written by a rules carve-out, not a callable** — the
+   schema's first member-writable field on a group doc: member + duo doc
+   + that field alone (affectedKeys) + closed enum. No cap, budget or
+   invariant beyond that exists for the field, which is exactly what a
+   rule can express; rules tests prove every denial direction. Residual,
+   recorded: the picker locks after the local partner seals, but a flip
+   while the OTHER partner has already sealed hands the pair two
+   different questions for one day — the same class as bank drift, which
+   the reveal already survives (it stores the answered qid; the fold's
+   in-range bounds keep the mismatched votes out of counts and guess
+   scoring), and it self-heals the next day.
+
+One repair rode along: `runSeedV2` hardcoded `active: true` on first
+create, silently discarding the `active: false` that `flags()` has
+emitted since D52 retired six feed questions at source. Creates now
+honor the source flag; reseeds still never touch `active` in either
+direction.
