@@ -88,8 +88,17 @@ const PUBLISH_EVERY = 5;
 // question doc (the catalog path's read is the documented exception).
 // check:content holds v2content.ts byte-identical to /content on the deploy
 // path, so a new political item joins this set by existing.
+//
+// Two markers, one set (D52). `test === "political"` is the political
+// TEST's own items. `political === true` is the same Art. 9 judgement
+// applied to ordinary opinion cards — a feed question like "Should voting
+// be mandatory?" is a political opinion in exactly the sense this set
+// exists for, and it cannot reuse the `test` marker: PASSIVE.record and
+// the feed's test-kicker key off `q.test`, so marking a feed card
+// "political" that way would silently count it toward the political
+// test's progress rings.
 export const POLITICAL_QIDS: ReadonlySet<string> = new Set(
-  V2_QUESTIONS.filter((q) => q.test === "political").map((q) => q.id),
+  V2_QUESTIONS.filter((q) => q.test === "political" || q.political === true).map((q) => q.id),
 );
 
 // The predicate, exported because the set alone cannot be asserted against

@@ -111,7 +111,6 @@ const COUPLING_BASELINE = {
   "src/v2/spec/learn-social.js": 5,
   "src/v2/spec/lens-cards.jsx": 4,
   "src/v2/spec/lens-defs.js": 2,
-  "src/v2/spec/logic-test.jsx": 1,
   "src/v2/spec/map-bottom-card.jsx": 5,
   "src/v2/spec/map-learn-card.jsx": 5,
   "src/v2/spec/map-people.jsx": 8,

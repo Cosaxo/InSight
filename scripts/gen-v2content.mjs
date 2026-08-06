@@ -79,6 +79,16 @@ export function buildEntries(content = loadContent()) {
   const { daily, feed, duel, tests, learn } = content;
   const entries = [];
 
+  // `active: false` retires an entry from serving without touching its id
+  // or history (deck.ts filters `active !== false`); `political: true`
+  // marks an opinion item Art. 9-adjacent so D44's no-slice set picks it
+  // up (v2.ts). Both optional, emitted only when set, so the common case
+  // stays byte-identical to before they existed.
+  const flags = (q) => ({
+    ...(q.active === false ? { active: false } : {}),
+    ...(q.political === true ? { political: true } : {}),
+  });
+
   daily.forEach((q, i) => {
     entries.push({
       id: `daily-${requireId(q, `daily-questions.json[${i}]`)}`,
@@ -99,6 +109,7 @@ export function buildEntries(content = loadContent()) {
       topic: q.tone,
       axis: q.axis ?? null,
       test: null,
+      ...flags(q),
     });
   });
 
@@ -117,6 +128,7 @@ export function buildEntries(content = loadContent()) {
       topic: q.cat,
       axis: null,
       test: null,
+      ...flags(q),
     });
   });
 
@@ -206,7 +218,10 @@ const HEADER =
   "// generates, on the deploy path, so a hand edit here (or a /content\n" +
   "// change without a regen) fails the gate.\n" +
   "// Canonical launch question bank for the v2 seed callable.\n" +
-  "export interface V2SeedQuestion { id: string; surface: string; seq: number; type: string; domain: string | null; prompt: string; options: string[]; topic: string | null; axis: string | null; test: string | null; }\n" +
+  "// `active`/`political` are optional and emitted only when set: absent means\n" +
+  "// active (deck.ts filters `active !== false`) and sliceable (v2.ts's D44\n" +
+  "// predicate checks `political === true` alongside `test === \"political\"`).\n" +
+  "export interface V2SeedQuestion { id: string; surface: string; seq: number; type: string; domain: string | null; prompt: string; options: string[]; topic: string | null; axis: string | null; test: string | null; active?: boolean; political?: boolean; }\n" +
   "export const V2_QUESTIONS: V2SeedQuestion[] = ";
 
 export function generate(content = loadContent()) {

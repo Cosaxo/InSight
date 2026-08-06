@@ -4761,3 +4761,275 @@ consumer outside the file: the same ratio `result-rose.jsx` found, where the
 bridge published everything and a real module exports only what is wanted.
 The coupling count is unchanged at 540, correctly — these were file-local
 reads, not cross-module ones, and a meter that moved here would be lying.
+## D50 · A lens question in a live feed is a self-report item, not a poll
+
+**Date:** 2026-08-06 · **Status:** Adopted
+
+**Decision.** Lens cards woven into a live session's feed carry
+`selfOnly: true`, stamped by `LENS_FEED_QS`'s builder — which now rebuilds
+per liveness instead of snapshotting at module scope. `world-feed.jsx`
+keeps every crowd surface off a `selfOnly` card: no share fill, no
+percentage numeral, no votes count, no takes/who-voted row, no consequence
+beat, no with-the-majority bit into FEEDREAD, no Mirror ripple, no thin
+bar on the collapsed card. After answering, the card says where the answer
+actually went — "Saved to your ‹lens› lens — only you see it." — and the
+answer records to the on-device store exactly as before.
+
+**What was shipping.** `buildFeedGlobals()` (data/live.ts) replaces
+`WORLD_FEED_QS` and `TEST_FEED_QS` with live-shaped cards on boot but
+never touched `LENS_FEED_QS` — and every "no fake data" gate in
+world-feed keys on `q.live`, which lens cards do not carry. So a real
+user answering a lens card saw a split drawn over thousands of authored
+votes (`count: 180 + w × 1900` per option — roughly 3–6k "votes" per
+card), rendered identically to the real k-floored splits on neighbouring
+cards, plus a votes-count line under it. That is fabricated activity
+inside a live session — the thing D1 exists to forbid — and the asymmetry
+with `TEST_FEED_QS`, which did get the live treatment, marks it as an
+oversight rather than a choice.
+
+**Two adjacent repairs in the same seam, found by the same audit.**
+First: the module-scope snapshot meant live sessions always wove the DEMO
+pool, which excludes each lens's seeded prefix as "already answered" —
+but live mode starts every lens at zero, so ~20 of the 48 lens items were
+unreachable from a live feed (`moral` capped at 4 of 8 for a feed-only
+user, while the blank state promised the feed would fill it in). Second:
+`LENSES.reset()` — whose own comment claims the account-deletion/uid-change
+wipe contract — had no caller, so the uid-change path purged
+`insight.lenses.v1` from localStorage while the store's in-memory state
+survived to be written back under the new uid. The purge announces itself
+now (`insight:local-purge`) and the store listens.
+
+**Why acknowledge instead of aggregate.** The honest alternatives were
+(a) suppress the fake crowd, (b) build a real one. Lens answers are
+deliberately device-local (the persistence note in `lens-defs.js`): no
+write leaves the device, so there is nothing for a backend to aggregate
+without first reversing that decision — a new collection, its k-floor,
+rules and their tests, for numbers whose product value is unproven. (a)
+is the smallest change that makes the UI true, and it leaves (b) open: if
+lens aggregation ever ships, the flag comes off exactly the cards whose
+questions gain a real aggregate, and this entry gets its reversal note.
+
+**Enforcement.** `src/v2/test/lens-live.test.ts` re-derives both pool
+shapes from `IS_LENSES`' seed arithmetic and pins the `selfOnly` stamp
+and the purge listener; `src/v2/test/smoke-live.test.jsx` mounts a live
+feed with a lens card, answers it, and asserts the record landed locally
+(inverted), nothing reached `LIVE.vote`, and the card shows the
+acknowledgment with no split, no votes count and no engage row.
+
+## D51 · Deleting the keys is only half the wipe: every local store hears the purge
+
+**Date:** 2026-08-06 · **Status:** Adopted
+
+**Decision.** Every module-scope store that persists `insight.*` state
+drops its in-memory copy to the fresh-boot shape when
+`insight:local-purge` fires, notifying its subscribers and **without**
+calling its save — a save in the listener would re-create the key the
+purge just removed. The two long-mounted components that persist state by
+spreading it back (`world-feed.jsx`: votes, passed, takes, replies;
+`daily-split.jsx`: dreplies, cats, testProg, votes) carry the same
+listener at the component level. `scripts/check-purge-listeners.mjs`
+(CI's `check:purge`) holds the set closed: a file that writes an
+`insight.*` key must listen or be exempted with a reason, and a stale
+exemption fails too.
+
+**The audit that produced this.** D50 found the hole in one store
+(lens-defs' uncalled `reset()`); this is the sweep of the other 28 files
+that touch localStorage. Fourteen module stores had the same bug —
+`feed-read`, `follows`, `learn-progress`, `learn-feed`,
+`passive-progress`, `pick-data`, `place-stats`, `scenes`,
+`world-subtopics`, `suggestions`, `duels-data`, `world-feed-report`,
+`daily-questions`, `test-definitions` — each holding a module-scope map
+whose next mutation saved the whole thing back: daily answers, duel
+answers and group edits, test progress (inflating the new account's rings
+with answers it never gave), authored suggestions rendered as the new
+account's "You", follow lists, ratings, picks, reports, the read-room
+log. The always-mounted feed and daily components had the same shape in
+component state; the feed's votes already healed through its LIVE
+reconcile (absent from both store and mirror → dropped), which is the
+model the rest now follows.
+
+**Fresh-boot, not empty.** The drop target is what a cold load with no
+keys produces, which is not always `{}`: `follows` returns to its seed
+circle, `learn-progress` to its demo stagger (empty in live builds — the
+same `VITE_V2_LIVE` gate the load uses), `scenes`/`world-subtopics` to
+their day-one defaults by nulling the lazy cache so `ensure()` re-derives,
+and `IS_TEST_RESULTS` restores a pristine copy of the demo literal taken
+before the saved-result overlay. `duels-data` and `learn-progress` got
+their load normalisation extracted into one function used by both paths,
+so a field added later cannot leave the listener building a stale shape.
+
+**Exemptions, each with its reason in the script.** `live.ts` (the
+dispatcher; caches uid-scoped or public), `deviceBind`/`push` (memos
+carry the uid and are compared before use), `sentry` (flag read from
+storage per check), `test-overlay` (read-modify-write of only its own
+kind, fresh from storage), `logic-test` (whole fresh object per save),
+`profile-general` (persist effect runs on mount, so a post-purge mount
+writes defaults), and the two `ui/` panels (scalar written only on
+explicit save of the new value).
+
+**Two observations recorded, not fixed.** `insight.mapCatNames.v1` is
+read by `map-tab.jsx` and written by nothing — a dead key. And Sentry
+telemetry consent is read per event but an already-started SDK keeps
+running across a uid change until restart; the flag itself heals
+correctly, the running session is a consent nuance this entry flags for
+whoever next touches `lib/sentry.ts`.
+
+**Enforcement.** `check:purge` on the CI lint job (client-only, so
+deliberately not on `backend-checks.yml`);
+`src/v2/test/purge-wipe.test.ts` drives all fourteen module stores
+through seed → purge → remutate and asserts the resurrection never
+reaches disk; `smoke-live.test.jsx` proves the component half in a
+mounted tree; `vote.test.ts` pins that the announcement fires on the
+uid-change path.
+
+## D52 · The content review: what got fixed, what got flagged, and the two lines that held
+
+**Date:** 2026-08-06 · **Status:** Adopted
+
+**The review.** All seven question surfaces read end to end — 90 daily, 73
+feed, 44 duel, 96 learn cards, the four core tests, the nine lenses, and
+the cross-bank seams. Two invariants shaped every fix: shipped **option
+sets are never edited** (answers store `(qid, optionIdx)` forever — the
+D30 re-key class), and the **daily list is never shortened mid-epoch**
+(the deck maps day→question by position; a removal re-keys every later
+day). So fixes took four shapes only: prompt edits that preserve the
+question's meaning, metadata edits, `active: false` retirement for feed
+items, and appends.
+
+**Fixed.**
+- **Six feed duplicates retired** (`active: false`, honoured by deck.ts's
+  `active !== false` filter, now passed through the generator): f08, f20,
+  f21, f24, f40, f54 — each the same question as a live daily (one
+  cuisine, spoilers, lyrics/melody, music-while-working, death date,
+  money-buys-happiness), splitting the same crowd twice.
+- **D44 extends to opinion cards**: new optional `political: true` marker
+  on f45 (mandatory voting), f46 (four-day week), f47 (car-free centres)
+  and daily-014 (news trust) joins them to the no-slice set. A second
+  marker rather than `test: "political"` because PASSIVE.record and the
+  feed's test kicker key off `q.test` — reusing it would count feed cards
+  toward the political test's rings. `slicing.test.ts` pins both markers
+  and the generator pass-through, non-vacuously. Considered and left
+  sliceable: f27 (phones in schools), f32 (tipping), f50 (celebrities in
+  politics), daily-015 (AI) — opinions that correlate with politics less
+  than they express it; the line is "expresses a political position",
+  not "correlates with one".
+- **Currency leaves the prompts**: daily-006 "€500" → "a week's pay"
+  (scales with the reader, travels), duo-12 "€10k" → "a surprise
+  windfall", f39 "$1M" → "a million". The time lens's "€100 today beats
+  €160 in a year" became plain numbers — the 60% premium is the
+  instrument, the currency was noise.
+- **Duel voice unified**: seven 1v1 prompts rewritten you-voice/neutral
+  (3, 8, 9, 12, 15, 17, plus 16 gaining its missing direction — hear the
+  hard truth, not tell it). The duo overlay renders prompts verbatim in
+  both the answer-about-yourself and guess phases, so they-voice items
+  read wrong for half the flow.
+- **Instrument items replaced in both layers** (tests.json ≡
+  test-definitions.js, parity-gated): political-01's motherhood statement
+  ("a society is judged…" — near-universal agreement, no discrimination)
+  → public-ownership item; values-03's time/circle cross-load → pure
+  circle; attachment-11 (drifting groups measured breadth, not loyalty)
+  and attachment-14 (noticing withdrawal measured vigilance, not
+  un-easygoingness) → maintenance and score-keeping items.
+- **The lenses' acquiescence hole closed**: `moral` and `humor` gained
+  their first reverse-keyed items, appended (lens answers and feed ids
+  are index-keyed; only the tail is safe). A new structural gate
+  (`src/v2/test/lens-content.test.ts`) holds every lens to: questions key
+  to declared dims, every dim has a question, ids unique, viz known, and
+  ≥1 invert per lens — the per-LENS floor, since single-item dims cannot
+  carry the core tests' per-dimension rule.
+- **Learn**: sol6's stem sharpened to "Demoted from planet to dwarf
+  planet in 2006" (Ceres and Eris were also reclassified/designated in
+  2006 — the old stem had three defensible answers); cell5's trap
+  repointed to the lysis-wordplay distractor already in its options.
+
+**Flagged, not fixed — and why.**
+- Authored landslides that need retirement or a rewrite the invariants
+  forbid: daily-004 ("okay to do nothing" — double-hedged truism),
+  daily-013 ("can give meaning" — the modal concedes it), daily-061,
+  daily-081, f53, f15's "always" strawman, f23/f33's missing third camp.
+  Daily items wait for an epoch-safe retire lane; option edits wait for
+  the farm's replace flow. The scorecard will say which of these the
+  crowd actually kills.
+- Duel reveal-safety trio (gu3 "loudest wins", gu9 "what would break this
+  group", gu11 "new person wants in") — option-level content that can
+  land on real people once names attach; retire/replace candidates for
+  the duel lane, recorded here so D40's content lane inherits them.
+- Duel trait overweight: five of twenty 1v1 items probe
+  introvert/extrovert, four probe confront/avoid — variety debt for the
+  next duel batch, not an edit to shipped items.
+- Learn calibration gaps: `origins` and `capitals` ramp p=26–63 with no
+  easy rung — needs appended easy cards (the learn lane's job), not
+  edits. Weak traps whose options offer no better candidate (gene8,
+  body8, sol7, ear3, ear8) stay as recall cards.
+- daily-007's your-life/the-world ambiguity and daily-011's costless
+  "find a third way" dodge — meaning-changing fixes deferred to human
+  editorial; recorded so they are a decision, not a discovery.
+- The daily↔feed near-dup *class* (f36/daily-038 survives this pass):
+  worth a similarity warn-tier in check:content the day a third instance
+  appears.
+
+**Ops note.** These are bank edits; production picks them up on the next
+`seedContentV2` run with `bumpRev` per the deploy runbook — nothing here
+re-keys an existing answer, by construction of the four allowed shapes.
+
+## D53 · The logic test measured: zero ambiguity in 60,000 items, and the curve gets pinned
+
+**Date:** 2026-08-06 · **Status:** Adopted
+
+**The review's method.** A matrix test's cardinal risk is an ambiguous
+item — a distractor a careful solver could defend. That is measurable, so
+it was measured: a per-family completion predicate (the family's line
+rules plus the visible grid's uniformities and shape vocabulary), swept
+over every option of every item for 5,000 seeds. Three tuning iterations
+were needed, each round's false positives being a constraint humans
+obviously use that the model had missed — fillRamp's size uniformity,
+dist2's exact element identity, ringGrow's outline-only vocabulary.
+
+**What it found.** Zero ambiguous options in 60,000 items, with the
+constructed answer passing its predicate 60,000 of 60,000 times. Answer
+positions uniform (16.3–17.0% per slot). dist2's degenerate case
+(identical absence patterns) occurred 0 times in 2,466. No duplicate
+puzzles within a form, no distractor-pool exhaustion, ~0.25ms per form.
+Distractor composition matches the design's claim: 72.8% family-authored
+wrong-rule mutants, 14.1% neighbour-cell repeats, 13.1% generic
+perturbations. This CORRECTS the earlier framing that "distinct is not
+wrong" was a live hole — it is a theoretical one only, and the sweep now
+lives in logic-gen.test.ts permanently (answers must pass, no distractor
+may), so a future family that opens the hole fails CI instead of
+shipping. If a new family's ANSWERS fail the sweep, the predicate is
+missing that family's grammar: extend the model, never weaken the sweep.
+
+**The curve is a decision now, not an accident.** logicPctile moved to
+`data/logic-score.ts` (typed, with loadResult/saveResult/logicSecs) and
+its landmarks are pinned: chance (2/12 with six options) reads 4,
+6/12 → 30, the load-bearing midpoint 62% → 50, and a perfect 12/12 reads
+**94 — deliberately**. A perfect score is the test's ceiling, and a
+ceiling cannot distinguish "better than 94%" from "better than 99%"; the
+honest claim stops where the instrument does. The floor clamps at 1 for
+the symmetric reason.
+
+**The overlay left the bridge.** logic-test.jsx now imports the generator
+and the scoring directly; window.LOGIC_GEN is gone (it had exactly one
+consumer), loadOverlays() dropped its explicit import line (the ESM graph
+carries the generator into the same deferred chunk), and the coupling
+ratchet came down 620 → 619 across 51 files. The reveal-delay timeout is
+deliberately never cancelled on unmount: it is also the final item's
+save, and closing the overlay 200ms after the last pick must keep the
+score — a 240ms timer is the whole cost of that guarantee.
+
+**New coverage.** `logic-overlay.test.jsx` drives a full attempt through
+the real generator (the seed pinned by stubbing crypto, the overlay's own
+seed source), asserting the v2 payload to the millisecond — the 240ms
+reveal delay subtracted from every recorded time — plus a wrong-pick run,
+all five result lenses (four had never rendered in any test) each showing
+the modelled-yardstick disclosure, and an 8-mark result pinning the
+Answers lens against the old /11 regression. `logic-score.test.ts` pins
+the curve, the v1 back-fill, and the times-fallback.
+
+**Accepted limits, recorded.** Puzzle timing counts backgrounded-tab time
+(skews the Pace lens toward "deliberate" — it is a modelled yardstick and
+says so). Retake discards the previous attempt's result and seed — one
+result, not a history, matches the device-local minimalism of D31. The
+test is inherently visual; options are labelled by position for assistive
+tech, and a non-visual rendering of a matrix test is out of scope rather
+than pending.

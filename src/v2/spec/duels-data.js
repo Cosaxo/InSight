@@ -33,21 +33,31 @@ import { IS_DATA } from './sample-data.js';
 
   // ── persistence — your answers + your social edits ─────────────────────────
   const LS = 'insight.duels.v1';
+  // One shape for the cold load AND the purge listener below — a field
+  // added here is automatically fresh in both, so they cannot diverge.
+  function normalize(v) {
+    const s = v && typeof v === 'object' ? v : {};
+    s.groups = s.groups || {};   // gid → { dayId → your option index }
+    s.duo = s.duo || {};         // pid → { a: your answer idx, g: your guess idx } (today)
+    s.duoList = Array.isArray(s.duoList) ? s.duoList : null; // active 1v1 pids (null = seed)
+    s.duoInv = s.duoInv || {};   // pid → invite ts (waiting on them)
+    s.myGroups = Array.isArray(s.myGroups) ? s.myGroups : []; // custom groups
+    s.groupIds = s.groupIds || {};   // seeded-gid → edited member ids
+    s.groupPend = s.groupPend || {}; // gid → { pid → invite ts }
+    s.left = Array.isArray(s.left) ? s.left : []; // gids you left
+    s.duoMode = s.duoMode || {}; // pid → 'friends' | 'romantic' (which pool this 1v1 draws from)
+    return s;
+  }
   let S;
-  try { S = JSON.parse(localStorage.getItem(LS) || '{}'); } catch (e) { S = {}; }
-  if (!S || typeof S !== 'object') S = {};
-  S.groups = S.groups || {};   // gid → { dayId → your option index }
-  S.duo = S.duo || {};         // pid → { a: your answer idx, g: your guess idx } (today)
-  S.duoList = Array.isArray(S.duoList) ? S.duoList : null; // active 1v1 pids (null = seed)
-  S.duoInv = S.duoInv || {};   // pid → invite ts (waiting on them)
-  S.myGroups = Array.isArray(S.myGroups) ? S.myGroups : []; // custom groups
-  S.groupIds = S.groupIds || {};   // seeded-gid → edited member ids
-  S.groupPend = S.groupPend || {}; // gid → { pid → invite ts }
-  S.left = Array.isArray(S.left) ? S.left : []; // gids you left
-  S.duoMode = S.duoMode || {}; // pid → 'friends' | 'romantic' (which pool this 1v1 draws from)
+  try { S = normalize(JSON.parse(localStorage.getItem(LS) || '{}')); } catch (e) { S = normalize({}); }
   const listeners = new Set();
   const fire = () => listeners.forEach((f) => { try { f(); } catch (e) { /* one listener throwing must not stop the others being notified. */ } });
   const save = () => { try { localStorage.setItem(LS, JSON.stringify(S)); } catch (e) { /* localStorage can throw: private mode, quota, disabled storage. Persistence here is best-effort and the in-memory state stays correct. */ } fire(); };
+  // The purge (data/live.ts, D51): drop your duel answers, groups and 1v1
+  // edits too, or the next answer's save() writes the previous account's
+  // back under the new uid. fire() without save() — do not re-create the
+  // purged key.
+  window.addEventListener('insight:local-purge', () => { S = normalize({}); fire(); });
 
   // ── the circle — your friends ───────────────────────────────────────────────
   const IDS = ['f1', 'f2', 'f4', 'f6', 'f3']; // fallback if FRIENDS is absent

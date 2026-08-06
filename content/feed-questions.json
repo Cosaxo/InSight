@@ -191,7 +191,8 @@
           "label": "Japanese",
           "count": 6400
         }
-      ]
+      ],
+      "active": false
     },
     {
       "id": "f09",
@@ -393,7 +394,8 @@
           "label": "Heresy",
           "count": 7300
         }
-      ]
+      ],
+      "active": false
     },
     {
       "id": "f21",
@@ -409,7 +411,8 @@
           "label": "Melody",
           "count": 6800
         }
-      ]
+      ],
+      "active": false
     },
     {
       "id": "f22",
@@ -464,7 +467,8 @@
           "label": "Silence",
           "count": 1900
         }
-      ]
+      ],
+      "active": false
     },
     {
       "id": "f25",
@@ -708,7 +712,7 @@
       "id": "f39",
       "cat": "dilemma",
       "type": "vote",
-      "prompt": "$1M now, but a stranger somewhere loses everything. Press the button?",
+      "prompt": "A million now, but a stranger somewhere loses everything. Press the button?",
       "options": [
         {
           "label": "Press",
@@ -734,7 +738,8 @@
           "label": "Never",
           "count": 8400
         }
-      ]
+      ],
+      "active": false
     },
     {
       "id": "f41",
@@ -814,7 +819,8 @@
           "label": "A right, not a duty",
           "count": 5600
         }
-      ]
+      ],
+      "political": true
     },
     {
       "id": "f46",
@@ -830,7 +836,8 @@
           "label": "Fantasy",
           "count": 2700
         }
-      ]
+      ],
+      "political": true
     },
     {
       "id": "f47",
@@ -846,7 +853,8 @@
           "label": "Keep cars",
           "count": 3900
         }
-      ]
+      ],
+      "political": true
     },
     {
       "id": "f48",
@@ -962,7 +970,8 @@
           "label": "It can’t",
           "count": 4300
         }
-      ]
+      ],
+      "active": false
     },
     {
       "id": "f55",
@@ -1213,7 +1222,7 @@
     {
       "id": "s13",
       "scene": "chess",
-      "cat": "bigq",
+      "cat": "culture",
       "type": "vote",
       "prompt": "Blitz or classical?",
       "options": [
@@ -1230,7 +1239,7 @@
     {
       "id": "s14",
       "scene": "chess",
-      "cat": "bigq",
+      "cat": "culture",
       "type": "vote",
       "prompt": "Best first move",
       "options": [
@@ -1251,7 +1260,7 @@
     {
       "id": "s15",
       "scene": "chess",
-      "cat": "bigq",
+      "cat": "culture",
       "type": "vote",
       "prompt": "A draw offer from a stronger player — take it?",
       "options": [

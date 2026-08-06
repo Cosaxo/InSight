@@ -4,7 +4,10 @@
 // generates, on the deploy path, so a hand edit here (or a /content
 // change without a regen) fails the gate.
 // Canonical launch question bank for the v2 seed callable.
-export interface V2SeedQuestion { id: string; surface: string; seq: number; type: string; domain: string | null; prompt: string; options: string[]; topic: string | null; axis: string | null; test: string | null; }
+// `active`/`political` are optional and emitted only when set: absent means
+// active (deck.ts filters `active !== false`) and sliceable (v2.ts's D44
+// predicate checks `political === true` alongside `test === "political"`).
+export interface V2SeedQuestion { id: string; surface: string; seq: number; type: string; domain: string | null; prompt: string; options: string[]; topic: string | null; axis: string | null; test: string | null; active?: boolean; political?: boolean; }
 export const V2_QUESTIONS: V2SeedQuestion[] = [
  {
   "id": "daily-000",
@@ -107,7 +110,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "seq": 6,
   "type": "dilemma",
   "domain": null,
-  "prompt": "You find €500 in cash on an empty street. What do you do?",
+  "prompt": "You find a week's pay in cash on an empty street. What do you do?",
   "options": [
    "Keep it",
    "Hand it in",
@@ -196,7 +199,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "seq": 11,
   "type": "dilemma",
   "domain": null,
-  "prompt": "A job you would love means moving somewhere your partner would hate. Do you take it?",
+  "prompt": "A job you would love means moving somewhere the person closest to you would hate. Do you take it?",
   "options": [
    "Take it",
    "Stay",
@@ -260,7 +263,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "deep",
   "axis": "trusting",
-  "test": null
+  "test": null,
+  "political": true
  },
  {
   "id": "daily-015",
@@ -1618,7 +1622,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "food",
   "axis": null,
-  "test": null
+  "test": null,
+  "active": false
  },
  {
   "id": "feed-f09",
@@ -1803,7 +1808,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "movies",
   "axis": null,
-  "test": null
+  "test": null,
+  "active": false
  },
  {
   "id": "feed-f21",
@@ -1818,7 +1824,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "music",
   "axis": null,
-  "test": null
+  "test": null,
+  "active": false
  },
  {
   "id": "feed-f22",
@@ -1866,7 +1873,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "music",
   "axis": null,
-  "test": null
+  "test": null,
+  "active": false
  },
  {
   "id": "feed-f25",
@@ -2090,7 +2098,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "seq": 38,
   "type": "vote",
   "domain": null,
-  "prompt": "$1M now, but a stranger somewhere loses everything. Press the button?",
+  "prompt": "A million now, but a stranger somewhere loses everything. Press the button?",
   "options": [
    "Press",
    "Never"
@@ -2112,7 +2120,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "dilemma",
   "axis": null,
-  "test": null
+  "test": null,
+  "active": false
  },
  {
   "id": "feed-f41",
@@ -2187,7 +2196,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "event",
   "axis": null,
-  "test": null
+  "test": null,
+  "political": true
  },
  {
   "id": "feed-f46",
@@ -2202,7 +2212,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "event",
   "axis": null,
-  "test": null
+  "test": null,
+  "political": true
  },
  {
   "id": "feed-f47",
@@ -2217,7 +2228,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "event",
   "axis": null,
-  "test": null
+  "test": null,
+  "political": true
  },
  {
   "id": "feed-f48",
@@ -2323,7 +2335,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "bigq",
   "axis": null,
-  "test": null
+  "test": null,
+  "active": false
  },
  {
   "id": "feed-f55",
@@ -2551,7 +2564,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Blitz",
    "Classical"
   ],
-  "topic": "bigq",
+  "topic": "culture",
   "axis": null,
   "test": null
  },
@@ -2567,7 +2580,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "d4",
    "Something weird"
   ],
-  "topic": "bigq",
+  "topic": "culture",
   "axis": null,
   "test": null
  },
@@ -2582,7 +2595,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Take it",
    "Play on"
   ],
-  "topic": "bigq",
+  "topic": "culture",
   "axis": null,
   "test": null
  },
@@ -3035,7 +3048,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "seq": 3,
   "type": "binary",
   "domain": null,
-  "prompt": "Running late. Their text says…",
+  "prompt": "Running late. The text says…",
   "options": [
    "\"5 min\" (it’s 20)",
    "The honest ETA",
@@ -3113,7 +3126,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "seq": 8,
   "type": "binary",
   "domain": null,
-  "prompt": "Someone takes their joke too far. Laugh it off, or say so?",
+  "prompt": "Someone's joke goes too far. Laugh it off, or say so?",
   "options": [
    "Laugh it off",
    "Say so"
@@ -3128,7 +3141,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "seq": 9,
   "type": "binary",
   "domain": null,
-  "prompt": "Big decision to make. How do they call it?",
+  "prompt": "A big decision lands. How do you call it?",
   "options": [
    "Gut",
    "A list",
@@ -3176,7 +3189,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "seq": 12,
   "type": "binary",
   "domain": null,
-  "prompt": "They win €10k. First move?",
+  "prompt": "A surprise windfall lands. First move?",
   "options": [
    "Save it",
    "Book a trip that night",
@@ -3223,7 +3236,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "seq": 15,
   "type": "binary",
   "domain": null,
-  "prompt": "When hurt, they go…",
+  "prompt": "When hurt, you go…",
   "options": [
    "Quiet",
    "Loud",
@@ -3239,7 +3252,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "seq": 16,
   "type": "binary",
   "domain": null,
-  "prompt": "Hard truth or comfortable silence?",
+  "prompt": "Hear the hard truth, or keep the comfortable silence?",
   "options": [
    "Hard truth",
    "Silence"
@@ -3254,7 +3267,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "seq": 17,
   "type": "binary",
   "domain": null,
-  "prompt": "After a brutal week, what refills them?",
+  "prompt": "After a brutal week, what refills you?",
   "options": [
    "People",
    "Solitude",
@@ -3589,7 +3602,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "seq": 16,
   "type": "scale",
   "domain": null,
-  "prompt": "A society is judged by how it treats the weakest.",
+  "prompt": "Essential services belong in public hands, not markets.",
   "options": [
    "Strongly disagree",
    "Disagree",
@@ -3949,7 +3962,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "seq": 36,
   "type": "scale",
   "domain": null,
-  "prompt": "I'd sacrifice comfort now for a stranger's future.",
+  "prompt": "I'd give up real comfort to help a stranger.",
   "options": [
    "Strongly disagree",
    "Disagree",
@@ -4417,7 +4430,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "seq": 62,
   "type": "scale",
   "domain": null,
-  "prompt": "I drift between friend groups rather than settling into one.",
+  "prompt": "My friendships tend to fade when life gets busy.",
   "options": [
    "Strongly disagree",
    "Disagree",
@@ -4471,7 +4484,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "seq": 65,
   "type": "scale",
   "domain": null,
-  "prompt": "I notice straight away when a friend pulls back.",
+  "prompt": "I keep track of who reached out last.",
   "options": [
    "Strongly disagree",
    "Disagree",
@@ -5118,7 +5131,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "seq": 37,
   "type": "choice",
   "domain": null,
-  "prompt": "Reclassified as a dwarf planet in 2006:",
+  "prompt": "Demoted from planet to dwarf planet in 2006:",
   "options": [
    "Pluto",
    "Ceres",

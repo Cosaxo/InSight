@@ -121,6 +121,10 @@ window.SUBTOPICS = (function () {
     return set;
   }
   const save = () => { try { localStorage.setItem(LS, JSON.stringify([...ensure()])); } catch (e) { /* localStorage can throw: private mode, quota, disabled storage. Best-effort — in-memory state stays correct. */ } listeners.forEach((f) => { try { f(); } catch (e) { /* localStorage can throw: private mode, quota, disabled storage. Best-effort — in-memory state stays correct. */ } }); };
+  // The purge (data/live.ts, D51): null the cache and ensure() re-derives
+  // from storage — now empty, so the day-one default — instead of the
+  // previous account's leaf follows surviving to be saved back.
+  window.addEventListener('insight:local-purge', () => { set = null; listeners.forEach((f) => { try { f(); } catch (e) { /* best-effort */ } }); });
   const count = (id) => (window.WORLD_FEED_QS || []).filter((q) => q.sub === id).length;
   return {
     all: () => ALL,
