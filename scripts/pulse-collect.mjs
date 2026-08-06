@@ -204,6 +204,10 @@ export function collectPipeline() {
     { surface: "feed", count: feed.questions.length, source: "content/feed-questions.json" },
     { surface: "duel · group", count: duel.group.length, source: "content/duel-questions.json" },
     { surface: "duel · 1v1", count: duel.oneVsOne.length, source: "content/duel-questions.json" },
+    // Seeded active:false until the mode-aware client is the fleet (D40
+    // part 4) — still bank docs, so still counted; the two-path bank-size
+    // check in pulse.test.mjs is what caught this row missing.
+    { surface: "duel · romantic", count: (duel.romantic ?? []).length, source: "content/duel-questions.json" },
     { surface: "learn", count: learn.cards.length, source: "content/learn-questions.json" },
     {
       surface: "test items",

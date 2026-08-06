@@ -21,6 +21,7 @@ interface LiveGroup {
   id: string;
   name?: string;
   mode?: string;
+  duoMode?: string;
   inviteCode?: string;
   streak?: number;
   memberUids?: string[];
@@ -159,6 +160,53 @@ function LdReveal({ g, reveal }: { g: LiveGroup; reveal: LiveReveal }) {
   );
 }
 
+// ── a duo's question pool (D40 part 4) ───────────────────────────
+// Renders only when a flip can land somewhere: the romantic pool seeds
+// dark (active: false) until the mode-aware client is the fleet, and a
+// picker offering an empty pool would trade today's question for nothing.
+// The `already romantic` arm keeps the road back open if the pool is ever
+// darkened again. Locked once today's answer is sealed — the pools rotate
+// independently, so a post-seal flip would hand the pair two different
+// questions for one day; the partner-side remainder of that race is
+// recorded in D40's adoption note.
+function LdModeRow({ g, sealed }: { g: LiveGroup; sealed: boolean }) {
+  const S = LIVE.social;
+  const [busy, setBusy] = React.useState(false);
+  const [err, setErr] = React.useState<string | null>(null);
+  const current = g.duoMode === "romantic" ? "romantic" : "friends";
+  const flip = async (next: "friends" | "romantic") => {
+    if (busy || sealed || next === current) return;
+    setBusy(true); setErr(null);
+    try { await S.setDuoMode(g.id, next); }
+    catch { setErr("Couldn’t switch pools — check your connection and try again."); }
+    setBusy(false);
+  };
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
+        <span className="kicker" style={{ marginBottom: 0, flex: 1 }}>Question pool</span>
+        {(["friends", "romantic"] as const).map((m) => (
+          <button key={m} className="press" onClick={() => void flip(m)}
+            disabled={busy || sealed} aria-pressed={current === m}
+            style={{ border: current === m ? "2px solid var(--accent, var(--ink))" : LD_LINE,
+              borderRadius: 999, padding: "6px 13px", cursor: busy || sealed ? "default" : "pointer",
+              fontFamily: "var(--sans)", fontWeight: 700, fontSize: 12.5,
+              background: current === m ? "color-mix(in oklch, var(--accent, var(--ink)) 9%, var(--surface-2))" : "var(--surface-2)",
+              color: "var(--ink)", opacity: busy || sealed ? 0.55 : 1, WebkitAppearance: "none" }}>
+            {m === "friends" ? "Friends" : "Romantic"}
+          </button>
+        ))}
+      </div>
+      {sealed && (
+        <div style={{ fontSize: 11.5, fontWeight: 600, color: "var(--ink-3)" }}>
+          Pool is locked until tomorrow — today’s answer is sealed.
+        </div>
+      )}
+      {err && <div role="status" style={{ fontSize: 12.5, fontWeight: 600, color: "oklch(0.5 0.19 25)" }}>{err}</div>}
+    </div>
+  );
+}
+
 // ── one group's daily card ───────────────────────────────────────
 function LdGroupCard({ g }: { g: LiveGroup }) {
   const S = LIVE.social;
@@ -209,6 +257,9 @@ function LdGroupCard({ g }: { g: LiveGroup }) {
         <div style={{ fontSize: 13, fontWeight: 600, color: "var(--ink-2)", lineHeight: 1.4 }}>
           Share the code above — the duel starts when they join.
         </div>
+      )}
+      {duo && members.length === 2 && (S.romanticPoolReady() || g.duoMode === "romantic") && (
+        <LdModeRow g={g} sealed={mine != null} />
       )}
       {/* The only way out of a circle short of deleting the account.
           LIVE.social.leaveGroup has shipped since the social layer landed and

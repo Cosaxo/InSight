@@ -38,5 +38,5 @@ export const LIVE_MEMBERS = [
 export const LIVE_SOCIAL_MEMBERS = [
   "bankQ", "createGroup", "groups", "joinGroup", "leaveGroup",
   "loadRevealHistory", "myDuelVote", "revealFor", "revealHistory",
-  "todayKey", "todayQ", "voteDuel",
+  "romanticPoolReady", "setDuoMode", "todayKey", "todayQ", "voteDuel",
 ];

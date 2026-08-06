@@ -3825,11 +3825,11 @@ safe — the number cannot go back up, so the work can resume opportunistically
 (**convert on touch**: when a feature takes you into a spec file, convert
 the providers it reads first) rather than as a project.
 
-## D40 · Duels get a content lane and a question-level signal — proposed
+## D40 · Duels get a content lane and a question-level signal
 
-**Date:** 2026-08-03 · **Status:** Proposed (a draft awaiting the owner's
-adoption, per this file's header — it binds nothing until the status
-flips)
+**Date:** 2026-08-03 · **Status:** Adopted (owner-directed, 2026-08-06 —
+"do the D40 duel lane"; what shipped and the deltas from this proposal
+are in the D40 adoption record at the end of this file)
 
 **Proposal.** Give the group/1v1 duel banks what every other content
 surface already has: a growth path (a lane under `docs/QUESTION-FARM.md`
@@ -6106,3 +6106,166 @@ alongside the marks, asserted against the generator; the wire to the
 client is unchanged (families are derivable from the disclosed seed
 post-scoring, so nothing new leaks). Rules suite covers the new doc
 paths in both collections.
+## D63 · Near-duplicate questions get a measured gate
+
+**Date:** 2026-08-06 · **Status:** Adopted
+
+**The problem.** Every content lane's dedup rule is "check the whole
+corpus while writing" (QUESTION-FARM.md), and the only automation behind
+it is exact prompt-string equality within a surface (`check-content.mjs`).
+The corpus grows by up to 4 farm questions plus a catalog card per day
+(D33), written by scheduled runs whose recall of the archive is a re-read;
+one reworded word defeats the exact check, and the repo's own fixtures
+prove the class: "Money can buy happiness." (sg07) and "Money buys
+happiness." are the same question sharing not one exact string.
+
+**The gate.** `scripts/question-neighbors.mjs` (`npm run check:neighbors`,
+CI lint job) scores token-set Jaccard over prompt + option/item labels —
+lowercased, diacritics folded, stopwords dropped, plurals stemmed —
+within each surface's dedup domain: the spec daily archive (positional
+dq/dqx ids cross-read from `DQ_BASE`, so failures name real ids), the
+feed bank, both duel banks together (the D40 dedup rule), and `PICK_QS`.
+An in-domain pair ≥ 0.5 fails CI; a pair a human judges genuinely
+distinct is recorded in the script's `ALLOW` map with the reason — a
+recorded exception, not a convenience.
+
+**The threshold, measured not chosen.** At adoption the closest
+legitimate in-domain pairs score 0.286 (daily), 0.222 (feed), 0.300
+(duel), 0.333 (pick), while the deliberate suggestion-board twins score
+1.000 and 0.667 — the gate sits at 0.5, inside a gap that wide on both
+sides. `question-neighbors.test.mjs` (test:scripts, same CI job) pins
+the normalization, the id mapping `ALLOW` keys on, and every gated
+domain staying under the gate — so the gate holds even for a change that
+never ran the check script locally.
+
+**Deliberately outside it, so the next reader does not assume more than
+it checks:**
+
+- **Suggestions ↔ daily is report-only.** Two seeds twin dailies BY
+  DESIGN — the board depicts the picked → promoted story — so gating
+  them would red a green tree. The lookup mode
+  (`check:neighbors -- --candidate "…"`) still lists them, which is how
+  a farm run sees the collision the manual tells it to check.
+- **Learn cards (v1).** Two cards may legitimately share one fact's
+  vocabulary; their dupe bar is the fact, which only a human can check
+  (D32). Extending the metric there needs its own calibration first.
+- **Cross-surface pairs.** Daily and feed may deliberately run the same
+  tension at different depths; a cross-surface twin is an editorial
+  call, not a mechanical one.
+- **Synonym paraphrases.** A lexical metric scores a synonym rewrite at
+  0. This gate is the measurable floor under the writing rule, not its
+  replacement — the manual's re-read stands, now citing the measured
+  top score per question in PR bodies.
+
+## D33 amendment (2026-08-06) · Ordinal splits are measured on their axis
+
+**What was wrong, with the arithmetic.** D33's evenness — `1 − (maxShare
+− 1/n) / (1 − 1/n)` — treats every question as categorical. For `binary`
+/ `choice` / `dilemma` (and the feed's `vote`/`duel`) that is the right
+bar. For the ordinal types it mismeasures both failure modes at once: a
+rating whose crowd all answers 5–8 (shares 0,0,0,0,.2,.3,.3,.2,0,0)
+spreads over enough slots to score **0.778** — graded a strong split
+while being a consensus just above the middle — and a scale at 65%
+agree / 15% disagree scores **0.75** while the UI's own headline for the
+same distribution says "65% agree". With 21 of the 90 live dailies
+ordinal (16 scale + 5 rating), the farm's first real signal would have
+learned "write agreeable scale statements" from a number claiming the
+opposite.
+
+**The fix** (`scripts/scorecard-metrics.mjs`, extracted so the
+arithmetic is testable; `question-scorecard.mjs` routes by type). Scale
+and rating score `sideBalance × spread`: sideBalance = 1 − |low − high|
+/ (low + high) across the midpoint (an exact-middle slot — scale's
+Neutral — sits on neither side; nobody-took-a-side scores 0), spread =
+mean distance from the midpoint over (n−1)/4, capped at 1 so
+uniform-or-wider counts as fully spread. All-Neutral scores 0 — a crowd
+that agrees to shrug is still a crowd that agrees — as does unanimity on
+either pole; the polarized 30/15/10/15/30 scale scores 1.0. Under the
+fixed metric the two examples above fall to 0.213 and 0.375.
+`scorecard-metrics.test.mjs` pins each case against the number the old
+formula produced, so re-routing ordinals through the categorical bar
+fails loudly.
+
+**What deliberately does not change.** The field stays `evenness` in the
+same [0, 1] with the same reading (1.0 = real split, 0.0 = landslide),
+so every consumer — grades and their thresholds, leaders/laggards,
+`retireProposals`, the topic/type rollups, the pulse console's evenness
+buckets — reads on unchanged. The committed scorecard is not
+regenerated: the pre-launch baseline has zero scored questions, so no
+committed number moves, and the next `--fetch` under the self-refresh
+contract picks the metric up. That timing is the point of amending now —
+the metric changes before the first measured value exists, instead of
+under it.
+
+## D40 adoption (2026-08-06) · All four parts shipped, with five deltas
+
+**What shipped.** Part 1 was already live. Part 2: the duel lane's
+contract is now a section of QUESTION-FARM.md (single gate, learn-style,
+≤4/run at most weekly, run-on-request — no Routine yet). Part 3:
+`foldDuelSignal` (functions/src/v2social.ts) folds each committed reveal
+into `v2_aggs_private/duel-<qid>` and mirrors
+`v2_question_aggs/duel-<qid>` at the same `AGG_MIN_N` floor as every
+published number; the scorecard grew a `duel` section (plays, split,
+guess-match rate, `deadDuels`/`noisyDuels` advisories) with no new read
+path. Part 4: the 20 romantic questions moved into
+`content/duel-questions.json` (ids `020`–`039` — one `duo-NNN` id
+namespace across both 1v1 pools), seed as duo docs with
+`mode: "romantic"`, and `duelQFor` serves them only to a pair whose duo
+doc says `duoMode: "romantic"`; the picker lives in LiveDuelPanel.
+
+**The deltas, each with its reason:**
+
+1. **Pick questions publish plays and total only — no per-option
+   counts.** The proposal said "per-option counts"; a pick's optionIdx
+   values index each group's OWN member list, so summed across groups
+   they are wrong-shaped data wearing numbers (the D12 class). The fold
+   bounds counts by the question's option count, which pick's empty
+   options make zero.
+2. **The fold costs two reads, not zero.** "Zero extra reads" held for
+   the delta (the reveal transaction already holds every answer) but not
+   for the running state or the option count: the fold is its own small
+   transaction reading the private doc and the question doc. It runs
+   OUTSIDE the reveal transaction deliberately — the aggregate doc is
+   contended across every group revealing the same question, and a
+   conflict there must retry a two-read fold, never the reveal. Accepted
+   residual, recorded: a crash between reveal commit and fold
+   undercounts an advisory floored aggregate by one reveal, permanently
+   (the reveal doc's existence settles the day); the fold logs at ERROR
+   so monitoring sees a systematic failure.
+3. **The publish cadence is crossing-based** (`shouldPublishDuelAgg`),
+   not the vote path's `total % PUBLISH_EVERY`: a reveal folds a whole
+   group-day at once, so a batch can jump over a multiple and the modulo
+   cadence would go silent until it happened to land exactly. Per-reveal
+   granularity was already covered by this record's
+   strictly-less-revealing argument; the cadence bounds doc rewrites.
+   Neither doc carries a timestamp — the vote mirror's attribution rule,
+   applied here to "which scan window did a group reveal in".
+4. **The romantic pool ships dark** (`active: false` at seed) **until
+   the mode-aware client is the fleet.** A pre-mode client's `duelQFor`
+   has no pool filter, so an active romantic doc would rotate into
+   FRIEND-pair duels. The picker refuses to render for a pool that
+   cannot serve (`romanticPoolReady`), so the flip is invisible until
+   activation. **The activation step, for the runbook:** flip the 20
+   `duo-020`–`duo-039` docs to `active: true` in the Firestore console,
+   then run the **Seed content** workflow with `bump_rev: true`
+   (`scripts/seed-content.mjs --bump-rev` — the post-D36-amendment
+   seeding path; the app itself has no console to type in) — console
+   flips touch no `updatedAt`, so without the rev bump returning
+   clients' cursors never see the pool.
+5. **`duoMode` is written by a rules carve-out, not a callable** — the
+   schema's first member-writable field on a group doc: member + duo doc
+   + that field alone (affectedKeys) + closed enum. No cap, budget or
+   invariant beyond that exists for the field, which is exactly what a
+   rule can express; rules tests prove every denial direction. Residual,
+   recorded: the picker locks after the local partner seals, but a flip
+   while the OTHER partner has already sealed hands the pair two
+   different questions for one day — the same class as bank drift, which
+   the reveal already survives (it stores the answered qid; the fold's
+   in-range bounds keep the mismatched votes out of counts and guess
+   scoring), and it self-heals the next day.
+
+One repair rode along: `runSeedV2` hardcoded `active: true` on first
+create, silently discarding the `active: false` that `flags()` has
+emitted since D52 retired six feed questions at source. Creates now
+honor the source flag; reseeds still never touch `active` in either
+direction.

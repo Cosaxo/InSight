@@ -268,28 +268,13 @@ import { IS_DATA } from './sample-data.js';
   // The same game, aimed at a person you share a life with rather than a friend:
   // the tells are domestic, and the deep end is about what happens next. Same
   // shape as DUO_QS — light → deep, 2–4 options — so the ladder is identical.
-  const DUO_QS_ROMANTIC = [
-    { d: 'day', prompt: 'A free evening, both home. Ideal version?', options: ['Out somewhere', 'Sofa, one film', 'Cooking together'] },
-    { d: 'day', prompt: 'How do they like being woken?', options: ['Slowly, with coffee', 'Left alone', 'Talked at immediately'] },
-    { d: 'heat', prompt: 'A good apology from them looks like…', options: ['Words', 'A gesture', 'Time, then normal'] },
-    { d: 'heat', prompt: 'You are 20 minutes late to dinner. Their read?', options: ['Fine, orders a drink', 'Says nothing, remembers it'] },
-    { d: 'day', prompt: 'Love lands hardest as…', options: ['Being told', 'Being helped', 'Being touched', 'Being chosen'] },
-    { d: 'heat', prompt: 'Mid-argument, they want…', options: ['To finish it now', 'A pause', 'Space, then dinner'] },
-    { d: 'day', prompt: 'The better anniversary?', options: ['A plan they made', 'A day with nothing in it'] },
-    { d: 'ahead', prompt: 'Money in this relationship should be…', options: ['Fully shared', 'Mostly shared', 'Separate, split bills'] },
-    { d: 'day', prompt: 'Their idea of being taken care of?', options: ['Food made', 'Admin handled', 'Left in peace', 'Asked about'] },
-    { d: 'day', prompt: 'A whole weekend together, no phones. Bliss or too much?', options: ['Bliss', 'Too much'] },
-    { d: 'heat', prompt: 'They had a hard day and did not say so. The tell?', options: ['Goes quiet', 'Cleans something', 'Talks about nothing else'] },
-    { d: 'ahead', prompt: 'Five years out, they picture…', options: ['Same city, more room', 'Somewhere new', 'Somewhere quiet'] },
-    { d: 'ahead', prompt: 'A big decision that affects you both. They…', options: ['Decide together, slowly', 'Want you to choose', 'Already decided'] },
-    { d: 'heat', prompt: 'Would they tell you a truth that would hurt for a week?', options: ['Yes', 'Only if asked', 'No'] },
-    { d: 'heat', prompt: 'Jealousy shows up in them as…', options: ['A question', 'A joke', 'Silence', "It doesn't"] },
-    { d: 'ahead', prompt: 'Kids, someday?', options: ['Yes', 'Open to it', 'No'] },
-    { d: 'ahead', prompt: 'The thing they would never compromise on?', options: ['Where they live', 'Their work', 'Their people', 'Their solitude'] },
-    { d: 'ahead', prompt: 'If you needed a year somewhere else, they would…', options: ['Come', 'Wait', 'Ask you not to go'] },
-    { d: 'ahead', prompt: 'What would make them feel most loved this year?', options: ['More time', 'More plans', 'More calm', 'More honesty'] },
-    { d: 'ahead', prompt: 'Old age, the two of you: side by side, or side by side and busy?', options: ['Side by side', 'Busy, together'] },
-  ];
+  // Graduated to content/duel-questions.json (D40 part 4, adopted
+  // 2026-08-06): same single source as the two banks above, and the seed
+  // now carries the pool to production, where a duo doc's `duoMode` selects
+  // it (deck.ts duelQFor). The seeded entries ship `active: false` until
+  // the mode-aware client is the fleet — an older duelQFor has no pool
+  // filter, so an active romantic doc would rotate into FRIEND duels.
+  const DUO_QS_ROMANTIC = DUEL_CONTENT.romantic;
   // three domains, not five: coverage arrives in ~12 days instead of 20, and
   // three rows read at a glance where five become a table.
   const DOMAINS = [

@@ -58,9 +58,10 @@ export function loadContent() {
   };
 }
 
-// Builds the 191 entries in emission order: daily → feed → group → duo →
-// test. `seq` is per-surface and contiguous; note the test surface runs ONE
-// counter across all four tests (test-political-00 has seq 10, not 0).
+// Builds the entries in emission order: daily → feed → group → duo →
+// romantic → test → learn. `seq` is per-surface and contiguous (the
+// romantic pool continues the duo surface's counter); note the test surface
+// runs ONE counter across all four tests (test-political-00 has seq 10, not 0).
 // Property order in each entry is load-bearing — JSON.stringify preserves
 // insertion order, and the drift gate compares bytes.
 // Missing ids are a hard stop, not a fallback to position — falling back
@@ -167,6 +168,33 @@ export function buildEntries(content = loadContent()) {
     });
   });
 
+  // The romantic 1v1 pool (D40 part 4): same duo surface — the rules and
+  // the reveal treat it identically — distinguished by `mode`, which
+  // duelQFor (deck.ts) filters on so only a pair whose duo doc says
+  // `duoMode: "romantic"` draws from it. Ids and seq continue the duo
+  // series; the pool's own light → deep order is its rotation order.
+  // Source entries carry `active: false` deliberately (see flags above):
+  // a pre-mode client's duelQFor has no pool filter, so an ACTIVE romantic
+  // doc would rotate into friend-pair duels — the operator activates the
+  // pool in the console once the mode-aware client is the fleet, and the
+  // seed never rewrites active after create.
+  (duel.romantic ?? []).forEach((q, i) => {
+    entries.push({
+      id: `duo-${requireId(q, `duel-questions.json romantic[${i}]`)}`,
+      surface: "duo",
+      seq: duel.oneVsOne.length + i,
+      type: "binary",
+      domain: null,
+      prompt: q.prompt,
+      options: q.options,
+      topic: null,
+      axis: null,
+      test: null,
+      mode: "romantic",
+      ...flags(q),
+    });
+  });
+
   let testSeq = 0;
   for (const [key, t] of Object.entries(tests)) {
     t.questions.forEach((q, i) => {
@@ -221,7 +249,7 @@ const HEADER =
   "// `active`/`political` are optional and emitted only when set: absent means\n" +
   "// active (deck.ts filters `active !== false`) and sliceable (v2.ts's D44\n" +
   "// predicate checks `political === true` alongside `test === \"political\"`).\n" +
-  "export interface V2SeedQuestion { id: string; surface: string; seq: number; type: string; domain: string | null; prompt: string; options: string[]; topic: string | null; axis: string | null; test: string | null; active?: boolean; political?: boolean; }\n" +
+  "export interface V2SeedQuestion { id: string; surface: string; seq: number; type: string; domain: string | null; prompt: string; options: string[]; topic: string | null; axis: string | null; test: string | null; mode?: string; active?: boolean; political?: boolean; }\n" +
   "export const V2_QUESTIONS: V2SeedQuestion[] = ";
 
 export function generate(content = loadContent()) {
