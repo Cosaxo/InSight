@@ -5920,3 +5920,189 @@ nothing in that list reads it and the list's order is a contract. The
 direction is the allowed one: `spec/` and `spec-index` may import `data/`
 (as `main.jsx` and `logic-test.jsx` already do); `data/` may not import
 them back.
+
+## D60 · The verified percentile becomes a measurement at one hundred players
+
+**Date:** 2026-08-06 · **Status:** Adopted (owner: "do the measured
+percentile flip when we have enough data") — the flip D57 recorded as
+future work, built now and gated on data, not on a later deploy.
+
+**What flips, exactly.** `logicSubmitV2` now reads the private norms
+histogram on every submit (pre-fold, before any write, as transactions
+require). Once it holds at least `LOGIC_NORMS_MIN_N` verified first
+attempts, the percentile stops being the logistic and becomes a count:
+the share of counted players this score STRICTLY beats — ties are not
+beaten, which keeps the claim wording ("share of players this score
+beats") identical to the curve it replaces. The result and the response
+carry `source: "measured"` and `n`, the population ranked against; the
+client says "Sharper than X% of N verified players" and swaps the note
+for one that names what is measured and what is not. Below the floor,
+nothing changes: same logistic, same `source: "model"`, pinned equal in
+both suites.
+
+**The floor, with the arithmetic.** `LOGIC_NORMS_MIN_N = 100`. At
+n = 100 the worst-case standard error of an empirical percentile is
+√(0.5·0.5/100) ≈ 5 points — comparable to the modelled curve's own
+honesty margin — and the k-anonymity floor (AGG_MIN_N = 5) is cleared
+twenty times over. Below that, an empirical rank whipsaws by tens of
+points per submission: noise wearing a number. One constant; lowering
+it is a recorded decision, not a tweak.
+
+**Pre-fold comparison, on purpose.** The population is the players
+counted BEFORE this submission, so a submitter is never a member of
+their own field, and a re-verifier (who never folds — D32's
+first-attempt rule) is ranked against the same kind of population as a
+first-timer. `n` is therefore exact in the claim: each counted player
+appears once, which is precisely what the first-attempt rule bought.
+
+**The ceiling argument retires — for measured results only.** D53
+capped the modelled curve at 94 because a curve cannot rank perfect
+scores. A count can: 12/12 among a field where 10% score perfect reads
+"sharper than 90%", and among 150 perfects of 200 it reads 25 — the
+data speaks, however deflating. The [1, 99] clamp stays at both ends
+for display sanity ("top 0%" and "sharper than 100%" are absurd at any
+n), and the modelled path keeps its 94 untouched.
+
+**What deliberately did NOT change.** Practice attempts still score
+against the modelled curve, on-device — ranking an unlimited-retake
+practice run against the verified-first-attempt population would
+compare unlike things and muddy both claims. The lens charts (solve
+bars, field Gaussian, pace cloud) remain modelled sketches even on a
+measured result — the measured note says so explicitly, so one real
+number never dresses up four drawn ones. Drawing the Field lens from
+the public mirror is the natural next step and is recorded here as NOT
+done. The mirror's publish cadence and floor are untouched.
+
+**Verification.** `measuredPctile` is pure and pinned: null below the
+floor (the model keeps the job), strictly-below share at it, tie
+handling, both clamps, the perfect-among-perfects case, and the
+995-of-1000 rounding edge. The overlay suite drives a measured response
+end-to-end: the claim names its population, the note declares the
+sketches, and the saved result carries `source`/`n`. The submit path's
+change is read-always + branch — the emulated e2e leg remains deferred
+with D57's environmental reason.
+
+## D61 · Twenty-five items, tail-heavy: the form grows before the norms freeze it
+
+**Date:** 2026-08-06 · **Status:** Adopted (owner: "do 25 items with the
+harder tail", against the assistant's 20-item recommendation — 25 sits
+inside the owner's original 20–30 range)
+
+**Why now, and why at all.** Twelve items give thirteen raw scores and
+squeeze all top-end discrimination into the last two or three; by
+Spearman–Brown, a 0.78-reliability 12-item form reaches ≈ 0.87 at 25
+items. And D60 froze the clock: the norms histogram buckets scores by
+form length, so every verified attempt accumulated under 12 items would
+be discarded by a later change. The histogram is empty today — this is
+the last cheap moment.
+
+**The v3 ramp.** 25 slots, non-decreasing:
+`1,1 · 1.5,1.5 · 2,2,2 · 2.5,2.5,2.5 · 3,3,3,3 · 3.5,3.5,3.5,3.5 ·
+4,4,4,4 · 4.5,4.5,4.5` — eleven of twenty-five at 3.5+, against one of
+twelve in v2. Ten new families joined so every band draws from a real
+pool: `ringLatin` (w3.5); the w4 two-rule compositions
+`latinShapeSizeFill`, `outerLatinInnerLatin`, `ringGrowFill`,
+`innerGrowCycle`, `fillRampShapeCycle`; and the w4.5 tail —
+`dist2Latin` and `xorLatin` (three simultaneous rules), `ringLatinShape`
+(double distribution over a low-salience attribute), and `dist2Xor`
+(two elements under two DIFFERENT laws) — Carpenter's hardest classes.
+28 families total; band draws now yield 2·2·24·6·24·24·120·24 ≈ 9.6e8
+family sequences. The sweep caught one real ambiguity during
+construction — a skipped-ring distractor satisfying a count-only
+reading of the new ring-Latin families — closed the D53 way: the
+predicates now demand the exact consecutive ring geometry every visible
+cell teaches, the same exact-vocabulary constraint dist2's elements got.
+(The legacy `ringGrow` never had the hole live: its column counts are
+always 1 or 3, so a two-ring answer cannot occur there.)
+
+**The 25-item curve, re-derived and pinned.** `logicPctileFor(frac,
+items)` carries one logistic per form length. The v3 parameters are
+midpoint 54 (a modelled median solver clears the low bands and roughly
+half the middle: ≈13.5/25) and slope 12; landmarks pinned in both
+suites: chance (1/6) → 4, half → 42, 20/25 → 90, perfect → **98** — the
+tail-heavy ramp earns the model more ceiling than D53's 94, still
+capped below 99 because a curve still cannot rank perfect scores. The
+12-item curve keeps its historic name, parameters and pins: v1 payload
+back-fills must not re-rank, and unknown legacy lengths fall back to
+it. All of this is bootstrap only — D60's measured flip supersedes the
+model at n = 100 regardless of parameters.
+
+**Era safety, both directions.** The norms histogram now stamps the
+form length it counts (`items`); a stored histogram from another era
+ranks nothing and folds nothing, so the first current-era submit starts
+the count fresh — 12-item scores can never mix with 25-item ones. An
+attempt OPENED under gv 2 and submitted after this deploys is validated
+and scored against its own 12-item form (`logicItemsFor(gv)`), scored
+by the 12-item curve, and kept out of the 25-item histogram — the
+deadline bounds that window to minutes, but a refusal there would
+swallow an honest finisher. Reconstruction holds for every era:
+generateForm(seed, 1|2) reproduce their frozen generators, pinned by
+goldens (v2's captured pre-change, seed 11 down to full option order),
+and an unknown gv still throws.
+
+**What it costs the sitting.** Typical runs move from ~3–5 to ~6–8
+minutes (modelled median 17s/item); the worst case, every 90s clock run
+out, is 37.5 minutes, and the verified deadline is 26 × 90s = 39
+minutes. The per-item cap stays flat at 90s across all bands — a
+per-band cap would be tighter administration but a second thing to
+explain; recorded as not done.
+
+**Accepted limits, recorded.** The w1, w1.5 and w2.5 bands have pool ==
+slots, so their family SETS are fixed and only order varies — the
+variety budget went to the tail, where coaching pays most. Reliability
+numbers quoted here are still Spearman–Brown projections, not
+measurements; the odd/even split-half submission idea (D57's reflection)
+remains future work. The Answers lens draws 25 rows on a phone screen —
+scrollable and legible, but dense; redesigning it is deferred until the
+measured Field lens work touches those lenses anyway.
+
+## D62 · The test starts learning its own difficulty: family and slot solve rates
+
+**Date:** 2026-08-06 · **Status:** Adopted (owner: "add some learning to
+it so we better learn how hard each question is")
+
+**What is learnable, and from where.** Questions are generated, so there
+is no bank to rate — the difficulty-bearing units are the 28 rule
+FAMILIES (the Carpenter-prior weights D56/D61 assigned them are exactly
+the numbers worth checking) and the 25 SLOTS (same family late in the
+sitting may solve less: fatigue and time pressure are real and worth
+separating from family hardness). The only place this is honestly
+observable is a verified attempt: the server regenerates the form, so it
+alone knows which family each item was and whether the pick was right.
+Practice attempts still send nothing.
+
+**The fold.** `foldDifficultyStats` counts, per family, appearances and
+solves, and per slot, solves (`n` is every slot's exposure). It runs in
+`logicSubmitV2`'s transaction under the SAME gate as the histogram —
+verified first attempts of the current era only (D32's rule: retakes
+measure practice; D61's era stamp: 12-item stats never mix with
+25-item ones) — into `v2_logic_norms_private/families`, mirrored to
+`v2_logic_norms/families` at the same floor and cadence as everything
+else. The two docs ride the existing collections, so ZERO rules changed;
+the rules test asserts the new paths anyway, so a future rename cannot
+silently split the coverage.
+
+**What is deliberately absent.** Timings: per-item solve times are the
+strongest difficulty signal and they stay on the device, because D57
+promised exactly that in the data inventory — difficulty is learned from
+solve rates alone, and that trade is recorded here rather than quietly
+made. Anchors and uids: never attached; the ledger is counts, same
+survivability-after-deletion argument as the histogram.
+
+**The loop this exists to close, later.** With measured per-family solve
+rates, three recorded futures become data-driven instead of
+prior-driven: recalibrating the band weights (a family measurably easier
+than its band mis-prices "k of 25"), auditing the ramp's monotonicity in
+reality (slot solve rates should broadly fall left to right — if slot 19
+outsolves slot 12, the ramp lies), and replacing the Answers lens's
+modelled solve-rate bars with real ones. Each is its own decision once
+n is meaningful; nothing reads the mirror yet, matching the D60
+histogram-mirror precedent.
+
+**Verification.** Pure fold pinned from nothing, over priors, and over a
+full real form (25 distinct families seen once each — the no-repeat rule
+observed from the data side). `scoreLogicPicks` now returns the families
+alongside the marks, asserted against the generator; the wire to the
+client is unchanged (families are derivable from the disclosed seed
+post-scoring, so nothing new leaks). Rules suite covers the new doc
+paths in both collections.
