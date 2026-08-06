@@ -10,6 +10,7 @@ import { ReadRun } from './read-run.jsx';
 import { FRIENDS } from './follows.js';
 import { IS_DATA } from './sample-data.js';
 import { Av, AnonAv, anonName, Kicker, useDialog } from './primitives.jsx';
+import { IS_TEST_RESULTS } from './test-definitions.js';
 
 // Expanded Person profile — a detailed portrait of similarity
 // Replaces the basic PersonOverlay registered in overlays.jsx
@@ -260,7 +261,7 @@ function PersonOverlay({ p: rawP, onClose, me }) {
           // derivePerson — derive them the same way: their dims drift off yours,
           // deterministically per person, pulled closer the higher the match
           const drifted = (kind) => {
-            const R = (window.IS_TEST_RESULTS || {})[kind];
+            const R = IS_TEST_RESULTS[kind];
             if (!R || !R.dims || !R.dims.length) return null;
             const pull = Math.max(0, Math.min(1, ((p.match || 60) - 35) / 65));
             const out = {};

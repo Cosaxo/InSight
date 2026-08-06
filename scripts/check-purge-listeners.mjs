@@ -9,11 +9,11 @@
 // mutation. So deleting the keys was only half the wipe: the in-memory
 // copy survived, and one interaction resurrected the previous account's
 // data under the new uid. lens-defs shipped that way — its reset() even
-// carried a comment claiming the wipe contract, with no caller (D47).
+// carried a comment claiming the wipe contract, with no caller (D49).
 //
 // The fix is an announcement: purgeLocalTrace dispatches
 // `insight:local-purge`, and each store drops to its fresh-boot state on
-// hearing it (D48). This script is what keeps that from decaying the way
+// hearing it (D50). This script is what keeps that from decaying the way
 // reset() did: a NEW store that persists an insight.* key and forgets the
 // listener fails here, with the fix in the error message.
 //
@@ -58,7 +58,7 @@ const EXEMPT = {
     "saves read the progress map fresh from storage each time and touch "
     + "only their own test's entry — nothing old is spread back",
   "src/v2/data/logic-score.ts":
-    "stateless helpers (D50): the result loads per mount and every save "
+    "stateless helpers (D52): the result loads per mount and every save "
     + "writes a whole fresh attempt — no module-scope copy exists to go "
     + "stale or be spread back",
   "src/v2/spec/profile-general.jsx":

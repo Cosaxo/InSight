@@ -9,6 +9,7 @@ import { HAPTIC } from './haptics.js';
 import { WF_CATALOGS } from './world-catalogs.js';
 import { Sheet } from './primitives.jsx';
 import ReactDOM from 'react-dom';
+import { PASSIVE } from './passive-progress.js';
 
 // world-feed.jsx — the question feed under the World daily. Answer today's
 // question and the feed starts: dilemmas, this-or-thats, rankings and image
@@ -289,7 +290,7 @@ class WorldFeed extends React.Component {
     this._unsubSubs = window.SUBTOPICS ? window.SUBTOPICS.subscribe(() => this.forceUpdate()) : null;
     this._unsubLearn = window.LEARN ? window.LEARN.subscribe(() => this.forceUpdate()) : null;
     this._unsubLF = window.LEARN_FEED ? window.LEARN_FEED.subscribe(() => this.forceUpdate()) : null;
-    // The purge (data/live.ts, D48): this component PERSISTS four of its
+    // The purge (data/live.ts, D50): this component PERSISTS four of its
     // maps (votes, passed, takes, replies) by spreading state back to the
     // keys the purge just removed — and it stays mounted across a uid
     // change, so without this drop the previous account's maps survive on
@@ -380,7 +381,7 @@ class WorldFeed extends React.Component {
 
   setVote(q, val) {
     const id = q.id;
-    // A selfOnly card (a live session's lens question — lens-defs.js, D47)
+    // A selfOnly card (a live session's lens question — lens-defs.js, D49)
     // has authored counts and no measurement behind them, so every side
     // effect below that reads the "crowd" — the majority bit, the beat, the
     // ripple's Mirror claim, the why-prompt — would be fabricated. The lens
@@ -388,7 +389,7 @@ class WorldFeed extends React.Component {
     const selfOnly = !!q.selfOnly;
     // live cards persist to Firestore too (owner-only answer + aggregate)
     if (q.live && window.LIVE && typeof val === 'number') window.LIVE.vote(id, String(val));
-    if (window.PASSIVE) window.PASSIVE.record(q); // no-op unless this is a test's own question (q.test)
+    PASSIVE.record(q); // no-op unless this is a test's own question (q.test)
     // …and the same for a lens question. The scale runs agree→disagree while
     // the lens stores disagree→agree, hence 4 - val.
     if (window.LENSES && q.lens) window.LENSES.record({ ...q, value: typeof val === 'number' ? 4 - val : 2 });
@@ -1055,7 +1056,7 @@ class WorldFeed extends React.Component {
     );
   }
 
-  // The selfOnly counterpart (D47): a lens question in a live session
+  // The selfOnly counterpart (D49): a lens question in a live session
   // records to the on-device instrument and nowhere else — no backend
   // aggregates lens answers, so there is no split to reveal at any k.
   // Where every other card answers with the crowd, this one answers with
@@ -1084,7 +1085,7 @@ class WorldFeed extends React.Component {
     // Below the k-floor there are no numbers to lay out, so the tile
     // treatment — whose whole point is that height IS share — would be
     // drawing a split it has not been told. Bars degrade honestly. A
-    // selfOnly card (a live session's lens question — D47) is the same
+    // selfOnly card (a live session's lens question — D49) is the same
     // problem wearing authored counts: numbers exist, a measurement does
     // not, so it takes the bars path too.
     const floored = !!(q.live && q.tooSmall) || !!q.selfOnly;
@@ -1202,7 +1203,7 @@ class WorldFeed extends React.Component {
     const { p } = wfPcts(counts, mine);
     const maxP = Math.max(...p);
     const fresh = this._fresh === q.id;
-    // selfOnly (D47): the fill width IS the share in a different alphabet
+    // selfOnly (D49): the fill width IS the share in a different alphabet
     // (D11's phrase, same reasoning), so it is gated together with the
     // numeral — the option rows stay, carrying only the label and your pick.
     const noCrowd = !!q.selfOnly;
@@ -1360,7 +1361,7 @@ class WorldFeed extends React.Component {
     // live build dropped into the mock fallback, where the synthetic
     // splits and the fake named people below would both be lies.
     if (window.LIVE && window.LIVE.demoInProd) return null;
-    // A selfOnly card (live-session lens question — D47) has no crowd
+    // A selfOnly card (live-session lens question — D49) has no crowd
     // behind it: takes, who-voted and the votes-count footer would all be
     // authored demo numbers wearing a live badge. The whole row goes, the
     // same way it does for demoInProd — the card's own note
@@ -2319,7 +2320,7 @@ class WorldFeed extends React.Component {
       const m = done.order.filter((it, pos) => q.crowd[it] === pos + 1).length;
       return <span style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--ink-3)' }}>ranked{' · '}{m}/{q.items.length} with the crowd</span>;
     }
-    // selfOnly (D47): a thin bar is still a split — the collapsed card
+    // selfOnly (D49): a thin bar is still a split — the collapsed card
     // keeps its silence too.
     if (q.selfOnly) return null;
     const mine = this.state.votes[q.id];
@@ -2344,7 +2345,7 @@ class WorldFeed extends React.Component {
         </button>
       );
     }
-    const tm = q.test && window.PASSIVE ? window.PASSIVE.META[q.test] : null;
+    const tm = q.test ? PASSIVE.META[q.test] : null;
     // a lens question wears its lens's own name and hue, the same way a test
     // question wears its test's — otherwise it reads as an off-topic card
     const lz = !tm && q.lens && window.LENSES ? window.LENSES.get(q.lens) : null;

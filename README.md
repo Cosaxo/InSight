@@ -71,13 +71,16 @@ firestore.rules    the access model (owner-only answers, k-floored aggs,
                    member-only groups/reveals) — 44 emulator tests
 firestore.rules.v1-archive  the retired v1 client rules (D4) — reference,
                    NOT deployed
-monitoring/        Cloud Monitoring policies, applied by hand rather than
-                   by the pipeline (DEPLOYMENT.md § Alerting)
+monitoring/        Cloud Monitoring policies, put live by
+                   `npm run monitoring:apply` rather than by the pipeline
+                   (DEPLOYMENT.md § Alerting); plus the pulse console's
+                   rate card and its day-by-day trail
+                   (`npm run pulse` — MONITORING.md, D47)
 content/           canonical question banks & archetypes (seed source)
 design/            the frozen design spec (read-only reference)
 docs/              DECISIONS · SCHEMA-V2 · DEPLOYMENT · LOCAL-TESTING ·
                    SHIP-CHECKLIST · LAUNCH-RUNBOOK · data-inventory ·
-                   DEVICE-BIND · MONETIZATION · COSTS
+                   DEVICE-BIND · MONETIZATION · COSTS · MONITORING
 ```
 
 ## Testing & CI

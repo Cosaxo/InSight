@@ -53,7 +53,7 @@ import { IS_DATA } from './sample-data.js';
   const listeners = new Set();
   const fire = () => listeners.forEach((f) => { try { f(); } catch (e) { /* one listener throwing must not stop the others being notified. */ } });
   const save = () => { try { localStorage.setItem(LS, JSON.stringify(S)); } catch (e) { /* localStorage can throw: private mode, quota, disabled storage. Persistence here is best-effort and the in-memory state stays correct. */ } fire(); };
-  // The purge (data/live.ts, D48): drop your duel answers, groups and 1v1
+  // The purge (data/live.ts, D50): drop your duel answers, groups and 1v1
   // edits too, or the next answer's save() writes the previous account's
   // back under the new uid. fire() without save() — do not re-create the
   // purged key.

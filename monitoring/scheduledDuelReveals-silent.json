@@ -1,0 +1,31 @@
+{
+  "displayName": "scheduledDuelReveals has gone quiet",
+  "documentation": {
+    "content": "The duel reveal scan has not completed a scheduled run in 6 hours.\n\nWhy this is an ABSENCE alert and not an error alert. The other two policies watch a trigger that runs when a user acts; this watches a cron. A cron's characteristic failure is not throwing — it is not running: Cloud Scheduler stops firing, the function is dropped from a deploy's --only list, or the revision fails to start. None of those log an error, because nothing executes. An error policy on this function would stay green through every one of them, which is the same shape of false comfort as a gate that runs nowhere.\n\nAbsence covers the crash case too, just later: a run that throws never reaches the heartbeat, so the metric stops either way. That is the trade — one condition that cannot miss, against ~6h of detection latency on a loop whose deadline is the next day.\n\nWhat fires it: `runDuelReveals` (functions/src/v2social.ts) logs `metric: duel_reveal_run` on every completed scan. The log-based metric behind this policy filters on `jsonPayload.mode=\"indexed\"` — the schedule's mode — so a manual `revealDuelsNowV2` run (which defaults to \"full\") does NOT reset the timer. An operator poking the lever during an incident would otherwise silence the alert for the outage they are working on.\n\nWhat it means. The schedule is every 120 minutes, so 6h is three consecutive missed runs — loose enough to ride out one delayed invocation, tight enough to catch a dead scheduler well inside the one-day window a reveal promises. While it is quiet, sealed duel answers accumulate unrevealed: rules keep accepting answers for the day (creation is gated on the reveal doc NOT existing), so nothing is lost, but every duo and group sees yesterday's cards stay face down and shared streaks stall.\n\nFirst response is to run the lever and confirm the data path, not to redeploy: `revealDuelsNowV2` does the FULL scan and catches up whatever the indexed path missed. If that succeeds, the scan works and the scheduler is the fault — check Cloud Scheduler and that scheduledDuelReveals is still in firebase-deploy.yml's --only list (`npm run check:deploy-targets` proves the second one from source). If it fails, read the error: FAILED_PRECONDITION carrying a console link means the array-contains index assumption in runDuelReveals did not hold in production — add the index and let the next scheduled run catch up.\n\nKNOWN LIMIT, and the reason this policy is applied last. A metric-absence condition needs a time series that has existed at least once; against a metric that has never received a point, it does not fire. So this alert is blind to \"the scheduled reveal never worked at all\" and only ever proves \"it worked and then stopped.\" Apply it after the first successful scheduled run has been observed in the logs — `npm run monitoring:apply` will happily create it before that, and it would sit green and mean nothing. Verified against the metric's own emptiness, not assumed.\n\nFull runbook: docs/DEPLOYMENT.md, 'Alerting'.",
+    "mimeType": "text/markdown"
+  },
+  "combiner": "OR",
+  "conditions": [
+    {
+      "displayName": "no completed scheduled reveal scan for 6 hours",
+      "conditionAbsent": {
+        "filter": "metric.type=\"logging.googleapis.com/user/duel_reveal_run\"",
+        "duration": "21600s",
+        "aggregations": [
+          {
+            "alignmentPeriod": "3600s",
+            "perSeriesAligner": "ALIGN_SUM"
+          }
+        ]
+      }
+    }
+  ],
+  "alertStrategy": {
+    "notificationRateLimit": {
+      "period": "3600s"
+    },
+    "autoClose": "604800s"
+  },
+  "enabled": true,
+  "notificationChannels": []
+}

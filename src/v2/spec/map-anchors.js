@@ -5,6 +5,7 @@
 // guards the wiring in CI.
 import React from 'react';
 import { IS_DATA } from './sample-data.js';
+import { IS_TEST_RESULTS } from './test-definitions.js';
 
 // InSight — Map anchors: the profile facts every daily answer reads against.
 // Eight anchors — age, work, study, plus the five test results — sit in a ring
@@ -14,7 +15,7 @@ import { IS_DATA } from './sample-data.js';
 (function () {
   // ── anchor definitions ─────────────────────────────────────────────────────
   function topDims(key, n) {
-    const R = (window.IS_TEST_RESULTS || {})[key];
+    const R = IS_TEST_RESULTS[key];
     if (!R || !R.dims) return '';
     return R.dims.slice().sort((a, b) => b.value - a.value).slice(0, n || 2)
       .map((d) => d.label + ' ' + d.value).join(' · ');
@@ -33,7 +34,7 @@ import { IS_DATA } from './sample-data.js';
     ];
   }
   function tTaken(key) {
-    const R = (window.IS_TEST_RESULTS || {})[key];
+    const R = IS_TEST_RESULTS[key];
     return R && R.taken ? (R.title + ' · taken ' + R.taken) : '';
   }
 

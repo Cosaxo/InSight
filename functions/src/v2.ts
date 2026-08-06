@@ -89,7 +89,7 @@ const PUBLISH_EVERY = 5;
 // check:content holds v2content.ts byte-identical to /content on the deploy
 // path, so a new political item joins this set by existing.
 //
-// Two markers, one set (D49). `test === "political"` is the political
+// Two markers, one set (D51). `test === "political"` is the political
 // TEST's own items. `political === true` is the same Art. 9 judgement
 // applied to ordinary opinion cards — a feed question like "Should voting
 // be mandatory?" is a political opinion in exactly the sense this set

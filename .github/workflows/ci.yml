@@ -44,6 +44,14 @@ jobs:
       # about whether a rules fix is safe to deploy, and this repo's rule is
       # that nothing which cannot answer that question gets to block one.
       - run: npm run check:figures
+      # The pulse console's collectors and renderer. Same placement rule and
+      # the same reason: this is tooling, not the product, and nothing it
+      # says bears on whether a rules fix is safe to deploy. Note this is the
+      # console's STRUCTURE — that its constants still match the source they
+      # claim to read, that a gap in the trail is drawn as a gap, that the
+      # scorecard path renders. The console's own operator gate (`pulse
+      # --check`) is a different thing and is on a schedule, not here (D47).
+      - run: npm run test:scripts
       # Accessibility, as a ratchet rather than a pass/fail sweep: the known
       # findings are recorded per file and this fails when a file gains one.
       # It is its own gate because `npm run lint` carries --max-warnings 0,
@@ -59,9 +67,9 @@ jobs:
       # whether a rules fix is safe to deploy.
       - run: npm run check:labels
       # Every store that persists insight.* state must hear the purge
-      # (insight:local-purge, D48) — deleting the keys is only half the
+      # (insight:local-purge, D50) — deleting the keys is only half the
       # wipe when the in-memory copy writes itself back on the next
-      # mutation. lens-defs shipped exactly that hole (D47). Client-only,
+      # mutation. lens-defs shipped exactly that hole (D49). Client-only,
       # same argument as above for staying off backend-checks.yml.
       - run: npm run check:purge
       # Five version numbers that must move together across three files.

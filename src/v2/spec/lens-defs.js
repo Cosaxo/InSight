@@ -365,7 +365,7 @@ window.LENS_FEED_QS = (function () {
         // answers stay on this device (the persistence note above), so no
         // backend aggregate exists to draw. The flag tells world-feed to
         // keep every crowd surface off the card and acknowledge the local
-        // write instead of rendering a split (D47).
+        // write instead of rendering a split (D49).
         if (live) card.selfOnly = true;
         return card;
       });

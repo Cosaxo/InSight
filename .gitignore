@@ -96,3 +96,17 @@ functions/coverage/
 # in which mode, and what was flagged. The feature graphic is tracked
 # too — that one is a finished asset, not a preview.
 design/store/screenshots/*/*.png
+
+# The pulse console's outputs. Only the TRAIL is committed
+# (monitoring/pulse-trail.jsonl) — it is the one file here carrying
+# information the tree does not already hold, namely what the numbers were on
+# days nobody is looking at any more.
+#
+# pulse.json was committed at first and should not have been: it is derivable
+# from the tree plus today's date, and `runwayDays` moves every midnight by
+# construction, so committing it means a bot commit every single day forever
+# for a file anyone can regenerate in a second. The trail already carries the
+# figures worth diffing (burn, runway, alert coverage), so the "reviewable
+# diff" argument it was committed for is served without the churn.
+monitoring/pulse.json
+monitoring/pulse.html

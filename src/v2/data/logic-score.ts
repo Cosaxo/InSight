@@ -36,7 +36,7 @@ export const FIELD_MED = 17;
 // (~7.4 of 12) and slope 14 — chosen values, pinned in logic-score.test.ts:
 //   chance (2 of 12 with six options) → 4 · 6/12 → 30 · 12/12 → 94.
 //
-// The 94 ceiling is DELIBERATE (D50): a perfect score is the test's
+// The 94 ceiling is DELIBERATE (D52): a perfect score is the test's
 // ceiling, and a ceiling cannot distinguish "better than 94%" from "better
 // than 99%" — the honest claim stops where the instrument does. The floor
 // clamps to 1 for the symmetric reason.

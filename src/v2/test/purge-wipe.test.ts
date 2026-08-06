@@ -3,7 +3,7 @@
 // The other half of scripts/check-purge-listeners.mjs: the scan proves a
 // store REGISTERS for `insight:local-purge`; these cases prove what the
 // listeners DO. Each store is driven through the resurrection scenario the
-// event exists to prevent (D47/D48):
+// event exists to prevent (D49/D50):
 //
 //   1. seed    — mutate through the public API; the insight.* key exists;
 //   2. purge   — remove every insight.* key and dispatch the event,
@@ -44,6 +44,13 @@ import { DAILYQ } from "../spec/daily-questions.js";
 import "../spec/duels-data.js";
 // @ts-expect-error TS7016 — untyped spec module
 import { IS_DATA } from "../spec/sample-data.js";
+// test-definitions left the global bridge (#85): the mirror and its persist
+// are named exports now, no window aliases remain.
+// @ts-expect-error TS7016 — untyped spec module
+import { IS_TEST_RESULTS, persistTestResult } from "../spec/test-definitions.js";
+// …as is passive-progress since the same conversion sweep.
+// @ts-expect-error TS7016 — untyped spec module
+import { PASSIVE } from "../spec/passive-progress.js";
 
 /* eslint-disable @typescript-eslint/no-explicit-any -- the spec layer's
    window surface is untyped by design; these tests drive it as consumers do */
@@ -69,7 +76,7 @@ beforeEach(() => {
   purge();
 });
 
-describe("module stores drop their memory on the purge (D48)", () => {
+describe("module stores drop their memory on the purge (D50)", () => {
   it("FEEDREAD: the read-room log", () => {
     W.FEEDREAD.log("purge-w-1", { maj: true });
     expect(W.FEEDREAD.stats().n).toBe(1);
@@ -115,13 +122,13 @@ describe("module stores drop their memory on the purge (D48)", () => {
   });
 
   it("PASSIVE: test progress does not inflate the next account's rings", () => {
-    const base = W.PASSIVE.passiveDone("values");
-    W.PASSIVE.record({ id: "purge-tq-1", test: "values" });
-    expect(W.PASSIVE.passiveDone("values")).toBe(base + 1);
+    const base = PASSIVE.passiveDone("values");
+    PASSIVE.record({ id: "purge-tq-1", test: "values" });
+    expect(PASSIVE.passiveDone("values")).toBe(base + 1);
     purge();
-    expect(W.PASSIVE.passiveDone("values")).toBe(base);
+    expect(PASSIVE.passiveDone("values")).toBe(base);
     expect(stored("insight.passive.v1")).toBeNull();
-    W.PASSIVE.record({ id: "purge-tq-2", test: "values" });
+    PASSIVE.record({ id: "purge-tq-2", test: "values" });
     const after = stored("insight.passive.v1")!;
     expect(after).toContain("purge-tq-2");
     expect(after).not.toContain("purge-tq-1");
@@ -222,17 +229,17 @@ describe("module stores drop their memory on the purge (D48)", () => {
     // The fresh-boot state of this object is the demo literal plus an
     // empty saved overlay — not an empty object — so the listener must
     // restore, not clear (test-definitions.js says why).
-    const demoBig5 = JSON.stringify(W.IS_TEST_RESULTS.big5);
-    W.IS_persistTestResult("values", { title: "V", taken: "now", dims: [], sentinel: "purge-zz" });
-    expect(W.IS_TEST_RESULTS.values.sentinel).toBe("purge-zz");
+    const demoBig5 = JSON.stringify(IS_TEST_RESULTS.big5);
+    persistTestResult("values", { title: "V", taken: "now", dims: [], sentinel: "purge-zz" });
+    expect(IS_TEST_RESULTS.values.sentinel).toBe("purge-zz");
     expect(stored("insight.testResults.v2")).toContain("purge-zz");
     purge();
-    expect(W.IS_TEST_RESULTS.values?.sentinel).toBeUndefined();
-    expect(JSON.stringify(W.IS_TEST_RESULTS.big5)).toBe(demoBig5);
+    expect(IS_TEST_RESULTS.values?.sentinel).toBeUndefined();
+    expect(JSON.stringify(IS_TEST_RESULTS.big5)).toBe(demoBig5);
     expect(stored("insight.testResults.v2")).toBeNull();
     // the persist path reads storage fresh, so the next save carries only
     // the new account's result
-    W.IS_persistTestResult("big5", { title: "B", taken: "now", dims: [] });
+    persistTestResult("big5", { title: "B", taken: "now", dims: [] });
     expect(stored("insight.testResults.v2")).not.toContain("purge-zz");
   });
 });

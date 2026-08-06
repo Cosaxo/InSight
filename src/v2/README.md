@@ -370,7 +370,7 @@ survivable enough to live with indefinitely.
 **Rule 4** counts every site where one file reads a name another file
 assigns to global scope, per file, and the number may only go down. The
 baseline is in `scripts/check-spec-globals.mjs`; `npm run check:globals`
-prints the current total on every run. The count today is **619 across 51
+prints the current total on every run. The count today is **539 across 45
 files**, down from 799 when the ratchet landed.
 
 The mechanism needs no bookkeeping, which is what makes it usable. The
@@ -533,34 +533,81 @@ names from the global namespace to export four. Expect that ratio again —
 the bridge published everything, so a converted module usually exports
 fewer names than it used to publish.
 
-**This is the end of the cheap seam.** Six providers are converted and the
-pure-provider list is now empty. What remains is 657 references
-concentrated in files that are *consumers*, not providers —
-`world-feed.jsx` (165), `daily-split.jsx` (79), `app-shell.jsx` (51),
-`mirror-field-pops.jsx` (33), `map-tab.jsx` (30), `test-overlay.jsx` (27) —
-and their providers are the cycle cluster (`test-definitions.js`,
-`passive-progress.js`, `daily-split.jsx` itself). Converting those in place
-means ESM cycles, which fail at render with a TDZ error, which is this
-layer's worst bug class.
+**This was called the end of the cheap seam**, on the reading that the six
+converted modules were pure providers and everything left was a consumer
+whose own providers sat in an import cycle. The second half of that was
+wrong — see the next section.
 
-The next step there is **not** another conversion. It is the extraction
-described above: move `passive-progress` and `test-definitions` into
-`data/` as typed, tested modules, which dissolves both cycles as a side
-effect. That is a different size of change and should be planned as one.
+### `test-definitions.js` + `passive-progress.js` — and a cycle that was not one
 
-Until then the ratchet holds the line, and the cheapest way to keep the
-number moving is **convert on touch**: when a feature takes you into a spec
-file, convert the providers it reads first.
+657 → 540, the largest single drop since the ratchet landed, across 18
+consumer files. Both modules had been named in this file as the ones
+**not** to start with, on the grounds that they formed import cycles:
+`test-definitions.js ↔ daily-split.jsx`, and a six-hop loop through
+`app-shell.jsx → passive-meter.jsx → passive-progress.js →
+test-definitions.js → daily-split.jsx → world-feed.jsx → app-shell.jsx`.
 
-**What NOT to start with.** The layer has import cycles, and they cluster:
-`test-definitions.js ↔ daily-split.jsx`, and `app-shell.jsx →
-passive-meter.jsx → passive-progress.js → test-definitions.js →
-daily-split.jsx → world-feed.jsx → app-shell.jsx`. Those are the files
-where the global bridge is genuinely load-bearing rather than merely
-legacy — ESM handles cyclic value bindings badly, and the failure is a
-temporal-dead-zone error that appears only at render, which is this
-layer's worst class of bug. Dissolve them instead: `passive-progress` and
-`test-definitions` are a store and a schema, neither needs JSX, and moving
-them to `data/` the way `deck.ts` and `groupPortrait.ts` were extracted
-takes both cycles out as a side effect — with tests, which the versions in
-`spec/` cannot have.
+**Neither cycle existed.** Checked by building the reference graph out of
+`spec-globals.mjs`'s own `definedBy`/`referenced` maps — the same data
+rule 4 counts — rather than by reading the paragraph again:
+
+- `test-definitions.js` had **no outgoing reference into `daily-split.jsx`
+  at all**, and only one outgoing edge of any kind: `window.LIVE`. It was a
+  pure provider with 17 consumers the whole time. The claimed edge back to
+  `daily-split.jsx` was never there.
+- `passive-progress.js` did produce a real edge, and it was an artifact of
+  the same multi-writer attribution that `world-catalogs.js` exposed once
+  already. It read `IS_TEST_RESULTS`; `test-definitions.js` creates that
+  object, and `daily-split.jsx` **also assigned it** — in an `else` branch
+  that ran only when `test-definitions.js` had not loaded. `definedBy` is a
+  `Set`, so the graph drew an edge to both writers, and the second one
+  closed a loop.
+
+So the fallback was the cycle. Converting `test-definitions.js` made
+`persistTestResult` always present, which made that `else` unreachable;
+deleting it removed `daily-split.jsx` as a writer of the name, and the loop
+with it. The lesson is the one the `WORLD_FEED_QS` correction already
+taught, arriving from the other direction: **a multi-writer global does not
+just miscount the meter, it can invent a dependency that no code has.**
+Verify a cycle against the graph before planning around it — this one had
+been load-bearing in the docs for long enough to defer its own fix.
+
+Two shapes worth expecting again:
+
+- **A defensive fallback is a second writer.** `daily-split.jsx`'s
+  `else { window.IS_TEST_RESULTS = window.IS_TEST_RESULTS || {}; … }` was
+  the same class of thing as `result-card.jsx`'s `{window.Av ? …}` — a
+  guard that existed only because a global could be unset. It read as
+  robustness and behaved as coupling.
+- **`window.X` and the exported name need not match.** Consumers reached
+  the persist function as `window.IS_persistTestResult`; the function is
+  `persistTestResult` and exports under that name. The bridge let a
+  publisher rename what it published, so do not assume the global's
+  spelling is the export's.
+
+What remains at 540 is genuinely consumer-side: `world-feed.jsx` (155),
+`app-shell.jsx` (43), `profile-overlay.jsx` (28), `profile-general.jsx`
+(22), `result-card.jsx` (17). `daily-split.jsx` and `test-overlay.jsx`,
+which this change took to 0 and 2, are no longer on that list.
+
+**These two are still worth moving to `data/` eventually** — as typed,
+tested modules, the way `deck.ts` and `groupPortrait.ts` were extracted.
+`passive-progress.js` in particular is pure arithmetic over a store
+(`pct`, `done`, `passiveDone`, `prefill`) with no JSX and no test. That is
+now an ordinary refactor rather than a cycle-breaking prerequisite, which
+is the whole difference this change made.
+
+**What NOT to start with.** The layer still has reference cycles, and they
+are still where the global bridge is load-bearing rather than merely
+legacy: ESM handles cyclic value bindings badly, and the failure is a
+temporal-dead-zone error that appears only at render, which is this layer's
+worst class of bug. What is deliberately **not** written here is which
+files, or how many. That is a question for the graph, and a hand-maintained
+answer in this paragraph is what deferred these two modules for the whole
+life of the port. Build the edges from `collectSpecGlobals()`'s
+`definedBy`/`referenced` maps and read the answer off the tree.
+
+Two things that probe cheaply and are worth doing before planning around a
+cycle at all: a global-reference cycle is not an ESM import cycle (`spec/`
+currently has none of the latter), and a name with more than one writer can
+manufacture an edge that no code actually has.
