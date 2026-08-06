@@ -5836,6 +5836,23 @@ array. Refusing either would wedge the seed permanently.
 retire a question, or append a new qid to replace it. Neither goes through
 this code.
 
+**`runSeedV2` takes its `Firestore` as an argument now**, following
+`runAggTransaction`'s precedent, and the reason is the whole point of this
+record. The guarantee is about what the seed *refuses to write*, and a
+`getFirestore()` inside the body would have made that refusal untestable
+without an emulator — which is the same shape as the gap being closed
+here. `seed.test.ts` drives the real function against a stand-in db and
+asserts the refused document is never written, the allowed prompt fix in
+the same run still is, a create is never refused, and the run's own log
+does not count a refusal as "unchanged". Mutation-checked: deleting the
+four-line guard from `runSeedV2` fails four of the six, and the two that
+survive are the controls that should pass either way.
+
+Testing the predicate alone would not have been enough, and the
+distinction matters: `seedOptionConflict` answering perfectly while
+nothing called it looks identical in `pure.test.ts` and still loses every
+historical vote on the edited question.
+
 **Not done: the CI-side manifest.** A committed snapshot of every shipped
 option set, diffed by `check:content`, would catch the edit one step
 earlier — at review rather than at seed. It is redundant with this, needs

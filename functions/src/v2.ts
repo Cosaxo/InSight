@@ -242,8 +242,18 @@ const CATALOG_DOMAINS: Record<string, CatalogSpec> = {
 
 // ── content seed ────────────────────────────────────────────────
 
-async function runSeedV2(bumpRev = false): Promise<{ written: number; skipped: number }> {
-  const db = getFirestore();
+/**
+ * Exported and db-injected for the same reason runAggTransaction is: the
+ * refusal below (D58) is a guarantee about what this function REFUSES to
+ * write, and a guarantee nothing executes is a comment. `getFirestore()`
+ * inside the body would have made the enforcement untestable without an
+ * emulator — which is exactly the gap that let the invariant go unenforced
+ * for as long as it did. seed.test.ts drives it with a stand-in.
+ */
+export async function runSeedV2(
+  db: Firestore,
+  bumpRev = false,
+): Promise<{ written: number; skipped: number }> {
   const refs = V2_QUESTIONS.map((q) => db.collection("v2_questions").doc(q.id));
   // `active` is the operational kill switch — the seed must never flip a
   // question ops disabled back on, so it is only written on first create.
@@ -375,7 +385,7 @@ export const seedContentV2 = onCall({ region: REGION }, async (request) => {
   // bumpRev forces the full cache invalidation the seed no longer spends
   // by default — see runSeedV2. Use it after flipping `active` by hand in
   // the console; ordinary content growth does not need it.
-  return runSeedV2(request.data?.bumpRev === true);
+  return runSeedV2(getFirestore(), request.data?.bumpRev === true);
 });
 
 // ── answer → aggregate ──────────────────────────────────────────
