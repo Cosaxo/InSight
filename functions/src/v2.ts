@@ -63,7 +63,9 @@ export const AGG_MIN_N = 5;
 // there is visible. True, and beside the point: the small-question case is
 // exactly where a per-answer stream is most attributable, because there are
 // few enough voters to guess among.
-const PUBLISH_EVERY = 5;
+// Exported since D57: the logic norms histogram publishes its public
+// mirror on the same cadence, for the same attribution argument.
+export const PUBLISH_EVERY = 5;
 
 // ── questions that never slice (D44) ────────────────────────────
 //

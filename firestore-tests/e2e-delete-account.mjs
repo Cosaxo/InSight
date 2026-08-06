@@ -73,6 +73,10 @@ await adb.doc(`v2_users/${uid}/answers/daily-000`).set({ qid: "daily-000", optio
 // erasure must cover it identically, and this seed is what proves the
 // claim instead of assuming the recursiveDelete reaches it.
 await adb.doc(`v2_users/${uid}/answers/learn-cell1`).set({ qid: "learn-cell1", surface: "learn", optionIdx: 2 });
+// The verified-logic attempt doc (D57) sits in its own top-level
+// collection keyed by uid — outside the subtree recursiveDelete reaches —
+// so erasure needs (and has) a dedicated phase, proven here.
+await adb.doc(`v2_logic_attempts/${uid}`).set({ seed: 7, gv: 2, status: "scored", score: 9 });
 await adb.doc(`insight_users/${uid}`).set({ sharePrefs: {} });
 await adb.doc(`insight_users/${uid}/insight_daily/${DAY}`).set({ date: DAY, mood: 60 });
 await adb.doc(`insight_discoverable/${uid}`).set({ location: { geohash: "u4pru" } });
@@ -185,6 +189,7 @@ for (const [path, label] of [
   [`v2_users/${uid}`, "v2 profile"],
   [`v2_users/${uid}/answers/daily-000`, "v2 answer"],
   [`v2_users/${uid}/answers/learn-cell1`, "learn answer (D32)"],
+  [`v2_logic_attempts/${uid}`, "verified logic attempt (D57)"],
   [`insight_users/${uid}`, "v1 profile"],
   [`insight_discoverable/${uid}`, "discoverable doc"],
   [`insight_ratelimits/${uid}`, "v1 rate-limit ledger"],
@@ -266,6 +271,7 @@ for (const [path, label] of [
   [`v2_users/${uid}/answers/daily-000`, "v2 answer (subcollection)"],
   [`v2_users/${uid}/answers/learn-cell1`, "learn answer (subcollection, D32)"],
   [`v2_users/${uid}/answers/client-written`, "client-written answer"],
+  [`v2_logic_attempts/${uid}`, "verified logic attempt (D57)"],
   [`insight_users/${uid}`, "v1 profile"],
   [`insight_users/${uid}/insight_daily/${DAY}`, "v1 daily report (subcollection)"],
   [`insight_discoverable/${uid}`, "discoverable doc"],

@@ -206,6 +206,19 @@ export const deleteAccount = onCall(
       failed.push("v2Subtree");
     }
 
+    // 1b1. The verified-logic attempt doc (D57) — keyed by uid in its own
+    // collection, so the subtree wipe above never reaches it. It holds the
+    // account's seed, score and timing; the anonymous norms HISTOGRAM the
+    // first attempt fed stays, same as the k-floored question aggregates a
+    // deleted account's answers fed (and unlike those, it has no uid
+    // ledger to scrub — the count was never attributable to begin with).
+    try {
+      await db.collection("v2_logic_attempts").doc(uid).delete();
+    } catch (err) {
+      logger.error("[deleteAccount] logic attempt wipe failed:", err);
+      failed.push("logicAttempt");
+    }
+
     // 1b2. Wipe the user's takes and flags (docs/MODERATION.md). Both
     // live in top-level collections keyed by takeId — outside the
     // v2_users subtree 1b erased — so right-to-erasure has to query them
@@ -549,3 +562,4 @@ export { activateDeviceV2 } from "./deviceBind";
 // D54: the daily ledger velocity scan — detection for D28's correction
 // story. Logs flags for manual review; never denies a vote.
 export { ledgerVelocityScan } from "./velocity";
+export { logicStartV2, logicSubmitV2 } from "./logic";

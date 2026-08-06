@@ -5033,7 +5033,6 @@ result, not a history, matches the device-local minimalism of D31. The
 test is inherently visual; options are labelled by position for assistive
 tech, and a non-visual rendering of a matrix test is out of scope rather
 than pending.
-
 ---
 
 ## D28 amendment (2026-08-06) · Identity verification (passport / driver's licence class) recorded as a possible future requirement
@@ -5578,3 +5577,213 @@ a duel answer for a day preceding the member's join. That is a change to the
 densest rule in the file, whose failure mode the file itself describes as "a
 vote that vanishes", and it would refuse the legitimate fresh-group case
 above. It is a decision of its own and is deliberately not taken here.
+
+## D56 · The logic test stops telegraphing its rules: banded families, and every puzzle is on the clock
+
+**Date:** 2026-08-06 · **Status:** Adopted (owner: "the biggest impact"
+inside the D31 posture)
+
+**The problem.** D31 made every attempt's puzzles fresh, but deliberately
+fixed the family SEQUENCE — item 3 was always a shape cycle, items 9–11
+always Latin squares. That fixed order was the one piece of a fresh form a
+repeat taker still knew in advance: with thirteen families in a known
+order, the test was coachable per slot, which converts fluid reasoning
+into partly-practiced pattern matching. Separately, an attempt had no time
+bound at all — an item could be held open indefinitely, which is neither
+how matrix tests are administered nor neutral against mid-item consulting,
+and D53 had already recorded unbounded backgrounded time as an accepted
+timing skew.
+
+**What changed (generator v2).** The twelve slot WEIGHTS are untouched —
+`1,1,1.5,2,2,2,2.5,2.5,3,3,3,3.5` is the calibration D31 anchored
+`logicPctile` to, and it does not move. What varies is which family
+occupies a slot: each weight band draws from a pool, without replacement,
+on its own seeded stream. Five families joined so every band has a real
+pool: `sizeCycle` (w1.5), `dotSub` (w2), `innerGrow` (w2.5), `latinDots`
+(w3) and `overlayXor` (w3.5 — Carpenter's figure
+addition-and-subtraction, the classic APM tail motif). The arithmetic:
+band draws yield 2·2·24·6·24·3 = **41,472 family sequences** (ordered
+draws: 2! · C(2,1) · P(4,3) · P(3,2) · P(4,3) · C(3,1)), each then
+parameterised per item as before — the sequence is no longer knowledge.
+No family repeats within a form.
+
+**The clock.** Every puzzle now has a 90-second budget (>5× the modelled
+median of 17s — a careful solver is never rushed). An expired item
+settles as unanswered: marked wrong, timed at the full budget. The
+countdown renders only inside the final 20 seconds, absolutely
+positioned so its appearance never shifts the puzzle mid-solve. Expiry is
+deadline arithmetic, not tick counting, so a backgrounded tab cannot buy
+unbounded think time — this caps (not fixes) the D53 accepted limit on
+Pace timing. Recorded times are clamped to the budget.
+
+**What deliberately did NOT change.** The weight ramp, the percentile
+curve and its 94 ceiling (raising the honest ceiling needs harder items
+AND measured norms — a curve re-derivation without data would be
+model-on-model), the result schema (v2 payloads carry `gv`, which now
+reads 2), and the D31 device-local posture: this test still sends nothing
+anywhere, and the client-side honesty note in logic-gen.ts still holds —
+banding closes advance knowledge and coaching surface, not devtools.
+Verified server-scored attempts remain the recorded ticket price for any
+social or comparative surface (D31's deferral arithmetic stands).
+
+**Reconstruction survives the version bump.** D31 commits to {seed, gv}
+rebuilding a result's exact form forever, so v1 stayed generable:
+`generateForm(seed, 1)` dispatches to the frozen template (identical
+construction and option streams), and golden tests pin three v1 seeds —
+one per tail family, seed 7 down to every visible cell and the full
+option order — so drift in the frozen path fails CI rather than quietly
+reinterpreting history. An unknown gv throws. The overlay stamps
+`gv: form.version` as before; old saved results render unchanged.
+
+**Verification.** The D53 ambiguity sweep now covers the new families —
+each got a completion predicate (the family rule plus the grid's visible
+uniformities and exact element identities), and the sweep's contract is
+unchanged: every answer must satisfy its predicate, no distractor may,
+across every seed × item × option in the suite's 200-seed sweep.
+`overlayXor`'s construction guarantees a visible row whose operands
+overlap — on that row XOR visibly differs from union/intersection/copy,
+so the union corruption is a wrong answer, not an ambiguous one — and the
+family validator asserts that property from the cells. The banded
+template is pinned literally in the test (weights per slot, pool
+membership per slot, no-repeat), so moving a family between bands is a
+visible recalibration. The overlay suite drives a full expiry: countdown
+hidden at 69.5s, visible at 70s, item settled wrong at 90s + reveal
+delay, recorded at exactly 90000ms.
+
+**Accepted limits, recorded.** The w1 band holds only two families, so
+slots 1–2 vary in order but not membership — acceptable at the easy end,
+where coaching buys least. The 90s cap counts real-world interruptions
+(a phone call mid-item forfeits that item; Retake exists, and a bounded
+loss beats an unbounded hole). The countdown is visual plus a
+`role="timer"` label; the test's non-visual scope is unchanged from D53.
+Family draws are per-band independent, so cross-band composition (one
+item combining two bands' rules) is still future work — it is the honest
+route to raising the ceiling past 94, once there are measured norms to
+recalibrate against.
+
+## D57 · Verified logic attempts: D31's deferral reversed — the server holds the key
+
+**Date:** 2026-08-06 · **Status:** Adopted (owner: "lets do the backend
+verified attempts too, reverse d31") — this reverses the "Backend sync:
+deferred" clause of D31. Everything else in D31 (generation over a bank,
+the honesty posture, v1 reconstruction) stands.
+
+**The reversal, and what it cost.** D31 priced the sync bundle and
+deferred it: a fifth `testResults` key under the ≤8 rules cap, a
+data-inventory row, a store-form re-answer. That exact bundle now ships —
+plus one thing D31's costing could not have known, because it priced an
+UNVERIFIED sync: a verified score cannot ride the client-only
+`saveTestResult` path at all. A client-writable key is a forgeable one,
+so `testResults.logic` lands with a rules change after all — the
+fcmTokens presence-not-mutation pattern, case-for-case — and only the
+scoring callable writes it. The store-form re-answer came back clean:
+the score is User Content → "Answers and test results", already declared
+Yes/linked; the histogram carries no identifier. Practice attempts still
+send nothing anywhere, and the result-screen copy now says "practice"
+where it used to say "this test", in the same commit that made the
+distinction real.
+
+**The design.** Two callables (App Check-enforced, LIGHT_CALLABLE,
+us-central1), one attempt doc per account at `v2_logic_attempts/{uid}`,
+opaque even to its owner:
+
+- `logicStartV2` mints a crypto seed server-side, stores
+  `{seed, gv, status: "open", startedAtMs, deadlineMs, dayKey,
+  startsToday, normsCounted}`, and returns the twelve puzzles as
+  `{cells, opts, diff}` — the answer index, the family names and the
+  seed are withheld. Given cells and options, the only route to the
+  answers is solving. Guards: 3 starts per UTC day (an unfinished
+  restart is a preview channel, so it is bounded, not free), and a
+  30-day re-verify cooldown once scored. A crashed attempt can restart;
+  it just burns a start.
+- `logicSubmitV2` takes twelve raw pick indexes (-1 = expired),
+  regenerates the form from the stored `{seed, gv}`, scores inside the
+  deadline (12 × 90s + one item of slack — the D56 cap arithmetic,
+  server-enforced in aggregate), and in one transaction: marks the
+  attempt scored, writes the canonical result to `testResults.logic`,
+  and folds the account's FIRST scored attempt into the norms
+  histogram. The response returns marks, score, percentile — and only
+  now the seed, which post-scoring is no longer an answer key, so the
+  local copy stays reconstructable (the D31 property practice results
+  have always had).
+
+**Why the seed never travels, with the arithmetic.** The generator is
+public byte-for-byte on every client, so seed → full answer key in
+~0.25ms. Recovering the seed from the puzzles means sweeping the 2^32
+seed space against the served cells: ≈ 4.3e9 × 0.25ms ≈ 12 CPU-days,
+perhaps 10× less with a construction-only matcher — against a ~19.5
+minute submission window. Feasible for a cluster, and beside the point:
+cracking the seed yields exactly what photographing the puzzles and
+asking a strong solver yields, at far higher cost. Solve-by-proxy
+strictly dominates, no unproctored test prevents it, and the clock
+bounds it. "Verified" therefore claims precisely: scored server-side, on
+a form the client could not have seen in advance, within the standard
+administration window, one canonical score per account per cooldown.
+It does not claim proctored. (The 2^32 space is a generator-inherited
+bound; a future gv can widen it if verified scores ever gate something
+worth a cluster.)
+
+**Norms, and the flip that has NOT happened.** Exact counts in
+`v2_logic_norms_private/global` (13 score buckets + n, no uid, no
+anchors, no timing); public mirror at `v2_logic_norms/global`
+materialized only at or above AGG_MIN_N and rewritten every
+PUBLISH_EVERY-th count — the same floor and the same step-attribution
+argument as the question aggregates, imported from the same constants.
+Only first scored attempts count (D32's rule, D32's reason: retakes
+measure practice). The displayed percentile is STILL the modelled
+logistic — the result stores `source: "model"` — because a histogram of
+n < floor is not a norm study. Flipping verified percentiles to the
+measured distribution once n clears the floor is deliberate future work
+and will be its own recorded decision; nothing in the UI claims
+measurement today (LOGIC_VERIFIED_NOTE says so explicitly).
+
+**Erasure.** The attempt doc is uid-keyed OUTSIDE the v2_users subtree,
+so `deleteAccount` gained a dedicated phase, and the erasure e2e seeds
+and asserts the doc like every other per-uid path. The histogram
+survives deletion — it was never attributable to begin with, same as
+the k-floored question aggregates a deleted account's answers fed.
+Deleting your OWN verified score from your profile doc is allowed and
+pinned by a rules test (it is your doc; the cooldown and the norms count
+live server-side, so deletion resets nothing) — but the door does not
+swing back: reintroducing the key is forgery and is refused.
+
+**Enforcement inventory, because a claim needs a test.** Rules: clients
+cannot introduce, mutate, or reintroduce `testResults.logic`; the
+attempt doc and exact norms are denied to everyone; the mirror is
+read-only — all pinned in rules.test.ts, including the post-merge trap
+that keeps big5/politics syncs working while the logic key rides along.
+Functions: logic.test.ts pins the curve landmark-for-landmark against
+the client copy, scoring against the real generator, the cooldown/rate
+arithmetic, the wire shape (cells+opts+diff and NOTHING else), and the
+foldNorms algebra. The generator ships as two byte-identical copies
+(functions/tsconfig compiles only its own src/), held equal by
+`check:logic-sync` in ci.yml and on the deploy path via
+backend-checks.yml — a drifted server copy would score forms the client
+never rendered. check:appcheck counts both callables enforcing;
+check:fn-runtime and check:deploy-targets cover the new exports; the
+deploy workflow's --only list names them.
+
+**Accepted limits, recorded.**
+- The callables' end-to-end leg (emulated functions driving start →
+  submit → testResults + norms assertions) is deferred: the functions
+  emulator cannot start in this development sandbox (the CLAUDE.md
+  environmental note). Coverage today = pure unit + rules + overlay
+  tests over a mocked transport; the erasure e2e rows DID land and run
+  in CI. Writing an e2e leg that cannot be executed before commit would
+  trade a recorded gap for unverified green — the worse deal.
+- A failed submit keeps the picks in memory for Retry; killing the app
+  between finish and submit loses the attempt (it expires server-side,
+  having cost one of the day's three starts). Not persisted to storage
+  on purpose — a stored pick queue is a new erasure surface for one
+  narrow failure window.
+- Per-item timings stay device-local even on verified results; the Pace
+  lens reads the local values and the server stores only the duration it
+  observed. The verified record makes no claim about per-item speed.
+- The `db` device-bind claim (D29) is not demanded by the callables —
+  matching the answer rules' soft-enforce state. If D29 step 2 flips,
+  revisit here: the claim is the anti-account-cycling control, and the
+  3-start/30-day limits are per-ACCOUNT, not per-device, until then.
+- No social or comparative surface reads the verified score yet. This
+  decision builds the score that could survive one; the surface, its
+  k-anonymity story, and the measured-percentile flip are separate
+  decisions.
