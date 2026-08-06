@@ -5074,6 +5074,27 @@ nothing is lost. First publish after deploy sees no stored `byPub` and
 releases current state once — identical to the behaviour it replaces, not
 worse.
 
+**Corrected 2026-08-06, by CI.** The baseline stored was first written as
+`steppedBreakdown`'s own output rather than what `publishableBreakdown`
+went on to publish. Those differ whenever a bucket is suppressed — and a
+bucket under the floor is suppressed by definition — so a cohort that had
+not yet cleared the floor had nonetheless SPENT its step budget on a value
+no reader ever saw, and then needed twice the floor to appear. In the shape
+`e2e-v2-loop.mjs` drives (two cohorts at 3 and 2, both reaching exactly 5 on
+the publish at total 10) it never appeared at all.
+
+The bound belongs to what was OBSERVABLE: a bucket the reader never saw has
+no delta to hide, so its next release is a first appearance, disclosing a
+cohort of at least the floor arriving together — the floor's own guarantee.
+`publishBreakdown` now returns one value that is both what is published and
+what is stored, so the two cannot be wired apart again.
+
+Worth recording where it was caught. The unit tests passed throughout: they
+pinned the RULE, and the defect was in how the trigger wired it. The e2e —
+the leg this record already flagged as unrunnable in the authoring sandbox —
+is what found it, on the first CI run. That is the argument for the e2e
+staying on the deploy path, made by the e2e.
+
 **2 · An anchor value may not be a key on `Object.prototype`.**
 `breakdownBucket` shape-checks `city` and `country`; the other four
 dimensions have no closed vocabulary, and `firestore.rules` can only bound

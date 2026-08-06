@@ -29,11 +29,10 @@ import {
   catalogEntityKey,
   foldAnchors,
   foldCanonAnchors,
-  publishableBreakdown,
+  publishBreakdown,
   publishableCanon,
   seedDocMatches,
   shouldPublishAgg,
-  steppedBreakdown,
   type BreakdownCounts,
   type CanonCounts,
   type CatalogSpec,
@@ -465,8 +464,10 @@ export const onV2AnswerCreated = onDocumentCreated(
         const canon = publishing ? publishableCanon(ent, AGG_MIN_N, CANON_TOP_N) : null;
         // Only a publish moves the released map — an answer that changes
         // nothing on screen must not consume a bucket's step budget.
-        const nextEntReleased = canon
-          ? steppedBreakdown(canonBreakdownFor(entBy, canon.top), entReleased, AGG_MIN_N)
+        // Same rule as the vote path: store what was PUBLISHED, so a
+        // suppressed bucket does not spend its step budget unseen.
+        const entByPub = canon
+          ? publishBreakdown(canonBreakdownFor(entBy, canon.top), entReleased, AGG_MIN_N)
           : entReleased;
         tx.set(eventRef, ledgerEntry(event.params.uid, qid));
         // Bounded growth: `ent` is capped by catalogue validation (~1k
@@ -475,7 +476,7 @@ export const onV2AnswerCreated = onDocumentCreated(
         // limit either way. `entByPub` is a subset of `entBy` restricted to
         // the published board, so it is bounded by CANON_TOP_N × the bucket
         // cap and adds no new growth term.
-        tx.set(privRef, { ent, entBy, entByPub: nextEntReleased, total }, { merge: false });
+        tx.set(privRef, { ent, entBy, entByPub, total }, { merge: false });
         if (total >= AGG_MIN_N) {
           if (publishing) {
             // A null canon means nothing survives the fold's own floors —
@@ -493,7 +494,7 @@ export const onV2AnswerCreated = onDocumentCreated(
                     tooSmall: false,
                     top: canon.top,
                     rest: canon.rest,
-                    by: publishableBreakdown(nextEntReleased, AGG_MIN_N),
+                    by: entByPub,
                   }
                 : { total, tooSmall: false },
               { merge: false },
@@ -563,11 +564,14 @@ export const onV2AnswerCreated = onDocumentCreated(
       // nothing must not spend a bucket's step budget, or the gate would
       // decay to "every fifth answer" — which is the bound that was already
       // there and is not the one this needs.
-      const nextReleased = publishing
-        ? steppedBreakdown(by, released, AGG_MIN_N)
-        : released;
+      //
+      // publishBreakdown returns ONE value that is both what goes on the
+      // public document and what is stored as the next baseline. They were
+      // two expressions once, and the e2e caught the difference: storing the
+      // stepped map charged a suppressed bucket for a value no reader saw.
+      const byPub = publishing ? publishBreakdown(by, released, AGG_MIN_N) : released;
       tx.set(eventRef, ledgerEntry(event.params.uid, qid));
-      tx.set(privRef, { counts, total, by, byPub: nextReleased }, { merge: false });
+      tx.set(privRef, { counts, total, by, byPub }, { merge: false });
       // The public mirror: k-floored, and deliberately without a fresh
       // timestamp — per-vote timing deltas shouldn't be attributable.
       //
@@ -588,9 +592,8 @@ export const onV2AnswerCreated = onDocumentCreated(
           // The breakdown carries its OWN floor, per cell, plus
           // complementary suppression (pure.ts). A question past the
           // overall floor still shows no slice until that slice can be
-          // shown without singling anyone out — and, since `nextReleased`,
+          // shown without singling anyone out — and, since the step gate,
           // no slice moves by less than that floor either.
-          const byPub = publishableBreakdown(nextReleased, AGG_MIN_N);
           tx.set(pubRef, { counts, total, tooSmall: false, by: byPub }, { merge: false });
         }
       } else {

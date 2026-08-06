@@ -562,10 +562,21 @@ export function publishableBreakdown(
 // whose floor, complementary suppression and minimum-comparison rules then
 // apply unchanged — this gates WHEN a value moves, never whether it clears.
 //
-// `released` is the last map this function returned, not the last one
-// published: publishableBreakdown only ever suppresses buckets, never alters
-// their counts, so a bucket it dropped was seen by nobody and measuring from
-// the older released value is the conservative direction.
+// `released` is what a reader has actually SEEN — the last map
+// publishableBreakdown published — and not the last map this function
+// returned. The difference is not academic: publishableBreakdown suppresses
+// as well as passes through, so measuring from this function's own output
+// spends a bucket's step budget on a value nobody was shown. A bucket
+// suppressed at its first publication then needed TWICE the floor before it
+// could ever appear, and in the shape the e2e drives (two cohorts reaching
+// exactly the floor on the publish at total 10) it never appeared at all.
+// Caught by e2e-v2-loop.mjs, which is the leg this module's own residual
+// note said would need a real emulator run.
+//
+// Privacy is unaffected, because the bound is over what was observable: a
+// bucket the reader never saw has no delta to hide, so its next release is
+// a FIRST appearance — disclosing a cohort of at least the floor, arriving
+// together, which is the floor's own guarantee rather than a step.
 export function steppedBreakdown(
   by: BreakdownCounts,
   released: BreakdownCounts,
@@ -589,6 +600,25 @@ export function steppedBreakdown(
     out[dim] = dimOut;
   }
   return out;
+}
+
+/**
+ * What a publish puts on the public document — and, identically, what the
+ * private document must store as the baseline for the next one.
+ *
+ * ONE function returning ONE value, because the two being separate is what
+ * the e2e caught: the trigger stored steppedBreakdown's output while
+ * publishing publishableBreakdown's, so a bucket suppressed at its first
+ * publication had still spent its step budget and needed twice the floor to
+ * appear. The composition is the invariant, so it lives in one place where
+ * the caller cannot wire it two ways.
+ */
+export function publishBreakdown(
+  by: BreakdownCounts,
+  released: BreakdownCounts,
+  floor: number,
+): BreakdownCounts {
+  return publishableBreakdown(steppedBreakdown(by, released, floor), floor);
 }
 
 // ── when the public mirror may be rewritten ─────────────────────

@@ -17,6 +17,7 @@ import {
   breakdownBucket,
   foldAnchors,
   publishableBreakdown,
+  publishBreakdown,
   BREAKDOWN_MAX_BUCKETS,
   steppedBreakdown,
   shouldPublishAgg,
@@ -676,8 +677,12 @@ describe("the same cadence, applied per bucket (steppedBreakdown)", () => {
       total += 1;
       foldAnchors(by, a.anchors, a.optionIdx, FLOOR);
       if (total >= FLOOR && shouldPublishAgg(total, FLOOR, FLOOR)) {
-        released = steppedBreakdown(by, released, FLOOR);
-        seen.push(publishableBreakdown(released, FLOOR));
+        // `released` is what was PUBLISHED, matching v2.ts — not what
+        // steppedBreakdown returned. Simulating the latter is how this
+        // helper agreed with a trigger that could never publish a
+        // first-suppressed bucket (see the case below).
+        released = publishableBreakdown(steppedBreakdown(by, released, FLOOR), FLOOR);
+        seen.push(released);
       }
     }
     return seen;
@@ -718,6 +723,27 @@ describe("the same cadence, applied per bucket (steppedBreakdown)", () => {
     // spot check survives a policy that steps by one past some size, which
     // is the bug this closes.
     expect(smallestNonZeroStep).toBeGreaterThanOrEqual(FLOOR);
+  });
+
+  it("a bucket suppressed at first publication is not charged for it", () => {
+    // The regression e2e-v2-loop.mjs caught. Two cohorts reach exactly the
+    // floor on the publish at total 10, having been below it — and therefore
+    // suppressed — at total 5. Measuring the step from steppedBreakdown's own
+    // output charged them for a value no reader saw, so they needed TWICE
+    // the floor and the breakdown never appeared at all.
+    const by = {};
+    for (let i = 0; i < 3; i++) foldAnchors(by, { gender: "Woman" }, 1, FLOOR);
+    for (let i = 0; i < 2; i++) foldAnchors(by, { gender: "Man" }, 1, FLOOR);
+
+    const atFive = publishableBreakdown(steppedBreakdown(by, {}, FLOOR), FLOOR);
+    expect(atFive, "3 and 2 are both under the floor").toEqual({});
+
+    for (let i = 0; i < 2; i++) foldAnchors(by, { gender: "Woman" }, 0, FLOOR);
+    for (let i = 0; i < 3; i++) foldAnchors(by, { gender: "Man" }, 0, FLOOR);
+
+    const atTen = publishableBreakdown(steppedBreakdown(by, atFive, FLOOR), FLOOR);
+    expect(atTen.gender, "both cohorts reached the floor and still published nothing")
+      .toEqual({ Woman: { "0": 2, "1": 3 }, Man: { "0": 3, "1": 2 } });
   });
 
   it("re-emits the previous value rather than freezing the document", () => {
@@ -1174,5 +1200,36 @@ describe("seedDocMatches — the seed's write skip", () => {
     // …but a null domain and an absent one describe the same question, so
     // the common case does not churn every doc on every deploy.
     expect(seedDocMatches(old, desired)).toBe(true);
+  });
+});
+
+describe("publishBreakdown — publish and baseline are the same value", () => {
+  // The e2e's exact sequence, driven through the one function the trigger
+  // calls. Two cohorts sit under the floor at total 5 and reach it at 10.
+  it("publishes both cohorts once they reach the floor", () => {
+    const by = {};
+    for (let i = 0; i < 3; i++) foldAnchors(by, { gender: "Woman" }, 1, FLOOR);
+    for (let i = 0; i < 2; i++) foldAnchors(by, { gender: "Man" }, 1, FLOOR);
+    const atFive = publishBreakdown(by, {}, FLOOR);
+    expect(atFive).toEqual({});
+
+    for (let i = 0; i < 2; i++) foldAnchors(by, { gender: "Woman" }, 0, FLOOR);
+    for (let i = 0; i < 3; i++) foldAnchors(by, { gender: "Man" }, 0, FLOOR);
+    // Feeding the PREVIOUS return value back in is the whole contract — one
+    // value, published and stored, so the caller cannot wire it two ways.
+    expect(publishBreakdown(by, atFive, FLOOR).gender)
+      .toEqual({ Woman: { "0": 2, "1": 3 }, Man: { "0": 3, "1": 2 } });
+  });
+
+  it("still refuses a step smaller than the floor once a bucket is visible", () => {
+    const by = {};
+    for (let i = 0; i < 5; i++) foldAnchors(by, { gender: "Woman" }, 0, FLOOR);
+    for (let i = 0; i < 5; i++) foldAnchors(by, { gender: "Man" }, 0, FLOOR);
+    const first = publishBreakdown(by, {}, FLOOR);
+    expect(first.gender).toEqual({ Woman: { "0": 5 }, Man: { "0": 5 } });
+
+    foldAnchors(by, { gender: "Woman" }, 1, FLOOR);
+    expect(publishBreakdown(by, first, FLOOR).gender, "one vote moved a published bucket")
+      .toEqual({ Woman: { "0": 5 }, Man: { "0": 5 } });
   });
 });
