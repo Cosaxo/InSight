@@ -205,6 +205,28 @@
       869: 2,  // Alcremie — below the floor
       0: 8,    // Not listed
     },
+    // daily catalog-question run, 2026-08-06 — dread, the fourth emoji
+    // canon (the pokemon fear canon's echo, pk02): what unsettles, not
+    // what you send. The clown leads for the same reason it leads
+    // everywhere; the ghost, defanged by a decade of cute usage, clears
+    // the floor and folds — which is itself the honest finding.
+    pk10: {
+      129313: 32, // 🤡 clown face — coulrophobia has a constituency
+      128520: 24, // 😈 smiling face with horns
+      128121: 19, // 👹 ogre
+      128122: 16, // 👺 goblin
+      128375: 14, // 🕷️ spider
+      128065: 12, // 👁️ eye — the lone eye is worse than the pair
+      128128: 10, // 💀 skull
+      128298: 9,  // 🔪 kitchen knife
+      129656: 7,  // 🩸 drop of blood
+      127875: 6,  // 🎃 jack-o-lantern
+      128123: 5,  // 👻 ghost — clears the floor but not the top 10; folds
+      128561: 5,  // 😱 face screaming in fear — same
+      129415: 3,  // 🦇 bat — below the floor
+      128013: 2,  // 🐍 snake — below the floor
+      0: 8,       // Not listed
+    },
   };
 
   // Baked demo segment slices, per question: how each cohort orders the
@@ -315,6 +337,18 @@
         Men: { 202: 11, 399: 8, 122: 7, 103: 6, 129: 5 },
       },
     },
+    pk10: {
+      ageBand: {
+        // the lone-eye and blood votes skew young; the classic monsters
+        // hold with age
+        '18-24': { 129313: 10, 128520: 7, 128065: 6, 128128: 5, 129656: 4 },
+        '25-34': { 129313: 9, 128121: 7, 128375: 6, 128520: 5, 128298: 5 },
+      },
+      gender: {
+        Women: { 128375: 9, 129313: 8, 128298: 6, 128065: 5, 129656: 4 },
+        Men: { 129313: 11, 128520: 8, 128122: 6, 128121: 6, 128128: 5 },
+      },
+    },
   };
 
   const api = {
@@ -422,5 +456,9 @@
     // 2026-08-05 daily run: the name, not the creature — a wordcraft
     // canon whose board no appraisal question produces.
     { id: 'pk09', cat: 'fav', type: 'pick', domain: 'pokemon', prompt: 'The best Pokémon name?', n: 177 },
+    // 2026-08-06 daily run: dread — the fear canon that worked for
+    // pokemon (pk02), asked of a catalogue where cute usage has
+    // defanged the obvious answers.
+    { id: 'pk10', cat: 'fav', type: 'pick', domain: 'emoji', prompt: 'The scariest emoji?', n: 172 },
   ];
 })();
