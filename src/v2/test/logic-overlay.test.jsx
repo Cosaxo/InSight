@@ -179,6 +179,34 @@ describe("a verified attempt (D57)", () => {
     expect(saved.times).toHaveLength(12); // local timings ride along for Pace
   });
 
+  it("a measured response flips the claim: rank among n verified players (D58)", async () => {
+    vi.useFakeTimers();
+    const expected = generateForm(SEED);
+    vi.mocked(startVerified).mockResolvedValue({ items: serverItems(expected), capMs: 90000, deadlineMs: 13 * 90000 });
+    // What the server sends once the histogram clears LOGIC_NORMS_MIN_N:
+    // a measured percentile with its population size, no model involved.
+    vi.mocked(submitVerified).mockResolvedValue({
+      marks: expected.items.map(() => true), score: 12, pctile: 91,
+      durationMs: 60000, seed: SEED, gv: genVersion, source: "measured", n: 250,
+    });
+    localStorage.setItem(LKEY, JSON.stringify(priorResult()));
+    render(<LogicOverlay onClose={() => {}} />);
+    fireEvent.click(screen.getByText("Verified attempt"));
+    await act(async () => {});
+    for (let i = 0; i < 12; i++) {
+      fireEvent.click(screen.getByLabelText(`Answer ${expected.items[i].a + 1} of 6`));
+      act(() => { vi.advanceTimersByTime(PICK_DELAY); });
+    }
+    await act(async () => {});
+
+    // the claim names its population, and the note says what is (and is
+    // not) measured — the charts stay declared sketches
+    screen.getByText(/Sharper than 91% of 250 verified players/);
+    screen.getByText(/still modelled sketches, not their data/i);
+    const saved = JSON.parse(localStorage.getItem(LKEY));
+    expect(saved).toMatchObject({ verified: true, source: "measured", n: 250, pctile: 91 });
+  });
+
   it("a refused start reports the server's reason and leaves the result screen intact", async () => {
     vi.mocked(startVerified).mockRejectedValue(new Error("too many starts today"));
     localStorage.setItem(LKEY, JSON.stringify(priorResult()));

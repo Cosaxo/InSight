@@ -5787,3 +5787,64 @@ deploy workflow's --only list names them.
   decision builds the score that could survive one; the surface, its
   k-anonymity story, and the measured-percentile flip are separate
   decisions.
+
+## D58 · The verified percentile becomes a measurement at one hundred players
+
+**Date:** 2026-08-06 · **Status:** Adopted (owner: "do the measured
+percentile flip when we have enough data") — the flip D57 recorded as
+future work, built now and gated on data, not on a later deploy.
+
+**What flips, exactly.** `logicSubmitV2` now reads the private norms
+histogram on every submit (pre-fold, before any write, as transactions
+require). Once it holds at least `LOGIC_NORMS_MIN_N` verified first
+attempts, the percentile stops being the logistic and becomes a count:
+the share of counted players this score STRICTLY beats — ties are not
+beaten, which keeps the claim wording ("share of players this score
+beats") identical to the curve it replaces. The result and the response
+carry `source: "measured"` and `n`, the population ranked against; the
+client says "Sharper than X% of N verified players" and swaps the note
+for one that names what is measured and what is not. Below the floor,
+nothing changes: same logistic, same `source: "model"`, pinned equal in
+both suites.
+
+**The floor, with the arithmetic.** `LOGIC_NORMS_MIN_N = 100`. At
+n = 100 the worst-case standard error of an empirical percentile is
+√(0.5·0.5/100) ≈ 5 points — comparable to the modelled curve's own
+honesty margin — and the k-anonymity floor (AGG_MIN_N = 5) is cleared
+twenty times over. Below that, an empirical rank whipsaws by tens of
+points per submission: noise wearing a number. One constant; lowering
+it is a recorded decision, not a tweak.
+
+**Pre-fold comparison, on purpose.** The population is the players
+counted BEFORE this submission, so a submitter is never a member of
+their own field, and a re-verifier (who never folds — D32's
+first-attempt rule) is ranked against the same kind of population as a
+first-timer. `n` is therefore exact in the claim: each counted player
+appears once, which is precisely what the first-attempt rule bought.
+
+**The ceiling argument retires — for measured results only.** D53
+capped the modelled curve at 94 because a curve cannot rank perfect
+scores. A count can: 12/12 among a field where 10% score perfect reads
+"sharper than 90%", and among 150 perfects of 200 it reads 25 — the
+data speaks, however deflating. The [1, 99] clamp stays at both ends
+for display sanity ("top 0%" and "sharper than 100%" are absurd at any
+n), and the modelled path keeps its 94 untouched.
+
+**What deliberately did NOT change.** Practice attempts still score
+against the modelled curve, on-device — ranking an unlimited-retake
+practice run against the verified-first-attempt population would
+compare unlike things and muddy both claims. The lens charts (solve
+bars, field Gaussian, pace cloud) remain modelled sketches even on a
+measured result — the measured note says so explicitly, so one real
+number never dresses up four drawn ones. Drawing the Field lens from
+the public mirror is the natural next step and is recorded here as NOT
+done. The mirror's publish cadence and floor are untouched.
+
+**Verification.** `measuredPctile` is pure and pinned: null below the
+floor (the model keeps the job), strictly-below share at it, tie
+handling, both clamps, the perfect-among-perfects case, and the
+995-of-1000 rounding edge. The overlay suite drives a measured response
+end-to-end: the claim names its population, the note declares the
+sketches, and the saved result carries `source`/`n`. The submit path's
+change is read-always + branch — the emulated e2e leg remains deferred
+with D57's environmental reason.

@@ -6,11 +6,13 @@ import {
   LOGIC_DEADLINE_MS,
   LOGIC_ITEMS,
   LOGIC_MAX_STARTS_PER_DAY,
+  LOGIC_NORMS_MIN_N,
   LOGIC_REVERIFY_DAYS,
   canStartLogic,
   clientItems,
   foldNorms,
   logicPctile,
+  measuredPctile,
   nextStartsToday,
   scoreLogicPicks,
   utcDayKey,
@@ -141,6 +143,32 @@ describe("foldNorms", () => {
   it("counts n and the score bucket, from nothing and from priors", () => {
     expect(foldNorms(null, 7)).toEqual({ n: 1, b7: 1 });
     expect(foldNorms({ n: 4, b7: 2, b12: 1, b0: 1 }, 12)).toEqual({ n: 5, b7: 2, b12: 2, b0: 1 });
+  });
+});
+
+describe("measuredPctile (D58)", () => {
+  it("stays null below the floor — the model keeps the job", () => {
+    expect(measuredPctile(null, 8)).toBeNull();
+    expect(measuredPctile({ n: LOGIC_NORMS_MIN_N - 1, b0: LOGIC_NORMS_MIN_N - 1 }, 12)).toBeNull();
+  });
+
+  it("at the floor: strictly-below share, ties not beaten", () => {
+    const h = { n: 100, b5: 40, b7: 30, b9: 20, b12: 10 };
+    expect(measuredPctile(h, 7)).toEqual({ pctile: 40, n: 100 }); // beats the fives, not the other sevens
+    expect(measuredPctile(h, 8)).toEqual({ pctile: 70, n: 100 });
+    // the measured ceiling is the data's, not the model's 94 (D53's cap
+    // existed because a curve cannot rank perfect scores — a count can)
+    expect(measuredPctile(h, 12)).toEqual({ pctile: 90, n: 100 });
+    // clamp at the bottom: beats nobody, still never reads "top 100%"
+    expect(measuredPctile(h, 0)).toEqual({ pctile: 1, n: 100 });
+  });
+
+  it("a perfect score among many perfects reads honestly low", () => {
+    expect(measuredPctile({ n: 200, b12: 150, b11: 50 }, 12)).toEqual({ pctile: 25, n: 200 });
+  });
+
+  it("clamps the top: beating 995 of 1000 rounds to 99, never 100", () => {
+    expect(measuredPctile({ n: 1000, b3: 995, b11: 5 }, 12)).toEqual({ pctile: 99, n: 1000 });
   });
 });
 

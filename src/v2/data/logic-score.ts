@@ -5,16 +5,17 @@
 // meaning what the retired hand-authored bank meant, with this curve's
 // midpoint as the reference), and nothing could assert its values.
 //
-// Everything here is a MODEL, not a measurement — the overlay discloses
-// that on the result screen (LOGIC_FIELD_NOTE / LOGIC_VERIFIED_NOTE).
-// Practice attempts stay on-device. Verified attempts (D57, reversing
-// D31's deferral) are seeded and scored server-side: the marks and
-// percentile on a verified result are the SERVER's, the canonical copy
-// lives on the owner-only profile doc where rules refuse client mutation,
-// and the first scored attempt per account joins an anonymous histogram.
-// The percentile curve itself is still the modelled logistic below for
-// both kinds — flipping verified results to the measured histogram once
-// it clears the aggregate floor is future work, recorded in D57.
+// Everything HERE is a MODEL — the logistic below, the lens formulas the
+// overlay draws — and the result screen discloses it (LOGIC_FIELD_NOTE /
+// LOGIC_VERIFIED_NOTE / LOGIC_MEASURED_NOTE). Practice attempts stay
+// on-device and always score against the modelled curve. Verified
+// attempts (D57) are seeded and scored server-side, and since D58 their
+// percentile FLIPS to a measurement once the anonymous histogram clears
+// its floor: the server compares the score against the verified first
+// attempts counted so far and the result arrives with source "measured"
+// and the population size `n`. Below the floor the server still applies
+// the same logistic as this file (pinned equal in both suites), so the
+// number means the same thing wherever it was computed.
 
 export interface LogicResult {
   /** payload version: absent = pre-generator (v1), 2 = generator era */
@@ -25,8 +26,12 @@ export interface LogicResult {
   gv?: number;
   /** D57: scored server-side — marks and pctile are the server's */
   verified?: boolean;
-  /** where the percentile came from ("model" until norms replace it) */
+  /** where the percentile came from: "model", or "measured" once the
+   *  histogram clears the D58 floor */
   source?: string;
+  /** the measured comparison's population size — the verified first
+   *  attempts this score was ranked against (present iff measured) */
+  n?: number;
   /** server-observed attempt duration (verified results only) */
   durationMs?: number;
   marks: boolean[];

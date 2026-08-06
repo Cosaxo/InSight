@@ -164,6 +164,40 @@ export function foldNorms(prev: LogicNorms | null, score: number): LogicNorms {
   return next;
 }
 
+// ── the measured percentile (D58) ──
+// Once the histogram holds enough verified first attempts, the percentile
+// stops being a curve and becomes a count: the share of counted players
+// this score strictly beats. Ties are not beaten — the claim stays "share
+// of players this score beats", exactly the wording logic-score.ts pinned
+// for the modelled curve this replaces. Below the floor the model keeps
+// the job: an empirical percentile over a handful of players whipsaws by
+// tens of points per submission, which is noise wearing a number.
+//
+// The floor's arithmetic (D58): at n = 100 the worst-case standard error
+// of an empirical percentile is sqrt(0.5·0.5/100) ≈ 5 points — comparable
+// to the modelled curve's own honesty margin — and the k-anonymity floor
+// (AGG_MIN_N) is cleared twenty times over. One constant; lowering it is
+// a recorded decision, not a tweak.
+export const LOGIC_NORMS_MIN_N = 100;
+
+export function measuredPctile(
+  norms: LogicNorms | null,
+  score: number,
+): { pctile: number; n: number } | null {
+  const n = norms?.n || 0;
+  if (n < LOGIC_NORMS_MIN_N) return null;
+  let below = 0;
+  for (let s = 0; s < score; s++) below += norms?.[`b${s}`] || 0;
+  // Clamped to the model's [1, 99] range: "top 0%" and "sharper than 100%
+  // of players" are display absurdities at any n, and the two sources must
+  // not disagree about what numbers are possible. Inside the clamp the
+  // measurement speaks for itself — a perfect score among many perfects
+  // reads exactly as low as it deserves to, and the model's 94 ceiling
+  // (D53) does not apply: that cap existed because a CURVE cannot rank
+  // perfect scores, and a count can.
+  return { pctile: Math.max(1, Math.min(99, Math.round((100 * below) / n))), n };
+}
+
 // ── the callables ──
 
 const attemptRef = (uid: string) => getFirestore().collection("v2_logic_attempts").doc(uid);
@@ -225,18 +259,24 @@ export const logicSubmitV2 = onCall(
       if (now > attempt.deadlineMs) throw new HttpsError("deadline-exceeded", "attempt expired");
 
       const { marks, score } = scoreLogicPicks(attempt.seed, attempt.gv, picks);
-      const pctile = logicPctile(score / LOGIC_ITEMS);
       const durationMs = now - attempt.startedAtMs;
 
-      // First scored attempt per account feeds the histogram (D32's rule);
-      // the reads all happen before any write, as transactions require.
-      const countsNorms = attempt.normsCounted !== true;
-      let norms: LogicNorms | null = null;
+      // The histogram is read on EVERY submit now (still before any write,
+      // as transactions require): it is the fold target for a first
+      // attempt (D32's rule) and, since D58, the percentile's comparison
+      // population. Read PRE-fold on purpose — "sharper than X% of N
+      // verified players" compares against the players counted before this
+      // one, so a submitter is never a member of their own field, and a
+      // re-verifier (who never folds) is measured against the same kind of
+      // population as everyone else.
       const privRef = db.collection("v2_logic_norms_private").doc("global");
-      if (countsNorms) {
-        const privSnap = await tx.get(privRef);
-        norms = foldNorms(privSnap.exists ? (privSnap.data() as LogicNorms) : null, score);
-      }
+      const privSnap = await tx.get(privRef);
+      const prevNorms = privSnap.exists ? (privSnap.data() as LogicNorms) : null;
+      const measured = measuredPctile(prevNorms, score);
+      const pctile = measured ? measured.pctile : logicPctile(score / LOGIC_ITEMS);
+      const source = measured ? "measured" : "model";
+      const countsNorms = attempt.normsCounted !== true;
+      const norms = countsNorms ? foldNorms(prevNorms, score) : null;
 
       tx.set(ref, {
         ...attempt,
@@ -250,6 +290,8 @@ export const logicSubmitV2 = onCall(
       // rules); the rules deny clients this key, so it cannot be forged.
       // No per-item times: the client's timings are unverifiable claims,
       // so the verified record carries only the server-observed duration.
+      // `n` travels only when the percentile is measured — it is the size
+      // of the population the claim is about, meaningless for the model.
       tx.set(
         db.collection("v2_users").doc(uid),
         {
@@ -262,7 +304,8 @@ export const logicSubmitV2 = onCall(
               marks,
               pctile,
               durationMs,
-              source: "model",
+              source,
+              ...(measured ? { n: measured.n } : {}),
               when: now,
             },
           },
@@ -279,7 +322,16 @@ export const logicSubmitV2 = onCall(
       // be resubmitted, so it is no longer an answer key; handing it back
       // keeps the client's saved result reconstructable, the D31 property
       // practice results have always had.
-      return { marks, score, pctile, durationMs, seed: attempt.seed, gv: attempt.gv };
+      return {
+        marks,
+        score,
+        pctile,
+        durationMs,
+        source,
+        ...(measured ? { n: measured.n } : {}),
+        seed: attempt.seed,
+        gv: attempt.gv,
+      };
     });
 
     logger.info(`[logicSubmitV2] uid=${uid} scored ${out.score}/${LOGIC_ITEMS}`);
