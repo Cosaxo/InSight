@@ -16,10 +16,12 @@ import {
   foldAnchors,
   publishableBreakdown,
   BREAKDOWN_MAX_BUCKETS,
+  steppedBreakdown,
   shouldPublishAgg,
   catalogEntityKey,
   publishableCanon,
   buildModQueueFrom,
+  tallyFlags,
   carriedEscalations,
   modVerdictError,
   modVerdictId,
@@ -264,6 +266,36 @@ describe("per-anchor breakdowns", () => {
     expect(breakdownBucket("Prefer not to say", "gender")).toBe("Prefer not to say");
   });
 
+  it("refuses bucket labels that are keys on Object.prototype", () => {
+    // Four of the six dimensions have no closed vocabulary, and
+    // firestore.rules can only bound an anchor's LENGTH — verified against
+    // the real ruleset in the emulator, where an anonymous account creates
+    // an answer carrying `anchors: { gender: "__proto__" }` and is allowed.
+    //
+    // `byDim[bucket] = {}` with that label sets the PROTOTYPE, so the
+    // per-option counter beneath it lands on Object.prototype and every
+    // object minted afterwards in the process inherits it.
+    for (const name of ["__proto__", "constructor", "toString", "valueOf", "hasOwnProperty"]) {
+      expect(breakdownBucket(name, "gender")).toBeNull();
+      expect(breakdownBucket(name)).toBeNull();
+    }
+
+    const before = Object.prototype as unknown as Record<string, unknown>;
+    const by = {};
+    foldAnchors(by, { gender: "__proto__", ageBand: "constructor" }, 3);
+    expect(by).toEqual({});
+    expect(before["3"]).toBeUndefined();
+    // The consequence the guard exists for, stated as the assertion: an
+    // unrelated object must not have grown a vote count.
+    expect(({} as Record<string, unknown>)["3"]).toBeUndefined();
+
+    // …and the same for the catalog transpose, which folds the same anchors.
+    const entBy = {};
+    foldCanonAnchors(entBy, { gender: "__proto__" }, "25");
+    expect(entBy).toEqual({});
+    expect(({} as Record<string, unknown>)["25"]).toBeUndefined();
+  });
+
   it("caps distinct buckets per dimension but keeps counting known ones", () => {
     // `education` rather than `country`: the cap is what is under test, and
     // country now carries an ISO-shape check that a synthetic "C37" fails
@@ -413,6 +445,101 @@ describe("public-mirror publish cadence", () => {
     // and a cadence of 1 is "publish every answer", the old behaviour,
     // kept expressible so a future operator choosing it does so knowingly
     expect(shouldPublishAgg(6, 5, 1)).toBe(true);
+  });
+});
+
+describe("the same cadence, applied per bucket (steppedBreakdown)", () => {
+  const FLOOR = 5;
+
+  // The trigger's vote-path publish loop (v2.ts), reproduced so the property
+  // is asserted against the composition that actually ships rather than
+  // against steppedBreakdown alone. Returns every state a client holding an
+  // onSnapshot on v2_question_aggs would observe.
+  function replay(answers: { anchors: Record<string, string>; optionIdx: number }[]) {
+    const by = {};
+    let released = {};
+    let total = 0;
+    const seen: Record<string, Record<string, Record<string, number>>>[] = [];
+    for (const a of answers) {
+      total += 1;
+      foldAnchors(by, a.anchors, a.optionIdx);
+      if (total >= FLOOR && shouldPublishAgg(total, FLOOR, FLOOR)) {
+        released = steppedBreakdown(by, released, FLOOR);
+        seen.push(publishableBreakdown(released, FLOOR));
+      }
+    }
+    return seen;
+  }
+
+  it("never moves a published bucket by fewer than the floor", () => {
+    // The shape that made this necessary: anchors stay empty until the user
+    // fills the Basics card (D8), so a five-answer window routinely carries
+    // exactly one anchored answer — and that one answer used to move its
+    // bucket, and every dimension of it, by exactly 1.
+    const answers: { anchors: Record<string, string>; optionIdx: number }[] = [];
+    for (let i = 0; i < 10; i++) answers.push({ anchors: { gender: "f" }, optionIdx: 0 });
+    for (let i = 0; i < 10; i++) answers.push({ anchors: { gender: "m" }, optionIdx: 0 });
+    for (let i = 0; i < 60; i++) {
+      // one anchored answer per window of five
+      answers.push({ anchors: { gender: i % 2 ? "f" : "m" }, optionIdx: 1 });
+      for (let j = 0; j < 4; j++) answers.push({ anchors: {}, optionIdx: 0 });
+    }
+
+    const seen = replay(answers);
+    expect(seen.length).toBeGreaterThan(10);
+
+    const totalOf = (cell: Record<string, number>) =>
+      Object.keys(cell).reduce((n, k) => n + cell[k], 0);
+
+    let smallestNonZeroStep = Infinity;
+    for (let i = 1; i < seen.length; i++) {
+      for (const dim of Object.keys(seen[i])) {
+        for (const bucket of Object.keys(seen[i][dim])) {
+          const prev = seen[i - 1][dim]?.[bucket];
+          if (!prev) continue; // first appearance discloses a whole ≥floor cohort
+          const step = totalOf(seen[i][dim][bucket]) - totalOf(prev);
+          if (step > 0) smallestNonZeroStep = Math.min(smallestNonZeroStep, step);
+        }
+      }
+    }
+    // Measured as a minimum over every adjacent pair, not spot-checked: a
+    // spot check survives a policy that steps by one past some size, which
+    // is the bug this closes.
+    expect(smallestNonZeroStep).toBeGreaterThanOrEqual(FLOOR);
+  });
+
+  it("re-emits the previous value rather than freezing the document", () => {
+    const by = { gender: { f: { "0": 5 } } };
+    const released = steppedBreakdown(by, {}, FLOOR);
+    expect(released).toEqual({ gender: { f: { "0": 5 } } });
+
+    // one further answer: the bucket must read exactly as it did before
+    foldAnchors(by, { gender: "f" }, 1);
+    const next = steppedBreakdown(by, released, FLOOR);
+    expect(next).toEqual({ gender: { f: { "0": 5 } } });
+    expect(next.gender.f["1"]).toBeUndefined();
+
+    // …and once the bucket has gained the floor, the true counts land whole
+    for (let i = 0; i < 4; i++) foldAnchors(by, { gender: "f" }, 1);
+    expect(steppedBreakdown(by, released, FLOOR)).toEqual({ gender: { f: { "0": 5, "1": 5 } } });
+  });
+
+  it("holds one bucket while another moves", () => {
+    // Per bucket, not per dimension: a busy cohort must not carry a quiet
+    // one past its own step.
+    const released = { gender: { f: { "0": 5 }, m: { "0": 5 } } };
+    const by = { gender: { f: { "0": 10 }, m: { "0": 6 } } };
+    expect(steppedBreakdown(by, released, FLOOR)).toEqual({
+      gender: { f: { "0": 10 }, m: { "0": 5 } },
+    });
+  });
+
+  it("leaves the floor and complementary suppression to publishableBreakdown", () => {
+    // steppedBreakdown gates WHEN a value moves, never whether it clears —
+    // a sub-floor bucket passes through it and is dropped downstream.
+    const stepped = steppedBreakdown({ gender: { f: { "0": 2 } } }, {}, FLOOR);
+    expect(stepped).toEqual({ gender: { f: { "0": 2 } } });
+    expect(publishableBreakdown(stepped, FLOOR)).toEqual({});
   });
 });
 
@@ -657,6 +784,31 @@ describe("moderation — queue fold + verdict channel (docs/MODERATION.md)", () 
       { takeId: "d", flags: 3 },
     ]);
     expect(buildModQueueFrom(counts, 10, 25)).toEqual([]);
+  });
+
+  it("tallies a take whose id is a prototype key, and queues it", () => {
+    // takeId is the take's DOCUMENT ID, and firestore.rules lets any circle
+    // member choose it — the ruleset constrains a take's fields, never its
+    // name. Verified in the emulator: `v2_takes/constructor` creates, and a
+    // second member can flag it.
+    //
+    // Tallied on a plain object, `counts[id] || 0` reads back through the
+    // prototype and ten flags become the string
+    // "function Object() { [native code] }1111111111"; every comparison in
+    // buildModQueueFrom against it is NaN-false, so the take is never queued
+    // however many people flag it — moderation immunity chosen at post time.
+    for (const name of ["constructor", "toString", "valueOf", "hasOwnProperty"]) {
+      const counts = tallyFlags(Array(10).fill(name));
+      expect(counts[name]).toBe(10);
+      expect(buildModQueueFrom(counts, 3, 25)).toEqual([{ takeId: name, flags: 10 }]);
+    }
+    // Firestore's reserved-id rule (`__.*__`) keeps this one unreachable
+    // today; tallied correctly anyway rather than resting on it.
+    expect(tallyFlags(["__proto__", "__proto__"])["__proto__"]).toBe(2);
+  });
+
+  it("ignores flag docs with no usable takeId", () => {
+    expect(tallyFlags(["a", "", null, undefined, 7, {}, "a"])).toEqual({ a: 2 });
   });
 
   it("accepts exactly the three verdict shapes and nothing else", () => {

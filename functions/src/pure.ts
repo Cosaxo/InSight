@@ -223,6 +223,26 @@ export function breakdownBucket(value: unknown, dim?: BreakdownDim): string | nu
   const v = value.trim();
   if (!v || v.length > BREAKDOWN_MAX_LABEL) return null;
   if (/[./[\]*~]/.test(v)) return null;
+  // A label already keyed on Object.prototype is not a bucket name — it is a
+  // write into the prototype chain. The folds below do
+  // `byDim[bucket] || (byDim[bucket] = {})`, and with bucket === "__proto__"
+  // that assignment sets the PROTOTYPE rather than a property; the per-option
+  // counter beneath it then increments a field every later object in the
+  // process inherits. Measured, not reasoned: one answer carrying
+  // `anchors: { gender: "__proto__" }` makes an unrelated question publish
+  // `{"f":{"1":6}}` for five voters — counts nobody cast, on every question
+  // that instance goes on to serve. "constructor" and "toString" are the same
+  // shape one step weaker: they read back truthy and so also walk past the
+  // BREAKDOWN_MAX_BUCKETS check.
+  //
+  // This is the only place it can be caught. firestore.rules can bound an
+  // anchor's LENGTH and nothing else (the reason BREAKDOWN_DIM_SHAPE exists
+  // above), and four of the six dimensions have no closed vocabulary to check
+  // against — so a free anonymous account can put any 40-char string here.
+  //
+  // Membership in the prototype rather than a blocklist: a list of names the
+  // language owns is a list this repo would have to maintain against it.
+  if (v in ({} as Record<string, unknown>)) return null;
   const shape = dim && BREAKDOWN_DIM_SHAPE[dim];
   if (shape && !shape.test(v)) return null;
   return v;
@@ -305,6 +325,70 @@ export function publishableBreakdown(
   return out;
 }
 
+// The breakdown a publish is allowed to RELEASE, given what the last publish
+// already released.
+//
+// shouldPublishAgg below bounds how often the document is rewritten, which
+// bounds the delta a snapshot-watcher can attribute — for `counts`. It does
+// nothing for `by`, because the cadence is counted in answers to the QUESTION
+// while the quantity on display is a count per BUCKET. A bucket therefore
+// moves by however many of the window's answers happened to carry its anchor,
+// and one is the common case: anchors are empty until the user fills the
+// Basics card (D8), so a window of five answers routinely contains a single
+// anchored one. Measured on the real fold: two consecutive published states
+// differing by `{"f":{"0":5}}` → `{"f":{"0":5,"1":1}}` name one person's vote
+// as exactly as a k=1 cohort would, past a floor that cleared.
+//
+// Worse in the shape that actually ships, because the anchors travel
+// together: that single answer moves all six dimensions at once, so the step
+// discloses a full {ageBand, gender, city, country, education, relationship}
+// tuple joined to one option. That is the re-identification the floor exists
+// to prevent, defeated by the update cadence rather than by the numbers —
+// the same failure the comment under shouldPublishAgg records for `counts`,
+// on the field that was added after it.
+//
+// So the same k applies per bucket: a bucket's counts may be re-released only
+// once it has gained `step` answers since the value a reader last saw. Until
+// then the PREVIOUS released value is re-emitted, so the document is
+// unchanged for that bucket rather than merely un-rewritten. The private doc
+// keeps the exact running total, so nothing is lost — a bucket lags by at
+// most `step - 1` answers, the same bound the cadence gives `counts`.
+//
+// A bucket seen for the first time is released whole: that discloses a cohort
+// of at least the floor arriving together, which is the floor's own
+// guarantee, not a step. The caller hands the result to publishableBreakdown,
+// whose floor, complementary suppression and minimum-comparison rules then
+// apply unchanged — this gates WHEN a value moves, never whether it clears.
+//
+// `released` is the last map this function returned, not the last one
+// published: publishableBreakdown only ever suppresses buckets, never alters
+// their counts, so a bucket it dropped was seen by nobody and measuring from
+// the older released value is the conservative direction.
+export function steppedBreakdown(
+  by: BreakdownCounts,
+  released: BreakdownCounts,
+  step: number,
+): BreakdownCounts {
+  const out: BreakdownCounts = {};
+  for (const dim of Object.keys(by)) {
+    const buckets = by[dim] || {};
+    const prevDim = released[dim] || {};
+    const dimOut: Record<string, Record<string, number>> = {};
+    for (const bucket of Object.keys(buckets)) {
+      const prev = prevDim[bucket];
+      if (!prev) {
+        dimOut[bucket] = { ...buckets[bucket] };
+        continue;
+      }
+      dimOut[bucket] = bucketTotal(buckets[bucket]) - bucketTotal(prev) >= step
+        ? { ...buckets[bucket] }
+        : { ...prev };
+    }
+    out[dim] = dimOut;
+  }
+  return out;
+}
+
 // ── when the public mirror may be rewritten ─────────────────────
 //
 // The k-floor stops a reader recovering an individual's answer from a tiny
@@ -333,6 +417,11 @@ export function publishableBreakdown(
 // `floor` should be a multiple of `every`, or the first publish waits for
 // the next multiple above it. That is safe (it only delays), so it is not
 // enforced — but it is why AGG_MIN_N and PUBLISH_EVERY are both 5.
+//
+// Scope, because it was once read as wider than it is: this bounds the delta
+// of `counts`, whose unit is the question. It says nothing about `by`, whose
+// unit is the bucket — steppedBreakdown above is the same argument carried to
+// that field, and the trigger must apply both.
 export function shouldPublishAgg(
   total: number,
   floor: number,
@@ -575,6 +664,37 @@ export function nextFcmTokens(
 // non-remove, is invalid by construction so every removal is citable.
 
 export const MOD_POLICY_LINES = ["H1", "H2", "H3", "H4", "H5"] as const;
+
+/**
+ * Tally one flag per takeId.
+ *
+ * A Map rather than an object literal, because the KEY IS CLIENT-CHOSEN: the
+ * flag's `takeId` is the take's document id, and firestore.rules lets any
+ * circle member pick that id when they create the take (the rules constrain
+ * its fields, never its name). On a plain object, `counts[takeId] || 0` reads
+ * back through the prototype for `constructor`, `toString`, `valueOf` and the
+ * rest — so `counts["constructor"] = (counts["constructor"] || 0) + 1` yields
+ * the string `"function Object() { [native code] }1111111111"`, every
+ * comparison in buildModQueueFrom against it is NaN-false, and the take is
+ * never queued however many people flag it. A take that cannot enter the
+ * queue cannot be moderated at all: permanent immunity, chosen at post time,
+ * with nothing logged.
+ *
+ * Firestore's own reserved-id rule (`__.*__`) is the only reason "__proto__"
+ * is not also reachable here, which is not a guarantee this module should be
+ * resting on.
+ *
+ * Pure, so the shape is pinned without an emulator — the emulator run that
+ * found this had to create a take called `constructor` to see it.
+ */
+export function tallyFlags(takeIds: readonly unknown[]): Record<string, number> {
+  const counts = new Map<string, number>();
+  for (const takeId of takeIds) {
+    if (typeof takeId !== "string" || !takeId) continue;
+    counts.set(takeId, (counts.get(takeId) || 0) + 1);
+  }
+  return Object.fromEntries(counts);
+}
 
 /**
  * Fold raw flag counts into the queue: takes at or above the flag

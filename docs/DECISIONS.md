@@ -4409,3 +4409,98 @@ harder to read in a log when a build goes wrong.
 not need one. This belongs on release paths, next to the plist check it
 mirrors — and `check:web-firebase` fails loudly when run without an
 environment, which is correct for a release gate and wrong for a PR.
+
+## D47 · Three guarantees were enforced on a value and not on the way it moves
+
+**Status.** Adopted 2026-08-06. Found by a code review of the tree at
+c592042; each was reproduced before it was believed, and each carries a
+test that fails against the code as it stood.
+
+**Decision.** Three fixes, one shape between them.
+
+**1 · The publish cadence applies per BUCKET, not only per question.**
+`shouldPublishAgg` bounds how often `v2_question_aggs` is rewritten, and
+D7's amendment records why: a client holds an `onSnapshot` on that
+document, so a step attributable to one person discloses that person's
+answer past any floor. The unit it bounds is the QUESTION. `by` — the
+per-anchor breakdown added later — is counted per BUCKET, and nothing
+bounded that. `steppedBreakdown` (pure.ts) now re-emits a bucket's previous
+value until the bucket has gained `AGG_MIN_N`, and the trigger stores the
+last released map as `v2_aggs_private/{qid}.byPub` (and `.entByPub` for the
+catalog path).
+
+The arithmetic that makes this not theoretical: anchors are empty until the
+user fills the Basics card (D8), so a five-answer publish window routinely
+carries exactly one anchored answer. Replaying the real fold, two
+consecutive published states differed by
+
+```
+{"gender":{"f":{"0":5}}}  →  {"gender":{"f":{"0":5,"1":1}}}
+```
+
+— one vote, isolated, in a cohort that had cleared the floor. And because
+the six anchors travel on the same answer, all six dimensions step together,
+so the disclosure is a full {ageBand, gender, city, country, education,
+relationship} tuple joined to an option, not a single cell. That is
+re-identification, not the residual D18 records.
+
+Cost: a bucket now lags by at most `AGG_MIN_N - 1` answers, the same bound
+the cadence already gives `counts`; the private doc keeps exact totals, so
+nothing is lost. First publish after deploy sees no stored `byPub` and
+releases current state once — identical to the behaviour it replaces, not
+worse.
+
+**2 · An anchor value may not be a key on `Object.prototype`.**
+`breakdownBucket` shape-checks `city` and `country`; the other four
+dimensions have no closed vocabulary, and `firestore.rules` can only bound
+an anchor's LENGTH — the constraint the shape map's own comment already
+records. So `anchors: { gender: "__proto__" }` passed the rules (verified in
+the emulator, anonymous auth), and `byDim[bucket] || (byDim[bucket] = {})`
+then set the PROTOTYPE rather than a property. The counter beneath it landed
+on `Object.prototype`, so every breakdown cell created afterwards in that
+instance started at 1: five voters published as six, on unrelated questions,
+until the instance recycled. `constructor` and `toString` are the same shape
+one step weaker — they read back truthy, so they also walk past
+`BREAKDOWN_MAX_BUCKETS`.
+
+Rejected by membership in the prototype rather than by a blocklist: a list
+of names the language owns is a list this repo would have to maintain
+against it.
+
+**3 · A take id may not be tallied on an object literal.** `takeId` is the
+take's document id and the CLIENT chooses it — the ruleset constrains a
+take's fields, never its name (verified: `v2_takes/constructor` creates, and
+another member can flag it). `counts[takeId] = (counts[takeId] || 0) + 1`
+therefore read back through the prototype, and ten flags on a take called
+`constructor` became the string `"function Object() { [native code]
+}1111111111"`. Every comparison in `buildModQueueFrom` against it is
+NaN-false, so the take never entered the queue however often it was
+flagged — moderation immunity, chosen at post time, nothing logged.
+`tallyFlags` (pure.ts) uses a Map; `priorEscalations` likewise, where the
+miss path would otherwise have written the Object constructor into a queue
+entry's `escalations` field.
+
+**4 · `--force` no longer reaches a firestore target.** Not a fourth bug so
+much as the same class in the deploy path — see docs/DEPLOYMENT.md for the
+arithmetic. `check:deploy-targets` now fails if the steps are recombined.
+
+**Why these are one record.** Every one of them enforced a guarantee on a
+STATE and not on a TRANSITION: the floor is checked in each published
+snapshot but never between two of them (1); the anchor is validated for
+length and shape but not for what assigning it does (2, 3); the index file
+is compared to the project but nothing asks what the comparison is allowed
+to delete (4). The guard that would have caught all four is differential —
+replay a sequence and assert a property of every adjacent pair, rather than
+of any single frame. `steppedBreakdown`'s test is written that way
+deliberately: it measures the minimum step over every adjacent pair of
+published states across 80 answers, because a spot check survives a policy
+that steps by one past some size, which is the bug it closes.
+
+**Not fixed here, recorded so the absence is deliberate.** The same review
+found the bucket cap is still first-come-first-served with no closed
+vocabulary on four dimensions (24 junk values permanently blank a
+dimension), the reveal's `members` snapshot is still taken at reveal time
+rather than play time, `deleteAccount` still leaves `ownerUid` and the
+IndexedDB mirror, and `web/privacy.html` still claims an on-device erasure
+the client does not perform. Each is a separate change with its own
+arithmetic; none is closed by this record.

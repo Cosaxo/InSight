@@ -70,6 +70,51 @@ const deployed = new Set(
   [...only[1].matchAll(/functions:([A-Za-z0-9_]+)/g)].map((m) => m[1]),
 );
 
+// …and no deploy may combine --force with a firestore target.
+//
+// --force is a deploy-wide flag. firebase-tools reads it as
+// `shouldDeleteIndexes = options.force` and `shouldDeleteFields =
+// options.force` (lib/firestore/api.js), so `--force --only
+// "firestore:indexes,functions:…"` deletes every index and field override
+// the live project holds that firestore.indexes.json does not name — and
+// that file declares `"indexes": []`. The two the repo asks an operator to
+// create by hand (the v2_agg_events TTL of LAUNCH-RUNBOOK §5.1, and the
+// composite index v2social.ts names for the duel scan) are exactly the
+// shape it removes.
+//
+// The flag is still needed for retry-enabled triggers, hence a split rather
+// than a ban: --force on the functions-only step, no --force on the
+// rules+indexes one. Checked here rather than left to review because the
+// deletion is silent, the run stays green, and the symptom arrives whenever
+// the TTL next mattered.
+// Comments are stripped first: the prose above the split step names both
+// `--force` and a firestore target, and a scanner that reads its own
+// explanation as the thing it forbids is worse than no scanner. (The same
+// mistake check:globals rule 2 still makes on spec-index.js.)
+const steps = workflow
+  .split("\n")
+  .filter((l) => !/^\s*#/.test(l))
+  .join("\n")
+  .split(/^\s*- name:/m);
+
+const forcedFirestore = steps.filter(
+  (s) => /npx firebase deploy/.test(s)
+    && /--force\b/.test(s)
+    && /--only\s+"[^"]*firestore:/.test(s),
+);
+
+if (forcedFirestore.length) {
+  console.error(
+    `check-deploy-targets: ${WORKFLOW} deploys a firestore target under --force.\n`
+    + forcedFirestore.map((s) => `    ${s.trim().replace(/\s+/g, " ").slice(0, 160)}…`).join("\n")
+    + "\n\n  --force makes firebase-tools DELETE every index and field override the\n"
+    + "  project holds that firestore.indexes.json does not list. Split the step:\n"
+    + '  `--only "firestore:rules,firestore:indexes"` with no --force, then\n'
+    + '  `--force --only "functions:…"`.',
+  );
+  process.exit(1);
+}
+
 const missing = exported.filter((f) => !deployed.has(f.name) && !allowed.has(f.name));
 const stale = [...deployed].filter((n) => !exported.some((f) => f.name === n));
 

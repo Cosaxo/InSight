@@ -66,8 +66,22 @@ Firebase project `prvfire33`. Routine backend changes need no manual deploy.
     it still wipes the v1 collections (D13)
   - Hosting (`web/` — the legal pages), as the **last** step and
     `continue-on-error` for the same reason as storage
-  - The main apply runs with `--force` — `onV2AnswerCreated` has a retry
-    policy, which the CLI refuses non-interactively otherwise
+  - The apply is **two steps, and the split is load-bearing.** Rules and
+    indexes go first with no `--force`; functions follow with it.
+    `onV2AnswerCreated` has a retry policy, which the CLI refuses
+    non-interactively without the flag — but `--force` is deploy-wide, not
+    a functions option. `firebase-tools` reads it as
+    `shouldDeleteIndexes`/`shouldDeleteFields` (`lib/firestore/api.js`), so
+    while the two shared one command, every deploy deleted whatever indexes
+    and field overrides production held that `firestore.indexes.json` does
+    not name — and that file declares `"indexes": []`. The two the runbook
+    tells an operator to create by hand are exactly that shape: the
+    `v2_agg_events.expireAt` TTL (LAUNCH-RUNBOOK §5.1, the 90-day bound D28
+    rests on) and the composite index `v2social.ts` names if the duel scan
+    throws `FAILED_PRECONDITION`. Both were being reverted silently, green.
+    Without `--force`, a non-interactive deploy logs the would-be deletions
+    and continues. `npm run check:deploy-targets` fails the build if the
+    two are ever recombined.
 
 ### One-off cleanup still owed in production (D13)
 

@@ -33,6 +33,7 @@ import {
   publishableCanon,
   seedDocMatches,
   shouldPublishAgg,
+  steppedBreakdown,
   type BreakdownCounts,
   type CanonCounts,
   type CatalogSpec,
@@ -403,19 +404,37 @@ export const onV2AnswerCreated = onDocumentCreated(
           ? (priv.exists && (priv.get("entBy") as BreakdownCounts)) || {}
           : {};
         if (entSlices) foldCanonAnchors(entBy, snap.get("anchors"), key);
+        // What the last publish released, per bucket. The publish CADENCE is
+        // counted in answers to the question; a bucket's own movement is not,
+        // so the k that shouldPublishAgg gives `total` has to be applied a
+        // second time, per bucket, or a step of one names a person
+        // (steppedBreakdown, pure.ts).
+        const entReleased: BreakdownCounts = entSlices
+          ? (priv.exists && (priv.get("entByPub") as BreakdownCounts)) || {}
+          : {};
+        const publishing = total >= AGG_MIN_N
+          && shouldPublishAgg(total, AGG_MIN_N, PUBLISH_EVERY);
+        const canon = publishing ? publishableCanon(ent, AGG_MIN_N, CANON_TOP_N) : null;
+        // Only a publish moves the released map — an answer that changes
+        // nothing on screen must not consume a bucket's step budget.
+        const nextEntReleased = canon
+          ? steppedBreakdown(canonBreakdownFor(entBy, canon.top), entReleased, AGG_MIN_N)
+          : entReleased;
         tx.set(eventRef, ledgerEntry(event.params.uid, qid));
         // Bounded growth: `ent` is capped by catalogue validation (~1k
         // entries); `entBy` by the bucket cap × its own per-cell entity
         // cap (foldCanonAnchors) — tens of KB against Firestore's 1 MiB
-        // limit either way.
-        tx.set(privRef, { ent, entBy, total }, { merge: false });
+        // limit either way. `entByPub` is a subset of `entBy` restricted to
+        // the published board, so it is bounded by CANON_TOP_N × the bucket
+        // cap and adds no new growth term.
+        tx.set(privRef, { ent, entBy, entByPub: nextEntReleased, total }, { merge: false });
         if (total >= AGG_MIN_N) {
-          if (shouldPublishAgg(total, AGG_MIN_N, PUBLISH_EVERY)) {
-            const canon = publishableCanon(ent, AGG_MIN_N, CANON_TOP_N);
+          if (publishing) {
             // A null canon means nothing survives the fold's own floors —
             // publish the bare total rather than a decorative board. When
             // there IS a board, its per-segment orderings ride along:
-            // cells restricted to the board's own entities, then the same
+            // cells restricted to the board's own entities, stepped so no
+            // bucket moves by less than the floor, then the same
             // bucket-cohort floor + complementary suppression as the vote
             // path (D17).
             tx.set(
@@ -426,7 +445,7 @@ export const onV2AnswerCreated = onDocumentCreated(
                     tooSmall: false,
                     top: canon.top,
                     rest: canon.rest,
-                    by: publishableBreakdown(canonBreakdownFor(entBy, canon.top), AGG_MIN_N),
+                    by: publishableBreakdown(nextEntReleased, AGG_MIN_N),
                   }
                 : { total, tooSmall: false },
               { merge: false },
@@ -476,8 +495,28 @@ export const onV2AnswerCreated = onDocumentCreated(
         ? (priv.exists && (priv.get("by") as BreakdownCounts)) || {}
         : {};
       if (slices) foldAnchors(by, snap.get("anchors"), optionIdx);
+      // The breakdown a reader has already seen. PUBLISH_EVERY bounds the
+      // delta of `counts`, whose unit is the question; a bucket's unit is the
+      // bucket, and a five-answer window routinely carries a single anchored
+      // answer (anchors stay empty until the Basics card is filled, D8), so
+      // without a second gate one publish moves one bucket by one and names
+      // that person's vote — with every dimension moving together, which is a
+      // quasi-identifier rather than a cell. steppedBreakdown (pure.ts)
+      // re-emits the previous value until a bucket has gained AGG_MIN_N.
+      const released: BreakdownCounts = slices
+        ? (priv.exists && (priv.get("byPub") as BreakdownCounts)) || {}
+        : {};
+      const publishing = total >= AGG_MIN_N
+        && shouldPublishAgg(total, AGG_MIN_N, PUBLISH_EVERY);
+      // Only a publish moves the released map. An answer that rewrites
+      // nothing must not spend a bucket's step budget, or the gate would
+      // decay to "every fifth answer" — which is the bound that was already
+      // there and is not the one this needs.
+      const nextReleased = publishing
+        ? steppedBreakdown(by, released, AGG_MIN_N)
+        : released;
       tx.set(eventRef, ledgerEntry(event.params.uid, qid));
-      tx.set(privRef, { counts, total, by }, { merge: false });
+      tx.set(privRef, { counts, total, by, byPub: nextReleased }, { merge: false });
       // The public mirror: k-floored, and deliberately without a fresh
       // timestamp — per-vote timing deltas shouldn't be attributable.
       //
@@ -494,12 +533,13 @@ export const onV2AnswerCreated = onDocumentCreated(
       // nothing is lost; the public mirror lags by at most
       // PUBLISH_EVERY - 1 answers.
       if (total >= AGG_MIN_N) {
-        if (shouldPublishAgg(total, AGG_MIN_N, PUBLISH_EVERY)) {
+        if (publishing) {
           // The breakdown carries its OWN floor, per cell, plus
           // complementary suppression (pure.ts). A question past the
           // overall floor still shows no slice until that slice can be
-          // shown without singling anyone out.
-          const byPub = publishableBreakdown(by, AGG_MIN_N);
+          // shown without singling anyone out — and, since `nextReleased`,
+          // no slice moves by less than that floor either.
+          const byPub = publishableBreakdown(nextReleased, AGG_MIN_N);
           tx.set(pubRef, { counts, total, tooSmall: false, by: byPub }, { merge: false });
         }
       } else {

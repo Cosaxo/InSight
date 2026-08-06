@@ -20,7 +20,13 @@ import { onCall, HttpsError, type CallableRequest } from "firebase-functions/v2/
 import { onSchedule } from "firebase-functions/v2/scheduler";
 import { logger } from "firebase-functions";
 import { LIGHT_CALLABLE, LIGHT_UNBOUNDED } from "./ops";
-import { buildModQueueFrom, carriedEscalations, modVerdictError, modVerdictId } from "./pure";
+import {
+  buildModQueueFrom,
+  carriedEscalations,
+  modVerdictError,
+  modVerdictId,
+  tallyFlags,
+} from "./pure";
 
 const REGION = "us-central1";
 
@@ -61,13 +67,11 @@ function assertModerator(request: CallableRequest): void {
 async function runBuildModQueue(): Promise<void> {
     const db = getFirestore();
     const flags = await db.collection("v2_flags").get();
-    const counts: Record<string, number> = {};
-    for (const f of flags.docs) {
-      const takeId = f.get("takeId");
-      if (typeof takeId === "string" && takeId) {
-        counts[takeId] = (counts[takeId] || 0) + 1;
-      }
-    }
+    // tallyFlags, not an object literal keyed in place: takeId is a
+    // client-chosen document id, and the prototype names read back truthy
+    // (see tallyFlags in pure.ts — a take posted as `constructor` was
+    // unqueueable however often it was flagged).
+    const counts = tallyFlags(flags.docs.map((f) => f.get("takeId")));
     const queue = buildModQueueFrom(counts, MOD_QUEUE_MIN_FLAGS, MOD_QUEUE_SIZE);
 
     // Rebuild wholesale: stale entries (verdicted, or takes since deleted)
@@ -84,14 +88,19 @@ async function runBuildModQueue(): Promise<void> {
     // replaced, but escalation is a message to a human that the rebuild was
     // silently eating (carriedEscalations, pure.ts). Read off the entry
     // being deleted, in the same fetch, so this costs no extra query.
-    const priorEscalations: Record<string, number> = {};
+    // Keyed by document id, which is the take id — client-chosen, so a Map
+    // for the same reason tallyFlags is one. On an object literal the miss
+    // path `priorEscalations[item.takeId] || 0` returns the Object
+    // CONSTRUCTOR for a take called `constructor`, and that function is what
+    // would be written to the queue entry's `escalations` field below.
+    const priorEscalations = new Map<string, number>();
     for (const doc of existing.docs) {
       const n = carriedEscalations({
         escalations: doc.get("escalations"),
         escalated: doc.get("escalated"),
         advisoryVerdict: doc.get("advisoryVerdict"),
       });
-      if (n > 0) priorEscalations[doc.id] = n;
+      if (n > 0) priorEscalations.set(doc.id, n);
     }
     const batch = db.batch();
     for (const doc of existing.docs) batch.delete(doc.ref);
@@ -102,7 +111,7 @@ async function runBuildModQueue(): Promise<void> {
       // A vanished take has nothing to moderate; an already-hidden one is
       // settled. Both fall out of the queue silently.
       if (!take.exists || take.get("hidden")) continue;
-      const escalations = priorEscalations[item.takeId] || 0;
+      const escalations = priorEscalations.get(item.takeId) || 0;
       if (escalations > 0) carried += 1;
       batch.set(db.collection("v2_mod_queue").doc(item.takeId), {
         takeId: item.takeId,
