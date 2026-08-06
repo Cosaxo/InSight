@@ -403,7 +403,7 @@ export const onV2AnswerCreated = onDocumentCreated(
         const entBy: BreakdownCounts = entSlices
           ? (priv.exists && (priv.get("entBy") as BreakdownCounts)) || {}
           : {};
-        if (entSlices) foldCanonAnchors(entBy, snap.get("anchors"), key);
+        if (entSlices) foldCanonAnchors(entBy, snap.get("anchors"), key, AGG_MIN_N);
         // What the last publish released, per bucket. The publish CADENCE is
         // counted in answers to the question; a bucket's own movement is not,
         // so the k that shouldPublishAgg gives `total` has to be applied a
@@ -494,7 +494,7 @@ export const onV2AnswerCreated = onDocumentCreated(
       const by: BreakdownCounts = slices
         ? (priv.exists && (priv.get("by") as BreakdownCounts)) || {}
         : {};
-      if (slices) foldAnchors(by, snap.get("anchors"), optionIdx);
+      if (slices) foldAnchors(by, snap.get("anchors"), optionIdx, AGG_MIN_N);
       // The breakdown a reader has already seen. PUBLISH_EVERY bounds the
       // delta of `counts`, whose unit is the question; a bucket's unit is the
       // bucket, and a five-answer window routinely carries a single anchored

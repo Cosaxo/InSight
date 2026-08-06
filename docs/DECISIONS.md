@@ -4545,10 +4545,66 @@ require. D6 already treats this cache as sensitive — it is why Android
 backup is off. Fixing the code rather than the copy, because the copy
 described the right behaviour.
 
-**Still not fixed, recorded so the absence is deliberate.** The bucket cap
-is still first-come-first-served with no closed vocabulary on four
-dimensions (24 junk values permanently blank a dimension), the reveal's
-`members` snapshot is still taken at reveal time rather than play time, and
-`deleteAccount` still leaves `ownerUid` on every multi-member group its
-owner created. Each is a separate change with its own arithmetic; none is
-closed by this record.
+**Amendment (2026-08-06, second) — the bucket cap and `ownerUid`.**
+
+**7 · The anchor bucket cap is no longer allocated first-come-first-served.**
+A dimension holds `BREAKDOWN_MAX_BUCKETS` (24) buckets, nothing evicted one,
+and `by` is carried across every publish — so whoever filled the slots first
+decided what the dimension could ever show. 24 nonsense values blanked it
+permanently, and firestore.rules can only bound an anchor's length. Two
+defences, because the six dimensions are two different shapes:
+
+- **Four have a closed vocabulary SHORTER THAN THE CAP.** ageBand, gender,
+  education and relationship come from `<select>`s of 7, 4, 15 and 6 values.
+  Checking membership means those dimensions cannot be exhausted at all —
+  there are fewer legal buckets than slots. That is the complete fix, and it
+  is available only in the trigger: the rules layer cannot hold a
+  vocabulary, and a client choosing from a list says nothing about what a
+  script sends. `npm run check:anchors` holds `BREAKDOWN_DIM_VOCAB` equal to
+  the profile's lists, on both the PR and the deploy path.
+
+- **City and country cannot be closed that way** — 10,929 places and ~249
+  countries against 24 slots — so the cap itself changed. A bucket below the
+  k-floor is published to nobody, so it is now evictable: a new bucket
+  displaces the smallest sub-floor one, and a bucket at or above the floor is
+  never evicted. Among equals it is oldest-out, and that is required rather
+  than tolerated — the attack state IS 24 buckets of one answer each, so a
+  rule protecting incumbents there would protect exactly the junk. What it
+  costs is the long tail, which the cap was already documented to degrade;
+  what it buys is that recurrence wins.
+
+The eviction loss is real and bounded: an evicted bucket's partial count is
+discarded, so a value that returns restarts and undercounts by at most
+`AGG_MIN_N - 1`. It only ever applies to counts no reader has seen, and it
+replaces a dimension that showed nothing at all.
+
+**Found while writing the vocabulary: `Vocational / trade` never counted.**
+It shipped as an `<select>` option and `breakdownBucket` rejected it for its
+entire life, because a slash is in that function's rejected character class.
+The answer wrote; the aggregate silently never counted it. Renamed to
+`Vocational or trade` on both sides, and rule 3 of check:anchors is that bug
+turned into a check.
+
+**8 · `deleteAccount` removes `ownerUid`.** `createGroupV2` stamps it and
+NOTHING reads it — a repo-wide grep finds one write and no reader — which is
+exactly why three erasure phases walked past it while scrubbing the two
+load-bearing fields beside it. firestore.rules serves the whole group
+document to every current member, so it published a deleted account's raw
+uid to the circle, and to anyone they invited afterwards, indefinitely. That
+is the shape the reveal scrub one screen below already refuses.
+
+Deleted rather than reassigned to a surviving member: nothing reads it, so
+inventing a successor would be a fact this codebase has no use for.
+`leaveGroupV2` is deliberately NOT changed — D45 settles that leaving a
+group is not an erasure request.
+
+The erasure e2e could not see this: its shared-group fixture was owned by
+the SURVIVING member, so there was nothing of the deleted user's in it to
+miss. The fixture now names the doomed account, which is the ordinary case,
+and asserts the field is gone.
+
+**Still not fixed, recorded so the absence is deliberate.** The reveal's
+`members` snapshot is still taken at reveal time rather than play time, so a
+member who joins between UTC midnight and the scan reads the previous day's
+votes and names. That one is a schema change (a per-member `joinedAt`) and
+has its own arithmetic; it is not closed by this record.

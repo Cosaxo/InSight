@@ -103,8 +103,14 @@ await adb.doc(`v2_groups/${SOLO}/reveals/${DAY}`).set({
 });
 
 // a group shared with someone else → must SURVIVE, scrubbed of them
+//
+// `ownerUid` is the DOOMED account deliberately. It used to be OTHER here,
+// which is the reason this suite could not see that erasure never removed
+// the field: the group the assertions run against was owned by the surviving
+// member, so there was nothing of the deleted user's left in it to miss. A
+// creator deleting their account is the ordinary case, not the exotic one.
 await adb.doc(`v2_groups/${SHARED}`).set({
-  name: "Shared", mode: "group", ownerUid: OTHER, memberUids: [uid, OTHER], streak: 3,
+  name: "Shared", mode: "group", ownerUid: uid, memberUids: [uid, OTHER], streak: 3,
 });
 await adb.doc(`v2_groups/${SHARED}/reveals/${DAY}`).set({
   day: DAY, qid: "group-gu0",
@@ -302,6 +308,12 @@ if (!shared.exists) fail("the SHARED group was deleted — it still had another 
 const members = shared.get("memberUids") || [];
 if (members.includes(uid)) fail("deleted uid still in the shared group's memberUids");
 if (!members.includes(OTHER)) fail("the surviving member was removed from the shared group");
+// The field nothing reads, which is why it outlived three erasure phases:
+// firestore.rules serves the whole group document to every current member,
+// so a leftover ownerUid publishes the deleted account's raw uid to the
+// circle forever.
+if (shared.get("ownerUid") === uid) fail("the deleted user's uid survives as the shared group's ownerUid");
+if (shared.get("name") !== "Shared") fail("erasure damaged the surviving group's own fields");
 
 const reveal = await adb.doc(`v2_groups/${SHARED}/reveals/${DAY}`).get();
 if (!reveal.exists) fail("the shared group's reveal was deleted wholesale");

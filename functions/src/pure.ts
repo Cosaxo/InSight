@@ -194,16 +194,32 @@ export const BREAKDOWN_MAX_LABEL = 40;
 // Dimensions whose values come from a closed vocabulary get their shape
 // checked here as well as at the source.
 //
-// The bucket cap is first-come-first-served, so 24 junk values arriving
-// early would crowd out every real one for that question — and anchors are
-// written by the CLIENT onto its own answer doc, where firestore.rules can
-// only enforce a length. Anyone could mint 24 nonsense cities and blank the
-// dimension for everybody. Shape-checking `city` closes that, and it also
-// keeps the free text sitting in pre-D9 profiles ("oslo", "Oslo, Norway")
-// from competing for slots with the catalogue values.
+// The bucket cap is a scarce resource, and anchors are written by the CLIENT
+// onto its own answer doc where firestore.rules can only enforce a length —
+// so whoever fills the slots first decides what the dimension can ever show.
+// 24 nonsense values blank it for everybody, permanently: nothing evicts a
+// bucket, and `by` is carried forward across every publish.
 //
-// The other dimensions are short fixed lists chosen from <select>s; a bogus
-// value there costs one suppressed sub-floor bucket, not the dimension.
+// Two different defences, because the dimensions are two different shapes.
+//
+// FOUR OF THEM HAVE A CLOSED VOCABULARY, and it is SHORTER THAN THE CAP.
+// ageBand/gender/education/relationship come from <select>s of 7, 4, 15 and 6
+// values; checking membership means the dimension cannot be exhausted at all,
+// because there are fewer legal buckets than slots. That is the real fix and
+// it is available here and nowhere else — the rules layer cannot hold a
+// vocabulary, and the client choosing from a list says nothing about what a
+// script sends. `npm run check:anchors` holds these equal to the <select>
+// lists in src/v2/spec/profile-general.jsx, the way check-cities.mjs holds
+// the city catalogue to its own rules.
+//
+// This used to say a bogus value in these four "costs one suppressed
+// sub-floor bucket, not the dimension". That was wrong in the same way the
+// city note was right: 24 of them cost the dimension.
+//
+// CITY AND COUNTRY CANNOT BE CLOSED THAT WAY — 10,929 places and ~249
+// countries against 24 slots — so membership would still leave them
+// exhaustible with real values. Their shapes stay, and the cap itself
+// changed instead: see the eviction rule in foldAnchors.
 const BREAKDOWN_DIM_SHAPE: Partial<Record<BreakdownDim, RegExp>> = {
   // "Oslo, NO" — a catalogue name and an ISO 3166-1 alpha-2 code. Must
   // agree with placeKey() in src/v2/data/places.ts.
@@ -211,6 +227,36 @@ const BREAKDOWN_DIM_SHAPE: Partial<Record<BreakdownDim, RegExp>> = {
   // ISO 3166-1 alpha-2, derived client-side from the picked city.
   country: /^[A-Z]{2}$/,
 };
+
+// The closed vocabularies, verbatim from the profile's <select>s. Every value
+// must survive breakdownBucket and fit BREAKDOWN_MAX_LABEL, and every list
+// must be shorter than BREAKDOWN_MAX_BUCKETS — check:anchors asserts all
+// three, and the last is the one that makes exhaustion impossible rather
+// than merely harder.
+//
+// `Vocational / trade` is deliberately spelled "Vocational or trade" here
+// AND in the profile: the slash is in breakdownBucket's rejected class, so
+// the shipped option folded into no bucket at all from the day it was added.
+// Nothing surfaced it — the answer wrote, the aggregate just never counted
+// it — which is precisely the silence check:anchors now closes.
+export const BREAKDOWN_DIM_VOCAB: Partial<Record<BreakdownDim, readonly string[]>> = {
+  ageBand: ["Under 18", "18-24", "25-34", "35-44", "45-54", "55-64", "65+"],
+  gender: ["Woman", "Man", "Non-binary", "Prefer not to say"],
+  education: [
+    "Primary school", "Middle school", "High school", "Vocational or trade",
+    "Some college", "Associate degree", "Bachelor's", "Postgraduate diploma",
+    "Master's", "MBA", "Doctorate", "Postdoctoral",
+    "Professional certification", "Self-taught", "Other",
+  ],
+  relationship: [
+    "Single", "Dating", "Partnered", "Married", "It’s complicated",
+    "Prefer not to say",
+  ],
+};
+
+const VOCAB_SETS: Partial<Record<BreakdownDim, ReadonlySet<string>>> = Object.fromEntries(
+  Object.entries(BREAKDOWN_DIM_VOCAB).map(([dim, vals]) => [dim, new Set(vals)]),
+);
 
 export type BreakdownCounts = Record<string, Record<string, Record<string, number>>>;
 
@@ -245,15 +291,76 @@ export function breakdownBucket(value: unknown, dim?: BreakdownDim): string | nu
   if (v in ({} as Record<string, unknown>)) return null;
   const shape = dim && BREAKDOWN_DIM_SHAPE[dim];
   if (shape && !shape.test(v)) return null;
+  const vocab = dim && VOCAB_SETS[dim];
+  if (vocab && !vocab.has(v)) return null;
   return v;
+}
+
+// Make room for a new bucket in a dimension that is at its cap, or return
+// false to refuse it.
+//
+// The cap has to hold — it is the document-growth bound D7's arithmetic
+// rests on — but WHICH buckets hold the slots was first-come-first-served,
+// and that is what made the dimension attackable: a bucket below the floor
+// is suppressed from every publish, so it occupies a slot while showing
+// nobody anything. 24 of those arriving early blanked `city` permanently,
+// and no vocabulary can prevent it there because the catalogue is 10,929
+// places against 24 slots — the attacker only needs real city names.
+//
+// So a sub-floor bucket is evictable and a publishable one is not. The
+// smallest goes, and only if it is genuinely below the floor; once every
+// slot holds a cohort large enough to publish, the cap refuses again and the
+// long tail degrades exactly as it always did.
+//
+// What eviction costs, stated because it is a real loss and not a rounding
+// one: the evicted bucket's partial count is discarded, so a value that
+// re-appears restarts from zero and undercounts by up to `floor - 1`. That
+// is bounded, it only ever applies to counts no reader has seen, and the
+// alternative it replaces is a dimension that shows nothing at all for the
+// life of the question.
+//
+// AMONG EQUALS IT IS FIRST-IN-FIRST-OUT, and that is not incidental — the
+// scan keeps the first key at the minimum (`<`, not `<=`), and insertion
+// order is Firestore's map order. So a dimension whose buckets all sit at one
+// answer does churn, oldest out. That has to be true for this to work at all:
+// the attack state IS 24 buckets of one answer each, and a rule that
+// protected incumbents there would protect exactly the junk.
+//
+// What it costs is the long tail, which is where the cap was already
+// documented to degrade. What it buys is that recurrence wins: a value that
+// comes back grows past the churn and, at the floor, stops being evictable at
+// all. Nothing published can be taken away.
+function evictForNewBucket(
+  byDim: Record<string, Record<string, number>>,
+  floor: number,
+): boolean {
+  const keys = Object.keys(byDim);
+  if (keys.length < BREAKDOWN_MAX_BUCKETS) return true;
+  let victim: string | null = null;
+  let victimTotal = floor;
+  for (const k of keys) {
+    const n = bucketTotal(byDim[k]);
+    if (n < victimTotal) {
+      victim = k;
+      victimTotal = n;
+    }
+  }
+  if (victim === null) return false;
+  delete byDim[victim];
+  return true;
 }
 
 // Fold one answer's anchors into the running breakdown. Mutates and returns
 // `into` so the trigger can keep this inside its existing transaction.
+//
+// `floor` is the k-floor the publish path will apply (AGG_MIN_N). It is a
+// parameter rather than a constant for the reason meetsKFloor's is: the
+// floors in this module are named decisions passed in, never assumed.
 export function foldAnchors(
   into: BreakdownCounts,
   anchors: unknown,
   optionIdx: number,
+  floor: number,
 ): BreakdownCounts {
   if (!anchors || typeof anchors !== "object") return into;
   const src = anchors as Record<string, unknown>;
@@ -261,10 +368,7 @@ export function foldAnchors(
     const bucket = breakdownBucket(src[dim], dim);
     if (bucket === null) continue;
     const byDim = into[dim] || (into[dim] = {});
-    // Cap reached and this is a new bucket: drop it rather than grow the
-    // document. Existing buckets keep counting, so the cap degrades the
-    // long tail rather than freezing the dimension.
-    if (!byDim[bucket] && Object.keys(byDim).length >= BREAKDOWN_MAX_BUCKETS) continue;
+    if (!byDim[bucket] && !evictForNewBucket(byDim, floor)) continue;
     const cell = byDim[bucket] || (byDim[bucket] = {});
     const k = String(optionIdx);
     cell[k] = (cell[k] || 0) + 1;
@@ -558,6 +662,7 @@ export function foldCanonAnchors(
   into: BreakdownCounts,
   anchors: unknown,
   entityKey: string,
+  floor: number,
 ): BreakdownCounts {
   if (!anchors || typeof anchors !== "object") return into;
   const src = anchors as Record<string, unknown>;
@@ -565,7 +670,9 @@ export function foldCanonAnchors(
     const bucket = breakdownBucket(src[dim], dim);
     if (bucket === null) continue;
     const byDim = into[dim] || (into[dim] = {});
-    if (!byDim[bucket] && Object.keys(byDim).length >= BREAKDOWN_MAX_BUCKETS) continue;
+    // Same bucket cap and the same eviction rule as foldAnchors — the
+    // slots are just as attackable here, and for the same reason.
+    if (!byDim[bucket] && !evictForNewBucket(byDim, floor)) continue;
     const cell = byDim[bucket] || (byDim[bucket] = {});
     if (!cell[entityKey] && Object.keys(cell).length >= CANON_BY_MAX_ENTITIES) continue;
     cell[entityKey] = (cell[entityKey] || 0) + 1;

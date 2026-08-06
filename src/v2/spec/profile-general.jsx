@@ -190,7 +190,13 @@ import { IS_DATA } from './sample-data.js';
     };
   }
 
-  const EDU_OPTS = ['Primary school', 'Middle school', 'High school', 'Vocational / trade', 'Some college', 'Associate degree', "Bachelor's", 'Postgraduate diploma', "Master's", 'MBA', 'Doctorate', 'Postdoctoral', 'Professional certification', 'Self-taught', 'Other'];
+  // Held equal to BREAKDOWN_DIM_VOCAB in functions/src/pure.ts by
+  // `npm run check:anchors` — the aggregate trigger buckets on these exact
+  // strings, so a label edit here silently stops that level counting.
+  // 'Vocational or trade' is spelled without the slash for that reason: a
+  // slash is in breakdownBucket's rejected character class, and while this
+  // list said 'Vocational / trade' that option folded into no bucket at all.
+  const EDU_OPTS = ['Primary school', 'Middle school', 'High school', 'Vocational or trade', 'Some college', 'Associate degree', "Bachelor's", 'Postgraduate diploma', "Master's", 'MBA', 'Doctorate', 'Postdoctoral', 'Professional certification', 'Self-taught', 'Other'];
   // `id` is threaded down to the native <select> so the caller's <label> can
   // point at it with htmlFor. Nesting the control inside the label is valid
   // implicit association on its own, but only to something that can see

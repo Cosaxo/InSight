@@ -34,6 +34,11 @@ import {
   nextFcmTokens,
 } from "./pure";
 
+// AGG_MIN_N as shipped. The folds take the k-floor as a parameter because
+// the bucket cap now EVICTS a sub-floor bucket to admit a new one, and
+// "sub-floor" is the publish path's decision, not the fold's to assume.
+const FLOOR = 5;
+
 // ── invite codes ────────────────────────────────────────────────
 
 describe("inviteCodeFromBytes", () => {
@@ -218,13 +223,16 @@ describe("meetsKFloor", () => {
 describe("per-anchor breakdowns", () => {
   // Since D9 the client sends the canonical catalogue key for `city` and
   // the ISO code (derived from it, never typed) for `country`.
+  // Real vocabulary values. This fixture said `gender: "Women"` before the
+  // vocabulary check existed — a string the profile's <select> has never
+  // offered, which is exactly the drift check:anchors now prevents.
   const anchors = (over: Record<string, unknown> = {}) => ({
-    ageBand: "25-34", gender: "Women", country: "NO", ...over,
+    ageBand: "25-34", gender: "Woman", country: "NO", ...over,
   });
 
   it("folds the closed-vocabulary anchors, and ignores junk buckets", () => {
     const by = {};
-    foldAnchors(by, anchors({ city: "Oslo, NO", profession: "Carpenter" }), 1);
+    foldAnchors(by, anchors({ city: "Oslo, NO", profession: "Carpenter" }), 1, FLOOR);
     // `profession` is still free text up to 80 chars and must never mint a
     // key. `city` may, since D9 — it comes from a fixed catalogue whose
     // every entry check-cities.mjs verifies against these same rules.
@@ -237,7 +245,7 @@ describe("per-anchor breakdowns", () => {
 
     // empty, over-long and field-path-hostile values are skipped, not stored
     const junk = {};
-    foldAnchors(junk, { ageBand: "  ", gender: "x".repeat(41), country: "a.b" }, 0);
+    foldAnchors(junk, { ageBand: "  ", gender: "x".repeat(41), country: "a.b" }, 0, FLOOR);
     expect(junk).toEqual({});
     expect(breakdownBucket("  Norway  ")).toBe("Norway");
     expect(breakdownBucket(42)).toBeNull();
@@ -250,20 +258,27 @@ describe("per-anchor breakdowns", () => {
     // check that blanks the dimension for every other user of the question.
     const by = {};
     for (const bad of ["oslo", "Oslo, Norway", "Oslo,NO", "Oslo, no", "OSLO"]) {
-      foldAnchors(by, { city: bad, country: bad }, 0);
+      foldAnchors(by, { city: bad, country: bad }, 0, FLOOR);
     }
     expect(by).toEqual({});
 
     // …and the canonical forms still land.
-    foldAnchors(by, { city: "Oslo, NO", country: "NO" }, 0);
+    foldAnchors(by, { city: "Oslo, NO", country: "NO" }, 0, FLOOR);
     expect(Object.keys(by).sort()).toEqual(["city", "country"]);
 
     // A city name may itself contain a comma; the shape anchors on the tail.
     expect(breakdownBucket("Washington, D C, US", "city")).toBe("Washington, D C, US");
-    // The dim is optional, and without it the check does not apply — the
-    // other five dimensions still accept their own free-form labels.
+    // The dim is optional, and without it neither the shape nor the
+    // vocabulary applies — that overload is only reached by callers that do
+    // not know which dimension they hold.
     expect(breakdownBucket("oslo")).toBe("oslo");
+    // With the dim, the four closed dimensions accept their vocabulary and
+    // nothing else. "Women" is the near-miss that matters: it reads like a
+    // gender and the profile has never offered it.
     expect(breakdownBucket("Prefer not to say", "gender")).toBe("Prefer not to say");
+    expect(breakdownBucket("Women", "gender")).toBeNull();
+    expect(breakdownBucket("Doctorate", "education")).toBe("Doctorate");
+    expect(breakdownBucket("PhD", "education")).toBeNull();
   });
 
   it("refuses bucket labels that are keys on Object.prototype", () => {
@@ -282,7 +297,7 @@ describe("per-anchor breakdowns", () => {
 
     const before = Object.prototype as unknown as Record<string, unknown>;
     const by = {};
-    foldAnchors(by, { gender: "__proto__", ageBand: "constructor" }, 3);
+    foldAnchors(by, { gender: "__proto__", ageBand: "constructor" }, 3, FLOOR);
     expect(by).toEqual({});
     expect(before["3"]).toBeUndefined();
     // The consequence the guard exists for, stated as the assertion: an
@@ -291,39 +306,105 @@ describe("per-anchor breakdowns", () => {
 
     // …and the same for the catalog transpose, which folds the same anchors.
     const entBy = {};
-    foldCanonAnchors(entBy, { gender: "__proto__" }, "25");
+    foldCanonAnchors(entBy, { gender: "__proto__" }, "25", FLOOR);
     expect(entBy).toEqual({});
     expect(({} as Record<string, unknown>)["25"]).toBeUndefined();
   });
 
-  it("caps distinct buckets per dimension but keeps counting known ones", () => {
-    // `education` rather than `country`: the cap is what is under test, and
-    // country now carries an ISO-shape check that a synthetic "C37" fails
-    // for an unrelated reason.
+  it("holds the bucket cap, on the dimension that can actually reach it", () => {
+    // `city` and not `education`: the four <select> dimensions now check
+    // membership, and their vocabularies are SHORTER than the cap, so they
+    // can no longer reach it at all — which is the point of closing them.
+    // 10,929 places against 24 slots is where the cap still bites.
     const by: Record<string, Record<string, Record<string, number>>> = {};
     for (let i = 0; i < BREAKDOWN_MAX_BUCKETS + 10; i++) {
-      foldAnchors(by, { education: "E" + i }, 0);
-    }
-    expect(Object.keys(by.education)).toHaveLength(BREAKDOWN_MAX_BUCKETS);
-    // a bucket already known keeps incrementing even once the cap is hit
-    foldAnchors(by, { education: "E0" }, 0);
-    expect(by.education.E0["0"]).toBe(2);
-    // …and a new one past the cap is dropped rather than growing the doc
-    expect(by.education["E99"]).toBeUndefined();
-  });
-
-  it("caps the city dimension too, using real catalogue keys", () => {
-    // The cap matters most here: a global question can touch far more than
-    // 24 cities, so this is the dimension that actually degrades in
-    // production rather than in a test.
-    const by: Record<string, Record<string, Record<string, number>>> = {};
-    for (let i = 0; i < BREAKDOWN_MAX_BUCKETS + 10; i++) {
-      foldAnchors(by, { city: `City${i}, NO` }, 0);
+      foldAnchors(by, { city: `City${i}, NO` }, 0, FLOOR);
     }
     expect(Object.keys(by.city)).toHaveLength(BREAKDOWN_MAX_BUCKETS);
-    foldAnchors(by, { city: "City0, NO" }, 0);
-    expect(by.city["City0, NO"]["0"]).toBe(2);
-    expect(by.city["City30, NO"]).toBeUndefined();
+    // A bucket still IN the map keeps incrementing — the cap gates entry,
+    // not counting. (City0 is gone by now: 34 arrivals into 24 slots, and
+    // among all-equal buckets eviction is oldest-first.)
+    const survivor = Object.keys(by.city)[0];
+    foldAnchors(by, { city: survivor }, 0, FLOOR);
+    expect(by.city[survivor]["0"]).toBe(2);
+    // …and the document cannot grow past the cap however many arrive. This
+    // is the D7 growth bound, and eviction must not have loosened it.
+    for (let i = 100; i < 140; i++) foldAnchors(by, { city: `City${i}, NO` }, 0, FLOOR);
+    expect(Object.keys(by.city).length).toBeLessThanOrEqual(BREAKDOWN_MAX_BUCKETS);
+  });
+
+  it("a closed vocabulary cannot reach the cap at all", () => {
+    // The property that closes the slot-exhaustion hole for four of the six
+    // dimensions, asserted as the inequality it actually is: there are fewer
+    // legal buckets than slots, so no caller can crowd a real one out.
+    // check:anchors holds the same inequality against the client's lists.
+    const by: Record<string, Record<string, Record<string, number>>> = {};
+    for (const v of ["Woman", "Man", "Non-binary", "Prefer not to say"]) {
+      foldAnchors(by, { gender: v }, 0, FLOOR);
+    }
+    // …and 200 attempts at anything else buy nothing.
+    for (let i = 0; i < 200; i++) foldAnchors(by, { gender: `G${i}` }, 0, FLOOR);
+    expect(Object.keys(by.gender).sort())
+      .toEqual(["Man", "Non-binary", "Prefer not to say", "Woman"]);
+    expect(Object.keys(by.gender).length).toBeLessThan(BREAKDOWN_MAX_BUCKETS);
+  });
+
+  it("evicts a sub-floor bucket to admit a new one, and never a published one", () => {
+    // The attack the cap used to enable: fill all 24 slots with values that
+    // are never published (one answer each), and every real city that
+    // arrives afterwards is refused — the dimension is blank for the life of
+    // the question, and no vocabulary can stop it because the catalogue is
+    // far larger than the cap.
+    const by: Record<string, Record<string, Record<string, number>>> = {};
+    for (let i = 0; i < BREAKDOWN_MAX_BUCKETS; i++) {
+      foldAnchors(by, { city: `Junk${i}, NO` }, 0, FLOOR);
+    }
+    expect(Object.keys(by.city)).toHaveLength(BREAKDOWN_MAX_BUCKETS);
+
+    // Real traffic now arrives. Two cities, because publishableBreakdown
+    // needs two surviving buckets to call anything a split — one bucket is a
+    // population statement, not a comparison.
+    for (let i = 0; i < FLOOR; i++) {
+      foldAnchors(by, { city: "Oslo, NO" }, 1, FLOOR);
+      foldAnchors(by, { city: "Bergen, NO" }, 0, FLOOR);
+    }
+    // Before this change both were refused outright and `city` published
+    // nothing for the life of the question.
+    expect(publishableBreakdown(by, FLOOR).city).toEqual({
+      "Oslo, NO": { "1": FLOOR },
+      "Bergen, NO": { "0": FLOOR },
+    });
+
+    // …and once a bucket is publishable it is not evictable, however many
+    // new values arrive. A published count that could vanish is a worse
+    // failure than a dimension that degrades.
+    for (let i = 0; i < 200; i++) foldAnchors(by, { city: `More${i}, NO` }, 0, FLOOR);
+    expect(by.city["Oslo, NO"], "a published bucket was evicted").toEqual({ "1": FLOOR });
+    expect(by.city["Bergen, NO"], "a published bucket was evicted").toEqual({ "0": FLOOR });
+    expect(Object.keys(by.city).length).toBeLessThanOrEqual(BREAKDOWN_MAX_BUCKETS);
+  });
+
+  it("refuses a new bucket outright once every slot is publishable", () => {
+    // The case the assertion above CANNOT reach, and the one that matters
+    // most: while any sub-floor bucket exists it is always the smaller
+    // victim, so a published bucket is never even a candidate. Only when
+    // every slot is at or above the floor does the floor guard itself decide
+    // — and dropping it there would delete counts a reader has already seen.
+    //
+    // Written after mutating `victimTotal` from `floor` to `Infinity` and
+    // watching the whole suite stay green.
+    const by: Record<string, Record<string, Record<string, number>>> = {};
+    for (let i = 0; i < BREAKDOWN_MAX_BUCKETS; i++) {
+      for (let n = 0; n < FLOOR; n++) foldAnchors(by, { city: `Full${i}, NO` }, 0, FLOOR);
+    }
+    const before = { ...by.city };
+    expect(Object.keys(before)).toHaveLength(BREAKDOWN_MAX_BUCKETS);
+
+    foldAnchors(by, { city: "Newcomer, NO" }, 0, FLOOR);
+
+    expect(by.city["Newcomer, NO"], "a publishable bucket was evicted for a newcomer")
+      .toBeUndefined();
+    expect(by.city).toEqual(before);
   });
 
   it("suppresses buckets whose total is below the floor", () => {
@@ -449,7 +530,6 @@ describe("public-mirror publish cadence", () => {
 });
 
 describe("the same cadence, applied per bucket (steppedBreakdown)", () => {
-  const FLOOR = 5;
 
   // The trigger's vote-path publish loop (v2.ts), reproduced so the property
   // is asserted against the composition that actually ships rather than
@@ -462,7 +542,7 @@ describe("the same cadence, applied per bucket (steppedBreakdown)", () => {
     const seen: Record<string, Record<string, Record<string, number>>>[] = [];
     for (const a of answers) {
       total += 1;
-      foldAnchors(by, a.anchors, a.optionIdx);
+      foldAnchors(by, a.anchors, a.optionIdx, FLOOR);
       if (total >= FLOOR && shouldPublishAgg(total, FLOOR, FLOOR)) {
         released = steppedBreakdown(by, released, FLOOR);
         seen.push(publishableBreakdown(released, FLOOR));
@@ -477,11 +557,11 @@ describe("the same cadence, applied per bucket (steppedBreakdown)", () => {
     // exactly one anchored answer — and that one answer used to move its
     // bucket, and every dimension of it, by exactly 1.
     const answers: { anchors: Record<string, string>; optionIdx: number }[] = [];
-    for (let i = 0; i < 10; i++) answers.push({ anchors: { gender: "f" }, optionIdx: 0 });
-    for (let i = 0; i < 10; i++) answers.push({ anchors: { gender: "m" }, optionIdx: 0 });
+    for (let i = 0; i < 10; i++) answers.push({ anchors: { gender: "Woman" }, optionIdx: 0 });
+    for (let i = 0; i < 10; i++) answers.push({ anchors: { gender: "Man" }, optionIdx: 0 });
     for (let i = 0; i < 60; i++) {
       // one anchored answer per window of five
-      answers.push({ anchors: { gender: i % 2 ? "f" : "m" }, optionIdx: 1 });
+      answers.push({ anchors: { gender: i % 2 ? "Woman" : "Man" }, optionIdx: 1 });
       for (let j = 0; j < 4; j++) answers.push({ anchors: {}, optionIdx: 0 });
     }
 
@@ -509,36 +589,36 @@ describe("the same cadence, applied per bucket (steppedBreakdown)", () => {
   });
 
   it("re-emits the previous value rather than freezing the document", () => {
-    const by = { gender: { f: { "0": 5 } } };
+    const by = { gender: { Woman: { "0": 5 } } };
     const released = steppedBreakdown(by, {}, FLOOR);
-    expect(released).toEqual({ gender: { f: { "0": 5 } } });
+    expect(released).toEqual({ gender: { Woman: { "0": 5 } } });
 
     // one further answer: the bucket must read exactly as it did before
-    foldAnchors(by, { gender: "f" }, 1);
+    foldAnchors(by, { gender: "Woman" }, 1, FLOOR);
     const next = steppedBreakdown(by, released, FLOOR);
-    expect(next).toEqual({ gender: { f: { "0": 5 } } });
-    expect(next.gender.f["1"]).toBeUndefined();
+    expect(next).toEqual({ gender: { Woman: { "0": 5 } } });
+    expect(next.gender.Woman["1"]).toBeUndefined();
 
     // …and once the bucket has gained the floor, the true counts land whole
-    for (let i = 0; i < 4; i++) foldAnchors(by, { gender: "f" }, 1);
-    expect(steppedBreakdown(by, released, FLOOR)).toEqual({ gender: { f: { "0": 5, "1": 5 } } });
+    for (let i = 0; i < 4; i++) foldAnchors(by, { gender: "Woman" }, 1, FLOOR);
+    expect(steppedBreakdown(by, released, FLOOR)).toEqual({ gender: { Woman: { "0": 5, "1": 5 } } });
   });
 
   it("holds one bucket while another moves", () => {
     // Per bucket, not per dimension: a busy cohort must not carry a quiet
     // one past its own step.
-    const released = { gender: { f: { "0": 5 }, m: { "0": 5 } } };
-    const by = { gender: { f: { "0": 10 }, m: { "0": 6 } } };
+    const released = { gender: { Woman: { "0": 5 }, Man: { "0": 5 } } };
+    const by = { gender: { Woman: { "0": 10 }, Man: { "0": 6 } } };
     expect(steppedBreakdown(by, released, FLOOR)).toEqual({
-      gender: { f: { "0": 10 }, m: { "0": 5 } },
+      gender: { Woman: { "0": 10 }, Man: { "0": 5 } },
     });
   });
 
   it("leaves the floor and complementary suppression to publishableBreakdown", () => {
     // steppedBreakdown gates WHEN a value moves, never whether it clears —
     // a sub-floor bucket passes through it and is dropped downstream.
-    const stepped = steppedBreakdown({ gender: { f: { "0": 2 } } }, {}, FLOOR);
-    expect(stepped).toEqual({ gender: { f: { "0": 2 } } });
+    const stepped = steppedBreakdown({ gender: { Woman: { "0": 2 } } }, {}, FLOOR);
+    expect(stepped).toEqual({ gender: { Woman: { "0": 2 } } });
     expect(publishableBreakdown(stepped, FLOOR)).toEqual({});
   });
 });
@@ -663,18 +743,21 @@ describe("catalog answers (pick questions — docs/CATALOG-QUESTIONS.md)", () =>
 });
 
 describe("catalog breakdowns — segment orderings of the canon (D17)", () => {
+  // Real vocabulary values. This fixture said `gender: "Women"` before the
+  // vocabulary check existed — a string the profile's <select> has never
+  // offered, which is exactly the drift check:anchors now prevents.
   const anchors = (over: Record<string, unknown> = {}) => ({
-    ageBand: "25-34", gender: "Women", country: "NO", ...over,
+    ageBand: "25-34", gender: "Woman", country: "NO", ...over,
   });
 
   it("folds anchors per entity, sharing the vote fold's bucket rules", () => {
     const by = {};
-    foldCanonAnchors(by, anchors({ city: "Oslo, NO", profession: "Carpenter" }), "25");
-    foldCanonAnchors(by, anchors(), "25");
-    foldCanonAnchors(by, anchors({ ageBand: "18-24" }), "6");
+    foldCanonAnchors(by, anchors({ city: "Oslo, NO", profession: "Carpenter" }), "25", FLOOR);
+    foldCanonAnchors(by, anchors(), "25", FLOOR);
+    foldCanonAnchors(by, anchors({ ageBand: "18-24" }), "6", FLOOR);
     expect(by).toMatchObject({
       ageBand: { "25-34": { "25": 2 }, "18-24": { "6": 1 } },
-      gender: { Women: { "25": 2, "6": 1 } },
+      gender: { Woman: { "25": 2, "6": 1 } },
       city: { "Oslo, NO": { "25": 1 } },
     });
     // profession never mints a key — same closed list as foldAnchors
@@ -688,11 +771,11 @@ describe("catalog breakdowns — segment orderings of the canon (D17)", () => {
     // sides: a new entity is dropped, a known one still counts.
     const by: Record<string, Record<string, Record<string, number>>> = {};
     for (let e = 1; e <= CANON_BY_MAX_ENTITIES; e++) {
-      foldCanonAnchors(by, { gender: "Women" }, String(e));
+      foldCanonAnchors(by, { gender: "Woman" }, String(e), FLOOR);
     }
-    foldCanonAnchors(by, { gender: "Women" }, "999"); // over the cap: dropped
-    foldCanonAnchors(by, { gender: "Women" }, "1");   // known: keeps counting
-    const cell = by.gender.Women;
+    foldCanonAnchors(by, { gender: "Woman" }, "999", FLOOR); // over the cap: dropped
+    foldCanonAnchors(by, { gender: "Woman" }, "1", FLOOR);   // known: keeps counting
+    const cell = by.gender.Woman;
     expect(Object.keys(cell)).toHaveLength(CANON_BY_MAX_ENTITIES);
     expect(cell["999"]).toBeUndefined();
     expect(cell["1"]).toBe(2);
