@@ -17,11 +17,13 @@
 // So this pins the property rather than the constants: BOTH streams must
 // drain, and the lens cadence must not be a multiple of the test cadence.
 import { describe, expect, it } from "vitest";
+import { interleaveFeed, TEST_EVERY, LENS_EVERY } from "./feed-interleave";
 
-const TEST_EVERY = 4;
-const LENS_EVERY = 9;
-
-/** The interleave exactly as world-feed.jsx performs it. */
+// THE SHIPPED FUNCTION, imported. This file used to redeclare the cadences
+// and the loop, so every assertion below exercised the test file itself —
+// D11 claimed "the regression cannot come back quietly" and D42 cited an
+// extraction that had never happened, while the real loop grew a third
+// stream this copy did not model.
 function interleave(
   world: string[],
   tests: string[],
@@ -29,15 +31,7 @@ function interleave(
   testEvery = TEST_EVERY,
   lensEvery = LENS_EVERY,
 ): string[] {
-  const out: string[] = [];
-  let ti = 0;
-  let li = 0;
-  world.forEach((q, i) => {
-    out.push(q);
-    if ((i + 1) % testEvery === 0 && ti < tests.length) out.push(tests[ti++]);
-    if ((i + 1) % lensEvery === 0 && li < lenses.length) out.push(lenses[li++]);
-  });
-  return out;
+  return interleaveFeed(world, { tests, lenses, testEvery, lensEvery });
 }
 
 const world = (n: number) => Array.from({ length: n }, (_, i) => `w${i}`);
@@ -109,5 +103,36 @@ describe("feed interleave", () => {
     const nTests = out.filter((x) => x.startsWith("t")).length;
     const nLenses = out.filter((x) => x.startsWith("l")).length;
     expect(nLenses).toBeLessThan(nTests);
+  });
+});
+
+describe("the knowledge stream the copy never modelled (D32)", () => {
+  // The third stream. It exists in the shipped loop and did not exist in
+  // this file's private copy — which is the concrete cost of testing a copy.
+  it("keeps its own cadence alongside the other two", () => {
+    const out = interleaveFeed(world(12), {
+      tests: tests(9), lenses: lenses(9), know: ["k0", "k1", "k2"], knowEvery: 5,
+    });
+    expect(out.filter((x) => x.startsWith("k"))).toEqual(["k0", "k1"]);
+    // w0 w1 w2 w3 t0 w4 k0 — the test slot at i=3 lands before the
+    // knowledge slot at i=4, which is the push order the feed has always
+    // used and what a returning user's eye is calibrated to.
+    expect(out.slice(0, 7)).toEqual(["w0", "w1", "w2", "w3", "t0", "w4", "k0"]);
+  });
+
+  it("drains even when there are fewer world questions than its cadence", () => {
+    // Mute every opinion topic and the knowledge stream must still be there:
+    // it is a subscription of its own, not a garnish on the others.
+    const out = interleaveFeed([], {
+      tests: [], lenses: [], know: ["k0", "k1"], knowEvery: 6,
+    });
+    expect(out).toEqual(["k0", "k1"]);
+  });
+
+  it("is off entirely when its cadence is 0", () => {
+    const out = interleaveFeed(world(10), {
+      tests: [], lenses: [], know: ["k0"], knowEvery: 0,
+    });
+    expect(out).toEqual(world(10));
   });
 });

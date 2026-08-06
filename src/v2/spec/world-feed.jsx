@@ -8,6 +8,9 @@ import { WPAL } from './world-palette.js';
 import { HAPTIC } from './haptics.js';
 import { WF_CATALOGS } from './world-catalogs.js';
 import { Sheet } from './primitives.jsx';
+// The feed's cadence arithmetic — extracted so the test exercises THIS loop
+// rather than a copy of it (D11's claim, D42's citation; see the module).
+import { interleaveFeed } from '../data/feed-interleave.ts';
 import ReactDOM from 'react-dom';
 import { PASSIVE } from './passive-progress.js';
 import {
@@ -2461,22 +2464,11 @@ class WorldFeed extends React.Component {
     const lqs = typeof lensQs === 'function' ? lensQs() : [];
     const kEvery = window.LEARN_FEED ? window.LEARN_FEED.every() : 0;
     const kqs = kEvery ? this.knowQs(Math.ceil(sorted.length / kEvery) + 1, cats) : [];
-    const feedList = []; let ti = 0, li = 0, ki = 0;
-    // Two independent ifs, and 9 rather than 8 — both deliberate. As an
-    // `else if` with a lens cadence of 8, every lens slot was also a test
-    // slot (8 is a multiple of 4), the test branch won every time, and NOT
-    // ONE lens question ever reached the feed. 9 is coprime with 4, so the
-    // two cadences drift past each other instead of colliding. The knowledge
-    // stream keeps its own independent cadence for the same reason.
-    sorted.forEach((q, i) => {
-      feedList.push(q);
-      if (kEvery && (i + 1) % kEvery === 0 && ki < kqs.length) feedList.push(kqs[ki++]);
-      if ((i + 1) % 4 === 0 && ti < tqs.length) feedList.push(tqs[ti++]);
-      if ((i + 1) % 9 === 0 && li < lqs.length) feedList.push(lqs[li++]);
+    // The cadences, their coprimality and the empty-feed drain all live in
+    // data/feed-interleave.ts, which is where the test now reaches them.
+    const feedList = interleaveFeed(sorted, {
+      tests: tqs, lenses: lqs, know: kqs, knowEvery: kEvery,
     });
-    // mute every opinion topic and the knowledge stream should still be there —
-    // it's a subscription of its own, not a garnish on the others
-    if (sorted.length < kEvery) while (ki < kqs.length) feedList.push(kqs[ki++]);
     // One card near the top wears the closing ring. Chosen by hash of the
     // question id so it is stable across renders rather than jumping as the
     // list re-sorts, and never the very first card — the ring is a grace

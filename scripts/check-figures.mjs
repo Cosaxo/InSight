@@ -150,6 +150,30 @@ const FIGURES = [
     actual: seededQuestions,
     fix: (n) => `"the daily bank is at ${dailyQuestions} questions of ${n} seeded"`,
   },
+  // docs/SCHEMA-V2.md contradicted ITSELF: the seed writes "191 docs" on one
+  // line and "369 docs" thirty lines later, with the gate reading neither
+  // file. Both are the same derived number, so both are entries.
+  {
+    file: "docs/SCHEMA-V2.md",
+    what: "seeded question count (the seed description)",
+    re: /into `v2_questions` \((\d+) docs/,
+    actual: seededQuestions,
+    fix: (n) => `"into \`v2_questions\` (${n} docs"`,
+  },
+  {
+    file: "docs/SCHEMA-V2.md",
+    what: "seeded question count (the cache description)",
+    re: /The question bank \((\d+) docs\)/,
+    actual: seededQuestions,
+    fix: (n) => `"The question bank (${n} docs)"`,
+  },
+  {
+    file: "docs/SCHEMA-V2.md",
+    what: "rules tests (the testing section)",
+    re: /test:rules` — (\d+) rules tests/,
+    actual: rulesTests,
+    fix: (n) => `"test:rules\` — ${n} rules tests"`,
+  },
 ];
 
 const errors = [];

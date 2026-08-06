@@ -120,3 +120,43 @@ describe("groupPortrait", () => {
     expect(p.people).toEqual([]);
   });
 });
+
+describe("twin / contrarian need a spread, not just a sample", () => {
+  // MIN_SHARED bounds the SAMPLE. Nothing bounded the spread, and the
+  // comparator's final clause is a uid tiebreak that never returns 0 — so a
+  // fully tied list came out ordered by uid, and first and last got labelled.
+  // LiveGroupsMirrorBody renders "breaks ranks" beside the person's literal
+  // agreement count, so the screen contradicted itself.
+  it("names nobody when every eligible member agrees identically", () => {
+    // Three members, all 3/3 with me. Day two of a live group reaches this.
+    const p = groupPortrait([
+      rev(1, { me: 0, ann: 0, bo: 0, cy: 0 }),
+      rev(2, { me: 1, ann: 1, bo: 1, cy: 1 }),
+      rev(3, { me: 0, ann: 0, bo: 0, cy: 0 }),
+    ], "me");
+    expect(p.people.map((x) => x.pct)).toEqual([100, 100, 100]);
+    expect(p.twin, "crowned a twin out of a three-way tie").toBeNull();
+    expect(p.contrarian, "called someone a contrarian at 100% agreement").toBeNull();
+  });
+
+  it("names nobody when every eligible member disagrees identically", () => {
+    // The inverse fires too: at 0% across the board, someone was crowned
+    // "most like you".
+    const p = groupPortrait([
+      rev(1, { me: 0, ann: 1, bo: 1 }),
+      rev(2, { me: 0, ann: 1, bo: 1 }),
+    ], "me");
+    expect(p.people.map((x) => x.pct)).toEqual([0, 0]);
+    expect(p.twin).toBeNull();
+    expect(p.contrarian).toBeNull();
+  });
+
+  it("still names both when there is a real spread", () => {
+    const p = groupPortrait([
+      rev(1, { me: 0, ann: 0, cy: 1 }),
+      rev(2, { me: 0, ann: 0, cy: 1 }),
+    ], "me");
+    expect(p.twin!.uid).toBe("ann");
+    expect(p.contrarian!.uid).toBe("cy");
+  });
+});

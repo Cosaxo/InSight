@@ -5178,3 +5178,403 @@ analysed (logged as a gap, not absorbed). And a scan that runs is not a
 scan that is read — the flags are only as good as the operator's habit
 of looking, which is the argument the metric-field plumbing exists to
 answer when it stops holding.
+
+## D55 · Three guarantees were enforced on a value and not on the way it moves
+
+**Status.** Adopted 2026-08-06. Found by a code review of the tree at
+c592042; each was reproduced before it was believed, and each carries a
+test that fails against the code as it stood.
+
+**Decision.** Three fixes, one shape between them.
+
+**1 · The publish cadence applies per BUCKET, not only per question.**
+`shouldPublishAgg` bounds how often `v2_question_aggs` is rewritten, and
+D7's amendment records why: a client holds an `onSnapshot` on that
+document, so a step attributable to one person discloses that person's
+answer past any floor. The unit it bounds is the QUESTION. `by` — the
+per-anchor breakdown added later — is counted per BUCKET, and nothing
+bounded that. `steppedBreakdown` (pure.ts) now re-emits a bucket's previous
+value until the bucket has gained `AGG_MIN_N`, and the trigger stores the
+last released map as `v2_aggs_private/{qid}.byPub` (and `.entByPub` for the
+catalog path).
+
+The arithmetic that makes this not theoretical: anchors are empty until the
+user fills the Basics card (D8), so a five-answer publish window routinely
+carries exactly one anchored answer. Replaying the real fold, two
+consecutive published states differed by
+
+```
+{"gender":{"f":{"0":5}}}  →  {"gender":{"f":{"0":5,"1":1}}}
+```
+
+— one vote, isolated, in a cohort that had cleared the floor. And because
+the six anchors travel on the same answer, all six dimensions step together,
+so the disclosure is a full {ageBand, gender, city, country, education,
+relationship} tuple joined to an option, not a single cell. That is
+re-identification, not the residual D18 records.
+
+Cost: a bucket now lags by at most `AGG_MIN_N - 1` answers, the same bound
+the cadence already gives `counts`; the private doc keeps exact totals, so
+nothing is lost. First publish after deploy sees no stored `byPub` and
+releases current state once — identical to the behaviour it replaces, not
+worse.
+
+**Corrected 2026-08-06, by CI.** The baseline stored was first written as
+`steppedBreakdown`'s own output rather than what `publishableBreakdown`
+went on to publish. Those differ whenever a bucket is suppressed — and a
+bucket under the floor is suppressed by definition — so a cohort that had
+not yet cleared the floor had nonetheless SPENT its step budget on a value
+no reader ever saw, and then needed twice the floor to appear. In the shape
+`e2e-v2-loop.mjs` drives (two cohorts at 3 and 2, both reaching exactly 5 on
+the publish at total 10) it never appeared at all.
+
+The bound belongs to what was OBSERVABLE: a bucket the reader never saw has
+no delta to hide, so its next release is a first appearance, disclosing a
+cohort of at least the floor arriving together — the floor's own guarantee.
+`publishBreakdown` now returns one value that is both what is published and
+what is stored, so the two cannot be wired apart again.
+
+Worth recording where it was caught. The unit tests passed throughout: they
+pinned the RULE, and the defect was in how the trigger wired it. The e2e —
+the leg this record already flagged as unrunnable in the authoring sandbox —
+is what found it, on the first CI run. That is the argument for the e2e
+staying on the deploy path, made by the e2e.
+
+**2 · An anchor value may not be a key on `Object.prototype`.**
+`breakdownBucket` shape-checks `city` and `country`; the other four
+dimensions have no closed vocabulary, and `firestore.rules` can only bound
+an anchor's LENGTH — the constraint the shape map's own comment already
+records. So `anchors: { gender: "__proto__" }` passed the rules (verified in
+the emulator, anonymous auth), and `byDim[bucket] || (byDim[bucket] = {})`
+then set the PROTOTYPE rather than a property. The counter beneath it landed
+on `Object.prototype`, so every breakdown cell created afterwards in that
+instance started at 1: five voters published as six, on unrelated questions,
+until the instance recycled. `constructor` and `toString` are the same shape
+one step weaker — they read back truthy, so they also walk past
+`BREAKDOWN_MAX_BUCKETS`.
+
+Rejected by membership in the prototype rather than by a blocklist: a list
+of names the language owns is a list this repo would have to maintain
+against it.
+
+**3 · A take id may not be tallied on an object literal.** `takeId` is the
+take's document id and the CLIENT chooses it — the ruleset constrains a
+take's fields, never its name (verified: `v2_takes/constructor` creates, and
+another member can flag it). `counts[takeId] = (counts[takeId] || 0) + 1`
+therefore read back through the prototype, and ten flags on a take called
+`constructor` became the string `"function Object() { [native code]
+}1111111111"`. Every comparison in `buildModQueueFrom` against it is
+NaN-false, so the take never entered the queue however often it was
+flagged — moderation immunity, chosen at post time, nothing logged.
+`tallyFlags` (pure.ts) uses a Map; `priorEscalations` likewise, where the
+miss path would otherwise have written the Object constructor into a queue
+entry's `escalations` field.
+
+**4 · `--force` no longer reaches a firestore target.** Not a fourth bug so
+much as the same class in the deploy path — see docs/DEPLOYMENT.md for the
+arithmetic. `check:deploy-targets` now fails if the steps are recombined.
+
+**Why these are one record.** Every one of them enforced a guarantee on a
+STATE and not on a TRANSITION: the floor is checked in each published
+snapshot but never between two of them (1); the anchor is validated for
+length and shape but not for what assigning it does (2, 3); the index file
+is compared to the project but nothing asks what the comparison is allowed
+to delete (4). The guard that would have caught all four is differential —
+replay a sequence and assert a property of every adjacent pair, rather than
+of any single frame. `steppedBreakdown`'s test is written that way
+deliberately: it measures the minimum step over every adjacent pair of
+published states across 80 answers, because a spot check survives a policy
+that steps by one past some size, which is the bug it closes.
+
+**Amendment (2026-08-06) — two more from the same review, same shape.**
+Both were listed below as deferred when this record was written; they are
+now closed, and they belong here rather than in a record of their own
+because each is again a guarantee enforced on a value and not on the way it
+moves.
+
+**5 · The profile's live-mode guard holds on every mount, not the first.**
+`GeneralPanel` seeds from `localStorage` and writes the whole blob back on
+mount with no edit made, so the first open persisted a record and every open
+after it took `loadGen`'s merge path — which spread the sample persona
+underneath. The live guard sat past that branch, reachable only when there
+was no saved blob, which after the first mount was never. A live user
+therefore got `age 34 · Editor · independent press · MA Literature` back as
+their own, and the anchors effect wrote it to `v2_users/{uid}`, from where
+`answerAnchors()` stamped it onto every later answer. Answers are
+create-only (D5): the ones already written have no correction path, and a
+fabricated `ageBand` folds into published breakdowns as a real cohort.
+
+So the guard is now the BASE of the merge rather than a branch beside it,
+and the storage key moved to `insight.profileGeneral.v2` with a migration
+that drops any vital equal to the seed's value for that field. The trade is
+explicit: a user who genuinely typed a value the sample persona also has
+retypes one field. The alternative was leaving a fabricated anchor to be
+stamped onto answers nobody can edit.
+
+The mount-time anchors write is deliberately NOT suppressed, though the
+review proposed it as a cost saving. It is the only thing that repairs a
+profile whose anchors were already written — opening the profile once
+replaces the map wholesale — so gating it behind a first-run flag would have
+left every corrupted profile corrupted.
+
+**6 · Erasure reaches the offline mirror.** `firebaseImpl.ts` enables
+`persistentLocalCache()` unconditionally and `hydrate()` reads the whole
+answers subcollection plus the profile, so a deleted account's votes and
+anchors sat in IndexedDB. Nothing evicted them: `hydrate` is a one-shot
+`getDocs` rather than a listener, so the server-side delete produces no
+remove event, and the cache outlived the account on a device the user may
+sell. `deleteAccount` now calls `terminate()` then
+`clearIndexedDbPersistence()` — in that order, because the second refuses a
+live instance — both best-effort, before the existing `insight.*` purge.
+
+This one was a documentation defect as much as a code defect.
+`web/privacy.html` states that deletion "clears the app's data on the device
+you ran it from" and `docs/data-inventory.md` says the same; that claim was
+true of `localStorage` and of nothing else, in the document both stores
+require. D6 already treats this cache as sensitive — it is why Android
+backup is off. Fixing the code rather than the copy, because the copy
+described the right behaviour.
+
+**Amendment (2026-08-06, second) — the bucket cap and `ownerUid`.**
+
+**7 · The anchor bucket cap is no longer allocated first-come-first-served.**
+A dimension holds `BREAKDOWN_MAX_BUCKETS` (24) buckets, nothing evicted one,
+and `by` is carried across every publish — so whoever filled the slots first
+decided what the dimension could ever show. 24 nonsense values blanked it
+permanently, and firestore.rules can only bound an anchor's length. Two
+defences, because the six dimensions are two different shapes:
+
+- **Four have a closed vocabulary SHORTER THAN THE CAP.** ageBand, gender,
+  education and relationship come from `<select>`s of 7, 4, 15 and 6 values.
+  Checking membership means those dimensions cannot be exhausted at all —
+  there are fewer legal buckets than slots. That is the complete fix, and it
+  is available only in the trigger: the rules layer cannot hold a
+  vocabulary, and a client choosing from a list says nothing about what a
+  script sends. `npm run check:anchors` holds `BREAKDOWN_DIM_VOCAB` equal to
+  the profile's lists, on both the PR and the deploy path.
+
+- **City and country cannot be closed that way** — 10,929 places and ~249
+  countries against 24 slots — so the cap itself changed. A bucket below the
+  k-floor is published to nobody, so it is now evictable: a new bucket
+  displaces the smallest sub-floor one, and a bucket at or above the floor is
+  never evicted. Among equals it is oldest-out, and that is required rather
+  than tolerated — the attack state IS 24 buckets of one answer each, so a
+  rule protecting incumbents there would protect exactly the junk. What it
+  costs is the long tail, which the cap was already documented to degrade;
+  what it buys is that recurrence wins.
+
+The eviction loss is real and bounded: an evicted bucket's partial count is
+discarded, so a value that returns restarts and undercounts by at most
+`AGG_MIN_N - 1`. It only ever applies to counts no reader has seen, and it
+replaces a dimension that showed nothing at all.
+
+**Found while writing the vocabulary: `Vocational / trade` never counted.**
+It shipped as an `<select>` option and `breakdownBucket` rejected it for its
+entire life, because a slash is in that function's rejected character class.
+The answer wrote; the aggregate silently never counted it. Renamed to
+`Vocational or trade` on both sides, and rule 3 of check:anchors is that bug
+turned into a check.
+
+**8 · `deleteAccount` removes `ownerUid`.** `createGroupV2` stamps it and
+NOTHING reads it — a repo-wide grep finds one write and no reader — which is
+exactly why three erasure phases walked past it while scrubbing the two
+load-bearing fields beside it. firestore.rules serves the whole group
+document to every current member, so it published a deleted account's raw
+uid to the circle, and to anyone they invited afterwards, indefinitely. That
+is the shape the reveal scrub one screen below already refuses.
+
+Deleted rather than reassigned to a surviving member: nothing reads it, so
+inventing a successor would be a fact this codebase has no use for.
+`leaveGroupV2` is deliberately NOT changed — D45 settles that leaving a
+group is not an erasure request.
+
+The erasure e2e could not see this: its shared-group fixture was owned by
+the SURVIVING member, so there was nothing of the deleted user's in it to
+miss. The fixture now names the doomed account, which is the ordinary case,
+and asserts the field is gone.
+
+**Amendment (2026-08-06, third) — the reveal's membership snapshot.**
+
+**9 · A day's reveal is scoped to the members who were there for that day.**
+The reveal doc carries its own `members` array and firestore.rules gates the
+read on it, which is what makes the guarantee retroactive in one direction —
+joining tomorrow does not hand you every past day, leaving does not retract
+the days you played. The array was membership AT REVEAL TIME, which is not
+the same thing as membership on the day revealed.
+
+Day D is revealed by the D+1 scan, and that scan runs `every 120 minutes`.
+So anyone joining between 00:00 UTC and it was a current member when the
+snapshot was taken, went into `members`, and read day D's votes and names
+for a day they were not in the group for. Up to two hours, every day.
+`revealGroupDay` claimed to have closed this by preferring the page snapshot
+to a fresher read — but both reads happen on D+1, so that only ever closed
+the seconds between them.
+
+Groups now carry `memberJoinedAt { uid: Timestamp }`, written by
+`createGroupV2` and `joinGroupV2` and removed by `leaveGroupV2` and
+`deleteAccount` — the same four paths as `memberNames`, because a uid left in
+either map is the erasure leak §8 records. `revealMembersFor` (pure.ts)
+filters the array to members who joined before the END of the day (someone
+who joined midway through it was there for it), plus anyone who actually
+played it.
+
+**Why the played-it clause.** Rules accept a duel answer up to four days
+late, so a member can legitimately land a vote for a day preceding their
+join: an offline client flushing a queue, or a fresh group playing a recent
+day. Without the clause the pipeline publishes a reveal containing someone's
+own vote that they alone cannot read — and "you see the days you played" is
+the invariant the e2e already asserted.
+
+**A member with no recorded join time is included, and that is the answer
+rather than a fallback.** The field is written from the day this shipped, so
+its absence means the member joined before that, which is before any day the
+function will be asked about. Reading absence as "exclude" would blank every
+reveal for every group alive on deploy day — which is also why there is no
+ordering hazard in the rollout: the read side degrades permissively, so the
+field can appear before anything depends on it. The residual is one day
+wide: members who joined before the deploy keep the old scope for days not
+yet revealed.
+
+**The e2e was asserting the leak.** Its latecomer leg read the reveal as the
+LATECOMER — an account that joined three days after the day in question and
+never played it — and failed if the read was denied. It now reads as the
+creator who played, and asserts the latecomer is denied, so the leg proves
+the fix instead of the bug.
+
+**Amendment (2026-08-06, fourth) — three ways a thing stopped happening.**
+
+**10 · The reveal scan asks about the whole pending window.** It asked about
+exactly one day, `utcDayKey(-1)`, and the schedule never passed one — so a
+group-day was revealable during the single UTC day after it and never again.
+That is not the window the rest of the system works in: rules accept a duel
+answer four days late, deliberately, and `onV2AnswerCreated` re-adds the day
+to `pendingDays` whenever one arrives. An answer syncing on D+2 therefore
+re-opened day D, correctly, into a scan that would never ask about day D
+again. Nothing errored: both members had answered, the day sat pending
+forever, and a duo's streak stayed at whatever the earlier empty settle left
+it. Only an operator calling `revealDuelsNowV2({day})` recovered it.
+
+`scanDays` now returns `PENDING_DAYS_KEEP` days, which is the same bound the
+pruning uses — a pending day older than that can never gain another answer,
+so the scan asks about exactly the days that can still change. Steady-state
+cost is five extra indexed queries per run returning nothing. An explicit
+`dayKey` still means that day alone, which is what the operator lever and
+every e2e leg pass.
+
+**The second cause, independent of the first.** `onV2AnswerCreated`
+downgraded any non-NOT_FOUND failure of the `pendingDays` mark to
+`logger.warn` and returned normally, which made the trigger's `retry: true`
+dead on that branch. The mark is the ONLY thing that puts a day in front of
+the scan, so losing it lost the reveal. D19's stated safety net — "the answer
+never folded into any aggregate, a louder problem, already logged" — is true
+of the vote path and false here: the duel branch returns before any aggregate
+work, and `monitoring/onV2AnswerCreated-errors.json` filters severity>=ERROR
+while this logged WARNING. It rethrows now; `arrayUnion` is idempotent, so
+redelivery is free.
+
+**11 · `runBuildModQueue` pages through `v2_flags`.** It called `.get()` on
+the whole collection, and the collection has no upper bound: `MOD_ADVISORY`
+makes the keep-verdict sweep the only path that deletes a flag and it is dead
+code while advisory is on, `deleteAccount` removes one uid's, nothing else
+does, and there is no TTL. On a 256 MiB instance — `LIGHT_UNBOUNDED`, whose
+own rationale describes a *streaming* `recursiveDelete` — that is an OOM well
+before the 480 s deadline the code reasons about. Silent in-band, too: the
+stale queue keeps serving, `queuedAt` never advances, `gen` freezes, and
+every re-judgement throws `already-exists`. `buildModQueueNow` shares the
+options, so the manual recovery lever died the same way.
+
+What it holds now is one counter per DISTINCT take rather than one object per
+flag. **That is not a hard bound and this record does not claim one** — it
+grows with the number of takes ever flagged. The real bound is retention, and
+choosing one (a flag TTL, or running the sweep in advisory mode) is a
+data-policy decision with its own arithmetic. Deliberately not taken here.
+
+**12 · `deleteAccount` unlatches `torndown` when the wipe is refused.** The
+latch is set as the callable's first statement, deliberately — work already
+in flight must not re-create an `insight.*` key mid-wipe — and nothing ever
+reset it. But a refused wipe is an expected outcome, not an exceptional one:
+`index.ts` refuses the auth delete whenever any phase failed, every network
+timeout lands there too, and `LivePrivacyPanel` keeps the user in the app
+afterwards. Left latched, that session was permanently deaf and nothing said
+so: `refreshLive()` and `wake()` no-op so it can never reconnect after going
+offline, `resubscribeForToday()` no-ops so the midnight rollover renders a
+new deck while the previous day's listeners stay attached and billed, and
+`subscribeToAuth`'s handler bails — disabling the uid-change guard whose own
+comment says it exists to stop one person's answers being shown to another.
+`vote()` is not gated, so writes kept flowing. Only a restart cleared it.
+
+**Amendment (2026-08-06, fifth) — the tail of the review.**
+
+**13 · The gates that could not see.** `check:appcheck` and
+`check:deploy-targets` read one directory level, so a callable in a
+subdirectory was invisible to both — and to their own vacuity counters,
+which only count what they read. `check:globals` rule 2 substring-matched
+`spec-index.js` without stripping comments, so commenting out a side-effect
+import passed; five v17 modules assign no global at all, making that line
+their whole wiring. `check:cities` restated `BREAKDOWN_MAX_LABEL` and the
+rejected character class instead of reading them. And `npm run lint` applied
+ZERO rules to `scripts/` and `firestore-tests/` — measured, against 106 for
+`src/lib/firebase.ts` — so `--max-warnings 0` said nothing about the code
+whose job is saying things about other code. All four fixed; the last found
+one dead import immediately, and then caught a genuine bug in this very
+change (an undefined `adb` in the moderation e2e) before it was committed.
+
+**14 · What the UI and the store forms claimed.** `LIVE.social.leaveGroup`
+had shipped with **zero call sites in any live surface** — the demo panel's
+Leave button is swapped out when live is on — while `STORE-FORMS.md` and
+`SHIP-CHECKLIST.md` answered Apple guideline 1.2 with
+"`removeGroupMember` / `leaveGroup`". No `removeGroupMember*` callable has
+ever existed. A **Leave circle** control is now wired into `LiveDuelPanel`,
+two-step because the last member out takes the group and its reveals, and
+both documents now describe what ships. **No owner-side remove callable was
+added**: ejecting someone is a moderation power in a mutual-consent circle
+and needs its own decision, so the forms say so rather than implying one.
+
+**15 · Three claims that were false in the code's own voice.**
+`slicing.test.ts` stated in the present indicative that an e2e leg proved
+D44; no such leg was ever written, and mutating `slices` to `true` left all
+four runners green while eighteen Art. 9 items published their cross-tab.
+The enforcement point is now `breakdownFor` in v2.ts with cases of its own.
+`feed-interleave.test.ts` declared its own copy of the loop and its own
+constants, so nine assertions exercised the test file — and the shipped loop
+had meanwhile grown a third stream the copy did not model; the loop now
+lives in `data/feed-interleave.ts` and both import it. `e2e-moderation`
+step 6 printed a pass for an assertion nobody wrote (`void judged;`), and
+the erasure e2e's only client-authored write was denied every run and
+swallowed, so it asserted the absence of a document that never existed.
+
+**16 · The rest.** The privacy panel's Sentry OFF is enforced at the two
+send sites rather than trusted to a teardown that cannot happen, and
+`setSentryUser` is gated too — `wake()` was re-attaching the uid after
+opt-out, turning an anonymous residual into an identified one. `linked` is
+derived from auth instead of local state seeded to false, which was telling
+Google-linked users they were anonymous. `resetForNewUid` publishes
+`window.IS_TEST_RESULTS` through a shared helper and clears the two
+one-shot flags, which are now per-uid. Retired daily questions stay in the
+bank as tombstones so the kill switch stops re-mapping the pager. The
+reveal's profile reads carry a `fieldMask` — measured at 50 KB to 42 bytes
+on a profile whose `testResults` the rules bound only by key count.
+twin/contrarian need a spread, not just a sample: a three-way tie was
+crowning one member and calling another "breaks ranks" beside a literal
+3/3. And `check:figures` is file-aware, which is how `SCHEMA-V2.md` came to
+say the seed writes 191 docs on one line and 369 on another.
+
+**Deliberately NOT done, with the reason.** Invite codes are still permanent
+bearer credentials — rotating one inside `leaveGroupV2` would break the
+code for every remaining member, and the growth loop is the reason the code
+is shared at all; that is a product trade, not a bug fix. `v2_flags` still
+has no retention bound (§11). No `content/options.lock.json` gate was added
+for question option arrays: it is the right shape, but it needs a decision
+about what a legitimate option edit looks like before a ratchet can refuse
+the illegitimate ones.
+
+**KNOWN RESIDUAL, stated because it is a real one.** The played-it clause is
+also an unlock: join a group, backfill an answer for a day inside the
+four-day window, and the reveal admits you. Strictly narrower than what it
+replaces — passive joining now reveals nothing, and the unlock costs a
+visible vote in the circle's own reveal — but not nothing. Closing it means
+bounding the WRITE rather than the read: firestore.rules would have to refuse
+a duel answer for a day preceding the member's join. That is a change to the
+densest rule in the file, whose failure mode the file itself describes as "a
+vote that vanishes", and it would refuse the legitimate fresh-group case
+above. It is a decision of its own and is deliberately not taken here.

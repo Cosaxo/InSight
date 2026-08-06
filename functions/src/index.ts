@@ -245,6 +245,29 @@ export const deleteAccount = onCall(
           await g.ref.update({
             memberUids: FieldValue.arrayRemove(uid),
             [`memberNames.${uid}`]: FieldValue.delete(),
+            // The join-time map revealGroupDay scopes reveals by. A uid here
+            // is the same erasure leak as the two fields around it.
+            [`memberJoinedAt.${uid}`]: FieldValue.delete(),
+            // …and `ownerUid`, when it names the departing user. It is
+            // stamped by createGroupV2 and read by NOTHING — a repo-wide
+            // grep finds the one write and no reader — so dropping it is
+            // behaviour-neutral, which is exactly why it was missed: the
+            // two fields beside it are load-bearing and this one is inert.
+            //
+            // firestore.rules serves the whole group document to every
+            // current member, so leaving it behind publishes a deleted
+            // user's raw uid to everyone still in the circle and to anyone
+            // they invite afterwards, indefinitely. That is the shape the
+            // reveal scrub below already refuses ("a pseudonymous
+            // identifier surviving an erasure request"), and
+            // docs/data-inventory.md enumerates the survivors as a closed
+            // set of three that this was not in.
+            //
+            // Deleted rather than reassigned to a surviving member: nothing
+            // reads it, so inventing a new owner would be a fact this
+            // codebase does not have a use for. If ownership ever acquires
+            // one, that is the moment to choose a successor deliberately.
+            ...(g.get("ownerUid") === uid ? { ownerUid: FieldValue.delete() } : {}),
           });
         } catch (err) {
           // NOT_FOUND (5) means the group was deleted between the query
