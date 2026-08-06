@@ -126,6 +126,13 @@ Local:
   five that cannot are the operator and moderator instruments, gated on
   uid allowlists instead; the gate fails in both directions, so an
   exemption cannot outlive its reason or spread by copy-paste.
+- `npm run check:monitoring` — the alert chain, from the log line a
+  function emits, through the log-based metric that selects on it, to the
+  policy whose condition reads that metric. Every link fails the same
+  silent way: the policy exists, the console is green, and it can never
+  fire. It cannot see Cloud Monitoring — policies are applied by hand
+  (D47) — so it checks the half that lives in the repo, and each of its
+  four rules was verified by breaking that link and watching it fail.
 - `npm run check:figures` — the counts this file quotes, held equal to the
   suites. It exists because the rules-test figure said 40 in two places
   while the suite ran 44, which was the fourth instance of one error: a

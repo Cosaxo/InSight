@@ -323,18 +323,38 @@ It is separate from `npm run lint` because that script carries
 "warn" tier to hold existing debt, and the alternative would be the blanket
 disable this file's Lint suppressions section exists to prevent.
 
-The baseline is **11**: 9 in `spec/`, plus two deliberate `autoFocus` keeps
-on picker search fields. It opened at 69 and came down in three steps — D23
+The baseline is **9**: 7 in `spec/`, plus two deliberate `autoFocus` keeps
+on picker search fields. It opened at 69 and came down in four steps — D23
 turned the mouse-only controls into buttons, D24 made every overlay and
-sheet a real modal dialog, and D35 gave the Basics editor's selects explicit
+sheet a real modal dialog, D35 gave the Basics editor's selects explicit
 `htmlFor`/`id` pairs, which cleared `label-has-associated-control` entirely
 and uncovered a real defect on the way (the label wrapping `CityPicker` was
 winning the accessible-name computation, so the chosen city never reached a
-screen reader). What is left in `spec/` is six `no-autofocus` findings and
-three div-with-onClick sites. They are deferred for the same reason as the
-React Compiler ones — adding key handlers and focus behaviour to ported
-components no test asserts the interaction of is the blind change that trade
-refuses. Fix them behind interaction tests, not ahead of them.
+screen reader), and D49 made the post-vote beat's Skip control a real
+button.
+
+What is left is **eight `no-autofocus` findings** and **one
+`no-static-element-interactions`** in `tweaks-panel.jsx`, the host-era debug
+panel rather than a user surface.
+
+That sentence used to say "six `no-autofocus` findings and three
+div-with-onClick sites", and both halves were wrong in a way worth naming,
+because `check:a11y` did not catch either: it holds the TOTAL and the
+per-file counts, not the breakdown by rule. There were eight autofocus
+findings, not six. And the three were not three sites — they were three
+rules firing on **one** element (`click-events-have-key-events`,
+`interactive-supports-focus`, `no-static-element-interactions`), so the
+work described as three deferred fixes was one, and it took an afternoon.
+A count kept by hand drifts even inside a paragraph whose own file is
+gate-enforced; prefer "run the gate" to a number, and where a number is
+load-bearing, make the gate own it.
+
+The remaining autofocus findings stay deferred for the reason the React
+Compiler ones do — changing focus behaviour in ported components no test
+asserts the interaction of is the blind change that trade refuses. Fix them
+behind interaction tests, not ahead of them:
+`test/consequence-beat.test.jsx` is what that looks like, and
+`test/dialog.test.jsx` is the precedent it follows.
 
 Per file, not a total, so a fix in one file cannot pay for a regression in
 another. Lowering it is the script's own output: fix something, run it, and
