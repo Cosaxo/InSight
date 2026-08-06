@@ -14,8 +14,15 @@
 //     are ranked only against each other.
 //   - SPLIT QUALITY: how far from a landslide. The product's own bar
 //     ("splits, not landslides" — a good daily divides people) as a
-//     number: evenness = 1 − (maxShare − 1/n) / (1 − 1/n), 1.0 = even,
-//     0.0 = unanimous.
+//     number, per type (scorecard-metrics.mjs; D33 as amended
+//     2026-08-06). Categorical types: evenness = 1 − (maxShare − 1/n) /
+//     (1 − 1/n). Scale/rating are ordinal, where maxShare mismeasures —
+//     a crowd all answering 6–8 spreads over enough slots to look
+//     "even" while being a consensus — so they score side balance ×
+//     dispersion around the midpoint instead. Either way 1.0 = a real
+//     split, 0.0 = unanimity (on an ordinal axis that includes
+//     unanimity on the middle), and the number still lands in the same
+//     `evenness` field every consumer reads.
 //   - OPTION SHAPE: the same public counts, kept as per-option shares
 //     (`optionShares` per question; `types`/`optionSlots` rollups). This
 //     can only steer NEW questions: a shipped question's options are
@@ -58,6 +65,7 @@
 import { readFileSync, writeFileSync } from "node:fs";
 import { resolve, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { splitQualityOf } from "./scorecard-metrics.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const OUT = join(root, "content", "scorecard.json");
@@ -149,11 +157,6 @@ const optionShares = (counts, n) => {
   return vals.map((c) => c / total);
 };
 
-const evennessOf = (shares, n) => {
-  const maxShare = Math.max(...shares);
-  return Math.max(0, Math.min(1, 1 - (maxShare - 1 / n) / (1 - 1 / n)));
-};
-
 const round3 = (v) => +v.toFixed(3);
 
 function score(aggs) {
@@ -173,7 +176,7 @@ function score(aggs) {
       prompt: q.prompt,
       served,
       total,
-      evenness: sh ? evennessOf(sh, n) : null,
+      evenness: sh ? splitQualityOf(q.type, sh, n) : null,
       optionShares: sh ? sh.map(round3) : null,
       signal: agg ? (agg.tooSmall === false ? "scored" : "below-floor") : served ? "no-answers" : "unserved",
     });
@@ -193,7 +196,7 @@ function score(aggs) {
       prompt: q.prompt,
       served: true, // the feed serves continuously
       total,
-      evenness: sh ? evennessOf(sh, n) : null,
+      evenness: sh ? splitQualityOf(q.type, sh, n) : null,
       optionShares: sh ? sh.map(round3) : null,
       signal: agg ? (agg.tooSmall === false ? "scored" : "below-floor") : "no-answers",
     });

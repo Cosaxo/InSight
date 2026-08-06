@@ -123,9 +123,11 @@ what lane 3 still exists for.
 (an operator step or a scheduled refresh; needs the public web API key)
 — is the farm's only view of how questions perform. It reads nothing
 but the k-floored public aggregates: per question, the published
-`total` (draw) and an **evenness** score (1.0 = even split, 0.0 =
-landslide — the "splits, not landslides" bar as a number), rolled up
-per topic. What it deliberately cannot see: skip/pass rates (never
+`total` (draw) and an **evenness** score (1.0 = real split, 0.0 =
+landslide — the "splits, not landslides" bar as a number; for
+scale/rating it is measured on the axis, side balance × dispersion,
+because a consensus on the middle must not read as "even" — D33
+amendment 2026-08-06), rolled up per topic. What it deliberately cannot see: skip/pass rates (never
 collected — local-only, D-series), anything per-user, anything below
 the floor. Daily topics are capitalized `CAT_META` tops; feed topics
 are lowercase `WORLD_TOPICS` ids — score them per-surface, never mixed

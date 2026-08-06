@@ -5838,3 +5838,43 @@ it checks:**
   0. This gate is the measurable floor under the writing rule, not its
   replacement — the manual's re-read stands, now citing the measured
   top score per question in PR bodies.
+
+## D33 amendment (2026-08-06) · Ordinal splits are measured on their axis
+
+**What was wrong, with the arithmetic.** D33's evenness — `1 − (maxShare
+− 1/n) / (1 − 1/n)` — treats every question as categorical. For `binary`
+/ `choice` / `dilemma` (and the feed's `vote`/`duel`) that is the right
+bar. For the ordinal types it mismeasures both failure modes at once: a
+rating whose crowd all answers 5–8 (shares 0,0,0,0,.2,.3,.3,.2,0,0)
+spreads over enough slots to score **0.778** — graded a strong split
+while being a consensus just above the middle — and a scale at 65%
+agree / 15% disagree scores **0.75** while the UI's own headline for the
+same distribution says "65% agree". With 21 of the 90 live dailies
+ordinal (16 scale + 5 rating), the farm's first real signal would have
+learned "write agreeable scale statements" from a number claiming the
+opposite.
+
+**The fix** (`scripts/scorecard-metrics.mjs`, extracted so the
+arithmetic is testable; `question-scorecard.mjs` routes by type). Scale
+and rating score `sideBalance × spread`: sideBalance = 1 − |low − high|
+/ (low + high) across the midpoint (an exact-middle slot — scale's
+Neutral — sits on neither side; nobody-took-a-side scores 0), spread =
+mean distance from the midpoint over (n−1)/4, capped at 1 so
+uniform-or-wider counts as fully spread. All-Neutral scores 0 — a crowd
+that agrees to shrug is still a crowd that agrees — as does unanimity on
+either pole; the polarized 30/15/10/15/30 scale scores 1.0. Under the
+fixed metric the two examples above fall to 0.213 and 0.375.
+`scorecard-metrics.test.mjs` pins each case against the number the old
+formula produced, so re-routing ordinals through the categorical bar
+fails loudly.
+
+**What deliberately does not change.** The field stays `evenness` in the
+same [0, 1] with the same reading (1.0 = real split, 0.0 = landslide),
+so every consumer — grades and their thresholds, leaders/laggards,
+`retireProposals`, the topic/type rollups, the pulse console's evenness
+buckets — reads on unchanged. The committed scorecard is not
+regenerated: the pre-launch baseline has zero scored questions, so no
+committed number moves, and the next `--fetch` under the self-refresh
+contract picks the metric up. That timing is the point of amending now —
+the metric changes before the first measured value exists, instead of
+under it.
