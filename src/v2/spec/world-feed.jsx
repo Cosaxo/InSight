@@ -4,6 +4,8 @@
 // spec-index.js load order is semantic — scripts/check-spec-globals.mjs
 // guards the wiring in CI.
 import React from 'react';
+import { WPAL } from './world-palette.js';
+import { HAPTIC } from './haptics.js';
 import { WF_CATALOGS } from './world-catalogs.js';
 import { Sheet } from './primitives.jsx';
 import ReactDOM from 'react-dom';
@@ -104,18 +106,20 @@ function wfCatArt(color, seed) {
 }
 
 // count-up for revealed percentages — runs only right after your vote
-function WfCount({ to, animate, dur = 650 }) {
+function WfCount({ to, animate, dur = 650, delay = 180 }) {
   const [v, setV] = React.useState(animate ? 0 : to);
   React.useEffect(() => {
-    if (!animate) { setV(to); return; }
+    if (!animate || (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches)) { setV(to); return; }
     let raf, t0;
     const step = (t) => { if (!t0) t0 = t; const k = Math.min((t - t0) / dur, 1); setV(Math.round(to * (1 - Math.pow(1 - k, 3)))); if (k < 1) raf = requestAnimationFrame(step); };
-    raf = requestAnimationFrame(step);
-    return () => cancelAnimationFrame(raf);
-    // `dur` is deliberately not a dependency: it is the animation's
-    // duration, read once when the run starts. Including it would restart
-    // a count-up mid-flight whenever the caller passed a new duration,
-    // which is the opposite of what a duration means.
+    // hold at 0 for the shared stagger (--rv-2), so the digits start with the
+    // chips rather than ahead of the bars they're describing
+    const hold = setTimeout(() => { raf = requestAnimationFrame(step); }, delay);
+    return () => { clearTimeout(hold); cancelAnimationFrame(raf); };
+    // `dur` and `delay` are deliberately not dependencies: they are the run's
+    // own timing, read once when it starts. Including either would restart a
+    // count-up mid-flight whenever the caller passed a new one, which is the
+    // opposite of what a duration means.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [to, animate]);
   return <span>{v}</span>;
@@ -125,18 +129,17 @@ function WfCount({ to, animate, dur = 650 }) {
 // stay readable without a second palette. Splits derive deterministically from
 // the overall counts + a hash, like the daily's.
 function wfHash(s) { let h = 9; for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 387420489); return ((h ^ (h >>> 9)) >>> 0) / 4294967295; }
-// Per-option hue: option 0 keeps the topic colour, the rest rotate away
-// from it. The v15 revision folds the old lightness-ramp wfShade into this
-// one family — live k-floored bars and demo bars now share the palette.
-function wfOpt(color, i, n) { return i === 0 ? color : 'oklch(from ' + color + ' 0.55 0.14 calc(h + ' + Math.round(i * ((n || 2) > 2 ? 120 : 150)) + '))'; }
+// sides get distinct hues rotated off the topic's — one lightness+chroma tier,
+// the same family the daily uses, so the feed and the daily read as one product
+function wfOpt(color, i, n) { return WPAL.opt(color, i, n); }
+function wfShade(color, i, n) { return WPAL.opt(color, i, n, true); }
 // v2: one hue per card. Strength encodes rank, so the winner reads first and a
 // scroll never shows more than the topic's own colour.
 function wfTint(color, rank, n) { const steps = Math.max((n || 4) - 1, 1); const s = 30 - (24 * Math.min(rank, steps)) / steps; return 'color-mix(in oklch, ' + color + ' ' + s.toFixed(1) + '%, var(--surface))'; }
-function wfShade(color, i, n) { return wfOpt(color, i, n); }
 function wfShadeText() { return '#fff'; }
 // rate cards have no sides — a 1–10 score reads as tint strength of the one hue
-function wfRateBg(color, s) { return 'color-mix(in oklch, ' + color + ' ' + (12 + s * 8.8).toFixed(1) + '%, var(--surface))'; }
-function wfRateInk(s) { return s >= 6 ? '#fff' : 'var(--ink)'; }
+function wfRateBg(color, s) { return 'color-mix(in oklch, ' + color + ' ' + (10 + s * 5.9).toFixed(1) + '%, var(--surface))'; }
+function wfRateInk() { return 'var(--ink)'; }
 // a group's rate on a knowledge card, drifted deterministically off the real one
 // (same trick as the opinion splits). ±23-point spread, so differences mean something.
 function wfKnowRate(id, key, p, bias) { return Math.max(4, Math.min(97, Math.round(p + (wfHash(id + ':k:' + key) - 0.5) * 40 + (bias || 0)))); }
@@ -243,6 +246,9 @@ class WorldFeed extends React.Component {
       // none of that is reachable on a live card (D1).
       why: on('why'), counter: on('counter'),
       signals: on('signals'), crossfire: on('crossfire'), v2: on('v2'),
+      // hier: today's question outsizes the feed's, so the two read as a
+      // headline and its stream rather than as one long list.
+      hier: !!o.hier,
     };
   }
 
@@ -371,6 +377,9 @@ class WorldFeed extends React.Component {
     // the lens stores disagree→agree, hence 4 - val.
     if (window.LENSES && q.lens) window.LENSES.record({ ...q, value: typeof val === 'number' ? 4 - val : 2 });
     this._fresh = id; // gates the reveal's count-up + bar growth to the vote moment
+    // the vote is felt, then the crowd's answer is felt arriving — timed to the
+    // same stagger the bars use (2 steps), so hand and eye agree
+    HAPTIC.tap(); clearTimeout(this._hapT); this._hapT = setTimeout(() => HAPTIC.reveal(), 260);
     // the feed's memory: with the crowd or against it. Local to this device
     // (feed-read.js) — it reports only your own answers, so no floor applies.
     if (window.FEEDREAD && q.options && typeof val === 'number') {
@@ -414,6 +423,7 @@ class WorldFeed extends React.Component {
 
   // ranking: tap items in order; tapping an assigned item un-assigns it
   tapRank(q, i) {
+    HAPTIC.tick();
     this.setState((s) => {
       const cur = (s.pending[q.id] || []).slice();
       const at = cur.indexOf(i);
@@ -456,7 +466,7 @@ class WorldFeed extends React.Component {
     return (
       <div style={{ display: 'flex', flexDirection: 'column', gap: big ? 13 : 10, animation: 'popIn .3s cubic-bezier(0.2,0.8,0.2,1)' }}>
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 7 }}>
-          <span style={{ fontFamily: 'var(--sans)', fontWeight: 800, fontSize: big ? 34 : 26, letterSpacing: '-0.03em', color: T.color, fontVariantNumeric: 'tabular-nums' }}>{avg.toFixed(1)}</span>
+          <span style={{ fontFamily: 'var(--sans)', fontWeight: 800, fontSize: big ? 34 : 26, letterSpacing: '-0.03em', color: WPAL.ink(T.color), fontVariantNumeric: 'tabular-nums' }}>{avg.toFixed(1)}</span>
           <span style={{ fontWeight: 600, fontSize: 13, color: 'var(--ink-3)' }}>the crowd</span>
           <span style={{ marginLeft: 'auto', display: 'inline-flex', alignItems: 'center', gap: 7, fontWeight: 800, fontSize: 13.5, color: 'var(--ink)' }}><span aria-hidden="true" style={{ width: 10, height: 10, borderRadius: '50%', background: T.color, border: '2px solid var(--surface)', boxShadow: '0 0 0 1px ' + T.color }}></span>you · {v}</span>
         </div>
@@ -572,7 +582,7 @@ class WorldFeed extends React.Component {
             </span>
             <span style={{ position: 'relative', height: 6 }}>
               <span style={{ position: 'absolute', inset: 0, borderRadius: 99, background: 'color-mix(in oklch, var(--ink-3) 11%, transparent)' }}></span>
-              <span style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: (s / maxS) * 100 + '%', borderRadius: 99, background: isMine ? T.color : `color-mix(in oklch, ${T.color} 40%, transparent)`, transformOrigin: 'left', animation: `wfBarIn .5s cubic-bezier(.2,.8,.2,1) ${(0.06 + i * 0.05).toFixed(2)}s both` }}></span>
+              <span style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: (s / maxS) * 100 + '%', borderRadius: 99, background: isMine ? T.color : `color-mix(in oklch, ${T.color} 40%, transparent)`, transformOrigin: 'left', animation: `wfBarIn .5s cubic-bezier(.2,.8,.2,1) calc(var(--rv-row) * ${i + 1}) both` }}></span>
             </span>
           </span>
         </div>
@@ -725,10 +735,10 @@ class WorldFeed extends React.Component {
               <button key={i} className="press" disabled={!!r} onClick={() => this.setKnow(q, i)}
                 style={{ position: 'relative', overflow: 'hidden', display: 'flex', alignItems: 'center', gap: 10, width: '100%', textAlign: 'left', minHeight: big ? 56 : 50, padding: big ? '14px 16px' : '12px 14px', borderRadius: 14, cursor: r ? 'default' : 'pointer', WebkitAppearance: 'none', transition: 'background .3s ease, color .3s ease',
                   border: isMine && !isC ? '1.5px solid var(--ink)' : WF_LINE,
-                  background: isC ? T.color : 'var(--surface-2)', color: isC ? '#fff' : r && !isMine ? 'var(--ink-3)' : 'var(--ink)' }}>
-                {r && !isC ? <span aria-hidden="true" style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: pct + '%', background: pale, transformOrigin: 'left', animation: fresh ? `wfBarIn .55s cubic-bezier(.2,.8,.2,1) ${(0.08 + i * 0.06).toFixed(2)}s both` : 'none' }}></span> : null}
+                  background: isC ? WPAL.ink(T.color) : 'var(--surface-2)', color: isC ? '#fff' : r && !isMine ? 'var(--ink-3)' : 'var(--ink)' }}>
+                {r && !isC ? <span aria-hidden="true" style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: pct + '%', background: pale, transformOrigin: 'left', animation: fresh ? `wfBarIn .55s cubic-bezier(.2,.8,.2,1) calc(var(--rv-row) * ${i + 1.5}) both` : 'none' }}></span> : null}
                 <span style={{ position: 'relative', flex: 1, minWidth: 0, fontFamily: 'var(--sans)', fontWeight: isC ? 800 : 600, fontSize: big ? 16.5 : 15, lineHeight: 1.3, textWrap: 'pretty' }}>{label}</span>
-                {showPct ? <span style={{ position: 'relative', fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 12.5, fontVariantNumeric: 'tabular-nums', opacity: 0.85 }}>{fresh ? <WfCount to={Math.round(pct)} animate={true}></WfCount> : Math.round(pct)}%</span> : null}
+                {showPct ? <span style={{ position: 'relative', fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 12.5, fontVariantNumeric: 'tabular-nums' }}>{fresh ? <WfCount to={Math.round(pct)} animate={true}></WfCount> : Math.round(pct)}%</span> : null}
                 {isC ? <span style={{ position: 'relative', fontSize: 13, fontWeight: 800 }}>{'\u2713'}</span> : null}
                 {r && isMine && !isC ? <span style={{ position: 'relative', fontSize: 13, fontWeight: 800, color: 'var(--ink-2)' }}>{'\u2715'}</span> : null}
               </button>
@@ -1073,7 +1083,7 @@ class WorldFeed extends React.Component {
                 <div style={{ height: '100%', display: 'flex', alignItems: 'center', gap: 8, padding: big ? '0 18px' : '0 14px' }}>
                   <div style={{ display: 'flex', alignItems: 'baseline', gap: 7, minWidth: 0, flex: 1 }}>
                     <span style={{ fontWeight: win ? 800 : 700, fontSize: big ? 19 : 15, letterSpacing: '-0.02em' }}>{o.label}</span>
-                    {isMine && <span style={{ fontSize: 13, fontWeight: v2 ? 500 : 700, color: 'var(--ink-2)', whiteSpace: 'nowrap', animation: !v2 && fresh ? 'chipPop .35s var(--ease-spring) .2s both' : 'none' }}>{'· you'}</span>}
+                    {isMine && <span style={{ fontSize: 13, fontWeight: v2 ? 500 : 700, color: 'var(--ink-2)', whiteSpace: 'nowrap', animation: !v2 && fresh ? 'chipPop .35s var(--ease-spring) var(--rv-2) both' : 'none' }}>{'· you'}</span>}
                   </div>
                   {/* Friend dots: DEMO CARDS ONLY. WF_FRIENDS are invented
                       and friendSides derives their side from a hash, so on a
@@ -1159,7 +1169,7 @@ class WorldFeed extends React.Component {
           <div key={i} style={{ position: 'relative', border: mine === i ? '1px solid color-mix(in oklch, ' + T.color + ' 65%, var(--rule))' : WF_LINE, borderRadius: big ? 14 : 11, background: 'var(--surface)', overflow: 'hidden' }}>
             <div style={{ position: 'absolute', top: 0, left: 0, bottom: 0, width: p[i] + '%', background: 'color-mix(in oklch, ' + T.color + ' ' + (mine === i ? 30 : 15) + '%, transparent)', animation: fresh ? 'barIn .7s cubic-bezier(0.2,0.8,0.2,1) ' + (i * 0.07) + 's both' : 'none' }}></div>
             <div style={{ position: 'relative', display: 'flex', alignItems: 'baseline', gap: 8, padding: big ? '13px 14px' : '9px 12px' }}>
-              {mine === i && <span aria-label="Your pick" style={{ width: big ? 18 : 15, height: big ? 18 : 15, borderRadius: '50%', flexShrink: 0, alignSelf: 'center', background: T.color, display: 'flex', alignItems: 'center', justifyContent: 'center' }}><svg viewBox="0 0 24 24" width={big ? 10 : 8} height={big ? 10 : 8} fill="none" stroke="#fff" strokeWidth="3.4" strokeLinecap="round" strokeLinejoin="round"><path d="M4.5 12.5 10 18 19.5 6.5"></path></svg></span>}
+              {mine === i && <span aria-label="Your pick" style={{ width: big ? 18 : 15, height: big ? 18 : 15, borderRadius: '50%', flexShrink: 0, alignSelf: 'center', background: WPAL.ink(T.color), display: 'flex', alignItems: 'center', justifyContent: 'center' }}><svg viewBox="0 0 24 24" width={big ? 10 : 8} height={big ? 10 : 8} fill="none" stroke="#fff" strokeWidth="3.4" strokeLinecap="round" strokeLinejoin="round"><path d="M4.5 12.5 10 18 19.5 6.5"></path></svg></span>}
               <span style={{ flex: 1, minWidth: 0, fontWeight: mine === i ? 800 : 700, fontSize: big ? 15 : 13.5 }}>{o.label}</span>
               {p[i] === maxP && !(q.live && q.tooSmall) && <span style={{ fontWeight: 800, fontSize: big ? 20 : 15, color: 'var(--ink)' }}><WfCount to={p[i]} animate={fresh}></WfCount>%</span>}
             </div>
@@ -1182,6 +1192,17 @@ class WorldFeed extends React.Component {
     // without the other would publish the split geometrically instead of
     // numerically, which is the same disclosure in a different alphabet.
     const shares = mine != null && !(q.live && q.tooSmall);
+    // Label band at the top; the numeral rides the water line below it. Two things
+    // keep them from ever meeting, at any tile height or percentage:
+    //   1. the band reserves lines for what the labels ACTUALLY need (shared across
+    //      the pair so both tiles stay balanced) rather than always two;
+    //   2. the numeral's travel is clamped in CSS — max()/min() keep it off the tile
+    //      floor and clear of the band, so it parks rather than colliding at the
+    //      extremes, on any tile height.
+    const labSize = big ? 20 : 15.5;
+    const labLines = q.options.some((o) => (o.label || '').length > 13) ? 2 : 1;
+    const bandH = Math.round(labSize * 1.15 * labLines) + (big ? 24 : 17);
+    const pctSize = (win) => (big ? (win ? 30 : 23) : (win ? 23 : 18));
     return (
       <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
         {/* square tiles: question, both sides and both shares sit above the
@@ -1195,14 +1216,34 @@ class WorldFeed extends React.Component {
             const bg = v2 ? 'var(--surface-2)' : wfTileArt(T.color, q.id);
             return (
               <button key={i} className={mine == null ? 'press' : ''} onClick={() => mine == null && this.setVote(q, i)} style={{ position: 'relative', aspectRatio: big ? '1 / 1' : '4 / 3', border: chosen ? '2px solid color-mix(in oklch, ' + T.color + ' 60%, var(--rule))' : WF_LINE, borderRadius: 14, overflow: 'hidden', background: bg, boxShadow: 'none', cursor: mine == null ? 'pointer' : 'default', padding: 0, WebkitAppearance: 'none', display: 'flex', alignItems: 'flex-end', justifyContent: 'center', opacity: mine != null && !chosen ? 0.94 : 1, transition: 'opacity .45s ease', animation: !v2 && fresh && chosen ? 'tilePick .45s cubic-bezier(0.2,0.8,0.2,1)' : 'none' }}>
+                {/* real photography when the question carries it; the generated
+                    art stays the fallback. Fixed aspect above means the box never
+                    moves, and .is-in only lands once the bitmap has decoded. */}
+                {o.img && <img className="wf-tileimg" src={o.img} alt="" loading="lazy" decoding="async"
+                  onLoad={(e) => e.currentTarget.classList.add('is-in')} />}
                 {/* the share IS the tile — the side fills to its own percentage */}
                 {shares && (
-                  <span aria-hidden="true" style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: p[i] + '%', background: 'color-mix(in oklch, ' + T.color + ' ' + (win ? 40 : 24) + '%, ' + (v2 ? 'var(--surface)' : 'transparent') + ')', borderTop: '1.5px solid color-mix(in oklch, ' + T.color + ' 60%, transparent)', animation: fresh ? 'wfFillUp .85s cubic-bezier(0.2,0.8,0.2,1) both' : 'none', transition: 'height .7s cubic-bezier(0.2,0.8,0.2,1)' }}></span>
+                  <span aria-hidden="true" style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: p[i] + '%', background: 'color-mix(in oklch, ' + T.color + ' ' + (win ? 40 : 24) + '%, ' + (v2 ? 'var(--surface)' : 'transparent') + ')', borderTop: '1.5px solid color-mix(in oklch, ' + T.color + ' 60%, transparent)', animation: fresh ? 'wfFillUp .85s cubic-bezier(0.2,0.8,0.2,1) var(--rv-1) both' : 'none', transition: 'height .7s cubic-bezier(0.2,0.8,0.2,1)' }}></span>
                 )}
-                <span style={{ position: 'relative', fontFamily: 'var(--sans)', fontWeight: 800, fontSize: big ? 20 : 15.5, color: 'var(--ink)', padding: v2 ? '0 14px 13px' : '5px 12px', maxWidth: '88%', textAlign: 'center', lineHeight: 1.15, letterSpacing: '-0.02em', borderRadius: 11, background: v2 ? 'transparent' : 'color-mix(in oklch, var(--surface-2) 82%, transparent)', backdropFilter: v2 ? 'none' : 'blur(3px)', WebkitBackdropFilter: v2 ? 'none' : 'blur(3px)' }}>{o.label}</span>
-                {shares && (
-                  <span style={{ position: 'absolute', top: big ? 9 : 7, left: big ? 12 : 10, fontFamily: 'var(--sans)', fontWeight: win ? 800 : 650, fontSize: big ? (win ? 26 : 19) : (win ? 20 : 15), letterSpacing: '-0.03em', color: win ? 'var(--ink)' : 'var(--ink-2)' }}><WfCount to={p[i]} animate={fresh}></WfCount>%</span>
-                )}
+                {/* fixed band at the top, same height on both tiles — the label never
+                    rides the fill, and the rising level never has to dodge it */}
+                <span className="wf-tileband" style={{ position: 'absolute', left: 0, right: 0, top: 0, height: bandH, display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: big ? '13px 14px 0' : '10px 11px 0', boxSizing: 'border-box', background: o.img
+                  ? 'linear-gradient(to bottom, color-mix(in oklch, var(--surface) 94%, transparent) 0%, color-mix(in oklch, var(--surface) 84%, transparent) 55%, transparent 100%)'
+                  : 'linear-gradient(to bottom, color-mix(in oklch, var(--surface-2) 55%, transparent) 0%, color-mix(in oklch, var(--surface-2) 34%, transparent) 60%, transparent 100%)' }}>
+                  <span className="wf-tilelab" style={{ fontFamily: 'var(--sans)', fontWeight: 800, fontSize: labSize, color: 'var(--ink)', textAlign: 'center', lineHeight: 1.15, letterSpacing: '-0.02em', display: '-webkit-box', WebkitLineClamp: labLines, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{o.label}</span>
+                </span>
+                {/* the share reads as one gesture: the numeral hangs under the water line,
+                    inside the fill. Both bounds are pure CSS — min() keeps it clear of the
+                    label band, max() keeps it off the tile floor — so it can never collide
+                    at any tile height or percentage, without measuring anything. */}
+                {shares && (() => {
+                  const chipH = Math.round(pctSize(win) + 11);
+                  return (
+                    <span className="wf-tilepct" style={{ position: 'absolute', left: 0, right: 0, bottom: 'max(' + chipH + 'px, min(' + p[i] + '%, calc(100% - ' + (bandH + 2) + 'px)))', height: 0, display: 'flex', alignItems: 'flex-start', justifyContent: 'center', pointerEvents: 'none', animation: fresh ? 'wfPctRide .85s cubic-bezier(0.2,0.8,0.2,1) var(--rv-1) both' : 'none', transition: 'bottom .7s cubic-bezier(0.2,0.8,0.2,1)' }}>
+                      <span style={{ marginTop: 3, fontFamily: 'var(--sans)', fontWeight: win ? 800 : 700, fontSize: pctSize(win), lineHeight: 1, letterSpacing: '-0.035em', color: win ? 'var(--ink)' : 'var(--ink-2)', padding: '3px 9px 4px', borderRadius: 9, background: 'color-mix(in oklch, var(--surface-2) 70%, transparent)', backdropFilter: 'blur(4px)', WebkitBackdropFilter: 'blur(4px)' }}><WfCount to={p[i]} animate={fresh}></WfCount>%</span>
+                    </span>
+                  );
+                })()}
               </button>
             );
           })}
@@ -1215,7 +1256,7 @@ class WorldFeed extends React.Component {
     const done = this.state.votes[q.id];
     const D = big ? 28 : 24;
     const num = (filled, label) => (
-      <span style={{ width: D, height: D, borderRadius: '50%', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--sans)', fontWeight: 800, fontSize: big ? 13 : 12, boxSizing: 'border-box', background: filled ? T.color : 'transparent', color: filled ? '#fff' : 'var(--ink-3)', border: filled ? 'none' : '1.5px solid color-mix(in oklch, var(--ink-3), transparent 40%)' }}>{label}</span>
+      <span style={{ width: D, height: D, borderRadius: '50%', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--sans)', fontWeight: 800, fontSize: big ? 13 : 12, boxSizing: 'border-box', background: filled ? WPAL.ink(T.color) : 'transparent', color: filled ? '#fff' : 'var(--ink-3)', border: filled ? 'none' : '1.5px solid color-mix(in oklch, var(--ink-3), transparent 40%)' }}>{label}</span>
     );
     if (!done) {
       const cur = this.state.pending[q.id] || [];
@@ -1487,7 +1528,7 @@ class WorldFeed extends React.Component {
     return (
       <div style={{ display: 'flex', flexDirection: 'column' }}>
         {openLeaves.length ? <div style={label}>Topics</div> : null}
-        {openLeaves.map((s) => row(s.id, (WF_TOPIC[s.parent] || {}).color, s.label,
+        {openLeaves.map((s) => row(s.id, WPAL.c((WF_TOPIC[s.parent] || {}).color), s.label,
           `${(WF_TOPIC[s.parent] || {}).label || s.parent} · ${ST.count(s.id)} questions`,
           () => { ST.follow(s.id); this.forceUpdate(); }))}
         {open.length ? <div style={{ ...label, marginTop: openLeaves.length ? 18 : 4 }}>Communities</div> : null}
@@ -1509,7 +1550,7 @@ class WorldFeed extends React.Component {
                 return <button key={v} className="press" onClick={() => { LF.setFreq(v); this.forceUpdate(); }} aria-pressed={on} style={{ flex: 1, border: 'none', borderRadius: 999, padding: '8px 0', cursor: 'pointer', WebkitAppearance: 'none', fontFamily: 'var(--sans)', fontWeight: on ? 800 : 600, fontSize: 12.5, background: on ? 'var(--ink)' : 'transparent', color: on ? 'var(--surface)' : 'var(--ink-3)', transition: 'background .2s ease, color .2s ease' }}>{v}</button>;
               })}
             </div>
-            {learnOpen.map((f) => row('lrn-' + f.id, L.colorOf(f.id), f.label,
+            {learnOpen.map((f) => row('lrn-' + f.id, WPAL.c(L.colorOf(f.id)), f.label,
               `${(L.subject(f.subject) || {}).label || ''} · ${L.total(f.id)} cards`,
               () => { L.follow(f.id); this.forceUpdate(); }, true))}
           </div>
@@ -1686,7 +1727,7 @@ class WorldFeed extends React.Component {
         )}
         {writing && (
           <form onSubmit={(e) => { e.preventDefault(); const inp = e.target.elements.reply; const v = inp.value.trim(); if (v) { this.addReply(key, v); this.setState((s) => ({ ctrIdx: { ...s.ctrIdx, [key]: (s.replies[key] || []).length + seeded.length } })); } }} style={{ display: 'flex', gap: 6, marginLeft: 40 }}>
-            <input name="reply" autoFocus placeholder={'Where is it wrong…'} style={{ flex: 1, minWidth: 0, border: WF_LINE, borderRadius: 999, padding: '7px 12px', fontFamily: 'var(--sans)', fontSize: 12.5, fontWeight: 500, background: 'var(--surface-2)', color: 'var(--ink)', outline: 'none' }} />
+            <input name="reply" autoFocus autoComplete="off" autoCapitalize="sentences" enterKeyHint="send" placeholder={'Where is it wrong\u2026'} style={{ flex: 1, minWidth: 0, border: WF_LINE, borderRadius: 999, padding: '7px 12px', fontFamily: 'var(--sans)', fontSize: 12.5, fontWeight: 500, background: 'var(--surface-2)', color: 'var(--ink)', outline: 'none' }} />
             <button type="submit" style={{ border: 'none', borderRadius: 999, padding: '7px 13px', fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 12, cursor: 'pointer', background: 'var(--ink)', color: 'var(--surface)', WebkitAppearance: 'none' }}>Send</button>
           </form>
         )}
@@ -1751,7 +1792,7 @@ class WorldFeed extends React.Component {
             <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 3 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 7, flexWrap: 'wrap' }}>
                 <span style={{ fontWeight: 800, fontSize: 12.5 }}>You</span>
-                {mySide != null && <span style={{ background: wfShade(T.color, mySide), color: wfShadeText(mySide), fontSize: 10, fontWeight: 800, padding: '2px 8px', borderRadius: 999, whiteSpace: 'nowrap' }}>{q.options[mySide].label}</span>}
+                {mySide != null && <span style={{ background: wfShade(T.color, mySide), color: wfShadeText(mySide), fontSize: 10.5, fontWeight: 800, padding: '2px 8px', borderRadius: 999, whiteSpace: 'nowrap' }}>{q.options[mySide].label}</span>}
                 {isRate && typeof myVote === 'number' && <span style={{ fontSize: 11, fontWeight: 800, color: 'var(--ink-3)', fontVariantNumeric: 'tabular-nums' }}>gave {myVote}</span>}
                 <span style={{ fontSize: 10.5, fontWeight: 600, color: 'var(--ink-3)' }}>now</span>
               </div>
@@ -1981,9 +2022,9 @@ class WorldFeed extends React.Component {
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               {seen.slice().sort((a, b) => (b.ok ? 1 : 0) - (a.ok ? 1 : 0)).map((f) => (
                 <div key={f.id} style={{ background: 'var(--surface)', border: WF_LINE, borderRadius: 12, padding: '9px 11px', display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <span style={{ ...lmAv(f.ok ? T.color : 'var(--surface-2)', f.ok ? '#fff' : 'var(--ink-3)', 30), border: f.ok ? 'none' : '1px solid var(--rule)' }}>{f.init}</span>
+                  <span style={{ ...lmAv(f.ok ? WPAL.ink(T.color) : 'var(--surface-2)', f.ok ? '#fff' : 'var(--ink-3)', 30), border: f.ok ? 'none' : '1px solid var(--rule)' }}>{f.init}</span>
                   <span style={{ flex: 1, fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 13.5 }}>{f.name}</span>
-                  <span style={{ flexShrink: 0, fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 12.5, color: f.ok ? T.color : 'var(--ink-3)' }}>{f.ok ? 'got it' : 'missed'}</span>
+                  <span style={{ flexShrink: 0, fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 12.5, color: f.ok ? WPAL.ink(T.color) : 'var(--ink-3)' }}>{f.ok ? 'got it' : 'missed'}</span>
                 </div>
               ))}
             </div>
@@ -2243,7 +2284,7 @@ class WorldFeed extends React.Component {
     const F = flags || {};
     if (this.state.passed[q.id]) {
       return (
-        <button key={q.id} onClick={() => this.setPass(q.id, false)} style={{ border: WF_LINE, borderRadius: 14, background: 'transparent', padding: '11px 14px', display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', textAlign: 'left', WebkitAppearance: 'none', opacity: 0.6 }}>
+        <button key={q.id} onClick={() => this.setPass(q.id, false)} style={{ border: WF_LINE, borderRadius: 14, background: 'transparent', padding: '11px 14px', display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', textAlign: 'left', WebkitAppearance: 'none' }}>
           <span aria-hidden="true" style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--ink-3)', flexShrink: 0 }}></span>
           <span style={{ flex: 1, minWidth: 0, fontFamily: 'var(--sans)', fontWeight: 600, fontSize: 13, color: 'var(--ink-3)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{q.prompt}</span>
           <span style={{ fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 11, color: 'var(--ink-3)', flexShrink: 0 }}>undo</span>
@@ -2261,7 +2302,9 @@ class WorldFeed extends React.Component {
     // three catalogues rendering in one green loses the subject entirely. The
     // channel keeps the label, the catalogue supplies the colour.
     const cg = q.type === 'pick' ? WF_CATALOGS[q.catalog || q.domain] : null;
-    const T = kn ? { label: kn.label, color: window.LEARN.colorOf(q.f) } : cg && cg.hue ? { label: (WF_TOPIC[q.cat] || {}).label || q.cat, color: 'oklch(0.55 0.14 ' + cg.hue + ')' } : mk ? { label: mk.label, color: mk.accent } : (WF_TOPIC[q.cat] || { label: q.cat, color: 'var(--ink-3)' });
+    const T0 = kn ? { label: kn.label, color: window.LEARN.colorOf(q.f) } : cg && cg.hue ? { label: (WF_TOPIC[q.cat] || {}).label || q.cat, color: 'oklch(0.52 0.14 ' + cg.hue + ')' } : mk ? { label: mk.label, color: mk.accent } : (WF_TOPIC[q.cat] || { label: q.cat, color: 'var(--ink-3)' });
+    // one gate for all four hue sources — see world-palette.js
+    const T = { ...T0, color: WPAL.c(T0.color) };
     const scene = !mk && !kn && q.scene && window.SCENES ? window.SCENES.defs().find((g) => g.id === q.scene) : null;
     const leaf = !mk && !kn && !q.scene && q.sub ? WF_SUB(q.sub) : null;
     const kickLabel = scene ? scene.name : (tm ? tm.label + ' test' : (lz ? lz.title : leaf ? leaf.label : T.label));
@@ -2280,9 +2323,9 @@ class WorldFeed extends React.Component {
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
         <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7, fontSize: 12.5, fontWeight: 700, letterSpacing: '0.01em', textTransform: 'lowercase', color: mk ? `color-mix(in oklch, ${T.color} 70%, var(--ink))` : 'var(--ink-2)', background: mk ? `color-mix(in oklch, ${T.color} 11%, transparent)` : 'transparent', border: '0.5px solid ' + (mk ? `color-mix(in oklch, ${T.color} 40%, var(--rule))` : 'var(--rule)'), borderRadius: 999, padding: '4px 12px 4px 10px', minWidth: 0 }}><span aria-hidden="true" style={kickDot}></span>{kickLabel}</span>
         {bgText ? (
-          <button className="press" onClick={(e) => { e.stopPropagation(); clearTimeout(this._sheetT); this.setState({ sheet: { panel: 'bg', q, T } }); }} aria-label="What you need to know" style={{ flexShrink: 0, width: 20, height: 20, borderRadius: '50%', border: '0.5px solid color-mix(in oklch, var(--ink) 26%, var(--rule))', background: 'transparent', color: 'var(--ink-2)', fontFamily: 'var(--sans)', fontSize: 11.5, fontWeight: 800, lineHeight: 1, cursor: 'pointer', WebkitAppearance: 'none', padding: 0 }}>i</button>
+          <button className="press tap44" onClick={(e) => { e.stopPropagation(); clearTimeout(this._sheetT); this.setState({ sheet: { panel: 'bg', q, T } }); }} aria-label="What you need to know" style={{ flexShrink: 0, width: 20, height: 20, borderRadius: '50%', border: '0.5px solid color-mix(in oklch, var(--ink) 26%, var(--rule))', background: 'transparent', color: 'var(--ink-2)', fontFamily: 'var(--sans)', fontSize: 11.5, fontWeight: 800, lineHeight: 1, cursor: 'pointer', WebkitAppearance: 'none', padding: 0 }}>i</button>
         ) : (
-          <button className="press" onClick={(e) => { e.stopPropagation(); clearTimeout(this._sheetT); this.setState({ sheet: { panel: 'bg', q, T } }); }} aria-label="About this question" style={{ flexShrink: 0, width: 20, height: 20, borderRadius: '50%', border: '0.5px solid var(--rule)', background: 'transparent', color: 'var(--ink-3)', fontFamily: 'var(--sans)', fontSize: 11.5, fontWeight: 800, lineHeight: 1, cursor: 'pointer', WebkitAppearance: 'none', padding: 0 }}>i</button>
+          <button className="press tap44" onClick={(e) => { e.stopPropagation(); clearTimeout(this._sheetT); this.setState({ sheet: { panel: 'bg', q, T } }); }} aria-label="About this question" style={{ flexShrink: 0, width: 20, height: 20, borderRadius: '50%', border: '0.5px solid var(--rule)', background: 'transparent', color: 'var(--ink-3)', fontFamily: 'var(--sans)', fontSize: 11.5, fontWeight: 800, lineHeight: 1, cursor: 'pointer', WebkitAppearance: 'none', padding: 0 }}>i</button>
         )}
         {F.closing && this.renderClock(T)}
         <span style={{ flex: 1 }}></span>
@@ -2335,8 +2378,9 @@ class WorldFeed extends React.Component {
         {kicker}
         {snap && !answered && <div aria-hidden="true" style={{ flex: '0.12 1 0' }}></div>}
         {/* the bare skin has no box to compete with, so the question can carry
-            the card on its own — it steps up a size and tightens accordingly */}
-        <div style={{ fontFamily: 'var(--sans)', fontWeight: snap || focus ? 800 : 750, fontSize: snap ? (skin === 'bare' ? 30 : 26) : focus ? 20 : 16.5, lineHeight: snap ? 1.1 : focus ? 1.2 : 1.25, letterSpacing: snap ? (skin === 'bare' ? -0.9 : -0.6) : focus ? -0.4 : -0.25, textWrap: 'pretty' }}>{q.prompt}</div>
+            the card on its own — it steps up a size and tightens accordingly,
+            and steps back down when `hier` gives the daily the top of the page */}
+        <div style={{ fontFamily: 'var(--sans)', fontWeight: snap || focus ? 800 : 750, fontSize: snap ? (skin === 'bare' ? (this.opts.hier ? 24.5 : 30) : (this.opts.hier ? 22 : 26)) : focus ? 20 : 16.5, lineHeight: snap ? 1.14 : focus ? 1.2 : 1.25, letterSpacing: snap ? (skin === 'bare' ? -0.7 : -0.5) : focus ? -0.4 : -0.25, textWrap: snap || focus ? 'balance' : 'pretty' }}>{q.prompt}</div>
         {q.type === 'vote' && this.renderVote(q, T, snap)}
         {q.type === 'duel' && this.renderDuel(q, T, snap)}
         {q.type === 'rank' && this.renderRank(q, T, snap)}
@@ -2446,9 +2490,9 @@ class WorldFeed extends React.Component {
     // chip row = your scenes, your followed leaves, then the always-on channels
     const chips = [
       ...scenes.map((s) => ({ id: s.id, label: s.name, color: window.SCENES && window.SCENES.colorOf ? window.SCENES.colorOf(s.id) : null, scene: true })),
-      ...(ST ? ST.mine().filter((s) => !owned[s.id]).map((s) => ({ id: s.id, label: s.label, color: (WF_TOPIC[s.parent] || {}).color || null })) : []),
+      ...(ST ? ST.mine().filter((s) => !owned[s.id]).map((s) => ({ id: s.id, label: s.label, color: WPAL.c((WF_TOPIC[s.parent] || {}).color) || null })) : []),
       ...WF_CHANNELS.map((id) => WF_TOPIC[id]).filter(Boolean).map((t) => ({ id: t.id, label: t.label })),
-      ...(window.LEARN ? window.LEARN.mine().map((fd) => ({ id: 'lrn-' + fd.id, label: fd.label, color: window.LEARN.colorOf(fd.id), know: true })) : []),
+      ...(window.LEARN ? window.LEARN.mine().map((fd) => ({ id: 'lrn-' + fd.id, label: fd.label, color: WPAL.c(window.LEARN.colorOf(fd.id)), know: true })) : []),
     ];
     let sugg = null;
     if (SC) {
@@ -2463,8 +2507,10 @@ class WorldFeed extends React.Component {
             the feed, and the first feed card brings its own hairline (the v2
             bare skin) — a bottom rule here would double it */}
         <div style={{ position: 'sticky', top: 0, zIndex: 6, display: 'flex', flexDirection: 'column', gap: 10, margin: '6px -16px 0', padding: '12px 16px 10px', background: 'var(--surface-a, var(--surface))', borderTop: '0.5px solid color-mix(in oklch, var(--rule), transparent 15%)', transform: this.state.headHide ? 'translateY(-115%)' : 'none', opacity: this.state.headHide ? 0 : 1, pointerEvents: this.state.headHide ? 'none' : 'auto', transition: 'transform 0.32s ease, opacity 0.26s ease' }}>
-          <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-          <div className="h-scroll" style={{ display: 'flex', gap: 8, flexWrap: 'nowrap', overflowX: 'auto', flex: 1, minWidth: 0, marginRight: -16, padding: '2px 92px 2px 0', WebkitMaskImage: 'linear-gradient(to right, #000 calc(100% - 104px), transparent calc(100% - 52px))', maskImage: 'linear-gradient(to right, #000 calc(100% - 104px), transparent calc(100% - 52px))' }}>
+          <div style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: 10 }}>
+          {/* the rail ends before the + rather than running under it: no chip is ever
+              cut mid-word behind the button — the fade is the rail's own edge (data-ef) */}
+          <div className="h-scroll" style={{ display: 'flex', gap: 8, flexWrap: 'nowrap', overflowX: 'auto', flex: 1, minWidth: 0, padding: '2px 0' }}>
             {/* one chip grammar in this rail: same shape, same size, same weight.
                 the sort control cycles hot → top → new instead of wearing a caret. */}
             <button key="__sort" className="wf-chip" onClick={() => this.setState({ sort: sort === 'hot' ? 'top' : sort === 'top' ? 'new' : 'hot' })} aria-label={'Sort: ' + sort} style={{ display: 'inline-flex', alignItems: 'center', flexShrink: 0, border: '0.5px solid color-mix(in oklch, var(--ink) 22%, var(--rule))', background: 'var(--surface-2)', color: 'var(--ink)', fontFamily: 'var(--sans)', fontWeight: 700, fontSize: 12, padding: '5px 11px', borderRadius: 999, cursor: 'pointer', WebkitAppearance: 'none', whiteSpace: 'nowrap' }}>{sort === 'top' ? 'top' : sort === 'new' ? 'new' : 'hot'}</button>
@@ -2473,7 +2519,7 @@ class WorldFeed extends React.Component {
               const col = t.color;
               return (
                 <React.Fragment key={t.id}>
-                  <button className="wf-chip" onClick={() => onToggle(t.id)} aria-pressed={on} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, border: '0.5px solid ' + (on ? (col ? `color-mix(in oklch, ${col} 40%, var(--rule))` : 'color-mix(in oklch, var(--rule), var(--ink) 22%)') : 'var(--rule)'), background: on ? (col ? `color-mix(in oklch, ${col} 10%, var(--surface-2))` : 'var(--surface-2)') : 'transparent', color: on ? 'var(--ink-2)' : 'var(--ink-3)', fontFamily: 'var(--sans)', fontWeight: on ? 700 : 600, fontSize: 12, padding: '5px 11px', borderRadius: 999, cursor: 'pointer', WebkitAppearance: 'none', whiteSpace: 'nowrap', opacity: on ? 1 : 0.72 }}>
+                  <button className="wf-chip" onClick={() => onToggle(t.id)} aria-pressed={on} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, border: '0.5px solid ' + (on ? (col ? `color-mix(in oklch, ${col} 40%, var(--rule))` : 'color-mix(in oklch, var(--rule), var(--ink) 22%)') : 'var(--rule)'), background: on ? (col ? `color-mix(in oklch, ${col} 10%, var(--surface-2))` : 'var(--surface-2)') : 'transparent', color: on ? 'var(--ink-2)' : 'var(--ink-3)', fontFamily: 'var(--sans)', fontWeight: on ? 700 : 600, fontSize: 12, padding: '5px 11px', borderRadius: 999, cursor: 'pointer', WebkitAppearance: 'none', whiteSpace: 'nowrap' }}>
                     {col && on && <span aria-hidden="true" style={t.know ? { width: 7, height: 7, borderRadius: '50%', background: 'transparent', boxShadow: `inset 0 0 0 2px ${col}`, flexShrink: 0 } : { width: 6, height: 6, borderRadius: '50%', background: col, flexShrink: 0 }}></span>}
                     {t.label.toLowerCase()}
                   </button>
@@ -2481,9 +2527,9 @@ class WorldFeed extends React.Component {
               );
             })}
           </div>
-          <span aria-hidden="true" style={{ position: 'absolute', top: -2, bottom: -2, right: -16, width: 40, pointerEvents: 'none', background: 'linear-gradient(to right, transparent, var(--surface-a, var(--surface)) 62%)' }}></span>
+          <span aria-hidden="true" style={{ width: 1, height: 18, flexShrink: 0, background: 'color-mix(in oklch, var(--rule), transparent 25%)' }}></span>
           {/* the rail's + adds a chip: follow another topic */}
-          <button className="wf-chip press" onClick={() => this.setState({ sheet: { panel: 'add' } })} aria-label="Add a topic" style={{ position: 'absolute', right: -8, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 30, height: 30, flexShrink: 0, border: '0.5px solid color-mix(in oklch, var(--accent) 45%, var(--rule))', background: 'color-mix(in oklch, var(--accent) 9%, var(--surface-2))', color: 'var(--accent)', borderRadius: 999, cursor: 'pointer', WebkitAppearance: 'none' }}>
+          <button className="wf-chip press" onClick={() => this.setState({ sheet: { panel: 'add' } })} aria-label="Add a topic" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 30, height: 30, flexShrink: 0, border: '0.5px solid color-mix(in oklch, var(--accent) 45%, var(--rule))', background: 'color-mix(in oklch, var(--accent) 9%, var(--surface-2))', color: 'var(--accent)', borderRadius: 999, cursor: 'pointer', WebkitAppearance: 'none' }}>
             <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" aria-hidden="true"><path d="M12 5 V19 M5 12 H19"></path></svg>
           </button>
           </div>

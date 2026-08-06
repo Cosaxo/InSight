@@ -168,6 +168,11 @@ export const deleteAccount = onCall(
       discoverable: 0,
       othersRelations: 0,
       othersInbound: 0,
+      // Reveal docs scrubbed of this uid (phase 1c-bis). Reported for the
+      // same reason as modQueueOrphans: it is the number that tells an
+      // operator whether the collection-group sweep actually reached
+      // anything, and a zero on an account that played duels is a signal.
+      reveals: 0,
       // Not per-user: the queue sweep is keyed on a take being gone, not on
       // whose it was, so this counts every orphan it found (see
       // deleteOrphanedModQueue). Reported because a nonzero number here on
@@ -252,7 +257,20 @@ export const deleteAccount = onCall(
             && (err as { code?: string }).code !== "not-found") throw err;
           continue;
         }
-        // The user's vote and display name inside every published reveal.
+        // The user's vote and display name inside every published reveal of
+        // a group they are STILL in. Phase 1c-bis below sweeps reveals by
+        // collection-group query and would reach all of these too — this
+        // loop stays because it is the half that does not depend on the
+        // reveal carrying a `members` snapshot. Reveals written before that
+        // payload shipped have none (D5's backfill amendment: the set is
+        // provably empty today, and that record asks for it to be
+        // re-checked before seeding), and a query on `members` cannot see
+        // them. Walking the subcollection can.
+        //
+        // The two phases compose rather than duplicate: this one removes
+        // the uid from `members`, so anything it reaches no longer matches
+        // 1c-bis's filter and is not visited twice.
+        //
         // Was one sequential update per reveal doc with no bound: a
         // year-old account in 20 groups is ~7,300 round trips, which blew
         // the old 60s wall — and the design then correctly refuses the auth
@@ -300,6 +318,99 @@ export const deleteAccount = onCall(
     } catch (err) {
       logger.error("[deleteAccount] v2 group scrub failed:", err);
       failed.push("v2Groups");
+    }
+
+    // 1c-bis. The same three fields, in reveals phase 1c cannot reach.
+    //
+    // 1c walks the groups the account is a MEMBER of. leaveGroupV2 removes a
+    // uid from memberUids and memberNames and deliberately does not touch
+    // reveals — a reveal is a shared record of a day several people played,
+    // and leaving a group is not an erasure request, so rewriting the
+    // others' history is not leaving's job (D45). The consequence was that
+    // 1c's `array-contains uid` query could not see those groups at all, so
+    // anyone who left a group before deleting their account left their name
+    // and their votes in that group's reveals permanently — still readable
+    // by the remaining members, because firestore.rules grants each uid
+    // listed in `members`.
+    //
+    // So this phase asks the REVEALS instead, by collection-group query on
+    // their own members snapshot: membership-independent by construction, so
+    // it covers left groups and any future path that detaches a user from a
+    // group without going through a callable. Requires a collection-group
+    // index on reveals.members; see firestore.indexes.json, the same
+    // dependency phases 3 and 4 below already carry.
+    //
+    // It does NOT replace 1c's loop, because the two miss different things:
+    // a query on `members` cannot see a reveal that has no `members` (D5's
+    // legacy set), and walking a subcollection cannot see a group you are no
+    // longer in. Together they cover both, and they do not overlap — 1c
+    // removes the uid from `members`, so what it reached no longer matches
+    // the filter here.
+    //
+    // No cursor: the scrub REMOVES uid from `members`, which is the field
+    // the query filters on, so each pass returns only what the previous pass
+    // has not yet reached and the loop drains naturally.
+    //
+    // PASS_CAP is a runaway guard, NOT a bound on legitimate work, and the
+    // number is chosen so those two cannot be confused. Hitting it means
+    // writes are not landing — the query keeps returning docs the scrub
+    // claims to have fixed — which has to be loud rather than an infinite
+    // loop against the function timeout. Legitimate work is bounded well
+    // below it: MEMBERSHIP_CAP is 20 groups × one reveal per day, so 500
+    // passes is ~27 years of daily duels in every group at once. Sizing it
+    // to "enough for a plausible account" instead would turn a long-lived
+    // account's erasure into a job that fails identically forever, which is
+    // the exact failure this phase's page size was chosen to avoid.
+    //
+    // Rotating WriteBatch rather than BulkWriter: BulkWriter swallows
+    // per-write errors by default, which would trade a loud timeout for a
+    // silent INCOMPLETE erasure — the worst possible outcome here. (The v1
+    // aggregators this pattern was borrowed from are gone as of D13;
+    // runSeedV2 in v2.ts is the remaining example.)
+    try {
+      const PAGE = 400;
+      const PASS_CAP = 500;
+      let scrubbed = 0;
+      let pass = 0;
+      for (; pass < PASS_CAP; pass++) {
+        const page = await db.collectionGroup("reveals")
+          .where("members", "array-contains", uid).limit(PAGE).get();
+        if (page.empty) break;
+        let batch = db.batch();
+        let ops = 0;
+        for (const r of page.docs) {
+          batch.update(r.ref, {
+            [`votes.${uid}`]: FieldValue.delete(),
+            [`names.${uid}`]: FieldValue.delete(),
+            // The membership snapshot the reveal read rule gates on
+            // (firestore.rules, the /reveals/{day} match). Scrubbing the
+            // vote and the name but leaving the uid here left a
+            // pseudonymous identifier — and the group-day history it
+            // implies — surviving an erasure request. Removing it costs
+            // the deleted user read access to a reveal they can no longer
+            // authenticate for anyway, and costs no OTHER member
+            // anything: the rule tests `request.auth.uid in members`, so
+            // each entry only ever grants its own owner.
+            members: FieldValue.arrayRemove(uid),
+          });
+          if (++ops >= 450) {
+            await batch.commit();
+            batch = db.batch();
+            ops = 0;
+          }
+        }
+        if (ops) await batch.commit();
+        scrubbed += page.size;
+      }
+      if (pass >= PASS_CAP) {
+        throw new Error(
+          `reveal scrub did not drain in ${PASS_CAP} passes (${scrubbed} scrubbed) — writes are not landing`,
+        );
+      }
+      counts.reveals = scrubbed;
+    } catch (err) {
+      logger.error("[deleteAccount] v2 reveal scrub failed:", err);
+      failed.push("v2Reveals");
     }
 
     // 2. Drop insight_discoverable/{uid} if present.

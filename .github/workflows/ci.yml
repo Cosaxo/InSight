@@ -50,7 +50,7 @@ jobs:
       # console's STRUCTURE — that its constants still match the source they
       # claim to read, that a gap in the trail is drawn as a gap, that the
       # scorecard path renders. The console's own operator gate (`pulse
-      # --check`) is a different thing and is on a schedule, not here (D42).
+      # --check`) is a different thing and is on a schedule, not here (D47).
       - run: npm run test:scripts
       # Accessibility, as a ratchet rather than a pass/fail sweep: the known
       # findings are recorded per file and this fails when a file gains one.

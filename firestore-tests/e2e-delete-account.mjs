@@ -56,6 +56,12 @@ const OTHER = "other-user-1";
 const DAY = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
 const SOLO = "grp_solo";
 const SHARED = "grp_shared";
+// A group this account LEAVES before deleting. Phase 1c queries groups by
+// `memberUids array-contains uid`, so a left group is invisible to it — and
+// leaveGroupV2 does not rewrite reveals, by design. Everything the account
+// left behind in this group's reveals therefore survived erasure until the
+// collection-group sweep (phase 1c-bis) went looking for it directly.
+const LEFT = "grp_left";
 
 // ── seed every phase deleteAccount claims to wipe ──
 // Written with admin, because most of these paths are no longer
@@ -110,6 +116,19 @@ await adb.doc(`v2_groups/${SHARED}/reveals/${DAY}`).set({
   members: [uid, OTHER],
 });
 
+// a group they LEAVE before deleting — the group survives with the other
+// member, and the reveal keeps naming them until erasure reaches it
+await adb.doc(`v2_groups/${LEFT}`).set({
+  name: "Left", mode: "group", ownerUid: OTHER, memberUids: [uid, OTHER],
+  memberNames: { [uid]: "Doomed", [OTHER]: "Survivor" }, streak: 5,
+});
+await adb.doc(`v2_groups/${LEFT}/reveals/${DAY}`).set({
+  day: DAY, qid: "group-gu0",
+  votes: { [uid]: { optionIdx: 1 }, [OTHER]: { optionIdx: 0 } },
+  names: { [uid]: "Doomed", [OTHER]: "Survivor" },
+  members: [uid, OTHER],
+});
+
 // takes, flags, and the moderation queue's COPY of a take's text
 // (docs/MODERATION.md). The queue is the interesting one: moderation.ts
 // copies the text in so the run reads one collection, which means deleting
@@ -157,6 +176,8 @@ for (const [path, label] of [
   [`insight_users/${OTHER}/relations/r1`, "relation naming them"],
   [`v2_groups/${SOLO}`, "solo group"],
   [`v2_groups/${SHARED}`, "shared group"],
+  [`v2_groups/${LEFT}`, "the group they will leave"],
+  [`v2_groups/${LEFT}/reveals/${DAY}`, "that group's reveal"],
   [`v2_takes/${MY_TAKE}`, "their take"],
   [`v2_flags/${MY_TAKE}_${uid}`, "their flag on their own take"],
   [`v2_mod_queue/${MY_TAKE}`, "the queue's copy of their take"],
@@ -186,6 +207,25 @@ for (let i = 0; i < 30 && !organic; i++) {
 if (!organic) fail("the answer trigger never wrote a uid-attributed ledger entry");
 if (!organic.get("expireAt")) fail("organic ledger entry has no expireAt — the TTL policy would never collect it");
 ok("the real trigger attributed the answer: uid + qid + expireAt in the ledger");
+
+// ── leave a group first, through the real callable ──
+// This is the setup for the gap this leg exists for, and it is driven
+// rather than seeded on purpose: a hand-written "left" state would pass
+// against a leaveGroupV2 that scrubs reveals, and against one that removes
+// nothing at all. It is also the only coverage leaveGroupV2 has.
+await httpsCallable(fns, "leaveGroupV2")({ gid: LEFT });
+const leftGroup = await adb.doc(`v2_groups/${LEFT}`).get();
+if (!leftGroup.exists) fail("leaveGroupV2 deleted a group that still had another member");
+if ((leftGroup.get("memberUids") || []).includes(uid)) fail("leaveGroupV2 did not remove the membership");
+if ((leftGroup.get("memberNames") || {})[uid]) fail("leaveGroupV2 left the display name in memberNames");
+// The other half of the contract, asserted so a future change that starts
+// scrubbing reveals on leave has to come here and argue with it: leaving is
+// not an erasure request, and a reveal is several people's record of a day
+// they all played. Leaving must NOT rewrite it.
+const leftReveal = await adb.doc(`v2_groups/${LEFT}/reveals/${DAY}`).get();
+if (!(leftReveal.get("names") || {})[uid])
+  fail("leaveGroupV2 rewrote a past reveal — leaving is not erasure (see index.ts phase 1c-bis)");
+ok("left a group: membership gone, the shared reveal deliberately untouched");
 
 // ── the call under test ──
 const res = await httpsCallable(fns, "deleteAccount")({});
@@ -277,6 +317,31 @@ if (revealMembers.includes(uid)) fail("the deleted uid survives in a reveal's me
 if (!revealMembers.includes(OTHER)) fail("the surviving member lost their reveal read access");
 if (!votes[OTHER]) fail("the surviving member's vote was scrubbed too");
 ok("shared group survives; the deleted user's vote, name and membership entry were scrubbed");
+
+// ── and the group they had already LEFT is scrubbed too ──
+// The regression this leg exists for. Phase 1c cannot see this group — the
+// account is not in its memberUids any more — so before the collection-group
+// sweep every assertion below failed: name, vote and the members entry all
+// survived the erasure, readable by whoever stayed in the group.
+const leftAfter = await adb.doc(`v2_groups/${LEFT}`).get();
+if (!leftAfter.exists) fail("the LEFT group was deleted — it still had another member");
+if (!(leftAfter.get("memberUids") || []).includes(OTHER))
+  fail("the surviving member was removed from the group the deleted user had left");
+
+const leftRevealAfter = await adb.doc(`v2_groups/${LEFT}/reveals/${DAY}`).get();
+if (!leftRevealAfter.exists) fail("the left group's reveal was deleted wholesale");
+const lVotes = leftRevealAfter.get("votes") || {};
+const lNames = leftRevealAfter.get("names") || {};
+const lMembers = leftRevealAfter.get("members") || [];
+if (lNames[uid]) fail("LEFTOVER: the deleted user's display name survives in a group they had left");
+if (lVotes[uid]) fail("LEFTOVER: the deleted user's vote survives in a group they had left");
+if (lMembers.includes(uid)) fail("LEFTOVER: the deleted uid survives in the members snapshot of a group they had left");
+// The same control as the shared group: a sweep that took the whole reveal,
+// or the whole members array, would pass every assertion above.
+if (!lVotes[OTHER]) fail("the surviving member's vote was scrubbed from the left group's reveal");
+if (!lNames[OTHER]) fail("the surviving member's name was scrubbed from the left group's reveal");
+if (!lMembers.includes(OTHER)) fail("the surviving member lost read access to the left group's reveal");
+ok("the group they had already left is scrubbed too — membership is not what erasure follows");
 
 console.log("\nALL ERASURE CHECKS PASSED");
 process.exit(0);

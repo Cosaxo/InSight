@@ -71,7 +71,6 @@ export const RP_TESTS = {
 // hue → petal fill / deep text / dot colours (same L+C family everywhere)
 const rpPetal = (h) => `oklch(0.64 0.115 ${h})`;
 const rpDeep  = (h) => `oklch(0.46 0.13 ${h})`;
-const rpDot   = (h) => `oklch(0.55 0.13 ${h})`;
 
 // ── Petal rose — petal length encodes the score, 0–100 ──
 function RosePetals({ dims, hueOf, subOf, animate }) {
@@ -106,7 +105,7 @@ function RosePetals({ dims, hueOf, subOf, animate }) {
         const ly = ly0 + (s < -0.4 ? -10 : s > 0.4 ? 10 : -3) + nudge + (sub ? 0 : 5);
         return (
           <g key={d.id}>
-            <path className={animate ? 'rp-petal' : undefined} style={animate ? { transformOrigin: `${cx}px ${cy}px`, animationDelay: `${i * 75}ms` } : undefined} d={`M ${x0i.toFixed(1)} ${y0i.toFixed(1)} L ${x0.toFixed(1)} ${y0.toFixed(1)} A ${r.toFixed(1)} ${r.toFixed(1)} 0 0 1 ${x1.toFixed(1)} ${y1.toFixed(1)} L ${x1i.toFixed(1)} ${y1i.toFixed(1)} A ${r0} ${r0} 0 0 0 ${x0i.toFixed(1)} ${y0i.toFixed(1)} Z`} fill={rpPetal(hue)}></path>
+            <path className={animate ? 'rp-petal' : undefined} style={animate ? { transformOrigin: `${cx}px ${cy}px`, animationDelay: `calc(var(--rv-row) * ${i})` } : undefined} d={`M ${x0i.toFixed(1)} ${y0i.toFixed(1)} L ${x0.toFixed(1)} ${y0.toFixed(1)} A ${r.toFixed(1)} ${r.toFixed(1)} 0 0 1 ${x1.toFixed(1)} ${y1.toFixed(1)} L ${x1i.toFixed(1)} ${y1i.toFixed(1)} A ${r0} ${r0} 0 0 0 ${x0i.toFixed(1)} ${y0i.toFixed(1)} Z`} fill={rpPetal(hue)}></path>
             <text x={lx2} y={ly} textAnchor={anchor} style={{ fontFamily: 'var(--sans)', fontSize: 11, fontWeight: 600, fill: 'var(--ink)' }}>{d.label}</text>
             {sub ? <text x={lx2} y={ly + 13} textAnchor={anchor} style={{ fontFamily: 'var(--sans)', fontSize: 11.5, fontWeight: 800, fill: rpDeep(hue) }}>{sub}</text> : null}
           </g>
@@ -136,46 +135,6 @@ export function RoseMini({ testKey, dims, size = 46 }) {
         return <path key={d.id} d={`M ${xa.toFixed(1)} ${ya.toFixed(1)} L ${xb.toFixed(1)} ${yb.toFixed(1)} A ${r.toFixed(1)} ${r.toFixed(1)} 0 0 1 ${xc.toFixed(1)} ${yc.toFixed(1)} L ${xd.toFixed(1)} ${yd.toFixed(1)} A ${r0} ${r0} 0 0 0 ${xa.toFixed(1)} ${ya.toFixed(1)} Z`} fill={rpPetal(hueOf(d.id, i))}></path>;
       })}
     </svg>
-  );
-}
-
-// ── Pole rows — each score on its bipolar axis, hollow ring = most people ──
-export function PoleRows({ dims, poles, hueOf, avg }) {
-  const pos = (v) => 5 + (Math.max(0, Math.min(100, v)) / 100) * 90;
-  return (
-    <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', gap: 15 }}>
-      <div style={{ position: 'absolute', left: '50%', top: 3, bottom: 3, width: 1, background: 'var(--rule)', transform: 'translateX(-50%)' }}></div>
-      {dims.map((d, i) => {
-        const pp = poles[d.id] || ['low', 'high'];
-        const hue = hueOf(d.id, i);
-        const col = rpDot(hue);
-        const right = d.value >= 50;
-        const youP = pos(d.value);
-        const lo = Math.min(50, youP), hi = Math.max(50, youP);
-        const t = avg && avg[d.id] != null ? pos(avg[d.id]) : null;
-        const poleStyle = (isLean) => ({
-          fontFamily: 'var(--sans)', fontSize: 11.5, letterSpacing: '0.01em', whiteSpace: 'nowrap',
-          fontWeight: isLean ? 700 : 500, color: isLean ? rpDeep(hue) : 'var(--ink-3)', opacity: isLean ? 1 : 0.7,
-        });
-        return (
-          <div key={d.id} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <span style={{ ...poleStyle(!right), width: 66, flexShrink: 0, textAlign: 'right' }}>{pp[0]}</span>
-            <div style={{ position: 'relative', flex: 1, height: 14 }}>
-              <span style={{
-                position: 'absolute', top: '50%', transform: 'translateY(-50%)', height: 3, borderRadius: 999,
-                left: `${lo}%`, width: `${hi - lo}%`,
-                background: `linear-gradient(${right ? '90deg' : '270deg'}, color-mix(in oklch, ${col}, transparent 80%), ${col})`,
-              }}></span>
-              {t != null && (
-                <span style={{ position: 'absolute', top: '50%', left: `${t}%`, transform: 'translate(-50%,-50%)', width: 8, height: 8, borderRadius: '50%', background: 'var(--surface-2)', border: '1.4px solid var(--ink-3)', opacity: 0.6 }}></span>
-              )}
-              <span style={{ position: 'absolute', top: '50%', left: `${youP}%`, transform: 'translate(-50%,-50%)', width: 12, height: 12, borderRadius: '50%', background: col, border: '2px solid var(--surface-2)', boxShadow: '0 1px 4px -1px rgba(20,20,40,0.3)' }}></span>
-            </div>
-            <span style={{ ...poleStyle(right), width: 66, flexShrink: 0, textAlign: 'left' }}>{pp[1]}</span>
-          </div>
-        );
-      })}
-    </div>
   );
 }
 

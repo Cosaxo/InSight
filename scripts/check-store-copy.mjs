@@ -46,34 +46,53 @@ const PAGES = ["web/terms.html", "web/privacy.html"];
 // covers them and a fourth costs one line here.
 const REPLACE_MARKER = /REPLACE_WITH_[A-Z0-9_]+/g;
 
+// `parked: true` means the placeholder cannot block the release currently
+// being made. Only D42's Play deferral sets it today: the assetlinks
+// fingerprint comes from Play Console → App signing, which does not exist
+// while Play is deferred, so an iOS release must be able to pass with it
+// still unfilled. It is still REPORTED in every mode — a parked
+// placeholder that goes quiet is one nobody remembers to fill.
 const CONFIGS = [
-  ["web/.well-known/assetlinks.json", "Play Console → Setup → App signing"],
+  ["web/.well-known/assetlinks.json", "Play Console → Setup → App signing", { parked: "Play deferred (D42)" }],
   ["web/.well-known/apple-app-site-association", "Apple Developer → Membership → Team ID"],
   ["ios/App/App/Info.plist", "REVERSED_CLIENT_ID in GoogleService-Info.plist"],
 ];
 
+// --ios: exit 0 when the only remaining placeholders are parked ones, so
+// the release workflow can HARD-gate on this. Without it the check could
+// never be automated for an iOS build — it would fail on a Play value by
+// design, and the first response to a gate that always fails is to delete
+// the gate. Default mode is unchanged and still reports everything.
+const IOS_ONLY = process.argv.includes("--ios");
+
 let problems = 0;
+let parked = 0;
 
 // Scan a file line by line, reporting every match of `pattern`. Returns the
 // number found so both passes can share the counting and the missing-file
 // case — a deleted file is a failure, not a pass: these are all load-bearing
 // and "no placeholders found" must never be reachable by absence.
-function scan(rel, pattern, missingNote, hint) {
+function scan(rel, pattern, missingNote, hint, opts = {}) {
   const path = join(root, rel);
   if (!existsSync(path)) {
+    // A deleted file is a failure even when parked: absence must never be
+    // a way to pass.
     console.error(`check-store-copy: ${rel} is missing — ${missingNote}`);
     problems++;
     return;
   }
+  const excused = Boolean(opts.parked) && IOS_ONLY;
   readFileSync(path, "utf8")
     .split("\n")
     .forEach((line, i) => {
       for (const m of line.matchAll(pattern)) {
         console.error(
           `check-store-copy: ${rel}:${i + 1} unfilled placeholder ${m[0]}` +
+            (excused ? `  [parked — ${opts.parked}, not blocking]` : "") +
             (hint ? `\n    → ${hint}` : ""),
         );
-        problems++;
+        if (excused) parked++;
+        else problems++;
       }
     });
 }
@@ -82,8 +101,8 @@ for (const rel of PAGES) {
   scan(rel, PLACEHOLDER, "the store listings link to it.");
 }
 
-for (const [rel, hint] of CONFIGS) {
-  scan(rel, REPLACE_MARKER, "invite links and Google sign-in read it.", hint);
+for (const [rel, hint, opts] of CONFIGS) {
+  scan(rel, REPLACE_MARKER, "invite links and Google sign-in read it.", hint, opts);
 }
 
 if (problems) {
@@ -99,5 +118,6 @@ if (problems) {
 
 console.log(
   `check-store-copy OK — no unfilled placeholders in ` +
-    `${PAGES.length} store-facing pages, ${CONFIGS.length} config files.`,
+    `${PAGES.length} store-facing pages, ${CONFIGS.length} config files.` +
+    (parked ? `\n  (${parked} parked placeholder(s) reported above and excused by --ios.)` : ""),
 );

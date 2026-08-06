@@ -4011,7 +4011,406 @@ account-type flow before paying for a D-U-N-S expedite**, and if it turns
 out not to hold, the fallback is the 12×14 path with nothing lost but a
 wait that overlapped Apple's anyway.
 
-## D42 · Monitoring grows a decision console — and the refusals become part of it
+## D42 · InSight launches on iOS alone; Play is deferred, and the path to it gets cheaper while it waits
+
+**Date:** 2026-08-04 · **Status:** Adopted (owner-confirmed: "iphone only
+launch is fine for now")
+
+**Decision.** Ship the App Store first and alone. Google Play is deferred
+indefinitely and revisited **after** iOS has an installed base, not on a
+date. No ENK is registered, no D-U-N-S applied for, and no Play Console
+account opened until that review says to.
+
+**Why, and this is the part that is not obvious.** The two routes onto
+Play have costs that move in **opposite directions over time**, so
+deferring is not merely postponing a bill:
+
+- The **organization route** (D41) costs the same whenever it is taken:
+  an ENK, a D-U-N-S wait, and the ongoing obligation of being a
+  registered business. Constant.
+- The **12 testers × 14 continuous days** route is brutal *cold* — twelve
+  people who install and stay opted in, where a drop below twelve
+  restarts the clock — and easy once the product has users, some of whom
+  carry Android phones and will ask to be let in. **Decaying.**
+
+So a launch that finds an audience may convert the expensive option into
+the cheap one and retire D41 unused. A launch that does not find one
+saves the cost entirely. Deferring is the dominant move in both branches,
+which is why this record exists rather than a date.
+
+**What this does to D41.** Not reversed — **made conditional**. If Play is
+opened *before* there is an installed base, organization is still the
+right account type and everything in that record stands. If it is opened
+*after*, the closed-testing gate may already be satisfiable by asking
+existing users, and the organization account becomes optional rather than
+the point. Re-read D41 at that moment; do not assume either half.
+
+**The arithmetic, verified 2026-08-04** (searched, not recalled — the
+sources are linked at the foot of LAUNCH-RUNBOOK.md):
+
+| Item | Cost | When required |
+| --- | --- | --- |
+| Enhetsregisteret (the organisasjonsnummer) | free, via Altinn | always, for an ENK |
+| Foretaksregisteret | 2,832 kr, or 3,883 kr filed with the above | only for resale of purchased goods, or 5+ employees |
+| D-U-N-S | free (5–30 business days; paid expedite ≈8) | for a Play organization account |
+| Play Console | $25 one-time | — |
+
+An app resells no purchased goods, so the cash cost of the whole deferred
+path is about **$25**, not thousands. That is worth writing down plainly
+because "moderately costly" was the reason for deferring, and the fees are
+not where the cost lives. **The cost is the ongoing one**: an ENK obliges
+an annual business filing whether or not it earns. VAT does not enter yet
+— the threshold is NOK 50,000 of turnover over a rolling 12 months, and
+docs/MONETIZATION.md records that launch has no consumer paid tier and
+"nothing in this document needs to earn before the product is proven."
+
+**One link in that chain is unverified, and it is the load-bearing one.**
+Whether Google's organization verification accepts an
+Enhetsregisteret-only ENK, or wants what Foretaksregisteret provides. If
+it wants the latter, the free path collapses into the fee-bearing one and
+the table above is wrong by ~3,000 kr. Check it in the Play Console
+account-type flow before spending anything. Nothing turns on it today,
+which is exactly why it is recorded rather than resolved.
+
+**What the deferral costs, stated so none of it arrives as a surprise:**
+
+- `npm run check:store-copy` keeps reporting the
+  `REPLACE_WITH_PLAY_SIGNING_SHA256` placeholder in
+  `web/.well-known/assetlinks.json`. That is now a **known permanent
+  non-blocker**, not an unfinished task — and the reason that check is
+  deliberately not in CI.
+- Android users tapping a `/join/CODE` link get the hosted fallback page.
+  Already the designed behaviour; with no Android app it is simply the
+  only behaviour.
+- The Android shell stays in CI (`android-build`, `native-sync-drift`) so
+  it cannot rot while parked. **Do not remove those jobs to tidy up** —
+  the whole value of parking rather than deleting is that the shell still
+  compiles on the day this is revisited.
+- `check:versions` keeps `versionCode` in lockstep with an app nobody is
+  shipping. Harmless, and cheaper than special-casing it.
+
+**What it does not cost.** Nothing on the iOS path. Apple has no testing
+gate; enrollment is ~1–2 days and review usually 24–48h. The iOS date was
+never a function of Play's.
+
+**Alternatives considered.** Registering the ENK now "to have the option"
+— rejected: it buys an option whose value falls the longer it is unused,
+at the price of a permanent filing obligation. A personal Play account
+now, converting later — rejected in D41 and still rejected: conversion
+support is disputed and the fallback is a second account plus an app
+transfer. Shipping both stores simultaneously — rejected as the thing
+this whole record is about: it puts a 3–4 week Android floor in front of
+an iOS build that is otherwise ~2 weeks out.
+
+---
+
+## D43 · The v17 sync: what the prototype won, and what this repo kept
+
+**Decided:** 2026-08-04 · **Status:** binding
+
+`design/InSight_standalone_17.html` supersedes v15. The sync was done as a
+**three-way merge**, not a re-port: v15 as the base, v17 as theirs, the
+tree as ours. That is the only method that can answer the question this
+repo actually has — *which* of two differences is the change, and which is
+a decision already made here. 59 of the 79 spec modules merged clean; the
+20 that conflicted are the ones below.
+
+### What v17 changes
+
+**Navigation.** The daily's three modes leave the header and become a
+ruler in flow — World · Circle · 1v1, the same graduated axis the Mirror
+wears. Scroll past it and it docks into the header, crossfading with the
+wordmark. `navMode` keeps the other two shapes the prototype ships for
+comparison (`pill`, the old header switcher; `bar`, a flat four-item bar
+with new group/1v1 glyphs). The axis runs past its far end into the
+Mirror, and the Mirror swipes back onto 1v1.
+
+**Colour.** Every accent drops `oklch(0.55 …)` → `0.52` (gold `0.53`),
+`--ink-3` `0.55` → `0.51`, and `--ochre-ink` / `--accent-ink` arrive for
+hues that carry text. World's topic hues now pass through a per-hue
+lightness/chroma ramp (`world-palette.js`) measured against the sRGB
+boundary.
+
+**Nine new modules**, six of them pure side effects that install one
+document listener each: haptics, swipe-back, sheet-escape, sheet-drag,
+scroll-memory, edge-fade — plus `world-palette.js`, `explain-sheet.jsx`
+(one ⓘ sheet for every instrument) and `read-run.jsx`.
+
+Plus: motion on one `--rv-step` constant, signature-derived type marks,
+tests that open their saved result, per-domain 1v1 records, duel tiles
+that take photography, and a circle map that collapses to drillable discs
+past ~72 people.
+
+### What this repo kept — the twenty conflicts, and the rule behind them
+
+The rule is: **v17 wins on design, this repo wins on enforcement, and
+neither wins by default.** Concretely —
+
+| Kept from this tree | Because |
+| --- | --- |
+| `renderDuel`'s `shares` gate (world-feed) | v17 rewrote the tile around `mine != null`; the fill height IS the share, so both it and the numeral stay gated on the k-anon floor (D1). The new band and riding numeral are v17's. |
+| Every live-mode branch in `mirror-tab` | v17 restructured the tab so ONE ruler spans every stop. The four live bodies (D1/D9/D3) were rewritten to pick a *body* instead of returning their own frame — same structure, same guarantees. |
+| `mirrorStops(live)` dropping the City stop | D9. v17 has no live mode to drop it for. |
+| The `blank` "no reading yet" state (lens-cards) | Live mode has no typical-person prior; drawing null as 0 is a false claim. v17's ⓘ row sits above it. |
+| `useDialog` / `Sheet` (D24) | `explain-sheet.jsx` is built on the primitive rather than the prototype's hand-rolled scrim, so the new sheet arrives with the focus trap and Escape the other seven have. |
+| `<button>` conversions (D26's a11y pass) | v17 re-divs three of them. Two stay buttons. The **third** — the test picker card — becomes v17's `role="button"` div on purpose: v17 nests the ⓘ inside it, and a button cannot nest in a button. `tabIndex` + `onKeyDown` keep it reachable, and check:a11y is unmoved at 11. |
+| `--surface-a` at 98%, blur `saturate(1.4)`, a 320px ground wash | This app's quieter ground. v17 touches none of them; style-diff's header now lists them so nobody chases them as misses. |
+| No `Bar` / `Pill` / `InterestRun` / `PoliticsCompass` / `Compass2D` | D26 deleted them as dead. v17 deletes the last two itself — convergent. v17's edit to `.bar > i` therefore has nothing here to apply to. |
+| `DUO_QS` from `content/duel-questions.json` | D32's single source. v17's new `d:` (domain) field was added to the JSON, where the live seed reads it too. |
+| The 15-question Social test tag | Repo content. Only v17's accent moved. |
+
+**One prototype bug was not copied.** v17 inserts the per-domain tally
+between `if (day.byRight) readBy.right++;` and its `else`, which orphans
+the `else` onto the new `if (dm)` — so `impressions()` would fill with
+every day whose question had no domain instead of every day they misread
+you. Fixed here with braces, and the reason is in the code.
+
+### The ratchet went down, not up
+
+D39's rule 4 only moves down, and a sync that adds nine modules is exactly
+where it would otherwise be argued with. Nine providers converted on touch
+instead: `tweaks-panel`, `archetype-data`, `reveal-clock`, `vote-cuts`,
+`relmap-core`, `type-marks`, `result-card`, `mirror-field`,
+`person-mindmap` (plus `DuoDomains` out of duo-daily). All nine new modules
+publish **named exports**, not globals.
+
+Two settings were inverted rather than converted: the prototype has
+`world-palette.js` and `type-marks.jsx` read `window.IS_WPAL` /
+`window.IS_MARK_STYLE`; here the shell **pushes** them in (`WPAL.setMode`,
+`setMarkStyle`). Same for `window.NAV_AT`, which became `markNav()` /
+`navCoasting()` in `swipe-back.js` — the module that owns the gesture owns
+its coast timer. A setting is not a module reference, and making it one is
+how a global bridge grows back.
+
+**657 → 620 across 52 files.**
+
+### What now proves it
+
+`smoke.test.jsx` gained three cases for the nav, because it is the only
+gate that executes a render and every other one is name-level: the ruler is
+a tab list under either nav, so `check:globals` and `tsc` cannot tell the
+shapes apart, and `data-view` is a string nothing type-checks. All three
+were mutation-checked — forcing `ruler={false}` fails the first two.
+
+Verified in a browser as well as in jsdom: the ruler docks on scroll,
+edge-fade sets `data-ef` on the profile subnav, the ⓘ sheet opens and
+Escape closes it, and the console is clean.
+
+**What this does not cover.** `scripts/style-diff.mjs` now points at v17
+but has not been run against it — it needs a browser and a dev server, and
+its output is a report to read rather than a gate to pass. The screenshots
+above are a smoke check, not that comparison. Running it is the next
+cheap thing anyone touching this layer can do.
+
+---
+
+## D44 · Political items never slice — the split publishes, the cross-tab does not
+
+**Date:** 2026-08-05 · **Status:** Adopted
+
+**Decision.** `onV2AnswerCreated` does not fold anchors for any question the
+shipped bank marks `test: "political"`. The plain option counts still
+publish under the same k-floor as every other question; what is withheld is
+the per-anchor breakdown. `POLITICAL_QIDS` in `functions/src/v2.ts` derives
+the set from `V2_QUESTIONS` at module load, `slicesDemographics()` is the
+predicate, and `functions/src/slicing.test.ts` asserts it against the bank
+in both directions.
+
+**What was actually happening.** The eighteen political items ship with
+`surface: "test"`. `deck.ts` routes `surface === "test"` into the live feed
+alongside `surface === "feed"`, so they are answered as ordinary cards. The
+trigger's vote path returns early only for `group`/`duo`, so a political
+answer reached `foldAnchors` like any other and folded across all six
+breakdown dimensions — ageBand, gender, city, country, education,
+relationship. Past the floor those cells publish to
+`v2_question_aggs/{qid}`, which `firestore.rules` opens to every signed-in
+user. "Markets, left to themselves, distribute fairly" was therefore
+published split by city and by education.
+
+**Why this is a contradiction and not merely a risk.** D8 treats political
+data as Art. 9 special-category throughout, and `docs/data-inventory.md` —
+the document the store privacy forms are answered from — says of it: "never
+sliced by, never published, and never leave the owner doc". That row is
+scoped to the computed *result vector*, which was and remains owner-only,
+so the sentence was not false. It was also not the whole picture: the item
+answers the vector is computed from were being sliced by five
+quasi-identifiers and published. A reader of that row could not have known,
+which is the property that makes it worth a record rather than a commit.
+
+**The arithmetic of what is given up.** Eighteen of 369 questions lose their
+breakdown. Nothing else moves: the split, the totals and the underdog line
+are the product's actual claim on the daily and feed surfaces and they all
+still publish. The other 48 `surface: "test"` items — big5, values,
+attachment — continue to slice, and the Mirror's cohort views are built on
+that. A guard keyed on the *surface* instead of the marker would have
+silently taken those 48 with it, which is why the predicate keys on
+`test === "political"` and why the test asserts the non-political items on
+that surface still slice.
+
+**Alternatives rejected.**
+
+- *Stop attaching anchors client-side.* The anchors snapshot on a political
+  answer is owner-only, so it leaks nothing where it sits, and rules can
+  enforce a length but not an absence-of-intent. Enforcement belongs where
+  the publish happens — the same reasoning as everywhere else in this file.
+- *Suppress at publish time only.* The private doc would still accumulate
+  the cross-tab. "Never sliced" should mean never computed, not computed
+  and withheld.
+- *Read the question doc per answer to check the marker.* The vote path's
+  design is that it never reads the question doc — the catalog path's single
+  read is the documented exception, and D7's write ceiling is why. Deriving
+  the set from the bank already imported for the seed costs one pass over
+  369 questions at cold start and no read on the hot path.
+
+**Self-healing, deliberately.** The guard reads `{}` rather than the stored
+map, and `privRef` is written with `merge: false`, so the next answer to a
+political question also *erases* any breakdown a pre-guard deploy folded.
+Nothing has shipped, so there is none — but the property costs one ternary
+and means this fix never needs a migration if that stops being true.
+
+**`docs/data-inventory.md` gains a row for the item answers** rather than
+having the results row reworded. They are different data with different
+handling, and collapsing them is how the gap hid in the first place.
+
+---
+
+## D45 · Erasure follows the reveal, not the membership — and leaving a group is not an erasure request
+
+**Date:** 2026-08-05 · **Status:** Adopted
+
+**Decision.** `deleteAccount` scrubs a uid out of reveals with a
+collection-group query on `reveals.members`, in its own phase (1c-bis),
+independent of group membership. `leaveGroupV2` continues to leave reveals
+alone.
+
+**The gap.** Phase 1c found groups with
+`where("memberUids", "array-contains", uid)` and scrubbed reveals by walking
+that group's subcollection. `leaveGroupV2` removes the uid from `memberUids`
+and `memberNames` and stops. So for any group the account had already left,
+phase 1c could not see the group at all, and the reveal kept
+`votes.{uid}`, `names.{uid}` and the uid inside `members` — the display name
+and the votes, permanently, still readable by whoever stayed, because the
+reveal read rule grants every uid listed in `members`. A right-to-erasure
+break reachable by two ordinary taps in the ordinary order.
+
+**Why leaving still does not scrub.** A reveal is several people's record of
+a day they all played. Leaving a group is not a request to be forgotten; it
+is a request to stop receiving it. Scrubbing on leave would rewrite the
+remaining members' history, on an action the UI does not present as
+destructive. The comment justifying removal of the uid from `members` during
+*deletion* — that it costs the deleted user read access to a reveal they can
+no longer authenticate for anyway — is true of a deleted account and false
+of a member who left. The two paths differ on purpose, and
+`e2e-delete-account.mjs` now asserts both halves: that leaving removes the
+membership, and that leaving leaves the reveal intact.
+
+**Why the collection-group query rather than making leave scrub.**
+Membership is the wrong thing to follow, and scrub-on-leave would still have
+followed it: it closes the path through `leaveGroupV2` and leaves open every
+other way a uid ends up in a reveal it is no longer a member of — including
+the reveals already orphaned by leaves that happened before the fix. Asking
+the reveals directly is membership-independent by construction. The cost is
+one field override (`reveals.members`, COLLECTION_GROUP / CONTAINS) in
+`firestore.indexes.json`, deployed by the existing `--only
+firestore:indexes`, and it is the same index dependency phases 3 and 4
+already carry.
+
+**Both phases stay, because they miss different things.** The first draft
+of this replaced 1c's per-group reveal loop with the sweep. That is a
+regression: a query on `members` cannot see a reveal that has no `members`
+field, and those exist as a category — D5's backfill amendment reasons the
+set to provably empty in production *today* and explicitly asks for it to be
+re-checked before seeding. Walking a group's subcollection sees them;
+querying by membership snapshot does not. The converse is the gap this
+record is about. So 1c keeps its loop for current groups and 1c-bis sweeps
+the rest, and they do not double-write: 1c removes the uid from `members`,
+so everything it reaches stops matching 1c-bis's filter before 1c-bis runs.
+
+**The loop has no cursor, and that is load-bearing.** The scrub removes the
+uid from `members`, the field the query filters on, so each pass returns
+only what the previous pass has not reached and the loop drains naturally.
+Verified against the Firestore emulator rather than reasoned about: three
+reveals across two parent groups, one of them a group the user had left,
+drained in a single pass, scrubbed the uid and nothing else, left the
+surviving member's vote, name and read access untouched, and a second sweep
+found nothing. That last one is the property that makes the phase idempotent
+— which matters, because the "Deletion incomplete, please retry" path
+invites exactly that retry.
+
+**`PASS_CAP = 500` is a runaway guard, not a bound on the work.** It fires
+when the query keeps returning documents the scrub claims to have fixed,
+i.e. when writes are not landing, and that has to be loud rather than an
+infinite loop against the function timeout. Legitimate work sits far below
+it: MEMBERSHIP_CAP is 20 groups at one reveal per day, so 500 passes of 400
+is about 27 years of daily duels in every group at once. Sizing it to
+"enough for a plausible account" would turn a long-lived account's erasure
+into a job that fails identically forever — the same failure the page size
+was chosen to avoid.
+
+**What is still not gated.** Nothing checks that a collection-group query
+has its index committed; the emulator creates whatever a query asks for, so
+the e2e is green either way (`v2social.ts` says as much about its own
+queries). The index is committed and on the deploy path, so this is a
+standing hazard rather than a live one — and it is the third
+collection-group query in `deleteAccount` to carry it.
+
+---
+
+## D46 · The release build's JavaScript half gets the proof its native half already had
+
+**Date:** 2026-08-05 · **Status:** Adopted
+
+**Decision.** `ios-release.yml` builds the web bundle with the production
+`VITE_*` environment and runs `npm run check:web-firebase` against `dist/`
+before `cap sync`. The Firebase web values are repository **Variables**, not
+Secrets.
+
+**What was shipping.** `grep -rn VITE_ .github/` returned nothing across all
+six workflows, and `.env` is gitignored, so the release job's `npm run
+build` ran with an empty config. `firebaseEnabled` in `src/lib/firebase.ts`
+requires four non-empty values; without them `initLive()` returns early and
+the app renders the demo deck. The archive that was signed and uploaded to
+App Store Connect was therefore the mock-mode demo app — it builds, signs,
+uploads, installs, and shows whoever installs it a set of questions nobody
+else can see.
+
+**The shape of the miss is the point.** The step immediately below writes
+`GoogleService-Info.plist` from a secret, `base64 --decode`s it, runs
+`plutil -lint` on the result and prints a key back out, with a comment
+saying its absence "is silent in the worst way: the app builds, signs,
+uploads, installs, and has no Firebase". That is a precise description of
+the failure — and the native plist was the half that was guarded twice while
+the JavaScript half, which is what actually talks to Firestore, had no check
+at all. The mental model was "Firebase config is a native concern".
+
+**Why the check reads `dist/` and not the environment.** Asserting the
+variables are set proves the shell has them, not that the build on disk was
+produced with them. Vite inlines `import.meta.env.VITE_X` at build time, so
+the honest test is that each required value appears verbatim in the emitted
+JavaScript — which a stale `dist/` from a reordered step fails even when the
+environment is perfect. Verified by running it against all four states: no
+env (fails), env set with a stale build (fails on not-inlined), correct
+native build (passes), and `VITE_USE_EMULATOR=true` (fails).
+
+**`CAPACITOR_BUILD=1` was already required and nobody was setting it
+either.** `vite.config.ts` refuses a production build that has Firebase
+configured but no reCAPTCHA site key, unless that flag marks it a native
+bundle — iOS attests through DeviceCheck / App Attest and never reads the
+key. The guard had never fired because no release build had ever had a
+Firebase config to trip it.
+
+**Variables rather than Secrets**, on the reasoning `APPLE_TEAM_ID` already
+carries in this workflow: the Firebase web keys identify a project rather
+than authorise anything, they ship inside every binary, and access control
+lives in `firestore.rules`. Storing a public value as a secret only makes it
+harder to read in a log when a build goes wrong.
+
+**Not wired into `ci.yml`.** PR builds have no production config and should
+not need one. This belongs on release paths, next to the plist check it
+mirrors — and `check:web-firebase` fails loudly when run without an
+environment, which is correct for a release gate and wrong for a PR.
+
+## D47 · Monitoring grows a decision console — and the refusals become part of it
 
 **Date:** 2026-08-04 · **Status:** Adopted (owner-requested: "increase the
 scope of the monitoring to include cost and profits and other stats, along

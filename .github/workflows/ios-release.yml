@@ -1,0 +1,400 @@
+# Signed iOS archive → App Store Connect, from CI. No Mac required.
+#
+# WHY THIS EXISTS. Every other remaining launch step needs an account or a
+# phone; this one needed a Mac with Xcode, which made "do you own a Mac"
+# the single hard dependency of the whole iOS launch (D42 made it the ONLY
+# one, once Play was deferred). A macOS runner has Xcode, so the dependency
+# is a workflow rather than a purchase.
+#
+# NOT a replacement for ios-build.yml. That job compiles the shell for the
+# simulator, unsigned, on every PR that touches ios/** — it is the cheap
+# continuous check. This one is manual, expensive and outward-facing: it
+# signs with a distribution identity and can push a build to real users.
+#
+# workflow_dispatch ONLY, and deliberately:
+#   - macOS runners bill at 10x, so a ~15 minute job spends ~150 minutes of
+#     quota. On a push trigger that is the monthly allowance.
+#   - The upload step is not reversible in the way a red build is. A build
+#     that reaches App Store Connect is visible to TestFlight testers and
+#     cannot be un-uploaded, only superseded by a higher build number.
+#
+# Run it with upload=false first. That produces a signed .ipa as an
+# artifact and runs every gate, without touching App Store Connect — which
+# is how you find out whether signing works before it matters.
+#
+# ── Secrets and variables this needs ────────────────────────────────
+# Secrets (Settings → Secrets and variables → Actions → Secrets):
+#   ASC_KEY_ID          App Store Connect API key id (10 chars)
+#   ASC_ISSUER_ID       the issuer UUID shown above the key list
+#   ASC_PRIVATE_KEY     the .p8 file's CONTENTS, including the BEGIN/END lines
+#   GOOGLE_SERVICE_INFO_PLIST  base64 of ios/App/App/GoogleService-Info.plist
+#   VITE_SENTRY_DSN            optional; without it the release ships with no
+#                              crash reporting (sentryInit no-ops)
+# Variables (same page → Variables):
+#   APPLE_TEAM_ID       10-char Team ID. Not a secret — it ships in every
+#                       binary and in apple-app-site-association.
+#   VITE_FIREBASE_API_KEY, VITE_FIREBASE_AUTH_DOMAIN,
+#   VITE_FIREBASE_PROJECT_ID, VITE_FIREBASE_APP_ID
+#                       the JS half of the Firebase config. REQUIRED — with
+#                       any one empty the archive is the mock-mode demo app,
+#                       signed and uploadable. `npm run check:web-firebase`
+#                       fails the job rather than letting that ship.
+#   VITE_FIREBASE_STORAGE_BUCKET, VITE_FIREBASE_MESSAGING_SENDER_ID,
+#   VITE_FIREBASE_MEASUREMENT_ID
+#                       optional; each costs a feature, not the backend.
+#                       Same "not a secret" reasoning as APPLE_TEAM_ID.
+#
+# docs/IOS-RELEASE.md says where each comes from. The ASC key needs the
+# ADMIN role: export uses Apple's cloud signing to create the distribution
+# certificate on demand, and only Admin may create one. App Manager can
+# manage profiles, which is why it looks sufficient and is not — it fails
+# at export with "Cloud signing permission error".
+name: iOS release
+
+on:
+  workflow_dispatch:
+    inputs:
+      upload:
+        description: "Upload to App Store Connect (false = archive + artifact only)"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ios-release
+  cancel-in-progress: false
+
+jobs:
+  archive:
+    runs-on: macos-latest
+    timeout-minutes: 60
+
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: "22"
+          cache: npm
+
+      - run: npm ci
+
+      # Fail before spending runner minutes on a build that cannot ship.
+      #
+      # --ios excuses D42's parked Play fingerprint and nothing else, so
+      # this is a hard gate rather than a warning: an archive with an
+      # unfilled REVERSED_CLIENT_ID has no working Google sign-in, and an
+      # unfilled Team ID leaves invite links opening the fallback page.
+      # Both are silent on a device, which is why they are checked here.
+      - name: Pre-flight — placeholders and version lockstep
+        run: |
+          node scripts/check-store-copy.mjs --ios
+          npm run check:versions
+
+      # The JavaScript half of the Firebase config, and the exact mirror of
+      # the plist step below.
+      #
+      # This step used to be a bare `npm run build`. No VITE_* variable was
+      # set anywhere in .github/, and `.env` is gitignored, so the bundle was
+      # built with an empty config: `firebaseEnabled` in src/lib/firebase.ts
+      # requires those four values to be non-empty strings, and initLive()
+      # returns early without them. The archive signed and uploaded below was
+      # therefore the mock-mode demo app — it builds, signs, uploads,
+      # installs, and shows the demo deck to whoever installs it. Exactly the
+      # failure the plist step calls "silent in the worst way", one layer up
+      # and unguarded, while that step lints the native plist twice.
+      #
+      # CAPACITOR_BUILD=1 is what tells vite.config.ts this is a native
+      # bundle, which is why no reCAPTCHA site key is needed: iOS attests
+      # through DeviceCheck / App Attest and never reads it. Without this the
+      # config's own guard fails the build — correctly.
+      #
+      # Firebase web keys are Variables rather than Secrets on purpose, the
+      # same reasoning as APPLE_TEAM_ID: they identify a project, they ship
+      # inside every binary, and access control lives in firestore.rules.
+      # Storing a public value as a secret only makes it harder to read in a
+      # log when a build goes wrong.
+      - name: Build the web bundle with the production config
+        env:
+          CAPACITOR_BUILD: "1"
+          VITE_V2_LIVE: "true"
+          VITE_FIREBASE_API_KEY: ${{ vars.VITE_FIREBASE_API_KEY }}
+          VITE_FIREBASE_AUTH_DOMAIN: ${{ vars.VITE_FIREBASE_AUTH_DOMAIN }}
+          VITE_FIREBASE_PROJECT_ID: ${{ vars.VITE_FIREBASE_PROJECT_ID }}
+          VITE_FIREBASE_APP_ID: ${{ vars.VITE_FIREBASE_APP_ID }}
+          VITE_FIREBASE_STORAGE_BUCKET: ${{ vars.VITE_FIREBASE_STORAGE_BUCKET }}
+          VITE_FIREBASE_MESSAGING_SENDER_ID: ${{ vars.VITE_FIREBASE_MESSAGING_SENDER_ID }}
+          VITE_FIREBASE_MEASUREMENT_ID: ${{ vars.VITE_FIREBASE_MEASUREMENT_ID }}
+          # Optional. Absent, sentryInit() no-ops and the release ships with
+          # no crash reporting — which is survivable, so it is not gated.
+          VITE_SENTRY_DSN: ${{ secrets.VITE_SENTRY_DSN }}
+          VITE_RELEASE_TAG: ${{ github.sha }}
+        run: |
+          npm run build
+          # Assert against dist/ rather than against the environment: the
+          # question is whether THIS build saw the config, and a stale dist/
+          # from a reordered step answers that differently. Runs before
+          # `cap sync` so a demo bundle is never copied into the shell.
+          npm run check:web-firebase
+
+      - run: npx cap sync ios
+
+      # The plist is a secret, so it is written here and never committed.
+      # Its ABSENCE is silent in the worst way: the app builds, signs,
+      # uploads, installs, and has no Firebase (AppDelegate skips
+      # FirebaseApp.configure when the bundle has no plist), so the first
+      # symptom is a user seeing an app that never loads a question.
+      - name: Write GoogleService-Info.plist
+        env:
+          PLIST_B64: ${{ secrets.GOOGLE_SERVICE_INFO_PLIST }}
+        run: |
+          if [ -z "$PLIST_B64" ]; then
+            echo "::error::GOOGLE_SERVICE_INFO_PLIST secret is empty. Without it the archive ships with no Firebase config — see docs/IOS-RELEASE.md."
+            exit 1
+          fi
+          printf '%s' "$PLIST_B64" | base64 --decode > ios/App/App/GoogleService-Info.plist
+          # Prove it decoded to a plist rather than to base64 of an error
+          # message, before it is baked into a signed binary.
+          plutil -lint ios/App/App/GoogleService-Info.plist
+          /usr/libexec/PlistBuddy -c "Print :BUNDLE_ID" ios/App/App/GoogleService-Info.plist
+
+      # See the script's header for why this is a build-time step and not a
+      # committed pbxproj reference.
+      - name: Link the plist into the App target
+        run: |
+          gem install xcodeproj --no-document --quiet
+          ruby scripts/ios-link-firebase-plist.rb ios/App/App.xcodeproj
+
+      - name: Install the App Store Connect API key
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_PRIVATE_KEY: ${{ secrets.ASC_PRIVATE_KEY }}
+        run: |
+          if [ -z "$ASC_KEY_ID" ] || [ -z "$ASC_PRIVATE_KEY" ]; then
+            echo "::error::ASC_KEY_ID / ASC_PRIVATE_KEY are not set — see docs/IOS-RELEASE.md."
+            exit 1
+          fi
+          # Two locations on purpose: xcodebuild is told an explicit path,
+          # while altool only searches these well-known directories and
+          # cannot be pointed at a file.
+          mkdir -p "$RUNNER_TEMP/keys" ~/.appstoreconnect/private_keys ~/.private_keys
+          printf '%s\n' "$ASC_PRIVATE_KEY" > "$RUNNER_TEMP/keys/AuthKey_${ASC_KEY_ID}.p8"
+          cp "$RUNNER_TEMP/keys/AuthKey_${ASC_KEY_ID}.p8" ~/.appstoreconnect/private_keys/
+          cp "$RUNNER_TEMP/keys/AuthKey_${ASC_KEY_ID}.p8" ~/.private_keys/
+          chmod 600 "$RUNNER_TEMP/keys/AuthKey_${ASC_KEY_ID}.p8"
+
+      # Separate step so a slow first fetch of firebase-ios-sdk /
+      # GoogleSignIn reads as a resolve failure rather than a mysterious
+      # compile error — same reasoning as ios-build.yml.
+      - name: Resolve Swift packages
+        working-directory: ios/App
+        run: xcodebuild -resolvePackageDependencies -project App.xcodeproj -scheme App
+
+      - name: Archive
+        working-directory: ios/App
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          TEAM_ID: ${{ vars.APPLE_TEAM_ID }}
+        run: |
+          if [ -z "$TEAM_ID" ]; then
+            echo "::error::APPLE_TEAM_ID variable is not set — see docs/IOS-RELEASE.md."
+            exit 1
+          fi
+          # THE ARCHIVE IS AD-HOC SIGNED, and the two runs that say why are
+          # worth keeping, because both of the obvious settings fail.
+          #
+          # CODE_SIGN_STYLE=Automatic (run 3) asks Apple for a DEVELOPMENT
+          # profile, and a team with no registered devices cannot have one:
+          #
+          #   GatherProvisioningInputs
+          #   error: Communication with Apple failed: Your team has no devices
+          #   from which to generate a provisioning profile.
+          #   error: Xcode couldn't find any iOS App DEVELOPMENT provisioning
+          #   profiles matching 'com.cosaxo.insight'.
+          #
+          # That was first read as a fallback caused by the API key's role —
+          # run 4 had shown an App Manager key cannot create a distribution
+          # certificate. The log refutes it: there is no failed distribution
+          # attempt anywhere in run 3, the way run 4's export plainly logs
+          # `No signing certificate "iOS Distribution" found`. Automatic
+          # signing asks for development at archive time and re-signs for
+          # distribution at export. An Admin key does not change that, and
+          # registering a device needs a UDID, which needs the Mac this
+          # workflow exists to avoid.
+          #
+          # CODE_SIGNING_ALLOWED=NO (run 5) skips the profile and loses the
+          # entitlements with it. Xcode applies CODE_SIGN_ENTITLEMENTS at
+          # SIGNING time, so an unsigned archive carries none and
+          # exportArchive has nothing to forward:
+          #
+          #   aps-environment = <empty>
+          #
+          # Ad-hoc is the setting that has neither problem. `codesign -s -`
+          # embeds CODE_SIGN_ENTITLEMENTS — so APS_ENVIRONMENT expands to
+          # `production` from the target's Release config and lands in the
+          # signature — while needing no certificate, no profile and no
+          # device. The signature itself is throwaway: exportArchive re-signs
+          # for distribution and keeps the entitlements it reads here.
+          #
+          # AD_HOC_CODE_SIGNING_ALLOWED defaults to NO for iOS, so it has to
+          # be turned on explicitly. The empty PROVISIONING_PROFILE_SPECIFIER
+          # is belt and braces: nothing should re-enter provisioning, and an
+          # empty specifier means a stale one in the project cannot.
+          #
+          # No -allowProvisioningUpdates and no API key here, deliberately.
+          # This step now needs nothing from Apple, and the flags that made
+          # it reach out are the flags that led it to the development
+          # profile.
+          xcodebuild archive \
+            -project App.xcodeproj \
+            -scheme App \
+            -configuration Release \
+            -destination 'generic/platform=iOS' \
+            -archivePath "$RUNNER_TEMP/App.xcarchive" \
+            DEVELOPMENT_TEAM="$TEAM_ID" \
+            CODE_SIGN_STYLE=Manual \
+            CODE_SIGN_IDENTITY="-" \
+            AD_HOC_CODE_SIGNING_ALLOWED=YES \
+            CODE_SIGNING_REQUIRED=YES \
+            CODE_SIGNING_ALLOWED=YES \
+            PROVISIONING_PROFILE_SPECIFIER=""
+
+      # SHIP-CHECKLIST § hardening makes this a manual pre-upload check
+      # because the failure is completely silent: the device registers with
+      # the APNs sandbox, FCM sends to production, nothing errors, and no
+      # reveal push ever arrives. Automating it is strictly better than
+      # remembering it.
+      #
+      # It also catches the other trap in this project. project.pbxproj
+      # carries CODE_SIGN_IDENTITY = "iPhone Developer" at PROJECT level; if
+      # that ever wins over the archive's ad-hoc identity, the archive is
+      # development-signed and this prints "development" — so a
+      # wrongly-signed archive fails here rather than at a user's phone.
+      #
+      # The entitlement is asserted TWICE, here and after export, and the
+      # pair is the diagnosis. Ad-hoc signing is what puts aps-environment
+      # into the archive at all (run 5 shipped an unsigned archive and the
+      # export had nothing to forward), so:
+      #   fails here          → ad-hoc did not embed entitlements
+      #   passes here, fails after export → export dropped them
+      # One run distinguishes those instead of two.
+      - name: Verify the archive carries the Firebase config and the APNs entitlement
+        run: |
+          APP="$RUNNER_TEMP/App.xcarchive/Products/Applications/App.app"
+          [ -d "$APP" ] || { echo "::error::no App.app in the archive"; exit 1; }
+          [ -f "$APP/GoogleService-Info.plist" ] || {
+            echo "::error::GoogleService-Info.plist is not in the built bundle — the plist link step did not take, and this app would run with no Firebase.";
+            exit 1;
+          }
+          echo "GoogleService-Info.plist present in the archived bundle"
+          ENV=$(codesign -d --entitlements :- "$APP" 2>/dev/null \
+                | plutil -extract aps-environment raw -o - - 2>/dev/null || true)
+          echo "archive aps-environment = ${ENV:-<empty>}"
+          if [ "$ENV" != "production" ]; then
+            echo "::error::the archive's aps-environment is '${ENV:-empty}', expected 'production' from APS_ENVIRONMENT on the App target's Release config. Ad-hoc signing did not embed CODE_SIGN_ENTITLEMENTS — export cannot forward what is not here. See docs/IOS-RELEASE.md."
+            exit 1
+          fi
+
+      - name: Export the .ipa
+        working-directory: ios/App
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          TEAM_ID: ${{ vars.APPLE_TEAM_ID }}
+        run: |
+          # `app-store-connect` is the Xcode 15+ name for what used to be
+          # `app-store`. If an older Xcode image rejects it, that is the
+          # value to change.
+          cat > "$RUNNER_TEMP/ExportOptions.plist" <<EOF
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>method</key><string>app-store-connect</string>
+            <key>teamID</key><string>${TEAM_ID}</string>
+            <key>signingStyle</key><string>automatic</string>
+            <key>destination</key><string>export</string>
+            <key>uploadSymbols</key><true/>
+          </dict>
+          </plist>
+          EOF
+          xcodebuild -exportArchive \
+            -archivePath "$RUNNER_TEMP/App.xcarchive" \
+            -exportPath "$RUNNER_TEMP/export" \
+            -exportOptionsPlist "$RUNNER_TEMP/ExportOptions.plist" \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath "$RUNNER_TEMP/keys/AuthKey_${ASC_KEY_ID}.p8" \
+            -authenticationKeyID "$ASC_KEY_ID" \
+            -authenticationKeyIssuerID "$ASC_ISSUER_ID"
+
+      # THE APNs GATE. The archive step checks this too, but THIS is the one
+      # that decides, because `exportArchive` re-signs and a re-signed app
+      # gets the entitlements of the profile it is re-signed against — which
+      # is a different question from what the archive happened to carry.
+      #
+      # It stayed here alone for three runs on the reasoning that the archive
+      # was always development-signed under automatic signing and would fail
+      # every correct build. True while archiving was automatic; the archive
+      # is ad-hoc now and gets `production` straight from the Release config,
+      # so both ends are readable and the pair localises the failure.
+      #
+      # What it catches is unchanged and still silent: a development
+      # aps-environment means the device registers with the APNs sandbox
+      # while FCM sends to production. No error anywhere, and no reveal push
+      # ever arrives. SHIP-CHECKLIST § hardening.
+      - name: Verify the .ipa is production-signed for APNs
+        run: |
+          IPA=$(ls "$RUNNER_TEMP"/export/*.ipa | head -1)
+          WORK="$RUNNER_TEMP/ipa-check"
+          rm -rf "$WORK" && mkdir -p "$WORK"
+          unzip -q "$IPA" -d "$WORK"
+          APP=$(ls -d "$WORK"/Payload/*.app | head -1)
+          [ -d "$APP" ] || { echo "::error::no .app inside $IPA"; exit 1; }
+          ENV=$(codesign -d --entitlements :- "$APP" 2>/dev/null \
+                | plutil -extract aps-environment raw -o - - 2>/dev/null || true)
+          echo "aps-environment = ${ENV:-<empty>}"
+          if [ "$ENV" != "production" ]; then
+            echo "::error::aps-environment is '${ENV:-empty}', must be 'production'. The device would register with the APNs sandbox while FCM sends to production — no push ever arrives, and nothing errors. See SHIP-CHECKLIST § hardening."
+            exit 1
+          fi
+          # And the plist survived re-signing into the shipped bundle.
+          [ -f "$APP/GoogleService-Info.plist" ] || {
+            echo "::error::GoogleService-Info.plist is missing from the exported .ipa.";
+            exit 1;
+          }
+          echo "the .ipa is production-signed and carries the Firebase config"
+
+      # Uploaded before the App Store Connect step so a build that signs
+      # correctly but fails to upload is still in hand — the expensive part
+      # is the archive, not the transfer.
+      - name: Keep the .ipa as an artifact
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: InSight-ipa
+          path: ${{ runner.temp }}/export/*.ipa
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload to App Store Connect
+        if: ${{ inputs.upload }}
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+        run: |
+          IPA=$(ls "$RUNNER_TEMP"/export/*.ipa | head -1)
+          echo "uploading $IPA"
+          xcrun altool --upload-app -f "$IPA" -t ios \
+            --apiKey "$ASC_KEY_ID" --apiIssuer "$ASC_ISSUER_ID"
+
+      - name: What happens next
+        run: |
+          if [ "${{ inputs.upload }}" = "true" ]; then
+            echo "Uploaded. App Store Connect processes the build for ~5-30 minutes before it appears in TestFlight."
+            echo "Bump appBuild in package.json before the next run — a build number cannot be reused."
+          else
+            echo "Archive-only run. The signed .ipa is attached as an artifact."
+            echo "Re-run with upload=true when you are ready to send it to App Store Connect."
+          fi

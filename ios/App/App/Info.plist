@@ -41,7 +41,7 @@
 			<string>com.cosaxo.insight.googlesignin</string>
 			<key>CFBundleURLSchemes</key>
 			<array>
-				<string>REPLACE_WITH_REVERSED_CLIENT_ID</string>
+				<string>com.googleusercontent.apps.437999864865-vqpbjkbk34fsqms3st4pt09f72rc2dan</string>
 			</array>
 		</dict>
 	</array>

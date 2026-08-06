@@ -642,18 +642,33 @@ function scorecardBlock(sc) {
       <span class="val">${int(b.count)}</span>
     </div>`).join("");
 
+  const nothingScored = sc.scoredQuestions === 0;
+
   return `${tiles([
-    { k: "Questions scored", v: int(sc.scoredQuestions), n: "cleared the k-floor of 5" },
+    { k: "Questions scored", v: int(sc.scoredQuestions),
+      n: `of ${int(sc.questionsTracked)} tracked — cleared the k-floor of 5` },
     { k: "Answers counted", v: int(sc.totalAnswers), n: "a floor — under-floor questions publish nothing" },
-    { k: "Retire proposals", v: int(sc.retireProposals), n: "landslides with real volume" },
+    { k: "Never served", v: int(sc.unserved),
+      n: "written, but the deck has not reached them yet" },
     { k: "Scorecard age", v: sc.ageDays == null ? "?" : int(sc.ageDays), unit: "days",
       status: staleStatus, n: `${sc.staleness} — QUESTION-FARM.md's staleness rule` },
   ])}
+
+  ${nothingScored ? `<div class="empty" style="margin-top:16px"><b>A scorecard exists, and
+    nothing has cleared the floor yet.</b> ${int(sc.questionsTracked)} questions are
+    tracked and ${int(sc.unserved)} have never been served; ${int(sc.belowFloor)} are
+    served but still under <code>AGG_MIN_N</code>. Both readings are what a bank that has
+    not met a crowd looks like — the instrument is working, the population has not
+    arrived. The evenness distribution below fills in as questions cross the floor.</div>`
+    : ""}
+
   <h3>Evenness — "splits, not landslides", as a distribution</h3>
   <div class="bars">${bars}</div>
   <p class="note tight">A mean would hide the shape, and the shape is the product's own
     bar. <b>Do not optimise toward the right-hand bars.</b> The farm doc's guardrail
-    outranks this chart: if evenness and warmth conflict, warmth wins.</p>`;
+    outranks this chart: if evenness and warmth conflict, warmth wins.
+    ${sc.learnCards ? `The learn lane is scored separately —
+      ${int(sc.learnScored)} of ${int(sc.learnCards)} cards have cleared the floor.` : ""}</p>`;
 }
 
 // ── panel 4 · population ────────────────────────────────────────
@@ -749,7 +764,8 @@ function panelInstrumentation(p) {
         n: "one trigger is covered; the callables are not" },
       { k: "Log-based metrics", v: int(ins.logMetrics.length),
         n: ins.logMetrics.map((m) => m.name).join(", ") || "none" },
-      { k: "Alert policies", v: int(ins.policies.length), n: "committed JSON, applied by hand" },
+      { k: "Alert policies", v: int(ins.policies.length),
+        n: "committed JSON — `npm run monitoring:apply` puts them live" },
     ])}
 
     <h3>Alert policies</h3>

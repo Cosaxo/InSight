@@ -176,6 +176,71 @@ describe("spec layer mounts", () => {
   });
 });
 
+// ── the v17 nav (D43) ──────────────────────────────────────────────────
+//
+// The daily's mode switcher stopped being a pill portalled into the header
+// and became a ruler in flow, and the shell now writes `data-view` for
+// scroll-memory.js to key on. Both are invisible to every other gate here:
+// the ruler is a tab list either way, so check:globals and tsc see no
+// difference, and `data-view` is a string nothing type-checks.
+//
+// What each case would catch, stated so nobody trims one as redundant:
+//   - the ruler case fails if DailySplit stops receiving `ruler`, or if the
+//     portal path comes back and empties the in-flow row;
+//   - the mode case fails if the shell's `mode` prop and DailySplit's own
+//     state stop tracking each other (they are two-way: componentDidUpdate
+//     follows the prop, onMode reports the ruler's own taps back up);
+//   - the data-view case fails if scroll memory's key stops moving, which
+//     would leave every view restoring to the last one's position.
+describe("the daily's ruler is the nav (v17)", () => {
+  // TWO rulers carry this label at once — the in-flow one and the compact
+  // copy the header holds ready to dock — so a plain byRole finds both. The
+  // in-flow one is the one outside .app-header.
+  const rulers = () => screen.queryAllByRole("tablist", { name: /how far this answer reaches/i });
+  const ruler = () => rulers().find((r) => !r.closest(".app-header")) || null;
+
+  it("renders the daily's three stops in flow, not in the header slot", () => {
+    const expectNoBoundary = mountApp();
+    const row = ruler();
+    expect(row, "the daily ruler did not render in flow").not.toBeNull();
+    // The header holds its own copy, hidden until the in-flow one scrolls
+    // away — that pair IS the dock, so both halves have to be present.
+    expect(
+      rulers().some((r) => r.closest(".app-header")),
+      "the header has no docked ruler to crossfade to",
+    ).toBe(true);
+    expect(document.querySelector("#daily-mode-slot"), "the pill slot is still rendered").toBeNull();
+    expect(document.querySelector(".app-header .h-title"), "the wordmark is missing").not.toBeNull();
+    for (const label of ["World", "Circle", "1v1"]) {
+      expect(
+        [...row.querySelectorAll('[role="tab"]')].some((b) => b.textContent.trim() === label),
+        `the ruler is missing its ${label} stop`,
+      ).toBe(true);
+    }
+    expectNoBoundary("daily ruler");
+  });
+
+  it("a ruler stop switches the mode and the shell follows it", () => {
+    const expectNoBoundary = mountApp();
+    const stop = (label) =>
+      [...ruler().querySelectorAll('[role="tab"]')].find((b) => b.textContent.trim() === label);
+    expect(stop("World").getAttribute("aria-selected")).toBe("true");
+    act(() => { fireEvent.click(stop("1v1")); });
+    // The shell owns `dailyMode` now and writes it into data-view, so this
+    // asserts the round trip rather than DailySplit's private state.
+    expect(document.querySelector(".app").getAttribute("data-view")).toBe("track:duo");
+    expectNoBoundary("daily ruler, 1v1");
+  });
+
+  it("data-view names the view scroll memory keys on", () => {
+    mountApp();
+    const view = () => document.querySelector(".app").getAttribute("data-view");
+    expect(view()).toBe("track:world");
+    fireEvent.click(screen.getByRole("button", { name: /^mirror$/i }));
+    expect(view()).toBe("mirror:you");
+  });
+});
+
 // ── the cross-link overlays ────────────────────────────────────────────
 //
 // These open through globals app-shell installs in an effect rather than

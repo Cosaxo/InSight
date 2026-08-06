@@ -4,6 +4,7 @@
 // spec-index.js load order is semantic — scripts/check-spec-globals.mjs
 // guards the wiring in CI.
 import React from 'react';
+import { RevealClock } from './reveal-clock.js';
 import { Sheet } from './primitives.jsx';
 import ReactDOM from 'react-dom';
 
@@ -29,20 +30,30 @@ import ReactDOM from 'react-dom';
         width: size, height: size, borderRadius: 11, flexShrink: 0,
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         fontFamily: 'var(--sans)', fontWeight: 800, fontSize: Math.round(size * 0.38), letterSpacing: '-0.02em',
-        color: '#fff', background: `oklch(0.58 0.11 ${ghue(g)})`, opacity: faded ? 0.4 : 1,
+        color: '#fff', background: `oklch(0.52 0.12 ${ghue(g)})`, opacity: faded ? 0.4 : 1,
         transition: 'opacity .18s',
       }}>{ginit(g.name)}</span>
     );
   }
 
-  function GDAv({ p, size = 22, dim }) {
+  // The avatar IS the link to a person — one rule across the daily, the duo and
+  // the group bodies, so an initial circle always means "open them".
+  function GDAv({ p, size = 22, dim, plain }) {
+    const open = (e) => { if (!p || p.me) return; e.stopPropagation(); if (window.openPerson) window.openPerson(p); };
+    const linked = !!(p && !p.me && !plain && window.openPerson);
     return (
-      <span title={p.name + (p.pending ? ' · invited' : '')} style={{
+      <span title={p.name + (p.pending ? ' · invited' : '')}
+        role={linked ? 'button' : undefined} tabIndex={linked ? 0 : undefined}
+        aria-label={linked ? p.name + ' — open profile' : undefined}
+        onClick={linked ? open : undefined}
+        onKeyDown={linked ? ((e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(e); } }) : undefined}
+        style={{
         width: size, height: size, borderRadius: '50%', flexShrink: 0,
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         fontFamily: 'var(--sans)', fontWeight: 800, fontSize: Math.round(size * 0.4),
-        color: '#fff', background: `oklch(0.62 0.12 ${p.hue})`,
+        color: '#fff', background: `oklch(0.52 0.13 ${p.hue})`,
         opacity: dim ? 0.28 : 1, boxShadow: '0 0 0 1.5px var(--surface-2)',
+        cursor: linked ? 'pointer' : 'default',
       }}>{p.init}</span>
     );
   }
@@ -177,7 +188,7 @@ import ReactDOM from 'react-dom';
                   {addable.map((f) => (
                     <button key={f.id} className="press" onClick={() => D.addGroupMembers(g.id, [f.id])}
                       style={{ display: 'flex', alignItems: 'center', gap: 7, border: LINE, borderRadius: 999, background: 'var(--surface-2)', padding: '5px 13px 5px 6px', cursor: 'pointer', WebkitAppearance: 'none' }}>
-                      <GDAv p={f} size={22}></GDAv>
+                      <GDAv p={f} size={22} plain></GDAv>
                       <span style={{ fontFamily: 'var(--sans)', fontWeight: 700, fontSize: 12.5, color: 'var(--ink)' }}>+ {f.name.split(' ')[0]}</span>
                     </button>
                   ))}
@@ -188,7 +199,7 @@ import ReactDOM from 'react-dom';
               {confirmLeave ? (
                 <React.Fragment>
                   <span style={{ flex: 1, fontSize: 12.5, fontWeight: 600, color: 'var(--ink-2)' }}>Leave {g.name}?</span>
-                  <button onClick={() => { closeMg(); setTimeout(() => D.leaveGroup(g.id), 240); }} style={{ border: 'none', background: 'var(--ochre)', color: '#fff', fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 12, padding: '7px 15px', borderRadius: 999, cursor: 'pointer', WebkitAppearance: 'none' }}>Leave</button>
+                  <button onClick={() => { closeMg(); setTimeout(() => D.leaveGroup(g.id), 240); }} style={{ border: 'none', background: 'var(--ochre-ink)', color: '#fff', fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 12, padding: '7px 15px', borderRadius: 999, cursor: 'pointer', WebkitAppearance: 'none' }}>Leave</button>
                   <button onClick={() => setConfirmLeave(false)} style={{ border: LINE, background: 'var(--surface-2)', color: 'var(--ink)', fontFamily: 'var(--sans)', fontWeight: 700, fontSize: 12, padding: '7px 13px', borderRadius: 999, cursor: 'pointer', WebkitAppearance: 'none' }}>Stay</button>
                 </React.Fragment>
               ) : (
@@ -237,8 +248,8 @@ import ReactDOM from 'react-dom';
                   counts to LOCAL midnight while the reveal is keyed on a UTC
                   day, so this is a sense of the evening closing, not a promise
                   about the server (reveal-clock.js says why). */}
-              {first && window.RevealClock
-                ? <window.RevealClock prefix="Reveals in"></window.RevealClock>
+              {first
+                ? <RevealClock prefix="Reveals in"></RevealClock>
                 : (nextName ? 'Reveals tomorrow \u00b7 swipe down for ' + nextName : 'Reveals tomorrow')}
             </div>
           </div>
@@ -262,7 +273,7 @@ import ReactDOM from 'react-dom';
                   boxShadow: 'none', padding: '14px 16px', gap: 11, minHeight: 54,
                   display: 'flex', alignItems: 'center', cursor: 'pointer', textAlign: 'left', WebkitAppearance: 'none',
                 }}>
-                  {d.kind === 'pick' && (mem ? <GDAv p={mem} size={26}></GDAv> : <YouChip size={26}></YouChip>)}
+                  {d.kind === 'pick' && (mem ? <GDAv p={mem} size={26} plain></GDAv> : <YouChip size={26}></YouChip>)}
                   <span style={{ fontWeight: 700, fontSize: 16, color: 'var(--ink)' }}>{o}</span>
                 </button>
               );
@@ -391,7 +402,7 @@ import ReactDOM from 'react-dom';
                 <button onClick={closeAdd} aria-label="Close" style={{ border: 'none', background: 'var(--surface-2)', width: 26, height: 26, borderRadius: '50%', cursor: 'pointer', fontSize: 12, color: 'var(--ink-2)', WebkitAppearance: 'none' }}>{'\u2715'}</button>
               </div>
               <div className="wf-sheet-body" style={{ display: 'flex', flexDirection: 'column', gap: 13 }}>
-                <input value={gname} onChange={(e) => setGname(e.target.value)} placeholder="Group name" maxLength={24} autoFocus
+                <input value={gname} onChange={(e) => setGname(e.target.value)} placeholder="Group name" maxLength={24} autoFocus autoComplete="off" autoCapitalize="words" enterKeyHint="done"
                   style={{ width: '100%', boxSizing: 'border-box', border: LINE, borderRadius: 13, background: 'var(--surface-2)', padding: '12px 14px', fontFamily: 'var(--sans)', fontWeight: 700, fontSize: 15.5, color: 'var(--ink)', outline: 'none' }} />
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                   <span className="kicker" style={{ marginBottom: 0 }}>Who{'\u2019'}s in {'\u00b7'} pick at least 2</span>
@@ -402,7 +413,7 @@ import ReactDOM from 'react-dom';
                         <button key={f.id} className="press" onClick={() => toggleSel(f.id)} aria-pressed={on}
                           style={{ display: 'flex', alignItems: 'center', gap: 7, borderRadius: 999, padding: '5px 13px 5px 6px', cursor: 'pointer', WebkitAppearance: 'none',
                             border: on ? `1.5px solid ${ACC}` : LINE, background: on ? `color-mix(in oklch, ${ACC} 12%, var(--surface-2))` : 'var(--surface-2)' }}>
-                          <GDAv p={f} size={22}></GDAv>
+                          <GDAv p={f} size={22} plain></GDAv>
                           <span style={{ fontFamily: 'var(--sans)', fontWeight: on ? 800 : 700, fontSize: 12.5, color: 'var(--ink)' }}>{f.name.split(' ')[0]}</span>
                         </button>
                       );

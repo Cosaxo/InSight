@@ -1,6 +1,6 @@
 # InSight v2 — the ported app
 
-This is the frozen spec (`design/InSight_standalone_15.html`) running under
+This is the frozen spec (`design/InSight_standalone_17.html`) running under
 Vite. `index.html` points at `main.jsx`; the journal-era app lives in
 git history (decision D4) — `src/legacy/` was deleted after Phase 5 shipped,
 and its Firestore rules were retired to `firestore.rules.v1-archive`.
@@ -369,7 +369,7 @@ survivable enough to live with indefinitely.
 **Rule 4** counts every site where one file reads a name another file
 assigns to global scope, per file, and the number may only go down. The
 baseline is in `scripts/check-spec-globals.mjs`; `npm run check:globals`
-prints the current total on every run. The count today is **657 across 52
+prints the current total on every run. The count today is **620 across 52
 files**, down from 799 when the ratchet landed.
 
 The mechanism needs no bookkeeping, which is what makes it usable. The

@@ -318,20 +318,46 @@ export function collectScorecard() {
     : ageDays > 30 ? "expired"
     : ageDays > 14 ? "advisory"
     : "fresh";
-  const scored = [...(sc.daily?.scored || []), ...(sc.feed?.scored || [])];
+  // THE SHAPE IS READ FROM THE REAL ARTIFACT, and it is worth saying why
+  // that sentence had to be written twice. This first shipped against an
+  // INVENTED shape — `sc.daily.scored` / `sc.feed.scored` — because no
+  // scorecard existed yet to look at, and the unit test fixtured the same
+  // invention, so it agreed with itself and proved nothing. When the first
+  // real `content/scorecard.json` landed the collector read four fields
+  // that do not exist and reported zero scored questions.
+  //
+  // The dangerous part is that zero LOOKED right: pre-launch nothing has
+  // been answered, so the wrong reading and the true one were the same
+  // number, and it would have stayed zero forever after launch. A fixture
+  // you wrote yourself cannot catch that — the test now reads the committed
+  // artifact.
+  //
+  // Real shape (scripts/question-scorecard.mjs): `coverage` is the rollup,
+  // `perQuestion[]` carries {qid, surface, topic, type, total, evenness,
+  // optionShares, served, signal}, and leaders/laggards/retireProposals are
+  // top-level arrays rather than per-surface ones.
+  const perQuestion = Array.isArray(sc.perQuestion) ? sc.perQuestion : [];
+  const cov = sc.coverage || {};
   return {
     present: true,
     generatedAt: sc.generatedAt || null,
     ageDays,
     staleness,
-    scoredQuestions: scored.length,
+    scoredQuestions: cov.scored ?? 0,
+    // Questions that exist but the deck has not reached yet. Pre-launch this
+    // is most of the bank and says nothing; after launch a stubbornly high
+    // number means the deck is not getting through what has been written.
+    unserved: cov.unserved ?? 0,
+    belowFloor: cov.belowFloor ?? 0,
+    questionsTracked: cov.questions ?? perQuestion.length,
     // The product's own bar, as a distribution rather than an average: a
     // mean evenness hides the shape, and the shape is the thing ("splits,
     // not landslides"). Buckets, not a mean.
-    evennessBuckets: bucketEvenness(scored),
-    totalAnswers: scored.reduce((a, q) => a + (q.total || 0), 0),
-    retireProposals: (sc.daily?.retireProposals?.length || 0)
-      + (sc.feed?.retireProposals?.length || 0),
+    evennessBuckets: bucketEvenness(perQuestion),
+    totalAnswers: perQuestion.reduce((a, q) => a + (q.total || 0), 0),
+    retireProposals: (sc.retireProposals || []).length,
+    learnCards: sc.learn?.coverage?.cards ?? 0,
+    learnScored: sc.learn?.coverage?.scored ?? 0,
   };
 }
 
@@ -520,9 +546,11 @@ export function collectInstrumentation() {
     alertedCount: watchedNames.size,
     logMetrics,
     policies,
-    note: "Alert policies are committed JSON. Nothing in .github/workflows applies them — "
-      + "a policy here is a policy in the repo, not necessarily one in Cloud Monitoring. "
-      + "docs/MONITORING.md records why that is currently the right trade.",
+    note: "Alert policies are committed JSON, applied by `npm run monitoring:apply` "
+      + "(idempotent, dry-run by default) rather than by any workflow — deliberately, "
+      + "since a pipeline that can rewrite a policy can delete one silently. So a "
+      + "policy listed here is a policy in the REPO, not necessarily one live in Cloud "
+      + "Monitoring: the repo cannot know which, and this column never claims to.",
   };
 }
 

@@ -1,10 +1,12 @@
 # Launch runbook — the owner's ordered list
 
-Everything between this tree and two live store listings, in the order it
+Everything between this tree and a live App Store listing, in the order it
 has to happen, with the command or console path for each step. Nothing
 here is engineering work: the code side is complete (LAUNCH-PLAN.md's
 workstreams all landed in PR #60), so every remaining step needs an
-account, a device, a Mac, or a legal fact.
+account, a device, or a legal fact. **A Mac is no longer on that list** —
+it was, and removing it was the last piece of engineering this file
+required (`IOS-RELEASE.md`).
 
 **This document holds order and status only.** Every *why* lives in
 [`SHIP-CHECKLIST.md`](SHIP-CHECKLIST.md), which stays canonical — where the
@@ -13,39 +15,81 @@ the section that explains them; read that before doing anything whose
 reasoning is not obvious, especially the App Check ordering (§ hardening)
 and the reveal/rules deploy order.
 
-State verified 2026-08-03: `npm run check:store-copy` reports **3**
-unfilled placeholders, all account-gated IDs (the three legal values were
-filled the same day); `check:store-listing` and `check:versions` pass; the
-daily bank is at 90 questions; the production backend is deployed.
+State verified 2026-08-05: `npm run check:store-copy` reports **1**
+unfilled placeholder, and it is `REPLACE_WITH_PLAY_SIGNING_SHA256` — a
+permanent non-blocker under D42, excused by `--ios`. **For an iOS launch
+the count is zero**, which is a change from 2026-08-04: the Team ID and the
+`REVERSED_CLIENT_ID` were the other two and both are filled.
 
-## Two clocks you cannot compress
+`check:store-listing` and `check:versions` pass; the daily bank is at 90
+questions of 369 seeded; the production backend is deployed. **Measured
+2026-08-04:** anonymous sign-in works (`accounts:signUp` returns an
+`idToken`, where it returned `ADMIN_ONLY_OPERATION` on 2026-08-03), the
+InSight web app is registered, and the default hosting site `prvfire33`
+exists. **Measured 2026-08-05:** the iOS release workflow archives,
+exports and passes both gates with no Mac (run 6).
 
-Everything else is initiative. These two are waiting, so start them on day
-one and do the rest while they run:
+Those two question counts are held by `npm run check:figures` against
+`functions/src/v2content.ts`, because a number quoted in prose and kept
+current by intention is the one documentation error this repo keeps
+re-committing (D39).
 
-1. **Google Play: the D-U-N-S wait** — because the account opens as an
-   **organization** (D41), which is exempt from the closed-testing gate
-   personal accounts face. What is left is the entity chain: ENK →
-   organisasjonsnummer → D-U-N-S → Google's org verification, then a
-   production-access application reviewed in up to ~7 days. A D-U-N-S is
-   free and usually lands in ~1–2 weeks, but D&B quotes up to ~30 business
-   days. **Start it on day one — it is the long pole, and it is pure
-   waiting.**
+> ## iOS only, as of 2026-08-04 (D42)
+>
+> **Google Play is deferred**, and revisited after iOS has users rather
+> than on a date. Every Android step below is marked **[PARKED]** — left
+> in place, not deleted, because the shell still builds in CI and the work
+> is real when it is picked up.
+>
+> The reason is not only cost. The two routes onto Play move in opposite
+> directions over time: the organization account (D41) costs the same
+> whenever it is taken, while the 12-testers × 14-days route is brutal
+> cold and easy once you have users with Android phones. Deferring may
+> convert the expensive option into the cheap one, and retire D41 unused.
+> **Re-read D41 and D42 together at that moment; assume neither half.**
 
-   *The path this replaces, kept because the fallback is real:* a personal
-   account created after 2023-11-13 must run **12 opted-in testers × 14
-   continuous days** on a closed track first. "Opted in" means accepted
-   *and installed*, the 14 days are continuous, and dropping below 12
-   restarts them — so 3–4 weeks is that path's floor, not its estimate. If
-   the org exemption does not hold when you reach the account-type flow,
-   this is where you land, having lost only a wait that overlapped Apple's.
-2. **App Check: a 24–48h metrics soak** before enforcement is flipped.
+## One clock you cannot compress
+
+Everything else is initiative. This one is waiting, so start it on day one
+and do the rest while it runs:
+
+1. **App Check: a 24–48h metrics soak** before enforcement is flipped.
    Registering the apps starts it; enforcement without it is how you find
    out a platform is misconfigured from users instead of a graph.
 
-Apple has no equivalent gate — enrollment is ~1–2 days, review usually
-24–48h. **iOS can be live in ~2 weeks; both stores in ~3–4**, and the iOS
-date does not depend on which way Play's account type resolves.
+Apple has no gate of its own — enrollment is ~1–2 days, review usually
+24–48h. **iOS can be live in ~2 weeks.**
+
+**A Mac is no longer required.** It used to be the only hard dependency
+left once D42 parked Play, so `.github/workflows/ios-release.yml` now does
+the signed archive, the two silent-failure gates and the App Store Connect
+upload on a macOS runner — see [`IOS-RELEASE.md`](IOS-RELEASE.md) for the
+four values it needs. (`ios-build.yml` does **not** substitute: it is
+deliberately simulator-only and unsigned, so the native project had
+coverage before any Apple account existed.) A Mac is still the more
+comfortable way to debug a signing failure.
+
+**Measured 2026-08-05: it works.** Run 6 archived, exported and passed both
+gates in 6m 2s — `archive aps-environment = production`, still `production`
+in the exported `.ipa`, Firebase config in the bundle at both ends. It took
+six dispatches, and the five failures are each worth one line because they
+are the ones anyone repeating this will hit: a missing `VITE_FIREBASE_*`
+(run 1 — a signed *demo* app), a manual signing identity conflicting with
+automatic (2), automatic signing demanding a device the team does not have
+(3), an App-Manager-role API key that cannot mint a distribution
+certificate (4), and an unsigned archive that carried no entitlements for
+export to forward (5). `IOS-RELEASE.md` has each in full.
+
+**The upload half is still untried** — every run so far has been
+`upload=false`, deliberately.
+
+*[PARKED] Play's clock, for when this is picked up:* a personal account
+created after 2023-11-13 must run **12 opted-in testers × 14 continuous
+days** on a closed track before it can apply for production access —
+"opted in" means accepted *and installed*, the days are continuous, and
+dropping below 12 restarts them. An organization account skips it (D41),
+at the price of the ENK → D-U-N-S chain. Both are in D42 with the
+arithmetic.
 
 ---
 
@@ -73,9 +117,12 @@ date does not depend on which way Play's account type resolves.
       `https://prvfire33.web.app/`. Both store listings require these
       URLs. The hosting step of *Deploy Firebase backend* is
       `continue-on-error`, so a green workflow run does **not** mean the
-      pages deployed — read that step's log. If it failed for want of a
-      default site, create one in Firebase Console → Hosting and re-run.
-      `SHIP-CHECKLIST §3`.
+      pages deployed — read that step's log. `SHIP-CHECKLIST §3`.
+      **The default site now exists** (`prvfire33`, created 2026-08-04 when
+      the web app was registered), so the "no default site" failure this
+      step was written to catch is closed. What remains is confirming the
+      deploy actually published — and 0.3 still owes a redeploy so the live
+      terms page shows the filled legal values.
 - [x] **0.3 Fill the three legal values in `web/terms.html` — done
       2026-08-03.** `olaftaule01@gmail.com`, operator Olaf Taule,
       jurisdiction Norway, launching as a sole trader.
@@ -86,22 +133,29 @@ date does not depend on which way Play's account type resolves.
       `SHIP-CHECKLIST §3` also notes one EEA follow-up that is a decision,
       not a blocker.
 
-## Phase 1 — Day 1: open the accounts, start both clocks
+## Phase 1 — Day 1: open the account, start the clock
 
-- [ ] **1.1 Apple Developer Program — enroll as an *individual*** ($99/yr,
-      ~1–2 days). Convertible to an organization later; enrolling as an org
+- [x] **1.1 Apple Developer Program — done 2026-08-05, as an
+      *individual*** ($99/yr). Team ID `U2LVW456S7`, which is what
+      `web/.well-known/apple-app-site-association` and every signing step
+      below use. Convertible to an organization later; enrolling as an org
       first costs 1–2 weeks of entity + D-U-N-S verification for nothing
-      launch needs. Start it before anything else on this list. **This
-      reasoning is Apple-only** — it inverts on Play, which is why 1.2 goes
-      the other way (D41).
-- [ ] **1.1b Register the ENK and apply for the D-U-N-S — day one, before
-      1.2.** Notify Brønnøysundregistrene via Altinn; registration in
+      launch needs. **This reasoning is Apple-only** — it inverts on Play,
+      which is why 1.2 goes the other way (D41).
+
+      The App ID carries **Push Notifications** and **Associated Domains**
+      and deliberately nothing else. A provisioning profile cannot grant an
+      entitlement the App ID lacks, so a missing capability fails the
+      *archive*, not just the feature — and an unused one is an entitlement
+      to carry and a question to answer at review.
+- [ ] **1.1b [PARKED — D42] Register the ENK and apply for the D-U-N-S.**
+      *Not being done: Play is deferred until iOS has users.* Notify Brønnøysundregistrene via Altinn; registration in
       Enhetsregisteret is free and yields the organisasjonsnummer a D-U-N-S
       application needs. The D-U-N-S itself is free from D&B, usually ~1–2
       weeks, quoted up to ~30 business days. Everything else on this list
       runs while it waits. `D41`.
-- [ ] **1.2 Google Play Console account — open it as an *organization*,
-      not personal** ($25 one-time, identity check). The organization type
+- [ ] **1.2 [PARKED — D42] Google Play Console account — as an
+      *organization*, not personal** ($25 one-time, identity check). The organization type
       is exempt from the 12-testers × 14-days closed-testing gate; a
       personal account created after 2023-11-13 is not, and that is a 3–4
       week floor (D41). Needs the D-U-N-S from 1.1b, so this step waits on
@@ -118,24 +172,49 @@ date does not depend on which way Play's account type resolves.
       D-U-N-S expedite.** D41 records why: the claim is sourced from
       secondary write-ups rather than Google's own policy page, which the
       research environment could not reach.
-- [ ] **1.3 Firebase Console → Authentication → Sign-in method:** enable
-      **Anonymous** AND **Google**. Earlier drafts said "confirm Anonymous
-      stays enabled" — measured 2026-08-03 (anonymous sign-up returns
-      `ADMIN_ONLY_OPERATION`): it was never on, so this is an enablement,
-      not a confirmation. D3's entire first-run path depends on it, and
-      the scorecard fetch (`QUESTION-FARM.md` Phase A) is blocked on the
-      same switch. `SHIP-CHECKLIST §2`.
-- [ ] **1.4 Firebase Console → App Check: register all three apps** — web
-      (reCAPTCHA provider), iOS (DeviceCheck/App Attest), Android (Play
-      Integrity). Do this on day 1 so the soak overlaps the rest of the
-      work. **Register, do not enforce yet** — enforcement is step 3.4.
-      Registering the web app is separate from setting the site key in the
-      build; having one without the other looks identical to having
-      neither. `SHIP-CHECKLIST § hardening`.
+- [x] **1.3 Firebase Console → Authentication → Sign-in method: enable
+      Anonymous AND Google — Anonymous done 2026-08-04.** Measured, not
+      read off a toggle: `accounts:signUp` now returns an `idToken` where
+      on 2026-08-03 it returned `ADMIN_ONLY_OPERATION`. D3's first-run path
+      is alive, and the scorecard fetch (`QUESTION-FARM.md` Phase A) is
+      unblocked. `SHIP-CHECKLIST §2`.
 
-## Phase 2 — Wire the native builds (needs Phase 1 accounts + a Mac)
+      **Google is enabled but UNVERIFIED.** The project-config endpoint
+      returns only `authorizedDomains` to an unauthenticated caller, no
+      `idpConfig`, so there is no remote probe for it. It is verified by
+      tapping *Link Google* in the app — which 0.1 requires anyway, since
+      the seed gate matches a Google-account uid. Treat 0.1 succeeding as
+      the proof.
+- [ ] **1.4 Firebase Console → App Check: register web + iOS** — web
+      (reCAPTCHA v3 provider), iOS (DeviceCheck/App Attest). Android (Play
+      Integrity) is **[PARKED — D42]**. Do this on day 1 so the soak
+      overlaps the rest of the work. **Register, do not enforce yet** —
+      enforcement is step 3.4. Registering the web app is separate from
+      setting the site key in the build; having one without the other
+      looks identical to having neither. `SHIP-CHECKLIST § hardening`.
 
-- [ ] **2.1 Android config.** Firebase Console → Project settings → Add app
+      **The iOS half needs 2.2 first.** App Check registers *apps*, and
+      the iOS app does not exist in the project until it is added — so
+      only the web half is doable on day 1. Earlier drafts had all three
+      here as though they were parallel; they are not, and the Android
+      one was blocked the same way before it was parked.
+
+      **Status:** the web app was registered 2026-08-04 (app id
+      `…:web:4c3d2ec4e1bbe13ab8a760`) and the iOS app with the DeviceCheck
+      provider on 2026-08-05, which starts the soak clock — 3.4 is the
+      earliest thing that can now happen, and it cannot happen before
+      2026-08-07. What remains here is the **web reCAPTCHA v3 provider**,
+      and it is worth naming why it is easy to think is done: registering
+      the app and configuring its provider are two separate actions in the
+      same console page, and having one without the other looks identical
+      to having neither.
+
+      DeviceCheck needs a `.p8` key, not a toggle — an earlier note in
+      this conversation said "one click, no keys" and that was wrong.
+
+## Phase 2 — Wire the native builds (needs Phase 1 accounts)
+
+- [ ] **2.1 [PARKED — D42] Android config.** Firebase Console → Project settings → Add app
       → Android, package `com.cosaxo.insight`. **Add the debug keystore
       SHA-1 first**, then download `google-services.json` → drop into
       `android/app/`. This also activates FCM for reveal pushes.
@@ -150,39 +229,73 @@ date does not depend on which way Play's account type resolves.
       `DEVELOPER_ERROR` (status 10). Add the **Play App Signing** SHA-1 too
       once 2.6 gives you one, and **re-download** the file — it is a
       snapshot, not a live lookup.
-- [ ] **2.2 iOS config.** Add app → iOS → download
-      `GoogleService-Info.plist` → add to `ios/App/App/` **and to the App
-      target in Xcode** (AppDelegate skips `FirebaseApp.configure()`
-      without it). Then copy that file's `REVERSED_CLIENT_ID` over the
-      `REPLACE_WITH_REVERSED_CLIENT_ID` placeholder in `Info.plist`.
+- [x] **2.2 iOS config — done 2026-08-05.** The iOS app is registered and
+      `GoogleService-Info.plist` lives in the `GOOGLE_SERVICE_INFO_PLIST`
+      repository secret, base64. `Info.plist`'s
+      `REPLACE_WITH_REVERSED_CLIENT_ID` is filled.
       *Skipping the URL scheme is silent:* the build succeeds, the account
       sheet opens, and Google sign-in never returns — taking D3's only
       account-upgrade path with it. `SHIP-CHECKLIST §2`.
+
+      **"Add it to the App target in Xcode" is the step a runner cannot
+      do**, and it is the reason `scripts/ios-link-firebase-plist.rb`
+      exists: it adds the `PBXFileReference` at build time. The reference
+      is deliberately not committed — a reference to a file absent from
+      every checkout is a hard build error, and `ios-build.yml` asserts the
+      plist is *absent* from the simulator bundle so a committed secret
+      cannot pass unnoticed. Both release gates confirm it lands: it is in
+      the archived bundle and in the exported `.ipa` (run 6).
 - [ ] **2.3 APNs key.** Apple Developer → Keys → create an APNs key →
       upload in Firebase Console → Cloud Messaging → Apple app
       configuration. Without it no reveal push arrives on iOS.
-- [ ] **2.4 First iOS archive** (Mac + Xcode). `npm run build && npx cap
-      sync`, then `npm run ios`. Signing & Capabilities: confirm Push
-      Notifications appears from the entitlements file and the provisioning
-      profile regenerates with `aps-environment`. Archive.
-- [ ] **2.5 Verify the archive's APNs environment before uploading:**
+- [x] **2.4 First iOS archive — done 2026-08-05, run 6, no Mac.** Actions →
+      **iOS release** → Run workflow, upload unticked: archive, export,
+      both silent-failure gates, signed `.ipa` attached as an artifact.
+      6m 2s. The four values in [`IOS-RELEASE.md`](IOS-RELEASE.md) are set,
+      and it hard-gates on `check-store-copy --ios` before spending runner
+      minutes.
+
+      Repeat this whenever the shell or its config changes. `appBuild` must
+      go up before any run with upload ticked — App Store Connect refuses a
+      build number it has seen, *after* the transfer completes.
+
+      *With a Mac, if you ever want to debug a signing failure
+      interactively:* `npm run build && npx cap sync`, then `npm run ios`.
+- [x] **2.5 Verify the APNs environment before uploading — automated, and
+      it has already caught one.** The release workflow reads it at both
+      ends and fails on anything but `production`, so this is manual only
+      when you archive from a Mac:
       ```bash
       codesign -d --entitlements :- /path/to/App.app | grep -A1 aps-environment
       ```
-      It must say `production`. This failure is completely silent — the
-      device registers with the APNs sandbox, FCM sends to production,
-      nothing errors and no push ever arrives. `SHIP-CHECKLIST § hardening`.
-- [ ] **2.6 Android signing.** Generate the upload keystore **outside the
+      This failure is completely silent — the device registers with the
+      APNs sandbox, FCM sends to production, nothing errors and no push
+      ever arrives. `SHIP-CHECKLIST § hardening`.
+
+      **Run 5 is the proof it is worth automating.** The export succeeded
+      and produced a valid, signed, uploadable `.ipa` whose entitlement was
+      empty, because the archive it came from was unsigned and Xcode
+      applies entitlements at signing time. Nothing else in the build said
+      a word. The one time this gate has fired, it fired on this repo's own
+      workflow rather than on a mistake from outside.
+- [ ] **2.6 [PARKED — D42] Android signing.** Generate the upload keystore **outside the
       repo**, and **enrol in Play App Signing** so a lost upload key is
       recoverable. Before the first release commit run `git status
       --ignored` and confirm nothing sensitive is tracked — a `git add -A`
       after a signing session is an incident a revert cannot fix.
       `SHIP-CHECKLIST § hardening`.
-- [ ] **2.7 The two app-link fingerprints.** Play Console → Setup → App
-      signing gives the SHA-256 for
-      `web/.well-known/assetlinks.json`; Apple Developer → Membership gives
-      the Team ID for `web/.well-known/apple-app-site-association`.
-      Replace both, redeploy hosting, reinstall, tap a `/join/CODE` link.
+- [ ] **2.7 The app-link fingerprints — the file is filled, the deploy is
+      owed.** `web/.well-known/apple-app-site-association` carries the real
+      Team ID as of 2026-08-05 (`U2LVW456S7.com.cosaxo.insight`). The
+      `assetlinks.json` SHA-256 comes from Play Console → Setup → App
+      signing and is **[PARKED — D42]**, so `check:store-copy` will keep
+      reporting that one placeholder: a known permanent non-blocker, not
+      an unfinished task.
+
+      **What remains is a hosting redeploy**, which this step shares with
+      0.2 and 0.3 — three separate reasons the live site is behind the
+      repo, one deploy that closes all three. *The committed file is not
+      what iOS fetches.* Then reinstall and tap a `/join/CODE` link.
       Android verifies with `adb shell pm get-app-links com.cosaxo.insight`;
       iOS re-fetches AASA on install (CDN-cached, allow a day). Until then
       invite links open the fallback page — degraded, not broken, so this
@@ -196,8 +309,7 @@ satisfying a gate. The App Check soak (3.4) is the one clock still in this
 phase. On the personal-account fallback, 3.1 is also where the 14 days
 start.
 
-- [ ] **3.1 Upload a signed AAB to a Play testing track the day you have
-      one.** With the organization account (D41) this is testing, not a
+- [ ] **3.1 [PARKED — D42] Upload a signed AAB to a Play testing track.** With the organization account (D41) this is testing, not a
       gate — no tester minimum, no 14-day clock, and no reason to wait for
       a headcount before uploading. Use it the way TestFlight is used in
       3.2: real installs on real Android hardware, duels first.
@@ -254,6 +366,14 @@ left here is a **recapture against live data**, plus the two forms.
       taste — it is a draft, not a decision. No placeholders remain:
       `shared.supportEmail` was filled with 0.3's address on 2026-08-03,
       and `check:store-listing` passes.
+
+      **You do not have to retype it into the web form.**
+      `npm run asc:push` pushes name, subtitle, description, keywords,
+      promotional text and the URLs to App Store Connect from this file —
+      dry run by default, `-- --apply` to write. Same API key as the
+      release workflow (`IOS-RELEASE.md`). It deliberately does NOT touch
+      screenshots, the privacy questionnaire or the age rating; those are
+      attestations, and `STORE-FORMS.md` is the transcribe-by-hand answer.
 - [ ] **4.4 Privacy nutrition labels (Apple) + Data safety form (Google).**
       Mandatory; neither store accepts a submission without one. Answer
       from the table in `SHIP-CHECKLIST §3`, which is
@@ -301,10 +421,16 @@ left here is a **recapture against live data**, plus the two forms.
       `deleteAccount` does not touch Storage, so revoking access while
       objects remain converts a dead feature into an erasure gap. Update
       `firestore-tests/storage.rules.test.ts` in the same commit.
-- [ ] **5.5 Apply the two monitoring alerts** (`monitoring/*.json`) — create
-      a notification channel, then the error policy, then the
-      `agg_contention` log-based metric and its policy. Neither is applied
-      by the pipeline. Both cover failures that look like nothing from the
+- [ ] **5.5 Apply the two monitoring alerts** (`monitoring/*.json`):
+      ```bash
+      npm run monitoring:apply -- --email you@example.com           # report
+      npm run monitoring:apply -- --email you@example.com --apply   # do it
+      ```
+      One command for what used to be four console steps with a channel id
+      pasted between them. Idempotent and dry-run by default. Neither
+      policy is applied by the pipeline, and this script must not be put on
+      it — the deploy service account has no monitoring role, and widening
+      it for two policies is the worse trade. Both cover failures that look like nothing from the
       outside: the app keeps serving while the Mirror stops moving, or
       keeps moving while falling further behind. `DEPLOYMENT.md § Alerting`.
 - [ ] **5.6 Version lockstep.** `npm run check:versions` (`--fix` writes
@@ -339,7 +465,7 @@ left here is a **recapture against live data**, plus the two forms.
       optional upgrade rather than a login wall, and no email or name is
       collected through it. Only add the Apple provider if a reviewer
       insists.
-- [ ] **6.3 Apply for Play production access** — a three-section
+- [ ] **6.3 [PARKED — D42] Apply for Play production access** — a three-section
       application, reviewed in up to ~7 days, then submit the production
       release. On the organization account (D41) nothing gates this but the
       application itself; on the personal fallback it cannot be filed until

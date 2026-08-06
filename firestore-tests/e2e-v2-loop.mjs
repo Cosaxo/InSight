@@ -424,7 +424,13 @@ for (let i = 0; i < 40; i++) {
   if (snap.exists()) { lpub = snap.data(); break; }
   await new Promise((r) => setTimeout(r, 500));
 }
-if (!lpub || lpub.tooSmall !== true || lpub.counts) fail("learn k-floor breach below MIN_N: " + JSON.stringify(lpub));
+// Two failures, two messages — the same split the world-question check at
+// the top of this file already makes. Collapsed into one, a TIMEOUT here
+// reports itself as "learn k-floor breach below MIN_N: null", which reads
+// as a privacy regression and sends the next person hunting for one. It
+// cost exactly that detour on 2026-08-05.
+if (!lpub) fail(`learn public agg never appeared after ${40 * 500}ms — the trigger did not fire, or did not finish in time`);
+if (lpub.tooSmall !== true || lpub.counts) fail("learn k-floor breach below MIN_N: " + JSON.stringify(lpub));
 ok("learn below floor: public agg is tooSmall-only");
 // four more first attempts cross the floor: three right, one more wrong
 for (let n = 0; n < 4; n++) {

@@ -13,6 +13,11 @@ import { DAILYQ } from './daily-questions.js';
 // lean toward yours in proportion to your affinity; tapping an answer shows
 // how it compares to what YOU said. Some details stay hidden until you're
 // friends. (map-tab.css, MapLens hues, MapTabLayout clusters)
+// `PersonMindMap` is exported by name (D39, "convert on touch") — the person
+// overlay renders it twice, as a still and full-screen, and imports it. The
+// rest of this module still publishes through the window bag, so the export
+// is hoisted out of the IIFE rather than the IIFE unwound.
+let PersonMindMapImpl;
 (function () {
 const { useState, useRef, useEffect, useMemo } = React;
 
@@ -119,7 +124,12 @@ function pmmBuild(p) {
 }
 
 // ── the component ────────────────────────────────────────────────────────────
-function PersonMindMap({ p, following, centerName }) {
+// `still` renders the map as a portrait, not a workspace: no pan/zoom/taps, no
+// chrome, no answer labels, fit whole with generous air so nothing clips — and
+// every answer dot carries the ONE thing a profile is for: solid where the two
+// of you said the same, hollow where you diverged, faint where there's nothing
+// to compare. Tapping the still opens this same map full-screen and live.
+function PersonMindMap({ p, following, centerName, still }) {
   // eslint-disable-next-line react-hooks/exhaustive-deps -- ported effect; see src/v2/README.md § Lint suppressions
   const built = useMemo(() => pmmBuild(p), [p && p.id, following]);
   const allCats = built.CATS, nodes0 = built.nodes, seed = built.seed, counts = built.counts;
@@ -211,27 +221,34 @@ function PersonMindMap({ p, following, centerName }) {
     const w = el.clientWidth, h = el.clientHeight;
     if (w < 10 || h < 10) return null;
     let x0 = -220, y0 = -220, x1 = 220, y1 = 220;
+    if (still) { x0 = y0 = Infinity; x1 = y1 = -Infinity; }   // no empty seed frame to pad out
     for (const k in pos) {
       const pt = pos[k];
       x0 = Math.min(x0, pt.x); y0 = Math.min(y0, pt.y);
       x1 = Math.max(x1, pt.x); y1 = Math.max(y1, pt.y);
     }
-    x0 -= 130; x1 += 130; y0 -= 110; y1 += 110;
-    const z = Math.min(0.8, w / (x1 - x0), h / (y1 - y0));
+    if (!isFinite(x0)) return null;
+    // a still hides every answer label, so it only needs air for the handful of
+    // branch names — the label-clearance padding the live map wants would shrink
+    // the whole constellation past the point where a hollow dot reads as hollow
+    const padX = still ? 60 : 130, padY = still ? 54 : 110;
+    x0 -= padX; x1 += padX; y0 -= padY; y1 += padY;
+    const z = Math.min(still ? 1 : 0.8, w / (x1 - x0), h / (y1 - y0));
     fitZRef.current = z;
     const cx = (x0 + x1) / 2, cy = (y0 + y1) / 2;
     return { x: w / 2 - cx * z, y: h / 2 - cy * z, z };
   };
 
-  // first fit — retry until the pane is measurable
+  // first fit — retry until the pane is measurable (capped, so a pane that
+  // never lays out can't leave a timer bouncing for the life of the session)
   useEffect(() => {
     if (view) return;
-    let cancelled = false;
+    let cancelled = false, tries = 0;
     const tryFit = () => {
       if (cancelled) return;
       const t = fitAllTarget();
       if (t) setView(t);
-      else setTimeout(tryFit, 120);
+      else if (++tries < 60) setTimeout(tryFit, 120);
     };
     tryFit();
     return () => { cancelled = true; };
@@ -354,7 +371,7 @@ function PersonMindMap({ p, following, centerName }) {
 
   useEffect(() => {
     const el = ref.current;
-    if (!el) return;
+    if (!el || still) return;
     const handler = (e) => {
       e.preventDefault();
       const r = el.getBoundingClientRect();
@@ -521,6 +538,7 @@ function PersonMindMap({ p, following, centerName }) {
       kept.push({ x0: sx - 22, x1: sx + 22, y: pt.y * z });   // the hub dot itself is keep-out
     });
     const cands = [];
+    if (still) return keep;   // a still shows branch names only
     nodes.forEach((n) => {
       const pt = pos[n.id];
       if (!pt || hidden(n) || n.quiet) return;   // group level: mass without labels
@@ -567,14 +585,14 @@ function PersonMindMap({ p, following, centerName }) {
   );
 
   return (
-    <div className={'mmt-root' + (openGroup ? ' is-ingroup' : '')} data-screen-label="their-map">
+    <div className={'mmt-root' + (openGroup ? ' is-ingroup' : '') + (still ? ' is-still' : '')} data-screen-label="their-map">
       <div
         className="mmt-canvas is-dots"
         ref={ref}
-        onPointerDown={onPointerDown}
-        onPointerMove={onPointerMove}
-        onPointerUp={onPointerUp}
-        onPointerCancel={onPointerUp}
+        onPointerDown={still ? undefined : onPointerDown}
+        onPointerMove={still ? undefined : onPointerMove}
+        onPointerUp={still ? undefined : onPointerUp}
+        onPointerCancel={still ? undefined : onPointerUp}
       >
         <div className="mmt-world" style={{ transform: `translate(${view.x}px, ${view.y}px) scale(${view.z})` }}>
           <div className="mmt-ground" aria-hidden="true"></div>
@@ -667,19 +685,19 @@ function PersonMindMap({ p, following, centerName }) {
             if (!pt) return null;
             const cat = catOf(n);
             const isHid = hidden(n);
-            const sz = n.sub ? 9 : n.daily ? 12.5 : 11 + pmmHash(seed + n.id) * 3;
-            const showLab = !n.quiet && labKeep.has(n.id);
+            const sz = n.sub ? 9 : n.daily ? (still ? 15 : 12.5) : 11 + pmmHash(seed + n.id) * 3;
+            const showLab = !still && !n.quiet && labKeep.has(n.id);
             const labL = (pt.x * view.z + view.x) > (ref.current ? ref.current.clientWidth : 480) / 2;
             const dim = !inHl(n);
             return (
               <button
                 type="button"
                 key={n.id}
-                className={'mmt-node mmt-dotnode' + (n.sub ? ' is-leaf' : '') + (sel === n.id ? ' is-sel' : '') + (showLab ? ' is-showlab' : '') + (dim ? ' is-dim' : '') + (labL ? ' is-labL' : '') + (n.daily && !n.maj ? ' is-rare' : '')}
+                className={'mmt-node mmt-dotnode' + (n.sub ? ' is-leaf' : '') + (sel === n.id ? ' is-sel' : '') + (showLab ? ' is-showlab' : '') + (dim ? ' is-dim' : '') + (labL ? ' is-labL' : '') + (!still && n.daily && !n.maj ? ' is-rare' : '') + (still && n.same === false ? ' is-differ' : '')}
                 style={{
                   '--hue': cat ? cat.hue : 250,
                   width: sz, height: sz,
-                  opacity: isHid ? 0.22 : undefined,
+                  opacity: isHid ? 0.22 : (still && !n.sub && n.same == null ? 0.3 : undefined),
                   pointerEvents: isHid ? 'none' : undefined,
                   transform: `translate(${pt.x}px, ${pt.y}px) translate(-50%, -50%) scale(${itemScale})`,
                 }}
@@ -702,7 +720,7 @@ function PersonMindMap({ p, following, centerName }) {
       </div>
 
       {/* floating chrome — same rail as the Map tab */}
-      {Chips ? (
+      {Chips && !still ? (
         <Chips
           cats={CATS}
           activeCat={activeCat}
@@ -711,14 +729,14 @@ function PersonMindMap({ p, following, centerName }) {
           onHome={() => { if (openGroup) { setSel(null); setHlCat(null); setOpenGroup(null); } else clearSel(); }}
         ></Chips>
       ) : null}
-      {lockedN > 0 && !sel ? (
+      {lockedN > 0 && !sel && !still ? (
         <div className="mmt-hint mmt-ui">{lockedN} details hidden · friends see everything</div>
       ) : null}
-      <div className="mmt-zoomctl mmt-ui">
+      <div className="mmt-zoomctl mmt-ui" style={still ? { display: 'none' } : undefined}>
         {/* pinch / double-tap / wheel handle zoom — only "fit" needs a button */}
         <button className="fitb" onClick={() => { const t = fitAllTarget(); if (t) tweenTo(t); }} aria-label="Fit map">⌖</button>
       </div>
-      {recenter ? (
+      {recenter && !still ? (
         <button
           className="mmt-recenter mmt-ui"
           style={{ left: recenter.x, top: recenter.y }}
@@ -731,7 +749,7 @@ function PersonMindMap({ p, following, centerName }) {
       ) : null}
 
       {/* read-only detail card */}
-      {selCat ? (
+      {still ? null : selCat ? (
         <div className="mmt-card mmt-ui" style={{ '--hue': cardHue }}>
           <button className="mmt-card-x" onClick={clearSel} aria-label="Close">✕</button>
           <div className="mmt-kicker">{selCat.label} · their map</div>
@@ -777,13 +795,18 @@ function PersonMindMap({ p, following, centerName }) {
 
 window.PersonMindMap = PersonMindMap;
 
+  PersonMindMapImpl = PersonMindMap;
 })();
 
 ;globalThis.pmmHash = typeof pmmHash === 'undefined' ? globalThis.pmmHash : pmmHash;
 ;globalThis.pmmRng = typeof pmmRng === 'undefined' ? globalThis.pmmRng : pmmRng;
 ;globalThis.pmmBuild = typeof pmmBuild === 'undefined' ? globalThis.pmmBuild : pmmBuild;
-;globalThis.PersonMindMap = typeof PersonMindMap === 'undefined' ? globalThis.PersonMindMap : PersonMindMap;
 ;globalThis.PMM_ZLAB = typeof PMM_ZLAB === 'undefined' ? globalThis.PMM_ZLAB : PMM_ZLAB;
 ;globalThis.pmmCap = typeof pmmCap === 'undefined' ? globalThis.pmmCap : pmmCap;
 ;globalThis.pmmSlug = typeof pmmSlug === 'undefined' ? globalThis.pmmSlug : pmmSlug;
 ;globalThis.PMM_POOLS = typeof PMM_POOLS === 'undefined' ? globalThis.PMM_POOLS : PMM_POOLS;
+
+// A live binding, not a wrapper component: the IIFE assigns it during module
+// evaluation, so every consumer sees the real component rather than an extra
+// render boundary around it.
+export { PersonMindMapImpl as PersonMindMap };

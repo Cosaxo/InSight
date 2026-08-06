@@ -3,7 +3,7 @@
 # WHY A CRON AND NOT CI. Every other check in this repo answers "is this
 # change safe". This one answers "has the ground moved", and the ground here
 # moves without commits: the deck runway shortens by one every midnight
-# whether or not anyone opened a pull request (D30/D42). A check whose
+# whether or not anyone opened a pull request (D30/D47). A check whose
 # subject changes on its own belongs on a clock, not on a diff — the same
 # split security-audit.yml makes for `npm audit`.
 #
@@ -142,6 +142,6 @@ jobs:
 
       # Last, and allowed to fail the run. A red scheduled job emails whoever
       # owns the repo and blocks nobody's pull request, which is the whole
-      # reason this lives on a clock instead of in CI (D42).
+      # reason this lives on a clock instead of in CI (D47).
       - name: Operator gate
         run: node scripts/pulse.mjs --check

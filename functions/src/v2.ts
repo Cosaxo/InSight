@@ -65,6 +65,42 @@ export const AGG_MIN_N = 5;
 // few enough voters to guess among.
 const PUBLISH_EVERY = 5;
 
+// ── questions that never slice (D44) ────────────────────────────
+//
+// The political items are Art. 9 special-category data, and D8 treats them
+// that way everywhere the *result vector* is concerned: it stays in the
+// owner doc, never sliced, never published. The eighteen ITEMS those
+// results are computed from ship as ordinary feed cards — `surface: "test"`,
+// which deck.ts routes into the live feed alongside `surface: "feed"` — so
+// they reached the vote path below like any other question and folded into
+// the per-anchor breakdown like any other question. That published each
+// political item's split by city, gender, age band, education and
+// relationship, to any signed-in reader, while docs/data-inventory.md told
+// store reviewers political data is "never sliced by, never published".
+//
+// The counts still publish. What is withheld is the demographic cross-tab —
+// the slice, not the split. D44 has the arithmetic and the alternatives.
+//
+// Derived from the committed bank at module load, not read per answer:
+// v2content.ts is already imported for the seed, so this costs one pass
+// over the bank at cold start and NO Firestore read on the hot path — which
+// matters, because the vote path's whole design is that it never reads the
+// question doc (the catalog path's read is the documented exception).
+// check:content holds v2content.ts byte-identical to /content on the deploy
+// path, so a new political item joins this set by existing.
+export const POLITICAL_QIDS: ReadonlySet<string> = new Set(
+  V2_QUESTIONS.filter((q) => q.test === "political").map((q) => q.id),
+);
+
+// The predicate, exported because the set alone cannot be asserted against
+// intent — a test that reads POLITICAL_QIDS and re-derives it from
+// V2_QUESTIONS proves only that Set works. slicing.test.ts asserts this
+// answers false for every political item the bank actually ships, and true
+// for the non-political items that share their surface.
+export function slicesDemographics(qid: string): boolean {
+  return !POLITICAL_QIDS.has(qid);
+}
+
 // How long a ledger entry lives (expireAt powers the Firestore TTL policy —
 // SHIP-CHECKLIST §5). Two jobs with very different horizons share the doc:
 //
@@ -356,9 +392,17 @@ export const onV2AnswerCreated = onDocumentCreated(
         // Per-entity anchor slices, transposed foldAnchors with its own
         // per-cell entity cap (pure.ts, D17). Same document, same D7
         // arithmetic as the vote path's `by`.
-        const entBy: BreakdownCounts =
-          (priv.exists && (priv.get("entBy") as BreakdownCounts)) || {};
-        foldCanonAnchors(entBy, snap.get("anchors"), key);
+        //
+        // D44 applies here too, though no political question can currently
+        // reach this path — the eighteen are type "scale" and this branch
+        // needs an `entity`. The guard is here anyway because the cost is
+        // one condition and the alternative is a trap that reopens silently
+        // the day someone ships a catalog question with test: "political".
+        const entSlices = slicesDemographics(qid);
+        const entBy: BreakdownCounts = entSlices
+          ? (priv.exists && (priv.get("entBy") as BreakdownCounts)) || {}
+          : {};
+        if (entSlices) foldCanonAnchors(entBy, snap.get("anchors"), key);
         tx.set(eventRef, ledgerEntry(event.params.uid, qid));
         // Bounded growth: `ent` is capped by catalogue validation (~1k
         // entries); `entBy` by the bucket cap × its own per-cell entity
@@ -421,9 +465,17 @@ export const onV2AnswerCreated = onDocumentCreated(
       // Answers written before any anchors are collected simply carry
       // `anchors: {}` and fold to nothing, so this is inert until there is
       // something to slice by — see D8.
-      const by: BreakdownCounts =
-        (priv.exists && (priv.get("by") as BreakdownCounts)) || {};
-      foldAnchors(by, snap.get("anchors"), optionIdx);
+      //
+      // D44: political items never slice. Reading `{}` rather than the
+      // stored map — instead of only skipping the fold — is deliberate:
+      // privRef is written with merge:false below, so the next answer to a
+      // political question also ERASES any breakdown folded before this
+      // guard existed, rather than carrying it forward untouched forever.
+      const slices = slicesDemographics(qid);
+      const by: BreakdownCounts = slices
+        ? (priv.exists && (priv.get("by") as BreakdownCounts)) || {}
+        : {};
+      if (slices) foldAnchors(by, snap.get("anchors"), optionIdx);
       tx.set(eventRef, ledgerEntry(event.params.uid, qid));
       tx.set(privRef, { counts, total, by }, { merge: false });
       // The public mirror: k-floored, and deliberately without a fresh

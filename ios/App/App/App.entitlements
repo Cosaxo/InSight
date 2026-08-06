@@ -15,10 +15,20 @@
 	<key>aps-environment</key>
 	<string>$(APS_ENVIRONMENT)</string>
 	<!-- Invite links (universal links): iOS verifies this domain against
-	     /.well-known/apple-app-site-association at install time. The AASA
-	     ships with a TEAM_ID placeholder (see SHIP-CHECKLIST), so
-	     verification fails harmlessly until the real ID lands — links open
-	     the hosted fallback page instead of the app, which still works. -->
+	     /.well-known/apple-app-site-association at install time. That file
+	     carries the real Team ID as of 2026-08-05 (it held a placeholder
+	     before, and this comment said so) — so verification now depends on
+	     hosting having been redeployed since, plus iOS's own CDN fetch,
+	     which is cached and can take a day. Until both, links open the
+	     hosted fallback page instead of the app, which still works.
+
+	     This entitlement is why the App ID needs the Associated Domains
+	     capability enabled: a provisioning profile cannot grant an
+	     entitlement the App ID does not have, so missing it fails the
+	     ARCHIVE, not just the links. -->
+	<!-- (App ID capabilities registered 2026-08-05: Push Notifications +
+	     Associated Domains, and deliberately nothing else — an unused
+	     capability is an entitlement to carry and a question to answer.) -->
 	<key>com.apple.developer.associated-domains</key>
 	<array>
 		<string>applinks:prvfire33.web.app</string>

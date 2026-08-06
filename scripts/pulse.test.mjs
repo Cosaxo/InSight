@@ -34,7 +34,7 @@ import {
 const read = (rel) => readFileSync(join(ROOT, rel), "utf8");
 
 describe("cost-arith reads its constants from source, not from memory", () => {
-  // The whole point of D42's fix: these used to be retyped, and the model
+  // The whole point of D47's fix: these used to be retyped, and the model
   // spent two days disagreeing with the code because nothing compared them.
   // If someone re-hardcodes a value, these fail.
   it("DECK_DAYS matches src/v2/data/deck.ts", () => {
@@ -58,7 +58,7 @@ describe("cost-arith reads its constants from source, not from memory", () => {
   });
 
   it("the reseed line reflects D34 — the delta, not the whole bank", () => {
-    // The defect D42 found, pinned so it cannot come back: a returning user
+    // The defect D47 found, pinned so it cannot come back: a returning user
     // pays for the questions a promotion CHANGED, not for the bank.
     const { model, bank } = costModel({});
     const { r } = model(5000, true);
@@ -307,34 +307,64 @@ describe("the rendered page", () => {
     expect(even).not.toContain("days with no reading");
   });
 
-  it("renders the scorecard block that has never run in production", () => {
-    // Launch day is otherwise this code's FIRST execution. Fixture shaped
-    // like question-scorecard.mjs's committed output.
-    const withScorecard = {
-      ...p,
-      pipeline: {
-        ...p.pipeline,
-        scorecard: {
-          present: true,
-          generatedAt: "2026-08-01T00:00:00.000Z",
-          ageDays: 3,
-          staleness: "fresh",
-          scoredQuestions: 12,
-          evennessBuckets: bucketEvenness([
-            { evenness: 0.1 }, { evenness: 0.45 }, { evenness: 0.9 }, { evenness: 0.95 },
-          ]),
-          totalAnswers: 4210,
-          retireProposals: 2,
-        },
-      },
+  it("renders a populated scorecard, built from the REAL artifact's shape", () => {
+    // This test used to fixture a shape I invented, because no scorecard
+    // existed to look at — and the collector had invented the same shape, so
+    // the two agreed and proved nothing. When the first real
+    // content/scorecard.json landed, the collector read four fields that do
+    // not exist and reported zero. Zero also happened to be the true answer
+    // pre-launch, which is exactly why it survived.
+    //
+    // So the fixture is now DERIVED FROM THE COMMITTED FILE: real field
+    // names, with answers pushed in to simulate the post-launch state the
+    // collector has still never seen for real.
+    const real = JSON.parse(read("content/scorecard.json"));
+    expect(Array.isArray(real.perQuestion)).toBe(true);
+    expect(real.coverage).toBeDefined();
+
+    const withAnswers = {
+      ...real,
+      coverage: { ...real.coverage, scored: 3, unserved: 80, belowFloor: 2 },
+      retireProposals: [{ qid: "daily-000" }, { qid: "daily-001" }],
+      perQuestion: real.perQuestion.map((q, i) =>
+        i < 3 ? { ...q, served: true, total: 1400 + i, evenness: [0.12, 0.51, 0.93][i] } : q),
     };
-    const html = renderPulse(withScorecard, []);
-    expect(html).toContain("4,210");
-    expect(html).toContain("Retire proposals");
+    const sc = { ...p.pipeline.scorecard };
+    // Re-run the collector's own arithmetic over the doctored artifact.
+    sc.scoredQuestions = withAnswers.coverage.scored;
+    sc.unserved = withAnswers.coverage.unserved;
+    sc.belowFloor = withAnswers.coverage.belowFloor;
+    sc.questionsTracked = withAnswers.coverage.questions;
+    sc.totalAnswers = withAnswers.perQuestion.reduce((a, q) => a + (q.total || 0), 0);
+    sc.evennessBuckets = bucketEvenness(withAnswers.perQuestion);
+    sc.retireProposals = withAnswers.retireProposals.length;
+
+    expect(sc.totalAnswers).toBe(1400 + 1401 + 1402);
+    const byLabel = Object.fromEntries(sc.evennessBuckets.map((b) => [b.label, b.count]));
+    expect(byLabel).toMatchObject({ landslide: 1, leaning: 1, even: 1 });
+
+    const html = renderPulse({ ...p, pipeline: { ...p.pipeline, scorecard: sc } }, []);
+    expect(html).toContain("4,203");
     expect(html).toContain("landslide");
     expect(html).not.toContain("No scorecard yet");
+    // and the "nothing has cleared the floor" empty state must step aside
+    expect(html).not.toContain("nothing has cleared the floor yet");
     expect(html).not.toContain("undefined");
     expect(html).not.toContain("NaN");
+  });
+
+  it("reads the committed scorecard's real field names, not invented ones", () => {
+    // The regression guard proper: if collectScorecard goes back to reading
+    // fields the artifact does not have, these disagree with the file.
+    const real = JSON.parse(read("content/scorecard.json"));
+    const sc = p.pipeline.scorecard;
+    expect(sc.present).toBe(true);
+    expect(sc.questionsTracked).toBe(real.coverage.questions);
+    expect(sc.scoredQuestions).toBe(real.coverage.scored);
+    expect(sc.unserved).toBe(real.coverage.unserved);
+    expect(sc.totalAnswers).toBe(real.perQuestion.reduce((a, q) => a + (q.total || 0), 0));
+    expect(sc.retireProposals).toBe(real.retireProposals.length);
+    expect(sc.learnCards).toBe(real.learn.coverage.cards);
   });
 
   it("escapes content rather than letting a prompt close a tag", () => {

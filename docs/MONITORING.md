@@ -20,7 +20,7 @@ Two instruments, neither of them a view:
 | --- | --- | --- |
 | `npm run costs` | prints the predicted bill at five sizes | anything about what the bill nets against |
 | `npm run scorecard` | scores questions the crowd has answered | anything before launch, and no history — one output path, overwritten |
-| `monitoring/*.json` | two alert policies, applied by hand | which of the other 13 functions has no alert |
+| `monitoring/*.json` | two alert policies, put live by `npm run monitoring:apply` | which of the other 13 functions has no alert |
 
 Between them sat things nobody was computing at all: how many days of
 question runway are left, whether anything is already written and waiting
@@ -203,9 +203,18 @@ no monitoring role". Line 103 of the same document says that account holds
 conclusion still does**, for two better reasons: a policy is useless
 without a notification channel id, which is not in the repo and should not
 be; and a pipeline that silently rewrites alert policies is a pipeline that
-can silently delete one. Applied by hand, deliberately — but not for the
-reason written down. The console reports policies as *committed*, never as
-*deployed*, because the repo cannot know.
+can silently delete one. Kept off the pipeline deliberately — but not for
+the reason written down. The console reports policies as *committed*, never
+as *deployed*, because the repo cannot know.
+
+`scripts/apply-monitoring.mjs` (`npm run monitoring:apply`, landed on `main`
+while this branch was open) makes putting them live one idempotent, dry-run-
+by-default command, which is strictly better than four console steps. It had
+copied the retired reason into its own header; that copy is corrected here
+too. This is the failure mode worth naming rather than just fixing: a wrong
+reason does not stay in one file. It gets quoted forward by the next person
+who needs to explain the same decision, and by then the correction has to
+chase it.
 
 ## How it stays current
 
@@ -323,7 +332,7 @@ Four things that were tempting and are wrong:
 - **`boot = 15` is still hand-counted.** It is an inventory of `hydrate()`'s
   queries, correct against the code today, and nothing holds it there — add a
   query to `live.ts` and the model understates from then on, silently. The
-  four constants beside it now read from source (D42); this one has no single
+  four constants beside it now read from source (D47); this one has no single
   declaration to read, which is exactly why it is the likeliest to rot.
 - **`+ 0.2` in the writes formula is unexplained.** Presumably profile and
   anchor writes. It is the only unsourced number in the cost model and it was

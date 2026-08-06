@@ -15,16 +15,7 @@ export const IS_DATA = {
     job: "Editor · independent press",
     education: "MA Literature · Univ. of Oslo",
     personality: { O: 78, C: 62, E: 41, A: 69, N: 28 }, // Big Five
-    political: { econ: -22, social: -18, foreign: -18, env: 46, tech: 12, auth: -32, estab: 12 }, // -100..100 each (social kept for the legacy 2D compass)
-    politicalSub: {
-      // 18 sub-positions, three per axis (-100..100)
-      econ:    { tax: -34, redistribution: -28, market: -8, label: 'mixed economy, tilt toward redistribution' },
-      estab:   { media: -6, experts: 30, system: -18, label: 'trusts experts, doubts the machine' },
-      foreign: { trade: -24, defence: 6, migration: -36, label: 'open borders, cooperative posture' },
-      env:     { climate: 64, biodiv: 52, urbanism: 22, label: 'climate-first, comfortable with cities' },
-      tech:    { ai: -8, biotech: 28, surveil: -54, label: 'precaution on AI, allergy to surveillance' },
-      auth:    { hierarchy: -38, tradition: -22, deference: -34, label: 'horizontal, sceptical of authority' },
-    },
+    political: { econ: -22, social: -18, foreign: -18, env: 46, tech: 12, auth: -32, estab: 12 }, // -100..100 each (social positions you against the ideology landmarks)
     politicalIdentity: { name: 'Green-Left Internationalist', tag: 'libertarian green, cooperative abroad' },
     values: { indiv: -14, change: 28 },
     morals: {
@@ -247,27 +238,6 @@ export const IS_DATA = {
     { id: 'tech-prog',   name: 'Technoprogressive',       econ:  18, social: -22 },
   ],
 
-  // Named thinkers — small marks on the compass for orientation
-  ideologyMarks: [
-    { name: 'Mill',     econ:  20, social: -55 },
-    { name: 'Marx',     econ: -82, social:  -8 },
-    { name: 'Rand',     econ:  84, social: -76 },
-    { name: 'Hobbes',   econ:  10, social:  78 },
-    { name: 'Solnit',   econ: -56, social: -52 },
-    { name: 'Rawls',    econ: -28, social: -18 },
-  ],
-
-  // The 6 axes of the political compass — labels and the people-aggregate average
-  // for each axis (used to draw a translucent comparison ring on the radar).
-  politicalAxes: [
-    { id: 'econ',    label: 'economic',    poles: ['state','market'],            avgCircle: -8,  avgWorld: 22 },
-    { id: 'auth',    label: 'authority',   poles: ['liberty','authority'],       avgCircle: -12, avgWorld: 8  },
-    { id: 'foreign', label: 'foreign',     poles: ['cooperative','sovereign'],   avgCircle: -8,  avgWorld: 14 },
-    { id: 'env',     label: 'environment', poles: ['extractive','protective'],   avgCircle: 28,  avgWorld: 6  },
-    { id: 'tech',    label: 'technology',  poles: ['precaution','acceleration'], avgCircle: 6,   avgWorld: 18 },
-    { id: 'estab',   label: 'populism',    poles: ['establishment','outsider'],  avgCircle: 4,   avgWorld: 12 },
-  ],
-
   // Skill categories
   skillCats: [
     { id: "sport",    label: "Sport",     hue: 12,  glyph: "◉" },
@@ -407,7 +377,6 @@ export const IS_DATA = {
     world:   { sport: 60, outdoor: 30, craft: 22, mind: 25, language: 56, music: 44, kitchen: 56, tech: 38 },
   },
 
-
   groups: [
     // joined
     { id: "tennis", name: "Tennis", cat: "sports", members: 9400, match: 84, color: "sienna", vibe: "doubles · clay · post-match coffee", joined: true,
@@ -534,7 +503,6 @@ export const IS_DATA = {
   connections: [
     ["f1","f2"], ["f1","f4"], ["f2","f3"], ["f3","f4"], ["f1","p1"], ["f4","p4"], ["p1","p3"], ["p2","p3"], ["p1","p2"], ["p5","p3"], ["p4","p6"], ["f3","p5"]
   ],
-
 
   // Aggregate profiles for comparison charts.
   // Each scope has: big5 averages, political (econ, social), n (sample size)
@@ -678,11 +646,6 @@ export const IS_DATA = {
     },
   },
 
-
-
-
-
-
   // Life used / remaining — born 1991-04-12, life expectancy 84
   life: {
     bornISO: "1991-04-12",
@@ -693,7 +656,6 @@ export const IS_DATA = {
     weeksLeft: 2536,
   },
 
-
   // On this day — lines resurfaced from old logs, same calendar date
   lookback: [
     { yearsAgo: 1, date: "June 10, 2025", weather: "sun",
@@ -703,9 +665,6 @@ export const IS_DATA = {
       note: "First night in the Grünerløkka flat. Boxes everywhere, but the light through the kitchen window — I knew.",
       where: "Oslo" },
   ],
-
-
-
 
 };
 

@@ -286,12 +286,25 @@ exactly the one that looks like nothing from the outside — the app keeps
 serving, the Mirror just stops moving while Eventarc piles up redeliveries
 for ~7 days.
 
+> **One command applies all of this**, idempotently and dry-run by default:
+>
+> ```bash
+> npm run monitoring:apply -- --email you@example.com           # report
+> npm run monitoring:apply -- --email you@example.com --apply   # do it
+> ```
+>
+> It creates the channel, the log-based metric and both policies in the
+> order below, skipping whatever already exists. The manual steps stay
+> written out because the script is a convenience over them, not a
+> replacement for knowing what it did — and because the reason each object
+> exists is the useful part.
+
 `monitoring/onV2AnswerCreated-errors.json` is a Cloud Monitoring policy
 that fires on any `severity>=ERROR` from that trigger. It is **not applied
 by the pipeline**, for two reasons — neither of them the one this paragraph
 used to give.
 
-> **Correction (2026-08-04, D42).** It said "the deploy service account has
+> **Correction (2026-08-04, D47).** It said "the deploy service account has
 > no monitoring role". It has `Editor` + `Firebase Admin` (see the IAM note
 > above), and `Editor` includes `monitoring.alertPolicies.create`. The
 > permission was never the obstacle. The conclusion survives on better

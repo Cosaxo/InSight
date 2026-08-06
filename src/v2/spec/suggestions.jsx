@@ -18,10 +18,10 @@ function useSuggestions() {
   return window.SUGGESTIONS;
 }
 
-const sgHueCol = (hue) => 'oklch(0.55 0.14 ' + (hue != null ? hue : 40) + ')';
+const sgHueCol = (hue) => 'oklch(0.52 0.14 ' + (hue != null ? hue : 40) + ')';
 // same side-hue rotation the daily uses — the preview feels like the real thing
-const sgOptCol = (tc, i, n) => (i === 0 ? tc : 'oklch(from ' + tc + ' 0.55 0.14 calc(h + ' + Math.round(i * (n > 2 ? 120 : 150)) + '))');
-const sgLabel = { fontFamily: 'var(--sans)', fontSize: 10.5, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--ink-3)' };
+const sgOptCol = (tc, i, n) => 'oklch(from ' + tc + ' 0.52 0.14 calc(h + ' + Math.round(i * (n > 2 ? 120 : 150)) + '))';
+const sgLabel = { fontFamily: 'var(--sans)', fontSize: 10.5, fontWeight: 700, letterSpacing: '0.09em', textTransform: 'uppercase', color: 'var(--ink-3)' };
 
 // answer-shape mark: 2 dots = this-or-that, 3 = dilemma/choice, line = scale.
 // Carries the type without a word of label.
@@ -56,7 +56,7 @@ function SgPreview({ s }) {
 
 // tiny state marks — one word each, so the board needs no legend
 function SgTag({ label, col }) {
-  return <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, flexShrink: 0, fontFamily: 'var(--sans)', fontSize: 10, fontWeight: 800, letterSpacing: '0.09em', textTransform: 'uppercase', lineHeight: 1, color: 'color-mix(in oklch, ' + col + ' 82%, var(--ink))', background: 'color-mix(in oklch, ' + col + ' 10%, transparent)', border: '0.5px solid color-mix(in oklch, ' + col + ' 30%, var(--rule))', borderRadius: 999, padding: '4px 8px 3px' }}>{label}</span>;
+  return <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, flexShrink: 0, fontFamily: 'var(--sans)', fontSize: 10.5, fontWeight: 800, letterSpacing: '0.09em', textTransform: 'uppercase', lineHeight: 1, color: 'color-mix(in oklch, ' + col + ' 82%, var(--ink))', background: 'color-mix(in oklch, ' + col + ' 10%, transparent)', border: '0.5px solid color-mix(in oklch, ' + col + ' 30%, var(--rule))', borderRadius: 999, padding: '4px 8px 3px' }}>{label}</span>;
 }
 
 // Board card — the question is the only prose. Support reads as the length of
@@ -125,7 +125,7 @@ function SgForm({ SG, onDone, onCancel }) {
   return (
     <div className="card" style={{ marginBottom: 16 }}>
       <div style={{ ...sgLabel, marginBottom: 7 }}>your question</div>
-      <input value={prompt} onChange={(e) => setPrompt(e.target.value)} placeholder="e.g. Sunrise or sunset?" autoFocus style={sgInput}></input>
+      <input value={prompt} onChange={(e) => setPrompt(e.target.value)} placeholder="e.g. Sunrise or sunset?" autoFocus autoComplete="off" autoCapitalize="sentences" enterKeyHint="done" style={sgInput}></input>
 
       <div style={{ ...sgLabel, margin: '14px 0 7px' }}>format</div>
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
@@ -234,7 +234,7 @@ function SuggestOverlay({ onClose }) {
       <div className="app-header">
         <button className="avatar-btn" onClick={onClose}>✕</button>
         <div className="h-title">suggest a <em>question</em></div>
-        <span style={{ width: 36, flexShrink: 0 }}></span>
+        <span style={{ width: 32, flexShrink: 0 }}></span>
       </div>
       <div className="app-body" style={{ paddingBottom: 44 }}>
         {formOpen ? (

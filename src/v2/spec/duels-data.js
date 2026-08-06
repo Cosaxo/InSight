@@ -259,35 +259,69 @@ import { IS_DATA } from './sample-data.js';
   // the tells are domestic, and the deep end is about what happens next. Same
   // shape as DUO_QS — light → deep, 2–4 options — so the ladder is identical.
   const DUO_QS_ROMANTIC = [
-    { prompt: 'A free evening, both home. Ideal version?', options: ['Out somewhere', 'Sofa, one film', 'Cooking together'] },
-    { prompt: 'How do they like being woken?', options: ['Slowly, with coffee', 'Left alone', 'Talked at immediately'] },
-    { prompt: 'A good apology from them looks like…', options: ['Words', 'A gesture', 'Time, then normal'] },
-    { prompt: 'You are 20 minutes late to dinner. Their read?', options: ['Fine, orders a drink', 'Says nothing, remembers it'] },
-    { prompt: 'Love lands hardest as…', options: ['Being told', 'Being helped', 'Being touched', 'Being chosen'] },
-    { prompt: 'Mid-argument, they want…', options: ['To finish it now', 'A pause', 'Space, then dinner'] },
-    { prompt: 'The better anniversary?', options: ['A plan they made', 'A day with nothing in it'] },
-    { prompt: 'Money in this relationship should be…', options: ['Fully shared', 'Mostly shared', 'Separate, split bills'] },
-    { prompt: 'Their idea of being taken care of?', options: ['Food made', 'Admin handled', 'Left in peace', 'Asked about'] },
-    { prompt: 'A whole weekend together, no phones. Bliss or too much?', options: ['Bliss', 'Too much'] },
-    { prompt: 'They had a hard day and did not say so. The tell?', options: ['Goes quiet', 'Cleans something', 'Talks about nothing else'] },
-    { prompt: 'Five years out, they picture…', options: ['Same city, more room', 'Somewhere new', 'Somewhere quiet'] },
-    { prompt: 'A big decision that affects you both. They…', options: ['Decide together, slowly', 'Want you to choose', 'Already decided'] },
-    { prompt: 'Would they tell you a truth that would hurt for a week?', options: ['Yes', 'Only if asked', 'No'] },
-    { prompt: 'Jealousy shows up in them as…', options: ['A question', 'A joke', 'Silence', "It doesn't"] },
-    { prompt: 'Kids, someday?', options: ['Yes', 'Open to it', 'No'] },
-    { prompt: 'The thing they would never compromise on?', options: ['Where they live', 'Their work', 'Their people', 'Their solitude'] },
-    { prompt: 'If you needed a year somewhere else, they would…', options: ['Come', 'Wait', 'Ask you not to go'] },
-    { prompt: 'What would make them feel most loved this year?', options: ['More time', 'More plans', 'More calm', 'More honesty'] },
-    { prompt: 'Old age, the two of you: side by side, or side by side and busy?', options: ['Side by side', 'Busy, together'] },
+    { d: 'day', prompt: 'A free evening, both home. Ideal version?', options: ['Out somewhere', 'Sofa, one film', 'Cooking together'] },
+    { d: 'day', prompt: 'How do they like being woken?', options: ['Slowly, with coffee', 'Left alone', 'Talked at immediately'] },
+    { d: 'heat', prompt: 'A good apology from them looks like…', options: ['Words', 'A gesture', 'Time, then normal'] },
+    { d: 'heat', prompt: 'You are 20 minutes late to dinner. Their read?', options: ['Fine, orders a drink', 'Says nothing, remembers it'] },
+    { d: 'day', prompt: 'Love lands hardest as…', options: ['Being told', 'Being helped', 'Being touched', 'Being chosen'] },
+    { d: 'heat', prompt: 'Mid-argument, they want…', options: ['To finish it now', 'A pause', 'Space, then dinner'] },
+    { d: 'day', prompt: 'The better anniversary?', options: ['A plan they made', 'A day with nothing in it'] },
+    { d: 'ahead', prompt: 'Money in this relationship should be…', options: ['Fully shared', 'Mostly shared', 'Separate, split bills'] },
+    { d: 'day', prompt: 'Their idea of being taken care of?', options: ['Food made', 'Admin handled', 'Left in peace', 'Asked about'] },
+    { d: 'day', prompt: 'A whole weekend together, no phones. Bliss or too much?', options: ['Bliss', 'Too much'] },
+    { d: 'heat', prompt: 'They had a hard day and did not say so. The tell?', options: ['Goes quiet', 'Cleans something', 'Talks about nothing else'] },
+    { d: 'ahead', prompt: 'Five years out, they picture…', options: ['Same city, more room', 'Somewhere new', 'Somewhere quiet'] },
+    { d: 'ahead', prompt: 'A big decision that affects you both. They…', options: ['Decide together, slowly', 'Want you to choose', 'Already decided'] },
+    { d: 'heat', prompt: 'Would they tell you a truth that would hurt for a week?', options: ['Yes', 'Only if asked', 'No'] },
+    { d: 'heat', prompt: 'Jealousy shows up in them as…', options: ['A question', 'A joke', 'Silence', "It doesn't"] },
+    { d: 'ahead', prompt: 'Kids, someday?', options: ['Yes', 'Open to it', 'No'] },
+    { d: 'ahead', prompt: 'The thing they would never compromise on?', options: ['Where they live', 'Their work', 'Their people', 'Their solitude'] },
+    { d: 'ahead', prompt: 'If you needed a year somewhere else, they would…', options: ['Come', 'Wait', 'Ask you not to go'] },
+    { d: 'ahead', prompt: 'What would make them feel most loved this year?', options: ['More time', 'More plans', 'More calm', 'More honesty'] },
+    { d: 'ahead', prompt: 'Old age, the two of you: side by side, or side by side and busy?', options: ['Side by side', 'Busy, together'] },
   ];
+  // three domains, not five: coverage arrives in ~12 days instead of 20, and
+  // three rows read at a glance where five become a table.
+  const DOMAINS = [
+    { id: 'day', label: 'everyday', noun: 'everyday self' },
+    { id: 'heat', label: 'under pressure', noun: 'pressure' },
+    { id: 'ahead', label: "what's ahead", noun: 'future' },
+  ];
+  const DOMAIN_MIN = 4; // fewer plays than this and the row is absent, not thin
+  // qualifying rows only — a row of one dot is noise dressed as insight
+  function domainRows(duo) {
+    if (!duo || !duo.domains) return [];
+    return DOMAINS.map((D) => {
+      const d = duo.domains[D.id]; if (!d) return null;
+      if (d.read.length < DOMAIN_MIN || d.by.length < DOMAIN_MIN) return null;
+      return { ...D, read: d.read, by: d.by, byMissed: d.by.filter((x) => !x).length };
+    }).filter(Boolean);
+  }
+  // the one place they read you worst — only if it CLEARLY stands out
+  function weakDomain(duo) {
+    const rows = domainRows(duo); if (rows.length < 2) return null;
+    const s = rows.slice().sort((a, b) => b.byMissed - a.byMissed);
+    return s[0].byMissed - s[1].byMissed >= 2 ? s[0] : null;
+  }
   const DUO_POOL = (pid) => (duoMode(pid) === 'romantic' ? DUO_QS_ROMANTIC : DUO_QS);
   function duoMode(pid) { return S.duoMode[pid] === 'romantic' ? 'romantic' : 'friends'; }
   function setDuoMode(pid, mode) { S.duoMode[pid] = mode === 'romantic' ? 'romantic' : 'friends'; save(); }
   // days already played (and revealed) with each partner; 0 = never played
-  const PLAYED = { f1: 6, f2: 5, f4: 3, f6: 2, f3: 0 };
+  const PLAYED = { f1: 24, f2: 5, f4: 3, f6: 2, f3: 0 };
   // how well YOU tend to read them / how well THEY tend to read you
   const READ_SKILL = { f1: 0.85, f2: 0.72, f4: 0.5, f6: 0.34, f3: 0.5 };
   const BY_SKILL = { f1: 0.9, f2: 0.75, f4: 0.4, f6: 0.62, f3: 0.5 };
+  // …and it is UNEVEN across domains — the whole point of the split. Without
+  // this, per-domain differences are just noise and the record says nothing.
+  const DOMAIN_BIAS = {
+    f1: { read: { day: 1.1, heat: 1.0, ahead: 0.55 }, by: { day: 1.1, heat: 0.5, ahead: 0.95 } },
+  };
+  function bias(pid, side, dom) {
+    const b = DOMAIN_BIAS[pid];
+    if (b && b[side] && b[side][dom] != null) return b[side][dom];
+    return 0.75 + h01('db' + pid + side + dom) * 0.5; // deterministic spread
+  }
+  const skillFor = (base, pid, side, dom) => Math.max(0.05, Math.min(0.97, (base || 0.5) * bias(pid, side, dom)));
   // partner already played today? (deterministic demo state)
   const PARTNER_TODAY = { f1: true, f2: false, f4: true, f6: false, f3: false };
 
@@ -306,7 +340,10 @@ import { IS_DATA } from './sample-data.js';
     const depth = Math.max(played - dayIdx, 0); // 0 = first day together
     const jit = Math.floor(h01('dqb' + pid + ':' + dayIdx) * 2);
     const pool = DUO_POOL(pid);
-    return pool[Math.min(depth * 2 + jit, pool.length - 1)];
+    const step = depth * 2 + jit;
+    // past the deep end, wrap instead of clamping — a long streak kept
+    // re-serving the last question forever, so late days carried no domain
+    return pool[step < pool.length ? step : pool.length - 1 - (step % pool.length)];
   }
   // one duel day; dayIdx 0 = today (yours from localStorage), 1+ = seeded history
   function duoDay(pid, dayIdx) {
@@ -318,9 +355,9 @@ import { IS_DATA } from './sample-data.js';
     const myAns = dayIdx === 0 ? ((S.duo[pid] || {}).a != null ? S.duo[pid].a : null)
       : Math.floor(h01('da' + key) * n);
     const myGuess = dayIdx === 0 ? ((S.duo[pid] || {}).g != null ? S.duo[pid].g : null)
-      : (h01('dg' + key) < (READ_SKILL[pid] || 0.5) ? theirAns : wrong(theirAns, 'dgw' + key));
+      : (h01('dg' + key) < skillFor(READ_SKILL[pid], pid, 'read', q.d) ? theirAns : wrong(theirAns, 'dgw' + key));
     const theirGuess = dayIdx === 0 ? null
-      : (h01('tg' + key) < (BY_SKILL[pid] || 0.5) ? myAns : wrong(myAns, 'tgw' + key));
+      : (h01('tg' + key) < skillFor(BY_SKILL[pid], pid, 'by', q.d) ? myAns : wrong(myAns, 'tgw' + key));
     const revealed = dayIdx >= 1 && dayIdx <= (PLAYED[pid] || 0);
     return {
       q, myAns, myGuess, theirAns, theirGuess, revealed,
@@ -345,18 +382,31 @@ import { IS_DATA } from './sample-data.js';
       const read = { right: 0, total: played };
       const readBy = { right: 0, total: played };
       const misses = []; // where THEY misread YOU — your impression gap
+      // the same tally split by what the question was ABOUT: which parts of
+      // each other you actually read. Gated in the UI until deep enough.
+      const domains = {}; DOMAINS.forEach((k) => { domains[k.id] = { read: [], by: [] }; });
       for (let d = 1; d <= played; d++) {
         const day = duoDay(p.id, d);
         if (day.readRight) read.right++;
-        if (day.byRight) readBy.right++;
-        else misses.push({ pid: p.id, name: p.name, dayIdx: d, q: day.q.prompt, guessed: day.q.options[day.theirGuess], actual: day.q.options[day.myAns] });
+        // `misses` keeps its own `else` — v17 inserted the domain tally
+        // between these two statements and orphaned it onto `if (dm)`, so
+        // impressions filled with every day whose question had no domain
+        // instead of every day they misread you. Braces, so the next
+        // insertion here cannot repeat it.
+        if (day.byRight) {
+          readBy.right++;
+        } else {
+          misses.push({ pid: p.id, name: p.name, dayIdx: d, q: day.q.prompt, guessed: day.q.options[day.theirGuess], actual: day.q.options[day.myAns] });
+        }
+        const dm = domains[day.q.d];
+        if (dm) { dm.read.push(!!day.readRight); dm.by.push(!!day.byRight); }
       }
       const state = duoState(p.id);
       const streak = played + (state === 'sealed' ? 1 : 0);
-      return { ...p, played, read, readBy, misses, state, streak, mode: duoMode(p.id) };
+      return { ...p, played, read, readBy, domains, misses, state, streak, mode: duoMode(p.id) };
     });
     const invited = Object.keys(S.duoInv).map((pid) => personOf(pid)).filter(Boolean)
-      .map((p) => ({ ...p, played: 0, read: { right: 0, total: 0 }, readBy: { right: 0, total: 0 }, misses: [], state: 'invited', streak: 0, mode: duoMode(p.id) }));
+      .map((p) => ({ ...p, played: 0, read: { right: 0, total: 0 }, readBy: { right: 0, total: 0 }, domains: null, misses: [], state: 'invited', streak: 0, mode: duoMode(p.id) }));
     return live.concat(invited);
   }
   function pendingDuos() { return partners().filter((p) => p.state === 'turn' || p.state === 'start').length; }
@@ -433,7 +483,7 @@ import { IS_DATA } from './sample-data.js';
     createGroup, addGroupMembers, removeGroupMember, leaveGroup,
     SCENARIOS, roleVotes,
     duoQ, duoDay, myDuo, answerDuo, partnerToday, duoState, partners, pendingDuos, impressions,
-    duoMode, setDuoMode,
+    duoMode, setDuoMode, DOMAINS, domainRows, weakDomain,
     duoAvailable, startDuo, cancelDuo, endDuo,
     resetToday,
     subscribe: (f) => { listeners.add(f); return () => listeners.delete(f); },

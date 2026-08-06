@@ -48,7 +48,7 @@ single-region database is roughly half.
 | Scale | 50,000 | 7.5 M | 590 K | 173 | 1.60 | **175** |
 | Hit | 500,000 | 638 M | 5.9 M | 11,877 | 33 | **11,910** |
 
-> **Corrected 2026-08-04 (D42).** This table used to charge every returning
+> **Corrected 2026-08-04 (D47).** This table used to charge every returning
 > user a full 369-document bank refetch per reseed, which is the *pre-D34*
 > world — and finding 1 below has said so in prose since D34 landed while
 > these numbers went on describing the version it fixed. The model had no
@@ -93,7 +93,7 @@ neither worth optimising. That is the intended shape.
 > so the 148 reads/user/day below becomes ~3. The rest of this section is
 > kept because it is the arithmetic that justified the change.
 >
-> **The tables above now say ~3 too** (D42, 2026-08-04). For two days they
+> **The tables above now say ~3 too** (D47, 2026-08-04). For two days they
 > did not: this note claimed the fix and the model kept charging 148,
 > because `cost-model.mjs` had no input for "documents changed per reseed"
 > — only whole-bank or nothing. A prose correction that the arithmetic
@@ -254,7 +254,7 @@ Two caveats worth carrying:
 
 - **The bill is almost entirely reads, and now it is one read source.**
   Two thirds of them were self-inflicted; the cache-bust half is closed
-  (D34) and the tables here finally reflect it (D42). The listener fan-out
+  (D34) and the tables here finally reflect it (D47). The listener fan-out
   half is recorded and deliberately not built, because D7's write ceiling
   binds ~3.5× earlier than it does. Below 50 k DAU there is no longer a
   read line worth optimising.

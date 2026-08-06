@@ -304,22 +304,28 @@
   --rule: oklch(0.905 0.006 74);
   --ink: oklch(0.216 0.011 70);
   --ink-2: oklch(0.41 0.011 68);
-  --ink-3: oklch(0.55 0.010 68);
+  --ink-3: oklch(0.51 0.010 68);
   --accent: var(--c-around);
   /* One accent family: every tab hue shares the same oklch lightness+chroma,
      so switching tabs reads as one app changing mood, not four apps. */
-  --c-today:  oklch(0.55 0.14 282);   /* dusk indigo — deliberately off the link-blue axis */
-  --c-around: oklch(0.55 0.14 40);    /* sienna  */
-  --c-world:  oklch(0.55 0.14 235);   /* indigo  */
-  --c-city:   oklch(0.55 0.14 150);   /* sage    */
-  --c-groups: oklch(0.58 0.14 85);    /* gold    */
-  --c-people: oklch(0.55 0.14 8);     /* rose — pulled off sienna's hue so 1v1 reads distinct from World */
-  --c-likeness: oklch(0.55 0.14 195);  /* petrol — "blueprint" of a person */
+  --c-today:  oklch(0.52 0.14 282);   /* dusk indigo — deliberately off the link-blue axis */
+  --c-around: oklch(0.52 0.14 40);    /* sienna  */
+  --c-world:  oklch(0.52 0.14 235);   /* indigo  */
+  --c-city:   oklch(0.52 0.14 150);   /* sage    */
+  --c-groups: oklch(0.53 0.14 85);    /* gold    */
+  --c-people: oklch(0.52 0.14 8);     /* rose — pulled off sienna's hue so 1v1 reads distinct from World */
+  --c-likeness: oklch(0.52 0.14 195);  /* petrol — "blueprint" of a person */
   --sienna: var(--c-around);
   --sage: var(--c-city);
   --ochre: oklch(0.70 0.135 78);
   --indigo: var(--c-world);
   --blush: oklch(0.88 0.04 30);
+  /* Legible ochre: for ochre TEXT on light ground, and for ochre fills that
+     carry white text. --ochre stays for bars, dots and untexted washes. */
+  --ochre-ink: oklch(0.52 0.135 78);
+  /* Accent deep enough to be read as text on the light grounds (>=4.5:1).
+     Re-declared on .app so it tracks the tab accent. */
+  --accent-ink: color-mix(in oklch, var(--accent), var(--ink) 12%);
   /* Accent-washed ground — the whole page breathes the tab's hue, one whisper
      above neutral. Derived from --accent, so tab switches glide it for free. */
   --surface-a: color-mix(in oklch, var(--surface) 98%, var(--accent));
@@ -341,6 +347,11 @@
 .app {
   width: 100%;
   height: 100%;
+  /* Re-declared here (not only :root) so the accent ink tracks the tab's
+     --accent — a :root declaration freezes it to the :root accent.
+     (--surface-a is NOT re-declared here: this repo's ground is a single
+     98% mix set at :root, unlike the prototype's per-tab 94%.) */
+  --accent-ink: color-mix(in oklch, var(--accent), var(--ink) 12%);
   background: var(--surface-a);
   color: var(--ink);
   font-family: var(--sans);
@@ -395,9 +406,40 @@
   font-weight: 800;
   letter-spacing: -0.03em;
 }
+/* Header centre: the wordmark at rest, the docked ruler once the feed has
+   scrolled. Both live here; only one is visible, and they crossfade in place.
+   flex:1 + centring reproduces exactly where space-between put the wordmark. */
+.h-center { flex: 1; min-width: 0; position: relative; display: flex; align-items: center; justify-content: center; height: 32px; }
+.h-center .h-title { transition: opacity 0.16s ease, transform 0.24s var(--ease-spring); }
+.h-dockslot { position: absolute; inset: 0; display: flex; align-items: center; opacity: 0; transform: translateY(5px); pointer-events: none; transition: opacity 0.18s ease, transform 0.26s var(--ease-spring); }
+.app[data-docked] .h-center .h-title { opacity: 0; transform: translateY(-6px); pointer-events: none; }
+.app[data-docked] .h-dockslot { opacity: 1; transform: none; pointer-events: auto; }
+.h-dockruler { display: flex; width: 100%; height: 32px; }
+.h-dockstop {
+  flex: 1; min-width: 0; position: relative;
+  display: flex; align-items: center; justify-content: center; gap: 5px;
+  border: none; background: none; padding: 0; cursor: pointer; -webkit-appearance: none; appearance: none;
+  font-family: var(--sans); font-size: 13.5px; font-weight: 650; letter-spacing: -0.02em;
+  color: var(--ink-3); transition: color 0.2s ease;
+}
+.h-dockstop.is-on { color: var(--ink); font-weight: 800; }
+.h-dockstop.is-on::after {
+  content: ''; position: absolute; left: 50%; bottom: 1px;
+  width: 16px; margin-left: -8px; height: 2px; border-radius: 99px;
+  background: var(--dacc, var(--accent));
+}
+/* Docked, the ruler is the header's job — the passive meter is glanceable
+   chrome and yields its ~110px so the three stops get real tap width. It
+   returns the moment you're back at the top. */
+.pm-chip { display: inline-flex; align-items: center; gap: 7px; flex-shrink: 0; border: 0.5px solid color-mix(in oklch, var(--rule), var(--ink) 22%); border-radius: 999px; padding: 5px 10px; transition: opacity 0.16s ease, max-width 0.26s var(--ease-spring), padding 0.26s var(--ease-spring), margin 0.26s var(--ease-spring); max-width: 200px; overflow: hidden; }
+.app[data-docked] .pm-chip { opacity: 0; flex-shrink: 1; min-width: 0; max-width: 0; padding-left: 0; padding-right: 0; border-width: 0; margin-right: -8px; pointer-events: none; }
+@media (prefers-reduced-motion: reduce) {
+  .h-center .h-title, .h-dockslot { transition: opacity 0.12s ease; transform: none !important; }
+}
+
 .app-header .h-title em {
   font-style: normal;
-  color: var(--accent);
+  color: var(--accent-ink);
   transition: color 0.4s ease;
   font-weight: 800;
 }
@@ -435,7 +477,9 @@
   cursor: pointer;
   display: flex; align-items: center; justify-content: center;
   letter-spacing: 0.02em;
-  transition: transform 0.22s var(--ease-spring), background 0.16s ease, border-color 0.16s ease, box-shadow 0.16s ease;
+  /* No background transition: `color` snaps on .is-on while a fading background
+     would leave the ✕ near-white on near-white for ~160ms. Both change at once. */
+  transition: transform 0.22s var(--ease-spring), border-color 0.16s ease, box-shadow 0.16s ease;
 }
 .avatar-btn:hover { border-color: color-mix(in oklch, var(--rule), var(--accent) 45%); box-shadow: 0 2px 8px -3px rgba(20,20,40,0.18); }
 .avatar-btn:active { transform: scale(0.92); }
@@ -487,7 +531,9 @@
   background: color-mix(in oklch, var(--surface-a) 92%, transparent);
   -webkit-backdrop-filter: blur(14px) saturate(1.4);
   backdrop-filter: blur(14px) saturate(1.4);
-  padding: 5px 12px 11px;
+  /* 20px, not 11: the home indicator sits 8–13px off the device bottom and was
+     drawing across the tab pill's lower edge. Clears it with room to spare. */
+  padding: 5px 12px 20px;
   display: flex;
   justify-content: center;
   position: relative;
@@ -533,8 +579,14 @@
 .tab-btn.is-active .glyph { animation: glyphPop 0.4s var(--ease-spring); }
 @keyframes glyphPop { 0% { transform: scale(0.82); } 100% { transform: scale(1); } }
 @media (prefers-reduced-motion: reduce) { .tab-btn.is-active .glyph { animation: none; } }
-.tab-btn.is-active { color: var(--accent); }
+.tab-btn.is-active { color: var(--accent-ink); }
 .tab-btn.is-active .glyph { color: color-mix(in oklch, var(--accent) 80%, var(--ink)); }
+
+/* nav v2 — one primary bar of four: glyph over label so it fits a phone and
+   keeps 44px targets, instead of a two-item pill plus a second row up top */
+.tabbar[data-n="4"] .tab-group { gap: 2px; max-width: 100%; }
+.tabbar[data-n="4"] .tab-btn { flex-direction: column; gap: 2px; padding: 5px 13px; min-height: 46px; font-size: 11px; font-weight: 650; letter-spacing: 0.02em; }
+.tabbar[data-n="4"] .tab-btn.is-active { font-weight: 800; }
 
 /* Hand-drawn rule */
 .rule { height: 0.5px; background: var(--rule); margin: 14px 0; border: none; }
@@ -556,6 +608,19 @@
   color: var(--ink-3);
   margin-bottom: 4px;
 }
+
+/* Micro-label tier, reusable. `.kicker` above is the BLOCK form; these are the
+   inline forms the app kept re-inventing — legend keys, axis captions, row keys.
+   Same spec, one place, so two micro-labels in the same row can't disagree
+   about size, weight or tracking. Swatch colour comes in as --lgc. */
+.klabel { font-family: var(--sans); font-size: 10.5px; font-weight: 700; letter-spacing: 0.09em; text-transform: uppercase; color: var(--ink-3); }
+.klabel--ink { color: var(--ink-2); }
+.klabel--accent { color: var(--accent-ink); }
+.legend { display: flex; flex-wrap: wrap; align-items: center; gap: 5px 16px; }
+.legend > * { display: inline-flex; align-items: center; gap: 6px; font-family: var(--sans); font-size: 10.5px; font-weight: 700; letter-spacing: 0.09em; text-transform: uppercase; color: var(--ink-3); white-space: nowrap; }
+.lg-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; box-sizing: border-box; background: var(--lgc, var(--ink-3)); box-shadow: inset 0 0 0 0.5px color-mix(in oklch, var(--ink) 16%, transparent); }
+.lg-dot[data-hollow] { background: var(--surface); border: 1.6px solid var(--lgc, var(--ink-3)); }
+.lg-bar { width: 11px; height: 2.5px; border-radius: 99px; flex-shrink: 0; background: var(--lgc, var(--ink-3)); }
 
 /* Card */
 .card {
@@ -633,9 +698,7 @@ button.card:active,
   transition: color 0.16s ease, background 0.16s ease, box-shadow 0.16s ease;
 }
 /* Scrollable variant — many tabs (profile), sizes each to its label */
-.subnav--scroll { flex-wrap: nowrap; overflow-x: auto; justify-content: flex-start; scrollbar-width: none;
-  -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 30px), transparent 100%);
-  mask-image: linear-gradient(to right, #000 calc(100% - 30px), transparent 100%); }
+.subnav--scroll { flex-wrap: nowrap; overflow-x: auto; justify-content: flex-start; scrollbar-width: none; }
 .subnav--scroll::-webkit-scrollbar { display: none; }
 .subnav--scroll .subnav-btn { flex: 0 0 auto; padding: 8px 13px; }
 .subnav-btn:hover { color: var(--ink-2); }
@@ -797,6 +860,9 @@ button.card:active,
   letter-spacing: -0.035em;
   line-height: 1;
   color: var(--ink);
+  /* figures change in place (population switches, count-ups) — fixed-width
+     digits so the number doesn't shimmy sideways as it settles */
+  font-variant-numeric: tabular-nums;
 }
 .fig-num em { font-style: normal; color: var(--accent); }
 
@@ -833,7 +899,7 @@ button.card:active,
 .mm-lensbtn { position: relative; z-index: 1; flex: 1; min-height: 44px; padding: 10px 8px; border: none; background: transparent; cursor: pointer; font-family: var(--sans); font-size: 14px; font-weight: 650; letter-spacing: -0.01em; color: var(--ink-2); transition: color 0.18s ease, transform 0.22s var(--ease-spring); }
 @media (hover: hover) { .mm-lensbtn:hover { color: var(--ink-2); } }
 .mm-lensbtn:active { transform: scale(0.96); }
-.mm-lensbtn.is-on { color: var(--accent); font-weight: 800; }
+.mm-lensbtn.is-on { color: var(--accent-ink); font-weight: 800; }
 .mm-lensthumb { position: absolute; z-index: 0; transition: transform 0.32s var(--ease-spring), opacity 0.18s ease; }
 .mm-lensthumb.is-off { opacity: 0; }
 /* 1 · segmented — pill track, sliding thumb, hairline separators */
@@ -844,10 +910,9 @@ button.card:active,
 [data-lens-style="segmented"] .mm-lensbtn.is-on::before, [data-lens-style="segmented"] .mm-lensbtn.is-on + .mm-lensbtn::before { opacity: 0; }
 /* 2 · underline — quiet text tabs, accent bar slides beneath */
 [data-lens-style="underline"] .mm-lensrow { border-top: 0.5px solid color-mix(in oklch, var(--rule), transparent 20%); }
-/* resting tick under every closed lens, so the row still reads as tabs */
-[data-lens-style="underline"] .mm-lensbtn::after { content: ''; position: absolute; left: 50%; bottom: 0; width: 18px; margin-left: -9px; height: 2.5px; border-radius: 99px; background: color-mix(in oklch, var(--ink-3) 32%, transparent); transition: opacity 0.18s ease; }
-[data-lens-style="underline"] .mm-lensbtn.is-on::after { opacity: 0; }
-[data-lens-style="underline"] .mm-lensbtn { min-height: 42px; }
+/* no resting tick under closed lenses — three short grey dashes read as broken
+   underlines, not as inactive tabs. Weight + the sliding accent bar carry state. */
+[data-lens-style="underline"] .mm-lensbtn { min-height: 44px; font-size: 14.5px; }
 [data-lens-style="underline"] .mm-lensbtn.is-on { color: var(--ink); }
 [data-lens-style="underline"] .mm-lensthumb { left: 0; bottom: 0; height: 3px; width: calc(100% / var(--n)); }
 [data-lens-style="underline"] .mm-lensthumb::after { content: ''; position: absolute; left: 50%; bottom: 0; width: 34px; margin-left: -17px; height: 2.5px; border-radius: 99px; background: var(--accent); }
@@ -879,12 +944,28 @@ button.card:active,
    with left:% + translate(-50%) becomes a full-width box). Sites that need
    it in a plain block context set width themselves — cf. .mmt-astat-row. */
 
+/* nav v2 — the lens row promoted above the content: it reads as the screen's
+   tabs, with the field itself as the first one, instead of hiding at the edge */
+.mm-lensrow-top { margin: 2px 0 4px; }
+[data-lens-style="underline"] .mm-lensrow-top { border-top: none; border-bottom: 0.5px solid color-mix(in oklch, var(--rule), transparent 20%); }
+[data-lens-style="underline"] .mm-lensrow-top .mm-lensbtn { min-height: 46px; font-size: 14.5px; }
+
 /* Universal tactile press feedback */
 .press { transition: transform 0.22s var(--ease-spring); }
 .press:active { transform: scale(0.95); }
 @media (hover: hover) { button.press:hover { transform: translateY(-1px); } button.press:active { transform: scale(0.95); } }
 
-/* Vote reveals — result settles in, bars grow, chips pop */
+/* Vote reveals — result settles in, bars grow, chips pop.
+   One stagger constant for the whole app: every reveal beat is a multiple of
+   --rv-step, so the frame, the bars and the numbers arrive as ONE motion in
+   three parts rather than three animations that happen to overlap. Retime the
+   reveal anywhere by changing this one number. */
+:root {
+  --rv-step: 90ms;                          /* between STAGES of one reveal */
+  --rv-row: calc(var(--rv-step) / 1.8);     /* between ROWS of one list */
+  --rv-1: var(--rv-step);
+  --rv-2: calc(var(--rv-step) * 2);
+}
 @keyframes popIn { from { opacity: 0; transform: translateY(9px) scale(0.98); } to { opacity: 1; transform: none; } }
 @keyframes barIn { from { width: 0; } }
 @keyframes chipPop { from { transform: scale(0.5); opacity: 0; } to { transform: none; opacity: 1; } }
@@ -909,8 +990,10 @@ button.card:active,
   .wf-card { transform: translateY(18px) scale(0.99); transition: transform 0.55s var(--ease-out); }
   .wf-card.wf-in { transform: none; }
 }
-/* Duel tiles — the side's share rises as a level */
+/* Duel tiles — the side's share rises as a level, and the numeral rides its
+   surface, so length and number are one reading rather than two */
 @keyframes wfFillUp { from { height: 0; } }
+@keyframes wfPctRide { from { bottom: 0; } }
 /* knowledge cards — the misconception bars grow in, staggered, so the reveal
    reads as the crowd arriving rather than a table appearing */
 @keyframes wfBarIn { from { transform: scaleX(0); } to { transform: scaleX(1); } }
@@ -921,7 +1004,18 @@ button.card:active,
 /* Feed bottom sheet — takes & who-voted */
 .wf-scrim { position: absolute; inset: 0; z-index: 40; background: color-mix(in oklch, var(--ink) 30%, transparent); animation: wfScrimIn 0.2s ease; }
 .wf-sheet { position: absolute; left: 0; right: 0; bottom: 0; background: var(--surface); border-radius: 22px 22px 0 0; box-shadow: 0 -14px 44px color-mix(in oklch, var(--ink) 22%, transparent); display: flex; flex-direction: column; max-height: 78%; animation: wfSheetUp 0.32s cubic-bezier(0.2, 0.8, 0.2, 1); }
-.wf-sheet-grab { width: 40px; height: 4px; border-radius: 99px; background: var(--surface-3); margin: 10px auto 0; flex-shrink: 0; }
+/* the handle is a control, not a decoration (sheet-drag.js) — the bar stays
+   40×4 but its target is the full width of the sheet's top band */
+.wf-sheet-grab { position: relative; height: 22px; margin: 0; flex-shrink: 0; cursor: grab; touch-action: none; display: flex; align-items: center; justify-content: center; }
+.wf-sheet-grab::before { content: ''; width: 40px; height: 4px; border-radius: 99px; background: var(--surface-3); transition: background 0.16s ease, width 0.2s var(--ease-spring); }
+.wf-sheet-grab:active { cursor: grabbing; }
+.wf-sheet-grab:active::before, .wf-sheet-grab[data-dragging]::before { background: color-mix(in oklch, var(--surface-3), var(--ink) 28%); width: 46px; }
+.wf-sheet[data-dragging] { transition: none !important; }
+/* thrown out by hand: the drag finishes the travel, so the CSS dismiss stands
+   down and only the scrim's fade remains */
+.wf-sheet.sd-out, .wf-scrim.is-closing .wf-sheet.sd-out { animation: none !important; }
+/* a sheet mid-drag shouldn't also be scrolling underneath the finger */
+.wf-sheet[data-dragging] .wf-sheet-body { overflow: hidden; }
 .wf-sheet-body { overflow-y: auto; padding: 4px 16px 24px; scrollbar-width: none; }
 .wf-sheet-body::-webkit-scrollbar { display: none; }
 @keyframes wfScrimIn { from { opacity: 0; } to { opacity: 1; } }
@@ -960,6 +1054,9 @@ button.card:active,
 .mf-canvaswrap { position: relative; flex: 1 1 auto; min-height: 300px; }
 
 .app.compact .app-body { padding: 10px 14px 148px; }
+/* overlays cover the tabbar, so they don't need the 148px it reserves */
+.overlay > .app-body { padding-bottom: 28px; }
+.app.compact .overlay > .app-body { padding-bottom: 24px; }
 .app.compact .card { padding: 10px 12px; }
 
 /* ── Search ───────────────────────────────────────────────────── */
@@ -975,6 +1072,13 @@ button.card:active,
   border: 1px solid color-mix(in oklch, var(--rule), transparent 30%);
   border-radius: 999px;
   padding: 9px 14px;
+  transition: border-color 0.16s ease, box-shadow 0.16s ease, background 0.16s ease;
+}
+/* the input clears its own outline, so the field carries the focus state */
+.search-field:focus-within {
+  background: var(--surface-2);
+  border-color: color-mix(in oklch, var(--accent) 55%, var(--rule));
+  box-shadow: 0 0 0 3px color-mix(in oklch, var(--accent) 13%, transparent);
 }
 .search-field input {
   flex: 1;
@@ -989,7 +1093,7 @@ button.card:active,
 .search-cancel {
   border: none; background: none; cursor: pointer;
   font-family: var(--sans); font-size: 14px; font-weight: 600;
-  color: var(--accent); padding: 6px 2px;
+  color: var(--accent-ink); padding: 6px 2px;
 }
 .search-group {
   font-family: var(--sans);
@@ -1015,14 +1119,16 @@ button.card:active,
 .search-hit:active { background: color-mix(in oklch, var(--surface-3), var(--ink) 4%); }
 .search-hit .hit-t { font-size: 14.5px; font-weight: 650; letter-spacing: -0.01em; }
 .search-hit .hit-s { font-size: 12px; font-weight: 500; color: var(--ink-3); margin-top: 1px; }
-.search-hit mark { background: none; color: var(--accent); }
+.search-hit mark { background: none; color: var(--accent-ink); }
 .search-empty {
   text-align: center;
   color: var(--ink-3);
   font-family: var(--sans);
   font-size: 14px;
   font-weight: 500;
-  padding: 44px 0 8px;
+  line-height: 1.5;
+  text-wrap: pretty;
+  padding: 44px 18px 8px;
 }
 /* ── Polish pass ──────────────────────────────────────────────── */
 
@@ -1108,15 +1214,10 @@ button.card:active,
 @keyframes edPulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
 
 /* ══ The edition · the reveal moment ════════════════════════════════════════
-   One beat when the edition opens or an answer lands: resolution rows rise in
-   sequence, the check draws itself, count-dots pop one by one, and the row
-   percents settle just after their bars finish. Finished state is the base
-   style; everything below only plays under no-preference. Nothing loops. */
+   The check draws itself, count-dots pop one by one, and the row percents
+   settle just after their bars finish. Finished state is the base style;
+   everything below only plays under no-preference. Nothing loops. */
 @media (prefers-reduced-motion: no-preference) {
-  .ed-res > * { animation: riseIn 0.5s var(--ease-out) both; }
-  .ed-res > *:nth-child(1) { animation-delay: 0.04s; }
-  .ed-res > *:nth-child(2) { animation-delay: 0.16s; }
-  .ed-res > *:nth-child(3) { animation-delay: 0.28s; }
   .ed-check path { stroke-dasharray: 1; stroke-dashoffset: 1; animation: edDraw 0.5s var(--ease-out) 0.34s forwards; }
   .ed-dot-in { animation: edDotIn 0.34s var(--ease-spring) both; }
   .ed-reveal .ed-pct { animation: edNumIn 0.45s var(--ease-out) 0.62s both; }
@@ -1133,7 +1234,6 @@ button.card:active,
   62% { transform: translateX(-5px); }
 }
 
-
 /* ── Quiet ground ──────────────────────────────────────────────────────────
    The default skin stacks three accent washes at the top of every screen —
    6% in the ground, a 10% radial, and a 5% linear over the body — which over a
@@ -1148,6 +1248,168 @@ button.card:active,
 /* Bottom fade — scrolling content shouldn't end in a hard cut at the tabbar */
 .tabbar { position: relative; z-index: 7; }
 .app[data-tab="track"] .tabbar::before { content: ''; position: absolute; left: 0; right: 0; bottom: 100%; height: 46px; pointer-events: none; background: linear-gradient(to top, var(--surface-a) 0%, color-mix(in oklch, var(--surface-a) 92%, transparent) 22%, color-mix(in oklch, var(--surface-a) 55%, transparent) 55%, transparent 100%); }
+
+/* ══ Polish pass · chrome ═══════════════════════════════════════════════════
+   Nothing here changes a layout or a colour decision. It fills in the states
+   the app never had: keyboard focus, touch press fidelity, text selection,
+   link colour, and scroll containment. Applies to every screen at once. */
+
+/* 1 · Keyboard focus. The app had no focus styles at all, so tabbing fell back
+   to the browser's blue ring over a warm palette (or nothing at all on the
+   elements that clear their outline). One accent ring, keyboard-only. */
+.app :focus-visible,
+.overlay :focus-visible,
+.wf-sheet :focus-visible {
+  outline: 2px solid color-mix(in oklch, var(--accent) 72%, transparent);
+  outline-offset: 2px;
+}
+/* pointer clicks shouldn't leave a ring behind */
+.app :focus:not(:focus-visible), .overlay :focus:not(:focus-visible) { outline: none; }
+/* elements that already draw their own edge get the ring tight to it */
+.tab-btn:focus-visible, .subnav-btn:focus-visible, .pill:focus-visible,
+.wf-chip:focus-visible, .mm-lensbtn:focus-visible, .h-dockstop:focus-visible,
+.sd-switch-btn:focus-visible { outline-offset: 1px; }
+.avatar-btn:focus-visible, .icon-btn:focus-visible { outline-offset: 3px; }
+/* fields whose wrapper already carries the focus state — the ring would draw a
+   second box inside the first */
+.search-field input:focus-visible { outline: none; }
+
+/* 2 · Press fidelity. Every control here already has a hand-tuned :active
+   scale; the platform's grey tap-flash was landing on top of it. And
+   touch-action kills the 300ms double-tap-zoom wait on every button. */
+.app, .overlay { -webkit-tap-highlight-color: transparent; }
+.app button, .overlay button, .wf-sheet button,
+.app [role="button"], .app [role="tab"] { touch-action: manipulation; }
+
+/* 3 · Selection. Button and label text isn't prose — dragging a phone mock
+   shouldn't blue-select the nav. Real content stays selectable, so a question
+   or a comment can still be copied. */
+.app button, .overlay button, .wf-sheet button,
+.kicker, .tabbar, .subnav, .stamp, .h-dockruler, .sd-switch,
+.mm-lensrow, .search-group, .fig-num, .app-header .h-title {
+  -webkit-user-select: none; user-select: none;
+}
+.app ::selection, .overlay ::selection {
+  background: color-mix(in oklch, var(--accent) 22%, transparent);
+  color: var(--ink);
+}
+
+/* 4 · Links. None in the design yet, but an undefined <a> renders browser-blue
+   the moment one is added — pin it to the palette now. */
+.app a, .overlay a { color: var(--accent-ink); text-decoration-color: color-mix(in oklch, var(--accent) 38%, transparent); text-underline-offset: 2px; transition: color 0.16s ease, text-decoration-color 0.16s ease; }
+.app a:hover, .overlay a:hover { color: var(--ink); text-decoration-color: currentColor; }
+
+/* 5 · Scroll containment. An overlay, a sheet or a snap rail that reaches its
+   end was handing the momentum to the page behind it — the feed crept while
+   you were reading a sheet. Each scroller now owns its overscroll. */
+.overlay, .wf-sheet-body, .rm-scroll, .h-scroll, .cb-rail,
+.subnav--scroll, .app-body { overscroll-behavior: contain; }
+/* a scrim is a dead end, not a scroll surface */
+.wf-scrim { overscroll-behavior: none; }
+
+/* 6 · Type rendering — the sans is set at small optical sizes throughout;
+   let it use its optical axis and hint the same way in both engines. */
+.app, .overlay { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; font-optical-sizing: auto; }
+/* long compound words in a 402px column shouldn't push a row wide */
+.hit-t, .margin-note, .search-hit .hit-s { text-wrap: pretty; overflow-wrap: break-word; }
+
+/* 7 · Hover is a mouse state. On a touch screen the lift/tint sticks to the
+   last thing tapped, so the pointer-driven transforms stand down there. */
+@media (hover: none) {
+  button.card:hover, .card[role="button"]:hover, .test-pick-card:hover,
+  .icon-btn:hover, .avatar-btn:hover, .press:hover { transform: none; box-shadow: var(--shadow-card); }
+  .search-hit:hover { background: none; }
+}
+
+/* ══ Polish pass · figures, targets, motion ════════════════════════════════
+   Same rule as before: no layout or colour decision changes. These are the
+   states and micro-behaviours the app was still missing, applied once so they
+   land on every screen at the same time. */
+
+/* 9 · Tabular figures, app-wide. Almost every number here changes in place —
+   vote shares count up, populations swap, scores re-rank — and proportional
+   digits made them shimmy sideways as they settled (a 1 is much narrower than
+   a 4). --fig-num already did this locally; the rest of the app now inherits
+   it, so nothing needs to remember. */
+.app, .overlay, .wf-sheet { font-variant-numeric: tabular-nums; }
+/* SVG text is a separate inheritance path in some engines — pin it too. */
+.app svg text, .overlay svg text { font-variant-numeric: tabular-nums; }
+
+/* 10 · Text scaling. Rotating the phone was letting the engine inflate the
+   type on its own; the layout is hand-set, so it shouldn't. */
+.app, .overlay { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+
+/* 11 · The caret was the last browser-default colour left in the app. */
+.app input, .overlay input, .app textarea, .overlay textarea { caret-color: var(--accent-ink); }
+
+/* 12 · Touch targets. A handful of controls are drawn small on purpose — the
+   ⓘ, the ⋯, the meter chip, the topic chips — and were 17–26px of real
+   pressable area. .tap44 grows the *hit box* outward with a pseudo-element and
+   changes nothing you can see. */
+.tap44 { position: relative; }
+.tap44::after { content: ''; position: absolute; left: 50%; top: 50%; width: max(100%, 34px); height: max(100%, 44px); transform: translate(-50%, -50%); }
+/* The two chips live inside clipping scrollers (an edge mask, an overflow
+   collapse), so a pseudo hit box gets cut off — they grow their own box
+   instead. Both were also the odd height in their row: the meter chip stood
+   25px beside two 32px round buttons, the topic chips 27px. */
+.pm-chip { min-height: 31px; box-sizing: border-box; }
+.wf-chip { min-height: 32px; box-sizing: border-box; display: inline-flex; align-items: center; }
+
+/* 13 · Motion honesty. Three animations were still playing under a
+   reduce-motion request: the duel tile filling to its share, the first-run
+   swipe nudge, and the rose petals growing. Their finished state is the base
+   style, so switching them off simply shows the result. */
+@media (prefers-reduced-motion: reduce) {
+  [style*="wfFillUp"], [style*="wfPctRide"], [style*="sdNudge"], [style*="roseGrow"], [style*="wfSheetUp"], [style*="glyphPop"], [style*="qRise"], [style*="riseIn"] { animation: none !important; }
+  .app *, .overlay * { scroll-behavior: auto !important; }
+}
+
+/* 14 · Snap rails. A hard flick used to fly past two or three cards; each snap
+   child now stops the scroll, so one gesture moves one card. */
+.cb-rail > .card, .mmt-swipe > * { scroll-snap-stop: always; }
+
+/* 15 · The wordmark. flex space-between was leaving it stranded 46px clear of
+   the avatar — too far to read as a lockup, far too left to read as centred.
+   It sits with the avatar now, which is what it always looked like it wanted. */
+.h-center { justify-content: flex-start; }
+.app[data-docked] .h-center { justify-content: center; }
+
+/* 8 · Rail edges. Sideways rails used to cut the last chip flat against the
+   frame; now the edge dissolves — but only on a side that actually has more
+   to show (edge-fade.js sets data-ef). A rail that fits stays crisp. */
+.h-scroll[data-ef], .rm-axisrow[data-ef], .mmt-swipe[data-ef], .cb-rail[data-ef], .subnav--scroll[data-ef], .mmt-chips[data-ef], .mmt-fchips[data-ef] { --ef: 28px; }
+.h-scroll[data-ef="r"], .rm-axisrow[data-ef="r"], .mmt-swipe[data-ef="r"], .cb-rail[data-ef="r"], .subnav--scroll[data-ef="r"], .mmt-chips[data-ef="r"], .mmt-fchips[data-ef="r"] {
+  -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - var(--ef)), transparent);
+  mask-image: linear-gradient(90deg, #000 calc(100% - var(--ef)), transparent);
+}
+.h-scroll[data-ef="l"], .rm-axisrow[data-ef="l"], .mmt-swipe[data-ef="l"], .cb-rail[data-ef="l"], .subnav--scroll[data-ef="l"], .mmt-chips[data-ef="l"], .mmt-fchips[data-ef="l"] {
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 var(--ef));
+  mask-image: linear-gradient(90deg, transparent, #000 var(--ef));
+}
+.h-scroll[data-ef="lr"], .rm-axisrow[data-ef="lr"], .mmt-swipe[data-ef="lr"], .cb-rail[data-ef="lr"], .subnav--scroll[data-ef="lr"], .mmt-chips[data-ef="lr"], .mmt-fchips[data-ef="lr"] {
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 var(--ef), #000 calc(100% - var(--ef)), transparent);
+  mask-image: linear-gradient(90deg, transparent, #000 var(--ef), #000 calc(100% - var(--ef)), transparent);
+}
+
+/* 16 · How a photograph lands. Duel tiles carry real imagery, and an <img>
+   that arrives raw does two rude things: it shoves layout as it sizes, and it
+   snaps in at full contrast against a warm off-white ground.
+
+   The tile already owns its aspect-ratio, so the box never moves. This holds
+   the image at zero until it has decoded (sheet-drag/JS adds .is-in on load),
+   then fades it up — and carries the one treatment CLAUDE.md asks for, so
+   twenty photos from four sources read as one set: saturation pulled back to
+   sit with the ground, contrast eased, the same crop rule everywhere. */
+.wf-tileimg {
+  position: absolute; inset: 0; width: 100%; height: 100%;
+  object-fit: cover; object-position: center;
+  filter: saturate(0.88) contrast(0.96) brightness(1.01);
+  opacity: 0; transition: opacity 0.42s ease;
+}
+.wf-tileimg.is-in { opacity: 1; }
+@media (prefers-reduced-motion: reduce) { .wf-tileimg { transition: none; } }
+/* the band's scrim is set inline in renderDuel (one value over photography, a
+   lighter one over generated art) — nothing to override here */
 
 
 /* ═══ next style block ═══ */
@@ -1233,7 +1495,7 @@ button.card:active,
    and its branches orbit it. Tapping it steps back out to the groups. The name
    sits below the disc like a branch label, and counter-scales the same way, so
    it stays readable at fit zoom instead of shrinking with the world. */
-.mmt-center.is-group .mmt-center-disc { background: oklch(0.55 0.14 var(--hue)); width: 62px; height: 62px; }
+.mmt-center.is-group .mmt-center-disc { background: oklch(0.52 0.14 var(--hue)); width: 62px; height: 62px; }
 .app.dark .mmt-center.is-group .mmt-center-disc { background: oklch(0.6 0.135 var(--hue)); }
 .mmt-center-glabel {
   position: absolute; left: 50%; top: 100%; transform: translate(-50%, 6px);
@@ -1339,6 +1601,24 @@ button.card:active,
     100% { transform: scale(2.6); opacity: 0; }
   }
 }
+/* ── a still: the map as a portrait inside someone's profile ───────────────
+   No panning, no chrome, no answer labels. The dots carry the one thing a
+   profile is for — solid where you both said the same, hollow where you
+   diverged, faint where there is nothing to compare. Tap opens it live. */
+.mmt-root.is-still .mmt-canvas { cursor: pointer; touch-action: auto; }
+.mmt-root.is-still .mmt-node { pointer-events: none; }
+.mmt-root.is-still .mmt-dlab { display: none; }
+/* the mainstream ring is an opinion idea — not the read in a profile still */
+.mmt-root.is-still .mmt-ground::after { display: none; }
+/* the ring holds the hollow open at any scale — a still can sit at low zoom,
+   where a 2px pre-transform border would vanish to a hairline */
+.mmt-root.is-still .mmt-dotnode.is-differ .mmt-ddot { border-width: 3.5px; }
+.mmt-dotnode.is-differ .mmt-ddot {
+  background: color-mix(in oklch, oklch(0.605 0.118 var(--hue)), transparent 86%);
+  border: 2px solid oklch(0.605 0.118 var(--hue)); box-shadow: none;
+}
+.app.dark .mmt-dotnode.is-differ .mmt-ddot { border-color: oklch(0.62 0.115 var(--hue)); background: color-mix(in oklch, oklch(0.62 0.115 var(--hue)), transparent 86%); }
+
 /* topic dots are structure — small, receded, never confusable with answers */
 .mmt-dotnode.is-leaf .mmt-ddot { background: oklch(0.605 0.118 var(--hue)); opacity: 0.45; }
 .mmt-dotnode.is-showlab { z-index: 5; }
@@ -1372,8 +1652,6 @@ button.card:active,
   position: absolute; top: 10px; left: 0; right: 0; z-index: 6;
   display: flex; gap: 7px; overflow-x: auto; padding: 2px 24px 8px 20px;
   scrollbar-width: none; pointer-events: none;
-  -webkit-mask-image: linear-gradient(90deg, transparent, black 12px, black calc(100% - 28px), transparent);
-  mask-image: linear-gradient(90deg, transparent, black 12px, black calc(100% - 28px), transparent);
 }
 .mmt-chips::-webkit-scrollbar { display: none; }
 .mmt-chipbtn {
@@ -1528,9 +1806,7 @@ button.card:active,
 }
 
 /* filter chips — the 7 profile facts, one active; fades at the card edges */
-.mmt-fchips { display: flex; gap: 6px; overflow-x: auto; margin: 12px -16px 0; padding: 0 16px 2px; scrollbar-width: none;
-  -webkit-mask-image: linear-gradient(90deg, transparent, #000 12px, #000 calc(100% - 26px), transparent);
-  mask-image: linear-gradient(90deg, transparent, #000 12px, #000 calc(100% - 26px), transparent); }
+.mmt-fchips { display: flex; gap: 6px; overflow-x: auto; margin: 12px -16px 0; padding: 0 16px 2px; scrollbar-width: none; }
 .mmt-fchips::-webkit-scrollbar { display: none; }
 .mmt-fchip {
   flex: none; cursor: pointer; white-space: nowrap;
@@ -1628,7 +1904,7 @@ button.card:active,
 
 /* match bar — one slim proportion bar under the headline */
 .mmt-matchbar { height: 8px; border-radius: 99px; background: oklch(0.605 0.118 var(--hue) / 0.14); overflow: hidden; margin-top: 8px; }
-.mmt-matchbar i { display: block; height: 100%; border-radius: 99px; background: oklch(0.605 0.118 var(--hue)); animation: barIn 0.6s var(--ease-out) 0.05s both; }
+.mmt-matchbar i { display: block; height: 100%; border-radius: 99px; background: oklch(0.605 0.118 var(--hue)); animation: barIn 0.6s var(--ease-out) var(--rv-row) both; }
 .app.dark .mmt-matchbar i { background: oklch(0.68 0.12 var(--hue)); }
 
 .mmt-mchip.is-same { color: oklch(0.46 0.11 var(--hue)); background: oklch(0.95 0.03 var(--hue)); }
@@ -1643,10 +1919,11 @@ button.card:active,
 .mmt-astat-bar { height: 5px; border-radius: 99px; background: color-mix(in oklch, var(--ink) 8%, transparent); overflow: visible; }
 .mmt-astat-bar i { display: block; position: relative; height: 100%; border-radius: 99px; background: oklch(0.62 0.12 var(--hue)); animation: barIn 0.5s var(--ease-out) both; }
 .mmt-astat-bar i::after { content: ''; position: absolute; right: 0; top: 50%; transform: translate(50%, -50%); width: 9px; height: 9px; border-radius: 50%; background: inherit; box-shadow: 0 0 0 2px var(--surface-2); }
-.mmt-astat-item:nth-child(2) .mmt-astat-bar i { animation-delay: 0.05s; }
-.mmt-astat-item:nth-child(3) .mmt-astat-bar i { animation-delay: 0.1s; }
-.mmt-astat-item:nth-child(4) .mmt-astat-bar i { animation-delay: 0.15s; }
-.mmt-astat-item:nth-child(5) .mmt-astat-bar i { animation-delay: 0.2s; }
+/* one row-stagger constant, shared with every other list in the app */
+.mmt-astat-item:nth-child(2) .mmt-astat-bar i { animation-delay: var(--rv-row); }
+.mmt-astat-item:nth-child(3) .mmt-astat-bar i { animation-delay: calc(var(--rv-row) * 2); }
+.mmt-astat-item:nth-child(4) .mmt-astat-bar i { animation-delay: calc(var(--rv-row) * 3); }
+.mmt-astat-item:nth-child(5) .mmt-astat-bar i { animation-delay: calc(var(--rv-row) * 4); }
 .app.dark .mmt-astat-bar i { background: oklch(0.74 0.10 var(--hue)); }
 /* where the group sits on this axis — hollow ring, shown on every row */
 .mmt-astat-legend { display: flex; align-items: center; justify-content: center; gap: 18px; margin-top: 11px; }
@@ -1710,7 +1987,7 @@ button.card:active,
   white-space: nowrap;
 }
 .mmt-mchip i {
-  font-style: normal; font-weight: 500; font-size: 10px; opacity: 0.75; margin-right: 4px;
+  font-style: normal; font-weight: 500; font-size: 10px; margin-right: 4px;
 }
 .mmt-mchip.is-you { color: white; background: oklch(0.605 0.118 var(--hue)); }
 .mmt-mchip.is-them { color: var(--ink-3); border: 1px solid color-mix(in oklch, var(--ink) 22%, transparent); }
@@ -1798,7 +2075,7 @@ button.card:active,
   width: 24px; height: 24px; border-radius: 50%; flex: none;
   display: flex; align-items: center; justify-content: center;
   font-family: var(--sans); font-weight: 800; font-size: 9.5px; color: #fff;
-  background: oklch(0.62 0.12 var(--phue, 28));
+  background: oklch(0.52 0.13 var(--phue, 28));
 }
 .mpc-name { flex: 1; min-width: 0; font-family: var(--sans); font-weight: 700; font-size: 13.5px; color: var(--ink); }
 .mpc-gaps { display: flex; flex-direction: column; gap: 6px; margin-top: 6px; }

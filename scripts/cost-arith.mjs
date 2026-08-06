@@ -49,7 +49,7 @@ export function bankDocs() {
 
 // READ FROM SOURCE, NOT RETYPED. These four used to be hand-copied numbers
 // with the real location in a trailing comment, which is precisely the shape
-// of the bug D42 found: the model said 148 reseed reads for two days after
+// of the bug D47 found: the model said 148 reseed reads for two days after
 // D34 made the real answer 3, and nothing could notice because nothing was
 // comparing. A comment naming the source file is not a link to it.
 //
@@ -66,7 +66,7 @@ function readNum(rel, re, what) {
       `cost-arith: could not read ${what} from ${rel}.\n`
       + `    Pattern ${re} matched nothing. The constant was probably renamed or\n`
       + "    reshaped. Fix the pattern here — do NOT paste the number back in,\n"
-      + "    which is the failure this function exists to prevent (D42).",
+      + "    which is the failure this function exists to prevent (D47).",
     );
   }
   return Number(m[1]);

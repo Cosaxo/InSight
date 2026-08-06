@@ -40,15 +40,13 @@ import React from 'react';
               <div style={{ fontFamily: SANS, fontSize: 14.5, fontWeight: 700, color: P.ink }}>{s.yearsLabel}</div>
             </div>
           </div>
-          <div style={{ display: 'flex', gap: 20, padding: '0 0 16px', borderBottom: '1px solid ' + P.rule, marginBottom: 16 }}>
-            <div style={{ flex: 1 }}>
-              <div style={{ ...upLabel, marginBottom: 8 }}>Politics</div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}><span style={{ width: 9, height: 9, borderRadius: '50%', background: s.politicalColor, flex: 'none' }}></span><span style={{ fontFamily: SANS, fontSize: 14.5, fontWeight: 600, color: P.ink }}>{s.politicalLabel}</span></div>
-            </div>
-            <div style={{ flex: 1 }}>
-              <div style={{ ...upLabel, marginBottom: 8 }}>Personality</div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}><span style={{ width: 9, height: 9, borderRadius: '50%', background: s.personalityColor, flex: 'none' }}></span><span style={{ fontFamily: SANS, fontSize: 14.5, fontWeight: 600, color: P.ink }}>{s.personalityLabel}</span></div>
-            </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px 20px', padding: '0 0 16px', borderBottom: '1px solid ' + P.rule, marginBottom: 16 }}>
+            {(s.standings || []).map((t) => (
+              <div key={t.k}>
+                <div style={{ ...upLabel, marginBottom: 8 }}>{t.label}</div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}><span style={{ width: 9, height: 9, borderRadius: '50%', background: t.color, flex: 'none' }}></span><span style={{ fontFamily: SANS, fontSize: 14.5, fontWeight: 600, color: P.ink, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.value}</span></div>
+              </div>
+            ))}
           </div>
           {s.lensDetail && (
             <div style={{ padding: '0 0 14px', borderBottom: '1px solid ' + P.rule, marginBottom: 16 }}>
@@ -95,7 +93,7 @@ import React from 'react';
       );
     }
 
-  function RMHubPanel({ h, onSelect, onClose }) {
+  function RMHubPanel({ h, onSelect, onDrill, onClose }) {
       const cardBtn = { display: 'inline-flex', alignItems: 'center', gap: 7, padding: '6px 11px 6px 9px', borderRadius: 100, border: '1px solid ' + P.rule, background: P.canvas, cursor: 'pointer', fontFamily: SANS, fontSize: 13, color: P.ink2 };
       return (
         <div className="rm-scroll" style={{ position: 'absolute', left: 12, right: 12, bottom: 12, maxHeight: 'min(62%, 450px)', overflowY: 'auto', overflowX: 'hidden', borderRadius: 20, padding: '18px 20px', display: 'flex', flexDirection: 'column', zIndex: 7, animation: 'rmSheetUp 0.34s cubic-bezier(0.16,1,0.3,1) both', ...card, boxShadow: P.panelShadow }}>
@@ -123,6 +121,23 @@ import React from 'react';
             ))}
           </div>
           <div style={{ ...upLabel, marginBottom: 11 }}>Members</div>
+          {h.drillable ? (
+            /* too many to name — the disc is a promise you can go in, so the
+               panel offers the way in instead of an arbitrary first twelve */
+            <button className="press" onClick={(e) => { e.stopPropagation(); onDrill && onDrill(h.drillKey); }} style={{ ...cardBtn, padding: '9px 15px' }}>
+              Open {h.name} {'\u00b7'} {h.count} people
+            </button>
+          ) : h.names ? (
+            /* the leaf: no structure left to draw, so names become text and
+               scale by scrolling — the one encoding that never runs out */
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7, maxHeight: 168, overflowY: 'auto' }}>
+              {h.names.map((nm, i) => (
+                <span key={nm + i} style={{ ...cardBtn, cursor: 'default' }}>
+                  <span style={{ width: 7, height: 7, borderRadius: '50%', background: h.color }}></span>{nm}
+                </span>
+              ))}
+            </div>
+          ) : (
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7 }}>
             {h.members.map(m => (
               <button key={m.id} className="press" onClick={(e) => { e.stopPropagation(); onSelect(m.id); }} style={cardBtn}>
@@ -130,6 +145,7 @@ import React from 'react';
               </button>
             ))}
           </div>
+          )}
         </div>
       );
     }

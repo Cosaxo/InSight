@@ -32,7 +32,7 @@ function TestHeroRow({ R, accent, taken }) {
         display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', lineHeight: 1,
       }}>
         <span style={{ fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 24, letterSpacing: '-0.02em' }}>{top.value}</span>
-        <span style={{ fontFamily: 'var(--sans)', fontSize: 9.5, fontWeight: 700, letterSpacing: '0.06em', opacity: 0.7, marginTop: 2 }}>/ 100</span>
+        <span style={{ fontFamily: 'var(--sans)', fontSize: 10.5, fontWeight: 700, letterSpacing: '0.09em', marginTop: 2 }}>/ 100</span>
       </div>
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ fontFamily: 'var(--sans)', fontSize: 10.5, fontWeight: 700, color: 'var(--ink-3)', letterSpacing: '0.09em', textTransform: 'uppercase' }}>Strongest</div>
@@ -167,7 +167,7 @@ function ValuesTiltCard({ me, accent }) {
             return {
               fontFamily: 'var(--sans)', fontSize: 12.5, whiteSpace: 'nowrap', letterSpacing: '0.01em',
               fontWeight: isLean ? 700 : 500,
-              color: isLean ? a : 'var(--ink-3)', opacity: isLean ? 1 : 0.7,
+              color: isLean ? a : 'var(--ink-3)',
               transition: 'color .15s',
             };
           };
