@@ -1,0 +1,121 @@
+{
+  "$comment": [
+    "The App Store privacy nutrition label and age rating, as data.",
+    "",
+    "THIS FILE IS AN ATTESTATION. docs/STORE-FORMS.md is its prose twin and",
+    "carries the reasoning for every value here; read that before approving",
+    "this, because what you are approving is a legal statement about what",
+    "the app collects. scripts/asc-push.mjs transcribes it into App Store",
+    "Connect — it does not decide it, and it will not apply anything",
+    "without --apply.",
+    "",
+    "Why a file and not the web form: the form is ~40 clicks that have to",
+    "agree with docs/data-inventory.md, and nothing checks that they do.",
+    "Here the answers are reviewable in a diff, and check:store-forms holds",
+    "them equal to STORE-FORMS.md so the two cannot drift.",
+    "",
+    "If you disagree with a value, change it HERE and in STORE-FORMS.md.",
+    "Changing it in App Store Connect instead means the next push silently",
+    "reverts you."
+  ],
+
+  "tracking": {
+    "used": false,
+    "$why": "No IDFA, no ATT prompt, no advertising SDK. The Facebook SDK is a transitive SwiftPM dependency of @capacitor-firebase/authentication and is stripped at postinstall (D16); check:ios-facebook asserts its absence. Every collected row below is therefore NOT_USED_FOR_TRACKING."
+  },
+
+  "collected": [
+    {
+      "category": "IDENTIFIERS",
+      "type": "USER_ID",
+      "linked": true,
+      "purposes": ["APP_FUNCTIONALITY"],
+      "$why": "The Firebase uid. Anonymous by default (D3) — every install becomes one at first paint."
+    },
+    {
+      "category": "CONTACT_INFO",
+      "type": "EMAIL_ADDRESS",
+      "linked": true,
+      "purposes": ["APP_FUNCTIONALITY"],
+      "$why": "Only if the user links Google. linkGoogle() calls new GoogleAuthProvider() with no addScope (src/lib/firebaseImpl.ts:167) and Firebase requests email and profile by default, so the auth record holds it. No Firestore document of ours does — but the form asks what is collected."
+    },
+    {
+      "category": "CONTACT_INFO",
+      "type": "NAME",
+      "linked": true,
+      "purposes": ["APP_FUNCTIONALITY"],
+      "$why": "Optional display name, shown in group and duel reveals. Also arrives from Google's default profile scope."
+    },
+    {
+      "category": "USER_CONTENT",
+      "type": "OTHER_USER_CONTENT",
+      "linked": true,
+      "purposes": ["APP_FUNCTIONALITY"],
+      "$why": "Answers and test results."
+    },
+    {
+      "category": "LOCATION",
+      "type": "COARSE_LOCATION",
+      "linked": true,
+      "purposes": ["APP_FUNCTIONALITY"],
+      "$why": "City name only. The fix is resolved to a city on the device (src/v2/data/locate.ts) and discarded, so no coordinate is ever transmitted — but a city name is still coarse location data, and under-declaring is the direction that gets an app pulled. NEVER add PRECISE_LOCATION: iOS sets NSLocationDefaultAccuracyReduced and never calls requestTemporaryFullAccuracy, so it is unobtainable by construction rather than by policy."
+    },
+    {
+      "category": "SENSITIVE_INFO",
+      "type": "SENSITIVE_INFO",
+      "linked": true,
+      "purposes": ["APP_FUNCTIONALITY"],
+      "$why": "The politics test result is GDPR Art. 9 special-category data; gender if entered. It never leaves the owner document and is never sliced by (D8) — but the form asks what you collect, not what you publish."
+    },
+    {
+      "category": "DIAGNOSTICS",
+      "type": "CRASH_DATA",
+      "linked": true,
+      "purposes": ["APP_FUNCTIONALITY"],
+      "$why": "Sentry. Opt-in, default OFF, carries the uid only — no email, no name, no session replay, sendDefaultPii: false. Declared Yes because the form asks what the app CAN collect."
+    }
+  ],
+
+  "notCollected": {
+    "$why": "Recorded so a reviewer's question has an answer and so a future contributor sees which absences were decided rather than forgotten. Three of these look tickable and are not:",
+    "DEVICE_ID": "Device binding (D29) receives 2-3 bits from Apple DeviceCheck meaning 'an account was activated from this device recently'. The server stores no device identifier; the platforms hold the state. There is nothing for deleteAccount to erase because nothing is held.",
+    "PRODUCT_INTERACTION": "data-inventory.md: no product analytics of any kind ship today. Adding any would change this row.",
+    "EMAILS_OR_TEXT_MESSAGES": "No, AT LAUNCH. Takes (circle-scoped free text, D1) have no live surface in a shipping build. When takes go live this row changes, and Apple guideline 1.2 stops being comfortable at the same moment.",
+    "others": [
+      "PHONE_NUMBER", "PHYSICAL_ADDRESS", "OTHER_CONTACT_INFO", "HEALTH",
+      "FITNESS", "PAYMENT_INFO", "CREDIT_INFO", "OTHER_FINANCIAL_INFO",
+      "PRECISE_LOCATION", "CONTACTS", "PHOTOS_OR_VIDEOS", "AUDIO_DATA",
+      "GAMEPLAY_CONTENT", "CUSTOMER_SUPPORT", "BROWSING_HISTORY",
+      "SEARCH_HISTORY", "PURCHASE_HISTORY", "ADVERTISING_DATA",
+      "OTHER_USAGE_DATA", "PERFORMANCE_DATA", "OTHER_DIAGNOSTIC_DATA",
+      "OTHER_DATA_TYPES"
+    ]
+  },
+
+  "ageRating": {
+    "$why": "Every content frequency question is NONE, measured rather than assumed: scanning all four committed banks for violence, sex, substances, gambling and profanity returns four hits, all references rather than depictions — 'Pub' as a place option, 'Cry in a film', an etymology card for the word alcohol, and a history card naming the Second World War. Re-run that scan if the banks grow substantially (the farm, D33, writes the spec layer; promotion, D30, is the gate where new content reaches users).",
+
+    "violenceCartoonOrFantasy": "NONE",
+    "violenceRealistic": "NONE",
+    "violenceRealisticProlongedGraphicOrSadistic": "NONE",
+    "profanityOrCrudeHumor": "NONE",
+    "matureOrSuggestiveThemes": "NONE",
+    "horrorOrFearThemes": "NONE",
+    "medicalOrTreatmentInformation": "NONE",
+    "alcoholTobaccoOrDrugUseOrReferences": "NONE",
+    "gamblingSimulated": "NONE",
+    "sexualContentOrNudity": "NONE",
+    "sexualContentGraphicAndNudity": "NONE",
+    "contests": "NONE",
+
+    "gambling": false,
+    "unrestrictedWebAccess": false,
+    "kidsAgeBand": null,
+
+    "$structural": "These three are what actually drive the rating, and they are structural rather than content facts: users see each other's display names in group and duel reveals (user-generated content and social interaction on any version of this form, whatever the content answers say); coarse location exists and is optional (D9); and there is no live free-text surface at launch, because takes are circle-scoped (D1) and demo-only in a shipping build.",
+
+    "$expect": "12+ / 13+. Answer it deliberately rather than accepting a default.",
+
+    "$guideline12": "1.2 demands four things of any app with user-generated content, and each has a real answer: filtering (moderation substrate deployed, MOD_ADVISORY = true, D22); a report mechanism (the control exists in the spec layer; the takes surface it attaches to is demo-only at launch); blocking (removeGroupMember / leaveGroup — removal from the circle IS the block, because D1 means circle members are the only people whose content you can see); and published contact info (olaftaule01@gmail.com on web/terms.html). If a reviewer asks how users block one another, say plainly that there is no global block because there is no global surface to be abused from."
+  }
+}

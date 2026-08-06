@@ -17,6 +17,17 @@ the takes surface going live, or product analytics being added.
 
 ## 1 · Apple Privacy Nutrition Labels
 
+> **You no longer have to type this in.**
+> `design/store/app-privacy.json` holds every answer below as data, and
+> **Actions → App Store metadata** pushes it — dry-run by default, so the
+> first run prints the exact diff and changes nothing.
+>
+> Read this page before ticking *apply*. What you are approving is a legal
+> statement about what the app collects; the workflow transcribes that
+> decision, it does not make it. `npm run check:store-forms` holds the two
+> files equal, so this page cannot quietly stop describing what gets
+> pushed.
+
 App Store Connect → your app → App Privacy. For each type you answer three
 things: **collected?**, **linked to identity?**, **used for tracking?**,
 plus purposes.

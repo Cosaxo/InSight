@@ -59,7 +59,8 @@
     "build:feature-graphic": "node scripts/gen-feature-graphic.mjs",
     "test:unit": "vitest run --dir src",
     "test:scripts": "vitest run --dir scripts",
-    "test:coverage": "vitest run --dir src/v2/data --coverage"
+    "test:coverage": "vitest run --dir src/v2/data --coverage",
+    "check:store-forms": "node scripts/check-store-forms.mjs"
   },
   "dependencies": {
     "@capacitor-firebase/authentication": "^8.2.0",

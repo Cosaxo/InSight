@@ -374,23 +374,38 @@ left here is a **recapture against live data**, plus the two forms.
       release workflow (`IOS-RELEASE.md`). It deliberately does NOT touch
       screenshots, the privacy questionnaire or the age rating; those are
       attestations, and `STORE-FORMS.md` is the transcribe-by-hand answer.
-- [ ] **4.4 Privacy nutrition labels (Apple) + Data safety form (Google).**
-      Mandatory; neither store accepts a submission without one. Answer
-      from the table in `SHIP-CHECKLIST §3`, which is
-      `docs/data-inventory.md` translated into their categories. The three
-      that bite: **Tracking = No** (no IDFA, no ATT prompt, no ad SDK of
-      any kind — the Facebook SDK is stripped at postinstall and asserted
-      by `check:ios-facebook`); **Coarse location = Yes, optional, never
-      Precise** (precise is unobtainable by construction, and the reason is
-      written down if a reviewer asks); **Sensitive info = Yes** (the
-      politics result is GDPR Art. 9 data — the form asks what you
-      *collect*, not what you publish).
-- [ ] **4.5 Age rating / IARC questionnaire.** The answers are now written
-      down in `SHIP-CHECKLIST §3`, including the scan showing every
-      *content* category is None and the three structural facts that
-      actually drive the rating. Expect 12+/Teen. **Read the Apple 1.2
-      table there before submitting** — the support email from 0.3 is a
-      1.2 dependency, not only a GDPR one.
+- [ ] **4.4 + 4.5 Privacy nutrition labels and the age rating — read, then
+      one dispatch.** Mandatory; Apple accepts no submission without both.
+
+      **Both are now data.** `design/store/app-privacy.json` holds every
+      answer with the reasoning on each row, `npm run check:store-forms`
+      holds it equal to `docs/STORE-FORMS.md`, and **Actions → App Store
+      metadata** pushes it. Dry-run by default: the first run prints the
+      exact diff — every field, every privacy row it would add or remove —
+      and writes nothing.
+
+      **Read `STORE-FORMS.md` before ticking apply.** What you are
+      approving is a legal statement about what the app collects. The
+      workflow transcribes that decision; it does not make it. Typing it by
+      hand was never the safeguard it looked like — it is ~40 clicks that
+      must agree with `data-inventory.md`, with nothing checking that they
+      do, which is exactly how one false claim survived in three documents
+      at once.
+
+      The three that bite, and why each is worth knowing before you
+      approve: **Tracking = No** (no IDFA, no ATT prompt, no ad SDK — the
+      Facebook SDK is stripped at postinstall and asserted by
+      `check:ios-facebook`); **Coarse location = Yes, optional, never
+      Precise** (precise is unobtainable by construction, and `check:store-forms`
+      fails if it ever appears); **Sensitive info = Yes** (the politics
+      result is GDPR Art. 9 data — the form asks what you *collect*, not
+      what you publish).
+
+      Expect **12+ / 13+**. **Read the Apple 1.2 table in `STORE-FORMS.md`
+      before submitting** — the support email from 0.3 is a 1.2 dependency,
+      not only a GDPR one.
+
+      *Play's Data Safety form is **[PARKED — D42]**.*
 
 ## Phase 5 — Production hygiene before the app is public
 
@@ -461,10 +476,18 @@ left here is a **recapture against live data**, plus the two forms.
 - [ ] **6.2 Submit to App Store review.** Budget one rejection round on
       guideline 4.8 (Sign in with Apple). **Do not pre-build it** — the
       reply is already drafted in `SHIP-CHECKLIST § hardening`: the app's
-      primary path is anonymous, no account is required, Google is an
-      optional upgrade rather than a login wall, and no email or name is
-      collected through it. Only add the Apple provider if a reviewer
-      insists.
+      primary path is anonymous, no account is required, and Google is an
+      optional upgrade rather than a login wall. Only add the Apple
+      provider if a reviewer insists.
+
+      **This step used to end "…and no email or name is collected through
+      it". It is deleted, and do not say it.** Google's default scopes put
+      an email and a display name on the Firebase Auth record, so the
+      sentence contradicts the app's own privacy label — a listing that
+      argues against its own nutrition label is a worse problem than the
+      one it was trying to solve. `STORE-FORMS.md` has the reasoning; this
+      was the third copy of the claim, after `SHIP-CHECKLIST` and the
+      forms doc.
 - [ ] **6.3 [PARKED — D42] Apply for Play production access** — a three-section
       application, reviewed in up to ~7 days, then submit the production
       release. On the organization account (D41) nothing gates this but the
