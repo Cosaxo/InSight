@@ -4409,3 +4409,58 @@ harder to read in a log when a build goes wrong.
 not need one. This belongs on release paths, next to the plist check it
 mirrors — and `check:web-firebase` fails loudly when run without an
 environment, which is correct for a release gate and wrong for a PR.
+
+## D47 · A lens question in a live feed is a self-report item, not a poll
+
+**Date:** 2026-08-06 · **Status:** Adopted
+
+**Decision.** Lens cards woven into a live session's feed carry
+`selfOnly: true`, stamped by `LENS_FEED_QS`'s builder — which now rebuilds
+per liveness instead of snapshotting at module scope. `world-feed.jsx`
+keeps every crowd surface off a `selfOnly` card: no share fill, no
+percentage numeral, no votes count, no takes/who-voted row, no consequence
+beat, no with-the-majority bit into FEEDREAD, no Mirror ripple, no thin
+bar on the collapsed card. After answering, the card says where the answer
+actually went — "Saved to your ‹lens› lens — only you see it." — and the
+answer records to the on-device store exactly as before.
+
+**What was shipping.** `buildFeedGlobals()` (data/live.ts) replaces
+`WORLD_FEED_QS` and `TEST_FEED_QS` with live-shaped cards on boot but
+never touched `LENS_FEED_QS` — and every "no fake data" gate in
+world-feed keys on `q.live`, which lens cards do not carry. So a real
+user answering a lens card saw a split drawn over thousands of authored
+votes (`count: 180 + w × 1900` per option — roughly 3–6k "votes" per
+card), rendered identically to the real k-floored splits on neighbouring
+cards, plus a votes-count line under it. That is fabricated activity
+inside a live session — the thing D1 exists to forbid — and the asymmetry
+with `TEST_FEED_QS`, which did get the live treatment, marks it as an
+oversight rather than a choice.
+
+**Two adjacent repairs in the same seam, found by the same audit.**
+First: the module-scope snapshot meant live sessions always wove the DEMO
+pool, which excludes each lens's seeded prefix as "already answered" —
+but live mode starts every lens at zero, so ~20 of the 48 lens items were
+unreachable from a live feed (`moral` capped at 4 of 8 for a feed-only
+user, while the blank state promised the feed would fill it in). Second:
+`LENSES.reset()` — whose own comment claims the account-deletion/uid-change
+wipe contract — had no caller, so the uid-change path purged
+`insight.lenses.v1` from localStorage while the store's in-memory state
+survived to be written back under the new uid. The purge announces itself
+now (`insight:local-purge`) and the store listens.
+
+**Why acknowledge instead of aggregate.** The honest alternatives were
+(a) suppress the fake crowd, (b) build a real one. Lens answers are
+deliberately device-local (the persistence note in `lens-defs.js`): no
+write leaves the device, so there is nothing for a backend to aggregate
+without first reversing that decision — a new collection, its k-floor,
+rules and their tests, for numbers whose product value is unproven. (a)
+is the smallest change that makes the UI true, and it leaves (b) open: if
+lens aggregation ever ships, the flag comes off exactly the cards whose
+questions gain a real aggregate, and this entry gets its reversal note.
+
+**Enforcement.** `src/v2/test/lens-live.test.ts` re-derives both pool
+shapes from `IS_LENSES`' seed arithmetic and pins the `selfOnly` stamp
+and the purge listener; `src/v2/test/smoke-live.test.jsx` mounts a live
+feed with a lens card, answers it, and asserts the record landed locally
+(inverted), nothing reached `LIVE.vote`, and the card shows the
+acknowledgment with no split, no votes count and no engage row.

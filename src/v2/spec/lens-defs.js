@@ -331,6 +331,7 @@ window.LENS_FEED_QS = (function () {
   const SCALE = ['Strongly agree', 'Agree', 'Neutral', 'Disagree', 'Strongly disagree'];
   function build() {
     const L = window.LENSES; if (!L) return [];
+    const live = L.liveOn();
     const perLens = L.all.map((l) => {
       const from = L.seedCount(l.id); // 0 in live mode — every question enters
       return l.questions.slice(from).map((q, i) => {
@@ -341,7 +342,14 @@ window.LENS_FEED_QS = (function () {
           return { label, count: Math.round(180 + w * 1900) };
         });
         // tier 2 lenses surface at half the rate of tier 1
-        return { id, lens: l.id, qi, tier: l.tier, cat: 'lens', type: 'vote', prompt: q.q, options };
+        const card = { id, lens: l.id, qi, tier: l.tier, cat: 'lens', type: 'vote', prompt: q.q, options };
+        // In a live session those counts are AUTHORED, not measured: lens
+        // answers stay on this device (the persistence note above), so no
+        // backend aggregate exists to draw. The flag tells world-feed to
+        // keep every crowd surface off the card and acknowledge the local
+        // write instead of rendering a split (D47).
+        if (live) card.selfOnly = true;
+        return card;
       });
     });
     const t1 = [], t2 = [];

@@ -370,6 +370,12 @@ class WorldFeed extends React.Component {
 
   setVote(q, val) {
     const id = q.id;
+    // A selfOnly card (a live session's lens question — lens-defs.js, D47)
+    // has authored counts and no measurement behind them, so every side
+    // effect below that reads the "crowd" — the majority bit, the beat, the
+    // ripple's Mirror claim, the why-prompt — would be fabricated. The lens
+    // record itself still happens: that write is the card's whole point.
+    const selfOnly = !!q.selfOnly;
     // live cards persist to Firestore too (owner-only answer + aggregate)
     if (q.live && window.LIVE && typeof val === 'number') window.LIVE.vote(id, String(val));
     if (window.PASSIVE) window.PASSIVE.record(q); // no-op unless this is a test's own question (q.test)
@@ -382,7 +388,8 @@ class WorldFeed extends React.Component {
     HAPTIC.tap(); clearTimeout(this._hapT); this._hapT = setTimeout(() => HAPTIC.reveal(), 260);
     // the feed's memory: with the crowd or against it. Local to this device
     // (feed-read.js) — it reports only your own answers, so no floor applies.
-    if (window.FEEDREAD && q.options && typeof val === 'number') {
+    // No crowd on a selfOnly card means no majority to be with.
+    if (window.FEEDREAD && q.options && typeof val === 'number' && !selfOnly) {
       const counts = q.options.map((o) => o.count);
       const { p } = wfPcts(counts, val);
       window.FEEDREAD.log(id, { maj: p[val] === Math.max(...p) });
@@ -390,8 +397,10 @@ class WorldFeed extends React.Component {
     // the ripple — where this vote landed on your Mirror. Deliberately on
     // ~45% of answers, chosen by a hash of the id so it is stable per
     // question rather than random per render: every card saying it makes it
-    // wallpaper, and a re-render must not make it flicker.
-    const rip = this.opts.ripple && wfHash(id + ':rip') < 0.45 ? id : null;
+    // wallpaper, and a re-render must not make it flicker. A lens answer
+    // lands on the profile's Lenses tab, not the Mirror — renderSelfNote
+    // says so instead.
+    const rip = this.opts.ripple && !selfOnly && wfHash(id + ':rip') < 0.45 ? id : null;
     if (rip) {
       clearTimeout(this._rippleT);
       this._rippleT = setTimeout(() => {
@@ -401,11 +410,14 @@ class WorldFeed extends React.Component {
     this.setState((s) => {
       const votes = { ...s.votes, [id]: val };
       try { localStorage.setItem(WF_LS, JSON.stringify(votes)); } catch { /* best-effort */ }
-      const beat = (this.props.beats !== false && window.ConsequenceBeat) ? id : s.beat;
+      // …and the beat replays the split as a scene, so it is the same
+      // fabrication on a selfOnly card that the bars would be.
+      const beat = (this.props.beats !== false && window.ConsequenceBeat && !selfOnly) ? id : s.beat;
       // Ask for a reason once, while the vote is warm, and only if this
       // question has none of your takes yet. Demo cards only: a live card
-      // shows no takes, so there would be nowhere for the answer to go.
-      const askWhy = this.opts.why && !q.live && typeof val === 'number' && !(s.myTakes[id] || []).length ? id : s.whyFor;
+      // shows no takes, so there would be nowhere for the answer to go —
+      // and a selfOnly card suppresses the whole engage row the same way.
+      const askWhy = this.opts.why && !q.live && !selfOnly && typeof val === 'number' && !(s.myTakes[id] || []).length ? id : s.whyFor;
       return { votes, beat, ripple: rip || s.ripple, whyFor: askWhy };
     });
     if (this.props.onVote) this.props.onVote(q, val);
@@ -1033,6 +1045,20 @@ class WorldFeed extends React.Component {
     );
   }
 
+  // The selfOnly counterpart (D47): a lens question in a live session
+  // records to the on-device instrument and nowhere else — no backend
+  // aggregates lens answers, so there is no split to reveal at any k.
+  // Where every other card answers with the crowd, this one answers with
+  // where the answer went. T.label is the lens's own title (renderCard's
+  // kicker derivation), so the line names the destination.
+  renderSelfNote(q, T, big) {
+    return (
+      <div style={{ fontSize: big ? 12.5 : 11.5, fontWeight: 600, color: 'var(--ink-3)', padding: '2px 2px 0' }}>
+        {'Saved to your ' + T.label + ' lens — only you see it.'}
+      </div>
+    );
+  }
+
   renderVote(q, T, big) {
     const mine = this.state.votes[q.id];
     if (mine != null && this.state.beat === q.id) return this.renderBeat(q, T, big);
@@ -1047,8 +1073,11 @@ class WorldFeed extends React.Component {
     }
     // Below the k-floor there are no numbers to lay out, so the tile
     // treatment — whose whole point is that height IS share — would be
-    // drawing a split it has not been told. Bars degrade honestly.
-    const floored = !!(q.live && q.tooSmall);
+    // drawing a split it has not been told. Bars degrade honestly. A
+    // selfOnly card (a live session's lens question — D47) is the same
+    // problem wearing authored counts: numbers exist, a measurement does
+    // not, so it takes the bars path too.
+    const floored = !!(q.live && q.tooSmall) || !!q.selfOnly;
     return this.opts.reveal && !floored
       ? this.renderVoteTiles(q, T, big)
       : this.renderVoteBars(q, T, big);
@@ -1163,19 +1192,24 @@ class WorldFeed extends React.Component {
     const { p } = wfPcts(counts, mine);
     const maxP = Math.max(...p);
     const fresh = this._fresh === q.id;
+    // selfOnly (D47): the fill width IS the share in a different alphabet
+    // (D11's phrase, same reasoning), so it is gated together with the
+    // numeral — the option rows stay, carrying only the label and your pick.
+    const noCrowd = !!q.selfOnly;
     return (
       <div style={{ display: 'flex', flexDirection: 'column', gap: big ? 10 : 7, animation: fresh ? 'popIn .3s cubic-bezier(0.2,0.8,0.2,1)' : 'none' }}>
         {q.options.map((o, i) => (
           <div key={i} style={{ position: 'relative', border: mine === i ? '1px solid color-mix(in oklch, ' + T.color + ' 65%, var(--rule))' : WF_LINE, borderRadius: big ? 14 : 11, background: 'var(--surface)', overflow: 'hidden' }}>
-            <div style={{ position: 'absolute', top: 0, left: 0, bottom: 0, width: p[i] + '%', background: 'color-mix(in oklch, ' + T.color + ' ' + (mine === i ? 30 : 15) + '%, transparent)', animation: fresh ? 'barIn .7s cubic-bezier(0.2,0.8,0.2,1) ' + (i * 0.07) + 's both' : 'none' }}></div>
+            <div style={{ position: 'absolute', top: 0, left: 0, bottom: 0, width: (noCrowd ? 0 : p[i]) + '%', background: 'color-mix(in oklch, ' + T.color + ' ' + (mine === i ? 30 : 15) + '%, transparent)', animation: fresh ? 'barIn .7s cubic-bezier(0.2,0.8,0.2,1) ' + (i * 0.07) + 's both' : 'none' }}></div>
             <div style={{ position: 'relative', display: 'flex', alignItems: 'baseline', gap: 8, padding: big ? '13px 14px' : '9px 12px' }}>
               {mine === i && <span aria-label="Your pick" style={{ width: big ? 18 : 15, height: big ? 18 : 15, borderRadius: '50%', flexShrink: 0, alignSelf: 'center', background: WPAL.ink(T.color), display: 'flex', alignItems: 'center', justifyContent: 'center' }}><svg viewBox="0 0 24 24" width={big ? 10 : 8} height={big ? 10 : 8} fill="none" stroke="#fff" strokeWidth="3.4" strokeLinecap="round" strokeLinejoin="round"><path d="M4.5 12.5 10 18 19.5 6.5"></path></svg></span>}
               <span style={{ flex: 1, minWidth: 0, fontWeight: mine === i ? 800 : 700, fontSize: big ? 15 : 13.5 }}>{o.label}</span>
-              {p[i] === maxP && !(q.live && q.tooSmall) && <span style={{ fontWeight: 800, fontSize: big ? 20 : 15, color: 'var(--ink)' }}><WfCount to={p[i]} animate={fresh}></WfCount>%</span>}
+              {p[i] === maxP && !(q.live && q.tooSmall) && !noCrowd && <span style={{ fontWeight: 800, fontSize: big ? 20 : 15, color: 'var(--ink)' }}><WfCount to={p[i]} animate={fresh}></WfCount>%</span>}
             </div>
           </div>
         ))}
         {q.live && q.tooSmall && mine != null && this.renderFloorNote(big)}
+        {noCrowd && mine != null && this.renderSelfNote(q, T, big)}
       </div>
     );
   }
@@ -1316,6 +1350,12 @@ class WorldFeed extends React.Component {
     // live build dropped into the mock fallback, where the synthetic
     // splits and the fake named people below would both be lies.
     if (window.LIVE && window.LIVE.demoInProd) return null;
+    // A selfOnly card (live-session lens question — D47) has no crowd
+    // behind it: takes, who-voted and the votes-count footer would all be
+    // authored demo numbers wearing a live badge. The whole row goes, the
+    // same way it does for demoInProd — the card's own note
+    // (renderSelfNote) already says where the answer went.
+    if (q && q.selfOnly) return null;
     if (q.live) {
       if (q.type === 'rank') return null;
       // The surprise line belongs HERE and only here: feedInsight reads
@@ -2269,6 +2309,9 @@ class WorldFeed extends React.Component {
       const m = done.order.filter((it, pos) => q.crowd[it] === pos + 1).length;
       return <span style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--ink-3)' }}>ranked{' · '}{m}/{q.items.length} with the crowd</span>;
     }
+    // selfOnly (D47): a thin bar is still a split — the collapsed card
+    // keeps its silence too.
+    if (q.selfOnly) return null;
     const mine = this.state.votes[q.id];
     const { p } = wfPcts(q.options.map((o) => o.count), mine);
     return (

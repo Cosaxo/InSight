@@ -27,7 +27,7 @@
 
 import { beforeAll, afterEach, describe, expect, it, vi } from "vitest";
 import React from "react";
-import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 
 // 15s per test, not the 5s default: every case here mounts the FULL app in
 // jsdom, and the v15 revision roughly doubled the spec layer's feed weight —
@@ -248,5 +248,56 @@ describe("the live gates hold in the DOM, not just in the source", () => {
     // to draw. Asserting the layer exists, not just that the gate does.
     mountLive();
     expect(window.WORLD_FEED_COMMENTS).toEqual({});
+  });
+
+  // D47. A lens question woven into a LIVE feed is a self-report item: the
+  // answer lands in the on-device lens store, no backend aggregate exists,
+  // and the authored demo counts the card carries must never render as a
+  // split. buildFeedGlobals (data/live.ts) replaces WORLD_FEED_QS and
+  // TEST_FEED_QS with live-shaped cards but leaves the lens pool alone —
+  // this is the case that notices if the selfOnly treatment ever comes off.
+  it("a live lens card records locally and shows no invented crowd", () => {
+    // Nine world cards: the weave inserts the first lens card after the
+    // ninth. The live pool starts at qi 0 (lens-live.test.ts pins that), so
+    // the first lens card on screen is the first lens's first question.
+    const expectNoBoundary = mountLive({ feedCards: 9 });
+    const lens = window.IS_LENSES[0];
+    const q0 = lens.questions[0].q;
+    // The prompt div is a direct child of the card root, so its parent
+    // scopes every query to THIS card — nine world cards share their two
+    // option labels, and 'Strongly agree' repeats on later lens cards.
+    const card = screen.getByText(q0).parentElement;
+    try {
+      fireEvent.click(within(card).getByRole("button", { name: "Strongly agree" }));
+      // selfOnly cards skip the consequence beat, so the answered state is
+      // already on screen — no settle wait, unlike the D11 cases above.
+      // 1. The instrument recorded it, inverted: the feed scale runs
+      //    agree→disagree while the store runs disagree→agree, so option 0
+      //    stores value 4 — which one answered, uninverted item scores as
+      //    100 on its dimension in live mode (no prior to dilute it).
+      expect(window.LENSES.done(lens.id)).toBe(1);
+      expect(window.LENSES.score(lens.id)[lens.questions[0].d]).toBe(
+        lens.questions[0].invert ? 0 : 100,
+      );
+      // 2. Nothing left the device: LIVE.vote never saw the lens card (D31's
+      //    contract for self-tests — lens answers have no backend at all).
+      expect(live.votes).toEqual({});
+      // 3. No split, no votes count — the acknowledgment instead. Both
+      //    halves matter: the numeral/fill suppression AND the note, so a
+      //    broken gate and a vacuous render both fail here.
+      expect(card.textContent).not.toMatch(/\d\s*%/);
+      expect(card.textContent).not.toMatch(/votes/i);
+      expect(card.textContent).toContain(`Saved to your ${lens.title} lens`);
+      // 4. No engage row: takes and who-voted are demo surfaces (D11), and
+      //    a lens card must not resurrect them inside a live session.
+      expect(within(card).queryByRole("button", { name: /takes$/i })).toBeNull();
+      expect(within(card).queryByRole("button", { name: /who voted/i })).toBeNull();
+      expectNoBoundary("live lens card");
+    } finally {
+      // The lens store persists to localStorage and lives for the module —
+      // leave it as the next case expects to find it.
+      window.LENSES.reset();
+      localStorage.removeItem("insight.lenses.v1");
+    }
   });
 });

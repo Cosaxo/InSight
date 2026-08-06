@@ -104,6 +104,21 @@ describe("LENS_FEED_QS follows liveness", () => {
     }
   });
 
+  it("live cards carry selfOnly, demo cards do not (D47)", () => {
+    // The flag is what tells world-feed the card's counts are authored
+    // rather than measured — no aggregate exists for lens answers, which
+    // stay on-device. Demo mode is all authored numbers anyway, so the
+    // flag would be noise there; it must appear on every live card, or the
+    // one it misses renders a fabricated split inside a live session.
+    for (const card of W.LENS_FEED_QS()) {
+      expect(card.selfOnly, card.id).toBeUndefined();
+    }
+    W.LIVE = { enabled: true };
+    for (const card of W.LENS_FEED_QS()) {
+      expect(card.selfOnly, card.id).toBe(true);
+    }
+  });
+
   it("is memoised per liveness and rebuilt on the flip — not a snapshot", () => {
     const demoA = W.LENS_FEED_QS();
     expect(W.LENS_FEED_QS()).toBe(demoA); // same mode → cached array
