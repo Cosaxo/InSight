@@ -307,6 +307,36 @@ describe("the rendered page", () => {
     expect(even).not.toContain("days with no reading");
   });
 
+  it("says nothing about a single skipped day, and draws nothing either", () => {
+    // The caption and the hairline used to use different thresholds: the
+    // rule drew at two missed days, the caption counted every one. So a
+    // single skip — a job queued past midnight — produced a warning-
+    // coloured "1 day with no reading" pointing at an unmarked chart.
+    const oneSkip = renderPulse(p, [
+      { on: "2026-08-04", runwayDays: 87 },
+      { on: "2026-08-06", runwayDays: 85 },   // 2026-08-05 missing
+    ]);
+    expect(oneSkip).not.toContain("with no reading");
+    // `stroke="var(--serious)"` is the hairline specifically — the bare
+    // token also appears in the population panel's "the catch" lines, so a
+    // substring match on it would pass for the wrong reason.
+    expect(oneSkip).not.toMatch(/stroke="var\(--serious\)"/);
+    // …but the spacing is still honest: two days apart, not two steps.
+    expect(oneSkip).toContain("2 readings over 2 days");
+  });
+
+  it("counts only the gaps it draws, so caption and chart cannot disagree", () => {
+    const mixed = renderPulse(p, [
+      { on: "2026-08-01", runwayDays: 90 },
+      { on: "2026-08-03", runwayDays: 88 },   // 1 skipped — below the bar
+      { on: "2026-08-20", runwayDays: 71 },   // 16 skipped — a real gap
+    ]);
+    // 16, not 17: the lone skip is deliberately not folded into the total.
+    expect(mixed).toContain("16 days with no reading");
+    const hairlines = (mixed.match(/stroke="var\(--serious\)"/g) || []).length;
+    expect(hairlines).toBe(1);
+  });
+
   it("renders a populated scorecard, built from the REAL artifact's shape", () => {
     // This test used to fixture a shape I invented, because no scorecard
     // existed to look at — and the collector had invented the same shape, so

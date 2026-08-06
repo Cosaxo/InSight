@@ -588,17 +588,32 @@ function sparkline(trail, key, title) {
   // covers, so the gap is marked rather than merely implied by spacing —
   // the line still crosses it, and a straight segment across two weeks
   // would otherwise read as two weeks of steady change that nobody saw.
+  //
+  // ONE THRESHOLD, BOTH CONSUMERS. The hairline and the caption used to
+  // disagree: the rule drew at two missed days, the caption counted every
+  // one, so a single skipped day produced a warning-coloured "1 day with no
+  // reading" with nothing on the chart to point at. A single skip is noise
+  // — a job queued past midnight, an afternoon spent on a branch — and
+  // colouring noise is how a reader learns to ignore the colour. Two
+  // consecutive misses is the job actually having stopped.
+  const GAP_MIN_DAYS = 2;
+  const missedBetween = (i) => Math.max(0, dayOf(pts[i + 1]) - dayOf(pts[i]) - 1);
+
   const gaps = pts.slice(1).map((r, i) => {
-    const prev = pts[i];
-    const missed = dayOf(r) - dayOf(prev) - 1;
-    if (missed < 2) return "";
-    return `<line x1="${x(prev).toFixed(1)}" y1="${H - PAD.b + 6}"
+    const missed = missedBetween(i);
+    if (missed < GAP_MIN_DAYS) return "";
+    return `<line x1="${x(pts[i]).toFixed(1)}" y1="${H - PAD.b + 6}"
       x2="${x(r).toFixed(1)}" y2="${H - PAD.b + 6}"
       stroke="var(--serious)" stroke-width="2" stroke-linecap="round"
-      data-tip="No readings|${missed} days between ${esc(prev.on)} and ${esc(r.on)}"/>`;
+      data-tip="No readings|${missed} days between ${esc(pts[i].on)} and ${esc(r.on)}"/>`;
   }).join("");
-  const missedTotal = pts.slice(1).reduce(
-    (a, r, i) => a + Math.max(0, dayOf(r) - dayOf(pts[i]) - 1), 0);
+
+  // Counts only what the chart also draws, so the sentence and the picture
+  // can never disagree about whether there is a gap.
+  const missedTotal = pts.slice(1).reduce((a, _, i) => {
+    const missed = missedBetween(i);
+    return a + (missed >= GAP_MIN_DAYS ? missed : 0);
+  }, 0);
 
   // Markers at >=8px hit size, but drawn small: the line carries the shape,
   // the endpoints carry the numbers.
