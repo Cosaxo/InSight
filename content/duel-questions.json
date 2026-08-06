@@ -244,7 +244,7 @@
     {
       "id": "003",
       "d": "day",
-      "prompt": "Running late. Their text says…",
+      "prompt": "Running late. The text says…",
       "options": [
         "\"5 min\" (it’s 20)",
         "The honest ETA",
@@ -292,7 +292,7 @@
     {
       "id": "008",
       "d": "heat",
-      "prompt": "Someone takes their joke too far. Laugh it off, or say so?",
+      "prompt": "Someone's joke goes too far. Laugh it off, or say so?",
       "options": [
         "Laugh it off",
         "Say so"
@@ -301,7 +301,7 @@
     {
       "id": "009",
       "d": "ahead",
-      "prompt": "Big decision to make. How do they call it?",
+      "prompt": "A big decision lands. How do you call it?",
       "options": [
         "Gut",
         "A list",
@@ -331,7 +331,7 @@
     {
       "id": "012",
       "d": "ahead",
-      "prompt": "They win €10k. First move?",
+      "prompt": "A surprise windfall lands. First move?",
       "options": [
         "Save it",
         "Book a trip that night",
@@ -360,7 +360,7 @@
     {
       "id": "015",
       "d": "heat",
-      "prompt": "When hurt, they go…",
+      "prompt": "When hurt, you go…",
       "options": [
         "Quiet",
         "Loud",
@@ -370,7 +370,7 @@
     {
       "id": "016",
       "d": "heat",
-      "prompt": "Hard truth or comfortable silence?",
+      "prompt": "Hear the hard truth, or keep the comfortable silence?",
       "options": [
         "Hard truth",
         "Silence"
@@ -379,7 +379,7 @@
     {
       "id": "017",
       "d": "heat",
-      "prompt": "After a brutal week, what refills them?",
+      "prompt": "After a brutal week, what refills you?",
       "options": [
         "People",
         "Solitude",

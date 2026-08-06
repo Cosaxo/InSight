@@ -49,6 +49,12 @@ window.IS_LENSES = [
       { q: 'Some things are degrading even when nobody is harmed.', d: 'sanctity' },
       { q: 'Being told what to do is a harm in itself.', d: 'liberty' },
       { q: 'Rules I never agreed to have no hold on me.', d: 'liberty' },
+      // APPENDED, never inserted: lens answers and feed ids (lq-<lens>-<qi>)
+      // are index-keyed, so only the tail is safe to grow. This is the
+      // lens's one reverse-keyed item — without any, an agree-with-
+      // everything response style scores as a full moral profile (the same
+      // acquiescence hole the W2 expansion closed for big5/attachment).
+      { q: 'Toughness does more good than tenderness.', d: 'care', invert: true },
     ],
   },
   {
@@ -161,6 +167,9 @@ window.IS_LENSES = [
       { q: 'When things go badly I can usually find it funny.', d: 'selfenh' },
       { q: 'A good joke is worth someone being stung by it.', d: 'aggressive' },
       { q: 'I get laughs by putting myself down.', d: 'selfdef' },
+      // Appended (index-keyed — see the moral lens note): the reverse-keyed
+      // item this lens shipped without.
+      { q: 'A joke that needs a target isn’t worth telling.', d: 'aggressive', invert: true },
     ],
   },
   {

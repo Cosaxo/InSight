@@ -4530,3 +4530,93 @@ through seed → purge → remutate and asserts the resurrection never
 reaches disk; `smoke-live.test.jsx` proves the component half in a
 mounted tree; `vote.test.ts` pins that the announcement fires on the
 uid-change path.
+
+## D49 · The content review: what got fixed, what got flagged, and the two lines that held
+
+**Date:** 2026-08-06 · **Status:** Adopted
+
+**The review.** All seven question surfaces read end to end — 90 daily, 73
+feed, 44 duel, 96 learn cards, the four core tests, the nine lenses, and
+the cross-bank seams. Two invariants shaped every fix: shipped **option
+sets are never edited** (answers store `(qid, optionIdx)` forever — the
+D30 re-key class), and the **daily list is never shortened mid-epoch**
+(the deck maps day→question by position; a removal re-keys every later
+day). So fixes took four shapes only: prompt edits that preserve the
+question's meaning, metadata edits, `active: false` retirement for feed
+items, and appends.
+
+**Fixed.**
+- **Six feed duplicates retired** (`active: false`, honoured by deck.ts's
+  `active !== false` filter, now passed through the generator): f08, f20,
+  f21, f24, f40, f54 — each the same question as a live daily (one
+  cuisine, spoilers, lyrics/melody, music-while-working, death date,
+  money-buys-happiness), splitting the same crowd twice.
+- **D44 extends to opinion cards**: new optional `political: true` marker
+  on f45 (mandatory voting), f46 (four-day week), f47 (car-free centres)
+  and daily-014 (news trust) joins them to the no-slice set. A second
+  marker rather than `test: "political"` because PASSIVE.record and the
+  feed's test kicker key off `q.test` — reusing it would count feed cards
+  toward the political test's rings. `slicing.test.ts` pins both markers
+  and the generator pass-through, non-vacuously. Considered and left
+  sliceable: f27 (phones in schools), f32 (tipping), f50 (celebrities in
+  politics), daily-015 (AI) — opinions that correlate with politics less
+  than they express it; the line is "expresses a political position",
+  not "correlates with one".
+- **Currency leaves the prompts**: daily-006 "€500" → "a week's pay"
+  (scales with the reader, travels), duo-12 "€10k" → "a surprise
+  windfall", f39 "$1M" → "a million". The time lens's "€100 today beats
+  €160 in a year" became plain numbers — the 60% premium is the
+  instrument, the currency was noise.
+- **Duel voice unified**: seven 1v1 prompts rewritten you-voice/neutral
+  (3, 8, 9, 12, 15, 17, plus 16 gaining its missing direction — hear the
+  hard truth, not tell it). The duo overlay renders prompts verbatim in
+  both the answer-about-yourself and guess phases, so they-voice items
+  read wrong for half the flow.
+- **Instrument items replaced in both layers** (tests.json ≡
+  test-definitions.js, parity-gated): political-01's motherhood statement
+  ("a society is judged…" — near-universal agreement, no discrimination)
+  → public-ownership item; values-03's time/circle cross-load → pure
+  circle; attachment-11 (drifting groups measured breadth, not loyalty)
+  and attachment-14 (noticing withdrawal measured vigilance, not
+  un-easygoingness) → maintenance and score-keeping items.
+- **The lenses' acquiescence hole closed**: `moral` and `humor` gained
+  their first reverse-keyed items, appended (lens answers and feed ids
+  are index-keyed; only the tail is safe). A new structural gate
+  (`src/v2/test/lens-content.test.ts`) holds every lens to: questions key
+  to declared dims, every dim has a question, ids unique, viz known, and
+  ≥1 invert per lens — the per-LENS floor, since single-item dims cannot
+  carry the core tests' per-dimension rule.
+- **Learn**: sol6's stem sharpened to "Demoted from planet to dwarf
+  planet in 2006" (Ceres and Eris were also reclassified/designated in
+  2006 — the old stem had three defensible answers); cell5's trap
+  repointed to the lysis-wordplay distractor already in its options.
+
+**Flagged, not fixed — and why.**
+- Authored landslides that need retirement or a rewrite the invariants
+  forbid: daily-004 ("okay to do nothing" — double-hedged truism),
+  daily-013 ("can give meaning" — the modal concedes it), daily-061,
+  daily-081, f53, f15's "always" strawman, f23/f33's missing third camp.
+  Daily items wait for an epoch-safe retire lane; option edits wait for
+  the farm's replace flow. The scorecard will say which of these the
+  crowd actually kills.
+- Duel reveal-safety trio (gu3 "loudest wins", gu9 "what would break this
+  group", gu11 "new person wants in") — option-level content that can
+  land on real people once names attach; retire/replace candidates for
+  the duel lane, recorded here so D40's content lane inherits them.
+- Duel trait overweight: five of twenty 1v1 items probe
+  introvert/extrovert, four probe confront/avoid — variety debt for the
+  next duel batch, not an edit to shipped items.
+- Learn calibration gaps: `origins` and `capitals` ramp p=26–63 with no
+  easy rung — needs appended easy cards (the learn lane's job), not
+  edits. Weak traps whose options offer no better candidate (gene8,
+  body8, sol7, ear3, ear8) stay as recall cards.
+- daily-007's your-life/the-world ambiguity and daily-011's costless
+  "find a third way" dodge — meaning-changing fixes deferred to human
+  editorial; recorded so they are a decision, not a discovery.
+- The daily↔feed near-dup *class* (f36/daily-038 survives this pass):
+  worth a similarity warn-tier in check:content the day a third instance
+  appears.
+
+**Ops note.** These are bank edits; production picks them up on the next
+`seedContentV2` run with `bumpRev` per the deploy runbook — nothing here
+re-keys an existing answer, by construction of the four allowed shapes.

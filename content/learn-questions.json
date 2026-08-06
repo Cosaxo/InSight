@@ -160,7 +160,7 @@
         "Splits the cell"
       ],
       "c": 0,
-      "t": 2,
+      "t": 3,
       "p": 44,
       "k": "Lysosomes break down waste"
     },
@@ -653,7 +653,7 @@
     {
       "id": "sol6",
       "f": "solar",
-      "q": "Reclassified as a dwarf planet in 2006:",
+      "q": "Demoted from planet to dwarf planet in 2006:",
       "a": [
         "Pluto",
         "Ceres",

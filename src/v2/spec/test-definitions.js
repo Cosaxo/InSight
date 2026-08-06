@@ -166,7 +166,7 @@ const IS_TESTS = {
       ],
       questions: [
         { q: "Markets, left to themselves, distribute fairly.",        d: 'econ' },
-        { q: "A society is judged by how it treats the weakest.",      d: 'econ', invert: true },
+        { q: "Essential services belong in public hands, not markets.",      d: 'econ', invert: true },
         { q: "Some speech is harmful enough to restrict.",             d: 'auth' },
         { q: "The state should keep out of private life.",             d: 'auth', invert: true },
         { q: "My country should help others before its own poor.",     d: 'foreign' },
@@ -203,7 +203,7 @@ const IS_TESTS = {
         { q: "Future generations will live better than ours.",                  d: 'future' },
         { q: "Most of what's changing right now is change for the better.",     d: 'future' },
         { q: "What I owe my family weighs more than what I owe strangers.",     d: 'circle', invert: true },
-        { q: "I'd sacrifice comfort now for a stranger's future.",              d: 'circle' },
+        { q: "I'd give up real comfort to help a stranger.",              d: 'circle' },
         { q: "Pleasure needs no justification.",                                d: 'hedonism' },
         { q: "Obligations come before enjoyment.",                              d: 'hedonism', invert: true },
         { q: "Suffering can give life meaning, not just pain.",                 d: 'meaning' },
@@ -247,10 +247,10 @@ const IS_TESTS = {
         // Round 2 (one per dimension, all reverse-keyed — same
         // acquiescence fix as big5).
         { q: "Showing affection doesn't come naturally to me.",       d: 'warm', invert: true },
-        { q: "I drift between friend groups rather than settling into one.", d: 'loyal', invert: true },
+        { q: "My friendships tend to fade when life gets busy.", d: 'loyal', invert: true },
         { q: "I keep my problems to myself.",                         d: 'open', invert: true },
         { q: "I take most things seriously, even the small stuff.",   d: 'play', invert: true },
-        { q: "I notice straight away when a friend pulls back.",      d: 'easy', invert: true },
+        { q: "I keep track of who reached out last.",      d: 'easy', invert: true },
       ],
     },
 };

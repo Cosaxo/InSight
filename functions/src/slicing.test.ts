@@ -16,7 +16,12 @@ import { describe, expect, it } from "vitest";
 import { POLITICAL_QIDS, slicesDemographics } from "./v2";
 import { V2_QUESTIONS } from "./v2content";
 
-const political = V2_QUESTIONS.filter((q) => q.test === "political");
+// Both markers (D44, D49): the political test's own items, and ordinary
+// opinion cards carrying `political: true` — the flag a feed question uses
+// because reusing `test` would count it toward the test's progress rings.
+const political = V2_QUESTIONS.filter(
+  (q) => q.test === "political" || q.political === true,
+);
 
 describe("D44 · political items never slice", () => {
   it("the shipped bank actually contains political items", () => {
@@ -46,13 +51,27 @@ describe("D44 · political items never slice", () => {
     }
   });
 
-  it("slices ordinary daily and feed questions", () => {
+  it("slices ordinary daily and feed questions — the flagged ones excepted", () => {
     const ordinary = V2_QUESTIONS.filter(
-      (q) => q.surface === "daily" || q.surface === "feed",
+      (q) =>
+        (q.surface === "daily" || q.surface === "feed") && q.political !== true,
     );
     expect(ordinary.length).toBeGreaterThan(0);
     for (const q of ordinary) {
       expect(slicesDemographics(q.id), `${q.id} should still slice`).toBe(true);
+    }
+  });
+
+  it("the flag reaches feed/daily opinion items, not only the test", () => {
+    // The non-vacuity guard for D49's half of the set: if the generator
+    // stopped passing `political` through, the flagged civic items would
+    // quietly rejoin the sliceable pool with every other assertion green.
+    const flagged = V2_QUESTIONS.filter((q) => q.political === true);
+    expect(flagged.map((q) => q.id)).toEqual(
+      expect.arrayContaining(["feed-f45", "feed-f47", "daily-014"]),
+    );
+    for (const q of flagged) {
+      expect(slicesDemographics(q.id), `${q.id} must not slice`).toBe(false);
     }
   });
 
