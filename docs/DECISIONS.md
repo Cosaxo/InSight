@@ -5033,3 +5033,48 @@ result, not a history, matches the device-local minimalism of D31. The
 test is inherently visual; options are labelled by position for assistive
 tech, and a non-visual rendering of a matrix test is out of scope rather
 than pending.
+
+---
+
+## D28 amendment (2026-08-06) · Identity verification (passport / driver's licence class) recorded as a possible future requirement
+
+**Date:** 2026-08-06 · **Status:** Owner's forward note, recorded.
+Nothing changes today — D28's "no identity gate" clause still governs
+everything built and shipped.
+
+**The note.** The owner directs the record to carry this: if the shipped
+stack — App Check (D36), device-bound activation (D29/D37), the floors,
+the attribution ledger — proves insufficient against fake accounts in
+practice, the product will in the future require government identity
+verification (passport or driver's licence class) as a condition of
+counting. This widens the escalation path D3's 2026-08-03 amendment
+recorded: tightening device-bind stays first, and identity verification
+now stands recorded behind it, at the owner's option, on evidence.
+
+**What adoption would change, priced now so it is a decision rather than
+a surprise later.** D28's reasoning does not dissolve because the feature
+is wanted; it is the bill:
+
+- **It reverses the product's defining claim.** "No account required" is
+  in the store listing, and the privacy posture (D1/D8/D44) exists
+  because the app stores politics- and relationship-class answers. An ID
+  check binds a government identity to exactly that data (Art. 9), so
+  the data inventory, both stores' privacy labels, SECURITY.md and the
+  erasure story (D45/D51) must be rewritten and re-reviewed **before**
+  the gate ships, not after.
+- **It adds a processor.** Document capture, liveness and retention are
+  a vendor relationship — a new breach and subpoena surface, and a real
+  per-verification cost paid on every honest user.
+- **What it buys is bounded, and the bound is already recorded.**
+  Documents are buyable and paid real humans pass any ID check (D28's
+  Douceur argument is unchanged) — so the gate re-prices a fake account
+  in documents rather than in hardware, which for some attackers is
+  cheaper than D29's per-device bar. It trades friction on every honest
+  user for a bar that some attackers step over.
+
+**The trigger stays evidence, not mood.** "Insufficient in practice"
+means signals from the ledger — the velocity-analysis lever D29 names —
+or a discovered ring the correction runbook (DEPLOYMENT.md, "Correcting
+aggregates") could not adequately unwind. If adoption is proposed, it
+gets its own numbered decision carrying the mechanism, the vendor, the
+rollout, and the inventory rewrite sequenced first.
