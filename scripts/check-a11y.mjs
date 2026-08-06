@@ -96,15 +96,14 @@ import { ESLint } from "eslint";
 // What is left, and why each is a different bug:
 //   - no-autofocus (8) and the rest: recorded above and in D21.
 const BASELINE = {
-  "src/v2/ui/CityPicker.tsx": 1,     // autoFocus — see note above
-  "src/v2/ui/PickSearch.tsx": 1,     // autoFocus — see note above
   "src/v2/spec/app-shell.jsx": 1,
-  "src/v2/spec/consequence-beat.jsx": 2,
   "src/v2/spec/group-daily.jsx": 1,
   "src/v2/spec/relmap.jsx": 2,
   "src/v2/spec/suggestions.jsx": 1,
   "src/v2/spec/tweaks-panel.jsx": 1,
   "src/v2/spec/world-feed.jsx": 1,
+  "src/v2/ui/CityPicker.tsx": 1,
+  "src/v2/ui/PickSearch.tsx": 1,
 };
 
 const eslint = new ESLint({ overrideConfigFile: "eslint.a11y.config.js" });
