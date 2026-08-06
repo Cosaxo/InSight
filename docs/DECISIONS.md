@@ -5787,3 +5787,54 @@ deploy workflow's --only list names them.
   decision builds the score that could survive one; the surface, its
   k-anonymity story, and the measured-percentile flip are separate
   decisions.
+
+## D58 · Near-duplicate questions get a measured gate
+
+**Date:** 2026-08-06 · **Status:** Adopted
+
+**The problem.** Every content lane's dedup rule is "check the whole
+corpus while writing" (QUESTION-FARM.md), and the only automation behind
+it is exact prompt-string equality within a surface (`check-content.mjs`).
+The corpus grows by up to 4 farm questions plus a catalog card per day
+(D33), written by scheduled runs whose recall of the archive is a re-read;
+one reworded word defeats the exact check, and the repo's own fixtures
+prove the class: "Money can buy happiness." (sg07) and "Money buys
+happiness." are the same question sharing not one exact string.
+
+**The gate.** `scripts/question-neighbors.mjs` (`npm run check:neighbors`,
+CI lint job) scores token-set Jaccard over prompt + option/item labels —
+lowercased, diacritics folded, stopwords dropped, plurals stemmed —
+within each surface's dedup domain: the spec daily archive (positional
+dq/dqx ids cross-read from `DQ_BASE`, so failures name real ids), the
+feed bank, both duel banks together (the D40 dedup rule), and `PICK_QS`.
+An in-domain pair ≥ 0.5 fails CI; a pair a human judges genuinely
+distinct is recorded in the script's `ALLOW` map with the reason — a
+recorded exception, not a convenience.
+
+**The threshold, measured not chosen.** At adoption the closest
+legitimate in-domain pairs score 0.286 (daily), 0.222 (feed), 0.300
+(duel), 0.333 (pick), while the deliberate suggestion-board twins score
+1.000 and 0.667 — the gate sits at 0.5, inside a gap that wide on both
+sides. `question-neighbors.test.mjs` (test:scripts, same CI job) pins
+the normalization, the id mapping `ALLOW` keys on, and every gated
+domain staying under the gate — so the gate holds even for a change that
+never ran the check script locally.
+
+**Deliberately outside it, so the next reader does not assume more than
+it checks:**
+
+- **Suggestions ↔ daily is report-only.** Two seeds twin dailies BY
+  DESIGN — the board depicts the picked → promoted story — so gating
+  them would red a green tree. The lookup mode
+  (`check:neighbors -- --candidate "…"`) still lists them, which is how
+  a farm run sees the collision the manual tells it to check.
+- **Learn cards (v1).** Two cards may legitimately share one fact's
+  vocabulary; their dupe bar is the fact, which only a human can check
+  (D32). Extending the metric there needs its own calibration first.
+- **Cross-surface pairs.** Daily and feed may deliberately run the same
+  tension at different depths; a cross-surface twin is an editorial
+  call, not a mechanical one.
+- **Synonym paraphrases.** A lexical metric scores a synonym rewrite at
+  0. This gate is the measurable floor under the writing rule, not its
+  replacement — the manual's re-read stands, now citing the measured
+  top score per question in PR bodies.

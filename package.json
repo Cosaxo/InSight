@@ -37,6 +37,7 @@
     "check:logic-sync": "node scripts/check-logic-sync.mjs",
     "build:catalog": "node scripts/build-catalog.mjs",
     "check:content": "node scripts/check-content.mjs",
+    "check:neighbors": "node scripts/question-neighbors.mjs",
     "build:content": "node scripts/gen-v2content.mjs --write",
     "promote": "node scripts/promote-questions.mjs",
     "scorecard": "node scripts/question-scorecard.mjs",

@@ -217,7 +217,13 @@ style guide. What its voice looks like:
 restate an existing one in different clothes — check the whole `Q` array
 *and* the suggestion board seeds in `src/v2/spec/suggestions.js`. After
 writing, re-read each candidate against its nearest existing neighbour and
-drop it if a user would say "I already answered that."
+drop it if a user would say "I already answered that." Since D58 the
+nearest neighbours are measured, not guessed: run
+`npm run check:neighbors -- --candidate "…" --options "A|B"` for each
+candidate (suggestion seeds ride along) and cite the top score in the PR
+body's one-line-per-question section. The same script gates CI at ≥ 0.5
+similarity within a surface. It is lexical — it catches rewordings, never
+synonyms — so the re-read stays the rule and the score is its floor.
 
 ## Verifying
 
@@ -229,6 +235,7 @@ npm run check:globals
 npm run lint
 npm run build
 npm run test:unit
+npm run check:neighbors
 ```
 
 No backend files change in this job, so the rules/e2e suites are not
@@ -306,7 +313,11 @@ Rules, each load-bearing:
    prompts over one catalogue are legitimate only when their canons
    would differ ("Favourite film?" vs "Most rewatchable film?" —
    different question; "Favorite movie?" — the same one). Check against
-   every existing `PICK_QS` prompt for the domain before writing.
+   every existing `PICK_QS` prompt for the domain before writing;
+   `npm run check:neighbors -- --candidate "…" --domain pick` puts a
+   number on it (D58), though the canons-would-differ judgement stays
+   yours — one shared domain word keeps same-catalogue prompts near
+   0.33 by construction.
 5. **Each card brings its own baked demo crowd** — a `CROWD[qid]` block
    (entity → count) using real keys from that domain's committed
    catalogue, with sub-floor entries and a `'0'` (Not listed) bucket so
