@@ -66,6 +66,13 @@ jobs:
       # and deliberately NOT on backend-checks.yml — nothing it says bears on
       # whether a rules fix is safe to deploy.
       - run: npm run check:labels
+      # The privacy nutrition label exists twice on purpose: as JSON that
+      # gets pushed to Apple, and as prose a human reads before approving
+      # it. Two copies of one attestation is the shape that produced the
+      # "collects no email or name via Google" error — the same false claim
+      # in three documents, because nothing compared them. Client/docs-only,
+      # same placement rule as check:figures above.
+      - run: npm run check:store-forms
       # Five version numbers that must move together across three files.
       - run: npm run check:versions
       # The city catalogue is parsed at runtime and its names become

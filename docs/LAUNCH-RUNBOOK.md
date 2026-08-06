@@ -374,23 +374,38 @@ left here is a **recapture against live data**, plus the two forms.
       release workflow (`IOS-RELEASE.md`). It deliberately does NOT touch
       screenshots, the privacy questionnaire or the age rating; those are
       attestations, and `STORE-FORMS.md` is the transcribe-by-hand answer.
-- [ ] **4.4 Privacy nutrition labels (Apple) + Data safety form (Google).**
-      Mandatory; neither store accepts a submission without one. Answer
-      from the table in `SHIP-CHECKLIST §3`, which is
-      `docs/data-inventory.md` translated into their categories. The three
-      that bite: **Tracking = No** (no IDFA, no ATT prompt, no ad SDK of
-      any kind — the Facebook SDK is stripped at postinstall and asserted
-      by `check:ios-facebook`); **Coarse location = Yes, optional, never
-      Precise** (precise is unobtainable by construction, and the reason is
-      written down if a reviewer asks); **Sensitive info = Yes** (the
-      politics result is GDPR Art. 9 data — the form asks what you
-      *collect*, not what you publish).
-- [ ] **4.5 Age rating / IARC questionnaire.** The answers are now written
-      down in `SHIP-CHECKLIST §3`, including the scan showing every
-      *content* category is None and the three structural facts that
-      actually drive the rating. Expect 12+/Teen. **Read the Apple 1.2
-      table there before submitting** — the support email from 0.3 is a
-      1.2 dependency, not only a GDPR one.
+- [ ] **4.4 + 4.5 Privacy nutrition labels and the age rating — read, then
+      one dispatch.** Mandatory; Apple accepts no submission without both.
+
+      **Both are now data.** `design/store/app-privacy.json` holds every
+      answer with the reasoning on each row, `npm run check:store-forms`
+      holds it equal to `docs/STORE-FORMS.md`, and **Actions → App Store
+      metadata** pushes it. Dry-run by default: the first run prints the
+      exact diff — every field, every privacy row it would add or remove —
+      and writes nothing.
+
+      **Read `STORE-FORMS.md` before ticking apply.** What you are
+      approving is a legal statement about what the app collects. The
+      workflow transcribes that decision; it does not make it. Typing it by
+      hand was never the safeguard it looked like — it is ~40 clicks that
+      must agree with `data-inventory.md`, with nothing checking that they
+      do, which is exactly how one false claim survived in three documents
+      at once.
+
+      The three that bite, and why each is worth knowing before you
+      approve: **Tracking = No** (no IDFA, no ATT prompt, no ad SDK — the
+      Facebook SDK is stripped at postinstall and asserted by
+      `check:ios-facebook`); **Coarse location = Yes, optional, never
+      Precise** (precise is unobtainable by construction, and `check:store-forms`
+      fails if it ever appears); **Sensitive info = Yes** (the politics
+      result is GDPR Art. 9 data — the form asks what you *collect*, not
+      what you publish).
+
+      Expect **12+ / 13+**. **Read the Apple 1.2 table in `STORE-FORMS.md`
+      before submitting** — the support email from 0.3 is a 1.2 dependency,
+      not only a GDPR one.
+
+      *Play's Data Safety form is **[PARKED — D42]**.*
 
 ## Phase 5 — Production hygiene before the app is public
 
