@@ -14,17 +14,28 @@ import { FIELD_MED, loadResult, logicPctile, logicSecs, saveResult } from '../da
 // ramp, GENERATED fresh per attempt by src/v2/data/logic-gen.ts
 // (a direct import since D53 — this file was the global's only
 // consumer) from a random seed — the bank of hardcoded puzzles
-// (and its answer key in the bundle) is gone, so no two attempts
-// are the same and there is nothing to memorize. No per-question
-// feedback — score + percentile at the end, persisted via
-// data/logic-score.ts, where the curve is typed and pinned. The
-// General tab shows it as a fifth ring in "Your tests".
+// (and its answer key in the bundle) is gone, and since D54 the
+// family sequence is drawn per attempt too, so no two attempts
+// are the same and there is nothing to memorize, not even the
+// order of rules. Each puzzle is timed (D54): the cap
+// standardises the administration and bounds what a mid-item
+// consult can buy. No per-question feedback — score + percentile
+// at the end, persisted via data/logic-score.ts, where the curve
+// is typed and pinned. The General tab shows it as a fifth ring
+// in "Your tests".
 // ─────────────────────────────────────────────────────────────
 (function () {
   const { useState, useRef, useEffect } = React;
 
   // How long the picked-answer state shows before advancing.
   const PICK_DELAY = 240;
+  // Per-puzzle time budget (D54). Matrix tests are administered timed; a
+  // cap also bounds a stalled or wandering attempt. 90s is >5× the
+  // modelled median (FIELD_MED), so a careful solver is never rushed — an
+  // expired puzzle settles as unanswered. The countdown surfaces only in
+  // the final 20s: it should read as a bound, not a stopwatch.
+  const ITEM_CAP = 90000;
+  const COUNTDOWN_AT = 20000;
 
   // ── glyph model ──
   // A cell is an array of layers. Layer: {s: shape, z: size, f: 'n'|'s'}
@@ -312,28 +323,56 @@ import { FIELD_MED, loadResult, logicPctile, logicSecs, saveResult } from '../da
     // the marks; the Pace lens is the only reader. Nothing leaves the
     // device — this test has no backend.
     const [times, setTimes] = useState([]);
+    // Seconds left on the current puzzle, rendered only inside the final
+    // stretch (null = hidden). Driven by the interval below.
+    const [countdown, setCountdown] = useState(null);
     // Stamped in an effect rather than during render: Date.now() in a render
     // body is impure and eslint's react-hooks/purity rule rightly refuses it.
     // Keyed on qi, so it re-arms as each puzzle appears — including the first,
     // which start() never sees when the overlay opens straight into the test.
     const askedAt = useRef(0);
-    useEffect(() => { if (qi >= 0) askedAt.current = Date.now(); }, [qi]);
+    // The expiry path needs the CURRENT marks/times/qi, not the ones from
+    // the render that armed the interval — the latest-closure ref pattern.
+    const timeUpRef = useRef(() => {});
+    useEffect(() => {
+      timeUpRef.current = () => {
+        if (picked !== null || qi < 0) return;
+        setPicked(-1); // no option highlighted — the clock ran out
+        settle(false);
+      };
+    });
+    useEffect(() => {
+      if (qi < 0) { setCountdown(null); return undefined; }
+      askedAt.current = Date.now();
+      setCountdown(null);
+      // Deadline arithmetic, not tick counting: a backgrounded tab throttles
+      // intervals, but the next tick after return still lands on the truth —
+      // which also stops backgrounding from buying unbounded think time
+      // (the D53 accepted limit on Pace-lens timing, now capped).
+      const id = setInterval(() => {
+        const left = askedAt.current + ITEM_CAP - Date.now();
+        if (left <= 0) timeUpRef.current();
+        else setCountdown(left <= COUNTDOWN_AT ? Math.ceil(left / 1000) : null);
+      }, 500);
+      return () => clearInterval(id);
+    }, [qi]);
 
     const start = () => { setForm(makeForm()); setMarks([]); setTimes([]); setPicked(null); setQi(0); };
-    const pick = (i) => {
-      if (picked !== null) return;
-      setPicked(i);
-      const next = [...marks, i === form.items[qi].a];
+    // Shared by a pick and an expiry: records the mark, then advances (or
+    // saves) after the reveal delay.
+    const settle = (ok) => {
+      const next = [...marks, ok];
       // Deliberately never cancelled on unmount (D53): this timeout is also
       // the final item's save, so closing the overlay 200ms after the last
       // pick must still keep the score. Mid-test, the late callback's
       // setState is a no-op on an unmounted component — a 240ms timer is
       // the whole cost, and losing a finished attempt would be the bug.
       setTimeout(() => {
-        // Read the clock here, not in pick's body — same purity rule. The
-        // reveal delay is subtracted because it is the animation's time, not
-        // the solver's; left in, every puzzle would read 0.24s slow.
-        const nt = [...times, askedAt.current ? Math.max(0, Date.now() - askedAt.current - PICK_DELAY) : FIELD_MED * 1000];
+        // Read the clock here, not in the caller's body — same purity rule.
+        // The reveal delay is subtracted because it is the animation's time,
+        // not the solver's; left in, every puzzle would read 0.24s slow. The
+        // cap bounds what an expired (or backgrounded) puzzle records.
+        const nt = [...times, askedAt.current ? Math.min(ITEM_CAP, Math.max(0, Date.now() - askedAt.current - PICK_DELAY)) : FIELD_MED * 1000];
         setPicked(null);
         if (qi + 1 < form.items.length) { setMarks(next); setTimes(nt); setQi(qi + 1); }
         else {
@@ -346,6 +385,11 @@ import { FIELD_MED, loadResult, logicPctile, logicSecs, saveResult } from '../da
           saveResult(r); setResult(r); setMarks([]); setTimes([]); setQi(-1);
         }
       }, PICK_DELAY);
+    };
+    const pick = (i) => {
+      if (picked !== null) return;
+      setPicked(i);
+      settle(i === form.items[qi].a);
     };
 
     const inTest = qi >= 0;
@@ -362,10 +406,15 @@ import { FIELD_MED, loadResult, logicPctile, logicSecs, saveResult } from '../da
         <div className="app-body">
           {inTest && (
             <div style={{ maxWidth: 258, margin: '10px auto 0' }}>
-              <div style={{ display: 'flex', gap: 4, marginBottom: 18 }}>
+              {/* the countdown sits in the bar's margin (absolute), so its
+                  late appearance never shifts the puzzle mid-solve */}
+              <div style={{ position: 'relative', display: 'flex', gap: 4, marginBottom: 18 }}>
                 {form.items.map((_, i) => (
                   <span key={i} style={{ flex: 1, height: 4, borderRadius: 2, background: i < qi ? 'var(--ink)' : i === qi ? LOGIC_COL : 'var(--rule)', transition: 'background 0.2s ease' }}></span>
                 ))}
+                {countdown != null && (
+                  <span role="timer" aria-label={countdown + ' seconds left on this puzzle'} style={{ position: 'absolute', right: 0, top: 7, fontFamily: 'var(--sans)', fontSize: 11, fontWeight: 700, color: countdown <= 5 ? LOGIC_COL : 'var(--ink-3)' }}>{countdown}s</span>
+                )}
               </div>
               <div role="img" aria-label="3 by 3 puzzle grid, bottom-right tile missing">
                 <Matrix cells={p.cells} />

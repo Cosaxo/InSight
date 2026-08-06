@@ -5033,3 +5033,85 @@ result, not a history, matches the device-local minimalism of D31. The
 test is inherently visual; options are labelled by position for assistive
 tech, and a non-visual rendering of a matrix test is out of scope rather
 than pending.
+## D54 · The logic test stops telegraphing its rules: banded families, and every puzzle is on the clock
+
+**Date:** 2026-08-06 · **Status:** Adopted (owner: "the biggest impact"
+inside the D31 posture)
+
+**The problem.** D31 made every attempt's puzzles fresh, but deliberately
+fixed the family SEQUENCE — item 3 was always a shape cycle, items 9–11
+always Latin squares. That fixed order was the one piece of a fresh form a
+repeat taker still knew in advance: with thirteen families in a known
+order, the test was coachable per slot, which converts fluid reasoning
+into partly-practiced pattern matching. Separately, an attempt had no time
+bound at all — an item could be held open indefinitely, which is neither
+how matrix tests are administered nor neutral against mid-item consulting,
+and D53 had already recorded unbounded backgrounded time as an accepted
+timing skew.
+
+**What changed (generator v2).** The twelve slot WEIGHTS are untouched —
+`1,1,1.5,2,2,2,2.5,2.5,3,3,3,3.5` is the calibration D31 anchored
+`logicPctile` to, and it does not move. What varies is which family
+occupies a slot: each weight band draws from a pool, without replacement,
+on its own seeded stream. Five families joined so every band has a real
+pool: `sizeCycle` (w1.5), `dotSub` (w2), `innerGrow` (w2.5), `latinDots`
+(w3) and `overlayXor` (w3.5 — Carpenter's figure
+addition-and-subtraction, the classic APM tail motif). The arithmetic:
+band draws yield 2·2·24·6·24·3 = **41,472 family sequences** (ordered
+draws: 2! · C(2,1) · P(4,3) · P(3,2) · P(4,3) · C(3,1)), each then
+parameterised per item as before — the sequence is no longer knowledge.
+No family repeats within a form.
+
+**The clock.** Every puzzle now has a 90-second budget (>5× the modelled
+median of 17s — a careful solver is never rushed). An expired item
+settles as unanswered: marked wrong, timed at the full budget. The
+countdown renders only inside the final 20 seconds, absolutely
+positioned so its appearance never shifts the puzzle mid-solve. Expiry is
+deadline arithmetic, not tick counting, so a backgrounded tab cannot buy
+unbounded think time — this caps (not fixes) the D53 accepted limit on
+Pace timing. Recorded times are clamped to the budget.
+
+**What deliberately did NOT change.** The weight ramp, the percentile
+curve and its 94 ceiling (raising the honest ceiling needs harder items
+AND measured norms — a curve re-derivation without data would be
+model-on-model), the result schema (v2 payloads carry `gv`, which now
+reads 2), and the D31 device-local posture: this test still sends nothing
+anywhere, and the client-side honesty note in logic-gen.ts still holds —
+banding closes advance knowledge and coaching surface, not devtools.
+Verified server-scored attempts remain the recorded ticket price for any
+social or comparative surface (D31's deferral arithmetic stands).
+
+**Reconstruction survives the version bump.** D31 commits to {seed, gv}
+rebuilding a result's exact form forever, so v1 stayed generable:
+`generateForm(seed, 1)` dispatches to the frozen template (identical
+construction and option streams), and golden tests pin three v1 seeds —
+one per tail family, seed 7 down to every visible cell and the full
+option order — so drift in the frozen path fails CI rather than quietly
+reinterpreting history. An unknown gv throws. The overlay stamps
+`gv: form.version` as before; old saved results render unchanged.
+
+**Verification.** The D53 ambiguity sweep now covers the new families —
+each got a completion predicate (the family rule plus the grid's visible
+uniformities and exact element identities), and the sweep's contract is
+unchanged: every answer must satisfy its predicate, no distractor may,
+across every seed × item × option in the suite's 200-seed sweep.
+`overlayXor`'s construction guarantees a visible row whose operands
+overlap — on that row XOR visibly differs from union/intersection/copy,
+so the union corruption is a wrong answer, not an ambiguous one — and the
+family validator asserts that property from the cells. The banded
+template is pinned literally in the test (weights per slot, pool
+membership per slot, no-repeat), so moving a family between bands is a
+visible recalibration. The overlay suite drives a full expiry: countdown
+hidden at 69.5s, visible at 70s, item settled wrong at 90s + reveal
+delay, recorded at exactly 90000ms.
+
+**Accepted limits, recorded.** The w1 band holds only two families, so
+slots 1–2 vary in order but not membership — acceptable at the easy end,
+where coaching buys least. The 90s cap counts real-world interruptions
+(a phone call mid-item forfeits that item; Retake exists, and a bounded
+loss beats an unbounded hole). The countdown is visual plus a
+`role="timer"` label; the test's non-visual scope is unchanged from D53.
+Family draws are per-band independent, so cross-band composition (one
+item combining two bands' rules) is still future work — it is the honest
+route to raising the ceiling past 94, once there are measured norms to
+recalibrate against.

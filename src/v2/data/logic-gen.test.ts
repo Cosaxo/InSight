@@ -85,9 +85,48 @@ describe("answer key integrity (every seed, every item)", () => {
     expect([...seen].sort()).toEqual([0, 1, 2, 3, 4, 5]);
   });
 
-  it("slot 12 alternates between the two hard families across seeds", () => {
-    const tails = new Set(forms.map((f) => f.items[11].rules[0]));
-    expect(tails).toEqual(new Set(["decompose", "dist2"]));
+});
+
+// ── the banded template (v2, D54) ──
+// The WEIGHT ramp is the calibration D31 anchored the percentile curve to,
+// so it is pinned verbatim; the family occupying a slot is drawn from that
+// slot's same-weight band, so the sequence varies per attempt. The pools
+// are pinned literally here on purpose: moving a family between bands (or
+// changing a weight) is a recalibration and must show up as a test edit.
+describe("the banded template (v2)", () => {
+  const RAMP = [1, 1, 1.5, 2, 2, 2, 2.5, 2.5, 3, 3, 3, 3.5];
+  const BAND_AT: string[][] = [
+    ["sizeRamp", "dotCount"],
+    ["sizeRamp", "dotCount"],
+    ["shapeCycle", "sizeCycle"],
+    ["fillRamp", "sizeFillAlt", "dotAdd", "dotSub"],
+    ["fillRamp", "sizeFillAlt", "dotAdd", "dotSub"],
+    ["fillRamp", "sizeFillAlt", "dotAdd", "dotSub"],
+    ["overlay", "outerRowInnerCycle", "innerGrow"],
+    ["overlay", "outerRowInnerCycle", "innerGrow"],
+    ["latinShapeFill", "latinSizeShape", "ringGrow", "latinDots"],
+    ["latinShapeFill", "latinSizeShape", "ringGrow", "latinDots"],
+    ["latinShapeFill", "latinSizeShape", "ringGrow", "latinDots"],
+    ["decompose", "dist2", "overlayXor"],
+  ];
+
+  it("every form carries the fixed weight ramp — the curve's anchor does not move", () => {
+    for (const f of forms) expect(f.items.map((i) => i.diff)).toEqual(RAMP);
+  });
+
+  it("each slot's family comes from its own weight band; no family repeats in a form", () => {
+    for (const f of forms) {
+      const fams = f.items.map((i) => i.rules[0]);
+      fams.forEach((fam, i) => expect(BAND_AT[i], `seed ${f.seed} slot ${i}`).toContain(fam));
+      expect(new Set(fams).size, `seed ${f.seed}`).toBe(12);
+    }
+  });
+
+  it("the draws actually vary: every family of every band appears across seeds", () => {
+    const seen = new Set(forms.flatMap((f) => f.items.map((i) => i.rules[0])));
+    for (const fam of new Set(BAND_AT.flat())) {
+      expect(seen.has(fam), `family ${fam} never drawn in 200 seeds`).toBe(true);
+    }
   });
 });
 
@@ -245,6 +284,56 @@ describe("family semantics", () => {
     const holeB = rows9(cells9).map((row) => row.findIndex((c) => !hasB(c)));
     expect(holeA.join()).not.toBe(holeB.join());
   });
+
+  each("sizeCycle", (cells9) => {
+    for (const row of rows9(cells9)) expect(new Set(row.map((c) => c[0].s)).size).toBe(1);
+    for (const line of [...rows9(cells9), ...cols9(cells9)]) {
+      expect(new Set(line.map((c) => c[0].z)).size).toBe(3);
+    }
+    for (const cell of cells9) expect(cell[0].f).toBe("n");
+  });
+
+  each("dotSub", (cells9) => {
+    for (const row of rows9(cells9)) {
+      expect(dots(row[2])).toBe(dots(row[0]) - dots(row[1]));
+      expect(dots(row[2])).toBeGreaterThan(0);
+    }
+  });
+
+  each("innerGrow", (cells9) => {
+    for (const row of rows9(cells9)) {
+      const s = row[0][0].s;
+      for (const cell of row) for (const l of cell) expect(l.s).toBe(s);
+      expect(row[0].map((l) => [l.z, l.f])).toEqual([[3, "n"]]);
+      expect(row[1].map((l) => [l.z, l.f])).toEqual([[3, "n"], [1, "s"]]);
+      expect(row[2].map((l) => [l.z, l.f])).toEqual([[3, "n"], [2, "s"]]);
+    }
+  });
+
+  each("latinDots", (cells9) => {
+    const trio = [...new Set(cells9.map(dots))].sort((a, b) => a - b);
+    expect(trio).toHaveLength(3);
+    for (const line of [...rows9(cells9), ...cols9(cells9)]) {
+      expect(line.map(dots).sort((a, b) => a - b)).toEqual(trio);
+    }
+  });
+
+  each("overlayXor", (cells9) => {
+    const mask = (c: Cell) =>
+      (c.some((l) => l.s !== "." && l.z === 1) ? 1 : 0) | (c.some((l) => l.s === ".") ? 2 : 0);
+    const base0 = cells9[0].find((l) => l.s !== "." && l.z === 3);
+    for (const cell of cells9) {
+      const b = cell.find((l) => l.s !== "." && l.z === 3);
+      expect(b?.s).toBe(base0?.s);
+      expect(b?.f).toBe("n");
+    }
+    const rows = rows9(cells9);
+    for (const row of rows) expect(mask(row[2])).toBe(mask(row[0]) ^ mask(row[1]));
+    // at least one visible row's two operands overlap: on that row XOR
+    // visibly differs from union/intersection/copy, so the GRID pins the
+    // rule — not the option list
+    expect(rows.some((row) => (mask(row[0]) & mask(row[1])) !== 0)).toBe(true);
+  });
 });
 
 // ── the ambiguity sweep — no distractor may satisfy the rule ──
@@ -345,6 +434,47 @@ const SATISFIES: Record<string, Pred> = {
     if (wantB !== 2 - n(V[2], bOf) - n(V[5], bOf)) return false;
     return hasA === wantA && hasB === wantB;
   },
+  sizeCycle: (V, C) =>
+    C.length === 1 && C[0].s !== "." && C[0].f === "n"
+    && C[0].s === first(V[6]).s
+    && [1, 2, 3].includes(C[0].z as number)
+    && [V[6], V[7], V[2], V[5]].every((c) => first(c).z !== C[0].z),
+  dotSub: (V, C) => C.length === 1 && dots(C) > 0 && dots(C) === dots(V[6]) - dots(V[7]),
+  innerGrow: (V, C) => {
+    const s = first(V[6]).s;
+    if (!C.length || C[0].s !== s || C[0].z !== 3 || C[0].f !== "n") return false;
+    const ref = V[2]; // the column's state, read from row 0
+    if (ref.length === 1) return C.length === 1;
+    return C.length === 2 && C[1].s === s && C[1].z === ref[1].z && C[1].f === "s";
+  },
+  latinDots: (V, C) => {
+    if (C.length !== 1 || dots(C) === 0) return false;
+    const trio = new Set(V.map(dots)); // rows 0–1 are fully visible → all three counts
+    return trio.has(dots(C)) && [V[6], V[7], V[2], V[5]].every((c) => dots(c) !== dots(C));
+  },
+  overlayXor: (V, C) => {
+    // exact elements only (the dist2 discipline): a candidate with a
+    // different base, inner shape, dot count or fill is a never-seen glyph
+    const baseOf = (c: Cell) => c.find((l) => l.s !== "." && l.z === 3);
+    const aOf = (c: Cell) => c.find((l) => l.s !== "." && l.z === 1);
+    const bOf = (c: Cell) => c.find((l) => l.s === ".");
+    const gBase = baseOf(V[0]);
+    const gA = V.map(aOf).find(Boolean);
+    const gB = V.map(bOf).find(Boolean);
+    const b = baseOf(C);
+    if (!b || !gBase || b.s !== gBase.s || b.f !== "n") return false;
+    for (const l of C) {
+      if (l === b) continue;
+      if (l.s === ".") {
+        if (!gB || l.n !== gB.n) return false;
+      } else if (!gA || l.s !== gA.s || l.z !== gA.z || l.f !== gA.f) return false;
+    }
+    const has = (c: Cell, fn: (c: Cell) => unknown) => (fn(c) ? 1 : 0);
+    return (
+      has(C, aOf) === (has(V[6], aOf) ^ has(V[7], aOf))
+      && has(C, bOf) === (has(V[6], bOf) ^ has(V[7], bOf))
+    );
+  },
 };
 
 describe("the ambiguity sweep (every seed, every item, every option)", () => {
@@ -388,5 +518,52 @@ describe("the ambiguity sweep (every seed, every item, every option)", () => {
       expect(share, `slot ${slot} at ${(share * 100).toFixed(1)}%`).toBeGreaterThan(0.10);
       expect(share, `slot ${slot} at ${(share * 100).toFixed(1)}%`).toBeLessThan(0.25);
     }
+  });
+});
+
+// ── gv 1 reconstruction ──
+// D31 commits to {seed, gv} rebuilding the exact form a score was earned
+// on, FOREVER. These goldens were captured from the generator as it stood
+// before the banded template landed (2026-08-06) — if this block fails,
+// the v1 path has drifted and historic results no longer mean what they
+// say. Seed 3 pins the dist2 tail; 7 and 424242 pin decompose. Seed 7
+// also pins every visible cell and the full option order — the whole
+// construction-and-assembly path, not just the answers.
+const GOLDEN_V1: {
+  seed: number;
+  families: string[];
+  a: number[];
+  answers: string[];
+  cells?: string[];
+  opts?: string[];
+}[] = [
+  {"seed":7,"families":["sizeRamp","dotCount","shapeCycle","fillRamp","sizeFillAlt","dotAdd","overlay","outerRowInnerCycle","latinShapeFill","latinSizeShape","ringGrow","decompose"],"a":[2,1,3,0,5,2,5,4,3,2,3,0],"answers":["[[\"q\",3,\"n\"]]","[[\".\",4]]","[[\"d\",3,\"n\"]]","[[\"q\",3,\"n\"]]","[[\"d\",3,\"n\"]]","[[\".\",6]]","[[\"d\",3,\"n\"],[\"c\",1,\"s\"]]","[[\"t\",3,\"n\"],[\"c\",1,\"s\"]]","[[\"q\",3,\"n\"],[\"q\",1.4,\"s\"]]","[[\"c\",3,\"n\"]]","[[\"c\",3,\"n\"]]","[[\"q\",3,\"n\"]]"],"cells":["[[\"c\",1,\"n\"]]|[[\"c\",2,\"n\"]]|[[\"c\",3,\"n\"]]|[[\"d\",1,\"n\"]]|[[\"d\",2,\"n\"]]|[[\"d\",3,\"n\"]]|[[\"q\",1,\"n\"]]|[[\"q\",2,\"n\"]]","[[\".\",3]]|[[\".\",4]]|[[\".\",5]]|[[\".\",1]]|[[\".\",2]]|[[\".\",3]]|[[\".\",2]]|[[\".\",3]]","[[\"q\",3,\"n\"]]|[[\"d\",3,\"n\"]]|[[\"c\",3,\"n\"]]|[[\"d\",3,\"n\"]]|[[\"c\",3,\"n\"]]|[[\"q\",3,\"n\"]]|[[\"c\",3,\"n\"]]|[[\"q\",3,\"n\"]]","[[\"c\",3,\"s\"]]|[[\"c\",3,\"n\"],[\"c\",1.4,\"s\"]]|[[\"c\",3,\"n\"]]|[[\"t\",3,\"s\"]]|[[\"t\",3,\"n\"],[\"t\",1.4,\"s\"]]|[[\"t\",3,\"n\"]]|[[\"q\",3,\"s\"]]|[[\"q\",3,\"n\"],[\"q\",1.4,\"s\"]]","[[\"d\",1,\"n\"]]|[[\"d\",2,\"n\"]]|[[\"d\",3,\"n\"]]|[[\"d\",1,\"s\"]]|[[\"d\",2,\"s\"]]|[[\"d\",3,\"s\"]]|[[\"d\",1,\"n\"]]|[[\"d\",2,\"n\"]]","[[\".\",1]]|[[\".\",1]]|[[\".\",2]]|[[\".\",2]]|[[\".\",2]]|[[\".\",4]]|[[\".\",3]]|[[\".\",3]]","[[\"t\",3,\"n\"]]|[[\"d\",1,\"s\"]]|[[\"t\",3,\"n\"],[\"d\",1,\"s\"]]|[[\"c\",3,\"n\"]]|[[\"t\",1,\"s\"]]|[[\"c\",3,\"n\"],[\"t\",1,\"s\"]]|[[\"d\",3,\"n\"]]|[[\"c\",1,\"s\"]]","[[\"q\",3,\"n\"],[\"d\",1,\"s\"]]|[[\"q\",3,\"n\"],[\"t\",1,\"s\"]]|[[\"q\",3,\"n\"],[\"c\",1,\"s\"]]|[[\"c\",3,\"n\"],[\"d\",1,\"s\"]]|[[\"c\",3,\"n\"],[\"t\",1,\"s\"]]|[[\"c\",3,\"n\"],[\"c\",1,\"s\"]]|[[\"t\",3,\"n\"],[\"d\",1,\"s\"]]|[[\"t\",3,\"n\"],[\"t\",1,\"s\"]]","[[\"t\",3,\"n\"],[\"t\",1.4,\"s\"]]|[[\"q\",3,\"n\"]]|[[\"c\",3,\"s\"]]|[[\"q\",3,\"s\"]]|[[\"c\",3,\"n\"],[\"c\",1.4,\"s\"]]|[[\"t\",3,\"n\"]]|[[\"c\",3,\"n\"]]|[[\"t\",3,\"s\"]]","[[\"c\",2,\"n\"]]|[[\"t\",3,\"n\"]]|[[\"d\",1,\"n\"]]|[[\"d\",3,\"n\"]]|[[\"c\",1,\"n\"]]|[[\"t\",2,\"n\"]]|[[\"t\",1,\"n\"]]|[[\"d\",2,\"n\"]]","[[\"q\",3,\"n\"],[\"q\",2,\"n\"],[\"q\",1,\"n\"]]|[[\"q\",3,\"n\"],[\"q\",2,\"n\"]]|[[\"q\",3,\"n\"]]|[[\"d\",3,\"n\"],[\"d\",2,\"n\"],[\"d\",1,\"n\"]]|[[\"d\",3,\"n\"],[\"d\",2,\"n\"]]|[[\"d\",3,\"n\"]]|[[\"c\",3,\"n\"],[\"c\",2,\"n\"],[\"c\",1,\"n\"]]|[[\"c\",3,\"n\"],[\"c\",2,\"n\"]]","[[\"t\",3,\"n\"],[\"c\",1,\"s\"]]|[[\"c\",3,\"s\"]]|[[\"t\",3,\"n\"]]|[[\"c\",3,\"n\"],[\"q\",1,\"s\"]]|[[\"q\",3,\"s\"]]|[[\"c\",3,\"n\"]]|[[\"q\",3,\"n\"],[\"t\",1,\"s\"]]|[[\"t\",3,\"s\"]]"],"opts":["[[\"q\",2,\"n\"]]|[[\"q\",1,\"n\"]]|[[\"q\",3,\"n\"]]|[[\"q\",3,\"s\"]]|[[\"c\",3,\"n\"]]|[[\"d\",3,\"n\"]]","[[\".\",5]]|[[\".\",4]]|[[\".\",1]]|[[\".\",3]]|[[\".\",2]]|[[\".\",6]]","[[\"t\",3,\"n\"]]|[[\"c\",3,\"n\"]]|[[\"d\",2,\"n\"]]|[[\"d\",3,\"n\"]]|[[\"q\",3,\"n\"]]|[[\"d\",3,\"s\"]]","[[\"q\",3,\"n\"]]|[[\"c\",3,\"n\"]]|[[\"q\",3,\"s\"]]|[[\"q\",2,\"n\"]]|[[\"t\",3,\"n\"]]|[[\"q\",3,\"n\"],[\"q\",1.4,\"s\"]]","[[\"d\",3,\"s\"]]|[[\"c\",3,\"n\"]]|[[\"q\",3,\"n\"]]|[[\"d\",2,\"n\"]]|[[\"d\",1,\"n\"]]|[[\"d\",3,\"n\"]]","[[\".\",5]]|[[\".\",4]]|[[\".\",6]]|[[\".\",2]]|[[\".\",1]]|[[\".\",3]]","[[\"d\",3,\"n\"],[\"d\",1,\"s\"]]|[[\"t\",3,\"n\"],[\"c\",1,\"s\"]]|[[\"c\",1,\"s\"]]|[[\"d\",3,\"n\"],[\"c\",1,\"n\"]]|[[\"d\",3,\"n\"]]|[[\"d\",3,\"n\"],[\"c\",1,\"s\"]]","[[\"q\",3,\"n\"],[\"c\",1,\"s\"]]|[[\"t\",3,\"s\"],[\"c\",1,\"s\"]]|[[\"t\",3,\"n\"],[\"t\",1,\"s\"]]|[[\"t\",3,\"n\"],[\"d\",1,\"s\"]]|[[\"t\",3,\"n\"],[\"c\",1,\"s\"]]|[[\"t\",3,\"n\"],[\"c\",1,\"n\"]]","[[\"t\",3,\"n\"],[\"t\",1.4,\"s\"]]|[[\"t\",3,\"n\"]]|[[\"q\",3,\"n\"]]|[[\"q\",3,\"n\"],[\"q\",1.4,\"s\"]]|[[\"t\",3,\"s\"]]|[[\"q\",3,\"s\"]]","[[\"c\",2,\"n\"]]|[[\"c\",3,\"s\"]]|[[\"c\",3,\"n\"]]|[[\"c\",1,\"n\"]]|[[\"d\",3,\"n\"]]|[[\"d\",2,\"n\"]]","[[\"c\",1,\"n\"]]|[[\"q\",3,\"n\"]]|[[\"c\",3,\"n\"],[\"c\",2,\"n\"]]|[[\"c\",3,\"n\"]]|[[\"d\",3,\"n\"]]|[[\"c\",3,\"n\"],[\"c\",2,\"n\"],[\"c\",1,\"n\"]]","[[\"q\",3,\"n\"]]|[[\"t\",3,\"s\"]]|[[\"t\",3,\"n\"]]|[[\"c\",3,\"n\"]]|[[\"q\",3,\"n\"],[\"t\",1,\"s\"]]|[[\"q\",3,\"s\"]]"]},
+  {"seed":424242,"families":["sizeRamp","dotCount","shapeCycle","fillRamp","sizeFillAlt","dotAdd","overlay","outerRowInnerCycle","latinShapeFill","latinSizeShape","ringGrow","decompose"],"a":[4,4,4,2,1,1,2,5,2,3,4,2],"answers":["[[\"d\",1,\"n\"]]","[[\".\",4]]","[[\"q\",3,\"n\"]]","[[\"t\",3,\"n\"]]","[[\"c\",3,\"s\"]]","[[\".\",4]]","[[\"c\",3,\"n\"],[\"q\",1,\"s\"]]","[[\"c\",3,\"n\"],[\"d\",1,\"s\"]]","[[\"d\",3,\"n\"],[\"d\",1.4,\"s\"]]","[[\"c\",2,\"n\"]]","[[\"q\",3,\"n\"],[\"q\",2,\"n\"],[\"q\",1,\"n\"]]","[[\"q\",3,\"n\"]]"]},
+  {"seed":3,"families":["sizeRamp","dotCount","shapeCycle","fillRamp","sizeFillAlt","dotAdd","overlay","outerRowInnerCycle","latinShapeFill","latinSizeShape","ringGrow","dist2"],"a":[0,5,3,1,5,1,1,5,2,0,0,4],"answers":["[[\"c\",3,\"n\"]]","[[\".\",4]]","[[\"c\",3,\"n\"]]","[[\"q\",3,\"n\"]]","[[\"d\",3,\"s\"]]","[[\".\",4]]","[[\"c\",3,\"n\"],[\"d\",1,\"s\"]]","[[\"c\",3,\"n\"],[\"c\",1,\"s\"]]","[[\"d\",3,\"n\"],[\"d\",1.4,\"s\"]]","[[\"c\",3,\"n\"]]","[[\"d\",3,\"n\"],[\"d\",2,\"n\"],[\"d\",1,\"n\"]]","[[\"t\",3,\"n\"],[\"c\",1,\"s\"],[\".\",2]]"]},
+];
+
+describe("gv 1 reconstruction (a stored {seed, gv} rebuilds its exact form forever)", () => {
+  it("generateForm(seed, 1) reproduces the frozen v1 generator", () => {
+    for (const g of GOLDEN_V1) {
+      const f = generateForm(g.seed, 1);
+      expect(f.version).toBe(1);
+      expect(f.items.map((i) => i.rules[0]), `seed ${g.seed}`).toEqual(g.families);
+      expect(f.items.map((i) => i.a), `seed ${g.seed}`).toEqual(g.a);
+      expect(f.items.map((i) => canon(i.opts[i.a])), `seed ${g.seed}`).toEqual(g.answers);
+      if (g.cells) expect(f.items.map((i) => i.cells.map(canon).join("|"))).toEqual(g.cells);
+      if (g.opts) expect(f.items.map((i) => i.opts.map(canon).join("|"))).toEqual(g.opts);
+    }
+  });
+
+  it("v1 forms still hold the fixed weight ramp and pass buildCells9 dispatch", () => {
+    const f = generateForm(99, 1);
+    expect(f.items.map((i) => i.diff)).toEqual([1, 1, 1.5, 2, 2, 2, 2.5, 2.5, 3, 3, 3, 3.5]);
+    for (const [ii, item] of f.items.entries()) {
+      expect(canon(item.opts[item.a])).toBe(canon(buildCells9(99, ii, 1).cells9[8]));
+    }
+  });
+
+  it("an unknown gv throws instead of silently reinterpreting the seed", () => {
+    expect(() => generateForm(1, 3)).toThrow(/unknown generator version/);
   });
 });

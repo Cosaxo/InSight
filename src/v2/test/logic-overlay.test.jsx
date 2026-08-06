@@ -93,6 +93,38 @@ describe("a full attempt", () => {
     expect(saved.marks[0]).toBe(false);
     expect(saved.pctile).toBe(logicPctile(11 / 12));
   });
+
+  it("an unanswered puzzle expires at the cap: scored wrong, timed at 90s (D54)", () => {
+    vi.useFakeTimers();
+    seedCrypto();
+    const expected = generateForm(SEED);
+    render(<LogicOverlay onClose={() => {}} />);
+
+    // the countdown stays hidden until the final 20s…
+    act(() => { vi.advanceTimersByTime(69500); });
+    expect(screen.queryByRole("timer")).toBeNull();
+    // …then surfaces and counts down…
+    act(() => { vi.advanceTimersByTime(500); });
+    expect(screen.getByRole("timer").textContent).toBe("20s");
+    act(() => { vi.advanceTimersByTime(10000); });
+    expect(screen.getByRole("timer").textContent).toBe("10s");
+    // …and at 90s the item settles as unanswered, advancing to puzzle 2
+    act(() => { vi.advanceTimersByTime(10000); });
+    act(() => { vi.advanceTimersByTime(PICK_DELAY); });
+    expect(screen.queryByRole("timer")).toBeNull();
+
+    for (let i = 1; i < 12; i++) {
+      fireEvent.click(screen.getByLabelText(`Answer ${expected.items[i].a + 1} of 6`));
+      act(() => { vi.advanceTimersByTime(PICK_DELAY); });
+    }
+    screen.getByText(/11 of 12/);
+    const saved = JSON.parse(localStorage.getItem(LKEY));
+    expect(saved.marks[0]).toBe(false);
+    expect(saved.marks.slice(1).every(Boolean)).toBe(true);
+    // the expired item records the full budget — never a phantom fast solve
+    expect(saved.times[0]).toBe(90000);
+    expect(saved.times[1]).toBe(0); // instant pick, reveal delay subtracted
+  });
 });
 
 describe("the result screen's five lenses", () => {
