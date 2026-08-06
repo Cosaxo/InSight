@@ -59,7 +59,7 @@ the verification — treat a successful seed as proof of both.
    await window.LIVE.seedContent()
    ```
 
-   369 questions land in `v2_questions`. Re-running is safe (idempotent,
+   389 questions land in `v2_questions`. Re-running is safe (idempotent,
    never resets the `active` kill switch) and, since D34, genuinely cheap:
    it rewrites only documents whose content changed and leaves `contentRev`
    alone, so a reseed no longer costs every returning device a 369-read

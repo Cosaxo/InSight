@@ -32,6 +32,10 @@ export interface QuestionDoc {
   topic: string | null;
   test: string | null;
   active: boolean;
+  // Pool scope for duel questions (D40 part 4): absent = the shared pool;
+  // "romantic" = served only to duos whose doc says duoMode: "romantic".
+  // Absent everywhere else — the seed emits it only when set.
+  mode?: string;
 }
 
 export interface AggDoc {
@@ -231,7 +235,18 @@ export function duelQFor(
   dayOffset = 0,
 ): { id: string; prompt: string; options: string[]; kind: string } | null {
   const mode = g.mode === "duo" ? "duo" : "group";
-  const bank = duelBank.filter((q) => q.surface === mode);
+  // A duo draws from exactly one pool (D40 part 4): the romantic pool when
+  // its doc says duoMode "romantic", the shared pool otherwise. The two are
+  // disjoint by construction — friend pairs must never rotate into the
+  // romantic ladder, and flipping duoMode swaps the whole pool (both
+  // partners see the same doc, so both flip together). Filtering the
+  // romantic pool OUT of the default branch is what keeps existing pairs'
+  // rotation unmoved by the pool's arrival — for them the bank is
+  // unchanged, so no served day remaps (the D30 growth argument).
+  const pool = mode === "duo" && g.duoMode === "romantic" ? "romantic" : null;
+  const bank = duelBank.filter(
+    (q) => q.surface === mode && (pool ? q.mode === pool : q.mode == null),
+  );
   if (!bank.length) return null;
   const q = bank[(gHash(g.id) + utcDay + dayOffset + bank.length * 1000) % bank.length];
   const names = (g.memberNames || {}) as Record<string, string>;

@@ -167,6 +167,11 @@ export function buildDomains() {
     duel: [
       ...duel.group.map((q) => entry(q.id, q)),
       ...duel.oneVsOne.map((q) => entry(q.id, q)),
+      // The romantic 1v1 pool (D40 part 4) shares the duo id series and the
+      // dedup domain: the pools are disjoint at serve time, but a pair can
+      // flip between them, so a near-twin across pools still reads as "I
+      // already answered that".
+      ...(duel.romantic ?? []).map((q) => entry(q.id, q)),
     ],
     pick: pickQ.map((q) => entry(q.id, q)),
     // report-only overlay for the daily lookup, never a gated domain (the

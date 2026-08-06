@@ -405,5 +405,228 @@
         "Independent"
       ]
     }
+  ],
+  "romantic": [
+    {
+      "id": "020",
+      "d": "day",
+      "prompt": "A free evening, both home. Ideal version?",
+      "options": [
+        "Out somewhere",
+        "Sofa, one film",
+        "Cooking together"
+      ],
+      "active": false
+    },
+    {
+      "id": "021",
+      "d": "day",
+      "prompt": "How do they like being woken?",
+      "options": [
+        "Slowly, with coffee",
+        "Left alone",
+        "Talked at immediately"
+      ],
+      "active": false
+    },
+    {
+      "id": "022",
+      "d": "heat",
+      "prompt": "A good apology from them looks like…",
+      "options": [
+        "Words",
+        "A gesture",
+        "Time, then normal"
+      ],
+      "active": false
+    },
+    {
+      "id": "023",
+      "d": "heat",
+      "prompt": "You are 20 minutes late to dinner. Their read?",
+      "options": [
+        "Fine, orders a drink",
+        "Says nothing, remembers it"
+      ],
+      "active": false
+    },
+    {
+      "id": "024",
+      "d": "day",
+      "prompt": "Love lands hardest as…",
+      "options": [
+        "Being told",
+        "Being helped",
+        "Being touched",
+        "Being chosen"
+      ],
+      "active": false
+    },
+    {
+      "id": "025",
+      "d": "heat",
+      "prompt": "Mid-argument, they want…",
+      "options": [
+        "To finish it now",
+        "A pause",
+        "Space, then dinner"
+      ],
+      "active": false
+    },
+    {
+      "id": "026",
+      "d": "day",
+      "prompt": "The better anniversary?",
+      "options": [
+        "A plan they made",
+        "A day with nothing in it"
+      ],
+      "active": false
+    },
+    {
+      "id": "027",
+      "d": "ahead",
+      "prompt": "Money in this relationship should be…",
+      "options": [
+        "Fully shared",
+        "Mostly shared",
+        "Separate, split bills"
+      ],
+      "active": false
+    },
+    {
+      "id": "028",
+      "d": "day",
+      "prompt": "Their idea of being taken care of?",
+      "options": [
+        "Food made",
+        "Admin handled",
+        "Left in peace",
+        "Asked about"
+      ],
+      "active": false
+    },
+    {
+      "id": "029",
+      "d": "day",
+      "prompt": "A whole weekend together, no phones. Bliss or too much?",
+      "options": [
+        "Bliss",
+        "Too much"
+      ],
+      "active": false
+    },
+    {
+      "id": "030",
+      "d": "heat",
+      "prompt": "They had a hard day and did not say so. The tell?",
+      "options": [
+        "Goes quiet",
+        "Cleans something",
+        "Talks about nothing else"
+      ],
+      "active": false
+    },
+    {
+      "id": "031",
+      "d": "ahead",
+      "prompt": "Five years out, they picture…",
+      "options": [
+        "Same city, more room",
+        "Somewhere new",
+        "Somewhere quiet"
+      ],
+      "active": false
+    },
+    {
+      "id": "032",
+      "d": "ahead",
+      "prompt": "A big decision that affects you both. They…",
+      "options": [
+        "Decide together, slowly",
+        "Want you to choose",
+        "Already decided"
+      ],
+      "active": false
+    },
+    {
+      "id": "033",
+      "d": "heat",
+      "prompt": "Would they tell you a truth that would hurt for a week?",
+      "options": [
+        "Yes",
+        "Only if asked",
+        "No"
+      ],
+      "active": false
+    },
+    {
+      "id": "034",
+      "d": "heat",
+      "prompt": "Jealousy shows up in them as…",
+      "options": [
+        "A question",
+        "A joke",
+        "Silence",
+        "It doesn't"
+      ],
+      "active": false
+    },
+    {
+      "id": "035",
+      "d": "ahead",
+      "prompt": "Kids, someday?",
+      "options": [
+        "Yes",
+        "Open to it",
+        "No"
+      ],
+      "active": false
+    },
+    {
+      "id": "036",
+      "d": "ahead",
+      "prompt": "The thing they would never compromise on?",
+      "options": [
+        "Where they live",
+        "Their work",
+        "Their people",
+        "Their solitude"
+      ],
+      "active": false
+    },
+    {
+      "id": "037",
+      "d": "ahead",
+      "prompt": "If you needed a year somewhere else, they would…",
+      "options": [
+        "Come",
+        "Wait",
+        "Ask you not to go"
+      ],
+      "active": false
+    },
+    {
+      "id": "038",
+      "d": "ahead",
+      "prompt": "What would make them feel most loved this year?",
+      "options": [
+        "More time",
+        "More plans",
+        "More calm",
+        "More honesty"
+      ],
+      "active": false
+    },
+    {
+      "id": "039",
+      "d": "ahead",
+      "prompt": "Old age, the two of you: side by side, or side by side and busy?",
+      "options": [
+        "Side by side",
+        "Busy, together"
+      ],
+      "active": false
+    }
   ]
 }

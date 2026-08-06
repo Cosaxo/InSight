@@ -22,7 +22,7 @@ the count is zero**, which is a change from 2026-08-04: the Team ID and the
 `REVERSED_CLIENT_ID` were the other two and both are filled.
 
 `check:store-listing` and `check:versions` pass; the daily bank is at 90
-questions of 369 seeded; the production backend is deployed. **Measured
+questions of 389 seeded; the production backend is deployed. **Measured
 2026-08-04:** anonymous sign-in works (`accounts:signUp` returns an
 `idToken`, where it returned `ADMIN_ONLY_OPERATION` on 2026-08-03), the
 InSight web app is registered, and the default hosting site `prvfire33`
@@ -98,7 +98,7 @@ arithmetic.
 - [ ] **0.1 Seed the production question bank — but do 1.3 first.** Signed
       in as the operator account, from the app's browser console:
       `await window.LIVE.seedContent()`.
-      369 questions land in `v2_questions`. Idempotent and, since D34,
+      389 questions land in `v2_questions`. Idempotent and, since D34,
       cheap to repeat — reseed whenever content lands. `SHIP-CHECKLIST §1`.
       *(This step used to name a `firebase.functions()...` call that could
       not work — v8 syntax on a modular-SDK app. See the checklist.)*
