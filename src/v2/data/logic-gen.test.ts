@@ -87,7 +87,7 @@ describe("answer key integrity (every seed, every item)", () => {
 
 });
 
-// ── the banded template (v2, D55) ──
+// ── the banded template (v2, D56) ──
 // The WEIGHT ramp is the calibration D31 anchored the percentile curve to,
 // so it is pinned verbatim; the family occupying a slot is drawn from that
 // slot's same-weight band, so the sequence varies per attempt. The pools

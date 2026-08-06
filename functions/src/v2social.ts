@@ -26,6 +26,8 @@ import {
   nextStreak,
   PENDING_DAYS_KEEP,
   prunePendingDays,
+  scanDays,
+  revealMembersFor,
   shouldReveal,
   utcDayKey,
 } from "./pure";
@@ -55,6 +57,24 @@ async function assertMembershipCap(uid: string): Promise<void> {
   if (mine.size >= MEMBERSHIP_CAP) {
     throw new HttpsError("resource-exhausted", "too many groups on this account");
   }
+}
+
+// `memberJoinedAt` as plain millis, for revealMembersFor. Firestore hands
+// back Timestamps; pure.ts takes numbers so it stays firebase-free.
+//
+// A value that is not a Timestamp becomes `undefined`, which
+// revealMembersFor reads as "no recorded join time" and therefore includes —
+// the same answer it gives a member who predates the field. Both are the
+// permissive direction, and deliberately so: the alternative is a reveal its
+// own members cannot read.
+function joinedAtMs(raw: unknown): Record<string, number> {
+  const out: Record<string, number> = Object.create(null);
+  if (!raw || typeof raw !== "object") return out;
+  for (const [uid, v] of Object.entries(raw as Record<string, unknown>)) {
+    const ms = (v as { toMillis?: () => number })?.toMillis?.();
+    if (typeof ms === "number" && Number.isFinite(ms)) out[uid] = ms;
+  }
+  return out;
 }
 
 // Collision-checked (31^8 space, so retries are cosmically rare — but
@@ -120,6 +140,13 @@ export const createGroupV2 = onCall({ ...LIGHT_CALLABLE, region: REGION, enforce
     ownerUid: uid,
     memberUids: [uid],
     memberNames: { [uid]: myName },
+    // When each member became one. Read only by revealGroupDay, to scope a
+    // day's reveal to the people who were in the group for that day — see
+    // revealMembersFor (pure.ts). Same map shape as memberNames, and it is
+    // removed on the same two paths (leaveGroupV2, deleteAccount phase 1c),
+    // because a uid left behind here is the shape D55 §8 records ownerUid
+    // having.
+    memberJoinedAt: { [uid]: FieldValue.serverTimestamp() },
     inviteCode: code,
     streak: 0,
     lastRevealDay: null,
@@ -152,6 +179,10 @@ export const joinGroupV2 = onCall({ ...LIGHT_CALLABLE, region: REGION, enforceAp
     tx.update(ref, {
       memberUids: FieldValue.arrayUnion(uid),
       [`memberNames.${uid}`]: myName,
+      // Set on every join, including a rejoin after leaving: the days
+      // between are days this account was not in the group, and a stale
+      // earlier timestamp would hand them back.
+      [`memberJoinedAt.${uid}`]: FieldValue.serverTimestamp(),
     });
     return { gid: ref.id, name: snap.get("name") };
   });
@@ -186,6 +217,7 @@ export const leaveGroupV2 = onCall({ ...LIGHT_UNBOUNDED, region: REGION, enforce
     tx.update(ref, {
       memberUids: FieldValue.arrayRemove(uid),
       [`memberNames.${uid}`]: FieldValue.delete(),
+      [`memberJoinedAt.${uid}`]: FieldValue.delete(),
     });
     return "left" as const;
   });
@@ -278,12 +310,30 @@ async function revealGroupDay(
   if ((await revealRef.get()).exists) return false;
 
   const answerId = `g_${gid}_${dayKey}`;
-  const snaps = await db.getAll(
+  // TWO reads, because only one of them wants whole documents.
+  //
+  // The profiles are read for exactly two fields — displayName here, and
+  // fcmTokens in the push fan-out below — but were fetched entire. A profile
+  // is client-writable and firestore.rules bounds only some of it:
+  // displayName and the anchors are capped, `testResults` only by KEY COUNT
+  // (8), and `anon`/`createdAt`/`updatedAt` not at all. So a member can
+  // legitimately hold a document approaching Firestore's 1 MiB, and
+  // LANES = 5 × GROUP_CAP = 32 puts up to 160 of them in flight on the
+  // 512 MiB instance. Worse, this runs BEFORE the shouldReveal gate below,
+  // and pendingDays is only pruned inside transactions that never run on an
+  // OOM — so the next scan hits the same page and dies the same way, wedging
+  // reveals for every group ordered after the fat ones by __name__.
+  //
+  // A fieldMask bounds the exposure regardless of what any rule permits,
+  // which is the reason to fix it here rather than by capping testResults:
+  // `anon` is equally unbounded and the next field added would be too.
+  const answerSnaps = await db.getAll(
     ...members.map((uid) => db.doc(`v2_users/${uid}/answers/${answerId}`)),
-    ...members.map((uid) => db.doc(`v2_users/${uid}`)),
   );
-  const answerSnaps = snaps.slice(0, members.length);
-  const profileSnaps = snaps.slice(members.length);
+  const profileSnaps = await db.getAll(
+    ...members.map((uid) => db.doc(`v2_users/${uid}`)),
+    { fieldMask: ["displayName", "fcmTokens"] },
+  );
 
   const votes: Record<string, RevealVote> = {};
   let qid: string | null = null;
@@ -421,7 +471,22 @@ async function revealGroupDay(
       // It is the scan's membership, deliberately, not gsnap's fresher
       // one: these are the members whose answers were read, and a fresher
       // list could hand yesterday's reveal to someone who joined this
-      // morning — the exact leak D5's amendment closed.
+      // morning.
+      //
+      // That reasoning was right about the risk and wrong about the size of
+      // it. BOTH reads happen on D+1, so preferring one over the other only
+      // ever closed the seconds between them — while the scan runs `every
+      // 120 minutes`, so anyone joining between 00:00 UTC and it was a
+      // current member either way, and read a day they were not in the group
+      // for. What actually scopes this is WHEN each member joined, which is
+      // why the array below is filtered rather than taken (revealMembersFor,
+      // pure.ts; D55 §9).
+      //
+      // The filtered array can in principle come out empty — every member
+      // who played day D has left, and everyone now in the group joined
+      // after it. The reveal still writes, readable by nobody, which is the
+      // correct answer to "who was here for this day"; it also settles the
+      // day so the scan stops re-examining it.
       //
       // Never remove or rename this field without changing that rule in the
       // opposite order to the way the pair shipped: the field had to go live
@@ -430,7 +495,12 @@ async function revealGroupDay(
       // written in that window would carry no `members` and be permanently
       // unreadable by their own members). Dropping it means the rule stops
       // depending on it FIRST.
-      members,
+      members: revealMembersFor(
+        members,
+        joinedAtMs(gsnap.get("memberJoinedAt")),
+        dayKey,
+        Object.keys(freshVotes),
+      ),
       revealedAt: FieldValue.serverTimestamp(),
     });
     streak = nextStreak(
@@ -562,9 +632,59 @@ type ScanMode = "indexed" | "full";
 async function runDuelReveals(
   dayKey?: string,
   mode: ScanMode = "indexed",
-): Promise<{ revealed: number; scanned: number; mode: ScanMode }> {
+): Promise<{ revealed: number; scanned: number; mode: ScanMode; days: string[] }> {
+  const days = scanDays(dayKey);
+  let revealedTotal = 0;
+  let scannedTotal = 0;
+  for (const day of days) {
+    const one = await runDuelRevealsForDay(day, mode, scannedTotal);
+    revealedTotal += one.revealed;
+    scannedTotal += one.scanned;
+    // The tripwire bounds the RUN, not a day — so a run that hits it stops
+    // asking about later days too, rather than paying the ceiling once per
+    // day in the window.
+    if (one.cappedOut) break;
+  }
+  // The heartbeat, and the only evidence the scheduled scan ran at all.
+  //
+  // Structured fields as well as the message, for the same reason the
+  // contention line in v2.ts carries them: the message is what a human
+  // greps, the fields are what a log-based metric selects on.
+  //
+  // `mode` is load-bearing here rather than decorative.
+  // monitoring/scheduledDuelReveals-silent.json alerts on the ABSENCE of
+  // this line, and runDuelReveals is shared by the schedule ("indexed") and
+  // revealDuelsNowV2's manual lever ("full"). Without a mode to filter on,
+  // an operator running the lever during an incident would emit the
+  // heartbeat and reset the absence timer — silencing the alert for the
+  // outage it was run to fix.
+  //
+  // ONCE PER RUN, not per day: a run now covers the whole pending window
+  // (scanDays), and one point per day would make the metric's rate a
+  // statement about the window size rather than about the scan running.
+  // `day` stays the day the schedule is primarily about — yesterday — so a
+  // filter on it means what it always did.
+  logger.info(
+    `[v2social] reveals for ${days.join(",")} (${mode}): ` +
+      `${revealedTotal} of ${scannedTotal} scanned`,
+    {
+      metric: "duel_reveal_run",
+      day: days[0],
+      days: days.length,
+      mode,
+      revealed: revealedTotal,
+      scanned: scannedTotal,
+    },
+  );
+  return { revealed: revealedTotal, scanned: scannedTotal, mode, days };
+}
+
+async function runDuelRevealsForDay(
+  yester: string,
+  mode: ScanMode,
+  scannedBefore: number,
+): Promise<{ revealed: number; scanned: number; cappedOut: boolean }> {
   const db = getFirestore();
-  const yester = dayKey || utcDayKey(-1);
   // PAGINATED either way. It used to fetch GROUP_SCAN_CAP docs and process
   // them one at a time; the 60s timeout bound at roughly 200-400 active
   // groups — an order of magnitude below the cap — so the function died
@@ -632,43 +752,28 @@ async function runDuelReveals(
     // the whole run, so "I have outgrown this" still gets said rather than
     // quietly becoming a multi-minute job.
     //
+    // Counted across the run's whole day window (`scannedBefore`), not per
+    // day: the ceiling is about how long one invocation may take, and a run
+    // now asks about PENDING_DAYS_KEEP days.
+    //
     // Note what the two modes mean here. In "full" it counts every group in
     // the collection, which is the number that used to grow with signups. In
     // "indexed" it counts groups that PLAYED that day, so hitting the ceiling
     // is a real statement about activity rather than about registration —
     // and the remedy named below is the one that is actually left.
-    if (scanned >= GROUP_SCAN_CAP) {
+    if (scannedBefore + scanned >= GROUP_SCAN_CAP) {
       logger.error(
-        `[v2social] scanned ${scanned} groups in one ${mode} run (ceiling ` +
-          `${GROUP_SCAN_CAP}). Groups beyond this are NOT checked this run; ` +
-          "their reveals land on a later run at best. Time to shard the scan " +
-          "by day-key suffix or move it to a queue.",
+        `[v2social] scanned ${scannedBefore + scanned} groups in one ${mode} run ` +
+          `(ceiling ${GROUP_SCAN_CAP}), stopping at ${yester}. Groups and days ` +
+          "beyond this are NOT checked this run; their reveals land on a later " +
+          "run at best. Time to shard the scan by day-key suffix or move it to " +
+          "a queue.",
       );
-      break;
+      return { revealed, scanned, cappedOut: true };
     }
   }
 
-  // The heartbeat, and the only evidence the scheduled scan ran at all.
-  //
-  // Structured fields as well as the message, for the same reason the
-  // contention line in v2.ts carries them: the message is what a human
-  // greps, the fields are what a log-based metric selects on.
-  //
-  // `mode` is load-bearing here rather than decorative.
-  // monitoring/scheduledDuelReveals-silent.json alerts on the ABSENCE of
-  // this line, and runDuelReveals is shared by the schedule ("indexed")
-  // and revealDuelsNowV2's manual lever ("full"). Without a mode to
-  // filter on, an operator running the lever during an incident would
-  // emit the heartbeat and reset the absence timer — silencing the alert
-  // for the outage it was run to fix.
-  logger.info(`[v2social] reveals for ${yester} (${mode}): ${revealed} of ${scanned} scanned`, {
-    metric: "duel_reveal_run",
-    day: yester,
-    mode,
-    revealed,
-    scanned,
-  });
-  return { revealed, scanned, mode };
+  return { revealed, scanned, cappedOut: false };
 }
 
 export const scheduledDuelReveals = onSchedule(

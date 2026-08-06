@@ -77,12 +77,12 @@ const type = (q: string) => fireEvent.change(search(), { target: { value: q } })
 const chooseOption = (re: RegExp) => {
   const opt = screen.getAllByRole("option").find((o) => re.test(o.textContent || ""));
   expect(opt, `no result matched ${re}`).toBeTruthy();
-  fireEvent.pointerDown(opt!);
+  fireEvent.click(opt!);
 };
 const tapLocate = () => {
   const btn = screen.getAllByRole("button").find((b) => /Use my location/.test(b.textContent || ""));
   expect(btn, "the location button is not on screen").toBeTruthy();
-  fireEvent.pointerDown(btn!);
+  fireEvent.click(btn!);
 };
 
 describe("CityPicker · every value it emits is one the server accepts", () => {
@@ -177,7 +177,7 @@ describe("CityPicker · a located city is suggested, never applied", () => {
     const onChange = open();
     tapLocate();
     const suggestion = await screen.findByText(/Nearest city/i);
-    fireEvent.pointerDown(suggestion.closest("button")!);
+    fireEvent.click(suggestion.closest("button")!);
     expect(onChange).toHaveBeenCalledWith("Oslo, NO");
   });
 });

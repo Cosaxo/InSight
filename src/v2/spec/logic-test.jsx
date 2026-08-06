@@ -15,10 +15,10 @@ import { startVerified, submitVerified, verifyErrorMessage } from '../data/logic
 // ramp, GENERATED fresh per attempt by src/v2/data/logic-gen.ts
 // (a direct import since D53 — this file was the global's only
 // consumer) from a random seed — the bank of hardcoded puzzles
-// (and its answer key in the bundle) is gone, and since D55 the
+// (and its answer key in the bundle) is gone, and since D56 the
 // family sequence is drawn per attempt too, so no two attempts
 // are the same and there is nothing to memorize, not even the
-// order of rules. Each puzzle is timed (D55): the cap
+// order of rules. Each puzzle is timed (D56): the cap
 // standardises the administration and bounds what a mid-item
 // consult can buy. No per-question feedback — score + percentile
 // at the end, persisted via data/logic-score.ts, where the curve
@@ -30,7 +30,7 @@ import { startVerified, submitVerified, verifyErrorMessage } from '../data/logic
 
   // How long the picked-answer state shows before advancing.
   const PICK_DELAY = 240;
-  // Per-puzzle time budget (D55). Matrix tests are administered timed; a
+  // Per-puzzle time budget (D56). Matrix tests are administered timed; a
   // cap also bounds a stalled or wandering attempt. 90s is >5× the
   // modelled median (FIELD_MED), so a careful solver is never rushed — an
   // expired puzzle settles as unanswered. The countdown surfaces only in
@@ -294,12 +294,12 @@ import { startVerified, submitVerified, verifyErrorMessage } from '../data/logic
   // yardstick, not a population statistic), and the result screen says so
   // once rather than letting five charts imply five measurements.
   //
-  // Since D56 there are TWO truths to tell, so there are two notes. A
+  // Since D57 there are TWO truths to tell, so there are two notes. A
   // practice attempt still sends nothing anywhere. A VERIFIED attempt is
   // seeded and scored server-side (data/logic-verify.ts): the picks leave
   // the device, the score joins an anonymous count once — and its charts
   // are STILL the modelled yardstick, until enough verified scores exist
-  // to measure against (that flip is future work, recorded in D56).
+  // to measure against (that flip is future work, recorded in D57).
 
   const LOGIC_FIELD_NOTE = 'Comparisons here are a modelled yardstick, not other players’ results — practice attempts send nothing anywhere.';
   const LOGIC_VERIFIED_NOTE = 'Verified: scored on the server, counted once toward an anonymous field count. Comparisons are still a modelled yardstick until enough verified scores exist.';
@@ -330,7 +330,7 @@ import { startVerified, submitVerified, verifyErrorMessage } from '../data/logic
     const [times, setTimes] = useState([]);
     // The raw pick per puzzle (-1 = expired). In practice mode this is
     // redundant with marks; in verified mode it is the payload — the
-    // client cannot mark what it cannot know (D56 withholds the answers).
+    // client cannot mark what it cannot know (D57 withholds the answers).
     const [picks, setPicks] = useState([]);
     // Verified-attempt lifecycle, one state: null, or
     // {phase:'starting'} | {phase:'start-error', msg}
@@ -372,7 +372,7 @@ import { startVerified, submitVerified, verifyErrorMessage } from '../data/logic
 
     const start = () => { setForm(makeForm()); setMarks([]); setTimes([]); setPicks([]); setPicked(null); setVerify(null); setQi(0); };
 
-    // ── verified attempt round trip (D56) ──
+    // ── verified attempt round trip (D57) ──
     const beginVerified = () => {
       setVerify({ phase: 'starting' });
       startVerified().then(

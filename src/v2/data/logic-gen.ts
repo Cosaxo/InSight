@@ -21,7 +21,7 @@
 //
 // Deliberately NOT random per item: the WEIGHT sequence. The twelve slot
 // weights are fixed (that ramp is the calibration and does not move), but
-// since v2 each slot draws its family from a same-weight band (D55) — a
+// since v2 each slot draws its family from a same-weight band (D56) — a
 // repeat taker no longer knows that item 3 is a shape cycle, only that it
 // carries weight 1.5. v1 pinned one family per slot; generateForm(seed, 1)
 // still reproduces those forms exactly, because a saved result's seed+gv
@@ -32,7 +32,7 @@
 // per-family semantics and the ambiguity sweep (no distractor may satisfy
 // the rule a solver perceives). The overlay (src/v2/spec/logic-test.jsx)
 // imports this directly — it left the window.LOGIC_GEN bridge with D53.
-// Practice attempts stay on-device; verified attempts (D56) are seeded and
+// Practice attempts stay on-device; verified attempts (D57) are seeded and
 // scored server-side by functions/src/logic.ts, which is why this module
 // exists in TWO byte-identical copies: src/v2/data/logic-gen.ts (this one)
 // and functions/src/logic-gen.ts. The module is dependency-free on
@@ -394,7 +394,7 @@ const FAMILIES: Record<string, Family> = {
     };
   },
 
-  // ── families added with the banded template (D55) ──
+  // ── families added with the banded template (D56) ──
 
   // sizes form a Latin square along a diagonal; a fixed shape per row
   sizeCycle(rng) {
@@ -532,7 +532,7 @@ const familyAtV1 = (seed: number, i: number): string =>
   TEMPLATE_V1[i].family ||
   (mulberry32(mixSeed(seed, 0x51071))() < 0.5 ? "decompose" : "dist2");
 
-// v2 (D55): each slot draws its family from a same-weight band, without
+// v2 (D56): each slot draws its family from a same-weight band, without
 // replacement inside the band — no family repeats within a form, and the
 // SEQUENCE stops being knowable in advance (v1's fixed order was the one
 // piece of a fresh form a repeat taker still knew). Weight parity is what

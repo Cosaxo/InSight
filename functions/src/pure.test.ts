@@ -11,15 +11,21 @@ import {
   nextStreak,
   PENDING_DAYS_KEEP,
   prunePendingDays,
+  scanDays,
+  revealMembersFor,
   meetsKFloor,
   breakdownBucket,
   foldAnchors,
   publishableBreakdown,
+  publishBreakdown,
   BREAKDOWN_MAX_BUCKETS,
+  steppedBreakdown,
   shouldPublishAgg,
   catalogEntityKey,
   publishableCanon,
   buildModQueueFrom,
+  tallyFlags,
+  tallyFlagsInto,
   carriedEscalations,
   modVerdictError,
   modVerdictId,
@@ -31,6 +37,11 @@ import {
   isPlausibleFcmToken,
   nextFcmTokens,
 } from "./pure";
+
+// AGG_MIN_N as shipped. The folds take the k-floor as a parameter because
+// the bucket cap now EVICTS a sub-floor bucket to admit a new one, and
+// "sub-floor" is the publish path's decision, not the fold's to assume.
+const FLOOR = 5;
 
 // ── invite codes ────────────────────────────────────────────────
 
@@ -176,6 +187,135 @@ describe("prunePendingDays", () => {
   });
 });
 
+// ── which days a reveal run asks about ──────────────────────────
+
+describe("scanDays", () => {
+  const T = Date.UTC(2026, 6, 27, 12, 0, 0); // 2026-07-27T12:00Z
+
+  it("covers the whole pending window, not just yesterday", () => {
+    // The bug: the scan asked about utcDayKey(-1) and the schedule never
+    // passed a day, so a group-day was revealable during the single UTC day
+    // after it and never again — while rules accept a duel answer four days
+    // late and onV2AnswerCreated re-adds the day to pendingDays whenever one
+    // arrives. An answer syncing on D+2 re-opened a day nothing would ask
+    // about again. Both members had answered; the day sat pending forever.
+    expect(scanDays(undefined, T)).toEqual([
+      "2026-07-26", "2026-07-25", "2026-07-24",
+      "2026-07-23", "2026-07-22", "2026-07-21",
+    ]);
+  });
+
+  it("matches the pruning window exactly", () => {
+    // prunePendingDays drops anything older than PENDING_DAYS_KEEP, so a day
+    // outside this window can never gain another answer. Asking about
+    // exactly the days that can still change is the definition pendingDays
+    // was given; the two drifting apart is how the gap reopens.
+    expect(scanDays(undefined, T)).toHaveLength(PENDING_DAYS_KEEP);
+    const oldest = scanDays(undefined, T)[PENDING_DAYS_KEEP - 1];
+    expect(prunePendingDays([oldest], "x", oldest)).toEqual([oldest]);
+    expect(prunePendingDays([prevDayKey(oldest)], "x", oldest)).toEqual([]);
+  });
+
+  it("an explicit day still means that day alone", () => {
+    // The operator lever and every e2e leg pass one, and narrowing is what
+    // an operator reaching for it during an incident usually wants.
+    expect(scanDays("2026-01-01", T)).toEqual(["2026-01-01"]);
+  });
+
+  it("crosses a month boundary", () => {
+    expect(scanDays(undefined, Date.UTC(2026, 7, 2, 3, 0, 0))).toEqual([
+      "2026-08-01", "2026-07-31", "2026-07-30",
+      "2026-07-29", "2026-07-28", "2026-07-27",
+    ]);
+  });
+});
+
+// ── who a day's reveal belongs to ───────────────────────────────
+
+describe("revealMembersFor", () => {
+  const DAY = "2026-07-27";
+  const at = (iso: string) => Date.parse(iso);
+
+  it("excludes someone who joined after the day ended", () => {
+    // The leak, exactly: day D is revealed by the D+1 scan, which runs every
+    // 120 minutes, so a 00:05 joiner was a current member when the snapshot
+    // was taken and read a day they were not in the group for.
+    const members = ["old", "latecomer"];
+    const joined = {
+      old: at("2026-07-20T09:00:00Z"),
+      latecomer: at("2026-07-28T00:05:00Z"),
+    };
+    expect(revealMembersFor(members, joined, DAY)).toEqual(["old"]);
+  });
+
+  it("includes someone who joined partway through the day", () => {
+    // The bound is the END of the day, not its start — they were there for
+    // it, and duel answers stay writable while the day is unrevealed, so
+    // they may well have played it.
+    const joined = { mid: at("2026-07-27T18:30:00Z") };
+    expect(revealMembersFor(["mid"], joined, DAY)).toEqual(["mid"]);
+  });
+
+  it("includes a member joining in the last second, and excludes the first second after", () => {
+    const joined = {
+      justIn: at("2026-07-27T23:59:59.999Z"),
+      justOut: at("2026-07-28T00:00:00.000Z"),
+    };
+    expect(revealMembersFor(["justIn", "justOut"], joined, DAY)).toEqual(["justIn"]);
+  });
+
+  it("includes members who predate the field", () => {
+    // Not a fallback — the correct answer. createGroupV2/joinGroupV2 write
+    // this from the day it shipped, so absence means the member joined
+    // before that, which is before any day this is ever asked about.
+    // Reading absence as "exclude" would blank every reveal for every group
+    // that existed on deploy day.
+    expect(revealMembersFor(["a", "b"], {}, DAY)).toEqual(["a", "b"]);
+    expect(revealMembersFor(["a", "b"], { a: at("2026-07-01T00:00:00Z") }, DAY))
+      .toEqual(["a", "b"]);
+  });
+
+  it("includes a member whose recorded time is unusable", () => {
+    // Same permissive direction, and for the same reason: a reveal its own
+    // members cannot read is a worse failure than one scoped too widely.
+    for (const bad of [null, undefined, "2026-07-01", NaN, {}, 0 / 0]) {
+      expect(revealMembersFor(["a"], { a: bad }, DAY)).toEqual(["a"]);
+    }
+  });
+
+  it("includes anyone who played the day, whatever their join time says", () => {
+    // Duel answers are accepted up to four days late, so a member can
+    // legitimately land a vote for a day preceding their join — an offline
+    // client flushing a queue, or a fresh group playing a recent day.
+    // Excluding them would publish a reveal holding their own vote that they
+    // alone could not read.
+    const joined = { player: at("2026-08-01T00:00:00Z"), lurker: at("2026-08-01T00:00:00Z") };
+    expect(revealMembersFor(["player", "lurker"], joined, DAY, ["player"]))
+      .toEqual(["player"]);
+  });
+
+  it("can return an empty array, and says so rather than falling back", () => {
+    // Everyone who played the day has left; everyone now in the group joined
+    // after it. Nobody was there, so nobody may read it — the reveal still
+    // writes, which settles the day for the scan.
+    const joined = { newA: at("2026-08-01T00:00:00Z"), newB: at("2026-08-02T00:00:00Z") };
+    expect(revealMembersFor(["newA", "newB"], joined, DAY)).toEqual([]);
+  });
+
+  it("does not read join times off the prototype", () => {
+    // The group document's maps are keyed by uid, and D47 is the record of
+    // what a prototype lookup does to a uid-keyed map read from Firestore.
+    expect(revealMembersFor(["constructor"], {}, DAY)).toEqual(["constructor"]);
+    expect(revealMembersFor(["toString"], {}, DAY)).toEqual(["toString"]);
+  });
+
+  it("degrades to the previous behaviour on a malformed day key", () => {
+    // Server-generated (utcDayKey), so unreachable in the pipeline.
+    const joined = { late: at("2030-01-01T00:00:00Z") };
+    expect(revealMembersFor(["late"], joined, "not-a-day")).toEqual(["late"]);
+  });
+});
+
 // ── streaks ─────────────────────────────────────────────────────
 
 describe("nextStreak", () => {
@@ -216,13 +356,16 @@ describe("meetsKFloor", () => {
 describe("per-anchor breakdowns", () => {
   // Since D9 the client sends the canonical catalogue key for `city` and
   // the ISO code (derived from it, never typed) for `country`.
+  // Real vocabulary values. This fixture said `gender: "Women"` before the
+  // vocabulary check existed — a string the profile's <select> has never
+  // offered, which is exactly the drift check:anchors now prevents.
   const anchors = (over: Record<string, unknown> = {}) => ({
-    ageBand: "25-34", gender: "Women", country: "NO", ...over,
+    ageBand: "25-34", gender: "Woman", country: "NO", ...over,
   });
 
   it("folds the closed-vocabulary anchors, and ignores junk buckets", () => {
     const by = {};
-    foldAnchors(by, anchors({ city: "Oslo, NO", profession: "Carpenter" }), 1);
+    foldAnchors(by, anchors({ city: "Oslo, NO", profession: "Carpenter" }), 1, FLOOR);
     // `profession` is still free text up to 80 chars and must never mint a
     // key. `city` may, since D9 — it comes from a fixed catalogue whose
     // every entry check-cities.mjs verifies against these same rules.
@@ -235,7 +378,7 @@ describe("per-anchor breakdowns", () => {
 
     // empty, over-long and field-path-hostile values are skipped, not stored
     const junk = {};
-    foldAnchors(junk, { ageBand: "  ", gender: "x".repeat(41), country: "a.b" }, 0);
+    foldAnchors(junk, { ageBand: "  ", gender: "x".repeat(41), country: "a.b" }, 0, FLOOR);
     expect(junk).toEqual({});
     expect(breakdownBucket("  Norway  ")).toBe("Norway");
     expect(breakdownBucket(42)).toBeNull();
@@ -248,50 +391,153 @@ describe("per-anchor breakdowns", () => {
     // check that blanks the dimension for every other user of the question.
     const by = {};
     for (const bad of ["oslo", "Oslo, Norway", "Oslo,NO", "Oslo, no", "OSLO"]) {
-      foldAnchors(by, { city: bad, country: bad }, 0);
+      foldAnchors(by, { city: bad, country: bad }, 0, FLOOR);
     }
     expect(by).toEqual({});
 
     // …and the canonical forms still land.
-    foldAnchors(by, { city: "Oslo, NO", country: "NO" }, 0);
+    foldAnchors(by, { city: "Oslo, NO", country: "NO" }, 0, FLOOR);
     expect(Object.keys(by).sort()).toEqual(["city", "country"]);
 
     // A city name may itself contain a comma; the shape anchors on the tail.
     expect(breakdownBucket("Washington, D C, US", "city")).toBe("Washington, D C, US");
-    // The dim is optional, and without it the check does not apply — the
-    // other five dimensions still accept their own free-form labels.
+    // The dim is optional, and without it neither the shape nor the
+    // vocabulary applies — that overload is only reached by callers that do
+    // not know which dimension they hold.
     expect(breakdownBucket("oslo")).toBe("oslo");
+    // With the dim, the four closed dimensions accept their vocabulary and
+    // nothing else. "Women" is the near-miss that matters: it reads like a
+    // gender and the profile has never offered it.
     expect(breakdownBucket("Prefer not to say", "gender")).toBe("Prefer not to say");
+    expect(breakdownBucket("Women", "gender")).toBeNull();
+    expect(breakdownBucket("Doctorate", "education")).toBe("Doctorate");
+    expect(breakdownBucket("PhD", "education")).toBeNull();
   });
 
-  it("caps distinct buckets per dimension but keeps counting known ones", () => {
-    // `education` rather than `country`: the cap is what is under test, and
-    // country now carries an ISO-shape check that a synthetic "C37" fails
-    // for an unrelated reason.
-    const by: Record<string, Record<string, Record<string, number>>> = {};
-    for (let i = 0; i < BREAKDOWN_MAX_BUCKETS + 10; i++) {
-      foldAnchors(by, { education: "E" + i }, 0);
+  it("refuses bucket labels that are keys on Object.prototype", () => {
+    // Four of the six dimensions have no closed vocabulary, and
+    // firestore.rules can only bound an anchor's LENGTH — verified against
+    // the real ruleset in the emulator, where an anonymous account creates
+    // an answer carrying `anchors: { gender: "__proto__" }` and is allowed.
+    //
+    // `byDim[bucket] = {}` with that label sets the PROTOTYPE, so the
+    // per-option counter beneath it lands on Object.prototype and every
+    // object minted afterwards in the process inherits it.
+    for (const name of ["__proto__", "constructor", "toString", "valueOf", "hasOwnProperty"]) {
+      expect(breakdownBucket(name, "gender")).toBeNull();
+      expect(breakdownBucket(name)).toBeNull();
     }
-    expect(Object.keys(by.education)).toHaveLength(BREAKDOWN_MAX_BUCKETS);
-    // a bucket already known keeps incrementing even once the cap is hit
-    foldAnchors(by, { education: "E0" }, 0);
-    expect(by.education.E0["0"]).toBe(2);
-    // …and a new one past the cap is dropped rather than growing the doc
-    expect(by.education["E99"]).toBeUndefined();
+
+    const before = Object.prototype as unknown as Record<string, unknown>;
+    const by = {};
+    foldAnchors(by, { gender: "__proto__", ageBand: "constructor" }, 3, FLOOR);
+    expect(by).toEqual({});
+    expect(before["3"]).toBeUndefined();
+    // The consequence the guard exists for, stated as the assertion: an
+    // unrelated object must not have grown a vote count.
+    expect(({} as Record<string, unknown>)["3"]).toBeUndefined();
+
+    // …and the same for the catalog transpose, which folds the same anchors.
+    const entBy = {};
+    foldCanonAnchors(entBy, { gender: "__proto__" }, "25", FLOOR);
+    expect(entBy).toEqual({});
+    expect(({} as Record<string, unknown>)["25"]).toBeUndefined();
   });
 
-  it("caps the city dimension too, using real catalogue keys", () => {
-    // The cap matters most here: a global question can touch far more than
-    // 24 cities, so this is the dimension that actually degrades in
-    // production rather than in a test.
+  it("holds the bucket cap, on the dimension that can actually reach it", () => {
+    // `city` and not `education`: the four <select> dimensions now check
+    // membership, and their vocabularies are SHORTER than the cap, so they
+    // can no longer reach it at all — which is the point of closing them.
+    // 10,929 places against 24 slots is where the cap still bites.
     const by: Record<string, Record<string, Record<string, number>>> = {};
     for (let i = 0; i < BREAKDOWN_MAX_BUCKETS + 10; i++) {
-      foldAnchors(by, { city: `City${i}, NO` }, 0);
+      foldAnchors(by, { city: `City${i}, NO` }, 0, FLOOR);
     }
     expect(Object.keys(by.city)).toHaveLength(BREAKDOWN_MAX_BUCKETS);
-    foldAnchors(by, { city: "City0, NO" }, 0);
-    expect(by.city["City0, NO"]["0"]).toBe(2);
-    expect(by.city["City30, NO"]).toBeUndefined();
+    // A bucket still IN the map keeps incrementing — the cap gates entry,
+    // not counting. (City0 is gone by now: 34 arrivals into 24 slots, and
+    // among all-equal buckets eviction is oldest-first.)
+    const survivor = Object.keys(by.city)[0];
+    foldAnchors(by, { city: survivor }, 0, FLOOR);
+    expect(by.city[survivor]["0"]).toBe(2);
+    // …and the document cannot grow past the cap however many arrive. This
+    // is the D7 growth bound, and eviction must not have loosened it.
+    for (let i = 100; i < 140; i++) foldAnchors(by, { city: `City${i}, NO` }, 0, FLOOR);
+    expect(Object.keys(by.city).length).toBeLessThanOrEqual(BREAKDOWN_MAX_BUCKETS);
+  });
+
+  it("a closed vocabulary cannot reach the cap at all", () => {
+    // The property that closes the slot-exhaustion hole for four of the six
+    // dimensions, asserted as the inequality it actually is: there are fewer
+    // legal buckets than slots, so no caller can crowd a real one out.
+    // check:anchors holds the same inequality against the client's lists.
+    const by: Record<string, Record<string, Record<string, number>>> = {};
+    for (const v of ["Woman", "Man", "Non-binary", "Prefer not to say"]) {
+      foldAnchors(by, { gender: v }, 0, FLOOR);
+    }
+    // …and 200 attempts at anything else buy nothing.
+    for (let i = 0; i < 200; i++) foldAnchors(by, { gender: `G${i}` }, 0, FLOOR);
+    expect(Object.keys(by.gender).sort())
+      .toEqual(["Man", "Non-binary", "Prefer not to say", "Woman"]);
+    expect(Object.keys(by.gender).length).toBeLessThan(BREAKDOWN_MAX_BUCKETS);
+  });
+
+  it("evicts a sub-floor bucket to admit a new one, and never a published one", () => {
+    // The attack the cap used to enable: fill all 24 slots with values that
+    // are never published (one answer each), and every real city that
+    // arrives afterwards is refused — the dimension is blank for the life of
+    // the question, and no vocabulary can stop it because the catalogue is
+    // far larger than the cap.
+    const by: Record<string, Record<string, Record<string, number>>> = {};
+    for (let i = 0; i < BREAKDOWN_MAX_BUCKETS; i++) {
+      foldAnchors(by, { city: `Junk${i}, NO` }, 0, FLOOR);
+    }
+    expect(Object.keys(by.city)).toHaveLength(BREAKDOWN_MAX_BUCKETS);
+
+    // Real traffic now arrives. Two cities, because publishableBreakdown
+    // needs two surviving buckets to call anything a split — one bucket is a
+    // population statement, not a comparison.
+    for (let i = 0; i < FLOOR; i++) {
+      foldAnchors(by, { city: "Oslo, NO" }, 1, FLOOR);
+      foldAnchors(by, { city: "Bergen, NO" }, 0, FLOOR);
+    }
+    // Before this change both were refused outright and `city` published
+    // nothing for the life of the question.
+    expect(publishableBreakdown(by, FLOOR).city).toEqual({
+      "Oslo, NO": { "1": FLOOR },
+      "Bergen, NO": { "0": FLOOR },
+    });
+
+    // …and once a bucket is publishable it is not evictable, however many
+    // new values arrive. A published count that could vanish is a worse
+    // failure than a dimension that degrades.
+    for (let i = 0; i < 200; i++) foldAnchors(by, { city: `More${i}, NO` }, 0, FLOOR);
+    expect(by.city["Oslo, NO"], "a published bucket was evicted").toEqual({ "1": FLOOR });
+    expect(by.city["Bergen, NO"], "a published bucket was evicted").toEqual({ "0": FLOOR });
+    expect(Object.keys(by.city).length).toBeLessThanOrEqual(BREAKDOWN_MAX_BUCKETS);
+  });
+
+  it("refuses a new bucket outright once every slot is publishable", () => {
+    // The case the assertion above CANNOT reach, and the one that matters
+    // most: while any sub-floor bucket exists it is always the smaller
+    // victim, so a published bucket is never even a candidate. Only when
+    // every slot is at or above the floor does the floor guard itself decide
+    // — and dropping it there would delete counts a reader has already seen.
+    //
+    // Written after mutating `victimTotal` from `floor` to `Infinity` and
+    // watching the whole suite stay green.
+    const by: Record<string, Record<string, Record<string, number>>> = {};
+    for (let i = 0; i < BREAKDOWN_MAX_BUCKETS; i++) {
+      for (let n = 0; n < FLOOR; n++) foldAnchors(by, { city: `Full${i}, NO` }, 0, FLOOR);
+    }
+    const before = { ...by.city };
+    expect(Object.keys(before)).toHaveLength(BREAKDOWN_MAX_BUCKETS);
+
+    foldAnchors(by, { city: "Newcomer, NO" }, 0, FLOOR);
+
+    expect(by.city["Newcomer, NO"], "a publishable bucket was evicted for a newcomer")
+      .toBeUndefined();
+    expect(by.city).toEqual(before);
   });
 
   it("suppresses buckets whose total is below the floor", () => {
@@ -416,6 +662,125 @@ describe("public-mirror publish cadence", () => {
   });
 });
 
+describe("the same cadence, applied per bucket (steppedBreakdown)", () => {
+
+  // The trigger's vote-path publish loop (v2.ts), reproduced so the property
+  // is asserted against the composition that actually ships rather than
+  // against steppedBreakdown alone. Returns every state a client holding an
+  // onSnapshot on v2_question_aggs would observe.
+  function replay(answers: { anchors: Record<string, string>; optionIdx: number }[]) {
+    const by = {};
+    let released = {};
+    let total = 0;
+    const seen: Record<string, Record<string, Record<string, number>>>[] = [];
+    for (const a of answers) {
+      total += 1;
+      foldAnchors(by, a.anchors, a.optionIdx, FLOOR);
+      if (total >= FLOOR && shouldPublishAgg(total, FLOOR, FLOOR)) {
+        // `released` is what was PUBLISHED, matching v2.ts — not what
+        // steppedBreakdown returned. Simulating the latter is how this
+        // helper agreed with a trigger that could never publish a
+        // first-suppressed bucket (see the case below).
+        released = publishableBreakdown(steppedBreakdown(by, released, FLOOR), FLOOR);
+        seen.push(released);
+      }
+    }
+    return seen;
+  }
+
+  it("never moves a published bucket by fewer than the floor", () => {
+    // The shape that made this necessary: anchors stay empty until the user
+    // fills the Basics card (D8), so a five-answer window routinely carries
+    // exactly one anchored answer — and that one answer used to move its
+    // bucket, and every dimension of it, by exactly 1.
+    const answers: { anchors: Record<string, string>; optionIdx: number }[] = [];
+    for (let i = 0; i < 10; i++) answers.push({ anchors: { gender: "Woman" }, optionIdx: 0 });
+    for (let i = 0; i < 10; i++) answers.push({ anchors: { gender: "Man" }, optionIdx: 0 });
+    for (let i = 0; i < 60; i++) {
+      // one anchored answer per window of five
+      answers.push({ anchors: { gender: i % 2 ? "Woman" : "Man" }, optionIdx: 1 });
+      for (let j = 0; j < 4; j++) answers.push({ anchors: {}, optionIdx: 0 });
+    }
+
+    const seen = replay(answers);
+    expect(seen.length).toBeGreaterThan(10);
+
+    const totalOf = (cell: Record<string, number>) =>
+      Object.keys(cell).reduce((n, k) => n + cell[k], 0);
+
+    let smallestNonZeroStep = Infinity;
+    for (let i = 1; i < seen.length; i++) {
+      for (const dim of Object.keys(seen[i])) {
+        for (const bucket of Object.keys(seen[i][dim])) {
+          const prev = seen[i - 1][dim]?.[bucket];
+          if (!prev) continue; // first appearance discloses a whole ≥floor cohort
+          const step = totalOf(seen[i][dim][bucket]) - totalOf(prev);
+          if (step > 0) smallestNonZeroStep = Math.min(smallestNonZeroStep, step);
+        }
+      }
+    }
+    // Measured as a minimum over every adjacent pair, not spot-checked: a
+    // spot check survives a policy that steps by one past some size, which
+    // is the bug this closes.
+    expect(smallestNonZeroStep).toBeGreaterThanOrEqual(FLOOR);
+  });
+
+  it("a bucket suppressed at first publication is not charged for it", () => {
+    // The regression e2e-v2-loop.mjs caught. Two cohorts reach exactly the
+    // floor on the publish at total 10, having been below it — and therefore
+    // suppressed — at total 5. Measuring the step from steppedBreakdown's own
+    // output charged them for a value no reader saw, so they needed TWICE
+    // the floor and the breakdown never appeared at all.
+    const by = {};
+    for (let i = 0; i < 3; i++) foldAnchors(by, { gender: "Woman" }, 1, FLOOR);
+    for (let i = 0; i < 2; i++) foldAnchors(by, { gender: "Man" }, 1, FLOOR);
+
+    const atFive = publishableBreakdown(steppedBreakdown(by, {}, FLOOR), FLOOR);
+    expect(atFive, "3 and 2 are both under the floor").toEqual({});
+
+    for (let i = 0; i < 2; i++) foldAnchors(by, { gender: "Woman" }, 0, FLOOR);
+    for (let i = 0; i < 3; i++) foldAnchors(by, { gender: "Man" }, 0, FLOOR);
+
+    const atTen = publishableBreakdown(steppedBreakdown(by, atFive, FLOOR), FLOOR);
+    expect(atTen.gender, "both cohorts reached the floor and still published nothing")
+      .toEqual({ Woman: { "0": 2, "1": 3 }, Man: { "0": 3, "1": 2 } });
+  });
+
+  it("re-emits the previous value rather than freezing the document", () => {
+    const by = { gender: { Woman: { "0": 5 } } };
+    const released = steppedBreakdown(by, {}, FLOOR);
+    expect(released).toEqual({ gender: { Woman: { "0": 5 } } });
+
+    // one further answer: the bucket must read exactly as it did before
+    foldAnchors(by, { gender: "Woman" }, 1, FLOOR);
+    const next = steppedBreakdown(by, released, FLOOR);
+    expect(next).toEqual({ gender: { Woman: { "0": 5 } } });
+    expect(next.gender.Woman["1"]).toBeUndefined();
+
+    // …and once the bucket has gained the floor, the true counts land whole
+    for (let i = 0; i < 4; i++) foldAnchors(by, { gender: "Woman" }, 1, FLOOR);
+    expect(steppedBreakdown(by, released, FLOOR)).toEqual({ gender: { Woman: { "0": 5, "1": 5 } } });
+  });
+
+  it("holds one bucket while another moves", () => {
+    // Per bucket, not per dimension: a busy cohort must not carry a quiet
+    // one past its own step.
+    const released = { gender: { Woman: { "0": 5 }, Man: { "0": 5 } } };
+    const by = { gender: { Woman: { "0": 10 }, Man: { "0": 6 } } };
+    expect(steppedBreakdown(by, released, FLOOR)).toEqual({
+      gender: { Woman: { "0": 10 }, Man: { "0": 5 } },
+    });
+  });
+
+  it("leaves the floor and complementary suppression to publishableBreakdown", () => {
+    // steppedBreakdown gates WHEN a value moves, never whether it clears —
+    // a sub-floor bucket passes through it and is dropped downstream.
+    const stepped = steppedBreakdown({ gender: { Woman: { "0": 2 } } }, {}, FLOOR);
+    expect(stepped).toEqual({ gender: { Woman: { "0": 2 } } });
+    expect(publishableBreakdown(stepped, FLOOR)).toEqual({});
+  });
+});
+
 describe("catalog answers (pick questions — docs/CATALOG-QUESTIONS.md)", () => {
   const RANGE = { max: 1025 }; // pokemon: CATALOG_MAX_ENTITY as shipped
 
@@ -536,18 +901,21 @@ describe("catalog answers (pick questions — docs/CATALOG-QUESTIONS.md)", () =>
 });
 
 describe("catalog breakdowns — segment orderings of the canon (D17)", () => {
+  // Real vocabulary values. This fixture said `gender: "Women"` before the
+  // vocabulary check existed — a string the profile's <select> has never
+  // offered, which is exactly the drift check:anchors now prevents.
   const anchors = (over: Record<string, unknown> = {}) => ({
-    ageBand: "25-34", gender: "Women", country: "NO", ...over,
+    ageBand: "25-34", gender: "Woman", country: "NO", ...over,
   });
 
   it("folds anchors per entity, sharing the vote fold's bucket rules", () => {
     const by = {};
-    foldCanonAnchors(by, anchors({ city: "Oslo, NO", profession: "Carpenter" }), "25");
-    foldCanonAnchors(by, anchors(), "25");
-    foldCanonAnchors(by, anchors({ ageBand: "18-24" }), "6");
+    foldCanonAnchors(by, anchors({ city: "Oslo, NO", profession: "Carpenter" }), "25", FLOOR);
+    foldCanonAnchors(by, anchors(), "25", FLOOR);
+    foldCanonAnchors(by, anchors({ ageBand: "18-24" }), "6", FLOOR);
     expect(by).toMatchObject({
       ageBand: { "25-34": { "25": 2 }, "18-24": { "6": 1 } },
-      gender: { Women: { "25": 2, "6": 1 } },
+      gender: { Woman: { "25": 2, "6": 1 } },
       city: { "Oslo, NO": { "25": 1 } },
     });
     // profession never mints a key — same closed list as foldAnchors
@@ -561,11 +929,11 @@ describe("catalog breakdowns — segment orderings of the canon (D17)", () => {
     // sides: a new entity is dropped, a known one still counts.
     const by: Record<string, Record<string, Record<string, number>>> = {};
     for (let e = 1; e <= CANON_BY_MAX_ENTITIES; e++) {
-      foldCanonAnchors(by, { gender: "Women" }, String(e));
+      foldCanonAnchors(by, { gender: "Woman" }, String(e), FLOOR);
     }
-    foldCanonAnchors(by, { gender: "Women" }, "999"); // over the cap: dropped
-    foldCanonAnchors(by, { gender: "Women" }, "1");   // known: keeps counting
-    const cell = by.gender.Women;
+    foldCanonAnchors(by, { gender: "Woman" }, "999", FLOOR); // over the cap: dropped
+    foldCanonAnchors(by, { gender: "Woman" }, "1", FLOOR);   // known: keeps counting
+    const cell = by.gender.Woman;
     expect(Object.keys(cell)).toHaveLength(CANON_BY_MAX_ENTITIES);
     expect(cell["999"]).toBeUndefined();
     expect(cell["1"]).toBe(2);
@@ -657,6 +1025,46 @@ describe("moderation — queue fold + verdict channel (docs/MODERATION.md)", () 
       { takeId: "d", flags: 3 },
     ]);
     expect(buildModQueueFrom(counts, 10, 25)).toEqual([]);
+  });
+
+  it("tallies a take whose id is a prototype key, and queues it", () => {
+    // takeId is the take's DOCUMENT ID, and firestore.rules lets any circle
+    // member choose it — the ruleset constrains a take's fields, never its
+    // name. Verified in the emulator: `v2_takes/constructor` creates, and a
+    // second member can flag it.
+    //
+    // Tallied on a plain object, `counts[id] || 0` reads back through the
+    // prototype and ten flags become the string
+    // "function Object() { [native code] }1111111111"; every comparison in
+    // buildModQueueFrom against it is NaN-false, so the take is never queued
+    // however many people flag it — moderation immunity chosen at post time.
+    for (const name of ["constructor", "toString", "valueOf", "hasOwnProperty"]) {
+      const counts = tallyFlags(Array(10).fill(name));
+      expect(counts[name]).toBe(10);
+      expect(buildModQueueFrom(counts, 3, 25)).toEqual([{ takeId: name, flags: 10 }]);
+    }
+    // Firestore's reserved-id rule (`__.*__`) keeps this one unreachable
+    // today; tallied correctly anyway rather than resting on it.
+    expect(tallyFlags(["__proto__", "__proto__"])["__proto__"]).toBe(2);
+  });
+
+  it("ignores flag docs with no usable takeId", () => {
+    expect(tallyFlags(["a", "", null, undefined, 7, {}, "a"])).toEqual({ a: 2 });
+  });
+
+  it("folds page by page to the same tally as one pass", () => {
+    // v2_flags has no upper bound — MOD_ADVISORY makes the keep-verdict
+    // sweep dead code, nothing else deletes a flag, and there is no TTL — so
+    // runBuildModQueue pages through it instead of materialising it on a 256
+    // MiB instance. The paged fold has to agree with the whole-collection
+    // one, including across a page boundary that splits a take's flags.
+    const all = ["t1", "t2", "t1", "t3", "t1", "t2", "constructor", "constructor"];
+    const paged = new Map<string, number>();
+    for (let i = 0; i < all.length; i += 3) {
+      tallyFlagsInto(paged, all.slice(i, i + 3));
+    }
+    expect(Object.fromEntries(paged)).toEqual(tallyFlags(all));
+    expect(Object.fromEntries(paged)).toEqual({ t1: 3, t2: 2, t3: 1, constructor: 2 });
   });
 
   it("accepts exactly the three verdict shapes and nothing else", () => {
@@ -792,5 +1200,36 @@ describe("seedDocMatches — the seed's write skip", () => {
     // …but a null domain and an absent one describe the same question, so
     // the common case does not churn every doc on every deploy.
     expect(seedDocMatches(old, desired)).toBe(true);
+  });
+});
+
+describe("publishBreakdown — publish and baseline are the same value", () => {
+  // The e2e's exact sequence, driven through the one function the trigger
+  // calls. Two cohorts sit under the floor at total 5 and reach it at 10.
+  it("publishes both cohorts once they reach the floor", () => {
+    const by = {};
+    for (let i = 0; i < 3; i++) foldAnchors(by, { gender: "Woman" }, 1, FLOOR);
+    for (let i = 0; i < 2; i++) foldAnchors(by, { gender: "Man" }, 1, FLOOR);
+    const atFive = publishBreakdown(by, {}, FLOOR);
+    expect(atFive).toEqual({});
+
+    for (let i = 0; i < 2; i++) foldAnchors(by, { gender: "Woman" }, 0, FLOOR);
+    for (let i = 0; i < 3; i++) foldAnchors(by, { gender: "Man" }, 0, FLOOR);
+    // Feeding the PREVIOUS return value back in is the whole contract — one
+    // value, published and stored, so the caller cannot wire it two ways.
+    expect(publishBreakdown(by, atFive, FLOOR).gender)
+      .toEqual({ Woman: { "0": 2, "1": 3 }, Man: { "0": 3, "1": 2 } });
+  });
+
+  it("still refuses a step smaller than the floor once a bucket is visible", () => {
+    const by = {};
+    for (let i = 0; i < 5; i++) foldAnchors(by, { gender: "Woman" }, 0, FLOOR);
+    for (let i = 0; i < 5; i++) foldAnchors(by, { gender: "Man" }, 0, FLOOR);
+    const first = publishBreakdown(by, {}, FLOOR);
+    expect(first.gender).toEqual({ Woman: { "0": 5 }, Man: { "0": 5 } });
+
+    foldAnchors(by, { gender: "Woman" }, 1, FLOOR);
+    expect(publishBreakdown(by, first, FLOOR).gender, "one vote moved a published bucket")
+      .toEqual({ Woman: { "0": 5 }, Man: { "0": 5 } });
   });
 });

@@ -96,6 +96,11 @@ jobs:
       # Firestore map keys. A malformed row or an over-long name would be
       # pickable in the profile and then absent from every breakdown.
       - run: npm run check:cities
+      # …and the four dimensions that DO have a closed vocabulary: the
+      # profile's <select>s and the trigger's BREAKDOWN_DIM_VOCAB must hold
+      # the same strings, or a level stops counting silently. Runs on the
+      # deploy path too (backend-checks.yml).
+      - run: npm run check:anchors
       # Same argument for the Pokédex catalogue: stored `pick` answers are
       # dex-number keys into this file, so a gap or reorder is an answer
       # resolving to the wrong species.
@@ -105,7 +110,7 @@ jobs:
       # absence included — the gate runs before any catalogue exists (D15).
       - run: npm run check:catalogs
       # The logic generator ships in two byte-identical copies (client +
-      # functions, D56) — drift means the server scores forms the client
+      # functions, D57) — drift means the server scores forms the client
       # never rendered. backend-checks.yml runs it on the deploy path too.
       - run: npm run check:logic-sync
       # The npm alias that keeps the iOS SwiftPM graph resolvable. Runs on

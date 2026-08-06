@@ -27,6 +27,7 @@
 // were the same shape without the warning. Static everywhere now — the
 // awaits implied a lazy boundary that did not exist.
 import {
+  clearIndexedDbPersistence,
   collection,
   doc,
   documentId,
@@ -38,6 +39,7 @@ import {
   query,
   serverTimestamp,
   setDoc,
+  terminate,
   Timestamp,
   where,
 } from "firebase/firestore";
@@ -72,6 +74,7 @@ const state = {
   // gates honest copy while a new anonymous session is fetched.
   sessionLost: false,
   uid: null as string | null,
+  linked: false,
   questions: [] as Array<QuestionDoc & { id: string }>,
   feedBank: [] as Array<QuestionDoc & { id: string }>,
   // Learn cards (D32) — consumed only through LIVE.learnAnswer/learnAgg;
@@ -400,15 +403,34 @@ async function hydrate(): Promise<void> {
   } catch {
     /* cache is best-effort */
   }
-  const active = all
-    .filter((q) => q.active !== false)
-    .sort((a, b) => (a.seq || 0) - (b.seq || 0));
+  const sorted = all.slice().sort((a, b) => (a.seq || 0) - (b.seq || 0));
+  const active = sorted.filter((q) => q.active !== false);
 
   // Allowlist split per surface — pure and unit-tested in deck.ts
   // (splitBanks carries the why-comments: playability, the D12 rank
   // exclusion, and the D32 learn fencing).
   const banks = splitBanks(active);
-  state.questions = banks.daily;
+  // THE DAILY LANE KEEPS ITS RETIRED QUESTIONS, as tombstones. Every other
+  // surface iterates its bank, so dropping an inactive question there simply
+  // stops offering it — but the daily deck is POSITIONAL: computeDeckIds
+  // indexes `questionIds[(today - epoch - back) % n]`, so removing any
+  // element below the current window shifts every visible day. Probe, bank
+  // of 90 at DECK_EPOCH+30: retiring one question changes 7 of 7 pager
+  // cards, six answered history cards render as unanswered, and today's card
+  // silently swaps. Appending changes none, which is why D30 scopes its
+  // invariant to appends and did not catch this.
+  //
+  // The trigger is the intended ops workflow, not an accident:
+  // docs/QUESTION-FARM.md has the scorecard propose `active: false` for
+  // high-volume landslides — questions that have, by definition, already
+  // been served — and D34's remedy (seedContentV2 with bumpRev) forces the
+  // refetch that materialises it.
+  //
+  // So the kill switch moves to the DISPLAY (deck() below), where it still
+  // does its job: a retired question stops being offered, and the days
+  // around it keep their questions. The cost is one wasted agg listener per
+  // retired card until it ages out of the 7-day window.
+  state.questions = splitBanks(sorted).daily;
   state.feedBank = banks.feed;
   state.duelBank = banks.duel;
   state.learnBank = banks.learn;
@@ -556,17 +578,7 @@ async function hydrate(): Promise<void> {
     }
     // Live mode shows only REAL results: purge the demo's baked test
     // results and rebuild from server + this device's saves.
-    try {
-      const local = JSON.parse(localStorage.getItem("insight.testResults.v2") || "{}") || {};
-      (window as unknown as Record<string, unknown>).IS_TEST_RESULTS = {
-        ...state.profile.testResults,
-        ...local,
-      };
-    } catch {
-      (window as unknown as Record<string, unknown>).IS_TEST_RESULTS = {
-        ...state.profile.testResults,
-      };
-    }
+    publishTestResults();
   }
 
   await subscribeAggs();
@@ -974,9 +986,28 @@ const LIVE = {
     return callable("seedContentV2", { bumpRev: bumpRev === true });
   },
   async deleteAccount(): Promise<void> {
+    // Latched BEFORE the call, deliberately — see `torndown` above: work
+    // already in flight must not re-create an `insight.*` key while the wipe
+    // runs.
     torndown = true;
-    const db = await getDb();
-    await httpsCallable(getFunctions(db.app, "us-central1"), "deleteAccount")({});
+    // …and UNLATCHED when the wipe does not happen, which is an expected
+    // outcome rather than an exceptional one: index.ts refuses the auth
+    // delete whenever ANY wipe phase failed, and every network timeout lands
+    // here too, while LivePrivacyPanel deliberately keeps the user in the app
+    // afterwards.
+    //
+    // Left latched, that session was permanently deaf and nothing said so.
+    // refreshLive() and wake() no-op, so it can never reconnect after going
+    // offline — days, on mobile. resubscribeForToday() no-ops, so the
+    // midnight rollover renders a new deck while the previous day's agg and
+    // reveal listeners stay attached and billed. subscribeToAuth's handler
+    // bails, which disables the uid-change guard whose own comment says it
+    // exists to stop one person's answers being shown to another. vote() is
+    // not gated, so writes kept flowing the whole time. Only a restart
+    // cleared it.
+    const db = await getDb().catch((err) => { torndown = false; throw err; });
+    await httpsCallable(getFunctions(db.app, "us-central1"), "deleteAccount")({})
+      .catch((err) => { torndown = false; throw err; });
     // The account is gone: stop the uid-scoped groups listener before
     // the purge/reload — left running it would only error
     // (permission-denied) against the deleted account's query.
@@ -992,6 +1023,30 @@ const LIVE = {
     state.groupsUnsub = null;
     state.aggUnsubs = {};
     state.revealUnsubs = {};
+    // The offline mirror, which localStorage is not. firebaseImpl.ts enables
+    // persistentLocalCache() unconditionally, and hydrate reads the whole
+    // answers subcollection plus the profile — so every vote the account
+    // ever cast and its full anchors map sit in IndexedDB. Nothing removed
+    // them: hydrate is a one-shot getDocs rather than a listener, so the
+    // server-side delete produces no remove event, and the cache outlived
+    // the account on a device the user may go on to sell.
+    //
+    // Not a nicety. web/privacy.html — the document both stores require —
+    // states that this clears the app's data on the device it ran from, and
+    // docs/data-inventory.md repeats it; D6 already treats this same cache
+    // as sensitive, which is why Android backup is off. The claim was true
+    // of `insight.*` and of nothing else.
+    //
+    // terminate() first: clearIndexedDbPersistence refuses a live instance.
+    // Both best-effort, and both before the purge — clearIndexedDbPersistence
+    // also rejects while another tab holds the lease, and a device that
+    // cannot clear its cache must still finish signing out and reload.
+    try {
+      await terminate(db);
+      await clearIndexedDbPersistence(db);
+    } catch (err) {
+      reportError(err, { where: "deleteAccount.clearCache" });
+    }
     // "There is no undo" must include THIS device: purge every local
     // trace so the next (fresh anonymous) session doesn't resurrect the
     // deleted account's votes, results, or identity — then drop the
@@ -1090,6 +1145,12 @@ const LIVE = {
   get uid() {
     return state.uid;
   },
+  // True once the anonymous session has been upgraded (D3). Read by the
+  // privacy panel and the profile overlay, both of which used to state the
+  // opposite unconditionally.
+  get linked() {
+    return state.linked;
+  },
   subscribe(fn: () => void): () => void {
     listeners.add(fn);
     return () => listeners.delete(fn);
@@ -1110,7 +1171,10 @@ const LIVE = {
     return state.deckIds
       .map((qid, back) => {
         const q = state.questions.find((x) => x.id === qid);
-        return q ? buildS(q, back) : null;
+        // `active` is checked HERE, not when the bank is split — see the
+        // tombstone note in hydrate(). A retired question drops out of the
+        // pager without moving the days around it.
+        return q && q.active !== false ? buildS(q, back) : null;
       })
       .filter((s): s is LiveQuestion => !!s);
   },
@@ -1250,9 +1314,44 @@ function resetForNewUid(uid: string): void {
   state.sessionLost = false;
   state.uid = uid;
   purgeLocalTrace();
+  // AFTER purgeLocalTrace: it reads the on-disk copy, which the purge has
+  // just removed, so this publishes the empty state rather than re-seeding
+  // the old account's saves.
+  publishTestResults();
+  // Both flags are per-uid on the callee side (deviceBind.ts, push.ts) but
+  // were module-scoped here, so an in-process uid change left the new
+  // account's push token unwritten until the next cold boot — no reveal
+  // pushes in between.
+  pushRegisteredFor = null;
+  deviceBindAttemptedFor = null;
   setSentryUser(uid);
   notify();
   void refreshLive().catch((err) => reportError(err, { where: "refreshLive.uidChange" }));
+}
+
+// `window.IS_TEST_RESULTS`, rebuilt from the store plus this device's saves.
+//
+// A FUNCTION, called from both hydrate() and resetForNewUid(), because the
+// two drifted: reset nulled `state.profile`, purged the on-disk copy and
+// called notify() — re-rendering with this global still holding the PREVIOUS
+// account's Big Five, attachment and politics scores. Around twenty spec
+// modules read it directly at render time (profile-general.jsx,
+// profile-test-viz.jsx, compare-breakdown.jsx, …), so the wrong person's
+// results were on screen until the new uid's hydrate reached this line —
+// and two paths mean it might not: the unguarded getDocs in hydrate can
+// reject outright, and refreshInFlight can hand back the OLD run's promise
+// so hydrate never re-executes.
+//
+// resetForNewUid's own header states the contract this broke: "Everything
+// derived from the old uid has to go — in-memory AND on disk."
+function publishTestResults(): void {
+  const w = window as unknown as Record<string, unknown>;
+  try {
+    const local = JSON.parse(localStorage.getItem("insight.testResults.v2") || "{}") || {};
+    w.IS_TEST_RESULTS = { ...state.profile.testResults, ...local };
+  } catch {
+    w.IS_TEST_RESULTS = { ...state.profile.testResults };
+  }
 }
 
 // Remove every `insight.*` key. Used by deleteAccount and by the
@@ -1316,8 +1415,14 @@ async function resubscribeForToday(): Promise<void> {
 // arriving in the middle of a visibilitychange refresh joins that run
 // rather than starting a second one.
 let refreshInFlight: Promise<void> | null = null;
-let pushRegistered = false;
-let deviceBindAttempted = false;
+// Which uid these one-shots have run for, not WHETHER they have run. Both
+// callees are explicitly per-uid (deviceBind.ts memoizes per uid, push.ts
+// writes the token onto that uid's profile), but these were process-scoped
+// booleans that resetForNewUid did not clear — so after an in-process uid
+// change the new account's token was never written to its own document and
+// it received no reveal pushes until the next cold boot.
+let pushRegisteredFor: string | null = null;
+let deviceBindAttemptedFor: string | null = null;
 
 export function refreshLive(): Promise<void> {
   if (torndown) return Promise.resolve();
@@ -1330,23 +1435,25 @@ export function refreshLive(): Promise<void> {
     await hydrateSocial();
     state.ready = true;
     // fire-and-forget: reveal notifications on real devices (no-op on web).
-    // Once per process — re-registering on every reconnect would churn the
-    // token array for no gain.
-    if (!pushRegistered) {
-      pushRegistered = true;
+    // Once per UID — re-registering on every reconnect would churn the
+    // token array for no gain, but a new account needs its own.
+    if (pushRegisteredFor !== state.uid) {
+      const forUid = state.uid as string;
+      pushRegisteredFor = forUid;
       void import("./push")
-        .then((m) => m.registerPushForReveals(state.uid as string))
-        .catch(() => { pushRegistered = false; });
+        .then((m) => m.registerPushForReveals(forUid))
+        .catch(() => { if (pushRegisteredFor === forUid) pushRegisteredFor = null; });
     }
     // fire-and-forget, same shape: the D29 device-binding activation.
-    // Once per process; ensureDeviceBound() itself memoizes per uid in
+    // Once per uid; ensureDeviceBound() itself memoizes per uid in
     // localStorage, handles the missing native bridge, and never surfaces
     // UI — see src/v2/data/deviceBind.ts.
-    if (!deviceBindAttempted) {
-      deviceBindAttempted = true;
+    if (deviceBindAttemptedFor !== state.uid) {
+      const forUid = state.uid as string;
+      deviceBindAttemptedFor = forUid;
       void import("./deviceBind")
-        .then((m) => m.ensureDeviceBound(state.uid as string))
-        .catch(() => { deviceBindAttempted = false; });
+        .then((m) => m.ensureDeviceBound(forUid))
+        .catch(() => { if (deviceBindAttemptedFor === forUid) deviceBindAttemptedFor = null; });
     }
     LIVE.enabled = true;
     notify();
@@ -1384,6 +1491,15 @@ export async function initLive(timeoutMs = 2500): Promise<void> {
   // person's answers displayed to another.
   subscribeToAuth((user) => {
     if (torndown) return;
+    // Whether this session is an upgraded account or still the anonymous one
+    // (D3). Derived here because it is the only place the app sees the auth
+    // user; LivePrivacyPanel used to keep it as local state seeded to false,
+    // so a Google-linked user was told "You're on an anonymous session" and
+    // offered "Link Google", which then painted auth/provider-already-linked
+    // into the panel. Fail-safe (it could only under-claim), but wrong on
+    // screen, and profile-overlay.jsx hardcodes the same sentence with no
+    // check at all.
+    state.linked = !!user && user.isAnonymous === false;
     const next = user?.uid || null;
     if (next && state.uid && next !== state.uid) {
       resetForNewUid(next);

@@ -103,7 +103,7 @@ describe("a full attempt", () => {
     expect(saved.pctile).toBe(logicPctile(11 / 12));
   });
 
-  it("an unanswered puzzle expires at the cap: scored wrong, timed at 90s (D55)", () => {
+  it("an unanswered puzzle expires at the cap: scored wrong, timed at 90s (D56)", () => {
     vi.useFakeTimers();
     seedCrypto();
     const expected = generateForm(SEED);
@@ -136,7 +136,7 @@ describe("a full attempt", () => {
   });
 });
 
-describe("a verified attempt (D56)", () => {
+describe("a verified attempt (D57)", () => {
   // What the server actually sends: cells, opts and diff — no answer
   // index, no family names, no seed.
   const serverItems = (form) => form.items.map(({ cells, opts, diff }) => ({ cells, opts, diff }));

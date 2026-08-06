@@ -1,10 +1,19 @@
 // D44: political items never fold into the demographic breakdown.
 //
-// What this pins is the decision, not the plumbing. The trigger's fold is a
-// transaction against Firestore and its own test would be a mock of the SDK;
-// the leg in e2e-v2-loop.mjs answers a political question past the k-floor
-// under the real emulator and asserts the published doc carries no `by`.
-// This file holds the half that leg cannot: that the SET matches the bank.
+// What this pins is the SET — that POLITICAL_QIDS matches the bank. The
+// ENFORCEMENT point, where the trigger decides whether to fold anchors at
+// all, is `breakdownFor` in v2.ts, and its cases are at the foot of this
+// file.
+//
+// This header used to claim, in the present indicative, that "the leg in
+// e2e-v2-loop.mjs answers a political question past the k-floor under the
+// real emulator and asserts the published doc carries no `by`". No such leg
+// was ever written — grep for it — and with the set pinned here and nothing
+// covering the enforcement, mutating v2.ts's `slices` to a literal `true`
+// left all four runners green while the trigger published a per-anchor
+// breakdown of all eighteen Art. 9 political items to any signed-in reader.
+// A coverage claim in the present tense for a test that does not exist is
+// the one thing this repo can least afford.
 //
 // The non-vacuity guard matters more than usual here. `slicesDemographics`
 // returns true for everything if POLITICAL_QIDS is empty, and POLITICAL_QIDS
@@ -13,7 +22,7 @@
 // slicing political answers again with every test still green. So the first
 // assertion is that the bank ships political items at all.
 import { describe, expect, it } from "vitest";
-import { POLITICAL_QIDS, slicesDemographics } from "./v2";
+import { POLITICAL_QIDS, breakdownFor, slicesDemographics } from "./v2";
 import { V2_QUESTIONS } from "./v2content";
 
 // Both markers (D44, D52): the political test's own items, and ordinary
@@ -81,5 +90,41 @@ describe("D44 · political items never slice", () => {
     // correct here because the alternative (suppress everything unknown)
     // would blank the breakdown for any question added ahead of a redeploy.
     expect(slicesDemographics("daily-does-not-exist")).toBe(true);
+  });
+});
+
+// ── the enforcement point ───────────────────────────────────────
+//
+// The set above says WHICH questions are political. These say what the
+// trigger does about it. Mutating v2.ts's `slices` to a literal `true` used
+// to leave all four runners green.
+describe("breakdownFor — D44 at the point it is enforced", () => {
+  const POLITICAL = [...POLITICAL_QIDS][0];
+  const anchors = { ageBand: "25-34", gender: "Woman", country: "NO" };
+
+  it("folds nothing for a political item, whatever the anchors say", () => {
+    expect(breakdownFor(POLITICAL, null, anchors, 1, 5)).toEqual({});
+  });
+
+  it("ERASES a breakdown folded before the guard existed", () => {
+    // privRef is written with merge:false, so returning `{}` rather than
+    // merely skipping the fold is what cleans up the pre-D44 documents.
+    // Skipping would carry them forward untouched forever.
+    const stored = { gender: { Woman: { "0": 40 }, Man: { "0": 40 } } };
+    expect(breakdownFor(POLITICAL, stored, anchors, 1, 5)).toEqual({});
+  });
+
+  it("still folds for a non-political item", () => {
+    // The other half: a guard that withheld everything would also pass the
+    // two cases above.
+    const out = breakdownFor("daily-000", null, anchors, 1, 5);
+    expect(Object.keys(out).sort()).toEqual(["ageBand", "country", "gender"]);
+    expect(out.gender.Woman).toEqual({ "1": 1 });
+  });
+
+  it("carries a non-political item's stored breakdown forward", () => {
+    const stored = { gender: { Woman: { "0": 3 } } };
+    const out = breakdownFor("daily-000", stored, { gender: "Woman" }, 0, 5);
+    expect(out.gender.Woman).toEqual({ "0": 4 });
   });
 });

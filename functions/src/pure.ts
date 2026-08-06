@@ -77,6 +77,33 @@ export function prunePendingDays(
   return out;
 }
 
+// WHICH DAYS a run looks at, and this is the half that used to be wrong.
+//
+// The scan asked about exactly one day — `utcDayKey(-1)` — and the schedule
+// never passed one, so a group-day was eligible for reveal during the single
+// UTC day after it and never again. That is not the window the rest of the
+// system works in: firestore.rules accepts a duel answer up to FOUR days
+// late (deliberately, so a client flushing a queue after ~3 days offline
+// still lands its vote), and onV2AnswerCreated re-adds the day to
+// `pendingDays` whenever one arrives. So an answer syncing on D+2 re-opened
+// day D, correctly, into a scan that would never ask about day D again.
+// Nothing errored: both members had answered, the day sat pending forever,
+// and the duo's streak stayed at whatever the earlier empty settle left it.
+//
+// The window is PENDING_DAYS_KEEP, because that is already the bound the
+// pruning uses — a pending day older than that can never gain another answer
+// and is dropped. Matching them means the scan asks about exactly the days
+// that can still change, which is the definition `pendingDays` was given.
+//
+// Steady-state cost is five extra indexed queries per run that return
+// nothing. An explicit `dayKey` still means that day alone: the operator
+// lever and the e2e both pass one, and narrowing is what an operator
+// reaching for it during an incident usually wants.
+export function scanDays(dayKey?: string, nowMs: number = Date.now()): string[] {
+  if (dayKey) return [dayKey];
+  return Array.from({ length: PENDING_DAYS_KEEP }, (_, i) => utcDayKey(-(i + 1), nowMs));
+}
+
 // ── reveal conditions + streaks (v2social) ──────────────────────
 
 // The two reveal conditions (decision D5):
@@ -94,6 +121,77 @@ export function nextStreak(
   currentStreak: number,
 ): number {
   return lastRevealDay === prevDayKey(dayKey) ? currentStreak + 1 : 1;
+}
+
+// Who a day's reveal may be shown to.
+//
+// The reveal doc carries its own `members` array and firestore.rules gates
+// the read on THAT, not on the group's current membership — which is what
+// makes the guarantee retroactive in one direction: joining tomorrow does
+// not hand you every past day, and leaving does not retract the days you
+// played. The array was the membership AT REVEAL TIME, and that is a
+// different thing from membership on the day being revealed.
+//
+// The gap it left is one scan wide, every day. Day D is revealed by the D+1
+// scan, which runs `every 120 minutes` — so anyone who joined between
+// 00:00 UTC and that scan was a current member when the snapshot was taken,
+// went into `members`, and could read day D's votes and names for a day they
+// were not in the group for. `revealGroupDay`'s own comment claimed to have
+// closed this by preferring the page snapshot to a fresher read, but both
+// reads happen on D+1, so it only ever closed the seconds between them.
+//
+// The bound is the END of the day being revealed, not its start: someone who
+// joined midway through day D was there for it and may have played it.
+//
+// …and anyone who DID play the day is included whatever their join time
+// says. firestore.rules accepts a duel answer up to four days late, so a
+// member can legitimately land a vote for a day that precedes their join —
+// an offline client flushing a queue, or a fresh group playing a recent day.
+// Excluding them would publish a reveal containing their own vote that they
+// alone cannot read, and "you see the days you played" is the invariant the
+// e2e already asserts.
+//
+// KNOWN RESIDUAL, recorded rather than papered over: that clause is also an
+// unlock. Join a group, backfill an answer for a day inside the four-day
+// window, and the reveal admits you. It is strictly narrower than what this
+// replaces — passive joining now reveals nothing, and the unlock costs a
+// visible vote in the circle's own reveal — but it is not nothing. Closing
+// it means bounding the write, not the read: firestore.rules would have to
+// refuse a duel answer for a day preceding the member's join. That is a
+// change to the densest rule in the file, whose failure mode is a vote that
+// silently vanishes, and it would refuse the legitimate fresh-group case
+// above. Left for a decision of its own (D55 §9).
+//
+// A uid with NO recorded join time is included, and that is not a fallback —
+// it is the correct answer. The field is written by createGroupV2 and
+// joinGroupV2 from the day this shipped, so its absence means the member
+// joined before that, which is necessarily before any day this function will
+// ever be asked about. Reading absence as "unknown, exclude" would blank
+// every reveal for every group that existed on deploy day.
+//
+// Takes plain millis rather than Timestamps so this stays firebase-free like
+// the rest of the module; the caller converts.
+export function revealMembersFor(
+  members: readonly string[],
+  joinedAtMs: Record<string, unknown>,
+  dayKey: string,
+  playedUids: readonly string[] = [],
+): string[] {
+  const dayEnd = Date.parse(`${dayKey}T00:00:00Z`) + 86400000;
+  // Server-generated (utcDayKey), so this is unreachable in the pipeline. It
+  // degrades to the previous behaviour rather than to an empty array: a
+  // reveal nobody can read is a worse failure than one scoped too widely,
+  // and a malformed day key means the reveal is already wrong.
+  if (!Number.isFinite(dayEnd)) return [...members];
+  const played = new Set(playedUids);
+  return members.filter((uid) => {
+    if (played.has(uid)) return true;
+    const at = Object.prototype.hasOwnProperty.call(joinedAtMs, uid)
+      ? joinedAtMs[uid]
+      : undefined;
+    if (typeof at !== "number" || !Number.isFinite(at)) return true;
+    return at < dayEnd;
+  });
 }
 
 // ── k-anonymity gate (v2) ───────────────────────────────────────
@@ -194,16 +292,32 @@ export const BREAKDOWN_MAX_LABEL = 40;
 // Dimensions whose values come from a closed vocabulary get their shape
 // checked here as well as at the source.
 //
-// The bucket cap is first-come-first-served, so 24 junk values arriving
-// early would crowd out every real one for that question — and anchors are
-// written by the CLIENT onto its own answer doc, where firestore.rules can
-// only enforce a length. Anyone could mint 24 nonsense cities and blank the
-// dimension for everybody. Shape-checking `city` closes that, and it also
-// keeps the free text sitting in pre-D9 profiles ("oslo", "Oslo, Norway")
-// from competing for slots with the catalogue values.
+// The bucket cap is a scarce resource, and anchors are written by the CLIENT
+// onto its own answer doc where firestore.rules can only enforce a length —
+// so whoever fills the slots first decides what the dimension can ever show.
+// 24 nonsense values blank it for everybody, permanently: nothing evicts a
+// bucket, and `by` is carried forward across every publish.
 //
-// The other dimensions are short fixed lists chosen from <select>s; a bogus
-// value there costs one suppressed sub-floor bucket, not the dimension.
+// Two different defences, because the dimensions are two different shapes.
+//
+// FOUR OF THEM HAVE A CLOSED VOCABULARY, and it is SHORTER THAN THE CAP.
+// ageBand/gender/education/relationship come from <select>s of 7, 4, 15 and 6
+// values; checking membership means the dimension cannot be exhausted at all,
+// because there are fewer legal buckets than slots. That is the real fix and
+// it is available here and nowhere else — the rules layer cannot hold a
+// vocabulary, and the client choosing from a list says nothing about what a
+// script sends. `npm run check:anchors` holds these equal to the <select>
+// lists in src/v2/spec/profile-general.jsx, the way check-cities.mjs holds
+// the city catalogue to its own rules.
+//
+// This used to say a bogus value in these four "costs one suppressed
+// sub-floor bucket, not the dimension". That was wrong in the same way the
+// city note was right: 24 of them cost the dimension.
+//
+// CITY AND COUNTRY CANNOT BE CLOSED THAT WAY — 10,929 places and ~249
+// countries against 24 slots — so membership would still leave them
+// exhaustible with real values. Their shapes stay, and the cap itself
+// changed instead: see the eviction rule in foldAnchors.
 const BREAKDOWN_DIM_SHAPE: Partial<Record<BreakdownDim, RegExp>> = {
   // "Oslo, NO" — a catalogue name and an ISO 3166-1 alpha-2 code. Must
   // agree with placeKey() in src/v2/data/places.ts.
@@ -211,6 +325,36 @@ const BREAKDOWN_DIM_SHAPE: Partial<Record<BreakdownDim, RegExp>> = {
   // ISO 3166-1 alpha-2, derived client-side from the picked city.
   country: /^[A-Z]{2}$/,
 };
+
+// The closed vocabularies, verbatim from the profile's <select>s. Every value
+// must survive breakdownBucket and fit BREAKDOWN_MAX_LABEL, and every list
+// must be shorter than BREAKDOWN_MAX_BUCKETS — check:anchors asserts all
+// three, and the last is the one that makes exhaustion impossible rather
+// than merely harder.
+//
+// `Vocational / trade` is deliberately spelled "Vocational or trade" here
+// AND in the profile: the slash is in breakdownBucket's rejected class, so
+// the shipped option folded into no bucket at all from the day it was added.
+// Nothing surfaced it — the answer wrote, the aggregate just never counted
+// it — which is precisely the silence check:anchors now closes.
+export const BREAKDOWN_DIM_VOCAB: Partial<Record<BreakdownDim, readonly string[]>> = {
+  ageBand: ["Under 18", "18-24", "25-34", "35-44", "45-54", "55-64", "65+"],
+  gender: ["Woman", "Man", "Non-binary", "Prefer not to say"],
+  education: [
+    "Primary school", "Middle school", "High school", "Vocational or trade",
+    "Some college", "Associate degree", "Bachelor's", "Postgraduate diploma",
+    "Master's", "MBA", "Doctorate", "Postdoctoral",
+    "Professional certification", "Self-taught", "Other",
+  ],
+  relationship: [
+    "Single", "Dating", "Partnered", "Married", "It’s complicated",
+    "Prefer not to say",
+  ],
+};
+
+const VOCAB_SETS: Partial<Record<BreakdownDim, ReadonlySet<string>>> = Object.fromEntries(
+  Object.entries(BREAKDOWN_DIM_VOCAB).map(([dim, vals]) => [dim, new Set(vals)]),
+);
 
 export type BreakdownCounts = Record<string, Record<string, Record<string, number>>>;
 
@@ -223,17 +367,98 @@ export function breakdownBucket(value: unknown, dim?: BreakdownDim): string | nu
   const v = value.trim();
   if (!v || v.length > BREAKDOWN_MAX_LABEL) return null;
   if (/[./[\]*~]/.test(v)) return null;
+  // A label already keyed on Object.prototype is not a bucket name — it is a
+  // write into the prototype chain. The folds below do
+  // `byDim[bucket] || (byDim[bucket] = {})`, and with bucket === "__proto__"
+  // that assignment sets the PROTOTYPE rather than a property; the per-option
+  // counter beneath it then increments a field every later object in the
+  // process inherits. Measured, not reasoned: one answer carrying
+  // `anchors: { gender: "__proto__" }` makes an unrelated question publish
+  // `{"f":{"1":6}}` for five voters — counts nobody cast, on every question
+  // that instance goes on to serve. "constructor" and "toString" are the same
+  // shape one step weaker: they read back truthy and so also walk past the
+  // BREAKDOWN_MAX_BUCKETS check.
+  //
+  // This is the only place it can be caught. firestore.rules can bound an
+  // anchor's LENGTH and nothing else (the reason BREAKDOWN_DIM_SHAPE exists
+  // above), and four of the six dimensions have no closed vocabulary to check
+  // against — so a free anonymous account can put any 40-char string here.
+  //
+  // Membership in the prototype rather than a blocklist: a list of names the
+  // language owns is a list this repo would have to maintain against it.
+  if (v in ({} as Record<string, unknown>)) return null;
   const shape = dim && BREAKDOWN_DIM_SHAPE[dim];
   if (shape && !shape.test(v)) return null;
+  const vocab = dim && VOCAB_SETS[dim];
+  if (vocab && !vocab.has(v)) return null;
   return v;
+}
+
+// Make room for a new bucket in a dimension that is at its cap, or return
+// false to refuse it.
+//
+// The cap has to hold — it is the document-growth bound D7's arithmetic
+// rests on — but WHICH buckets hold the slots was first-come-first-served,
+// and that is what made the dimension attackable: a bucket below the floor
+// is suppressed from every publish, so it occupies a slot while showing
+// nobody anything. 24 of those arriving early blanked `city` permanently,
+// and no vocabulary can prevent it there because the catalogue is 10,929
+// places against 24 slots — the attacker only needs real city names.
+//
+// So a sub-floor bucket is evictable and a publishable one is not. The
+// smallest goes, and only if it is genuinely below the floor; once every
+// slot holds a cohort large enough to publish, the cap refuses again and the
+// long tail degrades exactly as it always did.
+//
+// What eviction costs, stated because it is a real loss and not a rounding
+// one: the evicted bucket's partial count is discarded, so a value that
+// re-appears restarts from zero and undercounts by up to `floor - 1`. That
+// is bounded, it only ever applies to counts no reader has seen, and the
+// alternative it replaces is a dimension that shows nothing at all for the
+// life of the question.
+//
+// AMONG EQUALS IT IS FIRST-IN-FIRST-OUT, and that is not incidental — the
+// scan keeps the first key at the minimum (`<`, not `<=`), and insertion
+// order is Firestore's map order. So a dimension whose buckets all sit at one
+// answer does churn, oldest out. That has to be true for this to work at all:
+// the attack state IS 24 buckets of one answer each, and a rule that
+// protected incumbents there would protect exactly the junk.
+//
+// What it costs is the long tail, which is where the cap was already
+// documented to degrade. What it buys is that recurrence wins: a value that
+// comes back grows past the churn and, at the floor, stops being evictable at
+// all. Nothing published can be taken away.
+function evictForNewBucket(
+  byDim: Record<string, Record<string, number>>,
+  floor: number,
+): boolean {
+  const keys = Object.keys(byDim);
+  if (keys.length < BREAKDOWN_MAX_BUCKETS) return true;
+  let victim: string | null = null;
+  let victimTotal = floor;
+  for (const k of keys) {
+    const n = bucketTotal(byDim[k]);
+    if (n < victimTotal) {
+      victim = k;
+      victimTotal = n;
+    }
+  }
+  if (victim === null) return false;
+  delete byDim[victim];
+  return true;
 }
 
 // Fold one answer's anchors into the running breakdown. Mutates and returns
 // `into` so the trigger can keep this inside its existing transaction.
+//
+// `floor` is the k-floor the publish path will apply (AGG_MIN_N). It is a
+// parameter rather than a constant for the reason meetsKFloor's is: the
+// floors in this module are named decisions passed in, never assumed.
 export function foldAnchors(
   into: BreakdownCounts,
   anchors: unknown,
   optionIdx: number,
+  floor: number,
 ): BreakdownCounts {
   if (!anchors || typeof anchors !== "object") return into;
   const src = anchors as Record<string, unknown>;
@@ -241,10 +466,7 @@ export function foldAnchors(
     const bucket = breakdownBucket(src[dim], dim);
     if (bucket === null) continue;
     const byDim = into[dim] || (into[dim] = {});
-    // Cap reached and this is a new bucket: drop it rather than grow the
-    // document. Existing buckets keep counting, so the cap degrades the
-    // long tail rather than freezing the dimension.
-    if (!byDim[bucket] && Object.keys(byDim).length >= BREAKDOWN_MAX_BUCKETS) continue;
+    if (!byDim[bucket] && !evictForNewBucket(byDim, floor)) continue;
     const cell = byDim[bucket] || (byDim[bucket] = {});
     const k = String(optionIdx);
     cell[k] = (cell[k] || 0) + 1;
@@ -305,6 +527,100 @@ export function publishableBreakdown(
   return out;
 }
 
+// The breakdown a publish is allowed to RELEASE, given what the last publish
+// already released.
+//
+// shouldPublishAgg below bounds how often the document is rewritten, which
+// bounds the delta a snapshot-watcher can attribute — for `counts`. It does
+// nothing for `by`, because the cadence is counted in answers to the QUESTION
+// while the quantity on display is a count per BUCKET. A bucket therefore
+// moves by however many of the window's answers happened to carry its anchor,
+// and one is the common case: anchors are empty until the user fills the
+// Basics card (D8), so a window of five answers routinely contains a single
+// anchored one. Measured on the real fold: two consecutive published states
+// differing by `{"f":{"0":5}}` → `{"f":{"0":5,"1":1}}` name one person's vote
+// as exactly as a k=1 cohort would, past a floor that cleared.
+//
+// Worse in the shape that actually ships, because the anchors travel
+// together: that single answer moves all six dimensions at once, so the step
+// discloses a full {ageBand, gender, city, country, education, relationship}
+// tuple joined to one option. That is the re-identification the floor exists
+// to prevent, defeated by the update cadence rather than by the numbers —
+// the same failure the comment under shouldPublishAgg records for `counts`,
+// on the field that was added after it.
+//
+// So the same k applies per bucket: a bucket's counts may be re-released only
+// once it has gained `step` answers since the value a reader last saw. Until
+// then the PREVIOUS released value is re-emitted, so the document is
+// unchanged for that bucket rather than merely un-rewritten. The private doc
+// keeps the exact running total, so nothing is lost — a bucket lags by at
+// most `step - 1` answers, the same bound the cadence gives `counts`.
+//
+// A bucket seen for the first time is released whole: that discloses a cohort
+// of at least the floor arriving together, which is the floor's own
+// guarantee, not a step. The caller hands the result to publishableBreakdown,
+// whose floor, complementary suppression and minimum-comparison rules then
+// apply unchanged — this gates WHEN a value moves, never whether it clears.
+//
+// `released` is what a reader has actually SEEN — the last map
+// publishableBreakdown published — and not the last map this function
+// returned. The difference is not academic: publishableBreakdown suppresses
+// as well as passes through, so measuring from this function's own output
+// spends a bucket's step budget on a value nobody was shown. A bucket
+// suppressed at its first publication then needed TWICE the floor before it
+// could ever appear, and in the shape the e2e drives (two cohorts reaching
+// exactly the floor on the publish at total 10) it never appeared at all.
+// Caught by e2e-v2-loop.mjs, which is the leg this module's own residual
+// note said would need a real emulator run.
+//
+// Privacy is unaffected, because the bound is over what was observable: a
+// bucket the reader never saw has no delta to hide, so its next release is
+// a FIRST appearance — disclosing a cohort of at least the floor, arriving
+// together, which is the floor's own guarantee rather than a step.
+export function steppedBreakdown(
+  by: BreakdownCounts,
+  released: BreakdownCounts,
+  step: number,
+): BreakdownCounts {
+  const out: BreakdownCounts = {};
+  for (const dim of Object.keys(by)) {
+    const buckets = by[dim] || {};
+    const prevDim = released[dim] || {};
+    const dimOut: Record<string, Record<string, number>> = {};
+    for (const bucket of Object.keys(buckets)) {
+      const prev = prevDim[bucket];
+      if (!prev) {
+        dimOut[bucket] = { ...buckets[bucket] };
+        continue;
+      }
+      dimOut[bucket] = bucketTotal(buckets[bucket]) - bucketTotal(prev) >= step
+        ? { ...buckets[bucket] }
+        : { ...prev };
+    }
+    out[dim] = dimOut;
+  }
+  return out;
+}
+
+/**
+ * What a publish puts on the public document — and, identically, what the
+ * private document must store as the baseline for the next one.
+ *
+ * ONE function returning ONE value, because the two being separate is what
+ * the e2e caught: the trigger stored steppedBreakdown's output while
+ * publishing publishableBreakdown's, so a bucket suppressed at its first
+ * publication had still spent its step budget and needed twice the floor to
+ * appear. The composition is the invariant, so it lives in one place where
+ * the caller cannot wire it two ways.
+ */
+export function publishBreakdown(
+  by: BreakdownCounts,
+  released: BreakdownCounts,
+  floor: number,
+): BreakdownCounts {
+  return publishableBreakdown(steppedBreakdown(by, released, floor), floor);
+}
+
 // ── when the public mirror may be rewritten ─────────────────────
 //
 // The k-floor stops a reader recovering an individual's answer from a tiny
@@ -333,6 +649,11 @@ export function publishableBreakdown(
 // `floor` should be a multiple of `every`, or the first publish waits for
 // the next multiple above it. That is safe (it only delays), so it is not
 // enforced — but it is why AGG_MIN_N and PUBLISH_EVERY are both 5.
+//
+// Scope, because it was once read as wider than it is: this bounds the delta
+// of `counts`, whose unit is the question. It says nothing about `by`, whose
+// unit is the bucket — steppedBreakdown above is the same argument carried to
+// that field, and the trigger must apply both.
 export function shouldPublishAgg(
   total: number,
   floor: number,
@@ -469,6 +790,7 @@ export function foldCanonAnchors(
   into: BreakdownCounts,
   anchors: unknown,
   entityKey: string,
+  floor: number,
 ): BreakdownCounts {
   if (!anchors || typeof anchors !== "object") return into;
   const src = anchors as Record<string, unknown>;
@@ -476,7 +798,9 @@ export function foldCanonAnchors(
     const bucket = breakdownBucket(src[dim], dim);
     if (bucket === null) continue;
     const byDim = into[dim] || (into[dim] = {});
-    if (!byDim[bucket] && Object.keys(byDim).length >= BREAKDOWN_MAX_BUCKETS) continue;
+    // Same bucket cap and the same eviction rule as foldAnchors — the
+    // slots are just as attackable here, and for the same reason.
+    if (!byDim[bucket] && !evictForNewBucket(byDim, floor)) continue;
     const cell = byDim[bucket] || (byDim[bucket] = {});
     if (!cell[entityKey] && Object.keys(cell).length >= CANON_BY_MAX_ENTITIES) continue;
     cell[entityKey] = (cell[entityKey] || 0) + 1;
@@ -575,6 +899,53 @@ export function nextFcmTokens(
 // non-remove, is invalid by construction so every removal is citable.
 
 export const MOD_POLICY_LINES = ["H1", "H2", "H3", "H4", "H5"] as const;
+
+/**
+ * Tally one flag per takeId.
+ *
+ * A Map rather than an object literal, because the KEY IS CLIENT-CHOSEN: the
+ * flag's `takeId` is the take's document id, and firestore.rules lets any
+ * circle member pick that id when they create the take (the rules constrain
+ * its fields, never its name). On a plain object, `counts[takeId] || 0` reads
+ * back through the prototype for `constructor`, `toString`, `valueOf` and the
+ * rest — so `counts["constructor"] = (counts["constructor"] || 0) + 1` yields
+ * the string `"function Object() { [native code] }1111111111"`, every
+ * comparison in buildModQueueFrom against it is NaN-false, and the take is
+ * never queued however many people flag it. A take that cannot enter the
+ * queue cannot be moderated at all: permanent immunity, chosen at post time,
+ * with nothing logged.
+ *
+ * Firestore's own reserved-id rule (`__.*__`) is the only reason "__proto__"
+ * is not also reachable here, which is not a guarantee this module should be
+ * resting on.
+ *
+ * Pure, so the shape is pinned without an emulator — the emulator run that
+ * found this had to create a take called `constructor` to see it.
+ */
+export function tallyFlags(takeIds: readonly unknown[]): Record<string, number> {
+  return Object.fromEntries(tallyFlagsInto(new Map(), takeIds));
+}
+
+/**
+ * The same tally, one page at a time.
+ *
+ * `v2_flags` has no upper bound — MOD_ADVISORY makes the keep-verdict sweep
+ * that deletes flags dead code, nothing else deletes them, and there is no
+ * TTL — so the caller pages through it and folds each page in rather than
+ * materialising the collection. What is retained is one entry per DISTINCT
+ * take, which is smaller than the flag count by however many people flagged
+ * the same take, and is the smallest thing the queue can be built from.
+ */
+export function tallyFlagsInto(
+  counts: Map<string, number>,
+  takeIds: readonly unknown[],
+): Map<string, number> {
+  for (const takeId of takeIds) {
+    if (typeof takeId !== "string" || !takeId) continue;
+    counts.set(takeId, (counts.get(takeId) || 0) + 1);
+  }
+  return counts;
+}
 
 /**
  * Fold raw flag counts into the queue: takes at or above the flag

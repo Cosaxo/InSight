@@ -109,7 +109,7 @@ service cloud.firestore {
             && request.resource.data.fcmTokens == resource.data.get("fcmTokens", null)))
         // testResults.logic is the VERIFIED logic score, written only by
         // logicSubmitV2 (admin SDK bypasses rules) after server-side
-        // scoring — a client-writable copy would be a forgeable one (D56).
+        // scoring — a client-writable copy would be a forgeable one (D57).
         // Same shape as fcmTokens above: presence allowed (every client
         // profile write is a merge, so the key rides along), mutation not.
         && (!("testResults" in request.resource.data)
@@ -306,7 +306,7 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
-    // ─── verified logic attempts (D56) ─────────────────────────────
+    // ─── verified logic attempts (D57) ─────────────────────────────
     // The attempt doc holds the seed — the answer key, until scored. Not
     // even the owner may read it: the whole design is that the client
     // learns the answers by solving, and an owner-readable seed hands a

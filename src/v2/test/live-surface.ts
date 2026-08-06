@@ -24,7 +24,7 @@
 export const LIVE_MEMBERS = [
   "aggFor", "appBuild", "confirmedVotes", "dailyBank", "deck",
   "deleteAccount", "demoInProd", "displayName", "enabled", "feedReady",
-  "latestBuild", "learnAgg", "learnAnswer", "linkGoogle", "myCity",
+  "latestBuild", "learnAgg", "learnAnswer", "linkGoogle", "linked", "myCity",
   "myVotes", "ready", "saveAnchors",
   "saveDisplayName",
   // Operator-only, and the one member here no spec-layer JSX reads — it is

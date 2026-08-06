@@ -113,7 +113,7 @@ const CREATE_EL_RE = /(?:^|[^\w$.])h\(\s*([A-Z][\w$]*)/g;
 // Comments must not count as definitions or references: a commented-out
 // `window.Foo = …` would otherwise satisfy a real dangling reference, and a
 // `<Foo/>` inside a doc comment would raise a phantom one.
-function stripComments(src) {
+export function stripComments(src) {
   return src
     .replace(/\/\*[\s\S]*?\*\//g, (m) => m.replace(/[^\n]/g, " "))
     .replace(/(^|[^:])\/\/[^\n]*/g, (m, p1) => p1 + " ".repeat(m.length - p1.length));

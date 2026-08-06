@@ -354,7 +354,7 @@ describe("v2 profile", () => {
     await assertSucceeds(setDoc(mine, { fcmTokens: ["tok-a"] }, { merge: true }));
   });
 
-  // testResults.logic is the VERIFIED logic score (D56): written by
+  // testResults.logic is the VERIFIED logic score (D57): written by
   // logicSubmitV2 after server-side scoring. A client-writable copy would
   // be a forgeable one — same threat shape as fcmTokens, so the rule and
   // this test mirror that block case for case.
@@ -403,7 +403,7 @@ describe("v2 profile", () => {
     }, { merge: true }));
   });
 
-  // The D56 server-side surfaces around the verified score.
+  // The D57 server-side surfaces around the verified score.
   it("logic attempt docs are opaque even to their owner; norms mirror is read-only", async () => {
     await seed(async (db) => {
       // the attempt doc holds the SEED — the answer key, until scored

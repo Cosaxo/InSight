@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // check-logic-sync.mjs — the logic generator's two copies stay byte-identical.
 //
-// WHY TWO COPIES EXIST. Verified logic attempts (D56) are scored
+// WHY TWO COPIES EXIST. Verified logic attempts (D57) are scored
 // server-side: logicSubmitV2 regenerates the form from the stored seed and
 // marks the client's picks against it. That only means anything if the
 // server generates EXACTLY the form the client rendered — a drifted server
