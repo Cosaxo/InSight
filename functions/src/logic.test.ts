@@ -11,7 +11,9 @@ import {
   canStartLogic,
   clientItems,
   foldNorms,
+  logicItemsFor,
   logicPctile,
+  logicPctileFor,
   measuredPctile,
   nextStartsToday,
   scoreLogicPicks,
@@ -35,8 +37,8 @@ const attempt = (over: Partial<LogicAttempt>): LogicAttempt => ({
   ...over,
 });
 
-describe("the percentile curve matches the client's, landmark for landmark", () => {
-  it("chance→4, half→30, midpoint→50, perfect→94, floor 1", () => {
+describe("the percentile curves match the client's, landmark for landmark", () => {
+  it("12 items (D53): chance→4, half→30, midpoint→50, perfect→94, floor 1", () => {
     // The client copy (src/v2/data/logic-score.ts) pins these same values
     // in logic-score.test.ts — if either side moves alone, one suite fails.
     expect(logicPctile(2 / 12)).toBe(4);
@@ -44,6 +46,15 @@ describe("the percentile curve matches the client's, landmark for landmark", () 
     expect(logicPctile(0.62)).toBe(50);
     expect(logicPctile(1)).toBe(94);
     expect(logicPctile(0)).toBe(1);
+  });
+
+  it("25 items (D59): chance→4, half→42, midpoint→50, 20/25→90, perfect→98, floor 1", () => {
+    expect(logicPctileFor(1 / 6, 25)).toBe(4); // chance with six options
+    expect(logicPctileFor(0.5, 25)).toBe(42);
+    expect(logicPctileFor(0.54, 25)).toBe(50);
+    expect(logicPctileFor(20 / 25, 25)).toBe(90);
+    expect(logicPctileFor(1, 25)).toBe(98); // the harder tail earns more model ceiling than D53's 94
+    expect(logicPctileFor(0, 25)).toBe(1);
   });
 });
 
@@ -83,37 +94,45 @@ describe("canStartLogic", () => {
 });
 
 describe("validLogicPicks", () => {
-  it("accepts 12 integers in -1..5 (-1 = expired), refuses everything else", () => {
-    expect(validLogicPicks(Array.from({ length: 12 }, () => 0))).toBe(true);
-    expect(validLogicPicks([...Array.from({ length: 11 }, () => 5), -1])).toBe(true);
-    expect(validLogicPicks(Array.from({ length: 11 }, () => 0))).toBe(false);
-    expect(validLogicPicks(Array.from({ length: 12 }, () => 6))).toBe(false);
-    expect(validLogicPicks(Array.from({ length: 12 }, () => -2))).toBe(false);
-    expect(validLogicPicks(Array.from({ length: 12 }, () => 1.5))).toBe(false);
-    expect(validLogicPicks(Array.from({ length: 12 }, () => "1"))).toBe(false);
+  it("accepts LOGIC_ITEMS integers in -1..5 (-1 = expired), refuses everything else", () => {
+    expect(validLogicPicks(Array.from({ length: 25 }, () => 0))).toBe(true);
+    expect(validLogicPicks([...Array.from({ length: 24 }, () => 5), -1])).toBe(true);
+    expect(validLogicPicks(Array.from({ length: 24 }, () => 0))).toBe(false);
+    expect(validLogicPicks(Array.from({ length: 12 }, () => 0))).toBe(false); // the old era's length
+    expect(validLogicPicks(Array.from({ length: 25 }, () => 6))).toBe(false);
+    expect(validLogicPicks(Array.from({ length: 25 }, () => -2))).toBe(false);
+    expect(validLogicPicks(Array.from({ length: 25 }, () => 1.5))).toBe(false);
+    expect(validLogicPicks(Array.from({ length: 25 }, () => "1"))).toBe(false);
     expect(validLogicPicks(null)).toBe(false);
     expect(validLogicPicks({})).toBe(false);
+  });
+
+  it("validates against an attempt's own era: a gv2 attempt takes 12 picks (D59)", () => {
+    expect(logicItemsFor(2)).toBe(12);
+    expect(logicItemsFor(3)).toBe(25);
+    expect(validLogicPicks(Array.from({ length: 12 }, () => 0), logicItemsFor(2))).toBe(true);
+    expect(validLogicPicks(Array.from({ length: 25 }, () => 0), logicItemsFor(2))).toBe(false);
   });
 });
 
 describe("scoreLogicPicks", () => {
-  it("all correct answers → 12/12; each mark follows its pick", () => {
+  it("all correct answers → a perfect score; each mark follows its pick", () => {
     const seed = 987654;
     const form = generateForm(seed);
     const right = form.items.map((it) => it.a);
     expect(scoreLogicPicks(seed, GEN_VERSION, right)).toEqual({
-      marks: Array.from({ length: 12 }, () => true),
-      score: 12,
+      marks: Array.from({ length: LOGIC_ITEMS }, () => true),
+      score: LOGIC_ITEMS,
     });
     const oneWrong = [...right];
     oneWrong[3] = (right[3] + 1) % 6;
     const scored = scoreLogicPicks(seed, GEN_VERSION, oneWrong);
-    expect(scored.score).toBe(11);
+    expect(scored.score).toBe(LOGIC_ITEMS - 1);
     expect(scored.marks[3]).toBe(false);
   });
 
   it("-1 (expired) never matches an answer", () => {
-    const scored = scoreLogicPicks(42, GEN_VERSION, Array.from({ length: 12 }, () => -1));
+    const scored = scoreLogicPicks(42, GEN_VERSION, Array.from({ length: LOGIC_ITEMS }, () => -1));
     expect(scored.score).toBe(0);
   });
 });
@@ -173,7 +192,7 @@ describe("measuredPctile (D58)", () => {
 });
 
 describe("administration arithmetic", () => {
-  it("the deadline covers 12 capped items plus one item of slack", () => {
-    expect(LOGIC_DEADLINE_MS).toBe(13 * 90_000);
+  it("the deadline covers 25 capped items plus one item of slack", () => {
+    expect(LOGIC_DEADLINE_MS).toBe(26 * 90_000);
   });
 });

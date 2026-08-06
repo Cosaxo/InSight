@@ -5848,3 +5848,77 @@ end-to-end: the claim names its population, the note declares the
 sketches, and the saved result carries `source`/`n`. The submit path's
 change is read-always + branch — the emulated e2e leg remains deferred
 with D57's environmental reason.
+
+## D59 · Twenty-five items, tail-heavy: the form grows before the norms freeze it
+
+**Date:** 2026-08-06 · **Status:** Adopted (owner: "do 25 items with the
+harder tail", against the assistant's 20-item recommendation — 25 sits
+inside the owner's original 20–30 range)
+
+**Why now, and why at all.** Twelve items give thirteen raw scores and
+squeeze all top-end discrimination into the last two or three; by
+Spearman–Brown, a 0.78-reliability 12-item form reaches ≈ 0.87 at 25
+items. And D58 froze the clock: the norms histogram buckets scores by
+form length, so every verified attempt accumulated under 12 items would
+be discarded by a later change. The histogram is empty today — this is
+the last cheap moment.
+
+**The v3 ramp.** 25 slots, non-decreasing:
+`1,1 · 1.5,1.5 · 2,2,2 · 2.5,2.5,2.5 · 3,3,3,3 · 3.5,3.5,3.5,3.5 ·
+4,4,4,4 · 4.5,4.5,4.5` — eleven of twenty-five at 3.5+, against one of
+twelve in v2. Ten new families joined so every band draws from a real
+pool: `ringLatin` (w3.5); the w4 two-rule compositions
+`latinShapeSizeFill`, `outerLatinInnerLatin`, `ringGrowFill`,
+`innerGrowCycle`, `fillRampShapeCycle`; and the w4.5 tail —
+`dist2Latin` and `xorLatin` (three simultaneous rules), `ringLatinShape`
+(double distribution over a low-salience attribute), and `dist2Xor`
+(two elements under two DIFFERENT laws) — Carpenter's hardest classes.
+28 families total; band draws now yield 2·2·24·6·24·24·120·24 ≈ 9.6e8
+family sequences. The sweep caught one real ambiguity during
+construction — a skipped-ring distractor satisfying a count-only
+reading of the new ring-Latin families — closed the D53 way: the
+predicates now demand the exact consecutive ring geometry every visible
+cell teaches, the same exact-vocabulary constraint dist2's elements got.
+(The legacy `ringGrow` never had the hole live: its column counts are
+always 1 or 3, so a two-ring answer cannot occur there.)
+
+**The 25-item curve, re-derived and pinned.** `logicPctileFor(frac,
+items)` carries one logistic per form length. The v3 parameters are
+midpoint 54 (a modelled median solver clears the low bands and roughly
+half the middle: ≈13.5/25) and slope 12; landmarks pinned in both
+suites: chance (1/6) → 4, half → 42, 20/25 → 90, perfect → **98** — the
+tail-heavy ramp earns the model more ceiling than D53's 94, still
+capped below 99 because a curve still cannot rank perfect scores. The
+12-item curve keeps its historic name, parameters and pins: v1 payload
+back-fills must not re-rank, and unknown legacy lengths fall back to
+it. All of this is bootstrap only — D58's measured flip supersedes the
+model at n = 100 regardless of parameters.
+
+**Era safety, both directions.** The norms histogram now stamps the
+form length it counts (`items`); a stored histogram from another era
+ranks nothing and folds nothing, so the first current-era submit starts
+the count fresh — 12-item scores can never mix with 25-item ones. An
+attempt OPENED under gv 2 and submitted after this deploys is validated
+and scored against its own 12-item form (`logicItemsFor(gv)`), scored
+by the 12-item curve, and kept out of the 25-item histogram — the
+deadline bounds that window to minutes, but a refusal there would
+swallow an honest finisher. Reconstruction holds for every era:
+generateForm(seed, 1|2) reproduce their frozen generators, pinned by
+goldens (v2's captured pre-change, seed 11 down to full option order),
+and an unknown gv still throws.
+
+**What it costs the sitting.** Typical runs move from ~3–5 to ~6–8
+minutes (modelled median 17s/item); the worst case, every 90s clock run
+out, is 37.5 minutes, and the verified deadline is 26 × 90s = 39
+minutes. The per-item cap stays flat at 90s across all bands — a
+per-band cap would be tighter administration but a second thing to
+explain; recorded as not done.
+
+**Accepted limits, recorded.** The w1, w1.5 and w2.5 bands have pool ==
+slots, so their family SETS are fixed and only order varies — the
+variety budget went to the tail, where coaching pays most. Reliability
+numbers quoted here are still Spearman–Brown projections, not
+measurements; the odd/even split-half submission idea (D57's reflection)
+remains future work. The Answers lens draws 25 rows on a phone screen —
+scrollable and legible, but dense; redesigning it is deferred until the
+measured Field lens work touches those lenses anyway.

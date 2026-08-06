@@ -5,7 +5,7 @@
 //
 //   logicStartV2    mints the seed SERVER-side, stores it in a per-uid
 //                   attempt doc clients cannot read, and returns the
-//                   twelve puzzles with the answer index — and the seed —
+//                   puzzles with the answer index — and the seed —
 //                   withheld. Given only cells and options, the sole way
 //                   to find the answer is to solve the puzzle, which is
 //                   the thing being tested. (Recovering the seed from the
@@ -47,10 +47,18 @@ const REGION = "us-central1";
 // enforces the TOTAL: items × cap + slack for network and render. Slack is
 // one extra item's worth — generous, because a refusal here surfaces to an
 // honest finisher as a swallowed attempt.
-export const LOGIC_ITEMS = 12;
+export const LOGIC_ITEMS = 25;
 export const LOGIC_ITEM_CAP_MS = 90_000;
 export const LOGIC_DEADLINE_MS = LOGIC_ITEMS * LOGIC_ITEM_CAP_MS + LOGIC_ITEM_CAP_MS;
-// Starting an attempt shows twelve fresh puzzles, so unfinished restarts
+
+// Items per generator era: an attempt opened before a form-length change
+// and submitted after it must be validated and scored against ITS form,
+// not the current one (D59) — the deadline bounds that window to minutes,
+// but a refusal there would swallow an honest finisher's attempt.
+export function logicItemsFor(gv: number): number {
+  return gv >= 3 ? 25 : 12;
+}
+// Starting an attempt previews a fresh form, so unfinished restarts
 // are a preview channel — bounded per UTC day rather than closed, because
 // a crashed app must be able to start again.
 export const LOGIC_MAX_STARTS_PER_DAY = 3;
@@ -60,15 +68,24 @@ export const LOGIC_MAX_STARTS_PER_DAY = 3;
 // measure practice, not the population.)
 export const LOGIC_REVERIFY_DAYS = 30;
 
-// The percentile curve, byte-for-byte the client's logicPctile
-// (src/v2/data/logic-score.ts) — the D53-pinned landmarks (chance→4,
-// 6/12→30, midpoint→50, perfect→94) are asserted equal in logic.test.ts,
-// so the two copies cannot drift apart silently. It stays the MODELLED
-// curve on purpose: the measured histogram replaces it only when the
-// verified count clears the same floor the question aggregates use, and
-// that flip will be its own recorded decision.
-export const logicPctile = (frac: number): number =>
-  Math.max(1, Math.min(99, Math.round(100 / (1 + Math.exp(-((frac * 100) - 62) / 14)))));
+// The percentile curves, byte-for-byte the client's logicPctileFor
+// (src/v2/data/logic-score.ts) — one per form length, landmarks asserted
+// equal in logic.test.ts so the copies cannot drift apart silently. The
+// 12-item parameters are D53's; the 25-item parameters are D59's
+// re-derivation for the tail-heavy ramp. Both are only the bootstrap
+// below the D58 measured floor.
+const CURVES: Record<number, { mid: number; slope: number }> = {
+  12: { mid: 62, slope: 14 },
+  25: { mid: 54, slope: 12 },
+};
+export const logicPctileFor = (frac: number, items: number): number => {
+  // Unknown lengths fall back by era: anything shorter than the v3 form
+  // is legacy 12-item-era material (v1 back-fills reach here with the odd
+  // truncated payload), and only 25+ means the tail-heavy ramp.
+  const c = CURVES[items] || (items >= 25 ? CURVES[25] : CURVES[12]);
+  return Math.max(1, Math.min(99, Math.round(100 / (1 + Math.exp(-((frac * 100) - c.mid) / c.slope)))));
+};
+export const logicPctile = (frac: number): number => logicPctileFor(frac, 12);
 
 export const utcDayKey = (ms: number): string => new Date(ms).toISOString().slice(0, 10);
 
@@ -114,9 +131,9 @@ export function nextStartsToday(prev: LogicAttempt | null, nowMs: number): numbe
 }
 
 // Picks: one per item, -1 = expired/unanswered, else an option index.
-export function validLogicPicks(x: unknown): x is number[] {
+export function validLogicPicks(x: unknown, items: number = LOGIC_ITEMS): x is number[] {
   return Array.isArray(x)
-    && x.length === LOGIC_ITEMS
+    && x.length === items
     && x.every((v) => typeof v === "number" && Number.isInteger(v) && v >= -1 && v <= 5);
 }
 
@@ -149,7 +166,10 @@ export function clientItems(seed: number, gv: number): LogicClientItem[] {
 }
 
 // ── norms histogram fold (pure; the callable wraps it in a transaction) ──
-// Flat b0..b12 buckets + n. Exact counts live in the private doc; the
+// Flat b0..b25 buckets + n + the form length it counts (`items` — a
+// histogram of 12-item scores must never mix with 25-item ones, so a
+// length change starts a fresh era, D59). Exact counts live in the
+// private doc; the
 // public mirror appears only at or above the same floor as the question
 // aggregates, and only every PUBLISH_EVERY-th count — the same
 // step-attribution argument (a client watching the public doc must never
@@ -244,9 +264,6 @@ export const logicSubmitV2 = onCall(
     if (!request.auth) throw new HttpsError("unauthenticated", "must be signed in");
     const uid = request.auth.uid;
     const picks = (request.data as { picks?: unknown } | null)?.picks;
-    if (!validLogicPicks(picks)) {
-      throw new HttpsError("invalid-argument", "picks must be 12 integers in -1..5");
-    }
     const now = Date.now();
     const db = getFirestore();
 
@@ -257,6 +274,13 @@ export const logicSubmitV2 = onCall(
       const attempt = snap.data() as LogicAttempt;
       if (attempt.status !== "open") throw new HttpsError("failed-precondition", "already scored");
       if (now > attempt.deadlineMs) throw new HttpsError("deadline-exceeded", "attempt expired");
+
+      // Validated against the ATTEMPT's form length: an attempt opened just
+      // before a form-length deploy still scores against its own era.
+      const items = logicItemsFor(attempt.gv);
+      if (!validLogicPicks(picks, items)) {
+        throw new HttpsError("invalid-argument", `picks must be ${items} integers in -1..5`);
+      }
 
       const { marks, score } = scoreLogicPicks(attempt.seed, attempt.gv, picks);
       const durationMs = now - attempt.startedAtMs;
@@ -271,12 +295,19 @@ export const logicSubmitV2 = onCall(
       // population as everyone else.
       const privRef = db.collection("v2_logic_norms_private").doc("global");
       const privSnap = await tx.get(privRef);
-      const prevNorms = privSnap.exists ? (privSnap.data() as LogicNorms) : null;
-      const measured = measuredPctile(prevNorms, score);
-      const pctile = measured ? measured.pctile : logicPctile(score / LOGIC_ITEMS);
+      const stored = privSnap.exists ? (privSnap.data() as LogicNorms) : null;
+      // A histogram from another form-length era ranks nothing and folds
+      // nothing — the first current-era submit starts the count fresh.
+      const sameEra = stored != null && stored.items === LOGIC_ITEMS;
+      const prevNorms = sameEra ? stored : null;
+      const isCurrentEra = items === LOGIC_ITEMS;
+      const measured = isCurrentEra ? measuredPctile(prevNorms, score) : null;
+      const pctile = measured ? measured.pctile : logicPctileFor(score / items, items);
       const source = measured ? "measured" : "model";
-      const countsNorms = attempt.normsCounted !== true;
-      const norms = countsNorms ? foldNorms(prevNorms, score) : null;
+      const countsNorms = attempt.normsCounted !== true && isCurrentEra;
+      const norms: LogicNorms | null = countsNorms
+        ? { ...foldNorms(prevNorms, score), items: LOGIC_ITEMS }
+        : null;
 
       tx.set(ref, {
         ...attempt,

@@ -6,13 +6,14 @@
 import React from 'react';
 import { useDialog } from './primitives.jsx';
 import { generateForm } from '../data/logic-gen';
-import { FIELD_MED, loadResult, logicPctile, logicSecs, saveResult } from '../data/logic-score';
+import { FIELD_MED, loadResult, logicPctileFor, logicSecs, saveResult } from '../data/logic-score';
 import { startVerified, submitVerified, verifyErrorMessage } from '../data/logic-verify';
 
 // ─────────────────────────────────────────────────────────────
 // Logic · Raven's-matrices-style test, run as a full overlay
-// (like the other tests). Twelve 3×3 matrices on a difficulty
-// ramp, GENERATED fresh per attempt by src/v2/data/logic-gen.ts
+// (like the other tests). Twenty-five 3×3 matrices on a
+// tail-heavy difficulty ramp (D59), GENERATED fresh per attempt
+// by src/v2/data/logic-gen.ts
 // (a direct import since D53 — this file was the global's only
 // consumer) from a random seed — the bank of hardcoded puzzles
 // (and its answer key in the bundle) is gone, and since D56 the
@@ -77,7 +78,7 @@ import { startVerified, submitVerified, verifyErrorMessage } from '../data/logic
   }
 
   // ── per-attempt form ──
-  // The twelve matrices come from the generator, seeded fresh at every
+  // The matrices come from the generator, seeded fresh at every
   // start. The seed is saved with the result so a future lens (or a bug
   // report) can reconstruct exactly the form a score was earned on —
   // the generator version travels with it so a generator change can never
@@ -442,7 +443,7 @@ import { startVerified, submitVerified, verifyErrorMessage } from '../data/logic
           const r = {
             v: 2, seed: form.seed, gv: form.version,
             marks: next, times: nt, diffs: form.items.map((it) => it.diff),
-            pctile: logicPctile(k / next.length), when: Date.now(),
+            pctile: logicPctileFor(k / next.length, next.length), when: Date.now(),
           };
           saveResult(r); setResult(r); setMarks([]); setTimes([]); setPicks([]); setQi(-1);
         }

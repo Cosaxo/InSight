@@ -20,7 +20,7 @@ import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import React from "react";
 import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { generateForm, version as genVersion } from "../data/logic-gen";
-import { LKEY, logicPctile } from "../data/logic-score";
+import { LKEY, logicPctile, logicPctileFor } from "../data/logic-score";
 // The verified transport is mocked wholesale: these tests own the overlay's
 // state machine, not the wire — the callables' real behaviour is pinned in
 // functions/src/logic.test.ts and the rules suite.
@@ -61,7 +61,7 @@ describe("a full attempt", () => {
     const expected = generateForm(SEED);
     render(<LogicOverlay onClose={() => {}} />);
 
-    for (let i = 0; i < 12; i++) {
+    for (let i = 0; i < expected.items.length; i++) {
       // dwell 3s so the per-puzzle clock has something honest to measure
       act(() => { vi.advanceTimersByTime(3000); });
       fireEvent.click(screen.getByLabelText(`Answer ${expected.items[i].a + 1} of 6`));
@@ -69,20 +69,20 @@ describe("a full attempt", () => {
     }
 
     // the result screen, immediately after the last reveal delay
-    screen.getByText(/12 of 12/);
-    screen.getByText(new RegExp(`Sharper than ${logicPctile(1)}% of players`));
+    screen.getByText(/25 of 25/);
+    screen.getByText(new RegExp(`Sharper than ${logicPctileFor(1, 25)}% of players`));
     // …and the disclosure that every field here is a model, without
     // touching a single lens tab
     screen.getByText(/modelled yardstick/i);
 
     const saved = JSON.parse(localStorage.getItem(LKEY));
-    expect(saved).toMatchObject({ v: 2, seed: SEED, gv: genVersion, pctile: logicPctile(1) });
-    expect(saved.marks).toHaveLength(12);
+    expect(saved).toMatchObject({ v: 2, seed: SEED, gv: genVersion, pctile: logicPctileFor(1, 25) });
+    expect(saved.marks).toHaveLength(25);
     expect(saved.marks.every(Boolean)).toBe(true);
     expect(saved.diffs).toEqual(expected.items.map((it) => it.diff));
     // the reveal delay is the animation's time, not the solver's — each
     // recorded time is the 3s dwell exactly, 240ms subtracted
-    expect(saved.times).toEqual(Array.from({ length: 12 }, () => 3000));
+    expect(saved.times).toEqual(Array.from({ length: 25 }, () => 3000));
   });
 
   it("wrong picks score as wrong — the marks follow the clicks", () => {
@@ -91,16 +91,16 @@ describe("a full attempt", () => {
     const expected = generateForm(SEED);
     render(<LogicOverlay onClose={() => {}} />);
     // first answer deliberately wrong, the rest right
-    for (let i = 0; i < 12; i++) {
+    for (let i = 0; i < expected.items.length; i++) {
       const right = expected.items[i].a;
       const pickIdx = i === 0 ? (right + 1) % 6 : right;
       fireEvent.click(screen.getByLabelText(`Answer ${pickIdx + 1} of 6`));
       act(() => { vi.advanceTimersByTime(PICK_DELAY); });
     }
-    screen.getByText(/11 of 12/);
+    screen.getByText(/24 of 25/);
     const saved = JSON.parse(localStorage.getItem(LKEY));
     expect(saved.marks[0]).toBe(false);
-    expect(saved.pctile).toBe(logicPctile(11 / 12));
+    expect(saved.pctile).toBe(logicPctileFor(24 / 25, 25));
   });
 
   it("an unanswered puzzle expires at the cap: scored wrong, timed at 90s (D56)", () => {
@@ -122,11 +122,11 @@ describe("a full attempt", () => {
     act(() => { vi.advanceTimersByTime(PICK_DELAY); });
     expect(screen.queryByRole("timer")).toBeNull();
 
-    for (let i = 1; i < 12; i++) {
+    for (let i = 1; i < expected.items.length; i++) {
       fireEvent.click(screen.getByLabelText(`Answer ${expected.items[i].a + 1} of 6`));
       act(() => { vi.advanceTimersByTime(PICK_DELAY); });
     }
-    screen.getByText(/11 of 12/);
+    screen.getByText(/24 of 25/);
     const saved = JSON.parse(localStorage.getItem(LKEY));
     expect(saved.marks[0]).toBe(false);
     expect(saved.marks.slice(1).every(Boolean)).toBe(true);
@@ -151,9 +151,9 @@ describe("a verified attempt (D57)", () => {
   it("start → answer-blind run → picks submitted → the server's result saved, badged", async () => {
     vi.useFakeTimers();
     const expected = generateForm(SEED);
-    vi.mocked(startVerified).mockResolvedValue({ items: serverItems(expected), capMs: 90000, deadlineMs: 13 * 90000 });
+    vi.mocked(startVerified).mockResolvedValue({ items: serverItems(expected), capMs: 90000, deadlineMs: 26 * 90000 });
     vi.mocked(submitVerified).mockResolvedValue({
-      marks: expected.items.map(() => true), score: 12, pctile: logicPctile(1),
+      marks: expected.items.map(() => true), score: 25, pctile: logicPctileFor(1, 25),
       durationMs: 60000, seed: SEED, gv: genVersion,
     });
     localStorage.setItem(LKEY, JSON.stringify(priorResult()));
@@ -163,7 +163,7 @@ describe("a verified attempt (D57)", () => {
     screen.getByText(/sends your picks to be scored on the server/i);
     fireEvent.click(screen.getByText("Verified attempt"));
     await act(async () => {}); // resolve startVerified
-    for (let i = 0; i < 12; i++) {
+    for (let i = 0; i < expected.items.length; i++) {
       fireEvent.click(screen.getByLabelText(`Answer ${expected.items[i].a + 1} of 6`));
       act(() => { vi.advanceTimersByTime(PICK_DELAY); });
     }
@@ -174,26 +174,26 @@ describe("a verified attempt (D57)", () => {
     screen.getByText("verified"); // the badge
     screen.getByText(/counted once toward an anonymous field count/i);
     const saved = JSON.parse(localStorage.getItem(LKEY));
-    expect(saved).toMatchObject({ verified: true, seed: SEED, gv: genVersion, pctile: logicPctile(1), source: "model" });
+    expect(saved).toMatchObject({ verified: true, seed: SEED, gv: genVersion, pctile: logicPctileFor(1, 25), source: "model" });
     expect(saved.marks.every(Boolean)).toBe(true);
-    expect(saved.times).toHaveLength(12); // local timings ride along for Pace
+    expect(saved.times).toHaveLength(25); // local timings ride along for Pace
   });
 
   it("a measured response flips the claim: rank among n verified players (D58)", async () => {
     vi.useFakeTimers();
     const expected = generateForm(SEED);
-    vi.mocked(startVerified).mockResolvedValue({ items: serverItems(expected), capMs: 90000, deadlineMs: 13 * 90000 });
+    vi.mocked(startVerified).mockResolvedValue({ items: serverItems(expected), capMs: 90000, deadlineMs: 26 * 90000 });
     // What the server sends once the histogram clears LOGIC_NORMS_MIN_N:
     // a measured percentile with its population size, no model involved.
     vi.mocked(submitVerified).mockResolvedValue({
-      marks: expected.items.map(() => true), score: 12, pctile: 91,
+      marks: expected.items.map(() => true), score: 25, pctile: 91,
       durationMs: 60000, seed: SEED, gv: genVersion, source: "measured", n: 250,
     });
     localStorage.setItem(LKEY, JSON.stringify(priorResult()));
     render(<LogicOverlay onClose={() => {}} />);
     fireEvent.click(screen.getByText("Verified attempt"));
     await act(async () => {});
-    for (let i = 0; i < 12; i++) {
+    for (let i = 0; i < expected.items.length; i++) {
       fireEvent.click(screen.getByLabelText(`Answer ${expected.items[i].a + 1} of 6`));
       act(() => { vi.advanceTimersByTime(PICK_DELAY); });
     }
@@ -220,18 +220,18 @@ describe("a verified attempt (D57)", () => {
   it("a failed submit keeps the picks: Retry resubmits the same twelve", async () => {
     vi.useFakeTimers();
     const expected = generateForm(SEED);
-    vi.mocked(startVerified).mockResolvedValue({ items: serverItems(expected), capMs: 90000, deadlineMs: 13 * 90000 });
+    vi.mocked(startVerified).mockResolvedValue({ items: serverItems(expected), capMs: 90000, deadlineMs: 26 * 90000 });
     vi.mocked(submitVerified)
       .mockRejectedValueOnce(new Error("couldn't reach the server"))
       .mockResolvedValueOnce({
-        marks: expected.items.map((_, i) => i !== 0), score: 11, pctile: logicPctile(11 / 12),
+        marks: expected.items.map((_, i) => i !== 0), score: 24, pctile: logicPctileFor(24 / 25, 25),
         durationMs: 60000, seed: SEED, gv: genVersion,
       });
     localStorage.setItem(LKEY, JSON.stringify(priorResult()));
     render(<LogicOverlay onClose={() => {}} />);
     fireEvent.click(screen.getByText("Verified attempt"));
     await act(async () => {});
-    for (let i = 0; i < 12; i++) {
+    for (let i = 0; i < expected.items.length; i++) {
       const right = expected.items[i].a;
       fireEvent.click(screen.getByLabelText(`Answer ${(i === 0 ? (right + 1) % 6 : right) + 1} of 6`));
       act(() => { vi.advanceTimersByTime(PICK_DELAY); });
@@ -243,7 +243,7 @@ describe("a verified attempt (D57)", () => {
     expect(vi.mocked(submitVerified)).toHaveBeenCalledTimes(2);
     expect(vi.mocked(submitVerified).mock.calls[1][0]).toEqual(vi.mocked(submitVerified).mock.calls[0][0]);
     const saved = JSON.parse(localStorage.getItem(LKEY));
-    expect(saved).toMatchObject({ verified: true, pctile: logicPctile(11 / 12) });
+    expect(saved).toMatchObject({ verified: true, pctile: logicPctileFor(24 / 25, 25) });
     expect(saved.marks[0]).toBe(false);
   });
 });
