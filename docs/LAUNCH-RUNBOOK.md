@@ -461,10 +461,18 @@ left here is a **recapture against live data**, plus the two forms.
 - [ ] **6.2 Submit to App Store review.** Budget one rejection round on
       guideline 4.8 (Sign in with Apple). **Do not pre-build it** — the
       reply is already drafted in `SHIP-CHECKLIST § hardening`: the app's
-      primary path is anonymous, no account is required, Google is an
-      optional upgrade rather than a login wall, and no email or name is
-      collected through it. Only add the Apple provider if a reviewer
-      insists.
+      primary path is anonymous, no account is required, and Google is an
+      optional upgrade rather than a login wall. Only add the Apple
+      provider if a reviewer insists.
+
+      **This step used to end "…and no email or name is collected through
+      it". It is deleted, and do not say it.** Google's default scopes put
+      an email and a display name on the Firebase Auth record, so the
+      sentence contradicts the app's own privacy label — a listing that
+      argues against its own nutrition label is a worse problem than the
+      one it was trying to solve. `STORE-FORMS.md` has the reasoning; this
+      was the third copy of the claim, after `SHIP-CHECKLIST` and the
+      forms doc.
 - [ ] **6.3 [PARKED — D42] Apply for Play production access** — a three-section
       application, reviewed in up to ~7 days, then submit the production
       release. On the organization account (D41) nothing gates this but the
