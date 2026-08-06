@@ -5,13 +5,99 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>InSight — a journal of the people around you</title>
-    <link
-      rel="stylesheet"
-    />
+    <!--
+      The boot state, inline on purpose — every part of that matters.
+
+      main.jsx renders nothing until initLive() settles, which is a race
+      between hydration and a 2500 ms timeout (src/v2/data/live.ts). On
+      native the splash covers that window: launchAutoHide is off and
+      main.jsx hides it only once real content is painted. On WEB there is
+      no splash, so #root sat empty and a cold start on a slow connection
+      showed a blank page for up to two and a half seconds.
+
+      It cannot live in styles.css. That file is imported BY main.jsx, so
+      it arrives with the very bundle whose fetch-parse-execute this exists
+      to cover — the boot state would paint at the moment it stopped being
+      needed. Which is also why the two grounds below are literals rather
+      than the tokens they mirror — those live in that same file.
+
+      #15171c is the page ground at EVERY viewport, and both halves of that
+      were measured rather than reasoned about:
+
+      - It is not the warm --surface. That token is the device SCREEN
+        inside the mockup, not the page. The first version of this block
+        used it, and a browser probe showed the boot state painting
+        near-white and then dropping to near-black the moment the
+        stylesheet landed — a flash in the opposite direction to the one
+        this exists to remove.
+      - It does not vary by width, despite the app looking as though it
+        should. Below 520px IOSDevice drops the mockup and fills the
+        viewport with #F2F2F7 (spec/iOS.jsx:148) — but that colour is on
+        the shell DIV, which does not exist until React mounts. `body`
+        stays #15171c underneath at all times. A media query here mirroring
+        that breakpoint was written, probed, and removed: Vite injects the
+        app stylesheet AFTER this block, so styles.css:2100 wins on source
+        order at equal specificity and the query never applied once CSS had
+        landed — it only ever changed the pre-CSS frame, and left dark ink
+        on a dark ground for the rest of boot.
+
+      Getting this wrong is invisible to every test in this repo: the mount
+      suites render App directly in jsdom and never load index.html at all.
+      If styles.css:2100's ground moves, this moves with it — nothing holds
+      them equal, because a gate that parses a CSS literal out of two files
+      to compare them costs more than the flash it prevents.
+
+      React clears #root's children on first render (createRoot, not
+      hydrateRoot), so nothing here needs removing — App replaces it.
+    -->
+    <style>
+      html, body { margin: 0; padding: 0; min-height: 100vh; background: #15171c; }
+      #boot {
+        position: fixed; inset: 0;
+        display: flex; flex-direction: column;
+        align-items: center; justify-content: center; gap: 14px;
+        /* Hanken Grotesk ships with styles.css and is not here yet, so the
+           wordmark is set in the system stack rather than swapping font
+           mid-boot. */
+        font-family: -apple-system, system-ui, sans-serif;
+        color: rgba(255, 255, 255, 0.44);
+      }
+      #boot-mark {
+        font-size: 15px; font-weight: 700;
+        letter-spacing: 0.14em; text-transform: uppercase;
+      }
+      #boot-dots { display: flex; gap: 5px; }
+      #boot-dots i {
+        width: 5px; height: 5px; border-radius: 50%;
+        background: rgba(255, 255, 255, 0.26);
+        animation: boot-pulse 1.15s ease-in-out infinite;
+      }
+      #boot-dots i:nth-child(2) { animation-delay: 0.15s; }
+      #boot-dots i:nth-child(3) { animation-delay: 0.3s; }
+      @keyframes boot-pulse {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.28; }
+      }
+      /* styles.css carries its own reduced-motion rules; this block is
+         outside that file, so it needs its own. */
+      @media (prefers-reduced-motion: reduce) {
+        #boot-dots i { animation: none; }
+      }
+    </style>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <!--
+        Deliberately says nothing about content. D1 forbids fabricated
+        activity in a live build, and a skeleton of card shapes is a claim
+        that cards are coming — which is exactly what is not yet known
+        while boot is still racing its timeout.
+      -->
+      <div id="boot">
+        <div id="boot-mark">InSight</div>
+        <div id="boot-dots" role="status" aria-label="Loading"><i></i><i></i><i></i></div>
+      </div>
+    </div>
     <script type="module" src="/src/v2/main.jsx"></script>
   </body>
 </html>
-</content>
