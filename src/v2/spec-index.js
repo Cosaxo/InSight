@@ -97,8 +97,10 @@ import './spec/search-overlay.jsx';
 import './spec/test-definitions.js';
 import './spec/passive-progress.js';
 import './spec/test-feed-data.js';
-// lens-defs builds LENS_FEED_QS at module scope off window.LENSES, so it has
-// to land after the core tests it deliberately trails in the feed.
+// lens-defs' feed pool (LENS_FEED_QS) is a lazy builder now — it differs
+// between demo and live, and liveness lands only after boot — so nothing
+// here waits on a module-scope snapshot anymore; the listing itself is
+// still load-bearing (rule 2).
 import './spec/lens-defs.js';
 import './spec/passive-meter.jsx';
 // test-overlay.jsx loads after first paint — see loadOverlays() below.

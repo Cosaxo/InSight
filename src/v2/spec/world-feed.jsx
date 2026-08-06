@@ -2461,7 +2461,11 @@ class WorldFeed extends React.Component {
     // items — and the lenses' questions behind them at half that rate. The
     // core tests own the feed; lenses trickle.
     const tqs = window.TEST_FEED_QS || [];
-    const lqs = window.LENS_FEED_QS || [];
+    // LENS_FEED_QS is a builder, not an array: the lens pool differs between
+    // demo and live, and liveness lands only after boot — so the feed asks
+    // at build time rather than keeping a snapshot (lens-defs.js says why).
+    const lensQs = window.LENS_FEED_QS;
+    const lqs = typeof lensQs === 'function' ? lensQs() : [];
     const kEvery = window.LEARN_FEED ? window.LEARN_FEED.every() : 0;
     const kqs = kEvery ? this.knowQs(Math.ceil(sorted.length / kEvery) + 1, cats) : [];
     const feedList = []; let ti = 0, li = 0, ki = 0;

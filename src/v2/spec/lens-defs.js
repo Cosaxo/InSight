@@ -308,36 +308,58 @@ window.LENSES = (function () {
   function mapped() { return KEYS.filter(complete).length; }
   // wipe on account deletion / uid change, same contract as the other stores
   function reset() { st = { ans: {}, seen: {} }; save(); notify(); }
-  return { KEYS, all: window.IS_LENSES, get, needed, done, pct, complete, seedCount, nextIdx, score, typical, answer, record, subscribe, mapped, reset, poke: notify };
+  // liveOn is published for LENS_FEED_QS below: its pool differs between
+  // demo and live, and re-deriving the flag there would mean a second
+  // window.LIVE read for a fact this store already owns. It is the LENS
+  // store's mode, not a general "is the app live" check — that stays
+  // window.LIVE.enabled.
+  return { KEYS, all: window.IS_LENSES, get, needed, done, pct, complete, seedCount, nextIdx, score, typical, answer, record, subscribe, mapped, reset, liveOn, poke: notify };
 })();
 // ── the lenses' own questions, for the World feed ───────────────────────────
 // Deliberately thinner than TEST_FEED_QS: the core tests still own the feed.
+//
+// A FUNCTION, not a module-scope array. LIVE.enabled flips only after the
+// async boot (data/live.ts initLive), long after this module evaluates — so
+// a pool snapshotted here is always the DEMO one: seedCount() excludes each
+// lens's seeded prefix as "already answered". Live mode starts every lens at
+// a real zero, so freezing that snapshot in cost live users every one of
+// those prefix questions (~20 of the 48 items) — for a feed-only user,
+// `moral` could never pass 4 of 8. Rebuilt lazily instead, memoised on the
+// store's own liveOn(); world-feed calls this on every feed build.
 window.LENS_FEED_QS = (function () {
-  const L = window.LENSES; if (!L) return [];
   function h(s) { let x = 17; for (let i = 0; i < s.length; i++) x = Math.imul(x ^ s.charCodeAt(i), 2654435761); return ((x ^ (x >>> 11)) >>> 0) / 4294967295; }
   const SCALE = ['Strongly agree', 'Agree', 'Neutral', 'Disagree', 'Strongly disagree'];
-  const perLens = L.all.map((l) => {
-    const from = L.seedCount(l.id);
-    return l.questions.slice(from).map((q, i) => {
-      const qi = from + i, id = 'lq-' + l.id + '-' + qi;
-      const peak = Math.floor(h(id) * SCALE.length);
-      const options = SCALE.map((label, oi) => {
-        const w = 1 / (1 + Math.abs(oi - peak)) + h(id + ':' + oi) * 0.45;
-        return { label, count: Math.round(180 + w * 1900) };
+  function build() {
+    const L = window.LENSES; if (!L) return [];
+    const perLens = L.all.map((l) => {
+      const from = L.seedCount(l.id); // 0 in live mode — every question enters
+      return l.questions.slice(from).map((q, i) => {
+        const qi = from + i, id = 'lq-' + l.id + '-' + qi;
+        const peak = Math.floor(h(id) * SCALE.length);
+        const options = SCALE.map((label, oi) => {
+          const w = 1 / (1 + Math.abs(oi - peak)) + h(id + ':' + oi) * 0.45;
+          return { label, count: Math.round(180 + w * 1900) };
+        });
+        // tier 2 lenses surface at half the rate of tier 1
+        return { id, lens: l.id, qi, tier: l.tier, cat: 'lens', type: 'vote', prompt: q.q, options };
       });
-      // tier 2 lenses surface at half the rate of tier 1
-      return { id, lens: l.id, qi, tier: l.tier, cat: 'lens', type: 'vote', prompt: q.q, options };
     });
-  });
-  const t1 = [], t2 = [];
-  for (let i = 0; perLens.some((p) => i < p.length); i++) {
-    perLens.forEach((p) => { if (i < p.length) (p[i].tier === 1 ? t1 : t2).push(p[i]); });
+    const t1 = [], t2 = [];
+    for (let i = 0; perLens.some((p) => i < p.length); i++) {
+      perLens.forEach((p) => { if (i < p.length) (p[i].tier === 1 ? t1 : t2).push(p[i]); });
+    }
+    // weave: two tier-1 questions for every tier-2 one
+    const out = []; let a = 0, b = 0;
+    while (a < t1.length || b < t2.length) {
+      for (let k = 0; k < 2 && a < t1.length; k++) out.push(t1[a++]);
+      if (b < t2.length) out.push(t2[b++]);
+    }
+    return out;
   }
-  // weave: two tier-1 questions for every tier-2 one
-  const out = []; let a = 0, b = 0;
-  while (a < t1.length || b < t2.length) {
-    for (let k = 0; k < 2 && a < t1.length; k++) out.push(t1[a++]);
-    if (b < t2.length) out.push(t2[b++]);
-  }
-  return out;
+  let builtFor = null, built = [];
+  return function () {
+    const live = !!(window.LENSES && window.LENSES.liveOn());
+    if (builtFor !== live) { builtFor = live; built = build(); }
+    return built;
+  };
 })();
