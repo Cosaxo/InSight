@@ -107,7 +107,9 @@ read: signed-in · write: nobody
 v2_groups/{gid}                    groups AND duos (mode: group|duo)
   name, mode, ownerUid, memberUids[≤32; duo ≤2], memberNames{uid:name},
   memberJoinedAt{uid:ts},
-  inviteCode, streak, lastRevealDay, pendingDays[≤6], createdAt
+  inviteCode, streak, lastRevealDay, pendingDays[≤6], createdAt,
+  duoMode? (duo docs only: friends|romantic — which 1v1 pool duelQFor
+  serves the pair; absent = friends. D40 part 4)
   (memberNames rides on the group doc because profiles are owner-only;
   callables maintain it on create/join/leave)
   (memberJoinedAt is read only by revealGroupDay, to scope a day's reveal to
@@ -120,7 +122,9 @@ v2_groups/{gid}                    groups AND duos (mode: group|duo)
   past PENDING_DAYS_KEEP. It is how scheduledDuelReveals finds its work with
   an indexed query instead of reading every group — D19)
 read: members · write: callables only (create/join/leave — codes, caps
-and pairing can't be forged client-side)
+and pairing can't be forged client-side), with ONE member-writable field:
+a duo member may update duoMode alone (closed enum, affectedKeys-pinned —
+the rule expresses the whole invariant, so no callable; D40 part 4)
 
 v2_groups/{gid}/reveals/{day}      materialized by the reveal pipeline
   day, qid, votes { uid: {optionIdx, guessIdx?} }, names, members[], revealedAt
@@ -242,7 +246,7 @@ not per boot. `LIVE.stats` reports `bankSource` / `answersFetched` /
 
 ## Verification
 
-- `npm run test:rules` — 47 rules tests (Firestore + Storage; the v2
+- `npm run test:rules` — 48 rules tests (Firestore + Storage; the v2
   surface, the anonymous-default lens, and the retired-v1 guard).
 - `firestore-tests/e2e-v2-loop.mjs` under
   `firebase emulators:exec --only auth,firestore,functions` — the full

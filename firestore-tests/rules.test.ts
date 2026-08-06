@@ -696,6 +696,28 @@ describe("v2 groups + sealed duels (Phase 3)", () => {
     await assertFails(deleteDoc(doc(asUser(OWNER), "v2_groups", GID)));
   });
 
+  it("duoMode is the ONE member-writable field, on duo docs only (D40 part 4)", async () => {
+    await seedGroup();
+    // either partner flips the pair's pool, and back again
+    await assertSucceeds(updateDoc(doc(asUser(FRIEND), "v2_groups", GID), { duoMode: "romantic" }));
+    await assertSucceeds(updateDoc(doc(asUser(OWNER), "v2_groups", GID), { duoMode: "friends" }));
+    // outsiders can't touch it
+    await assertFails(updateDoc(doc(asUser(STRANGER), "v2_groups", GID), { duoMode: "romantic" }));
+    // the field is alone or the write dies — no riding another change in
+    await assertFails(updateDoc(doc(asUser(OWNER), "v2_groups", GID),
+      { duoMode: "romantic", streak: 99 }));
+    // closed enum — an unknown pool name is refused, not stored
+    await assertFails(updateDoc(doc(asUser(OWNER), "v2_groups", GID), { duoMode: "sneaky" }));
+    // and a GROUP doc has no member-writable surface at all
+    await seed(async (db) => {
+      await setDoc(doc(db, "v2_groups", "g_grp"), {
+        name: "Circle", mode: "group", ownerUid: OWNER,
+        memberUids: [OWNER, FRIEND], inviteCode: "EFGH6789", streak: 0,
+      });
+    });
+    await assertFails(updateDoc(doc(asUser(OWNER), "v2_groups", "g_grp"), { duoMode: "romantic" }));
+  });
+
   it("members write sealed duel answers under the composite id; outsiders can't", async () => {
     await seedGroup();
     await assertSucceeds(setDoc(
