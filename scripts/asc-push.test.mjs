@@ -57,11 +57,18 @@ beforeAll(async () => {
     let body = "";
     req.on("data", (c) => { body += c; });
     req.on("end", () => {
+      // The screenshot PUTs carry raw PNG bytes, so the body is not always
+      // JSON — parse defensively and record the byte length instead, which
+      // is the property those assertions care about anyway.
+      let parsed = null;
+      if (body) {
+        try { parsed = JSON.parse(body); } catch { parsed = { rawBytes: Buffer.byteLength(body) }; }
+      }
       received.push({
         method: req.method,
         path: url.pathname,
         auth: req.headers.authorization,
-        body: body ? JSON.parse(body) : null,
+        body: parsed,
       });
 
       if (url.pathname === "/v1/apps") {
@@ -101,6 +108,38 @@ beforeAll(async () => {
       }
       if (url.pathname === `/v1/apps/${APP_ID}/appDataUsages`) {
         return json(res, { data: existingUsages });
+      }
+      // Screenshot routes. Empty set list and empty set contents, so every
+      // local capture reads as "not yet uploaded".
+      if (url.pathname.endsWith("/appScreenshotSets") && req.method === "GET") {
+        return json(res, { data: [] });
+      }
+      if (url.pathname.endsWith("/appScreenshots") && req.method === "GET") {
+        return json(res, { data: [] });
+      }
+      if (url.pathname === "/v1/appScreenshotSets" && req.method === "POST") {
+        return json(res, { data: { id: "set-1", attributes: { screenshotDisplayType: "APP_IPHONE_67" } } });
+      }
+      if (url.pathname === "/v1/appScreenshots" && req.method === "POST") {
+        // One upload operation covering the whole file, which is the common
+        // shape; the script must still read offset/length rather than assume.
+        return json(res, {
+          data: {
+            id: "shot-1",
+            attributes: {
+              uploadOperations: [{
+                method: "PUT",
+                url: `${base}/upload-sink`,
+                offset: 0,
+                length: JSON.parse(body || "{}").data?.attributes?.fileSize ?? 0,
+                requestHeaders: [{ name: "content-type", value: "image/png" }],
+              }],
+            },
+          },
+        });
+      }
+      if (url.pathname === "/upload-sink") {
+        res.writeHead(200); return res.end();
       }
       // Writes: PATCH / POST / DELETE all just succeed.
       return json(res, { data: {} });
@@ -194,6 +233,68 @@ describe("asc-push age rating", () => {
     existingRating = {};
     await push(["--age-rating", "--apply"]);
     expect(writes().every((w) => !w.path.includes("Localizations"))).toBe(true);
+  });
+});
+
+describe("asc-push screenshots", () => {
+  // The committed manifest flags 02-reveal as showing Comments and "Who
+  // voted" — controls gated on !S.live by D1, which a real user never sees
+  // on a live question. Uploading it is an App Store 2.3.3 rejection that
+  // arrives days later, so refusing is worth more than warning.
+  it("refuses to upload a capture the manifest flags as demo-only UI", async () => {
+    const err = await push(["--screenshots", "--apply"]).then(() => null, (e) => e);
+    expect(err, "expected a non-zero exit").not.toBeNull();
+    expect(String(err.stderr)).toMatch(/02-reveal\.png/);
+    expect(String(err.stderr)).toMatch(/2\.3\.3/);
+    // And it must not have uploaded anything else first.
+    expect(writes()).toHaveLength(0);
+  });
+
+  it("--allow-demo overrides, because the refusal is a default and not a law", async () => {
+    const out = await push(["--screenshots", "--allow-demo"]);
+    expect(out).toMatch(/would upload/);
+    expect(writes()).toHaveLength(0);   // still a dry run
+  });
+
+  it("is a dry run without --apply even when nothing is flagged", async () => {
+    const out = await push(["--screenshots", "--allow-demo"]);
+    expect(out).toMatch(/\+ upload 01-daily\.png/);
+    expect(writes()).toHaveLength(0);
+  });
+
+  it("reserves, sends the bytes Apple asked for, then commits with a checksum", async () => {
+    const out = await push(["--screenshots", "--allow-demo", "--apply"]);
+    const w = writes();
+
+    // The set is created once, not per image.
+    expect(w.filter((x) => x.path === "/v1/appScreenshotSets")).toHaveLength(1);
+
+    const reserves = w.filter((x) => x.path === "/v1/appScreenshots" && x.method === "POST");
+    const commits = w.filter((x) => x.path.startsWith("/v1/appScreenshots/") && x.method === "PATCH");
+    const puts = w.filter((x) => x.path === "/upload-sink");
+
+    // Six captures in design/store/screenshots/iphone-6.9/.
+    expect(reserves.length).toBeGreaterThan(0);
+    expect(puts).toHaveLength(reserves.length);
+    expect(commits).toHaveLength(reserves.length);
+
+    // Reserve declares the real byte length, so a truncated read would show
+    // up here rather than as a corrupt image in the store.
+    for (const r of reserves) expect(r.body.data.attributes.fileSize).toBeGreaterThan(1000);
+
+    // Commit carries uploaded:true AND a 32-char md5 — Apple verifies the
+    // bytes against it, so an omitted checksum is an asset stuck in
+    // UPLOAD_COMPLETE forever rather than an error.
+    for (const c of commits) {
+      expect(c.body.data.attributes.uploaded).toBe(true);
+      expect(c.body.data.attributes.sourceFileChecksum).toMatch(/^[0-9a-f]{32}$/);
+    }
+    expect(out).toMatch(/screenshot\(s\) uploaded/);
+  });
+
+  it("names the display type it will use, so a wrong one is visible before the write", async () => {
+    const out = await push(["--screenshots", "--allow-demo", "--display-type", "APP_IPHONE_69"]);
+    expect(out).toMatch(/APP_IPHONE_69/);
   });
 });
 

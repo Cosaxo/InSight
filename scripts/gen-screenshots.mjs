@@ -218,10 +218,15 @@ for (const [profileId, cfg] of profiles) {
 await browser.close();
 stopServer();
 
+// notShippableAsIs is set BEFORE the write. It used to be assigned on the
+// next line, so the field was computed, printed to the console, and then
+// discarded — the file never carried it. That only became load-bearing when
+// asc-push started refusing to upload captures the manifest flags, because
+// a consumer reading the file saw a summary that was never there.
+manifest.notShippableAsIs = [...notShippable];
+
 mkdirSync(OUT_ROOT, { recursive: true });
 writeFileSync(join(OUT_ROOT, "manifest.json"), JSON.stringify(manifest, null, 2) + "\n");
-
-manifest.notShippableAsIs = [...notShippable];
 console.log(`\ngen-screenshots: mode = ${manifest.mode.toUpperCase()}`);
 if (manifest.mode === "demo") {
   console.log(

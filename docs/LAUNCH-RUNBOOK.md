@@ -374,19 +374,34 @@ start.
 The harness, the graphic and the copy all landed 2026-08-03 — what is
 left here is a **recapture against live data**, plus the two forms.
 
-- [ ] **4.1 Recapture the screenshots in LIVE mode.** The harness is
-      built and committed:
-      ```bash
-      npm i -D playwright && npx playwright install chromium   # once
-      npm run build && npm run build:screenshots
-      ```
-      Six scenes × both store sizes (1320×2868 and 1080×1920), asserted
-      against the store specs at generation. **The committed captures are
-      a demo preview, not the shipping set** — the harness names the one
-      that must not be uploaded as-is (the reveal shows Comments and "Who
-      voted", both `!S.live`-gated by D1, so no real user sees them on a
-      live question — App Store 2.3.3). The TestFlight week is the moment
-      to recapture: ten testers put real k-floored splits on screen.
+- [ ] **4.1 Recapture the screenshots in LIVE mode — Actions →
+      *Screenshots* → Run workflow.** Capture with upload unticked, download
+      the `store-screenshots` artifact, **look at them**, then re-run with
+      upload ticked. Six scenes × both store sizes (1320×2868 and
+      1080×1920), asserted against the store specs at generation.
+
+      **The committed captures are a demo preview, not the shipping set.**
+      The harness names the one that must not ship: the reveal shows
+      Comments and "Who voted", both `!S.live`-gated by D1, so no real user
+      sees them on a live question (App Store 2.3.3). `asc-push`
+      **refuses** to upload anything the manifest flags, and the workflow
+      deliberately does not pass `--allow-demo` — if a fresh capture is
+      still flagged, the build did not reach live mode, and a failed job is
+      the right outcome rather than a rejection found days later by a
+      reviewer.
+
+      **Live captures only became possible on 2026-08-07**: before that the
+      production bank was empty and the backend could not authenticate at
+      all, so there was nothing to capture against.
+
+      Playwright is installed by the workflow and stays out of
+      `package.json` on purpose — a ~300 MB browser download that every
+      contributor and every CI job would otherwise pay for, to serve a job
+      that runs a few times per release.
+
+      The TestFlight week is still the better moment: ten testers put real
+      k-floored splits on screen, where a freshly seeded bank shows the
+      floor's "5+" placeholder instead of a split.
       *Note the iPad set every guide lists does not apply —
       `TARGETED_DEVICE_FAMILY = 1`, iPhone only.*
 - [ ] **4.2 Play feature graphic — done.** `npm run build:feature-graphic`
