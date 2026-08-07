@@ -81,7 +81,7 @@
     "capacitor-firebase-app-check": "npm:@capacitor-firebase/app-check@^8.3.0",
     "firebase": "^12.13.0",
     "react": "^19.2.4",
-    "react-dom": "^19.2.4"
+    "react-dom": "^19.2.8"
   },
   "devDependencies": {
     "@capacitor/android": "^8.3.3",
