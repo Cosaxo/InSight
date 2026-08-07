@@ -190,13 +190,23 @@ point of them.
 
 Two gaps are worth stating in prose because no badge covers them:
 
-- **The Map's typicality stats are still synthetic.** `window.MapStats`
-  is a deterministic mock — plausible, stable per question, and fake. It
-  drives how far a dot sits from the centre and every "people who share
-  this trait answered…" line in the tapped-answer card. The answers
-  themselves and their placement are real in live mode; how *typical*
-  they are is not, and the You stop shows no preview tag because the tag
-  is keyed to population, not to this.
+- **The Map's typicality stats were synthetic, and are now refused
+  (D70).** `window.MapStats` is a deterministic mock — plausible, stable
+  per question, and fake — and it used to drive how far a dot sits from
+  the centre plus every "people who share this trait answered…" line in
+  the tapped-answer card, in live mode, on the one stop that shows no
+  preview tag (the tag is keyed to population, and the Map is not one).
+  `dist`, `mode` and `dimVal` now return **null** when `LIVE.enabled`, so
+  live mode draws the honest line instead — *"Your answer is on the map.
+  How people your age answered isn't measured yet."* Your own answers and
+  their placement were always real and still are: `map-tab.jsx` read
+  MapStats through a null guard already, and its fallbacks put every dot
+  at one radius with none marked a rare take.
+
+  Two of the seven Map anchors have a real counterpart waiting —
+  `v2_question_aggs.by` carries k-floored age and education breakdowns.
+  The other five cannot: `job` is profession, deliberately not a
+  breakdown dim (D8), and the four test anchors are not dims at all.
 - **The Circle and its relationship map are prototype-only.** `relmap`'s
   people are invented, and it is the largest module still loaded eagerly
   — the one overlay excluded from the after-first-paint group, because

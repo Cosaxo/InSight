@@ -535,6 +535,107 @@ describe("live mode never inherits the sample persona (D55)", () => {
     ).toBeNull();
   });
 
+  // ── the Map's group stats, the third place the persona reached (D70) ──
+  //
+  // The ring above was fixed and the numbers BESIDE it were not.
+  // map-group-stats.js hashes the question id into a distribution and
+  // map-bottom-card.jsx drew it with no live gate at any of its five call
+  // sites, on the same badge-less You stop. Measured before the fix, with
+  // this fixture: "48% · You're with the majority · of people your age chose
+  // the same · you: 30–39 · Know 48% · Be known 32% · Both 20%" — every
+  // figure from hash("daily-000|age|0"), beside a real answer and a real
+  // age band.
+  //
+  // Asserted at the component rather than through the app: reaching this
+  // card in a mount means answering a question, laying out the constellation
+  // and tapping a dot, and a case that walks all that is really testing the
+  // walk. The gate is in MapStats and the branch is in this card.
+  const ANSWER_NODE = {
+    id: "dq-daily-000", qid: "daily-000", aidx: 0, qtype: "choice",
+    prompt: "Would you rather know, or be known?", note: "Today",
+    opts: ["Know", "Be known", "Both"],
+  };
+  const AGE_ANCHOR = [{ id: "age", label: "Age", hue: 265, value: "age 30-39" }];
+
+  it("draws no group split on a Map answer in live mode", () => {
+    live = installLive();
+    expect(window.MapStats.dist("daily-000", "age", 3, 0), "MapStats still fabricates")
+      .toBeNull();
+
+    const { container } = render(
+      <window.MTAnswerCard node={ANSWER_NODE} cat={null} anchors={AGE_ANCHOR}
+        activeA="age" onFilter={() => {}} />,
+    );
+    // No percentage anywhere, and no verdict. Asserting on the copy alone
+    // would pass if the bar rendered underneath it.
+    expect(container.textContent, "a percentage survived on the Map card")
+      .not.toMatch(/\d+\s*%/);
+    expect(container.querySelector(".mmt-verdict"), "the verdict survived")
+      .toBeNull();
+    expect(container.querySelector(".mmt-dbar"), "the group bar survived")
+      .toBeNull();
+    expect(container.textContent).toMatch(/isn’t measured yet/);
+  });
+
+  it("still draws the group split in demo mode", () => {
+    // The control: every assertion above passes if the card stopped
+    // rendering. Demo mode is a shipped surface — `npm run dev`, and the
+    // store screenshots are taken on it.
+    const { container } = render(
+      <window.MTAnswerCard node={ANSWER_NODE} cat={null} anchors={AGE_ANCHOR}
+        activeA="age" onFilter={() => {}} />,
+    );
+    expect(container.querySelector(".mmt-dbar"), "the demo bar is gone too")
+      .not.toBeNull();
+    expect(container.textContent).toMatch(/\d+\s*%/);
+  });
+
+  // ── the results card, the fourth (D70) ──
+  //
+  // sameType filtered IS_DATA.people — the prototype's seven invented
+  // friends — through IS_FRIEND_TYPES and SigEmblem drew up to four of them
+  // on the result. data/live.ts replaces the feed globals and has never
+  // touched IS_DATA, so this fired for any live account that finished a
+  // test, which the passive tests do from ordinary feed answers. Measured
+  // before the fix with the payload below: initials HV and IV — Henrik Vold
+  // and Ingrid Vold. D1: no seeded fake users, ever.
+  const BIG5_RESULT = {
+    big5: {
+      title: "Big Five", taken: "just now", accent: "var(--c-around)",
+      dims: [
+        { id: "O", label: "Openness", value: 72, blurb: "curiosity & range" },
+        { id: "C", label: "Conscientiousness", value: 44, blurb: "order" },
+        { id: "E", label: "Extraversion", value: 30, blurb: "energy" },
+        { id: "A", label: "Agreeableness", value: 68, blurb: "warmth" },
+        { id: "N", label: "Sensitivity", value: 55, blurb: "steady" },
+      ],
+    },
+  };
+  const DEMO_INITIALS = /^(HV|LA|MH|PS|IV|EA|JB)$/;
+  const initialsIn = (container) =>
+    Array.from(container.querySelectorAll("*"))
+      .map((n) => (n.textContent || "").trim())
+      .filter((t) => DEMO_INITIALS.test(t));
+
+  it("puts no sample people on a live result card", () => {
+    live = installLive();
+    hydrateTestResults(BIG5_RESULT);
+
+    const { container } = render(<window.ResultProfileCard testKey="big5" />);
+    expect(container.textContent, "the card did not render — test is vacuous")
+      .toMatch(/Openness/);
+    expect(initialsIn(container), "invented friends survived on a live result")
+      .toEqual([]);
+  });
+
+  it("keeps the persona's same-type friends in demo mode", () => {
+    // The control again, and it is load-bearing: `sameType` returning [] for
+    // everyone would satisfy the case above without a live gate existing.
+    const { container } = render(<window.ResultProfileCard testKey="big5" />);
+    expect(initialsIn(container).length, "the demo friends are gone too")
+      .toBeGreaterThan(0);
+  });
+
   it("replaces the demo test results on hydration rather than merging over them", () => {
     // Fix's other half, at the unit the bug was in: data/live.ts used to
     // rebind `window.IS_TEST_RESULTS`, which no consumer has read since the
