@@ -328,12 +328,17 @@ if (SCREENSHOTS) {
 // needs it before this point, and a const used above its declaration is a
 // temporal-dead-zone crash rather than a warning.
 //
-// `include=ageRatingDeclaration` so the declaration's id arrives with the
-// version rather than costing a second round trip — and so its absence is
-// distinguishable from "not asked for".
-const versions = await call(
-  "GET", `/v1/apps/${app.id}/appStoreVersions?limit=10&include=ageRatingDeclaration`,
-);
+// NO include=ageRatingDeclaration here. It was written that way, on the
+// assumption that the declaration hangs off the version, and Apple answered:
+//
+//   GET /v1/apps/…/appStoreVersions?…&include=ageRatingDeclaration → 400
+//   A parameter has an invalid value: 'ageRatingDeclaration' is not a valid
+//   relationship name
+//
+// It belongs to the APP INFO, not the version — the same split the text
+// fields follow, and for the same reason: an age rating survives versions.
+// Fetched with the appInfo below.
+const versions = await call("GET", `/v1/apps/${app.id}/appStoreVersions?limit=10`);
 const version = versions.data?.find((v) => EDITABLE.has(v.attributes.appStoreState));
 if (!version) {
   console.error(
@@ -350,7 +355,10 @@ if (!version) {
 // survive versions), while description/keywords/what's-new belong to the
 // VERSION. Sending a field to the wrong one is a 409 that reads like a
 // permissions problem.
-const infos = await call("GET", `/v1/apps/${app.id}/appInfos`);
+// include=ageRatingDeclaration is valid HERE, which is the correction the
+// 400 above bought. One round trip serves both the localizations and the
+// age rating.
+const infos = await call("GET", `/v1/apps/${app.id}/appInfos?include=ageRatingDeclaration`);
 const info = infos.data[0];
 const infoLocs = await call("GET", `/v1/appInfos/${info.id}/appInfoLocalizations`);
 const infoLoc = infoLocs.data.find((l) => l.attributes.locale === LOCALE);
@@ -421,12 +429,17 @@ if (TEXT) {
 // them from the file keeps the reasoning next to the value it explains,
 // which is the whole reason that file is readable at all.
 if (AGE_RATING) {
-  const decl = version.relationships?.ageRatingDeclaration?.data;
+  // From the APP INFO, not the version — see the 400 quoted at the versions
+  // fetch above. Apple creates the declaration with the app, so its absence
+  // means this fetch did not carry relationships, never that the rating is
+  // unset; the message says so rather than sending someone to the console.
+  const decl = info.relationships?.ageRatingDeclaration?.data;
   if (!decl) {
     console.error(
-      "asc-push: this App Store version has no ageRatingDeclaration.\n"
-      + "    Apple creates one with the version, so its absence means the version\n"
-      + "    fetch did not include relationships — not that the rating is unset.",
+      "asc-push: this app info carries no ageRatingDeclaration relationship.\n"
+      + "    Apple creates one with the app, so this means the appInfos fetch\n"
+      + "    dropped the include — not that the rating is unset. Check the\n"
+      + "    ?include=ageRatingDeclaration on the appInfos call.",
     );
     process.exit(1);
   }

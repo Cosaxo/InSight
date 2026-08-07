@@ -82,7 +82,11 @@ jobs:
           ARGS=""
           [ "${{ inputs.bump_rev }}" = "true" ] && ARGS="$ARGS --bump-rev"
           [ "${{ inputs.dry_run }}" = "true" ] && ARGS="$ARGS --dry-run"
-          node scripts/seed-content.mjs $ARGS | tee "$RUNNER_TEMP/seed.log"
+          # 2>&1 for the same reason asc-metadata.yml has it: die() writes to
+          # stderr, so without this a failed seed shows an empty block in the
+          # job summary and the reader has to open the step log to learn
+          # anything at all.
+          node scripts/seed-content.mjs $ARGS 2>&1 | tee "$RUNNER_TEMP/seed.log"
 
       # A callable that throws anything other than an HttpsError reaches the
       # caller as a bare "INTERNAL", with the real error visible only in Cloud
