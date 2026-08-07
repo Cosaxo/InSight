@@ -47,7 +47,7 @@
 
 import { beforeAll, afterEach, describe, expect, it, vi } from "vitest";
 import React from "react";
-import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { IS_DATA } from "../spec/sample-data.js";
 
 // 15s per test, not the 5s default: every case here mounts the FULL app in
@@ -161,6 +161,27 @@ describe("spec layer mounts", () => {
     // explicit that we actually left the daily tab rather than silently
     // asserting on it twice.
     expect(screen.getByRole("button", { name: /^mirror$/i }).className).toContain("is-active");
+  });
+
+  it("renders the World stop's Explore lens, and 'like me' fills a slice", () => {
+    // The v18 Explore redesign reads IS_TEST_RESULTS to build its slice axes
+    // and rebuilds them behind a module-level cache — a screen no other case
+    // executes, because it sits behind a lens-tab tap. Both halves asserted,
+    // per the no-button-overlay rule: copy only Explore renders, then the
+    // boundary.
+    const expectNoBoundary = mountApp();
+    fireEvent.click(screen.getByRole("button", { name: /^mirror$/i }));
+    // Two rulers carry a 'World' tab (the daily's nav is one) — scope to the
+    // Mirror's own tablist rather than hoping the other is unmounted.
+    const ruler = screen.getByRole("tablist", { name: /how far the mirror reaches/i });
+    fireEvent.click(within(ruler).getByRole("tab", { name: /^world$/i }));
+    fireEvent.click(screen.getByRole("tab", { name: /^explore$/i }));
+    expect(screen.getByText(/pick a slice/i), "Explore did not render its subtitle").toBeTruthy();
+    // 'like me' derives a slice from the demo test results — the tap walks
+    // sxLikeMe → sxDims → the cache, which is where an undefined global or a
+    // renamed member would first throw.
+    fireEvent.click(screen.getByRole("button", { name: /like me/i }));
+    expectNoBoundary("mirror world · explore lens");
   });
 
   it("opens the profile overlay without tripping the boundary", () => {

@@ -287,7 +287,7 @@ export async function runSeedV2(
       axis: q.axis,
       test: q.test,
       // Emitted only when set (like the source's `flags`): adding the key
-      // as null to every payload would mismatch all 389 stored docs at
+      // as null to every payload would mismatch every stored doc at
       // once and spend a full-bank rewrite on a field almost nothing
       // carries. `mode` scopes a duel question to a pool — today only
       // "romantic" (D40 part 4), which duelQFor filters on client-side.
@@ -330,7 +330,7 @@ export async function runSeedV2(
   if (inBatch > 0) await batch.commit();
   // `contentRev` is the FULL-invalidation lever: it blows away every
   // device's cached bank so the next boot re-reads all of it. That costs
-  // 389 reads per returning user (docs/COSTS.md), so it is no longer
+  // one read per bank doc per returning user (docs/COSTS.md), so it is no longer
   // spent on every run — only when this seed created documents, and when
   // an operator asks for it explicitly.
   //

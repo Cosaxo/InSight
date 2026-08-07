@@ -387,7 +387,17 @@ function PersonOverlay({ p: rawP, onClose, me }) {
             gesture. So the profile carries a small portrait of the overlap and
             one way in; the map itself opens full-screen. ─── */}
         <div style={{ marginBottom: 26 }}>
-          <div style={{ marginBottom: 11 }}><Kicker>Where your maps meet</Kicker></div>
+          {/* the jump out of the duel dots was cold: the still uses dots too, for
+              a DIFFERENT thing. So the key rides the kicker line — read before
+              the eye lands on the constellation, same grammar as the legend
+              above it, so the two sections rhyme instead of colliding. */}
+          <div style={{ marginBottom: 11, display: 'flex', alignItems: 'center', gap: 12 }}>
+            <span style={{ flex: 1, minWidth: 0 }}><Kicker>Where your maps meet</Kicker></span>
+            <span style={{ display: 'flex', alignItems: 'center', gap: 11, flexShrink: 0, fontFamily: 'var(--sans)', fontSize: 11, fontWeight: 700, color: 'var(--ink-2)' }}>
+              <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}><span style={{ width: 7, height: 7, borderRadius: '50%', background: themColor }}></span>same</span>
+              <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}><span style={{ width: 7, height: 7, borderRadius: '50%', boxSizing: 'border-box', border: `2px solid ${themColor}` }}></span>differ</span>
+            </span>
+          </div>
           <div className="press" role="button" tabIndex={0} onClick={() => setMapOpen(true)}
             onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setMapOpen(true); } }}
             aria-label={`Open ${firstName}'s map`} style={{
@@ -397,7 +407,7 @@ function PersonOverlay({ p: rawP, onClose, me }) {
             {/* a CROP of the portrait, not a shrunk copy: the map lays out in a
                 full-height box and the card shows the middle band, so dots and
                 branch names stay the size they are on the real screen */}
-            <div style={{ height: 152, position: 'relative', overflow: 'hidden', pointerEvents: 'none' }}>
+            <div style={{ height: 158, position: 'relative', overflow: 'hidden', pointerEvents: 'none', maskImage: 'linear-gradient(180deg, transparent 0, #000 15%, #000 86%, transparent 100%)', WebkitMaskImage: 'linear-gradient(180deg, transparent 0, #000 15%, #000 86%, transparent 100%)' }}>
               <div style={{ position: 'absolute', left: 0, right: 0, top: '50%', height: 330, transform: 'translateY(-50%)' }}>
                 <PersonMindMap p={p} following={isFriend} centerName={firstName} still />
               </div>

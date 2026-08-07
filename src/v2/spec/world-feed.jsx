@@ -547,7 +547,7 @@ class WorldFeed extends React.Component {
             </span>
             <span style={{ position: 'relative', height: 6 }}>
               <span style={{ position: 'absolute', inset: 0, borderRadius: 99, background: 'color-mix(in oklch, var(--ink-3) 11%, transparent)' }}></span>
-              <span style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: (s / maxS) * 100 + '%', borderRadius: 99, background: isMine ? T.color : `color-mix(in oklch, ${T.color} 40%, transparent)`, transformOrigin: 'left', animation: `wfBarIn .5s cubic-bezier(.2,.8,.2,1) calc(var(--rv-row) * ${i + 1}) both` }}></span>
+              <span style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: (s / maxS) * 100 + '%', borderRadius: 99, background: isMine ? T.color : WPAL.wash(T.color, 40), transformOrigin: 'left', animation: `wfBarIn .5s cubic-bezier(.2,.8,.2,1) calc(var(--rv-row) * ${i + 1}) both` }}></span>
             </span>
           </span>
         </div>
@@ -632,7 +632,7 @@ class WorldFeed extends React.Component {
             <span style={{ fontFamily: 'var(--sans)', fontWeight: diverges ? 800 : 650, fontSize: 13.5, color: diverges ? 'var(--ink)' : 'var(--ink-3)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{win.it.name}</span>
             <span style={{ position: 'relative', height: 4 }}>
               <span style={{ position: 'absolute', inset: 0, borderRadius: 99, background: 'color-mix(in oklch, var(--ink-3) 11%, transparent)' }}></span>
-              <span style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: Math.min(100, (win.share / headShare) * 320) + '%', borderRadius: 99, background: diverges ? T.color : `color-mix(in oklch, ${T.color} 38%, transparent)` }}></span>
+              <span style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: Math.min(100, (win.share / headShare) * 320) + '%', borderRadius: 99, background: diverges ? T.color : WPAL.wash(T.color, 38) }}></span>
             </span>
           </span>
           {myRank ? <span style={{ flexShrink: 0, width: 26, textAlign: 'right', fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 12.5, color: myRank <= 3 ? 'var(--ink)' : 'var(--ink-3)', fontVariantNumeric: 'tabular-nums' }}>{'#' + myRank}</span> : null}
@@ -687,7 +687,7 @@ class WorldFeed extends React.Component {
     const fresh = !!this.state.knowRes[q.id];
     const cs = L.stateOf(q.learn);
     const streakNow = r ? r.streak : (cs && cs.s === 'learning' ? cs.k : 0);
-    const pale = `color-mix(in oklch, ${T.color} 16%, transparent)`;
+    const pale = WPAL.wash(T.color, 18, 'var(--surface-2)');
     return (
       <div style={{ display: 'flex', flexDirection: 'column', gap: 11 }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -1153,7 +1153,7 @@ class WorldFeed extends React.Component {
       <div style={{ display: 'flex', flexDirection: 'column', gap: big ? 10 : 7, animation: fresh ? 'popIn .3s cubic-bezier(0.2,0.8,0.2,1)' : 'none' }}>
         {q.options.map((o, i) => (
           <div key={i} style={{ position: 'relative', border: mine === i ? '1px solid color-mix(in oklch, ' + T.color + ' 65%, var(--rule))' : WF_LINE, borderRadius: big ? 14 : 11, background: 'var(--surface)', overflow: 'hidden' }}>
-            <div style={{ position: 'absolute', top: 0, left: 0, bottom: 0, width: (noCrowd ? 0 : p[i]) + '%', background: 'color-mix(in oklch, ' + T.color + ' ' + (mine === i ? 30 : 15) + '%, transparent)', animation: fresh ? 'barIn .7s cubic-bezier(0.2,0.8,0.2,1) ' + (i * 0.07) + 's both' : 'none' }}></div>
+            <div style={{ position: 'absolute', top: 0, left: 0, bottom: 0, width: (noCrowd ? 0 : p[i]) + '%', background: WPAL.wash(T.color, mine === i ? 30 : 15), animation: fresh ? 'barIn .7s cubic-bezier(0.2,0.8,0.2,1) ' + (i * 0.07) + 's both' : 'none' }}></div>
             <div style={{ position: 'relative', display: 'flex', alignItems: 'baseline', gap: 8, padding: big ? '13px 14px' : '9px 12px' }}>
               {mine === i && <span aria-label="Your pick" style={{ width: big ? 18 : 15, height: big ? 18 : 15, borderRadius: '50%', flexShrink: 0, alignSelf: 'center', background: WPAL.ink(T.color), display: 'flex', alignItems: 'center', justifyContent: 'center' }}><svg viewBox="0 0 24 24" width={big ? 10 : 8} height={big ? 10 : 8} fill="none" stroke="#fff" strokeWidth="3.4" strokeLinecap="round" strokeLinejoin="round"><path d="M4.5 12.5 10 18 19.5 6.5"></path></svg></span>}
               <span style={{ flex: 1, minWidth: 0, fontWeight: mine === i ? 800 : 700, fontSize: big ? 15 : 13.5 }}>{o.label}</span>
@@ -1210,7 +1210,7 @@ class WorldFeed extends React.Component {
                   onLoad={(e) => e.currentTarget.classList.add('is-in')} />}
                 {/* the share IS the tile — the side fills to its own percentage */}
                 {shares && (
-                  <span aria-hidden="true" style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: p[i] + '%', background: 'color-mix(in oklch, ' + T.color + ' ' + (win ? 40 : 24) + '%, ' + (v2 ? 'var(--surface)' : 'transparent') + ')', borderTop: '1.5px solid color-mix(in oklch, ' + T.color + ' 60%, transparent)', animation: fresh ? 'wfFillUp .85s cubic-bezier(0.2,0.8,0.2,1) var(--rv-1) both' : 'none', transition: 'height .7s cubic-bezier(0.2,0.8,0.2,1)' }}></span>
+                  <span aria-hidden="true" style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: p[i] + '%', background: 'color-mix(in oklch, ' + T.color + ' ' + (win ? 40 : 24) + '%, ' + (v2 ? 'var(--surface)' : 'transparent') + ')', borderTop: '1.5px solid ' + T.color, animation: fresh ? 'wfFillUp .85s cubic-bezier(0.2,0.8,0.2,1) var(--rv-1) both' : 'none', transition: 'height .7s cubic-bezier(0.2,0.8,0.2,1)' }}></span>
                 )}
                 {/* fixed band at the top, same height on both tiles — the label never
                     rides the fill, and the rising level never has to dodge it */}
@@ -1274,9 +1274,9 @@ class WorldFeed extends React.Component {
           const match = q.crowd[it] === pos + 1;
           return (
             <div key={it} style={{ border: WF_LINE, borderRadius: big ? 13 : 11, background: match ? wfTint(T.color, 1, 3) : 'var(--surface)', padding: big ? '11px 13px' : '8px 12px', display: 'flex', alignItems: 'center', gap: 10 }}>
-              <span style={{ width: D, height: D, borderRadius: '50%', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--sans)', fontWeight: 800, fontSize: big ? 13 : 12, background: T.color, color: '#fff' }}>{pos + 1}</span>
+              <span style={{ width: D, height: D, borderRadius: '50%', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--sans)', fontWeight: 800, fontSize: big ? 13 : 12, background: WPAL.ink(T.color), color: '#fff' }}>{pos + 1}</span>
               <span style={{ flex: 1, minWidth: 0, fontWeight: 700, fontSize: big ? 15 : 13.5 }}>{q.items[it]}</span>
-              {(!v2 || !match) && <span title={'Crowd ranked this #' + q.crowd[it]} style={{ width: D, height: D, borderRadius: '50%', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--sans)', fontWeight: 800, fontSize: big ? 12.5 : 11.5, boxSizing: 'border-box', color: match ? '#fff' : 'var(--ink-2)', background: match ? T.color : 'transparent', border: match ? 'none' : '1.5px solid color-mix(in oklch, ' + T.color + ' 55%, transparent)' }}>{q.crowd[it]}</span>}
+              {(!v2 || !match) && <span title={'Crowd ranked this #' + q.crowd[it]} style={{ width: D, height: D, borderRadius: '50%', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--sans)', fontWeight: 800, fontSize: big ? 12.5 : 11.5, boxSizing: 'border-box', color: match ? '#fff' : 'var(--ink-2)', background: match ? WPAL.ink(T.color) : 'transparent', border: match ? 'none' : '1.5px solid ' + WPAL.wash(T.color, 55, 'var(--rule)') }}>{q.crowd[it]}</span>}
             </div>
           );
         })}
@@ -2317,7 +2317,7 @@ class WorldFeed extends React.Component {
     const collapsed = compact && !open;
     const kicker = (
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7, fontSize: 12.5, fontWeight: 700, letterSpacing: '0.01em', textTransform: 'lowercase', color: mk ? `color-mix(in oklch, ${T.color} 70%, var(--ink))` : 'var(--ink-2)', background: mk ? `color-mix(in oklch, ${T.color} 11%, transparent)` : 'transparent', border: '0.5px solid ' + (mk ? `color-mix(in oklch, ${T.color} 40%, var(--rule))` : 'var(--rule)'), borderRadius: 999, padding: '4px 12px 4px 10px', minWidth: 0 }}><span aria-hidden="true" style={kickDot}></span>{kickLabel}</span>
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7, fontSize: 12.5, fontWeight: 700, letterSpacing: '0.01em', textTransform: 'lowercase', color: mk ? WPAL.ink(T.color) : 'var(--ink-2)', background: mk ? WPAL.wash(T.color, 13, 'var(--surface-2)') : 'transparent', border: '0.5px solid ' + (mk ? `color-mix(in oklch, ${T.color} 40%, var(--rule))` : 'var(--rule)'), borderRadius: 999, padding: '4px 12px 4px 10px', minWidth: 0 }}><span aria-hidden="true" style={kickDot}></span>{kickLabel}</span>
         {bgText ? (
           <button className="press tap44" onClick={(e) => { e.stopPropagation(); clearTimeout(this._sheetT); this.setState({ sheet: { panel: 'bg', q, T } }); }} aria-label="What you need to know" style={{ flexShrink: 0, width: 20, height: 20, borderRadius: '50%', border: '0.5px solid color-mix(in oklch, var(--ink) 26%, var(--rule))', background: 'transparent', color: 'var(--ink-2)', fontFamily: 'var(--sans)', fontSize: 11.5, fontWeight: 800, lineHeight: 1, cursor: 'pointer', WebkitAppearance: 'none', padding: 0 }}>i</button>
         ) : (
@@ -2337,7 +2337,7 @@ class WorldFeed extends React.Component {
     const skin = collapsed || focus ? 'card' : q.type === 'duel' ? 'bleed' : (this.opts.v2 || q.type === 'vote') ? 'bare' : 'card';
     const card = { background: 'var(--surface-2)', border: mk ? '1px solid color-mix(in oklch, ' + T.color + ' 32%, var(--rule))' : WF_LINE, borderRadius: 18, boxShadow: 'var(--shadow-card)', padding: collapsed ? '12px 14px' : '16px 15px', display: 'flex', flexDirection: 'column', gap: collapsed ? 8 : 12 };
     // hero cards carry a whisper of their topic hue so the breathing room reads designed, not blank
-    if (!collapsed) card.backgroundImage = 'radial-gradient(120% 80% at 50% -25%, color-mix(in oklch, ' + T.color + ' 8%, transparent), transparent 62%)';
+    if (!collapsed) { const cbase = skin === 'bleed' ? 'var(--surface-a)' : 'var(--surface-2)'; card.backgroundImage = 'radial-gradient(120% 80% at 50% -25%, ' + WPAL.wash(T.color, 11, cbase) + ', ' + cbase + ' 62%)'; }
     if (skin === 'bleed') {
       card.margin = '0 -16px'; card.borderRadius = 0; card.borderLeft = 'none'; card.borderRight = 'none';
       card.boxShadow = 'none'; card.padding = '16px 16px 20px';

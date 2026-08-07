@@ -329,10 +329,20 @@ function MapTab({ rail = true, anchorsOn = true, recency = true, fields: fieldsO
     step();
   };
 
-  const fitTo = (ids, maxZ) => {
+  // the ring stage reserves its own strip: the branch rail is hidden above and
+  // the anchor card runs to its cap below, so the ring is fitted between the two
+  // rather than into a blind fraction of the canvas — no anchor under chrome.
+  // Tighter padding buys back the size the smaller strip costs.
+  const RING_FIT = { padX: 56, padY: 46, top: 14, bottomFrac: 0.635 };
+  const fitTo = (ids, maxZ, opts) => {
     const el = ref.current;
     if (!el) return;
-    const w = el.clientWidth, h = el.clientHeight * 0.55; // bottom card cover
+    const o = opts || {};
+    const padX = o.padX != null ? o.padX : 170, padY = o.padY != null ? o.padY : 150;
+    const top = o.top || 0;
+    const w = el.clientWidth;
+    // bottom card cover — either an explicit reserve or the legacy fraction
+    const h = (o.bottomFrac != null ? el.clientHeight * (1 - o.bottomFrac) : el.clientHeight * (o.viewFrac || 0.55)) - top;
     let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity, any = false;
     ids.forEach((id) => {
       const p = pos[id];
@@ -342,11 +352,12 @@ function MapTab({ rail = true, anchorsOn = true, recency = true, fields: fieldsO
       x1 = Math.max(x1, p.x); y1 = Math.max(y1, p.y);
     });
     if (!any) return;
-    x0 -= 170; x1 += 170; y0 -= 150; y1 += 150;
+    x0 -= padX; x1 += padX; y0 -= padY; y1 += padY;
     const z = Math.min(maxZ || 0.9, w / (x1 - x0), h / (y1 - y0));
     const cx = (x0 + x1) / 2, cy = (y0 + y1) / 2;
-    tweenTo({ x: w / 2 - cx * z, y: h / 2 - cy * z, z });
+    tweenTo({ x: w / 2 - cx * z, y: top + h / 2 - cy * z, z });
   };
+  const fitRing = () => fitTo(['root', ...anchors.map((a) => 'ax-' + a.id)], 0.85, RING_FIT);
 
   // drilling in or out rebuilds the whole constellation — re-frame it
   const lvlRef = useRef(openGroup);
@@ -552,7 +563,7 @@ function MapTab({ rail = true, anchorsOn = true, recency = true, fields: fieldsO
     closeScrub();
     setSel('ax-' + aid);
     setHlCat(null);
-    fitTo(['root', ...anchors.map((a) => 'ax-' + a.id)], 0.85);
+    fitRing();
   };
 
   // semantic back — one level out per tap: answer → its branch → group → all groups
@@ -739,7 +750,7 @@ function MapTab({ rail = true, anchorsOn = true, recency = true, fields: fieldsO
               e.stopPropagation();
               // inside a group the centre is the way back out
               if (openGroup) { setSel(null); setHlCat(null); setOpenGroup(null); return; }
-              setSel('root'); setHlCat(null); fitTo(['root', ...anchors.map((a) => 'ax-' + a.id)], 0.85);
+              setSel('root'); setHlCat(null); fitRing();
             }}
           >
             <div className="mmt-halo" aria-hidden="true"></div>
@@ -907,7 +918,7 @@ function MapTab({ rail = true, anchorsOn = true, recency = true, fields: fieldsO
           {sel === 'root' ? (
             <MTRootCard count={allAnswers.length} anchorCount={anchors.length}></MTRootCard>
           ) : selAnchor ? (
-            <MTAnchorCard anchor={selAnchor} items={anchorRows} onPick={selectItem} key={selAnchor.id}></MTAnchorCard>
+            <MTAnchorCard anchor={selAnchor} items={anchorRows} onPick={selectItem} anchors={anchors} onAnchor={selectAnchor} key={selAnchor.id}></MTAnchorCard>
           ) : selCat ? (
             selCat.id === 'circle-read' && window.MTPeopleCard ? (
               <MTPeopleCard onPick={selectItem} key="people"></MTPeopleCard>

@@ -30,8 +30,8 @@ import { useDialog } from './primitives.jsx';
         selectedId: null, hoveredId: null, hoveredLegend: null,
         query: '', mode: props.initialView || 'circles', lensAxis: null, layout: 'web',
         zoom: 1, panX: 0, panY: 0, positions: {}, focusGroup: null, searchOpen: false, drill: [],
-        groups: DEFAULT_GROUPS, people: defaultPeople(),
-        adding: false, newLabel: '', editing: false,
+        groups: this.applyNames(DEFAULT_GROUPS), people: this.applyRel(defaultPeople()),
+        adding: false, newLabel: '', editing: false, dropGroup: null,
       };
       this.setSvg = (el) => { this.svgEl = el; };
       ['onPointerDown', 'onPointerMove', 'onPointerUp', 'onWheel'].forEach(m => { this[m] = this[m].bind(this); });
@@ -40,11 +40,24 @@ import { useDialog } from './primitives.jsx';
       if (this.svgEl && !this.props.compact && !this.props.embedded) this.svgEl.addEventListener('wheel', this.onWheel, { passive: false });
       this._onWinResize = () => this.measure();
       window.addEventListener('resize', this._onWinResize);
+      // The purge (data/live.ts, D51): the relation/rename overrides live in
+      // insight.rmRelations.v1 and are baked into this component's state at
+      // construction — a mounted map would keep the previous account's circles
+      // until remount, and the next drag would persist them back. Re-derive
+      // from (now-empty) storage instead; no save(), which would re-create
+      // the purged key. An unmounted map needs nothing: the constructor
+      // re-reads storage on the next mount.
+      this._onPurge = () => this.setState({
+        groups: this.applyNames(DEFAULT_GROUPS), people: this.applyRel(defaultPeople()),
+        positions: {}, drill: [], selectedId: null, hoveredLegend: null, focusGroup: null, dropGroup: null, editing: false,
+      });
+      window.addEventListener('insight:local-purge', this._onPurge);
       this.measure();
     }
     componentWillUnmount() {
       if (this.svgEl) this.svgEl.removeEventListener('wheel', this.onWheel);
       if (this._onWinResize) window.removeEventListener('resize', this._onWinResize);
+      if (this._onPurge) window.removeEventListener('insight:local-purge', this._onPurge);
     }
 
     // How many CSS px one graph unit draws at. Label sizes are authored in
@@ -78,8 +91,13 @@ import { useDialog } from './primitives.jsx';
       const st = this.state;
       const portrait = this.props.compact || this.props.embedded;
       const dv = RMCore.drillView(st.groups, st.people, st.drill);
+      // Group membership must be in the signature: moving someone between circles
+      // changes no person count and no name, so without this the graph is never
+      // rebuilt and a reassignment silently does nothing.
+      const gc = {}; st.people.forEach((p) => { gc[p.group] = (gc[p.group] || 0) + 1; });
+      const gsig = Object.keys(gc).sort().map((k) => k + gc[k]).join(',');
       const sig = (this.props.compact ? 'c#' : this.props.embedded ? 'e#' : 'f#') + st.layout + '#' + st.groups.map(g => g.key + ':' + g.hue + ':' + g.label).join('|')
-        + '#' + st.people.length + '/' + (st.people[0] || {}).name + '/' + (st.people[st.people.length - 1] || {}).name + '#' + (st.drill || []).join('>');
+        + '#' + st.people.length + '/' + (st.people[0] || {}).name + '/' + (st.people[st.people.length - 1] || {}).name + '#' + (st.drill || []).join('>') + '#' + gsig;
       // Every frame here is a tall phone — lay the graph out portrait so it
       // fills the screen. (The full map used to build a 1000×680 landscape and
       // letterbox it into the middle third, which shrank the whole graph and
@@ -104,7 +122,10 @@ import { useDialog } from './primitives.jsx';
     }
     setScale(n) {
       if (RMCore.setMapScale) RMCore.setMapScale(n);
-      this.setState({ people: RMCore.peopleAtScale(n), drill: [], positions: {}, selectedId: null, hoveredLegend: null, focusGroup: null, zoom: 1, panX: 0, panY: 0 });
+      // applyRel here too (the prototype forgets it): the overrides persist by
+      // NAME so a rebuilt roster can honour them, and a scale switch that snaps
+      // a dragged person back to their default circle reads as a lost edit.
+      this.setState({ people: this.applyRel(RMCore.peopleAtScale(n)), drill: [], positions: {}, selectedId: null, hoveredLegend: null, focusGroup: null, zoom: 1, panX: 0, panY: 0 });
     }
     newHue() {
       const used = this.state.groups.map(g => g.hue);
@@ -113,6 +134,66 @@ import { useDialog } from './primitives.jsx';
       return Math.floor(Math.random() * 360);
     }
     startAdd() { this.setState({ adding: true, newLabel: '' }); }
+    // ── relation = which wedge you sit in, set by dragging ────────────────────
+    // The layout already places people by circle, so the map IS the control:
+    // drop someone nearer another hub and that becomes how you know them. No
+    // form, no dropdown, and the gesture teaches the map's own encoding.
+    // Overrides persist by name; renames persist by key.
+    LS_REL = 'insight.rmRelations.v1';
+    loadRel() { try { return JSON.parse(localStorage.getItem('insight.rmRelations.v1') || '{}') || {}; } catch (e) { return {}; } }
+    saveRel(patch) {
+      const cur = this.loadRel();
+      try { localStorage.setItem('insight.rmRelations.v1', JSON.stringify({ ...cur, ...patch })); } catch (e) { /* localStorage can throw: private mode, quota, disabled storage. Best-effort — the in-memory state stays correct. */ }
+    }
+    applyRel(people) {
+      const by = this.loadRel().by || {};
+      return people.map((p) => (by[p.name] ? { ...p, group: by[p.name] } : p));
+    }
+    applyNames(groups) {
+      const names = this.loadRel().names || {};
+      return groups.map((g) => (names[g.key] ? { ...g, label: names[g.key] } : g));
+    }
+    renameGroup(key, label) {
+      const groups = this.state.groups.map((g) => (g.key === key ? { ...g, label } : g));
+      this.setState({ groups });
+      const names = { ...(this.loadRel().names || {}) }; names[key] = label;
+      this.saveRel({ names });
+    }
+    // a person node at the top level — hubs, You, and drill views are not draggable
+    canSetRelation(nodeId) {
+      if (nodeId == null || nodeId === 0) return false;
+      if ((this.state.drill || []).length) return false;
+      const n = this.ensureGraph().byId[nodeId];
+      return !!n && !n.isHub;
+    }
+    // Which circle does this point belong to? Considers hubs *and* their members,
+    // so dropping onto a cluster of nodes counts as dropping on that circle —
+    // the whole visible blob is the target, not just the hub dot.
+    nearestHub(x, y) {
+      const g = this._g; if (!g) return null;
+      const P0 = this.state.positions;
+      let best = null, bd = Infinity;
+      g.nodes.forEach((n) => {
+        if (n.id === 0) return;
+        const p = P0[n.id] || n;
+        // members count from a bit further out than their own radius
+        const d = Math.hypot(p.x - x, p.y - y) - (n.isHub ? (n.r || 0) + 40 : (n.r || 0) + 10);
+        if (d < bd) { bd = d; best = n; }
+      });
+      // no distance cap — whichever circle is nearest IS the target. A cap meant a
+      // drop landing between clusters silently sprang back and read as broken.
+      return best || null;
+    }
+    setRelation(nodeId, key) {
+      const node = this.ensureGraph().byId[nodeId];
+      if (!node || !key) return;
+      const people = this.state.people.map((p) => (p.name === node.name ? { ...p, group: key } : p));
+      const by = { ...(this.loadRel().by || {}) }; by[node.name] = key;
+      this.saveRel({ by });
+      // clearing the pins lets the layout carry them into their new wedge — the
+      // move is the confirmation, so nothing has to say “saved”
+      this.setState({ people, positions: {}, dropGroup: null, selectedId: null, hoveredLegend: null });
+    }
     cancelAdd() { this.setState({ adding: false, newLabel: '' }); }
     confirmAdd() {
       const label = (this.state.newLabel || '').trim();
@@ -164,11 +245,23 @@ import { useDialog } from './primitives.jsx';
       const ctm = this.svgEl && this.svgEl.getScreenCTM ? this.svgEl.getScreenCTM() : null;
       const s = ctm ? ctm.a : 1;
       if (d.nodeId != null) {
+        // only people can be moved at all, and only to change circle — dragging a
+        // hub or You would otherwise let the layout be rearranged by hand
+        if (!this.canSetRelation(d.nodeId)) {
+          this.setState(this.clampView(this.state.zoom, this.state.panX + dx / s, this.state.panY + dy / s));
+          return;
+        }
         if (d.moved > 4) {
           const u = this.toUser(e.clientX, e.clientY);
           const { zoom, panX, panY } = this.state;
-          const positions = { ...this.state.positions, [d.nodeId]: { x: (u.x - panX) / zoom, y: (u.y - panY) / zoom } };
-          this.setState({ positions });
+          const lx = (u.x - panX) / zoom, ly = (u.y - panY) / zoom;
+          const positions = { ...this.state.positions, [d.nodeId]: { x: lx, y: ly } };
+          const patch = { positions };
+          const hub = this.nearestHub(lx, ly);
+          const key = hub ? hub.group : null;
+          d.dropKey = key;
+          if (this.state.dropGroup !== key) patch.dropGroup = key;
+          this.setState(patch);
         }
       } else {
         this.setState(this.clampView(this.state.zoom, this.state.panX + dx / s, this.state.panY + dy / s));
@@ -180,6 +273,17 @@ import { useDialog } from './primitives.jsx';
       if (this.pinch) { if (this.pointers.size < 2) this.pinch = null; this.drag = null; return; }
       const d = this.drag; if (!d) return;
       this.drag = null;
+      // dropped in another circle — that IS the edit
+      if (d.moved >= 5 && d.nodeId != null && d.dropKey && this.canSetRelation(d.nodeId)) {
+        const node = this.ensureGraph().byId[d.nodeId];
+        if (node && node.group !== d.dropKey) { this.setRelation(d.nodeId, d.dropKey); return; }
+      }
+      // Otherwise snap back. Distance from You encodes closeness, so a person
+      // never keeps a hand-placed spot — only their circle is yours to change.
+      if (d.nodeId != null && d.moved >= 5 && this.state.positions[d.nodeId]) {
+        const positions = { ...this.state.positions }; delete positions[d.nodeId];
+        this.setState({ positions, dropGroup: null });
+      } else if (this.state.dropGroup) this.setState({ dropGroup: null });
       if (d.moved < 5) {
         if (d.nodeId != null) {
           this.lastTap = null;
@@ -349,7 +453,7 @@ import { useDialog } from './primitives.jsx';
         const labelShown = dimmed ? focus.has(n.id) : (g.keyNodes.has(n.id) || (zoomNames && !n.isHub && n.id !== 0));
         const showInit = (n.isHub || n.id === 0 || n.id === activeId) && (!dimmed || inFocus);
         return {
-          id: n.id, name: n.name, cx: p.x, cy: p.y, r: n.r, hitR: Math.max(n.r + 8, 22 / zoom),
+          id: n.id, name: n.name, cx: p.x, cy: p.y, r: n.r, hitR: Math.max(n.r + 16, 34 / zoom),
           fill: col, color: col, stroke: P.nodeStroke, strokeW: n.isHub ? 2 : 1.5,
           opacity: inFocus ? 1 : 0.12,
           ringR: n.r + (n.isHub ? 7 : 6), ringOpacity: isActive ? 0.9 : (n.isHub ? 0.4 : 0),
@@ -525,7 +629,7 @@ import { useDialog } from './primitives.jsx';
                   onMouseEnter={() => { if (!this.drag && !compact) this.setState({ hoveredId: n.id }); }}
                   onMouseLeave={() => { if (!this.drag && !compact) this.setState({ hoveredId: null }); }}
                   style={{ cursor: 'pointer', transition: 'opacity 0.3s ease' }}>
-                  <circle cx={n.cx} cy={n.cy} r={n.hitR} fill="transparent" stroke="none"></circle>
+                  <circle cx={n.cx} cy={n.cy} r={Math.max(n.hitR, n.r + 15)} fill="transparent" stroke="none"></circle>
                   {n.id === 0 && <circle className="rm-you-pulse" cx={n.cx} cy={n.cy} r={n.r + 4} fill={n.fill}></circle>}
                   <circle cx={n.cx} cy={n.cy} r={n.ringR} fill="none" stroke={n.color} strokeWidth="1.5" opacity={n.ringOpacity} style={{ transition: 'opacity 0.25s ease' }} />
                   <circle cx={n.cx} cy={n.cy} r={n.r} fill={n.fill} stroke={n.stroke} strokeWidth={n.strokeW} style={{ transition: 'fill 0.3s ease' }} />
@@ -533,6 +637,17 @@ import { useDialog } from './primitives.jsx';
                 </g>
               ))}
             </g>
+            {/* drop target — while a person is in hand, the circle they would land in
+                is ringed, so the gesture is aimed rather than guessed */}
+            {this.state.dropGroup && this.drag ? (() => {
+              const hub = (this._g.nodes || []).find((x) => x.isHub && x.group === this.state.dropGroup);
+              const vn = hub ? v.nodes.find((x) => x.id === hub.id) : null;
+              if (!vn) return null;
+              return (
+                <circle cx={vn.cx} cy={vn.cy} r={vn.r + 30} fill="none" stroke={vn.color} strokeWidth="2.5"
+                  strokeDasharray="6 6" opacity="0.95" style={{ pointerEvents: 'none' }}></circle>
+              );
+            })() : null}
             {/* labels last, and haloed — a circle name has to stay readable where
                 it crosses its own cluster of dots */}
             <g style={{ pointerEvents: 'none' }}>
@@ -715,31 +830,30 @@ import { useDialog } from './primitives.jsx';
               <div key={gp.key} onMouseEnter={() => this.setState({ hoveredLegend: gp.key, selectedId: null })}
                 style={{ display: 'flex', alignItems: 'center', gap: 10, opacity: gp.rowOpacity, transition: 'opacity 0.2s ease' }}>
                 <span style={{ width: 11, height: 11, borderRadius: '50%', background: gp.color, flex: 'none' }}></span>
-                <span style={{ fontFamily: SANS, fontSize: 13.5, fontWeight: 500, color: P.ink2 }}>{gp.label}</span>
+                {st.editing ? (
+                  <input value={gp.label} onChange={(e) => this.renameGroup(gp.key, e.target.value)}
+                    // stopPropagation on Escape: this field sits inside the
+                    // relmap dialog, whose Escape closes the whole overlay.
+                    // Leaving the rename should not also close the map.
+                    onClick={(e) => e.stopPropagation()} onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur(); else if (e.key === 'Escape') { e.stopPropagation(); e.currentTarget.blur(); } }}
+                    aria-label={'Rename ' + gp.label} autoComplete="off" autoCapitalize="words" enterKeyHint="done"
+                    style={{ ...inputStyle, width: 132, fontSize: 13.5, fontWeight: 500, padding: '4px 8px' }} />
+                ) : (
+                  <span style={{ fontFamily: SANS, fontSize: 13.5, fontWeight: 500, color: P.ink2 }}>{gp.label}</span>
+                )}
                 {st.editing && gp.removable && st.groups.length > 1 && (
                   <button onClick={(e) => { e.stopPropagation(); this.removeGroup(gp.key); }} title="Remove circle"
                     style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: P.faint, width: 18, height: 18, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, lineHeight: 1, padding: 0 }}>×</button>
                 )}
               </div>
             ))}
-            {v.editable && st.editing && (st.adding ? (
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 2 }}>
-                <input value={st.newLabel} onChange={(e) => this.setState({ newLabel: e.target.value })}
-                  // stopPropagation on Escape: this field sits inside the
-                  // relmap dialog, whose Escape closes the whole overlay.
-                  // Cancelling the rename should not also close the map.
-                  onKeyDown={(e) => { if (e.key === 'Enter') this.confirmAdd(); else if (e.key === 'Escape') { e.stopPropagation(); this.cancelAdd(); } }}
-                  placeholder="Circle name…" style={{ ...inputStyle, width: 116 }} autoFocus
-                  autoComplete="off" autoCapitalize="words" enterKeyHint="done" />
-                <button onClick={(e) => { e.stopPropagation(); this.confirmAdd(); }} style={{ border: 'none', background: P.ink, color: P.canvas, cursor: 'pointer', padding: '8px 13px', borderRadius: 8, fontFamily: SANS, fontSize: 13, fontWeight: 600 }}>Add</button>
-                <button onClick={(e) => { e.stopPropagation(); this.cancelAdd(); }} title="Cancel" style={{ border: 'none', background: P.chipBg2, color: P.ink2, cursor: 'pointer', width: 31, height: 31, borderRadius: 8, fontSize: 16, lineHeight: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>×</button>
-              </div>
-            ) : (
-              <button onClick={(e) => { e.stopPropagation(); this.startAdd(); }}
-                style={{ display: 'flex', alignItems: 'center', gap: 7, border: '1px solid ' + P.faint, background: 'transparent', cursor: 'pointer', padding: '7px 12px', borderRadius: 9, color: P.ink3, fontFamily: SANS, fontSize: 13, fontWeight: 500, marginTop: 3, alignSelf: 'flex-start' }}>
-                <span style={{ fontSize: 15, lineHeight: 1, marginTop: -1 }}>+</span>Add circle
-              </button>
-            ))}
+            {/* Relations are a fixed set — the six wedges ARE the map's geometry, so
+                adding a seventh resizes every one of them and breaks cross-circle
+                comparison. Renaming is free. Anything genuinely custom is a GROUP
+                (The Crew, Book Club), which lives in duels-data.js, not here. */}
+            {v.editable && st.editing && (
+              <span style={{ fontFamily: SANS, fontSize: 11.5, lineHeight: 1.45, color: P.faint, marginTop: 4, maxWidth: 210 }}>Rename to suit you. Drag anyone on the map into another circle to change how you know them.</span>
+            )}
           </div>
           )}
 

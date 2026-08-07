@@ -5,6 +5,7 @@
 // guards the wiring in CI.
 import React from 'react';
 import { useDialog } from './primitives.jsx';
+import { WPAL } from './world-palette.js';
 
 // suggestions.jsx — "Suggest a question": community board + composer (overlay).
 // Propose a question, upvote others; the top, once reviewed, become Dailies.
@@ -18,9 +19,9 @@ function useSuggestions() {
   return window.SUGGESTIONS;
 }
 
-const sgHueCol = (hue) => 'oklch(0.52 0.14 ' + (hue != null ? hue : 40) + ')';
+const sgHueCol = (hue) => WPAL.c('oklch(0.52 0.14 ' + (hue != null ? hue : 40) + ')');
 // same side-hue rotation the daily uses — the preview feels like the real thing
-const sgOptCol = (tc, i, n) => 'oklch(from ' + tc + ' 0.52 0.14 calc(h + ' + Math.round(i * (n > 2 ? 120 : 150)) + '))';
+const sgOptCol = (tc, i, n) => WPAL.opt(tc, i, n);
 const sgLabel = { fontFamily: 'var(--sans)', fontSize: 10.5, fontWeight: 700, letterSpacing: '0.09em', textTransform: 'uppercase', color: 'var(--ink-3)' };
 
 // answer-shape mark: 2 dots = this-or-that, 3 = dilemma/choice, line = scale.
