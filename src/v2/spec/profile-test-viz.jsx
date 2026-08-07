@@ -11,7 +11,11 @@ import { IS_TEST_AVG, IS_TEST_RESULTS } from './test-definitions.js';
 // Each test gets a recognizable hero chart rather than the generic dot-line:
 //   · Social     → a five-spoke radar of the kind of friend & partner you are
 //   · Cognitive  → a four-axis radar of thinking styles
-// All read from window.IS_TEST_RESULTS so they stay in sync with retakes.
+// All read the IS_TEST_RESULTS binding so they stay in sync with retakes —
+// and with live hydration, which replaces that object's contents in place
+// (test-definitions.js). It was `window.IS_TEST_RESULTS` until the D39
+// conversion; the global has no readers now and data/live.ts stopped
+// writing it.
 
 const { useState: usePTV } = React;
 

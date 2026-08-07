@@ -6655,10 +6655,205 @@ one rule and fails closed in another, and nothing about reading them predicts
 which. So the defence cannot be a style rule about how to write predicates; it
 is that a `getDoc` test proves nothing about a `getDocs` path. **Where a
 collection can be listed, test the list.**
+## D66 · The sample persona reached live mode twice more: the Map's anchor ring, and a hydration that wrote to nobody
+
+**Date:** 2026-08-07 · **Status:** Adopted
+
+D55 removed the sample persona from the profile's Basics card in live
+mode and recorded why it matters beyond cosmetics: the anchors effect
+writes whatever the profile holds to `v2_users/{uid}`, and
+`answerAnchors()` stamps it onto every answer — which are create-only
+(D5), so a fabricated cohort has no correction path. That fix was correct
+and incomplete. Two more surfaces carried the same persona, and both were
+reproduced before they were believed.
+
+**1 · The Map's anchor ring had no live path at all.**
+`spec/map-anchors.js` built its seven anchors from `IS_DATA.me` with the
+persona as the `||` fallback on every field, and nothing in the file
+consulted `LIVE`. Measured, not reasoned — the module run in node with a
+fresh live account and no tests taken returns:
+
+```
+age 34 · born 1991 | Editor · independent press | MA Literature · Univ. of Oslo
+Big Five · taken 10 days ago | Politics · taken 3 weeks ago | …
+```
+
+This is the worse of the two placements. `MirrorPreviewTag` returns
+`null` for the You stop — deliberately, because nothing there was
+supposed to be sample data — so unlike the Mirror's other populations,
+this wore no "Preview · sample people" badge.
+
+`list()` now branches on `LIVE.enabled`: live mode reads the viewer's own
+anchors (D8) and drops every row with nothing behind it, so a fresh
+account gets an empty ring rather than somebody else's. Both callers
+already handled a zero-length list — `MapTab` divides by
+`anchors.length || 1`, `MapThumbCard` returns null — which is why the
+gap survived review: the honest state was already renderable, just
+unreachable. Age is the BAND, the only thing the anchor holds; the exact
+birthday still never leaves the device.
+
+`relate()`, the other half of that module, is now marked demo-only. It
+has no caller, its keys are the prototype's `dq*` ids, and its fallback
+lines carry Mira's numbers in prose ("openness 78 sets the playlist") —
+so a live question would miss `REL` and land on a sentence about someone
+else. Kept for the mock path, fenced against a future wiring.
+
+**2 · `publishTestResults()` had stopped reaching anybody.** Its own
+comment states the intent — "Live mode shows only REAL results: purge the
+demo's baked test results and rebuild from server + this device's saves"
+— and it did that by assigning `window.IS_TEST_RESULTS`. But
+`test-definitions.js` left the global bridge (D39, #85) and now EXPORTS
+`IS_TEST_RESULTS`; all fifteen consumers import the binding. The global
+has had no readers since, so every effect of that function was silently
+undone: the demo persona's Big Five, politics, values and attachment
+survived into live mode until the user retook each test, and a result
+earned on another device never arrived at all.
+
+This is the D39 conversion hazard from the other side. The rule the
+README states — a conversion removes the load-order condition, never the
+data one — is about the *consumers* of a converted module. This was a
+*producer* left writing to the name the conversion retired, and no gate
+sees it: `tsc -b` type-checks a global write against nothing,
+`check:globals` rule 1 flags dangling reads and not orphaned writes, and
+rule 4 counts the write as coupling that is going the right way.
+
+The fix announces instead of assigning — `insight:test-results`, the
+same shape as D51's purge, which the same file already listens for. The
+module that owns the object mutates it in place, so the consumers holding
+a reference see it. The payload REPLACES rather than merges, and that is
+the half that removes the seed: a key absent from `{server, …device}`
+means the user has not taken that test, and the honest render of that is
+nothing.
+
+**What it cost, and what it bought.** `map-anchors.js` needed `LIVE`,
+which is a new shared-global reference — so the module was converted off
+the bridge on the way past (`window.MapAnchors` → named exports, both
+consumers importing), and `LIVE` comes in as an ESM import from
+`data/live`, which `main.jsx` already pulls into the entry chunk. Rule 4:
+534 across 45 files, down from 539.
+
+**The fixture was hiding it, and now cannot.** `test/live-fixture.ts`
+assigned a second object to `window.LIVE` and left `data/live`'s default
+export — the same object in production, since live.ts ends with
+`window.LIVE = LIVE` — untouched. Invisible while every consumer read the
+global; a converted module importing the binding would have seen
+`enabled: false` while the tab rendered beside it saw the fixture. The
+fixture now defines its members onto the imported singleton and restores
+the descriptors afterwards. Two objects that have to agree is the bug
+this whole record is about; the fixture no longer creates one.
+
+**Still sample data in live mode**, so the list stays a list rather than
+a discovery: the feed's takes, counters and friend dots (demo-only by
+design, D1 — not unbuilt); `scenes.js`'s follow list; the catalogue pick
+cards carrying `q.catalog`; and `daily-questions.js`'s non-world
+audiences, where only the World distribution is swapped for the real
+aggregate.
+
 
 ---
 
-## D66 · The v18 sync: a revision arrives, and the ratchets price it honestly
+## D67 · The cost model was counting one kind of read, and calling it the bill
+
+**Date:** 2026-08-07 · **Status:** Adopted (owner: "now update COSTS.md with
+the corrected numbers"). Implements the corrections D64 listed and did not
+make; supersedes the read decomposition in `docs/COSTS.md` and the four-source
+claim in `scripts/cost-arith.mjs`.
+
+**The defect, in one sentence.** `costModel` counted reads the CLIENT issues —
+boot, agg top-up, reseed delta, listener fan-out — and every other read on the
+invoice was billed at zero, because there was no term for it.
+
+Zero is a number, and it was the wrong one. Three categories were missing:
+
+- **Security-rule reads.** Every `get()` and `exists()` inside a rule is a
+  billed read charged to the project, on top of the operation that triggered
+  it. The answer-create paths do four: one distinct document for a world
+  answer (`v2_questions/{aid}`, touched three times), three for a duel.
+- **Reads issued by Cloud Functions.** The aggregate transaction reads two
+  documents per world answer. The nightly velocity scan (D54) reads *every
+  ledger entry written that day* — one per world answer, a term the size of
+  the top-up and reseed combined, and entirely invisible. The reveal pipeline
+  reads `(4 + 3m)/m` per member per group-day.
+- **Bytes.** Index entries are billed as storage and the model charged a 1.0
+  multiplier; network egress is billed per GiB and the model charged nothing,
+  having counted document *count* and never document *size* — which is
+  precisely backwards for a fan-out whose every delivery ships the published
+  aggregate whole.
+
+Together: **+20 reads per user per day, flat in DAU**, and roughly **+50% on
+every billed row** ($5.17 → $7.26 at 5 k DAU, $175 → $247 at 50 k, $11,910 →
+$17,166 at 500 k).
+
+**Measured, not estimated, where it mattered.** The two read terms are counts
+of call sites in the shipped rules file and the shipped functions, not
+guesses. One of them turned on a fact worth writing down: **repeated `get()`
+of the same document inside one rule evaluation is free.** Firestore caps
+document accesses at 10 per single-document request; a probe rule doing
+fifteen `get()`s of one document passes, while eleven `get()`s of eleven
+documents is refused. The limit counts distinct documents, so the evaluator's
+cache is real and billing sees the same cache. Counted un-deduped the rule
+term would be 14 rather than 6 — a 2.3× error in the direction of alarm.
+
+**What D64 got wrong, corrected here.** D64 said the fan-out already overtakes
+every other read source at 10,400 DAU — *below* D7's 14,400-DAU write wall —
+and that COSTS.md's "wall 1 before wall 2 is the good ordering" claim was
+therefore broken. Implementing the very terms D64 said were missing moves the
+crossover the **other way**: the flat baseline the fan-out has to beat went
+from 26 reads/user/day to 46, so the crossover is at **18,220 DAU** and the
+ordering holds with a wider margin than before (3,800 DAU rather than 2,000).
+D64's arithmetic was right on its own inputs and wrong on the model's, which
+is the argument for implementing a correction rather than recording it.
+
+`cost-model.mjs` now solves for that crossover rather than quoting it. The
+50,000 in the old walls list came from nowhere in particular.
+
+**The three things that keep this from rotting.**
+
+1. **The decomposition printer derives its columns from the model's keys.**
+   The old one named four; the model grew to six and the totals moved while
+   the columns did not — the same defect D47 found, one layer up. A printer
+   that cannot go stale is worth six lines.
+2. **Tripwires on the hand counts** (`scripts/pulse.test.mjs`). RULE_READS and
+   TRIGGER_READS cannot be regex-derived — a regex that tried would be a
+   second, silently-wrong implementation of Firestore's evaluator — so they
+   are counted by hand and the test watches the *call-site totals* they were
+   counted over. Add a `get()` to a rule and the test fails naming the block
+   to recount. Verified by adding one.
+3. **`docs/COSTS.md` joins `check:figures`.** It was covered by nothing, which
+   is how it came to quote a 369-document bank two promotion cycles after the
+   bank reached 389. Only the two INPUTS are gated — the bank's document count
+   and its wire size — because a dollar figure is an *output* of
+   `cost-model.mjs`, and re-deriving it in the figure gate would be the second
+   copy of the model that `cost-arith.mjs` exists to prevent.
+
+**The soft numbers, grouped so that they are visible.** `BYTES` holds the
+published-aggregate size and the index multiplier, and it is the softest block
+in the file: document-size estimates times a price this project has never been
+invoiced for. The aggregate's size is not knowable before launch — it depends
+on how many users fill the optional Basics card, which is what puts a `by`
+breakdown in the document — so egress prints as a **band** (0.3 / 2.4 / 7 KB
+per aggregate → $7 / $51 / $147 per month at 50 k DAU) and the headline table
+charges the middle. A 20× band is still worth having when the alternative is
+billing it at zero.
+
+**What is still not modelled, listed rather than discovered later:** Cloud
+Logging volume, the catalog trigger's third read (deliberate — catalog is not
+live, D14), function retries under `retry: true`, the moderation jobs, and
+callable-response egress. None is believed material at any modelled size.
+That is exactly what was believed about rule and server reads before this
+record, so the list is in COSTS.md to be checked rather than trusted.
+
+**Not done.** The `answers` index exemptions (D64) cut the index multiplier
+from roughly 5 to 1.4, which is why the storage line is small enough to leave
+as a single estimated multiplier rather than a per-collection model. And the
+engagement sensitivity line in COSTS.md is now the interesting one: three of
+the six read sources are charged per *answer*, so doubling answers per user
+moves reads +42% / +80% / +97% at 5 k / 50 k / 500 k DAU, where the old model
+said "barely moves reads". That was true when the model only counted boots.
+
+---
+
+## D68 · The v18 sync: a revision arrives, and the ratchets price it honestly
 
 **Decided:** 2026-08-07 · **Status:** binding (same standing as D43, which it
 extends)
@@ -6711,8 +6906,11 @@ KB, under the 850 ceiling.
 ### What now proves it
 
 `check:globals`, lint (`no-undef` on), `tsc -b`, `check:a11y`,
-`check:content`, `check:neighbors`, `check:figures`, `check:bundle`, the 444
-client tests and 195 functions tests — all green at this commit.
+`check:content`, `check:neighbors`, `check:figures`, `check:bundle`, the 445
+client tests (444 + the Explore mount case this sync added) and 195
+functions tests — all green at this commit, re-run after merging main's
+D66/D67 (which is why this record is D68: both branches minted a D66, and
+the merge renumbered this one).
 `scripts/style-diff.mjs` now points at v18 and, as with D43, has not been run
 against it here (needs a browser and a dev server); it remains the next cheap
 thing anyone touching this layer can do.
