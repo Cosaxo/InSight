@@ -88,18 +88,27 @@ jobs:
       # caller as a bare "INTERNAL", with the real error visible only in Cloud
       # Logging. Fetching it here turns an unactionable status into the actual
       # stack trace, at the one moment someone is looking.
+      #
+      # NOT `firebase functions:log`, which was tried first and returned only
+      # cloudaudit entries — deployment events, the newest of them fifteen
+      # minutes older than the failing call. That is worse than no output: it
+      # looks like the function logged nothing, which is a far stronger claim
+      # than "this read the wrong stream". scripts/fn-log.mjs asks Cloud
+      # Logging for the run.googleapis.com streams a Gen-2 function actually
+      # writes to, newest first.
       - name: Why it failed — the function's own log
         if: failure()
+        continue-on-error: true
         env:
           FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          FIREBASE_PROJECT_ID: prvfire33
         run: |
-          printf '%s' "$FIREBASE_SERVICE_ACCOUNT" > "$RUNNER_TEMP/sa-key.json"
-          export GOOGLE_APPLICATION_CREDENTIALS="$RUNNER_TEMP/sa-key.json"
-          echo "--- seedContentV2, most recent entries ---"
-          npx --yes firebase-tools functions:log \
-            --only seedContentV2 --project prvfire33 2>&1 \
-            | tail -60 | tee "$RUNNER_TEMP/fnlog.txt" \
-            || echo "(could not read the function log — the service account may lack logging.viewer)"
+          {
+            node scripts/fn-log.mjs --fn seedContentV2 --minutes 90 --limit 40
+            echo ""
+            echo "--- and everything it logged, regardless of severity ---"
+            node scripts/fn-log.mjs --fn seedContentV2 --minutes 90 --limit 40 --all-severities
+          } 2>&1 | tee "$RUNNER_TEMP/fnlog.txt"
 
       - name: Summary
         if: always()
