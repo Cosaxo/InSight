@@ -83,9 +83,9 @@ export function collectCost(regional) {
       },
       {
         name: "Deck listener fan-out overtakes every other read source",
-        // Solved rather than asserted (D66). It was 50_000, which came from
+        // Solved rather than asserted (D67). It was 50_000, which came from
         // nowhere; the crossover is where DAU/400 passes the flat sources,
-        // and adding D66's rule and server reads pushed it LATER by raising
+        // and adding D67's rule and server reads pushed it LATER by raising
         // the baseline they have to beat from 26 reads/user/day to 46.
         bindsAtDau: 18_200,
         kind: "cost",

@@ -72,7 +72,7 @@ below.
 > The old figures are not deleted — they are finding 1's arithmetic, which
 > is still what justified the change.
 
-> **Corrected again 2026-08-07 (D66).** Every row above went up by roughly
+> **Corrected again 2026-08-07 (D67).** Every row above went up by roughly
 > half, and not because anything got more expensive. The model counted
 > reads the CLIENT issues and nothing else — so security-rule `get()`s,
 > reads issued by Cloud Functions, index storage and egress were all
@@ -93,7 +93,7 @@ even at 500 k DAU the functions bill is $33. And **reads still dominate
 the bill at every size** — writes never exceed 3% of the total.
 
 So the entire cost story of this app is *reads*, and reads have **six**
-sources. It said three until D66, and the three it named were the three a
+sources. It said three until D67, and the three it named were the three a
 client issues; the project is billed for the other three all the same.
 
 ## Where the reads actually go
@@ -147,7 +147,7 @@ description of where the reads go did not.
 ## The egress band, and why it is a band
 
 Firestore bills the bytes it serves, at Google Cloud's internet egress rate,
-and the model charged nothing for them until D66. It counted document
+and the model charged nothing for them until D67. It counted document
 *count* and never document *size* — which is exactly backwards for the
 listener fan-out, whose every delivery ships the published aggregate whole.
 
@@ -296,7 +296,7 @@ that month, so a 10% D1 retention curve means MAU ≈ 10 × DAU rather than
    combined.** Finding 2. Not a failure, just the point where the bill
    stops being rounding error. This row used to say ~50,000, which was
    never computed from anything; `cost-model.mjs` now solves for it, and
-   the crossover moved *later* rather than earlier when D66's terms landed
+   the crossover moved *later* rather than earlier when D67's terms landed
    — the flat baseline it has to beat went from 26 reads/user/day to 46.
 3. **~50,000 MAU — the Identity Platform cliff**, if that is the billing
    mode. Finding 3.
@@ -315,7 +315,7 @@ new ceiling has not been measured and no number is quoted for it here.
 Wall 1 arriving before wall 2 is the good ordering: the app breaks
 technically at a size where the bill is still ~$80/month, so there is no
 scenario where a surprise invoice arrives before a surprise outage. That is
-worth keeping true — and it stayed true through D66, which is worth saying
+worth keeping true — and it stayed true through D67, which is worth saying
 because it was not guaranteed to. Adding the missing read terms could have
 moved the crossover below the write wall and inverted the ordering; it
 raised the flat baseline instead, so the gap widened from 2,000 DAU to
@@ -335,7 +335,7 @@ added, not a fact to rely on.
 | Firebase Hosting (`web/`, static pages) | $0 |
 | Cloud Storage | $0 (bucket unused; see SHIP-CHECKLIST) |
 | Cloud Logging | $0 until ~500 k DAU, then ~$17/mo |
-| Firestore storage | 5.6 GiB after a year at 5 k DAU → $0.83/mo (4.0 GiB of documents, ×1.4 for index entries — a multiplier that was 1.0 in the model until D66, and would be ~5 without D64's `answers` index exemptions) |
+| Firestore storage | 5.6 GiB after a year at 5 k DAU → $0.83/mo (4.0 GiB of documents, ×1.4 for index entries — a multiplier that was 1.0 in the model until D67, and would be ~5 without D64's `answers` index exemptions) |
 | Network egress | in the Firestore column above, not free: $0–0.5/mo at 5 k DAU, **$7–147 at 50 k**, $647–14,686 at 500 k — see the band below |
 | Sentry | $0 (opt-in, default OFF, crash-only) |
 | GitHub Actions | $0 within the private-repo allowance; iOS is a separate workflow *because* macOS bills at 10× |
@@ -353,7 +353,7 @@ does not scale down when usage does.
 **Below 5,000 DAU this app costs about $32/month, and $28 of that is the
 Apple developer program and a Claude subscription.** The infrastructure is
 effectively free — inside or near the Firestore and Cloud Run free tiers —
-and D66's corrections did not change that answer. They roughly halved the
+and D67's corrections did not change that answer. They roughly halved the
 headroom, which is a different thing: $7/month at 5,000 DAU rather than $5,
 and $247 at 50 k rather than $175.
 
@@ -382,7 +382,7 @@ Three caveats worth carrying:
 ## What would change these numbers
 
 - **Engagement per user.** The model assumes 4 answers/day. Doubling that
-  roughly doubles writes and compute — and it is the input D66 changed most,
+  roughly doubles writes and compute — and it is the input D67 changed most,
   because three of the six read sources are now charged per *answer* rather
   than per open. Re-running the model with `B.worldAnswers` at 6 moves
   reads/user/day by +14% / +15% / **+42% / +80% / +97%** at 50 / 500 / 5 k /
@@ -437,5 +437,5 @@ surprise:
   small and infrequent next to Firestore's document traffic.
 
 None of these is believed material at any modelled size. That belief is
-exactly what was believed about rule and server reads before D66, so the
+exactly what was believed about rule and server reads before D67, so the
 list is here to be checked rather than trusted.

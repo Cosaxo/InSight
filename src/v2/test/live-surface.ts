@@ -22,7 +22,7 @@
 // member. That is the whole point.
 
 export const LIVE_MEMBERS = [
-  "aggFor", "appBuild", "confirmedVotes", "dailyBank", "deck",
+  "aggFor", "anchors", "appBuild", "confirmedVotes", "dailyBank", "deck",
   "deleteAccount", "demoInProd", "displayName", "enabled", "feedReady",
   "latestBuild", "learnAgg", "learnAnswer", "linkGoogle", "linked", "myCity",
   "myVotes", "ready", "saveAnchors",

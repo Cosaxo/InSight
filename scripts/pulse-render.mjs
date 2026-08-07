@@ -243,8 +243,8 @@ const READ_SERIES = [
   { key: "topUp", label: "agg top-up", css: "--s2", why: "questions still under the k-floor, re-read at most once per 6h" },
   { key: "reseed", label: "reseed refetch", css: "--s3", why: "the bank re-read after a contentRev bump — charged per MAU, not DAU" },
   { key: "fanOut", label: "listener fan-out", css: "--s4", why: "every publish on today's aggregate delivers to every listening client. DAU²/400 — the quadratic one" },
-  { key: "rules", label: "rule reads", css: "--s5", why: "every get()/exists() in a security rule is a billed read — charged per ANSWER, not per open (D66)" },
-  { key: "server", label: "server reads", css: "--s6", why: "the agg transaction, the nightly velocity scan walking the ledger, and the reveal pipeline (D66)" },
+  { key: "rules", label: "rule reads", css: "--s5", why: "every get()/exists() in a security rule is a billed read — charged per ANSWER, not per open (D67)" },
+  { key: "server", label: "server reads", css: "--s6", why: "the agg transaction, the nightly velocity scan walking the ledger, and the reveal pipeline (D67)" },
 ];
 
 function tiles(items) {

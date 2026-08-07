@@ -972,6 +972,17 @@ const LIVE = {
     state.profile.displayName = name;
     notify();
   },
+  // The viewer's own anchors, as a plain map — the same seven keys an
+  // answer snapshots (D8), read back. Empty until the Basics card is
+  // filled in, and that emptiness is load-bearing: the Map's anchor ring
+  // (spec/map-anchors.js) renders a row per anchor, so a missing value has
+  // to read as "no anchor" rather than fall through to a default. The
+  // prototype's defaults were the sample persona's, which is how a live
+  // build put "age 34 · Editor · MA Literature" at the centre of a
+  // stranger's map.
+  anchors(): Record<string, string> {
+    return answerAnchors();
+  },
   // The anchors the profile has collected, as a plain map. Empty until the
   // user fills the Basics card in — an answer with no anchors simply folds
   // into no breakdown cell (D8).
@@ -1393,28 +1404,50 @@ function resetForNewUid(uid: string): void {
   void refreshLive().catch((err) => reportError(err, { where: "refreshLive.uidChange" }));
 }
 
-// `window.IS_TEST_RESULTS`, rebuilt from the store plus this device's saves.
+// The viewer's test results, rebuilt from the store plus this device's
+// saves and announced to spec/test-definitions.js, which owns the copy the
+// UI renders.
 //
 // A FUNCTION, called from both hydrate() and resetForNewUid(), because the
 // two drifted: reset nulled `state.profile`, purged the on-disk copy and
-// called notify() — re-rendering with this global still holding the PREVIOUS
-// account's Big Five, attachment and politics scores. Around twenty spec
-// modules read it directly at render time (profile-general.jsx,
+// called notify() — re-rendering with the PREVIOUS account's Big Five,
+// attachment and politics scores still on screen. Around twenty spec
+// modules read those results at render time (profile-general.jsx,
 // profile-test-viz.jsx, compare-breakdown.jsx, …), so the wrong person's
-// results were on screen until the new uid's hydrate reached this line —
-// and two paths mean it might not: the unguarded getDocs in hydrate can
-// reject outright, and refreshInFlight can hand back the OLD run's promise
-// so hydrate never re-executes.
+// results were up until the new uid's hydrate reached this line — and two
+// paths mean it might not: the unguarded getDocs in hydrate can reject
+// outright, and refreshInFlight can hand back the OLD run's promise so
+// hydrate never re-executes.
 //
 // resetForNewUid's own header states the contract this broke: "Everything
 // derived from the old uid has to go — in-memory AND on disk."
+//
+// AN EVENT, not `window.IS_TEST_RESULTS = …`, because that assignment had
+// stopped reaching anybody. test-definitions.js was converted off the
+// shared-global bridge (D39, #85) and now EXPORTS `IS_TEST_RESULTS`; all
+// fifteen consumers import that binding. Rebinding the global therefore
+// wrote a name with no readers, and every effect above was silently
+// undone: the demo persona's baked results stayed on screen for a fresh
+// live account, and a result earned on another device never arrived.
+// Announcing it is the same shape as the purge (D51) — the module that
+// owns the object mutates it IN PLACE, so the consumers holding a
+// reference to it see the change.
+//
+// The payload REPLACES rather than merges, which is the half that removes
+// the demo seed: a key absent from the store and from disk means the user
+// has not taken that test, and the honest render of that is nothing.
 function publishTestResults(): void {
-  const w = window as unknown as Record<string, unknown>;
+  let next: Record<string, unknown>;
   try {
     const local = JSON.parse(localStorage.getItem("insight.testResults.v2") || "{}") || {};
-    w.IS_TEST_RESULTS = { ...state.profile.testResults, ...local };
+    next = { ...state.profile.testResults, ...local };
   } catch {
-    w.IS_TEST_RESULTS = { ...state.profile.testResults };
+    next = { ...state.profile.testResults };
+  }
+  try {
+    window.dispatchEvent(new CustomEvent("insight:test-results", { detail: next }));
+  } catch {
+    /* non-browser env */
   }
 }
 

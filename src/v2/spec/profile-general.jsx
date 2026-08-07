@@ -7,6 +7,7 @@ import React from 'react';
 import { IS_DATA } from './sample-data.js';
 import { IS_TEST_RESULTS } from './test-definitions.js';
 import { PASSIVE } from './passive-progress.js';
+import { list as anchorList } from './map-anchors.js';
 
 // ─────────────────────────────────────────────────────────────
 // General tab · the parts of you that aren't a test.
@@ -356,7 +357,11 @@ import { PASSIVE } from './passive-progress.js';
 
   // ── the visual profile: mind-map thumbnail → Mirror · You ──
   function MapThumbCard() {
-    const anchors = (window.MapAnchors && window.MapAnchors.list) ? window.MapAnchors.list() : [];
+    // The load-order guard is gone with the conversion (an imported binding
+    // cannot be unset); the length check is the DATA condition and stays —
+    // a live account with no Basics card and no test taken has no ring, and
+    // a thumbnail of an empty ring is worse than no card.
+    const anchors = anchorList();
     if (!anchors.length) return null;
     return (
       <button className="card press" onClick={() => window.goTab && window.goTab('you')} style={{

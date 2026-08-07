@@ -74,7 +74,7 @@ describe("cost-arith reads its constants from source, not from memory", () => {
     expect(model(5000, true, { staticBank: true }).r.reseed).toBe(0);
   });
 
-  // ── tripwires on the hand-counted read sources (D66) ──────────────
+  // ── tripwires on the hand-counted read sources (D67) ──────────────
   //
   // RULE_READS, TRIGGER_READS and revealReadsPerMember are counts of call
   // SITES across a branchy rules file and three functions. A regex that
@@ -133,7 +133,7 @@ describe("cost-arith reads its constants from source, not from memory", () => {
   });
 
   it("egress and index storage are billed, not assumed free", () => {
-    // The model charged neither until D66, and "not modelled" reads as zero.
+    // The model charged neither until D67, and "not modelled" reads as zero.
     const { model } = costModel({});
     const m = model(500_000, true);
     expect(m.cost.egress).toBeGreaterThan(0);

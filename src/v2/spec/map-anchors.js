@@ -4,6 +4,7 @@
 // spec-index.js load order is semantic — scripts/check-spec-globals.mjs
 // guards the wiring in CI.
 import React from 'react';
+import LIVE from '../data/live';
 import { IS_DATA } from './sample-data.js';
 import { IS_TEST_RESULTS } from './test-definitions.js';
 
@@ -12,6 +13,7 @@ import { IS_TEST_RESULTS } from './test-definitions.js';
 // at the map's centre. Each answered question relates to 1–3 of them with a
 // strength (1–3) and one short, hedged line. Curated, deterministic, no fake
 // percentages.
+let listExport, relateExport;
 (function () {
   // ── anchor definitions ─────────────────────────────────────────────────────
   function topDims(key, n) {
@@ -20,18 +22,69 @@ import { IS_TEST_RESULTS } from './test-definitions.js';
     return R.dims.slice().sort((a, b) => b.value - a.value).slice(0, n || 2)
       .map((d) => d.label + ' ' + d.value).join(' · ');
   }
-  function list() {
+  // The four test anchors. Same shape in both modes because the source is
+  // the same object: test-definitions.js seeds it with the demo persona's
+  // results and data/live.ts replaces the whole thing on hydrate, so in
+  // live mode a test the user has not taken is simply absent and topDims
+  // returns ''. list() drops those rows.
+  function testRows() {
+    return [
+      { id: 'big5',       label: 'Big Five', hue: 40,  value: topDims('big5'),       sub: tTaken('big5') },
+      { id: 'political',  label: 'Politics', hue: 235, value: topDims('political'),  sub: tTaken('political') },
+      { id: 'values',     label: 'Values',   hue: 28,  value: topDims('values'),     sub: tTaken('values') },
+      { id: 'attachment', label: 'Social',   hue: 320, value: topDims('attachment'), sub: tTaken('attachment') },
+    ];
+  }
+  // Live mode: the viewer's OWN anchors (D8), the same seven fields an
+  // answer snapshots, read back from the store.
+  //
+  // The `||` defaults the prototype carried here were the sample persona's
+  // — `s.age || 34`, `me.job || 'Editor'`, `me.education || 'MA Literature'`
+  // — so a live build put "age 34 · Editor · independent press · MA
+  // Literature · Univ. of Oslo" at the centre of every stranger's map, with
+  // no Preview badge: MirrorPreviewTag returns null for the You stop
+  // precisely because nothing there was supposed to be sample data.
+  //
+  // This is the second time this persona has leaked through a profile
+  // surface. profile-general.jsx's baseFor() carries the first, and the
+  // note there is the one that matters: the anchors effect writes whatever
+  // the profile holds to `v2_users/{uid}`, and answerAnchors() then stamps
+  // it onto every answer — which are create-only (D5), so a fabricated
+  // cohort cannot be corrected after the fact.
+  //
+  // Age is the BAND, not a year: that is all the anchor holds. The exact
+  // birthday never leaves the device (profile-general.jsx, anchorsFrom).
+  function liveList() {
+    const a = LIVE.anchors() || {};
+    return [
+      { id: 'age', label: 'Age',   hue: 265, value: a.ageBand ? 'age ' + a.ageBand : '', sub: 'from your profile' },
+      { id: 'job', label: 'Work',  hue: 85,  value: a.profession || '',                  sub: 'from your profile' },
+      { id: 'edu', label: 'Study', hue: 190, value: a.education || '',                   sub: 'from your profile' },
+      ...testRows(),
+    ];
+  }
+  function demoList() {
     const me = IS_DATA.me || {};
     const s = me.stats || {};
     return [
-      { id: 'age',        label: 'Age',      hue: 265, value: 'age ' + (s.age || 34),                sub: 'born ' + (s.birthYear || 1991) },
-      { id: 'job',        label: 'Work',     hue: 85,  value: me.job || 'Editor',                    sub: 'from your profile' },
-      { id: 'edu',        label: 'Study',    hue: 190, value: me.education || 'MA Literature',       sub: 'from your profile' },
-      { id: 'big5',       label: 'Big Five', hue: 40,  value: topDims('big5'),                       sub: tTaken('big5') },
-      { id: 'political',  label: 'Politics', hue: 235, value: topDims('political'),                  sub: tTaken('political') },
-      { id: 'values',     label: 'Values',   hue: 28,  value: topDims('values'),                     sub: tTaken('values') },
-      { id: 'attachment', label: 'Social',   hue: 320, value: topDims('attachment'),                 sub: tTaken('attachment') },
+      { id: 'age',        label: 'Age',      hue: 265, value: 'age ' + (s.age || 34),          sub: 'born ' + (s.birthYear || 1991) },
+      { id: 'job',        label: 'Work',     hue: 85,  value: me.job || 'Editor',              sub: 'from your profile' },
+      { id: 'edu',        label: 'Study',    hue: 190, value: me.education || 'MA Literature', sub: 'from your profile' },
+      ...testRows(),
     ];
+  }
+  // An empty ring is a legitimate result in live mode — a fresh account has
+  // filled in no Basics card and taken no test. Both callers already handle
+  // it: MapTab divides by `anchors.length || 1`, and profile-general's
+  // MapThumbCard returns null on a zero-length list.
+  function list() {
+    // The module import, not `window.LIVE`: data/live.ts is already in the
+    // entry chunk (main.jsx imports initLive from it), so this costs no
+    // bytes and keeps check:globals rule 4 pointing the right way. The
+    // `window.LIVE && …` existence half of the old idiom is dead with it —
+    // an imported binding cannot be unset — but `.enabled` is data and
+    // stays: it is false for the whole of mock mode.
+    return (LIVE.enabled ? liveList() : demoList()).filter((r) => r.value);
   }
   function tTaken(key) {
     const R = IS_TEST_RESULTS[key];
@@ -195,11 +248,28 @@ import { IS_TEST_RESULTS } from './test-definitions.js';
     Music:     [['big5', 2, 'openness 78 sets the playlist'], ['age', 1, 'the ear is set young']],
   };
 
+  // DEMO ONLY — no caller today, and it must not gain one in live mode
+  // without a rewrite. Every line above is prose about Mira ("openness 78
+  // sets the playlist"), and the keys are the prototype's `dq*` ids, so a
+  // live question misses REL entirely and lands on a FALLBACK line whose
+  // numbers belong to somebody else. Kept because the curation is real
+  // work and the mock path is where it reads correctly.
   function relate(qid, top) {
     const rows = REL[qid] || FALLBACK[top] || [['big5', 1, 'temperament shapes this one']];
     return rows.map((r) => ({ a: r[0], s: r[1], line: r[2] }));
   }
 
-  window.MapAnchors = { list, relate };
+  listExport = list;
+  relateExport = relate;
 })();
+
+// CONVERTED off the shared-global bridge (D39): `window.MapAnchors` is gone
+// and the two consumers (map-tab.jsx, profile-general.jsx) import these.
+// The conversion is what pays for the `window.LIVE` read above under
+// check:globals rule 4 — and it removes the load-order condition with it,
+// so the `window.MapAnchors && …` guards both callers carried are deleted
+// rather than translated. The data condition is NOT removed: list() can
+// still return [], and both callers still handle that.
+export const list = listExport;
+export const relate = relateExport;
 

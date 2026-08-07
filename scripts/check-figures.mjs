@@ -189,7 +189,7 @@ const FIGURES = [
     actual: rulesTests,
     fix: (n) => `"test:rules\` — ${n} rules tests"`,
   },
-  // COSTS.md was covered by nothing until D66, which is how it came to
+  // COSTS.md was covered by nothing until D67, which is how it came to
   // quote a 369-document bank for two promotion cycles after the bank
   // reached 389. It is the largest body of hand-maintained numbers in the
   // repo, and most of them cannot be gated here — a dollar figure is an

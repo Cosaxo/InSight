@@ -45,7 +45,7 @@ for (const [dau, mature, label] of SCENARIOS) {
 }
 
 // Columns derived from the model's own keys, not listed here. The previous
-// version named four and the model grew to six (D66) — the totals moved and
+// version named four and the model grew to six (D67) — the totals moved and
 // the columns did not, which is the exact shape of the defect D47 found one
 // layer up. A printer that cannot go stale is worth six lines.
 console.log("\nreads per user per day, by source — the decomposition is the finding");
@@ -80,7 +80,7 @@ for (const [dau, mature] of SCENARIOS) {
 // rather than a number. The swing variable is how many users fill the
 // optional Basics card, because that is what puts a `by` breakdown in the
 // published aggregate the fan-out ships on every delivery.
-console.log("\negress band — published-aggregate size is the swing variable (D66)");
+console.log("\negress band — published-aggregate size is the swing variable (D67)");
 console.log(`     DAU   ${String(BYTES.aggDocLow / 1000 + " KB").padStart(11)}` +
   `${String(BYTES.aggDoc / 1000 + " KB").padStart(12)}${String(BYTES.aggDocHigh / 1000 + " KB").padStart(12)}`);
 console.log("-".repeat(43));
@@ -93,7 +93,7 @@ for (const [dau, mature] of SCENARIOS) {
 }
 
 // The claim COSTS.md used to make about its own shape: that below 50k DAU
-// the bill is boot and top-up. It never was, and post-D66 it is not close.
+// the bill is boot and top-up. It never was, and post-D67 it is not close.
 console.log("\nwhere the fan-out overtakes every FLAT source combined");
 {
   const flatOf = (dau, mature) => {

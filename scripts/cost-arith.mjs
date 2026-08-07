@@ -103,7 +103,7 @@ export const TRIG = {
   sec: 0.2,
 };
 
-// ── reads nobody was counting (D66) ─────────────────────────────
+// ── reads nobody was counting (D67) ─────────────────────────────
 //
 // Everything above this block counts reads the CLIENT issues. Those are not
 // the only reads on the bill, and the three sources below were missing from
@@ -199,7 +199,7 @@ export const B = {
   duelGroupSize: 2,
 };
 
-// ── bytes, for the two lines the model billed as free (D66) ─────
+// ── bytes, for the two lines the model billed as free (D67) ─────
 //
 // SOFTEST NUMBERS IN THIS FILE, and grouped so that is visible. Everything
 // above is either read from source or a count of call sites; these are
@@ -275,7 +275,7 @@ export function costModel({ regional = false, bank = bankDocs() } = {}) {
   // actually go". Keeping them separate is the whole point: the totals are
   // unremarkable, the decomposition is where the findings live.
   //
-  // It was four until D66 added `rules` and `server`. Those two are flat in
+  // It was four until D67 added `rules` and `server`. Those two are flat in
   // DAU and together are larger than boot's top-up, reseed and the whole
   // fan-out combined at every size below ~10k DAU — which is to say the
   // model's shape below the walls was wrong, not just its total.
@@ -330,7 +330,7 @@ export function costModel({ regional = false, bank = bankDocs() } = {}) {
     const cpu = (inv * TRIG.sec * TRIG.cpu) / pack;
     const mem = (inv * TRIG.sec * TRIG.mem) / pack;
     // Documents, then index entries on top of them. The multiplier is an
-    // estimate (BYTES.indexMultiplier); the model billed 1.0 until D66,
+    // estimate (BYTES.indexMultiplier); the model billed 1.0 until D67,
     // which is the one value it cannot be.
     const docGiB =
       (dau * (B.worldAnswers + B.duelAnswers) * 0.5 * 365 +
