@@ -25,6 +25,13 @@ import { createSign } from "node:crypto";
 
 const argv = process.argv.slice(2);
 const argOf = (f, d) => { const i = argv.indexOf(f); return i >= 0 ? argv[i + 1] : d; };
+// --any-function drops the per-service filter and asks "is anything in this
+// project failing this way?". That distinction is the one that matters for a
+// credential error: a metadata-server failure in ONE function is a config
+// difference between functions, and in ALL of them is the project. Guessing
+// which without looking is how the disabled-service-account theory got two
+// runs of attention before being ruled out in one screenshot.
+const ANY = argv.includes("--any-function");
 const FN = argOf("--fn");
 const LIMIT = Number(argOf("--limit", "30"));
 const MINUTES = Number(argOf("--minutes", "60"));
@@ -32,7 +39,7 @@ const ALL = argv.includes("--all-severities");
 const PROJECT = process.env.FIREBASE_PROJECT_ID || "prvfire33";
 
 function die(m) { console.error(`fn-log: ${m}`); process.exit(1); }
-if (!FN) die("--fn <functionName> is required.");
+if (!FN && !ANY) die("--fn <functionName> is required (or --any-function).");
 
 let sa;
 try { sa = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT || ""); }
@@ -76,20 +83,23 @@ async function accessToken() {
 // cloudaudit.googleapis.com is deliberately EXCLUDED: it is what
 // `firebase functions:log` showed instead of this, and it never contains a
 // stack trace.
-const service = FN.toLowerCase();
+const service = (FN || "").toLowerCase();
 const since = new Date(Date.now() - MINUTES * 60_000).toISOString();
 // Each side of the OR is parenthesised explicitly. Cloud Logging does bind
 // AND tighter than OR, so this happens to be correct without them — but a
 // filter that is right by precedence rather than by punctuation is one
 // nobody can check at a glance, and a mis-grouped filter returns plausible
 // entries rather than an error.
-const filter = [
-  `timestamp >= "${since}"`,
-  "("
+const scope = ANY
+  ? '(resource.type="cloud_run_revision" OR resource.type="cloud_function")'
+  : "("
     + `(resource.type="cloud_run_revision" AND resource.labels.service_name="${service}")`
     + " OR "
     + `(resource.type="cloud_function" AND resource.labels.function_name="${FN}")`
-    + ")",
+    + ")";
+const filter = [
+  `timestamp >= "${since}"`,
+  scope,
   ALL ? "" : 'severity >= "WARNING"',
 ].filter(Boolean).join(" AND ");
 
@@ -113,7 +123,10 @@ if (!res.ok) {
 }
 
 const entries = body.entries || [];
-console.log(`fn-log: ${FN} — ${entries.length} entr(y/ies), last ${MINUTES}m, ${ALL ? "all severities" : "WARNING+"}`);
+console.log(
+  `fn-log: ${ANY ? "ALL functions" : FN} — ${entries.length} entr(y/ies), `
+  + `last ${MINUTES}m, ${ALL ? "all severities" : "WARNING+"}`,
+);
 if (!entries.length) {
   console.log(
     "  Nothing. That is informative rather than empty: if the function had run\n"
@@ -131,7 +144,12 @@ for (const e of entries.reverse()) {
     ?? (e.jsonPayload ? JSON.stringify(e.jsonPayload) : "")
     ?? "";
   all += `${msg}\n`;
-  console.log(`  ${e.timestamp} [${e.severity || "DEFAULT"}] ${String(msg).slice(0, 2000)}`);
+  // Which service, when scanning them all — otherwise a project-wide sweep
+  // is a wall of errors with no way to tell one function from another.
+  const who = ANY
+    ? `{${e.resource?.labels?.service_name || e.resource?.labels?.function_name || "?"}} `
+    : "";
+  console.log(`  ${e.timestamp} [${e.severity || "DEFAULT"}] ${who}${String(msg).slice(0, 2000)}`);
 }
 
 // Known errors that are unreadable as stack traces and one sentence as

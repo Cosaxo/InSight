@@ -108,6 +108,14 @@ jobs:
             echo ""
             echo "--- and everything it logged, regardless of severity ---"
             node scripts/fn-log.mjs --fn seedContentV2 --minutes 90 --limit 40 --all-severities
+            echo ""
+            echo "--- errors across EVERY function in the project, last 24h ---"
+            echo "Whether this failure is one function's or the project's is the"
+            echo "question a single-function view cannot answer, and the answer"
+            echo "changes what to fix. Wide window on purpose: the scheduled and"
+            echo "triggered functions run on their own cadence, so a quiet hour"
+            echo "proves nothing about them."
+            node scripts/fn-log.mjs --any-function --minutes 1440 --limit 40
           } 2>&1 | tee "$RUNNER_TEMP/fnlog.txt"
 
       - name: Summary
