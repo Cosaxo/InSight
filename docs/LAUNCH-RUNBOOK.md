@@ -22,7 +22,7 @@ the count is zero**, which is a change from 2026-08-04: the Team ID and the
 `REVERSED_CLIENT_ID` were the other two and both are filled.
 
 `check:store-listing` and `check:versions` pass; the daily bank is at 90
-questions of 389 seeded; the production backend is deployed. **Measured
+questions of 399 seeded; the production backend is deployed. **Measured
 2026-08-04:** anonymous sign-in works (`accounts:signUp` returns an
 `idToken`, where it returned `ADMIN_ONLY_OPERATION` on 2026-08-03), the
 InSight web app is registered, and the default hosting site `prvfire33`
@@ -95,11 +95,17 @@ arithmetic.
 
 ## Phase 0 — Do these first (about an hour, one console)
 
-- [x] **0.1 Seed the production question bank — DONE 2026-08-07**
-      (`written 389, skipped 0`). Actions → **Seed content** → Run workflow;
-      389 questions land in `v2_questions`. Idempotent and, since D34, cheap
-      to repeat — **reseed whenever content lands**, which is the reason this
-      stays a standing instruction rather than a ticked box.
+- [ ] **0.1 Seed the production question bank — run 2026-08-07 and already
+      stale.** Actions → **Seed content** → Run workflow.
+      399 questions land in `v2_questions` — idempotent and, since D34,
+      cheap to repeat.
+
+      **It is unticked on purpose.** That run wrote **389**, and the bank is
+      **399** as of D68's v18 sync — so ten questions are in the repo and not
+      in production. This is exactly the standing-instruction case: the box
+      is not "seeded once", it is "seeded since the last content change", and
+      every promotion (D30, D33) moves it back. **Reseed after merging
+      anything that touches `v2content.ts`.**
       `SHIP-CHECKLIST §1`.
 
       **This was the first successful write to production Firestore, ever**,
@@ -448,8 +454,8 @@ left here is a **recapture against live data**, plus the two forms.
         the Norwegian storefront is unaffected either way; what is at stake
         is the 27 EU storefronts.
 
-      **Decided 2026-08-07: declare trader, and take the EU (D68).** The
-      home address goes on the listing. D68 has the reasoning and, more
+      **Decided 2026-08-07: declare trader, and take the EU (D69).** The
+      home address goes on the listing. D69 has the reasoning and, more
       usefully, the way out: registering the ENK gives a business address
       that can replace it, which is a second and independent reason to want
       the ENK that D42 parked.

@@ -213,15 +213,55 @@ window.IS_RULE_WORD = {
   attachment: { warm: 'warmth', loyal: 'loyalty', open: 'openness', play: 'playfulness', easy: 'ease' },
 };
 
-// Same picks, but per-dimension so the card can colour-dot each trait.
+// Adjective per pole — the rule reads as a claim ("very curious + warm"), so it
+// needs adjectives, not the nouns the axis labels use. Written out rather than
+// derived from IS_DIM_WORD because those are comparatives ("warmer", "looser")
+// and don't survive a prefix.
+window.IS_RULE_ADJ = {
+  big5: { O: ['practical', 'curious'], C: ['loose', 'disciplined'], E: ['reserved', 'outgoing'], A: ['blunt', 'warm'], N: ['unshakeable', 'sensitive'] },
+  political: { econ: ['left on money', 'pro-market'], auth: ['liberty-first', 'order-first'], foreign: ['nation-first', 'globally-minded'], env: ['growth-first', 'climate-urgent'], tech: ['tech-wary', 'tech-hopeful'], estab: ['system-trusting', 'anti-system'] },
+  values: { future: ['dark on the future', 'hopeful'], circle: ['family-first', 'stranger-minded'], hedonism: ['duty-bound', 'pleasure-first'], meaning: ['happiness-first', 'meaning-seeking'], moral: ['relativist', 'morally certain'], beauty: ['truth-first', 'beauty-first'] },
+  attachment: { warm: ['reserved', 'warm'], loyal: ['light-touch', 'loyal'], open: ['guarded', 'open'], play: ['grounded', 'playful'], easy: ['invested', 'easygoing'] },
+};
+
+// ── the dims that EARN the name, as a claim you can agree or disagree with ──
+// Three corrections over reading |sig − 50|:
+//  1. DISTINCTIVENESS IS MEASURED AGAINST PEOPLE, NOT THE MIDPOINT. Dims have
+//     different baselines (people average A:65, N:48), so a signature at A:80 is
+//     only mildly warm for a person while A:50 is genuinely cold — the midpoint
+//     reading calls the first defining and the second an absence of opinion.
+//  2. ALWAYS AT LEAST TWO. A fixed magnitude cut starves exactly the types that
+//     need explaining most: the modal, moderate ones (Liberal Centrist, 18% of
+//     people) clear it on one dim, while extreme rare types clear it on three.
+//     Rank by deviation and take the top 2, with a 3rd when it's still real.
+//  3. MODERATION IS A POSITION. A type sitting at the population average on a
+//     dim gets said out loud ("even on money"), not dropped.
+const RULE_STRONG = 18;  // dim points from the population — a defining lean
+const RULE_REAL = 8;     // ...a lean worth naming at all
+
 window.IS_typeRuleParts = function (testKey, dims, a, max) {
   if (!a || !dims) return [];
-  const words = (window.IS_RULE_WORD || {})[testKey] || {};
-  return dims.filter(d => a.sig[d.id] != null)
-    .map(d => ({ d, m: a.sig[d.id] - 50 }))
-    .filter(x => Math.abs(x.m) >= 18)
-    .sort((x, y) => Math.abs(y.m) - Math.abs(x.m)).slice(0, max || 2)
-    .map(x => ({ id: x.d.id, high: x.m > 0, text: (x.m > 0 ? 'high ' : 'low ') + (words[x.d.id] || String(x.d.label || x.d.id).toLowerCase()) }));
+  const nouns = (window.IS_RULE_WORD || {})[testKey] || {};
+  const adjs = (window.IS_RULE_ADJ || {})[testKey] || {};
+  const avg = IS_TEST_AVG[testKey] || {};
+  const cap = max || 3;
+  const scored = dims.filter(d => a.sig[d.id] != null).map(d => {
+    const base = avg[d.id] != null ? avg[d.id] : 50;
+    return { d, dev: a.sig[d.id] - base };
+  }).sort((x, y) => Math.abs(y.dev) - Math.abs(x.dev));
+  // top 2 always; a 3rd only if it is still a real lean
+  const picked = scored.slice(0, Math.min(cap, Math.max(2, scored.filter(x => Math.abs(x.dev) >= RULE_REAL).length)));
+  return picked.map(x => {
+    const mag = Math.abs(x.dev);
+    const band = mag >= RULE_STRONG ? 'strong' : mag >= RULE_REAL ? 'lean' : 'even';
+    const pair = adjs[x.d.id];
+    const noun = nouns[x.d.id] || String(x.d.label || x.d.id).toLowerCase();
+    const adj = pair ? pair[x.dev > 0 ? 1 : 0] : (x.dev > 0 ? 'high ' : 'low ') + noun;
+    return {
+      id: x.d.id, high: x.dev > 0, band, dev: x.dev,
+      text: band === 'even' ? 'even on ' + noun : band === 'strong' ? 'very ' + adj : adj,
+    };
+  });
 };
 
 // Nearest type → { list, idx, dists (priored), fits (raw), rms, gap }

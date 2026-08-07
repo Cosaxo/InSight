@@ -6853,7 +6853,71 @@ said "barely moves reads". That was true when the model only counted boots.
 
 ---
 
-## D68 · EU trader status: a home address on the listing, in exchange for 27 storefronts
+## D68 · The v18 sync: a revision arrives, and the ratchets price it honestly
+
+**Decided:** 2026-08-07 · **Status:** binding (same standing as D43, which it
+extends)
+
+`design/InSight_standalone_18.html` supersedes v17, by the same method D43
+made binding: a **three-way merge** — v17 as base, v18 as theirs, the tree as
+ours — never a re-port. Fourteen of the 93 modules changed plus the page
+styles, so this was a revision, not v17's restructuring; `design/README.md`
+carries the change list. What follows is only what required a decision.
+
+### What this repo kept, again
+
+The D43 rule — *the prototype wins on design, this repo wins on enforcement,
+and neither wins by default* — resolved every conflict this round too:
+
+| Kept from this tree | Because |
+| --- | --- |
+| The `noCrowd` width gate on vote fills (world-feed) | v18 re-styles the fill (`WPAL.wash`); the k-floor decides whether it has a width at all (D1). Both landed. |
+| Imports over `window.*` for every v18-new cross-module read | v18's Explore reads `IS_TEST_RESULTS`/`IS_DATA` off the bridge; here they are the named exports the D39 conversions already made. Coupling held at 539 — a sync that adds reads is exactly where the ratchet earns its keep. |
+| `WORLD_FEED_QS` stays a shared global in the new Explore | Four writers and a live/demo boundary (D39's `world-catalogs.js` note). Converting it is a design change, not a sync. |
+| The repo's duel-bank voice and ids (`content/duel-questions.json`, D32/D40) | v18's ten mirror questions and four rebuckets landed in the JSON at their ladder positions with fresh ids (`040`–`049`); the repo's second-person phrasings of existing questions stayed. Mirror prompts keep v18's "they" voice on purpose — in that domain you answer about your partner. |
+| Escape-stays-in-the-dialog on the relmap legend input | The add-circle input this tree had already guarded is gone; the guard moved onto v18's rename-in-place input. Escape closing the whole map mid-rename is the bug it existed for. |
+
+**Two prototype slips were not copied**, per the D43 braces precedent, each
+with the reasoning at the site: v18's `setScale` rebuilds the roster without
+re-applying the name-keyed relation overrides (a persisted drag visibly
+reverts on a scale switch), and its drop-ring block reads a variable the
+enclosing scope never declares — `no-undef`, ON for this layer since two
+`ReferenceError`s shipped, refused it here.
+
+### What the sync moved, mechanically
+
+The ten mirror questions grow the seeded bank 389 → 399. The seed keys docs
+by explicit id and only refuses option-set edits (D58), so this is ordinary
+content growth: new docs create active, `seq` renumbers behind them, and the
+duo rotation remaps under `% bank.length` — the accepted cost of any duel-bank
+growth, distinct from the romantic pool's `active: false` arrival, whose
+concern was wrong-pool rotation on pre-mode clients, not remapping.
+`check:figures` caught all five prose figures; COSTS.md's measured 84.9 KiB
+is annotated rather than re-guessed.
+
+### The ratchets moved the right way
+
+Coupling: **539, unchanged** — every v18-new cross-module reference entered as
+an import. Accessibility: **9 → 8**, because the deleted add-circle input took
+its `autoFocus` with it. Suppressions: 30 → 31 — one `exhaustive-deps` defer
+on Explore's cache-invalidation dep, recorded like the rest. Entry chunk 837
+KB, under the 850 ceiling.
+
+### What now proves it
+
+`check:globals`, lint (`no-undef` on), `tsc -b`, `check:a11y`,
+`check:content`, `check:neighbors`, `check:figures`, `check:bundle`, the 445
+client tests (444 + the Explore mount case this sync added) and 195
+functions tests — all green at this commit, re-run after merging main's
+D66/D67 (which is why this record is D68: both branches minted a D66, and
+the merge renumbered this one).
+`scripts/style-diff.mjs` now points at v18 and, as with D43, has not been run
+against it here (needs a browser and a dev server); it remains the next cheap
+thing anyone touching this layer can do.
+
+---
+
+## D69 · EU trader status: a home address on the listing, in exchange for 27 storefronts
 
 **Date:** 2026-08-07 · **Status:** Adopted
 

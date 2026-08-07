@@ -5,6 +5,7 @@
 // guards the wiring in CI.
 import React from 'react';
 import { IS_DATA } from './sample-data.js';
+import { WPAL } from './world-palette.js';
 
 // scenes.js — Scenes are the one follow list shared by the whole app: the orbit
 // (Mirror) is where you see and manage them, the World feed chip row is the same
@@ -31,7 +32,7 @@ import { IS_DATA } from './sample-data.js';
     const c = g && (IS_DATA.interestCats || []).find((x) => x.id === g.cat);
     return c ? c.hue : null;
   };
-  const colorOf = (id) => { const h = hueOf(id); return h == null ? 'var(--accent)' : `color-mix(in oklch, var(--accent) 45%, oklch(0.52 0.12 ${h}))`; };
+  const colorOf = (id) => { const h = hueOf(id); return h == null ? 'var(--accent)' : WPAL.c(`oklch(0.52 0.12 ${h})`); };
   const listeners = new Set();
   const persist = () => { try { localStorage.setItem(LS, JSON.stringify([...ensure()])); } catch (e) { /* localStorage can throw: private mode, quota, disabled storage. Persistence here is best-effort and the in-memory state stays correct. */ } listeners.forEach((f) => f()); };
   // The purge (data/live.ts, D51): null the cache and ensure() re-derives

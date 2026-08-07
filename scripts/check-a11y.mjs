@@ -98,7 +98,7 @@ import { ESLint } from "eslint";
 const BASELINE = {
   "src/v2/spec/app-shell.jsx": 1,
   "src/v2/spec/group-daily.jsx": 1,
-  "src/v2/spec/relmap.jsx": 2,
+  "src/v2/spec/relmap.jsx": 1,
   "src/v2/spec/suggestions.jsx": 1,
   "src/v2/spec/tweaks-panel.jsx": 1,
   "src/v2/spec/world-feed.jsx": 1,

@@ -614,13 +614,11 @@
    Same spec, one place, so two micro-labels in the same row can't disagree
    about size, weight or tracking. Swatch colour comes in as --lgc. */
 .klabel { font-family: var(--sans); font-size: 10.5px; font-weight: 700; letter-spacing: 0.09em; text-transform: uppercase; color: var(--ink-3); }
-.klabel--ink { color: var(--ink-2); }
 .klabel--accent { color: var(--accent-ink); }
 .legend { display: flex; flex-wrap: wrap; align-items: center; gap: 5px 16px; }
 .legend > * { display: inline-flex; align-items: center; gap: 6px; font-family: var(--sans); font-size: 10.5px; font-weight: 700; letter-spacing: 0.09em; text-transform: uppercase; color: var(--ink-3); white-space: nowrap; }
 .lg-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; box-sizing: border-box; background: var(--lgc, var(--ink-3)); box-shadow: inset 0 0 0 0.5px color-mix(in oklch, var(--ink) 16%, transparent); }
 .lg-dot[data-hollow] { background: var(--surface); border: 1.6px solid var(--lgc, var(--ink-3)); }
-.lg-bar { width: 11px; height: 2.5px; border-radius: 99px; flex-shrink: 0; background: var(--lgc, var(--ink-3)); }
 
 /* Card */
 .card {
@@ -1411,6 +1409,33 @@ button.card:active,
 /* the band's scrim is set inline in renderDuel (one value over photography, a
    lighter one over generated art) — nothing to override here */
 
+/* ── Accent ramp experiments · Tweaks → Aesthetic → Accents ──────────────────
+   Grounded in "Accent ramp study.html", which solves each hue against the sRGB
+   boundary. The flat :root ramp writes C .14 at L .52 for all seven — a value
+   three of them cannot hold (World .108, Groups .104, Likeness .086 are clipped
+   and ship as something duller and hue-shifted) and four of them could far
+   exceed (violet 282 can hold .277). One number, two opposite errors.
+
+   acc-daily  — the front-door option. Violet alone goes to the .20 house
+     ceiling; petrol drops to the .086 it can actually hold, so the daily's
+     scene palette stops shipping a colour nobody wrote. Lightness untouched,
+     so contrast is unchanged and no ink twin is needed.
+   acc-family — the whole set at one lightness, each hue at its own ceiling.
+     L .555 is the brightest shared lightness where white-on-fill still clears
+     4.5:1, and it sits inside World's own .545–.655 band, so chrome and feed
+     stop reading as two systems. City lands at 4.4:1 — the one ink twin owed. */
+.app.acc-daily { --c-today: oklch(0.52 0.20 282); --c-likeness: oklch(0.52 0.086 195); }
+.app.acc-family {
+  --c-today:    oklch(0.555 0.200 282);
+  --c-around:   oklch(0.555 0.170 40);
+  --c-world:    oklch(0.555 0.115 235);
+  --c-city:     oklch(0.555 0.149 150);
+  --c-groups:   oklch(0.555 0.111 85);
+  --c-people:   oklch(0.555 0.200 8);
+  --c-likeness: oklch(0.555 0.092 195);
+  --c-city-ink: oklch(0.52 0.144 150);
+}
+
 
 /* ═══ next style block ═══ */
 
@@ -1654,6 +1679,11 @@ button.card:active,
   scrollbar-width: none; pointer-events: none;
 }
 .mmt-chips::-webkit-scrollbar { display: none; }
+/* the profile ring is its own selector — the branch rail steps away while the
+   ring holds the stage (the map behind it is already dimmed to nothing), so the
+   ring owns the whole strip above the card and never buries an anchor. */
+.mmt-chips { transition: opacity 0.26s ease, transform 0.26s ease; }
+.mmt-root.is-ringstage .mmt-chips { opacity: 0; transform: translateY(-10px); pointer-events: none; }
 .mmt-chipbtn {
   flex: none; display: flex; align-items: center; gap: 7px; pointer-events: auto;
   font-family: var(--sans); font-size: 13px; font-weight: 600; color: var(--ink-2);
@@ -1822,6 +1852,14 @@ button.card:active,
   background: oklch(0.605 0.118 var(--hue));
 }
 .app.dark .mmt-fchip.is-on { background: oklch(0.62 0.12 var(--hue)); color: oklch(0.16 0.02 var(--hue)); }
+.mmt-card-x { z-index: 3; }
+/* the anchor switcher sits at the very top of the card. The opaque bar is the
+   outer element — the scrolling lane inside it carries the edge-fade mask, so
+   the mask never eats the bar's own background. The lane stops short of the
+   close button rather than sliding beneath it. */
+.mmt-achips-bar { margin: -2px -16px 0; padding: 0 0 8px; background: var(--surface-2); }
+.mmt-achips { margin: 0 38px 0 0; padding: 0 4px 2px 16px; }
+.mmt-achips-bar + .mmt-astat-sub { margin-top: 0; }
 
 /* who the group is — one small line above the bars */
 .mmt-gwho { margin-top: 14px; font-family: var(--sans); font-size: 12px; font-weight: 500; color: var(--ink-2); }

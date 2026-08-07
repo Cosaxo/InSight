@@ -222,21 +222,29 @@ export function ResultProfileCard({ testKey, archetype, tagline }) {
             </span>
             {pct >= 100 && fit === 'textbook' ? <span style={{ fontFamily: 'var(--sans)', fontSize: 10.5, fontWeight: 700, letterSpacing: '0.09em', textTransform: 'uppercase', color: cfg.banner, whiteSpace: 'nowrap' }}>textbook fit</span> : null}
           </div>
-          <div style={{ fontFamily: 'var(--sans)', fontSize: 25, fontWeight: 800, letterSpacing: '-0.02em', lineHeight: 1.1, textTransform: 'capitalize', color: `color-mix(in oklch, ${cfg.banner} 78%, var(--ink))`, marginTop: 9 }}>{arch ? arch.list[you].name : archetype}</div>
-          {streak ? <div style={{ fontFamily: 'var(--sans)', fontSize: 12.5, fontWeight: 600, color: `color-mix(in oklch, ${cfg.banner} 72%, var(--ink))`, marginTop: 4, lineHeight: 1.35 }}>with a {streak} streak</div> : null}
-          {(typeLine || tagline) ? <div style={{ fontFamily: 'var(--sans)', fontSize: 13, color: 'var(--ink-2)', marginTop: 6, lineHeight: 1.4, textWrap: 'pretty' }}>{typeLine || tagline}</div> : null}
           {ruleParts.length ? (
-            <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap', marginTop: 11 }}>
-              {ruleParts.map(p => {
+            <div style={{ display: 'flex', alignItems: 'center', gap: 7, flexWrap: 'wrap', marginTop: 10 }}>
+              {ruleParts.map((p, i) => {
                 const h = cfg.hues[p.id] != null ? cfg.hues[p.id] : 40;
+                const w = p.band === 'strong' ? 9 : 7, hh = p.band === 'strong' ? 8 : 6;
                 return (
-                  <span key={p.id} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '3px 10px 3px 8px', borderRadius: 999, background: `color-mix(in oklch, ${rpv2Dot(h)} 11%, var(--surface-2))`, border: `0.5px solid color-mix(in oklch, ${rpv2Dot(h)} 32%, var(--rule))`, fontFamily: 'var(--sans)', fontSize: 12, fontWeight: 700, color: rpv2Deep(h) }}>
-                    <svg width="8" height="7" viewBox="0 0 8 7" style={{ flexShrink: 0, transform: p.high ? 'none' : 'rotate(180deg)' }} role="img" aria-label={p.high ? 'high' : 'low'}><path d="M4 0 L8 7 L0 7 Z" fill={rpv2Dot(h)}></path></svg>{p.text.replace(/^(high|low)\s+/, '')}
-                  </span>
+                  <React.Fragment key={p.id}>
+                    {i ? <span style={{ fontFamily: 'var(--sans)', fontSize: 12, fontWeight: 500, color: 'var(--ink-3)' }}>+</span> : null}
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontFamily: 'var(--sans)', fontSize: 13.5, fontWeight: 700, letterSpacing: '-0.005em', color: rpv2Deep(h) }}>
+                      {p.band === 'even'
+                        ? <svg width="9" height="8" viewBox="0 0 9 8" style={{ flexShrink: 0 }} role="img" aria-label="average"><rect x="0" y="3" width="9" height="2" fill={rpv2Dot(h)}></rect></svg>
+                        : <svg width={w} height={hh} viewBox={`0 0 ${w} ${hh}`} style={{ flexShrink: 0, transform: p.high ? 'none' : 'rotate(180deg)' }} role="img" aria-label={p.high ? 'above average' : 'below average'}><path d={`M${w / 2} 0 L${w} ${hh} L0 ${hh} Z`} fill={rpv2Dot(h)}></path></svg>}
+                      {p.text}
+                    </span>
+                  </React.Fragment>
                 );
               })}
+              <span aria-hidden="true" style={{ fontFamily: 'var(--sans)', fontSize: 13, fontWeight: 500, color: 'var(--ink-3)', opacity: 0.7 }}>{'→'}</span>
             </div>
           ) : null}
+          <div style={{ fontFamily: 'var(--sans)', fontSize: 25, fontWeight: 800, letterSpacing: '-0.02em', lineHeight: 1.1, textTransform: 'capitalize', color: `color-mix(in oklch, ${cfg.banner} 78%, var(--ink))`, marginTop: ruleParts.length ? 3 : 9 }}>{arch ? arch.list[you].name : archetype}</div>
+          {streak ? <div style={{ fontFamily: 'var(--sans)', fontSize: 12.5, fontWeight: 600, color: `color-mix(in oklch, ${cfg.banner} 72%, var(--ink))`, marginTop: 4, lineHeight: 1.35 }}>with a {streak} streak</div> : null}
+          {(typeLine || tagline) ? <div style={{ fontFamily: 'var(--sans)', fontSize: 13, color: 'var(--ink-2)', marginTop: 6, lineHeight: 1.4, textWrap: 'pretty' }}>{typeLine || tagline}</div> : null}
           {rar ? <div style={{ marginTop: 14 }}><RarityField pct={rar.pct} label={rar.label.toLowerCase()} color={cfg.banner} title={`${rar.label.toLowerCase()} sit as far from average as you — also this type: ${sameType.map(p => p.name.split(' ')[0]).join(', ') || 'none of yours'}`} /></div> : null}
         </div>
       </div>

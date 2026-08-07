@@ -3043,9 +3043,26 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "test": null
  },
  {
-  "id": "duo-003",
+  "id": "duo-040",
   "surface": "duo",
   "seq": 3,
+  "type": "binary",
+  "domain": null,
+  "prompt": "The word that fits them best?",
+  "options": [
+   "Warm",
+   "Sharp",
+   "Steady",
+   "Restless"
+  ],
+  "topic": null,
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "duo-003",
+  "surface": "duo",
+  "seq": 4,
   "type": "binary",
   "domain": null,
   "prompt": "Running late. The text says…",
@@ -3061,7 +3078,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
  {
   "id": "duo-004",
   "surface": "duo",
-  "seq": 4,
+  "seq": 5,
   "type": "binary",
   "domain": null,
   "prompt": "The food arrives wrong. Say something?",
@@ -3074,9 +3091,26 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "test": null
  },
  {
+  "id": "duo-041",
+  "surface": "duo",
+  "seq": 6,
+  "type": "binary",
+  "domain": null,
+  "prompt": "Their best quality, in one word?",
+  "options": [
+   "Loyalty",
+   "Humour",
+   "Honesty",
+   "Nerve"
+  ],
+  "topic": null,
+  "axis": null,
+  "test": null
+ },
+ {
   "id": "duo-005",
   "surface": "duo",
-  "seq": 5,
+  "seq": 7,
   "type": "binary",
   "domain": null,
   "prompt": "Lost in a new city. They…",
@@ -3092,7 +3126,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
  {
   "id": "duo-006",
   "surface": "duo",
-  "seq": 6,
+  "seq": 8,
   "type": "binary",
   "domain": null,
   "prompt": "A free Saturday, zero plans. Bliss or restless?",
@@ -3107,7 +3141,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
  {
   "id": "duo-007",
   "surface": "duo",
-  "seq": 7,
+  "seq": 9,
   "type": "binary",
   "domain": null,
   "prompt": "Karaoke machine appears.",
@@ -3121,9 +3155,25 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "test": null
  },
  {
+  "id": "duo-042",
+  "surface": "duo",
+  "seq": 10,
+  "type": "binary",
+  "domain": null,
+  "prompt": "In a room of strangers, they are…",
+  "options": [
+   "Working the room",
+   "Talking to one person",
+   "Near the door"
+  ],
+  "topic": null,
+  "axis": null,
+  "test": null
+ },
+ {
   "id": "duo-008",
   "surface": "duo",
-  "seq": 8,
+  "seq": 11,
   "type": "binary",
   "domain": null,
   "prompt": "Someone's joke goes too far. Laugh it off, or say so?",
@@ -3138,7 +3188,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
  {
   "id": "duo-009",
   "surface": "duo",
-  "seq": 9,
+  "seq": 12,
   "type": "binary",
   "domain": null,
   "prompt": "A big decision lands. How do you call it?",
@@ -3155,7 +3205,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
  {
   "id": "duo-010",
   "surface": "duo",
-  "seq": 10,
+  "seq": 13,
   "type": "binary",
   "domain": null,
   "prompt": "Cry in a film — freely, or fight it?",
@@ -3168,9 +3218,26 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "test": null
  },
  {
+  "id": "duo-043",
+  "surface": "duo",
+  "seq": 14,
+  "type": "binary",
+  "domain": null,
+  "prompt": "You would call them first for…",
+  "options": [
+   "A crisis",
+   "A laugh",
+   "Advice",
+   "A favour"
+  ],
+  "topic": null,
+  "axis": null,
+  "test": null
+ },
+ {
   "id": "duo-011",
   "surface": "duo",
-  "seq": 11,
+  "seq": 15,
   "type": "binary",
   "domain": null,
   "prompt": "Ideal holiday day?",
@@ -3184,9 +3251,26 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "test": null
  },
  {
+  "id": "duo-044",
+  "surface": "duo",
+  "seq": 16,
+  "type": "binary",
+  "domain": null,
+  "prompt": "What about them would surprise a stranger?",
+  "options": [
+   "How soft",
+   "How stubborn",
+   "How funny",
+   "How serious"
+  ],
+  "topic": null,
+  "axis": null,
+  "test": null
+ },
+ {
   "id": "duo-012",
   "surface": "duo",
-  "seq": 12,
+  "seq": 17,
   "type": "binary",
   "domain": null,
   "prompt": "A surprise windfall lands. First move?",
@@ -3203,7 +3287,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
  {
   "id": "duo-013",
   "surface": "duo",
-  "seq": 13,
+  "seq": 18,
   "type": "binary",
   "domain": null,
   "prompt": "An old friend owes an apology. Bring it up, or let it go?",
@@ -3218,7 +3302,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
  {
   "id": "duo-014",
   "surface": "duo",
-  "seq": 14,
+  "seq": 19,
   "type": "binary",
   "domain": null,
   "prompt": "Deep talk at 2am, or a proper night of sleep?",
@@ -3231,9 +3315,25 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "test": null
  },
  {
+  "id": "duo-045",
+  "surface": "duo",
+  "seq": 20,
+  "type": "binary",
+  "domain": null,
+  "prompt": "Are they easy to know?",
+  "options": [
+   "Yes",
+   "Takes a while",
+   "No"
+  ],
+  "topic": null,
+  "axis": null,
+  "test": null
+ },
+ {
   "id": "duo-015",
   "surface": "duo",
-  "seq": 15,
+  "seq": 21,
   "type": "binary",
   "domain": null,
   "prompt": "When hurt, you go…",
@@ -3249,7 +3349,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
  {
   "id": "duo-016",
   "surface": "duo",
-  "seq": 16,
+  "seq": 22,
   "type": "binary",
   "domain": null,
   "prompt": "Hear the hard truth, or keep the comfortable silence?",
@@ -3262,9 +3362,26 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "test": null
  },
  {
+  "id": "duo-046",
+  "surface": "duo",
+  "seq": 23,
+  "type": "binary",
+  "domain": null,
+  "prompt": "Their most underrated trait?",
+  "options": [
+   "Patience",
+   "Taste",
+   "Generosity",
+   "Judgement"
+  ],
+  "topic": null,
+  "axis": null,
+  "test": null
+ },
+ {
   "id": "duo-017",
   "surface": "duo",
-  "seq": 17,
+  "seq": 24,
   "type": "binary",
   "domain": null,
   "prompt": "After a brutal week, what refills you?",
@@ -3279,9 +3396,24 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "test": null
  },
  {
+  "id": "duo-047",
+  "surface": "duo",
+  "seq": 25,
+  "type": "binary",
+  "domain": null,
+  "prompt": "Better at giving advice, or taking it?",
+  "options": [
+   "Giving",
+   "Taking"
+  ],
+  "topic": null,
+  "axis": null,
+  "test": null
+ },
+ {
   "id": "duo-018",
   "surface": "duo",
-  "seq": 18,
+  "seq": 26,
   "type": "binary",
   "domain": null,
   "prompt": "A week alone in a cabin. Gift or sentence?",
@@ -3294,9 +3426,26 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "test": null
  },
  {
+  "id": "duo-048",
+  "surface": "duo",
+  "seq": 27,
+  "type": "binary",
+  "domain": null,
+  "prompt": "The role they play between you two?",
+  "options": [
+   "The steady one",
+   "The instigator",
+   "The listener",
+   "The truth-teller"
+  ],
+  "topic": null,
+  "axis": null,
+  "test": null
+ },
+ {
   "id": "duo-019",
   "surface": "duo",
-  "seq": 19,
+  "seq": 28,
   "type": "binary",
   "domain": null,
   "prompt": "Old age: surrounded, or independent?",
@@ -3309,9 +3458,26 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "test": null
  },
  {
+  "id": "duo-049",
+  "surface": "duo",
+  "seq": 29,
+  "type": "binary",
+  "domain": null,
+  "prompt": "What would they want to be remembered for?",
+  "options": [
+   "Kindness",
+   "Their work",
+   "Being fun",
+   "Being right"
+  ],
+  "topic": null,
+  "axis": null,
+  "test": null
+ },
+ {
   "id": "duo-020",
   "surface": "duo",
-  "seq": 20,
+  "seq": 30,
   "type": "binary",
   "domain": null,
   "prompt": "A free evening, both home. Ideal version?",
@@ -3329,7 +3495,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
  {
   "id": "duo-021",
   "surface": "duo",
-  "seq": 21,
+  "seq": 31,
   "type": "binary",
   "domain": null,
   "prompt": "How do they like being woken?",
@@ -3347,7 +3513,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
  {
   "id": "duo-022",
   "surface": "duo",
-  "seq": 22,
+  "seq": 32,
   "type": "binary",
   "domain": null,
   "prompt": "A good apology from them looks like…",
@@ -3365,7 +3531,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
  {
   "id": "duo-023",
   "surface": "duo",
-  "seq": 23,
+  "seq": 33,
   "type": "binary",
   "domain": null,
   "prompt": "You are 20 minutes late to dinner. Their read?",
@@ -3382,7 +3548,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
  {
   "id": "duo-024",
   "surface": "duo",
-  "seq": 24,
+  "seq": 34,
   "type": "binary",
   "domain": null,
   "prompt": "Love lands hardest as…",
@@ -3401,7 +3567,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
  {
   "id": "duo-025",
   "surface": "duo",
-  "seq": 25,
+  "seq": 35,
   "type": "binary",
   "domain": null,
   "prompt": "Mid-argument, they want…",
@@ -3419,7 +3585,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
  {
   "id": "duo-026",
   "surface": "duo",
-  "seq": 26,
+  "seq": 36,
   "type": "binary",
   "domain": null,
   "prompt": "The better anniversary?",
@@ -3436,7 +3602,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
  {
   "id": "duo-027",
   "surface": "duo",
-  "seq": 27,
+  "seq": 37,
   "type": "binary",
   "domain": null,
   "prompt": "Money in this relationship should be…",
@@ -3454,7 +3620,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
  {
   "id": "duo-028",
   "surface": "duo",
-  "seq": 28,
+  "seq": 38,
   "type": "binary",
   "domain": null,
   "prompt": "Their idea of being taken care of?",
@@ -3473,7 +3639,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
  {
   "id": "duo-029",
   "surface": "duo",
-  "seq": 29,
+  "seq": 39,
   "type": "binary",
   "domain": null,
   "prompt": "A whole weekend together, no phones. Bliss or too much?",
@@ -3490,7 +3656,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
  {
   "id": "duo-030",
   "surface": "duo",
-  "seq": 30,
+  "seq": 40,
   "type": "binary",
   "domain": null,
   "prompt": "They had a hard day and did not say so. The tell?",
@@ -3508,7 +3674,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
  {
   "id": "duo-031",
   "surface": "duo",
-  "seq": 31,
+  "seq": 41,
   "type": "binary",
   "domain": null,
   "prompt": "Five years out, they picture…",
@@ -3526,7 +3692,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
  {
   "id": "duo-032",
   "surface": "duo",
-  "seq": 32,
+  "seq": 42,
   "type": "binary",
   "domain": null,
   "prompt": "A big decision that affects you both. They…",
@@ -3544,7 +3710,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
  {
   "id": "duo-033",
   "surface": "duo",
-  "seq": 33,
+  "seq": 43,
   "type": "binary",
   "domain": null,
   "prompt": "Would they tell you a truth that would hurt for a week?",
@@ -3562,7 +3728,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
  {
   "id": "duo-034",
   "surface": "duo",
-  "seq": 34,
+  "seq": 44,
   "type": "binary",
   "domain": null,
   "prompt": "Jealousy shows up in them as…",
@@ -3581,7 +3747,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
  {
   "id": "duo-035",
   "surface": "duo",
-  "seq": 35,
+  "seq": 45,
   "type": "binary",
   "domain": null,
   "prompt": "Kids, someday?",
@@ -3599,7 +3765,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
  {
   "id": "duo-036",
   "surface": "duo",
-  "seq": 36,
+  "seq": 46,
   "type": "binary",
   "domain": null,
   "prompt": "The thing they would never compromise on?",
@@ -3618,7 +3784,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
  {
   "id": "duo-037",
   "surface": "duo",
-  "seq": 37,
+  "seq": 47,
   "type": "binary",
   "domain": null,
   "prompt": "If you needed a year somewhere else, they would…",
@@ -3636,7 +3802,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
  {
   "id": "duo-038",
   "surface": "duo",
-  "seq": 38,
+  "seq": 48,
   "type": "binary",
   "domain": null,
   "prompt": "What would make them feel most loved this year?",
@@ -3655,7 +3821,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
  {
   "id": "duo-039",
   "surface": "duo",
-  "seq": 39,
+  "seq": 49,
   "type": "binary",
   "domain": null,
   "prompt": "Old age, the two of you: side by side, or side by side and busy?",
