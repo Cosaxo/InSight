@@ -109,7 +109,12 @@ jobs:
           # 500 — caught on its first real run, and fixed in both places at
           # once because one instance of a mistake is rarely the only one.
           set -o pipefail
-          node scripts/asc-push.mjs $MODE | tee "$RUNNER_TEMP/asc.log"
+          # 2>&1 so STDERR reaches the log the summary prints. Without it the
+          # summary showed the header, an empty block and "Dry run. Nothing
+          # was written" — which reads as success-with-no-changes while the
+          # script had actually died on a 400. A summary that cannot show a
+          # failure is worse than no summary.
+          node scripts/asc-push.mjs $MODE 2>&1 | tee "$RUNNER_TEMP/asc.log"
 
       - name: Summary
         if: always()
@@ -117,7 +122,15 @@ jobs:
           {
             echo "### App Store metadata — \`${{ inputs.what }}\`"
             echo ""
-            if [ "${{ inputs.apply }}" = "true" ]; then
+            # The failure branch comes FIRST, because it was missing and that
+            # cost a debugging round: a failed run printed "Dry run. Nothing
+            # was written" above an empty block, which reads as
+            # success-with-no-changes. A summary must never describe an
+            # outcome the job did not have.
+            if [ "${{ job.status }}" != "success" ]; then
+              echo "**Failed.** Nothing was written. The error is below — if the block is"
+              echo "empty, the step died before producing output and the step log has it."
+            elif [ "${{ inputs.apply }}" = "true" ]; then
               echo "**Applied.** App Store Connect now matches the repo for this selection."
             else
               echo "**Dry run.** Nothing was written. Re-run with *apply* ticked to write it."

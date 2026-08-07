@@ -74,24 +74,49 @@ beforeAll(async () => {
       if (url.pathname === "/v1/apps") {
         return json(res, { data: [{ id: APP_ID, attributes: { name: "InSight" } }] });
       }
+      // Apple VALIDATES ?include= against the relationships a resource
+      // actually has, and answers 400 for anything else. The stub did not,
+      // which is precisely why asc-push shipped
+      // `appStoreVersions?include=ageRatingDeclaration` green and died on
+      // the first real call. A stub that accepts more than the real API is
+      // not a lenient stub, it is a broken test.
+      const VALID_INCLUDES = {
+        [`/v1/apps/${APP_ID}/appStoreVersions`]: new Set(["appStoreVersionLocalizations", "build"]),
+        [`/v1/apps/${APP_ID}/appInfos`]: new Set(["ageRatingDeclaration", "appInfoLocalizations"]),
+      };
+      const asked = url.searchParams.get("include");
+      if (asked && VALID_INCLUDES[url.pathname]) {
+        const bad = asked.split(",").find((n) => !VALID_INCLUDES[url.pathname].has(n.trim()));
+        if (bad) {
+          res.writeHead(400, { "content-type": "application/json" });
+          return res.end(JSON.stringify({
+            errors: [{
+              title: "A parameter has an invalid value",
+              detail: `'${bad}' is not a valid relationship name`,
+            }],
+          }));
+        }
+      }
+
       if (url.pathname === `/v1/apps/${APP_ID}/appStoreVersions`) {
         return json(res, {
           data: [
             // A live version FIRST, to prove the editable one is chosen by
             // state rather than by position.
             { id: "ver-live", attributes: { appStoreState: "READY_FOR_SALE" }, relationships: {} },
-            {
-              id: VERSION_ID,
-              attributes: { appStoreState: "PREPARE_FOR_SUBMISSION" },
-              relationships: {
-                ageRatingDeclaration: { data: { type: "ageRatingDeclarations", id: DECL_ID } },
-              },
-            },
+            { id: VERSION_ID, attributes: { appStoreState: "PREPARE_FOR_SUBMISSION" }, relationships: {} },
           ],
         });
       }
       if (url.pathname === `/v1/apps/${APP_ID}/appInfos`) {
-        return json(res, { data: [{ id: "info-1" }] });
+        // ageRatingDeclaration lives HERE, not on the version — the split
+        // Apple actually implements, and the one the 400 above taught.
+        return json(res, { data: [{
+          id: "info-1",
+          relationships: {
+            ageRatingDeclaration: { data: { type: "ageRatingDeclarations", id: DECL_ID } },
+          },
+        }] });
       }
       if (url.pathname === "/v1/appInfos/info-1/appInfoLocalizations") {
         return json(res, {
