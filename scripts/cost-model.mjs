@@ -19,6 +19,7 @@
 import {
   costModel, authCost, writesPerSec, B, SCENARIOS,
   firestoreCost, functionsCost, totalCost,
+  BYTES, CONTENTION_DAU,
 } from "./cost-arith.mjs";
 
 const regional = process.argv.includes("--regional");
@@ -43,16 +44,23 @@ for (const [dau, mature, label] of SCENARIOS) {
   );
 }
 
+// Columns derived from the model's own keys, not listed here. The previous
+// version named four and the model grew to six (D67) — the totals moved and
+// the columns did not, which is the exact shape of the defect D47 found one
+// layer up. A printer that cannot go stale is worth six lines.
 console.log("\nreads per user per day, by source — the decomposition is the finding");
-console.log("     DAU     boot   top-up   reseed  fan-out    total");
-console.log("-".repeat(54));
-for (const [dau, mature] of SCENARIOS) {
-  const { r } = model(dau, mature);
-  const t = Object.values(r).reduce((a, b) => a + b, 0);
-  console.log(
-    int(dau).padStart(8) + int(r.boot).padStart(9) + int(r.topUp).padStart(9) +
-    int(r.reseed).padStart(9) + int(r.fanOut).padStart(9) + int(t).padStart(9),
-  );
+{
+  const keys = Object.keys(model(SCENARIOS[0][0], SCENARIOS[0][1]).r);
+  const w = 9;
+  console.log("     DAU" + keys.map((k) => k.padStart(w)).join("") + "total".padStart(w));
+  console.log("-".repeat(8 + w * (keys.length + 1)));
+  for (const [dau, mature] of SCENARIOS) {
+    const { r } = model(dau, mature);
+    const t = Object.values(r).reduce((a, b) => a + b, 0);
+    console.log(
+      int(dau).padStart(8) + keys.map((k) => int(r[k]).padStart(w)).join("") + int(t).padStart(w),
+    );
+  }
 }
 
 console.log("\nwith both read fixes: static bank + polled deck aggregates");
@@ -65,6 +73,41 @@ for (const [dau, mature] of SCENARIOS) {
     int(dau).padStart(8) + ("$" + money(totalCost(after.cost))).padStart(15) +
     ("$" + money(totalCost(before.cost) - totalCost(after.cost))).padStart(12),
   );
+}
+
+// Egress is the softest line in the model — a document-size estimate times a
+// price this project has never been billed for — so it prints as a BAND
+// rather than a number. The swing variable is how many users fill the
+// optional Basics card, because that is what puts a `by` breakdown in the
+// published aggregate the fan-out ships on every delivery.
+console.log("\negress band — published-aggregate size is the swing variable (D67)");
+console.log(`     DAU   ${String(BYTES.aggDocLow / 1000 + " KB").padStart(11)}` +
+  `${String(BYTES.aggDoc / 1000 + " KB").padStart(12)}${String(BYTES.aggDocHigh / 1000 + " KB").padStart(12)}`);
+console.log("-".repeat(43));
+for (const [dau, mature] of SCENARIOS) {
+  const at = (k) => "$" + money(model(dau, mature, { aggBytes: k }).cost.egress);
+  console.log(
+    int(dau).padStart(8) + at("aggDocLow").padStart(11)
+    + at("aggDoc").padStart(12) + at("aggDocHigh").padStart(12),
+  );
+}
+
+// The claim COSTS.md used to make about its own shape: that below 50k DAU
+// the bill is boot and top-up. It never was, and post-D67 it is not close.
+console.log("\nwhere the fan-out overtakes every FLAT source combined");
+{
+  const flatOf = (dau, mature) => {
+    const { r } = model(dau, mature);
+    return r.boot + r.topUp + r.reseed + r.rules + r.server;
+  };
+  let lo = 100, hi = 500_000;
+  while (hi - lo > 1) {
+    const mid = Math.floor((lo + hi) / 2);
+    if (model(mid, true).r.fanOut < flatOf(mid, true)) lo = mid; else hi = mid;
+  }
+  console.log(`  crossover at DAU ${int(hi)} (flat sources ${int(flatOf(hi, true))} reads/user/day)`);
+  console.log(`  D7's write-contention wall is at DAU ${int(CONTENTION_DAU)} — `
+    + (hi > CONTENTION_DAU ? "the wall still binds first" : "the READ line crosses FIRST"));
 }
 
 console.log("\nD7 write-contention wall (~1 write/sec/document on the shared daily)");

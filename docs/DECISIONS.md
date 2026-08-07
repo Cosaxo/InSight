@@ -6748,3 +6748,105 @@ design, D1 — not unbuilt); `scenes.js`'s follow list; the catalogue pick
 cards carrying `q.catalog`; and `daily-questions.js`'s non-world
 audiences, where only the World distribution is swapped for the real
 aggregate.
+
+
+---
+
+## D67 · The cost model was counting one kind of read, and calling it the bill
+
+**Date:** 2026-08-07 · **Status:** Adopted (owner: "now update COSTS.md with
+the corrected numbers"). Implements the corrections D64 listed and did not
+make; supersedes the read decomposition in `docs/COSTS.md` and the four-source
+claim in `scripts/cost-arith.mjs`.
+
+**The defect, in one sentence.** `costModel` counted reads the CLIENT issues —
+boot, agg top-up, reseed delta, listener fan-out — and every other read on the
+invoice was billed at zero, because there was no term for it.
+
+Zero is a number, and it was the wrong one. Three categories were missing:
+
+- **Security-rule reads.** Every `get()` and `exists()` inside a rule is a
+  billed read charged to the project, on top of the operation that triggered
+  it. The answer-create paths do four: one distinct document for a world
+  answer (`v2_questions/{aid}`, touched three times), three for a duel.
+- **Reads issued by Cloud Functions.** The aggregate transaction reads two
+  documents per world answer. The nightly velocity scan (D54) reads *every
+  ledger entry written that day* — one per world answer, a term the size of
+  the top-up and reseed combined, and entirely invisible. The reveal pipeline
+  reads `(4 + 3m)/m` per member per group-day.
+- **Bytes.** Index entries are billed as storage and the model charged a 1.0
+  multiplier; network egress is billed per GiB and the model charged nothing,
+  having counted document *count* and never document *size* — which is
+  precisely backwards for a fan-out whose every delivery ships the published
+  aggregate whole.
+
+Together: **+20 reads per user per day, flat in DAU**, and roughly **+50% on
+every billed row** ($5.17 → $7.26 at 5 k DAU, $175 → $247 at 50 k, $11,910 →
+$17,166 at 500 k).
+
+**Measured, not estimated, where it mattered.** The two read terms are counts
+of call sites in the shipped rules file and the shipped functions, not
+guesses. One of them turned on a fact worth writing down: **repeated `get()`
+of the same document inside one rule evaluation is free.** Firestore caps
+document accesses at 10 per single-document request; a probe rule doing
+fifteen `get()`s of one document passes, while eleven `get()`s of eleven
+documents is refused. The limit counts distinct documents, so the evaluator's
+cache is real and billing sees the same cache. Counted un-deduped the rule
+term would be 14 rather than 6 — a 2.3× error in the direction of alarm.
+
+**What D64 got wrong, corrected here.** D64 said the fan-out already overtakes
+every other read source at 10,400 DAU — *below* D7's 14,400-DAU write wall —
+and that COSTS.md's "wall 1 before wall 2 is the good ordering" claim was
+therefore broken. Implementing the very terms D64 said were missing moves the
+crossover the **other way**: the flat baseline the fan-out has to beat went
+from 26 reads/user/day to 46, so the crossover is at **18,220 DAU** and the
+ordering holds with a wider margin than before (3,800 DAU rather than 2,000).
+D64's arithmetic was right on its own inputs and wrong on the model's, which
+is the argument for implementing a correction rather than recording it.
+
+`cost-model.mjs` now solves for that crossover rather than quoting it. The
+50,000 in the old walls list came from nowhere in particular.
+
+**The three things that keep this from rotting.**
+
+1. **The decomposition printer derives its columns from the model's keys.**
+   The old one named four; the model grew to six and the totals moved while
+   the columns did not — the same defect D47 found, one layer up. A printer
+   that cannot go stale is worth six lines.
+2. **Tripwires on the hand counts** (`scripts/pulse.test.mjs`). RULE_READS and
+   TRIGGER_READS cannot be regex-derived — a regex that tried would be a
+   second, silently-wrong implementation of Firestore's evaluator — so they
+   are counted by hand and the test watches the *call-site totals* they were
+   counted over. Add a `get()` to a rule and the test fails naming the block
+   to recount. Verified by adding one.
+3. **`docs/COSTS.md` joins `check:figures`.** It was covered by nothing, which
+   is how it came to quote a 369-document bank two promotion cycles after the
+   bank reached 389. Only the two INPUTS are gated — the bank's document count
+   and its wire size — because a dollar figure is an *output* of
+   `cost-model.mjs`, and re-deriving it in the figure gate would be the second
+   copy of the model that `cost-arith.mjs` exists to prevent.
+
+**The soft numbers, grouped so that they are visible.** `BYTES` holds the
+published-aggregate size and the index multiplier, and it is the softest block
+in the file: document-size estimates times a price this project has never been
+invoiced for. The aggregate's size is not knowable before launch — it depends
+on how many users fill the optional Basics card, which is what puts a `by`
+breakdown in the document — so egress prints as a **band** (0.3 / 2.4 / 7 KB
+per aggregate → $7 / $51 / $147 per month at 50 k DAU) and the headline table
+charges the middle. A 20× band is still worth having when the alternative is
+billing it at zero.
+
+**What is still not modelled, listed rather than discovered later:** Cloud
+Logging volume, the catalog trigger's third read (deliberate — catalog is not
+live, D14), function retries under `retry: true`, the moderation jobs, and
+callable-response egress. None is believed material at any modelled size.
+That is exactly what was believed about rule and server reads before this
+record, so the list is in COSTS.md to be checked rather than trusted.
+
+**Not done.** The `answers` index exemptions (D64) cut the index multiplier
+from roughly 5 to 1.4, which is why the storage line is small enough to leave
+as a single estimated multiplier rather than a per-collection model. And the
+engagement sensitivity line in COSTS.md is now the interesting one: three of
+the six read sources are charged per *answer*, so doubling answers per user
+moves reads +42% / +80% / +97% at 5 k / 50 k / 500 k DAU, where the old model
+said "barely moves reads". That was true when the model only counted boots.
