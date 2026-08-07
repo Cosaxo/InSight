@@ -1,9 +1,18 @@
 # Working in this repo
 
-InSight is a two-tab app (daily · mirror): one blind question a day, then
-how everyone split; plus sealed group/1v1 duels revealed the next day.
-React 19 + TypeScript + Vite, Capacitor shells for iOS/Android, Firebase
-(anonymous-first auth, Firestore, Cloud Functions).
+InSight is a two-tab app (daily · mirror). The **daily** tab is where you
+answer: one blind question a day, a finite feed under it, and sealed
+group/1v1 duels revealed the next day. The **mirror** tab is what those
+answers become — seven stops from *you* to *the world*, each reading the
+same k-floored aggregates through a different cut of the anchors an
+answer carried when it was written, plus the Map that files every answer
+you've given into a constellation. Answering is the smaller half — the
+Mirror's modules outweigh the daily's and the feed's put together — and
+[`docs/MIRROR.md`](docs/MIRROR.md) is the read path: which stop draws
+what, from where, and which parts are still prototype data. Read it
+before changing anything on that tab. React 19 + TypeScript + Vite,
+Capacitor shells for iOS/Android, Firebase (anonymous-first auth,
+Firestore, Cloud Functions).
 
 The product's claim is that its privacy guarantees are **enforced**, not
 promised. That is the lens for most decisions here: if the UI says
@@ -129,6 +138,19 @@ an emergency rules fix.
   would silently miss every v2 function. `check:fn-runtime` guards it.
 - **Answers are create-only and immutable.** Not an oversight — it is what
   makes the counts honest (D5). Do not add an update path.
+- **A live Mirror stop has no lens row.** The demo field bodies carry
+  Answers · People · Compare · Scores · Explore; every stop that has a
+  real source replaces the whole body with one panel (`LiveCohortBody`,
+  `LiveGroupsMirrorBody`, the Map), so live mode ships the ruler without
+  the lenses. Four of the five have no live data source yet, and a lens
+  invented to fill the row would be the fabrication D1 forbids
+  (docs/MIRROR.md §3).
+- **`window.MapStats` is deterministic mock data, in live mode too.** It
+  drives how far a Map dot sits from the centre and every "people who
+  share this trait answered…" line. The answers and their placement are
+  real once live; how *typical* they are is not, and the You stop shows
+  no preview badge because that badge is keyed to population
+  (docs/MIRROR.md §5).
 - **`src/v2/spec/` is the only copy of the spec layer.** The extracted
   prototype modules (`design/spec-modules/`) were deleted 2026-07-29 once
   the port was complete and they had diverged — they live in git history.

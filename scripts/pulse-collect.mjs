@@ -83,10 +83,14 @@ export function collectCost(regional) {
       },
       {
         name: "Deck listener fan-out overtakes every other read source",
-        bindsAtDau: 50_000,
+        // Solved rather than asserted (D67). It was 50_000, which came from
+        // nowhere; the crossover is where DAU/400 passes the flat sources,
+        // and adding D67's rule and server reads pushed it LATER by raising
+        // the baseline they have to beat from 26 reads/user/day to 46.
+        bindsAtDau: 18_200,
         kind: "cost",
         instrumented: false,
-        note: "DAU²/400 reads/day — 88% of the bill at 500k DAU. Fix is polling, not architecture",
+        note: "DAU²/400 reads/day — 96% of all reads at 500k DAU. Fix is polling, not architecture",
         source: "docs/COSTS.md finding 2",
       },
       {
@@ -204,6 +208,10 @@ export function collectPipeline() {
     { surface: "feed", count: feed.questions.length, source: "content/feed-questions.json" },
     { surface: "duel · group", count: duel.group.length, source: "content/duel-questions.json" },
     { surface: "duel · 1v1", count: duel.oneVsOne.length, source: "content/duel-questions.json" },
+    // Seeded active:false until the mode-aware client is the fleet (D40
+    // part 4) — still bank docs, so still counted; the two-path bank-size
+    // check in pulse.test.mjs is what caught this row missing.
+    { surface: "duel · romantic", count: (duel.romantic ?? []).length, source: "content/duel-questions.json" },
     { surface: "learn", count: learn.cards.length, source: "content/learn-questions.json" },
     {
       surface: "test items",

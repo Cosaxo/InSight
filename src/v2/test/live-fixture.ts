@@ -24,7 +24,21 @@
 // states. The counts below exist so cards have something to lay out; the
 // assertions in the live tests are about which ELEMENTS appear, which is a
 // property of the gates, not of the numbers.
+//
+// WHY IT INSTALLS ONTO THE REAL SINGLETON rather than beside it. live.ts ends
+// with `window.LIVE = LIVE` — the global and the module's default export are
+// ONE object in the app. This fixture used to assign a second object to the
+// global and leave the export alone, which was invisible while every consumer
+// read `window.LIVE`, and stopped being invisible the moment a converted
+// module imported the binding instead (map-anchors.js). A spec module would
+// then see `enabled: false` while the rendered tab beside it saw the fixture.
+// Two objects that have to agree is the exact bug this fixture exists to
+// catch, so it does not create one: the hand-built members below are defined
+// onto the imported singleton, and restore() puts its own descriptors back.
+// Importing live.ts is not booting it — the un-booted singleton is inert
+// (`enabled: false`, no network), which is what the paragraph above rules out.
 
+import realLive from "../data/live";
 import { LIVE_MEMBERS, LIVE_SOCIAL_MEMBERS } from "./live-surface";
 
 type Dict = Record<string, unknown>;
@@ -36,6 +50,13 @@ export interface LiveFixtureOptions {
   demoInProd?: boolean;
   /** The viewer's city anchor, "" for a profile that has not picked one. */
   myCity?: string;
+  /**
+   * The viewer's anchors (D8), as `LIVE.anchors()` returns them. Defaults
+   * to `{}` — a real account that has not filled the Basics card in, which
+   * is the state the Map's anchor ring used to paper over with the sample
+   * persona's age, job and education.
+   */
+  anchors?: Record<string, string>;
   /**
    * How many live world cards WORLD_FEED_QS carries (default 1). The feed
    * weaves one LENS card in after every 9th world card, so a case that needs
@@ -104,6 +125,8 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
     joinGroup: async () => ({ gid: "g_test", name: "Test" }),
     leaveGroup: async () => ({ gid: "g_test", deleted: false }),
     voteDuel: async () => {},
+    setDuoMode: async () => {},
+    romanticPoolReady: () => false,
   };
 
   const LIVE: Dict = {
@@ -145,6 +168,7 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
       listeners.add(fn);
       return () => listeners.delete(fn);
     },
+    anchors: () => ({ ...(opts.anchors ?? {}) }),
     saveDisplayName: async () => {},
     saveAnchors: () => {},
     saveTestResult: () => {},
@@ -176,7 +200,28 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
     TEST_FEED_QS: w.TEST_FEED_QS,
     WORLD_FEED_COMMENTS: w.WORLD_FEED_COMMENTS,
   };
-  w.LIVE = LIVE;
+
+  // defineProperty, not Object.assign: four real members (stats, appBuild,
+  // updateAvailable, updateRequired) are getters with no setter, and an
+  // assignment to one of those throws in a module's strict mode.
+  const target = realLive as unknown as Dict;
+  const savedDescriptors = new Map<string, PropertyDescriptor | undefined>();
+  for (const [k, v] of Object.entries(LIVE)) {
+    savedDescriptors.set(k, Object.getOwnPropertyDescriptor(target, k));
+    Object.defineProperty(target, k, {
+      value: v, writable: true, configurable: true, enumerable: true,
+    });
+  }
+  const restoreLive = () => {
+    for (const [k, d] of savedDescriptors) {
+      if (d) Object.defineProperty(target, k, d);
+      else delete target[k];
+    }
+    savedDescriptors.clear();
+    if (saved.LIVE === undefined) delete w.LIVE;
+    else w.LIVE = saved.LIVE;
+  };
+  w.LIVE = target;
 
   // demoInProd is a real user in a LIVE build whose boot did not attach, so
   // the feed falls back to the spec layer's own mock data — demo cards, with
@@ -190,14 +235,7 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
   // q.live gate a second time and leaves the demoInProd check unexercised —
   // confirmed by deleting that check and watching the suite stay green.
   if (opts.demoInProd) {
-    return {
-      LIVE,
-      votes,
-      restore() {
-        if (saved.LIVE === undefined) delete w.LIVE;
-        else w.LIVE = saved.LIVE;
-      },
-    };
+    return { LIVE: target, votes, restore: restoreLive };
   }
 
   // Deliberately NOT the deck's questions. The daily tab renders the deck
@@ -226,10 +264,12 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
   w.WORLD_FEED_COMMENTS = {};
 
   return {
-    LIVE,
+    LIVE: target,
     votes,
     restore() {
+      restoreLive();
       for (const [k, v] of Object.entries(saved)) {
+        if (k === "LIVE") continue;          // restoreLive owns that one
         if (v === undefined) delete w[k];
         else w[k] = v;
       }

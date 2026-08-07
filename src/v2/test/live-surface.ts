@@ -22,7 +22,7 @@
 // member. That is the whole point.
 
 export const LIVE_MEMBERS = [
-  "aggFor", "appBuild", "confirmedVotes", "dailyBank", "deck",
+  "aggFor", "anchors", "appBuild", "confirmedVotes", "dailyBank", "deck",
   "deleteAccount", "demoInProd", "displayName", "enabled", "feedReady",
   "latestBuild", "learnAgg", "learnAnswer", "linkGoogle", "linked", "myCity",
   "myVotes", "ready", "saveAnchors",
@@ -38,5 +38,5 @@ export const LIVE_MEMBERS = [
 export const LIVE_SOCIAL_MEMBERS = [
   "bankQ", "createGroup", "groups", "joinGroup", "leaveGroup",
   "loadRevealHistory", "myDuelVote", "revealFor", "revealHistory",
-  "todayKey", "todayQ", "voteDuel",
+  "romanticPoolReady", "setDuoMode", "todayKey", "todayQ", "voteDuel",
 ];

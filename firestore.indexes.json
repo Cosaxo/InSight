@@ -1,5 +1,15 @@
 {
-  "indexes": [],
+  "indexes": [
+    {
+      "collectionGroup": "v2_takes",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "gid", "order": "ASCENDING" },
+        { "fieldPath": "hidden", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "DESCENDING" }
+      ]
+    }
+  ],
   "fieldOverrides": [
     {
       "collectionGroup": "insight_inbound_impressions",
@@ -30,6 +40,76 @@
           "arrayConfig": "CONTAINS"
         }
       ]
+    },
+    {
+      "collectionGroup": "answers",
+      "fieldPath": "qid",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "answers",
+      "fieldPath": "surface",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "answers",
+      "fieldPath": "optionIdx",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "answers",
+      "fieldPath": "guessIdx",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "answers",
+      "fieldPath": "entity",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "answers",
+      "fieldPath": "gid",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "answers",
+      "fieldPath": "day",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "answers",
+      "fieldPath": "anchors.city",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "answers",
+      "fieldPath": "anchors.country",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "answers",
+      "fieldPath": "anchors.ageBand",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "answers",
+      "fieldPath": "anchors.gender",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "answers",
+      "fieldPath": "anchors.profession",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "answers",
+      "fieldPath": "anchors.education",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "answers",
+      "fieldPath": "anchors.relationship",
+      "indexes": []
     }
   ]
 }

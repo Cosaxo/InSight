@@ -4,6 +4,11 @@ Phase-2 collections. Access model per decisions D1/D3/D5
 (`docs/DECISIONS.md`): answers are owner-only forever; every shared surface
 is server-written (aggregates now, reveals in Phase 3).
 
+This file is the write side. For the read side — which of these documents
+each Mirror stop opens, how the anchors snapshot on an answer becomes the
+cohort the Mirror slices by, and what is still prototype data — see
+[`docs/MIRROR.md`](./MIRROR.md).
+
 ## Collections
 
 ```
@@ -102,12 +107,26 @@ v2_question_aggs/{qid}             the PUBLIC mirror, k-floored
                                    complementary suppression as vote
                                    breakdowns, never a segment-local
                                    long tail
+  duel-{qid} ids (D40 part 3):     the duel signal — written at reveal
+  { plays, total, tooSmall:false,   time (foldDuelSignal), summed across
+    counts?, guessTotal?,           ALL groups. plays = group-days,
+    guessMatches? }                 total = persons (the floor's unit);
+                                   counts only for bank-option questions
+                                   (a pick's optionIdx indexes each
+                                   group's own members — never summed);
+                                   guess fields only when a duo guessed.
+                                   Same floor, crossing-based cadence
+                                   (a reveal folds a batch), no
+                                   timestamp. Never: gids, uids, names,
+                                   member sets, per-group anything
 read: signed-in · write: nobody
 
 v2_groups/{gid}                    groups AND duos (mode: group|duo)
   name, mode, ownerUid, memberUids[≤32; duo ≤2], memberNames{uid:name},
   memberJoinedAt{uid:ts},
-  inviteCode, streak, lastRevealDay, pendingDays[≤6], createdAt
+  inviteCode, streak, lastRevealDay, pendingDays[≤6], createdAt,
+  duoMode? (duo docs only: friends|romantic — which 1v1 pool duelQFor
+  serves the pair; absent = friends. D40 part 4)
   (memberNames rides on the group doc because profiles are owner-only;
   callables maintain it on create/join/leave)
   (memberJoinedAt is read only by revealGroupDay, to scope a day's reveal to
@@ -120,7 +139,9 @@ v2_groups/{gid}                    groups AND duos (mode: group|duo)
   past PENDING_DAYS_KEEP. It is how scheduledDuelReveals finds its work with
   an indexed query instead of reading every group — D19)
 read: members · write: callables only (create/join/leave — codes, caps
-and pairing can't be forged client-side)
+and pairing can't be forged client-side), with ONE member-writable field:
+a duo member may update duoMode alone (closed enum, affectedKeys-pinned —
+the rule expresses the whole invariant, so no callable; D40 part 4)
 
 v2_groups/{gid}/reveals/{day}      materialized by the reveal pipeline
   day, qid, votes { uid: {optionIdx, guessIdx?} }, names, members[], revealedAt
@@ -138,12 +159,23 @@ surfaces are excluded from world aggregates.
 
 v2_takes/{takeId}                  circle-scoped comments (D1; MODERATION.md)
   gid, authorUid, qid?, text ≤280, createdAt (request.time)
-  hidden? { by, policyLine,        soft-hide (D22): the circle loses it,
-    runId, at }                    the author keeps reading it — appeal
-                                   stays possible against visible text
+  hidden  (bool, REQUIRED,         soft-hide (D22): the circle loses it,
+    false on create)               the author keeps reading it — appeal
+  hiddenMeta? { by, policyLine,    stays possible against visible text
+    runId, at }
 create: circle members, shape-validated · update: nobody (an edit
 invalidates the flags cast on what it used to say — delete and repost)
 delete: author · read: circle members, minus hidden-for-non-authors
+
+`hidden` is a required boolean rather than an optional annotation map, and
+a LIST of this collection must carry `where("hidden","==",false)` or it is
+refused. Both facts are one fact: the read gate is `hidden == false`, and
+only an equality on a present field is enforceable against a query — the
+presence test this replaced returned hidden takes to the whole circle on a
+`where("gid","==",…)` while denying the same document to `getDoc` (D65).
+An ordered list needs the `(gid ASC, hidden ASC, createdAt DESC)` composite
+in firestore.indexes.json — the only entry in that file's `indexes` array,
+declared ahead of the UI that will want it.
 (deleteAccount erases a user's takes and flags by uid query)
 
 v2_flags/{takeId}_{uid}            one flag per (take, user), write-only
@@ -164,7 +196,7 @@ MOD_UIDS-gated callables (the D22 confinement)
 ## Functions
 
 - `seedContentV2` (callable; emulator or SEED_ADMIN_UIDS allowlist) — mirrors `/content` question banks
-  into `v2_questions` (369 docs, stable ids `daily-000`, `feed-<id>`,
+  into `v2_questions` (389 docs, stable ids `daily-000`, `feed-<id>`,
   `group-<id>`, `duo-000`, `test-<key>-NN`; idempotent merge; `active` written only on first create, preserving the
   operational kill switch). Bank source:
   `functions/src/v2content.ts`, generated from `/content/*.json`.
@@ -215,7 +247,7 @@ read: signed-in · write: nobody
 ## Read economics (client)
 
 A live boot costs ~20 reads, not ~380: one `v2_meta/app` read decides
-everything. The question bank (369 docs) caches in localStorage keyed by
+everything. The question bank (389 docs) caches in localStorage keyed by
 `contentRev`, and refreshes **incrementally** — one query for docs newer
 than the cache's `updatedAt` cursor, so a promotion cycle costs the
 handful of questions it added rather than the whole bank (D34;
@@ -242,7 +274,7 @@ not per boot. `LIVE.stats` reports `bankSource` / `answersFetched` /
 
 ## Verification
 
-- `npm run test:rules` — 47 rules tests (Firestore + Storage; the v2
+- `npm run test:rules` — 50 rules tests (Firestore + Storage; the v2
   surface, the anonymous-default lens, and the retired-v1 guard).
 - `firestore-tests/e2e-v2-loop.mjs` under
   `firebase emulators:exec --only auth,firestore,functions` — the full

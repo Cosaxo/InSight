@@ -87,10 +87,10 @@ const deployed = new Set(
 // options.force` (lib/firestore/api.js), so `--force --only
 // "firestore:indexes,functions:…"` deletes every index and field override
 // the live project holds that firestore.indexes.json does not name — and
-// that file declares `"indexes": []`. The two the repo asks an operator to
-// create by hand (the v2_agg_events TTL of LAUNCH-RUNBOOK §5.1, and the
-// composite index v2social.ts names for the duel scan) are exactly the
-// shape it removes.
+// that file names exactly one index (the v2_takes list composite, D65).
+// The two the repo asks an operator to create by hand (the v2_agg_events
+// TTL of LAUNCH-RUNBOOK §5.1, and the composite index v2social.ts names
+// for the duel scan) are exactly the shape it removes.
 //
 // The flag is still needed for retry-enabled triggers, hence a split rather
 // than a ban: --force on the functions-only step, no --force on the

@@ -3825,11 +3825,11 @@ safe — the number cannot go back up, so the work can resume opportunistically
 (**convert on touch**: when a feature takes you into a spec file, convert
 the providers it reads first) rather than as a project.
 
-## D40 · Duels get a content lane and a question-level signal — proposed
+## D40 · Duels get a content lane and a question-level signal
 
-**Date:** 2026-08-03 · **Status:** Proposed (a draft awaiting the owner's
-adoption, per this file's header — it binds nothing until the status
-flips)
+**Date:** 2026-08-03 · **Status:** Adopted (owner-directed, 2026-08-06 —
+"do the D40 duel lane"; what shipped and the deltas from this proposal
+are in the D40 adoption record at the end of this file)
 
 **Proposal.** Give the group/1v1 duel banks what every other content
 surface already has: a growth path (a lane under `docs/QUESTION-FARM.md`
@@ -6106,3 +6106,747 @@ alongside the marks, asserted against the generator; the wire to the
 client is unchanged (families are derivable from the disclosed seed
 post-scoring, so nothing new leaks). Rules suite covers the new doc
 paths in both collections.
+## D63 · Near-duplicate questions get a measured gate
+
+**Date:** 2026-08-06 · **Status:** Adopted
+
+**The problem.** Every content lane's dedup rule is "check the whole
+corpus while writing" (QUESTION-FARM.md), and the only automation behind
+it is exact prompt-string equality within a surface (`check-content.mjs`).
+The corpus grows by up to 4 farm questions plus a catalog card per day
+(D33), written by scheduled runs whose recall of the archive is a re-read;
+one reworded word defeats the exact check, and the repo's own fixtures
+prove the class: "Money can buy happiness." (sg07) and "Money buys
+happiness." are the same question sharing not one exact string.
+
+**The gate.** `scripts/question-neighbors.mjs` (`npm run check:neighbors`,
+CI lint job) scores token-set Jaccard over prompt + option/item labels —
+lowercased, diacritics folded, stopwords dropped, plurals stemmed —
+within each surface's dedup domain: the spec daily archive (positional
+dq/dqx ids cross-read from `DQ_BASE`, so failures name real ids), the
+feed bank, both duel banks together (the D40 dedup rule), and `PICK_QS`.
+An in-domain pair ≥ 0.5 fails CI; a pair a human judges genuinely
+distinct is recorded in the script's `ALLOW` map with the reason — a
+recorded exception, not a convenience.
+
+**The threshold, measured not chosen.** At adoption the closest
+legitimate in-domain pairs score 0.286 (daily), 0.222 (feed), 0.300
+(duel), 0.333 (pick), while the deliberate suggestion-board twins score
+1.000 and 0.667 — the gate sits at 0.5, inside a gap that wide on both
+sides. `question-neighbors.test.mjs` (test:scripts, same CI job) pins
+the normalization, the id mapping `ALLOW` keys on, and every gated
+domain staying under the gate — so the gate holds even for a change that
+never ran the check script locally.
+
+**Deliberately outside it, so the next reader does not assume more than
+it checks:**
+
+- **Suggestions ↔ daily is report-only.** Two seeds twin dailies BY
+  DESIGN — the board depicts the picked → promoted story — so gating
+  them would red a green tree. The lookup mode
+  (`check:neighbors -- --candidate "…"`) still lists them, which is how
+  a farm run sees the collision the manual tells it to check.
+- **Learn cards (v1).** Two cards may legitimately share one fact's
+  vocabulary; their dupe bar is the fact, which only a human can check
+  (D32). Extending the metric there needs its own calibration first.
+- **Cross-surface pairs.** Daily and feed may deliberately run the same
+  tension at different depths; a cross-surface twin is an editorial
+  call, not a mechanical one.
+- **Synonym paraphrases.** A lexical metric scores a synonym rewrite at
+  0. This gate is the measurable floor under the writing rule, not its
+  replacement — the manual's re-read stands, now citing the measured
+  top score per question in PR bodies.
+
+## D33 amendment (2026-08-06) · Ordinal splits are measured on their axis
+
+**What was wrong, with the arithmetic.** D33's evenness — `1 − (maxShare
+− 1/n) / (1 − 1/n)` — treats every question as categorical. For `binary`
+/ `choice` / `dilemma` (and the feed's `vote`/`duel`) that is the right
+bar. For the ordinal types it mismeasures both failure modes at once: a
+rating whose crowd all answers 5–8 (shares 0,0,0,0,.2,.3,.3,.2,0,0)
+spreads over enough slots to score **0.778** — graded a strong split
+while being a consensus just above the middle — and a scale at 65%
+agree / 15% disagree scores **0.75** while the UI's own headline for the
+same distribution says "65% agree". With 21 of the 90 live dailies
+ordinal (16 scale + 5 rating), the farm's first real signal would have
+learned "write agreeable scale statements" from a number claiming the
+opposite.
+
+**The fix** (`scripts/scorecard-metrics.mjs`, extracted so the
+arithmetic is testable; `question-scorecard.mjs` routes by type). Scale
+and rating score `sideBalance × spread`: sideBalance = 1 − |low − high|
+/ (low + high) across the midpoint (an exact-middle slot — scale's
+Neutral — sits on neither side; nobody-took-a-side scores 0), spread =
+mean distance from the midpoint over (n−1)/4, capped at 1 so
+uniform-or-wider counts as fully spread. All-Neutral scores 0 — a crowd
+that agrees to shrug is still a crowd that agrees — as does unanimity on
+either pole; the polarized 30/15/10/15/30 scale scores 1.0. Under the
+fixed metric the two examples above fall to 0.213 and 0.375.
+`scorecard-metrics.test.mjs` pins each case against the number the old
+formula produced, so re-routing ordinals through the categorical bar
+fails loudly.
+
+**What deliberately does not change.** The field stays `evenness` in the
+same [0, 1] with the same reading (1.0 = real split, 0.0 = landslide),
+so every consumer — grades and their thresholds, leaders/laggards,
+`retireProposals`, the topic/type rollups, the pulse console's evenness
+buckets — reads on unchanged. The committed scorecard is not
+regenerated: the pre-launch baseline has zero scored questions, so no
+committed number moves, and the next `--fetch` under the self-refresh
+contract picks the metric up. That timing is the point of amending now —
+the metric changes before the first measured value exists, instead of
+under it.
+
+## D40 adoption (2026-08-06) · All four parts shipped, with five deltas
+
+**What shipped.** Part 1 was already live. Part 2: the duel lane's
+contract is now a section of QUESTION-FARM.md (single gate, learn-style,
+≤4/run at most weekly, run-on-request — no Routine yet). Part 3:
+`foldDuelSignal` (functions/src/v2social.ts) folds each committed reveal
+into `v2_aggs_private/duel-<qid>` and mirrors
+`v2_question_aggs/duel-<qid>` at the same `AGG_MIN_N` floor as every
+published number; the scorecard grew a `duel` section (plays, split,
+guess-match rate, `deadDuels`/`noisyDuels` advisories) with no new read
+path. Part 4: the 20 romantic questions moved into
+`content/duel-questions.json` (ids `020`–`039` — one `duo-NNN` id
+namespace across both 1v1 pools), seed as duo docs with
+`mode: "romantic"`, and `duelQFor` serves them only to a pair whose duo
+doc says `duoMode: "romantic"`; the picker lives in LiveDuelPanel.
+
+**The deltas, each with its reason:**
+
+1. **Pick questions publish plays and total only — no per-option
+   counts.** The proposal said "per-option counts"; a pick's optionIdx
+   values index each group's OWN member list, so summed across groups
+   they are wrong-shaped data wearing numbers (the D12 class). The fold
+   bounds counts by the question's option count, which pick's empty
+   options make zero.
+2. **The fold costs two reads, not zero.** "Zero extra reads" held for
+   the delta (the reveal transaction already holds every answer) but not
+   for the running state or the option count: the fold is its own small
+   transaction reading the private doc and the question doc. It runs
+   OUTSIDE the reveal transaction deliberately — the aggregate doc is
+   contended across every group revealing the same question, and a
+   conflict there must retry a two-read fold, never the reveal. Accepted
+   residual, recorded: a crash between reveal commit and fold
+   undercounts an advisory floored aggregate by one reveal, permanently
+   (the reveal doc's existence settles the day); the fold logs at ERROR
+   so monitoring sees a systematic failure.
+3. **The publish cadence is crossing-based** (`shouldPublishDuelAgg`),
+   not the vote path's `total % PUBLISH_EVERY`: a reveal folds a whole
+   group-day at once, so a batch can jump over a multiple and the modulo
+   cadence would go silent until it happened to land exactly. Per-reveal
+   granularity was already covered by this record's
+   strictly-less-revealing argument; the cadence bounds doc rewrites.
+   Neither doc carries a timestamp — the vote mirror's attribution rule,
+   applied here to "which scan window did a group reveal in".
+4. **The romantic pool ships dark** (`active: false` at seed) **until
+   the mode-aware client is the fleet.** A pre-mode client's `duelQFor`
+   has no pool filter, so an active romantic doc would rotate into
+   FRIEND-pair duels. The picker refuses to render for a pool that
+   cannot serve (`romanticPoolReady`), so the flip is invisible until
+   activation. **The activation step, for the runbook:** flip the 20
+   `duo-020`–`duo-039` docs to `active: true` in the Firestore console,
+   then run the **Seed content** workflow with `bump_rev: true`
+   (`scripts/seed-content.mjs --bump-rev` — the post-D36-amendment
+   seeding path; the app itself has no console to type in) — console
+   flips touch no `updatedAt`, so without the rev bump returning
+   clients' cursors never see the pool.
+5. **`duoMode` is written by a rules carve-out, not a callable** — the
+   schema's first member-writable field on a group doc: member + duo doc
+   + that field alone (affectedKeys) + closed enum. No cap, budget or
+   invariant beyond that exists for the field, which is exactly what a
+   rule can express; rules tests prove every denial direction. Residual,
+   recorded: the picker locks after the local partner seals, but a flip
+   while the OTHER partner has already sealed hands the pair two
+   different questions for one day — the same class as bank drift, which
+   the reveal already survives (it stores the answered qid; the fold's
+   in-range bounds keep the mismatched votes out of counts and guess
+   scoring), and it self-heals the next day.
+
+One repair rode along: `runSeedV2` hardcoded `active: true` on first
+create, silently discarding the `active: false` that `flags()` has
+emitted since D52 retired six feed questions at source. Creates now
+honor the source flag; reseeds still never touch `active` in either
+direction.
+
+---
+
+## D64 · Five findings from a cost & performance audit, and the two gates that had stopped measuring
+
+**Date:** 2026-08-06 · **Status:** Adopted (owner: "yes do 2, 3, 4, 6 and 7").
+Five of a nineteen-finding audit; the rest are listed under **Not done** below
+so the unclaimed ones stay claimable rather than becoming folklore.
+
+**Why an audit at all.** `docs/COSTS.md` already models this app's bill and
+models it well. What it models is **client-issued document reads** — and
+nothing else. Security-rule `get()`s, reads issued by Cloud Functions, index
+*storage*, and network *egress* are all absent from `scripts/cost-arith.mjs`,
+which is why its `cost` object has seven terms and no bytes term. That does
+not change the launch answer (still $0 below ~2,000 DAU, still rounding error
+at 5,000), and the corrections belong in that document rather than this one.
+What follows is only the part that was code.
+
+### 1 · `answers` is indexed on fourteen fields nobody queries
+
+`v2_users/{uid}/answers/{aid}` is written with `qid`, `surface`, `optionIdx`,
+`guessIdx`, `gid`, `day`, `entity`, `answeredAt` and an `anchors` map whose
+keys `firestore.rules:71-74` closes to exactly seven. Firestore indexes every
+scalar leaf ASC and DESC by default, including each map subfield.
+
+Exactly one of them is ever queried: `answeredAt`, at
+`src/v2/data/live.ts:463-470`, both as a `where(">")` cursor and as an
+`orderBy` — collection-scope, and there is no `collectionGroup("answers")`
+anywhere in `src/` or `functions/`. Every other index on that document is
+built and stored for nothing.
+
+**The arithmetic.** A world answer whose author filled all seven anchors has
+eleven indexed leaves → 22 index entries written per answer, against 2 after
+the exemption; a duel answer has fourteen → 30 → 2. An answer with an empty
+anchors map is 8 → 2. So the write amplification falls by roughly an order of
+magnitude, and the index-storage line falls with it. The *money* is a
+derivation rather than a measurement, and it is a derivation the repo's own
+model cannot check, because `cost-arith.mjs:206-208` bills storage on document
+bytes and has no index term at all — which is the finding underneath the
+finding.
+
+**What this costs, stated plainly.** It is a one-way constraint on future
+queries: filtering answers by `surface`, `gid` or `day` will not be possible
+without re-enabling that field first (and backfilling its index). That is the
+right trade today — nothing queries them and the exemptions are reversible —
+but it is a trade, and a future feature that wants "my duel answers for group
+X" has to notice this file first.
+
+`firestore.indexes.json` cannot carry a comment, which is why the reasoning is
+here. The exemptions are additive; the deploy path still runs without
+`--force`, so the two hand-made indexes `check:deploy-targets` protects are
+untouched.
+
+### 2 · `ledgerVelocityScan` buffered the whole window into a 256 MiB instance
+
+`functions/src/velocity.ts` accumulated every ledger entry in the window into
+`rows: LedgerRow[]` before folding once. The window is bounded by
+`WINDOW_CAP_MS` (72 h), not by DAU, so a catch-up scan at 50 k DAU is ~450 k
+rows — and `LIGHT_UNBOUNDED` (`ops.ts:111`) gives it 256 MiB.
+
+The failure is worse than a lost run. `lastScanAt` is written at the *end* of
+the function, so an OOM leaves the cursor unmoved; the next run re-reads the
+same capped window and dies in the same place, forever, with D28's only
+detector silently dead and no alert (D54 ships none deliberately). The wall
+lands somewhere around 44 k DAU — **below** the 50 k row of COSTS.md's own
+table, and it is not in that document's list of walls.
+
+Now folded per page: `foldInto(acc, rows)` mutates an accumulator, `foldWindow`
+is a one-line wrapper over it so its existing test is unchanged, and peak live
+memory is one `PAGE` of rows plus the fold. A row is ~5 machine words; the
+fold keeps one packed double per entry and one Map slot per uid.
+
+`velocity.test.ts` gains the assertion that makes this safe rather than merely
+smaller: folding page-by-page at every split size produces the same
+`perUid`/`perDayQid`/`entries` as folding the window whole, including a uid and
+a midnight rollover straddling a page boundary. The old test could not have
+caught a paging bug because there was no paging.
+
+**Not fixed here:** the scan's Auth lookups are still serial
+(`velocity.ts:350-356`), and the burst baseline is still capped by
+`WINDOW_CAP_MS`. Both were in the audit; neither was claimed.
+
+### 3 · Both bundle ceilings had stopped measuring what they claimed
+
+`scripts/check-bundle.mjs` asserts a per-chunk and a total ceiling. Both had
+drifted, in opposite directions, and the failure modes are different enough to
+be worth separating.
+
+**The per-chunk ceiling had gone slack.** Its header carried a *measured*
+table whose baseline row read "nothing (today) 837 KB". The entry chunk is
+**723.4 KB** — D39 and D40 took ~116 KB out of it and neither lowered the
+ceiling with the win, which is the discipline the D25 and D38 entries in that
+same header both name. At 850 the entire D38 overlay group could return to
+eager and the script would print OK. Re-measured the way the original was, by
+moving one group at a time out of `loadOverlays()` and rebuilding:
+
+| eager again | entry | 735 |
+| --- | ---: | --- |
+| nothing (today) | 723.4 KB | ok |
+| city-overlay | 729.1 KB | ok |
+| logic-test | 752.9 KB | RED |
+| test-overlay | 782.1 KB | RED |
+| person + city + suggest | 821.1 KB | RED |
+| the whole group | 941.4 KB | RED |
+
+735 is verified to fire end-to-end, not merely to be arithmetically below
+752.9. The city-overlay caveat survives unchanged: 5.7 KB is under any headroom
+worth having, so this remains a ceiling on the group, not a per-module
+assertion.
+
+**The total ceiling had never once weighed a release build.** `ci.yml`'s
+`typecheck-build` job calls itself "the same gate a release goes through" and
+ran `npm run build` with no environment. `src/lib/sentry.ts:73` reads
+`import.meta.env.VITE_SENTRY_DSN`; Vite replaces that with a literal at build
+time, so unset, the whole `import("@sentry/capacitor")` branch is provably dead
+and rolldown drops it. Meanwhile `ios-release.yml:132` sets the real DSN and
+does not run `check:bundle`. Measured off one tree:
+
+```
+no DSN    1577.2 KB across 40 chunks   ← what CI weighed
+with DSN  2058.4 KB across 44 chunks   ← what ships (+481.2 KB)
+```
+
+The shipping bundle has been ~450 KB over a 1600 KB budget for as long as
+Sentry has been in it, and no gate could see it. CI now builds with a dummy
+DSN — any non-empty string restores the branch, no secret is needed, nothing
+in that job runs the app — and the ceiling moves to 2100 to sit just above what
+the shipping graph actually weighs. The number went up; the set of bytes it
+covers went up by more.
+
+Sentry does not touch first paint either way — it is dynamically imported and
+appears in no `modulepreload` link. The eager graph measured 1211.2 KB with the
+DSN and without.
+
+**Why no `check:figures` entry for the 723.4.** The ceiling is the ratchet: at
+11.6 KB of headroom, drift announces itself by failing, which is the property
+850 had lost at 128 KB. A figure gate here would need a build to exist, which
+`check:figures` currently does not require, and the fix for a stale ceiling is
+to re-measure it rather than to pin the prose beside it.
+
+### 4 · An uncapped 120 ms retry loop on the Mirror tab's default view
+
+`src/v2/spec/map-tab.jsx` rescheduled `tryFit` every 120 ms with no counter
+until the pane became measurable — ~30,000 wake-ups per hour of dwell, each
+calling `fitAllTarget`, which reads `clientWidth`/`clientHeight` and forces
+layout. `MapTab` is the Mirror tab's **default** `you` population, so this is
+the common path rather than a corner.
+
+The sibling copy of the same construct in `person-mindmap.jsx:246-251` was
+already capped at 60 tries, with a comment naming exactly this hazard. Now
+both are. (The audit's write-up also named `relmap.jsx` as a capped sibling; it
+has no such loop — checked before copying the claim.)
+
+### 5 · The agg cache was re-serialised on every fan-out delivery
+
+`saveAggCache` (`src/v2/data/live.ts`) ran `JSON.stringify` over the **whole**
+`state.aggs` map synchronously inside the agg snapshot handler. The daily
+question is globally shared, so every publish fans out to every listening
+client — COSTS.md finding 2's own numbers, 125 and 1,250 deliveries per user
+per day, are 0.7 and 6.9 full serialisations per second at 50 k and 500 k DAU,
+on the main thread. The map is never pruned, so the per-serialisation cost
+grows with the session too.
+
+Now coalesced at 1 s, leading-schedule/trailing-write rather than a restarting
+debounce: a steady stream of publishes must still reach disk about once a
+second, where a restarting timer would starve and write nothing until the burst
+ended. State is read at write time, so nothing in the window is lost.
+
+Two things the coalescing forced:
+
+- **The `visibilitychange` handler flushes on hide.** Its hidden branch was
+  empty. Hiding is the last callback a mobile WebView is guaranteed before the
+  OS may kill it, so without this a backgrounded app loses up to a second of
+  counts that were previously written synchronously. This one is load-bearing:
+  drop the flush and exactly one test fails.
+- **`purgeLocalTrace` cancels the pending write.** This is hygiene, and the
+  first draft of this record said it was more — that it prevented the D50/D51
+  resurrection. Mutation-testing the claim refuted it: with the cancel removed,
+  **nothing in the tree fails**, because `resetForNewUid` empties `state.aggs`
+  before it purges (so a surviving timer can only write `{}`) and `torndown`
+  covers the `deleteAccount` path. The key does come back either way — the new
+  session's own listener re-creates it empty within the window. The cancel is
+  kept because a queued write holding the old map is worth dropping and it
+  costs nothing; it is not a leak fix, and the comment on it now says so.
+
+Recorded at this length because the correction is the point: three of the
+audit's findings were refuted the same way, and a claim that survives only
+because nobody ran the mutation is the failure mode this repo keeps building
+gates against.
+
+**What now proves the coalescing.** Three cases in `vote.test.ts`, each pinned
+against the mutation it is supposed to catch: a five-snapshot burst produces
+zero synchronous writes and exactly one write carrying the *last* state; hiding
+flushes synchronously and exactly once; a uid change leaves no previous
+account's counts behind. Reverting `saveAggCache` to its synchronous form fails
+all three.
+
+### Not done, and still open
+
+Ordered as the audit ranked them, so the next person picks from the top rather
+than re-deriving the list.
+
+- **The database region is a one-way door with a deadline.** A Firestore
+  location is fixed at creation; `(default)` on `nam5` holds no seeded content
+  yet, so today it is a console action and after `LIVE.seedContent()` it is a
+  migration. `cost-model.mjs --regional` already prints both columns: $2.53 /
+  $86 / $5,931 per month against $5.17 / $175 / $11,910 at 5 k / 50 k / 500 k
+  DAU. `COSTS.md:278-281` files it under "what would change these numbers",
+  beside engagement rate, as though it can be revisited later. It cannot. This
+  was the audit's single highest-value item and it is a decision, not a patch.
+- **Nothing gates the eager graph.** 1211.2 KB across 17 files in
+  `dist/index.html` governs cold-start parse and eval, and no ceiling watches
+  it; D39 and D40 both moved bytes out of the entry chunk into eager siblings
+  with every existing gate staying green. D38 declined this gate on two
+  grounds that are now both false. ~12 lines.
+- **The Firestore SDK is eager** — 290.7 KB, more than everything D25 and D38
+  deferred combined — because `live.ts` statically imports `firebase/firestore`
+  and `main.jsx` renders downstream of `initLive()`. `src/lib/firebase.ts:1-5`
+  describes a lazy design that this defeats; `firebase/auth`, app-check and
+  Sentry *are* correctly lazy. Splitting it is a real project, not a patch.
+- **`v2_takes` soft-hide is not query-enforceable.** `firestore.rules:377-378`
+  hides a take with a per-document predicate; a `where("gid","==",…)` query
+  returns the hidden document, text and all, to a non-author member. The suite
+  is green because `rules.test.ts:852-863` only exercises `getDoc`. Nothing
+  ships on it yet — settle it before any takes UI does, with a boolean `hidden`
+  field, a `(gid, hidden, createdAt)` composite index, and a rules test that
+  asserts the *query* case.
+- **No listener is detached on background** (`live.ts`'s `visibilitychange`
+  hidden branch now flushes the cache but still tears down nothing, and there
+  is no `appStateChange` listener). The fan-out term in `cost-arith.mjs:116`
+  is `onlineMin: 3`, "minutes with the app actually open" — a behaviour guess
+  no code bounds. The crossover where fan-out overtakes every other read source
+  is `31,200 / X`, so at the model's own X it is 10,400 DAU, already below D7's
+  14,400 write wall rather than the 50,000 COSTS.md implies. Any teardown must
+  be gated on hidden-for-N-minutes: below ~10 k DAU a re-attach costs more than
+  it saves.
+- **Also unclaimed, smaller:** `activateDeviceV2` inherits `maxInstances: 10`
+  from `LIGHT_CALLABLE`; `revealGroupDay` reads every member's profile before
+  the gate that can discard it; `loadRevealHistory` re-reads 13 immutable
+  reveal docs per group per session; `cacheVote` never advances `maxTs`, so a
+  device re-reads its own immutable answers every boot; `state.aggs` is
+  unbounded and every `setItem` failure is a bare `catch {}`, which makes the
+  quota cliff silent and self-inflicting; WorldFeed rebuilds all ~109 cards on
+  every scroll-threshold crossing with no `React.memo` anywhere in `spec/`.
+
+---
+
+## D65 · A soft-hide that a query walked straight past: `hidden` becomes a required boolean
+
+**Date:** 2026-08-07 · **Status:** Adopted (owner: "fix the v2_takes query leak
+too"). Closes the one finding D64's "Not done" list called out as needing to be
+settled before any takes UI ships. Amends D22's moderation substrate; nothing
+else in D22 changes.
+
+**The bug, and why every existing test was green.** `v2_takes`' read gate was
+
+```
+&& (!("hidden" in resource.data) || resource.data.authorUid == request.auth.uid)
+```
+
+— a *presence* test against the moderator's annotation map. Every takes
+assertion in `firestore-tests/rules.test.ts` used `getDoc`, and `getDoc` was
+never the problem: a per-document rule is applied per document, so a member
+reading a hidden take by id was correctly denied and the suite said the
+soft-hide worked.
+
+A **list** is a different operation. Measured in the emulator against the
+shipped rules file:
+
+| operation | result |
+| --- | --- |
+| member `getDoc` on a hidden take | denied ✓ |
+| author `getDoc` on a hidden take | allowed ✓ |
+| stranger `where("gid","==",…)` | denied ✓ |
+| **member `where("gid","==",…)`** | **allowed — returned the hidden take, text and all** |
+
+The stranger row is the one that makes this a real finding rather than a
+guess about Firestore: rules *are* evaluated for queries, and the
+group-membership half of this very rule enforces correctly on the same query.
+It is specifically the presence test that Firestore cannot hold a list to,
+because a query carries no constraint it can compare `"hidden" in resource.data`
+against — and the engine's response is to allow, not to refuse.
+
+**Three shapes, all measured, because the obvious fix is also wrong.**
+
+```
+presence          !("hidden" in resource.data)        query LEAKS
+defaulted getter  data.get("hidden", false) == false  query LEAKS
+required boolean  data.hidden == false                query DENIED
+```
+
+The middle row is the trap and the reason this record exists. It reads as the
+safe, backward-compatible version — no migration, absent field treated as
+visible, the same idiom `isValidV2Anchors` and the `active` check already use
+elsewhere in this file — and it leaks exactly like the line it would replace.
+Nothing distinguishes the working shape from the broken one except running
+them.
+
+**What shipped.** `hidden` is a required boolean on every take, the annotation
+map moves to `hiddenMeta`, and the gate is a bare equality:
+
+- **Read:** `resource.data.hidden == false || resource.data.authorUid == uid`.
+- **Create:** `hidden` joins the `hasOnly` list *and* must equal `false`.
+  Required because the read gate is an equality — a take without the field
+  could never be read back — and required to be *false* because a client that
+  could post `hidden: true` would hide its own words from the circle while
+  leaving them in the moderation queue.
+- **Flags:** the same presence test in the `v2_flags` create rule became an
+  equality too. Not because it leaked — it is a `get()` on another document
+  inside a create, never a query predicate — but because once `hidden` is
+  always present, `!("hidden" in …)` is false for every take and **no flag
+  could ever be created again**. A field's shape is not a local change.
+- **`submitModVerdict`** writes `hidden: true` plus `hiddenMeta`. The
+  already-hidden skip in `buildModQueue` stays a truthiness test on purpose: a
+  take hidden before this change carries the old map, and a map is truthy where
+  `=== true` would silently re-queue every one of them.
+
+**The property this buys, which the old rule never had.** The gate now **fails
+closed**. A list without `where("hidden","==",false)` is refused outright, so a
+client that forgets the filter gets an error rather than other people's hidden
+words. That is the difference between the client's filter being a consequence
+of the rule and being a promise standing beside it — the distinction this
+repo's whole posture rests on. The author escape still serves the appeal path
+by id and does not widen a list: an author listing the circle passes the same
+filter and reaches their own hidden take only by `getDoc`.
+
+**Cost.** Two billed reads per take on the read path instead of one, since the
+gate reads the take and the rule's `get()` reads the group — unchanged from
+before, the equality is not what costs. The write path gains one indexed
+boolean per take.
+
+**What now proves it.** A list-shaped case in `rules.test.ts` asserting all
+three parts, each of which can rot independently: the unfiltered list is
+refused, the filtered list succeeds *without* the hidden take, and a stranger
+gets nothing either way. Reverting the gate to the presence test fails it.
+Two create cases pin the required-and-false shape. 47 → 49 rules tests.
+
+**The composite index, added on the owner's call.** This record's first draft
+deferred it, on the grounds that no client queries `v2_takes` yet so the sort
+order was a guess. Overruled, and the reasoning was thin anyway: the guess is
+not much of one — a circle's comment list is newest-first or it is nothing —
+and the deferral traded a known index write per take against a production
+query that fails on its first run.
+
+```
+v2_takes · COLLECTION · gid ASC, hidden ASC, createdAt DESC
+```
+
+`firestore.indexes.json` went from `"indexes": []` to holding this one, which
+is worth noting for a reason beyond takes: `check:deploy-targets` forbids
+`--force` on any firestore target precisely because that flag deletes every
+index the live project holds and this file does not name. That guard now
+protects a real entry rather than an empty list.
+
+**What is and is not verified.** The file is accepted by firebase-tools' own
+`validateSpec` (run against it directly, not eyeballed). The index's necessity
+and sufficiency are **not** emulator-testable: the Firestore emulator does not
+enforce composite indexes, which is also why the list case in `rules.test.ts`
+passes without one — two equality filters and no `orderBy` is served by
+single-field index merging in production too, so that test would not have
+needed this index regardless. The first query that adds `orderBy("createdAt")`
+is what needs it, and no such query exists yet to run. If the takes UI wants a
+different order, the production error names the index to add.
+
+**The general lesson, which is not about takes.** A per-document predicate and
+a per-query predicate are different guarantees, and reading this file cannot
+tell you which one a rule is enforcing. Any rule shaped "everyone in the set
+may read, EXCEPT documents where X" is a candidate list leak unless X is an
+equality on a concrete field the client query must also carry.
+
+**The rest of the ruleset was checked against that shape, not assumed safe.**
+The other four `in`-tests (`fcmTokens`, `testResults`, `logic`, `qid`) are all
+on `request.resource.data` inside write rules — no query, no exposure. The one
+genuine sibling is the reveal gate at `v2_groups/{gid}/reveals`
+(`uid in resource.data.get("members", [])`), which matters more than it looks
+because `firestore.indexes.json` ships a collection-group `CONTAINS` index on
+that exact field, so the listing path is not hypothetical. Probed in the
+emulator: an unfiltered collection-group query is **denied**, `array-contains`
+on another user's uid is **denied**, and a non-member `getDoc` is **denied** —
+it fails closed on every shape. No change needed there.
+
+That non-result is the actual finding. The same class of expression leaks in
+one rule and fails closed in another, and nothing about reading them predicts
+which. So the defence cannot be a style rule about how to write predicates; it
+is that a `getDoc` test proves nothing about a `getDocs` path. **Where a
+collection can be listed, test the list.**
+## D66 · The sample persona reached live mode twice more: the Map's anchor ring, and a hydration that wrote to nobody
+
+**Date:** 2026-08-07 · **Status:** Adopted
+
+D55 removed the sample persona from the profile's Basics card in live
+mode and recorded why it matters beyond cosmetics: the anchors effect
+writes whatever the profile holds to `v2_users/{uid}`, and
+`answerAnchors()` stamps it onto every answer — which are create-only
+(D5), so a fabricated cohort has no correction path. That fix was correct
+and incomplete. Two more surfaces carried the same persona, and both were
+reproduced before they were believed.
+
+**1 · The Map's anchor ring had no live path at all.**
+`spec/map-anchors.js` built its seven anchors from `IS_DATA.me` with the
+persona as the `||` fallback on every field, and nothing in the file
+consulted `LIVE`. Measured, not reasoned — the module run in node with a
+fresh live account and no tests taken returns:
+
+```
+age 34 · born 1991 | Editor · independent press | MA Literature · Univ. of Oslo
+Big Five · taken 10 days ago | Politics · taken 3 weeks ago | …
+```
+
+This is the worse of the two placements. `MirrorPreviewTag` returns
+`null` for the You stop — deliberately, because nothing there was
+supposed to be sample data — so unlike the Mirror's other populations,
+this wore no "Preview · sample people" badge.
+
+`list()` now branches on `LIVE.enabled`: live mode reads the viewer's own
+anchors (D8) and drops every row with nothing behind it, so a fresh
+account gets an empty ring rather than somebody else's. Both callers
+already handled a zero-length list — `MapTab` divides by
+`anchors.length || 1`, `MapThumbCard` returns null — which is why the
+gap survived review: the honest state was already renderable, just
+unreachable. Age is the BAND, the only thing the anchor holds; the exact
+birthday still never leaves the device.
+
+`relate()`, the other half of that module, is now marked demo-only. It
+has no caller, its keys are the prototype's `dq*` ids, and its fallback
+lines carry Mira's numbers in prose ("openness 78 sets the playlist") —
+so a live question would miss `REL` and land on a sentence about someone
+else. Kept for the mock path, fenced against a future wiring.
+
+**2 · `publishTestResults()` had stopped reaching anybody.** Its own
+comment states the intent — "Live mode shows only REAL results: purge the
+demo's baked test results and rebuild from server + this device's saves"
+— and it did that by assigning `window.IS_TEST_RESULTS`. But
+`test-definitions.js` left the global bridge (D39, #85) and now EXPORTS
+`IS_TEST_RESULTS`; all fifteen consumers import the binding. The global
+has had no readers since, so every effect of that function was silently
+undone: the demo persona's Big Five, politics, values and attachment
+survived into live mode until the user retook each test, and a result
+earned on another device never arrived at all.
+
+This is the D39 conversion hazard from the other side. The rule the
+README states — a conversion removes the load-order condition, never the
+data one — is about the *consumers* of a converted module. This was a
+*producer* left writing to the name the conversion retired, and no gate
+sees it: `tsc -b` type-checks a global write against nothing,
+`check:globals` rule 1 flags dangling reads and not orphaned writes, and
+rule 4 counts the write as coupling that is going the right way.
+
+The fix announces instead of assigning — `insight:test-results`, the
+same shape as D51's purge, which the same file already listens for. The
+module that owns the object mutates it in place, so the consumers holding
+a reference see it. The payload REPLACES rather than merges, and that is
+the half that removes the seed: a key absent from `{server, …device}`
+means the user has not taken that test, and the honest render of that is
+nothing.
+
+**What it cost, and what it bought.** `map-anchors.js` needed `LIVE`,
+which is a new shared-global reference — so the module was converted off
+the bridge on the way past (`window.MapAnchors` → named exports, both
+consumers importing), and `LIVE` comes in as an ESM import from
+`data/live`, which `main.jsx` already pulls into the entry chunk. Rule 4:
+534 across 45 files, down from 539.
+
+**The fixture was hiding it, and now cannot.** `test/live-fixture.ts`
+assigned a second object to `window.LIVE` and left `data/live`'s default
+export — the same object in production, since live.ts ends with
+`window.LIVE = LIVE` — untouched. Invisible while every consumer read the
+global; a converted module importing the binding would have seen
+`enabled: false` while the tab rendered beside it saw the fixture. The
+fixture now defines its members onto the imported singleton and restores
+the descriptors afterwards. Two objects that have to agree is the bug
+this whole record is about; the fixture no longer creates one.
+
+**Still sample data in live mode**, so the list stays a list rather than
+a discovery: the feed's takes, counters and friend dots (demo-only by
+design, D1 — not unbuilt); `scenes.js`'s follow list; the catalogue pick
+cards carrying `q.catalog`; and `daily-questions.js`'s non-world
+audiences, where only the World distribution is swapped for the real
+aggregate.
+
+
+---
+
+## D67 · The cost model was counting one kind of read, and calling it the bill
+
+**Date:** 2026-08-07 · **Status:** Adopted (owner: "now update COSTS.md with
+the corrected numbers"). Implements the corrections D64 listed and did not
+make; supersedes the read decomposition in `docs/COSTS.md` and the four-source
+claim in `scripts/cost-arith.mjs`.
+
+**The defect, in one sentence.** `costModel` counted reads the CLIENT issues —
+boot, agg top-up, reseed delta, listener fan-out — and every other read on the
+invoice was billed at zero, because there was no term for it.
+
+Zero is a number, and it was the wrong one. Three categories were missing:
+
+- **Security-rule reads.** Every `get()` and `exists()` inside a rule is a
+  billed read charged to the project, on top of the operation that triggered
+  it. The answer-create paths do four: one distinct document for a world
+  answer (`v2_questions/{aid}`, touched three times), three for a duel.
+- **Reads issued by Cloud Functions.** The aggregate transaction reads two
+  documents per world answer. The nightly velocity scan (D54) reads *every
+  ledger entry written that day* — one per world answer, a term the size of
+  the top-up and reseed combined, and entirely invisible. The reveal pipeline
+  reads `(4 + 3m)/m` per member per group-day.
+- **Bytes.** Index entries are billed as storage and the model charged a 1.0
+  multiplier; network egress is billed per GiB and the model charged nothing,
+  having counted document *count* and never document *size* — which is
+  precisely backwards for a fan-out whose every delivery ships the published
+  aggregate whole.
+
+Together: **+20 reads per user per day, flat in DAU**, and roughly **+50% on
+every billed row** ($5.17 → $7.26 at 5 k DAU, $175 → $247 at 50 k, $11,910 →
+$17,166 at 500 k).
+
+**Measured, not estimated, where it mattered.** The two read terms are counts
+of call sites in the shipped rules file and the shipped functions, not
+guesses. One of them turned on a fact worth writing down: **repeated `get()`
+of the same document inside one rule evaluation is free.** Firestore caps
+document accesses at 10 per single-document request; a probe rule doing
+fifteen `get()`s of one document passes, while eleven `get()`s of eleven
+documents is refused. The limit counts distinct documents, so the evaluator's
+cache is real and billing sees the same cache. Counted un-deduped the rule
+term would be 14 rather than 6 — a 2.3× error in the direction of alarm.
+
+**What D64 got wrong, corrected here.** D64 said the fan-out already overtakes
+every other read source at 10,400 DAU — *below* D7's 14,400-DAU write wall —
+and that COSTS.md's "wall 1 before wall 2 is the good ordering" claim was
+therefore broken. Implementing the very terms D64 said were missing moves the
+crossover the **other way**: the flat baseline the fan-out has to beat went
+from 26 reads/user/day to 46, so the crossover is at **18,220 DAU** and the
+ordering holds with a wider margin than before (3,800 DAU rather than 2,000).
+D64's arithmetic was right on its own inputs and wrong on the model's, which
+is the argument for implementing a correction rather than recording it.
+
+`cost-model.mjs` now solves for that crossover rather than quoting it. The
+50,000 in the old walls list came from nowhere in particular.
+
+**The three things that keep this from rotting.**
+
+1. **The decomposition printer derives its columns from the model's keys.**
+   The old one named four; the model grew to six and the totals moved while
+   the columns did not — the same defect D47 found, one layer up. A printer
+   that cannot go stale is worth six lines.
+2. **Tripwires on the hand counts** (`scripts/pulse.test.mjs`). RULE_READS and
+   TRIGGER_READS cannot be regex-derived — a regex that tried would be a
+   second, silently-wrong implementation of Firestore's evaluator — so they
+   are counted by hand and the test watches the *call-site totals* they were
+   counted over. Add a `get()` to a rule and the test fails naming the block
+   to recount. Verified by adding one.
+3. **`docs/COSTS.md` joins `check:figures`.** It was covered by nothing, which
+   is how it came to quote a 369-document bank two promotion cycles after the
+   bank reached 389. Only the two INPUTS are gated — the bank's document count
+   and its wire size — because a dollar figure is an *output* of
+   `cost-model.mjs`, and re-deriving it in the figure gate would be the second
+   copy of the model that `cost-arith.mjs` exists to prevent.
+
+**The soft numbers, grouped so that they are visible.** `BYTES` holds the
+published-aggregate size and the index multiplier, and it is the softest block
+in the file: document-size estimates times a price this project has never been
+invoiced for. The aggregate's size is not knowable before launch — it depends
+on how many users fill the optional Basics card, which is what puts a `by`
+breakdown in the document — so egress prints as a **band** (0.3 / 2.4 / 7 KB
+per aggregate → $7 / $51 / $147 per month at 50 k DAU) and the headline table
+charges the middle. A 20× band is still worth having when the alternative is
+billing it at zero.
+
+**What is still not modelled, listed rather than discovered later:** Cloud
+Logging volume, the catalog trigger's third read (deliberate — catalog is not
+live, D14), function retries under `retry: true`, the moderation jobs, and
+callable-response egress. None is believed material at any modelled size.
+That is exactly what was believed about rule and server reads before this
+record, so the list is in COSTS.md to be checked rather than trusted.
+
+**Not done.** The `answers` index exemptions (D64) cut the index multiplier
+from roughly 5 to 1.4, which is why the storage line is small enough to leave
+as a single estimated multiplier rather than a per-collection model. And the
+engagement sensitivity line in COSTS.md is now the interesting one: three of
+the six read sources are charged per *answer*, so doubling answers per user
+moves reads +42% / +80% / +97% at 5 k / 50 k / 500 k DAU, where the old model
+said "barely moves reads". That was true when the model only counted boots.

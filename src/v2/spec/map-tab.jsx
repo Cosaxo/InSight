@@ -5,6 +5,7 @@
 // guards the wiring in CI.
 import React from 'react';
 import { DAILYQ } from './daily-questions.js';
+import { list as anchorList } from './map-anchors.js';
 
 // InSight — Map tab: a constellation of every Daily-Question answer around a
 // ring of profile anchors (age · work · study · the test results). Tap an
@@ -32,6 +33,26 @@ function MapTab({ rail = true, anchorsOn = true, recency = true, fields: fieldsO
   }, []);
   useEffect(() => {
     if (window.DUELS && window.DUELS.subscribe) return window.DUELS.subscribe(() => setDqv((x) => x + 1));
+  }, []);
+  // ── anchors: the profile ring at the centre ───────────────────────────────
+  // State fed by the store's own event, not a mount-once memo. The mock list
+  // is a constant and `useMemo(…, [])` was fine for it; the live one is not
+  // — anchors and test results both arrive from data/live.ts's hydrate,
+  // which lands after first paint, so a mount-once read on a cold start
+  // pins the ring to an empty profile forever.
+  //
+  // DAILYQ.subscribe above does NOT cover this: its liveSync fires listeners
+  // only when a vote or an aggregate actually moved, and both of the things
+  // this ring is built from can land without either.
+  //
+  // State rather than a version counter because `anchors` is itself a memo
+  // dependency below — recomputing it every render would give the layout a
+  // new array identity each time and rebuild the force layout with it.
+  const [anchors, setAnchors] = useState(anchorList);
+  useEffect(() => {
+    const on = () => setAnchors(anchorList());
+    window.addEventListener('insight-live-update', on);
+    return () => window.removeEventListener('insight-live-update', on);
   }, []);
   const built = useMemo(() => {
     const D = DAILYQ;
@@ -177,8 +198,6 @@ function MapTab({ rail = true, anchorsOn = true, recency = true, fields: fieldsO
     return m;
   }, [nodes, cats]);
 
-  // ── anchors: the profile ring at the centre ───────────────────────────────
-  const anchors = useMemo(() => (window.MapAnchors ? window.MapAnchors.list() : []), []);
   const AR = 170;
   const laid = useMemo(() => {
     const { pos: p, fields: f } = mtClusterLayout(nodes, cats);
@@ -258,15 +277,20 @@ function MapTab({ rail = true, anchorsOn = true, recency = true, fields: fieldsO
     return { x: w / 2 - cx * z, y: h / 2 - cy * z, z };
   };
 
-  // first fit — retry until the pane is measurable
+  // first fit — retry until the pane is measurable (capped, so a pane that
+  // never lays out can't leave a timer bouncing for the life of the session).
+  // This one is the Mirror tab's default `you` population, so an uncapped
+  // loop here is ~30k wake-ups/hour of dwell, each forcing a layout read in
+  // fitAllTarget — same cap, same 60, same reason as the sibling copy of
+  // this construct in person-mindmap.jsx, which was capped and this was not.
   useEffect(() => {
     if (view) return;
-    let cancelled = false;
+    let cancelled = false, tries = 0;
     const tryFit = () => {
       if (cancelled) return;
       const t = fitAllTarget();
       if (t) setView(t);
-      else setTimeout(tryFit, 120);
+      else if (++tries < 60) setTimeout(tryFit, 120);
     };
     tryFit();
     return () => { cancelled = true; };

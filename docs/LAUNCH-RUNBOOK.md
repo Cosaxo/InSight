@@ -22,7 +22,7 @@ the count is zero**, which is a change from 2026-08-04: the Team ID and the
 `REVERSED_CLIENT_ID` were the other two and both are filled.
 
 `check:store-listing` and `check:versions` pass; the daily bank is at 90
-questions of 369 seeded; the production backend is deployed. **Measured
+questions of 389 seeded; the production backend is deployed. **Measured
 2026-08-04:** anonymous sign-in works (`accounts:signUp` returns an
 `idToken`, where it returned `ADMIN_ONLY_OPERATION` on 2026-08-03), the
 InSight web app is registered, and the default hosting site `prvfire33`
@@ -96,7 +96,7 @@ arithmetic.
 ## Phase 0 — Do these first (about an hour, one console)
 
 - [ ] **0.1 Seed the production question bank.** Actions → **Seed content**
-      → Run workflow. 369 questions land in `v2_questions`. Idempotent and,
+      → Run workflow. 389 questions land in `v2_questions`. Idempotent and,
       since D34, cheap to repeat — reseed whenever content lands.
       `SHIP-CHECKLIST §1`.
       *Until this runs the deployed backend serves an empty app, so it

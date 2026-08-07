@@ -41,6 +41,7 @@ import {
   setDoc,
   terminate,
   Timestamp,
+  updateDoc,
   where,
 } from "firebase/firestore";
 import { getFunctions, httpsCallable } from "firebase/functions";
@@ -179,12 +180,58 @@ function cacheVote(aid: string, optionIdx: number): void {
   }
 }
 
-function saveAggCache(): void {
+// How long a burst of agg snapshots is allowed to coalesce into one write.
+// Long enough to collapse a publish storm, short enough that a user who
+// backgrounds the app a second after voting still keeps the count.
+const AGG_CACHE_MS = 1000;
+let aggCacheTimer: ReturnType<typeof setTimeout> | null = null;
+
+function writeAggCache(): void {
   if (torndown) return;
   try {
     localStorage.setItem("insight.aggsCache.v1", JSON.stringify(state.aggs));
   } catch {
     /* best-effort */
+  }
+}
+
+// Coalesced, because the caller is the agg snapshot handler and the thing
+// being written is the WHOLE aggs map. The daily question is globally
+// shared, so every publish on it fans out to every listening client
+// (docs/COSTS.md finding 2) — at the fan-out rates that document already
+// predicts, an immediate write is ~0.7 full JSON.stringify/sec of the
+// entire map at 50k DAU and ~6.9/sec at 500k, synchronously on the main
+// thread inside the handler. The map itself is never pruned, so the cost
+// per serialisation grows with the session too.
+//
+// Leading-schedule/trailing-write rather than a restarting debounce: a
+// steady stream of publishes must still reach disk about once a second,
+// where a restarting timer would starve and write nothing until the burst
+// ended. State is read at write time, so nothing in the window is lost.
+function saveAggCache(): void {
+  if (torndown || aggCacheTimer) return;
+  aggCacheTimer = setTimeout(() => {
+    aggCacheTimer = null;
+    writeAggCache();
+  }, AGG_CACHE_MS);
+}
+
+// Drops a queued write. Hygiene rather than a leak fix, and it is worth
+// being exact about which: on the uid-change path `resetForNewUid` empties
+// `state.aggs` BEFORE it calls purgeLocalTrace, so the worst a surviving
+// timer writes is `{}` — no previous account's aggregate can ride it — and
+// deleteAccount is covered by `torndown` anyway. What this buys is one
+// fewer pointless write and no timer holding the old map alive.
+//
+// Measured, because the comment that used to sit here claimed more: with
+// this cancel removed, no test in the tree fails. The uid-change case in
+// vote.test.ts pins the contract that matters (nothing of the old account
+// survives) and that contract holds either way, because the new session
+// legitimately re-creates the key empty a moment later.
+function cancelAggCache(): void {
+  if (aggCacheTimer) {
+    clearTimeout(aggCacheTimer);
+    aggCacheTimer = null;
   }
 }
 
@@ -828,6 +875,23 @@ const SOCIAL = {
   async leaveGroup(gid: string) {
     return callable<{ gid: string; deleted: boolean }>("leaveGroupV2", { gid });
   },
+  // The pair's pool choice (D40 part 4) — the one client-written field on a
+  // group doc, and a direct doc update rather than a callable because the
+  // rule can express the whole invariant (member + duo doc + closed enum +
+  // that field alone; firestore.rules carries the argument). The groups
+  // snapshot listener echoes the change back to BOTH partners, so the pool
+  // swap lands on each device the same way every other group change does.
+  async setDuoMode(gid: string, duoMode: "friends" | "romantic") {
+    const db = await getDb();
+    await updateDoc(doc(db, "v2_groups", gid), { duoMode });
+  },
+  // Whether a flip to romantic can land somewhere: the pool seeds dark
+  // (active: false, D40 part 4) and the bank is active-filtered, so this
+  // stays false fleet-wide until the operator lights the pool up — and the
+  // picker (LiveDuelPanel) does not render for a pair it would strand.
+  romanticPoolReady(): boolean {
+    return state.duelBank.some((q) => q.surface === "duo" && q.mode === "romantic");
+  },
   voteDuel(gid: string, optionIdx: number, guessIdx?: number): Promise<void> {
     const g = state.groups.find((x) => x.id === gid);
     const q = g && duelQFor(g);
@@ -907,6 +971,17 @@ const LIVE = {
     await setDoc(doc(db, "v2_users", uid), { displayName: name }, { merge: true });
     state.profile.displayName = name;
     notify();
+  },
+  // The viewer's own anchors, as a plain map — the same seven keys an
+  // answer snapshots (D8), read back. Empty until the Basics card is
+  // filled in, and that emptiness is load-bearing: the Map's anchor ring
+  // (spec/map-anchors.js) renders a row per anchor, so a missing value has
+  // to read as "no anchor" rather than fall through to a default. The
+  // prototype's defaults were the sample persona's, which is how a live
+  // build put "age 34 · Editor · MA Literature" at the centre of a
+  // stranger's map.
+  anchors(): Record<string, string> {
+    return answerAnchors();
   },
   // The anchors the profile has collected, as a plain map. Empty until the
   // user fills the Basics card in — an answer with no anchors simply folds
@@ -1329,28 +1404,50 @@ function resetForNewUid(uid: string): void {
   void refreshLive().catch((err) => reportError(err, { where: "refreshLive.uidChange" }));
 }
 
-// `window.IS_TEST_RESULTS`, rebuilt from the store plus this device's saves.
+// The viewer's test results, rebuilt from the store plus this device's
+// saves and announced to spec/test-definitions.js, which owns the copy the
+// UI renders.
 //
 // A FUNCTION, called from both hydrate() and resetForNewUid(), because the
 // two drifted: reset nulled `state.profile`, purged the on-disk copy and
-// called notify() — re-rendering with this global still holding the PREVIOUS
-// account's Big Five, attachment and politics scores. Around twenty spec
-// modules read it directly at render time (profile-general.jsx,
+// called notify() — re-rendering with the PREVIOUS account's Big Five,
+// attachment and politics scores still on screen. Around twenty spec
+// modules read those results at render time (profile-general.jsx,
 // profile-test-viz.jsx, compare-breakdown.jsx, …), so the wrong person's
-// results were on screen until the new uid's hydrate reached this line —
-// and two paths mean it might not: the unguarded getDocs in hydrate can
-// reject outright, and refreshInFlight can hand back the OLD run's promise
-// so hydrate never re-executes.
+// results were up until the new uid's hydrate reached this line — and two
+// paths mean it might not: the unguarded getDocs in hydrate can reject
+// outright, and refreshInFlight can hand back the OLD run's promise so
+// hydrate never re-executes.
 //
 // resetForNewUid's own header states the contract this broke: "Everything
 // derived from the old uid has to go — in-memory AND on disk."
+//
+// AN EVENT, not `window.IS_TEST_RESULTS = …`, because that assignment had
+// stopped reaching anybody. test-definitions.js was converted off the
+// shared-global bridge (D39, #85) and now EXPORTS `IS_TEST_RESULTS`; all
+// fifteen consumers import that binding. Rebinding the global therefore
+// wrote a name with no readers, and every effect above was silently
+// undone: the demo persona's baked results stayed on screen for a fresh
+// live account, and a result earned on another device never arrived.
+// Announcing it is the same shape as the purge (D51) — the module that
+// owns the object mutates it IN PLACE, so the consumers holding a
+// reference to it see the change.
+//
+// The payload REPLACES rather than merges, which is the half that removes
+// the demo seed: a key absent from the store and from disk means the user
+// has not taken that test, and the honest render of that is nothing.
 function publishTestResults(): void {
-  const w = window as unknown as Record<string, unknown>;
+  let next: Record<string, unknown>;
   try {
     const local = JSON.parse(localStorage.getItem("insight.testResults.v2") || "{}") || {};
-    w.IS_TEST_RESULTS = { ...state.profile.testResults, ...local };
+    next = { ...state.profile.testResults, ...local };
   } catch {
-    w.IS_TEST_RESULTS = { ...state.profile.testResults };
+    next = { ...state.profile.testResults };
+  }
+  try {
+    window.dispatchEvent(new CustomEvent("insight:test-results", { detail: next }));
+  } catch {
+    /* non-browser env */
   }
 }
 
@@ -1362,6 +1459,10 @@ function publishTestResults(): void {
 // under the new one. Enumerating by prefix is the only version that stays
 // correct when a new key is added.
 function purgeLocalTrace(): void {
+  // A queued agg-cache write would otherwise land after the sweep below and
+  // re-create the key it just removed. See cancelAggCache for why that is
+  // tidiness rather than a leak — the map it would write is already empty.
+  cancelAggCache();
   try {
     const doomed: string[] = [];
     for (let i = 0; i < localStorage.length; i++) {
@@ -1535,7 +1636,19 @@ export async function initLive(timeoutMs = 2500): Promise<void> {
   }
   if (typeof document !== "undefined" && typeof document.addEventListener === "function") {
     document.addEventListener("visibilitychange", () => {
-      if (!document.hidden) wake();
+      if (!document.hidden) {
+        wake();
+        return;
+      }
+      // Hiding is the last callback a mobile WebView is guaranteed to get
+      // before the OS may kill it, and saveAggCache is coalesced now — so
+      // flush the pending write here rather than lose up to AGG_CACHE_MS
+      // of counts. Cancel first: writeAggCache is the timer's own body,
+      // and leaving the timer armed would write the same map twice.
+      if (aggCacheTimer) {
+        cancelAggCache();
+        writeAggCache();
+      }
     });
   }
   // Whether boot loses the race (slow network) or fails outright, the

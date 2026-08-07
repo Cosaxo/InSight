@@ -74,6 +74,75 @@ describe("cost-arith reads its constants from source, not from memory", () => {
     expect(model(5000, true, { staticBank: true }).r.reseed).toBe(0);
   });
 
+  // ── tripwires on the hand-counted read sources (D67) ──────────────
+  //
+  // RULE_READS, TRIGGER_READS and revealReadsPerMember are counts of call
+  // SITES across a branchy rules file and three functions. A regex that
+  // tried to derive them would be a second, silently-wrong implementation
+  // of Firestore's evaluator, so cost-arith counts them by hand — and hand
+  // counts rot. These do not re-derive the model's numbers; they watch the
+  // things the counting was done over, so that ADDING a document access
+  // fails here with a pointer to the block that needs recounting.
+  //
+  // Deliberately totals rather than per-path counts: a total is what a new
+  // access moves no matter which rule it lands in, and a per-path regex
+  // would have to understand the branch structure, which is the thing this
+  // is avoiding.
+  it("the number of document accesses in firestore.rules has not moved", () => {
+    const rules = read("firestore.rules");
+    const gets = rules.match(/get\(\/databases\//g) || [];
+    const exists = rules.match(/exists\(\/databases\//g) || [];
+    expect(
+      { gets: gets.length, exists: exists.length },
+      "A rule gained or lost a document access. Every get()/exists() in a "
+      + "rule is a BILLED READ — recount RULE_READS in scripts/cost-arith.mjs "
+      + "(the answer-create paths are what the model charges) and update this "
+      + "tripwire with the new totals.",
+    ).toEqual({ gets: 15, exists: 2 });
+  });
+
+  it("the answer trigger's transaction still issues the reads the model charges", () => {
+    const body = read("functions/src/v2.ts")
+      .match(/export const onV2AnswerCreated[\s\S]*?\n\);/)[0];
+    expect(
+      (body.match(/tx\.get\(/g) || []).length,
+      "onV2AnswerCreated changed how many documents it reads. TRIGGER_READS "
+      + "in scripts/cost-arith.mjs charges the VOTE path (2: ledger event + "
+      + "private agg); the rest are the catalog branch, which is not live "
+      + "(D14). Recount before changing the constant.",
+    ).toBe(5);
+  });
+
+  it("the velocity scan still walks the ledger once per entry", () => {
+    // VELOCITY_READS_PER_LEDGER_ENTRY = 1 rests on this being a paged query
+    // over the window rather than a counter or an aggregation query.
+    const v = read("functions/src/velocity.ts");
+    expect(v).toMatch(/collection\("v2_agg_events"\)/);
+    expect(v).toMatch(/\.select\("uid", "qid", "at"\)/);
+    expect(v, "select() narrows egress, not reads — one billed read per entry")
+      .not.toMatch(/\.count\(\)/);
+  });
+
+  it("the reveal pipeline's per-member read count still has its five parts", () => {
+    // revealReadsPerMember(m) = (4 + 3m)/m — the page read, revealRef.get(),
+    // getAll(answers), getAll(profiles), and the committing tx.getAll.
+    const s = read("functions/src/v2social.ts");
+    const fn = s.match(/async function revealGroupDay[\s\S]*?\n\}/)[0];
+    expect((fn.match(/getAll\(/g) || []).length).toBeGreaterThanOrEqual(3);
+    expect(fn).toMatch(/revealRef\.get\(\)/);
+  });
+
+  it("egress and index storage are billed, not assumed free", () => {
+    // The model charged neither until D67, and "not modelled" reads as zero.
+    const { model } = costModel({});
+    const m = model(500_000, true);
+    expect(m.cost.egress).toBeGreaterThan(0);
+    expect(m.storeGiB).toBeGreaterThan(m.docGiB);
+    // …and the band is a band: the low end must be materially cheaper.
+    const lo = model(500_000, true, { aggBytes: "aggDocLow" }).cost.egress;
+    expect(lo).toBeLessThan(m.cost.egress);
+  });
+
   it("the D7 contention wall is where COSTS.md says it is", () => {
     expect(writesPerSec(CONTENTION_DAU)).toBeCloseTo(1, 6);
     expect(writesPerSec(CONTENTION_DAU - 1)).toBeLessThan(1);

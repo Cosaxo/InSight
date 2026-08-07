@@ -16,8 +16,8 @@ import { fileURLToPath } from "node:url";
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const ASSETS = join(root, "dist", "assets");
 
-// Current largest chunk is ~850 KB. The spec layer used to load in one
-// piece, and this comment used to say check-spec-globals required that —
+// Current largest chunk is the entry, 723.4 KB. The spec layer used to load
+// in one piece, and this comment used to say check-spec-globals required that —
 // it does not. Rule 2 substring-matches the './spec/…' strings in
 // spec-index.js, which a dynamic import satisfies exactly as a static one
 // does, so the file can defer a module and still account for it (D25).
@@ -45,29 +45,69 @@ const ASSETS = join(root, "dist", "assets");
 // for the reason the last one did — at 940 the whole group could silently
 // return to the entry chunk and nothing would say so.
 //
-// WHAT 850 ACTUALLY CATCHES, measured rather than asserted, by re-adding the
-// static imports one group at a time and rebuilding:
+// 850 → 735, and 1600 → 2100 (2026-08-06). BOTH ceilings had stopped
+// measuring what their comments claimed, in opposite directions — the
+// per-chunk one had gone slack, the total one was never being applied to
+// the bundle that ships. Re-measured rather than adjusted by eye; see D64.
 //
-//   | eager again              | entry  | 850 |
+// WHAT 735 ACTUALLY CATCHES, measured the way the 850 table was, by moving
+// one group at a time out of loadOverlays() into the eager list and
+// rebuilding:
+//
+//   | eager again              |  entry | 735 |
 //   | ------------------------ | -----: | --- |
-//   | nothing (today)          | 837 KB | ok  |
-//   | test-overlay             | 854 KB | RED |
-//   | person + city + suggest  | 887 KB | RED |
-//   | the whole group          | 922 KB | RED |
+//   | nothing (today)          |  723.4 | ok  |
+//   | city-overlay             |  729.1 | ok  |
+//   | logic-test               |  752.9 | RED |
+//   | test-overlay             |  782.1 | RED |
+//   | person + city + suggest  |  821.1 | RED |
+//   | the whole group          |  941.4 | RED |
 //
-// So it catches the group and every single module large enough to matter.
-// It does NOT catch the smallest one (city-overlay) returning to eager on
-// its own — that is under the 13 KB of headroom, and closing the gap means
-// zero headroom, which reds the tree on any legitimate growth instead. The
-// honest statement is that this is a ceiling on the group, not a per-module
-// assertion; nothing else in the tree checks eager-vs-lazy at all, since the
-// mount tests pass either way.
+// The 850 row of the old table said "nothing (today) 837 KB". The entry
+// chunk is 723.4 KB now — D39 and D40 took ~116 KB out of it — so the
+// ceiling had drifted to 128 KB of headroom and three of its own four rows
+// had gone green: at 850 the entire overlay group could return to eager
+// and this script would still print OK. A ceiling set once and never
+// re-measured stops being a ratchet and becomes a decoration.
+//
+// The city-overlay caveat survives the re-measurement, and it is the same
+// caveat: 5.7 KB of growth is under any headroom worth having, so this is a
+// ceiling on the group and on every module large enough to matter, not a
+// per-module assertion. Nothing else in the tree checks eager-vs-lazy at
+// all — the mount tests pass either way.
+//
+// THE TOTAL, and why it goes UP while the other comes DOWN. This script had
+// never once weighed a release build. ci.yml's typecheck-build job calls
+// itself "the same gate a release goes through" and runs `npm run build`
+// with no environment, but src/lib/sentry.ts reads
+// `import.meta.env.VITE_SENTRY_DSN` and Vite replaces that with a literal at
+// build time — unset, the whole `import("@sentry/capacitor")` branch is
+// provably dead and rolldown drops it. So CI has been weighing a bundle with
+// no Sentry in it, while ios-release.yml:132 sets the DSN (and does not run
+// this script). Measured both ways off the same tree:
+//
+//   no DSN   1577.2 KB across 40 chunks   ← what CI weighed
+//   with DSN 2058.4 KB across 44 chunks   ← what ships (+481.2 KB)
+//
+// 2058.4 against a 1600 ceiling: the shipping bundle has been 450 KB over
+// budget for as long as Sentry has been in it, and the gate could not see it.
+// ci.yml now sets a dummy DSN so the build under test is the shipping graph,
+// and the ceiling moves to 2100 to sit just above what that actually weighs.
+// This is a loosening ONLY in the sense that the number went up; the set of
+// bytes it now covers is strictly larger, and 481 KB of it was never covered
+// before. (156 KB of the Sentry group is @sentry/react's Spotlight dev
+// integration, shipping in a production build — worth removing, but that is
+// a change to what we ship, not to what measures it.)
+//
+// Sentry does not touch first paint either way: it is dynamically imported
+// and appears in no modulepreload link, which the eager-graph figures in D64
+// confirm (1211.2 KB with and without). This ceiling is about package size.
 //
 // The Mirror tab (~168 KB) is what is left of the obvious candidates, and it
 // is a harder one: it renders on the first frame for anyone who opens the
 // app on that tab, so it needs a guard the overlays did not.
-const MAX_CHUNK_KB = 850;
-const MAX_TOTAL_JS_KB = 1600;
+const MAX_CHUNK_KB = 735;
+const MAX_TOTAL_JS_KB = 2100;
 
 let files;
 try {

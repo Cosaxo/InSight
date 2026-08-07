@@ -292,6 +292,39 @@ describe("duelQFor (duel question rotation)", () => {
     expect(duelQFor({ id: "x", mode: "duo" }, [qd("g0", { surface: "group" })], DAY)).toBeNull();
   });
 
+  describe("duoMode pool selection (D40 part 4)", () => {
+    const pooled = [
+      ...bank,
+      qd("r0", { surface: "duo", mode: "romantic" }),
+      qd("r1", { surface: "duo", mode: "romantic" }),
+      qd("r2", { surface: "duo", mode: "romantic" }),
+    ];
+    const duo = { id: "grp_abc", mode: "duo" };
+
+    it("keeps the shared pool romantic-free — and the rotation unmoved", () => {
+      for (let d = 0; d < 10; d++) {
+        expect(duelQFor(duo, pooled, DAY + d)!.id).toMatch(/^d/);
+        // adding the romantic docs must not remap any friend pair's day —
+        // the default branch's bank is unchanged (the D30 growth argument)
+        expect(duelQFor(duo, pooled, DAY + d)!.id).toBe(duelQFor(duo, bank, DAY + d)!.id);
+      }
+    });
+
+    it("serves a romantic duo the romantic pool exclusively", () => {
+      const rom = { ...duo, duoMode: "romantic" };
+      for (let d = 0; d < 10; d++) expect(duelQFor(rom, pooled, DAY + d)!.id).toMatch(/^r/);
+    });
+
+    it("ignores duoMode on groups, and unknown modes fall back to shared", () => {
+      expect(duelQFor({ ...group, duoMode: "romantic" }, pooled, DAY)!.id).toMatch(/^g/);
+      expect(duelQFor({ ...duo, duoMode: "sneaky" }, pooled, DAY)!.id).toMatch(/^d/);
+    });
+
+    it("returns null for a romantic duo when no romantic docs exist", () => {
+      expect(duelQFor({ ...duo, duoMode: "romantic" }, bank, DAY)).toBeNull();
+    });
+  });
+
   it("defaults kind to 'classic' when the question has no topic", () => {
     const only = [qd("g0", { surface: "group", topic: null })];
     expect(duelQFor(group, only, DAY)!.kind).toBe("classic");

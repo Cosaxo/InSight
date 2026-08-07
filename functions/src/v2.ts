@@ -286,6 +286,12 @@ export async function runSeedV2(
       topic: q.topic,
       axis: q.axis,
       test: q.test,
+      // Emitted only when set (like the source's `flags`): adding the key
+      // as null to every payload would mismatch all 389 stored docs at
+      // once and spend a full-bank rewrite on a field almost nothing
+      // carries. `mode` scopes a duel question to a pool — today only
+      // "romantic" (D40 part 4), which duelQFor filters on client-side.
+      ...(typeof q.mode === "string" ? { mode: q.mode } : {}),
     };
     // Unchanged docs are not rewritten. Two things depend on this, and the
     // second is the expensive one: `updatedAt` only means something as an
@@ -306,7 +312,12 @@ export async function runSeedV2(
       continue;
     }
     payload.updatedAt = FieldValue.serverTimestamp();
-    if (!present.has(q.id)) payload.active = true;
+    // Honor a source-carried `active: false` on FIRST create (it used to be
+    // hardcoded true, which silently discarded the flag the content layer's
+    // `flags()` emits — the romantic pool ships dark on purpose, D40 part
+    // 4). Reseeds still never touch active: the operator's console flip is
+    // the kill switch and the seed must not fight it either direction.
+    if (!present.has(q.id)) payload.active = q.active !== false;
     batch.set(refs[i], payload, { merge: true });
     written++;
     // Firestore batches cap at 500 ops.
@@ -319,7 +330,7 @@ export async function runSeedV2(
   if (inBatch > 0) await batch.commit();
   // `contentRev` is the FULL-invalidation lever: it blows away every
   // device's cached bank so the next boot re-reads all of it. That costs
-  // 369 reads per returning user (docs/COSTS.md), so it is no longer
+  // 389 reads per returning user (docs/COSTS.md), so it is no longer
   // spent on every run — only when this seed created documents, and when
   // an operator asks for it explicitly.
   //

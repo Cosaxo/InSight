@@ -1,18 +1,56 @@
 # InSight
 
-**Answer one question. See where you stand. Know your people.**
+**Answer things. See what they add up to.**
 
-InSight is a two-tab app — **daily · mirror** — built around three loops:
+InSight is a two-tab app — **daily · mirror**. One tab is where you
+answer; the other is where the answering turns into a picture of you
+against every population you belong to. Answering is the smaller half.
 
-- **The daily.** One blind vote a day (plus a finite question feed to
-  snack on). You answer first, *then* see how the world split — with
-  honest, k-anonymous counts.
+## Answering — three ways in, all blind until you've played
+
+- **The daily.** One blind vote a day, *then* how the world split, with
+  honest k-anonymous counts — plus a finite question feed underneath to
+  snack on.
 - **Duels.** Groups and 1v1s with your real people: one question a day,
   everyone's answers **sealed until tomorrow**, then revealed with names.
   Duos add a guess — did you call what they'd pick? — and a shared streak.
-- **The map.** Every answer becomes a dot in your constellation on the
-  Mirror tab. The four core tests (Big Five, politics, values, social)
-  fill themselves passively from marked cards in the feed — no homework.
+- **Tests with no test to sit.** Big Five, politics, values and social
+  fill themselves from marked cards in that same feed, alongside a row of
+  smaller lenses. No homework — and passive progress starts at zero, so
+  nothing is filled in that you didn't answer.
+
+## The Mirror — one tab, one verb: see yourself against a population
+
+Seven stops on a single ruler you drag along, from fully retracted to
+fully extended:
+
+```
+you · circle · groups · near · city · country · world
+```
+
+Six of them in live mode: **Near** *is* your city there, so a City stop
+would be the same cohort offered twice (decision D9).
+
+**You** is the Map: every answer you've given becomes a dot, filed under
+its question's branch and sitting further from the centre the more
+unusual it was — mastered Learn facts land on the same canvas. **Groups**
+is your named circles, their alignment computed from real reveal history.
+**Near**, **Country** and **World** are the same question at three radii.
+**Circle** is the one stop with nothing real behind it yet: v2 has no
+person-to-person graph, so live mode says so rather than showing the
+prototype's invented people.
+
+The slicing is the whole trick, and it costs one write. An answer is
+stored once, owner-only, carrying a snapshot of the profile fields it was
+answered under. A server trigger folds that snapshot into per-cohort
+counts, publishes them only above the k-floor — and the Mirror reads your
+own bucket back out. No client ever reads another user's document; a
+population is a shape in the aggregates, never a list of people.
+
+[`docs/MIRROR.md`](./docs/MIRROR.md) is the full read path: what each stop
+shows, where its numbers come from, how a test result becomes a cut line
+on everyone else's answers, and which parts are still the prototype's
+furniture.
 
 Built with **React 19 + TypeScript + Vite**, wrapped for **iOS + Android**
 via **Capacitor**, backed by **Firebase** (anonymous-first Auth,
@@ -27,6 +65,10 @@ Every privacy claim in the UI is enforced server-side, not promised:
 - **World stats are k-floored.** Exact counts live in a server-only
   collection; the public mirror shows nothing below 5 answers and carries
   no per-vote timestamps (`v2_question_aggs`, AGG_MIN_N).
+- **Every cohort cell clears the same floor.** The Mirror's slices are
+  floored per cell with complementary suppression, so a hidden bucket can
+  never be recovered by subtracting the published ones — and political
+  test items carry no breakdown at all (decision D44).
 - **Reveals are materialized server-side.** Group/duo answers become
   visible only when a Cloud Function writes the reveal doc — rules deny
   answering a day that's already revealed, so nobody peeks then plays.
@@ -60,15 +102,21 @@ width (or under Capacitor) it goes full-bleed with safe-area insets.
 ```
 src/v2/            the app — ported from the frozen design spec
   spec/            UI modules (shared-global style, shrinking module by
-                   module under a ratchet — see src/v2/README.md, D39)
+                   module under a ratchet — see src/v2/README.md, D39).
+                   mirror-*.jsx and map-*.js* are the Mirror tab;
+                   docs/MIRROR.md maps them to what they draw
   data/live.ts     the live data layer: window.LIVE (deck, feed, social)
+  data/groupPortrait.ts  the Groups mirror's arithmetic, from reveals
   data/push.ts     reveal push registration (native only)
+  ui/              the typed panels born in this repo, not ported: the
+                   live Mirror bodies (cohorts, groups) and the duel,
+                   privacy, city and search panels
   styles.css       the design system, verbatim from the spec
 src/lib/           firebase init + anonymous-first auth + emulator wiring
 functions/src/     v2.ts (seed + aggregates) · v2social.ts (groups, duos,
                    reveals, push) · index.ts (account deletion)
 firestore.rules    the access model (owner-only answers, k-floored aggs,
-                   member-only groups/reveals) — 47 emulator tests
+                   member-only groups/reveals) — 50 emulator tests
 firestore.rules.v1-archive  the retired v1 client rules (D4) — reference,
                    NOT deployed
 monitoring/        Cloud Monitoring policies, put live by
@@ -78,9 +126,11 @@ monitoring/        Cloud Monitoring policies, put live by
                    (`npm run pulse` — MONITORING.md, D47)
 content/           canonical question banks & archetypes (seed source)
 design/            the frozen design spec (read-only reference)
-docs/              DECISIONS · SCHEMA-V2 · DEPLOYMENT · LOCAL-TESTING ·
-                   SHIP-CHECKLIST · LAUNCH-RUNBOOK · data-inventory ·
-                   DEVICE-BIND · MONETIZATION · COSTS · MONITORING
+docs/              DECISIONS · MIRROR (what the app shows, and how one
+                   answer reaches every surface) · SCHEMA-V2 · DEPLOYMENT ·
+                   LOCAL-TESTING · SHIP-CHECKLIST · LAUNCH-RUNBOOK ·
+                   data-inventory · DEVICE-BIND · MONETIZATION · COSTS ·
+                   MONITORING
 ```
 
 ## Testing & CI
@@ -90,7 +140,7 @@ Local:
 - `npm run test:unit` — client store, pure deck logic, and the spec-layer
   mount tests (vitest + jsdom, no emulator).
 - `npm run test --prefix functions` — the k-anon floor, reveal and streak math.
-- `npm run test:rules` — 47 security-rules tests (Firestore + Storage)
+- `npm run test:rules` — 50 security-rules tests (Firestore + Storage)
   against the emulator. `npm run check:figures` holds this number and the
   one in the repo map above equal to the suites, because both said 40 for
   long enough to be quoted twice.
