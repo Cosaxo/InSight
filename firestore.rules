@@ -336,7 +336,21 @@ service cloud.firestore {
     match /v2_groups/{gid} {
       allow read: if request.auth != null
         && request.auth.uid in resource.data.memberUids;
-      allow write: if false;
+      // Group docs are server-authored (createGroupV2 / joinGroupV2 /
+      // leaveGroupV2 own membership, codes and streaks) — with ONE
+      // member-writable field: a duo's pool choice (D40 part 4). Either
+      // partner may flip duoMode and both see the same doc, so the pair
+      // flips together; affectedKeys pins the write to that field alone,
+      // the enum is closed, and group-mode docs stay fully server-only.
+      // Not a callable on purpose: no cap, budget or invariant beyond
+      // membership + enum exists for this field, which is exactly what a
+      // rule can express — and rules tests prove it.
+      allow update: if request.auth != null
+        && request.auth.uid in resource.data.memberUids
+        && resource.data.mode == "duo"
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["duoMode"])
+        && request.resource.data.duoMode in ["friends", "romantic"];
+      allow create, delete: if false;
 
       // Materialized reveals (D5): written only by the reveal pipeline;
       // readable by the members the reveal itself recorded.
@@ -381,7 +395,7 @@ service cloud.firestore {
       // correctly denied. Firestore can only hold a list operation to a
       // rule it can compare against the query's own constraints, and an
       // `in`-on-map test gives it nothing to compare — so it allowed the
-      // read rather than refusing it (D59).
+      // read rather than refusing it (D65).
       //
       // An equality on a concrete field does give it something. The three
       // shapes, all measured rather than reasoned about:
@@ -453,7 +467,7 @@ service cloud.firestore {
         // take and no flag could ever be created again. Safe as an equality
         // here for the same reason it is necessary there — but note this
         // one is a get() on ANOTHER document inside a create, not a query
-        // predicate, so it was never the leak (D59).
+        // predicate, so it was never the leak (D65).
         && get(/databases/$(database)/documents/v2_takes/$(request.resource.data.takeId))
              .data.hidden == false
         && request.resource.data.at == request.time;

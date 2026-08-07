@@ -104,6 +104,8 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
     joinGroup: async () => ({ gid: "g_test", name: "Test" }),
     leaveGroup: async () => ({ gid: "g_test", deleted: false }),
     voteDuel: async () => {},
+    setDuoMode: async () => {},
+    romanticPoolReady: () => false,
   };
 
   const LIVE: Dict = {

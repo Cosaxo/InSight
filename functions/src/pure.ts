@@ -194,6 +194,129 @@ export function revealMembersFor(
   });
 }
 
+// ── the duel question-level signal (D40 part 3) ─────────────────
+//
+// Duel answers never reach the world aggregates — the trigger
+// short-circuits them into the sealed reveal path, and that stays. This is
+// the deliberately smaller aggregate written WHERE THE ANSWERS ARE ALREADY
+// BEING READ: at reveal time, summed across ALL groups, k-floored like
+// every published number. What it may never contain: gids, uids, names,
+// member sets, per-group anything, or anything below the floor. The
+// privacy arithmetic is D40's: every input is a vote the group's own
+// members already see with names attached at reveal, so the cross-group,
+// floored sum is strictly less revealing than the reveal itself.
+
+export interface DuelVoteLike {
+  optionIdx: number;
+  guessIdx?: number;
+}
+
+export interface DuelAggState {
+  plays: number; // group-days revealed
+  total: number; // persons counted — the unit the k-floor applies to
+  counts: Record<string, number>; // per-option, bank-option questions only
+  guessTotal: number; // duo guesses cast (both partners may guess)
+  guessMatches: number; // …of which called the partner's actual pick
+}
+
+/**
+ * One reveal's contribution. `optionCount` is the question's bank-option
+ * count — 0 for `pick` questions, whose optionIdx values index each
+ * group's OWN member list and are meaningless summed across groups (the
+ * D12 lesson: wrong-shaped data is worse than none), so a pick publishes
+ * plays and total only. An out-of-range optionIdx (a pair that answered
+ * across a pool flip, or bank drift) stays in `total` — it is a real
+ * person's play — but folds into no count, so Σcounts ≤ total by design.
+ * Guesses are scored only when the duo's BOTH answers are in range (the
+ * pair coherently played this question) and the guess itself names a real
+ * option; a guess compared against a different question's answer would be
+ * noise wearing a number.
+ */
+export function duelAggDelta(
+  votes: readonly DuelVoteLike[],
+  mode: string,
+  optionCount: number,
+): DuelAggState {
+  const counts: Record<string, number> = {};
+  const inRange = (i: unknown): i is number =>
+    typeof i === "number" && Number.isInteger(i) && i >= 0 && i < optionCount;
+  for (const v of votes) {
+    if (inRange(v.optionIdx)) counts[String(v.optionIdx)] = (counts[String(v.optionIdx)] || 0) + 1;
+  }
+  let guessTotal = 0;
+  let guessMatches = 0;
+  if (mode === "duo" && votes.length === 2 && inRange(votes[0].optionIdx) && inRange(votes[1].optionIdx)) {
+    for (let i = 0; i < 2; i++) {
+      const guess = votes[i].guessIdx;
+      if (!inRange(guess)) continue;
+      guessTotal++;
+      if (guess === votes[1 - i].optionIdx) guessMatches++;
+    }
+  }
+  return { plays: 1, total: votes.length, counts, guessTotal, guessMatches };
+}
+
+/** Fold a delta onto the stored private state, tolerating an absent or
+ *  malformed prior doc — the first reveal of a question creates it. */
+export function foldDuelAgg(prev: unknown, delta: DuelAggState): DuelAggState {
+  const p = (prev && typeof prev === "object" ? prev : {}) as Record<string, unknown>;
+  const num = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? v : 0);
+  const counts: Record<string, number> = {};
+  const pc = p.counts;
+  if (pc && typeof pc === "object") {
+    for (const [k, v] of Object.entries(pc as Record<string, unknown>)) counts[k] = num(v);
+  }
+  for (const [k, v] of Object.entries(delta.counts)) counts[k] = (counts[k] || 0) + v;
+  return {
+    plays: num(p.plays) + delta.plays,
+    total: num(p.total) + delta.total,
+    counts,
+    guessTotal: num(p.guessTotal) + delta.guessTotal,
+    guessMatches: num(p.guessMatches) + delta.guessMatches,
+  };
+}
+
+/**
+ * The publish cadence, crossing-based. shouldPublishAgg's `total % every`
+ * is right for the vote path, where the ledgered trigger folds answers ONE
+ * at a time; a reveal folds a whole group-day at once, so the total can
+ * jump OVER a multiple and `%` would then stay silent until it happened to
+ * land exactly — a question could go dark for hundreds of answers. Publish
+ * when the fold crosses the floor or any multiple of `every` past it. The
+ * step a reader observes still aggregates ≥1 reveal batch; per-reveal
+ * granularity is already covered by D40's strictly-less-revealing
+ * argument, so the cadence here bounds doc rewrites more than disclosure.
+ */
+export function shouldPublishDuelAgg(
+  prevTotal: number,
+  nextTotal: number,
+  floor: number,
+  every: number,
+): boolean {
+  if (nextTotal < floor) return false;
+  if (prevTotal < floor) return true; // crossing the floor is the first publish
+  if (every <= 1) return true;
+  return Math.floor(nextTotal / every) > Math.floor(prevTotal / every);
+}
+
+/** The public mirror of a duel aggregate — only ever called at/above the
+ *  floor; below it nothing is written and a missing doc reads as hidden
+ *  (deck.ts isTooSmall defaults ON). Guess fields publish only when a
+ *  guess exists, counts only when any vote landed in range — absent keys,
+ *  not zeroes, so a pick question's doc never grows fields that would
+ *  invite reading meaning into them. */
+export function publishableDuelAgg(state: DuelAggState): Record<string, unknown> {
+  return {
+    plays: state.plays,
+    total: state.total,
+    tooSmall: false,
+    ...(Object.keys(state.counts).length ? { counts: state.counts } : {}),
+    ...(state.guessTotal > 0
+      ? { guessTotal: state.guessTotal, guessMatches: state.guessMatches }
+      : {}),
+  };
+}
+
 // ── k-anonymity gate (v2) ───────────────────────────────────────
 
 // The k-floor decision in one place: a bucket is publishable only at
@@ -1117,4 +1240,66 @@ export function seedDocMatches(
     }
   }
   return true;
+}
+
+// ── the one seeded field that may never be edited (D52) ─────────
+//
+// Answers store `(qid, optionIdx)` and nothing else — that is what makes
+// them cheap, and it is why D52 records "shipped option sets are never
+// edited" as an invariant rather than a preference. Swap two options on a
+// live question and every historical vote silently changes meaning: the
+// counts do not move, the aggregates do not recompute, and nothing anywhere
+// reports that the answer to "which do you prefer?" now says the opposite.
+// It is the D30 re-key class, applied retroactively to data already
+// collected.
+//
+// Until now that invariant was enforced by a human reading the diff. The
+// seed itself would take an edited `options` array straight through
+// `seedDocMatches` (which returns false on ANY changed field, including this
+// one) and `batch.set(…, { merge: true })` it over the live doc. A content
+// review that got it right every time so far is a record, not a mechanism.
+//
+// Deliberately narrow. `prompt` edits ARE allowed — D52's own fix list is
+// mostly prompt rewrites that preserve a question's meaning, and a prompt
+// carries no index that an answer refers to. Only `options` re-keys stored
+// data. Length changes count: appending an option changes no existing
+// index, but it changes what a question means to everyone who already
+// answered it without that choice, and D52's appends are to BANKS (new
+// questions), never to a shipped question's option list.
+export interface SeedOptionConflict {
+  qid: string;
+  stored: string[];
+  desired: string[];
+}
+
+/**
+ * The option-set edit `desired` would make to an already-stored question,
+ * or null when there is none. `stored` is undefined for a doc that does not
+ * exist yet — a create is never a conflict, only a rewrite is.
+ *
+ * Non-array or absent stored options are treated as "nothing to protect":
+ * a question seeded before the field existed has no votes keyed to an
+ * index it never had.
+ */
+export function seedOptionConflict(
+  qid: string,
+  stored: Record<string, unknown> | null | undefined,
+  desired: Record<string, unknown>,
+): SeedOptionConflict | null {
+  if (!stored) return null;
+  const a = stored.options;
+  const b = desired.options;
+  if (!Array.isArray(a) || !Array.isArray(b)) return null;
+  const same = a.length === b.length && a.every((v, i) => v === b[i]);
+  if (same) return null;
+  return { qid, stored: a.map(String), desired: b.map(String) };
+}
+
+/** One line per conflict, for the log and the operator's error. */
+export function describeSeedOptionConflicts(
+  conflicts: readonly SeedOptionConflict[],
+): string {
+  return conflicts
+    .map((c) => `${c.qid}: [${c.stored.join(" | ")}] -> [${c.desired.join(" | ")}]`)
+    .join("; ");
 }

@@ -19,7 +19,7 @@
 // Schema and access decisions: docs/SCHEMA-V2.md, docs/DECISIONS.md (D5).
 
 import { getFirestore, FieldValue, type Firestore, type Transaction } from "firebase-admin/firestore";
-import { onCall } from "firebase-functions/v2/https";
+import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { assertOperator, HOT_TRIGGER } from "./ops";
 import { onDocumentCreated } from "firebase-functions/v2/firestore";
 import { logger } from "firebase-functions";
@@ -32,10 +32,13 @@ import {
   publishBreakdown,
   publishableCanon,
   seedDocMatches,
+  seedOptionConflict,
+  describeSeedOptionConflicts,
   shouldPublishAgg,
   type BreakdownCounts,
   type CanonCounts,
   type CatalogSpec,
+  type SeedOptionConflict,
 } from "./pure";
 import { FILM_KEYS, ARTIST_KEYS, EMOJI_KEYS } from "./catalogKeys";
 
@@ -239,8 +242,18 @@ const CATALOG_DOMAINS: Record<string, CatalogSpec> = {
 
 // ── content seed ────────────────────────────────────────────────
 
-async function runSeedV2(bumpRev = false): Promise<{ written: number; skipped: number }> {
-  const db = getFirestore();
+/**
+ * Exported and db-injected for the same reason runAggTransaction is: the
+ * refusal below (D58) is a guarantee about what this function REFUSES to
+ * write, and a guarantee nothing executes is a comment. `getFirestore()`
+ * inside the body would have made the enforcement untestable without an
+ * emulator — which is exactly the gap that let the invariant go unenforced
+ * for as long as it did. seed.test.ts drives it with a stand-in.
+ */
+export async function runSeedV2(
+  db: Firestore,
+  bumpRev = false,
+): Promise<{ written: number; skipped: number }> {
   const refs = V2_QUESTIONS.map((q) => db.collection("v2_questions").doc(q.id));
   // `active` is the operational kill switch — the seed must never flip a
   // question ops disabled back on, so it is only written on first create.
@@ -257,6 +270,7 @@ async function runSeedV2(bumpRev = false): Promise<{ written: number; skipped: n
   let batch = db.batch();
   let inBatch = 0;
   let written = 0;
+  const refused: SeedOptionConflict[] = [];
   for (let i = 0; i < V2_QUESTIONS.length; i++) {
     const q = V2_QUESTIONS[i];
     const payload: Record<string, unknown> = {
@@ -272,6 +286,12 @@ async function runSeedV2(bumpRev = false): Promise<{ written: number; skipped: n
       topic: q.topic,
       axis: q.axis,
       test: q.test,
+      // Emitted only when set (like the source's `flags`): adding the key
+      // as null to every payload would mismatch all 389 stored docs at
+      // once and spend a full-bank rewrite on a field almost nothing
+      // carries. `mode` scopes a duel question to a pool — today only
+      // "romantic" (D40 part 4), which duelQFor filters on client-side.
+      ...(typeof q.mode === "string" ? { mode: q.mode } : {}),
     };
     // Unchanged docs are not rewritten. Two things depend on this, and the
     // second is the expensive one: `updatedAt` only means something as an
@@ -279,8 +299,25 @@ async function runSeedV2(bumpRev = false): Promise<{ written: number; skipped: n
     // the bank with `updatedAt > cursor`), and `contentRev` below only
     // bumps when something actually changed.
     if (seedDocMatches(stored.get(q.id), payload)) continue;
+    // D52's un-editable invariant, enforced where the edit would land rather
+    // than in the reviewer's eye. A changed option set on a LIVE question
+    // re-keys every vote already stored against it, silently — so this doc
+    // is refused and the rest of the seed proceeds. Refusing per-document
+    // rather than aborting the run is deliberate: a batch of legitimate
+    // prompt fixes must not be held hostage by one bad edit, and the throw
+    // at the end makes sure the refusal cannot be missed either way.
+    const conflict = seedOptionConflict(q.id, stored.get(q.id), payload);
+    if (conflict) {
+      refused.push(conflict);
+      continue;
+    }
     payload.updatedAt = FieldValue.serverTimestamp();
-    if (!present.has(q.id)) payload.active = true;
+    // Honor a source-carried `active: false` on FIRST create (it used to be
+    // hardcoded true, which silently discarded the flag the content layer's
+    // `flags()` emits — the romantic pool ships dark on purpose, D40 part
+    // 4). Reseeds still never touch active: the operator's console flip is
+    // the kill switch and the seed must not fight it either direction.
+    if (!present.has(q.id)) payload.active = q.active !== false;
     batch.set(refs[i], payload, { merge: true });
     written++;
     // Firestore batches cap at 500 ops.
@@ -293,7 +330,7 @@ async function runSeedV2(bumpRev = false): Promise<{ written: number; skipped: n
   if (inBatch > 0) await batch.commit();
   // `contentRev` is the FULL-invalidation lever: it blows away every
   // device's cached bank so the next boot re-reads all of it. That costs
-  // 369 reads per returning user (docs/COSTS.md), so it is no longer
+  // 389 reads per returning user (docs/COSTS.md), so it is no longer
   // spent on every run — only when this seed created documents, and when
   // an operator asks for it explicitly.
   //
@@ -318,19 +355,47 @@ async function runSeedV2(bumpRev = false): Promise<{ written: number; skipped: n
   if (bumped) {
     await metaRef.set({ contentRev: FieldValue.serverTimestamp() }, { merge: true });
   }
-  const skipped = V2_QUESTIONS.length - written;
+  const skipped = V2_QUESTIONS.length - written - refused.length;
   logger.info(
     `[v2] seeded ${written} questions, ${skipped} unchanged ` +
       `(${present.size} pre-existing, contentRev ${bumped ? "bumped" : "held"})`,
   );
+  // Loud, and after the commit. The legitimate writes are already durable —
+  // holding them back would punish the rest of the batch for one bad edit —
+  // but the run does NOT get to report success, because a silently-skipped
+  // question is exactly the outcome D52 exists to prevent. An operator who
+  // genuinely means to retire a question has `active: false`; an operator
+  // who genuinely means to replace one appends a new qid. Neither path goes
+  // through here.
+  if (refused.length) {
+    const detail = describeSeedOptionConflicts(refused);
+    logger.error(
+      `[v2] REFUSED ${refused.length} option-set edit(s) to live questions ` +
+        `(D52 — answers store optionIdx, so editing options re-keys every ` +
+        `vote already cast): ${detail}`,
+    );
+    throw new HttpsError(
+      "failed-precondition",
+      `refused ${refused.length} option-set edit(s) to already-seeded questions; ` +
+        `shipped option sets are immutable (D52). Retire with active:false or ` +
+        `append a new qid instead. ${detail}`,
+    );
+  }
   return { written, skipped };
 }
 
-// NO enforceAppCheck, deliberately: this is invoked from a browser console
-// as the last remaining step of SHIP-CHECKLIST §1, and by the e2e — neither
-// carries an App Check token. assertOperator + SEED_ADMIN_UIDS is the
-// control instead. Held by `npm run check:appcheck`, which also fails if
-// enforcement is ever added here without removing the exemption, because
+// NO enforceAppCheck, deliberately: this is invoked by the *Seed content*
+// workflow (scripts/seed-content.mjs) as the last remaining step of
+// SHIP-CHECKLIST §1, and by the e2e — neither carries an App Check token.
+// assertOperator + SEED_ADMIN_UIDS is the control instead.
+//
+// This comment said "from a browser console" until 2026-08-06, which was
+// the reason given for the exemption and was describing a caller that did
+// not exist: hosting serves only web/ (home, join, privacy, terms) and the
+// app ships as the native iOS shell, so there is no browser build to open a
+// console on. The exemption was right; its stated caller was imaginary.
+//
+// Held by `npm run check:appcheck`, which also fails if
 // adding it would refuse the console call that checklist step is written
 // around.
 export const seedContentV2 = onCall({ region: REGION }, async (request) => {
@@ -338,7 +403,7 @@ export const seedContentV2 = onCall({ region: REGION }, async (request) => {
   // bumpRev forces the full cache invalidation the seed no longer spends
   // by default — see runSeedV2. Use it after flipping `active` by hand in
   // the console; ordinary content growth does not need it.
-  return runSeedV2(request.data?.bumpRev === true);
+  return runSeedV2(getFirestore(), request.data?.bumpRev === true);
 });
 
 // ── answer → aggregate ──────────────────────────────────────────

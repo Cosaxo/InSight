@@ -63,7 +63,7 @@ const TAKE = "t_e2e_1";
 await setDoc(doc(db, "v2_takes", TAKE), {
   gid, authorUid, text: "hot take: the reveal timing is genuinely bad",
   createdAt: serverTimestamp(),
-  // Required by the create rule, and required to be false (D59): the read
+  // Required by the create rule, and required to be false (D65): the read
   // gate is an equality on this field, so a take without it could never be
   // read back and a client-set `true` would hide its own words from the
   // circle while leaving them in the queue.

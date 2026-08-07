@@ -41,6 +41,7 @@ import {
   setDoc,
   terminate,
   Timestamp,
+  updateDoc,
   where,
 } from "firebase/firestore";
 import { getFunctions, httpsCallable } from "firebase/functions";
@@ -873,6 +874,23 @@ const SOCIAL = {
   },
   async leaveGroup(gid: string) {
     return callable<{ gid: string; deleted: boolean }>("leaveGroupV2", { gid });
+  },
+  // The pair's pool choice (D40 part 4) — the one client-written field on a
+  // group doc, and a direct doc update rather than a callable because the
+  // rule can express the whole invariant (member + duo doc + closed enum +
+  // that field alone; firestore.rules carries the argument). The groups
+  // snapshot listener echoes the change back to BOTH partners, so the pool
+  // swap lands on each device the same way every other group change does.
+  async setDuoMode(gid: string, duoMode: "friends" | "romantic") {
+    const db = await getDb();
+    await updateDoc(doc(db, "v2_groups", gid), { duoMode });
+  },
+  // Whether a flip to romantic can land somewhere: the pool seeds dark
+  // (active: false, D40 part 4) and the bank is active-filtered, so this
+  // stays false fleet-wide until the operator lights the pool up — and the
+  // picker (LiveDuelPanel) does not render for a pair it would strand.
+  romanticPoolReady(): boolean {
+    return state.duelBank.some((q) => q.surface === "duo" && q.mode === "romantic");
   },
   voteDuel(gid: string, optionIdx: number, guessIdx?: number): Promise<void> {
     const g = state.groups.find((x) => x.id === gid);

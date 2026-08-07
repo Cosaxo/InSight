@@ -20,17 +20,26 @@ import { onSchedule } from "firebase-functions/v2/scheduler";
 import { logger } from "firebase-functions";
 import { randomBytes } from "node:crypto";
 import {
+  duelAggDelta,
+  foldDuelAgg,
   inviteCodeFromBytes,
   isPlausibleFcmToken,
   nextFcmTokens,
   nextStreak,
   PENDING_DAYS_KEEP,
   prunePendingDays,
+  publishableDuelAgg,
   scanDays,
   revealMembersFor,
+  shouldPublishDuelAgg,
   shouldReveal,
   utcDayKey,
+  type DuelVoteLike,
 } from "./pure";
+// Same import the logic norms histogram uses (logic.ts): the floor and the
+// cadence are v2.ts's constants, and v2.ts imports nothing from this module,
+// so there is no cycle to mind.
+import { AGG_MIN_N, PUBLISH_EVERY } from "./v2";
 
 const REGION = "us-central1";
 const GROUP_CAP = 32;
@@ -423,12 +432,18 @@ async function revealGroupDay(
   // the streak from a lastRevealDay that never advanced.
   let streak = 0;
   let didReveal = false;
+  // What the signal fold (below) needs from the committed reveal — captured
+  // here because the transaction's own locals die with it.
+  let aggQid: string | null = null;
+  let aggVotes: DuelVoteLike[] = [];
   await db.runTransaction(async (tx) => {
     // Reset per attempt: a transaction callback can run more than once,
     // and a retry that bails early must not inherit the previous try's
     // verdict.
     didReveal = false;
     streak = 0;
+    aggQid = null;
+    aggVotes = [];
     const [existing, gsnap, ...fresh] = await tx.getAll(
       revealRef,
       group.ref,
@@ -455,6 +470,9 @@ async function revealGroupDay(
     // them, and the reveal condition cannot flip back to false. Re-checked
     // anyway: the invariant is worth asserting rather than assuming.
     if (!shouldReveal(mode, Object.keys(freshVotes).length)) return;
+
+    aggQid = freshQid ?? qid;
+    aggVotes = Object.values(freshVotes);
 
     tx.create(revealRef, {
       day: dayKey,
@@ -520,6 +538,23 @@ async function revealGroupDay(
     didReveal = true;
   });
   if (!didReveal) return false;
+
+  // The duel question-level signal (D40 part 3): fold this reveal into the
+  // cross-group aggregate. OUTSIDE the reveal transaction on purpose — the
+  // aggregate doc is contended across every group revealing the same
+  // question, and a conflict there must retry this small fold, never the
+  // reveal, which is the product's one daily moment (and whose retry
+  // re-reads 2×members documents). The cost of the split, recorded: a
+  // crash between the reveal commit and this fold undercounts an advisory,
+  // floored aggregate by one reveal — the reveal doc's existence stops the
+  // scan from ever retrying the day, so the loss is permanent and
+  // accepted. ERROR-level so monitoring sees a systematic failure; one
+  // lost increment is survivable, a silent pattern is not.
+  try {
+    await foldDuelSignal(db, mode, aggQid, aggVotes);
+  } catch (err) {
+    logger.error(`[duel-signal] fold failed for ${gid}/${dayKey} (${aggQid}):`, err);
+  }
 
   // The one notification the product earns (Phase 5): the reveal is out.
   // Tokens are best-effort — failures never block the reveal itself.
@@ -627,6 +662,49 @@ async function revealGroupDay(
 // Eventarc for the marker and would fail on timing rather than on
 // behaviour. The e2e exercises the indexed path in its own leg, with a
 // bounded wait, so both are covered for what each is actually for.
+// The duel signal's fold (D40 part 3). One small transaction per revealed
+// group-day: read the running private state and the question doc — two
+// reads; the option count bounds count folding, and a `pick` question
+// (options []) publishes plays/total only, because its optionIdx values
+// index each group's OWN member list and are meaningless summed across
+// groups. Fold, store the exact state privately, and rewrite the public
+// mirror when the total crosses the floor or a PUBLISH_EVERY multiple
+// (shouldPublishDuelAgg carries the batch-vs-per-answer argument). Ids are
+// namespaced `duel-<qid>` in the same two collections the vote path uses:
+// v2_aggs_private stays client-opaque, v2_question_aggs is the
+// signed-in-readable k-floored mirror — which the scorecard's --fetch
+// already pages in full, so duels score with no new read path. Neither doc
+// carries a timestamp, matching the vote mirror's rule: a fresh timestamp
+// would date-stamp which scan window a group revealed in.
+async function foldDuelSignal(
+  db: FirebaseFirestore.Firestore,
+  mode: string,
+  qid: string | null,
+  votes: DuelVoteLike[],
+): Promise<void> {
+  if (!qid || !votes.length) return;
+  const privRef = db.collection("v2_aggs_private").doc(`duel-${qid}`);
+  const pubRef = db.collection("v2_question_aggs").doc(`duel-${qid}`);
+  const qRef = db.collection("v2_questions").doc(qid);
+  await db.runTransaction(async (tx) => {
+    const [privSnap, qSnap] = await tx.getAll(privRef, qRef);
+    // Rules admit a duel answer only against a bank qid, so a missing
+    // question doc means an operator deleted it since — skip rather than
+    // mint an aggregate keyed by a ghost.
+    if (!qSnap.exists) return;
+    const options = qSnap.get("options");
+    const delta = duelAggDelta(votes, mode, Array.isArray(options) ? options.length : 0);
+    const prev = privSnap.exists ? privSnap.data() : undefined;
+    const prevTotal =
+      prev && typeof prev.total === "number" && Number.isFinite(prev.total) ? prev.total : 0;
+    const next = foldDuelAgg(prev, delta);
+    tx.set(privRef, next);
+    if (shouldPublishDuelAgg(prevTotal, next.total, AGG_MIN_N, PUBLISH_EVERY)) {
+      tx.set(pubRef, publishableDuelAgg(next));
+    }
+  });
+}
+
 type ScanMode = "indexed" | "full";
 
 async function runDuelReveals(

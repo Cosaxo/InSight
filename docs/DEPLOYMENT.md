@@ -75,7 +75,7 @@ Firebase project `prvfire33`. Routine backend changes need no manual deploy.
     while the two shared one command, every deploy deleted whatever indexes
     and field overrides production held that `firestore.indexes.json` does
     not name — and that file names exactly one index (the `v2_takes` list
-    composite, D59). The two the runbook tells an operator to create by
+    composite, D65). The two the runbook tells an operator to create by
     hand are exactly that shape: the
     `v2_agg_events.expireAt` TTL (LAUNCH-RUNBOOK §5.1, the 90-day bound D28
     rests on) and the composite index `v2social.ts` names if the duel scan

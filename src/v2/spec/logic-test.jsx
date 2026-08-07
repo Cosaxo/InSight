@@ -6,13 +6,14 @@
 import React from 'react';
 import { useDialog } from './primitives.jsx';
 import { generateForm } from '../data/logic-gen';
-import { FIELD_MED, loadResult, logicPctile, logicSecs, saveResult } from '../data/logic-score';
+import { FIELD_MED, loadResult, logicPctileFor, logicSecs, saveResult } from '../data/logic-score';
 import { startVerified, submitVerified, verifyErrorMessage } from '../data/logic-verify';
 
 // ─────────────────────────────────────────────────────────────
 // Logic · Raven's-matrices-style test, run as a full overlay
-// (like the other tests). Twelve 3×3 matrices on a difficulty
-// ramp, GENERATED fresh per attempt by src/v2/data/logic-gen.ts
+// (like the other tests). Twenty-five 3×3 matrices on a
+// tail-heavy difficulty ramp (D61), GENERATED fresh per attempt
+// by src/v2/data/logic-gen.ts
 // (a direct import since D53 — this file was the global's only
 // consumer) from a random seed — the bank of hardcoded puzzles
 // (and its answer key in the bundle) is gone, and since D56 the
@@ -77,7 +78,7 @@ import { startVerified, submitVerified, verifyErrorMessage } from '../data/logic
   }
 
   // ── per-attempt form ──
-  // The twelve matrices come from the generator, seeded fresh at every
+  // The matrices come from the generator, seeded fresh at every
   // start. The seed is saved with the result so a future lens (or a bug
   // report) can reconstruct exactly the form a score was earned on —
   // the generator version travels with it so a generator change can never
@@ -294,15 +295,19 @@ import { startVerified, submitVerified, verifyErrorMessage } from '../data/logic
   // yardstick, not a population statistic), and the result screen says so
   // once rather than letting five charts imply five measurements.
   //
-  // Since D57 there are TWO truths to tell, so there are two notes. A
-  // practice attempt still sends nothing anywhere. A VERIFIED attempt is
+  // Three truths, three notes. A practice attempt still sends nothing
+  // anywhere and scores against the modelled curve. A VERIFIED attempt is
   // seeded and scored server-side (data/logic-verify.ts): the picks leave
-  // the device, the score joins an anonymous count once — and its charts
-  // are STILL the modelled yardstick, until enough verified scores exist
-  // to measure against (that flip is future work, recorded in D57).
+  // the device and the score joins an anonymous count once — its
+  // percentile is the same modelled yardstick until the histogram clears
+  // the D60 floor, after which it arrives MEASURED (source "measured",
+  // ranked against the n verified first attempts counted so far). Even
+  // then, the lens CHARTS stay modelled sketches — the measured note says
+  // exactly that, so one real number never dresses up four drawn ones.
 
   const LOGIC_FIELD_NOTE = 'Comparisons here are a modelled yardstick, not other players’ results — practice attempts send nothing anywhere.';
   const LOGIC_VERIFIED_NOTE = 'Verified: scored on the server, counted once toward an anonymous field count. Comparisons are still a modelled yardstick until enough verified scores exist.';
+  const LOGIC_MEASURED_NOTE = 'Verified and measured: the percentile is your score ranked against the verified players counted so far. The charts around it are still modelled sketches, not their data.';
   const LOGIC_VERIFY_DISCLOSURE = 'Verified sends your picks to be scored on the server; your score joins an anonymous count. Nothing else leaves this device.';
 
   const LOGIC_LENSES = [
@@ -391,11 +396,15 @@ import { startVerified, submitVerified, verifyErrorMessage } from '../data/logic
           // The server's marks and percentile are the result; the local
           // per-item times ride along for the Pace lens only. seed+gv come
           // back post-scoring so this result stays reconstructable, like
-          // every practice result before it.
+          // every practice result before it. `source` and `n` are the
+          // server's word on what the percentile IS — a modelled curve, or
+          // a measured rank among n verified players (D60).
           const r = {
             v: 2, verified: true, seed: res.seed, gv: res.gv,
             marks: res.marks, times: nt, diffs: form.items.map((it) => it.diff),
-            pctile: res.pctile, durationMs: res.durationMs, source: 'model',
+            pctile: res.pctile, durationMs: res.durationMs,
+            source: res.source || 'model',
+            ...(res.n ? { n: res.n } : {}),
             when: Date.now(),
           };
           saveResult(r); setResult(r); setVerify(null);
@@ -434,7 +443,7 @@ import { startVerified, submitVerified, verifyErrorMessage } from '../data/logic
           const r = {
             v: 2, seed: form.seed, gv: form.version,
             marks: next, times: nt, diffs: form.items.map((it) => it.diff),
-            pctile: logicPctile(k / next.length), when: Date.now(),
+            pctile: logicPctileFor(k / next.length, next.length), when: Date.now(),
           };
           saveResult(r); setResult(r); setMarks([]); setTimes([]); setPicks([]); setQi(-1);
         }
@@ -515,7 +524,7 @@ import { startVerified, submitVerified, verifyErrorMessage } from '../data/logic
                 </svg>
               ); })()}
               <div style={{ fontFamily: 'var(--sans)', fontSize: 13.5, color: 'var(--ink-3)', textAlign: 'center', maxWidth: 240, lineHeight: 1.45 }}>
-                Sharper than {result.pctile}% of players.
+                Sharper than {result.pctile}% of {result.source === 'measured' && result.n ? result.n + ' verified players' : 'players'}.
                 {result.verified && (
                   <span style={{ display: 'inline-block', marginLeft: 7, padding: '1.5px 8px', borderRadius: 999, fontSize: 10.5, fontWeight: 700, letterSpacing: '0.03em', color: 'var(--surface)', background: LOGIC_COL, verticalAlign: '1px' }}>verified</span>
                 )}
@@ -538,7 +547,7 @@ import { startVerified, submitVerified, verifyErrorMessage } from '../data/logic
                   {lens === 'pace' && <PacePlot pctile={result.pctile} secs={logicSecs(result)} />}
                   {lens === 'field' && <FieldCurve pctile={result.pctile} />}
                   {lens === 'compare' && <CompareRows pctile={result.pctile} />}
-                  <div style={{ fontFamily: 'var(--sans)', fontSize: 11, color: 'var(--ink-3)', marginTop: 12, lineHeight: 1.45, borderTop: '0.5px solid var(--rule)', paddingTop: 10 }}>{result.verified ? LOGIC_VERIFIED_NOTE : LOGIC_FIELD_NOTE}</div>
+                  <div style={{ fontFamily: 'var(--sans)', fontSize: 11, color: 'var(--ink-3)', marginTop: 12, lineHeight: 1.45, borderTop: '0.5px solid var(--rule)', paddingTop: 10 }}>{result.verified ? (result.source === 'measured' ? LOGIC_MEASURED_NOTE : LOGIC_VERIFIED_NOTE) : LOGIC_FIELD_NOTE}</div>
                 </div>
               </div>
               <div style={{ display: 'flex', gap: 10, marginTop: 8 }}>

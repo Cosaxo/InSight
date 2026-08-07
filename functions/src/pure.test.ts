@@ -30,12 +30,18 @@ import {
   modVerdictError,
   modVerdictId,
   seedDocMatches,
+  seedOptionConflict,
+  describeSeedOptionConflicts,
   SEEDED_FIELDS,
   foldCanonAnchors,
   canonBreakdownFor,
   CANON_BY_MAX_ENTITIES,
   isPlausibleFcmToken,
   nextFcmTokens,
+  duelAggDelta,
+  foldDuelAgg,
+  shouldPublishDuelAgg,
+  publishableDuelAgg,
 } from "./pure";
 
 // AGG_MIN_N as shipped. The folds take the k-floor as a parameter because
@@ -1231,5 +1237,171 @@ describe("publishBreakdown — publish and baseline are the same value", () => {
     foldAnchors(by, { gender: "Woman" }, 1, FLOOR);
     expect(publishBreakdown(by, first, FLOOR).gender, "one vote moved a published bucket")
       .toEqual({ Woman: { "0": 5 }, Man: { "0": 5 } });
+  });
+});
+
+describe("the duel question-level signal (D40 part 3)", () => {
+  const v = (optionIdx: number, guessIdx?: number) =>
+    guessIdx === undefined ? { optionIdx } : { optionIdx, guessIdx };
+
+  it("folds a group reveal into plays, total and per-option counts", () => {
+    const d = duelAggDelta([v(0), v(2), v(0)], "group", 4);
+    expect(d).toEqual({
+      plays: 1, total: 3, counts: { "0": 2, "2": 1 }, guessTotal: 0, guessMatches: 0,
+    });
+  });
+
+  it("scores duo guesses against the partner's actual pick", () => {
+    // A picked 0 and guessed 1 — B did pick 1, so A called it. B picked 1
+    // and guessed 1 — A picked 0, so B missed. Two guesses, one match.
+    const d = duelAggDelta([v(0, 1), v(1, 1)], "duo", 2);
+    expect(d.guessTotal).toBe(2);
+    expect(d.guessMatches).toBe(1);
+  });
+
+  it("publishes a pick question as plays and total only — no cross-group counts", () => {
+    // optionIdx values index each group's OWN member list (D12: wrong-shaped
+    // data is worse than none), so optionCount is 0 and nothing folds.
+    const d = duelAggDelta([v(0), v(3), v(1)], "group", 0);
+    expect(d.counts).toEqual({});
+    expect(d.total).toBe(3);
+    expect(publishableDuelAgg(foldDuelAgg(undefined, d))).toEqual({
+      plays: 1, total: 3, tooSmall: false,
+    });
+  });
+
+  it("keeps an out-of-range answer in total but out of counts and guess scoring", () => {
+    // The pool-flip race: one partner answered a different question, so the
+    // pair did not coherently play this one — their guesses are noise.
+    const d = duelAggDelta([v(0, 1), v(7, 0)], "duo", 2);
+    expect(d.total).toBe(2);
+    expect(d.counts).toEqual({ "0": 1 });
+    expect(d.guessTotal).toBe(0);
+  });
+
+  it("skips a guess that names no real option, without losing the partner's", () => {
+    const d = duelAggDelta([v(0, 9), v(1, 0)], "duo", 2);
+    expect(d.guessTotal).toBe(1); // only the in-range guess counts…
+    expect(d.guessMatches).toBe(1); // …and it called partner A's 0
+  });
+
+  it("accumulates across reveals and tolerates a missing or malformed prior doc", () => {
+    const a = foldDuelAgg(undefined, duelAggDelta([v(0), v(1)], "group", 2));
+    const b = foldDuelAgg(a, duelAggDelta([v(1), v(1)], "group", 2));
+    expect(b).toEqual({
+      plays: 2, total: 4, counts: { "0": 1, "1": 3 }, guessTotal: 0, guessMatches: 0,
+    });
+    const healed = foldDuelAgg(
+      { plays: "x", total: null, counts: { "0": "bad", "1": 2 } },
+      duelAggDelta([v(0)], "group", 2),
+    );
+    expect(healed).toEqual({
+      plays: 1, total: 1, counts: { "0": 1, "1": 2 }, guessTotal: 0, guessMatches: 0,
+    });
+  });
+
+  it("publishes on floor and multiple CROSSINGS — batch folds cannot go dark", () => {
+    // Below the floor: never.
+    expect(shouldPublishDuelAgg(0, 4, 5, 5)).toBe(false);
+    // Crossing the floor publishes, even mid-band (4 → 6 skips exactly 5).
+    expect(shouldPublishDuelAgg(4, 6, 5, 5)).toBe(true);
+    // Inside a band: quiet.
+    expect(shouldPublishDuelAgg(6, 9, 5, 5)).toBe(false);
+    // Jumping OVER a multiple still publishes — the `% every` cadence the
+    // vote path uses would stay silent here, which is the reason this
+    // variant exists (a reveal folds a whole group-day at once).
+    expect(shouldPublishDuelAgg(6, 12, 5, 5)).toBe(true);
+    // Landing exactly on a multiple publishes, like the vote path.
+    expect(shouldPublishDuelAgg(9, 10, 5, 5)).toBe(true);
+    // No growth, no rewrite.
+    expect(shouldPublishDuelAgg(10, 10, 5, 5)).toBe(false);
+  });
+
+  it("publishes guess fields only when a guess exists, counts only when any landed", () => {
+    // A guessed B would pick 0 (B picked 1 — miss); B guessed A would pick
+    // 1 (A picked 0 — miss): two guesses, zero matches.
+    const duo = foldDuelAgg(undefined, duelAggDelta([v(0, 0), v(1, 1)], "duo", 2));
+    expect(publishableDuelAgg(duo)).toEqual({
+      plays: 1, total: 2, tooSmall: false,
+      counts: { "0": 1, "1": 1 }, guessTotal: 2, guessMatches: 0,
+    });
+    const group = foldDuelAgg(undefined, duelAggDelta([v(0)], "group", 2));
+    expect(publishableDuelAgg(group)).toEqual({
+      plays: 1, total: 1, tooSmall: false, counts: { "0": 1 },
+    });
+  });
+});
+
+// ── D52: shipped option sets are immutable ──────────────────────
+
+describe("seedOptionConflict — the edit the seed must refuse", () => {
+  const desired = {
+    surface: "daily", seq: 3, type: "binary", domain: null,
+    prompt: "Messi or Ronaldo?", options: ["Messi", "Ronaldo"],
+    topic: "light", axis: null, test: null,
+  };
+
+  it("passes a doc that does not exist yet — a create is never a re-key", () => {
+    expect(seedOptionConflict("daily-003", null, desired)).toBeNull();
+    expect(seedOptionConflict("daily-003", undefined, desired)).toBeNull();
+  });
+
+  it("passes an unchanged option set", () => {
+    expect(seedOptionConflict("daily-003", { ...desired }, desired)).toBeNull();
+  });
+
+  it("refuses a reorder — the case that changes meaning without changing counts", () => {
+    // Every stored answer keeps its optionIdx. Swapping the labels turns
+    // every "Messi" vote into a "Ronaldo" vote, and no count moves, so
+    // nothing downstream can notice.
+    const c = seedOptionConflict("daily-003", { ...desired, options: ["Ronaldo", "Messi"] }, desired);
+    expect(c).not.toBeNull();
+    expect(c?.qid).toBe("daily-003");
+    expect(c?.stored).toEqual(["Ronaldo", "Messi"]);
+    expect(c?.desired).toEqual(["Messi", "Ronaldo"]);
+  });
+
+  it("refuses a relabel, a removal and an append alike", () => {
+    const cases = [
+      ["Messi", "CR7"],                     // relabel
+      ["Messi"],                            // removal — later indices orphaned
+      ["Messi", "Ronaldo", "Maradona"],     // append — changes what the question asked
+    ];
+    for (const options of cases) {
+      expect(
+        seedOptionConflict("daily-003", { ...desired, options }, desired),
+        `${JSON.stringify(options)} should be refused`,
+      ).not.toBeNull();
+    }
+  });
+
+  it("allows a prompt edit on a live question — D52's own fix shape", () => {
+    // D52's fix list is mostly prompt rewrites that preserve meaning
+    // ("€500" → "a week's pay"). A prompt carries no index any answer
+    // refers to, so it is editable and must stay that way — a guard that
+    // blocked it would have blocked the content review it came from.
+    const stored = { ...desired, prompt: "Who is better, Messi or Ronaldo?" };
+    expect(seedOptionConflict("daily-003", stored, desired)).toBeNull();
+    // …and the seed still rewrites it, because this is a separate question
+    // from "should we write at all".
+    expect(seedDocMatches(stored, desired)).toBe(false);
+  });
+
+  it("has nothing to protect when the stored doc has no option array", () => {
+    // A question seeded before `options` existed has no vote keyed to an
+    // index it never had. Refusing here would wedge the seed permanently.
+    const noOptions = { ...desired } as Record<string, unknown>;
+    delete noOptions.options;
+    expect(seedOptionConflict("daily-003", noOptions, desired)).toBeNull();
+    expect(seedOptionConflict("daily-003", { ...desired, options: "Messi,Ronaldo" }, desired)).toBeNull();
+  });
+
+  it("describes conflicts in a form an operator can act on", () => {
+    const line = describeSeedOptionConflicts([
+      { qid: "daily-003", stored: ["Messi", "Ronaldo"], desired: ["Ronaldo", "Messi"] },
+      { qid: "f12", stored: ["Yes"], desired: ["Yes", "No"] },
+    ]);
+    expect(line).toContain("daily-003: [Messi | Ronaldo] -> [Ronaldo | Messi]");
+    expect(line).toContain("f12: [Yes] -> [Yes | No]");
   });
 });

@@ -7,7 +7,7 @@
 // `active`/`political` are optional and emitted only when set: absent means
 // active (deck.ts filters `active !== false`) and sliceable (v2.ts's D44
 // predicate checks `political === true` alongside `test === "political"`).
-export interface V2SeedQuestion { id: string; surface: string; seq: number; type: string; domain: string | null; prompt: string; options: string[]; topic: string | null; axis: string | null; test: string | null; active?: boolean; political?: boolean; }
+export interface V2SeedQuestion { id: string; surface: string; seq: number; type: string; domain: string | null; prompt: string; options: string[]; topic: string | null; axis: string | null; test: string | null; mode?: string; active?: boolean; political?: boolean; }
 export const V2_QUESTIONS: V2SeedQuestion[] = [
  {
   "id": "daily-000",
@@ -3307,6 +3307,367 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "topic": null,
   "axis": null,
   "test": null
+ },
+ {
+  "id": "duo-020",
+  "surface": "duo",
+  "seq": 20,
+  "type": "binary",
+  "domain": null,
+  "prompt": "A free evening, both home. Ideal version?",
+  "options": [
+   "Out somewhere",
+   "Sofa, one film",
+   "Cooking together"
+  ],
+  "topic": null,
+  "axis": null,
+  "test": null,
+  "mode": "romantic",
+  "active": false
+ },
+ {
+  "id": "duo-021",
+  "surface": "duo",
+  "seq": 21,
+  "type": "binary",
+  "domain": null,
+  "prompt": "How do they like being woken?",
+  "options": [
+   "Slowly, with coffee",
+   "Left alone",
+   "Talked at immediately"
+  ],
+  "topic": null,
+  "axis": null,
+  "test": null,
+  "mode": "romantic",
+  "active": false
+ },
+ {
+  "id": "duo-022",
+  "surface": "duo",
+  "seq": 22,
+  "type": "binary",
+  "domain": null,
+  "prompt": "A good apology from them looks like…",
+  "options": [
+   "Words",
+   "A gesture",
+   "Time, then normal"
+  ],
+  "topic": null,
+  "axis": null,
+  "test": null,
+  "mode": "romantic",
+  "active": false
+ },
+ {
+  "id": "duo-023",
+  "surface": "duo",
+  "seq": 23,
+  "type": "binary",
+  "domain": null,
+  "prompt": "You are 20 minutes late to dinner. Their read?",
+  "options": [
+   "Fine, orders a drink",
+   "Says nothing, remembers it"
+  ],
+  "topic": null,
+  "axis": null,
+  "test": null,
+  "mode": "romantic",
+  "active": false
+ },
+ {
+  "id": "duo-024",
+  "surface": "duo",
+  "seq": 24,
+  "type": "binary",
+  "domain": null,
+  "prompt": "Love lands hardest as…",
+  "options": [
+   "Being told",
+   "Being helped",
+   "Being touched",
+   "Being chosen"
+  ],
+  "topic": null,
+  "axis": null,
+  "test": null,
+  "mode": "romantic",
+  "active": false
+ },
+ {
+  "id": "duo-025",
+  "surface": "duo",
+  "seq": 25,
+  "type": "binary",
+  "domain": null,
+  "prompt": "Mid-argument, they want…",
+  "options": [
+   "To finish it now",
+   "A pause",
+   "Space, then dinner"
+  ],
+  "topic": null,
+  "axis": null,
+  "test": null,
+  "mode": "romantic",
+  "active": false
+ },
+ {
+  "id": "duo-026",
+  "surface": "duo",
+  "seq": 26,
+  "type": "binary",
+  "domain": null,
+  "prompt": "The better anniversary?",
+  "options": [
+   "A plan they made",
+   "A day with nothing in it"
+  ],
+  "topic": null,
+  "axis": null,
+  "test": null,
+  "mode": "romantic",
+  "active": false
+ },
+ {
+  "id": "duo-027",
+  "surface": "duo",
+  "seq": 27,
+  "type": "binary",
+  "domain": null,
+  "prompt": "Money in this relationship should be…",
+  "options": [
+   "Fully shared",
+   "Mostly shared",
+   "Separate, split bills"
+  ],
+  "topic": null,
+  "axis": null,
+  "test": null,
+  "mode": "romantic",
+  "active": false
+ },
+ {
+  "id": "duo-028",
+  "surface": "duo",
+  "seq": 28,
+  "type": "binary",
+  "domain": null,
+  "prompt": "Their idea of being taken care of?",
+  "options": [
+   "Food made",
+   "Admin handled",
+   "Left in peace",
+   "Asked about"
+  ],
+  "topic": null,
+  "axis": null,
+  "test": null,
+  "mode": "romantic",
+  "active": false
+ },
+ {
+  "id": "duo-029",
+  "surface": "duo",
+  "seq": 29,
+  "type": "binary",
+  "domain": null,
+  "prompt": "A whole weekend together, no phones. Bliss or too much?",
+  "options": [
+   "Bliss",
+   "Too much"
+  ],
+  "topic": null,
+  "axis": null,
+  "test": null,
+  "mode": "romantic",
+  "active": false
+ },
+ {
+  "id": "duo-030",
+  "surface": "duo",
+  "seq": 30,
+  "type": "binary",
+  "domain": null,
+  "prompt": "They had a hard day and did not say so. The tell?",
+  "options": [
+   "Goes quiet",
+   "Cleans something",
+   "Talks about nothing else"
+  ],
+  "topic": null,
+  "axis": null,
+  "test": null,
+  "mode": "romantic",
+  "active": false
+ },
+ {
+  "id": "duo-031",
+  "surface": "duo",
+  "seq": 31,
+  "type": "binary",
+  "domain": null,
+  "prompt": "Five years out, they picture…",
+  "options": [
+   "Same city, more room",
+   "Somewhere new",
+   "Somewhere quiet"
+  ],
+  "topic": null,
+  "axis": null,
+  "test": null,
+  "mode": "romantic",
+  "active": false
+ },
+ {
+  "id": "duo-032",
+  "surface": "duo",
+  "seq": 32,
+  "type": "binary",
+  "domain": null,
+  "prompt": "A big decision that affects you both. They…",
+  "options": [
+   "Decide together, slowly",
+   "Want you to choose",
+   "Already decided"
+  ],
+  "topic": null,
+  "axis": null,
+  "test": null,
+  "mode": "romantic",
+  "active": false
+ },
+ {
+  "id": "duo-033",
+  "surface": "duo",
+  "seq": 33,
+  "type": "binary",
+  "domain": null,
+  "prompt": "Would they tell you a truth that would hurt for a week?",
+  "options": [
+   "Yes",
+   "Only if asked",
+   "No"
+  ],
+  "topic": null,
+  "axis": null,
+  "test": null,
+  "mode": "romantic",
+  "active": false
+ },
+ {
+  "id": "duo-034",
+  "surface": "duo",
+  "seq": 34,
+  "type": "binary",
+  "domain": null,
+  "prompt": "Jealousy shows up in them as…",
+  "options": [
+   "A question",
+   "A joke",
+   "Silence",
+   "It doesn't"
+  ],
+  "topic": null,
+  "axis": null,
+  "test": null,
+  "mode": "romantic",
+  "active": false
+ },
+ {
+  "id": "duo-035",
+  "surface": "duo",
+  "seq": 35,
+  "type": "binary",
+  "domain": null,
+  "prompt": "Kids, someday?",
+  "options": [
+   "Yes",
+   "Open to it",
+   "No"
+  ],
+  "topic": null,
+  "axis": null,
+  "test": null,
+  "mode": "romantic",
+  "active": false
+ },
+ {
+  "id": "duo-036",
+  "surface": "duo",
+  "seq": 36,
+  "type": "binary",
+  "domain": null,
+  "prompt": "The thing they would never compromise on?",
+  "options": [
+   "Where they live",
+   "Their work",
+   "Their people",
+   "Their solitude"
+  ],
+  "topic": null,
+  "axis": null,
+  "test": null,
+  "mode": "romantic",
+  "active": false
+ },
+ {
+  "id": "duo-037",
+  "surface": "duo",
+  "seq": 37,
+  "type": "binary",
+  "domain": null,
+  "prompt": "If you needed a year somewhere else, they would…",
+  "options": [
+   "Come",
+   "Wait",
+   "Ask you not to go"
+  ],
+  "topic": null,
+  "axis": null,
+  "test": null,
+  "mode": "romantic",
+  "active": false
+ },
+ {
+  "id": "duo-038",
+  "surface": "duo",
+  "seq": 38,
+  "type": "binary",
+  "domain": null,
+  "prompt": "What would make them feel most loved this year?",
+  "options": [
+   "More time",
+   "More plans",
+   "More calm",
+   "More honesty"
+  ],
+  "topic": null,
+  "axis": null,
+  "test": null,
+  "mode": "romantic",
+  "active": false
+ },
+ {
+  "id": "duo-039",
+  "surface": "duo",
+  "seq": 39,
+  "type": "binary",
+  "domain": null,
+  "prompt": "Old age, the two of you: side by side, or side by side and busy?",
+  "options": [
+   "Side by side",
+   "Busy, together"
+  ],
+  "topic": null,
+  "axis": null,
+  "test": null,
+  "mode": "romantic",
+  "active": false
  },
  {
   "id": "test-big5-00",

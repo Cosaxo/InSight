@@ -23,7 +23,7 @@ Every constant below is sourced, not assumed:
 | One duel answer | 1 client write + 1 `pendingDays` arrayUnion | v2.ts group branch |
 | One trigger invocation | 512 MiB, 1 vCPU, concurrency 20, ~200 ms | `HOT_TRIGGER`, functions/src/ops.ts |
 | One warm boot | ~15 reads (meta, profile, answers query, 7 deck listeners, groups, 2 group docs, 2 reveals) | `hydrate()`, src/v2/data/live.ts |
-| One cold boot | **+369 reads** — the whole question bank | `V2_QUESTIONS`, 369 docs / 80.2 KiB |
+| One cold boot | **+389 reads** — the whole question bank | `V2_QUESTIONS`, 389 docs / 84.9 KiB |
 | Agg top-up | ≤120 reads, ≤1 per qid per 6 h | `AGG_ID_CAP`, `AGG_RECHECK_MS` |
 
 Note the shape of the third row: **a question under the k-floor costs
@@ -113,7 +113,7 @@ of all reads below 50 k DAU. It is pure overhead: the payload is 80 KiB of
 static content that changed by perhaps 7 questions.
 
 Worse, it is charged against *MAU*, not DAU. A monthly user who opens the
-app once pays the full 369 reads for a bank they will barely use.
+app once pays the full 389 reads for a bank they will barely use.
 
 **What was done (D34).** Not the one-line hash that first suggested
 itself — that only makes *no-op* reseeds free, and a weekly promotion is

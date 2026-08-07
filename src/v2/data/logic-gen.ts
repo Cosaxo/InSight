@@ -4,11 +4,12 @@
 // (`a: 2,4,3,1,4,2,3,1,3,4,0,3`) shipped in the bundle — the same items in
 // the same order with the same option positions on every attempt, so one
 // memorized (or shared) key beat it permanently. This module replaces the
-// bank with a generator: each attempt draws a fresh 12-item form from a
-// seed, with fresh shapes, directions, rule parameters and shuffled option
-// positions. What ships is the rule machinery, not an answer key. (Any
-// client-side test is inspectable by a determined user; what this closes
-// is memorization and the shipped constant, which was the actual hole.)
+// bank with a generator: each attempt draws a fresh form from a seed —
+// 25 items since v3 (D61); 12 in the frozen v1/v2 paths — with fresh
+// shapes, directions, rule parameters and shuffled option positions. What
+// ships is the rule machinery, not an answer key. (Any client-side test is
+// inspectable by a determined user; what this closes is memorization and
+// the shipped constant, which was the actual hole.)
 //
 // The rule families mirror the retired hand-authored bank motif for
 // motif (size ramps, dot arithmetic, shape cycling, fill deepening, figure
@@ -19,13 +20,17 @@
 // 62%) keeps meaning what it meant. Diffs are Carpenter-ordered family
 // weights.
 //
-// Deliberately NOT random per item: the WEIGHT sequence. The twelve slot
-// weights are fixed (that ramp is the calibration and does not move), but
-// since v2 each slot draws its family from a same-weight band (D56) — a
-// repeat taker no longer knows that item 3 is a shape cycle, only that it
-// carries weight 1.5. v1 pinned one family per slot; generateForm(seed, 1)
-// still reproduces those forms exactly, because a saved result's seed+gv
-// must reconstruct its form forever (D31).
+// Deliberately NOT random per item: the WEIGHT sequence. The slot weights
+// are fixed per generator version (each version's ramp is the calibration
+// its percentile curve is derived against), but since v2 each slot draws
+// its family from a same-weight band (D56) — a repeat taker no longer
+// knows that item 3 is a shape cycle, only that it carries weight 1.5.
+// v3 (D61) lengthens the ramp to 25 slots and extends it upward with two
+// new bands: weight-4 two-rule compositions and a weight-4.5 tail of
+// triple-rule and dual-law items, Carpenter's hardest classes. Every
+// retired plan stays generable: generateForm(seed, 1|2) reproduces those
+// eras' forms exactly, because a saved result's seed+gv must reconstruct
+// its form forever (D31).
 //
 // Everything here is pure and deterministic per seed — vitest covers
 // determinism, option-key integrity, distractor uniqueness, renderability,
@@ -501,6 +506,301 @@ const FAMILIES: Record<string, Family> = {
       ],
     };
   },
+
+  // ── families added with the 25-item ramp (D61) ──
+  // The w4 band is two simultaneous rules; w4.5 is three, or two elements
+  // obeying two DIFFERENT laws — Carpenter's hardest classes.
+
+  // ring counts form a Latin square; a fixed shape per row (harder than
+  // ringGrow's column progression: distribution-of-three on a low-salience
+  // attribute)
+  ringLatin(rng) {
+    const rows = pick3(rng);
+    const dir = rng() < 0.5 ? 1 : 2;
+    const nested = (s: Shape, k: number): Cell =>
+      Array.from({ length: k }, (_, i) => L(s, SIZE[2 - i], "n"));
+    const kAt = (r: number, c: number) => ((r + dir * c) % 3) + 1;
+    const cells9 = grid((r, c) => nested(rows[r], kAt(r, c)));
+    const k = kAt(2, 2);
+    const wrong = [1, 2, 3].filter((v) => v !== k);
+    return {
+      cells9,
+      mutants: [
+        nested(rows[2], wrong[0]),
+        nested(rows[2], wrong[1]),
+        nested(rows[0], k), // right count, wrong row's shape
+      ],
+    };
+  },
+
+  // shapes AND sizes form Latin squares on opposite diagonals while the
+  // fill alternates by row — latinSizeShape plus a third rule
+  latinShapeSizeFill(rng) {
+    const shapes = pick3(rng);
+    const zPerm = shuffled(rng, [0, 1, 2]);
+    const dirS = rng() < 0.5 ? 1 : 2;
+    const dirZ = 3 - dirS;
+    const fills: Fill[] = rng() < 0.5 ? ["s", "n", "s"] : ["n", "s", "n"];
+    const cells9 = grid((r, c) => [
+      L(shapes[(r + dirS * c) % 3], SIZE[zPerm[(r + dirZ * c) % 3]], fills[r]),
+    ]);
+    const sRight = shapes[(2 + dirS * 2) % 3];
+    const zRight = SIZE[zPerm[(2 + dirZ * 2) % 3]];
+    const zWrong = SIZE.filter((z) => z !== zRight);
+    const flip: Fill = fills[2] === "s" ? "n" : "s";
+    return {
+      cells9,
+      mutants: [
+        [L(sRight, zRight, flip)], // everything right, row-alternation broken
+        [L(sRight, zWrong[0], fills[2])],
+        [L(sRight, zWrong[1], fills[2])],
+        [L(shapes.find((s) => s !== sRight) as Shape, zRight, fills[2])],
+      ],
+    };
+  },
+
+  // outer and inner shapes each form a Latin square, on opposite diagonals
+  outerLatinInnerLatin(rng) {
+    const outer = pick3(rng);
+    const inner = pick3(rng);
+    const dirO = rng() < 0.5 ? 1 : 2;
+    const dirI = 3 - dirO;
+    const cells9 = grid((r, c) => [
+      L(outer[(r + dirO * c) % 3], 3, "n"),
+      L(inner[(r + dirI * c) % 3], 1, "s"),
+    ]);
+    const oRight = outer[(2 + dirO * 2) % 3];
+    const iRight = inner[(2 + dirI * 2) % 3];
+    const oWrong = outer.filter((s) => s !== oRight);
+    const iWrong = inner.filter((s) => s !== iRight);
+    return {
+      cells9,
+      mutants: [
+        [L(oRight, 3, "n"), L(iWrong[0], 1, "s")],
+        [L(oRight, 3, "n"), L(iWrong[1], 1, "s")],
+        [L(oWrong[0], 3, "n"), L(iRight, 1, "s")],
+        [L(oRight, 3, "n"), L(iRight, 1, "n")], // inner lost its fill
+      ],
+    };
+  },
+
+  // ring count grows by column while the innermost layer's fill alternates
+  // by row — ringGrow plus a second rule
+  ringGrowFill(rng) {
+    const rows = pick3(rng);
+    const asc = rng() < 0.5;
+    const fills: Fill[] = rng() < 0.5 ? ["s", "n", "s"] : ["n", "s", "n"];
+    const nested = (s: Shape, k: number, f: Fill): Cell =>
+      Array.from({ length: k }, (_, i) => L(s, SIZE[2 - i], i === k - 1 ? f : "n"));
+    const at = (c: number) => (asc ? c + 1 : 3 - c);
+    const cells9 = grid((r, c) => nested(rows[r], at(c), fills[r]));
+    const s = rows[2];
+    const kEnd = at(2);
+    const flip: Fill = fills[2] === "s" ? "n" : "s";
+    return {
+      cells9,
+      mutants: [
+        nested(s, kEnd, flip), // right rings, alternation broken
+        nested(s, Math.max(1, kEnd - 1), fills[2]),
+        nested(s, Math.min(3, kEnd + 1), fills[2]),
+        nested(rows[0], kEnd, fills[2]),
+      ],
+    };
+  },
+
+  // outer shapes form a Latin square while a solid core appears and grows
+  // across columns — two rules across two layers
+  innerGrowCycle(rng) {
+    const shapes = pick3(rng);
+    const dir = rng() < 0.5 ? 1 : 2;
+    const at = (s: Shape, c: number): Cell =>
+      c === 0 ? [L(s, 3, "n")] : [L(s, 3, "n"), L(s, c === 1 ? 1 : 2, "s")];
+    const cells9 = grid((r, c) => at(shapes[(r + dir * c) % 3], c));
+    const sRight = shapes[(2 + dir * 2) % 3];
+    const sWrong = shapes.filter((s) => s !== sRight);
+    return {
+      cells9,
+      mutants: [
+        [L(sRight, 3, "n"), L(sRight, 1, "s")], // core one step small
+        [L(sRight, 3, "n")], // core missing
+        at(sWrong[0], 2),
+        at(sWrong[1], 2),
+      ],
+    };
+  },
+
+  // the fill state deepens by column while the shape cycles a Latin square
+  fillRampShapeCycle(rng) {
+    const shapes = pick3(rng);
+    const dir = rng() < 0.5 ? 1 : 2;
+    const asc = rng() < 0.5;
+    const states: ((s: Shape) => Cell)[] = [
+      (s) => [L(s, 3, "n")],
+      (s) => [L(s, 3, "n"), L(s, RING_INNER, "s")],
+      (s) => [L(s, 3, "s")],
+    ];
+    const at = (c: number) => states[asc ? c : 2 - c];
+    const cells9 = grid((r, c) => at(c)(shapes[(r + dir * c) % 3]));
+    const sRight = shapes[(2 + dir * 2) % 3];
+    const sWrong = shapes.filter((s) => s !== sRight);
+    return {
+      cells9,
+      mutants: [
+        at(1)(sRight), // one state short
+        at(0)(sRight),
+        at(2)(sWrong[0]),
+        at(2)(sWrong[1]),
+      ],
+    };
+  },
+
+  // distribution of two over a Latin base: each overlay element appears in
+  // exactly two cells of every row and column while the base shape cycles —
+  // three simultaneous rules
+  dist2Latin(rng) {
+    const bases = pick3(rng);
+    const innerShape = SHAPES.find((s) => !bases.includes(s)) as Shape;
+    const dirB = rng() < 0.5 ? 1 : 2;
+    const holeA = shuffled(rng, [0, 1, 2]);
+    let holeB = shuffled(rng, [0, 1, 2]);
+    for (let guard = 0; guard < 8 && holeB.every((v, i) => v === holeA[i]); guard++) {
+      holeB = shuffled(rng, [0, 1, 2]);
+    }
+    const cellAt = (r: number, c: number): Cell => {
+      const out: Cell = [L(bases[(r + dirB * c) % 3], 3, "n")];
+      if (holeA[r] !== c) out.push(L(innerShape, 1, "s"));
+      if (holeB[r] !== c) out.push(D(2));
+      return out;
+    };
+    const cells9 = grid(cellAt);
+    const bRight = bases[(2 + dirB * 2) % 3];
+    const bWrong = bases.filter((s) => s !== bRight);
+    const hasA = holeA[2] !== 2;
+    const hasB = holeB[2] !== 2;
+    const build = (base: Shape, a: boolean, b: boolean): Cell => {
+      const out: Cell = [L(base, 3, "n")];
+      if (a) out.push(L(innerShape, 1, "s"));
+      if (b) out.push(D(2));
+      return out;
+    };
+    return {
+      cells9,
+      mutants: [
+        build(bRight, !hasA, hasB), // one element miscounted
+        build(bRight, hasA, !hasB),
+        build(bWrong[0], hasA, hasB), // right elements, wrong base
+        build(bWrong[1], hasA, hasB),
+      ],
+    };
+  },
+
+  // row-wise figure XOR over a Latin base — overlayXor plus a third rule
+  xorLatin(rng) {
+    const bases = pick3(rng);
+    const innerShape = SHAPES.find((s) => !bases.includes(s)) as Shape;
+    const dirB = rng() < 0.5 ? 1 : 2;
+    const el = (m: number): Layer[] => {
+      const out: Layer[] = [];
+      if (m & 1) out.push(L(innerShape, 1, "s"));
+      if (m & 2) out.push(D(2));
+      return out;
+    };
+    // same pin discipline as overlayXor: row 0's operands intersect AND
+    // differ, so the grid itself refutes the union reading
+    const PIN: [number, number][] = [[1, 3], [3, 1], [2, 3], [3, 2]];
+    const rowPin = PIN[pickIdx(rng, 4)];
+    const ansPool = PIN.filter((p) => p !== rowPin);
+    const rowAns = ansPool[pickIdx(rng, ansPool.length)];
+    const ALL: [number, number][] = [];
+    for (let s0 = 0; s0 < 4; s0++) {
+      for (let s1 = 0; s1 < 4; s1++) if (s0 !== s1) ALL.push([s0, s1]);
+    }
+    const mid = shuffled(rng, ALL).find(
+      (p) => (p[0] !== rowPin[0] || p[1] !== rowPin[1]) && (p[0] !== rowAns[0] || p[1] !== rowAns[1]),
+    ) as [number, number];
+    const S = [rowPin, mid, rowAns];
+    const maskAt = (r: number, c: number) =>
+      c === 0 ? S[r][0] : c === 1 ? S[r][1] : S[r][0] ^ S[r][1];
+    const cells9 = grid((r, c) => [L(bases[(r + dirB * c) % 3], 3, "n"), ...el(maskAt(r, c))]);
+    const bRight = bases[(2 + dirB * 2) % 3];
+    const bWrong = bases.filter((s) => s !== bRight);
+    const xor = rowAns[0] ^ rowAns[1];
+    const withBase = (base: Shape, m: number): Cell => [L(base, 3, "n"), ...el(m)];
+    return {
+      cells9,
+      mutants: [
+        withBase(bRight, rowAns[0] | rowAns[1]), // union, not difference
+        withBase(bRight, rowAns[0] & rowAns[1]),
+        withBase(bWrong[0], xor), // right elements, wrong base
+        withBase(bWrong[1], xor),
+      ],
+    };
+  },
+
+  // ring counts AND shapes form Latin squares on opposite diagonals — a
+  // double distribution over one high- and one low-salience attribute
+  ringLatinShape(rng) {
+    const shapes = pick3(rng);
+    const dirS = rng() < 0.5 ? 1 : 2;
+    const dirK = 3 - dirS;
+    const nested = (s: Shape, k: number): Cell =>
+      Array.from({ length: k }, (_, i) => L(s, SIZE[2 - i], "n"));
+    const cells9 = grid((r, c) =>
+      nested(shapes[(r + dirS * c) % 3], ((r + dirK * c) % 3) + 1),
+    );
+    const sRight = shapes[(2 + dirS * 2) % 3];
+    const kRight = ((2 + dirK * 2) % 3) + 1;
+    const sWrong = shapes.filter((s) => s !== sRight);
+    const kWrong = [1, 2, 3].filter((k) => k !== kRight);
+    return {
+      cells9,
+      mutants: [
+        nested(sRight, kWrong[0]),
+        nested(sRight, kWrong[1]),
+        nested(sWrong[0], kRight),
+        nested(sWrong[1], kRight),
+      ],
+    };
+  },
+
+  // two elements, two different laws: the inner shape is distributed two-
+  // per-line (its absences a permutation matrix), while the dots follow
+  // row-wise XOR — the solver must find BOTH before the cell resolves
+  dist2Xor(rng) {
+    const base = SHAPES[pickIdx(rng, 4)];
+    const innerShape = SHAPES.filter((s) => s !== base)[pickIdx(rng, 3)];
+    const holeA = shuffled(rng, [0, 1, 2]);
+    // row 0 is (1,1): both operands hold dots and the result does not,
+    // which pins XOR against a union reading the way overlayXor's pin
+    // rows do; the other rows draw freely.
+    const pairs: [number, number][] = [[1, 0], [0, 1], [1, 1], [0, 0]];
+    const S: [number, number][] = [[1, 1], pairs[pickIdx(rng, 4)], pairs[pickIdx(rng, 4)]];
+    const bAt = (r: number, c: number) =>
+      c === 0 ? S[r][0] : c === 1 ? S[r][1] : S[r][0] ^ S[r][1];
+    const cellAt = (r: number, c: number): Cell => {
+      const out: Cell = [L(base, 3, "n")];
+      if (holeA[r] !== c) out.push(L(innerShape, 1, "s"));
+      if (bAt(r, c)) out.push(D(2));
+      return out;
+    };
+    const cells9 = grid(cellAt);
+    const hasA = holeA[2] !== 2;
+    const hasB = bAt(2, 2) === 1;
+    const build = (a: boolean, b: boolean): Cell => {
+      const out: Cell = [L(base, 3, "n")];
+      if (a) out.push(L(innerShape, 1, "s"));
+      if (b) out.push(D(2));
+      return out;
+    };
+    return {
+      cells9,
+      mutants: [
+        build(!hasA, hasB), // the distributed element miscounted
+        build(hasA, !hasB), // the dots' parity flipped
+        build(!hasA, !hasB),
+      ],
+    };
+  },
 };
 
 // ── the ramp template ──
@@ -561,9 +861,41 @@ function planV2(seed: number): { family: string; diff: number }[] {
   return out;
 }
 
+// v3 (D61): 25 slots, tail-heavy — eleven of them at weight 3.5 or above,
+// against v2's one. The two new bands hold the compositions: w4 is two
+// simultaneous rules, w4.5 is three (or two elements under two different
+// laws). Band salts are v3-distinct (0xc300+) so pool edits here can
+// never reshuffle a v2 seed's draws.
+const BANDS_V3: { diff: number; slots: number; pool: string[] }[] = [
+  { diff: 1, slots: 2, pool: ["sizeRamp", "dotCount"] },
+  { diff: 1.5, slots: 2, pool: ["shapeCycle", "sizeCycle"] },
+  { diff: 2, slots: 3, pool: ["fillRamp", "sizeFillAlt", "dotAdd", "dotSub"] },
+  { diff: 2.5, slots: 3, pool: ["overlay", "outerRowInnerCycle", "innerGrow"] },
+  { diff: 3, slots: 4, pool: ["latinShapeFill", "latinSizeShape", "ringGrow", "latinDots"] },
+  { diff: 3.5, slots: 4, pool: ["decompose", "dist2", "overlayXor", "ringLatin"] },
+  {
+    diff: 4,
+    slots: 4,
+    pool: ["latinShapeSizeFill", "outerLatinInnerLatin", "ringGrowFill", "innerGrowCycle", "fillRampShapeCycle"],
+  },
+  { diff: 4.5, slots: 3, pool: ["dist2Latin", "xorLatin", "ringLatinShape", "dist2Xor"] },
+];
+
+function planV3(seed: number): { family: string; diff: number }[] {
+  const out: { family: string; diff: number }[] = [];
+  BANDS_V3.forEach((band, b) => {
+    const rng = mulberry32(mixSeed(seed, 0xc300 + b));
+    for (const family of shuffled(rng, band.pool).slice(0, band.slots)) {
+      out.push({ family, diff: band.diff });
+    }
+  });
+  return out;
+}
+
 const planAt = (seed: number, gv: number): { family: string; diff: number }[] => {
   if (gv === 1) return TEMPLATE_V1.map((slot, i) => ({ family: familyAtV1(seed, i), diff: slot.diff }));
   if (gv === 2) return planV2(seed);
+  if (gv === 3) return planV3(seed);
   // An unknown version must fail loudly: silently reinterpreting a seed is
   // the exact failure mode the gv field exists to prevent (D31).
   throw new Error(`logic-gen: unknown generator version ${gv}`);
@@ -636,7 +968,7 @@ function buildOptions(
   return { opts, a: opts.indexOf(answer) };
 }
 
-export const version = 2;
+export const version = 3;
 
 // gv defaults to the current version; pass a stored result's gv to rebuild
 // the exact form its score was earned on (D31 — reconstructable forever).

@@ -47,9 +47,9 @@ describe("form shape and determinism", () => {
     expect(a).not.toBe(b);
   });
 
-  it("12 items, 8 visible cells, 6 options each; diffs non-decreasing", () => {
+  it("25 items, 8 visible cells, 6 options each; diffs non-decreasing", () => {
     for (const f of forms) {
-      expect(f.items).toHaveLength(12);
+      expect(f.items).toHaveLength(25);
       for (const item of f.items) {
         expect(item.cells).toHaveLength(8);
         expect(item.opts).toHaveLength(6);
@@ -87,27 +87,27 @@ describe("answer key integrity (every seed, every item)", () => {
 
 });
 
-// ── the banded template (v2, D56) ──
-// The WEIGHT ramp is the calibration D31 anchored the percentile curve to,
-// so it is pinned verbatim; the family occupying a slot is drawn from that
-// slot's same-weight band, so the sequence varies per attempt. The pools
-// are pinned literally here on purpose: moving a family between bands (or
-// changing a weight) is a recalibration and must show up as a test edit.
-describe("the banded template (v2)", () => {
-  const RAMP = [1, 1, 1.5, 2, 2, 2, 2.5, 2.5, 3, 3, 3, 3.5];
+// ── the banded template (v3, D61) ──
+// The WEIGHT ramp is the calibration the percentile curve is derived
+// against, so it is pinned verbatim; the family occupying a slot is drawn
+// from that slot's same-weight band, so the sequence varies per attempt.
+// The pools are pinned literally here on purpose: moving a family between
+// bands (or changing a weight) is a recalibration and must show up as a
+// test edit. Eleven of twenty-five slots sit at weight 3.5+ — the
+// tail-heavy shape D61 chose for top-end discrimination.
+describe("the banded template (v3)", () => {
+  const P1 = ["sizeRamp", "dotCount"];
+  const P15 = ["shapeCycle", "sizeCycle"];
+  const P2 = ["fillRamp", "sizeFillAlt", "dotAdd", "dotSub"];
+  const P25 = ["overlay", "outerRowInnerCycle", "innerGrow"];
+  const P3 = ["latinShapeFill", "latinSizeShape", "ringGrow", "latinDots"];
+  const P35 = ["decompose", "dist2", "overlayXor", "ringLatin"];
+  const P4 = ["latinShapeSizeFill", "outerLatinInnerLatin", "ringGrowFill", "innerGrowCycle", "fillRampShapeCycle"];
+  const P45 = ["dist2Latin", "xorLatin", "ringLatinShape", "dist2Xor"];
+  const RAMP = [1, 1, 1.5, 1.5, 2, 2, 2, 2.5, 2.5, 2.5, 3, 3, 3, 3, 3.5, 3.5, 3.5, 3.5, 4, 4, 4, 4, 4.5, 4.5, 4.5];
   const BAND_AT: string[][] = [
-    ["sizeRamp", "dotCount"],
-    ["sizeRamp", "dotCount"],
-    ["shapeCycle", "sizeCycle"],
-    ["fillRamp", "sizeFillAlt", "dotAdd", "dotSub"],
-    ["fillRamp", "sizeFillAlt", "dotAdd", "dotSub"],
-    ["fillRamp", "sizeFillAlt", "dotAdd", "dotSub"],
-    ["overlay", "outerRowInnerCycle", "innerGrow"],
-    ["overlay", "outerRowInnerCycle", "innerGrow"],
-    ["latinShapeFill", "latinSizeShape", "ringGrow", "latinDots"],
-    ["latinShapeFill", "latinSizeShape", "ringGrow", "latinDots"],
-    ["latinShapeFill", "latinSizeShape", "ringGrow", "latinDots"],
-    ["decompose", "dist2", "overlayXor"],
+    P1, P1, P15, P15, P2, P2, P2, P25, P25, P25,
+    P3, P3, P3, P3, P35, P35, P35, P35, P4, P4, P4, P4, P45, P45, P45,
   ];
 
   it("every form carries the fixed weight ramp — the curve's anchor does not move", () => {
@@ -118,7 +118,7 @@ describe("the banded template (v2)", () => {
     for (const f of forms) {
       const fams = f.items.map((i) => i.rules[0]);
       fams.forEach((fam, i) => expect(BAND_AT[i], `seed ${f.seed} slot ${i}`).toContain(fam));
-      expect(new Set(fams).size, `seed ${f.seed}`).toBe(12);
+      expect(new Set(fams).size, `seed ${f.seed}`).toBe(25);
     }
   });
 
@@ -165,7 +165,7 @@ describe("family semantics", () => {
     it(family, () => {
       let covered = 0;
       for (const seed of SEEDS.slice(0, 60)) {
-        for (let i = 0; i < 12; i++) {
+        for (let i = 0; i < 25; i++) {
           const built = buildCells9(seed, i);
           if (built.family !== family) continue;
           covered++;
@@ -334,6 +334,150 @@ describe("family semantics", () => {
     // rule — not the option list
     expect(rows.some((row) => (mask(row[0]) & mask(row[1])) !== 0)).toBe(true);
   });
+
+  // ── the D61 families ──
+  const ringCount = (c: Cell) => c.length;
+  const allOutlineNested = (c: Cell) => {
+    expect(new Set(c.map((l) => l.s)).size).toBe(1);
+    expect(c[0].z).toBe(3);
+    for (let i = 1; i < c.length; i++) expect(c[i].z as number).toBeLessThan(c[i - 1].z as number);
+  };
+
+  each("ringLatin", (cells9) => {
+    for (const row of rows9(cells9)) expect(new Set(row.map((c) => c[0].s)).size).toBe(1);
+    for (const line of [...rows9(cells9), ...cols9(cells9)]) {
+      expect(line.map(ringCount).sort((a, b) => a - b)).toEqual([1, 2, 3]);
+    }
+    for (const cell of cells9) {
+      allOutlineNested(cell);
+      for (const l of cell) expect(l.f).toBe("n");
+    }
+  });
+
+  each("latinShapeSizeFill", (cells9) => {
+    for (const line of [...rows9(cells9), ...cols9(cells9)]) {
+      expect(new Set(line.map((c) => c[0].s)).size).toBe(3);
+      expect(new Set(line.map((c) => c[0].z)).size).toBe(3);
+    }
+    const [f0, f1, f2] = rows9(cells9).map((row) => new Set(row.map((c) => c[0].f)));
+    expect(f0.size).toBe(1);
+    expect(f1.size).toBe(1);
+    expect(f0).toEqual(f2);
+    expect(f0).not.toEqual(f1);
+  });
+
+  each("outerLatinInnerLatin", (cells9) => {
+    for (const line of [...rows9(cells9), ...cols9(cells9)]) {
+      expect(new Set(line.map((c) => c[0].s)).size).toBe(3);
+      expect(new Set(line.map((c) => c[1].s)).size).toBe(3);
+    }
+    for (const cell of cells9) {
+      expect(cell[0].z).toBe(3);
+      expect(cell[0].f).toBe("n");
+      expect(cell[1].z).toBe(1);
+      expect(cell[1].f).toBe("s");
+    }
+  });
+
+  each("ringGrowFill", (cells9) => {
+    const rows = rows9(cells9);
+    for (const row of rows) {
+      expect(new Set(row.flatMap((c) => c.map((l) => l.s))).size).toBe(1);
+      expect(row.map(ringCount).sort((a, b) => a - b)).toEqual([1, 2, 3]);
+    }
+    // count uniform per column (the progression), innermost fill per row,
+    // alternating; every non-innermost layer stays an outline
+    for (const col of cols9(cells9)) expect(new Set(col.map(ringCount)).size).toBe(1);
+    const innermostF = rows.map((row) => new Set(row.map((c) => c[c.length - 1].f)));
+    expect(innermostF[0].size).toBe(1);
+    expect(innermostF[1].size).toBe(1);
+    expect(innermostF[0]).toEqual(innermostF[2]);
+    expect(innermostF[0]).not.toEqual(innermostF[1]);
+    for (const cell of cells9) for (const l of cell.slice(0, -1)) expect(l.f).toBe("n");
+  });
+
+  each("innerGrowCycle", (cells9) => {
+    for (const line of [...rows9(cells9), ...cols9(cells9)]) {
+      expect(new Set(line.map((c) => c[0].s)).size).toBe(3);
+    }
+    for (const [i, cell] of cells9.entries()) {
+      const col = i % 3;
+      expect(cell[0].z).toBe(3);
+      expect(cell[0].f).toBe("n");
+      if (col === 0) expect(cell).toHaveLength(1);
+      else {
+        expect(cell).toHaveLength(2);
+        expect(cell[1].s).toBe(cell[0].s);
+        expect(cell[1].f).toBe("s");
+        expect(cell[1].z).toBe(col === 1 ? 1 : 2);
+      }
+    }
+  });
+
+  each("fillRampShapeCycle", (cells9) => {
+    for (const line of [...rows9(cells9), ...cols9(cells9)]) {
+      expect(new Set(line.map((c) => c[0].s)).size).toBe(3);
+    }
+    // fill state uniform per column, all three states across the columns
+    const colStates = cols9(cells9).map((col) => new Set(col.map(fillState)));
+    for (const st of colStates) expect(st.size).toBe(1);
+    expect(new Set(colStates.map((st) => [...st][0])).size).toBe(3);
+    for (const cell of cells9) expect(new Set(cell.map((l) => l.s)).size).toBe(1);
+  });
+
+  const baseOf = (c: Cell) => c.find((l) => l.s !== "." && l.z === 3);
+  const hasInner = (c: Cell) => c.some((l) => l.s !== "." && l.z === 1);
+  const hasDots = (c: Cell) => c.some((l) => l.s === ".");
+
+  each("dist2Latin", (cells9) => {
+    for (const line of [...rows9(cells9), ...cols9(cells9)]) {
+      expect(new Set(line.map((c) => baseOf(c)?.s)).size).toBe(3);
+      expect(line.filter(hasInner)).toHaveLength(2);
+      expect(line.filter(hasDots)).toHaveLength(2);
+    }
+    const holeA = rows9(cells9).map((row) => row.findIndex((c) => !hasInner(c)));
+    const holeB = rows9(cells9).map((row) => row.findIndex((c) => !hasDots(c)));
+    expect(holeA.join()).not.toBe(holeB.join());
+  });
+
+  each("xorLatin", (cells9) => {
+    const mask = (c: Cell) => (hasInner(c) ? 1 : 0) | (hasDots(c) ? 2 : 0);
+    for (const line of [...rows9(cells9), ...cols9(cells9)]) {
+      expect(new Set(line.map((c) => baseOf(c)?.s)).size).toBe(3);
+    }
+    const rows = rows9(cells9);
+    for (const row of rows) expect(mask(row[2])).toBe(mask(row[0]) ^ mask(row[1]));
+    expect(rows.some((row) => (mask(row[0]) & mask(row[1])) !== 0)).toBe(true);
+  });
+
+  each("ringLatinShape", (cells9) => {
+    for (const line of [...rows9(cells9), ...cols9(cells9)]) {
+      expect(new Set(line.map((c) => c[0].s)).size).toBe(3);
+      expect(line.map(ringCount).sort((a, b) => a - b)).toEqual([1, 2, 3]);
+    }
+    for (const cell of cells9) {
+      allOutlineNested(cell);
+      for (const l of cell) expect(l.f).toBe("n");
+    }
+  });
+
+  each("dist2Xor", (cells9) => {
+    // element A (the inner shape) is distributed two-per-line…
+    for (const line of [...rows9(cells9), ...cols9(cells9)]) {
+      expect(line.filter(hasInner)).toHaveLength(2);
+    }
+    // …while the dots follow row-wise XOR, with the pin row present
+    const rows = rows9(cells9);
+    const b = (c: Cell) => (hasDots(c) ? 1 : 0);
+    for (const row of rows) expect(b(row[2])).toBe(b(row[0]) ^ b(row[1]));
+    expect(rows.some((row) => b(row[0]) === 1 && b(row[1]) === 1)).toBe(true);
+    // one uniform base under everything
+    const b0 = baseOf(cells9[0]);
+    for (const cell of cells9) {
+      expect(baseOf(cell)?.s).toBe(b0?.s);
+      expect(baseOf(cell)?.f).toBe("n");
+    }
+  });
 });
 
 // ── the ambiguity sweep — no distractor may satisfy the rule ──
@@ -475,6 +619,130 @@ const SATISFIES: Record<string, Pred> = {
       && has(C, bOf) === (has(V[6], bOf) ^ has(V[7], bOf))
     );
   },
+
+  // ── the D61 families ──
+  ringLatin: (V, C) => {
+    const s = C[0]?.s;
+    if (!s || s === "." || C.some((l) => l.s !== s)) return false;
+    if (s !== V[6][0].s) return false; // the row's fixed shape
+    if (C.some((l) => l.f !== "n")) return false;
+    // exact ring geometry, not just a count: every visible cell nests
+    // consecutive sizes (3,2,1), so a skipped-ring candidate is a glyph
+    // the grid never taught — the same exact-vocabulary constraint D53
+    // added for dist2's elements
+    for (let i = 0; i < C.length; i++) if (C[i].z !== [3, 2, 1][i]) return false;
+    return [V[6], V[7], V[2], V[5]].every((c) => c.length !== C.length);
+  },
+  latinShapeSizeFill: (V, C) =>
+    C.length === 1 && C[0].s !== "."
+    && shapesIn(V).has(C[0].s)
+    && C[0].f === first(V[6]).f // the row's fill
+    && [V[6], V[7], V[2], V[5]].every((c) => first(c).s !== C[0].s)
+    && [V[6], V[7], V[2], V[5]].every((c) => first(c).z !== C[0].z),
+  outerLatinInnerLatin: (V, C) => {
+    if (C.length !== 2) return false;
+    const [o, i] = C;
+    if (o.s === "." || o.z !== 3 || o.f !== "n") return false;
+    if (i.s === "." || i.z !== 1 || i.f !== "s") return false;
+    const lines = [V[6], V[7], V[2], V[5]];
+    return lines.every((c) => c[0].s !== o.s) && lines.every((c) => c[1].s !== i.s);
+  },
+  ringGrowFill: (V, C) => {
+    const s = C[0]?.s;
+    if (!s || s === "." || C.some((l) => l.s !== s)) return false;
+    if (s !== V[6][0].s) return false;
+    for (let i = 0; i < C.length; i++) if (C[i].z !== [3, 2, 1][i]) return false; // exact geometry
+    if (C.length !== 2 * V[7].length - V[6].length) return false; // the column progression
+    if (C.slice(0, -1).some((l) => l.f !== "n")) return false;
+    return C[C.length - 1].f === V[6][V[6].length - 1].f; // the row's innermost fill
+  },
+  innerGrowCycle: (V, C) => {
+    if (C.length !== 2) return false;
+    const [o, core] = C;
+    if (o.s === "." || o.z !== 3 || o.f !== "n") return false;
+    if (core.s !== o.s || core.f !== "s") return false;
+    const ref = V[2]; // the column's core state, read from row 0
+    if (ref.length !== 2 || core.z !== ref[1].z) return false;
+    return [V[6], V[7], V[2], V[5]].every((c) => c[0].s !== o.s);
+  },
+  fillRampShapeCycle: (V, C) => {
+    const s = C.find((l) => l.s !== ".")?.s;
+    if (!s || C.some((l) => l.s !== s)) return false;
+    if (C[0].z !== 3) return false;
+    if (fs(C) !== fs(V[2]) || fs(C) !== fs(V[5])) return false; // column state
+    return [V[6], V[7], V[2], V[5]].every((c) => c[0].s !== s);
+  },
+  dist2Latin: (V, C) => {
+    const baseOf = (c: Cell) => c.find((l) => l.s !== "." && l.z === 3);
+    const aOf = (c: Cell) => c.find((l) => l.s !== "." && l.z === 1);
+    const bOf = (c: Cell) => c.find((l) => l.s === ".");
+    const gA = V.map(aOf).find(Boolean);
+    const gB = V.map(bOf).find(Boolean);
+    const b0 = baseOf(C);
+    if (!b0 || b0.f !== "n") return false;
+    if (!new Set(V.map((c) => baseOf(c)?.s)).has(b0.s)) return false;
+    if ([V[6], V[7], V[2], V[5]].some((c) => baseOf(c)?.s === b0.s)) return false;
+    for (const l of C) {
+      if (l === b0) continue;
+      if (l.s === ".") { if (!gB || l.n !== gB.n) return false; }
+      else if (!gA || l.s !== gA.s || l.z !== gA.z || l.f !== gA.f) return false;
+    }
+    const n = (c: Cell, fn: (c: Cell) => unknown) => (fn(c) ? 1 : 0);
+    const wantA = 2 - n(V[6], aOf) - n(V[7], aOf);
+    const wantB = 2 - n(V[6], bOf) - n(V[7], bOf);
+    if (wantA !== 2 - n(V[2], aOf) - n(V[5], aOf)) return false;
+    if (wantB !== 2 - n(V[2], bOf) - n(V[5], bOf)) return false;
+    return n(C, aOf) === wantA && n(C, bOf) === wantB;
+  },
+  xorLatin: (V, C) => {
+    const baseOf = (c: Cell) => c.find((l) => l.s !== "." && l.z === 3);
+    const aOf = (c: Cell) => c.find((l) => l.s !== "." && l.z === 1);
+    const bOf = (c: Cell) => c.find((l) => l.s === ".");
+    const gA = V.map(aOf).find(Boolean);
+    const gB = V.map(bOf).find(Boolean);
+    const b0 = baseOf(C);
+    if (!b0 || b0.f !== "n") return false;
+    if (!new Set(V.map((c) => baseOf(c)?.s)).has(b0.s)) return false;
+    if ([V[6], V[7], V[2], V[5]].some((c) => baseOf(c)?.s === b0.s)) return false;
+    for (const l of C) {
+      if (l === b0) continue;
+      if (l.s === ".") { if (!gB || l.n !== gB.n) return false; }
+      else if (!gA || l.s !== gA.s || l.z !== gA.z || l.f !== gA.f) return false;
+    }
+    const has = (c: Cell, fn: (c: Cell) => unknown) => (fn(c) ? 1 : 0);
+    return (
+      has(C, aOf) === (has(V[6], aOf) ^ has(V[7], aOf))
+      && has(C, bOf) === (has(V[6], bOf) ^ has(V[7], bOf))
+    );
+  },
+  ringLatinShape: (V, C) => {
+    const s = C[0]?.s;
+    if (!s || s === "." || C.some((l) => l.s !== s)) return false;
+    if (C.some((l) => l.f !== "n")) return false;
+    for (let i = 0; i < C.length; i++) if (C[i].z !== [3, 2, 1][i]) return false; // exact geometry
+    const lines = [V[6], V[7], V[2], V[5]];
+    return lines.every((c) => c[0].s !== s) && lines.every((c) => c.length !== C.length);
+  },
+  dist2Xor: (V, C) => {
+    const baseOf = (c: Cell) => c.find((l) => l.s !== "." && l.z === 3);
+    const aOf = (c: Cell) => c.find((l) => l.s !== "." && l.z === 1);
+    const bOf = (c: Cell) => c.find((l) => l.s === ".");
+    const gBase = baseOf(V[0]);
+    const gA = V.map(aOf).find(Boolean);
+    const gB = V.map(bOf).find(Boolean);
+    const b0 = baseOf(C);
+    if (!b0 || !gBase || b0.s !== gBase.s || b0.f !== "n") return false;
+    for (const l of C) {
+      if (l === b0) continue;
+      if (l.s === ".") { if (!gB || l.n !== gB.n) return false; }
+      else if (!gA || l.s !== gA.s || l.z !== gA.z || l.f !== gA.f) return false;
+    }
+    const n = (c: Cell, fn: (c: Cell) => unknown) => (fn(c) ? 1 : 0);
+    const wantA = 2 - n(V[6], aOf) - n(V[7], aOf);
+    if (wantA !== 2 - n(V[2], aOf) - n(V[5], aOf)) return false;
+    const wantB = n(V[6], bOf) ^ n(V[7], bOf);
+    return n(C, aOf) === wantA && n(C, bOf) === wantB;
+  },
 };
 
 describe("the ambiguity sweep (every seed, every item, every option)", () => {
@@ -494,7 +762,7 @@ describe("the ambiguity sweep (every seed, every item, every option)", () => {
         }
       }
     }
-    expect(checked).toBe(forms.length * 12 * 5);
+    expect(checked).toBe(forms.length * 25 * 5);
   });
 
   it("no form repeats a puzzle", () => {
@@ -502,7 +770,7 @@ describe("the ambiguity sweep (every seed, every item, every option)", () => {
       const keys = new Set(
         f.items.map((_, ii) => buildCells9(SEEDS[si], ii).cells9.map(canon).join("|")),
       );
-      expect(keys.size, `seed ${f.seed}`).toBe(12);
+      expect(keys.size, `seed ${f.seed}`).toBe(25);
     }
   });
 
@@ -512,7 +780,7 @@ describe("the ambiguity sweep (every seed, every item, every option)", () => {
     // 16.3–17.0% over 60k items; the band is generous.
     const counts = [0, 0, 0, 0, 0, 0];
     for (const f of forms) for (const item of f.items) counts[item.a]++;
-    const total = forms.length * 12;
+    const total = forms.length * 25;
     for (const [slot, c] of counts.entries()) {
       const share = c / total;
       expect(share, `slot ${slot} at ${(share * 100).toFixed(1)}%`).toBeGreaterThan(0.10);
@@ -564,6 +832,45 @@ describe("gv 1 reconstruction (a stored {seed, gv} rebuilds its exact form forev
   });
 
   it("an unknown gv throws instead of silently reinterpreting the seed", () => {
-    expect(() => generateForm(1, 3)).toThrow(/unknown generator version/);
+    expect(() => generateForm(1, 4)).toThrow(/unknown generator version/);
   });
 });
+
+// ── gv 2 reconstruction ──
+// Same commitment, next era: {seed, gv: 2} rebuilds the 12-item banded
+// form its score was earned on, forever. Captured from the generator as
+// it stood before the 25-item v3 template landed (2026-08-06). Seed 11
+// pins every visible cell and the full option order; 555555 pins a form
+// whose draws include the v2-era tail families.
+const GOLDEN_V2: {
+  seed: number;
+  families: string[];
+  a: number[];
+  answers: string[];
+  cells?: string[];
+  opts?: string[];
+}[] = [
+  {"seed": 11, "families": ["sizeRamp", "dotCount", "sizeCycle", "fillRamp", "dotAdd", "dotSub", "overlay", "outerRowInnerCycle", "latinShapeFill", "latinSizeShape", "ringGrow", "dist2"], "a": [1, 0, 4, 3, 2, 1, 3, 3, 0, 4, 2, 3], "answers": ["[[\"d\",3,\"n\"]]", "[[\".\",3]]", "[[\"q\",2,\"n\"]]", "[[\"t\",3,\"n\"]]", "[[\".\",3]]", "[[\".\",2]]", "[[\"t\",3,\"n\"],[\"q\",1,\"s\"]]", "[[\"c\",3,\"n\"],[\"c\",1,\"s\"]]", "[[\"d\",3,\"n\"],[\"d\",1.4,\"s\"]]", "[[\"t\",1,\"n\"]]", "[[\"c\",3,\"n\"],[\"c\",2,\"n\"],[\"c\",1,\"n\"]]", "[[\"q\",3,\"n\"],[\"t\",1,\"s\"],[\".\",2]]"], "opts": ["[[\"d\",1,\"n\"]]|[[\"d\",3,\"n\"]]|[[\"t\",3,\"n\"]]|[[\"d\",3,\"s\"]]|[[\"d\",2,\"n\"]]|[[\"c\",3,\"n\"]]", "[[\".\",3]]|[[\".\",5]]|[[\".\",2]]|[[\".\",4]]|[[\".\",1]]|[[\".\",6]]", "[[\"q\",3,\"n\"]]|[[\"q\",2,\"s\"]]|[[\"c\",2,\"n\"]]|[[\"q\",1,\"n\"]]|[[\"q\",2,\"n\"]]|[[\"t\",1,\"n\"]]", "[[\"t\",2,\"n\"]]|[[\"c\",3,\"n\"]]|[[\"t\",3,\"s\"]]|[[\"t\",3,\"n\"]]|[[\"t\",3,\"n\"],[\"t\",1.4,\"s\"]]|[[\"q\",3,\"n\"]]", "[[\".\",2]]|[[\".\",5]]|[[\".\",3]]|[[\".\",6]]|[[\".\",1]]|[[\".\",4]]", "[[\".\",6]]|[[\".\",2]]|[[\".\",1]]|[[\".\",5]]|[[\".\",4]]|[[\".\",3]]", "[[\"t\",3,\"n\"]]|[[\"d\",3,\"n\"],[\"q\",1,\"s\"]]|[[\"t\",3,\"n\"],[\"t\",1,\"s\"]]|[[\"t\",3,\"n\"],[\"q\",1,\"s\"]]|[[\"t\",3,\"n\"],[\"q\",1,\"n\"]]|[[\"q\",1,\"s\"]]", "[[\"c\",3,\"s\"],[\"c\",1,\"s\"]]|[[\"t\",3,\"n\"],[\"c\",1,\"s\"]]|[[\"c\",3,\"n\"],[\"d\",1,\"s\"]]|[[\"c\",3,\"n\"],[\"c\",1,\"s\"]]|[[\"c\",3,\"n\"],[\"c\",1,\"n\"]]|[[\"c\",3,\"n\"],[\"q\",1,\"s\"]]", "[[\"d\",3,\"n\"],[\"d\",1.4,\"s\"]]|[[\"d\",3,\"n\"]]|[[\"q\",3,\"n\"]]|[[\"q\",3,\"s\"]]|[[\"d\",3,\"s\"]]|[[\"q\",3,\"n\"],[\"q\",1.4,\"s\"]]", "[[\"t\",2,\"n\"]]|[[\"t\",3,\"n\"]]|[[\"c\",1,\"n\"]]|[[\"t\",1,\"s\"]]|[[\"t\",1,\"n\"]]|[[\"c\",2,\"n\"]]", "[[\"c\",3,\"n\"],[\"c\",2,\"n\"]]|[[\"t\",3,\"n\"],[\"t\",2,\"n\"],[\"t\",1,\"n\"]]|[[\"c\",3,\"n\"],[\"c\",2,\"n\"],[\"c\",1,\"n\"]]|[[\"d\",3,\"n\"],[\"d\",2,\"n\"],[\"d\",1,\"n\"]]|[[\"c\",3,\"n\"],[\"c\",1,\"n\"]]|[[\"c\",3,\"n\"]]", "[[\"q\",3,\"n\"],[\"q\",1,\"s\"],[\".\",2]]|[[\"q\",3,\"n\"],[\".\",2]]|[[\"q\",3,\"n\"],[\"t\",1,\"s\"]]|[[\"q\",3,\"n\"],[\"t\",1,\"s\"],[\".\",2]]|[[\"q\",3,\"n\"],[\"d\",1,\"s\"],[\".\",2]]|[[\"q\",3,\"n\"]]"], "cells": ["[[\"c\",1,\"n\"]]|[[\"c\",2,\"n\"]]|[[\"c\",3,\"n\"]]|[[\"t\",1,\"n\"]]|[[\"t\",2,\"n\"]]|[[\"t\",3,\"n\"]]|[[\"d\",1,\"n\"]]|[[\"d\",2,\"n\"]]", "[[\".\",3]]|[[\".\",4]]|[[\".\",5]]|[[\".\",2]]|[[\".\",3]]|[[\".\",4]]|[[\".\",1]]|[[\".\",2]]", "[[\"c\",1,\"n\"]]|[[\"c\",2,\"n\"]]|[[\"c\",3,\"n\"]]|[[\"t\",2,\"n\"]]|[[\"t\",3,\"n\"]]|[[\"t\",1,\"n\"]]|[[\"q\",3,\"n\"]]|[[\"q\",1,\"n\"]]", "[[\"c\",3,\"s\"]]|[[\"c\",3,\"n\"],[\"c\",1.4,\"s\"]]|[[\"c\",3,\"n\"]]|[[\"q\",3,\"s\"]]|[[\"q\",3,\"n\"],[\"q\",1.4,\"s\"]]|[[\"q\",3,\"n\"]]|[[\"t\",3,\"s\"]]|[[\"t\",3,\"n\"],[\"t\",1.4,\"s\"]]", "[[\".\",2]]|[[\".\",1]]|[[\".\",3]]|[[\".\",3]]|[[\".\",3]]|[[\".\",6]]|[[\".\",1]]|[[\".\",2]]", "[[\".\",4]]|[[\".\",1]]|[[\".\",3]]|[[\".\",6]]|[[\".\",2]]|[[\".\",4]]|[[\".\",5]]|[[\".\",3]]", "[[\"d\",3,\"n\"]]|[[\"t\",1,\"s\"]]|[[\"d\",3,\"n\"],[\"t\",1,\"s\"]]|[[\"q\",3,\"n\"]]|[[\"d\",1,\"s\"]]|[[\"q\",3,\"n\"],[\"d\",1,\"s\"]]|[[\"t\",3,\"n\"]]|[[\"q\",1,\"s\"]]", "[[\"t\",3,\"n\"],[\"q\",1,\"s\"]]|[[\"t\",3,\"n\"],[\"d\",1,\"s\"]]|[[\"t\",3,\"n\"],[\"c\",1,\"s\"]]|[[\"q\",3,\"n\"],[\"q\",1,\"s\"]]|[[\"q\",3,\"n\"],[\"d\",1,\"s\"]]|[[\"q\",3,\"n\"],[\"c\",1,\"s\"]]|[[\"c\",3,\"n\"],[\"q\",1,\"s\"]]|[[\"c\",3,\"n\"],[\"d\",1,\"s\"]]", "[[\"q\",3,\"n\"],[\"q\",1.4,\"s\"]]|[[\"d\",3,\"n\"]]|[[\"c\",3,\"s\"]]|[[\"d\",3,\"s\"]]|[[\"c\",3,\"n\"],[\"c\",1.4,\"s\"]]|[[\"q\",3,\"n\"]]|[[\"c\",3,\"n\"]]|[[\"q\",3,\"s\"]]", "[[\"t\",2,\"n\"]]|[[\"q\",1,\"n\"]]|[[\"c\",3,\"n\"]]|[[\"c\",1,\"n\"]]|[[\"t\",3,\"n\"]]|[[\"q\",2,\"n\"]]|[[\"q\",3,\"n\"]]|[[\"c\",2,\"n\"]]", "[[\"d\",3,\"n\"]]|[[\"d\",3,\"n\"],[\"d\",2,\"n\"]]|[[\"d\",3,\"n\"],[\"d\",2,\"n\"],[\"d\",1,\"n\"]]|[[\"t\",3,\"n\"]]|[[\"t\",3,\"n\"],[\"t\",2,\"n\"]]|[[\"t\",3,\"n\"],[\"t\",2,\"n\"],[\"t\",1,\"n\"]]|[[\"c\",3,\"n\"]]|[[\"c\",3,\"n\"],[\"c\",2,\"n\"]]", "[[\"q\",3,\"n\"],[\"t\",1,\"s\"],[\".\",2]]|[[\"q\",3,\"n\"],[\"t\",1,\"s\"]]|[[\"q\",3,\"n\"],[\".\",2]]|[[\"q\",3,\"n\"],[\".\",2]]|[[\"q\",3,\"n\"],[\"t\",1,\"s\"],[\".\",2]]|[[\"q\",3,\"n\"],[\"t\",1,\"s\"]]|[[\"q\",3,\"n\"],[\"t\",1,\"s\"]]|[[\"q\",3,\"n\"],[\".\",2]]"]},
+  {"seed": 555555, "families": ["dotCount", "sizeRamp", "shapeCycle", "dotSub", "fillRamp", "sizeFillAlt", "outerRowInnerCycle", "innerGrow", "ringGrow", "latinDots", "latinSizeShape", "overlayXor"], "a": [1, 3, 4, 4, 2, 1, 1, 3, 5, 5, 2, 1], "answers": ["[[\".\",5]]", "[[\"q\",1,\"n\"]]", "[[\"c\",3,\"n\"]]", "[[\".\",3]]", "[[\"q\",3,\"n\"]]", "[[\"d\",1,\"s\"]]", "[[\"c\",3,\"n\"],[\"c\",1,\"s\"]]", "[[\"c\",3,\"n\"],[\"c\",2,\"s\"]]", "[[\"d\",3,\"n\"]]", "[[\".\",6]]", "[[\"t\",1,\"n\"]]", "[[\"t\",3,\"n\"],[\".\",2]]"]},
+];
+
+describe("gv 2 reconstruction (a stored {seed, gv} rebuilds its exact form forever)", () => {
+  it("generateForm(seed, 2) reproduces the frozen v2 generator", () => {
+    for (const g of GOLDEN_V2) {
+      const f = generateForm(g.seed, 2);
+      expect(f.version).toBe(2);
+      expect(f.items).toHaveLength(12);
+      expect(f.items.map((i) => i.rules[0]), `seed ${g.seed}`).toEqual(g.families);
+      expect(f.items.map((i) => i.a), `seed ${g.seed}`).toEqual(g.a);
+      expect(f.items.map((i) => canon(i.opts[i.a])), `seed ${g.seed}`).toEqual(g.answers);
+      if (g.cells) expect(f.items.map((i) => i.cells.map(canon).join("|"))).toEqual(g.cells);
+      if (g.opts) expect(f.items.map((i) => i.opts.map(canon).join("|"))).toEqual(g.opts);
+    }
+  });
+
+  it("v2 forms keep their own 12-slot weight ramp", () => {
+    const f = generateForm(424242, 2);
+    expect(f.items.map((i) => i.diff)).toEqual([1, 1, 1.5, 2, 2, 2, 2.5, 2.5, 3, 3, 3, 3.5]);
+  });
+});
+

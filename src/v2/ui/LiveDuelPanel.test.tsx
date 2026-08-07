@@ -29,6 +29,8 @@ const LIVE = vi.hoisted(() => {
     myDuelVote: () => null as { optionIdx: number } | null,
     revealFor: () => null as Record<string, unknown> | null,
     voteDuel: async (gid: string, idx: number, guess?: number) => { void gid; void idx; void guess; },
+    setDuoMode: async (gid: string, m: string) => { void gid; void m; },
+    romanticPoolReady: () => false,
     todayKey: () => "2026-07-30",
   };
   return { enabled: true, uid: "u_me", social, subscribe: () => () => {} };
@@ -50,6 +52,8 @@ beforeEach(() => {
   LIVE.social.todayQ = () => Q;
   LIVE.social.myDuelVote = () => null;
   LIVE.social.revealFor = () => null;
+  LIVE.social.romanticPoolReady = () => false;
+  LIVE.social.setDuoMode = async () => {};
 });
 afterEach(cleanup);
 
@@ -165,5 +169,57 @@ describe("LiveDuelPanel · a solo duo says why nothing is happening", () => {
     LIVE.enabled = false;
     const { container } = render(<LiveDuelPanel mode="duo" />);
     expect(container.textContent).toBe("");
+  });
+});
+
+describe("LiveDuelPanel · the question-pool picker (D40 part 4)", () => {
+  it("does not render while the romantic pool is dark — no stranding flips", () => {
+    render(<LiveDuelPanel mode="duo" />);
+    expect(screen.queryByText(/Question pool/i)).toBeNull();
+  });
+
+  it("offers the flip when the pool is live, and writes it through setDuoMode", async () => {
+    LIVE.social.romanticPoolReady = () => true;
+    const calls: Array<[string, string]> = [];
+    LIVE.social.setDuoMode = async (gid: string, m: string) => { calls.push([gid, m]); };
+    render(<LiveDuelPanel mode="duo" />);
+    expect(screen.getByText(/Question pool/i)).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Romantic" }));
+    await Promise.resolve();
+    expect(calls).toEqual([["g1", "romantic"]]);
+  });
+
+  it("keeps the road back open for an already-romantic pair even if the pool darkens", async () => {
+    LIVE.social.groups = () => [{ ...DUO, duoMode: "romantic" }];
+    const calls: Array<[string, string]> = [];
+    LIVE.social.setDuoMode = async (gid: string, m: string) => { calls.push([gid, m]); };
+    render(<LiveDuelPanel mode="duo" />);
+    fireEvent.click(screen.getByRole("button", { name: "Friends" }));
+    await Promise.resolve();
+    expect(calls).toEqual([["g1", "friends"]]);
+  });
+
+  it("locks the picker once today's answer is sealed, and says so", () => {
+    LIVE.social.romanticPoolReady = () => true;
+    LIVE.social.myDuelVote = () => ({ optionIdx: 0 });
+    const calls: string[] = [];
+    LIVE.social.setDuoMode = async (_gid: string, m: string) => { calls.push(m); };
+    render(<LiveDuelPanel mode="duo" />);
+    const romantic = screen.getByRole("button", { name: "Romantic" }) as HTMLButtonElement;
+    expect(romantic.disabled).toBe(true);
+    fireEvent.click(romantic);
+    expect(calls).toEqual([]);
+    expect(screen.getByText(/locked until tomorrow/i)).toBeTruthy();
+  });
+
+  it("never renders for a solo duo or a group", () => {
+    LIVE.social.romanticPoolReady = () => true;
+    LIVE.social.groups = () => [{ ...DUO, memberUids: ["u_me"] }];
+    render(<LiveDuelPanel mode="duo" />);
+    expect(screen.queryByText(/Question pool/i)).toBeNull();
+    cleanup();
+    LIVE.social.groups = () => [{ ...DUO, id: "g2", mode: "group", memberUids: ["u_me", "u_ada", "u_bo"] }];
+    render(<LiveDuelPanel mode="group" />);
+    expect(screen.queryByText(/Question pool/i)).toBeNull();
   });
 });

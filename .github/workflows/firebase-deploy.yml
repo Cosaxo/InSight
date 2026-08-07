@@ -153,7 +153,7 @@ jobs:
       # (lib/firestore/api.js), so under --force this step deletes every index
       # and field override the project holds that firestore.indexes.json does
       # not — and that file names exactly one (the v2_takes list composite,
-      # D59), so everything else the project holds is at risk.
+      # D65), so everything else the project holds is at risk.
       #
       # Two things the repo asks an operator to create by hand are exactly
       # that: the TTL on v2_agg_events.expireAt (LAUNCH-RUNBOOK §5.1,

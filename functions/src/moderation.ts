@@ -148,7 +148,7 @@ async function runBuildModQueue(): Promise<void> {
       // settled. Both fall out of the queue silently.
       //
       // Deliberately a truthiness test rather than `=== true`: `hidden` is a
-      // boolean now (D59), but a take hidden before that change carries the
+      // boolean now (D65), but a take hidden before that change carries the
       // old annotation MAP here, and a map is truthy while `=== true` would
       // silently re-queue every one of them.
       if (!take.exists || take.get("hidden")) continue;
@@ -294,7 +294,7 @@ export const submitModVerdict = onCall({ ...LIGHT_CALLABLE, region: REGION }, as
     if (verdict === "remove") {
       // Two fields, because they answer to two different readers. `hidden`
       // is the BOOLEAN the read rule compares against — it has to be a bare
-      // equality or the gate stops being enforceable on a list query (D59,
+      // equality or the gate stops being enforceable on a list query (D65,
       // and the long comment on that rule). `hiddenMeta` is the annotation
       // this used to write into `hidden` itself: nobody's access decision
       // turns on it, it exists so an appeal can be answered.

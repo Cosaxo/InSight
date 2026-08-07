@@ -22,7 +22,7 @@ the count is zero**, which is a change from 2026-08-04: the Team ID and the
 `REVERSED_CLIENT_ID` were the other two and both are filled.
 
 `check:store-listing` and `check:versions` pass; the daily bank is at 90
-questions of 369 seeded; the production backend is deployed. **Measured
+questions of 389 seeded; the production backend is deployed. **Measured
 2026-08-04:** anonymous sign-in works (`accounts:signUp` returns an
 `idToken`, where it returned `ADMIN_ONLY_OPERATION` on 2026-08-03), the
 InSight web app is registered, and the default hosting site `prvfire33`
@@ -95,23 +95,32 @@ arithmetic.
 
 ## Phase 0 — Do these first (about an hour, one console)
 
-- [ ] **0.1 Seed the production question bank — but do 1.3 first.** Signed
-      in as the operator account, from the app's browser console:
-      `await window.LIVE.seedContent()`.
-      369 questions land in `v2_questions`. Idempotent and, since D34,
-      cheap to repeat — reseed whenever content lands. `SHIP-CHECKLIST §1`.
-      *(This step used to name a `firebase.functions()...` call that could
-      not work — v8 syntax on a modular-SDK app. See the checklist.)*
+- [ ] **0.1 Seed the production question bank.** Actions → **Seed content**
+      → Run workflow. 389 questions land in `v2_questions`. Idempotent and,
+      since D34, cheap to repeat — reseed whenever content lands.
+      `SHIP-CHECKLIST §1`.
       *Until this runs the deployed backend serves an empty app, so it
-      blocks every screenshot and every tester.*
+      blocks every screenshot and every tester.* **It is also the only step
+      that proves the operator gate works end to end**, so a green run here
+      is worth more than its own output.
 
-      **This step is not account-free, which earlier drafts had wrong.**
-      `seedContentV2` throws `unauthenticated` without `request.auth` and
-      then gates on a uid in `SEED_ADMIN_UIDS` (`functions/src/ops.ts`) —
-      the maintainer's **Google-account** uid. With no sign-in provider
-      enabled in Firebase Auth there is no way to be that uid, so **1.3
-      is this step's precondition**, not a parallel task. Nothing else in
-      Phase 0 depends on it; do 1.3, then come back here.
+      **No longer blocked on 1.3, and no longer blocked on anything.**
+      `seedContentV2` needs `request.auth` with a uid in `SEED_ADMIN_UIDS`
+      (`functions/src/ops.ts`), which used to mean signing in as that
+      Google account by hand. The workflow mints a token for the uid with
+      the service-account key the deploy already uses, so the sign-in
+      provider is no longer this step's precondition. It grants nothing
+      new — that key deploys the rules protecting `v2_questions` — and it
+      goes through the callable rather than writing the collection
+      directly, so CI runs the same seeding path the app does.
+
+      **Two earlier drafts of this step could not be performed as written.**
+      The first named a `firebase.functions()...` call — v8 syntax on a
+      modular-SDK app. The second said "from the app's browser console",
+      and there is no browser build: hosting serves `web/` (home, join,
+      privacy, terms) and the app ships only as the iOS shell. Both
+      survived because running the instruction needed something nobody
+      had. See the checklist.
 - [ ] **0.2 Confirm the hosting pages are actually live.** Open
       `https://prvfire33.web.app/privacy.html` and
       `https://prvfire33.web.app/`. Both store listings require these

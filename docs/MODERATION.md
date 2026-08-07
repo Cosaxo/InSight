@@ -134,7 +134,7 @@ verdict.
    everything else its author owns. The split is not cosmetic: the read
    rule compares against the boolean and nothing else, because only a bare
    equality holds a *list* to the gate, and the author-visible soft-hide
-   this line promises was a `getDoc`-only guarantee until it did (D59).
+   this line promises was a `getDoc`-only guarantee until it did (D65).
 5. **Bounded blast radius.** Hard cap of 50 verdicts per run. Every
    verdict carries its policy line, run id and queue generation — the
    log is append-only, one entry per (take, generation), so a take

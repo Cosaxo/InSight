@@ -52,41 +52,55 @@ the verification — treat a successful seed as proof of both.
    > workflow variable is the only path. A deploy with the variable unset
    > still succeeds but logs a warning, and every operator callable stays
    > `permission-denied`.
-3. **The remaining step.** Sign in as the operator, then from the app's
-   browser console:
+3. **The remaining step: Actions → *Seed content* → Run workflow.** No
+   sign-in, no dev machine, nothing to install.
 
-   ```js
-   await window.LIVE.seedContent()
-   ```
-
-   369 questions land in `v2_questions`. Re-running is safe (idempotent,
+   389 questions land in `v2_questions`. Re-running is safe (idempotent,
    never resets the `active` kill switch) and, since D34, genuinely cheap:
    it rewrites only documents whose content changed and leaves `contentRev`
-   alone, so a reseed no longer costs every returning device a 369-read
-   bank refetch. The call returns `{written, skipped}` — a no-op reseed
-   reports `written: 0`.
+   alone, so a reseed no longer costs every returning device a 389-read
+   bank refetch. The job summary reports `{written, skipped}` — a no-op
+   reseed reports `written: 0`.
 
-   **This line used to read
-   `firebase.functions().httpsCallable("seedContentV2")()` and could never
-   have worked.** That is Firebase v8 namespaced syntax; the app is on the
-   modular SDK (`firebase ^12`) and publishes no global `firebase`, so it
-   threw `ReferenceError: firebase is not defined` — on the one step
-   standing between a deployed backend and an app with content in it. The
-   helper that does it correctly was module-private in `live.ts` with no
+   Tick **bump_rev** only after flipping a question's `active` flag **by
+   hand in the Firebase console**: that changes no document the seed
+   writes, so cached clients keep showing the question without it. Nothing
+   is at risk while you wait — `firestore.rules` re-checks `active` on
+   every answer write, so a killed question still on screen is refused
+   server-side rather than silently accepted.
+
+   In-app, `await window.LIVE.seedContent()` still does the same thing and
+   is what `live.ts` exposes. It is no longer the instruction here, because
+   there is nowhere to type it.
+
+   **This step has now been documented wrong twice, and both failures share
+   one cause.** It first read
+   `firebase.functions().httpsCallable("seedContentV2")()` — Firebase v8
+   namespaced syntax on a modular-SDK app (`firebase ^12`) that publishes no
+   global `firebase`, so it threw `ReferenceError: firebase is not defined`.
+   It then read "from the app's browser console", and **there is no browser
+   console**: `firebase.json` serves `web/` — home, join, privacy, terms —
+   and the app ships only as the native iOS shell, so `prvfire33.web.app` is
+   a landing page. Both survived review because running the instruction
+   needed something nobody had, so nobody ran it. `scripts/seed-content.mjs`
+   is covered by `scripts/seed-content.test.mjs`, which is the only form of
+   "verified" that stays true after the day it is written.
+
+   The helper that does it correctly was module-private in `live.ts` with no
    way in, which is why `LIVE.seedContent` now exists. It adds no
    privilege: `assertOperator` + `SEED_ADMIN_UIDS` was always the control,
    and under D3 "signed in" is not one. `vote.test.ts` pins the callable
    name, region and payload, because a typo here is an `internal` error
    with nothing to read.
 
-   **One operator case needs the extra argument.** If you flip a
-   question's `active` flag **by hand in the Firebase console**, the seed
-   cannot see it (it changed no document the seed writes), so cached
-   clients keep showing the question. Push it with
-   `await window.LIVE.seedContent(true)`, which invalidates every device's
-   cached bank. Nothing is at risk while you wait:
-   `firestore.rules` re-checks `active` on every answer write, so a killed
-   question still on screen is refused server-side, not silently accepted.
+   **One failure is not a bug and must not be retried away.** Since D58 the
+   seed **refuses** to edit the option set of a question that has already
+   shipped, and fails the whole run with `failed-precondition` naming each
+   one. Answers store `(qid, optionIdx)` and nothing else, so swapping two
+   options re-keys every vote already cast (D52). The legitimate writes in
+   that run are already durable; what you do next is fix the content, not
+   re-run. To retire a question set `active: false`; to replace one, append
+   a new qid.
 
 ## 2 · Native Firebase config files (account-gated)
 

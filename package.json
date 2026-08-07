@@ -37,6 +37,7 @@
     "check:logic-sync": "node scripts/check-logic-sync.mjs",
     "build:catalog": "node scripts/build-catalog.mjs",
     "check:content": "node scripts/check-content.mjs",
+    "check:neighbors": "node scripts/question-neighbors.mjs",
     "build:content": "node scripts/gen-v2content.mjs --write",
     "promote": "node scripts/promote-questions.mjs",
     "scorecard": "node scripts/question-scorecard.mjs",
@@ -63,7 +64,8 @@
     "test:unit": "vitest run --dir src",
     "test:scripts": "vitest run --dir scripts",
     "test:coverage": "vitest run --dir src/v2/data --coverage",
-    "check:store-forms": "node scripts/check-store-forms.mjs"
+    "check:store-forms": "node scripts/check-store-forms.mjs",
+    "seed": "node scripts/seed-content.mjs"
   },
   "dependencies": {
     "@capacitor-firebase/authentication": "^8.2.0",

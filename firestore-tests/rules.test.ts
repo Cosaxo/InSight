@@ -412,6 +412,11 @@ describe("v2 profile", () => {
       await setDoc(doc(db, "v2_logic_attempts", OWNER), { seed: 7, gv: 2, status: "open" });
       await setDoc(doc(db, "v2_logic_norms_private", "global"), { n: 3, b12: 3 });
       await setDoc(doc(db, "v2_logic_norms", "global"), { n: 25, b7: 6 });
+      // the D62 difficulty stats ride the same collections, so the same
+      // rules cover them — asserted so a future path rename cannot
+      // silently split the two
+      await setDoc(doc(db, "v2_logic_norms_private", "families"), { n: 3, f_dist2Xor_seen: 3 });
+      await setDoc(doc(db, "v2_logic_norms", "families"), { n: 25, f_dist2Xor_seen: 20 });
     });
     // not even the owner reads their attempt — an owner-readable seed is a
     // devtools answer key mid-attempt
@@ -420,6 +425,9 @@ describe("v2 profile", () => {
     // exact counts stay server-side; the public mirror reads, never writes
     await assertFails(getDoc(doc(asUser(OWNER), "v2_logic_norms_private", "global")));
     await assertSucceeds(getDoc(doc(asUser(OWNER), "v2_logic_norms", "global")));
+    await assertFails(getDoc(doc(asUser(OWNER), "v2_logic_norms_private", "families")));
+    await assertSucceeds(getDoc(doc(asUser(OWNER), "v2_logic_norms", "families")));
+    await assertFails(setDoc(doc(asUser(OWNER), "v2_logic_norms", "families"), { n: 999 }));
     await assertFails(setDoc(doc(asUser(OWNER), "v2_logic_norms", "global"), { n: 999 }));
     await assertFails(getDoc(doc(asSignedOut(), "v2_logic_norms", "global")));
   });
@@ -698,6 +706,28 @@ describe("v2 groups + sealed duels (Phase 3)", () => {
     await assertFails(deleteDoc(doc(asUser(OWNER), "v2_groups", GID)));
   });
 
+  it("duoMode is the ONE member-writable field, on duo docs only (D40 part 4)", async () => {
+    await seedGroup();
+    // either partner flips the pair's pool, and back again
+    await assertSucceeds(updateDoc(doc(asUser(FRIEND), "v2_groups", GID), { duoMode: "romantic" }));
+    await assertSucceeds(updateDoc(doc(asUser(OWNER), "v2_groups", GID), { duoMode: "friends" }));
+    // outsiders can't touch it
+    await assertFails(updateDoc(doc(asUser(STRANGER), "v2_groups", GID), { duoMode: "romantic" }));
+    // the field is alone or the write dies — no riding another change in
+    await assertFails(updateDoc(doc(asUser(OWNER), "v2_groups", GID),
+      { duoMode: "romantic", streak: 99 }));
+    // closed enum — an unknown pool name is refused, not stored
+    await assertFails(updateDoc(doc(asUser(OWNER), "v2_groups", GID), { duoMode: "sneaky" }));
+    // and a GROUP doc has no member-writable surface at all
+    await seed(async (db) => {
+      await setDoc(doc(db, "v2_groups", "g_grp"), {
+        name: "Circle", mode: "group", ownerUid: OWNER,
+        memberUids: [OWNER, FRIEND], inviteCode: "EFGH6789", streak: 0,
+      });
+    });
+    await assertFails(updateDoc(doc(asUser(OWNER), "v2_groups", "g_grp"), { duoMode: "romantic" }));
+  });
+
   it("members write sealed duel answers under the composite id; outsiders can't", async () => {
     await seedGroup();
     await assertSucceeds(setDoc(
@@ -864,7 +894,7 @@ describe("moderation substrate: takes + flags (docs/MODERATION.md, D22)", () => 
     await assertSucceeds(getDoc(doc(asUser(OWNER), "v2_takes", "t_hidden")));
   });
 
-  // The case whose absence WAS the bug (D59). Every take assertion above
+  // The case whose absence WAS the bug (D65). Every take assertion above
   // this line uses getDoc, and getDoc was never the leak: a per-document
   // rule is applied per document. A LIST is a different operation, and the
   // old presence-test gate (`!("hidden" in resource.data)`) gave Firestore

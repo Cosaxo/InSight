@@ -426,7 +426,7 @@ describe("vote() optimistic path (inflight vs unaggregated)", () => {
     expect(dispatched).toContain("insight:local-purge");
   });
 
-  // ── the coalesced agg cache (D58) ───────────────────────────────────
+  // ── the coalesced agg cache (D64) ───────────────────────────────────
   //
   // saveAggCache used to run JSON.stringify over the WHOLE aggs map
   // synchronously inside the agg snapshot handler, and that handler fires

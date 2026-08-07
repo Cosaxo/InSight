@@ -87,7 +87,7 @@ const deployed = new Set(
 // options.force` (lib/firestore/api.js), so `--force --only
 // "firestore:indexes,functions:…"` deletes every index and field override
 // the live project holds that firestore.indexes.json does not name — and
-// that file names exactly one index (the v2_takes list composite, D59).
+// that file names exactly one index (the v2_takes list composite, D65).
 // The two the repo asks an operator to create by hand (the v2_agg_events
 // TTL of LAUNCH-RUNBOOK §5.1, and the composite index v2social.ts names
 // for the duel scan) are exactly the shape it removes.

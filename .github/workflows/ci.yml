@@ -92,6 +92,12 @@ jobs:
       - run: npm run check:store-forms
       # Five version numbers that must move together across three files.
       - run: npm run check:versions
+      # Near-duplicate questions across the banks (D63). Exact-dupe checks
+      # live in check:content on the deploy path; this is the similarity
+      # half, and it is content QUALITY, not backend correctness — so it
+      # belongs here and deliberately NOT on backend-checks.yml, where it
+      # could block an emergency rules fix over a reworded question.
+      - run: npm run check:neighbors
       # The city catalogue is parsed at runtime and its names become
       # Firestore map keys. A malformed row or an over-long name would be
       # pickable in the profile and then absent from every breakdown.

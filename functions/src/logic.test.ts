@@ -6,11 +6,16 @@ import {
   LOGIC_DEADLINE_MS,
   LOGIC_ITEMS,
   LOGIC_MAX_STARTS_PER_DAY,
+  LOGIC_NORMS_MIN_N,
   LOGIC_REVERIFY_DAYS,
   canStartLogic,
   clientItems,
+  foldDifficultyStats,
   foldNorms,
+  logicItemsFor,
   logicPctile,
+  logicPctileFor,
+  measuredPctile,
   nextStartsToday,
   scoreLogicPicks,
   utcDayKey,
@@ -33,8 +38,8 @@ const attempt = (over: Partial<LogicAttempt>): LogicAttempt => ({
   ...over,
 });
 
-describe("the percentile curve matches the client's, landmark for landmark", () => {
-  it("chance→4, half→30, midpoint→50, perfect→94, floor 1", () => {
+describe("the percentile curves match the client's, landmark for landmark", () => {
+  it("12 items (D53): chance→4, half→30, midpoint→50, perfect→94, floor 1", () => {
     // The client copy (src/v2/data/logic-score.ts) pins these same values
     // in logic-score.test.ts — if either side moves alone, one suite fails.
     expect(logicPctile(2 / 12)).toBe(4);
@@ -42,6 +47,15 @@ describe("the percentile curve matches the client's, landmark for landmark", () 
     expect(logicPctile(0.62)).toBe(50);
     expect(logicPctile(1)).toBe(94);
     expect(logicPctile(0)).toBe(1);
+  });
+
+  it("25 items (D61): chance→4, half→42, midpoint→50, 20/25→90, perfect→98, floor 1", () => {
+    expect(logicPctileFor(1 / 6, 25)).toBe(4); // chance with six options
+    expect(logicPctileFor(0.5, 25)).toBe(42);
+    expect(logicPctileFor(0.54, 25)).toBe(50);
+    expect(logicPctileFor(20 / 25, 25)).toBe(90);
+    expect(logicPctileFor(1, 25)).toBe(98); // the harder tail earns more model ceiling than D53's 94
+    expect(logicPctileFor(0, 25)).toBe(1);
   });
 });
 
@@ -81,37 +95,46 @@ describe("canStartLogic", () => {
 });
 
 describe("validLogicPicks", () => {
-  it("accepts 12 integers in -1..5 (-1 = expired), refuses everything else", () => {
-    expect(validLogicPicks(Array.from({ length: 12 }, () => 0))).toBe(true);
-    expect(validLogicPicks([...Array.from({ length: 11 }, () => 5), -1])).toBe(true);
-    expect(validLogicPicks(Array.from({ length: 11 }, () => 0))).toBe(false);
-    expect(validLogicPicks(Array.from({ length: 12 }, () => 6))).toBe(false);
-    expect(validLogicPicks(Array.from({ length: 12 }, () => -2))).toBe(false);
-    expect(validLogicPicks(Array.from({ length: 12 }, () => 1.5))).toBe(false);
-    expect(validLogicPicks(Array.from({ length: 12 }, () => "1"))).toBe(false);
+  it("accepts LOGIC_ITEMS integers in -1..5 (-1 = expired), refuses everything else", () => {
+    expect(validLogicPicks(Array.from({ length: 25 }, () => 0))).toBe(true);
+    expect(validLogicPicks([...Array.from({ length: 24 }, () => 5), -1])).toBe(true);
+    expect(validLogicPicks(Array.from({ length: 24 }, () => 0))).toBe(false);
+    expect(validLogicPicks(Array.from({ length: 12 }, () => 0))).toBe(false); // the old era's length
+    expect(validLogicPicks(Array.from({ length: 25 }, () => 6))).toBe(false);
+    expect(validLogicPicks(Array.from({ length: 25 }, () => -2))).toBe(false);
+    expect(validLogicPicks(Array.from({ length: 25 }, () => 1.5))).toBe(false);
+    expect(validLogicPicks(Array.from({ length: 25 }, () => "1"))).toBe(false);
     expect(validLogicPicks(null)).toBe(false);
     expect(validLogicPicks({})).toBe(false);
+  });
+
+  it("validates against an attempt's own era: a gv2 attempt takes 12 picks (D61)", () => {
+    expect(logicItemsFor(2)).toBe(12);
+    expect(logicItemsFor(3)).toBe(25);
+    expect(validLogicPicks(Array.from({ length: 12 }, () => 0), logicItemsFor(2))).toBe(true);
+    expect(validLogicPicks(Array.from({ length: 25 }, () => 0), logicItemsFor(2))).toBe(false);
   });
 });
 
 describe("scoreLogicPicks", () => {
-  it("all correct answers → 12/12; each mark follows its pick", () => {
+  it("all correct answers → a perfect score; each mark follows its pick", () => {
     const seed = 987654;
     const form = generateForm(seed);
     const right = form.items.map((it) => it.a);
     expect(scoreLogicPicks(seed, GEN_VERSION, right)).toEqual({
-      marks: Array.from({ length: 12 }, () => true),
-      score: 12,
+      marks: Array.from({ length: LOGIC_ITEMS }, () => true),
+      score: LOGIC_ITEMS,
+      families: generateForm(seed).items.map((it) => it.rules[0]),
     });
     const oneWrong = [...right];
     oneWrong[3] = (right[3] + 1) % 6;
     const scored = scoreLogicPicks(seed, GEN_VERSION, oneWrong);
-    expect(scored.score).toBe(11);
+    expect(scored.score).toBe(LOGIC_ITEMS - 1);
     expect(scored.marks[3]).toBe(false);
   });
 
   it("-1 (expired) never matches an answer", () => {
-    const scored = scoreLogicPicks(42, GEN_VERSION, Array.from({ length: 12 }, () => -1));
+    const scored = scoreLogicPicks(42, GEN_VERSION, Array.from({ length: LOGIC_ITEMS }, () => -1));
     expect(scored.score).toBe(0);
   });
 });
@@ -137,6 +160,34 @@ describe("clientItems — what the wire carries", () => {
   });
 });
 
+describe("foldDifficultyStats (D62)", () => {
+  it("counts family exposure and solves, and per-slot solves, from nothing", () => {
+    const stats = foldDifficultyStats(null, ["sizeRamp", "dist2Xor"], [true, false]);
+    expect(stats).toEqual({ n: 1, f_sizeRamp_seen: 1, f_sizeRamp_solved: 1, s_0_solved: 1, f_dist2Xor_seen: 1 });
+  });
+
+  it("accumulates over priors without touching untouched counters", () => {
+    const prev = { n: 3, f_sizeRamp_seen: 3, f_sizeRamp_solved: 2, s_0_solved: 2, f_ringLatin_seen: 1 };
+    const stats = foldDifficultyStats(prev, ["sizeRamp", "ringLatin"], [false, true]);
+    expect(stats).toEqual({
+      n: 4,
+      f_sizeRamp_seen: 4, f_sizeRamp_solved: 2, s_0_solved: 2,
+      f_ringLatin_seen: 2, f_ringLatin_solved: 1, s_1_solved: 1,
+    });
+  });
+
+  it("a full form folds one seen per family and n slot-solve counters at most", () => {
+    const { marks, families } = scoreLogicPicks(31337, GEN_VERSION, generateForm(31337).items.map((it) => it.a));
+    const stats = foldDifficultyStats(null, families, marks);
+    expect(stats.n).toBe(1);
+    // 25 distinct families per form (the no-repeat rule), each seen once
+    expect(Object.keys(stats).filter((k) => k.endsWith("_seen"))).toHaveLength(25);
+    for (const fam of families) expect(stats[`f_${fam}_seen`]).toBe(1);
+    // a perfect run solves every slot
+    expect(Object.keys(stats).filter((k) => k.startsWith("s_"))).toHaveLength(25);
+  });
+});
+
 describe("foldNorms", () => {
   it("counts n and the score bucket, from nothing and from priors", () => {
     expect(foldNorms(null, 7)).toEqual({ n: 1, b7: 1 });
@@ -144,8 +195,34 @@ describe("foldNorms", () => {
   });
 });
 
+describe("measuredPctile (D60)", () => {
+  it("stays null below the floor — the model keeps the job", () => {
+    expect(measuredPctile(null, 8)).toBeNull();
+    expect(measuredPctile({ n: LOGIC_NORMS_MIN_N - 1, b0: LOGIC_NORMS_MIN_N - 1 }, 12)).toBeNull();
+  });
+
+  it("at the floor: strictly-below share, ties not beaten", () => {
+    const h = { n: 100, b5: 40, b7: 30, b9: 20, b12: 10 };
+    expect(measuredPctile(h, 7)).toEqual({ pctile: 40, n: 100 }); // beats the fives, not the other sevens
+    expect(measuredPctile(h, 8)).toEqual({ pctile: 70, n: 100 });
+    // the measured ceiling is the data's, not the model's 94 (D53's cap
+    // existed because a curve cannot rank perfect scores — a count can)
+    expect(measuredPctile(h, 12)).toEqual({ pctile: 90, n: 100 });
+    // clamp at the bottom: beats nobody, still never reads "top 100%"
+    expect(measuredPctile(h, 0)).toEqual({ pctile: 1, n: 100 });
+  });
+
+  it("a perfect score among many perfects reads honestly low", () => {
+    expect(measuredPctile({ n: 200, b12: 150, b11: 50 }, 12)).toEqual({ pctile: 25, n: 200 });
+  });
+
+  it("clamps the top: beating 995 of 1000 rounds to 99, never 100", () => {
+    expect(measuredPctile({ n: 1000, b3: 995, b11: 5 }, 12)).toEqual({ pctile: 99, n: 1000 });
+  });
+});
+
 describe("administration arithmetic", () => {
-  it("the deadline covers 12 capped items plus one item of slack", () => {
-    expect(LOGIC_DEADLINE_MS).toBe(13 * 90_000);
+  it("the deadline covers 25 capped items plus one item of slack", () => {
+    expect(LOGIC_DEADLINE_MS).toBe(26 * 90_000);
   });
 });

@@ -16,7 +16,7 @@ import { fileURLToPath } from "node:url";
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const ASSETS = join(root, "dist", "assets");
 
-// Current largest chunk is the entry, 721.4 KB. The spec layer used to load
+// Current largest chunk is the entry, 723.4 KB. The spec layer used to load
 // in one piece, and this comment used to say check-spec-globals required that —
 // it does not. Rule 2 substring-matches the './spec/…' strings in
 // spec-index.js, which a dynamic import satisfies exactly as a static one
@@ -48,7 +48,7 @@ const ASSETS = join(root, "dist", "assets");
 // 850 → 735, and 1600 → 2100 (2026-08-06). BOTH ceilings had stopped
 // measuring what their comments claimed, in opposite directions — the
 // per-chunk one had gone slack, the total one was never being applied to
-// the bundle that ships. Re-measured rather than adjusted by eye; see D58.
+// the bundle that ships. Re-measured rather than adjusted by eye; see D64.
 //
 // WHAT 735 ACTUALLY CATCHES, measured the way the 850 table was, by moving
 // one group at a time out of loadOverlays() into the eager list and
@@ -56,15 +56,15 @@ const ASSETS = join(root, "dist", "assets");
 //
 //   | eager again              |  entry | 735 |
 //   | ------------------------ | -----: | --- |
-//   | nothing (today)          |  721.4 | ok  |
-//   | city-overlay             |  727.1 | ok  |
-//   | logic-test               |  746.2 | RED |
-//   | test-overlay             |  780.0 | RED |
-//   | person + city + suggest  |  819.0 | RED |
-//   | the whole group          |  934.7 | RED |
+//   | nothing (today)          |  723.4 | ok  |
+//   | city-overlay             |  729.1 | ok  |
+//   | logic-test               |  752.9 | RED |
+//   | test-overlay             |  782.1 | RED |
+//   | person + city + suggest  |  821.1 | RED |
+//   | the whole group          |  941.4 | RED |
 //
 // The 850 row of the old table said "nothing (today) 837 KB". The entry
-// chunk is 721.4 KB now — D39 and D40 took ~116 KB out of it — so the
+// chunk is 723.4 KB now — D39 and D40 took ~116 KB out of it — so the
 // ceiling had drifted to 128 KB of headroom and three of its own four rows
 // had gone green: at 850 the entire overlay group could return to eager
 // and this script would still print OK. A ceiling set once and never
@@ -86,10 +86,10 @@ const ASSETS = join(root, "dist", "assets");
 // no Sentry in it, while ios-release.yml:132 sets the DSN (and does not run
 // this script). Measured both ways off the same tree:
 //
-//   no DSN   1569.0 KB across 40 chunks   ← what CI weighed
-//   with DSN 2050.3 KB across 44 chunks   ← what ships (+481.3 KB)
+//   no DSN   1577.2 KB across 40 chunks   ← what CI weighed
+//   with DSN 2058.4 KB across 44 chunks   ← what ships (+481.2 KB)
 //
-// 2050.3 against a 1600 ceiling: the shipping bundle has been 450 KB over
+// 2058.4 against a 1600 ceiling: the shipping bundle has been 450 KB over
 // budget for as long as Sentry has been in it, and the gate could not see it.
 // ci.yml now sets a dummy DSN so the build under test is the shipping graph,
 // and the ceiling moves to 2100 to sit just above what that actually weighs.
@@ -100,8 +100,8 @@ const ASSETS = join(root, "dist", "assets");
 // a change to what we ship, not to what measures it.)
 //
 // Sentry does not touch first paint either way: it is dynamically imported
-// and appears in no modulepreload link, which the eager-graph figures in D58
-// confirm (1207.7 KB with and without). This ceiling is about package size.
+// and appears in no modulepreload link, which the eager-graph figures in D64
+// confirm (1211.2 KB with and without). This ceiling is about package size.
 //
 // The Mirror tab (~168 KB) is what is left of the obvious candidates, and it
 // is a harder one: it renders on the first frame for anyone who opens the
