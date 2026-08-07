@@ -99,7 +99,7 @@ jobs:
       - run: npm ci
       # firebase-tools 15 requires Java 21+ for the Firestore emulator;
       # the runner's default JDK is older.
-      - uses: actions/setup-java@03ad4de0992f5dab5e18fcb136590ce7c4a0ac95 # v5.6.0
+      - uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5.7.0
         with:
           distribution: temurin
           java-version: "21"
@@ -127,7 +127,7 @@ jobs:
       # The functions emulator loads functions/lib — build first.
       - run: npm run build --prefix functions
       # firebase-tools 15 requires Java 21+ for the Firestore emulator.
-      - uses: actions/setup-java@03ad4de0992f5dab5e18fcb136590ce7c4a0ac95 # v5.6.0
+      - uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5.7.0
         with:
           distribution: temurin
           java-version: "21"
