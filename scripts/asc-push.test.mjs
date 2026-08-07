@@ -50,6 +50,15 @@ let server, base, received;
 
 /** Age-rating attributes the stub pretends are already set. */
 let existingRating = {};
+/**
+ * Whether the stub is a FIRST release, which is what the owner's app
+ * actually is — so this defaults to the state production is in. Apple
+ * refuses `whatsNew` there: "What's New in This Version" has no meaning
+ * without a previous version, and it answers 409 naming the attribute.
+ */
+let refuseWhatsNew = true;
+/** Makes the app-info PATCH 409 too, to prove the skip is scoped. */
+let failNextAppInfoPatch = false;
 
 function json(res, body) {
   res.writeHead(200, { "content-type": "application/json" });
@@ -198,6 +207,32 @@ beforeAll(async () => {
       if (url.pathname === "/upload-sink") {
         res.writeHead(200); return res.end();
       }
+      // A PATCH is ATOMIC, and that is the whole reason this route exists:
+      // one refused attribute rejects the other five in the same body. The
+      // stub accepted everything, so the split that keeps them apart could
+      // not be tested — and the run that taught this printed ✓ against five
+      // fields it never wrote.
+      if (failNextAppInfoPatch && req.method === "PATCH"
+          && url.pathname.startsWith("/v1/appInfoLocalizations/")) {
+        res.writeHead(409, { "content-type": "application/json" });
+        return res.end(JSON.stringify({
+          errors: [{
+            title: "The request cannot be fulfilled because of the state of another resource.",
+            detail: "Attribute 'subtitle' cannot be edited at this time",
+          }],
+        }));
+      }
+      if (refuseWhatsNew && req.method === "PATCH"
+          && url.pathname.startsWith("/v1/appStoreVersionLocalizations/")
+          && parsed?.data?.attributes?.whatsNew !== undefined) {
+        res.writeHead(409, { "content-type": "application/json" });
+        return res.end(JSON.stringify({
+          errors: [{
+            title: "The request cannot be fulfilled because of the state of another resource.",
+            detail: "Attribute 'whatsNew' cannot be edited at this time",
+          }],
+        }));
+      }
       // Writes: PATCH / POST / DELETE all just succeed.
       return json(res, { data: {} });
     });
@@ -253,7 +288,12 @@ describe("asc-push text", () => {
 
   it("splits app-level and version-level fields onto the right resources", async () => {
     await push(["--apply"]);
-    const byPath = Object.fromEntries(writes().map((w) => [w.path, w.body.data.attributes]));
+    // MERGED, not last-wins. The version resource is PATCHed twice now (see
+    // the whatsNew split), and Object.fromEntries would silently keep only
+    // the second body — this assertion would then be about whatsNew while
+    // reading as though it were about description.
+    const byPath = {};
+    for (const w of writes()) byPath[w.path] = { ...byPath[w.path], ...w.body.data.attributes };
 
     // name belongs to the app and survives versions; description belongs to
     // the version. Sending either to the other is a 409 that reads like a
@@ -267,6 +307,63 @@ describe("asc-push text", () => {
   it("picks the editable version, not the live one", async () => {
     await push(["--apply"]);
     expect(received.some((r) => r.path.includes("ver-live"))).toBe(false);
+  });
+
+  it("keeps whatsNew out of the body that carries the other five", async () => {
+    // The failure this pins cost a real run: whatsNew rode along with
+    // description, keywords, promotionalText, supportUrl and marketingUrl,
+    // Apple refused the one, and the atomic PATCH dropped all six.
+    await push(["--apply"]);
+    const version = writes().filter((w) => w.path === "/v1/appStoreVersionLocalizations/vloc-1");
+    expect(version).toHaveLength(2);
+    const withNew = version.find((w) => "whatsNew" in w.body.data.attributes);
+    expect(Object.keys(withNew.body.data.attributes)).toEqual(["whatsNew"]);
+    const rest = version.find((w) => w !== withNew);
+    expect(Object.keys(rest.body.data.attributes).sort()).toEqual([
+      "description", "keywords", "marketingUrl", "promotionalText", "supportUrl",
+    ]);
+  });
+
+  it("reports the whatsNew refusal as a skip and still counts the five that landed", async () => {
+    refuseWhatsNew = true;
+    const out = await push(["--apply"]);
+    expect(out).toMatch(/skipped\. Apple refuses `whatsNew` on a first release/);
+    // Ticked, because they were written — the five are in their own PATCH.
+    expect(out).toMatch(/✓ version\.description/);
+    // NOT ticked, because it was not.
+    expect(out).not.toMatch(/✓ version\.whatsNew/);
+    // And the count excludes it: 3 app-info + 5 version.
+    expect(out).toMatch(/8 change\(s\) applied/);
+  });
+
+  it("ticks whatsNew once Apple allows it — the skip is conditional, not permanent", async () => {
+    // Otherwise "handled" would mean "never sent again", and the first real
+    // UPDATE would silently ship last release's notes.
+    refuseWhatsNew = false;
+    try {
+      const out = await push(["--apply"]);
+      expect(out).toMatch(/✓ version\.whatsNew/);
+      expect(out).not.toMatch(/skipped/);
+      expect(out).toMatch(/9 change\(s\) applied/);
+    } finally {
+      refuseWhatsNew = true;
+    }
+  });
+
+  it("does not swallow a 409 on anything but whatsNew", async () => {
+    // The skip is scoped to one field and one status. A blanket catch here
+    // would turn every state conflict Apple has into a green run — which is
+    // the leniency this file's stub notes spend three paragraphs on.
+    failNextAppInfoPatch = true;
+    try {
+      const err = await push(["--apply"]).then(() => null, (e) => e);
+      expect(err, "expected a non-zero exit").not.toBeNull();
+      expect(String(err.stderr)).toMatch(/→ 409/);
+      // …and nothing claimed success on the way out.
+      expect(String(err.stdout)).not.toMatch(/✓ app info\./);
+    } finally {
+      failNextAppInfoPatch = false;
+    }
   });
 });
 

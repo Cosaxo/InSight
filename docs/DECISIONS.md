@@ -7312,3 +7312,62 @@ per-row tracking question this printout does not answer.
 "transcribes the privacy label from a reviewed file", which was true of the
 intent and never of the code. D69's actual subject — trader status, and the
 refusal to automate an identity assertion to a regulator — is untouched.
+
+## D74 · A tick is a claim, and this one was printed before the write
+
+**Decided:** 2026-08-07 · **Status:** binding
+
+Two defects in `scripts/asc-push.mjs`, found by the first real `--apply` run.
+The second is much the worse of them.
+
+**1. `whatsNew` cannot be set on a first release.** "What's New in This
+Version" has no meaning when there is no previous version, and Apple answers
+the PATCH with a 409 naming the attribute. It now travels in its own request,
+so the refusal cannot take anything else with it, and the refusal itself is
+reported as a skip rather than thrown.
+
+Split rather than state-modelled, deliberately. The alternative was deciding
+up front whether the app has ever had a released version — which means
+encoding Apple's version state machine from outside it and guessing whether
+`READY_FOR_SALE`, `PENDING_DEVELOPER_RELEASE` and `REPLACED_WITH_NEW_VERSION`
+each count. Apple answers that question exactly and for free. D73 is the
+whole argument for asking rather than guessing, and it was one day old.
+
+The skip is scoped to one attribute, one status and one message, and a test
+proves a 409 on any other field still exits non-zero. It is also conditional
+rather than permanent — a second test drives the allowed case, because
+"handled" must not come to mean "never sent again" and ship the first real
+update with last release's notes.
+
+**2. The report ticked eight fields and wrote three of them.** A PATCH is
+atomic. `whatsNew` rode in the same body as `description`, `keywords`,
+`promotionalText`, `supportUrl` and `marketingUrl`; Apple refused the one and
+dropped all six. The run printed:
+
+```
+  ✓ version.description: "" → "One question a day. You answer it blind…"
+  ✓ version.keywords:    "" → "poll,opinion,personality,quiz,friends…"
+  …
+Error: PATCH /v1/appStoreVersionLocalizations/… → 409
+```
+
+Every one of those ticks was false, because the loop printed the diff and
+*then* wrote it. `+` before a write is a statement of intent and is fine. `✓`
+is a statement of fact and has to be earned, so it now prints only after the
+call returns.
+
+**This is the third instance of one mistake, which is why it is a record and
+not a commit message.** The seed workflow reported Success over a 500 because
+`cmd | tee` returns tee's status. The metadata job summary printed "Dry run.
+Nothing was written" over a run that had died on a 400, because stderr was
+never captured. Now a script ticked fields it had not written. Different
+mechanisms, one failure: **a report describing an outcome the run did not
+have.** The general rule, stated once here rather than re-derived a fourth
+time — *emit the claim after the thing it claims, never before, and prefer a
+missing line to a false one.*
+
+**What now proves it.** Five cases in `scripts/asc-push.test.mjs`, and the
+stub is a first release by default because production is one. Verified by
+neutralising each fix and re-running rather than by reading the diff:
+restoring the pre-write tick fails one case (`expected … not to match /✓ app
+info\./`), and folding `whatsNew` back into the group body fails five.
