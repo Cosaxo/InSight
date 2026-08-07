@@ -161,18 +161,27 @@ const KNOWN = [
     match: /Metadata-Flavor|metadata service|metadata\.google\.internal/i,
     say:
       "The runtime could not get credentials from the GCE metadata server, so\n"
-      + "  EVERY Google API call from this function fails — Firestore included.\n"
+      + "  EVERY Google API call from that function fails — Firestore included.\n"
+      + "  Run with --any-function before assuming it is one function's problem:\n"
+      + "  on 2026-08-07 this was firing for scheduledDuelReveals, buildModQueue,\n"
+      + "  ledgerVelocityScan and seedContentV2 alike, which makes it the\n"
+      + "  project's rather than any function's.\n"
+      + "\n"
       + "  Nothing in this repo causes it: initializeApp() takes no arguments and\n"
       + "  correctly uses Application Default Credentials, and no VPC connector or\n"
-      + "  explicit serviceAccount is configured.\n"
+      + "  explicit serviceAccount is configured. It also cannot be seen at deploy\n"
+      + "  time — a deploy only stores a reference to the identity, so this always\n"
+      + "  surfaces as a 500 at call time.\n"
       + "\n"
-      + "  It is the identity the function RUNS AS. Check that the service account\n"
-      + "  on the Cloud Run service exists and is ENABLED:\n"
-      + "    https://console.cloud.google.com/iam-admin/serviceaccounts?project=prvfire33\n"
-      + "  A disabled or deleted service account still DEPLOYS cleanly — the\n"
-      + "  reference is valid — and only fails when the runtime asks it for a\n"
-      + "  token, which is why this surfaces as a 500 at call time rather than as\n"
-      + "  a failed deploy.",
+      + "  Check, in this order:\n"
+      + "  1. IAM ROLES on the runtime service account. Since 2024 the default\n"
+      + "     compute account is no longer auto-granted Editor, and an account\n"
+      + "     with no roles is ENABLED and useless — which is why 'is it enabled'\n"
+      + "     is the wrong first question. It was asked first here and cost a run.\n"
+      + "       https://console.cloud.google.com/iam-admin/iam?project=prvfire33\n"
+      + "  2. BILLING. A project with billing disabled keeps serving containers\n"
+      + "     that can no longer call any API.\n"
+      + "       https://console.cloud.google.com/billing/linkedaccount?project=prvfire33",
   },
 ];
 for (const k of KNOWN) {
