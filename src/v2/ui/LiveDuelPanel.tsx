@@ -140,10 +140,10 @@ function LdReveal({ g, reveal }: { g: LiveGroup; reveal: LiveReveal }) {
     (list[idx] != null ? list[idx] : "Option " + (idx + 1));
   const who = (u: string) => (u === uid ? "you" : (names[u] || "Someone"));
   // A member's answer belongs to the question THEY were asked. Rendering it
-  // under the day's prompt is the part D69 could not fix from the server:
+  // under the day's prompt is the part D70 could not fix from the server:
   // the reveal carried one qid, so an answer given to a different question
   // appeared under this one, with that member's name on it. Their vote now
-  // carries its own qid when it differs (D70), so it can be shown honestly.
+  // carries its own qid when it differs (D71), so it can be shown honestly.
   const qidOf = (v: RevealVote) => (typeof v.qid === "string" && v.qid ? v.qid : rowQid);
   const onQuestion = Object.keys(votes).filter((u) => qidOf(votes[u]) === rowQid);
   const offQuestion = Object.keys(votes).filter((u) => qidOf(votes[u]) !== rowQid);

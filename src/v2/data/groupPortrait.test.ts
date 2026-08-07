@@ -161,7 +161,7 @@ describe("twin / contrarian need a spread, not just a sample", () => {
   });
 });
 
-// ── a day the group did not all get the same question (D69/D70) ──
+// ── a day the group did not all get the same question (D70/D71) ──
 // duelQFor uses the bank LENGTH as its modulus, so a promotion remaps the
 // rotation for whoever refreshed their cache first. The reveal is published
 // under the plurality question and stamps `qid` on the answers that were
@@ -222,7 +222,7 @@ describe("votes answered against a different question", () => {
     expect(portraitRow(split(1, { me: 0, a: 0 }, { me: "q-x", a: "q-y" }), "me")).toBeNull();
   });
 
-  it("reveals written before D70 carry no per-vote qid and are unaffected", () => {
+  it("reveals written before D71 carry no per-vote qid and are unaffected", () => {
     const r = portraitRow(rev(1, { me: 0, a: 0, b: 1 }), "me")!;
     expect(r.offQuestion).toBe(0);
     expect(r.mineOffQuestion).toBe(false);

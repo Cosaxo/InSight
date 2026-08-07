@@ -1487,9 +1487,9 @@ describe("seedOptionConflict — the edit the seed must refuse", () => {
 describe("what the reveal doc records per vote (revealVotes)", () => {
   const en = (uid: string, qid: unknown, optionIdx: number) => ({ uid, qid, vote: { optionIdx } });
 
-  it("writes the pre-D70 document unchanged when everyone answered the same question", () => {
+  it("writes the pre-D71 document unchanged when everyone answered the same question", () => {
     // The common case by an enormous margin. No stamp anywhere — which is
-    // also what makes every reveal written before D70 read correctly.
+    // also what makes every reveal written before D71 read correctly.
     expect(revealVotes([en("a", "q-a", 0), en("b", "q-a", 1)], "q-a")).toEqual({
       a: { optionIdx: 0 },
       b: { optionIdx: 1 },
@@ -1530,7 +1530,7 @@ describe("what the reveal doc records per vote (revealVotes)", () => {
   });
 
   it("agrees with the fold about who answered what", () => {
-    // The two halves of D69/D70 read the same entries and must not disagree:
+    // The two halves of D70/D71 read the same entries and must not disagree:
     // exactly the votes that go unstamped are the votes that get folded.
     const entries = [en("a", "q-a", 0), en("b", "q-b", 1), en("c", "q-a", 1)];
     const qid = revealQid(entries.map((x) => x.qid));

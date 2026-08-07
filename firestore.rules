@@ -145,7 +145,7 @@ service cloud.firestore {
         // group), which is why this stays as it is rather than being flipped
         // here; but the premise is narrower than the old comment claimed, and
         // a comment that overstates a carve-out is how the carve-out outlives
-        // its reason. Recorded in D70.
+        // its reason. Recorded in D71.
         //
         // Soft-enforce switch (D29 rollout step 2): while deviceBindEnforced
         // returns false the claim is stamped but not yet demanded, so

@@ -304,7 +304,7 @@ interface RevealVote {
    * The question THIS member answered — written only when it is not the one
    * the day was published under (see revealQid). Absent is the overwhelming
    * common case and means "the revealed question", which is also what every
-   * reveal written before D70 means, so old docs read correctly with no
+   * reveal written before D71 means, so old docs read correctly with no
    * migration.
    *
    * Without it the reveal card had no way to know a member's answer belonged
@@ -485,7 +485,7 @@ async function revealGroupDay(
     });
     const freshQid = revealQid(freshEntries.map((e) => e.qid));
     // Stamped only on the odd ones out, so the common case — everyone on the
-    // same question — writes exactly the document it wrote before D70.
+    // same question — writes exactly the document it wrote before D71.
     const freshVotes: Record<string, RevealVote> = revealVotes(freshEntries, freshQid);
     // An answer can only appear between the two reads, never vanish
     // (answers are create-only, D5) — so this can gain votes but not lose

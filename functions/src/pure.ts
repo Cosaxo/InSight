@@ -290,12 +290,12 @@ export function votesMatchingQid<T>(
  * that is not the question the day is published under.
  *
  * The stamp is what lets the reveal CARD render an answer under the prompt
- * its author was actually shown (D70). Without it the card had one qid for
+ * its author was actually shown (D71). Without it the card had one qid for
  * the whole day and put every answer under it — a line with a member's name
  * on it, asserting something they never said.
  *
  * Absent means "the revealed question", so the common case writes exactly the
- * document it wrote before, and every reveal written before D70 reads
+ * document it wrote before, and every reveal written before D71 reads
  * correctly with no migration.
  */
 export function revealVotes<T extends object>(

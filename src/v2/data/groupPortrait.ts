@@ -31,9 +31,9 @@ export interface PortraitReveal {
  * with the bank LENGTH as its modulus), so a bank revision can hand two
  * members different questions for the same day with no hacked client. The
  * reveal is published under the question most of them answered and stamps
- * `qid` on the votes that were answers to something else (D69, D70); a vote
+ * `qid` on the votes that were answers to something else (D70, D71); a vote
  * without one answered the revealed question, which is also what every
- * reveal written before D70 means.
+ * reveal written before D71 means.
  *
  * Everything downstream that compares two people's optionIdx has to go
  * through this first. Two answers to different questions are not an

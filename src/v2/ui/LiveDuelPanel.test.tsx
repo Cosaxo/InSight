@@ -234,8 +234,8 @@ describe("LiveDuelPanel · the question-pool picker (D40 part 4)", () => {
 // as the modulus, so between a promotion and a member's next cache refresh
 // two people can be asked different questions on the same day — no hacked
 // client, and rules cannot see it (both qids exist in the bank). The reveal
-// is published under the plurality question (D69) and stamps `qid` on the
-// answers given to something else (D70).
+// is published under the plurality question (D70) and stamps `qid` on the
+// answers given to something else (D71).
 //
 // What this pins is the thing the server fix could not reach: a member's
 // answer must never be rendered under a prompt they were not asked. That is
@@ -300,7 +300,7 @@ describe("LiveDuelPanel · a reveal whose members answered different questions",
 
   it("the ordinary reveal is unchanged — one prompt, and guesses still score", () => {
     // The regression guard for the common case: no per-vote qid anywhere,
-    // which is also every reveal written before D70.
+    // which is also every reveal written before D71.
     LIVE.social.revealFor = () => ({
       day: "2026-07-29",
       qid: "duo-000",
