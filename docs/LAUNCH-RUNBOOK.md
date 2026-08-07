@@ -264,9 +264,24 @@ arithmetic.
       plist is *absent* from the simulator bundle so a committed secret
       cannot pass unnoticed. Both release gates confirm it lands: it is in
       the archived bundle and in the exported `.ipa` (run 6).
-- [ ] **2.3 APNs key.** Apple Developer → Keys → create an APNs key →
-      upload in Firebase Console → Cloud Messaging → Apple app
-      configuration. Without it no reveal push arrives on iOS.
+- [x] **2.3 APNs key — done 2026-08-07.** Key ID `9GAJ36R328`, uploaded to
+      Firebase Console → Cloud Messaging → Apple app configuration for
+      `com.cosaxo.insight`. Without it no reveal push arrives on iOS.
+
+      **Into the PRODUCTION row, not development, and the console offers
+      both.** `App.entitlements` resolves `aps-environment` to `production`
+      for the App target's Release build, and the release workflow refuses
+      any build where it is not — so every shipped build registers against
+      the production APNs endpoint. A key in the development slot would sit
+      unused while no push ever arrived, which is the same silent failure
+      the APNs gate exists to catch, one layer further out.
+
+      One Apple auth key serves both environments, so there is no second key
+      to make and no reason to fill the development row with a copy.
+
+      Ignore the **APNs Certificates** panel below it entirely — that is the
+      older per-environment mechanism, and mixing the two is how a project
+      ends up with a certificate that expires annually and nobody watching.
 - [x] **2.4 First iOS archive — done 2026-08-05, run 6, no Mac.** Actions →
       **iOS release** → Run workflow, upload unticked: archive, export,
       both silent-failure gates, signed `.ipa` attached as an artifact.
