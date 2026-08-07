@@ -568,8 +568,12 @@ describe("v2 answers (owner-only, create-only — D5)", () => {
         surface: "duo", seq: 0, type: "classic", prompt: "Which?",
         options: ["a", "b", "c"],
       });
+      // Deliberately MORE members than options: with the two equal, this
+      // fixture would clear either branch of duelIndexSpace() and could not
+      // tell which one ran. 3 options against 5 members means only the
+      // options branch admits 2 and refuses 3.
       await setDoc(doc(db, "v2_groups", GID), {
-        name: "Pair", mode: "duo", memberUids: ["p0", "p1", "p2"],
+        name: "Pair", mode: "duo", memberUids: ["p0", "p1", "p2", "p3", "p4"],
       });
     });
     const aid = `g_${GID}_${DAY}`;

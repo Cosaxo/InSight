@@ -27,7 +27,7 @@ interface LiveGroup {
   memberUids?: string[];
   memberNames?: Record<string, string>;
 }
-interface RevealVote { optionIdx: number; guessIdx?: number }
+interface RevealVote { optionIdx: number; guessIdx?: number; qid?: string }
 interface LiveReveal {
   qid?: string;
   votes?: Record<string, RevealVote>;
@@ -125,39 +125,78 @@ function LdReveal({ g, reveal }: { g: LiveGroup; reveal: LiveReveal }) {
   const uid = LIVE.uid;
   const names = { ...(g.memberNames || {}), ...(reveal.names || {}) };
   const votes = reveal.votes || {};
+  const rowQid = reveal.qid || null;
   // resolve the revealed question's prompt + options from the seeded bank
   const bankQ = reveal.qid ? LIVE.social.bankQ(reveal.qid) : null;
   const duo = g.mode === "duo";
-  const opts = (bankQ && bankQ.options && bankQ.options.length)
-    ? bankQ.options
-    : (g.memberUids || []).map((u, i) => names[u] || "Member " + (i + 1));
-  const label = (idx: number) => (opts[idx] != null ? opts[idx] : "Option " + (idx + 1));
+  // Options for a given question — a "pick" question carries none, because
+  // its options ARE the group.
+  const optsFor = (q: { options?: string[] } | null): string[] =>
+    (q && q.options && q.options.length)
+      ? q.options
+      : (g.memberUids || []).map((u, i) => names[u] || "Member " + (i + 1));
+  const opts = optsFor(bankQ);
+  const labelIn = (list: string[], idx: number) =>
+    (list[idx] != null ? list[idx] : "Option " + (idx + 1));
   const who = (u: string) => (u === uid ? "you" : (names[u] || "Someone"));
+  // A member's answer belongs to the question THEY were asked. Rendering it
+  // under the day's prompt is the part D69 could not fix from the server:
+  // the reveal carried one qid, so an answer given to a different question
+  // appeared under this one, with that member's name on it. Their vote now
+  // carries its own qid when it differs (D70), so it can be shown honestly.
+  const qidOf = (v: RevealVote) => (typeof v.qid === "string" && v.qid ? v.qid : rowQid);
+  const onQuestion = Object.keys(votes).filter((u) => qidOf(votes[u]) === rowQid);
+  const offQuestion = Object.keys(votes).filter((u) => qidOf(votes[u]) !== rowQid);
   return (
     <div style={{ borderRadius: 12, border: LD_LINE, background: "var(--surface-2)", padding: "12px 14px", display: "flex", flexDirection: "column", gap: 8 }}>
       <div className="kicker" style={{ marginBottom: 0 }}>Yesterday · revealed</div>
       {bankQ && <div style={{ fontWeight: 800, fontSize: 15.5, lineHeight: 1.2 }}>{bankQ.prompt}</div>}
-      {Object.keys(votes).map((u) => {
-        const v = votes[u];
-        const guessed = duo && typeof v.guessIdx === "number";
-        // in a duo, your read of the OTHER: did their guess about you land?
-        const other = (g.memberUids || []).find((m) => m !== u);
-        const otherVote = other ? votes[other] : undefined;
-        const called = guessed && otherVote && v.guessIdx === otherVote.optionIdx;
+      {onQuestion.map((u) => voteRow(u, opts))}
+      {offQuestion.map((u) => {
+        // One block per member who was asked something else: their prompt,
+        // then their answer read against THEIR options. Their vote is not in
+        // the counts this card implies, and saying so is the honest version
+        // of what used to be a silent mislabel.
+        const theirQ = LIVE.social.bankQ(qidOf(votes[u]) as string) as
+          { prompt?: string; options?: string[] } | null;
         return (
-          <div key={u} style={{ display: "flex", alignItems: "baseline", gap: 8, fontSize: 13.5 }}>
-            <span style={{ fontWeight: 800, minWidth: 64, textTransform: u === uid ? "lowercase" : "none" }}>{who(u)}</span>
-            <span style={{ fontWeight: 600, color: "var(--ink-2)", flex: 1 }}>{label(v.optionIdx)}</span>
-            {guessed && (
-              <span style={{ fontSize: 11.5, fontWeight: 800, color: called ? "oklch(0.5 0.12 170)" : "oklch(0.55 0.13 60)" }}>
-                {called ? "called it" : "guessed " + label(v.guessIdx as number)}
-              </span>
+          <div key={u} style={{ borderTop: LD_LINE, paddingTop: 8, display: "flex", flexDirection: "column", gap: 4 }}>
+            <div style={{ fontSize: 11.5, fontWeight: 800, color: "var(--ink-3)" }}>
+              {who(u) === "you" ? "You were" : who(u) + " was"} asked a different question
+            </div>
+            {theirQ && theirQ.prompt && (
+              <div style={{ fontWeight: 700, fontSize: 13.5, lineHeight: 1.25 }}>{theirQ.prompt}</div>
             )}
+            {voteRow(u, optsFor(theirQ))}
           </div>
         );
       })}
     </div>
   );
+
+  function voteRow(u: string, list: string[]) {
+    const v = votes[u];
+    const guessed = duo && typeof v.guessIdx === "number";
+    // in a duo, your read of the OTHER: did their guess about you land?
+    const other = (g.memberUids || []).find((m) => m !== u);
+    const otherVote = other ? votes[other] : undefined;
+    // …but only when you were both answering the same question. Across a
+    // split, "called it" would compare a guess about one prompt to an answer
+    // about another and land on true by coincidence.
+    const comparable = !!otherVote && qidOf(otherVote) === qidOf(v);
+    const called = guessed && comparable && v.guessIdx === (otherVote as RevealVote).optionIdx;
+    return (
+      <div key={u} style={{ display: "flex", alignItems: "baseline", gap: 8, fontSize: 13.5 }}>
+        <span style={{ fontWeight: 800, minWidth: 64, textTransform: u === uid ? "lowercase" : "none" }}>{who(u)}</span>
+        <span style={{ fontWeight: 600, color: "var(--ink-2)", flex: 1 }}>{labelIn(list, v.optionIdx)}</span>
+        {guessed && comparable && (
+          <span style={{ fontSize: 11.5, fontWeight: 800, color: called ? "oklch(0.5 0.12 170)" : "oklch(0.55 0.13 60)" }}>
+            {called ? "called it" : "guessed " + labelIn(list, v.guessIdx as number)}
+          </span>
+        )}
+      </div>
+    );
+  }
 }
 
 // ── a duo's question pool (D40 part 4) ───────────────────────────

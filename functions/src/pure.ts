@@ -286,6 +286,33 @@ export function votesMatchingQid<T>(
 }
 
 /**
+ * The reveal doc's `votes` map, with each vote stamped with its own qid when
+ * that is not the question the day is published under.
+ *
+ * The stamp is what lets the reveal CARD render an answer under the prompt
+ * its author was actually shown (D70). Without it the card had one qid for
+ * the whole day and put every answer under it — a line with a member's name
+ * on it, asserting something they never said.
+ *
+ * Absent means "the revealed question", so the common case writes exactly the
+ * document it wrote before, and every reveal written before D70 reads
+ * correctly with no migration.
+ */
+export function revealVotes<T extends object>(
+  entries: readonly { uid: string; qid: unknown; vote: T }[],
+  qid: string | null,
+): Record<string, T | (T & { qid: string })> {
+  const out: Record<string, T | (T & { qid: string })> = {};
+  for (const e of entries) {
+    out[e.uid] =
+      typeof e.qid === "string" && e.qid && e.qid !== qid
+        ? { ...e.vote, qid: e.qid }
+        : e.vote;
+  }
+  return out;
+}
+
+/**
  * One reveal's contribution. `optionCount` is the question's bank-option
  * count — 0 for `pick` questions, whose optionIdx values index each
  * group's OWN member list and are meaningless summed across groups (the

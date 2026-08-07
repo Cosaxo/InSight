@@ -160,3 +160,72 @@ describe("twin / contrarian need a spread, not just a sample", () => {
     expect(p.contrarian!.uid).toBe("cy");
   });
 });
+
+// ── a day the group did not all get the same question (D69/D70) ──
+// duelQFor uses the bank LENGTH as its modulus, so a promotion remaps the
+// rotation for whoever refreshed their cache first. The reveal is published
+// under the plurality question and stamps `qid` on the answers that were
+// given to something else. Nothing that compares two optionIdx values may
+// look across that line: option 2 of one prompt has nothing to do with
+// option 2 of another.
+describe("votes answered against a different question", () => {
+  // b was asked something else that day
+  const split = (n: number, votes: Record<string, number>, odd: Record<string, string>) => ({
+    day: day(n),
+    qid: "q" + n,
+    votes: Object.fromEntries(
+      Object.entries(votes).map(([u, o]) => [u, odd[u] ? { optionIdx: o, qid: odd[u] } : { optionIdx: o }]),
+    ),
+  });
+
+  it("keeps the off-question answer out of the counts, and says how many", () => {
+    const r = portraitRow(split(1, { me: 0, a: 0, b: 0 }, { b: "q-other" }), "me")!;
+    // b also picked 0 — but of a different question's options, so counting
+    // it would show a unanimous 3-0 the group never gave.
+    expect(r.counts).toEqual([2]);
+    expect(r.total).toBe(2);
+    expect(r.offQuestion).toBe(1);
+    expect(r.mine).toBe(0);
+    expect(r.mineOffQuestion).toBe(false);
+  });
+
+  it("when the off-question answer is MINE, the day is not one I played", () => {
+    const r = portraitRow(split(1, { me: 2, a: 0, b: 0 }, { me: "q-other" }), "me")!;
+    expect(r.mine).toBeNull();
+    expect(r.mineOffQuestion).toBe(true);
+    // …so it cannot count toward alignment either
+    expect(r.withMajority).toBe(false);
+    const p = groupPortrait([split(1, { me: 2, a: 0, b: 0 }, { me: "q-other" })], "me");
+    expect(p.daysPlayed).toBe(0);
+    expect(p.alignPct).toBe(0);
+  });
+
+  it("a day we answered different questions is not a shared day", () => {
+    // Two days. On day 2, b was asked something else and happens to have
+    // picked the same index as me. Before the qid check that read as
+    // agreement, and 2/2 named b my twin.
+    const reveals = [
+      split(1, { me: 0, b: 1 }, {}),
+      split(2, { me: 0, b: 0 }, { b: "q-other" }),
+    ];
+    const p = groupPortrait(reveals, "me");
+    const b = p.people.find((x) => x.uid === "b")!;
+    expect(b.shared).toBe(1);
+    expect(b.agree).toBe(0);
+    expect(b.pct).toBe(0);
+    // one shared day is below MIN_SHARED, so no label is claimed at all
+    expect(p.twin).toBeNull();
+  });
+
+  it("a reveal where EVERY answer was to another question yields no row", () => {
+    // Not a day of unanimous agreement — a day with nothing to count.
+    expect(portraitRow(split(1, { me: 0, a: 0 }, { me: "q-x", a: "q-y" }), "me")).toBeNull();
+  });
+
+  it("reveals written before D70 carry no per-vote qid and are unaffected", () => {
+    const r = portraitRow(rev(1, { me: 0, a: 0, b: 1 }), "me")!;
+    expect(r.offQuestion).toBe(0);
+    expect(r.mineOffQuestion).toBe(false);
+    expect(r.total).toBe(3);
+  });
+});

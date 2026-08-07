@@ -132,9 +132,20 @@ service cloud.firestore {
         // D29 device binding: aggregate-feeding answers require the account
         // to have passed one silent per-device activation (activateDeviceV2
         // stamps the `db` custom claim; one counted account per physical
-        // device per calendar month). Duel answers are deliberately exempt —
-        // they feed member-only reveals, never aggregates, and joining a
-        // duel already required a human's invite code.
+        // device per calendar month). Duel answers are deliberately exempt,
+        // because joining a duel already required a human's invite code.
+        //
+        // That exemption was written when the sentence "duel answers feed
+        // member-only reveals, never aggregates" was true. It stopped being
+        // true at D40 part 3: foldDuelSignal publishes v2_question_aggs/
+        // duel-{qid} once a question clears AGG_MIN_N, so an unbound account's
+        // duel votes DO reach a published aggregate — a separate key space
+        // from the world questions', but a published one. The invite-code
+        // argument still holds (a sybil needs a real member to let it in, per
+        // group), which is why this stays as it is rather than being flipped
+        // here; but the premise is narrower than the old comment claimed, and
+        // a comment that overstates a carve-out is how the carve-out outlives
+        // its reason. Recorded in D70.
         //
         // Soft-enforce switch (D29 rollout step 2): while deviceBindEnforced
         // returns false the claim is stamped but not yet demanded, so

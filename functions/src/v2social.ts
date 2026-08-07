@@ -30,6 +30,7 @@ import {
   prunePendingDays,
   publishableDuelAgg,
   revealQid,
+  revealVotes,
   scanDays,
   revealMembersFor,
   shouldPublishDuelAgg,
@@ -299,6 +300,18 @@ export const registerPushToken = onCall({ ...LIGHT_CALLABLE, region: REGION, enf
 interface RevealVote {
   optionIdx: number;
   guessIdx?: number;
+  /**
+   * The question THIS member answered — written only when it is not the one
+   * the day was published under (see revealQid). Absent is the overwhelming
+   * common case and means "the revealed question", which is also what every
+   * reveal written before D70 means, so old docs read correctly with no
+   * migration.
+   *
+   * Without it the reveal card had no way to know a member's answer belonged
+   * to a different prompt, and rendered it under the day's — an answer with
+   * someone's name on it, under a question they were never asked.
+   */
+  qid?: string;
 }
 
 async function revealGroupDay(
@@ -456,10 +469,11 @@ async function revealGroupDay(
     if (!gsnap.exists) return;        // last member left while we were reading
     if (gsnap.get("lastRevealDay") === dayKey) return;
 
-    const freshVotes: Record<string, RevealVote> = {};
     // qid alongside each vote, not just the winning one: the fold below has
-    // to know WHICH votes were cast on the question it is folding into.
-    const freshEntries: { qid: unknown; vote: RevealVote }[] = [];
+    // to know WHICH votes were cast on the question it is folding into, and
+    // the reveal doc has to tell the card which prompt to render each answer
+    // under.
+    const freshEntries: { uid: string; qid: unknown; vote: RevealVote }[] = [];
     fresh.forEach((s, i) => {
       if (!s.exists) return;
       const optionIdx = s.get("optionIdx");
@@ -467,10 +481,12 @@ async function revealGroupDay(
       const v: RevealVote = { optionIdx };
       const guessIdx = s.get("guessIdx");
       if (typeof guessIdx === "number") v.guessIdx = guessIdx;
-      freshVotes[members[i]] = v;
-      freshEntries.push({ qid: s.get("qid"), vote: v });
+      freshEntries.push({ uid: members[i], qid: s.get("qid"), vote: v });
     });
     const freshQid = revealQid(freshEntries.map((e) => e.qid));
+    // Stamped only on the odd ones out, so the common case — everyone on the
+    // same question — writes exactly the document it wrote before D70.
+    const freshVotes: Record<string, RevealVote> = revealVotes(freshEntries, freshQid);
     // An answer can only appear between the two reads, never vanish
     // (answers are create-only, D5) — so this can gain votes but not lose
     // them, and the reveal condition cannot flip back to false. Re-checked

@@ -6932,11 +6932,20 @@ outer sanity bound — under a comment naming the exact bug: *"Must clear
 GROUP_CAP (32) or members past the 20th become unpickable on every pick day."*
 Its sibling three lines below still read `< 20`.
 
-The arithmetic: GROUP_CAP is 32, so in a group of more than 20, members 21–32
-could be **voted for but not guessed**. A refusal here surfaces as a vote that
-vanishes — `live.ts` rolls the optimistic write back with no user-facing error
-— so the symptom is a duel that silently fails to submit for a subset of
-members, and only on `pick` days.
+The arithmetic: GROUP_CAP is 32, so a `pick` question in a group of more than
+20 has member indexes the `optionIdx` bound admits and the `guessIdx` bound
+refuses — members 21–32 could be voted for but not guessed.
+
+**Corrected on review:** that symptom is not reachable by the shipped client.
+`LiveDuelPanel` sends `guessIdx` only when `duo` is true, and a duo is capped
+at 2 members, so no live client has ever sent a guess index above 1. The bound
+was still wrong, and the live effect of fixing it is the other direction: a duo
+guess is now held to the question's own option count instead of a flat 20, so a
+fabricated index between the two no longer reaches `duelAggDelta` — whose range
+check was the only thing standing between it and a published aggregate. The
+group-day symptom is what the bound would have cost the first time guessing was
+extended past a duo, which the shared `duelIndexSpace()` now prevents by
+construction.
 
 `firestore-tests/rules.test.ts` had a case written for precisely this bug
 class ("…not just the first 20"). Its fixture never set `guessIdx`, so it
@@ -6998,3 +7007,70 @@ majority's prompt above their own answer in the reveal. Fixing that needs a
 per-vote qid on the reveal doc and a client that renders it — a schema change,
 not a correctness one, and not worth spending on a case that only occurs
 between a bank revision and a cache refresh.
+
+## D70 · A reveal now says which question each answer was to, and nothing compares across that line
+
+**Decided:** 2026-08-07 · **Status:** binding (completes D69)
+
+D69 stopped a vote cast on one question being folded into another question's
+published aggregate. It deliberately left the display half: the reveal doc
+carried a single `qid`, so a member whose client had drifted still saw their
+answer rendered under the group's prompt. That was recorded as a known limit —
+"display-only, not worth a schema change". Reviewing it again, that judgment
+was wrong about the *scope*, not the severity.
+
+The single `qid` was not only mislabelling one line on the reveal card. Every
+consumer downstream compares `optionIdx` values across members, and none of
+them could tell that two answers belonged to different questions:
+
+| Surface | What it claimed | Why it was wrong |
+| --- | --- | --- |
+| Reveal card (`LiveDuelPanel`) | "Ada · Tea" | Ada answered a different prompt; index 1 of hers is not "Tea" |
+| Reveal card, duo | "called it" | compared a guess about one question to an answer about another — true by coincidence |
+| `portraitRow` | a 3–0 consensus | one of the three answered something else |
+| `groupPortrait` people | "your twin" / "breaks ranks" | a day two people answered different questions counted as agreement or dissent |
+
+The last two are the ones that changed the decision. They are not a mislabel,
+they are **fabricated relationships between named people** — the exact class D1
+forbids, and the twin/contrarian labels put a real person's name to it.
+
+### The change
+
+`RevealVote` gains an optional `qid`, written **only** when that vote was not an
+answer to the question the day is published under (`revealVotes`, pure.ts).
+Absent means "the revealed question", so:
+
+- the common case writes byte-identical documents to what it wrote before, and
+- every reveal written before D70 reads correctly with no migration.
+
+Then everything that compares two indexes goes through one notion of which
+question a vote belongs to — `voteQid` in `groupPortrait.ts` on the client,
+the stamp itself on the server:
+
+- the reveal card renders each off-question answer under **its own prompt**,
+  with that question's option labels, under a "was asked a different question"
+  heading;
+- a duo guess is scored only when both partners answered the same question;
+- `portraitRow` counts only same-question answers and reports `offQuestion`
+  rather than hiding the difference — and when the off-question answer is the
+  viewer's own, the day stops counting toward their alignment, because they
+  have no option in that row's space;
+- pairwise agreement skips a day two members did not share a question.
+
+### What this costs
+
+A reveal doc grows by one short string per drifted vote, which is zero in the
+common case. Nothing else changes shape.
+
+### Two corrections this review also produced
+
+- **D69 overstated the `guessIdx` bug's field impact.** The shipped client only
+  ever sends `guessIdx` in a duo (2 members), so "members 21–32 unguessable"
+  was unreachable. D69 now says so. The bound was still wrong and the fix still
+  earns its place — see the correction in that record.
+- **`firestore.rules` claimed duel answers "never" feed aggregates**, in the
+  comment justifying their D29 device-binding exemption. False since D40 part
+  3: `foldDuelSignal` publishes `v2_question_aggs/duel-{qid}`. The exemption
+  stands on the invite-code argument, which does hold; the comment now says
+  what is actually true, because a comment that overstates a carve-out is how
+  the carve-out outlives its reason.
