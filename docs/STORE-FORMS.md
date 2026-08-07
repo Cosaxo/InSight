@@ -27,16 +27,21 @@ nothing. `data-inventory.md` carries the audited rows.
 
 ## 1 · Apple Privacy Nutrition Labels
 
-> **You no longer have to type this in.**
+> **You still have to type this one in — but not from memory.**
 > `design/store/app-privacy.json` holds every answer below as data, and
-> **Actions → App Store metadata** pushes it — dry-run by default, so the
-> first run prints the exact diff and changes nothing.
+> **Actions → App Store metadata** with *privacy* selected prints it as the
+> form, row by row, in the order App Store Connect asks. Copy from that.
 >
-> Read this page before ticking *apply*. What you are approving is a legal
-> statement about what the app collects; the workflow transcribes that
-> decision, it does not make it. `npm run check:store-forms` holds the two
-> files equal, so this page cannot quietly stop describing what gets
-> pushed.
+> **Apple's API cannot write this form.** Not through a different path —
+> there is no App Privacy resource in the App Store Connect API at all
+> (D73 has the three ways that was established, and what the three failed
+> attempts cost). The age rating next door *is* pushed; the difference
+> between them is only which one Apple exposes.
+>
+> What you are entering is a legal statement about what the app collects,
+> so read this page rather than the printout alone. `npm run
+> check:store-forms` holds the two files equal, so this page cannot quietly
+> stop describing what the printout says.
 
 App Store Connect → your app → App Privacy. For each type you answer three
 things: **collected?**, **linked to identity?**, **used for tracking?**,

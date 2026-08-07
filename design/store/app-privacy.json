@@ -5,9 +5,10 @@
     "THIS FILE IS AN ATTESTATION. docs/STORE-FORMS.md is its prose twin and",
     "carries the reasoning for every value here; read that before approving",
     "this, because what you are approving is a legal statement about what",
-    "the app collects. scripts/asc-push.mjs transcribes it into App Store",
-    "Connect — it does not decide it, and it will not apply anything",
-    "without --apply.",
+    "the app collects. scripts/asc-push.mjs transcribes it — it does not",
+    "decide it. The ageRating block below it PUSHES; the privacy rows it",
+    "PRINTS as the web form, in the order App Store Connect asks, because",
+    "Apple's API has no App Privacy resource to write to (D73).",
     "",
     "Why a file and not the web form: the form is ~40 clicks that have to",
     "agree with docs/data-inventory.md, and nothing checks that they do.",
@@ -15,8 +16,10 @@
     "them equal to STORE-FORMS.md so the two cannot drift.",
     "",
     "If you disagree with a value, change it HERE and in STORE-FORMS.md.",
-    "Changing it in App Store Connect instead means the next push silently",
-    "reverts you."
+    "Changing it in App Store Connect instead is worse for the two halves in",
+    "different ways: the next age-rating push silently reverts you, and the",
+    "privacy label simply drifts from this file with nothing noticing —",
+    "which is the failure this file was created to prevent."
   ],
 
   "tracking": {

@@ -9,9 +9,16 @@
 //
 // What the stub proves: the JWT is well-formed and ES256, the right version
 // is chosen, fields land on the right resource, --apply gates every write,
-// and the privacy reconciliation adds and deletes the correct rows. What it
-// cannot prove: that Apple accepts these shapes. That is stated in
+// and the privacy report covers every declared row while writing nothing.
+// What it cannot prove: that Apple accepts these shapes. That is stated in
 // docs/STORE-FORMS.md rather than implied by a green test.
+//
+// THE STUB IS STRICT ON PURPOSE, and each strictness was bought. It used to
+// answer 200 to anything, which let three separate paths ship green and fail
+// in production: an `?include=` Apple rejects with a 400, a GET of a
+// write-only resource it rejects with a 403, and a whole resource that does
+// not exist, rejected with a 404. Each is now modelled with Apple's own
+// error. A lenient stub does not test a client — it tests itself.
 
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { createServer } from "node:http";
@@ -41,8 +48,6 @@ const DECL_ID = "decl-1";
 
 let server, base, received;
 
-/** Rows the stub pretends App Store Connect already has. */
-let existingUsages = [];
 /** Age-rating attributes the stub pretends are already set. */
 let existingRating = {};
 
@@ -147,8 +152,19 @@ beforeAll(async () => {
           }],
         }));
       }
-      if (url.pathname === `/v1/apps/${APP_ID}/appDataUsages`) {
-        return json(res, { data: existingUsages });
+      // App Privacy is not in the API — not under this path, not under any
+      // other. The stub answers what production answers, so a rebuilt write
+      // path fails here rather than passing against a helpful fiction. This
+      // route used to return 200 with a row list, which is precisely why a
+      // reconciliation that Apple has no endpoint for shipped green.
+      if (url.pathname.includes("appDataUsage") || url.pathname.includes("appPrivacy")) {
+        res.writeHead(404, { "content-type": "application/json" });
+        return res.end(JSON.stringify({
+          errors: [{
+            title: "The URL path is not valid",
+            detail: `The relationship 'appDataUsages' does not exist for the resource at '${url.pathname}'`,
+          }],
+        }));
       }
       // Screenshot routes. Empty set list and empty set contents, so every
       // local capture reads as "not yet uploaded".
@@ -379,75 +395,109 @@ describe("asc-push screenshots", () => {
   });
 });
 
+// The privacy label is a REPORT. Apple's API has no App Privacy resource —
+// see the --privacy block in asc-push.mjs for the three ways that was
+// established — so what these pin is that the script writes nothing, and
+// that what it prints is the whole form rather than a convenient subset.
 describe("asc-push privacy label", () => {
-  it("adds the declared rows and removes ones the repo does not declare", async () => {
-    // An over-declaration Apple holds and app-privacy.json does not: the
-    // failure mode the form itself cannot show you, because it renders what
-    // is there and never what should not be.
-    existingUsages = [{
-      id: "stale-1",
-      relationships: {
-        category: { data: { id: "LOCATION.PRECISE_LOCATION" } },
-        dataProtections: { data: [{ id: "DATA_LINKED_TO_YOU" }] },
-        purposes: { data: [{ id: "APP_FUNCTIONALITY" }] },
-      },
-    }];
-
-    const out = await push(["--privacy", "--apply"]);
-
-    expect(out).toMatch(/REMOVE LOCATION\|PRECISE_LOCATION/);
-    expect(writes().some((w) => w.method === "DELETE" && w.path.endsWith("/stale-1"))).toBe(true);
-
-    const posts = writes().filter((w) => w.method === "POST");
-    const ids = posts.map((p) => p.body.data.relationships.category.data.id);
-    expect(ids).toContain("IDENTIFIERS.USER_ID");
-    expect(ids).toContain("LOCATION.COARSE_LOCATION");
-    expect(ids).toContain("SENSITIVE_INFO.SENSITIVE_INFO");
-    // Never, under any circumstance.
-    expect(ids).not.toContain("LOCATION.PRECISE_LOCATION");
-
-    // Every row carries the not-tracking protection, because tracking is
-    // uniformly off and Apple models that per-row.
-    const prots = posts.flatMap((p) =>
-      p.body.data.relationships.dataProtections.data.map((d) => d.id));
-    expect(prots).toContain("DATA_NOT_USED_TO_TRACK_YOU");
+  it("writes nothing, even with --apply, because there is no endpoint to write to", async () => {
+    // The regression that matters. A reconciliation against `appDataUsages`
+    // shipped three times and failed in production three times (400, 403,
+    // 404); if one comes back, the stub's 404 makes this red rather than
+    // letting it pass against a helpful fiction.
+    await push(["--privacy", "--apply"]);
+    expect(writes()).toHaveLength(0);
   });
 
-  it("refuses to push a label that claims tracking", async () => {
-    // Tracking gates the whole form and carries an ATT prompt behind it.
-    // Guarded because a one-character edit to the JSON should not be able
-    // to turn it on unattended.
+  it("prints exactly the rows app-privacy.json lists, and never Precise Location", async () => {
+    // A whole-set assertion rather than spot checks: under-declaring is the
+    // direction that gets an app pulled, so "these seven and no others" is
+    // the property worth pinning — and it is the same property whether the
+    // rows go over the wire or onto someone's screen.
+    const out = await push(["--privacy"]);
+    const declared = JSON.parse(
+      readFileSync(join(root, "design/store/app-privacy.json"), "utf8"),
+    );
+    for (const row of declared.collected) {
+      // "IDENTIFIERS" → "Identifiers", "USER_ID" → "User Id".
+      const label = (s) => s.toLowerCase().split("_")
+        .map((w) => w[0].toUpperCase() + w.slice(1)).join(" ");
+      expect(out, `${row.category}.${row.type} missing from the form`)
+        .toContain(`${label(row.category)} › ${label(row.type)}`);
+    }
+    expect(out).not.toMatch(/Precise Location/);
+    // The tracking answer gates the whole form, so it is printed first and
+    // by name rather than left for the reader to infer from the rows.
+    expect(out).toMatch(/Tracking: No/);
+    expect(out).toMatch(/linked to identity: Yes/);
+  });
+
+  it("warns rather than printing a form that omits the tracking question", async () => {
+    // The rows this prints carry no per-row tracking answer, because the
+    // file models tracking as uniformly off. Flip that and the form asks
+    // something the report does not cover — silence there would be the
+    // under-declaration app-privacy.json spends a paragraph warning about.
+    //
+    // It used to exit 1 here. That was right while this pushed; a report
+    // that refuses to print is just a report nobody can read.
     const fixture = join(tmpdir(), `privacy-tracking-${process.pid}.json`);
     const real = JSON.parse(readFileSync(join(root, "design/store/app-privacy.json"), "utf8"));
     writeFileSync(fixture, JSON.stringify({ ...real, tracking: { used: true } }));
     try {
-      const err = await push(["--privacy", "--apply", "--privacy-file", fixture])
-        .then(() => null, (e) => e);
-      expect(err, "expected a non-zero exit").not.toBeNull();
-      expect(err.code).toBe(1);
-      expect(String(err.stderr)).toMatch(/tracking/i);
+      const out = await push(["--privacy", "--privacy-file", fixture]);
+      expect(out).toMatch(/Tracking: YES/);
+      expect(out).toMatch(/PER ROW/);
+      expect(out).not.toMatch(/used for tracking:\s+No/);
     } finally {
       rmSync(fixture, { force: true });
     }
   });
 
-  it("declares exactly the rows app-privacy.json lists, and never Precise Location", async () => {
-    // A whole-set assertion rather than spot checks: under-declaring is the
-    // direction that gets an app pulled, so "these seven and no others" is
-    // the property worth pinning.
-    existingUsages = [];
+  it("does not request a privacy path at all, under any name", async () => {
+    // Not just "makes no writes" — makes no REQUEST. The 404 that ended
+    // this was on a GET, and a reader-only version of the old block would
+    // have passed a writes-only assertion while still dying in production.
     await push(["--privacy", "--apply"]);
-    const posted = new Set(writes()
-      .filter((w) => w.method === "POST")
-      .map((p) => p.body.data.relationships.category.data.id));
-    expect([...posted].sort()).toEqual([
-      "CONTACT_INFO.EMAIL_ADDRESS",
-      "CONTACT_INFO.NAME",
-      "DIAGNOSTICS.CRASH_DATA",
-      "IDENTIFIERS.USER_ID",
-      "LOCATION.COARSE_LOCATION",
-      "SENSITIVE_INFO.SENSITIVE_INFO",
-      "USER_CONTENT.OTHER_USER_CONTENT",
-    ]);
+    expect(received.filter((r) => /appDataUsage|appPrivacy/i.test(r.path))).toEqual([]);
+  });
+
+  it("never reports 'nothing to do' while a hand-entered form is outstanding", async () => {
+    // With only --privacy selected the write count is zero by construction.
+    // The closing line used to read "nothing to do — App Store Connect
+    // already matches the repo", which is a false statement about a form
+    // that has not been touched.
+    const out = await push(["--privacy"]);
+    expect(out).not.toMatch(/nothing to do/);
+    expect(out).toMatch(/Still yours:.*privacy label/);
+  });
+});
+
+// --all is the workflow's default selection, and it had no test until now.
+// Every one of the three production failures that shaped this file happened
+// in --all: the `include=` 400, the write-only 403 and the appDataUsages 404.
+// Each was reachable from the bench the day it was written; nothing here
+// looked. One case covering the composite mode is the cheapest guard against
+// a fourth, because the strict stub already models all three refusals.
+describe("asc-push --all", () => {
+  it("writes the text and the age rating, prints the privacy form, and asks Apple for nothing that does not exist", async () => {
+    existingRating = {};
+    const out = await push(["--all", "--apply"]);
+
+    const paths = writes().map((w) => w.path);
+    expect(paths).toContain("/v1/appInfoLocalizations/iloc-1");
+    expect(paths).toContain(`/v1/appStoreVersionLocalizations/vloc-1`);
+    expect(paths).toContain(`/v1/ageRatingDeclarations/${DECL_ID}`);
+
+    // The whole point of the strict stub: any request to a resource Apple
+    // does not have would have 404'd above and failed this before reaching
+    // the assertion.
+    expect(received.filter((r) => /appDataUsage|appPrivacy/i.test(r.path))).toEqual([]);
+
+    // All three halves reported in one run.
+    expect(out).toMatch(/ageRating\./);
+    expect(out).toMatch(/App Privacy — App Store Connect/);
+    expect(out).toMatch(/change\(s\) applied/);
+    // …and the closing line still names what a green --all leaves undone.
+    expect(out).toMatch(/Still yours:.*privacy label/);
   });
 });

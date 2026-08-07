@@ -472,20 +472,25 @@ left here is a **recapture against live data**, plus the two forms.
 - [ ] **4.4 + 4.5 Privacy nutrition labels and the age rating — read, then
       one dispatch.** Mandatory; Apple accepts no submission without both.
 
-      **Both are now data.** `design/store/app-privacy.json` holds every
-      answer with the reasoning on each row, `npm run check:store-forms`
-      holds it equal to `docs/STORE-FORMS.md`, and **Actions → App Store
-      metadata** pushes it. Dry-run by default: the first run prints the
-      exact diff — every field, every privacy row it would add or remove —
-      and writes nothing.
+      **Both are data; only one of them is pushable.**
+      `design/store/app-privacy.json` holds every answer with the reasoning
+      on each row and `npm run check:store-forms` holds it equal to
+      `docs/STORE-FORMS.md`. **Actions → App Store metadata** then:
 
-      **Read `STORE-FORMS.md` before ticking apply.** What you are
-      approving is a legal statement about what the app collects. The
-      workflow transcribes that decision; it does not make it. Typing it by
-      hand was never the safeguard it looked like — it is ~40 clicks that
-      must agree with `data-inventory.md`, with nothing checking that they
-      do, which is exactly how one false claim survived in three documents
-      at once.
+      - **age rating — pushed.** Dry-run by default; the first run prints
+        the exact diff, field by field, and writes nothing.
+      - **privacy label — printed, then typed in by hand.** Apple's API has
+        no App Privacy resource (D73), so the workflow prints the form in
+        the order App Store Connect asks and you copy it across. Fifteen
+        minutes, not an hour, and nothing is recalled from memory.
+
+      **Read `STORE-FORMS.md` before ticking apply, or before typing.**
+      What you are entering is a legal statement about what the app
+      collects. The workflow transcribes that decision; it does not make
+      it. Doing it from memory was never the safeguard it looked like — it
+      is ~40 clicks that must agree with `data-inventory.md`, with nothing
+      checking that they do, which is exactly how one false claim survived
+      in three documents at once.
 
       The three that bite, and why each is worth knowing before you
       approve: **Tracking = No** (no IDFA, no ATT prompt, no ad SDK — the

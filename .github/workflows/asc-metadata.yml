@@ -17,11 +17,15 @@
 # unticked it prints the exact diff — every field, every privacy row it
 # would add or remove — and changes nothing. Read that before ticking.
 #
-# What this deliberately does NOT do:
-#   - upload screenshots (--screenshots reports what is there; the upload
-#     is a four-step reserve/PUT/checksum/commit dance keyed on a display
-#     type enum that changes when Apple ships new hardware)
-#   - submit for review — irreversible and outward-facing, so it should
+# What this does NOT write, and why each is different:
+#   - the privacy nutrition label. NOT a choice — Apple's API has no App
+#     Privacy resource at all (D73). Selecting `privacy` prints the form,
+#     row by row, in the order App Store Connect asks; you copy it across.
+#     Fifteen minutes, and nothing recalled from memory.
+#   - screenshots. Uploading them needs captures on disk, and they are
+#     gitignored build output — the Screenshots workflow captures and
+#     uploads in one run. Selecting `screenshots` here only reports.
+#   - submitting for review — irreversible and outward-facing, so it should
 #     cost a deliberate human click in App Store Connect
 #
 # Secrets: ASC_KEY_ID, ASC_ISSUER_ID, ASC_PRIVATE_KEY — the same three
@@ -40,7 +44,7 @@ on:
       what:
         description: "Which parts to push"
         type: choice
-        options: ["all", "text", "age-rating", "privacy", "screenshots (report only)"]
+        options: ["all", "text", "age-rating", "privacy (report only)", "screenshots (report only)"]
         default: "all"
 
 permissions:
@@ -88,19 +92,30 @@ jobs:
           fi
 
           case "$WHAT" in
-            all)                      MODE="--all" ;;
-            text)                     MODE="" ;;
-            age-rating)               MODE="--age-rating" ;;
-            privacy)                  MODE="--privacy" ;;
+            all)                         MODE="--all" ;;
+            text)                        MODE="" ;;
+            age-rating)                  MODE="--age-rating" ;;
+            "privacy (report only)")     MODE="--privacy" ;;
             "screenshots (report only)") MODE="--screenshots" ;;
             *) echo "::error::unknown selection '$WHAT'"; exit 1 ;;
           esac
 
-          # --screenshots is read-only in the script, so --apply alongside
-          # it would be a lie in the log rather than an error.
-          if [ "$APPLY" = "true" ] && [ "$MODE" != "--screenshots" ]; then
-            MODE="$MODE --apply"
-          fi
+          # Neither report-only selection takes --apply. For privacy there is
+          # nothing to apply to (D73); for screenshots there is nothing on
+          # disk to upload, because the captures are gitignored build output
+          # and the Screenshots workflow captures and uploads in one run.
+          # Passing it anyway would be a lie in the log rather than an error.
+          #
+          # The empty branch below reads like an errexit hazard and is not:
+          # bash exempts a whole AND-OR list from `set -e`, so a false test
+          # as the last statement of a case branch does not fail the step.
+          # Measured under `bash -e` rather than reasoned about, because the
+          # default here is APPLY=false and getting it wrong would break the
+          # common path.
+          case "$MODE" in
+            --privacy|--screenshots) ;;
+            *) [ "$APPLY" = "true" ] && MODE="$MODE --apply" ;;
+          esac
 
           echo "running: asc-push $MODE"
           # pipefail: `cmd | tee` otherwise reports TEE's exit status, so a
@@ -130,6 +145,14 @@ jobs:
             if [ "${{ job.status }}" != "success" ]; then
               echo "**Failed.** Nothing was written. The error is below — if the block is"
               echo "empty, the step died before producing output and the step log has it."
+            elif [ "${{ inputs.what }}" = "privacy (report only)" ]; then
+              echo "**Report.** Apple's API cannot write the privacy label (D73), so this"
+              echo "never writes whether *apply* is ticked or not. The form is printed"
+              echo "below in the order App Store Connect asks — copy it across by hand,"
+              echo "with \`docs/STORE-FORMS.md\` open."
+            elif [ "${{ inputs.what }}" = "screenshots (report only)" ]; then
+              echo "**Report.** Uploading needs captures on disk; use the **Screenshots**"
+              echo "workflow, which captures and uploads in one run."
             elif [ "${{ inputs.apply }}" = "true" ]; then
               echo "**Applied.** App Store Connect now matches the repo for this selection."
             else
@@ -140,5 +163,8 @@ jobs:
             cat "$RUNNER_TEMP/asc.log" 2>/dev/null || echo "(no output — the push step failed before running)"
             echo '```'
             echo ""
-            echo "Screenshots and submitting for review are still manual, on purpose."
+            echo "Still manual: the **privacy label** (Apple exposes no endpoint — D73; the"
+            echo "form is printed above whenever the selection includes it), **screenshots**"
+            echo "(the Screenshots workflow), and **submitting for review**, which stays a"
+            echo "deliberate human click because it is the irreversible one."
           } >> "$GITHUB_STEP_SUMMARY"
