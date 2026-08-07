@@ -95,10 +95,20 @@ arithmetic.
 
 ## Phase 0 — Do these first (about an hour, one console)
 
-- [ ] **0.1 Seed the production question bank.** Actions → **Seed content**
-      → Run workflow. 389 questions land in `v2_questions`. Idempotent and,
-      since D34, cheap to repeat — reseed whenever content lands.
+- [x] **0.1 Seed the production question bank — DONE 2026-08-07**
+      (`written 389, skipped 0`). Actions → **Seed content** → Run workflow;
+      389 questions land in `v2_questions`. Idempotent and, since D34, cheap
+      to repeat — **reseed whenever content lands**, which is the reason this
+      stays a standing instruction rather than a ticked box.
       `SHIP-CHECKLIST §1`.
+
+      **This was the first successful write to production Firestore, ever**,
+      and getting there found that the backend had never worked: a `gaxios`
+      override in `functions/package.json` broke credential fetch for every
+      function, so `scheduledDuelReveals` had been failing every two hours
+      unnoticed. The seed was simply the first thing that tried. A green run
+      here therefore proves more than the bank — it proves the runtime can
+      authenticate at all.
       *Until this runs the deployed backend serves an empty app, so it
       blocks every screenshot and every tester.* **It is also the only step
       that proves the operator gate works end to end**, so a green run here
