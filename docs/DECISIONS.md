@@ -6914,3 +6914,87 @@ the merge renumbered this one).
 `scripts/style-diff.mjs` now points at v18 and, as with D43, has not been run
 against it here (needs a browser and a dev server); it remains the next cheap
 thing anyone touching this layer can do.
+
+## D69 · The two duel indexes were bounded twice and diverged, and a reveal folded votes into a question nobody answered
+
+**Decided:** 2026-08-07 · **Status:** binding
+
+Two defects on the duel path, found by a categorical review of the tree. They
+are recorded together because they share a cause: a number that was written
+out twice, and a question that was chosen by whichever read arrived first.
+
+### 1. `guessIdx < 20`, beside an `optionIdx` bound that had already been fixed
+
+`firestore.rules` bounded a duel answer's two indexes separately. `optionIdx`
+was widened — the per-question expression (`options.size()`, or the group's
+member count for `pick` questions, whose options ARE the group) with a `< 64`
+outer sanity bound — under a comment naming the exact bug: *"Must clear
+GROUP_CAP (32) or members past the 20th become unpickable on every pick day."*
+Its sibling three lines below still read `< 20`.
+
+The arithmetic: GROUP_CAP is 32, so in a group of more than 20, members 21–32
+could be **voted for but not guessed**. A refusal here surfaces as a vote that
+vanishes — `live.ts` rolls the optimistic write back with no user-facing error
+— so the symptom is a duel that silently fails to submit for a subset of
+members, and only on `pick` days.
+
+`firestore-tests/rules.test.ts` had a case written for precisely this bug
+class ("…not just the first 20"). Its fixture never set `guessIdx`, so it
+passed throughout. Both bounds now call one `duelIndexSpace()` function, and
+the test sets the field. Verified by reverting the rule with the new tests in
+place: both fail, which is the only evidence that they test anything.
+
+Repeated `get()`s on one path are deduped within a rules evaluation, so
+calling the function twice costs no additional document access.
+
+### 2. The reveal published one member's question over everyone's votes
+
+Members compute the day's duel question independently — `duelQFor`
+(`src/v2/data/deck.ts`) is a pure function of (gid, utcDay, bank) and the
+**bank length is the modulus**. A promotion, or an `active:false` flip,
+remaps the rotation for whoever refreshes their cached bank first, so two
+members answering different questions on the same day needs no hacked client.
+Rules cannot catch it: they check the qid exists in the bank, and both do.
+
+`revealGroupDay` chose the reveal's question with `qid = qid || s.get("qid")`
+— first counted answer wins, i.e. **`memberUids` order decides**. That much
+was known and accepted for display (the old `deck.ts` comment said a drifted
+client "still reveals coherently, it has just answered a different question").
+
+What the comment predated is `foldDuelSignal` (D40 part 3). Those same votes
+were folded into the chosen question's **published, k-floored aggregate**.
+`duelAggDelta`'s range check cannot see this: a vote cast on question A with
+`optionIdx` 1 lands in bucket "1" of question B whenever 1 is a legal option
+of B. Not a dropped count — a wrong one, inside the one surface the whole
+disclosure apparatus exists to protect. For a split duo it was worse than a
+miscount: `votes.length === 2` let a guess be scored against an answer to a
+different question.
+
+Two changes, both in `pure.ts` so they are testable without an emulator:
+
+- `revealQid` picks by **plurality**, ties broken on lexical qid. The drifted
+  client is the minority by definition, so plurality names the question the
+  group actually played, and the result no longer depends on member order or
+  on which read returned first — a retried transaction cannot pick differently.
+- `votesMatchingQid` filters the fold to votes actually cast on that question.
+
+**The reveal doc still carries every vote.** Dropping one there is the
+"silently discarded" outcome the reveal transaction is built to avoid, and a
+member who played belongs in their group's reveal whatever their client's bank
+said. Only the cross-group aggregate is filtered, because it is a claim about
+one question.
+
+**The accepted cost, stated:** on a split, the minority's votes are folded
+into no aggregate at all rather than into their own. Folding them separately
+would mint a second `plays: 1` from a single group-day and count one reveal as
+two plays of two questions. The aggregate is advisory and floored; a
+group-day under-counted by the minority is survivable, a group-day counted
+against the wrong question is not.
+
+### What is still true after this
+
+The residual is display-only and unchanged: on a split, the minority sees the
+majority's prompt above their own answer in the reveal. Fixing that needs a
+per-vote qid on the reveal doc and a client that renders it — a schema change,
+not a correctness one, and not worth spending on a case that only occurs
+between a bank revision and a cache refresh.

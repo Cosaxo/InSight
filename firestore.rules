@@ -245,14 +245,30 @@ service cloud.firestore {
             // fit its options ("pick" questions have empty bank options —
             // their options are the group's members)
             && exists(/databases/$(database)/documents/v2_questions/$(request.resource.data.qid))
-            && request.resource.data.optionIdx < (
-              get(/databases/$(database)/documents/v2_questions/$(request.resource.data.qid)).data.options.size() > 0
-                ? get(/databases/$(database)/documents/v2_questions/$(request.resource.data.qid)).data.options.size()
-                : get(/databases/$(database)/documents/v2_groups/$(request.resource.data.gid)).data.memberUids.size()
-            )
+            && request.resource.data.optionIdx < duelIndexSpace()
             && (request.resource.data.get("guessIdx", 0) is int)
             && request.resource.data.get("guessIdx", 0) >= 0
-            && request.resource.data.get("guessIdx", 0) < 20;
+            // SAME bound as optionIdx, via the same function — a guess names
+            // an option, so it lives in the same index space. This read
+            // `guessIdx < 20` while optionIdx had already been widened for
+            // exactly that reason: GROUP_CAP is 32, so on a "pick" day in a
+            // group of more than 20, a member could be voted for but not
+            // guessed. The bug the widening fixed survived in the field
+            // beside it because the two bounds were written out twice; one
+            // function means the next change to the index space cannot
+            // reach one and miss the other.
+            && request.resource.data.get("guessIdx", 0) < duelIndexSpace();
+        }
+
+        // The index space BOTH duel indexes live in: the question's own
+        // options, or — for "pick" questions, which carry none, because
+        // their options ARE the group — the member count. Repeated get()s
+        // on one path are deduped within a rules evaluation, so calling
+        // this twice costs no extra document access.
+        function duelIndexSpace() {
+          return get(/databases/$(database)/documents/v2_questions/$(request.resource.data.qid)).data.options.size() > 0
+            ? get(/databases/$(database)/documents/v2_questions/$(request.resource.data.qid)).data.options.size()
+            : get(/databases/$(database)/documents/v2_groups/$(request.resource.data.gid)).data.memberUids.size();
         }
 
         allow create: if request.auth != null && request.auth.uid == uid

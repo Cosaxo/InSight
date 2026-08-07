@@ -42,6 +42,8 @@ import {
   foldDuelAgg,
   shouldPublishDuelAgg,
   publishableDuelAgg,
+  revealQid,
+  votesMatchingQid,
 } from "./pure";
 
 // AGG_MIN_N as shipped. The folds take the k-floor as a parameter because
@@ -1237,6 +1239,73 @@ describe("publishBreakdown — publish and baseline are the same value", () => {
     foldAnchors(by, { gender: "Woman" }, 1, FLOOR);
     expect(publishBreakdown(by, first, FLOOR).gender, "one vote moved a published bucket")
       .toEqual({ Woman: { "0": 5 }, Man: { "0": 5 } });
+  });
+});
+
+describe("which question a reveal is published under (revealQid)", () => {
+  it("returns the qid when every member answered the same one", () => {
+    expect(revealQid(["q-a", "q-a", "q-a"])).toBe("q-a");
+  });
+
+  it("returns the qid the MOST members answered, not the first", () => {
+    // The drifted client is first in memberUids order. Under the old
+    // `qid = qid || s.get("qid")` the whole group's reveal was published
+    // under q-drift, and every vote folded into q-drift's aggregate.
+    expect(revealQid(["q-drift", "q-real", "q-real", "q-real"])).toBe("q-real");
+  });
+
+  it("breaks ties on qid, so member order cannot change the answer", () => {
+    expect(revealQid(["q-b", "q-a"])).toBe("q-a");
+    expect(revealQid(["q-a", "q-b"])).toBe("q-a");
+    // The duo split — one each — is the tie that actually happens.
+    expect(revealQid(["q-z", "q-c"])).toBe("q-c");
+  });
+
+  it("ignores answers carrying no usable qid, and returns null if none do", () => {
+    expect(revealQid([undefined, null, "", 7, "q-a"])).toBe("q-a");
+    expect(revealQid([undefined, null, ""])).toBeNull();
+    expect(revealQid([])).toBeNull();
+  });
+});
+
+describe("which votes may be folded into that question (votesMatchingQid)", () => {
+  const e = (qid: unknown, optionIdx: number) => ({ qid, vote: { optionIdx } });
+
+  it("keeps only the votes cast on the aggregate's question", () => {
+    const entries = [e("q-a", 0), e("q-b", 1), e("q-a", 2)];
+    expect(votesMatchingQid(entries, "q-a")).toEqual([{ optionIdx: 0 }, { optionIdx: 2 }]);
+  });
+
+  it("preserves order, because duo guesses are scored positionally", () => {
+    const entries = [e("q-a", 5), e("q-a", 6)];
+    expect(votesMatchingQid(entries, "q-a")).toEqual([{ optionIdx: 5 }, { optionIdx: 6 }]);
+  });
+
+  it("folds nothing when there is no question to fold into", () => {
+    expect(votesMatchingQid([e("q-a", 0)], null)).toEqual([]);
+  });
+
+  it("the split duo contributes one vote, so no guess is scored against a stranger", () => {
+    // Partners on different bank revisions. Before the filter this reached
+    // duelAggDelta as two votes, and `votes.length === 2` let it score a
+    // guess against an answer to a different question.
+    const entries = [e("q-a", 0), e("q-b", 1)];
+    const kept = votesMatchingQid(entries, revealQid(entries.map((x) => x.qid)));
+    expect(kept).toEqual([{ optionIdx: 0 }]);
+    const d = duelAggDelta(kept, "duo", 2);
+    expect(d).toEqual({
+      plays: 1, total: 1, counts: { "0": 1 }, guessTotal: 0, guessMatches: 0,
+    });
+  });
+
+  it("an in-range index from another question would otherwise land in a real bucket", () => {
+    // The exact contamination the filter exists for: duelAggDelta's range
+    // check cannot see it, because 1 is a legal option of q-a too.
+    const entries = [e("q-a", 0), e("q-a", 0), e("q-b", 1)];
+    expect(duelAggDelta(entries.map((x) => x.vote), "group", 4).counts)
+      .toEqual({ "0": 2, "1": 1 });
+    expect(duelAggDelta(votesMatchingQid(entries, "q-a"), "group", 4).counts)
+      .toEqual({ "0": 2 });
   });
 });
 

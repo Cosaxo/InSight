@@ -220,6 +220,72 @@ export interface DuelAggState {
 }
 
 /**
+ * The question a group-day reveal is published under, given the qid each
+ * member's answer carried.
+ *
+ * Members compute the day's question independently — `duelQFor` in
+ * src/v2/data/deck.ts is a pure function of (gid, utcDay, bank), and the
+ * BANK LENGTH is the modulus. So a promotion, or an `active:false` flip,
+ * remaps the rotation for whoever refreshes their cached bank first, and
+ * two members can legitimately answer different questions on the same day
+ * with no hacked client involved. Rules cannot catch it: they check that
+ * the qid exists in the bank, which both of them do.
+ *
+ * This used to be `qid = qid || s.get("qid")` — first counted answer wins,
+ * which meant the group's published question depended on the order of
+ * `memberUids`. Plurality instead: the question the most members actually
+ * answered. Ties break on lexical qid order, so the result is a function
+ * of the votes alone and a retried transaction cannot pick differently.
+ *
+ * Returns null only when no answer carried a usable qid.
+ */
+export function revealQid(qids: readonly unknown[]): string | null {
+  const counts = new Map<string, number>();
+  for (const q of qids) {
+    if (typeof q !== "string" || !q) continue;
+    counts.set(q, (counts.get(q) || 0) + 1);
+  }
+  let best: string | null = null;
+  let bestN = 0;
+  // Sorted, then strictly-greater: the lowest qid wins a tie, and the scan
+  // order is the sort's rather than the Map's insertion order (which is the
+  // member order this function exists to stop depending on).
+  for (const [qid, n] of [...counts.entries()].sort((a, b) =>
+    a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0,
+  )) {
+    if (n > bestN) {
+      best = qid;
+      bestN = n;
+    }
+  }
+  return best;
+}
+
+/**
+ * The subset of a reveal's votes that may be folded into `qid`'s aggregate:
+ * those actually cast on it.
+ *
+ * The reveal doc still carries every vote — dropping one there is the
+ * "silently discarded" outcome revealGroupDay's transaction is built to
+ * avoid, and a member who played deserves to appear in their group's
+ * reveal whatever their client's bank said. But the cross-group aggregate
+ * is a different artefact with a different guarantee: it is published at
+ * or above AGG_MIN_N and read as "how this question went", so a vote cast
+ * on another question is not a rounding error there, it is a wrong number
+ * inside the one surface the k-floor exists to protect.
+ *
+ * Order is preserved, because duelAggDelta pairs a duo's two votes
+ * positionally to score guesses.
+ */
+export function votesMatchingQid<T>(
+  entries: readonly { qid: unknown; vote: T }[],
+  qid: string | null,
+): T[] {
+  if (!qid) return [];
+  return entries.filter((e) => e.qid === qid).map((e) => e.vote);
+}
+
+/**
  * One reveal's contribution. `optionCount` is the question's bank-option
  * count — 0 for `pick` questions, whose optionIdx values index each
  * group's OWN member list and are meaningless summed across groups (the
@@ -231,6 +297,13 @@ export interface DuelAggState {
  * pair coherently played this question) and the guess itself names a real
  * option; a guess compared against a different question's answer would be
  * noise wearing a number.
+ *
+ * CALLERS MUST PASS ONLY VOTES CAST ON THIS QUESTION. The range filter
+ * above catches an out-of-range index, but a vote cast on a DIFFERENT
+ * question whose index happens to be in range for this one is
+ * indistinguishable here — it lands in a real bucket of a published,
+ * k-floored aggregate. `revealQid` picks the question and
+ * `votesMatchingQid` does the filtering; this function cannot.
  */
 export function duelAggDelta(
   votes: readonly DuelVoteLike[],

@@ -29,11 +29,13 @@ import {
   PENDING_DAYS_KEEP,
   prunePendingDays,
   publishableDuelAgg,
+  revealQid,
   scanDays,
   revealMembersFor,
   shouldPublishDuelAgg,
   shouldReveal,
   utcDayKey,
+  votesMatchingQid,
   type DuelVoteLike,
 } from "./pure";
 // Same import the logic norms histogram uses (logic.ts): the floor and the
@@ -345,7 +347,7 @@ async function revealGroupDay(
   );
 
   const votes: Record<string, RevealVote> = {};
-  let qid: string | null = null;
+  const qids: unknown[] = [];
   answerSnaps.forEach((s, i) => {
     if (!s.exists) return;
     const optionIdx = s.get("optionIdx");
@@ -354,8 +356,9 @@ async function revealGroupDay(
     const guessIdx = s.get("guessIdx");
     if (typeof guessIdx === "number") v.guessIdx = guessIdx;
     votes[members[i]] = v;
-    qid = qid || s.get("qid") || null;
+    qids.push(s.get("qid"));
   });
+  const qid = revealQid(qids);
   const played = Object.keys(votes).length;
 
   // The oldest day still worth carrying in pendingDays. Both settle paths
@@ -454,7 +457,9 @@ async function revealGroupDay(
     if (gsnap.get("lastRevealDay") === dayKey) return;
 
     const freshVotes: Record<string, RevealVote> = {};
-    let freshQid: string | null = null;
+    // qid alongside each vote, not just the winning one: the fold below has
+    // to know WHICH votes were cast on the question it is folding into.
+    const freshEntries: { qid: unknown; vote: RevealVote }[] = [];
     fresh.forEach((s, i) => {
       if (!s.exists) return;
       const optionIdx = s.get("optionIdx");
@@ -463,8 +468,9 @@ async function revealGroupDay(
       const guessIdx = s.get("guessIdx");
       if (typeof guessIdx === "number") v.guessIdx = guessIdx;
       freshVotes[members[i]] = v;
-      freshQid = freshQid || s.get("qid") || null;
+      freshEntries.push({ qid: s.get("qid"), vote: v });
     });
+    const freshQid = revealQid(freshEntries.map((e) => e.qid));
     // An answer can only appear between the two reads, never vanish
     // (answers are create-only, D5) — so this can gain votes but not lose
     // them, and the reveal condition cannot flip back to false. Re-checked
@@ -472,7 +478,11 @@ async function revealGroupDay(
     if (!shouldReveal(mode, Object.keys(freshVotes).length)) return;
 
     aggQid = freshQid ?? qid;
-    aggVotes = Object.values(freshVotes);
+    // NOT Object.values(freshVotes) — only the votes cast on aggQid. When
+    // members' cached banks disagree (see revealQid), the others' votes are
+    // still published in the reveal below; they are simply not folded into a
+    // question they were not answers to.
+    aggVotes = votesMatchingQid(freshEntries, aggQid);
 
     tx.create(revealRef, {
       day: dayKey,
