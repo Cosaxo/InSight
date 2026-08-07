@@ -42,6 +42,9 @@ import {
   foldDuelAgg,
   shouldPublishDuelAgg,
   publishableDuelAgg,
+  revealQid,
+  revealVotes,
+  votesMatchingQid,
 } from "./pure";
 
 // AGG_MIN_N as shipped. The folds take the k-floor as a parameter because
@@ -1240,6 +1243,81 @@ describe("publishBreakdown — publish and baseline are the same value", () => {
   });
 });
 
+describe("which question a reveal is published under (revealQid)", () => {
+  it("returns the qid when every member answered the same one", () => {
+    expect(revealQid(["q-a", "q-a", "q-a"])).toBe("q-a");
+  });
+
+  it("returns the qid the MOST members answered, not the first", () => {
+    // The drifted client is first in memberUids order. Under the old
+    // `qid = qid || s.get("qid")` the whole group's reveal was published
+    // under q-drift, and every vote folded into q-drift's aggregate.
+    expect(revealQid(["q-drift", "q-real", "q-real", "q-real"])).toBe("q-real");
+  });
+
+  it("breaks ties on qid, so member order cannot change the answer", () => {
+    expect(revealQid(["q-b", "q-a"])).toBe("q-a");
+    expect(revealQid(["q-a", "q-b"])).toBe("q-a");
+    // The duo split — one each — is the tie that actually happens.
+    expect(revealQid(["q-z", "q-c"])).toBe("q-c");
+  });
+
+  it("ignores answers carrying no usable qid, and returns null if none do", () => {
+    expect(revealQid([undefined, null, "", 7, "q-a"])).toBe("q-a");
+    expect(revealQid([undefined, null, ""])).toBeNull();
+    expect(revealQid([])).toBeNull();
+  });
+});
+
+describe("which votes may be folded into that question (votesMatchingQid)", () => {
+  const e = (qid: unknown, optionIdx: number) => ({ qid, vote: { optionIdx } });
+
+  it("keeps only the votes cast on the aggregate's question", () => {
+    const entries = [e("q-a", 0), e("q-b", 1), e("q-a", 2)];
+    expect(votesMatchingQid(entries, "q-a")).toEqual([{ optionIdx: 0 }, { optionIdx: 2 }]);
+  });
+
+  it("preserves order, because duo guesses are scored positionally", () => {
+    const entries = [e("q-a", 5), e("q-a", 6)];
+    expect(votesMatchingQid(entries, "q-a")).toEqual([{ optionIdx: 5 }, { optionIdx: 6 }]);
+  });
+
+  it("folds nothing when there is no question to fold into", () => {
+    // Without the `if (!qid) return []` guard this still returned [] for the
+    // case above, because no entry's qid equals null. The guard earns its
+    // keep only against an entry that carries NO qid — `e.qid === null` would
+    // otherwise match and fold a vote into a question that does not exist.
+    expect(votesMatchingQid([{ qid: null, vote: { optionIdx: 0 } }], null)).toEqual([]);
+    expect(votesMatchingQid([{ qid: undefined, vote: { optionIdx: 0 } }], null)).toEqual([]);
+    expect(votesMatchingQid([e("q-a", 0)], null)).toEqual([]);
+  });
+
+  it("the split duo contributes one vote, so no guess is scored against a stranger", () => {
+    // Partners on different bank revisions. Before the filter this reached
+    // duelAggDelta as two votes, and `votes.length === 2` let it score a
+    // guess against an answer to a different question.
+    // q-z first, so first-wins and plurality-with-lexical-tie-break disagree:
+    // first-wins would keep optionIdx 0, this must keep optionIdx 1.
+    const entries = [e("q-z", 0), e("q-c", 1)];
+    const kept = votesMatchingQid(entries, revealQid(entries.map((x) => x.qid)));
+    expect(kept).toEqual([{ optionIdx: 1 }]);
+    const d = duelAggDelta(kept, "duo", 2);
+    expect(d).toEqual({
+      plays: 1, total: 1, counts: { "1": 1 }, guessTotal: 0, guessMatches: 0,
+    });
+  });
+
+  it("an in-range index from another question would otherwise land in a real bucket", () => {
+    // The exact contamination the filter exists for: duelAggDelta's range
+    // check cannot see it, because 1 is a legal option of q-a too.
+    const entries = [e("q-a", 0), e("q-a", 0), e("q-b", 1)];
+    expect(duelAggDelta(entries.map((x) => x.vote), "group", 4).counts)
+      .toEqual({ "0": 2, "1": 1 });
+    expect(duelAggDelta(votesMatchingQid(entries, "q-a"), "group", 4).counts)
+      .toEqual({ "0": 2 });
+  });
+});
+
 describe("the duel question-level signal (D40 part 3)", () => {
   const v = (optionIdx: number, guessIdx?: number) =>
     guessIdx === undefined ? { optionIdx } : { optionIdx, guessIdx };
@@ -1403,5 +1481,63 @@ describe("seedOptionConflict — the edit the seed must refuse", () => {
     ]);
     expect(line).toContain("daily-003: [Messi | Ronaldo] -> [Ronaldo | Messi]");
     expect(line).toContain("f12: [Yes] -> [Yes | No]");
+  });
+});
+
+describe("what the reveal doc records per vote (revealVotes)", () => {
+  const en = (uid: string, qid: unknown, optionIdx: number) => ({ uid, qid, vote: { optionIdx } });
+
+  it("writes the pre-D71 document unchanged when everyone answered the same question", () => {
+    // The common case by an enormous margin. No stamp anywhere — which is
+    // also what makes every reveal written before D71 read correctly.
+    expect(revealVotes([en("a", "q-a", 0), en("b", "q-a", 1)], "q-a")).toEqual({
+      a: { optionIdx: 0 },
+      b: { optionIdx: 1 },
+    });
+  });
+
+  it("stamps only the answers given to a different question", () => {
+    expect(revealVotes([en("a", "q-a", 0), en("b", "q-b", 1)], "q-a")).toEqual({
+      a: { optionIdx: 0 },
+      b: { optionIdx: 1, qid: "q-b" },
+    });
+  });
+
+  it("carries the guess through, stamped or not", () => {
+    const withGuess = [
+      { uid: "a", qid: "q-a", vote: { optionIdx: 0, guessIdx: 1 } },
+      { uid: "b", qid: "q-b", vote: { optionIdx: 1, guessIdx: 0 } },
+    ];
+    expect(revealVotes(withGuess, "q-a")).toEqual({
+      a: { optionIdx: 0, guessIdx: 1 },
+      b: { optionIdx: 1, guessIdx: 0, qid: "q-b" },
+    });
+  });
+
+  it("leaves a vote whose qid is missing or unusable unstamped", () => {
+    // Nothing to say about it, and a stamp of null/"" would make the card
+    // look up a question that cannot exist.
+    expect(revealVotes([en("a", null, 0), en("b", "", 1), en("c", 7, 2)], "q-a")).toEqual({
+      a: { optionIdx: 0 }, b: { optionIdx: 1 }, c: { optionIdx: 2 },
+    });
+  });
+
+  it("does not mutate the votes it is given", () => {
+    const v = { optionIdx: 0 };
+    const out = revealVotes([{ uid: "a", qid: "q-b", vote: v }], "q-a");
+    expect(v).toEqual({ optionIdx: 0 });
+    expect(out.a).not.toBe(v);
+  });
+
+  it("agrees with the fold about who answered what", () => {
+    // The two halves of D70/D71 read the same entries and must not disagree:
+    // exactly the votes that go unstamped are the votes that get folded.
+    const entries = [en("a", "q-a", 0), en("b", "q-b", 1), en("c", "q-a", 1)];
+    const qid = revealQid(entries.map((x) => x.qid));
+    const doc = revealVotes(entries, qid);
+    const folded = votesMatchingQid(entries, qid);
+    const unstamped = Object.keys(doc).filter((u) => !("qid" in doc[u]));
+    expect(unstamped).toEqual(["a", "c"]);
+    expect(folded).toHaveLength(unstamped.length);
   });
 });

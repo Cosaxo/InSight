@@ -224,9 +224,16 @@ export function splitBanks(active: Array<QuestionDoc & { id: string }>): {
 // same pure function of (gid, utcDay, bank) on every device: bank[(hash(gid)
 // + utcDay) % len] over the matching-surface bank. There is NO server-side
 // chooser to mirror: rules only require the answered qid to exist in the
-// bank, and the reveal stores whichever qid the first counted answer
-// carried — so a client that drifts from this rotation still reveals
-// coherently, it has just answered a different question than its group.
+// bank, and the reveal stores the qid the MOST members answered (plurality,
+// lexical tie-break — revealQid in functions/src/pure.ts) — so a client that
+// drifts from this rotation still reveals coherently, it has just answered a
+// different question than its group. It used to store whichever qid the first
+// counted answer carried, which made the group's published question depend on
+// the order of memberUids; the drifted client is the minority by definition,
+// so plurality names the question the group actually played. The drifter's
+// vote still appears in the reveal — it is only kept out of the cross-group
+// aggregate, which is a claim about one question and must not count answers
+// given to another.
 // "pick" questions take the members as options.
 export function duelQFor(
   g: Record<string, unknown> & { id: string },

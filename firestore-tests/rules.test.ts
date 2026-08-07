@@ -531,8 +531,9 @@ describe("v2 answers (owner-only, create-only — D5)", () => {
       });
     });
     const aid = `g_${GID}_${DAY}`;
-    const duel = (idx: number) => ({
+    const duel = (idx: number, guess?: number) => ({
       qid: "group-pick0", surface: "group", optionIdx: idx,
+      ...(guess === undefined ? {} : { guessIdx: guess }),
       gid: GID, day: DAY, answeredAt: serverTimestamp(), anchors: {},
     });
     await assertSucceeds(setDoc(
@@ -540,6 +541,53 @@ describe("v2 answers (owner-only, create-only — D5)", () => {
     // still bounded by the member count
     await assertFails(setDoc(
       doc(asUser("m1"), "v2_users", "m1", "answers", aid), duel(32)));
+
+    // …and the SAME for guessIdx, which is the half this test did not
+    // cover when it was written: the fixture above never set the field, so
+    // `guessIdx < 20` survived beside the widened optionIdx bound and
+    // members 21-32 stayed unguessable on every pick day. A guess names an
+    // option, so it takes the option bound — no more, no less.
+    await assertSucceeds(setDoc(
+      doc(asUser("m2"), "v2_users", "m2", "answers", aid), duel(0, 31)));
+    await assertFails(setDoc(
+      doc(asUser("m3"), "v2_users", "m3", "answers", aid), duel(0, 32)));
+    // absent stays legal — the rule reads through .get("guessIdx", 0)
+    await assertSucceeds(setDoc(
+      doc(asUser("m4"), "v2_users", "m4", "answers", aid), duel(0)));
+  });
+
+  it("a duel guess is bounded by the question's options, not a flat 20", async () => {
+    // The non-pick half of the same bound. A bank question with 3 options
+    // has no 5th one to guess, but `guessIdx < 20` accepted it — and the
+    // number reached duelAggDelta, whose range check is the only other
+    // thing standing between a fabricated index and a published aggregate.
+    const GID = "g_small";
+    const DAY = dayOffset(-1);
+    await seed(async (db) => {
+      await setDoc(doc(db, "v2_questions", "duo-q0"), {
+        surface: "duo", seq: 0, type: "classic", prompt: "Which?",
+        options: ["a", "b", "c"],
+      });
+      // Deliberately MORE members than options: with the two equal, this
+      // fixture would clear either branch of duelIndexSpace() and could not
+      // tell which one ran. 3 options against 5 members means only the
+      // options branch admits 2 and refuses 3.
+      await setDoc(doc(db, "v2_groups", GID), {
+        name: "Pair", mode: "duo", memberUids: ["p0", "p1", "p2", "p3", "p4"],
+      });
+    });
+    const aid = `g_${GID}_${DAY}`;
+    const duel = (guess: number) => ({
+      qid: "duo-q0", surface: "duo", optionIdx: 0, guessIdx: guess,
+      gid: GID, day: DAY, answeredAt: serverTimestamp(), anchors: {},
+    });
+    await assertSucceeds(setDoc(
+      doc(asUser("p0"), "v2_users", "p0", "answers", aid), duel(2)));
+    await assertFails(setDoc(
+      doc(asUser("p1"), "v2_users", "p1", "answers", aid), duel(3)));
+    // the old bound's whole range, now correctly refused
+    await assertFails(setDoc(
+      doc(asUser("p2"), "v2_users", "p2", "answers", aid), duel(19)));
   });
 
   it("two different users can answer the same question", async () => {

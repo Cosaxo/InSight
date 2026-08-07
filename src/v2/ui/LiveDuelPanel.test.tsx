@@ -32,6 +32,10 @@ const LIVE = vi.hoisted(() => {
     setDuoMode: async (gid: string, m: string) => { void gid; void m; },
     romanticPoolReady: () => false,
     todayKey: () => "2026-07-30",
+    bankQ: (qid: string) => {
+      void qid;
+      return null as { prompt?: string; options?: string[] } | null;
+    },
   };
   return { enabled: true, uid: "u_me", social, subscribe: () => () => {} };
 });
@@ -221,5 +225,97 @@ describe("LiveDuelPanel · the question-pool picker (D40 part 4)", () => {
     LIVE.social.groups = () => [{ ...DUO, id: "g2", mode: "group", memberUids: ["u_me", "u_ada", "u_bo"] }];
     render(<LiveDuelPanel mode="group" />);
     expect(screen.queryByText(/Question pool/i)).toBeNull();
+  });
+});
+
+// ── the reveal, when the group was not all asked the same thing ──
+//
+// duelQFor derives the day's question from the cached bank with its LENGTH
+// as the modulus, so between a promotion and a member's next cache refresh
+// two people can be asked different questions on the same day — no hacked
+// client, and rules cannot see it (both qids exist in the bank). The reveal
+// is published under the plurality question (D70) and stamps `qid` on the
+// answers given to something else (D71).
+//
+// What this pins is the thing the server fix could not reach: a member's
+// answer must never be rendered under a prompt they were not asked. That is
+// a sentence with their name on it, asserting something they did not say.
+describe("LiveDuelPanel · a reveal whose members answered different questions", () => {
+  const QA = { prompt: "Coffee or tea?", options: ["Coffee", "Tea"] };
+  const QB = { prompt: "Beach or mountains?", options: ["Beach", "Mountains"] };
+
+  beforeEach(() => {
+    LIVE.social.bankQ = (qid: string) => (qid === "duo-000" ? QA : qid === "duo-777" ? QB : null);
+    // Today's card is also on screen and renders the same option words as
+    // buttons, so a page-wide text search cannot tell the reveal's "Tea"
+    // from today's. Every assertion below reads the reveal box alone.
+    LIVE.social.myDuelVote = () => ({ optionIdx: 0 });
+  });
+
+  // the kicker's parent IS the reveal box (LdReveal's outer div)
+  const revealBox = () =>
+    (screen.getByText(/Yesterday · revealed/).parentElement as HTMLElement).textContent || "";
+
+  it("renders each answer under the question that member was actually asked", () => {
+    LIVE.social.revealFor = () => ({
+      day: "2026-07-29",
+      qid: "duo-000",
+      votes: {
+        u_me: { optionIdx: 0 },
+        u_ada: { optionIdx: 1, qid: "duo-777" },
+      },
+      names: { u_me: "Me", u_ada: "Ada" },
+    });
+    render(<LiveDuelPanel mode="duo" />);
+    const text = revealBox();
+
+    // both prompts are in the reveal, each above its own answer
+    expect(text).toMatch(/Coffee or tea\?/);
+    expect(text).toMatch(/Beach or mountains\?/);
+    expect(text).toMatch(/Ada was asked a different question/i);
+    // Ada picked index 1. Under the old card that read as "Tea" — an answer
+    // to a question she was never shown. It must read as HER option.
+    expect(text).toMatch(/Mountains/);
+    expect(text).not.toMatch(/Tea/);
+  });
+
+  it("does not score a guess across the split", () => {
+    // Ada guessed 0 about a different question; my pick is 0 of mine. Left
+    // alone the card would compare the two indexes, find them equal, and
+    // print "called it" for a read she never made.
+    LIVE.social.revealFor = () => ({
+      day: "2026-07-29",
+      qid: "duo-000",
+      votes: {
+        u_me: { optionIdx: 0, guessIdx: 1 },
+        u_ada: { optionIdx: 1, guessIdx: 0, qid: "duo-777" },
+      },
+      names: { u_me: "Me", u_ada: "Ada" },
+    });
+    render(<LiveDuelPanel mode="duo" />);
+    const text = revealBox();
+    expect(text).not.toMatch(/called it/i);
+    expect(text).not.toMatch(/guessed/i);
+  });
+
+  it("the ordinary reveal is unchanged — one prompt, and guesses still score", () => {
+    // The regression guard for the common case: no per-vote qid anywhere,
+    // which is also every reveal written before D71.
+    LIVE.social.revealFor = () => ({
+      day: "2026-07-29",
+      qid: "duo-000",
+      votes: {
+        u_me: { optionIdx: 0, guessIdx: 1 },
+        u_ada: { optionIdx: 1, guessIdx: 0 },
+      },
+      names: { u_me: "Me", u_ada: "Ada" },
+    });
+    render(<LiveDuelPanel mode="duo" />);
+    const text = revealBox();
+    expect(text).toMatch(/Coffee or tea\?/);
+    expect(text).not.toMatch(/asked a different question/i);
+    expect(text).not.toMatch(/Beach or mountains\?/);
+    // me guessed 1, Ada picked 1 → called it; Ada guessed 0, I picked 0 → called it
+    expect(text).toMatch(/called it/i);
   });
 });
