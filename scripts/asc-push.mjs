@@ -446,10 +446,35 @@ if (AGE_RATING) {
   const want = Object.fromEntries(
     Object.entries(privacy.ageRating).filter(([k]) => !k.startsWith("$")),
   );
-  const current = (await call("GET", `/v1/ageRatingDeclarations/${decl.id}`)).data.attributes || {};
+
+  // The current values come from the appInfos `included` array, NOT from a
+  // GET on the declaration. Apple refuses that outright:
+  //
+  //   GET /v1/ageRatingDeclarations/{id} → 403
+  //   The resource 'ageRatingDeclarations' does not allow 'GET_INSTANCE'.
+  //   Allowed operation is: UPDATE
+  //
+  // Write-only, which is unusual enough to be worth stating. The include
+  // added for the id turns out to carry the attributes too, so the diff
+  // costs nothing — the same request answers both questions.
+  const included = (infos.included || []).find(
+    (r) => r.type === "ageRatingDeclarations" && r.id === decl.id,
+  );
+  const current = included?.attributes || null;
+
+  // No attributes means no diff is possible, and the honest response is to
+  // send everything rather than to guess or to skip. PATCH is idempotent
+  // here — every key is a fixed enum or boolean from a reviewed file — so
+  // an unnecessary write costs a request and changes nothing.
   const diff = {};
   for (const [k, v] of Object.entries(want)) {
-    if (current[k] !== v) diff[k] = v;
+    if (!current || current[k] !== v) diff[k] = v;
+  }
+  if (!current) {
+    console.log(
+      "  note: the declaration's current values did not arrive with the app info,\n"
+      + "        so this sends all of them rather than only what differs.",
+    );
   }
   const keys = Object.keys(diff);
   if (!keys.length) {
@@ -457,7 +482,7 @@ if (AGE_RATING) {
   } else {
     changes += keys.length;
     for (const k of keys) {
-      console.log(`  ${APPLY ? "✓" : "+"} ageRating.${k}: ${JSON.stringify(current[k])} → ${JSON.stringify(diff[k])}`);
+      console.log(`  ${APPLY ? "✓" : "+"} ageRating.${k}: ${JSON.stringify(current?.[k])} → ${JSON.stringify(diff[k])}`);
     }
     if (APPLY) {
       await call("PATCH", `/v1/ageRatingDeclarations/${decl.id}`, {

@@ -111,12 +111,19 @@ beforeAll(async () => {
       if (url.pathname === `/v1/apps/${APP_ID}/appInfos`) {
         // ageRatingDeclaration lives HERE, not on the version — the split
         // Apple actually implements, and the one the 400 above taught.
-        return json(res, { data: [{
-          id: "info-1",
-          relationships: {
-            ageRatingDeclaration: { data: { type: "ageRatingDeclarations", id: DECL_ID } },
-          },
-        }] });
+        //
+        // Its ATTRIBUTES ride along in `included`, which is the only way to
+        // read them: the resource is write-only (see the 403 below), so a
+        // diff is possible solely because this include carries them.
+        return json(res, {
+          data: [{
+            id: "info-1",
+            relationships: {
+              ageRatingDeclaration: { data: { type: "ageRatingDeclarations", id: DECL_ID } },
+            },
+          }],
+          included: [{ type: "ageRatingDeclarations", id: DECL_ID, attributes: existingRating }],
+        });
       }
       if (url.pathname === "/v1/appInfos/info-1/appInfoLocalizations") {
         return json(res, {
@@ -128,8 +135,17 @@ beforeAll(async () => {
           data: [{ id: "vloc-1", attributes: { locale: "en-US", description: "Old desc" } }],
         });
       }
-      if (url.pathname === `/v1/ageRatingDeclarations/${DECL_ID}`) {
-        return json(res, { data: { id: DECL_ID, attributes: existingRating } });
+      if (url.pathname === `/v1/ageRatingDeclarations/${DECL_ID}` && req.method === "GET") {
+        // Write-only, and the stub has to say so. It used to answer 200 here,
+        // which is why asc-push shipped a GET that production rejects — the
+        // second time this stub's leniency hid a real 4xx.
+        res.writeHead(403, { "content-type": "application/json" });
+        return res.end(JSON.stringify({
+          errors: [{
+            title: "The given operation is not allowed",
+            detail: "The resource 'ageRatingDeclarations' does not allow 'GET_INSTANCE'. Allowed operation is: UPDATE",
+          }],
+        }));
       }
       if (url.pathname === `/v1/apps/${APP_ID}/appDataUsages`) {
         return json(res, { data: existingUsages });
