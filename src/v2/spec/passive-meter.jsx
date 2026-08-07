@@ -21,11 +21,30 @@ function usePassive() {
   return PASSIVE;
 }
 
+// The colour a test currently READS AS: the type you stand at right now, with
+// its two-tone split — the same value the open sheet and the type mark use.
+// Falls back to the test's category hue before a standing exists.
+// A named export rather than a window publish: nothing outside this file reads
+// it yet, and the bridge only carries names unmoved consumers actually look up.
+export function passiveStanding(k) {
+  const m = PASSIVE.META[k];
+  const R = IS_TEST_RESULTS[k];
+  const mt = (R && R.dims && window.IS_matchArchetype) ? window.IS_matchArchetype(k, R.dims) : null;
+  const standing = mt ? mt.list[mt.idx].name : null;
+  return {
+    standing,
+    col: standing ? typeColor(k, standing, null, m.accent) : m.accent,
+    sp: standing ? typeSplit(k, standing) : null,
+  };
+}
+
 function PassiveRing({ k, size = 15, thick = 3, hole = 'var(--surface-2)' }) {
-  const P = PASSIVE;
-  const m = P.META[k], p = P.pct(k);
+  const p = PASSIVE.pct(k), { col, sp } = passiveStanding(k);
+  const deg = p * 3.6;
+  // filled arc carries the split as two solid parts, exactly like the sheet's dots
+  const fill = sp ? `${sp.deep} 0 ${(deg * sp.ratio).toFixed(2)}deg, ${sp.lift} 0 ${deg.toFixed(2)}deg` : `${col} 0 ${deg.toFixed(2)}deg`;
   return (
-    <span aria-hidden="true" style={{ width: size, height: size, borderRadius: '50%', flexShrink: 0, background: `conic-gradient(${m.accent} ${p * 3.6}deg, color-mix(in oklch, var(--ink-3) 24%, transparent) 0)`, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', transition: 'background .3s ease' }}>
+    <span aria-hidden="true" style={{ width: size, height: size, borderRadius: '50%', flexShrink: 0, background: `conic-gradient(${fill}, color-mix(in oklch, var(--ink-3) 24%, transparent) 0)`, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', transition: 'background .3s ease' }}>
       <span style={{ width: size - thick * 2, height: size - thick * 2, borderRadius: '50%', background: hole }}></span>
     </span>
   );
@@ -57,16 +76,10 @@ function PassiveMeter() {
               <div style={{ fontFamily: 'var(--sans)', fontSize: 13, fontWeight: 500, color: 'var(--ink-2)', lineHeight: 1.45, padding: '0 2px 10px' }}>Marked cards in the feed fill these in — or finish one in a sitting.</div>
               {P.KEYS.map((k) => {
                 const m = P.META[k], full = P.complete(k), n = P.needed(k), done = P.done(k);
-                const R = IS_TEST_RESULTS[k];
-                const mt = (R && R.dims && window.IS_matchArchetype) ? window.IS_matchArchetype(k, R.dims) : null;
-                const standing = mt ? mt.list[mt.idx].name : null;
                 // the row takes the colour of the type you currently ARE, so the mark,
-                // its name and the dots read as one thing. Falls back to the test's
-                // category hue before a standing exists.
-                const col = (standing && typeColor) ? typeColor(k, standing, null, m.accent) : m.accent;
-                // each answered segment wears the type's two-tone split, same as its
-                // mark — as two solid parts, not a gradient, so 40+ dots stay cheap
-                const sp = (standing && typeSplit) ? typeSplit(k, standing) : null;
+                // its name and the dots read as one thing — the same value the chip's
+                // ring outside is already showing
+                const { standing, col, sp } = passiveStanding(k);
                 const go = () => { close(); setTimeout(() => { if (window.openTest) window.openTest(k); else if (window.openOverlay) window.openOverlay('test'); }, 240); };
                 return (
                   <button key={k} onClick={full ? undefined : go} disabled={full} aria-label={m.label + ' \u2014 ' + (standing ? standing + ' \u2014 ' : '') + done + ' of ' + n + (full ? ' \u2014 complete' : ' \u2014 tap to finish')} style={{ display: 'flex', flexDirection: 'column', alignItems: 'stretch', gap: 11, width: '100%', textAlign: 'left', border: 'none', borderTop: PM_LINE, borderRadius: 0, background: 'none', padding: '15px 2px 17px', cursor: full ? 'default' : 'pointer', WebkitAppearance: 'none' }}>
@@ -99,9 +112,9 @@ function PassiveMeter() {
 function PassiveTag({ q, answered, style }) {
   const P = usePassive(); if (!P) return null;
   const k = P.testFor(q); const m = k && P.META[k]; if (!m) return null;
-  const done = P.done(k), n = P.needed(k);
+  const done = P.done(k), n = P.needed(k), { col } = passiveStanding(k);
   return (
-    <span title={'One of the ' + m.label + " test's own questions — " + done + ' of ' + n + ' answered'} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontFamily: 'var(--sans)', fontSize: 11, fontWeight: 800, letterSpacing: '0.03em', color: answered ? `color-mix(in oklch, ${m.accent} 75%, var(--ink-2))` : 'var(--ink-3)', flexShrink: 0, whiteSpace: 'nowrap', transition: 'color .25s ease', ...style }}>
+    <span title={'One of the ' + m.label + " test's own questions — " + done + ' of ' + n + ' answered'} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontFamily: 'var(--sans)', fontSize: 11, fontWeight: 800, letterSpacing: '0.03em', color: answered ? `color-mix(in oklch, ${col} 75%, var(--ink-2))` : 'var(--ink-3)', flexShrink: 0, whiteSpace: 'nowrap', transition: 'color .25s ease', ...style }}>
       <PassiveRing k={k} size={13} thick={3.2}></PassiveRing>
       {done}/{n}
     </span>

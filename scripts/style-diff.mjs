@@ -81,7 +81,7 @@ try {
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const PROTO = process.env.PROTO_URL
-  || "file://" + path.join(HERE, "..", "design", "InSight_standalone_17.html");
+  || "file://" + path.join(HERE, "..", "design", "InSight_standalone_18.html");
 const APP = process.env.APP_URL || "http://localhost:5173/";
 const EXE = process.env.PW_EXECUTABLE || undefined;
 

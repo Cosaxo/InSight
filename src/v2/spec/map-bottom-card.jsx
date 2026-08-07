@@ -201,9 +201,40 @@ function MTAnchorStat({ anchor, openDim, onDim }) {
   );
 }
 
+// ── anchor switcher — the ring, as chips. The ring's lower nodes sit under a
+// tall card, so switching anchors used to mean closing the card first; the row
+// keeps every anchor one tap away and auto-scrolls the active one into view.
+function MTAnchorChips({ anchors, activeId, onPick }) {
+  const box = React.useRef(null);
+  React.useEffect(() => {
+    const el = box.current;
+    if (!el) return;
+    const on = el.querySelector('.is-on');
+    if (!on) return;
+    el.scrollLeft = Math.max(0, on.offsetLeft - (el.clientWidth - on.offsetWidth) / 2);
+  }, [activeId]);
+  return (
+    <div className="mmt-achips-bar">
+      <div className="mmt-fchips mmt-achips" ref={box}>
+        {anchors.map((a) => (
+          <button
+            key={a.id}
+            className={'mmt-fchip' + (activeId === a.id ? ' is-on' : '')}
+            style={{ '--hue': a.hue }}
+            onClick={() => onPick(a.id)}
+          >
+            {a.label}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 // ── anchor card: your stat · match headline · differences ───────────────────
-function MTAnchorCard({ anchor, items, onPick }) {
+function MTAnchorCard({ anchor, items, onPick, anchors, onAnchor }) {
   const [dimId, setDimId] = React.useState(null);
+  const hasChips = !!(anchors && anchors.length > 1 && onAnchor);
   const R = IS_TEST_RESULTS[anchor.id];
   const dim = dimId && R && R.dims ? R.dims.find((d) => d.id === dimId) : null;
   const gkey = dim ? anchor.id + '·' + dim.id : anchor.id;   // axis scope → own group
@@ -220,7 +251,10 @@ function MTAnchorCard({ anchor, items, onPick }) {
   const T = IS_TEST_RESULTS[anchor.id];
   return (
     <div style={{ '--hue': anchor.hue }}>
-      <div className="mmt-kicker"><span className="mmt-dot"></span>{anchor.label}{T && T.taken ? ' · taken ' + T.taken : ''}</div>
+      {hasChips ? <MTAnchorChips anchors={anchors} activeId={anchor.id} onPick={onAnchor}></MTAnchorChips> : null}
+      {hasChips
+        ? (T && T.taken ? <div className="mmt-astat-sub">taken {T.taken}</div> : null)
+        : <div className="mmt-kicker"><span className="mmt-dot"></span>{anchor.label}{T && T.taken ? ' · taken ' + T.taken : ''}</div>}
       <MTAnchorStat anchor={anchor} openDim={dimId} onDim={setDimId} key={anchor.id}></MTAnchorStat>
       <div className="mmt-matchhead">
         <span className="mmt-matchpct">{pct}%</span>
@@ -327,7 +361,7 @@ function MTSubCard({ node, cat, rows, anchors, activeA, onFilter }) {
   );
 }
 
-Object.assign(window, { MTRootCard, MTAnswerBody, MTAnswerCard, MTAnchorCard, MTAnchorStat, MTBranchCard, MTSubCard, MTSwipeRow });
+Object.assign(window, { MTRootCard, MTAnswerBody, MTAnswerCard, MTAnchorCard, MTAnchorChips, MTAnchorStat, MTBranchCard, MTSubCard, MTSwipeRow });
 
 ;globalThis.mtNOpts = typeof mtNOpts === 'undefined' ? globalThis.mtNOpts : mtNOpts;
 ;globalThis.mtOptLabel = typeof mtOptLabel === 'undefined' ? globalThis.mtOptLabel : mtOptLabel;

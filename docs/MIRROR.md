@@ -140,9 +140,10 @@ these lenses its population can support:
   whole shape.
 - **Scores** — the place-rating scorecard, fed by rate questions in the
   feed. World stop only, at each of its three zooms.
-- **Explore** — pick trait chips (age, gender, politics, place) and see
-  what that slice believes, led by where it *differs* from everyone. The
-  globe only.
+- **Explore** — pick trait chips (age, gender, place, and — since the v18
+  sync — a pole of any test you have taken, with your own pole marked and
+  a "like me" shortcut) and see what that slice believes, led by where it
+  *differs* from everyone. The globe only.
 
 **Read that as the design, not as today's live build.** The lens row lives
 inside the demo field bodies (`mirror-field-pops.jsx`,

@@ -1,6 +1,6 @@
 # InSight v2 — the ported app
 
-This is the frozen spec (`design/InSight_standalone_17.html`) running under
+This is the frozen spec (`design/InSight_standalone_18.html`) running under
 Vite. `index.html` points at `main.jsx`; the journal-era app lives in
 git history (decision D4) — `src/legacy/` was deleted after Phase 5 shipped,
 and its Firestore rules were retired to `firestore.rules.v1-archive`.
@@ -170,7 +170,7 @@ one rule, so each is individually visible and greppable:
 git grep -c "eslint-disable-next-line" -- src/v2/spec   # the live count
 ```
 
-That count is **30 across 15 files**. It is quoted here rather than left to
+That count is **31 across 15 files**. It is quoted here rather than left to
 the reader because this section previously claimed 42 long after the number
 had moved — a stale figure in the one paragraph whose job is to size the
 debt.
@@ -324,7 +324,7 @@ It is separate from `npm run lint` because that script carries
 "warn" tier to hold existing debt, and the alternative would be the blanket
 disable this file's Lint suppressions section exists to prevent.
 
-The baseline is **9**: 7 in `spec/`, plus two deliberate `autoFocus` keeps
+The baseline is **8**: 6 in `spec/`, plus two deliberate `autoFocus` keeps
 on picker search fields. It opened at 69 and came down in four steps — D23
 turned the mouse-only controls into buttons, D24 made every overlay and
 sheet a real modal dialog, D35 gave the Basics editor's selects explicit
@@ -334,9 +334,10 @@ winning the accessible-name computation, so the chosen city never reached a
 screen reader), and D49 made the post-vote beat's Skip control a real
 button.
 
-What is left is **eight `no-autofocus` findings** and **one
+What is left is **seven `no-autofocus` findings** and **one
 `no-static-element-interactions`** in `tweaks-panel.jsx`, the host-era debug
-panel rather than a user surface.
+panel rather than a user surface. (The v18 sync retired one more autofocus
+with the relmap add-circle input it replaced by rename-in-place.)
 
 That sentence used to say "six `no-autofocus` findings and three
 div-with-onClick sites", and both halves were wrong in a way worth naming,

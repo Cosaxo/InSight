@@ -242,6 +242,17 @@
       ]
     },
     {
+      "id": "040",
+      "d": "mirror",
+      "prompt": "The word that fits them best?",
+      "options": [
+        "Warm",
+        "Sharp",
+        "Steady",
+        "Restless"
+      ]
+    },
+    {
       "id": "003",
       "d": "day",
       "prompt": "Running late. The text says…",
@@ -258,6 +269,17 @@
       "options": [
         "Say something",
         "Eat it anyway"
+      ]
+    },
+    {
+      "id": "041",
+      "d": "mirror",
+      "prompt": "Their best quality, in one word?",
+      "options": [
+        "Loyalty",
+        "Humour",
+        "Honesty",
+        "Nerve"
       ]
     },
     {
@@ -290,6 +312,16 @@
       ]
     },
     {
+      "id": "042",
+      "d": "mirror",
+      "prompt": "In a room of strangers, they are…",
+      "options": [
+        "Working the room",
+        "Talking to one person",
+        "Near the door"
+      ]
+    },
+    {
       "id": "008",
       "d": "heat",
       "prompt": "Someone's joke goes too far. Laugh it off, or say so?",
@@ -300,7 +332,7 @@
     },
     {
       "id": "009",
-      "d": "ahead",
+      "d": "heat",
       "prompt": "A big decision lands. How do you call it?",
       "options": [
         "Gut",
@@ -319,6 +351,17 @@
       ]
     },
     {
+      "id": "043",
+      "d": "mirror",
+      "prompt": "You would call them first for…",
+      "options": [
+        "A crisis",
+        "A laugh",
+        "Advice",
+        "A favour"
+      ]
+    },
+    {
       "id": "011",
       "d": "day",
       "prompt": "Ideal holiday day?",
@@ -329,8 +372,19 @@
       ]
     },
     {
+      "id": "044",
+      "d": "mirror",
+      "prompt": "What about them would surprise a stranger?",
+      "options": [
+        "How soft",
+        "How stubborn",
+        "How funny",
+        "How serious"
+      ]
+    },
+    {
       "id": "012",
-      "d": "ahead",
+      "d": "day",
       "prompt": "A surprise windfall lands. First move?",
       "options": [
         "Save it",
@@ -358,6 +412,16 @@
       ]
     },
     {
+      "id": "045",
+      "d": "mirror",
+      "prompt": "Are they easy to know?",
+      "options": [
+        "Yes",
+        "Takes a while",
+        "No"
+      ]
+    },
+    {
       "id": "015",
       "d": "heat",
       "prompt": "When hurt, you go…",
@@ -377,6 +441,17 @@
       ]
     },
     {
+      "id": "046",
+      "d": "mirror",
+      "prompt": "Their most underrated trait?",
+      "options": [
+        "Patience",
+        "Taste",
+        "Generosity",
+        "Judgement"
+      ]
+    },
+    {
       "id": "017",
       "d": "heat",
       "prompt": "After a brutal week, what refills you?",
@@ -388,8 +463,17 @@
       ]
     },
     {
+      "id": "047",
+      "d": "mirror",
+      "prompt": "Better at giving advice, or taking it?",
+      "options": [
+        "Giving",
+        "Taking"
+      ]
+    },
+    {
       "id": "018",
-      "d": "ahead",
+      "d": "day",
       "prompt": "A week alone in a cabin. Gift or sentence?",
       "options": [
         "Gift",
@@ -397,12 +481,34 @@
       ]
     },
     {
+      "id": "048",
+      "d": "mirror",
+      "prompt": "The role they play between you two?",
+      "options": [
+        "The steady one",
+        "The instigator",
+        "The listener",
+        "The truth-teller"
+      ]
+    },
+    {
       "id": "019",
-      "d": "ahead",
+      "d": "day",
       "prompt": "Old age: surrounded, or independent?",
       "options": [
         "Surrounded",
         "Independent"
+      ]
+    },
+    {
+      "id": "049",
+      "d": "mirror",
+      "prompt": "What would they want to be remembered for?",
+      "options": [
+        "Kindness",
+        "Their work",
+        "Being fun",
+        "Being right"
       ]
     }
   ],

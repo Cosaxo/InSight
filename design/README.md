@@ -1,20 +1,63 @@
 # The frozen design spec
 
-**`InSight_standalone_17.html` is the reference design** — the version the
+**`InSight_standalone_18.html` is the reference design** — the version the
 product is built to, and the file `scripts/style-diff.mjs` compares the
 app against. The earlier v9 prototype and the extracted `spec-modules/`
-directory were deleted on 2026-07-29, v14 on 2026-07-30, and v15 on
-2026-08-04 when v17 superseded it: the port is complete, keeping superseded
-references around is how this file came to name the wrong target for a full
-day of "the visuals are wrong". Git history has them if archaeology ever
-calls.
+directory were deleted on 2026-07-29, v14 on 2026-07-30, v15 on
+2026-08-04 when v17 superseded it, and v17 on 2026-08-07 when v18 did:
+the port is complete, keeping superseded references around is how this
+file came to name the wrong target for a full day of "the visuals are
+wrong". Git history has them if archaeology ever calls.
 
 It is a self-contained prototype (React + Babel compiled in-browser, all
 data mocked): open it in a browser and it runs. Treat it as **read-only**
 — design iteration ended with this file, and changes from here happen in
 the real codebase.
 
-## What v17 adds over v15
+## What v18 adds over v17
+
+Fourteen of the 93 modules moved, plus the page styles — a revision, not a
+redesign. The synced changes, and where each landed in the app:
+
+**Explore, rebuilt around type.** The World's Explore lens drops the
+track-and-lozenge bars for typographic rows — quiet question, answer as
+real type, a solid rule whose length is the share — and every test you
+have taken becomes a slice axis with your own pole marked, plus a
+"like me" shortcut. The picker collapses to one line until tapped
+(`segment-explorer.jsx`).
+
+**The circle map becomes the control.** Drag a person into another circle
+and that IS how you know them (persisted by name, snap-back otherwise, a
+dashed ring aims the gesture); circles rename in place, and the add-circle
+affordance goes — six wedges are the map's geometry. Hit targets roughly
+double (`relmap.jsx`).
+
+**Duels grow a mirror.** A fourth domain — 'mirror', *how they see you* —
+replaces "what's ahead" for friend pairs (romantic keeps it): ten new
+them-voiced questions interleave the ladder, and the weak-lens callout
+compares miss *rates*, not counts (`duels-data.js`,
+`content/duel-questions.json`).
+
+**The palette gate solves the gamut.** The 21-row measured tables give way
+to solving the sRGB boundary exactly (cached per hue), `wash()` becomes
+the one way a hue turns into a tint (never `color-mix` toward
+transparent), and `var(--token)` hue sources resolve off the cascade
+instead of silently skipping the gate (`world-palette.js`; consumers in
+the feed, scenes, suggestions and the mirror field route through it).
+
+**Type marks state their claim.** The result banner leads with the rule —
+"very curious + warm →" — measured against population averages with
+moderation named ("even on money"), then the type name
+(`archetype-data.js`, `result-card.jsx`).
+
+**Smaller things.** The Map's anchor card carries the ring as a chip row
+so switching anchors stops meaning closing the card, and the ring stage
+fits between the hidden branch rail and the card; the passive rings wear
+the standing type's two-tone split; the person overlay's map crop gains a
+same/differ key and a soft mask; and a Tweaks → Accents radio ships two
+accent-ramp experiments (`daily`, `family`) next to the shipping set.
+
+## What v17 added over v15
 
 **Navigation.** The daily's three modes stop being a switcher in the header
 and become a *ruler* in flow — World · Circle · 1v1, the same graduated

@@ -6,6 +6,7 @@
 import React from 'react';
 import { IS_DATA, fmtPop } from './sample-data.js';
 import { Av, Lazy, MatchRing } from './primitives.jsx';
+import { WPAL } from './world-palette.js';
 
 // mirror-field.jsx — the Mirror rendered as a FIELD, not a scroll of cards.
 // One grammar for every population (borrowed from the Map tab):
@@ -20,7 +21,7 @@ const MF_W = 380, MF_H = 404, MF_CX = 190, MF_CY = 196;
 const mfRadius = (m) => Math.max(46, Math.min(164, 48 + ((95 - m) / 45) * 112));
 
 // scenes carry their topic hue (shared with the feed chips) — one formula everywhere
-const mfGroupFill = (hue) => hue != null ? `color-mix(in oklch, var(--accent) 45%, oklch(0.52 0.12 ${hue}))` : 'var(--accent)';
+const mfGroupFill = (hue) => hue != null ? WPAL.c(`oklch(0.52 0.12 ${hue})`) : 'var(--accent)';
 
 // banded radius: the node keeps its likeness ordering but inside a fixed ring band
 // (groups: yours inside the dotted threshold, suggested beyond it)

@@ -29,6 +29,7 @@ const TWEAK_DEFAULTS = {
   tab: "track",
   mirrorPop: "you",
   lensStyle: "underline",
+  accents: "now",
   worldZoom: "world",
   lensBoxed: false,
   quietGround: true,
@@ -325,7 +326,7 @@ function App() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { if (t.tab !== tab) setTweak('tab', tab); }, [tab]);
 
-  const appClasses = `app surface-tint ${t.density || 'regular'} ${t.quietGround !== false ? 'quiet-ground' : ''}`;
+  const appClasses = `app surface-tint acc-${t.accents || 'now'} ${t.density || 'regular'} ${t.quietGround !== false ? 'quiet-ground' : ''}`;
   // three ways to navigate, so they can be judged against each other:
   //   ruler — two tabs; the daily's three stops are a scale (World · Circle · 1v1)
   //   pill  — two tabs; the original segmented switcher in the header
@@ -493,6 +494,7 @@ function App() {
         <TweakToggle label="Mirror: lenses on top" value={!!t.mirrorLensTop} onChange={(v) => setTweak('mirrorLensTop', v)} />
         <TweakToggle label="Feed hierarchy" value={!!t.feedHier} onChange={(v) => setTweak('feedHier', v)} />
         <TweakSection label="Aesthetic" />
+        <TweakRadio label="Accents" value={t.accents || 'now'} options={['now', 'daily', 'family']} onChange={(v) => setTweak('accents', v)} />
         <TweakToggle label="Quiet ground" value={t.quietGround !== false} onChange={(v) => setTweak('quietGround', v)} />
         <TweakRadio label="Density" value={t.density} options={['compact', 'regular']} onChange={(v) => setTweak('density', v)} />
         <TweakRadio label="Lens tabs" value={t.lensStyle || 'segmented'} options={['segmented', 'underline', 'chips']} onChange={(v) => setTweak('lensStyle', v)} />

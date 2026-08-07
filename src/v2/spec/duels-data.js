@@ -275,28 +275,41 @@ import { IS_DATA } from './sample-data.js';
   // the mode-aware client is the fleet — an older duelQFor has no pool
   // filter, so an active romantic doc would rotate into FRIEND duels.
   const DUO_QS_ROMANTIC = DUEL_CONTENT.romantic;
-  // three domains, not five: coverage arrives in ~12 days instead of 20, and
-  // three rows read at a glance where five become a table.
-  const DOMAINS = [
-    { id: 'day', label: 'everyday', noun: 'everyday self' },
-    { id: 'heat', label: 'under pressure', noun: 'pressure' },
-    { id: 'ahead', label: "what's ahead", noun: 'future' },
-  ];
+  // Three rows, never more: DOMAIN_MIN is 4 correct reads EACH way, so a fourth
+  // lens pushes a full chart from ~12 days out to ~16 — and three rows read at a
+  // glance where five become a table.
+  //
+  // The third row is mode-specific, because the weak lens differs by relationship.
+  // Friends rarely see each other under real pressure and almost never test each
+  // other's five-year plan; the live gap between friends is the MIRROR — do you
+  // know how they see you. For a partner the future IS the loaded one (money,
+  // kids, moving), so romantic keeps 'ahead'.
+  const DOMAIN_DEFS = {
+    day:    { id: 'day',    label: 'everyday',         noun: 'everyday self' },
+    heat:   { id: 'heat',   label: 'under pressure',   noun: 'pressure' },
+    ahead:  { id: 'ahead',  label: "what's ahead",     noun: 'future' },
+    mirror: { id: 'mirror', label: 'how they see you', noun: 'self-image' },
+  };
+  const DOMAIN_SET = { friends: ['day', 'heat', 'mirror'], romantic: ['day', 'heat', 'ahead'] };
+  const domainsFor = (mode) => DOMAIN_SET[mode === 'romantic' ? 'romantic' : 'friends'].map((k) => DOMAIN_DEFS[k]);
+  const DOMAINS = domainsFor('friends');
   const DOMAIN_MIN = 4; // fewer plays than this and the row is absent, not thin
   // qualifying rows only — a row of one dot is noise dressed as insight
   function domainRows(duo) {
     if (!duo || !duo.domains) return [];
-    return DOMAINS.map((D) => {
+    return domainsFor(duo.mode).map((D) => {
       const d = duo.domains[D.id]; if (!d) return null;
       if (d.read.length < DOMAIN_MIN || d.by.length < DOMAIN_MIN) return null;
-      return { ...D, read: d.read, by: d.by, byMissed: d.by.filter((x) => !x).length };
+      return { ...D, read: d.read, by: d.by, byMissed: d.by.filter((x) => !x).length, byRate: d.by.filter((x) => !x).length / d.by.length };
     }).filter(Boolean);
   }
-  // the one place they read you worst — only if it CLEARLY stands out
+  // the one place they read you worst — only if it CLEARLY stands out. Compared
+  // as a RATE: rows hold different numbers of plays, and a raw miss count just
+  // crowns whichever lens has been played most.
   function weakDomain(duo) {
     const rows = domainRows(duo); if (rows.length < 2) return null;
-    const s = rows.slice().sort((a, b) => b.byMissed - a.byMissed);
-    return s[0].byMissed - s[1].byMissed >= 2 ? s[0] : null;
+    const s = rows.slice().sort((a, b) => b.byRate - a.byRate);
+    return s[0].byRate - s[1].byRate >= 0.2 ? s[0] : null;
   }
   const DUO_POOL = (pid) => (duoMode(pid) === 'romantic' ? DUO_QS_ROMANTIC : DUO_QS);
   function duoMode(pid) { return S.duoMode[pid] === 'romantic' ? 'romantic' : 'friends'; }
@@ -309,7 +322,7 @@ import { IS_DATA } from './sample-data.js';
   // …and it is UNEVEN across domains — the whole point of the split. Without
   // this, per-domain differences are just noise and the record says nothing.
   const DOMAIN_BIAS = {
-    f1: { read: { day: 1.1, heat: 1.0, ahead: 0.55 }, by: { day: 1.1, heat: 0.5, ahead: 0.95 } },
+    f1: { read: { day: 1.1, heat: 1.0, mirror: 0.6, ahead: 0.55 }, by: { day: 1.1, heat: 0.5, mirror: 0.95, ahead: 0.95 } },
   };
   function bias(pid, side, dom) {
     const b = DOMAIN_BIAS[pid];
@@ -379,7 +392,7 @@ import { IS_DATA } from './sample-data.js';
       const misses = []; // where THEY misread YOU — your impression gap
       // the same tally split by what the question was ABOUT: which parts of
       // each other you actually read. Gated in the UI until deep enough.
-      const domains = {}; DOMAINS.forEach((k) => { domains[k.id] = { read: [], by: [] }; });
+      const domains = {}; domainsFor(duoMode(p.id)).forEach((k) => { domains[k.id] = { read: [], by: [] }; });
       for (let d = 1; d <= played; d++) {
         const day = duoDay(p.id, d);
         if (day.readRight) read.right++;
@@ -478,7 +491,7 @@ import { IS_DATA } from './sample-data.js';
     createGroup, addGroupMembers, removeGroupMember, leaveGroup,
     SCENARIOS, roleVotes,
     duoQ, duoDay, myDuo, answerDuo, partnerToday, duoState, partners, pendingDuos, impressions,
-    duoMode, setDuoMode, DOMAINS, domainRows, weakDomain,
+    duoMode, setDuoMode, DOMAINS, domainsFor, domainRows, weakDomain,
     duoAvailable, startDuo, cancelDuo, endDuo,
     resetToday,
     subscribe: (f) => { listeners.add(f); return () => listeners.delete(f); },
