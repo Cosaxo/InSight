@@ -4,7 +4,7 @@
 //   node scripts/asc-push.mjs                 # report the diff, change nothing
 //   node scripts/asc-push.mjs --apply         # write it
 //   node scripts/asc-push.mjs --age-rating    # the IARC answers
-//   node scripts/asc-push.mjs --privacy       # the nutrition label
+//   node scripts/asc-push.mjs --privacy       # the nutrition label, as a form to type in
 //   node scripts/asc-push.mjs --screenshots   # what image sets exist
 //   node scripts/asc-push.mjs --all           # text + age rating + privacy
 //
@@ -16,9 +16,13 @@
 // a web form is an hour that also introduces the one failure that file was
 // created to prevent: the store saying something the repo does not.
 //
-// SCOPE. Text, the age rating and the privacy nutrition label. It does NOT
-// upload screenshots — see --screenshots below for why that is a report
-// rather than a push — and it does not touch pricing or availability.
+// SCOPE. It WRITES three things: the listing text, the age rating and —
+// with --screenshots --apply — the screenshot sets. It REPORTS one more:
+// the privacy nutrition label, which it cannot write because Apple's API
+// has no App Privacy resource at all. That is a constraint rather than a
+// scope decision, and establishing it cost three rounds of 4xx; the
+// --privacy block below says how it was finally settled. Pricing and
+// availability are untouched.
 //
 // THE ATTESTATIONS, AND A REVERSAL. This file used to refuse the privacy
 // questionnaire and the age rating on the grounds that "a script that
@@ -27,7 +31,10 @@
 // answer and TRANSCRIBING one. The decision lives in
 // design/store/app-privacy.json — committed, reviewable in a diff, with
 // the why on every row, and held equal to docs/STORE-FORMS.md by
-// check:store-forms. The owner approves that file. This script types it in.
+// check:store-forms. The owner approves that file. This script types it in
+// where Apple lets it (the age rating) and prints it where Apple does not
+// (the privacy label) — the argument is the same either way, and the
+// difference between the two is only which one has an endpoint.
 //
 // Typing it in by hand was never the safeguard it looked like. It is ~40
 // clicks that have to agree with docs/data-inventory.md, with nothing
@@ -493,102 +500,111 @@ if (AGE_RATING) {
 }
 
 // ── the privacy nutrition label ─────────────────────────────────────
-// Modelled as a SET rather than a record: each declared (category, type,
-// linked, purpose) combination is its own appDataUsage row, and "not
-// collected" is the absence of a row rather than a row saying no. So the
-// reconciliation is add-missing / delete-extra, and the delete half is the
-// one that matters — a row Apple has that this file does not is an
-// over-declaration nobody would notice, because the form shows what is
-// there and never what should not be.
+// A REPORT, NOT A PUSH — and that is Apple's constraint, not a scope
+// decision taken here. The App Store Connect API has no App Privacy
+// resource of any kind. Verified three independent ways, because one
+// error message is not evidence about what an API contains:
 //
-// DATA_NOT_COLLECTED is Apple's one explicit row, used when the whole
-// label is empty. This app collects seven things, so it never applies
-// here; it is named because its absence looks like an oversight.
+//   1. The live API. GET /v1/apps/{id}/appDataUsages answers 404, "The
+//      relationship 'appDataUsages' does not exist".
+//   2. Apple's own OpenAPI spec (4.2, 925 paths). The string "DataUsage"
+//      does not occur in it anywhere, and the `App` schema's relationship
+//      list — 43 entries, down to `webhooks` and
+//      `androidToIosAppMappingDetails` — has nothing privacy-shaped.
+//   3. The documentation index. App Store › App Metadata lists app infos,
+//      localizations, versions, screenshots, previews, categories and age
+//      ratings. There is no privacy section, and the release notes through
+//      4.4 never mention one.
+//
+// This block used to POST and DELETE `appDataUsages` rows against an
+// add-missing / delete-extra reconciliation. It never worked and could not
+// have. Three versions of it failed in production with a 400, then a 403,
+// then that 404 — and each time the answer LOOKED like a wrong path, so
+// the next attempt was a different path rather than the question "does
+// this resource exist at all?". Asking that question directly took ten
+// minutes and ended it. The rule worth keeping: when an API answers three
+// different 4xx to three different guesses, stop guessing paths and go
+// read what resources it has.
+//
+// What is left is worth having. Every answer is already decided, reviewed
+// and gated — app-privacy.json holds it with the reasoning on each row,
+// check:store-forms holds it equal to docs/STORE-FORMS.md. Printing it in
+// the order the web form asks turns ~40 clicks-from-memory into
+// transcription, which is the same argument this file's header makes for
+// the fields it CAN write.
 if (PRIVACY) {
+  // Apple's form labels, derived from the enum rather than tabulated. A
+  // hand-kept id→label map is one more figure to go stale, and the ids are
+  // unambiguous on their own; the entire cost of deriving is that
+  // "USER_ID" reads "User Id".
+  const label = (s) => String(s).toLowerCase().split("_")
+    .map((w) => (w ? w[0].toUpperCase() + w.slice(1) : w)).join(" ");
+
+  console.log("\n  App Privacy — App Store Connect › App Privacy › Edit");
+  console.log("  The API cannot write this. Below is the form, in the order it asks.");
+  console.log(`\n  Tracking: ${privacy.tracking.used === false ? "No" : "YES"}`);
   if (privacy.tracking.used !== false) {
-    console.error(
-      "asc-push: app-privacy.json says tracking.used is not false.\n"
-      + "    Tracking gates every other row on this form and changing it is a\n"
-      + "    decision with an ATT prompt attached. This script will not push it —\n"
-      + "    make that change deliberately in App Store Connect.",
+    // The rows below carry no per-row tracking answer, because this file
+    // models tracking as uniformly off. If that ever changes, the form
+    // asks a question this report does not answer — and printing the rows
+    // without saying so would be exactly the silent under-declaration
+    // app-privacy.json warns about.
+    console.log(
+      "    ⚠ app-privacy.json no longer says tracking is off. The form then asks a\n"
+      + "      tracking question PER ROW, which this report does not answer. Take\n"
+      + "      those answers from docs/STORE-FORMS.md, not from the list below.",
     );
-    process.exit(1);
   }
 
-  const existing = await call(
-    "GET", `/v1/apps/${app.id}/appDataUsages?limit=200&include=category,dataProtections,purposes`,
-  );
-
-  // The key has to describe the whole row, because two rows can share a
-  // category and type and differ only in purpose — and deleting the wrong
-  // one silently under-declares.
-  const keyOf = (cat, type, prot, purp) => `${cat}|${type}|${prot}|${purp ?? ""}`;
-  const wanted = new Map();
+  console.log(`\n  Collected — ${privacy.collected.length} data types:`);
   for (const row of privacy.collected) {
-    const prot = row.linked ? "DATA_LINKED_TO_YOU" : "DATA_NOT_LINKED_TO_YOU";
-    for (const purpose of row.purposes) {
-      wanted.set(keyOf(row.category, row.type, prot, purpose), { row, prot, purpose });
-    }
-    // Tracking is uniformly off (asserted above), and Apple models that as
-    // a protection row rather than a flag on the type.
-    wanted.set(keyOf(row.category, row.type, "DATA_NOT_USED_TO_TRACK_YOU", null), {
-      row, prot: "DATA_NOT_USED_TO_TRACK_YOU", purpose: null,
-    });
+    console.log(`    • ${label(row.category)} › ${label(row.type)}`);
+    console.log(`        purposes:           ${row.purposes.map(label).join(", ")}`);
+    console.log(`        linked to identity: ${row.linked ? "Yes" : "No"}`);
+    console.log(`        used for tracking:  ${privacy.tracking.used === false ? "No" : "see the warning above"}`);
   }
 
-  const have = new Map();
-  for (const u of existing.data || []) {
-    const rel = u.relationships || {};
-    const cat = rel.category?.data?.id;
-    const prot = rel.dataProtections?.data?.[0]?.id;
-    const purp = rel.purposes?.data?.[0]?.id ?? null;
-    // Apple's category ids are dotted enums ("IDENTIFIERS.USER_ID"); the
-    // file names the two halves separately because that is how the form
-    // reads.
-    const [category, type] = String(cat || "").split(".");
-    have.set(keyOf(category, type, prot, purp), u.id);
-  }
-
-  const toAdd = [...wanted.keys()].filter((k) => !have.has(k));
-  const toDelete = [...have.keys()].filter((k) => !wanted.has(k));
-
-  if (!toAdd.length && !toDelete.length) {
-    console.log(`  = privacy label: already matches app-privacy.json (${wanted.size} row(s))`);
-  } else {
-    changes += toAdd.length + toDelete.length;
-    for (const k of toAdd) console.log(`  ${APPLY ? "✓" : "+"} privacy row ADD    ${k}`);
-    for (const k of toDelete) console.log(`  ${APPLY ? "✓" : "-"} privacy row REMOVE ${k}`);
-    if (APPLY) {
-      for (const k of toDelete) await call("DELETE", `/v1/appDataUsages/${have.get(k)}`);
-      for (const k of toAdd) {
-        const { row, prot, purpose } = wanted.get(k);
-        await call("POST", "/v1/appDataUsages", {
-          data: {
-            type: "appDataUsages",
-            relationships: {
-              app: { data: { type: "apps", id: app.id } },
-              category: { data: { type: "appDataUsageCategories", id: `${row.category}.${row.type}` } },
-              dataProtections: { data: [{ type: "appDataUsageDataProtections", id: prot }] },
-              ...(purpose
-                ? { purposes: { data: [{ type: "appDataUsagePurposes", id: purpose }] } }
-                : {}),
-            },
-          },
-        });
+  // Only the absences app-privacy.json names individually. The ~22 in
+  // `others` are ones nobody is tempted to tick, and printing them would
+  // bury the three that are genuinely arguable.
+  const tempting = Object.entries(privacy.notCollected)
+    .filter(([k, v]) => !k.startsWith("$") && k !== "others" && typeof v === "string");
+  if (tempting.length) {
+    console.log("\n  Leave UNTICKED — these look tickable and are not:");
+    for (const [k, why] of tempting) {
+      console.log(`    • ${label(k)}`);
+      // Whole reason, wrapped — not the first sentence. Truncating there was
+      // tried and lost the point on one of the three: EMAILS_OR_TEXT_MESSAGES
+      // opens "No, AT LAUNCH." and the sentence that matters ("takes are
+      // circle-scoped and have no live surface") is the second one.
+      let line = "       ";
+      for (const word of why.split(/\s+/)) {
+        if (line.length + word.length + 1 > 78) { console.log(line); line = "       "; }
+        line += ` ${word}`;
       }
+      console.log(line);
     }
   }
+
+  console.log(
+    "\n  Read docs/STORE-FORMS.md before ticking anything: what you are entering is a\n"
+    + "  legal statement about what the app collects.",
+  );
 }
 
 const still = [
+  PRIVACY && "the privacy label above — hand-entered, because Apple's API has no endpoint for it",
   !SCREENSHOTS && "screenshots (--screenshots to see what is there)",
   "submitting for review — deliberately manual, it is the irreversible one",
 ].filter(Boolean).join("; ");
 
 console.log(
+  // `changes` counts what this script can WRITE. "Nothing to do" would be a
+  // lie whenever --privacy has just printed a form that still has to be
+  // typed in, so every branch names what is still outstanding.
   !changes
-    ? "\nasc-push: nothing to do — App Store Connect already matches the repo."
+    ? `\nasc-push: nothing to write — App Store Connect already matches the repo. Still yours: ${still}.`
     : APPLY
       ? `\nasc-push: ${changes} change(s) applied. Still yours: ${still}.`
-      : `\nasc-push: ${changes} change(s) would be made. Re-run with --apply.`,
+      : `\nasc-push: ${changes} change(s) would be made. Re-run with --apply. Still yours: ${still}.`,
 );

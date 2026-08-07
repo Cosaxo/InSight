@@ -83,8 +83,9 @@ jobs:
       # It cannot reach Cloud Monitoring and does not pretend to — policies
       # are applied by hand (D47), so this checks the half in the repo.
       - run: npm run check:monitoring
-      # The privacy nutrition label exists twice on purpose: as JSON that
-      # gets pushed to Apple, and as prose a human reads before approving
+      # The privacy nutrition label exists twice on purpose: as JSON the
+      # metadata workflow prints as a form to copy across (Apple exposes no
+      # endpoint for it — D73), and as prose a human reads before approving
       # it. Two copies of one attestation is the shape that produced the
       # "collects no email or name via Google" error — the same false claim
       # in three documents, because nothing compared them. Client/docs-only,

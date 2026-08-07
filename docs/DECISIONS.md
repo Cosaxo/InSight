@@ -7244,3 +7244,71 @@ tree, but a collision is two files agreeing with each other and disagreeing
 with a branch nobody has merged yet — invisible to any check that reads one
 checkout. Grep `^## D` on freshly-fetched `origin/main` immediately before
 merging; that is the whole procedure.
+
+## D73 · The privacy label has no endpoint, so the script prints the form instead
+
+**Decided:** 2026-08-07 · **Status:** binding
+
+`scripts/asc-push.mjs --privacy` no longer writes. It prints
+`design/store/app-privacy.json` as the App Privacy web form — row by row, in
+the order App Store Connect asks — and a human copies it across. The age
+rating next door still pushes; the only difference between the two is which
+one Apple exposes.
+
+**This is Apple's constraint, not a scope decision.** The App Store Connect
+API has no App Privacy resource of any kind. Verified three independent ways,
+because one error message is evidence about one URL and not about what an API
+contains:
+
+1. **The live API.** `GET /v1/apps/{id}/appDataUsages` → 404, *"The
+   relationship 'appDataUsages' does not exist"*.
+2. **Apple's own OpenAPI specification** (4.2, 925 paths). The string
+   `DataUsage` does not occur in it anywhere, and the `App` schema's
+   relationship list — 43 entries, down to `webhooks` and
+   `androidToIosAppMappingDetails` — has nothing privacy-shaped.
+3. **The documentation index.** App Store › App Metadata lists app infos,
+   localizations, versions, screenshots, previews, categories and age
+   ratings. There is no privacy section, and the release notes through 4.4
+   never mention one.
+
+**What it cost to learn, which is the part worth recording.** The
+reconciliation block shipped three times and failed in production three
+times: a 400 on an `?include=` Apple rejects, a 403 on a `GET` of a
+write-only resource, then that 404. Every one of them *looked* like a wrong
+path — Apple's errors are phrased in terms of paths — so each round produced
+a different path rather than the question **"does this resource exist at
+all?"**. Asking that question directly took ten minutes and ended it.
+
+The rule, stated so the next person does not pay for it again: **when an API
+answers three different 4xx to three different guesses, stop guessing paths
+and go read what resources it has.** Three wrong answers in the same place is
+not three bugs; it is one wrong model.
+
+**The stub is where this is now enforced.** `scripts/asc-push.test.mjs` used
+to answer 200 to `appDataUsages`, which is exactly why a client for a
+non-existent resource could ship green — the second time that stub's leniency
+hid a real 4xx, after the `include=` 400. It now returns Apple's own 404 for
+any path containing `appDataUsage` or `appPrivacy`, and a test asserts that
+`--privacy --apply` performs **zero** writes. A rebuilt write path fails on
+the bench instead of in production. A lenient stub does not test a client; it
+tests itself.
+
+**What did not change, and deliberately.** `app-privacy.json` stays, and so
+does `check:store-forms`. The argument for holding an attestation as
+reviewed data rather than ~40 remembered clicks never depended on there being
+an endpoint — it is about the answers agreeing with `data-inventory.md`, and
+that is the failure that put "collects no email or name via Google" in three
+documents at once. The printout keeps the transcription mechanical; the gate
+keeps it honest.
+
+**One guard was relaxed on purpose.** The block used to `exit 1` when
+`tracking.used` was not `false`, on the grounds that turning tracking on
+unattended is a decision with an ATT prompt behind it. That was right while
+it pushed. A *report* that refuses to print is just a report nobody can read,
+so it now prints the tracking answer first and warns that the form will ask a
+per-row tracking question this printout does not answer.
+
+**It also corrects D69.** That record's closing paragraph says asc-push
+"transcribes the privacy label from a reviewed file", which was true of the
+intent and never of the code. D69's actual subject — trader status, and the
+refusal to automate an identity assertion to a regulator — is untouched.
