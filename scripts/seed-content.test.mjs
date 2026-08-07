@@ -143,6 +143,20 @@ describe("seed-content", () => {
     seedResponse = { result: { written: 369, skipped: 0 } };
   });
 
+  it("says INTERNAL is not a diagnosis and points at the function log", async () => {
+    // What the first real run returned. "INTERNAL INTERNAL" reads like a
+    // description of the problem and is not one — the detail never left the
+    // server, so the only useful next step is Cloud Logging.
+    seedStatus = 500;
+    seedResponse = { error: { status: "INTERNAL", message: "INTERNAL" } };
+    const err = await seed().then(() => null, (e) => e);
+    expect(err).not.toBeNull();
+    expect(String(err.stderr)).toMatch(/INTERNAL is not a diagnosis/);
+    expect(String(err.stderr)).toMatch(/functions:log --only seedContentV2/);
+    seedStatus = 200;
+    seedResponse = { result: { written: 369, skipped: 0 } };
+  });
+
   it("explains permission-denied as the deploy-lag trap, not a wrong uid", async () => {
     // The failure that will actually happen: SEED_ADMIN_UIDS set in the
     // GitHub environment but not yet carried into the runtime by a deploy,

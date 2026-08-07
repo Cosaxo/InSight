@@ -145,8 +145,19 @@ const body = await res.json();
 
 if (!res.ok || body.error) {
   const e = body.error || {};
+  // A bare INTERNAL means the function threw something that was not an
+  // HttpsError, so Firebase discarded the detail before it left the server.
+  // Say so rather than letting "INTERNAL INTERNAL" read like a description.
+  const opaque = (e.status || e.message) === "INTERNAL";
   die(
     `seedContentV2 failed (${res.status}): ${e.status || ""} ${e.message || JSON.stringify(body)}\n`
+    + (opaque
+      ? "    INTERNAL is not a diagnosis — it is what a callable returns when it\n"
+      + "      throws a non-HttpsError, with the real error left in Cloud Logging.\n"
+      + "      The workflow's next step fetches it; from a terminal it is\n"
+      + "      `npx firebase-tools functions:log --only seedContentV2 --project prvfire33`.\n"
+      + `      Raw body: ${JSON.stringify(body)}\n`
+      : "")
     + "    permission-denied → the uid is not in SEED_ADMIN_UIDS *as deployed*.\n"
     + "      That variable only reaches the runtime on a deploy, so setting it\n"
     + "      without re-running 'Deploy Firebase backend' looks exactly like\n"
