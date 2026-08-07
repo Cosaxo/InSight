@@ -112,6 +112,24 @@ window.addEventListener('insight:local-purge', () => {
   Object.keys(IS_TEST_RESULTS).forEach((k) => { delete IS_TEST_RESULTS[k]; });
   Object.keys(IS_TEST_RESULTS_DEMO).forEach((k) => { IS_TEST_RESULTS[k] = JSON.parse(JSON.stringify(IS_TEST_RESULTS_DEMO[k])); });
 });
+// Live hydration (data/live.ts publishTestResults). Fires only in live
+// mode — hydrate() and resetForNewUid() are the sole callers and neither
+// runs without a session — so the demo seed above survives untouched in
+// mock mode, where the persona IS the content.
+//
+// REPLACE, not merge, and that is the point rather than an optimisation:
+// the seed at the top of this file is Mira Halvorsen's, and a live account
+// that has taken no test must render nothing rather than hers. The payload
+// is already {server, …device}, so a key missing from it means the user has
+// not taken that test on any device.
+//
+// In place, for the same reason the purge above is: the fifteen consumers
+// import this binding and hold the object.
+window.addEventListener('insight:test-results', (e) => {
+  const next = (e && e.detail) || {};
+  Object.keys(IS_TEST_RESULTS).forEach((k) => { delete IS_TEST_RESULTS[k]; });
+  Object.keys(next).forEach((k) => { IS_TEST_RESULTS[k] = next[k]; });
+});
 
 // Exported as `persistTestResult`; consumers used to reach it as
 // `window.IS_persistTestResult`, which is why the import in daily-split and

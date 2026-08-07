@@ -6655,3 +6655,96 @@ one rule and fails closed in another, and nothing about reading them predicts
 which. So the defence cannot be a style rule about how to write predicates; it
 is that a `getDoc` test proves nothing about a `getDocs` path. **Where a
 collection can be listed, test the list.**
+## D66 · The sample persona reached live mode twice more: the Map's anchor ring, and a hydration that wrote to nobody
+
+**Date:** 2026-08-07 · **Status:** Adopted
+
+D55 removed the sample persona from the profile's Basics card in live
+mode and recorded why it matters beyond cosmetics: the anchors effect
+writes whatever the profile holds to `v2_users/{uid}`, and
+`answerAnchors()` stamps it onto every answer — which are create-only
+(D5), so a fabricated cohort has no correction path. That fix was correct
+and incomplete. Two more surfaces carried the same persona, and both were
+reproduced before they were believed.
+
+**1 · The Map's anchor ring had no live path at all.**
+`spec/map-anchors.js` built its seven anchors from `IS_DATA.me` with the
+persona as the `||` fallback on every field, and nothing in the file
+consulted `LIVE`. Measured, not reasoned — the module run in node with a
+fresh live account and no tests taken returns:
+
+```
+age 34 · born 1991 | Editor · independent press | MA Literature · Univ. of Oslo
+Big Five · taken 10 days ago | Politics · taken 3 weeks ago | …
+```
+
+This is the worse of the two placements. `MirrorPreviewTag` returns
+`null` for the You stop — deliberately, because nothing there was
+supposed to be sample data — so unlike the Mirror's other populations,
+this wore no "Preview · sample people" badge.
+
+`list()` now branches on `LIVE.enabled`: live mode reads the viewer's own
+anchors (D8) and drops every row with nothing behind it, so a fresh
+account gets an empty ring rather than somebody else's. Both callers
+already handled a zero-length list — `MapTab` divides by
+`anchors.length || 1`, `MapThumbCard` returns null — which is why the
+gap survived review: the honest state was already renderable, just
+unreachable. Age is the BAND, the only thing the anchor holds; the exact
+birthday still never leaves the device.
+
+`relate()`, the other half of that module, is now marked demo-only. It
+has no caller, its keys are the prototype's `dq*` ids, and its fallback
+lines carry Mira's numbers in prose ("openness 78 sets the playlist") —
+so a live question would miss `REL` and land on a sentence about someone
+else. Kept for the mock path, fenced against a future wiring.
+
+**2 · `publishTestResults()` had stopped reaching anybody.** Its own
+comment states the intent — "Live mode shows only REAL results: purge the
+demo's baked test results and rebuild from server + this device's saves"
+— and it did that by assigning `window.IS_TEST_RESULTS`. But
+`test-definitions.js` left the global bridge (D39, #85) and now EXPORTS
+`IS_TEST_RESULTS`; all fifteen consumers import the binding. The global
+has had no readers since, so every effect of that function was silently
+undone: the demo persona's Big Five, politics, values and attachment
+survived into live mode until the user retook each test, and a result
+earned on another device never arrived at all.
+
+This is the D39 conversion hazard from the other side. The rule the
+README states — a conversion removes the load-order condition, never the
+data one — is about the *consumers* of a converted module. This was a
+*producer* left writing to the name the conversion retired, and no gate
+sees it: `tsc -b` type-checks a global write against nothing,
+`check:globals` rule 1 flags dangling reads and not orphaned writes, and
+rule 4 counts the write as coupling that is going the right way.
+
+The fix announces instead of assigning — `insight:test-results`, the
+same shape as D51's purge, which the same file already listens for. The
+module that owns the object mutates it in place, so the consumers holding
+a reference see it. The payload REPLACES rather than merges, and that is
+the half that removes the seed: a key absent from `{server, …device}`
+means the user has not taken that test, and the honest render of that is
+nothing.
+
+**What it cost, and what it bought.** `map-anchors.js` needed `LIVE`,
+which is a new shared-global reference — so the module was converted off
+the bridge on the way past (`window.MapAnchors` → named exports, both
+consumers importing), and `LIVE` comes in as an ESM import from
+`data/live`, which `main.jsx` already pulls into the entry chunk. Rule 4:
+534 across 45 files, down from 539.
+
+**The fixture was hiding it, and now cannot.** `test/live-fixture.ts`
+assigned a second object to `window.LIVE` and left `data/live`'s default
+export — the same object in production, since live.ts ends with
+`window.LIVE = LIVE` — untouched. Invisible while every consumer read the
+global; a converted module importing the binding would have seen
+`enabled: false` while the tab rendered beside it saw the fixture. The
+fixture now defines its members onto the imported singleton and restores
+the descriptors afterwards. Two objects that have to agree is the bug
+this whole record is about; the fixture no longer creates one.
+
+**Still sample data in live mode**, so the list stays a list rather than
+a discovery: the feed's takes, counters and friend dots (demo-only by
+design, D1 — not unbuilt); `scenes.js`'s follow list; the catalogue pick
+cards carrying `q.catalog`; and `daily-questions.js`'s non-world
+audiences, where only the World distribution is swapped for the real
+aggregate.
