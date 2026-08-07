@@ -124,10 +124,39 @@ if (!entries.length) {
   );
 }
 // Oldest-first for reading, having fetched newest-first for correctness.
+let all = "";
 for (const e of entries.reverse()) {
   const msg = e.textPayload
     ?? e.jsonPayload?.message
     ?? (e.jsonPayload ? JSON.stringify(e.jsonPayload) : "")
     ?? "";
+  all += `${msg}\n`;
   console.log(`  ${e.timestamp} [${e.severity || "DEFAULT"}] ${String(msg).slice(0, 2000)}`);
+}
+
+// Known errors that are unreadable as stack traces and one sentence as
+// prose. Only add an entry here for something that has actually been hit —
+// a guessed explanation attached to a real error is worse than none,
+// because it stops the reader looking.
+const KNOWN = [
+  {
+    match: /Metadata-Flavor|metadata service|metadata\.google\.internal/i,
+    say:
+      "The runtime could not get credentials from the GCE metadata server, so\n"
+      + "  EVERY Google API call from this function fails — Firestore included.\n"
+      + "  Nothing in this repo causes it: initializeApp() takes no arguments and\n"
+      + "  correctly uses Application Default Credentials, and no VPC connector or\n"
+      + "  explicit serviceAccount is configured.\n"
+      + "\n"
+      + "  It is the identity the function RUNS AS. Check that the service account\n"
+      + "  on the Cloud Run service exists and is ENABLED:\n"
+      + "    https://console.cloud.google.com/iam-admin/serviceaccounts?project=prvfire33\n"
+      + "  A disabled or deleted service account still DEPLOYS cleanly — the\n"
+      + "  reference is valid — and only fails when the runtime asks it for a\n"
+      + "  token, which is why this surfaces as a 500 at call time rather than as\n"
+      + "  a failed deploy.",
+  },
+];
+for (const k of KNOWN) {
+  if (k.match.test(all)) console.log(`\n  ── what this means ──\n  ${k.say}`);
 }
