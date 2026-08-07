@@ -535,7 +535,7 @@ describe("live mode never inherits the sample persona (D55)", () => {
     ).toBeNull();
   });
 
-  // ── the Map's group stats, the third place the persona reached (D70) ──
+  // ── the Map's group stats, the third place the persona reached (D72) ──
   //
   // The ring above was fixed and the numbers BESIDE it were not.
   // map-group-stats.js hashes the question id into a distribution and
@@ -590,7 +590,7 @@ describe("live mode never inherits the sample persona (D55)", () => {
     expect(container.textContent).toMatch(/\d+\s*%/);
   });
 
-  // ── the results card, the fourth (D70) ──
+  // ── the results card, the fourth (D72) ──
   //
   // sameType filtered IS_DATA.people — the prototype's seven invented
   // friends — through IS_FRIEND_TYPES and SigEmblem drew up to four of them

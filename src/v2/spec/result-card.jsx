@@ -193,7 +193,7 @@ export function ResultProfileCard({ testKey, archetype, tagline }) {
   // fit strength, in dim points of separation from the runner-up
   const fit = arch ? (arch.gap < 5 ? 'close' : arch.gap >= 12 && arch.rms < 12 ? 'textbook' : 'clear') : 'clear';
   const streak = fit === 'close' ? near[0].a.name.replace(/^The /, '') : null;
-  // People of yours who landed on the same type — EMPTY IN LIVE MODE (D70).
+  // People of yours who landed on the same type — EMPTY IN LIVE MODE (D72).
   //
   // `IS_DATA.people` is the prototype's seven invented friends and
   // `IS_FRIEND_TYPES` assigns each of them a type per test; both are demo

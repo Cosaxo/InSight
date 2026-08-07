@@ -29,11 +29,14 @@ import {
   PENDING_DAYS_KEEP,
   prunePendingDays,
   publishableDuelAgg,
+  revealQid,
+  revealVotes,
   scanDays,
   revealMembersFor,
   shouldPublishDuelAgg,
   shouldReveal,
   utcDayKey,
+  votesMatchingQid,
   type DuelVoteLike,
 } from "./pure";
 // Same import the logic norms histogram uses (logic.ts): the floor and the
@@ -297,6 +300,18 @@ export const registerPushToken = onCall({ ...LIGHT_CALLABLE, region: REGION, enf
 interface RevealVote {
   optionIdx: number;
   guessIdx?: number;
+  /**
+   * The question THIS member answered — written only when it is not the one
+   * the day was published under (see revealQid). Absent is the overwhelming
+   * common case and means "the revealed question", which is also what every
+   * reveal written before D71 means, so old docs read correctly with no
+   * migration.
+   *
+   * Without it the reveal card had no way to know a member's answer belonged
+   * to a different prompt, and rendered it under the day's — an answer with
+   * someone's name on it, under a question they were never asked.
+   */
+  qid?: string;
 }
 
 async function revealGroupDay(
@@ -345,7 +360,7 @@ async function revealGroupDay(
   );
 
   const votes: Record<string, RevealVote> = {};
-  let qid: string | null = null;
+  const qids: unknown[] = [];
   answerSnaps.forEach((s, i) => {
     if (!s.exists) return;
     const optionIdx = s.get("optionIdx");
@@ -354,8 +369,9 @@ async function revealGroupDay(
     const guessIdx = s.get("guessIdx");
     if (typeof guessIdx === "number") v.guessIdx = guessIdx;
     votes[members[i]] = v;
-    qid = qid || s.get("qid") || null;
+    qids.push(s.get("qid"));
   });
+  const qid = revealQid(qids);
   const played = Object.keys(votes).length;
 
   // The oldest day still worth carrying in pendingDays. Both settle paths
@@ -453,8 +469,11 @@ async function revealGroupDay(
     if (!gsnap.exists) return;        // last member left while we were reading
     if (gsnap.get("lastRevealDay") === dayKey) return;
 
-    const freshVotes: Record<string, RevealVote> = {};
-    let freshQid: string | null = null;
+    // qid alongside each vote, not just the winning one: the fold below has
+    // to know WHICH votes were cast on the question it is folding into, and
+    // the reveal doc has to tell the card which prompt to render each answer
+    // under.
+    const freshEntries: { uid: string; qid: unknown; vote: RevealVote }[] = [];
     fresh.forEach((s, i) => {
       if (!s.exists) return;
       const optionIdx = s.get("optionIdx");
@@ -462,9 +481,12 @@ async function revealGroupDay(
       const v: RevealVote = { optionIdx };
       const guessIdx = s.get("guessIdx");
       if (typeof guessIdx === "number") v.guessIdx = guessIdx;
-      freshVotes[members[i]] = v;
-      freshQid = freshQid || s.get("qid") || null;
+      freshEntries.push({ uid: members[i], qid: s.get("qid"), vote: v });
     });
+    const freshQid = revealQid(freshEntries.map((e) => e.qid));
+    // Stamped only on the odd ones out, so the common case — everyone on the
+    // same question — writes exactly the document it wrote before D71.
+    const freshVotes: Record<string, RevealVote> = revealVotes(freshEntries, freshQid);
     // An answer can only appear between the two reads, never vanish
     // (answers are create-only, D5) — so this can gain votes but not lose
     // them, and the reveal condition cannot flip back to false. Re-checked
@@ -472,7 +494,11 @@ async function revealGroupDay(
     if (!shouldReveal(mode, Object.keys(freshVotes).length)) return;
 
     aggQid = freshQid ?? qid;
-    aggVotes = Object.values(freshVotes);
+    // NOT Object.values(freshVotes) — only the votes cast on aggQid. When
+    // members' cached banks disagree (see revealQid), the others' votes are
+    // still published in the reveal below; they are simply not folded into a
+    // question they were not answers to.
+    aggVotes = votesMatchingQid(freshEntries, aggQid);
 
     tx.create(revealRef, {
       day: dayKey,

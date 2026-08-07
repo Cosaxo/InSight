@@ -191,7 +191,7 @@ point of them.
 Two gaps are worth stating in prose because no badge covers them:
 
 - **The Map's typicality stats were synthetic, and are now refused
-  (D70).** `window.MapStats` is a deterministic mock — plausible, stable
+  (D72).** `window.MapStats` is a deterministic mock — plausible, stable
   per question, and fake — and it used to drive how far a dot sits from
   the centre plus every "people who share this trait answered…" line in
   the tapped-answer card, in live mode, on the one stop that shows no

@@ -11,7 +11,7 @@ import LIVE from '../data/live';
 // distribution of how "people like you" answered. Fake but stable data:
 // the same question + group always yields the same numbers.
 //
-// AND IT IS REFUSED IN LIVE MODE (D70). Every number below is a hash of the
+// AND IT IS REFUSED IN LIVE MODE (D72). Every number below is a hash of the
 // question id. That is the content in a demo; in a live build it renders
 // beside a real answer and a real age band, on the one Mirror stop that
 // carries no Preview tag — mirror-tab.jsx excludes `you` from the badge

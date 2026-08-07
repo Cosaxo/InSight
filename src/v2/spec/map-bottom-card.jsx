@@ -60,7 +60,7 @@ function MTVerdict({ pct, who, self, isMode }) {
 }
 
 // ── the honest state — live mode has no cohort behind a Map answer ─────────
-// MapStats refuses in live mode (D70), so every number this card used to draw
+// MapStats refuses in live mode (D72), so every number this card used to draw
 // is gone rather than wrong. Say what is missing and why, the way the feed's
 // below-floor branch does (world-feed.jsx renderStats) — the answer itself is
 // real and stays on the map, which is the part worth stating.
@@ -183,7 +183,7 @@ function MTAnchorStat({ anchor, openDim, onDim }) {
       <div className="mmt-astat">
         {R.dims.map((d, di) => {
           const isOpen = openDim === d.id;
-          // null in live mode (D70). Your own score is a real measurement and
+          // null in live mode (D72). Your own score is a real measurement and
           // stays; the "them" marker beside it was a hash, so it goes — and
           // the legend below loses its second key with it, or it would name a
           // series that is not drawn.
@@ -268,7 +268,7 @@ function MTAnchorCard({ anchor, items, onPick, anchors, onAnchor }) {
     const gmode = window.MapStats.mode(node.qid, gkey, n, node.aidx);
     return { node, gmode, match: gmode === node.aidx };
   });
-  // Live mode: MapStats refuses (D70), so there is no group mode to match
+  // Live mode: MapStats refuses (D72), so there is no group mode to match
   // against. Everything downstream of `rows` has to go together — a null
   // gmode is not "you differ", it is "nobody has been counted". Left alone
   // the arithmetic reads 0% and files every answer under "where you differ",
