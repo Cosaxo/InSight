@@ -95,10 +95,26 @@ arithmetic.
 
 ## Phase 0 — Do these first (about an hour, one console)
 
-- [ ] **0.1 Seed the production question bank.** Actions → **Seed content**
-      → Run workflow. 399 questions land in `v2_questions`. Idempotent and,
-      since D34, cheap to repeat — reseed whenever content lands.
+- [ ] **0.1 Seed the production question bank — run 2026-08-07 and already
+      stale.** Actions → **Seed content** → Run workflow.
+      399 questions land in `v2_questions` — idempotent and, since D34,
+      cheap to repeat.
+
+      **It is unticked on purpose.** That run wrote **389**, and the bank is
+      **399** as of D68's v18 sync — so ten questions are in the repo and not
+      in production. This is exactly the standing-instruction case: the box
+      is not "seeded once", it is "seeded since the last content change", and
+      every promotion (D30, D33) moves it back. **Reseed after merging
+      anything that touches `v2content.ts`.**
       `SHIP-CHECKLIST §1`.
+
+      **This was the first successful write to production Firestore, ever**,
+      and getting there found that the backend had never worked: a `gaxios`
+      override in `functions/package.json` broke credential fetch for every
+      function, so `scheduledDuelReveals` had been failing every two hours
+      unnoticed. The seed was simply the first thing that tried. A green run
+      here therefore proves more than the bank — it proves the runtime can
+      authenticate at all.
       *Until this runs the deployed backend serves an empty app, so it
       blocks every screenshot and every tester.* **It is also the only step
       that proves the operator gate works end to end**, so a green run here
@@ -254,9 +270,24 @@ arithmetic.
       plist is *absent* from the simulator bundle so a committed secret
       cannot pass unnoticed. Both release gates confirm it lands: it is in
       the archived bundle and in the exported `.ipa` (run 6).
-- [ ] **2.3 APNs key.** Apple Developer → Keys → create an APNs key →
-      upload in Firebase Console → Cloud Messaging → Apple app
-      configuration. Without it no reveal push arrives on iOS.
+- [x] **2.3 APNs key — done 2026-08-07.** Key ID `9GAJ36R328`, uploaded to
+      Firebase Console → Cloud Messaging → Apple app configuration for
+      `com.cosaxo.insight`. Without it no reveal push arrives on iOS.
+
+      **Into the PRODUCTION row, not development, and the console offers
+      both.** `App.entitlements` resolves `aps-environment` to `production`
+      for the App target's Release build, and the release workflow refuses
+      any build where it is not — so every shipped build registers against
+      the production APNs endpoint. A key in the development slot would sit
+      unused while no push ever arrived, which is the same silent failure
+      the APNs gate exists to catch, one layer further out.
+
+      One Apple auth key serves both environments, so there is no second key
+      to make and no reason to fill the development row with a copy.
+
+      Ignore the **APNs Certificates** panel below it entirely — that is the
+      older per-environment mechanism, and mixing the two is how a project
+      ends up with a certificate that expires annually and nobody watching.
 - [x] **2.4 First iOS archive — done 2026-08-05, run 6, no Mac.** Actions →
       **iOS release** → Run workflow, upload unticked: archive, export,
       both silent-failure gates, signed `.ipa` attached as an artifact.
@@ -349,19 +380,34 @@ start.
 The harness, the graphic and the copy all landed 2026-08-03 — what is
 left here is a **recapture against live data**, plus the two forms.
 
-- [ ] **4.1 Recapture the screenshots in LIVE mode.** The harness is
-      built and committed:
-      ```bash
-      npm i -D playwright && npx playwright install chromium   # once
-      npm run build && npm run build:screenshots
-      ```
-      Six scenes × both store sizes (1320×2868 and 1080×1920), asserted
-      against the store specs at generation. **The committed captures are
-      a demo preview, not the shipping set** — the harness names the one
-      that must not be uploaded as-is (the reveal shows Comments and "Who
-      voted", both `!S.live`-gated by D1, so no real user sees them on a
-      live question — App Store 2.3.3). The TestFlight week is the moment
-      to recapture: ten testers put real k-floored splits on screen.
+- [ ] **4.1 Recapture the screenshots in LIVE mode — Actions →
+      *Screenshots* → Run workflow.** Capture with upload unticked, download
+      the `store-screenshots` artifact, **look at them**, then re-run with
+      upload ticked. Six scenes × both store sizes (1320×2868 and
+      1080×1920), asserted against the store specs at generation.
+
+      **The committed captures are a demo preview, not the shipping set.**
+      The harness names the one that must not ship: the reveal shows
+      Comments and "Who voted", both `!S.live`-gated by D1, so no real user
+      sees them on a live question (App Store 2.3.3). `asc-push`
+      **refuses** to upload anything the manifest flags, and the workflow
+      deliberately does not pass `--allow-demo` — if a fresh capture is
+      still flagged, the build did not reach live mode, and a failed job is
+      the right outcome rather than a rejection found days later by a
+      reviewer.
+
+      **Live captures only became possible on 2026-08-07**: before that the
+      production bank was empty and the backend could not authenticate at
+      all, so there was nothing to capture against.
+
+      Playwright is installed by the workflow and stays out of
+      `package.json` on purpose — a ~300 MB browser download that every
+      contributor and every CI job would otherwise pay for, to serve a job
+      that runs a few times per release.
+
+      The TestFlight week is still the better moment: ten testers put real
+      k-floored splits on screen, where a freshly seeded bank shows the
+      floor's "5+" placeholder instead of a split.
       *Note the iPad set every guide lists does not apply —
       `TARGETED_DEVICE_FAMILY = 1`, iPhone only.*
 - [ ] **4.2 Play feature graphic — done.** `npm run build:feature-graphic`
@@ -383,6 +429,36 @@ left here is a **recapture against live data**, plus the two forms.
       release workflow (`IOS-RELEASE.md`). It deliberately does NOT touch
       screenshots, the privacy questionnaire or the age rating; those are
       attestations, and `STORE-FORMS.md` is the transcribe-by-hand answer.
+- [ ] **4.3b EU trader status (Digital Services Act) — a blocker nothing in
+      this repo knew about.** App Store Connect → **Business** → *Trader
+      Status*, or via the banner on the Apps list. Apple's wording: *"your
+      trader status must be provided or your apps will be removed from the
+      App Store in the EU."*
+
+      **Found 2026-08-07 by reading a console banner**, not by any check
+      here — which is the point worth keeping. `check:store-copy` and
+      `check:store-listing` hold what the repo can see; a store-side legal
+      requirement introduced after those were written is invisible to both,
+      and there is no gate that could have caught it.
+
+      Two things to decide before filling it in, and neither is a code
+      question:
+
+      - **Trader vs non-trader.** Declaring *trader* publishes a name,
+        address, phone and email on the listing. Declaring *non-trader*
+        keeps them private but costs EU distribution.
+      - **Which address.** D42 parked the ENK registration when Play was
+        deferred, so there is no company address to use — 0.3 records the
+        operator as a sole trader in Norway. A sole trader's address is a
+        home address, and this publishes it. **Norway is EEA, not EU**, so
+        the Norwegian storefront is unaffected either way; what is at stake
+        is the 27 EU storefronts.
+
+      **Decided 2026-08-07: declare trader, and take the EU (D69).** The
+      home address goes on the listing. D69 has the reasoning and, more
+      usefully, the way out: registering the ENK gives a business address
+      that can replace it, which is a second and independent reason to want
+      the ENK that D42 parked.
 - [ ] **4.4 + 4.5 Privacy nutrition labels and the age rating — read, then
       one dispatch.** Mandatory; Apple accepts no submission without both.
 

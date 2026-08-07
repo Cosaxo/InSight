@@ -1,0 +1,132 @@
+# Recapture the store screenshots against the live backend, and optionally
+# upload them to App Store Connect.
+#
+# WHY THIS EXISTS. The committed captures are demo-mode previews, and one of
+# them cannot ship: `02-reveal` shows Comments and "Who voted", both gated on
+# `!S.live` by D1, so it advertises a feature the shipped app does not have
+# on a live question. App Store guideline 2.3.3 wants screenshots that
+# reflect the app, and a rejection on that arrives days after the upload.
+#
+# Until 2026-08-07 there was nothing to recapture against — the production
+# question bank was empty, and the backend could not authenticate at all.
+# Both are fixed, so live captures are possible for the first time.
+#
+# PLAYWRIGHT IS INSTALLED HERE, NOT COMMITTED. It stays out of package.json
+# deliberately (scripts/store-render.mjs says so, and SHIP-CHECKLIST forbids
+# it): it is a ~300 MB browser download that every contributor and every CI
+# job would otherwise pay for, to serve a job that runs a few times per
+# release. `loadPlaywright()` already looks in the global paths, so an
+# ad-hoc install is all this needs.
+#
+# Secrets/variables: the same VITE_FIREBASE_* the release workflow uses —
+# without them the build is mock-mode and the captures are of a demo app,
+# which is the exact thing this workflow exists to stop producing.
+
+name: Screenshots
+
+on:
+  workflow_dispatch:
+    inputs:
+      upload:
+        description: "Upload to App Store Connect (unticked = capture and attach as an artifact only)"
+        type: boolean
+        default: false
+      display_type:
+        description: "Apple ScreenshotDisplayType for the 6.9\" set"
+        type: choice
+        options: ["APP_IPHONE_67", "APP_IPHONE_69"]
+        default: "APP_IPHONE_67"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: screenshots
+  cancel-in-progress: false
+
+jobs:
+  capture:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      # The same production config the release build uses. check:web-firebase
+      # reads dist/ rather than the environment, so a missing value fails here
+      # instead of producing six screenshots of an empty app.
+      - name: Build with the production config
+        env:
+          VITE_FIREBASE_API_KEY: ${{ vars.VITE_FIREBASE_API_KEY }}
+          VITE_FIREBASE_AUTH_DOMAIN: ${{ vars.VITE_FIREBASE_AUTH_DOMAIN }}
+          VITE_FIREBASE_PROJECT_ID: ${{ vars.VITE_FIREBASE_PROJECT_ID }}
+          VITE_FIREBASE_APP_ID: ${{ vars.VITE_FIREBASE_APP_ID }}
+          VITE_FIREBASE_STORAGE_BUCKET: ${{ vars.VITE_FIREBASE_STORAGE_BUCKET }}
+          VITE_FIREBASE_MESSAGING_SENDER_ID: ${{ vars.VITE_FIREBASE_MESSAGING_SENDER_ID }}
+          VITE_FIREBASE_MEASUREMENT_ID: ${{ vars.VITE_FIREBASE_MEASUREMENT_ID }}
+        run: |
+          set -o pipefail
+          npm run build
+          npm run check:web-firebase
+
+      - name: Install Playwright (not a dependency of this repo)
+        run: |
+          set -o pipefail
+          npm i --no-save playwright
+          npx playwright install --with-deps chromium
+
+      - name: Capture
+        run: |
+          set -o pipefail
+          npm run build:screenshots | tee "$RUNNER_TEMP/shots.log"
+
+      # Always worth having, even when uploading: this is the thing a human
+      # should look at before it reaches a store listing.
+      - name: Keep the captures as an artifact
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: store-screenshots
+          path: design/store/screenshots/
+          if-no-files-found: error
+
+      - name: Upload to App Store Connect
+        if: ${{ inputs.upload }}
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          ASC_PRIVATE_KEY: ${{ secrets.ASC_PRIVATE_KEY }}
+        run: |
+          set -o pipefail
+          # No --allow-demo. If the fresh captures still carry demo-only
+          # affordances, that means the build did not reach live mode, and
+          # the right outcome is a failed job rather than a 2.3.3 rejection
+          # discovered days later by a reviewer.
+          node scripts/asc-push.mjs --screenshots --apply \
+            --display-type "${{ inputs.display_type }}" | tee -a "$RUNNER_TEMP/shots.log"
+
+      - name: Summary
+        if: always()
+        run: |
+          {
+            echo "### Screenshots"
+            echo ""
+            echo '```'
+            cat "$RUNNER_TEMP/shots.log" 2>/dev/null || echo "(failed before capture — see the step log)"
+            echo '```'
+            echo ""
+            if [ "${{ inputs.upload }}" = "true" ]; then
+              echo "Uploaded. Captions, ordering and the rest of the listing are \`asc-push\`'s"
+              echo "text mode — this workflow only moves images."
+            else
+              echo "**Download the \`store-screenshots\` artifact and look at them** before"
+              echo "re-running with upload ticked. The manifest records whether the app was"
+              echo "in live or demo mode, and which captures show controls a live user never"
+              echo "sees (D1) — the upload refuses those rather than warning."
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
