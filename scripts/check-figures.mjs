@@ -93,6 +93,21 @@ const surfaces = [...v2content.matchAll(/"surface":\s*"([^"]+)"/g)].map((m) => m
 const seededQuestions = (v2content.match(/"id":\s*"[^"]+"/g) || []).length;
 const dailyQuestions = surfaces.filter((s) => s === "daily").length;
 
+// The bank's wire size, for COSTS.md's cold-boot row. Parsed rather than
+// measured off the file, because the file is TypeScript around the data:
+// its bytes include a type annotation and whatever the generator's
+// formatter did that week, and neither of those ships to a device.
+//
+// One decimal place, and the gate compares the rounded value — the point is
+// to catch a promotion cycle moving the figure by kilobytes, not to make a
+// whitespace change red the tree.
+const bankKiB = (() => {
+  const head = "V2_QUESTIONS: V2SeedQuestion[] = ";
+  const body = v2content.slice(v2content.indexOf(head) + head.length);
+  const arr = JSON.parse(body.slice(0, body.lastIndexOf("];") + 1));
+  return Math.round((JSON.stringify(arr).length / 1024) * 10) / 10;
+})();
+
 if (!seededQuestions || !dailyQuestions) {
   console.error(
     "check-figures: found no questions in functions/src/v2content.ts.\n"
@@ -173,6 +188,29 @@ const FIGURES = [
     re: /test:rules` — (\d+) rules tests/,
     actual: rulesTests,
     fix: (n) => `"test:rules\` — ${n} rules tests"`,
+  },
+  // COSTS.md was covered by nothing until D66, which is how it came to
+  // quote a 369-document bank for two promotion cycles after the bank
+  // reached 389. It is the largest body of hand-maintained numbers in the
+  // repo, and most of them cannot be gated here — a dollar figure is an
+  // output of scripts/cost-model.mjs, and re-deriving it in this script
+  // would be a second copy of the model, which is the thing cost-arith.mjs
+  // exists to prevent. These two are the INPUTS: they come from the tree
+  // rather than from the model, they move on their own every promotion
+  // cycle, and they are what the cold-boot row is computed from.
+  {
+    file: "docs/COSTS.md",
+    what: "the question bank's document count (the cold-boot row)",
+    re: /\*\*\+(\d+) reads\*\* — the whole question bank/,
+    actual: seededQuestions,
+    fix: (n) => `"**+${n} reads** — the whole question bank"`,
+  },
+  {
+    file: "docs/COSTS.md",
+    what: "the question bank's wire size",
+    re: /(\d+\.\d) KiB of JSON/,
+    actual: bankKiB,
+    fix: (n) => `"${n} KiB of JSON"`,
   },
 ];
 

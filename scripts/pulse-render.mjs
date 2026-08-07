@@ -44,6 +44,7 @@ const CSS = `
   --axis:         #c3c2b7;
   --hairline:     rgba(11,11,11,0.10);
   --s1: #2a78d6; --s2: #eb6834; --s3: #1baf7a; --s4: #eda100;
+  --s5: #7b5bd6; --s6: #c2456d;
   --good: #0ca30c; --warning: #fab219; --serious: #ec835a; --critical: #d03b3b;
   --good-text: #006300;
 }
@@ -54,6 +55,7 @@ const CSS = `
     --ink: #ffffff; --ink-2: #c3c2b7; --ink-muted: #898781;
     --grid: #2c2c2a; --axis: #383835; --hairline: rgba(255,255,255,0.10);
     --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500;
+    --s5: #9a7cf0; --s6: #e0688c;
     --good-text: #0ca30c;
   }
 }
@@ -63,6 +65,7 @@ const CSS = `
   --ink: #ffffff; --ink-2: #c3c2b7; --ink-muted: #898781;
   --grid: #2c2c2a; --axis: #383835; --hairline: rgba(255,255,255,0.10);
   --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500;
+  --s5: #9a7cf0; --s6: #e0688c;
   --good-text: #0ca30c;
 }
 
@@ -240,6 +243,8 @@ const READ_SERIES = [
   { key: "topUp", label: "agg top-up", css: "--s2", why: "questions still under the k-floor, re-read at most once per 6h" },
   { key: "reseed", label: "reseed refetch", css: "--s3", why: "the bank re-read after a contentRev bump — charged per MAU, not DAU" },
   { key: "fanOut", label: "listener fan-out", css: "--s4", why: "every publish on today's aggregate delivers to every listening client. DAU²/400 — the quadratic one" },
+  { key: "rules", label: "rule reads", css: "--s5", why: "every get()/exists() in a security rule is a billed read — charged per ANSWER, not per open (D66)" },
+  { key: "server", label: "server reads", css: "--s6", why: "the agg transaction, the nightly velocity scan walking the ledger, and the reveal pipeline (D66)" },
 ];
 
 function tiles(items) {
