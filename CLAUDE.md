@@ -145,12 +145,15 @@ an emergency rules fix.
   the lenses. Four of the five have no live data source yet, and a lens
   invented to fill the row would be the fabrication D1 forbids
   (docs/MIRROR.md §3).
-- **`window.MapStats` is deterministic mock data, in live mode too.** It
-  drives how far a Map dot sits from the centre and every "people who
-  share this trait answered…" line. The answers and their placement are
-  real once live; how *typical* they are is not, and the You stop shows
-  no preview badge because that badge is keyed to population
-  (docs/MIRROR.md §5).
+- **`window.MapStats` is deterministic mock data, and it refuses in live
+  mode.** `dist`, `mode` and `dimVal` return **null** when `LIVE.enabled`
+  (D72) — null rather than a gate at each of the five call sites, so a
+  consumer that forgets the check fails a test instead of quietly
+  fabricating. It used to draw "48% of people your age chose the same"
+  from a hash of the question id, on the You stop, which shows no preview
+  badge because that badge is keyed to population (docs/MIRROR.md §5).
+  `groupLabel` still answers in both modes: it is a noun for the cohort,
+  not a claim about it.
 - **`src/v2/spec/` is the only copy of the spec layer.** The extracted
   prototype modules (`design/spec-modules/`) were deleted 2026-07-29 once
   the port was complete and they had diverged — they live in git history.

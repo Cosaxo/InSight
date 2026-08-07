@@ -4,6 +4,7 @@
 // spec-index.js load order is semantic — scripts/check-spec-globals.mjs
 // guards the wiring in CI.
 import React from 'react';
+import LIVE from '../data/live';
 import { ExplainBtn, ExplainSheet, EX_GLYPH } from './explain-sheet.jsx';
 import { RP_TESTS, RoseMini, TestRose } from './result-rose.jsx';
 import { IS_DATA } from './sample-data.js';
@@ -192,9 +193,22 @@ export function ResultProfileCard({ testKey, archetype, tagline }) {
   // fit strength, in dim points of separation from the runner-up
   const fit = arch ? (arch.gap < 5 ? 'close' : arch.gap >= 12 && arch.rms < 12 ? 'textbook' : 'clear') : 'clear';
   const streak = fit === 'close' ? near[0].a.name.replace(/^The /, '') : null;
-  // people of yours who landed on the same type
+  // People of yours who landed on the same type — EMPTY IN LIVE MODE (D72).
+  //
+  // `IS_DATA.people` is the prototype's seven invented friends and
+  // `IS_FRIEND_TYPES` assigns each of them a type per test; both are demo
+  // content, and data/live.ts replaces WORLD_FEED_QS, TEST_FEED_QS and
+  // WORLD_FEED_COMMENTS but has never touched IS_DATA. So a live account
+  // that finished a test — which the passive tests do from ordinary feed
+  // answers, with no sit-down flow — got up to four invented people drawn on
+  // its own result as though they were contacts. D1's words are "no seeded
+  // fake users, ever", and this was the one surface still doing it.
+  //
+  // Not a load-order guard: IS_DATA is an import and cannot be unset. The
+  // empty list needs no branch downstream — SigEmblem already maps over it,
+  // and an empty list maps to nothing.
   const sameType = (() => {
-    if (!arch) return [];
+    if (!arch || LIVE.enabled) return [];
     const map = (window.IS_FRIEND_TYPES || {})[testKey] || {};
     const ppl = IS_DATA.people || [];
     return ppl.filter(p => map[p.id] === arch.list[you].name);
