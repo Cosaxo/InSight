@@ -127,10 +127,14 @@ verdict.
    The session judges what the queue hands it; verdicts referencing ids
    not in the queue are rejected by rules. "Also moderate comment X"
    fails structurally.
-4. **Soft removal only.** A removed take is hidden
-   (`hiddenBy: "mod", policyLine`), content retained — reversible by
-   the maintainer, auditable after the fact, and still erased by
-   `deleteAccount` like everything else its author owns.
+4. **Soft removal only.** A removed take is hidden (`hidden: true`, with
+   the annotation — `by`, `policyLine`, `runId`, `at` — alongside it in
+   `hiddenMeta`), content retained — reversible by the maintainer,
+   auditable after the fact, and still erased by `deleteAccount` like
+   everything else its author owns. The split is not cosmetic: the read
+   rule compares against the boolean and nothing else, because only a bare
+   equality holds a *list* to the gate, and the author-visible soft-hide
+   this line promises was a `getDoc`-only guarantee until it did (D59).
 5. **Bounded blast radius.** Hard cap of 50 verdicts per run. Every
    verdict carries its policy line, run id and queue generation — the
    log is append-only, one entry per (take, generation), so a take

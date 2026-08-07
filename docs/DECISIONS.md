@@ -6031,3 +6031,129 @@ than re-deriving the list.
   unbounded and every `setItem` failure is a bare `catch {}`, which makes the
   quota cliff silent and self-inflicting; WorldFeed rebuilds all ~109 cards on
   every scroll-threshold crossing with no `React.memo` anywhere in `spec/`.
+
+---
+
+## D59 · A soft-hide that a query walked straight past: `hidden` becomes a required boolean
+
+**Date:** 2026-08-07 · **Status:** Adopted (owner: "fix the v2_takes query leak
+too"). Closes the one finding D58's "Not done" list called out as needing to be
+settled before any takes UI ships. Amends D22's moderation substrate; nothing
+else in D22 changes.
+
+**The bug, and why every existing test was green.** `v2_takes`' read gate was
+
+```
+&& (!("hidden" in resource.data) || resource.data.authorUid == request.auth.uid)
+```
+
+— a *presence* test against the moderator's annotation map. Every takes
+assertion in `firestore-tests/rules.test.ts` used `getDoc`, and `getDoc` was
+never the problem: a per-document rule is applied per document, so a member
+reading a hidden take by id was correctly denied and the suite said the
+soft-hide worked.
+
+A **list** is a different operation. Measured in the emulator against the
+shipped rules file:
+
+| operation | result |
+| --- | --- |
+| member `getDoc` on a hidden take | denied ✓ |
+| author `getDoc` on a hidden take | allowed ✓ |
+| stranger `where("gid","==",…)` | denied ✓ |
+| **member `where("gid","==",…)`** | **allowed — returned the hidden take, text and all** |
+
+The stranger row is the one that makes this a real finding rather than a
+guess about Firestore: rules *are* evaluated for queries, and the
+group-membership half of this very rule enforces correctly on the same query.
+It is specifically the presence test that Firestore cannot hold a list to,
+because a query carries no constraint it can compare `"hidden" in resource.data`
+against — and the engine's response is to allow, not to refuse.
+
+**Three shapes, all measured, because the obvious fix is also wrong.**
+
+```
+presence          !("hidden" in resource.data)        query LEAKS
+defaulted getter  data.get("hidden", false) == false  query LEAKS
+required boolean  data.hidden == false                query DENIED
+```
+
+The middle row is the trap and the reason this record exists. It reads as the
+safe, backward-compatible version — no migration, absent field treated as
+visible, the same idiom `isValidV2Anchors` and the `active` check already use
+elsewhere in this file — and it leaks exactly like the line it would replace.
+Nothing distinguishes the working shape from the broken one except running
+them.
+
+**What shipped.** `hidden` is a required boolean on every take, the annotation
+map moves to `hiddenMeta`, and the gate is a bare equality:
+
+- **Read:** `resource.data.hidden == false || resource.data.authorUid == uid`.
+- **Create:** `hidden` joins the `hasOnly` list *and* must equal `false`.
+  Required because the read gate is an equality — a take without the field
+  could never be read back — and required to be *false* because a client that
+  could post `hidden: true` would hide its own words from the circle while
+  leaving them in the moderation queue.
+- **Flags:** the same presence test in the `v2_flags` create rule became an
+  equality too. Not because it leaked — it is a `get()` on another document
+  inside a create, never a query predicate — but because once `hidden` is
+  always present, `!("hidden" in …)` is false for every take and **no flag
+  could ever be created again**. A field's shape is not a local change.
+- **`submitModVerdict`** writes `hidden: true` plus `hiddenMeta`. The
+  already-hidden skip in `buildModQueue` stays a truthiness test on purpose: a
+  take hidden before this change carries the old map, and a map is truthy where
+  `=== true` would silently re-queue every one of them.
+
+**The property this buys, which the old rule never had.** The gate now **fails
+closed**. A list without `where("hidden","==",false)` is refused outright, so a
+client that forgets the filter gets an error rather than other people's hidden
+words. That is the difference between the client's filter being a consequence
+of the rule and being a promise standing beside it — the distinction this
+repo's whole posture rests on. The author escape still serves the appeal path
+by id and does not widen a list: an author listing the circle passes the same
+filter and reaches their own hidden take only by `getDoc`.
+
+**Cost.** Two billed reads per take on the read path instead of one, since the
+gate reads the take and the rule's `get()` reads the group — unchanged from
+before, the equality is not what costs. The write path gains one indexed
+boolean per take.
+
+**What now proves it.** A list-shaped case in `rules.test.ts` asserting all
+three parts, each of which can rot independently: the unfiltered list is
+refused, the filtered list succeeds *without* the hidden take, and a stranger
+gets nothing either way. Reverting the gate to the presence test fails it.
+Two create cases pin the required-and-false shape. 47 → 49 rules tests.
+
+**Deliberately not done: the composite index.** The rule now mandates a
+two-equality list (`gid`, `hidden`), which in production needs a
+`(gid, hidden, createdAt)` composite — and no client code queries `v2_takes`
+at all yet, so the ordering that index must serve is unknown. Declaring one now
+means guessing a sort direction and paying an index write per take for a query
+nobody has written; not declaring it means the first such query fails with a
+console link that creates the right index. That is the cheaper error, and it is
+the same posture `firestore.indexes.json` already takes for the two indexes
+LAUNCH-RUNBOOK asks an operator to create by hand. Whoever builds the takes UI
+should expect to add it.
+
+**The general lesson, which is not about takes.** A per-document predicate and
+a per-query predicate are different guarantees, and reading this file cannot
+tell you which one a rule is enforcing. Any rule shaped "everyone in the set
+may read, EXCEPT documents where X" is a candidate list leak unless X is an
+equality on a concrete field the client query must also carry.
+
+**The rest of the ruleset was checked against that shape, not assumed safe.**
+The other four `in`-tests (`fcmTokens`, `testResults`, `logic`, `qid`) are all
+on `request.resource.data` inside write rules — no query, no exposure. The one
+genuine sibling is the reveal gate at `v2_groups/{gid}/reveals`
+(`uid in resource.data.get("members", [])`), which matters more than it looks
+because `firestore.indexes.json` ships a collection-group `CONTAINS` index on
+that exact field, so the listing path is not hypothetical. Probed in the
+emulator: an unfiltered collection-group query is **denied**, `array-contains`
+on another user's uid is **denied**, and a non-member `getDoc` is **denied** —
+it fails closed on every shape. No change needed there.
+
+That non-result is the actual finding. The same class of expression leaks in
+one rule and fails closed in another, and nothing about reading them predicts
+which. So the defence cannot be a style rule about how to write predicates; it
+is that a `getDoc` test proves nothing about a `getDocs` path. **Where a
+collection can be listed, test the list.**
