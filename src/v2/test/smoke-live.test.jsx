@@ -34,6 +34,8 @@ import { act, cleanup, fireEvent, render, screen, within } from "@testing-librar
 // the slowest cases sat at ~4.8s before it and tip over under suite load.
 vi.setConfig({ testTimeout: 15000 });
 import { FEED_OPTIONS, fixtureSurfaceMismatch, installLive } from "./live-fixture";
+import { list as anchorList } from "../spec/map-anchors.js";
+import { IS_TEST_RESULTS } from "../spec/test-definitions.js";
 
 const BOUNDARY_LOG = "[InSight] boundary caught:";
 const BOUNDARY_COPY = /This view hit a snag/i;
@@ -437,5 +439,117 @@ describe("live mode never inherits the sample persona (D55)", () => {
     // The old key is retired, so the migration cannot run a second time and
     // re-seed what the user has since cleared.
     expect(localStorage.getItem("insight.profileGeneral.v1")).toBeNull();
+  });
+
+  // ── the Map's anchor ring, the second place the persona reached ──
+  //
+  // The profile panel above was fixed; the ring at the centre of Mirror ·
+  // You was not, and it is the worse of the two because MirrorPreviewTag
+  // returns null for the You stop — sample data there wears no badge at
+  // all. Measured before the fix: a live build with a fresh account
+  // rendered "age 34 / born 1991", "Editor · independent press", "MA
+  // Literature · Univ. of Oslo" and four test results with invented
+  // "taken N ago" stamps, because every fallback in list() was a `||`
+  // onto IS_DATA.me.
+  //
+  // hydrate() is what clears the demo test results, and dispatching its
+  // event is how this file reaches that without booting live.ts — the
+  // event IS the contract between data/live.ts and test-definitions.js.
+  const hydrateTestResults = (results) => {
+    window.dispatchEvent(
+      new CustomEvent("insight:test-results", { detail: results }),
+    );
+  };
+  const DEMO_RING = [
+    "age 34", "Editor · independent press", "MA Literature · Univ. of Oslo",
+  ];
+
+  afterEach(() => {
+    // The demo seed is module state in test-definitions.js and these cases
+    // replace it. The purge listener restores it — the same path a uid
+    // change takes — so the demo-mode cases in this file and in
+    // smoke.test.jsx do not inherit an emptied object.
+    window.dispatchEvent(new Event("insight:local-purge"));
+  });
+
+  it("anchors nothing at all for an account that has supplied nothing", () => {
+    live = installLive();
+    hydrateTestResults({});
+
+    const ring = anchorList();
+    expect(
+      ring,
+      `the anchor ring invented ${JSON.stringify(ring.map((r) => r.value))}`,
+    ).toEqual([]);
+  });
+
+  it("anchors the viewer's own values, and only those", () => {
+    live = installLive({
+      anchors: { ageBand: "25-34", profession: "Nurse", education: "Bachelor" },
+    });
+    // One test taken, three not. The three must not fall back to Mira's.
+    hydrateTestResults({
+      big5: {
+        title: "Big Five", taken: "just now",
+        dims: [{ id: "O", label: "Openness", value: 51 }],
+      },
+    });
+
+    const ring = anchorList();
+    expect(ring.map((r) => r.id)).toEqual(["age", "job", "edu", "big5"]);
+    expect(ring.find((r) => r.id === "age").value).toBe("age 25-34");
+    expect(ring.find((r) => r.id === "job").value).toBe("Nurse");
+    expect(ring.find((r) => r.id === "edu").value).toBe("Bachelor");
+    expect(ring.find((r) => r.id === "big5").value).toBe("Openness 51");
+
+    const rendered = JSON.stringify(ring);
+    for (const demo of [...DEMO_RING, "Openness 78", "10 days ago"]) {
+      expect(rendered, `the persona's "${demo}" survived`).not.toContain(demo);
+    }
+  });
+
+  it("keeps the persona's ring in demo mode", () => {
+    // The control. Every assertion above passes if list() simply stopped
+    // returning anything, and mock mode is a shipped surface (README's
+    // `npm run dev`, and the store screenshots are taken on it).
+    const ring = anchorList();
+    expect(ring.length).toBe(7);
+    for (const demo of DEMO_RING) {
+      expect(ring.some((r) => r.value === demo || r.value.startsWith(demo)))
+        .toBe(true);
+    }
+  });
+
+  it("hides the profile's map card while the ring is empty", () => {
+    // The wiring half: list() is only correct if what renders reads it.
+    // MapThumbCard returns null on a zero-length ring.
+    live = installLive();
+    hydrateTestResults({});
+    errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    render(<App />);
+    openProfile();
+    expect(
+      screen.queryByText(/^Your map$/),
+      "the map card drew a ring with nothing in it",
+    ).toBeNull();
+  });
+
+  it("replaces the demo test results on hydration rather than merging over them", () => {
+    // Fix's other half, at the unit the bug was in: data/live.ts used to
+    // rebind `window.IS_TEST_RESULTS`, which no consumer has read since the
+    // D39 conversion — so a fresh live account kept the persona's Big Five,
+    // politics, values and attachment scores on every profile surface, and
+    // a result earned on another device never arrived.
+    expect(IS_TEST_RESULTS.big5, "the demo seed is missing — test is vacuous")
+      .toBeDefined();
+
+    hydrateTestResults({
+      values: { title: "Values", taken: "just now", dims: [] },
+    });
+
+    expect(Object.keys(IS_TEST_RESULTS)).toEqual(["values"]);
+    expect(IS_TEST_RESULTS.political, "a demo result survived hydration")
+      .toBeUndefined();
   });
 });
