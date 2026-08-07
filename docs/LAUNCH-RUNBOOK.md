@@ -408,6 +408,35 @@ left here is a **recapture against live data**, plus the two forms.
       release workflow (`IOS-RELEASE.md`). It deliberately does NOT touch
       screenshots, the privacy questionnaire or the age rating; those are
       attestations, and `STORE-FORMS.md` is the transcribe-by-hand answer.
+- [ ] **4.3b EU trader status (Digital Services Act) — a blocker nothing in
+      this repo knew about.** App Store Connect → **Business** → *Trader
+      Status*, or via the banner on the Apps list. Apple's wording: *"your
+      trader status must be provided or your apps will be removed from the
+      App Store in the EU."*
+
+      **Found 2026-08-07 by reading a console banner**, not by any check
+      here — which is the point worth keeping. `check:store-copy` and
+      `check:store-listing` hold what the repo can see; a store-side legal
+      requirement introduced after those were written is invisible to both,
+      and there is no gate that could have caught it.
+
+      Two things to decide before filling it in, and neither is a code
+      question:
+
+      - **Trader vs non-trader.** Declaring *trader* publishes a name,
+        address, phone and email on the listing. Declaring *non-trader*
+        keeps them private but costs EU distribution.
+      - **Which address.** D42 parked the ENK registration when Play was
+        deferred, so there is no company address to use — 0.3 records the
+        operator as a sole trader in Norway. A sole trader's address is a
+        home address, and this publishes it. **Norway is EEA, not EU**, so
+        the Norwegian storefront is unaffected either way; what is at stake
+        is the 27 EU storefronts.
+
+      Record whichever way this goes in `docs/DECISIONS.md` — it is a
+      privacy trade the way D41/D42 were cost trades, and the next person to
+      ask "why is a home address on the listing" deserves the reasoning
+      rather than a form.
 - [ ] **4.4 + 4.5 Privacy nutrition labels and the age rating — read, then
       one dispatch.** Mandatory; Apple accepts no submission without both.
 

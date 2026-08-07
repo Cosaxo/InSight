@@ -116,6 +116,8 @@
 
     "$expect": "12+ / 13+. Answer it deliberately rather than accepting a default.",
 
+    "$socialMediaQuestions": "App Store Connect announced NEW social-media questions on age ratings (banner seen 2026-08-07, App Information section). The fields above predate them, and asc-push PATCHes only the keys listed here — so anything Apple has added is left UNSET rather than answered, and an unset required field blocks submission rather than defaulting. Open the age rating form once by hand before relying on --age-rating, and if new keys exist, add them here with their reasoning. The three structural facts below are what they will turn on: users see each other's display names in reveals, there is no live free-text surface at launch (D1), and there is no global feed to be abused from.",
+
     "$guideline12": "1.2 demands four things of any app with user-generated content, and each has a real answer: filtering (moderation substrate deployed, MOD_ADVISORY = true, D22); a report mechanism (the control exists in the spec layer; the takes surface it attaches to is demo-only at launch); blocking (removeGroupMember / leaveGroup — removal from the circle IS the block, because D1 means circle members are the only people whose content you can see); and published contact info (olaftaule01@gmail.com on web/terms.html). If a reviewer asks how users block one another, say plainly that there is no global block because there is no global surface to be abused from."
   }
 }
