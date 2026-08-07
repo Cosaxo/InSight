@@ -395,10 +395,34 @@ const plan = [
     description: a.description,
     keywords: a.keywords,
     promotionalText: a.promotionalText,
-    whatsNew: a.whatsNew,
     supportUrl: s.supportUrl,
     marketingUrl: s.supportUrl,
   } },
+  // whatsNew IS a version localization field and belongs in the group
+  // above. It gets its own PATCH because Apple refuses it on a FIRST
+  // release — "What's New in This Version" has no meaning when there is no
+  // previous version — with a 409 naming the attribute. A PATCH is atomic,
+  // so one rejected field took the other five down with it: the run that
+  // taught this printed ✓ against description, keywords, promotionalText,
+  // supportUrl and marketingUrl, and wrote none of them.
+  //
+  // Split rather than state-modelled. The alternative was deciding up front
+  // whether the app has ever had a released version, which means encoding
+  // Apple's version state machine from the outside and guessing which of
+  // READY_FOR_SALE / PENDING_DEVELOPER_RELEASE / REPLACED_WITH_NEW_VERSION
+  // count. Apple already answers that question exactly; D73 is the whole
+  // argument for asking rather than guessing.
+  {
+    id: verLoc.id,
+    kind: "appStoreVersionLocalizations",
+    label: "version",
+    fields: { whatsNew: a.whatsNew },
+    // Only this 409, only this field. Any other failure still throws.
+    skipOn409:
+      "Apple refuses `whatsNew` on a first release — there is no previous\n"
+      + "      version for it to be new against. It will apply on the first UPDATE,\n"
+      + "      and listing.json already holds the text. Nothing to do.",
+  },
 ];
 
 let changes = 0;
@@ -411,17 +435,35 @@ if (TEXT) {
     }
     const keys = Object.keys(diff);
     if (!keys.length) { console.log(`  = ${group.label}: already matches listing.json`); continue; }
-    changes += keys.length;
-    for (const k of keys) {
-      const was = current[k] ?? "";
-      const short = (t) => (t.length > 60 ? `${t.slice(0, 57)}…` : t).replace(/\n/g, "⏎");
-      console.log(`  ${APPLY ? "✓" : "+"} ${group.label}.${k}: "${short(was)}" → "${short(diff[k])}"`);
-    }
-    if (APPLY) {
+
+    const short = (t) => (t.length > 60 ? `${t.slice(0, 57)}…` : t).replace(/\n/g, "⏎");
+    const report = (mark) => {
+      for (const k of keys) {
+        console.log(`  ${mark} ${group.label}.${k}: "${short(current[k] ?? "")}" → "${short(diff[k])}"`);
+      }
+    };
+
+    if (!APPLY) { changes += keys.length; report("+"); continue; }
+
+    // REPORT AFTER THE WRITE, never before. This printed ✓ first and
+    // PATCHed second, so a rejected field produced eight ticks and five
+    // unwritten fields — a summary describing an outcome the run did not
+    // have, which is the same failure the seed workflow and this repo's job
+    // summaries each shipped once. `+` before the write is fine; it is a
+    // statement of intent. `✓` is a statement of fact and has to be earned.
+    try {
       await call("PATCH", `/v1/${group.kind}/${group.id}`, {
         data: { type: group.kind, id: group.id, attributes: diff },
       });
+    } catch (err) {
+      if (group.skipOn409 && /→ 409\b/.test(err.message) && /cannot be edited/i.test(err.message)) {
+        console.log(`  — ${group.label}.${keys.join(", ")}: skipped. ${group.skipOn409}`);
+        continue;
+      }
+      throw err;
     }
+    changes += keys.length;
+    report("✓");
   }
 }
 
