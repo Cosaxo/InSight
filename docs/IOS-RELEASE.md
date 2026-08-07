@@ -252,11 +252,12 @@ with `CODE_SIGN_STYLE=Manual` and an explicit
 
 ---
 
-## What is proven, and what is not
+## What is proven — all of it, as of run 7
 
 It was written without an Apple account or a macOS runner to test against.
-Six dispatches have since moved all but one step from written to
-demonstrated. **Run 6 was green end to end** (`5a22bd2`, 6m 2s):
+**Run 7 closed the last gap** (`1b988c9`, 2026-08-07, 6m 41s, `upload =
+true`): every step in this workflow has now done its job against the real
+Apple, including the one that sends a binary.
 
 | Step | State |
 | --- | --- |
@@ -266,12 +267,21 @@ demonstrated. **Run 6 was green end to end** (`5a22bd2`, 6m 2s):
 | Archive, ad-hoc | proven (run 6) — `Signing Identity: "Sign to Run Locally"`, then `archive aps-environment = production` |
 | Export via cloud signing | proven (run 5), with an **Admin** key |
 | `aps-environment` gate | proven at both ends — it refused run 5's `.ipa` and passed run 6's |
-| Upload to App Store Connect | **untried.** Every run so far has been `upload = false`. |
+| **Upload to App Store Connect** | **proven (run 7)** — `UPLOAD SUCCEEDED with no errors`, delivery UUID `470b566a-8f2f-4664-a29e-df862d5761c7`, 5,876,676 bytes |
 
 The one thing worth reading twice: the archive's entitlement came out
 `production` under a throwaway ad-hoc signature, and survived being
 re-signed for distribution. That is the mechanism this whole section is
-about, and it is now measured rather than argued.
+about, and it is measured rather than argued.
+
+**Seven dispatches, six of them failures, and none of the failures
+repeated** — each bought one fact: a missing `VITE_FIREBASE_*`, a manual
+identity conflicting with automatic signing, automatic signing demanding a
+device the team does not have, an App-Manager key that cannot mint a
+distribution certificate, an unsigned archive with no entitlements to
+forward, and finally none. That is the shape to expect from anyone
+repeating this, and the reason each error is quoted verbatim above rather
+than summarised.
 
 Failures still worth recognising on sight:
 

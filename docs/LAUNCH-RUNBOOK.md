@@ -295,9 +295,19 @@ arithmetic.
       and it hard-gates on `check-store-copy --ios` before spending runner
       minutes.
 
+      **Build 1 UPLOADED 2026-08-07 (run 7, `upload = true`, 6m 41s).**
+      `UPLOAD SUCCEEDED with no errors`, delivery UUID
+      `470b566a-8f2f-4664-a29e-df862d5761c7`. That was the last untried step
+      in the release chain — every part of `ios-release.yml` has now done its
+      job against the real Apple.
+
       Repeat this whenever the shell or its config changes. `appBuild` must
       go up before any run with upload ticked — App Store Connect refuses a
-      build number it has seen, *after* the transfer completes.
+      build number it has seen, *after* the transfer completes, so a
+      forgotten bump costs a full run. **It is already at 2**, bumped
+      immediately after run 7 rather than left for the next person to
+      remember: the cost of bumping early is nothing, and the cost of
+      forgetting is ten minutes of macOS runner.
 
       *With a Mac, if you ever want to debug a signing failure
       interactively:* `npm run build && npx cap sync`, then `npm run ios`.
