@@ -4,6 +4,11 @@ Phase-2 collections. Access model per decisions D1/D3/D5
 (`docs/DECISIONS.md`): answers are owner-only forever; every shared surface
 is server-written (aggregates now, reveals in Phase 3).
 
+This file is the write side. For the read side — which of these documents
+each Mirror stop opens, how the anchors snapshot on an answer becomes the
+cohort the Mirror slices by, and what is still prototype data — see
+[`docs/MIRROR.md`](./MIRROR.md).
+
 ## Collections
 
 ```
