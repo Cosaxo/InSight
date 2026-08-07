@@ -137,6 +137,17 @@ const FIGURES = [
     actual: rulesTests,
     fix: (n) => `"${n} security-rules tests (Firestore + Storage)"`,
   },
+  // LOCAL-TESTING.md quoted this same figure ungated and drifted to 29
+  // while the suite ran 50 — the fourth README-style staleness, in the
+  // one doc a newcomer runs the suites from. `rulesTests` was already
+  // computed for the two README entries; this is the third consumer.
+  {
+    file: "docs/LOCAL-TESTING.md",
+    what: "rules tests (the test-suite block)",
+    re: /(\d+) security-rules tests \(Firestore \+ Storage emulators\)/,
+    actual: rulesTests,
+    fix: (n) => `"${n} security-rules tests (Firestore + Storage emulators)"`,
+  },
   {
     file: "docs/SHIP-CHECKLIST.md",
     what: "questions a seed run writes",

@@ -15,8 +15,10 @@ Firebase, no network. This is the fastest way to see or iterate on UI.
 
 ## Live mode (the real backend, locally)
 
-Prereqs: Node LTS, a JDK 11+ (the emulators are Java), and
-`npm i -g firebase-tools`.
+Prereqs: Node LTS, a JDK 21+ (the emulators are Java), and
+`npm i -g firebase-tools`. The floor is 21, not 11: firebase-tools 15
+requires it for the Firestore emulator, which is why
+`backend-checks.yml` pins Java 21 on both jobs that start one.
 
 ```bash
 cp .env.emulator .env          # dummy config + VITE_USE_EMULATOR + VITE_V2_LIVE
@@ -49,14 +51,53 @@ Emulator UI (inspect any document): <http://127.0.0.1:4000>.
 ## Test suites
 
 ```bash
-npm run test:rules      # 29 security-rules tests (Firestore + Storage emulators)
-# full SDK end-to-end (auth+firestore+functions):
-firebase emulators:exec --only auth,firestore,functions --project demo-insight \
-  "node firestore-tests/e2e-v2-loop.mjs"
+npm run test:rules            # 50 security-rules tests (Firestore + Storage emulators)
+npm run test:e2e              # full SDK loop (auth+firestore+functions)
+npm run test:e2e:erasure      # account deletion, end to end
+npm run test:e2e:moderation   # moderation transport
 ```
+
+The three e2e suites each have a `pre` script that builds `functions`
+first, so run them through npm rather than by hand — a raw
+`firebase emulators:exec` will happily run the *previous* build.
 
 ## Sandbox/CI note
 
-If emulator commands fail with `denied by policy` on localhost calls,
-run them with `HTTPS_PROXY` unset — firebase-tools routes even localhost
-HTTP through a proxy dispatcher when the variable is set.
+Behind an egress proxy, run the emulator suites with `HTTPS_PROXY`
+unset:
+
+```bash
+env -u HTTPS_PROXY -u https_proxy npm run test:e2e
+```
+
+Two different failures hide behind that one line, and only the first is
+obvious.
+
+**Localhost.** firebase-tools routes even localhost HTTP through a proxy
+dispatcher when the variable is set, so emulator-to-emulator calls come
+back `denied by policy`.
+
+**The trigger registration, which is the one that looks like a broken
+test.** Starting the *functions* emulator fetches remote config from
+`firebase-public.firebaseio.com`. If the proxy answers 403 to that
+CONNECT, firebase-tools parses the denial body as JSON and dies:
+
+```
+Error adding firestore function: FirebaseError: Unable to parse JSON:
+SyntaxError: Unexpected token 'd', "denied by "... is not valid JSON
+```
+
+Every function definition loads first, so the log looks healthy right up
+to the crash, and the message names neither the host nor the proxy.
+
+Unsetting the variable fixes it because the *same fetch still fails* —
+it just fails as a connection error, which firebase-tools already
+tolerates (`Unable to fetch the CLI MOTD and remote config. This is not
+a fatal error`). A refused connection is handled; a 403 body is parsed.
+Nothing about the run needs that host to succeed.
+
+Allowlisting `firebase-public.firebaseio.com` in the sandbox's egress
+policy also works, and is the better fix where you control the policy —
+it removes the env-var dance instead of routing around it. Verified
+2026-08-07: with the variable unset, `test:e2e`, `:erasure` and
+`:moderation` all pass in a proxied container that denies that host.

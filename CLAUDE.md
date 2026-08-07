@@ -155,9 +155,15 @@ an emergency rules fix.
   prototype modules (`design/spec-modules/`) were deleted 2026-07-29 once
   the port was complete and they had diverged — they live in git history.
   Ported files still cite them in header comments as provenance.
-- **The e2e cannot run in a sandbox that blocks
-  `firebase-public.firebaseio.com`** — the functions emulator will not
-  start. That is environmental, not a broken test.
+- **The e2e in a sandbox that blocks `firebase-public.firebaseio.com`
+  needs `HTTPS_PROXY` unset, not a policy change.** The functions
+  emulator will not start with the variable set: firebase-tools parses
+  the proxy's 403 body as JSON and dies registering the Firestore
+  trigger, naming neither the host nor the proxy. Unset it and the same
+  fetch fails as a connection error, which firebase-tools tolerates —
+  all three suites pass. Environmental, not a broken test, and **not a
+  reason to widen an egress allowlist** before trying the variable.
+  docs/LOCAL-TESTING.md § Sandbox/CI note has the failure text.
 
 ## House style
 
