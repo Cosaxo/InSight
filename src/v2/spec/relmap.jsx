@@ -40,11 +40,24 @@ import { useDialog } from './primitives.jsx';
       if (this.svgEl && !this.props.compact && !this.props.embedded) this.svgEl.addEventListener('wheel', this.onWheel, { passive: false });
       this._onWinResize = () => this.measure();
       window.addEventListener('resize', this._onWinResize);
+      // The purge (data/live.ts, D51): the relation/rename overrides live in
+      // insight.rmRelations.v1 and are baked into this component's state at
+      // construction — a mounted map would keep the previous account's circles
+      // until remount, and the next drag would persist them back. Re-derive
+      // from (now-empty) storage instead; no save(), which would re-create
+      // the purged key. An unmounted map needs nothing: the constructor
+      // re-reads storage on the next mount.
+      this._onPurge = () => this.setState({
+        groups: this.applyNames(DEFAULT_GROUPS), people: this.applyRel(defaultPeople()),
+        positions: {}, drill: [], selectedId: null, hoveredLegend: null, focusGroup: null, dropGroup: null, editing: false,
+      });
+      window.addEventListener('insight:local-purge', this._onPurge);
       this.measure();
     }
     componentWillUnmount() {
       if (this.svgEl) this.svgEl.removeEventListener('wheel', this.onWheel);
       if (this._onWinResize) window.removeEventListener('resize', this._onWinResize);
+      if (this._onPurge) window.removeEventListener('insight:local-purge', this._onPurge);
     }
 
     // How many CSS px one graph unit draws at. Label sizes are authored in
