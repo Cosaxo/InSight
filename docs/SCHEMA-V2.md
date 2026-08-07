@@ -159,12 +159,23 @@ surfaces are excluded from world aggregates.
 
 v2_takes/{takeId}                  circle-scoped comments (D1; MODERATION.md)
   gid, authorUid, qid?, text ≤280, createdAt (request.time)
-  hidden? { by, policyLine,        soft-hide (D22): the circle loses it,
-    runId, at }                    the author keeps reading it — appeal
-                                   stays possible against visible text
+  hidden  (bool, REQUIRED,         soft-hide (D22): the circle loses it,
+    false on create)               the author keeps reading it — appeal
+  hiddenMeta? { by, policyLine,    stays possible against visible text
+    runId, at }
 create: circle members, shape-validated · update: nobody (an edit
 invalidates the flags cast on what it used to say — delete and repost)
 delete: author · read: circle members, minus hidden-for-non-authors
+
+`hidden` is a required boolean rather than an optional annotation map, and
+a LIST of this collection must carry `where("hidden","==",false)` or it is
+refused. Both facts are one fact: the read gate is `hidden == false`, and
+only an equality on a present field is enforceable against a query — the
+presence test this replaced returned hidden takes to the whole circle on a
+`where("gid","==",…)` while denying the same document to `getDoc` (D65).
+An ordered list needs the `(gid ASC, hidden ASC, createdAt DESC)` composite
+in firestore.indexes.json — the only entry in that file's `indexes` array,
+declared ahead of the UI that will want it.
 (deleteAccount erases a user's takes and flags by uid query)
 
 v2_flags/{takeId}_{uid}            one flag per (take, user), write-only
@@ -263,7 +274,7 @@ not per boot. `LIVE.stats` reports `bankSource` / `answersFetched` /
 
 ## Verification
 
-- `npm run test:rules` — 48 rules tests (Firestore + Storage; the v2
+- `npm run test:rules` — 50 rules tests (Firestore + Storage; the v2
   surface, the anonymous-default lens, and the retired-v1 guard).
 - `firestore-tests/e2e-v2-loop.mjs` under
   `firebase emulators:exec --only auth,firestore,functions` — the full

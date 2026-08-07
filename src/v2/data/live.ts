@@ -180,12 +180,58 @@ function cacheVote(aid: string, optionIdx: number): void {
   }
 }
 
-function saveAggCache(): void {
+// How long a burst of agg snapshots is allowed to coalesce into one write.
+// Long enough to collapse a publish storm, short enough that a user who
+// backgrounds the app a second after voting still keeps the count.
+const AGG_CACHE_MS = 1000;
+let aggCacheTimer: ReturnType<typeof setTimeout> | null = null;
+
+function writeAggCache(): void {
   if (torndown) return;
   try {
     localStorage.setItem("insight.aggsCache.v1", JSON.stringify(state.aggs));
   } catch {
     /* best-effort */
+  }
+}
+
+// Coalesced, because the caller is the agg snapshot handler and the thing
+// being written is the WHOLE aggs map. The daily question is globally
+// shared, so every publish on it fans out to every listening client
+// (docs/COSTS.md finding 2) — at the fan-out rates that document already
+// predicts, an immediate write is ~0.7 full JSON.stringify/sec of the
+// entire map at 50k DAU and ~6.9/sec at 500k, synchronously on the main
+// thread inside the handler. The map itself is never pruned, so the cost
+// per serialisation grows with the session too.
+//
+// Leading-schedule/trailing-write rather than a restarting debounce: a
+// steady stream of publishes must still reach disk about once a second,
+// where a restarting timer would starve and write nothing until the burst
+// ended. State is read at write time, so nothing in the window is lost.
+function saveAggCache(): void {
+  if (torndown || aggCacheTimer) return;
+  aggCacheTimer = setTimeout(() => {
+    aggCacheTimer = null;
+    writeAggCache();
+  }, AGG_CACHE_MS);
+}
+
+// Drops a queued write. Hygiene rather than a leak fix, and it is worth
+// being exact about which: on the uid-change path `resetForNewUid` empties
+// `state.aggs` BEFORE it calls purgeLocalTrace, so the worst a surviving
+// timer writes is `{}` — no previous account's aggregate can ride it — and
+// deleteAccount is covered by `torndown` anyway. What this buys is one
+// fewer pointless write and no timer holding the old map alive.
+//
+// Measured, because the comment that used to sit here claimed more: with
+// this cancel removed, no test in the tree fails. The uid-change case in
+// vote.test.ts pins the contract that matters (nothing of the old account
+// survives) and that contract holds either way, because the new session
+// legitimately re-creates the key empty a moment later.
+function cancelAggCache(): void {
+  if (aggCacheTimer) {
+    clearTimeout(aggCacheTimer);
+    aggCacheTimer = null;
   }
 }
 
@@ -1380,6 +1426,10 @@ function publishTestResults(): void {
 // under the new one. Enumerating by prefix is the only version that stays
 // correct when a new key is added.
 function purgeLocalTrace(): void {
+  // A queued agg-cache write would otherwise land after the sweep below and
+  // re-create the key it just removed. See cancelAggCache for why that is
+  // tidiness rather than a leak — the map it would write is already empty.
+  cancelAggCache();
   try {
     const doomed: string[] = [];
     for (let i = 0; i < localStorage.length; i++) {
@@ -1553,7 +1603,19 @@ export async function initLive(timeoutMs = 2500): Promise<void> {
   }
   if (typeof document !== "undefined" && typeof document.addEventListener === "function") {
     document.addEventListener("visibilitychange", () => {
-      if (!document.hidden) wake();
+      if (!document.hidden) {
+        wake();
+        return;
+      }
+      // Hiding is the last callback a mobile WebView is guaranteed to get
+      // before the OS may kill it, and saveAggCache is coalesced now — so
+      // flush the pending write here rather than lose up to AGG_CACHE_MS
+      // of counts. Cancel first: writeAggCache is the timer's own body,
+      // and leaving the timer armed would write the same map twice.
+      if (aggCacheTimer) {
+        cancelAggCache();
+        writeAggCache();
+      }
     });
   }
   // Whether boot loses the race (slow network) or fails outright, the

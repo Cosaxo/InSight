@@ -146,6 +146,11 @@ async function runBuildModQueue(): Promise<void> {
       const take = await db.collection("v2_takes").doc(item.takeId).get();
       // A vanished take has nothing to moderate; an already-hidden one is
       // settled. Both fall out of the queue silently.
+      //
+      // Deliberately a truthiness test rather than `=== true`: `hidden` is a
+      // boolean now (D65), but a take hidden before that change carries the
+      // old annotation MAP here, and a map is truthy while `=== true` would
+      // silently re-queue every one of them.
       if (!take.exists || take.get("hidden")) continue;
       const escalations = priorEscalations.get(item.takeId) || 0;
       if (escalations > 0) carried += 1;
@@ -287,8 +292,15 @@ export const submitModVerdict = onCall({ ...LIGHT_CALLABLE, region: REGION }, as
       return;
     }
     if (verdict === "remove") {
+      // Two fields, because they answer to two different readers. `hidden`
+      // is the BOOLEAN the read rule compares against — it has to be a bare
+      // equality or the gate stops being enforceable on a list query (D65,
+      // and the long comment on that rule). `hiddenMeta` is the annotation
+      // this used to write into `hidden` itself: nobody's access decision
+      // turns on it, it exists so an appeal can be answered.
       tx.update(db.collection("v2_takes").doc(takeId), {
-        hidden: { by: "mod", policyLine, runId, at: FieldValue.serverTimestamp() },
+        hidden: true,
+        hiddenMeta: { by: "mod", policyLine, runId, at: FieldValue.serverTimestamp() },
       });
       tx.delete(queueRef);
     } else if (verdict === "keep") {

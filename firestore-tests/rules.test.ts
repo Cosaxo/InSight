@@ -12,7 +12,7 @@
 import { readFileSync } from "node:fs";
 import { resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
-import { afterAll, beforeAll, beforeEach, describe, it } from "vitest";
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import {
   assertFails,
   assertSucceeds,
@@ -25,6 +25,8 @@ import {
   doc,
   getDoc,
   getDocs,
+  query,
+  where,
   setDoc,
   updateDoc,
   deleteDoc,
@@ -847,7 +849,7 @@ describe("moderation substrate: takes + flags (docs/MODERATION.md, D22)", () => 
   });
   const take = (over: Record<string, unknown> = {}) => ({
     gid: GID, authorUid: OWNER, text: "hot take",
-    createdAt: serverTimestamp(), ...over,
+    createdAt: serverTimestamp(), hidden: false, ...over,
   });
   const flag = (takeId: string, uid: string, over: Record<string, unknown> = {}) => ({
     takeId, gid: GID, uid, at: serverTimestamp(), ...over,
@@ -883,8 +885,8 @@ describe("moderation substrate: takes + flags (docs/MODERATION.md, D22)", () => 
     await seed(async (db) => {
       await setDoc(doc(db, "v2_takes", "t_hidden"), {
         gid: GID, authorUid: OWNER, text: "over the line",
-        createdAt: new Date(),
-        hidden: { by: "mod", policyLine: "H1" },
+        createdAt: new Date(), hidden: true,
+        hiddenMeta: { by: "mod", policyLine: "H1" },
       });
     });
     await assertFails(getDoc(doc(asUser(FRIEND), "v2_takes", "t_hidden")));
@@ -892,15 +894,78 @@ describe("moderation substrate: takes + flags (docs/MODERATION.md, D22)", () => 
     await assertSucceeds(getDoc(doc(asUser(OWNER), "v2_takes", "t_hidden")));
   });
 
+  // The case whose absence WAS the bug (D65). Every take assertion above
+  // this line uses getDoc, and getDoc was never the leak: a per-document
+  // rule is applied per document. A LIST is a different operation, and the
+  // old presence-test gate (`!("hidden" in resource.data)`) gave Firestore
+  // nothing it could check the query's constraints against — so it returned
+  // the hidden take, text and all, to a non-author member of the circle.
+  //
+  // Three assertions, because the fix has three parts and each can rot
+  // independently: the unfiltered list must be REFUSED (fail-closed, so a
+  // client that forgets the filter gets an error rather than other people's
+  // hidden words), the filtered list must succeed WITHOUT the hidden take,
+  // and a stranger must still get nothing either way.
+  it("listing a circle's takes cannot return a hidden one — and is refused without the filter", async () => {
+    await seedCircle();
+    await seed(async (db) => {
+      await setDoc(doc(db, "v2_takes", "t_visible"), {
+        gid: GID, authorUid: OWNER, text: "fine", createdAt: new Date(), hidden: false,
+      });
+      await setDoc(doc(db, "v2_takes", "t_hidden"), {
+        gid: GID, authorUid: OWNER, text: "over the line",
+        createdAt: new Date(), hidden: true,
+        hiddenMeta: { by: "mod", policyLine: "H1" },
+      });
+    });
+    const takesOf = (uid: string) => collection(asUser(uid), "v2_takes");
+
+    // Fail-closed: no `hidden` predicate, no list. This is the assertion
+    // that keeps the client's filter honest — drop the where() in app code
+    // and the query stops working rather than starting to leak.
+    await assertFails(getDocs(query(takesOf(FRIEND), where("gid", "==", GID))));
+
+    // …and with it, the circle sees the circle's takes minus the hidden one.
+    const visible = await assertSucceeds(
+      getDocs(query(takesOf(FRIEND), where("gid", "==", GID), where("hidden", "==", false))),
+    );
+    expect(visible.docs.map((d) => d.id)).toEqual(["t_visible"]);
+
+    // The author's list is not a way around it either: the appeal path is
+    // getDoc by id (asserted above), not a broader query.
+    await assertFails(getDocs(query(takesOf(OWNER), where("gid", "==", GID))));
+
+    // A stranger gets nothing, filtered or not.
+    await assertFails(getDocs(query(takesOf(STRANGER), where("gid", "==", GID))));
+    await assertFails(getDocs(
+      query(takesOf(STRANGER), where("gid", "==", GID), where("hidden", "==", false)),
+    ));
+  });
+
+  it("a client cannot post a take that is already hidden, or omit the flag", async () => {
+    await seedCircle();
+    // Omitted: the read gate is an equality, so a take without the field
+    // could never be read back — better refused at the door.
+    await assertFails(setDoc(doc(asUser(OWNER), "v2_takes", "t_nofield"), {
+      gid: GID, authorUid: OWNER, text: "no flag", createdAt: serverTimestamp(),
+    }));
+    // Pre-hidden: would hide the author's own words from the circle while
+    // leaving them in the moderation queue.
+    await assertFails(setDoc(doc(asUser(OWNER), "v2_takes", "t_prehidden"),
+      take({ hidden: true })));
+    await assertSucceeds(setDoc(doc(asUser(OWNER), "v2_takes", "t_ok"), take()));
+  });
+
   it("flags: one per (take, user), members only, write-only, never on hidden takes", async () => {
     await seedCircle();
     await seed(async (db) => {
       await setDoc(doc(db, "v2_takes", "t2"), {
         gid: GID, authorUid: OWNER, text: "contested", createdAt: new Date(),
+        hidden: false,
       });
       await setDoc(doc(db, "v2_takes", "t_gone"), {
         gid: GID, authorUid: OWNER, text: "settled", createdAt: new Date(),
-        hidden: { by: "mod", policyLine: "H5" },
+        hidden: true, hiddenMeta: { by: "mod", policyLine: "H5" },
       });
     });
     await assertSucceeds(setDoc(

@@ -16,12 +16,15 @@ import {
   birthClusters,
   burstSignal,
   cadenceSignal,
+  emptyFold,
+  foldInto,
   foldWindow,
   isAggregateSurface,
   mergeDays,
   pruneDays,
   utcDayKey,
   type DayCounts,
+  type LedgerRow,
 } from "./velocity";
 
 describe("utcDayKey", () => {
@@ -230,6 +233,45 @@ describe("window fold and state", () => {
     expect(fold.perUid.get("a")).toHaveLength(3);
     expect(fold.perDayQid["2026-08-06"]).toEqual({ q1: 2, q2: 1 });
     expect(fold.perDayQid["2026-08-07"]).toEqual({ q1: 1 });
+  });
+
+  // The scan folds page by page so it never holds the window in RAM
+  // (velocity.ts). That is only safe if paging is invisible to the result:
+  // a uid or a (day, qid) split across a page boundary has to land in the
+  // same bucket it would have from one call. Split at 1 to force every
+  // boundary that matters — both of "a"'s 2026-08-06 answers, and the two
+  // sides of the midnight rollover, fall in different pages.
+  it("folds page by page to the same result as folding the whole window", () => {
+    const t0 = Date.parse("2026-08-06T10:00:00Z");
+    const rows: LedgerRow[] = [
+      { uid: "a", qid: "q1", atMs: t0 },
+      { uid: "a", qid: "q2", atMs: t0 + 1000 },
+      { uid: "b", qid: "q1", atMs: t0 + 2000 },
+      { uid: "a", qid: "q1", atMs: Date.parse("2026-08-07T00:00:01Z") },
+    ];
+    const whole = foldWindow(rows);
+    for (const size of [1, 2, 3, 4, 99]) {
+      const paged = emptyFold();
+      for (let i = 0; i < rows.length; i += size) {
+        foldInto(paged, rows.slice(i, i + size));
+      }
+      expect(paged.entries).toBe(whole.entries);
+      expect(paged.perDayQid).toEqual(whole.perDayQid);
+      expect([...paged.perUid.entries()].sort()).toEqual(
+        [...whole.perUid.entries()].sort(),
+      );
+    }
+  });
+
+  // An empty page must not create buckets — the scan calls foldInto for
+  // every page including a final short one that can filter down to zero
+  // rows (entries with no uid predate D28's attribution field).
+  it("folding an empty page changes nothing", () => {
+    const acc = emptyFold();
+    foldInto(acc, []);
+    expect(acc.entries).toBe(0);
+    expect(acc.perUid.size).toBe(0);
+    expect(acc.perDayQid).toEqual({});
   });
 
   it("merges window counts into state without losing either side", () => {

@@ -222,21 +222,34 @@ export interface WindowFold {
   perDayQid: DayCounts;
 }
 
-export function foldWindow(rows: LedgerRow[]): WindowFold {
-  const perUid = new Map<string, number[]>();
-  const perDayQid: DayCounts = {};
+export function emptyFold(): WindowFold {
+  return { entries: 0, perUid: new Map(), perDayQid: {} };
+}
+
+// Fold a batch INTO an existing accumulator. The scan calls this once per
+// page so it never holds the whole window as LedgerRow objects: a row is
+// ~5 machine words (two string refs, a double, object header), while the
+// fold keeps one packed double per entry plus one Map slot per uid. That
+// is the difference between a 256 MiB instance surviving the 72 h
+// catch-up window and OOM-ing on it — see the scan below.
+export function foldInto(acc: WindowFold, rows: LedgerRow[]): WindowFold {
   for (const r of rows) {
-    let times = perUid.get(r.uid);
+    let times = acc.perUid.get(r.uid);
     if (!times) {
       times = [];
-      perUid.set(r.uid, times);
+      acc.perUid.set(r.uid, times);
     }
     times.push(r.atMs);
     const day = utcDayKey(r.atMs);
-    const forDay = perDayQid[day] || (perDayQid[day] = {});
+    const forDay = acc.perDayQid[day] || (acc.perDayQid[day] = {});
     forDay[r.qid] = (forDay[r.qid] || 0) + 1;
   }
-  return { entries: rows.length, perUid, perDayQid };
+  acc.entries += rows.length;
+  return acc;
+}
+
+export function foldWindow(rows: LedgerRow[]): WindowFold {
+  return foldInto(emptyFold(), rows);
 }
 
 export function mergeDays(state: DayCounts, add: DayCounts): DayCounts {
@@ -294,7 +307,19 @@ export const ledgerVelocityScan = onSchedule(
     // next run picks it up. (An entry sharing the exact max timestamp
     // across docs could be skipped once; one entry of undercount in a
     // day's statistics, harmless for this purpose.)
-    const rows: LedgerRow[] = [];
+    // Folded PER PAGE rather than accumulated. The window is bounded by
+    // WINDOW_CAP_MS, not by DAU, so at ~9 x DAU entries a 50 k-DAU catch-up
+    // is ~450 k rows — which buffered as LedgerRow objects exceeds
+    // LIGHT_UNBOUNDED's 256 MiB (ops.ts) and kills the instance. The
+    // failure is worse than a lost run: `lastScanAt` is written at the END
+    // of this function, so an OOM leaves the cursor unmoved and the next
+    // run re-reads the same capped window and dies identically, forever,
+    // with D28's only detector silently dead. Folding per page keeps peak
+    // live memory at one PAGE of rows plus the fold itself.
+    const fold = emptyFold();
+    // Tracked here rather than reduced over `rows` at the end, for the same
+    // reason: there is no `rows` to reduce over any more.
+    let maxAt = windowStart;
     let cursor: FirebaseFirestore.QueryDocumentSnapshot | null = null;
     for (;;) {
       let q = db
@@ -305,20 +330,22 @@ export const ledgerVelocityScan = onSchedule(
         .limit(PAGE);
       if (cursor) q = q.startAfter(cursor);
       const page = await q.get();
+      const pageRows: LedgerRow[] = [];
       for (const d of page.docs) {
         const uid = d.get("uid");
         const at = d.get("at") as Timestamp | undefined;
         // Entries without a uid predate D28's attribution field; they
         // can still be inside the window shortly after that deploy.
         if (typeof uid === "string" && uid && at) {
-          rows.push({ uid, qid: String(d.get("qid") || ""), atMs: at.toMillis() });
+          const atMs = at.toMillis();
+          pageRows.push({ uid, qid: String(d.get("qid") || ""), atMs });
+          if (atMs > maxAt) maxAt = atMs;
         }
       }
+      foldInto(fold, pageRows);
       if (page.size < PAGE) break;
       cursor = page.docs[page.docs.length - 1];
     }
-
-    const fold = foldWindow(rows);
 
     // Signals 1 + 2: per-uid volume and cadence.
     let volumeFlags = 0;
@@ -389,7 +416,6 @@ export const ledgerVelocityScan = onSchedule(
       }
     }
 
-    const maxAt = rows.reduce((m, r) => Math.max(m, r.atMs), windowStart);
     await stateRef.set({ lastScanAt: maxAt, days: pruneDays(merged) });
 
     // The heartbeat — the scheduledDuelReveals pattern: the message is
