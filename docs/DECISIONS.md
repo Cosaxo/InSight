@@ -6124,16 +6124,32 @@ refused, the filtered list succeeds *without* the hidden take, and a stranger
 gets nothing either way. Reverting the gate to the presence test fails it.
 Two create cases pin the required-and-false shape. 47 → 49 rules tests.
 
-**Deliberately not done: the composite index.** The rule now mandates a
-two-equality list (`gid`, `hidden`), which in production needs a
-`(gid, hidden, createdAt)` composite — and no client code queries `v2_takes`
-at all yet, so the ordering that index must serve is unknown. Declaring one now
-means guessing a sort direction and paying an index write per take for a query
-nobody has written; not declaring it means the first such query fails with a
-console link that creates the right index. That is the cheaper error, and it is
-the same posture `firestore.indexes.json` already takes for the two indexes
-LAUNCH-RUNBOOK asks an operator to create by hand. Whoever builds the takes UI
-should expect to add it.
+**The composite index, added on the owner's call.** This record's first draft
+deferred it, on the grounds that no client queries `v2_takes` yet so the sort
+order was a guess. Overruled, and the reasoning was thin anyway: the guess is
+not much of one — a circle's comment list is newest-first or it is nothing —
+and the deferral traded a known index write per take against a production
+query that fails on its first run.
+
+```
+v2_takes · COLLECTION · gid ASC, hidden ASC, createdAt DESC
+```
+
+`firestore.indexes.json` went from `"indexes": []` to holding this one, which
+is worth noting for a reason beyond takes: `check:deploy-targets` forbids
+`--force` on any firestore target precisely because that flag deletes every
+index the live project holds and this file does not name. That guard now
+protects a real entry rather than an empty list.
+
+**What is and is not verified.** The file is accepted by firebase-tools' own
+`validateSpec` (run against it directly, not eyeballed). The index's necessity
+and sufficiency are **not** emulator-testable: the Firestore emulator does not
+enforce composite indexes, which is also why the list case in `rules.test.ts`
+passes without one — two equality filters and no `orderBy` is served by
+single-field index merging in production too, so that test would not have
+needed this index regardless. The first query that adds `orderBy("createdAt")`
+is what needs it, and no such query exists yet to run. If the takes UI wants a
+different order, the production error names the index to add.
 
 **The general lesson, which is not about takes.** A per-document predicate and
 a per-query predicate are different guarantees, and reading this file cannot

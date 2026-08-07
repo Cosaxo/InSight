@@ -152,8 +152,9 @@ refused. Both facts are one fact: the read gate is `hidden == false`, and
 only an equality on a present field is enforceable against a query — the
 presence test this replaced returned hidden takes to the whole circle on a
 `where("gid","==",…)` while denying the same document to `getDoc` (D59).
-A list needs a (gid, hidden, createdAt) composite index, deliberately not
-declared yet — no client queries takes, so its sort order is unknown.
+An ordered list needs the `(gid ASC, hidden ASC, createdAt DESC)` composite
+in firestore.indexes.json — the only entry in that file's `indexes` array,
+declared ahead of the UI that will want it.
 (deleteAccount erases a user's takes and flags by uid query)
 
 v2_flags/{takeId}_{uid}            one flag per (take, user), write-only
