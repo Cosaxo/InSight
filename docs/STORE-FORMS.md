@@ -181,15 +181,69 @@ reaches users.
 3. **No live free-text surface at launch.** Takes are circle-scoped (D1)
    and demo-only in a shipping build.
 
-### Other answers
+### Every answer, keyed by the field Apple actually stores
 
-| Question | Answer |
-| --- | --- |
-| Unrestricted web access | **No** — the app opens no arbitrary web content |
-| Made for Kids | **No** |
-| In-app purchases | **No** — `MONETIZATION.md` records no consumer paid tier at launch |
-| Chat / messaging between users | **No** at launch, per fact 3 above |
-| User-generated content | **Yes** — display names in reveals |
+Keyed by API name rather than by the label on the form, because the labels
+move and the keys do not — and because `check:store-forms` holds this table
+equal to `app-privacy.json`, key **and** value. That gate exists because the
+age-rating half of that file was ungated while the privacy half was, which is
+how eight required fields went unnoticed until a 409 named them one by one
+(D75).
+
+The value column is the literal JSON. Frequency questions are an enum
+(`"NONE"`), the rest are booleans — do not swap one for the other.
+
+| Field | The form asks | Answer |
+| --- | --- | --- |
+| `violenceCartoonOrFantasy` | Cartoon or Fantasy Violence | `"NONE"` |
+| `violenceRealistic` | Realistic Violence | `"NONE"` |
+| `violenceRealisticProlongedGraphicOrSadistic` | Prolonged Graphic or Sadistic Violence | `"NONE"` |
+| `profanityOrCrudeHumor` | Profanity or Crude Humor | `"NONE"` |
+| `matureOrSuggestiveThemes` | Mature/Suggestive Themes | `"NONE"` |
+| `horrorOrFearThemes` | Horror/Fear Themes | `"NONE"` |
+| `medicalOrTreatmentInformation` | Medical/Treatment Information | `"NONE"` |
+| `alcoholTobaccoOrDrugUseOrReferences` | Alcohol, Tobacco, or Drug Use | `"NONE"` |
+| `gamblingSimulated` | Simulated Gambling | `"NONE"` |
+| `sexualContentOrNudity` | Sexual Content or Nudity | `"NONE"` |
+| `sexualContentGraphicAndNudity` | Graphic Sexual Content | `"NONE"` |
+| `contests` | Contests | `"NONE"` |
+| `gunsOrOtherWeapons` | Guns or Other Weapons | `"NONE"` |
+| `gambling` | Gambling | `false` |
+| `unrestrictedWebAccess` | Unrestricted web access | `false` |
+| `userGeneratedContent` | User-generated content | `true` |
+| `messagingAndChat` | Messaging or chat between users | `false` |
+| `advertising` | Advertising | `false` |
+| `lootBox` | Loot boxes | `false` |
+| `parentalControls` | Parental controls | `false` |
+| `ageAssurance` | Age assurance | `false` |
+| `healthOrWellnessTopics` | Health or wellness topics | `false` |
+
+The two that are not simply "no content of that kind":
+
+- **`userGeneratedContent` = `true`** is structural fact 1 above, and it is
+  what actually drives the rating. Display names in reveals.
+- **`messagingAndChat` = `false`** is structural fact 3, and it is the row
+  with a known expiry. Takes are circle-scoped (D1) and demo-only in a
+  shipping build, so nothing live carries user-to-user text. **It moves the
+  day takes go live**, together with `EMAILS_OR_TEXT_MESSAGES` in §1's
+  not-collected list — same trigger, and they must move together.
+
+Two were measured rather than asserted, on the same scan the frequency
+answers came from:
+
+- **`gunsOrOtherWeapons`** — zero hits across all five banks for gun, rifle,
+  pistol, firearm, weapon, knife, sword, bomb, shoot, ammo, bullet, blade,
+  dagger, missile, grenade.
+- **`healthOrWellnessTopics`** — three hits, none of them health content.
+  *Medicine* is one of four options on "Humanity's best invention?"; the
+  other two are Map taxonomy (the `Body` category's palette seed, and one
+  cuisine question filing under `Body / Health`). A category label is not a
+  health topic. The nearest real candidate is the personality and politics
+  profiles, and neither is health or wellness.
+
+Also **Made for Kids: No**, and **In-app purchases: No** — `MONETIZATION.md`
+records no consumer paid tier at launch. Neither is an
+`ageRatingDeclarations` attribute, so neither is in the table.
 
 **Expect 12+ / 13+.** Answer it deliberately rather than accepting a
 default.

@@ -21,12 +21,28 @@
 //      flipped it would read as a typo rather than a policy change.
 //   4. tracking.used is false. Tracking gates the entire form and carries
 //      an ATT prompt; it should never change as a side effect.
+//   5. Every age-rating answer agrees with the prose, KEY AND VALUE.
 //
-// It does NOT check purposes, linkage or the age-rating answers against
-// the prose — those are prose sentences rather than table cells, and a
-// checker that pretends to parse them would give false confidence. The
-// age rating is covered by asc-push.test.mjs instead, which asserts the
-// $-commentary keys never reach Apple.
+// Rule 5 was added after the age rating failed to push at all. The privacy
+// half of app-privacy.json was gated by rules 1-4 from the day it was
+// written; the age-rating half in the same file was gated by nothing, and
+// this header used to explain why — "those are prose sentences rather than
+// table cells, and a checker that pretends to parse them would give false
+// confidence".
+//
+// That was true of the prose as it stood, and it was the wrong conclusion.
+// The fix for a table nobody can parse is to write a table, not to stop
+// checking. Apple added eight required attributes; the file answered none
+// of them; nothing noticed until a live 409 named them one at a time
+// (D75). STORE-FORMS.md now carries every attribute keyed by its API name
+// with the literal JSON value, so this is an exact comparison rather than a
+// pretend one.
+//
+// It still does NOT check purposes or linkage — those genuinely are prose.
+// It also cannot know when Apple ADDS a field, which is the failure that
+// produced it: no gate reading this checkout can. What it guarantees is
+// narrower and worth having — that the answer a human reviewed and the
+// answer that gets pushed are the same answer.
 //
 // Run: node scripts/check-store-forms.mjs
 
@@ -99,8 +115,65 @@ if (privacy.tracking?.used !== false) {
   );
 }
 
+// ── 5. the age rating, key and value ────────────────────────────────
+// The table rows look like:
+//   | `gunsOrOtherWeapons` | Guns or Other Weapons | `"NONE"` |
+// Only the first and last cells are read. The middle one is Apple's label,
+// which moves between form revisions and is here for the human.
+const ageTable = new Map();
+for (const m of prose.matchAll(/^\|\s*`(\w+)`\s*\|[^|]*\|\s*`([^`]+)`\s*\|/gm)) {
+  ageTable.set(m[1], m[2]);
+}
+// $-prefixed keys are commentary for whoever reviews the file. Filtering
+// them here rather than stripping them from the JSON keeps each reason next
+// to the value it explains, which is the whole reason that file is readable.
+const ageJson = Object.entries(privacy.ageRating || {}).filter(([k]) => !k.startsWith("$"));
+
+if (!ageTable.size) {
+  errors.push(
+    "docs/STORE-FORMS.md has no age-rating table this can read.\n"
+    + "    Expected rows shaped `| `fieldName` | label | `value` |`. If the table\n"
+    + "    moved, fix the pattern here — do not delete this rule. It exists\n"
+    + "    because the age rating was ungated once already, and eight required\n"
+    + "    attributes went missing until Apple rejected the whole PATCH.",
+  );
+}
+
+for (const [key, value] of ageJson) {
+  // kidsAgeBand is null and is not a form answer — it is the absence of a
+  // Made for Kids band, which the prose states in a sentence because there
+  // is no attribute to tabulate.
+  if (value === null) continue;
+  if (!ageTable.has(key)) {
+    errors.push(
+      `app-privacy.json answers ageRating.${key}, but docs/STORE-FORMS.md's\n`
+      + "    table does not list it. An answer pushed to Apple that nobody wrote\n"
+      + "    down is invisible in review — add the row.",
+    );
+    continue;
+  }
+  const claimed = ageTable.get(key);
+  if (claimed !== JSON.stringify(value)) {
+    errors.push(
+      `ageRating.${key}: app-privacy.json says ${JSON.stringify(value)},\n`
+      + `    docs/STORE-FORMS.md says ${claimed}. One of them is what a human\n`
+      + "    approved and the other is what gets pushed; they cannot differ.",
+    );
+  }
+}
+for (const key of ageTable.keys()) {
+  if (!ageJson.some(([k]) => k === key)) {
+    errors.push(
+      `docs/STORE-FORMS.md's table answers ${key}, but app-privacy.json does\n`
+      + "    not. Apple rejects the whole PATCH for one missing required\n"
+      + "    attribute, so a documented answer that never ships blocks every\n"
+      + "    other answer with it.",
+    );
+  }
+}
+
 if (errors.length) {
-  console.error("\ncheck-store-forms: the two copies of the privacy answers disagree:\n");
+  console.error("\ncheck-store-forms: the two copies of the store answers disagree:\n");
   for (const e of errors) console.error(`  ${e}\n`);
   console.error(
     "  design/store/app-privacy.json is what gets pushed to Apple;\n"
@@ -111,6 +184,7 @@ if (errors.length) {
 }
 
 console.log(
-  `check-store-forms OK — ${jsonTypes.size} collected type(s) agree across `
-  + "app-privacy.json and STORE-FORMS.md; tracking off; Precise Location absent.",
+  `check-store-forms OK — ${jsonTypes.size} collected type(s) and ${ageTable.size} `
+  + "age-rating answer(s) agree across app-privacy.json and STORE-FORMS.md; "
+  + "tracking off; Precise Location absent.",
 );

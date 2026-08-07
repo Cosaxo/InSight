@@ -115,11 +115,37 @@
     "unrestrictedWebAccess": false,
     "kidsAgeBand": null,
 
+    "$new2025": "The eight below are Apple's newer questions — the ones $socialMediaQuestions predicted. They are REQUIRED: omitting them makes the PATCH 409 with 'You must provide a value for the attribute …', naming each one (D75). Types are Apple's: seven booleans and one frequency enum, taken from the App Store Connect OpenAPI spec rather than inferred from the field names.",
+
+    "userGeneratedContent": true,
+    "$userGeneratedContent": "Yes, and it is the one that actually drives the rating. Group and duel reveals show display names — user-generated content on any version of this form, whatever the content answers say. STORE-FORMS.md structural fact 1.",
+
+    "messagingAndChat": false,
+    "$messagingAndChat": "No AT LAUNCH. Takes are circle-scoped (D1) and demo-only in a shipping build; the Comments and Who-voted controls are !S.live-gated, so no live surface carries user-to-user text. Display names are UGC, not chat. THIS ROW CHANGES THE DAY TAKES GO LIVE, together with EMAILS_OR_TEXT_MESSAGES in notCollected above — they have the same trigger and must move together.",
+
+    "advertising": false,
+    "$advertising": "No ad SDK of any kind. The Facebook SDK arrives only as a transitive SwiftPM dependency of @capacitor-firebase/authentication and is stripped at postinstall (D16); check:ios-facebook asserts its absence on every CI run.",
+
+    "lootBox": false,
+    "$lootBox": "No in-app purchases at all, so nothing randomised to sell. MONETIZATION.md records no consumer paid tier at launch.",
+
+    "parentalControls": false,
+    "$parentalControls": "The app ships none. This asks what the app PROVIDES, not what it needs — answering yes without the feature is the over-declaration direction.",
+
+    "ageAssurance": false,
+    "$ageAssurance": "No age verification or estimation mechanism. Anonymous-first auth (D3) collects no birth date and nothing gates on age.",
+
+    "healthOrWellnessTopics": false,
+    "$healthOrWellnessTopics": "Measured across all five committed banks, not assumed: three hits, none of them health content. 'Medicine' is one of four options on \"Humanity's best invention?\"; the other two are Map taxonomy — CAT_META's Body category carries seedId 'health' for its palette hue, and one cuisine question files under ['Body','Health']. A category label is not a health topic. The nearest real candidate is the personality and politics profiles, and neither is health or wellness. Re-run the scan if the banks grow substantially, on the same trigger as the content scan above.",
+
+    "gunsOrOtherWeapons": "NONE",
+    "$gunsOrOtherWeapons": "Measured across all five committed banks for gun, rifle, pistol, firearm, weapon, knife, sword, bomb, shoot, ammo, bullet, blade, dagger, missile and grenade: ZERO hits. A frequency enum rather than a boolean, so NONE rather than false — the type came from Apple's spec, because guessing boolean here is a 400 that reads like a wrong value.",
+
     "$structural": "These three are what actually drive the rating, and they are structural rather than content facts: users see each other's display names in group and duel reveals (user-generated content and social interaction on any version of this form, whatever the content answers say); coarse location exists and is optional (D9); and there is no live free-text surface at launch, because takes are circle-scoped (D1) and demo-only in a shipping build.",
 
     "$expect": "12+ / 13+. Answer it deliberately rather than accepting a default.",
 
-    "$socialMediaQuestions": "App Store Connect announced NEW social-media questions on age ratings (banner seen 2026-08-07, App Information section). The fields above predate them, and asc-push PATCHes only the keys listed here — so anything Apple has added is left UNSET rather than answered, and an unset required field blocks submission rather than defaulting. Open the age rating form once by hand before relying on --age-rating, and if new keys exist, add them here with their reasoning. The three structural facts below are what they will turn on: users see each other's display names in reveals, there is no live free-text surface at launch (D1), and there is no global feed to be abused from.",
+    "$socialMediaQuestions": "ANSWERED — the eight $new2025 keys above are those questions. This note predicted them (banner seen 2026-08-07) and correctly predicted that asc-push would leave anything new UNSET, but it was wrong about the consequence in a way worth keeping: it said an unset required field 'blocks submission'. Apple is stricter than that — it rejects the whole PATCH with a 409 per missing attribute, so the age rating could not be written at all until every one was supplied (D75). A prediction that is right about the cause and wrong about the symptom still costs a debugging round. The three structural facts below are what these turn on, and they held: users see each other's display names in reveals, there is no live free-text surface at launch (D1), and there is no global feed to be abused from.",
 
     "$guideline12": "1.2 demands four things of any app with user-generated content, and each has a real answer: filtering (moderation substrate deployed, MOD_ADVISORY = true, D22); a report mechanism (the control exists in the spec layer; the takes surface it attaches to is demo-only at launch); blocking (removeGroupMember / leaveGroup — removal from the circle IS the block, because D1 means circle members are the only people whose content you can see); and published contact info (olaftaule01@gmail.com on web/terms.html). If a reviewer asks how users block one another, say plainly that there is no global block because there is no global surface to be abused from."
   }

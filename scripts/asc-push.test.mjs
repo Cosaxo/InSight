@@ -60,6 +60,18 @@ let refuseWhatsNew = true;
 /** Makes the app-info PATCH 409 too, to prove the skip is scoped. */
 let failNextAppInfoPatch = false;
 
+/**
+ * The attributes Apple's 409 named, verbatim and in its order. Exactly
+ * these eight rather than all twenty-two: these are what a live PATCH
+ * actually complained about, and the other fourteen were in the body so
+ * nothing was observed about them. Asserting more than was measured is how
+ * a stub starts testing itself.
+ */
+const AGE_RATING_REQUIRED = [
+  "ageAssurance", "userGeneratedContent", "lootBox", "messagingAndChat",
+  "healthOrWellnessTopics", "parentalControls", "gunsOrOtherWeapons", "advertising",
+];
+
 function json(res, body) {
   res.writeHead(200, { "content-type": "application/json" });
   res.end(JSON.stringify(body));
@@ -212,6 +224,31 @@ beforeAll(async () => {
       // stub accepted everything, so the split that keeps them apart could
       // not be tested — and the run that taught this printed ✓ against five
       // fields it never wrote.
+      // Apple REQUIRES every one of these on the declaration and rejects the
+      // whole PATCH — one error per missing attribute — if any is absent.
+      // That is how eight new fields were discovered: fourteen ✓ printed
+      // above a 409 that wrote nothing. The stub enforces it so the file
+      // cannot silently fall behind Apple's form a second time.
+      if (req.method === "PATCH" && url.pathname.startsWith("/v1/ageRatingDeclarations/")) {
+        const sent = parsed?.data?.attributes || {};
+        // Satisfied by the body OR by a value already on the declaration —
+        // asc-push sends only the diff, and Apple has no reason to demand a
+        // field it already holds. Modelled that way rather than "must be in
+        // every body", which would be inventing API behaviour nothing
+        // observed.
+        const missing = AGE_RATING_REQUIRED.filter(
+          (k) => sent[k] === undefined && existingRating[k] === undefined,
+        );
+        if (missing.length) {
+          res.writeHead(409, { "content-type": "application/json" });
+          return res.end(JSON.stringify({
+            errors: missing.map((k) => ({
+              title: "The provided entity is missing a required attribute",
+              detail: `You must provide a value for the attribute '${k}' with this request`,
+            })),
+          }));
+        }
+      }
       if (failNextAppInfoPatch && req.method === "PATCH"
           && url.pathname.startsWith("/v1/appInfoLocalizations/")) {
         res.writeHead(409, { "content-type": "application/json" });
@@ -387,6 +424,46 @@ describe("asc-push age rating", () => {
     existingRating = {};
     await push(["--age-rating", "--apply"]);
     expect(writes().every((w) => !w.path.includes("Localizations"))).toBe(true);
+  });
+
+  it("answers every attribute Apple requires", async () => {
+    // The gap this closes: app-privacy.json answered fourteen fields while
+    // Apple required twenty-two, and the eight missing ones rejected the
+    // whole PATCH. The stub 409s the same way, so a field dropped from the
+    // file fails here instead of on a live listing.
+    existingRating = {};
+    const out = await push(["--age-rating", "--apply"]);
+    const patch = writes().find((w) => w.path === `/v1/ageRatingDeclarations/${DECL_ID}`);
+    for (const k of AGE_RATING_REQUIRED) {
+      expect(patch.body.data.attributes, `${k} missing from the PATCH`).toHaveProperty(k);
+    }
+    // The two that carry a real claim rather than an absence.
+    expect(patch.body.data.attributes.userGeneratedContent).toBe(true);
+    expect(patch.body.data.attributes.messagingAndChat).toBe(false);
+    // A frequency enum, not a boolean — guessing the type here is a 400
+    // that reads like a wrong value.
+    expect(patch.body.data.attributes.gunsOrOtherWeapons).toBe("NONE");
+    expect(out).toMatch(/✓ ageRating\.userGeneratedContent/);
+  });
+
+  it("ticks nothing when the declaration PATCH is rejected", async () => {
+    // The failure that produced D74's second site: fourteen ✓ printed above
+    // a 409 that wrote none of them. Driven by dropping a required field,
+    // which is exactly how it happened.
+    const fixture = join(tmpdir(), `agerating-${process.pid}.json`);
+    const real = JSON.parse(readFileSync(join(root, "design/store/app-privacy.json"), "utf8"));
+    delete real.ageRating.userGeneratedContent;
+    writeFileSync(fixture, JSON.stringify(real));
+    try {
+      existingRating = {};
+      const err = await push(["--age-rating", "--apply", "--privacy-file", fixture])
+        .then(() => null, (e) => e);
+      expect(err, "expected a non-zero exit").not.toBeNull();
+      expect(String(err.stderr)).toMatch(/must provide a value for the attribute 'userGeneratedContent'/);
+      expect(String(err.stdout)).not.toMatch(/✓ ageRating\./);
+    } finally {
+      rmSync(fixture, { force: true });
+    }
   });
 });
 
