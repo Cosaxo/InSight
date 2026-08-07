@@ -7371,3 +7371,78 @@ stub is a first release by default because production is one. Verified by
 neutralising each fix and re-running rather than by reading the diff:
 restoring the pre-write tick fails one case (`expected … not to match /✓ app
 info\./`), and folding `whatsNew` back into the group body fails five.
+
+## D75 · Apple's eight new age-rating questions, and the half of the form nothing was checking
+
+**Decided:** 2026-08-07 · **Status:** binding
+
+`app-privacy.json` answered fourteen age-rating attributes. Apple requires
+twenty-two. The eight it had never heard of rejected the entire PATCH — one
+409 error per missing attribute, naming each — so the age rating could not be
+written at all, not merely written incompletely.
+
+The eight, with what each is answered from. Types are Apple's, read out of
+the App Store Connect OpenAPI spec rather than inferred from the names:
+seven booleans and one frequency enum, and guessing boolean for the enum
+would have been a 400 that reads like a wrong value.
+
+| Attribute | Answer | From |
+| --- | --- | --- |
+| `userGeneratedContent` | `true` | Display names in group and duel reveals. The one that actually drives the rating. |
+| `messagingAndChat` | `false` | Takes are circle-scoped (D1) and demo-only in a shipping build; Comments and Who-voted are `!S.live`-gated. |
+| `advertising` | `false` | No ad SDK. The Facebook SDK is transitive and stripped at postinstall (D16); `check:ios-facebook` asserts it. |
+| `lootBox` | `false` | No in-app purchases at all (`MONETIZATION.md`). |
+| `parentalControls` | `false` | The app provides none. The question asks what it offers, not what it needs. |
+| `ageAssurance` | `false` | No age verification or estimation; anonymous-first auth (D3) collects no birth date. |
+| `gunsOrOtherWeapons` | `"NONE"` | **Measured** — zero hits across all five committed banks for fifteen weapon terms. |
+| `healthOrWellnessTopics` | `false` | **Measured** — three hits, none of them health content. |
+
+The three health hits are recorded because "no hits" and "three hits I judged
+irrelevant" are different claims and only one of them is honest here:
+*Medicine* is one of four options on "Humanity's best invention?", and the
+other two are Map taxonomy — `CAT_META`'s `Body` category carries `seedId:
+'health'` for its palette hue, and one cuisine question files under
+`Body / Health`. A category label is not a health topic.
+
+**`messagingAndChat` has a known expiry.** It moves the day takes go live,
+together with `EMAILS_OR_TEXT_MESSAGES` in the not-collected list. Same
+trigger, and they must move together — which is also when Apple guideline 1.2
+stops being comfortable.
+
+**The prediction was right and still did not help.** `$socialMediaQuestions`
+was written the same day, from a banner in App Store Connect, and it called
+this exactly: Apple has added questions, `asc-push` PATCHes only the listed
+keys, so anything new is left unset. It got one thing wrong — it said an
+unset required field would "block submission". Apple is stricter: it rejects
+the write. Knowing the cause and mispredicting the symptom still cost a
+debugging round, because the note read as a thing to check later rather than
+a thing that would fail now.
+
+**So the real change is rule 5 of `check:store-forms`.** The privacy half of
+`app-privacy.json` had been gated against its prose since the day it was
+written. The age-rating half in the same file was gated by nothing, and that
+script's own header explained why: those answers "are prose sentences rather
+than table cells, and a checker that pretends to parse them would give false
+confidence".
+
+True of the prose as it stood, and the wrong conclusion. **The fix for a
+table nobody can parse is to write a table.** `STORE-FORMS.md` now carries
+every attribute keyed by its API name with the literal JSON value, and the
+gate compares key and value in both directions. Twenty-two answers, checked.
+
+What it still cannot do is notice when Apple ADDS a field — no gate reading
+this checkout can, and pretending otherwise would repeat the mistake in the
+other direction. What it guarantees is narrower and worth having: the answer
+a human reviewed and the answer that gets pushed are the same answer.
+
+**And D74 was fixed in one of three places.** That record was one commit old.
+The text block reported after its write; the age-rating block still ticked
+fourteen fields above a 409 that wrote none of them, and the screenshot block
+still ticked all six uploads before a byte moved. Both are now corrected, and
+the stub demands the eight attributes so a dropped answer fails on the bench.
+
+The rule that would have caught it, stated plainly: **when a record says a
+mistake has a shape, grep the shape.** `APPLY ? "✓" : "+"` was three lines in
+one file. Fixing the instance in front of you and writing the record about
+the general case is worse than either alone — it leaves the tree broken and
+the documentation claiming otherwise.

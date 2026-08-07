@@ -273,7 +273,11 @@ if (SCREENSHOTS) {
   if (!todo.length) {
     console.log(`  = screenshots: all ${files.length} already uploaded.`);
   } else {
-    for (const f of todo) console.log(`  ${APPLY ? "✓" : "+"} upload ${f}`);
+    // `+` only. This used to tick all of them here, before a single byte
+    // moved — so a run that died on the third of six left four false ✓ in
+    // the log. The per-file confirmation is at the end of the loop below,
+    // after the commit PATCH returns (D74).
+    for (const f of todo) console.log(`  + upload ${f}`);
     if (!APPLY) {
       console.log(`\nasc-push: ${todo.length} screenshot(s) would upload. Re-run with --apply.`);
       process.exit(0);
@@ -324,7 +328,7 @@ if (SCREENSHOTS) {
           attributes: { uploaded: true, sourceFileChecksum: createHash("md5").update(bytes).digest("hex") },
         },
       });
-      console.log(`    uploaded ${f} (${(bytes.length / 1024).toFixed(0)} KiB)`);
+      console.log(`  ✓ uploaded ${f} (${(bytes.length / 1024).toFixed(0)} KiB)`);
     }
     console.log(`\nasc-push: ${todo.length} screenshot(s) uploaded.`);
   }
@@ -529,14 +533,26 @@ if (AGE_RATING) {
   if (!keys.length) {
     console.log("  = age rating: already matches app-privacy.json");
   } else {
-    changes += keys.length;
-    for (const k of keys) {
-      console.log(`  ${APPLY ? "✓" : "+"} ageRating.${k}: ${JSON.stringify(current?.[k])} → ${JSON.stringify(diff[k])}`);
-    }
-    if (APPLY) {
+    const report = (mark) => {
+      for (const k of keys) {
+        console.log(`  ${mark} ageRating.${k}: ${JSON.stringify(current?.[k])} → ${JSON.stringify(diff[k])}`);
+      }
+    };
+    if (!APPLY) {
+      changes += keys.length;
+      report("+");
+    } else {
+      // AFTER the PATCH, never before — D74, and this is the site that
+      // proved fixing it in one place was not fixing it. The text block was
+      // corrected while this one still ticked fourteen fields above a 409
+      // listing eight missing required attributes, none of which were
+      // written. One instance of a mistake is rarely the only one; grep the
+      // shape, do not patch the report.
       await call("PATCH", `/v1/ageRatingDeclarations/${decl.id}`, {
         data: { type: "ageRatingDeclarations", id: decl.id, attributes: diff },
       });
+      changes += keys.length;
+      report("✓");
     }
   }
 }
