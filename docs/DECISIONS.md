@@ -7127,3 +7127,120 @@ common case. Nothing else changes shape.
   stands on the invite-code argument, which does hold; the comment now says
   what is actually true, because a comment that overstates a carve-out is how
   the carve-out outlives its reason.
+
+## D72 · Two fabrications that outlived the badge: the Map's group stats and the results card's friends
+
+**Date:** 2026-08-07 · **Status:** Adopted
+
+**What was shipping.** Two surfaces drew prototype data in a live build, and
+neither wore the Preview tag that D1's honesty posture leans on.
+
+1. **`window.MapStats` — the Map's group statistics.** `map-group-stats.js`
+   hashes a question id into a distribution, and `map-bottom-card.jsx` drew it
+   with **no live gate at any of its five call sites**. Measured with the
+   live fixture before the fix, tapping one answer dot rendered:
+
+   > 48% · You're with the majority · of **people your age** chose the same ·
+   > you: **30–39** · Know 48% · Be known 32% · Both 20%
+
+   Every figure is `hash("daily-000|age|0")`. The answer beside them is real
+   and the age band is the viewer's own, which is what makes it worse than a
+   demo screen: the fabrication is the only part a user cannot tell apart.
+   The anchor card added a second claim on the same data — "62% of your
+   answers match people your age", with a "where you differ" list under it.
+
+   `MirrorPreviewTag` returns null for `popId === 'you'`, because that badge
+   is keyed to **population** and the Map is not one. So this was the one
+   Mirror stop where sample data carried no label at all — the same hole D66
+   closed for the anchor ring, one layer further in.
+
+2. **The results card's same-type friends.** `result-card.jsx` filtered
+   `IS_DATA.people` — the prototype's seven invented friends — through
+   `IS_FRIEND_TYPES` and handed up to four of them to `SigEmblem`, which drew
+   their avatars on the result. `data/live.ts` replaces `WORLD_FEED_QS`,
+   `TEST_FEED_QS` and `WORLD_FEED_COMMENTS`; it has never touched `IS_DATA`.
+   Measured: initials **HV** and **IV** — Henrik Vold and Ingrid Vold — on a
+   live account's Big Five card. D1's words are *"No seeded fake users,
+   ever"*, and this was the last surface still doing it.
+
+**Why it survived.** Both are invisible to every gate this repo has.
+`check:globals` is name-level, `no-undef` sees a defined name, `tsc -b` does
+not read `.jsx`, and the mount tests assert on the ErrorBoundary — a
+fabricated number renders perfectly. The Map case additionally needs a
+question answered and a dot tapped before it appears, so no mount walk
+reached it. Both were found by reading the live/demo seam file by file and
+then rendering the two components against the live fixture; neither would
+have been found by reasoning about the code, and the second is documented
+nowhere in `docs/` at all.
+
+The first was *known* — `docs/MIRROR.md` §5 has said "the Map's typicality
+stats are still synthetic" since the file was written — but it was recorded
+as prose rather than as a deferral with arithmetic, which is the difference
+this file exists to make. A known limit that no test pins is a limit that
+ships.
+
+**Decision.** `MapStats.dist`, `.mode` and `.dimVal` return **null** when
+`LIVE.enabled`. `sameType` is empty in live mode.
+
+Returning null rather than gating at the call sites is the load-bearing half:
+a consumer that forgets the check throws in `smoke-live.test.jsx` instead of
+quietly fabricating, which is the failure mode that produced this entry.
+`groupLabel` is exempt — it is a noun for the cohort, not a claim about it,
+and the honest empty states still want to name the group.
+
+**What live mode draws instead.** The tapped-answer card and the anchor card
+show one line — *"Your answer is on the map. How people your age answered
+isn't measured yet — it needs more people on this question first."* The
+anchor card keeps `MTAnchorStat`, because your own test scores are a real
+measurement; only the "them" marker and its legend key go. Dot placement
+needed no change: `map-tab.jsx` already read `MapStats` through a null guard,
+and its fallbacks (`typ = 0.5`, `maj = true`) are exactly the neutral
+result — every dot at one radius, none marked a rare take.
+
+**The arithmetic on what is deferred.** A real source exists for part of
+this and was not wired here, because that is a feature rather than a leak
+fix. `v2_question_aggs.by` carries k-floored per-anchor breakdowns on
+`BREAKDOWN_DIMS` — so the Map's **age** and **edu** anchors have a real
+counterpart today, and could render measured splits the way `LiveCohortBody`
+does. The other five cannot: `job` is profession, deliberately not a
+breakdown dim (D8 — free text mints a bucket key per spelling), and the four
+test anchors are not dims at all. So the honest state is the correct
+destination for five of seven regardless, and two are a follow-up with a
+known source. With production at zero answers today, all seven would render
+the empty state either way.
+
+**Not changed, deliberately.** Learn dots still place by `card.p`, the
+authored "% who get this right". That is content shipped with the card — a
+difficulty rating — not a statistic about a population that does not exist,
+and `LEARN_SPLIT` already labels measured vs estimate at the reveal
+(D32). Reconsider it if `p` ever starts being read as a measurement.
+
+**What now proves it.** Four cases in `smoke-live.test.jsx`, each with its
+demo-mode control, because "the card stopped rendering" passes every live
+assertion on its own. Verified by neutralising both gates and re-running:
+the live cases fail with `expected [ 48, 32, 20 ] to be null` and
+`expected [ 'HV', 'HV', 'IV', 'IV' ] to deeply equal []`, and the controls
+stay green. Coupling held flat at 534 — both gates read `LIVE` through the
+module import, not `window.LIVE`.
+
+**Numbered D72, on the third attempt, and the two failures are the point.**
+This was first written as D70. D69 landed on main mid-work, so the branch was
+rebased onto it and the number re-checked — still D70, now verified rather
+than assumed. Then, while CI was green and this was waiting to merge, main
+merged **its own D70 and D71** (the duel indexes), and the rebase turned out
+to have bought nothing: it proves the number was free when you looked, not
+that it stays free while you work. Renumbered to D72 at the merge.
+
+D68 said the same thing after two branches minted a D66, and the correct
+reading of it is stronger than "rebase first". **A decision number cannot be
+reserved, so it is not settled until the merge that lands it.** Anything that
+quotes one before then — a commit message, a code comment, a PR body — is a
+claim about another branch's future. The three renumbering passes here each
+had to sweep code comments, `CLAUDE.md`, `docs/MIRROR.md` and this file
+together, which is the real cost and the reason this paragraph exists.
+
+Nothing enforces it. `check:figures` holds documented figures against the
+tree, but a collision is two files agreeing with each other and disagreeing
+with a branch nobody has merged yet — invisible to any check that reads one
+checkout. Grep `^## D` on freshly-fetched `origin/main` immediately before
+merging; that is the whole procedure.
