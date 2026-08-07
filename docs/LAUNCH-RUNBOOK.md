@@ -433,10 +433,11 @@ left here is a **recapture against live data**, plus the two forms.
         the Norwegian storefront is unaffected either way; what is at stake
         is the 27 EU storefronts.
 
-      Record whichever way this goes in `docs/DECISIONS.md` — it is a
-      privacy trade the way D41/D42 were cost trades, and the next person to
-      ask "why is a home address on the listing" deserves the reasoning
-      rather than a form.
+      **Decided 2026-08-07: declare trader, and take the EU (D68).** The
+      home address goes on the listing. D68 has the reasoning and, more
+      usefully, the way out: registering the ENK gives a business address
+      that can replace it, which is a second and independent reason to want
+      the ENK that D42 parked.
 - [ ] **4.4 + 4.5 Privacy nutrition labels and the age rating — read, then
       one dispatch.** Mandatory; Apple accepts no submission without both.
 

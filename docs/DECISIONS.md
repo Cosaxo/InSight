@@ -6850,3 +6850,57 @@ engagement sensitivity line in COSTS.md is now the interesting one: three of
 the six read sources are charged per *answer*, so doubling answers per user
 moves reads +42% / +80% / +97% at 5 k / 50 k / 500 k DAU, where the old model
 said "barely moves reads". That was true when the model only counted boots.
+
+---
+
+## D68 · EU trader status: a home address on the listing, in exchange for 27 storefronts
+
+**Date:** 2026-08-07 · **Status:** Adopted
+
+**The requirement, and how it was found.** The Digital Services Act obliges
+Apple to publish trader details for apps distributed in the EU. App Store
+Connect states it plainly: *"your trader status must be provided or your apps
+will be removed from the App Store in the EU."* It is a hard gate on EU
+availability, not a warning.
+
+It appears nowhere in this repo, and no gate here could have caught it.
+`check:store-copy` and `check:store-listing` hold what the **repo** can see —
+placeholders in committed files, fields against character limits. A
+store-side legal requirement introduced after those scripts were written is
+invisible to both, and would have stayed invisible until a submission was
+rejected. It was found by reading a console banner on 2026-08-07 while
+creating the app record.
+
+**The trade.** Declaring **trader** publishes a name, address, phone number
+and email address on the public listing. Declaring **non-trader** keeps them
+private and forfeits the 27 EU storefronts.
+
+The address is the sharp end. D41 chose an *individual* Apple enrolment, and
+D42 parked the ENK registration when Play was deferred — so there is no
+company address to give. LAUNCH-RUNBOOK 0.3 records the operator as a sole
+trader in Norway, and a sole trader's business address is a home address.
+**Declaring trader publishes it.**
+
+**Norway is EEA, not EU.** The Norwegian storefront is unaffected either way,
+so this decision buys the EU 27 specifically. Launching Norway-only and
+returning to it later was available and was not taken.
+
+**Decision: declare trader.** The reasoning is that a market this app is
+built for should not be given up to avoid a disclosure the law deliberately
+requires, and that the alternative is not "launch without deciding" but
+"launch to a smaller market and decide anyway".
+
+**What this costs, stated rather than discovered later.** A home address on a
+public listing is not retractable — it is scraped, mirrored and archived
+within days of publication. The way out is not a form change but an address
+change: registering the ENK gives a business address that can replace it, and
+that is the one thing that would make this reversible. **D42 parked the ENK
+for Play's sake, and this is a second, independent reason to want it.**
+Re-read D41, D42 and this record together when either is revisited; none of
+the three is the whole picture on its own.
+
+**Not done, deliberately.** No attempt to automate the declaration.
+`scripts/asc-push.mjs` fills text and transcribes the privacy label from a
+reviewed file; trader status is an identity assertion to a regulator, and the
+argument in that script's header for transcribing an attestation does not
+extend to declaring one.
