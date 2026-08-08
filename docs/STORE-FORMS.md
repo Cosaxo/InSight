@@ -69,7 +69,7 @@ companies' apps or sites.
 | User Content | **Other User Content** | Yes | App Functionality | Answers and test results |
 | Location | **Coarse Location** | Yes | App Functionality | City name only. **Never tick Precise** |
 | Sensitive Info | **Sensitive Info** | Yes | App Functionality | Politics test result (GDPR Art. 9); gender if entered |
-| Diagnostics | **Crash Data** | Yes | App Functionality | Sentry. Opt-in, **default OFF**, carries the uid only |
+| Diagnostics | **Crash Data** | Yes | App Functionality | Sentry. **On by default** (D76), opt-out in the privacy panel, carries the uid only |
 
 ### Not collected — leave every one of these unticked
 
@@ -113,11 +113,13 @@ Three of those are worth knowing *why*, because each looks tickable:
    document and is never sliced by (D8) — but the form asks what you
    **collect**, not what you publish.
 
-3. **Crash Data is a Yes despite being off by default.** The form asks
-   what the app *can* collect. Sentry carries the uid, no email, no name,
-   no session replay, `sendDefaultPii: false`, and the SDKs are imported
-   dynamically only after the user opts in (`insight.telemetry.v1`,
-   default off).
+3. **Crash Data is a straightforward Yes: reporting is on by default**
+   (D76 — it was opt-in until 2026-08-08, and the answer was Yes even
+   then, because the form asks what the app *can* collect). Sentry
+   carries the uid, no email, no name, no session replay,
+   `sendDefaultPii: false`. The SDKs still load dynamically, and the
+   privacy panel's switch (`insight.telemetry.v1`) records an opt-out
+   that every send site honours.
 
 ### The guideline 4.8 reply, and the clause that was cut from it
 
@@ -281,7 +283,7 @@ same inventory and should not be re-derived in a hurry.
 | Location → Approximate location | Yes | No | **Optional** | App functionality |
 | Location → Precise location | **No** | — | — | — |
 | App activity, Web browsing, Contacts, Photos, Financial, Purchases | **No** | — | — | — |
-| App info & performance → Crash logs | Yes | No | **Optional** (opt-in, default off) | App functionality |
+| App info & performance → Crash logs | Yes | No | **Optional** (on by default; the privacy panel has the off switch, which is what keeps Play's "users can choose" definition true) | App functionality |
 | Advertising ID / any ads box | **No** | — | — | — |
 
 Play additionally asks two things Apple does not:

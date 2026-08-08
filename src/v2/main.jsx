@@ -17,7 +17,8 @@ import { reportError, sentryInit } from '../lib/sentry';
 import { initDeepLinks } from './data/links';
 
 // Crash reporting first, so a boot error is the first thing captured.
-// No-op without VITE_SENTRY_DSN and honours the local telemetry opt-in.
+// No-op without VITE_SENTRY_DSN; on by default with one, honouring the
+// local telemetry opt-out (D76 — LivePrivacyPanel has the switch).
 sentryInit();
 
 // Invite-link intake: stashes a /join/CODE from the launch URL (web) and

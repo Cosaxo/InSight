@@ -337,7 +337,7 @@ added, not a fact to rely on.
 | Cloud Logging | $0 until ~500 k DAU, then ~$17/mo |
 | Firestore storage | 5.6 GiB after a year at 5 k DAU → $0.83/mo (4.0 GiB of documents, ×1.4 for index entries — a multiplier that was 1.0 in the model until D67, and would be ~5 without D64's `answers` index exemptions) |
 | Network egress | in the Firestore column above, not free: $0–0.5/mo at 5 k DAU, **$7–147 at 50 k**, $647–14,686 at 500 k — see the band below |
-| Sentry | $0 (opt-in, default OFF, crash-only) |
+| Sentry | $0 (developer tier; crash-only, but on by default since D76 — volume now scales with installs, so this is the first third-party quota to watch as they grow) |
 | GitHub Actions | $0 within the private-repo allowance; iOS is a separate workflow *because* macOS bills at 10× |
 | **The question farm** | a claude.ai subscription — the content pipeline's real recurring cost |
 | **Total fixed** | **≈ $30/month** |
