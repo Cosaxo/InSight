@@ -7547,9 +7547,29 @@ posted policy" is what is true; a test asserts the string does not drift
 into *will be removed*. Measured the same way as the rest: making the
 control one-tap fails five cases.
 
-The panel is not yet mounted by any screen — it self-registers on
-`globalThis` like every other `ui/` panel and is listed in `spec-index.js`,
-so wiring it into the group daily is a call site, not a build.
+**Mounted on the reveal, and deliberately nowhere else.** `LdReveal`
+renders it against yesterday's revealed question; today's card does not
+get one. Today's answer is sealed until tomorrow, and free text beside a
+sealed answer is the leak the seal exists to prevent — "obviously B"
+under a question nobody has answered yet *is* the vote, written out. The
+reveal is the first moment a circle has anything to discuss and the first
+moment discussing it costs nothing. Three cases pin it: composer present
+after a reveal, absent before one, absent when the reveal carries no qid.
+
+On a split day (D71) the thread hangs on the reveal's own `rowQid`, not
+on a member's individual qid — one comment thread belongs to one
+question, and the alternative is two people talking past each other under
+one heading.
+
+`LiveDuelPanel` reaches it by ordinary import rather than the globalThis
+bridge (both are typed TSX in `ui/`), so the D39 coupling count is
+unchanged at 534. Its `spec-index.js` entry stays regardless — rule 2
+lists every module — but nothing waits on the side effect.
+
+**With that, the client half of docs/MODERATION.md is finished.** What is
+left needs no code: the low-privilege Routine (blocked on the platform
+gap), the `MOD_ADVISORY` flip (a maintainer judgement on the verdict
+log), and the three open questions at the end of that file.
 
 ### Part 2 (Proposed) — anonymous world takes, gated on the advisory flip
 
