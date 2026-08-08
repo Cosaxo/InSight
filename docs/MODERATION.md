@@ -25,10 +25,18 @@ deploy once the e2e leg was green in CI. During the advisory phase the
 maintainer's own account holds the moderator credential; the dedicated
 low-privilege identity comes with the Routine (step 4 below).
 
-Still ahead: the client report control (needs a live takes surface),
-the low-privilege Routine, and the maintainer's answers to the open
-questions at the end. The policy and threat model below remain the
-contract.
+**The client half landed 2026-08-08 (D76 part 1).** `LIVE.social` now
+carries the circle takes surface — `loadTakes`, `takes`, `postTake`,
+`deleteTake`, `flagTake`, `flagged` — so the flag pipeline below finally
+has a device that can feed it; until then every guarantee in this
+document was enforcing a collection nothing on a phone could reach. It
+is the data layer only: no take list and no report control are drawn
+yet, because that is a design question, and inventing a surface to close
+a gap is the shape D1 forbids.
+
+Still ahead: the report control's **UI**, the low-privilege Routine, and
+the maintainer's answers to the open questions at the end. The policy and
+threat model below remain the contract.
 
 ## The job in one sentence
 
@@ -40,11 +48,21 @@ or data.
 
 ## What exists today (and deliberately doesn't)
 
-Takes are free-text comments on feed cards, **circle-scoped by D1** and
-demo-only in live builds. There is no report button, no flags
-collection, no queue. That is why this sketch comes first: moderation
-bolted onto an existing pipeline inherits that pipeline's shape, and
-this design needs the pipeline shaped around confinement.
+Takes are free-text comments, **circle-scoped by D1**.
+
+*This section was written as a sketch, before any of it existed, and its
+original text — "There is no report button, no flags collection, no
+queue" — is kept here in quotation because the reasoning that follows it
+still holds: moderation bolted onto an existing pipeline inherits that
+pipeline's shape, and this design needed the pipeline shaped around
+confinement. That is why the sketch came first.*
+
+What is true now: the flags collection, the queue, the verdict log and
+both callables exist and are deployed (D22); the client can read, post,
+delete and flag circle takes (D76 part 1). What is still absent is the
+**report button itself** — the control, not its plumbing — and the
+world-feed takes remain demo-only and `!S.live`-gated, which is D1
+working rather than a gap.
 
 ## The policy — permissive by default, with named hard lines
 
