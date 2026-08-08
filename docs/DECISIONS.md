@@ -7495,3 +7495,73 @@ unchanged (an SDK already running keeps running until restart after an
 opt-out mid-session; the close() is best-effort, the gates are the
 guarantee). If this ever needs to flip back, it is one comparison in
 `telemetryEnabled()` plus this prose, reversed.
+
+## D77 · The app knew why it had failed and told a console nobody could reach
+
+**Decided:** 2026-08-08 · **Status:** binding
+
+The first device this app ever ran on booted into `demoInProd` — a live
+build whose boot never attached, showing the prototype's invented people to
+a real user behind a "Sample questions · reconnecting…" pill. The label was
+correct and D1 required it. It was also the entire diagnostic surface, and
+it says *that* something failed while withholding *what*.
+
+Everything else was reachable and none of it was enough. The App Check
+console proved nothing was enforced. `identitytoolkit accounts:signUp`
+against the production key returned a real token, so anonymous sign-in
+worked from outside the app. Firebase's user list showed no account created
+that day, which located the failure at the first step of boot and no
+further. The reason itself existed, once, in a `console.warn` on a phone —
+and an iPhone's console needs a Mac, **the single dependency
+`ios-release.yml` was written to remove.**
+
+**So the reason is now a value.** `LIVE.bootError` carries it, the pill is a
+button, and one tap shows it. Behind a tap rather than on the face of the
+card because both halves are deliberate: someone on a train should read
+"reconnecting…", and someone debugging should not need a laptop.
+
+D76 landed the same day and fixes the remote half — telemetry is opt-out
+now, so a boot failure reports itself. This is still worth having, because
+the two fail differently: Sentry needs a DSN, a network healthy enough to
+send on, and someone at a dashboard. **A boot failure whose cause is the
+network is exactly the case where the remote path is least likely to
+arrive.** The build on the phone also predated D76 — the gap was real for
+the one device that mattered.
+
+**A second silence, closed with it.** `anonSignIn` awaited
+`onAuthStateChanged` with no clock. That callback normally fires within a
+tick, with `null` on a first run, but it is the SDK's persistence layer that
+decides — and a WebView whose storage it cannot open owes nobody a
+callback. Unguarded, that hangs boot forever: no uid, no error, no Sentry
+event, no `bootError` either, and a pill that says "reconnecting…" truthfully
+and permanently. It now falls through to `signInAnonymously` after five
+seconds. Falling through rather than throwing: the wait exists to avoid
+REPLACING a returning session, and after five seconds of silence there is
+no session to replace, while refusing to sign in guarantees the demo deck.
+
+`nativeGoogleIdToken` in the same file already had this exact guard, with
+the reasoning written out — *"a misconfigured build never opens it at all
+and the promise then never settles… Fail loudly instead — a wrong config
+should look like a bug, not a hang."* The argument was correct and general
+and had been applied to one of the two call sites. **That is the same shape
+as D74's tick, three days apart: a rule written down next to one instance
+of the thing it describes.** When a comment explains why a hazard matters,
+grep for the hazard.
+
+**Not yet known: what the device actually hit.** This does not diagnose it;
+it makes the next run diagnose itself. Naming that plainly because a
+decision record that implies a fix it did not make is worse than none — the
+next build says the reason on screen, and that is the whole claim.
+
+**What proves it.** Two cases in `smoke-live.test.jsx`, the only guard that
+executes a render: the reason is absent until the pill is tapped and present
+after, and a healthy boot shows no pill at all. Verified by neutralising the
+reason and re-running rather than by reading the diff. `bootError` joins the
+pinned `window.LIVE` surface in `live-surface.ts`, which caught it being
+added — as designed — in both the real store and the fixture.
+
+Converting the banner to the imported `LIVE` took `daily-split.jsx` from 50
+cross-module globals to 48 and the tree from 534 to 532 (D39). The other ~48
+in that file stay: each `window.LIVE &&` guard has to be re-read rather than
+deleted wholesale, because an imported binding cannot be unset but the data
+it carries can still be missing.

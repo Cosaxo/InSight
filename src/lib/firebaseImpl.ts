@@ -109,13 +109,35 @@ function db(): Firestore {
 // always null on cold boot until the SDK finishes restoring the prior
 // session, and signing in anonymously at that moment would REPLACE the
 // returning user (anon or linked) with a fresh account every launch.
+// The restore wait is RACED AGAINST A CLOCK for the same reason
+// nativeGoogleIdToken below is: a promise that never settles is worse than
+// one that rejects. onAuthStateChanged normally fires within a tick — with
+// null on a first run — but it is the SDK's persistence layer that decides
+// that, and a WebView whose storage the SDK cannot open has no obligation
+// to call back at all. Unguarded, that hangs boot() forever: no uid, no
+// error, no Sentry event, and a UI stuck on "Sample questions ·
+// reconnecting…" with nothing anywhere saying why. That exact silence cost
+// a day of remote guesswork against a device with no console attached.
+//
+// Falling through to signInAnonymously on timeout rather than throwing:
+// the risk this wait exists to avoid is REPLACING a returning user's
+// session, and after five seconds of no callback there is no session to
+// replace — while refusing to sign in at all guarantees the demo deck.
+const AUTH_RESTORE_TIMEOUT_MS = 5_000;
+
 export async function anonSignIn(): Promise<string> {
   const a = auth();
+  let timer: ReturnType<typeof setTimeout> | undefined;
   const restored = await new Promise<User | null>((resolve) => {
     const unsub = onAuthStateChanged(a, (u) => {
+      clearTimeout(timer);
       unsub();
       resolve(u);
     });
+    timer = setTimeout(() => {
+      unsub();
+      resolve(null);
+    }, AUTH_RESTORE_TIMEOUT_MS);
   });
   if (restored) return restored.uid;
   const cred = await signInAnonymously(a);
