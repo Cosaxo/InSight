@@ -29,6 +29,28 @@ InSight web app is registered, and the default hosting site `prvfire33`
 exists. **Measured 2026-08-05:** the iOS release workflow archives,
 exports and passes both gates with no Mac (run 6).
 
+**Landed 2026-08-07 and 08, and this is where the file was most stale:**
+
+- **Build 1 is on App Store Connect** (run 7, `upload = true`). It is in
+  TestFlight now, and internal testing needs no Beta App Review — the
+  external group that was submitted only gates people outside the team.
+- **The listing text is pushed.** Subtitle, privacy-policy URL,
+  description, keywords, promotional text, support and marketing URLs.
+- **The age rating is pushed** — all 22 attributes, including the eight
+  Apple added (D75). `whatsNew` is the one field that did not go: Apple
+  refuses it on a first release, and it applies on the first update (D74).
+- **The privacy nutrition label is not pushable at all.** Apple's API has
+  no App Privacy resource (D73), so the metadata workflow prints it as the
+  form and it is typed in by hand. **Still outstanding.**
+- **Trader status: declared** (D69). Waiting on a *bostedsattest* by post
+  as the address document.
+
+**Three decisions came out of that week and each is a gate now**: D73 (the
+privacy label has no endpoint), D74 (a tick is printed after the write, not
+before — it was wrong in three places), D75 (Apple's eight new age-rating
+questions, and `check:store-forms` rule 5, which now covers the age-rating
+half of `app-privacy.json` that was gated by nothing).
+
 Those two question counts are held by `npm run check:figures` against
 `functions/src/v2content.ts`, because a number quoted in prose and kept
 current by intention is the one documentation error this repo keeps
@@ -80,8 +102,10 @@ automatic (2), automatic signing demanding a device the team does not have
 certificate (4), and an unsigned archive that carried no entitlements for
 export to forward (5). `IOS-RELEASE.md` has each in full.
 
-**The upload half is still untried** — every run so far has been
-`upload=false`, deliberately.
+**The upload half is proven too, as of run 7** (2026-08-07, `upload =
+true`, 6m 41s): `UPLOAD SUCCEEDED with no errors`, delivery UUID
+`470b566a-8f2f-4664-a29e-df862d5761c7`. Every step in that workflow has now
+done its job against the real Apple, including the one that sends a binary.
 
 *[PARKED] Play's clock, for when this is picked up:* a personal account
 created after 2023-11-13 must run **12 opted-in testers × 14 continuous
@@ -100,13 +124,22 @@ arithmetic.
       399 questions land in `v2_questions` — idempotent and, since D34,
       cheap to repeat.
 
-      **It is unticked on purpose.** That run wrote **389**, and the bank is
-      **399** as of D68's v18 sync — so ten questions are in the repo and not
-      in production. This is exactly the standing-instruction case: the box
-      is not "seeded once", it is "seeded since the last content change", and
-      every promotion (D30, D33) moves it back. **Reseed after merging
-      anything that touches `v2content.ts`.**
+      **It is unticked on purpose, and still is.** That run wrote **389**,
+      and the bank is **399** as of D68's v18 sync — so ten questions are
+      in the repo and not in production. This is exactly the
+      standing-instruction case: the box is not "seeded once", it is
+      "seeded since the last content change", and every promotion (D30,
+      D33) moves it back. **Reseed after merging anything that touches
+      `v2content.ts`.**
       `SHIP-CHECKLIST §1`.
+
+      **A reseed reaches devices that already have the app**, so this is
+      not gated on a new build: changed and new documents carry a fresh
+      `updatedAt`, and the client pages them in against a stored cursor
+      (`live.ts`, `insight.bankCache.v2`). Tick **bump_rev** only when the
+      cursor cannot see the change — flipping `active` by hand in the
+      console is the case it exists for, because that does not move
+      `updatedAt`.
 
       **This was the first successful write to production Firestore, ever**,
       and getting there found that the backend had never worked: a `gaxios`
@@ -301,13 +334,23 @@ arithmetic.
       in the release chain — every part of `ios-release.yml` has now done its
       job against the real Apple.
 
-      Repeat this whenever the shell or its config changes. `appBuild` must
-      go up before any run with upload ticked — App Store Connect refuses a
-      build number it has seen, *after* the transfer completes, so a
-      forgotten bump costs a full run. **It is already at 2**, bumped
-      immediately after run 7 rather than left for the next person to
-      remember: the cost of bumping early is nothing, and the cost of
-      forgetting is ten minutes of macOS runner.
+      Repeat this whenever the shell or its config changes.
+
+      **`appBuild` must be AHEAD of the last uploaded build — which is not
+      the same as "bump before every run", and the difference has already
+      cost a number.** App Store Connect refuses a build number it has
+      seen, *after* the transfer completes, so a forgotten bump costs a
+      full run; that is why this file bumps immediately after an upload
+      instead. Both halves of that convention are right and reading only
+      the second one is not: on 2026-08-08 `appBuild` was bumped 2 → 3
+      before a run, when 2 had never been uploaded. **Build 2 will never
+      exist.** Harmless — numbers are free and monotonic is all Apple
+      wants — but the check to make is a comparison, not a habit:
+
+      > **Is `appBuild` greater than the highest build in App Store
+      > Connect?** If yes, run as-is. If no, bump, then run.
+
+      **It is at 3. Build 1 is the one on App Store Connect.**
 
       *With a Mac, if you ever want to debug a signing failure
       interactively:* `npm run build && npx cap sync`, then `npm run ios`.
@@ -373,6 +416,25 @@ start.
       world count sit on "5+" and never move — accurate, and it reads as
       broken. Test **duels first**: they work at N=2, need no crowd, and
       are the most distinctive surface in the product. `SHIP-CHECKLIST §3`.
+
+      **Build 1 is in TestFlight and an external group was submitted for
+      Beta App Review 2026-08-07.** What is left here is people, not setup.
+
+      **Start with INTERNAL testing, which has no review gate at all.**
+      Internal testers are App Store Connect users on the team — up to 100
+      — and they get a build as soon as it finishes processing. External
+      groups are the ones that need Beta App Review. TestFlight → *Internal
+      Testing* → new group → add yourself → add the build; then TestFlight
+      on the phone, same Apple ID. Nothing else gates it: export compliance
+      is pre-answered in `ios/App/App/Info.plist`
+      (`ITSAppUsesNonExemptEncryption = false`), so there is no per-build
+      question to answer.
+
+      **Expect the k-floor to look like a bug on your own device.** Below
+      five answers every crowd figure reads *"You're early — counts appear
+      once 5 people have answered"* (`AGG_MIN_N = 5`, D7). That is the
+      floor working, not an empty backend — the 399 seeded questions are
+      live regardless.
 - [ ] **3.3 Walk the on-device verification list** — six checks, first
       build, `SHIP-CHECKLIST §4`: frameless layout in light+dark, anonymous
       session surviving restart, Google link → reinstall → history
@@ -387,8 +449,14 @@ start.
 
 ## Phase 4 — Build the listings (do this while the clocks run)
 
-The harness, the graphic and the copy all landed 2026-08-03 — what is
-left here is a **recapture against live data**, plus the two forms.
+The harness, the graphic and the copy all landed 2026-08-03. **The copy is
+pushed as of 2026-08-08** and so is the age rating; what is left here is a
+**recapture against live data**, the privacy form, and the trader document
+in the post.
+
+The recapture is the one with a real precondition: it wants five people to
+have answered, or the k-floor (D7) puts *"You're early"* where every crowd
+figure should be. That is a tester-count problem, not a workflow problem.
 
 - [ ] **4.1 Recapture the screenshots in LIVE mode — Actions →
       *Screenshots* → Run workflow.** Capture with upload unticked, download
@@ -420,25 +488,35 @@ left here is a **recapture against live data**, plus the two forms.
       floor's "5+" placeholder instead of a split.
       *Note the iPad set every guide lists does not apply —
       `TARGETED_DEVICE_FAMILY = 1`, iPhone only.*
-- [ ] **4.2 Play feature graphic — done.** `npm run build:feature-graphic`
+- [x] **4.2 Play feature graphic — done.** `npm run build:feature-graphic`
       → `design/store/feature-graphic.png`, 1024×500, built from
       `mark.svg` and the app's own stylesheet so it cannot drift from the
       palette. Regenerate if the mark or tagline changes.
-- [ ] **4.3 Marketing copy — drafted, needs your read.**
+- [x] **4.3 Marketing copy — pushed 2026-08-08.**
       `design/store/listing.json` carries every field both consoles ask
       for; `npm run check:store-listing` holds each against its character
       limit (all currently fit, the longest at 161/170). Edit the voice to
-      taste — it is a draft, not a decision. No placeholders remain:
-      `shared.supportEmail` was filled with 0.3's address on 2026-08-03,
-      and `check:store-listing` passes.
+      taste — it is a draft, not a decision, and re-pushing is one
+      dispatch. No placeholders remain: `shared.supportEmail` was filled
+      with 0.3's address on 2026-08-03.
 
-      **You do not have to retype it into the web form.**
-      `npm run asc:push` pushes name, subtitle, description, keywords,
-      promotional text and the URLs to App Store Connect from this file —
-      dry run by default, `-- --apply` to write. Same API key as the
-      release workflow (`IOS-RELEASE.md`). It deliberately does NOT touch
-      screenshots, the privacy questionnaire or the age rating; those are
-      attestations, and `STORE-FORMS.md` is the transcribe-by-hand answer.
+      **You do not have to retype it into the web form.** **Actions → App
+      Store metadata** pushes name, subtitle, privacy-policy URL,
+      description, keywords, promotional text and the URLs from this file
+      — dry run by default, *apply* to write. (`npm run asc:push` is the
+      same script locally, and needs the API key on the machine; the
+      workflow exists so it does not have to be.)
+
+      **What it does and does not write, now that all three are known:**
+      text and the **age rating** are written; **screenshots** are written
+      too, but by the *Screenshots* workflow, which captures them first
+      because the captures are gitignored build output; the **privacy
+      label** is only printed, because Apple exposes no endpoint for it at
+      all (D73). Only the last of those is a limitation rather than a
+      choice.
+
+      `whatsNew` is sent separately and refused on a first release (D74),
+      which is expected and reported as a skip rather than a failure.
 - [ ] **4.3b EU trader status (Digital Services Act) — a blocker nothing in
       this repo knew about.** App Store Connect → **Business** → *Trader
       Status*, or via the banner on the Apps list. Apple's wording: *"your
@@ -469,28 +547,30 @@ left here is a **recapture against live data**, plus the two forms.
       usefully, the way out: registering the ENK gives a business address
       that can replace it, which is a second and independent reason to want
       the ENK that D42 parked.
-- [ ] **4.4 + 4.5 Privacy nutrition labels and the age rating — read, then
-      one dispatch.** Mandatory; Apple accepts no submission without both.
 
-      **Both are data; only one of them is pushable.**
-      `design/store/app-privacy.json` holds every answer with the reasoning
-      on each row and `npm run check:store-forms` holds it equal to
-      `docs/STORE-FORMS.md`. **Actions → App Store metadata** then:
+      **Declared 2026-08-07. Waiting on the address document.** Apple asks
+      for proof of address; a Norwegian *bostedsattest* from Skatteetaten
+      is the one that fits and it arrives by post. This step is open only
+      until that envelope does — it is waiting, not work, so do not let it
+      block anything below it.
+- [ ] **4.4 The privacy nutrition label — the last form, and it is manual.**
+      Mandatory; Apple accepts no submission without it.
 
-      - **age rating — pushed.** Dry-run by default; the first run prints
-        the exact diff, field by field, and writes nothing.
-      - **privacy label — printed, then typed in by hand.** Apple's API has
-        no App Privacy resource (D73), so the workflow prints the form in
-        the order App Store Connect asks and you copy it across. Fifteen
-        minutes, not an hour, and nothing is recalled from memory.
+      **Apple's API cannot write it.** Not through another path — there is
+      no App Privacy resource in the App Store Connect API at all, verified
+      three ways (D73). So **Actions → App Store metadata** with *privacy*
+      selected prints the form, row by row, in the order App Store Connect
+      asks, and you copy it across: 7 data types, each **App Functionality
+      / linked Yes / tracking No**, tracking overall **No**. Coarse
+      Location, never Precise. ~15 minutes, and nothing recalled from
+      memory.
 
-      **Read `STORE-FORMS.md` before ticking apply, or before typing.**
-      What you are entering is a legal statement about what the app
-      collects. The workflow transcribes that decision; it does not make
-      it. Doing it from memory was never the safeguard it looked like — it
-      is ~40 clicks that must agree with `data-inventory.md`, with nothing
-      checking that they do, which is exactly how one false claim survived
-      in three documents at once.
+      **Read `STORE-FORMS.md` before typing.** What you are entering is a
+      legal statement about what the app collects. The printout transcribes
+      that decision; it does not make it. Doing it from memory was never
+      the safeguard it looked like — it is ~40 clicks that must agree with
+      `data-inventory.md`, with nothing checking that they do, which is
+      exactly how one false claim survived in three documents at once.
 
       The three that bite, and why each is worth knowing before you
       approve: **Tracking = No** (no IDFA, no ATT prompt, no ad SDK — the
@@ -501,12 +581,39 @@ left here is a **recapture against live data**, plus the two forms.
       result is GDPR Art. 9 data — the form asks what you *collect*, not
       what you publish).
 
-      Expect **12+ / 13+**. **Read the Apple 1.2 table in `STORE-FORMS.md`
-      before submitting** — the support email from 0.3 is a 1.2 dependency,
-      not only a GDPR one.
+      Three look tickable and are not — the printout names them with the
+      reason: **Device ID** (D29 binding holds no identifier server-side),
+      **Product Interaction** (no analytics ship), **Emails or Text
+      Messages** (no live free-text surface at launch, D1).
 
       *Play's Data Safety form is **[PARKED — D42]**.*
 
+- [x] **4.5 The age rating — pushed 2026-08-08.** All 22 attributes, in one
+      dispatch of **Actions → App Store metadata** with *apply* ticked.
+      `design/store/app-privacy.json` holds every answer with the reasoning
+      on each row, and since D75 `check:store-forms` holds the age-rating
+      half equal to `STORE-FORMS.md` as well as the privacy half — key and
+      value, both directions.
+
+      **It took three dispatches, and each failure is worth a line because
+      the next person hits the same API.** An `?include=` Apple rejects
+      (400), a `GET` of a write-only resource (403), then eight required
+      attributes nobody knew about — Apple's newer social-media questions,
+      which reject the *entire* PATCH rather than the missing fields (D75).
+      A fourth thing was found on the way: the script printed ✓ before
+      writing, in three separate places (D74).
+
+      **`whatsNew` is the one field that did not go, and that is correct.**
+      Apple refuses it on a first release — there is no previous version
+      for it to be new against — so `asc-push` sends it in its own request
+      and reports the refusal as a skip. It applies on the first update.
+
+      Expect **12+ / 13+**, and **read the Apple 1.2 table in
+      `STORE-FORMS.md` before submitting** — the support email from 0.3 is
+      a 1.2 dependency, not only a GDPR one. The rating is driven by
+      `userGeneratedContent = true` (display names in reveals), not by any
+      content answer; every content frequency question is `NONE`, measured
+      against all five banks rather than assumed.
 ## Phase 5 — Production hygiene before the app is public
 
 - [ ] **5.1 Enable TTL on the aggregate event ledger** (one-time):
@@ -548,10 +655,14 @@ left here is a **recapture against live data**, plus the two forms.
       it for two policies is the worse trade. Both cover failures that look like nothing from the
       outside: the app keeps serving while the Mirror stops moving, or
       keeps moving while falling further behind. `DEPLOYMENT.md § Alerting`.
-- [ ] **5.6 Version lockstep.** `npm run check:versions` (`--fix` writes
-      package.json's values into both native projects). Bump `appBuild` +
-      android `versionCode` + iOS `CURRENT_PROJECT_VERSION` together for
-      every release.
+- [x] **5.6 Version lockstep — holds at 2.0.0 build 3 (2026-08-08).**
+      `npm run check:versions` (`--fix` writes package.json's values into
+      both native projects). `appBuild` + android `versionCode` + iOS
+      `CURRENT_PROJECT_VERSION` — five numbers across three files — move
+      together for every release, and `--fix` is the only sane way to do
+      it by hand. See 2.4 for **when** to bump: the test is whether
+      `appBuild` is already ahead of the highest build in App Store
+      Connect, not whether a run is about to happen.
 - [ ] **5.7 Add a second operator uid.** `SEED_ADMIN_UIDS` and `MOD_UIDS`
       each hold one uid, the same person's. Losing that Google account
       breaks nothing — the scheduled twins keep running and rules keep

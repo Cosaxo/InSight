@@ -293,6 +293,15 @@ Failures still worth recognising on sight:
 | Export fails on `method` | An older Xcode image; change `app-store-connect` to `app-store` in the ExportOptions plist |
 | Upload rejected for build number | `appBuild` was not bumped |
 
+**The bump has a trap in the other direction too, and it has fired.** This
+file and the runbook both bump `appBuild` immediately *after* an upload, so
+that a forgotten bump can never cost a run. Read alone, "bump before every
+release" then bumps a number that was already fresh: on 2026-08-08 `appBuild`
+went 2 → 3 while 1 was still the highest build on App Store Connect, so build
+2 will never exist. Harmless — Apple only wants monotonic — but the check is
+a **comparison, not a habit**: is `appBuild` already greater than the highest
+build in App Store Connect? If yes, run as-is.
+
 Each is one line in the workflow. What no line fixes is the archive's
 signing style, which is why the reasoning for it is written out above
 rather than compressed into this table.

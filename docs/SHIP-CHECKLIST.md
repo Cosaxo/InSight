@@ -292,6 +292,14 @@ Both apps must be registered under `com.cosaxo.insight`:
   > `data-inventory.md` stays the source both derive from. It also carries
   > the age-rating answers and flags one inconsistency in this file's own
   > guideline 4.8 talking point.
+  >
+  > **The two halves ship differently, and only one is automated.** The
+  > **age rating** is pushed by *Actions → App Store metadata* — done
+  > 2026-08-08, all 22 attributes including the eight Apple added (D75).
+  > The **privacy label cannot be pushed at all**: the App Store Connect
+  > API has no App Privacy resource (D73), so that workflow prints the
+  > form and it is typed in by hand. `check:store-forms` now holds both
+  > halves equal to `STORE-FORMS.md`, key and value.
 
   | Their category | InSight | Linked to user? | Used for |
   | --- | --- | --- | --- |
