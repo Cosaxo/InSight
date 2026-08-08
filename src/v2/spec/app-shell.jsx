@@ -10,6 +10,7 @@ import { markNav } from './swipe-back.js';
 import { WPAL } from './world-palette.js';
 import { setMarkStyle } from './type-marks.jsx';
 import { useTweaks, TweaksPanel, TweakSection, TweakToggle, TweakRadio, TweakButton } from './tweaks-panel.jsx';
+import { reportError } from '../../lib/sentry';
 
 
 const { useState, useEffect } = React;
@@ -128,7 +129,14 @@ const LIVE_OVERLAYS = ['profile', 'test', 'search', 'relmap'];
 class ErrorBoundary extends React.Component {
   constructor(props) { super(props); this.state = { err: null }; }
   static getDerivedStateFromError(err) { return { err }; }
-  componentDidCatch(err, info) { console.error('[InSight] boundary caught:', err, info && info.componentStack); }
+  componentDidCatch(err, info) {
+    console.error('[InSight] boundary caught:', err, info && info.componentStack);
+    // React swallows what a boundary catches, so Sentry's global handlers
+    // never see these — and a screen dying to "This view hit a snag" is the
+    // most user-visible failure the app has. Report it explicitly; the send
+    // site itself honours the telemetry opt-out (D76).
+    reportError(err, { where: 'ErrorBoundary', componentStack: info && info.componentStack });
+  }
   render() {
     if (!this.state.err) return this.props.children;
     return (
@@ -216,8 +224,10 @@ function App() {
   //
   // Failing to load must not leave a dead button, so each opener logs and
   // returns rather than opening onto nothing. console.error rather than
-  // Sentry's reportError: this layer has no import path to src/lib, and the
-  // ErrorBoundary above logs the same way.
+  // Sentry's reportError: main.jsx already reports the loadOverlays failure
+  // once when the chunk dies, and one failure should not re-report per tap.
+  // (The ErrorBoundary above DOES report — its crashes have no other
+  // reporter — see D76.)
   //
   // window.loadOverlays is published by spec-index.js, which is where the
   // dynamic imports live (check:globals rule 2 matches the './spec/…'

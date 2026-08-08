@@ -7446,3 +7446,52 @@ mistake has a shape, grep the shape.** `APPLY ? "✓" : "+"` was three lines in
 one file. Fixing the instance in front of you and writing the record about
 the general case is worse than either alone — it leaves the tree broken and
 the documentation claiming otherwise.
+
+## D76 · Crash reporting flips to opt-out, and the ErrorBoundary reports what it catches
+
+Decided 2026-08-08. Two changes with one motive: a crash on a phone in the
+field was invisible unless its user had first found a toggle and switched
+telemetry on, and the app's most user-visible failure never reached the
+dashboard even then.
+
+**The default.** `telemetryEnabled()` now reads `insight.telemetry.v1` as
+on-unless-`"false"` rather than off-unless-`"true"`. A recorded opt-out
+keeps holding — the send-site gates that make the panel's "Off — this app
+sends no reports" absolute (reportError and setSentryUser gate on the flag,
+not on the SDK being up) are untouched; they just read the new default.
+Unreadable storage still reads as OFF, deliberately: a store that cannot be
+read is also one that could not have recorded an opt-out, and silence is
+the only side that cannot betray a recorded choice. The DSN gate is
+untouched too — no `VITE_SENTRY_DSN`, no Sentry — so dev builds and the
+emulators stay silent, and the dead-branch build guarantee from the
+`check:bundle` entry still holds in DSN-less builds.
+
+**The boundary.** React swallows what an error boundary catches, so
+Sentry's global handlers never saw the crashes that end at "This view hit a
+snag" — the app-shell `ErrorBoundary` costs a card instead of the app (its
+point), and in exchange the failure reported to nobody but the local
+console. Its `componentDidCatch` now calls `reportError` with the component
+stack. The comment beside the overlay openers claimed the spec layer "has
+no import path to src/lib"; spec files have imported `../data/live` and
+siblings since the conversions began, and app-shell now imports lib/sentry
+the same way. The openers themselves keep their console.error — main.jsx
+already reports a loadOverlays failure once when the chunk dies, and one
+failure should not re-report on every tap.
+
+**Every prose claim moved in the same commit** — privacy.html (re-dated),
+data-inventory.md, STORE-FORMS.md ×3, SHIP-CHECKLIST.md, COSTS.md,
+app-privacy.json's `$why`, .env.example, the panel copy, and lib/sentry.ts's
+own header. The store ANSWERS do not move: Crash Data was declared
+collected even while default-off, because the form asks what the app *can*
+collect, and Play's "Optional" survives because the user can still switch
+collection off. What moves is only the prose explaining the default.
+
+**Known trade, recorded.** Default-on diagnostics tied to a uid is the kind
+of processing EU consent guidance reads narrowly. The mitigations are the
+ones already built: uid-only payloads, `sendDefaultPii: false`, no session
+replay, an opt-out honoured at every send site, and a privacy policy that
+says exactly what happens. The residual flagged in the purge review stands
+unchanged (an SDK already running keeps running until restart after an
+opt-out mid-session; the close() is best-effort, the gates are the
+guarantee). If this ever needs to flip back, it is one comparison in
+`telemetryEnabled()` plus this prose, reversed.

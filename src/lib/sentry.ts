@@ -7,19 +7,20 @@
 //   - @sentry/react provides the JS error boundary, route
 //     instrumentation, and component-aware breadcrumbs.
 //
-// The SDKs are imported DYNAMICALLY: telemetry is opt-in and off by
-// default, so most sessions never pay the ~100 KB of Sentry JS in
-// the main bundle. This module stays tiny and synchronous; the heavy
-// modules load only after consent + DSN line up. Errors reported
-// while the SDK is still loading are queued (bounded) and flushed.
+// The SDKs are imported DYNAMICALLY: the ~100 KB of Sentry JS stays
+// out of the main bundle and off the first-paint path, loading async
+// after boot. This module stays tiny and synchronous; the heavy
+// modules load only when the DSN + the telemetry flag line up. Errors
+// reported while the SDK is still loading are queued (bounded) and
+// flushed.
 //
-// Configuration is opt-in via env vars — set VITE_SENTRY_DSN to
-// enable. Dev builds without the env var skip Sentry entirely.
+// Configuration is via env vars — set VITE_SENTRY_DSN to enable.
+// Dev builds without the env var skip Sentry entirely.
 //
-// User consent: even when a DSN is configured, we honour the local
-// `insight.telemetry.v1` flag. The default is "off" — telemetry
-// only starts after the user explicitly opts in from the account
-// panel (LivePrivacyPanel).
+// User choice: reporting is ON by default (D76), and the local
+// `insight.telemetry.v1` flag records an opt-out. The switch lives in
+// the account panel (LivePrivacyPanel); an explicit "false" is
+// honoured at every send site, not just at init.
 
 type SentryCapacitor = typeof import("@sentry/capacitor");
 
@@ -32,8 +33,13 @@ const queued: Array<[unknown, Record<string, unknown> | undefined]> = [];
 const QUEUE_CAP = 20;
 
 export function telemetryEnabled(): boolean {
+  // On unless explicitly "false" (D76) — only a recorded opt-out turns
+  // reporting off. Unreadable storage also reads as off, deliberately: a
+  // store that cannot be read is one that could not have recorded an
+  // opt-out either, and silence is the only side that cannot betray a
+  // recorded choice.
   try {
-    return localStorage.getItem(TELEMETRY_KEY) === "true";
+    return localStorage.getItem(TELEMETRY_KEY) !== "false";
   } catch {
     return false;
   }
@@ -72,8 +78,8 @@ export function sentryInit(): void {
   if (sdk || loading) return;
   const dsn = import.meta.env.VITE_SENTRY_DSN;
   if (!dsn) return;
-  // Gate on user consent — the LivePrivacyPanel toggle calls
-  // sentryInit() again after flipping the flag on.
+  // Honour the recorded opt-out — the LivePrivacyPanel toggle calls
+  // sentryInit() again if the flag is flipped back on.
   if (!telemetryEnabled()) return;
   loading = true;
   void (async () => {
@@ -126,10 +132,10 @@ export function reportError(
   err: unknown,
   context?: Record<string, unknown>,
 ): void {
-  // Consent, not `sdk`. An SDK initialised before the user opted out is
-  // still up, and dispatching on its presence is what made the panel's
-  // absolute claim false. Console mirroring below is unaffected: it never
-  // leaves the device.
+  // The opt-out flag, not `sdk`. An SDK initialised before the user opted
+  // out is still up, and dispatching on its presence is what made the
+  // panel's absolute claim false. Console mirroring below is unaffected:
+  // it never leaves the device.
   if (!telemetryEnabled()) {
     if (import.meta.env.DEV || !import.meta.env.VITE_SENTRY_DSN) {
       console.error("[reportError]", err, context);

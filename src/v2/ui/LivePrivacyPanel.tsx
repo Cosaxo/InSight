@@ -113,7 +113,7 @@ function LivePrivacyPanel() {
 
       <LpRow title="Crash reports"
         sub={telemetry
-          ? "On — anonymous crash and error reports (uid only, never content) help fix bugs."
+          ? "On (default) — anonymous crash and error reports (uid only, never your answers) help fix bugs. Turn off any time."
           : "Off — this app sends no reports. Turn on to send anonymous crash reports (uid only, never your answers)."}>
         {btn(telemetry ? "On ✓" : "Off", toggleTelemetry)}
       </LpRow>

@@ -75,7 +75,7 @@
       "type": "CRASH_DATA",
       "linked": true,
       "purposes": ["APP_FUNCTIONALITY"],
-      "$why": "Sentry. Opt-in, default OFF, carries the uid only — no email, no name, no session replay, sendDefaultPii: false. Declared Yes because the form asks what the app CAN collect."
+      "$why": "Sentry. On by default with an opt-out in the privacy panel (D76), carries the uid only — no email, no name, no session replay, sendDefaultPii: false. Was a Yes even while opt-in: the form asks what the app CAN collect."
     }
   ],
 
