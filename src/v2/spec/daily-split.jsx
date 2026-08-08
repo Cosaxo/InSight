@@ -9,6 +9,15 @@ import { navCoasting } from './swipe-back.js';
 import { WPAL } from './world-palette.js';
 import { DAILYQ } from './daily-questions.js';
 import { Sheet } from './primitives.jsx';
+// The boot-failure label reads LIVE through the module, not through
+// window: D39's ratchet only moves down, so new coupling has to arrive as
+// an import. result-card.jsx, map-anchors.js and map-group-stats.js
+// already read it this way. The ~50 `window.LIVE` references elsewhere in
+// this file stay for now — converting them is a separate change, and each
+// one needs its `window.LIVE &&` guard re-read rather than deleted
+// wholesale, because an imported binding cannot be unset but the DATA it
+// carries can still be missing.
+import LIVE from '../data/live';
 import ReactDOM from 'react-dom';
 import { IS_TESTS, IS_TEST_AVG, IS_TEST_RESULTS, persistTestResult } from './test-definitions.js';
 import { PASSIVE } from './passive-progress.js';
@@ -934,6 +943,7 @@ class DailySplit extends React.Component {
 
   render() {
     const h = React.createElement;
+    const st = this.state;
     const { rootRef, screen } = this.renderVals();
     return h('div', {
       ref: rootRef,
@@ -958,12 +968,26 @@ class DailySplit extends React.Component {
       // D1: a live build showing the demo deck (offline / boot failure)
       // must say so — these are sample questions, not the real daily,
       // and votes here don't sync. Clears itself when live attaches.
-      (window.LIVE && window.LIVE.demoInProd) && h('div', {
+      //
+      // TAP IT FOR THE REASON. The label alone says a real user is on demo
+      // content and not why, and on a phone there is no console to ask —
+      // the first device this ever ran on failed here and the reason was
+      // reachable only with a Mac. One tap is the whole remedy; it stays
+      // behind a tap because "reconnecting…" is the honest thing to show
+      // someone on a train, and `auth/network-request-failed` is not.
+      LIVE.demoInProd && h('div', {
         key: 'demo-banner',
-        style: { display: 'flex', justifyContent: 'center' },
-      }, h('span', {
-        style: { fontSize: 10.5, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--ink-3)', border: '1px solid var(--rule)', borderRadius: 999, padding: '3px 10px' },
-      }, 'Sample questions · reconnecting…')),
+        style: { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 },
+      },
+        h('button', {
+          type: 'button',
+          onClick: () => this.setState(s => ({ showBootErr: !s.showBootErr })),
+          'aria-expanded': !!st.showBootErr,
+          style: { fontSize: 10.5, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--ink-3)', background: 'none', border: '1px solid var(--rule)', borderRadius: 999, padding: '3px 10px', cursor: 'pointer', WebkitAppearance: 'none' },
+        }, 'Sample questions · reconnecting…'),
+        st.showBootErr && h('div', {
+          style: { fontSize: 11, lineHeight: 1.5, color: 'var(--ink-3)', textAlign: 'center', maxWidth: 320, padding: '0 12px', wordBreak: 'break-word' },
+        }, LIVE.bootError || 'connecting…')),
       screen);
   }
 }
