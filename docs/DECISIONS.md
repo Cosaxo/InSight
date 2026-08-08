@@ -7514,6 +7514,43 @@ answer, and inventing a surface to fill the gap is the shape D1 forbids.
 The data layer is the half with the rules-shaped hazards in it; the half
 with the design decisions in it waits for the design.
 
+**Amendment (same day) — the UI was asked for and built.**
+`ui/LiveTakesPanel.tsx`: the circle's takes on one question, a composer,
+and the report control. The paragraph above is superseded on the facts and
+kept for the reasoning, which held — the design question was answered by
+the owner asking for it, not by this record guessing.
+
+Three things in that panel read as styling and are consequences of
+`firestore.rules`. Each is commented at its site and pinned in
+`LiveTakesPanel.test.tsx`, because each is exactly the kind of thing a
+later tidy-up removes:
+
+- **Reporting takes two taps.** `v2_flags` is `allow update, delete: if
+  false` — a cast flag cannot be withdrawn by the reporter, the author, or
+  a moderator. The demo's one-tap report (`WF_REPORT`) is local and
+  undoable; this one is neither. A single tap on an irreversible write
+  turns a misplaced thumb into a permanent record.
+- **There is no reason picker.** The demo offers four chips. The create
+  rule is `hasOnly(["takeId", "gid", "uid", "at"])`, so a reason has no
+  field to live in — and nothing would read it if it did: the run derives
+  its own policy line (H1–H5) from the take's text. A picker would be a
+  form whose answer is discarded on send.
+- **A reported take stays on screen.** The demo replaces it with a
+  tombstone. Flags are `allow read: if false`, so a local hide has nothing
+  to rehydrate from and would reappear on the next load — a worse lie than
+  never hiding it. Soft-hide is the moderator's verdict, not the
+  reporter's.
+
+And the copy does not promise removal, because `MOD_ADVISORY` is true and
+nothing is hidden today. "A moderator reviews flagged takes against the
+posted policy" is what is true; a test asserts the string does not drift
+into *will be removed*. Measured the same way as the rest: making the
+control one-tap fails five cases.
+
+The panel is not yet mounted by any screen — it self-registers on
+`globalThis` like every other `ui/` panel and is listed in `spec-index.js`,
+so wiring it into the group daily is a call site, not a build.
+
 ### Part 2 (Proposed) — anonymous world takes, gated on the advisory flip
 
 **Proposal.** Extend takes to world-scale questions, **without author

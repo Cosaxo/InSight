@@ -25,17 +25,24 @@ deploy once the e2e leg was green in CI. During the advisory phase the
 maintainer's own account holds the moderator credential; the dedicated
 low-privilege identity comes with the Routine (step 4 below).
 
-**The client half landed 2026-08-08 (D76 part 1).** `LIVE.social` now
-carries the circle takes surface — `loadTakes`, `takes`, `postTake`,
-`deleteTake`, `flagTake`, `flagged` — so the flag pipeline below finally
-has a device that can feed it; until then every guarantee in this
-document was enforcing a collection nothing on a phone could reach. It
-is the data layer only: no take list and no report control are drawn
-yet, because that is a design question, and inventing a surface to close
-a gap is the shape D1 forbids.
+**The client half landed 2026-08-08 (D76 part 1 and its amendment).**
+`LIVE.social` carries the circle takes surface — `loadTakes`, `takes`,
+`postTake`, `deleteTake`, `flagTake`, `flagged` — and
+`ui/LiveTakesPanel.tsx` draws the take list, the composer and **the
+report control this document had been waiting on**. Until then every
+guarantee written here was enforcing a collection nothing on a phone
+could reach.
 
-Still ahead: the report control's **UI**, the low-privilege Routine, and
-the maintainer's answers to the open questions at the end. The policy and
+The control is two-step because a flag cannot be undone, carries no
+reason picker because the flag document has no field for one and the run
+picks its own policy line, and leaves a reported take on screen because
+flags are unreadable and the soft-hide is the verdict's job. Its copy
+does not promise removal while `MOD_ADVISORY` is true. The panel
+self-registers on `globalThis`; mounting it on a screen is the one step
+left on the client.
+
+Still ahead: mounting the panel, the low-privilege Routine, and the
+maintainer's answers to the open questions at the end. The policy and
 threat model below remain the contract.
 
 ## The job in one sentence
@@ -59,8 +66,9 @@ confinement. That is why the sketch came first.*
 
 What is true now: the flags collection, the queue, the verdict log and
 both callables exist and are deployed (D22); the client can read, post,
-delete and flag circle takes (D76 part 1). What is still absent is the
-**report button itself** — the control, not its plumbing — and the
+delete and flag circle takes, and `LiveTakesPanel` draws all of it
+including the report control (D76 part 1 + amendment). What is still
+absent is the **mount** — no screen renders the panel yet — and the
 world-feed takes remain demo-only and `!S.live`-gated, which is D1
 working rather than a gap.
 
