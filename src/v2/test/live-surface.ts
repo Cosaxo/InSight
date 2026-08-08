@@ -22,7 +22,14 @@
 // member. That is the whole point.
 
 export const LIVE_MEMBERS = [
-  "aggFor", "anchors", "appBuild", "confirmedVotes", "dailyBank", "deck",
+  "aggFor", "anchors", "appBuild",
+  // The reason boot did not attach, rendered under the "Sample questions ·
+  // reconnecting…" pill when it is tapped. It exists because that label
+  // said a real user was on demo content without saying why, and an
+  // iPhone has no console to ask — the first device this app ran on
+  // failed exactly there.
+  "bootError",
+  "confirmedVotes", "dailyBank", "deck",
   "deleteAccount", "demoInProd", "displayName", "enabled", "feedReady",
   "latestBuild", "learnAgg", "learnAnswer", "linkGoogle", "linked", "myCity",
   "myVotes", "ready", "saveAnchors",

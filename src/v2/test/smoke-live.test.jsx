@@ -128,6 +128,31 @@ describe("spec layer mounts in live mode", () => {
     expectNoBoundary("daily/demoInProd");
   });
 
+  it("hides the boot reason until the pill is tapped, then shows it", async () => {
+    // The label alone said a real user was on demo content and not why, and
+    // an iPhone has no console to ask — so the first device this app ever
+    // ran on failed here and the reason needed a Mac to reach, which is the
+    // one dependency ios-release.yml exists to remove.
+    //
+    // Both halves are asserted because both are deliberate: the reason is
+    // NOT on screen by default (a stranger on a train should read
+    // "reconnecting…", not a Firebase error code), and it IS one tap away.
+    const expectNoBoundary = mountLive({ demoInProd: true });
+    const pill = screen.getByRole("button", { name: /sample questions/i });
+    expect(screen.queryByText(/auth\/network-request-failed/)).toBeNull();
+    fireEvent.click(pill);
+    expect(await screen.findByText(/auth\/network-request-failed/)).toBeTruthy();
+    expectNoBoundary("daily/demoInProd/reason");
+  });
+
+  it("never shows the boot reason on a healthy live boot", () => {
+    // bootError is "" once attached, and nothing should render an empty
+    // reason box. Guards the direction the fixture makes easy to get wrong.
+    const expectNoBoundary = mountLive();
+    expect(screen.queryByRole("button", { name: /sample questions/i })).toBeNull();
+    expectNoBoundary("daily/live/no-reason");
+  });
+
   it("renders a profile that has not picked a city", () => {
     // D9: a pre-D9 profile holds free text that does not parse, so myCity is
     // "" and Near must ask the user to re-pick rather than guessing or

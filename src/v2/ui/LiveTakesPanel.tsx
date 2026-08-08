@@ -1,5 +1,5 @@
 // LiveTakesPanel — the circle's takes on one question, with the report
-// control docs/MODERATION.md has been waiting on (D22 → D76 part 1).
+// control docs/MODERATION.md has been waiting on (D22 → D78 part 1).
 //
 // Born in this repo, so it lives here as typed TSX; a globalThis assignment
 // at the bottom keeps the spec layer's render-time lookup working.

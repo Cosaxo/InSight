@@ -309,7 +309,7 @@ Both apps must be registered under `com.cosaxo.insight`:
   | User content → Other | Answers, test results | Yes | App functionality |
   | **Sensitive info** | Politics test result; gender if entered | Yes | App functionality |
   | Location → Coarse | City name (see below) | Yes | App functionality |
-  | Diagnostics → Crash data | Sentry, **opt-in, default OFF**, uid only | Yes | App functionality |
+  | Diagnostics → Crash data | Sentry, **on by default, opt-out in the privacy panel** (D76), uid only | Yes | App functionality |
   | Purchases, Browsing, Search, Contacts, Ads | **None** | — | — |
 
   Three things to get right, because they are the ones that bite:

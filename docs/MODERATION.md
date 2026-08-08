@@ -25,7 +25,7 @@ deploy once the e2e leg was green in CI. During the advisory phase the
 maintainer's own account holds the moderator credential; the dedicated
 low-privilege identity comes with the Routine (step 4 below).
 
-**The client half landed 2026-08-08 (D76 part 1 and its amendment).**
+**The client half landed 2026-08-08 (D78 part 1 and its amendment).**
 `LIVE.social` carries the circle takes surface — `loadTakes`, `takes`,
 `postTake`, `deleteTake`, `flagTake`, `flagged` — and
 `ui/LiveTakesPanel.tsx` draws the take list, the composer and **the
@@ -77,7 +77,7 @@ What is true now: the flags collection, the queue, the verdict log and
 both callables exist and are deployed (D22); the client can read, post,
 delete and flag circle takes, and `LiveTakesPanel` draws all of it
 including the report control, mounted on the reveal in `LdReveal`
-(D76 part 1 + amendment). The world-feed takes remain demo-only and
+(D78 part 1 + amendment). The world-feed takes remain demo-only and
 `!S.live`-gated, which is D1 working rather than a gap.
 
 ## The policy — permissive by default, with named hard lines

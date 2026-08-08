@@ -71,6 +71,8 @@ import type { AggDoc, LiveQuestion, QuestionDoc, VoteContext } from "./deck";
 
 const state = {
   ready: false,
+  // Why boot did not attach, in the user's own build. See LIVE.bootError.
+  bootError: "",
   // Auth session was revoked mid-run. The UI stays on real data (blanking
   // to demo would be a worse lie than a stale-but-true view); this only
   // gates honest copy while a new anonymous session is fetched.
@@ -965,7 +967,7 @@ const SOCIAL = {
   // Free text exists only among people who mutually added each other, and
   // the rules have no world-scale shape to fall back on: every gate below
   // resolves membership through `v2_groups/{gid}.memberUids`, so a take
-  // with no circle behind it cannot be written, read or flagged. D76 is
+  // with no circle behind it cannot be written, read or flagged. D78 is
   // the proposal to widen that; until it is adopted this is the surface,
   // whole.
   //
@@ -1399,6 +1401,29 @@ const LIVE = {
   // a late successful boot flips enabled and re-renders subscribers.
   get demoInProd(): boolean {
     return import.meta.env.VITE_V2_LIVE === "true" && !this.enabled;
+  },
+  // WHY boot's reason is a value and not just a console line. `demoInProd`
+  // says a real user is looking at demo content; it does not say why, and
+  // on a phone nobody can ask. The reason went to console.warn and to
+  // Sentry, and the first device this app ever ran on failed exactly here
+  // with neither reachable: an iPhone's console needs a Mac — the one
+  // dependency ios-release.yml exists to remove — and the build on that
+  // phone predated D76, so telemetry was still opt-in and off.
+  //
+  // D76 fixes the Sentry half going forward and this is still worth having,
+  // because the two fail differently. Sentry needs a DSN configured, a
+  // network that works well enough to send, and someone at a dashboard;
+  // this needs none of those and answers in one tap. A boot failure whose
+  // cause IS the network is precisely the case where the remote path is
+  // least likely to arrive.
+  //
+  // Empty string rather than null while boot is still in flight, so the UI
+  // can tell "no reason yet" from "failed for this reason" without a second
+  // flag. Not cleared on a late success: `enabled` flipping true is what
+  // hides the label, and keeping the text lets a reconnect still show what
+  // the first attempt hit.
+  get bootError(): string {
+    return state.bootError;
   },
   get ready() {
     return state.ready;
@@ -1850,6 +1875,13 @@ export async function initLive(timeoutMs = 2500): Promise<void> {
   // via notify() and the UI reconciles.
   boot.catch((err) => {
     console.warn("[LIVE] boot failed — mock mode:", err);
+    // Readable on the device, where console.warn is not. Firebase's
+    // `code` is the actionable half — auth/network-request-failed and
+    // permission-denied are different problems with the same message —
+    // so it is kept when present.
+    const code = (err as { code?: string })?.code;
+    state.bootError = `${code ? `${code} — ` : ""}${(err as Error)?.message || String(err)}`;
+    notify();
     reportError(err, { where: "boot" });
   });
   try {
@@ -1861,6 +1893,14 @@ export async function initLive(timeoutMs = 2500): Promise<void> {
     ]);
   } catch {
     /* logged above; timeout case logs here via the race rejection */
+  }
+  // The race above only decides when to RENDER — boot keeps running, and
+  // may still be running now. Say so rather than leaving the label blank:
+  // "still connecting" and "failed" look identical on screen otherwise,
+  // and they are the two cases a person is trying to tell apart.
+  if (!LIVE.enabled && !state.bootError) {
+    state.bootError = `still connecting after ${Math.round(timeoutMs / 1000)}s`;
+    notify();
   }
 }
 

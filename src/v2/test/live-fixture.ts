@@ -144,6 +144,10 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
     ready: true,
     feedReady: true,
     demoInProd: !!opts.demoInProd,
+    // Non-empty only in the demoInProd case, matching the real store: the
+    // label is what a failed boot leaves behind, and a fixture that always
+    // carried one would let a test assert the reason is shown while live.
+    bootError: opts.demoInProd ? "auth/network-request-failed — fixture" : "",
     uid: "u_fixture",
     displayName: "Tester",
     myCity: opts.myCity ?? "Oslo, NO",
