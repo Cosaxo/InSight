@@ -84,7 +84,7 @@ v2_agg_events/{eventId}            trigger ledger (opaque), two jobs (D28)
                                    days (LEDGER_RETENTION_DAYS); a uid's
                                    entries are erased with the account
 v2_question_aggs/{qid}             the PUBLIC mirror, k-floored
-  { tooSmall: true }               while total < AGG_MIN_N (5)
+  { tooSmall: true }               while total < AGG_MIN_N (5 by design; 1 under D81's launch pause)
   { counts, total, tooSmall:false } at/above the floor, and only on every
                                    5th answer (shouldPublishAgg) — clients
                                    hold an onSnapshot, so a per-answer

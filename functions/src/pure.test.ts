@@ -46,10 +46,15 @@ import {
   revealVotes,
   votesMatchingQid,
 } from "./pure";
+import { AGG_MIN_N, PUBLISH_EVERY } from "./v2";
 
-// AGG_MIN_N as shipped. The folds take the k-floor as a parameter because
+// The DESIGN floor — what AGG_MIN_N returns to when D81's launch pause
+// ends (the shipped value is 1 while it holds; see the cadence suite
+// below for the pair). The folds take the k-floor as a parameter because
 // the bucket cap now EVICTS a sub-floor bucket to admit a new one, and
-// "sub-floor" is the publish path's decision, not the fold's to assume.
+// "sub-floor" is the publish path's decision, not the fold's to assume —
+// which is also what keeps the floor-5 machinery tested while the shipped
+// constant sits at 1.
 const FLOOR = 5;
 
 // ── invite codes ────────────────────────────────────────────────
@@ -630,8 +635,10 @@ describe("per-anchor breakdowns", () => {
   });
 });
 
-describe("public-mirror publish cadence", () => {
-  // AGG_MIN_N / PUBLISH_EVERY as shipped
+describe("public-mirror publish cadence — the design pair (5, 5), D81's revert target", () => {
+  // NOT the shipped constants while the launch pause holds (see the suite
+  // below for those). These pin the machinery at the floor it returns to,
+  // so flipping D81 back is a two-literal edit and not a re-derivation.
   const pub = (total: number) => shouldPublishAgg(total, 5, 5);
 
   it("publishes nothing below the floor", () => {
@@ -668,6 +675,27 @@ describe("public-mirror publish cadence", () => {
     // and a cadence of 1 is "publish every answer", the old behaviour,
     // kept expressible so a future operator choosing it does so knowingly
     expect(shouldPublishAgg(6, 5, 1)).toBe(true);
+  });
+});
+
+describe("public-mirror publish cadence — the constants as shipped (D81 pause)", () => {
+  // The launch pause: AGG_MIN_N and PUBLISH_EVERY sit at 1, so counts
+  // publish from the first answer and every answer after it. Every observed
+  // step IS one person's vote — that is the accepted disclosure D81
+  // records, not an oversight this suite failed to catch.
+  it("publishes from the first answer while the pause holds", () => {
+    expect(shouldPublishAgg(1, AGG_MIN_N, PUBLISH_EVERY)).toBe(true);
+    for (let t = 1; t <= 20; t++) {
+      expect(shouldPublishAgg(t, AGG_MIN_N, PUBLISH_EVERY), `total ${t}`).toBe(true);
+    }
+  });
+
+  it("keeps the pair coupled: paused together or restored together", () => {
+    // A floor of 1 with a cadence of 5 holds the first four answers hostage
+    // for no disclosure gain; the restored floor without the restored
+    // cadence re-opens the one-vote-per-step stream D7's amendment closed.
+    // Either edit alone fails here and names the other half.
+    expect([AGG_MIN_N, PUBLISH_EVERY]).toEqual(AGG_MIN_N === 1 ? [1, 1] : [5, 5]);
   });
 });
 

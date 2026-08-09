@@ -49,6 +49,7 @@ import { beforeAll, afterEach, describe, expect, it, vi } from "vitest";
 import React from "react";
 import { act, cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { IS_DATA } from "../spec/sample-data.js";
+import { FRIENDS } from "../spec/follows.js";
 
 // 15s per test, not the 5s default: every case here mounts the FULL app in
 // jsdom, and the v15 revision roughly doubled the spec layer's feed weight —
@@ -194,6 +195,20 @@ describe("spec layer mounts", () => {
     const expectNoBoundary = mountApp();
     fireEvent.click(screen.getByRole("button", { name: /^search$/i }));
     expectNoBoundary("search overlay");
+  });
+
+  it("lists the seeded friends in the search overlay (demo keeps them)", () => {
+    // The control for smoke-live's "shows no sample people" case: the same
+    // rows must still render with LIVE off, or the live assertion would
+    // pass against an overlay that had lost its people section for any
+    // reason at all.
+    mountApp();
+    fireEvent.click(screen.getByRole("button", { name: /^search$/i }));
+    const seed = FRIENDS.list()
+      .map((id) => (IS_DATA.people || []).find((p) => p.id === id))
+      .find((p) => p && p.name && !p.anon);
+    expect(seed, "sample data has no named seed friend to assert on").toBeTruthy();
+    expect(screen.getByText(seed.name)).toBeTruthy();
   });
 });
 

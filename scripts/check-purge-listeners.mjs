@@ -71,6 +71,11 @@ const EXEMPT = {
   "src/v2/ui/LivePrivacyPanel.tsx":
     "component state seeded per mount and written only on explicit save "
     + "of the new value",
+  "src/v2/data/cityAnchor.ts":
+    "stateless write helper: reads the profile blob fresh from storage at "
+    + "each call and touches one leaf — no module-scope copy exists to go "
+    + "stale, and a post-purge call starts from the purged (absent) blob; "
+    + "the blob's own store is profile-general.jsx, exempt above",
 };
 
 const dirs = ["src/v2/spec", "src/v2/ui", "src/v2/data", "src/lib"];

@@ -11,6 +11,7 @@ import { Sheet } from './primitives.jsx';
 // The feed's cadence arithmetic — extracted so the test exercises THIS loop
 // rather than a copy of it (D11's claim, D42's citation; see the module).
 import { interleaveFeed } from '../data/feed-interleave.ts';
+import { AGG_FLOOR } from '../data/floor.ts';
 import ReactDOM from 'react-dom';
 import { PASSIVE } from './passive-progress.js';
 import {
@@ -992,8 +993,13 @@ class WorldFeed extends React.Component {
     return (
       <div style={{ fontSize: big ? 12.5 : 11.5, fontWeight: 600, color: 'var(--ink-3)', padding: '2px 2px 0' }}>
         {/* real characters, not \u escapes: JSX text children are literal,
-            so an escape here renders as a visible backslash on the card */}
-        {'You’re early — counts appear once 5 people have answered.'}
+            so an escape here renders as a visible backslash on the card.
+            Floor-aware (data/floor.ts): at the paused floor (D81) this
+            state is only "the trigger hasn't landed yet", so promising
+            five people would be promising a wait that isn't coming. */}
+        {AGG_FLOOR > 1
+          ? 'You’re early — counts appear once ' + AGG_FLOOR + ' people have answered.'
+          : 'You’re first — the count lands in a moment.'}
       </div>
     );
   }

@@ -60,8 +60,10 @@ server ever reading another user's document.
 
 **The floor is what makes the cut publishable.** The exact counts stay in
 a collection no client may read. The public mirror carries a cohort only
-once it holds at least `AGG_MIN_N` (5) answers, updates once per five so
-no single step is attributable, and applies *complementary suppression*:
+once it holds at least `AGG_MIN_N` answers (5 by design; **paused to 1
+until launch traction — D81**, so counts currently publish from the first
+answer, exactly), updates once per `PUBLISH_EVERY` so no single step is
+attributable (also paused to 1), and applies *complementary suppression*:
 if hiding the sub-floor buckets would leave exactly one hole, the smallest
 surviving bucket goes too, because one hole plus a known total is a
 subtraction away from being no floor at all. `publishableBreakdown` in

@@ -36,6 +36,8 @@ vi.setConfig({ testTimeout: 15000 });
 import { FEED_OPTIONS, fixtureSurfaceMismatch, installLive } from "./live-fixture";
 import { list as anchorList } from "../spec/map-anchors.js";
 import { IS_TEST_RESULTS } from "../spec/test-definitions.js";
+import { FRIENDS } from "../spec/follows.js";
+import { IS_DATA } from "../spec/sample-data.js";
 
 const BOUNDARY_LOG = "[InSight] boundary caught:";
 const BOUNDARY_COPY = /This view hit a snag/i;
@@ -109,6 +111,24 @@ describe("spec layer mounts in live mode", () => {
     const expectNoBoundary = mountLive();
     fireEvent.click(screen.getByRole("button", { name: /^search$/i }));
     expectNoBoundary("search/live");
+  });
+
+  it("shows no sample people in the search overlay", () => {
+    // The overlay's Friends rows are sample-data personas wearing invented
+    // relationships ("sister · since birth · 86% match"). Live mode has no
+    // person graph at all (D3), so a live build listing them is a D1
+    // fabrication — and it shipped: the release build offered five seeded
+    // strangers as the user's oldest friends. The demo smoke case asserts
+    // the same rows DO render with LIVE off, so this pair pins the gate in
+    // both directions.
+    mountLive();
+    fireEvent.click(screen.getByRole("button", { name: /^search$/i }));
+    const seed = FRIENDS.list()
+      .map((id) => (IS_DATA.people || []).find((p) => p.id === id))
+      .find((p) => p && p.name && !p.anon);
+    expect(seed, "sample data has no named seed friend — the control is asserting on nothing").toBeTruthy();
+    expect(screen.queryByText(seed.name)).toBeNull();
+    expect(screen.queryByText(/% match/)).toBeNull();
   });
 
   it("renders a below-the-floor deck without tripping the boundary", () => {

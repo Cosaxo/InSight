@@ -8,6 +8,7 @@ import { IS_DATA } from './sample-data.js';
 import { IS_TEST_RESULTS } from './test-definitions.js';
 import { PASSIVE } from './passive-progress.js';
 import { list as anchorList } from './map-anchors.js';
+import { PROFILE_GENERAL_LS } from '../data/cityAnchor';
 
 // ─────────────────────────────────────────────────────────────
 // General tab · the parts of you that aren't a test.
@@ -26,7 +27,10 @@ import { list as anchorList } from './map-anchors.js';
 (function () {
   const { useState, useEffect, useRef, useId } = React;
 
-  const GKEY = 'insight.profileGeneral.v2';
+  // Imported rather than restated: data/cityAnchor.ts writes vitals.city
+  // into this same blob from the Mirror's needs-a-city empty state, and a
+  // key spelled in two files is a drift waiting to strand one of them.
+  const GKEY = PROFILE_GENERAL_LS;
   // The key this replaced. A v1 blob may hold the sample persona as its own
   // properties, because the build that wrote it could not tell the two apart
   // — see loadGen and migrateV1 below.

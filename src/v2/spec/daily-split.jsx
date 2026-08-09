@@ -18,6 +18,7 @@ import { Sheet } from './primitives.jsx';
 // wholesale, because an imported binding cannot be unset but the DATA it
 // carries can still be missing.
 import LIVE from '../data/live';
+import { AGG_FLOOR, AGG_COUNT_IS_EXACT } from '../data/floor';
 import ReactDOM from 'react-dom';
 import { IS_TESTS, IS_TEST_AVG, IS_TEST_RESULTS, persistTestResult } from './test-definitions.js';
 import { PASSIVE } from './passive-progress.js';
@@ -44,6 +45,18 @@ const WORLD_TOPICS_V2 = window.WORLD_TOPICS || [
 // Questions with a true counterpart in the map's store (DAILYQ) place a real
 // dot when you vote; the rest name the branch the answer belongs to.
 const DAILYSPLIT_DQ_SYNC = { s1: { prompt: 'Pineapple on pizza?', map: { yes: 0, no: 1 } } };
+
+// ── the revealed split's stage height ──
+// Two- to four-option days keep the designed fixed 244px chart. Each tile
+// refuses to shrink under its 46px minHeight (label + the winner's numeral),
+// plus the column's 7px gaps, so from five options up the content minimum
+// (53n − 7) outgrows a fixed 244 and the tiles spilled straight over the
+// meta line, the feed and its chip bar — found on a device the first time a
+// ten-option daily shipped. The extra 130 is flex headroom so shares can
+// still read as heights instead of every tile pinning at its minimum.
+// Exported for the unit test that holds this arithmetic to the 46/7 the
+// tile styles actually use (test/split-stage.test.js).
+export function sdSplitStageH(n) { return n <= 4 ? 244 : n * 53 + 123; }
 
 class DailySplit extends React.Component {
   state = {
@@ -566,18 +579,26 @@ class DailySplit extends React.Component {
     const maxP = Math.max(...rp), myIdx = S.options.findIndex(o => o.id === myVote);
     // Below the k-floor the aggregate publishes nothing — say so instead
     // of dressing a single vote up as a population.
-    // Above the floor the published count is a LOWER BOUND, not a running
-    // total: the public mirror is rewritten once per 5 answers so no single
-    // step is attributable to one person (D7's amendment). So a live count
-    // reads "5+", which is true and is the honest way to say "this moves in
-    // fives". Printing it as exact is the actual inaccuracy — and a small
-    // room watching the number sit on 5 for four more answers reads as
-    // broken rather than as batched.
+    // Under the DESIGN cadence (5) the published count is a LOWER BOUND,
+    // not a running total: the public mirror is rewritten once per 5
+    // answers so no single step is attributable to one person (D7's
+    // amendment), and a live count reads "5+" — the honest way to say
+    // "this moves in fives". Printing it as exact is the actual inaccuracy
+    // there — and a small room watching the number sit on 5 for four more
+    // answers reads as broken rather than as batched.
     // The tile heights + the 50% line say majority/underdog — the line
     // stays a count.
-    const liveTotal = S.live ? total.toLocaleString() + '+' : total.toLocaleString();
+    // Under D81's launch pause the cadence is 1 and the count is EXACT, so
+    // the "+" would claim a batching inaccuracy that is not there \u2014 it
+    // returns with the restored cadence (AGG_COUNT_IS_EXACT, data/floor.ts).
+    const liveTotal = S.live && !AGG_COUNT_IS_EXACT ? total.toLocaleString() + '+' : total.toLocaleString();
+    // tooSmall at floor 1 means "no published counts yet": after your own
+    // blind vote that is "you're first, the trigger is landing", not "wait
+    // for five people" \u2014 the floor-aware copy keeps both eras honest.
     const resultNote = (S.live && S.tooSmall)
-      ? 'You\u2019re early \u2014 counts appear once 5 people have answered.'
+      ? (AGG_FLOOR > 1
+        ? 'You\u2019re early \u2014 counts appear once ' + AGG_FLOOR + ' people have answered.'
+        : 'You\u2019re first \u2014 the count lands in a moment.')
       : liveTotal + ' votes';
     const onReset = () => this.setState(s => { const v = { ...s.votes }; delete v[S.id]; return { votes: v, filter: 'all', tab: null, feedOpen: false }; });
     const post = () => { const t = st.draft.trim(); if (!t || !voted) return; const c = { key: 'u' + Date.now(), name: 'You', init: 'Y', opt: myVote, text: t, ups: 0, time: 'now' }; this.setState(s => ({ mine: { ...s.mine, [S.id]: [c, ...(s.mine[S.id] || [])] }, draft: '' })); };
@@ -770,7 +791,7 @@ class DailySplit extends React.Component {
         : (st.beat === S.id && window.ConsequenceBeat)
         ? h(window.ConsequenceBeat, { key: 'beat-' + S.id, seed: S.id, options: S.options, pcts: rp, mineIdx: myIdx, height: 320, onDone: () => this.setState({ beat: null }) })
         : h('div', { style: { ...col(11), animation: 'popIn .35s cubic-bezier(0.2,0.8,0.2,1)' } },
-            h('div', { style: { display: 'flex', flexDirection: 'column', gap: 7, height: 244 } },
+            h('div', { style: { display: 'flex', flexDirection: 'column', gap: 7, height: sdSplitStageH(S.options.length) } },
             S.options.map((o, i) => {
               // change-vote lives behind a long-press on your own bar
               const mineRow = myVote === o.id;

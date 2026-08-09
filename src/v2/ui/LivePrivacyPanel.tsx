@@ -9,6 +9,7 @@
 // keeps the spec layer's render-time lookup working unchanged.
 import React from "react";
 import LIVE from "../data/live";
+import { AGG_FLOOR } from "../data/floor";
 // The hosted origin for the legal pages. Lives in data/links.ts now so
 // invites and legal links share one constant — a domain change stays a
 // single edit (D3).
@@ -122,7 +123,15 @@ function LivePrivacyPanel() {
         <div style={{ fontWeight: 800, fontSize: 14.5, marginBottom: 6 }}>What leaves your device</div>
         <ul style={{ margin: 0, paddingLeft: 17, fontSize: 12.5, fontWeight: 500, color: "var(--ink-2)", lineHeight: 1.65 }}>
           <li>Your answers are readable by you alone — enforced server-side.</li>
-          <li>World stats show only combined counts, and only once ≥5 people answered.</li>
+          {/* The floor clause tracks data/floor.ts. While D81's launch pause
+              holds (floor 1) the honest sentence is the disclosure itself:
+              counts show from the first answer, so in a tiny cohort a count
+              can be readable as one person's answer. A privacy panel that
+              kept claiming "≥5" here would be the exact UI-says-it,
+              server-doesn't failure this product defines itself against. */}
+          <li>{AGG_FLOOR > 1
+            ? `World stats show only combined counts, and only once ≥${AGG_FLOOR} people answered.`
+            : "World stats show only combined counts — never who. While the app is small, counts show from the first answer (so a count of 1 is that one answer); the ≥5-person floor switches back on as cohorts grow."}</li>
           <li>Group &amp; 1v1 answers stay sealed until the next day&apos;s reveal, then show with names — to members only.</li>
           {/* This line has been rewritten twice, and the second time the
               GUARANTEE changed rather than the wording. "No device

@@ -7882,3 +7882,127 @@ symptom exactly; cause 2 is proven to hang under a synchronous callback but
 whether the device's SDK fired synchronously is unknown and now unknowable,
 because both are fixed in the same build. Recorded as two fixes, not as one
 diagnosis with a spare.
+
+## D81 · The k-floor is paused at 1 until launch traction
+
+**Decided:** 2026-08-09 · **Status:** binding · **Owner's call**, from
+release testing: below five answers every breakdown reads as withheld, and
+"we can pause [the floor] as it's no secret what people vote" at the
+current userbase.
+
+**Decision.** `AGG_MIN_N` and `PUBLISH_EVERY` (functions/src/v2.ts) drop
+from 5 to **1**, together. Counts publish from the first answer, exactly,
+per answer. The floor is *paused*, not removed: every piece of the
+machinery still runs — `tooSmall`, `publishableBreakdown`, complementary
+suppression, the one-bucket rule — it just bites at a size that cannot
+occur. The pure suite keeps the whole floor-5 choreography tested as "the
+design pair", so the revert is a two-literal edit, not a re-derivation.
+
+**Why.** The floor defends a reader from recovering an individual's answer
+out of a small cohort. Pre-launch there is no reader to defend against and
+no cohort that will ever reach five: with a tester count in single digits,
+*every* figure in the app sat at "You're early — counts appear once 5
+people have answered", permanently, on every stop of the Mirror and every
+card of the feed. A floor that suppresses 100% of the product's output
+protects nobody from nothing while making the release look broken — the
+owner hit exactly this on the first TestFlight build
+(LAUNCH-RUNBOOK §3.2 predicted it as "expect the k-floor to look like a
+bug"; the accurate prediction was the argument for the pause).
+
+**The disclosure this accepts, stated rather than waved at.** While the
+pause holds:
+
+- a cohort of one *is* that person's answer, to anyone who can name the
+  cohort's membership — "the one person in Bergen who answered" is
+  identified by the cohort label itself;
+- with the cadence at 1, every observed change to a public aggregate is
+  one person's vote, and an observer holding a snapshot listener can
+  correlate a step with "my friend just answered" timing;
+- the client says so: the privacy panel's floor bullet now reads "while
+  the app is small, counts show from the first answer (so a count of 1 is
+  that one answer); the ≥5-person floor switches back on as cohorts grow"
+  — because a privacy panel still claiming ≥5 would be the UI-says-it,
+  server-doesn't failure this product defines itself against.
+
+**What does not pause.** The exact counts stay in `v2_aggs_private`, which
+no client may read. Answers stay owner-only and create-only (D5). Political
+items still never slice (D44). A one-bucket dimension is still withheld —
+it is a population statement, not a split, at any floor (the e2e asserts
+this survives the pause). Duel/sealed answers still reveal only to members,
+next day. The store privacy labels are unchanged: they never claimed the
+floor, and what they do claim (aggregated, no identities) stays true.
+
+**Client copy follows the constant, not the era.** `src/v2/data/floor.ts`
+is the client's pinned copy of the pair (`floor.test.ts` regex-reads the
+functions source and fails on drift, both directions, plus a paused-
+together-or-restored-together coupling test on each side). Every sentence
+that mentioned the floor now branches on it: the cohort panel's header
+drops the "never a group smaller than N" clause (N=5 would be false, N=1
+vacuous), its "withheld" accounting becomes "no answers yet" — at floor 1
+an absent cell IS zero, so the absent≠zero doctrine inverts — and the
+daily/feed "You're early" note becomes "You're first — the count lands in
+a moment", which is what `tooSmall` means when the only wait left is the
+trigger's own latency. The "5+" lower-bound suffix goes too: with the
+cadence at 1 the count is exact, and a "+" would claim a batching
+inaccuracy that is not there (`AGG_COUNT_IS_EXACT`).
+
+**Why literals and not a config knob.** The drift gates
+(LiveCohortBody.test, floor.test) regex-match the literals — an expression
+would make them vacuous, and they say so. And a remote knob that can flip
+a disclosure property without a reviewed commit is strictly worse than a
+two-line diff that every gate names. A deploy is the config path here.
+
+**Revert condition.** Restore both constants to 5 (functions/src/v2.ts)
+and both client copies to 5 (src/v2/data/floor.ts) in one commit — the
+tests enumerate every file that must follow, and the copy flips itself.
+When: at public launch, or as soon as cohorts routinely clear five,
+whichever the owner calls first. The e2e's floor-5 choreography (first
+answer publishes nothing; dims withheld while cells sit at 3/2) is
+preserved verbatim in this record's diff and in pure.test.ts, so restoring
+it is mechanical.
+
+## D82 · Near by radius (~500 m) — asked for, priced, and deferred
+
+**Status:** Proposed, deferred · **Requested:** 2026-08-09, owner:
+"Near should not need a city at all but only be distance based … people
+in a 500 m radius or something."
+
+**What is recorded here.** The ask, so it is not lost, and the price, so
+taking it later is a decision rather than a slide. Nothing is built.
+
+**Why not now — the arithmetic, updated from D2/D9:**
+
+- **A 500 m radius is finer than anything this product has ever held.**
+  D2's geohash Near was ~5 km cells and was rejected; 500 m is geohash6/7
+  territory. The product's strongest privacy line — *"the most precise
+  location this system can hold about a person is the name of a city, by
+  construction"* (D9, quoted in the privacy panel) — is spent the moment
+  any per-user cell is written, at any radius.
+- **Proximity needs presence, not a profile field.** "People actually
+  near you" means fresh location per session (foreground fixes, a
+  presence collection with a TTL), not D9's one-tap coarse fix that
+  discards the coordinate on-device. That reopens the class of collection
+  D4 deliberately closed (`insight_discoverable` — D2 records what it
+  leaked and why reviving it was refused), plus store label changes
+  (Coarse → Precise, "location" → collected continuously-ish), the
+  privacy panel's "no background or continuous location" line, and both
+  D75 filings.
+- **The floor makes it empty anyway.** The geo system's own floor was 20
+  per cell (D9 found it); even at the design floor of 5, a 500 m cell
+  needs five simultaneous users on the same block. At the current
+  userbase that is zero cells, everywhere, forever — the feature would
+  ship as a permanently empty screen that cost the privacy label to
+  build. (D81's pause does not help: a 500 m cell with ONE person in it
+  is a tracking dot, not a cohort.)
+
+**The shape it would have to take, if traction ever justifies it:** cells
+no finer than ~1 km, presence that expires in minutes, opt-in with its
+own prompt, floor ≥ 5 with no pause, and the store filings updated in the
+same release — D2's four-point cost list still stands, with its step 3
+(reopening a discoverable collection) still the expensive one. Its own
+project, after launch, never a bugfix-pass rider.
+
+**Until then Near stays D9's city** — which this release made reachable
+in place: the needs-a-city empty state now carries the profile's own
+picker ("use my location" one-tap suggest + manual search) instead of
+prose pointing at the profile.

@@ -120,8 +120,11 @@ await setDoc(doc(db, "v2_users", uid, "answers", q0.id), {
 });
 ok("answer written: " + uid.slice(0, 8) + "/answers/" + q0.id);
 
-// 5 · the trigger folds the answer into the k-floored public mirror.
-// Below AGG_MIN_N (5) the public doc must say tooSmall with NO counts.
+// 5 · the trigger folds the answer into the public mirror. Under D81's
+// launch pause (AGG_MIN_N = PUBLISH_EVERY = 1) the FIRST answer publishes:
+// tooSmall false, exact count of one. The floor-5 choreography this
+// replaces is preserved in the pure suite (pure.test.ts, "the design pair")
+// and returns here with the revert.
 let pub = null;
 for (let i = 0; i < 30; i++) {
   const snap = await getDoc(doc(db, "v2_question_aggs", q0.id));
@@ -129,8 +132,15 @@ for (let i = 0; i < 30; i++) {
   await new Promise((r) => setTimeout(r, 500));
 }
 if (!pub) fail("public agg never appeared — trigger did not fire");
-if (pub.tooSmall !== true || pub.counts) fail("k-floor breach below MIN_N: " + JSON.stringify(pub));
-ok("below floor: public agg is tooSmall-only (no counts leaked)");
+if (pub.tooSmall !== false || pub.total !== 1 || !pub.counts || pub.counts["1"] !== 1)
+  fail("paused floor: first answer did not publish exactly: " + JSON.stringify(pub));
+// The disclosure rule that does NOT pause: a one-bucket dimension is a
+// population statement, not a split, and stays withheld at any floor.
+// Everyone in this loop shares country NO, so `by.country` must never
+// appear — while the multi-bucket dims publish from the first answer.
+if (pub.by && pub.by.country)
+  fail("a one-bucket dimension published under the paused floor: " + JSON.stringify(pub.by));
+ok("paused floor: first answer published exactly (total 1), one-bucket country still withheld");
 
 // 6 · duplicate answer is refused (immutability backs the plain increment)
 await expectDenied("duplicate answer refused by rules", () =>
@@ -139,7 +149,9 @@ await expectDenied("duplicate answer refused by rules", () =>
     answeredAt: serverTimestamp(), anchors: {},
   }));
 
-// 7 · four more voters cross the floor — counts appear, exact and correct.
+// 7 · four more voters — the count stays exact through per-answer
+// publishes (cadence 1 under the pause), and the ledger keeps
+// at-least-once delivery from double-counting any of them.
 // Each voter gets an isolated app instance: reusing one auth while
 // signing in repeatedly races the token swap against the write stream.
 for (let n = 0; n < 4; n++) {
@@ -160,32 +172,37 @@ for (let n = 0; n < 4; n++) {
 let above = null;
 for (let i = 0; i < 40; i++) {
   const snap = await getDoc(doc(db, "v2_question_aggs", q0.id));
-  if (snap.exists() && snap.get("tooSmall") === false) { above = snap.data(); break; }
+  if (snap.exists() && snap.get("total") === 5) { above = snap.data(); break; }
   await new Promise((r) => setTimeout(r, 500));
 }
-if (!above) fail("public counts never appeared above the floor");
+if (!above) fail("public counts never reached total 5");
 // votes: opt1 (first user) + opt0,opt1,opt0,opt1 → {0:2, 1:3}, total 5
-if (above.total !== 5 || above.counts["0"] !== 2 || above.counts["1"] !== 3)
-  fail("counts wrong above floor: " + JSON.stringify(above));
-ok("above floor: exact public counts {0:2, 1:3}, total 5 — no double counting");
+if (above.counts["0"] !== 2 || above.counts["1"] !== 3)
+  fail("counts wrong at total 5: " + JSON.stringify(above));
+ok("five answers: exact public counts {0:2, 1:3} — no double counting");
 
-// 7b · the breakdown's own floor (D8). At total 5 the age bands hold 3 and 2
-// and the cities 3 and 2, so EVERY cell is under AGG_MIN_N and no dimension
-// may appear — the question being past the overall floor is not permission
-// to slice it. Country is a single bucket of 5: over the floor, but one
-// bucket is a population statement rather than a split, so it is withheld
-// by a different rule and must be absent too.
-//
-// Asserted across the whole map, not one named dimension: checking only
-// ageBand is how a newly added dimension leaks without failing anything.
-if (above.by && Object.keys(above.by).length)
-  fail("breakdown published while every cell is under the floor: " + JSON.stringify(above.by));
-ok("breakdown: no dimension published while every cell is under the floor");
+// 7b · the breakdown under the paused floor (D81). At total 5 the age
+// bands hold 3 and 2 and the cities 3 and 2 — under the design floor (5)
+// every one of those cells would be withheld (the choreography this
+// replaces asserted exactly that); at floor 1 they publish, and they must
+// publish EXACTLY. Country is a single bucket of 5: a population
+// statement rather than a split, withheld by a rule the pause does not
+// touch, so it must still be absent.
+const cellSum = (dim, b) => Object.values(above.by[dim][b]).reduce((a, c) => a + c, 0);
+if (!above.by || !above.by.ageBand || !above.by.city)
+  fail("breakdown missing under the paused floor: " + JSON.stringify(above.by));
+if (cellSum("ageBand", "25-34") !== 3 || cellSum("ageBand", "35-44") !== 2)
+  fail("age cells wrong at 3/2: " + JSON.stringify(above.by.ageBand));
+if (cellSum("city", "Oslo, NO") !== 3 || cellSum("city", "Bergen, NO") !== 2)
+  fail("city cells wrong at 3/2: " + JSON.stringify(above.by.city));
+if (above.by.country)
+  fail("a one-bucket dimension was published: " + JSON.stringify(above.by.country));
+ok("breakdown: sub-5 cells publish exactly under the paused floor; one-bucket country stays withheld");
 
-// 7c · five more voters push both bands over the floor. Two into 25-34 and
-// three into 35-44 lands both on exactly 5 at a total of 10 — a publishing
-// multiple under the current cadence (shouldPublishAgg). Country stays a
-// single bucket and must still be withheld.
+// 7c · five more voters. Two into 25-34 and three into 35-44 lands both
+// bands on exactly 5 at a total of 10 — same totals the design-floor
+// choreography asserted, so the revert only re-tightens 7b. Country stays
+// a single bucket and must still be withheld.
 for (let m = 0; m < 5; m++) {
   const vApp = initializeApp({ projectId: "demo-insight", apiKey: "demo", appId: "demo" }, "band" + m);
   const vAuth = getAuth(vApp); connectAuthEmulator(vAuth, "http://127.0.0.1:9099", { disableWarnings: true });
@@ -230,15 +247,16 @@ if (cityTotal("Oslo, NO") !== 5 || cityTotal("Bergen, NO") !== 5)
   fail("city bucket totals wrong: " + JSON.stringify(split.by.city));
 ok("breakdown: ageBand and city both 5/5; single-bucket country withheld");
 
-// 7d · the publish cadence itself. One more answer takes the private total to
-// 11, which is not a publishing multiple — so the PUBLIC doc must stay at 10.
-// Rewriting per answer is what let an onSnapshot reader attribute each step
-// to one person; this is the integration-level guard on that.
+// 7d · the publish cadence itself, as shipped. Under D81's pause the
+// cadence is 1: the 11th answer must move the public mirror to an exact
+// 11 promptly — per-answer publishing is the accepted disclosure, and
+// what this leg now guards is that the count stays EXACT through it.
 //
-// Bounded wait, and honest about what it proves: a regression to per-answer
-// publishing flips this to 11 within a second, so it catches that. It cannot
-// distinguish "held back" from "trigger has not run yet", which is why the
-// cadence itself is pinned by unit tests over 2000 totals.
+// The batched choreography this replaces (an 11th answer must NOT move
+// the mirror off the multiple of 5) returns with the revert; its property
+// is pinned era-independently by the unit tests over 2000 totals
+// (pure.test.ts, "the design pair"), which is also what will catch a
+// revert that restores the floor but forgets this file.
 {
   const vApp = initializeApp({ projectId: "demo-insight", apiKey: "demo", appId: "demo" }, "cadence");
   const vAuth = getAuth(vApp); connectAuthEmulator(vAuth, "http://127.0.0.1:9099", { disableWarnings: true });
@@ -248,13 +266,17 @@ ok("breakdown: ageBand and city both 5/5; single-bucket country withheld");
     qid: q0.id, surface: "daily", optionIdx: 0,
     answeredAt: serverTimestamp(), anchors: { ageBand: "25-34", country: "Norway" },
   });
-  for (let i = 0; i < 8; i++) {
-    await new Promise((r) => setTimeout(r, 400));
+  let eleven = null;
+  for (let i = 0; i < 20; i++) {
     const snap = await getDoc(doc(db, "v2_question_aggs", q0.id));
-    const t = snap.exists() ? snap.get("total") : null;
-    if (t !== 10) fail("public mirror moved off a publishing multiple: total=" + t);
+    if (snap.exists() && snap.get("total") === 11) { eleven = snap.data(); break; }
+    await new Promise((r) => setTimeout(r, 400));
   }
-  ok("cadence: 11th answer did not move the public mirror off 10");
+  if (!eleven) fail("paused cadence: 11th answer never published");
+  // 10 answers stood at {0:7, 1:3}; the 11th is another option 0.
+  if (eleven.counts["0"] !== 8 || eleven.counts["1"] !== 3)
+    fail("counts drifted through per-answer publishes: " + JSON.stringify(eleven.counts));
+  ok("paused cadence: 11th answer published exactly (total 11, counts 8/3)");
 }
 
 // 8 · the duel loop: create → join by code → sealed answers → reveal → streak
@@ -408,11 +430,11 @@ const duelAgg = await getDoc(doc(db, "v2_question_aggs", "group-gu0"));
 if (duelAgg.exists()) fail("duel answers leaked into world aggregates");
 ok("duel answers stay out of world aggregates");
 
-// 9 · learn (D32): first attempts ride the same fold as votes — the floor
-// holds, the counts are a people-rate, and a retry has nothing it may
-// write. The trigger is deliberately untouched by D32, which is exactly
-// what this leg proves: a learn answer aggregates with zero server-side
-// learn code.
+// 9 · learn (D32): first attempts ride the same fold as votes — the same
+// paused floor (D81), the counts are a people-rate, and a retry has
+// nothing it may write. The trigger is deliberately untouched by D32,
+// which is exactly what this leg proves: a learn answer aggregates with
+// zero server-side learn code.
 const LQ = "learn-cell1";
 // the primary user's first attempt — wrong, picked the trap (option 2)
 await setDoc(doc(db, "v2_users", uid, "answers", LQ), {
@@ -435,13 +457,16 @@ for (let i = 0; i < 40; i++) {
 }
 // Two failures, two messages — the same split the world-question check at
 // the top of this file already makes. Collapsed into one, a TIMEOUT here
-// reports itself as "learn k-floor breach below MIN_N: null", which reads
-// as a privacy regression and sends the next person hunting for one. It
-// cost exactly that detour on 2026-08-05.
+// reports itself as a counts mismatch on null, which reads as a privacy
+// regression and sends the next person hunting for one. It cost exactly
+// that detour on 2026-08-05.
 if (!lpub) fail(`learn public agg never appeared after ${40 * 500}ms — the trigger did not fire, or did not finish in time`);
-if (lpub.tooSmall !== true || lpub.counts) fail("learn k-floor breach below MIN_N: " + JSON.stringify(lpub));
-ok("learn below floor: public agg is tooSmall-only");
-// four more first attempts cross the floor: three right, one more wrong
+// Paused floor: the single first attempt publishes exactly (D81) — and the
+// retry the rules refused above must not have nudged it.
+if (lpub.tooSmall !== false || lpub.total !== 1 || !lpub.counts || lpub.counts["2"] !== 1)
+  fail("learn first attempt did not publish exactly under the paused floor: " + JSON.stringify(lpub));
+ok("learn under the paused floor: one first attempt, published exactly, retry not counted");
+// four more first attempts: three right, one more wrong
 for (let n = 0; n < 4; n++) {
   const lApp = initializeApp({ projectId: "demo-insight", apiKey: "demo", appId: "demo" }, "learner" + n);
   const lAuth = getAuth(lApp); connectAuthEmulator(lAuth, "http://127.0.0.1:9099", { disableWarnings: true });
@@ -455,16 +480,16 @@ for (let n = 0; n < 4; n++) {
 let labove = null;
 for (let i = 0; i < 40; i++) {
   const snap = await getDoc(doc(db, "v2_question_aggs", LQ));
-  if (snap.exists() && snap.get("tooSmall") === false) { labove = snap.data(); break; }
+  if (snap.exists() && snap.get("total") === 5) { labove = snap.data(); break; }
   await new Promise((r) => setTimeout(r, 500));
 }
-if (!labove) fail("learn counts never appeared above the floor");
+if (!labove) fail("learn counts never reached total 5");
 // trap, then 0,0,0,1 → {0:3, 1:1, 2:1}, total 5. "% got it right" is
 // counts[correct]/total = 3/5, computed client-side — the server never
 // learned which option was correct.
-if (labove.total !== 5 || labove.counts["0"] !== 3 || labove.counts["1"] !== 1 || labove.counts["2"] !== 1)
-  fail("learn counts wrong above floor: " + JSON.stringify(labove));
-ok("learn crowd stat: 5 first attempts, floor held, 3/5 right");
+if (labove.counts["0"] !== 3 || labove.counts["1"] !== 1 || labove.counts["2"] !== 1)
+  fail("learn counts wrong at total 5: " + JSON.stringify(labove));
+ok("learn crowd stat: 5 first attempts, exact through per-answer publishes, 3/5 right");
 
 console.log("\nALL E2E CHECKS PASSED");
 process.exit(0);
