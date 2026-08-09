@@ -72,6 +72,13 @@ const state = {
   ready: false,
   // Why boot did not attach, in the user's own build. See LIVE.bootError.
   bootError: "",
+  // Which await boot is sitting on, "" once attached. Separate from
+  // bootError because a hang and a throw are different failures and the
+  // first field report could not tell them apart.
+  bootStage: "",
+  // The render race ended before boot attached. Not itself a failure —
+  // boot may still be running — but it is what makes the label appear.
+  raceLost: false,
   // Auth session was revoked mid-run. The UI stays on real data (blanking
   // to demo would be a worse lie than a stale-but-true view); this only
   // gates honest copy while a new anonymous session is fetched.
@@ -1237,7 +1244,15 @@ const LIVE = {
   // hides the label, and keeping the text lets a reconnect still show what
   // the first attempt hit.
   get bootError(): string {
-    return state.bootError;
+    if (state.bootError) return state.bootError;
+    // Composed at read time so the label tracks the stage instead of
+    // freezing at whatever was true when the render race ended.
+    if (state.raceLost) {
+      return state.bootStage
+        ? `still connecting — ${state.bootStage}`
+        : "still connecting";
+    }
+    return "";
   },
   get ready() {
     return state.ready;
@@ -1554,11 +1569,27 @@ export function refreshLive(): Promise<void> {
   if (torndown) return Promise.resolve();
   if (refreshInFlight) return refreshInFlight;
   refreshInFlight = (async () => {
+    // WHICH STEP, not merely that one is outstanding. The first field
+    // report said "still connecting after 3s" and that was the whole
+    // signal: nothing had thrown, so boot was HANGING rather than failing,
+    // and three awaits in a row are three different bugs. Firebase's own
+    // calls have no deadline worth relying on — signInAnonymously against
+    // a stalled connection and a Firestore getDoc under
+    // persistentLocalCache can both sit indefinitely rather than reject —
+    // so a hang here is the expected shape of a network fault, not an
+    // exotic one. Each stage is published before it is awaited.
+    state.bootStage = "signing in";
+    notify();
     state.uid = await anonSignIn();
     // uid-only (never email/name) — matches sentry.ts's PII stance.
     setSentryUser(state.uid);
+    state.bootStage = "loading questions";
+    notify();
     await hydrate();
+    state.bootStage = "loading groups";
+    notify();
     await hydrateSocial();
+    state.bootStage = "";
     state.ready = true;
     // fire-and-forget: reveal notifications on real devices (no-op on web).
     // Once per UID — re-registering on every reconnect would churn the
@@ -1704,8 +1735,15 @@ export async function initLive(timeoutMs = 2500): Promise<void> {
   // may still be running now. Say so rather than leaving the label blank:
   // "still connecting" and "failed" look identical on screen otherwise,
   // and they are the two cases a person is trying to tell apart.
+  //
+  // No longer a frozen snapshot. The first version wrote the string here
+  // and never revised it, so a device stuck for two minutes still read
+  // "after 3s" — a number about when we stopped waiting to render, which
+  // every reader takes for how long it has been stuck. `bootError` now
+  // composes the live stage at read time; this only records that the race
+  // was lost.
   if (!LIVE.enabled && !state.bootError) {
-    state.bootError = `still connecting after ${Math.round(timeoutMs / 1000)}s`;
+    state.raceLost = true;
     notify();
   }
 }
