@@ -41,11 +41,17 @@ const h = vi.hoisted(() => ({
   // stops happening turns the clear into a silent no-op.
   cacheTeardown: [] as string[],
   clearCacheImpl: null as null | (() => Promise<void>),
+  // A boot that HANGS rather than throws. The field only ever produced
+  // this shape — "still connecting" with no error — and nothing exercised
+  // it, so the label that describes it was unpinned.
+  hangSignIn: false,
 }));
 
 vi.mock("../../lib/firebase", () => ({
   firebaseEnabled: true,
-  anonSignIn: () => Promise.resolve("uid_test"),
+  anonSignIn: () => (h.hangSignIn
+    ? new Promise<string>(() => { /* never settles, which is the case */ })
+    : Promise.resolve("uid_test")),
   getDb: () => Promise.resolve({ __db: true }),
   linkGoogle: () => Promise.resolve(),
   googleSignOut: () => Promise.resolve(),
@@ -196,6 +202,7 @@ beforeEach(() => {
   h.snapshots.length = 0;
   h.cacheTeardown.length = 0;
   h.clearCacheImpl = null;
+  h.hangSignIn = false;
   h.bankDocs = [
     {
       id: "q_1",
@@ -609,6 +616,28 @@ describe("window.LIVE public surface", () => {
     // Both directions: a REMOVED member breaks a consumer, and an ADDED
     // one that nobody listed means this contract stopped being reviewed.
     expect(actual).toEqual(expected);
+  });
+
+  // A boot that hangs is the shape the field actually produced, and the
+  // label that describes it was written twice — the first version froze
+  // the string at the render-race deadline, so a device stuck for two
+  // minutes still read "after 3s". That number was about when the app
+  // stopped waiting to RENDER, and every reader takes it for how long it
+  // has been stuck. Both properties are pinned: the stage is named, and no
+  // elapsed figure is claimed.
+  it("names the stage it is stuck on, and claims no elapsed time", async () => {
+    h.hangSignIn = true;
+    const mod = await import("./live");
+    const LIVE = mod.default;
+    await mod.initLive(1);
+    await vi.waitFor(() => {
+      expect(LIVE.bootError).not.toBe("");
+    });
+    expect(LIVE.enabled).toBe(false);
+    expect(LIVE.bootError).toBe("still connecting — signing in");
+    // The regression, stated as the assertion: a duration in this string
+    // is a claim the app cannot support.
+    expect(LIVE.bootError).not.toMatch(/\d+\s*s\b/);
   });
 
   it("exposes exactly the social members", async () => {
