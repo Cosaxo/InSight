@@ -7745,3 +7745,66 @@ the whole of it.
 Proposed. What would settle it is the advisory verdict log — the evidence
 the ladder was built to produce, and which no amount of reasoning here
 substitutes for.
+
+## D79 · `messagingAndChat` was false for one day, and circle scope does not make chat not-chat
+
+**Decided:** 2026-08-09 · **Status:** binding · **Owner-approved**
+
+`messagingAndChat` is **`true`**. It was filed `false` on 2026-08-08 and
+pushed to App Store Connect that day; D78 part 1 shipped the circle takes
+client on 2026-08-09, and `postTake` writes free text that other members of
+a group read. The filing outlived its premise by about eighteen hours.
+
+**The old reasoning had two clauses and only one survived.** It read "takes
+are circle-scoped (D1) **and demo-only in a shipping build**". The second
+clause is what D78 ended. The first is still true, and the question is
+whether it is enough on its own.
+
+**It is not.** Apple asks whether the app *has* messaging or chat. Scope
+limits the **audience**, not the feature — a private group where members
+write to each other is chat, and arguably more clearly chat than a public
+feed would be. Under-declaring is the direction that pulls an app, and the
+honest answer costs nothing here: `userGeneratedContent` already drives the
+rating to 12+, so this changes the filing without changing the outcome.
+
+**This overrides D78's own reading, which is why it is a record.** That
+decision's cost table files this flip under **part 2** — world takes, still
+*Proposed* — implying circle takes leave it alone. Two records now disagreed
+about when a live legal filing moves, with the app days from submission.
+Settled in the safer direction and written down, rather than left resting on
+whichever record a future reader opened first.
+
+**`EMAILS_OR_TEXT_MESSAGES` does NOT move with it, and D75 said it would.**
+That prediction bundled the two on one trigger. They come apart because the
+forms ask different questions: the age rating asks whether chat exists, the
+privacy label asks which category the text lands in. **A take is a post to a
+circle, not a message to a person** — Apple files that under *User Content →
+Other User Content*, which has been declared **Yes** since the file was
+written. The content is declared either way; only the shape differs. That
+row moves if a direct person-to-person surface ships.
+
+**Guideline 1.2 got easier on the same day, not harder.** D75 called this
+the moment 1.2 "stops being comfortable". The opposite happened: 1.2's
+report-mechanism row read "the control exists in the spec layer; the takes
+surface it attaches to is demo-only at launch" — a report control attached
+to nothing, for eight days — and D78 shipped `flagTake` writing to
+`v2_flags` from the panel. The obligations now apply for real *and* are met
+for real.
+
+**Five prose sites moved with the value**, because the premise was quoted in
+all of them: `app-privacy.json`'s `$messagingAndChat`, `$structural`,
+`$socialMediaQuestions`, `$guideline12` and the `EMAILS_OR_TEXT_MESSAGES`
+note; `STORE-FORMS.md`'s structural fact 3, its not-collected bullet, its
+answer table and its 1.2 table; and `LAUNCH-RUNBOOK.md`'s untick list.
+`check:store-forms` catches a value that disagrees across the two files
+(D75 rule 5) and caught nothing here, because the value was consistent and
+the *reason under it* was stale — which is the failure mode a
+key-and-value gate cannot see.
+
+**Runbook 4.5 is unticked again, and stays that way as a shape.** The age
+rating is *pushed state*: `check:store-forms` holds the two files to each
+other, and **nothing holds either of them to App Store Connect**. A feature
+that changes what the app *is* leaves the store holding an answer the repo
+no longer makes, and only a human dispatch closes that. This is the second
+time in two days that a shipped feature invalidated a filing; the first was
+D75's eight missing attributes, discovered by a 409.

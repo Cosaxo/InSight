@@ -90,11 +90,20 @@ Three of those are worth knowing *why*, because each looks tickable:
   because nothing is held.
 - **Product Interaction — No.** `data-inventory.md`: "No product analytics
   of any kind ship today." Adding any would change this row.
-- **Emails or Text Messages / other free text — No, at launch.** Takes
-  (circle-scoped free text, D1) have no live surface in a shipping build —
-  `MODERATION.md` records the client report control as "still ahead
-  (needs a live takes surface)". **When takes go live this row changes,
-  and Apple guideline 1.2 stops being comfortable at the same moment.**
+- **Emails or Text Messages — still No, on a different footing since
+  2026-08-09.** This read "takes have no live surface in a shipping build";
+  D78 part 1 shipped that surface, so the old reason is gone. The row stays
+  unticked because **a take is a post to a circle, not a message to a
+  person**, and Apple files that under *User Content → Other User Content*
+  — already declared **Yes** above. The content is declared either way;
+  this row is about shape. It moves if a direct person-to-person surface
+  ships.
+
+  **The age rating did move** (`messagingAndChat` → `true`, D79) and the
+  divergence is real rather than an inconsistency: that question asks
+  whether the app *has* chat at all, this one asks which category the text
+  lands in. Guideline 1.2 now applies for real, and the answers hold — see
+  the 1.2 table in §2.
 
 ### The three that bite
 
@@ -180,8 +189,13 @@ reaches users.
    names. That is user-generated content and social interaction on any
    version of this form, whatever the content questions say.
 2. **Coarse location exists** (D9, optional). Answer consistently with §1.
-3. **No live free-text surface at launch.** Takes are circle-scoped (D1)
-   and demo-only in a shipping build.
+3. **Free text is live, and circle-scoped.** This read "no live free-text
+   surface at launch" until D78 part 1 shipped the takes client on
+   2026-08-09. `postTake` writes text other group members read; there is
+   still no world-scale free text, and world takes are Proposed rather than
+   taken. **Scope is the fact now, not absence** — which is why
+   `messagingAndChat` is `true` (D79) while `EMAILS_OR_TEXT_MESSAGES` stays
+   unticked.
 
 ### Every answer, keyed by the field Apple actually stores
 
@@ -213,7 +227,7 @@ The value column is the literal JSON. Frequency questions are an enum
 | `gambling` | Gambling | `false` |
 | `unrestrictedWebAccess` | Unrestricted web access | `false` |
 | `userGeneratedContent` | User-generated content | `true` |
-| `messagingAndChat` | Messaging or chat between users | `false` |
+| `messagingAndChat` | Messaging or chat between users | `true` |
 | `advertising` | Advertising | `false` |
 | `lootBox` | Loot boxes | `false` |
 | `parentalControls` | Parental controls | `false` |
@@ -224,11 +238,26 @@ The two that are not simply "no content of that kind":
 
 - **`userGeneratedContent` = `true`** is structural fact 1 above, and it is
   what actually drives the rating. Display names in reveals.
-- **`messagingAndChat` = `false`** is structural fact 3, and it is the row
-  with a known expiry. Takes are circle-scoped (D1) and demo-only in a
-  shipping build, so nothing live carries user-to-user text. **It moves the
-  day takes go live**, together with `EMAILS_OR_TEXT_MESSAGES` in §1's
-  not-collected list — same trigger, and they must move together.
+- **`messagingAndChat` = `true`** since 2026-08-09, and it was `false` for
+  one day. Structural fact 3 said "no live free-text surface at launch";
+  D78 part 1 shipped the circle takes client, so `postTake` now writes free
+  text that other group members read and that half of the reasoning
+  expired on merge. What remains is that takes are **circle-scoped**, and
+  scope limits the *audience*, not the feature — Apple asks whether the app
+  *has* messaging or chat, and a private group where members write to each
+  other is chat.
+
+  Answered the safer way deliberately: under-declaring is the direction
+  that pulls an app, and the honest answer costs nothing here because
+  `userGeneratedContent` already drives the rating to 12+. **D78's own cost
+  table files this flip under its world-takes part, which is still
+  Proposed** — D79 settles that disagreement rather than leaving a live
+  filing resting on it.
+
+  `EMAILS_OR_TEXT_MESSAGES` in §1 shared the old trigger and does **not**
+  move with it: a take reads as a post rather than a message, and its
+  content is already declared under **Other User Content**. That row now
+  moves only if a direct person-to-person surface ships.
 
 Two were measured rather than asserted, on the same scan the frequency
 answers came from:
@@ -257,7 +286,7 @@ default.
 | 1.2 requires | InSight |
 | --- | --- |
 | Filter objectionable content | Moderation substrate deployed, `MOD_ADVISORY = true` (D22) |
-| Report mechanism | Report control exists in the spec layer; the takes surface it attaches to is demo-only at launch |
+| Report mechanism | **Live since D78 part 1** — `flagTake` writes to `v2_flags` from the takes panel. It read "exists in the spec layer; the surface it attaches to is demo-only" for eight days, which was a report control attached to nothing |
 | Block abusive users | `leaveGroupV2`, wired to the **Leave circle** control on each live circle card — leaving **is** the block, because D1 means circle members are the only people whose content you can see. There is no owner-side *remove* callable yet (D55 §14): the answer at launch is that anyone can leave, not that an owner can eject |
 | Published contact info | `olaftaule01@gmail.com`, on `web/terms.html` |
 
