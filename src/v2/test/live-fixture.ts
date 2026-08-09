@@ -127,6 +127,16 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
     voteDuel: async () => {},
     setDuoMode: async () => {},
     romanticPoolReady: () => false,
+    // No takes, for the same reason there are no groups above: a circle
+    // with seeded comments in it would be sample data wearing a live
+    // badge. The empty list IS the live-mode surface a circle with nothing
+    // written in it shows.
+    takes: () => [],
+    loadTakes: async () => {},
+    postTake: async () => null,
+    deleteTake: async () => {},
+    flagTake: async () => {},
+    flagged: () => false,
   };
 
   const LIVE: Dict = {

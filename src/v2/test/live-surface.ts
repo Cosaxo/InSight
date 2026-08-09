@@ -46,4 +46,9 @@ export const LIVE_SOCIAL_MEMBERS = [
   "bankQ", "createGroup", "groups", "joinGroup", "leaveGroup",
   "loadRevealHistory", "myDuelVote", "revealFor", "revealHistory",
   "romanticPoolReady", "setDuoMode", "todayKey", "todayQ", "voteDuel",
+  // Circle takes and the report control (D1, docs/MODERATION.md). Listed
+  // here before any JSX reads them: the pin is what makes the surface
+  // reviewed, and a member added straight into a consumer is a member
+  // nobody checked against the rules it has to satisfy.
+  "deleteTake", "flagTake", "flagged", "loadTakes", "postTake", "takes",
 ];

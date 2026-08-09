@@ -143,6 +143,7 @@ import './ui/CityPicker';
 import './ui/PickSearch';
 import './ui/LiveCohortBody';
 import './ui/LiveGroupsMirrorBody';
+import './ui/LiveTakesPanel';
 import './spec/app-shell.jsx';
 
 // ── the world feed, after first paint ──────────────────────────────────

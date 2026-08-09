@@ -29,6 +29,7 @@
 import {
   clearIndexedDbPersistence,
   collection,
+  deleteDoc,
   doc,
   documentId,
   getDoc,
@@ -136,7 +137,40 @@ const state = {
   // paid only when the portrait is opened, never at boot.
   revealHist: {} as Record<string, Record<string, Record<string, unknown> | null>>,
   revealHistLoading: {} as Record<string, boolean>,
+  // ── circle takes (D1, docs/MODERATION.md) ──
+  // gid → the circle's readable takes, newest first. Fetched on demand
+  // (a circle's take list is opened, not watched) and held for the
+  // session; `takesLoading` is the in-flight guard, same shape as
+  // revealHistLoading above.
+  takes: {} as Record<string, TakeDoc[]>,
+  takesLoading: {} as Record<string, boolean>,
+  // takeId → true once this account has flagged it. Flags are create-only
+  // and unreadable BY DESIGN (firestore.rules: `allow read: if false` —
+  // they are anonymous to the circle and to the moderation run), so this
+  // is the only record a client can have of its own report. Session-scoped
+  // on purpose: persisting it would be a local claim about a server state
+  // nothing can re-read, and a stale "Reported" is a worse lie than a
+  // second flag the rules already refuse as a duplicate.
+  myFlags: {} as Record<string, true>,
 };
+
+// One take as the circle reads it. `hidden` is always false on anything a
+// non-author can list — the read rule is an equality on that boolean, not a
+// presence test, and only the equality holds a LIST to the gate (D65).
+export interface TakeDoc {
+  id: string;
+  gid: string;
+  authorUid: string;
+  qid: string;
+  text: string;
+  createdAt: number;
+  hidden: boolean;
+}
+
+// The rule's own ceiling (firestore.rules: `text.size() <= 280`). Kept here
+// so the composer can stop the user at the limit instead of letting the
+// write fail — the rule is still the enforcement, this is just the label.
+export const TAKE_MAX_CHARS = 280;
 
 // The anchor keys firestore.rules accepts, with its per-field length caps
 // (isValidV2Anchors). Kept here rather than inline so the client and the
@@ -927,7 +961,159 @@ const SOCIAL = {
       }
     })();
   },
+
+  // ── circle takes (D1, docs/MODERATION.md) ──────────────────────────
+  //
+  // Free text exists only among people who mutually added each other, and
+  // the rules have no world-scale shape to fall back on: every gate below
+  // resolves membership through `v2_groups/{gid}.memberUids`, so a take
+  // with no circle behind it cannot be written, read or flagged. D78 is
+  // the proposal to widen that; until it is adopted this is the surface,
+  // whole.
+  //
+  // This is the "live takes surface" docs/MODERATION.md named as the thing
+  // the client report control was waiting on. The moderation chain above
+  // it — flags, queue, verdicts — has been deployed since 2026-07-31 with
+  // nothing on the client able to feed it.
+
+  // The `where("hidden", "==", false)` below is NOT a client-side courtesy
+  // layered over a server guarantee. It is the condition the read rule
+  // holds the QUERY to: Firestore refuses a list it cannot compare against
+  // the rule, so dropping that line does not return more takes, it returns
+  // permission-denied (D65). The filter is a consequence of the rule, not
+  // a promise beside it.
+  //
+  // `qid` is filtered in memory rather than as a fourth `where` because the
+  // committed composite index is exactly (gid, hidden, createdAt) — a qid
+  // equality would need a second index for a list that is one circle big.
+  async loadTakes(gid: string): Promise<void> {
+    if (state.takesLoading[gid]) return;
+    state.takesLoading[gid] = true;
+    try {
+      const db = await getDb();
+      const snap = await getDocs(
+        query(
+          collection(db, "v2_takes"),
+          where("gid", "==", gid),
+          where("hidden", "==", false),
+          orderBy("createdAt", "desc"),
+        ),
+      );
+      state.takes[gid] = snap.docs.map((d) => takeFromDoc(d.id, d.data() as Record<string, unknown>));
+    } catch (err) {
+      // Leave the key absent rather than caching an empty list: a
+      // transient failure that freezes "no takes" into the session reads
+      // exactly like a circle that never wrote any.
+      reportError(err, { where: "loadTakes", gid });
+    } finally {
+      state.takesLoading[gid] = false;
+      notify();
+    }
+  },
+  takes(gid: string, qid?: string): TakeDoc[] {
+    const all = state.takes[gid] || [];
+    return qid ? all.filter((t) => t.qid === qid) : [...all];
+  },
+  async postTake(gid: string, qid: string, text: string): Promise<string | null> {
+    const uid = state.uid;
+    const body = text.trim().slice(0, TAKE_MAX_CHARS);
+    if (!uid || !body) return null;
+    const db = await getDb();
+    // Client-chosen id, because that is what the moderation queue keys on
+    // (buildModQueue writes v2_mod_queue one doc per takeId). doc() on the
+    // collection mints one without touching the network.
+    const ref = doc(collection(db, "v2_takes"));
+    const list = (state.takes[gid] = state.takes[gid] || []);
+    list.unshift({
+      id: ref.id,
+      gid,
+      authorUid: uid,
+      qid,
+      text: body,
+      // The local clock, and only until the next loadTakes replaces it
+      // with the server's. It orders this session's own post against takes
+      // already on screen; it is not a claim about anyone else's timing.
+      createdAt: Date.now(),
+      hidden: false,
+    });
+    notify();
+    try {
+      // Exactly the six keys `hasOnly` permits, and `hidden: false` is
+      // written rather than omitted: the read rule is an equality, so a
+      // take created without the field could never be read back — not by
+      // the circle, and not by its own author.
+      await setDoc(ref, {
+        gid,
+        authorUid: uid,
+        qid,
+        text: body,
+        createdAt: serverTimestamp(),
+        hidden: false,
+      });
+    } catch (err) {
+      // Roll the echo back. A take left on screen that the circle never
+      // received is the one failure mode worth spending a re-render on.
+      state.takes[gid] = (state.takes[gid] || []).filter((t) => t.id !== ref.id);
+      notify();
+      reportError(err, { where: "postTake", gid });
+      throw err;
+    }
+    return ref.id;
+  },
+  // "Your speech stays yours to withdraw" — the delete rule gates on
+  // authorUid, so this succeeds for your own take and nobody else's. There
+  // is deliberately no edit path: an edited take invalidates the flags
+  // already cast on what it used to say.
+  async deleteTake(gid: string, takeId: string): Promise<void> {
+    const db = await getDb();
+    await deleteDoc(doc(db, "v2_takes", takeId));
+    state.takes[gid] = (state.takes[gid] || []).filter((t) => t.id !== takeId);
+    notify();
+  },
+  // The report control's write half — the piece docs/MODERATION.md listed
+  // as still ahead. One flag per (take, account): the doc id pins that and
+  // the rules deny updates, so a second report from the same account is
+  // refused rather than counted twice. Nobody reads flags; they reach the
+  // moderation run only as a server-folded count, which is what keeps a
+  // moderation system from becoming a surveillance one.
+  async flagTake(gid: string, takeId: string): Promise<void> {
+    const uid = state.uid;
+    if (!uid || state.myFlags[takeId]) return;
+    const db = await getDb();
+    // The id shape the rule checks literally: `takeId + "_" + uid`.
+    const fid = `${takeId}_${uid}`;
+    state.myFlags[takeId] = true;
+    notify();
+    try {
+      await setDoc(doc(db, "v2_flags", fid), { takeId, gid, uid, at: serverTimestamp() });
+    } catch (err) {
+      delete state.myFlags[takeId];
+      notify();
+      reportError(err, { where: "flagTake", gid });
+      throw err;
+    }
+  },
+  flagged(takeId: string): boolean {
+    return !!state.myFlags[takeId];
+  },
 };
+
+// Firestore Timestamp → millis, tolerating the two shapes a read can hand
+// back: a real Timestamp, or null for a serverTimestamp() echoed from the
+// local cache before the server has acked it. 0 sorts an unacked take last
+// rather than throwing on `.toMillis` of null.
+function takeFromDoc(id: string, d: Record<string, unknown>): TakeDoc {
+  const ts = d.createdAt as { toMillis?: () => number } | null | undefined;
+  return {
+    id,
+    gid: String(d.gid ?? ""),
+    authorUid: String(d.authorUid ?? ""),
+    qid: String(d.qid ?? ""),
+    text: String(d.text ?? ""),
+    createdAt: typeof ts?.toMillis === "function" ? ts.toMillis() : 0,
+    hidden: d.hidden === true,
+  };
+}
 
 declare const __APP_BUILD__: number;
 
@@ -1407,6 +1593,14 @@ function resetForNewUid(uid: string): void {
   state.reveals = {};
   state.revealHist = {};
   state.revealHistLoading = {};
+  // Circle takes are member-gated, so a cached list is the previous
+  // account's circle — which the new one may not even be in. And a
+  // surviving myFlags marks takes "Reported" that this account never
+  // reported, against a collection nothing can re-read to correct it
+  // (flags are `allow read: if false` by design).
+  state.takes = {};
+  state.takesLoading = {};
+  state.myFlags = {};
   state.profile = { displayName: "", testResults: {}, anchors: {} };
   state.deckIds = [];
   state.deckDay = -1;

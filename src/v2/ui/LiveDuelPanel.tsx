@@ -11,6 +11,11 @@
 import React from "react";
 import LIVE from "../data/live";
 import { consumeJoinCode, inviteLinkFor } from "../data/links";
+// An ordinary import, not a globalThis lookup: both panels are typed TSX
+// in this directory, and D39's ratchet only moves down. The spec-index
+// entry for LiveTakesPanel stays — rule 2 requires every module listed —
+// but nothing here waits on its side effect.
+import LiveTakesPanel from "./LiveTakesPanel";
 
 const LD_LINE = "1px solid color-mix(in oklch, var(--rule), transparent 25%)";
 const LD_NAME_LS = "insight.displayName.v1";
@@ -171,6 +176,22 @@ function LdReveal({ g, reveal }: { g: LiveGroup; reveal: LiveReveal }) {
           </div>
         );
       })}
+      {/* Takes hang off the REVEALED question, never today's. Today's vote
+          is sealed until tomorrow, and free text beside a sealed answer is
+          the leak the seal exists to prevent — "obviously B" under a
+          question nobody has answered yet is the vote, in prose. Once names
+          are on the answers there is nothing left to give away, which is
+          also the only moment a circle has anything to discuss.
+
+          rowQid rather than a member's own qid: a split day (D71) asks
+          different people different things, and one shared comment thread
+          has to belong to one question. The panel renders nothing when the
+          reveal carries no qid. */}
+      {rowQid && (
+        <div style={{ borderTop: LD_LINE, paddingTop: 10 }}>
+          <LiveTakesPanel gid={g.id} qid={rowQid} />
+        </div>
+      )}
     </div>
   );
 

@@ -7565,3 +7565,183 @@ cross-module globals to 48 and the tree from 534 to 532 (D39). The other ~48
 in that file stay: each `window.LIVE &&` guard has to be re-read rather than
 deleted wholesale, because an imported binding cannot be unset but the data
 it carries can still be missing.
+
+---
+
+## D78 · The takes surface goes live circle-first, and world takes get a costed proposal
+
+**Decided:** 2026-08-08 · **Status:** part 1 **binding**, part 2 **Proposed**
+
+Two things that had drifted into one question: whether takes exist *at all*
+on a live build, and whether they exist at **world scale**. The first was
+never a D1 question and had no live client. The second is the one D1
+actually decides, and it is proposed here rather than taken.
+
+### Part 1 (binding) — the client half of the moderation chain exists now
+
+The moderation substrate shipped 2026-07-31 (D22) and has been deployed in
+advisory mode since: `v2_takes`, `v2_flags`, the queue, the two MOD_UIDS
+callables, rules with negative tests, an e2e leg in CI. What it has never
+had is a client. `grep -rn v2_takes src/` returned **nothing** — no read, no
+write, no report control — so every one of those guarantees has been
+enforcing a collection that no device could reach. `docs/MODERATION.md`
+named the gap ("the client report control (needs a live takes surface)")
+and it stayed named for eight days.
+
+`SOCIAL` now carries six members — `loadTakes`, `takes`, `postTake`,
+`deleteTake`, `flagTake`, `flagged` — pinned in `test/live-surface.ts` and
+stubbed in the fixture like every other member of that surface. This is
+**circle-scoped**, so it needs nothing from D1 that D1 does not already
+grant, and no rules change: every gate resolves membership through
+`v2_groups/{gid}.memberUids`, exactly as written.
+
+**The list query is the part worth the test file.** The read rule is an
+equality on `hidden`, and Firestore holds a list only to a rule it can
+compare against the query's own constraints — so a client that drops
+`where("hidden", "==", false)` does not read more takes, it gets
+permission-denied on every circle on every device (D65). Nothing else in
+this tree catches that: `tsc -b` sees a well-typed query, eslint sees
+nothing, `check:globals` sees no name, and `firestore-tests` exercise the
+*rule* rather than the client that has to match it.
+
+Measured rather than reasoned about, which is the only reason this record
+claims it: deleting that one line from `loadTakes` leaves the tree green and
+fails exactly three cases in `data/takes.test.ts`.
+
+The same file pins the shapes the rules check literally and a caller cannot
+infer: the six keys `hasOnly` permits with `hidden` written **false** rather
+than omitted, the flag id `takeId + "_" + uid`, the 280-char cap, and the
+client-minted take id the moderation queue keys on. Plus the query's
+agreement with the one committed composite index (`gid`, `hidden`,
+`createdAt DESC`) — added on the owner's call in D65 for a client that did
+not exist yet, and now used by the one that does.
+
+**One bug found by adding the state, not by reasoning about it.**
+`resetForNewUid` clears every field derived from the old uid — its own
+comment says why: "one account's answers render as the other's." Three new
+fields were not on that list. Circle takes are member-gated, so a cached
+list belongs to a circle the *new* account may not be in; and a surviving
+`myFlags` marks takes "Reported" that this account never reported, against
+a collection that is `allow read: if false` by design and therefore cannot
+be re-read to correct the claim. Fixed with the rest of the purge, pinned
+by a uid-change case, and confirmed the same way as the query filter:
+removing the three lines fails it.
+
+**What part 1 does not do.** It adds no UI. The take list and the report
+control have a design question in front of them that this record cannot
+answer, and inventing a surface to fill the gap is the shape D1 forbids.
+The data layer is the half with the rules-shaped hazards in it; the half
+with the design decisions in it waits for the design.
+
+**Amendment (same day) — the UI was asked for and built.**
+`ui/LiveTakesPanel.tsx`: the circle's takes on one question, a composer,
+and the report control. The paragraph above is superseded on the facts and
+kept for the reasoning, which held — the design question was answered by
+the owner asking for it, not by this record guessing.
+
+Three things in that panel read as styling and are consequences of
+`firestore.rules`. Each is commented at its site and pinned in
+`LiveTakesPanel.test.tsx`, because each is exactly the kind of thing a
+later tidy-up removes:
+
+- **Reporting takes two taps.** `v2_flags` is `allow update, delete: if
+  false` — a cast flag cannot be withdrawn by the reporter, the author, or
+  a moderator. The demo's one-tap report (`WF_REPORT`) is local and
+  undoable; this one is neither. A single tap on an irreversible write
+  turns a misplaced thumb into a permanent record.
+- **There is no reason picker.** The demo offers four chips. The create
+  rule is `hasOnly(["takeId", "gid", "uid", "at"])`, so a reason has no
+  field to live in — and nothing would read it if it did: the run derives
+  its own policy line (H1–H5) from the take's text. A picker would be a
+  form whose answer is discarded on send.
+- **A reported take stays on screen.** The demo replaces it with a
+  tombstone. Flags are `allow read: if false`, so a local hide has nothing
+  to rehydrate from and would reappear on the next load — a worse lie than
+  never hiding it. Soft-hide is the moderator's verdict, not the
+  reporter's.
+
+And the copy does not promise removal, because `MOD_ADVISORY` is true and
+nothing is hidden today. "A moderator reviews flagged takes against the
+posted policy" is what is true; a test asserts the string does not drift
+into *will be removed*. Measured the same way as the rest: making the
+control one-tap fails five cases.
+
+**Mounted on the reveal, and deliberately nowhere else.** `LdReveal`
+renders it against yesterday's revealed question; today's card does not
+get one. Today's answer is sealed until tomorrow, and free text beside a
+sealed answer is the leak the seal exists to prevent — "obviously B"
+under a question nobody has answered yet *is* the vote, written out. The
+reveal is the first moment a circle has anything to discuss and the first
+moment discussing it costs nothing. Three cases pin it: composer present
+after a reveal, absent before one, absent when the reveal carries no qid.
+
+On a split day (D71) the thread hangs on the reveal's own `rowQid`, not
+on a member's individual qid — one comment thread belongs to one
+question, and the alternative is two people talking past each other under
+one heading.
+
+`LiveDuelPanel` reaches it by ordinary import rather than the globalThis
+bridge (both are typed TSX in `ui/`), so the D39 coupling count is
+**unchanged** — a new panel that added its reads through `window.*` would
+have raised it, and the ratchet only moves down. The live figure comes
+from `npm run check:globals`; this record does not quote one, because a
+hand-maintained number in prose is the documentation error D39 exists to
+stop re-committing. Its `spec-index.js` entry stays regardless — rule 2
+lists every module — but nothing waits on the side effect.
+
+**With that, the client half of docs/MODERATION.md is finished.** What is
+left needs no code: the low-privilege Routine (blocked on the platform
+gap), the `MOD_ADVISORY` flip (a maintainer judgement on the verdict
+log), and the three open questions at the end of that file.
+
+### Part 2 (Proposed) — anonymous world takes, gated on the advisory flip
+
+**Proposal.** Extend takes to world-scale questions, **without author
+names**, and only after `MOD_ADVISORY` flips to `false`. Named who-voted at
+world scale stays refused, permanently and for a different reason.
+
+**Why this is not the reversal it looks like.** D1's *Why* bundles two
+arguments that are not the same argument:
+
+1. World free text reintroduces a moderation surface and engagement-loop
+   dynamics. This is about comments as a feature.
+2. "Shipping synthetic people as real would contradict the product's
+   honesty posture. **No seeded fake users, ever.**" This is about the ~150
+   invented people in `world-feed-comments.js`.
+
+The second sentence is the forceful one and it argues against the *demo
+data*, not against real users writing real text. Real world takes violate
+nothing in it. Conflating the two let the strongest line in D1 do work on a
+question it was never about.
+
+**The precedent is already in the tree.** The who-voted half of D1 operates
+at world scale *today* — `renderEngage` shows the panel on live cards
+because "that panel stopped being a lie: the breakdown is real anchor
+counts, floored per cell… **and it carries no names at all**." It got there
+by stripping the identity and keeping the substance, without overturning
+anything. Part 2 is that same move applied to the other half.
+
+**What it costs, in the order the costs land:**
+
+| Cost | Detail |
+| --- | --- |
+| `MOD_ADVISORY = false` | Step 3 of the trust ladder. Today verdicts record and hide nothing, so circle scope is doing the work enforcement would. That substitution stops being available the moment the audience is everyone. **This is a maintainer judgement on the verdict log, not a code change, and it is a hard prerequisite rather than a step that can run late.** |
+| The Routine | Step 4, and blocked on a real platform gap: a Routine-fired session cannot today carry *only* the verdict credential (`MODERATION.md`). Running it in the dev session trades the whole confinement design for scheduling convenience — explicitly not an option. |
+| A rules change | Every `v2_takes` gate resolves through `memberUids`. A world take has no gid, so read, create and flag each need a second shape. This is privacy-surface work and gets the D12/D14 treatment: negatives first. |
+| Two store filings become false | `messagingAndChat: false` and Play's untick of *Emails or Text Messages* are both filed and both keyed to takes being circle-scoped. D75 already predicted this expiry and said the two must move together. Add Apple guideline 1.2's obligations for user-generated content, which is the part D75 called "stops being comfortable". |
+| An index | The committed one is `gid`-first. World takes key on something else. |
+
+**What part 2 explicitly does not propose: named who-voted.** Two
+independent reasons, either sufficient. InSight asks political questions,
+and `LAUNCH-RUNBOOK.md` already records the politics result as GDPR
+Article 9 special-category data — a percentage and "this named person voted
+this way" are different legal objects. And the moderation policy's own hard
+line **H4 · Doxxing** covers "names tied to accounts… regardless of
+intent"; publishing that as a feature would make the product do the thing
+it removes users for. Anonymity is not a softening of this proposal, it is
+the whole of it.
+
+**Adoption is an explicit act.** Part 2 binds nothing while its status reads
+Proposed. What would settle it is the advisory verdict log — the evidence
+the ladder was built to produce, and which no amount of reasoning here
+substitutes for.

@@ -36,10 +36,23 @@ const LIVE = vi.hoisted(() => {
       void qid;
       return null as { prompt?: string; options?: string[] } | null;
     },
+    // LdReveal mounts LiveTakesPanel on the revealed question, so this mock
+    // now has to answer for that panel too. Empty throughout: what the
+    // reveal tests assert is the reveal, and a seeded take here would put
+    // words in a named member's mouth in a fixture.
+    takes: () => [] as Array<Record<string, unknown>>,
+    loadTakes: async (gid: string) => { void gid; },
+    postTake: async (gid: string, qid: string, text: string) => {
+      void gid; void qid; void text;
+      return null as string | null;
+    },
+    deleteTake: async (gid: string, id: string) => { void gid; void id; },
+    flagTake: async (gid: string, id: string) => { void gid; void id; },
+    flagged: (id: string) => { void id; return false; },
   };
   return { enabled: true, uid: "u_me", social, subscribe: () => () => {} };
 });
-vi.mock("../data/live", () => ({ default: LIVE }));
+vi.mock("../data/live", () => ({ default: LIVE, TAKE_MAX_CHARS: 280 }));
 
 const { default: LiveDuelPanel } = await import("./LiveDuelPanel");
 
@@ -317,5 +330,50 @@ describe("LiveDuelPanel · a reveal whose members answered different questions",
     expect(text).not.toMatch(/Beach or mountains\?/);
     // me guessed 1, Ada picked 1 → called it; Ada guessed 0, I picked 0 → called it
     expect(text).toMatch(/called it/i);
+  });
+});
+
+describe("LiveDuelPanel · takes hang off the reveal, never the sealed question", () => {
+  const QA = { prompt: "Coffee or tea?", options: ["Coffee", "Tea"] };
+
+  beforeEach(() => {
+    LIVE.social.bankQ = (qid: string) => (qid === "duo-000" ? QA : null);
+  });
+
+  it("shows the composer on the revealed question", () => {
+    LIVE.social.revealFor = () => ({
+      day: "2026-07-29",
+      qid: "duo-000",
+      votes: { u_me: { optionIdx: 0 }, u_ada: { optionIdx: 1 } },
+      names: { u_me: "Me", u_ada: "Ada" },
+    });
+    render(<LiveDuelPanel mode="duo" />);
+
+    expect(screen.getByLabelText("Add your take")).toBeTruthy();
+  });
+
+  it("shows no composer when there is no reveal yet", () => {
+    // Today's question is on screen and sealed. Free text beside a sealed
+    // answer is the leak the seal exists to prevent — "obviously B" under a
+    // question nobody has answered is the vote, written out. One composer
+    // reachable here would undo the whole duel model.
+    LIVE.social.revealFor = () => null;
+    LIVE.social.myDuelVote = () => ({ optionIdx: 0 });
+    render(<LiveDuelPanel mode="duo" />);
+
+    expect(screen.queryByLabelText("Add your take")).toBeNull();
+  });
+
+  it("shows no composer when the reveal carries no question id", () => {
+    // A reveal with no qid has no thread to hang takes on; the panel's own
+    // guard returns null rather than opening one against an empty key.
+    LIVE.social.revealFor = () => ({
+      day: "2026-07-29",
+      votes: { u_me: { optionIdx: 0 } },
+      names: { u_me: "Me" },
+    });
+    render(<LiveDuelPanel mode="duo" />);
+
+    expect(screen.queryByLabelText("Add your take")).toBeNull();
   });
 });
