@@ -437,9 +437,13 @@ describe("asc-push age rating", () => {
     for (const k of AGE_RATING_REQUIRED) {
       expect(patch.body.data.attributes, `${k} missing from the PATCH`).toHaveProperty(k);
     }
-    // The two that carry a real claim rather than an absence.
+    // The two that carry a real claim rather than an absence. Both are
+    // `true` since D79 — messagingAndChat was `false` here for one day, and
+    // this line failing is how that was caught after the value moved.
+    // Spelled out rather than read from the file: a test that loads
+    // app-privacy.json and asserts what it finds asserts nothing.
     expect(patch.body.data.attributes.userGeneratedContent).toBe(true);
-    expect(patch.body.data.attributes.messagingAndChat).toBe(false);
+    expect(patch.body.data.attributes.messagingAndChat).toBe(true);
     // A frequency enum, not a boolean — guessing the type here is a 400
     // that reads like a wrong value.
     expect(patch.body.data.attributes.gunsOrOtherWeapons).toBe("NONE");
