@@ -143,7 +143,12 @@ function MirrorPopPicker({ stopId, onPick, live, big }) {
 
   return (
     <div style={{ margin: big ? '0 0 6px' : '-4px 0 6px' }}>
-      <div ref={railRef} style={{ position: 'relative', display: 'flex', height: H, touchAction: 'pan-y', userSelect: 'none', WebkitUserSelect: 'none', cursor: scrubbing ? 'grabbing' : 'default' }} role="tablist" aria-label="How far the mirror reaches"
+      {/* data-nopan: the rail owns this drag (OWNS_X, swipe-back.js). The
+          scrub runs on pointer events, but the same touches also reach the
+          tab root's swipe-back listener — without the mark, releasing a
+          rightward scrub read as the back gesture and landed on the daily
+          instead of the stop under the finger. */}
+      <div ref={railRef} data-nopan="" style={{ position: 'relative', display: 'flex', height: H, touchAction: 'pan-y', userSelect: 'none', WebkitUserSelect: 'none', cursor: scrubbing ? 'grabbing' : 'default' }} role="tablist" aria-label="How far the mirror reaches"
         onPointerDown={onDown}>
         {/* the axis itself — one hairline the ticks stand on */}
         <div style={{ position: 'absolute', left: 6, right: 6, bottom: big ? 20 : 15, height: 1, background: 'color-mix(in oklch, var(--rule), transparent 30%)' }}></div>

@@ -10,7 +10,21 @@
 // modes, so the Mirror needs the same gesture to fall back onto 1v1.
 // Deliberately narrow: only a clear right-swipe, and never inside a horizontal
 // scroller or a map surface that owns its own drag.
-const SKIP = 'svg, canvas, .h-scroll, [data-nopan], input, textarea';
+//
+// OWNS_X is the list of surfaces that own their own horizontal motion: every
+// overflow-x rail (.h-scroll plus the map/compare/relmap/subnav rails that
+// never took that class), the Map's pan canvas (a plain div — the old "map
+// surface" promise silently missed it), anything marked data-nopan (the
+// Mirror ruler), and text inputs. ONE exported list, read by daily-split's
+// mode slide too, so the two axis gestures cannot drift apart again. iPhone
+// found the drift: the Map pans and the ruler scrubs with their own pointer
+// handlers, but the same touches still fed these axis gestures, and a
+// sideways gesture on either one ended in a tab jump.
+export const OWNS_X = '.h-scroll, .cb-rail, .rm-axisrow, .subnav--scroll, .mmt-canvas, .mmt-swipe, .mmt-chips, .mmt-fchips, [data-nopan], input, textarea';
+// svg/canvas stay here rather than in OWNS_X: on the Mirror a chart should
+// not pull the tab sideways mid-read, but the daily's cards draw their roses
+// and dots in svg and the axis swipe must keep working across them.
+const SKIP = 'svg, canvas, ' + OWNS_X;
 
 // A cross-tab jump ends the gesture that caused it: trackpad momentum keeps
 // arriving after the switch and used to step the daily one stop further. The

@@ -49,6 +49,7 @@ import { beforeAll, afterEach, describe, expect, it, vi } from "vitest";
 import React from "react";
 import { act, cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { IS_DATA } from "../spec/sample-data.js";
+import { OWNS_X } from "../spec/swipe-back.js";
 
 // 15s per test, not the 5s default: every case here mounts the FULL app in
 // jsdom, and the v15 revision roughly doubled the spec layer's feed weight —
@@ -259,6 +260,56 @@ describe("the daily's ruler is the nav (v17)", () => {
     expect(view()).toBe("track:world");
     fireEvent.click(screen.getByRole("button", { name: /^mirror$/i }));
     expect(view()).toBe("mirror:you");
+  });
+});
+
+// ── gesture ownership (the 2026-08 iPhone bugs) ────────────────────────
+//
+// swipe-back.test.js proves the MECHANISM: a touch sequence starting inside
+// anything OWNS_X matches never reaches the axis gestures. These cases pin
+// the WIRING — that the live DOM actually matches the list. Both bugs
+// shipped with every name-level gate green: the ruler scrubbed with its own
+// pointer handlers and the Map panned with its own, but the same touches
+// still fed swipe-back, and releasing a rightward gesture jumped tabs.
+describe("the surfaces that own their drag are excluded from the axis swipes", () => {
+  // One mount for both surfaces: the mirror's default stop is You, which IS
+  // the Map, so the ruler and the pan canvas are on screen together.
+  it("the mirror ruler and the Map's pan surface are covered by OWNS_X", () => {
+    mountApp();
+    fireEvent.click(screen.getByRole("button", { name: /^mirror$/i }));
+    const rail = screen.getByRole("tablist", { name: /how far the mirror reaches/i });
+    expect(
+      rail.closest(OWNS_X),
+      "the ruler lost its data-nopan — releasing a rightward scrub will land on the daily",
+    ).not.toBeNull();
+    // The canvas renders even before its first fit (the null-view branch),
+    // so this holds in jsdom's zero-size panes.
+    const canvas = document.querySelector(".mmt-canvas");
+    expect(canvas, "the Map's canvas did not mount on the You stop").not.toBeNull();
+    expect(
+      canvas.closest(OWNS_X),
+      "the Map's pan canvas fell out of OWNS_X — panning it will pull the tab sideways",
+    ).not.toBeNull();
+  });
+
+  // The third 2026-08 iPhone bug, same family of "the DOM position lies":
+  // .wf-scrim positions absolutely, so a sheet rendered mid-page anchors to
+  // whatever containing block it sits in. The lens ⓘ rendered its sheet deep
+  // inside the profile's scrolling body — the scrim grew as tall as the
+  // content and the sheet landed at the bottom of the SCROLL, off-screen.
+  // The fix portals it to the app frame; this pins the portal.
+  it("the lens ⓘ sheet mounts on the app frame, not in the scrolling page", () => {
+    const expectNoBoundary = mountApp();
+    fireEvent.click(screen.getByRole("button", { name: /^profile$/i }));
+    fireEvent.click(screen.getByRole("button", { name: /^lenses$/i }));
+    fireEvent.click(screen.getAllByRole("button", { name: /^what .* measures$/i })[0]);
+    const scrim = document.querySelector(".wf-scrim");
+    expect(scrim, "the ⓘ did not open its explain sheet").not.toBeNull();
+    expect(
+      scrim.parentElement,
+      "the explain sheet rendered in place — it will surface at the bottom of the scroll, not the screen",
+    ).toBe(document.querySelector(".app"));
+    expectNoBoundary("profile → lenses → explain sheet");
   });
 });
 
