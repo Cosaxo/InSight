@@ -7808,3 +7808,77 @@ that changes what the app *is* leaves the store holding an answer the repo
 no longer makes, and only a human dispatch closes that. This is the second
 time in two days that a shipped feature invalidated a filing; the first was
 D75's eight missing attributes, discovered by a 409.
+
+## D80 · Two ways to hang on the same line, and the device found both
+
+**Decided:** 2026-08-09 · **Status:** binding
+
+The first device this app ever ran on booted into demo mode and stayed
+there. D77 made the reason readable and D-79's predecessor made it name a
+stage; the phone then said **"still connecting — signing in"**, which is a
+statement that `signInAnonymously` neither resolved nor rejected. Two
+independent causes were in those three lines, and either alone produces
+exactly that.
+
+### 1. `getAuth()` on a native build
+
+`getAuth()` installs the browser `popupRedirectResolver`, which probes the
+environment against the `authDomain`. In a WKWebView served from
+`capacitor://localhost` that probe never completes — and because Auth gates
+**every** operation on its initialization promise, `signInAnonymously` waits
+on it forever. Not rejects. Waits.
+
+Native now uses `initializeAuth(app, { persistence: indexedDBLocalPersistence })`,
+which is what `@capacitor-firebase/authentication` documents for native
+(`packages/authentication/docs/firebase-js-sdk.md`) and what firebase-js-sdk
+**#5615** and **#6504** describe the absence of — *"the promise does not
+resolve, neither `.then` nor `.catch` runs"*. Web keeps `getAuth()`: the
+resolver it installs is the one `linkWithPopup` actually needs there.
+
+**How this was reached matters, because four earlier rounds guessed.** App
+Check was checked and enforced nothing. `accounts:signUp` with the
+production key answered **200 in milliseconds** from outside the app.
+Firebase's user list showed no account created. `check:web-firebase` proved
+the config was inlined verbatim in the shipping bundle. Each of those
+removed a hypothesis without producing one; the answer came from the *shape*
+of the failure — never settled, rather than failed — which is a property
+only D77's label could report, and which named the cause almost uniquely.
+
+### 2. `const unsub = onAuthStateChanged(a, () => unsub())`
+
+Fine while the callback is asynchronous. Fire it **synchronously** — which
+an Auth instance whose state has already resolved is entitled to do — and
+`unsub()` executes inside its own initialiser and throws
+`ReferenceError: Cannot access 'unsub' before initialization`. The throw
+lands inside Firebase's observer dispatch, `resolve` on the next line never
+runs, and the promise hangs with nothing logged.
+
+**Same symptom, different cause, three lines apart, and it predates every
+change in this investigation** — that shape has been in `anonSignIn` since
+the deploy-plane batch. `unsub` is now a `let` declared outside the
+executor, with a `settled` guard and a trailing idempotent call for the
+synchronous case.
+
+**It was found by a test, not by reading.** The mock fires
+`onAuthStateChanged` synchronously because that is the honest stand-in for
+an initialized instance, and the first run of the new file failed on it.
+The case is named in its own `describe` so nobody restores the coverage gap
+by making the mock "more realistic".
+
+### The rule these share
+
+Both are an `await` with no clock. D77 wrote that down for the restore wait
+and D77's own record said the argument was general; it then went one call
+deeper and stopped. `signInAnonymously` now has a 30-second deadline whose
+error names `init()`, so whatever the *next* cause turns out to be, the
+device says something instead of nothing.
+
+**30 seconds, not 5.** This is a real network call on a phone and a train
+tunnel is not a bug. The deadline exists to convert silence into a sentence,
+not to fail fast.
+
+**What is not claimed.** Cause 1 is documented upstream and matches the
+symptom exactly; cause 2 is proven to hang under a synchronous callback but
+whether the device's SDK fired synchronously is unknown and now unknowable,
+because both are fixed in the same build. Recorded as two fixes, not as one
+diagnosis with a spare.

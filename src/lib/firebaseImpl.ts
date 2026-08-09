@@ -10,6 +10,8 @@ import {
   GoogleAuthProvider,
   connectAuthEmulator,
   getAuth,
+  indexedDBLocalPersistence,
+  initializeAuth,
   linkWithCredential,
   linkWithPopup,
   onAuthStateChanged,
@@ -58,7 +60,32 @@ const EMULATOR_HOST = "127.0.0.1";
 export function init(config: FirebaseConfig): void {
   if (app) return;
   app = initializeApp(config);
-  authInstance = getAuth(app);
+  // NATIVE MUST NOT USE getAuth(), and the symptom is a hang rather than an
+  // error. getAuth() installs the browser popupRedirectResolver, which
+  // probes the environment against the authDomain — in a WKWebView served
+  // from capacitor://localhost that probe never completes, and because Auth
+  // gates EVERY operation on its initialization promise, signInAnonymously
+  // then waits forever. Not rejects: waits. No error, no Sentry event, no
+  // uid, and boot sits on its first await for the life of the process.
+  //
+  // That is exactly what the first device produced. `LIVE.bootError` read
+  // "still connecting — signing in" (D77, D-below) while
+  // identitytoolkit accounts:signUp with the same API key answered 200 from
+  // outside the app in milliseconds, and Firebase's user list showed no
+  // account created. A request that never leaves and a request that fails
+  // look identical from a console you cannot attach.
+  //
+  // initializeAuth with an explicit persistence and NO resolver is what
+  // @capacitor-firebase/authentication documents for native
+  // (packages/authentication/docs/firebase-js-sdk.md), and upstream
+  // firebase-js-sdk #5615 / #6504 are the same shape: "the promise does not
+  // resolve, neither .then nor .catch runs".
+  //
+  // Web keeps getAuth(): the resolver it installs is the one browsers
+  // actually need for linkWithPopup below.
+  authInstance = Capacitor.isNativePlatform()
+    ? initializeAuth(app, { persistence: indexedDBLocalPersistence })
+    : getAuth(app);
   // Persistent (IndexedDB) cache instead of the default memory-only
   // cache: on an offline cold start every getDoc/getDocs otherwise
   // rejects with "client is offline", hydrate() fails, and boot falls
@@ -125,22 +152,76 @@ function db(): Firestore {
 // replace — while refusing to sign in at all guarantees the demo deck.
 const AUTH_RESTORE_TIMEOUT_MS = 5_000;
 
+// And a deadline on the sign-in itself. The restore wait above was guarded
+// first and it was not enough: the WKWebView hang sat on Auth's
+// initialization promise, which gates signInAnonymously too, so boot moved
+// from one unbounded await to the next and still never produced a word.
+// Firebase's own request timeout never applied because no request was ever
+// made.
+//
+// 30s because this is a real network call on a phone — a slow train
+// tunnel is not a bug and must not be reported as one — and because the
+// only thing past this deadline is an honest error instead of silence.
+// Every one of these three timeouts exists for the same reason, now
+// written once: an await with no clock turns a diagnosable failure into
+// an app that says nothing.
+const SIGN_IN_TIMEOUT_MS = 30_000;
+
+function withDeadline<T>(work: Promise<T>, ms: number, what: string): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  return Promise.race([
+    work,
+    new Promise<never>((_, reject) => {
+      timer = setTimeout(
+        () => reject(new Error(
+          `${what} did not respond within ${Math.round(ms / 1000)}s. The request `
+          + "never completed and never failed, which on a native build usually "
+          + "means Firebase Auth was initialised the browser way — see init().",
+        )),
+        ms,
+      );
+    }),
+  ]).finally(() => clearTimeout(timer));
+}
+
 export async function anonSignIn(): Promise<string> {
   const a = auth();
   let timer: ReturnType<typeof setTimeout> | undefined;
+  // `unsub` is a LET declared outside, and that is load-bearing rather than
+  // style. It read `const unsub = onAuthStateChanged(a, (u) => { unsub(); … })`
+  // for as long as this function has existed, which is fine only while the
+  // callback is asynchronous: fire it SYNCHRONOUSLY — which an Auth
+  // instance that has already resolved its state is entitled to do — and
+  // `unsub()` runs inside its own initialiser and throws
+  // `ReferenceError: Cannot access 'unsub' before initialization`. The
+  // throw lands inside Firebase's observer dispatch, `resolve` on the next
+  // line never runs, and the promise hangs with nothing logged.
+  //
+  // A hang with no error is the symptom the first device produced, so this
+  // is a second sufficient cause of it standing in the same three lines as
+  // the first. Found by the test below rather than by reading, which is
+  // why the test drives a synchronous callback specifically.
+  let unsub: (() => void) | undefined;
+  let settled = false;
   const restored = await new Promise<User | null>((resolve) => {
-    const unsub = onAuthStateChanged(a, (u) => {
+    const done = (u: User | null) => {
+      if (settled) return;
+      settled = true;
       clearTimeout(timer);
-      unsub();
+      // Undefined when the callback fired synchronously — the trailing
+      // call below tears the subscription down once assignment completes.
+      unsub?.();
       resolve(u);
-    });
-    timer = setTimeout(() => {
-      unsub();
-      resolve(null);
-    }, AUTH_RESTORE_TIMEOUT_MS);
+    };
+    unsub = onAuthStateChanged(a, done);
+    timer = setTimeout(() => done(null), AUTH_RESTORE_TIMEOUT_MS);
   });
+  // Idempotent, and the only path that unsubscribes a synchronous fire.
+  unsub?.();
   if (restored) return restored.uid;
-  const cred = await signInAnonymously(a);
+  const cred = await withDeadline(
+    signInAnonymously(a), SIGN_IN_TIMEOUT_MS, "Anonymous sign-in",
+  );
   return cred.user.uid;
 }
 
