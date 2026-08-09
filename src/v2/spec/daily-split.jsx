@@ -5,7 +5,7 @@
 // guards the wiring in CI.
 import React from 'react';
 import { VOTECUTS } from './vote-cuts.js';
-import { navCoasting } from './swipe-back.js';
+import { navCoasting, OWNS_X } from './swipe-back.js';
 import { WPAL } from './world-palette.js';
 import { DAILYQ } from './daily-questions.js';
 import { Sheet } from './primitives.jsx';
@@ -416,7 +416,17 @@ class DailySplit extends React.Component {
     };
     const spring = () => { const b = T(); b.style.transition = 'transform 0.25s cubic-bezier(0.2,0.9,0.2,1), opacity 0.25s ease'; b.style.transform = 'translateX(0)'; b.style.opacity = '1'; };
     let sx = 0, sy = 0, dx = 0, horiz = null, dragging = false;
-    scroller.addEventListener('touchstart', (e) => { const t = e.touches[0]; sx = t.clientX; sy = t.clientY; dx = 0; horiz = null; dragging = true; const b = T(); b.style.animation = ''; b.style.transition = 'none'; }, { passive: true });
+    scroller.addEventListener('touchstart', (e) => {
+      // A gesture born inside a surface that owns horizontal motion (OWNS_X:
+      // the 1v1 rail, feed rows, inputs…) belongs to that surface. Without
+      // this, iOS fed the same touches to both — scrolling a rail slid the
+      // mode axis under it, and past 1v1 that slide leaves the tab entirely
+      // (commit() continues into the Mirror). svg is deliberately NOT skipped
+      // here, unlike swipe-back's list: the cards draw roses and day dots in
+      // svg, and the axis swipe must keep working across them.
+      if (e.target.closest && e.target.closest(OWNS_X)) { dragging = false; return; }
+      const t = e.touches[0]; sx = t.clientX; sy = t.clientY; dx = 0; horiz = null; dragging = true; const b = T(); b.style.animation = ''; b.style.transition = 'none';
+    }, { passive: true });
     scroller.addEventListener('touchmove', (e) => {
       if (!dragging) return; const t = e.touches[0]; const mx = t.clientX - sx, my = t.clientY - sy;
       if (horiz === null && (Math.abs(mx) > 8 || Math.abs(my) > 8)) horiz = Math.abs(mx) > Math.abs(my);
@@ -426,6 +436,9 @@ class DailySplit extends React.Component {
     scroller.addEventListener('touchend', end); scroller.addEventListener('touchcancel', end);
     let wheelLock = false;
     scroller.addEventListener('wheel', (e) => {
+      // same ownership rule as touch: a trackpad scroll inside a rail is the
+      // rail's scroll, not a mode change
+      if (e.target.closest && e.target.closest(OWNS_X)) return;
       if (Math.abs(e.deltaX) > Math.abs(e.deltaY) + 4) { e.preventDefault(); if (wheelLock || Math.abs(e.deltaX) < 24) return; if (navCoasting()) return; wheelLock = true; commit(e.deltaX > 0 ? 1 : -1); setTimeout(() => { wheelLock = false; }, 650); }
     }, { passive: false });
     // first-run hint — a gentle sideways nudge teaches that modes swipe; retires after the first real swipe
