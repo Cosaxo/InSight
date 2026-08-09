@@ -584,12 +584,29 @@ figure should be. That is a tester-count problem, not a workflow problem.
       Three look tickable and are not — the printout names them with the
       reason: **Device ID** (D29 binding holds no identifier server-side),
       **Product Interaction** (no analytics ship), **Emails or Text
-      Messages** (no live free-text surface at launch, D1).
+      Messages** (a take is a post to a circle, not a message to a person,
+      and its content is already declared under *Other User Content* —
+      D79; the reason used to be "no live free-text surface" and D78 part 1
+      ended that).
 
       *Play's Data Safety form is **[PARKED — D42]**.*
 
-- [x] **4.5 The age rating — pushed 2026-08-08.** All 22 attributes, in one
-      dispatch of **Actions → App Store metadata** with *apply* ticked.
+- [ ] **4.5 The age rating — pushed 2026-08-08, and one answer moved on
+      08-09. Re-push.** All 22 attributes go in one dispatch of **Actions →
+      App Store metadata** with *apply* ticked.
+
+      **Unticked again on purpose.** `messagingAndChat` was filed `false`
+      and is now `true` (D79): D78 part 1 shipped the circle takes client
+      the day after the push, so App Store Connect holds an answer the repo
+      no longer makes. One dispatch fixes it — the other 21 will report as
+      already matching.
+
+      **This is the standing shape of this step, not a one-off.** The age
+      rating is pushed state, so it goes stale whenever a feature changes
+      what the app *is* rather than what it *says*. `check:store-forms`
+      holds the two files to each other; **nothing holds either of them to
+      App Store Connect**, so a re-push after any answer moves is manual by
+      construction.
       `design/store/app-privacy.json` holds every answer with the reasoning
       on each row, and since D75 `check:store-forms` holds the age-rating
       half equal to `STORE-FORMS.md` as well as the privacy half — key and
