@@ -10,6 +10,7 @@
 // role, aria-modal, aria-label, Escape, focus trap, focus restore — and
 // without the div-with-onClick scrim the a11y ratchet counts.
 import React from 'react';
+import ReactDOM from 'react-dom';
 import { Sheet } from './primitives.jsx';
 
 // explain-sheet.jsx — ONE place that says what every score means.
@@ -175,7 +176,7 @@ export function ExplainSheet({ title, kicker, keyRows, dims, dimKey, onClose }) 
   const [closing, setClosing] = useState(false);
   const close = () => { if (closing) return; setClosing(true); setTimeout(onClose, 240); };
   const ex = EX[dimKey] || { about: '', dims: {} };
-  return (
+  const sheet = (
     <Sheet onClose={close} closing={closing} label={title + ' — what this measures'}>
       <div style={{ padding: '10px 18px 8px', display: 'flex', alignItems: 'baseline', gap: 10 }}>
         <span style={{ fontFamily: exSans, fontWeight: 800, fontSize: 15 }}>{title}</span>
@@ -212,4 +213,13 @@ export function ExplainSheet({ title, kicker, keyRows, dims, dimKey, onClose }) 
       </div>
     </Sheet>
   );
+  // Portaled to the app frame, like TypeIndexSheet and the 1v1 add sheet:
+  // .wf-scrim positions absolutely, and two of the three ⓘ sites render deep
+  // inside the profile's scrolling body (the Lenses panel, a test's result
+  // card), where the nearest containing block is as tall as the CONTENT —
+  // in place, the sheet landed at the bottom of the scroll, off-screen until
+  // you scrolled after it. Falls back to rendering in place for a mount with
+  // no .app around it (unit tests mount panels bare).
+  const host = typeof document !== 'undefined' ? document.querySelector('.app') : null;
+  return host ? ReactDOM.createPortal(sheet, host) : sheet;
 }
