@@ -78,6 +78,76 @@ function LnBar({ row, accent }: { row: Row; accent: string }) {
   );
 }
 
+// ── the Right now card (D84) ─────────────────────────────────────────
+//
+// Near's radius half: how many opted-in phones are foreground within
+// your ~1 km cell and its eight neighbors, right now. No city involved.
+// Off by default; the enable tap is what carries the OS permission
+// prompt (D9's rule). The count is the only thing the server returns —
+// presence docs are unreadable — and the copy claims kilometres, not the
+// 500 m the coarse permission cannot measure (D84 records the Precise
+// flip as its own decision).
+function NearNowCard() {
+  const [, tick] = React.useState(0);
+  React.useEffect(() => LIVE.subscribe(() => tick((t) => t + 1)), []);
+  const [busy, setBusy] = React.useState(false);
+  const [err, setErr] = React.useState<string | null>(null);
+  const near = LIVE.near;
+  if (!near.supported()) return null;
+
+  const FAIL: Record<string, string> = {
+    denied: "No problem — Near stays off until you allow location.",
+    unavailable: "Couldn't get a location fix. Try again outside.",
+    timeout: "That took too long — indoors it often does. Try again.",
+    unsupported: "This device can't share a location.",
+  };
+
+  async function turnOn() {
+    setBusy(true); setErr(null);
+    const res = await near.enable();
+    if (!res.ok) setErr(FAIL[res.reason || "unavailable"] || FAIL.unavailable);
+    setBusy(false);
+  }
+
+  const on = near.on();
+  const n = near.count();
+  const line = !on
+    ? null
+    : near.tooFew()
+      ? "A few people are around you right now."
+      : n == null
+        ? "Counting…"
+        : n === 0
+          ? "Just you right now — the count updates every few minutes."
+          : `${n} ${n === 1 ? "person" : "people"} with InSight within a couple of kilometres right now.`;
+
+  return (
+    <div style={{ border: LN_LINE, borderRadius: 14, background: "var(--surface-2)", padding: "13px 14px", margin: "10px 0 4px", display: "flex", flexDirection: "column", gap: 8 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        <span className="kicker" style={{ marginBottom: 0, flex: 1 }}>Right now, around you</span>
+        <button className="press" disabled={busy}
+          onClick={() => { if (on) void near.disable(); else void turnOn(); }}
+          style={{ border: on ? LN_LINE : "none", borderRadius: 999, padding: "6px 13px", cursor: busy ? "default" : "pointer",
+            fontFamily: "var(--sans)", fontWeight: 800, fontSize: 12, WebkitAppearance: "none", opacity: busy ? 0.6 : 1,
+            background: on ? "transparent" : "var(--accent, var(--ink))", color: on ? "var(--ink-2)" : "var(--surface)" }}>
+          {busy ? "…" : on ? "Turn off" : "Turn on"}
+        </button>
+      </div>
+      {on ? (
+        <div style={{ fontFamily: "var(--sans)", fontSize: 13.5, fontWeight: 700, color: "var(--ink)", lineHeight: 1.45 }}>{line}</div>
+      ) : (
+        <div style={{ fontFamily: "var(--sans)", fontSize: 12.5, fontWeight: 500, color: "var(--ink-2)", lineHeight: 1.5 }}>
+          See how many people with InSight are around you — a count, never
+          who. While it&rsquo;s on and the app is open, your phone shares only a
+          kilometre-sized grid square, unreadable to other users; it&rsquo;s
+          deleted the moment you turn this off.
+        </div>
+      )}
+      {err && <div role="status" style={{ fontFamily: "var(--sans)", fontSize: 12, fontWeight: 600, color: "var(--ink-2)" }}>{err}</div>}
+    </div>
+  );
+}
+
 function LnNote({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div style={{ padding: "26px 4px", textAlign: "center" }}>
@@ -102,7 +172,10 @@ function LiveCohortBody({ scope = "city" }: { scope?: CohortScope }) {
   // user's document to find out which bucket that is (D5).
   if (scope !== "world" && !city) {
     return (
-      <div>
+      <div style={{ padding: "0 16px" }}>
+        {/* The radius half needs no city (D84) — it renders above the
+            city ask, so Near is never a dead end again. */}
+        {scope === "city" && <NearNowCard />}
         <LnNote title={scope === "city" ? "Near needs a city" : "This needs a city"}>
           Set it right here — use your location or search the list. Either way
           only the city name is saved, never your coordinates, and you can
@@ -162,6 +235,7 @@ function LiveCohortBody({ scope = "city" }: { scope?: CohortScope }) {
 
   return (
     <div className="fade-in" style={{ padding: "4px 16px 26px" }}>
+      {scope === "city" && <NearNowCard />}
       <div style={{ padding: "10px 0 4px" }}>
         <div className="kicker">
           {scope === "city" ? "Around you" : scope === "country" ? "Your country" : "Everyone"}

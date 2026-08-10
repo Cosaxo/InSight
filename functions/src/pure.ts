@@ -1403,3 +1403,53 @@ export function describeSeedOptionConflicts(
     .map((c) => `${c.qid}: [${c.stored.join(" | ")}] -> [${c.desired.join(" | ")}]`)
     .join("; ");
 }
+
+// ── presence cells (D84 — Near by radius) ───────────────────────────
+//
+// The server half of the ~1 km presence grid. The CLIENT computes a cell
+// from a fix and discards the coordinate (src/v2/data/geo.ts); what
+// arrives here is only the cell id, and these two functions are the whole
+// vocabulary the server has for it: is it a legal cell, and which nine
+// cells make up "around you". The grid contract (0.01°, "la_lo" ids) is
+// pinned to the same vectors on both sides by the two test suites — the
+// floor.ts drift pattern, because a client and server disagreeing about
+// cell shape fails soft (empty counts) and would read as "nobody nearby".
+
+const PRESENCE_LAT_MIN = Math.floor(-90 / 0.01);   // -9000
+const PRESENCE_LAT_MAX = Math.ceil(90 / 0.01) - 1; //  8999
+const PRESENCE_LON_MIN = Math.floor(-180 / 0.01);  // -18000
+const PRESENCE_LON_SPAN = 36000;
+
+export function presenceCellOk(cell: unknown): boolean {
+  if (typeof cell !== "string" || !/^-?\d{1,4}_-?\d{1,5}$/.test(cell)) return false;
+  const [la, lo] = cell.split("_").map(Number);
+  return la >= PRESENCE_LAT_MIN && la <= PRESENCE_LAT_MAX
+    && lo >= PRESENCE_LON_MIN && lo < PRESENCE_LON_MIN + PRESENCE_LON_SPAN;
+}
+
+/**
+ * The 3×3 neighborhood around a cell — the query set for "around you".
+ * Longitude wraps at the antimeridian; latitude rows beyond the poles are
+ * dropped rather than wrapped (there is nothing on the far side of a pole
+ * but the same hemisphere again, and a presence count is not worth the
+ * cleverness).
+ */
+export function presenceNeighbors(cell: string): string[] {
+  if (!presenceCellOk(cell)) return [];
+  const [la, lo] = cell.split("_").map(Number);
+  const out: string[] = [];
+  for (let dLa = -1; dLa <= 1; dLa++) {
+    const nla = la + dLa;
+    if (nla < PRESENCE_LAT_MIN || nla > PRESENCE_LAT_MAX) continue;
+    for (let dLo = -1; dLo <= 1; dLo++) {
+      let nlo = lo + dLo;
+      if (nlo < PRESENCE_LON_MIN) nlo += PRESENCE_LON_SPAN;
+      if (nlo >= PRESENCE_LON_MIN + PRESENCE_LON_SPAN) nlo -= PRESENCE_LON_SPAN;
+      out.push(`${nla}_${nlo}`);
+    }
+  }
+  return out;
+}
+
+/** Presence docs older than this many minutes do not count as "here". */
+export const PRESENCE_TTL_MIN = 10;

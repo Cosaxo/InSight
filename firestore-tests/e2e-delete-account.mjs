@@ -151,6 +151,10 @@ await adb.doc(`v2_takes/${MY_TAKE}`).set({
   gid: SHARED, authorUid: uid, qid: "q1", text: "words that must not outlive the account",
 });
 await adb.doc(`v2_flags/${MY_TAKE}_${uid}`).set({ takeId: MY_TAKE, gid: SHARED, uid });
+// The presence doc (D84): the one location-shaped datum an account can
+// hold, and the wipe must take it — a cell that outlives its account is a
+// standing "someone was here" nobody can retract.
+await adb.doc(`v2_presence/${uid}`).set({ cell: "5999_1074", at: new Date() });
 await adb.doc(`v2_mod_queue/${MY_TAKE}`).set({
   takeId: MY_TAKE, gid: SHARED, text: "words that must not outlive the account",
   flags: 3, escalations: 0,
@@ -202,6 +206,7 @@ for (const [path, label] of [
   [`v2_groups/${LEFT}/reveals/${DAY}`, "that group's reveal"],
   [`v2_takes/${MY_TAKE}`, "their take"],
   [`v2_flags/${MY_TAKE}_${uid}`, "their flag on their own take"],
+  [`v2_presence/${uid}`, "their presence cell"],
   [`v2_mod_queue/${MY_TAKE}`, "the queue's copy of their take"],
   [`v2_takes/${THEIR_TAKE}`, "someone else's take"],
   [`v2_mod_queue/${THEIR_TAKE}`, "the queue's copy of someone else's take"],
@@ -284,6 +289,7 @@ for (const [path, label] of [
   [`v2_takes/${MY_TAKE}`, "their take"],
   [`v2_flags/${MY_TAKE}_${uid}`, "their flag on their own take"],
   [`v2_flags/${THEIR_TAKE}_${uid}`, "their flag on someone else's take"],
+  [`v2_presence/${uid}`, "their presence cell"],
   // The gap this leg exists for: the take was erased, and its words went on
   // living in the moderation queue's copy of them.
   [`v2_mod_queue/${MY_TAKE}`, "the queue's copy of their take"],

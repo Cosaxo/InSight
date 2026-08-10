@@ -143,6 +143,14 @@ function LivePrivacyPanel() {
               caller, stored, or transmitted. Claiming "no location" now
               would be false, so it does not. */}
           <li>Location is optional and off until you ask for it. If you tap &ldquo;use my location&rdquo;, your phone works out the nearest city <em>on the device</em> and sends only that name — never your coordinates, which are never stored or transmitted. You can skip it and pick your city from a list instead, and your country follows from the city either way.</li>
+          {/* D84. The presence cell is the second location-shaped thing the
+              app can hold, and this bullet is its disclosure: what is shared
+              (a ~1 km grid square, computed on the device, the coordinate
+              discarded), who can read it (no user — the server answers only
+              with a count), when (foreground, opted in), and the way out
+              (off deletes the doc; deleting the account does too). If the
+              mechanics change, this sentence changes in the same commit. */}
+          <li>&ldquo;Right now, around you&rdquo; (the Near counter) is optional and off by default. While it&rsquo;s on and the app is open, your phone shares a kilometre-sized grid square — worked out on the device, your coordinates discarded — so the server can answer <em>how many</em> people are around you. No other user can ever read your square; a count is all that comes back. It goes stale within minutes when you close the app, and turning it off (or deleting your account) deletes it immediately.</li>
           <li>No IP-based location lookup, no background or continuous location, no location history.</li>
           <li>No contacts. No comments from strangers. No ads, no tracking, no third-party analytics.</li>
         </ul>

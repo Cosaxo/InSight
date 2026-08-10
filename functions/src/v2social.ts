@@ -12,7 +12,7 @@
 // Membership changes go through callables — client rules keep v2_groups
 // read-only — so invite codes, size caps and duo pairing can't be forged.
 
-import { getFirestore, FieldValue } from "firebase-admin/firestore";
+import { getFirestore, FieldValue, Timestamp } from "firebase-admin/firestore";
 import { getMessaging } from "firebase-admin/messaging";
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { assertOperator, ENFORCE_APP_CHECK, LIGHT_CALLABLE, LIGHT_UNBOUNDED } from "./ops";
@@ -37,6 +37,9 @@ import {
   shouldReveal,
   utcDayKey,
   votesMatchingQid,
+  presenceCellOk,
+  presenceNeighbors,
+  PRESENCE_TTL_MIN,
   type DuelVoteLike,
 } from "./pure";
 // Same import the logic norms histogram uses (logic.ts): the floor and the
@@ -905,4 +908,40 @@ export const revealDuelsNowV2 = onCall({ region: REGION }, async (request) => {
   const dayKey = typeof request.data?.day === "string" ? request.data.day : undefined;
   const mode: ScanMode = request.data?.scan === "indexed" ? "indexed" : "full";
   return runDuelReveals(dayKey, mode);
+});
+
+// ── Near by radius: the presence count (D84) ────────────────────────
+//
+// The one read path for presence, and deliberately the only one: presence
+// docs are `allow read: if false` to every client, because a readable
+// (uid → cell) pair is the D2 leak again — a script could follow any uid
+// around town at cell resolution. What the world may know is a NUMBER:
+// how many opted-in phones, foreground within the last PRESENCE_TTL_MIN
+// minutes, sit in the caller's cell or one of its eight neighbors —
+// excluding the caller themself, so "just you here" reads as 0 rather
+// than a phantom 1.
+//
+// The count is floored by AGG_MIN_N like every other published count.
+// Under D81's pause that floor is 1, so any nonzero count shows — the
+// owner's explicit call for this feature ("doesn't matter that it won't
+// work most of the time"). When the floor is restored to 5, a 1-4 count
+// returns tooFew instead of n, and the client says "a few people" —
+// wired through the same constant so the revert carries presence with it.
+export const nearbyCountV2 = onCall({ ...LIGHT_CALLABLE, region: REGION, enforceAppCheck: ENFORCE_APP_CHECK }, async (request) => {
+  if (!request.auth) throw new HttpsError("unauthenticated", "must be signed in");
+  const cell = request.data?.cell;
+  if (!presenceCellOk(cell)) throw new HttpsError("invalid-argument", "cell must be a la_lo grid id");
+  const db = getFirestore();
+  const cells = presenceNeighbors(cell as string);
+  const freshAfter = Timestamp.fromMillis(Date.now() - PRESENCE_TTL_MIN * 60_000);
+  // One query: `in` on ≤10 values is a single indexed read per matching
+  // doc, and the neighborhood is exactly 6-9 cells (pole rows drop).
+  const snap = await db.collection("v2_presence")
+    .where("cell", "in", cells)
+    .where("at", ">", freshAfter)
+    .get();
+  const n = snap.docs.filter((d) => d.id !== request.auth?.uid).length;
+  if (n === 0) return { n: 0 };
+  if (n < AGG_MIN_N) return { tooFew: true };
+  return { n };
 });

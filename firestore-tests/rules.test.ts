@@ -1267,3 +1267,43 @@ describe("D29 device binding: soft today, and the flip is pre-tested", () => {
     await assertFails(setDoc(doc(stringy, "v2_users", OWNER, "answers", QID), worldAnswer()));
   });
 });
+
+describe("presence (D84 — Near by radius)", () => {
+  // The privacy shape in three lines: your own cell-sized doc is yours to
+  // write and delete, NOBODY can read any of them (the only read path is
+  // the nearbyCountV2 callable, which returns a count), and the cell
+  // regex is the precision cap — nothing finer than the ~1 km grid id can
+  // be written at all, however a client is modified.
+  const cellDoc = (over: Record<string, unknown> = {}) => ({
+    cell: "5999_1074", at: serverTimestamp(), ...over,
+  });
+
+  it("a user writes, overwrites and deletes their own presence", async () => {
+    const ref = doc(asUser(OWNER), "v2_presence", OWNER);
+    await assertSucceeds(setDoc(ref, cellDoc()));
+    await assertSucceeds(setDoc(ref, cellDoc({ cell: "6000_1075" })));
+    await assertSucceeds(deleteDoc(ref));
+  });
+
+  it("nobody reads presence — not even their own doc", async () => {
+    await seed(async (db) => {
+      await setDoc(doc(db, "v2_presence", OWNER), { cell: "5999_1074", at: new Date() });
+    });
+    // Own doc: the client never needs to read it back, and a read grant is
+    // surface someone will eventually widen. The callable is the read path.
+    await assertFails(getDoc(doc(asUser(OWNER), "v2_presence", OWNER)));
+    await assertFails(getDoc(doc(asUser(STRANGER), "v2_presence", OWNER)));
+    await assertFails(getDocs(query(
+      collection(asUser(STRANGER), "v2_presence"), where("cell", "==", "5999_1074"),
+    )));
+  });
+
+  it("cannot write someone else's presence, or smuggle precision past the grid", async () => {
+    await assertFails(setDoc(doc(asUser(STRANGER), "v2_presence", OWNER), cellDoc()));
+    const ref = doc(asUser(OWNER), "v2_presence", OWNER);
+    await assertFails(setDoc(ref, cellDoc({ cell: "59.913_10.752" })));   // raw coords
+    await assertFails(setDoc(ref, cellDoc({ cell: "5999_1074_extra" }))); // sub-cell suffix
+    await assertFails(setDoc(ref, cellDoc({ lat: 59.91 })));              // extra field
+    await assertFails(setDoc(ref, cellDoc({ at: new Date() })));          // not request.time
+  });
+});

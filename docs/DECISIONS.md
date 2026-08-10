@@ -8128,3 +8128,72 @@ built — and it does not move the two things the deferral rests on
 stays what D82 set: launch traction first, own project after, and the
 foreground-only design is the recorded starting point when that day
 comes.
+
+## D84 · Near by radius ships — presence cells, a count and nothing else
+
+**Decided:** 2026-08-10 · **Status:** binding · **Owner's call**, third
+ask and explicit about the trade: "I want the 500m added, it doesn't
+matter that it won't work most of the time." D82's deferral rested on two
+legs — nobody to show, and the precision line it spends — and the owner
+has now knowingly accepted the first and part of the second. This record
+is the shape that ships and the one precision decision that deliberately
+does NOT ride along.
+
+**Decision.** The Near stop gains a "Right now, around you" counter: how
+many opted-in phones are foreground within the viewer's ~1 km grid cell
+and its eight neighbors. No city involved — the card renders above the
+city ask, so Near is never a dead end again.
+
+**The shape, and where each guarantee lives:**
+
+- **A cell, never a coordinate.** `data/locate.ts` gains `locateCell()`
+  under the same containment contract as `locateCity()`: the fix is
+  folded to a 0.01° grid id ("5999_1074") inside the module and the
+  coordinate is discarded. A plain integer grid rather than geohash: the
+  neighbor math is two ±1s, and the precision cap is legible in the id
+  itself. The client and server halves of the grid contract are pinned to
+  the same vectors (geo.test.ts ↔ pure.test.ts, the floor.ts pattern).
+- **`v2_presence/{uid}`: one doc, overwritten, unreadable.** Foreground
+  beats every 4 minutes write `{cell, at}`; the rules regex is the
+  structural precision cap (raw coordinates cannot be written at all) and
+  `allow read: if false` for every client — a readable (uid → cell) pair
+  is D2's leak reborn, a script following any uid around town. Opting out
+  deletes the doc immediately; `deleteAccount` deletes it too (erasure
+  e2e asserts both the wipe and that it stops at this account's edge).
+- **The count is the entire read surface.** `nearbyCountV2` (App Check
+  enforced) takes the caller's cell, counts fresh presence (10-minute
+  window) in the 3×3 neighborhood, excludes the caller, and returns a
+  number. It floors on `AGG_MIN_N` like every published count — under
+  D81's pause any nonzero count shows, which is this feature's whole
+  point at today's scale; when the floor restores, 1–4 becomes `tooFew`
+  and the card says "a few people" without a number. Wired through the
+  same constant, so the revert carries presence with it.
+- **Opt-in is a per-account choice.** The flag lives in its own store
+  (`data/near.ts`) with its own purge listener, because an opt-in that
+  survived an account switch would turn presence on for whoever signs in
+  next. The enable tap carries the OS permission prompt (D9's rule);
+  boot resumes the loop only for an account that already chose it.
+- **The privacy panel discloses it in full** — what is shared, who can
+  read it (no user), when, and both ways out. The store label does NOT
+  move: the fix is the same coarse permission the city locate uses, no
+  background or continuous location, no history (one doc, overwritten).
+
+**The 500 m that deliberately did not ship.** The owner said 500 m; the
+card says "a couple of kilometres", and the gap is the sensor, not
+timidity: the app requests COARSE location only
+(`NSLocationDefaultAccuracyReduced`, Android COARSE) — a fix accurate to
+a kilometre or worse cannot honestly measure a 500 m radius, and D9's
+store-label argument ("Precise is NOT ticked, and the table is why")
+leans on exactly that ceiling. True 500 m is one decision away: request
+precise fixes, flip the App Store label to Precise Location, rewrite the
+coarse-only lines in D9's table and the privacy panel. That is a
+listing-level change with its own review consequences, and it is left as
+the owner's explicit next call rather than smuggled in under this one —
+the feature works identically at either precision, only the honest
+radius claim changes.
+
+**Costs, priced:** one presence write per opted-in foreground phone per
+4 minutes and one callable read of ≤9 cells' fresh docs — at any scale
+this product reaches before the floor restores, a rounding error against
+the answer pipeline. A new composite index (cell, at). One new callable
+in the deploy list (check:deploy-targets held the door until it was).

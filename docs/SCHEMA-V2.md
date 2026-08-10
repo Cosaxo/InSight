@@ -121,6 +121,18 @@ v2_question_aggs/{qid}             the PUBLIC mirror, k-floored
                                    member sets, per-group anything
 read: signed-in · write: nobody
 
+v2_presence/{uid}                  Near-by-radius presence (D84)
+  cell: "la_lo"                    a ~1 km 0.01-degree grid id, computed
+                                   ON DEVICE from a coarse fix whose
+                                   coordinate is discarded (data/locate.ts)
+  at: request.time                 freshness; docs older than 10 min do
+                                   not count as "here"
+read: NOBODY (the only read path is nearbyCountV2, which returns a count
+of fresh presence in the 3x3 neighborhood, caller excluded) ·
+create/update/delete: owner only, shape-checked — the cell regex in the
+rules is the precision cap in structural form. Opting out deletes the
+doc; deleteAccount does too.
+
 v2_groups/{gid}                    groups AND duos (mode: group|duo)
   name, mode, ownerUid, memberUids[≤32; duo ≤2], memberNames{uid:name},
   memberJoinedAt{uid:ts},
@@ -274,7 +286,7 @@ not per boot. `LIVE.stats` reports `bankSource` / `answersFetched` /
 
 ## Verification
 
-- `npm run test:rules` — 56 rules tests (Firestore + Storage; the v2
+- `npm run test:rules` — 59 rules tests (Firestore + Storage; the v2
   surface, the anonymous-default lens, and the retired-v1 guard).
 - `firestore-tests/e2e-v2-loop.mjs` under
   `firebase emulators:exec --only auth,firestore,functions` — the full

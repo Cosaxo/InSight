@@ -491,5 +491,34 @@ if (labove.counts["0"] !== 3 || labove.counts["1"] !== 1 || labove.counts["2"] !
   fail("learn counts wrong at total 5: " + JSON.stringify(labove));
 ok("learn crowd stat: 5 first attempts, exact through per-answer publishes, 3/5 right");
 
+
+// 10 · Near presence (D84): the write path through the rules, the count
+// through the real callable, and the exclusion of self.
+{
+  const meCell = "5999_1074";
+  await setDoc(doc(db, "v2_presence", uid), { cell: meCell, at: serverTimestamp() });
+  ok("presence: own cell written through the rules");
+  // A neighbor one cell east; a third phone far away that must not count.
+  const nApp = initializeApp({ projectId: "demo-insight", apiKey: "demo", appId: "demo" }, "near1");
+  const nAuth = getAuth(nApp); connectAuthEmulator(nAuth, "http://127.0.0.1:9099", { disableWarnings: true });
+  const nDb = getFirestore(nApp); connectFirestoreEmulator(nDb, "127.0.0.1", 8080);
+  const nu = await signInAnonymously(nAuth);
+  await setDoc(doc(nDb, "v2_presence", nu.user.uid), { cell: "5999_1075", at: serverTimestamp() });
+  const fApp = initializeApp({ projectId: "demo-insight", apiKey: "demo", appId: "demo" }, "near2");
+  const fAuth = getAuth(fApp); connectAuthEmulator(fAuth, "http://127.0.0.1:9099", { disableWarnings: true });
+  const fDb = getFirestore(fApp); connectFirestoreEmulator(fDb, "127.0.0.1", 8080);
+  const fu = await signInAnonymously(fAuth);
+  await setDoc(doc(fDb, "v2_presence", fu.user.uid), { cell: "5980_1074", at: serverTimestamp() });
+  // Back to the primary user for the count. The callable excludes the
+  // caller's own doc, so the answer is the one neighbor — not 2, not 3.
+  const near = await httpsCallable(fns, "nearbyCountV2")({ cell: meCell });
+  if (near.data.n !== 1) fail("nearby count wrong: " + JSON.stringify(near.data));
+  ok("nearbyCountV2: one fresh neighbor counted, self excluded, far phone ignored");
+  await expectDenied("foreign presence write refused", () =>
+    setDoc(doc(db, "v2_presence", nu.user.uid), { cell: meCell, at: serverTimestamp() }));
+  await expectDenied("raw-coordinate cell refused by the grid regex", () =>
+    setDoc(doc(db, "v2_presence", uid), { cell: "59.913_10.752", at: serverTimestamp() }));
+}
+
 console.log("\nALL E2E CHECKS PASSED");
 process.exit(0);

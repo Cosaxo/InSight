@@ -45,6 +45,8 @@ import {
   revealQid,
   revealVotes,
   votesMatchingQid,
+  presenceCellOk,
+  presenceNeighbors,
 } from "./pure";
 import { AGG_MIN_N, PUBLISH_EVERY } from "./v2";
 
@@ -1567,5 +1569,59 @@ describe("what the reveal doc records per vote (revealVotes)", () => {
     const unstamped = Object.keys(doc).filter((u) => !("qid" in doc[u]));
     expect(unstamped).toEqual(["a", "c"]);
     expect(folded).toHaveLength(unstamped.length);
+  });
+});
+
+// ── presence cells (D84) ─────────────────────────────────────────────
+//
+// The vectors here are duplicated verbatim in src/v2/data/geo.test.ts —
+// the two halves of the grid contract are pinned to the same answers, the
+// floor.ts drift pattern, because a disagreement fails soft (an empty
+// count that reads as "nobody nearby").
+
+describe("presence cells", () => {
+  it("accepts legal la_lo ids and refuses everything else", () => {
+    expect(presenceCellOk("5999_1074")).toBe(true);   // Oslo-ish
+    expect(presenceCellOk("-3373_15121")).toBe(true); // Sydney-ish
+    expect(presenceCellOk("0_0")).toBe(true);
+    expect(presenceCellOk("8999_-18000")).toBe(true); // last row, date line
+    // Beyond the poles / the meridian span.
+    expect(presenceCellOk("9000_0")).toBe(false);
+    expect(presenceCellOk("-9001_0")).toBe(false);
+    expect(presenceCellOk("0_18000")).toBe(false);
+    // Shapes that try to smuggle precision or nonsense.
+    expect(presenceCellOk("59.99_10.74")).toBe(false);
+    expect(presenceCellOk("5999_1074_77")).toBe(false);
+    expect(presenceCellOk("abc_def")).toBe(false);
+    expect(presenceCellOk("")).toBe(false);
+    expect(presenceCellOk(null)).toBe(false);
+    expect(presenceCellOk(5999)).toBe(false);
+  });
+
+  it("returns the 3×3 neighborhood in the interior", () => {
+    const n = presenceNeighbors("5999_1074");
+    expect(n).toHaveLength(9);
+    expect(n).toContain("5999_1074");
+    expect(n).toContain("5998_1073");
+    expect(n).toContain("6000_1075");
+  });
+
+  it("wraps longitude at the antimeridian instead of walking off it", () => {
+    const n = presenceNeighbors("0_-18000");
+    expect(n).toHaveLength(9);
+    // The western neighbor of the western edge is the eastern edge.
+    expect(n).toContain("0_17999");
+    expect(n).not.toContain("0_-18001");
+  });
+
+  it("drops rows beyond the poles rather than inventing them", () => {
+    const n = presenceNeighbors("8999_0");
+    expect(n).toHaveLength(6); // no row above the top
+    expect(n.every((c) => Number(c.split("_")[0]) <= 8999)).toBe(true);
+  });
+
+  it("returns nothing for an illegal cell — the callable's own guard", () => {
+    expect(presenceNeighbors("9000_0")).toEqual([]);
+    expect(presenceNeighbors("junk")).toEqual([]);
   });
 });

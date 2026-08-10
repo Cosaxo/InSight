@@ -68,6 +68,8 @@ import {
   utcDayIndex as utcDayIndexPure,
 } from "./deck";
 import type { AggDoc, LiveQuestion, QuestionDoc, VoteContext } from "./deck";
+import { nearOptedIn, setNearOptIn } from "./near";
+import { locateCell, locateSupported } from "./locate";
 
 const state = {
   ready: false,
@@ -1149,6 +1151,138 @@ function takeScopeKey(gid: string, qid?: string): string | null {
   return qid ? `world:${qid}` : null;
 }
 
+// ── Near by radius: the presence loop (D84) ─────────────────────────
+//
+// While the viewer has opted in AND the app is foreground, this writes
+// their ~1 km grid cell to v2_presence/{uid} every PRESENCE_BEAT_MS and
+// asks nearbyCountV2 how many other fresh phones share the 3×3
+// neighborhood. The cell comes from locateCell() — the coordinate is
+// folded and discarded inside data/locate.ts, so nothing here ever holds
+// one — and presence docs are unreadable to every client, so the count in
+// nearState is the only thing that ever comes back.
+//
+// The opt-in flag lives in data/near.ts (its own purge listener — an
+// opt-in must not survive onto the next account); the loop stops on uid
+// change via stopPresence() in resetForNewUid.
+const PRESENCE_BEAT_MS = 4 * 60_000; // < the server's 10-min freshness window
+
+const nearState = {
+  count: null as number | null,   // null = never fetched this session
+  tooFew: false,                  // floor-withheld (only when AGG_MIN_N > 1)
+  updatedAt: 0,
+  lastError: null as string | null,
+  timer: null as ReturnType<typeof setInterval> | null,
+  busy: false,
+};
+
+async function presenceBeat(): Promise<void> {
+  if (nearState.busy || !nearOptedIn() || !LIVE.enabled) return;
+  if (typeof document !== "undefined" && document.hidden) return;
+  nearState.busy = true;
+  try {
+    const fix = await locateCell();
+    if (!fix.ok) {
+      // A failed beat is quiet: permission was granted at opt-in, so this
+      // is indoors/transient. The stale count keeps its timestamp and the
+      // UI says how old it is rather than pretending.
+      nearState.lastError = fix.reason;
+      return;
+    }
+    nearState.lastError = null;
+    const uid = state.uid;
+    if (!uid) return;
+    const db = await getDb();
+    await setDoc(doc(db, "v2_presence", uid), { cell: fix.cell, at: serverTimestamp() });
+    const res = await callable<{ n?: number; tooFew?: boolean }>("nearbyCountV2", { cell: fix.cell });
+    nearState.tooFew = res.tooFew === true;
+    nearState.count = typeof res.n === "number" ? res.n : nearState.tooFew ? null : 0;
+    nearState.updatedAt = Date.now();
+  } catch (err) {
+    nearState.lastError = "unavailable";
+    reportError(err, { where: "presenceBeat" });
+  } finally {
+    nearState.busy = false;
+    notify();
+  }
+}
+
+function startPresence(): void {
+  if (nearState.timer) return;
+  nearState.timer = setInterval(() => { void presenceBeat(); }, PRESENCE_BEAT_MS);
+  if (typeof document !== "undefined") {
+    document.addEventListener("visibilitychange", presenceOnVisible);
+  }
+  void presenceBeat();
+}
+
+function presenceOnVisible(): void {
+  if (typeof document !== "undefined" && !document.hidden) void presenceBeat();
+}
+
+function stopPresence(): void {
+  if (nearState.timer) { clearInterval(nearState.timer); nearState.timer = null; }
+  if (typeof document !== "undefined") {
+    document.removeEventListener("visibilitychange", presenceOnVisible);
+  }
+  nearState.count = null;
+  nearState.tooFew = false;
+  nearState.updatedAt = 0;
+  nearState.lastError = null;
+}
+
+const NEAR = {
+  supported(): boolean {
+    return locateSupported();
+  },
+  on(): boolean {
+    return nearOptedIn();
+  },
+  // The count of OTHER fresh phones in the neighborhood: null when never
+  // fetched (or floor-withheld), a number otherwise. `tooFew` distinguishes
+  // "withheld by the floor" from "never fetched" so the UI can say "a few
+  // people" honestly when the design floor returns (D81 revert).
+  count(): number | null {
+    return nearState.count;
+  },
+  tooFew(): boolean {
+    return nearState.tooFew;
+  },
+  updatedAt(): number {
+    return nearState.updatedAt;
+  },
+  lastError(): string | null {
+    return nearState.lastError;
+  },
+  // Opt in: one explicit tap. The first fix runs immediately, so the tap
+  // also carries the OS permission prompt (D9's rule — location is never
+  // requested until asked for).
+  async enable(): Promise<{ ok: boolean; reason?: string }> {
+    const fix = await locateCell();
+    if (!fix.ok) return { ok: false, reason: fix.reason };
+    setNearOptIn(true);
+    startPresence();
+    return { ok: true };
+  },
+  // Opt out: stop the loop AND delete the doc — "stop sharing" must not
+  // wait for a freshness window to expire.
+  async disable(): Promise<void> {
+    setNearOptIn(false);
+    stopPresence();
+    notify();
+    try {
+      const uid = state.uid;
+      if (!uid) return;
+      const db = await getDb();
+      await deleteDoc(doc(db, "v2_presence", uid));
+    } catch (err) {
+      reportError(err, { where: "presenceDisable" });
+    }
+  },
+  refresh(): void {
+    void presenceBeat();
+  },
+};
+
 // Firestore Timestamp → millis, tolerating the two shapes a read can hand
 // back: a real Timestamp, or null for a serverTimestamp() echoed from the
 // local cache before the server has acked it. 0 sorts an unacked take last
@@ -1170,6 +1304,7 @@ declare const __APP_BUILD__: number;
 
 const LIVE = {
   social: SOCIAL,
+  near: NEAR,
   feedReady: false,
   get stats() {
     return { ...state.stats };
@@ -1677,6 +1812,9 @@ function resetForNewUid(uid: string): void {
   // pushes in between.
   pushRegisteredFor = null;
   deviceBindAttemptedFor = null;
+  // The presence loop is the old account's opt-in (D84); the flag store's
+  // purge listener clears the choice, this clears the machinery.
+  stopPresence();
   setSentryUser(uid);
   notify();
   void refreshLive().catch((err) => reportError(err, { where: "refreshLive.uidChange" }));
@@ -1851,6 +1989,9 @@ export function refreshLive(): Promise<void> {
         .catch(() => { if (deviceBindAttemptedFor === forUid) deviceBindAttemptedFor = null; });
     }
     LIVE.enabled = true;
+    // Resume the presence loop for an already-opted-in account (D84) —
+    // the opt-in is a standing choice, the loop is per-session machinery.
+    if (nearOptedIn()) startPresence();
     notify();
   })().finally(() => { refreshInFlight = null; });
   return refreshInFlight;

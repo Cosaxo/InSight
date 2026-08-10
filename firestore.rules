@@ -545,5 +545,28 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    // ── Near-by-radius presence (D84) ──────────────────────────────
+    //
+    // One doc per opted-in user: a ~1 km grid cell and a freshness stamp,
+    // overwritten while the app is foreground. NO client read, ever — a
+    // readable (uid → cell) pair is D2's leak reborn, a script following
+    // any uid around town at cell resolution. The only read path is
+    // nearbyCountV2, which returns a COUNT and nothing else. The cell
+    // regex is the precision cap in structural form: a "la_lo" integer
+    // grid id cannot carry anything finer than the 0.01° cell, however
+    // hard a client tries.
+    match /v2_presence/{uid} {
+      allow read: if false;
+      allow create, update: if request.auth != null
+        && request.auth.uid == uid
+        && request.resource.data.keys().hasOnly(["cell", "at"])
+        && request.resource.data.cell is string
+        && request.resource.data.cell.matches('^-?[0-9]{1,4}_-?[0-9]{1,5}$')
+        && request.resource.data.at == request.time;
+      // Opting out deletes the doc — "stop sharing" must not depend on a
+      // TTL sweep that runs later.
+      allow delete: if request.auth != null && request.auth.uid == uid;
+    }
+
   }
 }

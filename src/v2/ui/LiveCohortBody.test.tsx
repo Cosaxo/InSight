@@ -38,6 +38,19 @@ const LIVE = vi.hoisted(() => ({
   // so an underscore prefix does not exempt an unused parameter.
   aggFor: (qid: string) => { void qid; return null as Record<string, unknown> | null; },
   subscribe: () => () => {},
+  // The Right now card (D84). Reassigned per case; the default is the
+  // supported-but-off pitch state.
+  near: {
+    supported: () => true as boolean,
+    on: () => false as boolean,
+    count: () => null as number | null,
+    tooFew: () => false as boolean,
+    updatedAt: () => 0,
+    lastError: () => null as string | null,
+    enable: vi.fn(async () => ({ ok: true } as { ok: boolean; reason?: string })),
+    disable: vi.fn(async () => {}),
+    refresh: () => {},
+  },
 }));
 vi.mock("../data/live", () => ({ default: LIVE }));
 // The persist helper is a spy: what it writes (the profile blob AND the
@@ -64,6 +77,10 @@ beforeEach(() => {
   LIVE.myCity = "Oslo, NO";
   LIVE.deck = () => [Q("q1", "First question"), Q("q2", "Second question")];
   LIVE.aggFor = () => null;
+  LIVE.near.supported = () => true;
+  LIVE.near.on = () => false;
+  LIVE.near.count = () => null;
+  LIVE.near.tooFew = () => false;
   setCityAnchor.mockClear();
 });
 afterEach(() => { cleanup(); vi.restoreAllMocks(); });
@@ -254,5 +271,71 @@ describe("the printed floor is the floor the server enforces", () => {
       expect(text).not.toMatch(/smaller than \d/);
       expect(text).toContain("Counts only — never who.");
     }
+  });
+});
+
+describe("the Right now card (D84 — Near by radius)", () => {
+  it("renders on the Near stop even with NO city — radius needs none", () => {
+    // The whole point of the feature: Near stops being a dead end for a
+    // user who never picked a city. The card sits above the city ask.
+    LIVE.myCity = "";
+    render(<LiveCohortBody scope="city" />);
+    expect(screen.getByText(/Right now, around you/i)).toBeTruthy();
+    expect(screen.getByRole("button", { name: /Turn on/i })).toBeTruthy();
+    // …and the city ask is still there beneath it.
+    expect(screen.getByText(/Near needs a city/i)).toBeTruthy();
+  });
+
+  it("stays off the Country and World stops", () => {
+    LIVE.aggFor = () => ({ counts: { "0": 3 }, total: 3, tooSmall: false });
+    render(<LiveCohortBody scope="world" />);
+    expect(screen.queryByText(/Right now, around you/i)).toBeNull();
+  });
+
+  it("pitches honestly while off: a count, never who, kilometre-sized", () => {
+    render(<LiveCohortBody scope="city" />);
+    const text = document.body.textContent || "";
+    expect(text).toMatch(/a count, never\s+who/i);
+    expect(text).toMatch(/kilometre-sized grid square/i);
+    // No 500 m claim anywhere: the coarse permission cannot measure it,
+    // and the copy must not promise a radius the sensor cannot hold.
+    expect(text).not.toMatch(/500\s?m/i);
+  });
+
+  it("says just-you at zero, counts people above it, and 'a few' when floored", () => {
+    LIVE.near.on = () => true;
+    LIVE.near.count = () => 0;
+    render(<LiveCohortBody scope="city" />);
+    expect(screen.getByText(/Just you right now/i)).toBeTruthy();
+    cleanup();
+
+    LIVE.near.count = () => 3;
+    render(<LiveCohortBody scope="city" />);
+    expect(screen.getByText(/3 people with InSight within a couple of kilometres/i)).toBeTruthy();
+    cleanup();
+
+    // The restored-floor era (D81 revert): the server answers tooFew for
+    // 1-4 and the card says so without a number.
+    LIVE.near.count = () => null;
+    LIVE.near.tooFew = () => true;
+    render(<LiveCohortBody scope="city" />);
+    expect(screen.getByText(/A few people are around you/i)).toBeTruthy();
+  });
+
+  it("turn-on runs enable and a refusal lands as a sentence, not a dead card", async () => {
+    LIVE.near.enable = vi.fn(async () => ({ ok: false, reason: "denied" }));
+    render(<LiveCohortBody scope="city" />);
+    fireEvent.click(screen.getByRole("button", { name: /Turn on/i }));
+    expect(LIVE.near.enable).toHaveBeenCalled();
+    expect(await screen.findByText(/Near stays off until you allow location/i)).toBeTruthy();
+  });
+
+  it("turn-off calls disable — the doc-delete promise rides on it", async () => {
+    LIVE.near.on = () => true;
+    LIVE.near.count = () => 2;
+    LIVE.near.disable = vi.fn(async () => {});
+    render(<LiveCohortBody scope="city" />);
+    fireEvent.click(screen.getByRole("button", { name: /Turn off/i }));
+    expect(LIVE.near.disable).toHaveBeenCalled();
   });
 });
