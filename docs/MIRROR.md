@@ -25,7 +25,7 @@ one write — an answer — and the surfaces differ only in how they cut it.
   today's daily   ─┐
   a feed card     ─┤   v2_users/{uid}/answers/{qid}   ─┬──────► the MAP ("You")
   a test item     ─┤     optionIdx · anchors snapshot   │        every answer filed
-  a learn card    ─┤     owner-only · create-only (D5)  │        under its question's
+  a learn card    ─┤     owner-only (D5) · edits (D86)   │        under its question's
   a duel question ─┘                │                   │        branch → sub-branch
                                     │                   │
                         the aggregate trigger           ├──────► the four core TESTS
@@ -237,7 +237,8 @@ Two gaps are worth stating in prose because no badge covers them:
 ## 7 · The decisions this file leans on
 
 D1 (no fake anything, circle-scoped comments) · D3 (anonymous-first,
-groups by invite code) · D5 (owner-only, immutable answers) · D8
+groups by invite code) · D5 (owner-only answers; the option is editable
+since D86, the cohort snapshot is not) · D8
 (per-anchor breakdowns and the snapshot they read) · D9 (Near is your
 city) · D18 (the floor bounds cohort size, not the split inside a
 cohort) · D32 (Learn's first attempt only) · D38 (why relmap stays

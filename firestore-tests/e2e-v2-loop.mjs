@@ -5,7 +5,7 @@ import { initializeApp } from "firebase/app";
 import { getAuth, connectAuthEmulator, signInAnonymously } from "firebase/auth";
 import {
   getFirestore, connectFirestoreEmulator, collection, query, where, orderBy,
-  limit, getDocs, doc, getDoc, setDoc, serverTimestamp,
+  limit, getDocs, doc, getDoc, setDoc, updateDoc, serverTimestamp,
 } from "firebase/firestore";
 import { getFunctions, connectFunctionsEmulator, httpsCallable } from "firebase/functions";
 
@@ -142,7 +142,9 @@ if (pub.by && pub.by.country)
   fail("a one-bucket dimension published under the paused floor: " + JSON.stringify(pub.by));
 ok("paused floor: first answer published exactly (total 1), one-bucket country still withheld");
 
-// 6 · duplicate answer is refused (immutability backs the plain increment)
+// 6 · duplicate answer is refused. Re-sending the whole doc rewrites
+// answeredAt and anchors, which stay frozen under D86's edit arm — the
+// only admitted movement is the optionIdx+editedAt diff exercised in 7e.
 await expectDenied("duplicate answer refused by rules", () =>
   setDoc(doc(db, "v2_users", uid, "answers", q0.id), {
     qid: q0.id, surface: "daily", optionIdx: 0,
@@ -277,6 +279,67 @@ ok("breakdown: ageBand and city both 5/5; single-bucket country withheld");
   if (eleven.counts["0"] !== 8 || eleven.counts["1"] !== 3)
     fail("counts drifted through per-answer publishes: " + JSON.stringify(eleven.counts));
   ok("paused cadence: 11th answer published exactly (total 11, counts 8/3)");
+}
+
+// 7e · D86: the owner moves their answer and onV2AnswerUpdated folds a
+// -old/+new delta with the TOTAL unchanged. The first user holds option 1
+// under a frozen {25-34, NO, Oslo} snapshot, so the move must land in
+// exactly those cells: the 25-34 band and the Oslo bucket keep their
+// TOTALS (6 and 5 — the floor's quantity never moves on an edit) while
+// their option splits shift by one. Under D81's pause the edit republishes
+// immediately; when the constants restore, edits ride the next create's
+// publish instead (EDITS_REPUBLISH, functions/src/v2.ts).
+{
+  // The rules surface first — every frozen field refused, in the same
+  // deny-code-checked way the create probes use.
+  await expectDenied("edit refusing an anchors change (the cohort is frozen, D8)", () =>
+    updateDoc(doc(db, "v2_users", uid, "answers", q0.id), {
+      optionIdx: 0, editedAt: serverTimestamp(), anchors: { ageBand: "35-44" },
+    }));
+  await expectDenied("edit refusing an answeredAt rewrite", () =>
+    updateDoc(doc(db, "v2_users", uid, "answers", q0.id), {
+      optionIdx: 0, editedAt: serverTimestamp(), answeredAt: serverTimestamp(),
+    }));
+  await expectDenied("edit refusing a missing audit stamp", () =>
+    updateDoc(doc(db, "v2_users", uid, "answers", q0.id), { optionIdx: 0 }));
+  await expectDenied("edit refusing an out-of-range option", () =>
+    updateDoc(doc(db, "v2_users", uid, "answers", q0.id), {
+      optionIdx: 99, editedAt: serverTimestamp(),
+    }));
+
+  await updateDoc(doc(db, "v2_users", uid, "answers", q0.id), {
+    optionIdx: 0, editedAt: serverTimestamp(),
+  });
+  let moved = null;
+  for (let i = 0; i < 20; i++) {
+    const snap = await getDoc(doc(db, "v2_question_aggs", q0.id));
+    if (snap.exists() && (snap.get("counts") || {})["0"] === 9) { moved = snap.data(); break; }
+    await new Promise((r) => setTimeout(r, 400));
+  }
+  if (!moved) fail("D86 edit never reached the public mirror");
+  if (moved.total !== 11 || moved.counts["0"] !== 9 || moved.counts["1"] !== 2)
+    fail("edit did not move -old/+new with total unchanged: " + JSON.stringify(moved));
+  // The 25-34 band held user1(1→0), n0, n2, m0, m1 and the cadence voter,
+  // all option 0 after the move — and the emptied "1" row must be GONE,
+  // not stored as a zero (the create path's invariant, kept by the delta).
+  if (JSON.stringify(moved.by.ageBand["25-34"]) !== JSON.stringify({ "0": 6 }))
+    fail("edit did not move inside the frozen age cell: " + JSON.stringify(moved.by.ageBand));
+  const b35 = Object.values(moved.by.ageBand["35-44"]).reduce((a, c) => a + c, 0);
+  if (b35 !== 5) fail("a cell the edit never touched moved: " + JSON.stringify(moved.by.ageBand));
+  if (JSON.stringify(moved.by.city["Oslo, NO"]) !== JSON.stringify({ "0": 4, "1": 1 }))
+    fail("edit did not move inside the frozen city cell: " + JSON.stringify(moved.by.city));
+  const bergen = Object.values(moved.by.city["Bergen, NO"]).reduce((a, c) => a + c, 0);
+  if (bergen !== 5) fail("Bergen moved on an Oslo edit: " + JSON.stringify(moved.by.city));
+  if (moved.by.country)
+    fail("a one-bucket dimension published on the edit path: " + JSON.stringify(moved.by));
+
+  // …and not again inside the minute: the cooldown is the write-amplification
+  // bound on the one repeatable answer write (D7's arithmetic).
+  await expectDenied("second edit inside the 60s cooldown", () =>
+    updateDoc(doc(db, "v2_users", uid, "answers", q0.id), {
+      optionIdx: 1, editedAt: serverTimestamp(),
+    }));
+  ok("D86 edit: -old/+new published, total 11 held, frozen cells moved cleanly, cooldown holds");
 }
 
 // 8 · the duel loop: create → join by code → sealed answers → reveal → streak
@@ -448,6 +511,14 @@ await expectDenied("learn retry refused (people-rate, not attempt-rate)", () =>
   setDoc(doc(db, "v2_users", uid, "answers", LQ), {
     qid: LQ, surface: "learn", optionIdx: 0,
     answeredAt: serverTimestamp(), anchors: {},
+  }));
+// …and D86's edit arm does not reach it either ("not knowledge,
+// obviously"): a correctly-stamped edit on a learn answer is refused by
+// the surface check, so the first-attempt measurement survives the one
+// write shape that IS repeatable elsewhere.
+await expectDenied("learn edit refused (D86 stops at opinion surfaces)", () =>
+  updateDoc(doc(db, "v2_users", uid, "answers", LQ), {
+    optionIdx: 0, editedAt: serverTimestamp(),
   }));
 let lpub = null;
 for (let i = 0; i < 40; i++) {

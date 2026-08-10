@@ -153,6 +153,30 @@ describe("spec layer mounts", () => {
     ).not.toBeNull();
   });
 
+  it("parks a previously answered feed card behind the Answered expander", () => {
+    // Release feedback, twice: "I keep seeing things I have answered",
+    // then "answered questions shouldn't appear in the feed at all". A
+    // card answered in an earlier session leaves the stream and waits
+    // behind the expander — the same real card, results and all — so the
+    // feed always opens on fresh questions without losing the record.
+    try {
+      localStorage.setItem("insight.feedVotes.v1", JSON.stringify({ f01: 0 }));
+      const expectNoBoundary = mountApp();
+      expect(
+        screen.queryByText("The better night in front of the TV?"),
+        "an answered card still rendered in the stream",
+      ).toBeNull();
+      fireEvent.click(screen.getByRole("button", { name: /answered · 1/i }));
+      expect(
+        screen.getByText("The better night in front of the TV?"),
+        "the expander did not surface the answered card",
+      ).not.toBeNull();
+      expectNoBoundary("answered expander");
+    } finally {
+      localStorage.removeItem("insight.feedVotes.v1");
+    }
+  });
+
   it("renders the mirror tab without tripping the boundary", () => {
     const expectNoBoundary = mountApp();
     // The tabbar labels are user-facing copy ('daily' · 'mirror'); the

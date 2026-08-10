@@ -21,7 +21,7 @@
 import { getFirestore, FieldValue, type Firestore, type Transaction } from "firebase-admin/firestore";
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { assertOperator, HOT_TRIGGER } from "./ops";
-import { onDocumentCreated } from "firebase-functions/v2/firestore";
+import { onDocumentCreated, onDocumentUpdated } from "firebase-functions/v2/firestore";
 import { logger } from "firebase-functions";
 import { V2_QUESTIONS } from "./v2content";
 import {
@@ -30,7 +30,10 @@ import {
   foldAnchors,
   foldCanonAnchors,
   publishBreakdown,
+  publishableBreakdown,
   publishableCanon,
+  retargetAnchors,
+  retargetCounts,
   seedDocMatches,
   seedOptionConflict,
   describeSeedOptionConflicts,
@@ -91,6 +94,21 @@ export const AGG_MIN_N = 1;
 // disclosure gain, and the restored floor without the restored cadence
 // re-opens the one-vote-per-step stream D7's amendment closed.
 export const PUBLISH_EVERY = 1;
+
+// May an answer EDIT rewrite the public mirror directly? Only while D81
+// holds both constants at 1 — i.e. only while every create already
+// publishes its exact step. An edit's delta is always exactly one person
+// (-old/+new with the total unchanged), and no cadence can aggregate it
+// with anything: total does not move, so a later edit-publish at the same
+// total is a lone person's change of mind, attributable on sight. Under
+// the restored constants that is precisely the stream shouldPublishAgg
+// exists to close — so edits then fold into the private doc only and
+// surface with the next CREATE-driven publish, where their -1 hides among
+// >= PUBLISH_EVERY other people's votes (same k bound as the floor, D86).
+// `<= 1`, not `=== 1`: the literal types of the paused constants would
+// make an equality test a compile error the day D81 reverts, and the
+// revert must stay a two-literal commit.
+const EDITS_REPUBLISH = AGG_MIN_N <= 1 && PUBLISH_EVERY <= 1;
 
 // ── questions that never slice (D44) ────────────────────────────
 //
@@ -687,6 +705,94 @@ export const onV2AnswerCreated = onDocumentCreated(
         }
       } else {
         tx.set(pubRef, { tooSmall: true }, { merge: false });
+      }
+    });
+  },
+);
+
+// ── answer edit → aggregate delta (D86) ─────────────────────────
+//
+// The update half of the honest-counts guarantee. Rules admit exactly one
+// edit shape — optionIdx moves on a daily/feed/test answer, anchors and
+// answeredAt frozen — so what reaches here is always a -old/+new move with
+// the TOTAL unchanged: the person was counted once and still is, they just
+// hold a different option. Same ledger, same transaction discipline as the
+// create path; a redelivered edit is a no-op, not a double move.
+export const onV2AnswerUpdated = onDocumentUpdated(
+  { ...HOT_TRIGGER, region: REGION, document: "v2_users/{uid}/answers/{qid}", retry: true },
+  async (event) => {
+    const before = event.data?.before;
+    const after = event.data?.after;
+    if (!before || !after) return;
+    // Rules restrict the update arm to plain optionIdx answers, so anything
+    // else here — catalog (entity, no optionIdx), duel, learn — is emulator
+    // or admin-SDK noise. Return, never retry-loop on it. The guards mirror
+    // the create trigger's shape checks rather than trusting rules alone,
+    // because the emulator suites write with rules disabled.
+    const surface = after.get("surface");
+    if (surface !== "daily" && surface !== "feed" && surface !== "test") return;
+    const fromIdx = before.get("optionIdx");
+    const toIdx = after.get("optionIdx");
+    if (typeof fromIdx !== "number" || typeof toIdx !== "number") return;
+    if (fromIdx < 0 || fromIdx > 19 || toIdx < 0 || toIdx > 19) return;
+    if (fromIdx === toIdx) return; // editedAt-only rewrite: nothing moved
+    const qid = event.params.qid;
+    const db = getFirestore();
+    const eventRef = db.collection("v2_agg_events").doc(event.id);
+    const privRef = db.collection("v2_aggs_private").doc(qid);
+    const pubRef = db.collection("v2_question_aggs").doc(qid);
+    await runAggTransaction(db, qid, async (tx) => {
+      const seen = await tx.get(eventRef);
+      if (seen.exists) return;
+      const priv = await tx.get(privRef);
+      const counts: Record<string, number> =
+        (priv.exists && (priv.get("counts") as Record<string, number>)) || {};
+      if (!retargetCounts(counts, fromIdx, toIdx)) {
+        // The old option holds no votes, which means this edit's CREATE
+        // event has not folded yet — Eventarc orders nothing between a
+        // doc's create and update deliveries. Throw so `retry: true`
+        // redelivers the edit after the create lands; the ledger keeps the
+        // eventual replay single-shot. (retargetCounts has the argument
+        // for why applying blindly would corrupt instead of commute.)
+        throw new Error(
+          `[v2] edit ${event.params.uid}/${qid} arrived before its create folded; retrying`,
+        );
+      }
+      const total = (priv.exists && (priv.get("total") as number)) || 0;
+      // Same D44 posture as the create path: political items read `{}` so a
+      // merge:false write erases any pre-guard breakdown rather than
+      // carrying it forward.
+      const slices = slicesDemographics(qid);
+      const by: BreakdownCounts = slices
+        ? (priv.exists && (priv.get("by") as BreakdownCounts)) || {}
+        : {};
+      // The anchors snapshot is frozen (rules), so this lands in exactly
+      // the cells the create folded into — or skips a dimension where cap
+      // churn means the old vote is no longer represented (pure.ts has the
+      // accounting). Bucket totals never move, so nothing published gets
+      // un-earned.
+      if (slices) retargetAnchors(by, after.get("anchors"), fromIdx, toIdx);
+      const released: BreakdownCounts = slices
+        ? (priv.exists && (priv.get("byPub") as BreakdownCounts)) || {}
+        : {};
+      const publishing = EDITS_REPUBLISH
+        && total >= AGG_MIN_N
+        && shouldPublishAgg(total, AGG_MIN_N, PUBLISH_EVERY);
+      // publishableBreakdown directly, NOT publishBreakdown: the step gate
+      // keys on bucket-total growth, and an edit never grows a bucket — the
+      // stepped map would re-emit the pre-edit cells forever. Skipping the
+      // step gate is safe precisely where EDITS_REPUBLISH is true: with
+      // both constants at 1 every step is already exact and attributable
+      // by D81's accepted disclosure. When the constants restore, edits
+      // stop publishing at all (EDITS_REPUBLISH above) and the step gate's
+      // guarantee returns intact.
+      const byPub = publishing ? publishableBreakdown(by, AGG_MIN_N) : released;
+      tx.set(eventRef, ledgerEntry(event.params.uid, qid));
+      tx.set(privRef, { counts, total, by, byPub }, { merge: false });
+      // Below the floor the public doc already says tooSmall and the edit
+      // does not change the total, so there is nothing to rewrite there.
+      if (publishing) {
+        tx.set(pubRef, { counts, total, tooSmall: false, by: byPub }, { merge: false });
       }
     });
   },

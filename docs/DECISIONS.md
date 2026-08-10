@@ -8299,3 +8299,92 @@ cursor picks up via `updatedAt`. **New questions do not bump
 **Production is further behind than it was.** The last seed wrote 389; the
 bank is now 463. Same standing instruction as ever (LAUNCH-RUNBOOK 1.4) —
 reseed after merging.
+
+## D86 · Answers become editable — D5 amended, not repealed
+
+**Decided:** 2026-08-10 · **Status:** binding · **Owner's call**, from
+release testing: "a way to edit your answer to questions (that is not
+knowledge, obviously)".
+
+**Decision.** An answer on the world-scope opinion surfaces — `daily`,
+`feed`, `test` — may move its `optionIdx` after the fact. Everything else
+about D5 stands, and the amendment is exactly one write shape:
+`update` on the owner's own answer doc, changing **only**
+`optionIdx` (+ an `editedAt == request.time` audit stamp), bounded by the
+question's own option count, refused while the question is inactive,
+carrying the same D29 device binding as a create, and rate-limited to
+**one edit per answer per 60 s**. `delete` stays closed.
+
+**What stays frozen, and why each does:**
+
+- **Duel answers** (surface `group`/`duo`): the seal *is* the product —
+  an editable sealed answer lets a member re-decide after reading the
+  room. Excluded by the surface check.
+- **Learn answers**: first-attempt-only is D32's whole measurement — the
+  crowd stat is a people-rate, and "not knowledge, obviously" is the
+  owner drawing this exact line. Excluded by the surface check.
+- **Catalog answers**: they carry `entity`, not `optionIdx`, and the
+  canon fold has no delta path yet — the rules arm demands the OLD doc
+  hold an integer `optionIdx`, which a catalog answer never does.
+- **The anchors snapshot and `answeredAt`**: an edit moves which option
+  you hold, never which cohort you answered from (D8). This is what
+  makes the aggregate delta clean — the same cells that folded the
+  create fold the edit.
+
+**The honest-counts half of D5 moves into a trigger.** D5's immutability
+was doing two jobs: one-person-one-vote (still done, by the doc id) and
+"the aggregate is a plain increment with no reconciliation". The second
+job now belongs to `onV2AnswerUpdated`: the same ledger-deduped
+transaction as the create path, folding **-old/+new with the total
+unchanged** (`retargetCounts`/`retargetAnchors`, pure.ts). Two properties
+carry it:
+
+- **Ordering self-heals.** Eventarc orders nothing between a doc's
+  create and update deliveries. If the edit arrives first, the old
+  option holds no votes; the trigger throws and platform retry redelivers
+  it after the create folds. The move and the create commute in every
+  order that does not clamp at zero, and the clamp case is exactly the
+  one converted into a retry.
+- **Bucket totals never move.** The floor's quantity is invariant under
+  an edit, so nothing published can be un-earned. Where cap churn means
+  the old vote is no longer represented in a cell (evicted bucket,
+  create-time cap skip, re-minted bucket), the dimension is **skipped,
+  increment included** — a ±1-per-cell approximation the eviction cap's
+  documented degradation already covers, self-correcting on churn, and
+  strictly better than inflating a bucket with an answer that is not in
+  it.
+
+**When an edit may rewrite the public mirror.** An edit's published delta
+is always exactly one person — total unchanged means no cadence can
+batch it with anything. So `EDITS_REPUBLISH` (v2.ts) publishes edits
+directly **only while D81 holds both constants at 1**, i.e. only while
+every create already publishes its exact step; the stepped-breakdown
+gate is bypassed on that path because it keys on bucket-total growth,
+which an edit never produces, and would hold the edited cells stale
+forever. When D81 reverts, edits stop touching the public doc entirely
+and ride the next create-driven publish, where their -1 hides among
+≥ `PUBLISH_EVERY` other people's votes — the same k bound the floor
+itself carries. The revert stays a two-literal commit; the edit path
+re-disciplines itself.
+
+**The 60 s cooldown is priced, not decorative.** Edits are the one
+repeatable answer write, and each runs the aggregate transaction against
+two single docs keyed by qid (D7's ~1 write/sec/document). Unbounded,
+one hostile client holds a question's aggregate at its write ceiling
+indefinitely; at one per minute per answer it cannot. The client mirrors
+the cooldown (`LIVE.editVote` returns false without writing) so the UI
+says "One change a minute" instead of bouncing.
+
+**Client surface.** `LIVE.editVote(qid, optionId): boolean` — optimistic
+flip, rollback on refusal that *restores* the feed-votes mirror rather
+than scrubbing it (the doc still holds the previous option, unlike a
+refused create). The daily's hold-to-change gesture — which in live mode
+used to un-vote the display and silently write nothing — now routes
+re-picks through it, and the feed's answered cards grow a Change button
+beside Takes. Edits skip the first-vote celebrations (beat, ripple,
+reveal haptic): "your vote moved" is not "your vote landed".
+
+**Costs, priced:** one trigger invocation + one transaction per edit,
+cooldown-bounded; no new collections, no new indexes, one new function in
+the deploy list. The Map re-files the dot under the new option; learn,
+duels and the canon are untouched.

@@ -454,7 +454,7 @@ describe("v2 profile", () => {
   });
 });
 
-describe("v2 answers (owner-only, create-only — D5)", () => {
+describe("v2 answers (owner-only; option edits only — D5 as amended by D86)", () => {
   const QID = "daily-000";
   const seedQuestion = () => seed(async (db) => {
     await setDoc(doc(db, "v2_questions", QID), {
@@ -467,14 +467,102 @@ describe("v2 answers (owner-only, create-only — D5)", () => {
     answeredAt: serverTimestamp(), anchors: {}, ...over,
   });
 
-  it("owner creates a valid answer once; it is then immutable", async () => {
+  it("D86: the owner may move optionIdx — one shape, stamped, cooled down", async () => {
     await seedQuestion();
     const ref = doc(asUser(OWNER), "v2_users", OWNER, "answers", QID);
     await assertSucceeds(setDoc(ref, answer()));
-    await assertFails(updateDoc(ref, { optionIdx: 0 }));
-    await assertFails(deleteDoc(ref));
-    // setDoc on an existing doc is an update → also denied
+    // Every refused shape FIRST: the success below starts the 60s
+    // cooldown, after which a refusal no longer isolates the clause it
+    // aims at.
+    await assertFails(updateDoc(ref, { optionIdx: 0 }));                               // no audit stamp
+    await assertFails(updateDoc(ref, { optionIdx: 0, editedAt: new Date() }));         // stamp != request.time
+    await assertFails(updateDoc(ref, { optionIdx: 2, editedAt: serverTimestamp() }));  // >= options.size()
+    await assertFails(updateDoc(ref, { optionIdx: -1, editedAt: serverTimestamp() })); // negative
+    // The anchors snapshot and answeredAt are FROZEN: an edit moves which
+    // option you hold, never which cohort you answered from (D8) — the
+    // trigger's -old/+new delta depends on the cells not moving.
+    await assertFails(updateDoc(ref, {
+      optionIdx: 0, editedAt: serverTimestamp(), anchors: { city: "Oslo, NO" },
+    }));
+    await assertFails(updateDoc(ref, {
+      optionIdx: 0, editedAt: serverTimestamp(), answeredAt: serverTimestamp(),
+    }));
+    await assertFails(updateDoc(ref, {
+      optionIdx: 0, editedAt: serverTimestamp(), qid: "other",
+    }));
+    // …and never someone else's answer
+    await assertFails(updateDoc(
+      doc(asUser(FRIEND), "v2_users", OWNER, "answers", QID),
+      { optionIdx: 0, editedAt: serverTimestamp() },
+    ));
+    // setDoc on an existing doc is an update rewriting answeredAt → denied
     await assertFails(setDoc(ref, answer({ optionIdx: 0 })));
+
+    // the one admitted shape
+    await assertSucceeds(updateDoc(ref, { optionIdx: 0, editedAt: serverTimestamp() }));
+    // …and not again inside 60s. Edits are the only REPEATABLE answer
+    // write, and each runs the aggregate transaction against two docs
+    // keyed by qid (D7's write ceiling) — the cooldown is the bound.
+    await assertFails(updateDoc(ref, { optionIdx: 1, editedAt: serverTimestamp() }));
+    // delete stays closed
+    await assertFails(deleteDoc(ref));
+  });
+
+  it("D86: the kill switch reaches edits, not just creates", async () => {
+    // Its own question and a FIRST edit, so the refusal can only be the
+    // active check — the cooldown test above cannot isolate it.
+    await seed(async (db) => {
+      await setDoc(doc(db, "v2_questions", "off-100"), {
+        surface: "daily", seq: 4, type: "binary",
+        prompt: "?", options: ["a", "b"], active: true,
+      });
+    });
+    const ref = doc(asUser(OWNER), "v2_users", OWNER, "answers", "off-100");
+    await assertSucceeds(setDoc(ref, answer({ qid: "off-100" })));
+    await seed(async (db) => {
+      await setDoc(doc(db, "v2_questions", "off-100"), {
+        surface: "daily", seq: 4, type: "binary",
+        prompt: "?", options: ["a", "b"], active: false,
+      });
+    });
+    await assertFails(updateDoc(ref, { optionIdx: 0, editedAt: serverTimestamp() }));
+  });
+
+  it("D86 reaches only opinion surfaces: learn and duel answers stay frozen", async () => {
+    // learn: first-attempt-only IS the measurement (D32) — "not knowledge,
+    // obviously", in the owner's own words.
+    await seed(async (db) => {
+      await setDoc(doc(db, "v2_questions", "learn-frozen"), {
+        surface: "learn", seq: 0, type: "choice",
+        prompt: "?", options: ["a", "b", "c"], active: true,
+      });
+    });
+    const lref = doc(asUser(OWNER), "v2_users", OWNER, "answers", "learn-frozen");
+    await assertSucceeds(setDoc(lref, {
+      qid: "learn-frozen", surface: "learn", optionIdx: 0,
+      answeredAt: serverTimestamp(), anchors: {},
+    }));
+    await assertFails(updateDoc(lref, { optionIdx: 1, editedAt: serverTimestamp() }));
+
+    // duel: the SEAL is the product — an editable sealed answer lets a
+    // member re-decide after reading the room.
+    const GID = "g_frozen";
+    const DAY = dayOffset(-1);
+    await seed(async (db) => {
+      await setDoc(doc(db, "v2_questions", "duo-frozen"), {
+        surface: "duo", seq: 0, type: "classic",
+        prompt: "?", options: ["a", "b"], active: true,
+      });
+      await setDoc(doc(db, "v2_groups", GID), {
+        name: "Pair", mode: "duo", memberUids: [OWNER, FRIEND],
+      });
+    });
+    const dref = doc(asUser(OWNER), "v2_users", OWNER, "answers", `g_${GID}_${DAY}`);
+    await assertSucceeds(setDoc(dref, {
+      qid: "duo-frozen", surface: "duo", optionIdx: 0, guessIdx: 1,
+      gid: GID, day: DAY, answeredAt: serverTimestamp(), anchors: {},
+    }));
+    await assertFails(updateDoc(dref, { optionIdx: 1, editedAt: serverTimestamp() }));
   });
 
   it("rejects out-of-range/mismatched/malformed answers", async () => {
@@ -657,8 +745,12 @@ describe("v2 answers (owner-only, create-only — D5)", () => {
       answeredAt: serverTimestamp(), anchors: {}, ...over,
     });
     await assertSucceeds(setDoc(ref(CQ), cat()));
-    // immutable like every other answer (D5)
+    // Frozen even under D86's edit arm: the arm demands the OLD doc carry
+    // an integer optionIdx, and a catalog answer never does — the canon
+    // fold has no delta path yet, so an edit here would desync the board.
     await assertFails(updateDoc(ref(CQ), { entity: 6 }));
+    await assertFails(updateDoc(ref(CQ), { entity: 6, editedAt: serverTimestamp() }));
+    await assertFails(updateDoc(ref(CQ), { optionIdx: 0, editedAt: serverTimestamp() }));
     await assertFails(deleteDoc(ref(CQ)));
     await assertFails(setDoc(ref(CQ), cat({ entity: 6 })));
     // …and invisible to strangers

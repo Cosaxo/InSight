@@ -106,8 +106,16 @@ const ASSETS = join(root, "dist", "assets");
 // The Mirror tab (~168 KB) is what is left of the obvious candidates, and it
 // is a harder one: it renders on the first frame for anyone who opens the
 // app on that tab, so it needs a guard the overlays did not.
+//
+// 2100 → 2120 (2026-08-10): the 42 KB of headroom the 2026-08-06 reset left
+// was spent by real product, not drift — D85 grew the four tests to 5 items
+// per dimension plus a 20-item cognitive bank (test content ships in the
+// bundle), and D86 added the answer-edit path and the feed's answered
+// expander (~2 KB). CI weighed the merged tree at 2102. Same posture as the
+// last move: the ceiling sits just above what the app actually weighs, so
+// the next growth has to come explain itself here too.
 const MAX_CHUNK_KB = 735;
-const MAX_TOTAL_JS_KB = 2100;
+const MAX_TOTAL_JS_KB = 2120;
 
 let files;
 try {

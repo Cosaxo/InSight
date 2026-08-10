@@ -139,6 +139,16 @@ export const TRIG = {
 // Reads cost nothing here: v2_questions and v2_question_aggs are
 // `allow read: if request.auth != null`, with no document access at all. So
 // a boot pays no rule reads, and this term scales with answers, not opens.
+//
+// The ANSWER-EDIT arm (D86) adds two get() call sites — options.size() and
+// the active check — both of the SAME /v2_questions document, so an edit's
+// evaluation bills 1 read by the same dedup measurement as the world
+// create's 3-sites-1-document. It is deliberately NOT a term in the model:
+// the 60s per-answer cooldown caps edits at a fraction of create volume
+// (a user editing at the theoretical cap all month still bills less than
+// their own boot), and charging the create paths is what this model is
+// for. If edits ever grow a real volume story, add an `edit: 1` term here
+// and charge it from a measured edit rate, not a guess.
 export const RULE_READS = { world: 1, duel: 3 };
 
 // Reads issued by Cloud Functions, per answer.
