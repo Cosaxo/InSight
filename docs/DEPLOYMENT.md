@@ -40,7 +40,8 @@ Firebase project `prvfire33`. Routine backend changes need no manual deploy.
     audit especially, since it is a live registry call whose result
     changes without the code changing.
   - `environment: production` — scopes the secret and variables, and is
-    where required reviewers or a wait timer would attach.
+    where required reviewers or a wait timer attach (**Protection rules**
+    below).
   - `concurrency: cancel-in-progress: false` — a queued push waits for the
     in-flight deploy instead of cancelling it mid-apply.
 - **Deployed resources:**
@@ -119,6 +120,112 @@ Actions secret `FIREBASE_SERVICE_ACCOUNT`.
   roles, which together cover deploying rules and (gen-2) functions. This can
   be narrowed to least-privilege later.
 
+## Protection rules on the `production` environment
+
+**Decided (D87) — this is the required configuration, not a proposal.**
+Unattended production writes are not an accepted state for this project.
+
+**Applied: ☐ not yet.** These are settings in GitHub's UI, not files in
+this repo, so nothing here takes effect until someone clicks them —
+which is exactly why the box is here and unticked. Tick it in the same
+commit as applying, and record the date.
+
+That checkbox is doing the same job as the seed step's in
+`SHIP-CHECKLIST §0.1`: a decision that lives only in a conversation gets
+made twice and done never, which is the failure
+`.github/workflows/seed-content.yml`'s header records happening to the
+seed instruction two separate times.
+
+**What the environment gates.** Two jobs, and only two — verified rather
+than assumed, by grepping `environment:` across every workflow:
+
+| Workflow | Job | What a gate would hold |
+| --- | --- | --- |
+| `firebase-deploy.yml` | `deploy` | rules, indexes, functions, hosted legal pages |
+| `seed-content.yml` | `seed` | `seedContentV2` writing `v2_questions` |
+
+`ios-release.yml` uses a different environment and is unaffected.
+
+### The settings
+
+GitHub → Settings → Environments → `production`.
+
+| Setting | Value | Why |
+| --- | --- | --- |
+| **Required reviewers** | ON — the repo owner | The gate. The job pauses *before* `FIREBASE_SERVICE_ACCOUNT` is exposed to the runner, so an unattended or unintended run never reaches production credentials. |
+| **Prevent self-review** | **OFF** | Load-bearing, not an oversight — see below. |
+| **Wait timer** | **0 minutes** | A timer delays without adding a decision. The approval *is* the gate, and the one path this repo protects hardest is the emergency rules fix. |
+| **Deployment branches and tags** | Selected → `main` only | The half that holds without a human. |
+
+### Two of those need their reasoning recorded
+
+**Prevent self-review must stay OFF, and this is a consequence of
+"Operator continuity" below, not an independent choice.** `SEED_ADMIN_UIDS`
+and `MOD_UIDS` hold one uid, and it is the same person who owns the repo.
+With self-review prevented, the only human who can approve a production
+run is the one who triggered it — so **every deploy and every seed would
+block forever**, including the emergency rules fix. Turning it on is
+correct the day there is a second maintainer, and wrong until then. If
+that day comes, turn it on in the same change that adds the second uid.
+
+**The branch restriction is the part that does not depend on judgement.**
+Required reviewers ask a human to be careful; `main`-only is enforcement.
+A `workflow_dispatch` on any other ref cannot read the environment's
+secrets at all — GitHub refuses to grant them to a run on a
+non-permitted ref, so a compromised or over-broad token cannot seed or
+deploy from an unreviewed branch. It costs nothing here: `firebase-deploy`
+already triggers only on push to `main`, and a seed should only ever
+carry merged content.
+
+### What changes the day this is applied
+
+Today a backend merge deploys unattended. After, it queues and waits: the
+run sits in **Review pending**, GitHub notifies, and one approval
+releases it. The same for a seed.
+
+That is a real cost against the emergency rules fix — the path
+`firebase-deploy.yml` deliberately keeps lint, the bundle budget, the
+Android build and the `npm audit` off, because each could block it. An
+approval is a much smaller tax than any of those (no registry call, no
+build, no way to fail on its own) but it is not zero, and it is the
+reason the wait timer is 0 rather than "a few minutes to think".
+
+**The trade being made:** unattended production writes stop being
+possible, at the price of one tap per backend merge. Accepted (D87) — the
+tap is bounded and the exposure it removes is not.
+
+### How to apply it
+
+GitHub → Settings → Environments → `production`. Four fields, one save.
+Then tick the box at the top of this section with the date.
+
+Verify it took, rather than assuming — trigger anything on this path (a
+backend merge, or Actions → Seed content) and confirm the run sits at
+**Review pending** instead of proceeding. A protection rule that was
+saved into a different environment name looks identical in the settings
+list and gates nothing.
+
+### What this does not cover, recorded rather than left to be discovered
+
+**Nothing in CI verifies that these settings are still in place.** They
+live in GitHub's UI, no file in this repo describes them, and a rule
+removed by hand leaves no trace here — this document would keep asserting
+a gate that no longer exists. That is a weaker guarantee than the rest of
+this project: `firestore.rules` claims are proven by
+`firestore-tests/`, and this claim is proven by nothing.
+
+It is recorded as a limit rather than closed because the obvious closure
+is worse than the hole. A `check:env-protection` gate would need a token
+with `administration: read` on every run, and would red the tree for any
+contributor without it — the failure mode `scripts/check-labels.mjs`'s
+header warns about, where a gate that fires on a guess is one people
+learn to skip.
+
+**The honest scope of the gate:** it stops *unattended* production
+writes. It does not stop a careless approval, and an approver who always
+clicks approve is strictly worse than no reviewer, because the audit log
+then shows a gate that was never really closed.
+
 ## Runtime environment for the functions
 
 These values reach the deployed runtime via the `production` environment
@@ -171,6 +278,11 @@ Nothing *breaks* — the scheduled twins keep running and rules keep
 enforcing, because the allowlist gates the manual levers, not the app. The
 loss is the ability to intervene, discovered at the moment intervention is
 wanted.
+
+A second holder is also the precondition for **Prevent self-review** on
+the `production` environment (see Protection rules above) — that setting
+is off today precisely because one person cannot approve their own only
+run.
 
 **The fix is free and is config, not code.** Both variables are
 comma-separated and already parsed that way; adding a second uid is one

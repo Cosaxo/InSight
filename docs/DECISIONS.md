@@ -8388,3 +8388,81 @@ reveal haptic): "your vote moved" is not "your vote landed".
 cooldown-bounded; no new collections, no new indexes, one new function in
 the deploy list. The Map re-files the dot under the new option; learn,
 duels and the canon are untouched.
+---
+
+## D87 · Production writes require an approval; the `production` environment carries protection rules
+
+**Decided:** 2026-08-10 · **Status:** binding · **Applied:** not yet — see
+docs/DEPLOYMENT.md § Protection rules for the checkbox
+
+**The state being ended.** A push to `main` touching `functions/**`,
+`firestore.rules`, `storage.rules`, `firestore.indexes.json`, `web/**` or
+`firebase.json` deploys to production with no human in the loop, and
+`seedContentV2` writes `v2_questions` the same way. Both jobs draw
+`FIREBASE_SERVICE_ACCOUNT` from the `production` GitHub environment,
+which today has no protection rules — the environment exists only to
+scope the secret. `firebase-deploy.yml` has said since it was written
+that this is "a place to add required reviewers / wait timers later".
+Later is now.
+
+**The settings** (GitHub → Settings → Environments → `production`):
+required reviewers ON with the repo owner; **prevent self-review OFF**;
+wait timer 0; deployment branches restricted to `main`. The full table
+and the per-setting reasoning live in docs/DEPLOYMENT.md rather than
+here, because that is the document an operator has open.
+
+**Two of them are consequences, not preferences.**
+
+*Prevent self-review stays OFF* because `SEED_ADMIN_UIDS` and `MOD_UIDS`
+hold one uid and it is the repo owner's (DEPLOYMENT.md § Operator
+continuity). With it on, the only human able to approve is the one who
+triggered the run, so every deploy and every seed blocks permanently —
+including the emergency rules fix. It flips ON in the same change that
+adds a second operator uid, and both documents cross-link so that change
+cannot forget it.
+
+*`main`-only deployment branches* is the half that does not depend on
+anyone being careful. Required reviewers ask for judgement; the branch
+restriction is enforcement — GitHub refuses environment secrets to a run
+on a non-permitted ref, so no dispatch from an unreviewed branch can
+seed or deploy, whatever the caller's token holds. It costs nothing:
+`firebase-deploy` already triggers only on push to `main`, and a seed
+should only ever carry merged content.
+
+**The cost, stated rather than sold.** A backend merge stops deploying
+unattended and starts waiting for one tap. That is a real tax on the one
+path `firebase-deploy.yml` protects hardest — it deliberately keeps
+lint, the bundle budget, the Android build and the `npm audit` off the
+deploy path because each could block an emergency rules fix. An approval
+is much cheaper than any of those and cannot fail on its own, but it is
+not free, which is why the wait timer is 0 rather than a thinking pause.
+
+**Why now, and why not optional.** The trigger was asking whether an
+agent session could run the reseed itself. It cannot: dispatch needs
+`actions: write`, which the GitHub App does not carry. The available
+workaround — syncing a personal `gh` token — grants the `workflow` scope
+**per account, not per workflow**, so it would cover
+`firebase-deploy.yml` exactly as much as `seed-content.yml`. There is no
+way to hand out "may run the seed" alone. The approval is what keeps
+that grant from turning "can propose a content change" into "can deploy
+the backend", and it is worth having before the grant exists rather than
+after.
+
+**What this does NOT do, recorded so it is not discovered later.**
+Nothing in CI verifies the rules are still in place. They live in
+GitHub's UI, no file here describes them, and a rule deleted by hand
+leaves no trace in this repo — DEPLOYMENT.md would go on asserting a
+gate that had stopped existing. That is a weaker guarantee than this
+project holds anywhere else: rules claims are proven by
+`firestore-tests/`, and this claim is proven by nothing.
+
+Left open deliberately. A `check:env-protection` gate would need a token
+with `administration: read` on every run and would red the tree for any
+contributor without one — the failure shape check-labels.mjs's header
+warns about, where a gate that fires on a guess is one people learn to
+skip. A known limit is survivable; a surprise is not.
+
+And the gate stops *unattended* writes only. It does not stop a careless
+approval, and an approver who always clicks approve is worse than no
+reviewer, because the audit log then records a gate that was never
+closed.

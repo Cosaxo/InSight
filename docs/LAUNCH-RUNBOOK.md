@@ -191,6 +191,29 @@ arithmetic.
       `SHIP-CHECKLIST §3` also notes one EEA follow-up that is a decision,
       not a blocker.
 
+- [ ] **0.3 Put the protection rules on the `production` environment
+      (D87).** GitHub → Settings → Environments → `production`. Four
+      fields, one save: required reviewers ON with yourself; **prevent
+      self-review OFF**; wait timer 0; deployment branches restricted to
+      `main`. Full table and per-setting reasoning in
+      `docs/DEPLOYMENT.md § Protection rules`.
+
+      Until this is done, a push to `main` touching the backend deploys
+      to production with nobody in the loop, and a seed writes
+      `v2_questions` the same way. Both draw the service-account key from
+      an environment that currently gates nothing.
+
+      **Prevent self-review must be OFF** — one uid holds
+      `SEED_ADMIN_UIDS` and it is yours, so preventing self-review would
+      block every deploy and every seed permanently, the emergency rules
+      fix included. It flips ON the day a second operator exists.
+
+      Verify it took rather than assuming: trigger anything on this path
+      and confirm the run sits at **Review pending** instead of
+      proceeding. Nothing in CI checks these rules — that gap is recorded
+      in D87 rather than closed, so this box and a periodic look at the
+      settings page are the only things holding it.
+
 ## Phase 1 — Day 1: open the account, start the clock
 
 - [x] **1.1 Apple Developer Program — done 2026-08-05, as an
