@@ -233,6 +233,9 @@ export const deleteAccount = onCall(
     try {
       await deleteQueryDocs(db.collection("v2_takes").where("authorUid", "==", uid));
       await deleteQueryDocs(db.collection("v2_flags").where("uid", "==", uid));
+      // The presence doc (D84) is keyed by uid — one delete, and the only
+      // location-shaped datum the account ever held server-side is gone.
+      await db.collection("v2_presence").doc(uid).delete();
       // …and the queue's copy of the text, which the take's deletion does
       // not take with it. Must run AFTER the takes are gone — it identifies
       // its targets by their take being absent. See deleteOrphanedModQueue.
@@ -552,6 +555,7 @@ export {
   createGroupV2,
   joinGroupV2,
   leaveGroupV2,
+  nearbyCountV2,
   registerPushToken,
   scheduledDuelReveals,
   revealDuelsNowV2,

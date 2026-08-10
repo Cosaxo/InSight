@@ -11,7 +11,7 @@
 // resolution/rejection is driven by manually-settled promises.
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { LIVE_MEMBERS, LIVE_SOCIAL_MEMBERS } from "../test/live-surface";
+import { LIVE_MEMBERS, LIVE_NEAR_MEMBERS, LIVE_SOCIAL_MEMBERS } from "../test/live-surface";
 
 interface FakeSnapshotDoc {
   id: string;
@@ -608,6 +608,7 @@ describe("window.LIVE public surface", () => {
   // renamed member — that is the whole point.
   const EXPECTED = LIVE_MEMBERS;
   const EXPECTED_SOCIAL = LIVE_SOCIAL_MEMBERS;
+  const EXPECTED_NEAR = LIVE_NEAR_MEMBERS;
 
   it("exposes exactly the members the spec layer looks up by name", async () => {
     const LIVE = await bootLive();
@@ -644,6 +645,12 @@ describe("window.LIVE public surface", () => {
     const LIVE = await bootLive();
     const social = (LIVE as unknown as { social: Record<string, unknown> }).social;
     expect(Object.keys(social).sort()).toEqual([...EXPECTED_SOCIAL].sort());
+  });
+
+  it("exposes exactly the near members (D84)", async () => {
+    const LIVE = await bootLive();
+    const near = (LIVE as unknown as { near: Record<string, unknown> }).near;
+    expect(Object.keys(near).sort()).toEqual([...EXPECTED_NEAR].sort());
   });
 });
 

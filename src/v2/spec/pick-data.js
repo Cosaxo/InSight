@@ -16,8 +16,12 @@
   try { mine = JSON.parse(localStorage.getItem(LS) || '{}'); } catch (e) { mine = {}; }
   const subs = new Set();
 
-  // Mirrors AGG_MIN_N in functions/src/v2.ts and the top-N cap in
-  // docs/CATALOG-QUESTIONS.md.
+  // Mirrors the DESIGN value of AGG_MIN_N (functions/src/v2.ts) and the
+  // top-N cap in docs/CATALOG-QUESTIONS.md. Deliberately NOT following
+  // D81's launch pause (which drops the live floor to 1): this store is
+  // the demo crowd, whose whole job is to demonstrate the floor's shape —
+  // sub-floor entries folding into "everyone else" — and at a floor of 1
+  // there would be nothing to demonstrate.
   const AGG_MIN_N = 5;
   const TOP_N = 10;
 

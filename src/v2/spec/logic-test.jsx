@@ -103,14 +103,32 @@ import { startVerified, submitVerified, verifyErrorMessage } from '../data/logic
     background: 'var(--surface)', border: '1px solid var(--rule)', padding: 6,
   };
 
+  // The puzzle reads as ONE object — a recessed board — while the answer
+  // tiles below stay raised, bordered cards. Before this, both were the
+  // same tile in same-width 3-column grids, and a device screenshot showed
+  // what that costs: fifteen identical cells with a hairline somewhere in
+  // the middle, "hard to see what is the puzzle and what is the answer
+  // options". The grouping is the fix; the section kickers underline it.
   function Matrix({ cells }) {
+    const boardCell = {
+      ...tileBase,
+      border: '1px solid color-mix(in oklch, var(--rule), transparent 45%)',
+    };
     return (
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 7, width: '100%', maxWidth: 258, margin: '0 auto' }}>
-        {cells.map((c, i) => <div key={i} style={tileBase}><Glyph cell={c} /></div>)}
+      <div style={{
+        display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 7,
+        width: '100%', maxWidth: 258, margin: '0 auto', boxSizing: 'border-box',
+        padding: 9, borderRadius: 14,
+        background: 'color-mix(in oklch, var(--surface-3) 45%, var(--surface))',
+      }}>
+        {cells.map((c, i) => <div key={i} style={boardCell}><Glyph cell={c} /></div>)}
+        {/* the goal cell wears the test's accent, so the eye lands on what
+            is being asked before it lands on the choices */}
         <div style={{
-          ...tileBase, background: 'transparent', border: '1.5px solid color-mix(in oklch, var(--rule), var(--ink) 14%)',
+          ...boardCell, background: 'transparent',
+          border: '1.5px dashed color-mix(in oklch, ' + LOGIC_COL + ' 55%, var(--rule))',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
-          fontFamily: 'var(--sans)', fontSize: 22, fontWeight: 600, color: 'var(--ink-3)',
+          fontFamily: 'var(--sans)', fontSize: 22, fontWeight: 700, color: LOGIC_COL,
         }}>?</div>
       </div>
     );
@@ -479,16 +497,21 @@ import { startVerified, submitVerified, verifyErrorMessage } from '../data/logic
                   <span role="timer" aria-label={countdown + ' seconds left on this puzzle'} style={{ position: 'absolute', right: 0, top: 7, fontFamily: 'var(--sans)', fontSize: 11, fontWeight: 700, color: countdown <= 5 ? LOGIC_COL : 'var(--ink-3)' }}>{countdown}s</span>
                 )}
               </div>
+              {/* Two labelled sections instead of fifteen equal tiles and a
+                  1px divider — the release screenshot's complaint. The board
+                  (Matrix) is recessed and reads as the exhibit; the answers
+                  are raised, shadowed buttons that read as the controls. */}
+              <div className="kicker" style={{ marginBottom: 7 }}>The pattern</div>
               <div role="img" aria-label="3 by 3 puzzle grid, bottom-right tile missing">
                 <Matrix cells={p.cells} />
               </div>
-              <div style={{ height: 1, background: 'var(--rule)', margin: '18px 0 16px' }}></div>
+              <div className="kicker" style={{ margin: '18px 0 8px' }}>Pick what fills the ?</div>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
                 {p.opts.map((o, i) => (
                   <button key={i} onClick={() => pick(i)} aria-label={'Answer ' + (i + 1) + ' of ' + p.opts.length} style={{
                     ...tileBase, cursor: 'pointer', WebkitAppearance: 'none', appearance: 'none',
                     borderColor: picked === i ? LOGIC_COL : 'var(--rule)',
-                    boxShadow: picked === i ? `0 0 0 3px color-mix(in oklch, ${LOGIC_COL} 18%, transparent)` : 'none',
+                    boxShadow: picked === i ? `0 0 0 3px color-mix(in oklch, ${LOGIC_COL} 18%, transparent)` : 'var(--shadow-card)',
                     transition: 'border-color 0.14s ease, box-shadow 0.14s ease',
                   }}><Glyph cell={o} /></button>
                 ))}

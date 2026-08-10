@@ -45,11 +45,18 @@ import {
   revealQid,
   revealVotes,
   votesMatchingQid,
+  presenceCellOk,
+  presenceNeighbors,
 } from "./pure";
+import { AGG_MIN_N, PUBLISH_EVERY } from "./v2";
 
-// AGG_MIN_N as shipped. The folds take the k-floor as a parameter because
+// The DESIGN floor — what AGG_MIN_N returns to when D81's launch pause
+// ends (the shipped value is 1 while it holds; see the cadence suite
+// below for the pair). The folds take the k-floor as a parameter because
 // the bucket cap now EVICTS a sub-floor bucket to admit a new one, and
-// "sub-floor" is the publish path's decision, not the fold's to assume.
+// "sub-floor" is the publish path's decision, not the fold's to assume —
+// which is also what keeps the floor-5 machinery tested while the shipped
+// constant sits at 1.
 const FLOOR = 5;
 
 // ── invite codes ────────────────────────────────────────────────
@@ -630,8 +637,10 @@ describe("per-anchor breakdowns", () => {
   });
 });
 
-describe("public-mirror publish cadence", () => {
-  // AGG_MIN_N / PUBLISH_EVERY as shipped
+describe("public-mirror publish cadence — the design pair (5, 5), D81's revert target", () => {
+  // NOT the shipped constants while the launch pause holds (see the suite
+  // below for those). These pin the machinery at the floor it returns to,
+  // so flipping D81 back is a two-literal edit and not a re-derivation.
   const pub = (total: number) => shouldPublishAgg(total, 5, 5);
 
   it("publishes nothing below the floor", () => {
@@ -668,6 +677,27 @@ describe("public-mirror publish cadence", () => {
     // and a cadence of 1 is "publish every answer", the old behaviour,
     // kept expressible so a future operator choosing it does so knowingly
     expect(shouldPublishAgg(6, 5, 1)).toBe(true);
+  });
+});
+
+describe("public-mirror publish cadence — the constants as shipped (D81 pause)", () => {
+  // The launch pause: AGG_MIN_N and PUBLISH_EVERY sit at 1, so counts
+  // publish from the first answer and every answer after it. Every observed
+  // step IS one person's vote — that is the accepted disclosure D81
+  // records, not an oversight this suite failed to catch.
+  it("publishes from the first answer while the pause holds", () => {
+    expect(shouldPublishAgg(1, AGG_MIN_N, PUBLISH_EVERY)).toBe(true);
+    for (let t = 1; t <= 20; t++) {
+      expect(shouldPublishAgg(t, AGG_MIN_N, PUBLISH_EVERY), `total ${t}`).toBe(true);
+    }
+  });
+
+  it("keeps the pair coupled: paused together or restored together", () => {
+    // A floor of 1 with a cadence of 5 holds the first four answers hostage
+    // for no disclosure gain; the restored floor without the restored
+    // cadence re-opens the one-vote-per-step stream D7's amendment closed.
+    // Either edit alone fails here and names the other half.
+    expect([AGG_MIN_N, PUBLISH_EVERY]).toEqual(AGG_MIN_N === 1 ? [1, 1] : [5, 5]);
   });
 });
 
@@ -1539,5 +1569,59 @@ describe("what the reveal doc records per vote (revealVotes)", () => {
     const unstamped = Object.keys(doc).filter((u) => !("qid" in doc[u]));
     expect(unstamped).toEqual(["a", "c"]);
     expect(folded).toHaveLength(unstamped.length);
+  });
+});
+
+// ── presence cells (D84) ─────────────────────────────────────────────
+//
+// The vectors here are duplicated verbatim in src/v2/data/geo.test.ts —
+// the two halves of the grid contract are pinned to the same answers, the
+// floor.ts drift pattern, because a disagreement fails soft (an empty
+// count that reads as "nobody nearby").
+
+describe("presence cells", () => {
+  it("accepts legal la_lo ids and refuses everything else", () => {
+    expect(presenceCellOk("5999_1074")).toBe(true);   // Oslo-ish
+    expect(presenceCellOk("-3373_15121")).toBe(true); // Sydney-ish
+    expect(presenceCellOk("0_0")).toBe(true);
+    expect(presenceCellOk("8999_-18000")).toBe(true); // last row, date line
+    // Beyond the poles / the meridian span.
+    expect(presenceCellOk("9000_0")).toBe(false);
+    expect(presenceCellOk("-9001_0")).toBe(false);
+    expect(presenceCellOk("0_18000")).toBe(false);
+    // Shapes that try to smuggle precision or nonsense.
+    expect(presenceCellOk("59.99_10.74")).toBe(false);
+    expect(presenceCellOk("5999_1074_77")).toBe(false);
+    expect(presenceCellOk("abc_def")).toBe(false);
+    expect(presenceCellOk("")).toBe(false);
+    expect(presenceCellOk(null)).toBe(false);
+    expect(presenceCellOk(5999)).toBe(false);
+  });
+
+  it("returns the 3×3 neighborhood in the interior", () => {
+    const n = presenceNeighbors("5999_1074");
+    expect(n).toHaveLength(9);
+    expect(n).toContain("5999_1074");
+    expect(n).toContain("5998_1073");
+    expect(n).toContain("6000_1075");
+  });
+
+  it("wraps longitude at the antimeridian instead of walking off it", () => {
+    const n = presenceNeighbors("0_-18000");
+    expect(n).toHaveLength(9);
+    // The western neighbor of the western edge is the eastern edge.
+    expect(n).toContain("0_17999");
+    expect(n).not.toContain("0_-18001");
+  });
+
+  it("drops rows beyond the poles rather than inventing them", () => {
+    const n = presenceNeighbors("8999_0");
+    expect(n).toHaveLength(6); // no row above the top
+    expect(n.every((c) => Number(c.split("_")[0]) <= 8999)).toBe(true);
+  });
+
+  it("returns nothing for an illegal cell — the callable's own guard", () => {
+    expect(presenceNeighbors("9000_0")).toEqual([]);
+    expect(presenceNeighbors("junk")).toEqual([]);
   });
 });

@@ -151,7 +151,7 @@ const COUPLING_BASELINE = {
   "src/v2/spec/person-mindmap.jsx": 10,
   "src/v2/spec/person-overlay.jsx": 3,
   "src/v2/spec/place-stats.jsx": 3,
-  "src/v2/spec/profile-general.jsx": 19,
+  "src/v2/spec/profile-general.jsx": 18,
   "src/v2/spec/profile-overlay.jsx": 28,
   "src/v2/spec/relmap-panels.jsx": 3,
   "src/v2/spec/relmap.jsx": 3,

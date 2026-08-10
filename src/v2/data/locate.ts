@@ -16,6 +16,7 @@
 // can show and leaves the manual picker exactly as it was.
 import { Capacitor } from "@capacitor/core";
 import { loadPlaces, nearestPlace, placeKey } from "./places";
+import { presenceCell } from "./geo";
 
 export type LocateFail =
   | "unsupported"   // no geolocation on this platform/browser at all
@@ -138,6 +139,34 @@ export async function locateCity(): Promise<LocateResult> {
 export function locateSupported(): boolean {
   if (Capacitor.isNativePlatform()) return true;
   return typeof navigator !== "undefined" && !!navigator.geolocation;
+}
+
+export type LocateCellResult =
+  | { ok: true; cell: string }
+  | { ok: false; reason: LocateFail };
+
+/**
+ * Resolve the presence-grid cell (D84), or a reason why not.
+ *
+ * Same containment rule as locateCity, one notch coarser: the fix is
+ * folded to a ~1 km grid id inside this function and the coordinate never
+ * escapes. This module remains the only code that ever holds one, and no
+ * caller can obtain a position — or anything finer than the cell — through
+ * it. Same coarse permission, same wall-clock deadline, same failure
+ * vocabulary, so the UI reuses the CityPicker's failure copy.
+ */
+export async function locateCell(): Promise<LocateCellResult> {
+  let coords: { lat: number; lon: number };
+  try {
+    coords = await withDeadline(getCoords(), DEADLINE_MS);
+  } catch (err) {
+    const msg = String((err as Error)?.message || "");
+    if (msg === "unsupported") return { ok: false, reason: "unsupported" };
+    return { ok: false, reason: classify(err) };
+  }
+  const cell = presenceCell(coords.lat, coords.lon);
+  if (!cell) return { ok: false, reason: "unavailable" };
+  return { ok: true, cell };
 }
 
 // No globalThis publication: the one consumer (CityPicker) is typed TSX

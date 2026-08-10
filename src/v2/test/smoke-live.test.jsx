@@ -36,6 +36,8 @@ vi.setConfig({ testTimeout: 15000 });
 import { FEED_OPTIONS, fixtureSurfaceMismatch, installLive } from "./live-fixture";
 import { list as anchorList } from "../spec/map-anchors.js";
 import { IS_TEST_RESULTS } from "../spec/test-definitions.js";
+import { FRIENDS } from "../spec/follows.js";
+import { IS_DATA } from "../spec/sample-data.js";
 
 const BOUNDARY_LOG = "[InSight] boundary caught:";
 const BOUNDARY_COPY = /This view hit a snag/i;
@@ -105,10 +107,45 @@ describe("spec layer mounts in live mode", () => {
     expectNoBoundary("profile/live");
   });
 
+  it("shows the real follow list in the live profile, none of the demo field", () => {
+    // The General tab used to embed MirrorFieldBody pop="groups" — the
+    // scenes orbit with invented populations ("5.6k people" / "22k
+    // people"), the closer-means-more-like-you distances, "Who's in your
+    // circles · 138 members" and "What they answered", all sample data. A
+    // release device showed the lot to a real user. Live mode now renders
+    // LiveScenesCard instead: the follow store's own list, no populations,
+    // no likeness claims. The demo smoke suite asserts the demo field
+    // still renders with LIVE off, so the pair pins the swap both ways.
+    mountLive();
+    fireEvent.click(screen.getByRole("button", { name: /^profile$/i }));
+    expect(screen.getByText(/Scenes you follow/i)).toBeTruthy();
+    expect(screen.queryByText(/closer = members more like you/i)).toBeNull();
+    expect(screen.queryByText(/in your circles/i)).toBeNull();
+    expect(screen.queryByText(/22k people/i)).toBeNull();
+  });
+
   it("opens the search overlay without tripping the boundary", () => {
     const expectNoBoundary = mountLive();
     fireEvent.click(screen.getByRole("button", { name: /^search$/i }));
     expectNoBoundary("search/live");
+  });
+
+  it("shows no sample people in the search overlay", () => {
+    // The overlay's Friends rows are sample-data personas wearing invented
+    // relationships ("sister · since birth · 86% match"). Live mode has no
+    // person graph at all (D3), so a live build listing them is a D1
+    // fabrication — and it shipped: the release build offered five seeded
+    // strangers as the user's oldest friends. The demo smoke case asserts
+    // the same rows DO render with LIVE off, so this pair pins the gate in
+    // both directions.
+    mountLive();
+    fireEvent.click(screen.getByRole("button", { name: /^search$/i }));
+    const seed = FRIENDS.list()
+      .map((id) => (IS_DATA.people || []).find((p) => p.id === id))
+      .find((p) => p && p.name && !p.anon);
+    expect(seed, "sample data has no named seed friend — the control is asserting on nothing").toBeTruthy();
+    expect(screen.queryByText(seed.name)).toBeNull();
+    expect(screen.queryByText(/% match/)).toBeNull();
   });
 
   it("renders a below-the-floor deck without tripping the boundary", () => {
@@ -197,10 +234,14 @@ describe("the live gates hold in the DOM, not just in the source", () => {
     ).toContain("City");
   });
 
-  // D11. The engage block — takes, counter-arguments, minds-moved, friend
-  // dots — is what renderEngage returns BELOW its `if (q.live)` early
-  // return. A live card gets the k-floored who-voted button and nothing
-  // else.
+  // D11 + D83. The engage block below renderEngage's `if (q.live)` early
+  // return is the DEMO's — seeded named takes, counter-arguments,
+  // minds-moved, friend dots — and none of it may reach a live card. What
+  // a live card gets instead is the k-floored who-voted button and, since
+  // D83, the ANONYMOUS world-takes toggle (LiveTakesPanel, gid "world").
+  // The two takes controls are distinguishable by accessible name: the
+  // demo sheet button is `${n} takes` (a count), the live toggle is the
+  // bare word "Takes".
   //
   // Two things this test needs that the first draft of it did not have, both
   // found by watching it pass against a deliberately broken gate:
@@ -208,10 +249,11 @@ describe("the live gates hold in the DOM, not just in the source", () => {
   //   1. renderEngage only renders once the card is ANSWERED, and then only
   //      after the reveal animation clears `state.beat`. Asserting on an
   //      unvoted card asserts on a block that was never going to be there.
-  //   2. The assertion has to be the takes BUTTON, not the word "takes".
-  //      Its aria-label is `${n} takes`, and with WORLD_FEED_COMMENTS empty
-  //      n is 0 — so the gate leaking shows up as a "0 takes" control, which
-  //      no text search for a seeded string would ever find.
+  //   2. The demo assertion has to be the takes BUTTON, not the word
+  //      "takes". Its aria-label is `${n} takes`, and with
+  //      WORLD_FEED_COMMENTS empty n is 0 — so the gate leaking shows up as
+  //      a "0 takes" control, which no text search for a seeded string
+  //      would ever find.
   const voteFeedCardAndSettle = async () => {
     fireEvent.click(screen.getByRole("button", { name: FEED_OPTIONS[0] }));
     // The reveal animation clears `beat` from its own onDone; until it does,
@@ -219,17 +261,25 @@ describe("the live gates hold in the DOM, not just in the source", () => {
     await act(async () => { await new Promise((r) => setTimeout(r, 1200)); });
   };
 
-  it("gives a live card the who-voted button and no takes button", async () => {
+  it("gives a live card who-voted and the anonymous takes toggle — never the demo sheet", async () => {
     mountLive();
     await voteFeedCardAndSettle();
     expect(
       screen.queryByRole("button", { name: /who voted/i }),
       "the live engage row did not render at all — this test is now vacuous",
     ).not.toBeNull();
+    // The demo's seeded-takes sheet stays off live cards (D11)…
     expect(
-      screen.queryByRole("button", { name: /\btakes$/i }),
-      "a live card rendered the takes button — D11's gate is open",
+      screen.queryByRole("button", { name: /\d+ takes$/i }),
+      "a live card rendered the demo takes sheet — D11's gate is open",
     ).toBeNull();
+    // …while the D83 world surface is present, collapsed, and opens into
+    // the anonymous panel rather than any named thing.
+    const toggle = screen.queryByRole("button", { name: /^Takes$/ });
+    expect(toggle, "the live card lost its world-takes toggle (D83)").not.toBeNull();
+    fireEvent.click(toggle);
+    expect(screen.getByText(/no names at world scale/i)).toBeTruthy();
+    expect(screen.getByText(/No takes yet/i)).toBeTruthy();
   });
 
   // The control for the case above. Without it, that assertion passes for
@@ -246,7 +296,7 @@ describe("the live gates hold in the DOM, not just in the source", () => {
     render(<App />);
     await voteFirstDemoCard();
     expect(
-      screen.queryByRole("button", { name: /\btakes$/i }),
+      screen.queryByRole("button", { name: /\d+ takes$/i }),
       "demo mode lost the takes button — the live gate is now unconditional",
     ).not.toBeNull();
   });

@@ -126,7 +126,7 @@ function SrchTopicRow({ item, query, onToggle }) {
   );
 }
 
-function SearchOverlay({ onClose, onPerson }) {
+function SearchOverlay({ onClose, onPerson, samplePeople }) {
   const dlg = useDialog(onClose, 'Search');
   const [q, setQ] = useSrchState('');
   const [openQ, setOpenQ] = useSrchState(null);
@@ -217,13 +217,20 @@ function SearchOverlay({ onClose, onPerson }) {
       });
   }, [query]);
 
-  // no query — your friends; with a query — everyone you can reach
+  // no query — your friends; with a query — everyone you can reach.
+  // Every one of these people is a sample-data persona, and so is every
+  // subtitle ("sister · since birth · 86% match") — claims about nobody.
+  // In a live build the section renders empty instead (samplePeople is
+  // false there): v2 has no person-to-person graph (D3), and a real user
+  // reading an invented sister into their search is the D1 fabrication
+  // this store predates.
   const people = useSrchMemo(() => {
+    if (samplePeople === false) return [];
     const friends = FRIENDS.list().map(id => (D.people || []).find(p => p.id === id)).filter(Boolean);
     if (!query) return friends;
     const all = friends.concat((D.nearby || []).filter(n => !friends.some(f => f.id === n.id)));
     return all.filter(p => srchMatch(p.name + ' ' + (p.role || p.rel || '') + ' ' + (p.interests || []).map(i => i.t || i).join(' '), query));
-  }, [query]);
+  }, [query, samplePeople]);
 
   const nothing = !questions.length && !topics.length && !people.length && !dailies.length;
   const go = (fn) => { onClose(); fn(); };

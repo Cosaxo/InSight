@@ -1043,6 +1043,126 @@ describe("moderation substrate: takes + flags (docs/MODERATION.md, D22)", () => 
   });
 });
 
+describe("world takes (D83 — anonymous, one per person per question)", () => {
+  // The sentinel gid "world" has no group behind it and needs none: reads
+  // are any-signed-in, and the create bound moves from membership to the
+  // DOCUMENT ID — `qid + "_" + uid` — so a second take is an update, and
+  // updates are denied. The sentinel cannot collide with a real circle
+  // because v2_groups creates are `if false` (ids are server-minted).
+  const QID = "daily-042";
+  const wtake = (uid: string, over: Record<string, unknown> = {}) => ({
+    gid: "world", authorUid: uid, qid: QID, text: "a world take",
+    createdAt: serverTimestamp(), hidden: false, ...over,
+  });
+  const wid = (uid: string, qid = QID) => `${qid}_${uid}`;
+
+  it("any signed-in user posts under qid_uid and any other reads it", async () => {
+    await assertSucceeds(setDoc(
+      doc(asUser(OWNER), "v2_takes", wid(OWNER)), wtake(OWNER)));
+    // A STRANGER — no shared circle anywhere — reads it. That is the
+    // feature: the audience is everyone.
+    await assertSucceeds(getDoc(doc(asUser(STRANGER), "v2_takes", wid(OWNER))));
+    // And posts their own beside it.
+    await assertSucceeds(setDoc(
+      doc(asUser(STRANGER), "v2_takes", wid(STRANGER)), wtake(STRANGER)));
+  });
+
+  it("the id is the one-take bound: wrong id refused, repost refused, delete-and-repost allowed", async () => {
+    const ref = doc(asUser(OWNER), "v2_takes", wid(OWNER));
+    await assertSucceeds(setDoc(ref, wtake(OWNER)));
+    // A second post lands on the same id — an update, denied like every
+    // take update (an edited take invalidates its flags).
+    await assertFails(setDoc(ref, wtake(OWNER, { text: "reworded" })));
+    // A minted or crafted id that is not qid_uid is refused outright, so
+    // one account cannot flood a question under fresh ids.
+    await assertFails(setDoc(
+      doc(asUser(OWNER), "v2_takes", `${QID}_sock`), wtake(OWNER)));
+    await assertFails(setDoc(
+      doc(asUser(OWNER), "v2_takes", wid(FRIEND)), wtake(OWNER)));
+    // The rewrite path the panel offers: withdraw, then say it better.
+    await assertSucceeds(deleteDoc(ref));
+    await assertSucceeds(setDoc(ref, wtake(OWNER, { text: "said better" })));
+  });
+
+  it("shape holds at world scale: qid required and bounded, author is the signer", async () => {
+    // No qid: a world take with no question would be unreachable by any
+    // surface — and unqueryable by the per-question index.
+    await assertFails(setDoc(doc(asUser(OWNER), "v2_takes", `undefined_${OWNER}`), {
+      gid: "world", authorUid: OWNER, text: "floating",
+      createdAt: serverTimestamp(), hidden: false,
+    }));
+    // qid over the id-length bound.
+    const longQ = "q".repeat(121);
+    await assertFails(setDoc(
+      doc(asUser(OWNER), "v2_takes", wid(OWNER, longQ)), wtake(OWNER, { qid: longQ })));
+    // Authored as someone else.
+    await assertFails(setDoc(
+      doc(asUser(OWNER), "v2_takes", wid(FRIEND)), wtake(FRIEND)));
+    // Pre-hidden, same argument as circles: hides your words from everyone
+    // while leaving them in the moderation queue.
+    await assertFails(setDoc(
+      doc(asUser(OWNER), "v2_takes", wid(OWNER)), wtake(OWNER, { hidden: true })));
+  });
+
+  it("a world list is refused without both equalities, and never returns a hidden take", async () => {
+    await seed(async (db) => {
+      await setDoc(doc(db, "v2_takes", wid(OWNER)), {
+        gid: "world", authorUid: OWNER, qid: QID, text: "fine",
+        createdAt: new Date(), hidden: false,
+      });
+      await setDoc(doc(db, "v2_takes", wid(FRIEND)), {
+        gid: "world", authorUid: FRIEND, qid: QID, text: "over the line",
+        createdAt: new Date(), hidden: true,
+        hiddenMeta: { by: "mod", policyLine: "H1" },
+      });
+    });
+    const takes = collection(asUser(STRANGER), "v2_takes");
+    // Fail-closed: no hidden predicate, no list (D65's lesson, world arm).
+    await assertFails(getDocs(query(takes, where("gid", "==", "world"))));
+    // The shipped query shape returns the visible take alone.
+    const visible = await assertSucceeds(getDocs(query(
+      takes,
+      where("gid", "==", "world"), where("qid", "==", QID), where("hidden", "==", false),
+    )));
+    expect(visible.docs.map((d) => d.id)).toEqual([wid(OWNER)]);
+    // The hidden take stays readable to its author by id — the appeal path.
+    await assertFails(getDoc(doc(asUser(STRANGER), "v2_takes", wid(FRIEND))));
+    await assertSucceeds(getDoc(doc(asUser(FRIEND), "v2_takes", wid(FRIEND))));
+  });
+
+  it("any signed-in user flags a world take; the flag rules hold their shape", async () => {
+    await seed(async (db) => {
+      await setDoc(doc(db, "v2_takes", wid(OWNER)), {
+        gid: "world", authorUid: OWNER, qid: QID, text: "contested",
+        createdAt: new Date(), hidden: false,
+      });
+    });
+    const wflag = (uid: string) => ({
+      takeId: wid(OWNER), gid: "world", uid, at: serverTimestamp(),
+    });
+    // A stranger flags — the audience is the moderation constituency.
+    await assertSucceeds(setDoc(
+      doc(asUser(STRANGER), "v2_flags", `${wid(OWNER)}_${STRANGER}`), wflag(STRANGER)));
+    // One per account: same id again is an update, denied.
+    await assertFails(setDoc(
+      doc(asUser(STRANGER), "v2_flags", `${wid(OWNER)}_${STRANGER}`), wflag(STRANGER)));
+    // The gid on the flag must be the take's own — "world" cannot be
+    // borrowed to flag a circle take from outside it.
+    await seed(async (db) => {
+      await setDoc(doc(db, "v2_groups", "g_priv"), {
+        name: "Priv", mode: "group", memberUids: [OWNER, FRIEND],
+      });
+      await setDoc(doc(db, "v2_takes", "t_circle"), {
+        gid: "g_priv", authorUid: OWNER, text: "circle words",
+        createdAt: new Date(), hidden: false,
+      });
+    });
+    await assertFails(setDoc(
+      doc(asUser(STRANGER), "v2_flags", `t_circle_${STRANGER}`),
+      { takeId: "t_circle", gid: "world", uid: STRANGER, at: serverTimestamp() }));
+  });
+});
+
 describe("D29 device binding: soft today, and the flip is pre-tested", () => {
   // The deployed rules do not yet demand the `db` claim
   // (deviceBindEnforced() returns false — D29 rollout step 2). This block
@@ -1145,5 +1265,45 @@ describe("D29 device binding: soft today, and the flip is pre-tested", () => {
     // string or boolean fails tests instead of silently widening the gate.
     const stringy = enfEnv.authenticatedContext(OWNER, { db: "1" }).firestore();
     await assertFails(setDoc(doc(stringy, "v2_users", OWNER, "answers", QID), worldAnswer()));
+  });
+});
+
+describe("presence (D84 — Near by radius)", () => {
+  // The privacy shape in three lines: your own cell-sized doc is yours to
+  // write and delete, NOBODY can read any of them (the only read path is
+  // the nearbyCountV2 callable, which returns a count), and the cell
+  // regex is the precision cap — nothing finer than the ~1 km grid id can
+  // be written at all, however a client is modified.
+  const cellDoc = (over: Record<string, unknown> = {}) => ({
+    cell: "5999_1074", at: serverTimestamp(), ...over,
+  });
+
+  it("a user writes, overwrites and deletes their own presence", async () => {
+    const ref = doc(asUser(OWNER), "v2_presence", OWNER);
+    await assertSucceeds(setDoc(ref, cellDoc()));
+    await assertSucceeds(setDoc(ref, cellDoc({ cell: "6000_1075" })));
+    await assertSucceeds(deleteDoc(ref));
+  });
+
+  it("nobody reads presence — not even their own doc", async () => {
+    await seed(async (db) => {
+      await setDoc(doc(db, "v2_presence", OWNER), { cell: "5999_1074", at: new Date() });
+    });
+    // Own doc: the client never needs to read it back, and a read grant is
+    // surface someone will eventually widen. The callable is the read path.
+    await assertFails(getDoc(doc(asUser(OWNER), "v2_presence", OWNER)));
+    await assertFails(getDoc(doc(asUser(STRANGER), "v2_presence", OWNER)));
+    await assertFails(getDocs(query(
+      collection(asUser(STRANGER), "v2_presence"), where("cell", "==", "5999_1074"),
+    )));
+  });
+
+  it("cannot write someone else's presence, or smuggle precision past the grid", async () => {
+    await assertFails(setDoc(doc(asUser(STRANGER), "v2_presence", OWNER), cellDoc()));
+    const ref = doc(asUser(OWNER), "v2_presence", OWNER);
+    await assertFails(setDoc(ref, cellDoc({ cell: "59.913_10.752" })));   // raw coords
+    await assertFails(setDoc(ref, cellDoc({ cell: "5999_1074_extra" }))); // sub-cell suffix
+    await assertFails(setDoc(ref, cellDoc({ lat: 59.91 })));              // extra field
+    await assertFails(setDoc(ref, cellDoc({ at: new Date() })));          // not request.time
   });
 });

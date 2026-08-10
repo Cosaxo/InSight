@@ -10,7 +10,11 @@ import { WF_CATALOGS } from './world-catalogs.js';
 import { Sheet } from './primitives.jsx';
 // The feed's cadence arithmetic — extracted so the test exercises THIS loop
 // rather than a copy of it (D11's claim, D42's citation; see the module).
-import { interleaveFeed } from '../data/feed-interleave.ts';
+import { interleaveFeed, unansweredFirst } from '../data/feed-interleave.ts';
+import { AGG_FLOOR } from '../data/floor.ts';
+// The live world-takes surface (D83) — an ordinary ESM import of the typed
+// panel, like the data imports above, so the D39 coupling meter stays flat.
+import LiveTakesPanel from '../ui/LiveTakesPanel.tsx';
 import ReactDOM from 'react-dom';
 import { PASSIVE } from './passive-progress.js';
 import {
@@ -162,7 +166,7 @@ function WFFlipList({ rows, order, gap }) {
 const WF_FRIENDS = [{ name: 'Alex', init: 'A' }, { name: 'Mia', init: 'M' }, { name: 'Jordi', init: 'J' }, { name: 'Sara', init: 'S' }, { name: 'Noah', init: 'N' }, { name: 'Elif', init: 'E' }];
 
 class WorldFeed extends React.Component {
-  state = { votes: wfLoad(), knowRes: {}, pickQ: {}, pending: {}, open: {}, panels: {}, dims: {}, cutAxis: {}, boosts: {}, vh: 0, beat: null, sheet: null, sideFilter: null, reportFor: null, replyTo: null, replies: wfLoadReplies(), myTakes: wfLoadTakes(), minds: {}, ctrIdx: {}, takeSort: 'mind', whyFor: null, headHide: false, sort: 'hot', passed: wfLoadMap(WF_PASS_LS), ripple: null };
+  state = { votes: wfLoad(), knowRes: {}, pickQ: {}, pending: {}, open: {}, panels: {}, dims: {}, cutAxis: {}, boosts: {}, vh: 0, beat: null, sheet: null, sideFilter: null, reportFor: null, replyTo: null, replies: wfLoadReplies(), myTakes: wfLoadTakes(), minds: {}, ctrIdx: {}, takeSort: 'mind', whyFor: null, headHide: false, sort: 'hot', passed: wfLoadMap(WF_PASS_LS), ripple: null, liveTakesOpen: {} };
 
   // Feature flags, carried over from the prototype so each idea can be
   // switched off from the host without editing this file. Default ON; the
@@ -239,7 +243,13 @@ class WorldFeed extends React.Component {
     // screen and one interaction writes them back. votes clears too and the
     // LIVE reconcile above refills it for the new uid; knowRes and pickQ
     // are this-session answer echoes of stores that drop themselves.
-    this._onPurge = () => this.setState({ votes: {}, passed: {}, myTakes: {}, replies: {}, knowRes: {}, pickQ: {} });
+    this._onPurge = () => {
+      // The unanswered-first stickiness cache goes with the maps: it holds
+      // the OLD account's answered-ness, and a new account inheriting it
+      // would open on a feed sorted by someone else's history.
+      this._sunk = null;
+      this.setState({ votes: {}, passed: {}, myTakes: {}, replies: {}, knowRes: {}, pickQ: {} });
+    };
     window.addEventListener('insight:local-purge', this._onPurge);
     // entrance: each card rises as it first scrolls into view (transform-only)
     this._io = typeof IntersectionObserver !== 'undefined' ? new IntersectionObserver((es) => {
@@ -992,8 +1002,13 @@ class WorldFeed extends React.Component {
     return (
       <div style={{ fontSize: big ? 12.5 : 11.5, fontWeight: 600, color: 'var(--ink-3)', padding: '2px 2px 0' }}>
         {/* real characters, not \u escapes: JSX text children are literal,
-            so an escape here renders as a visible backslash on the card */}
-        {'You’re early — counts appear once 5 people have answered.'}
+            so an escape here renders as a visible backslash on the card.
+            Floor-aware (data/floor.ts): at the paused floor (D81) this
+            state is only "the trigger hasn't landed yet", so promising
+            five people would be promising a wait that isn't coming. */}
+        {AGG_FLOOR > 1
+          ? 'You’re early — counts appear once ' + AGG_FLOOR + ' people have answered.'
+          : 'You’re first — the count lands in a moment.'}
       </div>
     );
   }
@@ -1292,16 +1307,20 @@ class WorldFeed extends React.Component {
 
   // ── takes + who-voted — open as bottom sheets (revealed only after answering) ──
   renderEngage(q, T, big) {
-    // D1: free-text takes and named who-voted are circle-scoped, so a live
-    // world card never shows takes. It DOES now show who-voted, because
-    // that panel stopped being a lie: the breakdown is real anchor counts,
-    // floored per cell with complementary suppression applied server-side
-    // (D8), and it carries no names at all. D1 permits "the split, the
-    // totals" at world scale — this is a split, sliced.
+    // D1 scoped free-text takes to circles; D83 adopted D78 part 2, so a
+    // live world card now carries ANONYMOUS world takes (LiveTakesPanel,
+    // gid "world" — no author names, one take per person per question,
+    // enforced moderation behind them). What stays circle-only forever is
+    // NAMED speech and named who-voted. The who-voted panel shows because
+    // it stopped being a lie: the breakdown is real anchor counts, floored
+    // per cell with complementary suppression applied server-side (D8),
+    // and it carries no names at all. D1 permits "the split, the totals"
+    // at world scale — this is a split, sliced.
     //
     // demoInProd stays fully suppressed either way: that is a real user a
     // live build dropped into the mock fallback, where the synthetic
-    // splits and the fake named people below would both be lies.
+    // splits and the fake named people below would both be lies — and a
+    // REAL takes composer beside fake results would be worse still.
     if (window.LIVE && window.LIVE.demoInProd) return null;
     // A selfOnly card (live-session lens question — D50) has no crowd
     // behind it: takes, who-voted and the votes-count footer would all be
@@ -1315,18 +1334,27 @@ class WorldFeed extends React.Component {
       // agg.by, which exists only for live questions, so leaving it below
       // this early return — as it was — meant it never rendered at all.
       const ins = this.renderInsight(q, T, big);
+      // Collapsed until asked for: the panel fetches its list on mount
+      // (one query per question per session), so the toggle is also the
+      // cost gate — a scrolled-past card loads nothing.
+      const takesOpen = !!this.state.liveTakesOpen[q.id];
       return (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: big ? 12 : 10, alignItems: 'flex-start' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: big ? 12 : 10, alignItems: 'stretch' }}>
           {ins}
-          {/* the insight line is itself the way into the breakdown, so the
-              bar-chart button would be a second door to the same room */}
-          {!ins && (
-            <div style={{ display: 'flex', gap: 24, alignItems: 'center' }}>
+          <div style={{ display: 'flex', gap: 24, alignItems: 'center' }}>
+            {/* the insight line is itself the way into the breakdown, so the
+                bar-chart button would be a second door to the same room */}
+            {!ins && (
               <button className="press" onClick={() => this.setState({ sheet: { q, T, panel: 'stats' }, sideFilter: null, replyTo: null })} aria-label="who voted" title="who voted" style={{ background: 'none', border: 'none', padding: '4px 0', display: 'flex', alignItems: 'center', gap: 9, cursor: 'pointer', color: 'var(--ink)', WebkitAppearance: 'none' }}>
                 <svg width={big ? 23 : 22} height={big ? 23 : 22} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M5 19.5V13M12 19.5V5.5M19 19.5V10"></path></svg>
               </button>
-            </div>
-          )}
+            )}
+            <button className="press" aria-expanded={takesOpen} onClick={() => this.setState((s) => ({ liveTakesOpen: { ...s.liveTakesOpen, [q.id]: !s.liveTakesOpen[q.id] } }))} style={{ background: 'none', border: 'none', padding: '4px 0', display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', color: 'var(--ink)', WebkitAppearance: 'none', fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 12.5 }}>
+              <svg width={big ? 21 : 20} height={big ? 21 : 20} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M6.5 4.5h11a2 2 0 0 1 2 2V13a2 2 0 0 1-2 2H11l-4 3.8V15h-.5a2 2 0 0 1-2-2V6.5a2 2 0 0 1 2-2z"></path></svg>
+              Takes
+            </button>
+          </div>
+          {takesOpen && <LiveTakesPanel gid="world" qid={q.id} />}
         </div>
       );
     }
@@ -2453,20 +2481,43 @@ class WorldFeed extends React.Component {
     // sort lenses: hot = the interleaved mix · top = most votes · new = latest first
     const sort = this.state.sort;
     const sorted = sort === 'top' ? [...qs].sort((a, b) => wfVotes(b) - wfVotes(a)) : sort === 'new' ? [...qs].reverse() : mixed;
+    // Unanswered first, within whichever sort lens is on. The bank is
+    // finite and served in a stable order, so without this every session
+    // opened on the same head of cards — the ones the user answered first
+    // — as a wall of results ("I keep seeing things I have answered",
+    // release feedback). Sticky per MOUNT: answered-ness is sampled the
+    // first time a card is seen this visit and frozen, so the card you
+    // just voted on keeps its place while you watch its reveal, and sinks
+    // on the next visit instead. Passed cards deliberately do NOT sink —
+    // a pass is "not now", already rendered as one slim row, and burying
+    // it would turn "not now" into "never".
+    if (!this._sunk) this._sunk = new Map();
+    const sunk = (q) => {
+      let v = this._sunk.get(q.id);
+      if (v === undefined) { v = this.answered(q); this._sunk.set(q.id, v); }
+      return v;
+    };
+    const ordered = unansweredFirst(sorted, sunk);
     // weave in the tests' own questions — one marked card every few feed
     // items — and the lenses' questions behind them at half that rate. The
-    // core tests own the feed; lenses trickle.
-    const tqs = window.TEST_FEED_QS || [];
+    // core tests own the feed; lenses trickle. Both streams get the same
+    // unanswered-first treatment: the test stream walks its pool from index
+    // 0 every session, so it re-led with already-answered items in exactly
+    // the way the world stream did.
+    const tqs = unansweredFirst(window.TEST_FEED_QS || [], sunk);
     // LENS_FEED_QS is a builder, not an array: the lens pool differs between
     // demo and live, and liveness lands only after boot — so the feed asks
     // at build time rather than keeping a snapshot (lens-defs.js says why).
     const lensQs = window.LENS_FEED_QS;
-    const lqs = typeof lensQs === 'function' ? lensQs() : [];
+    const lqs = unansweredFirst(typeof lensQs === 'function' ? lensQs() : [], sunk);
     const kEvery = window.LEARN_FEED ? window.LEARN_FEED.every() : 0;
-    const kqs = kEvery ? this.knowQs(Math.ceil(sorted.length / kEvery) + 1, cats) : [];
+    // The knowledge stream is NOT partitioned: LEARN_FEED schedules its own
+    // spaced repetition, and re-serving an answered card on its due day is
+    // that feature working, not the bug this partition removes.
+    const kqs = kEvery ? this.knowQs(Math.ceil(ordered.length / kEvery) + 1, cats) : [];
     // The cadences, their coprimality and the empty-feed drain all live in
     // data/feed-interleave.ts, which is where the test now reaches them.
-    const feedList = interleaveFeed(sorted, {
+    const feedList = interleaveFeed(ordered, {
       tests: tqs, lenses: lqs, know: kqs, knowEvery: kEvery,
     });
     // One card near the top wears the closing ring. Chosen by hash of the

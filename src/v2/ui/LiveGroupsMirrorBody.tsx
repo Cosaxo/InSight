@@ -227,7 +227,10 @@ function LiveGroupsMirrorBody() {
         <div style={{ fontFamily: "var(--sans)", fontSize: 13.5, fontWeight: 500, color: "var(--ink-2)", lineHeight: 1.45 }}>
           This mirror reflects your named circles — one question a day, revealed with names the morning after. Start one and the portrait builds itself.
         </div>
-        <button className="press" onClick={() => { const w = window as unknown as { goTab?: (t: string) => void }; if (w.goTab) w.goTab("track"); }}
+        {/* goNav, not goTab: goTab("track") restores whatever daily scope was
+            last open — a user coming from the 1v1 tab landed back on 1v1, not
+            on the group create flow this button promises. goNav pins the mode. */}
+        <button className="press" onClick={() => { const w = window as unknown as { goNav?: (k: string) => void; goTab?: (t: string) => void }; if (w.goNav) w.goNav("track:group"); else if (w.goTab) w.goTab("track"); }}
           style={{ alignSelf: "flex-start", border: "none", borderRadius: 999, padding: "10px 18px", cursor: "pointer", fontFamily: "var(--sans)", fontWeight: 800, fontSize: 13, background: "var(--accent, var(--ink))", color: "var(--surface)", WebkitAppearance: "none" }}>
           Start a group →
         </button>

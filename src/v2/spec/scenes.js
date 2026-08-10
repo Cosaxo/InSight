@@ -13,11 +13,20 @@ import { WPAL } from './world-palette.js';
 // in data.js groups) that also feeds you its questions. Persisted locally.
 (function () {
   const LS = 'insight.scenes.v1';
+  // A live build starts with ZERO followed scenes. The demo seed below
+  // (sample-data's `joined` groups) is what put Tennis, Swimming and
+  // Writing on a release user's feed chips and profile orbit as follows
+  // they never chose — the D66 class again, as preferences instead of
+  // people. Gated on the build flag rather than window.LIVE.enabled for
+  // the reason learn-progress.js records: the default can be derived
+  // before the live boot has attached, and a live build must not seed
+  // demo follows in that window either (demoInProd included).
+  const LIVE_BUILD = import.meta.env && import.meta.env.VITE_V2_LIVE === 'true';
   let set = null;
   function ensure() {
     if (set) return set;
     try { const v = JSON.parse(localStorage.getItem(LS) || 'null'); if (Array.isArray(v)) set = new Set(v); } catch (e) { /* absent or corrupt payload — fall back to the default initialised above. */ }
-    if (!set) set = new Set((IS_DATA.groups || []).filter((g) => g.joined).map((g) => g.id));
+    if (!set) set = LIVE_BUILD ? new Set() : new Set((IS_DATA.groups || []).filter((g) => g.joined).map((g) => g.id));
     return set;
   }
   // the broad feed topic each scene pulls general questions from

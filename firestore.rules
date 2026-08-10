@@ -403,10 +403,17 @@ service cloud.firestore {
 
     // ─── moderation substrate (docs/MODERATION.md, D22) ────────────
     //
-    // Takes are circle-scoped comments (D1). The moderation chain on top
-    // of them is deliberately server-heavy: flags are write-only counts,
-    // the queue and verdicts are reachable only through MOD_UIDS-gated
-    // callables, and clients can touch none of it.
+    // Takes are circle-scoped comments (D1) — and, since D83 adopted D78
+    // part 2, ANONYMOUS world-scale takes under the sentinel gid "world".
+    // The sentinel cannot collide with a real circle: v2_groups creates
+    // are `if false` (ids are server-minted), so no client can ever be a
+    // "member of world" — the world arms below deliberately consult no
+    // group doc. The moderation chain on top is deliberately server-heavy:
+    // flags are write-only counts, the queue and verdicts are reachable
+    // only through MOD_UIDS-gated callables, and clients can touch none
+    // of it. World scope raised its stakes from advisory to enforcing
+    // (MOD_ADVISORY=false) — the audience is everyone, so circle-scope
+    // trust can no longer stand in for enforcement.
 
     match /v2_takes/{takeId} {
       // Circle members read the circle's takes — except a mod-hidden take,
@@ -443,11 +450,20 @@ service cloud.firestore {
       // The author escape still works for getDoc, which is the appeal path.
       // It does NOT widen a list: an author listing the circle must also
       // pass `hidden == false` and sees their own hidden take only by id.
+      //
+      // The world arm (gid == "world", D83): any signed-in user, same
+      // required-boolean equality — a world list must carry
+      // `where("gid","==","world")` and `where("hidden","==",false)` or it
+      // is refused wholesale, exactly like a circle list (D65). No group
+      // get(): there is no group, and consulting one would deny everything.
       allow read: if request.auth != null
-        && request.auth.uid in
-          get(/databases/$(database)/documents/v2_groups/$(resource.data.gid)).data.memberUids
-        && (resource.data.hidden == false
-          || resource.data.authorUid == request.auth.uid);
+        && (resource.data.gid == "world"
+          ? (resource.data.hidden == false
+            || resource.data.authorUid == request.auth.uid)
+          : (request.auth.uid in
+              get(/databases/$(database)/documents/v2_groups/$(resource.data.gid)).data.memberUids
+            && (resource.data.hidden == false
+              || resource.data.authorUid == request.auth.uid)));
       allow create: if request.auth != null
         && request.resource.data.keys().hasOnly(["gid", "authorUid", "qid", "text", "createdAt", "hidden"])
         && request.resource.data.authorUid == request.auth.uid
@@ -456,14 +472,26 @@ service cloud.firestore {
         // a client that could post `hidden: true` could hide its own words
         // from the circle while leaving them in the moderation queue.
         && request.resource.data.hidden == false
-        && request.resource.data.gid is string
-        && request.auth.uid in
-          get(/databases/$(database)/documents/v2_groups/$(request.resource.data.gid)).data.memberUids
         && request.resource.data.text is string
         && request.resource.data.text.size() >= 1
         && request.resource.data.text.size() <= 280
-        && (!("qid" in request.resource.data) || request.resource.data.qid is string)
-        && request.resource.data.createdAt == request.time;
+        && request.resource.data.createdAt == request.time
+        && (request.resource.data.gid == "world"
+          // World takes (D83): membership is everyone, so the bound moves
+          // to the document id — `qid + "_" + uid` makes it ONE take per
+          // person per question, enforced the way flag ids are: a second
+          // post is an update, and updates are denied. qid is REQUIRED
+          // here (the thread hangs on a question; a world take with no
+          // question would be unreachable by any surface) and bounded so
+          // an id-length attack cannot mint unbounded doc ids.
+          ? (request.resource.data.qid is string
+            && request.resource.data.qid.size() >= 1
+            && request.resource.data.qid.size() <= 120
+            && takeId == request.resource.data.qid + "_" + request.auth.uid)
+          : (request.resource.data.gid is string
+            && request.auth.uid in
+              get(/databases/$(database)/documents/v2_groups/$(request.resource.data.gid)).data.memberUids
+            && (!("qid" in request.resource.data) || request.resource.data.qid is string)));
       // No edit path: an edited take invalidates the flags cast on what it
       // used to say. Delete-and-repost restarts the flag count honestly.
       allow update: if false;
@@ -486,8 +514,12 @@ service cloud.firestore {
         && request.resource.data.gid is string
         && get(/databases/$(database)/documents/v2_takes/$(request.resource.data.takeId)).data.gid
           == request.resource.data.gid
-        && request.auth.uid in
-          get(/databases/$(database)/documents/v2_groups/$(request.resource.data.gid)).data.memberUids
+        // World takes (D83) are flaggable by any signed-in user — the
+        // audience is the moderation constituency. Circle takes keep the
+        // membership gate: a stranger cannot flag speech they cannot read.
+        && (request.resource.data.gid == "world"
+          || request.auth.uid in
+            get(/databases/$(database)/documents/v2_groups/$(request.resource.data.gid)).data.memberUids)
         // Reads the same boolean the take's own gate does. This was a
         // presence test too, and it had to change with the field: once
         // `hidden` is always present, `!("hidden" in …)` is false for every
@@ -511,6 +543,29 @@ service cloud.firestore {
     }
     match /v2_mod_verdicts/{takeId} {
       allow read, write: if false;
+    }
+
+    // ── Near-by-radius presence (D84) ──────────────────────────────
+    //
+    // One doc per opted-in user: a ~1 km grid cell and a freshness stamp,
+    // overwritten while the app is foreground. NO client read, ever — a
+    // readable (uid → cell) pair is D2's leak reborn, a script following
+    // any uid around town at cell resolution. The only read path is
+    // nearbyCountV2, which returns a COUNT and nothing else. The cell
+    // regex is the precision cap in structural form: a "la_lo" integer
+    // grid id cannot carry anything finer than the 0.01° cell, however
+    // hard a client tries.
+    match /v2_presence/{uid} {
+      allow read: if false;
+      allow create, update: if request.auth != null
+        && request.auth.uid == uid
+        && request.resource.data.keys().hasOnly(["cell", "at"])
+        && request.resource.data.cell is string
+        && request.resource.data.cell.matches('^-?[0-9]{1,4}_-?[0-9]{1,5}$')
+        && request.resource.data.at == request.time;
+      // Opting out deletes the doc — "stop sharing" must not depend on a
+      // TTL sweep that runs later.
+      allow delete: if request.auth != null && request.auth.uid == uid;
     }
 
   }
