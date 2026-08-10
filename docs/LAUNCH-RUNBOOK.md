@@ -192,10 +192,13 @@ arithmetic.
       not a blocker.
 
 - [ ] **0.3 Put the protection rules on the `production` environment
-      (D87).** GitHub → Settings → Environments → `production`. Four
+      (D87).** GitHub → Settings → Environments → `production`. Five
       fields, one save: required reviewers ON with yourself; **prevent
-      self-review OFF**; wait timer 0; deployment branches restricted to
-      `main`. Full table and per-setting reasoning in
+      self-review OFF**; wait timer 0; **"Allow administrators to bypass
+      configured protection rules" OFF** (GitHub ticks it by default, and
+      left on it cancels the gate for the owner — the exact caller the
+      gate exists for); deployment branches restricted to `main`. Full
+      table and per-setting reasoning in
       `docs/DEPLOYMENT.md § Protection rules`.
 
       Until this is done, a push to `main` touching the backend deploys
