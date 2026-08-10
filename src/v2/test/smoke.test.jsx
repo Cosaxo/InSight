@@ -498,3 +498,127 @@ describe("the overlays with no button — opened through window.*", () => {
     }
   });
 });
+
+// ── the fifth test: `cognitive` got a question bank on 2026-08-10 ──
+//
+// WHY THIS BLOCK EXISTS, in the shape this file's header describes. The
+// hazard here is not a ReferenceError — it is a screen that renders
+// NOTHING and trips no boundary, which is the vacuous pass the header
+// warns about wearing yet another shape.
+//
+// Two of them, on the same feature. `cognitive` shipped with a result
+// object, population baselines and five reading surfaces but no entry in
+// IS_TESTS, so the profile could show you a thinking style that no user
+// could ever earn — and every gate stayed green, because a test nobody can
+// take is not a name error. Adding the bank creates the mirror-image trap:
+// ResultProfileCard returns `null` on a missing RP_TESTS entry, so
+// finishing the new test would land on a header, a Done button and a blank
+// space between them. tsc, eslint and check:globals are all blind to both.
+//
+// Both halves were mutation-checked before this was committed: deleting
+// `cognitive` from IS_TESTS fails the first case, and deleting it from
+// RP_TESTS fails the second and third while leaving the boundary clean.
+describe("the cognitive test is takeable end to end", () => {
+  // The demo persona carries a saved result for all five tests, which is
+  // what sends the picker card straight to the result view. Blanking the
+  // results object is the documented way to reach the take path (the same
+  // `insight:test-results` listener data/live.ts hydrates through);
+  // `insight:local-purge` is the documented restore, so the cases after
+  // this block do not inherit an emptied object.
+  const clearResults = () =>
+    act(() => {
+      window.dispatchEvent(
+        new CustomEvent("insight:test-results", { detail: {} }),
+      );
+    });
+  const restoreResults = () =>
+    act(() => {
+      window.dispatchEvent(new Event("insight:local-purge"));
+    });
+
+  it("offers it on the picker", async () => {
+    const expectNoBoundary = mountApp();
+    await openVia("openTest");
+    // The saved-result card's own aria-label. Asserting on the label rather
+    // than on the tag copy because the picker renders the tag only for a
+    // test with NO result, and the demo persona has one for all five.
+    screen.getByLabelText(/^Thinking result$/);
+    expectNoBoundary("test picker with the cognitive test");
+  });
+
+  it("renders its profile sub-tab", async () => {
+    // The profile case above only ever paints the General tab, so the four
+    // result sub-tabs have never been rendered by anything. This one walks
+    // to the new one — it is also the only coverage of the ResultProfileCard
+    // conversion in profile-overlay.jsx, where all five panels dropped the
+    // `window.` lookup that used to stand in for an import.
+    const expectNoBoundary = mountApp();
+    fireEvent.click(screen.getByRole("button", { name: /^profile$/i }));
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /^Thinking$/ }));
+    });
+    expect(
+      document.body.textContent,
+      "the profile's Thinking tab drew no result card",
+    ).toMatch(/Thinking · Four modes/);
+    expectNoBoundary("profile → Thinking");
+  });
+
+  it("renders a result card for a saved result, not an empty screen", async () => {
+    const expectNoBoundary = mountApp();
+    await openVia("openTest", "cognitive");
+    // `cfg.kicker` from RP_TESTS — the string that disappears, silently,
+    // if the test has no RP_TESTS entry.
+    expect(
+      document.body.textContent,
+      "the cognitive result rendered no card — check RP_TESTS",
+    ).toMatch(/Thinking · Four modes/);
+    expectNoBoundary("cognitive saved result");
+  });
+
+  it("scores all 20 items and lands on a result", async () => {
+    clearResults();
+    try {
+      const expectNoBoundary = mountApp();
+      await openVia("openTest");
+      // With no saved result the card shows its tag, which the parity gate
+      // generates from the bank — so this ties the picker's stated count to
+      // the real one instead of to a second hardcoded string.
+      expect(document.body.textContent).toMatch(/20 questions · 4 modes/);
+      // aria-label on the untaken picker card: "Start Thinking — about 14
+      // minutes".
+      await act(async () => {
+        fireEvent.click(screen.getByLabelText(/^Start Thinking/));
+      });
+
+      // Walk the whole bank. Answering "Agree" on every item is not a
+      // realistic response style — it is the one that USED to score as a
+      // personality, and with two reverse-keyed items per mode it now
+      // lands every mode near the midpoint. Both facts are asserted below.
+      for (let i = 0; i < 20; i++) {
+        const radios = screen.getAllByRole("radio");
+        expect(radios, `item ${i + 1} rendered no scale`).toHaveLength(5);
+        await act(async () => { fireEvent.click(radios[3]); }); // "Agree"
+      }
+
+      expect(
+        document.body.textContent,
+        "finishing the test rendered no result card",
+      ).toMatch(/Thinking · Four modes/);
+      expectNoBoundary("cognitive result after taking it");
+
+      // The acquiescence check, read off the scored result rather than the
+      // screen: 3 agrees and 2 disagrees per mode, scored 0..4 and
+      // rescaled, is 55 — a shrug, which is the correct reading of a
+      // straight-line response. Before the reverse-keyed items this was 75
+      // on every mode, and the profile called that a thinking style.
+      const { IS_TEST_RESULTS } = await import("../spec/test-definitions.js");
+      for (const d of IS_TEST_RESULTS.cognitive.dims) {
+        expect(d.value, `${d.id} scored ${d.value} on a straight-line answer`)
+          .toBeLessThan(60);
+      }
+    } finally {
+      restoreResults();
+    }
+  });
+});

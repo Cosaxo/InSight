@@ -8197,3 +8197,105 @@ radius claim changes.
 this product reaches before the floor restores, a rounding error against
 the answer pipeline. A new composite index (cell, at). One new callable
 in the deploy list (check:deploy-targets held the door until it was).
+---
+
+## D85 · The personality tests go to 5 items per dimension, and `cognitive` gets a question bank
+
+**Decided:** 2026-08-10 · **Status:** binding
+
+Two defects on the same surface, found by asking how many questions the
+tests actually carry.
+
+### 1. Three items per dimension was thinner than what is read off it
+
+Every dimension of all four tests carried exactly **3** items (W2 raised it
+from 2; `content-parity.test.jsx` pinned `K = 3` with the note "possibly 4
+later"). A dimension's score is the mean of its items on an 0..4 scale
+rescaled to 0..100, so **K items give 4K+1 reachable values** — at K=3,
+thirteen of them, with each single answer worth **8.3 points** of the
+score.
+
+That is the arithmetic that matters, not the 15/18 headline. The Mirror
+reads those scores as cut lines, the Map files answers against them, and
+`IS_archScores` matches an archetype on distances of a few points — all
+against a number one careless tap moves by eight. For reference in items
+per trait: TIPI 2, Mini-IPIP 4, BFI-44 ~9, BFI-2 12.
+
+**K = 5.** Big Five 15→25, Politics 18→30, Values 18→30, Social 15→25,
+plus the new test's 20 — **130 test items, 463 seeded questions**. Each
+dimension now has 21 reachable values at 4.8 points per answer, and each
+carries **2** reverse-keyed items rather than 1, so a straight-line
+"agree" response lands every dimension at 55 (a shrug) instead of 75 (a
+personality). That last figure is asserted in `smoke.test.jsx`, not
+reasoned about.
+
+K = 4 was the increment W2 anticipated and was rejected: it is 38 items of
+authoring for a score still coarser than Mini-IPIP. K = 6 puts Politics
+and Values at 36 items (~25 min sat down), which is a different product
+decision about test length, not a fix for this one.
+
+**Mechanics, per W2.** Appended at the END of each `questions` array in
+both `content/tests.json` and `IS_TESTS`, in one commit — appending keeps
+the positional `test-<key>-NN` ids stable and in-flight
+`insight.testProgress` answer arrays index-aligned. A user mid-test sees
+their progress percentage drop as the denominator grows; that is accurate,
+not a bug. Saved results are per-dimension 0..100 and item-count-free, so
+they survive untouched.
+
+### 2. `cognitive` was a test nobody could take
+
+`IS_TEST_RESULTS.cognitive` shipped with four dims, and
+`segment-explorer`, `compare-breakdown`, `group-mirror`, `person-overlay`
+and `compare-pop` all read it. `IS_TESTS` had no `cognitive` key, and
+`test-overlay.jsx` offers exactly what `IS_TESTS` holds. So the profile
+showed you a thinking style with **no way in the app to earn one** — in
+live mode, a surface that could only ever be empty.
+
+Nothing failed, and nothing could have: a test nobody can take is not a
+name error, so `check:globals`, `no-undef` and `tsc -b` were all blind to
+it, and `smoke.test.jsx` never opened a screen that needed it.
+
+It now has a 20-item bank (4 modes × 5, 2 reverse-keyed each) whose dim
+ids and meanings are the ones `explain-sheet.jsx` already published. Made
+first-class in the same pass: `IS_TEST_AVG` (absent — which is not
+neutral, it null'd the rarity readout and flattened archetype matching to
+a 50 baseline), `RP_TESTS`, `IS_ARCHETYPES` and the four archetype word
+maps, `PASSIVE.META`, the profile's sub-tab and arc ring, and a fifth Map
+anchor — `map-anchors.js`'s own header had said "the five test results"
+since the port while the list held four.
+
+**The trap the fix introduces, and the guard for it.**
+`ResultProfileCard` returns `null` on a missing `RP_TESTS` entry. Without
+one, finishing the new test lands on a header, a Done button and blank
+space between them — no throw, no boundary trip, every static gate green.
+That is `smoke.test.jsx`'s "the cognitive test is takeable end to end" —
+four cases: the picker offers it, the profile sub-tab draws it, a saved
+result draws it, and all 20 items answered through the real UI land on a
+result card.
+
+Mutation-checked rather than argued, and the measured numbers, because
+the point is which gate notices: renaming the key in `IS_TESTS` fails 3 of
+the 4, renaming it in `RP_TESTS` fails 2. **In both runs every
+"without tripping the boundary" case still passed** — which is the whole
+claim. The screen goes blank and nothing throws.
+
+### What is deliberately NOT done
+
+**`cognitive` is not a vote-cut line.** `VOTECUTS` reads
+`RMLenses.TESTS`, whose entries carry five colour bands per axis, named
+types with hues, and the Circle map's people-colouring. That is a design
+surface of its own, not a missing key, and inventing one to square the row
+is the fabrication D1 forbids (docs/MIRROR.md §3). `TEST_IDS` stays four;
+the Mirror's cut list says four tests and means it.
+
+**Existing `seq` values shift.** The test surface runs one counter across
+all tests (`gen-v2content.mjs`), so appending to big5 renumbers every
+later test's `seq`. Harmless and checked: no answer document references
+`seq`, ids are unchanged, and `seq` only sorts the bank client-side
+(`live.ts`). The next seed run rewrites those docs, which the D34 delta
+cursor picks up via `updatedAt`. **New questions do not bump
+`contentRev`** and these do not either.
+
+**Production is further behind than it was.** The last seed wrote 389; the
+bank is now 463. Same standing instruction as ever (LAUNCH-RUNBOOK 1.4) —
+reseed after merging.

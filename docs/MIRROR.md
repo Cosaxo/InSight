@@ -205,10 +205,10 @@ Two gaps are worth stating in prose because no badge covers them:
   MapStats through a null guard already, and its fallbacks put every dot
   at one radius with none marked a rare take.
 
-  Two of the seven Map anchors have a real counterpart waiting —
+  Two of the eight Map anchors have a real counterpart waiting —
   `v2_question_aggs.by` carries k-floored age and education breakdowns.
-  The other five cannot: `job` is profession, deliberately not a
-  breakdown dim (D8), and the four test anchors are not dims at all.
+  The other six cannot: `job` is profession, deliberately not a
+  breakdown dim (D8), and the five test anchors are not dims at all.
 - **The Circle and its relationship map are prototype-only.** `relmap`'s
   people are invented, and it is the largest module still loaded eagerly
   — the one overlay excluded from the after-first-paint group, because

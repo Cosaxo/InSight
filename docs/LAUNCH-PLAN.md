@@ -185,6 +185,13 @@ is self-contained and nothing else depends on it. Record the deferral if taken.
 
 ## W2 — Personality tests: 2 → 3 items per dimension (2 sessions; needs W1.1)
 
+> **Superseded 2026-08-10 (D85):** K went to **5**, and a fifth test
+> (`cognitive`) gained the question bank it had never had. The mechanics
+> below — append at the end, one commit, both layers, regen + reseed — are
+> what that change followed, and the parity gate this section introduced is
+> what held the two layers together through it.
+
+
 +22 items: big5 10→15, political 12→18, values 12→18, attachment 10→15
 (44→66 test docs). The quality bar, enforced by review plus the parity gate
 where mechanical:

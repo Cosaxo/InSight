@@ -66,6 +66,23 @@ export const RP_TESTS = {
       easy:  ['invested', 'easygoing'],
     },
   },
+  // Added with the cognitive question bank (2026-08-10). This entry is not
+  // decoration: ResultProfileCard returns null on a missing cfg, so without
+  // it finishing the new test lands on a screen with a CTA and no result.
+  // Not bipolar — the four modes are each their own 0..100 and most people
+  // run two of them together, so |v−50| would read a genuine two-mode
+  // thinker as having no style at all.
+  cognitive: {
+    banner: 'oklch(0.46 0.10 220)',
+    kicker: 'Thinking · Four modes',
+    hues: { analyst: 215, systems: 250, empath: 185, maker: 285 },
+    poles: {
+      analyst: ['intuitive', 'analytic'],
+      systems: ['detail', 'systems'],
+      empath:  ['detached', 'attuned'],
+      maker:   ['planner', 'maker'],
+    },
+  },
 };
 
 // hue → petal fill / deep text / dot colours (same L+C family everywhere)
