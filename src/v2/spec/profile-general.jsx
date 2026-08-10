@@ -394,12 +394,13 @@ import { list as anchorList } from './map-anchors.js';
     );
   }
 
-  // ── four test arcs — each test as a filled ring, no numbers ──
+  // ── one arc per test — each test as a filled ring, no numbers ──
   const ARC_TESTS = [
     { k: 'big5', sub: 'big5', name: 'Big Five' },
     { k: 'political', sub: 'politics', name: 'Politics' },
     { k: 'values', sub: 'values', name: 'Values' },
     { k: 'attachment', sub: 'attachment', name: 'Social' },
+    { k: 'cognitive', sub: 'thinking', name: 'Thinking' },
   ];
   // The lenses as a 3x3 of dots — filled once a lens has enough answers to
   // read. A shortcut to the Lenses sub-tab, which is otherwise only reachable
@@ -433,7 +434,12 @@ import { list as anchorList } from './map-anchors.js';
     const C = 2 * Math.PI * 23;
     return (
       <Card title="Your tests">
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 2 }}>
+        {/* Column count derives from the list — it was hardcoded to 4 and the
+            fifth test would have wrapped a lone ring onto its own row. The
+            rings scale with the column instead of sitting at a fixed 54px:
+            five columns on a 320px viewport leave ~50px each, which a fixed
+            54px ring overflows. */}
+        <div style={{ display: 'grid', gridTemplateColumns: `repeat(${ARC_TESTS.length}, 1fr)`, gap: 2 }}>
           {ARC_TESTS.map(({ k, sub, name }) => {
             const res = R[k];
             const top = res ? [...res.dims].sort((a, b) => b.value - a.value)[0] : null;
@@ -444,7 +450,7 @@ import { list as anchorList } from './map-anchors.js';
                 padding: '2px 0', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 7,
                 fontFamily: 'var(--sans)', color: 'var(--ink)', minWidth: 0,
               }}>
-                <svg viewBox="0 0 56 56" width="54" height="54" aria-hidden="true">
+                <svg viewBox="0 0 56 56" width="54" height="54" style={{ width: '100%', maxWidth: 54, height: 'auto' }} aria-hidden="true">
                   <circle cx="28" cy="28" r="23" fill="none" stroke="var(--surface-3)" strokeWidth="6"></circle>
                   {pct > 0 && res && <circle cx="28" cy="28" r="23" fill="none" stroke={res.accent} strokeWidth="6" strokeLinecap="round"
                     strokeDasharray={`${(C * pct) / 100} ${C}`} transform="rotate(-90 28 28)"></circle>}

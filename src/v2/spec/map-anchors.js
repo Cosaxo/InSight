@@ -22,17 +22,22 @@ let listExport, relateExport;
     return R.dims.slice().sort((a, b) => b.value - a.value).slice(0, n || 2)
       .map((d) => d.label + ' ' + d.value).join(' · ');
   }
-  // The four test anchors. Same shape in both modes because the source is
+  // The five test anchors. Same shape in both modes because the source is
   // the same object: test-definitions.js seeds it with the demo persona's
   // results and data/live.ts replaces the whole thing on hydrate, so in
   // live mode a test the user has not taken is simply absent and topDims
   // returns ''. list() drops those rows.
+  //
+  // The header above this file said "the five test results" from the port
+  // onwards while this list held four — cognitive had a result and no
+  // question bank, so it was never an anchor. It has a bank now.
   function testRows() {
     return [
       { id: 'big5',       label: 'Big Five', hue: 40,  value: topDims('big5'),       sub: tTaken('big5') },
       { id: 'political',  label: 'Politics', hue: 235, value: topDims('political'),  sub: tTaken('political') },
       { id: 'values',     label: 'Values',   hue: 28,  value: topDims('values'),     sub: tTaken('values') },
       { id: 'attachment', label: 'Social',   hue: 320, value: topDims('attachment'), sub: tTaken('attachment') },
+      { id: 'cognitive',  label: 'Thinking', hue: 220, value: topDims('cognitive'),  sub: tTaken('cognitive') },
     ];
   }
   // Live mode: the viewer's OWN anchors (D8), the same seven fields an

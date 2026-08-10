@@ -22,7 +22,7 @@ the count is zero**, which is a change from 2026-08-04: the Team ID and the
 `REVERSED_CLIENT_ID` were the other two and both are filled.
 
 `check:store-listing` and `check:versions` pass; the daily bank is at 90
-questions of 399 seeded; the production backend is deployed. **Measured
+questions of 463 seeded; the production backend is deployed. **Measured
 2026-08-04:** anonymous sign-in works (`accounts:signUp` returns an
 `idToken`, where it returned `ADMIN_ONLY_OPERATION` on 2026-08-03), the
 InSight web app is registered, and the default hosting site `prvfire33`
@@ -121,12 +121,12 @@ arithmetic.
 
 - [ ] **0.1 Seed the production question bank — run 2026-08-07 and already
       stale.** Actions → **Seed content** → Run workflow.
-      399 questions land in `v2_questions` — idempotent and, since D34,
+      463 questions land in `v2_questions` — idempotent and, since D34,
       cheap to repeat.
 
       **It is unticked on purpose, and still is.** That run wrote **389**,
-      and the bank is **399** as of D68's v18 sync — so ten questions are
-      in the repo and not in production. This is exactly the
+      and the bank is **463** after the K=5 test expansion — so the
+      difference is in the repo and not in production. This is exactly the
       standing-instruction case: the box is not "seeded once", it is
       "seeded since the last content change", and every promotion (D30,
       D33) moves it back. **Reseed after merging anything that touches
@@ -433,7 +433,7 @@ start.
       **Expect the k-floor to look like a bug on your own device.** Below
       five answers every crowd figure reads *"You're early — counts appear
       once 5 people have answered"* (`AGG_MIN_N = 5`, D7). That is the
-      floor working, not an empty backend — the 399 seeded questions are
+      floor working, not an empty backend — the 463 seeded questions are
       live regardless.
 - [ ] **3.3 Walk the on-device verification list** — six checks, first
       build, `SHIP-CHECKLIST §4`: frameless layout in light+dark, anonymous

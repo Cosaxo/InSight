@@ -85,6 +85,15 @@ export const IS_TEST_AVG = {
   political:  { econ: 50, auth: 52, foreign: 48, env: 55, tech: 60, estab: 55 },
   values:     { future: 52, circle: 45, hedonism: 55, meaning: 58, moral: 55, beauty: 60 },
   attachment: { warm: 64, loyal: 66, open: 56, play: 58, easy: 60 },
+  // Added with the cognitive bank. This key was absent while the demo
+  // persona already had a cognitive result, and absence is not neutral
+  // here: IS_profileRarity returns null without a baseline (no rarity
+  // readout on the card) and IS_archScores falls back to a flat 50 for
+  // every mode, which biases type matching toward whichever type sits
+  // nearest the midpoint. Empath highest because self-report on reading
+  // people runs high everywhere; maker lowest for the same reason in
+  // reverse.
+  cognitive:  { analyst: 58, systems: 55, empath: 62, maker: 52 },
 };
 
 // ── Persist completed results so a retake (or reload) keeps what you scored ──
@@ -149,7 +158,7 @@ export function persistTestResult(kind, result) {
 export const IS_TESTS = {
     big5: {
       title: 'Big Five',
-      tag: 'personality · 15 questions · 5 traits',
+      tag: 'personality · 25 questions · 5 traits',
       accent: 'var(--c-around)',
       dims: [
         { id: 'O', label: 'Openness',          blurb: 'curiosity & range' },
@@ -177,11 +186,26 @@ export const IS_TESTS = {
         { q: "A full day alone recharges me more than a night out.",   d: 'E', invert: true },
         { q: "I'd rather win the argument than smooth things over.",   d: 'A', invert: true },
         { q: "It takes a lot to rattle me.",                           d: 'N', invert: true },
+        // Round 3 (K 3→5): two per trait, one of them reverse-keyed, so
+        // every trait ends at five items with two inverts. Three items per
+        // trait left each score with 13 reachable values — one careless tap
+        // moved a trait ~8 points, which is more resolution than the Mirror
+        // reads off it.
+        { q: "I go looking for music, films or books I know nothing about.", d: 'O' },
+        { q: "I have little patience for questions with no practical use.",  d: 'O', invert: true },
+        { q: "I keep my things in order without having to think about it.",  d: 'C' },
+        { q: "My plans tend to fall apart in the details.",                  d: 'C', invert: true },
+        { q: "I start conversations with people I have just met.",           d: 'E' },
+        { q: "In a group I say less than most people there.",                d: 'E', invert: true },
+        { q: "I give people the benefit of the doubt when a story doesn't add up.", d: 'A' },
+        { q: "I decide quickly whether someone is worth my time.",           d: 'A', invert: true },
+        { q: "I replay conversations afterwards, looking for what I got wrong.", d: 'N' },
+        { q: "I sleep fine the night before something big.",                 d: 'N', invert: true },
       ],
     },
     political: {
       title: 'Politics',
-      tag: 'compass · 18 questions · 6 axes',
+      tag: 'compass · 30 questions · 6 axes',
       accent: 'var(--c-world)',
       dims: [
         { id: 'econ',    label: 'Economic',   blurb: 'left ←→ right' },
@@ -212,11 +236,27 @@ export const IS_TESTS = {
         { q: "The dangers of climate change are exaggerated.",         d: 'env', invert: true },
         { q: "Progress means building first and fixing problems as they come.", d: 'tech' },
         { q: "Experts and institutions usually get it right.",         d: 'estab', invert: true },
+        // Round 3 (K 3→5): two per axis, one reverse-keyed. The compass is
+        // the test whose result the Mirror slices hardest (D44 treats these
+        // answers as Art. 9-adjacent), so it is the one that could least
+        // afford three items an axis.
+        { q: "People mostly end up where their own effort puts them.",  d: 'econ' },
+        { q: "The gap between rich and poor is the biggest problem we have.", d: 'econ', invert: true },
+        { q: "Order in the streets matters more than the right to protest.", d: 'auth' },
+        { q: "Adults should be free to harm themselves if they choose.", d: 'auth', invert: true },
+        { q: "Immigration has made my country better.",                 d: 'foreign' },
+        { q: "We should fix problems at home before problems abroad.",   d: 'foreign', invert: true },
+        { q: "I would pay noticeably more for energy to cut emissions faster.", d: 'env' },
+        { q: "Environmental rules are already strict enough.",           d: 'env', invert: true },
+        { q: "I would rather live with the risks of new technology than miss what it brings.", d: 'tech' },
+        { q: "New tools should prove they are safe before anyone can use them.", d: 'tech', invert: true },
+        { q: "Most politicians are in it for themselves.",               d: 'estab' },
+        { q: "The people running things mostly know what they are doing.", d: 'estab', invert: true },
       ],
     },
     values: {
       title: 'Values',
-      tag: '18 questions · six tensions',
+      tag: '30 questions · six tensions',
       accent: 'var(--c-people)',
       dims: [
         { id: 'future',   label: 'Future',   blurb: 'pessimist ←→ optimist' },
@@ -247,11 +287,24 @@ export const IS_TESTS = {
         { q: "A calm, happy life beats a hard, important one.",                 d: 'meaning', invert: true },
         { q: "Right and wrong depend on the culture you're standing in.",       d: 'moral', invert: true },
         { q: "Whether something works matters more than how it looks.",         d: 'beauty', invert: true },
+        // Round 3 (K 3→5): two per tension, one reverse-keyed.
+        { q: "I expect my own life ten years from now to be better than it is today.", d: 'future' },
+        { q: "The problems ahead of us are bigger than anything we have solved.", d: 'future', invert: true },
+        { q: "A life saved far away counts the same as one saved here.",        d: 'circle' },
+        { q: "Charity should start with the people around you.",                d: 'circle', invert: true },
+        { q: "I plan my week around things I will enjoy.",                      d: 'hedonism' },
+        { q: "I feel uneasy resting while work is unfinished.",                 d: 'hedonism', invert: true },
+        { q: "The best parts of my life came out of something difficult.",      d: 'meaning' },
+        { q: "I would trade a smaller life for a more peaceful one.",           d: 'meaning', invert: true },
+        { q: "Some acts would be wrong even if everyone approved of them.",     d: 'moral' },
+        { q: "Morality is something people invented, like money.",              d: 'moral', invert: true },
+        { q: "I will pay more for something well made when a plain one would do.", d: 'beauty' },
+        { q: "Decoration is the first thing I would cut.",                      d: 'beauty', invert: true },
       ],
     },
     attachment: {
       title: 'Social',
-      tag: '15 questions · what kind of friend you are',
+      tag: '25 questions · what kind of friend you are',
       accent: 'oklch(0.52 0.13 320)',
       dims: [
         { id: 'warm',  label: 'Warm',      blurb: 'reserved ←→ warm' },
@@ -278,6 +331,66 @@ export const IS_TESTS = {
         { q: "I keep my problems to myself.",                         d: 'open', invert: true },
         { q: "I take most things seriously, even the small stuff.",   d: 'play', invert: true },
         { q: "I keep track of who reached out last.",      d: 'easy', invert: true },
+        // Round 3 (K 3→5): two per dimension, one reverse-keyed.
+        { q: "I tell my friends what they mean to me.",               d: 'warm' },
+        { q: "Compliments feel awkward coming out of my mouth.",      d: 'warm', invert: true },
+        { q: "I still keep up with people I met years ago.",          d: 'loyal' },
+        { q: "When someone moves away, we usually lose touch.",       d: 'loyal', invert: true },
+        { q: "I will admit it when I am struggling.",                 d: 'open' },
+        { q: "There are things about me nobody in my life knows.",    d: 'open', invert: true },
+        { q: "I am the one who suggests something daft.",             d: 'play' },
+        { q: "I find it hard to switch off and mess about.",          d: 'play', invert: true },
+        { q: "A friend cancelling on me barely registers.",           d: 'easy' },
+        { q: "It bothers me when a friend doesn't reply for days.",   d: 'easy', invert: true },
+      ],
+    },
+    // The fifth test, added 2026-08-10. Its dims, labels, population
+    // baselines and result copy all shipped long ago — the demo persona
+    // carries a `cognitive` result and segment-explorer, compare-breakdown,
+    // group-mirror, person-overlay and compare-pop all read it — but
+    // IS_TESTS had no `cognitive` key, and test-overlay.jsx offers exactly
+    // what IS_TESTS holds. So the profile could show you a thinking style
+    // and there was no way on earth to earn one; a live account saw the
+    // surfaces and never the test. Last in the object on purpose: adding it
+    // here rather than mid-object leaves the other four tests' emission
+    // order in v2content.ts alone.
+    //
+    // Dim ids and their meanings are not invented here — they are what
+    // explain-sheet.jsx has always said the four modes are.
+    cognitive: {
+      title: 'Thinking',
+      tag: 'how you get to an answer · 20 questions · 4 modes',
+      accent: 'oklch(0.50 0.12 220)',
+      dims: [
+        { id: 'analyst', label: 'Analyst', blurb: 'takes it apart' },
+        { id: 'systems', label: 'Systems', blurb: 'sees how it connects' },
+        { id: 'empath',  label: 'Empath',  blurb: 'reads the room' },
+        { id: 'maker',   label: 'Maker',   blurb: 'learns by building' },
+      ],
+      // Not poles of one axis: most people run two of these together, which
+      // is why every mode is scored on its own 0..100 and the test is not
+      // marked bipolar in RP_TESTS.
+      questions: [
+        { q: "I break a problem into pieces before I start on it.",   d: 'analyst' },
+        { q: "I want the numbers in front of me before I take a view.", d: 'analyst' },
+        { q: "I check whether an argument actually follows.",         d: 'analyst' },
+        { q: "I would rather go with a hunch than work it through.",  d: 'analyst', invert: true },
+        { q: "I lose interest once a problem gets fiddly.",           d: 'analyst', invert: true },
+        { q: "I look for the pattern before I look at the parts.",    d: 'systems' },
+        { q: "I want to know how a thing fits into everything around it.", d: 'systems' },
+        { q: "When something breaks I look upstream for the cause.",  d: 'systems' },
+        { q: "I would rather fix what is in front of me than ask why it keeps happening.", d: 'systems', invert: true },
+        { q: "Diagrams and maps rarely help me think.",               d: 'systems', invert: true },
+        { q: "I can tell when the mood in a room has shifted.",       d: 'empath' },
+        { q: "I work out what someone wants before they say it.",     d: 'empath' },
+        { q: "I think about how a decision will land on people.",     d: 'empath' },
+        { q: "Other people's reasons are mostly a mystery to me.",    d: 'empath', invert: true },
+        { q: "I judge an idea on its merits and leave the people out of it.", d: 'empath', invert: true },
+        { q: "I understand something once I have built it myself.",   d: 'maker' },
+        { q: "I would rather try it than read about it.",             d: 'maker' },
+        { q: "I learn a tool by opening it and pressing things.",     d: 'maker' },
+        { q: "I want the instructions before I touch anything.",      d: 'maker', invert: true },
+        { q: "I would rather plan it properly than start and adjust.", d: 'maker', invert: true },
       ],
     },
 };
