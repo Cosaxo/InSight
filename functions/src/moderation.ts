@@ -35,7 +35,17 @@ const REGION = "us-central1";
 const MOD_QUEUE_MIN_FLAGS = 3;
 const MOD_QUEUE_SIZE = 25;
 const MOD_RUN_CAP = 50;
-export const MOD_ADVISORY = true;
+// FALSE since D83 (2026-08-10): world takes shipped, and D78 made this
+// flip their hard prerequisite — at world scale, circle-scope trust can no
+// longer stand in for enforcement. The header note asked the flip to cite
+// the advisory phase's track record; there is none to cite (the advisory
+// window closed with zero users and an empty verdict log), and that
+// deviation is recorded in D83 rather than papered over. Until the
+// low-privilege Routine lands (still blocked, docs/MODERATION.md), the
+// only verdict source is a MOD_UIDS operator acting by hand — a remove
+// verdict now actually hides, so the blast radius of a wrong one is real
+// and bounded by MOD_RUN_CAP.
+export const MOD_ADVISORY = false;
 
 function modUids(): string[] {
   return (process.env.MOD_UIDS || "")

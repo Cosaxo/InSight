@@ -431,10 +431,12 @@ start.
       question to answer.
 
       **Expect the k-floor to look like a bug on your own device.** Below
-      five answers every crowd figure reads *"You're early — counts appear
-      once 5 people have answered"* (`AGG_MIN_N = 5`, D7). That is the
-      floor working, not an empty backend — the 463 seeded questions are
-      live regardless.
+      the floor every crowd figure reads *"You're early"* (`AGG_MIN_N`,
+      D7). That is the floor working, not an empty backend — the 463
+      seeded questions are live regardless. **Paused since D81
+      (2026-08-09):** the floor sits at 1 until launch traction, so counts
+      appear from the first answer and this symptom is gone until the
+      floor restores.
 - [ ] **3.3 Walk the on-device verification list** — six checks, first
       build, `SHIP-CHECKLIST §4`: frameless layout in light+dark, anonymous
       session surviving restart, Google link → reinstall → history
@@ -454,9 +456,11 @@ pushed as of 2026-08-08** and so is the age rating; what is left here is a
 **recapture against live data**, the privacy form, and the trader document
 in the post.
 
-The recapture is the one with a real precondition: it wants five people to
-have answered, or the k-floor (D7) puts *"You're early"* where every crowd
-figure should be. That is a tester-count problem, not a workflow problem.
+The recapture is the one with a real precondition: it wants real answers
+on screen. Under D81's pause one answer per question is enough (counts
+publish from the first); once the floor restores it wants five, or the
+k-floor (D7) puts *"You're early"* where every crowd figure should be.
+That is a tester-count problem, not a workflow problem.
 
 - [ ] **4.1 Recapture the screenshots in LIVE mode — Actions →
       *Screenshots* → Run workflow.** Capture with upload unticked, download

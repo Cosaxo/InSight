@@ -113,11 +113,15 @@ window.SUBTOPICS = (function () {
   const BY = {};
   ALL.forEach((s) => { BY[s.id] = s; });
   const listeners = new Set();
+  // Same gate as scenes.js, same reason: a live build starts with zero
+  // follows — "one leaf followed from day one" is demo furniture, and on a
+  // release device it was a subscription the user never chose.
+  const SUB_LIVE_BUILD = import.meta.env && import.meta.env.VITE_V2_LIVE === 'true';
   let set = null;
   function ensure() {
     if (set) return set;
     try { const v = JSON.parse(localStorage.getItem(LS) || 'null'); if (Array.isArray(v)) set = new Set(v.filter((id) => BY[id])); } catch (e) { /* localStorage can throw: private mode, quota, disabled storage. Best-effort — in-memory state stays correct. */ }
-    if (!set) set = new Set(['sub_tennis']);        // one leaf followed from day one
+    if (!set) set = SUB_LIVE_BUILD ? new Set() : new Set(['sub_tennis']);        // one leaf followed from day one (demo)
     return set;
   }
   const save = () => { try { localStorage.setItem(LS, JSON.stringify([...ensure()])); } catch (e) { /* localStorage can throw: private mode, quota, disabled storage. Best-effort — in-memory state stays correct. */ } listeners.forEach((f) => { try { f(); } catch (e) { /* localStorage can throw: private mode, quota, disabled storage. Best-effort — in-memory state stays correct. */ } }); };

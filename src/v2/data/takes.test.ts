@@ -253,9 +253,10 @@ describe("loadTakes query shape (D65)", () => {
     const LIVE = await bootLive();
     await LIVE.social.loadTakes(GID);
 
-    // firestore.indexes.json holds exactly one v2_takes index. A query
-    // that stops matching it fails on its first production run, and
-    // nothing else in the tree compares the two.
+    // firestore.indexes.json holds two v2_takes indexes: this circle one
+    // and the world one (gid, qid, hidden, createdAt — the suite below).
+    // A query that stops matching its index fails on its first production
+    // run, and nothing else in the tree compares the two.
     expect(takesQuery()?.constraints).toEqual([
       { kind: "where", field: "gid", op: "==", value: GID },
       { kind: "where", field: "hidden", op: "==", value: false },
@@ -290,6 +291,72 @@ describe("loadTakes query shape (D65)", () => {
     h.takeDocs.push(takeDoc("t1", 1000));
     await LIVE.social.loadTakes(GID);
     expect(LIVE.social.takes(GID).map((t) => t.id)).toEqual(["t1"]);
+  });
+});
+
+// ── the world scope (D83) ────────────────────────────────────────────
+//
+// Same five members, sentinel gid "world". The load-bearing differences:
+// the query carries qid (the cache and the second composite index are
+// per-question — "every world take ever" is unbounded), and the post id
+// is `qid_uid`, which is the one-take-per-person-per-question bound the
+// create rule checks literally.
+
+describe("world takes", () => {
+  it("queries with qid — matching the (gid, qid, hidden, createdAt) index", async () => {
+    const LIVE = await bootLive();
+    await LIVE.social.loadTakes("world", "q_1");
+
+    expect(takesQuery()?.constraints).toEqual([
+      { kind: "where", field: "gid", op: "==", value: "world" },
+      { kind: "where", field: "qid", op: "==", value: "q_1" },
+      { kind: "where", field: "hidden", op: "==", value: false },
+      { kind: "orderBy", field: "createdAt", dir: "desc" },
+    ]);
+  });
+
+  it("refuses a world load with no question rather than minting a phantom key", async () => {
+    const LIVE = await bootLive();
+    await LIVE.social.loadTakes("world");
+    expect(takesQuery()).toBeUndefined();
+    expect(LIVE.social.takes("world")).toEqual([]);
+  });
+
+  it("caches per question, so two questions' lists never bleed", async () => {
+    h.takeDocs.push(takeDoc("w1", 3000, { gid: "world", qid: "q_1" }));
+    const LIVE = await bootLive();
+    await LIVE.social.loadTakes("world", "q_1");
+    h.takeDocs.length = 0;
+    h.takeDocs.push(takeDoc("w2", 2000, { gid: "world", qid: "q_2" }));
+    await LIVE.social.loadTakes("world", "q_2");
+
+    expect(LIVE.social.takes("world", "q_1").map((t) => t.id)).toEqual(["w1"]);
+    expect(LIVE.social.takes("world", "q_2").map((t) => t.id)).toEqual(["w2"]);
+  });
+
+  it("posts under the deterministic id qid_uid — the one-take bound", async () => {
+    const LIVE = await bootLive();
+    await LIVE.social.postTake("world", "q_1", "my world take");
+
+    const write = h.setDocCalls.find((c) => c.path.startsWith("v2_takes/"));
+    expect(write?.path).toBe("v2_takes/q_1_uid_test");
+    // Still exactly the six keys hasOnly permits — world changes the id,
+    // never the shape.
+    expect(Object.keys(write?.data ?? {}).sort()).toEqual(
+      ["authorUid", "createdAt", "gid", "hidden", "qid", "text"],
+    );
+    expect(write?.data.gid).toBe("world");
+  });
+
+  it("deleteTake clears the take from the per-question world cache", async () => {
+    h.takeDocs.push(takeDoc("q_1_uid_test", 3000, { gid: "world", qid: "q_1", authorUid: "uid_test" }));
+    const LIVE = await bootLive();
+    await LIVE.social.loadTakes("world", "q_1");
+    expect(LIVE.social.takes("world", "q_1")).toHaveLength(1);
+
+    await LIVE.social.deleteTake("world", "q_1_uid_test");
+    expect(h.deleteCalls).toContain("v2_takes/q_1_uid_test");
+    expect(LIVE.social.takes("world", "q_1")).toEqual([]);
   });
 });
 

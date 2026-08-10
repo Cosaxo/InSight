@@ -39,7 +39,7 @@
 // (`enabled: false`, no network), which is what the paragraph above rules out.
 
 import realLive from "../data/live";
-import { LIVE_MEMBERS, LIVE_SOCIAL_MEMBERS } from "./live-surface";
+import { LIVE_MEMBERS, LIVE_NEAR_MEMBERS, LIVE_SOCIAL_MEMBERS } from "./live-surface";
 
 type Dict = Record<string, unknown>;
 
@@ -139,6 +139,20 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
     flagged: () => false,
   };
 
+  // Presence (D84), opted OUT: the stand-in's Near card shows the pitch
+  // state, and no test can accidentally depend on a count nobody wrote.
+  const near: Dict = {
+    supported: () => true,
+    on: () => false,
+    count: () => null,
+    tooFew: () => false,
+    updatedAt: () => 0,
+    lastError: () => null,
+    enable: async () => ({ ok: true }),
+    disable: async () => {},
+    refresh: () => {},
+  };
+
   const LIVE: Dict = {
     enabled: true,
     ready: true,
@@ -158,6 +172,7 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
     updateUrl: "",
     stats: { bankSource: "fixture", aggsFetched: 2, answersFetched: 0 },
     social,
+    near,
     deck: () => deck,
     dailyBank: () => deck.map((q) => ({ id: q.id, prompt: q.text })),
     // Below the floor the server publishes `{ tooSmall: true }` and nothing
@@ -296,7 +311,7 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
 // rather than against behaviour, and a member the fixture invents is one no
 // consumer will ever look up.
 export function fixtureSurfaceMismatch(handle: LiveHandle): {
-  live: string[]; social: string[];
+  live: string[]; social: string[]; near: string[];
 } {
   const diff = (actual: string[], expected: string[]) => [
     ...actual.filter((k) => !expected.includes(k)).map((k) => `+${k}`),
@@ -305,5 +320,6 @@ export function fixtureSurfaceMismatch(handle: LiveHandle): {
   return {
     live: diff(Object.keys(handle.LIVE), LIVE_MEMBERS),
     social: diff(Object.keys(handle.LIVE.social as Dict), LIVE_SOCIAL_MEMBERS),
+    near: diff(Object.keys(handle.LIVE.near as Dict), LIVE_NEAR_MEMBERS),
   };
 }

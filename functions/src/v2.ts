@@ -46,7 +46,20 @@ const REGION = "us-central1";
 
 // Public counts appear only at or above this many answers. Raise as the
 // userbase grows; the private doc keeps exact counts either way.
-export const AGG_MIN_N = 5;
+//
+// ── PAUSED at 1 for pre-launch (D81, owner's call 2026-08-09) ──
+// At the current userbase every cohort sits under 5 indefinitely, so the
+// entire product renders as "withheld" — the floor was protecting nobody
+// from nothing while making the app look dead. The value is 1 (not a
+// removed check) so the machinery stays exercised: publishableBreakdown,
+// tooSmall, complementary suppression and the single-bucket rule all still
+// run, they just bite at a size that never occurs. The accepted disclosure
+// while paused — a cohort of one or two IS an individual's answer to
+// anyone who knows who is in it — is recorded in D81 with the revert
+// condition. To restore: set this and PUBLISH_EVERY back to 5 (both
+// literals, same commit — the cross-file drift tests hold the client copy
+// to these exact numbers and will name every file that must follow).
+export const AGG_MIN_N = 1;
 
 // Public-mirror write cadence: one publish per this many answers, at every
 // size. Two jobs, and it took both to settle the number.
@@ -68,7 +81,16 @@ export const AGG_MIN_N = 5;
 // few enough voters to guess among.
 // Exported since D57: the logic norms histogram publishes its public
 // mirror on the same cadence, for the same attribution argument.
-export const PUBLISH_EVERY = 5;
+//
+// ── PAUSED at 1 with the floor (D81) ──
+// Publishing per answer makes every step attributable — that is the whole
+// disclosure argument above, accepted knowingly for the pre-launch phase
+// where the floor itself is paused: batching votes nobody can see defends
+// nothing. The two constants move together, both directions — a floor of 1
+// with a cadence of 5 would hold the first four answers hostage for no
+// disclosure gain, and the restored floor without the restored cadence
+// re-opens the one-vote-per-step stream D7's amendment closed.
+export const PUBLISH_EVERY = 1;
 
 // ── questions that never slice (D44) ────────────────────────────
 //

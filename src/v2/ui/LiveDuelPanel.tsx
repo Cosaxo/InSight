@@ -363,7 +363,11 @@ function LdGroupCard({ g }: { g: LiveGroup }) {
               {" · "}{(() => {
                 const t = new Date(); t.setUTCHours(24, 0, 0, 0);
                 const hhmm = t.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-                return duo ? "revealed after " + hhmm + " — if you both play." : "revealed with names after " + hhmm + ".";
+                // "Takes open with it": the composer mounts on the REVEAL,
+                // never beside a sealed answer (free text there is the vote,
+                // in prose — see LdReveal). Saying so here is what makes the
+                // feature findable before the first reveal has ever landed.
+                return duo ? "revealed after " + hhmm + " — if you both play. Takes open with the reveal." : "revealed with names after " + hhmm + ". Takes open with the reveal.";
               })()}
             </div>
           ) : (

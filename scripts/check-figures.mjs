@@ -247,7 +247,11 @@ const FIGURES = [
   {
     file: "docs/LAUNCH-RUNBOOK.md",
     what: "seeded questions (the k-floor note in the on-device walk)",
-    re: /the (\d+) seeded questions are/,
+    // Wrap-tolerant like the status-header entry above: the count and the
+    // words after it sit on different lines, and D81's rewording of this
+    // paragraph moved the break. A gate that a reflow can silence is one
+    // that goes quiet exactly when the prose around a figure changes.
+    re: /the (\d+)\s*\n?\s*seeded questions are/,
     actual: seededQuestions,
     fix: (n) => `"the ${n} seeded questions are"`,
   },

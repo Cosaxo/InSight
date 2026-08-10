@@ -17,8 +17,8 @@
 //      so a local hide has nothing to rehydrate from and would reappear on
 //      the next load; hiding is the moderator's verdict to make.
 //
-// Plus the copy: MOD_ADVISORY is true, so nothing is hidden today and the
-// control must not promise that it will be.
+// Plus the copy: even under enforcement (MOD_ADVISORY=false, D83) the
+// control promises review, never removal — that is the verdict's to say.
 //
 // `../data/live` is mocked rather than booted — it imports Firebase, and
 // what this panel consumes is one flag, one uid, and the social surface.
@@ -223,5 +223,97 @@ describe("the surfaces around the list", () => {
       expect(screen.getByRole("alert").textContent).toMatch(/didn’t send/i);
     });
     expect(screen.queryByText("Reported")).toBeNull();
+  });
+});
+
+// ── the world scope (D83) ────────────────────────────────────────────
+//
+// Same panel, sentinel gid "world". What changes is exactly what D78
+// part 2 demanded: no author names anywhere, one take per person per
+// question (the composer folds when yours exists — the doc id enforces
+// it server-side), and the mute control guideline 1.2 expects a
+// world-scale UGC surface to carry. The mute store is REAL here
+// (data/mutes.ts over jsdom localStorage) — muting is the one behaviour
+// with cross-render persistence worth executing rather than mocking.
+
+const wtake = (id: string, authorUid: string, text: string): TakeLite => ({
+  id, gid: "world", authorUid, qid: "q1", text, createdAt: Date.now() - 60000, hidden: false,
+});
+const worldPanel = () => render(<LiveTakesPanel gid="world" qid="q1" />);
+
+describe("world takes are anonymous", () => {
+  beforeEach(() => { localStorage.clear(); });
+
+  it("never prints a name — even one the groups store could resolve", () => {
+    // u_other resolves to "Ada" through the mocked groups map; the world
+    // panel must not consult it. "Someone" is the whole label.
+    LIVE.social.takeList = [wtake("w1", "u_other", "A stranger's words")];
+    worldPanel();
+
+    expect(screen.getByText(/no names at world scale/i)).toBeTruthy();
+    expect(screen.getByText("Someone")).toBeTruthy();
+    expect(screen.queryByText("Ada")).toBeNull();
+    expect(screen.queryByText("Member")).toBeNull();
+  });
+
+  it("passes the question through to loadTakes — the world query is per-qid", () => {
+    worldPanel();
+    expect(LIVE.social.loadTakes).toHaveBeenCalledWith("world", "q1");
+  });
+
+  it("folds the composer once your take exists — one take per question", () => {
+    LIVE.social.takeList = [wtake("q1_u_me", "u_me", "Mine already")];
+    worldPanel();
+
+    expect(screen.getByText("You")).toBeTruthy();
+    expect(screen.queryByLabelText(/Add your take/i)).toBeNull();
+    expect(screen.getByText(/One take per question/i)).toBeTruthy();
+    // Delete stays: withdraw-and-rewrite is the only edit path.
+    expect(screen.getByText("Delete")).toBeTruthy();
+  });
+});
+
+describe("the world mute control (guideline 1.2's block)", () => {
+  beforeEach(() => { localStorage.clear(); });
+
+  it("is two-step, world-only, and never offered on your own take", () => {
+    LIVE.social.takeList = [wtake("w1", "u_other", "Gratingly loud")];
+    worldPanel();
+    // First tap opens the confirm; nothing is hidden yet.
+    fireEvent.click(screen.getByText("Hide author"));
+    expect(screen.getByText("Gratingly loud")).toBeTruthy();
+    cleanup();
+
+    // A circle panel carries no mute — membership and Leave are its exits.
+    LIVE.social.takeList = [take("t1", "u_other", "Circle words")];
+    panel();
+    expect(screen.queryByText("Hide author")).toBeNull();
+    cleanup();
+
+    LIVE.social.takeList = [wtake("q1_u_me", "u_me", "Mine")];
+    worldPanel();
+    expect(screen.queryByText("Hide author")).toBeNull();
+  });
+
+  it("confirmed, it hides the author's takes and the choice survives a remount", () => {
+    LIVE.social.takeList = [
+      wtake("w1", "u_loud", "Gratingly loud"),
+      wtake("w2", "u_other", "Perfectly fine"),
+    ];
+    worldPanel();
+    // Two rows, two controls — the loud author's row renders first.
+    fireEvent.click(screen.getAllByText("Hide author")[0]);
+    // The confirm names the trade: local, silent, no unhide surface yet.
+    expect(screen.getByText(/on this device/i)).toBeTruthy();
+    fireEvent.click(screen.getByText("Hide"));
+
+    expect(screen.queryByText("Gratingly loud")).toBeNull();
+    expect(screen.getByText("Perfectly fine")).toBeTruthy();
+    cleanup();
+
+    // The store is real: a fresh mount reads the same localStorage.
+    worldPanel();
+    expect(screen.queryByText("Gratingly loud")).toBeNull();
+    expect(screen.getByText("Perfectly fine")).toBeTruthy();
   });
 });

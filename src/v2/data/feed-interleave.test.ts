@@ -17,7 +17,7 @@
 // So this pins the property rather than the constants: BOTH streams must
 // drain, and the lens cadence must not be a multiple of the test cadence.
 import { describe, expect, it } from "vitest";
-import { interleaveFeed, TEST_EVERY, LENS_EVERY } from "./feed-interleave";
+import { interleaveFeed, unansweredFirst, TEST_EVERY, LENS_EVERY } from "./feed-interleave";
 
 // THE SHIPPED FUNCTION, imported. This file used to redeclare the cadences
 // and the loop, so every assertion below exercised the test file itself —
@@ -134,5 +134,35 @@ describe("the knowledge stream the copy never modelled (D32)", () => {
       tests: [], lenses: [], know: ["k0"], knowEvery: 0,
     });
     expect(out).toEqual(world(10));
+  });
+});
+
+describe("unansweredFirst — the finite bank stops leading with your own past", () => {
+  // The release feedback was literal: "I keep seeing things I have
+  // answered." The bank is served in a stable order, so the head of every
+  // session's feed was exactly the head of the last one — answered, as a
+  // wall of results. The partition sinks answered cards without losing
+  // them, and it must be STABLE: within each half, the incoming order
+  // (the sort lens the user picked) survives untouched.
+
+  const answered = new Set(["a", "c"]);
+  const isDone = (q: string) => answered.has(q);
+
+  it("moves answered cards behind unanswered ones", () => {
+    expect(unansweredFirst(["a", "b", "c", "d"], isDone)).toEqual(["b", "d", "a", "c"]);
+  });
+
+  it("keeps each half's incoming order — a partition, not a sort", () => {
+    // The incoming order encodes the topic round-robin / the chosen sort
+    // lens; reordering within a half would quietly replace that with
+    // insertion noise.
+    expect(unansweredFirst(["d", "c", "b", "a"], isDone)).toEqual(["d", "b", "c", "a"]);
+  });
+
+  it("is the identity when nothing is answered, and a no-op loss-wise when all are", () => {
+    expect(unansweredFirst(["x", "y"], () => false)).toEqual(["x", "y"]);
+    // Answered cards SINK, never vanish: their results are the record.
+    expect(unansweredFirst(["a", "c"], isDone)).toEqual(["a", "c"]);
+    expect(unansweredFirst([], isDone)).toEqual([]);
   });
 });

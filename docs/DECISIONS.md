@@ -7883,9 +7883,323 @@ whether the device's SDK fired synchronously is unknown and now unknowable,
 because both are fixed in the same build. Recorded as two fixes, not as one
 diagnosis with a spare.
 
+## D81 · The k-floor is paused at 1 until launch traction
+
+**Decided:** 2026-08-09 · **Status:** binding · **Owner's call**, from
+release testing: below five answers every breakdown reads as withheld, and
+"we can pause [the floor] as it's no secret what people vote" at the
+current userbase.
+
+**Decision.** `AGG_MIN_N` and `PUBLISH_EVERY` (functions/src/v2.ts) drop
+from 5 to **1**, together. Counts publish from the first answer, exactly,
+per answer. The floor is *paused*, not removed: every piece of the
+machinery still runs — `tooSmall`, `publishableBreakdown`, complementary
+suppression, the one-bucket rule — it just bites at a size that cannot
+occur. The pure suite keeps the whole floor-5 choreography tested as "the
+design pair", so the revert is a two-literal edit, not a re-derivation.
+
+**Why.** The floor defends a reader from recovering an individual's answer
+out of a small cohort. Pre-launch there is no reader to defend against and
+no cohort that will ever reach five: with a tester count in single digits,
+*every* figure in the app sat at "You're early — counts appear once 5
+people have answered", permanently, on every stop of the Mirror and every
+card of the feed. A floor that suppresses 100% of the product's output
+protects nobody from nothing while making the release look broken — the
+owner hit exactly this on the first TestFlight build
+(LAUNCH-RUNBOOK §3.2 predicted it as "expect the k-floor to look like a
+bug"; the accurate prediction was the argument for the pause).
+
+**The disclosure this accepts, stated rather than waved at.** While the
+pause holds:
+
+- a cohort of one *is* that person's answer, to anyone who can name the
+  cohort's membership — "the one person in Bergen who answered" is
+  identified by the cohort label itself;
+- with the cadence at 1, every observed change to a public aggregate is
+  one person's vote, and an observer holding a snapshot listener can
+  correlate a step with "my friend just answered" timing;
+- the client says so: the privacy panel's floor bullet now reads "while
+  the app is small, counts show from the first answer (so a count of 1 is
+  that one answer); the ≥5-person floor switches back on as cohorts grow"
+  — because a privacy panel still claiming ≥5 would be the UI-says-it,
+  server-doesn't failure this product defines itself against.
+
+**What does not pause.** The exact counts stay in `v2_aggs_private`, which
+no client may read. Answers stay owner-only and create-only (D5). Political
+items still never slice (D44). A one-bucket dimension is still withheld —
+it is a population statement, not a split, at any floor (the e2e asserts
+this survives the pause). Duel/sealed answers still reveal only to members,
+next day. The store privacy labels are unchanged: they never claimed the
+floor, and what they do claim (aggregated, no identities) stays true.
+
+**Client copy follows the constant, not the era.** `src/v2/data/floor.ts`
+is the client's pinned copy of the pair (`floor.test.ts` regex-reads the
+functions source and fails on drift, both directions, plus a paused-
+together-or-restored-together coupling test on each side). Every sentence
+that mentioned the floor now branches on it: the cohort panel's header
+drops the "never a group smaller than N" clause (N=5 would be false, N=1
+vacuous), its "withheld" accounting becomes "no answers yet" — at floor 1
+an absent cell IS zero, so the absent≠zero doctrine inverts — and the
+daily/feed "You're early" note becomes "You're first — the count lands in
+a moment", which is what `tooSmall` means when the only wait left is the
+trigger's own latency. The "5+" lower-bound suffix goes too: with the
+cadence at 1 the count is exact, and a "+" would claim a batching
+inaccuracy that is not there (`AGG_COUNT_IS_EXACT`).
+
+**Why literals and not a config knob.** The drift gates
+(LiveCohortBody.test, floor.test) regex-match the literals — an expression
+would make them vacuous, and they say so. And a remote knob that can flip
+a disclosure property without a reviewed commit is strictly worse than a
+two-line diff that every gate names. A deploy is the config path here.
+
+**Revert condition.** Restore both constants to 5 (functions/src/v2.ts)
+and both client copies to 5 (src/v2/data/floor.ts) in one commit — the
+tests enumerate every file that must follow, and the copy flips itself.
+When: at public launch, or as soon as cohorts routinely clear five,
+whichever the owner calls first. The e2e's floor-5 choreography (first
+answer publishes nothing; dims withheld while cells sit at 3/2) is
+preserved verbatim in this record's diff and in pure.test.ts, so restoring
+it is mechanical.
+
+## D82 · Near by radius (~500 m) — asked for, priced, and deferred
+
+**Status:** Proposed, deferred · **Requested:** 2026-08-09, owner:
+"Near should not need a city at all but only be distance based … people
+in a 500 m radius or something."
+
+**What is recorded here.** The ask, so it is not lost, and the price, so
+taking it later is a decision rather than a slide. Nothing is built.
+
+**Why not now — the arithmetic, updated from D2/D9:**
+
+- **A 500 m radius is finer than anything this product has ever held.**
+  D2's geohash Near was ~5 km cells and was rejected; 500 m is geohash6/7
+  territory. The product's strongest privacy line — *"the most precise
+  location this system can hold about a person is the name of a city, by
+  construction"* (D9, quoted in the privacy panel) — is spent the moment
+  any per-user cell is written, at any radius.
+- **Proximity needs presence, not a profile field.** "People actually
+  near you" means fresh location per session (foreground fixes, a
+  presence collection with a TTL), not D9's one-tap coarse fix that
+  discards the coordinate on-device. That reopens the class of collection
+  D4 deliberately closed (`insight_discoverable` — D2 records what it
+  leaked and why reviving it was refused), plus store label changes
+  (Coarse → Precise, "location" → collected continuously-ish), the
+  privacy panel's "no background or continuous location" line, and both
+  D75 filings.
+- **The floor makes it empty anyway.** The geo system's own floor was 20
+  per cell (D9 found it); even at the design floor of 5, a 500 m cell
+  needs five simultaneous users on the same block. At the current
+  userbase that is zero cells, everywhere, forever — the feature would
+  ship as a permanently empty screen that cost the privacy label to
+  build. (D81's pause does not help: a 500 m cell with ONE person in it
+  is a tracking dot, not a cohort.)
+
+**The shape it would have to take, if traction ever justifies it:** cells
+no finer than ~1 km, presence that expires in minutes, opt-in with its
+own prompt, floor ≥ 5 with no pause, and the store filings updated in the
+same release — D2's four-point cost list still stands, with its step 3
+(reopening a discoverable collection) still the expensive one. Its own
+project, after launch, never a bugfix-pass rider.
+
+**Until then Near stays D9's city** — which this release made reachable
+in place: the needs-a-city empty state now carries the profile's own
+picker ("use my location" one-tap suggest + manual search) instead of
+prose pointing at the profile.
+
+## D83 · World takes ship — D78 part 2 adopted, anonymous, behind enforcement
+
+**Decided:** 2026-08-10 · **Status:** binding · **Owner's call**:
+"Comments should be on world as well, that's where it is most useful —
+it has moderation so it's not an issue."
+
+**Decision.** Takes exist at world scale: the sentinel gid `"world"`
+carries per-question free text readable and flaggable by any signed-in
+user, with **no author names anywhere** and **one take per person per
+question**. `MOD_ADVISORY` flips to `false` in the same change — D78 made
+that the hard prerequisite, and it holds: at world scale, circle-scope
+trust cannot stand in for enforcement. Named who-voted at world scale
+stays refused, permanently, for D78's own two reasons (Art. 9, policy
+line H4) — anonymity is not a softening of this feature, it is the whole
+of it.
+
+**What was built, and where each guarantee lives:**
+
+- **Rules.** `firestore.rules` grew world arms on the takes read/create
+  and flag create gates. The sentinel cannot collide with a circle
+  (`v2_groups` creates are `if false`; ids are server-minted), reads stay
+  fail-closed on the `hidden == false` equality (D65's lesson, re-proved
+  for the world list in `rules.test.ts` — 51 → 56 cases), and the create
+  bound moves from membership to the DOCUMENT ID: `qid + "_" + uid`, so a
+  second take is an update and updates are denied. That id is also the
+  flood control — one account cannot stack a question under fresh ids.
+- **Index.** A second `v2_takes` composite (gid, qid, hidden, createdAt
+  DESC): the world list is per-question, because "every world take ever"
+  is unbounded and no surface reads it. The circle query and its index
+  are untouched.
+- **Client.** The same five `SOCIAL` members, scope as an argument —
+  `loadTakes("world", qid)` queries per question and caches under
+  `world:{qid}`; `postTake` mints the deterministic id; nothing else on
+  the pinned surface moved (takes.test.ts grew the world suite).
+  `LiveTakesPanel` gained a world mode: "Someone" instead of names, the
+  one-take composer fold, an anonymity kicker, and **Hide author** — the
+  per-author local mute (`data/mutes.ts`, purge-aware) that Apple
+  guideline 1.2's blocking row expects of a world-scale surface. Mounted
+  behind a post-vote "Takes" toggle on live feed cards and the live
+  daily: after your own blind vote, never before, because reading the
+  discourse before answering is the seal's leak at world scale. The
+  toggle is also the cost gate — one query per opened question.
+- **Enforcement.** `submitModVerdict`'s enforced branches were already
+  coded and dormant: remove now hides (with `hiddenMeta` for the
+  appeal) and settles the queue entry; keep clears the flags so a kept
+  take re-queues only on fresh ones; escalate alone keeps the entry.
+  `e2e-moderation.mjs` was rewritten from the advisory guarantees to the
+  enforced ones and grew a world leg — stranger reads, stranger flags,
+  queue, remove, hidden from everyone — every leg green in the emulator.
+
+**The deviation, recorded rather than papered over.** moderation.ts asked
+the advisory→enforced flip to "cite the advisory phase's track record in
+its PR". There is none: the advisory window closed with zero users and an
+empty verdict log, because the owner adopted world takes first. The
+compensating controls are real — the only verdict source until the
+Routine lands is a MOD_UIDS operator acting by hand, `MOD_RUN_CAP` bounds
+a bad run, a wrong remove is reversible in data (`hidden` is a field, and
+`hiddenMeta` says who and why) — and the blast radius at the current
+userbase is a rounding error. The Routine (MODERATION.md step 4) stays
+blocked on its platform gap; its absence means enforcement is manual, not
+that it is off.
+
+**The linkability trade, stated.** A world take's doc carries
+`authorUid` — an opaque anonymous id, now world-readable for the first
+time anywhere in the product. Takes by one account are therefore linkable
+to each other (and the mute control depends on exactly that), though to
+no name, no profile and no answer — every other uid-bearing surface stays
+owner- or member-scoped. The alternative (a server-mirrored public copy
+with the uid stripped) costs a function, doubles the writes and breaks
+author-delete; it is the recorded upgrade path if pseudonym linkage ever
+matters at scale. `docs/data-inventory.md` carries the row.
+
+**Filings.** No ticked value moves: `messagingAndChat` is already true
+(D79), takes remain posts (Emails/Text Messages stays No), and
+`userGeneratedContent` was Yes from the start. The PROSE under those
+answers leaned on "no global surface to be abused from", which D83 ends —
+app-privacy.json's `$structural`, `$socialMediaQuestions`, `$guideline12`
+and STORE-FORMS.md's 1.2 table now answer from what exists: enforced
+moderation, report at both scopes, leave-the-circle and hide-the-author
+as the two blocking shapes.
+
+**What this deliberately does not add:** author names or avatars at world
+scale (refused above), reply threads (a take is one person's take on the
+question, not a forum), edit (an edited take invalidates its flags —
+delete-and-repost is the rewrite), a reason picker on reports (no field,
+by design), or world takes visible before the viewer has answered (the
+client mounts the panel post-vote; a determined API reader can pay for
+spoiling their own blind vote, which harms nobody else and is recorded
+here rather than chased with a rules read-gate that would cost a get()
+per list row).
+
+### D82 amendment (2026-08-10) — "what if location only updated while the app is open?"
+
+Asked by the owner as a follow-up, and worth answering in the record
+because it is the RIGHT question — it just answers a different cost than
+the one that defers this.
+
+Foreground-only updates were already the assumed shape ("presence that
+expires in minutes", above): no background location, no history, a fix
+taken only while the app is open. What that removes is the worst store
+label and the battery objection. What it does not touch:
+
+- **The emptiness.** Near-by-radius shows people who are near you *now*
+  (or within the presence TTL). Foreground-only makes the presence set
+  STRICTLY SMALLER — it is the people who have the app open around you,
+  which at the current userbase is zero in every cell at every radius,
+  and stays near-zero until well after launch. The floor argument above
+  is unchanged; the sampling makes it stricter.
+- **The precision line.** A per-user cell write at ANY cadence spends
+  "the most precise location this system can hold about a person is the
+  name of a city, by construction" (D9). Foreground-only changes when a
+  coordinate exists, not that one does.
+- **The collection.** A presence doc keyed by user is still the class
+  D4 closed, with its rules, tests, TTL machinery and erasure surface.
+
+So: yes, it helps — it is how the feature would be built if it is ever
+built — and it does not move the two things the deferral rests on
+(nobody to show, and the privacy line it spends). The revisit trigger
+stays what D82 set: launch traction first, own project after, and the
+foreground-only design is the recorded starting point when that day
+comes.
+
+## D84 · Near by radius ships — presence cells, a count and nothing else
+
+**Decided:** 2026-08-10 · **Status:** binding · **Owner's call**, third
+ask and explicit about the trade: "I want the 500m added, it doesn't
+matter that it won't work most of the time." D82's deferral rested on two
+legs — nobody to show, and the precision line it spends — and the owner
+has now knowingly accepted the first and part of the second. This record
+is the shape that ships and the one precision decision that deliberately
+does NOT ride along.
+
+**Decision.** The Near stop gains a "Right now, around you" counter: how
+many opted-in phones are foreground within the viewer's ~1 km grid cell
+and its eight neighbors. No city involved — the card renders above the
+city ask, so Near is never a dead end again.
+
+**The shape, and where each guarantee lives:**
+
+- **A cell, never a coordinate.** `data/locate.ts` gains `locateCell()`
+  under the same containment contract as `locateCity()`: the fix is
+  folded to a 0.01° grid id ("5999_1074") inside the module and the
+  coordinate is discarded. A plain integer grid rather than geohash: the
+  neighbor math is two ±1s, and the precision cap is legible in the id
+  itself. The client and server halves of the grid contract are pinned to
+  the same vectors (geo.test.ts ↔ pure.test.ts, the floor.ts pattern).
+- **`v2_presence/{uid}`: one doc, overwritten, unreadable.** Foreground
+  beats every 4 minutes write `{cell, at}`; the rules regex is the
+  structural precision cap (raw coordinates cannot be written at all) and
+  `allow read: if false` for every client — a readable (uid → cell) pair
+  is D2's leak reborn, a script following any uid around town. Opting out
+  deletes the doc immediately; `deleteAccount` deletes it too (erasure
+  e2e asserts both the wipe and that it stops at this account's edge).
+- **The count is the entire read surface.** `nearbyCountV2` (App Check
+  enforced) takes the caller's cell, counts fresh presence (10-minute
+  window) in the 3×3 neighborhood, excludes the caller, and returns a
+  number. It floors on `AGG_MIN_N` like every published count — under
+  D81's pause any nonzero count shows, which is this feature's whole
+  point at today's scale; when the floor restores, 1–4 becomes `tooFew`
+  and the card says "a few people" without a number. Wired through the
+  same constant, so the revert carries presence with it.
+- **Opt-in is a per-account choice.** The flag lives in its own store
+  (`data/near.ts`) with its own purge listener, because an opt-in that
+  survived an account switch would turn presence on for whoever signs in
+  next. The enable tap carries the OS permission prompt (D9's rule);
+  boot resumes the loop only for an account that already chose it.
+- **The privacy panel discloses it in full** — what is shared, who can
+  read it (no user), when, and both ways out. The store label does NOT
+  move: the fix is the same coarse permission the city locate uses, no
+  background or continuous location, no history (one doc, overwritten).
+
+**The 500 m that deliberately did not ship.** The owner said 500 m; the
+card says "a couple of kilometres", and the gap is the sensor, not
+timidity: the app requests COARSE location only
+(`NSLocationDefaultAccuracyReduced`, Android COARSE) — a fix accurate to
+a kilometre or worse cannot honestly measure a 500 m radius, and D9's
+store-label argument ("Precise is NOT ticked, and the table is why")
+leans on exactly that ceiling. True 500 m is one decision away: request
+precise fixes, flip the App Store label to Precise Location, rewrite the
+coarse-only lines in D9's table and the privacy panel. That is a
+listing-level change with its own review consequences, and it is left as
+the owner's explicit next call rather than smuggled in under this one —
+the feature works identically at either precision, only the honest
+radius claim changes.
+
+**Costs, priced:** one presence write per opted-in foreground phone per
+4 minutes and one callable read of ≤9 cells' fresh docs — at any scale
+this product reaches before the floor restores, a rounding error against
+the answer pipeline. A new composite index (cell, at). One new callable
+in the deploy list (check:deploy-targets held the door until it was).
 ---
 
-## D81 · The personality tests go to 5 items per dimension, and `cognitive` gets a question bank
+## D85 · The personality tests go to 5 items per dimension, and `cognitive` gets a question bank
 
 **Decided:** 2026-08-10 · **Status:** binding
 

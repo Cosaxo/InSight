@@ -32,7 +32,11 @@ export const LIVE_MEMBERS = [
   "confirmedVotes", "dailyBank", "deck",
   "deleteAccount", "demoInProd", "displayName", "enabled", "feedReady",
   "latestBuild", "learnAgg", "learnAnswer", "linkGoogle", "linked", "myCity",
-  "myVotes", "ready", "saveAnchors",
+  "myVotes",
+  // Near-by-radius presence (D84): opt-in, foreground beats, and a count
+  // that is the only thing the server ever returns about anyone.
+  "near",
+  "ready", "saveAnchors",
   "saveDisplayName",
   // Operator-only, and the one member here no spec-layer JSX reads — it is
   // typed into a browser console by hand (SHIP-CHECKLIST §1). It is listed
@@ -51,4 +55,10 @@ export const LIVE_SOCIAL_MEMBERS = [
   // reviewed, and a member added straight into a consumer is a member
   // nobody checked against the rules it has to satisfy.
   "deleteTake", "flagTake", "flagged", "loadTakes", "postTake", "takes",
+];
+
+// LIVE.near's own members (D84), pinned like social's for the same reason.
+export const LIVE_NEAR_MEMBERS = [
+  "count", "disable", "enable", "lastError", "on", "refresh", "supported",
+  "tooFew", "updatedAt",
 ];

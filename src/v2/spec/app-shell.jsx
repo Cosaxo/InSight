@@ -490,7 +490,13 @@ function App() {
           {city && window.CityOverlay && <window.CityOverlay city={city} onClose={() => setCity(null)} />}
           {ov === 'profile' && <ProfileOverlay onClose={() => setOv(null)} me={me} lensBoxed={!!t.lensBoxed} />}
           {ov === 'suggest' && window.SuggestOverlay && <window.SuggestOverlay onClose={() => setOv(null)} />}
-          {ov === 'search' && <SearchOverlay onClose={() => setOv(null)} onPerson={(p) => { setOv(null); setPerson(p); }} onCity={(c) => { setOv(null); setCity(c); }} />}
+          {/* samplePeople: the overlay's people rows are sample-data personas
+              with invented relationships ("sister", "% match"). Live mode has
+              no person graph at all (D3), so they must not render there — the
+              gate rides down as a prop from the liveOn this shell already
+              computes, rather than a window.LIVE read in the overlay, so the
+              spec layer's coupling meter (D39 rule 4) stays flat. */}
+          {ov === 'search' && <SearchOverlay onClose={() => setOv(null)} samplePeople={!liveOn} onPerson={(p) => { setOv(null); setPerson(p); }} onCity={(c) => { setOv(null); setCity(c); }} />}
           {ov === 'test' && window.TestOverlay && <window.TestOverlay kind={testKind} onClose={() => { setTestKind(null); backOv(); }} onComplete={() => { setTestKind(null); backOv(); }} />}
           {ov === 'logic' && window.LogicOverlay && <window.LogicOverlay onClose={() => setOv(null)} />}
           {ov === 'relmap' && <RelationshipMapOverlay onClose={() => setOv(null)} />}
