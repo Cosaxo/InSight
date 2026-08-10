@@ -124,6 +124,13 @@ arithmetic.
       463 questions land in `v2_questions` — idempotent and, since D34,
       cheap to repeat.
 
+      **This step is now automatic for everything that follows it (D88):**
+      *Seed content* chains to a successful **Deploy Firebase backend** via
+      `workflow_run`, so any merge that changes the bank deploys it and then
+      seeds it, in that order. The manual run stays for the case this box
+      is: a bank that changed before the chain existed. Read the summary
+      either way — `written: 0` means nothing landed.
+
       **It is unticked on purpose, and still is.** That run wrote **389**,
       and the bank is **463** after the K=5 test expansion — so the
       difference is in the repo and not in production. This is exactly the

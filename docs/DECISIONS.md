@@ -8466,3 +8466,69 @@ And the gate stops *unattended* writes only. It does not stop a careless
 approval, and an approver who always clicks approve is worse than no
 reviewer, because the audit log then records a gate that was never
 closed.
+
+---
+
+## D88 · Seeding chains to the deploy, because the bank it writes is the deployed one
+
+**Decided:** 2026-08-10 · **Status:** binding
+
+**The chore.** Every content change needed a human to remember *Actions →
+Seed content → Run workflow* afterwards. Nothing enforced it and its
+omission is silent: the repo looks correct, production serves the old
+bank, and the only symptom is questions nobody sees. LAUNCH-RUNBOOK 0.1
+has been unticked for that reason since 2026-08-07, and D30's promotion
+cadence guarantees it recurs.
+
+**The obvious fix is wrong, and this is the part worth recording.** A
+`push` trigger on `functions/src/v2content.ts` looks right and races.
+`seedContentV2` does not upload a bank — `functions/src/v2.ts` imports
+`V2_QUESTIONS` from `./v2content`, so the questions it writes are the ones
+compiled into the **deployed** function. Both workflows would fire on the
+same commit, and whenever the seed won it would write the PREVIOUS bank
+and report success. That is the silent-wrong-success shape this
+workflow's `set -o pipefail` already exists to prevent (run 1 printed
+`seedContentV2 failed (500)` and reported green), reappearing one layer
+up.
+
+**What shipped.** `workflow_run` on **Deploy Firebase backend**,
+`types: [completed]`, gated on
+`github.event.workflow_run.conclusion == 'success'`. The deploy has
+finished before the seed starts, so the ordering is structural rather
+than timed — no sleep, no polling, nothing to tune. `workflow_dispatch`
+stays, and the `if` names it explicitly because a dispatch carries no
+`workflow_run` payload.
+
+**It fires after every backend deploy, not only content ones, and that is
+deliberate.** Seeding is idempotent and since D34 rewrites only changed
+documents and holds `contentRev`, so a no-op costs one callable and
+reports `written: 0`. Running it every time means the bank cannot drift
+from the deployed code at all — strictly better than firing only when
+somebody noticed content had changed, which is the failure being fixed.
+
+**Verified, not assumed.** The workflow name is matched as a string, and
+a typo there fails silently forever — `firebase-deploy.yml`'s `name:` and
+this trigger were compared programmatically, not by eye. The YAML parses.
+And the `ARGS` block was run under `bash -e` with empty inputs, because on
+a `workflow_run` firing there is no `inputs` context: both flags expand to
+`""`, both stay off, and `set -e` does not abort on the failed tests
+(they are non-final commands in an `&&` list). Empty is the correct
+default — `--bump-rev` on every deploy would cost every returning device a
+full bank refetch, the exact thing D34 stopped doing.
+
+**Interaction with D87.** Under the protection rules the chained seed
+queues at *Review pending* like any other production write, so the human
+confirmation survives while the remembering does not have to. It also
+retires the argument for granting an agent session workflow-dispatch
+rights: the recurring chore that motivated it is gone, so the broad
+per-account `workflow` scope buys nothing that is still wanted.
+
+**The limit.** `workflow_run` only fires for the workflow file on the
+default branch, so this cannot be exercised from a PR — its first real
+run is the first backend deploy after merge. And it inherits the deploy's
+path filter: a content change that somehow reaches `main` without
+touching `functions/**` triggers no deploy and therefore no seed. Today
+that cannot happen — `check:content` fails the build unless
+`v2content.ts` matches `/content`, and `v2content.ts` is under
+`functions/**` — but the two facts are separate and only the first is
+gated.
