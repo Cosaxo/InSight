@@ -51,7 +51,7 @@ Emulator UI (inspect any document): <http://127.0.0.1:4000>.
 ## Test suites
 
 ```bash
-npm run test:rules            # 51 security-rules tests (Firestore + Storage emulators)
+npm run test:rules            # 56 security-rules tests (Firestore + Storage emulators)
 npm run test:e2e              # full SDK loop (auth+firestore+functions)
 npm run test:e2e:erasure      # account deletion, end to end
 npm run test:e2e:moderation   # moderation transport

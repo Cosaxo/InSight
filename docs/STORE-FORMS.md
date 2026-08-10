@@ -90,14 +90,12 @@ Three of those are worth knowing *why*, because each looks tickable:
   because nothing is held.
 - **Product Interaction — No.** `data-inventory.md`: "No product analytics
   of any kind ship today." Adding any would change this row.
-- **Emails or Text Messages — still No, on a different footing since
-  2026-08-09.** This read "takes have no live surface in a shipping build";
-  D78 part 1 shipped that surface, so the old reason is gone. The row stays
-  unticked because **a take is a post to a circle, not a message to a
-  person**, and Apple files that under *User Content → Other User Content*
-  — already declared **Yes** above. The content is declared either way;
-  this row is about shape. It moves if a direct person-to-person surface
-  ships.
+- **Emails or Text Messages — still No, for the shape reason.** A take is
+  a **post** — to a circle (D78 part 1) or, since D83, anonymously to the
+  world — never a message to a person, and Apple files posts under *User
+  Content → Other User Content* — already declared **Yes** above. The
+  content is declared either way; this row is about shape. It moves if a
+  direct person-to-person surface ships.
 
   **The age rating did move** (`messagingAndChat` → `true`, D79) and the
   divergence is real rather than an inconsistency: that question asks
@@ -189,11 +187,13 @@ reaches users.
    names. That is user-generated content and social interaction on any
    version of this form, whatever the content questions say.
 2. **Coarse location exists** (D9, optional). Answer consistently with §1.
-3. **Free text is live, and circle-scoped.** This read "no live free-text
-   surface at launch" until D78 part 1 shipped the takes client on
-   2026-08-09. `postTake` writes text other group members read; there is
-   still no world-scale free text, and world takes are Proposed rather than
-   taken. **Scope is the fact now, not absence** — which is why
+3. **Free text is live at both scopes.** Circle takes with names since
+   D78 part 1 (2026-08-09); world takes since D83 (2026-08-10) —
+   **anonymous by construction** (no author names rendered, one take per
+   person per question), behind ENFORCED moderation (`MOD_ADVISORY =
+   false`) with report and per-author mute. This fact has moved twice:
+   "no live free-text surface" → "circle-scoped" (D79) → "both scopes,
+   world anonymous" (D83) — which is why
    `messagingAndChat` is `true` (D79) while `EMAILS_OR_TEXT_MESSAGES` stays
    unticked.
 
@@ -242,10 +242,10 @@ The two that are not simply "no content of that kind":
   one day. Structural fact 3 said "no live free-text surface at launch";
   D78 part 1 shipped the circle takes client, so `postTake` now writes free
   text that other group members read and that half of the reasoning
-  expired on merge. What remains is that takes are **circle-scoped**, and
-  scope limits the *audience*, not the feature — Apple asks whether the app
-  *has* messaging or chat, and a private group where members write to each
-  other is chat.
+  expired on merge. Scope limits the *audience*, not the feature — Apple
+  asks whether the app *has* messaging or chat, and a private group where
+  members write to each other is chat; since D83 takes also exist at world
+  scale (anonymous), which only reinforces the answer.
 
   Answered the safer way deliberately: under-declaring is the direction
   that pulls an app, and the honest answer costs nothing here because
@@ -285,15 +285,14 @@ default.
 
 | 1.2 requires | InSight |
 | --- | --- |
-| Filter objectionable content | Moderation substrate deployed, `MOD_ADVISORY = true` (D22) |
-| Report mechanism | **Live since D78 part 1** — `flagTake` writes to `v2_flags` from the takes panel. It read "exists in the spec layer; the surface it attaches to is demo-only" for eight days, which was a report control attached to nothing |
-| Block abusive users | `leaveGroupV2`, wired to the **Leave circle** control on each live circle card — leaving **is** the block, because D1 means circle members are the only people whose content you can see. There is no owner-side *remove* callable yet (D55 §14): the answer at launch is that anyone can leave, not that an owner can eject |
+| Filter objectionable content | Moderation substrate deployed and **enforcing** since D83 — `MOD_ADVISORY = false`, a remove verdict really hides, per-run cap bounds a bad run (D22 → D83) |
+| Report mechanism | **Live since D78 part 1** — `flagTake` writes to `v2_flags` from the takes panel, at both scopes since D83: members flag circle takes, any signed-in user flags world takes |
+| Block abusive users | Two shapes for two scopes. Circles: `leaveGroupV2`, wired to the **Leave circle** control — leaving **is** the block, because D1 means members are the only *named* people whose content you see (no owner-side eject yet, D55 §14). World: the **Hide author** mute on every world take (D83, `data/mutes.ts`) — local, silent, per-author |
 | Published contact info | `olaftaule01@gmail.com`, on `web/terms.html` |
 
-If a reviewer asks how users block one another, the circle model is a real
-answer rather than a dodge: **there is no global block because there is no
-global surface to be abused from.** Say that plainly. Do not build a
-global block list to pre-empt a question that may not be asked.
+If a reviewer asks how users block one another, both answers are real:
+leave the circle, or hide the author. Named content only ever comes from a
+circle you can leave; world content is anonymous and mutable per author.
 
 ---
 

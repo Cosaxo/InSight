@@ -969,19 +969,21 @@ const SOCIAL = {
     })();
   },
 
-  // ── circle takes (D1, docs/MODERATION.md) ──────────────────────────
+  // ── takes: circle-scoped (D1) and, since D83, anonymous world scope ──
   //
-  // Free text exists only among people who mutually added each other, and
-  // the rules have no world-scale shape to fall back on: every gate below
-  // resolves membership through `v2_groups/{gid}.memberUids`, so a take
-  // with no circle behind it cannot be written, read or flagged. D78 is
-  // the proposal to widen that; until it is adopted this is the surface,
-  // whole.
+  // Circle takes exist among people who mutually added each other; every
+  // circle gate resolves membership through `v2_groups/{gid}.memberUids`.
+  // D78 part 2 proposed widening that to world scale without author names,
+  // and D83 adopted it: the sentinel gid "world" carries per-question
+  // takes readable by any signed-in user, one per person per question
+  // (the doc id is `qid_uid`, so the bound is structural, like flag ids).
+  // The surface is the same five members — scope is an argument, not a
+  // second API.
   //
   // This is the "live takes surface" docs/MODERATION.md named as the thing
   // the client report control was waiting on. The moderation chain above
-  // it — flags, queue, verdicts — has been deployed since 2026-07-31 with
-  // nothing on the client able to feed it.
+  // it — flags, queue, verdicts — has been deployed since 2026-07-31, and
+  // enforces (MOD_ADVISORY=false) since world scope shipped.
 
   // The `where("hidden", "==", false)` below is NOT a client-side courtesy
   // layered over a server guarantee. It is the condition the read rule
@@ -990,36 +992,49 @@ const SOCIAL = {
   // permission-denied (D65). The filter is a consequence of the rule, not
   // a promise beside it.
   //
-  // `qid` is filtered in memory rather than as a fourth `where` because the
-  // committed composite index is exactly (gid, hidden, createdAt) — a qid
-  // equality would need a second index for a list that is one circle big.
-  async loadTakes(gid: string): Promise<void> {
-    if (state.takesLoading[gid]) return;
-    state.takesLoading[gid] = true;
+  // For a CIRCLE, `qid` is filtered in memory rather than as a fourth
+  // `where` — the (gid, hidden, createdAt) index serves a list that is one
+  // circle big. For WORLD the query carries qid: "every world take ever"
+  // is unbounded, so the (gid, qid, hidden, createdAt) index exists for
+  // exactly this list and the cache keys per question.
+  async loadTakes(gid: string, qid?: string): Promise<void> {
+    const key = takeScopeKey(gid, qid);
+    if (key == null || state.takesLoading[key]) return;
+    state.takesLoading[key] = true;
     try {
       const db = await getDb();
       const snap = await getDocs(
-        query(
-          collection(db, "v2_takes"),
-          where("gid", "==", gid),
-          where("hidden", "==", false),
-          orderBy("createdAt", "desc"),
-        ),
+        gid === "world"
+          ? query(
+            collection(db, "v2_takes"),
+            where("gid", "==", "world"),
+            where("qid", "==", qid),
+            where("hidden", "==", false),
+            orderBy("createdAt", "desc"),
+          )
+          : query(
+            collection(db, "v2_takes"),
+            where("gid", "==", gid),
+            where("hidden", "==", false),
+            orderBy("createdAt", "desc"),
+          ),
       );
-      state.takes[gid] = snap.docs.map((d) => takeFromDoc(d.id, d.data() as Record<string, unknown>));
+      state.takes[key] = snap.docs.map((d) => takeFromDoc(d.id, d.data() as Record<string, unknown>));
     } catch (err) {
       // Leave the key absent rather than caching an empty list: a
       // transient failure that freezes "no takes" into the session reads
       // exactly like a circle that never wrote any.
       reportError(err, { where: "loadTakes", gid });
     } finally {
-      state.takesLoading[gid] = false;
+      state.takesLoading[key] = false;
       notify();
     }
   },
   takes(gid: string, qid?: string): TakeDoc[] {
-    const all = state.takes[gid] || [];
-    return qid ? all.filter((t) => t.qid === qid) : [...all];
+    const key = takeScopeKey(gid, qid);
+    if (key == null) return [];
+    const all = state.takes[key] || [];
+    return gid !== "world" && qid ? all.filter((t) => t.qid === qid) : [...all];
   },
   async postTake(gid: string, qid: string, text: string): Promise<string | null> {
     const uid = state.uid;
@@ -1027,10 +1042,17 @@ const SOCIAL = {
     if (!uid || !body) return null;
     const db = await getDb();
     // Client-chosen id, because that is what the moderation queue keys on
-    // (buildModQueue writes v2_mod_queue one doc per takeId). doc() on the
-    // collection mints one without touching the network.
-    const ref = doc(collection(db, "v2_takes"));
-    const list = (state.takes[gid] = state.takes[gid] || []);
+    // (buildModQueue writes v2_mod_queue one doc per takeId). For a circle,
+    // doc() on the collection mints one without touching the network. For
+    // WORLD the id is `qid_uid` — the create rule checks it literally, and
+    // that determinism is the one-take-per-person-per-question bound: a
+    // second post is an update, and updates are denied.
+    const key = takeScopeKey(gid, qid);
+    if (key == null) return null;
+    const ref = gid === "world"
+      ? doc(db, "v2_takes", `${qid}_${uid}`)
+      : doc(collection(db, "v2_takes"));
+    const list = (state.takes[key] = state.takes[key] || []);
     list.unshift({
       id: ref.id,
       gid,
@@ -1058,9 +1080,9 @@ const SOCIAL = {
         hidden: false,
       });
     } catch (err) {
-      // Roll the echo back. A take left on screen that the circle never
+      // Roll the echo back. A take left on screen that the audience never
       // received is the one failure mode worth spending a re-render on.
-      state.takes[gid] = (state.takes[gid] || []).filter((t) => t.id !== ref.id);
+      state.takes[key] = (state.takes[key] || []).filter((t) => t.id !== ref.id);
       notify();
       reportError(err, { where: "postTake", gid });
       throw err;
@@ -1070,11 +1092,22 @@ const SOCIAL = {
   // "Your speech stays yours to withdraw" — the delete rule gates on
   // authorUid, so this succeeds for your own take and nobody else's. There
   // is deliberately no edit path: an edited take invalidates the flags
-  // already cast on what it used to say.
+  // already cast on what it used to say. (For a world take, delete-and-
+  // repost is also the only rewrite, since the deterministic id makes an
+  // in-place second post an update the rules deny.)
   async deleteTake(gid: string, takeId: string): Promise<void> {
+    // The scope no longer picks the cache key (see the loop below), but the
+    // parameter stays: it is part of the pinned surface (live-surface.ts)
+    // and every call site reads naturally with it.
+    void gid;
     const db = await getDb();
     await deleteDoc(doc(db, "v2_takes", takeId));
-    state.takes[gid] = (state.takes[gid] || []).filter((t) => t.id !== takeId);
+    // Every scope key, not state.takes[gid]: world lists live under
+    // `world:{qid}` keys, and filtering all of them is cheaper than
+    // threading qid through a call that already knows the doc id.
+    for (const k of Object.keys(state.takes)) {
+      state.takes[k] = state.takes[k].filter((t) => t.id !== takeId);
+    }
     notify();
   },
   // The report control's write half — the piece docs/MODERATION.md listed
@@ -1104,6 +1137,17 @@ const SOCIAL = {
     return !!state.myFlags[takeId];
   },
 };
+
+// The takes cache key for a scope. A circle caches per gid (one circle is
+// one small list); world caches per question, because "all world takes
+// ever" is unbounded and no surface reads it. Null means the caller asked
+// for a world scope without naming the question — an impossible list, so
+// the store refuses it instead of minting a `world:undefined` key that
+// would alias every such mistake onto one phantom question.
+function takeScopeKey(gid: string, qid?: string): string | null {
+  if (gid !== "world") return gid;
+  return qid ? `world:${qid}` : null;
+}
 
 // Firestore Timestamp → millis, tolerating the two shapes a read can hand
 // back: a real Timestamp, or null for a serverTimestamp() echoed from the

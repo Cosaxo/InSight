@@ -197,6 +197,15 @@ describe("spec layer mounts", () => {
     expectNoBoundary("search overlay");
   });
 
+  it("keeps the demo scenes field in the demo profile", () => {
+    // The control for smoke-live's "none of the demo scenes field" case:
+    // with LIVE off the section must still render, or the live assertion
+    // passes for a section that broke for any reason at all.
+    mountApp();
+    fireEvent.click(screen.getByRole("button", { name: /^profile$/i }));
+    expect(screen.getByText(/Scenes you follow/i)).toBeTruthy();
+  });
+
   it("lists the seeded friends in the search overlay (demo keeps them)", () => {
     // The control for smoke-live's "shows no sample people" case: the same
     // rows must still render with LIVE off, or the live assertion would

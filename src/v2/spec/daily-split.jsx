@@ -19,6 +19,9 @@ import { Sheet } from './primitives.jsx';
 // carries can still be missing.
 import LIVE from '../data/live';
 import { AGG_FLOOR, AGG_COUNT_IS_EXACT } from '../data/floor';
+// The live world-takes surface (D83) — ordinary ESM import of the typed
+// panel, so the D39 coupling meter stays flat.
+import LiveTakesPanel from '../ui/LiveTakesPanel.tsx';
 import ReactDOM from 'react-dom';
 import { IS_TESTS, IS_TEST_AVG, IS_TEST_RESULTS, persistTestResult } from './test-definitions.js';
 import { PASSIVE } from './passive-progress.js';
@@ -67,6 +70,9 @@ class DailySplit extends React.Component {
     group: {},
     cats: this.loadWorldCats(),
     testProg: this.loadTestProg(), testJustDone: null, testOpen: false, testRetake: null,
+    // which daily's live world-takes panel is open (D83) — id, not boolean,
+    // so paging to another day closes it implicitly
+    liveTakes: null,
   };
 
   // ── tests, fed into the daily as their own category ──
@@ -592,6 +598,11 @@ class DailySplit extends React.Component {
     // the "+" would claim a batching inaccuracy that is not there \u2014 it
     // returns with the restored cadence (AGG_COUNT_IS_EXACT, data/floor.ts).
     const liveTotal = S.live && !AGG_COUNT_IS_EXACT ? total.toLocaleString() + '+' : total.toLocaleString();
+    // Hoisted for the two gates below (the D83 takes row and the demo
+    // sheets row): a live build showing the mock fallback to a real user.
+    // The window read rather than the imported LIVE binding, deliberately \u2014
+    // the smoke fixtures drive this branch through the window stand-in.
+    const demoProd = !!(window.LIVE && window.LIVE.demoInProd);
     // tooSmall at floor 1 means "no published counts yet": after your own
     // blind vote that is "you're first, the trigger is landing", not "wait
     // for five people" \u2014 the floor-aware copy keeps both eras honest.
@@ -825,12 +836,25 @@ class DailySplit extends React.Component {
               h('span', { style: { fontSize: 12.5, fontWeight: 600, color: 'var(--ink-2)' } }, resultNote),
               st.mapToast === S.id && h('button', { onClick: () => window.goTab && window.goTab('map'), style: { display: 'inline-flex', alignItems: 'center', gap: 5, background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontFamily: 'var(--sans)', fontSize: 12, fontWeight: 700, color: 'var(--accent, var(--ink-2))', whiteSpace: 'nowrap', animation: 'toastFade 3s ease forwards' } },
                 'added to ' + this.mapBranch(S), h('span', { 'aria-hidden': true }, '\u2192')))),
-      // D1: live questions are world-scope — no stranger comments, no
-      // who-voted identities. The sheets stay demo-only — and are also
-      // suppressed when a live build is showing the mock fallback to a
-      // real user (window.LIVE.demoInProd), where the seeded named
-      // people would read as real.
-      voted && st.beat !== S.id && !S.live && !(window.LIVE && window.LIVE.demoInProd) && h('div', { style: { display: 'flex', gap: 10, justifyContent: 'center', marginTop: 2, animation: 'popIn .35s cubic-bezier(0.2,0.8,0.2,1)' } },
+      // The live daily is a world-scope question, so it carries the D83
+      // world-takes surface: anonymous, one take per person, enforced
+      // moderation behind it. Suppressed in the demoInProd fallback — that
+      // is a REAL composer, and mounting it under mock results would post
+      // real words against a question whose numbers are furniture.
+      // Collapsed until asked for: the panel's mount is its one fetch, so
+      // the toggle is also the cost gate. (demoProd is hoisted from the
+      // demo row below — one read, two gates, ratchet flat.)
+      S.live && !demoProd && voted && st.beat !== S.id && h('div', { style: { display: 'flex', flexDirection: 'column', gap: 10, marginTop: 2 } },
+        h('button', { className: 'press', 'aria-expanded': st.liveTakes === S.id, onClick: () => this.setState(s => ({ liveTakes: s.liveTakes === S.id ? null : S.id })), style: { alignSelf: 'center', ...icoBtn(st.liveTakes === S.id) } },
+          svgI('<path d="M6.5 4.5h11a2 2 0 0 1 2 2V13a2 2 0 0 1-2 2H11l-4 3.8V15h-.5a2 2 0 0 1-2-2V6.5a2 2 0 0 1 2-2z"/>', 17),
+          'Takes'),
+        st.liveTakes === S.id && h(LiveTakesPanel, { gid: 'world', qid: S.id })),
+      // D1: NAMED comments and who-voted identities stay circle-scoped —
+      // these sheets are the demo's, with seeded named people, so they are
+      // demo-only and also suppressed when a live build is showing the mock
+      // fallback to a real user (demoProd), where the seeded named people
+      // would read as real.
+      voted && st.beat !== S.id && !S.live && !demoProd && h('div', { style: { display: 'flex', gap: 10, justifyContent: 'center', marginTop: 2, animation: 'popIn .35s cubic-bezier(0.2,0.8,0.2,1)' } },
         h('button', { onClick: () => this.setState({ tab: isComments ? null : 'comments' }), 'aria-label': 'Comments', style: icoBtn(isComments) },
           svgI('<path d="M6.5 4.5h11a2 2 0 0 1 2 2V13a2 2 0 0 1-2 2H11l-4 3.8V15h-.5a2 2 0 0 1-2-2V6.5a2 2 0 0 1 2-2z"/>', 17),
           'Comments'),

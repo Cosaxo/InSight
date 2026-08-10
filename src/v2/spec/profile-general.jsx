@@ -494,6 +494,10 @@ import { PROFILE_GENERAL_LS } from '../data/cityAnchor';
     useEffect(() => {
       try { localStorage.setItem(GKEY, JSON.stringify(data)); } catch (e) { /* ignore */ }
     }, [data]);
+    // One liveness read for the panel: the anchors mirror below and the
+    // demo-section gate at the foot both branch on it, and consolidating
+    // here keeps the file's shared-global reference count flat (D39 rule 4).
+    const LIVE_ON = !!(window.LIVE && window.LIVE.enabled);
     // Mirror the anchor subset onto the owner-only profile doc (D8), so
     // later answers can snapshot it. Only in live mode — in mock mode the
     // vitals are demo data and there is no server to write to.
@@ -501,7 +505,7 @@ import { PROFILE_GENERAL_LS } from '../data/cityAnchor';
     // Compared as JSON rather than by object identity: `data` gets a new
     // reference on every keystroke in an unrelated card (interests, heroes),
     // and each one would otherwise be a Firestore write.
-    const anchorsJson = window.LIVE && window.LIVE.enabled
+    const anchorsJson = LIVE_ON
       ? JSON.stringify(anchorsFrom(data.vitals || {}))
       : null;
     // Deliberately fires on MOUNT as well as on edit, and deliberately not
@@ -525,7 +529,15 @@ import { PROFILE_GENERAL_LS } from '../data/cityAnchor';
         <TestArcsCard onGo={onGo} />
         <LensesRowCard onGo={onGo} />
         <LogicCard />
-        {typeof window.MirrorFieldBody === 'function' && (
+        {/* DEMO ONLY. This field body is the scenes orbit plus its lenses,
+            and every number on it is invented: "5.6k people", the
+            closer-means-more-like-you distances, "Who's in your circles ·
+            138 members", "What they answered". A release device showed all
+            of it to a real user as if it were theirs — the D66 class at
+            section scale. Live mode drops the section whole; follows are
+            managed from the feed's chip row and search until a live scenes
+            surface exists with real numbers behind it (D1). */}
+        {!LIVE_ON && typeof window.MirrorFieldBody === 'function' && (
           <div>
             <Chapter>Scenes you follow</Chapter>
             <window.MirrorFieldBody pop="groups" worldZoom="world" />

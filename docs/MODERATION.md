@@ -1,18 +1,25 @@
 # Moderation — flagged takes, a scheduled reviewer, and confinement
 
-**Status: substrate built (D22), advisory mode on.** Written 2026-07-31
-as a design sketch; the substrate shipped the same day — takes, flags,
-queue, the two MOD_UIDS-gated callables, rules with negative tests —
-with `MOD_ADVISORY = true`, so verdicts record and surface but hide
-nothing until the dry-run phase earns the flip. The transport layer is
-e2e-tested against the real functions emulator in CI
-(`test:e2e:moderation`): the loop as real clients, every confinement
-refusal demanded by exact error code, and the advisory guarantee
-asserted from a member's own view. `buildModQueueNow` exists as the
-scheduled build's moderator-gated on-demand twin — the e2e's handle and
-the maintainer's manual rebuild lever. The verdict log is keyed per
-(take, queue generation); keyed by take alone it doubled as a lock that
-never released, and the daily re-judgement the ladder is made of stopped
+**Status: substrate built (D22), ENFORCING since D83 (2026-08-10).**
+Written 2026-07-31 as a design sketch; the substrate shipped the same
+day — takes, flags, queue, the two MOD_UIDS-gated callables, rules with
+negative tests — with `MOD_ADVISORY = true`, so verdicts recorded and
+hid nothing while the dry-run phase was meant to earn the flip. D83
+flipped it with world takes: at world scale, circle-scope trust cannot
+stand in for enforcement, and the advisory window closed with zero users
+and an empty verdict log — the deviation from "cite the track record" is
+recorded in D83 rather than papered over. A remove verdict now really
+hides (with `hiddenMeta` for the appeal), a keep really clears the flags
+(fresh-flags requeue contract), and only an escalation keeps an entry
+alive. The transport layer is e2e-tested against the real functions
+emulator in CI (`test:e2e:moderation`): the loop as real clients, every
+confinement refusal demanded by exact error code, each enforced verdict
+asserted from a member's own view — plus a world leg where the flaggers
+are strangers. `buildModQueueNow` exists as the scheduled build's
+moderator-gated on-demand twin — the e2e's handle and the maintainer's
+manual rebuild lever. The verdict log is keyed per (take, queue
+generation); keyed by take alone it doubled as a lock that never
+released, and the daily re-judgement the ladder is made of stopped
 after the first verdict (see D22's amendments, which also cover the
 escalation the wholesale rebuild used to eat).
 
@@ -37,22 +44,34 @@ The control is two-step because a flag cannot be undone, carries no
 reason picker because the flag document has no field for one and the run
 picks its own policy line, and leaves a reported take on screen because
 flags are unreadable and the soft-hide is the verdict's job. Its copy
-does not promise removal while `MOD_ADVISORY` is true.
+promises review, never removal — what happens next is the verdict's to
+say, under enforcement as it was under advisory.
 
-**It is mounted on the reveal, and only there.** `LdReveal` renders the
-panel against yesterday's revealed question; today's card never gets one.
-Today's answer is sealed until tomorrow, and free text beside a sealed
-answer is the leak the seal exists to prevent — "obviously B" under a
-question nobody has answered yet *is* the vote, in prose. Once names are
-on the answers there is nothing left to give away, which is also the
-first moment a circle has something to discuss. A split day (D71) hangs
-the thread on the reveal's own qid, because one comment thread has to
-belong to one question.
+**Circle takes mount on the reveal, and only there.** `LdReveal` renders
+the panel against yesterday's revealed question; today's card never gets
+one. Today's answer is sealed until tomorrow, and free text beside a
+sealed answer is the leak the seal exists to prevent — "obviously B"
+under a question nobody has answered yet *is* the vote, in prose. Once
+names are on the answers there is nothing left to give away, which is
+also the first moment a circle has something to discuss. A split day
+(D71) hangs the thread on the reveal's own qid, because one comment
+thread has to belong to one question.
+
+**World takes (D83, adopting D78 part 2) mount behind a post-vote
+toggle** on live world cards and the live daily — after your own blind
+vote, never before, because reading the discourse before answering is
+the same leak at world scale. They are anonymous (no author names
+rendered; the sentinel gid "world", one take per person per question via
+the `qid_uid` doc id), flaggable by any signed-in user, and carry the
+local mute control (`data/mutes.ts`) guideline 1.2 expects of a
+world-scale UGC surface.
 
 **The client is done.** What remains is neither a screen nor a callable:
-the low-privilege Routine, the `MOD_ADVISORY` flip, and the maintainer's
-answers to the open questions at the end. The policy and threat model
-below remain the contract.
+the low-privilege Routine and the maintainer's answers to the open
+questions at the end. Until the Routine lands, the only verdict source
+is a MOD_UIDS operator acting by hand — with enforcement live, that hand
+now really hides, bounded per run by `MOD_RUN_CAP`. The policy and
+threat model below remain the contract.
 
 ## The job in one sentence
 

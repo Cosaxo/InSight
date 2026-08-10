@@ -1,5 +1,9 @@
-// LiveTakesPanel — the circle's takes on one question, with the report
-// control docs/MODERATION.md has been waiting on (D22 → D78 part 1).
+// LiveTakesPanel — takes on one question, with the report control
+// docs/MODERATION.md has been waiting on (D22 → D78 part 1). Two scopes,
+// one panel: a CIRCLE's takes (names from the group, D1's original grant)
+// and, since D83, WORLD takes under the sentinel gid "world" — no names,
+// one take per person per question, plus the mute control a world-scale
+// UGC surface owes Apple guideline 1.2.
 //
 // Born in this repo, so it lives here as typed TSX; a globalThis assignment
 // at the bottom keeps the spec layer's render-time lookup working.
@@ -22,12 +26,15 @@
 //      reappear on the next load — a worse lie than never hiding it. The
 //      soft-hide belongs to the moderator's verdict, not the reporter.
 //
-// And the copy never promises removal. MOD_ADVISORY is true: verdicts
-// record and hide nothing (the trust ladder's dry-run phase). "A moderator
-// reviews flagged takes" is what is true; "this will be removed" is not.
+// And the copy still never promises removal — under enforcement
+// (MOD_ADVISORY=false since D83) a remove verdict really hides, but the
+// promise the panel makes stays the one that is true at the moment of
+// reporting: "a moderator reviews flagged takes against the posted
+// policy". What happens next is the verdict's to say.
 import React from "react";
 import LIVE, { TAKE_MAX_CHARS } from "../data/live";
 import type { TakeDoc } from "../data/live";
+import { isMutedAuthor, muteAuthor, subscribeMutes } from "../data/mutes";
 
 const LT_LINE = "1px solid color-mix(in oklch, var(--rule), transparent 25%)";
 
@@ -65,13 +72,18 @@ function ltWhen(ms: number): string {
 
 // ── one take, with the control that flags it ─────────────────────────
 
-function LtTakeRow({ take, gid, name, mine }: {
+function LtTakeRow({ take, gid, name, mine, world }: {
   take: TakeDoc;
   gid: string;
   name: string;
   mine: boolean;
+  world?: boolean;
 }) {
   const [confirming, setConfirming] = React.useState(false);
+  // The world row's second control (guideline 1.2's block): local, silent,
+  // and confirmed like Report — one tap should not vanish a person with no
+  // way back, and there is no unhide surface yet.
+  const [muting, setMuting] = React.useState(false);
   const [busy, setBusy] = React.useState(false);
   const [err, setErr] = React.useState("");
   const reported = LIVE.social.flagged(take.id);
@@ -116,7 +128,7 @@ function LtTakeRow({ take, gid, name, mine }: {
       padding: "10px 12px", display: "flex", flexDirection: "column", gap: 8,
     }}>
       <div style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
-        <LtMark name={name} />
+        <LtMark name={mine ? "You" : name} />
         <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 3 }}>
           <div style={{ display: "flex", alignItems: "baseline", gap: 7 }}>
             <span style={{ fontFamily: "var(--sans)", fontWeight: 800, fontSize: 12.5, color: "var(--ink)" }}>
@@ -147,8 +159,25 @@ function LtTakeRow({ take, gid, name, mine }: {
             Reported
           </span>
         )}
-        {!mine && !reported && !confirming && act("Report", () => setConfirming(true))}
+        {world && !mine && !confirming && !muting && act("Hide author", () => setMuting(true))}
+        {!mine && !reported && !confirming && !muting && act("Report", () => setConfirming(true))}
       </div>
+
+      {muting && (
+        <div style={{
+          display: "flex", flexDirection: "column", gap: 8, paddingLeft: 40,
+          borderTop: LT_LINE, paddingTop: 8,
+        }}>
+          <span style={{ fontFamily: "var(--sans)", fontSize: 11.5, fontWeight: 600, color: "var(--ink-2)", lineHeight: 1.45 }}>
+            Hide every take from this author, on this device? Nothing is sent
+            and they won’t know — but there’s no unhide yet.
+          </span>
+          <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+            {act("Hide", () => { muteAuthor(take.authorUid); setMuting(false); }, true)}
+            {act("Cancel", () => setMuting(false))}
+          </div>
+        </div>
+      )}
 
       {confirming && !reported && (
         <div style={{
@@ -247,32 +276,49 @@ function LtComposer({ gid, qid }: { gid: string; qid: string }) {
 function LiveTakesPanel({ gid, qid }: { gid: string; qid: string }) {
   const [, tick] = React.useState(0);
   React.useEffect(() => LIVE.subscribe(() => tick((t) => t + 1)), []);
-  // One fetch per circle per session; the store holds the list. Takes are
-  // opened, not watched — a standing listener per circle is the wrong cost
-  // shape for a surface most days nobody writes in.
-  React.useEffect(() => { void LIVE.social.loadTakes(gid); }, [gid]);
+  React.useEffect(() => subscribeMutes(() => tick((t) => t + 1)), []);
+  // One fetch per scope per session; the store holds the list. Takes are
+  // opened, not watched — a standing listener is the wrong cost shape for
+  // a surface most days nobody writes in. qid rides along for the world
+  // scope, whose query and cache are per-question; a circle ignores it.
+  React.useEffect(() => { void LIVE.social.loadTakes(gid, qid); }, [gid, qid]);
 
-  // Circle-scoped by D1, and this panel has no world-scale variant to fall
-  // into: every rule behind it resolves membership through the group doc.
+  // Circle takes carry names by D1's grant; world takes (D83) carry none.
+  const world = gid === "world";
   if (!LIVE.enabled || !gid || !qid) return null;
 
-  const takes = LIVE.social.takes(gid, qid);
-  const group = (LIVE.social.groups() as LiveGroupLite[]).find((g) => g.id === gid);
-  const names = group?.memberNames || {};
   const uid = LIVE.uid;
+  // The mute filter is display-only and local (data/mutes.ts) — the block
+  // control 1.2 expects. Your own take always shows, muted or not: you
+  // cannot lose your own words to a fat-fingered self-mute.
+  const takes = LIVE.social.takes(gid, qid)
+    .filter((t) => !world || t.authorUid === uid || !isMutedAuthor(t.authorUid));
+  const group = world ? undefined : (LIVE.social.groups() as LiveGroupLite[]).find((g) => g.id === gid);
+  const names = group?.memberNames || {};
+  // World scope: one take per person per question — the doc id enforces it
+  // (qid_uid, rules), so the composer folds away instead of inviting a
+  // write the server must refuse.
+  const mineAlready = world && !!uid && takes.some((t) => t.authorUid === uid);
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 10, width: "100%" }}>
+      {world && (
+        <span style={{ fontFamily: "var(--sans)", fontSize: 10.5, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--ink-3)" }}>
+          Takes · no names at world scale
+        </span>
+      )}
       {takes.map((t) => (
         <LtTakeRow
           key={t.id}
           take={t}
           gid={gid}
           // A member who has left keeps their take but not their entry in
-          // memberNames. "Member" is the honest fallback; inventing a name
-          // for a uid the circle no longer lists would be worse.
-          name={names[t.authorUid] || "Member"}
+          // memberNames — "Member" is the honest fallback. At world scale
+          // there are no names at all (D83): "Someone" is the whole label,
+          // and inventing anything richer would be the D1 fabrication.
+          name={world ? "Someone" : (names[t.authorUid] || "Member")}
           mine={!!uid && t.authorUid === uid}
+          world={world}
         />
       ))}
       {!takes.length && (
@@ -280,7 +326,13 @@ function LiveTakesPanel({ gid, qid }: { gid: string; qid: string }) {
           No takes yet. Say the first thing.
         </span>
       )}
-      <LtComposer gid={gid} qid={qid} />
+      {mineAlready ? (
+        <span style={{ fontFamily: "var(--sans)", fontSize: 11.5, fontWeight: 600, color: "var(--ink-3)" }}>
+          One take per question — delete yours to write a new one.
+        </span>
+      ) : (
+        <LtComposer gid={gid} qid={qid} />
+      )}
     </div>
   );
 }

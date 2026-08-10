@@ -12,6 +12,9 @@ import { Sheet } from './primitives.jsx';
 // rather than a copy of it (D11's claim, D42's citation; see the module).
 import { interleaveFeed } from '../data/feed-interleave.ts';
 import { AGG_FLOOR } from '../data/floor.ts';
+// The live world-takes surface (D83) — an ordinary ESM import of the typed
+// panel, like the data imports above, so the D39 coupling meter stays flat.
+import LiveTakesPanel from '../ui/LiveTakesPanel.tsx';
 import ReactDOM from 'react-dom';
 import { PASSIVE } from './passive-progress.js';
 import {
@@ -163,7 +166,7 @@ function WFFlipList({ rows, order, gap }) {
 const WF_FRIENDS = [{ name: 'Alex', init: 'A' }, { name: 'Mia', init: 'M' }, { name: 'Jordi', init: 'J' }, { name: 'Sara', init: 'S' }, { name: 'Noah', init: 'N' }, { name: 'Elif', init: 'E' }];
 
 class WorldFeed extends React.Component {
-  state = { votes: wfLoad(), knowRes: {}, pickQ: {}, pending: {}, open: {}, panels: {}, dims: {}, cutAxis: {}, boosts: {}, vh: 0, beat: null, sheet: null, sideFilter: null, reportFor: null, replyTo: null, replies: wfLoadReplies(), myTakes: wfLoadTakes(), minds: {}, ctrIdx: {}, takeSort: 'mind', whyFor: null, headHide: false, sort: 'hot', passed: wfLoadMap(WF_PASS_LS), ripple: null };
+  state = { votes: wfLoad(), knowRes: {}, pickQ: {}, pending: {}, open: {}, panels: {}, dims: {}, cutAxis: {}, boosts: {}, vh: 0, beat: null, sheet: null, sideFilter: null, reportFor: null, replyTo: null, replies: wfLoadReplies(), myTakes: wfLoadTakes(), minds: {}, ctrIdx: {}, takeSort: 'mind', whyFor: null, headHide: false, sort: 'hot', passed: wfLoadMap(WF_PASS_LS), ripple: null, liveTakesOpen: {} };
 
   // Feature flags, carried over from the prototype so each idea can be
   // switched off from the host without editing this file. Default ON; the
@@ -1298,16 +1301,20 @@ class WorldFeed extends React.Component {
 
   // ── takes + who-voted — open as bottom sheets (revealed only after answering) ──
   renderEngage(q, T, big) {
-    // D1: free-text takes and named who-voted are circle-scoped, so a live
-    // world card never shows takes. It DOES now show who-voted, because
-    // that panel stopped being a lie: the breakdown is real anchor counts,
-    // floored per cell with complementary suppression applied server-side
-    // (D8), and it carries no names at all. D1 permits "the split, the
-    // totals" at world scale — this is a split, sliced.
+    // D1 scoped free-text takes to circles; D83 adopted D78 part 2, so a
+    // live world card now carries ANONYMOUS world takes (LiveTakesPanel,
+    // gid "world" — no author names, one take per person per question,
+    // enforced moderation behind them). What stays circle-only forever is
+    // NAMED speech and named who-voted. The who-voted panel shows because
+    // it stopped being a lie: the breakdown is real anchor counts, floored
+    // per cell with complementary suppression applied server-side (D8),
+    // and it carries no names at all. D1 permits "the split, the totals"
+    // at world scale — this is a split, sliced.
     //
     // demoInProd stays fully suppressed either way: that is a real user a
     // live build dropped into the mock fallback, where the synthetic
-    // splits and the fake named people below would both be lies.
+    // splits and the fake named people below would both be lies — and a
+    // REAL takes composer beside fake results would be worse still.
     if (window.LIVE && window.LIVE.demoInProd) return null;
     // A selfOnly card (live-session lens question — D50) has no crowd
     // behind it: takes, who-voted and the votes-count footer would all be
@@ -1321,18 +1328,27 @@ class WorldFeed extends React.Component {
       // agg.by, which exists only for live questions, so leaving it below
       // this early return — as it was — meant it never rendered at all.
       const ins = this.renderInsight(q, T, big);
+      // Collapsed until asked for: the panel fetches its list on mount
+      // (one query per question per session), so the toggle is also the
+      // cost gate — a scrolled-past card loads nothing.
+      const takesOpen = !!this.state.liveTakesOpen[q.id];
       return (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: big ? 12 : 10, alignItems: 'flex-start' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: big ? 12 : 10, alignItems: 'stretch' }}>
           {ins}
-          {/* the insight line is itself the way into the breakdown, so the
-              bar-chart button would be a second door to the same room */}
-          {!ins && (
-            <div style={{ display: 'flex', gap: 24, alignItems: 'center' }}>
+          <div style={{ display: 'flex', gap: 24, alignItems: 'center' }}>
+            {/* the insight line is itself the way into the breakdown, so the
+                bar-chart button would be a second door to the same room */}
+            {!ins && (
               <button className="press" onClick={() => this.setState({ sheet: { q, T, panel: 'stats' }, sideFilter: null, replyTo: null })} aria-label="who voted" title="who voted" style={{ background: 'none', border: 'none', padding: '4px 0', display: 'flex', alignItems: 'center', gap: 9, cursor: 'pointer', color: 'var(--ink)', WebkitAppearance: 'none' }}>
                 <svg width={big ? 23 : 22} height={big ? 23 : 22} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M5 19.5V13M12 19.5V5.5M19 19.5V10"></path></svg>
               </button>
-            </div>
-          )}
+            )}
+            <button className="press" aria-expanded={takesOpen} onClick={() => this.setState((s) => ({ liveTakesOpen: { ...s.liveTakesOpen, [q.id]: !s.liveTakesOpen[q.id] } }))} style={{ background: 'none', border: 'none', padding: '4px 0', display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', color: 'var(--ink)', WebkitAppearance: 'none', fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 12.5 }}>
+              <svg width={big ? 21 : 20} height={big ? 21 : 20} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M6.5 4.5h11a2 2 0 0 1 2 2V13a2 2 0 0 1-2 2H11l-4 3.8V15h-.5a2 2 0 0 1-2-2V6.5a2 2 0 0 1 2-2z"></path></svg>
+              Takes
+            </button>
+          </div>
+          {takesOpen && <LiveTakesPanel gid="world" qid={q.id} />}
         </div>
       );
     }

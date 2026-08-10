@@ -8006,3 +8006,125 @@ project, after launch, never a bugfix-pass rider.
 in place: the needs-a-city empty state now carries the profile's own
 picker ("use my location" one-tap suggest + manual search) instead of
 prose pointing at the profile.
+
+## D83 · World takes ship — D78 part 2 adopted, anonymous, behind enforcement
+
+**Decided:** 2026-08-10 · **Status:** binding · **Owner's call**:
+"Comments should be on world as well, that's where it is most useful —
+it has moderation so it's not an issue."
+
+**Decision.** Takes exist at world scale: the sentinel gid `"world"`
+carries per-question free text readable and flaggable by any signed-in
+user, with **no author names anywhere** and **one take per person per
+question**. `MOD_ADVISORY` flips to `false` in the same change — D78 made
+that the hard prerequisite, and it holds: at world scale, circle-scope
+trust cannot stand in for enforcement. Named who-voted at world scale
+stays refused, permanently, for D78's own two reasons (Art. 9, policy
+line H4) — anonymity is not a softening of this feature, it is the whole
+of it.
+
+**What was built, and where each guarantee lives:**
+
+- **Rules.** `firestore.rules` grew world arms on the takes read/create
+  and flag create gates. The sentinel cannot collide with a circle
+  (`v2_groups` creates are `if false`; ids are server-minted), reads stay
+  fail-closed on the `hidden == false` equality (D65's lesson, re-proved
+  for the world list in `rules.test.ts` — 51 → 56 cases), and the create
+  bound moves from membership to the DOCUMENT ID: `qid + "_" + uid`, so a
+  second take is an update and updates are denied. That id is also the
+  flood control — one account cannot stack a question under fresh ids.
+- **Index.** A second `v2_takes` composite (gid, qid, hidden, createdAt
+  DESC): the world list is per-question, because "every world take ever"
+  is unbounded and no surface reads it. The circle query and its index
+  are untouched.
+- **Client.** The same five `SOCIAL` members, scope as an argument —
+  `loadTakes("world", qid)` queries per question and caches under
+  `world:{qid}`; `postTake` mints the deterministic id; nothing else on
+  the pinned surface moved (takes.test.ts grew the world suite).
+  `LiveTakesPanel` gained a world mode: "Someone" instead of names, the
+  one-take composer fold, an anonymity kicker, and **Hide author** — the
+  per-author local mute (`data/mutes.ts`, purge-aware) that Apple
+  guideline 1.2's blocking row expects of a world-scale surface. Mounted
+  behind a post-vote "Takes" toggle on live feed cards and the live
+  daily: after your own blind vote, never before, because reading the
+  discourse before answering is the seal's leak at world scale. The
+  toggle is also the cost gate — one query per opened question.
+- **Enforcement.** `submitModVerdict`'s enforced branches were already
+  coded and dormant: remove now hides (with `hiddenMeta` for the
+  appeal) and settles the queue entry; keep clears the flags so a kept
+  take re-queues only on fresh ones; escalate alone keeps the entry.
+  `e2e-moderation.mjs` was rewritten from the advisory guarantees to the
+  enforced ones and grew a world leg — stranger reads, stranger flags,
+  queue, remove, hidden from everyone — every leg green in the emulator.
+
+**The deviation, recorded rather than papered over.** moderation.ts asked
+the advisory→enforced flip to "cite the advisory phase's track record in
+its PR". There is none: the advisory window closed with zero users and an
+empty verdict log, because the owner adopted world takes first. The
+compensating controls are real — the only verdict source until the
+Routine lands is a MOD_UIDS operator acting by hand, `MOD_RUN_CAP` bounds
+a bad run, a wrong remove is reversible in data (`hidden` is a field, and
+`hiddenMeta` says who and why) — and the blast radius at the current
+userbase is a rounding error. The Routine (MODERATION.md step 4) stays
+blocked on its platform gap; its absence means enforcement is manual, not
+that it is off.
+
+**The linkability trade, stated.** A world take's doc carries
+`authorUid` — an opaque anonymous id, now world-readable for the first
+time anywhere in the product. Takes by one account are therefore linkable
+to each other (and the mute control depends on exactly that), though to
+no name, no profile and no answer — every other uid-bearing surface stays
+owner- or member-scoped. The alternative (a server-mirrored public copy
+with the uid stripped) costs a function, doubles the writes and breaks
+author-delete; it is the recorded upgrade path if pseudonym linkage ever
+matters at scale. `docs/data-inventory.md` carries the row.
+
+**Filings.** No ticked value moves: `messagingAndChat` is already true
+(D79), takes remain posts (Emails/Text Messages stays No), and
+`userGeneratedContent` was Yes from the start. The PROSE under those
+answers leaned on "no global surface to be abused from", which D83 ends —
+app-privacy.json's `$structural`, `$socialMediaQuestions`, `$guideline12`
+and STORE-FORMS.md's 1.2 table now answer from what exists: enforced
+moderation, report at both scopes, leave-the-circle and hide-the-author
+as the two blocking shapes.
+
+**What this deliberately does not add:** author names or avatars at world
+scale (refused above), reply threads (a take is one person's take on the
+question, not a forum), edit (an edited take invalidates its flags —
+delete-and-repost is the rewrite), a reason picker on reports (no field,
+by design), or world takes visible before the viewer has answered (the
+client mounts the panel post-vote; a determined API reader can pay for
+spoiling their own blind vote, which harms nobody else and is recorded
+here rather than chased with a rules read-gate that would cost a get()
+per list row).
+
+### D82 amendment (2026-08-10) — "what if location only updated while the app is open?"
+
+Asked by the owner as a follow-up, and worth answering in the record
+because it is the RIGHT question — it just answers a different cost than
+the one that defers this.
+
+Foreground-only updates were already the assumed shape ("presence that
+expires in minutes", above): no background location, no history, a fix
+taken only while the app is open. What that removes is the worst store
+label and the battery objection. What it does not touch:
+
+- **The emptiness.** Near-by-radius shows people who are near you *now*
+  (or within the presence TTL). Foreground-only makes the presence set
+  STRICTLY SMALLER — it is the people who have the app open around you,
+  which at the current userbase is zero in every cell at every radius,
+  and stays near-zero until well after launch. The floor argument above
+  is unchanged; the sampling makes it stricter.
+- **The precision line.** A per-user cell write at ANY cadence spends
+  "the most precise location this system can hold about a person is the
+  name of a city, by construction" (D9). Foreground-only changes when a
+  coordinate exists, not that one does.
+- **The collection.** A presence doc keyed by user is still the class
+  D4 closed, with its rules, tests, TTL machinery and erasure surface.
+
+So: yes, it helps — it is how the feature would be built if it is ever
+built — and it does not move the two things the deferral rests on
+(nobody to show, and the privacy line it spends). The revisit trigger
+stays what D82 set: launch traction first, own project after, and the
+foreground-only design is the recorded starting point when that day
+comes.
