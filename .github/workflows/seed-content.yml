@@ -33,6 +33,27 @@
 name: Seed content
 
 on:
+  # Chained to the deploy, NOT to a push. The ordering is the whole point
+  # and it is not a preference:
+  #
+  # `seedContentV2` reads `V2_QUESTIONS` from its own bundle — `v2.ts`
+  # imports `./v2content`, so the bank it writes is the one compiled into
+  # the DEPLOYED function, not one this workflow uploads. A push trigger on
+  # `functions/src/v2content.ts` would therefore race firebase-deploy on the
+  # very same commit and, when it won, seed the PREVIOUS bank and report
+  # success — the silent-wrong-success this file's `set -o pipefail` exists
+  # to prevent, wearing a different shape.
+  #
+  # `workflow_run` removes the race by construction: the deploy has already
+  # finished when this starts. It fires after EVERY backend deploy rather
+  # than only content ones, which is deliberate — seeding is idempotent and,
+  # since D34, rewrites only changed documents and holds `contentRev`, so a
+  # no-op costs one callable and reports `written: 0`. Running it every time
+  # means the bank cannot drift from the deployed code at all, instead of
+  # only when somebody noticed content had changed.
+  workflow_run:
+    workflows: ["Deploy Firebase backend"]
+    types: [completed]
   workflow_dispatch:
     inputs:
       bump_rev:
@@ -55,6 +76,14 @@ jobs:
   seed:
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    # A failed deploy still emits `completed`, so without this the seed runs
+    # against whatever was live before it — the exact stale-bank write the
+    # trigger comment above is about. `workflow_dispatch` has no
+    # `workflow_run` payload, hence the first clause rather than a bare
+    # conclusion check.
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      github.event.workflow_run.conclusion == 'success'
     # The same environment firebase-deploy.yml uses, because that is where
     # SEED_ADMIN_UIDS lives and where FIREBASE_SERVICE_ACCOUNT is scoped.
     environment: production
@@ -79,6 +108,12 @@ jobs:
           # purpose is to make a step verifiable must not be able to lie
           # about whether the step happened.
           set -o pipefail
+          # On a workflow_run firing there is no `inputs` context, so both
+          # expand to "" and both flags stay off. That is the correct
+          # default for an automatic seed and not an accident worth
+          # tightening: --bump-rev on every deploy would make each one cost
+          # every returning device a full bank refetch, which is precisely
+          # what D34 stopped doing.
           ARGS=""
           [ "${{ inputs.bump_rev }}" = "true" ] && ARGS="$ARGS --bump-rev"
           [ "${{ inputs.dry_run }}" = "true" ] && ARGS="$ARGS --dry-run"

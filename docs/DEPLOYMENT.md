@@ -155,9 +155,31 @@ GitHub → Settings → Environments → `production`.
 | **Required reviewers** | ON — the repo owner | The gate. The job pauses *before* `FIREBASE_SERVICE_ACCOUNT` is exposed to the runner, so an unattended or unintended run never reaches production credentials. |
 | **Prevent self-review** | **OFF** | Load-bearing, not an oversight — see below. |
 | **Wait timer** | **0 minutes** | A timer delays without adding a decision. The approval *is* the gate, and the one path this repo protects hardest is the emergency rules fix. |
+| **Allow administrators to bypass configured protection rules** | **OFF** | GitHub ticks this by default. Left on, it cancels the gate for exactly the person the gate exists to slow down — see below. |
 | **Deployment branches and tags** | Selected → `main` only | The half that holds without a human. |
 
-### Two of those need their reasoning recorded
+### Three of those need their reasoning recorded
+
+**Admin bypass must be OFF, and this is the setting the whole thing turns
+on.** GitHub ticks it by default, and it was missed when this section was
+first written (2026-08-10) — caught while the settings were actually
+being applied, which is the only place it could have been caught, because
+nothing in this repo can see it.
+
+Read it against the threat D87 names. The reason for the gate is that
+granting an agent session workflow-dispatch rights means granting the
+`workflow` scope on **the owner's account**, and the owner is a repo
+admin. With bypass on, a run dispatched with that token skips the
+approval — the gate stands aside for precisely the caller it was built
+to stop, and the audit log records a protection rule that never fired.
+Required reviewers with admin bypass on is not a weaker gate; against
+this threat it is not a gate.
+
+It also costs nothing to turn off here. Bypass exists so an admin can
+push past a rule in an emergency, but the emergency path is already one
+tap: the owner IS the required reviewer, and **prevent self-review is
+OFF**, so they approve their own run. Bypass would only save the click,
+and the click is the entire feature.
 
 **Prevent self-review must stay OFF, and this is a consequence of
 "Operator continuity" below, not an independent choice.** `SEED_ADMIN_UIDS`
