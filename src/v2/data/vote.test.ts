@@ -30,6 +30,9 @@ const h = vi.hoisted(() => ({
   setDocImpl: null as null | (() => Promise<void>),
   getDocsImpl: null as null | (() => Error),
   setDocCalls: [] as Array<{ path: string; data: Record<string, unknown> }>,
+  // the D85 edit path writes through updateDoc, never setDoc
+  updateDocImpl: null as null | (() => Promise<void>),
+  updateDocCalls: [] as Array<{ path: string; data: Record<string, unknown> }>,
   bankDocs: [] as FakeSnapshotDoc[],
   // live.ts observes auth for the whole session; capture the callback so a
   // test can drive a uid change or a revoked session.
@@ -113,6 +116,10 @@ vi.mock("firebase/firestore", () => {
     setDoc: (target: { path: string }, data: Record<string, unknown>) => {
       h.setDocCalls.push({ path: target.path, data });
       return h.setDocImpl ? h.setDocImpl() : Promise.resolve();
+    },
+    updateDoc: (target: { path: string }, data: Record<string, unknown>) => {
+      h.updateDocCalls.push({ path: target.path, data });
+      return h.updateDocImpl ? h.updateDocImpl() : Promise.resolve();
     },
     terminate: () => {
       h.cacheTeardown.push("terminate");
@@ -199,6 +206,8 @@ beforeEach(() => {
   h.getDocsImpl = null;
   h.authCb = null;
   h.setDocCalls.length = 0;
+  h.updateDocImpl = null;
+  h.updateDocCalls.length = 0;
   h.snapshots.length = 0;
   h.cacheTeardown.length = 0;
   h.clearCacheImpl = null;
@@ -345,6 +354,84 @@ describe("vote() optimistic path (inflight vs unaggregated)", () => {
     expect(cached.votes || {}).not.toHaveProperty("q_1");
     expect(listener.mock.calls.length).toBeGreaterThan(notifiesBeforeReject);
     expect(h.reportError).toHaveBeenCalledWith(boom, { where: "vote", qid: "q_1" });
+  });
+
+  it("editVote (D85): refuses when there is nothing to move, and sends nothing", async () => {
+    const LIVE = await bootLive();
+    expect(LIVE.editVote("q_1", "1")).toBe(false); // never answered
+    LIVE.vote("q_1", "1");
+    await flush();
+    expect(LIVE.editVote("q_1", "1")).toBe(false); // same option
+    expect(h.updateDocCalls).toHaveLength(0);
+  });
+
+  it("editVote refuses while the create is still unacked, then moves once it lands", async () => {
+    const LIVE = await bootLive();
+    const d = deferred();
+    h.setDocImpl = () => d.promise;
+    LIVE.vote("q_1", "1");
+    await flush();
+    expect(LIVE.editVote("q_1", "0")).toBe(false); // create in flight
+    d.resolve();
+    await flush();
+    expect(LIVE.editVote("q_1", "0")).toBe(true);
+    await flush();
+    expect(h.updateDocCalls.map((c) => c.path)).toContain("v2_users/uid_test/answers/q_1");
+  });
+
+  it("editVote moves optimistically, writes ONLY optionIdx + editedAt, and confirms on ack", async () => {
+    const LIVE = await bootLive();
+    LIVE.vote("q_1", "1");
+    await flush();
+    const d = deferred();
+    h.updateDocImpl = () => d.promise;
+    expect(LIVE.editVote("q_1", "0")).toBe(true);
+    expect(LIVE.myVotes()).toMatchObject({ q_1: "0" });      // optimistic
+    expect(LIVE.confirmedVotes()).not.toHaveProperty("q_1"); // unacked again
+    await flush();
+    const call = h.updateDocCalls.find((c) => c.path === "v2_users/uid_test/answers/q_1");
+    expect(call).toBeDefined();
+    // The whole diff surface the rules arm admits — anything more here
+    // would be refused server-side (anchors and answeredAt are frozen).
+    expect(Object.keys(call!.data).sort()).toEqual(["editedAt", "optionIdx"]);
+    expect(call!.data.optionIdx).toBe(0);
+    d.resolve();
+    await flush();
+    expect(LIVE.confirmedVotes()).toMatchObject({ q_1: "0" });
+    const cached = JSON.parse(storage.getItem(ANS_LS) || "{}");
+    expect(cached.votes).toMatchObject({ q_1: "0" });
+  });
+
+  it("editVote holds the client-side 60s cooldown after an acked edit", async () => {
+    const LIVE = await bootLive();
+    LIVE.vote("q_1", "1");
+    await flush();
+    expect(LIVE.editVote("q_1", "0")).toBe(true);
+    await flush(); // acked — the cooldown stamp lands
+    expect(LIVE.editVote("q_1", "1")).toBe(false);
+    expect(h.updateDocCalls).toHaveLength(1); // the second edit sent nothing
+  });
+
+  it("editVote rolls back to the standing option when the server refuses", async () => {
+    const LIVE = await bootLive();
+    LIVE.vote("q_1", "1");
+    await flush();
+    // the feed-votes mirror the rollback must RESTORE (not scrub — the
+    // doc still holds the previous option, unlike a refused create)
+    storage.setItem(WF_LS, JSON.stringify({ q_1: 0 }));
+    const d = deferred();
+    h.updateDocImpl = () => d.promise;
+    expect(LIVE.editVote("q_1", "0")).toBe(true);
+    await flush();
+    const boom = new Error("PERMISSION_DENIED: one change a minute");
+    d.reject(boom);
+    await flush();
+    expect(LIVE.myVotes()).toMatchObject({ q_1: "1" });
+    expect(LIVE.confirmedVotes()).toMatchObject({ q_1: "1" });
+    expect(JSON.parse(storage.getItem(WF_LS) || "{}")).toMatchObject({ q_1: 1 });
+    const cached = JSON.parse(storage.getItem(ANS_LS) || "{}");
+    expect(cached.votes).toMatchObject({ q_1: "1" });
+    expect(h.reportError).toHaveBeenCalledWith(boom, { where: "editVote", qid: "q_1" });
   });
 
   it("registers wake handlers, and a wake on a dead session re-attaches", async () => {

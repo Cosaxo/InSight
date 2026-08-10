@@ -54,8 +54,15 @@ v2_users/{uid}/answers/{qid}
     pokemon, generated QID key sets for films/artists) and an unknown
     key never aggregates.
 create: owner, validated (question must exist; optionIdx < options.size())
-update/delete: nobody — immutability is what lets the aggregate be a
-plain increment with no reconciliation
+update: owner, ONE shape (D85) — optionIdx moves (+ editedAt ==
+request.time), on surfaces daily|feed|test only, bounded by the
+question's options, once per 60 s per answer. Everything else is frozen:
+anchors and answeredAt (the cohort stamp, D8), learn (D32's
+first-attempt measurement), duels (the seal), catalog answers (no canon
+delta path). The aggregate stays a plain fold because onV2AnswerUpdated
+applies the matching -old/+new delta with the total unchanged — the
+reconciliation D5 avoided now exists, in one trigger, ledger-deduped
+delete: nobody
 read: owner only
 
 v2_aggs_private/{qid}              exact counts — server-only (opaque)
@@ -264,8 +271,10 @@ everything. The question bank (399 docs) caches in localStorage keyed by
 than the cache's `updatedAt` cursor, so a promotion cycle costs the
 handful of questions it added rather than the whole bank (D34;
 docs/COSTS.md has the arithmetic for why that mattered more than it
-looks). Answers are immutable, so that local cache likewise only pulls
-docs newer than its high-water mark; aggregates cache locally and fetch only
+looks). Answer creates never refetch, so that local cache pulls docs
+newer than its high-water mark — plus, since D85 made optionIdx mutable,
+a second cursor over `editedAt` so another device's edit is heard about
+without moving the frozen answeredAt watermark; aggregates cache locally and fetch only
 answered questions' missing docs (feed cards are blind pre-vote — there
 is nothing to show). The 7 deck aggregates keep live snapshots; voted
 aggregates refresh once, delayed. Push tokens write once per new token,
@@ -286,7 +295,7 @@ not per boot. `LIVE.stats` reports `bankSource` / `answersFetched` /
 
 ## Verification
 
-- `npm run test:rules` — 59 rules tests (Firestore + Storage; the v2
+- `npm run test:rules` — 61 rules tests (Firestore + Storage; the v2
   surface, the anonymous-default lens, and the retired-v1 guard).
 - `firestore-tests/e2e-v2-loop.mjs` under
   `firebase emulators:exec --only auth,firestore,functions` — the full

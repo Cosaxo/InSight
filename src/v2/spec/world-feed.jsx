@@ -10,7 +10,7 @@ import { WF_CATALOGS } from './world-catalogs.js';
 import { Sheet } from './primitives.jsx';
 // The feed's cadence arithmetic — extracted so the test exercises THIS loop
 // rather than a copy of it (D11's claim, D42's citation; see the module).
-import { interleaveFeed, unansweredFirst } from '../data/feed-interleave.ts';
+import { interleaveFeed, partitionAnswered } from '../data/feed-interleave.ts';
 import { AGG_FLOOR } from '../data/floor.ts';
 // The live world-takes surface (D83) — an ordinary ESM import of the typed
 // panel, like the data imports above, so the D39 coupling meter stays flat.
@@ -166,7 +166,7 @@ function WFFlipList({ rows, order, gap }) {
 const WF_FRIENDS = [{ name: 'Alex', init: 'A' }, { name: 'Mia', init: 'M' }, { name: 'Jordi', init: 'J' }, { name: 'Sara', init: 'S' }, { name: 'Noah', init: 'N' }, { name: 'Elif', init: 'E' }];
 
 class WorldFeed extends React.Component {
-  state = { votes: wfLoad(), knowRes: {}, pickQ: {}, pending: {}, open: {}, panels: {}, dims: {}, cutAxis: {}, boosts: {}, vh: 0, beat: null, sheet: null, sideFilter: null, reportFor: null, replyTo: null, replies: wfLoadReplies(), myTakes: wfLoadTakes(), minds: {}, ctrIdx: {}, takeSort: 'mind', whyFor: null, headHide: false, sort: 'hot', passed: wfLoadMap(WF_PASS_LS), ripple: null, liveTakesOpen: {} };
+  state = { votes: wfLoad(), knowRes: {}, pickQ: {}, pending: {}, open: {}, panels: {}, dims: {}, cutAxis: {}, boosts: {}, vh: 0, beat: null, sheet: null, sideFilter: null, reportFor: null, replyTo: null, replies: wfLoadReplies(), myTakes: wfLoadTakes(), minds: {}, ctrIdx: {}, takeSort: 'mind', whyFor: null, headHide: false, sort: 'hot', passed: wfLoadMap(WF_PASS_LS), ripple: null, liveTakesOpen: {}, editFor: {}, editHold: null, doneOpen: false };
 
   // Feature flags, carried over from the prototype so each idea can be
   // switched off from the host without editing this file. Default ON; the
@@ -248,7 +248,7 @@ class WorldFeed extends React.Component {
       // the OLD account's answered-ness, and a new account inheriting it
       // would open on a feed sorted by someone else's history.
       this._sunk = null;
-      this.setState({ votes: {}, passed: {}, myTakes: {}, replies: {}, knowRes: {}, pickQ: {} });
+      this.setState({ votes: {}, passed: {}, myTakes: {}, replies: {}, knowRes: {}, pickQ: {}, editFor: {}, editHold: null });
     };
     window.addEventListener('insight:local-purge', this._onPurge);
     // entrance: each card rises as it first scrolls into view (transform-only)
@@ -261,6 +261,7 @@ class WorldFeed extends React.Component {
     clearTimeout(this._retry);
     clearTimeout(this._sheetT);
     clearTimeout(this._rippleT);
+    clearTimeout(this._ehT);
     if (this._unsubScenes) this._unsubScenes();
     if (this._unsubLive) this._unsubLive();
     if (this._unsubSubs) this._unsubSubs();
@@ -318,10 +319,11 @@ class WorldFeed extends React.Component {
     }
   }
 
-  // skip a card. Local only, and it must stay that way: answers are
-  // create-only and immutable server-side (D5), and a pass is not an answer —
-  // recording one would either pollute the aggregate or need a second
-  // write path per question for something the user asked to ignore.
+  // skip a card. Local only, and it must stay that way: a pass is not an
+  // answer (D5, as amended by D85 — the only server write besides the
+  // answer itself is an option edit ON an answer), so recording one would
+  // either pollute the aggregate or need a second write path per question
+  // for something the user asked to ignore.
   setPass(id, on) {
     this.setState((s) => {
       const passed = { ...s.passed };
@@ -339,16 +341,39 @@ class WorldFeed extends React.Component {
     // ripple's Mirror claim, the why-prompt — would be fabricated. The lens
     // record itself still happens: that write is the card's whole point.
     const selfOnly = !!q.selfOnly;
-    // live cards persist to Firestore too (owner-only answer + aggregate)
-    if (q.live && window.LIVE && typeof val === 'number') window.LIVE.vote(id, String(val));
+    // live cards persist to Firestore too (owner-only answer + aggregate).
+    // D85: a live card that already holds a server vote routes through the
+    // edit path instead — vote() is create-only and would silently no-op,
+    // leaving the feed claiming a choice the server never heard. A refused
+    // edit (unacked write, or the 60s cooldown) falls back to the standing
+    // pick and says why on the meta line. `editing` also mutes the
+    // first-vote celebrations below: the beat, the ripple and the reveal
+    // haptic are "your vote landed" moments, not "your vote moved" ones.
+    let editing = false, refused = false;
+    if (q.live && window.LIVE && typeof val === 'number') {
+      const L = window.LIVE;
+      const prior = L.myVotes ? L.myVotes()[id] : null;
+      if (prior != null) {
+        editing = true;
+        if (Number(prior) === val) refused = true; // re-picked the standing vote
+        else if (!(L.editVote && L.editVote(id, String(val)))) {
+          refused = true;
+          this.holdNote(id);
+        }
+        if (refused) val = Number(prior);
+      } else {
+        L.vote(id, String(val));
+      }
+    }
     PASSIVE.record(q); // no-op unless this is a test's own question (q.test)
     // …and the same for a lens question. The scale runs agree→disagree while
     // the lens stores disagree→agree, hence 4 - val.
     if (window.LENSES && q.lens) window.LENSES.record({ ...q, value: typeof val === 'number' ? 4 - val : 2 });
-    this._fresh = id; // gates the reveal's count-up + bar growth to the vote moment
+    if (!refused) this._fresh = id; // gates the reveal's count-up + bar growth to the vote moment
     // the vote is felt, then the crowd's answer is felt arriving — timed to the
     // same stagger the bars use (2 steps), so hand and eye agree
-    HAPTIC.tap(); clearTimeout(this._hapT); this._hapT = setTimeout(() => HAPTIC.reveal(), 260);
+    HAPTIC.tap();
+    if (!editing) { clearTimeout(this._hapT); this._hapT = setTimeout(() => HAPTIC.reveal(), 260); }
     // the feed's memory: with the crowd or against it. Local to this device
     // (feed-read.js) — it reports only your own answers, so no floor applies.
     // No crowd on a selfOnly card means no majority to be with.
@@ -363,7 +388,7 @@ class WorldFeed extends React.Component {
     // wallpaper, and a re-render must not make it flicker. A lens answer
     // lands on the profile's Lenses tab, not the Mirror — renderSelfNote
     // says so instead.
-    const rip = this.opts.ripple && !selfOnly && wfHash(id + ':rip') < 0.45 ? id : null;
+    const rip = !editing && this.opts.ripple && !selfOnly && wfHash(id + ':rip') < 0.45 ? id : null;
     if (rip) {
       clearTimeout(this._rippleT);
       this._rippleT = setTimeout(() => {
@@ -375,15 +400,25 @@ class WorldFeed extends React.Component {
       try { localStorage.setItem(WF_LS, JSON.stringify(votes)); } catch { /* best-effort */ }
       // …and the beat replays the split as a scene, so it is the same
       // fabrication on a selfOnly card that the bars would be.
-      const beat = (this.props.beats !== false && window.ConsequenceBeat && !selfOnly) ? id : s.beat;
+      const beat = (!editing && this.props.beats !== false && window.ConsequenceBeat && !selfOnly) ? id : s.beat;
       // Ask for a reason once, while the vote is warm, and only if this
       // question has none of your takes yet. Demo cards only: a live card
       // shows no takes, so there would be nowhere for the answer to go —
       // and a selfOnly card suppresses the whole engage row the same way.
       const askWhy = this.opts.why && !q.live && !selfOnly && typeof val === 'number' && !(s.myTakes[id] || []).length ? id : s.whyFor;
-      return { votes, beat, ripple: rip || s.ripple, whyFor: askWhy };
+      // an option was tapped, so edit mode is over either way
+      const editFor = { ...s.editFor }; delete editFor[id];
+      return { votes, beat, ripple: rip || s.ripple, whyFor: askWhy, editFor };
     });
-    if (this.props.onVote) this.props.onVote(q, val);
+    if (this.props.onVote && !refused) this.props.onVote(q, val);
+  }
+
+  // A refused edit (D85's one-change-a-minute cooldown) says why on the
+  // meta line for a moment instead of silently snapping back.
+  holdNote(id) {
+    clearTimeout(this._ehT);
+    this.setState({ editHold: id });
+    this._ehT = setTimeout(() => this.setState({ editHold: null }), 2600);
   }
 
   // the consequence beat — replaces the result reveal for ~2s after a vote
@@ -1030,11 +1065,15 @@ class WorldFeed extends React.Component {
   renderVote(q, T, big) {
     const mine = this.state.votes[q.id];
     if (mine != null && this.state.beat === q.id) return this.renderBeat(q, T, big);
-    if (mine == null) {
+    // editFor re-opens the options on an answered card (D85) — the tap
+    // lands in setVote, which routes an answered live card through
+    // LIVE.editVote instead of the create-only vote().
+    const editing = mine != null && !!this.state.editFor[q.id];
+    if (mine == null || editing) {
       return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: big ? 11 : 8 }}>
           {q.options.map((o, i) => (
-            <button key={i} className="press" onClick={() => this.setVote(q, i)} style={{ border: '1px solid color-mix(in oklch, ' + T.color + ' 45%, var(--rule))', borderRadius: big ? 16 : 12, background: 'color-mix(in oklch, ' + T.color + ' 10%, var(--surface))', boxShadow: 'none', padding: big ? '15px 16px' : '11px 14px', textAlign: 'left', cursor: 'pointer', fontFamily: 'var(--sans)', fontWeight: 700, fontSize: big ? 16.5 : 14, color: 'var(--ink)', WebkitAppearance: 'none' }}>{o.label}</button>
+            <button key={i} className="press" onClick={() => this.setVote(q, i)} style={{ border: (editing && mine === i ? '1.5px' : '1px') + ' solid color-mix(in oklch, ' + T.color + ' 45%, var(--rule))', borderRadius: big ? 16 : 12, background: 'color-mix(in oklch, ' + T.color + ' 10%, var(--surface))', boxShadow: 'none', padding: big ? '15px 16px' : '11px 14px', textAlign: 'left', cursor: 'pointer', fontFamily: 'var(--sans)', fontWeight: 700, fontSize: big ? 16.5 : 14, color: 'var(--ink)', WebkitAppearance: 'none' }}>{o.label}{editing && mine === i && <span style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--ink-2)', whiteSpace: 'nowrap' }}>{' · your pick'}</span>}</button>
           ))}
         </div>
       );
@@ -1148,7 +1187,7 @@ class WorldFeed extends React.Component {
     const rip = this.state.ripple === q.id ? (WF_BRANCH[q.cat] || 'Interests') : null;
     return (
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, minHeight: 18 }}>
-        <span style={{ fontSize: big ? 12.5 : 11.5, fontWeight: 600, color: 'var(--ink-2)' }}>{wfFmt(total)} votes{p[mine] === maxP ? ' · with the majority' : ' · you picked the underdog'}</span>
+        <span style={{ fontSize: big ? 12.5 : 11.5, fontWeight: 600, color: 'var(--ink-2)' }}>{this.state.editHold === q.id ? 'One change a minute — try again shortly.' : wfFmt(total) + ' votes' + (p[mine] === maxP ? ' · with the majority' : ' · you picked the underdog')}</span>
         {rip && <button onClick={() => window.goTab && window.goTab('mirror')} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontFamily: 'var(--sans)', fontSize: 12, fontWeight: 700, color: 'var(--accent, var(--ink-2))', whiteSpace: 'nowrap', animation: 'toastFade 3.2s ease forwards' }}>added to {rip}<span aria-hidden="true">→</span></button>}
       </div>
     );
@@ -1353,6 +1392,16 @@ class WorldFeed extends React.Component {
               <svg width={big ? 21 : 20} height={big ? 21 : 20} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M6.5 4.5h11a2 2 0 0 1 2 2V13a2 2 0 0 1-2 2H11l-4 3.8V15h-.5a2 2 0 0 1-2-2V6.5a2 2 0 0 1 2-2z"></path></svg>
               Takes
             </button>
+            {/* D85: re-open the options on an answered plain vote. The
+                guard is the option-vote shape itself — catalog picks
+                (entity objects), ranks and know cards never store a
+                number here, and their server docs refuse edits anyway. */}
+            {q.options && typeof this.state.votes[q.id] === 'number' && !this.state.editFor[q.id] && (
+              <button className="press" onClick={() => this.setState((s) => ({ editFor: { ...s.editFor, [q.id]: true } }))} style={{ background: 'none', border: 'none', padding: '4px 0', display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', color: 'var(--ink)', WebkitAppearance: 'none', fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 12.5 }}>
+                <svg width={big ? 21 : 20} height={big ? 21 : 20} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"></path></svg>
+                Change
+              </button>
+            )}
           </div>
           {takesOpen && <LiveTakesPanel gid="world" qid={q.id} />}
         </div>
@@ -2481,35 +2530,58 @@ class WorldFeed extends React.Component {
     // sort lenses: hot = the interleaved mix · top = most votes · new = latest first
     const sort = this.state.sort;
     const sorted = sort === 'top' ? [...qs].sort((a, b) => wfVotes(b) - wfVotes(a)) : sort === 'new' ? [...qs].reverse() : mixed;
-    // Unanswered first, within whichever sort lens is on. The bank is
-    // finite and served in a stable order, so without this every session
-    // opened on the same head of cards — the ones the user answered first
-    // — as a wall of results ("I keep seeing things I have answered",
-    // release feedback). Sticky per MOUNT: answered-ness is sampled the
-    // first time a card is seen this visit and frozen, so the card you
-    // just voted on keeps its place while you watch its reveal, and sinks
-    // on the next visit instead. Passed cards deliberately do NOT sink —
-    // a pass is "not now", already rendered as one slim row, and burying
-    // it would turn "not now" into "never".
+    // Fresh questions only, within whichever sort lens is on. The bank is
+    // finite and served in a stable order, so every session used to open
+    // on the same head of cards — the ones the user answered first — as a
+    // wall of results. The feedback came twice and escalated: "I keep
+    // seeing things I have answered" (which sank the done half), then
+    // "answered questions shouldn't appear in the feed at all". So the
+    // done half now leaves the feed and parks behind the Answered
+    // expander at the bottom — results, takes and the D85 change
+    // affordance all stay reachable there. Sticky per MOUNT: answered-ness
+    // is sampled the first time a card is seen this visit and frozen, so
+    // the card you just voted on keeps its place while you watch its
+    // reveal, and moves behind the expander on the next visit instead.
+    // Passed cards deliberately do NOT move — a pass is "not now", already
+    // rendered as one slim row, and parking it would turn "not now" into
+    // "never".
     if (!this._sunk) this._sunk = new Map();
     const sunk = (q) => {
       let v = this._sunk.get(q.id);
       if (v === undefined) { v = this.answered(q); this._sunk.set(q.id, v); }
       return v;
     };
-    const ordered = unansweredFirst(sorted, sunk);
+    const worldSplit = partitionAnswered(sorted, sunk);
     // weave in the tests' own questions — one marked card every few feed
     // items — and the lenses' questions behind them at half that rate. The
     // core tests own the feed; lenses trickle. Both streams get the same
-    // unanswered-first treatment: the test stream walks its pool from index
-    // 0 every session, so it re-led with already-answered items in exactly
+    // fresh-only treatment: the test stream walks its pool from index 0
+    // every session, so it re-led with already-answered items in exactly
     // the way the world stream did.
-    const tqs = unansweredFirst(window.TEST_FEED_QS || [], sunk);
+    const testSplit = partitionAnswered(window.TEST_FEED_QS || [], sunk);
+    const tqs = testSplit.fresh;
     // LENS_FEED_QS is a builder, not an array: the lens pool differs between
     // demo and live, and liveness lands only after boot — so the feed asks
     // at build time rather than keeping a snapshot (lens-defs.js says why).
     const lensQs = window.LENS_FEED_QS;
-    const lqs = unansweredFirst(typeof lensQs === 'function' ? lensQs() : [], sunk);
+    const lensSplit = partitionAnswered(typeof lensQs === 'function' ? lensQs() : [], sunk);
+    const lqs = lensSplit.fresh;
+    // What the expander holds, in the same order the feed would have
+    // shown it: the world's record first, then the test and lens streams'.
+    const doneList = [...worldSplit.done, ...testSplit.done, ...lensSplit.done];
+    // The weave walks the FULL world list — answered cards included — and
+    // the answered ones are filtered out of the OUTPUT below. Weaving the
+    // fresh half alone reads simpler but starves the side streams: the
+    // test/lens slots fire on world indices, the bank is finite, and the
+    // fresh half only ever shrinks — at eight fresh world cards the lens
+    // stream (every 9th) would strand its remaining questions FOREVER,
+    // not "until later". Walking the full list keeps every cadence
+    // position alive at the cost of the slots landing a little closer
+    // together on screen as the fresh half thins — which at the fully
+    // caught-up end degrades into exactly the right thing: the remaining
+    // fresh test/lens cards, in cadence order, with no world cards
+    // between them.
+    const ordered = sorted;
     const kEvery = window.LEARN_FEED ? window.LEARN_FEED.every() : 0;
     // The knowledge stream is NOT partitioned: LEARN_FEED schedules its own
     // spaced repetition, and re-serving an answered card on its due day is
@@ -2517,9 +2589,15 @@ class WorldFeed extends React.Component {
     const kqs = kEvery ? this.knowQs(Math.ceil(ordered.length / kEvery) + 1, cats) : [];
     // The cadences, their coprimality and the empty-feed drain all live in
     // data/feed-interleave.ts, which is where the test now reaches them.
-    const feedList = interleaveFeed(ordered, {
+    const woven = interleaveFeed(ordered, {
       tests: tqs, lenses: lqs, know: kqs, knowEvery: kEvery,
     });
+    // …and only now do the answered world cards leave the feed (fresh
+    // questions only — release feedback; they park behind the Answered
+    // expander below). Stream cards never match a world id, so the filter
+    // touches exactly the world's done half.
+    const dropWorld = new Set(worldSplit.done.map((q) => q.id));
+    const feedList = woven.filter((q) => !dropWorld.has(q.id));
     // One card near the top wears the closing ring. Chosen by hash of the
     // question id so it is stable across renders rather than jumping as the
     // list re-sorts, and never the very first card — the ring is a grace
@@ -2581,7 +2659,23 @@ class WorldFeed extends React.Component {
           </React.Fragment>
         ))}
         {sugg && feedList.length <= 2 && this.renderSuggestion(sugg, snap)}
-        {feedList.length === 0 && <div style={{ fontFamily: 'var(--sans)', fontSize: 12.5, fontWeight: 600, color: 'var(--ink-3)', textAlign: 'center', padding: '26px 0' }}>Everything is muted — tap a chip to bring it back.</div>}
+        {/* two different empties: a feed with nothing FRESH is caught up
+            (the record sits right below), a feed with nothing AT ALL is
+            muted. Conflating them told a finished user to un-mute. */}
+        {feedList.length === 0 && (doneList.length > 0
+          ? <div style={{ fontFamily: 'var(--sans)', fontSize: 12.5, fontWeight: 600, color: 'var(--ink-3)', textAlign: 'center', padding: '26px 0 6px' }}>You’re caught up — you’ve answered everything here. New questions land with the next drop.</div>
+          : <div style={{ fontFamily: 'var(--sans)', fontSize: 12.5, fontWeight: 600, color: 'var(--ink-3)', textAlign: 'center', padding: '26px 0' }}>Everything is muted — tap a chip to bring it back.</div>)}
+        {/* the record: answered cards leave the feed (fresh questions
+            only — release feedback) but never the reach of it. Collapsed
+            by default; open, they are the same real cards — results,
+            takes, and the D85 change affordance. */}
+        {doneList.length > 0 && (
+          <button className="press" aria-expanded={this.state.doneOpen} onClick={() => this.setState((s) => ({ doneOpen: !s.doneOpen }))} style={{ alignSelf: 'center', display: 'inline-flex', alignItems: 'center', gap: 7, border: '0.5px solid color-mix(in oklch, var(--ink) 18%, var(--rule))', background: 'var(--surface-2)', color: 'var(--ink-2)', fontFamily: 'var(--sans)', fontWeight: 700, fontSize: 12.5, padding: '7px 15px', borderRadius: 999, cursor: 'pointer', WebkitAppearance: 'none', margin: '4px 0 2px' }}>
+            Answered · {doneList.length}
+            <span aria-hidden="true" style={{ fontSize: 10, transform: this.state.doneOpen ? 'rotate(180deg)' : 'none', transition: 'transform .2s ease' }}>{'▾'}</span>
+          </button>
+        )}
+        {this.state.doneOpen && doneList.map((q) => this.renderCard(q, {}))}
         {this.renderSheet()}
       </div>
     );

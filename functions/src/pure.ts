@@ -697,6 +697,77 @@ export function foldAnchors(
   return into;
 }
 
+// ── the edit delta (D85) ────────────────────────────────────────
+//
+// An answer edit is a -old/+new move with the total UNCHANGED — the person
+// was already counted, they just hold a different option now. Two helpers
+// rather than one because the two maps carry different guarantees and fail
+// differently when the old vote is not where it should be.
+
+// Move one vote between options in the exact counts. Returns false —
+// WITHOUT touching the map — when the old option holds no votes, which has
+// exactly one honest meaning: this edit's create event has not folded yet
+// (Eventarc orders nothing between a doc's create and update deliveries).
+// The caller throws on false so the platform's retry re-delivers the edit
+// after the create lands. Applying blindly instead would clamp at zero and
+// corrupt: -old/+new and +old commute ONLY while no step clamps.
+export function retargetCounts(
+  counts: Record<string, number>,
+  fromIdx: number,
+  toIdx: number,
+): boolean {
+  const from = String(fromIdx);
+  if (!((counts[from] || 0) >= 1)) return false;
+  counts[from] -= 1;
+  // A zero count never occurs on the create path (keys are minted by
+  // incrementing), so keep that invariant rather than shipping 0-rows.
+  if (counts[from] === 0) delete counts[from];
+  const to = String(toIdx);
+  counts[to] = (counts[to] || 0) + 1;
+  return true;
+}
+
+// Move one vote between options inside the breakdown, in exactly the cells
+// the create-time fold used: the anchors SNAPSHOT is frozen on the answer
+// doc (rules refuse changing it), so recomputing the bucket per dim lands
+// on the same cell without any per-answer fold receipt existing anywhere.
+//
+// Bucket totals are invariant under this — the floor's quantity does not
+// move, so nothing published can be un-earned by an edit.
+//
+// Where the old vote is NOT represented — bucket missing (create-time cap
+// skip, or evicted since) or the cell's old-option count empty (the bucket
+// was evicted and re-minted by other people's answers) — the dimension is
+// SKIPPED entirely, increment included. Incrementing anyway would inflate
+// the bucket total by an answer that is not in it, which breaks the one
+// guarantee the fold keeps under cap churn. The skip means an edited vote
+// can stay filed under its old option in a slice its create folded into:
+// bounded to ±1 per cell, the same documented degradation the eviction cap
+// already accepts, and self-correcting when the bucket next churns.
+// (Unlike retargetCounts this is NOT a retry signal — absence here is a
+// legitimate permanent state, and a throw would retry forever against it.)
+export function retargetAnchors(
+  into: BreakdownCounts,
+  anchors: unknown,
+  fromIdx: number,
+  toIdx: number,
+): BreakdownCounts {
+  if (!anchors || typeof anchors !== "object") return into;
+  const src = anchors as Record<string, unknown>;
+  const from = String(fromIdx);
+  const to = String(toIdx);
+  for (const dim of BREAKDOWN_DIMS) {
+    const bucket = breakdownBucket(src[dim], dim);
+    if (bucket === null) continue;
+    const cell = (into[dim] || {})[bucket];
+    if (!cell || !((cell[from] || 0) >= 1)) continue;
+    cell[from] -= 1;
+    if (cell[from] === 0) delete cell[from];
+    cell[to] = (cell[to] || 0) + 1;
+  }
+  return into;
+}
+
 // A bucket's total across every option — the quantity the floor is applied
 // to. Named for the bucket rather than the "cell" this used to say, because
 // `cell` was doing duty for both this and the per-option numbers inside it,

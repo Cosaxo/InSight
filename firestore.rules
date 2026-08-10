@@ -301,7 +301,53 @@ service cloud.firestore {
             // binding the duel branch is exempt from.
             || (isCatalogAnswer() && deviceBound())
           );
-        allow update, delete: if false;
+        // D85 unlocks ONE edit shape on world-scope opinion answers:
+        // optionIdx moves, everything else is frozen. What stays immutable,
+        // and why each stays:
+        //   - duel answers (surface group/duo): the SEAL is the product —
+        //     an editable sealed answer lets a member re-decide after
+        //     reading the room, excluded by the surface check;
+        //   - learn answers: first-attempt-only is D32's whole measurement,
+        //     excluded by the surface check ("not knowledge, obviously" —
+        //     the owner's own words);
+        //   - catalog answers: they carry `entity`, not `optionIdx`, and
+        //     the `resource.data.optionIdx is int` guard (the OLD doc must
+        //     already have one) keeps them out until a delta path for the
+        //     canon exists;
+        //   - the anchors SNAPSHOT and answeredAt: frozen, so an edit moves
+        //     which option you hold, never which cohort you were in when
+        //     you first answered (D8) — and the aggregate delta stays a
+        //     clean -old/+new inside the same cells.
+        // The honest-counts half of D5 moves to onV2AnswerUpdated, which
+        // folds -old/+new through the same ledger-deduped transaction the
+        // create path uses. editedAt == request.time gives the edit its
+        // own audit stamp without opening answeredAt.
+        //
+        // The 60s cooldown is not UX: an edit is the one answer write that
+        // is repeatable, and each one runs the aggregate transaction
+        // against two single docs keyed by qid (D7's ~1 write/sec/doc
+        // arithmetic). Without a bound, one hostile client flipping
+        // optionIdx in a loop holds a question's aggregate at its write
+        // ceiling indefinitely. Creates never needed this — create-only
+        // made them once per (user, question) by construction.
+        allow update: if request.auth != null && request.auth.uid == uid
+          && resource.data.surface in ["daily", "feed", "test"]
+          && resource.data.optionIdx is int
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["optionIdx", "editedAt"])
+          && request.resource.data.optionIdx is int
+          && request.resource.data.optionIdx >= 0
+          && request.resource.data.optionIdx
+            < get(/databases/$(database)/documents/v2_questions/$(resource.data.qid)).data.options.size()
+          // Same kill switch as create: a question flipped inactive stops
+          // accepting answer movement of any kind, and edits feed the same
+          // aggregate, so they carry the same D29 device binding.
+          && get(/databases/$(database)/documents/v2_questions/$(resource.data.qid))
+               .data.get("active", true) == true
+          && deviceBound()
+          && request.resource.data.editedAt == request.time
+          && (!("editedAt" in resource.data)
+            || request.time > resource.data.editedAt + duration.value(60, 's'));
+        allow delete: if false;
       }
     }
 

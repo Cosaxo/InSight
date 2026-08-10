@@ -60,8 +60,10 @@ Firestore, Cloud Functions) with CI auto-deploy.
 
 Every privacy claim in the UI is enforced server-side, not promised:
 
-- **Answers are owner-only, forever.** One create per question, immutable,
-  readable by you alone (`firestore.rules`, decision D5).
+- **Answers are owner-only, forever.** One create per question, readable
+  by you alone (`firestore.rules`, decision D5). The option can be moved
+  after the fact (D85) — the cohort snapshot and answer time cannot, and
+  the aggregate follows through a server-side -old/+new delta.
 - **World stats are k-floored.** Exact counts live in a server-only
   collection; the public mirror shows nothing below 5 answers and carries
   no per-vote timestamps (`v2_question_aggs`, AGG_MIN_N).
@@ -116,7 +118,7 @@ src/lib/           firebase init + anonymous-first auth + emulator wiring
 functions/src/     v2.ts (seed + aggregates) · v2social.ts (groups, duos,
                    reveals, push) · index.ts (account deletion)
 firestore.rules    the access model (owner-only answers, k-floored aggs,
-                   member-only groups/reveals) — 59 emulator tests
+                   member-only groups/reveals) — 61 emulator tests
 firestore.rules.v1-archive  the retired v1 client rules (D4) — reference,
                    NOT deployed
 monitoring/        Cloud Monitoring policies, put live by
@@ -140,7 +142,7 @@ Local:
 - `npm run test:unit` — client store, pure deck logic, and the spec-layer
   mount tests (vitest + jsdom, no emulator).
 - `npm run test --prefix functions` — the k-anon floor, reveal and streak math.
-- `npm run test:rules` — 59 security-rules tests (Firestore + Storage)
+- `npm run test:rules` — 61 security-rules tests (Firestore + Storage)
   against the emulator. `npm run check:figures` holds this number and the
   one in the repo map above equal to the suites, because both said 40 for
   long enough to be quoted twice.

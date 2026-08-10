@@ -136,8 +136,13 @@ an emergency rules fix.
   `export { x } from "./v2"` is a hoisted re-export, so v2's functions are
   defined before any statement in index's body runs. Options set there
   would silently miss every v2 function. `check:fn-runtime` guards it.
-- **Answers are create-only and immutable.** Not an oversight — it is what
-  makes the counts honest (D5). Do not add an update path.
+- **Answers are create-only, with ONE update shape (D85).** D5's
+  immutability was amended 2026-08-10: an `optionIdx`-only edit (plus an
+  `editedAt` stamp) is legal on daily/feed/test answers, and
+  `onV2AnswerUpdated` folds the -old/+new delta through the same ledger.
+  Everything else stays frozen — anchors, answeredAt, learn, duels,
+  catalog — and the counts stay honest because the trigger moves them,
+  not because the doc cannot change. Do not widen the edit surface.
 - **A live Mirror stop has no lens row.** The demo field bodies carry
   Answers · People · Compare · Scores · Explore; every stop that has a
   real source replaces the whole body with one panel (`LiveCohortBody`,

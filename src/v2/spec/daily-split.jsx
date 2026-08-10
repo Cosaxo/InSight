@@ -66,7 +66,7 @@ class DailySplit extends React.Component {
     mode: this.props.mode || 'world', feedOpen: false, condensed: false, earlierOpen: false, modeSlot: null, reportFor: null,
     idx: 0, idxG: 0,
     votes: (window.LIVE && window.LIVE.enabled ? window.LIVE.myVotes() : {}), tab: null, filter: 'all', dim: 'friends', dimAxis: null, ups: {}, mine: {}, draft: '', dreplies: this.loadDailyReplies(), replyTo: null,
-    mapToast: null, pressing: false,
+    mapToast: null, pressing: false, editHold: null,
     group: {},
     cats: this.loadWorldCats(),
     testProg: this.loadTestProg(), testJustDone: null, testOpen: false, testRetake: null,
@@ -255,7 +255,7 @@ class DailySplit extends React.Component {
       this._switching = false;
     }
   }
-  componentWillUnmount() { clearTimeout(this._toastT); clearTimeout(this._lpT); clearTimeout(this._sheetT); if (this._unsubDuels) this._unsubDuels(); if (this._offScroll) this._offScroll(); if (this._docked && this.props.onDock) this.props.onDock(false); if (this._unsubLive) this._unsubLive(); if (this._pendingHandler) window.removeEventListener('insight-live-update', this._pendingHandler); if (this._onPurge) window.removeEventListener('insight:local-purge', this._onPurge); const app = document.querySelector('.app'); if (app) app.style.removeProperty('--accent'); }
+  componentWillUnmount() { clearTimeout(this._toastT); clearTimeout(this._lpT); clearTimeout(this._sheetT); clearTimeout(this._ehT); if (this._unsubDuels) this._unsubDuels(); if (this._offScroll) this._offScroll(); if (this._docked && this.props.onDock) this.props.onDock(false); if (this._unsubLive) this._unsubLive(); if (this._pendingHandler) window.removeEventListener('insight-live-update', this._pendingHandler); if (this._onPurge) window.removeEventListener('insight:local-purge', this._onPurge); const app = document.querySelector('.app'); if (app) app.style.removeProperty('--accent'); }
 
   // one axis, three stops. Which axis depends on how the app is navigating:
   // ruler/pill run the daily's own scale, the 4-tab bar borrows the bar's order.
@@ -325,6 +325,13 @@ class DailySplit extends React.Component {
     if (!s) return;
     const q = DAILYQ.questions.find(x => x.prompt === s.prompt);
     if (q && s.map[optId] != null) DAILYQ.answer(q.id, s.map[optId]);
+  }
+  // A refused edit (D85's one-change-a-minute cooldown) says why on the
+  // meta line for a moment instead of silently snapping back.
+  holdNote(id) {
+    clearTimeout(this._ehT);
+    this.setState({ editHold: id });
+    this._ehT = setTimeout(() => this.setState({ editHold: null }), 2600);
   }
   mapBranch(S) {
     const s = DAILYSPLIT_DQ_SYNC[S.id];
@@ -619,7 +626,10 @@ class DailySplit extends React.Component {
     // tooSmall at floor 1 means "no published counts yet": after your own
     // blind vote that is "you're first, the trigger is landing", not "wait
     // for five people" \u2014 the floor-aware copy keeps both eras honest.
-    const resultNote = (S.live && S.tooSmall)
+    const resultNote = st.editHold === S.id
+      // the D85 cooldown, in words \u2014 a silent snap-back reads as a glitch
+      ? 'One change a minute \u2014 try again shortly.'
+      : (S.live && S.tooSmall)
       ? (AGG_FLOOR > 1
         ? 'You\u2019re early \u2014 counts appear once ' + AGG_FLOOR + ' people have answered.'
         : 'You\u2019re first \u2014 the count lands in a moment.')
@@ -809,7 +819,23 @@ class DailySplit extends React.Component {
         // asking: each side carries its own hue mark and sits left-aligned, so
         // the two rows read as choices rather than two empty boxes
         ? h('div', { style: { display: 'flex', flexDirection: 'column', gap: 8 } },
-            S.options.map((o, i) => h('button', { key: o.id, className: 'press sd-opt', onClick: () => { if (S.live && window.LIVE) window.LIVE.vote(S.id, o.id); this.syncToMap(S, o.id); this.showMapToast(S.id); this.setState(s => ({ votes: { ...s.votes, [S.id]: o.id }, filter: 'all', beat: (this.props.beats !== false && window.ConsequenceBeat) ? S.id : null })); }, style: { '--opt': o.color, minHeight: 56, background: 'color-mix(in oklch, ' + o.color + ' 11%, var(--surface-2))', border: '1px solid color-mix(in oklch, ' + o.color + ' 32%, var(--rule))', borderRadius: 15, padding: '13px 18px', display: 'flex', alignItems: 'center', gap: 13, cursor: 'pointer', textAlign: 'left', WebkitAppearance: 'none', boxShadow: 'none', transition: 'background .16s ease, border-color .16s ease' } },
+            S.options.map((o, i) => h('button', { key: o.id, className: 'press sd-opt', onClick: () => {
+              // D85: after a hold-to-change the server still holds the old
+              // vote — LIVE.vote is create-only, so a re-pick routes through
+              // editVote. A false return (unacked write, or the 60s
+              // cooldown) keeps the standing pick and says why on the meta
+              // line. (One window read, hoisted — the vote call used two.)
+              let next = o.id, moved = true;
+              const L = S.live ? window.LIVE : null;
+              if (L) {
+                const prior = (L.myVotes && L.myVotes()[S.id]) || null;
+                if (prior == null) L.vote(S.id, next);
+                else if (prior === next) moved = false; // re-picked the standing vote: nothing to say
+                else if (!(L.editVote && L.editVote(S.id, next))) { next = prior; moved = false; this.holdNote(S.id); }
+              }
+              if (moved) { this.syncToMap(S, next); this.showMapToast(S.id); }
+              this.setState(s => ({ votes: { ...s.votes, [S.id]: next }, filter: 'all', beat: (moved && this.props.beats !== false && window.ConsequenceBeat) ? S.id : null }));
+            }, style: { '--opt': o.color, minHeight: 56, background: 'color-mix(in oklch, ' + o.color + ' 11%, var(--surface-2))', border: '1px solid color-mix(in oklch, ' + o.color + ' 32%, var(--rule))', borderRadius: 15, padding: '13px 18px', display: 'flex', alignItems: 'center', gap: 13, cursor: 'pointer', textAlign: 'left', WebkitAppearance: 'none', boxShadow: 'none', transition: 'background .16s ease, border-color .16s ease' } },
               h('span', { 'aria-hidden': true, style: { width: 9, height: 9, borderRadius: '50%', background: o.color, flexShrink: 0 } }),
               h('span', { style: { fontWeight: 800, fontSize: 21, color: 'var(--ink)', letterSpacing: '-0.025em', textWrap: 'pretty' } }, o.label))))
         : (st.beat === S.id && window.ConsequenceBeat)
