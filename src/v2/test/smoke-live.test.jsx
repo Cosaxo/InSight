@@ -107,19 +107,21 @@ describe("spec layer mounts in live mode", () => {
     expectNoBoundary("profile/live");
   });
 
-  it("shows none of the demo scenes field in the live profile", () => {
+  it("shows the real follow list in the live profile, none of the demo field", () => {
     // The General tab used to embed MirrorFieldBody pop="groups" — the
-    // scenes orbit with invented populations ("5.6k people"), the
-    // closer-means-more-like-you distances, "Who's in your circles · 138
-    // members" and "What they answered", all sample data. A release
-    // device showed the lot to a real user. The demo smoke suite asserts
-    // the section still renders with LIVE off, so the pair pins the gate
-    // in both directions.
+    // scenes orbit with invented populations ("5.6k people" / "22k
+    // people"), the closer-means-more-like-you distances, "Who's in your
+    // circles · 138 members" and "What they answered", all sample data. A
+    // release device showed the lot to a real user. Live mode now renders
+    // LiveScenesCard instead: the follow store's own list, no populations,
+    // no likeness claims. The demo smoke suite asserts the demo field
+    // still renders with LIVE off, so the pair pins the swap both ways.
     mountLive();
     fireEvent.click(screen.getByRole("button", { name: /^profile$/i }));
-    expect(screen.queryByText(/Scenes you follow/i)).toBeNull();
+    expect(screen.getByText(/Scenes you follow/i)).toBeTruthy();
     expect(screen.queryByText(/closer = members more like you/i)).toBeNull();
     expect(screen.queryByText(/in your circles/i)).toBeNull();
+    expect(screen.queryByText(/22k people/i)).toBeNull();
   });
 
   it("opens the search overlay without tripping the boundary", () => {

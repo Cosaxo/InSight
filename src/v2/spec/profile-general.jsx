@@ -9,6 +9,11 @@ import { IS_TEST_RESULTS } from './test-definitions.js';
 import { PASSIVE } from './passive-progress.js';
 import { list as anchorList } from './map-anchors.js';
 import { PROFILE_GENERAL_LS } from '../data/cityAnchor';
+// An import, not the window.PLACES read this file used to carry — the
+// typed module is importable from spec (logic-test precedent), and the
+// two freed reference sites pay for the live scenes card's window.SCENES
+// read below, so the D39 coupling meter moves DOWN with this change.
+import PLACES from '../data/places';
 
 // ─────────────────────────────────────────────────────────────
 // General tab · the parts of you that aren't a test.
@@ -189,7 +194,9 @@ import { PROFILE_GENERAL_LS } from '../data/cityAnchor';
     return {
       ageBand: ageBandOf(calcAge(v.born, v.bornM, v.bornD) || v.age),
       gender: v.gender || '',
-      country: (window.PLACES && window.PLACES.countryOf(city)) || '',
+      // Imported binding — the (window.PLACES && …) load-order guard died
+      // with the conversion, as the README's conversion notes prescribe.
+      country: PLACES.countryOf(city) || '',
       city,
       education: v.education || '',
       profession: v.job || '',
@@ -488,6 +495,43 @@ import { PROFILE_GENERAL_LS } from '../data/cityAnchor';
     );
   }
 
+  // The LIVE half of the scenes section: the user's real follow list and
+  // nothing else. The demo field this replaces drew an orbit of invented
+  // populations and likeness distances (D1 forbids those without a source);
+  // what a live build genuinely has is the follow store itself — scenes.js,
+  // written by the feed's topic row and search — so this renders exactly
+  // that: each followed scene, its hue, and the way out. Counts and
+  // likeness return when a real source feeds them, not before.
+  function LiveScenesCard() {
+    const [, bump] = useState(0);
+    const SC = window.SCENES;
+    // [SC] rather than a deps suppression: the store is a module-level
+    // singleton, so the identity never changes and this still runs once.
+    useEffect(() => (SC ? SC.subscribe(() => bump((b) => b + 1)) : undefined), [SC]);
+    if (!SC) return null;
+    const mine = SC.mine();
+    if (mine.length === 0) {
+      return (
+        <div className="card" style={{ padding: '14px 15px', fontFamily: 'var(--sans)', fontSize: 13, fontWeight: 500, color: 'var(--ink-2)', lineHeight: 1.5 }}>
+          Nothing followed yet. Scenes live on the daily&rsquo;s topic row and in
+          search — follow one and its questions join your feed.
+        </div>
+      );
+    }
+    return (
+      <div className="card" style={{ padding: '14px 15px', display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+        {mine.map((g) => (
+          <span key={g.id} style={{ display: 'inline-flex', alignItems: 'center', gap: 7, border: '0.5px solid var(--rule)', borderRadius: 999, padding: '5px 7px 5px 12px', background: 'var(--surface-2)' }}>
+            <span aria-hidden="true" style={{ width: 8, height: 8, borderRadius: '50%', background: SC.colorOf(g.id) }}></span>
+            <span style={{ fontFamily: 'var(--sans)', fontSize: 12.5, fontWeight: 700, color: 'var(--ink)' }}>{g.name}</span>
+            <button className="press" aria-label={'Unfollow ' + g.name} onClick={() => SC.unfollow(g.id)}
+              style={{ border: 'none', background: 'var(--rule)', color: 'var(--ink-2)', width: 17, height: 17, borderRadius: 999, fontSize: 10, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, WebkitAppearance: 'none' }}>✕</button>
+          </span>
+        ))}
+      </div>
+    );
+  }
+
   // ── the panel ──
   function GeneralPanel({ onGo }) {
     const [data, set] = useState(loadGen);
@@ -541,6 +585,12 @@ import { PROFILE_GENERAL_LS } from '../data/cityAnchor';
           <div>
             <Chapter>Scenes you follow</Chapter>
             <window.MirrorFieldBody pop="groups" worldZoom="world" />
+          </div>
+        )}
+        {LIVE_ON && (
+          <div>
+            <Chapter>Scenes you follow</Chapter>
+            <LiveScenesCard />
           </div>
         )}
       </div>
