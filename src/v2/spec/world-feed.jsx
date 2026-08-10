@@ -10,7 +10,7 @@ import { WF_CATALOGS } from './world-catalogs.js';
 import { Sheet } from './primitives.jsx';
 // The feed's cadence arithmetic — extracted so the test exercises THIS loop
 // rather than a copy of it (D11's claim, D42's citation; see the module).
-import { interleaveFeed } from '../data/feed-interleave.ts';
+import { interleaveFeed, unansweredFirst } from '../data/feed-interleave.ts';
 import { AGG_FLOOR } from '../data/floor.ts';
 // The live world-takes surface (D83) — an ordinary ESM import of the typed
 // panel, like the data imports above, so the D39 coupling meter stays flat.
@@ -243,7 +243,13 @@ class WorldFeed extends React.Component {
     // screen and one interaction writes them back. votes clears too and the
     // LIVE reconcile above refills it for the new uid; knowRes and pickQ
     // are this-session answer echoes of stores that drop themselves.
-    this._onPurge = () => this.setState({ votes: {}, passed: {}, myTakes: {}, replies: {}, knowRes: {}, pickQ: {} });
+    this._onPurge = () => {
+      // The unanswered-first stickiness cache goes with the maps: it holds
+      // the OLD account's answered-ness, and a new account inheriting it
+      // would open on a feed sorted by someone else's history.
+      this._sunk = null;
+      this.setState({ votes: {}, passed: {}, myTakes: {}, replies: {}, knowRes: {}, pickQ: {} });
+    };
     window.addEventListener('insight:local-purge', this._onPurge);
     // entrance: each card rises as it first scrolls into view (transform-only)
     this._io = typeof IntersectionObserver !== 'undefined' ? new IntersectionObserver((es) => {
@@ -2475,20 +2481,43 @@ class WorldFeed extends React.Component {
     // sort lenses: hot = the interleaved mix · top = most votes · new = latest first
     const sort = this.state.sort;
     const sorted = sort === 'top' ? [...qs].sort((a, b) => wfVotes(b) - wfVotes(a)) : sort === 'new' ? [...qs].reverse() : mixed;
+    // Unanswered first, within whichever sort lens is on. The bank is
+    // finite and served in a stable order, so without this every session
+    // opened on the same head of cards — the ones the user answered first
+    // — as a wall of results ("I keep seeing things I have answered",
+    // release feedback). Sticky per MOUNT: answered-ness is sampled the
+    // first time a card is seen this visit and frozen, so the card you
+    // just voted on keeps its place while you watch its reveal, and sinks
+    // on the next visit instead. Passed cards deliberately do NOT sink —
+    // a pass is "not now", already rendered as one slim row, and burying
+    // it would turn "not now" into "never".
+    if (!this._sunk) this._sunk = new Map();
+    const sunk = (q) => {
+      let v = this._sunk.get(q.id);
+      if (v === undefined) { v = this.answered(q); this._sunk.set(q.id, v); }
+      return v;
+    };
+    const ordered = unansweredFirst(sorted, sunk);
     // weave in the tests' own questions — one marked card every few feed
     // items — and the lenses' questions behind them at half that rate. The
-    // core tests own the feed; lenses trickle.
-    const tqs = window.TEST_FEED_QS || [];
+    // core tests own the feed; lenses trickle. Both streams get the same
+    // unanswered-first treatment: the test stream walks its pool from index
+    // 0 every session, so it re-led with already-answered items in exactly
+    // the way the world stream did.
+    const tqs = unansweredFirst(window.TEST_FEED_QS || [], sunk);
     // LENS_FEED_QS is a builder, not an array: the lens pool differs between
     // demo and live, and liveness lands only after boot — so the feed asks
     // at build time rather than keeping a snapshot (lens-defs.js says why).
     const lensQs = window.LENS_FEED_QS;
-    const lqs = typeof lensQs === 'function' ? lensQs() : [];
+    const lqs = unansweredFirst(typeof lensQs === 'function' ? lensQs() : [], sunk);
     const kEvery = window.LEARN_FEED ? window.LEARN_FEED.every() : 0;
-    const kqs = kEvery ? this.knowQs(Math.ceil(sorted.length / kEvery) + 1, cats) : [];
+    // The knowledge stream is NOT partitioned: LEARN_FEED schedules its own
+    // spaced repetition, and re-serving an answered card on its due day is
+    // that feature working, not the bug this partition removes.
+    const kqs = kEvery ? this.knowQs(Math.ceil(ordered.length / kEvery) + 1, cats) : [];
     // The cadences, their coprimality and the empty-feed drain all live in
     // data/feed-interleave.ts, which is where the test now reaches them.
-    const feedList = interleaveFeed(sorted, {
+    const feedList = interleaveFeed(ordered, {
       tests: tqs, lenses: lqs, know: kqs, knowEvery: kEvery,
     });
     // One card near the top wears the closing ring. Chosen by hash of the

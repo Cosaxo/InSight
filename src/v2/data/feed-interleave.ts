@@ -29,6 +29,30 @@
 export const TEST_EVERY = 4;
 export const LENS_EVERY = 9;
 
+/**
+ * Stable partition: everything the viewer has NOT answered, then
+ * everything they have, each half keeping its incoming order.
+ *
+ * WHY. The live bank is finite and served in a deterministic order, so
+ * without this every session opened on the same head of cards — the ones
+ * the user answered first — as a wall of results, with everything fresh
+ * buried beneath it. The release feedback was literal: "I keep seeing
+ * things I have answered." A partition rather than a filter, because the
+ * answered cards stay reachable (their results are the record); they just
+ * stop being the doorway.
+ *
+ * The caller decides WHEN answered-ness is sampled. world-feed freezes it
+ * per mount, so a card answered mid-scroll keeps its place until the next
+ * visit — re-sorting under the user's thumb would teleport the card whose
+ * reveal they are watching.
+ */
+export function unansweredFirst<T>(list: readonly T[], isAnswered: (q: T) => boolean): T[] {
+  const fresh: T[] = [];
+  const done: T[] = [];
+  for (const q of list) (isAnswered(q) ? done : fresh).push(q);
+  return fresh.concat(done);
+}
+
 export interface InterleaveStreams<T> {
   /** The core tests' questions. */
   tests: readonly T[];
