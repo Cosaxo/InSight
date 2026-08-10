@@ -454,7 +454,7 @@ describe("v2 profile", () => {
   });
 });
 
-describe("v2 answers (owner-only; option edits only — D5 as amended by D85)", () => {
+describe("v2 answers (owner-only; option edits only — D5 as amended by D86)", () => {
   const QID = "daily-000";
   const seedQuestion = () => seed(async (db) => {
     await setDoc(doc(db, "v2_questions", QID), {
@@ -467,7 +467,7 @@ describe("v2 answers (owner-only; option edits only — D5 as amended by D85)", 
     answeredAt: serverTimestamp(), anchors: {}, ...over,
   });
 
-  it("D85: the owner may move optionIdx — one shape, stamped, cooled down", async () => {
+  it("D86: the owner may move optionIdx — one shape, stamped, cooled down", async () => {
     await seedQuestion();
     const ref = doc(asUser(OWNER), "v2_users", OWNER, "answers", QID);
     await assertSucceeds(setDoc(ref, answer()));
@@ -508,7 +508,7 @@ describe("v2 answers (owner-only; option edits only — D5 as amended by D85)", 
     await assertFails(deleteDoc(ref));
   });
 
-  it("D85: the kill switch reaches edits, not just creates", async () => {
+  it("D86: the kill switch reaches edits, not just creates", async () => {
     // Its own question and a FIRST edit, so the refusal can only be the
     // active check — the cooldown test above cannot isolate it.
     await seed(async (db) => {
@@ -528,7 +528,7 @@ describe("v2 answers (owner-only; option edits only — D5 as amended by D85)", 
     await assertFails(updateDoc(ref, { optionIdx: 0, editedAt: serverTimestamp() }));
   });
 
-  it("D85 reaches only opinion surfaces: learn and duel answers stay frozen", async () => {
+  it("D86 reaches only opinion surfaces: learn and duel answers stay frozen", async () => {
     // learn: first-attempt-only IS the measurement (D32) — "not knowledge,
     // obviously", in the owner's own words.
     await seed(async (db) => {
@@ -745,7 +745,7 @@ describe("v2 answers (owner-only; option edits only — D5 as amended by D85)", 
       answeredAt: serverTimestamp(), anchors: {}, ...over,
     });
     await assertSucceeds(setDoc(ref(CQ), cat()));
-    // Frozen even under D85's edit arm: the arm demands the OLD doc carry
+    // Frozen even under D86's edit arm: the arm demands the OLD doc carry
     // an integer optionIdx, and a catalog answer never does — the canon
     // fold has no delta path yet, so an edit here would desync the board.
     await assertFails(updateDoc(ref(CQ), { entity: 6 }));

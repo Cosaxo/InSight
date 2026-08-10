@@ -143,7 +143,7 @@ if (pub.by && pub.by.country)
 ok("paused floor: first answer published exactly (total 1), one-bucket country still withheld");
 
 // 6 · duplicate answer is refused. Re-sending the whole doc rewrites
-// answeredAt and anchors, which stay frozen under D85's edit arm — the
+// answeredAt and anchors, which stay frozen under D86's edit arm — the
 // only admitted movement is the optionIdx+editedAt diff exercised in 7e.
 await expectDenied("duplicate answer refused by rules", () =>
   setDoc(doc(db, "v2_users", uid, "answers", q0.id), {
@@ -281,7 +281,7 @@ ok("breakdown: ageBand and city both 5/5; single-bucket country withheld");
   ok("paused cadence: 11th answer published exactly (total 11, counts 8/3)");
 }
 
-// 7e · D85: the owner moves their answer and onV2AnswerUpdated folds a
+// 7e · D86: the owner moves their answer and onV2AnswerUpdated folds a
 // -old/+new delta with the TOTAL unchanged. The first user holds option 1
 // under a frozen {25-34, NO, Oslo} snapshot, so the move must land in
 // exactly those cells: the 25-34 band and the Oslo bucket keep their
@@ -316,7 +316,7 @@ ok("breakdown: ageBand and city both 5/5; single-bucket country withheld");
     if (snap.exists() && (snap.get("counts") || {})["0"] === 9) { moved = snap.data(); break; }
     await new Promise((r) => setTimeout(r, 400));
   }
-  if (!moved) fail("D85 edit never reached the public mirror");
+  if (!moved) fail("D86 edit never reached the public mirror");
   if (moved.total !== 11 || moved.counts["0"] !== 9 || moved.counts["1"] !== 2)
     fail("edit did not move -old/+new with total unchanged: " + JSON.stringify(moved));
   // The 25-34 band held user1(1→0), n0, n2, m0, m1 and the cadence voter,
@@ -339,7 +339,7 @@ ok("breakdown: ageBand and city both 5/5; single-bucket country withheld");
     updateDoc(doc(db, "v2_users", uid, "answers", q0.id), {
       optionIdx: 1, editedAt: serverTimestamp(),
     }));
-  ok("D85 edit: -old/+new published, total 11 held, frozen cells moved cleanly, cooldown holds");
+  ok("D86 edit: -old/+new published, total 11 held, frozen cells moved cleanly, cooldown holds");
 }
 
 // 8 · the duel loop: create → join by code → sealed answers → reveal → streak
@@ -512,11 +512,11 @@ await expectDenied("learn retry refused (people-rate, not attempt-rate)", () =>
     qid: LQ, surface: "learn", optionIdx: 0,
     answeredAt: serverTimestamp(), anchors: {},
   }));
-// …and D85's edit arm does not reach it either ("not knowledge,
+// …and D86's edit arm does not reach it either ("not knowledge,
 // obviously"): a correctly-stamped edit on a learn answer is refused by
 // the surface check, so the first-attempt measurement survives the one
 // write shape that IS repeatable elsewhere.
-await expectDenied("learn edit refused (D85 stops at opinion surfaces)", () =>
+await expectDenied("learn edit refused (D86 stops at opinion surfaces)", () =>
   updateDoc(doc(db, "v2_users", uid, "answers", LQ), {
     optionIdx: 0, editedAt: serverTimestamp(),
   }));

@@ -326,7 +326,7 @@ class DailySplit extends React.Component {
     const q = DAILYQ.questions.find(x => x.prompt === s.prompt);
     if (q && s.map[optId] != null) DAILYQ.answer(q.id, s.map[optId]);
   }
-  // A refused edit (D85's one-change-a-minute cooldown) says why on the
+  // A refused edit (D86's one-change-a-minute cooldown) says why on the
   // meta line for a moment instead of silently snapping back.
   holdNote(id) {
     clearTimeout(this._ehT);
@@ -627,7 +627,7 @@ class DailySplit extends React.Component {
     // blind vote that is "you're first, the trigger is landing", not "wait
     // for five people" \u2014 the floor-aware copy keeps both eras honest.
     const resultNote = st.editHold === S.id
-      // the D85 cooldown, in words \u2014 a silent snap-back reads as a glitch
+      // the D86 cooldown, in words \u2014 a silent snap-back reads as a glitch
       ? 'One change a minute \u2014 try again shortly.'
       : (S.live && S.tooSmall)
       ? (AGG_FLOOR > 1
@@ -820,7 +820,7 @@ class DailySplit extends React.Component {
         // the two rows read as choices rather than two empty boxes
         ? h('div', { style: { display: 'flex', flexDirection: 'column', gap: 8 } },
             S.options.map((o, i) => h('button', { key: o.id, className: 'press sd-opt', onClick: () => {
-              // D85: after a hold-to-change the server still holds the old
+              // D86: after a hold-to-change the server still holds the old
               // vote — LIVE.vote is create-only, so a re-pick routes through
               // editVote. A false return (unacked write, or the 60s
               // cooldown) keeps the standing pick and says why on the meta

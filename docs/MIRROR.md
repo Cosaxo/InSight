@@ -25,7 +25,7 @@ one write — an answer — and the surfaces differ only in how they cut it.
   today's daily   ─┐
   a feed card     ─┤   v2_users/{uid}/answers/{qid}   ─┬──────► the MAP ("You")
   a test item     ─┤     optionIdx · anchors snapshot   │        every answer filed
-  a learn card    ─┤     owner-only (D5) · edits (D85)   │        under its question's
+  a learn card    ─┤     owner-only (D5) · edits (D86)   │        under its question's
   a duel question ─┘                │                   │        branch → sub-branch
                                     │                   │
                         the aggregate trigger           ├──────► the four core TESTS
@@ -205,10 +205,10 @@ Two gaps are worth stating in prose because no badge covers them:
   MapStats through a null guard already, and its fallbacks put every dot
   at one radius with none marked a rare take.
 
-  Two of the seven Map anchors have a real counterpart waiting —
+  Two of the eight Map anchors have a real counterpart waiting —
   `v2_question_aggs.by` carries k-floored age and education breakdowns.
-  The other five cannot: `job` is profession, deliberately not a
-  breakdown dim (D8), and the four test anchors are not dims at all.
+  The other six cannot: `job` is profession, deliberately not a
+  breakdown dim (D8), and the five test anchors are not dims at all.
 - **The Circle and its relationship map are prototype-only.** `relmap`'s
   people are invented, and it is the largest module still loaded eagerly
   — the one overlay excluded from the after-first-paint group, because
@@ -238,7 +238,7 @@ Two gaps are worth stating in prose because no badge covers them:
 
 D1 (no fake anything, circle-scoped comments) · D3 (anonymous-first,
 groups by invite code) · D5 (owner-only answers; the option is editable
-since D85, the cohort snapshot is not) · D8
+since D86, the cohort snapshot is not) · D8
 (per-anchor breakdowns and the snapshot they read) · D9 (Near is your
 city) · D18 (the floor bounds cohort size, not the split inside a
 cohort) · D32 (Learn's first attempt only) · D38 (why relmap stays

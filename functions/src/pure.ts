@@ -697,7 +697,7 @@ export function foldAnchors(
   return into;
 }
 
-// ── the edit delta (D85) ────────────────────────────────────────
+// ── the edit delta (D86) ────────────────────────────────────────
 //
 // An answer edit is a -old/+new move with the total UNCHANGED — the person
 // was already counted, they just hold a different option now. Two helpers

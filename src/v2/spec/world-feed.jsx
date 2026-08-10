@@ -320,7 +320,7 @@ class WorldFeed extends React.Component {
   }
 
   // skip a card. Local only, and it must stay that way: a pass is not an
-  // answer (D5, as amended by D85 — the only server write besides the
+  // answer (D5, as amended by D86 — the only server write besides the
   // answer itself is an option edit ON an answer), so recording one would
   // either pollute the aggregate or need a second write path per question
   // for something the user asked to ignore.
@@ -342,7 +342,7 @@ class WorldFeed extends React.Component {
     // record itself still happens: that write is the card's whole point.
     const selfOnly = !!q.selfOnly;
     // live cards persist to Firestore too (owner-only answer + aggregate).
-    // D85: a live card that already holds a server vote routes through the
+    // D86: a live card that already holds a server vote routes through the
     // edit path instead — vote() is create-only and would silently no-op,
     // leaving the feed claiming a choice the server never heard. A refused
     // edit (unacked write, or the 60s cooldown) falls back to the standing
@@ -413,7 +413,7 @@ class WorldFeed extends React.Component {
     if (this.props.onVote && !refused) this.props.onVote(q, val);
   }
 
-  // A refused edit (D85's one-change-a-minute cooldown) says why on the
+  // A refused edit (D86's one-change-a-minute cooldown) says why on the
   // meta line for a moment instead of silently snapping back.
   holdNote(id) {
     clearTimeout(this._ehT);
@@ -1065,7 +1065,7 @@ class WorldFeed extends React.Component {
   renderVote(q, T, big) {
     const mine = this.state.votes[q.id];
     if (mine != null && this.state.beat === q.id) return this.renderBeat(q, T, big);
-    // editFor re-opens the options on an answered card (D85) — the tap
+    // editFor re-opens the options on an answered card (D86) — the tap
     // lands in setVote, which routes an answered live card through
     // LIVE.editVote instead of the create-only vote().
     const editing = mine != null && !!this.state.editFor[q.id];
@@ -1392,7 +1392,7 @@ class WorldFeed extends React.Component {
               <svg width={big ? 21 : 20} height={big ? 21 : 20} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M6.5 4.5h11a2 2 0 0 1 2 2V13a2 2 0 0 1-2 2H11l-4 3.8V15h-.5a2 2 0 0 1-2-2V6.5a2 2 0 0 1 2-2z"></path></svg>
               Takes
             </button>
-            {/* D85: re-open the options on an answered plain vote. The
+            {/* D86: re-open the options on an answered plain vote. The
                 guard is the option-vote shape itself — catalog picks
                 (entity objects), ranks and know cards never store a
                 number here, and their server docs refuse edits anyway. */}
@@ -2537,7 +2537,7 @@ class WorldFeed extends React.Component {
     // seeing things I have answered" (which sank the done half), then
     // "answered questions shouldn't appear in the feed at all". So the
     // done half now leaves the feed and parks behind the Answered
-    // expander at the bottom — results, takes and the D85 change
+    // expander at the bottom — results, takes and the D86 change
     // affordance all stay reachable there. Sticky per MOUNT: answered-ness
     // is sampled the first time a card is seen this visit and frozen, so
     // the card you just voted on keeps its place while you watch its
@@ -2668,7 +2668,7 @@ class WorldFeed extends React.Component {
         {/* the record: answered cards leave the feed (fresh questions
             only — release feedback) but never the reach of it. Collapsed
             by default; open, they are the same real cards — results,
-            takes, and the D85 change affordance. */}
+            takes, and the D86 change affordance. */}
         {doneList.length > 0 && (
           <button className="press" aria-expanded={this.state.doneOpen} onClick={() => this.setState((s) => ({ doneOpen: !s.doneOpen }))} style={{ alignSelf: 'center', display: 'inline-flex', alignItems: 'center', gap: 7, border: '0.5px solid color-mix(in oklch, var(--ink) 18%, var(--rule))', background: 'var(--surface-2)', color: 'var(--ink-2)', fontFamily: 'var(--sans)', fontWeight: 700, fontSize: 12.5, padding: '7px 15px', borderRadius: 999, cursor: 'pointer', WebkitAppearance: 'none', margin: '4px 0 2px' }}>
             Answered · {doneList.length}

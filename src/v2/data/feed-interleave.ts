@@ -42,7 +42,7 @@ export const LENS_EVERY = 9;
  * at all — there should always be fresh questions". So the feed now
  * renders `fresh` alone and parks `done` behind an expander at the
  * bottom — still a partition, never a filter that loses cards, because
- * the answered cards ARE the record (results, takes, and the D85 change
+ * the answered cards ARE the record (results, takes, and the D86 change
  * affordance all live on them).
  *
  * The caller decides WHEN answered-ness is sampled. world-feed freezes it

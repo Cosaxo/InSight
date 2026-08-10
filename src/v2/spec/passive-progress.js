@@ -15,7 +15,7 @@
 import React from 'react';
 import { IS_TESTS, IS_TEST_RESULTS } from './test-definitions.js';
 
-// passive-progress.js — progress for the four core tests. Only a test's OWN
+// passive-progress.js — progress for the five core tests. Only a test's OWN
 // questions count: they surface as marked cards in the World feed (TEST_FEED_QS)
 // or get answered in the test itself. Regular feed questions carry no signal.
 // Staggered demo seeds included. Plain script.
@@ -26,10 +26,13 @@ export const PASSIVE = (function () {
     political:  { label: 'Politics', accent: 'var(--c-world)' },
     values:     { label: 'Values',   accent: 'var(--c-people)' },
     attachment: { label: 'Social',   accent: 'oklch(0.52 0.13 320)' },
+    cognitive:  { label: 'Thinking', accent: 'oklch(0.50 0.12 220)' },
   };
   const KEYS = Object.keys(META);
   // demo stagger: how many of each test's own questions you've already answered
-  const DEMO_SEED = { big5: 1, political: 0.7, values: 0.45, attachment: 0.2 };
+  // (cognitive at 0 so the picker shows one genuinely untouched test — the
+  // demo persona has a saved cognitive result but never sat the bank)
+  const DEMO_SEED = { big5: 1, political: 0.7, values: 0.45, attachment: 0.2, cognitive: 0 };
   // live mode starts every test at its real zero — the stagger exists
   // only so the demo shows all progress states at once
   const SEED = new Proxy(DEMO_SEED, {

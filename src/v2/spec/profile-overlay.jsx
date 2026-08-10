@@ -5,6 +5,7 @@
 // guards the wiring in CI.
 import React from 'react';
 import { Av, useDialog } from './primitives.jsx';
+import { ResultProfileCard } from './result-card.jsx';
 import { IS_TEST_RESULTS } from './test-definitions.js';
 
 // InSight — ProfileOverlay (your own profile) + the Politics cards.
@@ -24,7 +25,8 @@ function ProfileOverlay({ onClose, me, lensBoxed }) {
     { id: 'politics',   label: 'Politics' },
     { id: 'values',     label: 'Values' },
     { id: 'attachment', label: 'Social' },
-    // the minor instruments. Last on purpose: the four core tests are the
+    { id: 'thinking',   label: 'Thinking' },
+    // the minor instruments. Last on purpose: the five core tests are the
     // profile, lenses are the footnotes that explain it.
     { id: 'lenses',     label: 'Lenses' },
   ];
@@ -69,36 +71,44 @@ function ProfileOverlay({ onClose, me, lensBoxed }) {
     );
   };
 
+  // CONVERTED off the shared-global bridge (D39, "convert on touch"):
+  // adding the fifth panel below would have taken this file's cross-module
+  // global count UP, which check:globals rule 4 refuses. ResultProfileCard
+  // is a named export of result-card.jsx, which spec-index.js imports
+  // eagerly and BEFORE this file, so the import is sound.
+  //
+  // Every fallback the five panels used to carry is gone with it, and that
+  // is the conversion rather than a tidy-up: each one guarded LOAD ORDER
+  // ("has result-card.jsx evaluated yet?"), and an imported binding cannot
+  // be unset. The AttachmentPanel chain even said so — "unreachable today
+  // … written defensively anyway, because load order in this layer is
+  // exactly what changes" — and a static import is what stops it changing.
+  // No data guard was removed: none of them guarded data. The card still
+  // returns null on its own for a test with no result or no RP_TESTS entry.
   const Big5Panel = () => (
-    window.ResultProfileCard
-      ? <window.ResultProfileCard testKey="big5" archetype={meta.name} tagline={meta.tag} />
-      : <TestVizCard testKey="big5" />
+    <ResultProfileCard testKey="big5" archetype={meta.name} tagline={meta.tag} />
   );
 
   const PoliticsPanel = () => (
-    <>
-      {window.ResultProfileCard && <window.ResultProfileCard testKey="political" archetype={me.politicalIdentity.name} tagline={me.politicalIdentity.tag} />}
-    </>
+    <ResultProfileCard testKey="political" archetype={me.politicalIdentity.name} tagline={me.politicalIdentity.tag} />
   );
 
   const ValuesPanel = () => (
-    window.ResultProfileCard
-      ? <window.ResultProfileCard testKey="values" archetype={me.moralLabel} tagline="beauty and meaning pull hardest" />
-      : (window.ValuesTiltCard ? <window.ValuesTiltCard me={me} /> : null)
+    <ResultProfileCard testKey="values" archetype={me.moralLabel} tagline="beauty and meaning pull hardest" />
   );
 
   const AttachmentPanel = () => (
-    window.ResultProfileCard
-      ? <window.ResultProfileCard testKey="attachment" archetype="The Constant" tagline="steady and affectionate — the friend who stays" />
-      // Third fallback reads off window like the two before it, because
-      // TestResultCard now ships in the after-first-paint overlay chunk
-      // (loadOverlays) while this overlay is eager — a bare identifier
-      // would be a ReferenceError rather than a blank. Unreachable today:
-      // ResultProfileCard and AttachmentCard are both eager, so the first
-      // branch always wins. Written defensively anyway, because "the other
-      // two are eager" is a fact about load order, and load order in this
-      // layer is exactly what changes.
-      : (window.AttachmentCard ? <window.AttachmentCard /> : (window.TestResultCard ? <window.TestResultCard testKey="attachment" /> : null))
+    <ResultProfileCard testKey="attachment" archetype="The Constant" tagline="steady and affectionate — the friend who stays" />
+  );
+
+  // No tagline: the other four hand ResultProfileCard a line off the demo
+  // persona (me.politicalIdentity, me.moralLabel), and `me` carries nothing
+  // for thinking style. The card reads its own archetype line from
+  // IS_ARCHETYPES rather than inventing one, which is the right default
+  // here anyway — an invented tagline on a live account's result would be
+  // the fabrication D1 forbids.
+  const ThinkingPanel = () => (
+    <ResultProfileCard testKey="cognitive" archetype="Thinking" />
   );
 
   const dlg = useDialog(onClose, 'Your profile');
@@ -147,6 +157,7 @@ function ProfileOverlay({ onClose, me, lensBoxed }) {
           {sub === 'politics' && <><PoliticsPanel /><TestCTA k="political" /></>}
           {sub === 'values' && <><ValuesPanel /><TestCTA k="values" /></>}
           {sub === 'attachment' && <><AttachmentPanel /><TestCTA k="attachment" /></>}
+          {sub === 'thinking' && <><ThinkingPanel /><TestCTA k="cognitive" /></>}
           {sub === 'lenses' && window.LensesPanel && <window.LensesPanel boxed={lensBoxed} />}
         </div>
       </div>

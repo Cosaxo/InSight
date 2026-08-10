@@ -30,7 +30,7 @@ const h = vi.hoisted(() => ({
   setDocImpl: null as null | (() => Promise<void>),
   getDocsImpl: null as null | (() => Error),
   setDocCalls: [] as Array<{ path: string; data: Record<string, unknown> }>,
-  // the D85 edit path writes through updateDoc, never setDoc
+  // the D86 edit path writes through updateDoc, never setDoc
   updateDocImpl: null as null | (() => Promise<void>),
   updateDocCalls: [] as Array<{ path: string; data: Record<string, unknown> }>,
   bankDocs: [] as FakeSnapshotDoc[],
@@ -356,7 +356,7 @@ describe("vote() optimistic path (inflight vs unaggregated)", () => {
     expect(h.reportError).toHaveBeenCalledWith(boom, { where: "vote", qid: "q_1" });
   });
 
-  it("editVote (D85): refuses when there is nothing to move, and sends nothing", async () => {
+  it("editVote (D86): refuses when there is nothing to move, and sends nothing", async () => {
     const LIVE = await bootLive();
     expect(LIVE.editVote("q_1", "1")).toBe(false); // never answered
     LIVE.vote("q_1", "1");

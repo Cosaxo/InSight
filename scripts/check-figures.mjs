@@ -223,6 +223,45 @@ const FIGURES = [
     actual: bankKiB,
     fix: (n) => `"${n} KiB of JSON"`,
   },
+  // The four below were quoting 399 while the bank ran 463, and every one
+  // of them sat NEXT TO a figure this script already held — the cold-boot
+  // row states the count twice in one table cell, and the gate read the
+  // first half only. That is the same staleness the header describes,
+  // caught in the same file the gate was already open in, which is the
+  // argument for widening the read rather than trusting the neighbouring
+  // sentence to be noticed.
+  {
+    file: "docs/COSTS.md",
+    what: "the question bank's document count (the cold-boot row, second half)",
+    re: /`V2_QUESTIONS`, (\d+) docs/,
+    actual: seededQuestions,
+    fix: (n) => `"\`V2_QUESTIONS\`, ${n} docs"`,
+  },
+  {
+    file: "docs/LAUNCH-RUNBOOK.md",
+    what: "the bank size the un-run reseed is measured against",
+    re: /and the bank is \*\*(\d+)\*\*/,
+    actual: seededQuestions,
+    fix: (n) => `"and the bank is **${n}**"`,
+  },
+  {
+    file: "docs/LAUNCH-RUNBOOK.md",
+    what: "seeded questions (the k-floor note in the on-device walk)",
+    // Wrap-tolerant like the status-header entry above: the count and the
+    // words after it sit on different lines, and D81's rewording of this
+    // paragraph moved the break. A gate that a reflow can silence is one
+    // that goes quiet exactly when the prose around a figure changes.
+    re: /the (\d+)\s*\n?\s*seeded questions are/,
+    actual: seededQuestions,
+    fix: (n) => `"the ${n} seeded questions are"`,
+  },
+  {
+    file: "docs/SHIP-CHECKLIST.md",
+    what: "the bank refetch a reseed used to cost",
+    re: /a (\d+)-read\s*\n?\s*bank refetch/,
+    actual: seededQuestions,
+    fix: (n) => `"a ${n}-read bank refetch"`,
+  },
 ];
 
 const errors = [];

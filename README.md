@@ -62,7 +62,7 @@ Every privacy claim in the UI is enforced server-side, not promised:
 
 - **Answers are owner-only, forever.** One create per question, readable
   by you alone (`firestore.rules`, decision D5). The option can be moved
-  after the fact (D85) — the cohort snapshot and answer time cannot, and
+  after the fact (D86) — the cohort snapshot and answer time cannot, and
   the aggregate follows through a server-side -old/+new delta.
 - **World stats are k-floored.** Exact counts live in a server-only
   collection; the public mirror shows nothing below 5 answers and carries

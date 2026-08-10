@@ -6,7 +6,7 @@ Safety answers when store listing time comes.
 
 | Data | Where | Readable by | Notes |
 |---|---|---|---|
-| Answers (world/feed/test) | `v2_users/{uid}/answers` | owner only | doc id = question id; one per question. The chosen option may be edited (D85, ≤1/min); the anchors snapshot and answer time are immutable, and each edit stamps `editedAt` |
+| Answers (world/feed/test) | `v2_users/{uid}/answers` | owner only | doc id = question id; one per question. The chosen option may be edited (D86, ≤1/min); the anchors snapshot and answer time are immutable, and each edit stamps `editedAt` |
 | Learn first attempts (D32) | same subcollection, `learn-*` ids | owner only | ONLY the first attempt per card ever reaches the server (create-only answers refuse retries); the scheduler's spaced retries stay in device localStorage (`insight.learn.v3`). No anchors snapshot. Feeds the k-floored "% got this right" aggregate; the server never stores which option is correct |
 | Sealed duel answers (+ guess) | same, `g_{gid}_{day}` ids | owner only | become part of a member-only reveal doc next day |
 | Anchors snapshot | on each answer doc | owner only | age band, gender, country, city, education, profession, relationship — all optional, entered in the profile's Basics card. Snapshotted at vote time so a later edit cannot move a past answer's cohort |

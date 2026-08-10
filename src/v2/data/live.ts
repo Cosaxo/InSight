@@ -119,7 +119,7 @@ const state = {
   //                 snapshots and the post-vote delayed refresh.
   inflight: {} as Record<string, true>,
   unaggregated: {} as Record<string, number>,
-  // qid -> Date.now() of the last ACKED edit (D85). Client mirror of the
+  // qid -> Date.now() of the last ACKED edit (D86). Client mirror of the
   // rules' one-edit-per-answer-per-60s cooldown, so the UI can refuse a
   // doomed write synchronously instead of flipping and bouncing back.
   // In-memory on purpose: after a relaunch the server arm still enforces,
@@ -268,7 +268,7 @@ function saveAggCache(): void {
 }
 
 // One delayed re-read of a question's public aggregate, so the paint after
-// a vote (or a D85 edit) shows the folded-in count. Shared by both write
+// a vote (or a D86 edit) shows the folded-in count. Shared by both write
 // paths — it was inline in vote() until the edit path needed the identical
 // block.
 function scheduleAggRefresh(db: Awaited<ReturnType<typeof getDb>>, qid: string): void {
@@ -615,7 +615,7 @@ async function hydrate(): Promise<void> {
       if (et && typeof et.toMillis === "function") maxEditTs = Math.max(maxEditTs, et.toMillis());
     };
     asnap.docs.forEach(fold);
-    // D85 made one field mutable, so the incremental pull gained a second
+    // D86 made one field mutable, so the incremental pull gained a second
     // cursor: an edit moves optionIdx WITHOUT moving answeredAt (the
     // cohort stamp is frozen), so a cache warmed before the edit would
     // hold the old option forever. On the editing device cacheVote()
@@ -1793,7 +1793,7 @@ const LIVE = {
       }
     })();
   },
-  // D85: move an EXISTING answer to a different option — the one
+  // D86: move an EXISTING answer to a different option — the one
   // repeatable answer write (vote() above is create-only and no-ops on an
   // answered question, mirroring the rules). Daily, feed and test cards
   // only; learn, duels and catalog picks are refused server-side and never

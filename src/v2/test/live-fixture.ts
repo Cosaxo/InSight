@@ -193,7 +193,7 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
       votes[qid] = optionId;
       listeners.forEach((fn) => fn());
     },
-    // D85 edit path, same contract as the real store: false when there is
+    // D86 edit path, same contract as the real store: false when there is
     // nothing to move, so tests can drive both branches of an affordance.
     editVote: (qid: string, optionId: string) => {
       if (!votes[qid] || votes[qid] === optionId) return false;

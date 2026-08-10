@@ -301,7 +301,7 @@ service cloud.firestore {
             // binding the duel branch is exempt from.
             || (isCatalogAnswer() && deviceBound())
           );
-        // D85 unlocks ONE edit shape on world-scope opinion answers:
+        // D86 unlocks ONE edit shape on world-scope opinion answers:
         // optionIdx moves, everything else is frozen. What stays immutable,
         // and why each stays:
         //   - duel answers (surface group/duo): the SEAL is the product —

@@ -54,7 +54,7 @@ v2_users/{uid}/answers/{qid}
     pokemon, generated QID key sets for films/artists) and an unknown
     key never aggregates.
 create: owner, validated (question must exist; optionIdx < options.size())
-update: owner, ONE shape (D85) — optionIdx moves (+ editedAt ==
+update: owner, ONE shape (D86) — optionIdx moves (+ editedAt ==
 request.time), on surfaces daily|feed|test only, bounded by the
 question's options, once per 60 s per answer. Everything else is frozen:
 anchors and answeredAt (the cohort stamp, D8), learn (D32's
@@ -215,7 +215,7 @@ MOD_UIDS-gated callables (the D22 confinement)
 ## Functions
 
 - `seedContentV2` (callable; emulator or SEED_ADMIN_UIDS allowlist) — mirrors `/content` question banks
-  into `v2_questions` (399 docs, stable ids `daily-000`, `feed-<id>`,
+  into `v2_questions` (463 docs, stable ids `daily-000`, `feed-<id>`,
   `group-<id>`, `duo-000`, `test-<key>-NN`; idempotent merge; `active` written only on first create, preserving the
   operational kill switch). Bank source:
   `functions/src/v2content.ts`, generated from `/content/*.json`.
@@ -266,13 +266,13 @@ read: signed-in · write: nobody
 ## Read economics (client)
 
 A live boot costs ~20 reads, not ~380: one `v2_meta/app` read decides
-everything. The question bank (399 docs) caches in localStorage keyed by
+everything. The question bank (463 docs) caches in localStorage keyed by
 `contentRev`, and refreshes **incrementally** — one query for docs newer
 than the cache's `updatedAt` cursor, so a promotion cycle costs the
 handful of questions it added rather than the whole bank (D34;
 docs/COSTS.md has the arithmetic for why that mattered more than it
 looks). Answer creates never refetch, so that local cache pulls docs
-newer than its high-water mark — plus, since D85 made optionIdx mutable,
+newer than its high-water mark — plus, since D86 made optionIdx mutable,
 a second cursor over `editedAt` so another device's edit is heard about
 without moving the frozen answeredAt watermark; aggregates cache locally and fetch only
 answered questions' missing docs (feed cards are blind pre-vote — there

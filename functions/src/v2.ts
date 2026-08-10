@@ -104,7 +104,7 @@ export const PUBLISH_EVERY = 1;
 // the restored constants that is precisely the stream shouldPublishAgg
 // exists to close — so edits then fold into the private doc only and
 // surface with the next CREATE-driven publish, where their -1 hides among
-// >= PUBLISH_EVERY other people's votes (same k bound as the floor, D85).
+// >= PUBLISH_EVERY other people's votes (same k bound as the floor, D86).
 // `<= 1`, not `=== 1`: the literal types of the paused constants would
 // make an equality test a compile error the day D81 reverts, and the
 // revert must stay a two-literal commit.
@@ -710,7 +710,7 @@ export const onV2AnswerCreated = onDocumentCreated(
   },
 );
 
-// ── answer edit → aggregate delta (D85) ─────────────────────────
+// ── answer edit → aggregate delta (D86) ─────────────────────────
 //
 // The update half of the honest-counts guarantee. Rules admit exactly one
 // edit shape — optionIdx moves on a daily/feed/test answer, anchors and

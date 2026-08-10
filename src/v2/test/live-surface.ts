@@ -31,7 +31,7 @@ export const LIVE_MEMBERS = [
   "bootError",
   "confirmedVotes", "dailyBank", "deck",
   "deleteAccount", "demoInProd", "displayName",
-  // D85: the one repeatable answer write — moves an existing daily/feed/
+  // D86: the one repeatable answer write — moves an existing daily/feed/
   // test answer to a different option. Returns false without writing when
   // there is nothing to move or the 60s cooldown holds.
   "editVote",

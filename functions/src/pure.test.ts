@@ -639,14 +639,14 @@ describe("per-anchor breakdowns", () => {
   });
 });
 
-// ── the edit delta (D85) ────────────────────────────────────────
+// ── the edit delta (D86) ────────────────────────────────────────
 //
 // An edit is -old/+new with the total unchanged. These pin the two
 // properties the trigger leans on: counts refuse to clamp (absence means
 // "create not folded yet" and is the retry signal), and the breakdown
 // moves a vote only inside cells where the old vote is actually
 // represented — bucket totals, the floor's quantity, never move.
-describe("retargetCounts / retargetAnchors — the D85 edit delta", () => {
+describe("retargetCounts / retargetAnchors — the D86 edit delta", () => {
   it("moves one vote between options and keeps the sum", () => {
     const counts = { "0": 3, "1": 2 };
     expect(retargetCounts(counts, 0, 1)).toBe(true);
