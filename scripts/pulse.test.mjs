@@ -98,7 +98,7 @@ describe("cost-arith reads its constants from source, not from memory", () => {
       + "rule is a BILLED READ — recount RULE_READS in scripts/cost-arith.mjs "
       + "(the answer-create paths are what the model charges) and update this "
       + "tripwire with the new totals.",
-    ).toEqual({ gets: 15, exists: 2 });
+    ).toEqual({ gets: 17, exists: 2 });
   });
 
   it("the answer trigger's transaction still issues the reads the model charges", () => {

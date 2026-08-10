@@ -122,7 +122,7 @@ Actions secret `FIREBASE_SERVICE_ACCOUNT`.
 
 ## Protection rules on the `production` environment
 
-**Decided (D86) — this is the required configuration, not a proposal.**
+**Decided (D87) — this is the required configuration, not a proposal.**
 Unattended production writes are not an accepted state for this project.
 
 **Applied: ☐ not yet.** These are settings in GitHub's UI, not files in
@@ -191,7 +191,7 @@ build, no way to fail on its own) but it is not zero, and it is the
 reason the wait timer is 0 rather than "a few minutes to think".
 
 **The trade being made:** unattended production writes stop being
-possible, at the price of one tap per backend merge. Accepted (D86) — the
+possible, at the price of one tap per backend merge. Accepted (D87) — the
 tap is bounded and the exposure it removes is not.
 
 ### How to apply it

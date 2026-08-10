@@ -119,6 +119,12 @@ const state = {
   //                 snapshots and the post-vote delayed refresh.
   inflight: {} as Record<string, true>,
   unaggregated: {} as Record<string, number>,
+  // qid -> Date.now() of the last ACKED edit (D86). Client mirror of the
+  // rules' one-edit-per-answer-per-60s cooldown, so the UI can refuse a
+  // doomed write synchronously instead of flipping and bouncing back.
+  // In-memory on purpose: after a relaunch the server arm still enforces,
+  // and the rollback path already handles that refusal.
+  editedAt: {} as Record<string, number>,
   aggUnsubs: {} as Record<string, () => void>,
   // ── social (groups & duos) ──
   profile: {
@@ -259,6 +265,36 @@ function saveAggCache(): void {
     aggCacheTimer = null;
     writeAggCache();
   }, AGG_CACHE_MS);
+}
+
+// One delayed re-read of a question's public aggregate, so the paint after
+// a vote (or a D86 edit) shows the folded-in count. Shared by both write
+// paths — it was inline in vote() until the edit path needed the identical
+// block.
+function scheduleAggRefresh(db: Awaited<ReturnType<typeof getDb>>, qid: string): void {
+  setTimeout(() => {
+    void (async () => {
+      try {
+        const snap = await getDoc(doc(db, "v2_question_aggs", qid));
+        if (snap.exists()) {
+          state.aggs[qid] = snap.data() as AggDoc;
+          saveAggCache();
+          // Clear the display flag only for an ACKED write — a
+          // still-inflight one cannot be in the agg we just read, and
+          // clearing would subtract a vote that isn't there. (Defensive:
+          // today this timer is only scheduled after the ack, so inflight
+          // is already clear.)
+          if (qid in state.unaggregated && !(qid in state.inflight)) {
+            delete state.unaggregated[qid];
+          }
+          buildFeedGlobals();
+          notify();
+        }
+      } catch {
+        /* refresh is best-effort */
+      }
+    })();
+  }, 2500);
 }
 
 // Drops a queued write. Hygiene rather than a leak fix, and it is worth
@@ -536,16 +572,18 @@ async function hydrate(): Promise<void> {
   // A bank with content but no *daily* question is different: the rest of
   // the app works, so stay live and let the daily surface say so.
 
-  // ── my answers: cached + incremental (immutable docs never refetch) ──
+  // ── my answers: cached + incremental (created docs never refetch) ──
   const ANS_LS = "insight.answersCache.v1";
   const uidA = state.uid;
   let maxTs = 0;
+  let maxEditTs = 0;
   if (uidA) {
     try {
       const cached = JSON.parse(localStorage.getItem(ANS_LS) || "null");
       if (cached && cached.uid === uidA && cached.votes) {
         Object.assign(state.votes, cached.votes);
         maxTs = Number(cached.maxTs || 0);
+        maxEditTs = Number(cached.maxEditTs || 0);
       }
     } catch {
       /* refetch below */
@@ -568,14 +606,37 @@ async function hydrate(): Promise<void> {
     // the honest mock deck than to look live and reject the user's taps.
     const asnap = await getDocs(aq);
     state.stats.answersFetched = asnap.size;
-    asnap.docs.forEach((d) => {
+    const fold = (d: { id: string; get: (f: string) => unknown }) => {
       const optionIdx = d.get("optionIdx");
       if (typeof optionIdx === "number") state.votes[d.id] = String(optionIdx);
-      const at = d.get("answeredAt");
+      const at = d.get("answeredAt") as { toMillis?: () => number } | undefined;
       if (at && typeof at.toMillis === "function") maxTs = Math.max(maxTs, at.toMillis());
-    });
+      const et = d.get("editedAt") as { toMillis?: () => number } | undefined;
+      if (et && typeof et.toMillis === "function") maxEditTs = Math.max(maxEditTs, et.toMillis());
+    };
+    asnap.docs.forEach(fold);
+    // D86 made one field mutable, so the incremental pull gained a second
+    // cursor: an edit moves optionIdx WITHOUT moving answeredAt (the
+    // cohort stamp is frozen), so a cache warmed before the edit would
+    // hold the old option forever. On the editing device cacheVote()
+    // repairs it at ack time; a second signed-in device has only this
+    // query to hear about it. The watermarks stay per-field on purpose —
+    // folding editedAt into maxTs would let an edit's timestamp leap past
+    // a concurrent create the answeredAt query has not read yet, and that
+    // answer would then never be fetched. Warm boots only: the cold-cache
+    // full pull above already reads every doc's current optionIdx (and
+    // seeds this cursor through fold()).
+    if (maxTs > 0) {
+      const esnap = await getDocs(query(
+        collection(db, "v2_users", uidA, "answers"),
+        where("editedAt", ">", Timestamp.fromMillis(maxEditTs)),
+        limit(400),
+      ));
+      state.stats.answersFetched += esnap.size;
+      esnap.docs.forEach(fold);
+    }
     try {
-      localStorage.setItem(ANS_LS, JSON.stringify({ uid: uidA, votes: state.votes, maxTs }));
+      localStorage.setItem(ANS_LS, JSON.stringify({ uid: uidA, votes: state.votes, maxTs, maxEditTs }));
     } catch {
       /* best-effort */
     }
@@ -1710,30 +1771,7 @@ const LIVE = {
         delete state.inflight[qid];
         cacheVote(qid, optionIdx);
         notify(); // confirmedVotes() changed — let persistent records (the Map) pick it up
-        // one delayed refresh so the next paint has the folded-in count
-        setTimeout(() => {
-          void (async () => {
-            try {
-              const snap = await getDoc(doc(db, "v2_question_aggs", qid));
-              if (snap.exists()) {
-                state.aggs[qid] = snap.data() as AggDoc;
-                saveAggCache();
-                // Clear the display flag only for an ACKED vote — a
-                // still-inflight write cannot be in the agg we just
-                // read, and clearing would subtract a vote that isn't
-                // there. (Defensive: today this timer is only scheduled
-                // after the ack, so inflight is already clear.)
-                if (qid in state.unaggregated && !(qid in state.inflight)) {
-                  delete state.unaggregated[qid];
-                }
-                buildFeedGlobals();
-                notify();
-              }
-            } catch {
-              /* refresh is best-effort */
-            }
-          })();
-        }, 2500);
+        scheduleAggRefresh(db, qid);
       } catch (err) {
         // Write refused (rules/network): roll the optimistic state back.
         // Subscribers reconcile from myVotes(), so the UI un-votes too.
@@ -1754,6 +1792,71 @@ const LIVE = {
         reportError(err, { where: "vote", qid });
       }
     })();
+  },
+  // D86: move an EXISTING answer to a different option — the one
+  // repeatable answer write (vote() above is create-only and no-ops on an
+  // answered question, mirroring the rules). Daily, feed and test cards
+  // only; learn, duels and catalog picks are refused server-side and never
+  // offered this affordance.
+  //
+  // Returns synchronously whether anything was sent, so a caller can keep
+  // its result view instead of flipping to a vote that will bounce: false
+  // means no prior vote, same option, an unacked write in flight, or
+  // inside the 60s per-answer cooldown the rules enforce (the client
+  // mirror spares a doomed write; the rules arm is the enforcement).
+  editVote(qid: string, optionId: string): boolean {
+    const prev = state.votes[qid];
+    if (!prev || prev === optionId) return false;
+    if (qid in state.inflight) return false;
+    const optionIdx = Number(optionId);
+    if (!Number.isInteger(optionIdx) || optionIdx < 0) return false;
+    if (Date.now() - (state.editedAt[qid] || 0) < 60_000) return false;
+    state.votes[qid] = optionId;
+    state.inflight[qid] = true;
+    // The new option is not in the public agg yet — same display flag as a
+    // create. The old option briefly reads one high (my old vote is still
+    // in the counts, no longer marked mine); the delayed refresh below
+    // pulls the moved counts and settles it.
+    state.unaggregated[qid] = optionIdx;
+    notify();
+    void (async () => {
+      try {
+        const db = await getDb();
+        const uid = state.uid;
+        if (!uid) throw new Error("no session");
+        await updateDoc(doc(db, "v2_users", uid, "answers", qid), {
+          optionIdx,
+          // request.time, per the rules arm — the edit's own audit stamp,
+          // leaving answeredAt (and the anchors snapshot) frozen.
+          editedAt: serverTimestamp(),
+        });
+        delete state.inflight[qid];
+        state.editedAt[qid] = Date.now();
+        cacheVote(qid, optionIdx); // keep the answers-cache mirror true to the doc
+        notify();
+        scheduleAggRefresh(db, qid);
+      } catch (err) {
+        // Refused (rules cooldown raced another device, network): restore
+        // the previous option everywhere the optimistic flip reached. The
+        // answers cache was never touched — it still mirrors the doc.
+        state.votes[qid] = prev;
+        delete state.inflight[qid];
+        delete state.unaggregated[qid];
+        try {
+          const WF_LS = "insight.feedVotes.v1";
+          const wf = JSON.parse(localStorage.getItem(WF_LS) || "{}") || {};
+          if (qid in wf) {
+            wf[qid] = Number(prev);
+            localStorage.setItem(WF_LS, JSON.stringify(wf));
+          }
+        } catch {
+          /* best-effort */
+        }
+        notify();
+        reportError(err, { where: "editVote", qid });
+      }
+    })();
+    return true;
   },
 };
 
@@ -1782,6 +1885,7 @@ function resetForNewUid(uid: string): void {
   state.votes = {};
   state.inflight = {};
   state.unaggregated = {};
+  state.editedAt = {};
   state.aggs = {};
   state.groups = [];
   state.reveals = {};

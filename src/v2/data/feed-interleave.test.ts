@@ -17,7 +17,7 @@
 // So this pins the property rather than the constants: BOTH streams must
 // drain, and the lens cadence must not be a multiple of the test cadence.
 import { describe, expect, it } from "vitest";
-import { interleaveFeed, unansweredFirst, TEST_EVERY, LENS_EVERY } from "./feed-interleave";
+import { interleaveFeed, partitionAnswered, TEST_EVERY, LENS_EVERY } from "./feed-interleave";
 
 // THE SHIPPED FUNCTION, imported. This file used to redeclare the cadences
 // and the loop, so every assertion below exercised the test file itself —
@@ -137,32 +137,40 @@ describe("the knowledge stream the copy never modelled (D32)", () => {
   });
 });
 
-describe("unansweredFirst — the finite bank stops leading with your own past", () => {
-  // The release feedback was literal: "I keep seeing things I have
-  // answered." The bank is served in a stable order, so the head of every
+describe("partitionAnswered — the finite bank stops serving your own past", () => {
+  // The release feedback came twice: "I keep seeing things I have
+  // answered", then "answered questions shouldn't appear in the feed at
+  // all". The bank is served in a stable order, so the head of every
   // session's feed was exactly the head of the last one — answered, as a
-  // wall of results. The partition sinks answered cards without losing
-  // them, and it must be STABLE: within each half, the incoming order
-  // (the sort lens the user picked) survives untouched.
+  // wall of results. The feed renders `fresh` alone and parks `done`
+  // behind the answered expander; the partition must be STABLE (within
+  // each half, the incoming order — the sort lens the user picked —
+  // survives untouched) and LOSSLESS (every card lands in exactly one
+  // half; the done cards are the record, not discards).
 
   const answered = new Set(["a", "c"]);
   const isDone = (q: string) => answered.has(q);
 
-  it("moves answered cards behind unanswered ones", () => {
-    expect(unansweredFirst(["a", "b", "c", "d"], isDone)).toEqual(["b", "d", "a", "c"]);
+  it("splits answered cards out of the fresh list", () => {
+    expect(partitionAnswered(["a", "b", "c", "d"], isDone))
+      .toEqual({ fresh: ["b", "d"], done: ["a", "c"] });
   });
 
   it("keeps each half's incoming order — a partition, not a sort", () => {
     // The incoming order encodes the topic round-robin / the chosen sort
     // lens; reordering within a half would quietly replace that with
     // insertion noise.
-    expect(unansweredFirst(["d", "c", "b", "a"], isDone)).toEqual(["d", "b", "c", "a"]);
+    expect(partitionAnswered(["d", "c", "b", "a"], isDone))
+      .toEqual({ fresh: ["d", "b"], done: ["c", "a"] });
   });
 
-  it("is the identity when nothing is answered, and a no-op loss-wise when all are", () => {
-    expect(unansweredFirst(["x", "y"], () => false)).toEqual(["x", "y"]);
-    // Answered cards SINK, never vanish: their results are the record.
-    expect(unansweredFirst(["a", "c"], isDone)).toEqual(["a", "c"]);
-    expect(unansweredFirst([], isDone)).toEqual([]);
+  it("loses nothing at either extreme", () => {
+    expect(partitionAnswered(["x", "y"], () => false))
+      .toEqual({ fresh: ["x", "y"], done: [] });
+    // Fully answered: everything is still HELD, behind the expander —
+    // the caught-up state has an empty fresh list, never missing cards.
+    expect(partitionAnswered(["a", "c"], isDone))
+      .toEqual({ fresh: [], done: ["a", "c"] });
+    expect(partitionAnswered([], isDone)).toEqual({ fresh: [], done: [] });
   });
 });

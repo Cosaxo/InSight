@@ -47,6 +47,8 @@ import {
   votesMatchingQid,
   presenceCellOk,
   presenceNeighbors,
+  retargetCounts,
+  retargetAnchors,
 } from "./pure";
 import { AGG_MIN_N, PUBLISH_EVERY } from "./v2";
 
@@ -634,6 +636,103 @@ describe("per-anchor breakdowns", () => {
     const out = publishableBreakdown(by, 5);
     out.gender.Women["0"] = 999;
     expect(by.gender.Women["0"]).toBe(9);
+  });
+});
+
+// ── the edit delta (D86) ────────────────────────────────────────
+//
+// An edit is -old/+new with the total unchanged. These pin the two
+// properties the trigger leans on: counts refuse to clamp (absence means
+// "create not folded yet" and is the retry signal), and the breakdown
+// moves a vote only inside cells where the old vote is actually
+// represented — bucket totals, the floor's quantity, never move.
+describe("retargetCounts / retargetAnchors — the D86 edit delta", () => {
+  it("moves one vote between options and keeps the sum", () => {
+    const counts = { "0": 3, "1": 2 };
+    expect(retargetCounts(counts, 0, 1)).toBe(true);
+    expect(counts).toEqual({ "0": 2, "1": 3 });
+  });
+
+  it("deletes a zeroed row rather than storing a 0 — the create path's invariant", () => {
+    const counts = { "0": 1, "1": 4 };
+    expect(retargetCounts(counts, 0, 1)).toBe(true);
+    expect(counts).toEqual({ "1": 5 });
+    expect("0" in counts).toBe(false);
+  });
+
+  it("returns false untouched when the old option holds nothing — the retry signal", () => {
+    // The update event beat the create event (Eventarc orders nothing).
+    // The map must be left alone: a blind -1/+1 would clamp at zero, and
+    // -old/+new only commutes with +old while nothing clamps.
+    const counts = { "1": 2 };
+    expect(retargetCounts(counts, 0, 1)).toBe(false);
+    expect(counts).toEqual({ "1": 2 });
+  });
+
+  it("commutes with the create fold when the old option has other votes", () => {
+    // Someone else already holds option 0, so an early-delivered edit can
+    // proceed; the late create then adds the editor's original +0 and the
+    // final state equals the in-order result.
+    const early = { "0": 1 };            // another person's vote
+    retargetCounts(early, 0, 1);         // edit first
+    early["0"] = (early["0"] || 0) + 1;  // create folds afterwards
+    const inOrder = { "0": 1 };
+    inOrder["0"] = (inOrder["0"] || 0) + 1;  // create first
+    retargetCounts(inOrder, 0, 1);           // then edit
+    expect(early).toEqual(inOrder);
+    expect(early).toEqual({ "0": 1, "1": 1 });
+  });
+
+  it("moves the vote in every anchored dim and keeps bucket totals fixed", () => {
+    const by = {};
+    foldAnchors(by, { ageBand: "25-34", city: "Oslo, NO" }, 0, FLOOR);
+    foldAnchors(by, { ageBand: "25-34", city: "Oslo, NO" }, 0, FLOOR);
+    retargetAnchors(by, { ageBand: "25-34", city: "Oslo, NO" }, 0, 2);
+    expect(by).toEqual({
+      ageBand: { "25-34": { "0": 1, "2": 1 } },
+      city: { "Oslo, NO": { "0": 1, "2": 1 } },
+    });
+    // …and a fold followed by a retarget equals folding the new option
+    // outright: the roundtrip leaves no residue.
+    const edited = {};
+    foldAnchors(edited, { ageBand: "25-34" }, 0, FLOOR);
+    retargetAnchors(edited, { ageBand: "25-34" }, 0, 1);
+    const direct = {};
+    foldAnchors(direct, { ageBand: "25-34" }, 1, FLOOR);
+    expect(edited).toEqual(direct);
+  });
+
+  it("skips a dim whose bucket is gone — increment included", () => {
+    // The bucket the create folded into was evicted (or the create-time cap
+    // skipped it). Incrementing anyway would inflate the bucket total by an
+    // answer that is not in it — the one guarantee the fold keeps.
+    const by = { ageBand: { "25-34": { "0": 1 } } };
+    retargetAnchors(by, { ageBand: "35-44", city: "Oslo, NO" }, 0, 1);
+    expect(by).toEqual({ ageBand: { "25-34": { "0": 1 } } });
+  });
+
+  it("skips a dim whose cell lacks the old option — a re-minted bucket", () => {
+    // Bucket evicted after the create, then re-minted by other people's
+    // answers to OTHER options: the editor's old vote is not represented,
+    // so nothing moves and the bucket total stays honest.
+    const by = { city: { "Oslo, NO": { "1": 3 } } };
+    retargetAnchors(by, { city: "Oslo, NO" }, 0, 1);
+    expect(by).toEqual({ city: { "Oslo, NO": { "1": 3 } } });
+  });
+
+  it("is a no-op on junk anchors, like the fold it mirrors", () => {
+    const by = { ageBand: { "25-34": { "0": 1 } } };
+    retargetAnchors(by, null, 0, 1);
+    retargetAnchors(by, "not an object", 0, 1);
+    retargetAnchors(by, { ageBand: "  ", gender: "Women", city: "oslo" }, 0, 1);
+    expect(by).toEqual({ ageBand: { "25-34": { "0": 1 } } });
+  });
+
+  it("deletes a zeroed option key inside a cell", () => {
+    const by = { gender: { Woman: { "0": 1, "1": 1 } } };
+    retargetAnchors(by, { gender: "Woman" }, 0, 1);
+    expect(by.gender.Woman).toEqual({ "1": 2 });
+    expect("0" in by.gender.Woman).toBe(false);
   });
 });
 

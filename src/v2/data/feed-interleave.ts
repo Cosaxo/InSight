@@ -30,27 +30,34 @@ export const TEST_EVERY = 4;
 export const LENS_EVERY = 9;
 
 /**
- * Stable partition: everything the viewer has NOT answered, then
- * everything they have, each half keeping its incoming order.
+ * Stable partition: everything the viewer has NOT answered in `fresh`,
+ * everything they have in `done`, each half keeping its incoming order.
  *
  * WHY. The live bank is finite and served in a deterministic order, so
  * without this every session opened on the same head of cards — the ones
  * the user answered first — as a wall of results, with everything fresh
- * buried beneath it. The release feedback was literal: "I keep seeing
- * things I have answered." A partition rather than a filter, because the
- * answered cards stay reachable (their results are the record); they just
- * stop being the doorway.
+ * buried beneath it. The release feedback came twice and escalated: first
+ * "I keep seeing things I have answered" (which sank the done half below
+ * the fresh half), then "answered questions shouldn't appear in the feed
+ * at all — there should always be fresh questions". So the feed now
+ * renders `fresh` alone and parks `done` behind an expander at the
+ * bottom — still a partition, never a filter that loses cards, because
+ * the answered cards ARE the record (results, takes, and the D86 change
+ * affordance all live on them).
  *
  * The caller decides WHEN answered-ness is sampled. world-feed freezes it
  * per mount, so a card answered mid-scroll keeps its place until the next
- * visit — re-sorting under the user's thumb would teleport the card whose
+ * visit — dropping it under the user's thumb would vanish the card whose
  * reveal they are watching.
  */
-export function unansweredFirst<T>(list: readonly T[], isAnswered: (q: T) => boolean): T[] {
+export function partitionAnswered<T>(
+  list: readonly T[],
+  isAnswered: (q: T) => boolean,
+): { fresh: T[]; done: T[] } {
   const fresh: T[] = [];
   const done: T[] = [];
   for (const q of list) (isAnswered(q) ? done : fresh).push(q);
-  return fresh.concat(done);
+  return { fresh, done };
 }
 
 export interface InterleaveStreams<T> {

@@ -192,7 +192,7 @@ arithmetic.
       not a blocker.
 
 - [ ] **0.3 Put the protection rules on the `production` environment
-      (D86).** GitHub → Settings → Environments → `production`. Four
+      (D87).** GitHub → Settings → Environments → `production`. Four
       fields, one save: required reviewers ON with yourself; **prevent
       self-review OFF**; wait timer 0; deployment branches restricted to
       `main`. Full table and per-setting reasoning in
@@ -211,7 +211,7 @@ arithmetic.
       Verify it took rather than assuming: trigger anything on this path
       and confirm the run sits at **Review pending** instead of
       proceeding. Nothing in CI checks these rules — that gap is recorded
-      in D86 rather than closed, so this box and a periodic look at the
+      in D87 rather than closed, so this box and a periodic look at the
       settings page are the only things holding it.
 
 ## Phase 1 — Day 1: open the account, start the clock
