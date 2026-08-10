@@ -122,12 +122,19 @@ Actions secret `FIREBASE_SERVICE_ACCOUNT`.
 
 ## Protection rules on the `production` environment
 
-**Status: drafted, NOT applied.** These are settings in GitHub's UI, not
-files in this repo, so nothing here takes effect until someone clicks
-them. The section exists because that is exactly the kind of
-configuration that gets decided once in a conversation and then lives
-nowhere — the same failure the seed step had twice (see
-`.github/workflows/seed-content.yml`'s header).
+**Decided (D86) — this is the required configuration, not a proposal.**
+Unattended production writes are not an accepted state for this project.
+
+**Applied: ☐ not yet.** These are settings in GitHub's UI, not files in
+this repo, so nothing here takes effect until someone clicks them —
+which is exactly why the box is here and unticked. Tick it in the same
+commit as applying, and record the date.
+
+That checkbox is doing the same job as the seed step's in
+`SHIP-CHECKLIST §0.1`: a decision that lives only in a conversation gets
+made twice and done never, which is the failure
+`.github/workflows/seed-content.yml`'s header records happening to the
+seed instruction two separate times.
 
 **What the environment gates.** Two jobs, and only two — verified rather
 than assumed, by grepping `environment:` across every workflow:
@@ -184,22 +191,40 @@ build, no way to fail on its own) but it is not zero, and it is the
 reason the wait timer is 0 rather than "a few minutes to think".
 
 **The trade being made:** unattended production writes stop being
-possible, at the price of one tap per backend merge. Worth it only if the
-approver actually reads what they are approving — a reviewer who always
-clicks approve is strictly worse than no reviewer, because it looks like
-a gate in the audit log.
+possible, at the price of one tap per backend merge. Accepted (D86) — the
+tap is bounded and the exposure it removes is not.
 
-### Why it may be wanted now
+### How to apply it
 
-Nothing above is required today: production credentials are unreachable
-from anywhere except these two workflows, and dispatching them needs a
-GitHub account with `actions: write`. It becomes worth applying the
-moment that stops being true for a human operator only — e.g. if an agent
-session is granted workflow-dispatch rights (a synced `gh` token carries
-the `workflow` scope, and that scope is per-account, not per-workflow, so
-it covers `firebase-deploy.yml` as much as `seed-content.yml`). Then the
-approval is what keeps "can propose a content change" from also meaning
-"can deploy the backend".
+GitHub → Settings → Environments → `production`. Four fields, one save.
+Then tick the box at the top of this section with the date.
+
+Verify it took, rather than assuming — trigger anything on this path (a
+backend merge, or Actions → Seed content) and confirm the run sits at
+**Review pending** instead of proceeding. A protection rule that was
+saved into a different environment name looks identical in the settings
+list and gates nothing.
+
+### What this does not cover, recorded rather than left to be discovered
+
+**Nothing in CI verifies that these settings are still in place.** They
+live in GitHub's UI, no file in this repo describes them, and a rule
+removed by hand leaves no trace here — this document would keep asserting
+a gate that no longer exists. That is a weaker guarantee than the rest of
+this project: `firestore.rules` claims are proven by
+`firestore-tests/`, and this claim is proven by nothing.
+
+It is recorded as a limit rather than closed because the obvious closure
+is worse than the hole. A `check:env-protection` gate would need a token
+with `administration: read` on every run, and would red the tree for any
+contributor without it — the failure mode `scripts/check-labels.mjs`'s
+header warns about, where a gate that fires on a guess is one people
+learn to skip.
+
+**The honest scope of the gate:** it stops *unattended* production
+writes. It does not stop a careless approval, and an approver who always
+clicks approve is strictly worse than no reviewer, because the audit log
+then shows a gate that was never really closed.
 
 ## Runtime environment for the functions
 
