@@ -162,6 +162,71 @@
       4: 2,    // Charmander — below the floor
       0: 8,    // Not listed
     },
+    // daily catalog-question run, 2026-08-04 — permanence, the third emoji
+    // canon: pk04 ranks what you send daily, pk05 what you wince at;
+    // this ranks what you would carry in ink for good. Commitment
+    // produces a symbol board — hearts, moons, butterflies — not the
+    // reaction board usage produces.
+    pk08: {
+      10084: 33,  // ❤️ red heart — the classic for a reason
+      129419: 28, // 🦋 butterfly — yes, it is a cliché; clichés chart
+      127769: 24, // 🌙 crescent moon
+      128293: 18, // 🔥 fire
+      127754: 15, // 🌊 water wave
+      10024: 12,  // ✨ sparkles
+      128013: 10, // 🐍 snake
+      127801: 9,  // 🌹 rose
+      9889: 7,    // ⚡ high voltage
+      9854: 6,    // ♾️ infinity
+      11088: 5,   // ⭐ star — clears the floor but not the top 10; folds
+      128128: 5,  // 💀 skull — same
+      128330: 3,  // 🕊️ dove — below the floor
+      129535: 2,  // 🧿 nazar amulet — below the floor
+      0: 9,       // Not listed
+    },
+    // daily catalog-question run, 2026-08-05 — wordcraft, the sixth pokemon
+    // canon: not the creature, the NAME. Wobbuffet and Bidoof lead a board
+    // no other canon produces — nobody calls Bidoof strong, scary or cute,
+    // but the word is a small masterpiece and people know it.
+    pk09: {
+      202: 31, // Wobbuffet — a name you can hear
+      399: 27, // Bidoof — the people's champion
+      122: 22, // Mr. Mime — unsettling AND formal
+      39: 18,  // Jigglypuff — onomatopoeia with a career
+      103: 14, // Exeggutor — the pun that got away with it
+      272: 12, // Ludicolo
+      707: 9,  // Klefki — it is a key ring and it OWNS that
+      143: 8,  // Snorlax
+      54: 7,   // Psyduck
+      129: 6,  // Magikarp
+      25: 5,   // Pikachu — clears the floor but not the top 10; folds
+      771: 5,  // Pyukumuku — same, tragically
+      587: 3,  // Emolga — below the floor
+      869: 2,  // Alcremie — below the floor
+      0: 8,    // Not listed
+    },
+    // daily catalog-question run, 2026-08-06 — dread, the fourth emoji
+    // canon (the pokemon fear canon's echo, pk02): what unsettles, not
+    // what you send. The clown leads for the same reason it leads
+    // everywhere; the ghost, defanged by a decade of cute usage, clears
+    // the floor and folds — which is itself the honest finding.
+    pk10: {
+      129313: 32, // 🤡 clown face — coulrophobia has a constituency
+      128520: 24, // 😈 smiling face with horns
+      128121: 19, // 👹 ogre
+      128122: 16, // 👺 goblin
+      128375: 14, // 🕷️ spider
+      128065: 12, // 👁️ eye — the lone eye is worse than the pair
+      128128: 10, // 💀 skull
+      128298: 9,  // 🔪 kitchen knife
+      129656: 7,  // 🩸 drop of blood
+      127875: 6,  // 🎃 jack-o-lantern
+      128123: 5,  // 👻 ghost — clears the floor but not the top 10; folds
+      128561: 5,  // 😱 face screaming in fear — same
+      129415: 3,  // 🦇 bat — below the floor
+      128013: 2,  // 🐍 snake — below the floor
+      0: 8,       // Not listed
+    },
   };
 
   // Baked demo segment slices, per question: how each cohort orders the
@@ -247,6 +312,41 @@
       gender: {
         Women: { 133: 9, 143: 8, 54: 7, 39: 5, 129: 5 },
         Men: { 143: 11, 94: 7, 129: 7, 6: 6, 25: 5 },
+      },
+    },
+    pk08: {
+      ageBand: {
+        // butterflies and moons skew young; the plain heart holds with age
+        '18-24': { 129419: 9, 127769: 8, 128013: 6, 10084: 5, 128293: 5 },
+        '25-34': { 10084: 11, 129419: 8, 127754: 6, 10024: 5, 9854: 4 },
+      },
+      gender: {
+        Women: { 129419: 12, 127769: 9, 10084: 8, 127801: 5, 10024: 5 },
+        Men: { 10084: 9, 128293: 8, 128013: 7, 9889: 5, 127754: 5 },
+      },
+    },
+    pk09: {
+      ageBand: {
+        // Bidoof is a young internet's in-joke; Mr. Mime lands with the
+        // cohort that grew up unsettled by him
+        '18-24': { 399: 9, 202: 7, 707: 6, 129: 5, 272: 4 },
+        '25-34': { 202: 10, 122: 8, 399: 7, 103: 5, 39: 5 },
+      },
+      gender: {
+        Women: { 39: 8, 202: 7, 399: 6, 272: 5, 54: 4 },
+        Men: { 202: 11, 399: 8, 122: 7, 103: 6, 129: 5 },
+      },
+    },
+    pk10: {
+      ageBand: {
+        // the lone-eye and blood votes skew young; the classic monsters
+        // hold with age
+        '18-24': { 129313: 10, 128520: 7, 128065: 6, 128128: 5, 129656: 4 },
+        '25-34': { 129313: 9, 128121: 7, 128375: 6, 128520: 5, 128298: 5 },
+      },
+      gender: {
+        Women: { 128375: 9, 129313: 8, 128298: 6, 128065: 5, 129656: 4 },
+        Men: { 129313: 11, 128520: 8, 128122: 6, 128121: 6, 128128: 5 },
       },
     },
   };
@@ -353,5 +453,16 @@
     // 2026-08-03 daily run: identity — who you are, not what you love.
     // Warmer and stranger than a fifth ranking of the same mascots.
     { id: 'pk07', cat: 'fav', type: 'pick', domain: 'pokemon', prompt: 'The Pokémon you’d be?', n: 185 },
+    // 2026-08-04 daily run: permanence — what you send (pk04) and what
+    // you resent (pk05) change weekly; what you'd wear for good is a
+    // different question with a different, symbol-heavy board.
+    { id: 'pk08', cat: 'fav', type: 'pick', domain: 'emoji', prompt: 'The emoji you’d tattoo?', n: 186 },
+    // 2026-08-05 daily run: the name, not the creature — a wordcraft
+    // canon whose board no appraisal question produces.
+    { id: 'pk09', cat: 'fav', type: 'pick', domain: 'pokemon', prompt: 'The best Pokémon name?', n: 177 },
+    // 2026-08-06 daily run: dread — the fear canon that worked for
+    // pokemon (pk02), asked of a catalogue where cute usage has
+    // defanged the obvious answers.
+    { id: 'pk10', cat: 'fav', type: 'pick', domain: 'emoji', prompt: 'The scariest emoji?', n: 172 },
   ];
 })();
