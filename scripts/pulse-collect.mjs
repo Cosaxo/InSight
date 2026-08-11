@@ -202,6 +202,7 @@ export function collectPipeline() {
   const duel = readJson("content/duel-questions.json");
   const learn = readJson("content/learn-questions.json");
   const tests = readJson("content/tests.json");
+  const lenses = readJson("content/lenses.json");
 
   const banks = [
     { surface: "daily", count: daily.length, source: "content/daily-questions.json" },
@@ -218,6 +219,16 @@ export function collectPipeline() {
       count: Object.values(tests).reduce(
         (a, t) => a + (Array.isArray(t?.questions) ? t.questions.length : 0), 0),
       source: "content/tests.json",
+    },
+    // The minor instruments' items, seeded on the SAME "test" surface since
+    // D91 — their own row here because the console reads /content, where
+    // they are their own file, and a lens item is a different content
+    // family from a core-test item however the bank files it.
+    {
+      surface: "lens items",
+      count: Object.values(lenses).reduce(
+        (a, l) => a + (Array.isArray(l?.questions) ? l.questions.length : 0), 0),
+      source: "content/lenses.json",
     },
   ];
 
