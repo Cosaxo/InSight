@@ -15,6 +15,10 @@ import { AGG_FLOOR } from '../data/floor.ts';
 // The live world-takes surface (D83) — an ordinary ESM import of the typed
 // panel, like the data imports above, so the D39 coupling meter stays flat.
 import LiveTakesPanel from '../ui/LiveTakesPanel.tsx';
+// Imported for the D89 gate rather than read off window — same meter
+// reasoning as the imports above. The window.LIVE reads elsewhere in this
+// file predate the ratchet; new ones may not join them.
+import LIVE from '../data/live.ts';
 import ReactDOM from 'react-dom';
 import { PASSIVE } from './passive-progress.js';
 import {
@@ -1187,7 +1191,7 @@ class WorldFeed extends React.Component {
     const rip = this.state.ripple === q.id ? (WF_BRANCH[q.cat] || 'Interests') : null;
     return (
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, minHeight: 18 }}>
-        <span style={{ fontSize: big ? 12.5 : 11.5, fontWeight: 600, color: 'var(--ink-2)' }}>{this.state.editHold === q.id ? 'One change a minute — try again shortly.' : wfFmt(total) + ' votes' + (p[mine] === maxP ? ' · with the majority' : ' · you picked the underdog')}</span>
+        <span style={{ fontSize: big ? 12.5 : 11.5, fontWeight: 600, color: 'var(--ink-2)' }}>{this.state.editHold === q.id ? 'One change a minute — try again shortly.' : wfFmt(total) + (total === 1 ? ' vote' : ' votes') + (p[mine] === maxP ? ' · with the majority' : ' · you picked the underdog')}</span>
         {rip && <button onClick={() => window.goTab && window.goTab('mirror')} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontFamily: 'var(--sans)', fontSize: 12, fontWeight: 700, color: 'var(--accent, var(--ink-2))', whiteSpace: 'nowrap', animation: 'toastFade 3.2s ease forwards' }}>added to {rip}<span aria-hidden="true">→</span></button>}
       </div>
     );
@@ -2136,6 +2140,17 @@ class WorldFeed extends React.Component {
   // when we dropped the gender cut. The low end still shows in the sheet, where
   // it reads as a distribution rather than a headline.
   renderKnowInsight(q, T) {
+    // Live builds refuse this row rather than fill it (D89). The ranking
+    // below is hash noise over the demo cut groups, so on a real device it
+    // headlined "BEd knows this best · 83%" as if someone had measured that
+    // cohort — the fabrication D1 forbids — one line under the reveal's
+    // estimate/measured label, which covers the split and says nothing
+    // about this. Refused at the source rather than the call site, the
+    // same shape as MapStats (D72); it returns when a per-cohort learn
+    // aggregate exists to rank. The imported LIVE, not the window surface:
+    // a test driving this branch stubs the module the way
+    // LiveCohortBody.test does, not through the window stand-in.
+    if (LIVE.enabled) return null;
     const L = window.LEARN, card = L && L.card(q.learn);
     if (!card) return null;
     const p = card.p;

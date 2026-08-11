@@ -190,6 +190,16 @@ describe("LiveCohortBody · no city is a prompt, not an empty panel", () => {
     expect(screen.getByText(/only the city name is saved, never your coordinates/i)).toBeTruthy();
   });
 
+  it("names the Country stop in its ask — not “This”", () => {
+    // Both no-city scopes share this panel, and the heading names the stop
+    // so the ask reads as part of the ruler above it. The country arm
+    // shipped saying "This needs a city", which read as the placeholder it
+    // was — a device screenshot is what caught it.
+    LIVE.myCity = "";
+    render(<LiveCohortBody scope="country" />);
+    expect(screen.getByText(/Country needs a city/i)).toBeTruthy();
+  });
+
   it("offers the picker in place rather than pointing at the profile", () => {
     // The release shipped this state as prose with nothing tappable — the
     // user had to find the profile's Basics card on their own. The empty

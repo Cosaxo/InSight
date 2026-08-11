@@ -8532,3 +8532,38 @@ that cannot happen — `check:content` fails the build unless
 `v2content.ts` matches `/content`, and `v2content.ts` is under
 `functions/**` — but the two facts are separate and only the first is
 gated.
+
+## D89 · The feed's "knows this best" row is demo furniture — live mode refuses it
+
+**Decided:** 2026-08-11 · **Status:** binding
+
+**Found on a device, not in a review.** Screenshots from a phone running a
+live build showed learn reveals headlining "BEd knows this best · 83%" and
+"Service knows this best · 81%" — cut-group labels out of `vote-cuts.js`,
+ranked by `renderKnowInsight` (world-feed.jsx) on the hash noise that
+animates the demo cuts. Directly above each stood D32's line "Our estimate
+— becomes measured once enough people have answered", which labels the
+*split*. Nothing labelled the cohort headline, because there is nothing to
+label it with: no per-cohort learn aggregate exists in either mode.
+
+**Why refusal rather than an "our estimate" tag.** The split's estimate is
+an authored model of a question's difficulty — a real editorial claim,
+honestly labelled (D32). "BEd knows this best" estimates nothing: the
+group, the direction and the margin all come from a hash of the question
+id. A modesty tag would dress fabricated activity as an estimate; D1 calls
+it fabrication either way, and D72 already answered the same question for
+MapStats — return nothing, at the source, so a forgotten call site shows
+nothing instead of something invented.
+
+**What shipped.** `renderKnowInsight` opens with the live gate and returns
+null; demo builds keep the row exactly as designed, including its own
+honesty rules (rank on the noise only, headline only the upward side),
+which stay recorded in the comment above the ranking. The gate is pinned
+by `learn-split.test.ts` the same last-hop way LiveCohortBody pins its
+floor import — mounting the entire feed to reveal one learn card would
+test the fixture more than the one-line behaviour.
+
+**What brings it back.** A measured per-cohort learn split. The moment
+aggregates exist for learn answers by anchor, this gate is the seam where
+noise swaps for measurement — exactly the trade `LEARN_SPLIT` /
+`LEARN_SPLIT_SRC` already made for the split itself.
