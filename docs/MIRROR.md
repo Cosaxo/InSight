@@ -135,10 +135,10 @@ eventually disagree about what an empty cell means. They draw counts —
 an absent cell is zero and the panel says so, because since D98 nothing
 is held back at any size.
 
-They still draw no PEOPLE, and that is now a gap rather than a rule:
-`LiveCohortBody` has never been pointed at `data/voters.ts`, which is
-the module that turns a cohort into names. Doing so is the obvious next
-move on this stop.
+They draw people now, under the lens row (D99): the mix of who answered,
+and Kindred — the accounts whose answers most match yours. The counts
+above them are still counts, which is the right shape for a stop whose
+question is "how did this place answer" rather than "who is here".
 
 ## 3 · The lens row — the designed shape, and what live mode ships
 
@@ -175,20 +175,20 @@ Groups, the Map for You — so live mode ships the ruler and not the lenses.
 Until D98 the reason was that four of the five lenses needed data the
 privacy model forbade reading: Kindred strangers, the demographic mix,
 the trait-slice splits, and Compare's second person. **That reason is
-gone.** All four are now permitted, and three of them are already
-derivable from data the client can reach today:
+gone, and as of D99 so is most of the gap** — the geographic stops carry
+a lens row again:
 
-| Lens | What it still needs |
-| --- | --- |
-| **Answers** | branch filter, sort, expand-a-row — `LiveCohortBody` is a thinner version of this, not a replacement for it |
-| **People** | point it at `data/voters.ts`; the Kindred half needs a likeness metric, the mix half is a fold over `agg.by` |
-| **Compare** | another person's `testResults`, which is public now — no new read path, just the renderer |
-| **Scores** | `rate` questions, of which the bank ships none. Content, not code |
-| **Explore** | `agg.by` across six dims, already client-readable. The v18 test-pole axis is the one part with no source, since test results are not a breakdown dim |
+| Lens | State | Source |
+| --- | --- | --- |
+| **Answers** | **live**, and thinner than the prototype's | `LiveCohortBody` itself. Missing: branch filter, sort-by-divisive, expand-a-row. All three are computable from what is already loaded |
+| **People** | **live** | the mix is `mixFor` over the deck's aggregates; Kindred is `agreement` over the cached voter lists, bounded at 12 of your own answers |
+| **Compare** | **live** | `pctFor` on your own option, ranked least-typical first — no new read |
+| **Explore** | **live** | `divergence` across the six breakdown dims. The v18 test-pole axis is the one part with no source, since test results are not a dim |
+| **Scores** | **not built** | needs `rate` questions and the bank ships none. Content, not code — a frame built before its content reads as permanently broken |
 
-Lenses come back a source at a time, which is the same rule the Groups
-portrait followed — but the queue is now short and nothing in it is
-blocked on a decision.
+The row is collapsed by default: opening the Mirror pays for none of it,
+and Kindred — the only lens that can cost a read the app has not already
+made — fetches on first view of its own tab.
 
 ## 4 · The passive half: tests that fill themselves
 
@@ -239,13 +239,19 @@ Two gaps are worth stating in prose because no badge covers them:
   MapStats through a null guard already, and its fallbacks put every dot
   at one radius with none marked a rare take.
 
-  Two of the eight Map anchors have a real counterpart waiting —
-  `v2_question_aggs.by` carries exact age and education breakdowns, and
-  since D98 nothing about them is floored. The other six still cannot:
-  `job` is profession, deliberately not a breakdown dim (D8), and the
-  five test anchors are not dims at all. Note this refusal SURVIVES
-  D98 unchanged, because MapStats is *invented*, not private — the D1
-  line, which the reversal did not touch.
+  **D99 took the two that had a counterpart.** `age` and `edu` are
+  breakdown dims, so `dist`/`mode` now compute from the published cells
+  (`data/cohort.ts` `typicality`), and `cohortN` says how many answers
+  the reading rests on so a 50% drawn from two people is not presented as
+  a finding.
+
+  The other six still refuse, structurally: `job` is profession,
+  deliberately never a breakdown dim (D8), and the five test anchors are
+  RESULTS with no cohort aggregate anywhere. `dimVal` refuses at every
+  anchor for that same reason. The refusal keeps D72's mechanism — null
+  at the source, not a gate at each call site — which is precisely what
+  made this fix findable: the null marked which readings were invented
+  rather than merely unbuilt.
 - **The Circle and its relationship map are prototype-only.** Not for
   want of permission — D98 opened every answer — but because v2 has no
   person-to-person graph at all to draw. `relmap`'s people are invented, and it is the largest module still loaded eagerly
@@ -272,6 +278,8 @@ Two gaps are worth stating in prose because no badge covers them:
 | the fold (no floor, no suppression — D98) | `functions/src/pure.ts`, `functions/src/v2.ts` |
 | who may read any of it | `firestore.rules` |
 | named who-voted — the cross-user read | `src/v2/data/voters.ts`, `src/v2/ui/LiveVotersPanel.tsx` |
+| the cohort folds (mix, slice, divergence, typicality, likeness) | `src/v2/data/cohort.ts` |
+| the live lens row | `src/v2/ui/LiveMirrorLenses.tsx` |
 
 ## 7 · The decisions this file leans on
 

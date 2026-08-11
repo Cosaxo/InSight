@@ -216,6 +216,14 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
     // "Someone" — both branches reachable from the fixture.
     nameFor: (uid: string) => (uid === "u_fixture" ? "Tester" : ""),
     loadNames: async () => {},
+    // Kindred (D99): one overlapping person, so a live mount renders a
+    // ranked row rather than only the empty state.
+    loadKindred: async () => {},
+    kindred: () => [
+      { uid: "u_other", name: "Ada", like: { shared: 6, same: 5, pct: 83 } },
+    ],
+    kindredLoading: () => false,
+    kindredDepth: () => 6,
     lensAgg: () => ((opts.lensBank ?? true)
       ? { counts: tooSmall ? [0, 0, 0, 0, 0] : [9, 6, 4, 3, 3], tooSmall }
       : null),

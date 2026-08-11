@@ -161,25 +161,24 @@ an emergency rules fix.
   Everything else stays frozen — anchors, answeredAt, learn, duels,
   catalog — and the counts stay honest because the trigger moves them,
   not because the doc cannot change. Do not widen the edit surface.
-- **A live Mirror stop has no lens row — and since D98 that is a GAP,
-  not a policy.** The demo field bodies carry Answers · People · Compare
-  · Scores · Explore; every stop with a real source replaces the whole
-  body with one panel (`LiveCohortBody`, `LiveGroupsMirrorBody`, the
-  Map), so live mode ships the ruler without the lenses. The reason used
-  to be that four of the five needed data the privacy model forbade
-  reading. It no longer forbids it: what is missing now is the READ PATH
-  — a collection-group query on `answers` (the rule and the index ship;
-  the query does not) and batched uid→name resolution. Unbuilt, not
-  refused (docs/MIRROR.md §3).
-- **`window.MapStats` is deterministic mock data, and it still refuses in
-  live mode — because it is INVENTED, not because it is private.** `dist`, `mode` and `dimVal` return **null** when `LIVE.enabled`
-  (D72) — null rather than a gate at each of the five call sites, so a
-  consumer that forgets the check fails a test instead of quietly
-  fabricating. It used to draw "48% of people your age chose the same"
-  from a hash of the question id, on the You stop, which shows no preview
-  badge because that badge is keyed to population (docs/MIRROR.md §5).
-  `groupLabel` still answers in both modes: it is a noun for the cohort,
-  not a claim about it.
+- **A live Mirror stop carries four of its five lenses (D99).** Answers ·
+  People · Compare · Explore are live on the geographic stops; **Scores
+  is not**, and that is content rather than code — it is fed by `rate`
+  questions and the bank ships none, so the lens would be an empty
+  frame. The three added lenses are pure folds over `agg.by`
+  (`src/v2/data/cohort.ts`) plus the D98 voter lists; the row is
+  collapsed by default because Kindred is the one reading that can cost
+  a query the app has not already made (docs/MIRROR.md §3).
+- **`window.MapStats` is real for two anchors and refuses for six, and
+  the split is structural.** `age` and `edu` are breakdown dims, so since
+  D99 `dist`/`mode` compute from the published cells. `job` is
+  profession — deliberately never a dim (D8) — and the five test anchors
+  are results nothing aggregates per cohort, so those return **null**,
+  as does `dimVal` everywhere. Null rather than a gate at each call site
+  (D72), so a consumer that forgets the check fails a test instead of
+  quietly fabricating — which is exactly what made the two fixable ones
+  findable. `groupLabel` answers in both modes: it is a noun for the
+  cohort, not a claim about it.
 - **`src/v2/spec/` is the only copy of the spec layer.** The extracted
   prototype modules (`design/spec-modules/`) were deleted 2026-07-29 once
   the port was complete and they had diverged — they live in git history.

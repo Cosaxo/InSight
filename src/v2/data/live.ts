@@ -58,6 +58,9 @@ import { reportError, setSentryUser } from "../../lib/sentry";
 // The cross-user read (D98). Pure helpers + the two queries live there so
 // the grouping/sorting can be unit-tested without Firebase.
 import { fetchVoters, groupByOption, resolveNames, sortVoters, type Voter } from "./voters";
+// Pure folds over the published breakdown, and the likeness metric behind
+// Kindred. No Firebase in there — this module supplies the documents.
+import { agreement, type Agreement } from "./cohort";
 // Pure deck-shaping logic lives in ./deck (unit-testable, no firebase);
 // this module passes its store state in.
 import {
@@ -184,7 +187,17 @@ const state = {
   // opening five questions re-reads the same regulars five times.
   // Session-scoped, and dropped by the purge with everything else.
   names: {} as Record<string, string>,
+  // Kindred (D99): no cached ranking, only the flags. The ranking itself
+  // is derived on read from `voters` + `votes`, so it cannot go stale
+  // against its own inputs.
+  kindredLoading: false,
+  kindredAt: 0,
 };
+
+// How many of the viewer's own answers the Kindred ranking reads across.
+// Twelve shared questions is a legible likeness claim and the cost is
+// linear in this number — see loadKindred for why it is bounded at all.
+const KINDRED_QUESTIONS = 12;
 
 // One take as the circle reads it. `hidden` is always false on anything a
 // non-author can list — the read rule is an equality on that boolean, not a
@@ -1509,6 +1522,86 @@ const LIVE = {
       notify();
     }
   },
+  // ── Kindred: the people most like you (D99) ───────────────────
+  //
+  // The People lens's hard half. The mix is a fold over one aggregate;
+  // this needs OTHER PEOPLE'S ANSWERS, question by question, and then a
+  // comparison against your own.
+  //
+  // Built on the voter lists rather than beside them, which is the whole
+  // reason it is affordable: `loadVoters` already caches one
+  // collection-group query per question for the who-voted sheet, so a
+  // question whose sheet has been opened costs nothing here, and the
+  // names are resolved once into the shared cache for both surfaces.
+  //
+  // Bounded at KINDRED_QUESTIONS of the viewer's OWN most recent answers.
+  // Likeness over 12 shared questions is already a legible claim, and the
+  // cost is linear in that number — an unbounded version would fan out
+  // over every question the account has ever answered, on a screen the
+  // user may open casually.
+  async loadKindred(): Promise<void> {
+    if (state.kindredLoading) return;
+    state.kindredLoading = true;
+    try {
+      const qids = Object.keys(state.votes)
+        .filter((id) => !id.startsWith("g_"))
+        .slice(0, KINDRED_QUESTIONS);
+      // Sequential rather than parallel on purpose: each call is a
+      // collection-group query, most of them are cache hits after the
+      // first surface has run, and firing twelve at once at boot-adjacent
+      // moments is the shape that gets a client rate-limited.
+      for (const qid of qids) {
+        if (!state.voters[qid]) await this.loadVoters(qid);
+      }
+      state.kindredAt = qids.length;
+    } catch (err) {
+      reportError(err, { where: "loadKindred" });
+    } finally {
+      state.kindredLoading = false;
+      notify();
+    }
+  },
+  // Everyone who overlaps with you, most alike first. Derived on read
+  // rather than stored: the inputs are already in the store, and a cached
+  // ranking would go stale against its own source the moment another
+  // question's voters load.
+  //
+  // Returns [] rather than null when nothing has loaded — this is a
+  // ranking over whatever is known, and "known nothing yet" and "nobody
+  // overlaps" are the same empty list to a reader. The loading flag is
+  // what distinguishes them for the UI.
+  kindred(minShared = 2): Array<{ uid: string; name: string; like: Agreement }> {
+    const mine: Record<string, number> = {};
+    for (const [qid, opt] of Object.entries(state.votes)) {
+      if (qid.startsWith("g_")) continue;
+      const n = Number(opt);
+      if (Number.isFinite(n)) mine[qid] = n;
+    }
+    // uid -> their answers, assembled from the cached voter lists.
+    const theirs: Record<string, Record<string, number>> = {};
+    for (const [qid, rows] of Object.entries(state.voters)) {
+      for (const r of rows) {
+        if (r.uid === state.uid) continue;
+        (theirs[r.uid] || (theirs[r.uid] = {}))[qid] = r.optionIdx;
+      }
+    }
+    return Object.keys(theirs)
+      .map((uid) => ({ uid, name: state.names[uid] || "", like: agreement(mine, theirs[uid]) }))
+      .filter((p) => p.like.shared >= minShared)
+      // Most alike first; more shared questions breaks a tie, because a
+      // 100% over two questions is a weaker claim than 80% over ten.
+      .sort((a, b) => b.like.pct - a.like.pct
+        || b.like.shared - a.like.shared
+        || a.uid.localeCompare(b.uid));
+  },
+  kindredLoading(): boolean {
+    return state.kindredLoading;
+  },
+  /** How many of the viewer's questions the ranking has been able to read. */
+  kindredDepth(): number {
+    return state.kindredAt;
+  },
+
   // null while unfetched or failed; an array (possibly empty) once known.
   voters(qid: string): Voter[] | null {
     const rows = state.voters[qid];
@@ -2019,6 +2112,8 @@ function resetForNewUid(uid: string): void {
   state.voters = {};
   state.votersLoading = {};
   state.names = {};
+  state.kindredLoading = false;
+  state.kindredAt = 0;
   state.profile = { displayName: "", testResults: {}, anchors: {} };
   state.deckIds = [];
   state.deckDay = -1;

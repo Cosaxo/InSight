@@ -35,6 +35,9 @@ export const LIVE_MEMBERS = [
   // synchronous best-effort read; `loadNames` is the batched fetch that
   // fills it for a surface that has uids but no names (world takes).
   "nameFor", "loadNames",
+  // Kindred (D99) — the People lens's ranking, derived on read from the
+  // cached voter lists plus the viewer's own votes.
+  "loadKindred", "kindred", "kindredLoading", "kindredDepth",
   // The reason boot did not attach, rendered under the "Sample questions ·
   // reconnecting…" pill when it is tapped. It exists because that label
   // said a real user was on demo content without saying why, and an

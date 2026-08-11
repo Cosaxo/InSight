@@ -9218,3 +9218,98 @@ Compare, Explore, the Map's real typicality, the relationship map. Those
 need read paths no client module has yet: a collection-group query on
 `answers` (the rule and the composite index ship here; the query does
 not) and batched uid→name resolution. Sequenced as follow-on work.
+
+## D99 · The Mirror's lens row comes back, on data that was already there
+
+**Decided:** 2026-08-11 · **Status:** binding · Follow-on to D98.
+
+**Decision.** The live Mirror's geographic stops carry a lens row again —
+**People**, **Compare**, **Explore** — plus the Map's typicality reading
+becomes real for the two anchors that map onto a breakdown dim.
+
+### Why this is a small change and not a large one
+
+Almost nothing here is a new read. `v2_question_aggs.by` — dim → bucket →
+option → count — has been published, client-readable and folded from
+every answer's anchors snapshot (D8) since long before D98. What D98
+removed was the suppression that made it useless: cells below the floor
+were dropped, a lone hole took its neighbour with it, and a dimension
+with fewer than two surviving buckets vanished entirely. A lens built on
+that would have shown holes and called them cohorts.
+
+With the map published whole, three of the five prototype lenses are a
+pure fold away, and `src/v2/data/cohort.ts` is that fold: `mixFor`,
+`sliceSplit`, `divergence`, `typicality`, `agreement`. No Firebase, no
+window, unit-tested directly.
+
+### What each lens rests on
+
+| Lens | Source | New read? |
+| --- | --- | --- |
+| **People** — the mix | `mixFor` over the deck's aggregates | no |
+| **People** — Kindred | `agreement` over the cached voter lists (D98) | only for questions whose who-voted sheet was never opened |
+| **Compare** | `pctFor` on your own option, ranked least-typical first | no |
+| **Explore** | `divergence` across the six dims | no |
+
+Kindred is the only one that can cost anything, and it is bounded at
+`KINDRED_QUESTIONS = 12` of the viewer's own most recent answers. Twelve
+shared questions is already a legible likeness claim; unbounded, it would
+fan out over every question an account has ever answered, on a screen
+someone may open casually. The whole row is collapsed by default, so
+opening the Mirror pays for none of it.
+
+### The likeness metric, and why it is the boring one
+
+Agreement is `same / shared` over commonly answered questions. No
+weighting by how divisive a question was, no distance over scale options.
+Both would be better statistics and both are judgement calls about what
+likeness MEANS — a product decision. This one can be explained in one
+sentence to the person it is about, and it ships with that sentence
+rendered directly beneath it. A likeness number nobody can explain is a
+number nobody should trust, least of all on a screen that names people.
+
+### The Map: D72 partially reversed, and precisely which part
+
+`window.MapStats.dist`/`mode` now return real numbers for the `age` and
+`edu` anchors, computed by `typicality` from the published breakdown.
+
+Everything else still refuses, and the refusals are structural rather
+than pending:
+
+- **`job`** is `profession`, deliberately never a breakdown dim (D8) —
+  free text mints a bucket key per spelling, forever.
+- **`big5`, `political`, `values`, `attachment`, `cognitive`** are test
+  RESULTS. Nothing aggregates them per cohort, so "how did similar
+  personalities answer" has no source at all.
+- **`dimVal`** — a cohort's score on a test dimension — has no source for
+  the same reason, at every anchor.
+
+D72's mechanism is kept exactly: the refusal returns **null** rather than
+gating at the call sites, so a consumer that forgets the check fails a
+test instead of quietly fabricating. That mechanism is why this change
+was findable at all — the null is what made it obvious which readings
+were invented and which were merely unbuilt.
+
+`cohortN` is added alongside, so the Map can say "of 6" rather than
+present a 50% drawn from two people as though it were a finding.
+
+### What is still NOT built, and why not
+
+- **Scores.** The place scorecard is fed by `rate` questions and the bank
+  ships none, so the lens would be an empty frame. Content, not code.
+  Building the frame first and filling it later is how a surface ends up
+  permanently looking broken.
+- **The Answers lens's own depth.** `LiveCohortBody` is the Answers lens,
+  and it is thinner than the prototype's: no branch filter, no
+  sort-by-divisive, no expand-a-row-into-the-distribution. All three are
+  computable from what is already loaded. A gap in a lens that exists.
+- **Circle / relmap.** Still no person-to-person graph in v2 (D3). Kindred
+  is the nearest honest thing: likeness without a follow.
+
+### One number this row must never be read as
+
+The mix counts **answers, not people** — someone who answered ten
+questions appears ten times. It is summed across the deck because a
+single question's mix is a fact about that question's audience, and the
+copy says so on screen rather than leaving "40% are 25-34" to be read as
+a census.

@@ -283,6 +283,31 @@ describe("the live gates hold in the DOM, not just in the source", () => {
     expect(screen.getByText(/No takes yet/i)).toBeTruthy();
   });
 
+  // D99's lens row, mounted on the Mirror's geographic stops. The row has
+  // its own suite; this is the wiring — that it reaches the real shell,
+  // through the spec layer's own render path, on the live body that
+  // replaced the demo field.
+  it("brings the lens row back to a live Mirror stop", async () => {
+    localStorage.clear();
+    mountLive();
+    fireEvent.click(screen.getByRole("button", { name: /^mirror$/i }));
+    // The Mirror opens on You (the Map), which is not a population — the
+    // lens row belongs to the geographic stops, so walk the ruler to Near.
+    fireEvent.click(screen.getByRole("tab", { name: "Near" }));
+    await act(async () => { await new Promise((r) => setTimeout(r, 50)); });
+    // The three lenses that have a real source. Scores is deliberately
+    // absent — the bank ships no `rate` questions, so it would be an
+    // empty frame, and an empty frame reads as a broken feature.
+    expect(screen.getByRole("button", { name: "People" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Compare" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Explore" })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Scores" })).toBeNull();
+    // Collapsed until asked for — the cost gate, on the real mount.
+    expect(screen.queryByText(/most like you/i)).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "People" }));
+    expect(screen.getByText(/most like you/i)).toBeTruthy();
+  });
+
   // D98's payoff, in the only test that executes a render of it inside the
   // real app rather than in isolation. The panel test next to the
   // component covers its states; what this covers is that it is WIRED —

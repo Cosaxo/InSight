@@ -38,6 +38,15 @@ const LIVE = vi.hoisted(() => ({
   // so an underscore prefix does not exempt an unused parameter.
   aggFor: (qid: string) => { void qid; return null as Record<string, unknown> | null; },
   subscribe: () => () => {},
+  // The lens row (D99) mounts inside this panel and reads the store for
+  // the viewer's own votes and the Kindred ranking. Stubbed flat here —
+  // the lenses have their own suite; what these cases care about is that
+  // the panel still renders its answer rows around them.
+  myVotes: () => ({} as Record<string, string>),
+  loadKindred: async () => {},
+  kindred: () => [] as Array<{ uid: string; name: string; like: { shared: number; same: number; pct: number } }>,
+  kindredLoading: () => false,
+  kindredDepth: () => 0,
   // The Right now card (D84). Reassigned per case; the default is the
   // supported-but-off pitch state.
   near: {

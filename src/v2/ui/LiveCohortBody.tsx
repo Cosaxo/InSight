@@ -41,6 +41,11 @@ import { locateCity } from "../data/locate";
 // since D98 the only test there is (data/floor.ts and its constants are
 // gone with the floor they mirrored).
 import { hasPublishedCounts } from "../data/deck";
+// The lens row (D99). An ordinary import — both are typed TSX here and
+// D39's ratchet only moves down.
+import LiveMirrorLenses from "./LiveMirrorLenses";
+import type { LensQuestion } from "./lensDefs";
+import { byOf } from "../data/cohort";
 // An ordinary import, not a globalThis lookup — same note as LiveDuelPanel's
 // import of LiveTakesPanel: both are typed TSX here, and D39's ratchet only
 // moves down.
@@ -285,6 +290,27 @@ function LiveCohortBody({ scope = "city" }: { scope?: CohortScope }) {
     rows.push({ qid: q.id, text: q.text, options: q.options.map((o) => o.label), cell, n });
   }
 
+  // The same deck, shaped for the lenses. Assembled once here rather than
+  // three times inside them: all three walk every question, and the deck
+  // plus its aggregates are already in hand.
+  //
+  // `mine` reads the store's own vote map, so Compare can mark your pick
+  // without a second source that could disagree with the card you voted on.
+  const myVotes = LIVE.myVotes();
+  const lensQs: LensQuestion[] = LIVE.deck().map((q) => {
+    const agg = LIVE.aggFor(q.id);
+    const counts = (q.options || []).map((_, i) => ((agg?.counts || {})[String(i)] as number) || 0);
+    const mine = myVotes[q.id];
+    return {
+      id: q.id,
+      text: q.text,
+      options: (q.options || []).map((o) => o.label),
+      counts,
+      by: byOf(agg),
+      mine: mine == null ? -1 : Number(mine),
+    };
+  }).filter((q) => q.options.length > 0);
+
   return (
     <div className="fade-in" style={{ padding: "4px 16px 26px" }}>
       {scope === "city" && <NearNowCard />}
@@ -307,6 +333,12 @@ function LiveCohortBody({ scope = "city" }: { scope?: CohortScope }) {
           No answers here yet — the first one starts the count.
         </LnNote>
       )}
+
+      {/* The lens row (D99). Below the answer rows because the ruler ->
+          answers reading is the spine of this tab and the lenses are a
+          second cut of the same numbers; putting them above would make
+          the stop's own content look like a sub-tab of a filter. */}
+      <LiveMirrorLenses qs={lensQs} shortName={shortName} />
 
       {!!rows.length && empty > 0 && (
         <div style={{ padding: "13px 0 0", fontFamily: "var(--sans)", fontSize: 12, fontWeight: 500, color: "var(--ink-3)", lineHeight: 1.5 }}>
