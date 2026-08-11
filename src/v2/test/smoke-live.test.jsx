@@ -704,8 +704,8 @@ describe("live mode never inherits the sample persona (D55)", () => {
 
   // ── the results card, the fourth (D72) ──
   //
-  // sameType filtered IS_DATA.people — the prototype's seven invented
-  // friends — through IS_FRIEND_TYPES and SigEmblem drew up to four of them
+  // sameType filtered IS_DATA.people — the prototype's invented circle —
+  // through IS_FRIEND_TYPES and SigEmblem drew up to four of them
   // on the result. data/live.ts replaces the feed globals and has never
   // touched IS_DATA, so this fired for any live account that finished a
   // test, which the passive tests do from ordinary feed answers. Measured
@@ -723,7 +723,17 @@ describe("live mode never inherits the sample persona (D55)", () => {
       ],
     },
   };
-  const DEMO_INITIALS = /^(HV|LA|MH|PS|IV|EA|JB)$/;
+  // Derived from the fixture, not a written-out list: the roster grows, and
+  // a hardcoded alternation would keep passing while quietly checking only
+  // the people who happened to exist the day it was written — the exact
+  // vacuous-pass this file is built to refuse. Escaped anyway, since an
+  // initials field is data.
+  const DEMO_INITIALS = new RegExp(
+    "^(" + (IS_DATA.people || [])
+      .map((p) => String(p.init || "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))
+      .filter(Boolean)
+      .join("|") + ")$",
+  );
   const initialsIn = (container) =>
     Array.from(container.querySelectorAll("*"))
       .map((n) => (n.textContent || "").trim())
