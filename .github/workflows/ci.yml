@@ -112,6 +112,9 @@ jobs:
       # dex-number keys into this file, so a gap or reorder is an answer
       # resolving to the wrong species.
       - run: npm run check:pokedex
+      # …and for the elements catalogue, the other contiguous-key domain:
+      # stored answers are atomic numbers into public/elements.txt.
+      - run: npm run check:elements
       # …and for the QID-keyed catalogues (films/artists): the committed
       # files and the trigger's compiled-in key sets must agree exactly,
       # absence included — the gate runs before any catalogue exists (D15).

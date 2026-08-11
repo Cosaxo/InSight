@@ -33,6 +33,8 @@
     "check:cities": "node scripts/check-cities.mjs",
     "check:pokedex": "node scripts/check-pokedex.mjs",
     "build:pokedex": "node scripts/build-pokedex.mjs",
+    "check:elements": "node scripts/check-elements.mjs",
+    "build:elements": "node scripts/build-elements.mjs",
     "check:catalogs": "node scripts/check-catalogs.mjs",
     "check:logic-sync": "node scripts/check-logic-sync.mjs",
     "build:catalog": "node scripts/build-catalog.mjs",

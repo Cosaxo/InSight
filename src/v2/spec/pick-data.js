@@ -231,6 +231,27 @@
       128013: 2,  // 🐍 snake — below the floor
       0: 8,       // Not listed
     },
+    // first card of the elements domain, 2026-08-11 (keys are atomic
+    // numbers — data/elements.ts, build-elements.mjs). The favourite-class
+    // opener, per the domain precedent (pk01, pk04): gold for the classic,
+    // carbon for the life vote, uranium for the edgy one.
+    pk11: {
+      79: 31, // Gold (Au) — the classic
+      6: 26,  // Carbon (C) — the life vote
+      8: 21,  // Oxygen (O) — the dependency vote
+      26: 17, // Iron (Fe) — star-forged
+      2: 14,  // Helium (He) — balloons and squeaky voices
+      10: 12, // Neon (Ne) — the aesthetic vote
+      92: 10, // Uranium (U) — the edgy vote
+      47: 8,  // Silver (Ag)
+      22: 7,  // Titanium (Ti)
+      1: 6,   // Hydrogen (H) — three quarters of everything
+      80: 5,  // Mercury (Hg) — clears the floor but not the top 10; folds
+      3: 5,   // Lithium (Li) — same
+      78: 3,  // Platinum (Pt) — below the floor
+      54: 2,  // Xenon (Xe) — below the floor
+      0: 8,   // Not listed
+    },
   };
 
   // Baked demo segment slices, per question: how each cohort orders the
@@ -353,6 +374,17 @@
         Men: { 129313: 11, 128520: 8, 128122: 6, 128121: 6, 128128: 5 },
       },
     },
+    pk11: {
+      ageBand: {
+        // neon and uranium skew young; gold and carbon hold everywhere
+        '18-24': { 10: 8, 92: 7, 79: 6, 6: 5, 2: 5 },
+        '25-34': { 79: 9, 6: 8, 8: 6, 26: 5, 22: 4 },
+      },
+      gender: {
+        Women: { 79: 8, 10: 7, 47: 6, 8: 5, 6: 5 },
+        Men: { 26: 8, 6: 7, 92: 7, 79: 6, 22: 5 },
+      },
+    },
   };
 
   const api = {
@@ -468,5 +500,8 @@
     // pokemon (pk02), asked of a catalogue where cute usage has
     // defanged the obvious answers.
     { id: 'pk10', cat: 'fav', type: 'pick', domain: 'emoji', prompt: 'The scariest emoji?', n: 172 },
+    // 2026-08-11, first card of the elements domain — the favourite-class
+    // opener every domain gets; the canons diverge from here.
+    { id: 'pk11', cat: 'fav', type: 'pick', domain: 'elements', prompt: 'Your favourite element?', n: 175 },
   ];
 })();
