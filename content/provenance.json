@@ -1,7 +1,7 @@
 {
   "_README": [
     "Question provenance — who wrote each live question, and in which batch.",
-    "The join the scorecard's `production` section (D94) reads to measure",
+    "The join the scorecard's `production` section (D97) reads to measure",
     "farm vintages against editorial questions from the same k-floored",
     "aggregates it already fetches. Keys are bank ids per surface; rows are",
     "{ archiveId (daily only — the dq/dqx id the entry was promoted from),",
@@ -9,7 +9,7 @@
     "generated batches, 'prototype' for the v9 port }.",
     "",
     "Maintained by machines where possible: promote-questions.mjs writes the",
-    "daily rows (--source is required since D94; --batch labels the vintage,",
+    "daily rows (--source is required since D97; --batch labels the vintage,",
     "defaulting to the promotion date); feed rows ride the feed lane's PRs.",
     "check:quality holds this file exactly in",
     "step with the banks, both directions — a missing row is a CI failure,",

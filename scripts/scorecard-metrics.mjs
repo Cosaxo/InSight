@@ -62,7 +62,7 @@ export const ordinalSplit = (shares) => {
 export const splitQualityOf = (type, shares, n) =>
   type === "scale" || type === "rating" ? ordinalSplit(shares) : evennessOf(shares, n);
 
-// ── the production rollup (D94) ──
+// ── the production rollup (D97) ──
 // The same scored rows the scorecard already computes, re-cut by WHO WROTE
 // the question — content/provenance.json's source (editorial | farm |
 // community) and batch (a vintage label). This is the farm measuring

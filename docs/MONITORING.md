@@ -140,8 +140,10 @@ rather than by contract.
 This panel mostly refuses, and the refusals are the content. Three columns:
 
 **Derivable today** — from the k-floored public mirror, which the scorecard
-already reads. These are *floors* on real activity, never measurements: a
-question below `AGG_MIN_N` publishes nothing, so every number understates.
+already reads. At the design floor these are *floors* on real activity,
+never measurements: a question below `AGG_MIN_N` publishes nothing, so
+every number understates. Under D81's pause the floor is 1, so today the
+mirror is exact and the understatement returns with the floor.
 
 **Unbuilt, not forbidden** — each could be built without reversing
 anything, and each has a real cost. The largest is worth naming here

@@ -64,9 +64,16 @@ Every privacy claim in the UI is enforced server-side, not promised:
   by you alone (`firestore.rules`, decision D5). The option can be moved
   after the fact (D86) — the cohort snapshot and answer time cannot, and
   the aggregate follows through a server-side -old/+new delta.
-- **World stats are k-floored.** Exact counts live in a server-only
-  collection; the public mirror shows nothing below 5 answers and carries
-  no per-vote timestamps (`v2_question_aggs`, AGG_MIN_N).
+- **World stats are k-floored — 5 by design, paused at 1 for launch
+  (D81).** Exact counts live in a server-only collection; the public
+  mirror carries no per-vote timestamps (`v2_question_aggs`). While the
+  pause holds, `AGG_MIN_N` is 1 today: counts publish from the first
+  answer, exactly — what people vote is the shared product, and at
+  pre-launch scale a ≥5 floor suppressed every figure in the app. The
+  trade (a cohort of one is readable as that person's answer) is recorded
+  in D81; the in-app copy branches on the constant, so the UI and the
+  server cannot disagree about which floor is running. Restores to 5 at
+  launch traction.
 - **Every cohort cell clears the same floor.** The Mirror's slices are
   floored per cell with complementary suppression, so a hidden bucket can
   never be recovered by subtracting the published ones — and political

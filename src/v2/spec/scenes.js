@@ -6,6 +6,10 @@
 import React from 'react';
 import { IS_DATA } from './sample-data.js';
 import { WPAL } from './world-palette.js';
+// The offers() gate below — the imported binding, not window.LIVE, for the
+// D39 meter's reason, and already in the eager graph via map-anchors.js so
+// this import defers nothing that was deferred.
+import LIVE from '../data/live';
 
 // scenes.js — Scenes are the one follow list shared by the whole app: the orbit
 // (Mirror) is where you see and manage them, the World feed chip row is the same
@@ -53,6 +57,17 @@ import { WPAL } from './world-palette.js';
     subOf: (id) => SUB[id] || null,
     hueOf, colorOf,
     defs: () => (IS_DATA.groups || []),
+    // What a surface may ADVERTISE, as opposed to look up. Every group above
+    // is sample data — members, match and vibe are claims about nobody — so
+    // a live build offers none of them: "Swimming · 3.2K people" with a
+    // Follow button is the D1 fabrication as an invitation (owner's device,
+    // 2026-08-11; D96). demoInProd included: a real user in the mock
+    // fallback is still a real user. Runtime, not the build flag, because
+    // offers are read at render time — after live.ts has attached — and the
+    // mount tests drive exactly this seam. defs() stays whole underneath:
+    // it is the dictionary that existing follows and scene-tagged cards
+    // resolve labels against, not an offer.
+    offers: () => (LIVE.enabled || LIVE.demoInProd ? [] : (IS_DATA.groups || [])),
     mine: () => (IS_DATA.groups || []).filter((g) => ensure().has(g.id)),
     list: () => [...ensure()],
     has: (id) => ensure().has(id),

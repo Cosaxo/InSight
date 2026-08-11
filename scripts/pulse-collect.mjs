@@ -251,7 +251,7 @@ export function collectPipeline() {
   const dailyCount = banks[0].count;
   const runwayDays = dailyCount - daysElapsed;
 
-  // The farm's per-run cap, cross-read from the budget regulator (D94)
+  // The farm's per-run cap, cross-read from the budget regulator (D97)
   // the same way DECK_EPOCH is read above — this used to be a hand-typed
   // 12 (D30's weekly figure), which D33's re-pace had already outdated:
   // exactly the stale-copy class the cross-read pattern exists for. Note
@@ -274,7 +274,7 @@ export function collectPipeline() {
       dailyBank: dailyCount,
       runwayDays,
       // Consumption is one card per day; D30 records promotion at >=7/week,
-      // and the farm's generation ceiling (D94's regulator, cross-read
+      // and the farm's generation ceiling (D97's regulator, cross-read
       // above) sits far above it, so sustained promotion grows the bank
       // faster than the calendar eats it.
       consumedPerWeek: 7,

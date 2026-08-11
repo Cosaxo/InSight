@@ -1,6 +1,6 @@
-// farm-budget.test.mjs — pins the D94 budget regulator's arithmetic.
+// farm-budget.test.mjs — pins the D97 budget regulator's arithmetic.
 //
-// The property under test is the design claim QUESTION-FARM.md and D94 make
+// The property under test is the design claim QUESTION-FARM.md and D97 make
 // in prose: with the pen at target, sustained generation EQUALS measured
 // promotion throughput — the cap only binds during catch-up. If someone
 // retunes a constant or reshapes the formula, the simulation below says
@@ -46,7 +46,7 @@ describe("laneBudget", () => {
 
   it("steady state: generation equals promotion throughput, pen stays bounded", () => {
     // Simulate a year of daily runs against a human promoting 14/week (the
-    // D94 target cadence): every run writes its budget into the pen, twice
+    // D97 target cadence): every run writes its budget into the pen, twice
     // a week the human promotes 7 out. The claims: the pen never exceeds
     // PEN_TARGET + RUN_CAP, and total generation tracks total promotion
     // (plus the one-time pen fill) — i.e. the regulator, not the cap, sets

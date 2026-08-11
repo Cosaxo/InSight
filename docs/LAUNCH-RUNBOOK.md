@@ -520,9 +520,10 @@ That is a tester-count problem, not a workflow problem.
       contributor and every CI job would otherwise pay for, to serve a job
       that runs a few times per release.
 
-      The TestFlight week is still the better moment: ten testers put real
-      k-floored splits on screen, where a freshly seeded bank shows the
-      floor's "5+" placeholder instead of a split.
+      The TestFlight week is still the better moment: ten testers put a
+      real split on screen rather than one vote per question — and once
+      the floor restores, a freshly seeded bank goes back to showing the
+      "5+" placeholder instead of a split (the D81 note above).
       *Note the iPad set every guide lists does not apply —
       `TARGETED_DEVICE_FAMILY = 1`, iPhone only.*
 - [x] **4.2 Play feature graphic — done.** `npm run build:feature-graphic`

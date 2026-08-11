@@ -430,7 +430,7 @@ async function hydrate(): Promise<void> {
     id: string;
   }
   // Ceiling, not a target: 213 seeded post-W2, ~344 with the learn
-  // surface, and D94's cadences (daily promotion targeting ≥14/week plus
+  // surface, and D97's cadences (daily promotion targeting ≥14/week plus
   // the feed lane) can add ~1,300/year at full tilt — call it a year of
   // headroom from ~500, not the two years the old 12/week arithmetic
   // promised here. The approach is gated, not remembered: check:quality

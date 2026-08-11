@@ -8784,7 +8784,206 @@ fabricated anchors that otherwise cannot be corrected at all.
 default was the original leak), and covers full-triple, partial and
 clean-profile behavior.
 
-## D94 · Question production upscales behind a regulator: computed budgets, a mechanical style gate, and measured vintages
+## D94 · The demo roster grows to 24 — the prototype's social surfaces get a population
+
+**Date:** 2026-08-11 · **Status:** Adopted
+
+**Decision.** `IS_DATA.people` goes 7 → 24 and `IS_DATA.nearby` 6 → 14.
+The tables keyed on those ids grow with them: `follows.js` SEED 5 → 12
+friends, duels' first-run 1v1 roster 5 → 8, its seeded groups 3 → 4
+(sizes 7 · 4 · 2 · 5), `PLAYED` / `READ_SKILL` / `BY_SKILL` /
+`PARTNER_TODAY` / `DOMAIN_BIAS` gain entries for the three new partners,
+and `IS_FRIEND_TYPES` covers all 24 in all five tests. Demo only: live
+mode has no person graph (D3) and never reads this list (D72), so the
+blast radius is the prototype.
+
+**Why.** Most of what the daily's social half does only behaves
+differently at a population, and at seven none of it was exercised. The
+1v1 rail ran five partners, of whom one had a record deep enough for the
+per-domain rows — so `domainRows`, `weakDomain` and `ReadRun`'s
+span-dependent encoding all had a single subject, and a bug that
+hardcoded that subject's shape would have looked correct.
+`duoAvailable()` could offer two people. `groupPortrait` averaged three
+groups, the largest five members. Seven also contradicted the fixture
+in the same file: `aggregates.circle.n` is 24 and its `mbtiDist` sums to
+24, so `sample-data.js` already described a circle three times the size
+of the one you could open.
+
+**The arithmetic that the new records had to satisfy.** `DOMAIN_MIN` is
+4 correct reads EACH way before a lens appears, and the pool assigns a
+domain per question, so plays spread across three lenses at roughly a
+third each: 16 plays (f12) yields day 5 · heat 6 · mirror 5, 11 plays
+(f17) yields two qualifying lenses, 6 plays (f14) yields none — the
+"absent rather than thin" state, kept on purpose. Measured, not
+predicted: the first `DOMAIN_BIAS` for f12 left `weakDomain` null
+because a 0.55 bias over 5 samples did not separate; 0.25 does, and the
+roster now carries two differently-shaped records (f1 reads weakest
+under pressure, f12 on the everyday) plus one with no clear weakest.
+
+**What this does NOT reach, recorded so it is not a surprise.**
+
+- An existing demo install keeps the old circle. `insight.friends.v1`
+  and `insight.duels.v1` are written on first run and read back forever;
+  the larger SEED lands on a cleared profile or after the D51 purge.
+- The Mirror's Circle stop is unaffected. It embeds the relationship map,
+  which draws `RMCore.defaultPeople()` (49) — `mfpConfig('circle')`'s
+  nodes are the fallback for when that component is absent.
+- `IS_COMPARE_POP.circle.n` is still 9. It is a separate tuning table,
+  no consumer renders it, and changing an unread number to chase this
+  one would be churn. The pair that CAN be held equal — the roster and
+  `aggregates.circle.n` — now is, by test.
+- `IS_DATA.connections`, `dailyReports` and per-person `faves` still
+  have no consumer. New records carry all three anyway: a fixture with
+  second-class rows is worse than one with unused fields.
+
+**Enforcement.** `src/v2/test/sample-people.test.js` (16 cases) holds
+what fails silently: ids resolve everywhere they are keyed (SEED, group
+members, duo partners, `IS_FRIEND_TYPES`), every type name exists in
+`IS_ARCHETYPES`, every `category` is an `MFP_SECTORS` key and every
+`dist` a real distance band, every relationship sector is occupied,
+`people.length === aggregates.circle.n`, and the size properties the
+growth was for — a group ≥ 5, friends still available to duel, two
+partners deep enough for domain rows, a non-empty impressions feed.
+Mutation-checked: a mistyped archetype name and an unknown SEED id each
+fail exactly their own case. `smoke-live.test.jsx`'s demo-initials
+guard now derives its alternation from the roster instead of listing
+seven pairs, so it keeps covering people added after it was written.
+
+## D95 · A re-served learn card arrives answerable — the feed's vote mirror no longer outlives the serve
+
+**Date:** 2026-08-11 · **Status:** Adopted
+
+**Found on a device (2026-08-11).** Screenshots from a phone running a
+live build showed a knowledge card mid-feed already answered: the correct
+option green with its ✓ and 61%, the missed pick ✕-marked at 11%, "Three
+in a row to earn it." under a reveal the user had not tapped that
+session. The card was a re-serve — Learn's scheduler had brought it
+back — but the feed had persisted the previous sitting's pick in
+`insight.feedVotes.v1` (`lrn-<card>` keys) and `knowOf()` rebuilt a
+disabled replay from it. Once answered anywhere, ever, a card could never
+be answered again in the feed: the three-in-a-row streak was unreachable,
+and the check-in — "miss the check-in and the fact leaves your map" —
+could not be answered at all. The spaced-repetition machinery was serving
+cards no tap could reach.
+
+**Decision.** A know vote lives exactly as long as its serve:
+
+- **WF_LS carries no `lrn-` entries.** The feed's load and save both pass
+  through one strip (`wfStripKnow`): load heals what older builds
+  persisted, save keeps the in-memory copy from writing them back — and
+  `setKnow` still saves, so the first learn answer scrubs the residue
+  durably rather than waiting on the next world vote. The cross-session
+  record of a learn answer is LEARN's own store (`insight.learn.v3`),
+  which already holds state, streak, position and time; the mirror held
+  the same fact with no expiry, and the copy with no expiry won.
+- **`knowOf()` rebuilds nothing.** The reveal is this sitting's verdict
+  (`knowRes`) or absent. The rebuild path existed for "a reload keeps
+  your pick"; after the answered-cards-leave release change, what it
+  actually did was render every re-serve frozen.
+- **The LIVE reconcile skips `lrn-` ids.** A learn answer is never in
+  `myVotes`, and the mirror now deliberately drops it, so "absent from
+  both store and mirror" — the reconcile's rollback test — would hold for
+  every know reveal on screen and wipe it at each snapshot notify.
+- **LEARN_FEED serves fresh or due, nothing else.** `plan()`'s slow/warm
+  fallbacks exist so the standalone `next()` never runs dry; in the feed
+  they were the supply of frozen replays. `cards()` now keeps a card only
+  if it has no state or `LEARN.due()` holds — the new public seam,
+  sharing `plan()`'s own predicates (repeat: learning ∧ k<STREAK ∧ pos
+  gap ≥ GAP; check-in: known ∧ older than CHECKIN_D ∧ pos gap ≥ 12) so
+  the two can never disagree. A thin pool now yields fewer knowledge
+  cards instead of unanswerable ones.
+
+**The arithmetic.** GAP=4, STREAK=3, CHECKIN_D=12 are unchanged. What
+changes is who enforces the spacing: `answer()` never checked it (it
+credits any right answer), the scheduler did — so a serve that could not
+be credited honestly must not reach the screen. One visible consequence,
+accepted: the demo seed's mid-streak card (sol2, k=1 at pos 7 of 9) now
+appears after two more learn answers rather than immediately — and it
+appears ANSWERABLE, which the frozen version never was.
+
+**What does not change.** D32's first-exposure rule holds untouched:
+`answer()` reports to `LIVE.learnAnswer` only when the card has no prior
+state, so re-serves stay device-local and the crowd stat still measures
+first attempts only. The Map's mastery record (`LEARN.mastered`) never
+read the feed's mirror. And within a sitting nothing moves: the serve
+list is planned once per mount (`knowQs`'s cache), and votes/knowRes are
+set together, so the reveal being watched survives every re-render.
+
+**Enforcement.** `learn-serve.test.js` pins `due()` at its three
+boundaries and `cards()`'s fresh-or-due filter; `learn-reserve.test.jsx`
+mounts the real feed against the real scheduler and walks the loop — a
+due card served enabled over seeded pre-D95 residue, the tap credits
+k=1, and WF_LS ends with no `lrn-` keys — plus the source pin on the
+reconcile skip, the one branch the demo harness cannot notify.
+
+## D96 · A live build advertises no demo communities or empty leaves — and every bank subject runs always-on
+
+**Date:** 2026-08-11 · **Status:** Adopted
+
+**Found on a device (2026-08-11).** The add-topic sheet on a live phone
+offered "Swimming · 3.2K people · fjord swims, no excuses", "Tennis ·
+9.4K people", "Letterpress · 340 people" — sample-data communities,
+member counts and vibes invented, each with a working Follow button —
+above a Topics section listing the demo leaves as "Tennis · Sport · 0
+questions". The feed showed the same fiction as a dashed card:
+"Swimming · suggested scene · 3.2K people". D66 removed follows the user
+never chose; these were worse — an invitation to choose one. Fabricated
+populations offered to a real user (D1), and rooms with nothing in them
+(the live boot replaces WORLD_FEED_QS with the bank, which tags nothing
+with `sub` or `scene`).
+
+**Decision, in three parts.**
+
+1. **Stores own the offer.** `SCENES.offers()` and `SUBTOPICS.offers()`
+   are what a surface may advertise; the add sheet, the feed's
+   suggested-scene card and search all read them now. `defs()`/`all()`
+   stay whole underneath — they are the dictionaries existing follows and
+   tagged cards resolve labels through, and a follow the user really made
+   keeps working.
+2. **Scenes refuse by session, leaves by stock.** Scene offers are `[]`
+   when `LIVE.enabled || LIVE.demoInProd` — a real user in the mock
+   fallback is still a real user — because the entity itself is the
+   fabrication; no amount of stock could make "3.2K people" honest. A
+   leaf is offered exactly when it has questions (`count > 0`), in
+   EITHER build: the taxonomy's own rule ("a thin subtopic would feel
+   like a broken room") enforced at the offer, so the day live questions
+   carry `sub` tags the leaves return with no code change.
+3. **A live build widens the always-on channels to every subject its
+   bank stocks.** The demo reaches sport, food, movies, music, tech and
+   culture through the communities that pull them; with no communities
+   to offer, those subjects — 51 of the 73 seeded questions
+   (13+9+6+5+6+12), against 22 on the format channels — were reachable
+   by nothing: no chip, no follow, no search result. WORLD_CHANNELS in a
+   live build is WORLD_TOPICS minus `places` and `fav`, the two formats
+   the bank mapper cannot emit (data/live.ts maps every bank doc to a
+   plain vote; rate and pick cards never come out of it) — which also
+   retires the two dead chips the live row already showed. Build flag
+   rather than runtime, for learn-progress.js's reason: the list is read
+   at module scope, before boot attaches — and the demoInProd fallback
+   needs the same widening, because a live build seeds zero follows and
+   its demo pool had the same dark subjects.
+
+**What it does not change.** The demo build is untouched: seeds (D66's
+fix), offers and channels all keep their demo shapes, and the smoke
+suite's control cases pin it. Existing scene follows on a live device
+keep filtering the feed — `mine()` reads the follow list, not
+`offers()` — so what disappears is only the invitation to acquire new
+fictional ones. The profile's live scenes surface stays LiveScenesCard.
+
+**What brings the offers back.** A scenes backend — real communities
+with real member counts — restores `SCENES.offers()` the same way a
+measured per-cohort aggregate restores D89's row; `sub`-tagged live
+questions restore the leaves by themselves.
+
+**Enforcement.** `follow-seeds.test.js` (D96 block) drives both stores'
+`offers()` through the live singleton, demoInProd included, and pins the
+dictionaries staying whole; `world-channels.test.js` pins both channel
+sets; `smoke-live.test.jsx` asserts the mounted surfaces refuse — no
+Communities section, no 0-question rooms, no suggested-scene card, with
+Learn and the suggest door intact; `smoke.test.jsx` holds the demo
+controls for the sheet and the suggestion card.
+
+## D97 · Question production upscales behind a regulator: computed budgets, a mechanical style gate, and measured vintages
 
 **Date:** 2026-08-11 · **Status:** Adopted (owner's direction: "upscale
 question production in a huge way but also a smart way, so the questions

@@ -73,7 +73,7 @@ topic is thin.
 ## Picking topics
 
 Count questions per top-level category (first element of each `cat`).
-The budget is **computed, not flat** (D94, 2026-08-11 — the owner's
+The budget is **computed, not flat** (D97, 2026-08-11 — the owner's
 direction: upscale hugely, but smartly. Previously a hard cap of 4/run
 daily, D33). Start every run with
 
@@ -121,7 +121,7 @@ budget flows to lane 3 and behavior is the original thin-first rule.
    through the pool). Depth is in the product so small-but-devoted
    topics earn content alongside big ones.
 3. **Coverage — only what lanes 1–2 leave unclaimed.** With no
-   scorecard (or a stale one), that is the whole computed budget (D94 —
+   scorecard (or a stale one), that is the whole computed budget (D97 —
    it used to read "all 4" under D33's flat cap); with signals it may often
    be zero, and that is by design. A topic below **4 questions** cannot
    show demand; nobody can engage with content that does not exist.
@@ -202,7 +202,7 @@ summary). Then:
   forever and a reorder silently re-keys them (the D30 re-key failure
   class). The fix for a bad option set is retirement plus a
   better-shaped successor, never an edit.
-- **Read your own vintages (D94).** The scorecard's `production` section
+- **Read your own vintages (D97).** The scorecard's `production` section
   re-cuts the same scored rows by who wrote each question
   (`content/provenance.json`: editorial / farm / community, per vintage
   batch). Before writing, read whether the farm's recent vintages hold
@@ -223,8 +223,9 @@ summary). Then:
 
 The scorecard is a COMMITTED artifact: regenerating it is a reviewed
 change like any other, its numbers are already public by construction
-(the k-floor did the privacy work), and committing it is what lets a
-scheduled run read signals without needing production credentials.
+(k-floored by design, exact under D81's pause — public either way), and
+committing it is what lets a scheduled run read signals without needing
+production credentials.
 
 ## Writing the questions
 
@@ -258,7 +259,7 @@ body's one-line-per-question section. The same script gates CI at ≥ 0.5
 similarity within a surface. It is lexical — it catches rewordings, never
 synonyms — so the re-read stays the rule and the score is its floor.
 
-**The mechanical style check is also part of writing (D94).** Write the
+**The mechanical style check is also part of writing (D97).** Write the
 batch's candidates to a JSON file and run
 
 ```
@@ -446,7 +447,7 @@ The mechanics are all reuse (spec `Q` entries and
    seeded bank to the demo layer by prompt-string equality — `liveSync`
    in `src/v2/spec/daily-questions.js` warns on orphans — so a reworded
    promotion silently unhooks that question from the Map), and records
-   each question's provenance row in `content/provenance.json` (D94:
+   each question's provenance row in `content/provenance.json` (D97:
    `--source` names who wrote the archive entry, `--batch` labels the
    vintage, defaulting to the promotion date). The rows are what the
    scorecard's `production` section measures vintages by, and
@@ -465,11 +466,11 @@ The mechanics are all reuse (spec `Q` entries and
    questions in against their `updatedAt` cursor. New questions extend the
    daily rotation without remapping served days (the deck epoch, D30).
 
-Cadence arithmetic (D30, re-paced by D33, upscaled by D94): the daily
+Cadence arithmetic (D30, re-paced by D33, upscaled by D97): the daily
 surface consumes 7 questions/week; the lane's generation ceiling is the
 budget regulator's cap, throttled to promotion throughput once the pen
 is full. Promotion averaging ≥7/week keeps the bank growing faster than
-the calendar — users never see a repeat; **the D94 target is ≥14/week
+the calendar — users never see a repeat; **the D97 target is ≥14/week
 while the pen has stock**, which grows runway by a day per day and is
 what the bigger generation ceiling exists to feed. The archive absorbs
 whatever generation outruns promotion (it is the holding pen; not
@@ -549,10 +550,10 @@ recorded under Governance when taken. Rules for a duel run:
 - Gates before the PR: `npm run check:content`, `check:neighbors`,
   `check:globals`, `lint`, `test:unit`, `build`.
 
-## The feed lane (D94 — single gate, learn-style)
+## The feed lane (D97 — single gate, learn-style)
 
 Feed questions live in `content/feed-questions.json` — the World feed's
-bank, and until D94 the one question surface with **no production lane
+bank, and until D97 the one question surface with **no production lane
 at all**. It is also the surface where an upscale actually lands:
 the daily consumes exactly 7/week whatever the archive holds, but the
 feed serves continuously and its capacity scales with users, not the
@@ -567,7 +568,7 @@ recorded under Governance when taken. Rules, each load-bearing:
   dilution: a fixed crowd spread over more questions clears the k-floor
   on fewer of them. While the scorecard shows most feed questions
   unscored, the lane's job is breadth across the ten topics
-  (thinnest-first, the coverage rule); raising the cadence is a D94
+  (thinnest-first, the coverage rule); raising the cadence is a D97
   amendment for when the scorecard shows the crowd keeping up.
 - **`vote` questions only.** `rank` is not live-servable (D12) and
   `duel`-type feed cards are prototype legacy; a lane candidate is
@@ -785,7 +786,7 @@ re-paced, or retired.
 | InSight question farm | weekly Mon 07:00 — **D33 re-paces to daily 07:00, owner step pending** | maintainer's dev session | this file, the sections above |
 | Daily catalog question | daily 08:00 | maintainer's dev session | § The daily catalog-question run |
 
-**The pending D33 re-pace (one owner step), now carrying D94's prompt
+**The pending D33 re-pace (one owner step), now carrying D97's prompt
 refresh too.** A session that is not the
 Routine's bound session cannot edit it (measured 2026-08-01: both the
 prompt and the cron are refused org-wide from outside; re-measured
@@ -802,7 +803,7 @@ contract section carries the roll-up rule as of 2026-08-03, and while
 every prompt defers to this file ("re-read it every run"), a prompt
 that still says one-branch-per-day is drift waiting to be obeyed. The
 canonical prompt (kept here so prompt and manual cannot drift; update
-BOTH in any future change; rewritten 2026-08-11 for D94 — the budget
+BOTH in any future change; rewritten 2026-08-11 for D97 — the budget
 regulator, the quality pre-flight, and the vintage read):
 
 ```
@@ -820,7 +821,7 @@ the regenerated content/scorecard.json in your PR; without the key,
 npm run scorecard reads the committed one — stale or missing →
 coverage lane only, per the manual's staleness rule), compute the
 run's budget (npm run farm:budget -- --open <count of questions on the
-open farm PR's diff> — the D94 regulator; zero means the run is a
+open farm PR's diff> — the D97 regulator; zero means the run is a
 logged no-op and review is the work), then allocate that budget across
 the manual's three priority lanes — replenishment first, demand takes
 everything replenishment leaves, coverage only what the signal lanes

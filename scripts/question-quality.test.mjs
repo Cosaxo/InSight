@@ -1,4 +1,4 @@
-// question-quality.test.mjs — pins the D94 style-guide gate: the measured
+// question-quality.test.mjs — pins the D97 style-guide gate: the measured
 // bounds, the hard-rule-6 tripwire's shape (conjunction, not mention), the
 // batch-mix rules, and — the liveness half — that the real corpus passes
 // and the provenance join is exactly in step with the banks.
@@ -42,7 +42,7 @@ describe("checkQuestion (daily card shape)", () => {
   it("stamps every error with the rule slug the ALLOW key needs", () => {
     // The waiver mechanism is per-finding ("<id>~<rule>"), so a rule-less
     // error would be unwaivable — and an over-broad waiver was the bug the
-    // D94 review pass caught before this shipped.
+    // D97 review pass caught before this shipped.
     const bad = daily({
       prompt: "x".repeat(PROMPT_MAX + 1), tone: "spicy", tag: "one two three four five",
       cat: ["Weather", "Sky"], options: ["One"],

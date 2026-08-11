@@ -1,7 +1,7 @@
 // question-quality.mjs — the mechanical half of the question style guide
-// (D94), and the pre-flight a lane run uses on candidates before a PR.
+// (D97), and the pre-flight a lane run uses on candidates before a PR.
 //
-// WHY THIS EXISTS. The upscale (D94) raises how much the lanes may write,
+// WHY THIS EXISTS. The upscale (D97) raises how much the lanes may write,
 // and every quality bar that was prose — "short, concrete", "tag is a
 // two-or-three-word label", the option shapes, hard rule 6's ban on
 // place-scoped civic questions — scaled only as far as a reviewer's
@@ -253,7 +253,7 @@ export function checkBatch(batch) {
 
 // ── provenance coverage ──
 // content/provenance.json is the join the scorecard's production section
-// (D94) reads to measure farm vintages against editorial questions. It is
+// (D97) reads to measure farm vintages against editorial questions. It is
 // only worth reading while it is EXACTLY in step with the banks — a missing
 // row silently drops a question out of the vintage rollup, which is the
 // stale-figure failure class (D39) wearing a JSON hat. promote-questions.mjs
@@ -261,7 +261,7 @@ export function checkBatch(batch) {
 export function checkProvenance(corpus) {
   const errs = [];
   const path = join(root, "content", "provenance.json");
-  if (!existsSync(path)) return ["content/provenance.json is missing — the D94 vintage join has nothing to read"];
+  if (!existsSync(path)) return ["content/provenance.json is missing — the D97 vintage join has nothing to read"];
   const prov = JSON.parse(readFileSync(path, "utf8"));
   const SOURCES = new Set(["editorial", "farm", "community"]);
 
@@ -372,7 +372,7 @@ if (invokedDirectly) {
       // [Top, Sub] pair ("Travel / Places"), feed carries a bare topic id
       // ("sport") that the taxonomy rule compares as a string — routing
       // feed through pairsOf made every topic-carrying feed candidate
-      // fail its own taxonomy check (found by the D94 review pass).
+      // fail its own taxonomy check (found by the D97 review pass).
       cat: flag("--cat")
         ? surface === "feed" ? flag("--cat").trim() : pairsOf(flag("--cat"))[0]
         : undefined,

@@ -64,7 +64,7 @@ describe("ordinal split (scale/rating)", () => {
   });
 });
 
-describe("production rollup (D94)", () => {
+describe("production rollup (D97)", () => {
   const row = (qid, over = {}) => ({
     qid, served: true, signal: "scored", total: 40, evenness: 0.6, grade: "strong", ...over,
   });

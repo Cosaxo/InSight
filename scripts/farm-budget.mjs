@@ -1,4 +1,4 @@
-// farm-budget.mjs — the daily lane's generation budget as arithmetic (D94),
+// farm-budget.mjs — the daily lane's generation budget as arithmetic (D97),
 // replacing D33's flat "hard cap of 4" with a regulator.
 //
 // WHY THIS EXISTS. D33 named the real constraint when it re-paced the farm:

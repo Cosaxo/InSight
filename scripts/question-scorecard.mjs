@@ -49,7 +49,7 @@
 //     analogues the duel lane cites. Pick questions carry no counts by
 //     design (their optionIdx values index each group's own member list),
 //     so they score plays and draw only.
-//   - PRODUCTION (2026-08-11, D94): the same daily/feed rows re-cut by
+//   - PRODUCTION (2026-08-11, D97): the same daily/feed rows re-cut by
 //     WHO WROTE them — content/provenance.json's source (editorial |
 //     farm | community) and vintage batch. The upscale's improvement
 //     loop runs on this: a farm run reads whether its own recent
@@ -96,7 +96,7 @@ const daily = JSON.parse(readFileSync(join(root, "content", "daily-questions.jso
 const feed = JSON.parse(readFileSync(join(root, "content", "feed-questions.json"), "utf8"));
 const learn = JSON.parse(readFileSync(join(root, "content", "learn-questions.json"), "utf8"));
 const duel = JSON.parse(readFileSync(join(root, "content", "duel-questions.json"), "utf8"));
-// Provenance (D94) — who wrote each daily/feed question, and in which
+// Provenance (D97) — who wrote each daily/feed question, and in which
 // vintage. check:quality holds it exactly in step with the banks; the
 // existsSync guard is only for a checkout mid-migration, mirroring how
 // summarize() optional-chains sections older artifacts predate.
@@ -446,7 +446,7 @@ function score(aggs) {
     // avoid) the SHAPE of a split, not just its score.
     leaders: byScore.slice(0, 10).map(({ qid, prompt, total, evenness: e, optionShares: o }) => ({ qid, prompt, total, evenness: e, optionShares: o })),
     laggards: byScore.slice(-10).reverse().map(({ qid, prompt, total, evenness: e, grade, optionShares: o }) => ({ qid, prompt, total, evenness: e, grade, optionShares: o })),
-    // The farm measuring itself (D94): the same scored rows, re-cut by
+    // The farm measuring itself (D97): the same scored rows, re-cut by
     // provenance source and vintage. A run reads this before writing —
     // "is my output holding the editorial bar, which vintage's shapes
     // won" — and cites its own trend in the PR body. Same aggregates,
@@ -515,7 +515,7 @@ function summarize(card) {
   if (card.leaders.length) console.log(`  top: ${card.leaders.slice(0, 3).map((l) => JSON.stringify(l.prompt)).join(" · ")}`);
   if (card.retireProposals.length) console.log(`  retire proposals: ${card.retireProposals.map((r) => r.qid).join(", ")}`);
   // Optional-chained: a scorecard committed before the production section
-  // (D94) existed still summarizes cleanly.
+  // (D97) existed still summarizes cleanly.
   const sources = Object.entries(card.production?.bySource || {}).filter(([, v]) => v.scored);
   if (sources.length) {
     console.log(

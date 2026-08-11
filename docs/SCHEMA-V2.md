@@ -92,11 +92,14 @@ v2_agg_events/{eventId}            trigger ledger (opaque), two jobs (D28)
                                    entries are erased with the account
 v2_question_aggs/{qid}             the PUBLIC mirror, k-floored
   { tooSmall: true }               while total < AGG_MIN_N (5 by design; 1 under D81's launch pause)
-  { counts, total, tooSmall:false } at/above the floor, and only on every
-                                   5th answer (shouldPublishAgg) — clients
+  { counts, total, tooSmall:false } at/above the floor, republished every
+                                   PUBLISH_EVERY-th answer — 5 by design,
+                                   1 under D81's launch pause: clients
                                    hold an onSnapshot, so a per-answer
-                                   rewrite would stream one attributable
-                                   vote per step (D7 amendment). No fresh
+                                   rewrite streams one attributable vote
+                                   per step, which the design cadence
+                                   exists to batch away and the pause
+                                   accepts (D7 amendment). No fresh
                                    timestamp either, for the same reason
   by { dim: { bucket: {opt:n} } }  the breakdown's OWN floor, per cell,
                                    plus complementary suppression so a

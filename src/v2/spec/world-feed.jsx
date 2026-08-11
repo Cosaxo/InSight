@@ -48,9 +48,26 @@ const WF_SUB = (id) => (id && window.SUBTOPICS ? window.SUBTOPICS.get(id) : null
 const WF_BGTEXT = (q) => (q && (q.bg || (window.WORLD_BG || {})[q.id])) || null;
 const WF_LINE = '1px solid color-mix(in oklch, var(--rule), transparent 25%)';
 
+// Know answers do NOT persist in WF_LS (D95). Their cross-session record is
+// LEARN's own store — state, streaks, positions — and LEARN_FEED re-serves a
+// card exactly when answering it again should count. A vote mirrored here
+// outlived the serve, so a re-served card rendered frozen in a previous
+// sitting's reveal: streaks unreachable, check-ins unanswerable. Stripped on
+// load (healing what older builds persisted) and on save (state.votes keeps
+// them in memory for this sitting's reveals, and every save spreads state).
+function wfStripKnow(v) {
+  const out = {};
+  for (const k in v) if (k.indexOf('lrn-') !== 0) out[k] = v[k];
+  return out;
+}
+
 function wfLoad() {
-  try { const v = JSON.parse(localStorage.getItem(WF_LS) || '{}'); return v && typeof v === 'object' ? v : {}; }
+  try { const v = JSON.parse(localStorage.getItem(WF_LS) || '{}'); return v && typeof v === 'object' ? wfStripKnow(v) : {}; }
   catch (e) { return {}; }
+}
+
+function wfSave(votes) {
+  try { localStorage.setItem(WF_LS, JSON.stringify(wfStripKnow(votes))); } catch (e) { /* localStorage can throw: private mode, quota, disabled storage. Best-effort — in-memory state stays correct. */ }
 }
 
 function wfLoadReplies() {
@@ -227,6 +244,12 @@ class WorldFeed extends React.Component {
           let changed = false;
           const votes = { ...s.votes };
           for (const id of Object.keys(votes)) {
+            // Know entries are not LIVE's to reconcile: a learn answer is
+            // never in myVotes, and the WF_LS mirror deliberately drops
+            // lrn- keys (D95) — so without this skip, "absent from both"
+            // is true of every know reveal on screen and each snapshot
+            // notify would wipe the one the user is looking at.
+            if (id.indexOf('lrn-') === 0) continue;
             if (mine[id] == null && mirror[id] == null) { delete votes[id]; changed = true; }
           }
           for (const [id, v] of Object.entries(mine)) {
@@ -403,7 +426,7 @@ class WorldFeed extends React.Component {
     }
     this.setState((s) => {
       const votes = { ...s.votes, [id]: val };
-      try { localStorage.setItem(WF_LS, JSON.stringify(votes)); } catch { /* best-effort */ }
+      wfSave(votes);
       // …and the beat replays the split as a scene, so it is the same
       // fabrication on a selfOnly card that the bars would be.
       const beat = (!editing && this.props.beats !== false && window.ConsequenceBeat && !selfOnly) ? id : s.beat;
@@ -446,7 +469,7 @@ class WorldFeed extends React.Component {
       if (at >= 0) cur.splice(at, 1); else cur.push(i);
       if (cur.length === q.items.length) {
         const votes = { ...s.votes, [q.id]: { order: cur } };
-        try { localStorage.setItem(WF_LS, JSON.stringify(votes)); } catch { /* best-effort */ }
+        wfSave(votes);
         return { votes, pending: { ...s.pending, [q.id]: [] } };
       }
       return { pending: { ...s.pending, [q.id]: cur } };
@@ -457,7 +480,7 @@ class WorldFeed extends React.Component {
   setRate(q, score) {
     this.setState((s) => {
       const votes = { ...s.votes, [q.id]: score };
-      try { localStorage.setItem(WF_LS, JSON.stringify(votes)); } catch { /* best-effort: private mode, quota */ }
+      wfSave(votes);
       return { votes };
     });
     if (window.PLACESTATS) window.PLACESTATS.rate(q.scope, q.catId, score);
@@ -517,7 +540,7 @@ class WorldFeed extends React.Component {
   setPickItem(q, id) {
     if (this.state.votes[q.id] != null) return;
     const votes = { ...this.state.votes, [q.id]: id };
-    try { localStorage.setItem(WF_LS, JSON.stringify(votes)); } catch (e) { /* localStorage can throw: private mode, quota, disabled storage. Best-effort — in-memory state stays correct. */ }
+    wfSave(votes);
     this.setState({ votes });
   }
   // catalogue cards from the prototype's demo store (world-catalogs.js) —
@@ -715,19 +738,21 @@ class WorldFeed extends React.Component {
     const r = window.LEARN.answer(q.learn, i);
     if (!r) return;
     const votes = { ...this.state.votes, [q.id]: i };
-    try { localStorage.setItem(WF_LS, JSON.stringify(votes)); } catch (e) { /* localStorage can throw: private mode, quota, disabled storage. Best-effort — in-memory state stays correct. */ }
+    // The pick reaches state, not storage — wfSave strips lrn- entries, on
+    // purpose (D95): persisting it was what froze the next serve in this
+    // reveal. The save still runs so the strip also SCRUBS any residue an
+    // older build left, now rather than on the next world vote.
+    wfSave(votes);
     this.setState((s) => ({ votes, knowRes: { ...s.knowRes, [q.id]: r } }));
   }
-  // a reload keeps your pick but not the verdict object — rebuild it from the store
+  // The verdict for THIS sitting's answer, or null. The rebuild-from-WF_LS
+  // path that used to sit here is gone (D95): a know vote never outlives its
+  // serve, so a card the scheduler re-serves arrives answerable instead of
+  // frozen in a previous sitting's reveal. Within a sitting the serve list
+  // is planned once (knowQs) and votes/knowRes are set together, so the
+  // reveal you are watching survives every re-render.
   knowOf(q) {
-    const v = this.state.votes[q.id];
-    if (v == null) return null;
-    const live = this.state.knowRes[q.id];
-    if (live) return live;
-    const L = window.LEARN, c = L && L.card(q.learn);
-    if (!c) return null;
-    const cs = L.stateOf(q.learn) || {};
-    return { ok: v === c.c, correct: c.c, split: window.LEARN_SPLIT(c), streak: cs.s === 'known' ? L.STREAK : (cs.k || 0), mastered: false, lost: false, wasKnown: cs.s === 'known', replay: true };
+    return this.state.knowRes[q.id] || null;
   }
   renderKnow(q, T, big) {
     const L = window.LEARN;
@@ -813,7 +838,7 @@ class WorldFeed extends React.Component {
   setPick(q, entity) {
     this.setState((s) => {
       const votes = { ...s.votes, [q.id]: { entity } };
-      try { localStorage.setItem(WF_LS, JSON.stringify(votes)); } catch { /* best-effort: private mode, quota */ }
+      wfSave(votes);
       return { votes };
     });
     if (window.PICKS) window.PICKS.pick(q.id, entity);
@@ -1586,12 +1611,14 @@ class WorldFeed extends React.Component {
     const SC = window.SCENES;
     const ST = window.SUBTOPICS;
     const label = { fontFamily: 'var(--sans)', fontSize: 11.5, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--ink-3)', margin: '4px 2px 6px' };
-    const openLeaves = ST ? ST.all().filter((s) => {
+    // offers(), not all()/defs(): the stores decide what may be advertised —
+    // stocked leaves only, and no demo communities in a live build (D96)
+    const openLeaves = ST ? ST.offers().filter((s) => {
       if (ST.has(s.id)) return false;
       const own = SC && SC.subOf ? SC.mine().some((g) => SC.subOf(g.id) === s.id) : false;
       return !own;                                    // a followed community already covers its leaf
     }) : [];
-    const open = SC ? SC.defs().filter((g) => !SC.has(g.id)).sort((a, b) => b.match - a.match) : [];
+    const open = SC ? SC.offers().filter((g) => !SC.has(g.id)).sort((a, b) => b.match - a.match) : [];
     const L = window.LEARN, LF = window.LEARN_FEED;
     const learnOpen = L ? L.fields().filter((f) => !L.has(f.id)) : [];
     const row = (key, col, name, meta, onFollow, ring) => (
@@ -2634,7 +2661,10 @@ class WorldFeed extends React.Component {
     ];
     let sugg = null;
     if (SC) {
-      const cand = SC.defs().filter((g) => !SC.has(g.id));
+      // offers(), not defs(): a live build advertises no demo scene, so the
+      // dashed "suggested scene · 3.2K people" card simply never renders
+      // there (D96) — the same store-level gate the add sheet reads.
+      const cand = SC.offers().filter((g) => !SC.has(g.id));
       cand.sort((a, b) => ((pulled[SC.topicOf(b.id)] ? 0 : 1) - (pulled[SC.topicOf(a.id)] ? 0 : 1)) || (b.match - a.match));
       sugg = cand[0] || null;
     }

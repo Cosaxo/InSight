@@ -90,6 +90,14 @@ window.LEARN = (function () {
   const colorOf = (fid) => 'oklch(0.52 0.14 ' + hueOf(fid) + ')';
   const pool = () => { const out = []; F.forEach((fid) => (BYF[fid] || []).forEach((c) => out.push(c))); return out; };
 
+  // The two re-serves that COUNT, shared by plan() and the public due()
+  // below so they can never disagree: the queued repeat that has waited out
+  // GAP, and the rare check-in on a known card. Everything else a plan can
+  // fall back to (slow, warm) is filler for a thin pool — answering it again
+  // now would be the massed practice rule 2 exists to prevent.
+  const dueRepeat = (s) => !!s && s.s === 'learning' && s.k < STREAK && S.pos - s.pos >= GAP;
+  const dueCheckin = (s, now) => !!s && s.s === 'known' && now - (s.at || 0) > CHECKIN_D * 864e5 && S.pos - s.pos >= 12;
+
   // plan the next n cards WITHOUT answering any of them, so the scroll can ship
   // stocked instead of unlocking one card at a time. Same priority order as a
   // single pick: a queued repeat that has waited, the rare check-in, then
@@ -99,8 +107,8 @@ window.LEARN = (function () {
     if (exclude && exclude.length) P = P.filter((c) => exclude.indexOf(c.id) < 0);
     if (!P.length) return [];
     const now = Date.now();
-    const due = P.filter((c) => { const s = st(c.id); return s && s.s === 'learning' && s.k < STREAK && S.pos - s.pos >= GAP; }).sort((a, b) => st(a.id).pos - st(b.id).pos);
-    const chk = P.filter((c) => { const s = st(c.id); return s && s.s === 'known' && now - (s.at || 0) > CHECKIN_D * 864e5 && S.pos - s.pos >= 12; }).sort((a, b) => (st(a.id).at || 0) - (st(b.id).at || 0));
+    const due = P.filter((c) => dueRepeat(st(c.id))).sort((a, b) => st(a.id).pos - st(b.id).pos);
+    const chk = P.filter((c) => dueCheckin(st(c.id), now)).sort((a, b) => (st(a.id).at || 0) - (st(b.id).at || 0));
     const fresh = P.filter((c) => !st(c.id)).sort((a, b) => Math.abs(a.p - lvl(a.f)) - Math.abs(b.p - lvl(b.f)));
     const slow = P.filter((c) => { const s = st(c.id); return s && s.s === 'learning' && s.k < STREAK; }).sort((a, b) => st(a.id).pos - st(b.id).pos);
     const warm = P.slice().sort((a, b) => ((st(a.id) || {}).pos || 0) - ((st(b.id) || {}).pos || 0));
@@ -174,6 +182,11 @@ window.LEARN = (function () {
     unfollow: (id) => { if (F.length > 1) { F = F.filter((x) => x !== id); saveF(); } },
     toggle: (id) => { if (F.indexOf(id) >= 0) { if (F.length > 1) { F = F.filter((x) => x !== id); saveF(); } } else if (FBY[id]) { F.push(id); saveF(); } return F.indexOf(id) >= 0; },
     next, answer, plan,
+    // Whether re-answering this card right now would COUNT (D95). The feed
+    // asks before re-serving an answered card: a repeat inside GAP or a
+    // check-in before its window is one the scheduler would not credit, so
+    // serving it could only render a stale reveal or invite massed practice.
+    due: (id) => dueRepeat(st(id)) || dueCheckin(st(id), Date.now()),
     stateOf: (id) => st(id),
     level: lvl,
     // known facts, in the order you earned them — the map reads this

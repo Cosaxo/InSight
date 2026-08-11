@@ -14,7 +14,7 @@
 // and prompts already present in the seed (a re-promotion). On success
 // it appends to content/daily-questions.json with the next free id,
 // records each question's provenance row in content/provenance.json
-// (D94 — the vintage join the scorecard's `production` section reads;
+// (D97 — the vintage join the scorecard's `production` section reads;
 // --source names who wrote the archive entry, --batch labels the vintage
 // and defaults to today's UTC date), and regenerates
 // functions/src/v2content.ts (build:content); check:content and
@@ -49,7 +49,7 @@ if (!ids.length || !source || !SOURCES.has(source)) {
   console.error(
     "promote: name a source and at least one archive id, e.g. " +
       "`npm run promote -- --source farm dqx13 dqx14`\n" +
-      "  --source editorial|farm|community   who wrote the archive entry (D94 provenance)\n" +
+      "  --source editorial|farm|community   who wrote the archive entry (D97 provenance)\n" +
       "  --batch YYYY-MM-DD                  vintage label, default today (UTC)",
   );
   process.exit(1);

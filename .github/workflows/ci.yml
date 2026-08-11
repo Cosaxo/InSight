@@ -99,7 +99,7 @@ jobs:
       # belongs here and deliberately NOT on backend-checks.yml, where it
       # could block an emergency rules fix over a reworded question.
       - run: npm run check:neighbors
-      # The mechanical half of the question style guide (D94): measured
+      # The mechanical half of the question style guide (D97): measured
       # form bounds, the place-scope tripwire (QUESTION-FARM hard rule 6),
       # the provenance↔bank join the vintage rollup reads, and the id/bank
       # headroom tripwires. Content QUALITY again — same placement rule as
