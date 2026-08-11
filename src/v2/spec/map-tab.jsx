@@ -256,6 +256,11 @@ function MapTab({ rail = true, anchorsOn = true, recency = true, fields: fieldsO
   const fitZRef = useRef(null);
   const lastTap = useRef(null);   // double-tap detection
   const tapTimer = useRef(null);  // delayed single-tap (waits out a double)
+  // the near-miss adopter (assigned per render, below the state it reads —
+  // the viewRef precedent). Ref rather than a direct call because
+  // onPointerUp is defined above `hidden`/`ringOpen` in this body and the
+  // finder needs both.
+  const nearestRef = useRef(null);
   useEffect(() => () => clearTimeout(tapTimer.current), []);
 
   const fitAllTarget = () => {
@@ -333,7 +338,14 @@ function MapTab({ rail = true, anchorsOn = true, recency = true, fields: fieldsO
   // the anchor card runs to its cap below, so the ring is fitted between the two
   // rather than into a blind fraction of the canvas — no anchor under chrome.
   // Tighter padding buys back the size the smaller strip costs.
-  const RING_FIT = { padX: 56, padY: 46, top: 14, bottomFrac: 0.635 };
+  //
+  // top 56, not 14: the Mirror's stop ruler sits immediately ABOVE this
+  // canvas, and with the old strip the top anchor's hit area ended a few
+  // px under it — a thumb aiming at Age landed on the ruler and switched
+  // stops ("navigating me somewhere else", the 2026-08-11 report). The
+  // clearance costs a slightly smaller ring; a mis-tap that changes tabs
+  // costs the whole screen.
+  const RING_FIT = { padX: 56, padY: 46, top: 56, bottomFrac: 0.635 };
   const fitTo = (ids, maxZ, opts) => {
     const el = ref.current;
     if (!el) return;
@@ -517,7 +529,15 @@ function MapTab({ rail = true, anchorsOn = true, recency = true, fields: fieldsO
     }
     lastTap.current = { t: now, x: pt.x, y: pt.y };
     clearTimeout(tapTimer.current);
-    tapTimer.current = setTimeout(stepBack, 300);
+    // A tap that MISSED every button (pointer-down on a .mmt-node never
+    // reaches here) but landed within a fingertip of one adopts it instead
+    // of stepping back. The dots are ~15px at fit zoom, so a miss by a few
+    // px used to fire stepBack — which re-zooms or leaves the group, and
+    // reads as "the map navigated somewhere else" (2026-08-11). Resolved
+    // NOW (positions at tap time) but fired on the same delay stepBack
+    // uses, so a double-tap still wins the race and zooms.
+    const near = nearestRef.current ? nearestRef.current(pt) : null;
+    tapTimer.current = setTimeout(near ? near.go : stepBack, 300);
   };
 
   // ---- time scrub — replay the map growing answer-by-answer ----
@@ -609,6 +629,51 @@ function MapTab({ rail = true, anchorsOn = true, recency = true, fields: fieldsO
   const thr = cut != null ? maxAge - cut : null;
   const hidden = thr == null || thr <= 0 ? null
     : new Set(nodes.filter((n) => (n.daily ? n.age : (n.age0 ?? 0)) < thr - 1e-6).map((n) => n.id));
+
+  // the near-miss adopter for onPointerUp (via nearestRef): the closest
+  // TAPPABLE thing within ~30px of a canvas tap, with the same action its
+  // own button would run. Candidates mirror the buttons' own gates — a
+  // folded ring, a dimmed hub, a scrubbed-out dot are not tappable and must
+  // not become tappable through the side door.
+  nearestRef.current = (pt) => {
+    const v = viewRef.current;
+    if (!v) return null;
+    const P = posRef.current;
+    const cands = [];
+    if (anchorsOn && !openGroup && ringOpen) {
+      anchors.forEach((a) => {
+        const p = P['ax-' + a.id];
+        if (!p) return;
+        cands.push({
+          x: p.x, y: p.y,
+          go: () => { if (selAnchor && selAnchor.id === a.id) clearSel(); else selectAnchor(a.id); },
+        });
+      });
+    }
+    cats.forEach((c) => {
+      if (hlSet && !hlSet.has(c.id)) return;
+      const p = P[c.id];
+      if (!p) return;
+      cands.push({ x: p.x, y: p.y, go: () => selectCat(c.id) });
+    });
+    nodes.forEach((n) => {
+      if (hlSet && !hlSet.has(n.id)) return;
+      if (hidden && hidden.has(n.id)) return;
+      const p = P[n.id];
+      if (!p) return;
+      cands.push({
+        x: p.x, y: p.y,
+        go: () => { if (n.quiet) { setSel(null); setHlCat(null); setOpenGroup(n.gid); } else selectItem(n.id); },
+      });
+    });
+    let best = null, bd = 30 * 30;
+    cands.forEach((c) => {
+      const dx = c.x * v.z + v.x - pt.x, dy = c.y * v.z + v.y - pt.y;
+      const d = dx * dx + dy * dy;
+      if (d < bd) { bd = d; best = c; }
+    });
+    return best;
+  };
 
   // label collision pass — greedy keep, in screen space. Hub labels are
   // seeded first so nothing ever buries a branch name; topic labels beat
@@ -737,9 +802,12 @@ function MapTab({ rail = true, anchorsOn = true, recency = true, fields: fieldsO
             })}
           </svg>
 
-          {/* centre — you, ringed by your profile anchors */}
+          {/* centre — you, ringed by your profile anchors. The ring line's
+              transform is STATIC (the fold group below owns the open/close
+              motion): a transform that changes per state on an element with
+              a transform transition is the wobble the anchors just lost. */}
           {anchorsOn && !openGroup ? (
-            <div className={'mmt-ringline' + (ringRecede ? ' is-recede' : '') + (ringOpen ? '' : ' is-closed')} style={{ width: AR * 2, height: AR * 2, transform: `translate(-50%, -50%) scale(${ringOpen ? 1 : 0.3})` }} aria-hidden="true"></div>
+            <div className={'mmt-ringline' + (ringRecede ? ' is-recede' : '') + (ringOpen ? '' : ' is-closed')} style={{ width: AR * 2, height: AR * 2, transform: 'translate(-50%, -50%)' }} aria-hidden="true"></div>
           ) : null}
           <button
             type="button"
@@ -759,34 +827,43 @@ function MapTab({ rail = true, anchorsOn = true, recency = true, fields: fieldsO
             </div>
             {openGroupDef ? <span className="mmt-center-glabel" style={{ fontSize: centerFs }}>{openGroupDef.label}</span> : null}
           </button>
-          {anchorsOn && !openGroup ? anchors.map((a) => {
-            const p = pos['ax-' + a.id];
-            if (!p) return null;
-            const isSel = selAnchor && selAnchor.id === a.id;
-            const isFilter = effFilter === a.id;
-            const soft = (selAnchor && !isSel) || ringRecede;
-            const lab = showALab || isSel || sel === 'root' || !!selNode;
-            const rk = ringOpen ? 1 : 0.12; // closed ring folds into the You dot
-            return (
-              <button
-                type="button"
-                key={a.id}
-                className={'mmt-node mmt-anchor' + (isSel ? ' is-sel' : '') + (soft ? ' is-soft' : '') + (lab ? '' : ' is-nolab') + (isFilter ? ' is-pulse' : '') + (ringOpen ? '' : ' is-closed')}
-                data-screen-label={'anchor-' + a.id}
-                style={{ '--hue': a.hue, transform: `translate(${p.x * rk}px, ${p.y * rk}px) translate(-50%, -50%) scale(${aScale})` }}
-                aria-pressed={!!isSel}
-                aria-label={a.label}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  if (isSel) clearSel();
-                  else selectAnchor(a.id);
-                }}
-              >
-                <span className="mmt-anchor-dot"></span>
-                <span className="mmt-anchor-label" style={{ fontSize: aFs }}>{a.label}</span>
-              </button>
-            );
-          }) : null}
+          {/* the fold wrapper owns the closed-ring collapse (scale 0.12 ↔ 1),
+              so each anchor's own transform — which tracks the per-frame
+              zoom counter-scale (aScale) — carries NO transition. When the
+              transition sat on the buttons themselves, every frame of a fit
+              tween re-targeted it and the anchors wobbled visibly the whole
+              time the card was open ("the dots shake" — 2026-08-11). */}
+          {anchorsOn && !openGroup ? (
+            <div className={'mmt-ringfold' + (ringOpen ? '' : ' is-closed')}>
+              {anchors.map((a) => {
+                const p = pos['ax-' + a.id];
+                if (!p) return null;
+                const isSel = selAnchor && selAnchor.id === a.id;
+                const isFilter = effFilter === a.id;
+                const soft = (selAnchor && !isSel) || ringRecede;
+                const lab = showALab || isSel || sel === 'root' || !!selNode;
+                return (
+                  <button
+                    type="button"
+                    key={a.id}
+                    className={'mmt-node mmt-anchor' + (isSel ? ' is-sel' : '') + (soft ? ' is-soft' : '') + (lab ? '' : ' is-nolab') + (isFilter ? ' is-pulse' : '') + (ringOpen ? '' : ' is-closed')}
+                    data-screen-label={'anchor-' + a.id}
+                    style={{ '--hue': a.hue, transform: `translate(${p.x}px, ${p.y}px) translate(-50%, -50%) scale(${aScale})` }}
+                    aria-pressed={!!isSel}
+                    aria-label={a.label}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (isSel) clearSel();
+                      else selectAnchor(a.id);
+                    }}
+                  >
+                    <span className="mmt-anchor-dot"></span>
+                    <span className="mmt-anchor-label" style={{ fontSize: aFs }}>{a.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+          ) : null}
 
           {/* branch hubs */}
           {cats.map((c) => {

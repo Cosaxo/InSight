@@ -8667,3 +8667,41 @@ it.
 applies with the counter on, saying so; never touches the resolver with
 the counter off or a city set; applies nothing on a failed fix and falls
 back to the ask; and the Country stop derives identically.
+
+## D91 · The persona's residue is scrubbed from live anchors at boot, by exact signature
+
+**Date:** 2026-08-11 · **Status:** Adopted
+
+**Decision.** `hydrate()` passes the profile doc's anchors through
+`scrubPersonaAnchors` (data/personaResidue.ts): `profession` equal to the
+sample persona's "Editor · independent press" is dropped, `education`
+equal to "MA Literature · Univ. of Oslo" is dropped, and `ageBand` goes
+only when BOTH matched — the whole triple was then the leak's one write.
+When anything was dropped, `saveAnchors` writes the cleaned map back, so
+the repair is durable and the next answer snapshots clean anchors (D8).
+City, gender and relationship are never touched: the seeded vitals never
+carried them.
+
+**Why now.** The owner's device showed "Editor · independent press ·
+FROM YOUR PROFILE" on the Map's Work anchor today (2026-08-11). The
+baseFor merge leak that wrote it is long fixed and migrateV1 filters the
+local v1 blob — but the DOC a pre-fix build polluted heals only via the
+profile panel's mount mirror, i.e. only when the profile overlay is next
+opened. A device that answers daily and never opens the profile keeps
+the fabricated cohort forever, stamped onto every immutable answer.
+Boot is the one place every device passes through.
+
+**Why exact-match deletion is safe here, and only here.** Neither string
+is enterable today: profession and education are closed `<select>`
+vocabularies (D8) that do not contain them, so an exact match IS the
+residue. `ageBand` fails that test — real people share the persona's
+band — hence the both-or-nothing rule for it. The trade is the same one
+migrateV1 already recorded: a hypothetical user who genuinely held both
+exact strings from the free-text era re-picks two fields, against
+fabricated anchors that otherwise cannot be corrected at all.
+
+**Enforcement.** `personaResidue.test.ts` binds the constants to
+`sample-data.js` verbatim (a drifted copy scrubs nothing), pins that
+`profile-general.jsx` contains neither string anywhere (a reintroduced
+default was the original leak), and covers full-triple, partial and
+clean-profile behavior.

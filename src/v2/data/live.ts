@@ -70,6 +70,7 @@ import {
 import type { AggDoc, LiveQuestion, QuestionDoc, VoteContext } from "./deck";
 import { nearOptedIn, setNearOptIn } from "./near";
 import { locateCell, locateSupported } from "./locate";
+import { scrubPersonaAnchors } from "./personaResidue";
 
 const state = {
   ready: false,
@@ -725,6 +726,15 @@ async function hydrate(): Promise<void> {
           (prof.get("testResults") as Record<string, unknown>) || {};
         state.profile.anchors =
           (prof.get("anchors") as Record<string, string>) || {};
+        // A doc a pre-fix build polluted with the sample persona's job and
+        // education (the baseFor merge leak — personaResidue.ts has the
+        // history) heals HERE, not only on the next profile open: the Map's
+        // anchor ring reads these back as "from your profile", and
+        // answerAnchors() stamps them onto every immutable answer until
+        // someone repairs the doc. saveAnchors writes the cleaned map back,
+        // so the repair is durable rather than per-boot.
+        const scrubbed = scrubPersonaAnchors(state.profile.anchors);
+        if (scrubbed) LIVE.saveAnchors(scrubbed);
       }
     } catch (err) {
       reportError(err, { where: "hydrate.profile" });
