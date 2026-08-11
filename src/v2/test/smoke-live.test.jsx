@@ -282,6 +282,38 @@ describe("the live gates hold in the DOM, not just in the source", () => {
     expect(screen.getByText(/No takes yet/i)).toBeTruthy();
   });
 
+  // D94's payoff, in the only test that executes a render of it inside the
+  // real app rather than in isolation. The panel test next to the
+  // component covers its states; what this covers is that it is WIRED —
+  // mounted from the who-voted sheet of a live card, on the real shell,
+  // through the spec layer's own render path.
+  //
+  // The previous version of this file could not have caught the panel
+  // being absent: nothing outside the sheet mentions it.
+  it("names the people who answered, in the who-voted sheet of a live card", async () => {
+    // The feed persists its votes to localStorage, and installLive() does
+    // not clear it — so the case above has already answered this card by
+    // the time this one runs, and voteFeedCardAndSettle finds no option
+    // button. Passes alone, fails in the file; cleared here rather than in
+    // a shared beforeEach so the neighbouring cases keep the state they
+    // were written against.
+    localStorage.clear();
+    mountLive();
+    await voteFeedCardAndSettle();
+    const whoVoted = screen.queryByRole("button", { name: /who voted/i });
+    expect(whoVoted, "the live engage row did not render — this test is vacuous").not.toBeNull();
+    fireEvent.click(whoVoted);
+    await act(async () => { await new Promise((r) => setTimeout(r, 50)); });
+    // The fixture serves one named voter and one unnamed, on opposite
+    // options — both label paths, in one assertion each.
+    expect(screen.getByText(/who answered/i)).toBeTruthy();
+    expect(screen.getByText("You")).toBeTruthy();
+    expect(screen.getByText("Someone")).toBeTruthy();
+    // And the cohort chip comes off the answer's frozen snapshot (D8).
+    expect(screen.getByText(/25-34 · Oslo, NO/)).toBeTruthy();
+    expect(document.body.textContent).not.toMatch(/could not load who answered/i);
+  });
+
   // The control for the case above. Without it, that assertion passes for
   // any reason the engage row fails to render — a broken fixture included —
   // and stops being a statement about the gate at all.

@@ -144,6 +144,10 @@ import './ui/PickSearch';
 import './ui/LiveCohortBody';
 import './ui/LiveGroupsMirrorBody';
 import './ui/LiveTakesPanel';
+// NB: ui/LiveVotersPanel is deliberately NOT listed here. Its only
+// consumer is world-feed.jsx, which imports it directly and is itself
+// deferred past first paint (D25) — listing it would drag it into the
+// eager bundle to no purpose.
 import './spec/app-shell.jsx';
 
 // ── the world feed, after first paint ──────────────────────────────────

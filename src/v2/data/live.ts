@@ -55,6 +55,9 @@ import {
   subscribeToAuth,
 } from "../../lib/firebase";
 import { reportError, setSentryUser } from "../../lib/sentry";
+// The cross-user read (D94). Pure helpers + the two queries live there so
+// the grouping/sorting can be unit-tested without Firebase.
+import { fetchVoters, groupByOption, sortVoters, type Voter } from "./voters";
 // Pure deck-shaping logic lives in ./deck (unit-testable, no firebase);
 // this module passes its store state in.
 import {
@@ -168,6 +171,19 @@ const state = {
   // nothing can re-read, and a stale "Reported" is a worse lie than a
   // second flag the rules already refuse as a duplicate.
   myFlags: {} as Record<string, true>,
+  // ── named who-voted (D94) ──
+  // qid → everyone who answered it, newest first, with the cohort frozen
+  // on each answer and the author's display name resolved. Fetched on
+  // demand and held for the session: this is the app's only cross-user
+  // read, it is one collection-group query plus a batched profile read,
+  // and a card scrolled past must pay for neither.
+  voters: {} as Record<string, Voter[]>,
+  votersLoading: {} as Record<string, boolean>,
+  // uid → display name ("" for an account that has set none). Shared by
+  // every question's voter list, because crowds overlap: without this,
+  // opening five questions re-reads the same regulars five times.
+  // Session-scoped, and dropped by the purge with everything else.
+  names: {} as Record<string, string>,
 };
 
 // One take as the circle reads it. `hidden` is always false on anything a
@@ -1438,6 +1454,50 @@ const LIVE = {
   // backend — and the caller (lens-defs.js LENS_FEED_QS) falls back to
   // the selfOnly acknowledgment rather than fabricating a crowd. That
   // fallback is about ABSENT data, not withheld data, so D94 leaves it.
+  // ── named who-voted (D94) ─────────────────────────────────────
+  //
+  // The read the whole reversal was for. Everything else in this store
+  // reads the viewer's own documents or a public aggregate; this reaches
+  // across users, which no rule permitted before D94 and no client here
+  // attempted.
+  //
+  // Load-on-demand, exactly like loadTakes: the caller is a panel that
+  // mounts when someone opens the who-voted sheet, so a feed of fifty
+  // cards costs nothing until one is asked about.
+  async loadVoters(qid: string): Promise<void> {
+    if (!qid || state.votersLoading[qid]) return;
+    state.votersLoading[qid] = true;
+    try {
+      const db = await getDb();
+      state.voters[qid] = await fetchVoters(db, qid, state.uid, state.names);
+    } catch (err) {
+      // Leave the key ABSENT rather than caching an empty list. The two
+      // states render differently and must not be confused: absent is
+      // "we could not ask", empty is "nobody answered". Freezing a
+      // failure into the session as "nobody" is the same class of lie
+      // the old floor's silent gaps were.
+      reportError(err, { where: "loadVoters", qid });
+    } finally {
+      state.votersLoading[qid] = false;
+      notify();
+    }
+  },
+  // null while unfetched or failed; an array (possibly empty) once known.
+  voters(qid: string): Voter[] | null {
+    const rows = state.voters[qid];
+    return rows ? sortVoters(rows) : null;
+  },
+  // The same list, split into one column per option. optionCount comes
+  // from the question rather than the data, so an option nobody picked
+  // still gets an (empty) column.
+  votersByOption(qid: string, optionCount: number): Voter[][] | null {
+    const rows = this.voters(qid);
+    return rows ? groupByOption(rows, optionCount).map(sortVoters) : null;
+  },
+  votersLoading(qid: string): boolean {
+    return !!state.votersLoading[qid];
+  },
+
   lensAgg(qid: string): { counts: number[]; noCountsYet: boolean } | null {
     const q = state.feedBank.find((x) => x.id === qid && x.surface === "test");
     if (!q) return null;
@@ -1924,6 +1984,14 @@ function resetForNewUid(uid: string): void {
   state.takes = {};
   state.takesLoading = {};
   state.myFlags = {};
+  // The voter lists carry an `isMe` flag computed against the OLD uid, so
+  // a survivor would mark a stranger's answer as this account's own. The
+  // name cache is dropped with them: it is other people's display names,
+  // held only to save reads, and nothing about it should outlive the
+  // session that fetched it.
+  state.voters = {};
+  state.votersLoading = {};
+  state.names = {};
   state.profile = { displayName: "", testResults: {}, anchors: {} };
   state.deckIds = [];
   state.deckDay = -1;

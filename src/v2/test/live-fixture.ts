@@ -102,6 +102,13 @@ function liveQuestion(id: string, prompt: string, tooSmall: boolean) {
 
 export interface LiveHandle {
   LIVE: Dict;
+  /**
+   * The members this fixture actually stubs. `LIVE` above is the REAL store
+   * with these redefined on top, so its key list is the real surface and
+   * says nothing about what the fixture covers — which is the one thing
+   * fixtureSurfaceMismatch needs to know.
+   */
+  fixtureKeys: string[];
   /** Votes the fixture recorded, so a test can assert a click reached the store. */
   votes: Record<string, string>;
   restore(): void;
@@ -191,6 +198,19 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
     // D91: counts for a seeded lens question, null when the bank carries
     // none — which is the cue for D50's selfOnly fallback. Five entries to
     // match the lens scale; zeros below the floor, same rule as aggFor.
+    // Named who-voted (D94). The fixture serves one named voter and one
+    // unnamed, on opposite options, so a live-mode mount exercises both
+    // label paths rather than only the happy one.
+    loadVoters: async () => {},
+    voters: () => [
+      { uid: "u_fixture", optionIdx: 0, anchors: { ageBand: "25-34", city: "Oslo, NO" }, name: "Tester", isMe: true },
+      { uid: "u_other", optionIdx: 1, anchors: {}, name: "", isMe: false },
+    ],
+    votersByOption: () => [
+      [{ uid: "u_fixture", optionIdx: 0, anchors: { ageBand: "25-34", city: "Oslo, NO" }, name: "Tester", isMe: true }],
+      [{ uid: "u_other", optionIdx: 1, anchors: {}, name: "", isMe: false }],
+    ],
+    votersLoading: () => false,
     lensAgg: () => ((opts.lensBank ?? true)
       ? { counts: tooSmall ? [0, 0, 0, 0, 0] : [9, 6, 4, 3, 3], tooSmall }
       : null),
@@ -255,6 +275,15 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
   // updateAvailable, updateRequired) are getters with no setter, and an
   // assignment to one of those throws in a module's strict mode.
   const target = realLive as unknown as Dict;
+  // What the fixture actually overrides. Captured because the drift check
+  // below cannot otherwise see it: `target` IS the real store with these
+  // keys redefined on top, so Object.keys(target) reports the real
+  // object's surface whether the fixture stubbed a member or not. Without
+  // this the guard silently degraded into a second copy of vote.test.ts's
+  // check, and a member the fixture forgot would reach real Firebase from
+  // a jsdom test — which fails as a caught error and renders an honest
+  // empty state, i.e. invisibly.
+  const fixtureKeys = Object.keys(LIVE);
   const savedDescriptors = new Map<string, PropertyDescriptor | undefined>();
   for (const [k, v] of Object.entries(LIVE)) {
     savedDescriptors.set(k, Object.getOwnPropertyDescriptor(target, k));
@@ -285,7 +314,7 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
   // q.live gate a second time and leaves the demoInProd check unexercised —
   // confirmed by deleting that check and watching the suite stay green.
   if (opts.demoInProd) {
-    return { LIVE: target, votes, restore: restoreLive };
+    return { LIVE: target, fixtureKeys, votes, restore: restoreLive };
   }
 
   // Deliberately NOT the deck's questions. The daily tab renders the deck
@@ -315,6 +344,7 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
 
   return {
     LIVE: target,
+    fixtureKeys,
     votes,
     restore() {
       restoreLive();
@@ -339,7 +369,10 @@ export function fixtureSurfaceMismatch(handle: LiveHandle): {
     ...expected.filter((k) => !actual.includes(k)).map((k) => `-${k}`),
   ];
   return {
-    live: diff(Object.keys(handle.LIVE), LIVE_MEMBERS),
+    // handle.fixtureKeys, NOT Object.keys(handle.LIVE): the fixture
+    // redefines members on the real store, so the latter answers with the
+    // real surface and can never report a member the fixture skipped.
+    live: diff(handle.fixtureKeys, LIVE_MEMBERS),
     social: diff(Object.keys(handle.LIVE.social as Dict), LIVE_SOCIAL_MEMBERS),
     near: diff(Object.keys(handle.LIVE.near as Dict), LIVE_NEAR_MEMBERS),
   };

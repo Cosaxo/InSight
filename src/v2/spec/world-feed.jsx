@@ -4,6 +4,12 @@
 // spec-index.js load order is semantic — scripts/check-spec-globals.mjs
 // guards the wiring in CI.
 import React from 'react';
+// An ordinary import, not a globalThis lookup: D39's ratchet only moves
+// down, and this panel's one consumer is this file. Static rather than
+// listed in spec-index on purpose — world-feed is deferred past first
+// paint (D25), so importing it here keeps it in the deferred chunk
+// instead of pulling it into the first-paint bundle.
+import LiveVotersPanel from '../ui/LiveVotersPanel';
 import { WPAL } from './world-palette.js';
 import { HAPTIC } from './haptics.js';
 import { WF_CATALOGS } from './world-catalogs.js';
@@ -2182,14 +2188,31 @@ class WorldFeed extends React.Component {
 
   renderStats(q, T) {
     const by = this.liveBy(q);
-    if (by) return this.renderLiveStats(q, T, by);
-    // A live question whose breakdown is not publishable yet says so,
-    // rather than falling through to the demo's invented split.
+    // Named who-voted (D94) rides under the cohort breakdown on every live
+    // card. Two different questions — "how did each group split" and "who
+    // actually answered" — and the second one is the whole reason the
+    // privacy model came off, so it is not hidden behind a second tap.
+    const voters = q.live
+      ? <LiveVotersPanel qid={q.id} options={q.options.map((o) => o.label)} />
+      : null;
+    if (by) {
+      return (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+          {this.renderLiveStats(q, T, by)}
+          {voters}
+        </div>
+      );
+    }
+    // A live question with no breakdown yet still has voters — one answer
+    // is enough for this panel and not enough for a cross-tab, so the
+    // cohort half says so and the named half renders anyway.
     if (q.live) {
       return (
-        <div style={{ fontFamily: 'var(--sans)', fontSize: 13, fontWeight: 600, color: 'var(--ink-3)', lineHeight: 1.55, padding: '6px 2px', textWrap: 'pretty' }}>
-          No group is large enough yet to show how it split without pointing
-          at someone. Come back when more people have answered.
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+          <div style={{ fontFamily: 'var(--sans)', fontSize: 13, fontWeight: 600, color: 'var(--ink-3)', lineHeight: 1.55, padding: '6px 2px', textWrap: 'pretty' }}>
+            Not enough answers yet to break this down by group.
+          </div>
+          {voters}
         </div>
       );
     }

@@ -23,6 +23,14 @@
 
 export const LIVE_MEMBERS = [
   "aggFor", "anchors", "appBuild",
+  // Named who-voted (D94) — the app's only cross-user read, and the
+  // reason the reversal was worth doing. On LIVE rather than LIVE.social
+  // deliberately: `social` is groups, duos and their takes, while a
+  // question's voters are a WORLD surface with no circle in it.
+  // `loadVoters` fetches on demand; `voters` returns null while unfetched
+  // or failed and an array (possibly empty) once known, because "could
+  // not ask" and "nobody answered" must not render the same.
+  "loadVoters", "voters", "votersByOption", "votersLoading",
   // The reason boot did not attach, rendered under the "Sample questions ·
   // reconnecting…" pill when it is tapped. It exists because that label
   // said a real user was on demo content without saying why, and an
