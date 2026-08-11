@@ -37,8 +37,6 @@ import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { logger } from "firebase-functions";
 import { ENFORCE_APP_CHECK, LIGHT_CALLABLE } from "./ops";
 import { generateForm, version as GEN_VERSION, type Cell } from "./logic-gen";
-import { shouldPublishAgg } from "./pure";
-import { AGG_MIN_N, PUBLISH_EVERY } from "./v2";
 
 const REGION = "us-central1";
 
@@ -172,12 +170,10 @@ export function clientItems(seed: number, gv: number): LogicClientItem[] {
 // ── norms histogram fold (pure; the callable wraps it in a transaction) ──
 // Flat b0..b25 buckets + n + the form length it counts (`items` — a
 // histogram of 12-item scores must never mix with 25-item ones, so a
-// length change starts a fresh era, D61). Exact counts live in the
-// private doc; the
-// public mirror appears only at or above the same floor as the question
-// aggregates, and only every PUBLISH_EVERY-th count — the same
-// step-attribution argument (a client watching the public doc must never
-// see a lone +1 land right after a friend says "taking it now").
+// length change starts a fresh era, D61). The private doc is the working
+// copy; the public mirror is rewritten on every attempt with the same
+// exact numbers (D94 — the floor and the cadence that used to gate it
+// are gone, along with the step-attribution argument behind them).
 export type LogicNorms = Record<string, number>;
 
 export function foldNorms(prev: LogicNorms | null, score: number): LogicNorms {
@@ -225,9 +221,10 @@ export function foldDifficultyStats(
 //
 // The floor's arithmetic (D60): at n = 100 the worst-case standard error
 // of an empirical percentile is sqrt(0.5·0.5/100) ≈ 5 points — comparable
-// to the modelled curve's own honesty margin — and the k-anonymity floor
-// (AGG_MIN_N) is cleared twenty times over. One constant; lowering it is
-// a recorded decision, not a tweak.
+// to the modelled curve's own honesty margin. This is a STATISTICAL
+// stability floor and survives D94 untouched: it is about whether a
+// percentile means anything, not about who may read it. One constant;
+// lowering it is a recorded decision, not a tweak.
 export const LOGIC_NORMS_MIN_N = 100;
 
 export function measuredPctile(
@@ -386,15 +383,12 @@ export const logicSubmitV2 = onCall(
       );
       if (norms) {
         tx.set(privRef, norms);
-        if (shouldPublishAgg(norms.n, AGG_MIN_N, PUBLISH_EVERY)) {
-          tx.set(db.collection("v2_logic_norms").doc("global"), { ...norms, updatedAtMs: now });
-        }
+        // Published on every attempt (D94 — no cadence, nothing withheld).
+        tx.set(db.collection("v2_logic_norms").doc("global"), { ...norms, updatedAtMs: now });
       }
       if (famStats) {
         tx.set(famRef, famStats);
-        if (shouldPublishAgg(famStats.n, AGG_MIN_N, PUBLISH_EVERY)) {
-          tx.set(db.collection("v2_logic_norms").doc("families"), { ...famStats, updatedAtMs: now });
-        }
+        tx.set(db.collection("v2_logic_norms").doc("families"), { ...famStats, updatedAtMs: now });
       }
       // The seed is disclosed only NOW — the attempt is scored and cannot
       // be resubmitted, so it is no longer an answer key; handing it back

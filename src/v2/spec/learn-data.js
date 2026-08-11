@@ -47,7 +47,7 @@ function learnMeasured(card) {
   const L = window.LIVE;
   if (!(L && L.enabled && L.learnAgg)) return null;
   const agg = L.learnAgg(card.id);
-  if (!agg || agg.tooSmall !== false || !agg.counts) return null;
+  if (!agg || !agg.counts) return null;
   const n = card.a.length;
   const counts = [];
   let total = 0;

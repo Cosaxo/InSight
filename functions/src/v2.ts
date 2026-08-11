@@ -5,18 +5,28 @@
 //                       SEED_ADMIN_UIDS env var — with anonymous-first auth
 //                       (D3), "any signed-in user" would mean "anyone".
 //   onV2AnswerCreated   folds each answer into v2_aggs_private/{qid} and
-//                       mirrors a PUBLIC copy to v2_question_aggs/{qid}
-//                       only once total >= AGG_MIN_N — a k-floor so a
-//                       reader can never recover an individual's answer
-//                       from a tiny cohort (same principle as the geo
-//                       aggregates' K_ANON_FLOOR). Idempotent via an
-//                       event ledger, so at-least-once delivery and
-//                       retry-on-failure cannot double-count. The same
-//                       ledger carries uid attribution, which is what
-//                       keeps the aggregates CORRECTABLE after a
-//                       fake-account ring is discovered (D28).
+//                       mirrors an EXACT public copy to
+//                       v2_question_aggs/{qid} on every answer.
+//                       Idempotent via an event ledger, so at-least-once
+//                       delivery and retry-on-failure cannot
+//                       double-count. The same ledger carries uid
+//                       attribution, which is what keeps the aggregates
+//                       CORRECTABLE after a fake-account ring is
+//                       discovered (D28).
 //
-// Schema and access decisions: docs/SCHEMA-V2.md, docs/DECISIONS.md (D5).
+// THERE IS NO K-ANONYMITY FLOOR (D94). There was: counts published only
+// at or above AGG_MIN_N, on a PUBLISH_EVERY cadence, with complementary
+// suppression hiding a bucket whose neighbour was recoverable by
+// subtraction. All of it is gone, and not as a pause — the principle is
+// retired. InSight's product is showing how one person's answers link to
+// everyone else's, the answers themselves are public (firestore.rules),
+// and a floor over public data is a curtain in front of an open window.
+//
+// The two collections survive as bookkeeping, not as a curtain: the
+// private doc is the trigger's working state, the public doc is what
+// clients hold an onSnapshot on, and they now carry the same numbers.
+//
+// Schema and access decisions: docs/SCHEMA-V2.md, docs/DECISIONS.md (D94).
 
 import { getFirestore, FieldValue, type Firestore, type Transaction } from "firebase-admin/firestore";
 import { onCall, HttpsError } from "firebase-functions/v2/https";
@@ -29,15 +39,12 @@ import {
   catalogEntityKey,
   foldAnchors,
   foldCanonAnchors,
-  publishBreakdown,
-  publishableBreakdown,
-  publishableCanon,
+  canonTopN,
   retargetAnchors,
   retargetCounts,
   seedDocMatches,
   seedOptionConflict,
   describeSeedOptionConflicts,
-  shouldPublishAgg,
   type BreakdownCounts,
   type CanonCounts,
   type CatalogSpec,
@@ -47,98 +54,58 @@ import { FILM_KEYS, ARTIST_KEYS, EMOJI_KEYS } from "./catalogKeys";
 
 const REGION = "us-central1";
 
-// Public counts appear only at or above this many answers. Raise as the
-// userbase grows; the private doc keeps exact counts either way.
+// ── no floor, no cadence (D94) ──────────────────────────────────
 //
-// ── PAUSED at 1 for pre-launch (D81, owner's call 2026-08-09) ──
-// At the current userbase every cohort sits under 5 indefinitely, so the
-// entire product renders as "withheld" — the floor was protecting nobody
-// from nothing while making the app look dead. The value is 1 (not a
-// removed check) so the machinery stays exercised: publishableBreakdown,
-// tooSmall, complementary suppression and the single-bucket rule all still
-// run, they just bite at a size that never occurs. The accepted disclosure
-// while paused — a cohort of one or two IS an individual's answer to
-// anyone who knows who is in it — is recorded in D81 with the revert
-// condition. To restore: set this and PUBLISH_EVERY back to 5 (both
-// literals, same commit — the cross-file drift tests hold the client copy
-// to these exact numbers and will name every file that must follow).
-export const AGG_MIN_N = 1;
+// AGG_MIN_N and PUBLISH_EVERY used to live here: a k-floor that withheld
+// a cohort's counts until it held 5 answers, and a write cadence that
+// published only every 5th answer so an onSnapshot could not stream one
+// attributable vote per step. D81 had already paused both to 1 because a
+// pre-launch userbase made the whole product render as "withheld".
+//
+// D94 deletes them rather than un-pausing them, because the thing they
+// defended is no longer a thing this product does. Answers are readable
+// per-user by any signed-in client (firestore.rules) — so a cohort count
+// discloses strictly less than the documents it is folded from, and
+// batching the increments hides a step whose source is a public read
+// away. A floor over public data is theatre with a running cost.
+//
+// What that means concretely, everywhere below: the public mirror is
+// rewritten on EVERY answer, carrying exact counts and the complete
+// per-anchor breakdown, with no suppressed cells and no `tooSmall`.
+//
+// The contention half of the old cadence argument was real and does NOT
+// disappear with it: both docs in the trigger's transaction are keyed by
+// qid, and Firestore sustains ~1 write/sec/document (D7). Publishing per
+// answer restores that pressure. It is accepted knowingly at launch
+// volume and the mitigation, when it is needed, is to collapse the two
+// documents into one rather than to reintroduce a floor — the private
+// doc has no readers at all now (see the header).
 
-// Public-mirror write cadence: one publish per this many answers, at every
-// size. Two jobs, and it took both to settle the number.
+// ── every question slices (D94 reverses D44) ────────────────────
 //
-// Disclosure (the reason it is uniform): clients hold an onSnapshot on the
-// public doc, so rewriting per answer streams one attributable vote per
-// step. Batching means each observed delta aggregates PUBLISH_EVERY votes —
-// the same k the floor uses, applied to the increment. shouldPublishAgg()
-// in pure.ts carries the full argument and the residual.
+// There used to be a carve-out here: the political items were treated as
+// Art. 9 special-category data and published their overall split with NO
+// per-anchor breakdown at all, so nobody could read "how did 25-34s in
+// Oslo answer this political question".
 //
-// Contention (D7): both docs in the trigger's transaction are keyed by qid,
-// and Firestore sustains ~1 write/sec/document. Publishing every 5th cuts
-// writes to pubRef by ~80% at any volume.
+// D94 removes it. The carve-out was one instance of the general rule this
+// reversal retires — that some answers are too revealing to link — and
+// keeping it would leave the app with a category of question whose
+// cross-tab is missing for no reason a user could see, which is worse
+// than either consistent answer. Political items now fold into the
+// per-anchor breakdown exactly like every other question.
 //
-// It used to be every answer below 50 and every 5th above, on the reasoning
-// that a small question has no contention to relieve and an inexact count
-// there is visible. True, and beside the point: the small-question case is
-// exactly where a per-answer stream is most attributable, because there are
-// few enough voters to guess among.
-// Exported since D57: the logic norms histogram publishes its public
-// mirror on the same cadence, for the same attribution argument.
-//
-// ── PAUSED at 1 with the floor (D81) ──
-// Publishing per answer makes every step attributable — that is the whole
-// disclosure argument above, accepted knowingly for the pre-launch phase
-// where the floor itself is paused: batching votes nobody can see defends
-// nothing. The two constants move together, both directions — a floor of 1
-// with a cadence of 5 would hold the first four answers hostage for no
-// disclosure gain, and the restored floor without the restored cadence
-// re-opens the one-vote-per-step stream D7's amendment closed.
-export const PUBLISH_EVERY = 1;
-
-// May an answer EDIT rewrite the public mirror directly? Only while D81
-// holds both constants at 1 — i.e. only while every create already
-// publishes its exact step. An edit's delta is always exactly one person
-// (-old/+new with the total unchanged), and no cadence can aggregate it
-// with anything: total does not move, so a later edit-publish at the same
-// total is a lone person's change of mind, attributable on sight. Under
-// the restored constants that is precisely the stream shouldPublishAgg
-// exists to close — so edits then fold into the private doc only and
-// surface with the next CREATE-driven publish, where their -1 hides among
-// >= PUBLISH_EVERY other people's votes (same k bound as the floor, D86).
-// `<= 1`, not `=== 1`: the literal types of the paused constants would
-// make an equality test a compile error the day D81 reverts, and the
-// revert must stay a two-literal commit.
-const EDITS_REPUBLISH = AGG_MIN_N <= 1 && PUBLISH_EVERY <= 1;
-
-// ── questions that never slice (D44) ────────────────────────────
-//
-// The political items are Art. 9 special-category data, and D8 treats them
-// that way everywhere the *result vector* is concerned: it stays in the
-// owner doc, never sliced, never published. The eighteen ITEMS those
-// results are computed from ship as ordinary feed cards — `surface: "test"`,
-// which deck.ts routes into the live feed alongside `surface: "feed"` — so
-// they reached the vote path below like any other question and folded into
-// the per-anchor breakdown like any other question. That published each
-// political item's split by city, gender, age band, education and
-// relationship, to any signed-in reader, while docs/data-inventory.md told
-// store reviewers political data is "never sliced by, never published".
-//
-// The counts still publish. What is withheld is the demographic cross-tab —
-// the slice, not the split. D44 has the arithmetic and the alternatives.
-//
-// Derived from the committed bank at module load, not read per answer:
-// v2content.ts is already imported for the seed, so this costs one pass
-// over the bank at cold start and NO Firestore read on the hot path — which
-// matters, because the vote path's whole design is that it never reads the
-// question doc (the catalog path's read is the documented exception).
-// check:content holds v2content.ts byte-identical to /content on the deploy
-// path, so a new political item joins this set by existing.
+// POLITICAL_QIDS is kept, and deliberately: the marker still identifies
+// which items came from the political test and which ordinary feed cards
+// carry a political opinion. It is no longer consulted by the fold path.
+// Removing the set entirely would delete the only machine-readable record
+// of which questions those are, which is a thing a future decision may
+// want back — but nothing reads it today, so treat it as documentation.
 //
 // Two markers, one set (D52). `test === "political"` is the political
-// TEST's own items. `political === true` is the same Art. 9 judgement
-// applied to ordinary opinion cards — a feed question like "Should voting
-// be mandatory?" is a political opinion in exactly the sense this set
-// exists for, and it cannot reuse the `test` marker: PASSIVE.record and
+// TEST's own items. `political === true` is the same judgement applied to
+// ordinary opinion cards — a feed question like "Should voting be
+// mandatory?" — which cannot reuse the `test` marker: PASSIVE.record and
 // the feed's test-kicker key off `q.test`, so marking a feed card
 // "political" that way would silently count it toward the political
 // test's progress rings.
@@ -146,34 +113,22 @@ export const POLITICAL_QIDS: ReadonlySet<string> = new Set(
   V2_QUESTIONS.filter((q) => q.test === "political" || q.political === true).map((q) => q.id),
 );
 
-// The predicate, exported because the set alone cannot be asserted against
-// intent — a test that reads POLITICAL_QIDS and re-derives it from
-// V2_QUESTIONS proves only that Set works. slicing.test.ts asserts this
-// answers false for every political item the bank actually ships, and true
-// for the non-political items that share their surface.
-export function slicesDemographics(qid: string): boolean {
-  return !POLITICAL_QIDS.has(qid);
-}
-
 /**
- * The per-anchor breakdown this answer leaves behind — D44's ENFORCEMENT
- * point, extracted from the trigger so it has cases of its own.
+ * The per-anchor breakdown this answer leaves behind.
  *
- * Returning `{}` for a political item rather than merely skipping the fold
- * is deliberate: privRef is written with merge:false, so the next answer to
- * a political question also ERASES any breakdown folded before this guard
- * existed, instead of carrying it forward untouched forever.
+ * Since D94 there is no question type that declines to slice, so this is
+ * a straight fold. It stays a named function rather than being inlined
+ * because the trigger, the edit path and the catalog path all want the
+ * same one, and three copies is how they drift.
  */
 export function breakdownFor(
-  qid: string,
+  _qid: string,
   storedBy: BreakdownCounts | null | undefined,
   anchors: unknown,
   optionIdx: number,
-  floor: number,
 ): BreakdownCounts {
-  if (!slicesDemographics(qid)) return {};
   const by: BreakdownCounts = storedBy || {};
-  foldAnchors(by, anchors, optionIdx, floor);
+  foldAnchors(by, anchors, optionIdx);
   return by;
 }
 
@@ -224,12 +179,14 @@ function ledgerEntry(uid: string, qid: string) {
 // interleaving; three is the ceiling arriving, which is why that is where
 // this logs. A line per contended answer, not per answer.
 //
-// WHAT PUBLISH_EVERY DID NOT BUY. It cuts writes to pubRef by ~80% and
-// closes a disclosure channel (see the constant above), and it is easy to
-// read that as headroom. It is not: privRef is written on EVERY answer
-// inside the same transaction, and a transaction is bounded by its most
-// contended document. The ceiling is exactly where D7's arithmetic puts
-// it. This measures it; sharding privRef is what would move it.
+// WHY THIS STILL MEASURES SOMETHING AFTER D94. The old publish cadence cut
+// writes to pubRef by ~80%, and it was tempting to read that as headroom.
+// It never was: privRef is written on EVERY answer inside the same
+// transaction, and a transaction is bounded by its most contended
+// document. Removing the cadence therefore did not move the ceiling — it
+// only removed the illusion of margin. The ceiling is exactly where D7's
+// arithmetic puts it. This measures it; sharding, or collapsing the two
+// documents into one, is what would move it.
 const CONTENTION_ATTEMPTS = 3;
 
 // Exported for its test only — nothing outside this module calls it. The
@@ -548,68 +505,38 @@ export const onV2AnswerCreated = onDocumentCreated(
         // per-cell entity cap (pure.ts, D17). Same document, same D7
         // arithmetic as the vote path's `by`.
         //
-        // D44 applies here too, though no political question can currently
-        // reach this path — the eighteen are type "scale" and this branch
-        // needs an `entity`. The guard is here anyway because the cost is
-        // one condition and the alternative is a trap that reopens silently
-        // the day someone ships a catalog question with test: "political".
-        const entSlices = slicesDemographics(qid);
-        const entBy: BreakdownCounts = entSlices
-          ? (priv.exists && (priv.get("entBy") as BreakdownCounts)) || {}
-          : {};
-        if (entSlices) foldCanonAnchors(entBy, snap.get("anchors"), key, AGG_MIN_N);
-        // What the last publish released, per bucket. The publish CADENCE is
-        // counted in answers to the question; a bucket's own movement is not,
-        // so the k that shouldPublishAgg gives `total` has to be applied a
-        // second time, per bucket, or a step of one names a person
-        // (steppedBreakdown, pure.ts).
-        const entReleased: BreakdownCounts = entSlices
-          ? (priv.exists && (priv.get("entByPub") as BreakdownCounts)) || {}
-          : {};
-        const publishing = total >= AGG_MIN_N
-          && shouldPublishAgg(total, AGG_MIN_N, PUBLISH_EVERY);
-        const canon = publishing ? publishableCanon(ent, AGG_MIN_N, CANON_TOP_N) : null;
-        // Only a publish moves the released map — an answer that changes
-        // nothing on screen must not consume a bucket's step budget.
-        // Same rule as the vote path: store what was PUBLISHED, so a
-        // suppressed bucket does not spend its step budget unseen.
-        const entByPub = canon
-          ? publishBreakdown(canonBreakdownFor(entBy, canon.top), entReleased, AGG_MIN_N)
-          : entReleased;
+        // Every catalog question slices too (D94 — see the vote path).
+        const entBy: BreakdownCounts =
+          (priv.exists && (priv.get("entBy") as BreakdownCounts)) || {};
+        foldCanonAnchors(entBy, snap.get("anchors"), key);
+        // The leaderboard, cut to a DISPLAY size rather than a floor.
+        // canonTopN keeps the N biggest entities and folds the remainder
+        // into `rest`; it used to also drop every entity under the
+        // k-floor and fold whole tie-groups so a boundary count could not
+        // be recovered by subtraction. Both of those were disclosure
+        // rules and both are gone — `rest` is now simply "everything
+        // outside the top N", which is what a reader assumed it was.
+        const canon = canonTopN(ent, CANON_TOP_N);
         tx.set(eventRef, ledgerEntry(event.params.uid, qid));
         // Bounded growth: `ent` is capped by catalogue validation (~1k
         // entries); `entBy` by the bucket cap × its own per-cell entity
         // cap (foldCanonAnchors) — tens of KB against Firestore's 1 MiB
-        // limit either way. `entByPub` is a subset of `entBy` restricted to
-        // the published board, so it is bounded by CANON_TOP_N × the bucket
-        // cap and adds no new growth term.
-        tx.set(privRef, { ent, entBy, entByPub, total }, { merge: false });
-        if (total >= AGG_MIN_N) {
-          if (publishing) {
-            // A null canon means nothing survives the fold's own floors —
-            // publish the bare total rather than a decorative board. When
-            // there IS a board, its per-segment orderings ride along:
-            // cells restricted to the board's own entities, stepped so no
-            // bucket moves by less than the floor, then the same
-            // bucket-cohort floor + complementary suppression as the vote
-            // path (D17).
-            tx.set(
-              pubRef,
-              canon
-                ? {
-                    total,
-                    tooSmall: false,
-                    top: canon.top,
-                    rest: canon.rest,
-                    by: entByPub,
-                  }
-                : { total, tooSmall: false },
-              { merge: false },
-            );
-          }
-        } else {
-          tx.set(pubRef, { tooSmall: true }, { merge: false });
-        }
+        // limit either way.
+        tx.set(privRef, { ent, entBy, total }, { merge: false });
+        // Published whole, every answer. The `by` map is cut to the
+        // board's own entities purely to bound the document — a segment
+        // ordering for an entity nobody can see on the board has nothing
+        // to order.
+        tx.set(
+          pubRef,
+          {
+            total,
+            top: canon.top,
+            rest: canon.rest,
+            by: canonBreakdownFor(entBy, canon.top),
+          },
+          { merge: false },
+        );
       });
       return;
     }
@@ -641,71 +568,36 @@ export const onV2AnswerCreated = onDocumentCreated(
       // `anchors: {}` and fold to nothing, so this is inert until there is
       // something to slice by — see D8.
       //
-      // D44: political items never slice. Reading `{}` rather than the
-      // stored map — instead of only skipping the fold — is deliberate:
-      // privRef is written with merge:false below, so the next answer to a
-      // political question also ERASES any breakdown folded before this
-      // guard existed, rather than carrying it forward untouched forever.
-      const slices = slicesDemographics(qid);
+      // Every question slices since D94 — there is no political carve-out
+      // and no per-cell floor. The breakdown folded here is the breakdown
+      // published, whole.
       const by = breakdownFor(
         qid,
         priv.exists ? (priv.get("by") as BreakdownCounts) : null,
         snap.get("anchors"),
         optionIdx,
-        AGG_MIN_N,
       );
-      // The breakdown a reader has already seen. PUBLISH_EVERY bounds the
-      // delta of `counts`, whose unit is the question; a bucket's unit is the
-      // bucket, and a five-answer window routinely carries a single anchored
-      // answer (anchors stay empty until the Basics card is filled, D8), so
-      // without a second gate one publish moves one bucket by one and names
-      // that person's vote — with every dimension moving together, which is a
-      // quasi-identifier rather than a cell. steppedBreakdown (pure.ts)
-      // re-emits the previous value until a bucket has gained AGG_MIN_N.
-      const released: BreakdownCounts = slices
-        ? (priv.exists && (priv.get("byPub") as BreakdownCounts)) || {}
-        : {};
-      const publishing = total >= AGG_MIN_N
-        && shouldPublishAgg(total, AGG_MIN_N, PUBLISH_EVERY);
-      // Only a publish moves the released map. An answer that rewrites
-      // nothing must not spend a bucket's step budget, or the gate would
-      // decay to "every fifth answer" — which is the bound that was already
-      // there and is not the one this needs.
-      //
-      // publishBreakdown returns ONE value that is both what goes on the
-      // public document and what is stored as the next baseline. They were
-      // two expressions once, and the e2e caught the difference: storing the
-      // stepped map charged a suppressed bucket for a value no reader saw.
-      const byPub = publishing ? publishBreakdown(by, released, AGG_MIN_N) : released;
       tx.set(eventRef, ledgerEntry(event.params.uid, qid));
-      tx.set(privRef, { counts, total, by, byPub }, { merge: false });
-      // The public mirror: k-floored, and deliberately without a fresh
-      // timestamp — per-vote timing deltas shouldn't be attributable.
+      tx.set(privRef, { counts, total, by }, { merge: false });
+      // The public mirror, written on EVERY answer with exact counts.
       //
-      // Not written on every answer. The cadence is one publish per
-      // PUBLISH_EVERY answers at ANY size — see the constant above and
-      // shouldPublishAgg() in pure.ts. Two independent reasons land on the
-      // same rule: an observer of this document's history must not be able
-      // to attribute a step to one person, and both docs in this
-      // transaction are single documents keyed by qid against Firestore's
-      // ~1 write/sec/document (D7 records that arithmetic).
+      // What used to be here, and why none of it is: a `tooSmall` flag
+      // while the question sat under the floor; a `byPub` baseline so a
+      // suppressed bucket could be re-emitted unchanged until it had
+      // grown by k; a publish cadence so an onSnapshot observer could not
+      // attribute one step to one person. All three defended against
+      // recovering an individual's answer from a moving aggregate — and
+      // since D94 that same reader can simply read the answer.
       //
-      // Sharding is the real fix for the write ceiling and is deliberately
-      // NOT done here. privRef always holds the exact running total, so
-      // nothing is lost; the public mirror lags by at most
-      // PUBLISH_EVERY - 1 answers.
-      if (total >= AGG_MIN_N) {
-        if (publishing) {
-          // The breakdown carries its OWN floor, per cell, plus
-          // complementary suppression (pure.ts). A question past the
-          // overall floor still shows no slice until that slice can be
-          // shown without singling anyone out — and, since the step gate,
-          // no slice moves by less than that floor either.
-          tx.set(pubRef, { counts, total, tooSmall: false, by: byPub }, { merge: false });
-        }
-      } else {
-        tx.set(pubRef, { tooSmall: true }, { merge: false });
-      }
+      // Deliberately still without a fresh timestamp. Not for disclosure:
+      // a rewritten `updatedAt` on every answer would wake every client's
+      // onSnapshot for a field none of them render.
+      //
+      // The write-rate cost is real and recorded above: this is now one
+      // write per answer to a single document keyed by qid, against
+      // Firestore's ~1/sec/document (D7). The fix when it bites is
+      // sharding or collapsing the two docs, not a floor.
+      tx.set(pubRef, { counts, total, by }, { merge: false });
     });
   },
 );
@@ -759,41 +651,22 @@ export const onV2AnswerUpdated = onDocumentUpdated(
         );
       }
       const total = (priv.exists && (priv.get("total") as number)) || 0;
-      // Same D44 posture as the create path: political items read `{}` so a
-      // merge:false write erases any pre-guard breakdown rather than
-      // carrying it forward.
-      const slices = slicesDemographics(qid);
-      const by: BreakdownCounts = slices
-        ? (priv.exists && (priv.get("by") as BreakdownCounts)) || {}
-        : {};
+      const by: BreakdownCounts =
+        (priv.exists && (priv.get("by") as BreakdownCounts)) || {};
       // The anchors snapshot is frozen (rules), so this lands in exactly
       // the cells the create folded into — or skips a dimension where cap
       // churn means the old vote is no longer represented (pure.ts has the
-      // accounting). Bucket totals never move, so nothing published gets
-      // un-earned.
-      if (slices) retargetAnchors(by, after.get("anchors"), fromIdx, toIdx);
-      const released: BreakdownCounts = slices
-        ? (priv.exists && (priv.get("byPub") as BreakdownCounts)) || {}
-        : {};
-      const publishing = EDITS_REPUBLISH
-        && total >= AGG_MIN_N
-        && shouldPublishAgg(total, AGG_MIN_N, PUBLISH_EVERY);
-      // publishableBreakdown directly, NOT publishBreakdown: the step gate
-      // keys on bucket-total growth, and an edit never grows a bucket — the
-      // stepped map would re-emit the pre-edit cells forever. Skipping the
-      // step gate is safe precisely where EDITS_REPUBLISH is true: with
-      // both constants at 1 every step is already exact and attributable
-      // by D81's accepted disclosure. When the constants restore, edits
-      // stop publishing at all (EDITS_REPUBLISH above) and the step gate's
-      // guarantee returns intact.
-      const byPub = publishing ? publishableBreakdown(by, AGG_MIN_N) : released;
+      // accounting). Bucket totals never move.
+      retargetAnchors(by, after.get("anchors"), fromIdx, toIdx);
       tx.set(eventRef, ledgerEntry(event.params.uid, qid));
-      tx.set(privRef, { counts, total, by, byPub }, { merge: false });
-      // Below the floor the public doc already says tooSmall and the edit
-      // does not change the total, so there is nothing to rewrite there.
-      if (publishing) {
-        tx.set(pubRef, { counts, total, tooSmall: false, by: byPub }, { merge: false });
-      }
+      tx.set(privRef, { counts, total, by }, { merge: false });
+      // An edit always republishes now. It used to be conditional on
+      // EDITS_REPUBLISH — a guard that existed because, under a publish
+      // cadence, an edit's -old/+new leaves `total` unmoved, so a lone
+      // republish at an unchanged total was visibly one person changing
+      // their mind. With no cadence there is no stream to hide in and
+      // nothing to hide from: the answer itself is readable.
+      tx.set(pubRef, { counts, total, by }, { merge: false });
     });
   },
 );

@@ -6,9 +6,11 @@
 //   group  · next UTC day, if at least one member answered
 //   duo    · next UTC day, ONLY if both played (else no reveal, streak 0)
 //
-// Sealed answers live in each member's OWNER-ONLY answers subcollection
-// under composite ids (g_{gid}_{day}); nobody can read anyone else's
-// answer before the reveal doc exists, because nothing readable exists.
+// Sealed answers live under composite ids (g_{gid}_{day}). Since D94 a
+// user's world answers are readable by anyone, but DUEL answers are the
+// exception the rules still carve out — read is gated on `surface`, so
+// nobody sees a groupmate's pick before the reveal. That is a game
+// timing rule, not a privacy one; the reveal publishes the whole table.
 // Membership changes go through callables — client rules keep v2_groups
 // read-only — so invite codes, size caps and duo pairing can't be forged.
 
@@ -33,7 +35,6 @@ import {
   revealVotes,
   scanDays,
   revealMembersFor,
-  shouldPublishDuelAgg,
   shouldReveal,
   utcDayKey,
   votesMatchingQid,
@@ -42,10 +43,6 @@ import {
   PRESENCE_TTL_MIN,
   type DuelVoteLike,
 } from "./pure";
-// Same import the logic norms histogram uses (logic.ts): the floor and the
-// cadence are v2.ts's constants, and v2.ts imports nothing from this module,
-// so there is no cycle to mind.
-import { AGG_MIN_N, PUBLISH_EVERY } from "./v2";
 
 const REGION = "us-central1";
 const GROUP_CAP = 32;
@@ -246,13 +243,27 @@ export const leaveGroupV2 = onCall({ ...LIGHT_UNBOUNDED, region: REGION, enforce
 
 // ── push token registration ─────────────────────────────────────
 //
-// fcmTokens is where sendRevealPushes fans out to, and it used to be a
-// direct client merge onto the profile doc — so any signed-in script
-// could plant a token it did not own on its own account and route reveal
-// pushes to someone else's device (needs the victim's token, so the risk
-// was friend-scale; see SHIP-CHECKLIST "before-public hardening"). The
-// write now happens only here, and the ruleset refuses fcmTokens from
-// clients outright.
+// Push tokens live at v2_users/{uid}/push/tokens — a SERVER-ONLY
+// subdocument, not a field on the profile.
+//
+// They used to be a `fcmTokens` field on the profile itself, guarded by a
+// rules clause that refused client writes. That guard was sufficient
+// while the profile was owner-only. It stopped being sufficient at D94,
+// which opens the profile to every signed-in user so that a uid can be
+// resolved to a name: a readable profile with a token array on it hands
+// any script the exact fan-out list the reveal sender uses.
+//
+// A token is a CREDENTIAL, not an opinion, and D94 publishes opinions.
+// Moving it off the readable document is the structural version of that
+// distinction — it cannot be un-guarded by a future rule edit, because
+// there is no rule granting anyone read on this path at all.
+//
+// What binds token→uid is unchanged: App Check.
+//
+// One path, named once: the reveal sender and the dead-token pruner read
+// and write the same document, and a second spelling of it is how a
+// pruner ends up cleaning a list nobody sends to.
+export const pushDocPath = (uid: string): string => `v2_users/${uid}/push/tokens`;
 //
 // What binds token→uid: App Check. Behind enforcement the caller must be
 // the attested app, and inside the real app the only registration token
@@ -289,7 +300,7 @@ export const registerPushToken = onCall({ ...LIGHT_CALLABLE, region: REGION, enf
     logger.warn("registerPushToken: dry-run inconclusive, accepting", { code });
   }
   const db = getFirestore();
-  const ref = db.collection("v2_users").doc(uid);
+  const ref = db.doc(pushDocPath(uid));
   await db.runTransaction(async (tx) => {
     const snap = await tx.get(ref);
     const tokens = nextFcmTokens(snap.exists ? snap.get("fcmTokens") : [], token, prev, 10);
@@ -339,9 +350,10 @@ async function revealGroupDay(
   const answerId = `g_${gid}_${dayKey}`;
   // TWO reads, because only one of them wants whole documents.
   //
-  // The profiles are read for exactly two fields — displayName here, and
-  // fcmTokens in the push fan-out below — but were fetched entire. A profile
-  // is client-writable and firestore.rules bounds only some of it:
+  // The profiles are read for exactly one field — displayName — but were
+  // fetched entire. (Push tokens used to be the second field and now live
+  // on their own server-only subdocument, fetched separately below.)
+  // A profile is client-writable and firestore.rules bounds only some of it:
   // displayName and the anchors are capped, `testResults` only by KEY COUNT
   // (8), and `anon`/`createdAt`/`updatedAt` not at all. So a member can
   // legitimately hold a document approaching Firestore's 1 MiB, and
@@ -359,8 +371,11 @@ async function revealGroupDay(
   );
   const profileSnaps = await db.getAll(
     ...members.map((uid) => db.doc(`v2_users/${uid}`)),
-    { fieldMask: ["displayName", "fcmTokens"] },
+    { fieldMask: ["displayName"] },
   );
+  // Push tokens, from the server-only subdocument (D94). Same member
+  // order as profileSnaps, so the fan-out below can pair them by index.
+  const pushSnaps = await db.getAll(...members.map((uid) => db.doc(pushDocPath(uid))));
 
   const votes: Record<string, RevealVote> = {};
   const qids: unknown[] = [];
@@ -592,8 +607,13 @@ async function revealGroupDay(
     // from the doc it lives on (otherwise fcmTokens grows one ghost per
     // reinstall/rotation forever and every reveal fans out to them).
     const tokenOwners = new Map<string, string[]>();
-    for (const s of profileSnaps) {
-      if (!s.exists || !Array.isArray(s.get("fcmTokens"))) continue;
+    // Paired BY INDEX against `members`, not by `s.id`. These snapshots
+    // are the push subdocuments (D94), so every one of their ids is the
+    // literal string "tokens" — the uid is only recoverable from the
+    // position, because getAll preserves the order it was handed.
+    pushSnaps.forEach((s, i) => {
+      const ownerUid = members[i];
+      if (!s.exists || !Array.isArray(s.get("fcmTokens"))) return;
       for (const t of s.get("fcmTokens") as string[]) {
         // Rules cap the array at 10 entries but never check what is IN
         // them, so a client can store ten ~1MB strings in its own
@@ -603,14 +623,14 @@ async function revealGroupDay(
         // everyone the day FCM changes its token shape.
         // NB: this bounds SEND cost, not what is stored.
         if (typeof t !== "string" || t.length < 20 || t.length > 4096) {
-          logger.warn(`[reveal] skipping malformed fcmToken on ${s.id}`);
+          logger.warn(`[reveal] skipping malformed fcmToken on ${ownerUid}`);
           continue;
         }
         const owners = tokenOwners.get(t) || [];
-        owners.push(s.id);
+        owners.push(ownerUid);
         tokenOwners.set(t, owners);
       }
-    }
+    });
     // CHUNKED, not truncated. This was `.slice(0, 64)`, which is below
     // what a full group can hold: GROUP_CAP (32) members x the 10 tokens
     // registerPushToken keeps each is 320. Past the 64th token — roughly
@@ -656,7 +676,7 @@ async function revealGroupDay(
         });
       }
       await Promise.all([...removals].map(([uid, dead]) =>
-        db.doc(`v2_users/${uid}`)
+        db.doc(pushDocPath(uid))
           .update({ fcmTokens: FieldValue.arrayRemove(...dead) })
           .catch(() => { /* best-effort cleanup */ }),
       ));
@@ -697,11 +717,10 @@ async function revealGroupDay(
 // (options []) publishes plays/total only, because its optionIdx values
 // index each group's OWN member list and are meaningless summed across
 // groups. Fold, store the exact state privately, and rewrite the public
-// mirror when the total crosses the floor or a PUBLISH_EVERY multiple
-// (shouldPublishDuelAgg carries the batch-vs-per-answer argument). Ids are
+// mirror on every fold (D94 — no floor, no cadence). Ids are
 // namespaced `duel-<qid>` in the same two collections the vote path uses:
-// v2_aggs_private stays client-opaque, v2_question_aggs is the
-// signed-in-readable k-floored mirror — which the scorecard's --fetch
+// v2_aggs_private stays client-opaque bookkeeping, v2_question_aggs is the
+// signed-in-readable exact mirror — which the scorecard's --fetch
 // already pages in full, so duels score with no new read path. Neither doc
 // carries a timestamp, matching the vote mirror's rule: a fresh timestamp
 // would date-stamp which scan window a group revealed in.
@@ -724,13 +743,9 @@ async function foldDuelSignal(
     const options = qSnap.get("options");
     const delta = duelAggDelta(votes, mode, Array.isArray(options) ? options.length : 0);
     const prev = privSnap.exists ? privSnap.data() : undefined;
-    const prevTotal =
-      prev && typeof prev.total === "number" && Number.isFinite(prev.total) ? prev.total : 0;
     const next = foldDuelAgg(prev, delta);
     tx.set(privRef, next);
-    if (shouldPublishDuelAgg(prevTotal, next.total, AGG_MIN_N, PUBLISH_EVERY)) {
-      tx.set(pubRef, publishableDuelAgg(next));
-    }
+    tx.set(pubRef, publishableDuelAgg(next));
   });
 }
 
@@ -921,12 +936,9 @@ export const revealDuelsNowV2 = onCall({ region: REGION }, async (request) => {
 // excluding the caller themself, so "just you here" reads as 0 rather
 // than a phantom 1.
 //
-// The count is floored by AGG_MIN_N like every other published count.
-// Under D81's pause that floor is 1, so any nonzero count shows — the
-// owner's explicit call for this feature ("doesn't matter that it won't
-// work most of the time"). When the floor is restored to 5, a 1-4 count
-// returns tooFew instead of n, and the client says "a few people" —
-// wired through the same constant so the revert carries presence with it.
+// The count is exact (D94 — there is no floor left to apply). It used to
+// return `tooFew` under AGG_MIN_N; nothing does now, and the client's
+// "a few people" branch goes with it.
 export const nearbyCountV2 = onCall({ ...LIGHT_CALLABLE, region: REGION, enforceAppCheck: ENFORCE_APP_CHECK }, async (request) => {
   if (!request.auth) throw new HttpsError("unauthenticated", "must be signed in");
   const cell = request.data?.cell;
@@ -941,7 +953,5 @@ export const nearbyCountV2 = onCall({ ...LIGHT_CALLABLE, region: REGION, enforce
     .where("at", ">", freshAfter)
     .get();
   const n = snap.docs.filter((d) => d.id !== request.auth?.uid).length;
-  if (n === 0) return { n: 0 };
-  if (n < AGG_MIN_N) return { tooFew: true };
   return { n };
 });

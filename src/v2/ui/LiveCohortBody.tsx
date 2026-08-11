@@ -2,7 +2,7 @@
 //
 // Serves both Near (your city) and World (your country / everyone), because
 // after D9 they are the same question at three radii and there is no reason
-// for three renderers to disagree about what a withheld cell means.
+// for three renderers to disagree about what an empty cell means.
 //
 // WHAT NEAR USED TO BE. A field of six named neighbours ("Sigrid Bø, a few
 // streets away, 88% match") drawn from sample-data.js, headed "2,847 within
@@ -12,18 +12,21 @@
 // read a top-level `geohash` field while the writer wrote a nested one
 // (D2). Nothing in v2 ever called it.
 //
-// WHAT THESE ARE NOW. The same k-floored public aggregates everything else
-// here reads: counts, at the radius you picked. Near is a redefinition
-// rather than a repair, and it is the honest one — a 5 km circle needs 20
-// neighbours before it can say anything, a city needs AGG_FLOOR (5 by
-// design; 1 while D81's launch pause holds), and unlike the circle nothing
-// about a city requires knowing where the phone is.
+// WHAT THESE ARE NOW. The same public aggregates everything else here
+// reads: exact counts, at the radius you picked, published from the first
+// answer (D94 — no floor, no suppression, no withheld cells). Near is a
+// redefinition rather than a repair, and it is the honest one: unlike the
+// old 5 km circle, nothing about a city requires knowing where the phone
+// is.
 //
-// WHAT THEY DELIBERATELY DO NOT SHOW. People. Not names, not avatars, not
-// "someone near you also said". D5 keeps this module out of every other
-// user's documents, and the aggregates carry only counts. A field of
-// strangers would be sample data wearing a live badge, which is exactly
-// what this replaces.
+// WHAT THIS PANEL STILL DOES NOT SHOW, AND WHY THAT IS NOW A GAP. People.
+// Not because it may not — D94 makes every answer and profile readable, so
+// a named "who in Oslo picked Beach" is a legitimate surface and the one
+// this panel most obviously wants. It is missing because the READ PATH does
+// not exist yet: the client would need a collection-group query on answers
+// plus batched name resolution, neither of which any module here does. This
+// is unbuilt, not refused. Until it lands, counts are what there is — and
+// an empty panel means zero, never "hidden".
 import React from "react";
 import LIVE from "../data/live";
 import PLACES from "../data/places";
@@ -34,12 +37,10 @@ import { setCityAnchor } from "../data/cityAnchor";
 // city name is strictly less information than the grid square presence
 // already shares.
 import { locateCity } from "../data/locate";
-// The floor the copy below may claim — data/floor.ts is the client's pinned
-// copy of AGG_MIN_N (floor.test.ts holds them equal), currently 1 under
-// D81's launch pause. Every sentence here that mentions the floor branches
-// on it, because a paused floor makes "never a group smaller than 5" a
-// claim the server no longer enforces.
-import { AGG_FLOOR } from "../data/floor";
+// "Does this question have any answers yet?" — an existence test, and
+// since D94 the only test there is (data/floor.ts and its constants are
+// gone with the floor they mirrored).
+import { hasPublishedCounts } from "../data/deck";
 // An ordinary import, not a globalThis lookup — same note as LiveDuelPanel's
 // import of LiveTakesPanel: both are typed TSX here, and D39's ratchet only
 // moves down.
@@ -260,26 +261,24 @@ function LiveCohortBody({ scope = "city" }: { scope?: CohortScope }) {
     scope === "city" ? "var(--c-around)" : scope === "country" ? "var(--c-city)" : "var(--c-world)";
 
   const rows: Row[] = [];
-  // Questions the viewer can see at all but whose cohort cell is withheld.
-  // Named plainly: an absent cell means BELOW THE FLOOR, not zero, and a
-  // silent gap reads as "nobody answered".
-  let withheld = 0;
+  // Questions with no answers from this cohort yet. Since D94 nothing is
+  // withheld, so an absent cell means exactly zero — the counter survives
+  // only so an empty row is explained rather than silently missing.
+  let empty = 0;
   for (const q of LIVE.deck()) {
     const agg = LIVE.aggFor(q.id);
     if (!agg) continue;
     let cell: Record<string, number> | undefined;
     let n = 0;
     if (scope === "world") {
-      // The globe is the aggregate itself. `tooSmall` is the server's own
-      // floor flag for the overall count and is authoritative — an agg can
-      // carry stale counts while still being below it.
-      if (agg.tooSmall !== false) { withheld++; continue; }
+      // The globe is the aggregate itself.
+      if (!hasPublishedCounts(agg)) { empty++; continue; }
       cell = agg.counts;
       n = agg.total || 0;
     } else {
       const dim = agg.by?.[scope];
       cell = dim?.[scope === "city" ? city : country];
-      if (dim && !cell) withheld++;
+      if (dim && !cell) empty++;
       if (cell) n = Object.values(cell).reduce((a, b) => a + b, 0);
     }
     if (!cell || !n) continue;
@@ -295,12 +294,9 @@ function LiveCohortBody({ scope = "city" }: { scope?: CohortScope }) {
         </div>
         <div style={{ fontFamily: "var(--serif)", fontSize: 25, letterSpacing: "-0.01em", color: "var(--ink)", marginTop: 2 }}>{heading}</div>
         <div style={{ fontFamily: "var(--sans)", fontSize: 12.5, fontWeight: 500, color: "var(--ink-3)", marginTop: 4, lineHeight: 1.5 }}>
-          {/* The floor clause only while there IS a floor — printing
-              "never a group smaller than 1" would be vacuously true and
-              read as a typo; printing 5 while paused would be false. */}
           {scope === "world"
-            ? `Everyone who answered today. Counts only — never who${AGG_FLOOR > 1 ? `, and never a group smaller than ${AGG_FLOOR}` : ""}.`
-            : `Everyone who picked this ${scope}, on today's questions. Counts only — never who${AGG_FLOOR > 1 ? `, and never a group smaller than ${AGG_FLOOR}` : ""}.`}
+            ? "Everyone who answered today."
+            : `Everyone who picked this ${scope}, on today's questions.`}
         </div>
       </div>
 
@@ -308,37 +304,17 @@ function LiveCohortBody({ scope = "city" }: { scope?: CohortScope }) {
 
       {!rows.length && (
         <LnNote title={`${scope === "world" ? "Today" : shortName} is still filling up`}>
-          {AGG_FLOOR > 1 ? (
-            <>A cohort appears once at least {AGG_FLOOR} people in it have answered.
-            Until then the split is withheld rather than shown thin — the floor is
-            enforced on the server, not here.</>
-          ) : (
-            // The paused floor (D81): counts publish from the first answer,
-            // so an empty panel means zero, not withheld.
-            <>No answers here yet — the first one starts the count.</>
-          )}
+          No answers here yet — the first one starts the count.
         </LnNote>
       )}
 
-      {!!rows.length && withheld > 0 && (
+      {!!rows.length && empty > 0 && (
         <div style={{ padding: "13px 0 0", fontFamily: "var(--sans)", fontSize: 12, fontWeight: 500, color: "var(--ink-3)", lineHeight: 1.5 }}>
-          {/* At world scope the withheld reason is the question's OWN total
-              being under the floor, not a thin slice of it — "fewer than 5
-              people in the world" would be a different and sillier claim.
-
-              At floor 1 the whole absent≠zero doctrine inverts: any cell
-              with one answer publishes, so an absent cell IS zero (publish
-              lag aside) and the line says so instead of claiming a
-              withholding the server no longer performs. */}
-          {AGG_FLOOR > 1 ? (
-            <>{withheld} more {withheld === 1 ? "question is" : "questions are"} withheld
-            here — {scope === "world"
-              ? <>{withheld === 1 ? "it has" : "they have"} fewer than {AGG_FLOOR} answers so far.</>
-              : <>fewer than {AGG_FLOOR} people in {shortName} have answered {withheld === 1 ? "it" : "them"} yet.</>}</>
-          ) : (
-            <>{withheld} more {withheld === 1 ? "question has" : "questions have"} no
-            answers {scope === "world" ? "yet" : <>from {shortName} yet</>}.</>
-          )}
+          {/* An absent cell is zero, not a withholding — D94 removed the
+              floor, so there is nothing left for this line to apologise
+              for. It just says the row is empty. */}
+          {empty} more {empty === 1 ? "question has" : "questions have"} no
+          answers {scope === "world" ? "yet" : <>from {shortName} yet</>}.
         </div>
       )}
     </div>

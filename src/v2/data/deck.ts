@@ -19,7 +19,12 @@ export interface LiveQuestion {
   comments: never[];
   friends: never[];
   live: true;
-  tooSmall: boolean;
+  // Renamed from `tooSmall` at D94. It used to mean "withheld — this
+  // cohort is under the k-floor"; it now means "nobody has answered this
+  // yet, so there is no split to draw". Renamed rather than reused
+  // because the two are opposite claims about the same false value, and a
+  // surface reading the old name would have gone on saying "withheld".
+  noCountsYet: boolean;
   test?: string | null;
 }
 
@@ -41,11 +46,10 @@ export interface QuestionDoc {
 export interface AggDoc {
   counts?: Record<string, number>;
   total?: number;
-  tooSmall?: boolean;
-  // Per-anchor breakdown, already k-floored per cell with complementary
-  // suppression applied server-side (functions/src/pure.ts, D8). A cell
-  // that is absent here is WITHHELD, not zero — the UI must say so rather
-  // than draw an empty bar.
+  // Per-anchor breakdown, exact and complete (functions/src/pure.ts, D8
+  // for the shape, D94 for the exactness). A cell that is absent here has
+  // no answers in it — nothing is suppressed, so absent means zero and the
+  // UI may draw it as such.
   by?: Record<string, Record<string, Record<string, number>>>;
 }
 
@@ -110,10 +114,21 @@ export function countsFor(options: string[], ctx: VoteContext): number[] {
   });
 }
 
-// tooSmall defaults ON: only an agg doc that explicitly says
-// tooSmall === false reveals counts (missing doc / missing flag hides).
-export function isTooSmall(agg: AggDoc | undefined): boolean {
-  return (agg || {}).tooSmall !== false;
+// Whether this question has published counts to show yet.
+//
+// D94 retired the k-floor, so the server no longer writes a `tooSmall`
+// flag and nothing is ever withheld for being small — but the question
+// "is there an aggregate here at all?" survives, because a question
+// nobody has answered has no document. What used to be a DISCLOSURE test
+// is now an EXISTENCE test.
+//
+// The old predicate defaulted ON — anything but an explicit
+// `tooSmall === false` hid the counts. That default was deliberately
+// fail-closed, and it is exactly why this function had to change in the
+// same commit as the trigger: with the server no longer writing the flag,
+// a client still reading it would blank every count in the app.
+export function hasPublishedCounts(agg: AggDoc | undefined): boolean {
+  return !!agg && typeof agg.total === "number" && agg.total > 0;
 }
 
 export function buildS(
@@ -137,7 +152,7 @@ export function buildS(
     comments: [],
     friends: [],
     live: true,
-    tooSmall: isTooSmall(ctx.agg),
+    noCountsYet: !hasPublishedCounts(ctx.agg),
     test: q.test,
   };
 }

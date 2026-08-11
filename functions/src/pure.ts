@@ -269,10 +269,9 @@ export function revealQid(qids: readonly unknown[]): string | null {
  * "silently discarded" outcome revealGroupDay's transaction is built to
  * avoid, and a member who played deserves to appear in their group's
  * reveal whatever their client's bank said. But the cross-group aggregate
- * is a different artefact with a different guarantee: it is published at
- * or above AGG_MIN_N and read as "how this question went", so a vote cast
- * on another question is not a rounding error there, it is a wrong number
- * inside the one surface the k-floor exists to protect.
+ * is a different artefact with a different guarantee: it is read as "how
+ * this question went", so a vote cast on another question is not a
+ * rounding error there, it is a wrong number under the wrong prompt.
  *
  * Order is preserved, because duelAggDelta pairs a duo's two votes
  * positionally to score guesses.
@@ -376,32 +375,8 @@ export function foldDuelAgg(prev: unknown, delta: DuelAggState): DuelAggState {
   };
 }
 
-/**
- * The publish cadence, crossing-based. shouldPublishAgg's `total % every`
- * is right for the vote path, where the ledgered trigger folds answers ONE
- * at a time; a reveal folds a whole group-day at once, so the total can
- * jump OVER a multiple and `%` would then stay silent until it happened to
- * land exactly — a question could go dark for hundreds of answers. Publish
- * when the fold crosses the floor or any multiple of `every` past it. The
- * step a reader observes still aggregates ≥1 reveal batch; per-reveal
- * granularity is already covered by D40's strictly-less-revealing
- * argument, so the cadence here bounds doc rewrites more than disclosure.
- */
-export function shouldPublishDuelAgg(
-  prevTotal: number,
-  nextTotal: number,
-  floor: number,
-  every: number,
-): boolean {
-  if (nextTotal < floor) return false;
-  if (prevTotal < floor) return true; // crossing the floor is the first publish
-  if (every <= 1) return true;
-  return Math.floor(nextTotal / every) > Math.floor(prevTotal / every);
-}
-
-/** The public mirror of a duel aggregate — only ever called at/above the
- *  floor; below it nothing is written and a missing doc reads as hidden
- *  (deck.ts isTooSmall defaults ON). Guess fields publish only when a
+/** The public mirror of a duel aggregate, written on every fold (D94 —
+ *  there is no floor and no cadence). Guess fields publish only when a
  *  guess exists, counts only when any vote landed in range — absent keys,
  *  not zeroes, so a pick question's doc never grows fields that would
  *  invite reading meaning into them. */
@@ -409,23 +384,11 @@ export function publishableDuelAgg(state: DuelAggState): Record<string, unknown>
   return {
     plays: state.plays,
     total: state.total,
-    tooSmall: false,
     ...(Object.keys(state.counts).length ? { counts: state.counts } : {}),
     ...(state.guessTotal > 0
       ? { guessTotal: state.guessTotal, guessMatches: state.guessMatches }
       : {}),
   };
-}
-
-// ── k-anonymity gate (v2) ───────────────────────────────────────
-
-// The k-floor decision in one place: a bucket is publishable only at
-// or above its floor. Buckets below it are dropped (or deleted).
-// Sole caller is publishableBreakdown below, since D13 removed the v1
-// geo aggregates this was also shared with — kept separate anyway, so
-// the floor stays one named decision rather than an inline `>=`.
-export function meetsKFloor(count: number, floor: number): boolean {
-  return count >= floor;
 }
 
 // ── per-anchor breakdowns (v2) ──────────────────────────────────
@@ -458,16 +421,15 @@ export function meetsKFloor(count: number, floor: number): boolean {
 //    and published none of them. It now carries the ISO code derived from
 //    the picked city, which is why that dimension starts working at all.
 //
-// 2. K-ANONYMITY THAT SURVIVES SUBTRACTION. Suppressing buckets below the
-//    floor is not sufficient on its own. If a dimension has exactly one
-//    suppressed bucket and a reader knows the dimension's total, that bucket
-//    is recoverable by subtracting the published ones — the floor would be
-//    decorative. publishableBreakdown therefore applies COMPLEMENTARY
-//    SUPPRESSION: if suppressing the sub-floor buckets would leave exactly one
-//    hole, the smallest surviving bucket is suppressed too, so there are always
-//    either zero holes or at least two. Standard practice in statistical
-//    disclosure control, and the reason this is a pure function with its own
-//    tests rather than three lines inside the trigger.
+// 2. NO SUPPRESSION OF ANY KIND (D94). This constraint used to read
+//    "k-anonymity that survives subtraction", and it drove complementary
+//    suppression: a lone hole plus a known total is recoverable by
+//    subtraction, so the floor had to take a second bucket with it. None
+//    of that runs now — every bucket publishes, at every size — because
+//    the answers the buckets are folded from are themselves readable.
+//    The paragraph stays as the record of what was removed and why it
+//    existed, which is the thing a future reader will want if anyone ever
+//    proposes putting it back.
 //
 //    WHAT THE FLOOR DOES NOT DO, stated here because the wording used to
 //    imply otherwise. The unit the floor applies to is the BUCKET — the sum
@@ -651,14 +613,30 @@ export function breakdownBucket(value: unknown, dim?: BreakdownDim): string | nu
 // documented to degrade. What it buys is that recurrence wins: a value that
 // comes back grows past the churn and, at the floor, stops being evictable at
 // all. Nothing published can be taken away.
+// The eviction threshold — a bucket holding FEWER than this many answers
+// may be dropped to make room for a new one; at or above it, nothing
+// published is ever taken away.
+//
+// This used to be AGG_MIN_N, and reusing the k-floor here was a coincidence
+// of numbers rather than a shared idea. D94 deleted the k-floor, and
+// threading 0 or dropping the parameter would have made NOTHING evictable —
+// silently restoring the cap-exhaustion attack this function exists to stop
+// (24 junk `city` values permanently blanking the city dimension for a
+// question), with every test still green.
+//
+// So it gets its own name and its own reason. This is a DOCUMENT-GROWTH
+// bound: Firestore caps the map, the cap is a scarce resource, and churn
+// among one-answer buckets is how a recurring real value beats a burst of
+// junk. It has nothing to do with who may see what.
+export const BUCKET_EVICT_BELOW = 5;
+
 function evictForNewBucket(
   byDim: Record<string, Record<string, number>>,
-  floor: number,
 ): boolean {
   const keys = Object.keys(byDim);
   if (keys.length < BREAKDOWN_MAX_BUCKETS) return true;
   let victim: string | null = null;
-  let victimTotal = floor;
+  let victimTotal: number = BUCKET_EVICT_BELOW;
   for (const k of keys) {
     const n = bucketTotal(byDim[k]);
     if (n < victimTotal) {
@@ -674,14 +652,13 @@ function evictForNewBucket(
 // Fold one answer's anchors into the running breakdown. Mutates and returns
 // `into` so the trigger can keep this inside its existing transaction.
 //
-// `floor` is the k-floor the publish path will apply (AGG_MIN_N). It is a
-// parameter rather than a constant for the reason meetsKFloor's is: the
-// floors in this module are named decisions passed in, never assumed.
+// Took a `floor` argument until D94, threaded through to the bucket
+// eviction above. The eviction now names its own constant, and there is no
+// other floor left in this path — every cell folded here is published.
 export function foldAnchors(
   into: BreakdownCounts,
   anchors: unknown,
   optionIdx: number,
-  floor: number,
 ): BreakdownCounts {
   if (!anchors || typeof anchors !== "object") return into;
   const src = anchors as Record<string, unknown>;
@@ -689,7 +666,7 @@ export function foldAnchors(
     const bucket = breakdownBucket(src[dim], dim);
     if (bucket === null) continue;
     const byDim = into[dim] || (into[dim] = {});
-    if (!byDim[bucket] && !evictForNewBucket(byDim, floor)) continue;
+    if (!byDim[bucket] && !evictForNewBucket(byDim)) continue;
     const cell = byDim[bucket] || (byDim[bucket] = {});
     const k = String(optionIdx);
     cell[k] = (cell[k] || 0) + 1;
@@ -778,195 +755,50 @@ function bucketTotal(bucket: Record<string, number>): number {
   return n;
 }
 
-// The publishable view: every bucket whose TOTAL is at or above the floor,
-// with complementary suppression so no single bucket is recoverable by
-// subtraction. A dimension with nothing left to say is omitted entirely
-// rather than published empty.
+// Since D94 there is no publishable VIEW distinct from the fold: the
+// breakdown the trigger accumulates is the breakdown it publishes, whole,
+// on every answer.
 //
-// The per-option counts inside a surviving bucket are published as they
-// stand — the floor is a bound on cohort size, not on how lopsided a cohort
-// is allowed to be. Constraint 2 above has the reasoning and D18 the
-// arithmetic; `publishes a lopsided split inside a bucket at the floor` in
-// pure.test.ts pins it so the property stays deliberate.
-export function publishableBreakdown(
-  by: BreakdownCounts,
-  floor: number,
-): BreakdownCounts {
-  const out: BreakdownCounts = {};
-  for (const dim of Object.keys(by)) {
-    const buckets = by[dim] || {};
-    const rows = Object.keys(buckets).map((b) => ({
-      bucket: b,
-      total: bucketTotal(buckets[b]),
-    }));
-    const kept = rows.filter((r) => meetsKFloor(r.total, floor));
-    const suppressed = rows.length - kept.length;
-    // Exactly one hole is a hole with a name on it — take the smallest
-    // survivor down with it so at least two buckets are unknown.
-    if (suppressed === 1 && kept.length > 0) {
-      let smallest = 0;
-      for (let i = 1; i < kept.length; i++) {
-        if (kept[i].total < kept[smallest].total) smallest = i;
-      }
-      kept.splice(smallest, 1);
-    }
-    // One surviving bucket says "everyone we can show you is in this
-    // bucket", which is a population statement, not a split. Two is the
-    // minimum that reads as a comparison.
-    if (kept.length < 2) continue;
-    const dimOut: Record<string, Record<string, number>> = {};
-    for (const r of kept) dimOut[r.bucket] = { ...buckets[r.bucket] };
-    out[dim] = dimOut;
-  }
-  return out;
-}
-
-// The breakdown a publish is allowed to RELEASE, given what the last publish
-// already released.
+// What stood here, and what each piece defended, so the reasoning is not
+// simply lost:
 //
-// shouldPublishAgg below bounds how often the document is rewritten, which
-// bounds the delta a snapshot-watcher can attribute — for `counts`. It does
-// nothing for `by`, because the cadence is counted in answers to the QUESTION
-// while the quantity on display is a count per BUCKET. A bucket therefore
-// moves by however many of the window's answers happened to carry its anchor,
-// and one is the common case: anchors are empty until the user fills the
-// Basics card (D8), so a window of five answers routinely contains a single
-// anchored one. Measured on the real fold: two consecutive published states
-// differing by `{"f":{"0":5}}` → `{"f":{"0":5,"1":1}}` name one person's vote
-// as exactly as a k=1 cohort would, past a floor that cleared.
+//   publishableBreakdown  dropped every bucket under the k-floor, then
+//                         applied COMPLEMENTARY SUPPRESSION — if exactly
+//                         one bucket was hidden, the smallest survivor went
+//                         too, because one hole plus a known total is a
+//                         subtraction away from being no floor at all — and
+//                         omitted a dimension left with fewer than two
+//                         buckets, since one surviving bucket is a
+//                         population statement rather than a split.
+//   steppedBreakdown      re-emitted a bucket's PREVIOUS published value
+//                         until it had grown by k, because the publish
+//                         cadence was counted in answers to the question
+//                         while the number on screen was a count per
+//                         bucket — so one anchored answer in a window moved
+//                         all six dimensions at once and disclosed a whole
+//                         {ageBand, gender, city, country, education,
+//                         relationship} tuple joined to one option.
+//   publishBreakdown      composed the two in one place, because the trigger
+//                         once stored one and published the other and a
+//                         bucket suppressed at first publication then needed
+//                         twice the floor to ever appear (caught by the e2e).
+//   shouldPublishAgg      bounded how often the public document was
+//                         rewritten, so a snapshot-watcher could not
+//                         attribute a single step to a single person.
 //
-// Worse in the shape that actually ships, because the anchors travel
-// together: that single answer moves all six dimensions at once, so the step
-// discloses a full {ageBand, gender, city, country, education, relationship}
-// tuple joined to one option. That is the re-identification the floor exists
-// to prevent, defeated by the update cadence rather than by the numbers —
-// the same failure the comment under shouldPublishAgg records for `counts`,
-// on the field that was added after it.
-//
-// So the same k applies per bucket: a bucket's counts may be re-released only
-// once it has gained `step` answers since the value a reader last saw. Until
-// then the PREVIOUS released value is re-emitted, so the document is
-// unchanged for that bucket rather than merely un-rewritten. The private doc
-// keeps the exact running total, so nothing is lost — a bucket lags by at
-// most `step - 1` answers, the same bound the cadence gives `counts`.
-//
-// A bucket seen for the first time is released whole: that discloses a cohort
-// of at least the floor arriving together, which is the floor's own
-// guarantee, not a step. The caller hands the result to publishableBreakdown,
-// whose floor, complementary suppression and minimum-comparison rules then
-// apply unchanged — this gates WHEN a value moves, never whether it clears.
-//
-// `released` is what a reader has actually SEEN — the last map
-// publishableBreakdown published — and not the last map this function
-// returned. The difference is not academic: publishableBreakdown suppresses
-// as well as passes through, so measuring from this function's own output
-// spends a bucket's step budget on a value nobody was shown. A bucket
-// suppressed at its first publication then needed TWICE the floor before it
-// could ever appear, and in the shape the e2e drives (two cohorts reaching
-// exactly the floor on the publish at total 10) it never appeared at all.
-// Caught by e2e-v2-loop.mjs, which is the leg this module's own residual
-// note said would need a real emulator run.
-//
-// Privacy is unaffected, because the bound is over what was observable: a
-// bucket the reader never saw has no delta to hide, so its next release is
-// a FIRST appearance — disclosing a cohort of at least the floor, arriving
-// together, which is the floor's own guarantee rather than a step.
-export function steppedBreakdown(
-  by: BreakdownCounts,
-  released: BreakdownCounts,
-  step: number,
-): BreakdownCounts {
-  const out: BreakdownCounts = {};
-  for (const dim of Object.keys(by)) {
-    const buckets = by[dim] || {};
-    const prevDim = released[dim] || {};
-    const dimOut: Record<string, Record<string, number>> = {};
-    for (const bucket of Object.keys(buckets)) {
-      const prev = prevDim[bucket];
-      if (!prev) {
-        dimOut[bucket] = { ...buckets[bucket] };
-        continue;
-      }
-      dimOut[bucket] = bucketTotal(buckets[bucket]) - bucketTotal(prev) >= step
-        ? { ...buckets[bucket] }
-        : { ...prev };
-    }
-    out[dim] = dimOut;
-  }
-  return out;
-}
-
-/**
- * What a publish puts on the public document — and, identically, what the
- * private document must store as the baseline for the next one.
- *
- * ONE function returning ONE value, because the two being separate is what
- * the e2e caught: the trigger stored steppedBreakdown's output while
- * publishing publishableBreakdown's, so a bucket suppressed at its first
- * publication had still spent its step budget and needed twice the floor to
- * appear. The composition is the invariant, so it lives in one place where
- * the caller cannot wire it two ways.
- */
-export function publishBreakdown(
-  by: BreakdownCounts,
-  released: BreakdownCounts,
-  floor: number,
-): BreakdownCounts {
-  return publishableBreakdown(steppedBreakdown(by, released, floor), floor);
-}
-
-// ── when the public mirror may be rewritten ─────────────────────
-//
-// The k-floor stops a reader recovering an individual's answer from a tiny
-// cohort. It does NOT, on its own, stop them recovering one from the
-// PUBLISHED DOCUMENT'S HISTORY — and clients hold an onSnapshot on it.
-// Rewriting on every answer streams a sequence like
-//
-//   {0:2, 1:3}  →  {0:2, 1:4}  →  {0:3, 1:4}
-//
-// where every step is exactly one person's choice, attributable by arrival
-// time. Past the floor, that discloses every individual vote regardless of
-// how large the cohort grew — which is the floor's whole purpose, defeated
-// by the update cadence rather than by the numbers.
-//
-// So the same k applies to the INCREMENT, not just the total: a publish
-// happens only once `every` further answers have landed, and each observed
-// delta therefore aggregates that many votes. The document lags by at most
-// `every - 1` answers; the private doc keeps the exact running total, so
-// nothing is lost.
-//
-// Residual, stated rather than papered over: this is k-anonymity, so a
-// reader who already knows `every - 1` of the votes in a step can infer the
-// last one. That is the same bound the floor itself carries, not a new
-// weakness — and it needs collusion with almost everyone in the step.
-//
-// `floor` should be a multiple of `every`, or the first publish waits for
-// the next multiple above it. That is safe (it only delays), so it is not
-// enforced — but it is why AGG_MIN_N and PUBLISH_EVERY are both 5.
-//
-// Scope, because it was once read as wider than it is: this bounds the delta
-// of `counts`, whose unit is the question. It says nothing about `by`, whose
-// unit is the bucket — steppedBreakdown above is the same argument carried to
-// that field, and the trigger must apply both.
-export function shouldPublishAgg(
-  total: number,
-  floor: number,
-  every: number,
-): boolean {
-  if (total < floor) return false;
-  if (every <= 1) return true;
-  return total % every === 0;
-}
+// Every one of those defends against reconstructing an individual's answer
+// from an aggregate. D94 publishes the answers themselves, so all four
+// defended a door standing next to an open wall — at the cost of a lagging,
+// hole-punched breakdown that made the Mirror look broken.
 
 // ─── catalog questions: key validation + the leaderboard fold ───────────
 //
 // docs/CATALOG-QUESTIONS.md. A catalog answer is one pick from a shipped
 // catalogue of ~1,025 entities, stored as the entry's integer key (0 is the
 // "Not listed" bucket). A favourite-of-a-thousand has no 52/48 to stage, so
-// the reveal is a canon, not a split: the top N entities above the k-floor,
-// and ONE "everyone else" bucket covering everything suppressed — which is
-// the same complementary-suppression argument as publishableBreakdown,
-// pointed at entities instead of demographic cells.
+// the reveal is a canon, not a split: the top N entities, and ONE
+// "everyone else" bucket for the tail. Since D94 that cut is a DISPLAY
+// size — a board of 1,025 rows is unreadable — and no longer a floor.
 
 /**
  * How a domain's catalogue defines its key space. Contiguous catalogues
@@ -1020,11 +852,27 @@ export type CanonCounts = Record<string, number>;
  *   folds with it. Conservative on purpose: a nonzero "Not listed" count
  *   inside `rest` would often mask the hole, but "often" is not a floor.
  */
-export function publishableCanon(
+// The published leaderboard: the `topN` biggest entities, with everything
+// else summed into `rest`.
+//
+// This was `publishableCanon`, and it did three more things, all of which
+// D94 deleted:
+//   · dropped every entity below the k-floor;
+//   · folded a boundary TIE GROUP whole, so equals were never ranked
+//     arbitrarily by which side of the floor they fell;
+//   · folded one extra row whenever exactly one entity had been hidden,
+//     because a single hole is recoverable as `total - published`.
+// Every one of those is a disclosure rule. With answers public, `rest`
+// means what a reader always assumed it meant — the tail outside the top
+// N — and an entity with one vote is as publishable as one with a
+// thousand.
+//
+// It can no longer return null: there is nothing left that can suppress
+// every row, so an empty board is just an empty catalogue question.
+export function canonTopN(
   ent: CanonCounts,
-  floor: number,
   topN: number,
-): { top: CanonCounts; rest: number } | null {
+): { top: CanonCounts; rest: number } {
   let total = 0;
   for (const k of Object.keys(ent)) total += ent[k];
   const rows = Object.keys(ent)
@@ -1034,23 +882,7 @@ export function publishableCanon(
   // Count desc; key asc only so equal inputs give equal outputs — the
   // published map is unordered and the client re-sorts anyway.
   rows.sort((a, b) => b.n - a.n || Number(a.k) - Number(b.k));
-  const cleared = rows.filter((r) => meetsKFloor(r.n, floor));
-  let kept = cleared.slice(0, topN);
-  // A floor cut cannot tie (below-floor < floor <= kept), so the boundary
-  // tie only exists where the topN cap did the cutting.
-  if (cleared.length > kept.length && kept.length > 0) {
-    const boundary = kept[kept.length - 1].n;
-    if (cleared[kept.length].n === boundary) {
-      kept = kept.filter((r) => r.n > boundary);
-    }
-  }
-  // rows, not cleared: the recoverable-hole count is over every answered
-  // entity a reader could name, whether the floor or the cap folded it.
-  if (rows.length - kept.length === 1 && kept.length > 0) {
-    const smallest = kept[kept.length - 1].n;
-    kept = kept.filter((r) => r.n > smallest);
-  }
-  if (kept.length === 0) return null;
+  const kept = rows.slice(0, topN);
   const top: CanonCounts = {};
   let shown = 0;
   for (const r of kept) {
@@ -1084,7 +916,6 @@ export function foldCanonAnchors(
   into: BreakdownCounts,
   anchors: unknown,
   entityKey: string,
-  floor: number,
 ): BreakdownCounts {
   if (!anchors || typeof anchors !== "object") return into;
   const src = anchors as Record<string, unknown>;
@@ -1094,7 +925,7 @@ export function foldCanonAnchors(
     const byDim = into[dim] || (into[dim] = {});
     // Same bucket cap and the same eviction rule as foldAnchors — the
     // slots are just as attackable here, and for the same reason.
-    if (!byDim[bucket] && !evictForNewBucket(byDim, floor)) continue;
+    if (!byDim[bucket] && !evictForNewBucket(byDim)) continue;
     const cell = byDim[bucket] || (byDim[bucket] = {});
     if (!cell[entityKey] && Object.keys(cell).length >= CANON_BY_MAX_ENTITIES) continue;
     cell[entityKey] = (cell[entityKey] || 0) + 1;
@@ -1104,11 +935,10 @@ export function foldCanonAnchors(
 
 /**
  * The publishable form of a catalog breakdown: every cell restricted to
- * the entities the canon actually published. The caller then hands the
- * result to publishableBreakdown, whose bucket-cohort floor, complementary
- * suppression and minimum-comparison rules apply unchanged — D8's
- * k-argument carries over exactly (a per-entity count of 1 inside a
- * ≥floor bucket says "one of these five", never which one).
+ * the entities the canon actually published — a segment ordering for an
+ * entity absent from the board has nothing to order. Bounding the
+ * document is now its only job (D94 removed the floors that used to
+ * follow it).
  *
  * Two deliberate conservatisms, recorded in D17:
  * - the floor then applies to the SHOWN total (top-N answers in the

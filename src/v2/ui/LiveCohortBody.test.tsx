@@ -70,10 +70,6 @@ vi.mock("../data/locate", () => ({ locateCity, locateSupported: () => true }));
 
 const { default: LiveCohortBody } = await import("./LiveCohortBody");
 const { default: PLACES } = await import("../data/places");
-// Real, not mocked: the copy assertions below branch on the same constant
-// the component reads, so both eras of the floor stay expressed.
-const { AGG_FLOOR } = await import("../data/floor");
-
 // Two questions, so "one is shown and one is withheld" is expressible.
 const Q = (id: string, text: string) => ({
   id, text, options: [{ label: "Yes" }, { label: "No" }],
@@ -95,16 +91,11 @@ beforeEach(() => {
 afterEach(() => { cleanup(); vi.restoreAllMocks(); });
 
 describe("LiveCohortBody · an absent cell is counted and named", () => {
-  // Under the design floor (5) an absent cell means WITHHELD; under D81's
-  // paused floor (1) it means ZERO, because any cell with one answer
-  // publishes. Either way the panel must account for the gap in words —
-  // a silent gap reads as "this question doesn't exist here". The strings
-  // branch on AGG_FLOOR, so these cases assert the era they run in and the
-  // restored-floor wording stays pinned by the same expressions.
+  // Since D94 an absent cell means ZERO — nothing is withheld at any size.
+  // The panel must still account for the gap in words, because a silent gap
+  // reads as "this question doesn't exist here".
   const missingLine = (n: number, where: string) =>
-    AGG_FLOOR > 1
-      ? new RegExp(`${n} more question${n === 1 ? " is" : "s are"} withheld`, "i")
-      : new RegExp(`${n} more question${n === 1 ? " has" : "s have"} no\\s+answers from ${where} yet`, "i");
+    new RegExp(`${n} more question${n === 1 ? " has" : "s have"} no\\s+answers from ${where} yet`, "i");
 
   it("counts and names a question whose city cell is missing", () => {
     LIVE.aggFor = (qid) => qid === "q1"
@@ -137,7 +128,7 @@ describe("LiveCohortBody · an absent cell is counted and named", () => {
     LIVE.aggFor = () => ({ by: { city: { "Bergen, NO": { "0": 9 } } } });
     render(<LiveCohortBody scope="city" />);
     expect(screen.getByText(/Oslo is still filling up/i)).toBeTruthy();
-    expect(screen.getByText(AGG_FLOOR > 1 ? /withheld rather than shown thin/i : /the first one starts the count/i)).toBeTruthy();
+    expect(screen.getByText(/the first one starts the count/i)).toBeTruthy();
     expect(screen.queryByText(/First question/)).toBeNull();
   });
 
@@ -152,39 +143,35 @@ describe("LiveCohortBody · an absent cell is counted and named", () => {
   });
 });
 
-describe("LiveCohortBody · the server's floor flag wins at world scope", () => {
+describe("LiveCohortBody · world scope shows what the aggregate holds", () => {
   it("withholds a question flagged tooSmall even when it carries counts", () => {
     // The exact shape the comment in the panel warns about: an aggregate
     // that still has counts on it from an earlier publish while the server
     // now says it is below the floor. Rendering the counts would publish a
-    // split the k-floor withheld.
+    // a question with no answers at all.
     LIVE.aggFor = (qid) => qid === "q1"
-      ? { counts: { "0": 30, "1": 20 }, total: 50, tooSmall: false }
-      : { counts: { "0": 2, "1": 1 }, total: 3, tooSmall: true };
+      ? { counts: { "0": 30, "1": 20 }, total: 50 }
+      : { counts: {}, total: 0 };
 
     render(<LiveCohortBody scope="world" />);
 
     expect(screen.getByText("First question")).toBeTruthy();
     expect(screen.queryByText("Second question")).toBeNull();
-    // World scope explains itself differently — "fewer than 5 people in the
-    // world" would be a different and sillier claim; at the paused floor the
-    // reason is simply that the question has no published answers yet.
-    expect(screen.getByText(
-      AGG_FLOOR > 1
-        ? /1 more question is withheld/i
-        : /1 more question has no\s+answers yet/i,
-    )).toBeTruthy();
+    // World scope explains itself differently: the reason is simply that
+    // the question has no answers yet.
+    expect(screen.getByText(/1 more question has no\s+answers yet/i)).toBeTruthy();
   });
 
-  it("treats a MISSING tooSmall flag as withheld, not as permission", () => {
-    // `agg.tooSmall !== false` rather than `agg.tooSmall === true`: a
-    // document without the field has not been declared safe by anything.
-    // Flipping that comparison is a one-character change that publishes
-    // every unflagged aggregate.
+  it("shows an aggregate that carries counts, with no flag to ask permission of", () => {
+    // The inverse of the case that stood here. It used to assert that an
+    // agg WITHOUT an explicit `tooSmall: false` stayed hidden — fail-closed,
+    // because a document nothing had declared safe was not safe. D94 removed
+    // the flag, so the same document is now simply shown. Kept as the
+    // regression guard for the rename: if anything starts consulting a
+    // `tooSmall` field again, this row disappears.
     LIVE.aggFor = () => ({ counts: { "0": 30, "1": 20 }, total: 50 });
     render(<LiveCohortBody scope="world" />);
-    expect(screen.queryByText("First question")).toBeNull();
-    expect(screen.getByText(/Today is still filling up/i)).toBeTruthy();
+    expect(screen.getByText("First question")).toBeTruthy();
   });
 });
 
@@ -323,33 +310,30 @@ describe("LiveCohortBody · it shows counts, never people (D5)", () => {
   });
 });
 
-describe("the printed floor is the floor the server enforces", () => {
-  // The floor shown to the user comes from data/floor.ts, whose own suite
-  // (floor.test.ts) regex-pins it to AGG_MIN_N in functions/src/v2.ts — the
-  // number equality lives there now. What THIS case holds is the last hop:
-  // the panel imports that constant rather than restating it, so a literal
-  // reappearing here would re-open the drift the old LN_FLOOR had.
-  it("the panel carries no floor literal of its own", () => {
+describe("the panel prints no floor claim at all (D94)", () => {
+  // The inverse of the case that used to stand here. That one made sure
+  // the printed floor equalled the enforced floor; there is no floor to
+  // print now, so this makes sure none came back. A floor literal
+  // reappearing in this panel would be a promise nothing implements —
+  // the same failure in the opposite direction.
+  it("carries no floor literal and no withholding language", () => {
     const root = resolve(__dirname, "../../..");
     const src = readFileSync(resolve(root, "src/v2/ui/LiveCohortBody.tsx"), "utf8");
-    expect(src).toMatch(/import \{ AGG_FLOOR \} from "\.\.\/data\/floor"/);
-    expect(src.match(/const LN_FLOOR = \d+/), "a local floor literal is back — it will drift").toBeNull();
+    expect(src.match(/const LN_FLOOR = \d+/), "a local floor literal is back").toBeNull();
+    expect(src).not.toMatch(/AGG_FLOOR/);
   });
 
-  it("prints no floor claim the server does not enforce", () => {
-    // Under the D81 pause (floor 1) the header must drop the "never a group
-    // smaller than N" clause entirely — both N=5 (false) and N=1 (vacuous)
-    // are wrong things to print. When the floor is restored the same render
-    // must claim exactly the enforced number.
+  it("does not tell the user anything is being held back", () => {
     LIVE.aggFor = () => ({ by: { city: { "Oslo, NO": { "0": 7, "1": 5 } } } });
     render(<LiveCohortBody scope="city" />);
     const text = document.body.textContent || "";
-    if (AGG_FLOOR > 1) {
-      expect(text).toContain(`never a group smaller than ${AGG_FLOOR}`);
-    } else {
-      expect(text).not.toMatch(/smaller than \d/);
-      expect(text).toContain("Counts only — never who.");
-    }
+    expect(text).not.toMatch(/smaller than \d/);
+    expect(text).not.toMatch(/withheld/i);
+    // NB: not asserting the absence of "never who" here — the Right-now
+    // presence card legitimately says it, and that claim is still true
+    // (D94 published answers, not the location grid; firestore.rules
+    // keeps v2_presence unreadable). Scoped to the cohort copy instead.
+    expect(text).not.toMatch(/Counts only/i);
   });
 });
 

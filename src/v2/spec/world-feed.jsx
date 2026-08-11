@@ -11,7 +11,6 @@ import { Sheet } from './primitives.jsx';
 // The feed's cadence arithmetic — extracted so the test exercises THIS loop
 // rather than a copy of it (D11's claim, D42's citation; see the module).
 import { interleaveFeed, partitionAnswered } from '../data/feed-interleave.ts';
-import { AGG_FLOOR } from '../data/floor.ts';
 // The live world-takes surface (D83) — an ordinary ESM import of the typed
 // panel, like the data imports above, so the D39 coupling meter stays flat.
 import LiveTakesPanel from '../ui/LiveTakesPanel.tsx';
@@ -1044,12 +1043,9 @@ class WorldFeed extends React.Component {
       <div style={{ fontSize: big ? 12.5 : 11.5, fontWeight: 600, color: 'var(--ink-3)', padding: '2px 2px 0' }}>
         {/* real characters, not \u escapes: JSX text children are literal,
             so an escape here renders as a visible backslash on the card.
-            Floor-aware (data/floor.ts): at the paused floor (D81) this
-            state is only "the trigger hasn't landed yet", so promising
-            five people would be promising a wait that isn't coming. */}
-        {AGG_FLOOR > 1
-          ? 'You’re early — counts appear once ' + AGG_FLOOR + ' people have answered.'
-          : 'You’re first — the count lands in a moment.'}
+            Since D94 this state only ever means "the trigger hasn't landed
+            yet" — there is no floor left to wait for. */}
+        You’re first — the count lands in a moment.
       </div>
     );
   }
@@ -1092,7 +1088,7 @@ class WorldFeed extends React.Component {
     // selfOnly card (a live session's lens question — D50) is the same
     // problem wearing authored counts: numbers exist, a measurement does
     // not, so it takes the bars path too.
-    const floored = !!(q.live && q.tooSmall) || !!q.selfOnly;
+    const floored = !!(q.live && q.noCountsYet) || !!q.selfOnly;
     return this.opts.reveal && !floored
       ? this.renderVoteTiles(q, T, big)
       : this.renderVoteBars(q, T, big);
@@ -1219,11 +1215,11 @@ class WorldFeed extends React.Component {
             <div style={{ position: 'relative', display: 'flex', alignItems: 'baseline', gap: 8, padding: big ? '13px 14px' : '9px 12px' }}>
               {mine === i && <span aria-label="Your pick" style={{ width: big ? 18 : 15, height: big ? 18 : 15, borderRadius: '50%', flexShrink: 0, alignSelf: 'center', background: WPAL.ink(T.color), display: 'flex', alignItems: 'center', justifyContent: 'center' }}><svg viewBox="0 0 24 24" width={big ? 10 : 8} height={big ? 10 : 8} fill="none" stroke="#fff" strokeWidth="3.4" strokeLinecap="round" strokeLinejoin="round"><path d="M4.5 12.5 10 18 19.5 6.5"></path></svg></span>}
               <span style={{ flex: 1, minWidth: 0, fontWeight: mine === i ? 800 : 700, fontSize: big ? 15 : 13.5 }}>{o.label}</span>
-              {p[i] === maxP && !(q.live && q.tooSmall) && !noCrowd && <span style={{ fontWeight: 800, fontSize: big ? 20 : 15, color: 'var(--ink)' }}><WfCount to={p[i]} animate={fresh}></WfCount>%</span>}
+              {p[i] === maxP && !(q.live && q.noCountsYet) && !noCrowd && <span style={{ fontWeight: 800, fontSize: big ? 20 : 15, color: 'var(--ink)' }}><WfCount to={p[i]} animate={fresh}></WfCount>%</span>}
             </div>
           </div>
         ))}
-        {q.live && q.tooSmall && mine != null && this.renderFloorNote(big)}
+        {q.live && q.noCountsYet && mine != null && this.renderFloorNote(big)}
         {noCrowd && mine != null && this.renderSelfNote(q, T, big)}
       </div>
     );
@@ -1240,7 +1236,7 @@ class WorldFeed extends React.Component {
     // share — so the fill and the numeral are gated together. Drawing one
     // without the other would publish the split geometrically instead of
     // numerically, which is the same disclosure in a different alphabet.
-    const shares = mine != null && !(q.live && q.tooSmall);
+    const shares = mine != null && !(q.live && q.noCountsYet);
     // Label band at the top; the numeral rides the water line below it. Two things
     // keep them from ever meeting, at any tile height or percentage:
     //   1. the band reserves lines for what the labels ACTUALLY need (shared across

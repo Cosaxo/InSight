@@ -13,16 +13,10 @@ import {
   prunePendingDays,
   scanDays,
   revealMembersFor,
-  meetsKFloor,
   breakdownBucket,
   foldAnchors,
-  publishableBreakdown,
-  publishBreakdown,
   BREAKDOWN_MAX_BUCKETS,
-  steppedBreakdown,
-  shouldPublishAgg,
   catalogEntityKey,
-  publishableCanon,
   buildModQueueFrom,
   tallyFlags,
   tallyFlagsInto,
@@ -34,13 +28,13 @@ import {
   describeSeedOptionConflicts,
   SEEDED_FIELDS,
   foldCanonAnchors,
+  canonTopN,
   canonBreakdownFor,
   CANON_BY_MAX_ENTITIES,
   isPlausibleFcmToken,
   nextFcmTokens,
   duelAggDelta,
   foldDuelAgg,
-  shouldPublishDuelAgg,
   publishableDuelAgg,
   revealQid,
   revealVotes,
@@ -50,15 +44,10 @@ import {
   retargetCounts,
   retargetAnchors,
 } from "./pure";
-import { AGG_MIN_N, PUBLISH_EVERY } from "./v2";
 
-// The DESIGN floor — what AGG_MIN_N returns to when D81's launch pause
-// ends (the shipped value is 1 while it holds; see the cadence suite
-// below for the pair). The folds take the k-floor as a parameter because
-// the bucket cap now EVICTS a sub-floor bucket to admit a new one, and
-// "sub-floor" is the publish path's decision, not the fold's to assume —
-// which is also what keeps the floor-5 machinery tested while the shipped
-// constant sits at 1.
+// The bucket-churn threshold (pure.ts BUCKET_EVICT_BELOW). Not a
+// disclosure floor — D94 removed those; this is the document-growth
+// bound that keeps a junk-value burst from blanking a dimension.
 const FLOOR = 5;
 
 // ── invite codes ────────────────────────────────────────────────
@@ -357,20 +346,6 @@ describe("nextStreak", () => {
 
 // ── k-floor ─────────────────────────────────────────────────────
 
-describe("meetsKFloor", () => {
-  it("is exclusive below and inclusive at the floor", () => {
-    expect(meetsKFloor(19, 20)).toBe(false);
-    expect(meetsKFloor(20, 20)).toBe(true);
-    expect(meetsKFloor(21, 20)).toBe(true);
-  });
-
-  it("handles the small city floor edges too", () => {
-    expect(meetsKFloor(0, 3)).toBe(false);
-    expect(meetsKFloor(2, 3)).toBe(false);
-    expect(meetsKFloor(3, 3)).toBe(true);
-  });
-});
-
 describe("per-anchor breakdowns", () => {
   // Since D9 the client sends the canonical catalogue key for `city` and
   // the ISO code (derived from it, never typed) for `country`.
@@ -383,7 +358,7 @@ describe("per-anchor breakdowns", () => {
 
   it("folds the closed-vocabulary anchors, and ignores junk buckets", () => {
     const by = {};
-    foldAnchors(by, anchors({ city: "Oslo, NO", profession: "Carpenter" }), 1, FLOOR);
+    foldAnchors(by, anchors({ city: "Oslo, NO", profession: "Carpenter" }), 1);
     // `profession` is still free text up to 80 chars and must never mint a
     // key. `city` may, since D9 — it comes from a fixed catalogue whose
     // every entry check-cities.mjs verifies against these same rules.
@@ -396,7 +371,7 @@ describe("per-anchor breakdowns", () => {
 
     // empty, over-long and field-path-hostile values are skipped, not stored
     const junk = {};
-    foldAnchors(junk, { ageBand: "  ", gender: "x".repeat(41), country: "a.b" }, 0, FLOOR);
+    foldAnchors(junk, { ageBand: "  ", gender: "x".repeat(41), country: "a.b" }, 0);
     expect(junk).toEqual({});
     expect(breakdownBucket("  Norway  ")).toBe("Norway");
     expect(breakdownBucket(42)).toBeNull();
@@ -409,12 +384,12 @@ describe("per-anchor breakdowns", () => {
     // check that blanks the dimension for every other user of the question.
     const by = {};
     for (const bad of ["oslo", "Oslo, Norway", "Oslo,NO", "Oslo, no", "OSLO"]) {
-      foldAnchors(by, { city: bad, country: bad }, 0, FLOOR);
+      foldAnchors(by, { city: bad, country: bad }, 0);
     }
     expect(by).toEqual({});
 
     // …and the canonical forms still land.
-    foldAnchors(by, { city: "Oslo, NO", country: "NO" }, 0, FLOOR);
+    foldAnchors(by, { city: "Oslo, NO", country: "NO" }, 0);
     expect(Object.keys(by).sort()).toEqual(["city", "country"]);
 
     // A city name may itself contain a comma; the shape anchors on the tail.
@@ -448,7 +423,7 @@ describe("per-anchor breakdowns", () => {
 
     const before = Object.prototype as unknown as Record<string, unknown>;
     const by = {};
-    foldAnchors(by, { gender: "__proto__", ageBand: "constructor" }, 3, FLOOR);
+    foldAnchors(by, { gender: "__proto__", ageBand: "constructor" }, 3);
     expect(by).toEqual({});
     expect(before["3"]).toBeUndefined();
     // The consequence the guard exists for, stated as the assertion: an
@@ -457,7 +432,7 @@ describe("per-anchor breakdowns", () => {
 
     // …and the same for the catalog transpose, which folds the same anchors.
     const entBy = {};
-    foldCanonAnchors(entBy, { gender: "__proto__" }, "25", FLOOR);
+    foldCanonAnchors(entBy, { gender: "__proto__" }, "25");
     expect(entBy).toEqual({});
     expect(({} as Record<string, unknown>)["25"]).toBeUndefined();
   });
@@ -469,18 +444,18 @@ describe("per-anchor breakdowns", () => {
     // 10,929 places against 24 slots is where the cap still bites.
     const by: Record<string, Record<string, Record<string, number>>> = {};
     for (let i = 0; i < BREAKDOWN_MAX_BUCKETS + 10; i++) {
-      foldAnchors(by, { city: `City${i}, NO` }, 0, FLOOR);
+      foldAnchors(by, { city: `City${i}, NO` }, 0);
     }
     expect(Object.keys(by.city)).toHaveLength(BREAKDOWN_MAX_BUCKETS);
     // A bucket still IN the map keeps incrementing — the cap gates entry,
     // not counting. (City0 is gone by now: 34 arrivals into 24 slots, and
     // among all-equal buckets eviction is oldest-first.)
     const survivor = Object.keys(by.city)[0];
-    foldAnchors(by, { city: survivor }, 0, FLOOR);
+    foldAnchors(by, { city: survivor }, 0);
     expect(by.city[survivor]["0"]).toBe(2);
     // …and the document cannot grow past the cap however many arrive. This
     // is the D7 growth bound, and eviction must not have loosened it.
-    for (let i = 100; i < 140; i++) foldAnchors(by, { city: `City${i}, NO` }, 0, FLOOR);
+    for (let i = 100; i < 140; i++) foldAnchors(by, { city: `City${i}, NO` }, 0);
     expect(Object.keys(by.city).length).toBeLessThanOrEqual(BREAKDOWN_MAX_BUCKETS);
   });
 
@@ -491,10 +466,10 @@ describe("per-anchor breakdowns", () => {
     // check:anchors holds the same inequality against the client's lists.
     const by: Record<string, Record<string, Record<string, number>>> = {};
     for (const v of ["Woman", "Man", "Non-binary", "Prefer not to say"]) {
-      foldAnchors(by, { gender: v }, 0, FLOOR);
+      foldAnchors(by, { gender: v }, 0);
     }
     // …and 200 attempts at anything else buy nothing.
-    for (let i = 0; i < 200; i++) foldAnchors(by, { gender: `G${i}` }, 0, FLOOR);
+    for (let i = 0; i < 200; i++) foldAnchors(by, { gender: `G${i}` }, 0);
     expect(Object.keys(by.gender).sort())
       .toEqual(["Man", "Non-binary", "Prefer not to say", "Woman"]);
     expect(Object.keys(by.gender).length).toBeLessThan(BREAKDOWN_MAX_BUCKETS);
@@ -508,28 +483,25 @@ describe("per-anchor breakdowns", () => {
     // far larger than the cap.
     const by: Record<string, Record<string, Record<string, number>>> = {};
     for (let i = 0; i < BREAKDOWN_MAX_BUCKETS; i++) {
-      foldAnchors(by, { city: `Junk${i}, NO` }, 0, FLOOR);
+      foldAnchors(by, { city: `Junk${i}, NO` }, 0);
     }
     expect(Object.keys(by.city)).toHaveLength(BREAKDOWN_MAX_BUCKETS);
 
-    // Real traffic now arrives. Two cities, because publishableBreakdown
-    // needs two surviving buckets to call anything a split — one bucket is a
-    // population statement, not a comparison.
+    // Real traffic now arrives. Two cities, so the churn has something to
+    // prefer over the junk.
     for (let i = 0; i < FLOOR; i++) {
-      foldAnchors(by, { city: "Oslo, NO" }, 1, FLOOR);
-      foldAnchors(by, { city: "Bergen, NO" }, 0, FLOOR);
+      foldAnchors(by, { city: "Oslo, NO" }, 1);
+      foldAnchors(by, { city: "Bergen, NO" }, 0);
     }
-    // Before this change both were refused outright and `city` published
-    // nothing for the life of the question.
-    expect(publishableBreakdown(by, FLOOR).city).toEqual({
-      "Oslo, NO": { "1": FLOOR },
-      "Bergen, NO": { "0": FLOOR },
-    });
+    // Before the eviction rule existed both were refused outright and
+    // `city` stayed blank for the life of the question.
+    expect(by.city["Oslo, NO"]).toEqual({ "1": FLOOR });
+    expect(by.city["Bergen, NO"]).toEqual({ "0": FLOOR });
 
-    // …and once a bucket is publishable it is not evictable, however many
-    // new values arrive. A published count that could vanish is a worse
-    // failure than a dimension that degrades.
-    for (let i = 0; i < 200; i++) foldAnchors(by, { city: `More${i}, NO` }, 0, FLOOR);
+    // …and once a bucket reaches BUCKET_EVICT_BELOW it is not evictable,
+    // however many new values arrive. A published count that could vanish
+    // is a worse failure than a dimension that degrades.
+    for (let i = 0; i < 200; i++) foldAnchors(by, { city: `More${i}, NO` }, 0);
     expect(by.city["Oslo, NO"], "a published bucket was evicted").toEqual({ "1": FLOOR });
     expect(by.city["Bergen, NO"], "a published bucket was evicted").toEqual({ "0": FLOOR });
     expect(Object.keys(by.city).length).toBeLessThanOrEqual(BREAKDOWN_MAX_BUCKETS);
@@ -546,97 +518,23 @@ describe("per-anchor breakdowns", () => {
     // watching the whole suite stay green.
     const by: Record<string, Record<string, Record<string, number>>> = {};
     for (let i = 0; i < BREAKDOWN_MAX_BUCKETS; i++) {
-      for (let n = 0; n < FLOOR; n++) foldAnchors(by, { city: `Full${i}, NO` }, 0, FLOOR);
+      for (let n = 0; n < FLOOR; n++) foldAnchors(by, { city: `Full${i}, NO` }, 0);
     }
     const before = { ...by.city };
     expect(Object.keys(before)).toHaveLength(BREAKDOWN_MAX_BUCKETS);
 
-    foldAnchors(by, { city: "Newcomer, NO" }, 0, FLOOR);
+    foldAnchors(by, { city: "Newcomer, NO" }, 0);
 
     expect(by.city["Newcomer, NO"], "a publishable bucket was evicted for a newcomer")
       .toBeUndefined();
     expect(by.city).toEqual(before);
   });
 
-  it("suppresses buckets whose total is below the floor", () => {
-    const by = {
-      gender: {
-        Women: { "0": 6, "1": 4 },   // 10 — publishable
-        Men: { "0": 5, "1": 3 },     // 8  — publishable
-        Nonbinary: { "0": 1 },       // 1  — below floor
-        Other: { "0": 2 },           // 2  — below floor
-      },
-    };
-    const out = publishableBreakdown(by, 5);
-    expect(Object.keys(out.gender).sort()).toEqual(["Men", "Women"]);
-    expect(out.gender.Nonbinary).toBeUndefined();
-  });
-
-  // The property that makes the floor real rather than decorative.
-  it("never leaves exactly one suppressed bucket recoverable by subtraction", () => {
-    const by = {
-      ageBand: {
-        "18-24": { "0": 20 },  // published
-        "25-34": { "0": 12 },  // smallest survivor — must be taken too
-        "35-44": { "0": 3 },   // the only sub-floor bucket
-      },
-    };
-    const out = publishableBreakdown(by, 5);
-    // Without complementary suppression this would publish two buckets and a
-    // reader knowing the dimension total (35) recovers 35-20-12 = 3 exactly.
-    expect(out.ageBand).toBeUndefined();
-
-    // With enough survivors, the complement is applied and the rest stand
-    const wide = {
-      country: {
-        A: { "0": 30 }, B: { "0": 20 }, C: { "0": 14 }, D: { "0": 2 },
-      },
-    };
-    const w = publishableBreakdown(wide, 5);
-    expect(Object.keys(w.country).sort()).toEqual(["A", "B"]);  // C is the complement
-    expect(w.country.D).toBeUndefined();
-  });
-
-  it("omits a dimension that cannot show a comparison", () => {
-    // one surviving bucket is a population statement, not a split
-    expect(publishableBreakdown({ gender: { Women: { "0": 40 } } }, 5)).toEqual({});
-    // two clean buckets and nothing suppressed: published as-is
-    const clean = { gender: { Women: { "0": 9 }, Men: { "0": 7 } } };
-    expect(publishableBreakdown(clean, 5)).toEqual(clean);
-  });
-
-  // The floor's scope, pinned so it stays a decision rather than a
-  // discovery. It bounds COHORT SIZE — how many people are in a bucket —
-  // and says nothing about how lopsided that bucket's split may be. A
-  // bucket sitting exactly on the floor can therefore publish a count of 1
-  // for an option, which is one person's answer, disclosed to anyone who
-  // already knows the other four. That is the documented k-anonymity
-  // residual (D18), not a suppression bug — and the plain `counts` beside
-  // it carry the identical property at the identical floor.
-  //
-  // If this test ever fails, the floor's unit changed. That is a D18
-  // reversal and needs the record updated, not a green-again patch.
-  it("publishes a lopsided split inside a bucket at the floor", () => {
-    const by = {
-      city: {
-        "Oslo, NO": { "0": 4, "1": 1 },     // 5 — on the floor, 1 is a person
-        "Bergen, NO": { "0": 3, "1": 3 },   // 6 — publishable
-      },
-    };
-    const out = publishableBreakdown(by, 5);
-    expect(out.city["Oslo, NO"]).toEqual({ "0": 4, "1": 1 });
-    // …and the bucket total, not any single option, is what was tested
-    // against the floor: a bucket of 4+1 clears it, a bucket of 4 does not.
-    const below = { city: { "Oslo, NO": { "0": 4 }, "Bergen, NO": { "0": 9 } } };
-    expect(publishableBreakdown(below, 5).city).toBeUndefined();
-  });
-
-  it("does not alias the private counts into the published copy", () => {
-    const by = { gender: { Women: { "0": 9 }, Men: { "0": 7 } } };
-    const out = publishableBreakdown(by, 5);
-    out.gender.Women["0"] = 999;
-    expect(by.gender.Women["0"]).toBe(9);
-  });
+  // The five publishableBreakdown cases that stood here — sub-floor
+  // suppression, complementary suppression, the two-bucket minimum, the
+  // lopsided-split carve-out and the defensive copy — went with the
+  // function itself (D94). pure.ts keeps the record of what each one
+  // defended; there is no publishable view left to test.
 });
 
 // ── the edit delta (D86) ────────────────────────────────────────
@@ -685,8 +583,8 @@ describe("retargetCounts / retargetAnchors — the D86 edit delta", () => {
 
   it("moves the vote in every anchored dim and keeps bucket totals fixed", () => {
     const by = {};
-    foldAnchors(by, { ageBand: "25-34", city: "Oslo, NO" }, 0, FLOOR);
-    foldAnchors(by, { ageBand: "25-34", city: "Oslo, NO" }, 0, FLOOR);
+    foldAnchors(by, { ageBand: "25-34", city: "Oslo, NO" }, 0);
+    foldAnchors(by, { ageBand: "25-34", city: "Oslo, NO" }, 0);
     retargetAnchors(by, { ageBand: "25-34", city: "Oslo, NO" }, 0, 2);
     expect(by).toEqual({
       ageBand: { "25-34": { "0": 1, "2": 1 } },
@@ -695,10 +593,10 @@ describe("retargetCounts / retargetAnchors — the D86 edit delta", () => {
     // …and a fold followed by a retarget equals folding the new option
     // outright: the roundtrip leaves no residue.
     const edited = {};
-    foldAnchors(edited, { ageBand: "25-34" }, 0, FLOOR);
+    foldAnchors(edited, { ageBand: "25-34" }, 0);
     retargetAnchors(edited, { ageBand: "25-34" }, 0, 1);
     const direct = {};
-    foldAnchors(direct, { ageBand: "25-34" }, 1, FLOOR);
+    foldAnchors(direct, { ageBand: "25-34" }, 1);
     expect(edited).toEqual(direct);
   });
 
@@ -733,189 +631,6 @@ describe("retargetCounts / retargetAnchors — the D86 edit delta", () => {
     retargetAnchors(by, { gender: "Woman" }, 0, 1);
     expect(by.gender.Woman).toEqual({ "1": 2 });
     expect("0" in by.gender.Woman).toBe(false);
-  });
-});
-
-describe("public-mirror publish cadence — the design pair (5, 5), D81's revert target", () => {
-  // NOT the shipped constants while the launch pause holds (see the suite
-  // below for those). These pin the machinery at the floor it returns to,
-  // so flipping D81 back is a two-literal edit and not a re-derivation.
-  const pub = (total: number) => shouldPublishAgg(total, 5, 5);
-
-  it("publishes nothing below the floor", () => {
-    for (let t = 0; t < 5; t++) expect(pub(t)).toBe(false);
-  });
-
-  it("publishes on the floor crossing and then every 5th answer", () => {
-    expect(pub(5)).toBe(true);
-    expect(pub(10)).toBe(true);
-    expect(pub(15)).toBe(true);
-    expect(pub(100)).toBe(true);
-  });
-
-  // The property that closes the disclosure channel: between any two
-  // publishes at least `every` answers land, so no observed step is one
-  // person. Checked as a gap measurement rather than by spot values —
-  // a spot check would survive a policy that publishes per answer above
-  // some threshold, which is exactly the bug this replaced.
-  it("never lets two publishes be fewer than 5 answers apart, at any size", () => {
-    let last = -1;
-    let smallestGap = Infinity;
-    for (let t = 1; t <= 2000; t++) {
-      if (!pub(t)) continue;
-      if (last > 0) smallestGap = Math.min(smallestGap, t - last);
-      last = t;
-    }
-    expect(smallestGap).toBe(5);
-  });
-
-  it("degrades safely if the floor is not a multiple of the cadence", () => {
-    // first publish simply waits for the next multiple — later, never leakier
-    expect(shouldPublishAgg(7, 7, 5)).toBe(false);
-    expect(shouldPublishAgg(10, 7, 5)).toBe(true);
-    // and a cadence of 1 is "publish every answer", the old behaviour,
-    // kept expressible so a future operator choosing it does so knowingly
-    expect(shouldPublishAgg(6, 5, 1)).toBe(true);
-  });
-});
-
-describe("public-mirror publish cadence — the constants as shipped (D81 pause)", () => {
-  // The launch pause: AGG_MIN_N and PUBLISH_EVERY sit at 1, so counts
-  // publish from the first answer and every answer after it. Every observed
-  // step IS one person's vote — that is the accepted disclosure D81
-  // records, not an oversight this suite failed to catch.
-  it("publishes from the first answer while the pause holds", () => {
-    expect(shouldPublishAgg(1, AGG_MIN_N, PUBLISH_EVERY)).toBe(true);
-    for (let t = 1; t <= 20; t++) {
-      expect(shouldPublishAgg(t, AGG_MIN_N, PUBLISH_EVERY), `total ${t}`).toBe(true);
-    }
-  });
-
-  it("keeps the pair coupled: paused together or restored together", () => {
-    // A floor of 1 with a cadence of 5 holds the first four answers hostage
-    // for no disclosure gain; the restored floor without the restored
-    // cadence re-opens the one-vote-per-step stream D7's amendment closed.
-    // Either edit alone fails here and names the other half.
-    expect([AGG_MIN_N, PUBLISH_EVERY]).toEqual(AGG_MIN_N === 1 ? [1, 1] : [5, 5]);
-  });
-});
-
-describe("the same cadence, applied per bucket (steppedBreakdown)", () => {
-
-  // The trigger's vote-path publish loop (v2.ts), reproduced so the property
-  // is asserted against the composition that actually ships rather than
-  // against steppedBreakdown alone. Returns every state a client holding an
-  // onSnapshot on v2_question_aggs would observe.
-  function replay(answers: { anchors: Record<string, string>; optionIdx: number }[]) {
-    const by = {};
-    let released = {};
-    let total = 0;
-    const seen: Record<string, Record<string, Record<string, number>>>[] = [];
-    for (const a of answers) {
-      total += 1;
-      foldAnchors(by, a.anchors, a.optionIdx, FLOOR);
-      if (total >= FLOOR && shouldPublishAgg(total, FLOOR, FLOOR)) {
-        // `released` is what was PUBLISHED, matching v2.ts — not what
-        // steppedBreakdown returned. Simulating the latter is how this
-        // helper agreed with a trigger that could never publish a
-        // first-suppressed bucket (see the case below).
-        released = publishableBreakdown(steppedBreakdown(by, released, FLOOR), FLOOR);
-        seen.push(released);
-      }
-    }
-    return seen;
-  }
-
-  it("never moves a published bucket by fewer than the floor", () => {
-    // The shape that made this necessary: anchors stay empty until the user
-    // fills the Basics card (D8), so a five-answer window routinely carries
-    // exactly one anchored answer — and that one answer used to move its
-    // bucket, and every dimension of it, by exactly 1.
-    const answers: { anchors: Record<string, string>; optionIdx: number }[] = [];
-    for (let i = 0; i < 10; i++) answers.push({ anchors: { gender: "Woman" }, optionIdx: 0 });
-    for (let i = 0; i < 10; i++) answers.push({ anchors: { gender: "Man" }, optionIdx: 0 });
-    for (let i = 0; i < 60; i++) {
-      // one anchored answer per window of five
-      answers.push({ anchors: { gender: i % 2 ? "Woman" : "Man" }, optionIdx: 1 });
-      for (let j = 0; j < 4; j++) answers.push({ anchors: {}, optionIdx: 0 });
-    }
-
-    const seen = replay(answers);
-    expect(seen.length).toBeGreaterThan(10);
-
-    const totalOf = (cell: Record<string, number>) =>
-      Object.keys(cell).reduce((n, k) => n + cell[k], 0);
-
-    let smallestNonZeroStep = Infinity;
-    for (let i = 1; i < seen.length; i++) {
-      for (const dim of Object.keys(seen[i])) {
-        for (const bucket of Object.keys(seen[i][dim])) {
-          const prev = seen[i - 1][dim]?.[bucket];
-          if (!prev) continue; // first appearance discloses a whole ≥floor cohort
-          const step = totalOf(seen[i][dim][bucket]) - totalOf(prev);
-          if (step > 0) smallestNonZeroStep = Math.min(smallestNonZeroStep, step);
-        }
-      }
-    }
-    // Measured as a minimum over every adjacent pair, not spot-checked: a
-    // spot check survives a policy that steps by one past some size, which
-    // is the bug this closes.
-    expect(smallestNonZeroStep).toBeGreaterThanOrEqual(FLOOR);
-  });
-
-  it("a bucket suppressed at first publication is not charged for it", () => {
-    // The regression e2e-v2-loop.mjs caught. Two cohorts reach exactly the
-    // floor on the publish at total 10, having been below it — and therefore
-    // suppressed — at total 5. Measuring the step from steppedBreakdown's own
-    // output charged them for a value no reader saw, so they needed TWICE
-    // the floor and the breakdown never appeared at all.
-    const by = {};
-    for (let i = 0; i < 3; i++) foldAnchors(by, { gender: "Woman" }, 1, FLOOR);
-    for (let i = 0; i < 2; i++) foldAnchors(by, { gender: "Man" }, 1, FLOOR);
-
-    const atFive = publishableBreakdown(steppedBreakdown(by, {}, FLOOR), FLOOR);
-    expect(atFive, "3 and 2 are both under the floor").toEqual({});
-
-    for (let i = 0; i < 2; i++) foldAnchors(by, { gender: "Woman" }, 0, FLOOR);
-    for (let i = 0; i < 3; i++) foldAnchors(by, { gender: "Man" }, 0, FLOOR);
-
-    const atTen = publishableBreakdown(steppedBreakdown(by, atFive, FLOOR), FLOOR);
-    expect(atTen.gender, "both cohorts reached the floor and still published nothing")
-      .toEqual({ Woman: { "0": 2, "1": 3 }, Man: { "0": 3, "1": 2 } });
-  });
-
-  it("re-emits the previous value rather than freezing the document", () => {
-    const by = { gender: { Woman: { "0": 5 } } };
-    const released = steppedBreakdown(by, {}, FLOOR);
-    expect(released).toEqual({ gender: { Woman: { "0": 5 } } });
-
-    // one further answer: the bucket must read exactly as it did before
-    foldAnchors(by, { gender: "Woman" }, 1, FLOOR);
-    const next = steppedBreakdown(by, released, FLOOR);
-    expect(next).toEqual({ gender: { Woman: { "0": 5 } } });
-    expect(next.gender.Woman["1"]).toBeUndefined();
-
-    // …and once the bucket has gained the floor, the true counts land whole
-    for (let i = 0; i < 4; i++) foldAnchors(by, { gender: "Woman" }, 1, FLOOR);
-    expect(steppedBreakdown(by, released, FLOOR)).toEqual({ gender: { Woman: { "0": 5, "1": 5 } } });
-  });
-
-  it("holds one bucket while another moves", () => {
-    // Per bucket, not per dimension: a busy cohort must not carry a quiet
-    // one past its own step.
-    const released = { gender: { Woman: { "0": 5 }, Man: { "0": 5 } } };
-    const by = { gender: { Woman: { "0": 10 }, Man: { "0": 6 } } };
-    expect(steppedBreakdown(by, released, FLOOR)).toEqual({
-      gender: { Woman: { "0": 10 }, Man: { "0": 5 } },
-    });
-  });
-
-  it("leaves the floor and complementary suppression to publishableBreakdown", () => {
-    // steppedBreakdown gates WHEN a value moves, never whether it clears —
-    // a sub-floor bucket passes through it and is dropped downstream.
-    const stepped = steppedBreakdown({ gender: { Woman: { "0": 2 } } }, {}, FLOOR);
-    expect(stepped).toEqual({ gender: { Woman: { "0": 2 } } });
-    expect(publishableBreakdown(stepped, FLOOR)).toEqual({});
   });
 });
 
@@ -954,68 +669,58 @@ describe("catalog answers (pick questions — docs/CATALOG-QUESTIONS.md)", () =>
     expect(catalogEntityKey(0, EMPTY)).toBe("0");
   });
 
-  // The property that makes the canon's floor real rather than decorative.
-  it("never leaves exactly one folded entity recoverable by subtraction", () => {
-    // Without complementary suppression this would publish {25:20, 6:12}
-    // and a reader knowing the total (35) recovers 35-20-12 = 3 — the
-    // exact count of the one entity the floor was hiding.
-    expect(publishableCanon({ "25": 20, "6": 12, "4": 3 }, 5, 10)).toEqual({
-      top: { "25": 20 },
-      rest: 15,
+  // D94: no floor, no complementary fold, no tie fold. `rest` is the tail
+  // outside the top N and nothing else. The three cases that used to live
+  // here — recoverable-hole folding, whole-tie-group folding, and the
+  // null board when suppression emptied it — went with publishableCanon.
+  it("publishes every answered entity, at any count", () => {
+    expect(canonTopN({ "25": 20, "6": 12, "4": 3 }, 10)).toEqual({
+      top: { "25": 20, "6": 12, "4": 3 },
+      rest: 0,
     });
-    // …and the smallest survivor folds as a whole tie GROUP, or the fold
-    // itself would rank equals arbitrarily: here the lone sub-floor entity
-    // takes both 6-count entities down with it.
-    expect(publishableCanon({ "25": 9, "6": 6, "7": 6, "4": 3 }, 5, 10)).toEqual({
-      top: { "25": 9 },
-      rest: 15,
+    // A one-vote entity is as publishable as a twenty-vote one.
+    expect(canonTopN({ "1": 2, "2": 2, "3": 1 }, 10)).toEqual({
+      top: { "1": 2, "2": 2, "3": 1 },
+      rest: 0,
     });
   });
 
-  it("publishes nothing finer than the total when the fold empties the board", () => {
-    // every entity below the floor
-    expect(publishableCanon({ "1": 2, "2": 2, "3": 1 }, 5, 10)).toBeNull();
-    // one entity above it, but publishing it names the one below by
-    // subtraction, and folding it leaves nothing
-    expect(publishableCanon({ "25": 20, "4": 3 }, 5, 10)).toBeNull();
-  });
-
-  it("caps at topN and folds boundary ties whole", () => {
+  it("caps at topN and puts the remainder in rest", () => {
     const ent: Record<string, number> = {};
     for (let i = 1; i <= 12; i++) ent[String(i)] = 30 - i; // 29..18, distinct
-    const out = publishableCanon(ent, 5, 10);
-    expect(out).not.toBeNull();
-    expect(Object.keys(out!.top)).toHaveLength(10);
-    expect(out!.rest).toBe(19 + 18); // the two beyond the cap
-    // Ties at the boundary: with topN 3 over [9,8,7,7], publishing one 7
-    // would rank equals arbitrarily — the whole tie group folds.
-    expect(publishableCanon({ "1": 9, "2": 8, "3": 7, "4": 7 }, 5, 3)).toEqual({
-      top: { "1": 9, "2": 8 },
-      rest: 14,
+    const out = canonTopN(ent, 10);
+    expect(Object.keys(out.top)).toHaveLength(10);
+    expect(out.rest).toBe(19 + 18); // the two beyond the cap
+    // A boundary tie is now cut by the cap like anything else — equals may
+    // land on opposite sides, which is a display-ordering wrinkle rather
+    // than the disclosure problem the whole-group fold existed for.
+    expect(canonTopN({ "1": 9, "2": 8, "3": 7, "4": 7 }, 3)).toEqual({
+      top: { "1": 9, "2": 8, "3": 7 },
+      rest: 7,
     });
   });
 
   it("counts 'Not listed' in the fold but never enumerates it", () => {
     // Key "0" dominates here and still must not lead the board; it lands in
     // rest, published as part of one bucket rather than as a standing.
-    expect(publishableCanon({ "0": 50, "25": 10, "6": 7 }, 5, 10)).toEqual({
+    expect(canonTopN({ "0": 50, "25": 10, "6": 7 }, 10)).toEqual({
       top: { "25": 10, "6": 7 },
       rest: 50,
     });
   });
 
   it("publishes a clean board with rest 0 when everything clears", () => {
-    expect(publishableCanon({ "25": 10, "6": 7 }, 5, 10)).toEqual({
+    expect(canonTopN({ "25": 10, "6": 7 }, 10)).toEqual({
       top: { "25": 10, "6": 7 },
       rest: 0,
     });
   });
 
-  // Swept rather than spot-checked, like the cadence gap: the suppression
-  // arithmetic has enough branches (floor cut, cap cut, tie fold,
-  // complementary fold) that a hand-picked case can pass while a
-  // neighbouring shape leaks. Every 4-entity board with counts 0..8 is
-  // ~6.5k inputs — cheap, and exhaustive over the branch interactions.
+  // Swept rather than spot-checked. Only one invariant survives D94 — the
+  // conservation one — but it is the one that matters: a board plus its
+  // rest must still account for every answer, or the leaderboard is
+  // inventing or losing votes. Every 4-entity board with counts 0..8 is
+  // ~6.5k inputs, cheap and exhaustive over the branches.
   it("holds the invariants across every small board", () => {
     for (let a = 0; a <= 8; a++)
       for (let b = 0; b <= 8; b++)
@@ -1023,17 +728,14 @@ describe("catalog answers (pick questions — docs/CATALOG-QUESTIONS.md)", () =>
           for (let nl = 0; nl <= 8; nl++) {
             const ent = { "1": a, "2": b, "3": c, "0": nl };
             const total = a + b + c + nl;
-            const out = publishableCanon(ent, 5, 2);
-            if (!out) continue;
+            const out = canonTopN(ent, 2);
             const shown = Object.values(out.top).reduce((x, y) => x + y, 0);
             // nothing invented, nothing lost
             expect(shown + out.rest).toBe(total);
-            // every published entity clears the floor
-            for (const n of Object.values(out.top)) expect(n).toBeGreaterThanOrEqual(5);
-            // never exactly one recoverable hole among the answered,
-            // enumerable entities
-            const answered = [a, b, c].filter((n) => n > 0).length;
-            expect(answered - Object.keys(out.top).length).not.toBe(1);
+            // the cap is a cap
+            expect(Object.keys(out.top).length).toBeLessThanOrEqual(2);
+            // "Not listed" never takes a standing
+            expect("0" in out.top).toBe(false);
           }
   });
 });
@@ -1048,9 +750,9 @@ describe("catalog breakdowns — segment orderings of the canon (D17)", () => {
 
   it("folds anchors per entity, sharing the vote fold's bucket rules", () => {
     const by = {};
-    foldCanonAnchors(by, anchors({ city: "Oslo, NO", profession: "Carpenter" }), "25", FLOOR);
-    foldCanonAnchors(by, anchors(), "25", FLOOR);
-    foldCanonAnchors(by, anchors({ ageBand: "18-24" }), "6", FLOOR);
+    foldCanonAnchors(by, anchors({ city: "Oslo, NO", profession: "Carpenter" }), "25");
+    foldCanonAnchors(by, anchors(), "25");
+    foldCanonAnchors(by, anchors({ ageBand: "18-24" }), "6");
     expect(by).toMatchObject({
       ageBand: { "25-34": { "25": 2 }, "18-24": { "6": 1 } },
       gender: { Woman: { "25": 2, "6": 1 } },
@@ -1067,10 +769,10 @@ describe("catalog breakdowns — segment orderings of the canon (D17)", () => {
     // sides: a new entity is dropped, a known one still counts.
     const by: Record<string, Record<string, Record<string, number>>> = {};
     for (let e = 1; e <= CANON_BY_MAX_ENTITIES; e++) {
-      foldCanonAnchors(by, { gender: "Woman" }, String(e), FLOOR);
+      foldCanonAnchors(by, { gender: "Woman" }, String(e));
     }
-    foldCanonAnchors(by, { gender: "Woman" }, "999", FLOOR); // over the cap: dropped
-    foldCanonAnchors(by, { gender: "Woman" }, "1", FLOOR);   // known: keeps counting
+    foldCanonAnchors(by, { gender: "Woman" }, "999"); // over the cap: dropped
+    foldCanonAnchors(by, { gender: "Woman" }, "1");   // known: keeps counting
     const cell = by.gender.Woman;
     expect(Object.keys(cell)).toHaveLength(CANON_BY_MAX_ENTITIES);
     expect(cell["999"]).toBeUndefined();
@@ -1088,9 +790,11 @@ describe("catalog breakdowns — segment orderings of the canon (D17)", () => {
       },
     };
     const top = { "25": 30, "6": 11 }; // the published canon
-    const out = publishableBreakdown(canonBreakdownFor(entBy, top), 5);
-    // Both surviving buckets publish per-entity counts — including a 1
-    // inside a ≥5 cohort, which is D8's k-argument, not a leak.
+    const out = canonBreakdownFor(entBy, top);
+    // Every surviving cell publishes whole (D94). The 35-44 bucket still
+    // vanishes, and for a reason that is not disclosure: none of its
+    // answers are for an entity on the board, so it has no ordering to
+    // show.
     expect(out).toEqual({
       ageBand: {
         "18-24": { "25": 4, "6": 1 },
@@ -1099,17 +803,20 @@ describe("catalog breakdowns — segment orderings of the canon (D17)", () => {
     });
   });
 
-  it("suppresses on the SHOWN total — over-suppression is the safe direction", () => {
-    // The 18-24 cohort really has 12 answers, but only 3 are for on-board
-    // entities; the floor sees 3 and the bucket folds. With one bucket
-    // left the dimension cannot show a comparison and is omitted whole.
+  it("keeps a thin bucket rather than folding it", () => {
+    // The 18-24 cohort has 12 answers but only 3 for on-board entities.
+    // The floor used to see 3, fold the bucket, then omit the whole
+    // dimension for having one bucket left. Both rules are gone: a
+    // three-answer segment ordering is a real, if small, thing to show.
     const entBy = {
       ageBand: {
         "18-24": { "25": 3, "777": 9 },
         "25-34": { "25": 6 },
       },
     };
-    expect(publishableBreakdown(canonBreakdownFor(entBy, { "25": 30 }), 5)).toEqual({});
+    expect(canonBreakdownFor(entBy, { "25": 30 })).toEqual({
+      ageBand: { "18-24": { "25": 3 }, "25-34": { "25": 6 } },
+    });
   });
 });
 
@@ -1341,37 +1048,6 @@ describe("seedDocMatches — the seed's write skip", () => {
   });
 });
 
-describe("publishBreakdown — publish and baseline are the same value", () => {
-  // The e2e's exact sequence, driven through the one function the trigger
-  // calls. Two cohorts sit under the floor at total 5 and reach it at 10.
-  it("publishes both cohorts once they reach the floor", () => {
-    const by = {};
-    for (let i = 0; i < 3; i++) foldAnchors(by, { gender: "Woman" }, 1, FLOOR);
-    for (let i = 0; i < 2; i++) foldAnchors(by, { gender: "Man" }, 1, FLOOR);
-    const atFive = publishBreakdown(by, {}, FLOOR);
-    expect(atFive).toEqual({});
-
-    for (let i = 0; i < 2; i++) foldAnchors(by, { gender: "Woman" }, 0, FLOOR);
-    for (let i = 0; i < 3; i++) foldAnchors(by, { gender: "Man" }, 0, FLOOR);
-    // Feeding the PREVIOUS return value back in is the whole contract — one
-    // value, published and stored, so the caller cannot wire it two ways.
-    expect(publishBreakdown(by, atFive, FLOOR).gender)
-      .toEqual({ Woman: { "0": 2, "1": 3 }, Man: { "0": 3, "1": 2 } });
-  });
-
-  it("still refuses a step smaller than the floor once a bucket is visible", () => {
-    const by = {};
-    for (let i = 0; i < 5; i++) foldAnchors(by, { gender: "Woman" }, 0, FLOOR);
-    for (let i = 0; i < 5; i++) foldAnchors(by, { gender: "Man" }, 0, FLOOR);
-    const first = publishBreakdown(by, {}, FLOOR);
-    expect(first.gender).toEqual({ Woman: { "0": 5 }, Man: { "0": 5 } });
-
-    foldAnchors(by, { gender: "Woman" }, 1, FLOOR);
-    expect(publishBreakdown(by, first, FLOOR).gender, "one vote moved a published bucket")
-      .toEqual({ Woman: { "0": 5 }, Man: { "0": 5 } });
-  });
-});
-
 describe("which question a reveal is published under (revealQid)", () => {
   it("returns the qid when every member answered the same one", () => {
     expect(revealQid(["q-a", "q-a", "q-a"])).toBe("q-a");
@@ -1473,7 +1149,7 @@ describe("the duel question-level signal (D40 part 3)", () => {
     expect(d.counts).toEqual({});
     expect(d.total).toBe(3);
     expect(publishableDuelAgg(foldDuelAgg(undefined, d))).toEqual({
-      plays: 1, total: 3, tooSmall: false,
+      plays: 1, total: 3,
     });
   });
 
@@ -1507,34 +1183,21 @@ describe("the duel question-level signal (D40 part 3)", () => {
     });
   });
 
-  it("publishes on floor and multiple CROSSINGS — batch folds cannot go dark", () => {
-    // Below the floor: never.
-    expect(shouldPublishDuelAgg(0, 4, 5, 5)).toBe(false);
-    // Crossing the floor publishes, even mid-band (4 → 6 skips exactly 5).
-    expect(shouldPublishDuelAgg(4, 6, 5, 5)).toBe(true);
-    // Inside a band: quiet.
-    expect(shouldPublishDuelAgg(6, 9, 5, 5)).toBe(false);
-    // Jumping OVER a multiple still publishes — the `% every` cadence the
-    // vote path uses would stay silent here, which is the reason this
-    // variant exists (a reveal folds a whole group-day at once).
-    expect(shouldPublishDuelAgg(6, 12, 5, 5)).toBe(true);
-    // Landing exactly on a multiple publishes, like the vote path.
-    expect(shouldPublishDuelAgg(9, 10, 5, 5)).toBe(true);
-    // No growth, no rewrite.
-    expect(shouldPublishDuelAgg(10, 10, 5, 5)).toBe(false);
-  });
+  // The crossing-based publish cadence (shouldPublishDuelAgg) was tested
+  // here. D94 removed it — every fold publishes — so there is no cadence
+  // left to have an off-by-one in.
 
   it("publishes guess fields only when a guess exists, counts only when any landed", () => {
     // A guessed B would pick 0 (B picked 1 — miss); B guessed A would pick
     // 1 (A picked 0 — miss): two guesses, zero matches.
     const duo = foldDuelAgg(undefined, duelAggDelta([v(0, 0), v(1, 1)], "duo", 2));
     expect(publishableDuelAgg(duo)).toEqual({
-      plays: 1, total: 2, tooSmall: false,
+      plays: 1, total: 2,
       counts: { "0": 1, "1": 1 }, guessTotal: 2, guessMatches: 0,
     });
     const group = foldDuelAgg(undefined, duelAggDelta([v(0)], "group", 2));
     expect(publishableDuelAgg(group)).toEqual({
-      plays: 1, total: 1, tooSmall: false, counts: { "0": 1 },
+      plays: 1, total: 1, counts: { "0": 1 },
     });
   });
 });

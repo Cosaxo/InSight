@@ -385,7 +385,7 @@ window.LENS_FEED_QS = (function () {
           if (agg) {
             card.options = SCALE.map((label, oi) => ({ label, count: agg.counts[oi] || 0 }));
             card.live = true;
-            card.tooSmall = agg.tooSmall;
+            card.noCountsYet = agg.noCountsYet;
           } else {
             // The bank has no lens rows — a pre-D91 backend. The counts
             // above are authored, not measured, so the D50 treatment

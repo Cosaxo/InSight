@@ -63,7 +63,7 @@ import {
   countsFor,
   dayIndex as dayIndexPure,
   duelQFor as duelQForPure,
-  isTooSmall,
+  hasPublishedCounts,
   splitBanks,
   utcDayIndex as utcDayIndexPure,
 } from "./deck";
@@ -647,12 +647,11 @@ async function hydrate(): Promise<void> {
   // missing OR still cached as too-small ──
   // Feed cards are blind pre-vote (counts show only after answering), so
   // the old whole-collection scan bought nothing. Deck docs get live
-  // snapshots below; everything else refreshes on vote. A cached agg
-  // with tooSmall !== false counts as missing here: feed questions have
-  // no live listener, so an early voter's "too small" snapshot would
-  // otherwise be frozen forever. Cost: each still-under-the-k-floor agg
-  // is re-read once per boot until it crosses the floor (bounded by the
-  // number of answered questions, same ceiling as a cold cache).
+  // snapshots below; everything else refreshes on vote. A cached agg with
+  // no counts yet is treated as missing here: feed questions have no live
+  // listener, so a first voter's empty snapshot would otherwise be frozen
+  // forever. Since D94 that window is one answer wide rather than the
+  // whole climb to a k-floor, so this re-reads far less than it used to.
   const AGG_LS = "insight.aggsCache.v1";
   try {
     const cached = JSON.parse(localStorage.getItem(AGG_LS) || "null");
@@ -681,10 +680,9 @@ async function hydrate(): Promise<void> {
     }
     const nowMs = Date.now();
     const answeredWorld = Object.keys(state.votes)
-      .filter((id) => !id.startsWith("g_") && isTooSmall(state.aggs[id]))
-      // A question under the floor stays under it for a while; re-reading
-      // every one on every boot is the dominant per-boot cost for an
-      // engaged user. Re-check each at most every 6h.
+      .filter((id) => !id.startsWith("g_") && !hasPublishedCounts(state.aggs[id]))
+      // Re-check each at most every 6h. Cheaper than it was — a question
+      // acquires counts on its first answer now, not on its fifth.
       .filter((id) => nowMs - (checked[id] || 0) > AGG_RECHECK_MS)
       .slice(0, AGG_ID_CAP);
 
@@ -791,7 +789,7 @@ function buildFeedGlobals(): void {
         prompt: q.prompt,
         options: q.options.map((label, i) => ({ label, count: counts[i] })),
         live: true,
-        tooSmall: isTooSmall(state.aggs[q.id]),
+        noCountsYet: !hasPublishedCounts(state.aggs[q.id]),
       };
     });
   const tests = state.feedBank
@@ -1239,7 +1237,12 @@ const PRESENCE_BEAT_MS = 4 * 60_000; // < the server's 10-min freshness window
 
 const nearState = {
   count: null as number | null,   // null = never fetched this session
-  tooFew: false,                  // floor-withheld (only when AGG_MIN_N > 1)
+  tooFew: false,                  // vestigial since D94 — the server
+                                  // no longer withholds a small count, so
+                                  // this never becomes true. Kept because
+                                  // it is a pinned LIVE member (live-surface.ts)
+                                  // and removing it is a three-file change
+                                  // with no user-visible effect.
   updatedAt: 0,
   lastError: null as string | null,
   timer: null as ReturnType<typeof setInterval> | null,
@@ -1309,7 +1312,7 @@ const NEAR = {
     return nearOptedIn();
   },
   // The count of OTHER fresh phones in the neighborhood: null when never
-  // fetched (or floor-withheld), a number otherwise. `tooFew` distinguishes
+  // fetched, a number otherwise. `tooFew` used to distinguish
   // "withheld by the floor" from "never fetched" so the UI can say "a few
   // people" honestly when the design floor returns (D81 revert).
   count(): number | null {
@@ -1429,15 +1432,16 @@ const LIVE = {
     return answerAnchors();
   },
   // The live half of a lens card (D91, reversing D50's device-only
-  // posture): k-floored counts for a lens question the seeded bank
-  // carries, own vote excluded like every feed count (the UI adds its
-  // +1). Returns null when the bank has no such row — an unseeded or
-  // pre-D91 backend — and the caller (lens-defs.js LENS_FEED_QS) falls
-  // back to the selfOnly acknowledgment rather than fabricating a crowd.
-  lensAgg(qid: string): { counts: number[]; tooSmall: boolean } | null {
+  // posture): exact counts for a lens question the seeded bank carries,
+  // own vote excluded like every feed count (the UI adds its +1).
+  // Returns null when the bank has no such row — an unseeded or pre-D91
+  // backend — and the caller (lens-defs.js LENS_FEED_QS) falls back to
+  // the selfOnly acknowledgment rather than fabricating a crowd. That
+  // fallback is about ABSENT data, not withheld data, so D94 leaves it.
+  lensAgg(qid: string): { counts: number[]; noCountsYet: boolean } | null {
     const q = state.feedBank.find((x) => x.id === qid && x.surface === "test");
     if (!q) return null;
-    return { counts: feedCounts(q), tooSmall: isTooSmall(state.aggs[qid]) };
+    return { counts: feedCounts(q), noCountsYet: !hasPublishedCounts(state.aggs[qid]) };
   },
   // The anchors the profile has collected, as a plain map. Empty until the
   // user fills the Basics card in — an answer with no anchors simply folds

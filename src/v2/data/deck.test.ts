@@ -14,7 +14,7 @@ import {
   splitBanks,
   duelQFor,
   gHash,
-  isTooSmall,
+  hasPublishedCounts,
   OPTION_COLORS,
   utcDayIndex,
 } from "./deck";
@@ -86,15 +86,18 @@ describe("countsFor (own-vote subtraction)", () => {
   });
 });
 
-describe("isTooSmall", () => {
-  it("defaults to true when the agg doc or flag is missing", () => {
-    expect(isTooSmall(undefined)).toBe(true);
-    expect(isTooSmall({})).toBe(true);
+describe("hasPublishedCounts", () => {
+  it("is false when the agg doc is missing or empty", () => {
+    expect(hasPublishedCounts(undefined)).toBe(false);
+    expect(hasPublishedCounts({})).toBe(false);
+    expect(hasPublishedCounts({ total: 0 })).toBe(false);
   });
 
-  it("is true only until the agg explicitly says tooSmall === false", () => {
-    expect(isTooSmall({ tooSmall: true })).toBe(true);
-    expect(isTooSmall({ tooSmall: false })).toBe(false);
+  it("is true once the aggregate carries a positive total", () => {
+    // The one answer that used to be withheld under the k-floor is now
+    // the one that switches the counts on (D94).
+    expect(hasPublishedCounts({ total: 1, counts: { "0": 1 } })).toBe(true);
+    expect(hasPublishedCounts({ total: 42 })).toBe(true);
   });
 });
 
@@ -102,7 +105,7 @@ describe("buildS", () => {
   it("shapes a question into the UI's S form", () => {
     const q = qd("q1", { topic: "culture", test: "big5" });
     const s = buildS(q, 0, {
-      agg: { counts: { "0": 4, "2": 1 }, tooSmall: false },
+      agg: { counts: { "0": 4, "2": 1 }, total: 5 },
       mine: "0",
       pending: false,
     }, WED);
@@ -119,7 +122,7 @@ describe("buildS", () => {
       comments: [],
       friends: [],
       live: true,
-      tooSmall: false,
+      noCountsYet: false,
       test: "big5",
     });
   });
@@ -134,9 +137,9 @@ describe("buildS", () => {
     expect(s.options.map((o) => o.count)).toEqual([0, 7, 0]);
   });
 
-  it("marks tooSmall when the agg is absent", () => {
+  it("marks noCountsYet when the agg is absent", () => {
     const s = buildS(qd("q1"), 0, noVote, WED);
-    expect(s.tooSmall).toBe(true);
+    expect(s.noCountsYet).toBe(true);
   });
 
   it("cycles the option palette past its length", () => {

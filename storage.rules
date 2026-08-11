@@ -1,9 +1,13 @@
 rules_version = '2';
 
-// Firebase Storage rules — owner-only access to a user's private
-// uploads. The only path currently used is users/{uid}/dailyPhotos/,
-// holding opt-in cloud backups of daily-report photos. We deny
-// everything else by default.
+// Firebase Storage rules — owner-only access to a user's uploads. The
+// only path named is users/{uid}/dailyPhotos/, a RETIRED v1 surface
+// (daily-report photo backup, removed in D4) kept until the bucket is
+// confirmed empty. We deny everything else by default.
+//
+// Deliberately untouched by D94, and recorded here so it does not read
+// as an oversight: D94 publishes ANSWERS. A photo is not an answer, the
+// path is dead, and nothing on the Mirror reads it.
 //
 // Deploy with: firebase deploy --only storage
 // (NOT `--only storage:rules` — the colon form names a multi-bucket

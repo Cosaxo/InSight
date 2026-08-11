@@ -8783,3 +8783,125 @@ fabricated anchors that otherwise cannot be corrected at all.
 `profile-general.jsx` contains neither string anywhere (a reintroduced
 default was the original leak), and covers full-triple, partial and
 clean-profile behavior.
+
+## D94 · Answers are public — the privacy model is retired, not paused
+
+**Decided:** 2026-08-11 · **Status:** binding · **Owner's call**, stated
+directly: *"the answers are NOT private — that should be completely
+removed from every doc, every place, that's the whole point of the app"*,
+and on the k-floor specifically: *"I don't care if it's k-safe, that
+whole principle needs to die."*
+
+**Decision.** A signed-in user may read any other user's answers and
+profile. Population statistics are exact and publish from the first
+answer. There is no k-anonymity floor, no publish cadence, no
+complementary suppression, no `tooSmall`, and no special-category
+carve-out. Comments carry author names at every scope.
+
+### What this reverses
+
+| Decision | Was | Now |
+| --- | --- | --- |
+| **D1** | comments and who-voted are circle-scoped | both are world-scope and named |
+| **D5** (read arm) | answers owner-only, always | answers world-readable; the WRITE arm (owner-only, create-only) is untouched |
+| **D11** | the feed's argument surfaces are demo-only by structure | the structural gate stands only where the data is *invented*; nothing is hidden for being real |
+| **D18** | the floor bounds cohort size | there is no floor |
+| **D44** | political items never slice | every question slices |
+| **D50/D81** | lens self-reports; floor paused to 1 | moot — the floor is gone rather than paused |
+| **D72** | MapStats refuses in live mode | still refuses, for a different reason: it is *invented*, not private. Real typicality is now computable and unbuilt. |
+| **D78/D83** | named who-voted refused permanently | reversed; anonymity was the whole of D83's takes and is now none of it |
+
+D9, D8's snapshot mechanic, D86's edit shape, D57's server-scored logic,
+D28's correctable ledger and D65's fail-closed `hidden` equality are
+**not** touched — none of them was about who may read an answer.
+
+### The reasoning, in the owner's frame
+
+The product's claim was that its privacy guarantees are enforced rather
+than promised. That claim was kept, expensively and well — and it was
+enforcing the wrong thing. InSight exists to show how one person's
+answers link to everyone else's; a model in which no user may read
+another user's answer cannot draw that picture, and every surface that
+needed it was dark. The Mirror shipped a ruler with no lenses. Circle
+showed an empty state. Explore, Compare, People, Scores and the Map's
+typicality were all built and all unreachable. The floor made the rest
+render as "withheld" at every real cohort size, which is why D81 had
+already paused it to 1 — the pause was the first admission that the
+principle cost more than it bought.
+
+### What was NOT removed, and why each is a different question
+
+Three denies survive `firestore.rules`, each labelled at its own path:
+
+- **`v2_logic_attempts`** — holds the unscored answer key. Anti-cheat.
+- **`v2_flags`** — reporter identity. Anti-retaliation: a reporter
+  visible to the reported is a reporter who stops reporting.
+- **`v2_presence`** — uid → ~1 km cell. Physical safety. D94 publishes
+  what people *answered*; "lives in Oslo" is published, "is at this
+  corner of Oslo at 14:02" is not.
+
+Two more, on non-privacy grounds:
+
+- **Duel answers stay sealed until the reveal.** Implemented as a
+  `surface` test on the answer read rather than by owner-only-ness. This
+  is a game timing rule — a hand of cards is face-down — and publishing
+  it early links no data the reveal does not publish a day later.
+- **`v2_groups` stays member-gated**, because the document carries
+  `inviteCode`, which is a *capability*: world-readable codes let anyone
+  join any circle. Opening the roster wants the code split onto its own
+  server-only doc first. Follow-on, not a privacy claim.
+
+### The one thing this change had to ADD
+
+Opening `v2_users` published `fcmTokens` — push registration tokens, a
+credential — to every signed-in user, handing any script the fan-out list
+the reveal sender uses. Tokens moved to `v2_users/{uid}/push/tokens`,
+server-only both ways. Moved rather than re-guarded: a field guarded by a
+rule is one edit from being readable, a path with no read grant is not.
+`deleteAccount`'s recursive delete already covers it.
+
+### Two traps this change walked into, both caught before shipping
+
+1. **`isTooSmall` was fail-closed.** `(agg||{}).tooSmall !== false` hid
+   counts unless the server said otherwise. The server stopped writing
+   the flag in this same change, so a client still reading it would have
+   blanked every count in the app — daily, feed, lens, learn, Mirror.
+   Client and server had to move in one commit; the predicate is now
+   `hasPublishedCounts`, an existence test, and the field is renamed
+   `noCountsYet` so a surface reading the old name fails loudly instead
+   of going on saying "withheld".
+2. **The bucket eviction used the k-floor as its threshold.**
+   `evictForNewBucket(byDim, floor)` made a bucket evictable while it sat
+   under `AGG_MIN_N`. Threading 0 or dropping the parameter would have
+   made *nothing* evictable, silently restoring the cap-exhaustion attack
+   (24 junk `city` values permanently blanking that dimension for a
+   question) with every test still green. It now has its own name and its
+   own reason: `BUCKET_EVICT_BELOW = 5`, a document-growth bound with
+   nothing to do with who may see what.
+
+### Cost accepted
+
+The publish cadence was also relieving write contention: both documents
+in the trigger's transaction are keyed by qid, against Firestore's
+~1 write/sec/document (D7). Publishing per answer restores that pressure.
+Accepted knowingly at launch volume. The mitigation when it bites is
+sharding, or collapsing `v2_aggs_private` into `v2_question_aggs` — which
+is now trivial, because the private doc has no readers and no secrets. It
+is **not** to reintroduce a floor.
+
+### Timing
+
+`answersCounted` has been 0 every day through 2026-08-11 (monitoring/
+pulse-trail.jsonl) and the app has not launched, so no answer was ever
+collected under the owner-only promise. There is nothing to migrate and
+no retroactive disclosure. Had there been, the old rows would have needed
+gating rather than republishing.
+
+### What this change does NOT do
+
+D94 removes the model. It does not build the features the model was
+blocking — named who-voted, the Kindred people lens, person-to-person
+Compare, Explore, the Map's real typicality, the relationship map. Those
+need read paths no client module has yet: a collection-group query on
+`answers` (the rule and the composite index ship here; the query does
+not) and batched uid→name resolution. Sequenced as follow-on work.
