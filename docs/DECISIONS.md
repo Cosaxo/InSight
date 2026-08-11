@@ -4773,7 +4773,18 @@ The coupling count is unchanged at 540, correctly — these were file-local
 reads, not cross-module ones, and a meter that moved here would be lying.
 ## D50 · A lens question in a live feed is a self-report item, not a poll
 
-**Date:** 2026-08-06 · **Status:** Adopted
+**Date:** 2026-08-06 · **Status:** Adopted — the "acknowledge instead of
+aggregate" half reversed by D89
+
+> **Reversed in part by [D89](#d89--lens-questions-are-polls-the-items-are-seeded-and-their-counts-publish)
+> (2026-08-11).** Option (b) below — build a real crowd — shipped: the
+> lens items are seeded world questions now, and a live lens card against
+> a seeded bank is an ordinary live card. Exactly as this entry planned,
+> the `selfOnly` flag came off the cards whose questions gained a real
+> aggregate — and only those: against a bank with no lens rows the flag
+> and the acknowledgment remain, because the authored counts are still
+> authored. The two repairs recorded below (the per-liveness pool rebuild
+> and the purge listener) stand untouched.
 
 **Decision.** Lens cards woven into a live session's feed carry
 `selfOnly: true`, stamped by `LENS_FEED_QS`'s builder — which now rebuilds
@@ -8532,3 +8543,79 @@ that cannot happen — `check:content` fails the build unless
 `v2content.ts` matches `/content`, and `v2content.ts` is under
 `functions/**` — but the two facts are separate and only the first is
 gated.
+
+## D89 · Lens questions are polls: the items are seeded, and their counts publish
+
+**Date:** 2026-08-11 · **Status:** Adopted · reverses the
+"acknowledge instead of aggregate" half of D50
+
+**Decision.** The 50 minor-instrument items (`IS_LENSES`, lens-defs.js)
+are world questions: seeded into `v2_questions` from a new
+`content/lenses.json` source (surface `test`, ids `lq-<lens>-<qi>`), so a
+lens answer writes the same owner-only doc every card writes, folds
+through the same trigger, and publishes the same k-floored counts. A live
+lens card is an ordinary live card — measured split, the anonymous
+world-takes toggle (D83), the who-voted breakdown (D8), the D86 change
+affordance — and the answer still records to the on-device instrument;
+world-feed's `setVote` has always done both, the vote half just had
+nowhere to go. `selfOnly` (D50) survives as exactly one thing: the
+fallback when `LIVE.lensAgg` finds no lens row in the bank (an unseeded
+or pre-D89 backend), where rendering the authored counts would be the
+fabrication D1 forbids and rules would refuse the answer write anyway.
+
+**Why.** The owner's call (2026-08-11): there is no reason for lens
+questions to be quieter than any other question — they should carry the
+same breakdown and takes. D50 deferred (b) "build a real one" as "a new
+collection, its k-floor, rules and their tests, for numbers whose product
+value is unproven" — but that arithmetic priced the wrong shape. Seeded
+as ordinary bank rows, the items need **zero** new collections, rules or
+floors: `isWorldAnswer` already admits surface `test` against any seeded
+question doc, the trigger already folds any qid, and `splitBanks` already
+routes the rows to the feed bank. The increment was a content source, one
+narrow accessor (`LIVE.lensAgg`), and the flag coming off.
+
+**The order of the scale is load-bearing.** The seeded options are the
+client's agree-FIRST five (`LENS_SCALE`, gen-v2content.mjs), the reverse
+of every other scale item's LIKERT — because stored `optionIdx` indexes
+the options, and the client stores the instrument value as `4 - val`
+(world-feed setVote). check:content pins lens rows to LENS_SCALE and
+everything else to LIKERT, so neither can drift into the other.
+
+**Ids are the client's, verbatim.** `lq-<lens>-<qi>` with an unpadded
+index — minted by lens-defs.js before the items had a backend. Devices
+that answered lens cards in the selfOnly era hold feed votes and the
+instrument's seen-map under those ids, so re-keying would resurface every
+answered card. The cost of keeping them: `check-content`'s id shape for
+the test surface admits two families. (Those pre-D89 local answers never
+reach the server retroactively — the card reads as answered and nothing
+re-offers it — which loses a handful of counts and fabricates none.)
+
+**Two items never slice (D44/D52).** "For one group to gain, another has
+to lose" and "Trade between countries leaves both better off"
+(`lq-trust-2/3`) state economic-policy opinions — the same class as the
+political test's own items — so they carry `political: true` and join the
+no-slice set by existing: overall split published, never cross-tabbed by
+anchors. The other 48 are instrument items in the values/big5 class,
+which slice like the rest of the test surface. The moral-foundations and
+tightness-looseness items were considered and left slicing deliberately:
+they are standard psychometrics with political *correlates*, same as the
+values test D8 already slices; the flag marks items that *are* political
+opinions.
+
+**What does not change.** Instrument persistence stays device-local
+(lens-defs' persistence note and D50's second repair both stand — the
+answer doc is a poll vote, not a restorable instrument mirror). The
+Mirror ripple stays off lens cards — a lens answer lands on the profile's
+Lenses tab, not the Mirror, so the gate moved from `selfOnly` to `q.lens`
+rather than disappearing. And the demo pool is untouched.
+
+**Enforcement.** `lens-content.test.ts` binds `content/lenses.json` to
+`IS_LENSES` by index (id, text, dimension, invert — positional drift
+re-keys immutable answers) and pins the two political flags;
+`check:content` binds the JSON to the compiled bank, pins both scale
+orders and the two-family id shape; `lens-live.test.ts` pins both live
+pool shapes (seeded → live cards with measured counts, unseeded →
+selfOnly) and the per-call rebuild; `smoke-live.test.jsx` mounts both
+paths — the seeded card must reach `LIVE.vote`, render a split and carry
+the takes toggle, the unseeded card must reach neither crowd nor store;
+`slicing.test.ts` picks the two flagged items up by construction.

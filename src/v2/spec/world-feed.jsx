@@ -335,9 +335,10 @@ class WorldFeed extends React.Component {
 
   setVote(q, val) {
     const id = q.id;
-    // A selfOnly card (a live session's lens question — lens-defs.js, D50)
-    // has authored counts and no measurement behind them, so every side
-    // effect below that reads the "crowd" — the majority bit, the beat, the
+    // A selfOnly card (a lens question against a bank with no lens rows —
+    // lens-defs.js, D50; the seeded-bank case is live now, D89) has
+    // authored counts and no measurement behind them, so every side effect
+    // below that reads the "crowd" — the majority bit, the beat, the
     // ripple's Mirror claim, the why-prompt — would be fabricated. The lens
     // record itself still happens: that write is the card's whole point.
     const selfOnly = !!q.selfOnly;
@@ -386,9 +387,10 @@ class WorldFeed extends React.Component {
     // ~45% of answers, chosen by a hash of the id so it is stable per
     // question rather than random per render: every card saying it makes it
     // wallpaper, and a re-render must not make it flicker. A lens answer
-    // lands on the profile's Lenses tab, not the Mirror — renderSelfNote
-    // says so instead.
-    const rip = !editing && this.opts.ripple && !selfOnly && wfHash(id + ':rip') < 0.45 ? id : null;
+    // lands on the profile's Lenses tab, not the Mirror — so the claim is
+    // false on EVERY lens card, the live ones (D89) included, which is why
+    // the gate is q.lens rather than selfOnly.
+    const rip = !editing && this.opts.ripple && !selfOnly && !q.lens && wfHash(id + ':rip') < 0.45 ? id : null;
     if (rip) {
       clearTimeout(this._rippleT);
       this._rippleT = setTimeout(() => {
@@ -1048,12 +1050,14 @@ class WorldFeed extends React.Component {
     );
   }
 
-  // The selfOnly counterpart (D50): a lens question in a live session
-  // records to the on-device instrument and nowhere else — no backend
-  // aggregates lens answers, so there is no split to reveal at any k.
+  // The selfOnly counterpart (D50): a lens question whose bank carries no
+  // lens rows records to the on-device instrument and nowhere else — no
+  // backend aggregate exists, so there is no split to reveal at any k.
   // Where every other card answers with the crowd, this one answers with
-  // where the answer went. T.label is the lens's own title (renderCard's
-  // kicker derivation), so the line names the destination.
+  // where the answer went. Since D89 seeded banks serve lens cards live
+  // and this note is the pre-D89-backend fallback only. T.label is the
+  // lens's own title (renderCard's kicker derivation), so the line names
+  // the destination.
   renderSelfNote(q, T, big) {
     return (
       <div style={{ fontSize: big ? 12.5 : 11.5, fontWeight: 600, color: 'var(--ink-3)', padding: '2px 2px 0' }}>
@@ -1361,7 +1365,8 @@ class WorldFeed extends React.Component {
     // splits and the fake named people below would both be lies — and a
     // REAL takes composer beside fake results would be worse still.
     if (window.LIVE && window.LIVE.demoInProd) return null;
-    // A selfOnly card (live-session lens question — D50) has no crowd
+    // A selfOnly card (a lens question against a bank with no lens rows —
+    // D50; seeded banks serve lens cards live now, D89) has no crowd
     // behind it: takes, who-voted and the votes-count footer would all be
     // authored demo numbers wearing a live badge. The whole row goes, the
     // same way it does for demoInProd — the card's own note

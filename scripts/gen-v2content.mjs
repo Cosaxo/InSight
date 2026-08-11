@@ -16,6 +16,11 @@
 //   daily-NNN / duo-NNN      explicit "NNN" on the source entry (3 digits)
 //   feed-<id> / group-<id>   explicit ids on the source entry
 //   test-<key>-NN            explicit "NN" on each item in tests.json
+//   lq-<lens>-<N>            explicit UNPADDED "N" on each item in
+//                            lenses.json — the client minted these ids
+//                            (lens-defs.js, `'lq-' + l.id + '-' + qi`)
+//                            before the items had a backend, and devices
+//                            hold local state keyed by them (D89)
 // Every source entry MUST carry its id. The bank was positional once, and
 // positional ids mean inserting mid-array re-keys every later question —
 // silently attaching live immutable answers to the wrong prompt, the same
@@ -45,6 +50,18 @@ export const LIKERT = [
   "Strongly agree",
 ];
 const RATING = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10"];
+// The lens items' scale is the CLIENT's (lens-defs.js SCALE) — agree-first,
+// the REVERSE of LIKERT — and stored optionIdx indexes it, which is what
+// keeps world-feed's `4 - val` store inversion meaning what it means.
+// Never swap LIKERT in here without swapping the client SCALE and every
+// stored lens optionIdx with it.
+export const LENS_SCALE = [
+  "Strongly agree",
+  "Agree",
+  "Neutral",
+  "Disagree",
+  "Strongly disagree",
+];
 
 export function loadContent() {
   const load = (name) =>
@@ -54,6 +71,7 @@ export function loadContent() {
     feed: load("feed-questions.json"),
     duel: load("duel-questions.json"),
     tests: load("tests.json"),
+    lenses: load("lenses.json"),
     learn: load("learn-questions.json"),
   };
 }
@@ -77,7 +95,7 @@ function requireId(q, where) {
 }
 
 export function buildEntries(content = loadContent()) {
-  const { daily, feed, duel, tests, learn } = content;
+  const { daily, feed, duel, tests, lenses, learn } = content;
   const entries = [];
 
   // `active: false` retires an entry from serving without touching its id
@@ -209,6 +227,34 @@ export function buildEntries(content = loadContent()) {
         topic: "test",
         axis: q.d,
         test: key,
+      });
+    });
+  }
+
+  // Lens items (D89, reversing D50's device-only half): the minor
+  // instruments' questions are world questions now, so their counts fold
+  // and publish like any other card's. Same surface ("test" — the same
+  // world-answer class as the core instruments' items, and splitBanks
+  // routes both to the live feed bank) and the seq counter continues the
+  // tests', but `test` stays null so buildFeedGlobals keeps them out of
+  // TEST_FEED_QS: the client builds lens cards from IS_LENSES
+  // (lens-defs.js) and reads only counts back through LIVE.lensAgg.
+  // `political` on an item routes it into D44's no-slice set — the two
+  // zero-sum trade propositions carry it (D89 records the judgement).
+  for (const [key, l] of Object.entries(lenses)) {
+    l.questions.forEach((q, i) => {
+      entries.push({
+        id: `lq-${key}-${requireId(q, `lenses.json ${key}[${i}]`)}`,
+        surface: "test",
+        seq: testSeq++,
+        type: "scale",
+        domain: null,
+        prompt: q.q,
+        options: LENS_SCALE,
+        topic: "lens",
+        axis: q.d,
+        test: null,
+        ...flags(q),
       });
     });
   }

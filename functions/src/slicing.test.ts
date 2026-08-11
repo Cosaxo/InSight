@@ -51,10 +51,19 @@ describe("D44 · political items never slice", () => {
     // the marker would silently stop slicing the Big Five, values and social
     // items too — which D8 does not ask for and the Mirror's cohort views
     // are built on.
+    //
+    // BOTH markers are excluded here, not just the test key: since D89 the
+    // lens items share this surface with `test: null`, and two of them
+    // (lq-trust-2/3) carry `political: true` — the flag half of the set,
+    // which this filter used to be able to ignore only because no
+    // test-surface item had ever carried it.
     const otherTests = V2_QUESTIONS.filter(
-      (q) => q.surface === "test" && q.test !== "political",
+      (q) => q.surface === "test" && q.test !== "political" && q.political !== true,
     );
     expect(otherTests.length).toBeGreaterThan(0);
+    // …and the lens items are really in the sliceable pool: an instrument
+    // item in the values/big5 class slices like one (D89).
+    expect(otherTests.some((q) => q.id.startsWith("lq-"))).toBe(true);
     for (const q of otherTests) {
       expect(slicesDemographics(q.id), `${q.id} should still slice`).toBe(true);
     }
@@ -75,9 +84,11 @@ describe("D44 · political items never slice", () => {
     // The non-vacuity guard for D52's half of the set: if the generator
     // stopped passing `political` through, the flagged civic items would
     // quietly rejoin the sliceable pool with every other assertion green.
+    // The two zero-sum trade propositions are the lens items D89 judged
+    // into this class — economic-policy opinions, not instrument items.
     const flagged = V2_QUESTIONS.filter((q) => q.political === true);
     expect(flagged.map((q) => q.id)).toEqual(
-      expect.arrayContaining(["feed-f45", "feed-f47", "daily-014"]),
+      expect.arrayContaining(["feed-f45", "feed-f47", "daily-014", "lq-trust-2", "lq-trust-3"]),
     );
     for (const q of flagged) {
       expect(slicesDemographics(q.id), `${q.id} must not slice`).toBe(false);

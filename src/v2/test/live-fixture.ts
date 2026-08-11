@@ -60,9 +60,16 @@ export interface LiveFixtureOptions {
   /**
    * How many live world cards WORLD_FEED_QS carries (default 1). The feed
    * weaves one LENS card in after every 9th world card, so a case that needs
-   * a lens card on screen asks for at least 9 (D50).
+   * a lens card on screen asks for at least 9 (D50/D89).
    */
   feedCards?: number;
+  /**
+   * Whether the seeded bank carries the lens items (D89). True by default —
+   * lensAgg answers with counts and lens cards take the live path. False
+   * models a pre-D89 backend: lensAgg answers null and the cards fall back
+   * to D50's selfOnly acknowledgment.
+   */
+  lensBank?: boolean;
 }
 
 const OPTION_COLORS = ["var(--c-around)", "var(--c-today)", "var(--c-likeness)"];
@@ -181,6 +188,12 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
     aggFor: () => (tooSmall
       ? { tooSmall: true }
       : { counts: { 0: 12, 1: 8, 2: 5 }, total: 25, tooSmall: false, by: {} }),
+    // D89: counts for a seeded lens question, null when the bank carries
+    // none — which is the cue for D50's selfOnly fallback. Five entries to
+    // match the lens scale; zeros below the floor, same rule as aggFor.
+    lensAgg: () => ((opts.lensBank ?? true)
+      ? { counts: tooSmall ? [0, 0, 0, 0, 0] : [9, 6, 4, 3, 3], tooSmall }
+      : null),
     myVotes: () => ({ ...votes }),
     confirmedVotes: () => ({ ...votes }),
     // (qid, optionId) — both strings. The spec layer calls this as

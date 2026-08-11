@@ -327,13 +327,13 @@ describe("the live gates hold in the DOM, not just in the source", () => {
     expect(window.WORLD_FEED_COMMENTS).toEqual({});
   });
 
-  // D50. A lens question woven into a LIVE feed is a self-report item: the
-  // answer lands in the on-device lens store, no backend aggregate exists,
-  // and the authored demo counts the card carries must never render as a
-  // split. buildFeedGlobals (data/live.ts) replaces WORLD_FEED_QS and
-  // TEST_FEED_QS with live-shaped cards but leaves the lens pool alone —
-  // this is the case that notices if the selfOnly treatment ever comes off.
-  it("a live lens card records locally and shows no invented crowd", () => {
+  // D89, reversing D50's device-only half. A lens question woven into a
+  // LIVE feed against a SEEDED bank is an ordinary live card: the answer
+  // goes through LIVE.vote (owner-only doc → k-floored aggregate) AND
+  // still records to the on-device instrument, and the card renders the
+  // measured split plus the same engage row every live card gets — the
+  // anonymous world-takes toggle included.
+  it("a seeded live lens card votes, records locally, and shows the crowd", async () => {
     // Nine world cards: the weave inserts the first lens card after the
     // ninth. The live pool starts at qi 0 (lens-live.test.ts pins that), so
     // the first lens card on screen is the first lens's first question.
@@ -346,35 +346,68 @@ describe("the live gates hold in the DOM, not just in the source", () => {
     const card = screen.getByText(q0).parentElement;
     try {
       fireEvent.click(within(card).getByRole("button", { name: "Strongly agree" }));
-      // selfOnly cards skip the consequence beat, so the answered state is
-      // already on screen — no settle wait, unlike the D11 cases above.
-      // 1. The instrument recorded it, inverted: the feed scale runs
-      //    agree→disagree while the store runs disagree→agree, so option 0
-      //    stores value 4 — which one answered, uninverted item scores as
+      // A live lens card plays the consequence beat like any live card, so
+      // wait it out before asserting on the answered state.
+      await act(async () => { await new Promise((r) => setTimeout(r, 1200)); });
+      // 1. The vote left the device: LIVE.vote heard the lens card, under
+      //    its own id, as option "0".
+      expect(live.votes).toEqual({ [`lq-${lens.id}-0`]: "0" });
+      // 2. …and the instrument STILL recorded it, inverted: the feed scale
+      //    runs agree→disagree while the store runs disagree→agree, so
+      //    option 0 stores value 4 — which, on an uninverted item, scores
       //    100 on its dimension in live mode (no prior to dilute it).
       expect(window.LENSES.done(lens.id)).toBe(1);
       expect(window.LENSES.score(lens.id)[lens.questions[0].d]).toBe(
         lens.questions[0].invert ? 0 : 100,
       );
-      // 2. Nothing left the device: LIVE.vote never saw the lens card (D31's
-      //    contract for self-tests — lens answers have no backend at all).
+      // 3. The measured split renders — a share numeral and the votes
+      //    count — and the D50 acknowledgment is gone with the flag.
+      expect(card.textContent).toMatch(/\d\s*%/);
+      expect(card.textContent).not.toContain(`Saved to your ${lens.title} lens`);
+      // 4. The live engage row is present: the anonymous takes toggle
+      //    (D83) reaches lens cards now.
+      expect(within(card).queryByRole("button", { name: /^Takes$/ })).not.toBeNull();
+      expectNoBoundary("live lens card (seeded)");
+    } finally {
+      // The lens store persists to localStorage and lives for the module —
+      // leave it as the next case expects to find it. The feed's own vote
+      // memory goes too, or the NEXT case finds lq-<lens>-0 already
+      // answered and parked behind the expander.
+      window.LENSES.reset();
+      localStorage.removeItem("insight.lenses.v1");
+      localStorage.removeItem("insight.feedVotes.v1");
+    }
+  });
+
+  // D50's half that SURVIVES D89: against a bank with no lens rows (an
+  // unseeded or pre-D89 backend, modelled by lensAgg → null), the card's
+  // counts are authored rather than measured, so the selfOnly treatment
+  // stays — no split, no engage row, the acknowledgment instead — and
+  // nothing reaches LIVE.vote, whose write the rules would refuse anyway
+  // (no question doc to validate against).
+  it("an unseeded live lens card records locally and shows no invented crowd", () => {
+    const expectNoBoundary = mountLive({ feedCards: 9, lensBank: false });
+    const lens = window.IS_LENSES[0];
+    const card = screen.getByText(lens.questions[0].q).parentElement;
+    try {
+      fireEvent.click(within(card).getByRole("button", { name: "Strongly agree" }));
+      // selfOnly cards skip the consequence beat, so the answered state is
+      // already on screen — no settle wait.
+      expect(window.LENSES.done(lens.id)).toBe(1);
       expect(live.votes).toEqual({});
-      // 3. No split, no votes count — the acknowledgment instead. Both
-      //    halves matter: the numeral/fill suppression AND the note, so a
-      //    broken gate and a vacuous render both fail here.
+      // No split, no votes count — the acknowledgment instead. Both halves
+      // matter: the numeral/fill suppression AND the note, so a broken
+      // gate and a vacuous render both fail here.
       expect(card.textContent).not.toMatch(/\d\s*%/);
       expect(card.textContent).not.toMatch(/votes/i);
       expect(card.textContent).toContain(`Saved to your ${lens.title} lens`);
-      // 4. No engage row: takes and who-voted are demo surfaces (D11), and
-      //    a lens card must not resurrect them inside a live session.
       expect(within(card).queryByRole("button", { name: /takes$/i })).toBeNull();
       expect(within(card).queryByRole("button", { name: /who voted/i })).toBeNull();
-      expectNoBoundary("live lens card");
+      expectNoBoundary("live lens card (unseeded fallback)");
     } finally {
-      // The lens store persists to localStorage and lives for the module —
-      // leave it as the next case expects to find it.
       window.LENSES.reset();
       localStorage.removeItem("insight.lenses.v1");
+      localStorage.removeItem("insight.feedVotes.v1");
     }
   });
 

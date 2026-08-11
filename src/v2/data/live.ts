@@ -1418,6 +1418,17 @@ const LIVE = {
   anchors(): Record<string, string> {
     return answerAnchors();
   },
+  // The live half of a lens card (D89, reversing D50's device-only
+  // posture): k-floored counts for a lens question the seeded bank
+  // carries, own vote excluded like every feed count (the UI adds its
+  // +1). Returns null when the bank has no such row — an unseeded or
+  // pre-D89 backend — and the caller (lens-defs.js LENS_FEED_QS) falls
+  // back to the selfOnly acknowledgment rather than fabricating a crowd.
+  lensAgg(qid: string): { counts: number[]; tooSmall: boolean } | null {
+    const q = state.feedBank.find((x) => x.id === qid && x.surface === "test");
+    if (!q) return null;
+    return { counts: feedCounts(q), tooSmall: isTooSmall(state.aggs[qid]) };
+  },
   // The anchors the profile has collected, as a plain map. Empty until the
   // user fills the Basics card in — an answer with no anchors simply folds
   // into no breakdown cell (D8).

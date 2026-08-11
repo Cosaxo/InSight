@@ -36,7 +36,11 @@ export const LIVE_MEMBERS = [
   // there is nothing to move or the 60s cooldown holds.
   "editVote",
   "enabled", "feedReady",
-  "latestBuild", "learnAgg", "learnAnswer", "linkGoogle", "linked", "myCity",
+  "latestBuild", "learnAgg", "learnAnswer",
+  // D89: the live half of a lens card — counts for a seeded lens question,
+  // null when the bank carries none (the selfOnly fallback's cue).
+  "lensAgg",
+  "linkGoogle", "linked", "myCity",
   "myVotes",
   // Near-by-radius presence (D84): opt-in, foreground beats, and a count
   // that is the only thing the server ever returns about anyone.
