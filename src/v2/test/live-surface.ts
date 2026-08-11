@@ -23,7 +23,7 @@
 
 export const LIVE_MEMBERS = [
   "aggFor", "anchors", "appBuild",
-  // Named who-voted (D94) — the app's only cross-user read, and the
+  // Named who-voted (D98) — the app's only cross-user read, and the
   // reason the reversal was worth doing. On LIVE rather than LIVE.social
   // deliberately: `social` is groups, duos and their takes, while a
   // question's voters are a WORLD surface with no circle in it.

@@ -46,7 +46,7 @@ import {
 } from "./pure";
 
 // The bucket-churn threshold (pure.ts BUCKET_EVICT_BELOW). Not a
-// disclosure floor — D94 removed those; this is the document-growth
+// disclosure floor — D98 removed those; this is the document-growth
 // bound that keeps a junk-value burst from blanking a dimension.
 const FLOOR = 5;
 
@@ -533,7 +533,7 @@ describe("per-anchor breakdowns", () => {
   // The five publishableBreakdown cases that stood here — sub-floor
   // suppression, complementary suppression, the two-bucket minimum, the
   // lopsided-split carve-out and the defensive copy — went with the
-  // function itself (D94). pure.ts keeps the record of what each one
+  // function itself (D98). pure.ts keeps the record of what each one
   // defended; there is no publishable view left to test.
 });
 
@@ -669,7 +669,7 @@ describe("catalog answers (pick questions — docs/CATALOG-QUESTIONS.md)", () =>
     expect(catalogEntityKey(0, EMPTY)).toBe("0");
   });
 
-  // D94: no floor, no complementary fold, no tie fold. `rest` is the tail
+  // D98: no floor, no complementary fold, no tie fold. `rest` is the tail
   // outside the top N and nothing else. The three cases that used to live
   // here — recoverable-hole folding, whole-tie-group folding, and the
   // null board when suppression emptied it — went with publishableCanon.
@@ -716,7 +716,7 @@ describe("catalog answers (pick questions — docs/CATALOG-QUESTIONS.md)", () =>
     });
   });
 
-  // Swept rather than spot-checked. Only one invariant survives D94 — the
+  // Swept rather than spot-checked. Only one invariant survives D98 — the
   // conservation one — but it is the one that matters: a board plus its
   // rest must still account for every answer, or the leaderboard is
   // inventing or losing votes. Every 4-entity board with counts 0..8 is
@@ -791,7 +791,7 @@ describe("catalog breakdowns — segment orderings of the canon (D17)", () => {
     };
     const top = { "25": 30, "6": 11 }; // the published canon
     const out = canonBreakdownFor(entBy, top);
-    // Every surviving cell publishes whole (D94). The 35-44 bucket still
+    // Every surviving cell publishes whole (D98). The 35-44 bucket still
     // vanishes, and for a reason that is not disclosure: none of its
     // answers are for an entity on the board, so it has no ordering to
     // show.
@@ -1184,7 +1184,7 @@ describe("the duel question-level signal (D40 part 3)", () => {
   });
 
   // The crossing-based publish cadence (shouldPublishDuelAgg) was tested
-  // here. D94 removed it — every fold publishes — so there is no cadence
+  // here. D98 removed it — every fold publishes — so there is no cadence
   // left to have an off-by-one in.
 
   it("publishes guess fields only when a guess exists, counts only when any landed", () => {

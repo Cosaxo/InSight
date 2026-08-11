@@ -378,7 +378,7 @@ redelivered events are no-ops rather than double counts.
 ## Correcting aggregates after a fake-account ring (D28)
 
 Fake-account prevention is deliberately partial — App Check prices
-accounts, and since D94 nothing hides a small distortion — D28
+accounts, and since D98 nothing hides a small distortion — D28
 records why no mechanism can make it complete. What the system guarantees
 instead is that the published numbers stay **correctable**: answers are
 immutable (D5), exact counts live server-side in `v2_aggs_private`, and
@@ -415,7 +415,7 @@ attribution, subtraction, republication, in that order.
    subtraction exact rather than approximate.
 4. **Republish through the same floors.** Rewrite
    `v2_question_aggs/{qid}` from the corrected private doc exactly as the
-   trigger would: `{ counts, total, by }`, exact and whole — since D94
+   trigger would: `{ counts, total, by }`, exact and whole — since D98
    there is no floor, no `tooSmall` and no suppression to reproduce.
    A hand-written public doc that
    skips the floors is a worse incident than the one being corrected.

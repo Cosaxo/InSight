@@ -17,9 +17,10 @@
 //                   the canonical result to testResults.logic (a key the
 //                   rules refuse to let clients mutate — the fcmTokens
 //                   pattern), and folds the FIRST scored attempt per
-//                   account into an anonymous score histogram, k-floored
-//                   and published on the same cadence as the question
-//                   aggregates.
+//                   account into a score histogram, published exactly and
+//                   on every attempt — the same discipline as the question
+//                   aggregates, which since D98 means no floor and no
+//                   cadence.
 //
 // What this deliberately does NOT try to do: stop a solver from asking a
 // person or a model for help. Unproctored testing cannot prevent
@@ -172,7 +173,7 @@ export function clientItems(seed: number, gv: number): LogicClientItem[] {
 // histogram of 12-item scores must never mix with 25-item ones, so a
 // length change starts a fresh era, D61). The private doc is the working
 // copy; the public mirror is rewritten on every attempt with the same
-// exact numbers (D94 — the floor and the cadence that used to gate it
+// exact numbers (D98 — the floor and the cadence that used to gate it
 // are gone, along with the step-attribution argument behind them).
 export type LogicNorms = Record<string, number>;
 
@@ -222,7 +223,7 @@ export function foldDifficultyStats(
 // The floor's arithmetic (D60): at n = 100 the worst-case standard error
 // of an empirical percentile is sqrt(0.5·0.5/100) ≈ 5 points — comparable
 // to the modelled curve's own honesty margin. This is a STATISTICAL
-// stability floor and survives D94 untouched: it is about whether a
+// stability floor and survives D98 untouched: it is about whether a
 // percentile means anything, not about who may read it. One constant;
 // lowering it is a recorded decision, not a tweak.
 export const LOGIC_NORMS_MIN_N = 100;
@@ -383,7 +384,7 @@ export const logicSubmitV2 = onCall(
       );
       if (norms) {
         tx.set(privRef, norms);
-        // Published on every attempt (D94 — no cadence, nothing withheld).
+        // Published on every attempt (D98 — no cadence, nothing withheld).
         tx.set(db.collection("v2_logic_norms").doc("global"), { ...norms, updatedAtMs: now });
       }
       if (famStats) {

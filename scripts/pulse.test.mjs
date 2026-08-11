@@ -46,7 +46,7 @@ describe("cost-arith reads its constants from source, not from memory", () => {
   });
 
   it("PUBLISH_EVERY is a constant 1, and the server has no such literal", () => {
-    // Inverted at D94. This used to hold the model's copy equal to the
+    // Inverted at D98. This used to hold the model's copy equal to the
     // server's PUBLISH_EVERY literal; that literal is gone, because the
     // publish cadence was a disclosure control and the whole principle
     // was retired. The mirror is rewritten on every answer.
@@ -107,7 +107,7 @@ describe("cost-arith reads its constants from source, not from memory", () => {
       + "rule is a BILLED READ — recount RULE_READS in scripts/cost-arith.mjs "
       + "(the answer-create paths are what the model charges) and update this "
       + "tripwire with the new totals.",
-      // 17 → 15 at D94: the takes READ gate and the flags CREATE gate each
+      // 17 → 15 at D98: the takes READ gate and the flags CREATE gate each
       // dropped a membership get() on v2_groups when reading stopped being
       // membership-scoped. RULE_READS is deliberately unchanged — it
       // charges the answer-create paths, and neither of those two sites

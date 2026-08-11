@@ -60,7 +60,14 @@ import { IS_DATA } from './sample-data.js';
   window.addEventListener('insight:local-purge', () => { S = normalize({}); fire(); });
 
   // ── the circle — your friends ───────────────────────────────────────────────
-  const IDS = ['f1', 'f2', 'f4', 'f6', 'f3']; // fallback if FRIENDS is absent
+  // Fallback if FRIENDS is absent, and the first-run 1v1 roster (duoList).
+  // Eight rather than five so the daily's 1v1 rail, the Map's People branch
+  // and impressions() all run at a size where they have to rank; the other
+  // seeded friends stay unpaired on purpose — they are what duoAvailable()
+  // offers. Every id here must be in follows.js SEED too, since duoIds()
+  // filters the list through FRIENDS.isFriend and a non-friend would sit in
+  // storage invisible.
+  const IDS = ['f1', 'f2', 'f4', 'f6', 'f3', 'f12', 'f17', 'f14'];
   const allPeople = () => IS_DATA.people || [];
   const circleIds = () => (FRIENDS ? FRIENDS.list() : IDS);
   function members() { return circleIds().map((id) => allPeople().find((p) => p.id === id)).filter(Boolean); }
@@ -98,10 +105,19 @@ import { IS_DATA } from './sample-data.js';
   // rotation order and is deliberately interleaved: append, never sort.
   const GROUP_QS = DUEL_CONTENT.group;
   // seeded groups — each runs the shared pool at its own offset
+  //
+  // Four sizes on purpose (7 · 4 · 2 · 5): a group's portrait, its
+  // togetherness and its role casts all read differently at two members than
+  // at seven, and 'pick' questions build their options from the members
+  // (activeMembers + 'You'), so the largest group is also the widest option
+  // list the daily has to lay out. gBase() offsets each group by its index ×
+  // 3 into the 24-question pool, so a fourth group starts at 9 and still has
+  // its own week.
   const GROUPS = [
-    { id: 'g1', name: 'The Crew', ids: ['f1', 'f2', 'f4', 'f6', 'f3'] },
-    { id: 'g2', name: 'Book Club', ids: ['f2', 'f3', 'f6'] },
+    { id: 'g1', name: 'The Crew', ids: ['f1', 'f2', 'f4', 'f6', 'f3', 'f12', 'f14'] },
+    { id: 'g2', name: 'Book Club', ids: ['f2', 'f3', 'f6', 'f22'] },
     { id: 'g3', name: 'The Cousins', ids: ['f1', 'f4'] },
+    { id: 'g4', name: 'The Long Table', ids: ['f2', 'f6', 'f8', 'f10', 'f9'] },
   ];
   // seeded (minus left, with member edits) + your custom groups
   function groupDefs() {
@@ -314,15 +330,27 @@ import { IS_DATA } from './sample-data.js';
   const DUO_POOL = (pid) => (duoMode(pid) === 'romantic' ? DUO_QS_ROMANTIC : DUO_QS);
   function duoMode(pid) { return S.duoMode[pid] === 'romantic' ? 'romantic' : 'friends'; }
   function setDuoMode(pid, mode) { S.duoMode[pid] = mode === 'romantic' ? 'romantic' : 'friends'; save(); }
-  // days already played (and revealed) with each partner; 0 = never played
-  const PLAYED = { f1: 24, f2: 5, f4: 3, f6: 2, f3: 0 };
+  // days already played (and revealed) with each partner; 0 = never played.
+  // A partner absent from these three tables is not broken — they read as a
+  // never-played pair (state 'start', no history), which is what a freshly
+  // accepted 1v1 is. The seeded eight carry a spread instead, because the
+  // things that only appear at depth need it: domainRows() hides a lens
+  // under DOMAIN_MIN (4 each way), ReadRun switches encoding on the span, and
+  // weakDomain() compares RATES, so a long record and a short one have to
+  // coexist for that comparison to mean anything.
+  const PLAYED = { f1: 24, f2: 5, f4: 3, f6: 2, f3: 0, f12: 16, f17: 11, f14: 6 };
   // how well YOU tend to read them / how well THEY tend to read you
-  const READ_SKILL = { f1: 0.85, f2: 0.72, f4: 0.5, f6: 0.34, f3: 0.5 };
-  const BY_SKILL = { f1: 0.9, f2: 0.75, f4: 0.4, f6: 0.62, f3: 0.5 };
+  const READ_SKILL = { f1: 0.85, f2: 0.72, f4: 0.5, f6: 0.34, f3: 0.5, f12: 0.66, f17: 0.45, f14: 0.8 };
+  const BY_SKILL = { f1: 0.9, f2: 0.75, f4: 0.4, f6: 0.62, f3: 0.5, f12: 0.72, f17: 0.58, f14: 0.42 };
   // …and it is UNEVEN across domains — the whole point of the split. Without
   // this, per-domain differences are just noise and the record says nothing.
   const DOMAIN_BIAS = {
     f1: { read: { day: 1.1, heat: 1.0, mirror: 0.6, ahead: 0.55 }, by: { day: 1.1, heat: 0.5, mirror: 0.95, ahead: 0.95 } },
+    // The second long record, biased the other way round: f1's blind spot is
+    // pressure, f12's is the everyday. With only one authored partner every
+    // weakDomain() readout on the Map came from the same person, so a bug
+    // that hardcoded f1's shape would have looked correct.
+    f12: { read: { day: 0.7, heat: 1.15, mirror: 1.0, ahead: 0.9 }, by: { day: 0.25, heat: 1.1, mirror: 1.05, ahead: 0.9 } },
   };
   function bias(pid, side, dom) {
     const b = DOMAIN_BIAS[pid];
@@ -331,7 +359,7 @@ import { IS_DATA } from './sample-data.js';
   }
   const skillFor = (base, pid, side, dom) => Math.max(0.05, Math.min(0.97, (base || 0.5) * bias(pid, side, dom)));
   // partner already played today? (deterministic demo state)
-  const PARTNER_TODAY = { f1: true, f2: false, f4: true, f6: false, f3: false };
+  const PARTNER_TODAY = { f1: true, f2: false, f4: true, f6: false, f3: false, f12: true, f17: false, f14: true };
 
   // active 1v1 pids — seeded to the circle on first run, friends only
   function duoList() { if (!S.duoList) S.duoList = IDS.slice(); return S.duoList; }

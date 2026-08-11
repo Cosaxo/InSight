@@ -613,7 +613,7 @@ class DailySplit extends React.Component {
     // answers reads as broken rather than as batched.
     // The tile heights + the 50% line say majority/underdog — the line
     // stays a count.
-    // No "+" lower bound: since D94 the published count is exact, so a
+    // No "+" lower bound: since D98 the published count is exact, so a
     // "12+" over an exact 12 would claim an inaccuracy that is not there.
     const liveTotal = total.toLocaleString();
     // Hoisted for the two gates below (the D83 takes row and the demo
@@ -623,7 +623,7 @@ class DailySplit extends React.Component {
     const demoProd = !!(window.LIVE && window.LIVE.demoInProd);
     // noCountsYet means the aggregate has not landed yet — after your own
     // blind vote that is "you're first, the trigger is on its way", never
-    // "wait for five people" (D94 removed the floor that made it a wait).
+    // "wait for five people" (D98 removed the floor that made it a wait).
     const resultNote = st.editHold === S.id
       // the D86 cooldown, in words \u2014 a silent snap-back reads as a glitch
       ? 'One change a minute \u2014 try again shortly.'

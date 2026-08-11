@@ -37,8 +37,9 @@ await httpsCallable(getFunctions(undefined, "us-central1"), "seedContentV2")({})
 What live mode gives you:
 
 - Anonymous session on boot (uid persists across reloads).
-- The real daily deck + feed with exact counts (from the first answer the
-  payoff shows only your own vote — that's the floor working).
+- The real daily deck + feed with exact counts. Your first vote publishes
+  immediately and the payoff shows a split of one — that is D98 working,
+  not a floor: the who-voted sheet will also name you.
 - Groups & duos end-to-end: create, join by invite code from a second
   browser profile/incognito window, sealed votes. Force a reveal for
   testing with the `revealDuelsNowV2` callable (open in the emulator):

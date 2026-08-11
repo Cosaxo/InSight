@@ -14,7 +14,7 @@
 //                       CORRECTABLE after a fake-account ring is
 //                       discovered (D28).
 //
-// THERE IS NO K-ANONYMITY FLOOR (D94). There was: counts published only
+// THERE IS NO K-ANONYMITY FLOOR (D98). There was: counts published only
 // at or above AGG_MIN_N, on a PUBLISH_EVERY cadence, with complementary
 // suppression hiding a bucket whose neighbour was recoverable by
 // subtraction. All of it is gone, and not as a pause — the principle is
@@ -26,7 +26,7 @@
 // private doc is the trigger's working state, the public doc is what
 // clients hold an onSnapshot on, and they now carry the same numbers.
 //
-// Schema and access decisions: docs/SCHEMA-V2.md, docs/DECISIONS.md (D94).
+// Schema and access decisions: docs/SCHEMA-V2.md, docs/DECISIONS.md (D98).
 
 import { getFirestore, FieldValue, type Firestore, type Transaction } from "firebase-admin/firestore";
 import { onCall, HttpsError } from "firebase-functions/v2/https";
@@ -54,7 +54,7 @@ import { FILM_KEYS, ARTIST_KEYS, EMOJI_KEYS } from "./catalogKeys";
 
 const REGION = "us-central1";
 
-// ── no floor, no cadence (D94) ──────────────────────────────────
+// ── no floor, no cadence (D98) ──────────────────────────────────
 //
 // AGG_MIN_N and PUBLISH_EVERY used to live here: a k-floor that withheld
 // a cohort's counts until it held 5 answers, and a write cadence that
@@ -62,7 +62,7 @@ const REGION = "us-central1";
 // attributable vote per step. D81 had already paused both to 1 because a
 // pre-launch userbase made the whole product render as "withheld".
 //
-// D94 deletes them rather than un-pausing them, because the thing they
+// D98 deletes them rather than un-pausing them, because the thing they
 // defended is no longer a thing this product does. Answers are readable
 // per-user by any signed-in client (firestore.rules) — so a cohort count
 // discloses strictly less than the documents it is folded from, and
@@ -81,14 +81,14 @@ const REGION = "us-central1";
 // documents into one rather than to reintroduce a floor — the private
 // doc has no readers at all now (see the header).
 
-// ── every question slices (D94 reverses D44) ────────────────────
+// ── every question slices (D98 reverses D44) ────────────────────
 //
 // There used to be a carve-out here: the political items were treated as
 // Art. 9 special-category data and published their overall split with NO
 // per-anchor breakdown at all, so nobody could read "how did 25-34s in
 // Oslo answer this political question".
 //
-// D94 removes it. The carve-out was one instance of the general rule this
+// D98 removes it. The carve-out was one instance of the general rule this
 // reversal retires — that some answers are too revealing to link — and
 // keeping it would leave the app with a category of question whose
 // cross-tab is missing for no reason a user could see, which is worse
@@ -116,7 +116,7 @@ export const POLITICAL_QIDS: ReadonlySet<string> = new Set(
 /**
  * The per-anchor breakdown this answer leaves behind.
  *
- * Since D94 there is no question type that declines to slice, so this is
+ * Since D98 there is no question type that declines to slice, so this is
  * a straight fold. It stays a named function rather than being inlined
  * because the trigger, the edit path and the catalog path all want the
  * same one, and three copies is how they drift.
@@ -179,7 +179,7 @@ function ledgerEntry(uid: string, qid: string) {
 // interleaving; three is the ceiling arriving, which is why that is where
 // this logs. A line per contended answer, not per answer.
 //
-// WHY THIS STILL MEASURES SOMETHING AFTER D94. The old publish cadence cut
+// WHY THIS STILL MEASURES SOMETHING AFTER D98. The old publish cadence cut
 // writes to pubRef by ~80%, and it was tempting to read that as headroom.
 // It never was: privRef is written on EVERY answer inside the same
 // transaction, and a transaction is bounded by its most contended
@@ -505,7 +505,7 @@ export const onV2AnswerCreated = onDocumentCreated(
         // per-cell entity cap (pure.ts, D17). Same document, same D7
         // arithmetic as the vote path's `by`.
         //
-        // Every catalog question slices too (D94 — see the vote path).
+        // Every catalog question slices too (D98 — see the vote path).
         const entBy: BreakdownCounts =
           (priv.exists && (priv.get("entBy") as BreakdownCounts)) || {};
         foldCanonAnchors(entBy, snap.get("anchors"), key);
@@ -568,7 +568,7 @@ export const onV2AnswerCreated = onDocumentCreated(
       // `anchors: {}` and fold to nothing, so this is inert until there is
       // something to slice by — see D8.
       //
-      // Every question slices since D94 — there is no political carve-out
+      // Every question slices since D98 — there is no political carve-out
       // and no per-cell floor. The breakdown folded here is the breakdown
       // published, whole.
       const by = breakdownFor(
@@ -587,7 +587,7 @@ export const onV2AnswerCreated = onDocumentCreated(
       // grown by k; a publish cadence so an onSnapshot observer could not
       // attribute one step to one person. All three defended against
       // recovering an individual's answer from a moving aggregate — and
-      // since D94 that same reader can simply read the answer.
+      // since D98 that same reader can simply read the answer.
       //
       // Deliberately still without a fresh timestamp. Not for disclosure:
       // a rewritten `updatedAt` on every answer would wake every client's

@@ -121,7 +121,7 @@ create-only doc — worthless to the aggregate, harmless to everyone else.
 A favourite-of-1,000 has no 52/48 to stage. The reveal is a **leaderboard**:
 
 - Publish the **top N entities (N = 10)** whose counts clear the per-bucket
-  board (`canonTopN`, a display cap — no floor since D94), rewritten on every answer —
+  board (`canonTopN`, a display cap — no floor since D98), rewritten on every answer —
   the existing D7 cadence, unchanged.
 - Everything else folds into one **"everyone else" bucket** = total −
   published. The subtraction-leak rule already in `pure.ts` applies: if

@@ -1,4 +1,4 @@
-// The pure half of the cross-user read (D94). The two queries need an
+// The pure half of the cross-user read (D98). The two queries need an
 // emulator and are covered there — rules.test.ts proves the
 // collection-group grant works and that the surface filter is mandatory,
 // and e2e-v2-loop drives the real trigger. What is worth pinning HERE is

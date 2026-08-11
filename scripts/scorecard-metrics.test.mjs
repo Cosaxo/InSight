@@ -4,7 +4,7 @@
 // assertion here fails if someone routes scale/rating back through
 // evennessOf.
 import { describe, it, expect } from "vitest";
-import { evennessOf, ordinalSplit, splitQualityOf } from "./scorecard-metrics.mjs";
+import { evennessOf, ordinalSplit, splitQualityOf, rollupProduction } from "./scorecard-metrics.mjs";
 
 describe("categorical evenness (unchanged bar)", () => {
   it("scores the canonical cases", () => {
@@ -61,5 +61,58 @@ describe("ordinal split (scale/rating)", () => {
     // sides, no dispersion: a consensus on "middle", not a split.
     const sh = [0, 0, 0, 0, 0.5, 0.5, 0, 0, 0, 0];
     expect(ordinalSplit(sh)).toBeCloseTo(0.222, 3);
+  });
+});
+
+describe("production rollup (D97)", () => {
+  const row = (qid, over = {}) => ({
+    qid, served: true, signal: "scored", total: 40, evenness: 0.6, grade: "strong", ...over,
+  });
+  const prov = {
+    daily: {
+      "000": { source: "editorial", batch: "prototype" },
+      "090": { source: "farm", batch: "2026-08-12" },
+      "091": { source: "farm", batch: "2026-08-12" },
+    },
+    feed: { f01: { source: "editorial", batch: "prototype" } },
+  };
+
+  it("cuts scored rows by source and by vintage", () => {
+    const out = rollupProduction(
+      [
+        row("daily-000", { evenness: 0.4, grade: "middling" }),
+        row("daily-090"),
+        row("daily-091", { evenness: 0.1, grade: "landslide", total: 25 }),
+        row("feed-f01"),
+      ],
+      prov,
+    );
+    expect(out.bySource.editorial).toMatchObject({ questions: 2, scored: 2, strong: 1 });
+    expect(out.bySource.farm).toMatchObject({ questions: 2, scored: 2, strong: 1, landslides: 1 });
+    expect(out.bySource.farm.avgEvenness).toBeCloseTo(0.35, 5);
+    expect(out.byVintage["farm:2026-08-12"].questions).toBe(2);
+    expect(out.byVintage["editorial:prototype"].questions).toBe(2);
+  });
+
+  it("keeps unserved and below-floor rows out of the scored figures but in the counts", () => {
+    const out = rollupProduction(
+      [row("daily-000", { served: false, signal: "unserved", total: 0, evenness: null })],
+      prov,
+    );
+    expect(out.bySource.editorial).toMatchObject({ questions: 1, served: 0, scored: 0, answers: 0 });
+    expect(out.bySource.editorial.avgEvenness).toBeNull();
+  });
+
+  it("lands a missing row under `unknown` rather than dropping it", () => {
+    // Visible, not silent — check:quality holds the join exact, so a row
+    // here means the gate is red too; the rollup still tells the truth.
+    const out = rollupProduction([row("daily-999")], prov);
+    expect(out.bySource.unknown.questions).toBe(1);
+    expect(out.byVintage["unknown:unbatched"].questions).toBe(1);
+  });
+
+  it("ignores qids from surfaces provenance does not cover", () => {
+    const out = rollupProduction([row("learn-cell1"), row("duel-duo-000")], prov);
+    expect(Object.keys(out.bySource)).toEqual([]);
   });
 });

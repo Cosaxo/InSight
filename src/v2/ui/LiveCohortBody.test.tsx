@@ -91,7 +91,7 @@ beforeEach(() => {
 afterEach(() => { cleanup(); vi.restoreAllMocks(); });
 
 describe("LiveCohortBody · an absent cell is counted and named", () => {
-  // Since D94 an absent cell means ZERO — nothing is withheld at any size.
+  // Since D98 an absent cell means ZERO — nothing is withheld at any size.
   // The panel must still account for the gap in words, because a silent gap
   // reads as "this question doesn't exist here".
   const missingLine = (n: number, where: string) =>
@@ -165,7 +165,7 @@ describe("LiveCohortBody · world scope shows what the aggregate holds", () => {
   it("shows an aggregate that carries counts, with no flag to ask permission of", () => {
     // The inverse of the case that stood here. It used to assert that an
     // agg WITHOUT an explicit `tooSmall: false` stayed hidden — fail-closed,
-    // because a document nothing had declared safe was not safe. D94 removed
+    // because a document nothing had declared safe was not safe. D98 removed
     // the flag, so the same document is now simply shown. Kept as the
     // regression guard for the rename: if anything starts consulting a
     // `tooSmall` field again, this row disappears.
@@ -310,7 +310,7 @@ describe("LiveCohortBody · it shows counts, never people (D5)", () => {
   });
 });
 
-describe("the panel prints no floor claim at all (D94)", () => {
+describe("the panel prints no floor claim at all (D98)", () => {
   // The inverse of the case that used to stand here. That one made sure
   // the printed floor equalled the enforced floor; there is no floor to
   // print now, so this makes sure none came back. A floor literal
@@ -331,7 +331,7 @@ describe("the panel prints no floor claim at all (D94)", () => {
     expect(text).not.toMatch(/withheld/i);
     // NB: not asserting the absence of "never who" here — the Right-now
     // presence card legitimately says it, and that claim is still true
-    // (D94 published answers, not the location grid; firestore.rules
+    // (D98 published answers, not the location grid; firestore.rules
     // keeps v2_presence unreadable). Scoped to the cohort copy instead.
     expect(text).not.toMatch(/Counts only/i);
   });

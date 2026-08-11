@@ -190,11 +190,11 @@ for (const [profileId, cfg] of profiles) {
     // live DOM rather than eyeballed later, because "is that button in
     // the shipped app?" is not answerable from a PNG.
     //
-    // BOTH SURVIVE D94, and the reason narrowed rather than went away.
-    // D94 made answers public, so named who-voted is a real shipped
+    // BOTH SURVIVE D98, and the reason narrowed rather than went away.
+    // D98 made answers public, so named who-voted is a real shipped
     // feature now — but these two controls open the DEMO's sheets, whose
     // people come from sample-data.js. Fabricated people in a store
-    // screenshot is the D1 half that D94 did not touch, and it is still
+    // screenshot is the D1 half that D98 did not touch, and it is still
     // a 2.3.3 problem.
     //
     // Note the live who-voted button is a DIFFERENT accessible name

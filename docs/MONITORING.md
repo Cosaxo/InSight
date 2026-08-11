@@ -167,7 +167,7 @@ consoles, which are not in this repo and never will be.
 | Refused | Record |
 | --- | --- |
 | Per-user funnels, session analytics, engagement scoring | data-inventory.md — "No product analytics of any kind ship today" |
-| Retention or engagement sliced by anchor | D8 — the anchors exist; nothing suppresses them since D94 |
+| Retention or engagement sliced by anchor | D8 — the anchors exist; nothing suppresses them since D98 |
 | Anything sliced by political result | D8; GDPR Art. 9 |
 | Skip / pass / hesitation rates | QUESTION-FARM.md, "Deliberately out of scope" |
 | Per-user content selection, ad targeting profiles | MONETIZATION.md, "Ruled out by standing posture" |

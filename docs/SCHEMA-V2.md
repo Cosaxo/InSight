@@ -1,6 +1,6 @@
 # v2 schema — the daily/mirror core loop
 
-> **D94 (2026-08-11): answers are public.** Every "owner only" below that
+> **D98 (2026-08-11): answers are public.** Every "owner only" below that
 > covers an answer, an anchors snapshot, a profile or a test result is now
 > **any signed-in user**; `v2_question_aggs` carries **exact** counts and a
 > complete breakdown with no `tooSmall`, no `AGG_MIN_N`, no
@@ -10,7 +10,7 @@
 > privacy. Push tokens moved to `v2_users/{uid}/push/tokens`, server-only.
 > The per-collection blocks below have been rewritten to match.
 
-Phase-2 collections. Access model per decision D94 (`docs/DECISIONS.md`):
+Phase-2 collections. Access model per decision D98 (`docs/DECISIONS.md`):
 answers are readable by any signed-in user and written only by their
 owner; every shared surface is server-written.
 
@@ -45,14 +45,14 @@ read: signed-in · write: nobody (admin SDK only)
 v2_users/{uid}
   displayName?, anon?, anchors { city country ageBand gender
                                  profession education relationship }
-read: any signed-in user (D94 — displayName + anchors are what turn a uid
+read: any signed-in user (D98 — displayName + anchors are what turn a uid
 on an answer into a person)
 write: owner only, validated key set. `fcmTokens` is GONE from this doc —
 push tokens live at v2_users/{uid}/push/tokens, server-only both ways
 
 v2_users/{uid}/answers/{qid}
   qid (== doc id), surface, optionIdx, answeredAt (request.time),
-  anchors (snapshot at answer time — public since D94, and deliberately:
+  anchors (snapshot at answer time — public since D98, and deliberately:
     a cohort chip beside a name reads off this, never off the live profile).
     Populated from the profile's Basics card via LIVE.saveAnchors; the
     snapshot is taken at vote time so a later profile edit cannot move a
@@ -108,7 +108,7 @@ v2_agg_events/{eventId}            trigger ledger (opaque), two jobs (D28)
                                    "Correcting aggregates"). TTL'd at 90
                                    days (LEDGER_RETENTION_DAYS); a uid's
                                    entries are erased with the account
-v2_question_aggs/{qid}             the PUBLIC mirror, EXACT (D94)
+v2_question_aggs/{qid}             the PUBLIC mirror, EXACT (D98)
   { counts, total }                rewritten on EVERY answer. No
                                    `tooSmall`, no AGG_MIN_N, no
                                    PUBLISH_EVERY — the floor, the cadence
@@ -123,7 +123,7 @@ v2_question_aggs/{qid}             the PUBLIC mirror, EXACT (D94)
                                    every bucket, every dim, at any size.
                                    An absent cell is ZERO, not withheld.
                                    Includes the political items, whose
-                                   D44 carve-out D94 reversed (D8)
+                                   D44 carve-out D98 reversed (D8)
   { total,                         catalog questions: the canon — the top
     top {entity:n}, rest,          CANON_TOP_N entities, everything else
     by { dim: { bucket:            summed into `rest`. `canonTopN` is a
@@ -196,7 +196,7 @@ require membership and deny creates once the day's reveal exists. Duel
 surfaces are excluded from world aggregates.
 
 v2_takes/{takeId}                  comments on a question — circle or world,
-                                   NAMED at both scopes since D94
+                                   NAMED at both scopes since D98
   gid, authorUid, qid?, text ≤280, createdAt (request.time)
   hidden  (bool, REQUIRED,         soft-hide (D22): the circle loses it,
     false on create)               the author keeps reading it — appeal
@@ -307,7 +307,7 @@ not per boot. `LIVE.stats` reports `bankSource` / `answersFetched` /
   deterministic daily rotation (`dayIndex % bankSize`, local midnight),
   aggregate snapshots per deck question, optimistic votes with rollback,
   mock fallback on timeout. The daily tab reads `LIVE.deck()` when live.
-  Live cards show named takes (D94) and DO show
+  Live cards show named takes (D98) and DO show
   who-voted — that panel is the real per-anchor breakdown, floored per
   cell and carrying no names, which is "the split, the totals" D1 allows.
 - Auth: `anonSignIn()` / `linkGoogle()` in the firebase layer — Google is

@@ -153,6 +153,25 @@ describe("spec layer mounts", () => {
     ).not.toBeNull();
   });
 
+  // The demo half of D96's pair — smoke-live asserts the same surfaces
+  // refuse. Without this control, the offers() gate could return [] in
+  // every build and both suites would stay green.
+  it("the add sheet keeps its demo furniture: topics and communities", () => {
+    const expectNoBoundary = mountApp();
+    fireEvent.click(screen.getByRole("button", { name: /add a topic/i }));
+    expect(screen.getByText("Topics")).not.toBeNull();
+    expect(screen.getByText("Communities")).not.toBeNull();
+    // one full community row — name, members and vibe are the demo's to show
+    expect(screen.getByText(/old presses, new poems/)).not.toBeNull();
+    expectNoBoundary("demo add sheet");
+  });
+
+  it("the demo feed offers a suggested scene", () => {
+    const expectNoBoundary = mountApp();
+    expect(screen.getByText(/suggested scene/)).not.toBeNull();
+    expectNoBoundary("demo suggestion card");
+  });
+
   it("parks a previously answered feed card behind the Answered expander", () => {
     // Release feedback, twice: "I keep seeing things I have answered",
     // then "answered questions shouldn't appear in the feed at all". A

@@ -55,7 +55,7 @@ import {
   subscribeToAuth,
 } from "../../lib/firebase";
 import { reportError, setSentryUser } from "../../lib/sentry";
-// The cross-user read (D94). Pure helpers + the two queries live there so
+// The cross-user read (D98). Pure helpers + the two queries live there so
 // the grouping/sorting can be unit-tested without Firebase.
 import { fetchVoters, groupByOption, resolveNames, sortVoters, type Voter } from "./voters";
 // Pure deck-shaping logic lives in ./deck (unit-testable, no firebase);
@@ -171,7 +171,7 @@ const state = {
   // nothing can re-read, and a stale "Reported" is a worse lie than a
   // second flag the rules already refuse as a duplicate.
   myFlags: {} as Record<string, true>,
-  // ── named who-voted (D94) ──
+  // ── named who-voted (D98) ──
   // qid → everyone who answered it, newest first, with the cohort frozen
   // on each answer and the author's display name resolved. Fetched on
   // demand and held for the session: this is the app's only cross-user
@@ -445,12 +445,14 @@ async function hydrate(): Promise<void> {
   interface BankEntry extends QuestionDoc {
     id: string;
   }
-  // Ceiling, not a target: 213 seeded post-W2, ~248 after the D30 archive
-  // promotion, ~344 with the planned learn surface — and the promotion
-  // pipeline adds up to 12/week, ≈600/year. 1500 is about two years of
-  // headroom; if the bank ever approaches it, paginate rather than raise
-  // again (a silent cap here serves users a truncated bank with no error
-  // anywhere).
+  // Ceiling, not a target: 213 seeded post-W2, ~344 with the learn
+  // surface, and D97's cadences (daily promotion targeting ≥14/week plus
+  // the feed lane) can add ~1,300/year at full tilt — call it a year of
+  // headroom from ~500, not the two years the old 12/week arithmetic
+  // promised here. The approach is gated, not remembered: check:quality
+  // trips at 1200 (warn) and 1400 (fail) against this constant. If the
+  // bank ever approaches it, paginate rather than raise again (a silent
+  // cap here serves users a truncated bank with no error anywhere).
   const BANK_LIMIT = 1500;
   const BANK_SURFACES = ["daily", "feed", "test", "group", "duo", "learn"];
   let all: BankEntry[] | null = null;
@@ -666,7 +668,7 @@ async function hydrate(): Promise<void> {
   // snapshots below; everything else refreshes on vote. A cached agg with
   // no counts yet is treated as missing here: feed questions have no live
   // listener, so a first voter's empty snapshot would otherwise be frozen
-  // forever. Since D94 that window is one answer wide rather than the
+  // forever. Since D98 that window is one answer wide rather than the
   // whole climb to a k-floor, so this re-reads far less than it used to.
   const AGG_LS = "insight.aggsCache.v1";
   try {
@@ -1253,7 +1255,7 @@ const PRESENCE_BEAT_MS = 4 * 60_000; // < the server's 10-min freshness window
 
 const nearState = {
   count: null as number | null,   // null = never fetched this session
-  tooFew: false,                  // vestigial since D94 — the server
+  tooFew: false,                  // vestigial since D98 — the server
                                   // no longer withholds a small count, so
                                   // this never becomes true. Kept because
                                   // it is a pinned LIVE member (live-surface.ts)
@@ -1453,12 +1455,12 @@ const LIVE = {
   // Returns null when the bank has no such row — an unseeded or pre-D91
   // backend — and the caller (lens-defs.js LENS_FEED_QS) falls back to
   // the selfOnly acknowledgment rather than fabricating a crowd. That
-  // fallback is about ABSENT data, not withheld data, so D94 leaves it.
-  // ── named who-voted (D94) ─────────────────────────────────────
+  // fallback is about ABSENT data, not withheld data, so D98 leaves it.
+  // ── named who-voted (D98) ─────────────────────────────────────
   //
   // The read the whole reversal was for. Everything else in this store
   // reads the viewer's own documents or a public aggregate; this reaches
-  // across users, which no rule permitted before D94 and no client here
+  // across users, which no rule permitted before D98 and no client here
   // attempted.
   //
   // Load-on-demand, exactly like loadTakes: the caller is a panel that

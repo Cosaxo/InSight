@@ -1,6 +1,6 @@
-// LiveVotersPanel — named who-voted (D94).
+// LiveVotersPanel — named who-voted (D98).
 //
-// The surface the reversal was for. Until D94 the app could tell you that
+// The surface the reversal was for. Until D98 the app could tell you that
 // 62% of 25-34s picked Beach and could not tell you one of them was
 // Henrik; the rules forbade reading another user's answer, so every named
 // population screen in the prototype shipped dark or invented its people.
@@ -22,7 +22,7 @@
 //
 // It does not invent a name. An account that has set none renders as
 // "Someone", and that string is the absence of data rather than a
-// pseudonym — the D1 line, which D94 did not touch.
+// pseudonym — the D1 line, which D98 did not touch.
 import React from "react";
 import LIVE from "../data/live";
 import type { Voter } from "../data/voters";

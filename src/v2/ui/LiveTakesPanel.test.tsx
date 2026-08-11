@@ -35,7 +35,7 @@ const LIVE = vi.hoisted(() => ({
   enabled: true,
   uid: "u_me",
   subscribe: () => () => {},
-  // D94: world takes are named, resolved through the shared uid → name
+  // D98: world takes are named, resolved through the shared uid → name
   // cache. "u_other" is deliberately absent so the unnamed fallback is
   // reachable in the same fixture.
   nameFor: (uid: string) => (uid === "u_me" ? "Me" : uid === "u_named" ? "Ada" : ""),
@@ -246,12 +246,12 @@ const wtake = (id: string, authorUid: string, text: string): TakeLite => ({
 });
 const worldPanel = () => render(<LiveTakesPanel gid="world" qid="q1" />);
 
-describe("world takes are named (D94)", () => {
+describe("world takes are named (D98)", () => {
   beforeEach(() => { localStorage.clear(); });
 
   it("prints the author's name, resolved through the shared cache", () => {
     // The inverse of the case that stood here, which asserted the world
-    // panel must NOT consult any name source. D94 reversed that: the
+    // panel must NOT consult any name source. D98 reversed that: the
     // anonymity was a client-side string all along, since `authorUid` has
     // been on the take document and readable throughout.
     //
@@ -267,7 +267,7 @@ describe("world takes are named (D94)", () => {
   });
 
   it("falls back to Someone for an account with no display name", () => {
-    // Absence of a name, not a pseudonym: D1 survives D94, so nothing is
+    // Absence of a name, not a pseudonym: D1 survives D98, so nothing is
     // invented to fill the gap — not the uid, not a generated handle.
     LIVE.social.takeList = [wtake("w1", "u_nameless", "Anonymous by omission")];
     worldPanel();

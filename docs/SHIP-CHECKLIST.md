@@ -343,7 +343,7 @@ Both apps must be registered under `com.cosaxo.insight`:
     working, and the app never prompts unless the button is tapped.
   - **Sensitive info is a real Yes.** The politics test result is
     special-category data under GDPR Art. 9. It never leaves the owner
-    document and IS sliced and published since D94, and the form asks what you
+    document and IS sliced and published since D98, and the form asks what you
     *collect*, not what you publish.
 
   **Facebook SDK — resolved, excluded (D16).** It *was* linked into every
@@ -411,7 +411,7 @@ Both apps must be registered under `com.cosaxo.insight`:
   2. **Coarse location exists** (D9, optional). Both forms ask; answer
      consistently with the privacy table above.
   3. **Free-text takes are LIVE, at world scale, and NAMED** — D78 part 1
-     shipped the report control, D83 shipped world takes, and D94 put the
+     shipped the report control, D83 shipped world takes, and D98 put the
      author's name on every one of them. So the app ships *with* a live,
      public, attributed free-text surface. Answer both forms on that
      basis; `userGeneratedContent` and `messagingAndChat` are already
@@ -429,18 +429,18 @@ Both apps must be registered under `com.cosaxo.insight`:
   | 1.2 requires | Here |
   | --- | --- |
   | Filter objectionable content | Moderation substrate deployed and **enforcing** — `MOD_ADVISORY = false` since D83; a remove verdict really hides |
-  | Report mechanism | **Live** — `flagTake` writes to `v2_flags` from the takes panel (D78 part 1), and since D94 any signed-in user may flag any take at either scope |
+  | Report mechanism | **Live** — `flagTake` writes to `v2_flags` from the takes panel (D78 part 1), and since D98 any signed-in user may flag any take at either scope |
   | Block abusive users | **Hide author** — the per-author mute on every take, at every scope (`data/mutes.ts`): local, silent, immediate |
   | Published contact info | The support address owed in `web/terms.html` |
 
   Two things follow. First, **the support email is a 1.2 dependency**, not
   only a GDPR one — a second reason it cannot stay a bracket.
 
-  Second, the block answer was re-derived at **D94** and it is worth
+  Second, the block answer was re-derived at **D98** and it is worth
   knowing what it replaced, because the old one would now be a rejection
   risk. It used to be "leaving a circle IS the block, because circle
   members are the only people whose content you can see" — true while
-  takes were circle-scoped and world takes were anonymous. D94 names
+  takes were circle-scoped and world takes were anonymous. D98 names
   every take at world scale, so leaving a circle no longer bounds who you
   see, and an answer resting on that would collapse under a reviewer's
   first follow-up question. The real, universal control is **Hide
@@ -451,7 +451,7 @@ Both apps must be registered under `com.cosaxo.insight`:
   The sentence that used to close this block — "1.2 stops being
   comfortable if a live takes surface ships later" — has come due twice
   over: the surface shipped at D83 with the report control alongside it,
-  and D94 attached names. Both obligations are met above; keep them met.
+  and D98 attached names. Both obligations are met above; keep them met.
 - Apple Developer Program (~2 days to approve — start early, as an
   **individual** enrollment). **A Mac is no longer required**: since
   2026-08-05 `.github/workflows/ios-release.yml` archives, exports and

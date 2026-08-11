@@ -14,7 +14,7 @@ before changing anything on that tab. React 19 + TypeScript + Vite,
 Capacitor shells for iOS/Android, Firebase (anonymous-first auth,
 Firestore, Cloud Functions).
 
-**Answers are public (D94).** Any signed-in user may read any other
+**Answers are public (D98).** Any signed-in user may read any other
 user's answers and profile; population counts are exact and publish from
 the first answer. There is no k-anonymity floor, no publish cadence, no
 suppressed cells and no special-category carve-out. Showing how one
@@ -32,7 +32,7 @@ failure as the reverse.
 Three denies remain, none about answers, each labelled at its own path in
 `firestore.rules`: the unscored logic answer key (anti-cheat), flag
 authorship (anti-retaliation) and the presence cell (physical safety —
-D94 published what people answered, not where their phone is standing).
+D98 published what people answered, not where their phone is standing).
 Duel answers stay sealed until the next-day reveal, enforced as a
 `surface` test: that is game timing, not privacy.
 
@@ -129,12 +129,13 @@ Two rules for working with it:
 | `npm run test:rules` | Firestore **and** Storage rules | Java 21 |
 | `npm run test:e2e` / `:erasure` / `:moderation` | full loop, erasure, moderation transport — real emulated functions | Java 21 |
 
-Plus the non-test gates: `check:globals`, `check:labels`, `check:versions`,
-`check:bundle`, `check:deploy-targets`, `check:fn-runtime`,
-`check:appcheck`, and the catalogue drift gates `check:cities`,
-`check:pokedex`, `check:catalogs` — the last two also run on the deploy
-path, because the aggregate trigger validates answer keys against the
-committed catalogues (D14–D17; docs/CATALOG-QUESTIONS.md).
+Plus the non-test gates: `check:globals`, `check:labels`, `check:quality`
+(question form + provenance, D97), `check:versions`, `check:bundle`,
+`check:deploy-targets`, `check:fn-runtime`, `check:appcheck`, and the
+catalogue drift gates `check:cities`, `check:pokedex`, `check:catalogs` —
+the last two also run on the deploy path, because the aggregate trigger
+validates answer keys against the committed catalogues (D14–D17;
+docs/CATALOG-QUESTIONS.md).
 
 `check:appcheck` is on the deploy path too: every callable must demand App
 Check attestation or be named in the script's exemption list with the
@@ -160,7 +161,7 @@ an emergency rules fix.
   Everything else stays frozen — anchors, answeredAt, learn, duels,
   catalog — and the counts stay honest because the trigger moves them,
   not because the doc cannot change. Do not widen the edit surface.
-- **A live Mirror stop has no lens row — and since D94 that is a GAP,
+- **A live Mirror stop has no lens row — and since D98 that is a GAP,
   not a policy.** The demo field bodies carry Answers · People · Compare
   · Scores · Explore; every stop with a real source replaces the whole
   body with one panel (`LiveCohortBody`, `LiveGroupsMirrorBody`, the

@@ -14,13 +14,13 @@
 //
 // WHAT THESE ARE NOW. The same public aggregates everything else here
 // reads: exact counts, at the radius you picked, published from the first
-// answer (D94 — no floor, no suppression, no withheld cells). Near is a
+// answer (D98 — no floor, no suppression, no withheld cells). Near is a
 // redefinition rather than a repair, and it is the honest one: unlike the
 // old 5 km circle, nothing about a city requires knowing where the phone
 // is.
 //
 // WHAT THIS PANEL STILL DOES NOT SHOW, AND WHY THAT IS NOW A GAP. People.
-// Not because it may not — D94 makes every answer and profile readable, so
+// Not because it may not — D98 makes every answer and profile readable, so
 // a named "who in Oslo picked Beach" is a legitimate surface and the one
 // this panel most obviously wants. It is missing because the READ PATH does
 // not exist yet: the client would need a collection-group query on answers
@@ -38,7 +38,7 @@ import { setCityAnchor } from "../data/cityAnchor";
 // already shares.
 import { locateCity } from "../data/locate";
 // "Does this question have any answers yet?" — an existence test, and
-// since D94 the only test there is (data/floor.ts and its constants are
+// since D98 the only test there is (data/floor.ts and its constants are
 // gone with the floor they mirrored).
 import { hasPublishedCounts } from "../data/deck";
 // An ordinary import, not a globalThis lookup — same note as LiveDuelPanel's
@@ -261,7 +261,7 @@ function LiveCohortBody({ scope = "city" }: { scope?: CohortScope }) {
     scope === "city" ? "var(--c-around)" : scope === "country" ? "var(--c-city)" : "var(--c-world)";
 
   const rows: Row[] = [];
-  // Questions with no answers from this cohort yet. Since D94 nothing is
+  // Questions with no answers from this cohort yet. Since D98 nothing is
   // withheld, so an absent cell means exactly zero — the counter survives
   // only so an empty row is explained rather than silently missing.
   let empty = 0;
@@ -310,7 +310,7 @@ function LiveCohortBody({ scope = "city" }: { scope?: CohortScope }) {
 
       {!!rows.length && empty > 0 && (
         <div style={{ padding: "13px 0 0", fontFamily: "var(--sans)", fontSize: 12, fontWeight: 500, color: "var(--ink-3)", lineHeight: 1.5 }}>
-          {/* An absent cell is zero, not a withholding — D94 removed the
+          {/* An absent cell is zero, not a withholding — D98 removed the
               floor, so there is nothing left for this line to apologise
               for. It just says the row is empty. */}
           {empty} more {empty === 1 ? "question has" : "questions have"} no

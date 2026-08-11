@@ -47,14 +47,14 @@
       "type": "NAME",
       "linked": true,
       "purposes": ["APP_FUNCTIONALITY"],
-      "$why": "Optional display name, shown beside every answer, take and reveal — since D94 answers are public and attributed, so this is the label the whole app renders people under. Also arrives from Google's default profile scope. An account that sets none renders as 'Someone'."
+      "$why": "Optional display name, shown beside every answer, take and reveal — since D98 answers are public and attributed, so this is the label the whole app renders people under. Also arrives from Google's default profile scope. An account that sets none renders as 'Someone'."
     },
     {
       "category": "USER_CONTENT",
       "type": "OTHER_USER_CONTENT",
       "linked": true,
       "purposes": ["APP_FUNCTIONALITY"],
-      "$why": "Answers and test results. Since D94 these are READABLE BY ANY SIGNED-IN USER, under the author's display name and with the age band, gender, city, country and education the answer was given under. That is the product, not a leak; the form asks what is collected, and this row was already Yes."
+      "$why": "Answers and test results. Since D98 these are READABLE BY ANY SIGNED-IN USER, under the author's display name and with the age band, gender, city, country and education the answer was given under. That is the product, not a leak; the form asks what is collected, and this row was already Yes."
     },
     {
       "category": "LOCATION",
@@ -68,7 +68,7 @@
       "type": "SENSITIVE_INFO",
       "linked": true,
       "purposes": ["APP_FUNCTIONALITY"],
-      "$why": "The politics test result is GDPR Art. 9 special-category data; gender if entered. STAYS DECLARED, and the justification changed at D94: it is no longer true that this never leaves the owner document. Political ITEM answers are public and now slice by cohort like every other question (D94 reversed D44), and the politics RESULT vector sits on a profile any signed-in user may read. The row was Yes before because the form asks what you collect; it is Yes now for that reason and because the app also publishes it. Deleting this row would be an under-declaration and check-store-forms rule 2 refuses it."
+      "$why": "The politics test result is GDPR Art. 9 special-category data; gender if entered. STAYS DECLARED, and the justification changed at D98: it is no longer true that this never leaves the owner document. Political ITEM answers are public and now slice by cohort like every other question (D98 reversed D44), and the politics RESULT vector sits on a profile any signed-in user may read. The row was Yes before because the form asks what you collect; it is Yes now for that reason and because the app also publishes it. Deleting this row would be an under-declaration and check-store-forms rule 2 refuses it."
     },
     {
       "category": "DIAGNOSTICS",
@@ -147,6 +147,6 @@
 
     "$socialMediaQuestions": "ANSWERED — the eight $new2025 keys above are those questions. This note predicted them (banner seen 2026-08-07) and correctly predicted that asc-push would leave anything new UNSET, but it was wrong about the consequence in a way worth keeping: it said an unset required field 'blocks submission'. Apple is stricter than that — it rejects the whole PATCH with a 409 per missing attribute, so the age rating could not be written at all until every one was supplied (D75). A prediction that is right about the cause and wrong about the symptom still costs a debugging round. The three structural facts below are what these turn on. The free-text one has moved twice (see $structural); since D83 there IS a world-scale surface, and what answers guideline 1.2 for it is the full kit: enforced moderation, report, per-author mute, anonymity by construction — not absence.",
 
-    "$guideline12": "1.2 demands four things of any app with user-generated content, and each has a real answer. FILTERING: the moderation substrate is deployed and ENFORCING since D83 (MOD_ADVISORY = false, a remove verdict really hides, a per-run cap bounds a bad run). REPORTING: live since D78 part 1 — flagTake writes to v2_flags from the takes panel, and since D94 any signed-in user may flag any take at either scope, because reading is no longer membership-gated. BLOCKING: this answer was re-derived at D94 and is now ONE shape rather than two. It used to be 'leave the circle, or hide the author', on the reasoning that circle members were the only NAMED people whose content you saw. D94 makes every take named at world scale, so leaving a circle no longer bounds who you see — the real, universal control is the per-author mute (Hide author, data/mutes.ts, local and silent), which applies at both scopes and is what a reviewer should be pointed at. Leaving a circle remains available and still stops that circle's content, but it is no longer the block. CONTACT: olaftaule01@gmail.com on web/terms.html."
+    "$guideline12": "1.2 demands four things of any app with user-generated content, and each has a real answer. FILTERING: the moderation substrate is deployed and ENFORCING since D83 (MOD_ADVISORY = false, a remove verdict really hides, a per-run cap bounds a bad run). REPORTING: live since D78 part 1 — flagTake writes to v2_flags from the takes panel, and since D98 any signed-in user may flag any take at either scope, because reading is no longer membership-gated. BLOCKING: this answer was re-derived at D98 and is now ONE shape rather than two. It used to be 'leave the circle, or hide the author', on the reasoning that circle members were the only NAMED people whose content you saw. D98 makes every take named at world scale, so leaving a circle no longer bounds who you see — the real, universal control is the per-author mute (Hide author, data/mutes.ts, local and silent), which applies at both scopes and is what a reviewer should be pointed at. Leaving a circle remains available and still stops that circle's content, but it is no longer the block. CONTACT: olaftaule01@gmail.com on web/terms.html."
   }
 }

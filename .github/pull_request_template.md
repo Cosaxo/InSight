@@ -14,7 +14,7 @@
 Skip if it doesn't. If it does, none of these should be answered from
 memory.
 
-**Answers are PUBLIC (D94).** Reads are open by design — a user reading
+**Answers are PUBLIC (D98).** Reads are open by design — a user reading
 another user's answers, profile or exact counts is the product, not a
 finding. What the checks below protect is the write side, the handful of
 things still closed for non-privacy reasons, and honesty about all of it.
@@ -35,7 +35,7 @@ things still closed for non-privacy reasons, and honesty about all of it.
 - [ ] **The UI does not claim otherwise.** If this changes who can see
       what, the account panel and `docs/data-inventory.md` say so. The
       product's rule is that the copy matches the rules — that survived
-      D94, pointed the other way
+      D98, pointed the other way
 - [ ] **`deleteAccount`** still erases anything this adds, including data
       about a user stored under *another* user's documents
 

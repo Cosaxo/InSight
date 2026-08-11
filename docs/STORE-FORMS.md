@@ -15,7 +15,7 @@ the takes surface going live, or product analytics being added.
 
 **Re-derived 2026-08-06 for D57 (verified logic attempts).** New stored
 fields: `testResults.logic` (server-written verified score, publicly
-readable but client-unwritable since D57/D94),
+readable but client-unwritable since D57/D98),
 `v2_logic_attempts/{uid}` (server-only), and the anonymous
 `v2_logic_norms*` histogram. **No answer below changes**: the score is
 User Content → Other User Content (already **Yes**, linked, App
@@ -116,13 +116,13 @@ Three of those are worth knowing *why*, because each looks tickable:
    policy: iOS sets `NSLocationDefaultAccuracyReduced` and never calls
    `requestTemporaryFullAccuracy`. If a reviewer asks, that is the answer.
 
-2. **Sensitive Info is a real Yes, and D94 strengthened the reason.**
+2. **Sensitive Info is a real Yes, and D98 strengthened the reason.**
    The politics test result is special-category data under GDPR Art. 9.
    It used to be filed on the narrow ground that the form asks what you
    **collect**, not what you publish — while the data itself never left
    the owner document and was never sliced by (D8/D44).
 
-   Both halves of that are now false. Since D94 answers and profiles are
+   Both halves of that are now false. Since D98 answers and profiles are
    readable by any signed-in user, political *items* slice by cohort like
    every other question, and the politics *result* sits on a public
    profile. The row stays Yes and its justification is simply broader:
@@ -271,7 +271,7 @@ The two that are not simply "no content of that kind":
   content is already declared under **Other User Content**. That row moves
   only if a direct person-to-person surface ships.
 
-  **D94 does not trip that trigger, and the distinction is worth stating
+  **D98 does not trip that trigger, and the distinction is worth stating
   because it is close.** Answers and takes are now named and world-visible
   — but they are still POSTS, addressed to a question rather than to a
   person. Nothing in the app lets one user send anything to another user.
@@ -306,17 +306,17 @@ default.
 | --- | --- |
 | Filter objectionable content | Moderation substrate deployed and **enforcing** since D83 — `MOD_ADVISORY = false`, a remove verdict really hides, per-run cap bounds a bad run (D22 → D83) |
 | Report mechanism | **Live since D78 part 1** — `flagTake` writes to `v2_flags` from the takes panel, at both scopes since D83: members flag circle takes, any signed-in user flags world takes |
-| Block abusive users | **Hide author** — the per-author mute on every take at every scope (`data/mutes.ts`): local, silent, immediate. Re-derived at D94: this used to be "leave the circle, or hide the author", on the reasoning that circle members were the only *named* people whose content you saw. D94 names every take at world scale, so leaving a circle no longer bounds who you see and cannot be the block. `leaveGroupV2` remains and still stops that circle's content, but it is now a membership action rather than the 1.2 answer (no owner-side eject yet, D55 §14) |
+| Block abusive users | **Hide author** — the per-author mute on every take at every scope (`data/mutes.ts`): local, silent, immediate. Re-derived at D98: this used to be "leave the circle, or hide the author", on the reasoning that circle members were the only *named* people whose content you saw. D98 names every take at world scale, so leaving a circle no longer bounds who you see and cannot be the block. `leaveGroupV2` remains and still stops that circle's content, but it is now a membership action rather than the 1.2 answer (no owner-side eject yet, D55 §14) |
 | Published contact info | `olaftaule01@gmail.com`, on `web/terms.html` |
 
 If a reviewer asks how users block one another, the answer is **Hide
 author**, and it is one answer rather than two on purpose. Every take in
-the app now carries its author's name (D94), so the control that matters
+the app now carries its author's name (D98), so the control that matters
 is the one that works everywhere: mute that person and their content
 stops rendering for you, in circles and at world scale alike.
 
 The previous answer — "leave the circle" — depended on named content only
-ever coming from a circle. That stopped being true at D94, and a 1.2
+ever coming from a circle. That stopped being true at D98, and a 1.2
 answer resting on it would have been a rejection risk rather than a
 technicality.
 
@@ -327,7 +327,7 @@ technicality.
 Not needed while Play is deferred. Kept because these were derived from the
 same inventory and should not be re-derived in a hurry.
 
-> **OPEN AFTER D94 — the Shared column needs a decision, not an edit.**
+> **OPEN AFTER D98 — the Shared column needs a decision, not an edit.**
 > Every row below files **Shared = No**. Play defines sharing as transfer
 > to a *third party*, and it carves out transfers the user initiated and
 > reasonably expects — so "answers are visible to other users of the same
@@ -339,7 +339,7 @@ same inventory and should not be re-derived in a hurry.
 > Shared = Yes on an engineer's reading would be as wrong as leaving them
 > if the reading is wrong. Resolve it before Play is un-parked (D42).
 >
-> What is NOT in doubt: the Collected column is unchanged by D94, because
+> What is NOT in doubt: the Collected column is unchanged by D98, because
 > Play asks what you collect. Political or religious beliefs stays Yes.
 
 | Play category | Collected | Shared | Optional? | Purpose |

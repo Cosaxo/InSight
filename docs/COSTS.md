@@ -21,7 +21,7 @@ Every constant below is sourced, not assumed:
 | Operation | Cost | Where it comes from |
 | --- | --- | --- |
 | One world answer | 1 client write + 2 server writes (`v2_agg_events`, `v2_aggs_private`) | `onV2AnswerCreated`, functions/src/v2.ts |
-| …plus the public mirror | +1 write **per answer**, always | no cadence since D94 |
+| …plus the public mirror | +1 write **per answer**, always | no cadence since D98 |
 | …plus the ledger's death | 1 delete, 90 days later | `LEDGER_RETENTION_DAYS` |
 | One duel answer | 1 client write + 1 `pendingDays` arrayUnion | v2.ts group branch |
 | One trigger invocation | 512 MiB, 1 vCPU, concurrency 20, ~200 ms | `HOT_TRIGGER`, functions/src/ops.ts |
@@ -33,11 +33,14 @@ Every constant below is sourced, not assumed:
 | One ledger entry | +1 read the night it is scanned | `ledgerVelocityScan`, functions/src/velocity.ts (D54) |
 | One group-day reveal | `4 + 3m` reads for `m` members — 10 for a duo | `revealGroupDay`, functions/src/v2social.ts |
 
-Note the shape of the third row: **the mirror costs
-*more* per answer than one above it** (3 server writes vs 2.2), because
-one write on every answer, at every size (D94 removed the cadence). The
-cold-start period is also the write-expensive period. It is a small
-effect, and it is the opposite of the direction one would guess.
+Note the shape of the third row. There is no "under the floor" any more
+(D98 removed the floor and the cadence both), so the mirror is rewritten
+once per answer at every size and the whole bank runs at a flat 3 server
+writes per answer. The old shape — cold start costing *more* per answer
+than maturity, because `{tooSmall: true}` was rewritten until the fifth
+answer — is gone with the flag. Flat is easier to model and slightly
+worse at volume: the cadence used to buy an ~80% cut in mirror writes
+once a question matured, and that discount no longer exists.
 
 ## The bill, at five sizes
 

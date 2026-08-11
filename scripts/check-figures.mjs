@@ -31,6 +31,16 @@
 // seed step, and the seed step's number is the one an operator reads to
 // decide whether a seed run did what it should.
 //
+// It grew the k-floor pair after D81 paused it. The pause was scrupulous
+// in the app — every floor sentence branches on the constant, gated by
+// floor.test — and missed in prose: README kept claiming the design
+// floor, under the heading "Honesty is the architecture", which is the
+// UI-says-it-server-doesn't failure this product defines itself against,
+// committed in documentation instead of UI. The pair's entries hold in
+// both directions, so the eventual revert (D81's two-literal edit) fails
+// every stale pause sentence instead of trusting someone to remember
+// them — the prose half of the enumeration D81 promises.
+//
 // DECISIONS.md is deliberately NOT covered. Its arithmetic is the state at
 // the moment a decision was taken, so a figure there going "stale" is the
 // record working — gating it would force rewriting history to satisfy a
@@ -117,11 +127,36 @@ if (!seededQuestions || !dailyQuestions) {
   process.exit(1);
 }
 
+// The live k-floor pair used to be read here and pinned into eleven
+// prose sentences. D98 deleted both constants and every sentence that
+// quoted them, so the reads and their entries are gone too.
+//
+// Deleted rather than pointed at a replacement, per this file's own rule
+// a few lines up: a gate reading for a sentence that has been reworded
+// away is one nobody can satisfy, and the right answer then is to delete
+// the entry, not to restore the sentence.
+
 // Each figure: where it is quoted, how to recompute it, and the exact
 // sentence to write when it has moved. The `missing` message matters as
 // much as the mismatch one — a gate reading for a sentence that has been
 // reworded away is one nobody can satisfy, and the right answer then is to
 // delete the entry, not to restore the sentence.
+// The D97 budget constants, cross-read from the regulator so the farm
+// manual can quote them. QUESTION-FARM.md is LIVE documentation — the
+// scheduled runs obey it verbatim — so a drifted budget figure there is
+// not a stale doc, it is a mis-instructed run.
+const budgetSrc = read("scripts/farm-budget.mjs");
+const budgetConst = (name) => {
+  const m = budgetSrc.match(new RegExp(`export const ${name} = (\\d+)`));
+  if (!m) {
+    throw new Error(
+      `scripts/farm-budget.mjs no longer declares ${name} — fix this scan, `
+      + "a figure gate reading zero is worse than no gate.",
+    );
+  }
+  return Number(m[1]);
+};
+
 const FIGURES = [
   {
     file: "README.md",
@@ -262,6 +297,32 @@ const FIGURES = [
     actual: seededQuestions,
     fix: (n) => `"a ${n}-read bank refetch"`,
   },
+  // The three D97 budget figures the farm manual quotes. They live in
+  // scripts/farm-budget.mjs (with the reasoning that produced them) and
+  // are quoted in QUESTION-FARM.md § Picking topics; retuning one there
+  // without the other would hand the scheduled runs a budget the
+  // regulator does not compute.
+  {
+    file: "docs/QUESTION-FARM.md",
+    what: "the daily lane's per-run cap (RUN_CAP)",
+    re: /up to \*\*(\d+) questions per run\*\*/,
+    actual: budgetConst("RUN_CAP"),
+    fix: (n) => `"up to **${n} questions per run**"`,
+  },
+  {
+    file: "docs/QUESTION-FARM.md",
+    what: "the unpromoted-pen target (PEN_TARGET)",
+    re: /pen target of \*\*(\d+)\*\*/,
+    actual: budgetConst("PEN_TARGET"),
+    fix: (n) => `"pen target of **${n}**"`,
+  },
+  {
+    file: "docs/QUESTION-FARM.md",
+    what: "the open-PR review ceiling (OPEN_MAX)",
+    re: /\*\*(\d+)\*\* unreviewed questions on the lane's open PR/,
+    actual: budgetConst("OPEN_MAX"),
+    fix: (n) => `"**${n}** unreviewed questions on the lane's open PR"`,
+  },
 ];
 
 const errors = [];
@@ -299,5 +360,6 @@ if (errors.length) {
 console.log(
   `check-figures OK — ${FIGURES.length} documented figures across `
   + `${sources.size} files match the tree `
-  + `(rules tests: ${rulesTests}; questions: ${seededQuestions}, ${dailyQuestions} daily).`,
+  + `(rules tests: ${rulesTests}; questions: ${seededQuestions}, `
+  + `${dailyQuestions} daily).`,
 );

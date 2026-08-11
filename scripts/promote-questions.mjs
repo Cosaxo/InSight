@@ -8,14 +8,20 @@
 // all. The PICKING stays human — you name the ids, and the resulting
 // diff is the promotion PR the manual requires.
 //
-//   npm run promote -- dqx13 dqx14
+//   npm run promote -- --source farm dqx13 dqx14
 //
 // Refuses: non-dqx ids (the original 30 are already live), unknown ids,
 // and prompts already present in the seed (a re-promotion). On success
-// it appends to content/daily-questions.json with the next free id and
-// regenerates functions/src/v2content.ts (build:content); check:content
-// then re-verifies both on CI. Ids in the seed are explicit and
-// append-only — the deck epoch (D30) makes appends remap nothing.
+// it appends to content/daily-questions.json with the next free id,
+// records each question's provenance row in content/provenance.json
+// (D97 — the vintage join the scorecard's `production` section reads;
+// --source names who wrote the archive entry, --batch labels the vintage
+// and defaults to today's UTC date), and regenerates
+// functions/src/v2content.ts (build:content); check:content and
+// check:quality then re-verify all three on CI — a promotion without its
+// provenance row fails the gate, which is what makes the flag
+// unforgettable. Ids in the seed are explicit and append-only — the deck
+// epoch (D30) makes appends remap nothing.
 import { readFileSync, writeFileSync } from "node:fs";
 import { resolve, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -25,10 +31,31 @@ import vm from "node:vm";
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const SPEC = join(root, "src", "v2", "spec", "daily-questions.js");
 const SEED = join(root, "content", "daily-questions.json");
+const PROV = join(root, "content", "provenance.json");
 
-const ids = process.argv.slice(2).filter((a) => a !== "--");
-if (!ids.length) {
-  console.error("promote: name at least one archive id, e.g. `npm run promote -- dqx13 dqx14`");
+const argv = process.argv.slice(2).filter((a) => a !== "--");
+const SOURCES = new Set(["editorial", "farm", "community"]);
+const flagOf = (name) => {
+  const i = argv.indexOf(name);
+  if (i < 0) return null;
+  const v = argv[i + 1];
+  argv.splice(i, 2);
+  return v;
+};
+const source = flagOf("--source");
+const batch = flagOf("--batch") || new Date().toISOString().slice(0, 10);
+const ids = argv;
+if (!ids.length || !source || !SOURCES.has(source)) {
+  console.error(
+    "promote: name a source and at least one archive id, e.g. " +
+      "`npm run promote -- --source farm dqx13 dqx14`\n" +
+      "  --source editorial|farm|community   who wrote the archive entry (D97 provenance)\n" +
+      "  --batch YYYY-MM-DD                  vintage label, default today (UTC)",
+  );
+  process.exit(1);
+}
+if (!/^\d{4}-\d{2}-\d{2}$/.test(batch)) {
+  console.error(`promote: --batch ${JSON.stringify(batch)} is not a YYYY-MM-DD date`);
   process.exit(1);
 }
 
@@ -90,7 +117,12 @@ for (const id of ids) {
 }
 
 writeFileSync(SEED, JSON.stringify(seed, null, 2) + "\n");
+// The provenance row rides the same commit as the seed entry, so the two
+// can never land separately — check:quality holds them equal on CI.
+const prov = JSON.parse(readFileSync(PROV, "utf8"));
+for (const a of added) prov.daily[a.seedId] = { archiveId: a.archiveId, source, batch };
+writeFileSync(PROV, JSON.stringify(prov, null, 2) + "\n");
 execFileSync("node", [join(root, "scripts", "gen-v2content.mjs"), "--write"], { stdio: "inherit" });
-console.log(`promote: appended ${added.length} question(s) to content/daily-questions.json`);
+console.log(`promote: appended ${added.length} question(s) to content/daily-questions.json (provenance: ${source}, batch ${batch})`);
 for (const a of added) console.log(`  ${a.archiveId} → daily-${a.seedId}  ${JSON.stringify(a.prompt)}`);
-console.log("promote: run `npm run check:content`, then open the promotion PR with per-question provenance (QUESTION-FARM.md § Promoting). After merge + deploy, an operator reseeds.");
+console.log("promote: run `npm run check:content` and `npm run check:quality`, then open the promotion PR with per-question provenance (QUESTION-FARM.md § Promoting). After merge + deploy, an operator reseeds.");

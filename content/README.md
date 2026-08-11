@@ -17,6 +17,7 @@ operational copy (editable without a redeploy, per the taxonomies pattern).
 | `tests.json` | The four core tests' item banks (big5 · political · values · attachment) |
 | `archetypes.json` | Named result types per test — signature vectors, one-liners, population shares |
 | `scenes.json` | Scene (community) definitions from the prototype — placeholder list for launch |
+| `provenance.json` | Who wrote each daily/feed question and in which vintage (D97) — written by `promote-questions.mjs` and the lane PRs, held in step with the banks by `check:quality`, read by the scorecard's `production` rollup. Measurement metadata, not content — never seeded |
 
 Provenance notes:
 

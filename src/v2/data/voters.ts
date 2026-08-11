@@ -1,8 +1,8 @@
-// Named who-voted — the cross-user read D94 exists to make possible.
+// Named who-voted — the cross-user read D98 exists to make possible.
 //
 // Every other module under data/ reads the viewer's own documents and the
 // public aggregates. This one reads OTHER PEOPLE'S answers, which until
-// D94 no rule permitted and no client attempted. It is the first of its
+// D98 no rule permitted and no client attempted. It is the first of its
 // kind here, so the shape it establishes matters more than usual:
 //
 //   1. ONE collection-group query per question, on demand. Not a listener.

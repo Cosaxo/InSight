@@ -223,10 +223,10 @@ if (SCREENSHOTS) {
   // gated on !S.live — the demo's Comments and "Who voted what" sheets,
   // which are populated from sample-data.js.
   //
-  // Still a 2.3.3 problem after D94, for a narrowed reason. Named
+  // Still a 2.3.3 problem after D98, for a narrowed reason. Named
   // who-voted IS a shipped feature now, so the gate is no longer "this
   // advertises a feature that does not exist" — it is "this advertises
-  // real people who do not exist" (D1, the half D94 kept). The live
+  // real people who do not exist" (D1, the half D98 kept). The live
   // who-voted panel has its own accessible name and captures cleanly. It is also the most expensive kind of
   // mistake here: it costs a full review cycle, days after the upload.
   const manifestPath = join(SHOTS_BASE, "manifest.json");
@@ -243,7 +243,7 @@ if (SCREENSHOTS) {
       + unsafe.map((f) => `      ${f} — ${shotMeta.get(f).demoOnlyAffordances.join(", ")}`).join("\n")
       + "\n    Those sheets are populated from sample-data.js, so the people in"
       + "\n    them do not exist and App Store 2.3.3 wants screenshots that"
-      + "\n    reflect the app. Recapture in live mode — since D94 a live"
+      + "\n    reflect the app. Recapture in live mode — since D98 a live"
       + "\n    capture shows real named voters, which is the shot you want"
       + "\n    anyway — or pass --allow-demo if you have decided otherwise,"
       + "\n    which is a decision worth writing down rather than a flag to reach for.",

@@ -19,7 +19,7 @@ export interface LiveQuestion {
   comments: never[];
   friends: never[];
   live: true;
-  // Renamed from `tooSmall` at D94. It used to mean "withheld — this
+  // Renamed from `tooSmall` at D98. It used to mean "withheld — this
   // cohort is under the k-floor"; it now means "nobody has answered this
   // yet, so there is no split to draw". Renamed rather than reused
   // because the two are opposite claims about the same false value, and a
@@ -47,7 +47,7 @@ export interface AggDoc {
   counts?: Record<string, number>;
   total?: number;
   // Per-anchor breakdown, exact and complete (functions/src/pure.ts, D8
-  // for the shape, D94 for the exactness). A cell that is absent here has
+  // for the shape, D98 for the exactness). A cell that is absent here has
   // no answers in it — nothing is suppressed, so absent means zero and the
   // UI may draw it as such.
   by?: Record<string, Record<string, Record<string, number>>>;
@@ -116,7 +116,7 @@ export function countsFor(options: string[], ctx: VoteContext): number[] {
 
 // Whether this question has published counts to show yet.
 //
-// D94 retired the k-floor, so the server no longer writes a `tooSmall`
+// D98 retired the k-floor, so the server no longer writes a `tooSmall`
 // flag and nothing is ever withheld for being small — but the question
 // "is there an aggregate here at all?" survives, because a question
 // nobody has answered has no document. What used to be a DISCLOSURE test
@@ -164,8 +164,8 @@ export function buildS(
 // answered "Yesterday" card would be replaced by a different question whose
 // vote state (keyed by qid) doesn't match, rendering unanswered. Rebased on
 // the epoch, the index stays below n while the bank outgrows the calendar
-// (promotion adds ~12/week against 7 days/week — D30 records the
-// arithmetic), so the mod never wraps and appending questions changes no
+// (promotion outpaces the calendar's 7/week — D30 recorded 12/week, D97
+// targets ≥14), so the mod never wraps and appending questions changes no
 // past or present day's mapping at all. Residual limit, recorded: if
 // promotion lapses for longer than the bank's runway (n days after epoch),
 // the wrap returns and one reseed remaps history once.

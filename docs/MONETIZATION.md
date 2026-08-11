@@ -14,7 +14,7 @@ DECISIONS.md like everything else.
 What this product can sell is **honest aggregates** — the true split of
 a real population, provably not fabricated.
 
-That was two claims until D94 and is now one. The honesty half is
+That was two claims until D98 and is now one. The honesty half is
 unchanged and is why a buyer would pay: D1's no-fake-activity rule, D5's
 immutable answers, exact counts folded from real votes. The second half —
 "provably not attributable to any individual" — is **gone**, and any
@@ -25,6 +25,12 @@ they could read themselves.
 That materially changes what can be sold and how it must be described.
 Treat everything below as needing re-derivation before any of it is
 offered to anyone.
+
+**Pause note (D81):** the floor is paused to 1 pre-launch — counts
+publish exactly, per answer, and a tiny cohort's count is readable as an
+individual's answer until the floor restores at launch traction. "Never
+sells a person" is therefore a property of the design floor; none of the
+paths below is built yet, so nothing is sold under the pause.
 
 The other side of the ledger is [`COSTS.md`](COSTS.md): what serving that
 asset costs at five sizes, and which three lines the bill actually

@@ -195,7 +195,7 @@ export function ResultProfileCard({ testKey, archetype, tagline }) {
   const streak = fit === 'close' ? near[0].a.name.replace(/^The /, '') : null;
   // People of yours who landed on the same type — EMPTY IN LIVE MODE (D72).
   //
-  // `IS_DATA.people` is the prototype's seven invented friends and
+  // `IS_DATA.people` is the prototype's invented circle and
   // `IS_FRIEND_TYPES` assigns each of them a type per test; both are demo
   // content, and data/live.ts replaces WORLD_FEED_QS, TEST_FEED_QS and
   // WORLD_FEED_COMMENTS but has never touched IS_DATA. So a live account

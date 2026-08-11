@@ -464,12 +464,12 @@ start.
       question to answer.
 
       **Expect your own answer to be the whole crowd, and expect to see
-      your own name.** There is no k-floor since D94: the first answer
+      your own name.** There is no k-floor since D98: the first answer
       publishes exactly, so a count of 1 on your own device is that one
       answer and the who-voted sheet will name you. That is the product
       working, not a leak — the 513 seeded questions are live regardless.
       What used to sit here was the opposite warning (*"You're early"*
-      under `AGG_MIN_N`, paused by D81 and removed entirely by D94).
+      under `AGG_MIN_N`, paused by D81 and removed entirely by D98).
 - [ ] **3.3 Walk the on-device verification list** — six checks, first
       build, `SHIP-CHECKLIST §4`: frameless layout in light+dark, anonymous
       session surviving restart, Google link → reinstall → history
@@ -493,7 +493,7 @@ The recapture is the one with a real precondition: it wants real answers
 on screen. Under D81's pause one answer per question is enough (counts
 publish from the first); once the floor restores it wants five, or the
 empty bank puts *"You're first"* where every crowd figure should be
-(there is no floor since D94 — the first answer publishes exactly).
+(there is no floor since D98 — the first answer publishes exactly).
 That is a tester-count problem, not a workflow problem.
 
 - [ ] **4.1 Recapture the screenshots in LIVE mode — Actions →
@@ -521,9 +521,11 @@ That is a tester-count problem, not a workflow problem.
       contributor and every CI job would otherwise pay for, to serve a job
       that runs a few times per release.
 
-      The TestFlight week is still the better moment: ten testers put real
-      real splits on screen, where a freshly seeded bank shows the
-      floor's "5+" placeholder instead of a split.
+      The TestFlight week is still the better moment: ten testers put a
+      real split on screen rather than one vote per question. A freshly
+      seeded bank shows a split from the very first answer (D98 — no
+      floor), so what a screenshot lacks before testers arrive is a
+      believable crowd, not a permitted one.
       *Note the iPad set every guide lists does not apply —
       `TARGETED_DEVICE_FAMILY = 1`, iPhone only.*
 - [x] **4.2 Play feature graphic — done.** `npm run build:feature-graphic`

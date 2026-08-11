@@ -375,7 +375,7 @@ export function foldDuelAgg(prev: unknown, delta: DuelAggState): DuelAggState {
   };
 }
 
-/** The public mirror of a duel aggregate, written on every fold (D94 —
+/** The public mirror of a duel aggregate, written on every fold (D98 —
  *  there is no floor and no cadence). Guess fields publish only when a
  *  guess exists, counts only when any vote landed in range — absent keys,
  *  not zeroes, so a pick question's doc never grows fields that would
@@ -421,7 +421,7 @@ export function publishableDuelAgg(state: DuelAggState): Record<string, unknown>
 //    and published none of them. It now carries the ISO code derived from
 //    the picked city, which is why that dimension starts working at all.
 //
-// 2. NO SUPPRESSION OF ANY KIND (D94). This constraint used to read
+// 2. NO SUPPRESSION OF ANY KIND (D98). This constraint used to read
 //    "k-anonymity that survives subtraction", and it drove complementary
 //    suppression: a lone hole plus a known total is recoverable by
 //    subtraction, so the floor had to take a second bucket with it. None
@@ -618,7 +618,7 @@ export function breakdownBucket(value: unknown, dim?: BreakdownDim): string | nu
 // published is ever taken away.
 //
 // This used to be AGG_MIN_N, and reusing the k-floor here was a coincidence
-// of numbers rather than a shared idea. D94 deleted the k-floor, and
+// of numbers rather than a shared idea. D98 deleted the k-floor, and
 // threading 0 or dropping the parameter would have made NOTHING evictable —
 // silently restoring the cap-exhaustion attack this function exists to stop
 // (24 junk `city` values permanently blanking the city dimension for a
@@ -652,7 +652,7 @@ function evictForNewBucket(
 // Fold one answer's anchors into the running breakdown. Mutates and returns
 // `into` so the trigger can keep this inside its existing transaction.
 //
-// Took a `floor` argument until D94, threaded through to the bucket
+// Took a `floor` argument until D98, threaded through to the bucket
 // eviction above. The eviction now names its own constant, and there is no
 // other floor left in this path — every cell folded here is published.
 export function foldAnchors(
@@ -755,7 +755,7 @@ function bucketTotal(bucket: Record<string, number>): number {
   return n;
 }
 
-// Since D94 there is no publishable VIEW distinct from the fold: the
+// Since D98 there is no publishable VIEW distinct from the fold: the
 // breakdown the trigger accumulates is the breakdown it publishes, whole,
 // on every answer.
 //
@@ -787,7 +787,7 @@ function bucketTotal(bucket: Record<string, number>): number {
 //                         attribute a single step to a single person.
 //
 // Every one of those defends against reconstructing an individual's answer
-// from an aggregate. D94 publishes the answers themselves, so all four
+// from an aggregate. D98 publishes the answers themselves, so all four
 // defended a door standing next to an open wall — at the cost of a lagging,
 // hole-punched breakdown that made the Mirror look broken.
 
@@ -797,7 +797,7 @@ function bucketTotal(bucket: Record<string, number>): number {
 // catalogue of ~1,025 entities, stored as the entry's integer key (0 is the
 // "Not listed" bucket). A favourite-of-a-thousand has no 52/48 to stage, so
 // the reveal is a canon, not a split: the top N entities, and ONE
-// "everyone else" bucket for the tail. Since D94 that cut is a DISPLAY
+// "everyone else" bucket for the tail. Since D98 that cut is a DISPLAY
 // size — a board of 1,025 rows is unreadable — and no longer a floor.
 
 /**
@@ -856,7 +856,7 @@ export type CanonCounts = Record<string, number>;
 // else summed into `rest`.
 //
 // This was `publishableCanon`, and it did three more things, all of which
-// D94 deleted:
+// D98 deleted:
 //   · dropped every entity below the k-floor;
 //   · folded a boundary TIE GROUP whole, so equals were never ranked
 //     arbitrarily by which side of the floor they fell;
@@ -937,7 +937,7 @@ export function foldCanonAnchors(
  * The publishable form of a catalog breakdown: every cell restricted to
  * the entities the canon actually published — a segment ordering for an
  * entity absent from the board has nothing to order. Bounding the
- * document is now its only job (D94 removed the floors that used to
+ * document is now its only job (D98 removed the floors that used to
  * follow it).
  *
  * Two deliberate conservatisms, recorded in D17:

@@ -198,7 +198,7 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
     // D91: counts for a seeded lens question, null when the bank carries
     // none — which is the cue for D50's selfOnly fallback. Five entries to
     // match the lens scale; zeros below the floor, same rule as aggFor.
-    // Named who-voted (D94). The fixture serves one named voter and one
+    // Named who-voted (D98). The fixture serves one named voter and one
     // unnamed, on opposite options, so a live-mode mount exercises both
     // label paths rather than only the happy one.
     loadVoters: async () => {},
@@ -211,7 +211,7 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
       [{ uid: "u_other", optionIdx: 1, anchors: {}, name: "", isMe: false }],
     ],
     votersLoading: () => false,
-    // The world-takes author name path (D94). One known author so a live
+    // The world-takes author name path (D98). One known author so a live
     // mount renders a real name, and anything else falls back to
     // "Someone" — both branches reachable from the fixture.
     nameFor: (uid: string) => (uid === "u_fixture" ? "Tester" : ""),

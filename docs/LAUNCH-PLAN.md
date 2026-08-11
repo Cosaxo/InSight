@@ -322,7 +322,7 @@ correctness, "% got it right" is `counts[c]/total` computed on the client, and
 **Aggregation: zero trigger changes** — verified, not assumed. The vote fold
 in `onV2AnswerCreated` is surface-agnostic: anything carrying a numeric
 `optionIdx` outside group/duo/entity folds into `v2_question_aggs` with the
-same exact publish path (D94: no floor, no cadence). Cold start (below the
+same exact publish path (D98: no floor, no cadence). Cold start (below the
 floor): the UI shows the authored estimate, labeled — "our estimate — becomes
 measured once enough people have answered" — and the measured state's footer
 uses the established lower-bound phrasing ("from N+ players"). The authored

@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 //
-// LiveVotersPanel is the surface D94 exists for: it names the people who
+// LiveVotersPanel is the surface D98 exists for: it names the people who
 // answered a question. That makes it the panel with the most ways to say
 // something false about a real person, so these cases are mostly about
 // what it must NOT do:
@@ -94,7 +94,7 @@ describe("LiveVotersPanel · what it says about real people", () => {
     LIVE.votersByOption = () => [[v({ uid: "quiet", name: "" })], []];
     render(<LiveVotersPanel qid="q1" options={OPTS} />);
     expect(screen.getByText("Someone")).toBeTruthy();
-    // Not the uid, not a generated handle — D1 survives D94, and a
+    // Not the uid, not a generated handle — D1 survives D98, and a
     // pseudonym stitched from an account id would be a fabrication.
     expect(screen.queryByText(/quiet/)).toBeNull();
   });

@@ -120,7 +120,7 @@ await setDoc(doc(db, "v2_users", uid, "answers", q0.id), {
 });
 ok("answer written: " + uid.slice(0, 8) + "/answers/" + q0.id);
 
-// 5 · the trigger folds the answer into the public mirror. Since D94 the
+// 5 · the trigger folds the answer into the public mirror. Since D98 the
 // FIRST answer publishes, exactly, with the complete breakdown: no
 // tooSmall flag, no cadence, no suppressed cells.
 let pub = null;
@@ -134,12 +134,12 @@ if ("tooSmall" in pub)
   fail("the trigger still writes a tooSmall flag: " + JSON.stringify(pub));
 if (pub.total !== 1 || !pub.counts || pub.counts["1"] !== 1)
   fail("first answer did not publish exactly: " + JSON.stringify(pub));
-// The one-bucket rule went with the rest of the suppression (D94): a
+// The one-bucket rule went with the rest of the suppression (D98): a
 // dimension with a single bucket now publishes like any other. Everyone in
 // this loop shares country NO, so `by.country` is exactly that case — it
 // must now BE there, which is the inverse of what this line used to assert.
 if (!pub.by || !pub.by.country || !pub.by.country.NO)
-  fail("a one-bucket dimension was suppressed — D94 removed that rule: " + JSON.stringify(pub.by));
+  fail("a one-bucket dimension was suppressed — D98 removed that rule: " + JSON.stringify(pub.by));
 ok("first answer published exactly (total 1), single-bucket country included");
 
 // 6 · duplicate answer is refused. Re-sending the whole doc rewrites
@@ -183,7 +183,7 @@ if (above.counts["0"] !== 2 || above.counts["1"] !== 3)
   fail("counts wrong at total 5: " + JSON.stringify(above));
 ok("five answers: exact public counts {0:2, 1:3} — no double counting");
 
-// 7b · the breakdown, whole (D94). At total 5 the age bands hold 3 and 2
+// 7b · the breakdown, whole (D98). At total 5 the age bands hold 3 and 2
 // and the cities 3 and 2, and every one of those cells publishes exactly.
 // Country is a single bucket of 5 — once withheld as "a population
 // statement rather than a split", now published like anything else.
@@ -244,7 +244,7 @@ if (cityTotal("Oslo, NO") !== 5 || cityTotal("Bergen, NO") !== 5)
   fail("city bucket totals wrong: " + JSON.stringify(split.by.city));
 ok("breakdown: ageBand and city both 5/5; single-bucket country published");
 
-// 7d · per-answer publishing (D94). The 11th answer must move the public
+// 7d · per-answer publishing (D98). The 11th answer must move the public
 // mirror to an exact 11 promptly. The batched choreography this replaces
 // — an 11th answer must NOT move the mirror off the multiple of 5 — is
 // gone with the cadence it guarded.
@@ -471,9 +471,9 @@ if (lateReveal.data.revealed < 1) fail("group day did not reveal on one answer")
 // and the latecomer never played it.
 if (!(await getDoc(doc(db, "v2_groups", lateGid, "reveals", OTHERDAY))).exists())
   fail("group reveal doc missing");
-// …and since D94 the latecomer reaches it too. The read used to be scoped
+// …and since D98 the latecomer reaches it too. The read used to be scoped
 // to the members the reveal itself recorded, so a joiner got nothing for a
-// day before they joined — a privacy guarantee about answers, and D94
+// day before they joined — a privacy guarantee about answers, and D98
 // retired it: the votes inside a reveal are ordinary answers, readable
 // directly, so withholding the materialized copy protected nothing.
 //
@@ -481,7 +481,7 @@ if (!(await getDoc(doc(db, "v2_groups", lateGid, "reveals", OTHERDAY))).exists()
 // scrubs a departing uid out of it, which e2e-delete-account asserts.
 {
   const lateRead = await getDoc(doc(lateDb, "v2_groups", lateGid, "reveals", OTHERDAY));
-  if (!lateRead.exists()) fail("a joiner could not read a past reveal — D94 opened this");
+  if (!lateRead.exists()) fail("a joiner could not read a past reveal — D98 opened this");
   if (!(lateRead.get("members") || []).includes(uid))
     fail("the reveal lost its members snapshot: " + JSON.stringify(lateRead.data()));
   ok("a joiner reads a reveal from before they joined, and it still records who was there");

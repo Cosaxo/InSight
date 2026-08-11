@@ -1,7 +1,7 @@
 // LivePrivacyPanel — the account & data panel (Phase 5), shown at the
 // top of the profile's General tab in live mode.
 //
-// Its job did not change at D94, but every sentence in it did. This
+// Its job did not change at D98, but every sentence in it did. This
 // panel exists so that what the app SAYS about who can see what matches
 // what firestore.rules actually does. That used to mean explaining a
 // set of protections; it now means stating plainly that answers are
@@ -128,7 +128,7 @@ function LivePrivacyPanel() {
         <div style={{ fontWeight: 800, fontSize: 14.5, marginBottom: 6 }}>What leaves your device</div>
         <ul style={{ margin: 0, paddingLeft: 17, fontSize: 12.5, fontWeight: 500, color: "var(--ink-2)", lineHeight: 1.65 }}>
           {/* The first bullet, and deliberately the bluntest sentence in
-              the app. D94 made answers public; a user learning that from
+              the app. D98 made answers public; a user learning that from
               a stranger quoting their vote back at them would be the
               worst possible way to find out. */}
           <li><strong>Your answers are public.</strong> Anyone using InSight can see what you

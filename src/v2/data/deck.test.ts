@@ -95,7 +95,7 @@ describe("hasPublishedCounts", () => {
 
   it("is true once the aggregate carries a positive total", () => {
     // The one answer that used to be withheld under the k-floor is now
-    // the one that switches the counts on (D94).
+    // the one that switches the counts on (D98).
     expect(hasPublishedCounts({ total: 1, counts: { "0": 1 } })).toBe(true);
     expect(hasPublishedCounts({ total: 42 })).toBe(true);
   });

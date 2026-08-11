@@ -2,7 +2,7 @@
 //   npm run test:rules
 // (which wraps `firebase emulators:exec --only firestore "vitest run …"`).
 //
-// These lock down the access model D94 left behind: reads are OPEN — any
+// These lock down the access model D98 left behind: reads are OPEN — any
 // signed-in user may read any answer, profile and exact aggregate — and
 // writes are not. So most of what follows pins the WRITE side
 // (create-only answers, the one legal edit shape, server-only
@@ -11,7 +11,7 @@
 // presence cell, push tokens), plus duel answers staying sealed until a
 // reveal doc exists — game timing, not audience.
 //
-// Reading this file after D94: an `assertSucceeds` on someone else's
+// Reading this file after D98: an `assertSucceeds` on someone else's
 // document is usually the POINT, not a hole. The holes are writes.
 // They sit outside src/ so the app build never compiles them.
 
@@ -107,7 +107,7 @@ const dayOffset = (n: number): string =>
 // when deciding whether a new `request.auth != null` grant is safe.
 describe("the default user (anonymous auth) — reachable surface", () => {
   it("reads another user's answers and profile — and still not the server internals", async () => {
-    // The D94 inversion, in the one test that most directly measured the
+    // The D98 inversion, in the one test that most directly measured the
     // old model. An ANONYMOUS session reads a stranger's answer and
     // profile: that is deliberate, and it is what every named surface in
     // the app is built on. Anonymous rather than a named account on
@@ -126,7 +126,7 @@ describe("the default user (anonymous auth) — reachable surface", () => {
     await assertSucceeds(getDoc(doc(db, "v2_users", OWNER, "answers", "daily-000")));
     await assertSucceeds(getDoc(doc(db, "v2_users", OWNER)));
     // …but the trigger's working state stays shut (no secrets in it since
-    // D94 — it is simply nobody's business and has no reader), and the
+    // D98 — it is simply nobody's business and has no reader), and the
     // push tokens moved off the now-public profile precisely so that
     // opening that read did not publish a credential.
     await assertFails(getDoc(doc(db, "v2_aggs_private", "daily-000")));
@@ -328,7 +328,7 @@ describe("v2 profile", () => {
       anon: true,
     }));
     await assertSucceeds(getDoc(mine));
-    // D94: a stranger READS the profile — that is how a uid on an answer
+    // D98: a stranger READS the profile — that is how a uid on an answer
     // becomes a name and a cohort on screen — and still cannot WRITE it.
     // The asymmetry is the whole shape of the new model.
     await assertSucceeds(getDoc(doc(asUser(STRANGER), "v2_users", OWNER)));
@@ -348,7 +348,7 @@ describe("v2 profile", () => {
   // CREDENTIAL — whoever holds it can push to that device. They used to be
   // an `fcmTokens` field on this profile, guarded by a rules clause that
   // refused client writes. That guard was sufficient only while the profile
-  // was owner-readable; D94 opened the read, so the field MOVED to
+  // was owner-readable; D98 opened the read, so the field MOVED to
   // v2_users/{uid}/push/tokens, which no rule grants anyone.
   //
   // Structural rather than guarded, on purpose: a field protected by a rule
@@ -474,7 +474,7 @@ describe("v2 profile", () => {
   });
 });
 
-describe("v2 answers (world-readable since D94; option edits only — D86)", () => {
+describe("v2 answers (world-readable since D98; option edits only — D86)", () => {
   const QID = "daily-000";
   const seedQuestion = () => seed(async (db) => {
     await setDoc(doc(db, "v2_questions", QID), {
@@ -773,7 +773,7 @@ describe("v2 answers (world-readable since D94; option edits only — D86)", () 
     await assertFails(updateDoc(ref(CQ), { optionIdx: 0, editedAt: serverTimestamp() }));
     await assertFails(deleteDoc(ref(CQ)));
     await assertFails(setDoc(ref(CQ), cat({ entity: 6 })));
-    // …readable by strangers like every other answer (D94), and writable
+    // …readable by strangers like every other answer (D98), and writable
     // by none of them
     await assertSucceeds(getDoc(doc(asUser(STRANGER), "v2_users", OWNER, "answers", CQ)));
     await assertFails(setDoc(
@@ -828,7 +828,7 @@ describe("v2 answers (world-readable since D94; option edits only — D86)", () 
     await seedQuestion();
     await assertSucceeds(setDoc(
       doc(asUser(OWNER), "v2_users", OWNER, "answers", QID), answer()));
-    // D94: read is open — by id and by listing the subcollection.
+    // D98: read is open — by id and by listing the subcollection.
     await assertSucceeds(getDoc(doc(asUser(STRANGER), "v2_users", OWNER, "answers", QID)));
     await assertSucceeds(getDocs(query(
       collection(asUser(STRANGER), "v2_users", OWNER, "answers"),
@@ -843,7 +843,7 @@ describe("v2 answers (world-readable since D94; option edits only — D86)", () 
   // THE query the whole reversal exists to make possible: "everyone who
   // answered q42", across users. It is a COLLECTION GROUP read, which a
   // uid-bound rule does not authorize at all — the grant is a separate
-  // `match /{path=**}/answers/{aid}` block, and without it D94 would look
+  // `match /{path=**}/answers/{aid}` block, and without it D98 would look
   // from the app exactly like it had not happened.
   it("a collection-group query returns other people's answers to one question", async () => {
     await seedQuestion();
@@ -884,7 +884,7 @@ describe("v2 answers (world-readable since D94; option edits only — D86)", () 
     )));
   });
 
-  // The duel seal, which is the ONE thing D94 kept out of the open read —
+  // The duel seal, which is the ONE thing D98 kept out of the open read —
   // and kept for a reason that is not privacy: a face-down hand is the
   // game. Enforced on `surface`, so a sealed duel answer is unreadable to
   // a groupmate however they ask for it, while the owner still sees theirs.
@@ -1017,7 +1017,7 @@ describe("v2 groups + sealed duels (Phase 3)", () => {
       });
     });
     await assertSucceeds(getDoc(doc(asUser(FRIEND), "v2_groups", GID, "reveals", DAY)));
-    // D94: a stranger reads it too. The votes inside a reveal are world
+    // D98: a stranger reads it too. The votes inside a reveal are world
     // answers' younger siblings — withholding the materialized copy while
     // publishing the source would be a lock on a door with no wall.
     await assertSucceeds(getDoc(doc(asUser(STRANGER), "v2_groups", GID, "reveals", DAY)));
@@ -1028,7 +1028,7 @@ describe("v2 groups + sealed duels (Phase 3)", () => {
 
   // The `members` snapshot used to be an ACCESS gate: joining a group
   // tomorrow handed you no past day's votes, and leaving did not retract
-  // the days you played. D94 retired the access half — that was a privacy
+  // the days you played. D98 retired the access half — that was a privacy
   // guarantee about answers — but the field itself stays, because
   // deleteAccount scrubs a departing uid out of it and the erasure e2e
   // asserts exactly that. This pins the split: the array is still written
@@ -1103,7 +1103,7 @@ describe("moderation substrate: takes + flags (docs/MODERATION.md, D22)", () => 
     await seedCircle();
     await assertSucceeds(setDoc(doc(asUser(OWNER), "v2_takes", "t1"), take()));
     await assertSucceeds(getDoc(doc(asUser(FRIEND), "v2_takes", "t1")));
-    // D94 dropped the membership gate on the READ. It was an audience gate
+    // D98 dropped the membership gate on the READ. It was an audience gate
     // on speech, and takes carry `authorUid`, so this is also what makes a
     // named comment possible at all.
     await assertSucceeds(getDoc(doc(asUser(STRANGER), "v2_takes", "t1")));
@@ -1184,7 +1184,7 @@ describe("moderation substrate: takes + flags (docs/MODERATION.md, D22)", () => 
     await assertFails(getDocs(query(takesOf(OWNER), where("gid", "==", GID))));
 
     // A stranger lists the circle's takes exactly like a member does
-    // (D94), and is held to the same fail-closed `hidden` predicate — the
+    // (D98), and is held to the same fail-closed `hidden` predicate — the
     // moderation guarantee is orthogonal to the audience one, which is
     // the distinction this pair of assertions exists to keep visible.
     await assertFails(getDocs(query(takesOf(STRANGER), where("gid", "==", GID))));
@@ -1228,12 +1228,12 @@ describe("moderation substrate: takes + flags (docs/MODERATION.md, D22)", () => 
     // an id that doesn't match takeId_uid would let one account stuff counts
     await assertFails(setDoc(
       doc(asUser(FRIEND), "v2_flags", "t2_sock2"), flag("t2", FRIEND)));
-    // D94: a stranger may flag. The membership gate rested on "a stranger
+    // D98: a stranger may flag. The membership gate rested on "a stranger
     // cannot flag speech they cannot read", and a stranger can now read
     // every take — so the premise went and the gate with it.
     await assertSucceeds(setDoc(
       doc(asUser(STRANGER), "v2_flags", "t2_" + STRANGER), flag("t2", STRANGER)));
-    // Write-only, still, and this deny SURVIVES D94 on its own reasoning:
+    // Write-only, still, and this deny SURVIVES D98 on its own reasoning:
     // a reporter visible to the person they reported is a reporter who
     // stops reporting. Anti-retaliation, not answer privacy.
     await assertFails(getDoc(doc(asUser(FRIEND), "v2_flags", "t2_" + FRIEND)));

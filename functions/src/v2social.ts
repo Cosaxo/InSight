@@ -6,7 +6,7 @@
 //   group  · next UTC day, if at least one member answered
 //   duo    · next UTC day, ONLY if both played (else no reveal, streak 0)
 //
-// Sealed answers live under composite ids (g_{gid}_{day}). Since D94 a
+// Sealed answers live under composite ids (g_{gid}_{day}). Since D98 a
 // user's world answers are readable by anyone, but DUEL answers are the
 // exception the rules still carve out — read is gated on `surface`, so
 // nobody sees a groupmate's pick before the reveal. That is a game
@@ -248,12 +248,12 @@ export const leaveGroupV2 = onCall({ ...LIGHT_UNBOUNDED, region: REGION, enforce
 //
 // They used to be a `fcmTokens` field on the profile itself, guarded by a
 // rules clause that refused client writes. That guard was sufficient
-// while the profile was owner-only. It stopped being sufficient at D94,
+// while the profile was owner-only. It stopped being sufficient at D98,
 // which opens the profile to every signed-in user so that a uid can be
 // resolved to a name: a readable profile with a token array on it hands
 // any script the exact fan-out list the reveal sender uses.
 //
-// A token is a CREDENTIAL, not an opinion, and D94 publishes opinions.
+// A token is a CREDENTIAL, not an opinion, and D98 publishes opinions.
 // Moving it off the readable document is the structural version of that
 // distinction — it cannot be un-guarded by a future rule edit, because
 // there is no rule granting anyone read on this path at all.
@@ -373,7 +373,7 @@ async function revealGroupDay(
     ...members.map((uid) => db.doc(`v2_users/${uid}`)),
     { fieldMask: ["displayName"] },
   );
-  // Push tokens, from the server-only subdocument (D94). Same member
+  // Push tokens, from the server-only subdocument (D98). Same member
   // order as profileSnaps, so the fan-out below can pair them by index.
   const pushSnaps = await db.getAll(...members.map((uid) => db.doc(pushDocPath(uid))));
 
@@ -608,7 +608,7 @@ async function revealGroupDay(
     // reinstall/rotation forever and every reveal fans out to them).
     const tokenOwners = new Map<string, string[]>();
     // Paired BY INDEX against `members`, not by `s.id`. These snapshots
-    // are the push subdocuments (D94), so every one of their ids is the
+    // are the push subdocuments (D98), so every one of their ids is the
     // literal string "tokens" — the uid is only recoverable from the
     // position, because getAll preserves the order it was handed.
     pushSnaps.forEach((s, i) => {
@@ -717,7 +717,7 @@ async function revealGroupDay(
 // (options []) publishes plays/total only, because its optionIdx values
 // index each group's OWN member list and are meaningless summed across
 // groups. Fold, store the exact state privately, and rewrite the public
-// mirror on every fold (D94 — no floor, no cadence). Ids are
+// mirror on every fold (D98 — no floor, no cadence). Ids are
 // namespaced `duel-<qid>` in the same two collections the vote path uses:
 // v2_aggs_private stays client-opaque bookkeeping, v2_question_aggs is the
 // signed-in-readable exact mirror — which the scorecard's --fetch
@@ -936,7 +936,7 @@ export const revealDuelsNowV2 = onCall({ region: REGION }, async (request) => {
 // excluding the caller themself, so "just you here" reads as 0 rather
 // than a phantom 1.
 //
-// The count is exact (D94 — there is no floor left to apply). It used to
+// The count is exact (D98 — there is no floor left to apply). It used to
 // return `tooFew` under AGG_MIN_N; nothing does now, and the client's
 // "a few people" branch goes with it.
 export const nearbyCountV2 = onCall({ ...LIGHT_CALLABLE, region: REGION, enforceAppCheck: ENFORCE_APP_CHECK }, async (request) => {

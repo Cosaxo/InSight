@@ -274,7 +274,7 @@ describe("the live gates hold in the DOM, not just in the source", () => {
       "a live card rendered the demo takes sheet — D11's gate is open",
     ).toBeNull();
     // …while the D83 world surface is present, collapsed, and — since
-    // D94 — opens into a panel that signs what people say rather than
+    // D98 — opens into a panel that signs what people say rather than
     // one that hides it.
     const toggle = screen.queryByRole("button", { name: /^Takes$/ });
     expect(toggle, "the live card lost its world-takes toggle (D83)").not.toBeNull();
@@ -283,7 +283,7 @@ describe("the live gates hold in the DOM, not just in the source", () => {
     expect(screen.getByText(/No takes yet/i)).toBeTruthy();
   });
 
-  // D94's payoff, in the only test that executes a render of it inside the
+  // D98's payoff, in the only test that executes a render of it inside the
   // real app rather than in isolation. The panel test next to the
   // component covers its states; what this covers is that it is WIRED —
   // mounted from the who-voted sheet of a live card, on the real shell,
@@ -358,6 +358,41 @@ describe("the live gates hold in the DOM, not just in the source", () => {
     // to draw. Asserting the layer exists, not just that the gate does.
     mountLive();
     expect(window.WORLD_FEED_COMMENTS).toEqual({});
+  });
+
+  // D96. The add sheet used to list the demo's communities — "Swimming ·
+  // 3.2K people · fjord swims, no excuses", members and match invented —
+  // and the demo subtopic leaves as "Tennis · Sport · 0 questions", both
+  // with Follow buttons, on a real device. The stores now refuse to
+  // ADVERTISE either (SCENES.offers / SUBTOPICS.offers); what remains in
+  // the sheet is real: the Learn dial and fields, and the suggest door.
+  // smoke.test.jsx holds the demo control — the same sheet with both
+  // sections present.
+  it("the add sheet offers no demo communities and no unstocked leaves — Learn stays", () => {
+    const expectNoBoundary = mountLive();
+    fireEvent.click(screen.getByRole("button", { name: /add a topic/i }));
+    expect(
+      screen.queryByText("Communities"),
+      "the live sheet advertised the sample communities",
+    ).toBeNull();
+    expect(screen.queryByText(/fjord swims/), "a sample community row leaked").toBeNull();
+    expect(
+      screen.queryByText("Topics"),
+      "the live sheet advertised leaves the live bank does not stock",
+    ).toBeNull();
+    expect(screen.queryByText(/0 questions/), "an empty room was offered").toBeNull();
+    expect(screen.getByText("Learn")).not.toBeNull();
+    expect(screen.getByRole("button", { name: "lots" })).not.toBeNull();
+    expect(screen.getByRole("button", { name: /suggest a question/i })).not.toBeNull();
+    expectNoBoundary("live add sheet");
+  });
+
+  it("renders no suggested-scene card in the live feed", () => {
+    // The feed-side twin of the same offer — a dashed card proposing a
+    // fabricated community one flick into a real feed.
+    const expectNoBoundary = mountLive({ feedCards: 4 });
+    expect(screen.queryByText(/suggested scene/)).toBeNull();
+    expectNoBoundary("live feed, no suggestion card");
   });
 
   // D91, reversing D50's device-only half. A lens question woven into a
@@ -737,8 +772,8 @@ describe("live mode never inherits the sample persona (D55)", () => {
 
   // ── the results card, the fourth (D72) ──
   //
-  // sameType filtered IS_DATA.people — the prototype's seven invented
-  // friends — through IS_FRIEND_TYPES and SigEmblem drew up to four of them
+  // sameType filtered IS_DATA.people — the prototype's invented circle —
+  // through IS_FRIEND_TYPES and SigEmblem drew up to four of them
   // on the result. data/live.ts replaces the feed globals and has never
   // touched IS_DATA, so this fired for any live account that finished a
   // test, which the passive tests do from ordinary feed answers. Measured
@@ -756,7 +791,17 @@ describe("live mode never inherits the sample persona (D55)", () => {
       ],
     },
   };
-  const DEMO_INITIALS = /^(HV|LA|MH|PS|IV|EA|JB)$/;
+  // Derived from the fixture, not a written-out list: the roster grows, and
+  // a hardcoded alternation would keep passing while quietly checking only
+  // the people who happened to exist the day it was written — the exact
+  // vacuous-pass this file is built to refuse. Escaped anyway, since an
+  // initials field is data.
+  const DEMO_INITIALS = new RegExp(
+    "^(" + (IS_DATA.people || [])
+      .map((p) => String(p.init || "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))
+      .filter(Boolean)
+      .join("|") + ")$",
+  );
   const initialsIn = (container) =>
     Array.from(container.querySelectorAll("*"))
       .map((n) => (n.textContent || "").trim())

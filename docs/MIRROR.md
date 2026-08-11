@@ -14,7 +14,7 @@ documents **become** on screen, which stop reads which of them, and —
 because it is the question this repo answers first — which parts are real
 today and which are still the prototype's furniture.
 
-> **D94 (2026-08-11) changed the answer to "why is this stop dark".**
+> **D98 (2026-08-11) changed the answer to "why is this stop dark".**
 > Answers, anchors and profiles are readable by any signed-in user, and
 > counts are exact from the first answer — no floor, no suppression, no
 > political carve-out. Nothing on this tab is withheld any more.
@@ -36,7 +36,7 @@ one write — an answer — and the surfaces differ only in how they cut it.
   today's daily   ─┐
   a feed card     ─┤   v2_users/{uid}/answers/{qid}   ─┬──────► the MAP ("You")
   a test item     ─┤     optionIdx · anchors snapshot   │        every answer filed
-  a learn card    ─┤     public read, owner write (D94)  │        under its question's
+  a learn card    ─┤     public read, owner write (D98)  │        under its question's
   a duel question ─┘     edits: optionIdx only (D86)     │        branch → sub-branch
                                     │                    │
                                     │                    ├──────► NAMED WHO-VOTED
@@ -74,7 +74,7 @@ distinct spelling would mint a bucket key forever. That snapshot is the
 entire reason the Mirror can say "everyone in your city" without the
 server ever reading another user's document.
 
-**Nothing is withheld (D94).** Every cohort publishes, at every size,
+**Nothing is withheld (D98).** Every cohort publishes, at every size,
 exactly, from its first answer — no `AGG_MIN_N` floor, no `PUBLISH_EVERY`
 cadence, no complementary suppression, no `tooSmall`. `v2_aggs_private`
 survives as the trigger's working state, holding the same numbers as the
@@ -87,7 +87,7 @@ with the machinery that made it true.
 **Every family slices.** The `test-political-*` items publish their
 per-anchor breakdown like everything else. D44 used to exempt them — a
 political item cross-tabbed by city and education was treated as Art. 9
-exposure — and D94 reversed that along with the general rule it was an
+exposure — and D98 reversed that along with the general rule it was an
 instance of. There is no category of question held back.
 
 ## 2 · The seven stops
@@ -127,12 +127,12 @@ the reveals themselves. Duos are excluded on purpose: with two voters,
 "with the majority" is always true and the ring would read 100% forever.
 What the demo body showed and this one does not — trait axes, compare
 populations, "how they see you" crowns — is unbuilt rather than refused
-since D94: the members' answers and test results are all readable now.
+since D98: the members' answers and test results are all readable now.
 
 **Near / Country / World.** After D9 these are one question at three
 radii, which is why one renderer serves all three: three renderers would
 eventually disagree about what an empty cell means. They draw counts —
-an absent cell is zero and the panel says so, because since D94 nothing
+an absent cell is zero and the panel says so, because since D98 nothing
 is held back at any size.
 
 They still draw no PEOPLE, and that is now a gap rather than a rule:
@@ -172,7 +172,7 @@ with a live source replaces the whole body with a single panel —
 `LiveCohortBody` for Near/Country/World, `LiveGroupsMirrorBody` for
 Groups, the Map for You — so live mode ships the ruler and not the lenses.
 
-Until D94 the reason was that four of the five lenses needed data the
+Until D98 the reason was that four of the five lenses needed data the
 privacy model forbade reading: Kindred strangers, the demographic mix,
 the trait-slice splits, and Compare's second person. **That reason is
 gone.** All four are now permitted, and three of them are already
@@ -241,13 +241,13 @@ Two gaps are worth stating in prose because no badge covers them:
 
   Two of the eight Map anchors have a real counterpart waiting —
   `v2_question_aggs.by` carries exact age and education breakdowns, and
-  since D94 nothing about them is floored. The other six still cannot:
+  since D98 nothing about them is floored. The other six still cannot:
   `job` is profession, deliberately not a breakdown dim (D8), and the
   five test anchors are not dims at all. Note this refusal SURVIVES
-  D94 unchanged, because MapStats is *invented*, not private — the D1
+  D98 unchanged, because MapStats is *invented*, not private — the D1
   line, which the reversal did not touch.
 - **The Circle and its relationship map are prototype-only.** Not for
-  want of permission — D94 opened every answer — but because v2 has no
+  want of permission — D98 opened every answer — but because v2 has no
   person-to-person graph at all to draw. `relmap`'s people are invented, and it is the largest module still loaded eagerly
   — the one overlay excluded from the after-first-paint group, because
   the Mirror reads `RelationshipMap` during a render nothing re-triggers
@@ -269,13 +269,13 @@ Two gaps are worth stating in prose because no badge covers them:
 | Compare | `src/v2/spec/compare-breakdown.jsx` |
 | Explore | `src/v2/spec/segment-explorer.jsx` |
 | the cut list every breakdown reads | `src/v2/spec/vote-cuts.js` |
-| the fold (no floor, no suppression — D94) | `functions/src/pure.ts`, `functions/src/v2.ts` |
+| the fold (no floor, no suppression — D98) | `functions/src/pure.ts`, `functions/src/v2.ts` |
 | who may read any of it | `firestore.rules` |
 | named who-voted — the cross-user read | `src/v2/data/voters.ts`, `src/v2/ui/LiveVotersPanel.tsx` |
 
 ## 7 · The decisions this file leans on
 
-**D94 (answers are public; no floor, no suppression, no carve-out)** —
+**D98 (answers are public; no floor, no suppression, no carve-out)** —
 the one this whole file now rests on, and the reversal of D1's
 circle-scoping, D5's read arm, D18 and D44.
 

@@ -287,7 +287,7 @@ function LiveTakesPanel({ gid, qid }: { gid: string; qid: string }) {
   // hook order stable across the enabled/disabled flip.
   const takesForNames = LIVE.enabled && gid && qid ? LIVE.social.takes(gid, qid) : [];
   // World takes carry `authorUid` and no author name, so the names have to
-  // be resolved separately (D94). Batched, into the same session cache the
+  // be resolved separately (D98). Batched, into the same session cache the
   // voters panel fills — a question whose who-voted sheet has already been
   // opened usually pays nothing here. Circle takes skip it: their names
   // ride on the group document already.
@@ -299,7 +299,7 @@ function LiveTakesPanel({ gid, qid }: { gid: string; qid: string }) {
     if (gid === "world" && authorKey) void LIVE.loadNames(authorKey.split(","));
   }, [gid, authorKey]);
 
-  // Takes carry names at BOTH scopes since D94. `world` still branches the
+  // Takes carry names at BOTH scopes since D98. `world` still branches the
   // composer (one take per person per question, enforced by the doc id)
   // and the mute control, but no longer the authorship.
   const world = gid === "world";
@@ -330,7 +330,7 @@ function LiveTakesPanel({ gid, qid }: { gid: string; qid: string }) {
           key={t.id}
           take={t}
           gid={gid}
-          // Named at both scopes since D94 — the anonymity was always a
+          // Named at both scopes since D98 — the anonymity was always a
           // client-side string choice, never a rule: `authorUid` has been
           // on the take document and readable all along.
           //

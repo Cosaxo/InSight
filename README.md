@@ -60,7 +60,7 @@ Firestore, Cloud Functions) with CI auto-deploy.
 InSight is not a private app, and says so at the top of the account
 panel. What the UI claims about who can see what is enforced
 server-side, not promised — that discipline is unchanged; what it
-enforces is the opposite of what it used to (decision **D94**):
+enforces is the opposite of what it used to (decision **D98**):
 
 - **Your answers are public.** Any signed-in user can read what you
   answered, under your display name, with the age band, gender, city,

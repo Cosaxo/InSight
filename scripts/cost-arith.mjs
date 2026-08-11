@@ -85,11 +85,11 @@ export const AGG_CAP = readNum(
 // How often the public mirror is rewritten, in answers. Drives both the
 // mature write multiplier and the listener fan-out rate.
 //
-// A CONSTANT 1 since D94, and deliberately not read from the source any
+// A CONSTANT 1 since D98, and deliberately not read from the source any
 // more: it used to track functions/src/v2.ts's PUBLISH_EVERY, and that
 // literal is gone — the publish cadence was a disclosure control (batch
 // the increments so an onSnapshot watcher cannot attribute a step to a
-// person) and D94 retired the whole principle.
+// person) and D98 retired the whole principle.
 //
 // Kept as a named 1 rather than inlined, because the arithmetic it feeds
 // is still real and got WORSE: the mirror is now rewritten on every
