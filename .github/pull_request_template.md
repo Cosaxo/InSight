@@ -9,20 +9,33 @@
       `test --prefix functions`, `test:rules`, `test:e2e`
 - [ ] New behaviour has a test that **fails without the change**
 
-## If this touches the privacy surface
+## If this touches the access surface
 
 Skip if it doesn't. If it does, none of these should be answered from
-memory:
+memory.
+
+**Answers are PUBLIC (D94).** Reads are open by design — a user reading
+another user's answers, profile or exact counts is the product, not a
+finding. What the checks below protect is the write side, the handful of
+things still closed for non-privacy reasons, and honesty about all of it.
 
 - [ ] **`firestore.rules` / `storage.rules`** — every change has a matching
       assertion in `firestore-tests/`, including a *negative* one
-- [ ] **Answers stay owner-only and create-only** (D5); duel answers stay
-      unreadable until the reveal doc exists
-- [ ] **k-floors** — no public document can expose a count below its floor,
-      and none carries per-vote timing
-- [ ] **The default user is an anonymous account** (D3). Any new
-      `request.auth != null` grant is reachable by anyone with a script —
-      is that intended?
+- [ ] **Writes stay owner-bound.** Answers are create-only with one legal
+      edit shape (D86); nobody authors under another user's uid
+- [ ] **Duel answers stay sealed** until the reveal doc exists. That is
+      game timing, not privacy, and it is enforced by a `surface` value
+      test on the answer read rule
+- [ ] **The four things that are still closed stayed closed** — the logic
+      answer key (anti-cheat), flag authorship (anti-retaliation), the
+      presence cell (physical safety), push tokens (a credential)
+- [ ] **The default user is an anonymous account** (D3), so "any signed-in
+      user" means "anyone with a script". That is intended for answers —
+      is it intended for whatever this adds?
+- [ ] **The UI does not claim otherwise.** If this changes who can see
+      what, the account panel and `docs/data-inventory.md` say so. The
+      product's rule is that the copy matches the rules — that survived
+      D94, pointed the other way
 - [ ] **`deleteAccount`** still erases anything this adds, including data
       about a user stored under *another* user's documents
 
