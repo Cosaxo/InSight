@@ -555,7 +555,7 @@ as deployed infrastructure. It now says what is true.
 > the app never asks for location is now false. The store label is Coarse
 > Location.
 >
-> **Narrowed again by [D90](#d90--a-standing-location-grant-fills-the-city-in--suggested-never-applied-narrows-to-the-no-grant-state)
+> **Narrowed again by [D92](#d92--a-standing-location-grant-fills-the-city-in--suggested-never-applied-narrows-to-the-no-grant-state)
 > (2026-08-11).** "A located city is suggested, never applied" now holds
 > only while the Right-now counter (D84) is off. With the counter on — an
 > explicit, revocable location grant — Near resolves and applies the city
@@ -4780,9 +4780,9 @@ reads, not cross-module ones, and a meter that moved here would be lying.
 ## D50 · A lens question in a live feed is a self-report item, not a poll
 
 **Date:** 2026-08-06 · **Status:** Adopted — the "acknowledge instead of
-aggregate" half reversed by D89
+aggregate" half reversed by D91
 
-> **Reversed in part by [D89](#d89--lens-questions-are-polls-the-items-are-seeded-and-their-counts-publish)
+> **Reversed in part by [D91](#d91--lens-questions-are-polls-the-items-are-seeded-and-their-counts-publish)
 > (2026-08-11).** Option (b) below — build a real crowd — shipped: the
 > lens items are seeded world questions now, and a live lens card against
 > a seeded bank is an ordinary live card. Exactly as this entry planned,
@@ -8550,7 +8550,85 @@ that cannot happen — `check:content` fails the build unless
 `functions/**` — but the two facts are separate and only the first is
 gated.
 
-## D89 · Lens questions are polls: the items are seeded, and their counts publish
+## D89 · The feed's "knows this best" row is demo furniture — live mode refuses it
+
+**Decided:** 2026-08-11 · **Status:** binding
+
+**Found on a device, not in a review.** Screenshots from a phone running a
+live build showed learn reveals headlining "BEd knows this best · 83%" and
+"Service knows this best · 81%" — cut-group labels out of `vote-cuts.js`,
+ranked by `renderKnowInsight` (world-feed.jsx) on the hash noise that
+animates the demo cuts. Directly above each stood D32's line "Our estimate
+— becomes measured once enough people have answered", which labels the
+*split*. Nothing labelled the cohort headline, because there is nothing to
+label it with: no per-cohort learn aggregate exists in either mode.
+
+**Why refusal rather than an "our estimate" tag.** The split's estimate is
+an authored model of a question's difficulty — a real editorial claim,
+honestly labelled (D32). "BEd knows this best" estimates nothing: the
+group, the direction and the margin all come from a hash of the question
+id. A modesty tag would dress fabricated activity as an estimate; D1 calls
+it fabrication either way, and D72 already answered the same question for
+MapStats — return nothing, at the source, so a forgotten call site shows
+nothing instead of something invented.
+
+**What shipped.** `renderKnowInsight` opens with the live gate and returns
+null; demo builds keep the row exactly as designed, including its own
+honesty rules (rank on the noise only, headline only the upward side),
+which stay recorded in the comment above the ranking. The gate is pinned
+by `learn-split.test.ts` the same last-hop way LiveCohortBody pins its
+floor import — mounting the entire feed to reveal one learn card would
+test the fixture more than the one-line behaviour.
+
+**What brings it back.** A measured per-cohort learn split. The moment
+aggregates exist for learn answers by anchor, this gate is the seam where
+noise swaps for measurement — exactly the trade `LEARN_SPLIT` /
+`LEARN_SPLIT_SRC` already made for the split itself.
+
+## D90 · The picker's blank state starts at home — the clock's country ranks first
+
+**Decided:** 2026-08-11 · **Status:** binding
+
+**The itch.** With no query the city list is the catalogue in population
+order — deliberately the same for everyone, because it reads no personal
+signal. The cost shipped in the same screenshot batch as D89: a user in
+Norway opens the city ask and the first row under "Use my location" is
+Shanghai. Correct, global, and absurd.
+
+**What ships.** `zoneCountry()` (data/places.ts) reads the city out of an
+IANA zone id — last path segment, underscores to spaces, folded like the
+search so "America/Sao_Paulo" finds São Paulo — and returns that city's
+country. The match is exact-or-shortened: IANA writes "America/New_York"
+for New York City and "Asia/Kuwait" for Kuwait City, so a word-boundary
+prefix matches too (exact first, and the break is required — "london"
+does not reach Londonderry); within a rank the most populous namesake
+wins, which is how Europe/Dublin means Ireland's Dublin and not Ohio's.
+`regionHint()` applies it to the device clock, and `searchPlaces(…,
+hint)` ranks that country's cities first in the **blank state only**;
+typing anything abandons the hint, because a query is the user answering
+for themselves. A zone the catalogue cannot name at all ("Etc/UTC", the
+tiny county zones) returns "" and the blank state stays the world's. A
+hint may miss; it must not guess.
+
+**Why this is not the location D9 gates.** The zone id is a device
+setting every date render already reads — no permission prompt, no
+sensor, no network, no IP lookup. It produces a sort order and is
+dropped: never stored, never sent, and it cannot reach the profile — the
+anchor is still only ever the city the user taps. Granularity is one
+country, and wrongness is harmless: a traveller sees their home country
+first, and the fix is typing one letter. The NEAREST city — the sensor's
+answer — stays behind its tap exactly as D9 records, and the store
+privacy labels are untouched.
+
+**The seam is the argument.** The zone reaches `zoneCountry` as a
+parameter and the ordering tests pass it explicitly, because
+places.test.ts asserts blank-state order on a fixture that contains Oslo
+— an Intl read inside `searchPlaces` would make that assertion flip with
+the developer's wall clock. The single real Intl read lives in
+`regionHint`, spied in its own case, with the same try/catch the
+`countryName` Intl guard already carries.
+
+## D91 · Lens questions are polls: the items are seeded, and their counts publish
 
 **Date:** 2026-08-11 · **Status:** Adopted · reverses the
 "acknowledge instead of aggregate" half of D50
@@ -8566,7 +8644,7 @@ affordance — and the answer still records to the on-device instrument;
 world-feed's `setVote` has always done both, the vote half just had
 nowhere to go. `selfOnly` (D50) survives as exactly one thing: the
 fallback when `LIVE.lensAgg` finds no lens row in the bank (an unseeded
-or pre-D89 backend), where rendering the authored counts would be the
+or pre-D91 backend), where rendering the authored counts would be the
 fabrication D1 forbids and rules would refuse the answer write anyway.
 
 **Why.** The owner's call (2026-08-11): there is no reason for lens
@@ -8592,7 +8670,7 @@ index — minted by lens-defs.js before the items had a backend. Devices
 that answered lens cards in the selfOnly era hold feed votes and the
 instrument's seen-map under those ids, so re-keying would resurface every
 answered card. The cost of keeping them: `check-content`'s id shape for
-the test surface admits two families. (Those pre-D89 local answers never
+the test surface admits two families. (Those pre-D91 local answers never
 reach the server retroactively — the card reads as answered and nothing
 re-offers it — which loses a handful of counts and fabricates none.)
 
@@ -8626,7 +8704,7 @@ paths — the seeded card must reach `LIVE.vote`, render a split and carry
 the takes toggle, the unseeded card must reach neither crowd nor store;
 `slicing.test.ts` picks the two flagged items up by construction.
 
-## D90 · A standing location grant fills the city in — "suggested, never applied" narrows to the no-grant state
+## D92 · A standing location grant fills the city in — "suggested, never applied" narrows to the no-grant state
 
 **Date:** 2026-08-11 · **Status:** Adopted · narrows D9's amendment
 
@@ -8663,12 +8741,12 @@ saved shape is the same `vitals.city` + anchors write a manual pick
 lands, so the profile mirror keeps re-asserting it rather than blanking
 it.
 
-**Enforcement.** `LiveCohortBody.test.tsx` (D90 block): derives and
+**Enforcement.** `LiveCohortBody.test.tsx` (D92 block): derives and
 applies with the counter on, saying so; never touches the resolver with
 the counter off or a city set; applies nothing on a failed fix and falls
 back to the ask; and the Country stop derives identically.
 
-## D91 · The persona's residue is scrubbed from live anchors at boot, by exact signature
+## D93 · The persona's residue is scrubbed from live anchors at boot, by exact signature
 
 **Date:** 2026-08-11 · **Status:** Adopted
 

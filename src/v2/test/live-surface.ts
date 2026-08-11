@@ -37,7 +37,7 @@ export const LIVE_MEMBERS = [
   "editVote",
   "enabled", "feedReady",
   "latestBuild", "learnAgg", "learnAnswer",
-  // D89: the live half of a lens card — counts for a seeded lens question,
+  // D91: the live half of a lens card — counts for a seeded lens question,
   // null when the bank carries none (the selfOnly fallback's cue).
   "lensAgg",
   "linkGoogle", "linked", "myCity",

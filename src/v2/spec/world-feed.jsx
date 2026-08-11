@@ -15,6 +15,10 @@ import { AGG_FLOOR } from '../data/floor.ts';
 // The live world-takes surface (D83) — an ordinary ESM import of the typed
 // panel, like the data imports above, so the D39 coupling meter stays flat.
 import LiveTakesPanel from '../ui/LiveTakesPanel.tsx';
+// Imported for the D89 gate rather than read off window — same meter
+// reasoning as the imports above. The window.LIVE reads elsewhere in this
+// file predate the ratchet; new ones may not join them.
+import LIVE from '../data/live.ts';
 import ReactDOM from 'react-dom';
 import { PASSIVE } from './passive-progress.js';
 import {
@@ -336,7 +340,7 @@ class WorldFeed extends React.Component {
   setVote(q, val) {
     const id = q.id;
     // A selfOnly card (a lens question against a bank with no lens rows —
-    // lens-defs.js, D50; the seeded-bank case is live now, D89) has
+    // lens-defs.js, D50; the seeded-bank case is live now, D91) has
     // authored counts and no measurement behind them, so every side effect
     // below that reads the "crowd" — the majority bit, the beat, the
     // ripple's Mirror claim, the why-prompt — would be fabricated. The lens
@@ -388,7 +392,7 @@ class WorldFeed extends React.Component {
     // question rather than random per render: every card saying it makes it
     // wallpaper, and a re-render must not make it flicker. A lens answer
     // lands on the profile's Lenses tab, not the Mirror — so the claim is
-    // false on EVERY lens card, the live ones (D89) included, which is why
+    // false on EVERY lens card, the live ones (D91) included, which is why
     // the gate is q.lens rather than selfOnly.
     const rip = !editing && this.opts.ripple && !selfOnly && !q.lens && wfHash(id + ':rip') < 0.45 ? id : null;
     if (rip) {
@@ -1054,8 +1058,8 @@ class WorldFeed extends React.Component {
   // lens rows records to the on-device instrument and nowhere else — no
   // backend aggregate exists, so there is no split to reveal at any k.
   // Where every other card answers with the crowd, this one answers with
-  // where the answer went. Since D89 seeded banks serve lens cards live
-  // and this note is the pre-D89-backend fallback only. T.label is the
+  // where the answer went. Since D91 seeded banks serve lens cards live
+  // and this note is the pre-D91-backend fallback only. T.label is the
   // lens's own title (renderCard's kicker derivation), so the line names
   // the destination.
   renderSelfNote(q, T, big) {
@@ -1191,7 +1195,7 @@ class WorldFeed extends React.Component {
     const rip = this.state.ripple === q.id ? (WF_BRANCH[q.cat] || 'Interests') : null;
     return (
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, minHeight: 18 }}>
-        <span style={{ fontSize: big ? 12.5 : 11.5, fontWeight: 600, color: 'var(--ink-2)' }}>{this.state.editHold === q.id ? 'One change a minute — try again shortly.' : wfFmt(total) + ' votes' + (p[mine] === maxP ? ' · with the majority' : ' · you picked the underdog')}</span>
+        <span style={{ fontSize: big ? 12.5 : 11.5, fontWeight: 600, color: 'var(--ink-2)' }}>{this.state.editHold === q.id ? 'One change a minute — try again shortly.' : wfFmt(total) + (total === 1 ? ' vote' : ' votes') + (p[mine] === maxP ? ' · with the majority' : ' · you picked the underdog')}</span>
         {rip && <button onClick={() => window.goTab && window.goTab('mirror')} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontFamily: 'var(--sans)', fontSize: 12, fontWeight: 700, color: 'var(--accent, var(--ink-2))', whiteSpace: 'nowrap', animation: 'toastFade 3.2s ease forwards' }}>added to {rip}<span aria-hidden="true">→</span></button>}
       </div>
     );
@@ -1366,7 +1370,7 @@ class WorldFeed extends React.Component {
     // REAL takes composer beside fake results would be worse still.
     if (window.LIVE && window.LIVE.demoInProd) return null;
     // A selfOnly card (a lens question against a bank with no lens rows —
-    // D50; seeded banks serve lens cards live now, D89) has no crowd
+    // D50; seeded banks serve lens cards live now, D91) has no crowd
     // behind it: takes, who-voted and the votes-count footer would all be
     // authored demo numbers wearing a live badge. The whole row goes, the
     // same way it does for demoInProd — the card's own note
@@ -2141,6 +2145,17 @@ class WorldFeed extends React.Component {
   // when we dropped the gender cut. The low end still shows in the sheet, where
   // it reads as a distribution rather than a headline.
   renderKnowInsight(q, T) {
+    // Live builds refuse this row rather than fill it (D89). The ranking
+    // below is hash noise over the demo cut groups, so on a real device it
+    // headlined "BEd knows this best · 83%" as if someone had measured that
+    // cohort — the fabrication D1 forbids — one line under the reveal's
+    // estimate/measured label, which covers the split and says nothing
+    // about this. Refused at the source rather than the call site, the
+    // same shape as MapStats (D72); it returns when a per-cohort learn
+    // aggregate exists to rank. The imported LIVE, not the window surface:
+    // a test driving this branch stubs the module the way
+    // LiveCohortBody.test does, not through the window stand-in.
+    if (LIVE.enabled) return null;
     const L = window.LEARN, card = L && L.card(q.learn);
     if (!card) return null;
     const p = card.p;

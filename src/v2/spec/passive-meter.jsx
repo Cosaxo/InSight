@@ -15,6 +15,16 @@ import { PASSIVE } from './passive-progress.js';
 // tap → sheet), PassiveTag (the per-card mark on a test's own feed questions).
 const PM_LINE = '1px solid color-mix(in oklch, var(--rule), transparent 25%)';
 
+// The sheet's name states the test count in words, and D85 proved a stated
+// count goes stale the day a test is added — the title said "four" for a
+// day one while five rows sat under it. So it is derived from PASSIVE.KEYS
+// rather than maintained by hand: words as far as plausible test counts
+// reach, digits beyond, and the day a digit renders is the day this copy
+// needs rethinking anyway.
+const PM_COUNT_WORDS = ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine'];
+const PM_TITLE = 'Your ' + (PM_COUNT_WORDS[PASSIVE.KEYS.length] || PASSIVE.KEYS.length) + ' profiles';
+const PM_CHIP_LABEL = PM_TITLE + ' — mapping as you answer';
+
 function usePassive() {
   const [, tick] = React.useState(0);
   React.useEffect(() => PASSIVE.subscribe(() => tick((t) => t + 1)), []);
@@ -50,7 +60,7 @@ function PassiveRing({ k, size = 15, thick = 3, hole = 'var(--surface-2)' }) {
   );
 }
 
-// the always-there indicator: four rings, one per test, filling as you answer
+// the always-there indicator: one ring per test, filling as you answer
 function PassiveMeter() {
   const P = usePassive();
   const [open, setOpen] = React.useState(false);
@@ -60,16 +70,16 @@ function PassiveMeter() {
   const host = typeof document !== 'undefined' ? document.querySelector('.app') : null;
   return (
     <React.Fragment>
-      <button className="pm-chip" onClick={() => setOpen(true)} aria-label="Your four profiles — mapping as you answer" title="Your four profiles — mapping as you answer" style={{ background: 'var(--surface-2)', cursor: 'pointer', WebkitAppearance: 'none' }}>
+      <button className="pm-chip" onClick={() => setOpen(true)} aria-label={PM_CHIP_LABEL} title={PM_CHIP_LABEL} style={{ background: 'var(--surface-2)', cursor: 'pointer', WebkitAppearance: 'none' }}>
         <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
           {P.KEYS.map((k) => <PassiveRing key={k} k={k} size={13} thick={3.2}></PassiveRing>)}
         </span>
         <span style={{ fontFamily: 'var(--sans)', fontWeight: 700, fontSize: 10.5, letterSpacing: '0.04em', color: 'var(--ink-3)' }}>profile</span>
       </button>
       {open && host && ReactDOM.createPortal(
-        <Sheet onClose={close} closing={closing} label="Your four profiles">
+        <Sheet onClose={close} closing={closing} label={PM_TITLE}>
             <div style={{ padding: '10px 18px 8px', display: 'flex', alignItems: 'center', gap: 10 }}>
-              <span style={{ fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 15, flex: 1 }}>Your four profiles</span>
+              <span style={{ fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 15, flex: 1 }}>{PM_TITLE}</span>
               <button onClick={close} aria-label="Close" style={{ border: 'none', background: 'var(--surface-2)', width: 26, height: 26, borderRadius: '50%', cursor: 'pointer', fontSize: 13, fontWeight: 800, color: 'var(--ink-2)', flexShrink: 0, WebkitAppearance: 'none' }}>{'\u2715'}</button>
             </div>
             <div className="wf-sheet-body" style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>

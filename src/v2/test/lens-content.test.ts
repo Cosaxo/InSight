@@ -17,7 +17,7 @@
 // per-dimension rule stays theirs.
 import { describe, expect, it } from "vitest";
 import "../spec/lens-defs.js";
-// The seed source (D89): content/lenses.json is what gen-v2content.mjs
+// The seed source (D91): content/lenses.json is what gen-v2content.mjs
 // mirrors into the deployed bank, so IS_LENSES and it must agree — the
 // binding test at the bottom holds them together.
 import SEEDED from "../../../content/lenses.json";
@@ -100,14 +100,14 @@ describe("lens definitions (structural contract)", () => {
   }
 });
 
-// D89: the lens items are seeded world questions now, generated into the
+// D91: the lens items are seeded world questions now, generated into the
 // bank from content/lenses.json — a SECOND copy of what IS_LENSES already
 // says. Two copies drift, and each direction of drift fails silently
 // somewhere else: a client-only edit ships cards whose prompt differs from
 // the seeded doc the answers validate against, and a JSON-only edit ships a
 // bank the client never renders. This suite is the binding; check:content
 // binds the JSON to functions/src/v2content.ts from the other side.
-describe("content/lenses.json mirrors IS_LENSES (D89)", () => {
+describe("content/lenses.json mirrors IS_LENSES (D91)", () => {
   const seeded = SEEDED as unknown as Record<
     string,
     {
@@ -145,7 +145,7 @@ describe("content/lenses.json mirrors IS_LENSES (D89)", () => {
   }
 
   it("the two zero-sum trade propositions carry the political flag (D44)", () => {
-    // The D89 judgement: these two state economic-policy opinions — the
+    // The D91 judgement: these two state economic-policy opinions — the
     // same class as the political test's own items — so they publish their
     // overall split and never slice by anchors. The rest of the lens items
     // are instrument items in the values/big5 class, which do slice.

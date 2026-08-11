@@ -61,7 +61,7 @@ vi.mock("../data/live", () => ({ default: LIVE }));
 const setCityAnchor = vi.hoisted(() => vi.fn());
 vi.mock("../data/cityAnchor", () => ({ setCityAnchor }));
 // The resolver is mocked for the same reason live is: the real one asks the
-// platform for a fix. What D90's cases need is only its contract — a
+// platform for a fix. What D92's cases need is only its contract — a
 // catalogue key or a reason, never a coordinate.
 const locateCity = vi.hoisted(() =>
   vi.fn(async () => ({ ok: true, key: "Oslo, NO", km: 2 } as
@@ -199,6 +199,16 @@ describe("LiveCohortBody · no city is a prompt, not an empty panel", () => {
     expect(screen.getByText(/only the city name is saved, never your coordinates/i)).toBeTruthy();
   });
 
+  it("names the Country stop in its ask — not “This”", () => {
+    // Both no-city scopes share this panel, and the heading names the stop
+    // so the ask reads as part of the ruler above it. The country arm
+    // shipped saying "This needs a city", which read as the placeholder it
+    // was — a device screenshot is what caught it.
+    LIVE.myCity = "";
+    render(<LiveCohortBody scope="country" />);
+    expect(screen.getByText(/Country needs a city/i)).toBeTruthy();
+  });
+
   it("offers the picker in place rather than pointing at the profile", () => {
     // The release shipped this state as prose with nothing tappable — the
     // user had to find the profile's Basics card on their own. The empty
@@ -236,7 +246,7 @@ describe("LiveCohortBody · no city is a prompt, not an empty panel", () => {
   });
 });
 
-describe("LiveCohortBody · with the counter on, the city derives itself (D90)", () => {
+describe("LiveCohortBody · with the counter on, the city derives itself (D92)", () => {
   it("resolves and APPLIES the city from the standing grant, saying so", async () => {
     // The Right-now counter being on IS the location grant — asking the
     // same person to also pick "Oslo" from a list was the dead end the

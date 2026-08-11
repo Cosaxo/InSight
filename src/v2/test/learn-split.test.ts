@@ -8,6 +8,8 @@
 // and that the measured path normalises the k-floored counts to exactly
 // 100 the way every other split in the app does.
 import { afterEach, describe, expect, it } from "vitest";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import "../spec/learn-data.js";
 
 interface LearnCard {
@@ -60,5 +62,24 @@ describe("LEARN_SPLIT source seam (D32)", () => {
     // a published-shape doc with zeroed counts must not divide by zero
     W.LIVE = { enabled: true, learnAgg: () => ({ tooSmall: false, counts: {} }) };
     expect(W.LEARN_SPLIT_SRC(card)).toBe("estimate");
+  });
+});
+
+describe("the knows-best row is demo furniture (D89)", () => {
+  // The reveal's estimate/measured label above covers the SPLIT; the
+  // "<group> knows this best" row under it is ranked on hash noise over the
+  // demo cut groups and has no live counterpart, so live mode must refuse
+  // it at the source (the D72 shape) rather than headline "BEd knows this
+  // best" to a real user.
+  it("renderKnowInsight opens with the live gate, before any ranking", () => {
+    // A last-hop source pin, same style as LiveCohortBody's floor pin:
+    // mounting the whole feed to reveal a learn card would exercise the
+    // fixture more than the gate, and the behaviour IS this one line.
+    const src = readFileSync(resolve(__dirname, "../spec/world-feed.jsx"), "utf8");
+    const start = src.indexOf("renderKnowInsight(q, T) {");
+    expect(start, "renderKnowInsight moved — repoint this pin").toBeGreaterThan(-1);
+    const beforeRanking = src.slice(start, src.indexOf("WF_CUTS", start));
+    // The imported LIVE binding (D39 meter), not the window surface.
+    expect(beforeRanking).toMatch(/if \(LIVE\.enabled\) return null;/);
   });
 });

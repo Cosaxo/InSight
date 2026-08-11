@@ -14,10 +14,10 @@
 // were green throughout, which is exactly the failure shape this repo keeps
 // writing tests for.
 //
-// Since D89 a live pool has two shapes, and both are pinned here: against a
+// Since D91 a live pool has two shapes, and both are pinned here: against a
 // seeded bank (LIVE.lensAgg answers counts) the cards are ordinary live
 // cards — measured counts, no selfOnly; against a bank with no lens rows
-// (lensAgg answers null — an unseeded or pre-D89 backend) D50's selfOnly
+// (lensAgg answers null — an unseeded or pre-D91 backend) D50's selfOnly
 // acknowledgment stays, because the authored counts on those cards are the
 // fabrication D1 forbids.
 //
@@ -154,7 +154,7 @@ describe("LENS_FEED_QS follows liveness", () => {
     }
   });
 
-  it("against a seeded bank, live cards are ordinary live cards (D89)", () => {
+  it("against a seeded bank, live cards are ordinary live cards (D91)", () => {
     liveSeeded();
     for (const card of W.LENS_FEED_QS()) {
       // The live flag is what routes world-feed's setVote through
@@ -171,7 +171,7 @@ describe("LENS_FEED_QS follows liveness", () => {
   });
 
   it("against a bank with no lens rows, D50's selfOnly stays", () => {
-    // The pre-D89 backend: rules would refuse the answer write (no
+    // The pre-D91 backend: rules would refuse the answer write (no
     // question doc) and no aggregate exists, so the card must acknowledge
     // the local record rather than render its authored counts as a crowd.
     liveUnseeded();

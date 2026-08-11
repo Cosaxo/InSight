@@ -167,7 +167,7 @@ minor lenses beside them (`IS_LENSES`) have no test flow to sit down for.
 Their items ship as ordinary feed cards (`surface: "test"`), so answering
 the feed fills them in the background, and because they are ordinary
 cards their option counts publish like any other question's. (True of
-the minor lenses only since D89 — under D50 their answers were
+the minor lenses only since D91 — under D50 their answers were
 device-local self-reports with nothing aggregated; against a bank with
 no lens rows a lens card still degrades to that acknowledgment rather
 than inventing a crowd.)

@@ -20,7 +20,7 @@
 //                            lenses.json — the client minted these ids
 //                            (lens-defs.js, `'lq-' + l.id + '-' + qi`)
 //                            before the items had a backend, and devices
-//                            hold local state keyed by them (D89)
+//                            hold local state keyed by them (D91)
 // Every source entry MUST carry its id. The bank was positional once, and
 // positional ids mean inserting mid-array re-keys every later question —
 // silently attaching live immutable answers to the wrong prompt, the same
@@ -231,7 +231,7 @@ export function buildEntries(content = loadContent()) {
     });
   }
 
-  // Lens items (D89, reversing D50's device-only half): the minor
+  // Lens items (D91, reversing D50's device-only half): the minor
   // instruments' questions are world questions now, so their counts fold
   // and publish like any other card's. Same surface ("test" — the same
   // world-answer class as the core instruments' items, and splitBanks
@@ -240,7 +240,7 @@ export function buildEntries(content = loadContent()) {
   // TEST_FEED_QS: the client builds lens cards from IS_LENSES
   // (lens-defs.js) and reads only counts back through LIVE.lensAgg.
   // `political` on an item routes it into D44's no-slice set — the two
-  // zero-sum trade propositions carry it (D89 records the judgement).
+  // zero-sum trade propositions carry it (D91 records the judgement).
   for (const [key, l] of Object.entries(lenses)) {
     l.questions.forEach((q, i) => {
       entries.push({

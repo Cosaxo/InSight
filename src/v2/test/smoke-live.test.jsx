@@ -327,7 +327,7 @@ describe("the live gates hold in the DOM, not just in the source", () => {
     expect(window.WORLD_FEED_COMMENTS).toEqual({});
   });
 
-  // D89, reversing D50's device-only half. A lens question woven into a
+  // D91, reversing D50's device-only half. A lens question woven into a
   // LIVE feed against a SEEDED bank is an ordinary live card: the answer
   // goes through LIVE.vote (owner-only doc → k-floored aggregate) AND
   // still records to the on-device instrument, and the card renders the
@@ -379,8 +379,8 @@ describe("the live gates hold in the DOM, not just in the source", () => {
     }
   });
 
-  // D50's half that SURVIVES D89: against a bank with no lens rows (an
-  // unseeded or pre-D89 backend, modelled by lensAgg → null), the card's
+  // D50's half that SURVIVES D91: against a bank with no lens rows (an
+  // unseeded or pre-D91 backend, modelled by lensAgg → null), the card's
   // counts are authored rather than measured, so the selfOnly treatment
   // stays — no split, no engage row, the acknowledgment instead — and
   // nothing reaches LIVE.vote, whose write the rules would refuse anyway

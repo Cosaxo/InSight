@@ -377,7 +377,7 @@ window.LENS_FEED_QS = (function () {
         // tier 2 lenses surface at half the rate of tier 1
         const card = { id, lens: l.id, qi, tier: l.tier, cat: 'lens', type: 'vote', prompt: q.q, options };
         if (live) {
-          // D89 (reversing D50's device-only half): lens items are seeded
+          // D91 (reversing D50's device-only half): lens items are seeded
           // world questions now, so a live card draws the same k-floored
           // counts every feed card does — and the answer still records to
           // the on-device instrument (world-feed setVote calls both).
@@ -387,7 +387,7 @@ window.LENS_FEED_QS = (function () {
             card.live = true;
             card.tooSmall = agg.tooSmall;
           } else {
-            // The bank has no lens rows — a pre-D89 backend. The counts
+            // The bank has no lens rows — a pre-D91 backend. The counts
             // above are authored, not measured, so the D50 treatment
             // stays: every crowd surface off, acknowledge the local write.
             card.selfOnly = true;
