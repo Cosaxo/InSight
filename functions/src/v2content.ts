@@ -6176,6 +6176,908 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "test": "cognitive"
  },
  {
+  "id": "lq-moral-0",
+  "surface": "test",
+  "seq": 130,
+  "type": "scale",
+  "domain": null,
+  "prompt": "Someone suffering matters more than someone being wronged.",
+  "options": [
+   "Strongly agree",
+   "Agree",
+   "Neutral",
+   "Disagree",
+   "Strongly disagree"
+  ],
+  "topic": "lens",
+  "axis": "care",
+  "test": null
+ },
+ {
+  "id": "lq-moral-1",
+  "surface": "test",
+  "seq": 131,
+  "type": "scale",
+  "domain": null,
+  "prompt": "Cruelty is the worst thing a person can be.",
+  "options": [
+   "Strongly agree",
+   "Agree",
+   "Neutral",
+   "Disagree",
+   "Strongly disagree"
+  ],
+  "topic": "lens",
+  "axis": "care",
+  "test": null
+ },
+ {
+  "id": "lq-moral-2",
+  "surface": "test",
+  "seq": 132,
+  "type": "scale",
+  "domain": null,
+  "prompt": "People should get out what they put in — no more, no less.",
+  "options": [
+   "Strongly agree",
+   "Agree",
+   "Neutral",
+   "Disagree",
+   "Strongly disagree"
+  ],
+  "topic": "lens",
+  "axis": "fair",
+  "test": null
+ },
+ {
+  "id": "lq-moral-3",
+  "surface": "test",
+  "seq": 133,
+  "type": "scale",
+  "domain": null,
+  "prompt": "Standing by your own people counts, even when they are wrong.",
+  "options": [
+   "Strongly agree",
+   "Agree",
+   "Neutral",
+   "Disagree",
+   "Strongly disagree"
+  ],
+  "topic": "lens",
+  "axis": "loyal",
+  "test": null
+ },
+ {
+  "id": "lq-moral-4",
+  "surface": "test",
+  "seq": 134,
+  "type": "scale",
+  "domain": null,
+  "prompt": "Respect for those in charge holds a society together.",
+  "options": [
+   "Strongly agree",
+   "Agree",
+   "Neutral",
+   "Disagree",
+   "Strongly disagree"
+  ],
+  "topic": "lens",
+  "axis": "authority",
+  "test": null
+ },
+ {
+  "id": "lq-moral-5",
+  "surface": "test",
+  "seq": 135,
+  "type": "scale",
+  "domain": null,
+  "prompt": "Some things are degrading even when nobody is harmed.",
+  "options": [
+   "Strongly agree",
+   "Agree",
+   "Neutral",
+   "Disagree",
+   "Strongly disagree"
+  ],
+  "topic": "lens",
+  "axis": "sanctity",
+  "test": null
+ },
+ {
+  "id": "lq-moral-6",
+  "surface": "test",
+  "seq": 136,
+  "type": "scale",
+  "domain": null,
+  "prompt": "Being told what to do is a harm in itself.",
+  "options": [
+   "Strongly agree",
+   "Agree",
+   "Neutral",
+   "Disagree",
+   "Strongly disagree"
+  ],
+  "topic": "lens",
+  "axis": "liberty",
+  "test": null
+ },
+ {
+  "id": "lq-moral-7",
+  "surface": "test",
+  "seq": 137,
+  "type": "scale",
+  "domain": null,
+  "prompt": "Rules I never agreed to have no hold on me.",
+  "options": [
+   "Strongly agree",
+   "Agree",
+   "Neutral",
+   "Disagree",
+   "Strongly disagree"
+  ],
+  "topic": "lens",
+  "axis": "liberty",
+  "test": null
+ },
+ {
+  "id": "lq-moral-8",
+  "surface": "test",
+  "seq": 138,
+  "type": "scale",
+  "domain": null,
+  "prompt": "Toughness does more good than tenderness.",
+  "options": [
+   "Strongly agree",
+   "Agree",
+   "Neutral",
+   "Disagree",
+   "Strongly disagree"
+  ],
+  "topic": "lens",
+  "axis": "care",
+  "test": null
+ },
+ {
+  "id": "lq-risk-0",
+  "surface": "test",
+  "seq": 139,
+  "type": "scale",
+  "domain": null,
+  "prompt": "I would put a month of savings into something volatile.",
+  "options": [
+   "Strongly agree",
+   "Agree",
+   "Neutral",
+   "Disagree",
+   "Strongly disagree"
+  ],
+  "topic": "lens",
+  "axis": "financial",
+  "test": null
+ },
+ {
+  "id": "lq-risk-1",
+  "surface": "test",
+  "seq": 140,
+  "type": "scale",
+  "domain": null,
+  "prompt": "I read the fine print before signing anything with money in it.",
+  "options": [
+   "Strongly agree",
+   "Agree",
+   "Neutral",
+   "Disagree",
+   "Strongly disagree"
+  ],
+  "topic": "lens",
+  "axis": "financial",
+  "test": null
+ },
+ {
+  "id": "lq-risk-2",
+  "surface": "test",
+  "seq": 141,
+  "type": "scale",
+  "domain": null,
+  "prompt": "I skip the check-up and assume it is nothing.",
+  "options": [
+   "Strongly agree",
+   "Agree",
+   "Neutral",
+   "Disagree",
+   "Strongly disagree"
+  ],
+  "topic": "lens",
+  "axis": "health",
+  "test": null
+ },
+ {
+  "id": "lq-risk-3",
+  "surface": "test",
+  "seq": 142,
+  "type": "scale",
+  "domain": null,
+  "prompt": "I will say the unpopular thing in a room that disagrees.",
+  "options": [
+   "Strongly agree",
+   "Agree",
+   "Neutral",
+   "Disagree",
+   "Strongly disagree"
+  ],
+  "topic": "lens",
+  "axis": "social",
+  "test": null
+ },
+ {
+  "id": "lq-risk-4",
+  "surface": "test",
+  "seq": 143,
+  "type": "scale",
+  "domain": null,
+  "prompt": "Steep, fast and slightly out of control is my idea of fun.",
+  "options": [
+   "Strongly agree",
+   "Agree",
+   "Neutral",
+   "Disagree",
+   "Strongly disagree"
+  ],
+  "topic": "lens",
+  "axis": "recreational",
+  "test": null
+ },
+ {
+  "id": "lq-risk-5",
+  "surface": "test",
+  "seq": 144,
+  "type": "scale",
+  "domain": null,
+  "prompt": "I would bend a rule if the outcome were clearly better.",
+  "options": [
+   "Strongly agree",
+   "Agree",
+   "Neutral",
+   "Disagree",
+   "Strongly disagree"
+  ],
+  "topic": "lens",
+  "axis": "ethical",
+  "test": null
+ },
+ {
+  "id": "lq-trust-0",
+  "surface": "test",
+  "seq": 145,
+  "type": "scale",
+  "domain": null,
+  "prompt": "Most people would give back a wallet they found.",
+  "options": [
+   "Strongly agree",
+   "Agree",
+   "Neutral",
+   "Disagree",
+   "Strongly disagree"
+  ],
+  "topic": "lens",
+  "axis": "trust",
+  "test": null
+ },
+ {
+  "id": "lq-trust-1",
+  "surface": "test",
+  "seq": 146,
+  "type": "scale",
+  "domain": null,
+  "prompt": "You have to be careful — people take advantage.",
+  "options": [
+   "Strongly agree",
+   "Agree",
+   "Neutral",
+   "Disagree",
+   "Strongly disagree"
+  ],
+  "topic": "lens",
+  "axis": "trust",
+  "test": null
+ },
+ {
+  "id": "lq-trust-2",
+  "surface": "test",
+  "seq": 147,
+  "type": "scale",
+  "domain": null,
+  "prompt": "For one group to gain, another has to lose.",
+  "options": [
+   "Strongly agree",
+   "Agree",
+   "Neutral",
+   "Disagree",
+   "Strongly disagree"
+  ],
+  "topic": "lens",
+  "axis": "zerosum",
+  "test": null,
+  "political": true
+ },
+ {
+  "id": "lq-trust-3",
+  "surface": "test",
+  "seq": 148,
+  "type": "scale",
+  "domain": null,
+  "prompt": "Trade between countries leaves both better off.",
+  "options": [
+   "Strongly agree",
+   "Agree",
+   "Neutral",
+   "Disagree",
+   "Strongly disagree"
+  ],
+  "topic": "lens",
+  "axis": "zerosum",
+  "test": null,
+  "political": true
+ },
+ {
+  "id": "lq-trust-4",
+  "surface": "test",
+  "seq": 149,
+  "type": "scale",
+  "domain": null,
+  "prompt": "In the long run, people get roughly what they deserve.",
+  "options": [
+   "Strongly agree",
+   "Agree",
+   "Neutral",
+   "Disagree",
+   "Strongly disagree"
+  ],
+  "topic": "lens",
+  "axis": "justworld",
+  "test": null
+ },
+ {
+  "id": "lq-trust-5",
+  "surface": "test",
+  "seq": 150,
+  "type": "scale",
+  "domain": null,
+  "prompt": "Where you end up is mostly where you started.",
+  "options": [
+   "Strongly agree",
+   "Agree",
+   "Neutral",
+   "Disagree",
+   "Strongly disagree"
+  ],
+  "topic": "lens",
+  "axis": "justworld",
+  "test": null
+ },
+ {
+  "id": "lq-time-0",
+  "surface": "test",
+  "seq": 151,
+  "type": "scale",
+  "domain": null,
+  "prompt": "€100 today beats €160 in a year.",
+  "options": [
+   "Strongly agree",
+   "Agree",
+   "Neutral",
+   "Disagree",
+   "Strongly disagree"
+  ],
+  "topic": "lens",
+  "axis": "horizon",
+  "test": null
+ },
+ {
+  "id": "lq-time-1",
+  "surface": "test",
+  "seq": 152,
+  "type": "scale",
+  "domain": null,
+  "prompt": "I plan further ahead than most people I know.",
+  "options": [
+   "Strongly agree",
+   "Agree",
+   "Neutral",
+   "Disagree",
+   "Strongly disagree"
+  ],
+  "topic": "lens",
+  "axis": "horizon",
+  "test": null
+ },
+ {
+  "id": "lq-time-2",
+  "surface": "test",
+  "seq": 153,
+  "type": "scale",
+  "domain": null,
+  "prompt": "I finish the boring part first and enjoy the rest after.",
+  "options": [
+   "Strongly agree",
+   "Agree",
+   "Neutral",
+   "Disagree",
+   "Strongly disagree"
+  ],
+  "topic": "lens",
+  "axis": "patience",
+  "test": null
+ },
+ {
+  "id": "lq-time-3",
+  "surface": "test",
+  "seq": 154,
+  "type": "scale",
+  "domain": null,
+  "prompt": "If I want it, I buy it — I sort the rest out later.",
+  "options": [
+   "Strongly agree",
+   "Agree",
+   "Neutral",
+   "Disagree",
+   "Strongly disagree"
+  ],
+  "topic": "lens",
+  "axis": "patience",
+  "test": null
+ },
+ {
+  "id": "lq-time-4",
+  "surface": "test",
+  "seq": 155,
+  "type": "scale",
+  "domain": null,
+  "prompt": "A decade from now feels real enough to save for.",
+  "options": [
+   "Strongly agree",
+   "Agree",
+   "Neutral",
+   "Disagree",
+   "Strongly disagree"
+  ],
+  "topic": "lens",
+  "axis": "horizon",
+  "test": null
+ },
+ {
+  "id": "lq-time-5",
+  "surface": "test",
+  "seq": 156,
+  "type": "scale",
+  "domain": null,
+  "prompt": "Waiting is easy when I know what is coming.",
+  "options": [
+   "Strongly agree",
+   "Agree",
+   "Neutral",
+   "Disagree",
+   "Strongly disagree"
+  ],
+  "topic": "lens",
+  "axis": "patience",
+  "test": null
+ },
+ {
+  "id": "lq-taste-0",
+  "surface": "test",
+  "seq": 157,
+  "type": "scale",
+  "domain": null,
+  "prompt": "I would rather try an unknown dish than order the one I love.",
+  "options": [
+   "Strongly agree",
+   "Agree",
+   "Neutral",
+   "Disagree",
+   "Strongly disagree"
+  ],
+  "topic": "lens",
+  "axis": "novelty",
+  "test": null
+ },
+ {
+  "id": "lq-taste-1",
+  "surface": "test",
+  "seq": 158,
+  "type": "scale",
+  "domain": null,
+  "prompt": "I rewatch and relisten to the same things for years.",
+  "options": [
+   "Strongly agree",
+   "Agree",
+   "Neutral",
+   "Disagree",
+   "Strongly disagree"
+  ],
+  "topic": "lens",
+  "axis": "novelty",
+  "test": null
+ },
+ {
+  "id": "lq-taste-2",
+  "surface": "test",
+  "seq": 159,
+  "type": "scale",
+  "domain": null,
+  "prompt": "A film that needs a second viewing is a better film.",
+  "options": [
+   "Strongly agree",
+   "Agree",
+   "Neutral",
+   "Disagree",
+   "Strongly disagree"
+  ],
+  "topic": "lens",
+  "axis": "complexity",
+  "test": null
+ },
+ {
+  "id": "lq-taste-3",
+  "surface": "test",
+  "seq": 160,
+  "type": "scale",
+  "domain": null,
+  "prompt": "Earnest beats clever.",
+  "options": [
+   "Strongly agree",
+   "Agree",
+   "Neutral",
+   "Disagree",
+   "Strongly disagree"
+  ],
+  "topic": "lens",
+  "axis": "sincerity",
+  "test": null
+ },
+ {
+  "id": "lq-taste-4",
+  "surface": "test",
+  "seq": 161,
+  "type": "scale",
+  "domain": null,
+  "prompt": "If everyone likes it, it has usually been sanded down.",
+  "options": [
+   "Strongly agree",
+   "Agree",
+   "Neutral",
+   "Disagree",
+   "Strongly disagree"
+  ],
+  "topic": "lens",
+  "axis": "scene",
+  "test": null
+ },
+ {
+  "id": "lq-taste-5",
+  "surface": "test",
+  "seq": 162,
+  "type": "scale",
+  "domain": null,
+  "prompt": "I keep up with what most people are watching.",
+  "options": [
+   "Strongly agree",
+   "Agree",
+   "Neutral",
+   "Disagree",
+   "Strongly disagree"
+  ],
+  "topic": "lens",
+  "axis": "scene",
+  "test": null
+ },
+ {
+  "id": "lq-conflict-0",
+  "surface": "test",
+  "seq": 163,
+  "type": "scale",
+  "domain": null,
+  "prompt": "I say it in the room rather than after.",
+  "options": [
+   "Strongly agree",
+   "Agree",
+   "Neutral",
+   "Disagree",
+   "Strongly disagree"
+  ],
+  "topic": "lens",
+  "axis": "engage",
+  "test": null
+ },
+ {
+  "id": "lq-conflict-1",
+  "surface": "test",
+  "seq": 164,
+  "type": "scale",
+  "domain": null,
+  "prompt": "I let small things go to keep the peace.",
+  "options": [
+   "Strongly agree",
+   "Agree",
+   "Neutral",
+   "Disagree",
+   "Strongly disagree"
+  ],
+  "topic": "lens",
+  "axis": "assert",
+  "test": null
+ },
+ {
+  "id": "lq-conflict-2",
+  "surface": "test",
+  "seq": 165,
+  "type": "scale",
+  "domain": null,
+  "prompt": "I would rather win the argument than end it.",
+  "options": [
+   "Strongly agree",
+   "Agree",
+   "Neutral",
+   "Disagree",
+   "Strongly disagree"
+  ],
+  "topic": "lens",
+  "axis": "assert",
+  "test": null
+ },
+ {
+  "id": "lq-conflict-3",
+  "surface": "test",
+  "seq": 166,
+  "type": "scale",
+  "domain": null,
+  "prompt": "When it heats up I go quiet and leave.",
+  "options": [
+   "Strongly agree",
+   "Agree",
+   "Neutral",
+   "Disagree",
+   "Strongly disagree"
+  ],
+  "topic": "lens",
+  "axis": "engage",
+  "test": null
+ },
+ {
+  "id": "lq-humor-0",
+  "surface": "test",
+  "seq": 167,
+  "type": "scale",
+  "domain": null,
+  "prompt": "I joke to make a room easier to be in.",
+  "options": [
+   "Strongly agree",
+   "Agree",
+   "Neutral",
+   "Disagree",
+   "Strongly disagree"
+  ],
+  "topic": "lens",
+  "axis": "affiliative",
+  "test": null
+ },
+ {
+  "id": "lq-humor-1",
+  "surface": "test",
+  "seq": 168,
+  "type": "scale",
+  "domain": null,
+  "prompt": "When things go badly I can usually find it funny.",
+  "options": [
+   "Strongly agree",
+   "Agree",
+   "Neutral",
+   "Disagree",
+   "Strongly disagree"
+  ],
+  "topic": "lens",
+  "axis": "selfenh",
+  "test": null
+ },
+ {
+  "id": "lq-humor-2",
+  "surface": "test",
+  "seq": 169,
+  "type": "scale",
+  "domain": null,
+  "prompt": "A good joke is worth someone being stung by it.",
+  "options": [
+   "Strongly agree",
+   "Agree",
+   "Neutral",
+   "Disagree",
+   "Strongly disagree"
+  ],
+  "topic": "lens",
+  "axis": "aggressive",
+  "test": null
+ },
+ {
+  "id": "lq-humor-3",
+  "surface": "test",
+  "seq": 170,
+  "type": "scale",
+  "domain": null,
+  "prompt": "I get laughs by putting myself down.",
+  "options": [
+   "Strongly agree",
+   "Agree",
+   "Neutral",
+   "Disagree",
+   "Strongly disagree"
+  ],
+  "topic": "lens",
+  "axis": "selfdef",
+  "test": null
+ },
+ {
+  "id": "lq-humor-4",
+  "surface": "test",
+  "seq": 171,
+  "type": "scale",
+  "domain": null,
+  "prompt": "A joke that needs a target isn’t worth telling.",
+  "options": [
+   "Strongly agree",
+   "Agree",
+   "Neutral",
+   "Disagree",
+   "Strongly disagree"
+  ],
+  "topic": "lens",
+  "axis": "aggressive",
+  "test": null
+ },
+ {
+  "id": "lq-thinking-0",
+  "surface": "test",
+  "seq": 172,
+  "type": "scale",
+  "domain": null,
+  "prompt": "My first instinct is usually right.",
+  "options": [
+   "Strongly agree",
+   "Agree",
+   "Neutral",
+   "Disagree",
+   "Strongly disagree"
+  ],
+  "topic": "lens",
+  "axis": "mode",
+  "test": null
+ },
+ {
+  "id": "lq-thinking-1",
+  "surface": "test",
+  "seq": 173,
+  "type": "scale",
+  "domain": null,
+  "prompt": "I want the numbers before I decide.",
+  "options": [
+   "Strongly agree",
+   "Agree",
+   "Neutral",
+   "Disagree",
+   "Strongly disagree"
+  ],
+  "topic": "lens",
+  "axis": "mode",
+  "test": null
+ },
+ {
+  "id": "lq-thinking-2",
+  "surface": "test",
+  "seq": 174,
+  "type": "scale",
+  "domain": null,
+  "prompt": "I change my mind when the evidence changes.",
+  "options": [
+   "Strongly agree",
+   "Agree",
+   "Neutral",
+   "Disagree",
+   "Strongly disagree"
+  ],
+  "topic": "lens",
+  "axis": "update",
+  "test": null
+ },
+ {
+  "id": "lq-thinking-3",
+  "surface": "test",
+  "seq": 175,
+  "type": "scale",
+  "domain": null,
+  "prompt": "Sitting with not knowing is uncomfortable.",
+  "options": [
+   "Strongly agree",
+   "Agree",
+   "Neutral",
+   "Disagree",
+   "Strongly disagree"
+  ],
+  "topic": "lens",
+  "axis": "update",
+  "test": null
+ },
+ {
+  "id": "lq-culture-0",
+  "surface": "test",
+  "seq": 176,
+  "type": "scale",
+  "domain": null,
+  "prompt": "My choices are mine before they are my family’s.",
+  "options": [
+   "Strongly agree",
+   "Agree",
+   "Neutral",
+   "Disagree",
+   "Strongly disagree"
+  ],
+  "topic": "lens",
+  "axis": "self",
+  "test": null
+ },
+ {
+  "id": "lq-culture-1",
+  "surface": "test",
+  "seq": 177,
+  "type": "scale",
+  "domain": null,
+  "prompt": "What my community expects shapes what I do.",
+  "options": [
+   "Strongly agree",
+   "Agree",
+   "Neutral",
+   "Disagree",
+   "Strongly disagree"
+  ],
+  "topic": "lens",
+  "axis": "self",
+  "test": null
+ },
+ {
+  "id": "lq-culture-2",
+  "surface": "test",
+  "seq": 178,
+  "type": "scale",
+  "domain": null,
+  "prompt": "Breaking a social rule should have consequences.",
+  "options": [
+   "Strongly agree",
+   "Agree",
+   "Neutral",
+   "Disagree",
+   "Strongly disagree"
+  ],
+  "topic": "lens",
+  "axis": "norms",
+  "test": null
+ },
+ {
+  "id": "lq-culture-3",
+  "surface": "test",
+  "seq": 179,
+  "type": "scale",
+  "domain": null,
+  "prompt": "Places work better when people are left to improvise.",
+  "options": [
+   "Strongly agree",
+   "Agree",
+   "Neutral",
+   "Disagree",
+   "Strongly disagree"
+  ],
+  "topic": "lens",
+  "axis": "norms",
+  "test": null
+ },
+ {
   "id": "learn-cell1",
   "surface": "learn",
   "seq": 0,

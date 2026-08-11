@@ -11,6 +11,10 @@
     /* Bundler mode */
     "moduleResolution": "bundler",
     "allowImportingTsExtensions": true,
+    /* lens-content.test.ts imports content/lenses.json to bind the seeded
+       bank's source to IS_LENSES (D91) — Vite and vitest resolve JSON
+       natively, this line is what lets tsc -b agree. */
+    "resolveJsonModule": true,
     "verbatimModuleSyntax": true,
     "moduleDetection": "force",
     "noEmit": true,

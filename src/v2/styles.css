@@ -1533,18 +1533,34 @@ button.card:active,
 }
 .app.dark .mmt-center-glabel { color: oklch(0.86 0.06 var(--hue)); background: color-mix(in oklch, var(--surface-2) 86%, oklch(0.62 0.115 var(--hue))); }
 
-/* the anchor ring — profile facts at the centre of the map */
+/* the anchor ring — profile facts at the centre of the map.
+
+   The open/close fold lives on .mmt-ringfold, and ONLY there. The anchors'
+   own transforms carry the per-frame zoom counter-scale (aScale), so a
+   `transform` transition on .mmt-anchor gets re-targeted on every frame of
+   a fit tween or pinch — the transition forever chasing a moving target is
+   the "dots shake while the card is open" bug (2026-08-11). Do not add
+   transform back to either element's transition. */
+.mmt-ringfold {
+  position: absolute; left: 0; top: 0; z-index: 4;
+  transition: transform 0.5s var(--ease-out);
+}
+/* closed, the ring folds into the You dot; the anchors also fade
+   (.mmt-anchor.is-closed below), so the fold is felt, not read */
+.mmt-ringfold.is-closed { transform: scale(0.12); }
 .mmt-ringline {
   position: absolute; left: 0; top: 0; border-radius: 50%; pointer-events: none;
   border: 1px solid color-mix(in oklch, var(--ink) 9%, transparent);
-  transition: opacity 0.35s ease, transform 0.5s var(--ease-out);
+  transition: opacity 0.35s ease;
 }
 .mmt-ringline.is-recede { opacity: 0.2; }
 .mmt-ringline.is-closed { opacity: 0; }
 .app.dark .mmt-ringline { border-color: color-mix(in oklch, var(--ink) 14%, transparent); }
-.mmt-anchor { display: flex; flex-direction: column; align-items: center; gap: 5px; z-index: 4; transition: opacity 0.3s ease, transform 0.5s var(--ease-out); }
+.mmt-anchor { display: flex; flex-direction: column; align-items: center; gap: 5px; z-index: 4; transition: opacity 0.3s ease; }
 .mmt-anchor.is-closed { opacity: 0; pointer-events: none; }
-.mmt-anchor::after { content: ''; position: absolute; inset: -14px; border-radius: 50%; }
+/* -18px, was -14: a 15px dot plus 14 was still under the ~44px a fingertip
+   needs, and the top anchor pays for every miss (the ruler sits above) */
+.mmt-anchor::after { content: ''; position: absolute; inset: -18px; border-radius: 50%; }
 .mmt-anchor-dot {
   width: 15px; height: 15px; border-radius: 50%; flex: none;
   background: oklch(0.605 0.118 var(--hue));

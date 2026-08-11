@@ -70,6 +70,7 @@ import {
 import type { AggDoc, LiveQuestion, QuestionDoc, VoteContext } from "./deck";
 import { nearOptedIn, setNearOptIn } from "./near";
 import { locateCell, locateSupported } from "./locate";
+import { scrubPersonaAnchors } from "./personaResidue";
 
 const state = {
   ready: false,
@@ -725,6 +726,15 @@ async function hydrate(): Promise<void> {
           (prof.get("testResults") as Record<string, unknown>) || {};
         state.profile.anchors =
           (prof.get("anchors") as Record<string, string>) || {};
+        // A doc a pre-fix build polluted with the sample persona's job and
+        // education (the baseFor merge leak — personaResidue.ts has the
+        // history) heals HERE, not only on the next profile open: the Map's
+        // anchor ring reads these back as "from your profile", and
+        // answerAnchors() stamps them onto every immutable answer until
+        // someone repairs the doc. saveAnchors writes the cleaned map back,
+        // so the repair is durable rather than per-boot.
+        const scrubbed = scrubPersonaAnchors(state.profile.anchors);
+        if (scrubbed) LIVE.saveAnchors(scrubbed);
       }
     } catch (err) {
       reportError(err, { where: "hydrate.profile" });
@@ -1417,6 +1427,17 @@ const LIVE = {
   // stranger's map.
   anchors(): Record<string, string> {
     return answerAnchors();
+  },
+  // The live half of a lens card (D91, reversing D50's device-only
+  // posture): k-floored counts for a lens question the seeded bank
+  // carries, own vote excluded like every feed count (the UI adds its
+  // +1). Returns null when the bank has no such row — an unseeded or
+  // pre-D91 backend — and the caller (lens-defs.js LENS_FEED_QS) falls
+  // back to the selfOnly acknowledgment rather than fabricating a crowd.
+  lensAgg(qid: string): { counts: number[]; tooSmall: boolean } | null {
+    const q = state.feedBank.find((x) => x.id === qid && x.surface === "test");
+    if (!q) return null;
+    return { counts: feedCounts(q), tooSmall: isTooSmall(state.aggs[qid]) };
   },
   // The anchors the profile has collected, as a plain map. Empty until the
   // user fills the Basics card in — an answer with no anchors simply folds

@@ -1,0 +1,453 @@
+{
+ "moral": {
+  "title": "Moral foundations",
+  "dims": [
+   {
+    "id": "care",
+    "label": "Care"
+   },
+   {
+    "id": "fair",
+    "label": "Fairness"
+   },
+   {
+    "id": "liberty",
+    "label": "Liberty"
+   },
+   {
+    "id": "loyal",
+    "label": "Loyalty"
+   },
+   {
+    "id": "authority",
+    "label": "Authority"
+   },
+   {
+    "id": "sanctity",
+    "label": "Sanctity"
+   }
+  ],
+  "questions": [
+   {
+    "id": "0",
+    "q": "Someone suffering matters more than someone being wronged.",
+    "d": "care"
+   },
+   {
+    "id": "1",
+    "q": "Cruelty is the worst thing a person can be.",
+    "d": "care"
+   },
+   {
+    "id": "2",
+    "q": "People should get out what they put in — no more, no less.",
+    "d": "fair"
+   },
+   {
+    "id": "3",
+    "q": "Standing by your own people counts, even when they are wrong.",
+    "d": "loyal"
+   },
+   {
+    "id": "4",
+    "q": "Respect for those in charge holds a society together.",
+    "d": "authority"
+   },
+   {
+    "id": "5",
+    "q": "Some things are degrading even when nobody is harmed.",
+    "d": "sanctity"
+   },
+   {
+    "id": "6",
+    "q": "Being told what to do is a harm in itself.",
+    "d": "liberty"
+   },
+   {
+    "id": "7",
+    "q": "Rules I never agreed to have no hold on me.",
+    "d": "liberty"
+   },
+   {
+    "id": "8",
+    "q": "Toughness does more good than tenderness.",
+    "d": "care",
+    "invert": true
+   }
+  ]
+ },
+ "risk": {
+  "title": "Risk, by domain",
+  "dims": [
+   {
+    "id": "financial",
+    "label": "Money"
+   },
+   {
+    "id": "health",
+    "label": "Health"
+   },
+   {
+    "id": "social",
+    "label": "Social"
+   },
+   {
+    "id": "recreational",
+    "label": "Thrill"
+   },
+   {
+    "id": "ethical",
+    "label": "Ethical"
+   }
+  ],
+  "questions": [
+   {
+    "id": "0",
+    "q": "I would put a month of savings into something volatile.",
+    "d": "financial"
+   },
+   {
+    "id": "1",
+    "q": "I read the fine print before signing anything with money in it.",
+    "d": "financial",
+    "invert": true
+   },
+   {
+    "id": "2",
+    "q": "I skip the check-up and assume it is nothing.",
+    "d": "health"
+   },
+   {
+    "id": "3",
+    "q": "I will say the unpopular thing in a room that disagrees.",
+    "d": "social"
+   },
+   {
+    "id": "4",
+    "q": "Steep, fast and slightly out of control is my idea of fun.",
+    "d": "recreational"
+   },
+   {
+    "id": "5",
+    "q": "I would bend a rule if the outcome were clearly better.",
+    "d": "ethical"
+   }
+  ]
+ },
+ "trust": {
+  "title": "Trust & worldview",
+  "dims": [
+   {
+    "id": "trust",
+    "label": "Strangers"
+   },
+   {
+    "id": "zerosum",
+    "label": "Gains"
+   },
+   {
+    "id": "justworld",
+    "label": "Outcomes"
+   }
+  ],
+  "questions": [
+   {
+    "id": "0",
+    "q": "Most people would give back a wallet they found.",
+    "d": "trust"
+   },
+   {
+    "id": "1",
+    "q": "You have to be careful — people take advantage.",
+    "d": "trust",
+    "invert": true
+   },
+   {
+    "id": "2",
+    "q": "For one group to gain, another has to lose.",
+    "d": "zerosum",
+    "political": true
+   },
+   {
+    "id": "3",
+    "q": "Trade between countries leaves both better off.",
+    "d": "zerosum",
+    "invert": true,
+    "political": true
+   },
+   {
+    "id": "4",
+    "q": "In the long run, people get roughly what they deserve.",
+    "d": "justworld"
+   },
+   {
+    "id": "5",
+    "q": "Where you end up is mostly where you started.",
+    "d": "justworld",
+    "invert": true
+   }
+  ]
+ },
+ "time": {
+  "title": "Time orientation",
+  "dims": [
+   {
+    "id": "horizon",
+    "label": "Focus"
+   },
+   {
+    "id": "patience",
+    "label": "Patience"
+   }
+  ],
+  "questions": [
+   {
+    "id": "0",
+    "q": "€100 today beats €160 in a year.",
+    "d": "horizon",
+    "invert": true
+   },
+   {
+    "id": "1",
+    "q": "I plan further ahead than most people I know.",
+    "d": "horizon"
+   },
+   {
+    "id": "2",
+    "q": "I finish the boring part first and enjoy the rest after.",
+    "d": "patience"
+   },
+   {
+    "id": "3",
+    "q": "If I want it, I buy it — I sort the rest out later.",
+    "d": "patience",
+    "invert": true
+   },
+   {
+    "id": "4",
+    "q": "A decade from now feels real enough to save for.",
+    "d": "horizon"
+   },
+   {
+    "id": "5",
+    "q": "Waiting is easy when I know what is coming.",
+    "d": "patience"
+   }
+  ]
+ },
+ "taste": {
+  "title": "Taste",
+  "dims": [
+   {
+    "id": "novelty",
+    "label": "Novelty"
+   },
+   {
+    "id": "complexity",
+    "label": "Complexity"
+   },
+   {
+    "id": "sincerity",
+    "label": "Register"
+   },
+   {
+    "id": "scene",
+    "label": "Scene"
+   }
+  ],
+  "questions": [
+   {
+    "id": "0",
+    "q": "I would rather try an unknown dish than order the one I love.",
+    "d": "novelty"
+   },
+   {
+    "id": "1",
+    "q": "I rewatch and relisten to the same things for years.",
+    "d": "novelty",
+    "invert": true
+   },
+   {
+    "id": "2",
+    "q": "A film that needs a second viewing is a better film.",
+    "d": "complexity"
+   },
+   {
+    "id": "3",
+    "q": "Earnest beats clever.",
+    "d": "sincerity"
+   },
+   {
+    "id": "4",
+    "q": "If everyone likes it, it has usually been sanded down.",
+    "d": "scene"
+   },
+   {
+    "id": "5",
+    "q": "I keep up with what most people are watching.",
+    "d": "scene",
+    "invert": true
+   }
+  ]
+ },
+ "conflict": {
+  "title": "Conflict style",
+  "dims": [
+   {
+    "id": "assert",
+    "label": "Stance"
+   },
+   {
+    "id": "engage",
+    "label": "Instinct"
+   }
+  ],
+  "questions": [
+   {
+    "id": "0",
+    "q": "I say it in the room rather than after.",
+    "d": "engage"
+   },
+   {
+    "id": "1",
+    "q": "I let small things go to keep the peace.",
+    "d": "assert",
+    "invert": true
+   },
+   {
+    "id": "2",
+    "q": "I would rather win the argument than end it.",
+    "d": "assert"
+   },
+   {
+    "id": "3",
+    "q": "When it heats up I go quiet and leave.",
+    "d": "engage",
+    "invert": true
+   }
+  ]
+ },
+ "humor": {
+  "title": "Humour",
+  "dims": [
+   {
+    "id": "affiliative",
+    "label": "Warm"
+   },
+   {
+    "id": "selfenh",
+    "label": "Wry"
+   },
+   {
+    "id": "aggressive",
+    "label": "Cutting"
+   },
+   {
+    "id": "selfdef",
+    "label": "At myself"
+   }
+  ],
+  "questions": [
+   {
+    "id": "0",
+    "q": "I joke to make a room easier to be in.",
+    "d": "affiliative"
+   },
+   {
+    "id": "1",
+    "q": "When things go badly I can usually find it funny.",
+    "d": "selfenh"
+   },
+   {
+    "id": "2",
+    "q": "A good joke is worth someone being stung by it.",
+    "d": "aggressive"
+   },
+   {
+    "id": "3",
+    "q": "I get laughs by putting myself down.",
+    "d": "selfdef"
+   },
+   {
+    "id": "4",
+    "q": "A joke that needs a target isn’t worth telling.",
+    "d": "aggressive",
+    "invert": true
+   }
+  ]
+ },
+ "thinking": {
+  "title": "Thinking style",
+  "dims": [
+   {
+    "id": "mode",
+    "label": "Method"
+   },
+   {
+    "id": "update",
+    "label": "Holding"
+   }
+  ],
+  "questions": [
+   {
+    "id": "0",
+    "q": "My first instinct is usually right.",
+    "d": "mode",
+    "invert": true
+   },
+   {
+    "id": "1",
+    "q": "I want the numbers before I decide.",
+    "d": "mode"
+   },
+   {
+    "id": "2",
+    "q": "I change my mind when the evidence changes.",
+    "d": "update"
+   },
+   {
+    "id": "3",
+    "q": "Sitting with not knowing is uncomfortable.",
+    "d": "update",
+    "invert": true
+   }
+  ]
+ },
+ "culture": {
+  "title": "Cultural orientation",
+  "dims": [
+   {
+    "id": "self",
+    "label": "Self"
+   },
+   {
+    "id": "norms",
+    "label": "Norms"
+   }
+  ],
+  "questions": [
+   {
+    "id": "0",
+    "q": "My choices are mine before they are my family’s.",
+    "d": "self"
+   },
+   {
+    "id": "1",
+    "q": "What my community expects shapes what I do.",
+    "d": "self",
+    "invert": true
+   },
+   {
+    "id": "2",
+    "q": "Breaking a social rule should have consequences.",
+    "d": "norms"
+   },
+   {
+    "id": "3",
+    "q": "Places work better when people are left to improvise.",
+    "d": "norms",
+    "invert": true
+   }
+  ]
+ }
+}

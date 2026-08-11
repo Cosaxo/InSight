@@ -3,6 +3,14 @@
 // Cross-module references resolve through the shared global scope and
 // spec-index.js load order is semantic — scripts/check-spec-globals.mjs
 // guards the wiring in CI.
+//
+// An ordinary import, not the window.LIVE lookups this file carried — the
+// typed module is importable from spec (map-anchors precedent), and the
+// two freed reference sites are what pay for lensAgg's read below under
+// check:globals rule 4. `.enabled`/`.lensAgg` are data conditions and
+// stay: enabled is false for the whole of mock mode, and lensAgg answers
+// null against a bank that has no lens rows.
+import LIVE from '../data/live';
 
 // lens-defs.js — the MINOR instruments ("lenses"). Smaller than the four core
 // tests: 4–8 questions each, no archetype, no rarity banner. They live on the
@@ -235,7 +243,7 @@ window.LENSES = (function () {
   // only so the prototype shows all progress states at once. Same Proxy
   // shape as passive-progress.js's SEED, deliberately: one idiom for
   // "demo-only number" across the spec layer.
-  const liveOn = () => !!(window.LIVE && window.LIVE.enabled);
+  const liveOn = () => !!LIVE.enabled;
   const seedOf = (l) => (liveOn() ? 0 : (l.seed || 0));
   // weight of the typical-person prior in your own score. Nonzero only in
   // demo mode, where a half-answered lens still needs to draw something.
@@ -341,11 +349,15 @@ window.LENSES = (function () {
 // a pool snapshotted here is always the DEMO one: seedCount() excludes each
 // lens's seeded prefix as "already answered". Live mode starts every lens at
 // a real zero, so freezing that snapshot in cost live users every one of
-// those prefix questions (~20 of the 48 items) — for a feed-only user,
-// `moral` could never pass 4 of 8. Rebuilt lazily instead, memoised on the
-// store's own liveOn(); world-feed calls this on every feed build.
+// those prefix questions (~20 of the 50 items) — for a feed-only user,
+// `moral` could never pass 4 of 8. Rebuilt lazily instead; world-feed calls
+// this on every feed build.
 window.LENS_FEED_QS = (function () {
   function h(s) { let x = 17; for (let i = 0; i < s.length; i++) x = Math.imul(x ^ s.charCodeAt(i), 2654435761); return ((x ^ (x >>> 11)) >>> 0) / 4294967295; }
+  // Agree-FIRST, and the seeded bank's lens rows carry the same five in the
+  // same order (content/lenses.json → LENS_SCALE, drift-gated by
+  // check:content): stored optionIdx indexes this list, and world-feed's
+  // `4 - val` store inversion depends on the order.
   const SCALE = ['Strongly agree', 'Agree', 'Neutral', 'Disagree', 'Strongly disagree'];
   function build() {
     const L = window.LENSES; if (!L) return [];
@@ -355,18 +367,32 @@ window.LENS_FEED_QS = (function () {
       return l.questions.slice(from).map((q, i) => {
         const qi = from + i, id = 'lq-' + l.id + '-' + qi;
         const peak = Math.floor(h(id) * SCALE.length);
+        // AUTHORED counts — demo furniture. A live card never renders them:
+        // it either replaces them with the measured counts below or carries
+        // selfOnly, which keeps every crowd surface off the card.
         const options = SCALE.map((label, oi) => {
           const w = 1 / (1 + Math.abs(oi - peak)) + h(id + ':' + oi) * 0.45;
           return { label, count: Math.round(180 + w * 1900) };
         });
         // tier 2 lenses surface at half the rate of tier 1
         const card = { id, lens: l.id, qi, tier: l.tier, cat: 'lens', type: 'vote', prompt: q.q, options };
-        // In a live session those counts are AUTHORED, not measured: lens
-        // answers stay on this device (the persistence note above), so no
-        // backend aggregate exists to draw. The flag tells world-feed to
-        // keep every crowd surface off the card and acknowledge the local
-        // write instead of rendering a split (D50).
-        if (live) card.selfOnly = true;
+        if (live) {
+          // D91 (reversing D50's device-only half): lens items are seeded
+          // world questions now, so a live card draws the same k-floored
+          // counts every feed card does — and the answer still records to
+          // the on-device instrument (world-feed setVote calls both).
+          const agg = LIVE.lensAgg(id);
+          if (agg) {
+            card.options = SCALE.map((label, oi) => ({ label, count: agg.counts[oi] || 0 }));
+            card.live = true;
+            card.tooSmall = agg.tooSmall;
+          } else {
+            // The bank has no lens rows — a pre-D91 backend. The counts
+            // above are authored, not measured, so the D50 treatment
+            // stays: every crowd surface off, acknowledge the local write.
+            card.selfOnly = true;
+          }
+        }
         return card;
       });
     });
@@ -382,10 +408,16 @@ window.LENS_FEED_QS = (function () {
     }
     return out;
   }
-  let builtFor = null, built = [];
+  // Memoised in DEMO mode only, where the pool is static. A live pool
+  // carries measured counts that move with every vote and agg refresh, so
+  // it is rebuilt per call — world-feed calls this once per feed build,
+  // which is exactly the cadence TEST_FEED_QS gets rebuilt at
+  // (buildFeedGlobals), just pull instead of push.
+  let demoBuilt = null;
   return function () {
-    const live = !!(window.LENSES && window.LENSES.liveOn());
-    if (builtFor !== live) { builtFor = live; built = build(); }
-    return built;
+    const L = window.LENSES;
+    if (L && L.liveOn()) { demoBuilt = null; return build(); }
+    if (!demoBuilt) demoBuilt = build();
+    return demoBuilt;
   };
 })();

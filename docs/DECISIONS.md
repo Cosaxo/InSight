@@ -554,6 +554,12 @@ as deployed infrastructure. It now says what is true.
 > why the geohash Near was not revived — but any sentence below claiming
 > the app never asks for location is now false. The store label is Coarse
 > Location.
+>
+> **Narrowed again by [D92](#d92--a-standing-location-grant-fills-the-city-in--suggested-never-applied-narrows-to-the-no-grant-state)
+> (2026-08-11).** "A located city is suggested, never applied" now holds
+> only while the Right-now counter (D84) is off. With the counter on — an
+> explicit, revocable location grant — Near resolves and applies the city
+> itself, still saving only the name.
 
 
 **Decision.** The Mirror's Near population is the city the user **picks from
@@ -4773,7 +4779,18 @@ The coupling count is unchanged at 540, correctly — these were file-local
 reads, not cross-module ones, and a meter that moved here would be lying.
 ## D50 · A lens question in a live feed is a self-report item, not a poll
 
-**Date:** 2026-08-06 · **Status:** Adopted
+**Date:** 2026-08-06 · **Status:** Adopted — the "acknowledge instead of
+aggregate" half reversed by D91
+
+> **Reversed in part by [D91](#d91--lens-questions-are-polls-the-items-are-seeded-and-their-counts-publish)
+> (2026-08-11).** Option (b) below — build a real crowd — shipped: the
+> lens items are seeded world questions now, and a live lens card against
+> a seeded bank is an ordinary live card. Exactly as this entry planned,
+> the `selfOnly` flag came off the cards whose questions gained a real
+> aggregate — and only those: against a bank with no lens rows the flag
+> and the acknowledgment remain, because the authored counts are still
+> authored. The two repairs recorded below (the per-liveness pool rebuild
+> and the purge listener) stand untouched.
 
 **Decision.** Lens cards woven into a live session's feed carry
 `selfOnly: true`, stamped by `LENS_FEED_QS`'s builder — which now rebuilds
@@ -8610,3 +8627,159 @@ places.test.ts asserts blank-state order on a fixture that contains Oslo
 the developer's wall clock. The single real Intl read lives in
 `regionHint`, spied in its own case, with the same try/catch the
 `countryName` Intl guard already carries.
+
+## D91 · Lens questions are polls: the items are seeded, and their counts publish
+
+**Date:** 2026-08-11 · **Status:** Adopted · reverses the
+"acknowledge instead of aggregate" half of D50
+
+**Decision.** The 50 minor-instrument items (`IS_LENSES`, lens-defs.js)
+are world questions: seeded into `v2_questions` from a new
+`content/lenses.json` source (surface `test`, ids `lq-<lens>-<qi>`), so a
+lens answer writes the same owner-only doc every card writes, folds
+through the same trigger, and publishes the same k-floored counts. A live
+lens card is an ordinary live card — measured split, the anonymous
+world-takes toggle (D83), the who-voted breakdown (D8), the D86 change
+affordance — and the answer still records to the on-device instrument;
+world-feed's `setVote` has always done both, the vote half just had
+nowhere to go. `selfOnly` (D50) survives as exactly one thing: the
+fallback when `LIVE.lensAgg` finds no lens row in the bank (an unseeded
+or pre-D91 backend), where rendering the authored counts would be the
+fabrication D1 forbids and rules would refuse the answer write anyway.
+
+**Why.** The owner's call (2026-08-11): there is no reason for lens
+questions to be quieter than any other question — they should carry the
+same breakdown and takes. D50 deferred (b) "build a real one" as "a new
+collection, its k-floor, rules and their tests, for numbers whose product
+value is unproven" — but that arithmetic priced the wrong shape. Seeded
+as ordinary bank rows, the items need **zero** new collections, rules or
+floors: `isWorldAnswer` already admits surface `test` against any seeded
+question doc, the trigger already folds any qid, and `splitBanks` already
+routes the rows to the feed bank. The increment was a content source, one
+narrow accessor (`LIVE.lensAgg`), and the flag coming off.
+
+**The order of the scale is load-bearing.** The seeded options are the
+client's agree-FIRST five (`LENS_SCALE`, gen-v2content.mjs), the reverse
+of every other scale item's LIKERT — because stored `optionIdx` indexes
+the options, and the client stores the instrument value as `4 - val`
+(world-feed setVote). check:content pins lens rows to LENS_SCALE and
+everything else to LIKERT, so neither can drift into the other.
+
+**Ids are the client's, verbatim.** `lq-<lens>-<qi>` with an unpadded
+index — minted by lens-defs.js before the items had a backend. Devices
+that answered lens cards in the selfOnly era hold feed votes and the
+instrument's seen-map under those ids, so re-keying would resurface every
+answered card. The cost of keeping them: `check-content`'s id shape for
+the test surface admits two families. (Those pre-D91 local answers never
+reach the server retroactively — the card reads as answered and nothing
+re-offers it — which loses a handful of counts and fabricates none.)
+
+**Two items never slice (D44/D52).** "For one group to gain, another has
+to lose" and "Trade between countries leaves both better off"
+(`lq-trust-2/3`) state economic-policy opinions — the same class as the
+political test's own items — so they carry `political: true` and join the
+no-slice set by existing: overall split published, never cross-tabbed by
+anchors. The other 48 are instrument items in the values/big5 class,
+which slice like the rest of the test surface. The moral-foundations and
+tightness-looseness items were considered and left slicing deliberately:
+they are standard psychometrics with political *correlates*, same as the
+values test D8 already slices; the flag marks items that *are* political
+opinions.
+
+**What does not change.** Instrument persistence stays device-local
+(lens-defs' persistence note and D50's second repair both stand — the
+answer doc is a poll vote, not a restorable instrument mirror). The
+Mirror ripple stays off lens cards — a lens answer lands on the profile's
+Lenses tab, not the Mirror, so the gate moved from `selfOnly` to `q.lens`
+rather than disappearing. And the demo pool is untouched.
+
+**Enforcement.** `lens-content.test.ts` binds `content/lenses.json` to
+`IS_LENSES` by index (id, text, dimension, invert — positional drift
+re-keys immutable answers) and pins the two political flags;
+`check:content` binds the JSON to the compiled bank, pins both scale
+orders and the two-family id shape; `lens-live.test.ts` pins both live
+pool shapes (seeded → live cards with measured counts, unseeded →
+selfOnly) and the per-call rebuild; `smoke-live.test.jsx` mounts both
+paths — the seeded card must reach `LIVE.vote`, render a split and carry
+the takes toggle, the unseeded card must reach neither crowd nor store;
+`slicing.test.ts` picks the two flagged items up by construction.
+
+## D92 · A standing location grant fills the city in — "suggested, never applied" narrows to the no-grant state
+
+**Date:** 2026-08-11 · **Status:** Adopted · narrows D9's amendment
+
+**Decision.** When the Right-now counter (D84) is ON and no city anchor is
+set, the Near/Country empty state resolves the city on the device
+(`locateCity`, D9's containment: the coordinate never leaves locate.ts)
+and **applies** it through `setCityAnchor` — no confirmation tap. The
+interim state says what is happening and repeats the guarantee at the
+moment it is checkable: only the city NAME is saved, never the
+coordinates. One attempt per on-transition; any failure falls back to the
+unchanged ask + picker, whose own "Use my location" remains
+suggest-then-confirm. With the counter OFF nothing touches the sensor,
+and the ask now names the hands-free path ("turning on the count above
+fills it in for you").
+
+**Why.** The owner's report (2026-08-11): "Near should not need a city."
+The screenshot behind it shows exactly the state this closes — the
+counter ON and counting, meaning the person has already granted location
+to this feature on this screen, while the panel underneath still demands
+they find Oslo in a list. D9's suggest-never-apply rule was written
+against a different situation: a profile field silently rewritten from a
+sensor the user never engaged, which "makes a location prompt feel like a
+trick". A standing, revocable, user-initiated grant is the opposite
+situation, and the derived datum — a catalogue key — is strictly LESS
+information than the ~1 km presence cell the counter is already sharing
+while on. Keeping the ask there was privacy theatre paid for in dead
+ends.
+
+**What it does not change.** The picker stays (manual pick and later
+change in the profile, exactly as before); the counter-off path is
+untouched, so no location is ever requested by this panel — the enable
+tap on the counter remains the only prompt carrier (D9/D84); and the
+saved shape is the same `vitals.city` + anchors write a manual pick
+lands, so the profile mirror keeps re-asserting it rather than blanking
+it.
+
+**Enforcement.** `LiveCohortBody.test.tsx` (D92 block): derives and
+applies with the counter on, saying so; never touches the resolver with
+the counter off or a city set; applies nothing on a failed fix and falls
+back to the ask; and the Country stop derives identically.
+
+## D93 · The persona's residue is scrubbed from live anchors at boot, by exact signature
+
+**Date:** 2026-08-11 · **Status:** Adopted
+
+**Decision.** `hydrate()` passes the profile doc's anchors through
+`scrubPersonaAnchors` (data/personaResidue.ts): `profession` equal to the
+sample persona's "Editor · independent press" is dropped, `education`
+equal to "MA Literature · Univ. of Oslo" is dropped, and `ageBand` goes
+only when BOTH matched — the whole triple was then the leak's one write.
+When anything was dropped, `saveAnchors` writes the cleaned map back, so
+the repair is durable and the next answer snapshots clean anchors (D8).
+City, gender and relationship are never touched: the seeded vitals never
+carried them.
+
+**Why now.** The owner's device showed "Editor · independent press ·
+FROM YOUR PROFILE" on the Map's Work anchor today (2026-08-11). The
+baseFor merge leak that wrote it is long fixed and migrateV1 filters the
+local v1 blob — but the DOC a pre-fix build polluted heals only via the
+profile panel's mount mirror, i.e. only when the profile overlay is next
+opened. A device that answers daily and never opens the profile keeps
+the fabricated cohort forever, stamped onto every immutable answer.
+Boot is the one place every device passes through.
+
+**Why exact-match deletion is safe here, and only here.** Neither string
+is enterable today: profession and education are closed `<select>`
+vocabularies (D8) that do not contain them, so an exact match IS the
+residue. `ageBand` fails that test — real people share the persona's
+band — hence the both-or-nothing rule for it. The trade is the same one
+migrateV1 already recorded: a hypothetical user who genuinely held both
+exact strings from the free-text era re-picks two fields, against
+fabricated anchors that otherwise cannot be corrected at all.
+
+**Enforcement.** `personaResidue.test.ts` binds the constants to
+`sample-data.js` verbatim (a drifted copy scrubs nothing), pins that
+`profile-general.jsx` contains neither string anywhere (a reintroduced
+default was the original leak), and covers full-triple, partial and
+clean-profile behavior.
