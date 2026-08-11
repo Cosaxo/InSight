@@ -28,6 +28,12 @@ import React from "react";
 import LIVE from "../data/live";
 import PLACES from "../data/places";
 import { setCityAnchor } from "../data/cityAnchor";
+// The on-device fix→city resolver (D9's containment: a coordinate enters
+// locate.ts and does not leave it). Called here only under D90's condition —
+// the Right-now counter is already ON, so the location grant exists and the
+// city name is strictly less information than the grid square presence
+// already shares.
+import { locateCity } from "../data/locate";
 // The floor the copy below may claim — data/floor.ts is the client's pinned
 // copy of AGG_MIN_N (floor.test.ts holds them equal), currently 1 under
 // D81's launch pause. Every sentence here that mentions the floor branches
@@ -167,27 +173,70 @@ function LiveCohortBody({ scope = "city" }: { scope?: CohortScope }) {
   const place = city ? PLACES.parse(city) : null;
   const country = place ? place.country : "";
 
+  const needsCity = scope !== "world" && !city;
+  const nearOn = LIVE.near.on();
+  // D90: when the Right-now counter is ON, the user has an explicit,
+  // revocable location grant standing for a live feature — so Near stops
+  // asking and derives the city from the same grant. The datum applied is
+  // still only the catalogue key (locateCity's containment), which is
+  // strictly LESS information than the ~1 km presence cell the counter
+  // already shares. D9's suggest-never-apply rule stays for every other
+  // path: with the counter off, the picker below is unchanged and its
+  // located city remains a suggestion.
+  const [finding, setFinding] = React.useState(false);
+  // One attempt per on-transition: a failed fix must not re-fire on every
+  // notify, and turning the counter off then on again is the retry.
+  const derivedFor = React.useRef(false);
+  React.useEffect(() => {
+    if (!nearOn) { derivedFor.current = false; return; }
+    if (!needsCity || derivedFor.current) return;
+    derivedFor.current = true;
+    let alive = true;
+    setFinding(true);
+    void locateCity().then((r) => {
+      if (!alive) return;
+      setFinding(false);
+      // Applied, not suggested (D90). On any failure the ask below is
+      // already the fallback, and the picker's own "Use my location"
+      // carries the per-reason copy for a deliberate retry.
+      if (r.ok) setCityAnchor(r.key);
+    });
+    return () => { alive = false; };
+  }, [needsCity, nearOn]);
+
   // City and country slice the published breakdown by the viewer's own
   // bucket; the globe is the plain total. Nothing here reads another
   // user's document to find out which bucket that is (D5).
-  if (scope !== "world" && !city) {
+  if (needsCity) {
     return (
       <div style={{ padding: "0 16px" }}>
         {/* The radius half needs no city (D84) — it renders above the
             city ask, so Near is never a dead end again. */}
         {scope === "city" && <NearNowCard />}
-        <LnNote title={scope === "city" ? "Near needs a city" : "This needs a city"}>
-          Set it right here — use your location or search the list. Either way
-          only the city name is saved, never your coordinates, and you can
-          change it any time in your profile.
-        </LnNote>
+        {finding ? (
+          <LnNote title="Finding your city…">
+            Location is already on for the count, so your city is being
+            matched on this phone — only its name will be saved, never your
+            coordinates. You can also pick it yourself below.
+          </LnNote>
+        ) : (
+          <LnNote title={scope === "city" ? "Near needs a city" : "This needs a city"}>
+            Set it right here — use your location or search the list. Either
+            way only the city name is saved, never your coordinates, and you
+            can change it any time in your profile.
+            {scope === "city" && !nearOn && LIVE.near.supported() && (
+              <> Turning on the count above fills it in for you, from the
+              same location grant.</>
+            )}
+          </LnNote>
+        )}
         {/* The profile's own picker, in place: "go set it in your profile"
-            with nothing tappable was a dead end. Location stays one tap away
-            rather than automatic — D9 records that location is never
-            requested until the button is tapped, and a located city is
-            suggested, never applied. setCityAnchor writes the same two
-            places a profile edit reaches, so the next profile open mirrors
-            this city instead of blanking it. */}
+            with nothing tappable was a dead end. With the counter OFF,
+            location stays one tap away rather than automatic — D9 records
+            that a located city is suggested, never applied, and D90 narrows
+            that to exactly the no-grant state. setCityAnchor writes the
+            same two places a profile edit reaches, so the next profile open
+            mirrors this city instead of blanking it. */}
         <div style={{ maxWidth: 330, margin: "0 auto", padding: "0 4px 26px" }}>
           <CityPicker value="" onChange={setCityAnchor} />
         </div>

@@ -60,6 +60,13 @@ vi.mock("../data/live", () => ({ default: LIVE }));
 // pixel the same.
 const setCityAnchor = vi.hoisted(() => vi.fn());
 vi.mock("../data/cityAnchor", () => ({ setCityAnchor }));
+// The resolver is mocked for the same reason live is: the real one asks the
+// platform for a fix. What D90's cases need is only its contract — a
+// catalogue key or a reason, never a coordinate.
+const locateCity = vi.hoisted(() =>
+  vi.fn(async () => ({ ok: true, key: "Oslo, NO", km: 2 } as
+    { ok: true; key: string; km: number } | { ok: false; reason: string })));
+vi.mock("../data/locate", () => ({ locateCity, locateSupported: () => true }));
 
 const { default: LiveCohortBody } = await import("./LiveCohortBody");
 const { default: PLACES } = await import("../data/places");
@@ -82,6 +89,8 @@ beforeEach(() => {
   LIVE.near.count = () => null;
   LIVE.near.tooFew = () => false;
   setCityAnchor.mockClear();
+  locateCity.mockClear();
+  locateCity.mockImplementation(async () => ({ ok: true, key: "Oslo, NO", km: 2 }));
 });
 afterEach(() => { cleanup(); vi.restoreAllMocks(); });
 
@@ -224,6 +233,66 @@ describe("LiveCohortBody · no city is a prompt, not an empty panel", () => {
     render(<LiveCohortBody scope="world" />);
     expect(screen.getByText("The world")).toBeTruthy();
     expect(screen.getByText("First question")).toBeTruthy();
+  });
+});
+
+describe("LiveCohortBody · with the counter on, the city derives itself (D90)", () => {
+  it("resolves and APPLIES the city from the standing grant, saying so", async () => {
+    // The Right-now counter being on IS the location grant — asking the
+    // same person to also pick "Oslo" from a list was the dead end the
+    // owner reported. The resolved key is applied through the same
+    // setCityAnchor a manual pick uses, so profile and anchors stay in
+    // sync, and the interim copy repeats the D9 claim at the moment it is
+    // checkable: only the name is saved.
+    LIVE.myCity = "";
+    LIVE.near.on = () => true;
+    render(<LiveCohortBody scope="city" />);
+    expect(screen.getByText(/Finding your city/i)).toBeTruthy();
+    expect(screen.getByText(/only its name will be saved, never your\s+coordinates/i)).toBeTruthy();
+    await vi.waitFor(() => expect(setCityAnchor).toHaveBeenCalledWith("Oslo, NO"));
+    expect(locateCity).toHaveBeenCalledTimes(1);
+  });
+
+  it("never locates while the counter is OFF — D9's ask is unchanged", () => {
+    // The apply-not-suggest carve-out is scoped to the standing grant.
+    // Without it, the panel must not touch the sensor: the ask renders,
+    // the picker stays, and the copy points at the counter as the
+    // hands-free path.
+    LIVE.myCity = "";
+    render(<LiveCohortBody scope="city" />);
+    expect(locateCity).not.toHaveBeenCalled();
+    expect(screen.getByText(/Near needs a city/i)).toBeTruthy();
+    expect(screen.getByText(/Turning on the count above fills it in/i)).toBeTruthy();
+  });
+
+  it("never locates when a city is already set", () => {
+    LIVE.near.on = () => true;
+    render(<LiveCohortBody scope="city" />);
+    expect(locateCity).not.toHaveBeenCalled();
+  });
+
+  it("falls back to the ask on a failed fix, applying nothing", async () => {
+    // A refusal or a timeout must not loop the sensor (one attempt per
+    // on-transition) and must not invent a city. The manual picker — with
+    // its own per-reason retry copy — is the fallback already on screen.
+    LIVE.myCity = "";
+    LIVE.near.on = () => true;
+    locateCity.mockImplementation(async () => ({ ok: false, reason: "timeout" }));
+    render(<LiveCohortBody scope="city" />);
+    await vi.waitFor(() => expect(screen.queryByText(/Finding your city/i)).toBeNull());
+    expect(setCityAnchor).not.toHaveBeenCalled();
+    expect(screen.getByText(/Near needs a city/i)).toBeTruthy();
+    expect(screen.getByRole("button", { name: /Choose your city/i })).toBeTruthy();
+    expect(locateCity).toHaveBeenCalledTimes(1);
+  });
+
+  it("derives on the Country stop too — same grant, same rule", async () => {
+    // "This needs a city" is the same gate at a different radius; a grant
+    // that serves Near serves it identically.
+    LIVE.myCity = "";
+    LIVE.near.on = () => true;
+    render(<LiveCohortBody scope="country" />);
+    await vi.waitFor(() => expect(setCityAnchor).toHaveBeenCalledWith("Oslo, NO"));
   });
 });
 

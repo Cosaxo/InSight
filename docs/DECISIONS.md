@@ -554,6 +554,12 @@ as deployed infrastructure. It now says what is true.
 > why the geohash Near was not revived — but any sentence below claiming
 > the app never asks for location is now false. The store label is Coarse
 > Location.
+>
+> **Narrowed again by [D90](#d90--a-standing-location-grant-fills-the-city-in--suggested-never-applied-narrows-to-the-no-grant-state)
+> (2026-08-11).** "A located city is suggested, never applied" now holds
+> only while the Right-now counter (D84) is off. With the counter on — an
+> explicit, revocable location grant — Near resolves and applies the city
+> itself, still saving only the name.
 
 
 **Decision.** The Mirror's Near population is the city the user **picks from
@@ -8619,3 +8625,45 @@ selfOnly) and the per-call rebuild; `smoke-live.test.jsx` mounts both
 paths — the seeded card must reach `LIVE.vote`, render a split and carry
 the takes toggle, the unseeded card must reach neither crowd nor store;
 `slicing.test.ts` picks the two flagged items up by construction.
+
+## D90 · A standing location grant fills the city in — "suggested, never applied" narrows to the no-grant state
+
+**Date:** 2026-08-11 · **Status:** Adopted · narrows D9's amendment
+
+**Decision.** When the Right-now counter (D84) is ON and no city anchor is
+set, the Near/Country empty state resolves the city on the device
+(`locateCity`, D9's containment: the coordinate never leaves locate.ts)
+and **applies** it through `setCityAnchor` — no confirmation tap. The
+interim state says what is happening and repeats the guarantee at the
+moment it is checkable: only the city NAME is saved, never the
+coordinates. One attempt per on-transition; any failure falls back to the
+unchanged ask + picker, whose own "Use my location" remains
+suggest-then-confirm. With the counter OFF nothing touches the sensor,
+and the ask now names the hands-free path ("turning on the count above
+fills it in for you").
+
+**Why.** The owner's report (2026-08-11): "Near should not need a city."
+The screenshot behind it shows exactly the state this closes — the
+counter ON and counting, meaning the person has already granted location
+to this feature on this screen, while the panel underneath still demands
+they find Oslo in a list. D9's suggest-never-apply rule was written
+against a different situation: a profile field silently rewritten from a
+sensor the user never engaged, which "makes a location prompt feel like a
+trick". A standing, revocable, user-initiated grant is the opposite
+situation, and the derived datum — a catalogue key — is strictly LESS
+information than the ~1 km presence cell the counter is already sharing
+while on. Keeping the ask there was privacy theatre paid for in dead
+ends.
+
+**What it does not change.** The picker stays (manual pick and later
+change in the profile, exactly as before); the counter-off path is
+untouched, so no location is ever requested by this panel — the enable
+tap on the counter remains the only prompt carrier (D9/D84); and the
+saved shape is the same `vitals.city` + anchors write a manual pick
+lands, so the profile mirror keeps re-asserting it rather than blanking
+it.
+
+**Enforcement.** `LiveCohortBody.test.tsx` (D90 block): derives and
+applies with the counter on, saying so; never touches the resolver with
+the counter off or a city set; applies nothing on a failed fix and falls
+back to the ask; and the Country stop derives identically.
