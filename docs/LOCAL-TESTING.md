@@ -37,8 +37,10 @@ await httpsCallable(getFunctions(undefined, "us-central1"), "seedContentV2")({})
 What live mode gives you:
 
 - Anonymous session on boot (uid persists across reloads).
-- The real daily deck + feed with k-floored counts (below 5 answers the
-  payoff shows only your own vote — that's the floor working).
+- The real daily deck + feed. The k-floor is paused to 1 (D81), so counts
+  appear from your first vote; at the design floor of 5 the payoff would
+  show only your own vote until five answers landed — that machinery
+  still runs, it just bites at a size that cannot occur.
 - Groups & duos end-to-end: create, join by invite code from a second
   browser profile/incognito window, sealed votes. Force a reveal for
   testing with the `revealDuelsNowV2` callable (open in the emulator):

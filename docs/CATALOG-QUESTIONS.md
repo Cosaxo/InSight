@@ -121,8 +121,9 @@ create-only doc — worthless to the aggregate, harmless to everyone else.
 A favourite-of-1,000 has no 52/48 to stage. The reveal is a **leaderboard**:
 
 - Publish the **top N entities (N = 10)** whose counts clear the per-bucket
-  floor (`AGG_MIN_N = 5`), rewritten every `PUBLISH_EVERY = 5` answers —
-  the existing D7 cadence, unchanged.
+  floor (`AGG_MIN_N` — 5 by design, paused to 1 pre-launch, D81), rewritten
+  every `PUBLISH_EVERY` answers (paused with it) — the existing D7 cadence,
+  unchanged.
 - Everything else folds into one **"everyone else" bucket** = total −
   published. The subtraction-leak rule already in `pure.ts` applies: if
   exactly one entity sits below the floor, its count would be recoverable

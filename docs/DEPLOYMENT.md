@@ -378,8 +378,10 @@ redelivered events are no-ops rather than double counts.
 ## Correcting aggregates after a fake-account ring (D28)
 
 Fake-account prevention is deliberately partial — App Check prices
-accounts, the k-floor and publish cadence hide small distortions, and D28
-records why no mechanism can make it complete. What the system guarantees
+accounts, the k-floor and publish cadence hide small distortions at
+their design pair (both sit at 1 under D81's pause, so until the floor
+restores nothing is hidden and correctability is the whole defence), and
+D28 records why no mechanism can make it complete. What the system guarantees
 instead is that the published numbers stay **correctable**: answers are
 immutable (D5), exact counts live server-side in `v2_aggs_private`, and
 every counted answer leaves a `v2_agg_events` entry `{ qid, uid, at }`

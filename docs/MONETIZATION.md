@@ -19,6 +19,12 @@ immutable answers, the exact counts in `v2_aggs_private`), and the
 k-floor is why selling it never sells a person (AGG_MIN_N, complementary
 suppression, D8/D18).
 
+**Pause note (D81):** the floor is paused to 1 pre-launch — counts
+publish exactly, per answer, and a tiny cohort's count is readable as an
+individual's answer until the floor restores at launch traction. "Never
+sells a person" is therefore a property of the design floor; none of the
+paths below is built yet, so nothing is sold under the pause.
+
 The other side of the ledger is [`COSTS.md`](COSTS.md): what serving that
 asset costs at five sizes, and which three lines the bill actually
 consists of. The short version is that infrastructure is not the
