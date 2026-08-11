@@ -82,9 +82,13 @@ function CityPicker({ value, onChange, inputStyle }: CityPickerProps) {
     return () => document.removeEventListener("pointerdown", onDown);
   }, [open]);
 
+  // The blank-state hint (D90): the clock's country, once per catalogue.
+  // "" — no zone, or a zone city the catalogue does not know — keeps the
+  // world's population order.
+  const hint = React.useMemo(() => (places ? PLACES.regionHint(places) : ""), [places]);
   const results = React.useMemo(
-    () => (places ? PLACES.search(places, q, 40) : []),
-    [places, q],
+    () => (places ? PLACES.search(places, q, 40, hint) : []),
+    [places, q, hint],
   );
   React.useEffect(() => { setHi(0); }, [q]);
 

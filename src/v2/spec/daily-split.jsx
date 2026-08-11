@@ -633,7 +633,8 @@ class DailySplit extends React.Component {
       ? (AGG_FLOOR > 1
         ? 'You\u2019re early \u2014 counts appear once ' + AGG_FLOOR + ' people have answered.'
         : 'You\u2019re first \u2014 the count lands in a moment.')
-      : liveTotal + ' votes';
+      // "1 vote", but "1+ votes" — the + is a lower bound, so its plural stands
+      : liveTotal + (liveTotal === '1' ? ' vote' : ' votes');
     const onReset = () => this.setState(s => { const v = { ...s.votes }; delete v[S.id]; return { votes: v, filter: 'all', tab: null, feedOpen: false }; });
     const post = () => { const t = st.draft.trim(); if (!t || !voted) return; const c = { key: 'u' + Date.now(), name: 'You', init: 'Y', opt: myVote, text: t, ups: 0, time: 'now' }; this.setState(s => ({ mine: { ...s.mine, [S.id]: [c, ...(s.mine[S.id] || [])] }, draft: '' })); };
     const mineList = st.mine[S.id] || [];

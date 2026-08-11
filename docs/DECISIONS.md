@@ -8532,3 +8532,81 @@ that cannot happen — `check:content` fails the build unless
 `v2content.ts` matches `/content`, and `v2content.ts` is under
 `functions/**` — but the two facts are separate and only the first is
 gated.
+
+## D89 · The feed's "knows this best" row is demo furniture — live mode refuses it
+
+**Decided:** 2026-08-11 · **Status:** binding
+
+**Found on a device, not in a review.** Screenshots from a phone running a
+live build showed learn reveals headlining "BEd knows this best · 83%" and
+"Service knows this best · 81%" — cut-group labels out of `vote-cuts.js`,
+ranked by `renderKnowInsight` (world-feed.jsx) on the hash noise that
+animates the demo cuts. Directly above each stood D32's line "Our estimate
+— becomes measured once enough people have answered", which labels the
+*split*. Nothing labelled the cohort headline, because there is nothing to
+label it with: no per-cohort learn aggregate exists in either mode.
+
+**Why refusal rather than an "our estimate" tag.** The split's estimate is
+an authored model of a question's difficulty — a real editorial claim,
+honestly labelled (D32). "BEd knows this best" estimates nothing: the
+group, the direction and the margin all come from a hash of the question
+id. A modesty tag would dress fabricated activity as an estimate; D1 calls
+it fabrication either way, and D72 already answered the same question for
+MapStats — return nothing, at the source, so a forgotten call site shows
+nothing instead of something invented.
+
+**What shipped.** `renderKnowInsight` opens with the live gate and returns
+null; demo builds keep the row exactly as designed, including its own
+honesty rules (rank on the noise only, headline only the upward side),
+which stay recorded in the comment above the ranking. The gate is pinned
+by `learn-split.test.ts` the same last-hop way LiveCohortBody pins its
+floor import — mounting the entire feed to reveal one learn card would
+test the fixture more than the one-line behaviour.
+
+**What brings it back.** A measured per-cohort learn split. The moment
+aggregates exist for learn answers by anchor, this gate is the seam where
+noise swaps for measurement — exactly the trade `LEARN_SPLIT` /
+`LEARN_SPLIT_SRC` already made for the split itself.
+
+## D90 · The picker's blank state starts at home — the clock's country ranks first
+
+**Decided:** 2026-08-11 · **Status:** binding
+
+**The itch.** With no query the city list is the catalogue in population
+order — deliberately the same for everyone, because it reads no personal
+signal. The cost shipped in the same screenshot batch as D89: a user in
+Norway opens the city ask and the first row under "Use my location" is
+Shanghai. Correct, global, and absurd.
+
+**What ships.** `zoneCountry()` (data/places.ts) reads the city out of an
+IANA zone id — last path segment, underscores to spaces, folded like the
+search so "America/Sao_Paulo" finds São Paulo — and returns that city's
+country. The match is exact-or-shortened: IANA writes "America/New_York"
+for New York City and "Asia/Kuwait" for Kuwait City, so a word-boundary
+prefix matches too (exact first, and the break is required — "london"
+does not reach Londonderry); within a rank the most populous namesake
+wins, which is how Europe/Dublin means Ireland's Dublin and not Ohio's.
+`regionHint()` applies it to the device clock, and `searchPlaces(…,
+hint)` ranks that country's cities first in the **blank state only**;
+typing anything abandons the hint, because a query is the user answering
+for themselves. A zone the catalogue cannot name at all ("Etc/UTC", the
+tiny county zones) returns "" and the blank state stays the world's. A
+hint may miss; it must not guess.
+
+**Why this is not the location D9 gates.** The zone id is a device
+setting every date render already reads — no permission prompt, no
+sensor, no network, no IP lookup. It produces a sort order and is
+dropped: never stored, never sent, and it cannot reach the profile — the
+anchor is still only ever the city the user taps. Granularity is one
+country, and wrongness is harmless: a traveller sees their home country
+first, and the fix is typing one letter. The NEAREST city — the sensor's
+answer — stays behind its tap exactly as D9 records, and the store
+privacy labels are untouched.
+
+**The seam is the argument.** The zone reaches `zoneCountry` as a
+parameter and the ordering tests pass it explicitly, because
+places.test.ts asserts blank-state order on a fixture that contains Oslo
+— an Intl read inside `searchPlaces` would make that assertion flip with
+the developer's wall clock. The single real Intl read lives in
+`regionHint`, spied in its own case, with the same try/catch the
+`countryName` Intl guard already carries.

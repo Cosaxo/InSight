@@ -176,7 +176,10 @@ function LiveCohortBody({ scope = "city" }: { scope?: CohortScope }) {
         {/* The radius half needs no city (D84) — it renders above the
             city ask, so Near is never a dead end again. */}
         {scope === "city" && <NearNowCard />}
-        <LnNote title={scope === "city" ? "Near needs a city" : "This needs a city"}>
+        {/* Only city and country reach this branch (world early-outs above),
+            so the other arm is the Country stop — name it. "This needs a
+            city" shipped there and read as the placeholder it was. */}
+        <LnNote title={scope === "city" ? "Near needs a city" : "Country needs a city"}>
           Set it right here — use your location or search the list. Either way
           only the city name is saved, never your coordinates, and you can
           change it any time in your profile.

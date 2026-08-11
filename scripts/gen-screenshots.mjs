@@ -120,7 +120,9 @@ const SCENES = [
   {
     id: "profiles",
     async drive(p) {
-      await p.getByRole("button", { name: /Your four profiles/ }).first().click();
+      // Count-free on purpose: the accessible name states the test count in
+      // words and is derived from PASSIVE.KEYS, so a new test changes it.
+      await p.getByRole("button", { name: /Your \w+ profiles/ }).first().click();
       await p.waitForTimeout(900);
     },
   },

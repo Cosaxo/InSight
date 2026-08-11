@@ -71,6 +71,15 @@ initLive().finally(() => {
   // instead of a blank WebView (capacitor.config.ts).
   import('@capacitor/core').then(({ Capacitor }) => {
     if (!Capacitor.isNativePlatform()) return;
+    // WKWebView pans the document to keep a focused input above the
+    // keyboard and does not reliably pan back after dismissal — seen on
+    // device: after using a city search, the fixed .native-shell (and the
+    // header with it) sits shifted up under the status bar. Nothing in
+    // this layout scrolls the document on purpose, so snapping to 0 on
+    // every hide corrects the stray offset and can undo nothing wanted.
+    import('@capacitor/keyboard')
+      .then(({ Keyboard }) => Keyboard.addListener('keyboardDidHide', () => window.scrollTo(0, 0)))
+      .catch(() => { /* keyboard plugin unavailable — nothing to correct */ });
     return import('@capacitor/splash-screen')
       .then(({ SplashScreen }) => SplashScreen.hide());
   }).catch(() => { /* web or plugin unavailable — nothing to hide */ });
