@@ -9313,3 +9313,51 @@ questions appears ten times. It is summed across the deck because a
 single question's mix is a fact about that question's audience, and the
 copy says so on screen rather than leaving "40% are 25-34" to be read as
 a census.
+
+### What it cost, and the thing that finding turned up
+
+This row put the bundle over budget, and `check:bundle` moved 2120 → 2140
+to admit it. The arithmetic, measured with CI's own build command one
+commit apart rather than estimated:
+
+| tree | total JS |
+| --- | ---: |
+| main @ the D98 merge | 2119.6 KB |
+| + D99's lens row | 2131.0 KB |
+
+D99 is +11.4 KB, but it is not really what spent the budget. The 2120
+ceiling was set on 2026-08-10 to sit just above a 2102 KB tree, and D98's
+read path — the collection-group query, `data/voters.ts`,
+`LiveVotersPanel` — took 17.6 KB of that 18 KB before this row added a
+byte. Two features landed in the gap between a ceiling and the thing it
+measures; the second one merely tripped it.
+
+**The useful finding is that the standard remedy is now exhausted.** Every
+previous squeeze on that budget was answered by deferring a module group
+past first paint (D25, D38). Against the *total* that is worth nothing —
+it counts every chunk, so splitting relocates bytes and changes the
+number by zero. Verified rather than assumed: the lens row is ~9 KB of
+the entry chunk, and making it lazy leaves the total at 2131. Only
+deleting code moves this ceiling.
+
+So the headroom each raise has left is the number to watch — 41.6 KB
+(08-06), 18 KB (08-10), 9 KB now. A fourth raise should not happen; the
+untaken candidates D64 named are the Mirror tab's ~168 KB (harder than
+the overlays — it renders on the first frame for anyone who opens on that
+tab) and an audit of how much of Sentry's ~470 KB is reachable at all.
+
+One correction fell out of that audit and is recorded here because it was
+a *figure in a comment*, which is the documentation error this repo keeps
+re-committing (D39). `check-bundle.mjs` had claimed for five days that
+"156 KB of the Sentry group is @sentry/react's Spotlight dev
+integration". That was a chunk name read as chunk contents:
+`spotlight-*.js` is Sentry core — `captureException`, the client, the
+logger, v10.60.0 — which rolldown named after one of the smaller modules
+inside it, and all three esm entries import it. The Spotlight integration
+is 1.9 KB of unminified source. The sentence had been sitting there
+inviting someone to go chase a 156 KB win that does not exist, and it is
+withdrawn in place.
+
+Unmoved on purpose: `MAX_CHUNK_KB` stays 735 against a 732.0 KB entry
+chunk. Three kilobytes of headroom means the next eager addition fails
+there rather than on the total, and has to defer instead of argue.
