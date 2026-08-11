@@ -163,7 +163,7 @@ const COUPLING_BASELINE = {
   "src/v2/spec/type-marks.jsx": 2,
   "src/v2/spec/vote-cuts.js": 1,
   "src/v2/spec/world-feed-data.js": 4,
-  "src/v2/spec/world-feed.jsx": 155,
+  "src/v2/spec/world-feed.jsx": 153,
 };
 
 const coupling = {};
