@@ -429,12 +429,14 @@ async function hydrate(): Promise<void> {
   interface BankEntry extends QuestionDoc {
     id: string;
   }
-  // Ceiling, not a target: 213 seeded post-W2, ~248 after the D30 archive
-  // promotion, ~344 with the planned learn surface — and the promotion
-  // pipeline adds up to 12/week, ≈600/year. 1500 is about two years of
-  // headroom; if the bank ever approaches it, paginate rather than raise
-  // again (a silent cap here serves users a truncated bank with no error
-  // anywhere).
+  // Ceiling, not a target: 213 seeded post-W2, ~344 with the learn
+  // surface, and D97's cadences (daily promotion targeting ≥14/week plus
+  // the feed lane) can add ~1,300/year at full tilt — call it a year of
+  // headroom from ~500, not the two years the old 12/week arithmetic
+  // promised here. The approach is gated, not remembered: check:quality
+  // trips at 1200 (warn) and 1400 (fail) against this constant. If the
+  // bank ever approaches it, paginate rather than raise again (a silent
+  // cap here serves users a truncated bank with no error anywhere).
   const BANK_LIMIT = 1500;
   const BANK_SURFACES = ["daily", "feed", "test", "group", "duo", "learn"];
   let all: BankEntry[] | null = null;

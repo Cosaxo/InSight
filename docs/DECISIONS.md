@@ -8982,3 +8982,117 @@ sets; `smoke-live.test.jsx` asserts the mounted surfaces refuse — no
 Communities section, no 0-question rooms, no suggested-scene card, with
 Learn and the suggest door intact; `smoke.test.jsx` holds the demo
 controls for the sheet and the suggestion card.
+
+## D97 · Question production upscales behind a regulator: computed budgets, a mechanical style gate, and measured vintages
+
+**Date:** 2026-08-11 · **Status:** Adopted (owner's direction: "upscale
+question production in a huge way but also a smart way, so the questions
+are high quality and improved constantly")
+
+**Decision.** Production scales by raising every lane's *ceiling* while
+pinning every lane's *actual* output to what the human gates measurably
+absorb — D33's "review capacity is the binding constraint" kept as the
+design's spine rather than repealed by enthusiasm. Four parts:
+
+1. **The daily lane's budget is computed, not flat.**
+   `scripts/farm-budget.mjs` replaces D33's hard cap of 4/run: up to
+   `RUN_CAP` (8) questions per run while the *pen* — unpromoted archive
+   entries plus questions sitting unreviewed on the lane's open PR — is
+   below `PEN_TARGET` (56, eight weeks of D30's ≥7/week promotion
+   floor), zero at the target, and zero whenever the open PR carries
+   `OPEN_MAX` (12) unreviewed questions regardless of the pen.
+   `farm-budget.test.mjs` pins the property the upscale rests on: at
+   steady state, generation equals measured promotion throughput — the
+   cap binds only during catch-up, which is what makes doubling it safe.
+   `check:figures` holds the constants QUESTION-FARM.md quotes equal to
+   the script (that manual is LIVE documentation — scheduled runs obey
+   it verbatim, so a drifted figure there is a mis-instructed run).
+
+2. **The style guide's checkable half becomes a gate.**
+   `scripts/question-quality.mjs` (`check:quality`, ci.yml lint job —
+   content quality, deliberately off the deploy path like
+   check:neighbors) holds bounds measured from the corpus on 2026-08-11
+   (prompts ≤120 chars against a measured max of 97; option labels ≤32
+   against 26; tags ≤4 words; the exact option shapes per type; axis
+   required on ordinals; cat/alts against CAT_META), the batch-mix
+   rules (tone spread, form variety), and a tripwire for hard rule 6's
+   obvious form — a watched place name and a civic cue in one question
+   (the conjunction, so "One cuisine, forever?" with Italian in the
+   options passes and "Should Oslo ban cars downtown?" fails; the
+   watchlist is deliberately small because the 10,929-place city
+   catalogue collides with English — "Nice", "Split" — and a gate that
+   cries wolf is retired, not obeyed). Candidate/batch modes emit the
+   review packet a lane run pastes into its PR body, which is the
+   actual attack on the bottleneck: reviewer attention moves from
+   re-counting option arrays to warmth, semantic dupes and
+   will-it-split — the judgments only a human can make.
+
+3. **Provenance becomes data, and the farm is measured by vintage.**
+   `content/provenance.json` records who wrote every daily and feed
+   question (editorial / farm / community) and in which batch —
+   backfilled from the archive's own dated block comments (53
+   prototype-era editorial, the farm's 12 of 2026-07-30 = PR #32, the
+   authoring session's 25 of 2026-08-01), maintained by
+   `promote-questions.mjs` (new required `--source`, optional
+   `--batch`) and the lane PRs, and held exactly in step with the banks
+   by `check:quality`, both directions. The scorecard grows a
+   `production` section (`rollupProduction`, scorecard-metrics.mjs —
+   tested arithmetic, the D33-amendment pattern) cutting the same
+   k-floored rows by source and vintage: no new read path, nothing
+   per-user, the D40 duel-section precedent. The farm reads its own
+   trend every run and cites it in the PR body — "improved constantly"
+   as arithmetic. The committed scorecard.json is deliberately NOT
+   regenerated here: the pre-launch artifact has zero scored rows, so
+   the section lands with the next real `--fetch` (the same call the
+   D33 amendment made when it changed the metric before any measured
+   value existed).
+
+4. **The feed gets a lane, and cadences are recorded.** The feed is the
+   one surface whose consumption scales with users rather than the
+   calendar, and it had no production lane; QUESTION-FARM.md gains one
+   (single gate, learn-style: ≤6 vote-questions/run, at most twice
+   weekly to start, taxonomy topics only, ship active, provenance rows
+   required, every farm hard rule inherited). Daily promotion's target
+   rises to ≥14/week while the pen has stock — a day of runway gained
+   per day. The daily-plus-feed generation ceiling lands at 68/week
+   (56 + 12) against the old daily-only 28 — about 2.4×, with learn,
+   duel and catalog cadences unchanged; the regulator, the roll-up rule
+   and the packet are what keep actual throughput honest against one
+   reviewer.
+
+**The arithmetic.** Daily: consumption 7/week, promotion floor 7/week
+(D30), target 14/week; pen target 56 = 8 weeks of floor-rate promotion
+cover; RUN_CAP 8×7 = 56/week refills a drained pen in a week, after
+which output = promotion rate by construction. Headroom, gated rather
+than remembered (`check:quality` tripwires): daily seed ids fail at 970
+of the 999 the `/^daily-\d{3}$/` shape allows (warn 900); the seeded
+bank fails at 1400 of the client's `limit(1500)` fetch ceiling (warn
+1200 — D30's rule at that call site is pagination, never another raise).
+The dqx archive series crossing dqx99 to three digits was checked, not
+assumed: all three id sites share one formula (`padStart(2)` passes
+longer suffixes through) and nothing sorts dqx ids lexicographically.
+
+**Not done, deliberately.** No epoch-safe retire lane for daily
+questions and no option-edit "replace flow" — D52's flagged items still
+wait; retirement stays feed-only `active:false`, and the scorecard keeps
+proposing rather than applying. No semantic dedup automation: the
+lexical gate (D63) plus the human re-read stands — the metric's 0.5
+calibration is measured and a metric change would silently invalidate
+it. No new Routine yet for the feed lane (maintainer-asked dev-session
+runs, the duel lane's path), and the question-farm Routine's prompt
+refresh rides the already-pending D33 re-pace owner step. Scorecard
+freshness stays hand-cranked (`--fetch` needs the key); the staleness
+rule degrading lanes 1–2 to coverage is the designed failure mode, and
+a run against a stale scorecard now says so via `farm:budget`'s output
+instead of silently thinning.
+
+**Enforcement.** `check:quality` in ci.yml's lint job (corpus form
+rules, provenance join, headroom tripwires — all green at adoption over
+247 questions); `check:figures` on the three quoted budget constants;
+`farm-budget.test.mjs`, `question-quality.test.mjs` and the
+`rollupProduction` pins in `scorecard-metrics.test.mjs` via
+`test:scripts`; `pulse-collect` now cross-reads `RUN_CAP` instead of
+hand-quoting D30's stale 12/week (the exact stale-copy class D39
+names). The farm manual's budget, writing, promotion and feed-lane
+sections plus the canonical Routine prompt were rewritten in the same
+commit, so contract and machinery cannot describe different worlds.

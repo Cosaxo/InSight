@@ -49,6 +49,13 @@
 //     analogues the duel lane cites. Pick questions carry no counts by
 //     design (their optionIdx values index each group's own member list),
 //     so they score plays and draw only.
+//   - PRODUCTION (2026-08-11, D97): the same daily/feed rows re-cut by
+//     WHO WROTE them — content/provenance.json's source (editorial |
+//     farm | community) and vintage batch. The upscale's improvement
+//     loop runs on this: a farm run reads whether its own recent
+//     vintages hold the editorial bar before writing more, and cites
+//     the trend in its PR body. Same k-floored aggregates, no new read
+//     path (the duel section's precedent).
 //   - NOT the catalog surface, deliberately (2026-08-05): pick cards are
 //     not seeded and no client write path exists yet, so any qid form
 //     scored here would be an invented key — the D15 failure class.
@@ -71,10 +78,10 @@
 //                      content/scorecard.json — the farm's read path.
 //
 // Node stdlib only (global fetch), like every deploy-adjacent script.
-import { readFileSync, writeFileSync } from "node:fs";
+import { readFileSync, writeFileSync, existsSync } from "node:fs";
 import { resolve, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { splitQualityOf } from "./scorecard-metrics.mjs";
+import { splitQualityOf, rollupProduction } from "./scorecard-metrics.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const OUT = join(root, "content", "scorecard.json");
@@ -89,6 +96,12 @@ const daily = JSON.parse(readFileSync(join(root, "content", "daily-questions.jso
 const feed = JSON.parse(readFileSync(join(root, "content", "feed-questions.json"), "utf8"));
 const learn = JSON.parse(readFileSync(join(root, "content", "learn-questions.json"), "utf8"));
 const duel = JSON.parse(readFileSync(join(root, "content", "duel-questions.json"), "utf8"));
+// Provenance (D97) — who wrote each daily/feed question, and in which
+// vintage. check:quality holds it exactly in step with the banks; the
+// existsSync guard is only for a checkout mid-migration, mirroring how
+// summarize() optional-chains sections older artifacts predate.
+const provPath = join(root, "content", "provenance.json");
+const provenance = existsSync(provPath) ? JSON.parse(readFileSync(provPath, "utf8")) : null;
 
 // The deck epoch, cross-read from the client the same way check-pokedex
 // reads CATALOG_MAX_ENTITY — a stale copy here would mis-derive "served".
@@ -433,6 +446,12 @@ function score(aggs) {
     // avoid) the SHAPE of a split, not just its score.
     leaders: byScore.slice(0, 10).map(({ qid, prompt, total, evenness: e, optionShares: o }) => ({ qid, prompt, total, evenness: e, optionShares: o })),
     laggards: byScore.slice(-10).reverse().map(({ qid, prompt, total, evenness: e, grade, optionShares: o }) => ({ qid, prompt, total, evenness: e, grade, optionShares: o })),
+    // The farm measuring itself (D97): the same scored rows, re-cut by
+    // provenance source and vintage. A run reads this before writing —
+    // "is my output holding the editorial bar, which vintage's shapes
+    // won" — and cites its own trend in the PR body. Same aggregates,
+    // no new read path.
+    production: provenance ? rollupProduction(rows, provenance) : null,
     // Landslides are PROPOSALS for the operator's kill switch (active:
     // false), never auto-applied — the farm may cite them in a PR body;
     // only a human flips a question off.
@@ -495,6 +514,15 @@ function summarize(card) {
   }
   if (card.leaders.length) console.log(`  top: ${card.leaders.slice(0, 3).map((l) => JSON.stringify(l.prompt)).join(" · ")}`);
   if (card.retireProposals.length) console.log(`  retire proposals: ${card.retireProposals.map((r) => r.qid).join(", ")}`);
+  // Optional-chained: a scorecard committed before the production section
+  // (D97) existed still summarizes cleanly.
+  const sources = Object.entries(card.production?.bySource || {}).filter(([, v]) => v.scored);
+  if (sources.length) {
+    console.log(
+      "  production: " +
+        sources.map(([s, v]) => `${s} ${v.avgEvenness ?? "—"} (${v.scored} scored)`).join(" · "),
+    );
+  }
   // Optional-chained: a scorecard committed before the learn section
   // existed still summarizes cleanly.
   const lc = card.learn?.coverage;
