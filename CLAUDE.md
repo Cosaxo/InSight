@@ -4,7 +4,7 @@ InSight is a two-tab app (daily · mirror). The **daily** tab is where you
 answer: one blind question a day, a finite feed under it, and sealed
 group/1v1 duels revealed the next day. The **mirror** tab is what those
 answers become — seven stops from *you* to *the world*, each reading the
-same k-floored aggregates through a different cut of the anchors an
+same exact aggregates through a different cut of the anchors an
 answer carried when it was written, plus the Map that files every answer
 you've given into a constellation. Answering is the smaller half — the
 Mirror's modules outweigh the daily's and the feed's put together — and
@@ -14,10 +14,27 @@ before changing anything on that tab. React 19 + TypeScript + Vite,
 Capacitor shells for iOS/Android, Firebase (anonymous-first auth,
 Firestore, Cloud Functions).
 
-The product's claim is that its privacy guarantees are **enforced**, not
-promised. That is the lens for most decisions here: if the UI says
-something about who can see what, `firestore.rules` or a Cloud Function
-has to make it true, and a test has to prove it.
+**Answers are public (D94).** Any signed-in user may read any other
+user's answers and profile; population counts are exact and publish from
+the first answer. There is no k-anonymity floor, no publish cadence, no
+suppressed cells and no special-category carve-out. Showing how one
+person's answers link to everyone else's IS the product, and the previous
+model — answers owner-only, everything floored — could not draw that
+picture, which is why most of the Mirror shipped dark.
+
+What survives from the old lens is the *discipline*, pointed the other
+way: if the UI says something about who can see what, `firestore.rules`
+or a Cloud Function has to make it true, and a test has to prove it. The
+account panel now says plainly that answers are public, because a user
+learning that from a stranger quoting their vote would be the same
+failure as the reverse.
+
+Three denies remain, none about answers, each labelled at its own path in
+`firestore.rules`: the unscored logic answer key (anti-cheat), flag
+authorship (anti-retaliation) and the presence cell (physical safety —
+D94 published what people answered, not where their phone is standing).
+Duel answers stay sealed until the next-day reveal, enforced as a
+`surface` test: that is game timing, not privacy.
 
 Binding decisions live in [`docs/DECISIONS.md`](docs/DECISIONS.md) (D1–D7)
 and stay binding until an explicitly recorded reversal.
@@ -108,7 +125,7 @@ Two rules for working with it:
 | Command | What it covers | Needs |
 | --- | --- | --- |
 | `npm run test:unit` | client store, pure deck logic, spec-layer mount tests | nothing |
-| `npm run test --prefix functions` | k-anon floor, reveal, streak math | nothing |
+| `npm run test --prefix functions` | aggregate fold, reveal, streak math | nothing |
 | `npm run test:rules` | Firestore **and** Storage rules | Java 21 |
 | `npm run test:e2e` / `:erasure` / `:moderation` | full loop, erasure, moderation transport — real emulated functions | Java 21 |
 
@@ -143,15 +160,18 @@ an emergency rules fix.
   Everything else stays frozen — anchors, answeredAt, learn, duels,
   catalog — and the counts stay honest because the trigger moves them,
   not because the doc cannot change. Do not widen the edit surface.
-- **A live Mirror stop has no lens row.** The demo field bodies carry
-  Answers · People · Compare · Scores · Explore; every stop that has a
-  real source replaces the whole body with one panel (`LiveCohortBody`,
-  `LiveGroupsMirrorBody`, the Map), so live mode ships the ruler without
-  the lenses. Four of the five have no live data source yet, and a lens
-  invented to fill the row would be the fabrication D1 forbids
-  (docs/MIRROR.md §3).
-- **`window.MapStats` is deterministic mock data, and it refuses in live
-  mode.** `dist`, `mode` and `dimVal` return **null** when `LIVE.enabled`
+- **A live Mirror stop has no lens row — and since D94 that is a GAP,
+  not a policy.** The demo field bodies carry Answers · People · Compare
+  · Scores · Explore; every stop with a real source replaces the whole
+  body with one panel (`LiveCohortBody`, `LiveGroupsMirrorBody`, the
+  Map), so live mode ships the ruler without the lenses. The reason used
+  to be that four of the five needed data the privacy model forbade
+  reading. It no longer forbids it: what is missing now is the READ PATH
+  — a collection-group query on `answers` (the rule and the index ship;
+  the query does not) and batched uid→name resolution. Unbuilt, not
+  refused (docs/MIRROR.md §3).
+- **`window.MapStats` is deterministic mock data, and it still refuses in
+  live mode — because it is INVENTED, not because it is private.** `dist`, `mode` and `dimVal` return **null** when `LIVE.enabled`
   (D72) — null rather than a gate at each of the five call sites, so a
   consumer that forgets the check fails a test instead of quietly
   fabricating. It used to draw "48% of people your age chose the same"

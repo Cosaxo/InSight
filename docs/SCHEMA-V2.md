@@ -1,8 +1,19 @@
 # v2 schema — the daily/mirror core loop
 
-Phase-2 collections. Access model per decisions D1/D3/D5
-(`docs/DECISIONS.md`): answers are owner-only forever; every shared surface
-is server-written (aggregates now, reveals in Phase 3).
+> **D94 (2026-08-11): answers are public.** Every "owner only" below that
+> covers an answer, an anchors snapshot, a profile or a test result is now
+> **any signed-in user**; `v2_question_aggs` carries **exact** counts and a
+> complete breakdown with no `tooSmall`, no `AGG_MIN_N`, no
+> `PUBLISH_EVERY` and no complementary suppression; `publishableCanon` is
+> now `canonTopN`, a display cap. Duel answers remain sealed until their
+> reveal, enforced by a `surface` test on the read rule — game timing, not
+> privacy. Push tokens moved to `v2_users/{uid}/push/tokens`, server-only.
+> The per-collection blocks below have NOT yet been rewritten line by
+> line; where they disagree with this banner, the banner is right.
+
+Phase-2 collections. Access model per decision D94 (`docs/DECISIONS.md`):
+answers are readable by any signed-in user and written only by their
+owner; every shared surface is server-written.
 
 This file is the write side. For the read side — which of these documents
 each Mirror stop opens, how the anchors snapshot on an answer becomes the

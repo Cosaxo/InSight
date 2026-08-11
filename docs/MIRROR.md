@@ -14,6 +14,16 @@ documents **become** on screen, which stop reads which of them, and —
 because it is the question this repo answers first — which parts are real
 today and which are still the prototype's furniture.
 
+> **D94 (2026-08-11) changed the answer to "why is this stop dark".**
+> Answers, anchors and profiles are readable by any signed-in user, and
+> counts are exact from the first answer — no floor, no suppression, no
+> political carve-out. Where §2, §3 and §5 below say a surface cannot
+> show something because the data may not be read, that reason is gone;
+> what remains is that the client has no READ PATH for it yet (a
+> collection-group query on `answers`, plus uid→name resolution). Read
+> those sections as a backlog, not as policy. Sections not yet rewritten
+> line by line are marked where they stand.
+
 ## 1 · One answer, and everywhere it goes
 
 Nothing in the app is a separate feature with a separate store. There is
@@ -58,7 +68,7 @@ distinct spelling would mint a bucket key forever. That snapshot is the
 entire reason the Mirror can say "everyone in your city" without the
 server ever reading another user's document.
 
-**The floor is what makes the cut publishable.** The exact counts stay in
+**Nothing is withheld (D94).** The exact counts stay in
 a collection no client may read. The public mirror carries a cohort only
 once it holds at least `AGG_MIN_N` answers (5 by design; **paused to 1
 until launch traction — D81**, so counts currently publish from the first
