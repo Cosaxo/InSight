@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 //
-// The learn scheduler's serve seam (D94). LEARN_FEED.cards used to hand
+// The learn scheduler's serve seam (D95). LEARN_FEED.cards used to hand
 // plan()'s slow/warm fallbacks straight to the feed — cards already
 // answered, re-served before answering them again could count. Combined
 // with the feed's persisted vote mirror they rendered on a device as
@@ -37,7 +37,7 @@ async function learn(state) {
 const learning = (pos, k = 0) => ({ s: "learning", k, seen: 1, miss: 1, pos, at: 0 });
 const known = (pos, at) => ({ s: "known", k: 3, seen: 1, miss: 0, pos, at });
 
-describe("LEARN.due — when a re-serve counts (D94)", () => {
+describe("LEARN.due — when a re-serve counts (D95)", () => {
   it("a card never seen is fresh, not due", async () => {
     const { L } = await learn({ c: {}, lvl: {}, pos: 0, order: [] });
     expect(L.due("cell1")).toBe(false);
@@ -67,7 +67,7 @@ describe("LEARN.due — when a re-serve counts (D94)", () => {
   });
 });
 
-describe("LEARN_FEED.cards serves fresh or due, never a frozen replay (D94)", () => {
+describe("LEARN_FEED.cards serves fresh or due, never a frozen replay (D95)", () => {
   it("keeps an answered card inside its gap out of the stream", async () => {
     const { LF } = await learn({ c: { cell1: learning(0) }, lvl: {}, pos: 1, order: [] });
     const ids = LF.cards(30).map((q) => q.learn);

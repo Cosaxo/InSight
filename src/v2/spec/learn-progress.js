@@ -182,7 +182,7 @@ window.LEARN = (function () {
     unfollow: (id) => { if (F.length > 1) { F = F.filter((x) => x !== id); saveF(); } },
     toggle: (id) => { if (F.indexOf(id) >= 0) { if (F.length > 1) { F = F.filter((x) => x !== id); saveF(); } } else if (FBY[id]) { F.push(id); saveF(); } return F.indexOf(id) >= 0; },
     next, answer, plan,
-    // Whether re-answering this card right now would COUNT (D94). The feed
+    // Whether re-answering this card right now would COUNT (D95). The feed
     // asks before re-serving an answered card: a repeat inside GAP or a
     // check-in before its window is one the scheduler would not credit, so
     // serving it could only render a stale reveal or invite massed practice.

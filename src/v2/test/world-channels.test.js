@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 //
-// The chip row's always-on set, per build (D95). In the demo, the subject
+// The chip row's always-on set, per build (D96). In the demo, the subject
 // topics (sport, food, …) reach the feed through the communities that pull
 // them; a live build offers no communities, so the same list would have
 // left most of the seeded bank unreachable — no chip, no follow, no search
@@ -22,7 +22,7 @@ async function feedData() {
   return { channels: window.WORLD_CHANNELS, topics: window.WORLD_TOPICS };
 }
 
-describe("the always-on channel set, per build (D95)", () => {
+describe("the always-on channel set, per build (D96)", () => {
   it("demo: formats only — subjects arrive through communities", async () => {
     const { channels } = await feedData();
     expect(channels).toEqual(["dilemma", "event", "people", "bigq", "places", "fav"]);

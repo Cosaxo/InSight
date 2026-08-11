@@ -42,7 +42,7 @@ window.LEARN_FEED = (function () {
       // credit (L.due — the waited-out GAP repeat and the check-in). plan()'s
       // slow/warm fallbacks exist so the standalone next() never runs dry,
       // but in the feed they re-served cards whose next answer could not
-      // count yet — which rendered as last sitting's reveal, frozen (D94).
+      // count yet — which rendered as last sitting's reveal, frozen (D95).
       // Fewer than n cards back is the honest result of a thin pool.
       L.plan(n * 4).forEach((c) => { if (out.length < n && !seen[c.id] && live.indexOf(c.f) >= 0 && (!L.stateOf(c.id) || L.due(c.id))) { seen[c.id] = 1; out.push(toQ(c)); } });
       return out;

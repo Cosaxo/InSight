@@ -17,7 +17,19 @@ export let FRIENDS;
 
 (function () {
   const LS = 'insight.friends.v1';
-  const SEED = ['f1', 'f2', 'f4', 'f6', 'f3'];
+  // Twelve of the twenty-four in IS_DATA.people, and the split is the point:
+  // the circle has to be big enough that the surfaces reading it (duels'
+  // members, learn-social's standings, search's people section) have a
+  // population, and small enough that invite → accept still has candidates —
+  // `duoAvailable()` offers friends you have no 1v1 with, so a fully-seeded
+  // roster would leave that path untestable. Ids must exist in
+  // IS_DATA.people or every consumer's find() drops them silently;
+  // src/v2/test/sample-people.test.js holds that.
+  //
+  // Growing this list does NOT reach an existing demo install: the key below
+  // is written on first run and read back forever after. Clearing site data
+  // (or the D51 purge) is what picks up a new seed.
+  const SEED = ['f1', 'f2', 'f3', 'f4', 'f6', 'f8', 'f10', 'f12', 'f14', 'f17', 'f18', 'f20'];
   let S;
   try { S = JSON.parse(localStorage.getItem(LS) || 'null'); } catch (e) { S = null; }
   if (!S || !Array.isArray(S.friends)) S = { friends: SEED.slice(), invited: {} };

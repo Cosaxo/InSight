@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 //
-// The feed side of D94 — a learn card the scheduler re-serves must arrive
+// The feed side of D95 — a learn card the scheduler re-serves must arrive
 // ANSWERABLE. On a device it did not: the feed persisted lrn- votes in
 // insight.feedVotes.v1 and rebuilt a disabled replay from them, so a card
 // re-served for its three-in-a-row streak rendered frozen in a previous
@@ -42,7 +42,7 @@ function mountFeed() {
   return render(<WorldFeed cats={{}} onToggle={() => {}} beats={false} />);
 }
 
-describe("a due learn card is re-served answerable (D94)", () => {
+describe("a due learn card is re-served answerable (D95)", () => {
   it("serves it fresh over a stale persisted vote, credits the streak, persists nothing", () => {
     const L = window.LEARN;
     // Miss a card, then answer four others so its gap passes — the
@@ -54,7 +54,7 @@ describe("a due learn card is re-served answerable (D94)", () => {
       L.answer(next.id, next.c);
     }
     expect(L.due(card.id), "the setup did not make the card due").toBe(true);
-    // The residue a pre-D94 build left behind: the missed pick, persisted.
+    // The residue a pre-D95 build left behind: the missed pick, persisted.
     localStorage.setItem(WF_LS, JSON.stringify({ ["lrn-" + card.id]: wrong(card) }));
 
     mountFeed();
@@ -82,7 +82,7 @@ describe("a due learn card is re-served answerable (D94)", () => {
     expect(screen.queryByText(card.q), "a not-due card reached the feed").toBeNull();
   });
 
-  // The LIVE-reconcile half of D94 — the skip that keeps a snapshot notify
+  // The LIVE-reconcile half of D95 — the skip that keeps a snapshot notify
   // from wiping the on-screen reveal — is pinned in learn-split.test.ts
   // beside the D89 pin: it needs a live notify mid-reveal, which this demo
   // harness cannot drive, and that file already reads world-feed.jsx.

@@ -182,7 +182,7 @@ function SearchOverlay({ onClose, onPerson, samplePeople }) {
 
   // topics you can subscribe to: followable leaves and scenes — offers(),
   // not all()/defs(), so search advertises exactly what the add sheet does:
-  // stocked leaves only, and no demo communities in a live build (D95)
+  // stocked leaves only, and no demo communities in a live build (D96)
   const topics = useSrchMemo(() => {
     if (!query) return [];
     const out = [];

@@ -73,13 +73,13 @@ describe("the demo build keeps its furniture", () => {
   });
 });
 
-// D95 — the seed gate's sibling: what a surface may ADVERTISE. The seeds
+// D96 — the seed gate's sibling: what a surface may ADVERTISE. The seeds
 // above decide what a build starts following; offers() decides what the add
 // sheet, the suggestion card and search may propose. Runtime rather than the
 // build flag for scenes, because offers are read at render time — after
 // live.ts has attached — which is also what lets these cases drive the gate
 // through the singleton instead of re-importing the world.
-describe("what the follow surfaces may advertise (D95)", () => {
+describe("what the follow surfaces may advertise (D96)", () => {
   it("scenes: everything in the demo, nothing once the session is live", async () => {
     const SC = await scenes();
     const LIVE = (await import("../data/live")).default;

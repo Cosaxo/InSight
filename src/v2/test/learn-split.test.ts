@@ -84,12 +84,12 @@ describe("the knows-best row is demo furniture (D89)", () => {
   });
 });
 
-describe("the LIVE reconcile leaves lrn- votes alone (D94)", () => {
+describe("the LIVE reconcile leaves lrn- votes alone (D95)", () => {
   // Behaviourally this needs a live snapshot notify while a know reveal is
   // on screen — the one piece learn-reserve.test.jsx's demo harness cannot
   // drive — so it gets the same last-hop pin as D89 above. A learn answer
   // is never in myVotes, and the WF_LS mirror deliberately drops lrn- keys
-  // (D94), so without the skip "absent from both store and mirror" is true
+  // (D95), so without the skip "absent from both store and mirror" is true
   // of every know reveal on screen and each notify would wipe the one the
   // user is watching.
   it("the rollback loop skips lrn- ids before testing absence", () => {

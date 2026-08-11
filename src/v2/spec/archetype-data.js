@@ -88,12 +88,45 @@ export const IS_ARCHETYPES = {
 };
 
 // Which named type each of your people landed on, per test (by person id).
+//
+// Every id in IS_DATA.people belongs in all five maps: `sameType` on the
+// result card reads this by person, so a person missing here is simply
+// absent from the "landed on the same type as you" row — invisible, and
+// indistinguishable from a person who genuinely landed elsewhere. Every
+// value has to be a name from IS_ARCHETYPES above for the same reason: a
+// typo matches nobody and fails silently. src/v2/test/sample-people.test.js
+// holds both properties.
 window.IS_FRIEND_TYPES = {
-  big5:       { f1: 'The Quiet One', f2: 'The Live Wire', f3: 'The Planner', f4: 'The Diplomat', f5: 'The Quiet One', f6: 'The Reader', f7: 'The Sensitive' },
-  political:  { f1: 'Social Democrat', f2: 'Liberal Centrist', f3: 'Market Liberal', f4: 'Social Democrat', f5: 'Green Left', f6: 'Communitarian', f7: 'Solidarity Left' },
-  values:     { f1: 'The Tempered Optimist', f2: 'The Hedonist', f3: 'The Rationalist', f4: 'The Provider', f5: 'The Romantic', f6: 'The Traditionalist', f7: 'The Worried Idealist' },
-  attachment: { f1: 'The Slow Burn', f2: 'The Constant', f3: 'The Confidant', f4: 'The Cheerleader', f5: 'The Chill One', f6: 'The Constant', f7: 'The Confidant' },
-  cognitive:  { f1: 'The Theorist', f2: 'The Improviser', f3: 'The Engineer', f4: 'The Mediator', f5: 'The Connector', f6: 'The Generalist', f7: 'The Coach' },
+  big5: {
+    f1: 'The Quiet One', f2: 'The Live Wire', f3: 'The Planner', f4: 'The Diplomat', f5: 'The Quiet One', f6: 'The Reader', f7: 'The Sensitive',
+    f8: 'The Enthusiast', f9: 'The Dependable', f10: 'The Lookout', f11: 'The Live Wire', f12: 'The Diplomat', f13: 'The Quiet One',
+    f14: 'The Plain Speaker', f15: 'The Host', f16: 'The Drifter', f17: 'The Planner', f18: 'The Quiet One', f19: 'The Dependable',
+    f20: 'The Host', f21: 'The Plain Speaker', f22: 'The Reader', f23: 'The Drifter', f24: 'The Sensitive',
+  },
+  political: {
+    f1: 'Social Democrat', f2: 'Liberal Centrist', f3: 'Market Liberal', f4: 'Social Democrat', f5: 'Green Left', f6: 'Communitarian', f7: 'Solidarity Left',
+    f8: 'Liberal Centrist', f9: 'Traditional Conservative', f10: 'Social Democrat', f11: 'Social Democrat', f12: 'Green Left', f13: 'Liberal Centrist',
+    f14: 'Solidarity Left', f15: 'Market Liberal', f16: 'Libertarian', f17: 'Social Democrat', f18: 'Green Left', f19: 'Communitarian',
+    f20: 'Communitarian', f21: 'National Populist', f22: 'Liberal Centrist', f23: 'Techno-Optimist', f24: 'Green Left',
+  },
+  values: {
+    f1: 'The Tempered Optimist', f2: 'The Hedonist', f3: 'The Rationalist', f4: 'The Provider', f5: 'The Romantic', f6: 'The Traditionalist', f7: 'The Worried Idealist',
+    f8: 'The Hedonist', f9: 'The Traditionalist', f10: 'The Provider', f11: 'The Builder', f12: 'The Builder', f13: 'The Rationalist',
+    f14: 'The Romantic', f15: 'The Wanderer', f16: 'The Hedonist', f17: 'The Utilitarian', f18: 'The Romantic', f19: 'The Provider',
+    f20: 'The Utilitarian', f21: 'The Traditionalist', f22: 'The Tempered Optimist', f23: 'The Wanderer', f24: 'The Worried Idealist',
+  },
+  attachment: {
+    f1: 'The Slow Burn', f2: 'The Constant', f3: 'The Confidant', f4: 'The Cheerleader', f5: 'The Chill One', f6: 'The Constant', f7: 'The Confidant',
+    f8: 'The Comic Relief', f9: 'The Fixture', f10: 'The Fixture', f11: 'The Open Book', f12: 'The Constant', f13: 'The Small Circle',
+    f14: 'The Open Book', f15: 'The Chill One', f16: 'The Floater', f17: 'The Loyalist', f18: 'The Confidant', f19: 'The Fixture',
+    f20: 'The Cheerleader', f21: 'The Floater', f22: 'The Slow Burn', f23: 'The Chill One', f24: 'The Overinvested',
+  },
+  cognitive: {
+    f1: 'The Theorist', f2: 'The Improviser', f3: 'The Engineer', f4: 'The Mediator', f5: 'The Connector', f6: 'The Generalist', f7: 'The Coach',
+    f8: 'The Improviser', f9: 'The Generalist', f10: 'The Diagnostician', f11: 'The Tinkerer', f12: 'The Coach', f13: 'The Theorist',
+    f14: 'The Diagnostician', f15: 'The Connector', f16: 'The Tinkerer', f17: 'The Architect', f18: 'The Architect', f19: 'The Engineer',
+    f20: 'The Connector', f21: 'The Tinkerer', f22: 'The Mediator', f23: 'The Generalist', f24: 'The Improviser',
+  },
 };
 
 // Standout phrases per dim: [below-average phrase, above-average phrase]

@@ -136,7 +136,7 @@ window.SUBTOPICS = (function () {
     // enforced where the offer is made: "a thin subtopic would feel like a
     // broken room", and a ZERO-stock one is one. Live boot replaces the
     // pool with the bank, which tags nothing with `sub` yet, so a live
-    // device offered "Tennis · Sport · 0 questions" (2026-08-11; D95).
+    // device offered "Tennis · Sport · 0 questions" (2026-08-11; D96).
     // Recomputed per call because the pool changes under it at boot; leaves
     // return by themselves the day live questions carry their tag. all()
     // stays the dictionary for labels, parents and existing follows.

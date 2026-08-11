@@ -153,7 +153,7 @@ describe("spec layer mounts", () => {
     ).not.toBeNull();
   });
 
-  // The demo half of D95's pair — smoke-live asserts the same surfaces
+  // The demo half of D96's pair — smoke-live asserts the same surfaces
   // refuse. Without this control, the offers() gate could return [] in
   // every build and both suites would stay green.
   it("the add sheet keeps its demo furniture: topics and communities", () => {

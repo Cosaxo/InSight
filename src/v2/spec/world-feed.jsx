@@ -48,7 +48,7 @@ const WF_SUB = (id) => (id && window.SUBTOPICS ? window.SUBTOPICS.get(id) : null
 const WF_BGTEXT = (q) => (q && (q.bg || (window.WORLD_BG || {})[q.id])) || null;
 const WF_LINE = '1px solid color-mix(in oklch, var(--rule), transparent 25%)';
 
-// Know answers do NOT persist in WF_LS (D94). Their cross-session record is
+// Know answers do NOT persist in WF_LS (D95). Their cross-session record is
 // LEARN's own store — state, streaks, positions — and LEARN_FEED re-serves a
 // card exactly when answering it again should count. A vote mirrored here
 // outlived the serve, so a re-served card rendered frozen in a previous
@@ -246,7 +246,7 @@ class WorldFeed extends React.Component {
           for (const id of Object.keys(votes)) {
             // Know entries are not LIVE's to reconcile: a learn answer is
             // never in myVotes, and the WF_LS mirror deliberately drops
-            // lrn- keys (D94) — so without this skip, "absent from both"
+            // lrn- keys (D95) — so without this skip, "absent from both"
             // is true of every know reveal on screen and each snapshot
             // notify would wipe the one the user is looking at.
             if (id.indexOf('lrn-') === 0) continue;
@@ -739,14 +739,14 @@ class WorldFeed extends React.Component {
     if (!r) return;
     const votes = { ...this.state.votes, [q.id]: i };
     // The pick reaches state, not storage — wfSave strips lrn- entries, on
-    // purpose (D94): persisting it was what froze the next serve in this
+    // purpose (D95): persisting it was what froze the next serve in this
     // reveal. The save still runs so the strip also SCRUBS any residue an
     // older build left, now rather than on the next world vote.
     wfSave(votes);
     this.setState((s) => ({ votes, knowRes: { ...s.knowRes, [q.id]: r } }));
   }
   // The verdict for THIS sitting's answer, or null. The rebuild-from-WF_LS
-  // path that used to sit here is gone (D94): a know vote never outlives its
+  // path that used to sit here is gone (D95): a know vote never outlives its
   // serve, so a card the scheduler re-serves arrives answerable instead of
   // frozen in a previous sitting's reveal. Within a sitting the serve list
   // is planned once (knowQs) and votes/knowRes are set together, so the
@@ -1612,7 +1612,7 @@ class WorldFeed extends React.Component {
     const ST = window.SUBTOPICS;
     const label = { fontFamily: 'var(--sans)', fontSize: 11.5, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--ink-3)', margin: '4px 2px 6px' };
     // offers(), not all()/defs(): the stores decide what may be advertised —
-    // stocked leaves only, and no demo communities in a live build (D95)
+    // stocked leaves only, and no demo communities in a live build (D96)
     const openLeaves = ST ? ST.offers().filter((s) => {
       if (ST.has(s.id)) return false;
       const own = SC && SC.subOf ? SC.mine().some((g) => SC.subOf(g.id) === s.id) : false;
@@ -2663,7 +2663,7 @@ class WorldFeed extends React.Component {
     if (SC) {
       // offers(), not defs(): a live build advertises no demo scene, so the
       // dashed "suggested scene · 3.2K people" card simply never renders
-      // there (D95) — the same store-level gate the add sheet reads.
+      // there (D96) — the same store-level gate the add sheet reads.
       const cand = SC.offers().filter((g) => !SC.has(g.id));
       cand.sort((a, b) => ((pulled[SC.topicOf(b.id)] ? 0 : 1) - (pulled[SC.topicOf(a.id)] ? 0 : 1)) || (b.match - a.match));
       sugg = cand[0] || null;

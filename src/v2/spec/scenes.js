@@ -61,7 +61,7 @@ import LIVE from '../data/live';
     // is sample data — members, match and vibe are claims about nobody — so
     // a live build offers none of them: "Swimming · 3.2K people" with a
     // Follow button is the D1 fabrication as an invitation (owner's device,
-    // 2026-08-11; D95). demoInProd included: a real user in the mock
+    // 2026-08-11; D96). demoInProd included: a real user in the mock
     // fallback is still a real user. Runtime, not the build flag, because
     // offers are read at render time — after live.ts has attached — and the
     // mount tests drive exactly this seam. defs() stays whole underneath:

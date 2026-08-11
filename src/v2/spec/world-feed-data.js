@@ -35,7 +35,7 @@ window.WORLD_TOPICS = [
 //
 // …in the DEMO, where the subject topics (sport, food, …) reach the feed
 // through the communities that pull them. A live build offers no communities
-// (D95) and its bank tags questions with exactly those subjects — so with the
+// (D96) and its bank tags questions with exactly those subjects — so with the
 // demo list, most of the seeded bank sat behind a door that no longer exists:
 // no chip, no follow, no search result could surface it. Until scenes have a
 // real backend, a live build runs every SUBJECT always-on; the chips' mute is
