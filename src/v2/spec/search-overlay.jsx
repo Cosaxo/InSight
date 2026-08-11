@@ -180,15 +180,17 @@ function SearchOverlay({ onClose, onPerson, samplePeople }) {
       .map((r) => r.x);
   }, [query, votes]);
 
-  // topics you can subscribe to: followable leaves and scenes
+  // topics you can subscribe to: followable leaves and scenes — offers(),
+  // not all()/defs(), so search advertises exactly what the add sheet does:
+  // stocked leaves only, and no demo communities in a live build (D95)
   const topics = useSrchMemo(() => {
     if (!query) return [];
     const out = [];
-    if (ST) ST.all().forEach((s) => {
+    if (ST) ST.offers().forEach((s) => {
       if (!srchMatch(s.label, query)) return;
       out.push({ id: s.id, label: s.label, color: (TOPIC[s.parent] || {}).color || 'var(--ink-3)', n: ST.count(s.id), on: ST.has(s.id), toggle: () => ST.toggle(s.id) });
     });
-    if (SC) SC.defs().forEach((g) => {
+    if (SC) SC.offers().forEach((g) => {
       if (!srchMatch(g.name, query)) return;
       const n = (window.WORLD_FEED_QS || []).filter((x) => x.scene === g.id).length;
       out.push({ id: g.id, label: g.name, color: SC.colorOf ? SC.colorOf(g.id) : 'var(--ink-3)', n, on: SC.has(g.id), toggle: () => SC.toggle(g.id) });

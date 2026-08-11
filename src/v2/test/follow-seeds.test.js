@@ -72,3 +72,55 @@ describe("the demo build keeps its furniture", () => {
     expect(ST.has("sub_tennis")).toBe(true);
   });
 });
+
+// D95 — the seed gate's sibling: what a surface may ADVERTISE. The seeds
+// above decide what a build starts following; offers() decides what the add
+// sheet, the suggestion card and search may propose. Runtime rather than the
+// build flag for scenes, because offers are read at render time — after
+// live.ts has attached — which is also what lets these cases drive the gate
+// through the singleton instead of re-importing the world.
+describe("what the follow surfaces may advertise (D95)", () => {
+  it("scenes: everything in the demo, nothing once the session is live", async () => {
+    const SC = await scenes();
+    const LIVE = (await import("../data/live")).default;
+    expect(SC.offers().map((g) => g.id)).toEqual(SC.defs().map((g) => g.id));
+    const d = Object.getOwnPropertyDescriptor(LIVE, "enabled");
+    Object.defineProperty(LIVE, "enabled", { value: true, writable: true, configurable: true });
+    try {
+      expect(SC.offers()).toEqual([]);
+      // …while the dictionary underneath stays whole: existing follows and
+      // scene-tagged cards still resolve their labels through defs().
+      expect(SC.defs().length).toBeGreaterThan(0);
+    } finally {
+      if (d) Object.defineProperty(LIVE, "enabled", d);
+      else delete LIVE.enabled;
+    }
+  });
+
+  it("scenes: the demoInProd fallback refuses too", async () => {
+    // A real user in a live build whose boot did not attach is still a real
+    // user — enabled stays false there, so the gate's other half carries it.
+    vi.stubEnv("VITE_V2_LIVE", "true");
+    const SC = await scenes();
+    const LIVE = (await import("../data/live")).default;
+    expect(LIVE.enabled).toBe(false);
+    expect(LIVE.demoInProd).toBe(true);
+    expect(SC.offers()).toEqual([]);
+  });
+
+  it("subtopics: only stocked leaves are offered", async () => {
+    const ST = await subtopics();
+    // The demo pool stocks all three leaves at import.
+    expect(ST.offers().map((s) => s.id)).toEqual(["sub_tennis", "sub_football", "sub_running"]);
+    const pool = window.WORLD_FEED_QS;
+    // What a live boot leaves behind: the bank replaces the pool and tags
+    // nothing with `sub` yet — so there is nothing honest to offer.
+    window.WORLD_FEED_QS = [];
+    try {
+      expect(ST.offers()).toEqual([]);
+      expect(ST.all().length).toBe(3); // the dictionary stays whole
+    } finally {
+      window.WORLD_FEED_QS = pool;
+    }
+  });
+});

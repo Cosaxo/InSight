@@ -327,6 +327,41 @@ describe("the live gates hold in the DOM, not just in the source", () => {
     expect(window.WORLD_FEED_COMMENTS).toEqual({});
   });
 
+  // D95. The add sheet used to list the demo's communities — "Swimming ·
+  // 3.2K people · fjord swims, no excuses", members and match invented —
+  // and the demo subtopic leaves as "Tennis · Sport · 0 questions", both
+  // with Follow buttons, on a real device. The stores now refuse to
+  // ADVERTISE either (SCENES.offers / SUBTOPICS.offers); what remains in
+  // the sheet is real: the Learn dial and fields, and the suggest door.
+  // smoke.test.jsx holds the demo control — the same sheet with both
+  // sections present.
+  it("the add sheet offers no demo communities and no unstocked leaves — Learn stays", () => {
+    const expectNoBoundary = mountLive();
+    fireEvent.click(screen.getByRole("button", { name: /add a topic/i }));
+    expect(
+      screen.queryByText("Communities"),
+      "the live sheet advertised the sample communities",
+    ).toBeNull();
+    expect(screen.queryByText(/fjord swims/), "a sample community row leaked").toBeNull();
+    expect(
+      screen.queryByText("Topics"),
+      "the live sheet advertised leaves the live bank does not stock",
+    ).toBeNull();
+    expect(screen.queryByText(/0 questions/), "an empty room was offered").toBeNull();
+    expect(screen.getByText("Learn")).not.toBeNull();
+    expect(screen.getByRole("button", { name: "lots" })).not.toBeNull();
+    expect(screen.getByRole("button", { name: /suggest a question/i })).not.toBeNull();
+    expectNoBoundary("live add sheet");
+  });
+
+  it("renders no suggested-scene card in the live feed", () => {
+    // The feed-side twin of the same offer — a dashed card proposing a
+    // fabricated community one flick into a real feed.
+    const expectNoBoundary = mountLive({ feedCards: 4 });
+    expect(screen.queryByText(/suggested scene/)).toBeNull();
+    expectNoBoundary("live feed, no suggestion card");
+  });
+
   // D91, reversing D50's device-only half. A lens question woven into a
   // LIVE feed against a SEEDED bank is an ordinary live card: the answer
   // goes through LIVE.vote (owner-only doc → k-floored aggregate) AND

@@ -83,3 +83,20 @@ describe("the knows-best row is demo furniture (D89)", () => {
     expect(beforeRanking).toMatch(/if \(LIVE\.enabled\) return null;/);
   });
 });
+
+describe("the LIVE reconcile leaves lrn- votes alone (D94)", () => {
+  // Behaviourally this needs a live snapshot notify while a know reveal is
+  // on screen — the one piece learn-reserve.test.jsx's demo harness cannot
+  // drive — so it gets the same last-hop pin as D89 above. A learn answer
+  // is never in myVotes, and the WF_LS mirror deliberately drops lrn- keys
+  // (D94), so without the skip "absent from both store and mirror" is true
+  // of every know reveal on screen and each notify would wipe the one the
+  // user is watching.
+  it("the rollback loop skips lrn- ids before testing absence", () => {
+    const src = readFileSync(resolve(__dirname, "../spec/world-feed.jsx"), "utf8");
+    const start = src.indexOf("this._unsubLive");
+    expect(start, "the LIVE reconcile moved — repoint this pin").toBeGreaterThan(-1);
+    const block = src.slice(start, src.indexOf("this._unsubSubs", start));
+    expect(block).toMatch(/if \(id\.indexOf\('lrn-'\) === 0\) continue;/);
+  });
+});
