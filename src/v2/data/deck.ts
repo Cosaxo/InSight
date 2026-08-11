@@ -149,8 +149,8 @@ export function buildS(
 // answered "Yesterday" card would be replaced by a different question whose
 // vote state (keyed by qid) doesn't match, rendering unanswered. Rebased on
 // the epoch, the index stays below n while the bank outgrows the calendar
-// (promotion adds ~12/week against 7 days/week — D30 records the
-// arithmetic), so the mod never wraps and appending questions changes no
+// (promotion outpaces the calendar's 7/week — D30 recorded 12/week, D94
+// targets ≥14), so the mod never wraps and appending questions changes no
 // past or present day's mapping at all. Residual limit, recorded: if
 // promotion lapses for longer than the bank's runway (n days after epoch),
 // the wrap returns and one reseed remaps history once.

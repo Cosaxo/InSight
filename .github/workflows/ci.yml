@@ -99,6 +99,12 @@ jobs:
       # belongs here and deliberately NOT on backend-checks.yml, where it
       # could block an emergency rules fix over a reworded question.
       - run: npm run check:neighbors
+      # The mechanical half of the question style guide (D94): measured
+      # form bounds, the place-scope tripwire (QUESTION-FARM hard rule 6),
+      # the provenance↔bank join the vintage rollup reads, and the id/bank
+      # headroom tripwires. Content QUALITY again — same placement rule as
+      # check:neighbors above, deliberately off the deploy path.
+      - run: npm run check:quality
       # The city catalogue is parsed at runtime and its names become
       # Firestore map keys. A malformed row or an over-long name would be
       # pickable in the profile and then absent from every breakdown.

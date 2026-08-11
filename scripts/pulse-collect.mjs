@@ -251,6 +251,16 @@ export function collectPipeline() {
   const dailyCount = banks[0].count;
   const runwayDays = dailyCount - daysElapsed;
 
+  // The farm's per-run cap, cross-read from the budget regulator (D94)
+  // the same way DECK_EPOCH is read above — this used to be a hand-typed
+  // 12 (D30's weekly figure), which D33's re-pace had already outdated:
+  // exactly the stale-copy class the cross-read pattern exists for. Note
+  // it is a CEILING: the regulator pins sustained output to promotion
+  // throughput, so runCap × 7 is catch-up potential, not a forecast.
+  const budgetSrc = read("scripts/farm-budget.mjs");
+  const capM = budgetSrc.match(/export const RUN_CAP = (\d+)/);
+  if (!capM) throw new Error("pulse: RUN_CAP not found in scripts/farm-budget.mjs");
+
   const scorecard = collectScorecard();
 
   return {
@@ -263,12 +273,13 @@ export function collectPipeline() {
       daysElapsed,
       dailyBank: dailyCount,
       runwayDays,
-      // Consumption is one card per day; D30 records promotion at >=7/week
-      // against a farm budget cap of 12/week, so sustained promotion grows
-      // the bank faster than the calendar eats it.
+      // Consumption is one card per day; D30 records promotion at >=7/week,
+      // and the farm's generation ceiling (D94's regulator, cross-read
+      // above) sits far above it, so sustained promotion grows the bank
+      // faster than the calendar eats it.
       consumedPerWeek: 7,
       promotionNeededPerWeek: 7,
-      farmBudgetPerWeek: 12,
+      farmBudgetPerWeek: Number(capM[1]) * 7,
       wrapsOn: isoDay(epoch + dailyCount),
       status: runwayDays > 60 ? "good" : runwayDays > 21 ? "warning" : "critical",
     },

@@ -122,6 +122,22 @@ if (!seededQuestions || !dailyQuestions) {
 // much as the mismatch one — a gate reading for a sentence that has been
 // reworded away is one nobody can satisfy, and the right answer then is to
 // delete the entry, not to restore the sentence.
+// The D94 budget constants, cross-read from the regulator so the farm
+// manual can quote them. QUESTION-FARM.md is LIVE documentation — the
+// scheduled runs obey it verbatim — so a drifted budget figure there is
+// not a stale doc, it is a mis-instructed run.
+const budgetSrc = read("scripts/farm-budget.mjs");
+const budgetConst = (name) => {
+  const m = budgetSrc.match(new RegExp(`export const ${name} = (\\d+)`));
+  if (!m) {
+    throw new Error(
+      `scripts/farm-budget.mjs no longer declares ${name} — fix this scan, `
+      + "a figure gate reading zero is worse than no gate.",
+    );
+  }
+  return Number(m[1]);
+};
+
 const FIGURES = [
   {
     file: "README.md",
@@ -261,6 +277,32 @@ const FIGURES = [
     re: /a (\d+)-read\s*\n?\s*bank refetch/,
     actual: seededQuestions,
     fix: (n) => `"a ${n}-read bank refetch"`,
+  },
+  // The three D94 budget figures the farm manual quotes. They live in
+  // scripts/farm-budget.mjs (with the reasoning that produced them) and
+  // are quoted in QUESTION-FARM.md § Picking topics; retuning one there
+  // without the other would hand the scheduled runs a budget the
+  // regulator does not compute.
+  {
+    file: "docs/QUESTION-FARM.md",
+    what: "the daily lane's per-run cap (RUN_CAP)",
+    re: /up to \*\*(\d+) questions per run\*\*/,
+    actual: budgetConst("RUN_CAP"),
+    fix: (n) => `"up to **${n} questions per run**"`,
+  },
+  {
+    file: "docs/QUESTION-FARM.md",
+    what: "the unpromoted-pen target (PEN_TARGET)",
+    re: /pen target of \*\*(\d+)\*\*/,
+    actual: budgetConst("PEN_TARGET"),
+    fix: (n) => `"pen target of **${n}**"`,
+  },
+  {
+    file: "docs/QUESTION-FARM.md",
+    what: "the open-PR review ceiling (OPEN_MAX)",
+    re: /\*\*(\d+)\*\* unreviewed questions on the lane's open PR/,
+    actual: budgetConst("OPEN_MAX"),
+    fix: (n) => `"**${n}** unreviewed questions on the lane's open PR"`,
   },
 ];
 

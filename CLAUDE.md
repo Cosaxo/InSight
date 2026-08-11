@@ -112,12 +112,13 @@ Two rules for working with it:
 | `npm run test:rules` | Firestore **and** Storage rules | Java 21 |
 | `npm run test:e2e` / `:erasure` / `:moderation` | full loop, erasure, moderation transport — real emulated functions | Java 21 |
 
-Plus the non-test gates: `check:globals`, `check:labels`, `check:versions`,
-`check:bundle`, `check:deploy-targets`, `check:fn-runtime`,
-`check:appcheck`, and the catalogue drift gates `check:cities`,
-`check:pokedex`, `check:catalogs` — the last two also run on the deploy
-path, because the aggregate trigger validates answer keys against the
-committed catalogues (D14–D17; docs/CATALOG-QUESTIONS.md).
+Plus the non-test gates: `check:globals`, `check:labels`, `check:quality`
+(question form + provenance, D94), `check:versions`, `check:bundle`,
+`check:deploy-targets`, `check:fn-runtime`, `check:appcheck`, and the
+catalogue drift gates `check:cities`, `check:pokedex`, `check:catalogs` —
+the last two also run on the deploy path, because the aggregate trigger
+validates answer keys against the committed catalogues (D14–D17;
+docs/CATALOG-QUESTIONS.md).
 
 `check:appcheck` is on the deploy path too: every callable must demand App
 Check attestation or be named in the script's exemption list with the

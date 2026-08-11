@@ -73,18 +73,37 @@ topic is thin.
 ## Picking topics
 
 Count questions per top-level category (first element of each `cat`).
-The budget is a **hard cap of 4 questions per run, and the run is
-daily** (D33, 2026-08-01 — the owner's direction: constant generation.
-Previously 12/run weekly; the potential is now ~28/week against the
-daily surface's 7/week consumption, and the human promotion gate (D30)
-still decides what production serves, so cadence multiplies the archive,
-not the risk). Allocation runs through three lanes in strict priority
-order (maintainer's direction, 2026-07-30, sharpened same day: once
-signals exist, the demand-driven lanes take the *whole* budget —
-coverage is a fallback, not a reserved slice). A lane with no signal
-passes its budget down; signals come from the committed scorecard (next
-section), and with no scorecard — or a stale one — the whole budget
-flows to lane 3 and behavior is the original thin-first rule.
+The budget is **computed, not flat** (D94, 2026-08-11 — the owner's
+direction: upscale hugely, but smartly. Previously a hard cap of 4/run
+daily, D33). Start every run with
+
+```
+npm run farm:budget -- --open <questions on the open lane PR>
+```
+
+which grants up to **8 questions per run** while the *pen* — the
+unpromoted archive plus whatever already sits unreviewed on the lane's
+open PR — is below its pen target of **56** (eight weeks of promotion
+cover at D30's ≥7/week floor), and grants **zero** at the target, or at
+**12** unreviewed questions on the lane's open PR regardless of the pen.
+Count the `--open` figure from the open farm PR's diff before running;
+omitting it assumes 0, which over-generates. The constants live in
+`scripts/farm-budget.mjs` with the reasoning; `check:figures` holds the
+numbers quoted here equal to the script, and `farm-budget.test.mjs` pins
+the property the whole design rests on: **once the pen is full,
+sustained generation equals the human gate's measured promotion
+throughput** — the cap only binds during catch-up. D33's constraint
+("review capacity is the binding constraint, and a queue of unreviewed
+AI PRs is inventory, not progress") is unchanged; the regulator is that
+sentence as arithmetic, which is what makes the bigger cap safe.
+
+Allocation of whatever the budget grants runs through three lanes in
+strict priority order (maintainer's direction, 2026-07-30, sharpened
+same day: once signals exist, the demand-driven lanes take the *whole*
+budget — coverage is a fallback, not a reserved slice). A lane with no
+signal passes its budget down; signals come from the committed scorecard
+(next section), and with no scorecard — or a stale one — the whole
+budget flows to lane 3 and behavior is the original thin-first rule.
 
 1. **Replenishment — first claim, up to 2.** Topics whose pool the
    people active in them have nearly finished. Signal, from the
@@ -102,15 +121,17 @@ flows to lane 3 and behavior is the original thin-first rule.
    through the pool). Depth is in the product so small-but-devoted
    topics earn content alongside big ones.
 3. **Coverage — only what lanes 1–2 leave unclaimed.** With no
-   scorecard (or a stale one), that is all 4; with signals it may often
+   scorecard (or a stale one), that is the whole computed budget (D94 —
+   it used to read "all 4" under D33's flat cap); with signals it may often
    be zero, and that is by design. A topic below **4 questions** cannot
    show demand; nobody can engage with content that does not exist.
    Thinnest first, toward 5 each — cold start and browsability, never
    the main allocation.
 
 If no lane has work — no exhaustion flags, no demand signals, nothing
-under the floor — the run is a no-op: open no PR, push nothing, and log
-the tallies on issue #31 saying the archive is full enough.
+under the floor — or the budget script grants zero, the run is a no-op:
+open no PR, push nothing, and log the tallies (and the budget line) on
+issue #31 saying the archive is full enough or the gate is the work.
 
 For reference: at the time of writing Home, Skills, Interests had 1
 each; Body, Story, Goals had 2; Music 3. The 2026-07-30 run (PR #32)
@@ -181,6 +202,16 @@ summary). Then:
   forever and a reorder silently re-keys them (the D30 re-key failure
   class). The fix for a bad option set is retirement plus a
   better-shaped successor, never an edit.
+- **Read your own vintages (D94).** The scorecard's `production` section
+  re-cuts the same scored rows by who wrote each question
+  (`content/provenance.json`: editorial / farm / community, per vintage
+  batch). Before writing, read whether the farm's recent vintages hold
+  the editorial bar — avgEvenness, strong vs landslide counts — and say
+  so in one PR-body line ("farm vintages trail editorial by X on
+  evenness; this batch leans harder on the leaders' shapes"). This is
+  the loop that makes the upscale self-correcting: the farm is measured
+  by the same k-floored aggregates as everything else, and a vintage
+  that under-performs is a writing instruction, not a shrug.
 - **Propose retirements, never apply them.** The scorecard lists
   landslides with real volume under `retireProposals`. Cite them in the
   PR body as `active: false` candidates; the kill switch is the
@@ -227,6 +258,30 @@ body's one-line-per-question section. The same script gates CI at ≥ 0.5
 similarity within a surface. It is lexical — it catches rewordings, never
 synonyms — so the re-read stays the rule and the score is its floor.
 
+**The mechanical style check is also part of writing (D94).** Write the
+batch's candidates to a JSON file and run
+
+```
+npm run check:quality -- --batch candidates.json
+```
+
+(or `--candidate "…" --type … --options "A|B" --tone … --tag "…"
+--cat "Top / Sub" --alts "Top / Sub, Top / Sub"` one at a time; a feed
+candidate passes `--surface feed` and its bare topic id as `--cat`). It
+holds the measured form bounds — prompt and option lengths, option
+shapes per type, axis on ordinals, tag size, cat/alts against
+`CAT_META` — plus the batch-mix rules (spread the tones, vary the
+forms) and the hard-rule-6 tripwire for the obvious place-scoped civic
+form. **Paste each candidate's packet line into the PR body** beside
+its neighbor score: the reviewer's attention then goes where only a
+human can spend it — warmth, semantic dupes, will-it-split — instead of
+re-counting option arrays. The per-question bounds also gate CI
+(`check:quality`), so a batch that skips the pre-flight fails those in
+public a few minutes later — but the batch-MIX rules exist only in the
+pre-flight (the CI gate scans the whole corpus and cannot know which
+entries arrived as one batch), so a PR with no packet lines is itself a
+review finding: ask for them before reading further.
+
 ## Verifying
 
 From the repo root, all of these must pass before any push:
@@ -238,6 +293,7 @@ npm run lint
 npm run build
 npm run test:unit
 npm run check:neighbors
+npm run check:quality
 ```
 
 No backend files change in this job, so the rules/e2e suites are not
@@ -384,15 +440,23 @@ The mechanics are all reuse (spec `Q` entries and
 
 1. Pick merged archive entries (the `dqx` series) worth serving live.
    The archive is the holding pen; not everything in it has to graduate.
-2. Append them to `content/daily-questions.json` — same fields, plus the
-   next free explicit `id` suffix (`"030"`, `"031"`, …). **Copy prompts
-   byte-for-byte**: live hydration joins the seeded bank to the demo
-   layer by prompt-string equality (`liveSync` in
-   `src/v2/spec/daily-questions.js` warns on orphans), so a reworded
-   promotion silently unhooks that question from the Map.
-3. `npm run build:content`, then `npm run check:content` — the dedup,
-   id-shape and drift gates all fire here.
-4. PR with the provenance trail (which farm PR each question came from).
+2. `npm run promote -- --source farm dqx61 dqx62` — the script appends
+   to `content/daily-questions.json` with the next free explicit `id`
+   suffix, **copying prompts byte-for-byte** (live hydration joins the
+   seeded bank to the demo layer by prompt-string equality — `liveSync`
+   in `src/v2/spec/daily-questions.js` warns on orphans — so a reworded
+   promotion silently unhooks that question from the Map), and records
+   each question's provenance row in `content/provenance.json` (D94:
+   `--source` names who wrote the archive entry, `--batch` labels the
+   vintage, defaulting to the promotion date). The rows are what the
+   scorecard's `production` section measures vintages by, and
+   `check:quality` fails a promotion that lacks them.
+3. `npm run build:content` (the promote script runs it), then
+   `npm run check:content` and `npm run check:quality` — the dedup,
+   id-shape, drift and provenance gates all fire here.
+4. PR with the provenance trail (which farm PR each question came from —
+   the JSON row carries source and vintage; the PR body carries the
+   links).
 5. After merge and deploy, an operator runs `seedContentV2`. The seed is
    merge-idempotent, never rewrites `active`, and (D34) writes only the
    documents whose content actually changed — so a promotion costs each
@@ -401,13 +465,19 @@ The mechanics are all reuse (spec `Q` entries and
    questions in against their `updatedAt` cursor. New questions extend the
    daily rotation without remapping served days (the deck epoch, D30).
 
-Cadence arithmetic (D30, re-paced by D33): the daily surface consumes 7
-questions/week; the farm's generation potential is ≤4/day (~28/week).
-Promotion averaging ≥7/week keeps the bank growing faster than the
-calendar — users never see a repeat — and the archive absorbs whatever
-generation outruns promotion (it is the holding pen; not everything
-graduates). Every promoted question buys one day of runway; a
-90-question bank alone is ~13 weeks even if promotion stops.
+Cadence arithmetic (D30, re-paced by D33, upscaled by D94): the daily
+surface consumes 7 questions/week; the lane's generation ceiling is the
+budget regulator's cap, throttled to promotion throughput once the pen
+is full. Promotion averaging ≥7/week keeps the bank growing faster than
+the calendar — users never see a repeat; **the D94 target is ≥14/week
+while the pen has stock**, which grows runway by a day per day and is
+what the bigger generation ceiling exists to feed. The archive absorbs
+whatever generation outruns promotion (it is the holding pen; not
+everything graduates). Every promoted question buys one day of runway; a
+90-question bank alone is ~13 weeks even if promotion stops. The
+headroom limits are gated, not remembered: `check:quality` trips before
+the 3-digit daily id space or the client's `limit(1500)` bank fetch
+(D30: pagination, never another raise) can be reached silently.
 
 ## The learn-card lane (D32 — a single-gate lane, so the bar is higher)
 
@@ -478,6 +548,53 @@ recorded under Governance when taken. Rules for a duel run:
   roll-up rule for open lane PRs, and the run log on issue #31.
 - Gates before the PR: `npm run check:content`, `check:neighbors`,
   `check:globals`, `lint`, `test:unit`, `build`.
+
+## The feed lane (D94 — single gate, learn-style)
+
+Feed questions live in `content/feed-questions.json` — the World feed's
+bank, and until D94 the one question surface with **no production lane
+at all**. It is also the surface where an upscale actually lands:
+the daily consumes exactly 7/week whatever the archive holds, but the
+feed serves continuously and its capacity scales with users, not the
+calendar. Like learn and duel there is no spec-vs-live split — a merged
+feed PR IS the production review: one gate, production-level bar. No
+Routine fires this lane yet; it runs when the maintainer asks a dev
+session (the duel lane's shape), and adding a Routine is an owner step
+recorded under Governance when taken. Rules, each load-bearing:
+
+- **Budget ≤6 questions/run, at most twice weekly to start.** The feed
+  has no consumption clock to pace against, so the bound is signal
+  dilution: a fixed crowd spread over more questions clears the k-floor
+  on fewer of them. While the scorecard shows most feed questions
+  unscored, the lane's job is breadth across the ten topics
+  (thinnest-first, the coverage rule); raising the cadence is a D94
+  amendment for when the scorecard shows the crowd keeping up.
+- **`vote` questions only.** `rank` is not live-servable (D12) and
+  `duel`-type feed cards are prototype legacy; a lane candidate is
+  always a plain vote. 2–4 options, feed shapes (`check:quality` holds
+  the measured bounds; `check:content` holds the seed shapes).
+- **Append only, at the end of `questions`**, ids continuing the `fNN`
+  series (scene-attached `sNN` entries are out of the lane's scope —
+  scenes are placeholder). Every append also adds the question's
+  provenance row (`content/provenance.json`, `source: "farm"`, the
+  run's date as batch) — `check:quality` fails a feed question without
+  one.
+- **Topics from the taxonomy only** (`topics` in the same file);
+  proposing a new topic is a PR-body note, never a silent addition. Mark
+  politically charged questions `political: true` (D52's rule: the
+  passive-collection marker and the feed kicker key off it).
+- **Ship active.** The feed's retire path is real (`active: false`, the
+  D52 shape) and stays the operator's; the lane never flips flags,
+  and cites the scorecard's feed `retireProposals` in its PR body like
+  every lane.
+- **Every farm hard rule inherits**: the product's voice, no
+  place-scoped civic questions, never generated activity, PR-only
+  output, the roll-up rule for open lane PRs, dedup
+  (`check:neighbors -- --candidate "…" --domain feed` plus the re-read),
+  the quality pre-flight, and the run log on issue #31.
+- Gates before the PR: `npm run check:content` (the seed regenerates —
+  run `npm run build:content` after the append), `check:neighbors`,
+  `check:quality`, `check:globals`, `lint`, `test:unit`, `build`.
 
 ## Deliberately out of scope (recorded so it stays a decision, not drift)
 
@@ -668,7 +785,8 @@ re-paced, or retired.
 | InSight question farm | weekly Mon 07:00 — **D33 re-paces to daily 07:00, owner step pending** | maintainer's dev session | this file, the sections above |
 | Daily catalog question | daily 08:00 | maintainer's dev session | § The daily catalog-question run |
 
-**The pending D33 re-pace (one owner step).** A session that is not the
+**The pending D33 re-pace (one owner step), now carrying D94's prompt
+refresh too.** A session that is not the
 Routine's bound session cannot edit it (measured 2026-08-01: both the
 prompt and the cron are refused org-wide from outside; re-measured
 2026-08-03 from a sibling remote session — `list_triggers` works, but
@@ -684,7 +802,8 @@ contract section carries the roll-up rule as of 2026-08-03, and while
 every prompt defers to this file ("re-read it every run"), a prompt
 that still says one-branch-per-day is drift waiting to be obeyed. The
 canonical prompt (kept here so prompt and manual cannot drift; update
-BOTH in any future change):
+BOTH in any future change; rewritten 2026-08-11 for D94 — the budget
+regulator, the quality pre-flight, and the vintage read):
 
 ```
 You are running InSight's question farm — the DAILY scheduled job
@@ -699,16 +818,23 @@ The job in one sentence: refresh the scorecard first if you can
 (FIREBASE_API_KEY present → npm run scorecard -- --fetch, and commit
 the regenerated content/scorecard.json in your PR; without the key,
 npm run scorecard reads the committed one — stale or missing →
-coverage lane only, per the manual's staleness rule), then allocate
-up to 4 new questions across the
-manual's three priority lanes — replenishment first, demand takes
+coverage lane only, per the manual's staleness rule), compute the
+run's budget (npm run farm:budget -- --open <count of questions on the
+open farm PR's diff> — the D94 regulator; zero means the run is a
+logged no-op and review is the work), then allocate that budget across
+the manual's three priority lanes — replenishment first, demand takes
 everything replenishment leaves, coverage only what the signal lanes
-leave unclaimed — write them in the product's voice into the
+leave unclaimed — write the questions in the product's voice into the
 daily-question archive (src/v2/spec/daily-questions.js on origin/main),
-run the repo's gates (check:globals, lint, test:unit, build), and open
-a pull request for human review. Learn per the manual's scorecard
+pre-flight every candidate (npm run check:neighbors -- --candidate and
+npm run check:quality -- --batch, packet lines pasted into the PR
+body), run the repo's gates (check:globals, lint, test:unit, build,
+check:neighbors, check:quality), and open a pull request for human
+review. Learn per the manual's scorecard
 section: imitate the leaders' SHAPE, never their subject (a near-twin
-of a winner is a dupe); for each new question say in one PR-body line
+of a winner is a dupe); read the production section's farm-vs-editorial
+vintages and cite your trend in the PR body; for each new question say
+in one PR-body line
 why it should split rather than slide; cite the scorecard's
 retireProposals as active:false candidates for the operator. Warmth
 outranks any score — do not optimize toward outrage. If no lane has

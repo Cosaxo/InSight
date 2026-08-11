@@ -61,3 +61,52 @@ export const ordinalSplit = (shares) => {
 // categorical bar, which is the safe reading for unordered options.
 export const splitQualityOf = (type, shares, n) =>
   type === "scale" || type === "rating" ? ordinalSplit(shares) : evennessOf(shares, n);
+
+// ── the production rollup (D94) ──
+// The same scored rows the scorecard already computes, re-cut by WHO WROTE
+// the question — content/provenance.json's source (editorial | farm |
+// community) and batch (a vintage label). This is the farm measuring
+// itself: "is my output holding the editorial bar, and which vintage's
+// shapes won" is the question the upscale's constant-improvement loop runs
+// on, and it is answerable from k-floored public aggregates already
+// fetched — no new read path, nothing per-user (the D40 duel-section
+// precedent for adding a cut without adding a source).
+//
+// Vintage keys are `source:batch` so two sources sharing a date never
+// merge. Rows whose surface has no provenance table, or whose id has no
+// row, land under `unknown` — visibly, because check:quality holds the
+// join exact and a silent drop would be the D39 stale-figure class.
+export function rollupProduction(rows, prov) {
+  const bySource = {};
+  const byVintage = {};
+  const bump = (map, key, r) => {
+    const t = (map[key] ||= {
+      questions: 0, served: 0, scored: 0, answers: 0, evenSum: 0, strong: 0, landslides: 0,
+    });
+    t.questions++;
+    if (r.served) t.served++;
+    if (r.signal === "scored") {
+      t.scored++;
+      t.answers += r.total;
+      t.evenSum += r.evenness ?? 0;
+      if (r.grade === "strong") t.strong++;
+      if (r.grade === "landslide") t.landslides++;
+    }
+  };
+  for (const r of rows) {
+    const m = /^(daily|feed)-(.+)$/.exec(r.qid);
+    if (!m) continue;
+    const row = prov?.[m[1]]?.[m[2]];
+    const source = row?.source || "unknown";
+    bump(bySource, source, r);
+    bump(byVintage, `${source}:${row?.batch || "unbatched"}`, r);
+  }
+  const finish = (map) => {
+    for (const t of Object.values(map)) {
+      t.avgEvenness = t.scored ? +(t.evenSum / t.scored).toFixed(3) : null;
+      delete t.evenSum;
+    }
+    return map;
+  };
+  return { bySource: finish(bySource), byVintage: finish(byVintage) };
+}
