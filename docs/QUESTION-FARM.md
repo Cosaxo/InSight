@@ -192,8 +192,9 @@ summary). Then:
 
 The scorecard is a COMMITTED artifact: regenerating it is a reviewed
 change like any other, its numbers are already public by construction
-(the k-floor did the privacy work), and committing it is what lets a
-scheduled run read signals without needing production credentials.
+(k-floored by design, exact under D81's pause — public either way), and
+committing it is what lets a scheduled run read signals without needing
+production credentials.
 
 ## Writing the questions
 

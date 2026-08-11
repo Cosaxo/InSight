@@ -21,7 +21,7 @@ Every constant below is sourced, not assumed:
 | Operation | Cost | Where it comes from |
 | --- | --- | --- |
 | One world answer | 1 client write + 2 server writes (`v2_agg_events`, `v2_aggs_private`) | `onV2AnswerCreated`, functions/src/v2.ts |
-| …plus the public mirror | +1 write **per answer** below the floor, +1 per 5 above | `AGG_MIN_N`/`PUBLISH_EVERY` = 5 |
+| …plus the public mirror | +1 write **per answer** — the paused cadence republishes every answer | `AGG_MIN_N`/`PUBLISH_EVERY` = 1 under D81 (5 by design) |
 | …plus the ledger's death | 1 delete, 90 days later | `LEDGER_RETENTION_DAYS` |
 | One duel answer | 1 client write + 1 `pendingDays` arrayUnion | v2.ts group branch |
 | One trigger invocation | 512 MiB, 1 vCPU, concurrency 20, ~200 ms | `HOT_TRIGGER`, functions/src/ops.ts |
@@ -33,11 +33,14 @@ Every constant below is sourced, not assumed:
 | One ledger entry | +1 read the night it is scanned | `ledgerVelocityScan`, functions/src/velocity.ts (D54) |
 | One group-day reveal | `4 + 3m` reads for `m` members — 10 for a duo | `revealGroupDay`, functions/src/v2social.ts |
 
-Note the shape of the third row: **a question under the k-floor costs
-*more* per answer than one above it** (3 server writes vs 2.2), because
-`{tooSmall: true}` is rewritten on every answer until the fifth. The
-cold-start period is also the write-expensive period. It is a small
-effect, and it is the opposite of the direction one would guess.
+Note the shape of the third row. Under D81's pause there is no "under
+the floor": every answer republishes the mirror, so the whole bank runs
+at 3 server writes per answer, flat. At the design pair the old shape
+returns — **a question under the k-floor costs *more* per answer than
+one above it** (3 server writes vs 2.2), because `{tooSmall: true}` is
+rewritten on every answer until the fifth, making cold start the
+write-expensive period. A small effect either way, and the opposite of
+the direction one would guess.
 
 ## The bill, at five sizes
 
