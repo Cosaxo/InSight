@@ -8783,3 +8783,68 @@ fabricated anchors that otherwise cannot be corrected at all.
 `profile-general.jsx` contains neither string anywhere (a reintroduced
 default was the original leak), and covers full-triple, partial and
 clean-profile behavior.
+
+## D94 · The demo roster grows to 24 — the prototype's social surfaces get a population
+
+**Date:** 2026-08-11 · **Status:** Adopted
+
+**Decision.** `IS_DATA.people` goes 7 → 24 and `IS_DATA.nearby` 6 → 14.
+The tables keyed on those ids grow with them: `follows.js` SEED 5 → 12
+friends, duels' first-run 1v1 roster 5 → 8, its seeded groups 3 → 4
+(sizes 7 · 4 · 2 · 5), `PLAYED` / `READ_SKILL` / `BY_SKILL` /
+`PARTNER_TODAY` / `DOMAIN_BIAS` gain entries for the three new partners,
+and `IS_FRIEND_TYPES` covers all 24 in all five tests. Demo only: live
+mode has no person graph (D3) and never reads this list (D72), so the
+blast radius is the prototype.
+
+**Why.** Most of what the daily's social half does only behaves
+differently at a population, and at seven none of it was exercised. The
+1v1 rail ran five partners, of whom one had a record deep enough for the
+per-domain rows — so `domainRows`, `weakDomain` and `ReadRun`'s
+span-dependent encoding all had a single subject, and a bug that
+hardcoded that subject's shape would have looked correct.
+`duoAvailable()` could offer two people. `groupPortrait` averaged three
+groups, the largest five members. Seven also contradicted the fixture
+in the same file: `aggregates.circle.n` is 24 and its `mbtiDist` sums to
+24, so `sample-data.js` already described a circle three times the size
+of the one you could open.
+
+**The arithmetic that the new records had to satisfy.** `DOMAIN_MIN` is
+4 correct reads EACH way before a lens appears, and the pool assigns a
+domain per question, so plays spread across three lenses at roughly a
+third each: 16 plays (f12) yields day 5 · heat 6 · mirror 5, 11 plays
+(f17) yields two qualifying lenses, 6 plays (f14) yields none — the
+"absent rather than thin" state, kept on purpose. Measured, not
+predicted: the first `DOMAIN_BIAS` for f12 left `weakDomain` null
+because a 0.55 bias over 5 samples did not separate; 0.25 does, and the
+roster now carries two differently-shaped records (f1 reads weakest
+under pressure, f12 on the everyday) plus one with no clear weakest.
+
+**What this does NOT reach, recorded so it is not a surprise.**
+
+- An existing demo install keeps the old circle. `insight.friends.v1`
+  and `insight.duels.v1` are written on first run and read back forever;
+  the larger SEED lands on a cleared profile or after the D51 purge.
+- The Mirror's Circle stop is unaffected. It embeds the relationship map,
+  which draws `RMCore.defaultPeople()` (49) — `mfpConfig('circle')`'s
+  nodes are the fallback for when that component is absent.
+- `IS_COMPARE_POP.circle.n` is still 9. It is a separate tuning table,
+  no consumer renders it, and changing an unread number to chase this
+  one would be churn. The pair that CAN be held equal — the roster and
+  `aggregates.circle.n` — now is, by test.
+- `IS_DATA.connections`, `dailyReports` and per-person `faves` still
+  have no consumer. New records carry all three anyway: a fixture with
+  second-class rows is worse than one with unused fields.
+
+**Enforcement.** `src/v2/test/sample-people.test.js` (16 cases) holds
+what fails silently: ids resolve everywhere they are keyed (SEED, group
+members, duo partners, `IS_FRIEND_TYPES`), every type name exists in
+`IS_ARCHETYPES`, every `category` is an `MFP_SECTORS` key and every
+`dist` a real distance band, every relationship sector is occupied,
+`people.length === aggregates.circle.n`, and the size properties the
+growth was for — a group ≥ 5, friends still available to duel, two
+partners deep enough for domain rows, a non-empty impressions feed.
+Mutation-checked: a mistyped archetype name and an unknown SEED id each
+fail exactly their own case. `smoke-live.test.jsx`'s demo-initials
+guard now derives its alternation from the roster instead of listing
+seven pairs, so it keeps covering people added after it was written.
