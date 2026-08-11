@@ -57,7 +57,7 @@ import {
 import { reportError, setSentryUser } from "../../lib/sentry";
 // The cross-user read (D94). Pure helpers + the two queries live there so
 // the grouping/sorting can be unit-tested without Firebase.
-import { fetchVoters, groupByOption, sortVoters, type Voter } from "./voters";
+import { fetchVoters, groupByOption, resolveNames, sortVoters, type Voter } from "./voters";
 // Pure deck-shaping logic lives in ./deck (unit-testable, no firebase);
 // this module passes its store state in.
 import {
@@ -1479,6 +1479,31 @@ const LIVE = {
       reportError(err, { where: "loadVoters", qid });
     } finally {
       state.votersLoading[qid] = false;
+      notify();
+    }
+  },
+  // uid → display name, from the shared session cache. Synchronous and
+  // best-effort: "" means either "no name set" or "not fetched yet", and
+  // the caller renders the same fallback for both because from the screen
+  // they are the same thing. Pair it with loadNames when the uids are
+  // known ahead of the render (world takes do this).
+  nameFor(uid: string): string {
+    return state.names[uid] || "";
+  },
+  // Batched uid → name fetch into the shared cache. Used by any surface
+  // that has uids but no names — world takes carry `authorUid` and no
+  // author name, so this is what turns them from "Someone" into people.
+  // A no-op once every uid is cached, which is the common case after the
+  // first surface on a question has resolved them.
+  async loadNames(uids: readonly string[]): Promise<void> {
+    const want = uids.filter((u) => u && !(u in state.names));
+    if (!want.length) return;
+    try {
+      const db = await getDb();
+      await resolveNames(db, want, state.names);
+    } catch (err) {
+      reportError(err, { where: "loadNames" });
+    } finally {
       notify();
     }
   },

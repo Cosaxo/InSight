@@ -189,6 +189,19 @@ for (const [profileId, cfg] of profiles) {
     // Demo-only affordances, by their accessible names. Checked on the
     // live DOM rather than eyeballed later, because "is that button in
     // the shipped app?" is not answerable from a PNG.
+    //
+    // BOTH SURVIVE D94, and the reason narrowed rather than went away.
+    // D94 made answers public, so named who-voted is a real shipped
+    // feature now — but these two controls open the DEMO's sheets, whose
+    // people come from sample-data.js. Fabricated people in a store
+    // screenshot is the D1 half that D94 did not touch, and it is still
+    // a 2.3.3 problem.
+    //
+    // Note the live who-voted button is a DIFFERENT accessible name
+    // ("who voted", world-feed.jsx) from the demo one ("Who voted what",
+    // daily-split.jsx), so an honest live capture showing real named
+    // voters does not trip this. That near-collision is the whole reason
+    // to match on exact labels here rather than a substring.
     const demoOnly = await page.evaluate(() =>
       ["Comments", "Who voted what"].filter((label) => {
         const el = document.querySelector(`[aria-label="${label}"]`);

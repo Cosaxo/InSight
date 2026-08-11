@@ -37,7 +37,7 @@ await httpsCallable(getFunctions(undefined, "us-central1"), "seedContentV2")({})
 What live mode gives you:
 
 - Anonymous session on boot (uid persists across reloads).
-- The real daily deck + feed with k-floored counts (below 5 answers the
+- The real daily deck + feed with exact counts (from the first answer the
   payoff shows only your own vote — that's the floor working).
 - Groups & duos end-to-end: create, join by invite code from a second
   browser profile/incognito window, sealed votes. Force a reveal for

@@ -45,8 +45,17 @@ describe("cost-arith reads its constants from source, not from memory", () => {
     expect(AGG_CAP).toBe(Number(read("src/v2/data/live.ts").match(/AGG_ID_CAP = (\d+)/)[1]));
   });
 
-  it("PUBLISH_EVERY matches functions/src/v2.ts", () => {
-    expect(PUBLISH_EVERY).toBe(Number(read("functions/src/v2.ts").match(/PUBLISH_EVERY = (\d+)/)[1]));
+  it("PUBLISH_EVERY is a constant 1, and the server has no such literal", () => {
+    // Inverted at D94. This used to hold the model's copy equal to the
+    // server's PUBLISH_EVERY literal; that literal is gone, because the
+    // publish cadence was a disclosure control and the whole principle
+    // was retired. The mirror is rewritten on every answer.
+    //
+    // Asserting the ABSENCE too, not just the value: if a cadence ever
+    // comes back as a performance measure, this fails and makes someone
+    // re-derive the cost model rather than leaving it quietly wrong.
+    expect(PUBLISH_EVERY).toBe(1);
+    expect(read("functions/src/v2.ts")).not.toMatch(/const PUBLISH_EVERY = \d+/);
   });
 
   it("TRIG matches HOT_TRIGGER's deployed footprint", () => {
@@ -98,7 +107,12 @@ describe("cost-arith reads its constants from source, not from memory", () => {
       + "rule is a BILLED READ — recount RULE_READS in scripts/cost-arith.mjs "
       + "(the answer-create paths are what the model charges) and update this "
       + "tripwire with the new totals.",
-    ).toEqual({ gets: 17, exists: 2 });
+      // 17 → 15 at D94: the takes READ gate and the flags CREATE gate each
+      // dropped a membership get() on v2_groups when reading stopped being
+      // membership-scoped. RULE_READS is deliberately unchanged — it
+      // charges the answer-create paths, and neither of those two sites
+      // was on one.
+    ).toEqual({ gets: 15, exists: 2 });
   });
 
   it("the answer trigger's transaction still issues the reads the model charges", () => {

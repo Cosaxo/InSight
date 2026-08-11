@@ -82,10 +82,22 @@ export const DECK_DAYS = readNum(
 export const AGG_CAP = readNum(
   "src/v2/data/live.ts", /const AGG_ID_CAP = (\d+)/, "AGG_ID_CAP");
 
-// How often the public mirror is rewritten. Drives both the mature write
-// multiplier and the listener fan-out rate.
-export const PUBLISH_EVERY = readNum(
-  "functions/src/v2.ts", /const PUBLISH_EVERY = (\d+)/, "PUBLISH_EVERY");
+// How often the public mirror is rewritten, in answers. Drives both the
+// mature write multiplier and the listener fan-out rate.
+//
+// A CONSTANT 1 since D94, and deliberately not read from the source any
+// more: it used to track functions/src/v2.ts's PUBLISH_EVERY, and that
+// literal is gone — the publish cadence was a disclosure control (batch
+// the increments so an onSnapshot watcher cannot attribute a step to a
+// person) and D94 retired the whole principle.
+//
+// Kept as a named 1 rather than inlined, because the arithmetic it feeds
+// is still real and got WORSE: the mirror is now rewritten on every
+// answer, which is the write pressure D7's ~1/sec/document ceiling is
+// about. Deleting the term would hide that in the model. If the cost ever
+// forces batching back, it returns here as a performance number with no
+// privacy claim attached — and this comment is the note saying so.
+export const PUBLISH_EVERY = 1;
 
 // HOT_TRIGGER, functions/src/ops.ts — memory in GiB, cpu, concurrency read
 // from the deployed options object. `sec` is NOT read and cannot be: 200 ms

@@ -21,7 +21,7 @@ Every constant below is sourced, not assumed:
 | Operation | Cost | Where it comes from |
 | --- | --- | --- |
 | One world answer | 1 client write + 2 server writes (`v2_agg_events`, `v2_aggs_private`) | `onV2AnswerCreated`, functions/src/v2.ts |
-| …plus the public mirror | +1 write **per answer** below the floor, +1 per 5 above | `AGG_MIN_N`/`PUBLISH_EVERY` = 5 |
+| …plus the public mirror | +1 write **per answer**, always | no cadence since D94 |
 | …plus the ledger's death | 1 delete, 90 days later | `LEDGER_RETENTION_DAYS` |
 | One duel answer | 1 client write + 1 `pendingDays` arrayUnion | v2.ts group branch |
 | One trigger invocation | 512 MiB, 1 vCPU, concurrency 20, ~200 ms | `HOT_TRIGGER`, functions/src/ops.ts |
@@ -33,9 +33,9 @@ Every constant below is sourced, not assumed:
 | One ledger entry | +1 read the night it is scanned | `ledgerVelocityScan`, functions/src/velocity.ts (D54) |
 | One group-day reveal | `4 + 3m` reads for `m` members — 10 for a duo | `revealGroupDay`, functions/src/v2social.ts |
 
-Note the shape of the third row: **a question under the k-floor costs
+Note the shape of the third row: **the mirror costs
 *more* per answer than one above it** (3 server writes vs 2.2), because
-`{tooSmall: true}` is rewritten on every answer until the fifth. The
+one write on every answer, at every size (D94 removed the cadence). The
 cold-start period is also the write-expensive period. It is a small
 effect, and it is the opposite of the direction one would guess.
 
@@ -153,7 +153,7 @@ listener fan-out, whose every delivery ships the published aggregate whole.
 
 The size of that document is the swing variable, and it is not knowable
 before launch: a question nobody has answered with a filled-in Basics card
-publishes a bare `{counts, total, tooSmall}` of a few hundred bytes, while
+publishes a bare `{counts, total}` of a few hundred bytes, while
 one with a full `by` breakdown carries 6 dimensions × up to 24 buckets ×
 options (`BREAKDOWN_DIMS` / `BREAKDOWN_MAX_BUCKETS`, functions/src/pure.ts).
 
@@ -220,7 +220,7 @@ once per device, so it is now a rounding error. Deferred.
 
 `subscribeAggs()` attaches an `onSnapshot` to each of the 7 deck days'
 `v2_question_aggs` documents. The daily question is *globally shared*
-(`computeDeckIds` takes no uid), which is exactly why the k-floor clears
+(`computeDeckIds` takes no uid), which is exactly why a cohort fills
 at ten users — but it also means every publish on today's aggregate fans
 out to every client currently listening, and each delivery is a billed
 read.

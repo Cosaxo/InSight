@@ -31,6 +31,10 @@ export const LIVE_MEMBERS = [
   // or failed and an array (possibly empty) once known, because "could
   // not ask" and "nobody answered" must not render the same.
   "loadVoters", "voters", "votersByOption", "votersLoading",
+  // The shared uid → name cache the same read fills. `nameFor` is a
+  // synchronous best-effort read; `loadNames` is the batched fetch that
+  // fills it for a surface that has uids but no names (world takes).
+  "nameFor", "loadNames",
   // The reason boot did not attach, rendered under the "Sample questions ·
   // reconnecting…" pill when it is tapped. It exists because that label
   // said a real user was on demo content without saying why, and an

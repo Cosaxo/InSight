@@ -261,7 +261,7 @@ describe("the live gates hold in the DOM, not just in the source", () => {
     await act(async () => { await new Promise((r) => setTimeout(r, 1200)); });
   };
 
-  it("gives a live card who-voted and the anonymous takes toggle — never the demo sheet", async () => {
+  it("gives a live card who-voted and the named takes toggle — never the demo sheet", async () => {
     mountLive();
     await voteFeedCardAndSettle();
     expect(
@@ -273,12 +273,13 @@ describe("the live gates hold in the DOM, not just in the source", () => {
       screen.queryByRole("button", { name: /\d+ takes$/i }),
       "a live card rendered the demo takes sheet — D11's gate is open",
     ).toBeNull();
-    // …while the D83 world surface is present, collapsed, and opens into
-    // the anonymous panel rather than any named thing.
+    // …while the D83 world surface is present, collapsed, and — since
+    // D94 — opens into a panel that signs what people say rather than
+    // one that hides it.
     const toggle = screen.queryByRole("button", { name: /^Takes$/ });
     expect(toggle, "the live card lost its world-takes toggle (D83)").not.toBeNull();
     fireEvent.click(toggle);
-    expect(screen.getByText(/no names at world scale/i)).toBeTruthy();
+    expect(screen.getByText(/posted under your name/i)).toBeTruthy();
     expect(screen.getByText(/No takes yet/i)).toBeTruthy();
   });
 

@@ -463,13 +463,13 @@ start.
       (`ITSAppUsesNonExemptEncryption = false`), so there is no per-build
       question to answer.
 
-      **Expect the k-floor to look like a bug on your own device.** Below
-      the floor every crowd figure reads *"You're early"* (`AGG_MIN_N`,
-      D7). That is the floor working, not an empty backend — the 513
-      seeded questions are live regardless. **Paused since D81
-      (2026-08-09):** the floor sits at 1 until launch traction, so counts
-      appear from the first answer and this symptom is gone until the
-      floor restores.
+      **Expect your own answer to be the whole crowd, and expect to see
+      your own name.** There is no k-floor since D94: the first answer
+      publishes exactly, so a count of 1 on your own device is that one
+      answer and the who-voted sheet will name you. That is the product
+      working, not a leak — the 513 seeded questions are live regardless.
+      What used to sit here was the opposite warning (*"You're early"*
+      under `AGG_MIN_N`, paused by D81 and removed entirely by D94).
 - [ ] **3.3 Walk the on-device verification list** — six checks, first
       build, `SHIP-CHECKLIST §4`: frameless layout in light+dark, anonymous
       session surviving restart, Google link → reinstall → history
@@ -492,7 +492,8 @@ in the post.
 The recapture is the one with a real precondition: it wants real answers
 on screen. Under D81's pause one answer per question is enough (counts
 publish from the first); once the floor restores it wants five, or the
-k-floor (D7) puts *"You're early"* where every crowd figure should be.
+empty bank puts *"You're first"* where every crowd figure should be
+(there is no floor since D94 — the first answer publishes exactly).
 That is a tester-count problem, not a workflow problem.
 
 - [ ] **4.1 Recapture the screenshots in LIVE mode — Actions →
@@ -521,7 +522,7 @@ That is a tester-count problem, not a workflow problem.
       that runs a few times per release.
 
       The TestFlight week is still the better moment: ten testers put real
-      k-floored splits on screen, where a freshly seeded bank shows the
+      real splits on screen, where a freshly seeded bank shows the
       floor's "5+" placeholder instead of a split.
       *Note the iPad set every guide lists does not apply —
       `TARGETED_DEVICE_FAMILY = 1`, iPhone only.*

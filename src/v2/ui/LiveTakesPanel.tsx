@@ -282,8 +282,26 @@ function LiveTakesPanel({ gid, qid }: { gid: string; qid: string }) {
   // a surface most days nobody writes in. qid rides along for the world
   // scope, whose query and cache are per-question; a circle ignores it.
   React.useEffect(() => { void LIVE.social.loadTakes(gid, qid); }, [gid, qid]);
+  // Read before the hooks below so they can depend on it — the early
+  // `return null` guard sits after every hook, which is what keeps the
+  // hook order stable across the enabled/disabled flip.
+  const takesForNames = LIVE.enabled && gid && qid ? LIVE.social.takes(gid, qid) : [];
+  // World takes carry `authorUid` and no author name, so the names have to
+  // be resolved separately (D94). Batched, into the same session cache the
+  // voters panel fills — a question whose who-voted sheet has already been
+  // opened usually pays nothing here. Circle takes skip it: their names
+  // ride on the group document already.
+  const authorUids = takesForNames.map((t) => t.authorUid);
+  const authorKey = authorUids.join(",");
+  React.useEffect(() => {
+    // authorKey (a joined string), not authorUids: a fresh array identity
+    // every render would re-run this effect forever.
+    if (gid === "world" && authorKey) void LIVE.loadNames(authorKey.split(","));
+  }, [gid, authorKey]);
 
-  // Circle takes carry names by D1's grant; world takes (D83) carry none.
+  // Takes carry names at BOTH scopes since D94. `world` still branches the
+  // composer (one take per person per question, enforced by the doc id)
+  // and the mute control, but no longer the authorship.
   const world = gid === "world";
   if (!LIVE.enabled || !gid || !qid) return null;
 
@@ -304,7 +322,7 @@ function LiveTakesPanel({ gid, qid }: { gid: string; qid: string }) {
     <div style={{ display: "flex", flexDirection: "column", gap: 10, width: "100%" }}>
       {world && (
         <span style={{ fontFamily: "var(--sans)", fontSize: 10.5, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--ink-3)" }}>
-          Takes · no names at world scale
+          Takes · posted under your name
         </span>
       )}
       {takes.map((t) => (
@@ -312,11 +330,20 @@ function LiveTakesPanel({ gid, qid }: { gid: string; qid: string }) {
           key={t.id}
           take={t}
           gid={gid}
-          // A member who has left keeps their take but not their entry in
-          // memberNames — "Member" is the honest fallback. At world scale
-          // there are no names at all (D83): "Someone" is the whole label,
-          // and inventing anything richer would be the D1 fabrication.
-          name={world ? "Someone" : (names[t.authorUid] || "Member")}
+          // Named at both scopes since D94 — the anonymity was always a
+          // client-side string choice, never a rule: `authorUid` has been
+          // on the take document and readable all along.
+          //
+          // The fallbacks differ because the sources do. A circle knows
+          // its members by name off the group doc, so a missing entry
+          // means someone who has LEFT — "Member" is the honest word. At
+          // world scale the name comes from the author's own profile via
+          // the shared cache, and its absence means an account that has
+          // set none: "Someone", which is the absence of a name rather
+          // than a pseudonym invented to fill the gap (D1).
+          name={world
+            ? (LIVE.nameFor(t.authorUid) || "Someone")
+            : (names[t.authorUid] || "Member")}
           mine={!!uid && t.authorUid === uid}
           world={world}
         />

@@ -211,6 +211,11 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
       [{ uid: "u_other", optionIdx: 1, anchors: {}, name: "", isMe: false }],
     ],
     votersLoading: () => false,
+    // The world-takes author name path (D94). One known author so a live
+    // mount renders a real name, and anything else falls back to
+    // "Someone" — both branches reachable from the fixture.
+    nameFor: (uid: string) => (uid === "u_fixture" ? "Tester" : ""),
+    loadNames: async () => {},
     lensAgg: () => ((opts.lensBank ?? true)
       ? { counts: tooSmall ? [0, 0, 0, 0, 0] : [9, 6, 4, 3, 3], tooSmall }
       : null),
