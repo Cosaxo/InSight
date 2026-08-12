@@ -577,10 +577,11 @@ That is a tester-count problem, not a workflow problem.
       model to every visitor of the listing — *"Your answers are
       owner-only. The database rules enforce it"* and *"Crowd numbers are
       floored"*, under a header reading **BUILT SO THE PRIVACY CLAIMS ARE
-      TRUE** — three months after D98 made answers public and deleted the
-      floor. D106 swept that model out of `web/` and the docs and never
-      enumerated this file. It also advertised five profiles after D103
-      retired the Thinking test.
+      TRUE**. The copy was accurate on the day it was pushed (08-08);
+      **D98 falsified it on 08-11** and it has been live and false since.
+      D106 swept that model out of `web/` and the docs the next day and
+      never enumerated this file. It also advertised five profiles after
+      D103 retired the Thinking test.
 
       The repo copy is fixed and `npm run check:public-copy` now fails on
       that vocabulary in `listing.json`, `web/*.html` and the privacy

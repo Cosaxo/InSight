@@ -181,10 +181,12 @@ Both apps must be registered under `com.cosaxo.insight`:
 
     **Length is not the only thing that file gets wrong.** Both
     descriptions were still selling the pre-D98 privacy model — *"Your
-    answers are owner-only"*, *"Crowd numbers are floored"* — four days
-    after the copy was pushed to App Store Connect and a day after D106
-    swept the same claims out of `web/` without enumerating this file
-    (D116). `npm run check:public-copy` now holds `listing.json`,
+    answers are owner-only"*, *"Crowd numbers are floored"*. That copy was
+    true when it was pushed on 2026-08-08; **D98 falsified it on 08-11**,
+    and D106's sweep on 08-12 corrected `web/` and the docs without ever
+    enumerating this file (D116). Pushed copy goes stale the same way the
+    age rating does, and for the same reason: nothing in the repo can read
+    what the store is serving. `npm run check:public-copy` now holds `listing.json`,
     `web/*.html` and the in-app privacy panel against the retired model's
     closed vocabulary; it runs in CI and on the iOS release pre-flight.
     Character limits and truth are separate gates, and only one of them
