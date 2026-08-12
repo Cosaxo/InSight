@@ -492,7 +492,7 @@ reseed. **One gate instead of two means the PR review IS the production
 review.** Rules for a learn run:
 
 - **Start every run with `npm run learn:budget -- --open <cards on the
-  open lane PR>`** (D111). The budget is computed, not flat: it grants up
+  open lane PR>`** (D115). The budget is computed, not flat: it grants up
   to **10 cards per run** while the bank is short of **24 cards per
   field**, subtracts whatever already sits unreviewed on the lane's open
   PR, and grants **zero** at the target or at **10** unreviewed cards on
@@ -521,7 +521,7 @@ review.** Rules for a learn run:
 - **The trap `t` is the product, not filler** — the PR body argues each
   card's trap individually: which wrong answer real people actually pick,
   and why. A card whose wrong options are noise is not an InSight card.
-- **Pre-flight the batch in its native shape** (D111). Write the cards as
+- **Pre-flight the batch in its native shape** (D115). Write the cards as
   the JSON you will append and run `npm run check:quality -- --batch
   cards.json` — learn entries are accepted as `{id, f, q, a, c, t, p, k,
   w}`, so the thing checked is the thing shipped. Paste each packet line
@@ -533,11 +533,11 @@ review.** Rules for a learn run:
   not the option set. The gate holds learn under 0.5 like every surface;
   the re-read stays the rule, because only a human can tell whether two
   differently-worded prompts test one fact.
-- **Authored option order is not the served order** (D111). `LEARN_ORDER`
+- **Authored option order is not the served order** (D115). `LEARN_ORDER`
   permutes each card's options at render, so where you put the correct
   answer in `a` is invisible to readers. Vary `c` anyway: a bank with
   varied authored indices degrades gracefully if the permutation is ever
-  removed, and the 96 cards written before D111 — all of them `c: 0` —
+  removed, and the 96 cards written before D115 — all of them `c: 0` —
   are why that rule now exists.
 - **`p` is the authored cold-start estimate**, shown labeled ("our
   estimate") until a measured rate exists — never presented
@@ -627,16 +627,18 @@ recorded under Governance when taken. Rules, each load-bearing:
   unscored, the lane's job is breadth across the ten topics
   (thinnest-first, the coverage rule); raising the cadence is a D97
   amendment for when the scorecard shows the crowd keeping up.
-- **`vote` questions only.** `rank` is not live-servable (D12) and
-  `duel`-type feed cards are prototype legacy; a lane candidate is
-  always a plain vote. 2–4 options, feed shapes (`check:quality` holds
-  the measured bounds; `check:content` holds the seed shapes).
+- **Three authorable forms.** A plain `vote` (2–4 options) or one of the
+  two **continuum forms** (`dial` / `field`, live since D114); `rank` is
+  not live-servable (D12) and `duel`-type feed cards are prototype
+  legacy. `check:quality` holds the measured bounds; `check:content`
+  holds the seed shapes. A continuum question is written TWICE — the
+  content entry and its demo-pool twin — see § Continuum questions.
 - **Append only, at the end of `questions`**, ids continuing the `fNN`
-  series (scene-attached `sNN` entries are out of the lane's scope —
-  scenes are placeholder). Every append also adds the question's
-  provenance row (`content/provenance.json`, `source: "farm"`, the
-  run's date as batch) — `check:quality` fails a feed question without
-  one.
+  series (continuum ids continue `dlN` / `fdN`; scene-attached `sNN`
+  entries are out of the lane's scope — scenes are placeholder). Every
+  content append also adds the question's provenance row
+  (`content/provenance.json`, `source: "farm"`, the run's date as
+  batch) — `check:quality` fails a feed question without one.
 - **Topics from the taxonomy only** (`topics` in the same file);
   proposing a new topic is a PR-body note, never a silent addition. Mark
   politically charged questions `political: true` (D52's rule: the
@@ -653,6 +655,62 @@ recorded under Governance when taken. Rules, each load-bearing:
 - Gates before the PR: `npm run check:content` (the seed regenerates —
   run `npm run build:content` after the append), `check:neighbors`,
   `check:quality`, `check:globals`, `lint`, `test:unit`, `build`.
+
+### Continuum questions (`dial` / `field`)
+
+Two forms where the answer is a position, not a pick (synced from
+standalone v20, made live by D114): a **dial** takes a value on a range
+and reveals the crowd as a curve with a median line; a **field** takes a
+dot on a 2-D plane and reveals the crowd as a cloud. Live, a continuum
+answer is an ordinary `optionIdx` into **synthesized** bucket/cell
+labels (12 range buckets for a dial; a 4×3 cell grid for a field —
+`scripts/gen-v2content.mjs`), so the existing rules, fold, by-cells and
+D86 edit machinery carry it unchanged, and the option freeze (D52)
+freezes the range with the labels: never touch a shipped `lo`/`hi`/
+`unit`/`ax`/`ay` — the seed refuses it as an option edit, correctly.
+
+**A continuum question is written twice, in one PR:**
+
+1. The **content entry** (`content/feed-questions.json`) — copy only:
+   `{ id, cat, type: 'dial', prompt, lo, hi, unit }` (or `ends`), /
+   `{ id, cat, type: 'field', prompt, ax, ay }`. NO crowd fields —
+   `check:quality` fails a content entry carrying texture, because an
+   authored crowd in the live bank would be a fabricated one. Options
+   are synthesized at `build:content`; never author them.
+2. The **demo-pool twin** (`src/v2/spec/world-feed-data.js`, the
+   `── dials & fields ──` block) — the same copy PLUS the authored crowd
+   texture the demo build renders (`med`, `dist`, `n` / `cloud`, `n`),
+   held to the same bar as the copy: `med` inside the range, `dist`
+   exactly 12 non-negative buckets shaped like a real crowd (one mode,
+   honest tails), `cloud` 1–4 `[x, y, count, spread]` clusters
+   totalling 8–60 dots (coords 0–100, y = 0 at the TOP), `n` a
+   believable answer count.
+
+**Writing them.** A dial earns its place when everyone holds a number on
+the same range and the interesting fact is *where* the numbers sit — a
+threshold ("when does old age begin?"), a norm ("the right tip"), a
+share ("how much of your life is in your control?"). The range must be
+the honest span of real answers, not drama: ends people actually hold.
+A field earns its place when two judgments are independent enough to
+disagree — taste × legitimacy, feeling × importance — and the corners
+are all inhabitable positions. Axis ends are judgments, not facts, and
+stay ≤14 chars — they compose into the synthesized cell labels the
+voters panel prints ("lean tastes good · middle").
+
+- Ids continue the `dlN` / `fdN` series; prefer the always-on channels
+  (`bigq` / `dilemma`) so the card reaches every demo feed — a subject
+  topic is right only when the question is truly subject-bound.
+- The content half carries a provenance row like any feed append.
+- Pre-flight: dials fit `--candidate` flags
+  (`node scripts/question-quality.mjs --candidate "…" --surface feed
+  --type dial --cat bigq --lo 40 --hi 90 --unit yrs --med 63
+  --dist "1,3,…" --n 5000` — the demo-twin form, texture included); a
+  field's cloud has no flag syntax, so pre-flight fields via `--batch`
+  with the full objects.
+- Budget: continuum candidates count inside the lane's ≤6/run, and lean
+  scarce — the feed reads best when a continuum card is an occasional
+  change of key, not a second genre (the hot sort pins one near the top;
+  a glut buys nothing).
 
 ## Deliberately out of scope (recorded so it stays a decision, not drift)
 

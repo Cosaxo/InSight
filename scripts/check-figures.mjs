@@ -159,7 +159,7 @@ const constFrom = (rel) => {
   };
 };
 const budgetConst = constFrom("scripts/farm-budget.mjs");
-// The D111 learn regulator's constants, same reasoning: the learn lane's
+// The D115 learn regulator's constants, same reasoning: the learn lane's
 // section of QUESTION-FARM.md is what a run obeys, so a drifted cap there
 // hands it a budget the script does not compute.
 const learnConst = constFrom("scripts/learn-budget.mjs");
@@ -330,7 +330,7 @@ const FIGURES = [
     actual: budgetConst("OPEN_MAX"),
     fix: (n) => `"**${n}** unreviewed questions on the lane's open PR"`,
   },
-  // The four D111 learn-lane figures, quoted in § The learn-card lane.
+  // The four D115 learn-lane figures, quoted in § The learn-card lane.
   {
     file: "docs/QUESTION-FARM.md",
     what: "the learn lane's per-run cap (RUN_CAP)",

@@ -44,11 +44,19 @@ read: signed-in · write: nobody (admin SDK only)
 
 v2_users/{uid}
   displayName?, anon?, anchors { city country ageBand gender
-                                 profession education relationship }
+                                 profession education relationship },
+  testResults? { big5|political|values|attachment: { title, taken,
+                                                     dims [{id,label,value 0-100,blurb?}] },
+                 logic: server-written only (D57) }
 read: any signed-in user (D98 — displayName + anchors are what turn a uid
-on an answer into a person)
-write: owner only, validated key set. `fcmTokens` is GONE from this doc —
-push tokens live at v2_users/{uid}/push/tokens, server-only both ways
+on an answer into a person; testResults is what D112's kindred-by-scores
+reads across users, exactly the read the rules comment promised)
+write: owner only, validated key set (testResults: ≤8 keys, `logic`
+immutable to clients; the non-logic values are client-written and
+shape-unvalidated, so every cross-user reader parses them defensively —
+data/similarity.ts parseTestResults is the reference). `fcmTokens` is
+GONE from this doc — push tokens live at v2_users/{uid}/push/tokens,
+server-only both ways
 
 v2_users/{uid}/answers/{qid}
   qid (== doc id), surface, optionIdx, answeredAt (request.time),
@@ -241,7 +249,7 @@ MOD_UIDS-gated callables (the D22 confinement)
 ## Functions
 
 - `seedContentV2` (callable; emulator or SEED_ADMIN_UIDS allowlist) — mirrors `/content` question banks
-  into `v2_questions` (503 docs, stable ids `daily-000`, `feed-<id>`,
+  into `v2_questions` (510 docs, stable ids `daily-000`, `feed-<id>`,
   `group-<id>`, `duo-000`, `test-<key>-NN`; idempotent merge; `active` written only on first create, preserving the
   operational kill switch). Bank source:
   `functions/src/v2content.ts`, generated from `/content/*.json`.
@@ -292,7 +300,7 @@ read: signed-in · write: nobody
 ## Read economics (client)
 
 A live boot costs ~20 reads, not ~380: one `v2_meta/app` read decides
-everything. The question bank (503 docs) caches in localStorage keyed by
+everything. The question bank (510 docs) caches in localStorage keyed by
 `contentRev`, and refreshes **incrementally** — one query for docs newer
 than the cache's `updatedAt` cursor, so a promotion cycle costs the
 handful of questions it added rather than the whole bank (D34;

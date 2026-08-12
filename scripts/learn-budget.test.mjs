@@ -1,4 +1,4 @@
-// learn-budget.test.mjs — pins the D111 learn regulator's arithmetic.
+// learn-budget.test.mjs — pins the D115 learn regulator's arithmetic.
 //
 // The first property under test is the one the old rule failed: the lane must
 // be able to return work. D32's "≤8 cards/run, thinnest fields first" could

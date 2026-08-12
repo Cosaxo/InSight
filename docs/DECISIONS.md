@@ -560,6 +560,12 @@ as deployed infrastructure. It now says what is true.
 > only while the Right-now counter (D84) is off. With the counter on — an
 > explicit, revocable location grant — Near resolves and applies the city
 > itself, still saving only the name.
+>
+> **Partially reversed by [D111](#d111--near-and-city-are-two-stops-again-presence-is-not-a-place)
+> (2026-08-12).** The *fold* is unwound: City is its own live stop again
+> and Near is the D84 counter alone. Everything else here survives — the
+> city as the unit, the catalogue, the coarse on-device locate and D92's
+> standing-grant apply all moved to the City stop unchanged.
 
 
 **Decision.** The Mirror's Near population is the city the user **picks from
@@ -10627,8 +10633,388 @@ zero measured bytes today. The reason to do it anyway is that their
 laziness is incidental rather than stated, and `MAX_EAGER_KB` would catch
 it if that changed. Left as is: a conversion that moves no number is one
 whose only evidence would be the absence of a future regression.
+## D111 · Near and City are two stops again: presence is not a place
 
-## D111 · The learn lane can produce again, and the bank stops testing reading position
+**Decided:** 2026-08-12 · **Status:** binding · Owner's direction, verbatim
+in relevant part: "Near is not city that is people near, city is its own
+unique thing."
+
+**Decision.** The live Mirror ruler carries all seven stops. **Near** is
+the Right-now radius counter (D84) and nothing else — its body is
+`ui/NearLiveBody.tsx`, which owns the card that used to sit above the city
+rows. **City** returns as its own live stop: the viewer's city cohort
+(answers, lenses) plus the similarity constellation D112 adds. The three
+world zooms map one-to-one onto the cohort scopes; the `zoom === 'city' →
+country` resolution shim is gone with the gap it papered over.
+
+This partially reverses **D9**. What D9 got right survives untouched: the
+city is still the unit (picked from the catalogue or located on-device,
+coarse, name-only — the D9/D92 machinery moved to the City stop without a
+line of its logic changing), and the geohash Near stays dead. What D9 got
+wrong was the *fold*: "Near IS your city" put two different questions —
+"who is around me right now" (a phone's presence) and "how did my city
+answer" (a profile anchor) — behind one stop, which meant the scale lied
+about what it measured, and the prototype's most distinctive stop shipped
+dark in live mode. D9's own argument ("two stops onto one cohort is how a
+scale starts lying") now cuts the other way: they are two cohorts, so
+they get two stops.
+
+**What Near will never become.** A list. The presence cell is one of the
+three denies D98 kept — it records where a phone is standing, not what
+its owner answered — and the count is the only thing the server returns.
+D112's default-on posture is about answer- and score-derived surfaces;
+publishing presence would need its own explicitly recorded decision, and
+nothing in this one moves it.
+
+**Migration note.** A session that persisted `pop: 'near'` lands on the
+presence body with the city rows one stop to the right; a persisted
+`worldZoom: 'city'` is now simply valid. Neither state can render an
+unselected ruler, which is what the old shim existed to prevent.
+
+## D112 · The similarity surfaces: place score profiles, and kindred ranked by scores — live, exact, default-on
+
+**Decided:** 2026-08-12 · **Status:** binding · Owner's direction, verbatim
+in relevant parts: "the city country and persons in the city should be
+based on who is the closest to you primarily based on test scores … it
+should be like in the preview but with actual working data … the concept
+of kindred strangers should survive and everything that tries to limit or
+make it opt in is wrong … cities and countries needs profiles of what the
+averages scores are."
+
+**Decision.** The prototype's constellation fields ship live, computed
+instead of invented (`data/similarity.ts`, `ui/LiveSimilarityField.tsx`):
+
+- **City** — the people of your city arranged around you, ranked
+  **primarily by test scores**: everyone you share a completed instrument
+  with sorts first, by score match; answer agreement (D99's metric) is
+  the fallback basis, never a gate, and every row names which basis it
+  stands on. Frozen anchors decide city membership (D8 — the answer's
+  snapshot, never the live profile).
+- **Country** — your country's cities, each with a real score profile,
+  placed by its distance from yours. **World** — the same, per country.
+- **Place profiles** — a city's or country's average score per instrument
+  axis is a pure client fold over data that already publishes: the
+  bank's 110 core test items are ordinary `scale` questions whose
+  per-city/per-country option counts sit in `v2_question_aggs.by` (D98),
+  and the fold is the personal scorer's own arithmetic (mean of 0..4
+  agreement, inverts flipped, ×25) run over a cohort's counts. Nothing
+  new is written anywhere; a place has had a profile since its first
+  test answer, and this decision is the first reader.
+
+**The likeness metric, one sentence each — the same explainability bar
+`agreement` was chosen for (D99).** Person: one hundred minus the average
+gap between your axis scores and theirs, across every axis of the
+instruments you have both completed (a whole shared instrument minimum —
+five axes; one axis is a coin toss). Place: the same, across the axes the
+place has answers on, refused below **three** shared axes
+(`MIN_PLACE_AXES`) — a place with less is listed as thin, never
+positioned, because a position is a claim.
+
+**Default-on, and what that does and does not reopen.** The fields load
+with their stops — no opt-in, no tab to open first — because every datum
+they read is public under D98: answers, the anchors they carry, and
+`testResults`, which firestore.rules opened with the comment "the rest of
+testResults is now PUBLIC, which is the point: person-to-person Compare
+reads it." This decision is that sentence finally cashing: nothing read
+here was newly opened, and the demo field's "opt-in" caption dies with
+the demo field. The one deny in the neighbourhood — the presence cell —
+is out of scope (D111 records why).
+
+**The bill, measured the D102 way.**
+
+- *Place profiles:* ≤110 aggregate docs (`ceil(110/30)` = 4 batched `in`
+  queries), **once per session**, minus whatever the deck and archive
+  already cached. No per-render cost; the folds are client arithmetic.
+- *Kindred scores:* **zero additional reads.** The candidate pool is
+  D102's — voter lists for up to `KINDRED_QUESTIONS` (12) of your own
+  answers × `VOTER_FETCH_CAP` (200), recency-biased — and the web SDK
+  has no field mask, so every profile document `resolveNames` fetched
+  for a display name already carried `testResults` over the wire.
+  `resolveNames` now keeps what was paid for, into a sibling `scores`
+  cache with the same "" / null absence convention.
+- *Both loaders* are session-cached, in-flight-guarded, and reset on uid
+  change with everything else.
+
+**Bounds carried, not invented.** The pool is the D102 pool; widening it
+is paging from the cursor the ordering already provides (the D101 rule),
+not a quiet cap raise. `parseTestResults` reads the four core instruments
+only, defensively — the field is owner-written and shape-unvalidated, so
+values coerce, clamp to 0..100, and a hostile profile parses to null
+rather than to a position. Excluded with reasons: the **minor lenses**
+(device-local by D50/D91 posture — there is no stored result to compare;
+their per-place aggregates exist and can join a later decision), and
+**logic** (a verified score, D57 — a different claim than an axis
+profile, and its `testResults.logic` key stays server-owned).
+
+**Three honesty rules, inherited from D1 via D72's lesson.** No mist —
+the prototype's decorative background dots were unnamed fake people, so
+density here is real nodes or nothing. No invented headline — "12.6k in
+Oslo" has no honest single source, so counts stay attached to what they
+count. Thin is named — places and people below the axis minimums are
+listed with the reason, never silently dropped and never faked into
+position. The viewer with no scores still gets everything the data
+supports: profiles render (they are the product, likeness is the extra),
+people rank by agreement, and `myAxisScores` folds the viewer's own
+answers to test items so a finished instrument is not a paywall on
+having a position at all.
+
+**A third follow entry point.** The person card in the City field carries
+the same one-tap follow as the People lens, under D101's rule unchanged:
+a follow can start where a uid has become a person with a reading
+attached. That set is now three — the who-voted sheet, the Kindred rows,
+and the constellation's person card.
+
+**Known limits, recorded with their arithmetic.** (1) The kindred pool is
+recency-biased and bounded as above — at launch scale it is exhaustive;
+at 5,000 DAU it is "the latest 200 per question", and the panel copy says
+which. (2) A person's own *passive* feed answers still do not fold into
+their stored result (the pre-D112 gap in `passive-progress.js` — value
+recorded server-side, discarded client-side); the fields sidestep it by
+folding the viewer's answers directly, but the stored-result gap stands
+until someone closes it deliberately. (3) Place buckets inherit
+`BREAKDOWN_MAX_BUCKETS` (24) per question with eviction — the union
+across 110 items makes starvation unlikely, but a country's 25th city on
+every single item would not appear; if that is ever real, the fix is the
+fold's, not the trigger's.
+---
+
+## D113 · Two continuum forms in the feed, a lane that writes them, and the compare rose redrawn (a partial v20 sync)
+
+**Decided:** 2026-08-12 · **Status:** binding · (Authored as D105; renumbered
+in the merge — main had minted D105/D106 for the field-size and
+privacy-docs records. The D68 precedent.)
+
+`InSight_standalone_20.html` exists (maintainer-supplied; not committed —
+see "What v20 has that this tree still does not" for why). Against v18 it
+is a focused revision: four new modules, seven changed ones, everything
+else byte-identical. This record syncs **two** of its six changes, by the
+D43/D68 method (three-way: v18 as base, v20 as theirs, this tree as ours)
+scoped to the features taken. v18 remains the committed reference design —
+a partial sync must not move that pointer, or `scripts/style-diff.mjs` and
+the next full sync both aim at a file that only half-describes the tree.
+
+### 1 · The feed gains two continuum forms (`dial` / `field`)
+
+A `dial` answers with a value on a range (slider; reveal is the crowd as a
+smoothed 12-bucket curve, a dashed median, your dot on the curve). A
+`field` answers with a dot on a labelled 2-D plane (reveal is the crowd as
+a seeded cloud plus your ring). Both carry the full v20 grammar:
+breakdown sheets (per-group bars on the question's own range; group
+centres named on the plane), an insight line (the cut furthest from your
+answer, doubling as the door to the breakdown), thin-bar collapse states,
+"N answers" footers, and the hot sort pinning one continuum card near the
+top (held after answering so the card doesn't jump mid-read). Seven
+authored questions land in the demo pool (`dl1–dl4`, `fd1–fd3`).
+
+One deliberate divergence from v20's pixels: both new surfaces are
+pointer-only in the prototype, and this tree's a11y ratchet (which only
+moves down) refused them. The dial is now a real `role="slider"` — arrows
+nudge the pending value, Enter commits — and the field plane a keyboard
+target whose arrows walk a dashed pending ring, Enter dropping the dot
+where it stands. The D68 rule, applied again: the prototype wins on
+design, this repo wins on enforcement.
+
+**Demo-pool only, and that is a decision, not a gap.** The live loop
+stores an `optionIdx` against an options array and renders every live card
+through the options path (data/live.ts); a continuum entry in the live
+bank today would serve as a wrong-shaped vote card — D12's sin with a
+slider on it. So the forms live where `rate`, `pick` and `know` live: real
+in the demo feed, absent from the live pool, invisible in a live build
+(buildFeedGlobals replaces the demo pool wholesale). The live path is
+recorded, not vague: a dial's 12 buckets are sized to the fold's existing
+optionIdx ceiling (12 ≤ 20, functions/src/v2.ts drops idx > 19), so a
+future promotion buckets answers 1:1 under the EXISTING rules, trigger,
+ledger and by-cells — zero backend schema change — and needs (a) bank
+transport of `lo/hi/unit/ends` through gen-v2content → seed → deck, (b)
+`buildFeedGlobals` passing the type through instead of hardcoding "vote",
+(c) live adapters in the renderer (counts→dist, weighted median, bucket
+midpoint for a reloaded standing answer), and (d) a field grid of ≤ 20
+cells if fields promote too. That work reverses the "every live card
+renders through the options path" deferral and gets its own record when
+taken.
+
+### 2 · The bot's feed lane learns the forms
+
+"The bot" here is the D97 production machinery, and the changes follow its
+own shape rather than inventing a new one:
+
+- **The gate knew no feed types at all** — `OPTION_SHAPES` closed the
+  daily list while a novel feed type passed `check:quality` silently.
+  `FEED_TYPES` (vote·rank·duel·dial·field) closes the feed list, and
+  per-type validators hold the continuum shapes: `lo < hi`, `med` inside
+  the range, `dist` exactly `DIAL_BUCKETS` (12) non-negative buckets with
+  a live mode, a unit or end labels (something has to say what the scale
+  measures), axes as two option-bounded labels each, clouds as 1–4
+  `[x, y, count, spread]` clusters totalling 8–60 dots. The crowd texture
+  is authored, so the gate holds it to the same bar as the copy.
+- **The gate walks what the lane writes.** The demo pool's continuum
+  entries are lane-authored production copy, so `loadCorpus` extracts
+  them from `world-feed-data.js` exactly as it already extracts
+  `pick-data.js` — and only them: the rest of the demo pool is prototype
+  filler that production bounds were never written for.
+- **Pre-flight reaches the new fields**: `--type dial|field` with
+  `--lo/--hi/--unit/--med/--dist/--ends/--ax/--ay/--n` flags; a field's
+  cloud has no flag syntax worth inventing, so fields pre-flight via
+  `--batch` with the full objects (candidateOf passes the continuum
+  fields through verbatim).
+- **The manual moved with the gate** (QUESTION-FARM.md § The feed lane +
+  § Continuum questions): the vote-only rule became three-forms-two-
+  destinations, with the shape contract, the style bar (a dial wants a
+  range everyone holds a number on; a field wants two judgments
+  independent enough to disagree, with all four corners inhabitable),
+  the `dlN`/`fdN` id series, channel guidance (always-on `bigq`/`dilemma`
+  unless truly subject-bound), the no-provenance-until-promotion rule,
+  and scarcity guidance (inside the ≤6/run budget; the hot pin means a
+  glut buys nothing). The canonical Routine prompt is the daily lane's
+  and is untouched.
+
+### 3 · The compare rose is redrawn (v20, verbatim)
+
+The old language — petal solid as far as you both reach, pale for the
+distance — was symmetric on purpose, and that symmetry was the complaint:
+your own shape disappeared into the comparison, and sitting below the
+average rendered as a washed-out ghost. v20's answer, taken whole: your
+petal is always solid to YOUR score (the exact shape of your results
+rose), the other side is a washed dot pinned per slice (the pole rows' dot
+language lifted into the rose), and only where they reach past you does
+the span get the faintest wash. Dot on the rim = matched. New aria-label
+to match. One divergence class survives, deliberately: the D103 cognitive
+retirement (this tree's CB_EXTRA_CFG seam stays gone; the dot language
+lands on the four remaining assessments).
+
+### What v20 has that this tree still does not
+
+Recorded so the next sync starts from a list instead of a re-diff:
+**Predictions** (predict-data.js, predict-cards.jsx: CALL/READ cards on a
+ten-second clock, a new feed channel), **Foresight** (map-fore-card.jsx,
+`g-fore` map branch, PREDICT map wiring), **Born or built**
+(nature-data.js heritability table + result-card section — note its
+`cognitive` entry collides with D103 and must be dropped or re-recorded
+when taken), and the **shell groundwork** (generalized navKey/data-view,
+`.tabbar[data-n="5"]` CSS). The v18→v20 CSS delta is otherwise font-URL
+re-keying — noise, not style.
+
+### What proves it
+
+`check:quality` walks 256 questions (249 + 7 continuum) and holds; the
+new validators are pinned in question-quality.test.mjs (21 cases, 7 new),
+including the closed-list rule that would have let a novel feed type pass
+silently, and the tripwire sweep over axis end labels. The client gates —
+test:unit, lint (`no-undef` on for the spec layer), `tsc -b`,
+check:globals (coupling unchanged: every new cross-module read in the
+ported code resolves through names world-feed.jsx already read — WPAL,
+HAPTIC, wfSave, wfHash, VOTECUTS), check:figures — all green at this
+commit.
+
+---
+
+## D114 · The continuum forms go live: bucketed answers under the existing fold
+
+**Decided:** 2026-08-12 · **Status:** binding · Supersedes the demo-pool
+deferral in D113 §1 (everything else in D113 stands).
+
+D113 shipped `dial`/`field` demo-only because a live continuum entry
+would have served as a wrong-shaped vote card. This record reverses the
+relevant half of the standing "every live card renders through the
+options path" deferral (data/live.ts, D12's arithmetic) — for these two
+types only, and by making the options path carry them honestly rather
+than by building a second path.
+
+### The design: an answer is a position in a frozen grid
+
+A live continuum answer is an ordinary `optionIdx`. The bank doc's
+options are **synthesized** labels — 12 range buckets for a dial
+("60–64 yrs"), a 4×3 cell grid for a field ("lean tastes good ·
+middle") — generated at `build:content` from `lo/hi/unit` (or `ax/ay`),
+never authored (`scripts/gen-v2content.mjs`). The arithmetic that sizes
+them: the fold drops `optionIdx > 19` (functions/src/v2.ts), and the
+by-cell document budget was priced at "6 dims × 24 buckets × up to 20
+options" (functions/src/pure.ts) — 12 sits under both with room, and a
+4×3 plane is the coarsest grid whose centroids still read as positions.
+What this buys: the rules' create/edit arms, the trigger, the ledger,
+the by-cells, the D86 cooldown and the voters panel all carry continuum
+answers **unchanged** — zero rules edits, zero fold edits, and the
+voters panel prints a meaningful label ("picked 60–64 yrs") for free.
+
+Because the labels derive from the range, the D52 option freeze freezes
+the range with them: a changed `lo` regenerates different labels and the
+seed refuses it as an option edit (pinned in seed.test.ts). That is
+correct, not incidental — every stored answer is a position on the old
+range. `ends` (display-only) stays rewritable; `lo/hi/unit/ax/ay` are
+ship-once. SEEDED_FIELDS carries the new fields so absent-vs-set
+compares stay exact; emit-when-set keeps the other ~493 docs untouched.
+
+### The client: raw local, bucket public
+
+`buildFeedGlobals` passes the continuum type and range copy through
+(everything else still flattens to "vote" — that deferral stands for
+rank/scale). The card quantizes on answer (`dialBucket`/`fieldCell`,
+mirroring the gen constants), writes `LIVE.vote(qid, String(idx))`, and
+keeps the RAW value in WF_LS for display; a device with no raw value
+shows the server bucket's midpoint, because quantized is what the world
+stored. A repeat answer from such a device routes through the D86 edit
+with the same cooldown-refusal snap-back setVote uses. The reveal
+derives everything from the bucket counts: `dist` = per-option counts
+plus the viewer's own bucket back (wfPcts's convention), the "most say"
+line = the distribution's midpoint value — derived client-side like
+every other average in this app, because the agg stores a histogram and
+never a sum. The live cloud is the cell counts drawn as ≤60 jittered
+dots — a sketch of a crowd, deterministic per render.
+
+### Real cohorts replace the texture, live
+
+The breakdown sheets and the insight line read `agg.by` on live cards:
+a group's row is its actual average position (histogram at bucket
+midpoints), a field group's dot its actual centre of mass, both under
+the same "counts move in steps of five" note the vote breakdown
+carries. The insight line stays silent below three answers in a cohort
+or a gap under 5% of the range — a lean needs more than one person's
+dot. Demo cards keep their authored texture, and the two never mix:
+`check:quality` now runs texture rules on the demo pool's entries and
+REFUSES texture fields on content entries (an authored crowd in the
+live bank would be the demoInProd lie, committed), with the lane
+contract rewritten to author both halves in one PR
+(QUESTION-FARM.md § Continuum questions).
+
+### What moved, mechanically
+
+The seven D113 questions promoted into `content/feed-questions.json`
+with provenance rows (`editorial` / batch `v20`); the bank regenerates
+at 500 docs (was 493 — five prose figures updated where `check:figures`
+pointed). `check:content` verifies synthesized labels match their range
+exactly and bounds field axis ends at 14 chars (they compose into cell
+labels); `check:neighbors`' feed domain spans both destinations,
+deduped by id (same id = same question, not a dupe). deck.ts serves
+dial/field through the existing feed filter (12 options pass
+`playable`; the rank exclusion never applied). The bundle's total
+ceiling moved 2140 → 2170 for the feature's 24 KB — the fourth raise,
+measured against main at the D112 merge (2136, 4 KB under before this
+branch added a byte); all of it lazy weight in the deferred world-feed
+chunk, the eager graph unmoved. The arithmetic and the standing
+trim candidates are in scripts/check-bundle.mjs, where that history
+lives.
+
+### Not done, deliberately
+
+The scorecard's `splitQualityOf` still reads a dial as categorical
+evenness — wrong metric, harmless until continuum questions have enough
+live answers to score, and its ordinal treatment belongs with the
+scorecard work. The Mirror is untouched (feed answers were never in the
+daily record). No in-card re-answer affordance on continuum cards (the
+options-shaped Change button is excluded by name); the D86 edit path
+exists and is exercised only by the fresh-device repeat case.
+
+### What proves it
+
+197 functions tests (including the new range-freeze refusal), 766+
+client tests with the buildFeedGlobals passthrough pin (a dial keeps
+its type, lo/hi/unit and 12 options where every other card flattens to
+"vote"), 120 script tests across the texture split, the closed feed
+type list and both walks; check:globals coupling held at its baseline
+(the new live reads go through the imported LIVE binding — "new ones
+may not join them", and none did); check:a11y at baseline;
+check:content at 500; check:figures green after the five prose updates.
+## D115 · The learn lane can produce again, and the bank stops testing reading position
 
 **Decided:** 2026-08-12 · **Status:** binding · Amends D32 (the
 learn-card lane) and extends D63 / D97 (the dedup and quality gates) to

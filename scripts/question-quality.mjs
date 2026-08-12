@@ -20,7 +20,7 @@
 // question as a civic cue), not a paraphrase ("the fjord city", "our
 // capital"). The farm manual's re-read stays the rule; this is its floor.
 //
-// THE LEARN SURFACE (D111, 2026-08-12). Learn was the last lane with no
+// THE LEARN SURFACE (D115, 2026-08-12). Learn was the last lane with no
 // pre-flight at all, and the only one where that gap costs the most: dailies
 // and feed questions pass two gates (archive PR, then a human promotion PR),
 // but a merged learn card reaches production on the next reseed — "one gate
@@ -34,25 +34,33 @@
 //
 // Modes:
 //   (no args)              gate: form rules over daily / feed / duel / pick /
-//                          learn, provenance coverage
+//                          learn, the demo pool's continuum entries
+//                          (dial/field), provenance coverage
 //                          (content/provenance.json ↔ the banks), and the
 //                          id/bank headroom tripwires. Exit 1 on any
 //                          violation.
 //   --candidate "prompt"   pre-flight one candidate; prints a review-packet
-//     [--surface daily|feed|learn] [--type binary|choice|scale|rating|dilemma|vote]
+//     [--surface daily|feed|learn]
+//     [--type binary|choice|scale|rating|dilemma|vote|dial|field]
 //     [--options "A|B|C"] [--tone light|blend|deep] [--tag "two words"]
 //     [--cat "Top / Sub"]  (daily; for feed pass the bare topic id, e.g.
 //     --cat sport) [--alts "Top / Sub, Top / Sub"] [--axis slug]
-//     learn adds [--correct N] [--trap N] [--p NN] [--k "map label"]
-//     [--why "one line"] [--field cell]
+//     dial:  [--lo n] [--hi n] [--unit yrs] [--med n] [--dist "1,3,5,…"]
+//            [--ends "low end|high end"] [--n 5000]
+//     field: [--ax "left|right"] [--ay "bottom|top"] [--n 5000]
+//            (cloud has no flag syntax — pre-flight fields via --batch)
+//     learn: [--correct N] [--trap N] [--p NN] [--k "map label"]
+//            [--why "one line"] [--field cell]
 //   --batch <file.json>    pre-flight an array of candidate objects
 //                          ({prompt, type, options?, tone?, tag?, cat?,
-//                          alts?, axis?, surface?}) plus the batch-mix
-//                          rules a single candidate cannot express. Learn
-//                          entries may be passed in their NATIVE card shape
-//                          ({id, f, q, a, c, t, p, k, w}) — the same JSON that
-//                          gets appended to content/learn-questions.json, so
-//                          the thing pre-flighted is the thing shipped.
+//                          alts?, axis?, surface?, and the dial/field
+//                          fields verbatim}) plus the batch-mix rules a
+//                          single candidate cannot express. Learn entries
+//                          may be passed in their NATIVE card shape
+//                          ({id, f, q, a, c, t, p, k, w}) — the same JSON
+//                          that gets appended to
+//                          content/learn-questions.json, so the thing
+//                          pre-flighted is the thing shipped.
 //
 // Node stdlib only, deterministic, like every gate here.
 import { readFileSync, existsSync } from "node:fs";
@@ -78,6 +86,22 @@ export const OPTION_SHAPES = {
   scale: [0, 0],
   rating: [0, 0],
 };
+// The feed's closed type list. Until this set existed a novel feed type
+// passed the gate silently (the daily surface had OPTION_SHAPES; the feed
+// had nothing) — exactly how a wrong-shaped card would reach review unread.
+// vote and the continuum forms (dial/field, live since D114) are lane
+// candidates; rank/duel are bank legacy (D12).
+export const FEED_TYPES = new Set(["vote", "rank", "duel", "dial", "field"]);
+// A dial's crowd texture is exactly 12 buckets lo→hi. Pinned rather than
+// free: world-feed.jsx's curve is drawn from it, 12 fits the live fold's
+// optionIdx ceiling (0..19, functions/src/v2.ts), and the live bank's
+// synthesized bucket labels (D114) bucket answers 1:1 against it.
+export const DIAL_BUCKETS = 12;
+// A field's cloud stays a sketch, not a census: enough dots to read as a
+// crowd, few enough that the reveal's stagger (one span per dot) stays a
+// beat. v20's authored clouds sit at 25–26.
+export const CLOUD_DOTS_MIN = 8;
+export const CLOUD_DOTS_MAX = 60;
 
 // ── the learn bounds (measured 2026-08-12 over the 96-card bank) ──
 // LENGTH_TELL is the one giveaway a permuted option order cannot fix: a
@@ -202,6 +226,17 @@ export function loadCorpus() {
     "pick-data.js",
   );
   const learn = JSON.parse(readFileSync(join(root, "content", "learn-questions.json"), "utf8"));
+  // The demo pool is prototype filler EXCEPT its continuum entries
+  // (dial/field), which are lane-authored production copy — the feed lane
+  // lands them here until the live continuum loop ships. The gate walks
+  // exactly what the lane writes (the pick-data.js pattern), and only
+  // that: dragging the rest of the demo pool through production bounds
+  // would fail scene fillers that are not production copy.
+  const wfd = extractLiteral(
+    readFileSync(join(root, "src", "v2", "spec", "world-feed-data.js"), "utf8"),
+    "window.WORLD_FEED_QS = [",
+    "world-feed-data.js",
+  );
   return {
     specQ,
     dailyIdOf,
@@ -213,6 +248,7 @@ export function loadCorpus() {
     pick,
     learn,
     learnLevels: learnLevelBounds(),
+    continuum: wfd.filter((q) => q.type === "dial" || q.type === "field"),
   };
 }
 
@@ -226,8 +262,14 @@ export function learnView(card) {
 }
 
 // ── the rules ──
+// ax/ay/ends join the sweep: a field's axis labels and a dial's end labels
+// are prose the reader sees, so the place tripwire must see them too.
 const textOf = (q) =>
-  [q.prompt, ...(q.options || q.items || []).map((o) => (o && typeof o === "object" ? o.label : o))]
+  [
+    q.prompt,
+    ...(q.options || q.items || []).map((o) => (o && typeof o === "object" ? o.label : o)),
+    ...(q.ax || []), ...(q.ay || []), ...(q.ends || []),
+  ]
     .filter(Boolean)
     .join(" ");
 
@@ -245,7 +287,14 @@ export function placeCivicHit(q) {
 // place tripwire) — their lane-specific shapes are check:content's job.
 // Every error carries a stable `rule` slug: it is the ALLOW key's second
 // half, so a waiver names exactly one finding, never the whole question.
-export function checkQuestion(q, surface, ctx) {
+//
+// `mode.texture` — a continuum question exists in two forms (D114): the
+// DEMO-POOL entry carries an authored crowd (med/dist/cloud/n) because the
+// demo has no backend, and the CONTENT entry carries none because the live
+// crowd is the aggregate. Texture rules apply only where texture belongs;
+// a content entry CARRYING texture is its own error, because an authored
+// crowd in the live bank would be a fabricated one.
+export function checkQuestion(q, surface, ctx, mode = {}) {
   const errs = [];
   const warn = [];
   const err = (rule, msg) => errs.push({ rule, msg });
@@ -308,8 +357,78 @@ export function checkQuestion(q, surface, ctx) {
   }
 
   if (surface === "feed") {
+    if (!FEED_TYPES.has(q.type)) {
+      err("type-shape", `unknown feed type ${JSON.stringify(q.type)} — vote|rank|duel|dial|field`);
+    }
     if (q.type === "rank") warn.push("rank type — not live-servable (D12); fine in the bank, never a lane candidate");
     if (q.cat && !ctx.feedTopics.has(q.cat)) err("topic", `topic ${JSON.stringify(q.cat)} is not in the feed taxonomy`);
+
+    // ── continuum shapes ── the whole entry is authored, crowd texture
+    // included (the demo pool has no backend), so the gate holds the
+    // texture to the same bar as the copy: a dial whose dist doesn't fit
+    // the curve, or a field whose cloud drifts off the plane, renders
+    // wrong in exactly the ways a reviewer stops seeing after ten cards.
+    const texture = !!(mode && mode.texture);
+    if ((q.type === "dial" || q.type === "field") && !texture) {
+      for (const k of ["med", "dist", "cloud", "n"]) {
+        if (q[k] !== undefined) {
+          err("texture", `${k} on a content entry — authored crowd texture belongs in the demo pool; the live crowd is the aggregate`);
+        }
+      }
+    }
+    if (q.type === "dial") {
+      if (opts.length) err("type-shape", "a dial carries no options — the range is the answer space");
+      const num = (v) => typeof v === "number" && Number.isFinite(v);
+      if (!num(q.lo) || !num(q.hi) || q.lo >= q.hi) {
+        err("range", `dial needs numeric lo < hi (got lo ${JSON.stringify(q.lo)}, hi ${JSON.stringify(q.hi)})`);
+      }
+      if (texture) {
+        if (!num(q.med) || (num(q.lo) && num(q.hi) && (q.med < q.lo || q.med > q.hi))) {
+          err("med", `med ${JSON.stringify(q.med)} must be a number inside [lo, hi] — it is the "most say" line`);
+        }
+        if (!Array.isArray(q.dist) || q.dist.length !== DIAL_BUCKETS || q.dist.some((w) => !num(w) || w < 0) || !q.dist.some((w) => w > 0)) {
+          err("dist", `dist must be ${DIAL_BUCKETS} non-negative buckets lo→hi with at least one > 0 (got ${Array.isArray(q.dist) ? q.dist.length + " buckets" : JSON.stringify(q.dist)})`);
+        }
+      }
+      const endsOk = Array.isArray(q.ends) && q.ends.length === 2 && q.ends.every((e) => typeof e === "string" && e.trim());
+      if (q.ends !== undefined && !endsOk) err("ends", `ends must be two non-empty labels (got ${JSON.stringify(q.ends)})`);
+      if (!endsOk && (typeof q.unit !== "string" || !q.unit.trim())) {
+        err("ends", "a dial needs a unit or two end labels — something has to say what the scale measures");
+      }
+      for (const e of [...(q.ends || [])]) {
+        if (String(e).length > OPTION_MAX) err("option-length", `end label ${JSON.stringify(String(e))} is ${String(e).length} chars (max ${OPTION_MAX})`);
+      }
+      if (texture && (!num(q.n) || q.n <= 0)) err("n", `n ${JSON.stringify(q.n)} — the authored answer count the card's footer shows`);
+    }
+    if (q.type === "field") {
+      if (opts.length) err("type-shape", "a field carries no options — the plane is the answer space");
+      const num = (v) => typeof v === "number" && Number.isFinite(v);
+      for (const [k, axis] of [["ax", q.ax], ["ay", q.ay]]) {
+        if (!Array.isArray(axis) || axis.length !== 2 || axis.some((e) => typeof e !== "string" || !e.trim())) {
+          err("ends", `${k} must be two non-empty end labels (got ${JSON.stringify(axis)})`);
+        } else {
+          for (const e of axis) {
+            // 14, not OPTION_MAX: these ends compose into the synthesized
+            // cell labels ("lean tastes good · middle"), and the composed
+            // label is what the voters panel prints
+            if (e.length > 14) err("option-length", `end label ${JSON.stringify(e)} is ${e.length} chars (max 14 — it composes into cell labels)`);
+          }
+        }
+      }
+      if (texture) {
+        const cluster = (c) =>
+          Array.isArray(c) && c.length === 4 && c.every(num) &&
+          c[0] >= 0 && c[0] <= 100 && c[1] >= 0 && c[1] <= 100 &&
+          c[2] >= 1 && Number.isInteger(c[2]) && c[3] > 0 && c[3] <= 50;
+        const dots = Array.isArray(q.cloud) ? q.cloud.reduce((a, c) => a + (Array.isArray(c) ? c[2] || 0 : 0), 0) : 0;
+        if (!Array.isArray(q.cloud) || !q.cloud.length || !q.cloud.every(cluster)) {
+          err("cloud", `cloud must be [x, y, count, spread] clusters in 0–100 coords, spread ≤ 50 (got ${JSON.stringify(q.cloud)})`);
+        } else if (dots < CLOUD_DOTS_MIN || dots > CLOUD_DOTS_MAX) {
+          err("cloud", `cloud draws ${dots} dots (want ${CLOUD_DOTS_MIN}–${CLOUD_DOTS_MAX}) — a sketch of a crowd, not a census`);
+        }
+        if (!num(q.n) || q.n <= 0) err("n", `n ${JSON.stringify(q.n)} — the authored answer count the card's footer shows`);
+      }
+    }
   }
 
   // Learn's own rules. Everything check:content already validates (four
@@ -524,11 +643,18 @@ if (invokedDirectly) {
       cat: raw.cat,
       alts: raw.alts,
       axis: raw.axis,
+      // continuum fields, verbatim — a --batch pre-flight checks the exact
+      // object the lane will land, crowd texture included
+      lo: raw.lo, hi: raw.hi, unit: raw.unit, med: raw.med, dist: raw.dist,
+      ends: raw.ends, ax: raw.ax, ay: raw.ay, cloud: raw.cloud, n: raw.n,
     };
   };
 
   const printPacket = (q, i) => {
-    const { errs, warn } = checkQuestion(q, q.surface, corpus);
+    // Candidates pre-flight as the demo-pool form — texture included —
+    // because that is the half the lane authors first; the content entry
+    // is the same copy with the texture stripped.
+    const { errs, warn } = checkQuestion(q, q.surface, corpus, { texture: true });
     const head = `${i != null ? `[${i}] ` : ""}${JSON.stringify(q.prompt ?? "")} (${q.surface}/${q.type})`;
     if (!errs.length && !warn.length) console.log(`  ✓ ${head}`);
     else {
@@ -584,6 +710,17 @@ if (invokedDirectly) {
         : undefined,
       alts: flag("--alts") ? pairsOf(flag("--alts")) : undefined,
       axis: flag("--axis") || undefined,
+      // dial/field candidates. A field's cloud has no flag syntax worth
+      // inventing — pre-flight fields via --batch with the full object.
+      lo: flag("--lo") != null ? Number(flag("--lo")) : undefined,
+      hi: flag("--hi") != null ? Number(flag("--hi")) : undefined,
+      unit: flag("--unit") ?? undefined,
+      med: flag("--med") != null ? Number(flag("--med")) : undefined,
+      dist: flag("--dist") ? flag("--dist").split(",").map((x) => Number(x.trim())) : undefined,
+      ends: flag("--ends") ? flag("--ends").split("|").map((x) => x.trim()) : undefined,
+      ax: flag("--ax") ? flag("--ax").split("|").map((x) => x.trim()) : undefined,
+      ay: flag("--ay") ? flag("--ay").split("|").map((x) => x.trim()) : undefined,
+      n: flag("--n") != null ? Number(flag("--n")) : undefined,
     });
     console.log("quality pre-flight (paste the packet in the PR body):");
     process.exit(printPacket(q) ? 1 : 0);
@@ -647,6 +784,13 @@ if (invokedDirectly) {
     failed = true;
     console.error(`  ✗ ${e}`);
   }
+  // the demo pool's continuum entries — feed rules plus the texture rules:
+  // this is the half that carries the authored crowd (D114), mirroring the
+  // texture-less content entries the feed walk above already covered.
+  corpus.continuum.forEach((q) => {
+    const { errs } = checkQuestion(q, "feed", corpus, { texture: true });
+    report("feed(demo)", q.id, errs, []);
+  });
 
   for (const e of checkProvenance(corpus)) {
     failed = true;
@@ -660,7 +804,7 @@ if (invokedDirectly) {
   for (const w of head.warn) console.log(`  • ${w}`);
 
   const n = corpus.specQ.length + corpus.feed.questions.length + corpus.duel.length
-    + corpus.pick.length + corpus.learn.cards.length;
+    + corpus.pick.length + corpus.continuum.length + corpus.learn.cards.length;
   console.log(`quality: ${n} questions checked${failed ? "" : " · all bounds hold"}`);
   process.exit(failed ? 1 : 0);
 }

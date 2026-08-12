@@ -1,4 +1,4 @@
-// learn-budget.mjs — the learn lane's generation budget as arithmetic (D111),
+// learn-budget.mjs — the learn lane's generation budget as arithmetic (D115),
 // replacing D32's flat "≤8 cards/run, thinnest fields first".
 //
 // WHY THIS EXISTS. The flat rule did not merely under-produce; it produced
