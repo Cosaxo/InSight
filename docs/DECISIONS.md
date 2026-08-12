@@ -9361,3 +9361,104 @@ withdrawn in place.
 Unmoved on purpose: `MAX_CHUNK_KB` stays 735 against a 732.0 KB entry
 chunk. Three kilobytes of headroom means the next eager addition fails
 there rather than on the total, and has to defer instead of argue.
+
+## D100 · Scores and the Answers lens, on the archive rather than the week
+
+**Decided:** 2026-08-12 · **Status:** binding · Follow-on to D99.
+
+**Decision.** The Mirror's lens row gains **Scores**, its Answers lens
+gains the branch filter, the sort and the expand-a-row it was missing,
+and both read every question this device holds an aggregate for instead
+of the seven-day deck.
+
+### The enabler is one accessor, and it is why the other two were stuck
+
+`LIVE.aggregated()` returns every active daily question with published
+counts — the deck plus everything the user has ever answered, which
+`hydrate` already fetches and caches (`AGG_ID_CAP`, 120). No new read:
+the same map, walked rather than indexed.
+
+Both features were blocked on the *size of the set*, not on data:
+
+- A branch filter over seven rows offers fourteen subjects holding one
+  row each. A sort over seven rows re-orders half a screen. Neither is
+  worth the strip it takes to draw.
+- Scores could not exist on the deck **at all**. The bank holds five
+  `rating` questions in ninety, so the rotation serves a given week none
+  about two weeks in three.
+
+### Scores was refused at D99 for a reason that was wrong
+
+D99's note said the place scorecard is fed by `rate` questions, the bank
+ships none, so the lens would be an empty frame. The first clause is
+true and the conclusion does not follow. `rate` is the *prototype's*
+place-scorecard type; the shipping bank carries **five 1-10 `rating`
+items and sixteen 5-point `scale` ones**, and an ordinal question is an
+ordinal question whether its subject is a city's nightlife or your own
+outlook. The lens filters on TYPE (`ORDINAL_TYPES`), so place-rating
+questions join it the day someone writes them, with no code change.
+
+What the lens must never do is average a *categorical* question, and
+nothing in `counts` could tell it apart from an ordinal one — "Messi"
+and "Ronaldo" are different, not ordered, and their mean would render
+exactly as confident as a real number. The type filter is the whole
+guard, and it has the test that names it.
+
+Two arithmetic choices, both with a case pinning them:
+
+- **Ranked by share of the scale**, not by raw mean. 4/5 must outrank
+  7/10; ranking on the mean sorts by which scale a question happened to
+  use.
+- **The denominator ships with every number.** One list mixes 5-point
+  and 10-point questions, and "6.2" means opposite things across them.
+
+### The branch was in `content/` all along, and the seed dropped it
+
+`daily-questions.json` carries `cat: ["Mind", "Outlook"]` — a
+[branch, sub-branch] path, the taxonomy the Map files answers under.
+`gen-v2content.mjs` emitted `topic: q.tone` and nothing else, so the
+seeded doc kept *tone* (light/deep/blend) and lost the subject entirely.
+Nothing noticed because the demo layer reads the path from its own copy
+of the bank; the first consumer that could only see Firestore was this
+filter, and it had three tone buckets to offer instead of fourteen
+subjects.
+
+`branch`/`sub` now ride the seed, emitted only when set (the `mode`
+rule) — 90 daily entries carry a path and the other 423 do not, so
+writing null would rewrite the whole bank to say nothing about four
+surfaces out of five. **Every question seeded before today still has no
+branch**, and will until the next seed run, so both readers treat it as
+undefined and the chip row simply does not render. That is a case, not
+an assumption.
+
+Cost: the bank's wire size goes 116.1 → 119.3 KiB, which is +3.2 KiB on
+every cold boot's 513 reads. `check:figures` caught the stale figure in
+`docs/COSTS.md` before this was committed, which is the third time that
+gate has paid for itself.
+
+### "Newest" is in the prototype's sort list and is deliberately absent
+
+The archive spans any day the rotation has reached, and nothing the
+client holds dates an answer: the aggregate carries no timestamp, and a
+question's bank position is where it entered the bank, not when it was
+asked. A "Newest" that silently meant "highest seq" would be a label
+that is wrong about six days in seven. Three honest orderings ship
+instead — most answers, most divisive, most agreed.
+
+`divisiveness` is normalised by option count, and that is the only
+interesting thing about it: a 30/25/25/20 four-way is a divided room and
+a 30/70 binary is not, but raw leading share scores them 0.30 and 0.70
+and ranks the binary as *more* divided. Scaling against each question's
+own even split puts a mixed deck on one axis.
+
+### A fixture that had been proving the wrong thing
+
+`live-fixture`'s aggregate carried `by: {}`. Giving it a real breakdown
+so the Mirror's geographic stops have rows turned two `smoke-live` cases
+red, and the reason is the finding: a live feed card with a cohort
+breakdown renders the **surprise line** and drops the bar-chart button
+with it (`world-feed.jsx` gates the button on `!ins` — the line is
+already a door to the same sheet). With an empty `by` that line could
+never render, so every case in that file had been silently testing the
+button-only branch: the one a real user with real data sees *least*
+often. The helper now accepts either door, so both are covered.

@@ -289,6 +289,12 @@ export async function runSeedV2(
       // carries. `mode` scopes a duel question to a pool — today only
       // "romantic" (D40 part 4), which duelQFor filters on client-side.
       ...(typeof q.mode === "string" ? { mode: q.mode } : {}),
+      // The daily bank's subject path (D100). Same emit-when-set rule, and
+      // here it matters more than for `mode`: 90 daily entries carry a
+      // branch and the other 423 do not, so writing null would rewrite the
+      // whole bank to say nothing about four surfaces out of five.
+      ...(typeof q.branch === "string" ? { branch: q.branch } : {}),
+      ...(typeof q.sub === "string" ? { sub: q.sub } : {}),
     };
     // Unchanged docs are not rewritten. Two things depend on this, and the
     // second is the expensive one: `updatedAt` only means something as an

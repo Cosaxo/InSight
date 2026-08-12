@@ -80,10 +80,24 @@ const OPTION_COLORS = ["var(--c-around)", "var(--c-today)", "var(--c-likeness)"]
 export const FEED_PROMPT = "Fixture feed card: does the gate hold?";
 export const FEED_OPTIONS = ["Gate holds", "Gate leaks"];
 
-function liveQuestion(id: string, prompt: string, tooSmall: boolean) {
+function liveQuestion(
+  id: string,
+  prompt: string,
+  tooSmall: boolean,
+  // D100's bank fields. Defaulted rather than required so the two
+  // existing call sites stay readable, but supplied by both — a fixture
+  // where every question shares one branch and no ordinal type would
+  // render the Answers lens's chips and Scores as their empty states,
+  // which is the one shape a mount test must not silently accept.
+  branch = "Mind",
+  type = "binary",
+) {
   return {
     id,
     cat: "culture",
+    branch,
+    sub: null,
+    type,
     text: prompt,
     dayLabel: "Today",
     options: ["Yes", "No", "Both"].map((label, i) => ({
@@ -120,7 +134,10 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
   const listeners = new Set<() => void>();
   const deck = [
     liveQuestion("daily-000", "Would you rather know, or be known?", tooSmall),
-    liveQuestion("daily-001", "Is a promise still binding if nobody remembers it?", tooSmall),
+    // A second branch and an ordinal type, so the archive the Mirror
+    // reads exercises the branch filter and the Scores lens rather than
+    // only their "nothing here" arms.
+    liveQuestion("daily-001", "Is a promise still binding if nobody remembers it?", tooSmall, "Morals", "rating"),
   ];
 
   const social: Dict = {
@@ -188,13 +205,35 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
     social,
     near,
     deck: () => deck,
+    // D100: the Mirror reads the archive rather than the pager. The
+    // fixture serves the same questions through both — a mount test's
+    // question is whether the panel renders, and giving the two sources
+    // different content would only make it ambiguous which one it used.
+    // The archive entries carry the bank fields the pager's do not, so
+    // the Answers lens's branch chips and Scores have something to read.
+    aggregated: () => deck,
     dailyBank: () => deck.map((q) => ({ id: q.id, prompt: q.text })),
     // Below the floor the server publishes `{ tooSmall: true }` and nothing
     // else — no counts, no total. Returning a full document with a flag set
     // would let a card read numbers the real k-floor never sends.
     aggFor: () => (tooSmall
       ? { tooSmall: true }
-      : { counts: { 0: 12, 1: 8, 2: 5 }, total: 25, tooSmall: false, by: {} }),
+      : {
+        counts: { 0: 12, 1: 8, 2: 5 }, total: 25, tooSmall: false,
+        // A real breakdown, not `{}`. It was empty for as long as
+        // nothing rendered from it, and that made the Mirror's
+        // geographic stops paint ZERO answer rows under the fixture —
+        // every cohort lookup missed, so the mount tests were proving
+        // the panel's empty state and reading as if they proved the
+        // panel. The city key is the anchor's own format (name, ISO)
+        // and the country key its ISO half, which is what
+        // LiveCohortBody looks up.
+        by: {
+          city: { "Oslo, NO": { 0: 7, 1: 4, 2: 2 } },
+          country: { NO: { 0: 9, 1: 6, 2: 3 } },
+          ageBand: { "25-34": { 0: 8, 1: 3, 2: 1 }, "35-44": { 0: 4, 1: 5, 2: 4 } },
+        },
+      }),
     // D91: counts for a seeded lens question, null when the bank carries
     // none — which is the cue for D50's selfOnly fallback. Five entries to
     // match the lens scale; zeros below the floor, same rule as aggFor.

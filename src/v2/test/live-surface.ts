@@ -22,7 +22,12 @@
 // member. That is the whole point.
 
 export const LIVE_MEMBERS = [
-  "aggFor", "anchors", "appBuild",
+  "aggFor",
+  // D100: the deck plus every answered question that has an aggregate —
+  // what the Mirror's Answers and Scores lenses read. Distinct from
+  // `deck()`, which is strictly the seven-day pager.
+  "aggregated",
+  "anchors", "appBuild",
   // Named who-voted (D98) — the app's only cross-user read, and the
   // reason the reversal was worth doing. On LIVE rather than LIVE.social
   // deliberately: `social` is groups, duos and their takes, while a

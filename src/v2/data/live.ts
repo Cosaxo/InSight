@@ -1785,6 +1785,31 @@ const LIVE = {
   aggFor(qid: string): AggDoc | null {
     return state.aggs[qid] || null;
   },
+  /**
+   * Every daily question this device holds a published aggregate for —
+   * the seven-day deck plus everything the user has ever answered
+   * (hydrate tops those up, capped at AGG_ID_CAP).
+   *
+   * The Mirror's Answers and Scores lenses read this rather than deck()
+   * (D100), and the difference is what makes them worth having. Over a
+   * deck of seven, "filter by branch" offers fourteen subjects holding
+   * one row each and a sort is a re-ordering of half a screen; over a
+   * returning user's archive both become the point. Scores could not
+   * exist on the deck at all — the bank holds five `rating` questions in
+   * ninety, so a given week usually serves none.
+   *
+   * No new read. Every aggregate here was already fetched and cached for
+   * the card that displayed it; this is the same map, walked rather than
+   * indexed.
+   */
+  aggregated(): LiveQuestion[] {
+    const now = new Date();
+    return state.questions
+      .filter((q) => q.active !== false && hasPublishedCounts(state.aggs[q.id]))
+      // No `back`, so no day label: these come from any day and a pager
+      // label on them would be a guess (deck.ts's buildS takes null).
+      .map((q) => buildSPure(q, null, voteCtx(q.id), now));
+  },
   // ── Learn (D32) ──
   // The first attempt on a learn card is a plain world answer; the
   // scheduler's spaced retries stay device-local and the create-only rule

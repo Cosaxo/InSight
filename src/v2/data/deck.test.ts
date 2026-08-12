@@ -124,7 +124,41 @@ describe("buildS", () => {
       live: true,
       noCountsYet: false,
       test: "big5",
+      // D100's bank fields, carried through so the Mirror can group by
+      // subject and tell an ordinal question from a categorical one.
+      // Undefined here because `qd` builds a pre-D100 doc — which is also
+      // the shape every question seeded before D100 still has in
+      // Firestore, so this is the real absent case rather than a gap in
+      // the fixture.
+      branch: undefined,
+      sub: undefined,
+      type: "vote",
     });
+  });
+
+  it("carries the bank's subject path and type when the doc has them", () => {
+    // The other half of the case above: a doc seeded since D100. Asserted
+    // separately because `toEqual` treats an absent key and an undefined
+    // one as equal, so the case above cannot tell "not carried" from
+    // "carried as undefined" — and this one would fail if buildS simply
+    // stopped copying the fields.
+    const s = buildS(
+      qd("q9", { topic: "deep", branch: "Mind", sub: "Outlook", type: "rating" }),
+      2,
+      { agg: undefined, mine: undefined, pending: false },
+      WED,
+    );
+    expect(s.branch).toBe("Mind");
+    expect(s.sub).toBe("Outlook");
+    expect(s.type).toBe("rating");
+  });
+
+  it("leaves the day label blank for a question off the pager", () => {
+    // The Mirror's archive (LIVE.aggregated) reaches any day, and nothing
+    // it holds dates an answer — so `back: null` means "no label" rather
+    // than defaulting to Today, which would be a claim.
+    const s = buildS(qd("q1", {}), null, { agg: undefined, mine: undefined, pending: false }, WED);
+    expect(s.dayLabel).toBe("");
   });
 
   it("keeps a pending optimistic vote in the counts", () => {

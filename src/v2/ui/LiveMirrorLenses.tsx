@@ -5,7 +5,7 @@
 // port, and until D98 the reason was real — four of the five needed data
 // the privacy model forbade reading.
 //
-// It no longer forbids anything, so this is the row coming back. Three
+// It no longer forbids anything, so this is the row coming back. Four
 // lenses, each built on a source that exists today:
 //
 //   People   the cohort's demographic mix (a fold over `agg.by`) and
@@ -13,19 +13,23 @@
 //            (data/cohort.ts `agreement`, over the cached voter lists).
 //   Compare  you against this population, question by question, with the
 //            questions you diverge on most surfaced first.
+//   Scores   the mean of every ordinal question this population answered,
+//            with your own score ticked onto their bar (D100).
 //   Explore  pick a trait slice and see what it believes, led by where it
 //            differs from everyone — `divergence`.
 //
-// WHAT IS STILL MISSING, and why it is not here rather than half-here:
+// SCORES WAS REFUSED HERE UNTIL D100, and the note said the bank shipped
+// no `rate` questions so the lens would be an empty frame. That was true
+// about the PROTOTYPE'S Scores — a place scorecard, "rate Oslo's
+// nightlife" — and it read as true about the lens, which was wrong: the
+// bank ships five 1-10 `rating` items and sixteen 5-point `scale` ones,
+// and an ordinal question is an ordinal question whether its subject is a
+// city or your own outlook. The lens filters on TYPE, so place-rating
+// questions join it the day someone writes them, with no code change.
 //
-//   Scores   the place scorecard is fed by `rate` questions. The bank
-//            ships none, so the lens would be an empty frame. Content,
-//            not code — and inventing the numbers is the one thing D1
-//            still forbids.
 //   Answers  is not in this row because the panel this row sits inside IS
-//            the Answers lens. It is thinner than the prototype's (no
-//            branch filter, no sort, no expand-a-row) and that gap is
-//            real, but it is a gap in a lens that exists.
+//            the Answers lens (LiveCohortBody). D100 gave it the branch
+//            filter, the sort and the expand-a-row it was missing.
 //
 // Every reading here is drawn from documents already fetched for another
 // purpose — the deck's aggregates and the who-voted voter lists — with the
@@ -34,12 +38,13 @@
 import React from "react";
 import LIVE from "../data/live";
 import {
-  COHORT_DIMS, DIM_LABEL, divergence, mixFor, pctFor, sliceSplit,
+  COHORT_DIMS, DIM_LABEL, divergence, meanScore, mixFor, pctFor, sliceSplit,
+  type Score,
 } from "../data/cohort";
 // The row's own types and labels live next door: eslint's react-refresh
 // rule wants a component file to export only components, and it is right
 // that a constant shared with the host does not belong in one.
-import { LENS_LABEL, type LensId, type LensQuestion } from "./lensDefs";
+import { LENS_LABEL, ORDINAL_TYPES, type LensId, type LensQuestion } from "./lensDefs";
 
 const LL_LINE = "1px solid color-mix(in oklch, var(--rule), transparent 25%)";
 
@@ -279,6 +284,88 @@ function ExploreLens({ qs }: { qs: LensQuestion[] }) {
   );
 }
 
+// ── Scores ──────────────────────────────────────────────────────────
+//
+// The scorecard: every ordinal question this population has answered,
+// ranked by what they gave it, with your own score beside theirs.
+//
+// The prototype's Scores is a place scorecard — rate Oslo's nightlife,
+// its transit, its cost — fed by `rate` questions that the live bank does
+// not carry. This is the same lens over the questions the bank DOES
+// carry: the five 1-10 `rating` items and the sixteen 5-point `scale`
+// ones. It is a narrower claim than "how good is this city" and a true
+// one, and when place-rating questions are written they will appear here
+// with no code change, because the lens filters on the type rather than
+// on a hardcoded list of categories.
+
+function ScoresLens({ qs, shortName }: { qs: LensQuestion[]; shortName: string }) {
+  const scored = qs
+    .filter((q) => ORDINAL_TYPES.has(q.type || ""))
+    .map((q) => ({ q, score: meanScore(q.counts), mine: q.mine >= 0 ? q.mine + 1 : null }))
+    .filter((r): r is { q: LensQuestion; score: Score; mine: number | null } => !!r.score)
+    .sort((a, b) => b.score.mean / b.score.max - a.score.mean / a.score.max);
+
+  if (!scored.length) {
+    // Two different emptinesses, and collapsing them would hide which one
+    // this is. Neither is "withheld" — that category is gone (D98).
+    const anyOrdinal = qs.some((q) => ORDINAL_TYPES.has(q.type || ""));
+    return (
+      <LlEmpty>
+        {anyOrdinal
+          ? <>Nobody here has answered a rated question yet.</>
+          : <>Nothing rated yet. Scores fills in from the questions that ask
+            for a number rather than a side — answer one and it appears here.</>}
+      </LlEmpty>
+    );
+  }
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 11 }}>
+      <div style={{ fontFamily: "var(--sans)", fontSize: 13, fontWeight: 600, color: "var(--ink-2)", lineHeight: 1.5 }}>
+        How {shortName} rated {scored.length === 1 ? "it" : "them"}, best first.
+      </div>
+      {scored.map(({ q, score, mine }) => {
+        const frac = score.mean / score.max;
+        return (
+          <div key={q.id} style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+            <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
+              <span style={{ flex: 1, fontFamily: "var(--serif)", fontSize: 14.5, color: "var(--ink)", lineHeight: 1.35 }}>{q.text}</span>
+              {/* The scale's top ships with the number, always. "6.2"
+                  means opposite things out of 10 and out of 5, and this
+                  list mixes both. */}
+              <span style={{ fontFamily: "var(--sans)", fontWeight: 800, fontSize: 15, fontVariantNumeric: "tabular-nums", color: "var(--ink)" }}>
+                {score.mean}
+              </span>
+              <span style={{ fontFamily: "var(--sans)", fontWeight: 600, fontSize: 11.5, color: "var(--ink-3)" }}>/ {score.max}</span>
+            </div>
+            <span style={{ display: "block", height: 8, borderRadius: 4, background: "var(--surface-2)", overflow: "hidden", position: "relative" }}>
+              <span style={{ display: "block", height: "100%", width: `${Math.round(frac * 100)}%`, background: "var(--accent)" }}></span>
+              {mine != null && (
+                // Your own score as a tick on their bar rather than a
+                // second bar: the comparison IS the reading, and two bars
+                // make it a lookup.
+                <span aria-hidden="true" style={{
+                  position: "absolute", top: -2, bottom: -2, width: 2.5, borderRadius: 2,
+                  left: `calc(${Math.round((mine / score.max) * 100)}% - 1.25px)`,
+                  background: "var(--ink)",
+                }}></span>
+              )}
+            </span>
+            <span style={{ fontFamily: "var(--sans)", fontSize: 11.5, fontWeight: 600, color: "var(--ink-3)" }}>
+              {mine == null
+                ? <>{score.n.toLocaleString()} {score.n === 1 ? "answer" : "answers"} · you have not rated this</>
+                : <>You gave it <strong style={{ color: "var(--ink-2)" }}>{mine}</strong>
+                  {mine === score.mean ? <> — exactly the average</>
+                    : <> · {Math.abs(Math.round((mine - score.mean) * 10) / 10)} {mine > score.mean ? "above" : "below"} them</>}
+                  {" "}· {score.n.toLocaleString()} {score.n === 1 ? "answer" : "answers"}</>}
+            </span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 // ── the row ─────────────────────────────────────────────────────────
 
 function LiveMirrorLenses({ qs, shortName }: { qs: LensQuestion[]; shortName: string }) {
@@ -312,6 +399,7 @@ function LiveMirrorLenses({ qs, shortName }: { qs: LensQuestion[]; shortName: st
           into view. */}
       {lens === "people" && <PeopleLens qs={qs} />}
       {lens === "compare" && <CompareLens qs={qs} shortName={shortName} />}
+      {lens === "scores" && <ScoresLens qs={qs} shortName={shortName} />}
       {lens === "explore" && <ExploreLens qs={qs} />}
     </div>
   );

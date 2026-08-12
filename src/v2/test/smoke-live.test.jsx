@@ -254,6 +254,24 @@ describe("the live gates hold in the DOM, not just in the source", () => {
   //      WORLD_FEED_COMMENTS empty n is 0 — so the gate leaking shows up as
   //      a "0 takes" control, which no text search for a seeded string
   //      would ever find.
+  // The card's way into the who-voted sheet, whichever one it is offering.
+  //
+  // A live card with a cohort breakdown renders the SURPRISE LINE ("25-34
+  // leans Yes · 62%") and deliberately drops the bar-chart button with it
+  // — world-feed.jsx gates the button on `!ins`, because the line is
+  // already a door to the same sheet and two doors to one room is a bug.
+  // Both are buttons and both call openSheet(q, T, "stats").
+  //
+  // This helper exists because the fixture's aggregate used to carry
+  // `by: {}`, so the insight line could never render and every case here
+  // silently tested the button-only branch — the branch a real user with
+  // real data sees LEAST often. Giving the fixture a real breakdown (for
+  // the Mirror, D100) flipped these cases onto the line, which is the
+  // path worth asserting; accepting either is what keeps both covered.
+  const openWhoVoted = () =>
+    screen.queryByRole("button", { name: /who voted/i })
+    ?? screen.queryByRole("button", { name: /leans|flips|disagree/i });
+
   const voteFeedCardAndSettle = async () => {
     fireEvent.click(screen.getByRole("button", { name: FEED_OPTIONS[0] }));
     // The reveal animation clears `beat` from its own onDone; until it does,
@@ -265,7 +283,7 @@ describe("the live gates hold in the DOM, not just in the source", () => {
     mountLive();
     await voteFeedCardAndSettle();
     expect(
-      screen.queryByRole("button", { name: /who voted/i }),
+      openWhoVoted(),
       "the live engage row did not render at all — this test is now vacuous",
     ).not.toBeNull();
     // The demo's seeded-takes sheet stays off live cards (D11)…
@@ -295,17 +313,50 @@ describe("the live gates hold in the DOM, not just in the source", () => {
     // lens row belongs to the geographic stops, so walk the ruler to Near.
     fireEvent.click(screen.getByRole("tab", { name: "Near" }));
     await act(async () => { await new Promise((r) => setTimeout(r, 50)); });
-    // The three lenses that have a real source. Scores is deliberately
-    // absent — the bank ships no `rate` questions, so it would be an
-    // empty frame, and an empty frame reads as a broken feature.
+    // All four lenses. Scores joined the row at D100 — it was absent
+    // while this test read "the bank ships no `rate` questions", which
+    // was true of the prototype's place scorecard and not of the lens:
+    // the bank's `rating` and `scale` items are ordinal and average fine.
     expect(screen.getByRole("button", { name: "People" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "Compare" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Scores" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "Explore" })).toBeTruthy();
-    expect(screen.queryByRole("button", { name: "Scores" })).toBeNull();
     // Collapsed until asked for — the cost gate, on the real mount.
     expect(screen.queryByText(/most like you/i)).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "People" }));
     expect(screen.getByText(/most like you/i)).toBeTruthy();
+  });
+
+  // The Answers lens's own depth (D100), on the real mount. The panel
+  // suite covers the orderings; what this covers is that the controls
+  // reach the screen at all — they are gated on `rows.length > 1` and on
+  // more than one branch being present, and both of those are computed
+  // from a source (LIVE.aggregated) that did not exist before D100.
+  it("gives the Mirror's answer rows a subject filter, a sort and an expander", async () => {
+    localStorage.clear();
+    mountLive();
+    fireEvent.click(screen.getByRole("button", { name: /^mirror$/i }));
+    fireEvent.click(screen.getByRole("tab", { name: "Near" }));
+    await act(async () => { await new Promise((r) => setTimeout(r, 50)); });
+
+    // The fixture's two questions sit in different branches, so the chip
+    // row offers both plus All.
+    expect(screen.getByRole("button", { name: /^All 2$/ })).toBeTruthy();
+    expect(screen.getByRole("button", { name: /^Mind 1$/ })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Most divisive" })).toBeTruthy();
+
+    // Expanding a row names the viewer's own answer rather than only
+    // tinting it — the assertion that would fail if the row rendered but
+    // the expander did nothing.
+    const row = screen.getByRole("button", { name: /Would you rather know/ });
+    expect(row.getAttribute("aria-expanded")).toBe("false");
+    fireEvent.click(row);
+    expect(row.getAttribute("aria-expanded")).toBe("true");
+
+    // Filtering to one subject drops the other question's row.
+    fireEvent.click(screen.getByRole("button", { name: /^Morals 1$/ }));
+    expect(screen.queryByRole("button", { name: /Would you rather know/ })).toBeNull();
+    expect(screen.getByRole("button", { name: /Is a promise still binding/ })).toBeTruthy();
   });
 
   // D98's payoff, in the only test that executes a render of it inside the
@@ -326,7 +377,7 @@ describe("the live gates hold in the DOM, not just in the source", () => {
     localStorage.clear();
     mountLive();
     await voteFeedCardAndSettle();
-    const whoVoted = screen.queryByRole("button", { name: /who voted/i });
+    const whoVoted = openWhoVoted();
     expect(whoVoted, "the live engage row did not render — this test is vacuous").not.toBeNull();
     fireEvent.click(whoVoted);
     await act(async () => { await new Promise((r) => setTimeout(r, 50)); });

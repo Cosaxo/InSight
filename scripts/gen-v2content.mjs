@@ -108,6 +108,16 @@ export function buildEntries(content = loadContent()) {
     ...(q.political === true ? { political: true } : {}),
   });
 
+  // `cat: ["Mind", "Outlook"]` → branch + sub. Both optional for the same
+  // reason the flags are: an entry with no path emits neither key.
+  const branchOf = (q) => {
+    const path = Array.isArray(q.cat) ? q.cat : [];
+    return {
+      ...(path[0] ? { branch: String(path[0]) } : {}),
+      ...(path[1] ? { sub: String(path[1]) } : {}),
+    };
+  };
+
   daily.forEach((q, i) => {
     entries.push({
       id: `daily-${requireId(q, `daily-questions.json[${i}]`)}`,
@@ -126,6 +136,21 @@ export function buildEntries(content = loadContent()) {
         q.options ??
         (q.type === "scale" ? LIKERT : q.type === "rating" ? RATING : []),
       topic: q.tone,
+      // The Map's taxonomy, which the seed used to drop on the floor.
+      // `cat` is a [branch, sub-branch] path — Mind/Outlook,
+      // Morals/Honesty — and it is the only real subject grouping the
+      // bank carries; `topic` above is TONE (light/deep/blend), which
+      // says how heavy a question is and nothing about what it is about.
+      // The demo layer reads the path straight from its own copy of the
+      // bank, so nothing noticed it was missing from the seed until the
+      // Mirror's Answers lens needed to filter by it (D100) and had
+      // three tone buckets to offer instead of fourteen subjects.
+      //
+      // Emitted only when present, like `flags` above: feed, duel and
+      // test entries carry no path, and writing `branch: null` onto them
+      // would mismatch every stored doc and spend a full-bank rewrite on
+      // a field they never use.
+      ...branchOf(q),
       axis: q.axis ?? null,
       test: null,
       ...flags(q),
@@ -295,7 +320,9 @@ const HEADER =
   "// `active`/`political` are optional and emitted only when set: absent means\n" +
   "// active (deck.ts filters `active !== false`) and sliceable (v2.ts's D44\n" +
   "// predicate checks `political === true` alongside `test === \"political\"`).\n" +
-  "export interface V2SeedQuestion { id: string; surface: string; seq: number; type: string; domain: string | null; prompt: string; options: string[]; topic: string | null; axis: string | null; test: string | null; mode?: string; active?: boolean; political?: boolean; }\n" +
+  "// `branch`/`sub` are the daily bank's [branch, sub-branch] subject path\n" +
+  "// (D100) and are absent on every other surface, which carries no path.\n" +
+  "export interface V2SeedQuestion { id: string; surface: string; seq: number; type: string; domain: string | null; prompt: string; options: string[]; topic: string | null; branch?: string; sub?: string; axis: string | null; test: string | null; mode?: string; active?: boolean; political?: boolean; }\n" +
   "export const V2_QUESTIONS: V2SeedQuestion[] = ";
 
 export function generate(content = loadContent()) {

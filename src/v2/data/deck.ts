@@ -26,6 +26,12 @@ export interface LiveQuestion {
   // surface reading the old name would have gone on saying "withheld".
   noCountsYet: boolean;
   test?: string | null;
+  // Carried through from the bank so the Mirror's Answers lens can group
+  // by subject and its Scores lens can tell an ordinal question from a
+  // categorical one (D100). Both undefined for a doc seeded before D100.
+  branch?: string;
+  sub?: string;
+  type?: string;
 }
 
 export interface QuestionDoc {
@@ -35,6 +41,12 @@ export interface QuestionDoc {
   prompt: string;
   options: string[];
   topic: string | null;
+  // The daily bank's [branch, sub-branch] subject path (D100) — "Mind" /
+  // "Outlook". Absent on every other surface, and absent from any daily
+  // doc seeded before D100 until the next seed run, so every reader has
+  // to tolerate undefined rather than assume the bank is current.
+  branch?: string;
+  sub?: string;
   test: string | null;
   active: boolean;
   // Pool scope for duel questions (D40 part 4): absent = the shared pool;
@@ -133,7 +145,11 @@ export function hasPublishedCounts(agg: AggDoc | undefined): boolean {
 
 export function buildS(
   q: QuestionDoc & { id: string },
-  back: number,
+  // Null for a question that is not on the pager at all — the Mirror's
+  // archive (LIVE.aggregated) reaches questions from any day, and a
+  // dayLabel of "Today" on all of them would be a claim rather than a
+  // blank. The pager itself always passes a number.
+  back: number | null,
   ctx: VoteContext,
   now: Date,
 ): LiveQuestion {
@@ -142,7 +158,10 @@ export function buildS(
     id: q.id,
     cat: q.topic,
     text: q.prompt,
-    dayLabel: dayLabel(back, now),
+    dayLabel: back == null ? "" : dayLabel(back, now),
+    branch: q.branch,
+    sub: q.sub,
+    type: q.type,
     options: q.options.map((label, i) => ({
       id: String(i),
       label,

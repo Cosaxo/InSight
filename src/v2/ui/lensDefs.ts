@@ -7,13 +7,25 @@
 // component file breaks fast refresh for everything that imports it.
 import type { ByMap } from "../data/cohort";
 
-export type LensId = "people" | "compare" | "explore";
+export type LensId = "people" | "compare" | "explore" | "scores";
 
 export const LENS_LABEL: Record<LensId, string> = {
   people: "People",
   compare: "Compare",
   explore: "Explore",
+  scores: "Scores",
 };
+
+/**
+ * The question types whose option INDEX carries magnitude, and so the
+ * only ones Scores may average (D100).
+ *
+ * `rating` is the bank's 1-10 scale and `scale` its 5-point Likert. A
+ * `binary`, `choice` or `dilemma` has options that are merely different
+ * from each other — averaging "Messi" and "Ronaldo" produces a number
+ * with no referent, and it would look exactly as confident as a real one.
+ */
+export const ORDINAL_TYPES = new Set(["rating", "scale"]);
 
 /**
  * A question as the lenses need it: the prompt, its options, the published
@@ -30,4 +42,8 @@ export interface LensQuestion {
   counts: number[];
   by: ByMap | undefined;
   mine: number;
+  /** The bank's question type — Scores filters on ORDINAL_TYPES (D100). */
+  type?: string;
+  /** The bank's subject branch (D100); undefined on a pre-D100 seed. */
+  branch?: string;
 }

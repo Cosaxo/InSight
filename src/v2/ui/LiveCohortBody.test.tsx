@@ -33,6 +33,10 @@ const LIVE = vi.hoisted(() => ({
   uid: "u_me",
   myCity: "Oslo, NO",
   deck: () => [] as Array<Record<string, unknown>>,
+  // D100: the panel reads the ARCHIVE (deck + every answered question
+  // with an aggregate), not the seven-day pager. `deck` stays on the
+  // mock because the pin lists it and the real store still has it.
+  aggregated: () => [] as Array<Record<string, unknown>>,
   // The qid parameter is real — the cases below vary the aggregate per
   // question. `void qid` because the repo's eslint has no argsIgnorePattern,
   // so an underscore prefix does not exempt an unused parameter.
@@ -87,7 +91,7 @@ const Q = (id: string, text: string) => ({
 beforeEach(() => {
   LIVE.enabled = true;
   LIVE.myCity = "Oslo, NO";
-  LIVE.deck = () => [Q("q1", "First question"), Q("q2", "Second question")];
+  LIVE.aggregated = () => [Q("q1", "First question"), Q("q2", "Second question")];
   LIVE.aggFor = () => null;
   LIVE.near.supported = () => true;
   LIVE.near.on = () => false;
@@ -121,7 +125,7 @@ describe("LiveCohortBody · an absent cell is counted and named", () => {
   });
 
   it("pluralises the accounting line rather than saying '2 question is'", () => {
-    LIVE.deck = () => [Q("q1", "Shown"), Q("q2", "Hidden A"), Q("q3", "Hidden B")];
+    LIVE.aggregated = () => [Q("q1", "Shown"), Q("q2", "Hidden A"), Q("q3", "Hidden B")];
     LIVE.aggFor = (qid) => qid === "q1"
       ? { by: { city: { "Oslo, NO": { "0": 7 } } } }
       : { by: { city: { "Bergen, NO": { "0": 9 } } } };
@@ -409,5 +413,104 @@ describe("the Right now card (D84 — Near by radius)", () => {
     render(<LiveCohortBody scope="city" />);
     fireEvent.click(screen.getByRole("button", { name: /Turn off/i }));
     expect(LIVE.near.disable).toHaveBeenCalled();
+  });
+});
+
+// ── the Answers lens's own depth (D100) ──────────────────────────────
+//
+// This panel IS the Mirror's Answers lens, and until D100 it was a flat
+// list of the seven-day deck. The three things it gained are a filter, a
+// sort and an expander, and each of them is a claim about a set of rows
+// that is now much larger than a week — so what these cases assert is the
+// ORDERING and the SUBSETTING, not that a control rendered.
+
+describe("LiveCohortBody · the Answers lens can be narrowed and re-ordered", () => {
+  // Three questions across two subjects with deliberately different
+  // splits: q1 is near-unanimous, q2 is a dead heat, q3 is in between and
+  // is the only one with a large room.
+  const ARCHIVE = [
+    { id: "q1", text: "Almost everyone agrees", branch: "Mind", type: "binary", options: [{ label: "Yes" }, { label: "No" }] },
+    { id: "q2", text: "Dead heat", branch: "Morals", type: "binary", options: [{ label: "Yes" }, { label: "No" }] },
+    { id: "q3", text: "Somewhere between", branch: "Mind", type: "binary", options: [{ label: "Yes" }, { label: "No" }] },
+  ];
+  const CELLS: Record<string, Record<string, number>> = {
+    q1: { "0": 19, "1": 1 },   // 95/5  → barely divisive, n=20
+    q2: { "0": 5, "1": 5 },    // 50/50 → maximally divisive, n=10
+    q3: { "0": 60, "1": 40 },  // 60/40 → middling, n=100
+  };
+
+  beforeEach(() => {
+    LIVE.aggregated = () => ARCHIVE;
+    LIVE.aggFor = (qid: string) => ({ by: { city: { "Oslo, NO": CELLS[qid] } } });
+    LIVE.myVotes = () => ({ q1: "1" });
+  });
+
+  const rowOrder = () => screen.getAllByRole("button", { expanded: false })
+    .map((b) => b.textContent || "")
+    .filter((t) => /agrees|heat|between/.test(t));
+
+  it("defaults to most answers first", () => {
+    render(<LiveCohortBody scope="city" />);
+    expect(rowOrder().map((t) => t.replace(/[+–]$/, ""))).toEqual([
+      "Somewhere between", "Almost everyone agrees", "Dead heat",
+    ]);
+  });
+
+  it("sorts by divisiveness, and by agreement as its exact inverse", () => {
+    render(<LiveCohortBody scope="city" />);
+    fireEvent.click(screen.getByRole("button", { name: "Most divisive" }));
+    const divisive = rowOrder().map((t) => t.replace(/[+–]$/, ""));
+    expect(divisive[0]).toBe("Dead heat");
+    expect(divisive[2]).toBe("Almost everyone agrees");
+
+    fireEvent.click(screen.getByRole("button", { name: "Most agreed" }));
+    const agreed = rowOrder().map((t) => t.replace(/[+–]$/, ""));
+    expect(agreed).toEqual(divisive.slice().reverse());
+  });
+
+  it("filters to one subject and drops the rest", () => {
+    render(<LiveCohortBody scope="city" />);
+    // Chips carry their own counts, so picking one is never a guess.
+    fireEvent.click(screen.getByRole("button", { name: "Mind 2" }));
+    expect(screen.queryByRole("button", { name: /Dead heat/ })).toBeNull();
+    expect(screen.getByRole("button", { name: /Almost everyone agrees/ })).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "All 3" }));
+    expect(screen.getByRole("button", { name: /Dead heat/ })).toBeTruthy();
+  });
+
+  it("expands a row into per-option counts with your own answer named", () => {
+    render(<LiveCohortBody scope="city" />);
+    fireEvent.click(screen.getByRole("button", { name: /Almost everyone agrees/ }));
+    // The point of expanding: 5% is too thin to label on the bar, so the
+    // count only exists in this view.
+    expect(screen.getByText("19")).toBeTruthy();
+    expect(screen.getByText("1")).toBeTruthy();
+    // Named, not merely tinted — a colour difference is not a reading.
+    expect(screen.getByText(/your answer/i)).toBeTruthy();
+  });
+
+  it("says you have not answered rather than marking an option", () => {
+    render(<LiveCohortBody scope="city" />);
+    fireEvent.click(screen.getByRole("button", { name: /Dead heat/ }));
+    expect(screen.getByText(/you have not answered this one/i)).toBeTruthy();
+    expect(screen.queryByText(/your answer/i)).toBeNull();
+  });
+
+  it("hides the controls when there is nothing to narrow", () => {
+    // One row: a chip row saying "All 1" is furniture.
+    LIVE.aggregated = () => [ARCHIVE[0]];
+    render(<LiveCohortBody scope="city" />);
+    expect(screen.queryByRole("button", { name: /^All / })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Most divisive" })).toBeNull();
+  });
+
+  it("offers no subject chips when the bank predates D100", () => {
+    // Every question seeded before D100 has no `branch`, and will until
+    // the next seed run. The sort must still work; the filter must not
+    // render a single "All" chip that narrows nothing.
+    LIVE.aggregated = () => ARCHIVE.map((q) => ({ ...q, branch: undefined }));
+    render(<LiveCohortBody scope="city" />);
+    expect(screen.queryByRole("button", { name: /^All / })).toBeNull();
+    expect(screen.getByRole("button", { name: "Most divisive" })).toBeTruthy();
   });
 });

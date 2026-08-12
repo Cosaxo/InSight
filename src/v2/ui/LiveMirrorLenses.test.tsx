@@ -57,10 +57,11 @@ beforeEach(() => {
 afterEach(cleanup);
 
 describe("the lens row · cost", () => {
-  it("shows three lenses and opens none of them by default", () => {
+  it("shows four lenses and opens none of them by default", () => {
     render(<LiveMirrorLenses qs={[Q]} shortName="Oslo" />);
     expect(screen.getByRole("button", { name: "People" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "Compare" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Scores" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "Explore" })).toBeTruthy();
     // Collapsed: no lens body rendered, and nothing fetched.
     expect(screen.queryByText(/most like you/i)).toBeNull();
@@ -145,6 +146,72 @@ describe("Compare", () => {
     render(<LiveMirrorLenses qs={[{ ...Q, mine: -1 }]} shortName="Oslo" />);
     open(/Compare/);
     expect(screen.getByText(/answer a few of today's questions/i)).toBeTruthy();
+  });
+});
+
+describe("Scores", () => {
+  // A 1-10 rating: two 3s and two 9s, so the mean is 6 exactly.
+  const RATED: LensQuestion = {
+    id: "r1", type: "rating",
+    text: "How optimistic are you about the next ten years?",
+    options: ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10"],
+    counts: [0, 0, 2, 0, 0, 0, 0, 0, 2, 0],
+    by: {}, mine: 8, // index 8 → a score of 9
+  };
+
+  it("averages an ordinal question and shows the scale it is out of", () => {
+    render(<LiveMirrorLenses qs={[RATED]} shortName="Oslo" />);
+    open(/Scores/);
+    expect(screen.getByText("6")).toBeTruthy();
+    // "6.2" means opposite things out of 10 and out of 5, and one list
+    // can hold both — so the denominator ships with every number.
+    expect(screen.getByText("/ 10")).toBeTruthy();
+  });
+
+  it("places your own score against theirs, with the direction named", () => {
+    render(<LiveMirrorLenses qs={[RATED]} shortName="Oslo" />);
+    open(/Scores/);
+    expect(screen.getByText("9")).toBeTruthy();
+    expect(screen.getByText(/3 above them/)).toBeTruthy();
+  });
+
+  it("says so when you have not rated one, rather than implying a zero", () => {
+    render(<LiveMirrorLenses qs={[{ ...RATED, mine: -1 }]} shortName="Oslo" />);
+    open(/Scores/);
+    expect(screen.getByText(/you have not rated this/i)).toBeTruthy();
+  });
+
+  it("REFUSES to average a categorical question", () => {
+    // The property this lens most needs. Q is a binary — "Yes" and "No"
+    // are different, not ordered — and a mean of it would render as a
+    // confident number about nothing. The filter is on the bank's type,
+    // because nothing in `counts` could tell the two apart.
+    render(<LiveMirrorLenses qs={[Q]} shortName="Oslo" />);
+    open(/Scores/);
+    expect(screen.getByText(/nothing rated yet/i)).toBeTruthy();
+    expect(screen.queryByText("/ 2")).toBeNull();
+  });
+
+  it("distinguishes 'no rated questions' from 'nobody answered them'", () => {
+    // Two different emptinesses. Collapsing them into one "no data" is
+    // the habit the withheld-cell era left behind (D98).
+    render(<LiveMirrorLenses qs={[{ ...RATED, counts: [0,0,0,0,0,0,0,0,0,0] }]} shortName="Oslo" />);
+    open(/Scores/);
+    expect(screen.getByText(/nobody here has answered a rated question/i)).toBeTruthy();
+  });
+
+  it("ranks by share of the scale, so a 5-point and a 10-point compare fairly", () => {
+    // 4/5 (0.8) must outrank 7/10 (0.7). Ranking on the raw mean would
+    // put the 7 first and quietly sort by which scale a question used.
+    const likert: LensQuestion = {
+      id: "s1", type: "scale", text: "Rest is fine.",
+      options: ["1", "2", "3", "4", "5"], counts: [0, 0, 0, 3, 0], by: {}, mine: -1,
+    };
+    const rating: LensQuestion = { ...RATED, id: "r2", text: "Curiosity?", counts: [0,0,0,0,0,0,3,0,0,0], mine: -1 };
+    render(<LiveMirrorLenses qs={[rating, likert]} shortName="Oslo" />);
+    open(/Scores/);
+    const texts = screen.getAllByText(/Rest is fine\.|Curiosity\?/).map((n) => n.textContent);
+    expect(texts).toEqual(["Rest is fine.", "Curiosity?"]);
   });
 });
 

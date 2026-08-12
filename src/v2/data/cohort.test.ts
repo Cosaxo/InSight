@@ -6,8 +6,8 @@
 
 import { describe, expect, it } from "vitest";
 import {
-  MAP_ANCHOR_DIM, agreement, byOf, cellFor, divergence, mixFor, pctFor,
-  sliceSplit, typicality,
+  MAP_ANCHOR_DIM, agreement, byOf, cellFor, divergence, divisiveness, meanScore,
+  mixFor, pctFor, sliceSplit, typicality,
 } from "./cohort";
 
 // Two age bands and two genders over a 2-option question. Overall 12/8.
@@ -110,6 +110,62 @@ describe("divergence", () => {
     const by = { d: { tiny: { "0": 1 }, big: { "0": 6, "1": 4 } } };
     expect(divergence(by, "d", [7, 4], 2).length).toBe(2);
     expect(divergence(by, "d", [7, 4], 2, 5).map((x) => x.bucket)).toEqual(["big"]);
+  });
+});
+
+describe("divisiveness — the Answers lens's sort key", () => {
+  it("is 1 for a dead-even split and 0 for a unanimous one", () => {
+    expect(divisiveness([5, 5])).toBe(1);
+    expect(divisiveness([25, 25, 25, 25])).toBe(1);
+    expect(divisiveness([9, 0])).toBe(0);
+  });
+
+  it("puts a binary and a four-way on the SAME axis", () => {
+    // The reason this is a function and not `1 - leadingShare`. A 30/70
+    // binary is one side winning comfortably; a 30/25/25/20 four-way is a
+    // genuinely divided room. Raw leading share scores them 0.30 and 0.70
+    // and ranks the binary as more divided — exactly backwards.
+    const binary = divisiveness([30, 70]);
+    const fourWay = divisiveness([30, 25, 25, 20]);
+    expect(fourWay).toBeGreaterThan(binary);
+    expect(binary).toBeCloseTo(0.6, 5);
+  });
+
+  it("is zero for a question nobody answered — not maximally divisive", () => {
+    // An empty room is not a disagreement, and 0/0 sorted to the top would
+    // fill the "most divisive" view with questions that have no answers.
+    expect(divisiveness([0, 0])).toBe(0);
+    expect(divisiveness([])).toBe(0);
+    expect(divisiveness([7])).toBe(0);
+  });
+});
+
+describe("meanScore — the arithmetic behind Scores", () => {
+  it("scores 1..k so the number matches the option label", () => {
+    // Two answers of "1" and two of "10" average 5.5, not 4.5. A rating
+    // card shows "7"; a mean that called it 6 would disagree with the
+    // card the user just tapped.
+    expect(meanScore([2, 0, 0, 0, 0, 0, 0, 0, 0, 2])).toEqual({ mean: 5.5, max: 10, n: 4 });
+    expect(meanScore([0, 1])).toEqual({ mean: 2, max: 2, n: 1 });
+  });
+
+  it("rounds to one decimal", () => {
+    expect(meanScore([1, 1, 1])!.mean).toBe(2);
+    expect(meanScore([2, 1])!.mean).toBeCloseTo(1.3, 5);
+  });
+
+  it("is null with no answers, never a zero", () => {
+    // A zero would render as the worst possible score for a question
+    // nobody has rated — the same lie `typicality` refuses to tell.
+    expect(meanScore([0, 0, 0])).toBeNull();
+    expect(meanScore([])).toBeNull();
+  });
+
+  it("carries the scale's top so a caller never has to assume 10", () => {
+    // A 5-point Likert and a 1-10 rating both come through here, and
+    // "6.2" means opposite things on the two. The max ships with the mean.
+    expect(meanScore([1, 1, 1, 1, 1])!.max).toBe(5);
+    expect(meanScore(new Array(10).fill(1))!.max).toBe(10);
   });
 });
 

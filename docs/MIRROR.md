@@ -140,6 +140,13 @@ and Kindred — the accounts whose answers most match yours. The counts
 above them are still counts, which is the right shape for a stop whose
 question is "how did this place answer" rather than "who is here".
 
+Since D100 they draw the **archive** rather than the week:
+`LIVE.aggregated()` is every question this device holds an aggregate for,
+which is the deck plus everything the user has answered. That is what
+makes the Answers lens's filter and sort worth having, and it is the only
+reason Scores can find a rating question at all — the bank holds five in
+ninety, so a given week's deck usually serves none.
+
 ## 3 · The lens row — the designed shape, and what live mode ships
 
 The prototype's Mirror is two levels: **who** (the ruler) and **what** (a
@@ -150,7 +157,10 @@ these lenses its population can support:
 - **Answers** — the daily record: every question, answered by the
   population this stop reflects. Filter by branch, sort by newest / most
   divisive / most agreed, expand a row into the full distribution with
-  your own answer marked. Present at every stop.
+  your own answer marked. Present at every stop. **Live since D100**,
+  minus "newest" — the archive spans any day the rotation has reached and
+  nothing the client holds dates an answer, so that one ordering is
+  refused rather than faked.
 - **People** — who is in this population, arranged by likeness (Kindred
   on the geographic stops, the demographic mix where there is one, the
   read-run on Circle).
@@ -159,7 +169,11 @@ these lenses its population can support:
   reach and pale for the distance between you, so agreement looks like a
   whole shape.
 - **Scores** — the place-rating scorecard, fed by rate questions in the
-  feed. World stop only, at each of its three zooms.
+  feed. World stop only, at each of its three zooms. **Live since D100**,
+  as a scorecard over the bank's *ordinal* questions (five 1-10 `rating`
+  items, sixteen 5-point `scale` ones) rather than over place ratings the
+  bank does not carry — it filters on question type, so place ratings
+  join it the day they are written.
 - **Explore** — pick trait chips (age, gender, place, and — since the v18
   sync — a pole of any test you have taken, with your own pole marked and
   a "like me" shortcut) and see what that slice believes, led by where it

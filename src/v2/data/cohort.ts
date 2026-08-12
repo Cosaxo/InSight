@@ -180,6 +180,62 @@ export function divergence(
     .sort((a, b) => b.gap - a.gap || b.n - a.n);
 }
 
+/**
+ * How split a question is, 0 (unanimous) to 1 (perfectly even).
+ *
+ * NORMALISED BY OPTION COUNT, which is the whole reason this is a function
+ * rather than `1 - leadingShare`. A four-way question at 30/25/25/20 is a
+ * genuinely divided room; a binary at 30/70 is not, and the raw leading
+ * share ranks the binary as *more* divided. Scaling against each
+ * question's own even split (1/k) puts both on the same axis, so the
+ * Answers lens can sort a mixed deck without quietly ranking every
+ * many-option question above every binary.
+ *
+ * Zero for a question nobody has answered — an empty room is not a
+ * disagreement.
+ */
+export function divisiveness(counts: readonly number[]): number {
+  const k = counts.length;
+  const total = counts.reduce((a, b) => a + b, 0);
+  if (k < 2 || !total) return 0;
+  const lead = Math.max(...counts) / total;
+  const even = 1 / k;
+  // lead runs from `even` (perfectly split) up to 1 (unanimous).
+  return Math.max(0, Math.min(1, (1 - lead) / (1 - even)));
+}
+
+export interface Score {
+  /** Mean answer on a 1..max scale, to one decimal. */
+  mean: number;
+  /** Top of the scale — 10 for a rating, 5 for a Likert. */
+  max: number;
+  /** Answers behind the mean. */
+  n: number;
+}
+
+/**
+ * The mean of an ORDINAL question, read off its published counts.
+ *
+ * This is the arithmetic behind Scores, and it is only meaningful because
+ * the option index of a `rating` or `scale` question carries magnitude:
+ * option 7 really is more than option 3. Handing this a `choice` question
+ * would produce a confident number about nothing, so the caller filters by
+ * type and this function does not guess — there is nothing in `counts`
+ * that could tell it apart.
+ *
+ * Scored 1..k rather than 0..k-1 so the number reads the way the option
+ * label does: a rating card shows "7", not "6".
+ *
+ * Null when nobody has answered, never 0 — a zero here would render as the
+ * worst possible score for a question nobody has rated.
+ */
+export function meanScore(counts: readonly number[]): Score | null {
+  const n = counts.reduce((a, b) => a + b, 0);
+  if (!n || counts.length < 2) return null;
+  const sum = counts.reduce((acc, c, i) => acc + c * (i + 1), 0);
+  return { mean: Math.round((sum / n) * 10) / 10, max: counts.length, n };
+}
+
 export interface Typicality {
   /** Share of this cohort that answered the same as you, 0..100. */
   share: number;
