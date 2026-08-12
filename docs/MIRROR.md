@@ -61,7 +61,7 @@ one write — an answer — and the surfaces differ only in how they cut it.
    (sealed until then)        next day, world-readable            portrait
 ```
 
-One more read joined the picture at D107: a completed instrument writes
+One more read joined the picture at D112: a completed instrument writes
 `testResults` onto the profile doc (`v2_users/{uid}`), world-readable
 since D98, and the City stop's constellation reads it ACROSS users — the
 person-to-person Compare read the rules comment always promised. The
@@ -109,10 +109,10 @@ single ruler you can drag along; the stop you pick recolors the whole tab.
 | **You** | the Map — you, alone, visualized | your own answers, hydrated from Firestore into `DAILYQ` | yes, except the typicality stats (§5), which are mock and refused |
 | **Circle** | your close ties | the follow graph (`v2_users/{uid}/following`) + those accounts' answers | yes since D101 — a one-way follow, ranked by likeness |
 | **Groups** | your named circles | real reveal history, `groupPortrait.ts` | yes |
-| **Near** | who is around you right now — the radius counter (D84), count only | `nearbyCountV2`; the presence cell stays one of D98's three denies | yes — presence only since D106 |
-| **City** | your city: answers, lenses, and the kindred constellation | `v2_question_aggs.by.city[your city]`; kindred from voter lists + `testResults` (D107) | yes since D106/D107 — its own stop again |
-| **Country** | everyone in your country, plus its cities placed by score likeness | `v2_question_aggs.by.country[…]`; city profiles folded from `by.city` (D107) | yes |
-| **World** | everyone, plus countries placed by score likeness | `v2_question_aggs.counts`; country profiles from `by.country` (D107) | yes |
+| **Near** | who is around you right now — the radius counter (D84), count only | `nearbyCountV2`; the presence cell stays one of D98's three denies | yes — presence only since D111 |
+| **City** | your city: answers, lenses, and the kindred constellation | `v2_question_aggs.by.city[your city]`; kindred from voter lists + `testResults` (D112) | yes since D111/D112 — its own stop again |
+| **Country** | everyone in your country, plus its cities placed by score likeness | `v2_question_aggs.by.country[…]`; city profiles folded from `by.city` (D112) | yes |
+| **World** | everyone, plus countries placed by score likeness | `v2_question_aggs.counts`; country profiles from `by.country` (D112) | yes |
 
 **You — the Map.** The one stop that is not a population at all. Every
 daily answer becomes a dot, filed under its question's branch and
@@ -148,17 +148,17 @@ populations, "how they see you" crowns — is unbuilt rather than refused
 since D98: the members' answers and test results are all readable now.
 
 **Near.** The Right-now radius counter (D84), and nothing else since
-D106: how many opted-in phones are within a couple of kilometres, as a
+D111: how many opted-in phones are within a couple of kilometres, as a
 count the server computes from a cell no user can read. It stopped being
 "your city" — that fold (D9) put a presence question and a cohort
-question behind one stop, and D106 un-folded them.
+question behind one stop, and D111 un-folded them.
 
 **City / Country / World.** One question at three radii, one renderer
 (`LiveCohortBody`): three renderers would eventually disagree about what
 an empty cell means. They draw counts — an absent cell is zero and the
 panel says so, because since D98 nothing is held back at any size.
 
-Each also leads with its **constellation** (D107): you at the centre,
+Each also leads with its **constellation** (D112): you at the centre,
 distance = unlikeness, computed rather than invented. City arranges the
 people of your city, ranked primarily by test-score match (answer
 agreement as the named fallback); Country arranges your country's cities
@@ -232,7 +232,7 @@ a lens row again:
 | **Compare** | **live** | `pctFor` on your own option, ranked least-typical first — no new read |
 | **Explore** | **live** | `divergence` across the six breakdown dims. The v18 test-pole axis is the one part with no source, since test results are not a dim |
 | **Scores** | **live since D100** | `meanScore` over the bank's ordinal questions (`rating` + `scale`), your own score ticked onto each bar. The prototype's *place* scorecard joins the day `rate` questions are written — the lens filters on type |
-| **the field itself** | **live since D107** | `LiveSimilarityField` — the constellation the demo bodies drew from constants, now computed: kindred by scores on City, place profiles on Country/World |
+| **the field itself** | **live since D112** | `LiveSimilarityField` — the constellation the demo bodies drew from constants, now computed: kindred by scores on City, place profiles on Country/World |
 
 The row is collapsed by default: opening the Mirror pays for none of it,
 and Kindred — the only lens that can cost a read the app has not already
@@ -272,7 +272,7 @@ a **Preview · sample people** tag; the live bodies (Groups, Near, City,
 Country, World) deliberately do not, because carrying nothing fabricated
 is the point of them.
 
-The biggest former resident of this section moved out at D107: the
+The biggest former resident of this section moved out at D112: the
 similarity constellations. `mirror-field-pops.jsx` still holds the
 invented rosters — "Anders K. · Torshov · 92%", the city `match`
 constants under "closer = a city more like you" — but they render only in
@@ -329,8 +329,8 @@ Two gaps are worth stating in prose because no badge covers them:
 | the daily record | `src/v2/spec/mirror-answers.jsx` |
 | the Map | `src/v2/spec/map-tab.jsx` (+ `map-*.js*`) |
 | City / Country / World, live | `src/v2/ui/LiveCohortBody.tsx` |
-| Near, live — the presence counter alone (D106) | `src/v2/ui/NearLiveBody.tsx` |
-| the constellations, live (D107) | `src/v2/ui/LiveSimilarityField.tsx` |
+| Near, live — the presence counter alone (D111) | `src/v2/ui/NearLiveBody.tsx` |
+| the constellations, live (D112) | `src/v2/ui/LiveSimilarityField.tsx` |
 | the similarity folds (profiles, matches, ranking) | `src/v2/data/similarity.ts` |
 | Groups, live | `src/v2/ui/LiveGroupsMirrorBody.tsx` + `data/groupPortrait.ts` |
 | the group as a cast of roles | `src/v2/spec/group-role-map.jsx` |
@@ -354,8 +354,8 @@ reason anything is ever hidden) · D3 (anonymous-first, groups by invite
 code) · D5 (create-only answers, owner-written; the option is editable
 since D86, the cohort snapshot is not) · D8 (per-anchor breakdowns and
 the snapshot they read) · D9 (the city as the unit — its Near-fold undone
-by D106) · D32 (Learn's first attempt only) · D38 (why relmap stays
+by D111) · D32 (Learn's first attempt only) · D38 (why relmap stays
 eager) · D57 (server-scored logic) · D72 (the Map's mock typicality,
-refused for being invented rather than private) · D106 (Near is
-presence, City is its own stop) · D107 (the similarity surfaces: place
+refused for being invented rather than private) · D111 (Near is
+presence, City is its own stop) · D112 (the similarity surfaces: place
 score profiles and kindred by scores, default-on).

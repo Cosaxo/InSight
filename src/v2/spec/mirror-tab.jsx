@@ -34,13 +34,13 @@ const LiveCircleBody = React.lazy(() => import('../ui/LiveCircleBody'));
 //   you     → the telescope retracted — you, alone, visualized (the Map)
 //   circle  → your people — close ties
 //   groups  → your named circles — The Crew, Book Club… (GroupsMirrorBody)
-//   near    → who is around you right now — the presence count (D84/D106)
-//   city    → your city: its answers and its kindred constellation (D106)
+//   near    → who is around you right now — the presence count (D84/D111)
+//   city    → your city: its answers and its kindred constellation (D111)
 //   country → everyone in your country
 //   world   → everyone
 //
-// Near and City were one stop from D9 to D106 ("Near IS your city", City
-// dropped from the live ruler). D106 un-folded them: they answer different
+// Near and City were one stop from D9 to D111 ("Near IS your city", City
+// dropped from the live ruler). D111 un-folded them: they answer different
 // questions — presence vs a profile anchor — and folding them meant the
 // scale lied about what it measured while the prototype's most distinctive
 // stop shipped dark.
@@ -81,7 +81,7 @@ const MIRROR_STOPS = [
   { id: 'world', label: 'World', pop: 'world', zoom: 'world' },
 ];
 const stopAccent = (id) => mirrorAccent((MIRROR_STOPS.find((s) => s.id === id) || MIRROR_STOPS[0]).pop);
-// All seven stops in both modes since D106. The live ruler used to drop
+// All seven stops in both modes since D111. The live ruler used to drop
 // City (D9: Near WAS your city, and two stops on one cohort is how a
 // scale starts lying) — the same rule now keeps them apart the other way:
 // Near is presence only, City is the city cohort only.
@@ -238,7 +238,7 @@ function MirrorTab({ onPerson, pop, onPop, worldZoom, onZoom, firstRun, topNav, 
   const scaleId = p.id === 'world' ? zoom : p.id;
   // The axis carries the world zooms as stops of its own, so a pick has to
   // set both halves of the old two-level state. (The live City stop is
-  // back since D106, so a persisted zoom === 'city' needs no resolving.)
+  // back since D111, so a persisted zoom === 'city' needs no resolving.)
   const liveGeo = !!(window.LIVE && window.LIVE.enabled);
   const stopId = p.id === 'world' ? zoom : p.id;
   const pick = (s) => { if (s.pop === 'world') { onPop('world'); onZoom(s.zoom); } else onPop(s.pop); };
@@ -259,11 +259,11 @@ function MirrorTab({ onPerson, pop, onPop, worldZoom, onZoom, firstRun, topNav, 
   // Every branch below therefore picks a BODY rather than returning its own
   // frame; the live-mode branches are this repo's, not the prototype's.
   const isYou = p.id === 'you';
-  // The geographic stops, live (D106): Near is the presence count and
+  // The geographic stops, live (D111): Near is the presence count and
   // nothing else (NearLiveBody — the cell it reads is one of D98's three
   // surviving denies, so a count is all it will ever draw), and City /
   // Country / World are the public aggregates plus the similarity
-  // constellation (LiveCohortBody + LiveSimilarityField, D107). The demo
+  // constellation (LiveCohortBody + LiveSimilarityField, D112). The demo
   // fields below are prototype data — Near's six named neighbours never
   // had a backend (D2) — so live gets the real thing or an honest empty
   // state, never both.
@@ -292,7 +292,7 @@ function MirrorTab({ onPerson, pop, onPop, worldZoom, onZoom, firstRun, topNav, 
     );
   } else if (isGeoLive) {
     // Near draws presence; the three world zooms map one-to-one onto the
-    // cohort scopes (D106).
+    // cohort scopes (D111).
     body = p.id === 'near' ? (
       <div key="near-live" className="tab-swap mf-flex" style={{ overflowY: 'auto' }}>
         <NearLiveBody />

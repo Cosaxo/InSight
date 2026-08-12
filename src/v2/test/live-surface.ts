@@ -43,7 +43,7 @@ export const LIVE_MEMBERS = [
   // Kindred (D99) — the People lens's ranking, derived on read from the
   // cached voter lists plus the viewer's own votes.
   "loadKindred", "kindred", "kindredLoading", "kindredDepth",
-  // Similarity (D107) — the constellation fields. `loadSimilarity` tops up
+  // Similarity (D112) — the constellation fields. `loadSimilarity` tops up
   // the bank's test-item aggregates (once per session) and runs
   // loadKindred; `kindredPeople` is kindred() plus frozen city and parsed
   // scores; `testFeedItems` and `myTestResults` are the fold's other two

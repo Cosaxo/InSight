@@ -1,16 +1,16 @@
 // LiveCohortBody — the Mirror's geographic populations in live mode:
-// City, Country and the globe (D106).
+// City, Country and the globe (D111).
 //
 // One renderer for all three, because they are the same question at three
 // radii and three renderers would eventually disagree about what an empty
-// cell means. Near is NOT here any more: D106 un-folded D9's "Near is
+// cell means. Near is NOT here any more: D111 un-folded D9's "Near is
 // your city", so Near is the presence counter (ui/NearLiveBody.tsx) and
 // the city cohort lives at its own City stop, where the prototype always
 // put it.
 //
 // WHAT THE CITY STOP USED TO BE, twice over. In the prototype: a field of
 // kindred strangers ("Anders K. · Torshov · 92%") drawn from constants in
-// mirror-field-pops.jsx — never real. In live mode until D106: nothing —
+// mirror-field-pops.jsx — never real. In live mode until D111: nothing —
 // the stop was dropped from the ruler entirely. The v1 backend that was
 // supposed to make the neighbours real bucketed users into ~5 km geohash
 // cells behind a 20-person floor and never produced a single cell (D2).
@@ -18,7 +18,7 @@
 // WHAT THESE ARE NOW. The same public aggregates everything else reads —
 // exact counts, published from the first answer (D98) — plus the
 // constellation the prototype promised, computed instead of invented
-// (LiveSimilarityField, D107): people of your city by score likeness,
+// (LiveSimilarityField, D112): people of your city by score likeness,
 // cities and countries by their real average-score profiles.
 import React from "react";
 import LIVE from "../data/live";
@@ -47,7 +47,7 @@ import { divisiveness } from "../data/cohort";
 // the answer rows, so on a cold open of this stop it is off-screen while
 // it loads, and the null fallback means nothing shifts when it arrives.
 const LiveMirrorLenses = React.lazy(() => import("./LiveMirrorLenses"));
-// The constellation field (D107), lazy for the same bundle-budget reason
+// The constellation field (D112), lazy for the same bundle-budget reason
 // as the lens row — it is a whole SVG canvas plus the similarity folds,
 // and the stop's counts must not wait on it. Null fallback: the field
 // mounts above the answer rows, and its own first frame is a caption-less
@@ -186,7 +186,7 @@ function LnChips({ value, options, onPick }: {
 }
 
 // The Right now card (D84) lived here while Near was the city stop (D9);
-// it moved to ui/NearLiveBody.tsx when D106 gave presence its own stop.
+// it moved to ui/NearLiveBody.tsx when D111 gave presence its own stop.
 
 function LnNote({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -401,7 +401,7 @@ function LiveCohortBody({ scope = "city" }: { scope?: CohortScope }) {
         </div>
       </div>
 
-      {/* The constellation (D107) — the stop's identity, so it leads:
+      {/* The constellation (D112) — the stop's identity, so it leads:
           people of your city by score likeness, cities/countries by their
           real average-score profiles. The answer rows stay the spine of
           the tab below it; this is the one body where the field IS the

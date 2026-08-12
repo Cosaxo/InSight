@@ -1,4 +1,4 @@
-// LiveSimilarityField — the Mirror's constellation fields, live (D107).
+// LiveSimilarityField — the Mirror's constellation fields, live (D112).
 //
 // The prototype's most distinctive screens: you at the centre, a
 // population arranged around you, distance = unlikeness. It shipped them
@@ -210,7 +210,7 @@ function SfAxisRow({ label, value, mine, n }: { label: string; value: number; mi
 // Same one-tap follow as the People lens (D101): no request, no pending
 // state, because D98 already granted everything a follow could. This is
 // the third of the follow entry points, under the same rule as the other
-// two — a uid that has become a person with a reading attached (D107).
+// two — a uid that has become a person with a reading attached (D112).
 function SfFollowButton({ uid }: { uid: string }) {
   const following = LIVE.isFollowing(uid);
   return (
@@ -449,7 +449,7 @@ function PlacesField({ scope, myFlat }: {
 function SimilaritySection({ scope }: { scope: "city" | "country" | "world" }) {
   const [, bump] = React.useReducer((n: number) => n + 1, 0);
   React.useEffect(() => LIVE.subscribe(bump), []);
-  // Default-on (D107): the field is the stop's identity, so it loads with
+  // Default-on (D112): the field is the stop's identity, so it loads with
   // the stop — no tab to open first, nothing to opt into. The loader is
   // bounded and session-cached; see live.ts loadSimilarity.
   React.useEffect(() => { void LIVE.loadSimilarity(); }, []);

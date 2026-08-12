@@ -1,12 +1,12 @@
 // @vitest-environment jsdom
 //
-// NearLiveBody is the Mirror's Near stop since D106: the Right-now radius
+// NearLiveBody is the Mirror's Near stop since D111: the Right-now radius
 // counter (D84) and nothing else. The card's cases moved here verbatim
 // from LiveCohortBody.test.tsx when the stop split — the claims are the
 // card's, not the host's, and the host changed.
 //
 // What is NEW here is the frame: Near no longer needs, asks for, or shows
-// a city, and its copy points at the City stop for everything D106 moved
+// a city, and its copy points at the City stop for everything D111 moved
 // there. The presence pitch's honesty cases stay word-for-word, because
 // the cell this card fronts is one of the three denies D98 kept.
 
@@ -40,7 +40,7 @@ beforeEach(() => {
 });
 afterEach(() => { cleanup(); vi.restoreAllMocks(); });
 
-describe("NearLiveBody · the stop is presence, not place (D106)", () => {
+describe("NearLiveBody · the stop is presence, not place (D111)", () => {
   it("renders the counter with no city anywhere in sight", () => {
     render(<NearLiveBody />);
     expect(screen.getByText(/Right now, around you/i)).toBeTruthy();
@@ -51,7 +51,7 @@ describe("NearLiveBody · the stop is presence, not place (D106)", () => {
   });
 
   it("points at the City stop for answers and kindred", () => {
-    // The stop shed the city cohort at D106; a user who came here for it
+    // The stop shed the city cohort at D111; a user who came here for it
     // must leave with a direction, not a shrug.
     render(<NearLiveBody />);
     expect(screen.getByText("City", { selector: "strong" })).toBeTruthy();

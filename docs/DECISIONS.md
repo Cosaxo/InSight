@@ -561,7 +561,7 @@ as deployed infrastructure. It now says what is true.
 > explicit, revocable location grant — Near resolves and applies the city
 > itself, still saving only the name.
 >
-> **Partially reversed by [D106](#d106--near-and-city-are-two-stops-again-presence-is-not-a-place)
+> **Partially reversed by [D111](#d111--near-and-city-are-two-stops-again-presence-is-not-a-place)
 > (2026-08-12).** The *fold* is unwound: City is its own live stop again
 > and Near is the D84 counter alone. Everything else here survives — the
 > city as the unit, the catalogue, the coarse on-device locate and D92's
@@ -9976,7 +9976,664 @@ manipulation` is scoped to `button`/`[role=button]`/`[role=tab]`
 scales back, but it is user-initiated and was not what these screenshots
 measured, so it stays as it is until something says otherwise.
 
-## D106 · Near and City are two stops again: presence is not a place
+## D106 · The retired privacy model is swept out of the documentation, starting with the two pages users actually read
+
+**Decided:** 2026-08-12 · **Status:** binding · Follow-on to D98 —
+the documentation half of a change that was only ever made in the code.
+
+**Decision.** Every document that still described the pre-D98 model as
+current is rewritten to describe what the app does. Nothing about
+behaviour changes; what changes is that the tree stops making claims the
+rules do not enforce, in the direction that matters most — **claiming a
+protection the user does not have.**
+
+### The finding that made this urgent
+
+D98 rewrote the code, `firestore.rules`, `SCHEMA-V2.md`, `MIRROR.md`, the
+in-app privacy panel and the store filing. It did not reach the two
+documents with the widest audience, and they were the ones stating the
+old model most plainly:
+
+- **`web/privacy.html`** — the policy linked from the App Store listing,
+  served on the open web, and required by both stores — opened with
+  *"your answers are readable by you and nobody else, ever. Not by us,
+  not by your friends, not by other users."* Three further sections were
+  built entirely on the floor: a minimum below which counts were
+  withheld, an exact-counts-are-server-only paragraph, and a "who can see
+  what" list whose first row read **Your answers: you.**
+- **`web/home.html`**, the policy's landing page: *"Answers are yours
+  alone. Population counts are k-anonymous."*
+
+The asymmetry is the whole reason this is a decision and not a chore.
+An out-of-date internal doc costs a reader an hour. A privacy policy
+promising a protection that was deleted is the exact failure CLAUDE.md
+names in the other direction — *"a user learning that from a stranger
+quoting their vote would be the same failure as the reverse"* — except
+that here it is written down, published, and pointed at by a store
+listing. The in-app panel had said the true thing since D98; a user who
+read the policy instead got the opposite answer from the same product.
+
+### The timing fact that keeps this a correction rather than a breach
+
+`answersCounted` was 0 every day through 2026-08-11 (`monitoring/
+pulse-trail.jsonl`) and the app has not launched. No answer was ever
+collected under the published promise, so there is nothing to notify and
+nothing to un-publish. Had a single user answered under that policy, this
+record would be a disclosure plan instead of a rewrite — the old rows
+would have needed gating, not republishing, which is D98's own reasoning
+applied to the document rather than the data.
+
+### What was rewritten, and the one rule applied throughout
+
+Where a claim was **historically true**, it is kept and marked as
+history — the repo's standing habit, and the reason a reader can tell a
+reversal from a mistake. Where it was presented as **current**, it is
+replaced by what the code does. Nothing was deleted silently.
+
+| File | Was | Now |
+| --- | --- | --- |
+| `web/privacy.html` | answers readable by nobody else; counts withheld below a threshold; "Your answers: you" | answers are public and attributed, stated first and bluntly; counts exact from answer one; a five-row "who can see what" that matches the rules. Adds the four surfaces the page never mentioned — takes, follows, the presence square, and the D86 edit — and a paragraph recording that the page used to promise the opposite |
+| `web/terms.html` | *"A private journal app"* — the **v1** product, retired at D4, with journal entries, trait impressions and photo uploads | the daily/mirror app, with a plain "it is a public app" clause; acceptable-use rewritten around takes, bulk accounts and scraping |
+| `web/home.html` | "Answers are yours alone. Population counts are k-anonymous" | answers are public; counts exact |
+| `docs/data-inventory.md` | display name owner+members; push tokens on the profile doc; aggs floored "≥5, paused to ≥1"; private aggs "below the public floor"; politics result "never leaves the owner doc" | all four corrected against the rules as deployed; a **follows** row added (D101 shipped without one) |
+| `docs/MONETIZATION.md` | the floor "restores at launch traction"; "never sells a person"; "the sold split is the same honest, floored number" | no floor to restore; the buyer's bound is **scope** — no read path a signed-in user lacks — not arithmetic |
+| `docs/CATALOG-QUESTIONS.md` | complementary suppression on the entity fold; two tail scalars; a floor argument for deferring breakdowns | the disclosure rules are marked deleted (`canonTopN` records the same); the published shape is `{total, top, rest, by}`; top-N survives on **document size and legibility**, which were always the durable reasons |
+| `docs/MONITORING.md` | "the same suppression that stops a paying city identifying a person stops the owner doing it" | there is no suppression; refusing per-user analytics is now an analytics decision standing on its own |
+| `docs/QUESTION-FARM.md`, `docs/SCHEMA-V2.md`, `src/v2/README.md`, `README.md` | k-floored aggregates; "profiles are owner-only"; duel answers in an "owner-only subcollection"; a `LiveCohortBody` row describing the flag and the printed floor; Circle "has nothing real behind it" | the statistics argument replaces the floor one; the denormalization reason restated; the seal described as the `surface` exclusion it is; the test row matches the assertions; Circle is the D101 follow graph |
+| `src/v2/ui/LiveCohortBody.test.tsx` | a header comment and a case title describing the floor, contradicting the assertions directly beneath them | both rewritten; the cases are the floor's inverses and say so |
+| `src/v2/ui/LivePrivacyPanel.tsx` | "No comments from strangers" | false since **D83** — world takes are exactly that. Replaced with what they are and the two controls over them |
+
+### Two things deliberately not done
+
+- **No historical record was edited.** D1, D18, D44, D81 and the rest
+  keep their original text; D98's reversal table is the index. A decision
+  log that is rewritten to agree with the present cannot show anyone how
+  the present was arrived at.
+- **`web/terms.html`'s pricing section stays.** It is legal reserve
+  language, kept deliberately (MONETIZATION.md) to permit a future change
+  of mind without promising one. It is not a stale claim.
+
+### One divergence found and left, named so it is not re-derived
+
+`pick-data.js` `canon()` — the **demo** catalog store — still applies its
+own `AGG_MIN_N` and still computes `restEntities` / `restBelowFloor`, two
+fields the live document does not carry. No live surface reads it, so it
+is prototype furniture rather than a lie to a user, but a mock build
+hides tail entities the real one shows. Recorded in CATALOG-QUESTIONS.md
+at the point of divergence; converting it is a behaviour change to mock
+mode and belongs to whoever next touches that file.
+
+### What would have caught this, and why nothing did
+
+Every gate in this tree checks a *name*, a *number* or a *shape*:
+`check:globals` sees identifiers, `check:figures` sees quoted counts,
+`check:store-copy` sees unfilled placeholders, `check:store-forms` holds
+a table equal to a JSON file. None of them can see a true sentence that
+has become false, and `web/*.html` is served by hosting rather than
+compiled, so neither `tsc` nor a bundle gate ever opens it.
+
+A gate for this is not obviously buildable — "the prose agrees with the
+rules" is not a static property — and inventing one here would be a worse
+error than the one it chased. What is cheap and is adopted instead: **a
+decision that changes who may read something names the user-facing pages
+in its own checklist.** D98 listed the code paths it had to move in one
+commit and moved them; the same discipline pointed at `web/` would have
+caught both pages the day the model died.
+
+## D107 · A purpose string for the authorisation this app never asks for
+
+**Decided:** 2026-08-12 · **Status:** binding · Repairs ITMS-90683 on 2.0.0
+build 10. Narrows nothing in
+[D9](#d9--near-is-your-city--picked-from-a-list-or-located-on-the-device):
+what the app asks the user for is unchanged.
+
+**Decision.** `ios/App/App/Info.plist` carries
+`NSLocationAlwaysAndWhenInUseUsageDescription`, byte-identical to the
+when-in-use string that was already there. Nothing else about location
+moves — still when-in-use only, still reduced accuracy, still on an
+explicit tap, still a city name as the only thing that leaves the device.
+`npm run check:ios-location` holds that shape, including two invariants
+that had no guard at all before.
+
+### What Apple asked for, and why the tree looked compliant
+
+App Store Connect accepted build 10, then emailed: the bundle references
+one or more APIs that access sensitive user data and has no
+`NSLocationAlwaysAndWhenInUseUsageDescription`. Its wording is the part
+worth keeping — *"even though your app might not use these APIs, a purpose
+string is still required."* The analysis reads the linked binary, not the
+call sites, and every local gate reads the call sites.
+
+So the whole tree was consistent and wrong together: `locate.ts` requests
+coarse, one fix, foreground; the plugin requests when-in-use; the plist
+described exactly that. The symbol Apple objected to belongs to a package
+none of those files mention.
+
+### The chain, verified rather than inferred from the warning
+
+```
+@capacitor/geolocation 8.2.0        (package.json)
+  └─ ion-ios-geolocation ≥2.1.0     (its Package.swift — SwiftPM, fetched at build time)
+       └─ IONGLOCAuthorisationRequestType.always
+            └─ CLLocationManager.requestAlwaysAuthorization
+```
+
+Two facts, both read in source rather than reasoned about:
+
+- The upstream enum compiles both branches unconditionally —
+  `case .whenInUse: locationManager.requestWhenInUseAuthorization` and
+  `case .always: locationManager.requestAlwaysAuthorization`, one `switch`,
+  no `#if`. The Always symbol is in every archive we have ever shipped.
+- The plugin has exactly one call site,
+  `requestLocationAuthorisation(type: .whenInUse)`, and it is not
+  parameterised by anything the JS API can set. Nothing this app can do
+  reaches the `.always` branch.
+
+The plugin's own README documents the consequence and prescribes this fix:
+add the key, reuse the when-in-use text, "since this permission prompt
+won't appear to users".
+
+### Why the string is a copy, and why that is honest
+
+It is unreachable text. An Always prompt requires an Always request, so no
+user will ever read this string — which is precisely the argument for
+keeping it identical rather than writing something new for it. Text nobody
+can see is text nobody reviews, and this one sits one line from
+`web/privacy.html`'s "no location history, no background location". A
+second, drifting description of the same single foreground reading is a
+liability with no reader to serve.
+
+Two alternatives were weighed and dropped:
+
+- **Remove the symbol instead of describing it.** D16's Facebook stripper
+  is the precedent, and it does not transfer: that SDK is named in an SPM
+  manifest sitting in `node_modules`, a file we already rewrite on
+  `postinstall`. `ion-ios-geolocation` is fetched by SwiftPM from GitHub
+  during the build, so there is nothing in-tree to patch — the equivalent
+  move is a pinned fork of a third-party package, permanently, to delete a
+  branch that is already dead code.
+- **Write a string that says the app does not use background location.** A
+  purpose string is shown to a user being asked for something; a
+  disclaimer aimed at a reviewer is not one, and it would be the only
+  sentence in this bundle written for an audience that cannot see it.
+
+### What deliberately does not move
+
+- **The App Store privacy label.** Still Coarse Location — linked to user,
+  App Functionality, optional (`docs/data-inventory.md`). A purpose string
+  grants nothing and collects nothing; the label answers what the app
+  collects, which is a city name derived on-device from one coarse fix.
+  **Precise stays unticked** and `NSLocationDefaultAccuracyReduced` stays
+  true.
+- **`web/privacy.html` and the in-app privacy panel.** Every sentence they
+  make — never in the background, never continuously, only on a tap —
+  remains true of the built app, and the guard below is what keeps that
+  from being a claim about intent.
+- **Android.** ITMS-90683 is an Apple upload check; the manifest's
+  coarse/fine story (D9) is untouched.
+
+### The guard, and the two loose invariants it picked up
+
+`scripts/check-ios-location.mjs`, in ci.yml's lint job beside
+`check:ios-spm` and `check:ios-facebook` — client-only, off the deploy
+path. It asserts five things; only the first is what Apple asked for:
+
+1. Both purpose strings present and non-empty.
+2. The two strings identical, so the unreadable one cannot drift.
+3. `NSLocationDefaultAccuracyReduced` still true. **This had no guard.**
+   D9's precision cap — the load-bearing half of "never tick Precise" —
+   was held by a comment sitting next to it, and losing it would flip the
+   store label while every test stayed green.
+4. `UIBackgroundModes` does not contain `location`. This is the
+   behavioural half of the new key being harmless.
+5. The installed plugin still requests `.whenInUse`, and only that. A
+   plugin upgrade is the one realistic way an Always prompt could start
+   appearing, and on that day the string in the plist becomes a lie told
+   in a system dialog. Zero call sites fails too: "found nothing" must not
+   be how this passes.
+
+Each was verified by mutation — drift the string, delete the key, flip the
+accuracy flag, add the background mode, point the plugin at `.always`,
+rename its call — and each fails naming its own reason.
+
+### Known limits, recorded
+
+- **No local tool reports ITMS-\*.** This check asserts the shape Apple
+  asked for, not Apple's acceptance of it; the proof is the next upload's
+  mail, or its silence. The gap is structural — the analysis runs on
+  their side of the transfer.
+- **The guard reads installed plugin source**, so it needs `npm ci` (same
+  as `check:ios-facebook`, and the same reason: the version range in
+  `package.json` is not what Xcode compiles).
+- **Build 10 stands.** The mail is a warning on a successful delivery, not
+  a withdrawal; the TestFlight build is unaffected and the fix rides the
+  next one.
+## D108 · Two providers leave the bridge, and the mount suite stops being one file
+
+**Decided:** 2026-08-12 · **Status:** binding · Two independent findings
+from an audit of the tree, both of the same kind: a gate that had stopped
+measuring the thing its prose claimed.
+
+**Decision.** `duels-data.js` and `scenes.js` convert to named exports,
+taking D39's coupling ratchet **507 → 457**. `smoke.test.jsx` splits into
+five files over one harness (`test/mount-app.jsx`), removing a 90-second
+serial floor from `test:unit`. Nothing about either is new mechanism —
+both are procedures this repo has already run and written down.
+
+### CLAUDE.md said the cheap seam was exhausted; it was not
+
+"**Convert on touch.** The cheap seam is exhausted, so this is no longer
+a project." That sentence has been in CLAUDE.md since D39's follow-ups,
+and `src/v2/README.md` had already recorded it being wrong once —
+`test-definitions.js` and `passive-progress.js` were named as the two
+*not* to start with, on the grounds that they formed import cycles, and
+converting them produced the largest single drop the ratchet has seen
+(657 → 540) once someone checked the graph instead of re-reading the
+paragraph.
+
+It was wrong a second time, and the check that shows it is one the
+ratchet's own data already supports. Rule 4 reports per **consumer**,
+which is the right shape for a ratchet and the wrong shape for planning:
+it says `world-feed.jsx` holds 153 sites without saying whose. Rebuilt
+per **provider**, out of `spec-globals.mjs`'s `definedBy`/`referenced`
+maps:
+
+| provider | sites | consumers | outgoing coupling |
+| --- | ---: | ---: | ---: |
+| `data/live.ts` (`LIVE`) | 86 | 13 | — already ESM |
+| `spec/app-shell.jsx` (8 openers) | 49 | 15 | navigation bus |
+| `spec/duels-data.js` (`DUELS`) | 27 | 9 | **0** |
+| `spec/learn-progress.js` (`LEARN`) | 25 | 5 | 8 |
+| `spec/scenes.js` (`SCENES`) | 23 | 4 | **0** |
+
+The two zero-outgoing rows are single-writer, IIFE-wrapped pure
+providers that already import their own dependencies as ESM — the exact
+shape of `DAILYQ`, `FRIENDS` and `WF_CATALOGS`, down to the hoisted
+`export let` the wrapper forces. They are what "exhausted" was covering.
+Converted, they are worth 50 sites, which is 10% of the whole meter for
+two mechanical changes.
+
+**Add the provider view to the planning, not to the gate.** Rule 4 stays
+per-consumer; the finding is that anyone planning a conversion should
+transpose it first. `LEARN` is next by the same reading, and its 8
+outgoing references are not an obstacle: converting what a module
+*provides* is independent of what it *consumes* (the `DAILYQ` lesson).
+
+### The bridge was hiding React Compiler findings, and that is the real cost
+
+The conversion retired four `exhaustive-deps` suppressions for free — an
+imported binding is a stable dep where `window.DUELS` is an expression
+eslint cannot prove stable — and then surfaced **six `refs` findings that
+had never been reported at all**, in `DuoBody` and `GroupDailyBody`. The
+React Compiler cannot resolve a value arriving through global scope, so
+it had been bailing out of both components entirely.
+
+Verified rather than inferred, because the alternative reading is that
+this change introduced them: both files at the previous commit lint
+clean, and the only change to either is the import line. Probed by
+linting the pre-change copies.
+
+So the suppression count in `src/v2/README.md` goes **31 → 33**, and the
+increase is the honest direction. 31 was an understatement of the debt by
+however much the bridge was concealing, and **every remaining conversion
+should be expected to raise that number before it lowers it**. The six
+new ones carry targeted `eslint-disable-next-line react-hooks/refs` with
+the reasoning at the site, and the fix is named there: `const [order] =
+useState(() => …)` is the same once-only computation in the shape the
+Compiler accepts. Not taken here — a behaviour-adjacent edit to ported
+JSX does not belong inside a mechanical module conversion, and it wants
+a test that asserts the order really is frozen.
+
+### The guard shapes were a list again, exactly as recorded
+
+`follows.js`'s conversion left the rule "the guard shapes are a list, not
+a pattern: `(X || {})`, `X?.`, `X ? … : …`, `!X || …`, `X && …`, and
+`if (X) …`". Both conversions here hit five of the six, plus two the list
+does not name and should:
+
+- **A member-presence guard.** `SC.colorOf ? SC.colorOf(g.id) : null`
+  and `D.duoAvailable ? D.duoAvailable() : []` — six sites. These are not
+  guarding the module, they are guarding a member of an object literal
+  that always defines it, which is the same load-order fear one level
+  down.
+- **A fallback that duplicates the store's own default.**
+  `mirror-field-pops.jsx` seeded its scene set as
+  `window.SCENES ? SCENES.list() : D.groups.filter(g => g.joined)` — and
+  the else branch is precisely what `scenes.js` derives internally in a
+  demo build. In a LIVE build it was worse than dead: it would have
+  seeded the demo follows D96 exists to refuse, had the global ever been
+  unset when that component first rendered.
+
+### The mount suite was 98% of its own runner
+
+`test:unit` is 51 files. `smoke.test.jsx` was 32 cases in one of them,
+and vitest schedules a **file** to a worker — so it was a serial floor no
+amount of parallelism could lower: **90.2 s of a 92.2 s wall clock**, with
+the other fifty files finishing inside it. Split five ways along the
+`describe` seams it already had, with the setup moved to
+`test/mount-app.jsx` rather than copied.
+
+Two things the measurement did not buy, recorded because the obvious
+prediction was wrong in both places:
+
+- **Wall clock went 87 → 71 s, not to ~35 s.** With the single-file floor
+  gone it is the aggregate that binds on a 4-core runner (which is what
+  `ubuntu-latest` gives), not any one file. The floor itself is genuinely
+  gone — longest mount file 32.7 s, and the suite's longest file is now
+  `smoke-live.test.jsx` at 34.8 s, which was never the bottleneck.
+- **It does not unblock full-tree `test:coverage`.** Per-TEST durations
+  are unchanged (slowest 9.0 s before and after), and `vite.config.ts`
+  scopes coverage to `src/v2/data` because v8 instrumentation triples
+  mount cases against a 15 s per-test timeout. A file split cannot move a
+  per-test number. The claim that it would was made before it was
+  measured; this is the correction.
+
+**Cost accepted.** Five files each pay their own `spec-index` import
+(~14 s more total work than one file did), because vitest's module cache
+is per worker. Worth it to delete a 90 s serial floor; not worth it per
+case, which is why the harness header says to put a new case in the file
+that already loads its screen and add a file only when one crosses ~30 s.
+
+**What no gate covers.** Nothing stops the five files silently
+re-merging, or a sixth being added that duplicates a load for two cases.
+The number that would catch it — longest single test FILE — is not
+ratcheted, and is not worth a gate at this size; `check:figures` does not
+own these figures either. The README's table is the record.
+
+### Also found, not fixed
+
+The entry chunk came down 729 → 707 KB as a side effect: the removed
+global registrations and dead guards were shipping. Noted rather than
+credited to anything — `check:bundle`'s per-chunk headroom is 28 KB now
+where it was 6, which is slack that will get spent, and the ceiling is
+deliberately not being lowered to match inside a change that was not
+about the bundle.
+
+## D109 · LEARN leaves the bridge, and takes the load-order bug with it
+
+**Decided:** 2026-08-12 · **Status:** binding · Follow-on to D108, using
+the provider view that record added.
+
+**Decision.** `learn-progress.js` (`LEARN`) and `learn-data.js`
+(`LEARN_CARDS`, `LEARN_FIELDS`, `LEARN_SUBJECTS`, `LEARN_SPLIT`,
+`LEARN_SPLIT_SRC`) convert to named exports. Ratchet **457 → 426**, and
+the file count drops 44 → 43 — `learn-feed.js` is the fourth module in
+the layer with no cross-module global references at all.
+
+### The seam was two modules, not one, and only half of it was the ask
+
+`LEARN` alone was the item on D108's list: 25 sites, 5 consumers.
+Converting only that would have left the thing worth fixing in place.
+`learn-progress.js` opened with
+
+```js
+const CARDS = window.LEARN_CARDS || [];
+const FIELDS = window.LEARN_FIELDS || [];
+const SUBJECTS = window.LEARN_SUBJECTS || [];
+```
+
+at **module scope**. The entire Learn mode — the card bank, the map's
+knowledge branch, the feed's woven know cards — rested on
+`spec-index.js` listing `learn-data.js` (line 90) one line above
+`learn-progress.js` (line 91). Swap those two lines and `|| []` wins:
+zero cards, no error, no failing test, and a Learn tab that renders an
+empty room. Exactly the `map-branches.js` / `DAILYQ.EMERGENT_CATS`
+fragility D39's third conversion removed, and exactly what that record
+said to look for next.
+
+It is a module-graph guarantee now, and the guards went with it rather
+than being rewritten as `LEARN_CARDS || []`: an imported binding cannot
+be unset, and `learn-data.js` depends on nothing that could put it in
+TDZ.
+
+**The test harness is where the fix shows.** `learn-serve.test.js` had
+to import `learn-data.js` by name before `learn-progress.js`, because
+the ordering was the caller's problem. That line is deleted, and its
+absence is the win rather than a tidy-up — a step nobody can forget any
+more.
+
+### D108's prediction did not hold here, and that is worth recording
+
+D108 said "every remaining conversion should be expected to raise the
+suppression number before it lowers it", on the strength of the six
+`refs` findings the `DUELS` conversion surfaced once the React Compiler
+could resolve the store. This conversion surfaced **none**: the count
+sits at 33 across 14 files, unchanged, and no `exhaustive-deps`
+suppression was retired either. One `useEffect(() => { if (window.LEARN
+&& …) … }, [])` in `map-tab.jsx` became the clean shape and had carried
+no directive to begin with.
+
+So the D108 sentence is a thing to *check for*, not a rule. The
+Compiler's bail-out depends on what else the component does, not on the
+bridge alone.
+
+### Order of checks matters, and this run proves it
+
+Three separate gates each caught something the others could not, in this
+order:
+
+1. **`no-undef`** caught four files where the call sites were converted
+   and the `import` line was never added — `learn-feed.js`,
+   `learn-social.js`, `map-learn-card.jsx`, `map-tab.jsx`, sixteen
+   errors. This is the rule CLAUDE.md keeps ON for the spec layer
+   because two `ReferenceError`s shipped, and it is the first time it
+   has paid since.
+2. **`check:globals` rule 1** then caught a *dangling* `window.LEARN` at
+   `map-tab.jsx:34` — a site inside an effect that no call-site sweep
+   had touched, so `no-undef` saw a legitimate `window.` member access
+   and said nothing.
+3. **The mount suites** cover the rest: `map-tab.jsx` renders the Map on
+   the Mirror's default stop, so a broken import there is a boundary
+   trip in `smoke-nav.test.jsx`.
+
+Rule 1's find is the one to remember. A conversion sweep that renames
+`X.member` sites is blind to `window.X` sites that were never aliased,
+and the two shapes live in the same file.
+
+### The alias problem, and why `L` was not renamed everywhere
+
+D108 renamed `D` → `DUELS` at every site. That was safe because `D` was
+the DUELS alias in every file that used it. `L` is not: `world-feed.jsx`
+line 390 binds `const L = window.LIVE`, and `map-tab.jsx` line 797 has a
+bare `L` inside an SVG path template (`M x y L x y`). A blanket rename
+would have corrupted both.
+
+So the sites were partitioned by their owning declaration first — every
+`const L = …` in each file, tagged LEARN or LIVE, and only the LEARN
+regions rewritten. Worth doing again the same way: **check what else
+holds the alias before renaming it**, and prefer the partition to the
+regex.
+
+Two places keep a local alias rather than the full name:
+`learn-reserve.test.jsx` imports `{ LEARN as L }` because its two cases
+use `L` twenty times and the import line is the only thing that needed
+to change; and `map-tab.jsx` keeps a bare `{ … }` block where
+`if (window.LEARN)` used to be, with a comment saying so, because
+de-indenting 23 lines would bury the change in whitespace.
+
+### D108 amendment — the entry-chunk figure was not a win, and the gate says it was
+
+D108's closing paragraph read the entry chunk falling 729 → 707 KB as
+"the removed global registrations and dead guards were shipping". This
+conversion took it further, 707 → **685 KB**, and measuring the other
+number shows what actually happened:
+
+| tree | entry chunk | entry + every `modulepreload` | total JS |
+| --- | ---: | ---: | ---: |
+| before D108 | 728.5 KB | 1271.1 KB | 2118 KB |
+| after D109 | 685.2 KB | **1270.2 KB** | 2116 KB |
+
+The entry chunk is 43 KB lighter and **first paint is 0.9 KB lighter**.
+The bytes moved into sibling chunks that `index.html` preloads anyway —
+`duo-daily` 21.0 → 41.0 KB, `LiveTakesPanel` 11.4 → 33.7 KB — because a
+converted module gets its own chunk and the entry still statically
+imports it.
+
+Nothing is wrong with the conversions; the wrong thing is the reading.
+`check:bundle` holds a per-chunk ceiling and a total, and **neither is
+the eager graph**. A per-chunk ceiling is improved by relocating bytes
+into another preloaded chunk, and the total counts Sentry (435 KB), the
+world-feed group and the overlays, which first paint never fetches. So a
+change can bank a 43 KB "win" on the gated number while the number that
+decides cold-start parse cost does not move — which is exactly what just
+happened, twice, without either gate noticing.
+
+`src/v2/README.md` has recorded a special case of this since the
+`sample-data.js` conversion ("became its own chunk that first paint still
+preloads"), and the general form is now measured. The fix is one figure —
+sum the entry plus every `<link rel=modulepreload>` in `dist/index.html`,
+which the build already emits — and it is deliberately NOT taken inside
+this change: adding a third ceiling is a decision about what the app is
+allowed to weigh, not a side effect of moving two modules. Recorded with
+its arithmetic so the next bundle claim has to cite the right number.
+
+### What is left on the bridge here
+
+`learn-progress.js` keeps 4 outgoing references, all `window.LIVE`, and
+`learn-social.js` keeps 4 for the same reason. `LEARN_FEED`
+(`learn-feed.js`) and `LEARN_CARDS`' sibling display modules
+(`learn-bits.jsx`'s `LMStreak` / `LMFriends`, 10 sites) stay — neither
+is a load-order hazard and neither was the ask. `LIVE` remains the
+single largest provider on the meter at 86 sites across 13 files, and
+it is not mechanical: `smoke.test.jsx`'s successors express demo mode by
+deleting `window.LIVE`, which an imported binding cannot do. The
+replacement pattern is already in-tree (`vi.mock("../data/live")`, used
+by every `ui/*.test.tsx`), so that conversion is a test-architecture
+change with a known shape rather than an unknown one.
+
+## D110 · The bundle gets the number that decides first paint, and it immediately finds 327 KB
+
+**Decided:** 2026-08-12 · **Status:** binding · Follow-on to D109's
+amendment, which measured the hole this closes.
+
+**Decision.** `check:bundle` gains a third ceiling, `MAX_EAGER_KB` — the
+entry chunk plus every `<link rel=modulepreload>` in `dist/index.html`,
+which is exactly the set a cold start must fetch before it can paint. It
+found the Firestore SDK sitting in that set on every build, and
+`data/live.ts` and `data/voters.ts` now take the API through
+lib/firebase's existing lazy `impl()` promise instead of importing
+`firebase/*` statically. **Eager graph 1270.2 → 944.0 KB, −327 KB, −26%**,
+with the entry chunk unmoved and the total up 2 KB.
+
+### Why two ceilings were not enough, in one table
+
+Measured by making one group eager again and rebuilding, which is how the
+735 table was built:
+
+| eager again | entry | total | eager | 735 | 2140 | 955 |
+| --- | ---: | ---: | ---: | --- | --- | --- |
+| nothing (after this change) | 685.2 | 2118 | 944.0 | ok | ok | ok |
+| the world-feed group | 863.0 | 2117 | 1087.0 | RED | ok | RED |
+| Sentry | 685.2 | 2117 | 1394.0 | ok | ok | RED |
+| Firestore (the tree before this) | 685.2 | 2116 | 1270.2 | ok | ok | RED |
+
+The per-chunk ceiling is improved by relocating bytes into a chunk the
+entry still imports statically — preloaded, fetched, parsed, and worth
+zero. The total is the same error pointed the other way: it counts Sentry
+(~435 KB) and both deferred groups, which first paint never touches, so
+it cannot see the eager set move at all.
+
+**The feed row is in the table because it does NOT make the case**, and
+the first draft of that table claimed it did. Rolldown merges world-feed
+back into the entry, so 735 catches it first. Writing a predicted row
+down as a measurement is exactly the failure this repo keeps a probe-first
+rule for, and it happened here, in the comment block arguing for
+measurement.
+
+**The Firestore row is not hypothetical.** It is the tree as it stood for
+months, and both existing gates were green for all of it.
+
+### The 292 KB, and why `lib/firebase.ts`'s header was the actual defect
+
+That header ended "so signed-out/mock sessions never download it". It had
+stopped being true: `live.ts` imported `firebase/firestore` and
+`firebase/functions` statically, live.ts is eager, and the SDK was
+`modulepreload`ed even in a build with **no `VITE_FIREBASE_*` at all** —
+the exact case the sentence named. Verified by building with no Firebase
+env and grepping the preload list.
+
+The static imports were deliberate (D64-era): seven call sites had also
+`await import()`ed the same modules, which bought nothing, because a
+module statically imported anywhere in a file is already in that file's
+chunk. That reasoning was right; "so make them static everywhere" was the
+wrong end to fix it from, and nothing was measuring the consequence.
+
+### The 73 call sites did not change, and that is provable rather than lucky
+
+Every Firestore use in `live.ts` sits in a scope that holds a `db` —
+checked, all 73, including the eleven that take no `db` argument
+(`Timestamp.fromMillis`, `serverTimestamp`, `documentId`). A `db` can be
+obtained only from `getDb()`, which awaits lib/firebase's single memoised
+`impl()` promise, which IS the dynamic import of `firebaseImpl.ts`, which
+statically holds `firebase/firestore`. So binding the names off that same
+promise makes every site correct **by the provenance of the value it
+already uses**. There is no load order to audit and no site that could be
+missed — which is the only reason a 73-site change was worth attempting in
+this file.
+
+The mechanism is a local `getDb` in live.ts that shadows the import and
+assigns the bindings; the 25 `await getDb()` sites did not change either.
+`voters.ts` gets an explicit `await getFirestoreApi()` in each of its two
+async functions instead, because those take `db` as a PARAMETER — hanging
+it on "the caller already awaited" would be precisely the cross-module
+ordering assumption this change exists to delete.
+
+### `export * as fsApi` cost 50 KB, measured
+
+The first shape re-exported the namespaces: `export * as fsApi from
+"firebase/firestore"`. That is a use of every export, so rolldown could no
+longer shake the ~85% of the SDK this app never calls — total 2116 → 2166
+KB, over its ceiling, trading 50 KB of lazy weight for the 326 KB of eager
+weight the change was after. Explicit objects listing the 18 + 2 members
+keep both wins.
+
+**And they pin the surface**, which is a second guard for free: live.ts
+destructures the whole object in one statement, so a Firestore member
+added to the store without being added to `fsApi` fails at boot rather
+than at the call. Four test mocks had to grow to match — proof the pin
+binds, since a partial mock now throws at boot instead of at an unused
+call.
+
+### What this change does NOT buy, said plainly
+
+327 KB is bytes, not milliseconds, and the shipping target is a Capacitor
+shell serving local files — so there is no network fetch to save there,
+only parse and evaluate. In a live build `main.jsx` still awaits
+`initLive()`, which still needs Firestore, so the app does not reach
+content sooner; the parse moves off the critical entry graph and onto a
+promise the boot already awaits. **The unambiguous wins are the mock/dev
+and unconfigured-web builds, which now never load the SDK at all, and the
+ceiling itself** — 944 with 11 KB of headroom is a much harder thing to
+regress past than 1270 with nothing watching.
+
+### The ceiling comes down with the win
+
+955, not 1280. Same discipline as MAX_CHUNK_KB at 940 → 850: left at
+1280, the Firestore SDK could silently return to the eager graph and the
+script would print OK, which is how a ratchet becomes a decoration
+(check-bundle.mjs's own words, about itself).
+
+### Verified, and one release-path gate re-proved
+
+`check:web-firebase` greps the emitted JavaScript for the inlined config,
+and this change moved code between chunks — so it was re-run with a full
+fake production config rather than assumed: it concatenates every chunk in
+`dist/assets`, is layout-agnostic, and passes ("live config inlined into
+54 chunk(s)"). Worth checking rather than reasoning about, because its own
+header describes its failure mode as "silent in the worst way".
+
+### Deferred, recorded
+
+`data/circle.ts`, `logic-verify.ts`, `push.ts` and `deviceBind.ts` still
+import `firebase/*` statically. All four are already off the eager graph
+for other reasons — circle behind a dynamic import in live.ts and a
+`React.lazy` body, logic-verify inside `loadOverlays`'s chunk, the other
+two dynamically imported at their call sites — so converting them buys
+zero measured bytes today. The reason to do it anyway is that their
+laziness is incidental rather than stated, and `MAX_EAGER_KB` would catch
+it if that changed. Left as is: a conversion that moves no number is one
+whose only evidence would be the absence of a future regression.
+## D111 · Near and City are two stops again: presence is not a place
 
 **Decided:** 2026-08-12 · **Status:** binding · Owner's direction, verbatim
 in relevant part: "Near is not city that is people near, city is its own
@@ -9986,7 +10643,7 @@ unique thing."
 the Right-now radius counter (D84) and nothing else — its body is
 `ui/NearLiveBody.tsx`, which owns the card that used to sit above the city
 rows. **City** returns as its own live stop: the viewer's city cohort
-(answers, lenses) plus the similarity constellation D107 adds. The three
+(answers, lenses) plus the similarity constellation D112 adds. The three
 world zooms map one-to-one onto the cohort scopes; the `zoom === 'city' →
 country` resolution shim is gone with the gap it papered over.
 
@@ -10005,7 +10662,7 @@ they get two stops.
 **What Near will never become.** A list. The presence cell is one of the
 three denies D98 kept — it records where a phone is standing, not what
 its owner answered — and the count is the only thing the server returns.
-D107's default-on posture is about answer- and score-derived surfaces;
+D112's default-on posture is about answer- and score-derived surfaces;
 publishing presence would need its own explicitly recorded decision, and
 nothing in this one moves it.
 
@@ -10014,7 +10671,7 @@ presence body with the city rows one stop to the right; a persisted
 `worldZoom: 'city'` is now simply valid. Neither state can render an
 unselected ruler, which is what the old shim existed to prevent.
 
-## D107 · The similarity surfaces: place score profiles, and kindred ranked by scores — live, exact, default-on
+## D112 · The similarity surfaces: place score profiles, and kindred ranked by scores — live, exact, default-on
 
 **Decided:** 2026-08-12 · **Status:** binding · Owner's direction, verbatim
 in relevant parts: "the city country and persons in the city should be
@@ -10061,7 +10718,7 @@ testResults is now PUBLIC, which is the point: person-to-person Compare
 reads it." This decision is that sentence finally cashing: nothing read
 here was newly opened, and the demo field's "opt-in" caption dies with
 the demo field. The one deny in the neighbourhood — the presence cell —
-is out of scope (D106 records why).
+is out of scope (D111 records why).
 
 **The bill, measured the D102 way.**
 
@@ -10111,7 +10768,7 @@ and the constellation's person card.
 recency-biased and bounded as above — at launch scale it is exhaustive;
 at 5,000 DAU it is "the latest 200 per question", and the panel copy says
 which. (2) A person's own *passive* feed answers still do not fold into
-their stored result (the pre-D107 gap in `passive-progress.js` — value
+their stored result (the pre-D112 gap in `passive-progress.js` — value
 recorded server-side, discarded client-side); the fields sidestep it by
 folding the viewer's answers directly, but the stored-result gap stands
 until someone closes it deliberately. (3) Place buckets inherit

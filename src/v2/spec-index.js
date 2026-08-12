@@ -185,7 +185,7 @@ import './spec/app-shell.jsx';
 // below exactly as it was by the static imports (it substring-matches this
 // file). Rule 1 is name-level and cannot see load ORDER at all, so it would
 // not notice if this list were wrong — the mount tests are what covers
-// that, which is why smoke.test.jsx now asserts BOTH states: the app before
+// that, which is why smoke-daily.test.jsx asserts BOTH states: the app before
 // the chunk lands, and the feed present after.
 // retryable(), not `if (!p) p = …`: the hand-rolled memo cached a REJECTED
 // promise exactly as it cached a resolved one, so one failed chunk fetch

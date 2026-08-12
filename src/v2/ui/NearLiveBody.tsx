@@ -1,8 +1,8 @@
 // NearLiveBody — the Mirror's Near stop in live mode: the Right-now
-// radius counter (D84), and nothing else (D106).
+// radius counter (D84), and nothing else (D111).
 //
 // Near used to be "your city" (D9): this counter sitting above the city
-// cohort's answer rows. D106 un-folded that. City is its own stop again —
+// cohort's answer rows. D111 un-folded that. City is its own stop again —
 // the cohort, its constellation, its lenses — because the two stops
 // answer different questions: City is "everyone who picked this place",
 // keyed to a profile anchor; Near is "who is around me right now", keyed
@@ -21,7 +21,7 @@ const NB_LINE = "1px solid var(--rule)";
 
 // ── the Right now card (D84) ─────────────────────────────────────────
 //
-// Moved verbatim from LiveCohortBody when D106 split the stops — Near owns
+// Moved verbatim from LiveCohortBody when D111 split the stops — Near owns
 // it now. How many opted-in phones are foreground within your ~1 km cell
 // and its eight neighbors, right now. Off by default; the enable tap is
 // what carries the OS permission prompt (D9's rule). The count is the only

@@ -3,14 +3,15 @@
 // The demo smoke test's other half: the same screens, mounted with
 // `window.LIVE` present and enabled.
 //
-// WHY A SECOND FILE. `smoke.test.jsx` runs with LIVE undefined, so every
+// WHY A SEPARATE FILE. The demo suites (`smoke-daily`, `smoke-topics`,
+// `smoke-mirror`, `smoke-nav`, `smoke-overlays`) run with LIVE undefined, so every
 // `if (window.LIVE && window.LIVE.enabled)` branch in the spec layer is
 // unreached by the suite. Two of those branches are load-bearing product
 // decisions rather than cosmetics:
 //
-//   D106 the Mirror's Near and City stops are two different questions —
+//   D111 the Mirror's Near and City stops are two different questions —
 //       presence vs the city cohort — and the live axis carries both.
-//       (From D9 to D106 live mode dropped City because Near WAS the
+//       (From D9 to D111 live mode dropped City because Near WAS the
 //       city; the un-fold is asserted in both directions below.)
 //   D11 the feed's argument surfaces — named takes, counter-arguments,
 //       "minds moved", crossfire, friend dots — are unreachable from a live
@@ -202,8 +203,8 @@ describe("spec layer mounts in live mode", () => {
 });
 
 describe("the live gates hold in the DOM, not just in the source", () => {
-  // D106. The Mirror's axis is the same seven stops in both modes — the
-  // live ruler dropped City from D9 to D106 (Near WAS your city), and the
+  // D111. The Mirror's axis is the same seven stops in both modes — the
+  // live ruler dropped City from D9 to D111 (Near WAS your city), and the
   // un-fold is asserted in both directions: City is back, and Near really
   // did become presence-only rather than a second door to the city cohort.
   // The stops are role="tab" on one tablist, not loose buttons — query them
@@ -212,7 +213,7 @@ describe("the live gates hold in the DOM, not just in the source", () => {
   const stopLabels = () =>
     screen.getAllByRole("tab").map((el) => el.getAttribute("aria-label"));
 
-  it("keeps the City stop on the live ruler, and Near is presence-only (D106)", async () => {
+  it("keeps the City stop on the live ruler, and Near is presence-only (D111)", async () => {
     mountLive();
     fireEvent.click(screen.getByRole("button", { name: /^mirror$/i }));
     const liveAxis = stopLabels();
@@ -242,7 +243,7 @@ describe("the live gates hold in the DOM, not just in the source", () => {
     ).toContain("City");
   });
 
-  // D107. The City stop's constellation, on the real mount: the fixture
+  // D112. The City stop's constellation, on the real mount: the fixture
   // carries one scored city-mate (Ada), so the field must render her as a
   // positioned node — real name, score-based match — and none of the demo
   // cast may ride along. The demo field this replaces invented "Anders K.
@@ -344,7 +345,7 @@ describe("the live gates hold in the DOM, not just in the source", () => {
     fireEvent.click(screen.getByRole("button", { name: /^mirror$/i }));
     // The Mirror opens on You (the Map), which is not a population — the
     // lens row belongs to the geographic stops, so walk the ruler to City
-    // (Near is presence-only since D106 and carries no lenses).
+    // (Near is presence-only since D111 and carries no lenses).
     fireEvent.click(screen.getByRole("tab", { name: "City" }));
     await act(async () => { await new Promise((r) => setTimeout(r, 50)); });
     // All four lenses. Scores joined the row at D100 — it was absent
@@ -509,7 +510,7 @@ describe("the live gates hold in the DOM, not just in the source", () => {
   // with Follow buttons, on a real device. The stores now refuse to
   // ADVERTISE either (SCENES.offers / SUBTOPICS.offers); what remains in
   // the sheet is real: the Learn dial and fields, and the suggest door.
-  // smoke.test.jsx holds the demo control — the same sheet with both
+  // smoke-topics.test.jsx holds the demo control — the same sheet with both
   // sections present.
   it("the add sheet offers no demo communities and no unstocked leaves — Learn stays", () => {
     const expectNoBoundary = mountLive();
@@ -793,7 +794,7 @@ describe("live mode never inherits the sample persona (D55)", () => {
     // The demo seed is module state in test-definitions.js and these cases
     // replace it. The purge listener restores it — the same path a uid
     // change takes — so the demo-mode cases in this file and in
-    // smoke.test.jsx do not inherit an emptied object.
+    // the demo suites do not inherit an emptied object.
     window.dispatchEvent(new Event("insight:local-purge"));
   });
 

@@ -19,41 +19,81 @@
 // (decision D5) — this module never reads another user's documents.
 // Comments and who-voted stay OFF for live questions (decision D1).
 
-// All three of these were ALSO imported dynamically further down, at
-// seven call sites, which bought exactly nothing: a module that is
-// statically imported anywhere in a file is already in that file's chunk,
-// so `await import()` of it cannot defer a byte. Rollup said so for
-// lib/firebase every build (INEFFECTIVE_DYNAMIC_IMPORT); the other two
-// were the same shape without the warning. Static everywhere now — the
-// awaits implied a lazy boundary that did not exist.
-import {
-  clearIndexedDbPersistence,
-  collection,
-  deleteDoc,
-  doc,
-  documentId,
-  getDoc,
-  getDocs,
-  limit,
-  onSnapshot,
-  orderBy,
-  query,
-  serverTimestamp,
-  setDoc,
-  terminate,
-  Timestamp,
-  updateDoc,
-  where,
-} from "firebase/firestore";
-import { getFunctions, httpsCallable } from "firebase/functions";
+// ── the Firestore/Functions API, bound rather than imported (D110) ──
+//
+// These were static imports, and the note here used to explain why: seven
+// call sites had ALSO `await import()`ed them, which bought nothing, because
+// a module statically imported anywhere in a file is already in that file's
+// chunk. That reasoning was right and its conclusion — "static everywhere" —
+// was the wrong end to fix it from. live.ts is eager, so the static import
+// put the 292 KB Firestore SDK in the FIRST-PAINT graph of every build,
+// including one with no `VITE_FIREBASE_*` configured at all. Measured:
+// removing these two imports takes entry + every `modulepreload` from
+// 1270.2 KB to 943.0 KB — 327 KB, 26% of what a cold start must fetch and
+// parse before it can paint. The entry chunk does not move by a byte, which
+// is why neither of `check:bundle`'s old ceilings ever said a word.
+//
+// WHY THE 73 CALL SITES BELOW ARE UNCHANGED, and why that is safe rather
+// than lucky. Every Firestore use in this file sits in a scope that holds a
+// `db` — checked, all 73, including the eleven that take no db argument
+// (`Timestamp.fromMillis`, `serverTimestamp`, `documentId`). A `db` can be
+// obtained only from `getDb()`, which awaits lib/firebase's single memoised
+// `impl()` promise, which IS the dynamic import of firebaseImpl.ts, which
+// statically holds `firebase/firestore`. So binding these names off that
+// same promise makes every call site correct by the PROVENANCE of the value
+// it already uses — there is no load order to audit, and no site that could
+// be missed.
+//
+// The local `getDb` below is the whole mechanism. It shadows the import
+// deliberately: the 25 `await getDb()` sites in this file did not change
+// either, and a reader who follows one lands here.
+type FsApi = typeof import("firebase/firestore");
+type FnsApi = typeof import("firebase/functions");
+let clearIndexedDbPersistence!: FsApi["clearIndexedDbPersistence"];
+let collection!: FsApi["collection"];
+let deleteDoc!: FsApi["deleteDoc"];
+let doc!: FsApi["doc"];
+let documentId!: FsApi["documentId"];
+let getDoc!: FsApi["getDoc"];
+let getDocs!: FsApi["getDocs"];
+let limit!: FsApi["limit"];
+let onSnapshot!: FsApi["onSnapshot"];
+let orderBy!: FsApi["orderBy"];
+let query!: FsApi["query"];
+let serverTimestamp!: FsApi["serverTimestamp"];
+let setDoc!: FsApi["setDoc"];
+let terminate!: FsApi["terminate"];
+let Timestamp!: FsApi["Timestamp"];
+let updateDoc!: FsApi["updateDoc"];
+let where!: FsApi["where"];
+let getFunctions!: FnsApi["getFunctions"];
+let httpsCallable!: FnsApi["httpsCallable"];
+
 import {
   anonSignIn,
   firebaseEnabled,
-  getDb,
+  getDb as getDbRaw,
+  getFirestoreApi,
+  getFunctionsApi,
   googleSignOut,
   linkGoogle,
   subscribeToAuth,
 } from "../../lib/firebase";
+
+async function getDb(): Promise<import("firebase/firestore").Firestore> {
+  // Promise.all, not three awaits: all three resolve from the SAME memoised
+  // impl() promise, so this is one load however many callers race here.
+  const [db, fs, fns] = await Promise.all([
+    getDbRaw(), getFirestoreApi(), getFunctionsApi(),
+  ]);
+  ({
+    clearIndexedDbPersistence, collection, deleteDoc, doc, documentId, getDoc,
+    getDocs, limit, onSnapshot, orderBy, query, serverTimestamp, setDoc,
+    terminate, Timestamp, updateDoc, where,
+  } = fs);
+  ({ getFunctions, httpsCallable } = fns);
+  return db;
+}
 import { reportError, setSentryUser } from "../../lib/sentry";
 // The cross-user read (D98). Pure helpers + the two queries live there so
 // the grouping/sorting can be unit-tested without Firebase.
@@ -199,7 +239,7 @@ const state = {
   // opening five questions re-reads the same regulars five times.
   // Session-scoped, and dropped by the purge with everything else.
   names: {} as Record<string, string>,
-  // uid → parsed test scores (D107), the `names` cache's sibling: filled
+  // uid → parsed test scores (D112), the `names` cache's sibling: filled
   // by the SAME batched profile read (the web SDK has no field mask, so
   // the whole document was on the wire whenever a name resolved — this
   // keeps what was already paid for). null = fetched, nothing usable.
@@ -209,7 +249,7 @@ const state = {
   // against its own inputs.
   kindredLoading: false,
   kindredAt: 0,
-  // Similarity (D107): the constellation fields' one-per-session agg
+  // Similarity (D112): the constellation fields' one-per-session agg
   // top-up (the bank's core test items) and its in-flight flag.
   similarityLoading: false,
   testAggsLoaded: false,
@@ -1703,7 +1743,7 @@ const LIVE = {
     return state.kindredAt;
   },
 
-  // ── Similarity: you against people and places, by scores (D107) ──
+  // ── Similarity: you against people and places, by scores (D112) ──
   //
   // The constellation fields' loader. Two ensures, both bounded and both
   // session-cached:
@@ -2335,7 +2375,7 @@ function resetForNewUid(uid: string): void {
   state.voters = {};
   state.votersLoading = {};
   state.names = {};
-  // Scores ride the name cache (D107) and carry the same reasoning: other
+  // Scores ride the name cache (D112) and carry the same reasoning: other
   // people's data, held to save reads, nothing to outlive the session.
   state.scores = {};
   state.kindredLoading = false;

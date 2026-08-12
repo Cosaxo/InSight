@@ -1,8 +1,8 @@
 // A stand-in `window.LIVE` for mount tests, plus the feed globals live.ts
 // publishes alongside it.
 //
-// WHY THIS EXISTS. `test/smoke.test.jsx` mounts the whole app and proves the
-// screens paint — but only in DEMO mode. `window.LIVE` is undefined
+// WHY THIS EXISTS. The `test/smoke-*.test.jsx` suites mount the whole app and
+// prove the screens paint — but only in DEMO mode. `window.LIVE` is undefined
 // throughout it, so every `if (window.LIVE && window.LIVE.enabled)` branch in
 // the spec layer is dead code as far as the test suite is concerned. Those
 // branches are not incidental: they are where D9 drops the Mirror's City
@@ -279,7 +279,7 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
     ],
     kindredLoading: () => false,
     kindredDepth: () => 6,
-    // Similarity (D107): Ada again, in the viewer's own city and with a
+    // Similarity (D112): Ada again, in the viewer's own city and with a
     // stored Big Five, and the viewer scored too — so a live mount of the
     // City field renders a POSITIONED, score-matched person rather than
     // only the empty state. testFeedItems stays empty: the place fields'

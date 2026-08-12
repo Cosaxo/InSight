@@ -17,7 +17,7 @@
 // leaves every static gate green.
 //
 // SCOPE. The two overlays reachable from the header without inventing data,
-// which is the same reason smoke.test.jsx stops there. The other six take
+// which is the same reason the smoke suites stop there. The other six take
 // the identical props object from the identical hook; what is specific to
 // each of them is its label, not its behaviour.
 

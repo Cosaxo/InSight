@@ -4,6 +4,7 @@
 // spec-index.js load order is semantic — scripts/check-spec-globals.mjs
 // guards the wiring in CI.
 import React from 'react';
+import { LEARN } from './learn-progress.js';
 
 // map-learn-card.jsx — the two cards the map shows for knowledge, as opposed to
 // opinion. An opinion node answers "what do you think, and who agrees"; a
@@ -12,12 +13,11 @@ import React from 'react';
 // else. If you had to earn it back from a miss, three filled dots say so.
 
 function MTLearnCard({ node }) {
-  const L = window.LEARN;
-  const card = L && node.cid ? L.card(node.cid) : null;
+  const card = node.cid ? LEARN.card(node.cid) : null;
   if (!card) return null;
-  const f = L.field(card.f);
-  const s = f ? L.subject(f.subject) : null;
-  const st = L.stateOf(card.id) || {};
+  const f = LEARN.field(card.f);
+  const s = f ? LEARN.subject(f.subject) : null;
+  const st = LEARN.stateOf(card.id) || {};
   const earned = (st.miss || 0) > 0;
   return (
     <div style={{ '--hue': s ? s.hue : 250 }}>
@@ -38,10 +38,9 @@ function MTLearnCard({ node }) {
 
 // a field you hold part of — the arc, then the facts themselves
 function MTLearnSubCard({ node, rows, onPick }) {
-  const L = window.LEARN;
-  const f = L && node.fid ? L.field(node.fid) : null;
-  const s = f ? L.subject(f.subject) : null;
-  const stats = f ? L.stats(f.id) : { known: 0, total: 0 };
+  const f = node.fid ? LEARN.field(node.fid) : null;
+  const s = f ? LEARN.subject(f.subject) : null;
+  const stats = f ? LEARN.stats(f.id) : { known: 0, total: 0 };
   const col = 'oklch(0.52 0.14 ' + (s ? s.hue : 250) + ')';
   return (
     <div style={{ '--hue': s ? s.hue : 250 }}>

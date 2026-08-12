@@ -49,7 +49,7 @@ v2_users/{uid}
                                                      dims [{id,label,value 0-100,blurb?}] },
                  logic: server-written only (D57) }
 read: any signed-in user (D98 — displayName + anchors are what turn a uid
-on an answer into a person; testResults is what D107's kindred-by-scores
+on an answer into a person; testResults is what D112's kindred-by-scores
 reads across users, exactly the read the rules comment promised)
 write: owner only, validated key set (testResults: ≤8 keys, `logic`
 immutable to clients; the non-logic values are client-written and
@@ -173,7 +173,9 @@ v2_groups/{gid}                    groups AND duos (mode: group|duo)
   inviteCode, streak, lastRevealDay, pendingDays[≤6], createdAt,
   duoMode? (duo docs only: friends|romantic — which 1v1 pool duelQFor
   serves the pair; absent = friends. D40 part 4)
-  (memberNames rides on the group doc because profiles are owner-only;
+  (memberNames rides on the group doc as a denormalization: it used to be
+  because profiles were owner-only, and since D98 it is purely to save
+  one profile read per member on every group render;
   callables maintain it on create/join/leave)
   (memberJoinedAt is read only by revealGroupDay, to scope a day's reveal to
   the members who were in the group FOR that day. Maintained on the same
@@ -198,10 +200,14 @@ v2_groups/{gid}/reveals/{day}      materialized by the reveal pipeline
   the difference was a joiner reading the previous day — D55 §9)
 read: the reveal's own members · write: nobody (D5)
 
-Sealed duel answers live in the owner-only answers subcollection under
-composite ids (g_{gid}_{day}) with extra fields gid/day/guessIdx; rules
-require membership and deny creates once the day's reveal exists. Duel
-surfaces are excluded from world aggregates.
+Sealed duel answers live in the same answers subcollection as everything
+else, under composite ids (g_{gid}_{day}) with extra fields
+gid/day/guessIdx — and they are the ONE surface the D98 public read
+excludes, as a `surface` value test rather than an owner-only path. That
+is the seal: the owner still reads their own, nobody else reads any, and
+the reveal doc publishes the whole table the next day. Rules require
+membership and deny creates once the day's reveal exists. Duel surfaces
+are excluded from world aggregates.
 
 v2_takes/{takeId}                  comments on a question — circle or world,
                                    NAMED at both scopes since D98
@@ -315,9 +321,14 @@ not per boot. `LIVE.stats` reports `bankSource` / `answersFetched` /
   deterministic daily rotation (`dayIndex % bankSize`, local midnight),
   aggregate snapshots per deck question, optimistic votes with rollback,
   mock fallback on timeout. The daily tab reads `LIVE.deck()` when live.
-  Live cards show named takes (D98) and DO show
-  who-voted — that panel is the real per-anchor breakdown, floored per
-  cell and carrying no names, which is "the split, the totals" D1 allows.
+  Live cards show takes — named inside a circle, anonymous at world
+  scale (D83) — and DO show who-voted, by name, from the collection-group
+  read D98 opened (`data/voters.ts`, `ui/LiveVotersPanel.tsx`, capped at
+  `VOTER_FETCH_CAP`). The per-anchor breakdown beside it is exact per
+  cell with no floor. This bullet used to end "carrying no names, which
+  is 'the split, the totals' D1 allows" — that was D1's read arm, which
+  D98 reversed; what survives of D1 is the ban on fabricating people, not
+  on naming real ones.
 - Auth: `anonSignIn()` / `linkGoogle()` in the firebase layer — Google is
   an account *upgrade* (linking keeps the uid and all answers).
 

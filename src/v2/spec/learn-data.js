@@ -6,9 +6,14 @@
 // drift apart. (A static JSON import, not a cross-module import — the spec
 // layer's no-imports convention bans load-order coupling between modules,
 // which data has none of.)
-// Cross-module references resolve through the shared global scope and
-// spec-index.js load order is semantic — scripts/check-spec-globals.mjs
-// guards the wiring in CI.
+// OFF THE GLOBAL BRIDGE (D109): the five names below are named exports.
+// `learn-progress.js` reads three of them at MODULE SCOPE, so before this
+// change the whole Learn mode rested on spec-index.js listing this file one
+// line above that one — reorder those two and the card bank is silently
+// empty, with no error anywhere. That ordering is now a module-graph
+// guarantee, which is the same fragility the `daily-questions.js` conversion
+// removed for `map-branches.js`. `window.LIVE` in learnMeasured() stays: it
+// is read at CALL time, and it is what the LIVE conversion will take.
 import React from 'react';
 import LEARN_CONTENT from '../../../content/learn-questions.json';
 
@@ -29,11 +34,11 @@ import LEARN_CONTENT from '../../../content/learn-questions.json';
 //   w  optional one line of why. Only where the fact is genuinely counter-
 //      intuitive; never an argument, never more than ~20 words.
 
-window.LEARN_SUBJECTS = LEARN_CONTENT.subjects;
+export const LEARN_SUBJECTS = LEARN_CONTENT.subjects;
 
-window.LEARN_FIELDS = LEARN_CONTENT.fields;
+export const LEARN_FIELDS = LEARN_CONTENT.fields;
 
-window.LEARN_CARDS = LEARN_CONTENT.cards;
+export const LEARN_CARDS = LEARN_CONTENT.cards;
 
 // ── the crowd split ─────────────────────────────────────────────────────────
 // Two sources, one seam (D32). In live mode, once a card's k-floored public
@@ -62,10 +67,10 @@ function learnMeasured(card) {
   for (let i = 0; rem > 0; i = (i + 1) % pcts.length, rem--) pcts[i]++;
   return pcts;
 }
-window.LEARN_SPLIT_SRC = function (card) {
+export function LEARN_SPLIT_SRC(card) {
   return learnMeasured(card) ? 'measured' : 'estimate';
-};
-window.LEARN_SPLIT = function (card) {
+}
+export function LEARN_SPLIT(card) {
   const measured = learnMeasured(card);
   if (measured) return measured;
   const n = card.a.length;
@@ -89,4 +94,4 @@ window.LEARN_SPLIT = function (card) {
   });
   if (rest > 0) out[trap] += rest;
   return out;
-};
+}

@@ -1,19 +1,26 @@
 // @vitest-environment jsdom
 //
 // LiveCohortBody renders the Mirror's City / Country / World stops from
-// the public aggregates (Near split off to NearLiveBody at D106). It is
-// the panel with the most ways to lie quietly, because everything it
-// draws is a claim about a cohort:
+// the public aggregates — exact, unfloored, published from the first
+// answer since D98 (Near split off to NearLiveBody at D111). It is the
+// panel with the most ways to lie quietly, because everything it draws
+// is a claim about a cohort:
 //
-//   - an ABSENT breakdown cell means "below the floor", not "nobody answered".
-//     Dropping it silently is the failure this panel's `withheld` counter
-//     exists to prevent, and a counter is exactly the kind of thing that
-//     keeps compiling after it stops being correct.
-//   - at world scope the server's own `tooSmall` flag is authoritative, "an
-//     agg can carry stale counts while still being below it". Reading the
-//     counts instead would publish a split the floor withheld.
-//   - the floor NUMBER is printed to the user, so it has to be the floor the
-//     server actually enforces.
+//   - an ABSENT breakdown cell means ZERO — nobody in this cohort has
+//     answered — and dropping it silently is still the failure the counter
+//     under the list exists to prevent: a question that vanishes reads as
+//     "not asked here" rather than "not answered here". A counter is
+//     exactly the kind of thing that keeps compiling after it stops being
+//     correct.
+//   - "no aggregate document at all" is a THIRD state, distinct from both
+//     an empty cell and an answered one, and claiming either of the others
+//     for it would tell the user something nobody knows.
+//   - nothing consults `tooSmall`. The three bullets that stood here
+//     described the k-floor — an absent cell meaning "withheld", the
+//     server's flag beating stale counts, and the floor number being
+//     printed to the user — and D98 deleted all three along with the
+//     floor. The cases below are their inverses, kept so the flag's return
+//     would fail rather than quietly re-hide the app.
 //
 // The mount tests in test/smoke-live.test.jsx render this panel as part of
 // the app and prove it does not crash. That is a different question from
@@ -52,7 +59,7 @@ const LIVE = vi.hoisted(() => ({
   kindred: () => [] as Array<{ uid: string; name: string; like: { shared: number; same: number; pct: number } }>,
   kindredLoading: () => false,
   kindredDepth: () => 0,
-  // The constellation field (D107) mounts inside this panel too, lazily.
+  // The constellation field (D112) mounts inside this panel too, lazily.
   // Stubbed empty — data/similarity.test.ts owns the arithmetic and the
   // field renders its honest empty state here, which is what these cases
   // should scroll past.
@@ -65,7 +72,7 @@ const LIVE = vi.hoisted(() => ({
   setFollowing: async () => {},
   // LIVE.near survives on the mock because the D92 city-derive effect
   // still reads the grant state here; the CARD moved to NearLiveBody
-  // (D106), which has its own suite.
+  // (D111), which has its own suite.
   near: {
     supported: () => true as boolean,
     on: () => false as boolean,
@@ -170,11 +177,12 @@ describe("LiveCohortBody · an absent cell is counted and named", () => {
 });
 
 describe("LiveCohortBody · world scope shows what the aggregate holds", () => {
-  it("withholds a question flagged tooSmall even when it carries counts", () => {
-    // The exact shape the comment in the panel warns about: an aggregate
-    // that still has counts on it from an earlier publish while the server
-    // now says it is below the floor. Rendering the counts would publish a
-    // a question with no answers at all.
+  it("leaves out a question whose aggregate has no answers on it", () => {
+    // Retitled at the D98 doc sweep: this used to read "withholds a
+    // question flagged tooSmall even when it carries counts", which is not
+    // what the body does — there is no flag anywhere in it. The state under
+    // test is `total: 0`, i.e. nobody has answered, and the panel accounts
+    // for it in words rather than drawing an empty row.
     LIVE.aggFor = (qid) => qid === "q1"
       ? { counts: { "0": 30, "1": 20 }, total: 50 }
       : { counts: {}, total: 0 };
@@ -280,7 +288,7 @@ describe("LiveCohortBody · with the counter on, the city derives itself (D92)",
     // The apply-not-suggest carve-out is scoped to the standing grant.
     // Without it, the panel must not touch the sensor: the ask renders,
     // the picker stays, and the copy points at the counter — which lives
-    // at the Near stop since D106 — as the hands-free path.
+    // at the Near stop since D111 — as the hands-free path.
     LIVE.myCity = "";
     render(<LiveCohortBody scope="city" />);
     expect(locateCity).not.toHaveBeenCalled();
@@ -363,9 +371,9 @@ describe("the panel prints no floor claim at all (D98)", () => {
   });
 });
 
-describe("the presence card stays out of the cohort panel (D106)", () => {
+describe("the presence card stays out of the cohort panel (D111)", () => {
   it("renders no Right-now card at any scope — Near owns it now", () => {
-    // The card lived here from D84 to D106 and its suite moved to
+    // The card lived here from D84 to D111 and its suite moved to
     // NearLiveBody.test.tsx with it. What this panel must keep is the
     // absence: a second copy of the counter behind a different stop is
     // the two-doors-to-one-room bug in presence form.

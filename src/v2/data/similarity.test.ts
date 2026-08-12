@@ -1,4 +1,4 @@
-// The similarity folds (D107): place score profiles, person score
+// The similarity folds (D112): place score profiles, person score
 // matching, and the ranking that puts scores first. Every case here is a
 // claim the constellation fields make to a user's face — "closer = more
 // like you", "this city averages 62 on Openness" — so the arithmetic is

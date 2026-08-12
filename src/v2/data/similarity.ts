@@ -1,5 +1,5 @@
 // Similarity — the arithmetic behind the Mirror's constellation fields
-// (D107): people ranked by how close their test scores sit to yours, and
+// (D112): people ranked by how close their test scores sit to yours, and
 // cities/countries given real score profiles from the published aggregates.
 //
 // The prototype drew these maps with invented `match` constants
@@ -321,7 +321,7 @@ export interface RankedPerson extends KindredPerson {
 }
 
 /**
- * Rank people around you, PRIMARILY by test scores (D107): everyone you
+ * Rank people around you, PRIMARILY by test scores (D112): everyone you
  * share a completed instrument with sorts first, by score match; everyone
  * else follows on answer agreement — the fallback likeness, not a gate.
  * A person with no shared instrument still appears; the caller says which
