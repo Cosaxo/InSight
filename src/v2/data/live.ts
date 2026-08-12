@@ -98,6 +98,7 @@ import { reportError, setSentryUser } from "../../lib/sentry";
 // The cross-user read (D98). Pure helpers + the two queries live there so
 // the grouping/sorting can be unit-tested without Firebase.
 import { fetchVoters, groupByOption, resolveNames, sortVoters, type Voter } from "./voters";
+import { type KindredPerson, type ParsedResults } from "./similarity";
 // Pure folds over the published breakdown, and the likeness metric behind
 // Kindred. No Firebase in there — this module supplies the documents.
 import { agreement, type Agreement } from "./cohort";
@@ -238,11 +239,20 @@ const state = {
   // opening five questions re-reads the same regulars five times.
   // Session-scoped, and dropped by the purge with everything else.
   names: {} as Record<string, string>,
+  // uid → parsed test scores (D112), the `names` cache's sibling: filled
+  // by the SAME batched profile read (the web SDK has no field mask, so
+  // the whole document was on the wire whenever a name resolved — this
+  // keeps what was already paid for). null = fetched, nothing usable.
+  scores: {} as Record<string, ParsedResults | null>,
   // Kindred (D99): no cached ranking, only the flags. The ranking itself
   // is derived on read from `voters` + `votes`, so it cannot go stale
   // against its own inputs.
   kindredLoading: false,
   kindredAt: 0,
+  // Similarity (D112): the constellation fields' one-per-session agg
+  // top-up (the bank's core test items) and its in-flight flag.
+  similarityLoading: false,
+  testAggsLoaded: false,
   // The follow graph's loaded state (D101). null = not asked, or asked
   // and failed; [] = asked, and you follow nobody. The stop says
   // different things for those two.
@@ -1540,7 +1550,7 @@ const LIVE = {
     state.votersLoading[qid] = true;
     try {
       const db = await getDb();
-      state.voters[qid] = await fetchVoters(db, qid, state.uid, state.names);
+      state.voters[qid] = await fetchVoters(db, qid, state.uid, state.names, state.scores);
     } catch (err) {
       // Leave the key ABSENT rather than caching an empty list. The two
       // states render differently and must not be confused: absent is
@@ -1567,11 +1577,11 @@ const LIVE = {
   // A no-op once every uid is cached, which is the common case after the
   // first surface on a question has resolved them.
   async loadNames(uids: readonly string[]): Promise<void> {
-    const want = uids.filter((u) => u && !(u in state.names));
+    const want = uids.filter((u) => u && (!(u in state.names) || !(u in state.scores)));
     if (!want.length) return;
     try {
       const db = await getDb();
-      await resolveNames(db, want, state.names);
+      await resolveNames(db, want, state.names, state.scores);
     } catch (err) {
       reportError(err, { where: "loadNames" });
     } finally {
@@ -1731,6 +1741,103 @@ const LIVE = {
   /** How many of the viewer's questions the ranking has been able to read. */
   kindredDepth(): number {
     return state.kindredAt;
+  },
+
+  // ── Similarity: you against people and places, by scores (D112) ──
+  //
+  // The constellation fields' loader. Two ensures, both bounded and both
+  // session-cached:
+  //   1. aggregates for every core test item the bank carries — the cells
+  //      the place profiles fold. ≤110 docs in ≤4 batched `in` queries,
+  //      once per session, and only the ones the deck/archive has not
+  //      already cached.
+  //   2. the Kindred voter lists (loadKindred, its own bounds — D102).
+  // Candidate scores cost nothing here: they rode along with the voter
+  // lists' name resolution, because the profile document was already on
+  // the wire (see resolveNames).
+  async loadSimilarity(): Promise<void> {
+    if (!this.enabled || state.similarityLoading) return;
+    state.similarityLoading = true;
+    notify();
+    try {
+      if (!state.testAggsLoaded) {
+        const db = await getDb();
+        const missing = state.feedBank
+          .filter((q) => q.surface === "test" && q.test && !state.aggs[q.id])
+          .map((q) => q.id);
+        for (let i = 0; i < missing.length; i += 30) {
+          const chunk = missing.slice(i, i + 30);
+          const snap = await getDocs(query(
+            collection(db, "v2_question_aggs"),
+            where(documentId(), "in", chunk),
+          ));
+          snap.forEach((d) => {
+            state.aggs[d.id] = d.data() as AggDoc;
+          });
+        }
+        // Set even when some docs came back absent: absent means no
+        // answers yet (D98), which re-asking this session cannot change.
+        state.testAggsLoaded = true;
+      }
+      await this.loadKindred();
+    } catch (err) {
+      reportError(err, { where: "loadSimilarity" });
+    } finally {
+      state.similarityLoading = false;
+      notify();
+    }
+  },
+  similarityLoading(): boolean {
+    return state.similarityLoading;
+  },
+  // The bank's core test items — the same filter that publishes
+  // TEST_FEED_QS for the feed, exposed so the typed layer can join them
+  // to IS_TESTS for scoring metadata without a bridge read.
+  testFeedItems(): Array<QuestionDoc & { id: string }> {
+    return state.feedBank.filter((q) => q.surface === "test" && !!q.test);
+  },
+  // The viewer's own completed instruments — the same server+device merge
+  // publishTestResults dispatches, computed on read so a result saved a
+  // moment ago is already in it.
+  myTestResults(): Record<string, unknown> {
+    try {
+      const local = JSON.parse(localStorage.getItem("insight.testResults.v2") || "{}") || {};
+      return { ...state.profile.testResults, ...local };
+    } catch {
+      return { ...state.profile.testResults };
+    }
+  },
+  // Everyone the cached voter lists know — name, frozen city, answers
+  // overlap and parsed scores — the raw material data/similarity.ts's
+  // rankKindred sorts. Derived on read like kindred(), for the same
+  // staleness reason. The city is the anchor snapshot from their most
+  // recent cached answer, never their live profile (D8: reading the
+  // profile would re-cohort history and disagree with the aggregate).
+  kindredPeople(): KindredPerson[] {
+    const mine: Record<string, number> = {};
+    for (const [qid, opt] of Object.entries(state.votes)) {
+      if (qid.startsWith("g_")) continue;
+      const n = Number(opt);
+      if (Number.isFinite(n)) mine[qid] = n;
+    }
+    const theirs: Record<string, Record<string, number>> = {};
+    const city: Record<string, string> = {};
+    for (const [qid, rows] of Object.entries(state.voters)) {
+      for (const r of rows) {
+        if (r.uid === state.uid) continue;
+        (theirs[r.uid] || (theirs[r.uid] = {}))[qid] = r.optionIdx;
+        // Lists are newest-first, so the first city seen is the freshest
+        // frozen anchor this session holds for them.
+        if (!(r.uid in city) && r.anchors.city) city[r.uid] = r.anchors.city;
+      }
+    }
+    return Object.keys(theirs).map((uid) => ({
+      uid,
+      name: state.names[uid] || "",
+      city: city[uid] || "",
+      like: agreement(mine, theirs[uid]),
+      results: state.scores[uid] ?? null,
+    }));
   },
 
   // null while unfetched or failed; an array (possibly empty) once known.
@@ -2268,8 +2375,15 @@ function resetForNewUid(uid: string): void {
   state.voters = {};
   state.votersLoading = {};
   state.names = {};
+  // Scores ride the name cache (D112) and carry the same reasoning: other
+  // people's data, held to save reads, nothing to outlive the session.
+  state.scores = {};
   state.kindredLoading = false;
   state.kindredAt = 0;
+  state.similarityLoading = false;
+  // state.aggs was dropped above, so the test-item top-up has to run
+  // again for the new account.
+  state.testAggsLoaded = false;
   state.circle = null;
   state.circleLoading = false;
   state.profile = { displayName: "", testResults: {}, anchors: {} };
