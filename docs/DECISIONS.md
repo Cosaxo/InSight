@@ -11288,3 +11288,77 @@ The corrected description **is not live until it is pushed**: Actions →
 Connect's copy (D74/D75 established the same for the age rating), so a
 green tree here does not mean a corrected listing. LAUNCH-RUNBOOK 4.3
 carries the step.
+
+## D117 · Two access controls are loosened to ship build 11, and the only thing holding their reversal is a checkbox
+
+**Decided:** 2026-08-12 · **Status:** binding · **Temporary by
+construction** — amends D87 (the `production` protection rules) for the
+duration of the build-11 release. Owner's call, taken twice in one
+session, each time to unblock a step that was actually blocked.
+
+**Decision.** Two controls are off:
+
+1. **`production` → Required reviewers**, removed so five stranded
+   deploys could land (see below).
+2. **The GitHub App's `Actions` permission**, raised from `Read` to
+   `Read and write`, so the release dispatches could be run by an agent
+   rather than by hand.
+
+Both are recorded here and as **LAUNCH-RUNBOOK 5.8**, because neither is
+visible to anything else in this tree.
+
+### What each one bought, and what it cost
+
+**The reviewer gate** was blocking more than it was protecting. Five
+deploys had queued behind a run that sat unapproved from 13:02Z: D103's
+bank, D106's privacy-policy rewrite, D113/D114's continuum server half,
+D115's learn lane and D116's copy fix. Because `firebase-deploy` sets
+`cancel-in-progress: false`, the waiting run held the concurrency group
+and GitHub cancelled the three behind it as newer ones queued. Production
+therefore sat at `3152908` for nine hours while `main` moved five commits
+past it, and the **live privacy policy was still the pre-D98 page** —
+promising owner-only answers to anyone who read it.
+
+Removing the rule resolved the stale run to `failure` rather than
+deploying it, which was the good outcome: the tip deployed instead of a
+four-commit-old commit. Run 66 then went green end to end, hosting
+included, and the chained seed wrote 67 / skipped 443 — production's bank
+at 510, matching the repo.
+
+**The `Actions: write` grant** removes four clicks per dispatch. What it
+also removes is the property that an agent cannot start **iOS release**
+with `upload` ticked — a run that spends a build number and reaches
+TestFlight irreversibly. That is a real widening and is why it is written
+down rather than left as a setting nobody remembers changing.
+
+### The asymmetry that makes this a decision and not a note
+
+D87's reasoning is unchanged and is not being reversed: the deploy and the
+seed both draw the service-account key from the `production` environment,
+so with the gate off, **any** merge touching `functions/**` or
+`firestore.rules` deploys unattended. That is exactly the state D87 was
+written to end.
+
+What today showed is that D87 was half-built. A gate nobody is notified
+about is not a gate, it is a queue — and the failure mode is not "a bad
+deploy is caught", it is "no deploy happens for nine hours and the thing
+it was protecting goes stale on the open web". The right end state is the
+gate back **on** plus something that says when it fires; the wrong lesson
+is that the gate was the problem.
+
+**No notification mechanism is built here**, deliberately — this session
+was a release, not an infrastructure change, and inventing one under time
+pressure is how the next surprise gets built. Recorded as the open half.
+
+### Why a checkbox is the whole mechanism, and that is not satisfying
+
+`check:appcheck` can read a callable. `check:deploy-targets` can read a
+workflow. **Neither GitHub App permissions nor environment protection
+rules are in this repository at all**, so no check, test or workflow can
+observe either setting. There is no gate to write. LAUNCH-RUNBOOK 5.8 and
+this record are the mechanism, which is the same shape as D87's own
+admission that nothing in CI checks those rules.
+
+That is worth stating plainly rather than dressing up: **two access
+controls are open, and the only thing that will close them is somebody
+reading a checkbox.**

@@ -407,15 +407,24 @@ arithmetic.
       rather than from memory, which is the comparison above and not the
       habit.
 
-      **Re-verified 2026-08-12 for the next release: run 16 is still the
-      latest of 16, so build 11 is unspent and `appBuild` needs no bump.**
-      The comparison passes as-is — 11 > 10 — and bumping now would burn
-      11 the way 2 was burned. Build 11 carries everything merged since
-      `2933dc0`: D103's retired Thinking test and the dot-row rail, D104's
-      test users, D105's iOS focus-zoom fix, D107's location purpose
-      string, D108–D110's 327 KB off first paint, D111/D112's similarity
-      maps, D113/D114's continuum forms, D115's learn lane, and D116's
-      corrected store and privacy copy.
+      **BUILD 11 UPLOADED 2026-08-12** (run 17, `ac61c37`, 6m 37s, upload
+      step `success`). It carries everything merged since `2933dc0`:
+      D103's retired Thinking test and the dot-row rail, D104's test
+      users, D105's iOS focus-zoom fix, D107's location purpose string,
+      D108–D110's 327 KB off first paint, D111/D112's similarity maps,
+      D113/D114's continuum forms, D115's learn lane, and D116's
+      corrected store and privacy copy. It was the first run to carry the
+      D116 pre-flight (`check:public-copy`), which passed.
+
+      **`appBuild` is now 12**, bumped straight after that upload, which
+      is this section's whole convention. **Build 11 is the highest on App
+      Store Connect**, so the comparison passes for the next run as-is.
+
+      **`npm run check:versions -- --fix` does NOT increment.** It
+      propagates package.json's value into the two native projects and
+      nothing more, so "run --fix to bump" is wrong and reports a cheerful
+      `versions OK` at the OLD number. Edit `appBuild` by hand first, then
+      `--fix` carries it to `versionCode` and `CURRENT_PROJECT_VERSION`.
 
       *With a Mac, if you ever want to debug a signing failure
       interactively:* `npm run build && npx cap sync`, then `npm run ios`.
@@ -680,15 +689,23 @@ That is a tester-count problem, not a workflow problem.
 
       *Play's Data Safety form is **[PARKED — D42]**.*
 
-- [ ] **4.5 The age rating — pushed 2026-08-08, and one answer moved on
-      08-09. Re-push.** All 22 attributes go in one dispatch of **Actions →
-      App Store metadata** with *apply* ticked.
+- [x] **4.5 The age rating — pushed 2026-08-08, `messagingAndChat`
+      re-pushed 08-09, and CONFIRMED in sync 2026-08-12.** All 22
+      attributes go in one dispatch of **Actions → App Store metadata**
+      with *apply* ticked.
 
-      **Unticked again on purpose.** `messagingAndChat` was filed `false`
-      and is now `true` (D79): D78 part 1 shipped the circle takes client
-      the day after the push, so App Store Connect holds an answer the repo
-      no longer makes. One dispatch fixes it — the other 21 will report as
-      already matching.
+      **Ticked on the strength of a dry run, not a memory.** This entry
+      stood open saying `messagingAndChat` was still `false` on App Store
+      Connect and needed a re-push (D79). It is not: the 08-12 dry run
+      reports `age rating: already matches app-privacy.json`, so run 8 on
+      08-09 had already carried it and this box outlived the work. The
+      cheap way to check is the dry run itself — *apply* unticked prints
+      the diff and writes nothing, which is what it is for.
+
+      That is the same class of error as D116, one layer out: **pushed
+      state and the box that tracks it drift in both directions.** D116
+      was a box that should have been open; this was a box that should
+      have been shut.
 
       **This is the standing shape of this step, not a one-off.** The age
       rating is pushed state, so it goes stale whenever a feature changes
@@ -780,6 +797,29 @@ That is a tester-count problem, not a workflow problem.
       uid by confirming it is *denied* the instrument it should not have —
       a silently dropped uid looks identical to one never added.
       `DEPLOYMENT.md § Operator continuity`.
+- [ ] **5.8 Put back the two access controls that were loosened on
+      2026-08-12 to unblock the build-11 release (D117).** Both were
+      deliberate, both are still off, and **nothing in this repo can see
+      either one** — no check, no test, no workflow. This box is the only
+      record that they are open.
+
+      1. **`production` → Deployment protection rules → Required
+         reviewers.** Re-check it, with yourself; *prevent self-review*
+         **off**; *allow administrators to bypass* **off**. That is 0.3's
+         configuration, and D87 is why it exists: the deploy and the seed
+         both draw the service-account key from that environment.
+      2. **GitHub App → Repository permissions → Actions: back to
+         `Read`.** `Read and write` lets an agent dispatch *any* workflow
+         in the repo, **iOS release with upload ticked included** — which
+         spends a build number and pushes to TestFlight irreversibly.
+
+      **Do 1 before there is anything in production worth protecting, and
+      2 as soon as the release dispatches are done.** They are independent
+      of each other; neither blocks the other.
+
+      Reversing #1 costs nothing. Reversing #2 costs the four clicks per
+      dispatch that #2 exists to save, which is the trade being made, and
+      it is the cheaper side once releases stop being daily.
 
 ## Phase 6 — Submit
 
