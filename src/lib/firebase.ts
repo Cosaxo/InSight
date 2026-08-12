@@ -1,8 +1,23 @@
 // Thin, always-synchronous public API over the lazily-loaded Firebase
 // SDK. The heavy implementation (src/lib/firebaseImpl.ts) is
-// dynamic-imported on first use so signed-out/mock sessions never
-// download it. v2 surface only — the journal-era API was removed with
-// the legacy app.
+// dynamic-imported on first use. v2 surface only — the journal-era API
+// was removed with the legacy app.
+//
+// THIS HEADER USED TO END "so signed-out/mock sessions never download
+// it", and that had stopped being true (D110). `src/v2/data/live.ts`
+// imported `firebase/firestore` and `firebase/functions` STATICALLY, and
+// live.ts is eager — so the SDK sat in the first-paint graph of every
+// build, including one with no `VITE_FIREBASE_*` configured at all, which
+// is the exact case the sentence named. Measured on a mock-mode build:
+// the 292 KB Firestore chunk was `modulepreload`ed from index.html.
+//
+// The claim is true again, and `getFirestoreApi()` / `getFunctionsApi()`
+// below are how: the API surfaces come through the same memoised
+// `impl()` promise as everything else here, so nothing reaches
+// `firebase/*` except through a dynamic import. `check:bundle`'s
+// eager-graph ceiling is what keeps it true — the two gates that were
+// watching when this broke could not see it (both were green the whole
+// time, and one of them read the regression as an improvement).
 
 import type { User } from "firebase/auth";
 import type { FirebaseConfig } from "./firebaseImpl";
@@ -48,6 +63,23 @@ function impl(): Promise<Impl> {
     });
   }
   return implPromise;
+}
+
+// ── The SDK surfaces (D110) ─────────────────────────────────────
+//
+// Same memoised `impl()` promise as everything else here, which is what
+// makes the ordering a non-question for callers: a consumer can only reach
+// these by awaiting, and `getDb()` awaits the identical promise — so any
+// code holding a `Firestore` is, by construction, running after the API is
+// available. `live.ts` leans on exactly that, and it is why its 73 call
+// sites did not have to change when they stopped being static imports.
+
+export async function getFirestoreApi(): Promise<Impl["fsApi"]> {
+  return (await impl()).fsApi;
+}
+
+export async function getFunctionsApi(): Promise<Impl["fnsApi"]> {
+  return (await impl()).fnsApi;
 }
 
 // ── Auth (anonymous-first, decision D3) ─────────────────────────

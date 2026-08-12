@@ -10,7 +10,10 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
-import "../spec/learn-data.js";
+// Named imports from an untyped .js spec module (D109) — the suppressions are
+// scoped to exactly that (TS7016), the purge-wipe precedent.
+// @ts-expect-error TS7016 — untyped spec module
+import { LEARN_CARDS, LEARN_SPLIT as splitAny, LEARN_SPLIT_SRC } from "../spec/learn-data.js";
 
 interface LearnCard {
   id: string;
@@ -18,14 +21,16 @@ interface LearnCard {
   p: number;
   a: string[];
 }
-const W = window as unknown as {
-  LEARN_CARDS: LearnCard[];
-  LEARN_SPLIT: (card: LearnCard) => number[];
-  LEARN_SPLIT_SRC: (card: LearnCard) => string;
-  LIVE?: unknown;
-};
+// `W` survives for `LIVE` alone: learnMeasured() reads it off window at CALL
+// time, which is the seam these cases drive.
+const W = window as unknown as { LIVE?: unknown };
 
-const card = W.LEARN_CARDS[0]; // cell1 — correct index 0, 4 options
+const card = (LEARN_CARDS as LearnCard[])[0]; // cell1 — correct index 0, 4 options
+
+// The module is untyped, so its export arrives as `any` and every
+// `.reduce((a, b) => …)` below would infer implicit-any parameters. Named once
+// here rather than annotated at each call site.
+const LEARN_SPLIT: (c: LearnCard) => number[] = splitAny;
 
 afterEach(() => {
   delete W.LIVE;
@@ -33,8 +38,8 @@ afterEach(() => {
 
 describe("LEARN_SPLIT source seam (D32)", () => {
   it("demo mode: the authored model, reported as an estimate", () => {
-    expect(W.LEARN_SPLIT_SRC(card)).toBe("estimate");
-    const split = W.LEARN_SPLIT(card);
+    expect(LEARN_SPLIT_SRC(card)).toBe("estimate");
+    const split = LEARN_SPLIT(card);
     expect(split[card.c]).toBe(card.p);
     expect(split.reduce((a, b) => a + b, 0)).toBe(100);
   });
@@ -44,8 +49,8 @@ describe("LEARN_SPLIT source seam (D32)", () => {
       enabled: true,
       learnAgg: () => ({ tooSmall: false, total: 9, counts: { "0": 6, "1": 3 } }),
     };
-    expect(W.LEARN_SPLIT_SRC(card)).toBe("measured");
-    const split = W.LEARN_SPLIT(card);
+    expect(LEARN_SPLIT_SRC(card)).toBe("measured");
+    const split = LEARN_SPLIT(card);
     expect(split.reduce((a, b) => a + b, 0)).toBe(100);
     // 6/9 and 3/9 → floors 66/33, remainder point to the first option
     expect(split).toEqual([67, 33, 0, 0]);
@@ -53,15 +58,15 @@ describe("LEARN_SPLIT source seam (D32)", () => {
 
   it("live but below the floor, unfetched, or empty: back to the labeled estimate", () => {
     W.LIVE = { enabled: true, learnAgg: () => ({ tooSmall: true }) };
-    expect(W.LEARN_SPLIT_SRC(card)).toBe("estimate");
-    expect(W.LEARN_SPLIT(card)[card.c]).toBe(card.p);
+    expect(LEARN_SPLIT_SRC(card)).toBe("estimate");
+    expect(LEARN_SPLIT(card)[card.c]).toBe(card.p);
 
     W.LIVE = { enabled: true, learnAgg: () => null };
-    expect(W.LEARN_SPLIT_SRC(card)).toBe("estimate");
+    expect(LEARN_SPLIT_SRC(card)).toBe("estimate");
 
     // a published-shape doc with zeroed counts must not divide by zero
     W.LIVE = { enabled: true, learnAgg: () => ({ tooSmall: false, counts: {} }) };
-    expect(W.LEARN_SPLIT_SRC(card)).toBe("estimate");
+    expect(LEARN_SPLIT_SRC(card)).toBe("estimate");
   });
 });
 

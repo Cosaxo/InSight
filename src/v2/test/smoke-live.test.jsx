@@ -3,7 +3,8 @@
 // The demo smoke test's other half: the same screens, mounted with
 // `window.LIVE` present and enabled.
 //
-// WHY A SECOND FILE. `smoke.test.jsx` runs with LIVE undefined, so every
+// WHY A SEPARATE FILE. The demo suites (`smoke-daily`, `smoke-topics`,
+// `smoke-mirror`, `smoke-nav`, `smoke-overlays`) run with LIVE undefined, so every
 // `if (window.LIVE && window.LIVE.enabled)` branch in the spec layer is
 // unreached by the suite. Two of those branches are load-bearing product
 // decisions rather than cosmetics:
@@ -475,7 +476,7 @@ describe("the live gates hold in the DOM, not just in the source", () => {
   // with Follow buttons, on a real device. The stores now refuse to
   // ADVERTISE either (SCENES.offers / SUBTOPICS.offers); what remains in
   // the sheet is real: the Learn dial and fields, and the suggest door.
-  // smoke.test.jsx holds the demo control — the same sheet with both
+  // smoke-topics.test.jsx holds the demo control — the same sheet with both
   // sections present.
   it("the add sheet offers no demo communities and no unstocked leaves — Learn stays", () => {
     const expectNoBoundary = mountLive();
@@ -759,7 +760,7 @@ describe("live mode never inherits the sample persona (D55)", () => {
     // The demo seed is module state in test-definitions.js and these cases
     // replace it. The purge listener restores it — the same path a uid
     // change takes — so the demo-mode cases in this file and in
-    // smoke.test.jsx do not inherit an emptied object.
+    // the demo suites do not inherit an emptied object.
     window.dispatchEvent(new Event("insight:local-purge"));
   });
 

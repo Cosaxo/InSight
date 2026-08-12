@@ -85,9 +85,10 @@ real slipped through:
 - `src/v2/data/vote.test.ts` pins the `window.LIVE` member surface, because
   renaming a member there passes tsc (consumers are `.jsx`), eslint and
   check:globals — then blanks the Map on a device.
-- `src/v2/test/smoke.test.jsx` mounts `App` in jsdom and walks both tabs
-  and two overlays. The three guards above are all **name**-level; this is
-  the only one that executes a render. Measured, not assumed: injecting
+- `src/v2/test/smoke-*.test.jsx` (five files over one harness,
+  `test/mount-app.jsx`) mount `App` in jsdom and walk both tabs and every
+  overlay. The three guards above are all **name**-level; these are the only
+  ones that execute a render. Measured, not assumed: injecting
   `window.FEEDREAD.statsTypo()` into `MirrorTab` leaves check:globals,
   eslint and `tsc -b` green, and fails only here.
   **Assert on the `ErrorBoundary`, not on a thrown error** — `app-shell`
@@ -111,14 +112,26 @@ documentation error this repo keeps re-committing (D39, `check:figures`).
 
 Two rules for working with it:
 
-- **Convert on touch.** The cheap seam is exhausted, so this is no longer a
-  project. When a feature takes you into a spec file, convert the providers
-  it reads first. `src/v2/README.md` has the procedure and the traps.
+- **Convert on touch, and transpose the meter before you plan.** This
+  paragraph twice claimed the cheap seam was exhausted and was twice wrong
+  (D39's follow-ups, then D108) — both times because rule 4 reports per
+  **consumer**, which is the right shape for a ratchet and the wrong shape
+  for planning. Build the provider view out of `spec-globals.mjs`'s own
+  `definedBy`/`referenced` maps and the remaining single-writer providers
+  fall out sorted. `src/v2/README.md` has the procedure and the traps.
 - **A conversion removes the load-order condition, never the data one.**
   `(window.X || {})`, `X?.`, `if (X)` and `X && …` around a converted
-  module are dead — an imported binding cannot be unset. The inner
+  module are dead — an imported binding cannot be unset. So is
+  `X.member ? X.member() : fallback` on a member the object literal always
+  defines, and so is a local fallback that recomputes the store's own
+  default (D108 found six of the first and two of the second). The inner
   `|| []` on `.people` is not; that guards missing data. The guard shapes
   are a list, not a pattern, so grep the name and read every site.
+- **Expect a conversion to RAISE the suppression count before it lowers
+  it.** The React Compiler cannot resolve a value arriving through global
+  scope, so it bails out of the component — which means the bridge has been
+  hiding `react-hooks` findings, not just costing coupling (D108, verified
+  by linting the pre-change files).
 
 ### 2. There are four test runners, and they are not interchangeable
 

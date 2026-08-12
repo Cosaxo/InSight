@@ -8,6 +8,7 @@ import { PersonMindMap } from './person-mindmap.jsx';
 import { DuoDomains } from './duo-daily.jsx';
 import { ReadRun } from './read-run.jsx';
 import { FRIENDS } from './follows.js';
+import { DUELS } from './duels-data.js';
 import { IS_DATA } from './sample-data.js';
 import { Av, AnonAv, anonName, Kicker, useDialog } from './primitives.jsx';
 import { IS_TEST_RESULTS } from './test-definitions.js';
@@ -353,19 +354,18 @@ function PersonOverlay({ p: rawP, onClose, me }) {
             each of you actually reads the other. Same dot language as the daily,
             so a filled dot means the same thing everywhere. ─── */}
         {(() => {
-          const D = window.DUELS;
-          const duo = D && D.partners ? D.partners().find((x) => x.id === p.id && x.played > 0) : null;
+          const duo = DUELS.partners().find((x) => x.id === p.id && x.played > 0) || null;
           if (!duo) return null;
           const row = (label, n, key, color) => (
             <div style={{ display: 'flex', alignItems: 'center', gap: 11 }}>
               <span style={{ width: 64, flexShrink: 0, fontFamily: 'var(--sans)', fontSize: 12.5, fontWeight: 800, color: 'var(--ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{label}</span>
-              <ReadRun days={Array.from({ length: n }, (_, i) => D.duoDay(p.id, n - i)[key])} color={color} size={13}></ReadRun>
+              <ReadRun days={Array.from({ length: n }, (_, i) => DUELS.duoDay(p.id, n - i)[key])} color={color} size={13}></ReadRun>
             </div>
           );
           // deep enough to split by domain? then WHICH parts you read beats
           // two aggregate streak rows. Shallow ties keep the simple version.
-          const rows = D.domainRows ? D.domainRows(duo) : [];
-          const weak = rows.length >= 2 && D.weakDomain ? D.weakDomain(duo) : null;
+          const rows = DUELS.domainRows(duo);
+          const weak = rows.length >= 2 ? DUELS.weakDomain(duo) : null;
           return (
             <div style={{ marginBottom: 26 }}>
               <div style={{ marginBottom: 11 }}><Kicker>How well you read each other</Kicker></div>

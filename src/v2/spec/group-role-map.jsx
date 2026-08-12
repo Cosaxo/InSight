@@ -4,6 +4,7 @@
 // spec-index.js load order is semantic — scripts/check-spec-globals.mjs
 // guards the wiring in CI.
 import React from 'react';
+import { DUELS } from './duels-data.js';
 
 // group-role-map.jsx — the group as a cast list. Scenario questions ("bank
 // heist: who drives?") crown members with ROLES; here every member (you
@@ -23,9 +24,8 @@ import React from 'react';
   }
 
   function buildField(gid) {
-    const D = window.DUELS;
-    const rv = D.roleVotes(gid);
-    const ms = D.groupMembers(gid);
+    const rv = DUELS.roleVotes(gid);
+    const ms = DUELS.groupMembers(gid);
     const n = rv.targets.length;
     const ringR = n <= 3 ? 62 : 84;
     const people = rv.targets.map((id, i) => {

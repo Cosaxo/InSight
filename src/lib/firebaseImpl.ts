@@ -25,16 +25,60 @@ import {
 import { Capacitor } from "@capacitor/core";
 import { FirebaseAuthentication } from "@capacitor-firebase/authentication";
 import {
+  clearIndexedDbPersistence,
+  collection,
+  collectionGroup,
   connectFirestoreEmulator,
+  deleteDoc,
+  doc,
+  documentId,
+  getDoc,
+  getDocs,
   initializeFirestore,
+  limit,
+  onSnapshot,
+  orderBy,
   persistentLocalCache,
+  query,
+  serverTimestamp,
+  setDoc,
+  terminate,
+  Timestamp,
+  updateDoc,
+  where,
   type Firestore,
 } from "firebase/firestore";
 import {
   connectFunctionsEmulator,
   getFunctions,
+  httpsCallable,
 } from "firebase/functions";
 import { initAppCheck } from "./appcheck";
+
+// The API surfaces, re-exported so nothing outside this module has to import
+// `firebase/*` statically (D110). This file is reached ONLY through
+// lib/firebase's memoised `impl()` dynamic import, so anything that arrives
+// through here is off the first-paint graph by construction — which is the
+// property `src/v2/data/live.ts` broke by importing `firebase/firestore`
+// directly, and the property `check:bundle`'s eager-graph ceiling now holds.
+//
+// EXPLICIT OBJECTS, NOT `export * as fsApi from "firebase/firestore"`. That
+// was the first shape and it cost 50 KB, measured: a namespace re-export is a
+// use of every export, so rolldown could no longer shake the ~85% of the SDK
+// this app never calls, and the total went 2116 → 2166 KB — over
+// `check:bundle`'s ceiling, trading 50 KB of lazy weight for the 326 KB of
+// eager weight the change was after. Naming the members keeps both wins.
+//
+// It also pins the surface, in the same way `data/vote.test.ts` pins
+// `window.LIVE`'s: live.ts destructures this whole object in one statement, so
+// a member added to the store without being added here fails at boot rather
+// than at the call.
+export const fsApi = {
+  clearIndexedDbPersistence, collection, collectionGroup, deleteDoc, doc,
+  documentId, getDoc, getDocs, limit, onSnapshot, orderBy, query,
+  serverTimestamp, setDoc, terminate, Timestamp, updateDoc, where,
+};
+export const fnsApi = { getFunctions, httpsCallable };
 
 export interface FirebaseConfig {
   apiKey?: string;

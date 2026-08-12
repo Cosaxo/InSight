@@ -10202,3 +10202,428 @@ rename its call — and each fails naming its own reason.
 - **Build 10 stands.** The mail is a warning on a successful delivery, not
   a withdrawal; the TestFlight build is unaffected and the fix rides the
   next one.
+## D108 · Two providers leave the bridge, and the mount suite stops being one file
+
+**Decided:** 2026-08-12 · **Status:** binding · Two independent findings
+from an audit of the tree, both of the same kind: a gate that had stopped
+measuring the thing its prose claimed.
+
+**Decision.** `duels-data.js` and `scenes.js` convert to named exports,
+taking D39's coupling ratchet **507 → 457**. `smoke.test.jsx` splits into
+five files over one harness (`test/mount-app.jsx`), removing a 90-second
+serial floor from `test:unit`. Nothing about either is new mechanism —
+both are procedures this repo has already run and written down.
+
+### CLAUDE.md said the cheap seam was exhausted; it was not
+
+"**Convert on touch.** The cheap seam is exhausted, so this is no longer
+a project." That sentence has been in CLAUDE.md since D39's follow-ups,
+and `src/v2/README.md` had already recorded it being wrong once —
+`test-definitions.js` and `passive-progress.js` were named as the two
+*not* to start with, on the grounds that they formed import cycles, and
+converting them produced the largest single drop the ratchet has seen
+(657 → 540) once someone checked the graph instead of re-reading the
+paragraph.
+
+It was wrong a second time, and the check that shows it is one the
+ratchet's own data already supports. Rule 4 reports per **consumer**,
+which is the right shape for a ratchet and the wrong shape for planning:
+it says `world-feed.jsx` holds 153 sites without saying whose. Rebuilt
+per **provider**, out of `spec-globals.mjs`'s `definedBy`/`referenced`
+maps:
+
+| provider | sites | consumers | outgoing coupling |
+| --- | ---: | ---: | ---: |
+| `data/live.ts` (`LIVE`) | 86 | 13 | — already ESM |
+| `spec/app-shell.jsx` (8 openers) | 49 | 15 | navigation bus |
+| `spec/duels-data.js` (`DUELS`) | 27 | 9 | **0** |
+| `spec/learn-progress.js` (`LEARN`) | 25 | 5 | 8 |
+| `spec/scenes.js` (`SCENES`) | 23 | 4 | **0** |
+
+The two zero-outgoing rows are single-writer, IIFE-wrapped pure
+providers that already import their own dependencies as ESM — the exact
+shape of `DAILYQ`, `FRIENDS` and `WF_CATALOGS`, down to the hoisted
+`export let` the wrapper forces. They are what "exhausted" was covering.
+Converted, they are worth 50 sites, which is 10% of the whole meter for
+two mechanical changes.
+
+**Add the provider view to the planning, not to the gate.** Rule 4 stays
+per-consumer; the finding is that anyone planning a conversion should
+transpose it first. `LEARN` is next by the same reading, and its 8
+outgoing references are not an obstacle: converting what a module
+*provides* is independent of what it *consumes* (the `DAILYQ` lesson).
+
+### The bridge was hiding React Compiler findings, and that is the real cost
+
+The conversion retired four `exhaustive-deps` suppressions for free — an
+imported binding is a stable dep where `window.DUELS` is an expression
+eslint cannot prove stable — and then surfaced **six `refs` findings that
+had never been reported at all**, in `DuoBody` and `GroupDailyBody`. The
+React Compiler cannot resolve a value arriving through global scope, so
+it had been bailing out of both components entirely.
+
+Verified rather than inferred, because the alternative reading is that
+this change introduced them: both files at the previous commit lint
+clean, and the only change to either is the import line. Probed by
+linting the pre-change copies.
+
+So the suppression count in `src/v2/README.md` goes **31 → 33**, and the
+increase is the honest direction. 31 was an understatement of the debt by
+however much the bridge was concealing, and **every remaining conversion
+should be expected to raise that number before it lowers it**. The six
+new ones carry targeted `eslint-disable-next-line react-hooks/refs` with
+the reasoning at the site, and the fix is named there: `const [order] =
+useState(() => …)` is the same once-only computation in the shape the
+Compiler accepts. Not taken here — a behaviour-adjacent edit to ported
+JSX does not belong inside a mechanical module conversion, and it wants
+a test that asserts the order really is frozen.
+
+### The guard shapes were a list again, exactly as recorded
+
+`follows.js`'s conversion left the rule "the guard shapes are a list, not
+a pattern: `(X || {})`, `X?.`, `X ? … : …`, `!X || …`, `X && …`, and
+`if (X) …`". Both conversions here hit five of the six, plus two the list
+does not name and should:
+
+- **A member-presence guard.** `SC.colorOf ? SC.colorOf(g.id) : null`
+  and `D.duoAvailable ? D.duoAvailable() : []` — six sites. These are not
+  guarding the module, they are guarding a member of an object literal
+  that always defines it, which is the same load-order fear one level
+  down.
+- **A fallback that duplicates the store's own default.**
+  `mirror-field-pops.jsx` seeded its scene set as
+  `window.SCENES ? SCENES.list() : D.groups.filter(g => g.joined)` — and
+  the else branch is precisely what `scenes.js` derives internally in a
+  demo build. In a LIVE build it was worse than dead: it would have
+  seeded the demo follows D96 exists to refuse, had the global ever been
+  unset when that component first rendered.
+
+### The mount suite was 98% of its own runner
+
+`test:unit` is 51 files. `smoke.test.jsx` was 32 cases in one of them,
+and vitest schedules a **file** to a worker — so it was a serial floor no
+amount of parallelism could lower: **90.2 s of a 92.2 s wall clock**, with
+the other fifty files finishing inside it. Split five ways along the
+`describe` seams it already had, with the setup moved to
+`test/mount-app.jsx` rather than copied.
+
+Two things the measurement did not buy, recorded because the obvious
+prediction was wrong in both places:
+
+- **Wall clock went 87 → 71 s, not to ~35 s.** With the single-file floor
+  gone it is the aggregate that binds on a 4-core runner (which is what
+  `ubuntu-latest` gives), not any one file. The floor itself is genuinely
+  gone — longest mount file 32.7 s, and the suite's longest file is now
+  `smoke-live.test.jsx` at 34.8 s, which was never the bottleneck.
+- **It does not unblock full-tree `test:coverage`.** Per-TEST durations
+  are unchanged (slowest 9.0 s before and after), and `vite.config.ts`
+  scopes coverage to `src/v2/data` because v8 instrumentation triples
+  mount cases against a 15 s per-test timeout. A file split cannot move a
+  per-test number. The claim that it would was made before it was
+  measured; this is the correction.
+
+**Cost accepted.** Five files each pay their own `spec-index` import
+(~14 s more total work than one file did), because vitest's module cache
+is per worker. Worth it to delete a 90 s serial floor; not worth it per
+case, which is why the harness header says to put a new case in the file
+that already loads its screen and add a file only when one crosses ~30 s.
+
+**What no gate covers.** Nothing stops the five files silently
+re-merging, or a sixth being added that duplicates a load for two cases.
+The number that would catch it — longest single test FILE — is not
+ratcheted, and is not worth a gate at this size; `check:figures` does not
+own these figures either. The README's table is the record.
+
+### Also found, not fixed
+
+The entry chunk came down 729 → 707 KB as a side effect: the removed
+global registrations and dead guards were shipping. Noted rather than
+credited to anything — `check:bundle`'s per-chunk headroom is 28 KB now
+where it was 6, which is slack that will get spent, and the ceiling is
+deliberately not being lowered to match inside a change that was not
+about the bundle.
+
+## D109 · LEARN leaves the bridge, and takes the load-order bug with it
+
+**Decided:** 2026-08-12 · **Status:** binding · Follow-on to D108, using
+the provider view that record added.
+
+**Decision.** `learn-progress.js` (`LEARN`) and `learn-data.js`
+(`LEARN_CARDS`, `LEARN_FIELDS`, `LEARN_SUBJECTS`, `LEARN_SPLIT`,
+`LEARN_SPLIT_SRC`) convert to named exports. Ratchet **457 → 426**, and
+the file count drops 44 → 43 — `learn-feed.js` is the fourth module in
+the layer with no cross-module global references at all.
+
+### The seam was two modules, not one, and only half of it was the ask
+
+`LEARN` alone was the item on D108's list: 25 sites, 5 consumers.
+Converting only that would have left the thing worth fixing in place.
+`learn-progress.js` opened with
+
+```js
+const CARDS = window.LEARN_CARDS || [];
+const FIELDS = window.LEARN_FIELDS || [];
+const SUBJECTS = window.LEARN_SUBJECTS || [];
+```
+
+at **module scope**. The entire Learn mode — the card bank, the map's
+knowledge branch, the feed's woven know cards — rested on
+`spec-index.js` listing `learn-data.js` (line 90) one line above
+`learn-progress.js` (line 91). Swap those two lines and `|| []` wins:
+zero cards, no error, no failing test, and a Learn tab that renders an
+empty room. Exactly the `map-branches.js` / `DAILYQ.EMERGENT_CATS`
+fragility D39's third conversion removed, and exactly what that record
+said to look for next.
+
+It is a module-graph guarantee now, and the guards went with it rather
+than being rewritten as `LEARN_CARDS || []`: an imported binding cannot
+be unset, and `learn-data.js` depends on nothing that could put it in
+TDZ.
+
+**The test harness is where the fix shows.** `learn-serve.test.js` had
+to import `learn-data.js` by name before `learn-progress.js`, because
+the ordering was the caller's problem. That line is deleted, and its
+absence is the win rather than a tidy-up — a step nobody can forget any
+more.
+
+### D108's prediction did not hold here, and that is worth recording
+
+D108 said "every remaining conversion should be expected to raise the
+suppression number before it lowers it", on the strength of the six
+`refs` findings the `DUELS` conversion surfaced once the React Compiler
+could resolve the store. This conversion surfaced **none**: the count
+sits at 33 across 14 files, unchanged, and no `exhaustive-deps`
+suppression was retired either. One `useEffect(() => { if (window.LEARN
+&& …) … }, [])` in `map-tab.jsx` became the clean shape and had carried
+no directive to begin with.
+
+So the D108 sentence is a thing to *check for*, not a rule. The
+Compiler's bail-out depends on what else the component does, not on the
+bridge alone.
+
+### Order of checks matters, and this run proves it
+
+Three separate gates each caught something the others could not, in this
+order:
+
+1. **`no-undef`** caught four files where the call sites were converted
+   and the `import` line was never added — `learn-feed.js`,
+   `learn-social.js`, `map-learn-card.jsx`, `map-tab.jsx`, sixteen
+   errors. This is the rule CLAUDE.md keeps ON for the spec layer
+   because two `ReferenceError`s shipped, and it is the first time it
+   has paid since.
+2. **`check:globals` rule 1** then caught a *dangling* `window.LEARN` at
+   `map-tab.jsx:34` — a site inside an effect that no call-site sweep
+   had touched, so `no-undef` saw a legitimate `window.` member access
+   and said nothing.
+3. **The mount suites** cover the rest: `map-tab.jsx` renders the Map on
+   the Mirror's default stop, so a broken import there is a boundary
+   trip in `smoke-nav.test.jsx`.
+
+Rule 1's find is the one to remember. A conversion sweep that renames
+`X.member` sites is blind to `window.X` sites that were never aliased,
+and the two shapes live in the same file.
+
+### The alias problem, and why `L` was not renamed everywhere
+
+D108 renamed `D` → `DUELS` at every site. That was safe because `D` was
+the DUELS alias in every file that used it. `L` is not: `world-feed.jsx`
+line 390 binds `const L = window.LIVE`, and `map-tab.jsx` line 797 has a
+bare `L` inside an SVG path template (`M x y L x y`). A blanket rename
+would have corrupted both.
+
+So the sites were partitioned by their owning declaration first — every
+`const L = …` in each file, tagged LEARN or LIVE, and only the LEARN
+regions rewritten. Worth doing again the same way: **check what else
+holds the alias before renaming it**, and prefer the partition to the
+regex.
+
+Two places keep a local alias rather than the full name:
+`learn-reserve.test.jsx` imports `{ LEARN as L }` because its two cases
+use `L` twenty times and the import line is the only thing that needed
+to change; and `map-tab.jsx` keeps a bare `{ … }` block where
+`if (window.LEARN)` used to be, with a comment saying so, because
+de-indenting 23 lines would bury the change in whitespace.
+
+### D108 amendment — the entry-chunk figure was not a win, and the gate says it was
+
+D108's closing paragraph read the entry chunk falling 729 → 707 KB as
+"the removed global registrations and dead guards were shipping". This
+conversion took it further, 707 → **685 KB**, and measuring the other
+number shows what actually happened:
+
+| tree | entry chunk | entry + every `modulepreload` | total JS |
+| --- | ---: | ---: | ---: |
+| before D108 | 728.5 KB | 1271.1 KB | 2118 KB |
+| after D109 | 685.2 KB | **1270.2 KB** | 2116 KB |
+
+The entry chunk is 43 KB lighter and **first paint is 0.9 KB lighter**.
+The bytes moved into sibling chunks that `index.html` preloads anyway —
+`duo-daily` 21.0 → 41.0 KB, `LiveTakesPanel` 11.4 → 33.7 KB — because a
+converted module gets its own chunk and the entry still statically
+imports it.
+
+Nothing is wrong with the conversions; the wrong thing is the reading.
+`check:bundle` holds a per-chunk ceiling and a total, and **neither is
+the eager graph**. A per-chunk ceiling is improved by relocating bytes
+into another preloaded chunk, and the total counts Sentry (435 KB), the
+world-feed group and the overlays, which first paint never fetches. So a
+change can bank a 43 KB "win" on the gated number while the number that
+decides cold-start parse cost does not move — which is exactly what just
+happened, twice, without either gate noticing.
+
+`src/v2/README.md` has recorded a special case of this since the
+`sample-data.js` conversion ("became its own chunk that first paint still
+preloads"), and the general form is now measured. The fix is one figure —
+sum the entry plus every `<link rel=modulepreload>` in `dist/index.html`,
+which the build already emits — and it is deliberately NOT taken inside
+this change: adding a third ceiling is a decision about what the app is
+allowed to weigh, not a side effect of moving two modules. Recorded with
+its arithmetic so the next bundle claim has to cite the right number.
+
+### What is left on the bridge here
+
+`learn-progress.js` keeps 4 outgoing references, all `window.LIVE`, and
+`learn-social.js` keeps 4 for the same reason. `LEARN_FEED`
+(`learn-feed.js`) and `LEARN_CARDS`' sibling display modules
+(`learn-bits.jsx`'s `LMStreak` / `LMFriends`, 10 sites) stay — neither
+is a load-order hazard and neither was the ask. `LIVE` remains the
+single largest provider on the meter at 86 sites across 13 files, and
+it is not mechanical: `smoke.test.jsx`'s successors express demo mode by
+deleting `window.LIVE`, which an imported binding cannot do. The
+replacement pattern is already in-tree (`vi.mock("../data/live")`, used
+by every `ui/*.test.tsx`), so that conversion is a test-architecture
+change with a known shape rather than an unknown one.
+
+## D110 · The bundle gets the number that decides first paint, and it immediately finds 327 KB
+
+**Decided:** 2026-08-12 · **Status:** binding · Follow-on to D109's
+amendment, which measured the hole this closes.
+
+**Decision.** `check:bundle` gains a third ceiling, `MAX_EAGER_KB` — the
+entry chunk plus every `<link rel=modulepreload>` in `dist/index.html`,
+which is exactly the set a cold start must fetch before it can paint. It
+found the Firestore SDK sitting in that set on every build, and
+`data/live.ts` and `data/voters.ts` now take the API through
+lib/firebase's existing lazy `impl()` promise instead of importing
+`firebase/*` statically. **Eager graph 1270.2 → 944.0 KB, −327 KB, −26%**,
+with the entry chunk unmoved and the total up 2 KB.
+
+### Why two ceilings were not enough, in one table
+
+Measured by making one group eager again and rebuilding, which is how the
+735 table was built:
+
+| eager again | entry | total | eager | 735 | 2140 | 955 |
+| --- | ---: | ---: | ---: | --- | --- | --- |
+| nothing (after this change) | 685.2 | 2118 | 944.0 | ok | ok | ok |
+| the world-feed group | 863.0 | 2117 | 1087.0 | RED | ok | RED |
+| Sentry | 685.2 | 2117 | 1394.0 | ok | ok | RED |
+| Firestore (the tree before this) | 685.2 | 2116 | 1270.2 | ok | ok | RED |
+
+The per-chunk ceiling is improved by relocating bytes into a chunk the
+entry still imports statically — preloaded, fetched, parsed, and worth
+zero. The total is the same error pointed the other way: it counts Sentry
+(~435 KB) and both deferred groups, which first paint never touches, so
+it cannot see the eager set move at all.
+
+**The feed row is in the table because it does NOT make the case**, and
+the first draft of that table claimed it did. Rolldown merges world-feed
+back into the entry, so 735 catches it first. Writing a predicted row
+down as a measurement is exactly the failure this repo keeps a probe-first
+rule for, and it happened here, in the comment block arguing for
+measurement.
+
+**The Firestore row is not hypothetical.** It is the tree as it stood for
+months, and both existing gates were green for all of it.
+
+### The 292 KB, and why `lib/firebase.ts`'s header was the actual defect
+
+That header ended "so signed-out/mock sessions never download it". It had
+stopped being true: `live.ts` imported `firebase/firestore` and
+`firebase/functions` statically, live.ts is eager, and the SDK was
+`modulepreload`ed even in a build with **no `VITE_FIREBASE_*` at all** —
+the exact case the sentence named. Verified by building with no Firebase
+env and grepping the preload list.
+
+The static imports were deliberate (D64-era): seven call sites had also
+`await import()`ed the same modules, which bought nothing, because a
+module statically imported anywhere in a file is already in that file's
+chunk. That reasoning was right; "so make them static everywhere" was the
+wrong end to fix it from, and nothing was measuring the consequence.
+
+### The 73 call sites did not change, and that is provable rather than lucky
+
+Every Firestore use in `live.ts` sits in a scope that holds a `db` —
+checked, all 73, including the eleven that take no `db` argument
+(`Timestamp.fromMillis`, `serverTimestamp`, `documentId`). A `db` can be
+obtained only from `getDb()`, which awaits lib/firebase's single memoised
+`impl()` promise, which IS the dynamic import of `firebaseImpl.ts`, which
+statically holds `firebase/firestore`. So binding the names off that same
+promise makes every site correct **by the provenance of the value it
+already uses**. There is no load order to audit and no site that could be
+missed — which is the only reason a 73-site change was worth attempting in
+this file.
+
+The mechanism is a local `getDb` in live.ts that shadows the import and
+assigns the bindings; the 25 `await getDb()` sites did not change either.
+`voters.ts` gets an explicit `await getFirestoreApi()` in each of its two
+async functions instead, because those take `db` as a PARAMETER — hanging
+it on "the caller already awaited" would be precisely the cross-module
+ordering assumption this change exists to delete.
+
+### `export * as fsApi` cost 50 KB, measured
+
+The first shape re-exported the namespaces: `export * as fsApi from
+"firebase/firestore"`. That is a use of every export, so rolldown could no
+longer shake the ~85% of the SDK this app never calls — total 2116 → 2166
+KB, over its ceiling, trading 50 KB of lazy weight for the 326 KB of eager
+weight the change was after. Explicit objects listing the 18 + 2 members
+keep both wins.
+
+**And they pin the surface**, which is a second guard for free: live.ts
+destructures the whole object in one statement, so a Firestore member
+added to the store without being added to `fsApi` fails at boot rather
+than at the call. Four test mocks had to grow to match — proof the pin
+binds, since a partial mock now throws at boot instead of at an unused
+call.
+
+### What this change does NOT buy, said plainly
+
+327 KB is bytes, not milliseconds, and the shipping target is a Capacitor
+shell serving local files — so there is no network fetch to save there,
+only parse and evaluate. In a live build `main.jsx` still awaits
+`initLive()`, which still needs Firestore, so the app does not reach
+content sooner; the parse moves off the critical entry graph and onto a
+promise the boot already awaits. **The unambiguous wins are the mock/dev
+and unconfigured-web builds, which now never load the SDK at all, and the
+ceiling itself** — 944 with 11 KB of headroom is a much harder thing to
+regress past than 1270 with nothing watching.
+
+### The ceiling comes down with the win
+
+955, not 1280. Same discipline as MAX_CHUNK_KB at 940 → 850: left at
+1280, the Firestore SDK could silently return to the eager graph and the
+script would print OK, which is how a ratchet becomes a decoration
+(check-bundle.mjs's own words, about itself).
+
+### Verified, and one release-path gate re-proved
+
+`check:web-firebase` greps the emitted JavaScript for the inlined config,
+and this change moved code between chunks — so it was re-run with a full
+fake production config rather than assumed: it concatenates every chunk in
+`dist/assets`, is layout-agnostic, and passes ("live config inlined into
+54 chunk(s)"). Worth checking rather than reasoning about, because its own
+header describes its failure mode as "silent in the worst way".
+
+### Deferred, recorded
+
+`data/circle.ts`, `logic-verify.ts`, `push.ts` and `deviceBind.ts` still
+import `firebase/*` statically. All four are already off the eager graph
+for other reasons — circle behind a dynamic import in live.ts and a
+`React.lazy` body, logic-verify inside `loadOverlays`'s chunk, the other
+two dynamically imported at their call sites — so converting them buys
+zero measured bytes today. The reason to do it anyway is that their
+laziness is incidental rather than stated, and `MAX_EAGER_KB` would catch
+it if that changed. Left as is: a conversion that moves no number is one
+whose only evidence would be the absence of a future regression.

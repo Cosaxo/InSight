@@ -18,6 +18,7 @@
 import { beforeAll, afterEach, describe, expect, it, vi } from "vitest";
 import React from "react";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { LEARN as L } from "../spec/learn-progress.js";
 
 vi.setConfig({ testTimeout: 15000 });
 
@@ -44,7 +45,6 @@ function mountFeed() {
 
 describe("a due learn card is re-served answerable (D95)", () => {
   it("serves it fresh over a stale persisted vote, credits the streak, persists nothing", () => {
-    const L = window.LEARN;
     // Miss a card, then answer four others so its gap passes — the
     // scheduler's own definition of a repeat that counts.
     const card = L.plan(1)[0];
@@ -74,7 +74,6 @@ describe("a due learn card is re-served answerable (D95)", () => {
   });
 
   it("does not serve an answered card inside its gap at all", () => {
-    const L = window.LEARN;
     const card = L.plan(1)[0];
     L.answer(card.id, wrong(card));
     expect(L.due(card.id)).toBe(false);
