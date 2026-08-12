@@ -161,14 +161,22 @@ an emergency rules fix.
   Everything else stays frozen — anchors, answeredAt, learn, duels,
   catalog — and the counts stay honest because the trigger moves them,
   not because the doc cannot change. Do not widen the edit surface.
-- **A live Mirror stop carries four of its five lenses (D99).** Answers ·
-  People · Compare · Explore are live on the geographic stops; **Scores
-  is not**, and that is content rather than code — it is fed by `rate`
-  questions and the bank ships none, so the lens would be an empty
-  frame. The three added lenses are pure folds over `agg.by`
-  (`src/v2/data/cohort.ts`) plus the D98 voter lists; the row is
-  collapsed by default because Kindred is the one reading that can cost
-  a query the app has not already made (docs/MIRROR.md §3).
+- **A live Mirror stop carries all five lenses (D99/D100) and, since
+  D107, its constellation.** Answers · People · Compare · Explore are
+  pure folds over `agg.by` (`src/v2/data/cohort.ts`) plus the D98 voter
+  lists; Scores joined at D100 over the bank's ordinal questions (the
+  old "no `rate` questions" refusal was about the prototype's *place*
+  scorecard, which still waits on content). The similarity fields
+  (`src/v2/data/similarity.ts`, `ui/LiveSimilarityField.tsx`) lead the
+  City/Country/World stops: your city's people ranked primarily by
+  test-score match, cities and countries placed by their real
+  average-score profiles — all folded from data that already publishes,
+  with zero extra reads for candidate scores (they ride the voter
+  lists' name resolution). Near is presence-only since D106; the city
+  cohort is the City stop's. The lens row stays collapsed because
+  Kindred can cost a query the app has not already made; the fields
+  load with their stops behind one bounded, session-cached loader
+  (docs/MIRROR.md §2–3).
 - **`window.MapStats` is real for two anchors and refuses for five, and
   the split is structural.** `age` and `edu` are breakdown dims, so since
   D99 `dist`/`mode` compute from the published cells. `job` is

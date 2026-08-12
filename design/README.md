@@ -151,11 +151,12 @@ else it reports is a miss.
 The prototype has no backend, so it never faces the k-anonymity floor, and
 some of what it draws would be a disclosure here. Those divergences are
 recorded as decisions, not left to taste — see `docs/DECISIONS.md`, in
-particular D1 (takes and named who-voted are circle-scoped), D9 (Near is
-your city, so live mode drops the City stop), D11 (which prototype features
-are demo-only, and why they are unreachable rather than merely switched
-off) and D43 (what the v17 sync kept from this repo rather than from the
-prototype).
+particular D1 (takes and named who-voted are circle-scoped), D9 (the city
+as the unit; its "Near is your city" fold was undone by D106, and D107
+made this prototype's similarity fields real), D11 (which prototype
+features are demo-only, and why they are unreachable rather than merely
+switched off) and D43 (what the v17 sync kept from this repo rather than
+from the prototype).
 
 ## Where the extracted modules went
 

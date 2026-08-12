@@ -279,6 +279,32 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
     ],
     kindredLoading: () => false,
     kindredDepth: () => 6,
+    // Similarity (D107): Ada again, in the viewer's own city and with a
+    // stored Big Five, and the viewer scored too — so a live mount of the
+    // City field renders a POSITIONED, score-matched person rather than
+    // only the empty state. testFeedItems stays empty: the place fields'
+    // arithmetic has its own unit tests, and here an empty bank renders
+    // their honest "no scored answers yet" state, which is what a mount
+    // test should see from a fixture with no test-item aggregates.
+    loadSimilarity: async () => {},
+    similarityLoading: () => false,
+    testFeedItems: () => [],
+    myTestResults: () => ({
+      big5: { title: "Big Five", dims: [
+        { id: "O", label: "Openness", value: 70 },
+        { id: "C", label: "Conscientiousness", value: 55 },
+        { id: "E", label: "Extraversion", value: 40 },
+        { id: "A", label: "Agreeableness", value: 65 },
+        { id: "N", label: "Sensitivity", value: 45 },
+      ] },
+    }),
+    kindredPeople: () => [
+      {
+        uid: "u_other", name: "Ada", city: opts.myCity ?? "Oslo, NO",
+        like: { shared: 6, same: 5, pct: 83 },
+        results: { big5: { O: 80, C: 50, E: 45, A: 60, N: 50 } },
+      },
+    ],
     lensAgg: () => ((opts.lensBank ?? true)
       ? { counts: tooSmall ? [0, 0, 0, 0, 0] : [9, 6, 4, 3, 3], tooSmall }
       : null),

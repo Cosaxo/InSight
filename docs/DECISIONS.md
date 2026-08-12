@@ -560,6 +560,12 @@ as deployed infrastructure. It now says what is true.
 > only while the Right-now counter (D84) is off. With the counter on — an
 > explicit, revocable location grant — Near resolves and applies the city
 > itself, still saving only the name.
+>
+> **Partially reversed by [D106](#d106--near-and-city-are-two-stops-again-presence-is-not-a-place)
+> (2026-08-12).** The *fold* is unwound: City is its own live stop again
+> and Near is the D84 counter alone. Everything else here survives — the
+> city as the unit, the catalogue, the coarse on-device locate and D92's
+> standing-grant apply all moved to the City stop unchanged.
 
 
 **Decision.** The Mirror's Near population is the city the user **picks from
@@ -9969,3 +9975,147 @@ manipulation` is scoped to `button`/`[role=button]`/`[role=tab]`
 (styles.css § 2). It is a second way to scale the app that nothing
 scales back, but it is user-initiated and was not what these screenshots
 measured, so it stays as it is until something says otherwise.
+
+## D106 · Near and City are two stops again: presence is not a place
+
+**Decided:** 2026-08-12 · **Status:** binding · Owner's direction, verbatim
+in relevant part: "Near is not city that is people near, city is its own
+unique thing."
+
+**Decision.** The live Mirror ruler carries all seven stops. **Near** is
+the Right-now radius counter (D84) and nothing else — its body is
+`ui/NearLiveBody.tsx`, which owns the card that used to sit above the city
+rows. **City** returns as its own live stop: the viewer's city cohort
+(answers, lenses) plus the similarity constellation D107 adds. The three
+world zooms map one-to-one onto the cohort scopes; the `zoom === 'city' →
+country` resolution shim is gone with the gap it papered over.
+
+This partially reverses **D9**. What D9 got right survives untouched: the
+city is still the unit (picked from the catalogue or located on-device,
+coarse, name-only — the D9/D92 machinery moved to the City stop without a
+line of its logic changing), and the geohash Near stays dead. What D9 got
+wrong was the *fold*: "Near IS your city" put two different questions —
+"who is around me right now" (a phone's presence) and "how did my city
+answer" (a profile anchor) — behind one stop, which meant the scale lied
+about what it measured, and the prototype's most distinctive stop shipped
+dark in live mode. D9's own argument ("two stops onto one cohort is how a
+scale starts lying") now cuts the other way: they are two cohorts, so
+they get two stops.
+
+**What Near will never become.** A list. The presence cell is one of the
+three denies D98 kept — it records where a phone is standing, not what
+its owner answered — and the count is the only thing the server returns.
+D107's default-on posture is about answer- and score-derived surfaces;
+publishing presence would need its own explicitly recorded decision, and
+nothing in this one moves it.
+
+**Migration note.** A session that persisted `pop: 'near'` lands on the
+presence body with the city rows one stop to the right; a persisted
+`worldZoom: 'city'` is now simply valid. Neither state can render an
+unselected ruler, which is what the old shim existed to prevent.
+
+## D107 · The similarity surfaces: place score profiles, and kindred ranked by scores — live, exact, default-on
+
+**Decided:** 2026-08-12 · **Status:** binding · Owner's direction, verbatim
+in relevant parts: "the city country and persons in the city should be
+based on who is the closest to you primarily based on test scores … it
+should be like in the preview but with actual working data … the concept
+of kindred strangers should survive and everything that tries to limit or
+make it opt in is wrong … cities and countries needs profiles of what the
+averages scores are."
+
+**Decision.** The prototype's constellation fields ship live, computed
+instead of invented (`data/similarity.ts`, `ui/LiveSimilarityField.tsx`):
+
+- **City** — the people of your city arranged around you, ranked
+  **primarily by test scores**: everyone you share a completed instrument
+  with sorts first, by score match; answer agreement (D99's metric) is
+  the fallback basis, never a gate, and every row names which basis it
+  stands on. Frozen anchors decide city membership (D8 — the answer's
+  snapshot, never the live profile).
+- **Country** — your country's cities, each with a real score profile,
+  placed by its distance from yours. **World** — the same, per country.
+- **Place profiles** — a city's or country's average score per instrument
+  axis is a pure client fold over data that already publishes: the
+  bank's 110 core test items are ordinary `scale` questions whose
+  per-city/per-country option counts sit in `v2_question_aggs.by` (D98),
+  and the fold is the personal scorer's own arithmetic (mean of 0..4
+  agreement, inverts flipped, ×25) run over a cohort's counts. Nothing
+  new is written anywhere; a place has had a profile since its first
+  test answer, and this decision is the first reader.
+
+**The likeness metric, one sentence each — the same explainability bar
+`agreement` was chosen for (D99).** Person: one hundred minus the average
+gap between your axis scores and theirs, across every axis of the
+instruments you have both completed (a whole shared instrument minimum —
+five axes; one axis is a coin toss). Place: the same, across the axes the
+place has answers on, refused below **three** shared axes
+(`MIN_PLACE_AXES`) — a place with less is listed as thin, never
+positioned, because a position is a claim.
+
+**Default-on, and what that does and does not reopen.** The fields load
+with their stops — no opt-in, no tab to open first — because every datum
+they read is public under D98: answers, the anchors they carry, and
+`testResults`, which firestore.rules opened with the comment "the rest of
+testResults is now PUBLIC, which is the point: person-to-person Compare
+reads it." This decision is that sentence finally cashing: nothing read
+here was newly opened, and the demo field's "opt-in" caption dies with
+the demo field. The one deny in the neighbourhood — the presence cell —
+is out of scope (D106 records why).
+
+**The bill, measured the D102 way.**
+
+- *Place profiles:* ≤110 aggregate docs (`ceil(110/30)` = 4 batched `in`
+  queries), **once per session**, minus whatever the deck and archive
+  already cached. No per-render cost; the folds are client arithmetic.
+- *Kindred scores:* **zero additional reads.** The candidate pool is
+  D102's — voter lists for up to `KINDRED_QUESTIONS` (12) of your own
+  answers × `VOTER_FETCH_CAP` (200), recency-biased — and the web SDK
+  has no field mask, so every profile document `resolveNames` fetched
+  for a display name already carried `testResults` over the wire.
+  `resolveNames` now keeps what was paid for, into a sibling `scores`
+  cache with the same "" / null absence convention.
+- *Both loaders* are session-cached, in-flight-guarded, and reset on uid
+  change with everything else.
+
+**Bounds carried, not invented.** The pool is the D102 pool; widening it
+is paging from the cursor the ordering already provides (the D101 rule),
+not a quiet cap raise. `parseTestResults` reads the four core instruments
+only, defensively — the field is owner-written and shape-unvalidated, so
+values coerce, clamp to 0..100, and a hostile profile parses to null
+rather than to a position. Excluded with reasons: the **minor lenses**
+(device-local by D50/D91 posture — there is no stored result to compare;
+their per-place aggregates exist and can join a later decision), and
+**logic** (a verified score, D57 — a different claim than an axis
+profile, and its `testResults.logic` key stays server-owned).
+
+**Three honesty rules, inherited from D1 via D72's lesson.** No mist —
+the prototype's decorative background dots were unnamed fake people, so
+density here is real nodes or nothing. No invented headline — "12.6k in
+Oslo" has no honest single source, so counts stay attached to what they
+count. Thin is named — places and people below the axis minimums are
+listed with the reason, never silently dropped and never faked into
+position. The viewer with no scores still gets everything the data
+supports: profiles render (they are the product, likeness is the extra),
+people rank by agreement, and `myAxisScores` folds the viewer's own
+answers to test items so a finished instrument is not a paywall on
+having a position at all.
+
+**A third follow entry point.** The person card in the City field carries
+the same one-tap follow as the People lens, under D101's rule unchanged:
+a follow can start where a uid has become a person with a reading
+attached. That set is now three — the who-voted sheet, the Kindred rows,
+and the constellation's person card.
+
+**Known limits, recorded with their arithmetic.** (1) The kindred pool is
+recency-biased and bounded as above — at launch scale it is exhaustive;
+at 5,000 DAU it is "the latest 200 per question", and the panel copy says
+which. (2) A person's own *passive* feed answers still do not fold into
+their stored result (the pre-D107 gap in `passive-progress.js` — value
+recorded server-side, discarded client-side); the fields sidestep it by
+folding the viewer's answers directly, but the stored-result gap stands
+until someone closes it deliberately. (3) Place buckets inherit
+`BREAKDOWN_MAX_BUCKETS` (24) per question with eviction — the union
+across 110 items makes starvation unlikely, but a country's 25th city on
+every single item would not appear; if that is ever real, the fix is the
+fold's, not the trigger's.
