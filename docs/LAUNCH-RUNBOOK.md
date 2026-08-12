@@ -407,15 +407,24 @@ arithmetic.
       rather than from memory, which is the comparison above and not the
       habit.
 
-      **Re-verified 2026-08-12 for the next release: run 16 is still the
-      latest of 16, so build 11 is unspent and `appBuild` needs no bump.**
-      The comparison passes as-is — 11 > 10 — and bumping now would burn
-      11 the way 2 was burned. Build 11 carries everything merged since
-      `2933dc0`: D103's retired Thinking test and the dot-row rail, D104's
-      test users, D105's iOS focus-zoom fix, D107's location purpose
-      string, D108–D110's 327 KB off first paint, D111/D112's similarity
-      maps, D113/D114's continuum forms, D115's learn lane, and D116's
-      corrected store and privacy copy.
+      **BUILD 11 UPLOADED 2026-08-12** (run 17, `ac61c37`, 6m 37s, upload
+      step `success`). It carries everything merged since `2933dc0`:
+      D103's retired Thinking test and the dot-row rail, D104's test
+      users, D105's iOS focus-zoom fix, D107's location purpose string,
+      D108–D110's 327 KB off first paint, D111/D112's similarity maps,
+      D113/D114's continuum forms, D115's learn lane, and D116's
+      corrected store and privacy copy. It was the first run to carry the
+      D116 pre-flight (`check:public-copy`), which passed.
+
+      **`appBuild` is now 12**, bumped straight after that upload, which
+      is this section's whole convention. **Build 11 is the highest on App
+      Store Connect**, so the comparison passes for the next run as-is.
+
+      **`npm run check:versions -- --fix` does NOT increment.** It
+      propagates package.json's value into the two native projects and
+      nothing more, so "run --fix to bump" is wrong and reports a cheerful
+      `versions OK` at the OLD number. Edit `appBuild` by hand first, then
+      `--fix` carries it to `versionCode` and `CURRENT_PROJECT_VERSION`.
 
       *With a Mac, if you ever want to debug a signing failure
       interactively:* `npm run build && npx cap sync`, then `npm run ios`.
