@@ -516,10 +516,17 @@ import PLACES from '../data/places';
     if (!SC) return null;
     const mine = SC.mine();
     if (mine.length === 0) {
+      // The copy used to send you to "the daily's topic row and in search —
+      // follow one", which in a live build is a door onto an empty room:
+      // D96 stopped offering scenes there because every one of them was
+      // sample data, so the only honest instruction is the one that is
+      // actually true of this build — every subject runs, and the feed's
+      // topic sheet is where you tune them.
       return (
         <div className="card" style={{ padding: '14px 15px', fontFamily: 'var(--sans)', fontSize: 13, fontWeight: 500, color: 'var(--ink-2)', lineHeight: 1.5 }}>
-          Nothing followed yet. Scenes live on the daily&rsquo;s topic row and in
-          search — follow one and its questions join your feed.
+          No scenes yet — every topic runs in your feed instead. Tap
+          &#43; on the feed&rsquo;s topic row to see them all, with what
+          each one holds, and mute the ones you would rather not get.
         </div>
       );
     }

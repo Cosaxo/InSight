@@ -2193,6 +2193,20 @@ button.card:active,
 .native-shell .overlay {
   padding-top: calc(14px + env(safe-area-inset-top, 0px));
 }
+/* …ONCE. The .app-header rule above matches by class, and eight overlays
+   draw an .app-header of their own INSIDE the padded .overlay — so every
+   one of them stacked two full status-bar insets, ≈73px each on a Dynamic
+   Island phone, before its ✕ and title. Found on the owner's device
+   2026-08-12 ("the profile part takes up a lot of the screen for no
+   reason"): ~146px of blank surface above "Your profile", which is a sixth
+   of the screen spent twice on the same notch.
+   Back to .app-header's own base padding, so an overlay title sits 8px
+   below where the app's own header sits — not 81px below it. The mockup
+   frame was never affected: there the inset is a fixed 62px band that
+   .overlay reproduces and .app-header does not add to. */
+.native-shell .overlay .app-header {
+  padding-top: 8px;
+}
 .native-shell .wf-sheet {
   padding-bottom: env(safe-area-inset-bottom, 0px);
 }

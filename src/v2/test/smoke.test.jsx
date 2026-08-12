@@ -166,6 +166,52 @@ describe("spec layer mounts", () => {
     expectNoBoundary("demo add sheet");
   });
 
+  // The other half of D96, found on a device the day after it shipped.
+  // Refusing to advertise the fabricated communities was right and left the
+  // sheet holding nothing but the Learn dial in a live build, which the
+  // owner read exactly as it looks: interests deleted. The channel list is
+  // what fills it, and it lives in the shared render path — so the demo
+  // suite is where the MECHANISM binds. (The live channel set is a build
+  // flag read at module scope, and this suite is a demo build; the live
+  // set, and the fact that the bank's topics are all in it, are
+  // world-channels.test.js's.)
+  it("the add sheet lists the channels that stock the feed, with counted meta", () => {
+    const expectNoBoundary = mountApp();
+    fireEvent.click(screen.getByRole("button", { name: /add a topic/i }));
+    expect(screen.getByText("Your topics"), "the sheet listed no topics at all").not.toBeNull();
+    const mutes = screen.getAllByRole("button", { name: /^Mute / });
+    expect(mutes.length, "no channel row carried a mute").toBeGreaterThan(0);
+    // Counted out of the pool, never claimed about a population — the
+    // distinction D96 exists to hold. "N questions · M answered" is
+    // arithmetic over WORLD_FEED_QS; "N people" was not.
+    expect(document.body.textContent).toMatch(/\d+ questions · \d+ answered/);
+    // …and never a stockless room, which is the same rule SUBTOPICS.offers()
+    // applies to leaves.
+    expect(screen.queryByText(/^0 questions/), "a stockless channel was listed").toBeNull();
+    expectNoBoundary("add sheet, channel list");
+  });
+
+  it("muting a channel from the sheet turns its chip off", () => {
+    // The wiring half: the sheet's toggle IS the chip row's toggle, so a
+    // mute here has to move the state the rail draws from. Without this the
+    // list could render perfectly and control nothing.
+    const expectNoBoundary = mountApp();
+    fireEvent.click(screen.getByRole("button", { name: /add a topic/i }));
+    const mute = screen.getAllByRole("button", { name: /^Mute / })[0];
+    const topic = mute.getAttribute("aria-label").replace(/^Mute /, "");
+    fireEvent.click(mute);
+    expect(
+      screen.getByRole("button", { name: "Unmute " + topic }),
+      "the row did not flip to Unmute",
+    ).not.toBeNull();
+    // the chip row's own button for the same topic, now off
+    expect(
+      screen.getByRole("button", { name: topic.toLowerCase() }).getAttribute("aria-pressed"),
+      "the chip stayed on after the sheet muted it",
+    ).toBe("false");
+    expectNoBoundary("add sheet, mute");
+  });
+
   it("the demo feed offers a suggested scene", () => {
     const expectNoBoundary = mountApp();
     expect(screen.getByText(/suggested scene/)).not.toBeNull();
@@ -206,6 +252,12 @@ describe("spec layer mounts", () => {
     // explicit that we actually left the daily tab rather than silently
     // asserting on it twice.
     expect(screen.getByRole("button", { name: /^mirror$/i }).className).toContain("is-active");
+    // D103 rides along here rather than mounting the Mirror a second time
+    // (~15s under suite load, which is the timeout): compare's assessment
+    // list is the surface that read the retired test's RESULT rather than
+    // the test, and "cognitive style" was its subtitle.
+    expect(document.body.textContent, "a thinking-style reading survived on the Mirror")
+      .not.toMatch(/cognitive style/);
   });
 
   it("renders the World stop's Explore lens, and 'like me' fills a slice", () => {
@@ -590,18 +642,6 @@ describe("the retired Thinking test is gone from every surface", () => {
     // result card drew, and therefore that one still can.
     expect(document.body.textContent).not.toMatch(/Thinking · Four modes/);
     expectNoBoundary("profile without the Thinking tab");
-  });
-
-  it("leaves no thinking-style reading anywhere on the Mirror or the Map", async () => {
-    // The surfaces that read the result rather than the test: compare's
-    // assessment list, the segment explorer's slice axes and the Map's
-    // anchor ring all named it. Walking both tabs is what this file already
-    // does for the boundary; this adds the string.
-    const expectNoBoundary = mountApp();
-    fireEvent.click(screen.getByRole("button", { name: /^mirror$/i }));
-    await act(async () => {});
-    expect(document.body.textContent).not.toMatch(/cognitive style/);
-    expectNoBoundary("mirror without the cognitive assessment");
   });
 
   it("leaves the other four whole", async () => {

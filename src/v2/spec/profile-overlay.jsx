@@ -109,8 +109,12 @@ function ProfileOverlay({ onClose, me, lensBoxed }) {
         <div style={{ width: 32, flexShrink: 0 }} />
       </div>
       <div className="app-body" style={{ paddingTop: 0 }}>
-        {/* compact identity row — the content is the star, not the header */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginTop: 16 }}>
+        {/* compact identity row — the content is the star, not the header.
+            Tightened 2026-08-12 with the double-inset fix above it: this
+            row sat under ~146px of doubled status-bar padding, so its own
+            52px avatar and 16px lead were the second half of a profile
+            that opened on a third of a screen saying "You". */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 10 }}>
           {(() => {
             const live = window.LIVE && window.LIVE.enabled;
             const nm = live ? (window.LIVE.displayName || 'You') : me.name;
@@ -120,10 +124,10 @@ function ProfileOverlay({ onClose, me, lensBoxed }) {
             const sub = live ? 'anonymous session — link Google below to keep it' : (me.location + ' · ' + me.country);
             return (
               <>
-                <Av init={init} hue={38} size={52} />
+                <Av init={init} hue={38} size={42} />
                 <div style={{ minWidth: 0 }}>
-                  <div style={{ fontFamily: 'var(--sans)', fontWeight: 700, fontSize: 20, letterSpacing: '-0.02em', lineHeight: 1.15 }}>{nm}</div>
-                  <div style={{ fontFamily: 'var(--sans)', fontSize: 13, color: 'var(--ink-3)', marginTop: 3 }}>{sub}</div>
+                  <div style={{ fontFamily: 'var(--sans)', fontWeight: 700, fontSize: 18, letterSpacing: '-0.02em', lineHeight: 1.15 }}>{nm}</div>
+                  <div style={{ fontFamily: 'var(--sans)', fontSize: 12.5, color: 'var(--ink-3)', marginTop: 2 }}>{sub}</div>
                 </div>
               </>
             );

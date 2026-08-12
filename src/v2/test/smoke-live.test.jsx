@@ -490,6 +490,12 @@ describe("the live gates hold in the DOM, not just in the source", () => {
       "the live sheet advertised leaves the live bank does not stock",
     ).toBeNull();
     expect(screen.queryByText(/0 questions/), "an empty room was offered").toBeNull();
+    // Any population claim, not just the one string that shipped. The
+    // sheet grew a channel list on 2026-08-12 (the other half of D96 — see
+    // world-feed.jsx's renderAdd), and the whole point of that list is that
+    // every number on it is counted rather than claimed, so the assertion
+    // that used to be about one leaked row now covers the section too.
+    expect(screen.queryByText(/\d+ people/), "a fabricated population came back").toBeNull();
     expect(screen.getByText("Learn")).not.toBeNull();
     expect(screen.getByRole("button", { name: "lots" })).not.toBeNull();
     expect(screen.getByRole("button", { name: /suggest a question/i })).not.toBeNull();

@@ -1379,6 +1379,17 @@ class WorldFeed extends React.Component {
     return q.type === 'rank' ? !!(v && v.order) : v != null;
   }
 
+  // The feed's source pool, read in one place by the two callers that need
+  // it: the stream itself and the topic sheet's per-channel counts.
+  //
+  // `window.` rather than an ESM import, and it is not a bridge relic:
+  // data/live.ts REPLACES this array wholesale on boot (buildFeedGlobals),
+  // so an imported binding would freeze the demo pool into a live build —
+  // exactly the failure spec-index.js records for the module-scope read in
+  // daily-split. One read behind one name keeps D39's meter honest about
+  // that: this file couples to the global once, not once per caller.
+  feedPool() { return window.WORLD_FEED_QS || []; }
+
   // ── takes + who-voted — open as bottom sheets (revealed only after answering) ──
   renderEngage(q, T, big) {
     // D1 scoped free-text takes to circles; D83 adopted D78 part 2, so a
@@ -1605,7 +1616,7 @@ class WorldFeed extends React.Component {
       </Sheet>, host);
   }
 
-  // ── follow more: topics (with their leaves) first, then communities ──
+  // ── your topics first, then more to follow: leaves, then communities ──
   // Scenes are a local, client-side subscription (window.SCENES) — following
   // one changes which questions the feed mixes in and nothing that leaves
   // the device.
@@ -1613,6 +1624,69 @@ class WorldFeed extends React.Component {
     const SC = window.SCENES;
     const ST = window.SUBTOPICS;
     const label = { fontFamily: 'var(--sans)', fontSize: 11.5, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--ink-3)', margin: '4px 2px 6px' };
+    // ── the topics that actually stock your feed ──────────────────────
+    //
+    // WHY THIS SECTION EXISTS. D96 was right to cut the demo communities:
+    // "Writing · 2.1K people · Murakami, Solnit, Knausgård" with a Follow
+    // button is a population invented about nobody, offered to a real user
+    // (D1). But cutting them left a sheet called "Add a topic" holding
+    // nothing but the Learn dial, and the owner read that on a device
+    // exactly as it looks — "interests seem to have been removed, only the
+    // sample data of fake amounts of users" (2026-08-12). Both halves of
+    // that sentence were true, and the second one was the fix.
+    //
+    // The honest replacement is the thing D96 part 3 already made true and
+    // never showed anyone: a live build runs EVERY subject its bank stocks,
+    // always on. So this names them, counts them out of the same pool the
+    // feed is built from, and gives each the mute the chip row has. Every
+    // number here is measured — questions in the bank, and how many of them
+    // you have answered. No member counts, no vibes, nothing this build
+    // cannot source.
+    //
+    // Channels only, not scenes and leaves: those two have a follow to
+    // remove and surfaces that own it (the profile's scenes card, search),
+    // while an always-on channel has no management surface anywhere else —
+    // it is exactly the set that looked deleted.
+    //
+    // `n > 0` filters the same way SUBTOPICS.offers() does, and for D96's
+    // reason rather than for tidiness: a room with nothing in it should not
+    // be advertised, and in a live build `places`/`fav` are precisely that
+    // (the bank mapper emits neither rate nor pick cards).
+    const catsOn = this.props.cats || {};
+    const onToggle = this.props.onToggle;
+    const stock = {};
+    this.feedPool().forEach((q) => {
+      if (!q || !q.cat) return;
+      const s = stock[q.cat] || (stock[q.cat] = { n: 0, done: 0 });
+      s.n++;
+      if (this.answered(q)) s.done++;
+    });
+    const mine = WF_CHANNELS.map((id) => WF_TOPIC[id]).filter(Boolean)
+      .map((t) => ({ ...t, ...(stock[t.id] || { n: 0, done: 0 }) }))
+      .filter((t) => t.n > 0);
+    const topicRow = (t) => {
+      const on = catsOn[t.id] !== false;
+      const col = WPAL.c(t.color);
+      return (
+        <div key={t.id} style={{ display: 'flex', alignItems: 'center', gap: 11, padding: '11px 2px', borderTop: '0.5px solid color-mix(in oklch, var(--rule), transparent 25%)' }}>
+          {/* filled when the topic is on, ringed when muted — the same
+              on/off grammar the chip row's dot uses, so the two rails
+              read as one control seen twice */}
+          <span aria-hidden="true" style={on
+            ? { width: 9, height: 9, borderRadius: '50%', background: col, flexShrink: 0 }
+            : { width: 9, height: 9, borderRadius: '50%', background: 'transparent', boxShadow: `inset 0 0 0 1.5px ${col}`, flexShrink: 0 }}></span>
+          <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 1 }}>
+            <span style={{ fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 14.5, color: on ? 'var(--ink)' : 'var(--ink-3)' }}>{t.label}</span>
+            <span style={{ fontFamily: 'var(--sans)', fontWeight: 600, fontSize: 11.5, color: 'var(--ink-3)' }}>{t.n} question{t.n === 1 ? '' : 's'} · {t.done} answered{on ? '' : ' · muted'}</span>
+          </div>
+          {onToggle && (
+            <button className="press" onClick={() => onToggle(t.id)} aria-pressed={!on}
+              aria-label={(on ? 'Mute ' : 'Unmute ') + t.label}
+              style={{ flexShrink: 0, border: on ? '0.5px solid var(--rule)' : 'none', borderRadius: 999, padding: '7px 14px', fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 12.5, cursor: 'pointer', background: on ? 'var(--surface-2)' : 'var(--ink)', color: on ? 'var(--ink-2)' : 'var(--surface)', WebkitAppearance: 'none' }}>{on ? 'Mute' : 'Unmute'}</button>
+          )}
+        </div>
+      );
+    };
     // offers(), not all()/defs(): the stores decide what may be advertised —
     // stocked leaves only, and no demo communities in a live build (D96)
     const openLeaves = ST ? ST.offers().filter((s) => {
@@ -1635,21 +1709,26 @@ class WorldFeed extends React.Component {
     );
     return (
       <div style={{ display: 'flex', flexDirection: 'column' }}>
-        {openLeaves.length ? <div style={label}>Topics</div> : null}
+        {mine.length ? <div style={label}>Your topics</div> : null}
+        {mine.map(topicRow)}
+        {openLeaves.length ? <div style={{ ...label, marginTop: mine.length ? 18 : 4 }}>Topics</div> : null}
         {openLeaves.map((s) => row(s.id, WPAL.c((WF_TOPIC[s.parent] || {}).color), s.label,
           `${(WF_TOPIC[s.parent] || {}).label || s.parent} · ${ST.count(s.id)} questions`,
           () => { ST.follow(s.id); this.forceUpdate(); }))}
-        {open.length ? <div style={{ ...label, marginTop: openLeaves.length ? 18 : 4 }}>Communities</div> : null}
+        {open.length ? <div style={{ ...label, marginTop: openLeaves.length || mine.length ? 18 : 4 }}>Communities</div> : null}
         {open.map((g) => row(g.id, SC && SC.colorOf ? SC.colorOf(g.id) : null, g.name,
           `${wfFmt(g.members)} people · ${g.vibe}`,
           () => { SC.follow(g.id); this.forceUpdate(); }))}
-        {open.length === 0 && openLeaves.length === 0 && !learnOpen.length && (
+        {/* "you follow every topic" is now only true when there is also
+            nothing to manage — with the channel list above it, an empty
+            offers() is no longer an empty sheet */}
+        {mine.length === 0 && open.length === 0 && openLeaves.length === 0 && !learnOpen.length && (
           <div style={{ fontFamily: 'var(--sans)', fontSize: 13, fontWeight: 600, color: 'var(--ink-3)', textAlign: 'center', padding: '28px 0' }}>You follow every topic.</div>
         )}
         {/* knowledge — the frequency control lives where follows live, and stays
             coarse: how many fields you follow is already an intensity dial. */}
         {LF ? (
-          <div style={{ marginTop: open.length || openLeaves.length ? 20 : 2 }}>
+          <div style={{ marginTop: open.length || openLeaves.length || mine.length ? 20 : 2 }}>
             <div style={label}>Learn</div>
             <p style={{ margin: '0 2px 11px', fontFamily: 'var(--sans)', fontSize: 12.5, fontWeight: 500, lineHeight: 1.45, color: 'var(--ink-3)', textWrap: 'pretty' }}>Questions with a right answer, mixed into the feed. Get one right and it lands on your map.</p>
             <div style={{ display: 'flex', gap: 4, padding: 3, border: '0.5px solid var(--rule)', background: 'var(--surface)', borderRadius: 999 }}>
@@ -2584,7 +2663,7 @@ class WorldFeed extends React.Component {
       const t = SC.topicOf(s.id); if (t) pulled[t] = true;
     });
     if (ST) ST.mine().forEach((s) => { if (cats[s.id] !== false && !owned[s.id]) leafOn[s.id] = true; });
-    const qs = (window.WORLD_FEED_QS || []).filter((q) => q.scene
+    const qs = this.feedPool().filter((q) => q.scene
       ? (SC ? SC.has(q.scene) && cats[q.scene] !== false : false)
       : (q.sub && leafOn[q.sub]) || (WF_CHAN_SET[q.cat] ? cats[q.cat] !== false : (SC ? !!pulled[q.cat] : cats[q.cat] !== false)));
     // interleave streams round-robin so the feed reads as a mix, not blocks
