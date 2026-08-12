@@ -1,8 +1,8 @@
 // Ported from design/spec-modules/scenes.js (the historical prototype — no sync
 // script survives; THIS file is the live source now, hand-edits and all).
-// Cross-module references resolve through the shared global scope and
-// spec-index.js load order is semantic — scripts/check-spec-globals.mjs
-// guards the wiring in CI.
+// OFF THE GLOBAL BRIDGE (D104): `SCENES` is a named export, not a
+// `window.SCENES`, so its four consumers hold it as a module binding that
+// load order cannot leave unset. Nothing here publishes to global scope.
 import React from 'react';
 import { IS_DATA } from './sample-data.js';
 import { WPAL } from './world-palette.js';
@@ -15,6 +15,15 @@ import LIVE from '../data/live';
 // (Mirror) is where you see and manage them, the World feed chip row is the same
 // list acting as filter. A scene is a community (members, match, vibe — defs live
 // in data.js groups) that also feeds you its questions. Persisted locally.
+//
+// The binding is hoisted above the IIFE and assigned inside it — the shape
+// DAILYQ and FRIENDS took, and for the same reason: the wrapper is vestigial
+// (an ESM module already has its own scope) but unwrapping it re-indents
+// sixty lines and would bury the one real edit in a whitespace diff. ESM
+// exports are live and this module finishes evaluating before any importer's
+// body runs, so consumers always see the object. Unwrap it in its own commit
+// if it is ever worth doing.
+export let SCENES;
 (function () {
   const LS = 'insight.scenes.v1';
   // A live build starts with ZERO followed scenes. The demo seed below
@@ -52,7 +61,7 @@ import LIVE from '../data/live';
   // from storage — now empty, so the sample-data default — instead of the
   // previous account's follow list surviving to be persisted back.
   window.addEventListener('insight:local-purge', () => { set = null; listeners.forEach((f) => f()); });
-  window.SCENES = {
+  SCENES = {
     topicOf: (id) => TOPIC[id] || null,
     subOf: (id) => SUB[id] || null,
     hueOf, colorOf,

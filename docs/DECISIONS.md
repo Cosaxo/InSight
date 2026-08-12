@@ -9784,3 +9784,144 @@ because the flag is read at module scope and both suites are demo builds.
 style") is a different instrument with its own questions and stays. Two
 names in the same app is worth a look; retiring a live lens is not a
 side effect of retiring a test.
+
+## D104 · Two providers leave the bridge, and the mount suite stops being one file
+
+**Decided:** 2026-08-12 · **Status:** binding · Two independent findings
+from an audit of the tree, both of the same kind: a gate that had stopped
+measuring the thing its prose claimed.
+
+**Decision.** `duels-data.js` and `scenes.js` convert to named exports,
+taking D39's coupling ratchet **507 → 457**. `smoke.test.jsx` splits into
+five files over one harness (`test/mount-app.jsx`), removing a 90-second
+serial floor from `test:unit`. Nothing about either is new mechanism —
+both are procedures this repo has already run and written down.
+
+### CLAUDE.md said the cheap seam was exhausted; it was not
+
+"**Convert on touch.** The cheap seam is exhausted, so this is no longer
+a project." That sentence has been in CLAUDE.md since D39's follow-ups,
+and `src/v2/README.md` had already recorded it being wrong once —
+`test-definitions.js` and `passive-progress.js` were named as the two
+*not* to start with, on the grounds that they formed import cycles, and
+converting them produced the largest single drop the ratchet has seen
+(657 → 540) once someone checked the graph instead of re-reading the
+paragraph.
+
+It was wrong a second time, and the check that shows it is one the
+ratchet's own data already supports. Rule 4 reports per **consumer**,
+which is the right shape for a ratchet and the wrong shape for planning:
+it says `world-feed.jsx` holds 153 sites without saying whose. Rebuilt
+per **provider**, out of `spec-globals.mjs`'s `definedBy`/`referenced`
+maps:
+
+| provider | sites | consumers | outgoing coupling |
+| --- | ---: | ---: | ---: |
+| `data/live.ts` (`LIVE`) | 86 | 13 | — already ESM |
+| `spec/app-shell.jsx` (8 openers) | 49 | 15 | navigation bus |
+| `spec/duels-data.js` (`DUELS`) | 27 | 9 | **0** |
+| `spec/learn-progress.js` (`LEARN`) | 25 | 5 | 8 |
+| `spec/scenes.js` (`SCENES`) | 23 | 4 | **0** |
+
+The two zero-outgoing rows are single-writer, IIFE-wrapped pure
+providers that already import their own dependencies as ESM — the exact
+shape of `DAILYQ`, `FRIENDS` and `WF_CATALOGS`, down to the hoisted
+`export let` the wrapper forces. They are what "exhausted" was covering.
+Converted, they are worth 50 sites, which is 10% of the whole meter for
+two mechanical changes.
+
+**Add the provider view to the planning, not to the gate.** Rule 4 stays
+per-consumer; the finding is that anyone planning a conversion should
+transpose it first. `LEARN` is next by the same reading, and its 8
+outgoing references are not an obstacle: converting what a module
+*provides* is independent of what it *consumes* (the `DAILYQ` lesson).
+
+### The bridge was hiding React Compiler findings, and that is the real cost
+
+The conversion retired four `exhaustive-deps` suppressions for free — an
+imported binding is a stable dep where `window.DUELS` is an expression
+eslint cannot prove stable — and then surfaced **six `refs` findings that
+had never been reported at all**, in `DuoBody` and `GroupDailyBody`. The
+React Compiler cannot resolve a value arriving through global scope, so
+it had been bailing out of both components entirely.
+
+Verified rather than inferred, because the alternative reading is that
+this change introduced them: both files at the previous commit lint
+clean, and the only change to either is the import line. Probed by
+linting the pre-change copies.
+
+So the suppression count in `src/v2/README.md` goes **31 → 33**, and the
+increase is the honest direction. 31 was an understatement of the debt by
+however much the bridge was concealing, and **every remaining conversion
+should be expected to raise that number before it lowers it**. The six
+new ones carry targeted `eslint-disable-next-line react-hooks/refs` with
+the reasoning at the site, and the fix is named there: `const [order] =
+useState(() => …)` is the same once-only computation in the shape the
+Compiler accepts. Not taken here — a behaviour-adjacent edit to ported
+JSX does not belong inside a mechanical module conversion, and it wants
+a test that asserts the order really is frozen.
+
+### The guard shapes were a list again, exactly as recorded
+
+`follows.js`'s conversion left the rule "the guard shapes are a list, not
+a pattern: `(X || {})`, `X?.`, `X ? … : …`, `!X || …`, `X && …`, and
+`if (X) …`". Both conversions here hit five of the six, plus two the list
+does not name and should:
+
+- **A member-presence guard.** `SC.colorOf ? SC.colorOf(g.id) : null`
+  and `D.duoAvailable ? D.duoAvailable() : []` — six sites. These are not
+  guarding the module, they are guarding a member of an object literal
+  that always defines it, which is the same load-order fear one level
+  down.
+- **A fallback that duplicates the store's own default.**
+  `mirror-field-pops.jsx` seeded its scene set as
+  `window.SCENES ? SCENES.list() : D.groups.filter(g => g.joined)` — and
+  the else branch is precisely what `scenes.js` derives internally in a
+  demo build. In a LIVE build it was worse than dead: it would have
+  seeded the demo follows D96 exists to refuse, had the global ever been
+  unset when that component first rendered.
+
+### The mount suite was 98% of its own runner
+
+`test:unit` is 51 files. `smoke.test.jsx` was 32 cases in one of them,
+and vitest schedules a **file** to a worker — so it was a serial floor no
+amount of parallelism could lower: **90.2 s of a 92.2 s wall clock**, with
+the other fifty files finishing inside it. Split five ways along the
+`describe` seams it already had, with the setup moved to
+`test/mount-app.jsx` rather than copied.
+
+Two things the measurement did not buy, recorded because the obvious
+prediction was wrong in both places:
+
+- **Wall clock went 87 → 71 s, not to ~35 s.** With the single-file floor
+  gone it is the aggregate that binds on a 4-core runner (which is what
+  `ubuntu-latest` gives), not any one file. The floor itself is genuinely
+  gone — longest mount file 32.7 s, and the suite's longest file is now
+  `smoke-live.test.jsx` at 34.8 s, which was never the bottleneck.
+- **It does not unblock full-tree `test:coverage`.** Per-TEST durations
+  are unchanged (slowest 9.0 s before and after), and `vite.config.ts`
+  scopes coverage to `src/v2/data` because v8 instrumentation triples
+  mount cases against a 15 s per-test timeout. A file split cannot move a
+  per-test number. The claim that it would was made before it was
+  measured; this is the correction.
+
+**Cost accepted.** Five files each pay their own `spec-index` import
+(~14 s more total work than one file did), because vitest's module cache
+is per worker. Worth it to delete a 90 s serial floor; not worth it per
+case, which is why the harness header says to put a new case in the file
+that already loads its screen and add a file only when one crosses ~30 s.
+
+**What no gate covers.** Nothing stops the five files silently
+re-merging, or a sixth being added that duplicates a load for two cases.
+The number that would catch it — longest single test FILE — is not
+ratcheted, and is not worth a gate at this size; `check:figures` does not
+own these figures either. The README's table is the record.
+
+### Also found, not fixed
+
+The entry chunk came down 729 → 707 KB as a side effect: the removed
+global registrations and dead guards were shipping. Noted rather than
+credited to anything — `check:bundle`'s per-chunk headroom is 28 KB now
+where it was 6, which is slack that will get spent, and the ceiling is
+deliberately not being lowered to match inside a change that was not
+about the bundle.

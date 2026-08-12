@@ -5,6 +5,7 @@
 // guards the wiring in CI.
 import React from 'react';
 import { DAILYQ } from './daily-questions.js';
+import { DUELS } from './duels-data.js';
 import { list as anchorList } from './map-anchors.js';
 
 // InSight — Map tab: a constellation of every Daily-Question answer around a
@@ -31,9 +32,7 @@ function MapTab({ rail = true, anchorsOn = true, recency = true, fields: fieldsO
   useEffect(() => {
     if (window.LEARN && window.LEARN.subscribe) return window.LEARN.subscribe(() => setDqv((x) => x + 1));
   }, []);
-  useEffect(() => {
-    if (window.DUELS && window.DUELS.subscribe) return window.DUELS.subscribe(() => setDqv((x) => x + 1));
-  }, []);
+  useEffect(() => DUELS.subscribe(() => setDqv((x) => x + 1)), []);
   // ── anchors: the profile ring at the centre ───────────────────────────────
   // State fed by the store's own event, not a mount-once memo. The mock list
   // is a constant and `useMemo(…, [])` was fine for it; the live one is not

@@ -24,8 +24,10 @@ beforeEach(() => {
 });
 
 async function scenes() {
-  await import("../spec/scenes.js");
-  return window.SCENES;
+  // The named export, not window.SCENES (D104). vi.resetModules() above
+  // means each call re-evaluates the module against the stubbed env, and a
+  // fresh evaluation returns a fresh binding — which is the whole harness.
+  return (await import("../spec/scenes.js")).SCENES;
 }
 async function subtopics() {
   await import("../spec/world-subtopics.js");

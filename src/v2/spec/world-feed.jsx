@@ -13,6 +13,7 @@ import LiveVotersPanel from '../ui/LiveVotersPanel';
 import { WPAL } from './world-palette.js';
 import { HAPTIC } from './haptics.js';
 import { WF_CATALOGS } from './world-catalogs.js';
+import { SCENES } from './scenes.js';
 import { Sheet } from './primitives.jsx';
 // The feed's cadence arithmetic — extracted so the test exercises THIS loop
 // rather than a copy of it (D11's claim, D42's citation; see the module).
@@ -231,7 +232,7 @@ class WorldFeed extends React.Component {
   componentDidMount() {
     this.applySnap(); this._retry = setTimeout(() => this.applySnap(), 400);
     // scenes followed elsewhere (orbit, suggestion card) appear here live
-    this._unsubScenes = window.SCENES ? window.SCENES.subscribe(() => this.forceUpdate()) : null;
+    this._unsubScenes = SCENES.subscribe(() => this.forceUpdate());
     // Reconcile with the live store. The feed seeds its votes from
     // localStorage at mount and never looked at LIVE again, so a vote the
     // server REFUSED — LIVE rolls it back and scrubs the WF_LS mirror —
@@ -1617,11 +1618,10 @@ class WorldFeed extends React.Component {
   }
 
   // ── your topics first, then more to follow: leaves, then communities ──
-  // Scenes are a local, client-side subscription (window.SCENES) — following
-  // one changes which questions the feed mixes in and nothing that leaves
-  // the device.
+  // Scenes are a local, client-side subscription (SCENES) — following one
+  // changes which questions the feed mixes in and nothing that leaves the
+  // device.
   renderAdd() {
-    const SC = window.SCENES;
     const ST = window.SUBTOPICS;
     const label = { fontFamily: 'var(--sans)', fontSize: 11.5, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--ink-3)', margin: '4px 2px 6px' };
     // ── the topics that actually stock your feed ──────────────────────
@@ -1691,10 +1691,10 @@ class WorldFeed extends React.Component {
     // stocked leaves only, and no demo communities in a live build (D96)
     const openLeaves = ST ? ST.offers().filter((s) => {
       if (ST.has(s.id)) return false;
-      const own = SC && SC.subOf ? SC.mine().some((g) => SC.subOf(g.id) === s.id) : false;
+      const own = SCENES.mine().some((g) => SCENES.subOf(g.id) === s.id);
       return !own;                                    // a followed community already covers its leaf
     }) : [];
-    const open = SC ? SC.offers().filter((g) => !SC.has(g.id)).sort((a, b) => b.match - a.match) : [];
+    const open = SCENES.offers().filter((g) => !SCENES.has(g.id)).sort((a, b) => b.match - a.match);
     const L = window.LEARN, LF = window.LEARN_FEED;
     const learnOpen = L ? L.fields().filter((f) => !L.has(f.id)) : [];
     const row = (key, col, name, meta, onFollow, ring) => (
@@ -1716,9 +1716,9 @@ class WorldFeed extends React.Component {
           `${(WF_TOPIC[s.parent] || {}).label || s.parent} · ${ST.count(s.id)} questions`,
           () => { ST.follow(s.id); this.forceUpdate(); }))}
         {open.length ? <div style={{ ...label, marginTop: openLeaves.length || mine.length ? 18 : 4 }}>Communities</div> : null}
-        {open.map((g) => row(g.id, SC && SC.colorOf ? SC.colorOf(g.id) : null, g.name,
+        {open.map((g) => row(g.id, SCENES.colorOf(g.id), g.name,
           `${wfFmt(g.members)} people · ${g.vibe}`,
-          () => { SC.follow(g.id); this.forceUpdate(); }))}
+          () => { SCENES.follow(g.id); this.forceUpdate(); }))}
         {/* "you follow every topic" is now only true when there is also
             nothing to manage — with the channel list above it, an empty
             offers() is no longer an empty sheet */}
@@ -1763,7 +1763,7 @@ class WorldFeed extends React.Component {
       rows.push(['Crowd', kn.p + '% get this right']);
       rows.push(['On your map', 'Knowledge']);
     } else {
-      const scene = q.scene && window.SCENES ? window.SCENES.defs().find((g) => g.id === q.scene) : null;
+      const scene = q.scene ? SCENES.defs().find((g) => g.id === q.scene) : null;
       const leaf = q.sub ? WF_SUB(q.sub) : null;
       rows.push(['Asked in', scene ? scene.name : leaf ? leaf.label : T.label]);
       const cat = q.type === 'pick' ? WF_CATALOGS[q.catalog] : null;
@@ -2523,7 +2523,7 @@ class WorldFeed extends React.Component {
     const T0 = kn ? { label: kn.label, color: window.LEARN.colorOf(q.f) } : cg && cg.hue ? { label: (WF_TOPIC[q.cat] || {}).label || q.cat, color: 'oklch(0.52 0.14 ' + cg.hue + ')' } : mk ? { label: mk.label, color: mk.accent } : (WF_TOPIC[q.cat] || { label: q.cat, color: 'var(--ink-3)' });
     // one gate for all four hue sources — see world-palette.js
     const T = { ...T0, color: WPAL.c(T0.color) };
-    const scene = !mk && !kn && q.scene && window.SCENES ? window.SCENES.defs().find((g) => g.id === q.scene) : null;
+    const scene = !mk && !kn && q.scene ? SCENES.defs().find((g) => g.id === q.scene) : null;
     const leaf = !mk && !kn && !q.scene && q.sub ? WF_SUB(q.sub) : null;
     const kickLabel = scene ? scene.name : (tm ? tm.label + ' test' : (lz ? lz.title : leaf ? leaf.label : T.label));
     // the quiet marker that this one has a right answer: a ring, not a filled dot
@@ -2620,8 +2620,7 @@ class WorldFeed extends React.Component {
   // the feed-side twin of the orbit's suggested ring — one quiet card offering
   // a scene to follow; prefers one that adds a stream you don't have yet
   renderSuggestion(sugg, snap) {
-    const SC = window.SCENES;
-    const t = WF_TOPIC[SC.topicOf(sugg.id)] || null;
+    const t = WF_TOPIC[SCENES.topicOf(sugg.id)] || null;
     const col = t ? t.color : 'var(--ink-3)';
     return (
       <div key="scene-sugg" style={{ border: '1.5px dashed color-mix(in oklch, var(--rule), var(--ink) 20%)', borderRadius: 18, padding: '14px 15px', display: 'flex', alignItems: 'center', gap: 12, background: 'var(--surface)', boxSizing: 'border-box', scrollSnapAlign: snap ? 'start' : undefined }}>
@@ -2630,7 +2629,7 @@ class WorldFeed extends React.Component {
           <span style={{ fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 15 }}>{sugg.name}</span>
           <span style={{ fontFamily: 'var(--sans)', fontWeight: 600, fontSize: 11.5, color: 'var(--ink-3)' }}>suggested scene · {wfFmt(sugg.members)} people · {sugg.vibe}</span>
         </div>
-        <button className="press" onClick={() => SC.follow(sugg.id)} style={{ border: 'none', borderRadius: 999, padding: '8px 15px', fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 12.5, cursor: 'pointer', background: 'var(--ink)', color: 'var(--surface)', flexShrink: 0, WebkitAppearance: 'none' }}>Follow</button>
+        <button className="press" onClick={() => SCENES.follow(sugg.id)} style={{ border: 'none', borderRadius: 999, padding: '8px 15px', fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 12.5, cursor: 'pointer', background: 'var(--ink)', color: 'var(--surface)', flexShrink: 0, WebkitAppearance: 'none' }}>Follow</button>
       </div>
     );
   }
@@ -2647,25 +2646,24 @@ class WorldFeed extends React.Component {
       );
     }
     const { cats, onToggle } = this.props;
-    const SC = window.SCENES;
-    const scenes = SC ? SC.mine() : [];
+    const scenes = SCENES.mine();
     // topics pulled in by a live (followed + unmuted) scene — but a scene that
     // owns a subtopic pulls only that leaf, so the two never double up
     const ST = window.SUBTOPICS;
     const pulled = {};
     const leafOn = {};
     const owned = {};
-    if (SC) scenes.forEach((s) => {
-      const lf = SC.subOf ? SC.subOf(s.id) : null;
+    scenes.forEach((s) => {
+      const lf = SCENES.subOf(s.id);
       if (lf) owned[lf] = true;
       if (cats[s.id] === false) return;
       if (lf) { leafOn[lf] = true; return; }
-      const t = SC.topicOf(s.id); if (t) pulled[t] = true;
+      const t = SCENES.topicOf(s.id); if (t) pulled[t] = true;
     });
     if (ST) ST.mine().forEach((s) => { if (cats[s.id] !== false && !owned[s.id]) leafOn[s.id] = true; });
     const qs = this.feedPool().filter((q) => q.scene
-      ? (SC ? SC.has(q.scene) && cats[q.scene] !== false : false)
-      : (q.sub && leafOn[q.sub]) || (WF_CHAN_SET[q.cat] ? cats[q.cat] !== false : (SC ? !!pulled[q.cat] : cats[q.cat] !== false)));
+      ? SCENES.has(q.scene) && cats[q.scene] !== false
+      : (q.sub && leafOn[q.sub]) || (WF_CHAN_SET[q.cat] ? cats[q.cat] !== false : !!pulled[q.cat]));
     // interleave streams round-robin so the feed reads as a mix, not blocks
     const byKey = {}; const keys = [];
     qs.forEach((q) => { const k = q.scene || q.sub || q.cat; if (!byKey[k]) { byKey[k] = []; keys.push(k); } byKey[k].push(q); });
@@ -2761,20 +2759,17 @@ class WorldFeed extends React.Component {
       : null;
     // chip row = your scenes, your followed leaves, then the always-on channels
     const chips = [
-      ...scenes.map((s) => ({ id: s.id, label: s.name, color: window.SCENES && window.SCENES.colorOf ? window.SCENES.colorOf(s.id) : null, scene: true })),
+      ...scenes.map((s) => ({ id: s.id, label: s.name, color: SCENES.colorOf(s.id), scene: true })),
       ...(ST ? ST.mine().filter((s) => !owned[s.id]).map((s) => ({ id: s.id, label: s.label, color: WPAL.c((WF_TOPIC[s.parent] || {}).color) || null })) : []),
       ...WF_CHANNELS.map((id) => WF_TOPIC[id]).filter(Boolean).map((t) => ({ id: t.id, label: t.label })),
       ...(window.LEARN ? window.LEARN.mine().map((fd) => ({ id: 'lrn-' + fd.id, label: fd.label, color: WPAL.c(window.LEARN.colorOf(fd.id)), know: true })) : []),
     ];
-    let sugg = null;
-    if (SC) {
-      // offers(), not defs(): a live build advertises no demo scene, so the
-      // dashed "suggested scene · 3.2K people" card simply never renders
-      // there (D96) — the same store-level gate the add sheet reads.
-      const cand = SC.offers().filter((g) => !SC.has(g.id));
-      cand.sort((a, b) => ((pulled[SC.topicOf(b.id)] ? 0 : 1) - (pulled[SC.topicOf(a.id)] ? 0 : 1)) || (b.match - a.match));
-      sugg = cand[0] || null;
-    }
+    // offers(), not defs(): a live build advertises no demo scene, so the
+    // dashed "suggested scene · 3.2K people" card simply never renders
+    // there (D96) — the same store-level gate the add sheet reads.
+    const cand = SCENES.offers().filter((g) => !SCENES.has(g.id));
+    cand.sort((a, b) => ((pulled[SCENES.topicOf(b.id)] ? 0 : 1) - (pulled[SCENES.topicOf(a.id)] ? 0 : 1)) || (b.match - a.match));
+    const sugg = cand[0] || null;
     const snap = this.props.density !== 'compact';
     return (
       <div ref={(n) => { this._root = n; }} style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 8 }}>

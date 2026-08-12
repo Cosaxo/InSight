@@ -5,6 +5,7 @@
 // guards the wiring in CI.
 import React from 'react';
 import { ReadRun } from './read-run.jsx';
+import { DUELS } from './duels-data.js';
 import { Kicker } from './primitives.jsx';
 
 // map-people.jsx — how you and your circle read each other in the daily
@@ -20,16 +21,14 @@ import { Kicker } from './primitives.jsx';
     return <ReadRun days={days} color={color || 'var(--c-likeness)'} size={9}></ReadRun>;
   }
   const dotsFor = (pid, total, key) => {
-    const D = window.DUELS;
-    return Array.from({ length: total }, (_, i) => D.duoDay(pid, total - i)[key]);
+    return Array.from({ length: total }, (_, i) => DUELS.duoDay(pid, total - i)[key]);
   };
 
   // ── branch card: both directions of knowing ────────────────────────────────
   function MTPeopleCard({ onPick }) {
-    const D = window.DUELS;
-    const ps = D.partners().filter((p) => p.read.total > 0);
-    const gaps = D.impressions().slice(0, 2);
-    const al = D.groupAlignment();
+    const ps = DUELS.partners().filter((p) => p.read.total > 0);
+    const gaps = DUELS.impressions().slice(0, 2);
+    const al = DUELS.groupAlignment();
     return (
       <div style={{ '--hue': PEOPLE_CAT.hue }}>
         <div className="mmt-slim">
@@ -68,8 +67,7 @@ import { Kicker } from './primitives.jsx';
 
   // ── person card: one relationship, both directions ─────────────────────────
   function MTPersonCard({ node }) {
-    const D = window.DUELS;
-    const p = D.partners().find((x) => x.id === node.pid);
+    const p = DUELS.partners().find((x) => x.id === node.pid);
     if (!p) return null;
     const gap = p.misses.length ? p.misses[0] : null;
     return (
@@ -99,15 +97,12 @@ import { Kicker } from './primitives.jsx';
 
   // ── circle lens card: both directions of knowing, under the relationship map ──
   function CircleReadCard() {
-    const D = window.DUELS;
     const [, bump] = React.useReducer((x) => x + 1, 0);
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- ported effect; see src/v2/README.md § Lint suppressions
-    React.useEffect(() => (D ? D.subscribe(bump) : undefined), []);
-    if (!D) return null;
-    const ps = D.partners().filter((p) => p.read.total > 0);
+    React.useEffect(() => DUELS.subscribe(bump), []);
+    const ps = DUELS.partners().filter((p) => p.read.total > 0);
     if (!ps.length) return null;
-    const gaps = D.impressions().slice(0, 2);
-    const al = D.groupAlignment();
+    const gaps = DUELS.impressions().slice(0, 2);
+    const al = DUELS.groupAlignment();
     return (
       <div className="card" style={{ marginBottom: 14, '--hue': PEOPLE_CAT.hue }}>
         <Kicker>Daily duels</Kicker>

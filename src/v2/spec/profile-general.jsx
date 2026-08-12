@@ -10,10 +10,10 @@ import { PASSIVE } from './passive-progress.js';
 import { list as anchorList } from './map-anchors.js';
 import { PROFILE_GENERAL_LS } from '../data/cityAnchor';
 // An import, not the window.PLACES read this file used to carry — the
-// typed module is importable from spec (logic-test precedent), and the
-// two freed reference sites pay for the live scenes card's window.SCENES
-// read below, so the D39 coupling meter moves DOWN with this change.
+// typed module is importable from spec (logic-test precedent), so the D39
+// coupling meter moves DOWN with this change.
 import PLACES from '../data/places';
+import { SCENES } from './scenes.js';
 
 // ─────────────────────────────────────────────────────────────
 // General tab · the parts of you that aren't a test.
@@ -509,12 +509,8 @@ import PLACES from '../data/places';
   // likeness return when a real source feeds them, not before.
   function LiveScenesCard() {
     const [, bump] = useState(0);
-    const SC = window.SCENES;
-    // [SC] rather than a deps suppression: the store is a module-level
-    // singleton, so the identity never changes and this still runs once.
-    useEffect(() => (SC ? SC.subscribe(() => bump((b) => b + 1)) : undefined), [SC]);
-    if (!SC) return null;
-    const mine = SC.mine();
+    useEffect(() => SCENES.subscribe(() => bump((b) => b + 1)), []);
+    const mine = SCENES.mine();
     if (mine.length === 0) {
       // The copy used to send you to "the daily's topic row and in search —
       // follow one", which in a live build is a door onto an empty room:
@@ -534,9 +530,9 @@ import PLACES from '../data/places';
       <div className="card" style={{ padding: '14px 15px', display: 'flex', flexWrap: 'wrap', gap: 8 }}>
         {mine.map((g) => (
           <span key={g.id} style={{ display: 'inline-flex', alignItems: 'center', gap: 7, border: '0.5px solid var(--rule)', borderRadius: 999, padding: '5px 7px 5px 12px', background: 'var(--surface-2)' }}>
-            <span aria-hidden="true" style={{ width: 8, height: 8, borderRadius: '50%', background: SC.colorOf(g.id) }}></span>
+            <span aria-hidden="true" style={{ width: 8, height: 8, borderRadius: '50%', background: SCENES.colorOf(g.id) }}></span>
             <span style={{ fontFamily: 'var(--sans)', fontSize: 12.5, fontWeight: 700, color: 'var(--ink)' }}>{g.name}</span>
-            <button className="press" aria-label={'Unfollow ' + g.name} onClick={() => SC.unfollow(g.id)}
+            <button className="press" aria-label={'Unfollow ' + g.name} onClick={() => SCENES.unfollow(g.id)}
               style={{ border: 'none', background: 'var(--rule)', color: 'var(--ink-2)', width: 17, height: 17, borderRadius: 999, fontSize: 10, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, WebkitAppearance: 'none' }}>✕</button>
           </span>
         ))}

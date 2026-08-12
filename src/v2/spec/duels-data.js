@@ -7,9 +7,9 @@
 // drift. (A static JSON import, not a cross-module import — the spec
 // layer's no-imports convention bans load-order coupling between modules,
 // which data has none of.)
-// Cross-module references resolve through the shared global scope and
-// spec-index.js load order is semantic — scripts/check-spec-globals.mjs
-// guards the wiring in CI.
+// OFF THE GLOBAL BRIDGE (D104): `DUELS` is a named export, not a
+// `window.DUELS`, so its nine consumers hold it as a module binding that
+// load order cannot leave unset. Nothing here publishes to global scope.
 import React from 'react';
 import DUEL_CONTENT from '../../../content/duel-questions.json';
 import { FRIENDS } from './follows.js';
@@ -23,6 +23,14 @@ import { IS_DATA } from './sample-data.js';
 // Partner behaviour is deterministic mock; your own answers, your custom
 // groups and your invites persist to localStorage. The circle = your friends
 // (FRIENDS). Read/being-read scores feed the Map's People branch.
+//
+// The binding is hoisted above the IIFE and assigned inside it — the shape
+// DAILYQ, FRIENDS and SCENES took, and for the same reason: the wrapper is
+// vestigial (an ESM module already has its own scope) but unwrapping it
+// re-indents 490 lines and would bury the one real edit in a whitespace
+// diff. ESM exports are live and this module finishes evaluating before any
+// importer's body runs, so consumers always see the object.
+export let DUELS;
 (function () {
   const DAYS = ['Today', 'Yesterday', 'Tue', 'Mon', 'Sun', 'Sat', 'Fri'];
   function h01(s) {
@@ -513,7 +521,7 @@ import { IS_DATA } from './sample-data.js';
     return { scenarios: SCENARIOS, roles, targets };
   }
 
-  window.DUELS = {
+  DUELS = {
     DAYS, members, personOf,
     groups, groupQ, groupDays, groupMembers, groupPicks, myGroup, answerGroup, groupDone, groupsPending, groupInToday, groupAlignment, groupPortrait,
     createGroup, addGroupMembers, removeGroupMember, leaveGroup,

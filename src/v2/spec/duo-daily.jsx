@@ -5,6 +5,7 @@
 // guards the wiring in CI.
 import React from 'react';
 import { ReadRun, RUN_DOTS } from './read-run.jsx';
+import { DUELS } from './duels-data.js';
 import { RevealClock } from './reveal-clock.js';
 import { Sheet } from './primitives.jsx';
 import ReactDOM from 'react-dom';
@@ -115,12 +116,11 @@ let DuoDomainsImpl;
 
   // ── one duel card — fills the view, snaps into place ──
   function DuoCard({ p, vh, nextName, newest }) {
-    const D = window.DUELS;
     const pid = p.id;
-    const today = D.duoDay(pid, 0);
-    const m = D.myDuo(pid);
-    const yday = p.played >= 1 ? D.duoDay(pid, 1) : null;
-    const theyDone = D.partnerToday(pid);
+    const today = DUELS.duoDay(pid, 0);
+    const m = DUELS.myDuo(pid);
+    const yday = p.played >= 1 ? DUELS.duoDay(pid, 1) : null;
+    const theyDone = DUELS.partnerToday(pid);
     const invited = p.state === 'invited';
     const step = m.a == null ? 'answer' : m.g == null ? 'guess' : 'done';
     const [menu, setMenu] = useState(false);
@@ -179,7 +179,7 @@ let DuoDomainsImpl;
           <span style={{ flex: 1, minWidth: 0, fontSize: 12, fontWeight: 600, color: 'var(--ink-2)' }}>Question set</span>
           <span style={{ display: 'flex', gap: 4, flexShrink: 0, background: 'var(--surface-2)', borderRadius: 999, padding: 2 }}>
             {[['friends', 'Friends'], ['romantic', 'Romantic']].map(([k, label]) => (
-              <button key={k} onClick={() => D.setDuoMode(pid, k)} style={{
+              <button key={k} onClick={() => DUELS.setDuoMode(pid, k)} style={{
                 border: 'none', borderRadius: 999, padding: '5px 12px', cursor: 'pointer', WebkitAppearance: 'none',
                 fontFamily: 'var(--sans)', fontWeight: mode === k ? 800 : 600, fontSize: 12,
                 background: mode === k ? (k === 'romantic' ? ROMANCE : 'var(--ink)') : 'transparent',
@@ -190,7 +190,7 @@ let DuoDomainsImpl;
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, borderTop: '0.5px solid color-mix(in oklch, var(--rule), transparent 30%)', paddingTop: 9 }}>
           <span style={{ flex: 1, minWidth: 0, fontSize: 12, fontWeight: 600, color: 'var(--ink-2)', textWrap: 'pretty' }}>End this 1v1? Your history stays on your map.</span>
-          <button onClick={() => D.endDuo(pid)} style={{ flexShrink: 0, border: 'none', background: 'var(--ochre-ink)', color: '#fff', fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 12, padding: '6px 13px', borderRadius: 999, cursor: 'pointer', WebkitAppearance: 'none' }}>End</button>
+          <button onClick={() => DUELS.endDuo(pid)} style={{ flexShrink: 0, border: 'none', background: 'var(--ochre-ink)', color: '#fff', fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 12, padding: '6px 13px', borderRadius: 999, cursor: 'pointer', WebkitAppearance: 'none' }}>End</button>
           <button onClick={() => setMenu(false)} style={{ flexShrink: 0, border: LINE, background: 'var(--surface-2)', color: 'var(--ink)', fontFamily: 'var(--sans)', fontWeight: 700, fontSize: 12, padding: '6px 12px', borderRadius: 999, cursor: 'pointer', WebkitAppearance: 'none' }}>Keep</button>
         </div>
       </div>
@@ -203,7 +203,7 @@ let DuoDomainsImpl;
           <GDAv p={p} size={52}></GDAv>
           <div style={{ fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 21, letterSpacing: -0.4 }}>Waiting for {first(p)}</div>
           <div style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--ink-2)', maxWidth: 250, textWrap: 'pretty' }}>Invite sent — your first question unlocks when they accept.</div>
-          <button className="press" onClick={() => D.cancelDuo(pid)} style={{ border: LINE, background: 'var(--surface)', color: 'var(--ink-2)', fontFamily: 'var(--sans)', fontWeight: 700, fontSize: 12.5, padding: '8px 18px', borderRadius: 999, cursor: 'pointer', WebkitAppearance: 'none' }}>Cancel invite</button>
+          <button className="press" onClick={() => DUELS.cancelDuo(pid)} style={{ border: LINE, background: 'var(--surface)', color: 'var(--ink-2)', fontFamily: 'var(--sans)', fontWeight: 700, fontSize: 12.5, padding: '8px 18px', borderRadius: 999, cursor: 'pointer', WebkitAppearance: 'none' }}>Cancel invite</button>
         </div>
       );
     } else if (step === 'answer') {
@@ -220,7 +220,7 @@ let DuoDomainsImpl;
           {prompt(today.q.prompt)}
           <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--ink-3)' }}>your answer</span>
           <div style={col(9)}>
-            {today.q.options.map((o, i) => optBtn(o, () => D.answerDuo(pid, { a: i })))}
+            {today.q.options.map((o, i) => optBtn(o, () => DUELS.answerDuo(pid, { a: i })))}
           </div>
         </div>
       );
@@ -235,7 +235,7 @@ let DuoDomainsImpl;
             {prompt('And ' + first(p) + ' picked\u2026?')}
           </div>
           <div style={col(9)}>
-            {today.q.options.map((o, i) => optBtn(o, () => D.answerDuo(pid, { g: i })))}
+            {today.q.options.map((o, i) => optBtn(o, () => DUELS.answerDuo(pid, { g: i })))}
           </div>
         </div>
       );
@@ -274,11 +274,11 @@ let DuoDomainsImpl;
                   own name is its label, so the section header is gone. */}
               <div style={{ display: 'flex', alignItems: 'center', gap: 11 }} aria-label="How well you read them">
                 <span style={{ flexShrink: 0, width: 62, padding: '3px 0', fontWeight: 800, fontSize: 12.5, color: 'var(--ink)' }}>you</span>
-                <ReadRun days={Array.from({ length: N }, (_, i) => D.duoDay(pid, N - i).readRight)} size={14}></ReadRun>
+                <ReadRun days={Array.from({ length: N }, (_, i) => DUELS.duoDay(pid, N - i).readRight)} size={14}></ReadRun>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 11 }} aria-label="How well they read you">
                 <span style={{ flexShrink: 0, width: 62, padding: '3px 0', fontWeight: 800, fontSize: 12.5, color: 'var(--ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{first(p)}</span>
-                <ReadRun days={Array.from({ length: N }, (_, i) => D.duoDay(pid, N - i).byRight)} color={ACC} size={14}></ReadRun>
+                <ReadRun days={Array.from({ length: N }, (_, i) => DUELS.duoDay(pid, N - i).byRight)} color={ACC} size={14}></ReadRun>
               </div>
             </div>
             );
@@ -306,22 +306,31 @@ let DuoDomainsImpl;
   }
 
   function DuoBody() {
-    const D = window.DUELS;
     const [, bump] = useReducer((x) => x + 1, 0);
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- ported effect; see src/v2/README.md § Lint suppressions
-    useEffect(() => D.subscribe(bump), []);
-    const ps = D.partners();
+    useEffect(() => DUELS.subscribe(bump), []);
+    const ps = DUELS.partners();
     // pending first, but the order is frozen at mount — finishing a duel must
     // not reshuffle the stack under your thumb
     const orderRef = useRef(null);
+    // SURFACED BY D104, not introduced by it: while the store arrived as
+    // `window.DUELS` the React Compiler could not resolve it and bailed out of
+    // this component, so the lazy-ref block below went unreported. Verified by
+    // probe — the file at the previous commit lints clean, and only the import
+    // changed. Deferred on the same terms as every other Compiler finding here
+    // (src/v2/README.md § Lint suppressions); the fix, behind a test that
+    // asserts the order really is frozen, is `const [order] = useState(() => …)`
+    // — the same once-only computation in the shape the Compiler accepts.
+    // eslint-disable-next-line react-hooks/refs -- lazy ref init, see above
     if (!orderRef.current) orderRef.current = [...ps].sort((a, b) => (isPending(b) ? 1 : 0) - (isPending(a) ? 1 : 0)).map((x) => x.id);
     // 1v1s added after mount append at the end — nothing reshuffles
+    // eslint-disable-next-line react-hooks/refs -- same lazy-ref block, see above
     const ordered = orderRef.current.map((id) => ps.find((x) => x.id === id)).filter(Boolean)
+    // eslint-disable-next-line react-hooks/refs -- same lazy-ref block, see above
       .concat(ps.filter((x) => !orderRef.current.includes(x.id)));
     const [addOpen, setAddOpen] = useState(false);
     const [closing, setClosing] = useState(false);
     const closeAdd = () => { if (closing) return; setClosing(true); setTimeout(() => { setAddOpen(false); setClosing(false); }, 230); };
-    const avail = D.duoAvailable ? D.duoAvailable() : [];
+    const avail = DUELS.duoAvailable();
     const [cur, setCur] = useState(ordered[0] && ordered[0].id);
     const [vh, setVh] = useState(0);
     const rootRef = useRef(null);
@@ -386,7 +395,7 @@ let DuoDomainsImpl;
               </div>
               <div className="wf-sheet-body" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                 {avail.length ? avail.map((p) => (
-                  <button key={p.id} className="press" onClick={() => { D.startDuo(p.id); closeAdd(); }}
+                  <button key={p.id} className="press" onClick={() => { DUELS.startDuo(p.id); closeAdd(); }}
                     style={{ display: 'flex', alignItems: 'center', gap: 11, border: LINE, borderRadius: 14, background: 'var(--surface-2)', padding: '11px 13px', cursor: 'pointer', textAlign: 'left', WebkitAppearance: 'none' }}>
                     <GDAv p={p} size={34} plain></GDAv>
                     <span style={{ display: 'flex', flexDirection: 'column', gap: 1, flex: 1, minWidth: 0 }}>
