@@ -64,15 +64,6 @@ const EX = {
       easy: 'How easily things get under your skin.',
     },
   },
-  cognitive: {
-    about: 'How you get to an answer. Most people run two of these together.',
-    dims: {
-      analyst: 'Breaks a problem into parts.',
-      systems: 'Looks first at how the parts connect.',
-      empath: 'Reads people, mood and motive.',
-      maker: 'Learns by building the thing.',
-    },
-  },
   moral: {
     about: 'Six moral instincts that sit under political and social opinions. Most people run several at once — the mix is the reading.',
     dims: {

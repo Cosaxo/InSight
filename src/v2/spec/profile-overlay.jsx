@@ -25,8 +25,7 @@ function ProfileOverlay({ onClose, me, lensBoxed }) {
     { id: 'politics',   label: 'Politics' },
     { id: 'values',     label: 'Values' },
     { id: 'attachment', label: 'Social' },
-    { id: 'thinking',   label: 'Thinking' },
-    // the minor instruments. Last on purpose: the five core tests are the
+    // the minor instruments. Last on purpose: the four core tests are the
     // profile, lenses are the footnotes that explain it.
     { id: 'lenses',     label: 'Lenses' },
   ];
@@ -101,16 +100,6 @@ function ProfileOverlay({ onClose, me, lensBoxed }) {
     <ResultProfileCard testKey="attachment" archetype="The Constant" tagline="steady and affectionate — the friend who stays" />
   );
 
-  // No tagline: the other four hand ResultProfileCard a line off the demo
-  // persona (me.politicalIdentity, me.moralLabel), and `me` carries nothing
-  // for thinking style. The card reads its own archetype line from
-  // IS_ARCHETYPES rather than inventing one, which is the right default
-  // here anyway — an invented tagline on a live account's result would be
-  // the fabrication D1 forbids.
-  const ThinkingPanel = () => (
-    <ResultProfileCard testKey="cognitive" archetype="Thinking" />
-  );
-
   const dlg = useDialog(onClose, 'Your profile');
   return (
     <div className="overlay surface-tint" {...dlg} style={{ '--accent': 'var(--c-people)' }}>
@@ -120,8 +109,12 @@ function ProfileOverlay({ onClose, me, lensBoxed }) {
         <div style={{ width: 32, flexShrink: 0 }} />
       </div>
       <div className="app-body" style={{ paddingTop: 0 }}>
-        {/* compact identity row — the content is the star, not the header */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginTop: 16 }}>
+        {/* compact identity row — the content is the star, not the header.
+            Tightened 2026-08-12 with the double-inset fix above it: this
+            row sat under ~146px of doubled status-bar padding, so its own
+            52px avatar and 16px lead were the second half of a profile
+            that opened on a third of a screen saying "You". */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 10 }}>
           {(() => {
             const live = window.LIVE && window.LIVE.enabled;
             const nm = live ? (window.LIVE.displayName || 'You') : me.name;
@@ -131,10 +124,10 @@ function ProfileOverlay({ onClose, me, lensBoxed }) {
             const sub = live ? 'anonymous session — link Google below to keep it' : (me.location + ' · ' + me.country);
             return (
               <>
-                <Av init={init} hue={38} size={52} />
+                <Av init={init} hue={38} size={42} />
                 <div style={{ minWidth: 0 }}>
-                  <div style={{ fontFamily: 'var(--sans)', fontWeight: 700, fontSize: 20, letterSpacing: '-0.02em', lineHeight: 1.15 }}>{nm}</div>
-                  <div style={{ fontFamily: 'var(--sans)', fontSize: 13, color: 'var(--ink-3)', marginTop: 3 }}>{sub}</div>
+                  <div style={{ fontFamily: 'var(--sans)', fontWeight: 700, fontSize: 18, letterSpacing: '-0.02em', lineHeight: 1.15 }}>{nm}</div>
+                  <div style={{ fontFamily: 'var(--sans)', fontSize: 12.5, color: 'var(--ink-3)', marginTop: 2 }}>{sub}</div>
                 </div>
               </>
             );
@@ -157,7 +150,6 @@ function ProfileOverlay({ onClose, me, lensBoxed }) {
           {sub === 'politics' && <><PoliticsPanel /><TestCTA k="political" /></>}
           {sub === 'values' && <><ValuesPanel /><TestCTA k="values" /></>}
           {sub === 'attachment' && <><AttachmentPanel /><TestCTA k="attachment" /></>}
-          {sub === 'thinking' && <><ThinkingPanel /><TestCTA k="cognitive" /></>}
           {sub === 'lenses' && window.LensesPanel && <window.LensesPanel boxed={lensBoxed} />}
         </div>
       </div>

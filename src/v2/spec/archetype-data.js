@@ -69,22 +69,6 @@ export const IS_ARCHETYPES = {
     { name: 'The Slow Burn',     share: 10, line: 'Hard to earn, harder to lose.',               sig: { warm: 45, loyal: 70, open: 40, play: 35, easy: 65 } },
     { name: 'The Small Circle',  share: 4,  line: 'A small circle, fiercely kept.',              sig: { warm: 40, loyal: 80, open: 25, play: 40, easy: 45 } },
   ]},
-  // Added with the cognitive question bank (2026-08-10). Names are
-  // deliberately clear of the other four sets' names even though the sets
-  // are keyed per test and a collision would work — two "The Reader"s on
-  // one profile read as a bug, not a coincidence.
-  cognitive: { list: [
-    { name: 'The Engineer',       share: 12, line: 'Takes it apart, then builds it better.',   sig: { analyst: 85, systems: 60, empath: 35, maker: 85 } },
-    { name: 'The Theorist',       share: 6,  line: 'Wants the rule behind the result.',        sig: { analyst: 88, systems: 88, empath: 30, maker: 25 } },
-    { name: 'The Diagnostician',  share: 9,  line: 'Finds the one part that is wrong.',        sig: { analyst: 90, systems: 55, empath: 45, maker: 40 } },
-    { name: 'The Architect',      share: 8,  line: 'Thinks in whole shapes.',                  sig: { analyst: 55, systems: 92, empath: 40, maker: 60 } },
-    { name: 'The Connector',      share: 11, line: 'Sees how people and parts fit together.',  sig: { analyst: 45, systems: 80, empath: 82, maker: 40 } },
-    { name: 'The Mediator',       share: 10, line: 'Reads the room before the problem.',       sig: { analyst: 35, systems: 45, empath: 92, maker: 35 } },
-    { name: 'The Coach',          share: 8,  line: 'Solves it through the people in it.',      sig: { analyst: 40, systems: 60, empath: 88, maker: 55 } },
-    { name: 'The Tinkerer',       share: 13, line: 'Learns it by pulling it apart.',           sig: { analyst: 50, systems: 40, empath: 40, maker: 90 } },
-    { name: 'The Improviser',     share: 9,  line: 'Starts before the plan is finished.',      sig: { analyst: 30, systems: 45, empath: 55, maker: 88 } },
-    { name: 'The Generalist',     share: 14, line: 'A bit of every mode, none of them loudly.', sig: { analyst: 58, systems: 58, empath: 58, maker: 55 } },
-  ]},
 };
 
 // Which named type each of your people landed on, per test (by person id).
@@ -121,12 +105,6 @@ window.IS_FRIEND_TYPES = {
     f14: 'The Open Book', f15: 'The Chill One', f16: 'The Floater', f17: 'The Loyalist', f18: 'The Confidant', f19: 'The Fixture',
     f20: 'The Cheerleader', f21: 'The Floater', f22: 'The Slow Burn', f23: 'The Chill One', f24: 'The Overinvested',
   },
-  cognitive: {
-    f1: 'The Theorist', f2: 'The Improviser', f3: 'The Engineer', f4: 'The Mediator', f5: 'The Connector', f6: 'The Generalist', f7: 'The Coach',
-    f8: 'The Improviser', f9: 'The Generalist', f10: 'The Diagnostician', f11: 'The Tinkerer', f12: 'The Coach', f13: 'The Theorist',
-    f14: 'The Diagnostician', f15: 'The Connector', f16: 'The Tinkerer', f17: 'The Architect', f18: 'The Architect', f19: 'The Engineer',
-    f20: 'The Connector', f21: 'The Tinkerer', f22: 'The Mediator', f23: 'The Generalist', f24: 'The Improviser',
-  },
 };
 
 // Standout phrases per dim: [below-average phrase, above-average phrase]
@@ -161,12 +139,6 @@ window.IS_STANDOUT = {
     play:  ['more grounded than most', 'keeps it lighter than most'],
     easy:  ['more invested than most', 'more easygoing than most'],
   },
-  cognitive: {
-    analyst: ['works more on instinct than most', 'takes things apart more than most'],
-    systems: ['stays closer to the detail than most', 'sees the whole system more than most'],
-    empath:  ['reads people less than most', 'reads people better than most'],
-    maker:   ['plans more before starting than most', 'learns by building more than most'],
-  },
 };
 
 // Compact direction words per dim — used on "nearly" chips: "if {word}"
@@ -175,7 +147,6 @@ window.IS_DIM_WORD = {
   political: { econ: ['further left on money', 'further right on money'], auth: ['more liberty-minded', 'more order-minded'], foreign: ['more nation-first', 'more global'], env: ['cooler on climate', 'more climate-urgent'], tech: ['warier of tech', 'more tech-hopeful'], estab: ['more system-trusting', 'more anti-establishment'] },
   values: { future: ['darker on the future', 'more hopeful'], circle: ['more family-first', 'more stranger-minded'], hedonism: ['more duty-bound', 'more pleasure-first'], meaning: ['more happiness-first', 'more struggle-friendly'], moral: ['more relativist', 'more certain'], beauty: ['more truth-first', 'more beauty-first'] },
   attachment: { warm: ['more reserved', 'warmer'], loyal: ['lighter-touch', 'more loyal'], open: ['more guarded', 'more open'], play: ['more grounded', 'more playful'], easy: ['more invested', 'more easygoing'] },
-  cognitive: { analyst: ['more intuitive', 'more analytic'], systems: ['more detail-first', 'more systems-minded'], empath: ['more detached', 'more attuned'], maker: ['more of a planner', 'more hands-on'] },
 };
 
 // Why you're NOT that neighbour type: the dim you'd have to shift most, as
@@ -268,7 +239,6 @@ window.IS_RULE_WORD = {
   political:  { econ: 'market freedom', auth: 'order', foreign: 'global outlook', env: 'climate urgency', tech: 'tech optimism', estab: 'distrust of the system' },
   values:     { future: 'hope', circle: 'breadth of care', hedonism: 'pleasure', meaning: 'meaning', moral: 'moral certainty', beauty: 'beauty' },
   attachment: { warm: 'warmth', loyal: 'loyalty', open: 'openness', play: 'playfulness', easy: 'ease' },
-  cognitive:  { analyst: 'analysis', systems: 'systems thinking', empath: 'attunement', maker: 'hands-on learning' },
 };
 
 // Adjective per pole — the rule reads as a claim ("very curious + warm"), so it
@@ -280,7 +250,6 @@ window.IS_RULE_ADJ = {
   political: { econ: ['left on money', 'pro-market'], auth: ['liberty-first', 'order-first'], foreign: ['nation-first', 'globally-minded'], env: ['growth-first', 'climate-urgent'], tech: ['tech-wary', 'tech-hopeful'], estab: ['system-trusting', 'anti-system'] },
   values: { future: ['dark on the future', 'hopeful'], circle: ['family-first', 'stranger-minded'], hedonism: ['duty-bound', 'pleasure-first'], meaning: ['happiness-first', 'meaning-seeking'], moral: ['relativist', 'morally certain'], beauty: ['truth-first', 'beauty-first'] },
   attachment: { warm: ['reserved', 'warm'], loyal: ['light-touch', 'loyal'], open: ['guarded', 'open'], play: ['grounded', 'playful'], easy: ['invested', 'easygoing'] },
-  cognitive: { analyst: ['intuitive', 'analytic'], systems: ['detail-first', 'systems-minded'], empath: ['detached', 'attuned'], maker: ['planning', 'hands-on'] },
 };
 
 // ── the dims that EARN the name, as a claim you can agree or disagree with ──

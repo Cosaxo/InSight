@@ -34,20 +34,14 @@ const cbDot   = (h) => `oklch(0.58 0.125 ${h})`;
 // "them" is the same colour, half-there. Never ink, never an outline.
 const cbSoft  = (c, pct = 55) => `color-mix(in oklch, ${c}, transparent ${pct}%)`;
 
-// Thinking isn't in RP_TESTS (its results page uses a radar) — a local
-// hue/pole family keeps compare unified across all five assessments.
-const CB_EXTRA_CFG = {
-  cognitive: {
-    hues: { analyst: 245, systems: 210, empath: 285, maker: 190 },
-    poles: {
-      analyst: ['intuitive', 'analytical'],
-      systems: ['zoomed-in', 'systems'],
-      empath:  ['detached', 'empathic'],
-      maker:   ['abstract', 'hands-on'],
-    },
-  },
-};
-const cbCfg = (kind) => RP_TESTS[kind] || CB_EXTRA_CFG[kind];
+// CB_EXTRA_CFG held one entry — a local hue/pole family for Thinking, which
+// was the one assessment RP_TESTS did not cover (its results page used a
+// radar). D103 retired that test, so the fallback has nothing left to hold
+// and every assessment compare draws now comes from RP_TESTS. Kept as a
+// lookup rather than inlined: the next instrument that reads through a
+// non-rose results page needs the same seam, and finding it gone is how it
+// gets rebuilt wrong.
+const cbCfg = (kind) => RP_TESTS[kind];
 
 // Which assessments to show, in order. Dims (ids, labels, your values) come
 // from IS_TEST_RESULTS so compare stays in sync with retakes.
@@ -56,7 +50,6 @@ const CB_ASSESS = [
   { kind: 'political', title: 'Politics', sub: 'six axes' },
   { kind: 'values', title: 'Values', sub: 'how you weigh things' },
   { kind: 'attachment', title: 'Social', sub: 'kind of friend' },
-  { kind: 'cognitive', title: 'Thinking', sub: 'cognitive style' },
 ];
 
 // ── alignment as a picture, not a percentage: your dot and theirs, drawn as
