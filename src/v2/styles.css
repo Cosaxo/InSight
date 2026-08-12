@@ -337,6 +337,33 @@
   --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
   --ease-spring: cubic-bezier(0.32, 1.32, 0.36, 1);
   --sans: 'Hanken Grotesk', -apple-system, system-ui, sans-serif;
+  /* Every text field in the app is set from this, and it may not go below
+     16px. Not a taste call — it is the number iOS uses.
+
+     WKWebView and Mobile Safari auto-zoom the page when a text field takes
+     focus whose computed font-size is under 16px, scaling by exactly
+     16/size so the text lands at the platform's floor. Nothing scales it
+     back: the app shell is `position: fixed; inset: 0` (spec/iOS.jsx), so
+     there is no page to scroll back to origin and no browser chrome to
+     reset, and the zoom outlives the field, the overlay and the tab.
+
+     Found on the owner's device 2026-08-12 — three screenshots 18 minutes
+     apart, all clipped on the right edge, all at the same scale. Measured
+     from them rather than guessed: the search button's left edge, the
+     profile overlay's centred title and the avatar box independently give
+     1.067, and 16/15 = 1.0667. The 15px was this file's own
+     `.search-field input`, reachable from the header search icon on every
+     screen in the app.
+
+     The layout was never at fault — a 393pt render measures
+     scrollWidth === innerWidth === 393, no overflow anywhere.
+
+     The alternative fix is `maximum-scale=1` in index.html's viewport meta,
+     which costs pinch-zoom on Android and in the native shell (iOS Safari
+     overrides it). Rejected: this repo runs an a11y ratchet, and 16px is
+     the size iOS wants form fields at anyway. scripts/check-touch-zoom.mjs
+     holds the line. */
+  --field-size: 16px;
 }
 
 /* ── Voice ── one roman sans throughout; em carries no italic. */
@@ -1082,7 +1109,8 @@ button.card:active,
   flex: 1;
   border: none; outline: none; background: none;
   font-family: var(--sans);
-  font-size: 15px;
+  /* the 15px that was scaling the whole app to 1.067 — see --field-size */
+  font-size: var(--field-size);
   font-weight: 500;
   color: var(--ink);
   min-width: 0;

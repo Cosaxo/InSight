@@ -9889,3 +9889,83 @@ SHA-256 digest replaced it: 27 unanimous in 200 where it had been 200 in
 that a hash chosen for a different modulus and input shape is not
 transferable, and that the failure surfaced only from probing the output
 distribution — reading the code, it looks like a hash.
+
+## D105 · One text field owns the app's scale: every input defers to --field-size
+
+**Decided:** 2026-08-12 · **Status:** binding · Owner's reading on a
+device: "I get this error sometimes where it is too zoomed in, not sure
+what's triggering it."
+
+**Decision.** Every text-entry field in the app takes its size from a
+single token, `--field-size: 16px` in `styles.css`, and may not declare
+a font size of its own. `check:touch-zoom` fails the build if one does —
+including with a literal `16`, because the bug was fifteen scattered
+numbers, not any one of their values.
+
+**What was actually wrong.** WKWebView and Mobile Safari auto-zoom the
+page when a text field takes focus whose computed font-size is under
+16px, scaling by exactly 16/size so the text lands at the platform's
+floor. The app shell is `position: fixed; inset: 0` (spec/iOS.jsx), so
+there is nothing to scale it back — no page to scroll to origin, no
+browser chrome to reset. The zoom outlives the field, the overlay and
+the tab, and every screen after it is cropped on the right.
+
+**The arithmetic, measured rather than reasoned about.** Three device
+screenshots eighteen minutes apart — the Mirror's Near stop, the profile
+overlay and the World feed — all cropped, all at one scale. Three
+independent rulers in them agree: the header search button's left edge,
+the profile overlay's centred title, and the avatar box each give
+1.067. 16/15 = 1.0667. The 15px was this repo's own `.search-field
+input`, and the header search icon that opens it is on every screen in
+the app, which is why the trigger looked like nothing in particular.
+
+The layout was never implicated and was checked before anything was
+changed: a 393pt render measures `scrollWidth === innerWidth === 393`,
+with no element crossing the right edge outside a deliberate horizontal
+scroller. Cropping without overflow is a scale, and only a scale.
+
+Every field in the tree was under the floor — 12.5px (the feed's take
+and reply composers) to 15.5px — so the fix is all of them, not the one
+that fired. Six move by ≤1px, including the culprit; nine move by 2 to
+3.5px. 16px is also what iOS wants a form field at: the old sizes were
+below what the platform considers readable, which is the whole reason it
+zooms.
+
+**The alternative, and why not.** `maximum-scale=1` in index.html's
+viewport meta is one line and changes no pixel of the design. It also
+disables pinch-zoom in the Capacitor shell and on Android Chrome (iOS
+Safari overrides the flag, so only the web-on-iPhone path keeps it) —
+a WCAG 1.4.4 regression in a repo that runs an a11y ratchet precisely so
+that sort of thing has to be argued for. Rejected on that trade, with
+the owner's call on the record.
+
+**Enforcement.** `check:touch-zoom` (client-only, off
+`backend-checks.yml` — nothing it says bears on whether a rules fix is
+safe to deploy) scans for `<input>`/`<textarea>` tags and for stylesheet
+rules that target them, resolving style objects that get spread in. Its
+three detection paths were each verified by reintroducing the bug: an
+inline literal, a literal reached through a spread style object, and
+`.search-field input` restored to 15px — the original defect, which the
+gate names by file and line.
+
+A gate rather than a test, for two reasons the tree demonstrates. The
+mount suites run in jsdom with vitest's CSS handling off, so a
+stylesheet-driven size never resolves there — the 15px that caused this
+would have passed a runtime assertion. And the fields sit behind six
+overlays and a bottom sheet, so a walk would have to reach every one of
+them to say anything, while a source scan sees all of them at once.
+`tsc`, `eslint`, `check:globals` and the smoke tests are all blind here:
+a small font size is valid CSS.
+
+**What is NOT included.** Non-keyboard inputs — `type="range"`,
+checkbox, radio, colour — are exempt and listed in the script: iOS does
+not zoom for them, and the map's history scrubber is sized deliberately.
+`spec/tweaks-panel.jsx` is skipped: it is `if (!open) return null` with
+`open` reachable only from a listener behind `import.meta.env.DEV`, so
+it is not in a production bundle and cannot be focused on a device.
+
+Double-tap-to-zoom is also still live outside buttons — `touch-action:
+manipulation` is scoped to `button`/`[role=button]`/`[role=tab]`
+(styles.css § 2). It is a second way to scale the app that nothing
+scales back, but it is user-initiated and was not what these screenshots
+measured, so it stays as it is until something says otherwise.

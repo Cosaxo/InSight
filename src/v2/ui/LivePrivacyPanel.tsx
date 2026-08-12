@@ -99,9 +99,9 @@ function LivePrivacyPanel() {
       <LpRow title="Your name" sub="What group and 1v1 partners see in reveals.">
         <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
           <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Add a name"
-            style={{ border: LP_LINE, borderRadius: 9, padding: "8px 11px", width: 120,
-              fontFamily: "var(--sans)", fontSize: 13, fontWeight: 600, color: "var(--ink)",
-              background: "var(--surface-2)", outline: "none" }} />
+            style={{ border: LP_LINE, borderRadius: 9, padding: "8px 11px", width: 132,
+              fontFamily: "var(--sans)", fontSize: "var(--field-size)", fontWeight: 600, color: "var(--ink)",
+              background: "var(--surface-2)", outline: "none", minWidth: 0 }} />
           {btn(saved ? "Saved ✓" : "Save", saveName)}
         </div>
       </LpRow>

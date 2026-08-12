@@ -153,7 +153,11 @@ function CityPicker({ value, onChange, inputStyle }: CityPickerProps) {
     fontFamily: "var(--sans)", color: "var(--ink)", background: "var(--surface)",
     border: CP_LINE, borderRadius: 10, outline: "none", WebkitAppearance: "none",
     appearance: "none", boxSizing: "border-box", width: "100%", minWidth: 0,
-    fontSize: 15, padding: "8px 11px", ...inputStyle,
+    padding: "8px 11px", ...inputStyle,
+    // AFTER the spread on purpose: a caller passing a smaller size would
+    // hand iOS a reason to zoom the whole app on focus (styles.css
+    // § --field-size). Everything else here stays overridable.
+    fontSize: "var(--field-size)",
   };
 
   if (!open) {
