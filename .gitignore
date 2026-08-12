@@ -82,6 +82,11 @@ GoogleService-Info.plist
 # style-diff writes its full report here (scripts/style-diff.mjs)
 style-diff.json
 
+# The test-user harness's local roster (scripts/test-users.mjs). Holds the
+# emulator credentials for each synthetic account, so it is both machine-local
+# state and — even against a throwaway project — a password file.
+.test-users.json
+
 # vitest coverage reports (npm run test:coverage, and --prefix functions).
 # Report-only and regenerated on demand — see vite.config.ts for why there
 # are no thresholds and why spec/ is excluded.
