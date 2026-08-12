@@ -9684,3 +9684,132 @@ first.
 - **Background listener teardown** stays unbuilt with Finding 2's
   polling, same reasoning: D7's wall binds first, and `onlineMin` — the
   input that decides — is measurable from a week of real usage.
+
+## D103 · A purpose string for the authorisation this app never asks for
+
+**Decided:** 2026-08-12 · **Status:** binding · Repairs ITMS-90683 on 2.0.0
+build 10. Narrows nothing in
+[D9](#d9--near-is-your-city--picked-from-a-list-or-located-on-the-device):
+what the app asks the user for is unchanged.
+
+**Decision.** `ios/App/App/Info.plist` carries
+`NSLocationAlwaysAndWhenInUseUsageDescription`, byte-identical to the
+when-in-use string that was already there. Nothing else about location
+moves — still when-in-use only, still reduced accuracy, still on an
+explicit tap, still a city name as the only thing that leaves the device.
+`npm run check:ios-location` holds that shape, including two invariants
+that had no guard at all before.
+
+### What Apple asked for, and why the tree looked compliant
+
+App Store Connect accepted build 10, then emailed: the bundle references
+one or more APIs that access sensitive user data and has no
+`NSLocationAlwaysAndWhenInUseUsageDescription`. Its wording is the part
+worth keeping — *"even though your app might not use these APIs, a purpose
+string is still required."* The analysis reads the linked binary, not the
+call sites, and every local gate reads the call sites.
+
+So the whole tree was consistent and wrong together: `locate.ts` requests
+coarse, one fix, foreground; the plugin requests when-in-use; the plist
+described exactly that. The symbol Apple objected to belongs to a package
+none of those files mention.
+
+### The chain, verified rather than inferred from the warning
+
+```
+@capacitor/geolocation 8.2.0        (package.json)
+  └─ ion-ios-geolocation ≥2.1.0     (its Package.swift — SwiftPM, fetched at build time)
+       └─ IONGLOCAuthorisationRequestType.always
+            └─ CLLocationManager.requestAlwaysAuthorization
+```
+
+Two facts, both read in source rather than reasoned about:
+
+- The upstream enum compiles both branches unconditionally —
+  `case .whenInUse: locationManager.requestWhenInUseAuthorization` and
+  `case .always: locationManager.requestAlwaysAuthorization`, one `switch`,
+  no `#if`. The Always symbol is in every archive we have ever shipped.
+- The plugin has exactly one call site,
+  `requestLocationAuthorisation(type: .whenInUse)`, and it is not
+  parameterised by anything the JS API can set. Nothing this app can do
+  reaches the `.always` branch.
+
+The plugin's own README documents the consequence and prescribes this fix:
+add the key, reuse the when-in-use text, "since this permission prompt
+won't appear to users".
+
+### Why the string is a copy, and why that is honest
+
+It is unreachable text. An Always prompt requires an Always request, so no
+user will ever read this string — which is precisely the argument for
+keeping it identical rather than writing something new for it. Text nobody
+can see is text nobody reviews, and this one sits one line from
+`web/privacy.html`'s "no location history, no background location". A
+second, drifting description of the same single foreground reading is a
+liability with no reader to serve.
+
+Two alternatives were weighed and dropped:
+
+- **Remove the symbol instead of describing it.** D16's Facebook stripper
+  is the precedent, and it does not transfer: that SDK is named in an SPM
+  manifest sitting in `node_modules`, a file we already rewrite on
+  `postinstall`. `ion-ios-geolocation` is fetched by SwiftPM from GitHub
+  during the build, so there is nothing in-tree to patch — the equivalent
+  move is a pinned fork of a third-party package, permanently, to delete a
+  branch that is already dead code.
+- **Write a string that says the app does not use background location.** A
+  purpose string is shown to a user being asked for something; a
+  disclaimer aimed at a reviewer is not one, and it would be the only
+  sentence in this bundle written for an audience that cannot see it.
+
+### What deliberately does not move
+
+- **The App Store privacy label.** Still Coarse Location — linked to user,
+  App Functionality, optional (`docs/data-inventory.md`). A purpose string
+  grants nothing and collects nothing; the label answers what the app
+  collects, which is a city name derived on-device from one coarse fix.
+  **Precise stays unticked** and `NSLocationDefaultAccuracyReduced` stays
+  true.
+- **`web/privacy.html` and the in-app privacy panel.** Every sentence they
+  make — never in the background, never continuously, only on a tap —
+  remains true of the built app, and the guard below is what keeps that
+  from being a claim about intent.
+- **Android.** ITMS-90683 is an Apple upload check; the manifest's
+  coarse/fine story (D9) is untouched.
+
+### The guard, and the two loose invariants it picked up
+
+`scripts/check-ios-location.mjs`, in ci.yml's lint job beside
+`check:ios-spm` and `check:ios-facebook` — client-only, off the deploy
+path. It asserts five things; only the first is what Apple asked for:
+
+1. Both purpose strings present and non-empty.
+2. The two strings identical, so the unreadable one cannot drift.
+3. `NSLocationDefaultAccuracyReduced` still true. **This had no guard.**
+   D9's precision cap — the load-bearing half of "never tick Precise" —
+   was held by a comment sitting next to it, and losing it would flip the
+   store label while every test stayed green.
+4. `UIBackgroundModes` does not contain `location`. This is the
+   behavioural half of the new key being harmless.
+5. The installed plugin still requests `.whenInUse`, and only that. A
+   plugin upgrade is the one realistic way an Always prompt could start
+   appearing, and on that day the string in the plist becomes a lie told
+   in a system dialog. Zero call sites fails too: "found nothing" must not
+   be how this passes.
+
+Each was verified by mutation — drift the string, delete the key, flip the
+accuracy flag, add the background mode, point the plugin at `.always`,
+rename its call — and each fails naming its own reason.
+
+### Known limits, recorded
+
+- **No local tool reports ITMS-\*.** This check asserts the shape Apple
+  asked for, not Apple's acceptance of it; the proof is the next upload's
+  mail, or its silence. The gap is structural — the analysis runs on
+  their side of the transfer.
+- **The guard reads installed plugin source**, so it needs `npm ci` (same
+  as `check:ios-facebook`, and the same reason: the version range in
+  `package.json` is not what Xcode compiles).
+- **Build 10 stands.** The mail is a warning on a successful delivery, not
+  a withdrawal; the TestFlight build is unaffected and the fix rides the
+  next one.

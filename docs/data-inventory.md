@@ -56,6 +56,18 @@ carries `NSLocationWhenInUseUsageDescription`, and `src/v2/data/locate.ts`
 calls `Geolocation.getCurrentPosition`. So: **Coarse location, linked to
 user, App Functionality, optional.**
 
+`Info.plist` also carries `NSLocationAlwaysAndWhenInUseUsageDescription`
+since D103, and **it is not a declaration of anything.** Apple requires a
+purpose string for every location API the *linked binary* names, and a
+SwiftPM dependency of `@capacitor/geolocation` names
+`requestAlwaysAuthorization` in a branch this app cannot reach — so the
+string exists to satisfy that check and is a verbatim copy of the
+when-in-use one. Nothing requests Always authorisation, no prompt for it
+can appear, and `UIBackgroundModes` carries `remote-notification` only.
+Read from this file and answer the store forms the same as before: no
+background location, no location history. `npm run check:ios-location`
+fails if any of that stops being true.
+
 Declare it even though **no coordinate is ever transmitted** — the fix is
 resolved to a city name on the device and discarded, so what leaves the
 device is a city name. That is still coarse location data. Never tick

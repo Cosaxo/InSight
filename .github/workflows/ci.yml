@@ -142,6 +142,12 @@ jobs:
       # right side of that line: client-only, and it reds a PR rather than
       # a store submission.
       - run: npm run check:ios-facebook
+      # The iOS location declarations, against what the app actually does.
+      # ITMS-90683 (2.0.0 build 10) is the reason it exists: a missing
+      # purpose string for an API only a transitive SwiftPM dependency
+      # names, reported by email after the upload transferred and the build
+      # number was spent. Same side of the line as the two above.
+      - run: npm run check:ios-location
 
   typecheck-build:
     runs-on: ubuntu-latest
