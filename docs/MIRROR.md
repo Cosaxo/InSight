@@ -204,7 +204,7 @@ a lens row again:
 | Lens | State | Source |
 | --- | --- | --- |
 | **Answers** | **live**, and thinner than the prototype's | `LiveCohortBody` itself. Missing: branch filter, sort-by-divisive, expand-a-row. All three are computable from what is already loaded |
-| **People** | **live** | the mix is `mixFor` over the deck's aggregates; Kindred is `agreement` over the cached voter lists, bounded at 12 of your own answers |
+| **People** | **live** | the mix is `mixFor` over the deck's aggregates; Kindred is `agreement` over the cached voter lists, bounded at 12 of your own answers × the latest 200 voters each (D102) |
 | **Compare** | **live** | `pctFor` on your own option, ranked least-typical first — no new read |
 | **Explore** | **live** | `divergence` across the six breakdown dims. The v18 test-pole axis is the one part with no source, since test results are not a dim |
 | **Scores** | **not built** | needs `rate` questions and the bank ships none. Content, not code — a frame built before its content reads as permanently broken |

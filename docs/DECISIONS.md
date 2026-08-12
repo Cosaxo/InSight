@@ -9567,3 +9567,120 @@ One deferral bought nothing measurable — `data/circle.ts` out of
 `live.ts`'s static graph left the entry chunk at 738 — and it is kept
 anyway, because a dynamic import there is the right shape. Recorded so
 the next reader does not re-derive it as a win.
+
+## D102 · The D98 surfaces get their bounds, their index, and their bill
+
+**Decided:** 2026-08-12 · **Status:** binding · Follow-on to D98–D101 —
+the optimisation pass over what the reversal brought back.
+
+**Decision.** Four things, one theme: the read family D98 created is now
+bounded, indexed, modelled and cheap to render. `fetchVoters` is capped
+at `VOTER_FETCH_CAP = 200`, newest first, and the sheet says when the cap
+binds. `answers.surface` gets its single-field index back at COLLECTION
+scope, which is the index D101's Circle query has needed since the day it
+shipped. The cost model gains a `social` term for who-voted, Kindred and
+Circle, with all four bounds pinned to source. And the two Mirror bodies
+that sorted with `divisiveness` inside the comparator now compute it once
+per row.
+
+### The index bug, and why every suite was green
+
+`fetchAnswersOf` (data/circle.ts) filters one user's answers on
+`surface` — mandatory, because the rules grant the cross-user read as a
+value test on that field (D65). A collection-scope query with a
+single-field filter needs the automatic single-field index, and D64's
+exemptions had deleted exactly that one: `"indexes": []` on
+`answers.surface`. The composite D98 added cannot serve it (its leading
+field is `qid`, which this query does not constrain). In production every
+member fetch returns FAILED_PRECONDITION; `loadCircle` drops failed
+members by design, so a user with thirty follows sees "you follow
+nobody" — the failure renders as an empty state, not an error.
+
+Nothing caught it because nothing could: the emulator does not enforce
+index configuration, so rules tests and e2e run as if every index
+exists, and `circle.test.ts` is Firebase-free. D64 predicted this
+precisely — "filtering answers by `surface` … will not be possible
+without re-enabling that field first" — and D101 never mentioned indexes.
+
+**The fix** re-enables the one shape the query needs (COLLECTION scope,
+ascending; the collection-group and descending shapes stay exempt).
+Cost: one more index entry per answer write on the app's hottest write
+path, plus a backfill that is free today because the collection is empty
+— a launch-window luxury this fix spends deliberately. **The guard** is
+`src/v2/data/indexes.test.ts`: every filtered query shape in `data/` is
+pinned to its entry in `firestore.indexes.json`, so the next
+query-without-index (or re-exemption of a needed field) fails in
+`test:unit` instead of in production. It is a name-level guard in the
+smoke-test sense: it cannot prove a query runs, only that the two
+artifacts that meet in production agree on paper. A new filtered query in
+`data/` adds a case there.
+
+### The cap, and its arithmetic
+
+The daily question is globally shared, so its voter list is roughly
+"everyone active today". Uncapped, one who-voted open at 5,000 DAU is
+~5,000 answer reads plus up to 5,000 profile reads for names — ~10,000
+billed reads and a multi-second render of a list nobody scrolls, growing
+linearly with DAU forever, on a tap the UI invites. Kindred multiplied
+that by twelve. Every sibling fan-out already carried a bound
+(`CIRCLE_ANSWER_CAP`, `FOLLOW_CAP`, `KINDRED_QUESTIONS`, `AGG_ID_CAP`);
+this was the only unbounded read in the app.
+
+`VOTER_FETCH_CAP = 200` sits inside the query, after `orderBy answeredAt
+desc`, so a capped page means "the latest 200" — and the panel says so
+("1,234 have answered — these are the newest 200"), because a truncated
+list presented as the whole room is the withheld-cell lie pointed the
+other way. Below the cap the sheet is exhaustive and claims nothing.
+Kindred inherits the bound per list: recency-biased, which is the honest
+bias for a ranking recomputed from live lists. If page two is ever worth
+having, the ordering already provides the cursor — page, do not raise
+the number quietly (D101's rule, restated).
+
+### The model: one term added, one staleness found by adding it
+
+The `social` term charges (docs + names) per open across the three
+surfaces, caps read from source (`readNum`, D47's mechanism), open rates
+named as guesses in `B`. Re-running the model surfaced the second
+finding: **every table in COSTS.md was still the pre-D98 run.** D98 set
+the publish cadence to 1 and nobody reran the model, so the fan-out
+column sat at a fifth of its true slope — which had silently moved the
+read-crossover wall from ~18,200 DAU to ~3,700, *below* the D7 write
+wall, inverting the surprise-invoice-before-surprise-outage ordering
+COSTS.md exists to protect. The `social` term's flat 385 reads/user/day
+pushes the crossover back to ~30,800. Both moves are now in COSTS.md's
+walls section, and `pulse.test.mjs` pins the `readsPerUser` key set so
+the next added term forces the consumers (READ_SERIES, the COSTS.md
+table) to move with it.
+
+### Render cost: measured, one fix taken, one deferred
+
+Probe (node, bank = 513, every aggregate carrying a full 6-dim × 8-bucket
+breakdown — the worst case): one `LiveCohortBody` render-equivalent of
+the archive pipeline is **~1.9 ms**, of which the `divisiveness`-inside-
+comparator sort is ~360 µs and over half the total once per-render
+allocations are counted; precomputing it per row takes the pipeline to
+**~0.7 ms**. Taken, in `LiveCohortBody` and `LiveCircleBody` — two-line
+changes with a measured 2.7× on the pipeline.
+
+Deferred, recorded with its trigger: the pipeline itself
+(`LIVE.aggregated()` → rows → lensQs) is O(bank) per store notify with
+fresh allocations, ~0.7 ms today and linear in a bank that D97 grows by
+~1,300/year. Store-level memoisation (revision counters on aggs/votes)
+buys it back but adds an invalidation surface — the exact bug class
+(stale Mirror numbers) this repo hates most — so it is not worth its
+risk below a few thousand questions. Revisit when the bank passes ~2,000
+or a device profile shows the Mirror tab janking on notify, whichever is
+first.
+
+### Also deferred, recorded
+
+- **`setFollowing` reloads the whole circle** (members × answer queries)
+  to add one row. Correct, simple, and O(circle) reads per tap on the
+  sheet where follow-sprees happen. Fine at five follows; an incremental
+  insert (one `fetchAnswersOf` + one followers query) is the shape when
+  it binds. Not built: pre-launch circles are empty, and the refetch is
+  what keeps the no-optimism rule (a member never renders with a
+  fabricated 0% likeness) trivially true.
+- **Background listener teardown** stays unbuilt with Finding 2's
+  polling, same reasoning: D7's wall binds first, and `onlineMin` — the
+  input that decides — is measurable from a week of real usage.

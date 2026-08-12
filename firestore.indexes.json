@@ -86,7 +86,12 @@
     {
       "collectionGroup": "answers",
       "fieldPath": "surface",
-      "indexes": []
+      "indexes": [
+        {
+          "queryScope": "COLLECTION",
+          "order": "ASCENDING"
+        }
+      ]
     },
     {
       "collectionGroup": "answers",

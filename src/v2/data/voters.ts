@@ -31,6 +31,7 @@ import {
   collectionGroup,
   documentId,
   getDocs,
+  limit as fsLimit,
   orderBy,
   query,
   where,
@@ -43,6 +44,30 @@ import { collection as fsCollection } from "firebase/firestore";
 // does not list makes the whole query fail closed, which is the safe
 // direction but an invisible one.
 export const WORLD_ANSWER_SURFACES = ["daily", "feed", "test", "learn"] as const;
+
+// Voters one fetch returns — the newest first, because the query already
+// orders by answeredAt desc (D102).
+//
+// This bound is what keeps the who-voted sheet from being the app's only
+// unbounded read. The daily question is globally shared (computeDeckIds
+// takes no uid), so its crowd is roughly "everyone active that day":
+// uncapped, one sheet open at 5,000 DAU is ~5,000 answer reads plus up to
+// that many profile reads for names — ~10,000 billed reads and a
+// multi-second list render for a single tap, growing linearly with DAU
+// forever. Every sibling fan-out already carries its bound
+// (CIRCLE_ANSWER_CAP, FOLLOW_CAP, KINDRED_QUESTIONS, AGG_ID_CAP); this
+// was the one that shipped without.
+//
+// 200 is a screen-and-a-half of names beyond anyone's patience (~7,000 px
+// of rows) and well above any launch-scale crowd, so at small sizes the
+// sheet is exhaustive and says nothing about it; when the cap binds, the
+// panel says "the latest 200" rather than presenting a truncation as the
+// whole room (LiveVotersPanel). Kindred inherits the same bound per
+// question: recency-biased, which is the honest bias for a likeness
+// ranking drawn from live lists. If a fuller list is ever worth having,
+// the answer is to PAGE from the cursor this ordering already provides —
+// not to raise the number quietly (the D101 rule).
+export const VOTER_FETCH_CAP = 200;
 
 // Firestore's `in` operator caps at 30 values per query (it was 10 before
 // 2023). Name resolution chunks on this.
@@ -136,6 +161,7 @@ export async function fetchVoters(
     where("qid", "==", qid),
     where("surface", "in", [...WORLD_ANSWER_SURFACES]),
     orderBy("answeredAt", "desc"),
+    fsLimit(VOTER_FETCH_CAP),
   ));
 
   const rows: Voter[] = [];

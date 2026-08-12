@@ -25,7 +25,7 @@
 // pseudonym — the D1 line, which D98 did not touch.
 import React from "react";
 import LIVE from "../data/live";
-import type { Voter } from "../data/voters";
+import { VOTER_FETCH_CAP, type Voter } from "../data/voters";
 
 const LV_LINE = "1px solid color-mix(in oklch, var(--rule), transparent 25%)";
 
@@ -121,11 +121,28 @@ function LiveVotersPanel({ qid, options }: { qid: string; options: string[] }) {
     );
   }
 
+  // The fetch is bounded at VOTER_FETCH_CAP, newest first (D102). A full
+  // page means there are (almost certainly) more, and the sheet must say
+  // so — a truncated list presented as the whole room is the same small
+  // lie the withheld cells used to tell, pointed the other way. The
+  // aggregate's total names the room's real size when the store holds it;
+  // rows.length === snap size here because a question's answers are all
+  // option-shaped or all catalog-shaped, never mixed.
+  const capped = total >= VOTER_FETCH_CAP;
+  const roomN = capped ? LIVE.aggFor(qid)?.total : undefined;
+
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
       <span style={{ fontFamily: "var(--sans)", fontSize: 10.5, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--ink-3)" }}>
-        Who answered · {total}
+        Who answered · {capped ? `the latest ${total}` : total}
       </span>
+      {capped && (
+        <span style={{ fontFamily: "var(--sans)", fontSize: 11.5, fontWeight: 500, color: "var(--ink-3)", marginTop: -8 }}>
+          {typeof roomN === "number" && roomN > total
+            ? `${roomN.toLocaleString()} have answered — these are the newest ${total}.`
+            : `Showing the newest ${total} answers.`}
+        </span>
+      )}
       {cols.map((voters, i) => (
         <div key={i} style={{ display: "flex", flexDirection: "column" }}>
           <div style={{ display: "flex", alignItems: "baseline", gap: 8, borderBottom: LV_LINE, paddingBottom: 5 }}>

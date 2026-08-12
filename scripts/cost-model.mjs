@@ -96,9 +96,15 @@ for (const [dau, mature] of SCENARIOS) {
 // the bill is boot and top-up. It never was, and post-D67 it is not close.
 console.log("\nwhere the fan-out overtakes every FLAT source combined");
 {
+  // Every source except the fan-out itself — derived from the model's own
+  // keys rather than listed, the same reason the decomposition printer
+  // above derives its columns: this list was five keys long when D102's
+  // `social` arrived, and a hardcoded sum drops a new term silently,
+  // understating the crossover. (`social` does belong in "flat": its
+  // crowd factor is min(VOTER_FETCH_CAP, DAU), constant above the cap.)
   const flatOf = (dau, mature) => {
     const { r } = model(dau, mature);
-    return r.boot + r.topUp + r.reseed + r.rules + r.server;
+    return Object.entries(r).reduce((a, [k, v]) => (k === "fanOut" ? a : a + v), 0);
   };
   let lo = 100, hi = 500_000;
   while (hi - lo > 1) {
