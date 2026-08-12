@@ -64,6 +64,9 @@ jobs:
       # count — this check cross-checks the two, so it guards the deploy,
       # not just the client (ci.yml runs it too). Node stdlib only.
       - run: npm run check:pokedex
+      # …and CATALOG_MAX_ELEMENT against public/elements.txt — the same
+      # trigger-side ceiling, second contiguous-key domain.
+      - run: npm run check:elements
       # Same for the QID-keyed domains: catalogKeys.ts is what the deployed
       # trigger accepts, and it must equal the committed catalogue files
       # exactly — absence included.
