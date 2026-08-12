@@ -26,11 +26,14 @@ That materially changes what can be sold and how it must be described.
 Treat everything below as needing re-derivation before any of it is
 offered to anyone.
 
-**Pause note (D81):** the floor is paused to 1 pre-launch — counts
-publish exactly, per answer, and a tiny cohort's count is readable as an
-individual's answer until the floor restores at launch traction. "Never
-sells a person" is therefore a property of the design floor; none of the
-paths below is built yet, so nothing is sold under the pause.
+**There is no floor to restore (D98).** This paragraph used to record
+D81's pre-launch pause and promise the floor back at launch traction. The
+floor was removed outright on 2026-08-11, and with it the last mechanism
+that could have made "never sells a person" true by construction. What
+bounds a buyer now is not arithmetic but **scope**: the window is the
+public aggregate, which is a convenience over data the buyer could read
+themselves. Any pitch that offers more than that is a new decision, not
+an application of this one.
 
 The other side of the ledger is [`COSTS.md`](COSTS.md): what serving that
 asset costs at five sizes, and which three lines the bill actually
@@ -99,14 +102,26 @@ Narrower than "no ads" — ads are path 3. What stays out is the
   moment a behavioral profile exists, whatever the intentions. An ad
   path that needs those is a reversal of THOSE records, not an edit to
   this doc — its own decision, taken knowingly, if ever.
-- **Selling personal or below-floor data.** Not a policy promise — there
-  is no code path that could serve it. Exact counts are server-only,
-  the floor applies to every reader, and the politics result never
-  leaves the owner's document (Art. 9, D8). A buyer contract cannot
-  override `firestore.rules`.
+- **Selling a private back channel.** This bullet used to say "selling
+  personal or below-floor data", and rested on three things D98 removed:
+  server-only exact counts, a floor that applied to every reader, and a
+  politics result that never left the owner's document. All three are
+  gone — the counts are exact to everyone, there is no floor, and the
+  politics result is on a world-readable profile. What survives is
+  narrower and still enforceable: **a buyer gets no read path a signed-in
+  user does not have.** No private export, no API, no demographic report
+  computed server-side for one customer. That is a line `firestore.rules`
+  can hold, and a buyer contract still cannot override it.
 
 ## The one-sentence version
 
 Places, sponsors and feed advertisers pay to appear or to ask; users
-never pay — with money or with their identity; and the sold split is
-the same honest, floored number every user sees for free.
+never pay with money; and the sold split is the same honest, exact
+number every user sees for free — no private tier, no buyer-only cut of
+the data.
+
+The clause that used to end "…nor with their identity" is deleted rather
+than softened. Since D98 a user's answers are public and attributed, so
+identity is part of what the product renders — the honest version of the
+promise is that it is rendered to *everyone*, on the same terms, and
+never packaged for one paying reader.

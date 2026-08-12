@@ -163,7 +163,15 @@ function LivePrivacyPanel() {
               mechanics change, this sentence changes in the same commit. */}
           <li>&ldquo;Right now, around you&rdquo; (the Near counter) is optional and off by default. While it&rsquo;s on and the app is open, your phone shares a kilometre-sized grid square — worked out on the device, your coordinates discarded — so the server can answer <em>how many</em> people are around you. No other user can ever read your square; a count is all that comes back. It goes stale within minutes when you close the app, and turning it off (or deleting your account) deletes it immediately.</li>
           <li>No IP-based location lookup, no background or continuous location, no location history.</li>
-          <li>No contacts. No comments from strangers. No ads, no tracking, no third-party analytics.</li>
+          {/* "No comments from strangers" stood here until the D98 doc
+              sweep, and D83 had already made it false: world takes are
+              exactly strangers' comments. What is still true is the shape
+              of them — no names, one per person per question, reportable,
+              and mutable by you locally. Claiming the absence of a feature
+              the app ships is the same failure as claiming a protection it
+              does not have. */}
+          <li>Strangers&rsquo; takes appear under world questions, always without a name. Report one, or hide that author on this device, from the take itself.</li>
+          <li>No contacts. No ads, no tracking, no third-party analytics.</li>
         </ul>
         {/* Until now these pages shipped inside the bundle and were linked
             from nowhere — reachable only by knowing the filename. Both
