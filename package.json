@@ -65,6 +65,7 @@
     "monitoring:apply": "node scripts/apply-monitoring.mjs",
     "check:monitoring": "node scripts/check-monitoring.mjs",
     "build:feature-graphic": "node scripts/gen-feature-graphic.mjs",
+    "testuser": "node --experimental-strip-types --no-warnings=ExperimentalWarning scripts/test-users.mjs",
     "test:unit": "vitest run --dir src",
     "test:scripts": "vitest run --dir scripts",
     "test:coverage": "vitest run --dir src/v2/data --coverage",

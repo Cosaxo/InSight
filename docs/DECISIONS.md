@@ -9784,3 +9784,108 @@ because the flag is read at module scope and both suites are demo builds.
 style") is a different instrument with its own questions and stays. Two
 names in the same app is worth a look; retiring a live lens is not a
 side effect of retiring a test.
+
+## D104 · Test users: a second real account, and what it is allowed to fake
+
+**Decided:** 2026-08-12 · **Status:** binding for the harness ·
+Tooling decision — it changes no product surface and no rule.
+
+**Decision.** `scripts/test-users.mjs` (`npm run testuser`) drives
+synthetic accounts through the duel loop so 1v1 and groups can be
+exercised from one browser. It writes **only through the client SDK**,
+under each account's own session. Four deliberate limits, recorded here
+because each one is a place where the harness stops resembling a real
+device, and a surprise in a test tool is how a real bug gets attributed
+to the tool.
+
+### Why a harness at all
+
+docs/LOCAL-TESTING.md answered "test a duo" with a second incognito
+window. That covers the join and nothing after it: `shouldReveal` is
+both-or-nothing for duos, `groupPortrait` is computed from reveal
+**history**, and `nextStreak` needs consecutive revealed days. The cost
+of one day of two-member history by hand is two windows, two votes and a
+wait for the 2-hourly scan; the cost of three days is that three times.
+Those are the surfaces least likely to have been looked at, which is the
+argument for the tool rather than for more discipline.
+
+### 1 · Identity is email/password, not anonymous (against D3)
+
+Real devices are anonymous-first. An anonymous session cannot be
+re-attached in a later process: re-signing in needs the refresh token,
+and the JS SDK exposes no API that takes one. The alternative was
+`firebase-admin` minting custom tokens, which adds a credential path to
+a client-only tool.
+
+The substitution is invisible to everything a test user touches, and that
+is checkable rather than hopeful: no rule reads
+`request.auth.token.firebase.sign_in_provider` (grep), no function
+branches on it, and the profile's `anon` field has no reader — v2social.ts
+names it only as an unbounded field. uid is what every gate keys on.
+
+The cost: the harness cannot exercise anything that *does* depend on
+anonymity, and if a future rule starts to, this is the first thing that
+would silently stop being representative.
+
+### 2 · Backfill reaches 3 days, not PENDING_DAYS_KEEP's 6
+
+`firestore.rules` admits a duel answer while `timestamp.date(day) >
+request.time - duration.value(4, 'd')`. The day key is midnight UTC, so
+at 15:00 UTC the -4 key is 2026-08-08T00:00Z against a bound of
+2026-08-08T15:00Z and is refused; -3 clears it at any hour. 3 is
+therefore the largest offset that does not make the tool's behaviour a
+function of when it was run. The reveal scan's window is 6, so a backfill
+cannot fill it — accepted, because 3 days is already enough history for
+the portrait and the streak to be non-trivial.
+
+### 3 · A duo backfill settles only days the human also played
+
+Both-or-nothing again, and the harness holds no session for the human, so
+it cannot supply the other half of a past day. It reports each day it
+could not settle and why, rather than writing one-sided history that
+would then read as a broken reveal pipeline.
+
+### 4 · `reset --purge` leaves the tallies it fed
+
+`deleteAccount` erases the uid attribution (the D28 ledger) and keeps the
+anonymous count, by design — phase 1b. So purged test users stay in every
+count they voted in, and the only clean slate is an emulator restart. Said
+in the command's own output, because a total that does not drop after a
+delete is otherwise indistinguishable from a broken erasure.
+
+### Emulator-only, and why that is structural rather than advisory
+
+The script refuses to run unless `.env` has `VITE_USE_EMULATOR=true`.
+Since D98 the public counts are **exact** and publish from the first
+answer: there is no floor for a fake account to hide under, so test users
+answering world questions on a real project would move numbers real people
+are shown. The ledger's uid attribution exists so a discovered ring can be
+subtracted after the fact (DEPLOYMENT.md, "Correcting aggregates") — a
+cleanup path, not a licence to create the mess. Production also enforces
+App Check on every member callable, which a Node process cannot attest to,
+so the guard costs nothing that worked anyway.
+
+### What is imported rather than restated, and the bug that argues for it
+
+The day's question comes from the real `duelQFor`; anchors come from the
+profile's closed vocabularies and cities from the shipped catalogue via
+`placeKey`. Both would otherwise drift into a *plausible* wrong screen: a
+drifted question selection seals answers to a prompt the app never asked,
+which `revealQid` then publishes as the D70/D71 disagreement on every run,
+and an out-of-vocabulary anchor writes fine and folds into no breakdown
+bucket, counting in every total while appearing in no cohort cut.
+
+The one thing the harness does compute itself — a per-person conformity
+bias, so the splits split — is where this bit. It was first written in
+`gHash`'s shape (`h * 31 + c`), whose last round adds the final character
+straight into the accumulator, so consecutive inputs give consecutive
+outputs. Question ids run `daily-007`, `daily-008`, `daily-009`: measured,
+four users' rolls over those three came out .24/.25/.26, .41/.42/.43,
+.03/.04/.05 and .46/.47/.48 — the population conforming or dissenting as
+one bloc, publishing a unanimous split for **every** question, with real
+per-cohort breakdown cells sitting underneath it looking correct. A
+SHA-256 digest replaced it: 27 unanimous in 200 where it had been 200 in
+200. gHash is fine at its own job (one gid, once); the lesson recorded is
+that a hash chosen for a different modulus and input shape is not
+transferable, and that the failure surfaced only from probing the output
+distribution — reading the code, it looks like a hash.
