@@ -1,18 +1,26 @@
 // @vitest-environment jsdom
 //
-// LiveCohortBody renders the Mirror's Near / Country / World stops from the
-// k-floored public aggregates. It is the panel with the most ways to lie
-// quietly, because everything it draws is a claim about a cohort:
+// LiveCohortBody renders the Mirror's City / Country / World stops from
+// the public aggregates — exact, unfloored, published from the first
+// answer since D98 (Near split off to NearLiveBody at D111). It is the
+// panel with the most ways to lie quietly, because everything it draws
+// is a claim about a cohort:
 //
-//   - an ABSENT breakdown cell means "below the floor", not "nobody answered".
-//     Dropping it silently is the failure this panel's `withheld` counter
-//     exists to prevent, and a counter is exactly the kind of thing that
-//     keeps compiling after it stops being correct.
-//   - at world scope the server's own `tooSmall` flag is authoritative, "an
-//     agg can carry stale counts while still being below it". Reading the
-//     counts instead would publish a split the floor withheld.
-//   - the floor NUMBER is printed to the user, so it has to be the floor the
-//     server actually enforces.
+//   - an ABSENT breakdown cell means ZERO — nobody in this cohort has
+//     answered — and dropping it silently is still the failure the counter
+//     under the list exists to prevent: a question that vanishes reads as
+//     "not asked here" rather than "not answered here". A counter is
+//     exactly the kind of thing that keeps compiling after it stops being
+//     correct.
+//   - "no aggregate document at all" is a THIRD state, distinct from both
+//     an empty cell and an answered one, and claiming either of the others
+//     for it would tell the user something nobody knows.
+//   - nothing consults `tooSmall`. The three bullets that stood here
+//     described the k-floor — an absent cell meaning "withheld", the
+//     server's flag beating stale counts, and the floor number being
+//     printed to the user — and D98 deleted all three along with the
+//     floor. The cases below are their inverses, kept so the flag's return
+//     would fail rather than quietly re-hide the app.
 //
 // The mount tests in test/smoke-live.test.jsx render this panel as part of
 // the app and prove it does not crash. That is a different question from
@@ -51,8 +59,20 @@ const LIVE = vi.hoisted(() => ({
   kindred: () => [] as Array<{ uid: string; name: string; like: { shared: number; same: number; pct: number } }>,
   kindredLoading: () => false,
   kindredDepth: () => 0,
-  // The Right now card (D84). Reassigned per case; the default is the
-  // supported-but-off pitch state.
+  // The constellation field (D112) mounts inside this panel too, lazily.
+  // Stubbed empty — data/similarity.test.ts owns the arithmetic and the
+  // field renders its honest empty state here, which is what these cases
+  // should scroll past.
+  loadSimilarity: async () => {},
+  similarityLoading: () => false,
+  testFeedItems: () => [] as Array<Record<string, unknown>>,
+  myTestResults: () => ({} as Record<string, unknown>),
+  kindredPeople: () => [] as Array<Record<string, unknown>>,
+  isFollowing: () => false,
+  setFollowing: async () => {},
+  // LIVE.near survives on the mock because the D92 city-derive effect
+  // still reads the grant state here; the CARD moved to NearLiveBody
+  // (D111), which has its own suite.
   near: {
     supported: () => true as boolean,
     on: () => false as boolean,
@@ -157,11 +177,12 @@ describe("LiveCohortBody · an absent cell is counted and named", () => {
 });
 
 describe("LiveCohortBody · world scope shows what the aggregate holds", () => {
-  it("withholds a question flagged tooSmall even when it carries counts", () => {
-    // The exact shape the comment in the panel warns about: an aggregate
-    // that still has counts on it from an earlier publish while the server
-    // now says it is below the floor. Rendering the counts would publish a
-    // a question with no answers at all.
+  it("leaves out a question whose aggregate has no answers on it", () => {
+    // Retitled at the D98 doc sweep: this used to read "withholds a
+    // question flagged tooSmall even when it carries counts", which is not
+    // what the body does — there is no flag anywhere in it. The state under
+    // test is `total: 0`, i.e. nobody has answered, and the panel accounts
+    // for it in words rather than drawing an empty row.
     LIVE.aggFor = (qid) => qid === "q1"
       ? { counts: { "0": 30, "1": 20 }, total: 50 }
       : { counts: {}, total: 0 };
@@ -195,7 +216,7 @@ describe("LiveCohortBody · no city is a prompt, not an empty panel", () => {
     // moment the claim is checkable by the person reading it.
     LIVE.myCity = "";
     render(<LiveCohortBody scope="city" />);
-    expect(screen.getByText(/Near needs a city/i)).toBeTruthy();
+    expect(screen.getByText(/City needs your city/i)).toBeTruthy();
     expect(screen.getByText(/only the city name is saved, never your coordinates/i)).toBeTruthy();
   });
 
@@ -266,13 +287,13 @@ describe("LiveCohortBody · with the counter on, the city derives itself (D92)",
   it("never locates while the counter is OFF — D9's ask is unchanged", () => {
     // The apply-not-suggest carve-out is scoped to the standing grant.
     // Without it, the panel must not touch the sensor: the ask renders,
-    // the picker stays, and the copy points at the counter as the
-    // hands-free path.
+    // the picker stays, and the copy points at the counter — which lives
+    // at the Near stop since D111 — as the hands-free path.
     LIVE.myCity = "";
     render(<LiveCohortBody scope="city" />);
     expect(locateCity).not.toHaveBeenCalled();
-    expect(screen.getByText(/Near needs a city/i)).toBeTruthy();
-    expect(screen.getByText(/Turning on the count above fills it in/i)).toBeTruthy();
+    expect(screen.getByText(/City needs your city/i)).toBeTruthy();
+    expect(screen.getByText(/Turning on the count at the Near stop fills it in/i)).toBeTruthy();
   });
 
   it("never locates when a city is already set", () => {
@@ -291,7 +312,7 @@ describe("LiveCohortBody · with the counter on, the city derives itself (D92)",
     render(<LiveCohortBody scope="city" />);
     await vi.waitFor(() => expect(screen.queryByText(/Finding your city/i)).toBeNull());
     expect(setCityAnchor).not.toHaveBeenCalled();
-    expect(screen.getByText(/Near needs a city/i)).toBeTruthy();
+    expect(screen.getByText(/City needs your city/i)).toBeTruthy();
     expect(screen.getByRole("button", { name: /Choose your city/i })).toBeTruthy();
     expect(locateCity).toHaveBeenCalledTimes(1);
   });
@@ -350,69 +371,20 @@ describe("the panel prints no floor claim at all (D98)", () => {
   });
 });
 
-describe("the Right now card (D84 — Near by radius)", () => {
-  it("renders on the Near stop even with NO city — radius needs none", () => {
-    // The whole point of the feature: Near stops being a dead end for a
-    // user who never picked a city. The card sits above the city ask.
-    LIVE.myCity = "";
+describe("the presence card stays out of the cohort panel (D111)", () => {
+  it("renders no Right-now card at any scope — Near owns it now", () => {
+    // The card lived here from D84 to D111 and its suite moved to
+    // NearLiveBody.test.tsx with it. What this panel must keep is the
+    // absence: a second copy of the counter behind a different stop is
+    // the two-doors-to-one-room bug in presence form.
+    LIVE.aggFor = () => ({ by: { city: { "Oslo, NO": { "0": 7, "1": 5 } } } });
     render(<LiveCohortBody scope="city" />);
-    expect(screen.getByText(/Right now, around you/i)).toBeTruthy();
-    expect(screen.getByRole("button", { name: /Turn on/i })).toBeTruthy();
-    // …and the city ask is still there beneath it.
-    expect(screen.getByText(/Near needs a city/i)).toBeTruthy();
-  });
+    expect(screen.queryByText(/Right now, around you/i)).toBeNull();
+    cleanup();
 
-  it("stays off the Country and World stops", () => {
-    LIVE.aggFor = () => ({ counts: { "0": 3 }, total: 3, tooSmall: false });
+    LIVE.aggFor = () => ({ counts: { "0": 3 }, total: 3 });
     render(<LiveCohortBody scope="world" />);
     expect(screen.queryByText(/Right now, around you/i)).toBeNull();
-  });
-
-  it("pitches honestly while off: a count, never who, kilometre-sized", () => {
-    render(<LiveCohortBody scope="city" />);
-    const text = document.body.textContent || "";
-    expect(text).toMatch(/a count, never\s+who/i);
-    expect(text).toMatch(/kilometre-sized grid square/i);
-    // No 500 m claim anywhere: the coarse permission cannot measure it,
-    // and the copy must not promise a radius the sensor cannot hold.
-    expect(text).not.toMatch(/500\s?m/i);
-  });
-
-  it("says just-you at zero, counts people above it, and 'a few' when floored", () => {
-    LIVE.near.on = () => true;
-    LIVE.near.count = () => 0;
-    render(<LiveCohortBody scope="city" />);
-    expect(screen.getByText(/Just you right now/i)).toBeTruthy();
-    cleanup();
-
-    LIVE.near.count = () => 3;
-    render(<LiveCohortBody scope="city" />);
-    expect(screen.getByText(/3 people with InSight within a couple of kilometres/i)).toBeTruthy();
-    cleanup();
-
-    // The restored-floor era (D81 revert): the server answers tooFew for
-    // 1-4 and the card says so without a number.
-    LIVE.near.count = () => null;
-    LIVE.near.tooFew = () => true;
-    render(<LiveCohortBody scope="city" />);
-    expect(screen.getByText(/A few people are around you/i)).toBeTruthy();
-  });
-
-  it("turn-on runs enable and a refusal lands as a sentence, not a dead card", async () => {
-    LIVE.near.enable = vi.fn(async () => ({ ok: false, reason: "denied" }));
-    render(<LiveCohortBody scope="city" />);
-    fireEvent.click(screen.getByRole("button", { name: /Turn on/i }));
-    expect(LIVE.near.enable).toHaveBeenCalled();
-    expect(await screen.findByText(/Near stays off until you allow location/i)).toBeTruthy();
-  });
-
-  it("turn-off calls disable — the doc-delete promise rides on it", async () => {
-    LIVE.near.on = () => true;
-    LIVE.near.count = () => 2;
-    LIVE.near.disable = vi.fn(async () => {});
-    render(<LiveCohortBody scope="city" />);
-    fireEvent.click(screen.getByRole("button", { name: /Turn off/i }));
-    expect(LIVE.near.disable).toHaveBeenCalled();
   });
 });
 

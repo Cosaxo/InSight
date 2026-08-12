@@ -54,12 +54,21 @@ one write — an answer — and the surfaces differ only in how they cut it.
                        exact — no floor, no cadence
                                     ↓
                      v2_question_aggs/{qid}      ──────────────► the MIRROR's
-                       counts · by{dim}{bucket}                  Near · Country · World
+                       counts · by{dim}{bucket}                  City · Country · World
                        any signed-in user                        (any bucket)
 
   the duel answers above ─►  reveal doc, server-written  ──────► the MIRROR's Groups
    (sealed until then)        next day, world-readable            portrait
 ```
+
+One more read joined the picture at D112: a completed instrument writes
+`testResults` onto the profile doc (`v2_users/{uid}`), world-readable
+since D98, and the City stop's constellation reads it ACROSS users — the
+person-to-person Compare read the rules comment always promised. The
+same fold gives places their profiles with no new write at all: test
+items are ordinary `scale` questions, so a city's average axis score is
+arithmetic over `by.city` cells that were publishing anyway
+(`data/similarity.ts`).
 
 Three joints hold that picture together, and each is enforced rather than
 observed:
@@ -100,10 +109,10 @@ single ruler you can drag along; the stop you pick recolors the whole tab.
 | **You** | the Map — you, alone, visualized | your own answers, hydrated from Firestore into `DAILYQ` | yes, except the typicality stats (§5), which are mock and refused |
 | **Circle** | your close ties | the follow graph (`v2_users/{uid}/following`) + those accounts' answers | yes since D101 — a one-way follow, ranked by likeness |
 | **Groups** | your named circles | real reveal history, `groupPortrait.ts` | yes |
-| **Near** | your city's answers + the Right-now radius counter (D84) | `v2_question_aggs.by.city[your city]`; `nearbyCountV2` for the live headcount | yes |
-| **City** | — | folded into Near (D9) | dropped from the ruler in live mode |
-| **Country** | everyone in your country | `v2_question_aggs.by.country[…]` | yes |
-| **World** | everyone | `v2_question_aggs.counts` | yes |
+| **Near** | who is around you right now — the radius counter (D84), count only | `nearbyCountV2`; the presence cell stays one of D98's three denies | yes — presence only since D111 |
+| **City** | your city: answers, lenses, and the kindred constellation | `v2_question_aggs.by.city[your city]`; kindred from voter lists + `testResults` (D112) | yes since D111/D112 — its own stop again |
+| **Country** | everyone in your country, plus its cities placed by score likeness | `v2_question_aggs.by.country[…]`; city profiles folded from `by.city` (D112) | yes |
+| **World** | everyone, plus countries placed by score likeness | `v2_question_aggs.counts`; country profiles from `by.country` (D112) | yes |
 
 **You — the Map.** The one stop that is not a population at all. Every
 daily answer becomes a dot, filed under its question's branch and
@@ -138,16 +147,30 @@ What the demo body showed and this one does not — trait axes, compare
 populations, "how they see you" crowns — is unbuilt rather than refused
 since D98: the members' answers and test results are all readable now.
 
-**Near / Country / World.** After D9 these are one question at three
-radii, which is why one renderer serves all three: three renderers would
-eventually disagree about what an empty cell means. They draw counts —
-an absent cell is zero and the panel says so, because since D98 nothing
-is held back at any size.
+**Near.** The Right-now radius counter (D84), and nothing else since
+D111: how many opted-in phones are within a couple of kilometres, as a
+count the server computes from a cell no user can read. It stopped being
+"your city" — that fold (D9) put a presence question and a cohort
+question behind one stop, and D111 un-folded them.
 
-They draw people now, under the lens row (D99): the mix of who answered,
-and Kindred — the accounts whose answers most match yours. The counts
-above them are still counts, which is the right shape for a stop whose
-question is "how did this place answer" rather than "who is here".
+**City / Country / World.** One question at three radii, one renderer
+(`LiveCohortBody`): three renderers would eventually disagree about what
+an empty cell means. They draw counts — an absent cell is zero and the
+panel says so, because since D98 nothing is held back at any size.
+
+Each also leads with its **constellation** (D112): you at the centre,
+distance = unlikeness, computed rather than invented. City arranges the
+people of your city, ranked primarily by test-score match (answer
+agreement as the named fallback); Country arranges your country's cities
+and World the countries, each by the distance between your axis scores
+and the place's real averages. Tapping a place opens its profile — the
+average score per instrument axis, your own tick on every bar, and the
+answer count behind each number.
+
+Under that, the lens row (D99): the mix of who answered, and Kindred —
+the accounts whose answers most match yours. The counts above them are
+still counts, which is the right shape for a stop whose question is "how
+did this place answer" rather than "who is here".
 
 Since D100 they draw the **archive** rather than the week:
 `LIVE.aggregated()` is every question this device holds an aggregate for,
@@ -192,8 +215,9 @@ these lenses its population can support:
 reason carefully, because it changed.** The lens row lives inside the demo
 field bodies (`mirror-field-pops.jsx`, `group-mirror.jsx`). Every stop
 with a live source replaces the whole body with a single panel —
-`LiveCohortBody` for Near/Country/World, `LiveGroupsMirrorBody` for
-Groups, the Map for You — so live mode ships the ruler and not the lenses.
+`LiveCohortBody` for City/Country/World, `NearLiveBody` for Near,
+`LiveGroupsMirrorBody` for Groups, the Map for You — so live mode used to
+ship the ruler and not the lenses.
 
 Until D98 the reason was that four of the five lenses needed data the
 privacy model forbade reading: Kindred strangers, the demographic mix,
@@ -207,7 +231,8 @@ a lens row again:
 | **People** | **live** | the mix is `mixFor` over the deck's aggregates; Kindred is `agreement` over the cached voter lists, bounded at 12 of your own answers × the latest 200 voters each (D102) |
 | **Compare** | **live** | `pctFor` on your own option, ranked least-typical first — no new read |
 | **Explore** | **live** | `divergence` across the six breakdown dims. The v18 test-pole axis is the one part with no source, since test results are not a dim |
-| **Scores** | **not built** | needs `rate` questions and the bank ships none. Content, not code — a frame built before its content reads as permanently broken |
+| **Scores** | **live since D100** | `meanScore` over the bank's ordinal questions (`rating` + `scale`), your own score ticked onto each bar. The prototype's *place* scorecard joins the day `rate` questions are written — the lens filters on type |
+| **the field itself** | **live since D112** | `LiveSimilarityField` — the constellation the demo bodies drew from constants, now computed: kindred by scores on City, place profiles on Country/World |
 
 The row is collapsed by default: opening the Mirror pays for none of it,
 and Kindred — the only lens that can cost a read the app has not already
@@ -243,9 +268,19 @@ is written by a callable the rules refuse to let a client mutate (D57).
 
 The Mirror is where the port's prototype data survives most, and the app
 labels it rather than hiding it. Any demo population in a live build wears
-a **Preview · sample people** tag; the live bodies (Groups, Near, Country,
-World) deliberately do not, because carrying nothing fabricated is the
-point of them.
+a **Preview · sample people** tag; the live bodies (Groups, Near, City,
+Country, World) deliberately do not, because carrying nothing fabricated
+is the point of them.
+
+The biggest former resident of this section moved out at D112: the
+similarity constellations. `mirror-field-pops.jsx` still holds the
+invented rosters — "Anders K. · Torshov · 92%", the city `match`
+constants under "closer = a city more like you" — but they render only in
+demo mode now. The live fields compute the same grammar from real data
+(`data/similarity.ts`), and they inherit three of D1's rules where the
+prototype cheated: no decorative mist-people, no invented headline count
+("12.6k in Oslo" never had an honest source), and thin data is listed
+with its reason rather than positioned.
 
 Two gaps are worth stating in prose because no badge covers them:
 
@@ -293,7 +328,10 @@ Two gaps are worth stating in prose because no badge covers them:
 | the per-population node lists | `src/v2/spec/mirror-field-pops.jsx` |
 | the daily record | `src/v2/spec/mirror-answers.jsx` |
 | the Map | `src/v2/spec/map-tab.jsx` (+ `map-*.js*`) |
-| Near / Country / World, live | `src/v2/ui/LiveCohortBody.tsx` |
+| City / Country / World, live | `src/v2/ui/LiveCohortBody.tsx` |
+| Near, live — the presence counter alone (D111) | `src/v2/ui/NearLiveBody.tsx` |
+| the constellations, live (D112) | `src/v2/ui/LiveSimilarityField.tsx` |
+| the similarity folds (profiles, matches, ranking) | `src/v2/data/similarity.ts` |
 | Groups, live | `src/v2/ui/LiveGroupsMirrorBody.tsx` + `data/groupPortrait.ts` |
 | the group as a cast of roles | `src/v2/spec/group-role-map.jsx` |
 | Compare | `src/v2/spec/compare-breakdown.jsx` |
@@ -315,7 +353,9 @@ D1 (no fake anything — the half of D1 that SURVIVES, and now the only
 reason anything is ever hidden) · D3 (anonymous-first, groups by invite
 code) · D5 (create-only answers, owner-written; the option is editable
 since D86, the cohort snapshot is not) · D8 (per-anchor breakdowns and
-the snapshot they read) · D9 (Near is your city) · D32 (Learn's first
-attempt only) · D38 (why relmap stays eager) · D57 (server-scored
-logic) · D72 (the Map's mock typicality, refused for being invented
-rather than private).
+the snapshot they read) · D9 (the city as the unit — its Near-fold undone
+by D111) · D32 (Learn's first attempt only) · D38 (why relmap stays
+eager) · D57 (server-scored logic) · D72 (the Map's mock typicality,
+refused for being invented rather than private) · D111 (Near is
+presence, City is its own stop) · D112 (the similarity surfaces: place
+score profiles and kindred by scores, default-on).

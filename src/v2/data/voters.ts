@@ -27,17 +27,15 @@
 // rules.test.ts). It is also what keeps sealed duel answers out: they
 // carry surface "group"/"duo" and are nobody's business until the reveal.
 
-import {
-  collectionGroup,
-  documentId,
-  getDocs,
-  limit as fsLimit,
-  orderBy,
-  query,
-  where,
-  type Firestore,
-} from "firebase/firestore";
-import { collection as fsCollection } from "firebase/firestore";
+// The API arrives through lib/firebase's memoised dynamic import, not a
+// static one (D110) — a static import here would put the 292 KB Firestore
+// SDK back in the first-paint graph, because live.ts imports this module
+// eagerly. The type import is erased and costs nothing.
+import { getFirestoreApi } from "../../lib/firebase";
+import type { Firestore } from "firebase/firestore";
+// Pure arithmetic, no Firebase anywhere in it — safe to import statically
+// without re-opening the first-paint hole the comment above closes.
+import { CORE_TEST_KINDS, parseTestResults, type ParsedResults } from "./similarity";
 
 // The surfaces a world answer can carry. Must match the array in
 // firestore.rules' collection-group grant exactly — a value here the rule
@@ -155,7 +153,9 @@ export async function fetchVoters(
   qid: string,
   myUid: string | null,
   names: Record<string, string>,
+  scores?: Record<string, ParsedResults | null>,
 ): Promise<Voter[]> {
+  const { collectionGroup, getDocs, limit: fsLimit, orderBy, query, where } = await getFirestoreApi();
   const snap = await getDocs(query(
     collectionGroup(db, "answers"),
     where("qid", "==", qid),
@@ -177,7 +177,7 @@ export async function fetchVoters(
     rows.push({ uid, optionIdx, anchors, name: "", isMe: uid === myUid });
   }
 
-  await resolveNames(db, rows.map((r) => r.uid), names);
+  await resolveNames(db, rows.map((r) => r.uid), names, scores);
   for (const r of rows) r.name = names[r.uid] || "";
   return rows;
 }
@@ -187,14 +187,26 @@ export async function fetchVoters(
  *
  * A uid whose profile read returns nothing is cached as "" rather than
  * left absent, so a nameless account is not re-fetched on every open.
+ *
+ * When a `scores` cache is passed (D112), the SAME read also fills uid →
+ * parsed test scores. The web SDK has no field mask, so the whole profile
+ * document — testResults included — was already on the wire every time
+ * this resolved a name; extracting scores here is the read the app
+ * already paid for, not a second one. `null` is cached for a profile with
+ * nothing usable, mirroring the "" convention, so absence is never
+ * re-fetched per open.
  */
 export async function resolveNames(
   db: Firestore,
   uids: readonly string[],
   names: Record<string, string>,
+  scores?: Record<string, ParsedResults | null>,
 ): Promise<void> {
-  const missing = uids.filter((u) => !(u in names));
+  const missing = uids.filter((u) => !(u in names) || (scores ? !(u in scores) : false));
   if (!missing.length) return;
+  const {
+    collection: fsCollection, documentId, getDocs, query, where,
+  } = await getFirestoreApi();
   for (const batch of chunkUids(missing)) {
     const snap = await getDocs(query(
       fsCollection(db, "v2_users"),
@@ -203,9 +215,13 @@ export async function resolveNames(
     for (const d of snap.docs) {
       const n = d.get("displayName");
       names[d.id] = typeof n === "string" ? n.trim().slice(0, 60) : "";
+      if (scores) scores[d.id] = parseTestResults(d.get("testResults"), CORE_TEST_KINDS);
     }
     // Anything the query did not return does not exist — cache the
     // absence so the next open does not re-ask for it.
-    for (const u of batch) if (!(u in names)) names[u] = "";
+    for (const u of batch) {
+      if (!(u in names)) names[u] = "";
+      if (scores && !(u in scores)) scores[u] = null;
+    }
   }
 }

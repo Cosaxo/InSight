@@ -69,13 +69,13 @@ export const OPTION_SHAPES = {
 // The feed's closed type list. Until this set existed a novel feed type
 // passed the gate silently (the daily surface had OPTION_SHAPES; the feed
 // had nothing) — exactly how a wrong-shaped card would reach review unread.
-// vote and the continuum forms (dial/field, live since D106) are lane
+// vote and the continuum forms (dial/field, live since D114) are lane
 // candidates; rank/duel are bank legacy (D12).
 export const FEED_TYPES = new Set(["vote", "rank", "duel", "dial", "field"]);
 // A dial's crowd texture is exactly 12 buckets lo→hi. Pinned rather than
-// free: world-feed.jsx's curve is drawn from it, and 12 fits the live
-// fold's optionIdx ceiling (0..19, functions/src/v2.ts) — so a future
-// promotion to the live bank can bucket answers 1:1 without a re-author.
+// free: world-feed.jsx's curve is drawn from it, 12 fits the live fold's
+// optionIdx ceiling (0..19, functions/src/v2.ts), and the live bank's
+// synthesized bucket labels (D114) bucket answers 1:1 against it.
 export const DIAL_BUCKETS = 12;
 // A field's cloud stays a sketch, not a census: enough dots to read as a
 // crowd, few enough that the reveal's stagger (one span per dot) stays a
@@ -214,7 +214,7 @@ export function placeCivicHit(q) {
 // Every error carries a stable `rule` slug: it is the ALLOW key's second
 // half, so a waiver names exactly one finding, never the whole question.
 //
-// `mode.texture` — a continuum question exists in two forms (D106): the
+// `mode.texture` — a continuum question exists in two forms (D114): the
 // DEMO-POOL entry carries an authored crowd (med/dist/cloud/n) because the
 // demo has no backend, and the CONTENT entry carries none because the live
 // crowd is the aggregate. Texture rules apply only where texture belongs;
@@ -570,7 +570,7 @@ if (invokedDirectly) {
     report("pick", q.id, errs, warn);
   });
   // the demo pool's continuum entries — feed rules plus the texture rules:
-  // this is the half that carries the authored crowd (D106), mirroring the
+  // this is the half that carries the authored crowd (D114), mirroring the
   // texture-less content entries the feed walk above already covered.
   corpus.continuum.forEach((q) => {
     const { errs } = checkQuestion(q, "feed", corpus, { texture: true });

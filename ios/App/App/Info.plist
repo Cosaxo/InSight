@@ -74,6 +74,33 @@
 	     feature is called. -->
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>Used once, on this device, to work out which city you are nearest so the daily can show how your city answered. Your coordinates are never sent anywhere and never stored — only the city name. You can skip this and pick your city from a list instead.</string>
+	<!-- The same string again, for an authorisation this app never asks for.
+	     Apple's upload analysis reads the linked binary, not the call
+	     sites: @capacitor/geolocation depends on ion-ios-geolocation, whose
+	     IONGLOCAuthorisationRequestType has an `always` branch naming
+	     CLLocationManager.requestAlwaysAuthorization, so that symbol ships
+	     in every archive and the key becomes mandatory even though nothing
+	     in this app can reach it. Without it, App Store Connect accepts the
+	     build and then emails ITMS-90683 — which is how this was found, on
+	     2.0.0 build 10.
+
+	     Both halves verified in source rather than inferred from the
+	     warning: the `always` branch is in the upstream enum, and the
+	     plugin's only call site is
+	     `requestLocationAuthorisation(type: .whenInUse)`
+	     (GeolocationPlugin.swift). The plugin's own README says to add this
+	     key with the same text as the when-in-use one, because the prompt
+	     cannot appear.
+
+	     Identical by rule: `npm run check:ios-location` fails if the two
+	     strings drift. A string nobody can see is one nobody would notice
+	     growing a claim the app does not honour — and this one sits beside
+	     web/privacy.html's "no location history, no background location".
+	     The key grants nothing on its own: an Always prompt needs an Always
+	     request, and UIBackgroundModes above carries remote-notification
+	     only. The same check holds that pair too. -->
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>Used once, on this device, to work out which city you are nearest so the daily can show how your city answered. Your coordinates are never sent anywhere and never stored — only the city name. You can skip this and pick your city from a list instead.</string>
 	<!-- Ask for REDUCED accuracy by default (iOS 14+). The system then hands
 	     back a coarse fix — roughly neighbourhood-level — and the permission
 	     sheet shows "Precise: Off" with the user free to turn it on rather

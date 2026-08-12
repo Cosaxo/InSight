@@ -19,45 +19,86 @@
 // (decision D5) — this module never reads another user's documents.
 // Comments and who-voted stay OFF for live questions (decision D1).
 
-// All three of these were ALSO imported dynamically further down, at
-// seven call sites, which bought exactly nothing: a module that is
-// statically imported anywhere in a file is already in that file's chunk,
-// so `await import()` of it cannot defer a byte. Rollup said so for
-// lib/firebase every build (INEFFECTIVE_DYNAMIC_IMPORT); the other two
-// were the same shape without the warning. Static everywhere now — the
-// awaits implied a lazy boundary that did not exist.
-import {
-  clearIndexedDbPersistence,
-  collection,
-  deleteDoc,
-  doc,
-  documentId,
-  getDoc,
-  getDocs,
-  limit,
-  onSnapshot,
-  orderBy,
-  query,
-  serverTimestamp,
-  setDoc,
-  terminate,
-  Timestamp,
-  updateDoc,
-  where,
-} from "firebase/firestore";
-import { getFunctions, httpsCallable } from "firebase/functions";
+// ── the Firestore/Functions API, bound rather than imported (D110) ──
+//
+// These were static imports, and the note here used to explain why: seven
+// call sites had ALSO `await import()`ed them, which bought nothing, because
+// a module statically imported anywhere in a file is already in that file's
+// chunk. That reasoning was right and its conclusion — "static everywhere" —
+// was the wrong end to fix it from. live.ts is eager, so the static import
+// put the 292 KB Firestore SDK in the FIRST-PAINT graph of every build,
+// including one with no `VITE_FIREBASE_*` configured at all. Measured:
+// removing these two imports takes entry + every `modulepreload` from
+// 1270.2 KB to 943.0 KB — 327 KB, 26% of what a cold start must fetch and
+// parse before it can paint. The entry chunk does not move by a byte, which
+// is why neither of `check:bundle`'s old ceilings ever said a word.
+//
+// WHY THE 73 CALL SITES BELOW ARE UNCHANGED, and why that is safe rather
+// than lucky. Every Firestore use in this file sits in a scope that holds a
+// `db` — checked, all 73, including the eleven that take no db argument
+// (`Timestamp.fromMillis`, `serverTimestamp`, `documentId`). A `db` can be
+// obtained only from `getDb()`, which awaits lib/firebase's single memoised
+// `impl()` promise, which IS the dynamic import of firebaseImpl.ts, which
+// statically holds `firebase/firestore`. So binding these names off that
+// same promise makes every call site correct by the PROVENANCE of the value
+// it already uses — there is no load order to audit, and no site that could
+// be missed.
+//
+// The local `getDb` below is the whole mechanism. It shadows the import
+// deliberately: the 25 `await getDb()` sites in this file did not change
+// either, and a reader who follows one lands here.
+type FsApi = typeof import("firebase/firestore");
+type FnsApi = typeof import("firebase/functions");
+let clearIndexedDbPersistence!: FsApi["clearIndexedDbPersistence"];
+let collection!: FsApi["collection"];
+let deleteDoc!: FsApi["deleteDoc"];
+let doc!: FsApi["doc"];
+let documentId!: FsApi["documentId"];
+let getDoc!: FsApi["getDoc"];
+let getDocs!: FsApi["getDocs"];
+let limit!: FsApi["limit"];
+let onSnapshot!: FsApi["onSnapshot"];
+let orderBy!: FsApi["orderBy"];
+let query!: FsApi["query"];
+let serverTimestamp!: FsApi["serverTimestamp"];
+let setDoc!: FsApi["setDoc"];
+let terminate!: FsApi["terminate"];
+let Timestamp!: FsApi["Timestamp"];
+let updateDoc!: FsApi["updateDoc"];
+let where!: FsApi["where"];
+let getFunctions!: FnsApi["getFunctions"];
+let httpsCallable!: FnsApi["httpsCallable"];
+
 import {
   anonSignIn,
   firebaseEnabled,
-  getDb,
+  getDb as getDbRaw,
+  getFirestoreApi,
+  getFunctionsApi,
   googleSignOut,
   linkGoogle,
   subscribeToAuth,
 } from "../../lib/firebase";
+
+async function getDb(): Promise<import("firebase/firestore").Firestore> {
+  // Promise.all, not three awaits: all three resolve from the SAME memoised
+  // impl() promise, so this is one load however many callers race here.
+  const [db, fs, fns] = await Promise.all([
+    getDbRaw(), getFirestoreApi(), getFunctionsApi(),
+  ]);
+  ({
+    clearIndexedDbPersistence, collection, deleteDoc, doc, documentId, getDoc,
+    getDocs, limit, onSnapshot, orderBy, query, serverTimestamp, setDoc,
+    terminate, Timestamp, updateDoc, where,
+  } = fs);
+  ({ getFunctions, httpsCallable } = fns);
+  return db;
+}
 import { reportError, setSentryUser } from "../../lib/sentry";
 // The cross-user read (D98). Pure helpers + the two queries live there so
 // the grouping/sorting can be unit-tested without Firebase.
 import { fetchVoters, groupByOption, resolveNames, sortVoters, type Voter } from "./voters";
+import { type KindredPerson, type ParsedResults } from "./similarity";
 // Pure folds over the published breakdown, and the likeness metric behind
 // Kindred. No Firebase in there — this module supplies the documents.
 import { agreement, type Agreement } from "./cohort";
@@ -198,11 +239,20 @@ const state = {
   // opening five questions re-reads the same regulars five times.
   // Session-scoped, and dropped by the purge with everything else.
   names: {} as Record<string, string>,
+  // uid → parsed test scores (D112), the `names` cache's sibling: filled
+  // by the SAME batched profile read (the web SDK has no field mask, so
+  // the whole document was on the wire whenever a name resolved — this
+  // keeps what was already paid for). null = fetched, nothing usable.
+  scores: {} as Record<string, ParsedResults | null>,
   // Kindred (D99): no cached ranking, only the flags. The ranking itself
   // is derived on read from `voters` + `votes`, so it cannot go stale
   // against its own inputs.
   kindredLoading: false,
   kindredAt: 0,
+  // Similarity (D112): the constellation fields' one-per-session agg
+  // top-up (the bank's core test items) and its in-flight flag.
+  similarityLoading: false,
+  testAggsLoaded: false,
   // The follow graph's loaded state (D101). null = not asked, or asked
   // and failed; [] = asked, and you follow nobody. The stop says
   // different things for those two.
@@ -820,7 +870,7 @@ function feedCounts(q: QuestionDoc & { id: string }): number[] {
 // real k-floored counts, no seeded comments (D1 — renderEngage is also
 // gated off for q.live cards). Rankings/scales are deferred; every live
 // card renders through the options path — EXCEPT the continuum forms
-// (dial/field, D106), which keep their bank type: their options are
+// (dial/field, D114), which keep their bank type: their options are
 // synthesized bucket/cell labels, the per-option counts ARE the crowd's
 // distribution, and world-feed renders them through their own bodies
 // (curve / cloud) instead of option rows.
@@ -1513,7 +1563,7 @@ const LIVE = {
     state.votersLoading[qid] = true;
     try {
       const db = await getDb();
-      state.voters[qid] = await fetchVoters(db, qid, state.uid, state.names);
+      state.voters[qid] = await fetchVoters(db, qid, state.uid, state.names, state.scores);
     } catch (err) {
       // Leave the key ABSENT rather than caching an empty list. The two
       // states render differently and must not be confused: absent is
@@ -1540,11 +1590,11 @@ const LIVE = {
   // A no-op once every uid is cached, which is the common case after the
   // first surface on a question has resolved them.
   async loadNames(uids: readonly string[]): Promise<void> {
-    const want = uids.filter((u) => u && !(u in state.names));
+    const want = uids.filter((u) => u && (!(u in state.names) || !(u in state.scores)));
     if (!want.length) return;
     try {
       const db = await getDb();
-      await resolveNames(db, want, state.names);
+      await resolveNames(db, want, state.names, state.scores);
     } catch (err) {
       reportError(err, { where: "loadNames" });
     } finally {
@@ -1704,6 +1754,103 @@ const LIVE = {
   /** How many of the viewer's questions the ranking has been able to read. */
   kindredDepth(): number {
     return state.kindredAt;
+  },
+
+  // ── Similarity: you against people and places, by scores (D112) ──
+  //
+  // The constellation fields' loader. Two ensures, both bounded and both
+  // session-cached:
+  //   1. aggregates for every core test item the bank carries — the cells
+  //      the place profiles fold. ≤110 docs in ≤4 batched `in` queries,
+  //      once per session, and only the ones the deck/archive has not
+  //      already cached.
+  //   2. the Kindred voter lists (loadKindred, its own bounds — D102).
+  // Candidate scores cost nothing here: they rode along with the voter
+  // lists' name resolution, because the profile document was already on
+  // the wire (see resolveNames).
+  async loadSimilarity(): Promise<void> {
+    if (!this.enabled || state.similarityLoading) return;
+    state.similarityLoading = true;
+    notify();
+    try {
+      if (!state.testAggsLoaded) {
+        const db = await getDb();
+        const missing = state.feedBank
+          .filter((q) => q.surface === "test" && q.test && !state.aggs[q.id])
+          .map((q) => q.id);
+        for (let i = 0; i < missing.length; i += 30) {
+          const chunk = missing.slice(i, i + 30);
+          const snap = await getDocs(query(
+            collection(db, "v2_question_aggs"),
+            where(documentId(), "in", chunk),
+          ));
+          snap.forEach((d) => {
+            state.aggs[d.id] = d.data() as AggDoc;
+          });
+        }
+        // Set even when some docs came back absent: absent means no
+        // answers yet (D98), which re-asking this session cannot change.
+        state.testAggsLoaded = true;
+      }
+      await this.loadKindred();
+    } catch (err) {
+      reportError(err, { where: "loadSimilarity" });
+    } finally {
+      state.similarityLoading = false;
+      notify();
+    }
+  },
+  similarityLoading(): boolean {
+    return state.similarityLoading;
+  },
+  // The bank's core test items — the same filter that publishes
+  // TEST_FEED_QS for the feed, exposed so the typed layer can join them
+  // to IS_TESTS for scoring metadata without a bridge read.
+  testFeedItems(): Array<QuestionDoc & { id: string }> {
+    return state.feedBank.filter((q) => q.surface === "test" && !!q.test);
+  },
+  // The viewer's own completed instruments — the same server+device merge
+  // publishTestResults dispatches, computed on read so a result saved a
+  // moment ago is already in it.
+  myTestResults(): Record<string, unknown> {
+    try {
+      const local = JSON.parse(localStorage.getItem("insight.testResults.v2") || "{}") || {};
+      return { ...state.profile.testResults, ...local };
+    } catch {
+      return { ...state.profile.testResults };
+    }
+  },
+  // Everyone the cached voter lists know — name, frozen city, answers
+  // overlap and parsed scores — the raw material data/similarity.ts's
+  // rankKindred sorts. Derived on read like kindred(), for the same
+  // staleness reason. The city is the anchor snapshot from their most
+  // recent cached answer, never their live profile (D8: reading the
+  // profile would re-cohort history and disagree with the aggregate).
+  kindredPeople(): KindredPerson[] {
+    const mine: Record<string, number> = {};
+    for (const [qid, opt] of Object.entries(state.votes)) {
+      if (qid.startsWith("g_")) continue;
+      const n = Number(opt);
+      if (Number.isFinite(n)) mine[qid] = n;
+    }
+    const theirs: Record<string, Record<string, number>> = {};
+    const city: Record<string, string> = {};
+    for (const [qid, rows] of Object.entries(state.voters)) {
+      for (const r of rows) {
+        if (r.uid === state.uid) continue;
+        (theirs[r.uid] || (theirs[r.uid] = {}))[qid] = r.optionIdx;
+        // Lists are newest-first, so the first city seen is the freshest
+        // frozen anchor this session holds for them.
+        if (!(r.uid in city) && r.anchors.city) city[r.uid] = r.anchors.city;
+      }
+    }
+    return Object.keys(theirs).map((uid) => ({
+      uid,
+      name: state.names[uid] || "",
+      city: city[uid] || "",
+      like: agreement(mine, theirs[uid]),
+      results: state.scores[uid] ?? null,
+    }));
   },
 
   // null while unfetched or failed; an array (possibly empty) once known.
@@ -2241,8 +2388,15 @@ function resetForNewUid(uid: string): void {
   state.voters = {};
   state.votersLoading = {};
   state.names = {};
+  // Scores ride the name cache (D112) and carry the same reasoning: other
+  // people's data, held to save reads, nothing to outlive the session.
+  state.scores = {};
   state.kindredLoading = false;
   state.kindredAt = 0;
+  state.similarityLoading = false;
+  // state.aggs was dropped above, so the test-item top-up has to run
+  // again for the new account.
+  state.testAggsLoaded = false;
   state.circle = null;
   state.circleLoading = false;
   state.profile = { displayName: "", testResults: {}, anchors: {} };

@@ -301,7 +301,7 @@ export async function runSeedV2(
       // whole bank to say nothing about four surfaces out of five.
       ...(typeof q.branch === "string" ? { branch: q.branch } : {}),
       ...(typeof q.sub === "string" ? { sub: q.sub } : {}),
-      // The continuum forms' range/plane copy (D106) — what the client
+      // The continuum forms' range/plane copy (D114) — what the client
       // renders the dial track and field plane from. Emit-when-set: only
       // feed dial/field entries carry these. Their option labels are
       // SYNTHESIZED from these fields at gen time, so a changed range

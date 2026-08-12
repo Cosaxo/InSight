@@ -3,14 +3,16 @@
 // The demo smoke test's other half: the same screens, mounted with
 // `window.LIVE` present and enabled.
 //
-// WHY A SECOND FILE. `smoke.test.jsx` runs with LIVE undefined, so every
+// WHY A SEPARATE FILE. The demo suites (`smoke-daily`, `smoke-topics`,
+// `smoke-mirror`, `smoke-nav`, `smoke-overlays`) run with LIVE undefined, so every
 // `if (window.LIVE && window.LIVE.enabled)` branch in the spec layer is
 // unreached by the suite. Two of those branches are load-bearing product
 // decisions rather than cosmetics:
 //
-//   D9  live mode drops the Mirror's City stop, because Near IS your city
-//       there and two stops resolving to one cohort is how a scale starts
-//       lying about what it measures.
+//   D111 the Mirror's Near and City stops are two different questions —
+//       presence vs the city cohort — and the live axis carries both.
+//       (From D9 to D111 live mode dropped City because Near WAS the
+//       city; the un-fold is asserted in both directions below.)
 //   D11 the feed's argument surfaces — named takes, counter-arguments,
 //       "minds moved", crossfire, friend dots — are unreachable from a live
 //       card, and a card below the k-floor shows neither the share numeral
@@ -201,27 +203,34 @@ describe("spec layer mounts in live mode", () => {
 });
 
 describe("the live gates hold in the DOM, not just in the source", () => {
-  // D9. The Mirror's axis is seven stops in demo mode and six in live mode,
-  // because Near IS your city there. Both directions are asserted: a test
-  // that only checked the live side would pass against an axis that had lost
-  // the stop everywhere.
+  // D111. The Mirror's axis is the same seven stops in both modes — the
+  // live ruler dropped City from D9 to D111 (Near WAS your city), and the
+  // un-fold is asserted in both directions: City is back, and Near really
+  // did become presence-only rather than a second door to the city cohort.
   // The stops are role="tab" on one tablist, not loose buttons — query them
   // as the axis they are, so a same-named control elsewhere on the screen
   // cannot satisfy or break this.
   const stopLabels = () =>
     screen.getAllByRole("tab").map((el) => el.getAttribute("aria-label"));
 
-  it("drops the Mirror's City stop in live mode and keeps it in demo", () => {
+  it("keeps the City stop on the live ruler, and Near is presence-only (D111)", async () => {
     mountLive();
     fireEvent.click(screen.getByRole("button", { name: /^mirror$/i }));
     const liveAxis = stopLabels();
-    expect(liveAxis, "live mode still offers a City stop").not.toContain("City");
-    // Near and Country are the stops City resolves between. Asserting they
-    // survive is what stops the line above passing because the axis broke —
-    // the first draft of this test looked for buttons and "found" no City by
-    // finding nothing at all.
+    expect(liveAxis, "live mode lost the City stop — D9's drop is back").toContain("City");
     expect(liveAxis).toContain("Near");
     expect(liveAxis).toContain("Country");
+
+    // Near: the counter, and NOT the city cohort — the un-fold's other half.
+    fireEvent.click(screen.getByRole("tab", { name: "Near" }));
+    expect(screen.getByText(/Right now, around you/i)).toBeTruthy();
+    expect(screen.queryByText(/Everyone who picked this city/i)).toBeNull();
+
+    // City: the cohort, and NOT the counter.
+    fireEvent.click(screen.getByRole("tab", { name: "City" }));
+    await act(async () => { await new Promise((r) => setTimeout(r, 50)); });
+    expect(screen.getByText(/Everyone who picked this city/i)).toBeTruthy();
+    expect(screen.queryByText(/Right now, around you/i)).toBeNull();
 
     cleanup();
     live.restore();
@@ -230,8 +239,33 @@ describe("the live gates hold in the DOM, not just in the source", () => {
     fireEvent.click(screen.getByRole("button", { name: /^mirror$/i }));
     expect(
       stopLabels(),
-      "demo mode lost the City stop — the live gate is now unconditional",
+      "demo mode lost the City stop — the axis broke somewhere",
     ).toContain("City");
+  });
+
+  // D112. The City stop's constellation, on the real mount: the fixture
+  // carries one scored city-mate (Ada), so the field must render her as a
+  // positioned node — real name, score-based match — and none of the demo
+  // cast may ride along. The demo field this replaces invented "Anders K.
+  // · 92%" from constants; the assertion that no such name appears is the
+  // same one the search overlay and result cards already carry.
+  it("draws the City constellation from real people, never the demo cast", async () => {
+    const expectNoBoundary = mountLive();
+    fireEvent.click(screen.getByRole("button", { name: /^mirror$/i }));
+    fireEvent.click(screen.getByRole("tab", { name: "City" }));
+    await act(async () => { await new Promise((r) => setTimeout(r, 50)); });
+    // The field is a lazy chunk — await its caption, then the node.
+    expect(await screen.findByText(/kindred strangers in Oslo/i)).toBeTruthy();
+    const node = screen.getByRole("button", { name: /Ada · \d+% like you/ });
+    expect(node).toBeTruthy();
+    // Tapping the node opens the score comparison, basis named.
+    fireEvent.click(node);
+    expect(screen.getByText(/aligned with yours/i)).toBeTruthy();
+    // The prototype's sample people stay in the prototype.
+    for (const ghost of [/Anders/, /Ingrid/, /Petter V/, /Sigrid/]) {
+      expect(document.body.textContent).not.toMatch(ghost);
+    }
+    expectNoBoundary("mirror/live/city-constellation");
   });
 
   // D11 + D83. The engage block below renderEngage's `if (q.live)` early
@@ -310,8 +344,9 @@ describe("the live gates hold in the DOM, not just in the source", () => {
     mountLive();
     fireEvent.click(screen.getByRole("button", { name: /^mirror$/i }));
     // The Mirror opens on You (the Map), which is not a population — the
-    // lens row belongs to the geographic stops, so walk the ruler to Near.
-    fireEvent.click(screen.getByRole("tab", { name: "Near" }));
+    // lens row belongs to the geographic stops, so walk the ruler to City
+    // (Near is presence-only since D111 and carries no lenses).
+    fireEvent.click(screen.getByRole("tab", { name: "City" }));
     await act(async () => { await new Promise((r) => setTimeout(r, 50)); });
     // All four lenses. Scores joined the row at D100 — it was absent
     // while this test read "the bank ships no `rate` questions", which
@@ -340,7 +375,7 @@ describe("the live gates hold in the DOM, not just in the source", () => {
     localStorage.clear();
     mountLive();
     fireEvent.click(screen.getByRole("button", { name: /^mirror$/i }));
-    fireEvent.click(screen.getByRole("tab", { name: "Near" }));
+    fireEvent.click(screen.getByRole("tab", { name: "City" }));
     await act(async () => { await new Promise((r) => setTimeout(r, 50)); });
 
     // The fixture's two questions sit in different branches, so the chip
@@ -475,7 +510,7 @@ describe("the live gates hold in the DOM, not just in the source", () => {
   // with Follow buttons, on a real device. The stores now refuse to
   // ADVERTISE either (SCENES.offers / SUBTOPICS.offers); what remains in
   // the sheet is real: the Learn dial and fields, and the suggest door.
-  // smoke.test.jsx holds the demo control — the same sheet with both
+  // smoke-topics.test.jsx holds the demo control — the same sheet with both
   // sections present.
   it("the add sheet offers no demo communities and no unstocked leaves — Learn stays", () => {
     const expectNoBoundary = mountLive();
@@ -759,7 +794,7 @@ describe("live mode never inherits the sample persona (D55)", () => {
     // The demo seed is module state in test-definitions.js and these cases
     // replace it. The purge listener restores it — the same path a uid
     // change takes — so the demo-mode cases in this file and in
-    // smoke.test.jsx do not inherit an emptied object.
+    // the demo suites do not inherit an emptied object.
     window.dispatchEvent(new Event("insight:local-purge"));
   });
 

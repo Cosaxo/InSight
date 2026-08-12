@@ -8,6 +8,7 @@ import { VOTECUTS } from './vote-cuts.js';
 import { navCoasting, OWNS_X } from './swipe-back.js';
 import { WPAL } from './world-palette.js';
 import { DAILYQ } from './daily-questions.js';
+import { DUELS } from './duels-data.js';
 import { Sheet } from './primitives.jsx';
 // The boot-failure label reads LIVE through the module, not through
 // window: D39's ratchet only moves down, so new coupling has to arrive as
@@ -151,7 +152,7 @@ class DailySplit extends React.Component {
     this._toastT = setTimeout(() => { if (this.state.mapToast === id) this.setState({ mapToast: null }); }, 3000);
   }
   componentDidMount() {
-    if (window.DUELS) this._unsubDuels = window.DUELS.subscribe(() => this.forceUpdate());
+    this._unsubDuels = DUELS.subscribe(() => this.forceUpdate());
     // The purge (data/live.ts, D51): this component persists dreplies,
     // cats and testProg by spreading state back to the keys the purge just
     // removed, and it stays mounted across a uid change — drop them, or
@@ -991,8 +992,8 @@ class DailySplit extends React.Component {
     })();
 
     // ===== chrome =====
-    const pendG = window.DUELS && window.DUELS.groupsPending ? window.DUELS.groupsPending() : 0;
-    const pendD = window.DUELS ? window.DUELS.pendingDuos() : 0;
+    const pendG = DUELS.groupsPending();
+    const pendD = DUELS.pendingDuos();
     const badges = {
       group: mode !== 'group' && pendG ? String(pendG) : null,
       duo: mode !== 'duo' && pendD ? String(pendD) : null,

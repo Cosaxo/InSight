@@ -63,7 +63,7 @@ export const LENS_SCALE = [
   "Strongly disagree",
 ];
 
-// ── continuum option synthesis (D106) ──
+// ── continuum option synthesis (D114) ──
 // A continuum answer is stored as an ordinary optionIdx (that is the whole
 // design: the existing rules, fold, edit machinery and by-cells carry it
 // unchanged), so the option LABELS are the answer's public face — the
@@ -208,7 +208,7 @@ export function buildEntries(content = loadContent()) {
       domain: q.domain ?? null,
       prompt: q.prompt,
       // Continuum entries author no options — their answer space is the
-      // range/plane, and the bucket labels are synthesized (D106) so the
+      // range/plane, and the bucket labels are synthesized (D114) so the
       // twelve copies cannot drift from the lo/hi/unit (or ax/ay) they
       // describe. Everything else lists its options (or rank items).
       options:
@@ -377,7 +377,7 @@ const HEADER =
   "// `branch`/`sub` are the daily bank's [branch, sub-branch] subject path\n" +
   "// (D100) and are absent on every other surface, which carries no path.\n" +
   "// `lo`/`hi`/`unit`/`ends` (dial) and `ax`/`ay` (field) are the continuum\n" +
-  "// forms' range/plane copy (D106), absent everywhere else; their options\n" +
+  "// forms' range/plane copy (D114), absent everywhere else; their options\n" +
   "// are synthesized bucket/cell labels, so the D52 option freeze freezes\n" +
   "// the range with them.\n" +
   "export interface V2SeedQuestion { id: string; surface: string; seq: number; type: string; domain: string | null; prompt: string; options: string[]; topic: string | null; branch?: string; sub?: string; axis: string | null; test: string | null; mode?: string; active?: boolean; political?: boolean; lo?: number; hi?: number; unit?: string; ends?: string[]; ax?: string[]; ay?: string[]; }\n" +

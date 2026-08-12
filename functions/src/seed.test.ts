@@ -60,7 +60,7 @@ function storedForm(q: typeof victim, overrides: Record<string, unknown> = {}) {
     surface: q.surface, seq: q.seq, type: q.type, domain: q.domain ?? null,
     prompt: q.prompt, options: q.options, topic: q.topic ?? null,
     axis: q.axis ?? null, test: q.test ?? null,
-    // continuum range/plane copy (D106) — emit-when-set, mirroring the
+    // continuum range/plane copy (D114) — emit-when-set, mirroring the
     // payload, and in SEEDED_FIELDS, so the no-op test would report
     // phantom writes for the dial/field entries without these
     ...(typeof q.lo === "number" ? { lo: q.lo } : {}),
@@ -115,7 +115,7 @@ describe("runSeedV2 refuses option-set edits to live questions (D58)", () => {
   });
 
   it("freezes a dial's range with its options — a changed lo is a refused edit", async () => {
-    // D106: a continuum answer is a stored optionIdx into synthesized
+    // D114: a continuum answer is a stored optionIdx into synthesized
     // bucket labels, so the labels ARE positions on the range. A stored
     // doc whose labels came from a different lo (the range the answers
     // were actually cast on) must refuse the new set exactly like any

@@ -6,6 +6,7 @@
 import React from 'react';
 import { MirrorLensRow } from './mirror-field.jsx';
 import { IS_DATA, fmtPop } from './sample-data.js';
+import { SCENES } from './scenes.js';
 import { Av, TabSection, MatchRing, Lazy } from './primitives.jsx';
 
 // mirror-field-pops.jsx — the four Mirror populations, each built as a node
@@ -204,14 +205,11 @@ function MirrorFieldBody({ pop, worldZoom, zoomCtl, onPerson, firstRun, topLense
   const D = IS_DATA;
   const [lensOpen, setLensOpen] = useStateMFP('__ov');
   const [selId, setSelId] = useStateMFP(null);
-  const [mine, setMine] = useStateMFP(() => new Set(window.SCENES ? window.SCENES.list() : D.groups.filter((g) => g.joined).map((g) => g.id)));
+  const [mine, setMine] = useStateMFP(() => new Set(SCENES.list()));
   const [gSelId, setGSelId] = useStateMFP(() => { const g = D.groups.find((x) => x.joined); return g ? g.id : null; });
 
   // scenes are the shared follow list — stay in step with the feed's chips
-  useEffectMFP(() => {
-    if (!window.SCENES) return;
-    return window.SCENES.subscribe(() => setMine(new Set(window.SCENES.list())));
-  }, []);
+  useEffectMFP(() => SCENES.subscribe(() => setMine(new Set(SCENES.list()))), []);
 
   useEffectMFP(() => { setSelId(null); setSelNode(null); }, [pop, worldZoom]);
 
@@ -226,11 +224,13 @@ function MirrorFieldBody({ pop, worldZoom, zoomCtl, onPerson, firstRun, topLense
     if (n && n.kind === 'group' && mine.has(n.data.id)) setGSelId(n.data.id);
   };
   const onJoin = (id) => {
-    if (window.SCENES) window.SCENES.follow(id); else setMine((prev) => new Set(prev).add(id));
+    // No local-state fallback beside this any more: the store is imported,
+    // so it cannot be missing, and `mine` is driven by its subscription.
+    SCENES.follow(id);
     setGSelId(id);
   };
   const onLeave = (id) => {
-    if (window.SCENES) window.SCENES.unfollow(id); else setMine((prev) => { const nx = new Set(prev); nx.delete(id); return nx; });
+    SCENES.unfollow(id);
     setGSelId((prev) => {
       if (prev !== id) return prev;
       const rest = D.groups.find((g) => g.id !== id && mine.has(g.id));

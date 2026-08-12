@@ -5,11 +5,14 @@ product is built to, and the file `scripts/style-diff.mjs` compares the
 app against.
 
 A v20 standalone exists (maintainer-supplied) and is **partially** synced:
-D105 took its two continuum feed forms (`dial`/`field`) and the redrawn
-compare rose, and lists what remains (Predictions/Foresight, Born or
-built, shell groundwork). v18 stays the committed reference until a full
-sync moves it — a partial sync must not re-point this file, or style-diff
-and the next sync both aim at a target that half-describes the tree. The earlier v9 prototype and the extracted `spec-modules/`
+D113 took its two continuum feed forms (`dial`/`field`) and the redrawn
+compare rose (D114 made the forms live), and lists what remains
+(Predictions/Foresight, Born or built, shell groundwork). v18 stays the
+committed reference until a full sync moves it — a partial sync must not
+re-point this file, or style-diff and the next sync both aim at a target
+that half-describes the tree.
+
+The earlier v9 prototype and the extracted `spec-modules/`
 directory were deleted on 2026-07-29, v14 on 2026-07-30, v15 on
 2026-08-04 when v17 superseded it, and v17 on 2026-08-07 when v18 did:
 the port is complete, keeping superseded references around is how this
@@ -158,11 +161,12 @@ else it reports is a miss.
 The prototype has no backend, so it never faces the k-anonymity floor, and
 some of what it draws would be a disclosure here. Those divergences are
 recorded as decisions, not left to taste — see `docs/DECISIONS.md`, in
-particular D1 (takes and named who-voted are circle-scoped), D9 (Near is
-your city, so live mode drops the City stop), D11 (which prototype features
-are demo-only, and why they are unreachable rather than merely switched
-off) and D43 (what the v17 sync kept from this repo rather than from the
-prototype).
+particular D1 (takes and named who-voted are circle-scoped), D9 (the city
+as the unit; its "Near is your city" fold was undone by D111, and D112
+made this prototype's similarity fields real), D11 (which prototype
+features are demo-only, and why they are unreachable rather than merely
+switched off) and D43 (what the v17 sync kept from this repo rather than
+from the prototype).
 
 ## Where the extracted modules went
 

@@ -10,7 +10,7 @@
 // `branch`/`sub` are the daily bank's [branch, sub-branch] subject path
 // (D100) and are absent on every other surface, which carries no path.
 // `lo`/`hi`/`unit`/`ends` (dial) and `ax`/`ay` (field) are the continuum
-// forms' range/plane copy (D106), absent everywhere else; their options
+// forms' range/plane copy (D114), absent everywhere else; their options
 // are synthesized bucket/cell labels, so the D52 option freeze freezes
 // the range with them.
 export interface V2SeedQuestion { id: string; surface: string; seq: number; type: string; domain: string | null; prompt: string; options: string[]; topic: string | null; branch?: string; sub?: string; axis: string | null; test: string | null; mode?: string; active?: boolean; political?: boolean; lo?: number; hi?: number; unit?: string; ends?: string[]; ax?: string[]; ay?: string[]; }

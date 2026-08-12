@@ -85,9 +85,10 @@ real slipped through:
 - `src/v2/data/vote.test.ts` pins the `window.LIVE` member surface, because
   renaming a member there passes tsc (consumers are `.jsx`), eslint and
   check:globals — then blanks the Map on a device.
-- `src/v2/test/smoke.test.jsx` mounts `App` in jsdom and walks both tabs
-  and two overlays. The three guards above are all **name**-level; this is
-  the only one that executes a render. Measured, not assumed: injecting
+- `src/v2/test/smoke-*.test.jsx` (five files over one harness,
+  `test/mount-app.jsx`) mount `App` in jsdom and walk both tabs and every
+  overlay. The three guards above are all **name**-level; these are the only
+  ones that execute a render. Measured, not assumed: injecting
   `window.FEEDREAD.statsTypo()` into `MirrorTab` leaves check:globals,
   eslint and `tsc -b` green, and fails only here.
   **Assert on the `ErrorBoundary`, not on a thrown error** — `app-shell`
@@ -111,14 +112,26 @@ documentation error this repo keeps re-committing (D39, `check:figures`).
 
 Two rules for working with it:
 
-- **Convert on touch.** The cheap seam is exhausted, so this is no longer a
-  project. When a feature takes you into a spec file, convert the providers
-  it reads first. `src/v2/README.md` has the procedure and the traps.
+- **Convert on touch, and transpose the meter before you plan.** This
+  paragraph twice claimed the cheap seam was exhausted and was twice wrong
+  (D39's follow-ups, then D108) — both times because rule 4 reports per
+  **consumer**, which is the right shape for a ratchet and the wrong shape
+  for planning. Build the provider view out of `spec-globals.mjs`'s own
+  `definedBy`/`referenced` maps and the remaining single-writer providers
+  fall out sorted. `src/v2/README.md` has the procedure and the traps.
 - **A conversion removes the load-order condition, never the data one.**
   `(window.X || {})`, `X?.`, `if (X)` and `X && …` around a converted
-  module are dead — an imported binding cannot be unset. The inner
+  module are dead — an imported binding cannot be unset. So is
+  `X.member ? X.member() : fallback` on a member the object literal always
+  defines, and so is a local fallback that recomputes the store's own
+  default (D108 found six of the first and two of the second). The inner
   `|| []` on `.people` is not; that guards missing data. The guard shapes
   are a list, not a pattern, so grep the name and read every site.
+- **Expect a conversion to RAISE the suppression count before it lowers
+  it.** The React Compiler cannot resolve a value arriving through global
+  scope, so it bails out of the component — which means the bridge has been
+  hiding `react-hooks` findings, not just costing coupling (D108, verified
+  by linting the pre-change files).
 
 ### 2. There are four test runners, and they are not interchangeable
 
@@ -161,14 +174,22 @@ an emergency rules fix.
   Everything else stays frozen — anchors, answeredAt, learn, duels,
   catalog — and the counts stay honest because the trigger moves them,
   not because the doc cannot change. Do not widen the edit surface.
-- **A live Mirror stop carries four of its five lenses (D99).** Answers ·
-  People · Compare · Explore are live on the geographic stops; **Scores
-  is not**, and that is content rather than code — it is fed by `rate`
-  questions and the bank ships none, so the lens would be an empty
-  frame. The three added lenses are pure folds over `agg.by`
-  (`src/v2/data/cohort.ts`) plus the D98 voter lists; the row is
-  collapsed by default because Kindred is the one reading that can cost
-  a query the app has not already made (docs/MIRROR.md §3).
+- **A live Mirror stop carries all five lenses (D99/D100) and, since
+  D112, its constellation.** Answers · People · Compare · Explore are
+  pure folds over `agg.by` (`src/v2/data/cohort.ts`) plus the D98 voter
+  lists; Scores joined at D100 over the bank's ordinal questions (the
+  old "no `rate` questions" refusal was about the prototype's *place*
+  scorecard, which still waits on content). The similarity fields
+  (`src/v2/data/similarity.ts`, `ui/LiveSimilarityField.tsx`) lead the
+  City/Country/World stops: your city's people ranked primarily by
+  test-score match, cities and countries placed by their real
+  average-score profiles — all folded from data that already publishes,
+  with zero extra reads for candidate scores (they ride the voter
+  lists' name resolution). Near is presence-only since D111; the city
+  cohort is the City stop's. The lens row stays collapsed because
+  Kindred can cost a query the app has not already made; the fields
+  load with their stops behind one bounded, session-cached loader
+  (docs/MIRROR.md §2–3).
 - **`window.MapStats` is real for two anchors and refuses for five, and
   the split is structural.** `age` and `edu` are breakdown dims, so since
   D99 `dist`/`mode` compute from the published cells. `job` is

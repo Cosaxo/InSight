@@ -8,6 +8,7 @@ import { WPAL } from './world-palette.js';
 import { FRIENDS } from './follows.js';
 import { DAILYQ } from './daily-questions.js';
 import { IS_DATA } from './sample-data.js';
+import { SCENES } from './scenes.js';
 import { Av, AnonAv, anonName, useDialog } from './primitives.jsx';
 
 // search-overlay.jsx — one field, three kinds of answer: questions, topics, people.
@@ -140,11 +141,10 @@ function SearchOverlay({ onClose, onPerson, samplePeople }) {
   const D = IS_DATA;
   const TOPIC = useSrchMemo(() => Object.fromEntries((window.WORLD_TOPICS || []).map((t) => [t.id, t])), []);
   const ST = window.SUBTOPICS;
-  const SC = window.SCENES;
 
   // the label a question wears — the leaf if it has one, else its topic
   const labelOf = (qq) => {
-    if (qq.scene && SC) { const g = SC.defs().find((x) => x.id === qq.scene); if (g) return { label: g.name, color: SC.colorOf ? SC.colorOf(g.id) : 'var(--ink-3)' }; }
+    if (qq.scene) { const g = SCENES.defs().find((x) => x.id === qq.scene); if (g) return { label: g.name, color: SCENES.colorOf(g.id) }; }
     if (qq.sub && ST) { const s = ST.get(qq.sub); if (s) return { label: s.label, color: WPAL.c((TOPIC[s.parent] || {}).color) || 'var(--ink-3)' }; }
     const t0 = TOPIC[qq.cat];
     return t0 ? { label: t0.label, color: WPAL.c(t0.color) } : { label: qq.cat, color: 'var(--ink-3)' };
@@ -190,10 +190,10 @@ function SearchOverlay({ onClose, onPerson, samplePeople }) {
       if (!srchMatch(s.label, query)) return;
       out.push({ id: s.id, label: s.label, color: (TOPIC[s.parent] || {}).color || 'var(--ink-3)', n: ST.count(s.id), on: ST.has(s.id), toggle: () => ST.toggle(s.id) });
     });
-    if (SC) SC.offers().forEach((g) => {
+    SCENES.offers().forEach((g) => {
       if (!srchMatch(g.name, query)) return;
       const n = (window.WORLD_FEED_QS || []).filter((x) => x.scene === g.id).length;
-      out.push({ id: g.id, label: g.name, color: SC.colorOf ? SC.colorOf(g.id) : 'var(--ink-3)', n, on: SC.has(g.id), toggle: () => SC.toggle(g.id) });
+      out.push({ id: g.id, label: g.name, color: SCENES.colorOf(g.id), n, on: SCENES.has(g.id), toggle: () => SCENES.toggle(g.id) });
     });
     // a leaf and a scene can share a name — keep the richer room, not both
     const seen = {};

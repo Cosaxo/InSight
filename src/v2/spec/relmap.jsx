@@ -707,7 +707,7 @@ import { useDialog } from './primitives.jsx';
       const st = this.state;
       const SANS = "'Hanken Grotesk', sans-serif";
       const SERIF = "'Hanken Grotesk', sans-serif";
-      const inputStyle = { border: '1px solid ' + P.rule, outline: 'none', background: P.card, borderRadius: 8, padding: '7px 10px', fontFamily: SANS, fontSize: 13, color: P.ink };
+      const inputStyle = { border: '1px solid ' + P.rule, outline: 'none', background: P.card, borderRadius: 8, padding: '7px 10px', fontFamily: SANS, fontSize: 'var(--field-size)', color: P.ink };
       const card = { background: P.card, border: '1px solid ' + P.cardBorder, boxShadow: P.shadow };
       const pillBg = { background: P.card, border: '1px solid ' + P.rule, boxShadow: P.shadow };
       const upLabel = { fontFamily: SANS, fontSize: 11, fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', color: P.ink3 };
@@ -749,7 +749,7 @@ import { useDialog } from './primitives.jsx';
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke={P.ink3} strokeWidth="2.2" strokeLinecap="round"><circle cx="11" cy="11" r="7"></circle><line x1="16.5" y1="16.5" x2="21" y2="21"></line></svg>
                 <input autoFocus value={st.query} onChange={(e) => this.setState({ query: e.target.value, selectedId: null })} placeholder="Search people…"
                   autoComplete="off" autoCorrect="off" autoCapitalize="none" spellCheck={false} inputMode="search" enterKeyHint="search"
-                  style={{ border: 'none', outline: 'none', background: 'transparent', fontFamily: SANS, fontSize: 13.5, color: P.ink, flex: 1, minWidth: 0 }} />
+                  style={{ border: 'none', outline: 'none', background: 'transparent', fontFamily: SANS, fontSize: 'var(--field-size)', color: P.ink, flex: 1, minWidth: 0 }} />
                 {v.hasQuery && <span style={{ fontFamily: SANS, fontSize: 12, color: P.ink3, whiteSpace: 'nowrap' }}>{v.resultText}</span>}
                 <button onClick={(e) => { e.stopPropagation(); this.setState({ searchOpen: false, query: '' }); }} aria-label="Close search"
                   style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: P.ink3, fontSize: 16, lineHeight: 1, padding: 0 }}>×</button>
@@ -837,7 +837,7 @@ import { useDialog } from './primitives.jsx';
                     // Leaving the rename should not also close the map.
                     onClick={(e) => e.stopPropagation()} onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur(); else if (e.key === 'Escape') { e.stopPropagation(); e.currentTarget.blur(); } }}
                     aria-label={'Rename ' + gp.label} autoComplete="off" autoCapitalize="words" enterKeyHint="done"
-                    style={{ ...inputStyle, width: 132, fontSize: 13.5, fontWeight: 500, padding: '4px 8px' }} />
+                    style={{ ...inputStyle, width: 132, fontWeight: 500, padding: '4px 8px' }} />
                 ) : (
                   <span style={{ fontFamily: SANS, fontSize: 13.5, fontWeight: 500, color: P.ink2 }}>{gp.label}</span>
                 )}

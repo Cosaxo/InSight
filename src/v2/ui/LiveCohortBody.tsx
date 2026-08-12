@@ -1,32 +1,25 @@
-// LiveCohortBody — the Mirror's geographic populations in live mode (D9).
+// LiveCohortBody — the Mirror's geographic populations in live mode:
+// City, Country and the globe (D111).
 //
-// Serves both Near (your city) and World (your country / everyone), because
-// after D9 they are the same question at three radii and there is no reason
-// for three renderers to disagree about what an empty cell means.
+// One renderer for all three, because they are the same question at three
+// radii and three renderers would eventually disagree about what an empty
+// cell means. Near is NOT here any more: D111 un-folded D9's "Near is
+// your city", so Near is the presence counter (ui/NearLiveBody.tsx) and
+// the city cohort lives at its own City stop, where the prototype always
+// put it.
 //
-// WHAT NEAR USED TO BE. A field of six named neighbours ("Sigrid Bø, a few
-// streets away, 88% match") drawn from sample-data.js, headed "2,847 within
-// 5 km · Grünerløkka". None of it was ever real. The v1 backend that would
-// have made it real bucketed users into ~5 km geohash cells behind a
-// 20-person floor, and it never produced a single cell — the aggregator
-// read a top-level `geohash` field while the writer wrote a nested one
-// (D2). Nothing in v2 ever called it.
+// WHAT THE CITY STOP USED TO BE, twice over. In the prototype: a field of
+// kindred strangers ("Anders K. · Torshov · 92%") drawn from constants in
+// mirror-field-pops.jsx — never real. In live mode until D111: nothing —
+// the stop was dropped from the ruler entirely. The v1 backend that was
+// supposed to make the neighbours real bucketed users into ~5 km geohash
+// cells behind a 20-person floor and never produced a single cell (D2).
 //
-// WHAT THESE ARE NOW. The same public aggregates everything else here
-// reads: exact counts, at the radius you picked, published from the first
-// answer (D98 — no floor, no suppression, no withheld cells). Near is a
-// redefinition rather than a repair, and it is the honest one: unlike the
-// old 5 km circle, nothing about a city requires knowing where the phone
-// is.
-//
-// WHAT THIS PANEL STILL DOES NOT SHOW, AND WHY THAT IS NOW A GAP. People.
-// Not because it may not — D98 makes every answer and profile readable, so
-// a named "who in Oslo picked Beach" is a legitimate surface and the one
-// this panel most obviously wants. It is missing because the READ PATH does
-// not exist yet: the client would need a collection-group query on answers
-// plus batched name resolution, neither of which any module here does. This
-// is unbuilt, not refused. Until it lands, counts are what there is — and
-// an empty panel means zero, never "hidden".
+// WHAT THESE ARE NOW. The same public aggregates everything else reads —
+// exact counts, published from the first answer (D98) — plus the
+// constellation the prototype promised, computed instead of invented
+// (LiveSimilarityField, D112): people of your city by score likeness,
+// cities and countries by their real average-score profiles.
 import React from "react";
 import LIVE from "../data/live";
 import PLACES from "../data/places";
@@ -54,6 +47,12 @@ import { divisiveness } from "../data/cohort";
 // the answer rows, so on a cold open of this stop it is off-screen while
 // it loads, and the null fallback means nothing shifts when it arrives.
 const LiveMirrorLenses = React.lazy(() => import("./LiveMirrorLenses"));
+// The constellation field (D112), lazy for the same bundle-budget reason
+// as the lens row — it is a whole SVG canvas plus the similarity folds,
+// and the stop's counts must not wait on it. Null fallback: the field
+// mounts above the answer rows, and its own first frame is a caption-less
+// gap the exact height of nothing, so nothing shifts when it lands.
+const SimilaritySection = React.lazy(() => import("./LiveSimilarityField"));
 import type { LensQuestion } from "./lensDefs";
 import { byOf } from "../data/cohort";
 // An ordinary import, not a globalThis lookup — same note as LiveDuelPanel's
@@ -186,75 +185,8 @@ function LnChips({ value, options, onPick }: {
   );
 }
 
-// ── the Right now card (D84) ─────────────────────────────────────────
-//
-// Near's radius half: how many opted-in phones are foreground within
-// your ~1 km cell and its eight neighbors, right now. No city involved.
-// Off by default; the enable tap is what carries the OS permission
-// prompt (D9's rule). The count is the only thing the server returns —
-// presence docs are unreadable — and the copy claims kilometres, not the
-// 500 m the coarse permission cannot measure (D84 records the Precise
-// flip as its own decision).
-function NearNowCard() {
-  const [, tick] = React.useState(0);
-  React.useEffect(() => LIVE.subscribe(() => tick((t) => t + 1)), []);
-  const [busy, setBusy] = React.useState(false);
-  const [err, setErr] = React.useState<string | null>(null);
-  const near = LIVE.near;
-  if (!near.supported()) return null;
-
-  const FAIL: Record<string, string> = {
-    denied: "No problem — Near stays off until you allow location.",
-    unavailable: "Couldn't get a location fix. Try again outside.",
-    timeout: "That took too long — indoors it often does. Try again.",
-    unsupported: "This device can't share a location.",
-  };
-
-  async function turnOn() {
-    setBusy(true); setErr(null);
-    const res = await near.enable();
-    if (!res.ok) setErr(FAIL[res.reason || "unavailable"] || FAIL.unavailable);
-    setBusy(false);
-  }
-
-  const on = near.on();
-  const n = near.count();
-  const line = !on
-    ? null
-    : near.tooFew()
-      ? "A few people are around you right now."
-      : n == null
-        ? "Counting…"
-        : n === 0
-          ? "Just you right now — the count updates every few minutes."
-          : `${n} ${n === 1 ? "person" : "people"} with InSight within a couple of kilometres right now.`;
-
-  return (
-    <div style={{ border: LN_LINE, borderRadius: 14, background: "var(--surface-2)", padding: "13px 14px", margin: "10px 0 4px", display: "flex", flexDirection: "column", gap: 8 }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-        <span className="kicker" style={{ marginBottom: 0, flex: 1 }}>Right now, around you</span>
-        <button className="press" disabled={busy}
-          onClick={() => { if (on) void near.disable(); else void turnOn(); }}
-          style={{ border: on ? LN_LINE : "none", borderRadius: 999, padding: "6px 13px", cursor: busy ? "default" : "pointer",
-            fontFamily: "var(--sans)", fontWeight: 800, fontSize: 12, WebkitAppearance: "none", opacity: busy ? 0.6 : 1,
-            background: on ? "transparent" : "var(--accent, var(--ink))", color: on ? "var(--ink-2)" : "var(--surface)" }}>
-          {busy ? "…" : on ? "Turn off" : "Turn on"}
-        </button>
-      </div>
-      {on ? (
-        <div style={{ fontFamily: "var(--sans)", fontSize: 13.5, fontWeight: 700, color: "var(--ink)", lineHeight: 1.45 }}>{line}</div>
-      ) : (
-        <div style={{ fontFamily: "var(--sans)", fontSize: 12.5, fontWeight: 500, color: "var(--ink-2)", lineHeight: 1.5 }}>
-          See how many people with InSight are around you — a count, never
-          who. While it&rsquo;s on and the app is open, your phone shares only a
-          kilometre-sized grid square, unreadable to other users; it&rsquo;s
-          deleted the moment you turn this off.
-        </div>
-      )}
-      {err && <div role="status" style={{ fontFamily: "var(--sans)", fontSize: 12, fontWeight: 600, color: "var(--ink-2)" }}>{err}</div>}
-    </div>
-  );
-}
+// The Right now card (D84) lived here while Near was the city stop (D9);
+// it moved to ui/NearLiveBody.tsx when D111 gave presence its own stop.
 
 function LnNote({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -317,13 +249,9 @@ function LiveCohortBody({ scope = "city" }: { scope?: CohortScope }) {
   if (needsCity) {
     return (
       <div style={{ padding: "0 16px" }}>
-        {/* The radius half needs no city (D84) — it renders above the
-            city ask, so Near is never a dead end again. */}
-        {scope === "city" && <NearNowCard />}
         {/* Only city and country reach the ask below (world early-outs
-            above), so the non-Near arm is the Country stop — name it.
-            "This needs a city" shipped there and read as the placeholder
-            it was. */}
+            above) — name the stop that is asking. "This needs a city"
+            shipped once and read as the placeholder it was. */}
         {finding ? (
           <LnNote title="Finding your city…">
             Location is already on for the count, so your city is being
@@ -331,13 +259,13 @@ function LiveCohortBody({ scope = "city" }: { scope?: CohortScope }) {
             coordinates. You can also pick it yourself below.
           </LnNote>
         ) : (
-          <LnNote title={scope === "city" ? "Near needs a city" : "Country needs a city"}>
+          <LnNote title={scope === "city" ? "City needs your city" : "Country needs a city"}>
             Set it right here — use your location or search the list. Either
             way only the city name is saved, never your coordinates, and you
             can change it any time in your profile.
             {scope === "city" && !nearOn && LIVE.near.supported() && (
-              <> Turning on the count above fills it in for you, from the
-              same location grant.</>
+              <> Turning on the count at the Near stop fills it in for you,
+              from the same location grant.</>
             )}
           </LnNote>
         )}
@@ -457,10 +385,9 @@ function LiveCohortBody({ scope = "city" }: { scope?: CohortScope }) {
 
   return (
     <div className="fade-in" style={{ padding: "4px 16px 26px" }}>
-      {scope === "city" && <NearNowCard />}
       <div style={{ padding: "10px 0 4px" }}>
         <div className="kicker">
-          {scope === "city" ? "Around you" : scope === "country" ? "Your country" : "Everyone"}
+          {scope === "city" ? "Your city" : scope === "country" ? "Your country" : "Everyone"}
         </div>
         <div style={{ fontFamily: "var(--serif)", fontSize: 25, letterSpacing: "-0.01em", color: "var(--ink)", marginTop: 2 }}>{heading}</div>
         <div style={{ fontFamily: "var(--sans)", fontSize: 12.5, fontWeight: 500, color: "var(--ink-3)", marginTop: 4, lineHeight: 1.5 }}>
@@ -473,6 +400,15 @@ function LiveCohortBody({ scope = "city" }: { scope?: CohortScope }) {
             : `Everyone who picked this ${scope}, on every question they have answered.`}
         </div>
       </div>
+
+      {/* The constellation (D112) — the stop's identity, so it leads:
+          people of your city by score likeness, cities/countries by their
+          real average-score profiles. The answer rows stay the spine of
+          the tab below it; this is the one body where the field IS the
+          reading the stop was named for. */}
+      <React.Suspense fallback={null}>
+        <SimilaritySection scope={scope} />
+      </React.Suspense>
 
       {/* Filter and sort only appear once they would do something. Two
           rows and one subject do not need a control strip explaining

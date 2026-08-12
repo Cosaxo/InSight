@@ -1213,7 +1213,7 @@ export function modVerdictError(value: unknown): string | null {
 // and the seed only ever writes it on create.
 export const SEEDED_FIELDS = [
   "surface", "seq", "type", "domain", "prompt", "options", "topic", "axis", "test",
-  // The continuum forms' range/plane copy (D106). Array-valued entries
+  // The continuum forms' range/plane copy (D114). Array-valued entries
   // (ends/ax/ay) ride the same element-wise compare options does; the
   // emit-when-set payloads leave them undefined off the feed dial/field
   // entries, and undefined-vs-missing compares equal below, so the other

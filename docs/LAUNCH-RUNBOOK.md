@@ -133,7 +133,7 @@ arithmetic.
 
       **It is unticked on purpose, and still is.** That run wrote **389**,
       and the bank is **500** after the K=5 test expansion, D103's
-      retirement of the Thinking test and D106's continuum questions — so
+      retirement of the Thinking test and D114's continuum questions — so
       the difference is in the repo and not in production. Note that the gap now runs BOTH ways: 20
       `test-cognitive-*` questions are live in `v2_questions` and no longer
       in the bank, and a reseed does not retire them (`active` is only ever

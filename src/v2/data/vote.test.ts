@@ -56,6 +56,13 @@ vi.mock("../../lib/firebase", () => ({
     ? new Promise<string>(() => { /* never settles, which is the case */ })
     : Promise.resolve("uid_test")),
   getDb: () => Promise.resolve({ __db: true }),
+  // The API surfaces live.ts binds off the same promise as getDb (D110).
+  // `vi.mock("firebase/firestore")` in this file already replaced the real
+  // module (vi.mock hoists, so its position below is immaterial), so importing
+  // it here hands the store exactly the doubles this file asserts on — and
+  // every case in it now also exercises the bind step.
+  getFirestoreApi: () => import("firebase/firestore"),
+  getFunctionsApi: () => import("firebase/functions"),
   linkGoogle: () => Promise.resolve(),
   googleSignOut: () => Promise.resolve(),
   subscribeToAuth: (cb: (u: { uid: string } | null) => void) => {
@@ -129,6 +136,12 @@ vi.mock("firebase/firestore", () => {
       h.cacheTeardown.push("clearIndexedDbPersistence");
       return h.clearCacheImpl ? h.clearCacheImpl() : Promise.resolve();
     },
+    // Unused by any case here, and required anyway since D110: live.ts
+    // destructures its whole Firestore surface off one object, so a member it
+    // uses ANYWHERE has to exist on this mock or boot throws. That is the
+    // same kind of pin as the "window.LIVE public surface" case below —
+    // adding a Firestore call to the store now forces this list to move.
+    deleteDoc: () => Promise.resolve(),
   };
 });
 
@@ -661,7 +674,7 @@ describe("vote() optimistic path (inflight vs unaggregated)", () => {
     expect(feed.map((q) => q.id)).not.toContain("q_feed_rank");
   });
 
-  it("a continuum question keeps its type and range copy in the live feed (D106)", async () => {
+  it("a continuum question keeps its type and range copy in the live feed (D114)", async () => {
     // Everything else is flattened to type "vote" on purpose — but a dial's
     // options are synthesized bucket labels, and world-feed renders the
     // card from lo/hi/unit + the per-bucket counts. Hardcoding "vote" here

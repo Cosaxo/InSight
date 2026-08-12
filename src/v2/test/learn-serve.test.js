@@ -28,10 +28,18 @@ beforeEach(() => {
 
 async function learn(state) {
   localStorage.setItem(LS, JSON.stringify(state));
-  await import("../spec/learn-data.js");
-  await import("../spec/learn-progress.js");
+  // The named export, not window.LEARN (D109). vi.resetModules() above means
+  // each call re-evaluates the module against the seeded key, and a fresh
+  // evaluation returns a fresh binding — which is the whole harness.
+  //
+  // The explicit `learn-data.js` import that used to sit above this line is
+  // gone, and its absence is the D109 win rather than a tidy-up: this harness
+  // had to name the content module first because learn-progress.js read
+  // window.LEARN_CARDS at module scope. It imports it now, so the ordering is
+  // the module graph's problem and no longer a step a caller can forget.
+  const { LEARN } = await import("../spec/learn-progress.js");
   await import("../spec/learn-feed.js");
-  return { L: window.LEARN, LF: window.LEARN_FEED };
+  return { L: LEARN, LF: window.LEARN_FEED };
 }
 
 const learning = (pos, k = 0) => ({ s: "learning", k, seen: 1, miss: 1, pos, at: 0 });

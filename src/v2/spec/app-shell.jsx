@@ -5,6 +5,7 @@
 // guards the wiring in CI.
 import React from 'react';
 import { IS_DATA } from './sample-data.js';
+import { DUELS } from './duels-data.js';
 import { HAPTIC } from './haptics.js';
 import { markNav } from './swipe-back.js';
 import { WPAL } from './world-palette.js';
@@ -517,7 +518,7 @@ function App() {
         <TweakRadio label="Type marks" value={t.markStyle || 'slice'} options={['slice', 'ring', 'dots']} onChange={(v) => setTweak('markStyle', v)} />
         <TweakToggle label="Lenses: boxed cards" value={!!t.lensBoxed} onChange={(v) => setTweak('lensBoxed', v)} />
         <TweakSection label="Daily" />
-        <TweakButton label="Reset today's answers" secondary onClick={() => { if (window.DUELS) window.DUELS.resetToday(); setDailyKey((k) => k + 1); }} />
+        <TweakButton label="Reset today's answers" secondary onClick={() => { DUELS.resetToday(); setDailyKey((k) => k + 1); }} />
         <TweakSection label="World feed" />
         <TweakRadio label="Palette" value={t.wpal || 'full'} options={['full', 'family', 'one']} onChange={(v) => setTweak('wpal', v)} />
       </TweaksPanel>
