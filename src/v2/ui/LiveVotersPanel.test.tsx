@@ -25,6 +25,10 @@ import { cleanup, render, screen } from "@testing-library/react";
 import type { Voter } from "../data/voters";
 
 const LIVE = vi.hoisted(() => ({
+  // The follow control (D101) rides on every named row. Stubbed
+  // unfollowed — the button's own behaviour has its own cases.
+  isFollowing: () => false,
+  setFollowing: vi.fn(async () => {}),
   enabled: true,
   loadVoters: vi.fn(async (qid: string) => { void qid; }),
   votersByOption: (qid: string, n: number) => {

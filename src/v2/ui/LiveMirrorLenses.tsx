@@ -65,6 +65,25 @@ function LlBar({ pct, labels, mark }: { pct: number[]; labels: string[]; mark?: 
   );
 }
 
+// One tap, no pending state, no notification to the other side — the
+// whole point of D101's design is that a follow grants no access D98 had
+// not already granted, so there is nothing to request.
+function FollowButton({ uid }: { uid: string }) {
+  const following = LIVE.isFollowing(uid);
+  return (
+    <button
+      onClick={() => void LIVE.setFollowing(uid, !following)}
+      aria-pressed={following}
+      style={{
+        border: LL_LINE, borderRadius: 999, padding: "3px 10px", cursor: "pointer",
+        fontFamily: "var(--sans)", fontWeight: 700, fontSize: 11, WebkitAppearance: "none",
+        background: following ? "var(--ink)" : "transparent",
+        color: following ? "var(--surface)" : "var(--ink-2)",
+      }}
+    >{following ? "Following" : "Follow"}</button>
+  );
+}
+
 function LlEmpty({ children }: { children: React.ReactNode }) {
   return (
     <div style={{ fontFamily: "var(--sans)", fontSize: 12.5, fontWeight: 600, color: "var(--ink-3)", lineHeight: 1.55, padding: "10px 2px" }}>
@@ -163,6 +182,12 @@ function PeopleLens({ qs }: { qs: LensQuestion[] }) {
                 <span style={{ width: 42, textAlign: "right", fontFamily: "var(--sans)", fontWeight: 800, fontSize: 13.5, fontVariantNumeric: "tabular-nums" }}>
                   {p.like.pct}%
                 </span>
+                {/* Kindred finds the strangers worth keeping; following
+                    is how you keep one (D101). The second of exactly two
+                    places a follow can start — the other is a question's
+                    who-voted sheet — and both are places where a uid has
+                    already become a person with a reading attached. */}
+                <FollowButton uid={p.uid} />
               </div>
             ))}
             {/* The metric, in one sentence, on the screen that uses it —

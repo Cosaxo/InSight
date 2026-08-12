@@ -96,6 +96,18 @@ await adb.doc(`v2_agg_events/evt_theirs`).set({ qid: "daily-000", uid: OTHER });
 await adb.doc(`insight_users/${OTHER}/insight_inbound_impressions/i1`)
   .set({ senderUid: uid, traits: ["kind"], createdAt: 1 });
 await adb.doc(`insight_users/${OTHER}/relations/r1`).set({ linkedUid: uid });
+// The follow graph, both directions (D101). The account's OWN follow goes
+// with its v2 subtree in phase 1b; the inbound one lives under someone
+// else's uid and needs phase 3b's collection-group sweep to find it —
+// which is the whole reason the row carries `to` as a field, since a
+// collection-group query cannot filter on a document id.
+await adb.doc(`v2_users/${uid}/following/${OTHER}`).set({ to: OTHER, at: new Date() });
+await adb.doc(`v2_users/${OTHER}/following/${uid}`).set({ to: uid, at: new Date() });
+// The control: OTHER's follow of a third party must survive. A sweep that
+// took the whole subcollection instead of the matching rows would empty
+// every follower's Circle on any deletion, and would look identical to a
+// correct one from the deleted account's side.
+await adb.doc(`v2_users/${OTHER}/following/third_party`).set({ to: "third_party", at: new Date() });
 
 // a group only they belong to → should be removed outright
 await adb.doc(`v2_groups/${SOLO}`).set({
@@ -289,6 +301,8 @@ for (const [path, label] of [
   [`v2_takes/${MY_TAKE}`, "their take"],
   [`v2_flags/${MY_TAKE}_${uid}`, "their flag on their own take"],
   [`v2_flags/${THEIR_TAKE}_${uid}`, "their flag on someone else's take"],
+  [`v2_users/${uid}/following/${OTHER}`, "the account's own follow"],
+  [`v2_users/${OTHER}/following/${uid}`, "someone else's follow OF this account"],
   [`v2_presence/${uid}`, "their presence cell"],
   // The gap this leg exists for: the take was erased, and its words went on
   // living in the moderation queue's copy of them.
@@ -324,6 +338,11 @@ if (!(await exists(`v2_agg_events/evt_theirs`))) fail("someone else's agg-ledger
 // Erasure removes the attribution, not the aggregate.
 if (!(await exists(`v2_aggs_private/daily-000`))) fail("erasure destroyed the aggregate tally itself");
 ok("someone else's ledger entry and the anonymous tally both survive");
+
+// The follow sweep stopped at the rows that named this uid.
+if (!(await exists(`v2_users/${OTHER}/following/third_party`)))
+  fail("the follow sweep took someone else's whole following list, not just the rows pointing here");
+ok("someone else's other follows survive — the sweep matched on `to`, not on the collection");
 
 // ── the shared group survives, scrubbed ──
 const shared = await adb.doc(`v2_groups/${SHARED}`).get();

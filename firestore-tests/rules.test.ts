@@ -906,6 +906,77 @@ describe("v2 answers (world-readable since D98; option edits only — D86)", () 
   });
 });
 
+// The follow graph (D101). A follow is a BOOKMARK, not a permission
+// grant — since D98 every answer and profile is already readable, so
+// following someone conveys no access. What these cases pin is that the
+// row itself cannot be forged, back-dated, or written on someone else's
+// behalf, and that its `to` field can never disagree with its own id.
+describe("v2 follow graph (D101 — Circle)", () => {
+  const followRef = (as: string, owner: string, target: string) =>
+    doc(asUser(as), "v2_users", owner, "following", target);
+
+  it("owner follows and unfollows; a stranger cannot follow on their behalf", async () => {
+    await assertSucceeds(setDoc(followRef(OWNER, OWNER, STRANGER), {
+      at: serverTimestamp(), to: STRANGER,
+    }));
+    await assertSucceeds(deleteDoc(followRef(OWNER, OWNER, STRANGER)));
+    // Writing into someone else's following list would let anyone stuff a
+    // stranger's Circle — and, with the read open, publish a social graph
+    // that account never chose.
+    await assertFails(setDoc(followRef(STRANGER, OWNER, "third"), {
+      at: serverTimestamp(), to: "third",
+    }));
+    await assertFails(deleteDoc(followRef(STRANGER, OWNER, "third")));
+  });
+
+  it("is world-readable — the followers direction depends on it", async () => {
+    await assertSucceeds(setDoc(followRef(OWNER, OWNER, STRANGER), {
+      at: serverTimestamp(), to: STRANGER,
+    }));
+    // Deliberate and reversible in one line (see firestore.rules). The
+    // client's mutual flag is a collection-group query on `to`, which is
+    // only satisfiable because this read is open.
+    await assertSucceeds(getDoc(followRef(STRANGER, OWNER, STRANGER)));
+  });
+
+  it("refuses a `to` that disagrees with the document id", async () => {
+    // The field exists so deleteAccount can find inbound follows with a
+    // collection-group query (a query cannot filter on a document id). An
+    // unpinned copy would be a second source of truth about who the row
+    // points at — and the erasure sweep reads the field, not the id, so a
+    // mismatched row would survive its own target's deletion.
+    await assertFails(setDoc(followRef(OWNER, OWNER, STRANGER), {
+      at: serverTimestamp(), to: "someone-else",
+    }));
+    await assertFails(setDoc(followRef(OWNER, OWNER, STRANGER), { at: serverTimestamp() }));
+  });
+
+  it("refuses following yourself, a back-dated stamp, and extra fields", async () => {
+    // Self-follow would put you in your own Circle and count you twice in
+    // every fold over it.
+    await assertFails(setDoc(followRef(OWNER, OWNER, OWNER), {
+      at: serverTimestamp(), to: OWNER,
+    }));
+    // A client-chosen timestamp is a reorderable one.
+    await assertFails(setDoc(followRef(OWNER, OWNER, STRANGER), {
+      at: new Date("2020-01-01"), to: STRANGER,
+    }));
+    await assertFails(setDoc(followRef(OWNER, OWNER, STRANGER), {
+      at: serverTimestamp(), to: STRANGER, note: "x",
+    }));
+  });
+
+  it("cannot be updated in place — only created and deleted", async () => {
+    await assertSucceeds(setDoc(followRef(OWNER, OWNER, STRANGER), {
+      at: serverTimestamp(), to: STRANGER,
+    }));
+    // Rewriting `at` would reorder a Circle, which is the one thing the
+    // stamp decides (fetchFollowing sorts oldest-first so the cap is
+    // stable across sessions).
+    await assertFails(updateDoc(followRef(OWNER, OWNER, STRANGER), { at: serverTimestamp() }));
+  });
+});
+
 describe("v2 groups + sealed duels (Phase 3)", () => {
   const GID = "g1";
   const DAY = dayOffset(-1);

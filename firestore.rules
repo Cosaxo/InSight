@@ -157,6 +157,55 @@ service cloud.firestore {
         allow read, write: if false;
       }
 
+      // The follow graph (D101) — the Mirror's Circle stop.
+      //
+      // A follow is a BOOKMARK, not a permission grant, and that is the
+      // whole design. Since D98 every answer and profile is already
+      // readable by any signed-in user, so following someone gives the
+      // follower no access they did not have — which is why there is no
+      // request, no acceptance, and no notification to the followed
+      // account. One-way, like a subscription. Mutual follows are a
+      // reading the client derives, not a state the server keeps.
+      //
+      // READABLE BY ANYONE, and this is a judgement call rather than a
+      // consequence of D98 (which published answers, not the social
+      // graph). Two reasons it goes this way: the app's whole thesis is
+      // that the links between people are the interesting part, and
+      // public → owner-only is a breaking change for anything built on
+      // it while the reverse is additive. To reverse: change this one
+      // line to `request.auth.uid == uid`. Circle itself needs only the
+      // viewer's own list and would keep working; what would go is the
+      // followers direction, which nothing reads yet.
+      //
+      // deleteAccount's recursive delete of v2_users/{uid} takes the
+      // whole subcollection with it, so erasure needs no new arm — the
+      // same property the push subcollection relies on. What it does NOT
+      // take is other people's follows OF the deleted account: those are
+      // documents under their uid, and they are cleaned in the same
+      // callable rather than left as pointers to nothing.
+      match /following/{targetUid} {
+        allow read: if request.auth != null;
+        // Create-or-delete only. An "edit" to a follow has no meaning,
+        // and leaving update open would let the timestamp be rewritten
+        // to reorder someone's Circle.
+        allow create: if request.auth != null
+          && request.auth.uid == uid
+          // Following yourself would put you in your own Circle and
+          // count you twice in every fold over it.
+          && targetUid != uid
+          // `to` duplicates the document id, and it is not redundant: a
+          // collection-group query cannot filter on a document id, so
+          // without a field deleteAccount could not find the follows
+          // OTHER people hold of a deleted account. Pinned equal to the
+          // id so the two can never disagree — an unpinned copy is a
+          // second source of truth about who this row points at.
+          && request.resource.data.keys().hasOnly(["at", "to"])
+          && request.resource.data.to == targetUid
+          && request.resource.data.at == request.time;
+        allow delete: if request.auth != null && request.auth.uid == uid;
+        allow update: if false;
+      }
+
       // One answer per question, forever: doc id == question id, create-only.
       // The immutability is what lets the aggregate trigger be a plain
       // increment with no reconciliation.

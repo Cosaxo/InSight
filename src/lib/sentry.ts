@@ -4,8 +4,24 @@
 //   - @sentry/capacitor wraps the native iOS / Android crash
 //     reporting (its underlying SDK is sentry-cocoa / sentry-android
 //     loaded by the Capacitor plugin) AND the JS-layer Sentry.
-//   - @sentry/react provides the JS error boundary, route
-//     instrumentation, and component-aware breadcrumbs.
+//   - @sentry/browser provides the JS-layer init the Capacitor SDK
+//     wraps. It used to be @sentry/react, and the swap (D101) was worth
+//     28 KB of the shipping bundle for nothing given up: the only thing
+//     this file ever used from it was `init`, and @sentry/capacitor
+//     depends on @sentry/browser DIRECTLY (@sentry/react is merely one
+//     of its three framework peers). The React package's actual
+//     additions — Sentry's own ErrorBoundary, the Profiler, React Router
+//     instrumentation — were never wired: the app boundary is
+//     app-shell's own, there is no router, and breadcrumbs need the
+//     Profiler nobody mounted. The old comment here listed all three as
+//     though they were in use, which is how 28 KB of unreferenced
+//     framework code rode along unnoticed.
+//
+//     @sentry/react stays in package.json on purpose: it satisfies
+//     @sentry/capacitor's framework peer alongside angular and vue, and
+//     dropping it trades 0 shipped bytes for an install warning. It is
+//     no longer imported, so rolldown leaves it out of the bundle —
+//     which is the whole win.
 //
 // The SDKs are imported DYNAMICALLY: the ~100 KB of Sentry JS stays
 // out of the main bundle and off the first-paint path, loading async
@@ -86,7 +102,7 @@ export function sentryInit(): void {
     try {
       const [cap, react] = await Promise.all([
         import("@sentry/capacitor"),
-        import("@sentry/react"),
+        import("@sentry/browser"),
       ]);
       cap.init(
         {

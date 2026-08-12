@@ -98,7 +98,7 @@ single ruler you can drag along; the stop you pick recolors the whole tab.
 | Stop | What it is | Where the numbers come from | Real in live mode? |
 | --- | --- | --- | --- |
 | **You** | the Map — you, alone, visualized | your own answers, hydrated from Firestore into `DAILYQ` | yes, except the typicality stats (§5), which are mock and refused |
-| **Circle** | your close ties | nothing: v2 has no person-to-person graph | no — live shows an honest empty state. Unbuilt scope, not a privacy refusal |
+| **Circle** | your close ties | the follow graph (`v2_users/{uid}/following`) + those accounts' answers | yes since D101 — a one-way follow, ranked by likeness |
 | **Groups** | your named circles | real reveal history, `groupPortrait.ts` | yes |
 | **Near** | your city's answers + the Right-now radius counter (D84) | `v2_question_aggs.by.city[your city]`; `nearbyCountV2` for the live headcount | yes |
 | **City** | — | folded into Near (D9) | dropped from the ruler in live mode |
@@ -114,10 +114,19 @@ mastered Learn facts land on the same canvas under their subject and
 field. Cards still in the spaced-repetition queue stay off it — a map you
 cannot trust is furniture.
 
-**Circle.** Live mode says what is missing instead of showing the named
-people `relmap-core.js` invents behind a badge. There is no mutual-follow
-graph in v2; groups joined by an invite code are the only real connection
-the app can make (D3), and the empty state says so and points at them.
+**Circle.** Live mode still never shows the named people
+`relmap-core.js` invents — but since D101 it shows real ones. A follow is
+a **bookmark, not a permission grant**: D98 already made every answer and
+profile readable, so following conveys no access and needs no request,
+acceptance or notification. One-way, like a subscription; mutual follows
+are a reading the client derives, not a state the server keeps.
+
+The stop draws the accounts you follow ranked by likeness, and under them
+the questions your circle is most split on (`circleSplit`, which counts
+members only — the opposite of the Map's `typicality`, and §5 says why).
+Follows start in exactly two places: a question's who-voted sheet, and
+the People lens's Kindred rows. Both are screens where a uid has already
+become a person with a reading attached.
 
 **Groups.** The alignment ring, the answer rows and the per-member
 likeness are all computed from `v2_groups/{gid}/reveals/{day}` documents

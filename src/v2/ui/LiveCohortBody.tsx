@@ -45,9 +45,15 @@ import { hasPublishedCounts } from "../data/deck";
 // binary can be ranked against each other without the option count
 // deciding it.
 import { divisiveness } from "../data/cohort";
-// The lens row (D99). An ordinary import — both are typed TSX here and
-// D39's ratchet only moves down.
-import LiveMirrorLenses from "./LiveMirrorLenses";
+// The lens row (D99), loaded after this panel paints (D101).
+//
+// Lazy rather than static for the bundle budget: the row plus its four
+// lens bodies is ~7 KB of the entry chunk, which is more than the
+// headroom MAX_CHUNK_KB deliberately leaves. It is also the right one to
+// defer on the merits — the row is collapsed by default and sits BELOW
+// the answer rows, so on a cold open of this stop it is off-screen while
+// it loads, and the null fallback means nothing shifts when it arrives.
+const LiveMirrorLenses = React.lazy(() => import("./LiveMirrorLenses"));
 import type { LensQuestion } from "./lensDefs";
 import { byOf } from "../data/cohort";
 // An ordinary import, not a globalThis lookup — same note as LiveDuelPanel's
@@ -510,7 +516,9 @@ function LiveCohortBody({ scope = "city" }: { scope?: CohortScope }) {
           answers reading is the spine of this tab and the lenses are a
           second cut of the same numbers; putting them above would make
           the stop's own content look like a sub-tab of a filter. */}
-      <LiveMirrorLenses qs={lensQs} shortName={shortName} />
+      <React.Suspense fallback={null}>
+        <LiveMirrorLenses qs={lensQs} shortName={shortName} />
+      </React.Suspense>
 
       {!!rows.length && empty > 0 && (
         <div style={{ padding: "13px 0 0", fontFamily: "var(--sans)", fontSize: 12, fontWeight: 500, color: "var(--ink-3)", lineHeight: 1.5 }}>

@@ -51,6 +51,15 @@ function LvChips({ anchors }: { anchors: Record<string, string> }) {
 }
 
 function LvRow({ voter }: { voter: Voter }) {
+  // The follow control (D101). This sheet is where a stranger first
+  // becomes a person on screen, so it is where following belongs — and
+  // the Circle stop's empty state points here by name.
+  //
+  // A follow is a bookmark, not a request: it takes effect immediately,
+  // the followed account is not told, and it grants nothing D98 had not
+  // already granted. That is why this is a one-tap toggle and not an
+  // "add friend" with a pending state.
+  const following = LIVE.isFollowing(voter.uid);
   return (
     <div style={{ display: "flex", alignItems: "baseline", gap: 8, padding: "5px 0" }}>
       <span style={{
@@ -61,6 +70,19 @@ function LvRow({ voter }: { voter: Voter }) {
         {voter.isMe ? "You" : (voter.name || "Someone")}
       </span>
       <LvChips anchors={voter.anchors} />
+      {!voter.isMe && (
+        <button
+          onClick={() => void LIVE.setFollowing(voter.uid, !following)}
+          aria-pressed={following}
+          style={{
+            marginLeft: "auto", border: LV_LINE, borderRadius: 999, padding: "3px 10px",
+            cursor: "pointer", fontFamily: "var(--sans)", fontWeight: 700, fontSize: 11,
+            WebkitAppearance: "none",
+            background: following ? "var(--ink)" : "transparent",
+            color: following ? "var(--surface)" : "var(--ink-2)",
+          }}
+        >{following ? "Following" : "Follow"}</button>
+      )}
     </div>
   );
 }

@@ -9462,3 +9462,108 @@ already a door to the same sheet). With an empty `by` that line could
 never render, so every case in that file had been silently testing the
 button-only branch: the one a real user with real data sees *least*
 often. The helper now accepts either door, so both are covered.
+
+## D101 · Circle, on a follow graph that needs no handshake
+
+**Decided:** 2026-08-12 · **Status:** binding · Follow-on to D98.
+
+**Decision.** The Mirror's Circle stop draws real people: a one-way
+**follow graph** at `v2_users/{uid}/following/{targetUid}`, the accounts
+you follow ranked by how alike your answers are, and a fold showing
+where your circle splits.
+
+### Why this got easy, and it was not new plumbing
+
+Circle has shown an empty state saying "one-to-one connections aren't
+built yet" for the whole life of live mode. D3 is why: v2 has no
+person-to-person graph, and groups joined by an invite code were the
+only real connection the app could make. The 49 named people in
+`relmap-core.js` are prototype data and live mode has never shown them.
+
+What changed is D98, not the plumbing. **A follow is a bookmark, not a
+permission grant.** Every answer and profile is already readable by any
+signed-in user, so following someone conveys no access they did not
+already have — which deletes the hard half of a social graph. There is
+no request, no acceptance, no notification, no pending state, and no
+state machine: a follow is one document that exists or does not.
+
+Mutual follows are a **reading, not a state**. If both directions exist
+the client says so; the server stores two independent rows and knows
+nothing about the pair. A friendship that must be agreed is a consent
+mechanism, and consent is only owed for access the follower would not
+otherwise have.
+
+### The one judgement call, and how to reverse it
+
+**The graph is world-readable.** This does not follow from D98, which
+published *answers*, not the social graph — so it is a call rather than
+a consequence, and it is flagged here the way D98's four were.
+
+Two reasons it goes this way: the app's thesis is that the links between
+people are the interesting part, and public → owner-only is a breaking
+change for anything built on it while the reverse is additive. **To
+reverse:** change one line in `firestore.rules` to
+`request.auth.uid == uid`. Circle itself reads only the viewer's own
+list and keeps working; what goes is the followers direction — the
+mutual flag, and any "who follows me" surface, neither of which exists
+elsewhere yet.
+
+### Three details that are load-bearing
+
+- **`to` duplicates the document id**, pinned equal to it by the rules.
+  A collection-group query cannot filter on a document id, so without a
+  field `deleteAccount` could not find the follows *other people* hold
+  of a deleted account. The rule pins the two together because an
+  unpinned copy is a second source of truth about who a row points at —
+  and the erasure sweep reads the field, so a mismatched row would
+  survive its own target's deletion. Phase 3b, with the `relations`
+  sweep as its precedent, plus a control in `e2e-delete-account` proving
+  the sweep matched on `to` rather than taking a whole following list.
+- **No update, ever.** Create and delete only. Rewriting `at` would
+  reorder someone's Circle, which is the one thing the stamp decides —
+  `fetchFollowing` sorts oldest-first so `FOLLOW_CAP` is stable across
+  sessions.
+- **`FOLLOW_CAP` is a bound on fan-out, not a product limit.** Circle is
+  the only surface that reads a named individual's whole answer set
+  rather than a question's voters, so opening it costs one query per
+  member. If it ever binds in the field the answer is to page the fetch,
+  not to raise the number quietly.
+
+### The fold excludes you; the Map's includes you
+
+`circleSplit` counts members only. `typicality` (D99) does the opposite
+and counts you in your own age band. The difference is the question each
+screen asks: "how typical was I" needs the cohort the aggregate folded,
+you included, or the Map disagrees with the who-voted sheet beside it.
+"What do the people I follow think" does not — and folding yourself in
+would let a circle of one reflect your own answer back as consensus.
+
+The ranking's real trap is the tiebreak. Agreement is a percentage, so
+one shared question that happened to match scores 100% and heads the
+list forever, above someone who matched on forty of fifty. It looks
+completely right until somebody answers a single question, so overlap
+breaks the tie and a case names it.
+
+### The bundle budget did what the last note said it would
+
+D100 and D101 together took the tree to 743 KB entry / 2147 KB total —
+over both ceilings. The D98/D99 note in `check-bundle.mjs` had left
+3 KB of headroom under `MAX_CHUNK_KB` specifically so the next eager
+addition would have to defer rather than argue, and predicted that the
+per-chunk gate would catch it first. It did.
+
+**Neither ceiling moved.** Three deferrals (Circle body and the lens row
+via `React.lazy`, `data/circle.ts` via a dynamic import inside
+`live.ts`) took the entry chunk to **727 KB** — smaller than the 732 it
+was before either feature. And the trim that note asked for by name
+turned out to be real: `src/lib/sentry.ts` imported `@sentry/react` and
+used exactly one symbol from it (`init`), while `@sentry/capacitor`
+depends on `@sentry/browser` directly and lists `@sentry/react` as one
+of three framework peers. Sentry's ErrorBoundary, Profiler and router
+instrumentation were never wired to anything. Swapping the import took
+the total **2147 → 2119**.
+
+One deferral bought nothing measurable — `data/circle.ts` out of
+`live.ts`'s static graph left the entry chunk at 738 — and it is kept
+anyway, because a dynamic import there is the right shape. Recorded so
+the next reader does not re-derive it as a win.

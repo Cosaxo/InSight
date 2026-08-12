@@ -61,6 +61,17 @@ import { fetchVoters, groupByOption, resolveNames, sortVoters, type Voter } from
 // Pure folds over the published breakdown, and the likeness metric behind
 // Kindred. No Firebase in there — this module supplies the documents.
 import { agreement, type Agreement } from "./cohort";
+// The follow graph (D101), TYPE-ONLY at module scope and imported for
+// real inside the two methods that use it.
+//
+// Dynamic on purpose: live.ts is eager, so a static import would pull
+// data/circle.ts into the first-paint chunk for a feature that cannot
+// run until the Mirror's third stop is opened — and the entry chunk has
+// 3 KB of headroom under MAX_CHUNK_KB by design (see the D100 note in
+// scripts/check-bundle.mjs). Both call sites are already async and
+// already await getDb(), so the import costs no round trip that was not
+// happening anyway.
+import type { Member as CircleMember } from "./circle";
 // Pure deck-shaping logic lives in ./deck (unit-testable, no firebase);
 // this module passes its store state in.
 import {
@@ -192,6 +203,11 @@ const state = {
   // against its own inputs.
   kindredLoading: false,
   kindredAt: 0,
+  // The follow graph's loaded state (D101). null = not asked, or asked
+  // and failed; [] = asked, and you follow nobody. The stop says
+  // different things for those two.
+  circle: null as CircleMember[] | null,
+  circleLoading: false,
 };
 
 // How many of the viewer's own answers the Kindred ranking reads across.
@@ -1597,6 +1613,81 @@ const LIVE = {
   kindredLoading(): boolean {
     return state.kindredLoading;
   },
+
+  // ── the follow graph and the Circle stop (D101) ──
+  //
+  // Kindred above ranks STRANGERS, off voter lists another surface
+  // already paid for. Circle is the set you chose, and it is the only
+  // place in the app that reads a named individual's whole answer set —
+  // so unlike Kindred it costs a query per member and is loaded only
+  // when the stop is opened.
+  async loadCircle(): Promise<void> {
+    const me = state.uid;
+    if (!this.enabled || !me || state.circleLoading) return;
+    state.circleLoading = true;
+    notify();
+    try {
+      const [db, circleMod] = await Promise.all([getDb(), import("./circle")]);
+      const mine: Record<string, number> = {};
+      for (const [qid, opt] of Object.entries(state.votes)) {
+        if (qid.startsWith("g_")) continue;
+        const n = Number(opt);
+        if (Number.isFinite(n)) mine[qid] = n;
+      }
+      const members = await circleMod.loadCircle(db, me, mine, (u) => state.names[u] || "");
+      // Names for anyone the shared cache did not already hold. Batched,
+      // and after the fold rather than before it — the likeness is
+      // computed from answers and does not wait on a display name.
+      const missing = members.filter((m) => !m.name).map((m) => m.uid);
+      if (missing.length) {
+        await this.loadNames(missing);
+        for (const m of members) m.name = state.names[m.uid] || "";
+      }
+      state.circle = members;
+    } catch (err) {
+      reportError(err, { where: "loadCircle" });
+      // null, not [] — "could not ask" and "you follow nobody" are
+      // different sentences and the stop renders them differently. The
+      // same rule voters() follows.
+      state.circle = null;
+    } finally {
+      state.circleLoading = false;
+      notify();
+    }
+  },
+  /** The circle, or null while unfetched or failed. */
+  circle(): CircleMember[] | null {
+    return state.circle;
+  },
+  circleLoading(): boolean {
+    return state.circleLoading;
+  },
+  /** Whether the viewer follows `uid` — answered from the loaded list. */
+  isFollowing(uid: string): boolean {
+    return !!state.circle?.some((m) => m.uid === uid);
+  },
+  /**
+   * Follow or unfollow, then reload. Optimism is deliberately NOT applied
+   * here: a Circle row carries a likeness computed from a fetch, so a
+   * locally-inserted member would render with 0% until the read landed
+   * and look like a real reading of a real person.
+   */
+  async setFollowing(uid: string, on: boolean): Promise<void> {
+    const me = state.uid;
+    if (!this.enabled || !me || !uid || uid === me) return;
+    try {
+      const [db, circleMod] = await Promise.all([getDb(), import("./circle")]);
+      if (on) {
+        if ((state.circle?.length || 0) >= circleMod.FOLLOW_CAP) return;
+        await circleMod.follow(db, me, uid);
+      } else {
+        await circleMod.unfollow(db, me, uid);
+      }
+      await this.loadCircle();
+    } catch (err) {
+      reportError(err, { where: "setFollowing" });
+    }
+  },
   /** How many of the viewer's questions the ranking has been able to read. */
   kindredDepth(): number {
     return state.kindredAt;
@@ -2139,6 +2230,8 @@ function resetForNewUid(uid: string): void {
   state.names = {};
   state.kindredLoading = false;
   state.kindredAt = 0;
+  state.circle = null;
+  state.circleLoading = false;
   state.profile = { displayName: "", testResults: {}, anchors: {} };
   state.deckIds = [];
   state.deckDay = -1;

@@ -43,6 +43,11 @@ export const LIVE_MEMBERS = [
   // Kindred (D99) — the People lens's ranking, derived on read from the
   // cached voter lists plus the viewer's own votes.
   "loadKindred", "kindred", "kindredLoading", "kindredDepth",
+  // The follow graph and the Circle stop (D101). `circle` returns null
+  // while unfetched or failed and an array once known — same rule as
+  // `voters`, because "could not ask" and "you follow nobody" are
+  // different sentences the stop renders differently.
+  "loadCircle", "circle", "circleLoading", "isFollowing", "setFollowing",
   // The reason boot did not attach, rendered under the "Sample questions ·
   // reconnecting…" pill when it is tapped. It exists because that label
   // said a real user was on demo content without saying why, and an

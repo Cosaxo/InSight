@@ -59,6 +59,16 @@
       ]
     },
     {
+      "collectionGroup": "following",
+      "fieldPath": "to",
+      "indexes": [
+        {
+          "queryScope": "COLLECTION_GROUP",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
       "collectionGroup": "reveals",
       "fieldPath": "members",
       "indexes": [

@@ -28,6 +28,10 @@ const LIVE = vi.hoisted(() => ({
   kindred: () => [] as Array<{ uid: string; name: string; like: { shared: number; same: number; pct: number } }>,
   kindredLoading: () => false as boolean,
   kindredDepth: () => 12,
+  // The follow control (D101) rides on every named row. Stubbed
+  // unfollowed — the button's own behaviour has its own cases.
+  isFollowing: () => false,
+  setFollowing: vi.fn(async () => {}),
 }));
 vi.mock("../data/live", () => ({ default: LIVE }));
 

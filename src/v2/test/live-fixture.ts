@@ -240,6 +240,22 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
     // Named who-voted (D98). The fixture serves one named voter and one
     // unnamed, on opposite options, so a live-mode mount exercises both
     // label paths rather than only the happy one.
+    // The follow graph (D101). A circle of one, mutual and named, so a
+    // live mount renders the member row, the "follows you" mark and the
+    // circle-split section rather than three empty states. Its answers
+    // overlap the fixture deck on purpose — an empty overlap would make
+    // the likeness line read "nothing in common yet" everywhere.
+    loadCircle: async () => {},
+    circle: () => [
+      {
+        uid: "u_other", name: "Ada", mutual: true,
+        like: { shared: 2, same: 1, pct: 50 },
+        answers: { "daily-000": 1, "daily-001": 0 },
+      },
+    ],
+    circleLoading: () => false,
+    isFollowing: (u: string) => u === "u_other",
+    setFollowing: async () => {},
     loadVoters: async () => {},
     voters: () => [
       { uid: "u_fixture", optionIdx: 0, anchors: { ageBand: "25-34", city: "Oslo, NO" }, name: "Tester", isMe: true },

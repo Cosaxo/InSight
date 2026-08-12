@@ -317,7 +317,11 @@ describe("the live gates hold in the DOM, not just in the source", () => {
     // while this test read "the bank ships no `rate` questions", which
     // was true of the prototype's place scorecard and not of the lens:
     // the bank's `rating` and `scale` items are ordinal and average fine.
-    expect(screen.getByRole("button", { name: "People" })).toBeTruthy();
+    //
+    // findBy, not getBy: the row is a React.lazy chunk since D101, so it
+    // arrives a tick after the panel it hangs under. Awaiting the FIRST
+    // button is what makes the three getBy calls below safe.
+    expect(await screen.findByRole("button", { name: "People" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "Compare" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "Scores" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "Explore" })).toBeTruthy();
@@ -357,6 +361,29 @@ describe("the live gates hold in the DOM, not just in the source", () => {
     fireEvent.click(screen.getByRole("button", { name: /^Morals 1$/ }));
     expect(screen.queryByRole("button", { name: /Would you rather know/ })).toBeNull();
     expect(screen.getByRole("button", { name: /Is a promise still binding/ })).toBeTruthy();
+  });
+
+  // The Circle stop (D101). This one is worth a mount test more than most
+  // of the row: the stop rendered an "isn't built yet" note for the whole
+  // life of live mode, so "Circle shows something" and "Circle shows the
+  // OLD something" look identical to any test that only checks it did not
+  // crash. Both halves are asserted — the people, and the fold over them.
+  it("draws the Circle stop from the follow graph, not the not-built note", async () => {
+    localStorage.clear();
+    mountLive();
+    fireEvent.click(screen.getByRole("button", { name: /^mirror$/i }));
+    fireEvent.click(screen.getByRole("tab", { name: "Circle" }));
+    await act(async () => { await new Promise((r) => setTimeout(r, 50)); });
+
+    // The retired empty state, gone.
+    expect(screen.queryByText(/aren.t built yet/i)).toBeNull();
+    // The member, named, with the mutual mark and the likeness metric.
+    expect(screen.getByText(/Ada/)).toBeTruthy();
+    // The row's own mark, not the header's "1 of them follows you back".
+    expect(screen.getByText(/^· follows you$/)).toBeTruthy();
+    expect(screen.getByText("50%")).toBeTruthy();
+    // And the fold: where the circle splits, counted over answerers.
+    expect(screen.getByText(/Where your circle splits/i)).toBeTruthy();
   });
 
   // D98's payoff, in the only test that executes a render of it inside the

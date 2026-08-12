@@ -154,6 +154,41 @@ const ASSETS = join(root, "dist", "assets");
 // chunk is 732.0 KB, so 3 KB of headroom. The next eager kilobyte fails
 // there rather than here, and has to defer instead of argue. That is the
 // ratchet working, and it is deliberately not being moved to match.
+//
+// NEITHER NUMBER MOVED FOR D100 OR D101, and this is the note saying so
+// because the entry above predicted the opposite. Two features (the
+// Mirror's Answers depth and Scores; the follow graph and Circle) took
+// the tree to 743 KB entry / 2147 KB total — over both. What the
+// paragraph above said would happen is what happened: the per-chunk
+// ceiling caught it first, and the 3 KB of headroom left there is what
+// forced a deferral instead of an argument. Three of them, in order of
+// how much they bought:
+//
+//   Circle body → React.lazy from mirror-tab      743 → 738
+//   data/circle → dynamic import inside live.ts   738 → 738  (nothing)
+//   the lens row → React.lazy from LiveCohortBody 738 → 727
+//
+// The middle one is worth keeping in the record precisely because it
+// bought nothing measurable: live.ts is eager, so moving circle.ts out
+// of its static graph looked like the obvious win and the bundler had
+// already hoisted those bytes somewhere they were not being counted
+// against the entry. It stays because a dynamic import there is still
+// the right shape, not because it paid.
+//
+// AND THE TOTAL CAME DOWN, from a trim this file asked for by name. The
+// entry above ended "an audit of how much of Sentry's ~470 KB is
+// actually reachable". The answer was 28 KB of it is not:
+// src/lib/sentry.ts imported @sentry/react and used exactly one symbol
+// from it (`init`), while @sentry/capacitor depends on @sentry/browser
+// DIRECTLY and lists @sentry/react as one of three framework peers. The
+// React package's real additions — Sentry's ErrorBoundary, the
+// Profiler, router instrumentation — were never wired to anything.
+// Swapping the import took the total 2147 → 2119.
+//
+// So the fourth raise did not happen, and the headroom went the other
+// way for the first time since this file was written: entry 727.0 KB
+// (8 KB under), total 2119 KB (21 KB under). Both features shipped and
+// first paint got SMALLER than it was before either of them.
 const MAX_CHUNK_KB = 735;
 const MAX_TOTAL_JS_KB = 2140;
 
