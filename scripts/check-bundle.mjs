@@ -190,6 +190,24 @@ const INDEX_HTML = join(root, "dist", "index.html");
 // way for the first time since this file was written: entry 727.0 KB
 // (8 KB under), total 2119 KB (21 KB under). Both features shipped and
 // first paint got SMALLER than it was before either of them.
+//
+// 2140 → 2170 (2026-08-12): the fourth raise, and it is the D98/D99
+// shape again — measured with CI's own command, one merge apart:
+//
+//   main @ the D112 merge     2136 KB   ← 4 KB under the ceiling
+//   + D113/D114 continuum     2160 KB   ← +24 KB, and over
+//
+// D111/D112 (kindred by scores, place profiles) spent the 21 KB the
+// Sentry trim had won before this branch added a byte; the continuum
+// forms (dial/field renderers, their live stats, the demo questions)
+// are merely the feature that tripped it. Deferral buys nothing here
+// twice over: the total counts every chunk, AND the new bytes already
+// live in the deferred world-feed chunk (129 → 145 KB) — first paint
+// never sees them. The eager graph did not move (951 KB, 4 under its
+// own ceiling), so this raise is lazy weight only. 2170 leaves 10 KB,
+// the usual posture. The D64 candidates stand un-taken — the Mirror
+// tab guard, and whatever of Sentry's remaining ~440 KB an audit can
+// still find — and the fifth raise should have to walk past them again.
 // ── THE THIRD NUMBER, and why two were not enough (D110) ────────────
 //
 // Neither ceiling above is the cost of a cold start, and between them sits
@@ -265,7 +283,7 @@ const INDEX_HTML = join(root, "dist", "index.html");
 // SDK could silently return to the eager graph and this script would print
 // OK. 955 leaves ~11 KB, the same headroom the last raise of the total left.
 const MAX_CHUNK_KB = 735;
-const MAX_TOTAL_JS_KB = 2140;
+const MAX_TOTAL_JS_KB = 2170;
 const MAX_EAGER_KB = 955;
 
 let files;

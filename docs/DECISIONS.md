@@ -10986,7 +10986,13 @@ exactly and bounds field axis ends at 14 chars (they compose into cell
 labels); `check:neighbors`' feed domain spans both destinations,
 deduped by id (same id = same question, not a dupe). deck.ts serves
 dial/field through the existing feed filter (12 options pass
-`playable`; the rank exclusion never applied).
+`playable`; the rank exclusion never applied). The bundle's total
+ceiling moved 2140 → 2170 for the feature's 24 KB — the fourth raise,
+measured against main at the D112 merge (2136, 4 KB under before this
+branch added a byte); all of it lazy weight in the deferred world-feed
+chunk, the eager graph unmoved. The arithmetic and the standing
+trim candidates are in scripts/check-bundle.mjs, where that history
+lives.
 
 ### Not done, deliberately
 
