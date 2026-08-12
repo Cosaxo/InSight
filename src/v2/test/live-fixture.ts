@@ -245,6 +245,13 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
     // circle-split section rather than three empty states. Its answers
     // overlap the fixture deck on purpose — an empty overlap would make
     // the likeness line read "nothing in common yet" everywhere.
+    // Foresight (D102). An empty-but-loaded log: the lens then renders
+    // its first card rather than the "couldn't load" arm, which is what
+    // a mount test needs to walk.
+    loadForesight: async () => {},
+    foresightLog: () => ({}) as Record<string, unknown>,
+    foresightLoading: () => false,
+    scoreForesight: async () => {},
     loadCircle: async () => {},
     circle: () => [
       {

@@ -206,6 +206,57 @@ service cloud.firestore {
         allow update: if false;
       }
 
+      // Foresight verdicts (D102) — one scored read of a population slice.
+      //
+      // CREATE-ONLY, and here that is the whole integrity model rather
+      // than a tidiness rule. A verdict is a claim about a guess you
+      // already made; if it could be rewritten, every wrong read would
+      // become a right one and the record would mean nothing. Answers
+      // get one edit shape (D86) because moving your opinion is a real
+      // act; changing what you guessed after seeing the answer is not.
+      //
+      // The doc id is `{qid}__{dim}__{bucket}`, so create-only also
+      // means one attempt per slice — a read cannot be re-rolled by
+      // deleting and replaying it, because delete is closed too.
+      //
+      // WHAT IS STORED, AND WHY `correct` IS NOT. The row carries the
+      // guess and `answerIdx`, the slice's top option AT GUESS TIME.
+      // Correctness is derived from those two by anyone reading, never
+      // stored — a stored boolean would be an unfalsifiable claim about
+      // a computable fact. `answerIdx` is frozen rather than recomputed
+      // because the cell moves: a slice that says Yes today may say No
+      // next month, and re-deriving would silently flip old verdicts.
+      //
+      // HONEST LIMIT, recorded rather than papered over: `answerIdx` is
+      // client-written, so a determined client can write a verdict that
+      // matches whatever it guessed. The basis is published beside the
+      // claim, which makes the lie visible rather than impossible. Real
+      // verification means scoring server-side against the aggregate —
+      // the shape D57 uses for the logic test — and that is worth
+      // building the day this score buys anything. Today it buys a
+      // number on your own screen.
+      match /foresight/{readId} {
+        allow read: if request.auth != null;
+        allow create: if request.auth != null
+          && request.auth.uid == uid
+          && request.resource.data.keys().hasOnly([
+            "qid", "dim", "bucket", "guess", "answerIdx", "n", "at",
+          ])
+          && request.resource.data.at == request.time
+          && request.resource.data.qid is string
+          && request.resource.data.dim is string
+          && request.resource.data.bucket is string
+          && request.resource.data.n is int
+          && request.resource.data.n >= 0
+          && request.resource.data.answerIdx is int
+          && request.resource.data.answerIdx >= 0
+          // -1 is a clock expiry, which scores as a miss. Anything below
+          // that is a client inventing a sentinel of its own.
+          && request.resource.data.guess is int
+          && request.resource.data.guess >= -1;
+        allow update, delete: if false;
+      }
+
       // One answer per question, forever: doc id == question id, create-only.
       // The immutability is what lets the aggregate trigger be a plain
       // increment with no reconciliation.

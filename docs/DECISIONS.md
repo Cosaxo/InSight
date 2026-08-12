@@ -9567,3 +9567,126 @@ One deferral bought nothing measurable — `data/circle.ts` out of
 `live.ts`'s static graph left the entry chunk at 738 — and it is kept
 anyway, because a dynamic import there is the right shape. Recorded so
 the next reader does not re-derive it as a win.
+
+## D102 · Foresight — the read half, on a truth that now exists
+
+**Decided:** 2026-08-12 · **Status:** binding · Follow-on to D98/D99.
+
+**Decision.** The Mirror's lens row gains a fifth lens, **Foresight**: a
+ten-second game asking which option one demographic slice picked most,
+scored against the published cell. Verdicts persist at
+`v2_users/{uid}/foresight/{readId}`, create-only.
+
+This is the last of the nineteen items on the 2026-08-11 list, and the
+only one that came from v19 rather than v18.
+
+### READ was not buildable before, and the reason is exact
+
+v19 ships Foresight as two card types. **READ** asks which side a slice
+picked; **CALL** seals a real-world event now and scores it when it
+resolves.
+
+The prototype's READ derives its answer from `wfHash(qid + dim + bucket)`
+— an invented truth, chosen to be *stable* rather than *correct*, because
+under the old model most cohort cells were below the k-floor and were
+never published. The game could be played and could not be scored: there
+was nothing to be right about.
+
+D98 published every cell at every size and D99 put the fold in
+`data/cohort.ts`, so the answer is now a lookup — **the same lookup the
+Explore lens draws and the same numbers the who-voted sheet lists by
+name**. A read can therefore never disagree with the screen behind it,
+which is the property the hash was reaching for and could only
+approximate.
+
+### Two thresholds that are about fairness, not disclosure
+
+`READ_MIN_N` (8) and `READ_MIN_LEAD` (12 points) both look like the floor
+D98 deleted and neither is. Nothing is withheld: Explore draws these
+cells at any size. The question is whether a QUESTION IS FAIR.
+
+- A three-answer slice has a "most picked" that one more answer flips.
+- A 51/49 slice has a technically correct answer nobody could read.
+
+Scoring either teaches the player the game is arbitrary. Raising the
+numbers makes the deck harder to fill; lowering them makes it dishonest.
+Both have a case that names which failure it is preventing.
+
+A timeout scores as a **miss, not a skip** — a card you can let expire
+for free makes waiting the best play whenever you are unsure, and the
+clock becomes decoration.
+
+### `correct` is derived, never stored
+
+The verdict row carries `guess` and `answerIdx` — the slice's top option
+**at guess time** — and nothing else about the outcome. Correctness is
+computed by whoever reads the row.
+
+- A stored boolean would be an unfalsifiable claim about a computable
+  fact.
+- `answerIdx` is frozen rather than recomputed because **the cell moves**:
+  a slice that says Yes today may say No next month, and re-deriving
+  would silently flip old verdicts.
+
+Create-only is the integrity model, not tidiness: if a verdict could be
+rewritten, every wrong read would become a right one the moment the
+answer appeared. Delete is closed for the same reason — the doc id is the
+slice, so delete-and-replay would be a re-roll. Answers get one edit
+shape (D86) because moving your opinion is a real act; changing what you
+guessed after seeing the answer is not.
+
+**Honest limit, recorded rather than papered over:** `answerIdx` is
+client-written, so a determined client can write a verdict matching
+whatever it guessed. The basis is published beside the claim, which makes
+the lie visible rather than impossible. Real verification means scoring
+server-side against the aggregate — the shape D57 uses for the logic test
+— and is worth building the day this score buys anything. Today it buys a
+number on your own screen.
+
+### Placed on the Mirror, not in the feed
+
+The prototype puts these cards in the world feed. This ships them as a
+lens because the lens row is already where a population gets read, and
+because a read is scoped to a POPULATION: on Near you are reading slices
+of your city, on World slices of everyone, and the ruler above already
+says which. In the feed that scope would have to be restated on every
+card. The feed placement stays open as a follow-on and needs no engine
+change — `readsFrom` takes questions and returns reads.
+
+### What CALL needs, and why it is not built
+
+The machinery is small: a question with `resolvesAt` and an `outcomeIdx`
+written after the fact, an answer sealed until then (the duel seal
+already proves that shape), and the same verdict fold. What it needs and
+does not have is **an outcome nobody can fake**:
+
+1. **Events.** The bank ships none, and unlike D100's Scores there is no
+   equivalent hiding in it — a `rating` question is ordinal whatever its
+   subject, but no existing question is about a future fact.
+2. **A resolver.** Someone has to write `outcomeIdx` when the match ends.
+   That is an operator process with an SLA, not a function: an unresolved
+   call is worse than a missing feature, because it takes the player's
+   guess and never comes back.
+3. **D1.** Seeding events with invented outcomes to fill the frame is the
+   one thing the no-synthetic-data rule forbids outright — and is exactly
+   what the prototype does (four settled events, hardcoded).
+
+The variant needing neither an author nor a resolver is a call on the
+app's OWN future data — "will tomorrow's question split past 60/40?" —
+which the aggregate settles by itself. That is a different card from the
+prototype's and a product decision, so it is written down rather than
+built.
+
+### Also not built from v19's Foresight
+
+- **The Map's Foresight branch** (`map-fore-card.jsx`, `g-fore` as a 7th
+  over-category, the `map-tab` fold). The Map files *answers*; a read is
+  a guess about someone else, and v19 excludes fore leaves from the
+  answer count for exactly that reason ("aims, not answers"). Putting
+  them on the same canvas needs the seventh category and a rule for what
+  a fore leaf's distance-from-centre means, neither of which is obvious.
+- **Crowd-relative percentiles** ("you read better than 78% of people").
+  Every verdict is world-readable, so this is a collection-group query
+  away — but it is a query the app does not otherwise make, and the score
+  it would rank is client-written (above). Worth doing after
+  server-scoring, not before.

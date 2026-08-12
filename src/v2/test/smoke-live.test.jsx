@@ -325,6 +325,8 @@ describe("the live gates hold in the DOM, not just in the source", () => {
     expect(screen.getByRole("button", { name: "Compare" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "Scores" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "Explore" })).toBeTruthy();
+    // Foresight (D102) — v19's own feature, and the last of the row.
+    expect(screen.getByRole("button", { name: "Foresight" })).toBeTruthy();
     // Collapsed until asked for — the cost gate, on the real mount.
     expect(screen.queryByText(/most like you/i)).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "People" }));
@@ -361,6 +363,31 @@ describe("the live gates hold in the DOM, not just in the source", () => {
     fireEvent.click(screen.getByRole("button", { name: /^Morals 1$/ }));
     expect(screen.queryByRole("button", { name: /Would you rather know/ })).toBeNull();
     expect(screen.getByRole("button", { name: /Is a promise still binding/ })).toBeTruthy();
+  });
+
+  // Foresight (D102), on the real mount. The lens suite covers the clock
+  // and the scoring; what this covers is that the game is REACHABLE —
+  // it hangs off a React.lazy chunk inside another React.lazy chunk
+  // (LiveMirrorLenses inside LiveCohortBody), which is exactly the kind
+  // of nesting that renders nothing and throws nowhere.
+  it("reaches the Foresight game through two lazy boundaries", async () => {
+    localStorage.clear();
+    mountLive();
+    fireEvent.click(screen.getByRole("button", { name: /^mirror$/i }));
+    fireEvent.click(screen.getByRole("tab", { name: "Near" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Foresight" }));
+    // The fixture's breakdown carries several readable slices, so the
+    // game deals a card rather than its not-enough-answers arm. Which
+    // slice comes first is the engine's ranking and belongs to its own
+    // suite — what matters here is that a real card is on screen.
+    expect(await screen.findByText(/Ten seconds a card/i)).toBeTruthy();
+    // The slice line: "<Dim> · <bucket> · N answers". getAllBy because
+    // the answer rows above the lens carry their own counts.
+    expect(screen.getAllByText(/·.+·.+answers$/).length).toBeGreaterThan(0);
+    expect(screen.queryByText(/fair read/i)).toBeNull();
+    // And answering it scores, through the real store.
+    fireEvent.click(screen.getAllByRole("button", { name: "Yes" })[0]);
+    expect(screen.getByText(/Read it\.|Missed\./)).toBeTruthy();
   });
 
   // The Circle stop (D101). This one is worth a mount test more than most

@@ -72,6 +72,11 @@ import { agreement, type Agreement } from "./cohort";
 // already await getDb(), so the import costs no round trip that was not
 // happening anyway.
 import type { Member as CircleMember } from "./circle";
+// Foresight (D102). Type-only at module scope; the fold and the writer
+// are reached through the same dynamic import the circle uses, and for
+// the same reason — live.ts is eager and this cannot run until a lens
+// nobody has opened is opened.
+import type { Verdict as ForesightVerdict } from "./foresight";
 // Pure deck-shaping logic lives in ./deck (unit-testable, no firebase);
 // this module passes its store state in.
 import {
@@ -208,6 +213,11 @@ const state = {
   // different things for those two.
   circle: null as CircleMember[] | null,
   circleLoading: false,
+  // Foresight verdicts, keyed by read id (D102). Loaded once per
+  // session on first open of the lens; a verdict is create-only server
+  // side, so the local copy can never be stale in a way that matters.
+  foresight: null as Record<string, ForesightVerdict> | null,
+  foresightLoading: false,
 };
 
 // How many of the viewer's own answers the Kindred ranking reads across.
@@ -1662,6 +1672,91 @@ const LIVE = {
   circleLoading(): boolean {
     return state.circleLoading;
   },
+  // ── Foresight (D102) ──
+  //
+  // The log, not the score. `recordOf`/`byDim` are pure folds the UI
+  // runs on what this returns, so the store never holds a derived
+  // number that could disagree with the rows it came from.
+  async loadForesight(): Promise<void> {
+    const me = state.uid;
+    if (!this.enabled || !me || state.foresightLoading || state.foresight) return;
+    state.foresightLoading = true;
+    notify();
+    try {
+      const db = await getDb();
+      const snap = await getDocs(collection(db, "v2_users", me, "foresight"));
+      const out: Record<string, ForesightVerdict> = {};
+      snap.docs.forEach((d) => {
+        const v = d.data();
+        const guess = Number(v.guess);
+        const answerIdx = Number(v.answerIdx);
+        out[d.id] = {
+          id: d.id,
+          qid: String(v.qid || ""),
+          dim: String(v.dim || ""),
+          bucket: String(v.bucket || ""),
+          guess,
+          // DERIVED here, never read from the document — the rules do not
+          // allow it to be stored, precisely so it cannot be asserted.
+          correct: guess >= 0 && guess === answerIdx,
+          // Same tolerance takeFromDoc needs: a serverTimestamp echoed
+          // from the local cache before the server acks reads back null,
+          // and 0 sorts it first rather than throwing on .toMillis.
+          at: (v.at as { toMillis?: () => number } | null)?.toMillis?.() || 0,
+        };
+      });
+      state.foresight = out;
+    } catch (err) {
+      reportError(err, { where: "loadForesight" });
+      // null keeps "could not ask" distinct from "nothing played" — the
+      // same rule voters() and circle() follow.
+      state.foresight = null;
+    } finally {
+      state.foresightLoading = false;
+      notify();
+    }
+  },
+  foresightLog(): Record<string, ForesightVerdict> | null {
+    return state.foresight;
+  },
+  foresightLoading(): boolean {
+    return state.foresightLoading;
+  },
+  /**
+   * Record one read. Create-only server-side, so a second call for the
+   * same slice is refused by the rules rather than overwriting — the
+   * local guard below is a courtesy, not the enforcement.
+   */
+  async scoreForesight(
+    readId: string, qid: string, dim: string, bucket: string,
+    guess: number, answerIdx: number, n: number,
+  ): Promise<void> {
+    const me = state.uid;
+    if (!this.enabled || !me || !readId) return;
+    if (state.foresight && readId in state.foresight) return;
+    // Optimistic: the verdict is already decided by data the client
+    // holds, so waiting on the write to reveal the answer would add a
+    // round trip to a screen whose whole point is a ten-second clock.
+    const local: ForesightVerdict = {
+      id: readId, qid, dim, bucket, guess,
+      correct: guess >= 0 && guess === answerIdx,
+      at: Date.now(),
+    };
+    state.foresight = { ...(state.foresight || {}), [readId]: local };
+    notify();
+    try {
+      const db = await getDb();
+      await setDoc(doc(db, "v2_users", me, "foresight", readId), {
+        qid, dim, bucket, guess, answerIdx, n, at: serverTimestamp(),
+      });
+    } catch (err) {
+      // The row stays in the local log. A verdict that failed to persist
+      // is still a verdict the player saw scored, and dropping it from
+      // the screen would look like the miss never happened.
+      reportError(err, { where: "scoreForesight" });
+    }
+  },
+
   /** Whether the viewer follows `uid` — answered from the loaded list. */
   isFollowing(uid: string): boolean {
     return !!state.circle?.some((m) => m.uid === uid);
@@ -2232,6 +2327,8 @@ function resetForNewUid(uid: string): void {
   state.kindredAt = 0;
   state.circle = null;
   state.circleLoading = false;
+  state.foresight = null;
+  state.foresightLoading = false;
   state.profile = { displayName: "", testResults: {}, anchors: {} };
   state.deckIds = [];
   state.deckDay = -1;

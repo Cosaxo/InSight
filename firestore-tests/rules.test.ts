@@ -977,6 +977,51 @@ describe("v2 follow graph (D101 — Circle)", () => {
   });
 });
 
+// Foresight verdicts (D102). One scored read of a population slice, and
+// the only thing that makes the record mean anything is that a verdict
+// cannot be rewritten after the answer is on screen.
+describe("v2 foresight verdicts (D102)", () => {
+  const fRef = (as: string, owner: string, id = "q1__ageBand__25-34") =>
+    doc(asUser(as), "v2_users", owner, "foresight", id);
+  const verdict = (over: Record<string, unknown> = {}) => ({
+    qid: "q1", dim: "ageBand", bucket: "25-34",
+    guess: 0, answerIdx: 0, n: 20, at: serverTimestamp(), ...over,
+  });
+
+  it("owner writes one verdict; a stranger cannot write it for them", async () => {
+    await assertSucceeds(setDoc(fRef(OWNER, OWNER), verdict()));
+    await assertFails(setDoc(fRef(STRANGER, OWNER, "q2__ageBand__25-34"), verdict({ qid: "q2" })));
+  });
+
+  it("cannot be rewritten or deleted — a wrong read stays wrong", async () => {
+    // The whole integrity model. Without this, every miss becomes a hit
+    // the moment the answer is revealed, and the record means nothing.
+    // Delete is closed for the same reason: the doc id is the slice, so
+    // delete-and-replay would be a re-roll.
+    await assertSucceeds(setDoc(fRef(OWNER, OWNER), verdict({ guess: 1 })));
+    await assertFails(updateDoc(fRef(OWNER, OWNER), { guess: 0 }));
+    await assertFails(setDoc(fRef(OWNER, OWNER), verdict({ guess: 0 })));
+    await assertFails(deleteDoc(fRef(OWNER, OWNER)));
+  });
+
+  it("is world-readable — the basis is published beside the claim", async () => {
+    await assertSucceeds(setDoc(fRef(OWNER, OWNER), verdict()));
+    await assertSucceeds(getDoc(fRef(STRANGER, OWNER)));
+  });
+
+  it("refuses a stored `correct`, a back-dated stamp, and a bad guess", async () => {
+    // `correct` is DERIVED from guess + answerIdx by whoever reads it.
+    // Storing it would be an unfalsifiable claim about a computable fact.
+    await assertFails(setDoc(fRef(OWNER, OWNER), verdict({ correct: true })));
+    await assertFails(setDoc(fRef(OWNER, OWNER), verdict({ at: new Date("2020-01-01") })));
+    // -1 is the clock expiry and scores as a miss; anything below it is
+    // a client inventing a sentinel of its own.
+    await assertFails(setDoc(fRef(OWNER, OWNER), verdict({ guess: -2 })));
+    await assertFails(setDoc(fRef(OWNER, OWNER), verdict({ answerIdx: -1 })));
+    await assertFails(setDoc(fRef(OWNER, OWNER), verdict({ n: "many" })));
+  });
+});
+
 describe("v2 groups + sealed duels (Phase 3)", () => {
   const GID = "g1";
   const DAY = dayOffset(-1);

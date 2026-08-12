@@ -7,13 +7,17 @@
 // component file breaks fast refresh for everything that imports it.
 import type { ByMap } from "../data/cohort";
 
-export type LensId = "people" | "compare" | "explore" | "scores";
+export type LensId = "people" | "compare" | "explore" | "scores" | "foresight";
 
 export const LENS_LABEL: Record<LensId, string> = {
   people: "People",
   compare: "Compare",
   explore: "Explore",
   scores: "Scores",
+  // v19's own feature, and the only lens here that is a GAME rather than
+  // a reading (D102). It sits last because it is the one you play after
+  // the others have taught you what a population looks like.
+  foresight: "Foresight",
 };
 
 /**

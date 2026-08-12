@@ -45,6 +45,10 @@ import {
 // rule wants a component file to export only components, and it is right
 // that a constant shared with the host does not belong in one.
 import { LENS_LABEL, ORDINAL_TYPES, type LensId, type LensQuestion } from "./lensDefs";
+// The fifth lens (D102). An ordinary import: this whole module is
+// already behind a React.lazy from LiveCohortBody, so Foresight rides
+// the same deferred chunk and needs no boundary of its own.
+import LiveForesightLens from "./LiveForesightLens";
 
 const LL_LINE = "1px solid color-mix(in oklch, var(--rule), transparent 25%)";
 
@@ -426,6 +430,9 @@ function LiveMirrorLenses({ qs, shortName }: { qs: LensQuestion[]; shortName: st
       {lens === "compare" && <CompareLens qs={qs} shortName={shortName} />}
       {lens === "scores" && <ScoresLens qs={qs} shortName={shortName} />}
       {lens === "explore" && <ExploreLens qs={qs} />}
+      {/* Foresight loads its own record on open, like People does for
+          Kindred — the collapsed row is the cost gate for both. */}
+      {lens === "foresight" && <LiveForesightLens qs={qs} />}
     </div>
   );
 }
