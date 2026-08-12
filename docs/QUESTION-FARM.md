@@ -569,16 +569,24 @@ recorded under Governance when taken. Rules, each load-bearing:
   unscored, the lane's job is breadth across the ten topics
   (thinnest-first, the coverage rule); raising the cadence is a D97
   amendment for when the scorecard shows the crowd keeping up.
-- **`vote` questions only.** `rank` is not live-servable (D12) and
-  `duel`-type feed cards are prototype legacy; a lane candidate is
-  always a plain vote. 2–4 options, feed shapes (`check:quality` holds
-  the measured bounds; `check:content` holds the seed shapes).
+- **Three authorable forms, two destinations.** A live-bank candidate
+  (`content/feed-questions.json`) is always a plain `vote` — `rank` is
+  not live-servable (D12), `duel`-type feed cards are prototype legacy,
+  and the live pool renders every card through the options path. 2–4
+  options, feed shapes (`check:quality` holds the measured bounds;
+  `check:content` holds the seed shapes). The two **continuum forms**
+  (`dial` / `field`) are also lane candidates, but they land in the
+  demo pool (`src/v2/spec/world-feed-data.js`, the `── dials & fields ──`
+  block) — the shape contract and the reason for the split are in
+  § Continuum questions below.
 - **Append only, at the end of `questions`**, ids continuing the `fNN`
   series (scene-attached `sNN` entries are out of the lane's scope —
-  scenes are placeholder). Every append also adds the question's
-  provenance row (`content/provenance.json`, `source: "farm"`, the
-  run's date as batch) — `check:quality` fails a feed question without
-  one.
+  scenes are placeholder). Every content append also adds the
+  question's provenance row (`content/provenance.json`,
+  `source: "farm"`, the run's date as batch) — `check:quality` fails a
+  feed question without one. (Continuum appends carry no row yet:
+  the provenance join covers the content banks, and a demo-pool entry
+  is not in one — its row arrives with the promotion.)
 - **Topics from the taxonomy only** (`topics` in the same file);
   proposing a new topic is a PR-body note, never a silent addition. Mark
   politically charged questions `political: true` (D52's rule: the
@@ -595,6 +603,59 @@ recorded under Governance when taken. Rules, each load-bearing:
 - Gates before the PR: `npm run check:content` (the seed regenerates —
   run `npm run build:content` after the append), `check:neighbors`,
   `check:quality`, `check:globals`, `lint`, `test:unit`, `build`.
+
+### Continuum questions (`dial` / `field`)
+
+Two forms where the answer is a position, not a pick (synced from
+standalone v20): a **dial** takes a value on a range and reveals the
+crowd as a curve with a median line; a **field** takes a dot on a
+2-D plane and reveals the crowd as a cloud. They are feed questions in
+every rule sense — the feed lane authors them, the feed taxonomy files
+them, `check:quality` gates them — but they land in the **demo pool**
+(`src/v2/spec/world-feed-data.js`, appended to the `── dials & fields ──`
+block), not in `content/feed-questions.json`. The reason is the
+D12 rule seen from the other side: the live loop stores an `optionIdx`
+and renders every card through the options path, so a continuum entry in
+the live bank would serve as a wrong-shaped vote card. The dial's
+12-bucket texture is deliberately sized so a future promotion can bucket
+live answers 1:1 under the existing fold (12 ≤ the optionIdx ceiling of
+20, `functions/src/v2.ts`); until that loop ships, the demo pool is the
+lane's landing strip, exactly as the daily lane lands in the spec
+archive.
+
+**Writing them.** A dial earns its place when everyone holds a number on
+the same range and the interesting fact is *where* the numbers sit — a
+threshold ("when does old age begin?"), a norm ("the right tip"), a
+share ("how much of your life is in your control?"). The range must be
+the honest span of real answers, not drama: ends people actually hold.
+A field earns its place when two judgments are independent enough to
+disagree — taste × legitimacy, feeling × importance — and the corners
+are all inhabitable positions. Axis ends are judgments, not facts, and
+follow option-label bounds. Both forms carry their own authored crowd
+texture (the demo pool has no backend), held to the same bar as the
+copy:
+
+- `dial`: `{ id, cat, type: 'dial', prompt, lo, hi, unit, med, n, dist }`
+  — `lo < hi`, `med` inside the range (it prints as "most say"),
+  `dist` exactly 12 non-negative buckets lo→hi shaped like a real crowd
+  (one mode, honest tails), `unit` or a two-label `ends` pair naming the
+  scale, `n` a believable answer count.
+- `field`: `{ id, cat, type: 'field', prompt, ax, ay, n, cloud }` —
+  `ax`/`ay` two end labels each (x runs left→right, y bottom→top in
+  label order; cloud coords run 0–100 with y = 0 at the TOP), `cloud`
+  is 1–4 `[x, y, count, spread]` clusters totalling 8–60 dots.
+- Ids continue the `dlN` / `fdN` series; prefer the always-on channels
+  (`bigq` / `dilemma`) so the card reaches every demo feed — a subject
+  topic is right only when the question is truly subject-bound.
+- Pre-flight: dials fit `--candidate` flags
+  (`node scripts/question-quality.mjs --candidate "…" --surface feed
+  --type dial --cat bigq --lo 40 --hi 90 --unit yrs --med 63
+  --dist "1,3,…" --n 5000`); a field's cloud has no flag syntax, so
+  pre-flight fields via `--batch` with the full objects.
+- Budget: continuum candidates count inside the lane's ≤6/run, and lean
+  scarce — the feed reads best when a continuum card is an occasional
+  change of key, not a second genre (the hot sort pins one near the top;
+  a glut buys nothing).
 
 ## Deliberately out of scope (recorded so it stays a decision, not drift)
 

@@ -21,19 +21,26 @@
 // capital"). The farm manual's re-read stays the rule; this is its floor.
 //
 // Modes:
-//   (no args)              gate: form rules over daily / feed / duel / pick,
+//   (no args)              gate: form rules over daily / feed / duel / pick /
+//                          the demo pool's continuum entries (dial/field),
 //                          provenance coverage (content/provenance.json ↔
 //                          the banks), and the id/bank headroom tripwires.
 //                          Exit 1 on any violation.
 //   --candidate "prompt"   pre-flight one candidate; prints a review-packet
-//     [--surface daily|feed] [--type binary|choice|scale|rating|dilemma|vote]
+//     [--surface daily|feed]
+//     [--type binary|choice|scale|rating|dilemma|vote|dial|field]
 //     [--options "A|B|C"] [--tone light|blend|deep] [--tag "two words"]
 //     [--cat "Top / Sub"]  (daily; for feed pass the bare topic id, e.g.
 //     --cat sport) [--alts "Top / Sub, Top / Sub"] [--axis slug]
+//     dial:  [--lo n] [--hi n] [--unit yrs] [--med n] [--dist "1,3,5,…"]
+//            [--ends "low end|high end"] [--n 5000]
+//     field: [--ax "left|right"] [--ay "bottom|top"] [--n 5000]
+//            (cloud has no flag syntax — pre-flight fields via --batch)
 //   --batch <file.json>    pre-flight an array of candidate objects
 //                          ({prompt, type, options?, tone?, tag?, cat?,
-//                          alts?, axis?, surface?}) plus the batch-mix
-//                          rules a single candidate cannot express.
+//                          alts?, axis?, surface?, and the dial/field
+//                          fields verbatim}) plus the batch-mix rules a
+//                          single candidate cannot express.
 //
 // Node stdlib only, deterministic, like every gate here.
 import { readFileSync, existsSync } from "node:fs";
@@ -59,6 +66,23 @@ export const OPTION_SHAPES = {
   scale: [0, 0],
   rating: [0, 0],
 };
+// The feed's closed type list. Until this set existed a novel feed type
+// passed the gate silently (the daily surface had OPTION_SHAPES; the feed
+// had nothing) — exactly how a wrong-shaped card would reach review unread.
+// vote is the only live-bank candidate; rank/duel are bank legacy (D12);
+// dial/field are the continuum forms, demo-pool only until the live
+// continuum loop ships (see QUESTION-FARM.md § The feed lane).
+export const FEED_TYPES = new Set(["vote", "rank", "duel", "dial", "field"]);
+// A dial's crowd texture is exactly 12 buckets lo→hi. Pinned rather than
+// free: world-feed.jsx's curve is drawn from it, and 12 fits the live
+// fold's optionIdx ceiling (0..19, functions/src/v2.ts) — so a future
+// promotion to the live bank can bucket answers 1:1 without a re-author.
+export const DIAL_BUCKETS = 12;
+// A field's cloud stays a sketch, not a census: enough dots to read as a
+// crowd, few enough that the reveal's stagger (one span per dot) stays a
+// beat. v20's authored clouds sit at 25–26.
+export const CLOUD_DOTS_MIN = 8;
+export const CLOUD_DOTS_MAX = 60;
 
 // ── hard rule 6's tripwire ──
 // A hand-kept watchlist, deliberately small: country names, demonyms, and
@@ -140,6 +164,17 @@ export function loadCorpus() {
     "window.PICK_QS = [",
     "pick-data.js",
   );
+  // The demo pool is prototype filler EXCEPT its continuum entries
+  // (dial/field), which are lane-authored production copy — the feed lane
+  // lands them here until the live continuum loop ships. The gate walks
+  // exactly what the lane writes (the pick-data.js pattern), and only
+  // that: dragging the rest of the demo pool through production bounds
+  // would fail scene fillers that are not production copy.
+  const wfd = extractLiteral(
+    readFileSync(join(root, "src", "v2", "spec", "world-feed-data.js"), "utf8"),
+    "window.WORLD_FEED_QS = [",
+    "world-feed-data.js",
+  );
   return {
     specQ,
     dailyIdOf,
@@ -149,12 +184,19 @@ export function loadCorpus() {
     feedTopics: new Set(feed.topics.map((t) => t.id)),
     duel: [...duel.group, ...duel.oneVsOne, ...(duel.romantic ?? [])],
     pick,
+    continuum: wfd.filter((q) => q.type === "dial" || q.type === "field"),
   };
 }
 
 // ── the rules ──
+// ax/ay/ends join the sweep: a field's axis labels and a dial's end labels
+// are prose the reader sees, so the place tripwire must see them too.
 const textOf = (q) =>
-  [q.prompt, ...(q.options || q.items || []).map((o) => (o && typeof o === "object" ? o.label : o))]
+  [
+    q.prompt,
+    ...(q.options || q.items || []).map((o) => (o && typeof o === "object" ? o.label : o)),
+    ...(q.ax || []), ...(q.ay || []), ...(q.ends || []),
+  ]
     .filter(Boolean)
     .join(" ");
 
@@ -224,8 +266,63 @@ export function checkQuestion(q, surface, ctx) {
   }
 
   if (surface === "feed") {
+    if (!FEED_TYPES.has(q.type)) {
+      err("type-shape", `unknown feed type ${JSON.stringify(q.type)} — vote|rank|duel|dial|field`);
+    }
     if (q.type === "rank") warn.push("rank type — not live-servable (D12); fine in the bank, never a lane candidate");
     if (q.cat && !ctx.feedTopics.has(q.cat)) err("topic", `topic ${JSON.stringify(q.cat)} is not in the feed taxonomy`);
+
+    // ── continuum shapes ── the whole entry is authored, crowd texture
+    // included (the demo pool has no backend), so the gate holds the
+    // texture to the same bar as the copy: a dial whose dist doesn't fit
+    // the curve, or a field whose cloud drifts off the plane, renders
+    // wrong in exactly the ways a reviewer stops seeing after ten cards.
+    if (q.type === "dial") {
+      if (opts.length) err("type-shape", "a dial carries no options — the range is the answer space");
+      const num = (v) => typeof v === "number" && Number.isFinite(v);
+      if (!num(q.lo) || !num(q.hi) || q.lo >= q.hi) {
+        err("range", `dial needs numeric lo < hi (got lo ${JSON.stringify(q.lo)}, hi ${JSON.stringify(q.hi)})`);
+      }
+      if (!num(q.med) || (num(q.lo) && num(q.hi) && (q.med < q.lo || q.med > q.hi))) {
+        err("med", `med ${JSON.stringify(q.med)} must be a number inside [lo, hi] — it is the "most say" line`);
+      }
+      if (!Array.isArray(q.dist) || q.dist.length !== DIAL_BUCKETS || q.dist.some((w) => !num(w) || w < 0) || !q.dist.some((w) => w > 0)) {
+        err("dist", `dist must be ${DIAL_BUCKETS} non-negative buckets lo→hi with at least one > 0 (got ${Array.isArray(q.dist) ? q.dist.length + " buckets" : JSON.stringify(q.dist)})`);
+      }
+      const endsOk = Array.isArray(q.ends) && q.ends.length === 2 && q.ends.every((e) => typeof e === "string" && e.trim());
+      if (q.ends !== undefined && !endsOk) err("ends", `ends must be two non-empty labels (got ${JSON.stringify(q.ends)})`);
+      if (!endsOk && (typeof q.unit !== "string" || !q.unit.trim())) {
+        err("ends", "a dial needs a unit or two end labels — something has to say what the scale measures");
+      }
+      for (const e of [...(q.ends || [])]) {
+        if (String(e).length > OPTION_MAX) err("option-length", `end label ${JSON.stringify(String(e))} is ${String(e).length} chars (max ${OPTION_MAX})`);
+      }
+      if (!num(q.n) || q.n <= 0) err("n", `n ${JSON.stringify(q.n)} — the authored answer count the card's footer shows`);
+    }
+    if (q.type === "field") {
+      if (opts.length) err("type-shape", "a field carries no options — the plane is the answer space");
+      const num = (v) => typeof v === "number" && Number.isFinite(v);
+      for (const [k, axis] of [["ax", q.ax], ["ay", q.ay]]) {
+        if (!Array.isArray(axis) || axis.length !== 2 || axis.some((e) => typeof e !== "string" || !e.trim())) {
+          err("ends", `${k} must be two non-empty end labels (got ${JSON.stringify(axis)})`);
+        } else {
+          for (const e of axis) {
+            if (e.length > OPTION_MAX) err("option-length", `end label ${JSON.stringify(e)} is ${e.length} chars (max ${OPTION_MAX})`);
+          }
+        }
+      }
+      const cluster = (c) =>
+        Array.isArray(c) && c.length === 4 && c.every(num) &&
+        c[0] >= 0 && c[0] <= 100 && c[1] >= 0 && c[1] <= 100 &&
+        c[2] >= 1 && Number.isInteger(c[2]) && c[3] > 0 && c[3] <= 50;
+      const dots = Array.isArray(q.cloud) ? q.cloud.reduce((a, c) => a + (Array.isArray(c) ? c[2] || 0 : 0), 0) : 0;
+      if (!Array.isArray(q.cloud) || !q.cloud.length || !q.cloud.every(cluster)) {
+        err("cloud", `cloud must be [x, y, count, spread] clusters in 0–100 coords, spread ≤ 50 (got ${JSON.stringify(q.cloud)})`);
+      } else if (dots < CLOUD_DOTS_MIN || dots > CLOUD_DOTS_MAX) {
+        err("cloud", `cloud draws ${dots} dots (want ${CLOUD_DOTS_MIN}–${CLOUD_DOTS_MAX}) — a sketch of a crowd, not a census`);
+      }
+      if (!num(q.n) || q.n <= 0) err("n", `n ${JSON.stringify(q.n)} — the authored answer count the card's footer shows`);
+    }
   }
 
   return { errs, warn };
@@ -336,6 +433,10 @@ if (invokedDirectly) {
     cat: raw.cat,
     alts: raw.alts,
     axis: raw.axis,
+    // continuum fields, verbatim — a --batch pre-flight checks the exact
+    // object the lane will land, crowd texture included
+    lo: raw.lo, hi: raw.hi, unit: raw.unit, med: raw.med, dist: raw.dist,
+    ends: raw.ends, ax: raw.ax, ay: raw.ay, cloud: raw.cloud, n: raw.n,
   });
 
   const printPacket = (q, i) => {
@@ -378,6 +479,17 @@ if (invokedDirectly) {
         : undefined,
       alts: flag("--alts") ? pairsOf(flag("--alts")) : undefined,
       axis: flag("--axis") || undefined,
+      // dial/field candidates. A field's cloud has no flag syntax worth
+      // inventing — pre-flight fields via --batch with the full object.
+      lo: flag("--lo") != null ? Number(flag("--lo")) : undefined,
+      hi: flag("--hi") != null ? Number(flag("--hi")) : undefined,
+      unit: flag("--unit") ?? undefined,
+      med: flag("--med") != null ? Number(flag("--med")) : undefined,
+      dist: flag("--dist") ? flag("--dist").split(",").map((x) => Number(x.trim())) : undefined,
+      ends: flag("--ends") ? flag("--ends").split("|").map((x) => x.trim()) : undefined,
+      ax: flag("--ax") ? flag("--ax").split("|").map((x) => x.trim()) : undefined,
+      ay: flag("--ay") ? flag("--ay").split("|").map((x) => x.trim()) : undefined,
+      n: flag("--n") != null ? Number(flag("--n")) : undefined,
     });
     console.log("quality pre-flight (paste the packet in the PR body):");
     process.exit(printPacket(q) ? 1 : 0);
@@ -433,6 +545,15 @@ if (invokedDirectly) {
     const { errs, warn } = checkQuestion(q, "pick", corpus);
     report("pick", q.id, errs, warn);
   });
+  // lane-authored continuum entries in the demo pool — feed rules apply
+  // (they are feed questions; the pool is just where they live until the
+  // live continuum loop ships). No provenance rows yet for the same
+  // reason: checkProvenance joins the CONTENT banks, and these are not
+  // in one — the row arrives with the promotion.
+  corpus.continuum.forEach((q) => {
+    const { errs } = checkQuestion(q, "feed", corpus);
+    report("feed(demo)", q.id, errs, []);
+  });
 
   for (const e of checkProvenance(corpus)) {
     failed = true;
@@ -445,7 +566,7 @@ if (invokedDirectly) {
   }
   for (const w of head.warn) console.log(`  • ${w}`);
 
-  const n = corpus.specQ.length + corpus.feed.questions.length + corpus.duel.length + corpus.pick.length;
+  const n = corpus.specQ.length + corpus.feed.questions.length + corpus.duel.length + corpus.pick.length + corpus.continuum.length;
   console.log(`quality: ${n} questions checked${failed ? "" : " · all bounds hold"}`);
   process.exit(failed ? 1 : 0);
 }

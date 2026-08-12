@@ -9889,3 +9889,131 @@ SHA-256 digest replaced it: 27 unanimous in 200 where it had been 200 in
 that a hash chosen for a different modulus and input shape is not
 transferable, and that the failure surfaced only from probing the output
 distribution — reading the code, it looks like a hash.
+
+---
+
+## D105 · Two continuum forms in the feed, a lane that writes them, and the compare rose redrawn (a partial v20 sync)
+
+**Decided:** 2026-08-12 · **Status:** binding
+
+`InSight_standalone_20.html` exists (maintainer-supplied; not committed —
+see "What v20 has that this tree still does not" for why). Against v18 it
+is a focused revision: four new modules, seven changed ones, everything
+else byte-identical. This record syncs **two** of its six changes, by the
+D43/D68 method (three-way: v18 as base, v20 as theirs, this tree as ours)
+scoped to the features taken. v18 remains the committed reference design —
+a partial sync must not move that pointer, or `scripts/style-diff.mjs` and
+the next full sync both aim at a file that only half-describes the tree.
+
+### 1 · The feed gains two continuum forms (`dial` / `field`)
+
+A `dial` answers with a value on a range (slider; reveal is the crowd as a
+smoothed 12-bucket curve, a dashed median, your dot on the curve). A
+`field` answers with a dot on a labelled 2-D plane (reveal is the crowd as
+a seeded cloud plus your ring). Both carry the full v20 grammar:
+breakdown sheets (per-group bars on the question's own range; group
+centres named on the plane), an insight line (the cut furthest from your
+answer, doubling as the door to the breakdown), thin-bar collapse states,
+"N answers" footers, and the hot sort pinning one continuum card near the
+top (held after answering so the card doesn't jump mid-read). Seven
+authored questions land in the demo pool (`dl1–dl4`, `fd1–fd3`).
+
+One deliberate divergence from v20's pixels: both new surfaces are
+pointer-only in the prototype, and this tree's a11y ratchet (which only
+moves down) refused them. The dial is now a real `role="slider"` — arrows
+nudge the pending value, Enter commits — and the field plane a keyboard
+target whose arrows walk a dashed pending ring, Enter dropping the dot
+where it stands. The D68 rule, applied again: the prototype wins on
+design, this repo wins on enforcement.
+
+**Demo-pool only, and that is a decision, not a gap.** The live loop
+stores an `optionIdx` against an options array and renders every live card
+through the options path (data/live.ts); a continuum entry in the live
+bank today would serve as a wrong-shaped vote card — D12's sin with a
+slider on it. So the forms live where `rate`, `pick` and `know` live: real
+in the demo feed, absent from the live pool, invisible in a live build
+(buildFeedGlobals replaces the demo pool wholesale). The live path is
+recorded, not vague: a dial's 12 buckets are sized to the fold's existing
+optionIdx ceiling (12 ≤ 20, functions/src/v2.ts drops idx > 19), so a
+future promotion buckets answers 1:1 under the EXISTING rules, trigger,
+ledger and by-cells — zero backend schema change — and needs (a) bank
+transport of `lo/hi/unit/ends` through gen-v2content → seed → deck, (b)
+`buildFeedGlobals` passing the type through instead of hardcoding "vote",
+(c) live adapters in the renderer (counts→dist, weighted median, bucket
+midpoint for a reloaded standing answer), and (d) a field grid of ≤ 20
+cells if fields promote too. That work reverses the "every live card
+renders through the options path" deferral and gets its own record when
+taken.
+
+### 2 · The bot's feed lane learns the forms
+
+"The bot" here is the D97 production machinery, and the changes follow its
+own shape rather than inventing a new one:
+
+- **The gate knew no feed types at all** — `OPTION_SHAPES` closed the
+  daily list while a novel feed type passed `check:quality` silently.
+  `FEED_TYPES` (vote·rank·duel·dial·field) closes the feed list, and
+  per-type validators hold the continuum shapes: `lo < hi`, `med` inside
+  the range, `dist` exactly `DIAL_BUCKETS` (12) non-negative buckets with
+  a live mode, a unit or end labels (something has to say what the scale
+  measures), axes as two option-bounded labels each, clouds as 1–4
+  `[x, y, count, spread]` clusters totalling 8–60 dots. The crowd texture
+  is authored, so the gate holds it to the same bar as the copy.
+- **The gate walks what the lane writes.** The demo pool's continuum
+  entries are lane-authored production copy, so `loadCorpus` extracts
+  them from `world-feed-data.js` exactly as it already extracts
+  `pick-data.js` — and only them: the rest of the demo pool is prototype
+  filler that production bounds were never written for.
+- **Pre-flight reaches the new fields**: `--type dial|field` with
+  `--lo/--hi/--unit/--med/--dist/--ends/--ax/--ay/--n` flags; a field's
+  cloud has no flag syntax worth inventing, so fields pre-flight via
+  `--batch` with the full objects (candidateOf passes the continuum
+  fields through verbatim).
+- **The manual moved with the gate** (QUESTION-FARM.md § The feed lane +
+  § Continuum questions): the vote-only rule became three-forms-two-
+  destinations, with the shape contract, the style bar (a dial wants a
+  range everyone holds a number on; a field wants two judgments
+  independent enough to disagree, with all four corners inhabitable),
+  the `dlN`/`fdN` id series, channel guidance (always-on `bigq`/`dilemma`
+  unless truly subject-bound), the no-provenance-until-promotion rule,
+  and scarcity guidance (inside the ≤6/run budget; the hot pin means a
+  glut buys nothing). The canonical Routine prompt is the daily lane's
+  and is untouched.
+
+### 3 · The compare rose is redrawn (v20, verbatim)
+
+The old language — petal solid as far as you both reach, pale for the
+distance — was symmetric on purpose, and that symmetry was the complaint:
+your own shape disappeared into the comparison, and sitting below the
+average rendered as a washed-out ghost. v20's answer, taken whole: your
+petal is always solid to YOUR score (the exact shape of your results
+rose), the other side is a washed dot pinned per slice (the pole rows' dot
+language lifted into the rose), and only where they reach past you does
+the span get the faintest wash. Dot on the rim = matched. New aria-label
+to match. One divergence class survives, deliberately: the D103 cognitive
+retirement (this tree's CB_EXTRA_CFG seam stays gone; the dot language
+lands on the four remaining assessments).
+
+### What v20 has that this tree still does not
+
+Recorded so the next sync starts from a list instead of a re-diff:
+**Predictions** (predict-data.js, predict-cards.jsx: CALL/READ cards on a
+ten-second clock, a new feed channel), **Foresight** (map-fore-card.jsx,
+`g-fore` map branch, PREDICT map wiring), **Born or built**
+(nature-data.js heritability table + result-card section — note its
+`cognitive` entry collides with D103 and must be dropped or re-recorded
+when taken), and the **shell groundwork** (generalized navKey/data-view,
+`.tabbar[data-n="5"]` CSS). The v18→v20 CSS delta is otherwise font-URL
+re-keying — noise, not style.
+
+### What proves it
+
+`check:quality` walks 256 questions (249 + 7 continuum) and holds; the
+new validators are pinned in question-quality.test.mjs (21 cases, 7 new),
+including the closed-list rule that would have let a novel feed type pass
+silently, and the tripwire sweep over axis end labels. The client gates —
+test:unit, lint (`no-undef` on for the spec layer), `tsc -b`,
+check:globals (coupling unchanged: every new cross-module read in the
+ported code resolves through names world-feed.jsx already read — WPAL,
+HAPTIC, wfSave, wfHash, VOTECUTS), check:figures — all green at this
+commit.

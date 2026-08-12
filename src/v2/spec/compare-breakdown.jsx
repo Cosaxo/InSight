@@ -13,13 +13,14 @@ import { IS_TEST_RESULTS } from './test-definitions.js';
 // families, petal-rose silhouettes, and pole rows. Colour says WHICH trait;
 // WEIGHT says who — solid = you, the same hue washed pale = them.
 //
-// Difference is never drawn as a line. A neutral outline over warm petals read
-// as a technical overlay, not as a second person. Instead the gap between you
-// IS the picture, under ONE rule that holds in both directions: the petal is
-// solid as far as you BOTH reach, then pale for the distance between you — so
-// the pale zone always means "apart by this much", never "whose value is
-// bigger" (that's what the pole rows underneath are for). A matched trait has
-// nothing pale in it at all, so agreement looks like a clean, whole shape.
+// Difference is never drawn as an outline rose. Your petal is ALWAYS solid to
+// YOUR score — the exact shape of your results rose — and the other side is
+// pinned on each slice as a washed dot (the pole rows' dot language, lifted
+// into the rose). Dot beyond your petal = they sit higher; dot resting on the
+// solid = you do; dot riding the rim = matched. Where they reach past you, the
+// span from your edge to their dot gets the faintest wash so the distance
+// reads as a shape — sitting below the average is a short solid petal with
+// their mark out there, never a washed-out ghost.
 //
 // Used by the geo Compare tab, the Groups compare and the People-tab circle
 // compare.
@@ -77,10 +78,7 @@ function cbAlign(dims, themV) {
   return Math.max(2, Math.min(99, Math.round(100 - mean)));
 }
 
-// ── one rose, two people: solid as far as you both reach, pale for the gap.
-//    Symmetric by design — a petal looks the same whether they scored above or
-//    below you, because what it reports is DISTANCE. No outline anywhere; a
-//    matched trait is simply a whole, solid petal. ──
+// ── one rose, two people: you solid, them a washed dot per slice ──
 function CBRoseGap({ dims, themV, hueOf, themLabel, hi }) {
   const S = 176, cx = S / 2, cy = S / 2, R = 78, r0 = 6;
   const n = dims.length, slice = 360 / n, gapD = n > 6 ? 10 : 13;
@@ -101,19 +99,26 @@ function CBRoseGap({ dims, themV, hueOf, themLabel, hi }) {
   return (
     <div style={{ display: 'flex', justifyContent: 'center', marginTop: 12 }}>
       <svg viewBox={`0 0 ${S} ${S}`} style={{ width: 176, display: 'block' }} role="img"
-        aria-label={`Where you and ${themLabel} agree, drawn solid; the distance between you, pale`}>
+        aria-label={`Solid petals are your scores; each washed dot is ${themLabel} on the same trait`}>
         <circle cx={cx} cy={cy} r={R} fill="none" stroke="var(--rule)" strokeWidth="1"></circle>
         <circle cx={cx} cy={cy} r={R / 2} fill="none" stroke="var(--rule)" strokeWidth="1" opacity="0.5"></circle>
-        {/* the gap between you — same treatment whichever of you sits higher */}
+        {/* where they reach past you — faint span from your edge to their dot */}
         {dims.map((d, i) => {
           const t = themV[d.id] ?? 50;
-          const lo = Math.min(d.value, t), up = Math.max(d.value, t);
-          return up - lo > 1
-            ? <path key={'g' + d.id} d={seg(i, lo, up)} fill={cbPetal(hueOf(d.id, i))} fillOpacity="0.26" style={fade(i)}></path>
+          return t - d.value > 1.5
+            ? <path key={'g' + d.id} d={seg(i, d.value, t)} fill={cbPetal(hueOf(d.id, i))} fillOpacity="0.18" style={fade(i)}></path>
             : null;
         })}
-        {/* the ground you share */}
-        {dims.map((d, i) => <path key={'y' + d.id} d={seg(i, 0, Math.min(d.value, themV[d.id] ?? 50))} fill={cbPetal(hueOf(d.id, i))} style={fade(i)}></path>)}
+        {/* you — always solid to your score, same shape as your results rose */}
+        {dims.map((d, i) => <path key={'y' + d.id} d={seg(i, 0, d.value)} fill={cbPetal(hueOf(d.id, i))} style={fade(i)}></path>)}
+        {/* them — washed dot pinned at their score on the slice's mid-angle */}
+        {dims.map((d, i) => {
+          const t = themV[d.id];
+          if (t == null) return null;
+          const col = cbPetal(hueOf(d.id, i));
+          const [x, y] = pt(-90 + (i + 0.5) * slice, Math.max(rOf(t), r0 + 5));
+          return <circle key={'t' + d.id} cx={x.toFixed(1)} cy={y.toFixed(1)} r="4.4" fill={cbSoft(col, 45)} stroke="var(--surface-2)" strokeWidth="1.5" style={fade(i)}></circle>;
+        })}
         <circle cx={cx} cy={cy} r={3} fill="var(--surface-2)" stroke="var(--rule)" strokeWidth="1.2"></circle>
       </svg>
     </div>
