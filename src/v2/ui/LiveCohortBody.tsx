@@ -38,22 +38,26 @@ import { hasPublishedCounts } from "../data/deck";
 // binary can be ranked against each other without the option count
 // deciding it.
 import { divisiveness } from "../data/cohort";
-// The lens row (D99), loaded after this panel paints (D101).
+// The four lens BODIES (D99), loaded when a lens tab is first opened
+// (D101, D119).
 //
-// Lazy rather than static for the bundle budget: the row plus its four
-// lens bodies is ~7 KB of the entry chunk, which is more than the
-// headroom MAX_CHUNK_KB deliberately leaves. It is also the right one to
-// defer on the merits — the row is collapsed by default and sits BELOW
-// the answer rows, so on a cold open of this stop it is off-screen while
-// it loads, and the null fallback means nothing shifts when it arrives.
+// Lazy rather than static for the bundle budget: the four lens bodies are
+// ~7 KB of the entry chunk, which is more than the headroom MAX_CHUNK_KB
+// deliberately leaves. Since D119 the deferral is also exact rather than
+// merely likely — the tab row itself is static and instant, and this
+// chunk is fetched only once someone taps People, Compare, Scores or
+// Explore, which is the same moment its cost becomes worth paying.
 const LiveMirrorLenses = React.lazy(() => import("./LiveMirrorLenses"));
 // The constellation field (D112), lazy for the same bundle-budget reason
-// as the lens row — it is a whole SVG canvas plus the similarity folds,
-// and the stop's counts must not wait on it. Null fallback: the field
-// mounts above the answer rows, and its own first frame is a caption-less
-// gap the exact height of nothing, so nothing shifts when it lands.
+// — it is a whole SVG canvas plus the similarity folds, and the stop's
+// counts must not wait on it. It is the Overview tab since D119, so it
+// too now loads on a tap rather than on arrival.
 const SimilaritySection = React.lazy(() => import("./LiveSimilarityField"));
-import type { LensQuestion } from "./lensDefs";
+// The tab row (D119) — static, because it IS the stop's navigation and a
+// suspense gap where the tabs should be is a stop that looks broken.
+import MirrorLensTabs from "./MirrorLensTabs";
+import { LENS_LABEL, TAB_LABEL, type LensTab } from "./lensTabs";
+import type { LensId, LensQuestion } from "./lensDefs";
 import { byOf } from "../data/cohort";
 // An ordinary import, not a globalThis lookup — same note as LiveDuelPanel's
 // import of LiveTakesPanel: both are typed TSX here, and D39's ratchet only
@@ -207,6 +211,11 @@ function LiveCohortBody({ scope = "city" }: { scope?: CohortScope }) {
   const [branch, setBranch] = React.useState("");
   const [sort, setSort] = React.useState<SortId>("answers");
   const [openQid, setOpenQid] = React.useState<string | null>(null);
+  // Which tab of the stop is showing (D119). Per-stop rather than lifted:
+  // the three scopes mount as separate elements (mirror-tab keys the body
+  // on the zoom), so each stop keeps its own place and switching scope
+  // lands on Answers, which is the one tab every scope always has.
+  const [tab, setTab] = React.useState<string>("answers");
 
   const city = LIVE.myCity;
   const place = city ? PLACES.parse(city) : null;
@@ -383,6 +392,22 @@ function LiveCohortBody({ scope = "city" }: { scope?: CohortScope }) {
           : dOf.get(a.qid)! - dOf.get(b.qid)! || b.n - a.n
     ));
 
+  // ── the stop's tabs (D119) ──
+  //
+  // Answers, then the constellation, then the four lenses — the prototype's
+  // nav v2 row (spec/mirror-field.jsx), with Answers leading for the reason
+  // recorded on TAB_LABEL. Every tab here can draw something for every
+  // cohort scope, so the row is fixed rather than assembled per scope: a
+  // tab that opens onto "nothing yet" is a true reading of this population
+  // and disappearing tabs would make the row's shape a second, quieter
+  // claim about the data.
+  const tabs: LensTab[] = [
+    { id: "answers", label: TAB_LABEL.answers },
+    { id: "overview", label: TAB_LABEL.overview },
+    ...(Object.keys(LENS_LABEL) as LensId[]).map((id) => ({ id, label: LENS_LABEL[id] })),
+  ];
+  const openTab = tabs.some((t) => t.id === tab) ? tab : "answers";
+
   return (
     <div className="fade-in" style={{ padding: "4px 16px 26px" }}>
       <div style={{ padding: "10px 0 4px" }}>
@@ -401,74 +426,87 @@ function LiveCohortBody({ scope = "city" }: { scope?: CohortScope }) {
         </div>
       </div>
 
-      {/* The constellation (D112) — the stop's identity, so it leads:
-          people of your city by score likeness, cities/countries by their
-          real average-score profiles. The answer rows stay the spine of
-          the tab below it; this is the one body where the field IS the
-          reading the stop was named for. */}
-      <React.Suspense fallback={null}>
-        <SimilaritySection scope={scope} />
-      </React.Suspense>
+      {/* Above the bodies, under the heading: the row is this stop's
+          navigation, and the ruler above it is the app's. Two levels of
+          nav in that order is what the prototype's nav v2 is — WHO, then
+          WHAT. */}
+      <MirrorLensTabs tabs={tabs} open={openTab} onOpen={setTab} />
 
-      {/* Filter and sort only appear once they would do something. Two
-          rows and one subject do not need a control strip explaining
-          that there is nothing to narrow. */}
-      {rows.length > 1 && (
-        <div style={{ display: "flex", flexDirection: "column", gap: 7, padding: "10px 0 4px" }}>
-          {branches.length > 1 && (
-            <LnChips
-              value={pickedBranch}
-              onPick={(id) => { setBranch(id); setOpenQid(null); }}
-              options={[{ id: "", label: `All ${rows.length}` },
-                ...branches.map((b) => ({ id: b, label: `${b} ${branchN[b]}` }))]}
-            />
+      {openTab === "answers" && (
+        <div className="fade-in" role="tabpanel" aria-label={TAB_LABEL.answers}>
+          {/* Filter and sort only appear once they would do something. Two
+              rows and one subject do not need a control strip explaining
+              that there is nothing to narrow. */}
+          {rows.length > 1 && (
+            <div style={{ display: "flex", flexDirection: "column", gap: 7, padding: "10px 0 4px" }}>
+              {branches.length > 1 && (
+                <LnChips
+                  value={pickedBranch}
+                  onPick={(id) => { setBranch(id); setOpenQid(null); }}
+                  options={[{ id: "", label: `All ${rows.length}` },
+                    ...branches.map((b) => ({ id: b, label: `${b} ${branchN[b]}` }))]}
+                />
+              )}
+              <LnChips
+                value={sort}
+                onPick={(id) => setSort(id as SortId)}
+                options={SORTS.map((s) => ({ id: s.id, label: s.label }))}
+              />
+            </div>
           )}
-          <LnChips
-            value={sort}
-            onPick={(id) => setSort(id as SortId)}
-            options={SORTS.map((s) => ({ id: s.id, label: s.label }))}
-          />
+
+          {shown.map((r) => (
+            <LnBar key={r.qid} row={r} accent={accent}
+              open={openQid === r.qid}
+              onToggle={() => setOpenQid(openQid === r.qid ? null : r.qid)} />
+          ))}
+
+          {!rows.length && (
+            <LnNote title={`${scope === "world" ? "Today" : shortName} is still filling up`}>
+              No answers here yet — the first one starts the count.
+            </LnNote>
+          )}
+
+          {/* A branch chip can only be picked when it has rows, so this is
+              unreachable today — it exists because the filter and the row
+              list are computed separately and a future source that drops
+              rows after the chips are built should say so rather than
+              render a blank stretch. */}
+          {!!rows.length && !shown.length && (
+            <LnNote title={`Nothing under ${pickedBranch}`}>
+              No answers in that subject here yet.
+            </LnNote>
+          )}
+
+          {!!rows.length && empty > 0 && (
+            <div style={{ padding: "13px 0 0", fontFamily: "var(--sans)", fontSize: 12, fontWeight: 500, color: "var(--ink-3)", lineHeight: 1.5 }}>
+              {/* An absent cell is zero, not a withholding — D98 removed the
+                  floor, so there is nothing left for this line to apologise
+                  for. It just says the row is empty. */}
+              {empty} more {empty === 1 ? "question has" : "questions have"} no
+              answers {scope === "world" ? "yet" : <>from {shortName} yet</>}.
+            </div>
+          )}
         </div>
       )}
 
-      {shown.map((r) => (
-        <LnBar key={r.qid} row={r} accent={accent}
-          open={openQid === r.qid}
-          onToggle={() => setOpenQid(openQid === r.qid ? null : r.qid)} />
-      ))}
-
-      {!rows.length && (
-        <LnNote title={`${scope === "world" ? "Today" : shortName} is still filling up`}>
-          No answers here yet — the first one starts the count.
-        </LnNote>
+      {/* The constellation (D112): people of your city by score likeness,
+          cities/countries by their real average-score profiles. Its own
+          tab since D119 — it used to lead the stop, which is right when it
+          has something to draw and is the whole screen when it does not. */}
+      {openTab === "overview" && (
+        <div className="fade-in" role="tabpanel" aria-label={TAB_LABEL.overview}>
+          <React.Suspense fallback={null}>
+            <SimilaritySection scope={scope} />
+          </React.Suspense>
+        </div>
       )}
 
-      {/* A branch chip can only be picked when it has rows, so this is
-          unreachable today — it exists because the filter and the row
-          list are computed separately and a future source that drops
-          rows after the chips are built should say so rather than
-          render a blank stretch. */}
-      {!!rows.length && !shown.length && (
-        <LnNote title={`Nothing under ${pickedBranch}`}>
-          No answers in that subject here yet.
-        </LnNote>
-      )}
-
-      {/* The lens row (D99). Below the answer rows because the ruler ->
-          answers reading is the spine of this tab and the lenses are a
-          second cut of the same numbers; putting them above would make
-          the stop's own content look like a sub-tab of a filter. */}
-      <React.Suspense fallback={null}>
-        <LiveMirrorLenses qs={lensQs} shortName={shortName} />
-      </React.Suspense>
-
-      {!!rows.length && empty > 0 && (
-        <div style={{ padding: "13px 0 0", fontFamily: "var(--sans)", fontSize: 12, fontWeight: 500, color: "var(--ink-3)", lineHeight: 1.5 }}>
-          {/* An absent cell is zero, not a withholding — D98 removed the
-              floor, so there is nothing left for this line to apologise
-              for. It just says the row is empty. */}
-          {empty} more {empty === 1 ? "question has" : "questions have"} no
-          answers {scope === "world" ? "yet" : <>from {shortName} yet</>}.
+      {openTab !== "answers" && openTab !== "overview" && (
+        <div className="fade-in" role="tabpanel" aria-label={LENS_LABEL[openTab as LensId]}>
+          <React.Suspense fallback={null}>
+            <LiveMirrorLenses lens={openTab as LensId} qs={lensQs} shortName={shortName} />
+          </React.Suspense>
         </div>
       )}
     </div>

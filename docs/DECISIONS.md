@@ -11445,3 +11445,96 @@ unchanged — a failed beat still waits the full interval unless the user
 taps Try again. A backoff-and-retry ladder is the right eventual answer
 and is a behaviour change to a loop that writes to Firestore on every
 tick; it is not something to bolt on beside a display fix.
+
+## D119 · Answers becomes a tab: the live Mirror stop gets the prototype's nav v2
+
+**Decided:** 2026-08-12 · **Status:** binding. Reported from a phone
+alongside D118's two, with `InSight_standalone_21.html` attached as the
+spec: *world, city, near and the others should have the answers in an
+answers tab.*
+
+### What the live stop was, and why it read wrong
+
+The prototype's Mirror is two levels — **who** (the ruler) and **what**
+(a row of lenses under it) — and its nav v2 makes that row real tabs at
+the top of the screen, with the field as one of them. The repo has had
+that row since the port: `MirrorLensRow` in `spec/mirror-field.jsx`,
+`.mm-lensrow` / `.mm-lensbtn` / `.mm-lensthumb` in `styles.css` with all
+three `data-lens-style` variants. **Only the demo bodies ever used it.**
+
+Every stop with a live source replaces the whole body with a single
+panel, so `LiveCohortBody` grew its own arrangement instead: the
+constellation on top, the answer rows under it, and a collapsed
+four-button strip at the bottom. Answers was therefore the *page* and
+everything else a drawer under it — the opposite of the design, and
+visible in the report as a World stop whose whole first screen is a
+constellation saying nobody has answered the score questions yet.
+
+### The row, and one deliberate departure
+
+`Answers · Overview · People · Compare · Explore · Scores`, one open at a
+time, `ui/MirrorLensTabs.tsx`.
+
+**Ported, not imported.** `spec/mirror-field.jsx` carries the entire demo
+field — canvas, node layout, `mirror-field-pops`' invented people — so
+importing twenty lines of markup from it would drag all of that into the
+live chunk. The CSS is *not* duplicated: the row is the same three class
+names, so it inherits the demo row's look and every future change to it,
+once.
+
+**Answers leads, and the prototype puts Overview first.** That is the
+departure, and it is about the data rather than the design: the
+prototype's field IS its screen, drawn from constants, so it is never
+empty. Live, the constellation is a fold over completed test scores
+(D112) and stays empty until a population has taken them, while the
+answer rows publish from the first answer (D98). Opening a stop onto an
+empty canvas is exactly the complaint. Overview keeps the next seat.
+
+### The cost gate survives the move, and gets stricter
+
+`LiveMirrorLenses`'s row comment said collapsed-by-default *was* the cost
+gate — People pays for voter lists the user has not opened. Tabs keep it
+structurally rather than by default: a body exists only while its tab is
+open. `LiveMirrorLenses` is now controlled (a `lens` prop, no state, no
+row) and its suite selects by prop; the host's suite holds the gate, with
+both halves asserted — nothing fetched for a tab nobody opened, **and**
+Kindred fetched the moment People is. The second half is what stops the
+first from passing because a lazy chunk simply had not resolved.
+
+### The bundle gate caught two things, and the second one is a win
+
+First: `lensDefs.ts` was imported at runtime by the lazy lens chunk only.
+Reading a label map from it in the entry-side row made rolldown hoist it
+into a shared chunk the entry preloads — **+2 KB on the eager graph, one
+over `MAX_EAGER_KB`, for two dozen bytes of strings.** The labels moved to
+`ui/lensTabs.ts`, which only the row imports. Types may cross that seam
+(they are erased); values may not.
+
+Second, and the reason this section is not just an apology for 2 KB:
+`LiveCohortBody` was eager at all only because `spec-index.js` listed it
+for a `globalThis` bridge nobody uses any more — `mirror-tab.jsx` imports
+it directly. Putting it behind a `React.lazy`, exactly as Circle has been
+since D101 and for the identical reason (the Mirror opens on You; City is
+three stops along and needs a network round trip before it can render),
+took the eager graph from **954 KB to 946 KB** — 8 KB *below* where this
+session started.
+
+### One flake, found by running it and worth recording
+
+Four `smoke-live` cases walked to City and then asserted after a fixed
+`setTimeout(50)`. That was safe while the body was eager. Behind a lazy
+import it is a guess about how long a dynamic import takes, and under a
+loaded runner it lost — one case failed in a full `test:unit` and passed
+in isolation, which is the signature. They wait on `findByText` now. The
+general rule, since this tree has now hit it twice: **a fixed timeout
+next to a lazy boundary is a race, not a wait.**
+
+### Not done here
+
+Near, Circle and Groups keep their single-body layout. Near is presence
+and nothing else by construction (D111 — the cell is one of D98's three
+surviving denies), and Circle and Groups have no lens bodies to put in a
+row; giving either a tab bar with one tab in it would be furniture. The
+demo bodies are untouched: `mirrorLensTop` stays an off-by-default tweak
+over there, because the demo field's own arrangement is the prototype's
+and is not what was reported.

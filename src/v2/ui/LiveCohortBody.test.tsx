@@ -32,7 +32,7 @@
 // the ones the real store would never produce twice in a row.
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
@@ -484,5 +484,87 @@ describe("LiveCohortBody · the Answers lens can be narrowed and re-ordered", ()
     render(<LiveCohortBody scope="city" />);
     expect(screen.queryByRole("button", { name: /^All / })).toBeNull();
     expect(screen.getByRole("button", { name: "Most divisive" })).toBeTruthy();
+  });
+});
+
+// ── the stop's tab row (D119) ─────────────────────────────────────────
+//
+// The layout the prototype has always specified and live mode never got:
+// Answers is a TAB beside the constellation and the four lenses, not the
+// page they hang under. What these cases hold is the pair of properties
+// the change is easy to get wrong on — that Answers is what a stop opens
+// on, and that the cost gate the old collapsed strip was carrying
+// survives the move.
+describe("LiveCohortBody · the lens row is the stop's tabs", () => {
+  const ARCHIVE = [
+    { id: "q1", text: "Almost everyone agrees", branch: "Mind", type: "binary", options: [{ label: "Yes" }, { label: "No" }] },
+  ];
+
+  // The cost case swaps two loaders on the shared mock; put them back so
+  // the leak stops at this describe rather than at the end of the file.
+  const realKindred = LIVE.loadKindred;
+  const realSimilarity = LIVE.loadSimilarity;
+
+  beforeEach(() => {
+    LIVE.aggregated = () => ARCHIVE;
+    LIVE.aggFor = () => ({ by: { city: { "Oslo, NO": { "0": 19, "1": 1 } } } });
+    LIVE.myVotes = () => ({});
+  });
+  afterEach(() => { LIVE.loadKindred = realKindred; LIVE.loadSimilarity = realSimilarity; });
+
+  const tabs = () => screen.getByRole("tablist", { name: /lenses/i });
+  const tab = (name: string) =>
+    [...tabs().querySelectorAll('[role="tab"]')].find((b) => b.textContent?.trim() === name) as HTMLElement;
+
+  it("offers six tabs and opens on Answers", () => {
+    render(<LiveCohortBody scope="city" />);
+    for (const name of ["Answers", "Overview", "People", "Compare", "Explore", "Scores"]) {
+      expect(tab(name), `the row is missing its ${name} tab`).toBeTruthy();
+    }
+    expect(tab("Answers").getAttribute("aria-selected")).toBe("true");
+    // …and Answers is a body, not a label: the rows are on screen.
+    expect(screen.getByText("Almost everyone agrees")).toBeTruthy();
+  });
+
+  it("swaps the body when a tab is picked, and puts it back", () => {
+    render(<LiveCohortBody scope="city" />);
+    fireEvent.click(tab("Compare"));
+    expect(tab("Compare").getAttribute("aria-selected")).toBe("true");
+    expect(
+      screen.queryByText("Almost everyone agrees"),
+      "the answer rows stayed on screen under another tab — the tabs are stacking, not swapping",
+    ).toBeNull();
+    fireEvent.click(tab("Answers"));
+    expect(screen.getByText("Almost everyone agrees")).toBeTruthy();
+  });
+
+  it("costs nothing for a tab nobody opened, and pays as soon as one is", async () => {
+    // The property the old collapsed strip existed for, restated for
+    // tabs: People pays for voter lists the viewer has not asked for and
+    // Overview pays for the similarity fold, so neither may run because
+    // the stop was opened.
+    //
+    // Both bodies are React.lazy, so the flush matters: assert on a
+    // synchronous render and the case passes for the wrong reason — the
+    // chunk simply has not resolved yet, which would be just as true if
+    // the body were mounted unconditionally. Each half therefore awaits a
+    // real settle, and the second half is what proves the first is
+    // measuring a gate rather than a pending import.
+    const kindred = vi.fn(async () => {});
+    const similarity = vi.fn(async () => {});
+    LIVE.loadKindred = kindred;
+    LIVE.loadSimilarity = similarity;
+    render(<LiveCohortBody scope="city" />);
+    // Long enough for a lazy chunk to have resolved and its effects to
+    // have run, had one been mounted.
+    await act(async () => { for (let i = 0; i < 20; i++) await Promise.resolve(); });
+    expect(kindred, "Kindred was fetched for a People tab nobody opened").not.toHaveBeenCalled();
+    expect(similarity, "the similarity fold ran for an Overview nobody opened").not.toHaveBeenCalled();
+
+    fireEvent.click(tab("People"));
+    await vi.waitFor(() => {
+      expect(kindred, "opening People fetched nothing — the gate above guards nothing").toHaveBeenCalled();
+    });
+    expect(similarity, "Overview loaded behind another tab").not.toHaveBeenCalled();
   });
 });

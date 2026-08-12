@@ -182,16 +182,19 @@ an emergency rules fix.
   lists; Scores joined at D100 over the bank's ordinal questions (the
   old "no `rate` questions" refusal was about the prototype's *place*
   scorecard, which still waits on content). The similarity fields
-  (`src/v2/data/similarity.ts`, `ui/LiveSimilarityField.tsx`) lead the
-  City/Country/World stops: your city's people ranked primarily by
+  (`src/v2/data/similarity.ts`, `ui/LiveSimilarityField.tsx`) are the
+  Overview tab of the City/Country/World stops: your city's people ranked primarily by
   test-score match, cities and countries placed by their real
   average-score profiles — all folded from data that already publishes,
   with zero extra reads for candidate scores (they ride the voter
   lists' name resolution). Near is presence-only since D111; the city
-  cohort is the City stop's. The lens row stays collapsed because
-  Kindred can cost a query the app has not already made; the fields
-  load with their stops behind one bounded, session-cached loader
-  (docs/MIRROR.md §2–3).
+  cohort is the City stop's. Since D119 the row is the stop's TAB BAR
+  (Answers · Overview · People · Compare · Explore · Scores, Answers
+  first) rather than a strip under the answer rows, and the cost gate the
+  old collapsed-by-default strip carried is now structural: a tab body
+  exists only while its tab is open, so Kindred and the similarity fold
+  each run on the tap that asks for them. The fields load behind one
+  bounded, session-cached loader (docs/MIRROR.md §2–3).
 - **`window.MapStats` is real for two anchors and refuses for five, and
   the split is structural.** `age` and `edu` are breakdown dims, so since
   D99 `dist`/`mode` compute from the published cells. `job` is
