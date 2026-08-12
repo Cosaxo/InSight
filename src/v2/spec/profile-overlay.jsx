@@ -25,8 +25,7 @@ function ProfileOverlay({ onClose, me, lensBoxed }) {
     { id: 'politics',   label: 'Politics' },
     { id: 'values',     label: 'Values' },
     { id: 'attachment', label: 'Social' },
-    { id: 'thinking',   label: 'Thinking' },
-    // the minor instruments. Last on purpose: the five core tests are the
+    // the minor instruments. Last on purpose: the four core tests are the
     // profile, lenses are the footnotes that explain it.
     { id: 'lenses',     label: 'Lenses' },
   ];
@@ -101,16 +100,6 @@ function ProfileOverlay({ onClose, me, lensBoxed }) {
     <ResultProfileCard testKey="attachment" archetype="The Constant" tagline="steady and affectionate — the friend who stays" />
   );
 
-  // No tagline: the other four hand ResultProfileCard a line off the demo
-  // persona (me.politicalIdentity, me.moralLabel), and `me` carries nothing
-  // for thinking style. The card reads its own archetype line from
-  // IS_ARCHETYPES rather than inventing one, which is the right default
-  // here anyway — an invented tagline on a live account's result would be
-  // the fabrication D1 forbids.
-  const ThinkingPanel = () => (
-    <ResultProfileCard testKey="cognitive" archetype="Thinking" />
-  );
-
   const dlg = useDialog(onClose, 'Your profile');
   return (
     <div className="overlay surface-tint" {...dlg} style={{ '--accent': 'var(--c-people)' }}>
@@ -157,7 +146,6 @@ function ProfileOverlay({ onClose, me, lensBoxed }) {
           {sub === 'politics' && <><PoliticsPanel /><TestCTA k="political" /></>}
           {sub === 'values' && <><ValuesPanel /><TestCTA k="values" /></>}
           {sub === 'attachment' && <><AttachmentPanel /><TestCTA k="attachment" /></>}
-          {sub === 'thinking' && <><ThinkingPanel /><TestCTA k="cognitive" /></>}
           {sub === 'lenses' && window.LensesPanel && <window.LensesPanel boxed={lensBoxed} />}
         </div>
       </div>

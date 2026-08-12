@@ -268,9 +268,10 @@ Two gaps are worth stating in prose because no badge covers them:
   the reading rests on so a 50% drawn from two people is not presented as
   a finding.
 
-  The other six still refuse, structurally: `job` is profession,
-  deliberately never a breakdown dim (D8), and the five test anchors are
-  RESULTS with no cohort aggregate anywhere. `dimVal` refuses at every
+  The other five still refuse, structurally: `job` is profession,
+  deliberately never a breakdown dim (D8), and the four test anchors are
+  RESULTS with no cohort aggregate anywhere. (Six and five until D103
+  retired the Thinking test — one fewer refusal, not one more answer.) `dimVal` refuses at every
   anchor for that same reason. The refusal keeps D72's mechanism — null
   at the source, not a gate at each call site — which is precisely what
   made this fix findable: the null marked which readings were invented

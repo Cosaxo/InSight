@@ -2624,7 +2624,16 @@ class WorldFeed extends React.Component {
     // fresh-only treatment: the test stream walks its pool from index 0
     // every session, so it re-led with already-answered items in exactly
     // the way the world stream did.
-    const testSplit = partitionAnswered(window.TEST_FEED_QS || [], sunk);
+    // PASSIVE.testFor() rather than the raw pool: a live bank can carry
+    // items for a test the app no longer has. Deleting a test from /content
+    // stops it being WRITTEN, not served — retiring a shipped question is an
+    // operator `active: false` flip (functions/src/v2.ts), so the 20
+    // `test-cognitive-*` docs D103 retired are still live and still arrive
+    // in TEST_FEED_QS. Unfiltered they would weave in as marked cards for a
+    // test with no bank, no result page and no progress row to land on.
+    // testFor() returns null for any key PASSIVE.META has dropped, so this
+    // fences the next retirement too without naming it.
+    const testSplit = partitionAnswered((window.TEST_FEED_QS || []).filter((q) => PASSIVE.testFor(q)), sunk);
     const tqs = testSplit.fresh;
     // LENS_FEED_QS is a builder, not an array: the lens pool differs between
     // demo and live, and liveness lands only after boot — so the feed asks

@@ -798,11 +798,11 @@ describe("live mode never inherits the sample persona (D55)", () => {
     // returning anything, and mock mode is a shipped surface (README's
     // `npm run dev`, and the store screenshots are taken on it).
     const ring = anchorList();
-    // 8 since the cognitive bank landed: age/job/education plus one row per
-    // test, and the demo persona has a result for all five. It was 7 while
-    // `cognitive` had a result and no question bank, so map-anchors listed
-    // only four test rows.
-    expect(ring.length).toBe(8);
+    // 7: age/job/education plus one row per test, and the demo persona has
+    // a result for all four. It was 8 for the two days `cognitive` had both
+    // a bank and an anchor row — D103 retired the test, and the anchor went
+    // with it rather than lingering as a row whose value is always ''.
+    expect(ring.length).toBe(7);
     for (const demo of DEMO_RING) {
       expect(ring.some((r) => r.value === demo || r.value.startsWith(demo)))
         .toBe(true);

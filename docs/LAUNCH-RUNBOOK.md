@@ -22,7 +22,7 @@ the count is zero**, which is a change from 2026-08-04: the Team ID and the
 `REVERSED_CLIENT_ID` were the other two and both are filled.
 
 `check:store-listing` and `check:versions` pass; the daily bank is at 90
-questions of 513 seeded; the production backend is deployed. **Measured
+questions of 493 seeded; the production backend is deployed. **Measured
 2026-08-04:** anonymous sign-in works (`accounts:signUp` returns an
 `idToken`, where it returned `ADMIN_ONLY_OPERATION` on 2026-08-03), the
 InSight web app is registered, and the default hosting site `prvfire33`
@@ -121,7 +121,7 @@ arithmetic.
 
 - [ ] **0.1 Seed the production question bank — run 2026-08-07 and already
       stale.** Actions → **Seed content** → Run workflow.
-      513 questions land in `v2_questions` — idempotent and, since D34,
+      493 questions land in `v2_questions` — idempotent and, since D34,
       cheap to repeat.
 
       **This step is now automatic for everything that follows it (D88):**
@@ -132,8 +132,13 @@ arithmetic.
       either way — `written: 0` means nothing landed.
 
       **It is unticked on purpose, and still is.** That run wrote **389**,
-      and the bank is **513** after the K=5 test expansion — so the
-      difference is in the repo and not in production. This is exactly the
+      and the bank is **493** after the K=5 test expansion and D103's
+      retirement of the Thinking test — so the difference is in the repo
+      and not in production. Note that the gap now runs BOTH ways: 20
+      `test-cognitive-*` questions are live in `v2_questions` and no longer
+      in the bank, and a reseed does not retire them (`active` is only ever
+      written on first create). Flip those 20 to `active: false` in the
+      console and reseed with `bumpRev: true`. This is exactly the
       standing-instruction case: the box is not "seeded once", it is
       "seeded since the last content change", and every promotion (D30,
       D33) moves it back. **Reseed after merging anything that touches
@@ -467,7 +472,7 @@ start.
       your own name.** There is no k-floor since D98: the first answer
       publishes exactly, so a count of 1 on your own device is that one
       answer and the who-voted sheet will name you. That is the product
-      working, not a leak — the 513 seeded questions are live regardless.
+      working, not a leak — the 493 seeded questions are live regardless.
       What used to sit here was the opposite warning (*"You're early"*
       under `AGG_MIN_N`, paused by D81 and removed entirely by D98).
 - [ ] **3.3 Walk the on-device verification list** — six checks, first

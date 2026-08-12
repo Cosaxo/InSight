@@ -411,7 +411,6 @@ import PLACES from '../data/places';
     { k: 'political', sub: 'politics', name: 'Politics' },
     { k: 'values', sub: 'values', name: 'Values' },
     { k: 'attachment', sub: 'attachment', name: 'Social' },
-    { k: 'cognitive', sub: 'thinking', name: 'Thinking' },
   ];
   // The lenses as a 3x3 of dots — filled once a lens has enough answers to
   // read. A shortcut to the Lenses sub-tab, which is otherwise only reachable
