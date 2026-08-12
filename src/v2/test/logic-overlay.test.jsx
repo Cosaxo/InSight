@@ -44,6 +44,15 @@ beforeAll(() => {
 afterEach(() => {
   cleanup();
   localStorage.removeItem(LKEY);
+  // Both calls, in this order, and the first one is load-bearing since
+  // vitest 4: restoreAllMocks now touches only vi.spyOn spies, so the
+  // module-factory vi.fn()s above (startVerified/submitVerified) kept
+  // their call history and queued implementations across tests. The
+  // Retry case counts submitVerified calls, and two predecessor tests
+  // submit once each — 2 stale + 2 real was the exact 4 that failed.
+  // resetAllMocks clears history and drops per-test implementations on
+  // every mock; restoreAllMocks then un-installs the crypto spy.
+  vi.resetAllMocks();
   vi.restoreAllMocks();
   vi.useRealTimers();
 });
