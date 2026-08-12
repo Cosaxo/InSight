@@ -672,7 +672,14 @@ class WorldFeed extends React.Component {
       return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: big ? 12 : 9 }}>
           <div style={{ alignSelf: 'center', fontFamily: 'var(--sans)', fontWeight: 800, fontSize: big ? 40 : 32, letterSpacing: '-0.03em', color: pend != null ? WPAL.ink(T.color) : 'var(--ink-3)', fontVariantNumeric: 'tabular-nums', transition: 'color 0.15s' }}>{this.dialFmt(q, lo + frac * (hi - lo))}</div>
-          <div role="slider" tabIndex={0} aria-label={q.prompt + ' — arrow keys to adjust, Enter to answer'}
+          {/* data-nopan: this control OWNS its horizontal drag (OWNS_X,
+              swipe-back.js). touchAction:'none' stops the browser from
+              scrolling under the drag, but it does not stop touch events
+              reaching daily-split's mode-swipe listener on the scroller
+              above — so answering a dial also slid the mode axis, and past
+              1v1 that slide leaves the tab entirely. Same mark, same
+              reason, as the Mirror ruler. */}
+          <div role="slider" tabIndex={0} data-nopan="" aria-label={q.prompt + ' — arrow keys to adjust, Enter to answer'}
             aria-valuemin={lo} aria-valuemax={hi} aria-valuenow={Math.round(lo + frac * (hi - lo))} aria-valuetext={this.dialFmt(q, lo + frac * (hi - lo))}
             style={{ position: 'relative', height: 44, touchAction: 'none', cursor: 'pointer' }}
             onPointerDown={(e) => { e.currentTarget.setPointerCapture(e.pointerId); move(e); }}

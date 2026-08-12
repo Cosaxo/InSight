@@ -106,6 +106,29 @@ describe("the surfaces that own their drag are excluded from the axis swipes", (
     ).not.toBeNull();
   });
 
+  // The daily feed's dial — the fourth bug of the same family, reported off a
+  // device: answering a dial ("When does old age begin?") slid the mode axis
+  // under it, and past 1v1 that slide leaves the tab. touchAction:'none' is
+  // what everyone reaches for and it is not enough — it stops the BROWSER
+  // scrolling, not the touch events reaching daily-split's listener on the
+  // scroller above.
+  //
+  // Asserted over every role=slider in the feed rather than the one id,
+  // because the rule is about the KIND of control: a drag surface that answers
+  // a question owns its horizontal motion. A future slider that forgets the
+  // mark fails here without anyone remembering to extend the list.
+  it("a drag-to-answer dial owns its drag — every feed slider is in OWNS_X", () => {
+    mountApp();
+    const dials = [...document.querySelectorAll('[role="slider"]')];
+    expect(dials.length, "no dial rendered in the daily feed — the case is now vacuous").toBeGreaterThan(0);
+    for (const d of dials) {
+      expect(
+        d.closest(OWNS_X),
+        `a dial (${d.getAttribute("aria-label")}) fell out of OWNS_X — dragging it will slide the mode axis`,
+      ).not.toBeNull();
+    }
+  });
+
   // The third 2026-08 iPhone bug, same family of "the DOM position lies":
   // .wf-scrim positions absolutely, so a sheet rendered mid-page anchors to
   // whatever containing block it sits in. The lens ⓘ rendered its sheet deep

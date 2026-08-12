@@ -11362,3 +11362,86 @@ admission that nothing in CI checks those rules.
 That is worth stating plainly rather than dressing up: **two access
 controls are open, and the only thing that will close them is somebody
 reading a checkbox.**
+
+## D118 · Two gestures reported from a phone: a dial that stole the tab, and a Near that counted forever
+
+**Decided:** 2026-08-12 · **Status:** binding. Two defects, no shared
+code, one shared shape: both were states the tree could reach and had no
+words for, and both were invisible to every gate because every gate was
+name-level.
+
+### 1. The dial answered the page, not the question
+
+`world-feed.jsx`'s continuum control (`role="slider"`) carried
+`touchAction: 'none'` and pointer capture, which is the complete recipe
+for a drag surface **as far as the browser is concerned** — and none of
+it stops touch events from reaching `daily-split.jsx`'s mode-swipe
+listener on the scroller above. So dragging a dial slid the mode axis
+under it, and because `commit()` continues past 1v1 into the Mirror, a
+long drag left the tab.
+
+This is the same defect as the three 2026-08 iPhone bugs (`swipe-back.js`
+header) and the fix is the same one: `data-nopan`, which `OWNS_X` already
+matches. `touch-action` was never the mechanism — `OWNS_X` is.
+
+**Why it survived.** `swipe-back.test.js` proves the mechanism and
+`smoke-nav.test.jsx` proved the wiring for the ruler and the Map canvas,
+by name. A control that was never in either list is not covered by
+either. The new case is written over **every** `role="slider"` the mount
+finds rather than over the dial's id, so the next drag-to-answer control
+inherits the guard instead of needing to be remembered. Measured: it
+fails on the pre-fix tree naming the offending dial, and passes after.
+
+### 2. "Counting…" was the only word Near had for failure
+
+Reported as *Near seems to never connect*. `LIVE.near.lastError()` was
+set on every failed beat and read by **nothing in the tree** — its only
+consumer was the mock in `NearLiveBody.test.tsx`. So one failed beat
+(an indoor fix that timed out, a revoked permission, a callable that
+threw) left the card on "Counting…" for the rest of the session, with the
+next attempt four minutes away and no way to ask for one.
+
+Four changes, three of them about honesty and one about the cause:
+
+- **`enable()` takes one location fix, not two.** It resolved a cell to
+  decide whether the opt-in could succeed, dropped it, and let the first
+  beat ask the OS again a tick later. On a phone that second request is a
+  second chance to time out — and when it did, the switch was already ON
+  with no count behind it. That is the reported symptom, reachable with
+  nothing else broken. `presenceBeat(cell?)` now accepts the fix in hand.
+- **`enable()` waits for that beat.** The tap already spins through the
+  location fix; carrying it through the count is what makes the switch
+  and the number appear together. It still returns `{ok:true}` when the
+  beat fails — the opt-in succeeded and presence *is* being shared, so
+  reverting the switch would misdescribe what the phone is doing.
+- **`lastError` clears when a count arrives, not when the fix does.** It
+  was cleared immediately after `locateCell()` — before the write and the
+  callable, the two steps most likely to fail — so a beat that failed at
+  the network reported healthy on the way in and errored on the way out.
+- **The card reads it.** A failed beat now shows the reason and a
+  **Try again**; a count already on screen is kept and *dated*
+  ("Showing the count from 9 min ago") rather than blanked or passed off
+  as current. `refresh()` became awaitable, and a beat already in flight
+  is returned rather than an instantly-resolved promise, so the button
+  stops when there is an answer instead of one tick after the tap.
+
+**Why it survived.** `LIVE.near`'s members were pinned by name
+(`vote.test.ts`), the card was tested against hand-set states, and
+**nothing ever ran a beat**. `near-presence.test.ts` is the missing
+layer: it boots the store against narrow mocks and drives
+enable/refresh/disable. All seven cases fail on the pre-fix tree.
+
+### The thing both halves have in common
+
+Every guard that could have caught either one was name-level, and both
+defects are about a name that EXISTS being unused or a listener that
+exists being fed. That is the same lesson `check:globals` rule 3 and the
+mount suites were written for, one layer further in: a member with no
+consumer is not a stable API, it is a dead branch, and the way to find
+out which is to execute it.
+
+**Not done here, deliberately.** The presence loop's four-minute retry is
+unchanged — a failed beat still waits the full interval unless the user
+taps Try again. A backoff-and-retry ladder is the right eventual answer
+and is a behaviour change to a loop that writes to Firestore on every
+tick; it is not something to bolt on beside a display fix.
