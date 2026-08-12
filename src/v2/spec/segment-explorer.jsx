@@ -37,7 +37,6 @@ import { IS_TEST_RESULTS } from './test-definitions.js';
     ['politics', 'Politics', 'political', { econ: ['Market', 'Left'], auth: ['Order', 'Liberty'], foreign: ['Open', 'Closed'], env: ['Green', 'Sceptic'], tech: ['Tech-first', 'Cautious'], estab: ['Outsider', 'Establishment'] }],
     ['values', 'Values', 'values', { future: ['Hopeful', 'Wary'], circle: ['Wide circle', 'Close circle'], hedonism: ['Pleasure', 'Duty'], meaning: ['Meaning', 'Happiness'], moral: ['Objective', 'Relative'], beauty: ['Beauty', 'Truth only'] }],
     ['social', 'Social', 'attachment', { warm: ['Warm', 'Reserved'], loyal: ['Few & deep', 'Many & light'], open: ['Open book', 'Guarded'], play: ['Playful', 'Grounded'], easy: ['Easygoing', 'Invested'] }],
-    ['thinking', 'Thinking', 'cognitive', { analyst: ['Analyst', 'Intuitive'], systems: ['Systems', 'Detail'], empath: ['Empath', 'Detached'], maker: ['Maker', 'Critic'] }],
   ];
 
   // frac = the share of people a group keeps, used for the slice-size dots.

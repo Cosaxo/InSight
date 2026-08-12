@@ -9685,7 +9685,107 @@ first.
   polling, same reasoning: D7's wall binds first, and `onlineMin` — the
   input that decides — is measurable from a week of real usage.
 
-## D103 · Test users: a second real account, and what it is allowed to fake
+## D103 · Four device readings: a retired test, a rail, the topics D96 left dark, and one notch paid for twice
+
+**Decided:** 2026-08-12 · **Status:** binding · Owner's readings on a
+TestFlight build, taken in one sitting.
+
+**Decision.** Four fixes, three of them small and one of them a feature
+removal, kept in one record because three of the four are the same
+mistake in different clothes: a surface that stopped saying anything and
+was left standing anyway.
+
+1. **The passive-progress dot rows are a rail.** One dot per question,
+   banks 20–32 long, and the dots were flex children with `flex-shrink`
+   left at its default — which is the same as declaring no width at all.
+   Thirty-two of them in a ~350px sheet rendered as ~5px slivers, and
+   "the count IS the visual, no numbers" (passive-meter.jsx's own rule)
+   stopped being true at the width where it mattered. `flexShrink: 0`
+   plus `.h-scroll`, so the overflow becomes the rail grammar the rest of
+   the app uses and `edge-fade.js` marks the cut edge. The rail opens on
+   the FRONTIER, not on dot one: filled dots sort first, so a 20-of-32
+   row otherwise shows nothing but filled dots and reads as finished.
+
+2. **The Thinking test is retired, everywhere.** `cognitive` got a
+   question bank on 2026-08-10 (twelve days after its result surfaces
+   shipped) and is now gone from IS_TESTS / IS_TEST_RESULTS /
+   IS_TEST_AVG, `PASSIVE.META`, the profile's sub-tab, the Map's anchor
+   ring, compare's assessment list, the segment explorer's slice axes,
+   the archetype / rose / explain / population data, and
+   `content/tests.json` — so the bank regenerates at 493 questions
+   (was 513) and the profiles sheet titles itself "Your four profiles"
+   off `PASSIVE.KEYS.length`, as D85 built it to.
+
+   **The half a deletion cannot reach, and what was done about it.**
+   Retiring a *shipped* question is an operator `active: false` flip
+   (functions/src/v2.ts: "the seed must never flip a question ops
+   disabled back on, so it is only written on first create"). Deleting
+   the source stops the 20 `test-cognitive-*` docs being WRITTEN, not
+   served: they stay live, arrive in `TEST_FEED_QS`, and would weave in
+   as marked cards for a test with no bank, no result page and no
+   progress row. `world-feed.jsx` now filters that pool through
+   `PASSIVE.testFor()`, which returns null for any key `META` has
+   dropped — so the fence holds for the next retirement without naming
+   it, and LAUNCH-RUNBOOK carries the console step that finishes the job
+   at the source.
+
+3. **The topics D96 left dark.** D96 was right to stop advertising the
+   demo communities — "Writing · 2.1K people · Murakami, Solnit,
+   Knausgård" with a Follow button is a population invented about nobody
+   (D1), offered to a real user. What it did not do is notice that the
+   refusal emptied the room: the sheet the "+" opens held nothing but the
+   Learn dial, and the owner read that exactly as it looks — *"interests
+   seem to have been removed, only the sample data of fake amounts of
+   users."* Both halves of that sentence were true, and the second half
+   was the fix.
+
+   The replacement is what D96 part 3 had already made true and never
+   showed anyone: a live build runs **every subject its bank stocks**,
+   always on. `renderAdd` now opens with those channels — label, the hue
+   the chip row uses, how many questions the pool holds, how many you
+   have answered, and the mute the chip row has. Every number is counted
+   out of `WORLD_FEED_QS`; none is a claim about people. Channels only,
+   because scenes and leaves have a follow to remove and surfaces that
+   own it, while an always-on channel had no management surface anywhere
+   — it is exactly the set that looked deleted. Stockless channels stay
+   out, by the same rule `SUBTOPICS.offers()` applies to leaves.
+
+   The profile's empty scenes card stops sending people to a door with
+   nothing behind it ("follow one and its questions join your feed") and
+   names the topic sheet instead.
+
+4. **One notch, paid for twice.** `.native-shell .app-header` and
+   `.native-shell .overlay` each pad by `14px + env(safe-area-inset-top)`
+   — and eight overlays draw an `.app-header` INSIDE the padded
+   `.overlay`, so both rules fired on the same element tree: ≈146px of
+   blank surface above every overlay title on a Dynamic Island phone,
+   about a sixth of the screen spent twice on the same notch. The
+   overlay's own header goes back to `.app-header`'s base 8px. The
+   mockup frame was never affected — there the band is a fixed 62px that
+   `.overlay` reproduces and `.app-header` does not add to. The profile's
+   identity row was tightened with it (52→42px avatar, 16→10px lead),
+   since it was the other half of a screen that opened on "You".
+
+**Enforcement.** `smoke.test.jsx` replaces its end-to-end cognitive block
+with the inverse — a half-removal draws a header with nothing under it,
+which trips no boundary and no name gate — plus a fourth case pinning the
+surviving four, because every other assertion there also passes on an app
+with no tests at all. Two new cases pin the channel list and that its
+mute moves the chip row's own state. `smoke-live.test.jsx` widens D96's
+leak assertion from one sample string to `/\d+ people/`, so the section
+cannot reintroduce a population claim, and drops its anchor count 8 → 7.
+`world-channels.test.js` gains the invariant underneath the sheet: every
+topic the feed bank actually uses is one of the live channels — "every
+bank topic is reachable" and "every stocked channel has a row" are the
+same sentence from either end, and the mount suites cannot check it
+because the flag is read at module scope and both suites are demo builds.
+
+**What is NOT included.** The `thinking` LENS (lens-defs.js, "Thinking
+style") is a different instrument with its own questions and stays. Two
+names in the same app is worth a look; retiring a live lens is not a
+side effect of retiring a test.
+
+## D104 · Test users: a second real account, and what it is allowed to fake
 
 **Decided:** 2026-08-12 · **Status:** binding for the harness ·
 Tooling decision — it changes no product surface and no rule.

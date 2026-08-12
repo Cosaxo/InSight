@@ -257,8 +257,8 @@ function PersonOverlay({ p: rawP, onClose, me }) {
           const rnd = (o) => Object.fromEntries(Object.entries(o).map(([k, v]) => [k, Math.round(v)]));
           const to01 = (o) => Object.fromEntries(Object.entries(o).map(([k, v]) => [k, Math.round((v + 100) / 2)]));
           const who = p.anon ? 'them' : (p.name ? p.name.split(' ')[0] : p.init);
-          // the remaining assessments (Social, Thinking) have no counterpart in
-          // derivePerson — derive them the same way: their dims drift off yours,
+          // the remaining assessment (Social) has no counterpart in
+          // derivePerson — derive it the same way: its dims drift off yours,
           // deterministically per person, pulled closer the higher the match
           const drifted = (kind) => {
             const R = IS_TEST_RESULTS[kind];
@@ -274,9 +274,7 @@ function PersonOverlay({ p: rawP, onClose, me }) {
           };
           const themPop = { big5: rnd(prof.big5), political: to01(prof.political), values: to01(prof.morals) };
           const social = drifted('attachment');
-          const thinking = drifted('cognitive');
           if (social) themPop.attachment = social;
-          if (thinking) themPop.cognitive = thinking;
           const myInts = me.myInterests || [];
           const myCatSet = new Set(myInts.map(i => i.c));
           const theirCatSet = new Set(p.interests.map(i => i.c));
