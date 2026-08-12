@@ -2,7 +2,17 @@
 
 **`InSight_standalone_18.html` is the reference design** — the version the
 product is built to, and the file `scripts/style-diff.mjs` compares the
-app against. The earlier v9 prototype and the extracted `spec-modules/`
+app against.
+
+A v20 standalone exists (maintainer-supplied) and is **partially** synced:
+D113 took its two continuum feed forms (`dial`/`field`) and the redrawn
+compare rose (D114 made the forms live), and lists what remains
+(Predictions/Foresight, Born or built, shell groundwork). v18 stays the
+committed reference until a full sync moves it — a partial sync must not
+re-point this file, or style-diff and the next sync both aim at a target
+that half-describes the tree.
+
+The earlier v9 prototype and the extracted `spec-modules/`
 directory were deleted on 2026-07-29, v14 on 2026-07-30, v15 on
 2026-08-04 when v17 superseded it, and v17 on 2026-08-07 when v18 did:
 the port is complete, keeping superseded references around is how this

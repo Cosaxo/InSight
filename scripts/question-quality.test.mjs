@@ -5,7 +5,7 @@
 import { describe, it, expect } from "vitest";
 import {
   loadCorpus, checkQuestion, checkBatch, checkProvenance, checkHeadroom,
-  placeCivicHit, PROMPT_MAX, OPTION_SHAPES,
+  placeCivicHit, PROMPT_MAX, OPTION_SHAPES, FEED_TYPES, DIAL_BUCKETS,
 } from "./question-quality.mjs";
 
 const corpus = loadCorpus();
@@ -65,6 +65,79 @@ describe("checkQuestion (daily card shape)", () => {
   });
 });
 
+// ── continuum forms (feed dial/field) ──
+const dial = (over = {}) => ({
+  type: "dial", cat: "bigq", prompt: "When does old age begin?",
+  lo: 40, hi: 90, unit: "yrs", med: 63, n: 5200,
+  dist: [1, 3, 5, 9, 14, 18, 17, 13, 9, 6, 3, 2],
+  ...over,
+});
+const field = (over = {}) => ({
+  type: "field", cat: "bigq", prompt: "Small talk — place it",
+  ax: ["painful", "pleasant"], ay: ["pointless", "essential"], n: 4100,
+  cloud: [[64, 32, 12, 16], [30, 60, 8, 14], [50, 48, 6, 12]],
+  ...over,
+});
+
+const TEX = { texture: true };
+
+describe("checkQuestion (feed continuum shapes)", () => {
+  it("passes well-formed dial and field entries, in both their forms", () => {
+    // demo-pool form: copy + authored crowd texture
+    expect(checkQuestion(dial(), "feed", corpus, TEX).errs).toEqual([]);
+    expect(checkQuestion(field(), "feed", corpus, TEX).errs).toEqual([]);
+    // content form: the same copy, texture stripped — the live crowd is
+    // the aggregate
+    const dialContent = dial();
+    delete dialContent.med; delete dialContent.dist; delete dialContent.n;
+    const fieldContent = field();
+    delete fieldContent.cloud; delete fieldContent.n;
+    expect(checkQuestion(dialContent, "feed", corpus).errs).toEqual([]);
+    expect(checkQuestion(fieldContent, "feed", corpus).errs).toEqual([]);
+  });
+
+  it("refuses authored crowd texture on a content entry", () => {
+    // An authored dist in the live bank would be a fabricated crowd
+    // wearing a live badge — the exact demoInProd lie, committed.
+    const { errs } = checkQuestion(dial(), "feed", corpus);
+    expect(errs.some((e) => e.rule === "texture")).toBe(true);
+  });
+
+  it("closes the feed type list — a novel type no longer passes silently", () => {
+    // The daily surface always had a closed list (OPTION_SHAPES); the feed
+    // had none, which is exactly how a wrong-shaped card would have reached
+    // review unread.
+    const { errs } = checkQuestion({ type: "slider", cat: "bigq", prompt: "Hmm?" }, "feed", corpus);
+    expect(errs.some((e) => e.rule === "type-shape" && e.msg.includes("unknown feed type"))).toBe(true);
+    expect(FEED_TYPES.has("vote") && FEED_TYPES.has("dial") && FEED_TYPES.has("field")).toBe(true);
+  });
+
+  it("holds a dial's range, median, and 12-bucket texture", () => {
+    expect(checkQuestion(dial({ lo: 90, hi: 40 }), "feed", corpus, TEX).errs.some((e) => e.rule === "range")).toBe(true);
+    expect(checkQuestion(dial({ med: 200 }), "feed", corpus, TEX).errs.some((e) => e.rule === "med")).toBe(true);
+    expect(checkQuestion(dial({ dist: [1, 2, 3] }), "feed", corpus, TEX).errs.some((e) => e.rule === "dist")).toBe(true);
+    expect(checkQuestion(dial({ dist: Array(DIAL_BUCKETS).fill(0) }), "feed", corpus, TEX).errs.some((e) => e.rule === "dist")).toBe(true);
+    expect(checkQuestion(dial({ options: ["Low", "High"] }), "feed", corpus, TEX).errs.some((e) => e.rule === "type-shape")).toBe(true);
+  });
+
+  it("demands the scale be labelled — a unit or two end labels", () => {
+    expect(checkQuestion(dial({ unit: "" }), "feed", corpus, TEX).errs.some((e) => e.rule === "ends")).toBe(true);
+    expect(checkQuestion(dial({ unit: "", ends: ["never", "always"] }), "feed", corpus, TEX).errs).toEqual([]);
+  });
+
+  it("holds a field's axes and cloud", () => {
+    expect(checkQuestion(field({ ax: ["only one"] }), "feed", corpus, TEX).errs.some((e) => e.rule === "ends")).toBe(true);
+    expect(checkQuestion(field({ cloud: undefined }), "feed", corpus, TEX).errs.some((e) => e.rule === "cloud")).toBe(true);
+    expect(checkQuestion(field({ cloud: [[64, 32, 200, 16]] }), "feed", corpus, TEX).errs.some((e) => e.rule === "cloud" && e.msg.includes("dots"))).toBe(true);
+    expect(checkQuestion(field({ cloud: [[120, 32, 12, 16]] }), "feed", corpus, TEX).errs.some((e) => e.rule === "cloud")).toBe(true);
+  });
+
+  it("runs the place tripwire over axis end labels too", () => {
+    const q = field({ prompt: "The car rules — place them", ax: ["ban in Oslo", "let them be"] });
+    expect(checkQuestion(q, "feed", corpus, TEX).errs.some((e) => e.rule === "place-civic")).toBe(true);
+  });
+});
+
 describe("the hard-rule-6 tripwire", () => {
   it("needs the conjunction — a place OR a cue alone is personal flavor", () => {
     expect(placeCivicHit({ prompt: "Mountains or sea?", options: [] })).toBeNull();
@@ -108,7 +181,16 @@ describe("the corpus itself", () => {
     corpus.feed.questions.forEach((q) => errs.push(...checkQuestion(q, "feed", corpus).errs));
     corpus.duel.forEach((q) => errs.push(...checkQuestion(q, "duel", corpus).errs));
     corpus.pick.forEach((q) => errs.push(...checkQuestion(q, "pick", corpus).errs));
+    corpus.continuum.forEach((q) => errs.push(...checkQuestion(q, "feed", corpus, { texture: true }).errs));
     expect(errs).toEqual([]);
+  });
+
+  it("sees the demo pool's continuum entries — the lane's landing strip", () => {
+    // The feed lane lands dial/field in the demo pool until the live
+    // continuum loop ships; a gate that stopped walking them would let
+    // the lane write unreviewed shapes (the pick-data.js precedent).
+    expect(corpus.continuum.length).toBeGreaterThanOrEqual(7);
+    expect(corpus.continuum.every((q) => q.type === "dial" || q.type === "field")).toBe(true);
   });
 
   it("provenance is exactly in step with the banks, both directions", () => {

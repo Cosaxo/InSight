@@ -1307,6 +1307,84 @@
           "count": 600
         }
       ]
+    },
+    {
+      "id": "dl1",
+      "cat": "bigq",
+      "type": "dial",
+      "prompt": "When does old age begin?",
+      "lo": 40,
+      "hi": 90,
+      "unit": "yrs"
+    },
+    {
+      "id": "dl2",
+      "cat": "dilemma",
+      "type": "dial",
+      "prompt": "The right tip",
+      "lo": 0,
+      "hi": 30,
+      "unit": "%"
+    },
+    {
+      "id": "dl3",
+      "cat": "dilemma",
+      "type": "dial",
+      "prompt": "Daily screen time — where does “too much” start?",
+      "lo": 1,
+      "hi": 12,
+      "unit": "h"
+    },
+    {
+      "id": "dl4",
+      "cat": "bigq",
+      "type": "dial",
+      "prompt": "How much of your life is actually in your control?",
+      "lo": 0,
+      "hi": 100,
+      "unit": "%"
+    },
+    {
+      "id": "fd1",
+      "cat": "dilemma",
+      "type": "field",
+      "prompt": "Pineapple on pizza — place it",
+      "ax": [
+        "tastes bad",
+        "tastes good"
+      ],
+      "ay": [
+        "a crime",
+        "high art"
+      ]
+    },
+    {
+      "id": "fd2",
+      "cat": "bigq",
+      "type": "field",
+      "prompt": "Small talk — place it",
+      "ax": [
+        "painful",
+        "pleasant"
+      ],
+      "ay": [
+        "pointless",
+        "essential"
+      ]
+    },
+    {
+      "id": "fd3",
+      "cat": "bigq",
+      "type": "field",
+      "prompt": "AI assistants, today — place them",
+      "ax": [
+        "overhyped",
+        "underrated"
+      ],
+      "ay": [
+        "scary",
+        "exciting"
+      ]
     }
   ]
 }

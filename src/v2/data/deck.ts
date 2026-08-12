@@ -53,6 +53,16 @@ export interface QuestionDoc {
   // "romantic" = served only to duos whose doc says duoMode: "romantic".
   // Absent everywhere else — the seed emits it only when set.
   mode?: string;
+  // The continuum forms' range/plane copy (D114): what the client renders
+  // the dial track and the field plane from. Present only on feed
+  // dial/field docs; their `options` are synthesized bucket/cell labels,
+  // and a stored answer's optionIdx is a position on this range.
+  lo?: number;
+  hi?: number;
+  unit?: string;
+  ends?: string[];
+  ax?: string[];
+  ay?: string[];
 }
 
 export interface AggDoc {

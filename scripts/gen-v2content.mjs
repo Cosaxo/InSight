@@ -63,6 +63,45 @@ export const LENS_SCALE = [
   "Strongly disagree",
 ];
 
+// ── continuum option synthesis (D114) ──
+// A continuum answer is stored as an ordinary optionIdx (that is the whole
+// design: the existing rules, fold, edit machinery and by-cells carry it
+// unchanged), so the option LABELS are the answer's public face — the
+// voters panel says "picked 60–64 yrs". They are synthesized from the
+// question's range/plane exactly like LIKERT/RATING, so 12 copies cannot
+// drift — and because a lo/hi/unit (or ax/ay) change would change these
+// labels, the seed's D52 option freeze automatically freezes the range
+// too, which is correct: stored answers are positions on it.
+// 12 buckets: matches the demo texture's dist and sits under the fold's
+// optionIdx ceiling (0..19, functions/src/v2.ts). The client quantizes
+// with the same constants (world-feed.jsx dialBucket/fieldCell).
+export const DIAL_BUCKETS = 12;
+export const FIELD_COLS = 4;
+export const FIELD_ROWS = 3;
+
+export function dialOptions(q) {
+  const span = q.hi - q.lo;
+  const fmt = (v) => String(Math.round(v)) ;
+  const unit = q.unit === "%" ? "%" : q.unit ? ` ${q.unit}` : "";
+  return Array.from({ length: DIAL_BUCKETS }, (_, i) => {
+    const a = q.lo + (span * i) / DIAL_BUCKETS;
+    const b = q.lo + (span * (i + 1)) / DIAL_BUCKETS;
+    return `${fmt(a)}–${fmt(b)}${unit}`;
+  });
+}
+
+// Cell labels read as positions, not coordinates: "tastes bad · high art".
+// Columns run ax[0]→ax[1] left to right; rows run ay[1]→ay[0] TOP to
+// bottom (screen order, y = 0 at the top — the same convention the demo
+// clouds use). idx = row * FIELD_COLS + col, matching the client.
+export function fieldOptions(q) {
+  const cols = [q.ax[0], `lean ${q.ax[0]}`, `lean ${q.ax[1]}`, q.ax[1]];
+  const rows = [q.ay[1], "middle", q.ay[0]];
+  const out = [];
+  for (const r of rows) for (const c of cols) out.push(`${c} · ${r}`);
+  return out;
+}
+
 export function loadContent() {
   const load = (name) =>
     JSON.parse(readFileSync(join(CONTENT, name), "utf8"));
@@ -168,10 +207,25 @@ export function buildEntries(content = loadContent()) {
       type: q.type,
       domain: q.domain ?? null,
       prompt: q.prompt,
-      options: q.options ? q.options.map((o) => o.label) : q.items,
+      // Continuum entries author no options — their answer space is the
+      // range/plane, and the bucket labels are synthesized (D114) so the
+      // twelve copies cannot drift from the lo/hi/unit (or ax/ay) they
+      // describe. Everything else lists its options (or rank items).
+      options:
+        q.type === "dial" ? dialOptions(q)
+        : q.type === "field" ? fieldOptions(q)
+        : q.options ? q.options.map((o) => o.label) : q.items,
       topic: q.cat,
       axis: null,
       test: null,
+      // The range/plane copy the client renders from — emit-when-set, like
+      // flags: only continuum entries carry these.
+      ...(typeof q.lo === "number" ? { lo: q.lo } : {}),
+      ...(typeof q.hi === "number" ? { hi: q.hi } : {}),
+      ...(typeof q.unit === "string" ? { unit: q.unit } : {}),
+      ...(Array.isArray(q.ends) ? { ends: q.ends } : {}),
+      ...(Array.isArray(q.ax) ? { ax: q.ax } : {}),
+      ...(Array.isArray(q.ay) ? { ay: q.ay } : {}),
       ...flags(q),
     });
   });
@@ -322,7 +376,11 @@ const HEADER =
   "// predicate checks `political === true` alongside `test === \"political\"`).\n" +
   "// `branch`/`sub` are the daily bank's [branch, sub-branch] subject path\n" +
   "// (D100) and are absent on every other surface, which carries no path.\n" +
-  "export interface V2SeedQuestion { id: string; surface: string; seq: number; type: string; domain: string | null; prompt: string; options: string[]; topic: string | null; branch?: string; sub?: string; axis: string | null; test: string | null; mode?: string; active?: boolean; political?: boolean; }\n" +
+  "// `lo`/`hi`/`unit`/`ends` (dial) and `ax`/`ay` (field) are the continuum\n" +
+  "// forms' range/plane copy (D114), absent everywhere else; their options\n" +
+  "// are synthesized bucket/cell labels, so the D52 option freeze freezes\n" +
+  "// the range with them.\n" +
+  "export interface V2SeedQuestion { id: string; surface: string; seq: number; type: string; domain: string | null; prompt: string; options: string[]; topic: string | null; branch?: string; sub?: string; axis: string | null; test: string | null; mode?: string; active?: boolean; political?: boolean; lo?: number; hi?: number; unit?: string; ends?: string[]; ax?: string[]; ay?: string[]; }\n" +
   "export const V2_QUESTIONS: V2SeedQuestion[] = ";
 
 export function generate(content = loadContent()) {

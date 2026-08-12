@@ -126,12 +126,16 @@ function extractArray(src, marker, at) {
 }
 
 // A question's comparable text: prompt plus whatever labels it offers.
-// Feed options are {label,count} objects; rank questions carry items.
+// Feed options are {label,count} objects; rank questions carry items;
+// continuum entries (dial/field, D113) label their scale ends instead —
+// ax/ay/ends carry the semantic tokens an optionless form has.
 function textOf(q) {
   const opts = (q.options || q.items || []).map((o) =>
     o && typeof o === "object" ? o.label : o,
   );
-  return [q.prompt, ...opts].filter(Boolean).join(" ");
+  return [q.prompt, ...opts, ...(q.ax || []), ...(q.ay || []), ...(q.ends || [])]
+    .filter(Boolean)
+    .join(" ");
 }
 
 export function dailyIdOf(i, dqBase) {
@@ -159,11 +163,27 @@ export function buildDomains() {
   );
   const feed = JSON.parse(readFileSync(join(root, "content", "feed-questions.json"), "utf8")).questions;
   const duel = JSON.parse(readFileSync(join(root, "content", "duel-questions.json"), "utf8"));
+  // The feed's dedup domain spans BOTH destinations the lane writes
+  // (QUESTION-FARM.md § The feed lane): the content bank, and the demo
+  // pool's lane-authored continuum entries (dial/field, D113). The pools
+  // serve different builds, but a dial near-twin of a bank vote still
+  // reads as "I already answered that" — and will literally become one
+  // if the entry ever promotes.
+  const continuum = extractArray(
+    readFileSync(join(root, "src", "v2", "spec", "world-feed-data.js"), "utf8"),
+    "window.WORLD_FEED_QS = [",
+    "world-feed-data.js",
+  ).filter((q) => q.type === "dial" || q.type === "field");
 
   const entry = (id, q) => ({ id, prompt: q.prompt, tokens: tokensOf(textOf(q)) });
+  // A continuum question exists in BOTH pools by design (D114): the content
+  // entry is the live copy, the demo entry the same copy plus its authored
+  // texture. Same id = same question, not a dupe — only demo entries the
+  // content bank does not know join the domain.
+  const feedIds = new Set(feed.map((q) => q.id));
   return {
     daily: specQ.map((q, i) => entry(dailyIdOf(i, dqBase), q)),
-    feed: feed.map((q) => entry(q.id, q)),
+    feed: [...feed, ...continuum.filter((q) => !feedIds.has(q.id))].map((q) => entry(q.id, q)),
     duel: [
       ...duel.group.map((q) => entry(q.id, q)),
       ...duel.oneVsOne.map((q) => entry(q.id, q)),
