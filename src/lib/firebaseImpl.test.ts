@@ -76,7 +76,7 @@ vi.mock("firebase/firestore", () => ({
   initializeFirestore: () => ({ __db: true }),
   persistentLocalCache: () => ({}),
   connectFirestoreEmulator: () => {},
-  // The rest of `fsApi` (D108). None of it is exercised by this file, and all
+  // The rest of `fsApi` (D109). None of it is exercised by this file, and all
   // of it is required: the module builds that object at import time, so a
   // member missing from this mock throws before any case runs. Kept as one
   // block so the next member added to the store lands here in one edit.
@@ -91,7 +91,7 @@ vi.mock("firebase/firestore", () => ({
 vi.mock("firebase/functions", () => ({
   getFunctions: () => ({}),
   connectFunctionsEmulator: () => {},
-  httpsCallable: () => () => Promise.resolve({}),   // fnsApi (D108), as above
+  httpsCallable: () => () => Promise.resolve({}),   // fnsApi (D109), as above
 }));
 
 vi.mock("@capacitor-firebase/authentication", () => ({

@@ -190,7 +190,7 @@ const INDEX_HTML = join(root, "dist", "index.html");
 // way for the first time since this file was written: entry 727.0 KB
 // (8 KB under), total 2119 KB (21 KB under). Both features shipped and
 // first paint got SMALLER than it was before either of them.
-// ── THE THIRD NUMBER, and why two were not enough (D108) ────────────
+// ── THE THIRD NUMBER, and why two were not enough (D109) ────────────
 //
 // Neither ceiling above is the cost of a cold start, and between them sits
 // a hole big enough to walk two consecutive changes through — which is
@@ -203,12 +203,12 @@ const INDEX_HTML = join(root, "dist", "index.html");
 // group and the overlay group, none of which first paint touches, so it
 // cannot say whether the eager set grew.
 //
-// Measured across D106 and D107, which is what put this here:
+// Measured across D107 and D108, which is what put this here:
 //
 //   | tree        | entry chunk | EAGER GRAPH | total JS |
 //   | ----------- | ----------: | ----------: | -------: |
-//   | before D106 |    728.5 KB |   1271.1 KB |  2118 KB |
-//   | after D107  |    685.2 KB |   1270.2 KB |  2116 KB |
+//   | before D107 |    728.5 KB |   1271.1 KB |  2118 KB |
+//   | after D108  |    685.2 KB |   1270.2 KB |  2116 KB |
 //
 // 43 KB off the gated number; 0.9 KB off first paint. `duo-daily` went
 // 21.0 → 41.0 KB and `LiveTakesPanel` 11.4 → 33.7 KB, both preloaded. Two
@@ -236,7 +236,7 @@ const INDEX_HTML = join(root, "dist", "index.html");
 //   | nothing (today)      |  685.2 |   2118 |  944.0 | ok  | ok   | ok   |
 //   | the world-feed group |  863.0 |   2117 | 1087.0 | RED | ok   | RED  |
 //   | Sentry               |  685.2 |   2117 | 1394.0 | ok  | ok   | RED  |
-//   | Firestore (pre-D108) |  685.2 |   2116 | 1270.2 | ok  | ok   | RED  |
+//   | Firestore (pre-D109) |  685.2 |   2116 | 1270.2 | ok  | ok   | RED  |
 //
 // The feed row was the one this table was first written for, and it does NOT
 // make the case: rolldown merges world-feed back into the ENTRY chunk, so 735
@@ -254,7 +254,7 @@ const INDEX_HTML = join(root, "dist", "index.html");
 // first paint that got 48% heavier.
 //
 // Firestore: that row is not hypothetical — it is the tree as it stood
-// before D108, and it stood that way for months. `data/live.ts` imported
+// before D109, and it stood that way for months. `data/live.ts` imported
 // `firebase/firestore` statically, live.ts is eager, and 292 KB of SDK was
 // preloaded on every cold start including builds with no Firebase config at
 // all. The entry chunk never held a byte of it, so 735 was never going to

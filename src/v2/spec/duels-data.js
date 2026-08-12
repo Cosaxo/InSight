@@ -7,7 +7,7 @@
 // drift. (A static JSON import, not a cross-module import — the spec
 // layer's no-imports convention bans load-order coupling between modules,
 // which data has none of.)
-// OFF THE GLOBAL BRIDGE (D106): `DUELS` is a named export, not a
+// OFF THE GLOBAL BRIDGE (D107): `DUELS` is a named export, not a
 // `window.DUELS`, so its nine consumers hold it as a module binding that
 // load order cannot leave unset. Nothing here publishes to global scope.
 import React from 'react';

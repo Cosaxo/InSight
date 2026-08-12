@@ -1,6 +1,6 @@
 // Ported from design/InSight_standalone_15.html (learn-progress.js, 2026-07-31
 // revision). THIS file is the live source now, hand-edits and all.
-// OFF THE GLOBAL BRIDGE (D107): `LEARN` is a named export, and the content
+// OFF THE GLOBAL BRIDGE (D108): `LEARN` is a named export, and the content
 // it folds arrives as imports rather than as globals this file hoped had
 // already been assigned. `window.LIVE` (see below) is the one cross-module
 // global left here, read at call time.
@@ -28,7 +28,7 @@ export const LEARN = (function () {
   // Imports, not `window.X || []`. The `|| []` was a load-order guard reading
   // at MODULE SCOPE: it silently substituted an empty card bank for the real
   // one if spec-index.js ever listed learn-data.js after this file, which is
-  // the failure D107's learn-data.js header describes. An imported binding
+  // the failure D108's learn-data.js header describes. An imported binding
   // cannot be unset, and learn-data.js depends on nothing that could put it in
   // TDZ, so the fallbacks are gone rather than rewritten.
   const CARDS = LEARN_CARDS;

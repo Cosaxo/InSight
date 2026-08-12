@@ -9969,7 +9969,111 @@ manipulation` is scoped to `button`/`[role=button]`/`[role=tab]`
 (styles.css § 2). It is a second way to scale the app that nothing
 scales back, but it is user-initiated and was not what these screenshots
 measured, so it stays as it is until something says otherwise.
-## D106 · Two providers leave the bridge, and the mount suite stops being one file
+
+## D106 · The retired privacy model is swept out of the documentation, starting with the two pages users actually read
+
+**Decided:** 2026-08-12 · **Status:** binding · Follow-on to D98 —
+the documentation half of a change that was only ever made in the code.
+
+**Decision.** Every document that still described the pre-D98 model as
+current is rewritten to describe what the app does. Nothing about
+behaviour changes; what changes is that the tree stops making claims the
+rules do not enforce, in the direction that matters most — **claiming a
+protection the user does not have.**
+
+### The finding that made this urgent
+
+D98 rewrote the code, `firestore.rules`, `SCHEMA-V2.md`, `MIRROR.md`, the
+in-app privacy panel and the store filing. It did not reach the two
+documents with the widest audience, and they were the ones stating the
+old model most plainly:
+
+- **`web/privacy.html`** — the policy linked from the App Store listing,
+  served on the open web, and required by both stores — opened with
+  *"your answers are readable by you and nobody else, ever. Not by us,
+  not by your friends, not by other users."* Three further sections were
+  built entirely on the floor: a minimum below which counts were
+  withheld, an exact-counts-are-server-only paragraph, and a "who can see
+  what" list whose first row read **Your answers: you.**
+- **`web/home.html`**, the policy's landing page: *"Answers are yours
+  alone. Population counts are k-anonymous."*
+
+The asymmetry is the whole reason this is a decision and not a chore.
+An out-of-date internal doc costs a reader an hour. A privacy policy
+promising a protection that was deleted is the exact failure CLAUDE.md
+names in the other direction — *"a user learning that from a stranger
+quoting their vote would be the same failure as the reverse"* — except
+that here it is written down, published, and pointed at by a store
+listing. The in-app panel had said the true thing since D98; a user who
+read the policy instead got the opposite answer from the same product.
+
+### The timing fact that keeps this a correction rather than a breach
+
+`answersCounted` was 0 every day through 2026-08-11 (`monitoring/
+pulse-trail.jsonl`) and the app has not launched. No answer was ever
+collected under the published promise, so there is nothing to notify and
+nothing to un-publish. Had a single user answered under that policy, this
+record would be a disclosure plan instead of a rewrite — the old rows
+would have needed gating, not republishing, which is D98's own reasoning
+applied to the document rather than the data.
+
+### What was rewritten, and the one rule applied throughout
+
+Where a claim was **historically true**, it is kept and marked as
+history — the repo's standing habit, and the reason a reader can tell a
+reversal from a mistake. Where it was presented as **current**, it is
+replaced by what the code does. Nothing was deleted silently.
+
+| File | Was | Now |
+| --- | --- | --- |
+| `web/privacy.html` | answers readable by nobody else; counts withheld below a threshold; "Your answers: you" | answers are public and attributed, stated first and bluntly; counts exact from answer one; a five-row "who can see what" that matches the rules. Adds the four surfaces the page never mentioned — takes, follows, the presence square, and the D86 edit — and a paragraph recording that the page used to promise the opposite |
+| `web/terms.html` | *"A private journal app"* — the **v1** product, retired at D4, with journal entries, trait impressions and photo uploads | the daily/mirror app, with a plain "it is a public app" clause; acceptable-use rewritten around takes, bulk accounts and scraping |
+| `web/home.html` | "Answers are yours alone. Population counts are k-anonymous" | answers are public; counts exact |
+| `docs/data-inventory.md` | display name owner+members; push tokens on the profile doc; aggs floored "≥5, paused to ≥1"; private aggs "below the public floor"; politics result "never leaves the owner doc" | all four corrected against the rules as deployed; a **follows** row added (D101 shipped without one) |
+| `docs/MONETIZATION.md` | the floor "restores at launch traction"; "never sells a person"; "the sold split is the same honest, floored number" | no floor to restore; the buyer's bound is **scope** — no read path a signed-in user lacks — not arithmetic |
+| `docs/CATALOG-QUESTIONS.md` | complementary suppression on the entity fold; two tail scalars; a floor argument for deferring breakdowns | the disclosure rules are marked deleted (`canonTopN` records the same); the published shape is `{total, top, rest, by}`; top-N survives on **document size and legibility**, which were always the durable reasons |
+| `docs/MONITORING.md` | "the same suppression that stops a paying city identifying a person stops the owner doing it" | there is no suppression; refusing per-user analytics is now an analytics decision standing on its own |
+| `docs/QUESTION-FARM.md`, `docs/SCHEMA-V2.md`, `src/v2/README.md`, `README.md` | k-floored aggregates; "profiles are owner-only"; duel answers in an "owner-only subcollection"; a `LiveCohortBody` row describing the flag and the printed floor; Circle "has nothing real behind it" | the statistics argument replaces the floor one; the denormalization reason restated; the seal described as the `surface` exclusion it is; the test row matches the assertions; Circle is the D101 follow graph |
+| `src/v2/ui/LiveCohortBody.test.tsx` | a header comment and a case title describing the floor, contradicting the assertions directly beneath them | both rewritten; the cases are the floor's inverses and say so |
+| `src/v2/ui/LivePrivacyPanel.tsx` | "No comments from strangers" | false since **D83** — world takes are exactly that. Replaced with what they are and the two controls over them |
+
+### Two things deliberately not done
+
+- **No historical record was edited.** D1, D18, D44, D81 and the rest
+  keep their original text; D98's reversal table is the index. A decision
+  log that is rewritten to agree with the present cannot show anyone how
+  the present was arrived at.
+- **`web/terms.html`'s pricing section stays.** It is legal reserve
+  language, kept deliberately (MONETIZATION.md) to permit a future change
+  of mind without promising one. It is not a stale claim.
+
+### One divergence found and left, named so it is not re-derived
+
+`pick-data.js` `canon()` — the **demo** catalog store — still applies its
+own `AGG_MIN_N` and still computes `restEntities` / `restBelowFloor`, two
+fields the live document does not carry. No live surface reads it, so it
+is prototype furniture rather than a lie to a user, but a mock build
+hides tail entities the real one shows. Recorded in CATALOG-QUESTIONS.md
+at the point of divergence; converting it is a behaviour change to mock
+mode and belongs to whoever next touches that file.
+
+### What would have caught this, and why nothing did
+
+Every gate in this tree checks a *name*, a *number* or a *shape*:
+`check:globals` sees identifiers, `check:figures` sees quoted counts,
+`check:store-copy` sees unfilled placeholders, `check:store-forms` holds
+a table equal to a JSON file. None of them can see a true sentence that
+has become false, and `web/*.html` is served by hosting rather than
+compiled, so neither `tsc` nor a bundle gate ever opens it.
+
+A gate for this is not obviously buildable — "the prose agrees with the
+rules" is not a static property — and inventing one here would be a worse
+error than the one it chased. What is cheap and is adopted instead: **a
+decision that changes who may read something names the user-facing pages
+in its own checklist.** D98 listed the code paths it had to move in one
+commit and moved them; the same discipline pointed at `web/` would have
+caught both pages the day the model died.
+## D107 · Two providers leave the bridge, and the mount suite stops being one file
 
 **Decided:** 2026-08-12 · **Status:** binding · Two independent findings
 from an audit of the tree, both of the same kind: a gate that had stopped
@@ -10110,9 +10214,9 @@ where it was 6, which is slack that will get spent, and the ceiling is
 deliberately not being lowered to match inside a change that was not
 about the bundle.
 
-## D107 · LEARN leaves the bridge, and takes the load-order bug with it
+## D108 · LEARN leaves the bridge, and takes the load-order bug with it
 
-**Decided:** 2026-08-12 · **Status:** binding · Follow-on to D106, using
+**Decided:** 2026-08-12 · **Status:** binding · Follow-on to D107, using
 the provider view that record added.
 
 **Decision.** `learn-progress.js` (`LEARN`) and `learn-data.js`
@@ -10123,7 +10227,7 @@ the layer with no cross-module global references at all.
 
 ### The seam was two modules, not one, and only half of it was the ask
 
-`LEARN` alone was the item on D106's list: 25 sites, 5 consumers.
+`LEARN` alone was the item on D107's list: 25 sites, 5 consumers.
 Converting only that would have left the thing worth fixing in place.
 `learn-progress.js` opened with
 
@@ -10153,9 +10257,9 @@ the ordering was the caller's problem. That line is deleted, and its
 absence is the win rather than a tidy-up — a step nobody can forget any
 more.
 
-### D106's prediction did not hold here, and that is worth recording
+### D107's prediction did not hold here, and that is worth recording
 
-D106 said "every remaining conversion should be expected to raise the
+D107 said "every remaining conversion should be expected to raise the
 suppression number before it lowers it", on the strength of the six
 `refs` findings the `DUELS` conversion surfaced once the React Compiler
 could resolve the store. This conversion surfaced **none**: the count
@@ -10164,7 +10268,7 @@ suppression was retired either. One `useEffect(() => { if (window.LEARN
 && …) … }, [])` in `map-tab.jsx` became the clean shape and had carried
 no directive to begin with.
 
-So the D106 sentence is a thing to *check for*, not a rule. The
+So the D107 sentence is a thing to *check for*, not a rule. The
 Compiler's bail-out depends on what else the component does, not on the
 bridge alone.
 
@@ -10193,7 +10297,7 @@ and the two shapes live in the same file.
 
 ### The alias problem, and why `L` was not renamed everywhere
 
-D106 renamed `D` → `DUELS` at every site. That was safe because `D` was
+D107 renamed `D` → `DUELS` at every site. That was safe because `D` was
 the DUELS alias in every file that used it. `L` is not: `world-feed.jsx`
 line 390 binds `const L = window.LIVE`, and `map-tab.jsx` line 797 has a
 bare `L` inside an SVG path template (`M x y L x y`). A blanket rename
@@ -10212,17 +10316,17 @@ to change; and `map-tab.jsx` keeps a bare `{ … }` block where
 `if (window.LEARN)` used to be, with a comment saying so, because
 de-indenting 23 lines would bury the change in whitespace.
 
-### D106 amendment — the entry-chunk figure was not a win, and the gate says it was
+### D107 amendment — the entry-chunk figure was not a win, and the gate says it was
 
-D106's closing paragraph read the entry chunk falling 729 → 707 KB as
+D107's closing paragraph read the entry chunk falling 729 → 707 KB as
 "the removed global registrations and dead guards were shipping". This
 conversion took it further, 707 → **685 KB**, and measuring the other
 number shows what actually happened:
 
 | tree | entry chunk | entry + every `modulepreload` | total JS |
 | --- | ---: | ---: | ---: |
-| before D106 | 728.5 KB | 1271.1 KB | 2118 KB |
-| after D107 | 685.2 KB | **1270.2 KB** | 2116 KB |
+| before D107 | 728.5 KB | 1271.1 KB | 2118 KB |
+| after D108 | 685.2 KB | **1270.2 KB** | 2116 KB |
 
 The entry chunk is 43 KB lighter and **first paint is 0.9 KB lighter**.
 The bytes moved into sibling chunks that `index.html` preloads anyway —
@@ -10262,9 +10366,9 @@ replacement pattern is already in-tree (`vi.mock("../data/live")`, used
 by every `ui/*.test.tsx`), so that conversion is a test-architecture
 change with a known shape rather than an unknown one.
 
-## D108 · The bundle gets the number that decides first paint, and it immediately finds 327 KB
+## D109 · The bundle gets the number that decides first paint, and it immediately finds 327 KB
 
-**Decided:** 2026-08-12 · **Status:** binding · Follow-on to D107's
+**Decided:** 2026-08-12 · **Status:** binding · Follow-on to D108's
 amendment, which measured the hole this closes.
 
 **Decision.** `check:bundle` gains a third ceiling, `MAX_EAGER_KB` — the

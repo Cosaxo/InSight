@@ -1,18 +1,25 @@
 // @vitest-environment jsdom
 //
 // LiveCohortBody renders the Mirror's Near / Country / World stops from the
-// k-floored public aggregates. It is the panel with the most ways to lie
-// quietly, because everything it draws is a claim about a cohort:
+// public aggregates — exact, unfloored, published from the first answer
+// since D98. It is the panel with the most ways to lie quietly, because
+// everything it draws is a claim about a cohort:
 //
-//   - an ABSENT breakdown cell means "below the floor", not "nobody answered".
-//     Dropping it silently is the failure this panel's `withheld` counter
-//     exists to prevent, and a counter is exactly the kind of thing that
-//     keeps compiling after it stops being correct.
-//   - at world scope the server's own `tooSmall` flag is authoritative, "an
-//     agg can carry stale counts while still being below it". Reading the
-//     counts instead would publish a split the floor withheld.
-//   - the floor NUMBER is printed to the user, so it has to be the floor the
-//     server actually enforces.
+//   - an ABSENT breakdown cell means ZERO — nobody in this cohort has
+//     answered — and dropping it silently is still the failure the counter
+//     under the list exists to prevent: a question that vanishes reads as
+//     "not asked here" rather than "not answered here". A counter is
+//     exactly the kind of thing that keeps compiling after it stops being
+//     correct.
+//   - "no aggregate document at all" is a THIRD state, distinct from both
+//     an empty cell and an answered one, and claiming either of the others
+//     for it would tell the user something nobody knows.
+//   - nothing consults `tooSmall`. The three bullets that stood here
+//     described the k-floor — an absent cell meaning "withheld", the
+//     server's flag beating stale counts, and the floor number being
+//     printed to the user — and D98 deleted all three along with the
+//     floor. The cases below are their inverses, kept so the flag's return
+//     would fail rather than quietly re-hide the app.
 //
 // The mount tests in test/smoke-live.test.jsx render this panel as part of
 // the app and prove it does not crash. That is a different question from
@@ -157,11 +164,12 @@ describe("LiveCohortBody · an absent cell is counted and named", () => {
 });
 
 describe("LiveCohortBody · world scope shows what the aggregate holds", () => {
-  it("withholds a question flagged tooSmall even when it carries counts", () => {
-    // The exact shape the comment in the panel warns about: an aggregate
-    // that still has counts on it from an earlier publish while the server
-    // now says it is below the floor. Rendering the counts would publish a
-    // a question with no answers at all.
+  it("leaves out a question whose aggregate has no answers on it", () => {
+    // Retitled at the D98 doc sweep: this used to read "withholds a
+    // question flagged tooSmall even when it carries counts", which is not
+    // what the body does — there is no flag anywhere in it. The state under
+    // test is `total: 0`, i.e. nobody has answered, and the panel accounts
+    // for it in words rather than drawing an empty row.
     LIVE.aggFor = (qid) => qid === "q1"
       ? { counts: { "0": 30, "1": 20 }, total: 50 }
       : { counts: {}, total: 0 };

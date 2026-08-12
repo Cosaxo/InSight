@@ -36,9 +36,9 @@ its question's branch and sitting further from the centre the more
 unusual it was — mastered Learn facts land on the same canvas. **Groups**
 is your named circles, their alignment computed from real reveal history.
 **Near**, **Country** and **World** are the same question at three radii.
-**Circle** is the one stop with nothing real behind it yet: v2 has no
-person-to-person graph, so live mode says so rather than showing the
-prototype's invented people.
+**Circle** is the accounts you follow, ranked by how alike your answers
+are (decision D101) — a follow is a bookmark, not a permission grant, so
+there is no request to send and nothing to accept.
 
 The slicing is the whole trick, and it costs one write. An answer is
 stored once, readable by anyone, carrying a snapshot of the profile

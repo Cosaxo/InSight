@@ -93,7 +93,7 @@ its own. Without it every D11 case in `smoke-live.test.jsx` would assert on a
 tab that never rendered a feed card — a vacuous pass, and the largest module
 in the layer would quietly leave the suite. It has to be in the SHARED hook
 rather than in the one file that visibly needs it, because vitest's module
-cache is per worker: after D106's split no file can assume another already
+cache is per worker: after D107's split no file can assume another already
 paid for the load.
 
 ## …and so are the five no-button overlays
@@ -186,7 +186,7 @@ however loudly the paragraph around it says not to let that happen. So
 they disagree with the tree — which is why there is no longer an "as of"
 date on it. It is current or CI is red.
 
-**The count went UP with D106, and that is the finding rather than a
+**The count went UP with D107, and that is the finding rather than a
 regression.** Converting `DUELS` off the bridge retired four
 `exhaustive-deps` suppressions for free — an imported binding is a stable
 dep where `window.DUELS` was an expression eslint could not prove stable —
@@ -232,7 +232,7 @@ observers, `scrollTo`, canvas contexts).
 | `smoke-nav.test.jsx` | the v17 ruler-as-nav (D43) and the surfaces that own their own drag |
 | `smoke-overlays.test.jsx` | the six cross-link overlays, the five degrade-on-missing-chunk cases, and the retired Thinking test (D103) |
 
-**Why five and not one (D106).** It was one file with 32 cases. Vitest
+**Why five and not one (D107).** It was one file with 32 cases. Vitest
 schedules a FILE to a worker, so a single file is a hard serial floor however
 many cores the runner has — and that one was **90.2 s of a 92.2 s `test:unit`
 wall clock**, with the other fifty files finishing inside it. Split, the
@@ -301,7 +301,7 @@ what they claim.
 
 | suite | the property it exists for |
 | --- | --- |
-| `LiveCohortBody` | an absent breakdown cell is WITHHELD, not zero, and is counted and named; the server's `tooSmall` flag beats any counts on the document; the printed floor equals `AGG_MIN_N` |
+| `LiveCohortBody` | an absent breakdown cell means ZERO and is still counted and named in words, because a silent gap reads as "this question doesn't exist here"; a question with no aggregate at all is a different state from an empty cohort and is not counted as either; nothing consults a `tooSmall` field (D98 — the row exists to catch its return) |
 | `LiveGroupsMirrorBody` | nobody is named on fewer than `MIN_SHARED` days; duos are excluded; alignment counts days *played*, not days revealed |
 | `LiveDuelPanel` | before a reveal only your own pick is on screen; the duo card states the both-play condition rather than promising a reveal |
 | `CityPicker` | every emitted value matches the server's own city shape; all five location failures land somewhere usable; a located city is suggested, never applied |
@@ -338,9 +338,11 @@ once by hand.
 
 `test/live-fixture.ts` installs a stand-in `window.LIVE` plus the feed
 globals `buildFeedGlobals()` publishes, and `smoke-live.test.jsx` walks the
-same surfaces with it, in six shapes: the happy path, below the k-floor
-(`aggFor` returns `{ tooSmall: true }` with **no** counts — its own render),
-the `demoInProd` fallback, and a profile with no city.
+same surfaces with it, in six shapes: the happy path, an aggregate with no
+counts on it (`aggFor` returns `{ tooSmall: true }` and **no** counts — the
+fixture keeps the retired flag deliberately, so the suite proves a stray
+`tooSmall` changes nothing and the render is driven by the absence of
+counts alone), the `demoInProd` fallback, and a profile with no city.
 
 Three things learned by making it, all now load-bearing:
 
@@ -510,8 +512,8 @@ first paint still preloads, because `app-shell` imports it eagerly. Total
 JS is unchanged at 1529 KB. `check:bundle` asserts a total precisely so a
 split cannot read as a win — see its header.
 
-**And the general form of that is now measured, and gated (D107, D108).**
-It is not a quirk of this one conversion: across D106 and D107 the entry
+**And the general form of that is now measured, and gated (D108, D109).**
+It is not a quirk of this one conversion: across D107 and D108 the entry
 chunk fell 728.5 → 685.2 KB while **entry + every `modulepreload` fell
 1271.1 → 1270.2** — 43 KB off the gated number, 0.9 KB off first paint.
 Neither of `check:bundle`'s original two ceilings is the eager graph: the
@@ -521,7 +523,7 @@ which first paint never fetches.
 
 `check:bundle` holds **three** numbers now, and `MAX_EAGER_KB` is the one
 to quote for a first-paint claim — the script prints it on every run.
-D108 was the first thing it found: 292 KB of Firestore SDK had been
+D109 was the first thing it found: 292 KB of Firestore SDK had been
 preloaded on every cold start, in every build, including ones with no
 Firebase config at all. The eager graph is **944 KB**, down from 1270.2.
 

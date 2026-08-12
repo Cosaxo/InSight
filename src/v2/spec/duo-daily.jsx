@@ -312,7 +312,7 @@ let DuoDomainsImpl;
     // pending first, but the order is frozen at mount — finishing a duel must
     // not reshuffle the stack under your thumb
     const orderRef = useRef(null);
-    // SURFACED BY D106, not introduced by it: while the store arrived as
+    // SURFACED BY D107, not introduced by it: while the store arrived as
     // `window.DUELS` the React Compiler could not resolve it and bailed out of
     // this component, so the lazy-ref block below went unreported. Verified by
     // probe — the file at the previous commit lints clean, and only the import
