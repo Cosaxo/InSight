@@ -252,6 +252,28 @@
       54: 2,  // Xenon (Xe) — below the floor
       0: 8,   // Not listed
     },
+    // daily catalog-question run, 2026-08-12 — identity, the elements
+    // turn (the pk07 canon crossing domains the way "favourite" does).
+    // Chemistry writes the punchlines itself: argon for doing nothing,
+    // nobly; mercury for mercurial; the periodic table has been a
+    // personality test since it was laid out.
+    pk12: {
+      18: 29, // Argon (Ar) — inert, and at peace with it
+      80: 24, // Mercury (Hg) — the word for it comes from the element
+      26: 21, // Iron (Fe) — dependable under load
+      2: 17,  // Helium (He) — lighter than the room, leaves early
+      6: 14,  // Carbon (C) — in everything, somehow
+      11: 12, // Sodium (Na) — reacts to water, dramatically
+      10: 10, // Neon (Ne) — only glows when charged
+      8: 8,   // Oxygen (O) — everyone's dependency
+      74: 7,  // Tungsten (W) — will not move
+      79: 6,  // Gold (Au) — knows their worth
+      14: 5,  // Silicon (Si) — clears the floor but not the top 10; folds
+      92: 5,  // Uranium (U) — same, unstable
+      34: 3,  // Selenium (Se) — below the floor
+      53: 2,  // Iodine (I) — below the floor
+      0: 8,   // Not listed
+    },
   };
 
   // Baked demo segment slices, per question: how each cohort orders the
@@ -385,6 +407,18 @@
         Men: { 26: 8, 6: 7, 92: 7, 79: 6, 22: 5 },
       },
     },
+    pk12: {
+      ageBand: {
+        // sodium and mercury skew young; the settled argon-and-iron
+        // self-image grows with age — the pk07 Snorlax curve again
+        '18-24': { 80: 9, 11: 7, 10: 6, 18: 6, 2: 5 },
+        '25-34': { 18: 10, 26: 8, 80: 6, 6: 6, 8: 5 },
+      },
+      gender: {
+        Women: { 2: 8, 80: 7, 10: 6, 8: 6, 18: 5 },
+        Men: { 18: 11, 26: 8, 74: 6, 6: 6, 11: 5 },
+      },
+    },
   };
 
   const api = {
@@ -503,5 +537,8 @@
     // 2026-08-11, first card of the elements domain — the favourite-class
     // opener every domain gets; the canons diverge from here.
     { id: 'pk11', cat: 'fav', type: 'pick', domain: 'elements', prompt: 'Your favourite element?', n: 175 },
+    // 2026-08-12 daily run: identity — the canon that crosses domains
+    // the way favouritism does; chemistry supplies the self-images.
+    { id: 'pk12', cat: 'fav', type: 'pick', domain: 'elements', prompt: 'The element you’d be?', n: 171 },
   ];
 })();
