@@ -15,12 +15,27 @@ account-gated and device-gated work only a human can do.
 
 ## 1 · Seed production (5 minutes, once)
 
-The deployed backend is live but the question bank is empty until an
-operator seeds it. **Steps 1–2 are done** (2026-07-31): `SEED_ADMIN_UIDS`
+**Done as of 2026-08-12: the production bank holds all 510 questions and
+matches the repo** (the chained run after the `ac61c37` deploy wrote 67,
+skipped 443). This section is kept for the mechanism, which is a standing
+obligation rather than a one-off — the bank goes out of date on every
+promotion (D30, D33), and since D88 the seed chains off every backend
+deploy so it usually keeps itself current.
+
+**One thing a seed structurally cannot do**, and it is open: 20
+`test-cognitive-*` documents are still live after D103 retired that test.
+`active` is only ever written on first create, so retiring a *shipped*
+question is an operator flip in the console, followed by a reseed with
+`bumpRev` — the flip does not move `updatedAt`, so the client's cursor
+cannot see it otherwise. LAUNCH-RUNBOOK 0.1 carries the steps.
+
+The history below is kept because it is what makes the gate legible.
+**Steps 1–2 were done** (2026-07-31): `SEED_ADMIN_UIDS`
 is set on the production environment to the maintainer's uid and a deploy
 has carried it into the runtime — the deploy log's env step shows the
-value and no empty-warning. Only step 3 remains, and it must be run
-**signed in as that account** (the gate matches the exact signed-in uid).
+value and no empty-warning. Step 3 was the run, and it needed to be made
+**as that account** (the gate matches the exact signed-in uid) until the
+workflow began minting a token for it.
 
 **So §2's provider switch comes first, and the dependency is easy to
 miss** — the two facts live in different sections of this file. `runSeedV2`

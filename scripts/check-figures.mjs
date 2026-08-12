@@ -281,10 +281,17 @@ const FIGURES = [
   },
   {
     file: "docs/LAUNCH-RUNBOOK.md",
-    what: "the bank size the un-run reseed is measured against",
-    re: /and the bank is \*\*(\d+)\*\*/,
+    // Was "the bank size the un-run reseed is measured against" until
+    // 2026-08-12, when the reseed ran and production caught up. The
+    // sentence changed and this entry followed it rather than being
+    // deleted: the figure is still quoted, still derived from the tree,
+    // and still the number a reader checks production against. An entry
+    // deleted the moment its sentence is reworded is a gate that opens
+    // exactly when the prose around a figure changes (D39).
+    what: "the bank size production is stated to have caught up to (0.1)",
+    re: /production now holds all \*\*(\d+)\*\*/,
     actual: seededQuestions,
-    fix: (n) => `"and the bank is **${n}**"`,
+    fix: (n) => `"production now holds all **${n}**"`,
   },
   {
     file: "docs/LAUNCH-RUNBOOK.md",

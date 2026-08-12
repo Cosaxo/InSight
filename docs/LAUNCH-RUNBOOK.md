@@ -15,41 +15,61 @@ the section that explains them; read that before doing anything whose
 reasoning is not obvious, especially the App Check ordering (§ hardening)
 and the reveal/rules deploy order.
 
-State verified 2026-08-05: `npm run check:store-copy` reports **1**
-unfilled placeholder, and it is `REPLACE_WITH_PLAY_SIGNING_SHA256` — a
-permanent non-blocker under D42, excused by `--ios`. **For an iOS launch
-the count is zero**, which is a change from 2026-08-04: the Team ID and the
-`REVERSED_CLIENT_ID` were the other two and both are filled.
+## State as of 2026-08-12, end of the build-11 release
 
-`check:store-listing` and `check:versions` pass; the daily bank is at 90
-questions of 510 seeded; the production backend is deployed. **Measured
-2026-08-04:** anonymous sign-in works (`accounts:signUp` returns an
-`idToken`, where it returned `ADMIN_ONLY_OPERATION` on 2026-08-03), the
-InSight web app is registered, and the default hosting site `prvfire33`
-exists. **Measured 2026-08-05:** the iOS release workflow archives,
-exports and passes both gates with no Mac (run 6).
+Everything in this block was read off a run, a log or a gate the same day,
+not recalled. Where a step below still disagrees with it, this block is
+newer.
 
-**Landed 2026-08-07 and 08, and this is where the file was most stale:**
+**Shipped and live:**
 
-- **Build 1 is on App Store Connect** (run 7, `upload = true`). It is in
-  TestFlight now, and internal testing needs no Beta App Review — the
-  external group that was submitted only gates people outside the team.
-- **The listing text is pushed.** Subtitle, privacy-policy URL,
-  description, keywords, promotional text, support and marketing URLs.
-- **The age rating is pushed** — all 22 attributes, including the eight
-  Apple added (D75). `whatsNew` is the one field that did not go: Apple
-  refuses it on a first release, and it applies on the first update (D74).
-- **The privacy nutrition label is not pushable at all.** Apple's API has
-  no App Privacy resource (D73), so the metadata workflow prints it as the
-  form and it is typed in by hand. **Still outstanding.**
-- **Trader status: declared** (D69). Waiting on a *bostedsattest* by post
-  as the address document.
+- **Build 11 is on App Store Connect** (run 17, `ac61c37`, upload step
+  `success`). `appBuild` is now **12** and build 11 is the highest
+  uploaded, so 2.4's comparison passes for the next run as-is.
+- **The backend is deployed at `ac61c37`** (run 66) — storage rules,
+  Firestore rules + indexes, functions **and hosting**. That one deploy
+  cleared a nine-hour backlog: D103, D106, D113/D114, D115 and D116 had
+  all been merged and none of them deployed (D117 has why).
+- **The production bank matches the repo** — the chained seed wrote 67
+  and skipped 443, closing the gap this file carried for five days. The
+  daily bank is at 90
+  questions of 510 seeded.
+- **The store listing is corrected and pushed.** Until today the live
+  description still sold the pre-D98 privacy model — *"Your answers are
+  owner-only"*, *"Crowd numbers are floored"* — which D98 falsified on
+  08-11 and D106's sweep missed (D116). `check:public-copy` now fails on
+  that vocabulary in CI **and** on the iOS release pre-flight.
+- **The age rating is in sync**, confirmed by dry run rather than
+  assumed — see 4.5, a box that had outlived its work.
+- `check:store-listing`, `check:versions`, `check:public-copy` and
+  `check-store-copy --ios` all pass. `check:store-copy` without `--ios`
+  reports **1** placeholder, `REPLACE_WITH_PLAY_SIGNING_SHA256` — a
+  permanent non-blocker under D42, which is why 6.1 passes the flag.
 
-**Three decisions came out of that week and each is a gate now**: D73 (the
-privacy label has no endpoint), D74 (a tick is printed after the write, not
-before — it was wrong in three places), D75 (Apple's eight new age-rating
-questions, and `check:store-forms` rule 5, which now covers the age-rating
-half of `app-privacy.json` that was gated by nothing).
+**Open, and each is a step below rather than a surprise:**
+
+- **The privacy nutrition label** (4.4) — mandatory, manual, and the last
+  form. Apple exposes no endpoint (D73).
+- **20 `test-cognitive-*` questions are still live** in `v2_questions`
+  after D103 retired that test (0.1). Console flip plus a `bump_rev`
+  reseed; a plain reseed cannot do it.
+- **Two access controls are open** (5.8, D117): the `production` reviewer
+  gate is off and the GitHub App holds `Actions: write`. Nothing in this
+  repo can see either.
+- **TestFlight needs people** (3.2), **App Check needs its soak** (3.4),
+  and **trader status waits on a *bostedsattest* by post** (4.3b).
+
+**Earlier, still true:** the Apple account and Team ID are live (1.1),
+`GoogleService-Info.plist` and the `REVERSED_CLIENT_ID` are wired (2.2),
+the APNs key is uploaded to the production row (2.3), anonymous sign-in is
+measured working, and the iOS release workflow does archive, export, both
+silent-failure gates and upload with no Mac (`IOS-RELEASE.md`).
+
+**Decisions that became gates on the way here**: D73 (the privacy label
+has no endpoint), D74 (a tick is printed after the write, not before — it
+was wrong in three places), D75 (Apple's eight new age-rating questions,
+and `check:store-forms` rule 5), D116 (`check:public-copy`) and D117 (the
+two open controls, and why no gate is possible for them).
 
 Those two question counts are held by `npm run check:figures` against
 `functions/src/v2content.ts`, because a number quoted in prose and kept
@@ -119,10 +139,10 @@ arithmetic.
 
 ## Phase 0 — Do these first (about an hour, one console)
 
-- [ ] **0.1 Seed the production question bank — run 2026-08-07 and already
-      stale.** Actions → **Seed content** → Run workflow.
-      510 questions land in `v2_questions` — idempotent and, since D34,
-      cheap to repeat.
+- [ ] **0.1 Seed the production question bank — the bank is now IN SYNC;
+      what is left is one console flip.** Actions → **Seed content** → Run
+      workflow. 510 questions land in `v2_questions` — idempotent and,
+      since D34, cheap to repeat.
 
       **This step is now automatic for everything that follows it (D88):**
       *Seed content* chains to a successful **Deploy Firebase backend** via
@@ -131,18 +151,27 @@ arithmetic.
       is: a bank that changed before the chain existed. Read the summary
       either way — `written: 0` means nothing landed.
 
-      **It is unticked on purpose, and still is.** That run wrote **389**,
-      and the bank is **510** after the K=5 test expansion, D103's
-      retirement of the Thinking test and D114's continuum questions — so
-      the difference is in the repo and not in production. Note that the gap now runs BOTH ways: 20
-      `test-cognitive-*` questions are live in `v2_questions` and no longer
-      in the bank, and a reseed does not retire them (`active` is only ever
-      written on first create). Flip those 20 to `active: false` in the
-      console and reseed with `bumpRev: true`. This is exactly the
-      standing-instruction case: the box is not "seeded once", it is
-      "seeded since the last content change", and every promotion (D30,
-      D33) moves it back. **Reseed after merging anything that touches
-      `v2content.ts`.**
+      **Half of this closed on 2026-08-12 and the other half cannot be
+      closed by a seed at all.** The chained run after the `ac61c37`
+      deploy wrote 67 and skipped 443, so production now holds all **510**
+      and the 389-vs-510 gap this box carried for five days is gone.
+
+      **It stays unticked for the direction a reseed cannot reach.** 20
+      `test-cognitive-*` questions are live in `v2_questions` and no
+      longer in the bank, because D103 retired that test — and `active` is
+      only ever written on first create, so no reseed retires them however
+      many times it runs. Flip those 20 to `active: false` in the Firebase
+      console, **then** reseed with **bump_rev** ticked: the flip does not
+      move `updatedAt`, so the client's stored cursor cannot see it and
+      cached devices keep serving the question without the rev bump.
+      Nothing is at risk while you wait — `firestore.rules` re-checks
+      `active` on every answer write, so a killed question still on screen
+      is refused server-side.
+
+      **The box is not "seeded once", it is "seeded since the last content
+      change"**, and every promotion (D30, D33) moves it back. **Reseed
+      after merging anything that touches `v2content.ts`** — though since
+      D88 the chain does that for you on any backend deploy.
       `SHIP-CHECKLIST §1`.
 
       **A reseed reaches devices that already have the app**, so this is
@@ -190,31 +219,43 @@ arithmetic.
       pages deployed — read that step's log. `SHIP-CHECKLIST §3`.
       **The default site now exists** (`prvfire33`, created 2026-08-04 when
       the web app was registered), so the "no default site" failure this
-      step was written to catch is closed. What remains is confirming the
-      deploy actually published — and 0.3 still owes a redeploy so the live
-      terms page shows the filled legal values.
+      step was written to catch is closed.
 
-      **D116 adds a fourth reason to redeploy, and it is the first that is
-      a correction rather than a fill-in.** `web/privacy.html` said world
-      takes are published "with no name attached" — twice, in the prose
-      and again in the who-can-see-what list — which D98 made false and
-      D106's rewrite of that very page carried through. The repo copy is
-      fixed; **the live page still says it** until hosting is redeployed.
-      A privacy policy promising an anonymity the app does not give is the
-      failure mode D106 exists to prevent, so this one should not wait for
-      a convenient deploy.
+      **The redeploy this step, 0.3 and 2.7 were all owed HAPPENED on
+      2026-08-12**, in run 66 at `ac61c37`, and its *Deploy hosting* step
+      reads `success` rather than skipped. Four things went live at once:
+      the filled legal values in `terms.html` (0.3, owed since 08-03), the
+      real Team ID in `apple-app-site-association` (2.7), D106's rewrite
+      of `privacy.html` out of the pre-D98 model — **which had never
+      deployed, so the served policy was still promising owner-only
+      answers** — and D116's correction of the takes claim inside it.
+
+      **What is left is looking at it, and that is not a formality.** The
+      hosting step is `continue-on-error`, so its checkmark is not the
+      evidence — its log is, and that is what was read here. But a
+      published page is only right if it *reads* right, so open both:
+
+      - `https://prvfire33.web.app/privacy.html` — the opening section
+        must say answers are **public**. If it still reads *"readable by
+        you and nobody else, ever"*, hosting served something unexpected
+        and everything downstream should stop.
+      - `https://prvfire33.web.app/` — the landing page both listings need.
+
+      `SHIP-CHECKLIST §3`.
 - [x] **0.3 Fill the three legal values in `web/terms.html` — done
-      2026-08-03.** `olaftaule01@gmail.com`, operator Olaf Taule,
-      jurisdiction Norway, launching as a sole trader.
-      `check:store-copy` dropped from 6 placeholders to 3, and the
-      remaining three are all account-gated IDs from Phases 1–2.
-      **Still owed: redeploy hosting** so the live page shows the filled
-      values — the committed file is not what a store reviewer reads.
+      2026-08-03, and LIVE since 2026-08-12.**
+      `olaftaule01@gmail.com`, operator Olaf Taule, jurisdiction Norway,
+      launching as a sole trader. `check:store-copy` dropped from 6
+      placeholders to 3, and the remaining three are all account-gated IDs
+      from Phases 1–2. The redeploy this box owed for nine days went out
+      in run 66 (see 0.2) — the committed file is not what a store
+      reviewer reads, and until that run it had never been what one read.
       `SHIP-CHECKLIST §3` also notes one EEA follow-up that is a decision,
       not a blocker.
 
-- [ ] **0.3 Put the protection rules on the `production` environment
-      (D87).** GitHub → Settings → Environments → `production`. Five
+- [ ] **0.4 Put the protection rules back on the `production` environment
+      (D87) — they were ON, and on 2026-08-12 they were turned OFF
+      (D117).** GitHub → Settings → Environments → `production`. Five
       fields, one save: required reviewers ON with yourself; **prevent
       self-review OFF**; wait timer 0; **"Allow administrators to bypass
       configured protection rules" OFF** (GitHub ticks it by default, and
@@ -223,10 +264,23 @@ arithmetic.
       table and per-setting reasoning in
       `docs/DEPLOYMENT.md § Protection rules`.
 
-      Until this is done, a push to `main` touching the backend deploys
-      to production with nobody in the loop, and a seed writes
+      *(Renumbered from 0.3 on 2026-08-12 — this file carried two steps
+      numbered 0.3, and every cross-reference elsewhere means the legal
+      one above.)*
+
+      **While this is off, a push to `main` touching the backend deploys
+      to production with nobody in the loop**, and a seed writes
       `v2_questions` the same way. Both draw the service-account key from
-      an environment that currently gates nothing.
+      an environment that currently gates nothing. **5.8 is the tracking
+      box** and carries the second control D117 opened.
+
+      **Do not read D117 as the gate having been wrong.** It fired
+      correctly and then nothing said so: five deploys queued behind one
+      unapproved run for nine hours while the live privacy policy stayed
+      pre-D98. A gate nobody is notified about is a queue. Put it back
+      **with** something that tells you it fired — a notification is the
+      half D87 never built, and it is the reason this box has now been
+      opened twice.
 
       **Prevent self-review must be OFF** — one uid holds
       `SEED_ADMIN_UIDS` and it is yours, so preventing self-review would
@@ -494,6 +548,13 @@ start.
       **Build 1 is in TestFlight and an external group was submitted for
       Beta App Review 2026-08-07.** What is left here is people, not setup.
 
+      **Build 11 superseded it on 2026-08-12** and is the one to test —
+      it is the first build with a bank that matches the repo (510 live,
+      0.1), the D103 dot-row rail and retired Thinking test, D105's
+      focus-zoom fix, D111–D114's similarity maps and continuum forms, and
+      D116's corrected privacy copy. Everything it talks to is deployed
+      (run 66), which was not true of builds 1–10 for most of 08-12.
+
       **Start with INTERNAL testing, which has no review gate at all.**
       Internal testers are App Store Connect users on the team — up to 100
       — and they get a build as soon as it finishes processing. External
@@ -573,8 +634,8 @@ That is a tester-count problem, not a workflow problem.
       → `design/store/feature-graphic.png`, 1024×500, built from
       `mark.svg` and the app's own stylesheet so it cannot drift from the
       palette. Regenerate if the mark or tagline changes.
-- [ ] **4.3 Marketing copy — pushed 2026-08-08, CORRECTED 2026-08-12,
-      and the correction is not live until it is re-pushed (D116).**
+- [x] **4.3 Marketing copy — pushed 2026-08-08, corrected AND re-pushed
+      2026-08-12 (D116).**
       `design/store/listing.json` carries every field both consoles ask
       for; `npm run check:store-listing` holds each against its character
       limit (all currently fit, the longest at 161/170). No placeholders
@@ -592,11 +653,18 @@ That is a tester-count problem, not a workflow problem.
       never enumerated this file. It also advertised five profiles after
       D103 retired the Thinking test.
 
-      The repo copy is fixed and `npm run check:public-copy` now fails on
+      The repo copy is fixed, `npm run check:public-copy` now fails on
       that vocabulary in `listing.json`, `web/*.html` and the privacy
-      panel. **App Store Connect still serves the old text**: nothing here
-      can read it, the same limitation as the age rating (D74/D75), so a
-      green tree is not a corrected listing. One dispatch fixes it.
+      panel, and **the corrected description was applied to App Store
+      Connect on 2026-08-12** — `asc-push: 1 change(s) applied`, after a
+      dry run showed exactly that one. `whatsNew` reported as a skip,
+      which is D74 working: Apple refuses it on a first release and it
+      applies on the first update.
+
+      **Ticked, but this box goes stale the same way 4.5 does.** Nothing
+      here can read what App Store Connect serves, so the repo being right
+      is never evidence the listing is. The dry run is the check — *apply*
+      unticked prints the diff and writes nothing.
 
       **You do not have to retype it into the web form.** **Actions → App
       Store metadata** pushes name, subtitle, privacy-policy URL,
@@ -805,9 +873,11 @@ That is a tester-count problem, not a workflow problem.
 
       1. **`production` → Deployment protection rules → Required
          reviewers.** Re-check it, with yourself; *prevent self-review*
-         **off**; *allow administrators to bypass* **off**. That is 0.3's
+         **off**; *allow administrators to bypass* **off**. That is 0.4's
          configuration, and D87 is why it exists: the deploy and the seed
-         both draw the service-account key from that environment.
+         both draw the service-account key from that environment. **Put it
+         back with a notification**, which is the half D87 never built and
+         the reason the gate stalled five deploys for nine hours.
       2. **GitHub App → Repository permissions → Actions: back to
          `Read`.** `Read and write` lets an agent dispatch *any* workflow
          in the repo, **iOS release with upload ticked included** — which
