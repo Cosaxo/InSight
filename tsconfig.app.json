@@ -4,7 +4,14 @@
     "target": "es2023",
     "lib": ["ES2023", "DOM", "DOM.Iterable"],
     "module": "esnext",
-    "types": ["vite/client"],
+    // "node" is here for the test files under src/, not for the app. Nine
+    // of them read a committed catalogue off disk to check it against the
+    // code (node:fs, node:path, __dirname) — see catalogs.test.ts and
+    // friends. That worked without this entry until vitest 4, because
+    // vitest 3's own d.ts pulled node's ambient types in transitively: the
+    // dependency was always real, just never declared, and the upgrade is
+    // what made it say so — 30 errors across those nine files, no app code.
+    "types": ["vite/client", "node"],
     "skipLibCheck": true,
     "strict": true,
 

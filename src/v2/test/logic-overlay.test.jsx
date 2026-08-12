@@ -44,6 +44,14 @@ beforeAll(() => {
 afterEach(() => {
   cleanup();
   localStorage.removeItem(LKEY);
+  // Both, and the pair is not redundant. restoreAllMocks covers the
+  // seedCrypto() spy — that is all it covers as of vitest 4, which
+  // narrowed it to vi.spyOn and stopped touching vi.fn(). The two mocks
+  // from the vi.mock factory above are vi.fn()s, so without resetAllMocks
+  // their call counts and queued *Once implementations survive into the
+  // next test: under v3 this line alone did both jobs, and the retry case
+  // read 4 calls instead of 2 the moment it did not.
+  vi.resetAllMocks();
   vi.restoreAllMocks();
   vi.useRealTimers();
 });
