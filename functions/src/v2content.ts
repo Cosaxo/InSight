@@ -9,7 +9,11 @@
 // predicate checks `political === true` alongside `test === "political"`).
 // `branch`/`sub` are the daily bank's [branch, sub-branch] subject path
 // (D100) and are absent on every other surface, which carries no path.
-export interface V2SeedQuestion { id: string; surface: string; seq: number; type: string; domain: string | null; prompt: string; options: string[]; topic: string | null; branch?: string; sub?: string; axis: string | null; test: string | null; mode?: string; active?: boolean; political?: boolean; }
+// `lo`/`hi`/`unit`/`ends` (dial) and `ax`/`ay` (field) are the continuum
+// forms' range/plane copy (D106), absent everywhere else; their options
+// are synthesized bucket/cell labels, so the D52 option freeze freezes
+// the range with them.
+export interface V2SeedQuestion { id: string; surface: string; seq: number; type: string; domain: string | null; prompt: string; options: string[]; topic: string | null; branch?: string; sub?: string; axis: string | null; test: string | null; mode?: string; active?: boolean; political?: boolean; lo?: number; hi?: number; unit?: string; ends?: string[]; ax?: string[]; ay?: string[]; }
 export const V2_QUESTIONS: V2SeedQuestion[] = [
  {
   "id": "daily-000",
@@ -2810,6 +2814,217 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "topic": "food",
   "axis": null,
   "test": null
+ },
+ {
+  "id": "feed-dl1",
+  "surface": "feed",
+  "seq": 73,
+  "type": "dial",
+  "domain": null,
+  "prompt": "When does old age begin?",
+  "options": [
+   "40–44 yrs",
+   "44–48 yrs",
+   "48–53 yrs",
+   "53–57 yrs",
+   "57–61 yrs",
+   "61–65 yrs",
+   "65–69 yrs",
+   "69–73 yrs",
+   "73–78 yrs",
+   "78–82 yrs",
+   "82–86 yrs",
+   "86–90 yrs"
+  ],
+  "topic": "bigq",
+  "axis": null,
+  "test": null,
+  "lo": 40,
+  "hi": 90,
+  "unit": "yrs"
+ },
+ {
+  "id": "feed-dl2",
+  "surface": "feed",
+  "seq": 74,
+  "type": "dial",
+  "domain": null,
+  "prompt": "The right tip",
+  "options": [
+   "0–3%",
+   "3–5%",
+   "5–8%",
+   "8–10%",
+   "10–13%",
+   "13–15%",
+   "15–18%",
+   "18–20%",
+   "20–23%",
+   "23–25%",
+   "25–28%",
+   "28–30%"
+  ],
+  "topic": "dilemma",
+  "axis": null,
+  "test": null,
+  "lo": 0,
+  "hi": 30,
+  "unit": "%"
+ },
+ {
+  "id": "feed-dl3",
+  "surface": "feed",
+  "seq": 75,
+  "type": "dial",
+  "domain": null,
+  "prompt": "Daily screen time — where does “too much” start?",
+  "options": [
+   "1–2 h",
+   "2–3 h",
+   "3–4 h",
+   "4–5 h",
+   "5–6 h",
+   "6–7 h",
+   "7–7 h",
+   "7–8 h",
+   "8–9 h",
+   "9–10 h",
+   "10–11 h",
+   "11–12 h"
+  ],
+  "topic": "dilemma",
+  "axis": null,
+  "test": null,
+  "lo": 1,
+  "hi": 12,
+  "unit": "h"
+ },
+ {
+  "id": "feed-dl4",
+  "surface": "feed",
+  "seq": 76,
+  "type": "dial",
+  "domain": null,
+  "prompt": "How much of your life is actually in your control?",
+  "options": [
+   "0–8%",
+   "8–17%",
+   "17–25%",
+   "25–33%",
+   "33–42%",
+   "42–50%",
+   "50–58%",
+   "58–67%",
+   "67–75%",
+   "75–83%",
+   "83–92%",
+   "92–100%"
+  ],
+  "topic": "bigq",
+  "axis": null,
+  "test": null,
+  "lo": 0,
+  "hi": 100,
+  "unit": "%"
+ },
+ {
+  "id": "feed-fd1",
+  "surface": "feed",
+  "seq": 77,
+  "type": "field",
+  "domain": null,
+  "prompt": "Pineapple on pizza — place it",
+  "options": [
+   "tastes bad · high art",
+   "lean tastes bad · high art",
+   "lean tastes good · high art",
+   "tastes good · high art",
+   "tastes bad · middle",
+   "lean tastes bad · middle",
+   "lean tastes good · middle",
+   "tastes good · middle",
+   "tastes bad · a crime",
+   "lean tastes bad · a crime",
+   "lean tastes good · a crime",
+   "tastes good · a crime"
+  ],
+  "topic": "dilemma",
+  "axis": null,
+  "test": null,
+  "ax": [
+   "tastes bad",
+   "tastes good"
+  ],
+  "ay": [
+   "a crime",
+   "high art"
+  ]
+ },
+ {
+  "id": "feed-fd2",
+  "surface": "feed",
+  "seq": 78,
+  "type": "field",
+  "domain": null,
+  "prompt": "Small talk — place it",
+  "options": [
+   "painful · essential",
+   "lean painful · essential",
+   "lean pleasant · essential",
+   "pleasant · essential",
+   "painful · middle",
+   "lean painful · middle",
+   "lean pleasant · middle",
+   "pleasant · middle",
+   "painful · pointless",
+   "lean painful · pointless",
+   "lean pleasant · pointless",
+   "pleasant · pointless"
+  ],
+  "topic": "bigq",
+  "axis": null,
+  "test": null,
+  "ax": [
+   "painful",
+   "pleasant"
+  ],
+  "ay": [
+   "pointless",
+   "essential"
+  ]
+ },
+ {
+  "id": "feed-fd3",
+  "surface": "feed",
+  "seq": 79,
+  "type": "field",
+  "domain": null,
+  "prompt": "AI assistants, today — place them",
+  "options": [
+   "overhyped · exciting",
+   "lean overhyped · exciting",
+   "lean underrated · exciting",
+   "underrated · exciting",
+   "overhyped · middle",
+   "lean overhyped · middle",
+   "lean underrated · middle",
+   "underrated · middle",
+   "overhyped · scary",
+   "lean overhyped · scary",
+   "lean underrated · scary",
+   "underrated · scary"
+  ],
+  "topic": "bigq",
+  "axis": null,
+  "test": null,
+  "ax": [
+   "overhyped",
+   "underrated"
+  ],
+  "ay": [
+   "scary",
+   "exciting"
+  ]
  },
  {
   "id": "group-gu0",

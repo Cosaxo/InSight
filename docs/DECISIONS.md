@@ -10017,3 +10017,106 @@ check:globals (coupling unchanged: every new cross-module read in the
 ported code resolves through names world-feed.jsx already read — WPAL,
 HAPTIC, wfSave, wfHash, VOTECUTS), check:figures — all green at this
 commit.
+
+---
+
+## D106 · The continuum forms go live: bucketed answers under the existing fold
+
+**Decided:** 2026-08-12 · **Status:** binding · Supersedes the demo-pool
+deferral in D105 §1 (everything else in D105 stands).
+
+D105 shipped `dial`/`field` demo-only because a live continuum entry
+would have served as a wrong-shaped vote card. This record reverses the
+relevant half of the standing "every live card renders through the
+options path" deferral (data/live.ts, D12's arithmetic) — for these two
+types only, and by making the options path carry them honestly rather
+than by building a second path.
+
+### The design: an answer is a position in a frozen grid
+
+A live continuum answer is an ordinary `optionIdx`. The bank doc's
+options are **synthesized** labels — 12 range buckets for a dial
+("60–64 yrs"), a 4×3 cell grid for a field ("lean tastes good ·
+middle") — generated at `build:content` from `lo/hi/unit` (or `ax/ay`),
+never authored (`scripts/gen-v2content.mjs`). The arithmetic that sizes
+them: the fold drops `optionIdx > 19` (functions/src/v2.ts), and the
+by-cell document budget was priced at "6 dims × 24 buckets × up to 20
+options" (functions/src/pure.ts) — 12 sits under both with room, and a
+4×3 plane is the coarsest grid whose centroids still read as positions.
+What this buys: the rules' create/edit arms, the trigger, the ledger,
+the by-cells, the D86 cooldown and the voters panel all carry continuum
+answers **unchanged** — zero rules edits, zero fold edits, and the
+voters panel prints a meaningful label ("picked 60–64 yrs") for free.
+
+Because the labels derive from the range, the D52 option freeze freezes
+the range with them: a changed `lo` regenerates different labels and the
+seed refuses it as an option edit (pinned in seed.test.ts). That is
+correct, not incidental — every stored answer is a position on the old
+range. `ends` (display-only) stays rewritable; `lo/hi/unit/ax/ay` are
+ship-once. SEEDED_FIELDS carries the new fields so absent-vs-set
+compares stay exact; emit-when-set keeps the other ~493 docs untouched.
+
+### The client: raw local, bucket public
+
+`buildFeedGlobals` passes the continuum type and range copy through
+(everything else still flattens to "vote" — that deferral stands for
+rank/scale). The card quantizes on answer (`dialBucket`/`fieldCell`,
+mirroring the gen constants), writes `LIVE.vote(qid, String(idx))`, and
+keeps the RAW value in WF_LS for display; a device with no raw value
+shows the server bucket's midpoint, because quantized is what the world
+stored. A repeat answer from such a device routes through the D86 edit
+with the same cooldown-refusal snap-back setVote uses. The reveal
+derives everything from the bucket counts: `dist` = per-option counts
+plus the viewer's own bucket back (wfPcts's convention), the "most say"
+line = the distribution's midpoint value — derived client-side like
+every other average in this app, because the agg stores a histogram and
+never a sum. The live cloud is the cell counts drawn as ≤60 jittered
+dots — a sketch of a crowd, deterministic per render.
+
+### Real cohorts replace the texture, live
+
+The breakdown sheets and the insight line read `agg.by` on live cards:
+a group's row is its actual average position (histogram at bucket
+midpoints), a field group's dot its actual centre of mass, both under
+the same "counts move in steps of five" note the vote breakdown
+carries. The insight line stays silent below three answers in a cohort
+or a gap under 5% of the range — a lean needs more than one person's
+dot. Demo cards keep their authored texture, and the two never mix:
+`check:quality` now runs texture rules on the demo pool's entries and
+REFUSES texture fields on content entries (an authored crowd in the
+live bank would be the demoInProd lie, committed), with the lane
+contract rewritten to author both halves in one PR
+(QUESTION-FARM.md § Continuum questions).
+
+### What moved, mechanically
+
+The seven D105 questions promoted into `content/feed-questions.json`
+with provenance rows (`editorial` / batch `v20`); the bank regenerates
+at 500 docs (was 493 — five prose figures updated where `check:figures`
+pointed). `check:content` verifies synthesized labels match their range
+exactly and bounds field axis ends at 14 chars (they compose into cell
+labels); `check:neighbors`' feed domain spans both destinations,
+deduped by id (same id = same question, not a dupe). deck.ts serves
+dial/field through the existing feed filter (12 options pass
+`playable`; the rank exclusion never applied).
+
+### Not done, deliberately
+
+The scorecard's `splitQualityOf` still reads a dial as categorical
+evenness — wrong metric, harmless until continuum questions have enough
+live answers to score, and its ordinal treatment belongs with the
+scorecard work. The Mirror is untouched (feed answers were never in the
+daily record). No in-card re-answer affordance on continuum cards (the
+options-shaped Change button is excluded by name); the D86 edit path
+exists and is exercised only by the fresh-device repeat case.
+
+### What proves it
+
+197 functions tests (including the new range-freeze refusal), 766+
+client tests with the buildFeedGlobals passthrough pin (a dial keeps
+its type, lo/hi/unit and 12 options where every other card flattens to
+"vote"), 120 script tests across the texture split, the closed feed
+type list and both walks; check:globals coupling held at its baseline
+(the new live reads go through the imported LIVE binding — "new ones
+may not join them", and none did); check:a11y at baseline;
+check:content at 500; check:figures green after the five prose updates.

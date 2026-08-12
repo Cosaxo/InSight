@@ -819,7 +819,11 @@ function feedCounts(q: QuestionDoc & { id: string }): number[] {
 // Replace the demo feed globals with live-shaped cards: real questions,
 // real k-floored counts, no seeded comments (D1 — renderEngage is also
 // gated off for q.live cards). Rankings/scales are deferred; every live
-// card renders through the options path.
+// card renders through the options path — EXCEPT the continuum forms
+// (dial/field, D106), which keep their bank type: their options are
+// synthesized bucket/cell labels, the per-option counts ARE the crowd's
+// distribution, and world-feed renders them through their own bodies
+// (curve / cloud) instead of option rows.
 function buildFeedGlobals(): void {
   if (!state.feedBank.length) return;
   const feed = state.feedBank
@@ -829,12 +833,21 @@ function buildFeedGlobals(): void {
       // inside the per-option map made this O(n^2) per card — and it
       // re-runs after every vote.
       const counts = feedCounts(q);
+      const continuum = q.type === "dial" || q.type === "field";
       return {
         id: q.id,
         cat: q.topic || "culture",
-        type: "vote",
+        type: continuum ? q.type : "vote",
         prompt: q.prompt,
         options: q.options.map((label, i) => ({ label, count: counts[i] })),
+        // the range/plane copy the card renders from, plus the footer's
+        // answer count — agg total, so it includes the viewer once folded
+        ...(continuum
+          ? {
+              lo: q.lo, hi: q.hi, unit: q.unit, ends: q.ends, ax: q.ax, ay: q.ay,
+              n: state.aggs[q.id]?.total ?? 0,
+            }
+          : {}),
         live: true,
         noCountsYet: !hasPublishedCounts(state.aggs[q.id]),
       };

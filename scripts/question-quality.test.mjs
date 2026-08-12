@@ -79,10 +79,28 @@ const field = (over = {}) => ({
   ...over,
 });
 
+const TEX = { texture: true };
+
 describe("checkQuestion (feed continuum shapes)", () => {
-  it("passes well-formed dial and field entries", () => {
-    expect(checkQuestion(dial(), "feed", corpus).errs).toEqual([]);
-    expect(checkQuestion(field(), "feed", corpus).errs).toEqual([]);
+  it("passes well-formed dial and field entries, in both their forms", () => {
+    // demo-pool form: copy + authored crowd texture
+    expect(checkQuestion(dial(), "feed", corpus, TEX).errs).toEqual([]);
+    expect(checkQuestion(field(), "feed", corpus, TEX).errs).toEqual([]);
+    // content form: the same copy, texture stripped — the live crowd is
+    // the aggregate
+    const dialContent = dial();
+    delete dialContent.med; delete dialContent.dist; delete dialContent.n;
+    const fieldContent = field();
+    delete fieldContent.cloud; delete fieldContent.n;
+    expect(checkQuestion(dialContent, "feed", corpus).errs).toEqual([]);
+    expect(checkQuestion(fieldContent, "feed", corpus).errs).toEqual([]);
+  });
+
+  it("refuses authored crowd texture on a content entry", () => {
+    // An authored dist in the live bank would be a fabricated crowd
+    // wearing a live badge — the exact demoInProd lie, committed.
+    const { errs } = checkQuestion(dial(), "feed", corpus);
+    expect(errs.some((e) => e.rule === "texture")).toBe(true);
   });
 
   it("closes the feed type list — a novel type no longer passes silently", () => {
@@ -95,28 +113,28 @@ describe("checkQuestion (feed continuum shapes)", () => {
   });
 
   it("holds a dial's range, median, and 12-bucket texture", () => {
-    expect(checkQuestion(dial({ lo: 90, hi: 40 }), "feed", corpus).errs.some((e) => e.rule === "range")).toBe(true);
-    expect(checkQuestion(dial({ med: 200 }), "feed", corpus).errs.some((e) => e.rule === "med")).toBe(true);
-    expect(checkQuestion(dial({ dist: [1, 2, 3] }), "feed", corpus).errs.some((e) => e.rule === "dist")).toBe(true);
-    expect(checkQuestion(dial({ dist: Array(DIAL_BUCKETS).fill(0) }), "feed", corpus).errs.some((e) => e.rule === "dist")).toBe(true);
-    expect(checkQuestion(dial({ options: ["Low", "High"] }), "feed", corpus).errs.some((e) => e.rule === "type-shape")).toBe(true);
+    expect(checkQuestion(dial({ lo: 90, hi: 40 }), "feed", corpus, TEX).errs.some((e) => e.rule === "range")).toBe(true);
+    expect(checkQuestion(dial({ med: 200 }), "feed", corpus, TEX).errs.some((e) => e.rule === "med")).toBe(true);
+    expect(checkQuestion(dial({ dist: [1, 2, 3] }), "feed", corpus, TEX).errs.some((e) => e.rule === "dist")).toBe(true);
+    expect(checkQuestion(dial({ dist: Array(DIAL_BUCKETS).fill(0) }), "feed", corpus, TEX).errs.some((e) => e.rule === "dist")).toBe(true);
+    expect(checkQuestion(dial({ options: ["Low", "High"] }), "feed", corpus, TEX).errs.some((e) => e.rule === "type-shape")).toBe(true);
   });
 
   it("demands the scale be labelled — a unit or two end labels", () => {
-    expect(checkQuestion(dial({ unit: "" }), "feed", corpus).errs.some((e) => e.rule === "ends")).toBe(true);
-    expect(checkQuestion(dial({ unit: "", ends: ["never", "always"] }), "feed", corpus).errs).toEqual([]);
+    expect(checkQuestion(dial({ unit: "" }), "feed", corpus, TEX).errs.some((e) => e.rule === "ends")).toBe(true);
+    expect(checkQuestion(dial({ unit: "", ends: ["never", "always"] }), "feed", corpus, TEX).errs).toEqual([]);
   });
 
   it("holds a field's axes and cloud", () => {
-    expect(checkQuestion(field({ ax: ["only one"] }), "feed", corpus).errs.some((e) => e.rule === "ends")).toBe(true);
-    expect(checkQuestion(field({ cloud: undefined }), "feed", corpus).errs.some((e) => e.rule === "cloud")).toBe(true);
-    expect(checkQuestion(field({ cloud: [[64, 32, 200, 16]] }), "feed", corpus).errs.some((e) => e.rule === "cloud" && e.msg.includes("dots"))).toBe(true);
-    expect(checkQuestion(field({ cloud: [[120, 32, 12, 16]] }), "feed", corpus).errs.some((e) => e.rule === "cloud")).toBe(true);
+    expect(checkQuestion(field({ ax: ["only one"] }), "feed", corpus, TEX).errs.some((e) => e.rule === "ends")).toBe(true);
+    expect(checkQuestion(field({ cloud: undefined }), "feed", corpus, TEX).errs.some((e) => e.rule === "cloud")).toBe(true);
+    expect(checkQuestion(field({ cloud: [[64, 32, 200, 16]] }), "feed", corpus, TEX).errs.some((e) => e.rule === "cloud" && e.msg.includes("dots"))).toBe(true);
+    expect(checkQuestion(field({ cloud: [[120, 32, 12, 16]] }), "feed", corpus, TEX).errs.some((e) => e.rule === "cloud")).toBe(true);
   });
 
   it("runs the place tripwire over axis end labels too", () => {
-    const q = field({ prompt: "City policy — place it", ax: ["ban cars in Oslo", "let them drive"] });
-    expect(checkQuestion(q, "feed", corpus).errs.some((e) => e.rule === "place-civic")).toBe(true);
+    const q = field({ prompt: "The car rules — place them", ax: ["ban in Oslo", "let them be"] });
+    expect(checkQuestion(q, "feed", corpus, TEX).errs.some((e) => e.rule === "place-civic")).toBe(true);
   });
 });
 
@@ -163,7 +181,7 @@ describe("the corpus itself", () => {
     corpus.feed.questions.forEach((q) => errs.push(...checkQuestion(q, "feed", corpus).errs));
     corpus.duel.forEach((q) => errs.push(...checkQuestion(q, "duel", corpus).errs));
     corpus.pick.forEach((q) => errs.push(...checkQuestion(q, "pick", corpus).errs));
-    corpus.continuum.forEach((q) => errs.push(...checkQuestion(q, "feed", corpus).errs));
+    corpus.continuum.forEach((q) => errs.push(...checkQuestion(q, "feed", corpus, { texture: true }).errs));
     expect(errs).toEqual([]);
   });
 

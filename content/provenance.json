@@ -765,6 +765,34 @@
     "s17": {
       "source": "editorial",
       "batch": "prototype"
+    },
+    "dl1": {
+      "source": "editorial",
+      "batch": "v20"
+    },
+    "dl2": {
+      "source": "editorial",
+      "batch": "v20"
+    },
+    "dl3": {
+      "source": "editorial",
+      "batch": "v20"
+    },
+    "dl4": {
+      "source": "editorial",
+      "batch": "v20"
+    },
+    "fd1": {
+      "source": "editorial",
+      "batch": "v20"
+    },
+    "fd2": {
+      "source": "editorial",
+      "batch": "v20"
+    },
+    "fd3": {
+      "source": "editorial",
+      "batch": "v20"
     }
   }
 }

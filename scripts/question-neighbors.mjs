@@ -176,9 +176,14 @@ export function buildDomains() {
   ).filter((q) => q.type === "dial" || q.type === "field");
 
   const entry = (id, q) => ({ id, prompt: q.prompt, tokens: tokensOf(textOf(q)) });
+  // A continuum question exists in BOTH pools by design (D106): the content
+  // entry is the live copy, the demo entry the same copy plus its authored
+  // texture. Same id = same question, not a dupe — only demo entries the
+  // content bank does not know join the domain.
+  const feedIds = new Set(feed.map((q) => q.id));
   return {
     daily: specQ.map((q, i) => entry(dailyIdOf(i, dqBase), q)),
-    feed: [...feed, ...continuum].map((q) => entry(q.id, q)),
+    feed: [...feed, ...continuum.filter((q) => !feedIds.has(q.id))].map((q) => entry(q.id, q)),
     duel: [
       ...duel.group.map((q) => entry(q.id, q)),
       ...duel.oneVsOne.map((q) => entry(q.id, q)),

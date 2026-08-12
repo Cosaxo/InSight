@@ -69,9 +69,8 @@ export const OPTION_SHAPES = {
 // The feed's closed type list. Until this set existed a novel feed type
 // passed the gate silently (the daily surface had OPTION_SHAPES; the feed
 // had nothing) — exactly how a wrong-shaped card would reach review unread.
-// vote is the only live-bank candidate; rank/duel are bank legacy (D12);
-// dial/field are the continuum forms, demo-pool only until the live
-// continuum loop ships (see QUESTION-FARM.md § The feed lane).
+// vote and the continuum forms (dial/field, live since D106) are lane
+// candidates; rank/duel are bank legacy (D12).
 export const FEED_TYPES = new Set(["vote", "rank", "duel", "dial", "field"]);
 // A dial's crowd texture is exactly 12 buckets lo→hi. Pinned rather than
 // free: world-feed.jsx's curve is drawn from it, and 12 fits the live
@@ -214,7 +213,14 @@ export function placeCivicHit(q) {
 // place tripwire) — their lane-specific shapes are check:content's job.
 // Every error carries a stable `rule` slug: it is the ALLOW key's second
 // half, so a waiver names exactly one finding, never the whole question.
-export function checkQuestion(q, surface, ctx) {
+//
+// `mode.texture` — a continuum question exists in two forms (D106): the
+// DEMO-POOL entry carries an authored crowd (med/dist/cloud/n) because the
+// demo has no backend, and the CONTENT entry carries none because the live
+// crowd is the aggregate. Texture rules apply only where texture belongs;
+// a content entry CARRYING texture is its own error, because an authored
+// crowd in the live bank would be a fabricated one.
+export function checkQuestion(q, surface, ctx, mode = {}) {
   const errs = [];
   const warn = [];
   const err = (rule, msg) => errs.push({ rule, msg });
@@ -277,17 +283,27 @@ export function checkQuestion(q, surface, ctx) {
     // texture to the same bar as the copy: a dial whose dist doesn't fit
     // the curve, or a field whose cloud drifts off the plane, renders
     // wrong in exactly the ways a reviewer stops seeing after ten cards.
+    const texture = !!(mode && mode.texture);
+    if ((q.type === "dial" || q.type === "field") && !texture) {
+      for (const k of ["med", "dist", "cloud", "n"]) {
+        if (q[k] !== undefined) {
+          err("texture", `${k} on a content entry — authored crowd texture belongs in the demo pool; the live crowd is the aggregate`);
+        }
+      }
+    }
     if (q.type === "dial") {
       if (opts.length) err("type-shape", "a dial carries no options — the range is the answer space");
       const num = (v) => typeof v === "number" && Number.isFinite(v);
       if (!num(q.lo) || !num(q.hi) || q.lo >= q.hi) {
         err("range", `dial needs numeric lo < hi (got lo ${JSON.stringify(q.lo)}, hi ${JSON.stringify(q.hi)})`);
       }
-      if (!num(q.med) || (num(q.lo) && num(q.hi) && (q.med < q.lo || q.med > q.hi))) {
-        err("med", `med ${JSON.stringify(q.med)} must be a number inside [lo, hi] — it is the "most say" line`);
-      }
-      if (!Array.isArray(q.dist) || q.dist.length !== DIAL_BUCKETS || q.dist.some((w) => !num(w) || w < 0) || !q.dist.some((w) => w > 0)) {
-        err("dist", `dist must be ${DIAL_BUCKETS} non-negative buckets lo→hi with at least one > 0 (got ${Array.isArray(q.dist) ? q.dist.length + " buckets" : JSON.stringify(q.dist)})`);
+      if (texture) {
+        if (!num(q.med) || (num(q.lo) && num(q.hi) && (q.med < q.lo || q.med > q.hi))) {
+          err("med", `med ${JSON.stringify(q.med)} must be a number inside [lo, hi] — it is the "most say" line`);
+        }
+        if (!Array.isArray(q.dist) || q.dist.length !== DIAL_BUCKETS || q.dist.some((w) => !num(w) || w < 0) || !q.dist.some((w) => w > 0)) {
+          err("dist", `dist must be ${DIAL_BUCKETS} non-negative buckets lo→hi with at least one > 0 (got ${Array.isArray(q.dist) ? q.dist.length + " buckets" : JSON.stringify(q.dist)})`);
+        }
       }
       const endsOk = Array.isArray(q.ends) && q.ends.length === 2 && q.ends.every((e) => typeof e === "string" && e.trim());
       if (q.ends !== undefined && !endsOk) err("ends", `ends must be two non-empty labels (got ${JSON.stringify(q.ends)})`);
@@ -297,7 +313,7 @@ export function checkQuestion(q, surface, ctx) {
       for (const e of [...(q.ends || [])]) {
         if (String(e).length > OPTION_MAX) err("option-length", `end label ${JSON.stringify(String(e))} is ${String(e).length} chars (max ${OPTION_MAX})`);
       }
-      if (!num(q.n) || q.n <= 0) err("n", `n ${JSON.stringify(q.n)} — the authored answer count the card's footer shows`);
+      if (texture && (!num(q.n) || q.n <= 0)) err("n", `n ${JSON.stringify(q.n)} — the authored answer count the card's footer shows`);
     }
     if (q.type === "field") {
       if (opts.length) err("type-shape", "a field carries no options — the plane is the answer space");
@@ -307,21 +323,26 @@ export function checkQuestion(q, surface, ctx) {
           err("ends", `${k} must be two non-empty end labels (got ${JSON.stringify(axis)})`);
         } else {
           for (const e of axis) {
-            if (e.length > OPTION_MAX) err("option-length", `end label ${JSON.stringify(e)} is ${e.length} chars (max ${OPTION_MAX})`);
+            // 14, not OPTION_MAX: these ends compose into the synthesized
+            // cell labels ("lean tastes good · middle"), and the composed
+            // label is what the voters panel prints
+            if (e.length > 14) err("option-length", `end label ${JSON.stringify(e)} is ${e.length} chars (max 14 — it composes into cell labels)`);
           }
         }
       }
-      const cluster = (c) =>
-        Array.isArray(c) && c.length === 4 && c.every(num) &&
-        c[0] >= 0 && c[0] <= 100 && c[1] >= 0 && c[1] <= 100 &&
-        c[2] >= 1 && Number.isInteger(c[2]) && c[3] > 0 && c[3] <= 50;
-      const dots = Array.isArray(q.cloud) ? q.cloud.reduce((a, c) => a + (Array.isArray(c) ? c[2] || 0 : 0), 0) : 0;
-      if (!Array.isArray(q.cloud) || !q.cloud.length || !q.cloud.every(cluster)) {
-        err("cloud", `cloud must be [x, y, count, spread] clusters in 0–100 coords, spread ≤ 50 (got ${JSON.stringify(q.cloud)})`);
-      } else if (dots < CLOUD_DOTS_MIN || dots > CLOUD_DOTS_MAX) {
-        err("cloud", `cloud draws ${dots} dots (want ${CLOUD_DOTS_MIN}–${CLOUD_DOTS_MAX}) — a sketch of a crowd, not a census`);
+      if (texture) {
+        const cluster = (c) =>
+          Array.isArray(c) && c.length === 4 && c.every(num) &&
+          c[0] >= 0 && c[0] <= 100 && c[1] >= 0 && c[1] <= 100 &&
+          c[2] >= 1 && Number.isInteger(c[2]) && c[3] > 0 && c[3] <= 50;
+        const dots = Array.isArray(q.cloud) ? q.cloud.reduce((a, c) => a + (Array.isArray(c) ? c[2] || 0 : 0), 0) : 0;
+        if (!Array.isArray(q.cloud) || !q.cloud.length || !q.cloud.every(cluster)) {
+          err("cloud", `cloud must be [x, y, count, spread] clusters in 0–100 coords, spread ≤ 50 (got ${JSON.stringify(q.cloud)})`);
+        } else if (dots < CLOUD_DOTS_MIN || dots > CLOUD_DOTS_MAX) {
+          err("cloud", `cloud draws ${dots} dots (want ${CLOUD_DOTS_MIN}–${CLOUD_DOTS_MAX}) — a sketch of a crowd, not a census`);
+        }
+        if (!num(q.n) || q.n <= 0) err("n", `n ${JSON.stringify(q.n)} — the authored answer count the card's footer shows`);
       }
-      if (!num(q.n) || q.n <= 0) err("n", `n ${JSON.stringify(q.n)} — the authored answer count the card's footer shows`);
     }
   }
 
@@ -440,7 +461,10 @@ if (invokedDirectly) {
   });
 
   const printPacket = (q, i) => {
-    const { errs, warn } = checkQuestion(q, q.surface, corpus);
+    // Candidates pre-flight as the demo-pool form — texture included —
+    // because that is the half the lane authors first; the content entry
+    // is the same copy with the texture stripped.
+    const { errs, warn } = checkQuestion(q, q.surface, corpus, { texture: true });
     const head = `${i != null ? `[${i}] ` : ""}${JSON.stringify(q.prompt ?? "")} (${q.surface}/${q.type})`;
     if (!errs.length && !warn.length) console.log(`  ✓ ${head}`);
     else {
@@ -545,13 +569,11 @@ if (invokedDirectly) {
     const { errs, warn } = checkQuestion(q, "pick", corpus);
     report("pick", q.id, errs, warn);
   });
-  // lane-authored continuum entries in the demo pool — feed rules apply
-  // (they are feed questions; the pool is just where they live until the
-  // live continuum loop ships). No provenance rows yet for the same
-  // reason: checkProvenance joins the CONTENT banks, and these are not
-  // in one — the row arrives with the promotion.
+  // the demo pool's continuum entries — feed rules plus the texture rules:
+  // this is the half that carries the authored crowd (D106), mirroring the
+  // texture-less content entries the feed walk above already covered.
   corpus.continuum.forEach((q) => {
-    const { errs } = checkQuestion(q, "feed", corpus);
+    const { errs } = checkQuestion(q, "feed", corpus, { texture: true });
     report("feed(demo)", q.id, errs, []);
   });
 
