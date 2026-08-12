@@ -9925,3 +9925,155 @@ credited to anything — `check:bundle`'s per-chunk headroom is 28 KB now
 where it was 6, which is slack that will get spent, and the ceiling is
 deliberately not being lowered to match inside a change that was not
 about the bundle.
+
+## D105 · LEARN leaves the bridge, and takes the load-order bug with it
+
+**Decided:** 2026-08-12 · **Status:** binding · Follow-on to D104, using
+the provider view that record added.
+
+**Decision.** `learn-progress.js` (`LEARN`) and `learn-data.js`
+(`LEARN_CARDS`, `LEARN_FIELDS`, `LEARN_SUBJECTS`, `LEARN_SPLIT`,
+`LEARN_SPLIT_SRC`) convert to named exports. Ratchet **457 → 426**, and
+the file count drops 44 → 43 — `learn-feed.js` is the fourth module in
+the layer with no cross-module global references at all.
+
+### The seam was two modules, not one, and only half of it was the ask
+
+`LEARN` alone was the item on D104's list: 25 sites, 5 consumers.
+Converting only that would have left the thing worth fixing in place.
+`learn-progress.js` opened with
+
+```js
+const CARDS = window.LEARN_CARDS || [];
+const FIELDS = window.LEARN_FIELDS || [];
+const SUBJECTS = window.LEARN_SUBJECTS || [];
+```
+
+at **module scope**. The entire Learn mode — the card bank, the map's
+knowledge branch, the feed's woven know cards — rested on
+`spec-index.js` listing `learn-data.js` (line 90) one line above
+`learn-progress.js` (line 91). Swap those two lines and `|| []` wins:
+zero cards, no error, no failing test, and a Learn tab that renders an
+empty room. Exactly the `map-branches.js` / `DAILYQ.EMERGENT_CATS`
+fragility D39's third conversion removed, and exactly what that record
+said to look for next.
+
+It is a module-graph guarantee now, and the guards went with it rather
+than being rewritten as `LEARN_CARDS || []`: an imported binding cannot
+be unset, and `learn-data.js` depends on nothing that could put it in
+TDZ.
+
+**The test harness is where the fix shows.** `learn-serve.test.js` had
+to import `learn-data.js` by name before `learn-progress.js`, because
+the ordering was the caller's problem. That line is deleted, and its
+absence is the win rather than a tidy-up — a step nobody can forget any
+more.
+
+### D104's prediction did not hold here, and that is worth recording
+
+D104 said "every remaining conversion should be expected to raise the
+suppression number before it lowers it", on the strength of the six
+`refs` findings the `DUELS` conversion surfaced once the React Compiler
+could resolve the store. This conversion surfaced **none**: the count
+sits at 33 across 14 files, unchanged, and no `exhaustive-deps`
+suppression was retired either. One `useEffect(() => { if (window.LEARN
+&& …) … }, [])` in `map-tab.jsx` became the clean shape and had carried
+no directive to begin with.
+
+So the D104 sentence is a thing to *check for*, not a rule. The
+Compiler's bail-out depends on what else the component does, not on the
+bridge alone.
+
+### Order of checks matters, and this run proves it
+
+Three separate gates each caught something the others could not, in this
+order:
+
+1. **`no-undef`** caught four files where the call sites were converted
+   and the `import` line was never added — `learn-feed.js`,
+   `learn-social.js`, `map-learn-card.jsx`, `map-tab.jsx`, sixteen
+   errors. This is the rule CLAUDE.md keeps ON for the spec layer
+   because two `ReferenceError`s shipped, and it is the first time it
+   has paid since.
+2. **`check:globals` rule 1** then caught a *dangling* `window.LEARN` at
+   `map-tab.jsx:34` — a site inside an effect that no call-site sweep
+   had touched, so `no-undef` saw a legitimate `window.` member access
+   and said nothing.
+3. **The mount suites** cover the rest: `map-tab.jsx` renders the Map on
+   the Mirror's default stop, so a broken import there is a boundary
+   trip in `smoke-nav.test.jsx`.
+
+Rule 1's find is the one to remember. A conversion sweep that renames
+`X.member` sites is blind to `window.X` sites that were never aliased,
+and the two shapes live in the same file.
+
+### The alias problem, and why `L` was not renamed everywhere
+
+D104 renamed `D` → `DUELS` at every site. That was safe because `D` was
+the DUELS alias in every file that used it. `L` is not: `world-feed.jsx`
+line 390 binds `const L = window.LIVE`, and `map-tab.jsx` line 797 has a
+bare `L` inside an SVG path template (`M x y L x y`). A blanket rename
+would have corrupted both.
+
+So the sites were partitioned by their owning declaration first — every
+`const L = …` in each file, tagged LEARN or LIVE, and only the LEARN
+regions rewritten. Worth doing again the same way: **check what else
+holds the alias before renaming it**, and prefer the partition to the
+regex.
+
+Two places keep a local alias rather than the full name:
+`learn-reserve.test.jsx` imports `{ LEARN as L }` because its two cases
+use `L` twenty times and the import line is the only thing that needed
+to change; and `map-tab.jsx` keeps a bare `{ … }` block where
+`if (window.LEARN)` used to be, with a comment saying so, because
+de-indenting 23 lines would bury the change in whitespace.
+
+### D104 amendment — the entry-chunk figure was not a win, and the gate says it was
+
+D104's closing paragraph read the entry chunk falling 729 → 707 KB as
+"the removed global registrations and dead guards were shipping". This
+conversion took it further, 707 → **685 KB**, and measuring the other
+number shows what actually happened:
+
+| tree | entry chunk | entry + every `modulepreload` | total JS |
+| --- | ---: | ---: | ---: |
+| before D104 | 728.5 KB | 1271.1 KB | 2118 KB |
+| after D105 | 685.2 KB | **1270.2 KB** | 2116 KB |
+
+The entry chunk is 43 KB lighter and **first paint is 0.9 KB lighter**.
+The bytes moved into sibling chunks that `index.html` preloads anyway —
+`duo-daily` 21.0 → 41.0 KB, `LiveTakesPanel` 11.4 → 33.7 KB — because a
+converted module gets its own chunk and the entry still statically
+imports it.
+
+Nothing is wrong with the conversions; the wrong thing is the reading.
+`check:bundle` holds a per-chunk ceiling and a total, and **neither is
+the eager graph**. A per-chunk ceiling is improved by relocating bytes
+into another preloaded chunk, and the total counts Sentry (435 KB), the
+world-feed group and the overlays, which first paint never fetches. So a
+change can bank a 43 KB "win" on the gated number while the number that
+decides cold-start parse cost does not move — which is exactly what just
+happened, twice, without either gate noticing.
+
+`src/v2/README.md` has recorded a special case of this since the
+`sample-data.js` conversion ("became its own chunk that first paint still
+preloads"), and the general form is now measured. The fix is one figure —
+sum the entry plus every `<link rel=modulepreload>` in `dist/index.html`,
+which the build already emits — and it is deliberately NOT taken inside
+this change: adding a third ceiling is a decision about what the app is
+allowed to weigh, not a side effect of moving two modules. Recorded with
+its arithmetic so the next bundle claim has to cite the right number.
+
+### What is left on the bridge here
+
+`learn-progress.js` keeps 4 outgoing references, all `window.LIVE`, and
+`learn-social.js` keeps 4 for the same reason. `LEARN_FEED`
+(`learn-feed.js`) and `LEARN_CARDS`' sibling display modules
+(`learn-bits.jsx`'s `LMStreak` / `LMFriends`, 10 sites) stay — neither
+is a load-order hazard and neither was the ask. `LIVE` remains the
+single largest provider on the meter at 86 sites across 13 files, and
+it is not mechanical: `smoke.test.jsx`'s successors express demo mode by
+deleting `window.LIVE`, which an imported binding cannot do. The
+replacement pattern is already in-tree (`vi.mock("../data/live")`, used
+by every `ui/*.test.tsx`), so that conversion is a test-architecture
+change with a known shape rather than an unknown one.

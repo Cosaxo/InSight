@@ -24,8 +24,6 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import "../spec/feed-read.js";
 import "../spec/follows.js";
-import "../spec/learn-data.js";
-import "../spec/learn-progress.js";
 import "../spec/learn-feed.js";
 import "../spec/test-definitions.js";
 import "../spec/passive-progress.js";
@@ -54,6 +52,11 @@ import { PASSIVE } from "../spec/passive-progress.js";
 // …and scenes since D104.
 // @ts-expect-error TS7016 — untyped spec module
 import { SCENES } from "../spec/scenes.js";
+// …and the Learn pair since D105.
+// @ts-expect-error TS7016 — untyped spec module
+import { LEARN } from "../spec/learn-progress.js";
+// @ts-expect-error TS7016 — untyped spec module
+import { LEARN_CARDS } from "../spec/learn-data.js";
 
 /* eslint-disable @typescript-eslint/no-explicit-any -- the spec layer's
    window surface is untyped by design; these tests drive it as consumers do */
@@ -105,12 +108,12 @@ describe("module stores drop their memory on the purge (D51)", () => {
   });
 
   it("LEARN: the mastery map", () => {
-    const cards = W.LEARN_CARDS as { id: string }[];
-    W.LEARN.answer(cards[0].id, 0);
+    const cards = LEARN_CARDS as { id: string }[];
+    LEARN.answer(cards[0].id, 0);
     expect(stored("insight.learn.v3")).toContain(cards[0].id);
     purge();
     expect(stored("insight.learn.v3")).toBeNull();
-    W.LEARN.answer(cards[1].id, 0);
+    LEARN.answer(cards[1].id, 0);
     const after = stored("insight.learn.v3")!;
     expect(after).toContain(cards[1].id);
     expect(JSON.parse(after).c[cards[0].id]).toBeUndefined();

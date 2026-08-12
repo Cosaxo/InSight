@@ -6,6 +6,7 @@
 import React from 'react';
 import { DAILYQ } from './daily-questions.js';
 import { DUELS } from './duels-data.js';
+import { LEARN } from './learn-progress.js';
 import { list as anchorList } from './map-anchors.js';
 
 // InSight — Map tab: a constellation of every Daily-Question answer around a
@@ -29,9 +30,7 @@ function MapTab({ rail = true, anchorsOn = true, recency = true, fields: fieldsO
   useEffect(() => {
     if (DAILYQ.subscribe) return DAILYQ.subscribe(() => setDqv((x) => x + 1));
   }, []);
-  useEffect(() => {
-    if (window.LEARN && window.LEARN.subscribe) return window.LEARN.subscribe(() => setDqv((x) => x + 1));
-  }, []);
+  useEffect(() => LEARN.subscribe(() => setDqv((x) => x + 1)), []);
   useEffect(() => DUELS.subscribe(() => setDqv((x) => x + 1)), []);
   // ── anchors: the profile ring at the centre ───────────────────────────────
   // State fed by the store's own event, not a mount-once memo. The mock list
@@ -89,14 +88,17 @@ function MapTab({ rail = true, anchorsOn = true, recency = true, fields: fieldsO
     // the three-in-a-row queue stay off it — a map you cannot trust is furniture.
     // Subject is the branch, field the sub-branch, the fact the leaf; typicality
     // is the share of the crowd who get it right, so hard-won facts sit outward.
-    const L = window.LEARN;
-    if (L) {
-      const got = L.mastered();
+    // Braces without a condition: `if (window.LEARN)` was a load-order guard,
+    // and an imported binding cannot be unset — but the block scopes `got`/`n`,
+    // and de-indenting 23 lines to drop it would bury this change in a
+    // whitespace diff (D105). An empty `mastered()` was always a no-op here.
+    {
+      const got = LEARN.mastered();
       const n = got.length;
       got.forEach((m, i) => {
         const c = m.card;
-        const fd = L.field(c.f);
-        const sj = fd ? L.subject(fd.subject) : null;
+        const fd = LEARN.field(c.f);
+        const sj = fd ? LEARN.subject(fd.subject) : null;
         if (!fd || !sj) return;
         const catId = 'lrn-' + sj.id;
         if (!topSeen.has(catId)) topSeen.set(catId, { id: catId, label: sj.label, hue: sj.hue });

@@ -1,9 +1,11 @@
 // Ported from design/InSight_standalone_15.html (learn-progress.js, 2026-07-31
 // revision). THIS file is the live source now, hand-edits and all.
-// Cross-module references resolve through the shared global scope and
-// spec-index.js load order is semantic — scripts/check-spec-globals.mjs
-// guards the wiring in CI.
+// OFF THE GLOBAL BRIDGE (D105): `LEARN` is a named export, and the content
+// it folds arrives as imports rather than as globals this file hoped had
+// already been assigned. `window.LIVE` (see below) is the one cross-module
+// global left here, read at call time.
 import React from 'react';
+import { LEARN_CARDS, LEARN_FIELDS, LEARN_SPLIT, LEARN_SUBJECTS } from './learn-data.js';
 
 // learn-progress.js — the engine behind Learn. Three ideas, no more:
 //
@@ -17,12 +19,21 @@ import React from 'react';
 //
 // Known cards come back once, rarely, weeks later. Miss the check-in and the
 // fact leaves your map — a map you cannot lose things from is not a map.
-window.LEARN = (function () {
+// The IIFE's own return value is the export — no hoisted `export let` needed
+// here, unlike DAILYQ / FRIENDS / SCENES / DUELS, because this module already
+// wrote `window.LEARN = (function () {…})()` rather than assigning from inside.
+export const LEARN = (function () {
   const LS = 'insight.learn.v3';
   const LS_F = 'insight.learnFields.v1';
-  const CARDS = window.LEARN_CARDS || [];
-  const FIELDS = window.LEARN_FIELDS || [];
-  const SUBJECTS = window.LEARN_SUBJECTS || [];
+  // Imports, not `window.X || []`. The `|| []` was a load-order guard reading
+  // at MODULE SCOPE: it silently substituted an empty card bank for the real
+  // one if spec-index.js ever listed learn-data.js after this file, which is
+  // the failure D105's learn-data.js header describes. An imported binding
+  // cannot be unset, and learn-data.js depends on nothing that could put it in
+  // TDZ, so the fallbacks are gone rather than rewritten.
+  const CARDS = LEARN_CARDS;
+  const FIELDS = LEARN_FIELDS;
+  const SUBJECTS = LEARN_SUBJECTS;
   const GAP = 4;        // cards that must pass before a repeat counts
   const STREAK = 3;     // rights in a row to earn a missed card
   const CHECKIN_D = 12; // days before a known card comes back once
@@ -163,7 +174,7 @@ window.LEARN = (function () {
     if (mastered && S.order.indexOf(id) < 0) S.order.push(id);
     if (lost) S.order = S.order.filter((x) => x !== id);
     save();
-    return { ok, mastered, lost, wasKnown, streak: cur.k, correct: card.c, split: window.LEARN_SPLIT(card) };
+    return { ok, mastered, lost, wasKnown, streak: cur.k, correct: card.c, split: LEARN_SPLIT(card) };
   }
 
   return {

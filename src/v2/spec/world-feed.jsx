@@ -13,6 +13,8 @@ import LiveVotersPanel from '../ui/LiveVotersPanel';
 import { WPAL } from './world-palette.js';
 import { HAPTIC } from './haptics.js';
 import { WF_CATALOGS } from './world-catalogs.js';
+import { LEARN } from './learn-progress.js';
+import { LEARN_SPLIT_SRC } from './learn-data.js';
 import { SCENES } from './scenes.js';
 import { Sheet } from './primitives.jsx';
 // The feed's cadence arithmetic — extracted so the test exercises THIS loop
@@ -267,7 +269,7 @@ class WorldFeed extends React.Component {
       })
       : null;
     this._unsubSubs = window.SUBTOPICS ? window.SUBTOPICS.subscribe(() => this.forceUpdate()) : null;
-    this._unsubLearn = window.LEARN ? window.LEARN.subscribe(() => this.forceUpdate()) : null;
+    this._unsubLearn = LEARN.subscribe(() => this.forceUpdate());
     this._unsubLF = window.LEARN_FEED ? window.LEARN_FEED.subscribe(() => this.forceUpdate()) : null;
     // The purge (data/live.ts, D51): this component PERSISTS four of its
     // maps (votes, passed, takes, replies) by spreading state back to the
@@ -529,10 +531,10 @@ class WorldFeed extends React.Component {
   // the feed under you — the list is cached and only rebuilt when what you follow
   // (or the frequency) actually changes, never when you answer.
   knowQs(n, cats) {
-    const LF = window.LEARN_FEED, L = window.LEARN;
-    if (!LF || !L || !LF.every()) return [];
+    const LF = window.LEARN_FEED;
+    if (!LF || !LF.every()) return [];
     const muted = Object.keys(cats || {}).filter((k) => k.indexOf('lrn-') === 0 && cats[k] === false).sort().join(',');
-    const sig = LF.freq() + '|' + L.mine().map((f) => f.id).join(',') + '|' + muted;
+    const sig = LF.freq() + '|' + LEARN.mine().map((f) => f.id).join(',') + '|' + muted;
     if (this._kqSig !== sig || !this._kq) { this._kqSig = sig; this._kq = LF.cards(Math.max(14, n), cats); }
     return this._kq.slice(0, n);
   }
@@ -740,8 +742,8 @@ class WorldFeed extends React.Component {
   // normal, in the app's own language. Answer blind, then see the split: exactly
   // the opinion feed's instrument, pointed at something with a right answer.
   setKnow(q, i) {
-    if (this.state.votes[q.id] != null || !window.LEARN) return;
-    const r = window.LEARN.answer(q.learn, i);
+    if (this.state.votes[q.id] != null) return;
+    const r = LEARN.answer(q.learn, i);
     if (!r) return;
     const votes = { ...this.state.votes, [q.id]: i };
     // The pick reaches state, not storage — wfSave strips lrn- entries, on
@@ -761,13 +763,12 @@ class WorldFeed extends React.Component {
     return this.state.knowRes[q.id] || null;
   }
   renderKnow(q, T, big) {
-    const L = window.LEARN;
-    const card = L && L.card(q.learn);
+    const card = LEARN.card(q.learn);
     if (!card) return null;
     const r = this.knowOf(q);
     const my = this.state.votes[q.id];
     const fresh = !!this.state.knowRes[q.id];
-    const cs = L.stateOf(q.learn);
+    const cs = LEARN.stateOf(q.learn);
     const streakNow = r ? r.streak : (cs && cs.s === 'learning' ? cs.k : 0);
     const pale = WPAL.wash(T.color, 18, 'var(--surface-2)');
     return (
@@ -792,7 +793,7 @@ class WorldFeed extends React.Component {
             );
           })}
         </div>
-        {!r && streakNow > 0 ? <LMStreak k={streakNow} of={L.STREAK} col={T.color}></LMStreak> : null}
+        {!r && streakNow > 0 ? <LMStreak k={streakNow} of={LEARN.STREAK} col={T.color}></LMStreak> : null}
         {r ? (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10, paddingTop: 1 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -804,17 +805,17 @@ class WorldFeed extends React.Component {
                 </>
               ) : r.ok && r.wasKnown ? (
                 <>
-                  <LMStreak k={L.STREAK} of={L.STREAK} col={T.color}></LMStreak>
+                  <LMStreak k={LEARN.STREAK} of={LEARN.STREAK} col={T.color}></LMStreak>
                   <span style={{ flex: 1, fontFamily: 'var(--sans)', fontWeight: 700, fontSize: 13.5, color: 'var(--ink-2)' }}>Still yours.</span>
                 </>
               ) : r.ok ? (
                 <>
-                  <LMStreak k={r.streak} of={L.STREAK} col={T.color}></LMStreak>
-                  <span style={{ flex: 1, fontFamily: 'var(--sans)', fontWeight: 700, fontSize: 13.5, color: 'var(--ink-2)' }}>{L.STREAK - r.streak <= 1 ? 'One more and it\u2019s yours.' : (L.STREAK - r.streak) + ' more in a row.'}</span>
+                  <LMStreak k={r.streak} of={LEARN.STREAK} col={T.color}></LMStreak>
+                  <span style={{ flex: 1, fontFamily: 'var(--sans)', fontWeight: 700, fontSize: 13.5, color: 'var(--ink-2)' }}>{LEARN.STREAK - r.streak <= 1 ? 'One more and it\u2019s yours.' : (LEARN.STREAK - r.streak) + ' more in a row.'}</span>
                 </>
               ) : (
                 <>
-                  <LMStreak k={0} of={L.STREAK} col={T.color}></LMStreak>
+                  <LMStreak k={0} of={LEARN.STREAK} col={T.color}></LMStreak>
                   <span style={{ flex: 1, fontFamily: 'var(--sans)', fontWeight: 700, fontSize: 13.5, color: 'var(--ink-2)' }}>{r.lost ? 'Off your map — three in a row to win it back.' : 'Three in a row to earn it.'}</span>
                 </>
               )}
@@ -825,7 +826,7 @@ class WorldFeed extends React.Component {
                 one it is. Demo builds carry their own honesty layers. */}
             {window.LIVE && window.LIVE.enabled ? (
               <div style={{ fontFamily: 'var(--sans)', fontSize: 11, color: 'var(--ink-3)', lineHeight: 1.45 }}>
-                {(window.LEARN_SPLIT_SRC ? window.LEARN_SPLIT_SRC(card) : 'estimate') === 'measured'
+                {LEARN_SPLIT_SRC(card) === 'measured'
                   ? 'Real answers from ' + (((window.LIVE.learnAgg && window.LIVE.learnAgg(card.id)) || {}).total || 5) + '+ players.'
                   : 'Our estimate — becomes measured once enough people have answered.'}
               </div>
@@ -1695,8 +1696,8 @@ class WorldFeed extends React.Component {
       return !own;                                    // a followed community already covers its leaf
     }) : [];
     const open = SCENES.offers().filter((g) => !SCENES.has(g.id)).sort((a, b) => b.match - a.match);
-    const L = window.LEARN, LF = window.LEARN_FEED;
-    const learnOpen = L ? L.fields().filter((f) => !L.has(f.id)) : [];
+    const LF = window.LEARN_FEED;
+    const learnOpen = LEARN.fields().filter((f) => !LEARN.has(f.id));
     const row = (key, col, name, meta, onFollow, ring) => (
       <div key={key} style={{ display: 'flex', alignItems: 'center', gap: 11, padding: '11px 2px', borderTop: '0.5px solid color-mix(in oklch, var(--rule), transparent 25%)' }}>
         {col && <span aria-hidden="true" style={ring ? { width: 10, height: 10, borderRadius: '50%', background: 'transparent', boxShadow: `inset 0 0 0 2.5px ${col}`, flexShrink: 0 } : { width: 9, height: 9, borderRadius: '50%', background: col, flexShrink: 0 }}></span>}
@@ -1737,9 +1738,9 @@ class WorldFeed extends React.Component {
                 return <button key={v} className="press" onClick={() => { LF.setFreq(v); this.forceUpdate(); }} aria-pressed={on} style={{ flex: 1, border: 'none', borderRadius: 999, padding: '8px 0', cursor: 'pointer', WebkitAppearance: 'none', fontFamily: 'var(--sans)', fontWeight: on ? 800 : 600, fontSize: 12.5, background: on ? 'var(--ink)' : 'transparent', color: on ? 'var(--surface)' : 'var(--ink-3)', transition: 'background .2s ease, color .2s ease' }}>{v}</button>;
               })}
             </div>
-            {learnOpen.map((f) => row('lrn-' + f.id, WPAL.c(L.colorOf(f.id)), f.label,
-              `${(L.subject(f.subject) || {}).label || ''} · ${L.total(f.id)} cards`,
-              () => { L.follow(f.id); this.forceUpdate(); }, true))}
+            {learnOpen.map((f) => row('lrn-' + f.id, WPAL.c(LEARN.colorOf(f.id)), f.label,
+              `${(LEARN.subject(f.subject) || {}).label || ''} · ${LEARN.total(f.id)} cards`,
+              () => { LEARN.follow(f.id); this.forceUpdate(); }, true))}
           </div>
         ) : null}
         {/* the one in-reach way to propose a question, now that the rail's + adds topics */}
@@ -1754,12 +1755,11 @@ class WorldFeed extends React.Component {
   // Mirror your answer moves. Never the arguments — those live in the reveal.
   renderContext(q, T) {
     const bg = WF_BGTEXT(q);
-    const L = window.LEARN;
-    const kn = q.type === 'know' && L ? L.card(q.learn) : null;
-    const fd = kn ? L.field(q.f) : null;
+    const kn = q.type === 'know' ? LEARN.card(q.learn) : null;
+    const fd = kn ? LEARN.field(q.f) : null;
     const rows = [];
     if (kn) {
-      rows.push(['Field', fd ? fd.label + ' \u00b7 ' + ((L.subject(fd.subject) || {}).label || '') : '']);
+      rows.push(['Field', fd ? fd.label + ' \u00b7 ' + ((LEARN.subject(fd.subject) || {}).label || '') : '']);
       rows.push(['Crowd', kn.p + '% get this right']);
       rows.push(['On your map', 'Knowledge']);
     } else {
@@ -2188,7 +2188,7 @@ class WorldFeed extends React.Component {
   // to one field of study. Bar = share of that group who got it right, sorted, on
   // one baseline, with the crowd's own rate as the hairline to read against.
   renderKnowStats(q, T) {
-    const L = window.LEARN, card = L && L.card(q.learn);
+    const card = LEARN.card(q.learn);
     if (!card) return null;
     const dim = WF_KNOW_CUTS.indexOf(this.state.dims[q.id]) >= 0 ? this.state.dims[q.id] : 'friends';
     const axis = this.state.cutAxis[q.id] || null, youBand = WF_YOU(dim, axis);
@@ -2264,7 +2264,7 @@ class WorldFeed extends React.Component {
     // a test driving this branch stubs the module the way
     // LiveCohortBody.test does, not through the window stand-in.
     if (LIVE.enabled) return null;
-    const L = window.LEARN, card = L && L.card(q.learn);
+    const card = LEARN.card(q.learn);
     if (!card) return null;
     const p = card.p;
     let best = null;
@@ -2472,7 +2472,7 @@ class WorldFeed extends React.Component {
     if (q.type === 'know') {
       const r = this.knowOf(q);
       if (!r) return null;
-      return <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}><LMStreak k={r.streak} of={(window.LEARN || {}).STREAK || 3} col={T.color}></LMStreak><span style={{ fontFamily: 'var(--sans)', fontSize: 11.5, fontWeight: 700, color: 'var(--ink-3)' }}>{r.ok ? 'right' : 'missed'}</span></div>;
+      return <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}><LMStreak k={r.streak} of={LEARN.STREAK} col={T.color}></LMStreak><span style={{ fontFamily: 'var(--sans)', fontSize: 11.5, fontWeight: 700, color: 'var(--ink-3)' }}>{r.ok ? 'right' : 'missed'}</span></div>;
     }
     if (q.type === 'rate') {
       const v = this.state.votes[q.id];
@@ -2515,12 +2515,12 @@ class WorldFeed extends React.Component {
     const lz = !tm && q.lens && window.LENSES ? window.LENSES.get(q.lens) : null;
     const mk = tm || (lz ? { label: lz.title, accent: `oklch(0.56 0.13 ${lz.hue})` } : null);
     // a knowledge card wears its field, coloured by its subject
-    const kn = q.type === 'know' && window.LEARN ? window.LEARN.field(q.f) : null;
+    const kn = q.type === 'know' ? LEARN.field(q.f) : null;
     // Favourites is a format channel, so the chip's hue can't also be the card's:
     // three catalogues rendering in one green loses the subject entirely. The
     // channel keeps the label, the catalogue supplies the colour.
     const cg = q.type === 'pick' ? WF_CATALOGS[q.catalog || q.domain] : null;
-    const T0 = kn ? { label: kn.label, color: window.LEARN.colorOf(q.f) } : cg && cg.hue ? { label: (WF_TOPIC[q.cat] || {}).label || q.cat, color: 'oklch(0.52 0.14 ' + cg.hue + ')' } : mk ? { label: mk.label, color: mk.accent } : (WF_TOPIC[q.cat] || { label: q.cat, color: 'var(--ink-3)' });
+    const T0 = kn ? { label: kn.label, color: LEARN.colorOf(q.f) } : cg && cg.hue ? { label: (WF_TOPIC[q.cat] || {}).label || q.cat, color: 'oklch(0.52 0.14 ' + cg.hue + ')' } : mk ? { label: mk.label, color: mk.accent } : (WF_TOPIC[q.cat] || { label: q.cat, color: 'var(--ink-3)' });
     // one gate for all four hue sources — see world-palette.js
     const T = { ...T0, color: WPAL.c(T0.color) };
     const scene = !mk && !kn && q.scene ? SCENES.defs().find((g) => g.id === q.scene) : null;
@@ -2762,7 +2762,7 @@ class WorldFeed extends React.Component {
       ...scenes.map((s) => ({ id: s.id, label: s.name, color: SCENES.colorOf(s.id), scene: true })),
       ...(ST ? ST.mine().filter((s) => !owned[s.id]).map((s) => ({ id: s.id, label: s.label, color: WPAL.c((WF_TOPIC[s.parent] || {}).color) || null })) : []),
       ...WF_CHANNELS.map((id) => WF_TOPIC[id]).filter(Boolean).map((t) => ({ id: t.id, label: t.label })),
-      ...(window.LEARN ? window.LEARN.mine().map((fd) => ({ id: 'lrn-' + fd.id, label: fd.label, color: WPAL.c(window.LEARN.colorOf(fd.id)), know: true })) : []),
+      ...LEARN.mine().map((fd) => ({ id: 'lrn-' + fd.id, label: fd.label, color: WPAL.c(LEARN.colorOf(fd.id)), know: true })),
     ];
     // offers(), not defs(): a live build advertises no demo scene, so the
     // dashed "suggested scene · 3.2K people" card simply never renders

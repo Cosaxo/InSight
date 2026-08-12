@@ -439,7 +439,7 @@ survivable enough to live with indefinitely.
 **Rule 4** counts every site where one file reads a name another file
 assigns to global scope, per file, and the number may only go down. The
 baseline is in `scripts/check-spec-globals.mjs`; `npm run check:globals`
-prints the current total on every run. The count today is **457 across 44
+prints the current total on every run. The count today is **426 across 43
 files**, down from 799 when the ratchet landed.
 
 The mechanism needs no bookkeeping, which is what makes it usable. The
@@ -509,6 +509,17 @@ KB, and that is not 35 KB saved: `sample-data` became its own chunk that
 first paint still preloads, because `app-shell` imports it eagerly. Total
 JS is unchanged at 1529 KB. `check:bundle` asserts a total precisely so a
 split cannot read as a win — see its header.
+
+**And the general form of that is now measured (D105).** It is not a
+quirk of this one conversion: across D104 and D105 the entry chunk fell
+728.5 → 685.2 KB while **entry + every `modulepreload` fell 1271.1 →
+1270.2** — 43 KB off the gated number, 0.9 KB off first paint. Neither of
+`check:bundle`'s two ceilings is the eager graph: the per-chunk one is
+improved by relocating bytes into another preloaded chunk, and the total
+counts Sentry, the world-feed group and the overlays, which first paint
+never fetches. **So do not quote an entry-chunk delta as a first-paint
+win.** Sum the entry plus every `<link rel=modulepreload>` in
+`dist/index.html` and quote that.
 
 ### `daily-questions.js` — the first one that was not a pure provider
 

@@ -4,6 +4,7 @@
 // spec-index.js load order is semantic — scripts/check-spec-globals.mjs
 // guards the wiring in CI.
 import React from 'react';
+import { LEARN } from './learn-progress.js';
 
 // learn-feed.js — knowledge questions as a stream in the World feed rather than
 // a room of their own. The feed turns out to be a better spacing engine than a
@@ -33,18 +34,17 @@ window.LEARN_FEED = (function () {
     every: () => RATE[f],
     // n cards from the fields you follow, minus any chip you've muted
     cards: (n, muted) => {
-      const L = window.LEARN;
-      if (!L || !RATE[f] || n <= 0) return [];
-      const live = L.mine().filter((fd) => !muted || muted['lrn-' + fd.id] !== false).map((fd) => fd.id);
+      if (!RATE[f] || n <= 0) return [];
+      const live = LEARN.mine().filter((fd) => !muted || muted['lrn-' + fd.id] !== false).map((fd) => fd.id);
       if (!live.length) return [];
       const out = [], seen = {};
       // Answerable cards only: fresh, or a repeat the scheduler is ready to
-      // credit (L.due — the waited-out GAP repeat and the check-in). plan()'s
+      // credit (LEARN.due — the waited-out GAP repeat and the check-in). plan()'s
       // slow/warm fallbacks exist so the standalone next() never runs dry,
       // but in the feed they re-served cards whose next answer could not
       // count yet — which rendered as last sitting's reveal, frozen (D95).
       // Fewer than n cards back is the honest result of a thin pool.
-      L.plan(n * 4).forEach((c) => { if (out.length < n && !seen[c.id] && live.indexOf(c.f) >= 0 && (!L.stateOf(c.id) || L.due(c.id))) { seen[c.id] = 1; out.push(toQ(c)); } });
+      LEARN.plan(n * 4).forEach((c) => { if (out.length < n && !seen[c.id] && live.indexOf(c.f) >= 0 && (!LEARN.stateOf(c.id) || LEARN.due(c.id))) { seen[c.id] = 1; out.push(toQ(c)); } });
       return out;
     },
     subscribe: (fn) => { subs.add(fn); return () => subs.delete(fn); },

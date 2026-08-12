@@ -134,14 +134,13 @@ const COUPLING_BASELINE = {
   "src/v2/spec/group-role-map.jsx": 4,
   "src/v2/spec/learn-bits.jsx": 1,
   "src/v2/spec/learn-data.js": 1,
-  "src/v2/spec/learn-feed.js": 1,
-  "src/v2/spec/learn-progress.js": 8,
-  "src/v2/spec/learn-social.js": 5,
+  "src/v2/spec/learn-progress.js": 4,
+  "src/v2/spec/learn-social.js": 4,
   "src/v2/spec/lens-cards.jsx": 4,
   "src/v2/spec/map-bottom-card.jsx": 5,
-  "src/v2/spec/map-learn-card.jsx": 5,
+  "src/v2/spec/map-learn-card.jsx": 3,
   "src/v2/spec/map-people.jsx": 4,
-  "src/v2/spec/map-tab.jsx": 25,
+  "src/v2/spec/map-tab.jsx": 21,
   "src/v2/spec/mirror-field-pops.jsx": 24,
   "src/v2/spec/mirror-field.jsx": 4,
   "src/v2/spec/mirror-tab.jsx": 9,
@@ -163,7 +162,7 @@ const COUPLING_BASELINE = {
   "src/v2/spec/type-marks.jsx": 2,
   "src/v2/spec/vote-cuts.js": 1,
   "src/v2/spec/world-feed-data.js": 4,
-  "src/v2/spec/world-feed.jsx": 141,
+  "src/v2/spec/world-feed.jsx": 122,
 };
 
 const coupling = {};
