@@ -6,7 +6,7 @@
 // drift apart. (A static JSON import, not a cross-module import — the spec
 // layer's no-imports convention bans load-order coupling between modules,
 // which data has none of.)
-// OFF THE GLOBAL BRIDGE (D108): the five names below are named exports.
+// OFF THE GLOBAL BRIDGE (D109): the five names below are named exports.
 // `learn-progress.js` reads three of them at MODULE SCOPE, so before this
 // change the whole Learn mode rested on spec-index.js listing this file one
 // line above that one — reorder those two and the card bank is silently

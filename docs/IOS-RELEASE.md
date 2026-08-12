@@ -292,6 +292,7 @@ Failures still worth recognising on sight:
 | `No profiles for 'com.cosaxo.insight'` at export | The bundle ID has no App Store Connect app record yet — create it first |
 | Export fails on `method` | An older Xcode image; change `app-store-connect` to `app-store` in the ExportOptions plist |
 | Upload rejected for build number | `appBuild` was not bumped |
+| `ITMS-90683` emailed *after* a successful delivery | A purpose string is missing for an API some linked package references, whether or not this app calls it. Fix the plist, not the caller — `npm run check:ios-location` and D107. The delivered build stands; the fix rides the next one |
 
 **The bump has a trap in the other direction too, and it has fired.** This
 file and the runbook both bump `appBuild` immediately *after* an upload, so

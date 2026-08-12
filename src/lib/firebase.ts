@@ -4,7 +4,7 @@
 // was removed with the legacy app.
 //
 // THIS HEADER USED TO END "so signed-out/mock sessions never download
-// it", and that had stopped being true (D109). `src/v2/data/live.ts`
+// it", and that had stopped being true (D110). `src/v2/data/live.ts`
 // imported `firebase/firestore` and `firebase/functions` STATICALLY, and
 // live.ts is eager — so the SDK sat in the first-paint graph of every
 // build, including one with no `VITE_FIREBASE_*` configured at all, which
@@ -65,7 +65,7 @@ function impl(): Promise<Impl> {
   return implPromise;
 }
 
-// ── The SDK surfaces (D109) ─────────────────────────────────────
+// ── The SDK surfaces (D110) ─────────────────────────────────────
 //
 // Same memoised `impl()` promise as everything else here, which is what
 // makes the ordering a non-question for callers: a consumer can only reach

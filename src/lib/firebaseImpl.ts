@@ -56,7 +56,7 @@ import {
 import { initAppCheck } from "./appcheck";
 
 // The API surfaces, re-exported so nothing outside this module has to import
-// `firebase/*` statically (D109). This file is reached ONLY through
+// `firebase/*` statically (D110). This file is reached ONLY through
 // lib/firebase's memoised `impl()` dynamic import, so anything that arrives
 // through here is off the first-paint graph by construction — which is the
 // property `src/v2/data/live.ts` broke by importing `firebase/firestore`

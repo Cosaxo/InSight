@@ -114,7 +114,7 @@ Two rules for working with it:
 
 - **Convert on touch, and transpose the meter before you plan.** This
   paragraph twice claimed the cheap seam was exhausted and was twice wrong
-  (D39's follow-ups, then D107) — both times because rule 4 reports per
+  (D39's follow-ups, then D108) — both times because rule 4 reports per
   **consumer**, which is the right shape for a ratchet and the wrong shape
   for planning. Build the provider view out of `spec-globals.mjs`'s own
   `definedBy`/`referenced` maps and the remaining single-writer providers
@@ -124,13 +124,13 @@ Two rules for working with it:
   module are dead — an imported binding cannot be unset. So is
   `X.member ? X.member() : fallback` on a member the object literal always
   defines, and so is a local fallback that recomputes the store's own
-  default (D107 found six of the first and two of the second). The inner
+  default (D108 found six of the first and two of the second). The inner
   `|| []` on `.people` is not; that guards missing data. The guard shapes
   are a list, not a pattern, so grep the name and read every site.
 - **Expect a conversion to RAISE the suppression count before it lowers
   it.** The React Compiler cannot resolve a value arriving through global
   scope, so it bails out of the component — which means the bridge has been
-  hiding `react-hooks` findings, not just costing coupling (D107, verified
+  hiding `react-hooks` findings, not just costing coupling (D108, verified
   by linting the pre-change files).
 
 ### 2. There are four test runners, and they are not interchangeable

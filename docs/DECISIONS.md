@@ -10073,7 +10073,136 @@ decision that changes who may read something names the user-facing pages
 in its own checklist.** D98 listed the code paths it had to move in one
 commit and moved them; the same discipline pointed at `web/` would have
 caught both pages the day the model died.
-## D107 · Two providers leave the bridge, and the mount suite stops being one file
+
+## D107 · A purpose string for the authorisation this app never asks for
+
+**Decided:** 2026-08-12 · **Status:** binding · Repairs ITMS-90683 on 2.0.0
+build 10. Narrows nothing in
+[D9](#d9--near-is-your-city--picked-from-a-list-or-located-on-the-device):
+what the app asks the user for is unchanged.
+
+**Decision.** `ios/App/App/Info.plist` carries
+`NSLocationAlwaysAndWhenInUseUsageDescription`, byte-identical to the
+when-in-use string that was already there. Nothing else about location
+moves — still when-in-use only, still reduced accuracy, still on an
+explicit tap, still a city name as the only thing that leaves the device.
+`npm run check:ios-location` holds that shape, including two invariants
+that had no guard at all before.
+
+### What Apple asked for, and why the tree looked compliant
+
+App Store Connect accepted build 10, then emailed: the bundle references
+one or more APIs that access sensitive user data and has no
+`NSLocationAlwaysAndWhenInUseUsageDescription`. Its wording is the part
+worth keeping — *"even though your app might not use these APIs, a purpose
+string is still required."* The analysis reads the linked binary, not the
+call sites, and every local gate reads the call sites.
+
+So the whole tree was consistent and wrong together: `locate.ts` requests
+coarse, one fix, foreground; the plugin requests when-in-use; the plist
+described exactly that. The symbol Apple objected to belongs to a package
+none of those files mention.
+
+### The chain, verified rather than inferred from the warning
+
+```
+@capacitor/geolocation 8.2.0        (package.json)
+  └─ ion-ios-geolocation ≥2.1.0     (its Package.swift — SwiftPM, fetched at build time)
+       └─ IONGLOCAuthorisationRequestType.always
+            └─ CLLocationManager.requestAlwaysAuthorization
+```
+
+Two facts, both read in source rather than reasoned about:
+
+- The upstream enum compiles both branches unconditionally —
+  `case .whenInUse: locationManager.requestWhenInUseAuthorization` and
+  `case .always: locationManager.requestAlwaysAuthorization`, one `switch`,
+  no `#if`. The Always symbol is in every archive we have ever shipped.
+- The plugin has exactly one call site,
+  `requestLocationAuthorisation(type: .whenInUse)`, and it is not
+  parameterised by anything the JS API can set. Nothing this app can do
+  reaches the `.always` branch.
+
+The plugin's own README documents the consequence and prescribes this fix:
+add the key, reuse the when-in-use text, "since this permission prompt
+won't appear to users".
+
+### Why the string is a copy, and why that is honest
+
+It is unreachable text. An Always prompt requires an Always request, so no
+user will ever read this string — which is precisely the argument for
+keeping it identical rather than writing something new for it. Text nobody
+can see is text nobody reviews, and this one sits one line from
+`web/privacy.html`'s "no location history, no background location". A
+second, drifting description of the same single foreground reading is a
+liability with no reader to serve.
+
+Two alternatives were weighed and dropped:
+
+- **Remove the symbol instead of describing it.** D16's Facebook stripper
+  is the precedent, and it does not transfer: that SDK is named in an SPM
+  manifest sitting in `node_modules`, a file we already rewrite on
+  `postinstall`. `ion-ios-geolocation` is fetched by SwiftPM from GitHub
+  during the build, so there is nothing in-tree to patch — the equivalent
+  move is a pinned fork of a third-party package, permanently, to delete a
+  branch that is already dead code.
+- **Write a string that says the app does not use background location.** A
+  purpose string is shown to a user being asked for something; a
+  disclaimer aimed at a reviewer is not one, and it would be the only
+  sentence in this bundle written for an audience that cannot see it.
+
+### What deliberately does not move
+
+- **The App Store privacy label.** Still Coarse Location — linked to user,
+  App Functionality, optional (`docs/data-inventory.md`). A purpose string
+  grants nothing and collects nothing; the label answers what the app
+  collects, which is a city name derived on-device from one coarse fix.
+  **Precise stays unticked** and `NSLocationDefaultAccuracyReduced` stays
+  true.
+- **`web/privacy.html` and the in-app privacy panel.** Every sentence they
+  make — never in the background, never continuously, only on a tap —
+  remains true of the built app, and the guard below is what keeps that
+  from being a claim about intent.
+- **Android.** ITMS-90683 is an Apple upload check; the manifest's
+  coarse/fine story (D9) is untouched.
+
+### The guard, and the two loose invariants it picked up
+
+`scripts/check-ios-location.mjs`, in ci.yml's lint job beside
+`check:ios-spm` and `check:ios-facebook` — client-only, off the deploy
+path. It asserts five things; only the first is what Apple asked for:
+
+1. Both purpose strings present and non-empty.
+2. The two strings identical, so the unreadable one cannot drift.
+3. `NSLocationDefaultAccuracyReduced` still true. **This had no guard.**
+   D9's precision cap — the load-bearing half of "never tick Precise" —
+   was held by a comment sitting next to it, and losing it would flip the
+   store label while every test stayed green.
+4. `UIBackgroundModes` does not contain `location`. This is the
+   behavioural half of the new key being harmless.
+5. The installed plugin still requests `.whenInUse`, and only that. A
+   plugin upgrade is the one realistic way an Always prompt could start
+   appearing, and on that day the string in the plist becomes a lie told
+   in a system dialog. Zero call sites fails too: "found nothing" must not
+   be how this passes.
+
+Each was verified by mutation — drift the string, delete the key, flip the
+accuracy flag, add the background mode, point the plugin at `.always`,
+rename its call — and each fails naming its own reason.
+
+### Known limits, recorded
+
+- **No local tool reports ITMS-\*.** This check asserts the shape Apple
+  asked for, not Apple's acceptance of it; the proof is the next upload's
+  mail, or its silence. The gap is structural — the analysis runs on
+  their side of the transfer.
+- **The guard reads installed plugin source**, so it needs `npm ci` (same
+  as `check:ios-facebook`, and the same reason: the version range in
+  `package.json` is not what Xcode compiles).
+- **Build 10 stands.** The mail is a warning on a successful delivery, not
+  a withdrawal; the TestFlight build is unaffected and the fix rides the
+  next one.
+## D108 · Two providers leave the bridge, and the mount suite stops being one file
 
 **Decided:** 2026-08-12 · **Status:** binding · Two independent findings
 from an audit of the tree, both of the same kind: a gate that had stopped
@@ -10214,9 +10343,9 @@ where it was 6, which is slack that will get spent, and the ceiling is
 deliberately not being lowered to match inside a change that was not
 about the bundle.
 
-## D108 · LEARN leaves the bridge, and takes the load-order bug with it
+## D109 · LEARN leaves the bridge, and takes the load-order bug with it
 
-**Decided:** 2026-08-12 · **Status:** binding · Follow-on to D107, using
+**Decided:** 2026-08-12 · **Status:** binding · Follow-on to D108, using
 the provider view that record added.
 
 **Decision.** `learn-progress.js` (`LEARN`) and `learn-data.js`
@@ -10227,7 +10356,7 @@ the layer with no cross-module global references at all.
 
 ### The seam was two modules, not one, and only half of it was the ask
 
-`LEARN` alone was the item on D107's list: 25 sites, 5 consumers.
+`LEARN` alone was the item on D108's list: 25 sites, 5 consumers.
 Converting only that would have left the thing worth fixing in place.
 `learn-progress.js` opened with
 
@@ -10257,9 +10386,9 @@ the ordering was the caller's problem. That line is deleted, and its
 absence is the win rather than a tidy-up — a step nobody can forget any
 more.
 
-### D107's prediction did not hold here, and that is worth recording
+### D108's prediction did not hold here, and that is worth recording
 
-D107 said "every remaining conversion should be expected to raise the
+D108 said "every remaining conversion should be expected to raise the
 suppression number before it lowers it", on the strength of the six
 `refs` findings the `DUELS` conversion surfaced once the React Compiler
 could resolve the store. This conversion surfaced **none**: the count
@@ -10268,7 +10397,7 @@ suppression was retired either. One `useEffect(() => { if (window.LEARN
 && …) … }, [])` in `map-tab.jsx` became the clean shape and had carried
 no directive to begin with.
 
-So the D107 sentence is a thing to *check for*, not a rule. The
+So the D108 sentence is a thing to *check for*, not a rule. The
 Compiler's bail-out depends on what else the component does, not on the
 bridge alone.
 
@@ -10297,7 +10426,7 @@ and the two shapes live in the same file.
 
 ### The alias problem, and why `L` was not renamed everywhere
 
-D107 renamed `D` → `DUELS` at every site. That was safe because `D` was
+D108 renamed `D` → `DUELS` at every site. That was safe because `D` was
 the DUELS alias in every file that used it. `L` is not: `world-feed.jsx`
 line 390 binds `const L = window.LIVE`, and `map-tab.jsx` line 797 has a
 bare `L` inside an SVG path template (`M x y L x y`). A blanket rename
@@ -10316,17 +10445,17 @@ to change; and `map-tab.jsx` keeps a bare `{ … }` block where
 `if (window.LEARN)` used to be, with a comment saying so, because
 de-indenting 23 lines would bury the change in whitespace.
 
-### D107 amendment — the entry-chunk figure was not a win, and the gate says it was
+### D108 amendment — the entry-chunk figure was not a win, and the gate says it was
 
-D107's closing paragraph read the entry chunk falling 729 → 707 KB as
+D108's closing paragraph read the entry chunk falling 729 → 707 KB as
 "the removed global registrations and dead guards were shipping". This
 conversion took it further, 707 → **685 KB**, and measuring the other
 number shows what actually happened:
 
 | tree | entry chunk | entry + every `modulepreload` | total JS |
 | --- | ---: | ---: | ---: |
-| before D107 | 728.5 KB | 1271.1 KB | 2118 KB |
-| after D108 | 685.2 KB | **1270.2 KB** | 2116 KB |
+| before D108 | 728.5 KB | 1271.1 KB | 2118 KB |
+| after D109 | 685.2 KB | **1270.2 KB** | 2116 KB |
 
 The entry chunk is 43 KB lighter and **first paint is 0.9 KB lighter**.
 The bytes moved into sibling chunks that `index.html` preloads anyway —
@@ -10366,9 +10495,9 @@ replacement pattern is already in-tree (`vi.mock("../data/live")`, used
 by every `ui/*.test.tsx`), so that conversion is a test-architecture
 change with a known shape rather than an unknown one.
 
-## D109 · The bundle gets the number that decides first paint, and it immediately finds 327 KB
+## D110 · The bundle gets the number that decides first paint, and it immediately finds 327 KB
 
-**Decided:** 2026-08-12 · **Status:** binding · Follow-on to D108's
+**Decided:** 2026-08-12 · **Status:** binding · Follow-on to D109's
 amendment, which measured the hole this closes.
 
 **Decision.** `check:bundle` gains a third ceiling, `MAX_EAGER_KB` — the

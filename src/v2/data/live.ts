@@ -19,7 +19,7 @@
 // (decision D5) — this module never reads another user's documents.
 // Comments and who-voted stay OFF for live questions (decision D1).
 
-// ── the Firestore/Functions API, bound rather than imported (D109) ──
+// ── the Firestore/Functions API, bound rather than imported (D110) ──
 //
 // These were static imports, and the note here used to explain why: seven
 // call sites had ALSO `await import()`ed them, which bought nothing, because

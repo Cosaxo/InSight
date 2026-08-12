@@ -1,6 +1,6 @@
 // Ported from design/spec-modules/scenes.js (the historical prototype — no sync
 // script survives; THIS file is the live source now, hand-edits and all).
-// OFF THE GLOBAL BRIDGE (D107): `SCENES` is a named export, not a
+// OFF THE GLOBAL BRIDGE (D108): `SCENES` is a named export, not a
 // `window.SCENES`, so its four consumers hold it as a module binding that
 // load order cannot leave unset. Nothing here publishes to global scope.
 import React from 'react';

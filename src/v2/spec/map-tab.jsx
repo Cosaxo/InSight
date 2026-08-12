@@ -91,7 +91,7 @@ function MapTab({ rail = true, anchorsOn = true, recency = true, fields: fieldsO
     // Braces without a condition: `if (window.LEARN)` was a load-order guard,
     // and an imported binding cannot be unset — but the block scopes `got`/`n`,
     // and de-indenting 23 lines to drop it would bury this change in a
-    // whitespace diff (D108). An empty `mastered()` was always a no-op here.
+    // whitespace diff (D109). An empty `mastered()` was always a no-op here.
     {
       const got = LEARN.mastered();
       const n = got.length;

@@ -50,7 +50,7 @@ vi.mock("../../lib/firebase", () => ({
   firebaseEnabled: true,
   anonSignIn: () => Promise.resolve("uid_test"),
   getDb: () => Promise.resolve({ __db: true }),
-  // The API surfaces live.ts binds off the same promise as getDb (D109).
+  // The API surfaces live.ts binds off the same promise as getDb (D110).
   // `vi.mock("firebase/firestore")` in this file already replaced the real
   // module (vi.mock hoists, so its position below is immaterial), so importing
   // it here hands the store exactly the doubles this file asserts on — and

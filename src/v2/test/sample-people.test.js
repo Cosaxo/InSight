@@ -31,7 +31,7 @@ import { DUELS } from "../spec/duels-data.js";
 const people = IS_DATA.people;
 const byId = new Map(people.map((p) => [p.id, p]));
 // A thunk, not the binding, because every call site reads it lazily and
-// this keeps that shape unchanged now the store is an import (D107).
+// this keeps that shape unchanged now the store is an import (D108).
 const D = () => DUELS;
 
 describe("the circle roster", () => {
