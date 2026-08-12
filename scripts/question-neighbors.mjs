@@ -32,20 +32,43 @@
 //   duel   — content/duel-questions.json, group + oneVsOne together
 //            (D40: a duel lane dedups against both banks)
 //   pick   — window.PICK_QS (src/v2/spec/pick-data.js)
+//   learn  — content/learn-questions.json, scored on prompt + the CORRECT
+//            answer only (D111). See below for why that one domain differs.
 // Deliberately NOT gated: suggestions.js seeds against the daily archive —
 // two seeds are byte-level twins of dailies BY DESIGN (the board depicts
 // the "picked → promoted" story), so gating them would red a green tree;
 // the lookup mode still reports them so a writer sees the collision.
-// Learn cards are also out (v1): two cards may legitimately share the
-// vocabulary of one fact — their dupe bar is the fact, not the phrasing,
-// and only a human can check a fact (D32).
+//
+// LEARN, AND WHY IT SCORES DIFFERENTLY (D111, 2026-08-12). This header used
+// to end "Learn cards are also out (v1): two cards may legitimately share the
+// vocabulary of one fact." That reasoning was right about the measurement and
+// wrong about the conclusion, and measuring separated the two. Scored like
+// every other domain — prompt plus ALL option labels — the learn bank's
+// closest pair is 0.444: sol1 "Which planet is closest to the Sun?" against
+// sol2 "Which planet is hottest?", two genuinely different questions that
+// collide only because a field's cards offer the same DISTRACTORS by
+// construction (every planet card lists the same planets). Not enough room
+// under GATE to gate honestly. But distractor overlap is not what a duplicate
+// learn card is: a dupe is two cards teaching the same FACT, and a fact is a
+// prompt plus its answer. Scored that way the bank's closest pair is 0.333 —
+// cell4 "Where does an animal cell keep its DNA?" against cell6 "Which of
+// these cells has no nucleus?" — the same wide, stable gap the other four
+// domains sit in, so learn gates at the same GATE for the same reason.
+// What still cannot be measured is unchanged and is why the writing rule
+// stands: only a human can tell whether two differently-worded prompts test
+// one fact (D32).
 //
 // Modes:
 //   (no args)                      scan every domain; exit 1 on any pair
 //                                  ≥ GATE not covered by ALLOW
 //   --candidate "prompt"           rank the candidate against a domain
 //     [--options "A|B|C"]          (default daily, plus the suggestion
-//     [--domain daily|feed|duel|pick] [--top N]   seeds when daily)
+//     [--domain daily|feed|duel|pick|learn] [--top N]   seeds when daily)
+//                                  For --domain learn, pass the correct
+//                                  answer alone as --options: the domain is
+//                                  scored on prompt + answer, and handing it
+//                                  the distractors would score the candidate
+//                                  on text the corpus side deliberately drops.
 //
 // Node stdlib only, deterministic, like every gate here.
 import { readFileSync } from "node:fs";
@@ -159,6 +182,7 @@ export function buildDomains() {
   );
   const feed = JSON.parse(readFileSync(join(root, "content", "feed-questions.json"), "utf8")).questions;
   const duel = JSON.parse(readFileSync(join(root, "content", "duel-questions.json"), "utf8"));
+  const learn = JSON.parse(readFileSync(join(root, "content", "learn-questions.json"), "utf8")).cards;
 
   const entry = (id, q) => ({ id, prompt: q.prompt, tokens: tokensOf(textOf(q)) });
   return {
@@ -174,6 +198,8 @@ export function buildDomains() {
       ...(duel.romantic ?? []).map((q) => entry(q.id, q)),
     ],
     pick: pickQ.map((q) => entry(q.id, q)),
+    // Prompt + the correct answer, never the distractors (header).
+    learn: learn.map((c) => ({ id: c.id, prompt: c.q, tokens: tokensOf([c.q, c.a[c.c]].join(" ")) })),
     // report-only overlay for the daily lookup, never a gated domain (the
     // header says why)
     suggestions: sugg.map((q) => entry(q.id, q)),
@@ -221,7 +247,7 @@ if (invokedDirectly) {
     const top = Number(flag("--top") || 5);
     const domain = domains[domainName];
     if (!domain) {
-      console.error(`neighbors: unknown domain ${domainName} (daily|feed|duel|pick)`);
+      console.error(`neighbors: unknown domain ${domainName} (daily|feed|duel|pick|learn)`);
       process.exit(1);
     }
     const options = (flag("--options") || "").split("|").filter(Boolean);
@@ -239,7 +265,7 @@ if (invokedDirectly) {
 
   // gate mode
   let failed = false;
-  for (const name of ["daily", "feed", "duel", "pick"]) {
+  for (const name of ["daily", "feed", "duel", "pick", "learn"]) {
     const { hits, closest } = scanDomain(domains[name]);
     const closeLabel = closest
       ? `closest ${closest.s.toFixed(3)} (${closest.a.id} ~ ${closest.b.id})`

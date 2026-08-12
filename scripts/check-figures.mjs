@@ -145,17 +145,24 @@ if (!seededQuestions || !dailyQuestions) {
 // manual can quote them. QUESTION-FARM.md is LIVE documentation — the
 // scheduled runs obey it verbatim — so a drifted budget figure there is
 // not a stale doc, it is a mis-instructed run.
-const budgetSrc = read("scripts/farm-budget.mjs");
-const budgetConst = (name) => {
-  const m = budgetSrc.match(new RegExp(`export const ${name} = (\\d+)`));
-  if (!m) {
-    throw new Error(
-      `scripts/farm-budget.mjs no longer declares ${name} — fix this scan, `
-      + "a figure gate reading zero is worse than no gate.",
-    );
-  }
-  return Number(m[1]);
+const constFrom = (rel) => {
+  const src = read(rel);
+  return (name) => {
+    const m = src.match(new RegExp(`export const ${name} = (\\d+)`));
+    if (!m) {
+      throw new Error(
+        `${rel} no longer declares ${name} — fix this scan, `
+        + "a figure gate reading zero is worse than no gate.",
+      );
+    }
+    return Number(m[1]);
+  };
 };
+const budgetConst = constFrom("scripts/farm-budget.mjs");
+// The D111 learn regulator's constants, same reasoning: the learn lane's
+// section of QUESTION-FARM.md is what a run obeys, so a drifted cap there
+// hands it a budget the script does not compute.
+const learnConst = constFrom("scripts/learn-budget.mjs");
 
 const FIGURES = [
   {
@@ -322,6 +329,35 @@ const FIGURES = [
     re: /\*\*(\d+)\*\* unreviewed questions on the lane's open PR/,
     actual: budgetConst("OPEN_MAX"),
     fix: (n) => `"**${n}** unreviewed questions on the lane's open PR"`,
+  },
+  // The four D111 learn-lane figures, quoted in § The learn-card lane.
+  {
+    file: "docs/QUESTION-FARM.md",
+    what: "the learn lane's per-run cap (RUN_CAP)",
+    re: /up\s*\n?\s*to \*\*(\d+) cards per run\*\*/,
+    actual: learnConst("RUN_CAP"),
+    fix: (n) => `"up to **${n} cards per run**"`,
+  },
+  {
+    file: "docs/QUESTION-FARM.md",
+    what: "the learn per-field depth target (FIELD_TARGET)",
+    re: /\*\*(\d+) cards per\s*\n?\s*field\*\*/,
+    actual: learnConst("FIELD_TARGET"),
+    fix: (n) => `"**${n} cards per field**"`,
+  },
+  {
+    file: "docs/QUESTION-FARM.md",
+    what: "the learn open-PR review ceiling (OPEN_MAX)",
+    re: /\*\*(\d+)\*\* unreviewed cards on\s*\n?\s*that PR/,
+    actual: learnConst("OPEN_MAX"),
+    fix: (n) => `"**${n}** unreviewed cards on that PR"`,
+  },
+  {
+    file: "docs/QUESTION-FARM.md",
+    what: "the learn per-field minimum batch (MIN_CHUNK)",
+    re: /at least \*\*(\d+) cards into any field it touches\*\*/,
+    actual: learnConst("MIN_CHUNK"),
+    fix: (n) => `"at least **${n} cards into any field it touches**"`,
   },
 ];
 

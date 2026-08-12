@@ -20,20 +20,39 @@
 // question as a civic cue), not a paraphrase ("the fjord city", "our
 // capital"). The farm manual's re-read stays the rule; this is its floor.
 //
+// THE LEARN SURFACE (D111, 2026-08-12). Learn was the last lane with no
+// pre-flight at all, and the only one where that gap costs the most: dailies
+// and feed questions pass two gates (archive PR, then a human promotion PR),
+// but a merged learn card reaches production on the next reseed — "one gate
+// instead of two means the PR review IS the production review"
+// (QUESTION-FARM.md § the learn-card lane). The lane with the highest bar had
+// the least mechanical support, so every learn rule was spent on a reviewer's
+// attention. check:content already owns the STRUCTURAL half (four options, c/t
+// in range, c≠t, p in 1..99, k 2..6 words); everything added here is a rule it
+// does not cover, measured against the 96-card bank the way the daily bounds
+// were measured against theirs.
+//
 // Modes:
-//   (no args)              gate: form rules over daily / feed / duel / pick,
-//                          provenance coverage (content/provenance.json ↔
-//                          the banks), and the id/bank headroom tripwires.
-//                          Exit 1 on any violation.
+//   (no args)              gate: form rules over daily / feed / duel / pick /
+//                          learn, provenance coverage
+//                          (content/provenance.json ↔ the banks), and the
+//                          id/bank headroom tripwires. Exit 1 on any
+//                          violation.
 //   --candidate "prompt"   pre-flight one candidate; prints a review-packet
-//     [--surface daily|feed] [--type binary|choice|scale|rating|dilemma|vote]
+//     [--surface daily|feed|learn] [--type binary|choice|scale|rating|dilemma|vote]
 //     [--options "A|B|C"] [--tone light|blend|deep] [--tag "two words"]
 //     [--cat "Top / Sub"]  (daily; for feed pass the bare topic id, e.g.
 //     --cat sport) [--alts "Top / Sub, Top / Sub"] [--axis slug]
+//     learn adds [--correct N] [--trap N] [--p NN] [--k "map label"]
+//     [--why "one line"] [--field cell]
 //   --batch <file.json>    pre-flight an array of candidate objects
 //                          ({prompt, type, options?, tone?, tag?, cat?,
 //                          alts?, axis?, surface?}) plus the batch-mix
-//                          rules a single candidate cannot express.
+//                          rules a single candidate cannot express. Learn
+//                          entries may be passed in their NATIVE card shape
+//                          ({id, f, q, a, c, t, p, k, w}) — the same JSON that
+//                          gets appended to content/learn-questions.json, so
+//                          the thing pre-flighted is the thing shipped.
 //
 // Node stdlib only, deterministic, like every gate here.
 import { readFileSync, existsSync } from "node:fs";
@@ -59,6 +78,48 @@ export const OPTION_SHAPES = {
   scale: [0, 0],
   rating: [0, 0],
 };
+
+// ── the learn bounds (measured 2026-08-12 over the 96-card bank) ──
+// LENGTH_TELL is the one giveaway a permuted option order cannot fix: a
+// clause-long correct answer beside three one-word distractors is findable
+// without knowing the fact. The corpus maximum is 2.29× — c207's "The Soviet
+// Union" against "The USA", which is a name being longer than another name,
+// not a tell — so the gate sits at 3.0 rather than hugging the measurement:
+// tighter would fail honest content, which is how a gate earns a waiver and
+// then gets ignored.
+export const LEARN_LENGTH_TELL = 3.0;
+// "never an argument, never more than ~20 words" (learn-data.js on `w`).
+// Corpus runs 10–20; 24 is the same one-notch headroom TAG_WORDS_MAX gets.
+export const LEARN_WHY_WORDS_MAX = 24;
+// Per-field difficulty span. The level engine (learn-progress.js) targets a
+// card whose p is nearest your level and clamps that level to LMIN..LMAX, so
+// a field whose cards all cluster at one p cannot answer "on your level" for
+// anybody — plan() still serves them, always as the worst available match.
+// Corpus minimum span is 25 (Commonly confused, 46–71); the gate sits at 20.
+export const LEARN_FIELD_SPAN_MIN = 20;
+// The MCQ filler options this bank has never used and should not start using:
+// they test whether the reader has met the form, not the fact. "Either" and
+// "Neither" are deliberately NOT here — they are substantive answers on a
+// grammar card (con3 offers both), and a rule that fails real content is worse
+// than no rule.
+const LEARN_FILLER = /^(all|none) of (the|these)\b|^both of\b/i;
+
+// p's legal range is not taste — it is read from the level engine's own clamp
+// (learn-progress.js `const LMIN = 24, LMAX = 92`), because a card outside it
+// is one no reader is ever AT the level for. Cross-read rather than copied so
+// the two cannot drift; a scan that stops matching throws instead of silently
+// widening the gate to everything (the check-figures discipline).
+function learnLevelBounds() {
+  const src = readFileSync(join(root, "src", "v2", "spec", "learn-progress.js"), "utf8");
+  const m = src.match(/const LMIN = (\d+),\s*LMAX = (\d+)/);
+  if (!m) {
+    throw new Error(
+      "learn-progress.js no longer declares `const LMIN = N, LMAX = N` — fix this scan. "
+      + "A p-range gate reading nothing is worse than no gate.",
+    );
+  }
+  return { LMIN: Number(m[1]), LMAX: Number(m[2]) };
+}
 
 // ── hard rule 6's tripwire ──
 // A hand-kept watchlist, deliberately small: country names, demonyms, and
@@ -140,6 +201,7 @@ export function loadCorpus() {
     "window.PICK_QS = [",
     "pick-data.js",
   );
+  const learn = JSON.parse(readFileSync(join(root, "content", "learn-questions.json"), "utf8"));
   return {
     specQ,
     dailyIdOf,
@@ -149,7 +211,18 @@ export function loadCorpus() {
     feedTopics: new Set(feed.topics.map((t) => t.id)),
     duel: [...duel.group, ...duel.oneVsOne, ...(duel.romantic ?? [])],
     pick,
+    learn,
+    learnLevels: learnLevelBounds(),
   };
+}
+
+// A learn card wears different field names than every other surface (q/a
+// rather than prompt/options). Normalising at the boundary is what lets the
+// UNIVERSAL rules — prompt bounds, option-label bounds, the place tripwire —
+// apply to learn for free, which is most of the point of adding the surface
+// here rather than writing a sixth standalone script.
+export function learnView(card) {
+  return { ...card, surface: "learn", prompt: card.q ?? card.prompt, options: card.a ?? card.options };
 }
 
 // ── the rules ──
@@ -189,7 +262,18 @@ export function checkQuestion(q, surface, ctx) {
     }
   }
 
-  const place = placeCivicHit(q);
+  // Hard rule 6 is an OPINION-surface rule and does not reach learn, which is
+  // a scoping decision rather than an exemption: the rule's own test is
+  // "whether the answer split is mainly interesting to the PLACE rather than
+  // to the person answering", and a card with a correct answer has no such
+  // split to sell — its wrong answers are a misconception map, and nobody is
+  // buying "52% know written law started in Mesopotamia" as insight into
+  // Mesopotamians. Measured before scoping it out: the tripwire fired on anc3,
+  // that exact card, and 14 of 96 cards name a watched place while history and
+  // geography are 4 of the 12 fields — so the false positives grow with the
+  // bank. A gate that reliably cries wolf on legitimate content is one whose
+  // waivers stop being read.
+  const place = surface === "learn" ? null : placeCivicHit(q);
   if (place) {
     err(
       "place-civic",
@@ -228,7 +312,86 @@ export function checkQuestion(q, surface, ctx) {
     if (q.cat && !ctx.feedTopics.has(q.cat)) err("topic", `topic ${JSON.stringify(q.cat)} is not in the feed taxonomy`);
   }
 
+  // Learn's own rules. Everything check:content already validates (four
+  // options, c/t in range, c≠t, p in 1..99, k 2..6 words) is deliberately
+  // absent — two gates disagreeing about the same rule is how one of them
+  // gets edited to match the other and both stop meaning anything.
+  if (surface === "learn") {
+    const seen = new Map();
+    for (const o of opts) {
+      const fold = String(o).toLowerCase().trim().replace(/\s+/g, " ");
+      if (seen.has(fold)) {
+        err("learn-dupe-option", `options ${seen.get(fold)} and ${JSON.stringify(String(o))} are the same answer — a card offers four`);
+      }
+      seen.set(fold, JSON.stringify(String(o)));
+      if (LEARN_FILLER.test(String(o).trim())) {
+        err("learn-filler", `option ${JSON.stringify(String(o))} tests whether the reader has met the FORM, not the fact`);
+      }
+    }
+
+    const c = q.c;
+    if (typeof c === "number" && opts[c] != null && opts.length > 1) {
+      const others = opts.filter((_, i) => i !== c).map((o) => String(o).length);
+      const ratio = String(opts[c]).length / Math.max(...others, 1);
+      if (ratio > LEARN_LENGTH_TELL) {
+        err(
+          "learn-length-tell",
+          `the correct option is ${ratio.toFixed(1)}× the longest distractor (max ${LEARN_LENGTH_TELL}) — ` +
+            "findable without the fact. Lengthen the distractors rather than trimming the answer.",
+        );
+      }
+    }
+
+    const { LMIN, LMAX } = ctx.learnLevels;
+    if (typeof q.p === "number" && (q.p < LMIN || q.p > LMAX)) {
+      err(
+        "learn-p-range",
+        `p ${q.p} is outside the level engine's ${LMIN}..${LMAX} clamp — no reader is ever AT this card's level, ` +
+          "so it can only ever be served as the worst available match",
+      );
+    }
+
+    if (q.w) {
+      const words = String(q.w).trim().split(/\s+/).filter(Boolean).length;
+      if (words > LEARN_WHY_WORDS_MAX) {
+        err("learn-why", `w is ${words} words (max ${LEARN_WHY_WORDS_MAX}) — one line of why, never an argument`);
+      }
+    }
+
+    const k = String(q.k ?? "").trim();
+    if (k) {
+      if (/\?$/.test(k) || /^(what|which|who|when|where|why|how)\b/i.test(k)) {
+        err("learn-label", `k ${JSON.stringify(k)} is a question — the map label is the FACT, and it has to be true standing alone`);
+      }
+      if (k.toLowerCase() === String(q.prompt ?? "").trim().toLowerCase()) {
+        err("learn-label", "k restates the prompt — the map would file this card under the question it asks");
+      }
+    }
+  }
+
   return { errs, warn };
+}
+
+// Per-FIELD rules — what no single card can express. A field is the unit the
+// scheduler serves from (LEARN.plan filters to the fields you follow), so
+// difficulty coverage is a property of the field, not of any card in it.
+export function checkLearnFields(corpus) {
+  const errs = [];
+  const byField = new Map();
+  for (const card of corpus.learn.cards) {
+    if (!byField.has(card.f)) byField.set(card.f, []);
+    byField.get(card.f).push(card.p);
+  }
+  for (const [field, ps] of byField) {
+    const span = Math.max(...ps) - Math.min(...ps);
+    if (span < LEARN_FIELD_SPAN_MIN) {
+      errs.push(
+        `learn field ${field}: p spans ${span} points (${Math.min(...ps)}–${Math.max(...ps)}, min ${LEARN_FIELD_SPAN_MIN}) — ` +
+          `${ps.length} cards at one difficulty cannot answer "on your level" for anybody`,
+      );
+    }
+  }
+  return errs;
 }
 
 // Batch-mix rules — what a single candidate cannot express. "A thin topic
@@ -246,6 +409,23 @@ export function checkBatch(batch) {
     const [topType, topCount] = Object.entries(types).sort((a, b) => b[1] - a[1])[0];
     if (topCount > Math.ceil(daily.length * 0.75)) {
       errs.push(`${topCount} of ${daily.length} daily questions are ${topType} — vary the forms (the scorecard's optionSlots say which earn their place)`);
+    }
+  }
+
+  // Learn's batch rule is difficulty, for the same reason the field rule is:
+  // a run that writes eight cards at p≈60 has widened a field's card count
+  // without widening what it can serve. The batch is the unit a run controls,
+  // so this is where the instruction lands while there is still time to obey
+  // it — the field gate below only says so once the cards are committed.
+  const learn = batch.filter((q) => q.surface === "learn");
+  const ps = learn.map((q) => q.p).filter((p) => typeof p === "number");
+  if (learn.length >= 3 && ps.length) {
+    const span = Math.max(...ps) - Math.min(...ps);
+    if (span < LEARN_FIELD_SPAN_MIN) {
+      errs.push(
+        `${learn.length} learn cards spanning ${span} points of difficulty (${Math.min(...ps)}–${Math.max(...ps)}, ` +
+          `min ${LEARN_FIELD_SPAN_MIN}) — write across the level range, not at the middle of it`,
+      );
     }
   }
   return errs;
@@ -326,17 +506,26 @@ if (invokedDirectly) {
   };
   const corpus = loadCorpus();
 
-  const candidateOf = (raw) => ({
-    surface: raw.surface || "daily",
-    prompt: raw.prompt,
-    type: raw.type || "binary",
-    options: raw.options,
-    tone: raw.tone,
-    tag: raw.tag,
-    cat: raw.cat,
-    alts: raw.alts,
-    axis: raw.axis,
-  });
+  const candidateOf = (raw) => {
+    // A learn card arrives in its native shape (q/a/c/t/p/k/w/f) so a run can
+    // pre-flight the exact JSON it is about to append. `f` is the tell: no
+    // other surface carries it, and requiring --surface learn on a batch of
+    // cards that already say what they are would just be a step to forget.
+    if (raw.surface === "learn" || (raw.f && raw.a && raw.q)) {
+      return { ...learnView(raw), type: raw.type || "know" };
+    }
+    return {
+      surface: raw.surface || "daily",
+      prompt: raw.prompt,
+      type: raw.type || "binary",
+      options: raw.options,
+      tone: raw.tone,
+      tag: raw.tag,
+      cat: raw.cat,
+      alts: raw.alts,
+      axis: raw.axis,
+    };
+  };
 
   const printPacket = (q, i) => {
     const { errs, warn } = checkQuestion(q, q.surface, corpus);
@@ -361,10 +550,27 @@ if (invokedDirectly) {
         .filter(Boolean)
         .map((p) => p.split("/").map((x) => x.trim()));
     const surface = flag("--surface") || "daily";
+    const num = (name) => (flag(name) == null ? undefined : Number(flag(name)));
     const q = candidateOf({
       surface,
       prompt: candidate,
-      type: flag("--type") || "binary",
+      // learn's own fields, ignored by every other surface's rules
+      ...(surface === "learn"
+        ? {
+            q: candidate,
+            a: (flag("--options") || "").split("|").filter(Boolean),
+            f: flag("--field") || undefined,
+            c: num("--correct") ?? 0,
+            t: num("--trap"),
+            p: num("--p"),
+            k: flag("--k") || undefined,
+            w: flag("--why") || undefined,
+          }
+        : {}),
+      // A learn card's type is not a choice the writer makes — every card is
+      // the same four-option know card — so the daily default must not leak
+      // onto it and print "learn/binary" in a packet a reviewer reads.
+      type: flag("--type") || (surface === "learn" ? "know" : "binary"),
       options: (flag("--options") || "").split("|").filter(Boolean),
       tone: flag("--tone") || undefined,
       tag: flag("--tag") || undefined,
@@ -433,6 +639,14 @@ if (invokedDirectly) {
     const { errs, warn } = checkQuestion(q, "pick", corpus);
     report("pick", q.id, errs, warn);
   });
+  corpus.learn.cards.forEach((card) => {
+    const { errs, warn } = checkQuestion(learnView(card), "learn", corpus);
+    report("learn", card.id, errs, warn);
+  });
+  for (const e of checkLearnFields(corpus)) {
+    failed = true;
+    console.error(`  ✗ ${e}`);
+  }
 
   for (const e of checkProvenance(corpus)) {
     failed = true;
@@ -445,7 +659,8 @@ if (invokedDirectly) {
   }
   for (const w of head.warn) console.log(`  • ${w}`);
 
-  const n = corpus.specQ.length + corpus.feed.questions.length + corpus.duel.length + corpus.pick.length;
+  const n = corpus.specQ.length + corpus.feed.questions.length + corpus.duel.length
+    + corpus.pick.length + corpus.learn.cards.length;
   console.log(`quality: ${n} questions checked${failed ? "" : " · all bounds hold"}`);
   process.exit(failed ? 1 : 0);
 }
