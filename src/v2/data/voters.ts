@@ -27,17 +27,12 @@
 // rules.test.ts). It is also what keeps sealed duel answers out: they
 // carry surface "group"/"duo" and are nobody's business until the reveal.
 
-import {
-  collectionGroup,
-  documentId,
-  getDocs,
-  limit as fsLimit,
-  orderBy,
-  query,
-  where,
-  type Firestore,
-} from "firebase/firestore";
-import { collection as fsCollection } from "firebase/firestore";
+// The API arrives through lib/firebase's memoised dynamic import, not a
+// static one (D106) — a static import here would put the 292 KB Firestore
+// SDK back in the first-paint graph, because live.ts imports this module
+// eagerly. The type import is erased and costs nothing.
+import { getFirestoreApi } from "../../lib/firebase";
+import type { Firestore } from "firebase/firestore";
 
 // The surfaces a world answer can carry. Must match the array in
 // firestore.rules' collection-group grant exactly — a value here the rule
@@ -156,6 +151,7 @@ export async function fetchVoters(
   myUid: string | null,
   names: Record<string, string>,
 ): Promise<Voter[]> {
+  const { collectionGroup, getDocs, limit: fsLimit, orderBy, query, where } = await getFirestoreApi();
   const snap = await getDocs(query(
     collectionGroup(db, "answers"),
     where("qid", "==", qid),
@@ -195,6 +191,9 @@ export async function resolveNames(
 ): Promise<void> {
   const missing = uids.filter((u) => !(u in names));
   if (!missing.length) return;
+  const {
+    collection: fsCollection, documentId, getDocs, query, where,
+  } = await getFirestoreApi();
   for (const batch of chunkUids(missing)) {
     const snap = await getDocs(query(
       fsCollection(db, "v2_users"),

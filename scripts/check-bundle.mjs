@@ -9,12 +9,13 @@
 // dodged by splitting one large chunk into two merely-large ones, and a
 // total alone permits a single monolith.
 
-import { readdirSync, statSync } from "node:fs";
+import { readdirSync, readFileSync, statSync } from "node:fs";
 import { resolve, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const ASSETS = join(root, "dist", "assets");
+const INDEX_HTML = join(root, "dist", "index.html");
 
 // Current largest chunk is the entry, 723.4 KB. The spec layer used to load
 // in one piece, and this comment used to say check-spec-globals required that —
@@ -189,8 +190,83 @@ const ASSETS = join(root, "dist", "assets");
 // way for the first time since this file was written: entry 727.0 KB
 // (8 KB under), total 2119 KB (21 KB under). Both features shipped and
 // first paint got SMALLER than it was before either of them.
+// ── THE THIRD NUMBER, and why two were not enough (D106) ────────────
+//
+// Neither ceiling above is the cost of a cold start, and between them sits
+// a hole big enough to walk two consecutive changes through — which is
+// exactly what happened.
+//
+// The per-chunk ceiling is improved by moving bytes OUT of the entry into a
+// chunk that `index.html` preloads anyway; first paint fetches, parses and
+// evaluates both, so the relocation is worth zero. The total is the other
+// error in the other direction: it counts Sentry (~435 KB), the world-feed
+// group and the overlay group, none of which first paint touches, so it
+// cannot say whether the eager set grew.
+//
+// Measured across D104 and D105, which is what put this here:
+//
+//   | tree        | entry chunk | EAGER GRAPH | total JS |
+//   | ----------- | ----------: | ----------: | -------: |
+//   | before D104 |    728.5 KB |   1271.1 KB |  2118 KB |
+//   | after D105  |    685.2 KB |   1270.2 KB |  2116 KB |
+//
+// 43 KB off the gated number; 0.9 KB off first paint. `duo-daily` went
+// 21.0 → 41.0 KB and `LiveTakesPanel` 11.4 → 33.7 KB, both preloaded. Two
+// commits banked a win the app did not get, and both gates said OK.
+//
+// src/v2/README.md has recorded the special case since the `sample-data.js`
+// conversion ("became its own chunk that first paint still preloads"). This
+// is the general form, held by a number instead of by a paragraph.
+//
+// WHAT IT MEASURES. The entry `<script type="module">` plus every
+// `<link rel="modulepreload">` Vite emits into `dist/index.html` — which is
+// precisely the set the browser fetches before it can paint, and precisely
+// what a static import graph decides. Deferred chunks (`loadWorldFeed`,
+// `loadOverlays`, `React.lazy`, Sentry) are absent from that list and stay
+// absent, which is the point: this is the number D25 and D38 were actually
+// moving, and neither could see it.
+//
+// WHAT IT CATCHES that the other two do not, measured the same way the 735
+// table was — by making a deferred group eager again and rebuilding. The
+// first draft of this table was REASONED rather than measured and got it
+// wrong, which is worth leaving in the record:
+//
+//   | eager again          |  entry |  total | eager  | 735 | 2140 |  955 |
+//   | -------------------- | -----: | -----: | -----: | --- | ---- | ---- |
+//   | nothing (today)      |  685.2 |   2118 |  944.0 | ok  | ok   | ok   |
+//   | the world-feed group |  863.0 |   2117 | 1087.0 | RED | ok   | RED  |
+//   | Sentry               |  685.2 |   2117 | 1394.0 | ok  | ok   | RED  |
+//   | Firestore (pre-D106) |  685.2 |   2116 | 1270.2 | ok  | ok   | RED  |
+//
+// The feed row was the one this table was first written for, and it does NOT
+// make the case: rolldown merges world-feed back into the ENTRY chunk, so 735
+// catches it first and this constant adds nothing. Predicting otherwise and
+// writing it down as a measurement is the error this repo keeps a probe-first
+// rule for; the first draft of this table did exactly that.
+//
+// THE OTHER TWO ROWS ARE THE ARGUMENT, and they are the same shape.
+//
+// Sentry: make sentry.ts's two dynamic imports static — one plausible edit,
+// no new dependency — and 450 KB joins first paint. It lands in a SIBLING
+// chunk (`live-*.js`, 474 KB) rather than the entry, so the per-chunk ceiling
+// sees 474 < 735 and passes; the total does not move at all, because those
+// bytes were already counted as a lazy chunk. Both old gates say OK to a
+// first paint that got 48% heavier.
+//
+// Firestore: that row is not hypothetical — it is the tree as it stood
+// before D106, and it stood that way for months. `data/live.ts` imported
+// `firebase/firestore` statically, live.ts is eager, and 292 KB of SDK was
+// preloaded on every cold start including builds with no Firebase config at
+// all. The entry chunk never held a byte of it, so 735 was never going to
+// notice, and the total counted it either way.
+//
+// A CEILING, not a ratchet, like its two neighbours — and it comes DOWN with
+// a win for the reason MAX_CHUNK_KB did at 940 → 850: at 1280 the Firestore
+// SDK could silently return to the eager graph and this script would print
+// OK. 955 leaves ~11 KB, the same headroom the last raise of the total left.
 const MAX_CHUNK_KB = 735;
 const MAX_TOTAL_JS_KB = 2140;
+const MAX_EAGER_KB = 955;
 
 let files;
 try {
@@ -215,10 +291,58 @@ const sized = files
 const totalKb = sized.reduce((n, s) => n + s.kb, 0);
 const over = sized.filter((s) => s.kb > MAX_CHUNK_KB);
 
+// ── the eager graph ─────────────────────────────────────────────────
+//
+// Vite writes the entry as a <script type="module"> and every STATIC
+// dependency of it as a <link rel="modulepreload">. Dynamic chunks are not
+// in that list — they are preloaded at runtime by the __vitePreload helper —
+// so parsing this file is the same question as "what does first paint
+// fetch", asked of the artifact rather than of the source.
+let html;
+try {
+  html = readFileSync(INDEX_HTML, "utf8");
+} catch {
+  console.error(
+    `check-bundle: no ${INDEX_HTML}.\nRun \`npm run build\` first.`,
+  );
+  process.exit(1);
+}
+
+const eagerNames = [
+  ...html.matchAll(/<script[^>]+type="module"[^>]+src="\/assets\/([^"]+\.js)"/g),
+  ...html.matchAll(/<link[^>]+rel="modulepreload"[^>]+href="\/assets\/([^"]+\.js)"/g),
+].map((m) => m[1]);
+
+// Same rule as the empty-directory guard above, and it earns its keep here:
+// these two regexes read a generated file, so a change to Vite's emit shape
+// (an unquoted attribute, a different attribute order, a relative base) turns
+// this budget into a silent zero rather than an error.
+if (!eagerNames.length) {
+  console.error(
+    "check-bundle: dist/index.html names no entry script or modulepreload —\n"
+    + "the emit shape changed and the eager-graph budget is measuring nothing.",
+  );
+  process.exit(1);
+}
+
+const byName = new Map(sized.map((x) => [x.f, x.kb]));
+const eager = [...new Set(eagerNames)].map((f) => {
+  const kb = byName.get(f);
+  // A name in index.html with no file in assets/ means the two artifacts
+  // disagree; counting it as 0 would understate the budget.
+  if (kb === undefined) {
+    console.error(`check-bundle: dist/index.html references ${f}, which is not in dist/assets.`);
+    process.exit(1);
+  }
+  return { f, kb };
+}).sort((a, b) => b.kb - a.kb);
+const eagerKb = eager.reduce((n, s) => n + s.kb, 0);
+
 for (const s of sized.slice(0, 5)) {
   console.log(`  ${s.kb.toFixed(0).padStart(5)} KB  ${s.f}`);
 }
 console.log(`  ${totalKb.toFixed(0).padStart(5)} KB  total across ${sized.length} chunks`);
+console.log(`  ${eagerKb.toFixed(0).padStart(5)} KB  eager graph — entry + ${eager.length - 1} modulepreload(s)`);
 
 let failed = false;
 for (const s of over) {
@@ -227,6 +351,19 @@ for (const s of over) {
 }
 if (totalKb > MAX_TOTAL_JS_KB) {
   console.error(`\nOVER total budget: ${totalKb.toFixed(0)} KB (max ${MAX_TOTAL_JS_KB} KB)`);
+  failed = true;
+}
+if (eagerKb > MAX_EAGER_KB) {
+  console.error(`\nOVER eager-graph budget: ${eagerKb.toFixed(0)} KB (max ${MAX_EAGER_KB} KB)`);
+  console.error("  the set first paint must fetch before it can paint:");
+  for (const s of eager.slice(0, 8)) {
+    console.error(`    ${s.kb.toFixed(0).padStart(5)} KB  ${s.f}`);
+  }
+  console.error(
+    "\n  Splitting does NOT help here — a new chunk the entry still imports\n"
+    + "  statically is preloaded and still counted. Defer it (a dynamic import\n"
+    + "  behind loadWorldFeed/loadOverlays/React.lazy) or delete it.",
+  );
   failed = true;
 }
 

@@ -10077,3 +10077,136 @@ deleting `window.LIVE`, which an imported binding cannot do. The
 replacement pattern is already in-tree (`vi.mock("../data/live")`, used
 by every `ui/*.test.tsx`), so that conversion is a test-architecture
 change with a known shape rather than an unknown one.
+
+## D106 · The bundle gets the number that decides first paint, and it immediately finds 327 KB
+
+**Decided:** 2026-08-12 · **Status:** binding · Follow-on to D105's
+amendment, which measured the hole this closes.
+
+**Decision.** `check:bundle` gains a third ceiling, `MAX_EAGER_KB` — the
+entry chunk plus every `<link rel=modulepreload>` in `dist/index.html`,
+which is exactly the set a cold start must fetch before it can paint. It
+found the Firestore SDK sitting in that set on every build, and
+`data/live.ts` and `data/voters.ts` now take the API through
+lib/firebase's existing lazy `impl()` promise instead of importing
+`firebase/*` statically. **Eager graph 1270.2 → 944.0 KB, −327 KB, −26%**,
+with the entry chunk unmoved and the total up 2 KB.
+
+### Why two ceilings were not enough, in one table
+
+Measured by making one group eager again and rebuilding, which is how the
+735 table was built:
+
+| eager again | entry | total | eager | 735 | 2140 | 955 |
+| --- | ---: | ---: | ---: | --- | --- | --- |
+| nothing (after this change) | 685.2 | 2118 | 944.0 | ok | ok | ok |
+| the world-feed group | 863.0 | 2117 | 1087.0 | RED | ok | RED |
+| Sentry | 685.2 | 2117 | 1394.0 | ok | ok | RED |
+| Firestore (the tree before this) | 685.2 | 2116 | 1270.2 | ok | ok | RED |
+
+The per-chunk ceiling is improved by relocating bytes into a chunk the
+entry still imports statically — preloaded, fetched, parsed, and worth
+zero. The total is the same error pointed the other way: it counts Sentry
+(~435 KB) and both deferred groups, which first paint never touches, so
+it cannot see the eager set move at all.
+
+**The feed row is in the table because it does NOT make the case**, and
+the first draft of that table claimed it did. Rolldown merges world-feed
+back into the entry, so 735 catches it first. Writing a predicted row
+down as a measurement is exactly the failure this repo keeps a probe-first
+rule for, and it happened here, in the comment block arguing for
+measurement.
+
+**The Firestore row is not hypothetical.** It is the tree as it stood for
+months, and both existing gates were green for all of it.
+
+### The 292 KB, and why `lib/firebase.ts`'s header was the actual defect
+
+That header ended "so signed-out/mock sessions never download it". It had
+stopped being true: `live.ts` imported `firebase/firestore` and
+`firebase/functions` statically, live.ts is eager, and the SDK was
+`modulepreload`ed even in a build with **no `VITE_FIREBASE_*` at all** —
+the exact case the sentence named. Verified by building with no Firebase
+env and grepping the preload list.
+
+The static imports were deliberate (D64-era): seven call sites had also
+`await import()`ed the same modules, which bought nothing, because a
+module statically imported anywhere in a file is already in that file's
+chunk. That reasoning was right; "so make them static everywhere" was the
+wrong end to fix it from, and nothing was measuring the consequence.
+
+### The 73 call sites did not change, and that is provable rather than lucky
+
+Every Firestore use in `live.ts` sits in a scope that holds a `db` —
+checked, all 73, including the eleven that take no `db` argument
+(`Timestamp.fromMillis`, `serverTimestamp`, `documentId`). A `db` can be
+obtained only from `getDb()`, which awaits lib/firebase's single memoised
+`impl()` promise, which IS the dynamic import of `firebaseImpl.ts`, which
+statically holds `firebase/firestore`. So binding the names off that same
+promise makes every site correct **by the provenance of the value it
+already uses**. There is no load order to audit and no site that could be
+missed — which is the only reason a 73-site change was worth attempting in
+this file.
+
+The mechanism is a local `getDb` in live.ts that shadows the import and
+assigns the bindings; the 25 `await getDb()` sites did not change either.
+`voters.ts` gets an explicit `await getFirestoreApi()` in each of its two
+async functions instead, because those take `db` as a PARAMETER — hanging
+it on "the caller already awaited" would be precisely the cross-module
+ordering assumption this change exists to delete.
+
+### `export * as fsApi` cost 50 KB, measured
+
+The first shape re-exported the namespaces: `export * as fsApi from
+"firebase/firestore"`. That is a use of every export, so rolldown could no
+longer shake the ~85% of the SDK this app never calls — total 2116 → 2166
+KB, over its ceiling, trading 50 KB of lazy weight for the 326 KB of eager
+weight the change was after. Explicit objects listing the 18 + 2 members
+keep both wins.
+
+**And they pin the surface**, which is a second guard for free: live.ts
+destructures the whole object in one statement, so a Firestore member
+added to the store without being added to `fsApi` fails at boot rather
+than at the call. Four test mocks had to grow to match — proof the pin
+binds, since a partial mock now throws at boot instead of at an unused
+call.
+
+### What this change does NOT buy, said plainly
+
+327 KB is bytes, not milliseconds, and the shipping target is a Capacitor
+shell serving local files — so there is no network fetch to save there,
+only parse and evaluate. In a live build `main.jsx` still awaits
+`initLive()`, which still needs Firestore, so the app does not reach
+content sooner; the parse moves off the critical entry graph and onto a
+promise the boot already awaits. **The unambiguous wins are the mock/dev
+and unconfigured-web builds, which now never load the SDK at all, and the
+ceiling itself** — 944 with 11 KB of headroom is a much harder thing to
+regress past than 1270 with nothing watching.
+
+### The ceiling comes down with the win
+
+955, not 1280. Same discipline as MAX_CHUNK_KB at 940 → 850: left at
+1280, the Firestore SDK could silently return to the eager graph and the
+script would print OK, which is how a ratchet becomes a decoration
+(check-bundle.mjs's own words, about itself).
+
+### Verified, and one release-path gate re-proved
+
+`check:web-firebase` greps the emitted JavaScript for the inlined config,
+and this change moved code between chunks — so it was re-run with a full
+fake production config rather than assumed: it concatenates every chunk in
+`dist/assets`, is layout-agnostic, and passes ("live config inlined into
+54 chunk(s)"). Worth checking rather than reasoning about, because its own
+header describes its failure mode as "silent in the worst way".
+
+### Deferred, recorded
+
+`data/circle.ts`, `logic-verify.ts`, `push.ts` and `deviceBind.ts` still
+import `firebase/*` statically. All four are already off the eager graph
+for other reasons — circle behind a dynamic import in live.ts and a
+`React.lazy` body, logic-verify inside `loadOverlays`'s chunk, the other
+two dynamically imported at their call sites — so converting them buys
+zero measured bytes today. The reason to do it anyway is that their
+laziness is incidental rather than stated, and `MAX_EAGER_KB` would catch
+it if that changed. Left as is: a conversion that moves no number is one
+whose only evidence would be the absence of a future regression.
