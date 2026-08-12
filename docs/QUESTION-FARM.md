@@ -210,7 +210,9 @@ summary). Then:
   so in one PR-body line ("farm vintages trail editorial by X on
   evenness; this batch leans harder on the leaders' shapes"). This is
   the loop that makes the upscale self-correcting: the farm is measured
-  by the same k-floored aggregates as everything else, and a vintage
+  by the same public aggregates as everything else — exact and unfloored
+  since D98, so a thin vintage shows up in the scorecard from its first
+  answers rather than sitting invisible under a threshold — and a vintage
   that under-performs is a writing instruction, not a shrug.
 - **Propose retirements, never apply them.** The scorecard lists
   landslides with real volume under `retireProposals`. Cite them in the
@@ -564,8 +566,12 @@ recorded under Governance when taken. Rules, each load-bearing:
 
 - **Budget ≤6 questions/run, at most twice weekly to start.** The feed
   has no consumption clock to pace against, so the bound is signal
-  dilution: a fixed crowd spread over more questions clears the k-floor
-  on fewer of them. While the scorecard shows most feed questions
+  dilution: a fixed crowd spread over more questions leaves each one with
+  too few answers for its evenness score to mean anything. (Pre-D98 this
+  read "clears the k-floor on fewer of them". There is no floor now — the
+  counts publish from answer one — but a split measured on three answers
+  is noise either way, so the bound stands on the statistics rather than
+  on the publishing rule.) While the scorecard shows most feed questions
   unscored, the lane's job is breadth across the ten topics
   (thinnest-first, the coverage rule); raising the cadence is a D97
   amendment for when the scorecard shows the crowd keeping up.
@@ -782,21 +788,25 @@ re-paced, or retired.
 
 | Routine | Schedule (UTC) | Fires into | Contract |
 | --- | --- | --- | --- |
-| InSight question farm | weekly Mon 07:00 — **D33 re-paces to daily 07:00, owner step pending** | maintainer's dev session | this file, the sections above |
+| InSight question farm (daily) | daily 07:00 (D33 re-pace taken 2026-08-11) — **prompt still pre-D33, refresh pending: owner step** | maintainer's dev session | this file, the sections above |
 | Daily catalog question | daily 08:00 | maintainer's dev session | § The daily catalog-question run |
 
-**The pending D33 re-pace (one owner step), now carrying D97's prompt
-refresh too.** A session that is not the
-Routine's bound session cannot edit it (measured 2026-08-01: both the
-prompt and the cron are refused org-wide from outside; re-measured
-2026-08-03 from a sibling remote session — `list_triggers` works, but
-`update_trigger` is refused for the prompt *and* for cron+name alone,
-so the constraint holds and this step really is dev-session-or-UI
-only). So the re-pace
-is done from the dev session itself — "update the question-farm Routine
-(trig_01REC4MfZ1D8qhYoZKxDPtdK): cron `0 7 * * *`, name 'InSight
-question farm (daily)', and replace the prompt with the canonical text
-in docs/QUESTION-FARM.md" — or in the claude.ai Routines UI. The same
+**The remaining owner step: the prompt swap.** The D33 re-pace itself
+was taken 2026-08-11, from a sibling remote session at the owner's
+direction — which re-measured the constraint and found it NARROWED:
+`update_trigger` now accepts cron+name from outside the bound session
+(both were refused 2026-08-01 org-wide and again 2026-08-03), but still
+refuses a prompt edit into a session that is not the caller's own, with
+an error saying exactly that. So the farm Routine now fires daily under
+its old pre-D33 prompt — tolerable only because that prompt already
+defers to this file ("read docs/QUESTION-FARM.md and follow it
+exactly"), and the D97 manual is what it will find; the stale summary
+(12/run, weekly language) is drift waiting to be obeyed, which is why
+the swap stays a real step, not a nice-to-have. Do it from the dev
+session itself — "update the question-farm Routine
+(trig_01REC4MfZ1D8qhYoZKxDPtdK): replace the prompt with the canonical
+text in docs/QUESTION-FARM.md" — or paste the canonical text in the
+claude.ai Routines UI. The same
 visit should refresh the daily-catalog Routine's prompt as well: its
 contract section carries the roll-up rule as of 2026-08-03, and while
 every prompt defers to this file ("re-read it every run"), a prompt

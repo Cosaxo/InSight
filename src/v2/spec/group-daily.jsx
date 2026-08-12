@@ -403,7 +403,7 @@ import ReactDOM from 'react-dom';
               </div>
               <div className="wf-sheet-body" style={{ display: 'flex', flexDirection: 'column', gap: 13 }}>
                 <input value={gname} onChange={(e) => setGname(e.target.value)} placeholder="Group name" maxLength={24} autoFocus autoComplete="off" autoCapitalize="words" enterKeyHint="done"
-                  style={{ width: '100%', boxSizing: 'border-box', border: LINE, borderRadius: 13, background: 'var(--surface-2)', padding: '12px 14px', fontFamily: 'var(--sans)', fontWeight: 700, fontSize: 15.5, color: 'var(--ink)', outline: 'none' }} />
+                  style={{ width: '100%', boxSizing: 'border-box', border: LINE, borderRadius: 13, background: 'var(--surface-2)', padding: '12px 14px', fontFamily: 'var(--sans)', fontWeight: 700, fontSize: 'var(--field-size)', color: 'var(--ink)', outline: 'none' }} />
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                   <span className="kicker" style={{ marginBottom: 0 }}>Who{'\u2019'}s in {'\u00b7'} pick at least 2</span>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7 }}>

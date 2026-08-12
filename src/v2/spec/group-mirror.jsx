@@ -207,7 +207,7 @@ import { Kicker, Lazy } from './primitives.jsx';
       if (!base) return null;
       const j = (k, v) => Math.max(6, Math.min(94, Math.round(v + (gmh('cb' + g.id + k) - 0.5) * 22)));
       const out = { label: g.name, n: ms.length };
-      ['big5', 'political', 'values', 'attachment', 'cognitive'].forEach((t) => {
+      ['big5', 'political', 'values', 'attachment'].forEach((t) => {
         out[t] = {};
         Object.entries(base[t] || {}).forEach(([k, v]) => { out[t][k] = j(t + k, v); });
       });

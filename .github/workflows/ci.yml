@@ -66,6 +66,14 @@ jobs:
       # and deliberately NOT on backend-checks.yml — nothing it says bears on
       # whether a rules fix is safe to deploy.
       - run: npm run check:labels
+      # A text field under 16px makes iOS zoom the whole app on focus, and
+      # the shell is position:fixed so nothing zooms it back — the app stays
+      # cropped across tabs and overlays until it is killed. `.search-field
+      # input` shipped at 15px and did exactly that (D105). Every gate above
+      # is blind to it: it is valid CSS, and the mount tests run in jsdom
+      # with vitest's CSS handling off, so the stylesheet size that caused it
+      # never resolves there at all. Client-only, off backend-checks.yml.
+      - run: npm run check:touch-zoom
       # Every store that persists insight.* state must hear the purge
       # (insight:local-purge, D51) — deleting the keys is only half the
       # wipe when the in-memory copy writes itself back on the next

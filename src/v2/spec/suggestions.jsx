@@ -103,7 +103,7 @@ function SgCard({ s, SG, max }) {
 
 const SG_TYPES = [['binary', 'this or that'], ['dilemma', 'dilemma'], ['choice', 'multiple choice'], ['scale', 'scale']];
 const sgInput = {
-  width: '100%', boxSizing: 'border-box', fontFamily: 'var(--sans)', fontSize: 15.5, fontWeight: 600, color: 'var(--ink)',
+  width: '100%', boxSizing: 'border-box', fontFamily: 'var(--sans)', fontSize: 'var(--field-size)', fontWeight: 600, color: 'var(--ink)',
   background: 'var(--surface)', border: '0.5px solid var(--rule)', borderRadius: 12, padding: '12px 13px', outline: 'none',
 };
 
@@ -147,7 +147,7 @@ function SgForm({ SG, onDone, onCancel }) {
       {needOpts ? (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 7, marginTop: 10 }}>
           {opts.map((o, i) => (
-            <input key={i} value={o} onChange={(e) => setOpt(i, e.target.value)} placeholder={'Option ' + (i + 1) + (i > 1 ? ' (optional)' : '')} style={{ ...sgInput, fontSize: 14, padding: '10px 13px' }}></input>
+            <input key={i} value={o} onChange={(e) => setOpt(i, e.target.value)} placeholder={'Option ' + (i + 1) + (i > 1 ? ' (optional)' : '')} style={{ ...sgInput, padding: '10px 13px' }}></input>
           ))}
         </div>
       ) : null}

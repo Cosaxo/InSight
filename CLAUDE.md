@@ -169,10 +169,10 @@ an emergency rules fix.
   (`src/v2/data/cohort.ts`) plus the D98 voter lists; the row is
   collapsed by default because Kindred is the one reading that can cost
   a query the app has not already made (docs/MIRROR.md §3).
-- **`window.MapStats` is real for two anchors and refuses for six, and
+- **`window.MapStats` is real for two anchors and refuses for five, and
   the split is structural.** `age` and `edu` are breakdown dims, so since
   D99 `dist`/`mode` compute from the published cells. `job` is
-  profession — deliberately never a dim (D8) — and the five test anchors
+  profession — deliberately never a dim (D8) — and the four test anchors
   are results nothing aggregates per cohort, so those return **null**,
   as does `dimVal` everywhere. Null rather than a gate at each call site
   (D72), so a consumer that forgets the check fails a test instead of

@@ -210,7 +210,7 @@ if (!requested.length) {
 if (problems.length) {
   console.error("check:ios-location failed:\n");
   for (const p of problems) console.error(`  - ${p}\n`);
-  console.error("See docs/DECISIONS.md D103 for why each of these is held.");
+  console.error("See docs/DECISIONS.md D107 for why each of these is held.");
   process.exit(1);
 }
 

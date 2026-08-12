@@ -490,6 +490,12 @@ describe("the live gates hold in the DOM, not just in the source", () => {
       "the live sheet advertised leaves the live bank does not stock",
     ).toBeNull();
     expect(screen.queryByText(/0 questions/), "an empty room was offered").toBeNull();
+    // Any population claim, not just the one string that shipped. The
+    // sheet grew a channel list on 2026-08-12 (the other half of D96 — see
+    // world-feed.jsx's renderAdd), and the whole point of that list is that
+    // every number on it is counted rather than claimed, so the assertion
+    // that used to be about one leaked row now covers the section too.
+    expect(screen.queryByText(/\d+ people/), "a fabricated population came back").toBeNull();
     expect(screen.getByText("Learn")).not.toBeNull();
     expect(screen.getByRole("button", { name: "lots" })).not.toBeNull();
     expect(screen.getByRole("button", { name: /suggest a question/i })).not.toBeNull();
@@ -798,11 +804,11 @@ describe("live mode never inherits the sample persona (D55)", () => {
     // returning anything, and mock mode is a shipped surface (README's
     // `npm run dev`, and the store screenshots are taken on it).
     const ring = anchorList();
-    // 8 since the cognitive bank landed: age/job/education plus one row per
-    // test, and the demo persona has a result for all five. It was 7 while
-    // `cognitive` had a result and no question bank, so map-anchors listed
-    // only four test rows.
-    expect(ring.length).toBe(8);
+    // 7: age/job/education plus one row per test, and the demo persona has
+    // a result for all four. It was 8 for the two days `cognitive` had both
+    // a bank and an anchor row — D103 retired the test, and the anchor went
+    // with it rather than lingering as a row whose value is always ''.
+    expect(ring.length).toBe(7);
     for (const demo of DEMO_RING) {
       expect(ring.some((r) => r.value === demo || r.value.startsWith(demo)))
         .toBe(true);

@@ -56,9 +56,10 @@ export const DIM_LABEL: Record<string, string> = {
 //   job   is `profession`, deliberately NOT a breakdown dim (D8) — it is
 //         free text, so every distinct spelling would mint a bucket key
 //         forever.
-//   big5, political, values, attachment, cognitive
+//   big5, political, values, attachment
 //         are test RESULTS. Nothing aggregates them per cohort, so
 //         "how did similar personalities answer" has no source at all.
+//         (`cognitive` sat in this list until D103 retired the test.)
 //
 // A map from anchor to dim is the honest way to say that: an anchor
 // missing from this object is one no amount of reading can answer.

@@ -9685,7 +9685,396 @@ first.
   polling, same reasoning: D7's wall binds first, and `onlineMin` — the
   input that decides — is measurable from a week of real usage.
 
-## D103 · A purpose string for the authorisation this app never asks for
+## D103 · Four device readings: a retired test, a rail, the topics D96 left dark, and one notch paid for twice
+
+**Decided:** 2026-08-12 · **Status:** binding · Owner's readings on a
+TestFlight build, taken in one sitting.
+
+**Decision.** Four fixes, three of them small and one of them a feature
+removal, kept in one record because three of the four are the same
+mistake in different clothes: a surface that stopped saying anything and
+was left standing anyway.
+
+1. **The passive-progress dot rows are a rail.** One dot per question,
+   banks 20–32 long, and the dots were flex children with `flex-shrink`
+   left at its default — which is the same as declaring no width at all.
+   Thirty-two of them in a ~350px sheet rendered as ~5px slivers, and
+   "the count IS the visual, no numbers" (passive-meter.jsx's own rule)
+   stopped being true at the width where it mattered. `flexShrink: 0`
+   plus `.h-scroll`, so the overflow becomes the rail grammar the rest of
+   the app uses and `edge-fade.js` marks the cut edge. The rail opens on
+   the FRONTIER, not on dot one: filled dots sort first, so a 20-of-32
+   row otherwise shows nothing but filled dots and reads as finished.
+
+2. **The Thinking test is retired, everywhere.** `cognitive` got a
+   question bank on 2026-08-10 (twelve days after its result surfaces
+   shipped) and is now gone from IS_TESTS / IS_TEST_RESULTS /
+   IS_TEST_AVG, `PASSIVE.META`, the profile's sub-tab, the Map's anchor
+   ring, compare's assessment list, the segment explorer's slice axes,
+   the archetype / rose / explain / population data, and
+   `content/tests.json` — so the bank regenerates at 493 questions
+   (was 513) and the profiles sheet titles itself "Your four profiles"
+   off `PASSIVE.KEYS.length`, as D85 built it to.
+
+   **The half a deletion cannot reach, and what was done about it.**
+   Retiring a *shipped* question is an operator `active: false` flip
+   (functions/src/v2.ts: "the seed must never flip a question ops
+   disabled back on, so it is only written on first create"). Deleting
+   the source stops the 20 `test-cognitive-*` docs being WRITTEN, not
+   served: they stay live, arrive in `TEST_FEED_QS`, and would weave in
+   as marked cards for a test with no bank, no result page and no
+   progress row. `world-feed.jsx` now filters that pool through
+   `PASSIVE.testFor()`, which returns null for any key `META` has
+   dropped — so the fence holds for the next retirement without naming
+   it, and LAUNCH-RUNBOOK carries the console step that finishes the job
+   at the source.
+
+3. **The topics D96 left dark.** D96 was right to stop advertising the
+   demo communities — "Writing · 2.1K people · Murakami, Solnit,
+   Knausgård" with a Follow button is a population invented about nobody
+   (D1), offered to a real user. What it did not do is notice that the
+   refusal emptied the room: the sheet the "+" opens held nothing but the
+   Learn dial, and the owner read that exactly as it looks — *"interests
+   seem to have been removed, only the sample data of fake amounts of
+   users."* Both halves of that sentence were true, and the second half
+   was the fix.
+
+   The replacement is what D96 part 3 had already made true and never
+   showed anyone: a live build runs **every subject its bank stocks**,
+   always on. `renderAdd` now opens with those channels — label, the hue
+   the chip row uses, how many questions the pool holds, how many you
+   have answered, and the mute the chip row has. Every number is counted
+   out of `WORLD_FEED_QS`; none is a claim about people. Channels only,
+   because scenes and leaves have a follow to remove and surfaces that
+   own it, while an always-on channel had no management surface anywhere
+   — it is exactly the set that looked deleted. Stockless channels stay
+   out, by the same rule `SUBTOPICS.offers()` applies to leaves.
+
+   The profile's empty scenes card stops sending people to a door with
+   nothing behind it ("follow one and its questions join your feed") and
+   names the topic sheet instead.
+
+4. **One notch, paid for twice.** `.native-shell .app-header` and
+   `.native-shell .overlay` each pad by `14px + env(safe-area-inset-top)`
+   — and eight overlays draw an `.app-header` INSIDE the padded
+   `.overlay`, so both rules fired on the same element tree: ≈146px of
+   blank surface above every overlay title on a Dynamic Island phone,
+   about a sixth of the screen spent twice on the same notch. The
+   overlay's own header goes back to `.app-header`'s base 8px. The
+   mockup frame was never affected — there the band is a fixed 62px that
+   `.overlay` reproduces and `.app-header` does not add to. The profile's
+   identity row was tightened with it (52→42px avatar, 16→10px lead),
+   since it was the other half of a screen that opened on "You".
+
+**Enforcement.** `smoke.test.jsx` replaces its end-to-end cognitive block
+with the inverse — a half-removal draws a header with nothing under it,
+which trips no boundary and no name gate — plus a fourth case pinning the
+surviving four, because every other assertion there also passes on an app
+with no tests at all. Two new cases pin the channel list and that its
+mute moves the chip row's own state. `smoke-live.test.jsx` widens D96's
+leak assertion from one sample string to `/\d+ people/`, so the section
+cannot reintroduce a population claim, and drops its anchor count 8 → 7.
+`world-channels.test.js` gains the invariant underneath the sheet: every
+topic the feed bank actually uses is one of the live channels — "every
+bank topic is reachable" and "every stocked channel has a row" are the
+same sentence from either end, and the mount suites cannot check it
+because the flag is read at module scope and both suites are demo builds.
+
+**What is NOT included.** The `thinking` LENS (lens-defs.js, "Thinking
+style") is a different instrument with its own questions and stays. Two
+names in the same app is worth a look; retiring a live lens is not a
+side effect of retiring a test.
+
+## D104 · Test users: a second real account, and what it is allowed to fake
+
+**Decided:** 2026-08-12 · **Status:** binding for the harness ·
+Tooling decision — it changes no product surface and no rule.
+
+**Decision.** `scripts/test-users.mjs` (`npm run testuser`) drives
+synthetic accounts through the duel loop so 1v1 and groups can be
+exercised from one browser. It writes **only through the client SDK**,
+under each account's own session. Four deliberate limits, recorded here
+because each one is a place where the harness stops resembling a real
+device, and a surprise in a test tool is how a real bug gets attributed
+to the tool.
+
+### Why a harness at all
+
+docs/LOCAL-TESTING.md answered "test a duo" with a second incognito
+window. That covers the join and nothing after it: `shouldReveal` is
+both-or-nothing for duos, `groupPortrait` is computed from reveal
+**history**, and `nextStreak` needs consecutive revealed days. The cost
+of one day of two-member history by hand is two windows, two votes and a
+wait for the 2-hourly scan; the cost of three days is that three times.
+Those are the surfaces least likely to have been looked at, which is the
+argument for the tool rather than for more discipline.
+
+### 1 · Identity is email/password, not anonymous (against D3)
+
+Real devices are anonymous-first. An anonymous session cannot be
+re-attached in a later process: re-signing in needs the refresh token,
+and the JS SDK exposes no API that takes one. The alternative was
+`firebase-admin` minting custom tokens, which adds a credential path to
+a client-only tool.
+
+The substitution is invisible to everything a test user touches, and that
+is checkable rather than hopeful: no rule reads
+`request.auth.token.firebase.sign_in_provider` (grep), no function
+branches on it, and the profile's `anon` field has no reader — v2social.ts
+names it only as an unbounded field. uid is what every gate keys on.
+
+The cost: the harness cannot exercise anything that *does* depend on
+anonymity, and if a future rule starts to, this is the first thing that
+would silently stop being representative.
+
+### 2 · Backfill reaches 3 days, not PENDING_DAYS_KEEP's 6
+
+`firestore.rules` admits a duel answer while `timestamp.date(day) >
+request.time - duration.value(4, 'd')`. The day key is midnight UTC, so
+at 15:00 UTC the -4 key is 2026-08-08T00:00Z against a bound of
+2026-08-08T15:00Z and is refused; -3 clears it at any hour. 3 is
+therefore the largest offset that does not make the tool's behaviour a
+function of when it was run. The reveal scan's window is 6, so a backfill
+cannot fill it — accepted, because 3 days is already enough history for
+the portrait and the streak to be non-trivial.
+
+### 3 · A duo backfill settles only days the human also played
+
+Both-or-nothing again, and the harness holds no session for the human, so
+it cannot supply the other half of a past day. It reports each day it
+could not settle and why, rather than writing one-sided history that
+would then read as a broken reveal pipeline.
+
+### 4 · `reset --purge` leaves the tallies it fed
+
+`deleteAccount` erases the uid attribution (the D28 ledger) and keeps the
+anonymous count, by design — phase 1b. So purged test users stay in every
+count they voted in, and the only clean slate is an emulator restart. Said
+in the command's own output, because a total that does not drop after a
+delete is otherwise indistinguishable from a broken erasure.
+
+### Emulator-only, and why that is structural rather than advisory
+
+The script refuses to run unless `.env` has `VITE_USE_EMULATOR=true`.
+Since D98 the public counts are **exact** and publish from the first
+answer: there is no floor for a fake account to hide under, so test users
+answering world questions on a real project would move numbers real people
+are shown. The ledger's uid attribution exists so a discovered ring can be
+subtracted after the fact (DEPLOYMENT.md, "Correcting aggregates") — a
+cleanup path, not a licence to create the mess. Production also enforces
+App Check on every member callable, which a Node process cannot attest to,
+so the guard costs nothing that worked anyway.
+
+### What is imported rather than restated, and the bug that argues for it
+
+The day's question comes from the real `duelQFor`; anchors come from the
+profile's closed vocabularies and cities from the shipped catalogue via
+`placeKey`. Both would otherwise drift into a *plausible* wrong screen: a
+drifted question selection seals answers to a prompt the app never asked,
+which `revealQid` then publishes as the D70/D71 disagreement on every run,
+and an out-of-vocabulary anchor writes fine and folds into no breakdown
+bucket, counting in every total while appearing in no cohort cut.
+
+The one thing the harness does compute itself — a per-person conformity
+bias, so the splits split — is where this bit. It was first written in
+`gHash`'s shape (`h * 31 + c`), whose last round adds the final character
+straight into the accumulator, so consecutive inputs give consecutive
+outputs. Question ids run `daily-007`, `daily-008`, `daily-009`: measured,
+four users' rolls over those three came out .24/.25/.26, .41/.42/.43,
+.03/.04/.05 and .46/.47/.48 — the population conforming or dissenting as
+one bloc, publishing a unanimous split for **every** question, with real
+per-cohort breakdown cells sitting underneath it looking correct. A
+SHA-256 digest replaced it: 27 unanimous in 200 where it had been 200 in
+200. gHash is fine at its own job (one gid, once); the lesson recorded is
+that a hash chosen for a different modulus and input shape is not
+transferable, and that the failure surfaced only from probing the output
+distribution — reading the code, it looks like a hash.
+
+## D105 · One text field owns the app's scale: every input defers to --field-size
+
+**Decided:** 2026-08-12 · **Status:** binding · Owner's reading on a
+device: "I get this error sometimes where it is too zoomed in, not sure
+what's triggering it."
+
+**Decision.** Every text-entry field in the app takes its size from a
+single token, `--field-size: 16px` in `styles.css`, and may not declare
+a font size of its own. `check:touch-zoom` fails the build if one does —
+including with a literal `16`, because the bug was fifteen scattered
+numbers, not any one of their values.
+
+**What was actually wrong.** WKWebView and Mobile Safari auto-zoom the
+page when a text field takes focus whose computed font-size is under
+16px, scaling by exactly 16/size so the text lands at the platform's
+floor. The app shell is `position: fixed; inset: 0` (spec/iOS.jsx), so
+there is nothing to scale it back — no page to scroll to origin, no
+browser chrome to reset. The zoom outlives the field, the overlay and
+the tab, and every screen after it is cropped on the right.
+
+**The arithmetic, measured rather than reasoned about.** Three device
+screenshots eighteen minutes apart — the Mirror's Near stop, the profile
+overlay and the World feed — all cropped, all at one scale. Three
+independent rulers in them agree: the header search button's left edge,
+the profile overlay's centred title, and the avatar box each give
+1.067. 16/15 = 1.0667. The 15px was this repo's own `.search-field
+input`, and the header search icon that opens it is on every screen in
+the app, which is why the trigger looked like nothing in particular.
+
+The layout was never implicated and was checked before anything was
+changed: a 393pt render measures `scrollWidth === innerWidth === 393`,
+with no element crossing the right edge outside a deliberate horizontal
+scroller. Cropping without overflow is a scale, and only a scale.
+
+Every field in the tree was under the floor — 12.5px (the feed's take
+and reply composers) to 15.5px — so the fix is all of them, not the one
+that fired. Six move by ≤1px, including the culprit; nine move by 2 to
+3.5px. 16px is also what iOS wants a form field at: the old sizes were
+below what the platform considers readable, which is the whole reason it
+zooms.
+
+**The alternative, and why not.** `maximum-scale=1` in index.html's
+viewport meta is one line and changes no pixel of the design. It also
+disables pinch-zoom in the Capacitor shell and on Android Chrome (iOS
+Safari overrides the flag, so only the web-on-iPhone path keeps it) —
+a WCAG 1.4.4 regression in a repo that runs an a11y ratchet precisely so
+that sort of thing has to be argued for. Rejected on that trade, with
+the owner's call on the record.
+
+**Enforcement.** `check:touch-zoom` (client-only, off
+`backend-checks.yml` — nothing it says bears on whether a rules fix is
+safe to deploy) scans for `<input>`/`<textarea>` tags and for stylesheet
+rules that target them, resolving style objects that get spread in. Its
+three detection paths were each verified by reintroducing the bug: an
+inline literal, a literal reached through a spread style object, and
+`.search-field input` restored to 15px — the original defect, which the
+gate names by file and line.
+
+A gate rather than a test, for two reasons the tree demonstrates. The
+mount suites run in jsdom with vitest's CSS handling off, so a
+stylesheet-driven size never resolves there — the 15px that caused this
+would have passed a runtime assertion. And the fields sit behind six
+overlays and a bottom sheet, so a walk would have to reach every one of
+them to say anything, while a source scan sees all of them at once.
+`tsc`, `eslint`, `check:globals` and the smoke tests are all blind here:
+a small font size is valid CSS.
+
+**What is NOT included.** Non-keyboard inputs — `type="range"`,
+checkbox, radio, colour — are exempt and listed in the script: iOS does
+not zoom for them, and the map's history scrubber is sized deliberately.
+`spec/tweaks-panel.jsx` is skipped: it is `if (!open) return null` with
+`open` reachable only from a listener behind `import.meta.env.DEV`, so
+it is not in a production bundle and cannot be focused on a device.
+
+Double-tap-to-zoom is also still live outside buttons — `touch-action:
+manipulation` is scoped to `button`/`[role=button]`/`[role=tab]`
+(styles.css § 2). It is a second way to scale the app that nothing
+scales back, but it is user-initiated and was not what these screenshots
+measured, so it stays as it is until something says otherwise.
+
+## D106 · The retired privacy model is swept out of the documentation, starting with the two pages users actually read
+
+**Decided:** 2026-08-12 · **Status:** binding · Follow-on to D98 —
+the documentation half of a change that was only ever made in the code.
+
+**Decision.** Every document that still described the pre-D98 model as
+current is rewritten to describe what the app does. Nothing about
+behaviour changes; what changes is that the tree stops making claims the
+rules do not enforce, in the direction that matters most — **claiming a
+protection the user does not have.**
+
+### The finding that made this urgent
+
+D98 rewrote the code, `firestore.rules`, `SCHEMA-V2.md`, `MIRROR.md`, the
+in-app privacy panel and the store filing. It did not reach the two
+documents with the widest audience, and they were the ones stating the
+old model most plainly:
+
+- **`web/privacy.html`** — the policy linked from the App Store listing,
+  served on the open web, and required by both stores — opened with
+  *"your answers are readable by you and nobody else, ever. Not by us,
+  not by your friends, not by other users."* Three further sections were
+  built entirely on the floor: a minimum below which counts were
+  withheld, an exact-counts-are-server-only paragraph, and a "who can see
+  what" list whose first row read **Your answers: you.**
+- **`web/home.html`**, the policy's landing page: *"Answers are yours
+  alone. Population counts are k-anonymous."*
+
+The asymmetry is the whole reason this is a decision and not a chore.
+An out-of-date internal doc costs a reader an hour. A privacy policy
+promising a protection that was deleted is the exact failure CLAUDE.md
+names in the other direction — *"a user learning that from a stranger
+quoting their vote would be the same failure as the reverse"* — except
+that here it is written down, published, and pointed at by a store
+listing. The in-app panel had said the true thing since D98; a user who
+read the policy instead got the opposite answer from the same product.
+
+### The timing fact that keeps this a correction rather than a breach
+
+`answersCounted` was 0 every day through 2026-08-11 (`monitoring/
+pulse-trail.jsonl`) and the app has not launched. No answer was ever
+collected under the published promise, so there is nothing to notify and
+nothing to un-publish. Had a single user answered under that policy, this
+record would be a disclosure plan instead of a rewrite — the old rows
+would have needed gating, not republishing, which is D98's own reasoning
+applied to the document rather than the data.
+
+### What was rewritten, and the one rule applied throughout
+
+Where a claim was **historically true**, it is kept and marked as
+history — the repo's standing habit, and the reason a reader can tell a
+reversal from a mistake. Where it was presented as **current**, it is
+replaced by what the code does. Nothing was deleted silently.
+
+| File | Was | Now |
+| --- | --- | --- |
+| `web/privacy.html` | answers readable by nobody else; counts withheld below a threshold; "Your answers: you" | answers are public and attributed, stated first and bluntly; counts exact from answer one; a five-row "who can see what" that matches the rules. Adds the four surfaces the page never mentioned — takes, follows, the presence square, and the D86 edit — and a paragraph recording that the page used to promise the opposite |
+| `web/terms.html` | *"A private journal app"* — the **v1** product, retired at D4, with journal entries, trait impressions and photo uploads | the daily/mirror app, with a plain "it is a public app" clause; acceptable-use rewritten around takes, bulk accounts and scraping |
+| `web/home.html` | "Answers are yours alone. Population counts are k-anonymous" | answers are public; counts exact |
+| `docs/data-inventory.md` | display name owner+members; push tokens on the profile doc; aggs floored "≥5, paused to ≥1"; private aggs "below the public floor"; politics result "never leaves the owner doc" | all four corrected against the rules as deployed; a **follows** row added (D101 shipped without one) |
+| `docs/MONETIZATION.md` | the floor "restores at launch traction"; "never sells a person"; "the sold split is the same honest, floored number" | no floor to restore; the buyer's bound is **scope** — no read path a signed-in user lacks — not arithmetic |
+| `docs/CATALOG-QUESTIONS.md` | complementary suppression on the entity fold; two tail scalars; a floor argument for deferring breakdowns | the disclosure rules are marked deleted (`canonTopN` records the same); the published shape is `{total, top, rest, by}`; top-N survives on **document size and legibility**, which were always the durable reasons |
+| `docs/MONITORING.md` | "the same suppression that stops a paying city identifying a person stops the owner doing it" | there is no suppression; refusing per-user analytics is now an analytics decision standing on its own |
+| `docs/QUESTION-FARM.md`, `docs/SCHEMA-V2.md`, `src/v2/README.md`, `README.md` | k-floored aggregates; "profiles are owner-only"; duel answers in an "owner-only subcollection"; a `LiveCohortBody` row describing the flag and the printed floor; Circle "has nothing real behind it" | the statistics argument replaces the floor one; the denormalization reason restated; the seal described as the `surface` exclusion it is; the test row matches the assertions; Circle is the D101 follow graph |
+| `src/v2/ui/LiveCohortBody.test.tsx` | a header comment and a case title describing the floor, contradicting the assertions directly beneath them | both rewritten; the cases are the floor's inverses and say so |
+| `src/v2/ui/LivePrivacyPanel.tsx` | "No comments from strangers" | false since **D83** — world takes are exactly that. Replaced with what they are and the two controls over them |
+
+### Two things deliberately not done
+
+- **No historical record was edited.** D1, D18, D44, D81 and the rest
+  keep their original text; D98's reversal table is the index. A decision
+  log that is rewritten to agree with the present cannot show anyone how
+  the present was arrived at.
+- **`web/terms.html`'s pricing section stays.** It is legal reserve
+  language, kept deliberately (MONETIZATION.md) to permit a future change
+  of mind without promising one. It is not a stale claim.
+
+### One divergence found and left, named so it is not re-derived
+
+`pick-data.js` `canon()` — the **demo** catalog store — still applies its
+own `AGG_MIN_N` and still computes `restEntities` / `restBelowFloor`, two
+fields the live document does not carry. No live surface reads it, so it
+is prototype furniture rather than a lie to a user, but a mock build
+hides tail entities the real one shows. Recorded in CATALOG-QUESTIONS.md
+at the point of divergence; converting it is a behaviour change to mock
+mode and belongs to whoever next touches that file.
+
+### What would have caught this, and why nothing did
+
+Every gate in this tree checks a *name*, a *number* or a *shape*:
+`check:globals` sees identifiers, `check:figures` sees quoted counts,
+`check:store-copy` sees unfilled placeholders, `check:store-forms` holds
+a table equal to a JSON file. None of them can see a true sentence that
+has become false, and `web/*.html` is served by hosting rather than
+compiled, so neither `tsc` nor a bundle gate ever opens it.
+
+A gate for this is not obviously buildable — "the prose agrees with the
+rules" is not a static property — and inventing one here would be a worse
+error than the one it chased. What is cheap and is adopted instead: **a
+decision that changes who may read something names the user-facing pages
+in its own checklist.** D98 listed the code paths it had to move in one
+commit and moved them; the same discipline pointed at `web/` would have
+caught both pages the day the model died.
+
+## D107 · A purpose string for the authorisation this app never asks for
 
 **Decided:** 2026-08-12 · **Status:** binding · Repairs ITMS-90683 on 2.0.0
 build 10. Narrows nothing in

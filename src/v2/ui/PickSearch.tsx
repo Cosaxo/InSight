@@ -193,7 +193,7 @@ function PickSearch({ domain, accent, big, onPick, onNotListed }: PickSearchProp
     border: `1px solid color-mix(in oklch, ${accent} 45%, var(--rule))`,
     borderRadius: 12, outline: "none", WebkitAppearance: "none",
     appearance: "none", boxSizing: "border-box", width: "100%", minWidth: 0,
-    fontSize: big ? 16 : 15, padding: big ? "13px 14px" : "10px 12px",
+    fontSize: "var(--field-size)", padding: big ? "13px 14px" : "10px 12px",
   };
 
   if (!open) {
