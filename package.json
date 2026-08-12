@@ -46,6 +46,7 @@
     "promote": "node scripts/promote-questions.mjs",
     "scorecard": "node scripts/question-scorecard.mjs",
     "farm:budget": "node scripts/farm-budget.mjs",
+    "learn:budget": "node scripts/learn-budget.mjs",
     "costs": "node scripts/cost-model.mjs",
     "pulse": "node scripts/pulse.mjs",
     "build:emoji": "node scripts/build-emoji.mjs",

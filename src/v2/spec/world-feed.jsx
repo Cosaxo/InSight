@@ -14,7 +14,7 @@ import { WPAL } from './world-palette.js';
 import { HAPTIC } from './haptics.js';
 import { WF_CATALOGS } from './world-catalogs.js';
 import { LEARN } from './learn-progress.js';
-import { LEARN_SPLIT_SRC } from './learn-data.js';
+import { LEARN_ORDER, LEARN_SPLIT_SRC } from './learn-data.js';
 import { SCENES } from './scenes.js';
 import { Sheet } from './primitives.jsx';
 // The feed's cadence arithmetic — extracted so the test exercises THIS loop
@@ -1086,17 +1086,26 @@ class WorldFeed extends React.Component {
     return (
       <div style={{ display: 'flex', flexDirection: 'column', gap: 11 }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          {card.a.map((label, i) => {
-            const isC = !!r && i === r.correct;
-            const isMine = !!r && my === i;
-            const pct = r ? r.split[i] : 0;
+          {/* Display order, not authored order (learn-data.js LEARN_ORDER):
+              the bank's first 96 cards all authored the correct answer at
+              index 0, so mapping card.a straight down the screen made "tap
+              the top" a perfect score. `ai` is the AUTHORED index and is
+              what setKnow records —
+              stored answers stay keyed exactly as they always were. `slot` is
+              only where the button sits, so the reveal's stagger still runs
+              top to bottom. */}
+          {LEARN_ORDER(card).map((ai, slot) => {
+            const label = card.a[ai];
+            const isC = !!r && ai === r.correct;
+            const isMine = !!r && my === ai;
+            const pct = r ? r.split[ai] : 0;
             const showPct = !!r && (isC || (isMine && !r.ok));
             return (
-              <button key={i} className="press" disabled={!!r} onClick={() => this.setKnow(q, i)}
+              <button key={ai} className="press" disabled={!!r} onClick={() => this.setKnow(q, ai)}
                 style={{ position: 'relative', overflow: 'hidden', display: 'flex', alignItems: 'center', gap: 10, width: '100%', textAlign: 'left', minHeight: big ? 56 : 50, padding: big ? '14px 16px' : '12px 14px', borderRadius: 14, cursor: r ? 'default' : 'pointer', WebkitAppearance: 'none', transition: 'background .3s ease, color .3s ease',
                   border: isMine && !isC ? '1.5px solid var(--ink)' : WF_LINE,
                   background: isC ? WPAL.ink(T.color) : 'var(--surface-2)', color: isC ? '#fff' : r && !isMine ? 'var(--ink-3)' : 'var(--ink)' }}>
-                {r && !isC ? <span aria-hidden="true" style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: pct + '%', background: pale, transformOrigin: 'left', animation: fresh ? `wfBarIn .55s cubic-bezier(.2,.8,.2,1) calc(var(--rv-row) * ${i + 1.5}) both` : 'none' }}></span> : null}
+                {r && !isC ? <span aria-hidden="true" style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: pct + '%', background: pale, transformOrigin: 'left', animation: fresh ? `wfBarIn .55s cubic-bezier(.2,.8,.2,1) calc(var(--rv-row) * ${slot + 1.5}) both` : 'none' }}></span> : null}
                 <span style={{ position: 'relative', flex: 1, minWidth: 0, fontFamily: 'var(--sans)', fontWeight: isC ? 800 : 600, fontSize: big ? 16.5 : 15, lineHeight: 1.3, textWrap: 'pretty' }}>{label}</span>
                 {showPct ? <span style={{ position: 'relative', fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 12.5, fontVariantNumeric: 'tabular-nums' }}>{fresh ? <WfCount to={Math.round(pct)} animate={true}></WfCount> : Math.round(pct)}%</span> : null}
                 {isC ? <span style={{ position: 'relative', fontSize: 13, fontWeight: 800 }}>{'\u2713'}</span> : null}

@@ -491,11 +491,54 @@ graduate across, so a merged learn card reaches production on the next
 reseed. **One gate instead of two means the PR review IS the production
 review.** Rules for a learn run:
 
-- **Budget ≤8 cards/run**, thinnest fields first (a field below 8 cards
-  cannot sustain the scheduler's spacing).
+- **Start every run with `npm run learn:budget -- --open <cards on the
+  open lane PR>`** (D115). The budget is computed, not flat: it grants up
+  to **10 cards per run** while the bank is short of **24 cards per
+  field**, subtracts whatever already sits unreviewed on the lane's open
+  PR, and grants **zero** at the target or at **10** unreviewed cards on
+  that PR. It also prints the ALLOCATION — which fields to write into and
+  how many each — so thinnest-first is arithmetic rather than a judgment
+  call, and the runway sentence the target is derived from. Zero means
+  the run is a logged no-op and review is the work.
+
+  This replaced D32's flat "≤8 cards/run, thinnest fields first", which
+  could not produce anything: every field holds exactly 8, the spacing
+  floor reads as the thinness test, so no field was ever thinnest. The
+  constants live in `scripts/learn-budget.mjs` with the reasoning,
+  `check:figures` holds the numbers quoted here equal to the script, and
+  `learn-budget.test.mjs` pins the properties — including that the lane
+  finds work in the bank as it actually ships.
+
+  A run writes at least **4 cards into any field it touches**. That is a
+  shape rule, not a volume one: one card each into ten fields cannot
+  demonstrate the difficulty spread the batch gate asks for, and a writer
+  holding one subject writes better cards than one hopping twelve.
+- **Spread the difficulty, and know what it is for.** `p` is the level
+  engine's only input, and it clamps to 24..92 — a card outside that is
+  one no reader is ever *at* the level for. `check:quality` fails a card
+  outside the clamp, a batch of three or more spanning under 20 points,
+  and a field whose whole card set spans under 20.
 - **The trap `t` is the product, not filler** — the PR body argues each
   card's trap individually: which wrong answer real people actually pick,
   and why. A card whose wrong options are noise is not an InSight card.
+- **Pre-flight the batch in its native shape** (D115). Write the cards as
+  the JSON you will append and run `npm run check:quality -- --batch
+  cards.json` — learn entries are accepted as `{id, f, q, a, c, t, p, k,
+  w}`, so the thing checked is the thing shipped. Paste each packet line
+  into the PR body beside its neighbor score, the daily lane's rule.
+- **Dedup against the bank**: `npm run check:neighbors -- --candidate "…"
+  --options "<the correct answer>" --domain learn` per candidate. The
+  learn domain scores prompt + correct answer only — a field's cards
+  share their distractors by construction — so pass the answer alone,
+  not the option set. The gate holds learn under 0.5 like every surface;
+  the re-read stays the rule, because only a human can tell whether two
+  differently-worded prompts test one fact.
+- **Authored option order is not the served order** (D115). `LEARN_ORDER`
+  permutes each card's options at render, so where you put the correct
+  answer in `a` is invisible to readers. Vary `c` anyway: a bank with
+  varied authored indices degrades gracefully if the permutation is ever
+  removed, and the 96 cards written before D115 — all of them `c: 0` —
+  are why that rule now exists.
 - **`p` is the authored cold-start estimate**, shown labeled ("our
   estimate") until a measured rate exists — never presented
   as measured (D1). Estimate honestly; it is also the difficulty input to
@@ -504,12 +547,21 @@ review.** Rules for a learn run:
   `check:content` validates ranges and c≠t, but only a human can check the
   fact. Cite a source for any card that could be contested.
 - **`k` is the map label**: 2–6 words, and it must be true standing alone.
+  Not a question and not a restatement of the prompt — `check:quality`
+  holds both.
 - **New fields or subjects are a human decision** proposed in the PR body,
   never added by the run (the map's group layout is structural).
 - Ids: next free suffix in the field's series (`cell9`, …); append at the
   end of `cards`; never renumber (answers key on `learn-<id>` forever).
-- Gates before the PR: `npm run check:content`, `check:globals`, `lint`,
-  `test:unit`, `build`. Same PR shape and run log as the daily job.
+  The same rule is why a shipped card's OPTIONS are never reordered or
+  edited: answers store `(qid, optionIdx)`, so a reorder silently re-keys
+  every answer already given and every aggregate cell built from them.
+  The fix for a bad option set is a better successor card, never an edit
+  — the daily lane's D30 re-key rule, and it binds here too.
+- Gates before the PR: `npm run check:content` (the seed regenerates —
+  run `npm run build:content` after the append), `check:quality`,
+  `check:neighbors`, `check:globals`, `lint`, `test:unit`, `build`. Same
+  PR shape and run log as the daily job.
 
 ## The duel lane (D40, adopted 2026-08-06 — single gate, learn-style)
 

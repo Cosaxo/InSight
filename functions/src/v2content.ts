@@ -8745,5 +8745,175 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "topic": "confused",
   "axis": null,
   "test": null
+ },
+ {
+  "id": "learn-anc9",
+  "surface": "learn",
+  "seq": 96,
+  "type": "choice",
+  "domain": null,
+  "prompt": "Most of the Great Wall standing today was built by the…",
+  "options": [
+   "Qin dynasty",
+   "Han dynasty",
+   "Ming dynasty",
+   "Tang dynasty"
+  ],
+  "topic": "ancient",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "learn-anc10",
+  "surface": "learn",
+  "seq": 97,
+  "type": "choice",
+  "domain": null,
+  "prompt": "When Cleopatra was born, the Great Pyramid was already…",
+  "options": [
+   "About 500 years old",
+   "About 1,000 years old",
+   "Newly built",
+   "About 2,500 years old"
+  ],
+  "topic": "ancient",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "learn-anc11",
+  "surface": "learn",
+  "seq": 98,
+  "type": "choice",
+  "domain": null,
+  "prompt": "The Library of Alexandria was lost…",
+  "options": [
+   "In one great fire",
+   "Gradually, over centuries",
+   "In an earthquake",
+   "To a flood"
+  ],
+  "topic": "ancient",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "learn-anc12",
+  "surface": "learn",
+  "seq": 99,
+  "type": "choice",
+  "domain": null,
+  "prompt": "The ancient Olympic Games were held in honour of…",
+  "options": [
+   "Apollo",
+   "Athena",
+   "Zeus",
+   "Hercules"
+  ],
+  "topic": "ancient",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "learn-anc13",
+  "surface": "learn",
+  "seq": 100,
+  "type": "choice",
+  "domain": null,
+  "prompt": "A Roman gladiator fight usually ended…",
+  "options": [
+   "With the loser killed",
+   "With both men alive",
+   "With the crowd deciding",
+   "In a formal draw"
+  ],
+  "topic": "ancient",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "learn-body9",
+  "surface": "learn",
+  "seq": 101,
+  "type": "choice",
+  "domain": null,
+  "prompt": "Roughly how much of an adult's body weight is water?",
+  "options": [
+   "About 90%",
+   "About 60%",
+   "About 30%",
+   "About 75%"
+  ],
+  "topic": "body",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "learn-body10",
+  "surface": "learn",
+  "seq": 102,
+  "type": "choice",
+  "domain": null,
+  "prompt": "At rest, how much of the brain is active?",
+  "options": [
+   "About 10%",
+   "Effectively all of it",
+   "About 25%",
+   "About half"
+  ],
+  "topic": "body",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "learn-body11",
+  "surface": "learn",
+  "seq": 103,
+  "type": "choice",
+  "domain": null,
+  "prompt": "Which blood type can donate to anyone?",
+  "options": [
+   "AB positive",
+   "A positive",
+   "O positive",
+   "O negative"
+  ],
+  "topic": "body",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "learn-body12",
+  "surface": "learn",
+  "seq": 104,
+  "type": "choice",
+  "domain": null,
+  "prompt": "Which organ filters waste out of the blood?",
+  "options": [
+   "The liver",
+   "The spleen",
+   "The kidneys",
+   "The pancreas"
+  ],
+  "topic": "body",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "learn-body13",
+  "surface": "learn",
+  "seq": 105,
+  "type": "choice",
+  "domain": null,
+  "prompt": "A red blood cell lives for about…",
+  "options": [
+   "A week",
+   "Four months",
+   "A year",
+   "A day"
+  ],
+  "topic": "body",
+  "axis": null,
+  "test": null
  }
 ];

@@ -11014,3 +11014,132 @@ type list and both walks; check:globals coupling held at its baseline
 (the new live reads go through the imported LIVE binding — "new ones
 may not join them", and none did); check:a11y at baseline;
 check:content at 500; check:figures green after the five prose updates.
+## D115 · The learn lane can produce again, and the bank stops testing reading position
+
+**Decided:** 2026-08-12 · **Status:** binding · Amends D32 (the
+learn-card lane) and extends D63 / D97 (the dedup and quality gates) to
+the learn surface.
+
+**Decision.** Four changes to the learn surface, one of them a live
+defect fix: option order is permuted at render (`LEARN_ORDER`), the lane
+gets a computed budget (`scripts/learn-budget.mjs`, `npm run
+learn:budget`) replacing D32's flat "≤8 cards/run, thinnest fields
+first", `check:quality` gains a learn surface and `check:neighbors` a
+learn domain. The bank goes 96 → 106 cards under the new budget.
+
+### The defect: the answer was option 0 on all 96 cards
+
+Measured, not suspected: `c` is 0 on every card in the shipped bank and
+`t` is 1 on 79 of them, and nothing shuffled — `renderKnow` mapped
+`card.a` straight down the screen and `setKnow(q, i)` passed the render
+index to `LEARN.answer`. Tapping the first option scored 100%.
+
+The cost is not only that Learn was free. D32's promise is that the
+reveal's split IS the crowd's real first-attempt rate once the aggregate
+lands, and a crowd tapping a free win measures nothing — the scorecard's
+calibration section would have read every card as wildly
+under-estimated and aimed the lane at the wrong fix, which is the class
+of error that survives because the numbers look like data.
+
+**Fixed at render, not in the data, and that is the whole design.**
+Answers are stored as (qid, optionIdx) forever; re-authoring `c` across
+96 cards would re-key every answer already given and every aggregate
+cell built from them — the D30 re-key failure class, ninety-six times.
+`LEARN_ORDER(card)` returns a display permutation and `renderKnow` hands
+`setKnow` the AUTHORED index, so the stored key space is untouched.
+
+Deterministic from the card id (LEARN_SPLIT's own idiom, result-card's
+reasoning): a re-served card does not rearrange itself under a
+returning reader. The first draft stepped an LCG and drew `h % (i + 1)`,
+which put the correct answer in slot 0 **zero** times out of 96 — an
+LCG modulo 2^32 has period 2 in its lowest bit, so the last swap fired
+on every card. That is the same exploitable tell inverted, and it is
+recorded here because it was found by measuring the output rather than
+by reading the code. xorshift32 with a high-bit draw and an avalanched
+seed measures 25.0 / 25.2 / 24.9 / 24.8 over 20k ids.
+
+### The lane could not produce, and the rule is why
+
+D32 reads "≤8 cards/run, thinnest fields first (a field below 8 cards
+cannot sustain the scheduler's spacing)". Every one of the twelve fields
+holds exactly 8. No field is ever thin, so every run is a
+correctly-reasoned no-op — and no Routine fires the lane, so the rule
+was never tested against a firing. A selection rule that can only return
+the empty set is a stopped lane, not a cautious one.
+
+`learnBudget` regulates against what actually bounds this lane, which is
+not what bounds the daily one. There is no promotion pen here: the merge
+IS production. So the two bounds are field depth (a field's cards are
+consumed as `fresh` exactly once each, so depth is runway) and review
+capacity. `FIELD_TARGET` = 24 comes from arithmetic the script prints:
+at 8 cards a field, three followed fields give 24 fresh cards, which at
+learn-feed's default rate is **about eight days**, and under four at
+`lots`. At 24 a field that becomes about a month. `RUN_CAP` = 10 with
+`OPEN_MAX` = 10 — equal, unlike the daily lane's 8/12, because with a
+single gate the lane carries one unreviewed batch at a time and the
+open count is subtracted from the budget rather than only compared
+against a ceiling.
+
+Twelve fields at 24 is 288 learn cards and a seeded bank of ~685
+against check:quality's BANK_WARN of 1200 — checked before the target
+was set, so the lane's destination does not spend headroom another lane
+needs.
+
+### The gates the single-gate lane did not have
+
+Learn passed one structural gate (`check:content`: four options, c/t in
+range, c≠t, p in 1..99, k 2..6 words) and nothing else. The lane with
+the highest bar — no second gate behind the PR — had the least
+mechanical support, so every remaining rule was spent out of a
+reviewer's attention.
+
+`check:quality` gains the surface: duplicate and filler options, the
+length tell (the correct answer no wider than 3.0× its longest
+distractor; corpus max is 2.29×, which is "The Soviet Union" beside
+"The USA" and is why the gate is not tighter), `w` at most 24 words, `k`
+not a question and not a restatement of the prompt, and two rules that
+read the level engine rather than taste — `p` must fall inside
+learn-progress's own LMIN..LMAX clamp (cross-read, so the two cannot
+drift), and a field's `p` must span ≥ 20 points, because a field at one
+difficulty cannot answer "on your level" for anybody. Learn cards can
+also be pre-flighted in their native shape, so the JSON checked is the
+JSON shipped.
+
+**Hard rule 6 is scoped OUT of learn, which is a decision rather than a
+waiver.** The rule's own test is whether the answer split is mainly
+interesting to the place rather than the person, and a card with a
+correct answer has no such split to sell. Measured first: the tripwire
+fired on anc3 ("The first known written law code comes from…"), 14 of 96
+cards name a watched place, and history and geography are 4 of the 12
+fields — so the false positives grow with the bank, and a gate that
+cries wolf on real content is one whose waivers stop being read.
+
+`check:neighbors` gains learn as a gated domain, reversing that header's
+"learn cards are out (v1)". That reasoning was right about the
+measurement and wrong about the conclusion. Scored like every other
+domain the bank's closest pair is 0.444 — two genuinely different planet
+questions colliding on the distractors a field shares by construction —
+which leaves no honest room under GATE. But a duplicate learn card is
+two cards teaching the same FACT, and a fact is a prompt plus its
+answer: scored that way the closest pair is 0.333, the same wide gap the
+other four domains sit in.
+
+### Deferred, recorded
+
+**No Routine.** The lane still runs when the maintainer asks a dev
+session. Adding one is an owner step, and the budget now makes it a safe
+one — a firing against a full bank grants zero and logs why. Until then
+production is bounded by how often the lane is asked, which is the
+honest remaining limit on "more learn questions".
+
+**The scorecard's learn advisories stay advisory.** `miscalibrated` and
+`weakTraps` are computed and cited, never applied; editing a shipped
+card is still a human PR. Note that both were reading a bank where the
+answer was always option 0, so the first post-fix scorecard is the first
+one whose calibration numbers mean anything — treat everything before it
+as void rather than as a baseline.
+
+**The 96 pre-existing cards keep `c: 0`.** The permutation makes it
+harmless and re-authoring would re-key. The ten new cards vary `c`
+deliberately: if the permutation is ever removed, a bank with varied
+authored indices degrades instead of collapsing.
