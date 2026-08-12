@@ -193,6 +193,16 @@ arithmetic.
       step was written to catch is closed. What remains is confirming the
       deploy actually published — and 0.3 still owes a redeploy so the live
       terms page shows the filled legal values.
+
+      **D116 adds a fourth reason to redeploy, and it is the first that is
+      a correction rather than a fill-in.** `web/privacy.html` said world
+      takes are published "with no name attached" — twice, in the prose
+      and again in the who-can-see-what list — which D98 made false and
+      D106's rewrite of that very page carried through. The repo copy is
+      fixed; **the live page still says it** until hosting is redeployed.
+      A privacy policy promising an anonymity the app does not give is the
+      failure mode D106 exists to prevent, so this one should not wait for
+      a convenient deploy.
 - [x] **0.3 Fill the three legal values in `web/terms.html` — done
       2026-08-03.** `olaftaule01@gmail.com`, operator Olaf Taule,
       jurisdiction Norway, launching as a sole trader.
@@ -397,6 +407,16 @@ arithmetic.
       rather than from memory, which is the comparison above and not the
       habit.
 
+      **Re-verified 2026-08-12 for the next release: run 16 is still the
+      latest of 16, so build 11 is unspent and `appBuild` needs no bump.**
+      The comparison passes as-is — 11 > 10 — and bumping now would burn
+      11 the way 2 was burned. Build 11 carries everything merged since
+      `2933dc0`: D103's retired Thinking test and the dot-row rail, D104's
+      test users, D105's iOS focus-zoom fix, D107's location purpose
+      string, D108–D110's 327 KB off first paint, D111/D112's similarity
+      maps, D113/D114's continuum forms, D115's learn lane, and D116's
+      corrected store and privacy copy.
+
       *With a Mac, if you ever want to debug a signing failure
       interactively:* `npm run build && npx cap sync`, then `npm run ios`.
 - [x] **2.5 Verify the APNs environment before uploading — automated, and
@@ -544,13 +564,30 @@ That is a tester-count problem, not a workflow problem.
       → `design/store/feature-graphic.png`, 1024×500, built from
       `mark.svg` and the app's own stylesheet so it cannot drift from the
       palette. Regenerate if the mark or tagline changes.
-- [x] **4.3 Marketing copy — pushed 2026-08-08.**
+- [ ] **4.3 Marketing copy — pushed 2026-08-08, CORRECTED 2026-08-12,
+      and the correction is not live until it is re-pushed (D116).**
       `design/store/listing.json` carries every field both consoles ask
       for; `npm run check:store-listing` holds each against its character
-      limit (all currently fit, the longest at 161/170). Edit the voice to
-      taste — it is a draft, not a decision, and re-pushing is one
-      dispatch. No placeholders remain: `shared.supportEmail` was filled
-      with 0.3's address on 2026-08-03.
+      limit (all currently fit, the longest at 161/170). No placeholders
+      remain: `shared.supportEmail` was filled with 0.3's address on
+      2026-08-03.
+
+      **Unticked on purpose, and this one is not a matter of voice.** The
+      description pushed on 08-08 was still selling the pre-D98 privacy
+      model to every visitor of the listing — *"Your answers are
+      owner-only. The database rules enforce it"* and *"Crowd numbers are
+      floored"*, under a header reading **BUILT SO THE PRIVACY CLAIMS ARE
+      TRUE**. The copy was accurate on the day it was pushed (08-08);
+      **D98 falsified it on 08-11** and it has been live and false since.
+      D106 swept that model out of `web/` and the docs the next day and
+      never enumerated this file. It also advertised five profiles after
+      D103 retired the Thinking test.
+
+      The repo copy is fixed and `npm run check:public-copy` now fails on
+      that vocabulary in `listing.json`, `web/*.html` and the privacy
+      panel. **App Store Connect still serves the old text**: nothing here
+      can read it, the same limitation as the age rating (D74/D75), so a
+      green tree is not a corrected listing. One dispatch fixes it.
 
       **You do not have to retype it into the web form.** **Actions → App
       Store metadata** pushes name, subtitle, privacy-policy URL,
@@ -748,11 +785,25 @@ That is a tester-count problem, not a workflow problem.
 
 - [ ] **6.1 Pre-flight, before every archive and every upload:**
       ```bash
-      npm run check:store-copy      # must exit 0 — deliberately NOT in CI
-      npm run check:store-listing   # every field inside its store limit
+      npm run check:store-copy -- --ios  # must exit 0 — deliberately NOT in CI
+      npm run check:store-listing        # every field inside its store limit
+      npm run check:public-copy          # no retired-model claims in user-facing copy
       npm run check:versions
       npm run build && npx cap sync
       ```
+
+      **`--ios` is not optional here, and the bare command is what this
+      step used to say.** Under D42 the Play signing SHA-256 is parked, so
+      `check:store-copy` with no flag exits **1** on a placeholder that is
+      a permanent non-blocker (2.7) — which reads as a failed pre-flight
+      and invites someone to go filling in a fingerprint for a store that
+      is not being shipped to. `--ios` excuses that one and nothing else;
+      it is the same flag `ios-release.yml` hard-gates on.
+
+      `check:public-copy` joined the list at D116, and the release
+      workflow runs it too: the privacy panel is compiled into the binary,
+      so a false claim about who can read an answer ships to the phone
+      rather than staying in the repo.
 - [ ] **6.2 Submit to App Store review.** Budget one rejection round on
       guideline 4.8 (Sign in with Apple). **Do not pre-build it** — the
       reply is already drafted in `SHIP-CHECKLIST § hardening`: the app's

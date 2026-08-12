@@ -179,6 +179,19 @@ Both apps must be registered under `com.cosaxo.insight`:
     `design/store/listing.json`, held against both stores' character
     limits by `npm run check:store-listing`.
 
+    **Length is not the only thing that file gets wrong.** Both
+    descriptions were still selling the pre-D98 privacy model — *"Your
+    answers are owner-only"*, *"Crowd numbers are floored"*. That copy was
+    true when it was pushed on 2026-08-08; **D98 falsified it on 08-11**,
+    and D106's sweep on 08-12 corrected `web/` and the docs without ever
+    enumerating this file (D116). Pushed copy goes stale the same way the
+    age rating does, and for the same reason: nothing in the repo can read
+    what the store is serving. `npm run check:public-copy` now holds `listing.json`,
+    `web/*.html` and the in-app privacy panel against the retired model's
+    closed vocabulary; it runs in CI and on the iOS release pre-flight.
+    Character limits and truth are separate gates, and only one of them
+    was ever being checked.
+
     Both generators need Playwright, which is deliberately **not** a
     package.json dependency — `npm i -D playwright && npx playwright
     install chromium` when you need them. Adding it would make every

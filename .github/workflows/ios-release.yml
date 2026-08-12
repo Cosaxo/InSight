@@ -88,9 +88,17 @@ jobs:
       # unfilled REVERSED_CLIENT_ID has no working Google sign-in, and an
       # unfilled Team ID leaves invite links opening the fallback page.
       # Both are silent on a device, which is why they are checked here.
-      - name: Pre-flight — placeholders and version lockstep
+      # check:public-copy is here and not only on ci.yml because the
+      # privacy panel is COMPILED INTO THIS BINARY. A false claim about
+      # who can read an answer does not stay in the repo — it installs on
+      # a phone and is read by the person deciding what to answer. The
+      # store half matters here too: this workflow is the one that spends
+      # a build number, and the description it ships against had been
+      # promising "your answers are owner-only" since D98 made them public.
+      - name: Pre-flight — placeholders, public copy and version lockstep
         run: |
           node scripts/check-store-copy.mjs --ios
+          npm run check:public-copy
           npm run check:versions
 
       # The JavaScript half of the Firebase config, and the exact mirror of

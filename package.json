@@ -63,6 +63,7 @@
     "check:versions": "node scripts/check-versions.mjs",
     "check:store-copy": "node scripts/check-store-copy.mjs",
     "check:store-listing": "node scripts/check-store-listing.mjs",
+    "check:public-copy": "node scripts/check-public-copy.mjs",
     "build:screenshots": "node scripts/gen-screenshots.mjs",
     "asc:push": "node scripts/asc-push.mjs",
     "monitoring:apply": "node scripts/apply-monitoring.mjs",
