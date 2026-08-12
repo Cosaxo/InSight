@@ -284,3 +284,8 @@ export function revealFor(read: Read, by: ByMap | undefined): number[] | null {
 // 60/40?" — which the aggregate settles by itself. That is a different
 // card from the prototype's and a product decision, so it is written
 // down here rather than built.
+//
+// DESIGNED, NOT BUILT: docs/FORESIGHT-CALLS.md has the schema, the
+// rubric format and the failure modes; D103 records the rule the whole
+// design turns on — a machine may PROPOSE an outcome and may never be
+// the REASON one is believed. Read that before adding anything here.

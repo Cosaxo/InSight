@@ -9690,3 +9690,87 @@ built.
   away — but it is a query the app does not otherwise make, and the score
   it would rank is client-written (above). Worth doing after
   server-scoring, not before.
+
+## D103 · A machine may propose an outcome, never be the reason one is believed
+
+**Decided:** 2026-08-12 · **Status:** binding · **Applied:** not yet — no
+code exists. The design is [`docs/FORESIGHT-CALLS.md`](FORESIGHT-CALLS.md).
+
+**Decision.** Foresight's CALL half — a real-world event sealed now and
+scored when it resolves (D102 shipped READ) — is designed but not built.
+When it is built, **every resolution is confirmed by a human against a
+cited source before it scores anyone**, and the citation is stored and
+published beside the outcome.
+
+### The reason this needed a decision rather than a ticket
+
+Every number InSight displays today is arithmetic on its own data. A
+cohort split, a likeness percentage, a Scores mean, a READ verdict — all
+folds over documents the reader can open and recompute. When the app says
+"48% of people your age agreed", anyone can check it.
+
+A resolved CALL is not that. It is the app **asserting a fact about the
+world**, and reading its own documents cannot verify the claim. If it
+says Arsenal won and Arsenal did not, there is nothing to recompute —
+only a wrong answer marking real users wrong, with no arithmetic to
+appeal to. That is a category change, and it is the decision; the
+plumbing is small.
+
+### What was proposed, and what survived
+
+The proposal was to have Claude author the questions and grade the
+outcomes. The first half is already how this repo works and needs no new
+decision: `docs/QUESTION-FARM.md` runs a Routine that proposes questions
+and opens a PR, D97 gates them, and D1 permits machine-authored *content*
+— what it forbids is fabricated *activity*.
+
+The second half does not follow from the first, and the farm's rule 4
+("never generate answers, votes, takes, or people") does not literally
+cover it. Hence the rule this decision adds:
+
+> A machine may **propose** an outcome. It may never be the **reason** an
+> outcome is believed. The reason is the citation, and a human confirms
+> the citation supports the outcome before anyone is scored.
+
+Rejected for the first version: auto-resolution with human spot-checks.
+It is the obvious efficiency and it inverts D87's posture (production
+writes require an approval) for the one write in the app that cannot be
+recomputed. Worth revisiting once there is a track record of proposals to
+measure — the measurement is the precondition, not the calendar.
+
+Rejected outright: resolution from model memory with no citation. That is
+the one shape where a confident hallucination silently marks real users
+wrong and leaves nothing to appeal to.
+
+### Three design points that are load-bearing
+
+- **The rubric is written at authoring time**, in the same PR as the
+  question — the exact fact that settles it, the named source, and when
+  it becomes knowable. It moves the hard judgement to a moment a human is
+  already reviewing, and it is the filter: **if a crisp rubric cannot be
+  written, the question is not a call.**
+- **VOID (`outcomeIdx: -1`) is a first-class outcome, not an error path.**
+  An unresolved call is worse than a missing feature: it takes the
+  player's guess and never comes back. Void has to be easy, or a reviewer
+  reaches for a plausible answer instead of admitting the question was
+  bad.
+- **Outcomes live in `v2_call_outcomes/{qid}`, not on the question doc.**
+  `runSeedV2` diffs each question against its stored payload and skips
+  unchanged docs, which is what keeps `updatedAt` meaningful as an
+  incremental cursor; operational state inside content the seed owns
+  would fight it on every reseed.
+
+Two things fall out rather than being engineered, and both are recorded
+so the next reader does not build them: **a call needs no verdict
+document** (the answer and the outcome are both readable, so the client
+joins them), and **it needs no new seal** (the daily's blind-then-reveal
+already stops you reading the room before you play).
+
+### The residual, stated
+
+This design reduces the chance of the app asserting a falsehood. It does
+not eliminate it, and no version of it can. Everything else the app says
+can be recomputed by the person reading it; this cannot. The mitigation
+that carries the most weight is the cheapest one — a rubric good enough
+that confirming a citation takes thirty seconds, because a confirmation
+step too expensive to do properly is a rubber stamp with extra latency.
