@@ -82,6 +82,31 @@ export const DECK_DAYS = readNum(
 export const AGG_CAP = readNum(
   "src/v2/data/live.ts", /const AGG_ID_CAP = (\d+)/, "AGG_ID_CAP");
 
+// ── the D98 read surfaces (D102) ────────────────────────────────
+// Named who-voted, Kindred and Circle all read OTHER USERS' answers on
+// demand — the reversal's whole point, and a read family this model did
+// not have a term for. "Not modelled reads as free" is the D67 lesson;
+// these four bounds are what keep the family finite at all, so they are
+// pinned to source the same way DECK_DAYS is.
+
+// Voters one who-voted fetch returns, newest first (data/voters.ts). The
+// crowd on a shared daily question is roughly "everyone active that day",
+// so without this cap the sheet's cost is ~DAU reads per open.
+export const VOTER_FETCH_CAP = readNum(
+  "src/v2/data/voters.ts", /export const VOTER_FETCH_CAP = (\d+)/, "VOTER_FETCH_CAP");
+
+// Voter lists Kindred walks — the viewer's own most recent answers, one
+// capped who-voted query each (live.ts loadKindred).
+export const KINDRED_QUESTIONS = readNum(
+  "src/v2/data/live.ts", /const KINDRED_QUESTIONS = (\d+)/, "KINDRED_QUESTIONS");
+
+// Circle: accounts one user can follow, and answers read per member on a
+// stop open (data/circle.ts loadCircle — one query per member).
+export const FOLLOW_CAP = readNum(
+  "src/v2/data/circle.ts", /export const FOLLOW_CAP = (\d+)/, "FOLLOW_CAP");
+export const CIRCLE_ANSWER_CAP = readNum(
+  "src/v2/data/circle.ts", /export const CIRCLE_ANSWER_CAP = (\d+)/, "CIRCLE_ANSWER_CAP");
+
 // How often the public mirror is rewritten, in answers. Drives both the
 // mature write multiplier and the listener fan-out rate.
 //
@@ -209,8 +234,8 @@ export const B = {
   // daily question per day consumed.
   //
   // Before this existed the model had only a binary staticBank toggle: full
-  // bank (369) or nothing (0). Neither is the shipped state, so the default
-  // table described the pre-D34 world and overstated reads by ~145 per user
+  // bank or nothing. Neither is the shipped state, so the default table
+  // described the pre-D34 world and overstated reads by ~145 per user
   // per day at every size — while COSTS.md's own prose already said the
   // real figure was ~3. Set to `bank` to recover the pre-D34 arithmetic.
   changedPerReseed: 7,
@@ -219,6 +244,17 @@ export const B = {
   // 4/m + 3, so a duo pays 5 reads per member per reveal where a 32-member
   // group pays 3.1. Raising this makes the reveal line cheaper, not dearer.
   duelGroupSize: 2,
+  // ── how often the D98 surfaces are opened (D102) ──
+  // The soft half of the `social` read term, and the same missing-input
+  // shape D47 found with changedPerReseed: the term is charged per OPEN,
+  // and nothing else in this block measures opens of a sheet. All three
+  // are guesses about curiosity, not facts about the code — stated here
+  // so the first week of real usage can correct a number instead of
+  // discovering a category.
+  sheetOpens: 0.15,   // who-voted sheets opened per user per day
+  kindredViews: 0.03, // People-lens (Kindred) first views per user per day
+  circleOpens: 0.1,   // Circle stop opens per user per day
+  circleFollows: 5,   // accounts a typical circle holds (the cap is 50)
 };
 
 // ── bytes, for the two lines the model billed as free (D67) ─────
@@ -240,14 +276,24 @@ export const BYTES = {
   aggDoc: 2_400,
   aggDocLow: 300,
   aggDocHigh: 7_000,
-  // Everything else a boot pulls: bank questions measure 206 B each as
-  // Firestore encodes them (78.4 KiB / 389 docs, counted from v2content.ts),
-  // profiles and group docs are the same order.
+  // Everything else a boot pulls: bank questions measure ~238 B each as
+  // Firestore encodes them (bank wire size over doc count — 119.3 KiB /
+  // 513 at D102; recompute from check-figures' bankKiB when the bank
+  // moves, which is how the previous figure here sat two promotion
+  // cycles stale). Profiles and group docs are the same order, and so are
+  // the answer docs the `social` term reads: optionIdx + surface + a
+  // six-field anchors snapshot.
   otherDoc: 250,
   // Index entries are billed as storage alongside the documents. The
   // multiplier is what index bytes add ON TOP of document bytes, and it is
-  // low BECAUSE of the answers exemptions (D64): that collection now carries
-  // one indexed field where it carried fifteen. Before them this was ~5x.
+  // low BECAUSE of the answers exemptions (D64), which still hold for
+  // eleven fields. The indexed set has grown since D64 wrote "one field
+  // where it carried fifteen": answeredAt gained editedAt beside it (D86),
+  // then the who-voted composite (D98) and the surface single-field that
+  // Circle's query needs (D102) — call it a handful of entries per answer
+  // against the ~15 the defaults would mint, so the pre-D64 figure was
+  // ~5x. 1.4 stays as the blended estimate across ALL collections; if it
+  // is ever re-derived, derive it from an invoice, not from this comment.
   indexMultiplier: 1.4,
 };
 
@@ -293,14 +339,16 @@ export const CONTENTION_DAU = B.peakWindowMin * 60;
 export function costModel({ regional = false, bank = bankDocs() } = {}) {
   const P = priceSheet(regional);
 
-  // Reads decompose into six sources — see COSTS.md "Where the reads
+  // Reads decompose into seven sources — see COSTS.md "Where the reads
   // actually go". Keeping them separate is the whole point: the totals are
   // unremarkable, the decomposition is where the findings live.
   //
-  // It was four until D67 added `rules` and `server`. Those two are flat in
-  // DAU and together are larger than boot's top-up, reseed and the whole
-  // fan-out combined at every size below ~10k DAU — which is to say the
-  // model's shape below the walls was wrong, not just its total.
+  // It was four until D67 added `rules` and `server`, and six until D102
+  // added `social` — the D98 surfaces (who-voted, Kindred, Circle) had
+  // been reading other users' answers for a day with no term at all,
+  // which is the D67 failure recommitted while its correction note sat
+  // forty lines up. If a key is added here, scripts/pulse.test.mjs pins
+  // the key set and names the consumers that must move with it.
   function readsPerUser(dau, { mature, staticBank = false, pollAggs = false }) {
     const boot = (1 + 1 + 1 + DECK_DAYS + 1 + 2 + 2) * B.boots;
     // A question under the floor is re-read at most once per 6 h, so roughly
@@ -308,7 +356,7 @@ export function costModel({ regional = false, bank = bankDocs() } = {}) {
     const topUp = ((mature ? 5 : AGG_CAP) / 4) * B.boots;
     // Charged per MAU, not per DAU: a monthly visitor pays for every
     // promotion since their last visit, not just the ones since yesterday.
-    // Post-D34 that is the delta (7 changed docs), not the bank (369) —
+    // Post-D34 that is the delta (7 changed docs), not the whole bank —
     // `staticBank` is the REMAINING unbuilt fix (serve the bank off Hosting,
     // which takes this to zero), not the one that shipped.
     const changed = staticBank ? 0 : B.changedPerReseed;
@@ -328,7 +376,29 @@ export function costModel({ regional = false, bank = bankDocs() } = {}) {
       + B.duelAnswers * TRIGGER_READS.duel
       + B.worldAnswers * VELOCITY_READS_PER_LEDGER_ENTRY
       + B.duelAnswers * revealReadsPerMember(B.duelGroupSize);
-    return { boot, topUp, reseed, fanOut, rules, server };
+    // The D98 surfaces (D102): who-voted, Kindred, Circle — a client
+    // reading OTHER users' answers on demand. One key rather than three
+    // because they are one mechanism at three surfaces; the split lives in
+    // the terms below. Each charges (answer docs + name resolution), and
+    // names are ≤1 profile doc per distinct voter on the first surface
+    // that sees them, ~0 after (session cache) — so the ×2 is the
+    // no-overlap ceiling, not the steady state. The crowd a capped fetch
+    // returns is min(cap, ~DAU): the daily deck is globally shared, so a
+    // question's crowd is roughly everyone active that day until the cap
+    // binds at DAU ≈ VOTER_FETCH_CAP — above that, `social` is flat.
+    const crowd = Math.min(VOTER_FETCH_CAP, dau);
+    const whoVoted = B.sheetOpens * crowd * 2;
+    const kindred = B.kindredViews * KINDRED_QUESTIONS * crowd * 2;
+    // A member's answer set grows with account AGE, not DAU: ~3 world
+    // answers/day, ceilinged by the cap — ~90 days old in a mature
+    // community, ~10 in a fresh TestFlight one (the same flag the top-up
+    // uses for the same reason). The followers query and the member-name
+    // top-up are noise beside it.
+    const circle =
+      B.circleOpens * B.circleFollows
+      * Math.min(CIRCLE_ANSWER_CAP, B.worldAnswers * (mature ? 90 : 10));
+    const social = whoVoted + kindred + circle;
+    return { boot, topUp, reseed, fanOut, rules, server, social };
   }
 
   // `aggBytes` selects which end of the published-aggregate size band to
@@ -340,9 +410,14 @@ export function costModel({ regional = false, bank = bankDocs() } = {}) {
     const { aggBytes = "aggDoc" } = opts;
     const r = readsPerUser(dau, { mature, ...opts });
     const reads = Object.values(r).reduce((a, b) => a + b, 0) * dau;
-    // Below the floor the public mirror is rewritten on EVERY answer; above
-    // it, once per five. The cold-start period is the expensive one.
-    const pub = mature ? 1 / PUBLISH_EVERY : 1;
+    // The public mirror is rewritten on every answer at every size — D98
+    // removed the cadence AND the floor, so there is no immature phase
+    // for a discount to differ from. This was `mature ? 1/PUBLISH_EVERY
+    // : 1` — a ternary both of whose arms became 1, wearing the floor's
+    // comment two decisions after the floor died. If batching ever
+    // returns (as a performance measure — PUBLISH_EVERY's note), it now
+    // discounts every phase, which is what a floorless world means.
+    const pub = 1 / PUBLISH_EVERY;
     const writes = dau * (B.worldAnswers * (1 + 2 + pub) + B.duelAnswers * 2 + 0.2);
     const deletes = dau * B.worldAnswers; // ledger TTL, 90 days later
     const inv = dau * (B.worldAnswers + B.duelAnswers);

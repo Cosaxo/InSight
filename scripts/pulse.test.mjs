@@ -29,6 +29,7 @@ import {
 import { renderPulse } from "./pulse-render.mjs";
 import {
   costModel, DECK_DAYS, AGG_CAP, PUBLISH_EVERY, TRIG, B, writesPerSec, CONTENTION_DAU,
+  VOTER_FETCH_CAP, KINDRED_QUESTIONS, FOLLOW_CAP, CIRCLE_ANSWER_CAP,
 } from "./cost-arith.mjs";
 
 const read = (rel) => readFileSync(join(ROOT, rel), "utf8");
@@ -43,6 +44,50 @@ describe("cost-arith reads its constants from source, not from memory", () => {
 
   it("AGG_CAP matches live.ts's AGG_ID_CAP", () => {
     expect(AGG_CAP).toBe(Number(read("src/v2/data/live.ts").match(/AGG_ID_CAP = (\d+)/)[1]));
+  });
+
+  it("the D98-surface bounds match their sources (D102)", () => {
+    // The four caps are what make the `social` term finite. readNum already
+    // throws on a RENAME; these hold the VALUES equal so a retuned cap
+    // re-derives the model on the next run instead of drifting from it.
+    expect(VOTER_FETCH_CAP).toBe(
+      Number(read("src/v2/data/voters.ts").match(/VOTER_FETCH_CAP = (\d+)/)[1]));
+    expect(KINDRED_QUESTIONS).toBe(
+      Number(read("src/v2/data/live.ts").match(/KINDRED_QUESTIONS = (\d+)/)[1]));
+    expect(FOLLOW_CAP).toBe(
+      Number(read("src/v2/data/circle.ts").match(/FOLLOW_CAP = (\d+)/)[1]));
+    expect(CIRCLE_ANSWER_CAP).toBe(
+      Number(read("src/v2/data/circle.ts").match(/CIRCLE_ANSWER_CAP = (\d+)/)[1]));
+  });
+
+  it("readsPerUser's key set is exactly what the consumers draw (D102)", () => {
+    // The decomposition's keys are load-bearing beyond the model: pulse's
+    // stacked bar (READ_SERIES, pulse-render.mjs) names each one, and
+    // COSTS.md's "Where the reads actually go" table has a column per key.
+    // cost-model.mjs derives its printer and its flat-sum from the keys, so
+    // those cannot drift — but a series list with a MISSING key draws a bar
+    // that no longer sums to its own total, silently. If this fails, a key
+    // was added or renamed: update READ_SERIES, COSTS.md's table, and this
+    // list, in that order of harm.
+    const { readsPerUser } = costModel({});
+    expect(Object.keys(readsPerUser(5000, { mature: true })))
+      .toEqual(["boot", "topUp", "reseed", "fanOut", "rules", "server", "social"]);
+    const series = read("scripts/pulse-render.mjs").match(/key: "(\w+)"/g)
+      .map((s) => s.slice(6, -1));
+    expect(series).toEqual(["boot", "topUp", "reseed", "fanOut", "rules", "server", "social"]);
+  });
+
+  it("the social term is flat above the voter cap, and only above it", () => {
+    // min(VOTER_FETCH_CAP, dau) is the crowd factor: below the cap the
+    // surfaces read the whole room, above it the cap is the whole point.
+    // If this fails, either the cap stopped binding (the unbounded read
+    // came back) or the term stopped scaling at small sizes (it would
+    // overcharge a TestFlight cohort by ~40x).
+    const { readsPerUser } = costModel({});
+    const at = (dau) => readsPerUser(dau, { mature: true }).social;
+    expect(at(50)).toBeLessThan(at(VOTER_FETCH_CAP));
+    expect(at(VOTER_FETCH_CAP)).toBeCloseTo(at(500_000), 10);
+    expect(at(50)).toBeGreaterThan(0);
   });
 
   it("PUBLISH_EVERY is a constant 1, and the server has no such literal", () => {

@@ -32,6 +32,9 @@ Every constant below is sourced, not assumed:
 | One duel answer, again | +3 rule reads (group, reveal, question); the trigger's duel branch reads nothing | `isDuelAnswer`; "one blind write, no read" |
 | One ledger entry | +1 read the night it is scanned | `ledgerVelocityScan`, functions/src/velocity.ts (D54) |
 | One group-day reveal | `4 + 3m` reads for `m` members — 10 for a duo | `revealGroupDay`, functions/src/v2social.ts |
+| One who-voted sheet | ≤200 answer reads + ≤200 profile reads (names), once per question per session | `VOTER_FETCH_CAP`, src/v2/data/voters.ts (D102 — was unbounded, ~DAU reads per open) |
+| One Kindred first view | ≤12 sheets' worth, shared with the sheet cache | `KINDRED_QUESTIONS`, src/v2/data/live.ts (D99) |
+| One Circle open | 1 + one query per member: ≤50 members × ≤300 answers, +1 followers query | `FOLLOW_CAP` / `CIRCLE_ANSWER_CAP`, src/v2/data/circle.ts (D101) |
 
 Note the shape of the third row. There is no "under the floor" any more
 (D98 removed the floor and the cadence both), so the mirror is rewritten
@@ -54,11 +57,11 @@ single-region database is roughly half.
 
 | Scenario | DAU | reads/day | writes/day | Firestore $/mo | Functions $/mo | **Total $/mo** |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: |
-| Launch / TestFlight | 50 | 4.3 K | 710 | 0.00 | 0.00 | **0.00** |
-| Friends-of-friends | 500 | 43.5 K | 7.1 K | 0.00 | 0.00 | **0.00** |
-| Real traction | 5,000 | 290 K | 59 K | 7.26 | 0.00 | **7.26** |
-| Scale | 50,000 | 8.5 M | 590 K | 245 | 1.60 | **247** |
-| Hit | 500,000 | 648 M | 5.9 M | 17,133 | 33 | **17,166** |
+| Launch / TestFlight | 50 | 7.6 K | 710 | 0.00 | 0.00 | **0.00** |
+| Friends-of-friends | 500 | 156 K | 7.1 K | 1.90 | 0.00 | **1.90** |
+| Real traction | 5,000 | 2.2 M | 71 K | 46 | 0.00 | **46** |
+| Scale | 50,000 | 50.5 M | 710 K | 1,222 | 1.60 | **1,224** |
+| Hit | 500,000 | 3.3 B | 7.1 M | 85,507 | 33 | **85,541** |
 
 The Firestore column includes network egress, which Google bills separately
 but Firestore is what serves. It is the softest line here — see the band
@@ -89,31 +92,52 @@ below.
 > cost the arithmetic had no term for, which reads as "free" and is the
 > most expensive way to be wrong.
 
+> **Corrected 2026-08-12 (D102), twice in one pass.** First: every table
+> here was still the *pre-D98* run. D98 set the publish cadence to 1 — the
+> unit-economics row above said so — but nobody reran the model, so the
+> fan-out column (which scales with publishes) sat at a fifth of its real
+> value in every row: the old "Hit" total of $17,166 was really $60k+ the
+> day D98 merged. Second: D98–D101 shipped three surfaces that read *other
+> users' answers* on demand — named who-voted, Kindred, Circle — and the
+> model had no term for any of them, which is the D67 failure recommitted
+> the day after its note was reread. The `social` column below is that
+> term, and its bounds are now pinned to source like DECK_DAYS
+> (`VOTER_FETCH_CAP`, `KINDRED_QUESTIONS`, `FOLLOW_CAP`,
+> `CIRCLE_ANSWER_CAP`). The voters cap did not exist until this pass:
+> `fetchVoters` was the app's one unbounded read, ~DAU documents per
+> sheet open. The bill below assumes the cap.
+
 Two things fall out immediately. **Compute is free and stays free** —
 the trigger is 4 invocations per user per day at 200 ms, and Cloud Run's
 free tier (180 k vCPU-s/month) covers ~900 k answers/month on its own;
 even at 500 k DAU the functions bill is $33. And **reads still dominate
 the bill at every size** — writes never exceed 3% of the total.
 
-So the entire cost story of this app is *reads*, and reads have **six**
-sources. It said three until D67, and the three it named were the three a
-client issues; the project is billed for the other three all the same.
+So the entire cost story of this app is *reads*, and reads have **seven**
+sources. It said three until D67 (the three a client issues at boot and
+idle), six until D102 — the seventh is the one D98 was for: clients
+reading each other's answers.
 
 ## Where the reads actually go
 
 Per active user per day:
 
-| DAU | boot | agg top-up | reseed delta | **listener fan-out** | rule reads | server reads | total/user |
-| ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| 50 | 21 | 42 | 3 | 0 | 6 | 14 | 86 |
-| 500 | 21 | 42 | 3 | 1 | 6 | 14 | 87 |
-| 5,000 | 21 | 2 | 3 | 13 | 6 | 14 | 58 |
-| 50,000 | 21 | 2 | 3 | **125** | 6 | 14 | 171 |
-| 500,000 | 21 | 2 | 3 | **1,250** | 6 | 14 | 1,296 |
+| DAU | boot | agg top-up | reseed delta | **listener fan-out** | rule reads | server reads | **D98 surfaces** | total/user |
+| ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| 50 | 21 | 42 | 3 | 1 | 6 | 14 | 66 | 152 |
+| 500 | 21 | 42 | 3 | 6 | 6 | 14 | 219 | 311 |
+| 5,000 | 21 | 2 | 3 | 63 | 6 | 14 | **339** | 447 |
+| 50,000 | 21 | 2 | 3 | **625** | 6 | 14 | 339 | 1,010 |
+| 500,000 | 21 | 2 | 3 | **6,250** | 6 | 14 | 339 | 6,635 |
 
-The fan-out is still the only source that grows without bound. Everything
-else is flat in DAU, and the two rightmost columns are the ones that were
-missing — **20 reads per user per day that no client issues**.
+The fan-out is still the only source that grows without bound — five
+times steeper than the last run of this table, because D98 retired the
+publish cadence that divided it. Everything else is flat in DAU,
+including the new column: the **D98 surfaces** term is the largest read
+source at every size below ~30 k DAU, and it goes flat at 200 DAU
+because that is where `VOTER_FETCH_CAP` starts binding. Uncapped it
+would scale with DAU — a second quadratic, which is what this pass
+existed to prevent.
 
 **Rule reads** (6). Every `get()` and `exists()` inside a security rule is a
 billed read charged to the project, on top of the operation that triggered
@@ -138,14 +162,30 @@ answer; and the reveal pipeline reads `(4 + 3m)/m` per member per group-day,
 which is 5 for a duo. The velocity scan alone is the size of the top-up and
 the reseed delta put together, and it was invisible.
 
+**The D98 surfaces** (339 at maturity). Who-voted sheets, Kindred and
+Circle — one mechanism at three surfaces, a client reading other users'
+answer documents on demand, which no read source above does. Charged per
+*open*, so its soft inputs are open rates (`B.sheetOpens`,
+`B.kindredViews`, `B.circleOpens` — guesses about curiosity, stated in
+scripts/cost-arith.mjs), and its hard inputs are the four caps, pinned to
+source. The decomposition at maturity: who-voted ≈ 60 (0.15 opens ×
+200-voter page × 2 for names), Kindred ≈ 144 (0.03 views × 12 capped
+lists × 2), Circle ≈ 135 (0.1 opens × 5 members × ~270 answers each).
+The ×2 is the no-overlap ceiling on name resolution — crowds overlap and
+names cache per session, so the steady state runs cheaper than this
+column, which is the direction a prediction should err.
+
 **What this does to the document's own claim about its shape.** The
 sentence here used to read "below 50 k DAU the whole per-user read cost is
 now the boot and the top-up — both flat, both cheap, neither worth
-optimising." At 5,000 DAU the real decomposition is boot 21, **server 14**,
-fan-out 13, **rules 6**, reseed 3, top-up 2. The server column is the second
-largest line and larger than the fan-out. The conclusion — that none of it
-is worth optimising at that size, because the bill is $7 — survives; the
-description of where the reads go did not.
+optimising." At 5,000 DAU the real decomposition is **social 339**,
+fan-out 63, boot 21, server 14, rules 6, reseed 3, top-up 2: the feature
+family D98 exists for is now three quarters of the read bill, and the
+$7.26 this document used to quote at that size is $46. The conclusion
+mostly survives — $46/month is still nothing at 5,000 DAU — but for the
+first time the biggest line is one a product knob (an open rate, a cap)
+moves directly, rather than a boot cost only an architecture change
+could.
 
 ## The egress band, and why it is a band
 
@@ -164,9 +204,9 @@ options (`BREAKDOWN_DIMS` / `BREAKDOWN_MAX_BUCKETS`, functions/src/pure.ts).
 | ---: | ---: | ---: | ---: |
 | 50 | $0 | $0 | $0 |
 | 500 | $0 | $0 | $0 |
-| 5,000 | $0 | $0 | $0.46 |
-| 50,000 | $7 | $51 | $147 |
-| 500,000 | $647 | $5,047 | $14,686 |
+| 5,000 | $0.73 | $2.93 | $7.75 |
+| 50,000 | $46 | $266 | $748 |
+| 500,000 | $3,303 | $25,306 | $73,502 |
 
 The headline table charges the middle column. Two honest caveats: the price
 ($0.12/GiB) is one this project has never been invoiced for, and the whole
@@ -228,14 +268,16 @@ at ten users — but it also means every publish on today's aggregate fans
 out to every client currently listening, and each delivery is a billed
 read.
 
-Publishes scale with DAU (one per 5 answers). Concurrent listeners scale
-with DAU. So the fan-out is **DAU² / 400** reads per day: 125 reads per
-user at 50 k DAU, 1,250 at 500 k — 96% of all reads at the top row.
+Publishes scale with DAU — since D98, one per *answer*, not one per five:
+removing the cadence quintupled this term's slope, which is the single
+biggest thing that happened to this document between D67 and D102. So the
+fan-out is **DAU² / 80** reads per day: 625 reads per user at 50 k DAU,
+6,250 at 500 k — 94% of all reads at the top row.
 
-This is not urgent — see the wall ordering below — but it is the reason the
-500 k row is five figures rather than three. The fix when it matters is to
-stop streaming and start polling: today's card needs a fresh count at vote
-time and on a slow timer, not on every fifth stranger's answer. That is a
+This is not urgent — see the wall ordering below — but it is the reason
+the 500 k row is five figures rather than four. The fix when it matters is
+to stop streaming and start polling: today's card needs a fresh count at
+vote time and on a slow timer, not on every stranger's answer. That is a
 display cadence choice, not an architectural one.
 
 **The one input nobody has measured.** `onlineMin` (3 minutes of open app
@@ -287,6 +329,46 @@ makes this line worse, not better. MAU counts everyone who opened the app
 that month, so a 10% D1 retention curve means MAU ≈ 10 × DAU rather than
 3 ×, and the auth bill triples while the product fails.
 
+### Finding 4 — the D98 surfaces were unbounded and unmodelled · **BOUNDED (D102)**
+
+> Closed 2026-08-12, the day after they shipped, which is the closest this
+> document has come to catching the D67 failure before an invoice could.
+
+D98's read path (`fetchVoters`) carried no `limit()`. The daily question
+is globally shared, so a who-voted sheet on it reads the whole crowd: at
+5,000 DAU that is ~5,000 answer documents plus up to 5,000 profile reads
+for names — **~10,000 billed reads and a multi-second render for one
+tap**, growing linearly with DAU forever. Kindred multiplied the same
+fetch by twelve. Every sibling fan-out already had its bound
+(`CIRCLE_ANSWER_CAP`, `FOLLOW_CAP`, `KINDRED_QUESTIONS`, `AGG_ID_CAP`);
+this was the one that shipped without.
+
+**What was done.** `VOTER_FETCH_CAP = 200`, inside the query, newest
+first — and the sheet says "the latest 200 of N" when the cap binds
+rather than presenting the slice as the room (the honesty rule, pointed
+at truncation). Kindred inherits the bound per list: 12 × 200 is its
+worst case, recency-biased, which is the right bias for a ranking drawn
+from live lists. The model gained the `social` term the same day, with
+the caps read from source and the open rates named as the guesses they
+are.
+
+**Also found under this stone.** D101's Circle query
+(`where("surface", "in", …)` on one user's answers) needs the single-field
+index D64's exemptions had deleted — `FAILED_PRECONDITION` in production,
+invisible in every suite because the emulator does not enforce index
+config, and swallowed per-member into an empty stop.
+`firestore.indexes.json` re-enables `answers.surface` at COLLECTION scope
+(ascending only), which costs one more index entry per answer write on
+the hottest write path — accepted, it is what makes Circle exist — and
+`src/v2/data/indexes.test.ts` now pins every data-layer query shape to
+the index file so the next such gap fails in CI instead of in production.
+
+**Still open, recorded not built:** `setFollowing` reloads the whole
+circle (members × answer queries) to add one row — fine at 5 follows,
+worth an incremental insert if circles grow; and a capped voters page has
+a natural cursor (`answeredAt`) if anyone ever needs page two. Neither is
+worth building before a user exists who would notice (D7's discipline).
+
 ## The walls, in the order they are hit
 
 1. **~14,400 DAU — D7's write-contention ceiling.** All of a day's daily
@@ -295,12 +377,17 @@ that month, so a 10% D1 retention curve means MAU ≈ 10 × DAU rather than
    5 k DAU, `1.00` at 14.4 k, `3.47` at 50 k. Past this, transactions
    retry and aggregation degrades. Already recorded, already costed, fix
    already named (shard the counter). **This binds first.**
-2. **~18,200 DAU — the read fan-out overtakes every flat source
+2. **~30,800 DAU — the read fan-out overtakes every flat source
    combined.** Finding 2. Not a failure, just the point where the bill
-   stops being rounding error. This row used to say ~50,000, which was
-   never computed from anything; `cost-model.mjs` now solves for it, and
-   the crossover moved *later* rather than earlier when D67's terms landed
-   — the flat baseline it has to beat went from 26 reads/user/day to 46.
+   stops being about anything else. This row has now moved twice without
+   the fan-out itself changing shape, in opposite directions, and both
+   moves are worth keeping: D98's cadence removal made the fan-out five
+   times steeper, which pulled the crossover from ~18,200 down to
+   **~3,700 — below wall 1, inverting the ordering this section is
+   about** — and nobody reran the model to see it. D102's `social` term
+   then raised the flat baseline from 46 to 385 reads/user/day, pushing
+   the crossover back out to ~30,800. The ordering held for a day by
+   accident, and holds now by arithmetic.
 3. **~50,000 MAU — the Identity Platform cliff**, if that is the billing
    mode. Finding 3.
 4. **~10,000 activations/day — Play Integrity's standard quota**, which
@@ -316,14 +403,19 @@ page, so its memory is bounded by one page rather than by the window. The
 new ceiling has not been measured and no number is quoted for it here.
 
 Wall 1 arriving before wall 2 is the good ordering: the app breaks
-technically at a size where the bill is still ~$80/month, so there is no
-scenario where a surprise invoice arrives before a surprise outage. That is
-worth keeping true — and it stayed true through D67, which is worth saying
-because it was not guaranteed to. Adding the missing read terms could have
-moved the crossover below the write wall and inverted the ordering; it
-raised the flat baseline instead, so the gap widened from 2,000 DAU to
-3,800. The ordering is a property to re-check whenever a read term is
-added, not a fact to rely on.
+technically at a size where the bill is still ~$183/month, so there is no
+scenario where a surprise invoice arrives before a surprise outage. That
+is worth keeping true — and this pass is the proof it is a property to
+re-check rather than rely on, exactly as the previous version of this
+paragraph said: D98 *did* invert it (a 5× steeper fan-out against an
+unchanged baseline puts the crossover at ~3,700 DAU, a quarter of the
+wall), and the inversion sat unnoticed until the next full model run a
+day later. It is restored now because the D98 surfaces themselves raised
+the flat baseline eightfold — the feature family that endangered the
+ordering is what currently maintains it, which is not a stable
+arrangement. If the `social` open rates come in lower than guessed, the
+crossover moves back toward the wall; re-run the crossover line whenever
+one of those rates is measured.
 
 ## Everything that is not Firestore
 
@@ -338,7 +430,7 @@ added, not a fact to rely on.
 | Firebase Hosting (`web/`, static pages) | $0 |
 | Cloud Storage | $0 (bucket unused; see SHIP-CHECKLIST) |
 | Cloud Logging | $0 until ~500 k DAU, then ~$17/mo |
-| Firestore storage | 5.6 GiB after a year at 5 k DAU → $0.83/mo (4.0 GiB of documents, ×1.4 for index entries — a multiplier that was 1.0 in the model until D67, and would be ~5 without D64's `answers` index exemptions) |
+| Firestore storage | 5.6 GiB after a year at 5 k DAU → $0.83/mo (4.0 GiB of documents, ×1.4 for index entries — a multiplier that was 1.0 in the model until D67, and would be ~5 without D64's `answers` exemptions; the indexed set has since grown by D86's `editedAt`, D98's who-voted composite and D102's `surface` re-enable, and 1.4 stays as the blended estimate) |
 | Network egress | in the Firestore column above, not free: $0–0.5/mo at 5 k DAU, **$7–147 at 50 k**, $647–14,686 at 500 k — see the band below |
 | Sentry | $0 (developer tier; crash-only, but on by default since D76 — volume now scales with installs, so this is the first third-party quota to watch as they grow) |
 | GitHub Actions | $0 within the private-repo allowance; iOS is a separate workflow *because* macOS bills at 10× |
@@ -353,12 +445,17 @@ does not scale down when usage does.
 
 ## The honest summary
 
-**Below 5,000 DAU this app costs about $32/month, and $28 of that is the
+**Below ~1,000 DAU this app costs about $36/month, and $28 of that is the
 Apple developer program and a Claude subscription.** The infrastructure is
-effectively free — inside or near the Firestore and Cloud Run free tiers —
-and D67's corrections did not change that answer. They roughly halved the
-headroom, which is a different thing: $7/month at 5,000 DAU rather than $5,
-and $247 at 50 k rather than $175.
+effectively free at launch sizes — $0 at 50 DAU, ~$2 at 500, ~$6 at 1,000
+— and the number that moved in this pass is the mid-range: $46/month at
+5,000 DAU where this document used to say $7.26, three quarters of it the
+D98 surfaces doing exactly what D98 built them to do. $46 at real traction
+is still a trivially good trade; what changed is that the biggest line is
+now a product behaviour (how often people open who-voted, Kindred,
+Circle) rather than a fixed boot cost, so the first week of real usage
+can move this prediction in either direction by measuring three open
+rates.
 
 That is still the correct answer to "can I afford to launch this": yes, by
 a wide margin, and the cost of being wrong about demand is not measured in
@@ -366,13 +463,15 @@ infrastructure at all.
 
 Three caveats worth carrying:
 
-- **The bill is almost entirely reads, and a third of them are not the
-  client's.** The two self-inflicted client sources are dealt with: the
-  cache-bust is closed (D34) and the listener fan-out is recorded and
-  deliberately not built, because D7's write ceiling binds ~1.3× earlier
-  than it does. The 20 reads/user/day of rule and server traffic are new to
-  the model, not new to the bill — they have been charged since launch of
-  the trigger, and below 50 k DAU none of them is worth optimising either.
+- **The bill is almost entirely reads, and the biggest read line is now
+  the product working as designed.** The boot-era sources are dealt with:
+  the cache-bust is closed (D34), the listener fan-out is recorded and
+  deliberately not built (D7's write ceiling binds ~2× earlier than its
+  crossover), and rule/server traffic is flat and small. What remains is
+  the `social` column — the D98 surfaces reading each other's answers —
+  which is bounded by four pinned caps (Finding 4) and priced by three
+  open-rate guesses. It is the one line a cap retune or a UI change moves
+  directly, which cuts both ways.
 - **Check the auth billing mode.** It is the only line in this document
   that could be four figures a month without any code being wrong, and it
   is the one remaining pre-launch cost action.
@@ -385,14 +484,20 @@ Three caveats worth carrying:
 ## What would change these numbers
 
 - **Engagement per user.** The model assumes 4 answers/day. Doubling that
-  roughly doubles writes and compute — and it is the input D67 changed most,
-  because three of the six read sources are now charged per *answer* rather
-  than per open. Re-running the model with `B.worldAnswers` at 6 moves
-  reads/user/day by +14% / +15% / **+42% / +80% / +97%** at 50 / 500 / 5 k /
-  50 k / 500 k DAU, and roughly doubles the bill at the two top rows
-  ($7.26 → $13, $247 → $457, $17,166 → $33,935). This line used to read
-  "barely moves reads — the read cost is dominated by boots, not by
-  answering." That was true when the model only counted boots.
+  roughly doubles writes and compute, and re-running with `B.worldAnswers`
+  at 6 moves reads/user/day by +18% / +11% / **+20% / +65% / +97%** at
+  50 / 500 / 5 k / 50 k / 500 k DAU — roughly doubling the bill at the two
+  top rows ($46 → $61, $1,224 → $2,106, $85,541 → $167,632). The mid-size
+  percentages *fell* at D102, which looks wrong and is not: the `social`
+  term is charged per open rather than per answer, so a bigger social
+  column dilutes the answer-driven share until the fan-out takes over.
+- **The D98 open rates.** `B.sheetOpens` (0.15), `B.kindredViews` (0.03)
+  and `B.circleOpens` (0.1) price the model's largest sub-30k-DAU line off
+  three guesses about curiosity, and the `social` column is linear in each
+  of them. They replace `onlineMin` as the most leveraged soft numbers in
+  the file, and they are the same kind of cheap to find out: a week of
+  real usage answers all three. The caps beside them are hard bounds, so a
+  wrong guess moves the bill, never the ceiling.
 - **Reseed frequency.** *Was* the single most sensitive input below 50 k
   DAU; D34 took most of the sensitivity out with it. What matters now is
   `changedPerReseed` (how many questions a promotion actually moves), not

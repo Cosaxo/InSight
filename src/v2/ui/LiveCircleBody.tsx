@@ -80,9 +80,11 @@ function LiveCircleBody() {
   const rows = qs
     .map((q) => ({ q, split: circleSplit(members, q.id, q.options.length) }))
     .filter((r) => r.split.n >= 2)
-    .sort((a, b) =>
-      divisiveness(b.split.counts) - divisiveness(a.split.counts)
-      || b.split.n - a.split.n)
+    // divisiveness computed once per surviving row rather than inside the
+    // comparator, where it would re-run O(n log n) times per render —
+    // same reasoning (and measurement) as LiveCohortBody's sort.
+    .map((r) => ({ ...r, d: divisiveness(r.split.counts) }))
+    .sort((a, b) => b.d - a.d || b.split.n - a.split.n)
     .slice(0, 12);
 
   const myVotes = LIVE.myVotes();
