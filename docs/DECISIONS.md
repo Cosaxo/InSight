@@ -11143,3 +11143,148 @@ as void rather than as a baseline.
 harmless and re-authoring would re-key. The ten new cards vary `c`
 deliberately: if the permutation is ever removed, a bank with varied
 authored indices degrades instead of collapsing.
+
+## D116 · The store listing was still selling the retired privacy model, and the closed vocabulary becomes a gate
+
+**Decided:** 2026-08-12 · **Status:** binding · Completes D106, whose
+sweep did not reach the two surfaces below.
+
+**Decision.** `design/store/listing.json` and the in-app privacy panel
+are rewritten to state the post-D98 model, and the retired model's
+vocabulary becomes a check — `npm run check:public-copy`, on `ci.yml`
+and on the **iOS release** pre-flight.
+
+### What was found, preparing a release
+
+Both store descriptions — Apple's and Play's, the same paragraph twice —
+still read:
+
+> • Your answers are owner-only. The database rules enforce it — it isn't
+> a policy you have to take on faith.
+> • Crowd numbers are floored. A split stays hidden until enough people
+> have answered that no count can be traced back to one person.
+
+under a header saying **BUILT SO THE PRIVACY CLAIMS ARE TRUE**, plus
+"nothing is shown until enough people have answered for the number to
+mean something" in the daily section. Every one of those was made false
+by D98 on 2026-08-11.
+
+This copy is not a draft. It was **pushed to App Store Connect on
+2026-08-08** (LAUNCH-RUNBOOK 4.3) and is what the listing serves today,
+which makes it the widest-audience copy the project has and the only
+stale surface that a store reviewer reads *before* the app. It also
+contradicts the app's own privacy nutrition label, which correctly
+declares answers as published user content — a listing arguing against
+its own label is a worse problem than either half alone.
+
+Two smaller staleness bugs rode along in the same paragraphs: the Map
+section advertised **"Five profiles — personality, politics, values,
+social style, thinking"** after D103 retired the Thinking test (the app
+titles that sheet "Your four profiles" off `PASSIVE.KEYS.length`), and
+the privacy bullets never mentioned takes at all.
+
+### The one that is worse, because D106 wrote it
+
+`LivePrivacyPanel.tsx` — the panel whose entire job is making what the
+app SAYS match what `firestore.rules` DOES — came out of D106's own
+rewrite claiming:
+
+> Strangers' takes appear under world questions, **always without a
+> name**.
+
+`LiveTakesPanel` heads its world composer **"Takes · posted under your
+name"** and resolves every author through `LIVE.nameFor`, asserted by
+`LiveTakesPanel.test.tsx` ("world takes are named (D98)"). So the commit
+that existed to delete false privacy claims shipped a new one, and of the
+worse kind: the first version of that line understated the app (claiming
+a feature was absent), the replacement **overstated a protection**. A
+user reading it would post a take believing it anonymous.
+
+That is the asymmetry D106 itself named, landing inside D106.
+
+**And it was not one line, which is the part worth keeping.** The gate was
+written from the panel's wording, then run across the tree — and found the
+same claim twice more in `web/privacy.html`, the page D106 rewrote most
+carefully, phrased differently both times:
+
+> **Anything you write.** … posted to the world it is published to
+> everyone *with no name attached*, one per person per question.
+
+> **Your world takes:** everyone, with no name attached.
+
+Three copies of one false anonymity claim, in the two documents D106
+named as its widest-audience surfaces, surviving the sweep that existed
+to remove exactly this. None of the three would have been found by
+looking for the panel's phrasing, and the first draft of the takes
+pattern matched only that phrasing. The pattern now carries three
+spellings and a comment saying to grep the *claim* rather than the
+string — a vocabulary gate is only as wide as the phrasings someone
+thought of, which is its real limit and is recorded rather than papered
+over.
+
+### Why a gate now, when D106 declined to build one
+
+D106's refusal was right and is not reversed: *"the prose agrees with the
+rules" is not a static property, and inventing one here would be a worse
+error than the one it chased.* `check:public-copy` does not attempt it —
+it reads no rules and reasons about no behaviour.
+
+What it uses is the fact D106 did not exploit: the retired model has a
+**closed vocabulary**. Owner-only answers, k-anonymity, a floor, a
+withheld count, a nameless take — a fixed word list, false in every
+present-tense sentence, permanently. Checking a word list against an
+enumerated file list is a name-level check, the same class as
+`check:globals` and `check:store-copy`, and it is buildable exactly where
+the general form is not.
+
+D106's chosen remedy was a discipline instead — *"a decision that changes
+who may read something names the user-facing pages in its own
+checklist"* — and the discipline failed on its first outing in both
+available ways: it **forgot a surface** (`listing.json` was never
+enumerated) and it **mis-rewrote one it remembered** (the takes bullet).
+A discipline cannot catch the file it did not list. The file list is the
+remedy, which is why the enumeration at the top of the script is the
+part to edit when a user-facing page is added.
+
+### What it deliberately does not do
+
+- **Source comments are not scanned.** The tree still carries many stale
+  `k-floored` comments in `src/v2/spec/` and `src/v2/data/`. They are
+  debt, not a claim to anyone, and scanning them would bury the signal.
+  Sweeping them is a separate job and is **not** done here.
+- **Past-tense history stays legal**, and the patterns are written for
+  it: every one is anchored on *is/are* rather than on the nouns, so
+  `web/privacy.html`'s two deliberate paragraphs ("This page promised the
+  opposite until 2026-08-11", "There used to be a threshold here") pass
+  untouched. D106's rule that a reversal must be visible is load-bearing;
+  a gate that punished it would delete the record instead.
+
+### Measured, not assumed
+
+Run against the pre-fix tree it reports **eleven** findings — four in each
+store description, two in `web/privacy.html`, one in the panel — and
+against the fixed tree it is silent. That was checked by restoring the
+old files from git and running it, not by reading the regexes.
+
+`scripts/check-public-copy.test.mjs` keeps both halves true after today:
+seven verbatim regression cases taken from the copy that was actually
+live, the two past-tense history paragraphs asserted to **pass**, the two
+legitimate uses of "anonymous" in the panel asserted to pass, and the
+patterns pinned as case-insensitive and non-global (a `/g` regex on a
+shared object carries `lastIndex` between calls, so the same string would
+match, then not match). The panel's two claims are additionally pinned in
+`LivePrivacyPanel.test.tsx`, which fails on the old sentence.
+
+**A hosting redeploy is owed for the privacy-policy half**, on the same
+footing as the store re-push below: `web/` is served by Firebase Hosting,
+so the corrected page is not the one a user or a reviewer reads until the
+deploy runs. LAUNCH-RUNBOOK 0.2/0.3/2.7 already owed one; this is a
+fourth reason and the first that is a correction rather than a fill-in.
+
+### The owner step this creates
+
+The corrected description **is not live until it is pushed**: Actions →
+**App Store metadata**, *apply*. Nothing in the repo can see App Store
+Connect's copy (D74/D75 established the same for the age rating), so a
+green tree here does not mean a corrected listing. LAUNCH-RUNBOOK 4.3
+carries the step.
