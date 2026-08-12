@@ -34,10 +34,6 @@ import { locateCity } from "../data/locate";
 // since D98 the only test there is (data/floor.ts and its constants are
 // gone with the floor they mirrored).
 import { hasPublishedCounts } from "../data/deck";
-// The Answers lens's sort key (D100) — normalised so a four-way and a
-// binary can be ranked against each other without the option count
-// deciding it.
-import { divisiveness } from "../data/cohort";
 // The four lens BODIES (D99), loaded when a lens tab is first opened
 // (D101, D119).
 //
@@ -56,6 +52,10 @@ const SimilaritySection = React.lazy(() => import("./LiveSimilarityField"));
 // The tab row (D119) — static, because it IS the stop's navigation and a
 // suspense gap where the tabs should be is a stop that looks broken.
 import MirrorLensTabs from "./MirrorLensTabs";
+// The Answers tab's list, in the prototype's row design (D120). An
+// ordinary import, not lazy: this body IS the default tab, and it rides
+// this module's own lazy chunk (D119) either way.
+import LiveAnswerRows, { type AnswerRow } from "./LiveAnswerRows";
 import { LENS_LABEL, TAB_LABEL, type LensTab } from "./lensTabs";
 import type { LensId, LensQuestion } from "./lensDefs";
 import { byOf } from "../data/cohort";
@@ -64,130 +64,8 @@ import { byOf } from "../data/cohort";
 // moves down.
 import CityPicker from "./CityPicker";
 
-const LN_LINE = "1px solid var(--rule)";
-
 export type CohortScope = "city" | "country" | "world";
 
-type Row = {
-  qid: string; text: string; options: string[];
-  cell: Record<string, number>; n: number;
-  /** Dense per-option counts for this cohort — the cell, as an array. */
-  counts: number[];
-  /** The bank's subject path (D100); undefined for a pre-D100 seed. */
-  branch?: string;
-  /** The viewer's own pick, -1 when they have not answered. */
-  mine: number;
-};
-
-// The three orderings the Answers lens offers.
-//
-// "Newest" is in the prototype's list and is deliberately NOT here. The
-// archive spans any day the deck rotation has reached, and nothing the
-// client holds dates an answer: the aggregate carries no timestamp, and a
-// question's bank position is where it entered the bank, not when it was
-// asked. Offering a "Newest" that silently means "highest seq" would be a
-// label that is wrong about roughly six days in seven.
-const SORTS = [
-  { id: "answers", label: "Most answers" },
-  { id: "divisive", label: "Most divisive" },
-  { id: "agreed", label: "Most agreed" },
-] as const;
-type SortId = (typeof SORTS)[number]["id"];
-
-function LnBar({ row, accent, open, onToggle }: {
-  row: Row; accent: string; open: boolean; onToggle: () => void;
-}) {
-  const pct = row.options.map((_, i) => Math.round(((row.cell[String(i)] || 0) / row.n) * 100));
-  // Rounding drift lands on the largest share so the bar is exactly full.
-  const drift = 100 - pct.reduce((a, b) => a + b, 0);
-  if (drift) pct[pct.indexOf(Math.max(...pct))] += drift;
-  const shade = (i: number) => `color-mix(in oklch, ${accent} ${Math.max(70 - i * 22, 12)}%, var(--surface-3))`;
-  return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 7, padding: "13px 0", borderBottom: LN_LINE }}>
-      {/* The whole row is the control. A separate chevron would put a
-          28px target next to a full-width one that does the same thing. */}
-      <button onClick={onToggle} aria-expanded={open} style={{
-        border: "none", background: "none", padding: 0, margin: 0, textAlign: "left",
-        cursor: "pointer", WebkitAppearance: "none", display: "flex", alignItems: "baseline", gap: 8,
-      }}>
-        <span style={{ flex: 1, fontFamily: "var(--serif)", fontSize: 15.5, lineHeight: 1.35, color: "var(--ink)" }}>{row.text}</span>
-        <span aria-hidden="true" style={{ fontFamily: "var(--sans)", fontSize: 11, fontWeight: 800, color: "var(--ink-3)" }}>
-          {open ? "–" : "+"}
-        </span>
-      </button>
-      <div style={{ display: "flex", height: 30, border: LN_LINE, borderRadius: 9, overflow: "hidden", background: "var(--surface)" }}>
-        {pct.map((p, i) => (
-          <span key={i} style={{
-            width: `${p}%`, display: "flex", alignItems: "center", justifyContent: "center",
-            background: shade(i), color: i < 2 ? "#fff" : "var(--ink)",
-            fontSize: 10.5, fontWeight: 800, overflow: "hidden",
-          }}>{p >= 14 ? `${p}%` : ""}</span>
-        ))}
-      </div>
-      {open ? (
-        // Expanded: one line per option, so a share too thin to label on
-        // the bar still has a number. Your own pick is named rather than
-        // only tinted — a colour difference is not a reading.
-        <div style={{ display: "flex", flexDirection: "column", gap: 5, paddingTop: 2 }}>
-          {row.options.map((o, i) => {
-            const c = row.cell[String(i)] || 0;
-            const isMine = i === row.mine;
-            return (
-              <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, fontFamily: "var(--sans)", fontSize: 12 }}>
-                <span style={{ width: 10, height: 10, borderRadius: 3, flexShrink: 0, background: shade(i) }} />
-                <span style={{ flex: 1, fontWeight: isMine ? 800 : 600, color: isMine ? "var(--ink)" : "var(--ink-2)" }}>
-                  {o}{isMine && <span style={{ fontWeight: 700, color: "var(--ink-3)" }}> · your answer</span>}
-                </span>
-                <span style={{ fontWeight: 600, color: "var(--ink-3)", fontVariantNumeric: "tabular-nums" }}>
-                  {c.toLocaleString()}
-                </span>
-                <span style={{ width: 36, textAlign: "right", fontWeight: 800, color: "var(--ink-2)", fontVariantNumeric: "tabular-nums" }}>
-                  {pct[i]}%
-                </span>
-              </div>
-            );
-          })}
-          <span style={{ fontFamily: "var(--sans)", fontSize: 11, fontWeight: 600, color: "var(--ink-3)", marginTop: 2 }}>
-            {row.n.toLocaleString()} {row.n === 1 ? "answer" : "answers"}
-            {row.mine < 0 && " · you have not answered this one"}
-          </span>
-        </div>
-      ) : (
-        <div style={{ display: "flex", gap: 11, flexWrap: "wrap" }}>
-          {row.options.map((o, i) => (
-            <span key={i} style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 11, fontWeight: 700, color: "var(--ink-2)" }}>
-              <span style={{ width: 10, height: 10, borderRadius: 3, display: "inline-block", background: shade(i) }} />
-              {o}
-            </span>
-          ))}
-          <span style={{ marginLeft: "auto", fontSize: 10.5, fontWeight: 600, color: "var(--ink-3)" }}>
-            {row.n.toLocaleString()} {row.n === 1 ? "answer" : "answers"}
-          </span>
-        </div>
-      )}
-    </div>
-  );
-}
-
-// The filter + sort strip above the rows. Only rendered when there is
-// something to filter: one branch and four rows does not need a chip row
-// telling you so.
-function LnChips({ value, options, onPick }: {
-  value: string; options: Array<{ id: string; label: string }>; onPick: (id: string) => void;
-}) {
-  return (
-    <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-      {options.map((o) => (
-        <button key={o.id} onClick={() => onPick(o.id)} aria-pressed={value === o.id} style={{
-          border: LN_LINE, borderRadius: 999, padding: "5px 12px", cursor: "pointer",
-          fontFamily: "var(--sans)", fontWeight: 700, fontSize: 12, WebkitAppearance: "none",
-          background: value === o.id ? "var(--ink)" : "var(--surface)",
-          color: value === o.id ? "var(--surface)" : "var(--ink-2)",
-        }}>{o.label}</button>
-      ))}
-    </div>
-  );
-}
 
 // The Right now card (D84) lived here while Near was the city stop (D9);
 // it moved to ui/NearLiveBody.tsx when D111 gave presence its own stop.
@@ -206,11 +84,10 @@ function LnNote({ title, children }: { title: string; children: React.ReactNode 
 function LiveCohortBody({ scope = "city" }: { scope?: CohortScope }) {
   const [, tick] = React.useState(0);
   React.useEffect(() => LIVE.subscribe(() => tick((t) => t + 1)), []);
-  // Answers-lens controls (D100). One row open at a time: two expanded
-  // distributions push the second off the screen anyway.
-  const [branch, setBranch] = React.useState("");
-  const [sort, setSort] = React.useState<SortId>("answers");
-  const [openQid, setOpenQid] = React.useState<string | null>(null);
+  // The Answers tab's own controls (branch chips, sort, which row is open)
+  // moved into LiveAnswerRows at D120 — they belong to the list, and the
+  // host had them only because the list used to be inline.
+  //
   // Which tab of the stop is showing (D119). Per-stop rather than lifted:
   // the three scopes mount as separate elements (mirror-tab keys the body
   // on the zoom), so each stop keeps its own place and switching scope
@@ -300,6 +177,12 @@ function LiveCohortBody({ scope = "city" }: { scope?: CohortScope }) {
     scope === "city" ? (place ? place.name : city)
       : scope === "country" ? PLACES.countryName(country)
         : "the world";
+  // The stop's own colour. mirror-tab sets --accent per POP, and all three
+  // geographic zooms share one pop — so without this City, Country and
+  // World would draw in the same ink and the axis would stop shading from
+  // near to far. Set on the root rather than threaded as a prop: the rows,
+  // the stack, the chips and the lens bodies all read var(--accent), and
+  // one declaration reaches every one of them.
   const accent =
     scope === "city" ? "var(--c-around)" : scope === "country" ? "var(--c-city)" : "var(--c-world)";
 
@@ -311,7 +194,7 @@ function LiveCohortBody({ scope = "city" }: { scope?: CohortScope }) {
   const archive = LIVE.aggregated();
   const myVotes = LIVE.myVotes();
 
-  const rows: Row[] = [];
+  const rows: AnswerRow[] = [];
   // Questions with no answers from this cohort yet. Since D98 nothing is
   // withheld, so an absent cell means exactly zero — the counter survives
   // only so an empty row is explained rather than silently missing.
@@ -336,9 +219,13 @@ function LiveCohortBody({ scope = "city" }: { scope?: CohortScope }) {
     const options = q.options.map((o) => o.label);
     const mine = myVotes[q.id];
     rows.push({
-      qid: q.id, text: q.text, options, cell, n,
+      qid: q.id, text: q.text, options, n,
       counts: options.map((_, i) => cell[String(i)] || 0),
       branch: q.branch,
+      // D120's headline and histogram read differently for `rating` and
+      // `scale`; the row used to drop the type because a stacked bar does
+      // not care what kind of question it is.
+      type: q.type,
       mine: mine == null ? -1 : Number(mine),
     });
   }
@@ -365,33 +252,6 @@ function LiveCohortBody({ scope = "city" }: { scope?: CohortScope }) {
     };
   }).filter((q) => q.options.length > 0);
 
-  // ── the Answers lens's own controls (D100) ──
-  //
-  // Branch chips come from the rows in view rather than from the bank, so
-  // a subject with nothing to show here never offers itself as a filter
-  // that leads to an empty list.
-  const branchN: Record<string, number> = {};
-  for (const r of rows) if (r.branch) branchN[r.branch] = (branchN[r.branch] || 0) + 1;
-  const branches = Object.keys(branchN).sort((a, b) => branchN[b] - branchN[a] || a.localeCompare(b));
-  const pickedBranch = branches.includes(branch) ? branch : "";
-  // divisiveness once per row, not once per comparison. Inside the
-  // comparator it re-runs O(n log n) times per render; measured against
-  // today's bank that is the difference between ~360 µs and ~100 µs for
-  // the sort, and over half of this whole panel's per-notify recompute —
-  // a gap that only widens, because the archive grows with the bank
-  // (D97) and this panel re-renders on every store notify.
-  const dOf = new Map(rows.map((r) => [r.qid, divisiveness(r.counts)]));
-  const shown = rows
-    .filter((r) => !pickedBranch || r.branch === pickedBranch)
-    .sort((a, b) => (
-      sort === "answers" ? b.n - a.n
-        : sort === "divisive" ? dOf.get(b.qid)! - dOf.get(a.qid)!
-          // Most agreed: least divisive first, but a question with a
-          // single answer is 0 on this scale and would head the list
-          // saying nothing. Ties break toward the bigger room.
-          : dOf.get(a.qid)! - dOf.get(b.qid)! || b.n - a.n
-    ));
-
   // ── the stop's tabs (D119) ──
   //
   // Answers, then the constellation, then the four lenses — the prototype's
@@ -409,7 +269,7 @@ function LiveCohortBody({ scope = "city" }: { scope?: CohortScope }) {
   const openTab = tabs.some((t) => t.id === tab) ? tab : "answers";
 
   return (
-    <div className="fade-in" style={{ padding: "4px 16px 26px" }}>
+    <div className="fade-in" style={{ padding: "4px 16px 26px", "--accent": accent } as React.CSSProperties}>
       <div style={{ padding: "10px 0 4px" }}>
         <div className="kicker">
           {scope === "city" ? "Your city" : scope === "country" ? "Your country" : "Everyone"}
@@ -434,55 +294,22 @@ function LiveCohortBody({ scope = "city" }: { scope?: CohortScope }) {
 
       {openTab === "answers" && (
         <div className="fade-in" role="tabpanel" aria-label={TAB_LABEL.answers}>
-          {/* Filter and sort only appear once they would do something. Two
-              rows and one subject do not need a control strip explaining
-              that there is nothing to narrow. */}
-          {rows.length > 1 && (
-            <div style={{ display: "flex", flexDirection: "column", gap: 7, padding: "10px 0 4px" }}>
-              {branches.length > 1 && (
-                <LnChips
-                  value={pickedBranch}
-                  onPick={(id) => { setBranch(id); setOpenQid(null); }}
-                  options={[{ id: "", label: `All ${rows.length}` },
-                    ...branches.map((b) => ({ id: b, label: `${b} ${branchN[b]}` }))]}
-                />
-              )}
-              <LnChips
-                value={sort}
-                onPick={(id) => setSort(id as SortId)}
-                options={SORTS.map((s) => ({ id: s.id, label: s.label }))}
-              />
-            </div>
-          )}
-
-          {shown.map((r) => (
-            <LnBar key={r.qid} row={r} accent={accent}
-              open={openQid === r.qid}
-              onToggle={() => setOpenQid(openQid === r.qid ? null : r.qid)} />
-          ))}
-
-          {!rows.length && (
-            <LnNote title={`${scope === "world" ? "Today" : shortName} is still filling up`}>
-              No answers here yet — the first one starts the count.
-            </LnNote>
-          )}
-
-          {/* A branch chip can only be picked when it has rows, so this is
-              unreachable today — it exists because the filter and the row
-              list are computed separately and a future source that drops
-              rows after the chips are built should say so rather than
-              render a blank stretch. */}
-          {!!rows.length && !shown.length && (
-            <LnNote title={`Nothing under ${pickedBranch}`}>
-              No answers in that subject here yet.
-            </LnNote>
-          )}
-
+          <LiveAnswerRows
+            rows={rows}
+            whom={shortName}
+            emptyNote={
+              <LnNote title={`${scope === "world" ? "Today" : shortName} is still filling up`}>
+                No answers here yet — the first one starts the count.
+              </LnNote>
+            }
+          />
           {!!rows.length && empty > 0 && (
-            <div style={{ padding: "13px 0 0", fontFamily: "var(--sans)", fontSize: 12, fontWeight: 500, color: "var(--ink-3)", lineHeight: 1.5 }}>
+            <div style={{ padding: "2px 0 0", fontFamily: "var(--sans)", fontSize: 12, fontWeight: 500, color: "var(--ink-3)", lineHeight: 1.5 }}>
               {/* An absent cell is zero, not a withholding — D98 removed the
                   floor, so there is nothing left for this line to apologise
-                  for. It just says the row is empty. */}
+                  for. It just says the row is empty. Stated by the HOST
+                  rather than the list, because only the host knows the
+                  scope and "from the world yet" is not a sentence. */}
               {empty} more {empty === 1 ? "question has" : "questions have"} no
               answers {scope === "world" ? "yet" : <>from {shortName} yet</>}.
             </div>

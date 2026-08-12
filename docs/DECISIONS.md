@@ -11538,3 +11538,80 @@ row; giving either a tab bar with one tab in it would be furniture. The
 demo bodies are untouched: `mirrorLensTop` stays an off-by-default tweak
 over there, because the demo field's own arrangement is the prototype's
 and is not what was reported.
+
+## D120 · The live answer row becomes the prototype's answer row
+
+**Decided:** 2026-08-12 · **Status:** binding. The second half of the same
+report `InSight_standalone_21.html` came with. D119 moved Answers into a
+tab; this is what the tab draws.
+
+### The row the repo already had, and the one it shipped
+
+`spec/mirror-answers.jsx` is byte-identical to v21's — the port is in
+sync, and only the DEMO Mirror renders it. Live grew its own row: a
+full-width 30 px stacked bar with the percentages written inside it,
+expanding into a plain option / count / % list.
+
+The prototype's row is a different reading. Collapsed, it is three facts
+on one line — the **headline** ("58% Yes", or an average out of ten), the
+distribution as a **thin stack** with your own segment in accent, and
+**your answer** named beside it — so a list of them scans as *what did
+they say / where am I in it* rather than as a column of bar charts.
+Expanded, the options get labelled bars, a 1-10 `rating` gets a histogram
+instead, and a sentence says where you sit. The whole list sits in one
+card with a chip row, an inline sort, a "you" legend that names the accent
+mark **once** instead of on every row, and a Show-N-more at seven.
+
+All of it is ported. Three things are not:
+
+- **Newest, and the date furniture that carries it** — the same refusal
+  D100 made and for the same reason: nothing the client holds dates an
+  answer. The sticky month headers go with it. The row prints the answer
+  COUNT where the prototype prints a date, which is the thing live can say
+  truthfully and is also what decides how much the percentages are worth.
+- **`d[3] + d[4]` for a scale's agree share.** The prototype's Likerts are
+  always five long; the bank does not promise that, and a seven-point item
+  read at fixed indices would report its MIDDLE as agreement. It reads the
+  last two points off the end.
+- **Percentages as the source.** The prototype computes its average from
+  rounded percentages because that is all its `dist` holds. Live has the
+  raw counts.
+
+### The arithmetic went to data/, and pctFor was already there
+
+`headlineFor` and `standingIn` are pure folds in `data/cohort.ts` beside
+`divisiveness` and `meanScore`, returning **data** — `{kind:"average"|
+"agree"|"top"}` and `{kind:"below"|"above"|"with"}` — with the wording
+left to the row. That is what makes them testable without a DOM, and both
+return confident numbers where a wrong one looks exactly like a right one.
+
+A first draft of this had a local `pctOf` in the UI module. `pctFor` has
+been in `cohort.ts` the whole time, and its own comment says why that
+would have been a bug: *two surfaces rounding differently on the same
+numbers is how a 51/49 becomes a 51/48 one screen over.* The new
+headline's "62%, not 63%" test case exists to keep it going through
+`pctFor` rather than dividing locally.
+
+### Two bugs the tests found, both worth stating
+
+**The default-open row could not be closed.** The list opens its first row
+(the prototype's behaviour — a tab that opens onto a closed list reads as
+a table of contents), held as a sentinel in the open-row state rather than
+as an id. The toggle compared against the id, so the first tap on that row
+set the state it was already showing. The prototype computes `isOpen` once
+and uses it in both places; this did not. Found by rewriting smoke-live's
+expander case to **collapse before it expands** — the old version asserted
+only that a click sets `aria-expanded=true`, which passes against a row
+that was already open and whose toggle does nothing.
+
+**`getAllByRole("button", {expanded: false})`** silently dropped the top
+row once the first one opened by default, which would have started every
+ordering assertion at the second row. Both are the same shape: an
+assertion that keeps passing after the thing it describes changes.
+
+### Not done here
+
+The three geographic stops only. Groups' answer record
+(`GroupAnswersCard`) is demo data and Circle's split list is its own
+reading; neither is what was reported, and giving them this row would mean
+inventing the sources first.

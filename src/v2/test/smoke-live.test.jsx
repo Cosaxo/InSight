@@ -400,10 +400,15 @@ describe("the live gates hold in the DOM, not just in the source", () => {
     expect(screen.getByRole("button", { name: /^Mind 1$/ })).toBeTruthy();
     expect(screen.getByRole("button", { name: "Most divisive" })).toBeTruthy();
 
-    // Expanding a row names the viewer's own answer rather than only
-    // tinting it — the assertion that would fail if the row rendered but
-    // the expander did nothing.
+    // The expander, both ways. Since D120 the FIRST row opens by default
+    // (the prototype's behaviour — a tab that opens onto a closed list
+    // reads as a table of contents), so this collapses it and re-opens it
+    // rather than assuming a closed start. Asserting only that a click
+    // sets aria-expanded=true would now pass against a row that was
+    // already open and whose toggle does nothing.
     const row = screen.getByRole("button", { name: /Would you rather know/ });
+    expect(row.getAttribute("aria-expanded"), "the first row did not open by default").toBe("true");
+    fireEvent.click(row);
     expect(row.getAttribute("aria-expanded")).toBe("false");
     fireEvent.click(row);
     expect(row.getAttribute("aria-expanded")).toBe("true");

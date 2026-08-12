@@ -237,6 +237,75 @@ export function meanScore(counts: readonly number[]): Score | null {
   return { mean: Math.round((sum / n) * 10) / 10, max: counts.length, n };
 }
 
+/**
+ * The one number a question's row leads with (D120).
+ *
+ * Three readings, because three kinds of question are asking three
+ * different things: an ordinal `rating` is about its AVERAGE, a `scale`
+ * about how much of the room AGREES, and everything else about which
+ * option LED. Returned as data rather than as a sentence — the words are
+ * the row's, the arithmetic is here, and the split is what makes it
+ * testable without a DOM.
+ *
+ * Null when nobody has answered: every branch would otherwise divide by
+ * zero and render a confident 0% or 0.0 for a question with no answers.
+ */
+export type Headline =
+  | { kind: "average"; mean: number; max: number }
+  | { kind: "agree"; pct: number }
+  | { kind: "top"; pct: number; optionIdx: number };
+
+export function headlineFor(counts: readonly number[], type?: string): Headline | null {
+  const n = counts.reduce((a, b) => a + b, 0);
+  if (!n || !counts.length) return null;
+  if (type === "rating") {
+    const s = meanScore(counts);
+    return s ? { kind: "average", mean: s.mean, max: s.max } : null;
+  }
+  if (type === "scale") {
+    // The top TWO points of the scale, read off its end rather than at
+    // fixed indices: a Likert is five long today and the bank does not
+    // promise it always will be.
+    const agree = counts.slice(-2).reduce((a, b) => a + b, 0);
+    return { kind: "agree", pct: Math.round((agree / n) * 100) };
+  }
+  const pct = pctFor(counts);
+  const top = counts.reduce((t, v, i) => (v > counts[t] ? i : t), 0);
+  return { kind: "top", pct: pct[top], optionIdx: top };
+}
+
+/**
+ * Where the viewer sits in a distribution (D120) — null when they have
+ * not answered it.
+ *
+ * On an ordinal question the interesting fact is how much of the room is
+ * BELOW or ABOVE you, and the bigger of the two is the one worth saying.
+ * On a categorical one it is simply how many picked what you picked:
+ * "more than 40% of Oslo" would be meaningless when the options are
+ * merely different from each other.
+ */
+export interface Standing {
+  kind: "below" | "above" | "with";
+  /** Share of the cohort on that side of you, 0..100. */
+  pct: number;
+}
+
+export function standingIn(
+  counts: readonly number[], mine: number, type?: string,
+): Standing | null {
+  const n = counts.reduce((a, b) => a + b, 0);
+  if (!n || mine < 0 || mine >= counts.length) return null;
+  const share = (c: number) => Math.round((c / n) * 100);
+  if (type === "rating" || type === "scale") {
+    const below = counts.slice(0, mine).reduce((a, b) => a + b, 0);
+    const above = counts.slice(mine + 1).reduce((a, b) => a + b, 0);
+    return below >= above
+      ? { kind: "below", pct: share(below) }
+      : { kind: "above", pct: share(above) };
+  }
+  return { kind: "with", pct: share(counts[mine]) };
+}
+
 export interface Typicality {
   /** Share of this cohort that answered the same as you, 0..100. */
   share: number;

@@ -339,8 +339,12 @@ describe("LiveCohortBody · it shows counts, never people (D5)", () => {
     for (const name of ["Sigrid", "Bø", "match", "away"]) {
       expect(text.includes(name), `the cohort panel rendered "${name}"`).toBe(false);
     }
-    // …and it does show the thing it is for.
-    expect(text).toMatch(/12 answers/);
+    // …and it does show the thing it is for: the headline reading (7 of 12
+    // is 58% Yes) and the count behind it.
+    expect(text).toMatch(/58%/);
+    // getAllBy: this fixture gives both questions the same cell, so both
+    // rows carry the same count.
+    expect(screen.getAllByText("12").length, "the row does not say how many answered").toBeGreaterThan(0);
   });
 });
 
@@ -417,13 +421,18 @@ describe("LiveCohortBody · the Answers lens can be narrowed and re-ordered", ()
     LIVE.myVotes = () => ({ q1: "1" });
   });
 
-  const rowOrder = () => screen.getAllByRole("button", { expanded: false })
-    .map((b) => b.textContent || "")
-    .filter((t) => /agrees|heat|between/.test(t));
+  // Every row is a button carrying aria-expanded, open or closed — since
+  // D120 the FIRST one opens by default (the prototype's behaviour: a tab
+  // that opens onto a closed list reads as a table of contents), so
+  // selecting on `expanded: false` would silently drop the top row and
+  // make every ordering assertion below start at the second.
+  const rowOrder = () => [...document.querySelectorAll("button[aria-expanded]")]
+    .map((b) => (b.textContent || "").match(/Almost everyone agrees|Dead heat|Somewhere between/)?.[0])
+    .filter((t): t is string => !!t);
 
   it("defaults to most answers first", () => {
     render(<LiveCohortBody scope="city" />);
-    expect(rowOrder().map((t) => t.replace(/[+–]$/, ""))).toEqual([
+    expect(rowOrder()).toEqual([
       "Somewhere between", "Almost everyone agrees", "Dead heat",
     ]);
   });
@@ -431,13 +440,12 @@ describe("LiveCohortBody · the Answers lens can be narrowed and re-ordered", ()
   it("sorts by divisiveness, and by agreement as its exact inverse", () => {
     render(<LiveCohortBody scope="city" />);
     fireEvent.click(screen.getByRole("button", { name: "Most divisive" }));
-    const divisive = rowOrder().map((t) => t.replace(/[+–]$/, ""));
+    const divisive = rowOrder();
     expect(divisive[0]).toBe("Dead heat");
     expect(divisive[2]).toBe("Almost everyone agrees");
 
     fireEvent.click(screen.getByRole("button", { name: "Most agreed" }));
-    const agreed = rowOrder().map((t) => t.replace(/[+–]$/, ""));
-    expect(agreed).toEqual(divisive.slice().reverse());
+    expect(rowOrder()).toEqual(divisive.slice().reverse());
   });
 
   it("filters to one subject and drops the rest", () => {
@@ -450,22 +458,24 @@ describe("LiveCohortBody · the Answers lens can be narrowed and re-ordered", ()
     expect(screen.getByRole("button", { name: /Dead heat/ })).toBeTruthy();
   });
 
-  it("expands a row into per-option counts with your own answer named", () => {
+  it("expands a row into per-option counts and places you in the split", () => {
     render(<LiveCohortBody scope="city" />);
     fireEvent.click(screen.getByRole("button", { name: /Almost everyone agrees/ }));
-    // The point of expanding: 5% is too thin to label on the bar, so the
-    // count only exists in this view.
+    // The point of expanding: 5% is too thin to label on the collapsed
+    // stack, so the count only exists in this view.
     expect(screen.getByText("19")).toBeTruthy();
     expect(screen.getByText("1")).toBeTruthy();
     // Named, not merely tinted — a colour difference is not a reading.
-    expect(screen.getByText(/your answer/i)).toBeTruthy();
+    // Said as a sentence since D120, which is a stronger version of the
+    // same claim: it names your side AND how much of the room is on it.
+    expect(screen.getByText(/5% of Oslo are with you/i)).toBeTruthy();
   });
 
   it("says you have not answered rather than marking an option", () => {
     render(<LiveCohortBody scope="city" />);
     fireEvent.click(screen.getByRole("button", { name: /Dead heat/ }));
     expect(screen.getByText(/you have not answered this one/i)).toBeTruthy();
-    expect(screen.queryByText(/your answer/i)).toBeNull();
+    expect(screen.queryByText(/are with you/i)).toBeNull();
   });
 
   it("hides the controls when there is nothing to narrow", () => {

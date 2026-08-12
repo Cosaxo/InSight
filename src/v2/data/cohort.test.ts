@@ -6,8 +6,7 @@
 
 import { describe, expect, it } from "vitest";
 import {
-  MAP_ANCHOR_DIM, agreement, byOf, cellFor, divergence, divisiveness, meanScore,
-  mixFor, pctFor, sliceSplit, typicality,
+  agreement, byOf, cellFor, divergence, divisiveness, headlineFor, MAP_ANCHOR_DIM, meanScore, mixFor, pctFor, sliceSplit, standingIn, typicality,
 } from "./cohort";
 
 // Two age bands and two genders over a 2-option question. Overall 12/8.
@@ -243,5 +242,81 @@ describe("byOf", () => {
     expect(byOf({ counts: {} })).toBeUndefined();
     expect(byOf(null)).toBeUndefined();
     expect(byOf(undefined)).toBeUndefined();
+  });
+});
+
+// ── the row's two readings (D120) ─────────────────────────────────────
+//
+// Both were inline in the prototype's mirror-answers.jsx, over rounded
+// percentages, with no test of their own. They are folds, so they get one
+// here — and the arithmetic is the half most worth pinning, because both
+// return CONFIDENT numbers and a wrong one looks exactly like a right one.
+
+describe("headlineFor — three kinds of question, three readings", () => {
+  it("averages a rating and carries the top of its scale", () => {
+    // Two 3s and two 9s on a 1-10: mean 6, and the /10 rides along
+    // because 6 out of 10 and 6 out of 5 are opposite readings.
+    const counts = [0, 0, 2, 0, 0, 0, 0, 0, 2, 0];
+    expect(headlineFor(counts, "rating")).toEqual({ kind: "average", mean: 6, max: 10 });
+  });
+
+  it("reads a scale as the share on its top two points", () => {
+    // 5-point Likert, 2+6 of 20 at the agree end.
+    expect(headlineFor([4, 4, 4, 2, 6], "scale")).toEqual({ kind: "agree", pct: 40 });
+  });
+
+  it("takes the top two points off the END, not off fixed indices", () => {
+    // The prototype hardcodes d[3] + d[4] because its scales are always
+    // five long. The bank does not promise that, and a 7-point item read
+    // at 3 and 4 would report its MIDDLE as agreement.
+    expect(headlineFor([0, 0, 0, 9, 0, 1, 3], "scale")).toEqual({ kind: "agree", pct: 31 });
+  });
+
+  it("names the leading option for anything categorical", () => {
+    expect(headlineFor([12, 8], "binary")).toEqual({ kind: "top", pct: 60, optionIdx: 0 });
+    // No type at all is categorical too — the fold must not guess ordinal
+    // from the shape of the counts.
+    //
+    // 62, not 63: 5/8 rounds to 63 but 13+63+25 is 101, and pctFor's rule
+    // is that the LARGEST share absorbs the drift. The headline therefore
+    // matches the bar beside it rather than the naive division — which is
+    // the whole reason it goes through pctFor instead of rounding here.
+    expect(headlineFor([1, 5, 2])).toEqual({ kind: "top", pct: 62, optionIdx: 1 });
+  });
+
+  it("is null for a question nobody answered, never a confident zero", () => {
+    // Every branch divides by the total. A 0% or a 0.0 here would render
+    // as a real reading of an empty room.
+    expect(headlineFor([0, 0], "binary")).toBeNull();
+    expect(headlineFor([0, 0, 0, 0, 0], "scale")).toBeNull();
+    expect(headlineFor([], "rating")).toBeNull();
+  });
+});
+
+describe("standingIn — where you sit in the split", () => {
+  it("counts the room below you on an ordinal, when that is the bigger side", () => {
+    // 1-10, you at index 7 (a score of 8): 15 below, 5 above.
+    const counts = [5, 5, 5, 0, 0, 0, 0, 0, 5, 0];
+    expect(standingIn(counts, 8, "rating")).toEqual({ kind: "below", pct: 75 });
+  });
+
+  it("switches to the room above you when THAT is the bigger side", () => {
+    const counts = [0, 1, 0, 0, 0, 0, 0, 0, 0, 9];
+    expect(standingIn(counts, 1, "rating")).toEqual({ kind: "above", pct: 90 });
+  });
+
+  it("counts only the people who picked the same option on a categorical", () => {
+    // "More than 40% of Oslo" is meaningless when the options are merely
+    // different from each other, so this side of the fold refuses to
+    // order them.
+    expect(standingIn([12, 8], 1, "binary")).toEqual({ kind: "with", pct: 40 });
+  });
+
+  it("is null when you have not answered, or the room is empty", () => {
+    expect(standingIn([12, 8], -1, "binary")).toBeNull();
+    expect(standingIn([0, 0], 1, "binary")).toBeNull();
+    // An index past the end is a bug upstream, not a reading — say null
+    // rather than compute a share of a bucket that does not exist.
+    expect(standingIn([12, 8], 5, "binary")).toBeNull();
   });
 });
