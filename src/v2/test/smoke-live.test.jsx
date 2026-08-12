@@ -373,12 +373,18 @@ describe("the live gates hold in the DOM, not just in the source", () => {
     mountLive();
     fireEvent.click(screen.getByRole("button", { name: /^mirror$/i }));
     fireEvent.click(screen.getByRole("tab", { name: "Circle" }));
-    await act(async () => { await new Promise((r) => setTimeout(r, 50)); });
 
-    // The retired empty state, gone.
+    // The member, named — awaited, not slept for. The body is a
+    // React.lazy chunk behind a null Suspense fallback (D101's bundle
+    // deferral), so "the tab is open" and "the body has rendered" are
+    // separated by a dynamic import whose duration is the machine's, not
+    // the test's: a fixed 50 ms lost that race on CI while passing every
+    // local run. findByText polls until the row exists or 3 s passes.
+    expect(await screen.findByText(/Ada/, {}, { timeout: 3000 })).toBeTruthy();
+    // The retired empty state, gone. AFTER the positive anchor on
+    // purpose: against the null fallback this assertion is vacuously
+    // true, so it only says something once the real body is in the DOM.
     expect(screen.queryByText(/aren.t built yet/i)).toBeNull();
-    // The member, named, with the mutual mark and the likeness metric.
-    expect(screen.getByText(/Ada/)).toBeTruthy();
     // The row's own mark, not the header's "1 of them follows you back".
     expect(screen.getByText(/^· follows you$/)).toBeTruthy();
     expect(screen.getByText("50%")).toBeTruthy();
