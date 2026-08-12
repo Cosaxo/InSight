@@ -28,7 +28,7 @@
 // carry surface "group"/"duo" and are nobody's business until the reveal.
 
 // The API arrives through lib/firebase's memoised dynamic import, not a
-// static one (D106) — a static import here would put the 292 KB Firestore
+// static one (D108) — a static import here would put the 292 KB Firestore
 // SDK back in the first-paint graph, because live.ts imports this module
 // eagerly. The type import is erased and costs nothing.
 import { getFirestoreApi } from "../../lib/firebase";

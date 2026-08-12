@@ -47,7 +47,7 @@ vi.mock("../../lib/firebase", () => ({
   firebaseEnabled: true,
   anonSignIn: () => Promise.resolve("uid_test"),
   getDb: () => Promise.resolve({ __db: true }),
-  // The API surfaces live.ts binds off the same promise as getDb (D106).
+  // The API surfaces live.ts binds off the same promise as getDb (D108).
   // `vi.mock("firebase/firestore")` in this file already replaced the real
   // module (vi.mock hoists, so its position below is immaterial), so importing
   // it here hands the store exactly the doubles this file asserts on — and
@@ -109,7 +109,7 @@ vi.mock("firebase/firestore", () => {
     },
     onSnapshot: () => vi.fn(),
     setDoc: () => Promise.resolve(),
-    // None of these four is exercised here; all four are required since D106,
+    // None of these four is exercised here; all four are required since D108,
     // because live.ts destructures its whole Firestore surface off one object
     // and a missing member throws at boot rather than at the unused call.
     updateDoc: () => Promise.resolve(),

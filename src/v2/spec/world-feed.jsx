@@ -570,7 +570,7 @@ class WorldFeed extends React.Component {
       return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
           <input value={raw} onChange={(e) => this.setState((s) => ({ pickQ: { ...s.pickQ, [q.id]: e.target.value } }))} placeholder={'Search ' + C.total + ' ' + C.noun}
-            style={{ width: '100%', boxSizing: 'border-box', border: 'none', borderBottom: '1px solid color-mix(in oklch, var(--ink) 20%, var(--rule))', background: 'none', padding: '8px 2px', fontFamily: 'var(--sans)', fontSize: 15, fontWeight: 600, color: 'var(--ink)', outline: 'none' }} />
+            style={{ width: '100%', boxSizing: 'border-box', border: 'none', borderBottom: '1px solid color-mix(in oklch, var(--ink) 20%, var(--rule))', background: 'none', padding: '8px 2px', fontFamily: 'var(--sans)', fontSize: 'var(--field-size)', fontWeight: 600, color: 'var(--ink)', outline: 'none' }} />
           {term ? (
             hits.length ? (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -1021,7 +1021,7 @@ class WorldFeed extends React.Component {
     return (
       <form onSubmit={(e) => { e.preventDefault(); const el = e.target.elements.why; const t = el.value.trim(); if (t) this.addTake(q.id, t); this.setState({ whyFor: null }); }} style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%' }}>
         <span style={{ width: 4, alignSelf: 'stretch', minHeight: 30, borderRadius: 2, background: col, flexShrink: 0 }}></span>
-        <input name="why" placeholder="Why?" style={{ flex: 1, minWidth: 0, border: 'none', borderBottom: WF_LINE, background: 'none', padding: '6px 2px', fontFamily: 'var(--sans)', fontSize: 13.5, fontWeight: 500, color: 'var(--ink)', outline: 'none' }} />
+        <input name="why" placeholder="Why?" style={{ flex: 1, minWidth: 0, border: 'none', borderBottom: WF_LINE, background: 'none', padding: '6px 2px', fontFamily: 'var(--sans)', fontSize: 'var(--field-size)', fontWeight: 500, color: 'var(--ink)', outline: 'none' }} />
         <button type="button" onClick={() => this.setState({ whyFor: null })} aria-label="Skip" style={{ border: 'none', background: 'none', padding: 4, cursor: 'pointer', fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 15, color: 'var(--ink-3)', WebkitAppearance: 'none' }}>{'\u00d7'}</button>
       </form>
     );
@@ -1914,7 +1914,7 @@ class WorldFeed extends React.Component {
         )}
         {writing && (
           <form onSubmit={(e) => { e.preventDefault(); const inp = e.target.elements.reply; const v = inp.value.trim(); if (v) { this.addReply(key, v); this.setState((s) => ({ ctrIdx: { ...s.ctrIdx, [key]: (s.replies[key] || []).length + seeded.length } })); } }} style={{ display: 'flex', gap: 6, marginLeft: 40 }}>
-            <input name="reply" autoFocus autoComplete="off" autoCapitalize="sentences" enterKeyHint="send" placeholder={'Where is it wrong\u2026'} style={{ flex: 1, minWidth: 0, border: WF_LINE, borderRadius: 999, padding: '7px 12px', fontFamily: 'var(--sans)', fontSize: 12.5, fontWeight: 500, background: 'var(--surface-2)', color: 'var(--ink)', outline: 'none' }} />
+            <input name="reply" autoFocus autoComplete="off" autoCapitalize="sentences" enterKeyHint="send" placeholder={'Where is it wrong\u2026'} style={{ flex: 1, minWidth: 0, border: WF_LINE, borderRadius: 999, padding: '7px 12px', fontFamily: 'var(--sans)', fontSize: 'var(--field-size)', fontWeight: 500, background: 'var(--surface-2)', color: 'var(--ink)', outline: 'none' }} />
             <button type="submit" style={{ border: 'none', borderRadius: 999, padding: '7px 13px', fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 12, cursor: 'pointer', background: 'var(--ink)', color: 'var(--surface)', WebkitAppearance: 'none' }}>Send</button>
           </form>
         )}
@@ -1989,7 +1989,7 @@ class WorldFeed extends React.Component {
           </div>
         ))}
         <form onSubmit={(e) => { e.preventDefault(); const inp = e.target.elements.take; const v = inp.value.trim(); if (v) { this.addTake(q.id, v); inp.value = ''; } }} style={{ display: 'flex', gap: 6, paddingTop: 2 }}>
-          <input name="take" placeholder={!this.answered(q) ? 'Answer first to add a take…' : 'Add your take…'} disabled={!this.answered(q)} style={{ flex: 1, minWidth: 0, border: WF_LINE, borderRadius: 999, padding: '8px 13px', fontFamily: 'var(--sans)', fontSize: 12.5, fontWeight: 500, background: 'var(--surface)', color: 'var(--ink)', outline: 'none' }} />
+          <input name="take" placeholder={!this.answered(q) ? 'Answer first to add a take…' : 'Add your take…'} disabled={!this.answered(q)} style={{ flex: 1, minWidth: 0, border: WF_LINE, borderRadius: 999, padding: '8px 13px', fontFamily: 'var(--sans)', fontSize: 'var(--field-size)', fontWeight: 500, background: 'var(--surface)', color: 'var(--ink)', outline: 'none' }} />
           <button type="submit" style={{ border: 'none', borderRadius: 999, padding: '8px 14px', fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 12, cursor: 'pointer', background: 'var(--ink)', color: 'var(--surface)', WebkitAppearance: 'none' }}>Send</button>
         </form>
       </div>

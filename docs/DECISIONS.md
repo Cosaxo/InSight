@@ -9785,7 +9785,191 @@ style") is a different instrument with its own questions and stays. Two
 names in the same app is worth a look; retiring a live lens is not a
 side effect of retiring a test.
 
-## D104 · Two providers leave the bridge, and the mount suite stops being one file
+## D104 · Test users: a second real account, and what it is allowed to fake
+
+**Decided:** 2026-08-12 · **Status:** binding for the harness ·
+Tooling decision — it changes no product surface and no rule.
+
+**Decision.** `scripts/test-users.mjs` (`npm run testuser`) drives
+synthetic accounts through the duel loop so 1v1 and groups can be
+exercised from one browser. It writes **only through the client SDK**,
+under each account's own session. Four deliberate limits, recorded here
+because each one is a place where the harness stops resembling a real
+device, and a surprise in a test tool is how a real bug gets attributed
+to the tool.
+
+### Why a harness at all
+
+docs/LOCAL-TESTING.md answered "test a duo" with a second incognito
+window. That covers the join and nothing after it: `shouldReveal` is
+both-or-nothing for duos, `groupPortrait` is computed from reveal
+**history**, and `nextStreak` needs consecutive revealed days. The cost
+of one day of two-member history by hand is two windows, two votes and a
+wait for the 2-hourly scan; the cost of three days is that three times.
+Those are the surfaces least likely to have been looked at, which is the
+argument for the tool rather than for more discipline.
+
+### 1 · Identity is email/password, not anonymous (against D3)
+
+Real devices are anonymous-first. An anonymous session cannot be
+re-attached in a later process: re-signing in needs the refresh token,
+and the JS SDK exposes no API that takes one. The alternative was
+`firebase-admin` minting custom tokens, which adds a credential path to
+a client-only tool.
+
+The substitution is invisible to everything a test user touches, and that
+is checkable rather than hopeful: no rule reads
+`request.auth.token.firebase.sign_in_provider` (grep), no function
+branches on it, and the profile's `anon` field has no reader — v2social.ts
+names it only as an unbounded field. uid is what every gate keys on.
+
+The cost: the harness cannot exercise anything that *does* depend on
+anonymity, and if a future rule starts to, this is the first thing that
+would silently stop being representative.
+
+### 2 · Backfill reaches 3 days, not PENDING_DAYS_KEEP's 6
+
+`firestore.rules` admits a duel answer while `timestamp.date(day) >
+request.time - duration.value(4, 'd')`. The day key is midnight UTC, so
+at 15:00 UTC the -4 key is 2026-08-08T00:00Z against a bound of
+2026-08-08T15:00Z and is refused; -3 clears it at any hour. 3 is
+therefore the largest offset that does not make the tool's behaviour a
+function of when it was run. The reveal scan's window is 6, so a backfill
+cannot fill it — accepted, because 3 days is already enough history for
+the portrait and the streak to be non-trivial.
+
+### 3 · A duo backfill settles only days the human also played
+
+Both-or-nothing again, and the harness holds no session for the human, so
+it cannot supply the other half of a past day. It reports each day it
+could not settle and why, rather than writing one-sided history that
+would then read as a broken reveal pipeline.
+
+### 4 · `reset --purge` leaves the tallies it fed
+
+`deleteAccount` erases the uid attribution (the D28 ledger) and keeps the
+anonymous count, by design — phase 1b. So purged test users stay in every
+count they voted in, and the only clean slate is an emulator restart. Said
+in the command's own output, because a total that does not drop after a
+delete is otherwise indistinguishable from a broken erasure.
+
+### Emulator-only, and why that is structural rather than advisory
+
+The script refuses to run unless `.env` has `VITE_USE_EMULATOR=true`.
+Since D98 the public counts are **exact** and publish from the first
+answer: there is no floor for a fake account to hide under, so test users
+answering world questions on a real project would move numbers real people
+are shown. The ledger's uid attribution exists so a discovered ring can be
+subtracted after the fact (DEPLOYMENT.md, "Correcting aggregates") — a
+cleanup path, not a licence to create the mess. Production also enforces
+App Check on every member callable, which a Node process cannot attest to,
+so the guard costs nothing that worked anyway.
+
+### What is imported rather than restated, and the bug that argues for it
+
+The day's question comes from the real `duelQFor`; anchors come from the
+profile's closed vocabularies and cities from the shipped catalogue via
+`placeKey`. Both would otherwise drift into a *plausible* wrong screen: a
+drifted question selection seals answers to a prompt the app never asked,
+which `revealQid` then publishes as the D70/D71 disagreement on every run,
+and an out-of-vocabulary anchor writes fine and folds into no breakdown
+bucket, counting in every total while appearing in no cohort cut.
+
+The one thing the harness does compute itself — a per-person conformity
+bias, so the splits split — is where this bit. It was first written in
+`gHash`'s shape (`h * 31 + c`), whose last round adds the final character
+straight into the accumulator, so consecutive inputs give consecutive
+outputs. Question ids run `daily-007`, `daily-008`, `daily-009`: measured,
+four users' rolls over those three came out .24/.25/.26, .41/.42/.43,
+.03/.04/.05 and .46/.47/.48 — the population conforming or dissenting as
+one bloc, publishing a unanimous split for **every** question, with real
+per-cohort breakdown cells sitting underneath it looking correct. A
+SHA-256 digest replaced it: 27 unanimous in 200 where it had been 200 in
+200. gHash is fine at its own job (one gid, once); the lesson recorded is
+that a hash chosen for a different modulus and input shape is not
+transferable, and that the failure surfaced only from probing the output
+distribution — reading the code, it looks like a hash.
+
+## D105 · One text field owns the app's scale: every input defers to --field-size
+
+**Decided:** 2026-08-12 · **Status:** binding · Owner's reading on a
+device: "I get this error sometimes where it is too zoomed in, not sure
+what's triggering it."
+
+**Decision.** Every text-entry field in the app takes its size from a
+single token, `--field-size: 16px` in `styles.css`, and may not declare
+a font size of its own. `check:touch-zoom` fails the build if one does —
+including with a literal `16`, because the bug was fifteen scattered
+numbers, not any one of their values.
+
+**What was actually wrong.** WKWebView and Mobile Safari auto-zoom the
+page when a text field takes focus whose computed font-size is under
+16px, scaling by exactly 16/size so the text lands at the platform's
+floor. The app shell is `position: fixed; inset: 0` (spec/iOS.jsx), so
+there is nothing to scale it back — no page to scroll to origin, no
+browser chrome to reset. The zoom outlives the field, the overlay and
+the tab, and every screen after it is cropped on the right.
+
+**The arithmetic, measured rather than reasoned about.** Three device
+screenshots eighteen minutes apart — the Mirror's Near stop, the profile
+overlay and the World feed — all cropped, all at one scale. Three
+independent rulers in them agree: the header search button's left edge,
+the profile overlay's centred title, and the avatar box each give
+1.067. 16/15 = 1.0667. The 15px was this repo's own `.search-field
+input`, and the header search icon that opens it is on every screen in
+the app, which is why the trigger looked like nothing in particular.
+
+The layout was never implicated and was checked before anything was
+changed: a 393pt render measures `scrollWidth === innerWidth === 393`,
+with no element crossing the right edge outside a deliberate horizontal
+scroller. Cropping without overflow is a scale, and only a scale.
+
+Every field in the tree was under the floor — 12.5px (the feed's take
+and reply composers) to 15.5px — so the fix is all of them, not the one
+that fired. Six move by ≤1px, including the culprit; nine move by 2 to
+3.5px. 16px is also what iOS wants a form field at: the old sizes were
+below what the platform considers readable, which is the whole reason it
+zooms.
+
+**The alternative, and why not.** `maximum-scale=1` in index.html's
+viewport meta is one line and changes no pixel of the design. It also
+disables pinch-zoom in the Capacitor shell and on Android Chrome (iOS
+Safari overrides the flag, so only the web-on-iPhone path keeps it) —
+a WCAG 1.4.4 regression in a repo that runs an a11y ratchet precisely so
+that sort of thing has to be argued for. Rejected on that trade, with
+the owner's call on the record.
+
+**Enforcement.** `check:touch-zoom` (client-only, off
+`backend-checks.yml` — nothing it says bears on whether a rules fix is
+safe to deploy) scans for `<input>`/`<textarea>` tags and for stylesheet
+rules that target them, resolving style objects that get spread in. Its
+three detection paths were each verified by reintroducing the bug: an
+inline literal, a literal reached through a spread style object, and
+`.search-field input` restored to 15px — the original defect, which the
+gate names by file and line.
+
+A gate rather than a test, for two reasons the tree demonstrates. The
+mount suites run in jsdom with vitest's CSS handling off, so a
+stylesheet-driven size never resolves there — the 15px that caused this
+would have passed a runtime assertion. And the fields sit behind six
+overlays and a bottom sheet, so a walk would have to reach every one of
+them to say anything, while a source scan sees all of them at once.
+`tsc`, `eslint`, `check:globals` and the smoke tests are all blind here:
+a small font size is valid CSS.
+
+**What is NOT included.** Non-keyboard inputs — `type="range"`,
+checkbox, radio, colour — are exempt and listed in the script: iOS does
+not zoom for them, and the map's history scrubber is sized deliberately.
+`spec/tweaks-panel.jsx` is skipped: it is `if (!open) return null` with
+`open` reachable only from a listener behind `import.meta.env.DEV`, so
+it is not in a production bundle and cannot be focused on a device.
+
+Double-tap-to-zoom is also still live outside buttons — `touch-action:
+manipulation` is scoped to `button`/`[role=button]`/`[role=tab]`
+(styles.css § 2). It is a second way to scale the app that nothing
+scales back, but it is user-initiated and was not what these screenshots
+measured, so it stays as it is until something says otherwise.
+## D106 · Two providers leave the bridge, and the mount suite stops being one file
 
 **Decided:** 2026-08-12 · **Status:** binding · Two independent findings
 from an audit of the tree, both of the same kind: a gate that had stopped
@@ -9926,9 +10110,9 @@ where it was 6, which is slack that will get spent, and the ceiling is
 deliberately not being lowered to match inside a change that was not
 about the bundle.
 
-## D105 · LEARN leaves the bridge, and takes the load-order bug with it
+## D107 · LEARN leaves the bridge, and takes the load-order bug with it
 
-**Decided:** 2026-08-12 · **Status:** binding · Follow-on to D104, using
+**Decided:** 2026-08-12 · **Status:** binding · Follow-on to D106, using
 the provider view that record added.
 
 **Decision.** `learn-progress.js` (`LEARN`) and `learn-data.js`
@@ -9939,7 +10123,7 @@ the layer with no cross-module global references at all.
 
 ### The seam was two modules, not one, and only half of it was the ask
 
-`LEARN` alone was the item on D104's list: 25 sites, 5 consumers.
+`LEARN` alone was the item on D106's list: 25 sites, 5 consumers.
 Converting only that would have left the thing worth fixing in place.
 `learn-progress.js` opened with
 
@@ -9969,9 +10153,9 @@ the ordering was the caller's problem. That line is deleted, and its
 absence is the win rather than a tidy-up — a step nobody can forget any
 more.
 
-### D104's prediction did not hold here, and that is worth recording
+### D106's prediction did not hold here, and that is worth recording
 
-D104 said "every remaining conversion should be expected to raise the
+D106 said "every remaining conversion should be expected to raise the
 suppression number before it lowers it", on the strength of the six
 `refs` findings the `DUELS` conversion surfaced once the React Compiler
 could resolve the store. This conversion surfaced **none**: the count
@@ -9980,7 +10164,7 @@ suppression was retired either. One `useEffect(() => { if (window.LEARN
 && …) … }, [])` in `map-tab.jsx` became the clean shape and had carried
 no directive to begin with.
 
-So the D104 sentence is a thing to *check for*, not a rule. The
+So the D106 sentence is a thing to *check for*, not a rule. The
 Compiler's bail-out depends on what else the component does, not on the
 bridge alone.
 
@@ -10009,7 +10193,7 @@ and the two shapes live in the same file.
 
 ### The alias problem, and why `L` was not renamed everywhere
 
-D104 renamed `D` → `DUELS` at every site. That was safe because `D` was
+D106 renamed `D` → `DUELS` at every site. That was safe because `D` was
 the DUELS alias in every file that used it. `L` is not: `world-feed.jsx`
 line 390 binds `const L = window.LIVE`, and `map-tab.jsx` line 797 has a
 bare `L` inside an SVG path template (`M x y L x y`). A blanket rename
@@ -10028,17 +10212,17 @@ to change; and `map-tab.jsx` keeps a bare `{ … }` block where
 `if (window.LEARN)` used to be, with a comment saying so, because
 de-indenting 23 lines would bury the change in whitespace.
 
-### D104 amendment — the entry-chunk figure was not a win, and the gate says it was
+### D106 amendment — the entry-chunk figure was not a win, and the gate says it was
 
-D104's closing paragraph read the entry chunk falling 729 → 707 KB as
+D106's closing paragraph read the entry chunk falling 729 → 707 KB as
 "the removed global registrations and dead guards were shipping". This
 conversion took it further, 707 → **685 KB**, and measuring the other
 number shows what actually happened:
 
 | tree | entry chunk | entry + every `modulepreload` | total JS |
 | --- | ---: | ---: | ---: |
-| before D104 | 728.5 KB | 1271.1 KB | 2118 KB |
-| after D105 | 685.2 KB | **1270.2 KB** | 2116 KB |
+| before D106 | 728.5 KB | 1271.1 KB | 2118 KB |
+| after D107 | 685.2 KB | **1270.2 KB** | 2116 KB |
 
 The entry chunk is 43 KB lighter and **first paint is 0.9 KB lighter**.
 The bytes moved into sibling chunks that `index.html` preloads anyway —
@@ -10078,9 +10262,9 @@ replacement pattern is already in-tree (`vi.mock("../data/live")`, used
 by every `ui/*.test.tsx`), so that conversion is a test-architecture
 change with a known shape rather than an unknown one.
 
-## D106 · The bundle gets the number that decides first paint, and it immediately finds 327 KB
+## D108 · The bundle gets the number that decides first paint, and it immediately finds 327 KB
 
-**Decided:** 2026-08-12 · **Status:** binding · Follow-on to D105's
+**Decided:** 2026-08-12 · **Status:** binding · Follow-on to D107's
 amendment, which measured the hole this closes.
 
 **Decision.** `check:bundle` gains a third ceiling, `MAX_EAGER_KB` — the

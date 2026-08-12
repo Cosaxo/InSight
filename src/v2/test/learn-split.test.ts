@@ -10,7 +10,7 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
-// Named imports from an untyped .js spec module (D105) — the suppressions are
+// Named imports from an untyped .js spec module (D107) — the suppressions are
 // scoped to exactly that (TS7016), the purge-wipe precedent.
 // @ts-expect-error TS7016 — untyped spec module
 import { LEARN_CARDS, LEARN_SPLIT as splitAny, LEARN_SPLIT_SRC } from "../spec/learn-data.js";

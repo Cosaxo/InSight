@@ -93,7 +93,7 @@ its own. Without it every D11 case in `smoke-live.test.jsx` would assert on a
 tab that never rendered a feed card — a vacuous pass, and the largest module
 in the layer would quietly leave the suite. It has to be in the SHARED hook
 rather than in the one file that visibly needs it, because vitest's module
-cache is per worker: after D104's split no file can assume another already
+cache is per worker: after D106's split no file can assume another already
 paid for the load.
 
 ## …and so are the five no-button overlays
@@ -186,7 +186,7 @@ however loudly the paragraph around it says not to let that happen. So
 they disagree with the tree — which is why there is no longer an "as of"
 date on it. It is current or CI is red.
 
-**The count went UP with D104, and that is the finding rather than a
+**The count went UP with D106, and that is the finding rather than a
 regression.** Converting `DUELS` off the bridge retired four
 `exhaustive-deps` suppressions for free — an imported binding is a stable
 dep where `window.DUELS` was an expression eslint could not prove stable —
@@ -232,7 +232,7 @@ observers, `scrollTo`, canvas contexts).
 | `smoke-nav.test.jsx` | the v17 ruler-as-nav (D43) and the surfaces that own their own drag |
 | `smoke-overlays.test.jsx` | the six cross-link overlays, the five degrade-on-missing-chunk cases, and the retired Thinking test (D103) |
 
-**Why five and not one (D104).** It was one file with 32 cases. Vitest
+**Why five and not one (D106).** It was one file with 32 cases. Vitest
 schedules a FILE to a worker, so a single file is a hard serial floor however
 many cores the runner has — and that one was **90.2 s of a 92.2 s `test:unit`
 wall clock**, with the other fifty files finishing inside it. Split, the
@@ -510,8 +510,8 @@ first paint still preloads, because `app-shell` imports it eagerly. Total
 JS is unchanged at 1529 KB. `check:bundle` asserts a total precisely so a
 split cannot read as a win — see its header.
 
-**And the general form of that is now measured, and gated (D105, D106).**
-It is not a quirk of this one conversion: across D104 and D105 the entry
+**And the general form of that is now measured, and gated (D107, D108).**
+It is not a quirk of this one conversion: across D106 and D107 the entry
 chunk fell 728.5 → 685.2 KB while **entry + every `modulepreload` fell
 1271.1 → 1270.2** — 43 KB off the gated number, 0.9 KB off first paint.
 Neither of `check:bundle`'s original two ceilings is the eager graph: the
@@ -521,7 +521,7 @@ which first paint never fetches.
 
 `check:bundle` holds **three** numbers now, and `MAX_EAGER_KB` is the one
 to quote for a first-paint claim — the script prints it on every run.
-D106 was the first thing it found: 292 KB of Firestore SDK had been
+D108 was the first thing it found: 292 KB of Firestore SDK had been
 preloaded on every cold start, in every build, including ones with no
 Firebase config at all. The eager graph is **944 KB**, down from 1270.2.
 

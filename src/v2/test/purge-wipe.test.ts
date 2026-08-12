@@ -49,10 +49,10 @@ import { IS_TEST_RESULTS, persistTestResult } from "../spec/test-definitions.js"
 // …as is passive-progress since the same conversion sweep.
 // @ts-expect-error TS7016 — untyped spec module
 import { PASSIVE } from "../spec/passive-progress.js";
-// …and scenes since D104.
+// …and scenes since D106.
 // @ts-expect-error TS7016 — untyped spec module
 import { SCENES } from "../spec/scenes.js";
-// …and the Learn pair since D105.
+// …and the Learn pair since D107.
 // @ts-expect-error TS7016 — untyped spec module
 import { LEARN } from "../spec/learn-progress.js";
 // @ts-expect-error TS7016 — untyped spec module

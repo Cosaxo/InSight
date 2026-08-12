@@ -58,7 +58,7 @@ function LdInput({ value, onChange, placeholder, style }: {
   return (
     <input value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder}
       style={{ border: LD_LINE, borderRadius: 10, padding: "11px 13px", fontFamily: "var(--sans)",
-        fontSize: 14, fontWeight: 600, color: "var(--ink)", background: "var(--surface-2)",
+        fontSize: "var(--field-size)", fontWeight: 600, color: "var(--ink)", background: "var(--surface-2)",
         outline: "none", minWidth: 0, width: "100%", boxSizing: "border-box", ...style }} />
   );
 }

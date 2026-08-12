@@ -388,7 +388,14 @@ arithmetic.
       > **Is `appBuild` greater than the highest build in App Store
       > Connect?** If yes, run as-is. If no, bump, then run.
 
-      **It is at 3. Build 1 is the one on App Store Connect.**
+      **It is at 11. Build 10 is the highest one on App Store Connect**
+      (run 16, 2026-08-12 10:50Z, at `2933dc0` — its upload step reads
+      `success`). Run 15 eight minutes earlier is the archive-only
+      rehearsal this section prescribes, and its upload step reads
+      `skipped`: the pair confirms the gate works and that only one of
+      the two spent a number. Read off those two runs' own step lists
+      rather than from memory, which is the comparison above and not the
+      habit.
 
       *With a Mac, if you ever want to debug a signing failure
       interactively:* `npm run build && npx cap sync`, then `npm run ios`.
@@ -717,7 +724,7 @@ That is a tester-count problem, not a workflow problem.
       it for two policies is the worse trade. Both cover failures that look like nothing from the
       outside: the app keeps serving while the Mirror stops moving, or
       keeps moving while falling further behind. `DEPLOYMENT.md § Alerting`.
-- [x] **5.6 Version lockstep — holds at 2.0.0 build 3 (2026-08-08).**
+- [x] **5.6 Version lockstep — holds at 2.0.0 build 11 (2026-08-12).**
       `npm run check:versions` (`--fix` writes package.json's values into
       both native projects). `appBuild` + android `versionCode` + iOS
       `CURRENT_PROJECT_VERSION` — five numbers across three files — move

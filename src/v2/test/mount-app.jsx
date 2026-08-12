@@ -24,7 +24,7 @@
 // assertion-on-content is the next layer, and the deferred React Compiler
 // findings in src/v2/README.md are the work queue for it.
 //
-// WHY THIS FILE EXISTS AT ALL (D104). All of the above used to live in one
+// WHY THIS FILE EXISTS AT ALL (D106). All of the above used to live in one
 // `smoke.test.jsx` holding 32 cases. Vitest schedules a FILE to a worker, so a
 // single file is a hard serial floor however many cores the runner has: that
 // one was 90.2s of a 92.2s `test:unit` wall clock, with the other fifty files
