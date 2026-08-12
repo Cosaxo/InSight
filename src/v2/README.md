@@ -253,7 +253,7 @@ what they claim.
 
 | suite | the property it exists for |
 | --- | --- |
-| `LiveCohortBody` | an absent breakdown cell is WITHHELD, not zero, and is counted and named; the server's `tooSmall` flag beats any counts on the document; the printed floor equals `AGG_MIN_N` |
+| `LiveCohortBody` | an absent breakdown cell means ZERO and is still counted and named in words, because a silent gap reads as "this question doesn't exist here"; a question with no aggregate at all is a different state from an empty cohort and is not counted as either; nothing consults a `tooSmall` field (D98 — the row exists to catch its return) |
 | `LiveGroupsMirrorBody` | nobody is named on fewer than `MIN_SHARED` days; duos are excluded; alignment counts days *played*, not days revealed |
 | `LiveDuelPanel` | before a reveal only your own pick is on screen; the duo card states the both-play condition rather than promising a reveal |
 | `CityPicker` | every emitted value matches the server's own city shape; all five location failures land somewhere usable; a located city is suggested, never applied |
@@ -290,9 +290,11 @@ once by hand.
 
 `test/live-fixture.ts` installs a stand-in `window.LIVE` plus the feed
 globals `buildFeedGlobals()` publishes, and `smoke-live.test.jsx` walks the
-same surfaces with it, in six shapes: the happy path, below the k-floor
-(`aggFor` returns `{ tooSmall: true }` with **no** counts — its own render),
-the `demoInProd` fallback, and a profile with no city.
+same surfaces with it, in six shapes: the happy path, an aggregate with no
+counts on it (`aggFor` returns `{ tooSmall: true }` and **no** counts — the
+fixture keeps the retired flag deliberately, so the suite proves a stray
+`tooSmall` changes nothing and the render is driven by the absence of
+counts alone), the `demoInProd` fallback, and a profile with no city.
 
 Three things learned by making it, all now load-bearing:
 

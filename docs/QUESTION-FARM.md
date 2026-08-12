@@ -210,7 +210,9 @@ summary). Then:
   so in one PR-body line ("farm vintages trail editorial by X on
   evenness; this batch leans harder on the leaders' shapes"). This is
   the loop that makes the upscale self-correcting: the farm is measured
-  by the same k-floored aggregates as everything else, and a vintage
+  by the same public aggregates as everything else — exact and unfloored
+  since D98, so a thin vintage shows up in the scorecard from its first
+  answers rather than sitting invisible under a threshold — and a vintage
   that under-performs is a writing instruction, not a shrug.
 - **Propose retirements, never apply them.** The scorecard lists
   landslides with real volume under `retireProposals`. Cite them in the
@@ -564,8 +566,12 @@ recorded under Governance when taken. Rules, each load-bearing:
 
 - **Budget ≤6 questions/run, at most twice weekly to start.** The feed
   has no consumption clock to pace against, so the bound is signal
-  dilution: a fixed crowd spread over more questions clears the k-floor
-  on fewer of them. While the scorecard shows most feed questions
+  dilution: a fixed crowd spread over more questions leaves each one with
+  too few answers for its evenness score to mean anything. (Pre-D98 this
+  read "clears the k-floor on fewer of them". There is no floor now — the
+  counts publish from answer one — but a split measured on three answers
+  is noise either way, so the bound stands on the statistics rather than
+  on the publishing rule.) While the scorecard shows most feed questions
   unscored, the lane's job is breadth across the ten topics
   (thinnest-first, the coverage rule); raising the cadence is a D97
   amendment for when the scorecard shows the crowd keeping up.
