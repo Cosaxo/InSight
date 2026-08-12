@@ -56,7 +56,7 @@ Firebase project `prvfire33`. Routine backend changes need no manual deploy.
     2026-07-31 (PR #51) — check the step's log, not its checkmark,
     before assuming the rules are live. First real release: run
     30644637683.
-  - v2 functions: `seedContentV2`, `onV2AnswerCreated` (k-floored
+  - v2 functions: `seedContentV2`, `onV2AnswerCreated` (exact
     aggregates), `createGroupV2` / `joinGroupV2` / `leaveGroupV2`,
     `registerPushToken`, `scheduledDuelReveals` / `revealDuelsNowV2`
     (reveals + push)
@@ -378,10 +378,8 @@ redelivered events are no-ops rather than double counts.
 ## Correcting aggregates after a fake-account ring (D28)
 
 Fake-account prevention is deliberately partial — App Check prices
-accounts, the k-floor and publish cadence hide small distortions at
-their design pair (both sit at 1 under D81's pause, so until the floor
-restores nothing is hidden and correctability is the whole defence), and
-D28 records why no mechanism can make it complete. What the system guarantees
+accounts, and since D98 nothing hides a small distortion — D28
+records why no mechanism can make it complete. What the system guarantees
 instead is that the published numbers stay **correctable**: answers are
 immutable (D5), exact counts live server-side in `v2_aggs_private`, and
 every counted answer leaves a `v2_agg_events` entry `{ qid, uid, at }`
@@ -417,8 +415,9 @@ attribution, subtraction, republication, in that order.
    subtraction exact rather than approximate.
 4. **Republish through the same floors.** Rewrite
    `v2_question_aggs/{qid}` from the corrected private doc exactly as the
-   trigger would: `tooSmall: true` below `AGG_MIN_N`, else counts +
-   `publishableBreakdown(by, AGG_MIN_N)`. A hand-written public doc that
+   trigger would: `{ counts, total, by }`, exact and whole — since D98
+   there is no floor, no `tooSmall` and no suppression to reproduce.
+   A hand-written public doc that
    skips the floors is a worse incident than the one being corrected.
 5. **Then delete the accounts** (admin SDK), which removes their answer
    docs and — via the uid sweep — their ledger entries.

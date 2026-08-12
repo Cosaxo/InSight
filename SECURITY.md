@@ -28,18 +28,35 @@ stands rather than left waiting.
 
 In scope, and most interesting:
 
-- **`firestore.rules` and `storage.rules`** — anything that reads or writes
-  data belonging to another user. Answer documents are meant to be
-  owner-only forever; group and duo answers are meant to be unreadable
-  until a Cloud Function materializes the reveal.
-- **The k-anonymity floors.** Public aggregates must never expose a count
-  below their floor, and must never carry per-vote timing that would
-  re-identify a respondent.
+- **`firestore.rules` and `storage.rules`** — anything that WRITES data
+  belonging to another user. Reads are open by design since D98; writes
+  are not, and a client that can author, edit or delete under someone
+  else's uid is a real finding.
+- **The four things that are still closed**, because each is closed for a
+  reason that survived D98:
+  - `v2_logic_attempts` — the unscored answer key (anti-cheat).
+  - `v2_flags` — who reported a comment (anti-retaliation).
+  - `v2_presence` — the uid → ~1 km cell pair. The only read path is
+    `nearbyCountV2`, which returns a count. Anything that recovers a
+    uid's cell is in scope and serious: the app publishes what people
+    answered, not where they are standing.
+  - Push tokens at `v2_users/{uid}/push/tokens` — a credential. Anything
+    that reads one is in scope.
+- **Duel answers before their reveal.** Sealed until the next-day reveal
+  doc exists. This is a game-integrity boundary rather than a privacy
+  one, and it is still a finding: reading a groupmate's pick early, or
+  answering a day already revealed, breaks the mechanic.
 - **The Cloud Functions callables** in `functions/src/` — authorization,
   rate limiting, invite-code minting, membership caps.
 - **`deleteAccount`** — anything it fails to erase, including data about a
   user living under another user's documents.
 - Anything reachable with a scripted anonymous sign-in that should not be.
+
+**Explicitly NOT a vulnerability (D98):** one user reading another
+user's answers, anchors, display name, test results or exact cohort
+counts, at any group size, including on political and other sensitive
+questions. That is the product. It is documented in the account panel,
+the README and `docs/data-inventory.md`.
 
 Out of scope: the demo/mock mode data (it is synthetic by design — see D1),
 denial of service through volume alone, and findings that require a

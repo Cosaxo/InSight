@@ -33,11 +33,24 @@ const LIVE = vi.hoisted(() => ({
   uid: "u_me",
   myCity: "Oslo, NO",
   deck: () => [] as Array<Record<string, unknown>>,
+  // D100: the panel reads the ARCHIVE (deck + every answered question
+  // with an aggregate), not the seven-day pager. `deck` stays on the
+  // mock because the pin lists it and the real store still has it.
+  aggregated: () => [] as Array<Record<string, unknown>>,
   // The qid parameter is real — the cases below vary the aggregate per
   // question. `void qid` because the repo's eslint has no argsIgnorePattern,
   // so an underscore prefix does not exempt an unused parameter.
   aggFor: (qid: string) => { void qid; return null as Record<string, unknown> | null; },
   subscribe: () => () => {},
+  // The lens row (D99) mounts inside this panel and reads the store for
+  // the viewer's own votes and the Kindred ranking. Stubbed flat here —
+  // the lenses have their own suite; what these cases care about is that
+  // the panel still renders its answer rows around them.
+  myVotes: () => ({} as Record<string, string>),
+  loadKindred: async () => {},
+  kindred: () => [] as Array<{ uid: string; name: string; like: { shared: number; same: number; pct: number } }>,
+  kindredLoading: () => false,
+  kindredDepth: () => 0,
   // The Right now card (D84). Reassigned per case; the default is the
   // supported-but-off pitch state.
   near: {
@@ -70,10 +83,6 @@ vi.mock("../data/locate", () => ({ locateCity, locateSupported: () => true }));
 
 const { default: LiveCohortBody } = await import("./LiveCohortBody");
 const { default: PLACES } = await import("../data/places");
-// Real, not mocked: the copy assertions below branch on the same constant
-// the component reads, so both eras of the floor stay expressed.
-const { AGG_FLOOR } = await import("../data/floor");
-
 // Two questions, so "one is shown and one is withheld" is expressible.
 const Q = (id: string, text: string) => ({
   id, text, options: [{ label: "Yes" }, { label: "No" }],
@@ -82,7 +91,7 @@ const Q = (id: string, text: string) => ({
 beforeEach(() => {
   LIVE.enabled = true;
   LIVE.myCity = "Oslo, NO";
-  LIVE.deck = () => [Q("q1", "First question"), Q("q2", "Second question")];
+  LIVE.aggregated = () => [Q("q1", "First question"), Q("q2", "Second question")];
   LIVE.aggFor = () => null;
   LIVE.near.supported = () => true;
   LIVE.near.on = () => false;
@@ -95,16 +104,11 @@ beforeEach(() => {
 afterEach(() => { cleanup(); vi.restoreAllMocks(); });
 
 describe("LiveCohortBody · an absent cell is counted and named", () => {
-  // Under the design floor (5) an absent cell means WITHHELD; under D81's
-  // paused floor (1) it means ZERO, because any cell with one answer
-  // publishes. Either way the panel must account for the gap in words —
-  // a silent gap reads as "this question doesn't exist here". The strings
-  // branch on AGG_FLOOR, so these cases assert the era they run in and the
-  // restored-floor wording stays pinned by the same expressions.
+  // Since D98 an absent cell means ZERO — nothing is withheld at any size.
+  // The panel must still account for the gap in words, because a silent gap
+  // reads as "this question doesn't exist here".
   const missingLine = (n: number, where: string) =>
-    AGG_FLOOR > 1
-      ? new RegExp(`${n} more question${n === 1 ? " is" : "s are"} withheld`, "i")
-      : new RegExp(`${n} more question${n === 1 ? " has" : "s have"} no\\s+answers from ${where} yet`, "i");
+    new RegExp(`${n} more question${n === 1 ? " has" : "s have"} no\\s+answers from ${where} yet`, "i");
 
   it("counts and names a question whose city cell is missing", () => {
     LIVE.aggFor = (qid) => qid === "q1"
@@ -121,7 +125,7 @@ describe("LiveCohortBody · an absent cell is counted and named", () => {
   });
 
   it("pluralises the accounting line rather than saying '2 question is'", () => {
-    LIVE.deck = () => [Q("q1", "Shown"), Q("q2", "Hidden A"), Q("q3", "Hidden B")];
+    LIVE.aggregated = () => [Q("q1", "Shown"), Q("q2", "Hidden A"), Q("q3", "Hidden B")];
     LIVE.aggFor = (qid) => qid === "q1"
       ? { by: { city: { "Oslo, NO": { "0": 7 } } } }
       : { by: { city: { "Bergen, NO": { "0": 9 } } } };
@@ -137,7 +141,7 @@ describe("LiveCohortBody · an absent cell is counted and named", () => {
     LIVE.aggFor = () => ({ by: { city: { "Bergen, NO": { "0": 9 } } } });
     render(<LiveCohortBody scope="city" />);
     expect(screen.getByText(/Oslo is still filling up/i)).toBeTruthy();
-    expect(screen.getByText(AGG_FLOOR > 1 ? /withheld rather than shown thin/i : /the first one starts the count/i)).toBeTruthy();
+    expect(screen.getByText(/the first one starts the count/i)).toBeTruthy();
     expect(screen.queryByText(/First question/)).toBeNull();
   });
 
@@ -152,39 +156,35 @@ describe("LiveCohortBody · an absent cell is counted and named", () => {
   });
 });
 
-describe("LiveCohortBody · the server's floor flag wins at world scope", () => {
+describe("LiveCohortBody · world scope shows what the aggregate holds", () => {
   it("withholds a question flagged tooSmall even when it carries counts", () => {
     // The exact shape the comment in the panel warns about: an aggregate
     // that still has counts on it from an earlier publish while the server
     // now says it is below the floor. Rendering the counts would publish a
-    // split the k-floor withheld.
+    // a question with no answers at all.
     LIVE.aggFor = (qid) => qid === "q1"
-      ? { counts: { "0": 30, "1": 20 }, total: 50, tooSmall: false }
-      : { counts: { "0": 2, "1": 1 }, total: 3, tooSmall: true };
+      ? { counts: { "0": 30, "1": 20 }, total: 50 }
+      : { counts: {}, total: 0 };
 
     render(<LiveCohortBody scope="world" />);
 
     expect(screen.getByText("First question")).toBeTruthy();
     expect(screen.queryByText("Second question")).toBeNull();
-    // World scope explains itself differently — "fewer than 5 people in the
-    // world" would be a different and sillier claim; at the paused floor the
-    // reason is simply that the question has no published answers yet.
-    expect(screen.getByText(
-      AGG_FLOOR > 1
-        ? /1 more question is withheld/i
-        : /1 more question has no\s+answers yet/i,
-    )).toBeTruthy();
+    // World scope explains itself differently: the reason is simply that
+    // the question has no answers yet.
+    expect(screen.getByText(/1 more question has no\s+answers yet/i)).toBeTruthy();
   });
 
-  it("treats a MISSING tooSmall flag as withheld, not as permission", () => {
-    // `agg.tooSmall !== false` rather than `agg.tooSmall === true`: a
-    // document without the field has not been declared safe by anything.
-    // Flipping that comparison is a one-character change that publishes
-    // every unflagged aggregate.
+  it("shows an aggregate that carries counts, with no flag to ask permission of", () => {
+    // The inverse of the case that stood here. It used to assert that an
+    // agg WITHOUT an explicit `tooSmall: false` stayed hidden — fail-closed,
+    // because a document nothing had declared safe was not safe. D98 removed
+    // the flag, so the same document is now simply shown. Kept as the
+    // regression guard for the rename: if anything starts consulting a
+    // `tooSmall` field again, this row disappears.
     LIVE.aggFor = () => ({ counts: { "0": 30, "1": 20 }, total: 50 });
     render(<LiveCohortBody scope="world" />);
-    expect(screen.queryByText("First question")).toBeNull();
-    expect(screen.getByText(/Today is still filling up/i)).toBeTruthy();
+    expect(screen.getByText("First question")).toBeTruthy();
   });
 });
 
@@ -323,33 +323,30 @@ describe("LiveCohortBody · it shows counts, never people (D5)", () => {
   });
 });
 
-describe("the printed floor is the floor the server enforces", () => {
-  // The floor shown to the user comes from data/floor.ts, whose own suite
-  // (floor.test.ts) regex-pins it to AGG_MIN_N in functions/src/v2.ts — the
-  // number equality lives there now. What THIS case holds is the last hop:
-  // the panel imports that constant rather than restating it, so a literal
-  // reappearing here would re-open the drift the old LN_FLOOR had.
-  it("the panel carries no floor literal of its own", () => {
+describe("the panel prints no floor claim at all (D98)", () => {
+  // The inverse of the case that used to stand here. That one made sure
+  // the printed floor equalled the enforced floor; there is no floor to
+  // print now, so this makes sure none came back. A floor literal
+  // reappearing in this panel would be a promise nothing implements —
+  // the same failure in the opposite direction.
+  it("carries no floor literal and no withholding language", () => {
     const root = resolve(__dirname, "../../..");
     const src = readFileSync(resolve(root, "src/v2/ui/LiveCohortBody.tsx"), "utf8");
-    expect(src).toMatch(/import \{ AGG_FLOOR \} from "\.\.\/data\/floor"/);
-    expect(src.match(/const LN_FLOOR = \d+/), "a local floor literal is back — it will drift").toBeNull();
+    expect(src.match(/const LN_FLOOR = \d+/), "a local floor literal is back").toBeNull();
+    expect(src).not.toMatch(/AGG_FLOOR/);
   });
 
-  it("prints no floor claim the server does not enforce", () => {
-    // Under the D81 pause (floor 1) the header must drop the "never a group
-    // smaller than N" clause entirely — both N=5 (false) and N=1 (vacuous)
-    // are wrong things to print. When the floor is restored the same render
-    // must claim exactly the enforced number.
+  it("does not tell the user anything is being held back", () => {
     LIVE.aggFor = () => ({ by: { city: { "Oslo, NO": { "0": 7, "1": 5 } } } });
     render(<LiveCohortBody scope="city" />);
     const text = document.body.textContent || "";
-    if (AGG_FLOOR > 1) {
-      expect(text).toContain(`never a group smaller than ${AGG_FLOOR}`);
-    } else {
-      expect(text).not.toMatch(/smaller than \d/);
-      expect(text).toContain("Counts only — never who.");
-    }
+    expect(text).not.toMatch(/smaller than \d/);
+    expect(text).not.toMatch(/withheld/i);
+    // NB: not asserting the absence of "never who" here — the Right-now
+    // presence card legitimately says it, and that claim is still true
+    // (D98 published answers, not the location grid; firestore.rules
+    // keeps v2_presence unreadable). Scoped to the cohort copy instead.
+    expect(text).not.toMatch(/Counts only/i);
   });
 });
 
@@ -416,5 +413,104 @@ describe("the Right now card (D84 — Near by radius)", () => {
     render(<LiveCohortBody scope="city" />);
     fireEvent.click(screen.getByRole("button", { name: /Turn off/i }));
     expect(LIVE.near.disable).toHaveBeenCalled();
+  });
+});
+
+// ── the Answers lens's own depth (D100) ──────────────────────────────
+//
+// This panel IS the Mirror's Answers lens, and until D100 it was a flat
+// list of the seven-day deck. The three things it gained are a filter, a
+// sort and an expander, and each of them is a claim about a set of rows
+// that is now much larger than a week — so what these cases assert is the
+// ORDERING and the SUBSETTING, not that a control rendered.
+
+describe("LiveCohortBody · the Answers lens can be narrowed and re-ordered", () => {
+  // Three questions across two subjects with deliberately different
+  // splits: q1 is near-unanimous, q2 is a dead heat, q3 is in between and
+  // is the only one with a large room.
+  const ARCHIVE = [
+    { id: "q1", text: "Almost everyone agrees", branch: "Mind", type: "binary", options: [{ label: "Yes" }, { label: "No" }] },
+    { id: "q2", text: "Dead heat", branch: "Morals", type: "binary", options: [{ label: "Yes" }, { label: "No" }] },
+    { id: "q3", text: "Somewhere between", branch: "Mind", type: "binary", options: [{ label: "Yes" }, { label: "No" }] },
+  ];
+  const CELLS: Record<string, Record<string, number>> = {
+    q1: { "0": 19, "1": 1 },   // 95/5  → barely divisive, n=20
+    q2: { "0": 5, "1": 5 },    // 50/50 → maximally divisive, n=10
+    q3: { "0": 60, "1": 40 },  // 60/40 → middling, n=100
+  };
+
+  beforeEach(() => {
+    LIVE.aggregated = () => ARCHIVE;
+    LIVE.aggFor = (qid: string) => ({ by: { city: { "Oslo, NO": CELLS[qid] } } });
+    LIVE.myVotes = () => ({ q1: "1" });
+  });
+
+  const rowOrder = () => screen.getAllByRole("button", { expanded: false })
+    .map((b) => b.textContent || "")
+    .filter((t) => /agrees|heat|between/.test(t));
+
+  it("defaults to most answers first", () => {
+    render(<LiveCohortBody scope="city" />);
+    expect(rowOrder().map((t) => t.replace(/[+–]$/, ""))).toEqual([
+      "Somewhere between", "Almost everyone agrees", "Dead heat",
+    ]);
+  });
+
+  it("sorts by divisiveness, and by agreement as its exact inverse", () => {
+    render(<LiveCohortBody scope="city" />);
+    fireEvent.click(screen.getByRole("button", { name: "Most divisive" }));
+    const divisive = rowOrder().map((t) => t.replace(/[+–]$/, ""));
+    expect(divisive[0]).toBe("Dead heat");
+    expect(divisive[2]).toBe("Almost everyone agrees");
+
+    fireEvent.click(screen.getByRole("button", { name: "Most agreed" }));
+    const agreed = rowOrder().map((t) => t.replace(/[+–]$/, ""));
+    expect(agreed).toEqual(divisive.slice().reverse());
+  });
+
+  it("filters to one subject and drops the rest", () => {
+    render(<LiveCohortBody scope="city" />);
+    // Chips carry their own counts, so picking one is never a guess.
+    fireEvent.click(screen.getByRole("button", { name: "Mind 2" }));
+    expect(screen.queryByRole("button", { name: /Dead heat/ })).toBeNull();
+    expect(screen.getByRole("button", { name: /Almost everyone agrees/ })).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "All 3" }));
+    expect(screen.getByRole("button", { name: /Dead heat/ })).toBeTruthy();
+  });
+
+  it("expands a row into per-option counts with your own answer named", () => {
+    render(<LiveCohortBody scope="city" />);
+    fireEvent.click(screen.getByRole("button", { name: /Almost everyone agrees/ }));
+    // The point of expanding: 5% is too thin to label on the bar, so the
+    // count only exists in this view.
+    expect(screen.getByText("19")).toBeTruthy();
+    expect(screen.getByText("1")).toBeTruthy();
+    // Named, not merely tinted — a colour difference is not a reading.
+    expect(screen.getByText(/your answer/i)).toBeTruthy();
+  });
+
+  it("says you have not answered rather than marking an option", () => {
+    render(<LiveCohortBody scope="city" />);
+    fireEvent.click(screen.getByRole("button", { name: /Dead heat/ }));
+    expect(screen.getByText(/you have not answered this one/i)).toBeTruthy();
+    expect(screen.queryByText(/your answer/i)).toBeNull();
+  });
+
+  it("hides the controls when there is nothing to narrow", () => {
+    // One row: a chip row saying "All 1" is furniture.
+    LIVE.aggregated = () => [ARCHIVE[0]];
+    render(<LiveCohortBody scope="city" />);
+    expect(screen.queryByRole("button", { name: /^All / })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Most divisive" })).toBeNull();
+  });
+
+  it("offers no subject chips when the bank predates D100", () => {
+    // Every question seeded before D100 has no `branch`, and will until
+    // the next seed run. The sort must still work; the filter must not
+    // render a single "All" chip that narrows nothing.
+    LIVE.aggregated = () => ARCHIVE.map((q) => ({ ...q, branch: undefined }));
+    render(<LiveCohortBody scope="city" />);
+    expect(screen.queryByRole("button", { name: /^All / })).toBeNull();
+    expect(screen.getByRole("button", { name: "Most divisive" })).toBeTruthy();
   });
 });

@@ -132,18 +132,16 @@ as `0` — a question, not a zero.
 
 The panel stays small because of a constraint, not because of effort:
 there is no premium data tier to model. A paying city's window is the same
-k-floored aggregate every user sees for free, enforced by `firestore.rules`
+public aggregate every user sees for free, enforced by `firestore.rules`
 rather than by contract.
 
 ### 4 · Population — "is anyone here, and can I say so honestly?"
 
 This panel mostly refuses, and the refusals are the content. Three columns:
 
-**Derivable today** — from the k-floored public mirror, which the scorecard
-already reads. At the design floor these are *floors* on real activity,
-never measurements: a question below `AGG_MIN_N` publishes nothing, so
-every number understates. Under D81's pause the floor is 1, so today the
-mirror is exact and the understatement returns with the floor.
+**Derivable today** — from the exact public mirror, which the scorecard
+already reads. These are *floors* on real activity, never measurements: a
+question nobody has answered has no document, so unanswered items are absent.
 
 **Unbuilt, not forbidden** — each could be built without reversing
 anything, and each has a real cost. The largest is worth naming here
@@ -169,7 +167,7 @@ consoles, which are not in this repo and never will be.
 | Refused | Record |
 | --- | --- |
 | Per-user funnels, session analytics, engagement scoring | data-inventory.md — "No product analytics of any kind ship today" |
-| Retention or engagement sliced by anchor | D8 / D18 — the k-floor and complementary suppression |
+| Retention or engagement sliced by anchor | D8 — the anchors exist; nothing suppresses them since D98 |
 | Anything sliced by political result | D8; GDPR Art. 9 |
 | Skip / pass / hesitation rates | QUESTION-FARM.md, "Deliberately out of scope" |
 | Per-user content selection, ad targeting profiles | MONETIZATION.md, "Ruled out by standing posture" |

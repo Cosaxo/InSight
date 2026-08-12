@@ -21,26 +21,26 @@ Every constant below is sourced, not assumed:
 | Operation | Cost | Where it comes from |
 | --- | --- | --- |
 | One world answer | 1 client write + 2 server writes (`v2_agg_events`, `v2_aggs_private`) | `onV2AnswerCreated`, functions/src/v2.ts |
-| …plus the public mirror | +1 write **per answer** — the paused cadence republishes every answer | `AGG_MIN_N`/`PUBLISH_EVERY` = 1 under D81 (5 by design) |
+| …plus the public mirror | +1 write **per answer**, always | no cadence since D98 |
 | …plus the ledger's death | 1 delete, 90 days later | `LEDGER_RETENTION_DAYS` |
 | One duel answer | 1 client write + 1 `pendingDays` arrayUnion | v2.ts group branch |
 | One trigger invocation | 512 MiB, 1 vCPU, concurrency 20, ~200 ms | `HOT_TRIGGER`, functions/src/ops.ts |
 | One warm boot | ~15 reads (meta, profile, answers query, 7 deck listeners, groups, 2 group docs, 2 reveals) | `hydrate()`, src/v2/data/live.ts |
-| One cold boot | **+513 reads** — the whole question bank | `V2_QUESTIONS`, 513 docs / 116.1 KiB of JSON |
+| One cold boot | **+513 reads** — the whole question bank | `V2_QUESTIONS`, 513 docs / 119.3 KiB of JSON |
 | Agg top-up | ≤120 reads, ≤1 per qid per 6 h | `AGG_ID_CAP`, `AGG_RECHECK_MS` |
 | One world answer, again | +1 **rule** read (the question doc) + 2 **server** reads (ledger event, private agg) | `isWorldAnswer` in firestore.rules; the `runAggTransaction` in v2.ts |
 | One duel answer, again | +3 rule reads (group, reveal, question); the trigger's duel branch reads nothing | `isDuelAnswer`; "one blind write, no read" |
 | One ledger entry | +1 read the night it is scanned | `ledgerVelocityScan`, functions/src/velocity.ts (D54) |
 | One group-day reveal | `4 + 3m` reads for `m` members — 10 for a duo | `revealGroupDay`, functions/src/v2social.ts |
 
-Note the shape of the third row. Under D81's pause there is no "under
-the floor": every answer republishes the mirror, so the whole bank runs
-at 3 server writes per answer, flat. At the design pair the old shape
-returns — **a question under the k-floor costs *more* per answer than
-one above it** (3 server writes vs 2.2), because `{tooSmall: true}` is
-rewritten on every answer until the fifth, making cold start the
-write-expensive period. A small effect either way, and the opposite of
-the direction one would guess.
+Note the shape of the third row. There is no "under the floor" any more
+(D98 removed the floor and the cadence both), so the mirror is rewritten
+once per answer at every size and the whole bank runs at a flat 3 server
+writes per answer. The old shape — cold start costing *more* per answer
+than maturity, because `{tooSmall: true}` was rewritten until the fifth
+answer — is gone with the flag. Flat is easier to model and slightly
+worse at volume: the cadence used to buy an ~80% cut in mirror writes
+once a question matured, and that discount no longer exists.
 
 ## The bill, at five sizes
 
@@ -156,7 +156,7 @@ listener fan-out, whose every delivery ships the published aggregate whole.
 
 The size of that document is the swing variable, and it is not knowable
 before launch: a question nobody has answered with a filled-in Basics card
-publishes a bare `{counts, total, tooSmall}` of a few hundred bytes, while
+publishes a bare `{counts, total}` of a few hundred bytes, while
 one with a full `by` breakdown carries 6 dimensions × up to 24 buckets ×
 options (`BREAKDOWN_DIMS` / `BREAKDOWN_MAX_BUCKETS`, functions/src/pure.ts).
 
@@ -223,7 +223,7 @@ once per device, so it is now a rounding error. Deferred.
 
 `subscribeAggs()` attaches an `onSnapshot` to each of the 7 deck days'
 `v2_question_aggs` documents. The daily question is *globally shared*
-(`computeDeckIds` takes no uid), which is exactly why the k-floor clears
+(`computeDeckIds` takes no uid), which is exactly why a cohort fills
 at ten users — but it also means every publish on today's aggregate fans
 out to every client currently listening, and each delivery is a billed
 read.

@@ -80,10 +80,24 @@ const OPTION_COLORS = ["var(--c-around)", "var(--c-today)", "var(--c-likeness)"]
 export const FEED_PROMPT = "Fixture feed card: does the gate hold?";
 export const FEED_OPTIONS = ["Gate holds", "Gate leaks"];
 
-function liveQuestion(id: string, prompt: string, tooSmall: boolean) {
+function liveQuestion(
+  id: string,
+  prompt: string,
+  tooSmall: boolean,
+  // D100's bank fields. Defaulted rather than required so the two
+  // existing call sites stay readable, but supplied by both — a fixture
+  // where every question shares one branch and no ordinal type would
+  // render the Answers lens's chips and Scores as their empty states,
+  // which is the one shape a mount test must not silently accept.
+  branch = "Mind",
+  type = "binary",
+) {
   return {
     id,
     cat: "culture",
+    branch,
+    sub: null,
+    type,
     text: prompt,
     dayLabel: "Today",
     options: ["Yes", "No", "Both"].map((label, i) => ({
@@ -102,6 +116,13 @@ function liveQuestion(id: string, prompt: string, tooSmall: boolean) {
 
 export interface LiveHandle {
   LIVE: Dict;
+  /**
+   * The members this fixture actually stubs. `LIVE` above is the REAL store
+   * with these redefined on top, so its key list is the real surface and
+   * says nothing about what the fixture covers — which is the one thing
+   * fixtureSurfaceMismatch needs to know.
+   */
+  fixtureKeys: string[];
   /** Votes the fixture recorded, so a test can assert a click reached the store. */
   votes: Record<string, string>;
   restore(): void;
@@ -113,7 +134,10 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
   const listeners = new Set<() => void>();
   const deck = [
     liveQuestion("daily-000", "Would you rather know, or be known?", tooSmall),
-    liveQuestion("daily-001", "Is a promise still binding if nobody remembers it?", tooSmall),
+    // A second branch and an ordinal type, so the archive the Mirror
+    // reads exercises the branch filter and the Scores lens rather than
+    // only their "nothing here" arms.
+    liveQuestion("daily-001", "Is a promise still binding if nobody remembers it?", tooSmall, "Morals", "rating"),
   ];
 
   const social: Dict = {
@@ -181,16 +205,80 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
     social,
     near,
     deck: () => deck,
+    // D100: the Mirror reads the archive rather than the pager. The
+    // fixture serves the same questions through both — a mount test's
+    // question is whether the panel renders, and giving the two sources
+    // different content would only make it ambiguous which one it used.
+    // The archive entries carry the bank fields the pager's do not, so
+    // the Answers lens's branch chips and Scores have something to read.
+    aggregated: () => deck,
     dailyBank: () => deck.map((q) => ({ id: q.id, prompt: q.text })),
     // Below the floor the server publishes `{ tooSmall: true }` and nothing
     // else — no counts, no total. Returning a full document with a flag set
     // would let a card read numbers the real k-floor never sends.
     aggFor: () => (tooSmall
       ? { tooSmall: true }
-      : { counts: { 0: 12, 1: 8, 2: 5 }, total: 25, tooSmall: false, by: {} }),
+      : {
+        counts: { 0: 12, 1: 8, 2: 5 }, total: 25, tooSmall: false,
+        // A real breakdown, not `{}`. It was empty for as long as
+        // nothing rendered from it, and that made the Mirror's
+        // geographic stops paint ZERO answer rows under the fixture —
+        // every cohort lookup missed, so the mount tests were proving
+        // the panel's empty state and reading as if they proved the
+        // panel. The city key is the anchor's own format (name, ISO)
+        // and the country key its ISO half, which is what
+        // LiveCohortBody looks up.
+        by: {
+          city: { "Oslo, NO": { 0: 7, 1: 4, 2: 2 } },
+          country: { NO: { 0: 9, 1: 6, 2: 3 } },
+          ageBand: { "25-34": { 0: 8, 1: 3, 2: 1 }, "35-44": { 0: 4, 1: 5, 2: 4 } },
+        },
+      }),
     // D91: counts for a seeded lens question, null when the bank carries
     // none — which is the cue for D50's selfOnly fallback. Five entries to
     // match the lens scale; zeros below the floor, same rule as aggFor.
+    // Named who-voted (D98). The fixture serves one named voter and one
+    // unnamed, on opposite options, so a live-mode mount exercises both
+    // label paths rather than only the happy one.
+    // The follow graph (D101). A circle of one, mutual and named, so a
+    // live mount renders the member row, the "follows you" mark and the
+    // circle-split section rather than three empty states. Its answers
+    // overlap the fixture deck on purpose — an empty overlap would make
+    // the likeness line read "nothing in common yet" everywhere.
+    loadCircle: async () => {},
+    circle: () => [
+      {
+        uid: "u_other", name: "Ada", mutual: true,
+        like: { shared: 2, same: 1, pct: 50 },
+        answers: { "daily-000": 1, "daily-001": 0 },
+      },
+    ],
+    circleLoading: () => false,
+    isFollowing: (u: string) => u === "u_other",
+    setFollowing: async () => {},
+    loadVoters: async () => {},
+    voters: () => [
+      { uid: "u_fixture", optionIdx: 0, anchors: { ageBand: "25-34", city: "Oslo, NO" }, name: "Tester", isMe: true },
+      { uid: "u_other", optionIdx: 1, anchors: {}, name: "", isMe: false },
+    ],
+    votersByOption: () => [
+      [{ uid: "u_fixture", optionIdx: 0, anchors: { ageBand: "25-34", city: "Oslo, NO" }, name: "Tester", isMe: true }],
+      [{ uid: "u_other", optionIdx: 1, anchors: {}, name: "", isMe: false }],
+    ],
+    votersLoading: () => false,
+    // The world-takes author name path (D98). One known author so a live
+    // mount renders a real name, and anything else falls back to
+    // "Someone" — both branches reachable from the fixture.
+    nameFor: (uid: string) => (uid === "u_fixture" ? "Tester" : ""),
+    loadNames: async () => {},
+    // Kindred (D99): one overlapping person, so a live mount renders a
+    // ranked row rather than only the empty state.
+    loadKindred: async () => {},
+    kindred: () => [
+      { uid: "u_other", name: "Ada", like: { shared: 6, same: 5, pct: 83 } },
+    ],
+    kindredLoading: () => false,
+    kindredDepth: () => 6,
     lensAgg: () => ((opts.lensBank ?? true)
       ? { counts: tooSmall ? [0, 0, 0, 0, 0] : [9, 6, 4, 3, 3], tooSmall }
       : null),
@@ -255,6 +343,15 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
   // updateAvailable, updateRequired) are getters with no setter, and an
   // assignment to one of those throws in a module's strict mode.
   const target = realLive as unknown as Dict;
+  // What the fixture actually overrides. Captured because the drift check
+  // below cannot otherwise see it: `target` IS the real store with these
+  // keys redefined on top, so Object.keys(target) reports the real
+  // object's surface whether the fixture stubbed a member or not. Without
+  // this the guard silently degraded into a second copy of vote.test.ts's
+  // check, and a member the fixture forgot would reach real Firebase from
+  // a jsdom test — which fails as a caught error and renders an honest
+  // empty state, i.e. invisibly.
+  const fixtureKeys = Object.keys(LIVE);
   const savedDescriptors = new Map<string, PropertyDescriptor | undefined>();
   for (const [k, v] of Object.entries(LIVE)) {
     savedDescriptors.set(k, Object.getOwnPropertyDescriptor(target, k));
@@ -285,7 +382,7 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
   // q.live gate a second time and leaves the demoInProd check unexercised —
   // confirmed by deleting that check and watching the suite stay green.
   if (opts.demoInProd) {
-    return { LIVE: target, votes, restore: restoreLive };
+    return { LIVE: target, fixtureKeys, votes, restore: restoreLive };
   }
 
   // Deliberately NOT the deck's questions. The daily tab renders the deck
@@ -315,6 +412,7 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
 
   return {
     LIVE: target,
+    fixtureKeys,
     votes,
     restore() {
       restoreLive();
@@ -339,7 +437,10 @@ export function fixtureSurfaceMismatch(handle: LiveHandle): {
     ...expected.filter((k) => !actual.includes(k)).map((k) => `-${k}`),
   ];
   return {
-    live: diff(Object.keys(handle.LIVE), LIVE_MEMBERS),
+    // handle.fixtureKeys, NOT Object.keys(handle.LIVE): the fixture
+    // redefines members on the real store, so the latter answers with the
+    // real surface and can never report a member the fixture skipped.
+    live: diff(handle.fixtureKeys, LIVE_MEMBERS),
     social: diff(Object.keys(handle.LIVE.social as Dict), LIVE_SOCIAL_MEMBERS),
     near: diff(Object.keys(handle.LIVE.near as Dict), LIVE_NEAR_MEMBERS),
   };

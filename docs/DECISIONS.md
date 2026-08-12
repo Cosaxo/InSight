@@ -9096,3 +9096,474 @@ hand-quoting D30's stale 12/week (the exact stale-copy class D39
 names). The farm manual's budget, writing, promotion and feed-lane
 sections plus the canonical Routine prompt were rewritten in the same
 commit, so contract and machinery cannot describe different worlds.
+
+## D98 · Answers are public — the privacy model is retired, not paused
+
+**Decided:** 2026-08-11 · **Status:** binding · **Owner's call**, stated
+directly: *"the answers are NOT private — that should be completely
+removed from every doc, every place, that's the whole point of the app"*,
+and on the k-floor specifically: *"I don't care if it's k-safe, that
+whole principle needs to die."*
+
+**Decision.** A signed-in user may read any other user's answers and
+profile. Population statistics are exact and publish from the first
+answer. There is no k-anonymity floor, no publish cadence, no
+complementary suppression, no `tooSmall`, and no special-category
+carve-out. Comments carry author names at every scope.
+
+### What this reverses
+
+| Decision | Was | Now |
+| --- | --- | --- |
+| **D1** | comments and who-voted are circle-scoped | both are world-scope and named |
+| **D5** (read arm) | answers owner-only, always | answers world-readable; the WRITE arm (owner-only, create-only) is untouched |
+| **D11** | the feed's argument surfaces are demo-only by structure | the structural gate stands only where the data is *invented*; nothing is hidden for being real |
+| **D18** | the floor bounds cohort size | there is no floor |
+| **D44** | political items never slice | every question slices |
+| **D50/D81** | lens self-reports; floor paused to 1 | moot — the floor is gone rather than paused |
+| **D72** | MapStats refuses in live mode | still refuses, for a different reason: it is *invented*, not private. Real typicality is now computable and unbuilt. |
+| **D78/D83** | named who-voted refused permanently | reversed; anonymity was the whole of D83's takes and is now none of it |
+
+D9, D8's snapshot mechanic, D86's edit shape, D57's server-scored logic,
+D28's correctable ledger and D65's fail-closed `hidden` equality are
+**not** touched — none of them was about who may read an answer.
+
+### The reasoning, in the owner's frame
+
+The product's claim was that its privacy guarantees are enforced rather
+than promised. That claim was kept, expensively and well — and it was
+enforcing the wrong thing. InSight exists to show how one person's
+answers link to everyone else's; a model in which no user may read
+another user's answer cannot draw that picture, and every surface that
+needed it was dark. The Mirror shipped a ruler with no lenses. Circle
+showed an empty state. Explore, Compare, People, Scores and the Map's
+typicality were all built and all unreachable. The floor made the rest
+render as "withheld" at every real cohort size, which is why D81 had
+already paused it to 1 — the pause was the first admission that the
+principle cost more than it bought.
+
+### What was NOT removed, and why each is a different question
+
+Three denies survive `firestore.rules`, each labelled at its own path:
+
+- **`v2_logic_attempts`** — holds the unscored answer key. Anti-cheat.
+- **`v2_flags`** — reporter identity. Anti-retaliation: a reporter
+  visible to the reported is a reporter who stops reporting.
+- **`v2_presence`** — uid → ~1 km cell. Physical safety. D98 publishes
+  what people *answered*; "lives in Oslo" is published, "is at this
+  corner of Oslo at 14:02" is not.
+
+Two more, on non-privacy grounds:
+
+- **Duel answers stay sealed until the reveal.** Implemented as a
+  `surface` test on the answer read rather than by owner-only-ness. This
+  is a game timing rule — a hand of cards is face-down — and publishing
+  it early links no data the reveal does not publish a day later.
+- **`v2_groups` stays member-gated**, because the document carries
+  `inviteCode`, which is a *capability*: world-readable codes let anyone
+  join any circle. Opening the roster wants the code split onto its own
+  server-only doc first. Follow-on, not a privacy claim.
+
+### The one thing this change had to ADD
+
+Opening `v2_users` published `fcmTokens` — push registration tokens, a
+credential — to every signed-in user, handing any script the fan-out list
+the reveal sender uses. Tokens moved to `v2_users/{uid}/push/tokens`,
+server-only both ways. Moved rather than re-guarded: a field guarded by a
+rule is one edit from being readable, a path with no read grant is not.
+`deleteAccount`'s recursive delete already covers it.
+
+### Two traps this change walked into, both caught before shipping
+
+1. **`isTooSmall` was fail-closed.** `(agg||{}).tooSmall !== false` hid
+   counts unless the server said otherwise. The server stopped writing
+   the flag in this same change, so a client still reading it would have
+   blanked every count in the app — daily, feed, lens, learn, Mirror.
+   Client and server had to move in one commit; the predicate is now
+   `hasPublishedCounts`, an existence test, and the field is renamed
+   `noCountsYet` so a surface reading the old name fails loudly instead
+   of going on saying "withheld".
+2. **The bucket eviction used the k-floor as its threshold.**
+   `evictForNewBucket(byDim, floor)` made a bucket evictable while it sat
+   under `AGG_MIN_N`. Threading 0 or dropping the parameter would have
+   made *nothing* evictable, silently restoring the cap-exhaustion attack
+   (24 junk `city` values permanently blanking that dimension for a
+   question) with every test still green. It now has its own name and its
+   own reason: `BUCKET_EVICT_BELOW = 5`, a document-growth bound with
+   nothing to do with who may see what.
+
+### Cost accepted
+
+The publish cadence was also relieving write contention: both documents
+in the trigger's transaction are keyed by qid, against Firestore's
+~1 write/sec/document (D7). Publishing per answer restores that pressure.
+Accepted knowingly at launch volume. The mitigation when it bites is
+sharding, or collapsing `v2_aggs_private` into `v2_question_aggs` — which
+is now trivial, because the private doc has no readers and no secrets. It
+is **not** to reintroduce a floor.
+
+### Timing
+
+`answersCounted` has been 0 every day through 2026-08-11 (monitoring/
+pulse-trail.jsonl) and the app has not launched, so no answer was ever
+collected under the owner-only promise. There is nothing to migrate and
+no retroactive disclosure. Had there been, the old rows would have needed
+gating rather than republishing.
+
+### What this change does NOT do
+
+D98 removes the model. It does not build the features the model was
+blocking — named who-voted, the Kindred people lens, person-to-person
+Compare, Explore, the Map's real typicality, the relationship map. Those
+need read paths no client module has yet: a collection-group query on
+`answers` (the rule and the composite index ship here; the query does
+not) and batched uid→name resolution. Sequenced as follow-on work.
+
+## D99 · The Mirror's lens row comes back, on data that was already there
+
+**Decided:** 2026-08-11 · **Status:** binding · Follow-on to D98.
+
+**Decision.** The live Mirror's geographic stops carry a lens row again —
+**People**, **Compare**, **Explore** — plus the Map's typicality reading
+becomes real for the two anchors that map onto a breakdown dim.
+
+### Why this is a small change and not a large one
+
+Almost nothing here is a new read. `v2_question_aggs.by` — dim → bucket →
+option → count — has been published, client-readable and folded from
+every answer's anchors snapshot (D8) since long before D98. What D98
+removed was the suppression that made it useless: cells below the floor
+were dropped, a lone hole took its neighbour with it, and a dimension
+with fewer than two surviving buckets vanished entirely. A lens built on
+that would have shown holes and called them cohorts.
+
+With the map published whole, three of the five prototype lenses are a
+pure fold away, and `src/v2/data/cohort.ts` is that fold: `mixFor`,
+`sliceSplit`, `divergence`, `typicality`, `agreement`. No Firebase, no
+window, unit-tested directly.
+
+### What each lens rests on
+
+| Lens | Source | New read? |
+| --- | --- | --- |
+| **People** — the mix | `mixFor` over the deck's aggregates | no |
+| **People** — Kindred | `agreement` over the cached voter lists (D98) | only for questions whose who-voted sheet was never opened |
+| **Compare** | `pctFor` on your own option, ranked least-typical first | no |
+| **Explore** | `divergence` across the six dims | no |
+
+Kindred is the only one that can cost anything, and it is bounded at
+`KINDRED_QUESTIONS = 12` of the viewer's own most recent answers. Twelve
+shared questions is already a legible likeness claim; unbounded, it would
+fan out over every question an account has ever answered, on a screen
+someone may open casually. The whole row is collapsed by default, so
+opening the Mirror pays for none of it.
+
+### The likeness metric, and why it is the boring one
+
+Agreement is `same / shared` over commonly answered questions. No
+weighting by how divisive a question was, no distance over scale options.
+Both would be better statistics and both are judgement calls about what
+likeness MEANS — a product decision. This one can be explained in one
+sentence to the person it is about, and it ships with that sentence
+rendered directly beneath it. A likeness number nobody can explain is a
+number nobody should trust, least of all on a screen that names people.
+
+### The Map: D72 partially reversed, and precisely which part
+
+`window.MapStats.dist`/`mode` now return real numbers for the `age` and
+`edu` anchors, computed by `typicality` from the published breakdown.
+
+Everything else still refuses, and the refusals are structural rather
+than pending:
+
+- **`job`** is `profession`, deliberately never a breakdown dim (D8) —
+  free text mints a bucket key per spelling, forever.
+- **`big5`, `political`, `values`, `attachment`, `cognitive`** are test
+  RESULTS. Nothing aggregates them per cohort, so "how did similar
+  personalities answer" has no source at all.
+- **`dimVal`** — a cohort's score on a test dimension — has no source for
+  the same reason, at every anchor.
+
+D72's mechanism is kept exactly: the refusal returns **null** rather than
+gating at the call sites, so a consumer that forgets the check fails a
+test instead of quietly fabricating. That mechanism is why this change
+was findable at all — the null is what made it obvious which readings
+were invented and which were merely unbuilt.
+
+`cohortN` is added alongside, so the Map can say "of 6" rather than
+present a 50% drawn from two people as though it were a finding.
+
+### What is still NOT built, and why not
+
+- **Scores.** The place scorecard is fed by `rate` questions and the bank
+  ships none, so the lens would be an empty frame. Content, not code.
+  Building the frame first and filling it later is how a surface ends up
+  permanently looking broken.
+- **The Answers lens's own depth.** `LiveCohortBody` is the Answers lens,
+  and it is thinner than the prototype's: no branch filter, no
+  sort-by-divisive, no expand-a-row-into-the-distribution. All three are
+  computable from what is already loaded. A gap in a lens that exists.
+- **Circle / relmap.** Still no person-to-person graph in v2 (D3). Kindred
+  is the nearest honest thing: likeness without a follow.
+
+### One number this row must never be read as
+
+The mix counts **answers, not people** — someone who answered ten
+questions appears ten times. It is summed across the deck because a
+single question's mix is a fact about that question's audience, and the
+copy says so on screen rather than leaving "40% are 25-34" to be read as
+a census.
+
+### What it cost, and the thing that finding turned up
+
+This row put the bundle over budget, and `check:bundle` moved 2120 → 2140
+to admit it. The arithmetic, measured with CI's own build command one
+commit apart rather than estimated:
+
+| tree | total JS |
+| --- | ---: |
+| main @ the D98 merge | 2119.6 KB |
+| + D99's lens row | 2131.0 KB |
+
+D99 is +11.4 KB, but it is not really what spent the budget. The 2120
+ceiling was set on 2026-08-10 to sit just above a 2102 KB tree, and D98's
+read path — the collection-group query, `data/voters.ts`,
+`LiveVotersPanel` — took 17.6 KB of that 18 KB before this row added a
+byte. Two features landed in the gap between a ceiling and the thing it
+measures; the second one merely tripped it.
+
+**The useful finding is that the standard remedy is now exhausted.** Every
+previous squeeze on that budget was answered by deferring a module group
+past first paint (D25, D38). Against the *total* that is worth nothing —
+it counts every chunk, so splitting relocates bytes and changes the
+number by zero. Verified rather than assumed: the lens row is ~9 KB of
+the entry chunk, and making it lazy leaves the total at 2131. Only
+deleting code moves this ceiling.
+
+So the headroom each raise has left is the number to watch — 41.6 KB
+(08-06), 18 KB (08-10), 9 KB now. A fourth raise should not happen; the
+untaken candidates D64 named are the Mirror tab's ~168 KB (harder than
+the overlays — it renders on the first frame for anyone who opens on that
+tab) and an audit of how much of Sentry's ~470 KB is reachable at all.
+
+One correction fell out of that audit and is recorded here because it was
+a *figure in a comment*, which is the documentation error this repo keeps
+re-committing (D39). `check-bundle.mjs` had claimed for five days that
+"156 KB of the Sentry group is @sentry/react's Spotlight dev
+integration". That was a chunk name read as chunk contents:
+`spotlight-*.js` is Sentry core — `captureException`, the client, the
+logger, v10.60.0 — which rolldown named after one of the smaller modules
+inside it, and all three esm entries import it. The Spotlight integration
+is 1.9 KB of unminified source. The sentence had been sitting there
+inviting someone to go chase a 156 KB win that does not exist, and it is
+withdrawn in place.
+
+Unmoved on purpose: `MAX_CHUNK_KB` stays 735 against a 732.0 KB entry
+chunk. Three kilobytes of headroom means the next eager addition fails
+there rather than on the total, and has to defer instead of argue.
+
+## D100 · Scores and the Answers lens, on the archive rather than the week
+
+**Decided:** 2026-08-12 · **Status:** binding · Follow-on to D99.
+
+**Decision.** The Mirror's lens row gains **Scores**, its Answers lens
+gains the branch filter, the sort and the expand-a-row it was missing,
+and both read every question this device holds an aggregate for instead
+of the seven-day deck.
+
+### The enabler is one accessor, and it is why the other two were stuck
+
+`LIVE.aggregated()` returns every active daily question with published
+counts — the deck plus everything the user has ever answered, which
+`hydrate` already fetches and caches (`AGG_ID_CAP`, 120). No new read:
+the same map, walked rather than indexed.
+
+Both features were blocked on the *size of the set*, not on data:
+
+- A branch filter over seven rows offers fourteen subjects holding one
+  row each. A sort over seven rows re-orders half a screen. Neither is
+  worth the strip it takes to draw.
+- Scores could not exist on the deck **at all**. The bank holds five
+  `rating` questions in ninety, so the rotation serves a given week none
+  about two weeks in three.
+
+### Scores was refused at D99 for a reason that was wrong
+
+D99's note said the place scorecard is fed by `rate` questions, the bank
+ships none, so the lens would be an empty frame. The first clause is
+true and the conclusion does not follow. `rate` is the *prototype's*
+place-scorecard type; the shipping bank carries **five 1-10 `rating`
+items and sixteen 5-point `scale` ones**, and an ordinal question is an
+ordinal question whether its subject is a city's nightlife or your own
+outlook. The lens filters on TYPE (`ORDINAL_TYPES`), so place-rating
+questions join it the day someone writes them, with no code change.
+
+What the lens must never do is average a *categorical* question, and
+nothing in `counts` could tell it apart from an ordinal one — "Messi"
+and "Ronaldo" are different, not ordered, and their mean would render
+exactly as confident as a real number. The type filter is the whole
+guard, and it has the test that names it.
+
+Two arithmetic choices, both with a case pinning them:
+
+- **Ranked by share of the scale**, not by raw mean. 4/5 must outrank
+  7/10; ranking on the mean sorts by which scale a question happened to
+  use.
+- **The denominator ships with every number.** One list mixes 5-point
+  and 10-point questions, and "6.2" means opposite things across them.
+
+### The branch was in `content/` all along, and the seed dropped it
+
+`daily-questions.json` carries `cat: ["Mind", "Outlook"]` — a
+[branch, sub-branch] path, the taxonomy the Map files answers under.
+`gen-v2content.mjs` emitted `topic: q.tone` and nothing else, so the
+seeded doc kept *tone* (light/deep/blend) and lost the subject entirely.
+Nothing noticed because the demo layer reads the path from its own copy
+of the bank; the first consumer that could only see Firestore was this
+filter, and it had three tone buckets to offer instead of fourteen
+subjects.
+
+`branch`/`sub` now ride the seed, emitted only when set (the `mode`
+rule) — 90 daily entries carry a path and the other 423 do not, so
+writing null would rewrite the whole bank to say nothing about four
+surfaces out of five. **Every question seeded before today still has no
+branch**, and will until the next seed run, so both readers treat it as
+undefined and the chip row simply does not render. That is a case, not
+an assumption.
+
+Cost: the bank's wire size goes 116.1 → 119.3 KiB, which is +3.2 KiB on
+every cold boot's 513 reads. `check:figures` caught the stale figure in
+`docs/COSTS.md` before this was committed, which is the third time that
+gate has paid for itself.
+
+### "Newest" is in the prototype's sort list and is deliberately absent
+
+The archive spans any day the rotation has reached, and nothing the
+client holds dates an answer: the aggregate carries no timestamp, and a
+question's bank position is where it entered the bank, not when it was
+asked. A "Newest" that silently meant "highest seq" would be a label
+that is wrong about six days in seven. Three honest orderings ship
+instead — most answers, most divisive, most agreed.
+
+`divisiveness` is normalised by option count, and that is the only
+interesting thing about it: a 30/25/25/20 four-way is a divided room and
+a 30/70 binary is not, but raw leading share scores them 0.30 and 0.70
+and ranks the binary as *more* divided. Scaling against each question's
+own even split puts a mixed deck on one axis.
+
+### A fixture that had been proving the wrong thing
+
+`live-fixture`'s aggregate carried `by: {}`. Giving it a real breakdown
+so the Mirror's geographic stops have rows turned two `smoke-live` cases
+red, and the reason is the finding: a live feed card with a cohort
+breakdown renders the **surprise line** and drops the bar-chart button
+with it (`world-feed.jsx` gates the button on `!ins` — the line is
+already a door to the same sheet). With an empty `by` that line could
+never render, so every case in that file had been silently testing the
+button-only branch: the one a real user with real data sees *least*
+often. The helper now accepts either door, so both are covered.
+
+## D101 · Circle, on a follow graph that needs no handshake
+
+**Decided:** 2026-08-12 · **Status:** binding · Follow-on to D98.
+
+**Decision.** The Mirror's Circle stop draws real people: a one-way
+**follow graph** at `v2_users/{uid}/following/{targetUid}`, the accounts
+you follow ranked by how alike your answers are, and a fold showing
+where your circle splits.
+
+### Why this got easy, and it was not new plumbing
+
+Circle has shown an empty state saying "one-to-one connections aren't
+built yet" for the whole life of live mode. D3 is why: v2 has no
+person-to-person graph, and groups joined by an invite code were the
+only real connection the app could make. The 49 named people in
+`relmap-core.js` are prototype data and live mode has never shown them.
+
+What changed is D98, not the plumbing. **A follow is a bookmark, not a
+permission grant.** Every answer and profile is already readable by any
+signed-in user, so following someone conveys no access they did not
+already have — which deletes the hard half of a social graph. There is
+no request, no acceptance, no notification, no pending state, and no
+state machine: a follow is one document that exists or does not.
+
+Mutual follows are a **reading, not a state**. If both directions exist
+the client says so; the server stores two independent rows and knows
+nothing about the pair. A friendship that must be agreed is a consent
+mechanism, and consent is only owed for access the follower would not
+otherwise have.
+
+### The one judgement call, and how to reverse it
+
+**The graph is world-readable.** This does not follow from D98, which
+published *answers*, not the social graph — so it is a call rather than
+a consequence, and it is flagged here the way D98's four were.
+
+Two reasons it goes this way: the app's thesis is that the links between
+people are the interesting part, and public → owner-only is a breaking
+change for anything built on it while the reverse is additive. **To
+reverse:** change one line in `firestore.rules` to
+`request.auth.uid == uid`. Circle itself reads only the viewer's own
+list and keeps working; what goes is the followers direction — the
+mutual flag, and any "who follows me" surface, neither of which exists
+elsewhere yet.
+
+### Three details that are load-bearing
+
+- **`to` duplicates the document id**, pinned equal to it by the rules.
+  A collection-group query cannot filter on a document id, so without a
+  field `deleteAccount` could not find the follows *other people* hold
+  of a deleted account. The rule pins the two together because an
+  unpinned copy is a second source of truth about who a row points at —
+  and the erasure sweep reads the field, so a mismatched row would
+  survive its own target's deletion. Phase 3b, with the `relations`
+  sweep as its precedent, plus a control in `e2e-delete-account` proving
+  the sweep matched on `to` rather than taking a whole following list.
+- **No update, ever.** Create and delete only. Rewriting `at` would
+  reorder someone's Circle, which is the one thing the stamp decides —
+  `fetchFollowing` sorts oldest-first so `FOLLOW_CAP` is stable across
+  sessions.
+- **`FOLLOW_CAP` is a bound on fan-out, not a product limit.** Circle is
+  the only surface that reads a named individual's whole answer set
+  rather than a question's voters, so opening it costs one query per
+  member. If it ever binds in the field the answer is to page the fetch,
+  not to raise the number quietly.
+
+### The fold excludes you; the Map's includes you
+
+`circleSplit` counts members only. `typicality` (D99) does the opposite
+and counts you in your own age band. The difference is the question each
+screen asks: "how typical was I" needs the cohort the aggregate folded,
+you included, or the Map disagrees with the who-voted sheet beside it.
+"What do the people I follow think" does not — and folding yourself in
+would let a circle of one reflect your own answer back as consensus.
+
+The ranking's real trap is the tiebreak. Agreement is a percentage, so
+one shared question that happened to match scores 100% and heads the
+list forever, above someone who matched on forty of fifty. It looks
+completely right until somebody answers a single question, so overlap
+breaks the tie and a case names it.
+
+### The bundle budget did what the last note said it would
+
+D100 and D101 together took the tree to 743 KB entry / 2147 KB total —
+over both ceilings. The D98/D99 note in `check-bundle.mjs` had left
+3 KB of headroom under `MAX_CHUNK_KB` specifically so the next eager
+addition would have to defer rather than argue, and predicted that the
+per-chunk gate would catch it first. It did.
+
+**Neither ceiling moved.** Three deferrals (Circle body and the lens row
+via `React.lazy`, `data/circle.ts` via a dynamic import inside
+`live.ts`) took the entry chunk to **727 KB** — smaller than the 732 it
+was before either feature. And the trim that note asked for by name
+turned out to be real: `src/lib/sentry.ts` imported `@sentry/react` and
+used exactly one symbol from it (`init`), while `@sentry/capacitor`
+depends on `@sentry/browser` directly and lists `@sentry/react` as one
+of three framework peers. Sentry's ErrorBoundary, Profiler and router
+instrumentation were never wired to anything. Swapping the import took
+the total **2147 → 2119**.
+
+One deferral bought nothing measurable — `data/circle.ts` out of
+`live.ts`'s static graph left the entry chunk at 738 — and it is kept
+anyway, because a dynamic import there is the right shape. Recorded so
+the next reader does not re-derive it as a win.

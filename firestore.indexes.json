@@ -26,6 +26,15 @@
         { "fieldPath": "cell", "order": "ASCENDING" },
         { "fieldPath": "at", "order": "ASCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "answers",
+      "queryScope": "COLLECTION_GROUP",
+      "fields": [
+        { "fieldPath": "qid", "order": "ASCENDING" },
+        { "fieldPath": "surface", "order": "ASCENDING" },
+        { "fieldPath": "answeredAt", "order": "DESCENDING" }
+      ]
     }
   ],
   "fieldOverrides": [
@@ -42,6 +51,16 @@
     {
       "collectionGroup": "relations",
       "fieldPath": "linkedUid",
+      "indexes": [
+        {
+          "queryScope": "COLLECTION_GROUP",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "following",
+      "fieldPath": "to",
       "indexes": [
         {
           "queryScope": "COLLECTION_GROUP",

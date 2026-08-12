@@ -14,7 +14,7 @@ import {
   splitBanks,
   duelQFor,
   gHash,
-  isTooSmall,
+  hasPublishedCounts,
   OPTION_COLORS,
   utcDayIndex,
 } from "./deck";
@@ -86,15 +86,18 @@ describe("countsFor (own-vote subtraction)", () => {
   });
 });
 
-describe("isTooSmall", () => {
-  it("defaults to true when the agg doc or flag is missing", () => {
-    expect(isTooSmall(undefined)).toBe(true);
-    expect(isTooSmall({})).toBe(true);
+describe("hasPublishedCounts", () => {
+  it("is false when the agg doc is missing or empty", () => {
+    expect(hasPublishedCounts(undefined)).toBe(false);
+    expect(hasPublishedCounts({})).toBe(false);
+    expect(hasPublishedCounts({ total: 0 })).toBe(false);
   });
 
-  it("is true only until the agg explicitly says tooSmall === false", () => {
-    expect(isTooSmall({ tooSmall: true })).toBe(true);
-    expect(isTooSmall({ tooSmall: false })).toBe(false);
+  it("is true once the aggregate carries a positive total", () => {
+    // The one answer that used to be withheld under the k-floor is now
+    // the one that switches the counts on (D98).
+    expect(hasPublishedCounts({ total: 1, counts: { "0": 1 } })).toBe(true);
+    expect(hasPublishedCounts({ total: 42 })).toBe(true);
   });
 });
 
@@ -102,7 +105,7 @@ describe("buildS", () => {
   it("shapes a question into the UI's S form", () => {
     const q = qd("q1", { topic: "culture", test: "big5" });
     const s = buildS(q, 0, {
-      agg: { counts: { "0": 4, "2": 1 }, tooSmall: false },
+      agg: { counts: { "0": 4, "2": 1 }, total: 5 },
       mine: "0",
       pending: false,
     }, WED);
@@ -119,9 +122,43 @@ describe("buildS", () => {
       comments: [],
       friends: [],
       live: true,
-      tooSmall: false,
+      noCountsYet: false,
       test: "big5",
+      // D100's bank fields, carried through so the Mirror can group by
+      // subject and tell an ordinal question from a categorical one.
+      // Undefined here because `qd` builds a pre-D100 doc — which is also
+      // the shape every question seeded before D100 still has in
+      // Firestore, so this is the real absent case rather than a gap in
+      // the fixture.
+      branch: undefined,
+      sub: undefined,
+      type: "vote",
     });
+  });
+
+  it("carries the bank's subject path and type when the doc has them", () => {
+    // The other half of the case above: a doc seeded since D100. Asserted
+    // separately because `toEqual` treats an absent key and an undefined
+    // one as equal, so the case above cannot tell "not carried" from
+    // "carried as undefined" — and this one would fail if buildS simply
+    // stopped copying the fields.
+    const s = buildS(
+      qd("q9", { topic: "deep", branch: "Mind", sub: "Outlook", type: "rating" }),
+      2,
+      { agg: undefined, mine: undefined, pending: false },
+      WED,
+    );
+    expect(s.branch).toBe("Mind");
+    expect(s.sub).toBe("Outlook");
+    expect(s.type).toBe("rating");
+  });
+
+  it("leaves the day label blank for a question off the pager", () => {
+    // The Mirror's archive (LIVE.aggregated) reaches any day, and nothing
+    // it holds dates an answer — so `back: null` means "no label" rather
+    // than defaulting to Today, which would be a claim.
+    const s = buildS(qd("q1", {}), null, { agg: undefined, mine: undefined, pending: false }, WED);
+    expect(s.dayLabel).toBe("");
   });
 
   it("keeps a pending optimistic vote in the counts", () => {
@@ -134,9 +171,9 @@ describe("buildS", () => {
     expect(s.options.map((o) => o.count)).toEqual([0, 7, 0]);
   });
 
-  it("marks tooSmall when the agg is absent", () => {
+  it("marks noCountsYet when the agg is absent", () => {
     const s = buildS(qd("q1"), 0, noVote, WED);
-    expect(s.tooSmall).toBe(true);
+    expect(s.noCountsYet).toBe(true);
   });
 
   it("cycles the option palette past its length", () => {

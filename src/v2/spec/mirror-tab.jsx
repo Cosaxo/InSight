@@ -6,6 +6,27 @@
 import React from 'react';
 import { HAPTIC } from './haptics.js';
 import { bindSwipeBack } from './swipe-back.js';
+// The three live Mirror bodies, as ordinary imports (D39's ratchet; the
+// procedure is in src/v2/README.md). All three are typed TSX in ui/ with
+// default exports, so nothing here needs the global scope to find them —
+// and the `typeof window.X === 'function'` guards that used to wrap each
+// one are GONE rather than kept: an imported binding cannot be unset, so
+// the guard could only ever be false during a load-order accident that
+// an import makes impossible. The data conditions beside them (`liveGeo`,
+// the stop id) are unchanged, because those guard data, not loading.
+import LiveCohortBody from '../ui/LiveCohortBody';
+import LiveGroupsMirrorBody from '../ui/LiveGroupsMirrorBody';
+// Circle is the one of the three that loads AFTER first paint, and the
+// reason is the bundle budget rather than taste: it and data/circle.ts
+// added 11 KB to the entry chunk, which put it over MAX_CHUNK_KB — the
+// ceiling the D100 commit deliberately left 3 KB of headroom under so
+// that the next eager addition would have to defer instead of argue.
+//
+// It is also the right one to defer on the merits. The Mirror opens on
+// You (the Map); Circle is two stops along and needs a network round
+// trip of its own before it can render anything, so the chunk fetch
+// overlaps work the stop was going to do regardless.
+const LiveCircleBody = React.lazy(() => import('../ui/LiveCircleBody'));
 
 // mirror-tab.jsx — MIRROR: one tab, one verb — see yourself against a population.
 // One telescope, seven stops, from fully retracted to fully extended:
@@ -243,17 +264,19 @@ function MirrorTab({ onPerson, pop, onPop, worldZoom, onZoom, firstRun, topNav, 
   // World's "City" zoom stop is gone rather than duplicated: Near IS your
   // city now, and two identical panels behind different chips is how a UI
   // starts disagreeing with itself.
-  const isGeoLive = p.kind === 'geo' && liveGeo && typeof window.LiveCohortBody === 'function';
-  // circle — your close ties. v2 has no person-to-person graph at all:
-  // groups are the only real connection it can make, joined by an invite
-  // code (D3). The 49 named people below come from relmap-core.js and are
-  // prototype data, so live mode says what is missing rather than showing
-  // them behind a "sample" badge.
+  const isGeoLive = p.kind === 'geo' && liveGeo;
+  // circle — your close ties. The 49 named people in relmap-core.js are
+  // prototype data, so live mode never shows them; what it shows instead
+  // changed at D101. It used to be an empty state saying one-to-one
+  // connections were not built, which was true while a friend graph
+  // needed a request/accept handshake. D98 removed the need for one: with
+  // every answer already readable, a follow grants no access, so it is a
+  // bookmark and LiveCircleBody draws the people you kept.
   const isCircleLive = p.id === 'circle' && liveGeo;
   // named groups, live — the portrait computed from real reveal history
   // (LiveGroupsMirrorBody). No Preview tag: nothing on it is sample data,
   // which is the point of the replacement.
-  const isGroupsLive = p.id === 'groups' && liveGeo && typeof window.LiveGroupsMirrorBody === 'function';
+  const isGroupsLive = p.id === 'groups' && liveGeo;
   const isGroups = p.id === 'groups' && !isGroupsLive && typeof window.GroupsMirrorBody === 'function';
 
   let body;
@@ -272,26 +295,24 @@ function MirrorTab({ onPerson, pop, onPop, worldZoom, onZoom, firstRun, topNav, 
     const scope = p.id === 'near' ? 'city' : liveZoom;
     body = (
       <div key={'geo-live:' + scope} className="tab-swap mf-flex" style={{ overflowY: 'auto' }}>
-        <window.LiveCohortBody scope={scope} />
+        <LiveCohortBody scope={scope} />
       </div>
     );
   } else if (isCircleLive) {
     body = (
-      <div key="circle-live" className="tab-swap mf-flex">
-        <div style={{ padding: '30px 22px', textAlign: 'center' }}>
-          <div style={{ fontFamily: 'var(--serif)', fontSize: 17, color: 'var(--ink)', marginBottom: 7 }}>Your circle is empty</div>
-          <div style={{ fontFamily: 'var(--sans)', fontSize: 13, fontWeight: 500, color: 'var(--ink-3)', lineHeight: 1.55, maxWidth: 330, margin: '0 auto', textWrap: 'pretty' }}>
-            One-to-one connections aren&apos;t built yet. Groups are how you
-            see named answers today — start one, or join with a code, and
-            the day after each round you&apos;ll see who picked what.
-          </div>
-        </div>
+      <div key="circle-live" className="tab-swap mf-flex" style={{ overflowY: 'auto' }}>
+        {/* null fallback, not a spinner: LiveCircleBody's own first frame
+            is "Loading your circle…" while it reads the graph, and two
+            loading states in sequence read as a stutter. */}
+        <React.Suspense fallback={null}>
+          <LiveCircleBody />
+        </React.Suspense>
       </div>
     );
   } else if (isGroupsLive) {
     body = (
       <div key="groups-live" className="tab-swap mf-flex" style={{ overflowY: 'auto' }}>
-        <window.LiveGroupsMirrorBody />
+        <LiveGroupsMirrorBody />
       </div>
     );
   } else if (isGroups) {

@@ -18,7 +18,6 @@ import { Sheet } from './primitives.jsx';
 // wholesale, because an imported binding cannot be unset but the DATA it
 // carries can still be missing.
 import LIVE from '../data/live';
-import { AGG_FLOOR, AGG_COUNT_IS_EXACT } from '../data/floor';
 // The live world-takes surface (D83) — ordinary ESM import of the typed
 // panel, so the D39 coupling meter stays flat.
 import LiveTakesPanel from '../ui/LiveTakesPanel.tsx';
@@ -614,25 +613,22 @@ class DailySplit extends React.Component {
     // answers reads as broken rather than as batched.
     // The tile heights + the 50% line say majority/underdog — the line
     // stays a count.
-    // Under D81's launch pause the cadence is 1 and the count is EXACT, so
-    // the "+" would claim a batching inaccuracy that is not there \u2014 it
-    // returns with the restored cadence (AGG_COUNT_IS_EXACT, data/floor.ts).
-    const liveTotal = S.live && !AGG_COUNT_IS_EXACT ? total.toLocaleString() + '+' : total.toLocaleString();
+    // No "+" lower bound: since D98 the published count is exact, so a
+    // "12+" over an exact 12 would claim an inaccuracy that is not there.
+    const liveTotal = total.toLocaleString();
     // Hoisted for the two gates below (the D83 takes row and the demo
     // sheets row): a live build showing the mock fallback to a real user.
     // The window read rather than the imported LIVE binding, deliberately \u2014
     // the smoke fixtures drive this branch through the window stand-in.
     const demoProd = !!(window.LIVE && window.LIVE.demoInProd);
-    // tooSmall at floor 1 means "no published counts yet": after your own
-    // blind vote that is "you're first, the trigger is landing", not "wait
-    // for five people" \u2014 the floor-aware copy keeps both eras honest.
+    // noCountsYet means the aggregate has not landed yet — after your own
+    // blind vote that is "you're first, the trigger is on its way", never
+    // "wait for five people" (D98 removed the floor that made it a wait).
     const resultNote = st.editHold === S.id
       // the D86 cooldown, in words \u2014 a silent snap-back reads as a glitch
       ? 'One change a minute \u2014 try again shortly.'
-      : (S.live && S.tooSmall)
-      ? (AGG_FLOOR > 1
-        ? 'You\u2019re early \u2014 counts appear once ' + AGG_FLOOR + ' people have answered.'
-        : 'You\u2019re first \u2014 the count lands in a moment.')
+      : (S.live && S.noCountsYet)
+      ? 'You\u2019re first \u2014 the count lands in a moment.'
       // "1 vote", but "1+ votes" — the + is a lower bound, so its plural stands
       : liveTotal + (liveTotal === '1' ? ' vote' : ' votes');
     const onReset = () => this.setState(s => { const v = { ...s.votes }; delete v[S.id]; return { votes: v, filter: 'all', tab: null, feedOpen: false }; });

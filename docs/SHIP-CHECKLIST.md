@@ -343,7 +343,7 @@ Both apps must be registered under `com.cosaxo.insight`:
     working, and the app never prompts unless the button is tapped.
   - **Sensitive info is a real Yes.** The politics test result is
     special-category data under GDPR Art. 9. It never leaves the owner
-    document and is never sliced by (D8), but the form asks what you
+    document and IS sliced and published since D98, and the form asks what you
     *collect*, not what you publish.
 
   **Facebook SDK — resolved, excluded (D16).** It *was* linked into every
@@ -410,10 +410,12 @@ Both apps must be registered under `com.cosaxo.insight`:
      forms, whatever the questions say.
   2. **Coarse location exists** (D9, optional). Both forms ask; answer
      consistently with the privacy table above.
-  3. **Free-text takes are circle-scoped (D1) and, in a live build,
-     currently demo-only** — MODERATION.md's "still ahead: the client
-     report control (needs a live takes surface)". So at launch the app
-     ships *without* a live free-text surface.
+  3. **Free-text takes are LIVE, at world scale, and NAMED** — D78 part 1
+     shipped the report control, D83 shipped world takes, and D98 put the
+     author's name on every one of them. So the app ships *with* a live,
+     public, attributed free-text surface. Answer both forms on that
+     basis; `userGeneratedContent` and `messagingAndChat` are already
+     true (D79) and stay true.
 
   Expect **12+ / Teen**, and answer it deliberately rather than accepting
   a default.
@@ -426,21 +428,30 @@ Both apps must be registered under `com.cosaxo.insight`:
 
   | 1.2 requires | Here |
   | --- | --- |
-  | Filter objectionable content | Moderation substrate deployed, `MOD_ADVISORY = true` (D22) |
-  | Report mechanism | Report control exists in the spec layer; the takes surface it attaches to is demo-only |
-  | Block abusive users | `leaveGroupV2`, wired to the **Leave circle** control on each live circle card — leaving **is** the block, because D1 means circle members are the only people whose content you can see. No owner-side *remove* callable exists (D55 §14) |
+  | Filter objectionable content | Moderation substrate deployed and **enforcing** — `MOD_ADVISORY = false` since D83; a remove verdict really hides |
+  | Report mechanism | **Live** — `flagTake` writes to `v2_flags` from the takes panel (D78 part 1), and since D98 any signed-in user may flag any take at either scope |
+  | Block abusive users | **Hide author** — the per-author mute on every take, at every scope (`data/mutes.ts`): local, silent, immediate |
   | Published contact info | The support address owed in `web/terms.html` |
 
   Two things follow. First, **the support email is a 1.2 dependency**, not
-  only a GDPR one — a second reason it cannot stay a bracket. Second, if a
-  reviewer asks how users block one another, the answer is the circle
-  model, and it is a real answer rather than a dodge: there is no global
-  block because there is no global surface to be abused from. Say that
-  plainly; do not build a global block list to pre-empt a question that
-  may not be asked.
+  only a GDPR one — a second reason it cannot stay a bracket.
 
-  If the live takes surface ships later, 1.2 stops being comfortable and
-  the report control has to ship with it, not after it.
+  Second, the block answer was re-derived at **D98** and it is worth
+  knowing what it replaced, because the old one would now be a rejection
+  risk. It used to be "leaving a circle IS the block, because circle
+  members are the only people whose content you can see" — true while
+  takes were circle-scoped and world takes were anonymous. D98 names
+  every take at world scale, so leaving a circle no longer bounds who you
+  see, and an answer resting on that would collapse under a reviewer's
+  first follow-up question. The real, universal control is **Hide
+  author**, and it applies everywhere. `leaveGroupV2` still exists and
+  still stops that circle's content, but it is a membership action now,
+  not the 1.2 answer. (Still no owner-side *remove* callable, D55 §14.)
+
+  The sentence that used to close this block — "1.2 stops being
+  comfortable if a live takes surface ships later" — has come due twice
+  over: the surface shipped at D83 with the report control alongside it,
+  and D98 attached names. Both obligations are met above; keep them met.
 - Apple Developer Program (~2 days to approve — start early, as an
   **individual** enrollment). **A Mac is no longer required**: since
   2026-08-05 `.github/workflows/ios-release.yml` archives, exports and

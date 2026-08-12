@@ -1,13 +1,26 @@
 rules_version = '2';
 
-// Access model for InSight v2 (docs/SCHEMA-V2.md, decision D5).
+// Access model for InSight v2 (docs/SCHEMA-V2.md, decision D98).
 //
-// Deny by default. Every grant below is written against a named path;
-// there is no catch-all match. The shape in one line: a user reads and
-// writes only their own documents, answers are create-only and never
-// readable by anyone else, population statistics are k-floored and
-// server-written, and group reveals become visible only when a Cloud
-// Function materializes them.
+// ANSWERS ARE PUBLIC. That is the product, not a concession to it: the
+// app exists to show how one person's answers link to everyone else's,
+// and a model that hid them from each other could not draw the picture
+// it was selling. A signed-in user may read any other user's answers and
+// profile, by name. Population statistics are EXACT and published from
+// the first answer — no k-floor, no publish cadence, no suppressed
+// cells, no special-category carve-out (D98 reverses D1, D5's read arm,
+// D11, D18, D44 and D78's naming refusal).
+//
+// Writes stay owner-bound. Reading is open; authoring is not. Every
+// grant below is still written against a named path and there is no
+// catch-all match, so a collection nobody named is still denied.
+//
+// THREE DENIES SURVIVE, and none of them is about answer privacy:
+//   · v2_logic_attempts — holds the unscored answer key (anti-cheat)
+//   · v2_flags          — reporter identity (anti-retaliation)
+//   · v2_presence       — uid → ~1 km cell (physical safety, not data)
+// Each says so at its own path. If one of those should go too, it is a
+// separate decision from D98 and wants its own record.
 //
 // Anything rules cannot verify — rate limits, invite-code minting,
 // membership caps, reveal timing — is denied to clients outright and
@@ -45,11 +58,17 @@ service cloud.firestore {
     // ═══════════════════════════════════════════════════════════════
     // v2 · the daily/mirror core loop (docs/SCHEMA-V2.md)
     //
-    // Access model (decision D5): answer documents are OWNER-ONLY,
-    // always — group/1v1 visibility ships later via server-materialized
-    // reveal docs, and population stats come from v2_question_aggs,
-    // written only by the onV2AnswerCreated trigger. Nothing here ever
-    // exposes one user's raw answers or anchor snapshot to another user.
+    // Access model (decision D98): answer documents are WORLD-READABLE
+    // to any signed-in user, together with the anchor snapshot that says
+    // which cohort the answer was given from. That pairing is the whole
+    // read path for named who-voted, person-to-person compare, the
+    // Kindred people lens and the Map's real typicality — every one of
+    // which was dark while this said OWNER-ONLY.
+    //
+    // v2_question_aggs stays, as a CACHE rather than a curtain: it is
+    // cheaper to read one folded document than to page a collection
+    // group on every render. It now carries exact counts, published on
+    // every answer.
     // ═══════════════════════════════════════════════════════════════
 
     // Canonical question bank — seeded by the seedContentV2 callable
@@ -59,8 +78,10 @@ service cloud.firestore {
       allow write: if false;
     }
 
-    // Per-question aggregate counts — the only population surface.
-    // Written exclusively by the onV2AnswerCreated trigger.
+    // Per-question aggregate counts — EXACT, and a convenience rather
+    // than the only population surface: the same numbers are derivable
+    // by reading the answers themselves (which any signed-in user may
+    // now do). Written exclusively by the onV2AnswerCreated trigger.
     match /v2_question_aggs/{qid} {
       allow read: if request.auth != null;
       allow write: if false;
@@ -81,37 +102,32 @@ service cloud.firestore {
         && isOptionalShortString(anchors.get("relationship", null), 40);
     }
 
-    // v2 profile — owner-only in Phase 2. Display-field carve-outs for
-    // circle/group surfaces arrive with the reveal system (Phase 3),
-    // deliberately not before.
+    // v2 profile — READABLE BY ANY SIGNED-IN USER (D98). The display
+    // name and the anchors are what turn a bare uid on an answer into a
+    // person on a screen: "Henrik, 25-34, Oslo, chose Beach". Without
+    // this read, every named surface in the app degrades back to counts.
+    //
+    // Writes stay owner-bound. `testResults.logic` stays server-owned —
+    // that is an integrity guard (a forgeable score, D57), not a privacy
+    // one, and D98 does not touch it. Note the rest of `testResults` is
+    // now PUBLIC, which is the point: person-to-person Compare reads it.
+    //
+    // What is NOT here any more: `fcmTokens`. Push tokens moved to the
+    // server-only subcollection below when this read opened — a token is
+    // a credential, and a readable profile carrying one hands any script
+    // the reveal sender's fan-out list. See v2social.ts pushDocPath.
     match /v2_users/{uid} {
-      allow read: if request.auth != null && request.auth.uid == uid;
-      // fcmTokens: clients may no longer INTRODUCE or CHANGE it — the array
-      // is where the reveal sender fans out to, and a client-writable list
-      // could carry a stolen token (reveal pushes routed to a device that
-      // never joined the group). Registration goes through the
-      // registerPushToken callable (functions/src/v2social.ts), behind App
-      // Check; the admin SDK bypasses rules, so the callable and the
-      // sender's dead-token cleanup keep working.
-      //
-      // The key stays in hasOnly ON PURPOSE: every client profile write is
-      // a merge, and rules evaluate request.resource.data as the POST-merge
-      // doc — so once the callable has written fcmTokens, dropping the key
-      // from hasOnly would brick saveDisplayName/saveAnchors for that user
-      // forever. Presence is allowed; mutation is not.
+      allow read: if request.auth != null;
       allow create, update: if request.auth != null && request.auth.uid == uid
         && request.resource.data.keys().hasOnly([
           "displayName", "anchors", "anon", "createdAt", "updatedAt",
-          "fcmTokens", "testResults",
+          "testResults",
         ])
-        && (!("fcmTokens" in request.resource.data)
-          || (resource != null
-            && request.resource.data.fcmTokens == resource.data.get("fcmTokens", null)))
         // testResults.logic is the VERIFIED logic score, written only by
         // logicSubmitV2 (admin SDK bypasses rules) after server-side
         // scoring — a client-writable copy would be a forgeable one (D57).
-        // Same shape as fcmTokens above: presence allowed (every client
-        // profile write is a merge, so the key rides along), mutation not.
+        // Presence allowed (every client profile write is a merge, so the
+        // key rides along once the callable has written it), mutation not.
         && (!("testResults" in request.resource.data)
           || (request.resource.data.testResults is map
             && request.resource.data.testResults.keys().size() <= 8
@@ -123,11 +139,103 @@ service cloud.firestore {
         && isValidV2Anchors(request.resource.data.get("anchors", {}));
       allow delete: if false; // deleteAccount (admin SDK) owns removal
 
+      // Push registration tokens (D98) — server-only, both ways.
+      //
+      // This is the one thing that moved OFF the profile when the profile
+      // became public, and it moved rather than being re-guarded on
+      // purpose: a field guarded by a rule is one rule edit away from
+      // being readable, while a path with no read grant cannot be opened
+      // by accident. A token is a credential — whoever holds it can send
+      // push to that device — so it is not the kind of thing D98 means
+      // by "answers are public".
+      //
+      // Written only by registerPushToken and pruned only by the reveal
+      // sender's dead-token sweep, both on the admin SDK. deleteAccount's
+      // recursive delete of v2_users/{uid} takes this subcollection with
+      // it, so erasure needs no new arm.
+      match /push/{docId} {
+        allow read, write: if false;
+      }
+
+      // The follow graph (D101) — the Mirror's Circle stop.
+      //
+      // A follow is a BOOKMARK, not a permission grant, and that is the
+      // whole design. Since D98 every answer and profile is already
+      // readable by any signed-in user, so following someone gives the
+      // follower no access they did not have — which is why there is no
+      // request, no acceptance, and no notification to the followed
+      // account. One-way, like a subscription. Mutual follows are a
+      // reading the client derives, not a state the server keeps.
+      //
+      // READABLE BY ANYONE, and this is a judgement call rather than a
+      // consequence of D98 (which published answers, not the social
+      // graph). Two reasons it goes this way: the app's whole thesis is
+      // that the links between people are the interesting part, and
+      // public → owner-only is a breaking change for anything built on
+      // it while the reverse is additive. To reverse: change this one
+      // line to `request.auth.uid == uid`. Circle itself needs only the
+      // viewer's own list and would keep working; what would go is the
+      // followers direction, which nothing reads yet.
+      //
+      // deleteAccount's recursive delete of v2_users/{uid} takes the
+      // whole subcollection with it, so erasure needs no new arm — the
+      // same property the push subcollection relies on. What it does NOT
+      // take is other people's follows OF the deleted account: those are
+      // documents under their uid, and they are cleaned in the same
+      // callable rather than left as pointers to nothing.
+      match /following/{targetUid} {
+        allow read: if request.auth != null;
+        // Create-or-delete only. An "edit" to a follow has no meaning,
+        // and leaving update open would let the timestamp be rewritten
+        // to reorder someone's Circle.
+        allow create: if request.auth != null
+          && request.auth.uid == uid
+          // Following yourself would put you in your own Circle and
+          // count you twice in every fold over it.
+          && targetUid != uid
+          // `to` duplicates the document id, and it is not redundant: a
+          // collection-group query cannot filter on a document id, so
+          // without a field deleteAccount could not find the follows
+          // OTHER people hold of a deleted account. Pinned equal to the
+          // id so the two can never disagree — an unpinned copy is a
+          // second source of truth about who this row points at.
+          && request.resource.data.keys().hasOnly(["at", "to"])
+          && request.resource.data.to == targetUid
+          && request.resource.data.at == request.time;
+        allow delete: if request.auth != null && request.auth.uid == uid;
+        allow update: if false;
+      }
+
       // One answer per question, forever: doc id == question id, create-only.
       // The immutability is what lets the aggregate trigger be a plain
       // increment with no reconciliation.
       match /answers/{aid} {
-        allow read: if request.auth != null && request.auth.uid == uid;
+        // D98: any signed-in user. Reading these — across users, via a
+        // collection-group query on `qid` — IS the app. Named who-voted,
+        // "people like you answered", person-to-person compare and the
+        // Map's typicality all read exactly here, and all of them were
+        // dark for as long as this line said `uid == uid`.
+        //
+        // The anchors snapshot rides along deliberately: an answer with
+        // no cohort stamp cannot be grouped, and grouping answers by
+        // cohort is the product's one trick.
+        //
+        // THE ONE EXCLUSION IS TIMING, NOT PRIVACY. A duel answer
+        // (surface group/duo) is sealed until the next-day reveal — that
+        // is the game, the same way a hand of cards is face-down. Public
+        // duel answers would not link any data the reveal does not
+        // publish a day later; they would just let a member read the
+        // room before playing. The owner still reads their own, and the
+        // reveal doc publishes the whole table on schedule.
+        //
+        // Written as a value test on `surface` so it is satisfiable by a
+        // LIST query: a collection-group read must carry a matching
+        // `where("surface","in",[…])` or be refused wholesale (the D65
+        // lesson — a rule a query cannot be compared against is a rule
+        // the query walks past).
+        allow read: if request.auth != null
+          && (request.auth.uid == uid
+            || resource.data.surface in ["daily", "feed", "test", "learn"]);
 
         // D29 device binding: aggregate-feeding answers require the account
         // to have passed one silent per-device activation (activateDeviceV2
@@ -217,9 +325,12 @@ service cloud.firestore {
                  .data.get("surface", "daily") in ["daily", "feed", "test"];
         }
 
-        // Sealed duel answers: id g_{gid}_{day}, member-only, and only
-        // while the day is UNREVEALED — answering after the reveal would
-        // let you see everyone's cards before playing yours.
+        // Sealed duel answers: id g_{gid}_{day}. Only members may PLAY,
+        // and only while the day is UNREVEALED — answering after the
+        // reveal would let you see everyone's cards before playing yours.
+        // Both halves are game rules about who is at the table and when
+        // the hand ends; neither is an audience claim about the data,
+        // which is why D98 leaves this function alone.
         function isDuelAnswer() {
           return request.resource.data.keys().hasOnly([
               "qid", "surface", "optionIdx", "guessIdx",
@@ -351,6 +462,35 @@ service cloud.firestore {
       }
     }
 
+    // ─── the cross-user read (D98) ─────────────────────────────────
+    //
+    // The grant above authorizes reads under ONE named uid. A query that
+    // asks "everyone who answered q42" is a COLLECTION GROUP query, and
+    // collection-group reads are matched by a separate rule with a
+    // recursive wildcard — without this block the widened read above
+    // works for your own answers and refuses every cross-user surface,
+    // which would look exactly like the reversal not having happened.
+    //
+    // Read only. Writes stay on the uid-bound path above, where
+    // `request.auth.uid == uid` still fences who may author an answer;
+    // granting write here would let anyone write into anyone's
+    // subcollection, which is not what "answers are public" means.
+    //
+    // The `surface` test is the duel seal again (see the uid-bound rule
+    // for the argument) and it is a VALUE test so that a list query can
+    // be compared against it: a collection-group read must carry a
+    // matching `where("surface","in",[…])` or Firestore refuses the
+    // whole query rather than filtering it (D65's measured lesson).
+    //
+    // Scope check: no other collection in this database is named
+    // `answers` — the retired v1 subtrees are insight_users/*/relations,
+    // insight_daily and insight_inbound_impressions — so this wildcard
+    // reaches v2 answer documents and nothing else. Adding an `answers`
+    // collection anywhere else in future silently joins this grant.
+    match /{path=**}/answers/{aid} {
+      allow read: if request.auth != null
+        && resource.data.surface in ["daily", "feed", "test", "learn"];
+    }
 
     // App/content metadata — contentRev (bank cache invalidation),
     // latestBuild/minBuild (update prompts). Operator/seed-written.
@@ -359,9 +499,10 @@ service cloud.firestore {
       allow write: if false;
     }
 
-    // Server-side aggregate internals — exact counts below the public
-    // floor, and the trigger's idempotency ledger. Fully opaque to
-    // clients; only the public k-floored mirror above is readable.
+    // Server-side aggregate internals — the trigger's working state and
+    // its idempotency ledger. Closed to clients because nothing needs it,
+    // not because it hides anything: since D98 the public mirror above
+    // carries the same exact counts, so this collection is bookkeeping.
     match /v2_aggs_private/{qid} {
       allow read, write: if false;
     }
@@ -372,9 +513,9 @@ service cloud.firestore {
       allow read, write: if false;
     }
     // Velocity-scan state (D54): the daily ledger scan's cursor and
-    // trailing per-question day counts. Server-only, same posture as
-    // the ledger it summarizes — a client that could read it would
-    // learn per-question daily counts below the published floor.
+    // trailing per-question day counts. Server-only because it is
+    // operational telemetry with no surface, not because the counts are
+    // secret — since D98 there is no floor for them to sit below.
     match /v2_velocity/{docId} {
       allow read, write: if false;
     }
@@ -388,10 +529,9 @@ service cloud.firestore {
     match /v2_logic_attempts/{uid} {
       allow read, write: if false;
     }
-    // Anonymous score histogram: exact counts server-only, public mirror
-    // readable once it exists (the server materializes it only at or
-    // above the aggregate floor, every PUBLISH_EVERY-th count — same
-    // discipline as v2_question_aggs).
+    // Score histogram: exact counts, published on every attempt — same
+    // discipline as v2_question_aggs, which since D98 means no floor and
+    // no cadence.
     match /v2_logic_norms/{docId} {
       allow read: if request.auth != null;
       allow write: if false;
@@ -407,6 +547,13 @@ service cloud.firestore {
     // through the createGroupV2 / joinGroupV2 / leaveGroupV2 callables —
     // invite codes, caps and pairing can't be forged client-side.
     match /v2_groups/{gid} {
+      // Still member-gated, and NOT as a privacy guarantee — D98 makes
+      // the answers inside a group public, so its roster is not a
+      // secret. The blocker is that this document carries `inviteCode`,
+      // which is a CAPABILITY: world-readable codes mean anyone can join
+      // any circle, which is an integrity break, not a linkage feature.
+      // Opening the roster wants the code split onto its own
+      // server-only document first. Tracked as follow-on to D98.
       allow read: if request.auth != null
         && request.auth.uid in resource.data.memberUids;
       // Group docs are server-authored (createGroupV2 / joinGroupV2 /
@@ -425,41 +572,43 @@ service cloud.firestore {
         && request.resource.data.duoMode in ["friends", "romantic"];
       allow create, delete: if false;
 
-      // Materialized reveals (D5): written only by the reveal pipeline;
-      // readable by the members the reveal itself recorded.
+      // Materialized reveals: written only by the reveal pipeline, and
+      // since D98 readable by any signed-in user.
       //
-      // Gating on the reveal's OWN `members` array, not the parent group's
-      // current memberUids, is what makes the guarantee retroactive: joining
-      // a group tomorrow does not hand you every past day's votes and names,
-      // and leaving one does not retract the days you actually played. The
-      // snapshot is written by revealGroupDay (functions/src/v2social.ts) in
-      // the same create() as the votes, so it cannot drift from them.
+      // The old rule gated on the reveal's OWN `members` array so that
+      // joining a group tomorrow handed you no past day's votes. That
+      // was a privacy guarantee about answers, and D98 retires it: the
+      // votes inside a reveal are world answers' younger siblings, and
+      // withholding the materialized copy while publishing the source
+      // would be a lock on a door with no wall.
       //
-      // Legacy reveals written before that payload shipped carry no
-      // `members` and are denied to everyone by the [] default rather than
-      // erroring — see D5's backfill amendment for why that set is empty.
-      // Reading the field off the document also drops a get() on the group
-      // doc, so a reveal read is now one billed read instead of two.
+      // What the reveal still does is TIMING and convenience — it is
+      // written the day after play, which is what keeps the seal above
+      // meaningful, and it is one document instead of N answer reads.
       match /reveals/{day} {
-        allow read: if request.auth != null
-          && request.auth.uid in resource.data.get("members", []);
+        allow read: if request.auth != null;
         allow write: if false;
       }
     }
 
     // ─── moderation substrate (docs/MODERATION.md, D22) ────────────
     //
-    // Takes are circle-scoped comments (D1) — and, since D83 adopted D78
-    // part 2, ANONYMOUS world-scale takes under the sentinel gid "world".
+    // Takes are comments on a question — in a circle, or at world scale
+    // under the sentinel gid "world". Since D98 they are ATTRIBUTED at
+    // both scopes: `authorUid` was always on the document and always
+    // readable, and the anonymity was a client-side choice to render
+    // "Someone" instead of a name. That choice is reversed — an app
+    // whose point is linking people to what they said cannot render its
+    // speech unsigned.
+    //
     // The sentinel cannot collide with a real circle: v2_groups creates
     // are `if false` (ids are server-minted), so no client can ever be a
     // "member of world" — the world arms below deliberately consult no
-    // group doc. The moderation chain on top is deliberately server-heavy:
-    // flags are write-only counts, the queue and verdicts are reachable
-    // only through MOD_UIDS-gated callables, and clients can touch none
-    // of it. World scope raised its stakes from advisory to enforcing
-    // (MOD_ADVISORY=false) — the audience is everyone, so circle-scope
-    // trust can no longer stand in for enforcement.
+    // group doc. The moderation chain on top stays server-heavy: the
+    // queue and verdicts are reachable only through MOD_UIDS-gated
+    // callables, and clients can touch none of it. World scope is
+    // enforcing rather than advisory (MOD_ADVISORY=false), and naming
+    // authors raises the stakes rather than lowering them, so that stays.
 
     match /v2_takes/{takeId} {
       // Circle members read the circle's takes — except a mod-hidden take,
@@ -502,14 +651,17 @@ service cloud.firestore {
       // `where("gid","==","world")` and `where("hidden","==",false)` or it
       // is refused wholesale, exactly like a circle list (D65). No group
       // get(): there is no group, and consulting one would deny everything.
+      // D98 collapses the two arms into one. The circle arm used to
+      // require group membership before the hidden/author check; that
+      // was an audience gate on speech, and audience gates are what this
+      // reversal removes. What survives is the `hidden == false`
+      // REQUIRED-BOOLEAN equality, unchanged and deliberately so: that
+      // is moderation failing closed against a MEASURED query leak
+      // (D65), not privacy, and softening it to a defaulted getter would
+      // re-open the leak while reading like a safe refactor.
       allow read: if request.auth != null
-        && (resource.data.gid == "world"
-          ? (resource.data.hidden == false
-            || resource.data.authorUid == request.auth.uid)
-          : (request.auth.uid in
-              get(/databases/$(database)/documents/v2_groups/$(resource.data.gid)).data.memberUids
-            && (resource.data.hidden == false
-              || resource.data.authorUid == request.auth.uid)));
+        && (resource.data.hidden == false
+          || resource.data.authorUid == request.auth.uid);
       allow create: if request.auth != null
         && request.resource.data.keys().hasOnly(["gid", "authorUid", "qid", "text", "createdAt", "hidden"])
         && request.resource.data.authorUid == request.auth.uid
@@ -549,9 +701,14 @@ service cloud.firestore {
     match /v2_flags/{flagId} {
       // Write-only, one per (take, user): the doc id pins uniqueness the
       // way answer ids do — a second flag from the same account is an
-      // update, and updates are denied. Nobody reads flags: they are
-      // anonymous to the circle AND to the moderation run, which sees
-      // only server-folded counts (docs/MODERATION.md, privacy posture).
+      // update, and updates are denied.
+      //
+      // Nobody reads flags, and this deny SURVIVES D98 because it is not
+      // about answer privacy: a reporter whose name is visible to the
+      // person they reported is a reporter who stops reporting. That is
+      // anti-retaliation, the same category as the logic seed's
+      // anti-cheat deny. Reversing it is a moderation decision, not a
+      // linkage one, and would want its own record.
       allow read: if false;
       allow create: if request.auth != null
         && request.resource.data.keys().hasOnly(["takeId", "gid", "uid", "at"])
@@ -560,12 +717,10 @@ service cloud.firestore {
         && request.resource.data.gid is string
         && get(/databases/$(database)/documents/v2_takes/$(request.resource.data.takeId)).data.gid
           == request.resource.data.gid
-        // World takes (D83) are flaggable by any signed-in user — the
-        // audience is the moderation constituency. Circle takes keep the
-        // membership gate: a stranger cannot flag speech they cannot read.
-        && (request.resource.data.gid == "world"
-          || request.auth.uid in
-            get(/databases/$(database)/documents/v2_groups/$(request.resource.data.gid)).data.memberUids)
+        // Flaggable by any signed-in user, at every scope. The circle arm
+        // used to require membership on the reasoning that "a stranger
+        // cannot flag speech they cannot read" — since D98 a stranger can
+        // read every take, so the premise is gone and the gate with it.
         // Reads the same boolean the take's own gate does. This was a
         // presence test too, and it had to change with the field: once
         // `hidden` is always present, `!("hidden" in …)` is false for every
@@ -594,13 +749,20 @@ service cloud.firestore {
     // ── Near-by-radius presence (D84) ──────────────────────────────
     //
     // One doc per opted-in user: a ~1 km grid cell and a freshness stamp,
-    // overwritten while the app is foreground. NO client read, ever — a
-    // readable (uid → cell) pair is D2's leak reborn, a script following
-    // any uid around town at cell resolution. The only read path is
-    // nearbyCountV2, which returns a COUNT and nothing else. The cell
-    // regex is the precision cap in structural form: a "la_lo" integer
-    // grid id cannot carry anything finer than the 0.01° cell, however
-    // hard a client tries.
+    // overwritten while the app is foreground. NO client read, ever.
+    //
+    // This deny SURVIVES D98, and the distinction matters: D98 publishes
+    // what people ANSWERED, not where their phone is standing right now.
+    // A readable (uid → cell) pair is a script following any account
+    // around town at cell resolution — a physical-safety problem, not a
+    // data-linkage feature, and nothing on the Mirror needs it. The only
+    // read path is nearbyCountV2, which returns a COUNT and nothing
+    // else. The cell regex is the precision cap in structural form: a
+    // "la_lo" integer grid id cannot carry anything finer than the 0.01°
+    // cell, however hard a client tries.
+    //
+    // Note the city ANCHOR on a profile is public now (D98) — "lives in
+    // Oslo" is published, "is at this corner of Oslo at 14:02" is not.
     match /v2_presence/{uid} {
       allow read: if false;
       allow create, update: if request.auth != null

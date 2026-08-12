@@ -27,7 +27,7 @@ Free text is ruled out, for reasons that are each individually sufficient:
   research problem, not a cleanup task, and it is never finished — the
   counts stop being honest the moment normalization merges or splits
   entities behind the scenes.
-- **The k-floor shreds the long tail.** Free text fragments one answer into
+- **The long tail shreds itself.** Free text fragments one answer into
   many sub-floor buckets. This repo has already lived it: the pre-D9 profile
   stored free-text places, and "Norway"/"norway"/"NO" became three cohorts,
   none publishable (see the history note in `functions/src/pure.ts`).
@@ -107,7 +107,7 @@ Feed card shape mirrors `rate` (the v15 precedent for a type that feeds its
 own surface): `{ id, cat, type: 'pick', domain: 'pokemon', prompt }`.
 Unanswered, the card is a search field over the catalogue (the `CityPicker`
 interaction, restyled to the feed) plus "Not listed". The answer written is
-`{ entity: <key> }` — create-only, owner-only, same as every other answer
+`{ entity: <key> }` — create-only, owner-written and world-readable, same as every other answer
 (D5 unchanged).
 
 Server-side validation cannot live in `firestore.rules` (a thousand-entry
@@ -121,9 +121,8 @@ create-only doc — worthless to the aggregate, harmless to everyone else.
 A favourite-of-1,000 has no 52/48 to stage. The reveal is a **leaderboard**:
 
 - Publish the **top N entities (N = 10)** whose counts clear the per-bucket
-  floor (`AGG_MIN_N` — 5 by design, paused to 1 pre-launch, D81), rewritten
-  every `PUBLISH_EVERY` answers (paused with it) — the existing D7 cadence,
-  unchanged.
+  board (`canonTopN`, a display cap — no floor since D98), rewritten on every answer —
+  the existing D7 cadence, unchanged.
 - Everything else folds into one **"everyone else" bucket** = total −
   published. The subtraction-leak rule already in `pure.ts` applies: if
   exactly one entity sits below the floor, its count would be recoverable
@@ -181,7 +180,7 @@ catalogue is stale, not a prompt to collect strings.
    demo-only data, behind the existing demo/live seam.
 3. Aggregate trigger: per-entity buckets, top-N + fold, the two floors
    above; rules test asserting a `pick` answer doc is create-only and
-   owner-only like every other answer; a `pure.ts` test for the fold's
+   owner-written like every other answer; a `pure.ts` test for the fold's
    subtraction rule that **fails without the change**.
 4. Films/artists catalogues from Wikidata, only after the Pokémon pilot
    proves the reveal is worth reading.

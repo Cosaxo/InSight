@@ -55,6 +55,23 @@ import {
   subscribeToAuth,
 } from "../../lib/firebase";
 import { reportError, setSentryUser } from "../../lib/sentry";
+// The cross-user read (D98). Pure helpers + the two queries live there so
+// the grouping/sorting can be unit-tested without Firebase.
+import { fetchVoters, groupByOption, resolveNames, sortVoters, type Voter } from "./voters";
+// Pure folds over the published breakdown, and the likeness metric behind
+// Kindred. No Firebase in there — this module supplies the documents.
+import { agreement, type Agreement } from "./cohort";
+// The follow graph (D101), TYPE-ONLY at module scope and imported for
+// real inside the two methods that use it.
+//
+// Dynamic on purpose: live.ts is eager, so a static import would pull
+// data/circle.ts into the first-paint chunk for a feature that cannot
+// run until the Mirror's third stop is opened — and the entry chunk has
+// 3 KB of headroom under MAX_CHUNK_KB by design (see the D100 note in
+// scripts/check-bundle.mjs). Both call sites are already async and
+// already await getDb(), so the import costs no round trip that was not
+// happening anyway.
+import type { Member as CircleMember } from "./circle";
 // Pure deck-shaping logic lives in ./deck (unit-testable, no firebase);
 // this module passes its store state in.
 import {
@@ -63,7 +80,7 @@ import {
   countsFor,
   dayIndex as dayIndexPure,
   duelQFor as duelQForPure,
-  isTooSmall,
+  hasPublishedCounts,
   splitBanks,
   utcDayIndex as utcDayIndexPure,
 } from "./deck";
@@ -168,7 +185,35 @@ const state = {
   // nothing can re-read, and a stale "Reported" is a worse lie than a
   // second flag the rules already refuse as a duplicate.
   myFlags: {} as Record<string, true>,
+  // ── named who-voted (D98) ──
+  // qid → everyone who answered it, newest first, with the cohort frozen
+  // on each answer and the author's display name resolved. Fetched on
+  // demand and held for the session: this is the app's only cross-user
+  // read, it is one collection-group query plus a batched profile read,
+  // and a card scrolled past must pay for neither.
+  voters: {} as Record<string, Voter[]>,
+  votersLoading: {} as Record<string, boolean>,
+  // uid → display name ("" for an account that has set none). Shared by
+  // every question's voter list, because crowds overlap: without this,
+  // opening five questions re-reads the same regulars five times.
+  // Session-scoped, and dropped by the purge with everything else.
+  names: {} as Record<string, string>,
+  // Kindred (D99): no cached ranking, only the flags. The ranking itself
+  // is derived on read from `voters` + `votes`, so it cannot go stale
+  // against its own inputs.
+  kindredLoading: false,
+  kindredAt: 0,
+  // The follow graph's loaded state (D101). null = not asked, or asked
+  // and failed; [] = asked, and you follow nobody. The stop says
+  // different things for those two.
+  circle: null as CircleMember[] | null,
+  circleLoading: false,
 };
+
+// How many of the viewer's own answers the Kindred ranking reads across.
+// Twelve shared questions is a legible likeness claim and the cost is
+// linear in this number — see loadKindred for why it is bounded at all.
+const KINDRED_QUESTIONS = 12;
 
 // One take as the circle reads it. `hidden` is always false on anything a
 // non-author can list — the read rule is an equality on that boolean, not a
@@ -649,12 +694,11 @@ async function hydrate(): Promise<void> {
   // missing OR still cached as too-small ──
   // Feed cards are blind pre-vote (counts show only after answering), so
   // the old whole-collection scan bought nothing. Deck docs get live
-  // snapshots below; everything else refreshes on vote. A cached agg
-  // with tooSmall !== false counts as missing here: feed questions have
-  // no live listener, so an early voter's "too small" snapshot would
-  // otherwise be frozen forever. Cost: each still-under-the-k-floor agg
-  // is re-read once per boot until it crosses the floor (bounded by the
-  // number of answered questions, same ceiling as a cold cache).
+  // snapshots below; everything else refreshes on vote. A cached agg with
+  // no counts yet is treated as missing here: feed questions have no live
+  // listener, so a first voter's empty snapshot would otherwise be frozen
+  // forever. Since D98 that window is one answer wide rather than the
+  // whole climb to a k-floor, so this re-reads far less than it used to.
   const AGG_LS = "insight.aggsCache.v1";
   try {
     const cached = JSON.parse(localStorage.getItem(AGG_LS) || "null");
@@ -683,10 +727,9 @@ async function hydrate(): Promise<void> {
     }
     const nowMs = Date.now();
     const answeredWorld = Object.keys(state.votes)
-      .filter((id) => !id.startsWith("g_") && isTooSmall(state.aggs[id]))
-      // A question under the floor stays under it for a while; re-reading
-      // every one on every boot is the dominant per-boot cost for an
-      // engaged user. Re-check each at most every 6h.
+      .filter((id) => !id.startsWith("g_") && !hasPublishedCounts(state.aggs[id]))
+      // Re-check each at most every 6h. Cheaper than it was — a question
+      // acquires counts on its first answer now, not on its fifth.
       .filter((id) => nowMs - (checked[id] || 0) > AGG_RECHECK_MS)
       .slice(0, AGG_ID_CAP);
 
@@ -793,7 +836,7 @@ function buildFeedGlobals(): void {
         prompt: q.prompt,
         options: q.options.map((label, i) => ({ label, count: counts[i] })),
         live: true,
-        tooSmall: isTooSmall(state.aggs[q.id]),
+        noCountsYet: !hasPublishedCounts(state.aggs[q.id]),
       };
     });
   const tests = state.feedBank
@@ -1241,7 +1284,12 @@ const PRESENCE_BEAT_MS = 4 * 60_000; // < the server's 10-min freshness window
 
 const nearState = {
   count: null as number | null,   // null = never fetched this session
-  tooFew: false,                  // floor-withheld (only when AGG_MIN_N > 1)
+  tooFew: false,                  // vestigial since D98 — the server
+                                  // no longer withholds a small count, so
+                                  // this never becomes true. Kept because
+                                  // it is a pinned LIVE member (live-surface.ts)
+                                  // and removing it is a three-file change
+                                  // with no user-visible effect.
   updatedAt: 0,
   lastError: null as string | null,
   timer: null as ReturnType<typeof setInterval> | null,
@@ -1311,7 +1359,7 @@ const NEAR = {
     return nearOptedIn();
   },
   // The count of OTHER fresh phones in the neighborhood: null when never
-  // fetched (or floor-withheld), a number otherwise. `tooFew` distinguishes
+  // fetched, a number otherwise. `tooFew` used to distinguish
   // "withheld by the floor" from "never fetched" so the UI can say "a few
   // people" honestly when the design floor returns (D81 revert).
   count(): number | null {
@@ -1431,15 +1479,240 @@ const LIVE = {
     return answerAnchors();
   },
   // The live half of a lens card (D91, reversing D50's device-only
-  // posture): k-floored counts for a lens question the seeded bank
-  // carries, own vote excluded like every feed count (the UI adds its
-  // +1). Returns null when the bank has no such row — an unseeded or
-  // pre-D91 backend — and the caller (lens-defs.js LENS_FEED_QS) falls
-  // back to the selfOnly acknowledgment rather than fabricating a crowd.
-  lensAgg(qid: string): { counts: number[]; tooSmall: boolean } | null {
+  // posture): exact counts for a lens question the seeded bank carries,
+  // own vote excluded like every feed count (the UI adds its +1).
+  // Returns null when the bank has no such row — an unseeded or pre-D91
+  // backend — and the caller (lens-defs.js LENS_FEED_QS) falls back to
+  // the selfOnly acknowledgment rather than fabricating a crowd. That
+  // fallback is about ABSENT data, not withheld data, so D98 leaves it.
+  // ── named who-voted (D98) ─────────────────────────────────────
+  //
+  // The read the whole reversal was for. Everything else in this store
+  // reads the viewer's own documents or a public aggregate; this reaches
+  // across users, which no rule permitted before D98 and no client here
+  // attempted.
+  //
+  // Load-on-demand, exactly like loadTakes: the caller is a panel that
+  // mounts when someone opens the who-voted sheet, so a feed of fifty
+  // cards costs nothing until one is asked about.
+  async loadVoters(qid: string): Promise<void> {
+    if (!qid || state.votersLoading[qid]) return;
+    state.votersLoading[qid] = true;
+    try {
+      const db = await getDb();
+      state.voters[qid] = await fetchVoters(db, qid, state.uid, state.names);
+    } catch (err) {
+      // Leave the key ABSENT rather than caching an empty list. The two
+      // states render differently and must not be confused: absent is
+      // "we could not ask", empty is "nobody answered". Freezing a
+      // failure into the session as "nobody" is the same class of lie
+      // the old floor's silent gaps were.
+      reportError(err, { where: "loadVoters", qid });
+    } finally {
+      state.votersLoading[qid] = false;
+      notify();
+    }
+  },
+  // uid → display name, from the shared session cache. Synchronous and
+  // best-effort: "" means either "no name set" or "not fetched yet", and
+  // the caller renders the same fallback for both because from the screen
+  // they are the same thing. Pair it with loadNames when the uids are
+  // known ahead of the render (world takes do this).
+  nameFor(uid: string): string {
+    return state.names[uid] || "";
+  },
+  // Batched uid → name fetch into the shared cache. Used by any surface
+  // that has uids but no names — world takes carry `authorUid` and no
+  // author name, so this is what turns them from "Someone" into people.
+  // A no-op once every uid is cached, which is the common case after the
+  // first surface on a question has resolved them.
+  async loadNames(uids: readonly string[]): Promise<void> {
+    const want = uids.filter((u) => u && !(u in state.names));
+    if (!want.length) return;
+    try {
+      const db = await getDb();
+      await resolveNames(db, want, state.names);
+    } catch (err) {
+      reportError(err, { where: "loadNames" });
+    } finally {
+      notify();
+    }
+  },
+  // ── Kindred: the people most like you (D99) ───────────────────
+  //
+  // The People lens's hard half. The mix is a fold over one aggregate;
+  // this needs OTHER PEOPLE'S ANSWERS, question by question, and then a
+  // comparison against your own.
+  //
+  // Built on the voter lists rather than beside them, which is the whole
+  // reason it is affordable: `loadVoters` already caches one
+  // collection-group query per question for the who-voted sheet, so a
+  // question whose sheet has been opened costs nothing here, and the
+  // names are resolved once into the shared cache for both surfaces.
+  //
+  // Bounded at KINDRED_QUESTIONS of the viewer's OWN most recent answers.
+  // Likeness over 12 shared questions is already a legible claim, and the
+  // cost is linear in that number — an unbounded version would fan out
+  // over every question the account has ever answered, on a screen the
+  // user may open casually.
+  async loadKindred(): Promise<void> {
+    if (state.kindredLoading) return;
+    state.kindredLoading = true;
+    try {
+      const qids = Object.keys(state.votes)
+        .filter((id) => !id.startsWith("g_"))
+        .slice(0, KINDRED_QUESTIONS);
+      // Sequential rather than parallel on purpose: each call is a
+      // collection-group query, most of them are cache hits after the
+      // first surface has run, and firing twelve at once at boot-adjacent
+      // moments is the shape that gets a client rate-limited.
+      for (const qid of qids) {
+        if (!state.voters[qid]) await this.loadVoters(qid);
+      }
+      state.kindredAt = qids.length;
+    } catch (err) {
+      reportError(err, { where: "loadKindred" });
+    } finally {
+      state.kindredLoading = false;
+      notify();
+    }
+  },
+  // Everyone who overlaps with you, most alike first. Derived on read
+  // rather than stored: the inputs are already in the store, and a cached
+  // ranking would go stale against its own source the moment another
+  // question's voters load.
+  //
+  // Returns [] rather than null when nothing has loaded — this is a
+  // ranking over whatever is known, and "known nothing yet" and "nobody
+  // overlaps" are the same empty list to a reader. The loading flag is
+  // what distinguishes them for the UI.
+  kindred(minShared = 2): Array<{ uid: string; name: string; like: Agreement }> {
+    const mine: Record<string, number> = {};
+    for (const [qid, opt] of Object.entries(state.votes)) {
+      if (qid.startsWith("g_")) continue;
+      const n = Number(opt);
+      if (Number.isFinite(n)) mine[qid] = n;
+    }
+    // uid -> their answers, assembled from the cached voter lists.
+    const theirs: Record<string, Record<string, number>> = {};
+    for (const [qid, rows] of Object.entries(state.voters)) {
+      for (const r of rows) {
+        if (r.uid === state.uid) continue;
+        (theirs[r.uid] || (theirs[r.uid] = {}))[qid] = r.optionIdx;
+      }
+    }
+    return Object.keys(theirs)
+      .map((uid) => ({ uid, name: state.names[uid] || "", like: agreement(mine, theirs[uid]) }))
+      .filter((p) => p.like.shared >= minShared)
+      // Most alike first; more shared questions breaks a tie, because a
+      // 100% over two questions is a weaker claim than 80% over ten.
+      .sort((a, b) => b.like.pct - a.like.pct
+        || b.like.shared - a.like.shared
+        || a.uid.localeCompare(b.uid));
+  },
+  kindredLoading(): boolean {
+    return state.kindredLoading;
+  },
+
+  // ── the follow graph and the Circle stop (D101) ──
+  //
+  // Kindred above ranks STRANGERS, off voter lists another surface
+  // already paid for. Circle is the set you chose, and it is the only
+  // place in the app that reads a named individual's whole answer set —
+  // so unlike Kindred it costs a query per member and is loaded only
+  // when the stop is opened.
+  async loadCircle(): Promise<void> {
+    const me = state.uid;
+    if (!this.enabled || !me || state.circleLoading) return;
+    state.circleLoading = true;
+    notify();
+    try {
+      const [db, circleMod] = await Promise.all([getDb(), import("./circle")]);
+      const mine: Record<string, number> = {};
+      for (const [qid, opt] of Object.entries(state.votes)) {
+        if (qid.startsWith("g_")) continue;
+        const n = Number(opt);
+        if (Number.isFinite(n)) mine[qid] = n;
+      }
+      const members = await circleMod.loadCircle(db, me, mine, (u) => state.names[u] || "");
+      // Names for anyone the shared cache did not already hold. Batched,
+      // and after the fold rather than before it — the likeness is
+      // computed from answers and does not wait on a display name.
+      const missing = members.filter((m) => !m.name).map((m) => m.uid);
+      if (missing.length) {
+        await this.loadNames(missing);
+        for (const m of members) m.name = state.names[m.uid] || "";
+      }
+      state.circle = members;
+    } catch (err) {
+      reportError(err, { where: "loadCircle" });
+      // null, not [] — "could not ask" and "you follow nobody" are
+      // different sentences and the stop renders them differently. The
+      // same rule voters() follows.
+      state.circle = null;
+    } finally {
+      state.circleLoading = false;
+      notify();
+    }
+  },
+  /** The circle, or null while unfetched or failed. */
+  circle(): CircleMember[] | null {
+    return state.circle;
+  },
+  circleLoading(): boolean {
+    return state.circleLoading;
+  },
+  /** Whether the viewer follows `uid` — answered from the loaded list. */
+  isFollowing(uid: string): boolean {
+    return !!state.circle?.some((m) => m.uid === uid);
+  },
+  /**
+   * Follow or unfollow, then reload. Optimism is deliberately NOT applied
+   * here: a Circle row carries a likeness computed from a fetch, so a
+   * locally-inserted member would render with 0% until the read landed
+   * and look like a real reading of a real person.
+   */
+  async setFollowing(uid: string, on: boolean): Promise<void> {
+    const me = state.uid;
+    if (!this.enabled || !me || !uid || uid === me) return;
+    try {
+      const [db, circleMod] = await Promise.all([getDb(), import("./circle")]);
+      if (on) {
+        if ((state.circle?.length || 0) >= circleMod.FOLLOW_CAP) return;
+        await circleMod.follow(db, me, uid);
+      } else {
+        await circleMod.unfollow(db, me, uid);
+      }
+      await this.loadCircle();
+    } catch (err) {
+      reportError(err, { where: "setFollowing" });
+    }
+  },
+  /** How many of the viewer's questions the ranking has been able to read. */
+  kindredDepth(): number {
+    return state.kindredAt;
+  },
+
+  // null while unfetched or failed; an array (possibly empty) once known.
+  voters(qid: string): Voter[] | null {
+    const rows = state.voters[qid];
+    return rows ? sortVoters(rows) : null;
+  },
+  // The same list, split into one column per option. optionCount comes
+  // from the question rather than the data, so an option nobody picked
+  // still gets an (empty) column.
+  votersByOption(qid: string, optionCount: number): Voter[][] | null {
+    const rows = this.voters(qid);
+    return rows ? groupByOption(rows, optionCount).map(sortVoters) : null;
+  },
+  votersLoading(qid: string): boolean {
+    return !!state.votersLoading[qid];
+  },
+
+  lensAgg(qid: string): { counts: number[]; noCountsYet: boolean } | null {
     const q = state.feedBank.find((x) => x.id === qid && x.surface === "test");
     if (!q) return null;
-    return { counts: feedCounts(q), tooSmall: isTooSmall(state.aggs[qid]) };
+    return { counts: feedCounts(q), noCountsYet: !hasPublishedCounts(state.aggs[qid]) };
   },
   // The anchors the profile has collected, as a plain map. Empty until the
   // user fills the Basics card in — an answer with no anchors simply folds
@@ -1602,6 +1875,31 @@ const LIVE = {
   },
   aggFor(qid: string): AggDoc | null {
     return state.aggs[qid] || null;
+  },
+  /**
+   * Every daily question this device holds a published aggregate for —
+   * the seven-day deck plus everything the user has ever answered
+   * (hydrate tops those up, capped at AGG_ID_CAP).
+   *
+   * The Mirror's Answers and Scores lenses read this rather than deck()
+   * (D100), and the difference is what makes them worth having. Over a
+   * deck of seven, "filter by branch" offers fourteen subjects holding
+   * one row each and a sort is a re-ordering of half a screen; over a
+   * returning user's archive both become the point. Scores could not
+   * exist on the deck at all — the bank holds five `rating` questions in
+   * ninety, so a given week usually serves none.
+   *
+   * No new read. Every aggregate here was already fetched and cached for
+   * the card that displayed it; this is the same map, walked rather than
+   * indexed.
+   */
+  aggregated(): LiveQuestion[] {
+    const now = new Date();
+    return state.questions
+      .filter((q) => q.active !== false && hasPublishedCounts(state.aggs[q.id]))
+      // No `back`, so no day label: these come from any day and a pager
+      // label on them would be a guess (deck.ts's buildS takes null).
+      .map((q) => buildSPure(q, null, voteCtx(q.id), now));
   },
   // ── Learn (D32) ──
   // The first attempt on a learn card is a plain world answer; the
@@ -1922,6 +2220,18 @@ function resetForNewUid(uid: string): void {
   state.takes = {};
   state.takesLoading = {};
   state.myFlags = {};
+  // The voter lists carry an `isMe` flag computed against the OLD uid, so
+  // a survivor would mark a stranger's answer as this account's own. The
+  // name cache is dropped with them: it is other people's display names,
+  // held only to save reads, and nothing about it should outlive the
+  // session that fetched it.
+  state.voters = {};
+  state.votersLoading = {};
+  state.names = {};
+  state.kindredLoading = false;
+  state.kindredAt = 0;
+  state.circle = null;
+  state.circleLoading = false;
   state.profile = { displayName: "", testResults: {}, anchors: {} };
   state.deckIds = [];
   state.deckDay = -1;

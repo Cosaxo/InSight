@@ -1,15 +1,20 @@
-// LivePrivacyPanel — the account & privacy panel (Phase 5), shown at
-// the top of the profile's General tab in live mode. Everything it
-// says is enforced by rules/functions, not just promised: answers
-// owner-only, k-floored world counts, next-day named reveals,
-// callable-only groups.
+// LivePrivacyPanel — the account & data panel (Phase 5), shown at the
+// top of the profile's General tab in live mode.
+//
+// Its job did not change at D98, but every sentence in it did. This
+// panel exists so that what the app SAYS about who can see what matches
+// what firestore.rules actually does. That used to mean explaining a
+// set of protections; it now means stating plainly that answers are
+// public and attributable, which is a thing a user must be told clearly
+// rather than left to discover. A panel that still promised owner-only
+// answers would be the exact UI-says-it, server-doesn't failure this
+// product defines itself against — just pointed the other way.
 //
 // Born in this repo (not ported from the design prototype), so it
 // lives here as typed TSX. A globalThis assignment at the bottom
 // keeps the spec layer's render-time lookup working unchanged.
 import React from "react";
 import LIVE from "../data/live";
-import { AGG_FLOOR } from "../data/floor";
 // The hosted origin for the legal pages. Lives in data/links.ts now so
 // invites and legal links share one constant — a domain change stays a
 // single edit (D3).
@@ -122,17 +127,23 @@ function LivePrivacyPanel() {
       <div style={{ padding: "11px 0", borderBottom: LP_LINE }}>
         <div style={{ fontWeight: 800, fontSize: 14.5, marginBottom: 6 }}>What leaves your device</div>
         <ul style={{ margin: 0, paddingLeft: 17, fontSize: 12.5, fontWeight: 500, color: "var(--ink-2)", lineHeight: 1.65 }}>
-          <li>Your answers are readable by you alone — enforced server-side.</li>
-          {/* The floor clause tracks data/floor.ts. While D81's launch pause
-              holds (floor 1) the honest sentence is the disclosure itself:
-              counts show from the first answer, so in a tiny cohort a count
-              can be readable as one person's answer. A privacy panel that
-              kept claiming "≥5" here would be the exact UI-says-it,
-              server-doesn't failure this product defines itself against. */}
-          <li>{AGG_FLOOR > 1
-            ? `World stats show only combined counts, and only once ≥${AGG_FLOOR} people answered.`
-            : "World stats show only combined counts — never who. While the app is small, counts show from the first answer (so a count of 1 is that one answer); the ≥5-person floor switches back on as cohorts grow."}</li>
-          <li>Group &amp; 1v1 answers stay sealed until the next day&apos;s reveal, then show with names — to members only.</li>
+          {/* The first bullet, and deliberately the bluntest sentence in
+              the app. D98 made answers public; a user learning that from
+              a stranger quoting their vote back at them would be the
+              worst possible way to find out. */}
+          <li><strong>Your answers are public.</strong> Anyone using InSight can see what you
+          answered, under your display name, along with the age band, gender, city, country,
+          education and relationship status you have filled in. That is what the app is for —
+          it is how you see who answers like you — but it means nothing you answer here is
+          private. Answer accordingly.</li>
+          <li>That includes the political, personal and sensitive questions. There is no
+          category of question that is held back, and no group size too small to show: counts
+          are exact from the very first answer, so in a small cohort a count of 1 is visibly
+          one person&apos;s answer.</li>
+          <li>Your display name is shown with your answers. Leave it blank to appear
+          as &ldquo;Someone&rdquo; — that hides the name, not the answers.</li>
+          <li>Group &amp; 1v1 answers stay sealed until the next day&apos;s reveal — that is the
+          game, not a privacy promise. Once revealed they read like every other answer.</li>
           {/* This line has been rewritten twice, and the second time the
               GUARANTEE changed rather than the wording. "No device
               location, ever" was true until D9 added the optional

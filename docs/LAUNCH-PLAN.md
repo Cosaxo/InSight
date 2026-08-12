@@ -322,7 +322,7 @@ correctness, "% got it right" is `counts[c]/total` computed on the client, and
 **Aggregation: zero trigger changes** — verified, not assumed. The vote fold
 in `onV2AnswerCreated` is surface-agnostic: anything carrying a numeric
 `optionIdx` outside group/duo/entity folds into `v2_question_aggs` with the
-same floor (`AGG_MIN_N = 5`) and publish cadence. Cold start (below the
+same exact publish path (D98: no floor, no cadence). Cold start (below the
 floor): the UI shows the authored estimate, labeled — "our estimate — becomes
 measured once enough people have answered" — and the measured state's footer
 uses the established lower-bound phrasing ("from N+ players"). The authored
@@ -353,7 +353,7 @@ correct: learn answers feed aggregates.
 **Tests/gates.** Rules tests: accept; surface-mismatch deny; out-of-range
 deny; and **second create on the same qid denied** — pinning first-attempt-only
 as a rules-level property so the policy cannot regress without a red test. E2e
-leg in the v2 loop: five users answer, `tooSmall` through four, published
+leg in the v2 loop: five users answer, every one published
 counts at five, duplicate refused. Erasure is free — learn answers live in the
 same `answers` subcollection `deleteAccount` recursively deletes — plus a
 seeded learn answer and leftover assertions in the erasure e2e.
@@ -393,7 +393,7 @@ inert; the reverse order is permission-denied noise).
      device frames and captions are composition on top, not different UI.
   2. *Content state matters more than tooling:* captures happen in LIVE
      mode against seeded production once real answers exist (the TestFlight
-     week is the natural moment — ten testers put real k-floored splits on
+     week is the natural moment — ten testers put real splits on
      screen). Demo mode is the fallback and its honesty badges will show —
      which is acceptable for a fallback but is the argument for doing it
      the live way.
@@ -469,7 +469,7 @@ The critical path now — nothing in the repo gates any of it:
    test immediately** (starts the 14-day clock); recruit ten TestFlight
    + twelve Play testers.
 3. **Week 2:** TestFlight soak and fixes; screenshots + feature graphic
-   off real k-floored content; privacy forms from the SHIP-CHECKLIST §3
+   off real content; privacy forms from the SHIP-CHECKLIST §3
    table; the IARC/age-rating questionnaire.
 4. **Week 2–3:** iOS submit (+ the possible 4.8 round). **Week 3–4:**
    Play production application once the 14 days complete, then Play

@@ -479,7 +479,7 @@ export let DAILYQ;
       if (v != null && !(q.id in saved)) { saved[q.id] = Number(v); changed = true; }
       const agg = L.aggFor && L.aggFor(b.id);
       const size = (q.dist && q.dist.world && q.dist.world.length) || (q.options && q.options.length) || 0;
-      if (agg && agg.tooSmall === false && agg.counts && size) {
+      if (agg && agg.counts && size) {
         const counts = []; let total = 0;
         for (let i = 0; i < size; i++) { const n = agg.counts[String(i)] || 0; counts.push(n); total += n; }
         if (total > 0) {

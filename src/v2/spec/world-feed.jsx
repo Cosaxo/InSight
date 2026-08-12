@@ -4,6 +4,12 @@
 // spec-index.js load order is semantic — scripts/check-spec-globals.mjs
 // guards the wiring in CI.
 import React from 'react';
+// An ordinary import, not a globalThis lookup: D39's ratchet only moves
+// down, and this panel's one consumer is this file. Static rather than
+// listed in spec-index on purpose — world-feed is deferred past first
+// paint (D25), so importing it here keeps it in the deferred chunk
+// instead of pulling it into the first-paint bundle.
+import LiveVotersPanel from '../ui/LiveVotersPanel';
 import { WPAL } from './world-palette.js';
 import { HAPTIC } from './haptics.js';
 import { WF_CATALOGS } from './world-catalogs.js';
@@ -11,7 +17,6 @@ import { Sheet } from './primitives.jsx';
 // The feed's cadence arithmetic — extracted so the test exercises THIS loop
 // rather than a copy of it (D11's claim, D42's citation; see the module).
 import { interleaveFeed, partitionAnswered } from '../data/feed-interleave.ts';
-import { AGG_FLOOR } from '../data/floor.ts';
 // The live world-takes surface (D83) — an ordinary ESM import of the typed
 // panel, like the data imports above, so the D39 coupling meter stays flat.
 import LiveTakesPanel from '../ui/LiveTakesPanel.tsx';
@@ -1069,12 +1074,9 @@ class WorldFeed extends React.Component {
       <div style={{ fontSize: big ? 12.5 : 11.5, fontWeight: 600, color: 'var(--ink-3)', padding: '2px 2px 0' }}>
         {/* real characters, not \u escapes: JSX text children are literal,
             so an escape here renders as a visible backslash on the card.
-            Floor-aware (data/floor.ts): at the paused floor (D81) this
-            state is only "the trigger hasn't landed yet", so promising
-            five people would be promising a wait that isn't coming. */}
-        {AGG_FLOOR > 1
-          ? 'You’re early — counts appear once ' + AGG_FLOOR + ' people have answered.'
-          : 'You’re first — the count lands in a moment.'}
+            Since D98 this state only ever means "the trigger hasn't landed
+            yet" — there is no floor left to wait for. */}
+        You’re first — the count lands in a moment.
       </div>
     );
   }
@@ -1117,7 +1119,7 @@ class WorldFeed extends React.Component {
     // selfOnly card (a live session's lens question — D50) is the same
     // problem wearing authored counts: numbers exist, a measurement does
     // not, so it takes the bars path too.
-    const floored = !!(q.live && q.tooSmall) || !!q.selfOnly;
+    const floored = !!(q.live && q.noCountsYet) || !!q.selfOnly;
     return this.opts.reveal && !floored
       ? this.renderVoteTiles(q, T, big)
       : this.renderVoteBars(q, T, big);
@@ -1244,11 +1246,11 @@ class WorldFeed extends React.Component {
             <div style={{ position: 'relative', display: 'flex', alignItems: 'baseline', gap: 8, padding: big ? '13px 14px' : '9px 12px' }}>
               {mine === i && <span aria-label="Your pick" style={{ width: big ? 18 : 15, height: big ? 18 : 15, borderRadius: '50%', flexShrink: 0, alignSelf: 'center', background: WPAL.ink(T.color), display: 'flex', alignItems: 'center', justifyContent: 'center' }}><svg viewBox="0 0 24 24" width={big ? 10 : 8} height={big ? 10 : 8} fill="none" stroke="#fff" strokeWidth="3.4" strokeLinecap="round" strokeLinejoin="round"><path d="M4.5 12.5 10 18 19.5 6.5"></path></svg></span>}
               <span style={{ flex: 1, minWidth: 0, fontWeight: mine === i ? 800 : 700, fontSize: big ? 15 : 13.5 }}>{o.label}</span>
-              {p[i] === maxP && !(q.live && q.tooSmall) && !noCrowd && <span style={{ fontWeight: 800, fontSize: big ? 20 : 15, color: 'var(--ink)' }}><WfCount to={p[i]} animate={fresh}></WfCount>%</span>}
+              {p[i] === maxP && !(q.live && q.noCountsYet) && !noCrowd && <span style={{ fontWeight: 800, fontSize: big ? 20 : 15, color: 'var(--ink)' }}><WfCount to={p[i]} animate={fresh}></WfCount>%</span>}
             </div>
           </div>
         ))}
-        {q.live && q.tooSmall && mine != null && this.renderFloorNote(big)}
+        {q.live && q.noCountsYet && mine != null && this.renderFloorNote(big)}
         {noCrowd && mine != null && this.renderSelfNote(q, T, big)}
       </div>
     );
@@ -1265,7 +1267,7 @@ class WorldFeed extends React.Component {
     // share — so the fill and the numeral are gated together. Drawing one
     // without the other would publish the split geometrically instead of
     // numerically, which is the same disclosure in a different alphabet.
-    const shares = mine != null && !(q.live && q.tooSmall);
+    const shares = mine != null && !(q.live && q.noCountsYet);
     // Label band at the top; the numeral rides the water line below it. Two things
     // keep them from ever meeting, at any tile height or percentage:
     //   1. the band reserves lines for what the labels ACTUALLY need (shared across
@@ -2213,14 +2215,31 @@ class WorldFeed extends React.Component {
 
   renderStats(q, T) {
     const by = this.liveBy(q);
-    if (by) return this.renderLiveStats(q, T, by);
-    // A live question whose breakdown is not publishable yet says so,
-    // rather than falling through to the demo's invented split.
+    // Named who-voted (D98) rides under the cohort breakdown on every live
+    // card. Two different questions — "how did each group split" and "who
+    // actually answered" — and the second one is the whole reason the
+    // privacy model came off, so it is not hidden behind a second tap.
+    const voters = q.live
+      ? <LiveVotersPanel qid={q.id} options={q.options.map((o) => o.label)} />
+      : null;
+    if (by) {
+      return (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+          {this.renderLiveStats(q, T, by)}
+          {voters}
+        </div>
+      );
+    }
+    // A live question with no breakdown yet still has voters — one answer
+    // is enough for this panel and not enough for a cross-tab, so the
+    // cohort half says so and the named half renders anyway.
     if (q.live) {
       return (
-        <div style={{ fontFamily: 'var(--sans)', fontSize: 13, fontWeight: 600, color: 'var(--ink-3)', lineHeight: 1.55, padding: '6px 2px', textWrap: 'pretty' }}>
-          No group is large enough yet to show how it split without pointing
-          at someone. Come back when more people have answered.
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+          <div style={{ fontFamily: 'var(--sans)', fontSize: 13, fontWeight: 600, color: 'var(--ink-3)', lineHeight: 1.55, padding: '6px 2px', textWrap: 'pretty' }}>
+            Not enough answers yet to break this down by group.
+          </div>
+          {voters}
         </div>
       );
     }

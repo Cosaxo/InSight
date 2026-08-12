@@ -144,6 +144,12 @@ import './ui/PickSearch';
 import './ui/LiveCohortBody';
 import './ui/LiveGroupsMirrorBody';
 import './ui/LiveTakesPanel';
+// NB: ui/LiveVotersPanel and ui/LiveCircleBody are deliberately NOT
+// listed here. Each has exactly one consumer that imports it directly —
+// world-feed.jsx and mirror-tab.jsx — and both of those reach it past
+// first paint (D25's deferred group; a React.lazy for Circle). Listing
+// either would drag it into the eager bundle to no purpose, which is
+// the whole thing the deferral bought.
 import './spec/app-shell.jsx';
 
 // ── the world feed, after first paint ──────────────────────────────────

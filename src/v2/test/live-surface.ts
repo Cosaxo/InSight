@@ -22,7 +22,32 @@
 // member. That is the whole point.
 
 export const LIVE_MEMBERS = [
-  "aggFor", "anchors", "appBuild",
+  "aggFor",
+  // D100: the deck plus every answered question that has an aggregate —
+  // what the Mirror's Answers and Scores lenses read. Distinct from
+  // `deck()`, which is strictly the seven-day pager.
+  "aggregated",
+  "anchors", "appBuild",
+  // Named who-voted (D98) — the app's only cross-user read, and the
+  // reason the reversal was worth doing. On LIVE rather than LIVE.social
+  // deliberately: `social` is groups, duos and their takes, while a
+  // question's voters are a WORLD surface with no circle in it.
+  // `loadVoters` fetches on demand; `voters` returns null while unfetched
+  // or failed and an array (possibly empty) once known, because "could
+  // not ask" and "nobody answered" must not render the same.
+  "loadVoters", "voters", "votersByOption", "votersLoading",
+  // The shared uid → name cache the same read fills. `nameFor` is a
+  // synchronous best-effort read; `loadNames` is the batched fetch that
+  // fills it for a surface that has uids but no names (world takes).
+  "nameFor", "loadNames",
+  // Kindred (D99) — the People lens's ranking, derived on read from the
+  // cached voter lists plus the viewer's own votes.
+  "loadKindred", "kindred", "kindredLoading", "kindredDepth",
+  // The follow graph and the Circle stop (D101). `circle` returns null
+  // while unfetched or failed and an array once known — same rule as
+  // `voters`, because "could not ask" and "you follow nobody" are
+  // different sentences the stop renders differently.
+  "loadCircle", "circle", "circleLoading", "isFollowing", "setFollowing",
   // The reason boot did not attach, rendered under the "Sample questions ·
   // reconnecting…" pill when it is tapped. It exists because that label
   // said a real user was on demo content without saying why, and an

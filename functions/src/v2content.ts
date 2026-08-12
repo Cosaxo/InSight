@@ -7,7 +7,9 @@
 // `active`/`political` are optional and emitted only when set: absent means
 // active (deck.ts filters `active !== false`) and sliceable (v2.ts's D44
 // predicate checks `political === true` alongside `test === "political"`).
-export interface V2SeedQuestion { id: string; surface: string; seq: number; type: string; domain: string | null; prompt: string; options: string[]; topic: string | null; axis: string | null; test: string | null; mode?: string; active?: boolean; political?: boolean; }
+// `branch`/`sub` are the daily bank's [branch, sub-branch] subject path
+// (D100) and are absent on every other surface, which carries no path.
+export interface V2SeedQuestion { id: string; surface: string; seq: number; type: string; domain: string | null; prompt: string; options: string[]; topic: string | null; branch?: string; sub?: string; axis: string | null; test: string | null; mode?: string; active?: boolean; political?: boolean; }
 export const V2_QUESTIONS: V2SeedQuestion[] = [
  {
   "id": "daily-000",
@@ -21,6 +23,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Ronaldo"
   ],
   "topic": "light",
+  "branch": "Sport",
+  "sub": "Football",
   "axis": null,
   "test": null
  },
@@ -36,6 +40,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Wes Anderson"
   ],
   "topic": "light",
+  "branch": "Film",
+  "sub": "Directors",
   "axis": null,
   "test": null
  },
@@ -51,6 +57,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Never"
   ],
   "topic": "light",
+  "branch": "Food",
+  "sub": "Debates",
   "axis": null,
   "test": null
  },
@@ -68,6 +76,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Closeness"
   ],
   "topic": "deep",
+  "branch": "Values",
+  "sub": "Longing",
   "axis": null,
   "test": null
  },
@@ -86,6 +96,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Strongly agree"
   ],
   "topic": "light",
+  "branch": "Mind",
+  "sub": "Rest",
   "axis": "at ease",
   "test": null
  },
@@ -101,6 +113,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Meaner"
   ],
   "topic": "deep",
+  "branch": "Morals",
+  "sub": "Direction",
   "axis": null,
   "test": null
  },
@@ -117,6 +131,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Leave it"
   ],
   "topic": "deep",
+  "branch": "Morals",
+  "sub": "Honesty",
   "axis": null,
   "test": null
  },
@@ -140,6 +156,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "10"
   ],
   "topic": "deep",
+  "branch": "Mind",
+  "sub": "Outlook",
   "axis": "optimistic",
   "test": null
  },
@@ -158,6 +176,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Strongly agree"
   ],
   "topic": "deep",
+  "branch": "Values",
+  "sub": "Trust",
   "axis": "trusting",
   "test": null
  },
@@ -173,6 +193,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Never"
   ],
   "topic": "deep",
+  "branch": "Mind",
+  "sub": "Human limits",
   "axis": null,
   "test": null
  },
@@ -190,6 +212,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "History"
   ],
   "topic": "deep",
+  "branch": "Values",
+  "sub": "Education",
   "axis": null,
   "test": null
  },
@@ -206,6 +230,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Find a third way"
   ],
   "topic": "deep",
+  "branch": "Morals",
+  "sub": "Loyalty",
   "axis": null,
   "test": null
  },
@@ -221,6 +247,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Play"
   ],
   "topic": "light",
+  "branch": "Sport",
+  "sub": "How you engage",
   "axis": null,
   "test": null
  },
@@ -239,6 +267,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Strongly agree"
   ],
   "topic": "deep",
+  "branch": "Values",
+  "sub": "Meaning",
   "axis": "searching",
   "test": null
  },
@@ -262,6 +292,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "10"
   ],
   "topic": "deep",
+  "branch": "Mind",
+  "sub": "Media",
   "axis": "trusting",
   "test": null,
   "political": true
@@ -278,6 +310,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Worse"
   ],
   "topic": "deep",
+  "branch": "Mind",
+  "sub": "Technology",
   "axis": null,
   "test": null
  },
@@ -295,6 +329,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Music"
   ],
   "topic": "blend",
+  "branch": "Mind",
+  "sub": "Civilisation",
   "axis": null,
   "test": null
  },
@@ -313,6 +349,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Strongly agree"
   ],
   "topic": "deep",
+  "branch": "Mind",
+  "sub": "Technology",
   "axis": "wary",
   "test": null
  },
@@ -330,6 +368,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Peace"
   ],
   "topic": "deep",
+  "branch": "Values",
+  "sub": "What matters",
   "axis": null,
   "test": null
  },
@@ -345,6 +385,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Never know"
   ],
   "topic": "deep",
+  "branch": "Mind",
+  "sub": "Mortality",
   "axis": null,
   "test": null
  },
@@ -368,6 +410,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "10"
   ],
   "topic": "deep",
+  "branch": "Mind",
+  "sub": "Fate",
   "axis": "shaped by luck",
   "test": null
  },
@@ -386,6 +430,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Strongly agree"
   ],
   "topic": "blend",
+  "branch": "Values",
+  "sub": "Friendship",
   "axis": "inward",
   "test": null
  },
@@ -401,6 +447,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Truth anyway"
   ],
   "topic": "deep",
+  "branch": "Morals",
+  "sub": "Kindness",
   "axis": null,
   "test": null
  },
@@ -419,6 +467,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Strongly agree"
   ],
   "topic": "deep",
+  "branch": "Morals",
+  "sub": "Honesty",
   "axis": "frank",
   "test": null
  },
@@ -437,6 +487,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Strongly agree"
   ],
   "topic": "blend",
+  "branch": "Values",
+  "sub": "Money",
   "axis": "materialist",
   "test": null
  },
@@ -460,6 +512,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "10"
   ],
   "topic": "deep",
+  "branch": "Mind",
+  "sub": "Agency",
   "axis": "in control",
   "test": null
  },
@@ -477,6 +531,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "What I make"
   ],
   "topic": "deep",
+  "branch": "Values",
+  "sub": "Identity",
   "axis": null,
   "test": null
  },
@@ -492,6 +548,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "A new one"
   ],
   "topic": "blend",
+  "branch": "Mind",
+  "sub": "Time",
   "axis": null,
   "test": null
  },
@@ -509,6 +567,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Winter"
   ],
   "topic": "light",
+  "branch": "Travel",
+  "sub": "Seasons",
   "axis": null,
   "test": null
  },
@@ -527,6 +587,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Strongly agree"
   ],
   "topic": "deep",
+  "branch": "Morals",
+  "sub": "Faith in others",
   "axis": "hopeful",
   "test": null
  },
@@ -542,6 +604,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Solo"
   ],
   "topic": "light",
+  "branch": "Sport",
+  "sub": "How you play",
   "axis": null,
   "test": null
  },
@@ -558,6 +622,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Sofa"
   ],
   "topic": "light",
+  "branch": "Sport",
+  "sub": "Watching",
   "axis": null,
   "test": null
  },
@@ -573,6 +639,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Dubbing"
   ],
   "topic": "light",
+  "branch": "Film",
+  "sub": "How you watch",
   "axis": null,
   "test": null
  },
@@ -589,6 +657,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Entertained"
   ],
   "topic": "blend",
+  "branch": "Film",
+  "sub": "What it’s for",
   "axis": null,
   "test": null
  },
@@ -604,6 +674,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Sofa"
   ],
   "topic": "light",
+  "branch": "Film",
+  "sub": "Where you watch",
   "axis": null,
   "test": null
  },
@@ -619,6 +691,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Eat out"
   ],
   "topic": "light",
+  "branch": "Food",
+  "sub": "Habits",
   "axis": null,
   "test": null
  },
@@ -636,6 +710,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Indian"
   ],
   "topic": "light",
+  "branch": "Food",
+  "sub": "Taste",
   "axis": null,
   "test": null
  },
@@ -654,6 +730,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Strongly agree"
   ],
   "topic": "light",
+  "branch": "Food",
+  "sub": "Meals",
   "axis": "breakfast-loyal",
   "test": null
  },
@@ -669,6 +747,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Sea"
   ],
   "topic": "light",
+  "branch": "Travel",
+  "sub": "Landscapes",
   "axis": null,
   "test": null
  },
@@ -685,6 +765,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Coming home"
   ],
   "topic": "blend",
+  "branch": "Travel",
+  "sub": "The arc",
   "axis": null,
   "test": null
  },
@@ -700,6 +782,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "The future"
   ],
   "topic": "blend",
+  "branch": "Travel",
+  "sub": "Time travel",
   "axis": null,
   "test": null
  },
@@ -715,6 +799,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "The recording"
   ],
   "topic": "light",
+  "branch": "Music",
+  "sub": "How you listen",
   "axis": null,
   "test": null
  },
@@ -732,6 +818,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Memory"
   ],
   "topic": "blend",
+  "branch": "Music",
+  "sub": "What it does",
   "axis": null,
   "test": null
  },
@@ -747,6 +835,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Melody"
   ],
   "topic": "light",
+  "branch": "Music",
+  "sub": "What hooks you",
   "axis": null,
   "test": null
  },
@@ -762,6 +852,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Night owl"
   ],
   "topic": "light",
+  "branch": "Body",
+  "sub": "Clock",
   "axis": null,
   "test": null
  },
@@ -780,6 +872,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Strongly agree"
   ],
   "topic": "blend",
+  "branch": "Body",
+  "sub": "Movement",
   "axis": "movement-powered",
   "test": null
  },
@@ -797,6 +891,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "A stranger"
   ],
   "topic": "deep",
+  "branch": "Story",
+  "sub": "Then and now",
   "axis": null,
   "test": null
  },
@@ -812,6 +908,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Burn it"
   ],
   "topic": "blend",
+  "branch": "Story",
+  "sub": "The archive",
   "axis": null,
   "test": null
  },
@@ -829,6 +927,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Healing"
   ],
   "topic": "deep",
+  "branch": "Goals",
+  "sub": "The decade",
   "axis": null,
   "test": null
  },
@@ -847,6 +947,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Strongly agree"
   ],
   "topic": "deep",
+  "branch": "Goals",
+  "sub": "Clarity",
   "axis": "clear-eyed",
   "test": null
  },
@@ -864,6 +966,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "A stopover"
   ],
   "topic": "blend",
+  "branch": "Home",
+  "sub": "What it is",
   "axis": null,
   "test": null
  },
@@ -879,6 +983,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Dabble"
   ],
   "topic": "blend",
+  "branch": "Skills",
+  "sub": "Depth",
   "axis": null,
   "test": null
  },
@@ -894,6 +1000,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Join a club"
   ],
   "topic": "light",
+  "branch": "Interests",
+  "sub": "How you start",
   "axis": null,
   "test": null
  },
@@ -909,6 +1017,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Lived-in"
   ],
   "topic": "light",
+  "branch": "Home",
+  "sub": "How it looks",
   "axis": null,
   "test": null
  },
@@ -926,6 +1036,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Time"
   ],
   "topic": "deep",
+  "branch": "Home",
+  "sub": "What makes it",
   "axis": null,
   "test": null
  },
@@ -941,6 +1053,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Quiet"
   ],
   "topic": "blend",
+  "branch": "Home",
+  "sub": "Guests",
   "axis": null,
   "test": null
  },
@@ -958,6 +1072,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "The view"
   ],
   "topic": "blend",
+  "branch": "Home",
+  "sub": "Non-negotiables",
   "axis": null,
   "test": null
  },
@@ -973,6 +1089,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Wing it"
   ],
   "topic": "light",
+  "branch": "Skills",
+  "sub": "How you learn",
   "axis": null,
   "test": null
  },
@@ -990,6 +1108,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Carpentry"
   ],
   "topic": "blend",
+  "branch": "Skills",
+  "sub": "Wishlist",
   "axis": null,
   "test": null
  },
@@ -1007,6 +1127,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Letting go"
   ],
   "topic": "deep",
+  "branch": "Skills",
+  "sub": "The hard ones",
   "axis": null,
   "test": null
  },
@@ -1025,6 +1147,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Strongly agree"
   ],
   "topic": "blend",
+  "branch": "Skills",
+  "sub": "Beginnings",
   "axis": "beginner-hearted",
   "test": null
  },
@@ -1040,6 +1164,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Experiences"
   ],
   "topic": "blend",
+  "branch": "Interests",
+  "sub": "Collecting",
   "axis": null,
   "test": null
  },
@@ -1057,6 +1183,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "The sofa"
   ],
   "topic": "light",
+  "branch": "Interests",
+  "sub": "Free time",
   "axis": null,
   "test": null
  },
@@ -1075,6 +1203,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Strongly agree"
   ],
   "topic": "blend",
+  "branch": "Interests",
+  "sub": "Why we bother",
   "axis": "play-minded",
   "test": null
  },
@@ -1090,6 +1220,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Interested"
   ],
   "topic": "deep",
+  "branch": "Interests",
+  "sub": "The point",
   "axis": null,
   "test": null
  },
@@ -1107,6 +1239,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "A quiet chapter"
   ],
   "topic": "deep",
+  "branch": "Story",
+  "sub": "Chapters",
   "axis": null,
   "test": null
  },
@@ -1124,6 +1258,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "A person"
   ],
   "topic": "blend",
+  "branch": "Story",
+  "sub": "Retellings",
   "axis": null,
   "test": null
  },
@@ -1139,6 +1275,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Stories"
   ],
   "topic": "blend",
+  "branch": "Story",
+  "sub": "Memory",
   "axis": null,
   "test": null
  },
@@ -1156,6 +1294,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "A joke"
   ],
   "topic": "blend",
+  "branch": "Story",
+  "sub": "The book of you",
   "axis": null,
   "test": null
  },
@@ -1171,6 +1311,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Keep them quiet"
   ],
   "topic": "blend",
+  "branch": "Goals",
+  "sub": "Method",
   "axis": null,
   "test": null
  },
@@ -1189,6 +1331,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Strongly agree"
   ],
   "topic": "deep",
+  "branch": "Goals",
+  "sub": "Ambition",
   "axis": "high-aiming",
   "test": null
  },
@@ -1206,6 +1350,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Knowing what I want"
   ],
   "topic": "deep",
+  "branch": "Goals",
+  "sub": "The obstacle",
   "axis": null,
   "test": null
  },
@@ -1221,6 +1367,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Never fully"
   ],
   "topic": "blend",
+  "branch": "Goals",
+  "sub": "The long game",
   "axis": null,
   "test": null
  },
@@ -1238,6 +1386,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Quiet"
   ],
   "topic": "light",
+  "branch": "Body",
+  "sub": "Signals",
   "axis": null,
   "test": null
  },
@@ -1253,6 +1403,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Ice bath"
   ],
   "topic": "light",
+  "branch": "Body",
+  "sub": "Heat or cold",
   "axis": null,
   "test": null
  },
@@ -1271,6 +1423,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Strongly agree"
   ],
   "topic": "blend",
+  "branch": "Body",
+  "sub": "Sleep",
   "axis": "sleep-strict",
   "test": null
  },
@@ -1286,6 +1440,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Escalator"
   ],
   "topic": "light",
+  "branch": "Body",
+  "sub": "Everyday movement",
   "axis": null,
   "test": null
  },
@@ -1301,6 +1457,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Never"
   ],
   "topic": "light",
+  "branch": "Music",
+  "sub": "When you listen",
   "axis": null,
   "test": null
  },
@@ -1318,6 +1476,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Last year"
   ],
   "topic": "blend",
+  "branch": "Music",
+  "sub": "Formative years",
   "axis": null,
   "test": null
  },
@@ -1333,6 +1493,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Shuffle"
   ],
   "topic": "light",
+  "branch": "Music",
+  "sub": "How you listen",
   "axis": null,
   "test": null
  },
@@ -1348,6 +1510,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Somewhere new"
   ],
   "topic": "blend",
+  "branch": "Travel",
+  "sub": "Repeat or explore",
   "axis": null,
   "test": null
  },
@@ -1363,6 +1527,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Dynasties"
   ],
   "topic": "blend",
+  "branch": "Sport",
+  "sub": "Rooting",
   "axis": null,
   "test": null
  },
@@ -1378,6 +1544,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Salty"
   ],
   "topic": "light",
+  "branch": "Food",
+  "sub": "Cravings",
   "axis": null,
   "test": null
  },
@@ -1393,6 +1561,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Don't matter"
   ],
   "topic": "light",
+  "branch": "Film",
+  "sub": "Spoilers",
   "axis": null,
   "test": null
  },
@@ -1408,6 +1578,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Never ask"
   ],
   "topic": "deep",
+  "branch": "Values",
+  "sub": "Truth",
   "axis": null,
   "test": null
  },
@@ -1426,6 +1598,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Strongly agree"
   ],
   "topic": "deep",
+  "branch": "Values",
+  "sub": "Repair",
   "axis": "forgiving",
   "test": null
  },
@@ -1443,6 +1617,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Yourself"
   ],
   "topic": "deep",
+  "branch": "Morals",
+  "sub": "Debts",
   "axis": null,
   "test": null
  },
@@ -1458,6 +1634,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Can't anymore"
   ],
   "topic": "deep",
+  "branch": "Morals",
+  "sub": "Art and artist",
   "axis": null,
   "test": null
  },
@@ -1475,6 +1653,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "By the window"
   ],
   "topic": "light",
+  "branch": "Home",
+  "sub": "The good spot",
   "axis": null,
   "test": null
  },
@@ -1498,6 +1678,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "10"
   ],
   "topic": "blend",
+  "branch": "Interests",
+  "sub": "Curiosity",
   "axis": "curious",
   "test": null
  },

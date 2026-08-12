@@ -19,8 +19,19 @@ export interface LiveQuestion {
   comments: never[];
   friends: never[];
   live: true;
-  tooSmall: boolean;
+  // Renamed from `tooSmall` at D98. It used to mean "withheld — this
+  // cohort is under the k-floor"; it now means "nobody has answered this
+  // yet, so there is no split to draw". Renamed rather than reused
+  // because the two are opposite claims about the same false value, and a
+  // surface reading the old name would have gone on saying "withheld".
+  noCountsYet: boolean;
   test?: string | null;
+  // Carried through from the bank so the Mirror's Answers lens can group
+  // by subject and its Scores lens can tell an ordinal question from a
+  // categorical one (D100). Both undefined for a doc seeded before D100.
+  branch?: string;
+  sub?: string;
+  type?: string;
 }
 
 export interface QuestionDoc {
@@ -30,6 +41,12 @@ export interface QuestionDoc {
   prompt: string;
   options: string[];
   topic: string | null;
+  // The daily bank's [branch, sub-branch] subject path (D100) — "Mind" /
+  // "Outlook". Absent on every other surface, and absent from any daily
+  // doc seeded before D100 until the next seed run, so every reader has
+  // to tolerate undefined rather than assume the bank is current.
+  branch?: string;
+  sub?: string;
   test: string | null;
   active: boolean;
   // Pool scope for duel questions (D40 part 4): absent = the shared pool;
@@ -41,11 +58,10 @@ export interface QuestionDoc {
 export interface AggDoc {
   counts?: Record<string, number>;
   total?: number;
-  tooSmall?: boolean;
-  // Per-anchor breakdown, already k-floored per cell with complementary
-  // suppression applied server-side (functions/src/pure.ts, D8). A cell
-  // that is absent here is WITHHELD, not zero — the UI must say so rather
-  // than draw an empty bar.
+  // Per-anchor breakdown, exact and complete (functions/src/pure.ts, D8
+  // for the shape, D98 for the exactness). A cell that is absent here has
+  // no answers in it — nothing is suppressed, so absent means zero and the
+  // UI may draw it as such.
   by?: Record<string, Record<string, Record<string, number>>>;
 }
 
@@ -110,15 +126,30 @@ export function countsFor(options: string[], ctx: VoteContext): number[] {
   });
 }
 
-// tooSmall defaults ON: only an agg doc that explicitly says
-// tooSmall === false reveals counts (missing doc / missing flag hides).
-export function isTooSmall(agg: AggDoc | undefined): boolean {
-  return (agg || {}).tooSmall !== false;
+// Whether this question has published counts to show yet.
+//
+// D98 retired the k-floor, so the server no longer writes a `tooSmall`
+// flag and nothing is ever withheld for being small — but the question
+// "is there an aggregate here at all?" survives, because a question
+// nobody has answered has no document. What used to be a DISCLOSURE test
+// is now an EXISTENCE test.
+//
+// The old predicate defaulted ON — anything but an explicit
+// `tooSmall === false` hid the counts. That default was deliberately
+// fail-closed, and it is exactly why this function had to change in the
+// same commit as the trigger: with the server no longer writing the flag,
+// a client still reading it would blank every count in the app.
+export function hasPublishedCounts(agg: AggDoc | undefined): boolean {
+  return !!agg && typeof agg.total === "number" && agg.total > 0;
 }
 
 export function buildS(
   q: QuestionDoc & { id: string },
-  back: number,
+  // Null for a question that is not on the pager at all — the Mirror's
+  // archive (LIVE.aggregated) reaches questions from any day, and a
+  // dayLabel of "Today" on all of them would be a claim rather than a
+  // blank. The pager itself always passes a number.
+  back: number | null,
   ctx: VoteContext,
   now: Date,
 ): LiveQuestion {
@@ -127,7 +158,10 @@ export function buildS(
     id: q.id,
     cat: q.topic,
     text: q.prompt,
-    dayLabel: dayLabel(back, now),
+    dayLabel: back == null ? "" : dayLabel(back, now),
+    branch: q.branch,
+    sub: q.sub,
+    type: q.type,
     options: q.options.map((label, i) => ({
       id: String(i),
       label,
@@ -137,7 +171,7 @@ export function buildS(
     comments: [],
     friends: [],
     live: true,
-    tooSmall: isTooSmall(ctx.agg),
+    noCountsYet: !hasPublishedCounts(ctx.agg),
     test: q.test,
   };
 }

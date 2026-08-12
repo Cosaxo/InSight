@@ -120,11 +120,9 @@ await setDoc(doc(db, "v2_users", uid, "answers", q0.id), {
 });
 ok("answer written: " + uid.slice(0, 8) + "/answers/" + q0.id);
 
-// 5 · the trigger folds the answer into the public mirror. Under D81's
-// launch pause (AGG_MIN_N = PUBLISH_EVERY = 1) the FIRST answer publishes:
-// tooSmall false, exact count of one. The floor-5 choreography this
-// replaces is preserved in the pure suite (pure.test.ts, "the design pair")
-// and returns here with the revert.
+// 5 · the trigger folds the answer into the public mirror. Since D98 the
+// FIRST answer publishes, exactly, with the complete breakdown: no
+// tooSmall flag, no cadence, no suppressed cells.
 let pub = null;
 for (let i = 0; i < 30; i++) {
   const snap = await getDoc(doc(db, "v2_question_aggs", q0.id));
@@ -132,15 +130,17 @@ for (let i = 0; i < 30; i++) {
   await new Promise((r) => setTimeout(r, 500));
 }
 if (!pub) fail("public agg never appeared — trigger did not fire");
-if (pub.tooSmall !== false || pub.total !== 1 || !pub.counts || pub.counts["1"] !== 1)
-  fail("paused floor: first answer did not publish exactly: " + JSON.stringify(pub));
-// The disclosure rule that does NOT pause: a one-bucket dimension is a
-// population statement, not a split, and stays withheld at any floor.
-// Everyone in this loop shares country NO, so `by.country` must never
-// appear — while the multi-bucket dims publish from the first answer.
-if (pub.by && pub.by.country)
-  fail("a one-bucket dimension published under the paused floor: " + JSON.stringify(pub.by));
-ok("paused floor: first answer published exactly (total 1), one-bucket country still withheld");
+if ("tooSmall" in pub)
+  fail("the trigger still writes a tooSmall flag: " + JSON.stringify(pub));
+if (pub.total !== 1 || !pub.counts || pub.counts["1"] !== 1)
+  fail("first answer did not publish exactly: " + JSON.stringify(pub));
+// The one-bucket rule went with the rest of the suppression (D98): a
+// dimension with a single bucket now publishes like any other. Everyone in
+// this loop shares country NO, so `by.country` is exactly that case — it
+// must now BE there, which is the inverse of what this line used to assert.
+if (!pub.by || !pub.by.country || !pub.by.country.NO)
+  fail("a one-bucket dimension was suppressed — D98 removed that rule: " + JSON.stringify(pub.by));
+ok("first answer published exactly (total 1), single-bucket country included");
 
 // 6 · duplicate answer is refused. Re-sending the whole doc rewrites
 // answeredAt and anchors, which stay frozen under D86's edit arm — the
@@ -183,28 +183,24 @@ if (above.counts["0"] !== 2 || above.counts["1"] !== 3)
   fail("counts wrong at total 5: " + JSON.stringify(above));
 ok("five answers: exact public counts {0:2, 1:3} — no double counting");
 
-// 7b · the breakdown under the paused floor (D81). At total 5 the age
-// bands hold 3 and 2 and the cities 3 and 2 — under the design floor (5)
-// every one of those cells would be withheld (the choreography this
-// replaces asserted exactly that); at floor 1 they publish, and they must
-// publish EXACTLY. Country is a single bucket of 5: a population
-// statement rather than a split, withheld by a rule the pause does not
-// touch, so it must still be absent.
+// 7b · the breakdown, whole (D98). At total 5 the age bands hold 3 and 2
+// and the cities 3 and 2, and every one of those cells publishes exactly.
+// Country is a single bucket of 5 — once withheld as "a population
+// statement rather than a split", now published like anything else.
 const cellSum = (dim, b) => Object.values(above.by[dim][b]).reduce((a, c) => a + c, 0);
 if (!above.by || !above.by.ageBand || !above.by.city)
-  fail("breakdown missing under the paused floor: " + JSON.stringify(above.by));
+  fail("breakdown missing: " + JSON.stringify(above.by));
 if (cellSum("ageBand", "25-34") !== 3 || cellSum("ageBand", "35-44") !== 2)
   fail("age cells wrong at 3/2: " + JSON.stringify(above.by.ageBand));
 if (cellSum("city", "Oslo, NO") !== 3 || cellSum("city", "Bergen, NO") !== 2)
   fail("city cells wrong at 3/2: " + JSON.stringify(above.by.city));
-if (above.by.country)
-  fail("a one-bucket dimension was published: " + JSON.stringify(above.by.country));
-ok("breakdown: sub-5 cells publish exactly under the paused floor; one-bucket country stays withheld");
+if (!above.by.country || cellSum("country", "NO") !== 5)
+  fail("single-bucket country missing or wrong: " + JSON.stringify(above.by.country));
+ok("breakdown: every cell publishes exactly, single-bucket country included");
 
 // 7c · five more voters. Two into 25-34 and three into 35-44 lands both
-// bands on exactly 5 at a total of 10 — same totals the design-floor
-// choreography asserted, so the revert only re-tightens 7b. Country stays
-// a single bucket and must still be withheld.
+// bands on exactly 5 at a total of 10. Country stays a single bucket and
+// must keep publishing.
 for (let m = 0; m < 5; m++) {
   const vApp = initializeApp({ projectId: "demo-insight", apiKey: "demo", appId: "demo" }, "band" + m);
   const vAuth = getAuth(vApp); connectAuthEmulator(vAuth, "http://127.0.0.1:9099", { disableWarnings: true });
@@ -234,8 +230,7 @@ if (bands.length !== 2 || bands[0] !== "25-34" || bands[1] !== "35-44")
 const bandTotal = (b) => Object.values(split.by.ageBand[b]).reduce((a, c) => a + c, 0);
 if (bandTotal("25-34") !== 5 || bandTotal("35-44") !== 5)
   fail("age bucket totals wrong: " + JSON.stringify(split.by.ageBand));
-if (split.by.country)
-  fail("a one-bucket dimension was published: " + JSON.stringify(split.by.country));
+if (!split.by.country) fail("single-bucket country missing: " + JSON.stringify(split.by));
 
 // The dimension D9 added, through the real trigger rather than a unit test:
 // the canonical "Name, CC" key survives being a Firestore map key, and lands
@@ -247,18 +242,12 @@ if (cities.length !== 2 || cities[0] !== "Bergen, NO" || cities[1] !== "Oslo, NO
 const cityTotal = (c) => Object.values(split.by.city[c]).reduce((a, x) => a + x, 0);
 if (cityTotal("Oslo, NO") !== 5 || cityTotal("Bergen, NO") !== 5)
   fail("city bucket totals wrong: " + JSON.stringify(split.by.city));
-ok("breakdown: ageBand and city both 5/5; single-bucket country withheld");
+ok("breakdown: ageBand and city both 5/5; single-bucket country published");
 
-// 7d · the publish cadence itself, as shipped. Under D81's pause the
-// cadence is 1: the 11th answer must move the public mirror to an exact
-// 11 promptly — per-answer publishing is the accepted disclosure, and
-// what this leg now guards is that the count stays EXACT through it.
-//
-// The batched choreography this replaces (an 11th answer must NOT move
-// the mirror off the multiple of 5) returns with the revert; its property
-// is pinned era-independently by the unit tests over 2000 totals
-// (pure.test.ts, "the design pair"), which is also what will catch a
-// revert that restores the floor but forgets this file.
+// 7d · per-answer publishing (D98). The 11th answer must move the public
+// mirror to an exact 11 promptly. The batched choreography this replaces
+// — an 11th answer must NOT move the mirror off the multiple of 5 — is
+// gone with the cadence it guarded.
 {
   const vApp = initializeApp({ projectId: "demo-insight", apiKey: "demo", appId: "demo" }, "cadence");
   const vAuth = getAuth(vApp); connectAuthEmulator(vAuth, "http://127.0.0.1:9099", { disableWarnings: true });
@@ -274,11 +263,11 @@ ok("breakdown: ageBand and city both 5/5; single-bucket country withheld");
     if (snap.exists() && snap.get("total") === 11) { eleven = snap.data(); break; }
     await new Promise((r) => setTimeout(r, 400));
   }
-  if (!eleven) fail("paused cadence: 11th answer never published");
+  if (!eleven) fail("11th answer never published");
   // 10 answers stood at {0:7, 1:3}; the 11th is another option 0.
   if (eleven.counts["0"] !== 8 || eleven.counts["1"] !== 3)
     fail("counts drifted through per-answer publishes: " + JSON.stringify(eleven.counts));
-  ok("paused cadence: 11th answer published exactly (total 11, counts 8/3)");
+  ok("per-answer publishing: 11th answer published exactly (total 11, counts 8/3)");
 }
 
 // 7e · D86: the owner moves their answer and onV2AnswerUpdated folds a
@@ -330,8 +319,10 @@ ok("breakdown: ageBand and city both 5/5; single-bucket country withheld");
     fail("edit did not move inside the frozen city cell: " + JSON.stringify(moved.by.city));
   const bergen = Object.values(moved.by.city["Bergen, NO"]).reduce((a, c) => a + c, 0);
   if (bergen !== 5) fail("Bergen moved on an Oslo edit: " + JSON.stringify(moved.by.city));
-  if (moved.by.country)
-    fail("a one-bucket dimension published on the edit path: " + JSON.stringify(moved.by));
+  // The single-bucket country dimension publishes on the edit path too,
+  // and the edit must have moved WITHIN it: 8/2 after one voter's 1→0.
+  if (!moved.by.country || JSON.stringify(moved.by.country.NO) !== JSON.stringify({ "0": 8, "1": 2 }))
+    fail("edit did not move inside the country cell: " + JSON.stringify(moved.by.country));
 
   // …and not again inside the minute: the cooldown is the write-amplification
   // bound on the one repeatable answer write (D7's arithmetic).
@@ -480,11 +471,21 @@ if (lateReveal.data.revealed < 1) fail("group day did not reveal on one answer")
 // and the latecomer never played it.
 if (!(await getDoc(doc(db, "v2_groups", lateGid, "reveals", OTHERDAY))).exists())
   fail("group reveal doc missing");
-// …and the latecomer must NOT reach it. The reveal is scoped to the members
-// who were in the group for the day, plus whoever actually played it
-// (revealMembersFor, pure.ts) — a non-playing joiner is neither.
-await expectDenied("a joiner cannot read a reveal for a day before they joined", () =>
-  getDoc(doc(lateDb, "v2_groups", lateGid, "reveals", OTHERDAY)));
+// …and since D98 the latecomer reaches it too. The read used to be scoped
+// to the members the reveal itself recorded, so a joiner got nothing for a
+// day before they joined — a privacy guarantee about answers, and D98
+// retired it: the votes inside a reveal are ordinary answers, readable
+// directly, so withholding the materialized copy protected nothing.
+//
+// What the `members` array still does is bookkeeping — deleteAccount
+// scrubs a departing uid out of it, which e2e-delete-account asserts.
+{
+  const lateRead = await getDoc(doc(lateDb, "v2_groups", lateGid, "reveals", OTHERDAY));
+  if (!lateRead.exists()) fail("a joiner could not read a past reveal — D98 opened this");
+  if (!(lateRead.get("members") || []).includes(uid))
+    fail("the reveal lost its members snapshot: " + JSON.stringify(lateRead.data()));
+  ok("a joiner reads a reveal from before they joined, and it still records who was there");
+}
 await expectDenied("member cannot answer a day already revealed", () =>
   setDoc(doc(lateDb, "v2_users", latecomer.user.uid, "answers", lateAid), groupAnswer(0)));
 
@@ -534,9 +535,9 @@ for (let i = 0; i < 40; i++) {
 if (!lpub) fail(`learn public agg never appeared after ${40 * 500}ms — the trigger did not fire, or did not finish in time`);
 // Paused floor: the single first attempt publishes exactly (D81) — and the
 // retry the rules refused above must not have nudged it.
-if (lpub.tooSmall !== false || lpub.total !== 1 || !lpub.counts || lpub.counts["2"] !== 1)
-  fail("learn first attempt did not publish exactly under the paused floor: " + JSON.stringify(lpub));
-ok("learn under the paused floor: one first attempt, published exactly, retry not counted");
+if (lpub.total !== 1 || !lpub.counts || lpub.counts["2"] !== 1)
+  fail("learn first attempt did not publish exactly: " + JSON.stringify(lpub));
+ok("learn: one first attempt, published exactly, retry not counted");
 // four more first attempts: three right, one more wrong
 for (let n = 0; n < 4; n++) {
   const lApp = initializeApp({ projectId: "demo-insight", apiKey: "demo", appId: "demo" }, "learner" + n);

@@ -85,7 +85,7 @@
     const L = window.LIVE;
     const agg = L && L.enabled && L.aggFor ? L.aggFor(q.id) : null;
     const by = agg && agg.by;
-    if (!by || agg.tooSmall !== false) return null;
+    if (!by) return null;
 
     const counts = q.options.map((o) => o.count || 0);
     const roomTotal = counts.reduce((a, b) => a + b, 0);

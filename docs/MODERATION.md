@@ -83,7 +83,7 @@ or data.
 
 ## What exists today (and deliberately doesn't)
 
-Takes are free-text comments, **circle-scoped by D1**.
+Takes are free-text comments, in a circle or at world scale, **named at both since D98**.
 
 *This section was written as a sketch, before any of it existed, and its
 original text — "There is no report button, no flags collection, no
@@ -207,7 +207,7 @@ verdict.
 
 ## Privacy posture
 
-Takes are circle-scoped (D1). The moderation run sees **flagged takes
+Takes are named and world-visible (D98). The moderation run sees **flagged takes
 only** — a flag from inside the circle is the circle surfacing its own
 content; nothing unflagged is ever read. Flags are anonymous to the
 circle and to the run (a count, not a list of who flagged). This is the

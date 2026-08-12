@@ -54,7 +54,7 @@ initializeApp();
 //   6. The auth user itself
 //
 // What we leave (intentional):
-//   - the v1 aggregates_* documents: k-floored anonymous averages
+//   - the v1 aggregates_* documents: anonymous averages (v1, retired)
 //     (floor 20) carrying no per-user provenance, so there is nothing
 //     in them to attribute back and nothing to unwind. They are now
 //     FROZEN residue rather than a live rollup — D13 deleted the
@@ -168,6 +168,12 @@ export const deleteAccount = onCall(
       discoverable: 0,
       othersRelations: 0,
       othersInbound: 0,
+      // Follows OTHER accounts hold of this one (D101, phase 3b). Counted
+      // separately from othersRelations because they are a different
+      // collection with a different index behind them, and a zero here on
+      // an account that had followers is the signal that the index is
+      // missing rather than that nobody followed them.
+      othersFollows: 0,
       // Reveal docs scrubbed of this uid (phase 1c-bis). Reported for the
       // same reason as modQueueOrphans: it is the number that tells an
       // operator whether the collection-group sweep actually reached
@@ -195,7 +201,7 @@ export const deleteAccount = onCall(
     }
 
     // 1b. Wipe the v2 subtree (profile + answers). Aggregate counts the
-    // user contributed stay — k-floored, anonymous tallies. The one place
+    // user contributed stay — anonymous tallies. The one place
     // that CAN attribute a count to this uid is the agg-events ledger
     // (D28), and phase 4c deletes it, so the tallies are anonymous again
     // the moment this call returns.
@@ -209,7 +215,7 @@ export const deleteAccount = onCall(
     // 1b1. The verified-logic attempt doc (D57) — keyed by uid in its own
     // collection, so the subtree wipe above never reaches it. It holds the
     // account's seed, score and timing; the anonymous norms HISTOGRAM the
-    // first attempt fed stays, same as the k-floored question aggregates a
+    // first attempt fed stays, same as the question aggregates a
     // deleted account's answers fed (and unlike those, it has no uid
     // ledger to scrub — the count was never attributable to begin with).
     try {
@@ -478,6 +484,29 @@ export const deleteAccount = onCall(
       failed.push("othersInbound");
     }
 
+    // 3b. Other users' FOLLOWS of this account (D101).
+    //
+    // The account's own follows go with its v2 subtree in 1b — these are
+    // the other direction, documents living under someone else's uid that
+    // name this one. Exactly the shape phase 4 handles for `relations`,
+    // and it needs the same thing: a collection-group query cannot filter
+    // on a document id, so the follow doc carries `to` as a field pinned
+    // by the rules to equal its own id.
+    //
+    // Leaving them would not expose anything — the profile they point at
+    // is gone — but it would leave every follower's Circle holding a
+    // uid that resolves to nothing, and "erased" has to mean the
+    // pointers too, not just the target.
+    try {
+      const followQuery = db
+        .collectionGroup("following")
+        .where("to", "==", uid);
+      counts.othersFollows = await deleteQueryDocs(followQuery);
+    } catch (err) {
+      logger.error("[deleteAccount] inbound follows wipe failed:", err);
+      failed.push("othersFollows");
+    }
+
     // 4. Other users' relations pointing at this user via linkedUid.
     //    Requires a collection-group index on linkedUid.
     try {
@@ -505,7 +534,7 @@ export const deleteAccount = onCall(
     //     reasoning as 4b — server-only, but each entry says this account
     //     answered this question at this time, which is exactly the
     //     attribution D28 added it for. Erasure takes the attribution
-    //     with the account; the k-floored tallies it fed stay (1b).
+    //     with the account; the tallies it fed stay (1b).
     //
     //     An answer still in flight through Eventarc when this runs can
     //     land its entry AFTER the sweep — bounded residue, gone at TTL,

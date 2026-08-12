@@ -35,6 +35,11 @@ const LIVE = vi.hoisted(() => ({
   enabled: true,
   uid: "u_me",
   subscribe: () => () => {},
+  // D98: world takes are named, resolved through the shared uid → name
+  // cache. "u_other" is deliberately absent so the unnamed fallback is
+  // reachable in the same fixture.
+  nameFor: (uid: string) => (uid === "u_me" ? "Me" : uid === "u_named" ? "Ada" : ""),
+  loadNames: vi.fn(async () => {}),
   social: {
     takeList: [] as TakeLite[],
     flags: {} as Record<string, boolean>,
@@ -241,19 +246,43 @@ const wtake = (id: string, authorUid: string, text: string): TakeLite => ({
 });
 const worldPanel = () => render(<LiveTakesPanel gid="world" qid="q1" />);
 
-describe("world takes are anonymous", () => {
+describe("world takes are named (D98)", () => {
   beforeEach(() => { localStorage.clear(); });
 
-  it("never prints a name — even one the groups store could resolve", () => {
-    // u_other resolves to "Ada" through the mocked groups map; the world
-    // panel must not consult it. "Someone" is the whole label.
-    LIVE.social.takeList = [wtake("w1", "u_other", "A stranger's words")];
+  it("prints the author's name, resolved through the shared cache", () => {
+    // The inverse of the case that stood here, which asserted the world
+    // panel must NOT consult any name source. D98 reversed that: the
+    // anonymity was a client-side string all along, since `authorUid` has
+    // been on the take document and readable throughout.
+    //
+    // Note the name comes from LIVE.nameFor — the shared uid → name cache
+    // the who-voted read fills — and NOT from the groups map, which knows
+    // only circle members and would name nobody at world scale.
+    LIVE.social.takeList = [wtake("w1", "u_named", "A stranger's words")];
     worldPanel();
 
-    expect(screen.getByText(/no names at world scale/i)).toBeTruthy();
+    expect(screen.getByText(/posted under your name/i)).toBeTruthy();
+    expect(screen.getByText("Ada")).toBeTruthy();
+    expect(screen.queryByText("Someone")).toBeNull();
+  });
+
+  it("falls back to Someone for an account with no display name", () => {
+    // Absence of a name, not a pseudonym: D1 survives D98, so nothing is
+    // invented to fill the gap — not the uid, not a generated handle.
+    LIVE.social.takeList = [wtake("w1", "u_nameless", "Anonymous by omission")];
+    worldPanel();
+
     expect(screen.getByText("Someone")).toBeTruthy();
-    expect(screen.queryByText("Ada")).toBeNull();
-    expect(screen.queryByText("Member")).toBeNull();
+    expect(screen.queryByText(/u_nameless/)).toBeNull();
+  });
+
+  it("asks for the author names it does not already hold", () => {
+    // The cost shape: batched, once, and only for world scope — a circle
+    // reads its names off the group document and must not pay for this.
+    LIVE.loadNames.mockClear();
+    LIVE.social.takeList = [wtake("w1", "u_named", "hello")];
+    worldPanel();
+    expect(LIVE.loadNames).toHaveBeenCalledWith(["u_named"]);
   });
 
   it("passes the question through to loadTakes — the world query is per-qid", () => {

@@ -95,9 +95,15 @@ const ASSETS = join(root, "dist", "assets");
 // and the ceiling moves to 2100 to sit just above what that actually weighs.
 // This is a loosening ONLY in the sense that the number went up; the set of
 // bytes it now covers is strictly larger, and 481 KB of it was never covered
-// before. (156 KB of the Sentry group is @sentry/react's Spotlight dev
-// integration, shipping in a production build — worth removing, but that is
-// a change to what we ship, not to what measures it.)
+// before. (A parenthetical here used to read "156 KB of the Sentry group is
+// @sentry/react's Spotlight dev integration, shipping in a production build
+// — worth removing". Withdrawn 2026-08-11: that was a chunk NAME read as
+// chunk contents. `spotlight-*.js` is Sentry core — captureException, the
+// client, the logger, v10.60.0 — which rolldown named after one of the
+// smaller modules inside it, and all three esm entries import it. The
+// Spotlight integration itself is 1.9 KB of unminified source. There is no
+// 156 KB win there, and the sentence had been sitting here inviting
+// someone to go looking for one.)
 //
 // Sentry does not touch first paint either way: it is dynamically imported
 // and appears in no modulepreload link, which the eager-graph figures in D64
@@ -114,8 +120,77 @@ const ASSETS = join(root, "dist", "assets");
 // expander (~2 KB). CI weighed the merged tree at 2102. Same posture as the
 // last move: the ceiling sits just above what the app actually weighs, so
 // the next growth has to come explain itself here too.
+//
+// 2120 → 2140 (2026-08-11): D98 and D99 came to explain themselves.
+// Measured on this tree with CI's own command, one commit apart:
+//
+//   main @ the D98 merge      2119.6 KB   ← 0.4 KB under the ceiling
+//   + D99's lens row          2131.0 KB   ← +11.4 KB, and over
+//
+// The first row is the one to read twice. 2120 was set to sit just above
+// 2102, and D98's privacy reversal — the collection-group read path,
+// data/voters.ts, LiveVotersPanel — spent 17.6 KB of that 18 KB before D99
+// added a byte. Two features landed in the gap between a ceiling and the
+// thing it measures; the second is merely the one that tripped it.
+//
+// AND THE USUAL ANSWER DOES NOT WORK HERE. Every previous squeeze on this
+// file was met by deferring a module group past first paint. That is worth
+// exactly nothing against the total, which counts every chunk: splitting
+// relocates bytes and moves this number by zero. Verified rather than
+// reasoned about — the lens row is ~9 KB of the entry chunk, and making it
+// lazy leaves the total at 2131. Only deleting code moves this ceiling,
+// and D98 and D99 are code the app was asked for.
+//
+// So 2140 — and note the headroom each raise has left: 41.6 KB (08-06),
+// 18 KB (08-10), 9 KB now. That trend is the real finding. Three
+// consecutive raises means this ceiling is tracking the bundle rather than
+// constraining it, and the next growth should not be a fourth. The
+// candidates are the ones D64 named and nobody has taken: the Mirror tab
+// (~168 KB, first frame for anyone who opens on that tab, so it needs a
+// guard the overlays did not) and an audit of how much of Sentry's ~470 KB
+// is actually reachable.
+//
+// MAX_CHUNK_KB stays at 735 and is now the tighter of the two: the entry
+// chunk is 732.0 KB, so 3 KB of headroom. The next eager kilobyte fails
+// there rather than here, and has to defer instead of argue. That is the
+// ratchet working, and it is deliberately not being moved to match.
+//
+// NEITHER NUMBER MOVED FOR D100 OR D101, and this is the note saying so
+// because the entry above predicted the opposite. Two features (the
+// Mirror's Answers depth and Scores; the follow graph and Circle) took
+// the tree to 743 KB entry / 2147 KB total — over both. What the
+// paragraph above said would happen is what happened: the per-chunk
+// ceiling caught it first, and the 3 KB of headroom left there is what
+// forced a deferral instead of an argument. Three of them, in order of
+// how much they bought:
+//
+//   Circle body → React.lazy from mirror-tab      743 → 738
+//   data/circle → dynamic import inside live.ts   738 → 738  (nothing)
+//   the lens row → React.lazy from LiveCohortBody 738 → 727
+//
+// The middle one is worth keeping in the record precisely because it
+// bought nothing measurable: live.ts is eager, so moving circle.ts out
+// of its static graph looked like the obvious win and the bundler had
+// already hoisted those bytes somewhere they were not being counted
+// against the entry. It stays because a dynamic import there is still
+// the right shape, not because it paid.
+//
+// AND THE TOTAL CAME DOWN, from a trim this file asked for by name. The
+// entry above ended "an audit of how much of Sentry's ~470 KB is
+// actually reachable". The answer was 28 KB of it is not:
+// src/lib/sentry.ts imported @sentry/react and used exactly one symbol
+// from it (`init`), while @sentry/capacitor depends on @sentry/browser
+// DIRECTLY and lists @sentry/react as one of three framework peers. The
+// React package's real additions — Sentry's ErrorBoundary, the
+// Profiler, router instrumentation — were never wired to anything.
+// Swapping the import took the total 2147 → 2119.
+//
+// So the fourth raise did not happen, and the headroom went the other
+// way for the first time since this file was written: entry 727.0 KB
+// (8 KB under), total 2119 KB (21 KB under). Both features shipped and
+// first paint got SMALLER than it was before either of them.
 const MAX_CHUNK_KB = 735;
-const MAX_TOTAL_JS_KB = 2120;
+const MAX_TOTAL_JS_KB = 2140;
 
 let files;
 try {

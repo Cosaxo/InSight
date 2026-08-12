@@ -127,26 +127,14 @@ if (!seededQuestions || !dailyQuestions) {
   process.exit(1);
 }
 
-// The live k-floor pair, read from the declarations the runtime uses.
-// floor.test.ts already pins the CLIENT copies to these and asserts the
-// pair moves together; these reads feed the prose entries below, which
-// are the claims no test executes.
-const v2fnSrc = read("functions/src/v2.ts");
-const floorConst = (name) => {
-  const m = v2fnSrc.match(new RegExp(`^export const ${name} = (\\d+);`, "m"));
-  if (!m) {
-    console.error(
-      `check-figures: could not read ${name} from functions/src/v2.ts.\n`
-      + "    The declaration's shape changed and this scan reads it wrong.\n"
-      + "    Fix the scan — a figure gate that silently reads nothing is\n"
-      + "    worse than no gate.",
-    );
-    process.exit(1);
-  }
-  return Number(m[1]);
-};
-const aggMinN = floorConst("AGG_MIN_N");
-const publishEvery = floorConst("PUBLISH_EVERY");
+// The live k-floor pair used to be read here and pinned into eleven
+// prose sentences. D98 deleted both constants and every sentence that
+// quoted them, so the reads and their entries are gone too.
+//
+// Deleted rather than pointed at a replacement, per this file's own rule
+// a few lines up: a gate reading for a sentence that has been reworded
+// away is one nobody can satisfy, and the right answer then is to delete
+// the entry, not to restore the sentence.
 
 // Each figure: where it is quoted, how to recompute it, and the exact
 // sentence to write when it has moved. The `missing` message matters as
@@ -335,97 +323,6 @@ const FIGURES = [
     actual: budgetConst("OPEN_MAX"),
     fix: (n) => `"**${n}** unreviewed questions on the lane's open PR"`,
   },
-  // The paused k-floor (D81), everywhere prose states its live value.
-  // data-inventory, MIRROR and SCHEMA-V2 told the truth by discipline;
-  // README, COSTS, LOCAL-TESTING and MONETIZATION drifted — the header
-  // has the story. Wrap-tolerant where the value and its qualifier sit on
-  // different lines, same as the LAUNCH-RUNBOOK entries above.
-  {
-    file: "README.md",
-    what: "the live k-floor (the Honesty section)",
-    re: /`AGG_MIN_N` is (\d+) today/,
-    actual: aggMinN,
-    fix: (n) => `"\`AGG_MIN_N\` is ${n} today" — and if the floor just moved, reword the bullet's pause language with it`,
-  },
-  {
-    // The cell names the pair once; floor.test's coupling test is what
-    // guarantees the two constants share a value, so one entry suffices.
-    file: "docs/COSTS.md",
-    what: "the live k-floor pair (the unit-economics table)",
-    re: /`AGG_MIN_N`\/`PUBLISH_EVERY` = (\d+) under D81/,
-    actual: aggMinN,
-    fix: (n) => `"\`AGG_MIN_N\`/\`PUBLISH_EVERY\` = ${n} under D81"`,
-  },
-  {
-    file: "docs/data-inventory.md",
-    what: "the live k-floor (the public-aggregates row)",
-    re: /paused to ≥(\d+) pre-launch, D81/,
-    actual: aggMinN,
-    fix: (n) => `"paused to ≥${n} pre-launch, D81"`,
-  },
-  {
-    file: "docs/MIRROR.md",
-    what: "the live k-floor (the floor paragraph)",
-    re: /paused to (\d+)\s*\n?\s*until launch traction — D81/,
-    actual: aggMinN,
-    fix: (n) => `"paused to ${n} until launch traction — D81"`,
-  },
-  {
-    file: "docs/SCHEMA-V2.md",
-    what: "the live k-floor (the tooSmall row)",
-    re: /\(5 by design; (\d+) under D81's launch pause\)/,
-    actual: aggMinN,
-    fix: (n) => `"(5 by design; ${n} under D81's launch pause)"`,
-  },
-  {
-    file: "docs/SCHEMA-V2.md",
-    what: "the live publish cadence (the counts row)",
-    re: /(\d+) under D81's launch pause: clients/,
-    actual: publishEvery,
-    fix: (n) => `"${n} under D81's launch pause: clients"`,
-  },
-  {
-    file: "docs/LOCAL-TESTING.md",
-    what: "the live k-floor (the live-mode walkthrough)",
-    re: /k-floor is paused to (\d+) \(D81\)/,
-    actual: aggMinN,
-    fix: (n) => `"k-floor is paused to ${n} (D81)"`,
-  },
-  {
-    file: "docs/MONETIZATION.md",
-    what: "the live k-floor (the pause note)",
-    re: /floor is paused to (\d+) pre-launch/,
-    actual: aggMinN,
-    fix: (n) => `"the floor is paused to ${n} pre-launch"`,
-  },
-  {
-    file: "docs/CATALOG-QUESTIONS.md",
-    what: "the live k-floor (the leaderboard reveal)",
-    re: /5 by design, paused to (\d+) pre-launch, D81/,
-    actual: aggMinN,
-    fix: (n) => `"5 by design, paused to ${n} pre-launch, D81"`,
-  },
-  {
-    file: "docs/MONITORING.md",
-    what: "the live k-floor (the population panel)",
-    re: /Under D81's pause the floor is (\d+)/,
-    actual: aggMinN,
-    fix: (n) => `"Under D81's pause the floor is ${n}"`,
-  },
-  {
-    file: "docs/DEPLOYMENT.md",
-    what: "the live k-floor pair (the fake-ring runbook)",
-    re: /both sit at (\d+) under D81's pause/,
-    actual: aggMinN,
-    fix: (n) => `"both sit at ${n} under D81's pause"`,
-  },
-  {
-    file: "docs/LAUNCH-RUNBOOK.md",
-    what: "the live k-floor (the TestFlight step's D81 note)",
-    re: /floor sits at (\d+)\s*\n?\s*until launch traction/,
-    actual: aggMinN,
-    fix: (n) => `"the floor sits at ${n} until launch traction"`,
-  },
 ];
 
 const errors = [];
@@ -464,5 +361,5 @@ console.log(
   `check-figures OK — ${FIGURES.length} documented figures across `
   + `${sources.size} files match the tree `
   + `(rules tests: ${rulesTests}; questions: ${seededQuestions}, `
-  + `${dailyQuestions} daily; k-floor pair: ${aggMinN}/${publishEvery}).`,
+  + `${dailyQuestions} daily).`,
 );

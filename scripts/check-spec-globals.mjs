@@ -144,7 +144,7 @@ const COUPLING_BASELINE = {
   "src/v2/spec/map-tab.jsx": 28,
   "src/v2/spec/mirror-field-pops.jsx": 33,
   "src/v2/spec/mirror-field.jsx": 4,
-  "src/v2/spec/mirror-tab.jsx": 13,
+  "src/v2/spec/mirror-tab.jsx": 9,
   "src/v2/spec/passive-meter.jsx": 6,
   "src/v2/spec/passive-progress.js": 2,
   "src/v2/spec/person-mindmap.jsx": 10,

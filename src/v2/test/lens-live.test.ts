@@ -56,7 +56,7 @@ interface FeedCard {
   prompt: string;
   selfOnly?: boolean;
   live?: boolean;
-  tooSmall?: boolean;
+  noCountsYet?: boolean;
   options: { label: string; count: number }[];
 }
 const W = window as unknown as {
@@ -104,7 +104,7 @@ function restoreLive(): void {
   savedDescriptors.clear();
 }
 const liveSeeded = () =>
-  setLive({ enabled: true, lensAgg: () => ({ counts: [...AGG_COUNTS], tooSmall: false }) });
+  setLive({ enabled: true, lensAgg: () => ({ counts: [...AGG_COUNTS], noCountsYet: false }) });
 const liveUnseeded = () => setLive({ enabled: true, lensAgg: () => null });
 
 const byId = (l: LensDef) => l.id;
@@ -162,7 +162,7 @@ describe("LENS_FEED_QS follows liveness", () => {
       // suppress all of it.
       expect(card.live, card.id).toBe(true);
       expect(card.selfOnly, card.id).toBeUndefined();
-      expect(card.tooSmall, card.id).toBe(false);
+      expect(card.noCountsYet, card.id).toBe(false);
       // Measured counts by index, under the agree-first labels — not the
       // authored demo numbers (~180..2080 per option), and not re-sorted.
       expect(card.options.map((o) => o.label), card.id).toEqual(SCALE);
@@ -185,7 +185,7 @@ describe("LENS_FEED_QS follows liveness", () => {
     const demoA = W.LENS_FEED_QS();
     expect(W.LENS_FEED_QS()).toBe(demoA); // static content → cached array
     let count = 0;
-    setLive({ enabled: true, lensAgg: () => ({ counts: [count++, 0, 0, 0, 0], tooSmall: false }) });
+    setLive({ enabled: true, lensAgg: () => ({ counts: [count++, 0, 0, 0, 0], noCountsYet: false }) });
     const liveA = W.LENS_FEED_QS();
     expect(liveA).not.toBe(demoA);
     expect(liveA.length).toBeGreaterThan(demoA.length);

@@ -9,7 +9,7 @@ against every population you belong to. Answering is the smaller half.
 ## Answering — three ways in, all blind until you've played
 
 - **The daily.** One blind vote a day, *then* how the world split, with
-  honest k-anonymous counts — plus a finite question feed underneath to
+  exact counts — plus a finite question feed underneath to
   snack on.
 - **Duels.** Groups and 1v1s with your real people: one question a day,
   everyone's answers **sealed until tomorrow**, then revealed with names.
@@ -41,11 +41,10 @@ person-to-person graph, so live mode says so rather than showing the
 prototype's invented people.
 
 The slicing is the whole trick, and it costs one write. An answer is
-stored once, owner-only, carrying a snapshot of the profile fields it was
-answered under. A server trigger folds that snapshot into per-cohort
-counts, publishes them only above the k-floor — and the Mirror reads your
-own bucket back out. No client ever reads another user's document; a
-population is a shape in the aggregates, never a list of people.
+stored once, readable by anyone, carrying a snapshot of the profile
+fields it was answered under. A server trigger folds that snapshot into
+per-cohort counts and publishes them exactly, from the first answer — and
+the Mirror reads any bucket back out.
 
 [`docs/MIRROR.md`](./docs/MIRROR.md) is the full read path: what each stop
 shows, where its numbers come from, how a test result becomes a cut line
@@ -56,33 +55,38 @@ Built with **React 19 + TypeScript + Vite**, wrapped for **iOS + Android**
 via **Capacitor**, backed by **Firebase** (anonymous-first Auth,
 Firestore, Cloud Functions) with CI auto-deploy.
 
-## Honesty is the architecture
+## Answers are public — and honesty is still the architecture
 
-Every privacy claim in the UI is enforced server-side, not promised:
+InSight is not a private app, and says so at the top of the account
+panel. What the UI claims about who can see what is enforced
+server-side, not promised — that discipline is unchanged; what it
+enforces is the opposite of what it used to (decision **D98**):
 
-- **Answers are owner-only, forever.** One create per question, readable
-  by you alone (`firestore.rules`, decision D5). The option can be moved
-  after the fact (D86) — the cohort snapshot and answer time cannot, and
-  the aggregate follows through a server-side -old/+new delta.
-- **World stats are k-floored — 5 by design, paused at 1 for launch
-  (D81).** Exact counts live in a server-only collection; the public
-  mirror carries no per-vote timestamps (`v2_question_aggs`). While the
-  pause holds, `AGG_MIN_N` is 1 today: counts publish from the first
-  answer, exactly — what people vote is the shared product, and at
-  pre-launch scale a ≥5 floor suppressed every figure in the app. The
-  trade (a cohort of one is readable as that person's answer) is recorded
-  in D81; the in-app copy branches on the constant, so the UI and the
-  server cannot disagree about which floor is running. Restores to 5 at
-  launch traction.
-- **Every cohort cell clears the same floor.** The Mirror's slices are
-  floored per cell with complementary suppression, so a hidden bucket can
-  never be recovered by subtracting the published ones — and political
-  test items carry no breakdown at all (decision D44).
-- **Reveals are materialized server-side.** Group/duo answers become
-  visible only when a Cloud Function writes the reveal doc — rules deny
-  answering a day that's already revealed, so nobody peeks then plays.
-- **No fake anything.** No seeded comments, no synthetic users, no demo
-  progress in live mode (decision D1). Passive tests start at zero.
+- **Your answers are public.** Any signed-in user can read what you
+  answered, under your display name, with the age band, gender, city,
+  country, education and relationship status you filled in. Showing how
+  one person's answers link to everyone else's is the entire product.
+  Writes stay yours alone: one create per question, and the option can be
+  moved afterwards (D86) while the cohort snapshot and answer time
+  cannot.
+- **Counts are exact, from the first answer.** No k-anonymity floor, no
+  publish cadence, no suppressed cells, no `tooSmall`. In a small cohort
+  a count of 1 is visibly one person's answer.
+- **Every question slices, including the political ones.** D44's
+  special-category carve-out is gone; there is no category held back.
+- **Reveals are materialized server-side.** Group/duo answers stay sealed
+  until a Cloud Function writes the reveal doc the next day — that is the
+  *game*, not a privacy promise, and rules deny answering a day that is
+  already revealed so nobody peeks then plays.
+- **No fake anything.** Still binding, and now the only reason anything
+  is ever hidden: no seeded comments, no synthetic users, no demo
+  progress in live mode (decision D1). Passive tests start at zero. Where
+  a live surface shows nothing, it is because the data is absent — never
+  because it is withheld.
+- **Three things are still closed, none of them answers.** The unscored
+  logic answer key (anti-cheat), who flagged a comment
+  (anti-retaliation), and the ~1 km presence cell (physical safety: the
+  app publishes what you answered, not where you are standing).
 - **Anonymous-first.** The app works instantly with no sign-in; Google is
   an *upgrade* via account linking that keeps your uid and history
   (decision D3). Deletion wipes everything, cross-references included.
@@ -124,8 +128,8 @@ src/v2/            the app — ported from the frozen design spec
 src/lib/           firebase init + anonymous-first auth + emulator wiring
 functions/src/     v2.ts (seed + aggregates) · v2social.ts (groups, duos,
                    reveals, push) · index.ts (account deletion)
-firestore.rules    the access model (owner-only answers, k-floored aggs,
-                   member-only groups/reveals) — 61 emulator tests
+firestore.rules    the access model (public answers, exact aggs,
+                   member-only groups/reveals) — 69 emulator tests
 firestore.rules.v1-archive  the retired v1 client rules (D4) — reference,
                    NOT deployed
 monitoring/        Cloud Monitoring policies, put live by
@@ -148,13 +152,13 @@ Local:
 
 - `npm run test:unit` — client store, pure deck logic, and the spec-layer
   mount tests (vitest + jsdom, no emulator).
-- `npm run test --prefix functions` — the k-anon floor, reveal and streak math.
-- `npm run test:rules` — 61 security-rules tests (Firestore + Storage)
+- `npm run test --prefix functions` — the aggregate fold, reveal and streak math.
+- `npm run test:rules` — 69 security-rules tests (Firestore + Storage)
   against the emulator. `npm run check:figures` holds this number and the
   one in the repo map above equal to the suites, because both said 40 for
   long enough to be quoted twice.
 - `npm run test:e2e` — the v2 core loop under `emulators:exec`: anon auth →
-  seed → vote → aggregate trigger → k-floor → duel create/join/seal/reveal.
+  seed → vote → aggregate trigger → exact publish → duel create/join/seal/reveal.
 - `npm run test:e2e:erasure` — deleteAccount, with leftovers observed via
   the admin SDK (rules bypassed, so "gone" means gone).
 - `npm run test:coverage` (and `--prefix functions`) — **report only, never a

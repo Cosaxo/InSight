@@ -37,10 +37,9 @@ await httpsCallable(getFunctions(undefined, "us-central1"), "seedContentV2")({})
 What live mode gives you:
 
 - Anonymous session on boot (uid persists across reloads).
-- The real daily deck + feed. The k-floor is paused to 1 (D81), so counts
-  appear from your first vote; at the design floor of 5 the payoff would
-  show only your own vote until five answers landed — that machinery
-  still runs, it just bites at a size that cannot occur.
+- The real daily deck + feed with exact counts. Your first vote publishes
+  immediately and the payoff shows a split of one — that is D98 working,
+  not a floor: the who-voted sheet will also name you.
 - Groups & duos end-to-end: create, join by invite code from a second
   browser profile/incognito window, sealed votes. Force a reveal for
   testing with the `revealDuelsNowV2` callable (open in the emulator):
@@ -53,7 +52,7 @@ Emulator UI (inspect any document): <http://127.0.0.1:4000>.
 ## Test suites
 
 ```bash
-npm run test:rules            # 61 security-rules tests (Firestore + Storage emulators)
+npm run test:rules            # 69 security-rules tests (Firestore + Storage emulators)
 npm run test:e2e              # full SDK loop (auth+firestore+functions)
 npm run test:e2e:erasure      # account deletion, end to end
 npm run test:e2e:moderation   # moderation transport
