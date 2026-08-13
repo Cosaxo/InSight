@@ -253,7 +253,7 @@ restate an existing one in different clothes — check the whole `Q` array
 *and* the suggestion board seeds in `src/v2/spec/suggestions.js`. After
 writing, re-read each candidate against its nearest existing neighbour and
 drop it if a user would say "I already answered that." Since D63 the
-nearest neighbours are measured, not guessed, and since D122 the
+nearest neighbours are measured, not guessed, and since D123 the
 measurement covers the batch as well as the bank:
 
 ```
@@ -281,7 +281,7 @@ journey?", the measured case). The gate decides what fails; you decide
 what is a dupe. Cite both numbers in the PR body's one-line-per-question
 section.
 
-What the gate now catches that it did not before D122: morphological
+What the gate now catches that it did not before D123: morphological
 rewrites ("Master one thing, or dabble in many?" against "Mastering one
 skill, or dabbling in many?" — 0.143 before, 0.600 now) and synonym
 rewrites the lexicon pairs ("Money buys happiness." against "Can wealth
@@ -627,7 +627,7 @@ recorded under Governance when taken. Rules for a duel run:
   check:neighbors -- --batch candidates.json` (entries carrying
   `"domain": "duel"`), plus the re-read — the gate holds the duel domain
   under 0.5 like every surface, and the batch form also compares the
-  run's own ≤4 questions to each other (D122). `--candidate "…" --domain
+  run's own ≤4 questions to each other (D123). `--candidate "…" --domain
   duel` remains the single lookup.
 - **Read the signal first.** The scorecard's `duel` section (D40 part 3)
   scores plays, split, and — for 1v1 — the **guess-match rate**, the

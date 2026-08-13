@@ -13,14 +13,14 @@
 //
 // WHAT IT MEASURES. Token-set Jaccard over prompt + option labels:
 // lowercase, diacritics folded, stopwords dropped, then each word folded to
-// a stem and mapped through a concept lexicon (D122 — see below). Word order
+// a stem and mapped through a concept lexicon (D123 — see below). Word order
 // and phrasing furniture don't count; content words do. The deliberate
 // suggestion-board twins score 1.000 and 0.667 under this metric while the
 // closest legitimate in-domain pair scores 0.400 (measured 2026-08-13 across
 // all five domains), and the gate sits between them at GATE = 0.5. That gap
 // is narrower than D63's was, deliberately and with the arithmetic below.
 //
-// WHAT D122 ADDED, AND WHY. The metric shipped comparing surface words, so
+// WHAT D123 ADDED, AND WHY. The metric shipped comparing surface words, so
 // two whole classes of rewrite scored near zero and reached the human
 // re-read as the only defence:
 //   morphology — "Master one thing, or dabble in many?" against "Mastering
@@ -108,7 +108,7 @@
 //                                  exit 1 on any pair ≥ GATE. Takes the same
 //                                  file question-quality.mjs --batch takes,
 //                                  so one candidates file pre-flights both
-//                                  gates (D122). The sibling half is the
+//                                  gates (D123). The sibling half is the
 //                                  coverage --candidate never had: run it
 //                                  per question and nothing compares the
 //                                  questions to EACH OTHER — a run writing
@@ -153,7 +153,7 @@ const STOP = new Set(
   ).split(" "),
 );
 
-// ── morphological folding (D122) ──
+// ── morphological folding (D123) ──
 // Suffix stripping, longest suffix first, applied to a FIXPOINT. The fixpoint
 // is the load-bearing part: a single pass lands "master" on "mast" (the -er
 // rule cannot tell an agent noun from a word that merely ends in those two
@@ -223,7 +223,7 @@ export function foldWord(t) {
   return t;
 }
 
-// ── the concept lexicon (D122) ──
+// ── the concept lexicon (D123) ──
 // Synonyms only. Morphology is the folder's job above, so a family here earns
 // its place by pairing words no amount of suffix stripping brings together.
 // Two rules for adding one, both about keeping the gate's false-positive rate
@@ -425,7 +425,7 @@ function rankAgainst(cTokens, list, top) {
     .slice(0, top);
 }
 
-// ── batch pre-flight (D122) ──
+// ── batch pre-flight (D123) ──
 // One candidate from the batch file, in whichever shape its lane authors.
 // A learn card arrives native (`f`/`q`/`a`/`c`) and is scored on prompt plus
 // the CORRECT answer, exactly as the learn corpus is — question-quality.mjs

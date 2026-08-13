@@ -47,7 +47,7 @@ describe("similarity", () => {
   });
 });
 
-// ── D122: the two rewrite classes the metric used to score near zero ──
+// ── D123: the two rewrite classes the metric used to score near zero ──
 describe("the folder", () => {
   // Every pair here was measured against the live corpus before the rule that
   // merges it was added; the collisions in the second block are the ones the
@@ -114,7 +114,7 @@ describe("the concept lexicon", () => {
 
   it("still cannot see a paraphrase the lexicon does not pair", () => {
     // The honest limit, pinned so the header's claim stays true and nobody
-    // retires the writing rule on the strength of the gate (D63, D122).
+    // retires the writing rule on the strength of the gate (D63, D123).
     expect(
       sim("Are people getting kinder, or meaner?", "Is kindness rising or falling?"),
     ).toBeLessThan(GATE);
@@ -159,7 +159,7 @@ describe("the live corpus", () => {
   });
 
   it("keeps a measured margin under GATE, and names the pair that spends it", () => {
-    // D122 bought recall with headroom: the closest legitimate pair went
+    // D123 bought recall with headroom: the closest legitimate pair went
     // 0.333 → 0.400 when morphology and synonyms started counting. This pins
     // the margin so the NEXT change to the metric has to look at what it
     // costs rather than discovering it on a farm run — and if a legitimate
@@ -187,7 +187,7 @@ describe("the live corpus", () => {
   });
 });
 
-// ── D122: the batch pre-flight ──
+// ── D123: the batch pre-flight ──
 // The gap this closes is sibling-vs-sibling. --candidate run eight times
 // scores eight questions against the corpus and never against each other,
 // and every lane's budget is now bigger than one (D97, D115).

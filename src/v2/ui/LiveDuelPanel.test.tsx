@@ -20,7 +20,7 @@
 // precisely the window the seal covers.
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 
 const LIVE = vi.hoisted(() => {
   const social = {
@@ -49,6 +49,18 @@ const LIVE = vi.hoisted(() => {
     deleteTake: async (gid: string, id: string) => { void gid; void id; },
     flagTake: async (gid: string, id: string) => { void gid; void id; },
     flagged: (id: string) => { void id; return false; },
+    // Handles and invitations (D122). The panel mounts LdInvites at its
+    // top and LdAddByHandle inside every group card, so this mock answers
+    // for both — empty, because an invitation in a fixture would put a
+    // stranger's name on a screen these cases are not about.
+    invites: () => [] as Array<Record<string, unknown>>,
+    invitesLoading: () => false,
+    loadInvites: async () => {},
+    whoIs: async (h: string) => { void h; return null as string | null; },
+    claimHandle: async (h: string) => ({ handle: h }),
+    inviteToGroup: async (gid: string, to: string) => { void gid; void to; return { ok: true }; },
+    acceptInvite: async (gid: string) => ({ gid, name: "Test" }),
+    declineInvite: async (gid: string) => { void gid; return { ok: true }; },
   };
   return { enabled: true, uid: "u_me", social, subscribe: () => () => {} };
 });
@@ -176,10 +188,16 @@ describe("LiveDuelPanel · sealing requires the guess a duo's scoring needs", ()
 });
 
 describe("LiveDuelPanel · a solo duo says why nothing is happening", () => {
-  it("asks you to share the code when the partner has not joined", () => {
+  it("offers both ways to reach the partner when they have not joined", () => {
+    // Two paths since D122, and the copy names both because they answer
+    // different situations: a handle reaches someone who is already here,
+    // a link reaches someone who is not. The old line said "share the
+    // code above", which was the only path there was.
     LIVE.social.groups = () => [{ ...DUO, memberUids: ["u_me"] }];
     render(<LiveDuelPanel mode="duo" />);
-    expect(screen.getByText(/the duel starts when they join/i)).toBeTruthy();
+    expect(screen.getByText(/the duel starts when they accept/i)).toBeTruthy();
+    expect(screen.getByPlaceholderText(/their-handle/i)).toBeTruthy();
+    expect(screen.getByRole("button", { name: /copy invite link/i })).toBeTruthy();
   });
 
   it("renders nothing when LIVE is off", () => {
@@ -375,5 +393,109 @@ describe("LiveDuelPanel · takes hang off the reveal, never the sealed question"
     render(<LiveDuelPanel mode="duo" />);
 
     expect(screen.queryByLabelText("Add your take")).toBeNull();
+  });
+});
+
+// ── handles and invitations (D122) ────────────────────────────────
+//
+// The flow that replaced the typed invite code. What these cases hold is
+// the pair of properties the change is easy to get wrong on: an invite
+// grants nothing until the other side accepts, and a handle that names
+// nobody has to say so rather than appearing to work.
+
+describe("LiveDuelPanel · adding someone by handle", () => {
+  it("resolves the handle, then invites the uid behind it", async () => {
+    const whoIs = vi.fn(async () => "u_ada");
+    const invite = vi.fn(async (gid: string, to: string) => { void gid; void to; return { ok: true }; });
+    LIVE.social.whoIs = whoIs;
+    LIVE.social.inviteToGroup = invite;
+    LIVE.social.groups = () => [{ ...DUO, memberUids: ["u_me"] }];
+    render(<LiveDuelPanel mode="duo" />);
+
+    fireEvent.change(screen.getByPlaceholderText(/their-handle/i), { target: { value: "@Ada" } });
+    fireEvent.click(screen.getByRole("button", { name: /^Invite$/ }));
+    await waitFor(() => expect(invite).toHaveBeenCalled());
+    // Canonical form on the way out: the registry is keyed on the fold,
+    // so sending "@Ada" would look up a handle nobody holds.
+    expect(whoIs).toHaveBeenCalledWith("ada");
+    // The uid, never the handle — the callable addresses accounts.
+    expect(invite.mock.calls[0][1]).toBe("u_ada");
+    expect(await screen.findByText(/Invited @ada/i)).toBeTruthy();
+  });
+
+  it("says nobody holds a handle rather than reporting a silent success", async () => {
+    // The failure this flow has that a code did not. It deliberately does
+    // not distinguish "unclaimed" from "malformed": to someone looking a
+    // person up those are the same answer.
+    LIVE.social.whoIs = vi.fn(async () => null);
+    const invite = vi.fn(async (gid: string, to: string) => { void gid; void to; return { ok: true }; });
+    LIVE.social.inviteToGroup = invite;
+    LIVE.social.groups = () => [{ ...DUO, memberUids: ["u_me"] }];
+    render(<LiveDuelPanel mode="duo" />);
+
+    fireEvent.change(screen.getByPlaceholderText(/their-handle/i), { target: { value: "ghost" } });
+    fireEvent.click(screen.getByRole("button", { name: /^Invite$/ }));
+    expect(await screen.findByText(/No account is @ghost/i)).toBeTruthy();
+    expect(invite, "an unresolved handle still sent an invitation").not.toHaveBeenCalled();
+  });
+
+  it("will not send a handle the server would refuse", () => {
+    LIVE.social.groups = () => [{ ...DUO, memberUids: ["u_me"] }];
+    render(<LiveDuelPanel mode="duo" />);
+    const field = screen.getByPlaceholderText(/their-handle/i);
+    const btn = () => screen.getByRole("button", { name: /^Invite$/ }) as HTMLButtonElement;
+    expect(btn().disabled, "empty handle was sendable").toBe(true);
+    fireEvent.change(field, { target: { value: "ab" } });
+    expect(btn().disabled).toBe(true);
+    expect(screen.getByText(/at least 3 characters/i)).toBeTruthy();
+    fireEvent.change(field, { target: { value: "ada" } });
+    expect(btn().disabled).toBe(false);
+  });
+});
+
+describe("LiveDuelPanel · the invitation inbox", () => {
+  const INV = { gid: "g_new", groupName: "The Crew", mode: "duo", from: "u_ada", fromName: "Ada", at: 2 };
+
+  it("names who asked and what for, and offers both answers", () => {
+    LIVE.social.invites = () => [INV];
+    render(<LiveDuelPanel mode="duo" />);
+    expect(screen.getByText(/Ada wants to play The Crew with you/i)).toBeTruthy();
+    expect(screen.getByRole("button", { name: /^Accept$/ })).toBeTruthy();
+    expect(screen.getByRole("button", { name: /^Decline$/ })).toBeTruthy();
+  });
+
+  it("shows only the invitations for the mode you are looking at", () => {
+    // A 1v1 challenge in the group tab reads as a circle you were added
+    // to, which is a different thing being asked of you.
+    LIVE.social.invites = () => [INV];
+    render(<LiveDuelPanel mode="group" />);
+    expect(screen.queryByText(/Ada wants to play/i)).toBeNull();
+  });
+
+  it("accept and decline each go to their own callable", async () => {
+    const accept = vi.fn(async () => ({ gid: "g_new", name: "The Crew" }));
+    const decline = vi.fn(async () => ({ ok: true }));
+    LIVE.social.invites = () => [INV];
+    LIVE.social.acceptInvite = accept;
+    LIVE.social.declineInvite = decline;
+
+    render(<LiveDuelPanel mode="duo" />);
+    fireEvent.click(screen.getByRole("button", { name: /^Accept$/ }));
+    await waitFor(() => expect(accept).toHaveBeenCalledWith("g_new"));
+    cleanup();
+
+    render(<LiveDuelPanel mode="duo" />);
+    fireEvent.click(screen.getByRole("button", { name: /^Decline$/ }));
+    await waitFor(() => expect(decline).toHaveBeenCalledWith("g_new"));
+    // Decline writes nothing back to the inviter — no "declined" state
+    // exists to write. Asserted as the absence of a second call, because
+    // the shape a well-meaning future edit takes is telling them.
+    expect(accept).toHaveBeenCalledTimes(1);
+  });
+
+  it("draws nothing at all when nobody has invited you", () => {
+    LIVE.social.invites = () => [];
+    render(<LiveDuelPanel mode="duo" />);
+    expect(screen.queryByText(/invitation/i)).toBeNull();
   });
 });
